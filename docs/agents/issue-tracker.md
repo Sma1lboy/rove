@@ -22,7 +22,7 @@ Read the file at the referenced path. The user will normally pass the path or th
 
 This repo has two other tracking surfaces that this file does NOT replace:
 
-- **Daemon issue store** (`rove api issue-*`, web Issues page) — the product backlog, per [`../WORK-TRACKING.md`](../WORK-TRACKING.md). Long-lived "we should do X" items still belong there.
+- **Daemon issue store** (`rove api issue-*`) — the product backlog, per [`../WORK-TRACKING.md`](../WORK-TRACKING.md). Long-lived "we should do X" items still belong there.
 - **GitHub Issues** — inbound end-user bug reports only (e.g. #192). Never file agent work items there automatically.
 
 `.scratch/` is the working layer for skill-driven feature flows (PRD → issues → QA within a session/feature). When a `.scratch` issue graduates into durable backlog, move it to the daemon store.

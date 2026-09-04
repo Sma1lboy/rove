@@ -88,8 +88,14 @@ export const en = {
     gitAction: "install git with your OS package manager",
     /** No engine has both a CLI binary and an account */
     noEngine: "no usable engine — no engine CLI is both installed and logged in",
-    /** The manual action for {@link noEngine} */
+    /** The manual action for {@link noEngine}: nothing is installed at all */
     noEngineAction: "install an engine CLI (claude, codex, copilot, or kimi) and log in",
+    /** An engine CLI IS installed — only the login is missing */
+    noEngineLogin: "no usable engine — an engine CLI is installed but not signed in",
+    /** The manual action for {@link noEngineLogin}. `{list}` is the installed
+     *  engine CLIs; telling this user to install one would point at a binary
+     *  whose absolute path doctor printed two lines above. */
+    noEngineLoginAction: "run one of the installed engine CLIs ({list}) in a shell and complete its login",
     /** Windows only: no node, so the PTY host cannot start */
     windowsNode: "Node.js is missing — the Windows PTY host cannot start",
     /** The manual action for {@link windowsNode} */
@@ -149,6 +155,8 @@ export const zh: typeof en = {
     gitAction: "用你的系统包管理器安装 git",
     noEngine: "没有可用引擎 — 没有任何引擎 CLI 同时满足已安装且已登录",
     noEngineAction: "安装任一引擎 CLI（claude、codex、copilot 或 kimi）并登录",
+    noEngineLogin: "没有可用引擎 — 引擎 CLI 已安装, 但没有登录",
+    noEngineLoginAction: "在 shell 里运行已安装的引擎 CLI（{list}）之一并完成登录",
     windowsNode: "缺少 Node.js — Windows PTY host 无法启动",
     windowsNodeAction: "从 https://nodejs.org 安装 Node.js",
     staleBun: "运行 Rove 的 Bun 版本低于本构建的要求 — 终端不会有任何输出",

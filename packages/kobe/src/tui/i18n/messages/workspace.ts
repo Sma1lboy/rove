@@ -33,8 +33,11 @@ export const en = {
     stepHelp: "shows every shortcut reachable from the current focus",
     /** {key} is the live prefix chord */
     stepPrefix: "opens the command menu",
-    /** {list} is the detected engine CLIs, e.g. "claude · codex" */
+    /** {list} is the engine CLIs that are installed AND signed in */
     enginesFound: "✓ engines: {list}",
+    /** {list} is the installed-but-logged-out engine CLIs. The common cold state:
+     *  the CLI is there, so "install one" would be wrong advice. */
+    enginesSignedOut: "✗ installed but not signed in: {list} — run one of them in a shell and log in",
     enginesMissing: "✗ no engine CLI found — install claude, codex, copilot, or kimi, then restart Rove",
     gitMissing: "✗ git not found on PATH — Rove needs git to create worktrees",
     doctorHint: "run `rove doctor` in a shell for the full diagnosis",
@@ -98,6 +101,7 @@ export const zh: typeof en = {
     stepHelp: "查看当前焦点下的全部快捷键",
     stepPrefix: "打开命令菜单",
     enginesFound: "✓ 已检测到引擎:{list}",
+    enginesSignedOut: "✗ 已安装但未登录:{list}——请在 shell 里运行其中之一并完成登录",
     enginesMissing: "✗ 未找到引擎 CLI——请安装 claude、codex、copilot 或 kimi 后重启 Rove",
     gitMissing: "✗ PATH 上没有 git——Rove 需要 git 来创建 worktree",
     doctorHint: "在 shell 里运行 `rove doctor` 查看完整诊断",

@@ -72,6 +72,7 @@ export function stubRuntime(overrides: Partial<ApiRuntime> = {}): ApiRuntime {
       throw new Error("deliverPrompt should not run in this test")
     },
     resolveRepoRoot: async (path) => path,
+    isUsableRepo: async () => true,
     defaultVendor: async () => undefined,
     readWorktreeChanges: async () => ({ added: 0, deleted: 0 }),
     readBranchSignals: async () => ({ baseRef: null, ahead: null, behind: null, diff: null }),

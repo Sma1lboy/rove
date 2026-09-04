@@ -31,6 +31,7 @@ import {
   engineTabsManualFix,
   humanOnlyFix,
   killOrphansManualFix,
+  noEngineFix,
   reinstallManualFix,
   resetManualFix,
   skillInstallFix,
@@ -188,7 +189,7 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
   const git = await probeGit()
   if (!git.found) fixes.push(humanOnlyFix("git"))
   const engines = await probeEngines()
-  if (!engines.anyUsable) fixes.push(humanOnlyFix("noEngine"))
+  if (!engines.anyUsable) fixes.push(noEngineFix(engines.signedOut))
   // Can this process still re-exec itself? A `bun`/`node` process holds its
   // entry open by inode, so uninstalling Rove out from under a running one
   // leaves it alive on a path that is gone — it keeps working until it needs
@@ -296,10 +297,16 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
       )
     }
   } else {
-    // Both PTY-host failure shapes end in `reset` (TROUBLESHOOTING: "If the
-    // PTY host itself is wedged"), which kills live sessions — print-only.
-    await appendUnavailableProcess(out, "pty host", defaultPtyHostPidPath(), ptySocket)
-    fixes.push(resetManualFix(CLI_NAME, "resetPty"))
+    // Only a WEDGED host is a finding. The PTY host is started on demand by
+    // the first task tab, so "no pidfile, no socket" is the normal state of
+    // every home where no tab has opened yet — including a brand-new install.
+    // Proposing `reset` there told a first-time user their install was damaged
+    // and pointed them at the one command that is documented as not undoable
+    // and as killing every live session. The daemon branch above already reads
+    // this same verdict; this one used to discard it.
+    const ptyState = await appendUnavailableProcess(out, "pty host", defaultPtyHostPidPath(), ptySocket)
+    if (ptyState === "wedged") fixes.push(resetManualFix(CLI_NAME, "resetPty"))
+    else out.push("         starts on demand — the first task tab launches it; nothing to fix")
   }
   // Windows runs the PTY host under node (Bun has no PTY there). A kobe
   // installed with `bun install -g` may have no node at all, and the only

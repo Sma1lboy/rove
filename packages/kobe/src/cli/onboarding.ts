@@ -24,6 +24,7 @@ import { basename, join } from "node:path"
 import { isNpxMissing, markSkillHintSeen, npxSkillsArgv, npxSkillsCommand } from "../lib/skill-install.ts"
 import { getPersistedBool, loadStateFile, setPersistedBool } from "../state/store.ts"
 import { t } from "../tui/i18n"
+import { noEngineAction } from "./doctor-fix.ts"
 import { type OnboardingEnvReport, checkOnboardingEnv } from "./env-checks.ts"
 import { activeCliName } from "./rename-compat.ts"
 import { LAST_RUN_VERSION_KEY } from "./reset-gate.ts"
@@ -166,7 +167,10 @@ export function applyOnboardingChoices(
     out(t("onboarding.readyHint", { command: cli }))
   } else {
     out(t("onboarding.notReadyHeader"))
-    if (!env.engines.anyUsable) out(`  → ${t("doctor.fix.noEngineAction")}`)
+    // Same branch `rove doctor` takes (noEngineFix): the banner prints each
+    // installed CLI's absolute path immediately above, so "install one" there
+    // would answer a question the user did not ask.
+    if (!env.engines.anyUsable) out(`  → ${noEngineAction(env.engines.signedOut)}`)
     if (!env.git.found) out(`  → ${t("doctor.fix.gitAction")}`)
   }
 }

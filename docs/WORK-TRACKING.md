@@ -34,7 +34,7 @@ common-dir, so the source checkout and its worktrees share one issue record:
 
 - **`status`**: `open` → `doing` → `done`, plus `hold` for issues parked on purpose (waiting on a decision, blocked, deliberately deferred). `hold` is a parking lot, not a lifecycle step. Resume by flipping back to `open`. Held issues stay visible in the active file like every other status. Status is still the only dimension; don't add label/type fields.
 - **`id`**: take `nextId`, then increment `nextId`. Ids are never reused.
-- **Adding**: use the web Issues page or `rove api issue-create --repo <path> --title ...`. The daemon stores the repo's issue record under the repo's git common-dir, so a source checkout and its task worktrees share the same issues.
+- **Adding**: `rove api issue-create --repo <path> --title ...`. The daemon stores the repo's issue record under the repo's git common-dir, so a source checkout and its task worktrees share the same issues.
 - **Closing**: flip `status` to `done`. Done issues stay visible in the Done column until a future archive/export flow exists.
 - **Agent automation**: use `rove api issue-list`, `rove api issue-create`, `rove api issue-set-status`, and `rove api issue-update`. From a task worktree, `--repo .` resolves to the same daemon issue record as the source checkout.
 

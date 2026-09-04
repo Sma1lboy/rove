@@ -8,6 +8,7 @@ import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { ApiError, type ApiRuntime, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
+import { homeDir } from "../../src/env.ts"
 import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 // Peer provenance AND dispatcher provenance both key off the caller's own
@@ -38,7 +39,33 @@ describe("add handler", () => {
     const result = await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })
     expect(client.requestNames).toEqual(["task.create"])
     expect(client.requests[0].payload).toEqual({ repo: "/repo/x" })
-    expect(result).toEqual({ taskId: "t1", task, started: false })
+    expect(result).toEqual({ taskId: "t1", task, home: homeDir(), started: false })
+  })
+
+  it("refuses a --repo that is not a git repository instead of succeeding emptily", async () => {
+    // A task IS a worktree + branch, so a non-repo has nothing to cut one
+    // from. This used to return `ok: true` with an empty branch and an empty
+    // worktreePath, and the row persisted — the failure surfaced much later,
+    // when someone opened it and landed on an empty path.
+    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
+    await expect(
+      invokeVerb("add", ["--repo", "/plain/dir"], {
+        client,
+        runtime: stubRuntime({ isUsableRepo: async () => false }),
+      }),
+    ).rejects.toThrow(/not a git repository/)
+    // Nothing was created.
+    expect(client.requestNames).toEqual([])
+  })
+
+  it("names the home it wrote to, so a collapsed isolation is visible in a success", async () => {
+    // Four fan-out tasks once landed in a production `~/.rove` behind
+    // `failures: []` because the payload never said where it had written.
+    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
+    const result = (await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })) as {
+      home: string
+    }
+    expect(result.home).toBe(homeDir())
   })
 
   it("sets active only when requested", async () => {

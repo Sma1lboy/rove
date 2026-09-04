@@ -18,7 +18,9 @@
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
+import { homeDir } from "../../env.ts"
 import { ulid } from "../../orchestrator/index/ulid.ts"
+import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
 import type { TaskStatus } from "../../types/task.ts"
 import { DEFAULT_VENDOR, type VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
@@ -71,6 +73,20 @@ async function applyPostCreateFlags(daemon: DaemonRpc, taskId: string, args: Ver
 export async function add(ctx: VerbContext): Promise<unknown> {
   const { args, runtime } = ctx
   const repo = await runtime.resolveRepoRoot(args.requireRepo("repo"))
+  // A task's isolation unit is a git worktree + branch, so a `--repo` that is
+  // not a git repo has nothing to cut one from. Without this the create
+  // SUCCEEDS: `resolveRepoRoot` falls back to the path verbatim, the row
+  // persists with an empty branch and an empty worktreePath, and the caller
+  // gets `ok: true`. The failure surfaces minutes later when someone opens the
+  // row and lands on an empty path — by which point nothing points back at the
+  // argument that caused it.
+  if (!(await runtime.isUsableRepo(repo))) {
+    throw new ApiError(
+      `--repo ${repo} is not a git repository — a task needs one to cut its worktree and branch from (run \`git init\` there, or point --repo at a checkout)`,
+      "NOT_A_REPO",
+      helpStep("add"),
+    )
+  }
   const count = args.int("count")
   const agentsSpec = args.str("agents")
   if (count !== undefined || agentsSpec) return addParallel(ctx, repo, count, agentsSpec)
@@ -90,7 +106,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   // sub-task's bare `send` routes its outcome back to.
   const choice = await engineChoice(ctx, repo)
   const payload: Record<string, string> = { repo, ...(await dispatcherEnvPayload()), ...enginePayload(choice) }
-  const title = args.str("title")
+  const title = args.str("title") || (prompt ? deriveTitleFromPrompt(prompt) : "")
   if (title) payload.title = title
   const branch = args.str("branch")
   if (branch) payload.branch = branch
@@ -111,7 +127,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
   }
 
-  if (!prompt) return { taskId, task, started: false }
+  if (!prompt) return { taskId, task, home: homeDir(), started: false }
   // Same provenance prefix `send` carries: a task created from inside another
   // kobe session is agent-to-agent, and its opening brief is where the reply
   // address matters most — every report this task ever sends goes back through
@@ -160,6 +176,11 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   return {
     taskId,
     task,
+    // The home this create actually wrote to. A success payload that never
+    // names its destination cannot be wrong about it — a collapsed isolation
+    // override reads identically to the intended one, which is how four
+    // fan-out tasks once landed in a production `~/.rove` with `failures: []`.
+    home: homeDir(),
     started: delivered.started,
     engineReady: delivered.engineReady,
     session: delivered.session,
@@ -237,7 +258,14 @@ async function addParallel(
       )
     }
   }
-  const title = args.str("title")
+  // No --title: seed from the prompt we are about to deliver. Without this a
+  // fan-out lands N rows all called `(new task)` — which is what QUICKSTART's
+  // own example produces, at exactly the step that tells the reader to compare
+  // the attempts. The daemon's auto-title pass only renames tasks still
+  // carrying the placeholder, so a seeded title is final; that is the right
+  // outcome, since it derives from the same first user message that pass would
+  // have read back out of the transcript minutes later.
+  const title = args.str("title") || deriveTitleFromPrompt(prompt)
   const baseRef = args.str("base-branch")
 
   // `--agents` names engines per sibling; `--count` repeats ONE engine, which
@@ -364,7 +392,7 @@ async function addParallel(
   if (createFailure) failures.push({ ok: false, vendor: createFailure.vendor, error: createFailure.error })
   await Promise.all(persistedPrompts)
 
-  const result = { count: created.length, requested: plan.length, groupId, tasks, failures }
+  const result = { count: created.length, requested: plan.length, groupId, home: homeDir(), tasks, failures }
   // Partial (or total) create/delivery failure must not exit 0 — carry the
   // whole result (created taskIds included) up so the dispatcher emits it to
   // stdout + exits 3.

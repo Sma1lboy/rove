@@ -28,8 +28,22 @@ import { useT } from "../i18n"
 import { bootPaneHost } from "../lib/host-boot"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 
-/** header(2) + blank + answered(2) + env title/explain + git + ~5 engine rows + verdict + legend + slack */
-const INLINE_ROWS = 20
+/**
+ * Inline height for the wizard, derived from the ENGINE BLOCK it will actually
+ * print rather than guessed.
+ *
+ * Everything but that block is fixed: header(2) + blank + answered(2) + env
+ * title/explain + blank + git + blank + verdict + blank + legend = 13, plus 2
+ * rows of slack. The engine block is not: it is one row per registered engine
+ * (plus an `⚠` row for any account error), and once the contrib catalog joined
+ * the probe a normal machine reached seven. The old flat 20 budgeted "~5
+ * engine rows", and one row over it the terminal scrolls and the inline
+ * renderer repaints over stale cells — a visibly corrupted first screen.
+ * `env.engines.lines` IS the rendered array, so this cannot drift from it.
+ */
+function inlineRowsFor(env: OnboardingEnvReport): number {
+  return 15 + env.engines.lines.length
+}
 
 type StepId = "completions" | "skill"
 type WizardPageKind = "questions" | "env" | "keys"
@@ -211,7 +225,7 @@ export async function runOnboardingWizard(
 ): Promise<OnboardingChoices> {
   return await new Promise<OnboardingChoices>((resolve) => {
     void bootPaneHost({
-      inlineRows: INLINE_ROWS,
+      inlineRows: inlineRowsFor(env),
       setup: () => ({ root: () => <WizardPage shell={shell} env={env} mode={mode} onDone={resolve} /> }),
     })
   })

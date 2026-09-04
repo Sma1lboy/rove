@@ -52,6 +52,7 @@ function stubRuntime(): ApiRuntime {
       throw new Error("deliverPrompt should not run in this test")
     },
     resolveRepoRoot: async (p) => p,
+    isUsableRepo: async () => true,
     defaultVendor: async () => undefined,
     readWorktreeChanges: async () => ({ added: 0, deleted: 0 }),
     readBranchSignals: async () => ({ baseRef: null, ahead: null, behind: null, diff: null }),
