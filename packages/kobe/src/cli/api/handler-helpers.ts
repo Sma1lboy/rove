@@ -15,6 +15,58 @@ export function daemonOf(ctx: VerbContext): DaemonRpc {
   return ctx.client
 }
 
+/**
+ * A `--repo` filter that says what it could not resolve instead of quietly
+ * answering "not this repo".
+ *
+ * `resolveRepoRoot` returns its INPUT unchanged when git cannot answer, so a
+ * repo that moved (or became unreadable) compares unequal against every
+ * spelling — including its own recorded one, because the stored `task.repo`
+ * is the canonicalized form and a freshly typed path no longer gets
+ * canonicalized by git. Filtering on that comparison alone rendered "I cannot
+ * tell" as `{"tasks": []}`: the same answer a project with nothing running
+ * gives, and the answer a coordinator reads as "this round is empty".
+ *
+ * So there are two honest outcomes, both louder than an empty list:
+ *   - the TARGET does not resolve — the caller named a path that is not a
+ *     readable repo, which is an error about their own argument; and
+ *   - some TASK repos do not resolve — reported in `unresolvableRepos`
+ *     beside the answer, the same null-versus-empty shape
+ *     `discover-adoptable` keeps for `unreadable`.
+ *
+ * Each distinct path is resolved once (the old code re-shelled out to git per
+ * task).
+ */
+export async function repoFilter(
+  runtime: VerbContext["runtime"],
+  repoFlag: string,
+  repos: Iterable<string>,
+): Promise<{
+  readonly target: string
+  readonly matches: (repo: string) => boolean
+  readonly unresolvableRepos: readonly string[]
+}> {
+  const target = await runtime.resolveRepoRoot(repoFlag)
+  if (!(await runtime.isUsableRepo(target))) {
+    throw new ApiError(
+      `--repo ${repoFlag} is not a readable git repository (resolved to ${target}) — the project may have moved or been deleted; \`rove api list\` still shows its tasks`,
+      "REPO_UNRESOLVABLE",
+    )
+  }
+  const resolved = new Map<string, string>()
+  const unresolvable = new Set<string>()
+  for (const repo of new Set(repos)) {
+    const root = await runtime.resolveRepoRoot(repo)
+    resolved.set(repo, root)
+    if (root !== target && !(await runtime.isUsableRepo(root))) unresolvable.add(repo)
+  }
+  return {
+    target,
+    matches: (repo) => resolved.get(repo) === target,
+    unresolvableRepos: [...unresolvable].sort(),
+  }
+}
+
 /** Fire one daemon RPC and return its raw payload (the generic CRUD shape). */
 export async function simpleRpc(ctx: VerbContext, name: string, payload: Record<string, unknown>): Promise<unknown> {
   // biome-ignore lint/suspicious/noExplicitAny: the protocol's request name is a finite union; this is the one generic call site.

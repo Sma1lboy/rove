@@ -35,9 +35,14 @@ afterEach(() => {
 })
 
 describe("remoteRepoKey / isRemoteRepoKey", () => {
-  it("encodes ssh://user@host[:port] and round-trips through resolveRepoRoot", () => {
+  it("encodes ssh://user@host[:port][/basePath] and round-trips through resolveRepoRoot", () => {
     expect(remoteRepoKey("box", "dev", 2222)).toBe("ssh://dev@box:2222")
     expect(remoteRepoKey("box", "dev")).toBe("ssh://dev@box")
+    // The base path is part of the identity: it is the only thing that tells
+    // two projects on one host+user apart.
+    expect(remoteRepoKey("box", "dev", 2222, "/srv/work")).toBe("ssh://dev@box:2222/srv/work")
+    expect(remoteRepoKey("box", "dev", undefined, "srv/work")).toBe("ssh://dev@box/srv/work")
+    expect(remoteRepoKey("box", "dev", undefined, "/srv/work/")).toBe("ssh://dev@box/srv/work")
     expect(isRemoteRepoKey("ssh://dev@box")).toBe(true)
     expect(isRemoteRepoKey("/Users/dev/proj")).toBe(false)
     // resolveRepoRoot must NOT canonicalize a remote key (no local path to ask git about).
@@ -54,18 +59,58 @@ describe("addRemoteRepo", () => {
       basePath: "/srv/work",
       auth: { kind: "key", keyPath: "/home/dev/.ssh/id" },
     })
-    expect(key).toBe("ssh://dev@box:2222")
+    expect(key).toBe("ssh://dev@box:2222/srv/work")
     expect(added).toBe(true)
-    expect(getSavedRepos()).toContain("ssh://dev@box:2222")
+    expect(getSavedRepos()).toContain("ssh://dev@box:2222/srv/work")
     expect(getRemoteRepoConfig(key)?.basePath).toBe("/srv/work")
   })
 
-  it("is idempotent on savedRepos but overwrites the config", () => {
+  it("is idempotent for the same base path", () => {
     addRemoteRepo({ host: "box", user: "dev", basePath: "/a", auth: { kind: "key" } })
-    const second = addRemoteRepo({ host: "box", user: "dev", basePath: "/b", auth: { kind: "key" } })
+    const second = addRemoteRepo({ host: "box", user: "dev", basePath: "/a", auth: { kind: "key" } })
     expect(second.added).toBe(false)
-    expect(getSavedRepos().filter((r) => r === "ssh://dev@box")).toHaveLength(1)
-    expect(getRemoteRepoConfig("ssh://dev@box")?.basePath).toBe("/b")
+    expect(getSavedRepos().filter((r) => r === "ssh://dev@box/a")).toHaveLength(1)
+  })
+
+  // Two repos on one host+user are two projects. Keying without the base path
+  // made the second registration overwrite the first's config in place and
+  // report it as "updated remote project" — the user asked for a second
+  // project and silently lost the first, and repoA's tasks then resolved
+  // their worktree root under repoB.
+  it("keeps two projects on one host+user distinct", () => {
+    const a = addRemoteRepo({ host: "box", user: "dev", basePath: "/a", auth: { kind: "key" } })
+    const b = addRemoteRepo({ host: "box", user: "dev", basePath: "/b", auth: { kind: "key" } })
+    expect(a.added).toBe(true)
+    expect(b.added).toBe(true)
+    expect(a.key).not.toBe(b.key)
+    expect(getRemoteRepoConfig(a.key)?.basePath).toBe("/a")
+    expect(getRemoteRepoConfig(b.key)?.basePath).toBe("/b")
+    expect(getSavedRepos().filter((r) => r.startsWith("ssh://dev@box"))).toHaveLength(2)
+  })
+
+  // A project registered before the key carried its base path keeps its
+  // pathless key — its tasks store that string as `task.repo`, so minting the
+  // new key would strand them behind a second, config-less sidebar row.
+  it("updates a legacy pathless registration in place", () => {
+    mkdirSync(dirname(kvStatePath()), { recursive: true })
+    writeFileSync(
+      kvStatePath(),
+      JSON.stringify({
+        savedRepos: ["ssh://dev@box"],
+        remoteRepos: { "ssh://dev@box": { host: "box", user: "dev", basePath: "/srv", auth: { kind: "key" } } },
+      }),
+      "utf8",
+    )
+    const { key, added } = addRemoteRepo({
+      host: "box",
+      user: "dev",
+      basePath: "/srv",
+      auth: { kind: "password", keychainRef: { service: "s", account: "a" } },
+    })
+    expect(key).toBe("ssh://dev@box")
+    expect(added).toBe(false)
+    expect(getSavedRepos()).toEqual(["ssh://dev@box"])
+    expect(getRemoteRepoConfig("ssh://dev@box")?.auth.kind).toBe("password")
   })
 })
 
@@ -96,8 +141,8 @@ describe("execHostForRepo", () => {
   })
 
   it("returns a RemoteExecHost for a registered remote key", () => {
-    addRemoteRepo({ host: "box", user: "dev", basePath: "/srv", auth: { kind: "key" } })
-    expect(execHostForRepo("ssh://dev@box").isRemote).toBe(true)
+    const { key } = addRemoteRepo({ host: "box", user: "dev", basePath: "/srv", auth: { kind: "key" } })
+    expect(execHostForRepo(key).isRemote).toBe(true)
   })
 
   it("falls back to local for an ssh:// key with no stored config", () => {
@@ -109,15 +154,15 @@ describe("execHostForRepo", () => {
   // instead of paying its sync ControlMaster `-O check` (see exec-host.ts)
   // on every git operation.
   it("caches the RemoteExecHost instance by controlPath across repeat calls", () => {
-    addRemoteRepo({ host: "box", user: "dev", basePath: "/srv", auth: { kind: "key" } })
-    const first = execHostForRepo("ssh://dev@box")
-    const second = execHostForRepo("ssh://dev@box")
+    const { key } = addRemoteRepo({ host: "box", user: "dev", basePath: "/srv", auth: { kind: "key" } })
+    const first = execHostForRepo(key)
+    const second = execHostForRepo(key)
     expect(second).toBe(first)
   })
 
   it("execHostForRepo and execHostForWorktreePath share the same cached instance", () => {
-    addRemoteRepo({ host: "box", user: "dev", basePath: "/srv/work", auth: { kind: "key" } })
-    const byRepo = execHostForRepo("ssh://dev@box")
+    const { key } = addRemoteRepo({ host: "box", user: "dev", basePath: "/srv/work", auth: { kind: "key" } })
+    const byRepo = execHostForRepo(key)
     const byPath = execHostForWorktreePath("/srv/work/kobe-task-1")
     expect(byPath).toBe(byRepo)
   })

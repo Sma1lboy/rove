@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process"
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
@@ -31,7 +31,10 @@ describe("daemon worktree adapter", () => {
 
   beforeAll(async () => {
     previousHome = process.env.KOBE_HOME_DIR
-    root = await mkdtemp(join(tmpdir(), "kobe-daemon-worktrees-"))
+    // realpath: macOS `os.tmpdir()` is a symlink (`/var` → `/private/var`), and
+    // savedRepos stores the repository's RESOLVED primary checkout — so a fixture
+    // built under the un-resolved spelling would compare unequal to what was saved.
+    root = await realpath(await mkdtemp(join(tmpdir(), "kobe-daemon-worktrees-")))
     process.env.KOBE_HOME_DIR = join(root, "home")
     repo = join(root, "repo")
     worktree = join(root, "feature")

@@ -121,6 +121,11 @@ rove adopt [glob] [--repo <path>] [--vendor <engine>] [--yes]
 `rove add` needs a real git repo. It creates the project's sidebar row and
 folds in any existing unlinked worktrees as tasks.
 
+Point it at a *linked* worktree and it saves the repository, not the worktree:
+one repo is one project, whichever of its checkouts you name. The folded-in
+worktrees never include the repository's own primary checkout — that is the
+project, not a disposable task.
+
 `rove adopt` scans the current repo by default; `--repo <path>` selects another
 one and `--vendor <engine>` chooses the engine recorded on imported tasks. With
 no glob it is a dry run that lists what it would import; pass a glob to filter
@@ -133,6 +138,10 @@ first) can register an SSH host and create task worktrees there:
 rove add --remote --host <host> --user <user> --path <basePath> \
          [--port N] [--key [path] | --password]
 ```
+
+A remote project is identified by host, user, port **and** `--path`, so two
+repositories on one host are two projects. A project registered before the
+base path was part of that identity keeps its original `ssh://user@host` key.
 
 Auth is either `--key` (ssh-agent when you omit the path) or `--password`.
 Password auth is **macOS-only today**: Rove prompts for it and stores only a
