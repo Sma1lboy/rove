@@ -293,7 +293,10 @@ describe("IssuesStore", () => {
  * `exists: true` and no warning anywhere.
  */
 describe("IssuesStore corrupt-record honesty", () => {
-  async function seed(entry: Record<string, unknown>, nextId: unknown): Promise<{ store: IssuesStore; repo: string }> {
+  async function seed(
+    entry: Record<string, unknown>,
+    nextId: unknown,
+  ): Promise<{ store: IssuesStore; repo: string; storePath: string }> {
     const repo = await realpath(await makeRepo())
     const dir = await mkdtemp(join(tmpdir(), "kobe-issues-corrupt-"))
     cleanups.push(dir)
@@ -311,7 +314,7 @@ describe("IssuesStore corrupt-record honesty", () => {
     raw.repos[key]!.issues[0] = { ...raw.repos[key]!.issues[0], ...entry }
     raw.repos[key]!.nextId = nextId
     await writeFile(storePath, JSON.stringify(raw), "utf8")
-    return { store, repo }
+    return { store, repo, storePath }
   }
 
   it("counts an unreadable entry instead of reporting the survivors as the whole board", async () => {
@@ -342,6 +345,50 @@ describe("IssuesStore corrupt-record honesty", () => {
     const created = await store.mutate(repo, { type: "create", title: "collision probe" })
     expect(created.issues[0]?.id).toBe(3)
     expect(new Set(created.issues.map((issue) => issue.id)).size).toBe(created.issues.length)
+  })
+
+  it("keeps an unreadable entry on disk across an unrelated mutation", async () => {
+    // The warning used to document a recovery window one mutation wide: the
+    // read counted issue "2" into `skipped`, then the next whole-file write
+    // re-emitted only what it had parsed and the story was gone for good.
+    const { store, repo, storePath } = await seed({ id: "2" }, 3)
+    await store.mutate(repo, { type: "setStatus", id: 1, status: "done" })
+    const onDisk = JSON.parse(await readFile(storePath, "utf8")) as {
+      repos: Record<string, { issues: { id: unknown }[] }>
+    }
+    const ids = Object.values(onDisk.repos)[0]!.issues.map((issue) => issue.id)
+    expect(ids).toContain("2")
+    // …and the read still says so, rather than going quiet now that the write
+    // "cleaned up".
+    await expect(store.list(repo)).resolves.toMatchObject({ skipped: 1 })
+  })
+
+  it("refuses to write over a record whose `issues` is an object, and never calls it skipped: 0", async () => {
+    const repo = await realpath(await makeRepo())
+    const dir = await mkdtemp(join(tmpdir(), "kobe-issues-object-"))
+    cleanups.push(dir)
+    const storePath = join(dir, "issues.json")
+    const store = new IssuesStore(storePath)
+    await store.mutate(repo, { type: "create", title: "ship the thing" })
+    await store.mutate(repo, { type: "create", title: "second story" })
+    const raw = JSON.parse(await readFile(storePath, "utf8")) as {
+      repos: Record<string, { issues: unknown }>
+    }
+    const key = Object.keys(raw.repos)[0]!
+    const before = raw.repos[key]!.issues as { id: number }[]
+    // A map keyed by id — the shape a hand-edit or an older writer leaves.
+    raw.repos[key]!.issues = Object.fromEntries(before.map((issue) => [String(issue.id), issue]))
+    await writeFile(storePath, JSON.stringify(raw), "utf8")
+
+    // `skipped: 0` is the one value the field documents as "you have it all",
+    // and the object branch used to report exactly that after dropping both.
+    await expect(store.list(repo)).resolves.toMatchObject({ skipped: 2 })
+    // The next create used to persist the emptiness. Now it refuses by name.
+    await expect(store.mutate(repo, { type: "create", title: "would erase two" })).rejects.toThrow(
+      "ISSUE_STORE_UNREADABLE",
+    )
+    const after = JSON.parse(await readFile(storePath, "utf8")) as { repos: Record<string, { issues: unknown }> }
+    expect(after.repos[key]!.issues).toEqual(raw.repos[key]!.issues)
   })
 
   it("counts an unusable id toward the next allocation, so the fallback cannot reuse it", async () => {
