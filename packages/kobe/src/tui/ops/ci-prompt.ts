@@ -33,7 +33,7 @@ export interface CIPromptState {
   readonly totalFailing?: number
 }
 
-export const DEFAULT_CI_PROMPT_TEMPLATE = `CI is failing on this branch and the user wants it green.
+const DEFAULT_CI_PROMPT_TEMPLATE = `CI is failing on this branch and the user wants it green.
 
 The current branch is {{branch}}.
 {{prSentence}}
