@@ -16,6 +16,7 @@
  */
 
 import { spawnSync } from "node:child_process"
+import { DEFAULT_BASE_REF_CANDIDATES } from "@sma1lboy/kobe-daemon/daemon/worktree-probe"
 import { readOnlyGitProcessEnv } from "../../lib/git-env.ts"
 
 export interface BranchSignals {
@@ -98,7 +99,7 @@ function baseCheckoutBranch(worktreePath: string): string | null {
  */
 export function resolveBaseRef(worktreePath: string): string | null {
   const head = git(worktreePath, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])
-  for (const guess of [...(head ? [head] : []), "origin/main", "origin/master", "main", "master"]) {
+  for (const guess of [...(head ? [head] : []), ...DEFAULT_BASE_REF_CANDIDATES]) {
     if (git(worktreePath, ["rev-parse", "--verify", "--quiet", guess]) === null) continue
     if (sharesHistory(worktreePath, guess)) return guess
   }
