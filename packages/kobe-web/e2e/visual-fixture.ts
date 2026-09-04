@@ -102,6 +102,13 @@ export const VISUAL_PTY_COMMAND = `${[
   "KOBE_TASK_ID=",
   "ROVE_TAB_ID=",
   "KOBE_TAB_ID=",
+  // Opt-in PATH override for capturing the "nothing installed" states. Only
+  // the contrib engines resolve through `Bun.which`, so a stripped PATH is the
+  // one lever that hides them; the built-ins have their own finders and stay
+  // visible as installed-but-not-logged-in, which is what the onboarding
+  // wizard's not-ready verdict needs. Absent by default — a fixture with no
+  // engines is not the state most journeys want.
+  ...(process.env.KOBE_VISUAL_MIN_PATH ? [`PATH=${process.env.KOBE_VISUAL_MIN_PATH}`] : []),
 ].join(" ")} bun run dev:sandbox`
 
 /** Bump when the fixture shape changes so warm reuse rebuilds. */
