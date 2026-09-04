@@ -111,10 +111,19 @@ export function auditDeletionFailed(taskId: string, task: DaemonTask | undefined
  * lost work, so the commands ship with it. `repo` scopes them with `-C` when
  * known (a task carries its repo; a bare worktree path does not).
  */
-function recoveryText(ref: string, commit: string, repo?: string): string {
+function recoveryText(ref: string, commit: string, repo?: string, uncaptured: readonly string[] = []): string {
   const at = repo ? ` -C ${repo}` : ""
+  // A submodule or nested worktree is in the tree as a `160000` gitlink — a
+  // commit SHA, never the files — so `git restore --source` cannot produce
+  // anything under it. Naming those paths is the difference between advice
+  // that works and advice that fails silently on the one path the user cares
+  // about most.
+  const gap =
+    uncaptured.length > 0
+      ? ` NOT captured (submodule / nested worktree — the snapshot holds only a commit pointer): ${uncaptured.join(", ")}.`
+      : ""
   return (
-    `uncommitted work saved to ${ref} (${commit}). Recover with: ` +
+    `uncommitted work saved to ${ref} (${commit}).${gap} Recover with: ` +
     `git${at} show ${ref}  |  git${at} restore --source=${ref} -- <path>  |  ` +
     `list all: git${at} for-each-ref refs/rove/salvage`
   )
@@ -129,8 +138,14 @@ function recoveryText(ref: string, commit: string, repo?: string): string {
  * is exactly how this log reads. Finding the snapshot from a bare git ref
  * listing would instead require already knowing that it exists.
  */
-export function auditDeletionSalvaged(taskId: string, ref: string, commit: string, repo?: string): void {
-  logDaemonInfo(SUBSYSTEM, `salvaged task ${taskId} — ${recoveryText(ref, commit, repo)}`)
+export function auditDeletionSalvaged(
+  taskId: string,
+  ref: string,
+  commit: string,
+  repo?: string,
+  uncaptured: readonly string[] = [],
+): void {
+  logDaemonInfo(SUBSYSTEM, `salvaged task ${taskId} — ${recoveryText(ref, commit, repo, uncaptured)}`)
 }
 
 /**
@@ -139,8 +154,13 @@ export function auditDeletionSalvaged(taskId: string, ref: string, commit: strin
  * lines: this is the same class of loss, and a user searching `daemon.log`
  * for their vanished work should not have to know which UI destroyed it.
  */
-export function auditWorktreeSalvaged(worktreePath: string, ref: string, commit: string): void {
-  logDaemonInfo(SUBSYSTEM, `salvaged worktree ${worktreePath} — ${recoveryText(ref, commit)}`)
+export function auditWorktreeSalvaged(
+  worktreePath: string,
+  ref: string,
+  commit: string,
+  uncaptured: readonly string[] = [],
+): void {
+  logDaemonInfo(SUBSYSTEM, `salvaged worktree ${worktreePath} — ${recoveryText(ref, commit, undefined, uncaptured)}`)
 }
 
 /**

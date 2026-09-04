@@ -50,7 +50,10 @@ export interface OrchestratorDeps {
    *  destroying it. The daemon binds this to its deletion audit log; a TUI-
    *  local orchestrator leaves it unset and the snapshot is still findable
    *  via `git for-each-ref refs/rove/salvage`. */
-  readonly onSalvage?: (taskId: TaskId, salvage: { readonly ref: string; readonly commit: string }) => void
+  readonly onSalvage?: (
+    taskId: TaskId,
+    salvage: { readonly ref: string; readonly commit: string; readonly uncaptured: readonly string[] },
+  ) => void
   /** Called when a deletion's `git worktree remove` deregistered the worktree
    *  but could not delete its directory. The deletion still completes; this is
    *  the only record of the leftover, so the daemon binds it to the same audit

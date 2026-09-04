@@ -112,3 +112,61 @@ test("parseDuKb keeps paths that contain spaces intact", () => {
   expect(sizes.get("node_modules/")).toBe(1403144)
   expect(sizes.get("sp ace/")).toBe(8)
 })
+
+/**
+ * The case the size budget was written for, and the one the gate above it
+ * could not see: a worktree whose ONLY work is gitignored.
+ *
+ * `git status --porcelain` — the command both the delete gate and salvage's
+ * own early-return read — reports nothing here, so the removal took the clean
+ * path: no force, no confirm, and salvage returned before the `add -f` pass
+ * ever ran. The files were gone with no ref anywhere.
+ */
+test("an ignored-only worktree is refused without force, and force salvages the work", async () => {
+  const wt = path.join(tmpRoot, "ignored-only")
+  git(repo, "worktree", "add", "-q", wt, "-b", "ignored-only")
+
+  fs.writeFileSync(path.join(wt, "HANDOFF.md"), "a whole session of reasoning\n")
+  fs.mkdirSync(path.join(wt, ".scratch"), { recursive: true })
+  fs.writeFileSync(path.join(wt, ".scratch", "notes.md"), "design notes\n")
+
+  // The premise: to `git status` this worktree is spotlessly clean.
+  expect(git(wt, "status", "--porcelain")).toBe("")
+
+  const manager = new GitWorktreeManager()
+  await expect(manager.remove(wt)).rejects.toThrow(/gitignored work/)
+  // Refusing is only worth anything if the files are still there afterwards.
+  expect(fs.existsSync(path.join(wt, "HANDOFF.md"))).toBe(true)
+  expect(fs.existsSync(path.join(wt, ".scratch", "notes.md"))).toBe(true)
+
+  let salvaged: { ref: string } | null = null
+  await manager.remove(wt, {
+    force: true,
+    onSalvage: (record) => {
+      salvaged = record
+    },
+  })
+
+  expect(fs.existsSync(wt)).toBe(false)
+  const ref = (salvaged as unknown as { ref: string } | null)?.ref
+  expect(ref).toBeTruthy()
+  expect(git(repo, "show", `${ref}:HANDOFF.md`)).toBe("a whole session of reasoning\n")
+  expect(git(repo, "show", `${ref}:.scratch/notes.md`)).toBe("design notes\n")
+})
+
+/**
+ * The other side of the budget. The gate must refuse for exactly what the
+ * force retry would rescue — otherwise a worktree holding nothing but a
+ * dependency tree becomes undeletable without `--force`, which is ceremony
+ * around no work at all.
+ */
+test("an ignored tree over the size budget still deletes with no force", async () => {
+  const wt = path.join(tmpRoot, "bulk-only")
+  git(repo, "worktree", "add", "-q", wt, "-b", "bulk-only")
+  fs.mkdirSync(path.join(wt, "node_modules", "pkg"), { recursive: true })
+  fs.writeFileSync(path.join(wt, "node_modules", "pkg", "bundle.js"), Buffer.alloc(70 * 1024 * 1024))
+
+  expect(git(wt, "status", "--porcelain")).toBe("")
+  await new GitWorktreeManager().remove(wt)
+  expect(fs.existsSync(wt)).toBe(false)
+})

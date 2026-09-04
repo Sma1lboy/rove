@@ -137,3 +137,45 @@ test("an unforced removal of a clean worktree takes no snapshot", async () => {
 
   expect(called).toBe(false)
 })
+
+/**
+ * A snapshot that reports success while holding a POINTER instead of the work.
+ *
+ * `git add -A` stages a submodule (and a nested worktree) as a `160000`
+ * gitlink — its commit SHA, never its file contents. The ref was written, the
+ * audit line told the user to `git restore --source=<ref>`, and the file was
+ * in neither the tree nor the SHA the gitlink names. Silence about that is the
+ * failure; the record has to say which paths it could not take.
+ */
+test("a submodule's uncommitted work is reported as uncaptured, not silently missed", async () => {
+  const child = path.join(tmpRoot, "child")
+  fs.mkdirSync(child)
+  git(child, "init", "-q", ".")
+  git(child, "config", "user.email", "test@example.com")
+  git(child, "config", "user.name", "Test")
+  fs.writeFileSync(path.join(child, "c.txt"), "child\n")
+  git(child, "add", "-A")
+  git(child, "commit", "-qm", "child init")
+
+  git(repo, "-c", "protocol.file.allow=always", "submodule", "add", "-q", child, "vendor/child")
+  git(repo, "commit", "-qm", "add submodule")
+
+  const wt = path.join(tmpRoot, "sub")
+  git(repo, "worktree", "add", "-q", wt, "-b", "sub")
+  git(wt, "-c", "protocol.file.allow=always", "submodule", "update", "-q", "--init")
+  fs.writeFileSync(path.join(wt, "vendor", "child", "subwork.txt"), "SUBWORK\n")
+
+  let salvaged: { ref: string; uncaptured: readonly string[] } | null = null
+  await new GitWorktreeManager().remove(wt, {
+    force: true,
+    onSalvage: (record) => {
+      salvaged = record as typeof salvaged
+    },
+  })
+
+  const record = salvaged as unknown as { ref: string; uncaptured: readonly string[] } | null
+  expect(record?.ref).toBeTruthy()
+  // The snapshot genuinely cannot hold it — the point is that it says so.
+  expect(git(repo, "ls-tree", "-r", "--name-only", record?.ref as string)).not.toContain("subwork.txt")
+  expect(record?.uncaptured).toEqual(["vendor/child"])
+})

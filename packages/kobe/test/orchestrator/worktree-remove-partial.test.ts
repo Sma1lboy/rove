@@ -295,3 +295,40 @@ describe("remove() when the worktree is nested inside its own repo", () => {
     expect(existsSync(wt)).toBe(true)
   })
 })
+
+/**
+ * `remove()` when the worktree DIRECTORY is already gone (a user deleted it,
+ * or a tool did).
+ *
+ * The removal here is nothing but a `git worktree prune` in the owning repo —
+ * and that prune never ran. The repo was re-discovered by walking up from
+ * `path.dirname(worktreePath)`, which for a real Rove worktree is
+ * `~/.rove/worktrees/<key>`: inside no repository at all. So `remove()`
+ * returned `removed` while git still listed the entry as `prunable`, `git
+ * branch -D` failed forever with "used by worktree at <gone path>", and
+ * `discover-adoptable` kept offering the ghost. The owning repo was known the
+ * whole time — a task carries `task.repo`; it was simply never passed down.
+ */
+describe("remove() when the directory is already gone", () => {
+  it("prunes the stale admin record using the repo the caller passed", async () => {
+    const wt = join(managedRoot, "vanished")
+    execSync(`git worktree add -q ${JSON.stringify(wt)} -b vanish`, { cwd: repo, env: gitEnv })
+    rmSync(wt, { recursive: true, force: true })
+
+    // The premise: nothing on disk can lead git back to the owning repo.
+    expect(
+      execSync("git rev-parse --git-common-dir 2>&1 || true", {
+        cwd: join(managedRoot),
+        env: gitEnv,
+        encoding: "utf8",
+        shell: "/bin/sh",
+      }),
+    ).toContain("not a git repository")
+
+    await manager.remove(wt, { repo })
+
+    expect(registered(wt)).toBe(false)
+    // The user-visible consequence: the branch is usable again.
+    execSync("git branch -D vanish", { cwd: repo, env: gitEnv })
+  })
+})

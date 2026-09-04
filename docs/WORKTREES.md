@@ -141,6 +141,15 @@ The first confirmation can never silently turn into a force deletion. The
 second confirmation is the boundary that authorizes data loss. The branch is
 still retained, but uncommitted and untracked files are not part of it.
 
+Step 2 checks more than `git status --porcelain` reports. A gitignored
+`HANDOFF.md` or `.scratch/` shows in no status output, so the check also asks
+`git status --ignored` and refuses on any ignored entry under the 64 MB
+per-entry budget below — the same budget the snapshot uses, so the delete
+refuses for exactly what the forced retry then rescues. The refusal names
+those paths, because `git status` will not. An ignored entry OVER the budget
+(a `node_modules/`, a build directory) is not treated as work: it neither
+blocks the delete nor lands in the snapshot.
+
 ### Landing with `--delete-branch`
 
 `land --delete-branch` deletes the branch with `git branch -D`, which removes
@@ -182,6 +191,13 @@ build directory is far larger and is skipped, because a snapshot carrying one
 is too big to be useful. An ignored entry whose size cannot be read is
 skipped. So a gitignored `HANDOFF.md` or `.scratch/` is recoverable, and a
 gitignored 200 MB `dist/` is not.
+
+One thing a snapshot cannot hold: a submodule or a nested worktree. `git add`
+records those as a commit pointer rather than their files, so uncommitted work
+inside one is in neither the snapshot nor the commit that pointer names. Rove
+does not pretend otherwise — the audit line lists those paths as `NOT
+captured`, and the `git restore` commands below will not produce anything
+under them.
 
 List the snapshots, newest last:
 

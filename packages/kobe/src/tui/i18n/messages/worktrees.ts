@@ -44,7 +44,7 @@ export const en = {
         calls `salvageWorktree` before `git worktree remove --force`), and
         overstating the danger pushes people to cancel a safe operation. */
     forceBody:
-      '"{branch}" has uncommitted or untracked work. Force delete removes the worktree, but the work is snapshotted first to a salvage ref — list them with `git for-each-ref refs/rove/salvage`. Force delete anyway?',
+      '"{branch}" has uncommitted, untracked, or gitignored work. Force delete removes the worktree, but the work is snapshotted first to a salvage ref — list them with `git for-each-ref refs/rove/salvage`. Force delete anyway?',
     failed: "Failed to delete worktree: {error}",
     residue:
       "Git deregistered the worktree, but couldn't delete {path} ({reason}). Rove is done with it — retrying won't help; delete the directory by hand if you want the space.",
@@ -114,7 +114,7 @@ export const zh: typeof en = {
     confirmBody: '确定删除 "{branch}" 对应的 worktree？工作目录会被移除，分支本身会保留。',
     forceTitle: "强制删除 worktree？",
     forceBody:
-      '"{branch}" 存在未提交或未跟踪的改动。强制删除会移除 worktree，但这些改动会先被快照到一个 salvage ref——用 `git for-each-ref refs/rove/salvage` 可以列出它们。仍要强制删除吗？',
+      '"{branch}" 存在未提交、未跟踪或被 gitignore 的改动。强制删除会移除 worktree，但这些改动会先被快照到一个 salvage ref——用 `git for-each-ref refs/rove/salvage` 可以列出它们。仍要强制删除吗？',
     failed: "删除 worktree 失败：{error}",
     residue:
       "Git 已注销该 worktree，但没能删掉 {path}（{reason}）。Rove 这边已经处理完了——重试没有用；想要回磁盘空间请手动删除该目录。",

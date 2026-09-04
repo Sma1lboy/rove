@@ -181,7 +181,7 @@ describe("task delete handler", () => {
         "--task-id",
         "t1",
         "--prompt",
-        "your worktree has uncommitted changes and this task is being cleaned up — commit them yourself with a proper message, then report back",
+        "your worktree still holds work that this cleanup would destroy (it may be gitignored, so `git status` will not show it — check `git status --ignored`). Commit it yourself with a proper message, then report back",
       ])
       expect(err.data?.hint).toMatch(/--force/)
     }

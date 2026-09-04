@@ -38,7 +38,7 @@ export async function createKobeCore(options: KobeCoreOptions = {}): Promise<Kob
     // deletion audit trail, which is where TROUBLESHOOTING already sends a
     // user asking "what happened to my task".
     onSalvage: (taskId, salvage) =>
-      auditDeletionSalvaged(String(taskId), salvage.ref, salvage.commit, store.get(taskId)?.repo),
+      auditDeletionSalvaged(String(taskId), salvage.ref, salvage.commit, store.get(taskId)?.repo, salvage.uncaptured),
     // The task IS deleted in this case, so nothing else will ever mention the
     // directory git could not unlink. Same log, same reason as the salvage
     // line: it is where a user is already told to look.
