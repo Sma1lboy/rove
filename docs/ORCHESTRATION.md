@@ -58,7 +58,8 @@ rove api add --repo "$PWD" --agents claude:2,codex:1 \
 
 Ground rules that make rounds worth running:
 
-- **3–4 attempts is the sweet spot.** The hard cap is 10, but comparing ten
+- **3–4 attempts is the sweet spot.** The hard cap is 10 from a shell and 5
+  from the TUI's fork composer (`ctrl+a` `f`, ATTEMPTS row), but comparing ten
   diffs costs more than it buys. Fan out wide only when attempts are cheap to
   judge (a failing test either passes or it doesn't).
 - **The prompt is the whole brief.** Workers don't share your conversation;

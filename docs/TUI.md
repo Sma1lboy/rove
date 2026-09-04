@@ -383,9 +383,19 @@ built-in source can also hand off to a different built-in or custom target.
 A custom source has no readable transcript, so Rove refuses to continue it
 instead of opening a context-free tab.
 
-**Fork a child task** opens the quick composer (prompt, engine, branch). The
-child branches from your task's **current branch**, so committed work carries
-over. Uncommitted changes stay behind; commit first if the child needs them.
+**Fork a child task** opens the quick composer (prompt, attempts, engine,
+branch). The child branches from your task's **current branch**, so committed
+work carries over. Uncommitted changes stay behind; commit first if the child
+needs them.
+
+**Attempts** fans the same prompt out to a round of up to 5 siblings, the
+keyboard path to `rove api add --count N --prompt …`. They share one round id,
+so `rove api collect --group <id>` reports them together. A round does not move
+you: the siblings appear in the sidebar and start working while you stay on the
+task you fired from — only a single attempt still carries you into the child,
+because that one is "carry on from here". The chip stops at 5 where the CLI
+allows 10; [Orchestration](ORCHESTRATION.md) calls 3-4 the sweet spot, and past
+five the shell command is the better tool.
 
 `ctrl+a` `c` (continue in a new tab) and `ctrl+a` `f` (fork a child task)
 open the same dialog with the toggles pre-set.

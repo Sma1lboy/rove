@@ -45,7 +45,7 @@ shows only actions that can run right now.
 
 | Sequence | Action |
 |---|---|
-| `ctrl+a` `f` | New-conversation dialog, preset to "fork a child task": new managed worktree, branched off this Task's branch |
+| `ctrl+a` `f` | New-conversation dialog, preset to "fork a child task": new managed worktree, branched off this Task's branch. Its ATTEMPTS row fans one prompt out to a round of up to 5 |
 | `ctrl+a` `c` | New-conversation dialog, preset to "continue this chat" in a new tab of the same Task directory |
 | `ctrl+a` `i` | Open the Inbox |
 | `ctrl+a` `h` / `l` | Move focus left / right across panes |

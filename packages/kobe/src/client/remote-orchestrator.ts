@@ -15,6 +15,7 @@
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { logClient, logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
 import { ensureDaemonReachable } from "@sma1lboy/kobe-daemon/client/daemon-process"
+import type { DaemonRpcClient } from "@sma1lboy/kobe-daemon/client/rpc"
 import type { RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import {
   type ChannelName,
@@ -312,6 +313,19 @@ export class RemoteOrchestrator {
 
   /** Latest `tab.close` request (pane or exact Terminal Tab) — consumers dedupe on `at`. */
   readonly tabCloseStore = (): ExternalStore<TabClosePayload | null> => this.tabCloseAcc
+
+  /**
+   * The bare request/response seam onto this orchestrator's daemon, for the
+   * few callers that need a verb this class does not wrap — today the
+   * quick-fork ROUND, whose siblings are delivered by `core/`'s headless
+   * session starter rather than by a mounted pane.
+   *
+   * Deliberately narrowed to {@link DaemonRpcClient}: exposing the socket
+   * client itself would hand callers `subscribe`/`close`, and a second
+   * subscriber or an accidental close would take the whole UI's event stream
+   * down with it.
+   */
+  readonly rpc: DaemonRpcClient = { request: (name, payload) => this.client.request(name, payload) }
 
   replyTerminalTabClose = (requestId: string, closed: boolean): void =>
     writes.replyTabCloseOp(this.client, requestId, closed)
