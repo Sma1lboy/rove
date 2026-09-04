@@ -32,7 +32,7 @@
     },
     "packages/kobe": {
       "name": "@sma1lboy/rove",
-      "version": "0.9.114",
+      "version": "0.9.115",
       "bin": {
         "kobe": "dist/cli/kobe.js",
         "rove": "dist/cli/rove.js",
