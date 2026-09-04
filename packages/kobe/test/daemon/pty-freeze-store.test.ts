@@ -6,12 +6,13 @@
  * ring cap on thaw, and the reset semantics (clear = starts fresh).
  */
 
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
-  FREEZE_MAX_RECORDS,
+  FREEZE_RESTORE_MAX_BYTES,
   FREEZE_TTL_MS,
+  type FreezeLoadSummary,
   type FreezeableSession,
   type FrozenPtySession,
   clearFrozenSessions,
@@ -180,12 +181,20 @@ describe("existing-permission remediation", () => {
   })
 })
 
-describe("pruning stale + over-cap records", () => {
+describe("pruning stale + over-budget records", () => {
   const DAY = 24 * 60 * 60 * 1000
 
-  function writeRecord(key: string, updatedAt: string): void {
-    fileFreezeSink(dir).save({ ...freezeSession(fakeSession({ key })), updatedAt })
+  function writeRecord(key: string, updatedAt: string, ringBytes = 0): void {
+    const chunks = ringBytes > 0 ? [Buffer.alloc(ringBytes, 0x61)] : undefined
+    fileFreezeSink(dir).save({ ...freezeSession(fakeSession({ key, ...(chunks ? { chunks } : {}) })), updatedAt })
+    // Ordering is decided by mtime (see `loadFrozenSessions`), so pin it
+    // rather than relying on write order resolving at ms granularity.
+    const at = Date.parse(updatedAt) / 1000
+    utimesSync(join(dir, `${encodeURIComponent(key)}.json`), at, at)
   }
+
+  /** Two of these overflow FREEZE_RESTORE_MAX_BYTES; one does not. */
+  const HALF_BUDGET_RING = Math.ceil(((FREEZE_RESTORE_MAX_BYTES / 2 + 2 * 1024 * 1024) * 3) / 4)
 
   it("deletes records past the TTL instead of thawing them", () => {
     const now = Date.parse("2026-08-30T00:00:00.000Z")
@@ -201,20 +210,54 @@ describe("pruning stale + over-cap records", () => {
     expect(readdirSync(dir).filter((n) => n.endsWith(".json"))).toHaveLength(1)
   })
 
-  it("keeps the newest FREEZE_MAX_RECORDS and deletes the rest", () => {
+  it("restores newest-first up to the byte budget and LEAVES the rest on disk", () => {
     const now = Date.parse("2026-08-30T00:00:00.000Z")
-    const total = FREEZE_MAX_RECORDS + 5
-    for (let i = 0; i < total; i++) {
-      // i=0 newest, ascending index = older.
-      writeRecord(`t${i}::tab-1`, new Date(now - i * 60_000).toISOString())
-    }
+    writeRecord("newer::tab-1", new Date(now - 60_000).toISOString(), HALF_BUDGET_RING)
+    writeRecord("older::tab-1", new Date(now - 120_000).toISOString(), HALF_BUDGET_RING)
 
     const loaded = loadFrozenSessions(dir, now)
 
-    expect(loaded).toHaveLength(FREEZE_MAX_RECORDS)
-    expect(loaded[0]?.key).toBe("t0::tab-1")
-    expect(loaded.map((r) => r.key)).not.toContain(`t${total - 1}::tab-1`)
-    expect(readdirSync(dir).filter((n) => n.endsWith(".json"))).toHaveLength(FREEZE_MAX_RECORDS)
+    expect(loaded.map((r) => r.key)).toEqual(["newer::tab-1"])
+    // The point of the whole change: over-budget is DEFERRED, never deleted.
+    // A directory that outgrew a guess used to lose the overflow permanently.
+    expect(readdirSync(dir).filter((n) => n.endsWith(".json"))).toHaveLength(2)
+  })
+
+  it("still restores a lone record larger than the whole budget", () => {
+    const now = Date.parse("2026-08-30T00:00:00.000Z")
+    writeRecord("huge::tab-1", new Date(now - 60_000).toISOString(), FREEZE_RESTORE_MAX_BYTES)
+
+    expect(loadFrozenSessions(dir, now).map((r) => r.key)).toEqual(["huge::tab-1"])
+  })
+
+  it("expires a record the budget never reads, so the TTL still bounds the directory", () => {
+    const now = Date.parse("2026-08-30T00:00:00.000Z")
+    writeRecord("newer::tab-1", new Date(now - 60_000).toISOString(), HALF_BUDGET_RING)
+    // Past the budget AND past the TTL. Only a check that runs BEFORE the read
+    // can reach it — a budget that merely stopped reading would strand it
+    // forever, and the directory would grow without bound again.
+    writeRecord("ancient::tab-1", new Date(now - 30 * DAY).toISOString(), HALF_BUDGET_RING)
+
+    const loaded = loadFrozenSessions(dir, now)
+
+    expect(loaded.map((r) => r.key)).toEqual(["newer::tab-1"])
+    expect(readdirSync(dir).filter((n) => n.endsWith(".json"))).toEqual(["newer%3A%3Atab-1.json"])
+  })
+
+  it("reports what the boot did with the store", () => {
+    const now = Date.parse("2026-08-30T00:00:00.000Z")
+    writeRecord("newer::tab-1", new Date(now - 60_000).toISOString(), HALF_BUDGET_RING)
+    writeRecord("older::tab-1", new Date(now - 120_000).toISOString(), HALF_BUDGET_RING)
+    writeRecord("ancient::tab-1", new Date(now - 30 * DAY).toISOString())
+
+    let summary: FreezeLoadSummary | undefined
+    loadFrozenSessions(dir, now, (s) => {
+      summary = s
+    })
+
+    // Deferring and deleting are different outcomes and the log must say which.
+    expect(summary).toMatchObject({ restored: 1, deferred: 1, expired: 1, unreadable: 0 })
+    expect(summary?.bytesRead).toBeLessThanOrEqual(FREEZE_RESTORE_MAX_BYTES)
   })
 
   it("keeps a record right at the TTL edge", () => {

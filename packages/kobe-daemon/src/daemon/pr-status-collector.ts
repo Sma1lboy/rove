@@ -52,9 +52,9 @@
  * auth/network blip never clobbers a known chip. A non-zero exit is ALWAYS an
  * `error` — "no PR" only comes from the structural empty-array success path,
  * never from a guessed stderr pattern, so a `gh` failure cannot silently
- * masquerade as "no PR". Best-effort + sequential (gentle on the
- * subprocess budget); a per-task failure is logged, never fatal, never blocks
- * the other tasks in the pass.
+ * masquerade as "no PR". Best-effort, at most
+ * {@link PR_POLL_CONCURRENCY} `gh` calls in flight; a per-task failure is
+ * logged, never fatal, never blocks the other tasks in the pass.
  */
 
 import { spawn } from "node:child_process"
@@ -113,6 +113,23 @@ export const NO_REMOTE_BACKOFF_MS = 30 * 60_000
 export const PR_POLL_JITTER_RATIO = 0.2
 /** Kill a `gh pr list` that hangs past this (network stall). */
 export const PR_VIEW_TIMEOUT_MS = 10_000
+
+/**
+ * How many `gh pr list` calls one pass may have in flight.
+ *
+ * A pass used to await each task in turn, and `startTicker` drops any tick
+ * arriving while one is still running — so the real per-task refresh was
+ * `max(tickMs, N × gh_latency)`, not the {@link DEFAULT_PR_STATUS_POLL_MS}
+ * this module documents. Measured at 800ms per call, one pass took 42s at 50
+ * tasks and 170s at 200, all of it one child at a time.
+ *
+ * 8 keeps 200 tasks inside a single tick while staying far below any
+ * fd/process ceiling. `gh` waits on the network rather than the CPU, so
+ * serialising it was never buying back a real constraint; the per-task
+ * backoffs in `nextPoll` are what actually bound how often it runs, and they
+ * are untouched.
+ */
+export const PR_POLL_CONCURRENCY = 8
 
 /**
  * The outcome of one `gh pr list --head <branch>`:
@@ -307,7 +324,6 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
     failureCapMs: PR_FAILURE_CAP_MS,
     jitterRatio: PR_POLL_JITTER_RATIO,
   }
-  const changed: string[] = []
   const tasks = orch.listTasks()
   // Drop entries for tasks that are GONE, not merely ineligible. The delete
   // below only fires for ids still in `listTasks()`, so a deleted task's entry
@@ -316,6 +332,10 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
   for (const id of opts.schedule.keys()) {
     if (!live.has(id)) opts.schedule.delete(id)
   }
+  // Selection is synchronous and happens against ONE `opts.now`, before any
+  // `gh` runs — so which tasks are due does not depend on how long the pass
+  // takes, the way it would if the filter were interleaved with the awaits.
+  const due: Array<{ task: Task; prevFailures: number }> = []
   for (const task of tasks) {
     if (!isPrPollable(task)) {
       opts.schedule.delete(task.id) // forget backoff for now-ineligible tasks
@@ -323,7 +343,11 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
     }
     const entry = opts.schedule.get(task.id)
     if (entry && opts.now < entry.nextAllowedAt) continue
-    const prevFailures = entry?.failures ?? 0
+    due.push({ task, prevFailures: entry?.failures ?? 0 })
+  }
+
+  /** One task's poll. Returns its id when the persisted status changed. */
+  const pollOne = async (task: Task, prevFailures: number): Promise<string | undefined> => {
     try {
       const result = await opts.run(task.worktreePath, task.branch)
       if (result.kind === "error") {
@@ -336,20 +360,20 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
           `gh pr list failed (${result.error}) for task ${task.id} [${task.branch}] — keeping last PR status, backing off`,
         )
         // The log alone left the chip claiming a fact nobody was refreshing.
-        if (await setPrStaleMarker(orch, task.id, result.error)) changed.push(task.id)
+        const marked = await setPrStaleMarker(orch, task.id, result.error)
         opts.schedule.set(
           task.id,
           opts.runtime.prStatus.nextPoll({ kind: "error", error: result.error }, prevFailures, opts.now, cfg, rand),
         )
-        continue
+        return marked ? task.id : undefined
       }
       if (result.kind === "empty") {
         // gh ran and there is genuinely no PR yet. Keep the last value; back off
         // (a branch rarely sprouts a PR between ticks). `gh` reaching the
         // provider is what clears the stale marker, not the answer it gave.
-        if (await setPrStaleMarker(orch, task.id, undefined)) changed.push(task.id)
+        const marked = await setPrStaleMarker(orch, task.id, undefined)
         opts.schedule.set(task.id, opts.runtime.prStatus.nextPoll({ kind: "empty" }, prevFailures, opts.now, cfg, rand))
-        continue
+        return marked ? task.id : undefined
       }
       const next = opts.runtime.prStatus.mapView(result.view, opts.at)
       // Re-read under the live store (the task may have been deleted
@@ -357,15 +381,16 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
       const current = orch.getTask(task.id)
       if (!current) {
         opts.schedule.delete(task.id)
-        continue
+        return undefined
       }
       // `sameStatus` ignores `lastError`, so an otherwise-identical status
       // would leave a stale marker on a chip that just polled cleanly. `next`
       // never carries one, so writing it IS the clear.
       const wasStale = current.prStatus?.lastError !== undefined
+      let changedId: string | undefined
       if (wasStale || !opts.runtime.prStatus.sameStatus(current.prStatus, next ?? undefined)) {
         await orch.setPRStatus(task.id, next)
-        changed.push(task.id)
+        changedId = task.id
       }
       // A merged/closed PR is done — poll it rarely; an open one tracks checks.
       const settled = next?.lifecycle === "merged" || next?.lifecycle === "closed"
@@ -373,18 +398,32 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
         task.id,
         opts.runtime.prStatus.nextPoll({ kind: "pr", settled }, prevFailures, opts.now, cfg, rand),
       )
+      return changedId
     } catch (err) {
       // The injected runner threw (the real one never does). Treat as a
       // transient error so it backs off rather than hammering.
       logDaemonError("pr-status-poller", err)
-      if (await setPrStaleMarker(orch, task.id, "network").catch(() => false)) changed.push(task.id)
+      const marked = await setPrStaleMarker(orch, task.id, "network").catch(() => false)
       opts.schedule.set(
         task.id,
         opts.runtime.prStatus.nextPoll({ kind: "error", error: "network" }, prevFailures, opts.now, cfg, rand),
       )
+      return marked ? task.id : undefined
     }
   }
-  return changed
+
+  // Fixed-size worker pool over `due`. Results land in their task's own slot,
+  // so the returned ids stay in task order however the polls interleave.
+  const slots = new Array<string | undefined>(due.length)
+  let cursor = 0
+  const worker = async (): Promise<void> => {
+    for (let i = cursor++; i < due.length; i = cursor++) {
+      const item = due[i]
+      if (item) slots[i] = await pollOne(item.task, item.prevFailures)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(PR_POLL_CONCURRENCY, due.length) }, worker))
+  return slots.filter((id): id is string => id !== undefined)
 }
 
 /**
