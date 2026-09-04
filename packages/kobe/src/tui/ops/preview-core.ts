@@ -53,6 +53,52 @@ export function isCombinedPathspec(relPath: string): boolean {
   return relPath === "." || relPath.endsWith("/")
 }
 
+/** One file's slice of a multi-file unified diff. */
+export interface UnifiedDiffFile {
+  /** The new-side path from the `diff --git` header, for the section label. */
+  readonly path: string
+  /** That file's complete patch, parseable on its own. */
+  readonly text: string
+  /** Rendered rows the hunks occupy — `@@` headers are not drawn, so this is
+   *  the count of context/added/removed lines. The view needs it because a
+   *  `<diff>` inside a scroll container has no intrinsic height. */
+  readonly lines: number
+}
+
+/**
+ * Split a multi-file unified diff into one patch per file.
+ *
+ * Needed because opentui's `DiffRenderable` keeps only the FIRST file: its
+ * parser returns every patch (`parsePatch` → a list) and the renderable then
+ * does `this._parsedDiff = patches[0]`. So a directory's diff handed over
+ * whole renders one file and silently drops the rest — which is the entire
+ * point of a combined diff. The view stacks one `<diff>` per entry instead.
+ */
+export function unifiedDiffFiles(text: string): UnifiedDiffFile[] {
+  const files: UnifiedDiffFile[] = []
+  let current: { path: string; lines: string[]; rows: number } | null = null
+  const push = () => {
+    if (current) files.push({ path: current.path, text: `${current.lines.join("\n")}\n`, lines: current.rows })
+  }
+  for (const line of text.split("\n")) {
+    if (line.startsWith("diff --git ")) {
+      push()
+      // `diff --git a/x b/x` — take the b-side, which is the path after a
+      // rename and identical otherwise.
+      const b = line.slice("diff --git ".length).split(" b/").slice(1).join(" b/")
+      current = { path: b || line.slice("diff --git ".length), lines: [line], rows: 0 }
+      continue
+    }
+    if (!current) continue
+    current.lines.push(line)
+    // Hunk bodies only: `@@` headers and the `---`/`+++`/`index` preamble are
+    // not rendered as rows.
+    if (/^[ +-]/.test(line) && !line.startsWith("+++ ") && !line.startsWith("--- ")) current.rows += 1
+  }
+  push()
+  return files
+}
+
 /** Extensions the preview treats as images (→ binary card, no text read). */
 const IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "tif", "tiff", "avif", "heic"])
 

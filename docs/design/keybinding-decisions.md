@@ -536,7 +536,7 @@ What the owner still has to decide: the letter, and whether an action that
 mutates the worktree belongs behind a two-stroke sequence at all rather than
 staying menu-only where it is harder to fire by accident.
 
-## PROPOSED (not decided): `D` — diff the whole worktree
+## PROPOSED (not decided): `shift+D` — diff the whole worktree
 
 Status: **proposed, awaiting owner sign-off.**
 
@@ -544,7 +544,7 @@ What it does: opens the whole worktree's combined diff (`git diff <base>...HEAD`
 with pathspec `.`) in one read-only tab, from the Files pane. The per-directory
 form needs no chord at all — it rides the existing `d` on a directory row.
 
-Why `D`, direct rather than behind the prefix: it shadows nothing in the Files
+Why `shift+D`, direct rather than behind the prefix: it shadows nothing in the Files
 table, it is files-scoped so it cannot collide outside the pane, and it reads as
 "the bigger `d`" sitting next to the `d` it generalises. Behind the prefix it
 would be a two-stroke sequence for a read-only view, which is heavier than the

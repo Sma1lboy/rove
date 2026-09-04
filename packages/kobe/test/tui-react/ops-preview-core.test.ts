@@ -17,6 +17,7 @@ import {
   isImagePath,
   loadPreviewData,
   looksBinaryText,
+  unifiedDiffFiles,
 } from "../../src/tui/ops/preview-core.ts"
 
 describe("filetypeOf", () => {
@@ -113,6 +114,52 @@ describe("isCombinedPathspec", () => {
     expect(isCombinedPathspec("a/b/")).toBe(true)
     expect(isCombinedPathspec("src/a.ts")).toBe(false)
     expect(isCombinedPathspec("a.ts")).toBe(false)
+  })
+})
+
+// opentui's DiffRenderable keeps only `patches[0]`, so a combined diff handed
+// over whole renders its first file and drops the rest. The view stacks one
+// `<diff>` per entry instead, and each needs an explicit row count.
+describe("unifiedDiffFiles", () => {
+  const TWO_FILES = [
+    "diff --git a/src/auth.ts b/src/auth.ts",
+    "index eb7d33f..1e391ec 100644",
+    "--- a/src/auth.ts",
+    "+++ b/src/auth.ts",
+    "@@ -1,3 +1,3 @@",
+    "-export function login(user: string) {",
+    "+export function login(user: string, token: string) {",
+    " }",
+    "diff --git a/src/session.ts b/src/session.ts",
+    "index 3572d91..708d773 100644",
+    "--- a/src/session.ts",
+    "+++ b/src/session.ts",
+    "@@ -1 +1,2 @@",
+    "-export const TTL = 900",
+    "+export const TTL = 1800",
+    "+export const IDLE = 300",
+    "",
+  ].join("\n")
+
+  test("splits on the git header and keeps each patch parseable on its own", () => {
+    const files = unifiedDiffFiles(TWO_FILES)
+    expect(files.map((f) => f.path)).toEqual(["src/auth.ts", "src/session.ts"])
+    expect(files[0]?.text).toContain("@@ -1,3 +1,3 @@")
+    expect(files[0]?.text.startsWith("diff --git a/src/auth.ts")).toBe(true)
+    // The second file's patch must NOT carry the first one's hunks.
+    expect(files[1]?.text).not.toContain("login")
+  })
+
+  test("counts only the rows a hunk body draws — not the ---/+++ preamble", () => {
+    const files = unifiedDiffFiles(TWO_FILES)
+    expect(files[0]?.lines).toBe(3)
+    expect(files[1]?.lines).toBe(3)
+  })
+
+  test("a single-file diff comes back as one entry, and empty text as none", () => {
+    expect(unifiedDiffFiles("").length).toBe(0)
+    const one = unifiedDiffFiles(TWO_FILES.split("diff --git a/src/session.ts")[0] ?? "")
+    expect(one.length).toBe(1)
   })
 })
 

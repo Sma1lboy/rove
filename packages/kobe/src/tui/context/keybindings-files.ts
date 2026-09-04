@@ -93,12 +93,16 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
   },
   {
     // PROPOSED, awaiting owner sign-off (docs/design/keybinding-decisions.md).
-    // `D` → the whole worktree's diff in one tab: the "bigger d". Shadows
+    // Shift+D → the whole worktree's diff in one tab: the "bigger d". Shadows
     // nothing in the Files table, and the header chip does the same job with
     // no chord at all, so the feature ships whatever the owner decides here.
+    //
+    // Spelled `shift+d`, not `"D"`: matchKey mints `shift+d` from Shift+D, so
+    // a bare uppercase key never matches — the same rule `sidebar.localMerge`
+    // records next door.
     id: "files.diffAll",
     scope: "files",
-    keys: ["D"],
+    keys: ["shift+d"],
     category: "Files",
     description: "Open the whole worktree's diff in one workspace tab",
     hint: { keys: "D" },

@@ -10,13 +10,19 @@
  * hunks go stale under you with no way to ask for the current ones.
  */
 
-import type { DiffRenderable } from "@opentui/core"
+import { type DiffRenderable, TextAttributes } from "@opentui/core"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { execHostForWorktreePath } from "../../exec/resolve"
 import { formatBytes } from "../../lib/format-bytes"
 import { openWithSystemViewer } from "../../lib/open-external"
 import type { DiffReviewApi } from "../../tui/ops/diff-comments"
-import { type PreviewData, filetypeOf, isCombinedPathspec, loadPreviewData } from "../../tui/ops/preview-core"
+import {
+  type PreviewData,
+  filetypeOf,
+  isCombinedPathspec,
+  loadPreviewData,
+  unifiedDiffFiles,
+} from "../../tui/ops/preview-core"
 import { buildSyntaxStyle } from "../../tui/ops/preview-syntax"
 import { worktreeFilePath } from "../../worktree/content"
 import { useTheme } from "../context/theme"
@@ -151,6 +157,35 @@ export function PreviewScreen(props: OpsPreviewArgs) {
               {canSystemOpen ? t("ops.preview.openHint") : t("ops.preview.noTextPreview")}
             </text>
           </box>
+        ) : data.kind === "diff" && combined ? (
+          // One `<diff>` per file: opentui's DiffRenderable renders only the
+          // first patch of a multi-file diff, so handing it the whole thing
+          // would silently drop every file after the first — which is the one
+          // thing a combined diff exists to show. Explicit heights because a
+          // `<diff>` has no intrinsic size inside a scroll container.
+          <scrollbox
+            flexGrow={1}
+            backgroundColor={theme.background}
+            verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
+          >
+            {unifiedDiffFiles(data.text).map((file) => (
+              <box key={file.path} flexDirection="column" flexShrink={0} paddingBottom={1}>
+                <text fg={theme.accent} attributes={TextAttributes.BOLD} wrapMode="none">
+                  {file.path}
+                </text>
+                <box height={file.lines} flexShrink={0}>
+                  <diff
+                    diff={file.text}
+                    view="unified"
+                    wrapMode="none"
+                    filetype={filetypeOf(file.path)}
+                    syntaxStyle={style}
+                    showLineNumbers={true}
+                  />
+                </box>
+              </box>
+            ))}
+          </scrollbox>
         ) : data.kind === "diff" ? (
           // wrapMode "none" pins visual rows to logical diff lines — the
           // review overlay's row↔line mapping depends on it.
