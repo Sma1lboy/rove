@@ -1,5 +1,4 @@
 import type { DaemonRpcClient } from "@sma1lboy/kobe-daemon/client/rpc"
-import { resolveLoginShell } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
@@ -55,11 +54,9 @@ import {
   deliverPromptToLiveEngineAdapter,
   deliverPromptToLiveEngineDetailedAdapter,
   deliverPromptToLiveEngineTabDetailedAdapter,
-  engineSpecAdapter,
   ensureTaskSessionAdapter,
   startTaskSessionWithPromptAdapter,
   tearDownTaskSessionAdapter,
-  terminalSpecAdapter,
 } from "../../src/core/daemon-session-adapter.ts"
 
 function link(): DaemonRpcClient {
@@ -131,30 +128,6 @@ describe("daemon session adapter", () => {
     expect(mocks.awaitEngineProcess).toHaveBeenCalled()
   })
 
-  it("builds engine and terminal specs without duplicating the first prompt", async () => {
-    const engine = await engineSpecAdapter(link(), "task-2")
-    expect(engine.cwd).toBe("/worktrees/story")
-    expect(engine.command).toEqual(["/bin/zsh", "-ilc", "claude 'repo prompt'"])
-    await expect(terminalSpecAdapter(link(), "task-2")).resolves.toEqual({
-      cwd: "/worktrees/story",
-      command: [resolveLoginShell({ fallback: "/bin/zsh" }), "-il"],
-    })
-  })
-
-  it("surfaces a paste-delivery vendor's first message in the engine spec", async () => {
-    // kimi's repo init-prompt rides OUTSIDE the launch argv; the web PTY
-    // sidecar pastes it post-spawn, so the spec must carry it — dropping it
-    // here would silently lose the message.
-    mocks.buildLaunch.mockReturnValueOnce({
-      key: "task-7::tab-1",
-      command: ["/bin/zsh", "-ilc", "kimi"],
-      firstMessage: "repo init prompt",
-    })
-    const engine = await engineSpecAdapter(link(), "task-7")
-    expect(engine.command).toEqual(["/bin/zsh", "-ilc", "kimi"])
-    expect(engine.firstMessage).toBe("repo init prompt")
-  })
-
   it("tears down a task session best-effort", async () => {
     await tearDownTaskSessionAdapter("task-3")
     expect(mocks.killSessions).toHaveBeenCalledWith(expect.anything(), ["task-3::tab-1"])
@@ -184,10 +157,10 @@ describe("daemon session adapter", () => {
             : { worktreePath: null }) as T,
       ),
     } as unknown as DaemonRpcClient
-    await expect(terminalSpecAdapter(missing, "task-5")).rejects.toThrow("has no worktree")
+    await expect(ensureTaskSessionAdapter(missing, "task-5")).rejects.toThrow("has no worktree")
   })
 
-  it("refuses engine and terminal specs for a task being deleted", async () => {
+  it("refuses to materialize a session for a task being deleted", async () => {
     const deleting = {
       request: vi.fn(
         async <T>() =>
@@ -203,8 +176,7 @@ describe("daemon session adapter", () => {
       ),
     } as unknown as DaemonRpcClient
 
-    await expect(engineSpecAdapter(deleting, "task-6")).rejects.toThrow("TASK_DELETING")
-    await expect(terminalSpecAdapter(deleting, "task-6")).rejects.toThrow("TASK_DELETING")
+    await expect(ensureTaskSessionAdapter(deleting, "task-6")).rejects.toThrow("TASK_DELETING")
     expect(mocks.ensureEngine).not.toHaveBeenCalled()
   })
 

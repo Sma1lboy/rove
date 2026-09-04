@@ -34,7 +34,7 @@ vi.mock("../../kobe/src/state/repo-init.ts", () => ({
 }))
 
 import type { DaemonRpcClient } from "@sma1lboy/kobe-daemon/client/rpc"
-import { engineSpecAdapter, ensureTaskSessionAdapter } from "../../kobe/src/core/daemon-session-adapter.ts"
+import { ensureTaskSessionAdapter } from "../../kobe/src/core/daemon-session-adapter.ts"
 
 function link(): DaemonRpcClient {
   return {
@@ -79,17 +79,4 @@ describe("web session launch init", () => {
     )
   })
 
-  it("keeps web PTY engine specs from duplicating the repo init prompt", async () => {
-    resolveEngineLaunchInitMock.mockClear()
-
-    const spec = await engineSpecAdapter(link(), "task-2")
-
-    expect(resolveEngineLaunchInitMock).toHaveBeenCalledWith(
-      "/repo/kobe",
-      "/worktrees/story",
-      { kind: "repo-init" },
-      "task-2",
-    )
-    expect(spec.command.join(" ")).toContain("init:repo-init")
-  })
 })

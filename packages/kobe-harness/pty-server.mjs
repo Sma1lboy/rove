@@ -24,14 +24,13 @@ import { createPtySessionManager } from "./pty-session-lifecycle.mjs"
 import { createSpecFetcher } from "./pty-spec.mjs"
 
 const PORT = Number.parseInt(process.env.KOBE_PTY_PORT ?? "5175", 10)
-const DAEMON_WEB_PORT = Number.parseInt(process.env.KOBE_DAEMON_WEB_PORT ?? "45174", 10)
 const SCROLLBACK_CAP = 256 * 1024 // bytes of recent output replayed on (re)attach
-const HEALTH_PATH = "/__kobe_web"
+const HEALTH_PATH = "/__kobe_harness"
 const HEALTH_MARKER = "kobe-harness"
 const HOST = process.env.KOBE_WEB_HOST?.trim() || "127.0.0.1"
 const ALLOWED_HOST = allowedHostForBindHost(HOST)
 
-const fetchSpec = createSpecFetcher({ port: DAEMON_WEB_PORT })
+const fetchSpec = createSpecFetcher()
 
 const ptySessions = createPtySessionManager({
   fetchSpec,
@@ -200,7 +199,7 @@ wss.on("connection", (ws, req) => {
 // Bind loopback by default — a PTY is an arbitrary shell/engine in the
 // worktree, so it must never listen on all interfaces. KOBE_WEB_HOST overrides.
 server.listen(PORT, HOST, () => {
-  process.stdout.write(`Rove PTY server listening on ${HOST}:${PORT} (daemon-web :${DAEMON_WEB_PORT})\n`)
+  process.stdout.write(`Rove PTY server listening on ${HOST}:${PORT}\n`)
 })
 
 const shutdown = () => {

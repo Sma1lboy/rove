@@ -35,11 +35,9 @@ import {
   deliverPromptToLiveEngineAdapter,
   deliverPromptToLiveEngineDetailedAdapter,
   deliverPromptToLiveEngineTabDetailedAdapter,
-  engineSpecAdapter,
   ensureTaskSessionAdapter,
   startTaskSessionWithPromptAdapter,
   tearDownTaskSessionAdapter,
-  terminalSpecAdapter,
 } from "./daemon-session-adapter.ts"
 import { daemonSettingsPatch, daemonSettingsSnapshot } from "./daemon-settings-adapter.ts"
 import {
@@ -150,8 +148,6 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   engineDisplayName,
   kobeApiInvocation,
   engineEntry,
-  engineSpec: engineSpecAdapter,
-  terminalSpec: terminalSpecAdapter,
   ensureTaskSession: ensureTaskSessionAdapter,
   startTaskSessionWithPrompt: startTaskSessionWithPromptAdapter,
   tearDownTaskSession: tearDownTaskSessionAdapter,
