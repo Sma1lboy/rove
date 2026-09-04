@@ -219,4 +219,16 @@ describe("keybinding catalog reachability", () => {
 
     expect(missing).toEqual([])
   })
+
+  test("every pane scope prints its own name as the section header", () => {
+    // The test above cannot catch a scope routed to the WRONG header: a
+    // fallthrough default is itself a valid catalogue string, which is how
+    // the Inbox section shipped titled `OTHER PANE — Dialog`. So assert the
+    // header names the scope it heads, not merely that it resolves.
+    const mislabelled = HELP_SCOPES.filter((scope) => scope !== undefined).filter(
+      (scope) => scopeCategory(scope).toLowerCase() !== scope,
+    )
+
+    expect(mislabelled).toEqual([])
+  })
 })

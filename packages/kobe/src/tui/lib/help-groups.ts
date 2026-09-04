@@ -156,14 +156,25 @@ export function grammarHelpSections(
 /**
  * The category header the F1 help dialog prints a section under. The dialog
  * groups by SCOPE, not by the binding's own `category` field.
+ *
+ * A `Record` over the closed scope union rather than an if-chain with a
+ * default: the chain ended in `return "Dialog"`, which no scope ever meant —
+ * `inbox` fell through it and F1 headed the Inbox rows `OTHER PANE — Dialog`.
+ * A default that is a valid catalogue string also satisfies the "every header
+ * resolves" guard, so nothing caught it. Exhaustiveness makes the next scope
+ * added to the union a compile error instead of a wrong-but-plausible header.
  */
+const SCOPE_CATEGORY: Record<KobeBindingScope, string> = {
+  global: "Global",
+  sidebar: "Sidebar",
+  workspace: "Workspace",
+  files: "Files",
+  inbox: "Inbox",
+  terminal: "Terminal",
+}
+
 export function scopeCategory(scope: HelpGrammarSection["scope"]): string {
-  if (!scope) return "Global"
-  if (scope === "sidebar") return "Sidebar"
-  if (scope === "workspace") return "Workspace"
-  if (scope === "files") return "Files"
-  if (scope === "terminal") return "Terminal"
-  return "Dialog"
+  return scope ? SCOPE_CATEGORY[scope] : "Global"
 }
 
 /**
