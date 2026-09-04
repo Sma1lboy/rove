@@ -10,10 +10,10 @@
 | Issues                       |
 |                              |
 | SCRATCH ──────────────────── |
-|  …deep/nested/project-dir    |
+|  …deep/nested/project-dir  ? |
 |                              |
 | rove ─────────────────────── |
-|  feat/alpha                  |
+|  feat/alpha                ? |
 |▌ · build                     |
 |                              |
 |                              |

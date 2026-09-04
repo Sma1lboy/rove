@@ -10,10 +10,10 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-|  feat/alpha                  |
+|  feat/alpha                ? |
 |▌ · build                     |
 |  · shell                     |
-|  feat/bravo                  |
+|  feat/bravo                ? |
 |  · tests                     |
 |                              |
 |                              |

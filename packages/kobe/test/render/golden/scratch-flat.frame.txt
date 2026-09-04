@@ -13,7 +13,7 @@
 |  · shell 1                   |
 |                              |
 | rove ─────────────────────── |
-|  feat/alpha                  |
+|  feat/alpha                ? |
 |▌ · build                     |
 |                              |
 |                              |
