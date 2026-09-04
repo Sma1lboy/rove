@@ -189,10 +189,10 @@ export function defaultDaemonSocketPath(homeDir?: string): string {
 }
 
 /**
- * The state root a daemon serves: an explicit option, else `*_HOME_DIR`, else
- * the OS home. Mirrors the client-side `homeDir()` in `kobe/src/env.ts` so the
- * two sides agree on what "same home" means — `hello` reports this value and
- * the client compares it against its own before trusting the task list.
+ * The state root a daemon serves: an explicit option, else the ambient home
+ * (`resolveProductHomeDir` in `product-paths.ts`, which the client's
+ * `homeDir()` also wraps). `hello` reports this value and the client compares
+ * it against its own before trusting the task list.
  */
 export function resolveDaemonHomeDir(homeDir?: string): string {
   const explicit = homeDir ?? readRoveEnv("HOME_DIR")
