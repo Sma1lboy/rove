@@ -74,13 +74,17 @@ export function legacyPtyHostPidPath(homeDir: string): string {
   return legacyRuntimePath(homeDir, "pty.pid")
 }
 
-/** Data a host reads back across restarts: whichever layout actually has it. */
+/**
+ * Data a host reads back across restarts. Canonical, unconditionally: the PTY
+ * host moves the legacy entries onto these paths at boot
+ * (`pty-data-migration.ts`), which is the single-writer moment for them. The
+ * old "whichever layout has it" rule made the legacy location permanent — a
+ * home that had `pty-sessions/` before the rename kept it under `.kobe`
+ * forever, so deleting `~/.kobe` (which the docs call safe) lost every frozen
+ * session.
+ */
 function runtimeDataPath(homeDir: string, name: string): string {
-  const { canonical, legacy } = stateDirs(homeDir)
-  const canonicalPath = join(canonical, name)
-  if (existsSync(canonicalPath)) return canonicalPath
-  const legacyPath = join(legacy, name)
-  return existsSync(legacyPath) ? legacyPath : canonicalPath
+  return join(stateDirs(homeDir).canonical, name)
 }
 
 /**
@@ -140,13 +144,16 @@ export function fitSocketPath(naturalPath: string, homeDir: string, role: string
 }
 
 /**
- * Resolve the unix-socket path for the kobe daemon.
+ * Resolve the unix-socket path for the Rove daemon.
  *
  * Resolution order:
- *   1. Caller-supplied `homeDir` argument → `<homeDir>/.kobe/daemon.sock`.
- *   2. Explicit `KOBE_HOME_DIR` env var → `$KOBE_HOME_DIR/.kobe/daemon.sock`.
+ *   1. Caller-supplied `homeDir` argument → `<homeDir>/.rove/daemon.sock`.
+ *   2. Explicit `ROVE_HOME_DIR`/`KOBE_HOME_DIR` → `$ROVE_HOME_DIR/.rove/daemon.sock`.
  *   3. `XDG_RUNTIME_DIR` → `$XDG_RUNTIME_DIR/kobe.sock`.
- *   4. Default `~/.kobe/daemon.sock`.
+ *   4. Default `~/.rove/daemon.sock`.
+ *
+ * Each step yields the legacy `.kobe` twin instead only while a process
+ * started before the rename still holds it (see {@link stateDirs}).
  *
  * Every result is run through {@link fitSocketPath} so deeply-nested
  * homes (e.g. `dev:sandbox` under a worktree) fall back to a short
@@ -203,7 +210,7 @@ export function defaultDaemonPidPath(homeDir = readRoveEnv("HOME_DIR") ?? homedi
  * spawned as a detached background child. Without this the daemon ran
  * with `stdio: "ignore"`, so a crash (uncaught exception / unhandled
  * rejection) left no trace at all — the daemon just vanished. Keep the
- * file next to the socket + pidfile under `<home>/.kobe/`.
+ * file next to the socket + pidfile under `<home>/.rove/`.
  */
 export function defaultDaemonLogPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "daemon.log")
@@ -215,9 +222,9 @@ export function defaultDaemonLogPath(homeDir = readRoveEnv("HOME_DIR") ?? homedi
  * opentui alternate-screen pane, so their `console.*` output is swallowed
  * by the TUI and a stray "[rove tasks] daemon subscribe unavailable" never
  * reaches a human. Routing connection-lifecycle diagnostics to a real file
- * — next to `daemon.log` under `<home>/.kobe/` — is the only way a pane's
+ * — next to `daemon.log` under `<home>/.rove/` — is the only way a pane's
  * disconnect / reconnect churn is observable after the fact (the reason the
- * Tasks-pane sync drift was invisible for so long). Honours KOBE_HOME_DIR
+ * Tasks-pane sync drift was invisible for so long). Honours ROVE_HOME_DIR
  * like every other state path so sandbox runs stay isolated.
  */
 export function defaultClientLogPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {

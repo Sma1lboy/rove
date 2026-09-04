@@ -105,8 +105,10 @@ replacement in `nextCommandArgs`.
   plugins — each with
   the RAW command it runs, its display
   name, and its `protocol` (the adapter Rove speaks to it: history reads,
-  trust pre-answer, first-message delivery; `generic` = none). What it
-  prints is what a launch runs, so an entry can be copied into `--command`
+  trust pre-answer, first-message delivery; `generic` = none). A plugin engine
+  reports its own id as its `protocol` — the plugin's manifest carries the
+  screen rules and identity Rove drives it with, so it is not `generic`. What
+  it prints is what a launch runs, so an entry can be copied into `--command`
   verbatim or edited first. Returns `{ engines }`.
 
 ## read
@@ -496,9 +498,11 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 - `routine-run-now --id ID`: run immediately, skipping the precheck. Does
   not shift the schedule.
 - `routine-runs --id ID`: run history, newest first. `revived` and `deferred`
-  are standing-session outcomes — see below.
+  are standing-session outcomes — see below. An unknown id is an error
+  (`automation not found`), not an empty history.
 - `routine-delete --id ID`: delete it and its history (tasks it already
-  created are untouched).
+  created are untouched). Idempotent: deleting an id that is already gone
+  succeeds with `{ "deleted": false }`.
 
 **`--persistent-session`** keeps ONE task per routine and delivers each firing
 into it, so a daily check can build on yesterday. Its task is folded behind the

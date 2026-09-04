@@ -69,6 +69,7 @@ beforeEach(() => {
     installedVersion: 3,
     currentVersion: 3,
     stale: false,
+    legacyCopies: [],
   })
   mocks.listPresetIds.mockReset().mockReturnValue(["claude", "codex", "copilot", "kimi"])
   mocks.detectEngineStatuses.mockReset().mockImplementation(async (vendors: readonly string[]) =>

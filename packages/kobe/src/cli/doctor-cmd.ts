@@ -18,6 +18,8 @@ import { readPidFile } from "@sma1lboy/kobe-daemon/daemon/server"
 import { homeDir, kvStatePath, roveStateDir } from "../env.ts"
 import { formatBytes } from "../lib/format-bytes.ts"
 import { kobeSkillState, skillInstallCommand } from "../lib/skill-install.ts"
+import { readableLegacyIndexPath } from "../orchestrator/index/store-codec.ts"
+import { LEGACY_KOBE_STATE_DIR_BASENAME } from "../product.ts"
 import { t } from "../tui/i18n"
 import { CURRENT_VERSION } from "../version.ts"
 import { MIN_BUN_VERSION, isBunAtLeast } from "./bun-runtime.ts"
@@ -172,7 +174,13 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
   const daemonLog = defaultDaemonLogPath()
   const ptySocket = defaultPtyHostSocketPath()
   const ptyLog = defaultPtyHostLogPath()
-  const tasksPath = join(roveStateDir(), "tasks.json")
+  // Same fallback the daemon-free readers use (`export`), so doctor never
+  // prints "absent" for an unmigrated home whose tasks `export` can list.
+  const canonicalTasks = join(roveStateDir(), "tasks.json")
+  const legacyTasks = join(homeDir(), LEGACY_KOBE_STATE_DIR_BASENAME, "tasks.json")
+  const readableLegacy = readableLegacyIndexPath(canonicalTasks, legacyTasks)
+  const usingLegacyTasks = !existsSync(canonicalTasks) && readableLegacy !== undefined && existsSync(readableLegacy)
+  const tasksPath = usingLegacyTasks ? legacyTasks : canonicalTasks
   const statePath = kvStatePath()
   const fixes: DoctorFix[] = []
   const git = await probeGit()
@@ -331,7 +339,11 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
   out.push("")
 
   const count = taskCount(tasksPath)
-  out.push(`tasks.json: ${describeFile(tasksPath)}${count === null ? "" : ` — ${count} task(s)`}`)
+  out.push(
+    `tasks.json: ${describeFile(tasksPath)}${count === null ? "" : ` — ${count} task(s)`}${
+      usingLegacyTasks ? ` (legacy ${tasksPath}, not yet migrated)` : ""
+    }`,
+  )
   out.push(`state.json: ${describeFile(statePath)}`)
   out.push(`daemon.log: ${describeFile(daemonLog)}`)
   out.push(`pty.log: ${describeFile(ptyLog)}`)

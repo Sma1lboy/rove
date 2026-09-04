@@ -117,6 +117,10 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "automation.runs",
     async handle(payload, ctx) {
       const automationId = requireString(payload, "id")
+      // An unknown id used to answer `{runs:[]}`, which reads as "it exists and
+      // has not run yet" — the one conclusion that makes an agent wait instead
+      // of fixing the id. Same failure as `setEnabled` / `runNow`.
+      if (!ctx.automations.get(automationId)) throw new Error(`automation not found: ${automationId}`)
       return { runs: ctx.automations.runsFor(automationId) }
     },
   },

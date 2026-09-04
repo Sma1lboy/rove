@@ -55,6 +55,7 @@
  */
 
 import { errorMessage } from "@/lib/error-message"
+import { ensurePluginEnginesLoaded } from "../engine/plugin-engines.ts"
 import { takeIdentityWarning } from "./api/dispatcher.ts"
 import { VerbArgs, buildCountPlan, parseAgentsSpec, parseFlags, validateAgainstSpec } from "./api/flags.ts"
 import { defaultApiRuntime, deliverPrompt } from "./api/runtime.ts"
@@ -195,6 +196,10 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
     process.stdout.write(`${apiUsage()}\n`)
     return
   }
+  // Before any verb runs: `--command fake-coder` must resolve to the plugin's
+  // engine, not `generic`, or the created task loses the identity and screen
+  // rules `engine-list` just promised for that id.
+  ensurePluginEnginesLoaded()
   const verb = findVerb(verbName)
   if (!verb) {
     const err = unknownVerbError(verbName)

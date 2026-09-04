@@ -140,6 +140,13 @@ export async function runSkillSubcommand(argv: readonly string[]): Promise<void>
     process.stdout.write(
       [
         `${CLI_NAME} skill: ${head}`,
+        // A `kobe`-named copy beside the current one is not cosmetic: agents
+        // load every skill dir they find, so it keeps handing them an old
+        // `api` surface however green the line above is.
+        ...state.legacyCopies.map(
+          (copy) =>
+            `  ⚠ stale duplicate: ${copy.path}${copy.version === null ? "" : ` (v${copy.version})`} — remove it; agents load both`,
+        ),
         `  looked in: ${paths.join("\n             ")}`,
         state.installed && !state.stale ? "" : `  → run \`${CLI_NAME} skill install\` to install / refresh`,
         "",

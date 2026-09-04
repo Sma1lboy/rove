@@ -415,6 +415,10 @@ are set: `ROVE_HOME_DIR` beats `KOBE_HOME_DIR`, `ROVE_OPEN_EDITOR` beats
 | `ROVE_DEV=1` | Mark a developer checkout; hides the update chip |
 | `ROVE_DEBUG=1` | Print full startup errors instead of one line |
 | `ROVE_TASK_ID` / `ROVE_TAB_ID` | Set inside tabs Rove opens; how `rove api` verbs resolve the calling task |
+| `ROVE_FILETREE_WATCH=0` | Turn off the Files pane's worktree watcher; `r` becomes the only refresh |
+| `ROVE_RPC_TIMEOUT_MS` | Deadline for one daemon RPC (default 20000; `0` or negative waits forever) |
+| `ROVE_DAEMON_IDLE_GRACE_MS` | Grace before a daemon with no attached GUI stops itself (default 3000ms) |
+| `ROVE_HOOK_DEBUG=1` | Print engine-hook failures to stderr instead of swallowing them |
 
 The `KOBE_*` aliases stay fully supported: engine hooks and older automation
 keep reading `KOBE_TASK_ID` / `KOBE_TAB_ID`, which Rove exports beside the
@@ -441,6 +445,7 @@ path is honoured only while a pre-rename daemon, PTY host, or plugin registry
 is still live, and after binding on the new paths Rove leaves symlinks at the
 old ones so older binaries still find the running daemon. The first launch
 copies supported legacy state additively and never overwrites canonical files
-— except the plugin tree (`plugins.json`, `plugins/<id>/`), which is *moved*
-with a compatibility symlink left behind. Daemon-owned stores are copied at
+— except the plugin tree (`plugins.json`, `plugins/<id>/`) and the PTY host's
+own data (`pty-exits.json`, `pty-sessions/`), which are *moved* with a
+compatibility symlink left behind: the host moves its two at its next start. Daemon-owned stores are copied at
 new-daemon startup, only after the legacy writer has stopped.

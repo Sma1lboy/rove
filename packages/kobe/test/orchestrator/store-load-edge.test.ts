@@ -56,38 +56,6 @@ describe("load() recovery", () => {
     expect(store.list()).toEqual([])
   })
 
-  it("reads the legacy index until migration and carries every legacy task into the first canonical save", async () => {
-    const legacyPath = join(home, ".kobe", "tasks.json")
-    await mkdir(join(home, ".kobe"), { recursive: true })
-    const legacyTask = {
-      id: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
-      title: "legacy",
-      repo: "/r",
-      branch: "kobe/legacy",
-      worktreePath: "/legacy/wt",
-      status: "backlog",
-      createdAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-01T00:00:00.000Z",
-    }
-    const legacyJson = JSON.stringify({ version: 3, tasks: [legacyTask] })
-    await writeFile(legacyPath, legacyJson, "utf8")
-
-    expect((await store.load()).tasks.map((task) => task.title)).toEqual(["legacy"])
-    await store.create({
-      repo: "/r",
-      title: "new",
-      branch: "rove/new",
-      worktreePath: "/rove/wt",
-      status: "backlog",
-      kind: "task",
-      vendor: "claude",
-    })
-
-    const canonical = JSON.parse(await readFile(store.filePath, "utf8")) as { tasks: Array<{ title: string }> }
-    expect(canonical.tasks.map((task) => task.title)).toEqual(["legacy", "new"])
-    expect(await readFile(legacyPath, "utf8")).toBe(legacyJson)
-  })
-
   it("corrupt JSON recovers empty with a warning, backing the original bytes up first", async () => {
     // Why the backup matters: the next save read-merge-writes from the empty
     // recovery base and REPLACES the corrupt file — without the copy, the

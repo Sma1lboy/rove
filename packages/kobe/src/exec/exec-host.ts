@@ -64,7 +64,7 @@ export interface RemoteSpec {
   readonly user: string
   readonly port?: number
   readonly auth: RemoteAuth
-  /** ControlMaster socket path (one per remote project, under KOBE_HOME). */
+  /** ControlMaster socket path (one per remote project, under the Rove home). */
   readonly controlPath: string
 }
 

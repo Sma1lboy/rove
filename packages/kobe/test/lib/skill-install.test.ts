@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -7,6 +7,7 @@ import {
   KOBE_SKILL_VERSION,
   NPX_MISSING_EXIT,
   bundledSkillDir,
+  installedSkillDirs,
   isKobeSkillInstalled,
   isNpxMissing,
   kobeSkillPaths,
@@ -163,6 +164,34 @@ describe("skill version / staleness", () => {
       installedVersion: KOBE_SKILL_VERSION - 1,
       stale: true,
     })
+  })
+
+  it("kobeSkillState: a leftover kobe copy is reported beside a current rove one", () => {
+    // Agents load every skill directory they find, so the stale `kobe` copy
+    // keeps teaching an old `api` surface however green the rove copy is.
+    // Reporting the first path found hid it completely.
+    const home = tempDir()
+    mkdirSync(join(home, ".agents/skills/kobe"), { recursive: true })
+    writeFileSync(join(home, ".agents/skills/kobe/SKILL.md"), `<!-- kobe-skill-version: ${KOBE_SKILL_VERSION - 5} -->`)
+    // The agent-skills CLI symlinks the agent dir at the shared copy — one
+    // file, one warning, not two.
+    mkdirSync(join(home, ".claude/skills"), { recursive: true })
+    symlinkSync(join(home, ".agents/skills/kobe"), join(home, ".claude/skills/kobe"))
+    mkdirSync(join(home, ".agents/skills/rove"), { recursive: true })
+    writeFileSync(join(home, ".agents/skills/rove/SKILL.md"), `<!-- rove-skill-version: ${KOBE_SKILL_VERSION} -->`)
+
+    const state = kobeSkillState({ home, cwd: tempDir() })
+    expect(state).toMatchObject({ installed: true, installedVersion: KOBE_SKILL_VERSION, stale: false })
+    expect(state.legacyCopies).toEqual([
+      { path: join(home, ".agents/skills/kobe/SKILL.md"), version: KOBE_SKILL_VERSION - 5 },
+    ])
+    expect(installedSkillDirs(home)).toEqual([join(home, ".agents/skills/rove"), join(home, ".agents/skills/kobe")])
+  })
+
+  it("kobeSkillState: a kobe-only install reports no duplicate — it IS the install", () => {
+    const home = tempDir()
+    installSkillUnder(home, `<!-- kobe-skill-version: ${KOBE_SKILL_VERSION} -->`, "kobe")
+    expect(kobeSkillState({ home, cwd: tempDir() })).toMatchObject({ installed: true, legacyCopies: [] })
   })
 
   it("kobeSkillState: unstamped install → stale (refresh once)", () => {

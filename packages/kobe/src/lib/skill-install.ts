@@ -26,9 +26,9 @@
  * skill version, non-TTY falls back to the one-shot hint.
  */
 
-import { accessSync, existsSync, constants as fsConstants, readFileSync } from "node:fs"
+import { accessSync, existsSync, constants as fsConstants, readFileSync, statSync } from "node:fs"
 import { homedir } from "node:os"
-import { delimiter, join, resolve } from "node:path"
+import { delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { activeCliName } from "../cli/rename-compat.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
@@ -57,12 +57,9 @@ export const KOBE_SKILL_VERSION = 42
  * answering is a genuine install. `.claude` stays in the list so skills
  * installed by older kobe versions still register as present.
  */
-const SKILL_REL_PATHS = [
-  ".agents/skills/rove/SKILL.md",
-  ".claude/skills/rove/SKILL.md",
-  ".agents/skills/kobe/SKILL.md",
-  ".claude/skills/kobe/SKILL.md",
-] as const
+const ROVE_SKILL_REL_PATHS = [".agents/skills/rove/SKILL.md", ".claude/skills/rove/SKILL.md"] as const
+const LEGACY_SKILL_REL_PATHS = [".agents/skills/kobe/SKILL.md", ".claude/skills/kobe/SKILL.md"] as const
+const SKILL_REL_PATHS = [...ROVE_SKILL_REL_PATHS, ...LEGACY_SKILL_REL_PATHS] as const
 
 /** The invoked wrapper command a user runs. Shown in hints / doctor. */
 export function skillInstallCommand(env: NodeJS.ProcessEnv = process.env): string {
@@ -234,6 +231,65 @@ export interface SkillState {
   readonly currentVersion: number
   /** Installed, stamped, and behind the binary → re-install recommended. */
   readonly stale: boolean
+  /**
+   * `kobe`-named copies sitting BESIDE the reported install. Agents load every
+   * skill directory they find, so one of these keeps teaching an old `kobe api`
+   * surface no matter how current the `rove` copy is — and reporting only the
+   * first path found made the whole thing invisible.
+   */
+  readonly legacyCopies: readonly SkillCopy[]
+}
+
+/** One skill file on disk: where it is and which marker version it carries. */
+export interface SkillCopy {
+  readonly path: string
+  readonly version: number | null
+}
+
+/** Marker version of a skill file, or null when absent/unreadable/unstamped. */
+function skillVersionAt(path: string): number | null {
+  try {
+    return parseSkillVersion(readFileSync(path, "utf8"))
+  } catch {
+    return null
+  }
+}
+
+/** `dev:ino`, so a `.claude` symlink into `.agents` counts as one copy. */
+function inodeKey(path: string): string {
+  try {
+    const stat = statSync(path)
+    return `${stat.dev}:${stat.ino}`
+  } catch {
+    return path
+  }
+}
+
+/** Existing skill files under `roots`, deduplicated by inode. */
+function distinctSkillFiles(roots: readonly string[], rels: readonly string[]): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const root of roots) {
+    for (const rel of rels) {
+      const path = join(root, rel)
+      if (!existsSync(path)) continue
+      const key = inodeKey(path)
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push(path)
+    }
+  }
+  return out
+}
+
+/**
+ * Skill DIRECTORIES present under one home, canonical and legacy names alike,
+ * deduplicated by inode. The plugin migration gate uses this: with the plugin
+ * enabled every hand-installed copy is a double registration, whatever it is
+ * called and whichever agent dir it landed in.
+ */
+export function installedSkillDirs(home: string = homedir()): string[] {
+  return distinctSkillFiles([home], SKILL_REL_PATHS).map((path) => dirname(path))
 }
 
 /**
@@ -241,19 +297,42 @@ export interface SkillState {
  * UNSTAMPED installed skill (pre-versioning) is treated as stale so it gets
  * refreshed once. An absent skill is "not installed" (not stale).
  */
-export function kobeSkillState(opts?: { home?: string; cwd?: string }): SkillState {
-  const path = kobeSkillPaths(opts).find((p) => existsSync(p))
-  if (!path) {
-    return { installed: false, installedVersion: null, currentVersion: KOBE_SKILL_VERSION, stale: false }
+export function kobeSkillState(opts: { home?: string; cwd?: string } = {}): SkillState {
+  const roots = [opts.home ?? homedir(), opts.cwd ?? process.cwd()]
+  const roveCopies = distinctSkillFiles(roots, ROVE_SKILL_REL_PATHS).map((path) => ({
+    path,
+    version: skillVersionAt(path),
+  }))
+  const legacy = distinctSkillFiles(roots, LEGACY_SKILL_REL_PATHS).map((path) => ({
+    path,
+    version: skillVersionAt(path),
+  }))
+  // Report from the BEST canonical copy — highest marker version — so a stale
+  // duplicate can never make a current install look out of date. Falling back
+  // to a legacy copy keeps a pre-rename-only install reporting as installed.
+  const best = [...roveCopies].sort((a, b) => (b.version ?? -1) - (a.version ?? -1))[0] ?? legacy[0]
+  if (!best) {
+    return {
+      installed: false,
+      installedVersion: null,
+      currentVersion: KOBE_SKILL_VERSION,
+      stale: false,
+      legacyCopies: [],
+    }
   }
-  let installedVersion: number | null = null
-  try {
-    installedVersion = parseSkillVersion(readFileSync(path, "utf8"))
-  } catch {
-    installedVersion = null
+  const stale = best.version === null || best.version < KOBE_SKILL_VERSION
+  return {
+    installed: true,
+    installedVersion: best.version,
+    currentVersion: KOBE_SKILL_VERSION,
+    stale,
+    legacyCopies: legacy.filter((copy) => copy.path !== best.path),
   }
-  const stale = installedVersion === null || installedVersion < KOBE_SKILL_VERSION
-  return { installed: true, installedVersion, currentVersion: KOBE_SKILL_VERSION, stale }
+}
+
+/** "…/skills/kobe/SKILL.md (v30)", joined — what a user has to go delete. */
+function describeLegacyCopies(copies: readonly SkillCopy[]): string {
+  return copies.map((c) => `${c.path}${c.version === null ? "" : ` (v${c.version})`}`).join(", ")
 }
 
 /** Test seams for the startup prompt (presence of `ask` marks the session interactive). */
@@ -305,9 +384,24 @@ export async function maybeHintSkillInstall(io: SkillHintIO = {}): Promise<void>
     )
     return
   }
-  if (!state.stale) return
-
   const key = `${HINT_SEEN_KEY}:v${state.currentVersion}`
+  const duplicates = state.legacyCopies
+  // A leftover `kobe` copy is as actionable as staleness — agents load every
+  // skill dir they find, so it keeps teaching an old `api` surface next to the
+  // current one. Same one-per-version gate; no prompt, since there is nothing
+  // to install, only something to delete.
+  if (!state.stale) {
+    if (duplicates.length === 0) return
+    if (getPersistedString(key) === "1") return
+    setPersistedString(key, "1")
+    process.stderr.write(
+      `\n${cliName}: your Rove agent skill is current, but a stale duplicate is still installed:\n  ${describeLegacyCopies(
+        duplicates,
+      )}\n  Remove that directory — your agent loads both.\n\n`,
+    )
+    return
+  }
+
   if (getPersistedString(key) === "1") return
   const was = state.installedVersion === null ? "an older version" : `v${state.installedVersion}`
 

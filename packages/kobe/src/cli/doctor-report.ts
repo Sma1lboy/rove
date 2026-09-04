@@ -21,11 +21,33 @@ import { join } from "node:path"
 import { defaultDaemonLogPath, defaultPtyHostLogPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 
 /**
+ * Rove's own knobs, by SUFFIX — expanded to both prefixes below. Spelled once
+ * because a key listed under one prefix only prints its value there and
+ * redacts the other spelling of the SAME knob to `(set)`, which is how a
+ * `ROVE_WEB_HOST=0.0.0.0` bug report used to arrive with the value hidden.
+ */
+const REPORT_ENV_SUFFIXES = [
+  "HOME_DIR",
+  "DAEMON_SOCKET_PATH",
+  "SOCKET_PATH",
+  "PTY_SOCKET_PATH",
+  "DAEMON_WEB_PORT",
+  "PTY_PORT",
+  "WEB_HOST",
+  "BIN_PATH",
+  "DEV",
+  "DEBUG",
+  "TERMINAL_BACKEND",
+  "TASK_ID",
+  "TAB_ID",
+] as const
+
+/**
  * Keys whose VALUE is printed verbatim. Everything else is reported as `(set)`.
- * Add a key here when its value is what you'd ask a reporter for anyway — a
+ * Add one here when its value is what you'd ask a reporter for anyway — a
  * path, a port, a mode flag. Never add one that could hold a credential.
  */
-const REPORT_ENV_KEYS = [
+const REPORT_ENV_KEYS: readonly string[] = [
   "SHELL",
   "TERM",
   "TERM_PROGRAM",
@@ -33,32 +55,11 @@ const REPORT_ENV_KEYS = [
   "COLORTERM",
   "VISUAL",
   "EDITOR",
-  // Rove's own knobs: where state lives, which transport, which engine.
-  "ROVE_HOME_DIR",
-  "KOBE_HOME_DIR",
-  "ROVE_DAEMON_SOCKET_PATH",
-  "KOBE_DAEMON_SOCKET_PATH",
-  "ROVE_SOCKET_PATH",
-  "KOBE_SOCKET_PATH",
-  "KOBE_PTY_SOCKET_PATH",
-  "ROVE_DAEMON_WEB_PORT",
-  "KOBE_DAEMON_WEB_PORT",
-  "KOBE_PTY_PORT",
-  "KOBE_WEB_HOST",
-  "ROVE_BIN_PATH",
-  "KOBE_BIN_PATH",
-  "KOBE_WORKTREE_ROOT_DIR",
+  ...REPORT_ENV_SUFFIXES.flatMap((suffix) => [`ROVE_${suffix}`, `KOBE_${suffix}`]),
+  // No KOBE_ twin on purpose: `installRoveEnvCompatibility` deliberately skips
+  // this one, so a `KOBE_INVOKED_AS` line would always read `(unset)`.
   "ROVE_INVOKED_AS",
-  "ROVE_PRODUCT_NAME",
-  "ROVE_DEV",
-  "KOBE_DEV",
-  "KOBE_DEBUG",
-  "KOBE_TERMINAL_BACKEND",
-  "ROVE_TASK_ID",
-  "KOBE_TASK_ID",
-  "ROVE_TAB_ID",
-  "KOBE_TAB_ID",
-] as const
+]
 
 /** How many trailing log lines each log section carries (also named in its header). */
 const LOG_TAIL_LINES = 200
