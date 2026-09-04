@@ -65,6 +65,7 @@ function harness(initialTasks: Task[], counts: Record<string, WorktreeChanges>) 
   const runs: string[] = []
   const collector = new WorktreeChangesCollector({ listTasks: () => tasks }, bus, {
     cadence: FAST,
+    publishDelayMs: 0,
     run: async (worktreePath) => {
       runs.push(worktreePath)
       const value = counts[worktreePath]
@@ -176,6 +177,7 @@ describe("WorktreeChangesCollector", () => {
     const runs: string[] = []
     const collector = new WorktreeChangesCollector({ listTasks: () => [task({ id: "a" })] }, bus, {
       cadence: FAST,
+      publishDelayMs: 0,
       run: (worktreePath) => {
         runs.push(worktreePath)
         return new Promise((r) => {
@@ -201,6 +203,7 @@ describe("WorktreeChangesCollector", () => {
     })
     const collector = new WorktreeChangesCollector({ listTasks: () => tasks.current }, bus, {
       cadence: FAST,
+      publishDelayMs: 0,
       run: () =>
         new Promise((r) => {
           release = r
@@ -224,6 +227,7 @@ describe("WorktreeChangesCollector", () => {
     const runs: string[] = []
     const collector = new WorktreeChangesCollector({ listTasks: () => [task({ id: "a" })] }, bus, {
       cadence: FAST,
+      publishDelayMs: 0,
       hasSubscribers: () => subscribed,
       run: async (worktreePath) => {
         runs.push(worktreePath)
@@ -262,7 +266,7 @@ describe("WorktreeChangesCollector", () => {
         },
       },
       bus,
-      { cadence: FAST, run: async () => ({ added: 0, deleted: 0 }) },
+      { cadence: FAST, publishDelayMs: 0, run: async () => ({ added: 0, deleted: 0 }) },
     )
     expect(() => collector.tick()).not.toThrow()
   })
@@ -285,6 +289,7 @@ describe("the behind-base count", () => {
       bus,
       {
         cadence: FAST,
+        publishDelayMs: 0,
         run: async (_path, _signal, baseRef) => {
           seenBaseRefs.push(baseRef)
           return { added: 1, deleted: 0, behind }
@@ -318,6 +323,7 @@ describe("the behind-base count", () => {
     })
     const collector = new WorktreeChangesCollector({ listTasks: () => [task({ id: "a" })] }, bus, {
       cadence: FAST,
+      publishDelayMs: 0,
       run: async () => ({ added: 0, deleted: 2 }),
     })
     collector.tick()
@@ -365,6 +371,7 @@ describe("the ahead-of-base count", () => {
     let ahead = 0
     const collector = new WorktreeChangesCollector({ listTasks: () => [task({ id: "a" })] }, bus, {
       cadence: FAST,
+      publishDelayMs: 0,
       run: async () => ({ added: 0, deleted: 0, behind: 0, ahead }),
     })
     collector.tick()
