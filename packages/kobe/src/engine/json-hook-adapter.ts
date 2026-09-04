@@ -87,9 +87,8 @@ export abstract class JsonHookAdapter implements EngineHookAdapter {
     return undefined
   }
 
-  /** Default: no session identity in the payload. Claude overrides (its
-   *  hooks pipe `session_id`/`transcript_path`); codex session extraction is
-   *  a documented follow-up. */
+  /** Default: no session identity in the payload. Claude and codex both
+   *  override — their hooks pipe `session_id`/`transcript_path`. */
   sessionFromPayload(_payload: Record<string, unknown>): EngineSessionRef | undefined {
     return undefined
   }

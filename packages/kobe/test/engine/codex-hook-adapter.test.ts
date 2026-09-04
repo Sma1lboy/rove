@@ -19,6 +19,29 @@ vi.mock("../../src/cli/invocation.ts", () => ({
 describe("CodexHookAdapter", () => {
   const adapter = new CodexHookAdapter()
 
+  // Field names + nullability taken from the `stop.command.input` JSON schema
+  // embedded in codex-cli 0.153.2's binary, which REQUIRES both keys. Without
+  // this the daemon records a turn-complete carrying no transcript, so codex's
+  // turn reader is never reached and `agent-turns` stays empty.
+  it("extracts session identity from a Stop payload", () => {
+    expect(
+      adapter.sessionFromPayload({
+        hook_event_name: "Stop",
+        session_id: "01a060d6-aae5-7c90-91c0-d5f81da8f343",
+        transcript_path: "/Users/x/.codex/sessions/2026/09/01/rollout-x.jsonl",
+        model: "gpt-5.6-luna",
+      }),
+    ).toEqual({
+      sessionId: "01a060d6-aae5-7c90-91c0-d5f81da8f343",
+      transcriptPath: "/Users/x/.codex/sessions/2026/09/01/rollout-x.jsonl",
+    })
+  })
+
+  it("tolerates the schema's nullable transcript_path and an absent session", () => {
+    expect(adapter.sessionFromPayload({ session_id: "s1", transcript_path: null })).toEqual({ sessionId: "s1" })
+    expect(adapter.sessionFromPayload({ transcript_path: "/t.jsonl" })).toBeUndefined()
+  })
+
   it("declares itself a wired hook engine writing ~/.codex/hooks.json", () => {
     expect(adapter.vendor).toBe("codex")
     expect(adapter.supportsHooks()).toBe(true)

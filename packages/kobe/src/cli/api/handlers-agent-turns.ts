@@ -8,6 +8,7 @@
  */
 
 import type { AgentTurnRecord } from "@sma1lboy/kobe-daemon/daemon/contracts"
+import { vendorsWithTurnReader } from "../../engine/registry.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import type { VerbContext, VerbSpec } from "./types.ts"
 
@@ -74,8 +75,10 @@ async function agentTurns(ctx: VerbContext): Promise<unknown> {
 export const AGENT_TURNS_VERB: VerbSpec = {
   name: "agent-turns",
   group: "read",
-  summary:
-    "Per-turn agent telemetry: one record per completed engine turn (task/tab/vendor/model/timings/tokens), newest first, plus totals. Engine-produced, daemon-stored; read-only.",
+  // The reporting engines are READ OFF THE REGISTRY, never written here: a
+  // literal pair would put vendor strings in a neutral layer and would go stale
+  // the moment a third adapter lands.
+  summary: `Per-turn agent telemetry: one record per completed engine turn (task/tab/vendor/model/timings/tokens), newest first, plus totals. Engine-produced, daemon-stored; read-only. Engines that report turns: ${vendorsWithTurnReader().join(", ")} — a task on any other engine yields an empty page because that engine has no turn reader, not because it did no work.`,
   flags: [
     { name: "task-id", type: "string", placeholder: "ID", description: "Only this task's turns." },
     {

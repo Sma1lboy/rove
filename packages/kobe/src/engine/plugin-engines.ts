@@ -43,6 +43,7 @@ export function loadPluginEngines(homeDir?: string): readonly string[] {
             ...(engine.processNames ? { processNames: engine.processNames } : {}),
             screenManifest: { rules: engine.rules },
             identity,
+            ...(engine.firstMessageDelivery ? { firstMessageDelivery: engine.firstMessageDelivery } : {}),
           })
           if (ok) {
             registered.push(engine.id)

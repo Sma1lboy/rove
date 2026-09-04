@@ -9,6 +9,8 @@ import {
 } from "../../../kobe-daemon/src/daemon/quota-resume.ts"
 import type { QuotaUsageCache } from "../../../kobe-daemon/src/daemon/quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "../../../kobe-daemon/src/daemon/runtime.ts"
+import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
+import { vendorsWithQuotaProbe } from "../../src/engine/registry.ts"
 
 const NOW = Date.parse("2026-07-27T12:00:00.000Z")
 const PAST = new Date(NOW - 1000).toISOString()
@@ -119,6 +121,32 @@ describe("scheduleQuotaResume", () => {
     await scheduleQuotaResume(orch, RUNTIME, fakeCache(null), "t1", () => NOW)
     await scheduleQuotaResume(orch, RUNTIME, fakeCache({ windows: [], capturedAt: NOW }), "t1", () => NOW)
     expect(orch.setQuotaResume).not.toHaveBeenCalled()
+  })
+
+  // Kimi's hook adapter classifies its 429s as `rate_limit` — that is what
+  // makes the sticky `rate_limited` badge light up, and it is the whole of what
+  // the classification buys. Arming a resume needs a RESET TIMESTAMP, and kimi
+  // publishes one nowhere: it ships no quota API, so no `quotaUsage` probe, and
+  // its `turn-failed` payload carries only `error_type`/`error_message`. The
+  // only way to arm one would be to guess a reset for a 5-hour ROLLING window
+  // whose start nobody recorded, and a resume that fires at the wrong time
+  // spends a turn to fail again. So this asserts the honest behavior rather
+  // than a wish: a kimi rate-limit arms nothing.
+  it("arms nothing for an engine with no quota probe (kimi), badge only", async () => {
+    const orch = fakeOrch([task("t1", { vendor: "kimi" })])
+    // The REAL adapter, not a stub — the point is what the registry answers.
+    const runtime = { defaultTaskVendor: "claude" } as unknown as DaemonRuntimeAdapter
+    const cache = {
+      get: vi.fn(async (vendor: string) => (await daemonRuntime.quotaUsage(vendor as never)) ?? null),
+    } as unknown as QuotaUsageCache & { get: ReturnType<typeof vi.fn> }
+
+    await scheduleQuotaResume(orch, runtime, cache, "t1", () => NOW)
+
+    expect(cache.get).toHaveBeenCalledWith("kimi", 0)
+    expect(orch.setQuotaResume).not.toHaveBeenCalled()
+    // The reason, stated where a future reader will look: kimi is absent from
+    // the probe list, so there is nothing to ask when the limit lands.
+    expect(vendorsWithQuotaProbe()).toEqual(["claude", "codex"])
   })
 
   it("ignores unknown and deleting tasks", async () => {

@@ -398,3 +398,17 @@ export function vendorsWithQuotaProbe(): readonly VendorId[] {
     .filter((entry) => entry.quotaUsage)
     .map((entry) => entry.vendor)
 }
+
+/**
+ * Built-in vendors that ship a per-turn reader. `agent-turns` names these in
+ * its own summary so an empty page can say WHY it is empty — an engine with no
+ * reader contributes nothing, which is a different fact from a task that did no
+ * work. Derived rather than written down: a hard-coded pair in the CLI layer
+ * would be a vendor string in neutral code AND would go stale the moment a
+ * third adapter lands.
+ */
+export function vendorsWithTurnReader(): readonly VendorId[] {
+  return Object.values(BUILTIN_ENGINES)
+    .filter((entry) => entry.readTurns)
+    .map((entry) => entry.vendor)
+}

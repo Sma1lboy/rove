@@ -225,8 +225,10 @@ replacement in `nextCommandArgs`.
   `usage`), newest first, plus a `totals` roll-up (token sums, summed
   wall-clock, turn counts per model). Default window 7 days, 200 records.
   Records are produced by each engine's own adapter from that vendor's
-  transcript and stored by the daemon on `turn-complete`; engines without a
-  turn reader contribute nothing. Read-only.
+  transcript and stored by the daemon on `turn-complete`. Claude and codex
+  have a turn reader; every other engine has none, so a task on one yields an
+  empty page because nothing can read its turns, not because it did no work.
+  Read-only.
 - `pty-list` *(offline)*: hosted PTY sessions (key, alive, pid, command,
   live window title). `sessions: []` means a live PTY host with nothing
   running; `sessions: null` means there was no host to ask — "couldn't look",

@@ -183,9 +183,19 @@ export class KimiHookAdapter implements EngineHookAdapter {
 
   /** Kimi's stdin payload spells tool fields `tool_name`; the permission
    *  event is always a permission (Kimi has no elicitation notification).
-   *  `turn-failed` classifies the StopFailure — without it every Kimi
-   *  failure reduces to `error`, Kimi can never reach `rate_limited`, and
-   *  auto-resume is never armed when Kimi hits its 5-hour limit. */
+   *  `turn-failed` classifies the StopFailure — without it every Kimi failure
+   *  reduces to `error` and Kimi can never reach `rate_limited`, so the user
+   *  sees a generic error instead of "waiting on the 5-hour window".
+   *
+   *  The BADGE is all this buys, and that is not an oversight. Auto-resume
+   *  (`daemon/quota-resume.ts`) arms off a reset TIMESTAMP, which it gets from
+   *  the vendor's live usage API via `quotaUsage`. Kimi ships no such API, and
+   *  this payload carries only `error_type`/`error_message` — no reset time on
+   *  either path. The only remaining move would be guessing a reset for a
+   *  ROLLING 5-hour window whose start nobody recorded, and a resume that
+   *  fires early spends a turn to fail again. So: classify for the badge,
+   *  arm nothing. Pinned by "arms nothing for an engine with no quota probe"
+   *  in `test/daemon/quota-resume.test.ts`. */
   activityDetailFromPayload(
     kind: EngineActivityKind,
     payload: Record<string, unknown>,
