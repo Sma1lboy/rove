@@ -26,6 +26,7 @@ import {
   isHostedTaskKey,
   killHostedSessions,
   listHostedSessions,
+  listHostedSessionsOrNull,
   openHostedSessionHost,
   pastePromptWhenEngineUp,
   writeHostedPrompt,
@@ -79,6 +80,7 @@ export const ensurePtyHost = ensureHostedSessionHost
 
 /** Session inventory from the pty host; `[]` on any RPC hiccup. */
 export const listSessions = listHostedSessions
+export const listSessionsOrNull = listHostedSessionsOrNull
 
 /**
  * Deliver `prompt` into an existing hosted engine session and submit it —

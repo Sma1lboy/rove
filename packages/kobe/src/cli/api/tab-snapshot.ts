@@ -22,6 +22,7 @@
  */
 
 import type { PtySessionExit } from "@sma1lboy/kobe-daemon/daemon/protocol"
+import { engineLaunchArgv } from "../../engine/engine-presets.ts"
 import { loadStateFile, patchStateFile, updateStateFile } from "../../state/store.ts"
 import { terminalTabsKey } from "../../tui-react/workspace/terminal-tabs-persist.ts"
 import { type TabsState, type TerminalTab, closeTab, initialTabs } from "../../tui/workspace/terminal-tabs-core.ts"
@@ -41,7 +42,17 @@ export interface TaskTabRow {
   readonly liveVendor: string | null
   readonly lastTitle: string | null
   readonly autoTitle: string | null
-  readonly alive: boolean
+  /** Is the tab's hosted PTY SESSION alive. `null` means the pty host could
+   *  not be asked, which is "couldn't look" and not a dead tab — the whole
+   *  inventory is unknown then, and a caller acting on `false` here would be
+   *  acting on a fact nobody established. */
+  readonly alive: boolean | null
+  /** Is an ENGINE PROCESS running inside this tab's session tree — the fact
+   *  `alive` cannot report. keepAlive `exec`s a login shell where an engine
+   *  exits, so `alive: true, engineAlive: false` is a tab holding a bare
+   *  zsh prompt. `null` means nothing walked it (a `ps` that failed), never
+   *  "no engine": a reader must not turn "couldn't look" into a verdict. */
+  readonly engineAlive: boolean | null
   /** How the tab's session died — ABNORMAL exits only (clean exit 0 stays
    *  null, by the no-noise rule); null while alive/unknown. Joined
    *  from the live host when present, else the durable exit records —
@@ -53,6 +64,16 @@ export interface TaskTabRow {
    *  snapshot is a record of intent; the pty host holds the truth, and a
    *  divergence must render as a row, not vanish. */
   readonly unregistered?: true
+}
+
+/**
+ * The task's own engine launch argv, for the liveness walk. Passing it is
+ * what lets a CUSTOM engine — a wrapper script no vendor table names — read
+ * as running; without it that task walks as "no engine" and an unattended
+ * cleanup loop would treat live work as finished.
+ */
+export function taskEngineArgv(task: { readonly command?: string; readonly vendor?: string }): readonly string[] {
+  return engineLaunchArgv({ command: task.command, vendor: task.vendor as VendorId | undefined })
 }
 
 /** The slice of a `pty.list` row the liveness joins below need. */
@@ -148,12 +169,17 @@ const abnormalExit = (exit: PtySessionExit | null | undefined): PtySessionExit |
 export function joinTaskTabs(
   snapshot: TabsState | undefined,
   taskId: string,
-  sessions: readonly TaskSessionRow[],
+  /** `null` = the pty host could not be asked; every liveness field on every
+   *  row then reports `null` rather than a verdict nobody checked. */
+  sessions: readonly TaskSessionRow[] | null,
   persistedExits: Readonly<Record<string, PtySessionExit & { tail?: readonly string[] }>> = {},
   liveVendors?: ReadonlyMap<string, string | null>,
+  engineAlive?: ReadonlyMap<string, boolean>,
 ): TaskTabRow[] {
-  const alive = aliveKeysOf(sessions)
-  const sessionExits = new Map(sessions.map((s) => [s.key, s.exit]))
+  const unknown = sessions === null
+  const rows0 = sessions ?? []
+  const alive = aliveKeysOf(rows0)
+  const sessionExits = new Map(rows0.map((s) => [s.key, s.exit]))
   // Death cause + tail for one dead tab. The live host's in-memory exit wins
   // (fresher when the key was reopened) but carries no output; the durable
   // record has the exit-time tail — merge it in only when both describe the
@@ -167,8 +193,8 @@ export function joinTaskTabs(
   }
   const rows: TaskTabRow[] = (snapshot?.tabs ?? []).map((t) => {
     const key = `${taskId}::${t.id}`
-    const isAlive = alive.has(key)
-    const walked = isAlive && liveVendors?.has(key) === true ? (liveVendors.get(key) ?? null) : undefined
+    const isAlive = unknown ? null : alive.has(key)
+    const walked = isAlive === true && liveVendors?.has(key) === true ? (liveVendors.get(key) ?? null) : undefined
     return {
       id: t.id,
       kind: t.kind,
@@ -178,14 +204,15 @@ export function joinTaskTabs(
       lastTitle: t.lastTitle ?? null,
       autoTitle: t.autoTitle ?? null,
       alive: isAlive,
-      exit: isAlive ? null : deadExit(key),
+      engineAlive: engineAliveOf(key, isAlive, engineAlive),
+      exit: isAlive === false ? deadExit(key) : null,
     }
   })
   // Live sessions the snapshot doesn't know still get a row — the discovery
   // read must show every engine that exists, not just the registered ones.
   // "engine" is the same assumption the sidebar's orphan backstop documents:
   // headless paths only ever start engines.
-  for (const tabId of unregisteredTabIds(snapshot, taskId, sessions)) {
+  for (const tabId of unregisteredTabIds(snapshot, taskId, rows0)) {
     rows.push({
       id: tabId,
       kind: "engine",
@@ -195,6 +222,7 @@ export function joinTaskTabs(
       lastTitle: null,
       autoTitle: null,
       alive: true,
+      engineAlive: engineAliveOf(`${taskId}::${tabId}`, true, engineAlive),
       exit: null,
       unregistered: true,
     })
@@ -203,22 +231,47 @@ export function joinTaskTabs(
 }
 
 /**
- * A task is RUNNING when ANY of its engine tabs has a live hosted session —
- * not just the canonical first one. The old `tab-1`-only rule reported
- * `running:false` while later engine tabs (`send --tab new`, a TUI tab
- * opened after tab-1 closed) were happily alive. The `tab-1` key stays as a
- * snapshot-free floor: it is always an engine tab by construction
- * (`initialTabs`), so it counts even when the snapshot write failed.
- * Non-engine tabs (command/content) never count — same rule delivery uses.
+ * Was an ENGINE PROCESS found inside this tab's session tree — `null` when
+ * nothing walked it (a dead tab, or a `ps` that failed). Distinct from
+ * `alive`, which is the SESSION's liveness: keepAlive leaves a login shell
+ * where an engine exited, so a tab can be `alive: true, engineAlive: false`
+ * for as long as nobody closes it.
+ */
+function engineAliveOf(
+  key: string,
+  isAlive: boolean | null,
+  engineAlive: ReadonlyMap<string, boolean> | undefined,
+): boolean | null {
+  if (isAlive === null) return null
+  if (!isAlive) return false
+  return engineAlive?.has(key) === true ? (engineAlive.get(key) ?? null) : null
+}
+
+/**
+ * A task is RUNNING when ANY of its engine tabs has a live hosted session
+ * WITH AN ENGINE IN IT — not just the canonical first one, and not merely a
+ * live PTY. The old `tab-1`-only rule reported `running:false` while later
+ * engine tabs (`send --tab new`, a TUI tab opened after tab-1 closed) were
+ * happily alive. The `tab-1` key stays as a snapshot-free floor: it is
+ * always an engine tab by construction (`initialTabs`), so it counts even
+ * when the snapshot write failed. Non-engine tabs (command/content) never
+ * count — same rule delivery uses.
+ *
+ * `engineAlive` is the process half. Session liveness alone answered `true`
+ * for a task whose engine had been reaped hours earlier, because keepAlive
+ * keeps the PTY. A tab nothing could walk (`null`) still counts as running:
+ * "couldn't look" must never read as stopped.
  */
 export function hasLiveEngineTab(
   snapshot: TabsState | undefined,
   taskId: string,
   sessions: readonly TaskSessionRow[],
+  engineAlive?: ReadonlyMap<string, boolean>,
 ): boolean {
   const alive = aliveKeysOf(sessions)
-  if (alive.has(`${taskId}::tab-1`)) return true
-  return (snapshot?.tabs ?? []).some((t) => t.kind === "engine" && alive.has(`${taskId}::${t.id}`))
+  const counts = (key: string): boolean => alive.has(key) && engineAlive?.get(key) !== false
+  if (counts(`${taskId}::tab-1`)) return true
+  return (snapshot?.tabs ?? []).some((t) => t.kind === "engine" && counts(`${taskId}::${t.id}`))
 }
 
 /**

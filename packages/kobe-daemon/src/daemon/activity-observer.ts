@@ -34,6 +34,10 @@
  *
  * Findings fold into the registry via `observeTab` (hook events outrank
  * observation; only a stale hook `running` is ever corrected — see there).
+ * The loop runs on a SLOW lane when nothing is subscribed rather than
+ * stopping: an agent fleet never attaches a TUI, and gating the walk on a
+ * subscriber made the death edge invisible to precisely the caller that
+ * cannot look at a screen.
  * The FIRST tick runs immediately and includes a walk, so a daemon restart
  * re-seeds busy sessions' dots within seconds instead of at the next
  * turn boundary.
@@ -57,6 +61,18 @@ export const DEFAULT_OBSERVER_POLL_MS = 10_000
 export const DEFAULT_SILENCE_MS = 30_000
 /** Walk cadence in ticks (~60s at the default poll — the foreground reconciler). */
 export const DEFAULT_WALK_EVERY_TICKS = 6
+/**
+ * Tick cadence for the UNSUBSCRIBED lane (~60s at the default poll). The
+ * subscriber gate is a cost control for a parked daemon, not a correctness
+ * boundary: skipping the tick outright also skipped the engine-death edge,
+ * which is the only place an engine dying inside a live PTY is observable —
+ * so every headless caller (an agent fleet has no attached TUI, by
+ * definition) got `.activity: null` and zero `layer:"engine"` records while
+ * engines died in front of it. The slow lane restores the fact and keeps the
+ * saving: one `pty.list` a minute, and a host owning no live sessions still
+ * does no per-session work.
+ */
+export const DEFAULT_UNSUBSCRIBED_EVERY_TICKS = 6
 /**
  * Never correct a hook-claimed `running` younger than this: at a turn
  * boundary the title/output evidence can trail the hook by one poll, and a
@@ -107,6 +123,9 @@ export interface ActivityObserverOptions {
   readonly pollMs?: number
   readonly silenceMs?: number
   readonly walkEveryTicks?: number
+  /** Tick cadence when nothing is subscribed. See
+   *  {@link DEFAULT_UNSUBSCRIBED_EVERY_TICKS}; 1 makes every tick run. */
+  readonly unsubscribedEveryTicks?: number
   readonly correctAfterMs?: number
   readonly log?: (event: string, message: string) => void
 }
@@ -133,8 +152,10 @@ interface SessionTrack {
 
 /**
  * Start the observer loop. First tick fires immediately (with a walk, which
- * is the restart seeding); per-tick work is gated on `hasSubscribers` like the
- * other collectors, so a parked daemon polls nobody. Returns stop().
+ * is the restart seeding). `hasSubscribers` chooses the CADENCE, not whether
+ * the loop runs: subscribed = every tick, unsubscribed = every
+ * `unsubscribedEveryTicks`. A parked daemon whose host owns no live sessions
+ * still does no per-session work either way. Returns stop().
  */
 export function startActivityObserver(
   activity: DaemonActivityRegistry,
@@ -145,10 +166,12 @@ export function startActivityObserver(
   const pollMs = options.pollMs ?? DEFAULT_OBSERVER_POLL_MS
   const silenceMs = options.silenceMs ?? DEFAULT_SILENCE_MS
   const walkEvery = Math.max(1, options.walkEveryTicks ?? DEFAULT_WALK_EVERY_TICKS)
+  const unsubscribedEvery = Math.max(1, options.unsubscribedEveryTicks ?? DEFAULT_UNSUBSCRIBED_EVERY_TICKS)
   const correctAfterMs = options.correctAfterMs ?? DEFAULT_CORRECT_AFTER_MS
   const log = options.log ?? logDaemonInfo
   const tracks = new Map<string, SessionTrack>()
   let tickCount = 0
+  let unsubscribedTicks = 0
   let inFlight = false
 
   const applyRest = (track: Pick<SessionTrack, "taskId" | "tabId" | "vendor">, why: string): void => {
@@ -165,8 +188,16 @@ export function startActivityObserver(
     if (inFlight) return
     inFlight = true
     try {
-      if (!hasSubscribers()) return
-      const walkTick = tickCount % walkEvery === 0
+      // Two lanes, not a gate. A subscriber (an attached TUI wanting its dots
+      // now) gets every tick; nobody subscribed drops to
+      // `unsubscribedEvery` — which still runs the walk, because the
+      // engine-death edge below is the ONLY report of an engine dying inside
+      // a live PTY and a headless fleet is exactly who needs it. The saving
+      // survives: `listSessions` on a host owning nothing returns `[]` and
+      // every loop below is empty.
+      const subscribed = hasSubscribers()
+      if (!subscribed && unsubscribedTicks++ % unsubscribedEvery !== 0) return
+      const walkTick = !subscribed || tickCount % walkEvery === 0
       tickCount++
       const listed = await io.listSessions()
       if (listed === null) {

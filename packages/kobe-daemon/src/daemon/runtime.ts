@@ -181,6 +181,11 @@ export interface DaemonRuntimeAdapter {
    *
    * `tabId` names which tab the live engine was found on, so the deferral and
    * its Inbox episode point at the tab a human will actually open.
+   *
+   * `no-engine` is a session that is alive with no engine IN it — keepAlive
+   * left a login shell where the engine exited. It is separate from
+   * `no-session` because pasting there would have the shell EXECUTE the
+   * prompt; the caller must revive, never deliver.
    */
   deliverPromptToLiveEngineDetailed(
     task: {
@@ -193,6 +198,7 @@ export interface DaemonRuntimeAdapter {
   ): Promise<
     | { readonly outcome: "delivered"; readonly tabId: string }
     | { readonly outcome: "no-session" }
+    | { readonly outcome: "no-engine"; readonly tabId: string }
     | {
         readonly outcome: "busy"
         readonly tabId: string
@@ -215,6 +221,7 @@ export interface DaemonRuntimeAdapter {
   ): Promise<
     | { readonly outcome: "delivered"; readonly tabId: string }
     | { readonly outcome: "no-session" }
+    | { readonly outcome: "no-engine"; readonly tabId: string }
     | {
         readonly outcome: "busy"
         readonly tabId: string

@@ -16,6 +16,13 @@ const mocks = vi.hoisted(() => ({
   openHost: vi.fn(),
   ensureEngine: vi.fn(async () => ({ alive: true, created: true })),
   listSessions: vi.fn(async () => [{ key: "task-3::tab-1", alive: true }]),
+  // Same rule as the real resolver for these fixtures: the task's first alive
+  // session. What matters here is that it resolves a key from the SPAWN argv
+  // and therefore keeps resolving one after the engine is gone.
+  findEngineKey: vi.fn(
+    (sessions: readonly { key: string; alive?: boolean }[], taskId: string) =>
+      sessions.find((s) => s.alive && s.key.startsWith(`${taskId}::`))?.key ?? null,
+  ),
   taskKeys: vi.fn(() => ["task-3::tab-1"]),
   killSessions: vi.fn(async () => {}),
   deliver: vi.fn(async () => ({ bytes: 1 })),
@@ -34,6 +41,7 @@ vi.mock("../../src/engine/hosted-session.ts", () => ({
   openHostedSessionHost: mocks.openHost,
   ensureHostedEngine: mocks.ensureEngine,
   listHostedSessions: mocks.listSessions,
+  findHostedEngineKey: mocks.findEngineKey,
   hostedTaskKeys: mocks.taskKeys,
   killHostedSessions: mocks.killSessions,
   deliverToHostedKey: mocks.deliver,
@@ -44,6 +52,8 @@ vi.mock("../../src/engine/session-launch.ts", () => ({ buildEngineSessionLaunch:
 vi.mock("../../src/engine/session-engine-presence.ts", () => ({ sessionHasEngine: mocks.sessionHasEngine }))
 
 import {
+  deliverPromptToLiveEngineAdapter,
+  deliverPromptToLiveEngineDetailedAdapter,
   deliverPromptToLiveEngineTabDetailedAdapter,
   engineSpecAdapter,
   ensureTaskSessionAdapter,
@@ -207,9 +217,52 @@ describe("daemon session adapter", () => {
         { id: "task-3", tabId: "tab-1", vendor: "claude", worktreePath: "/worktrees/story" },
         "do not run this in zsh",
       ),
-    ).resolves.toEqual({ outcome: "no-session" })
+    ).resolves.toEqual({ outcome: "no-engine", tabId: "tab-1" })
     expect(mocks.sessionHasEngine).toHaveBeenCalledWith(4242, expect.arrayContaining(["claude"]))
     expect(mocks.deliver).not.toHaveBeenCalled()
+  })
+
+  // The two adapters below resolve their tab by matching the session's SPAWN
+  // argv, which keeps matching after the engine exits — keepAlive leaves a
+  // login shell in its place. Delivering there does not paste text into an
+  // engine, it hands zsh a natural-language instruction to RUN. Both must
+  // refuse for the same reason the exact-tab sibling already does.
+  it("the routine runner refuses a tab whose engine exited to the fallback shell", async () => {
+    mocks.listSessions.mockResolvedValueOnce([{ key: "task-3::tab-1", alive: true, pid: 4242 } as never])
+    mocks.sessionHasEngine.mockResolvedValueOnce(false)
+
+    await expect(
+      deliverPromptToLiveEngineDetailedAdapter(
+        { id: "task-3", vendor: "claude", worktreePath: "/worktrees/story" },
+        "clean up the stale branches",
+      ),
+    ).resolves.toEqual({ outcome: "no-engine", tabId: "tab-1" })
+    expect(mocks.deliver).not.toHaveBeenCalled()
+  })
+
+  it("the quota-resume runner refuses the same tab", async () => {
+    mocks.listSessions.mockResolvedValueOnce([{ key: "task-3::tab-1", alive: true, pid: 4242 } as never])
+    mocks.sessionHasEngine.mockResolvedValueOnce(false)
+
+    await expect(
+      deliverPromptToLiveEngineAdapter(
+        { id: "task-3", vendor: "claude", worktreePath: "/worktrees/story" },
+        "continue",
+      ),
+    ).resolves.toBe(false)
+    expect(mocks.deliver).not.toHaveBeenCalled()
+  })
+
+  it("a LIVE engine still receives the routine's prompt", async () => {
+    mocks.listSessions.mockResolvedValueOnce([{ key: "task-3::tab-1", alive: true, pid: 4242 } as never])
+
+    await expect(
+      deliverPromptToLiveEngineDetailedAdapter(
+        { id: "task-3", vendor: "claude", worktreePath: "/worktrees/story" },
+        "daily report please",
+      ),
+    ).resolves.toEqual({ outcome: "delivered", tabId: "tab-1" })
+    expect(mocks.deliver).toHaveBeenCalled()
   })
 
   it("passes the custom engine's complete launch argv to the foreground gate", async () => {

@@ -190,6 +190,14 @@ export async function terminalSpecAdapter(link: DaemonRpcClient, taskId: string)
  * spawns one. Used by the daemon's quota-resume runner: resuming a dead
  * engine would start a fresh context-less session and burn quota on it, so
  * "no alive engine" returns false and the schedule is dropped instead.
+ *
+ * "Alive engine" is a PROCESS fact, not a session one. `findHostedEngineKey`
+ * matches the session's spawn argv, which keeps matching long after the
+ * engine exited: keepAlive `exec`s a login shell in its place, the session
+ * stays alive, and a paste into it is EXECUTED as shell commands in the
+ * task's worktree. `sessionHasEngine` is the same gate `send` applies before
+ * writing a byte (`cli/api/pty-delivery.ts`), and every path that writes
+ * needs it — this one delivers unattended, on a timer.
  */
 export async function deliverPromptToLiveEngineAdapter(
   task: {
@@ -204,12 +212,13 @@ export async function deliverPromptToLiveEngineAdapter(
   if (!host) return false
   try {
     const sessions = await listHostedSessions(host.rpc)
-    const engineBin = engineLaunchArgv({
+    const engineArgv = engineLaunchArgv({
       command: task.command,
       vendor: task.vendor,
-    })[0]
-    const key = findHostedEngineKey(sessions, task.id, engineBin)
+    })
+    const key = findHostedEngineKey(sessions, task.id, engineArgv[0])
     if (!key) return false
+    if (!(await sessionHasEngine(sessions.find((s) => s.key === key)?.pid, engineArgv))) return false
     const manifest = task.vendor ? engineEntry(task.vendor).screenManifest : undefined
     return (
       (await deliverToHostedKey(host.rpc, key, prompt, {
@@ -239,6 +248,12 @@ function tabIdFromHostedKey(key: string): string {
  * never ran look identical to the user. It needs the busy layer and the tab
  * to file a deferral, and the daemon cannot catch `ComposerBusyError` by type
  * across the package boundary — so the outcome crosses as data.
+ *
+ * `no-engine` is the same fact as {@link deliverPromptToLiveEngineAdapter}'s
+ * refusal, kept distinct from `no-session` because the caller acts on it
+ * differently: a routine that finds its overnight engine dead must respawn
+ * and record `revived`, not paste a natural-language instruction at a zsh
+ * prompt and record `dispatched`.
  */
 export async function deliverPromptToLiveEngineDetailedAdapter(
   task: {
@@ -251,6 +266,7 @@ export async function deliverPromptToLiveEngineDetailedAdapter(
 ): Promise<
   | { outcome: "delivered"; tabId: string }
   | { outcome: "no-session" }
+  | { outcome: "no-engine"; tabId: string }
   | {
       outcome: "busy"
       tabId: string
@@ -261,12 +277,15 @@ export async function deliverPromptToLiveEngineDetailedAdapter(
   if (!host) return { outcome: "no-session" }
   try {
     const sessions = await listHostedSessions(host.rpc)
-    const engineBin = engineLaunchArgv({
+    const engineArgv = engineLaunchArgv({
       command: task.command,
       vendor: task.vendor,
-    })[0]
-    const key = findHostedEngineKey(sessions, task.id, engineBin)
+    })
+    const key = findHostedEngineKey(sessions, task.id, engineArgv[0])
     if (!key) return { outcome: "no-session" }
+    if (!(await sessionHasEngine(sessions.find((s) => s.key === key)?.pid, engineArgv))) {
+      return { outcome: "no-engine", tabId: tabIdFromHostedKey(key) }
+    }
     const manifest = task.vendor ? engineEntry(task.vendor).screenManifest : undefined
     try {
       const delivered = await deliverToHostedKey(host.rpc, key, prompt, {
@@ -305,6 +324,7 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
 ): Promise<
   | { outcome: "delivered"; tabId: string }
   | { outcome: "no-session" }
+  | { outcome: "no-engine"; tabId: string }
   | {
       outcome: "busy"
       tabId: string
@@ -327,7 +347,7 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
       command: target.command,
       vendor: target.vendor,
     })
-    if (!(await sessionHasEngine(session.pid, engineArgv))) return { outcome: "no-session" }
+    if (!(await sessionHasEngine(session.pid, engineArgv))) return { outcome: "no-engine", tabId: target.tabId }
     const manifest = target.vendor ? engineEntry(target.vendor).screenManifest : undefined
     try {
       const delivered = await deliverToHostedKey(host.rpc, key, prompt, {

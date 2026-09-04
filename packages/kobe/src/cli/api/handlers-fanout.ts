@@ -8,6 +8,7 @@
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { DEFAULT_FEEDBACK_CATEGORY_SLUG, submitFeedback } from "../../lib/feedback.ts"
 import { daemonOf } from "./handler-helpers.ts"
+import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext } from "./types.ts"
 
 /** One entry of the daemon activity registry's task dump (`debug.inspect`). */
@@ -59,7 +60,7 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
     // One liveness read serves both `running` and the per-tab list a
     // coordinator needs to pick a `send --tab tab-N` target without a
     // second get-task hop (same join as get-task).
-    const { tabs, running } = await runtime.taskTabs(taskId)
+    const { tabs, running } = await runtime.taskTabs(taskId, taskEngineArgv(task))
     // `changes` is the UNCOMMITTED view; `base` is the committed one (ahead
     // and behind counts + diffstat vs the merge-base). Both matter when
     // picking a parallel-round winner: an attempt that commits its work reads

@@ -313,8 +313,13 @@ a failure to deliver. Retrying stacks a duplicate — and the second send fails
 `DEFERRED_PROMPT_PENDING` until the Inbox item is released, dismissed, or
 expires. Read the `delivered` / `deferred` keys, not just the exit code.
 
-`.running` means any hosted engine tab on the task is alive; a live shell,
-command, or content tab alone does not count. It is process truth, not
+`.running` is `true` / `false` / `null`. It means an ENGINE PROCESS is alive
+in one of the task's engine tabs — a live shell, command, or content tab alone
+does not count, and neither does an engine tab whose engine exited (the PTY
+survives it as a login shell; each tab reports that as `engineAlive`). `null`
+means the pty host could not be asked: "couldn't look", NOT "nothing is
+running". **Never act on `null` as if it were `false`** — deleting a task on it
+destroys a worktree that may hold live work. It is process truth, not
 progress: a task whose work is merged and whose worker has signed off still
 reads `true` until somebody deletes it (see "A task is finished when it is
 GONE").

@@ -164,9 +164,17 @@ replacement in `nextCommandArgs`.
 
   Per task: identity, branch, lineage (`.dispatcher`, `.groupId`), plus
 
-  - `.running` — is an engine ALIVE, from the pty host's live session
-    inventory. This is process truth, not the cached status field `list`
-    reports, which lags and will happily call a working fleet idle.
+  - `.running` — `true` / `false` / `null`. Is an ENGINE PROCESS alive in
+    any of the task's engine tabs: the pty host's session inventory joined
+    with a live `ps` walk of each session's tree. Both halves are load
+    bearing. A session outlives its engine (keepAlive drops the tab into a
+    login shell), so the inventory alone reported a task as running for
+    hours after its engine was reaped. And `null` means the pty host could
+    not be asked at all — "couldn't look", never "nothing is running", the
+    same distinction `pty-list` publishes as `sessions: null`. **Never treat
+    `null` as `false`**: a cleanup loop that does will delete worktrees
+    holding live work. Still process truth, not the cached status field
+    `list` reports, which lags and will happily call a working fleet idle.
   - `.activity` — `{state, at, forMs}` from the daemon's activity registry:
     the engine's state (`running` / `idle` / `permission_needed` /
     `rate_limited` / `error` / `turn_complete`) and how long it has been in
@@ -174,7 +182,9 @@ replacement in `nextCommandArgs`.
     registry cannot answer (daemon restarted, task never observed) — an
     honest unknown, never a fabricated idle. `.activity.state` disagreeing
     with `.running` is itself the signal: `running: false` with a
-    `permission_needed` state is a worker that died at a prompt.
+    `permission_needed` state is a worker that died at a prompt. The daemon
+    observes this without an attached TUI, on a slower cadence (~60s) than
+    it uses for one.
   - `.tabs` — the same per-tab join as `get-task` (pick a `send --tab`
     target without a second hop). A tab whose session died abnormally
     carries `.exit` with `code`/`signal`/`at` **and** `tail`, the last lines
