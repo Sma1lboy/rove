@@ -213,8 +213,8 @@ export interface EngineRegistryEntry {
   /**
    * Pre-trust a Rove-created worktree in the vendor's first-run trust
    * store. Every vendor gates a never-seen directory behind a
-   * modal trust dialog; hosted sessions can't answer one (kimi's even
-   * EXITS when the pasted first message's Enter lands on "Don't trust").
+   * modal trust dialog; hosted sessions can't answer one, so the pane stalls
+   * on the dialog. Writing the record is what skips it.
    * Called before a hosted spawn; must be idempotent and merge-preserving.
    * Absent = the vendor has no gate kobe knows how to pre-answer.
    */
