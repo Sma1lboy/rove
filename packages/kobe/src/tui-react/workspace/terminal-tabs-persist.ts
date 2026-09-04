@@ -5,7 +5,7 @@
  * high-churn build/delete workflow (fan-out is the product's basic move)
  * grows one orphan snapshot per deleted task forever, and because kv-core
  * reads and rewrites the whole file, every leftover key taxes every later tab
- * write. The web side does the symmetric cleanup (kobe-harness tabs.ts).
+ * write.
  *
  * Two pure operations over a minimal kv surface (`set(key, undefined)` deletes
  * — kv-core's explicit-undefined serialization). Framework-free so both live

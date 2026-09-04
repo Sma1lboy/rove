@@ -1,7 +1,6 @@
 /**
  * Issue-chat grammar — framework-free placement + first-prompt builders for
- * starting an engine session from a kanban story. Mirrors the web board's
- * quick-start contract (kobe-harness/src/lib/issues.ts): the prompt frames the
+ * starting an engine session from a kanban story: the prompt frames the
  * story, and the agent reports completion through the daemon-owned issue API
  * (`issue-set-status`), never by editing repo files.
  *
