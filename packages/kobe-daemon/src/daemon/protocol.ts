@@ -91,6 +91,10 @@ export type DaemonRequestName =
   // of the worktree→engine→branch lifecycle that had no product path; refuses a
   // dirty base checkout and aborts on conflict, returning the conflicted files.
   | "task.land"
+  // The read-only half of a land: which branch the base checkout is on, how
+  // many commits ahead the task branch is, whether either refuses the merge.
+  // Four git reads — deliberately NOT in BLOCKING_RPCS.
+  | "task.landPreflight"
   // Merge a task's base branch INTO its worktree — the answer to the sidebar's
   // behind-base drift chip. Merge, never rebase: the worktree may have a live
   // engine holding files open.

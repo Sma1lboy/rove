@@ -18,19 +18,12 @@
 
 import path from "node:path"
 import type { ExecHost } from "../exec/exec-host.ts"
-import { READ_ONLY_GIT_ENV } from "../lib/git-env.ts"
 import type { Task, TaskId } from "../types/task.ts"
-import {
-  EmptyBranchDirtyWorktreeError,
-  EmptyBranchError,
-  GitCommandFailedError,
-  LandConflictError,
-  MainCheckoutDirtyError,
-  MissingRefError,
-} from "./errors.ts"
+import { GitCommandFailedError, LandConflictError } from "./errors.ts"
+import { baseRepoCtx, landGit as git, landPreflight, landRefusalError } from "./land-preflight.ts"
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
 import type { WorktreeResidue } from "./worktree/manager-remove.ts"
-import { GitWorktreeManager } from "./worktree/manager.ts"
+import type { GitWorktreeManager } from "./worktree/manager.ts"
 import { canonicalize } from "./worktree/paths.ts"
 import type { SalvageRecord } from "./worktree/salvage.ts"
 
@@ -264,35 +257,6 @@ export interface LandResult {
   readonly branchKept?: { readonly reason: string }
 }
 
-/** Resolve the git working dir + ExecHost for the base repo — local path or remote basePath. */
-function baseRepoCtx(repo: string, deps: WorktreeExecDeps): { exec: ExecHost; dir: string } {
-  const basePath = deps.remoteBasePath(repo)
-  return { exec: deps.execForRepo(repo), dir: basePath ?? repo }
-}
-
-async function git(
-  exec: ExecHost,
-  dir: string,
-  args: readonly string[],
-  opts?: { readonly readOnly?: boolean },
-): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  // Read-only probes (status/diff/rev-parse/rev-list) run lock-free per
-  // READ_ONLY_GIT_ENV — land inspects worktrees an engine may be
-  // committing in right now. Writes (merge/abort/reset/commit) never set
-  // readOnly: they genuinely need `.git/index.lock`.
-  //
-  // `stderr` is carried, not dropped: when a write fails, git's own message is
-  // the only thing that says WHY (a hook, a signing key, an unset user.email),
-  // and guessing at it is what produced this file's two worst error reports.
-  const r = await exec.run(["git", ...args], { cwd: dir, env: opts?.readOnly ? READ_ONLY_GIT_ENV : undefined })
-  return { stdout: r.stdout, stderr: r.stderr, exitCode: r.exitCode }
-}
-
-/** `git status --porcelain` non-empty in `dir` (untracked counts). */
-async function isDirty(exec: ExecHost, dir: string): Promise<boolean> {
-  return (await git(exec, dir, ["status", "--porcelain"], { readOnly: true })).stdout.trim().length > 0
-}
-
 /** Conflicted paths after a failed merge: `git diff --name-only --diff-filter=U`. */
 async function conflictedFiles(exec: ExecHost, dir: string): Promise<string[]> {
   const out = await git(exec, dir, ["diff", "--name-only", "--diff-filter=U"], { readOnly: true })
@@ -302,84 +266,15 @@ async function conflictedFiles(exec: ExecHost, dir: string): Promise<string[]> {
     .filter((l) => l.length > 0)
 }
 
-/** Uncommitted/untracked paths from `git status --porcelain` output (strip the XY prefix). */
-function porcelainPaths(stdout: string): string[] {
-  return stdout
-    .split("\n")
-    .filter((l) => l.length > 0)
-    .map((l) => l.slice(3).trim())
-}
-
-/**
- * Refuse to land a branch with ZERO commits ahead of the base — that merge is
- * a git-level no-op, and in practice it means "worker reported success but
- * delivered nothing committed". Two distinct refusals:
- *   - worktree still dirty → the work exists but was never committed
- *     ({@link EmptyBranchDirtyWorktreeError}, lists the files + hint);
- *   - worktree clean/gone → genuine no-op ({@link EmptyBranchError}).
- * An unreadable worktree (already removed, remote path mismatch) falls through
- * to the clean case — ambiguity must not hide the no-op signal.
- *
- * The count itself has a THIRD outcome that is neither: `git rev-list` exiting
- * non-zero, which means git could not resolve `<base>..<branch>` at all (the
- * branch was renamed or deleted outside Rove). That is a broken task record —
- * {@link MissingRefError} — and must not fall through to the merge, which would
- * fail with "not something we can merge" and get reported as a phantom
- * LAND_CONFLICT carrying an empty conflicted-file list.
- */
-async function assertBranchHasWork(
-  task: Task,
-  branch: string,
-  landedOn: string,
-  exec: ExecHost,
-  dir: string,
-  deps: WorktreeExecDeps,
-): Promise<void> {
-  const aheadOut = await git(exec, dir, ["rev-list", "--count", `${landedOn}..${branch}`], { readOnly: true })
-  // Exit code first, and it is NOT the same question as an unparseable count:
-  // non-zero means git never counted (the ref does not resolve) → refuse the
-  // land; exit 0 with output we cannot parse means git counted and we failed to
-  // read it, where assuming "has work" and letting the merge speak is the safe
-  // fallback. Collapsing the two is what made a renamed branch look like a
-  // merge conflict.
-  if (aheadOut.exitCode !== 0) throw new MissingRefError(branch, landedOn, dir)
-  const ahead = Number.parseInt(aheadOut.stdout.trim(), 10)
-  if (!Number.isFinite(ahead) || ahead > 0) return
-  const worktreePath = task.worktreePath.trim()
-  if (worktreePath) {
-    const manager = new GitWorktreeManager(deps)
-    let dirty = false
-    try {
-      dirty = await manager.isDirty(worktreePath)
-    } catch {
-      dirty = false // worktree gone/unreadable → treat as the clean no-op case
-    }
-    if (dirty) {
-      const wtExec = deps.execForPath(worktreePath)
-      const files = porcelainPaths(
-        (await git(wtExec, worktreePath, ["status", "--porcelain"], { readOnly: true })).stdout,
-      )
-      throw new EmptyBranchDirtyWorktreeError(branch, landedOn, worktreePath, files)
-    }
-  }
-  throw new EmptyBranchError(branch, landedOn)
-}
-
 /**
  * Land `task`'s branch into its base repo's current branch.
  *
- * Preconditions checked here (fail before any git write):
- *   - the task has a branch to land (a never-materialised task has none);
- *   - the base checkout is clean — a merge into a dirty tree would entangle the
- *     user's in-progress work with the landed branch, so we refuse;
- *   - the branch RESOLVES in the base repo — a branch renamed or deleted
- *     outside Rove is a stale task record, refused as {@link MissingRefError}
- *     rather than handed to a merge that fails for an unrelated reason;
- *   - the branch has at least one commit ahead of the base — a zero-commit
- *     branch is a no-op land ("worker reported success, delivered nothing"),
- *     refused as {@link EmptyBranchError}, or as
- *     {@link EmptyBranchDirtyWorktreeError} when the worktree still holds the
- *     never-committed work.
+ * Every precondition — a branch to land, a base checkout on a branch that is
+ * not this one, a clean base, a ref git can still resolve, at least one commit
+ * ahead — is {@link landPreflight}'s to answer, and this function throws
+ * whatever it refuses. That is the point of the split: the confirm dialog and
+ * `land --dry-run` ask the SAME function, so a land the user was told would
+ * happen cannot be refused a moment later for a reason nobody showed them.
  *
  * On conflict: abort the merge (leaving the base checkout exactly as it was) and
  * throw {@link LandConflictError} with the conflicted paths. On success: return
@@ -390,26 +285,11 @@ export async function landTask(
   input: LandTaskInput = {},
   deps: WorktreeExecDeps = defaultExecDeps,
 ): Promise<LandResult> {
-  const branch = task.branch.trim()
-  if (!branch) throw new Error(`landTask: task ${task.id} has no branch to land (never materialised)`)
   const strategy: LandStrategy = input.strategy ?? "merge"
+  const preflight = await landPreflight(task, deps)
+  if (preflight.refusal) throw landRefusalError(task, { ...preflight, refusal: preflight.refusal })
+  const { branch, landedOn } = preflight
   const { exec, dir } = baseRepoCtx(task.repo, deps)
-
-  // The base branch we land onto — surfaced in the result + the merge commit msg.
-  const headOut = await git(exec, dir, ["rev-parse", "--abbrev-ref", "HEAD"], { readOnly: true })
-  const landedOn = headOut.stdout.trim()
-  if (!landedOn || landedOn === "HEAD") {
-    throw new Error(`landTask: base checkout at ${dir} is in detached-HEAD state; check out a branch first`)
-  }
-  if (landedOn === branch) {
-    throw new Error(`landTask: base checkout is already on '${branch}' — nothing to land onto`)
-  }
-
-  if (await isDirty(exec, dir)) throw new MainCheckoutDirtyError(task.repo, dir)
-
-  // Fail BEFORE any merge: a branch with zero commits ahead of the base is a
-  // no-op land — refuse it (and its never-committed-work variant) loudly.
-  await assertBranchHasWork(task, branch, landedOn, exec, dir, deps)
 
   if (strategy === "squash") {
     const merge = await git(exec, dir, ["merge", "--squash", branch])

@@ -137,6 +137,32 @@ export interface DaemonTask {
   readonly updatedAt: string
 }
 
+/**
+ * Result of a `task.landPreflight` — the read-only "may this land, and into
+ * what" probe. Mirrors the orchestrator's `LandPreflight`. `refusal` set means
+ * the land would be refused for that reason; absent means it may proceed.
+ */
+export interface LandPreflightResult {
+  readonly branch: string
+  /** The merge destination: the base checkout's current branch. Empty only
+   *  under the detached-HEAD refusal, where there is no branch to name. */
+  readonly landedOn: string
+  /** Commits on `branch` the destination does not have. Absent — never a
+   *  fabricated zero — when git could not count them. */
+  readonly ahead?: number
+  readonly baseDirty?: boolean
+  readonly refusal?:
+    | "DETACHED_HEAD"
+    | "SAME_BRANCH"
+    | "MAIN_CHECKOUT_DIRTY"
+    | "MISSING_REF"
+    | "EMPTY_BRANCH"
+    | "EMPTY_BRANCH_DIRTY_WORKTREE"
+  /** Uncommitted paths in the task's worktree — only with `EMPTY_BRANCH_DIRTY_WORKTREE`. */
+  readonly dirtyFiles?: readonly string[]
+  readonly baseDir: string
+}
+
 /** Result of a `task.land` — mirrors the orchestrator's `LandResult`. */
 export interface LandResult {
   readonly branch: string
@@ -224,6 +250,8 @@ export interface DaemonOrchestrator {
   prepareTaskDeletion(id: string, options?: { force?: boolean; deleteBranch?: boolean }): Promise<boolean>
   beginTaskDeletion(id: string): Promise<boolean>
   finishTaskDeletion(id: string): Promise<void>
+  /** Read-only land probe — no writes; see {@link LandPreflightResult}. */
+  landPreflight(id: string): Promise<LandPreflightResult>
   landTask(
     id: string,
     options?: {

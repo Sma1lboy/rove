@@ -524,7 +524,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 
 - `pin --task-id ID [--pinned=false]`: pin/unpin a task to the top of the
   sidebar.
-- `land --task-id ID [--strategy merge|squash] [--delete-branch]
+- `land --task-id ID [--dry-run] [--strategy merge|squash] [--delete-branch]
   [--remove-worktree=false]`: merge a task's branch back into its
   base repo's current branch (`--no-ff` merge, or one squash commit). Refuses
   a dirty base checkout, a branch that no longer resolves in the base repo
@@ -541,6 +541,18 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   checkout, and the worktree the caller is running from are all refused, and
   the outcome lands in the result's `worktree` field
   (`{ removed, reason? }`) instead of failing the land.
+
+  **`--dry-run` answers "may this land, and into what" without writing.** It
+  returns `{ branch, landedOn, ahead?, baseDirty?, refusal?, dirtyFiles?,
+  baseDir }`: `landedOn` is the base checkout's CURRENT branch — the merge
+  destination, which is the thing "check the base checkout is on the branch
+  you mean" asks you to check — and `ahead` is how many commits would land.
+  When the land would be refused, `refusal` is one of `DETACHED_HEAD`,
+  `SAME_BRANCH`, `MAIN_CHECKOUT_DIRTY`, `MISSING_REF`, `EMPTY_BRANCH`,
+  `EMPTY_BRANCH_DIRTY_WORKTREE`, and `message` carries the same words the land
+  itself would have failed with. A coordinator picking which sibling of a
+  round to land should read this first — `ahead: 0` is the empty-merge that
+  otherwise only surfaces at land time.
 
   **`--delete-branch` needs the worktree gone.** git refuses to delete a
   branch a live worktree has checked out, so pairing `--delete-branch` with

@@ -207,11 +207,12 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
       await landTaskAction(
         {
           orchestrator: orch,
-          confirm: (branch) =>
+          // Rendered by `landTaskAction` (destination + commit count).
+          confirm: (body) =>
             DialogConfirm.show(
               dialog,
               t("worktrees.land.confirmTitle"),
-              t("worktrees.land.confirmBody", { branch }),
+              body,
               t("common.cancel"),
               t("worktrees.land.button"),
             ).then((ok) => ok === true),

@@ -24,6 +24,7 @@ import { canonPath, normalizeMainRepo, randomDirTaskSuffix, repoWorkingDir, titl
 import type { CreateTaskInput } from "./create-task-input.ts"
 import { DirtyWorktreeError, TaskDeletingError, TaskNotFoundError, WorktreeRemoveFailedError } from "./errors.ts"
 import type { TaskIndexStore, TaskIndexUnsubscribe } from "./index/store.ts"
+import { type LandPreflight, landPreflight } from "./land-preflight.ts"
 import { type LandResult, type LandTaskOpts, landTaskWithCleanup } from "./land.ts"
 import { MainTaskCoordinator } from "./main-task.ts"
 import { promotableDirTasks } from "./promote-dir-tasks.ts"
@@ -433,6 +434,19 @@ export class Orchestrator {
   /** Execute physical cleanup and retain a visible error on failure. */
   async finishTaskDeletion(id: TaskId | string): Promise<void> {
     return this.deletions.finish(id)
+  }
+
+  /**
+   * Read-only "may this land, and into what" — the same probes `landTask` runs
+   * before its merge, with nothing written. Behind the land confirm's
+   * destination + commit count and `rove api land --dry-run`.
+   */
+  async landPreflight(id: TaskId | string): Promise<LandPreflight> {
+    const task = this.requireTask(id)
+    if (task.kind === "main") throw new Error("landTask: a main task has no branch to land")
+    if (task.kind === "dir") throw new Error("landTask: a directory task has no Rove-managed branch to land")
+    if (task.deletion) throw new TaskDeletingError(String(task.id))
+    return landPreflight(task)
   }
 
   /** Land a task's branch back into its base repo — executor + cleanup in `land.ts`. */

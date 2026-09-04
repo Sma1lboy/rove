@@ -188,6 +188,18 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    // Read-only sibling of `task.land`: four git reads (HEAD, status,
+    // rev-list, and the worktree's status only when the count is zero), no
+    // writes. Deliberately NOT `blocking` — putting it on the long-operation
+    // list would tell the client to drop its deadline for something that
+    // finishes in milliseconds, and the land confirm awaits it inline.
+    name: "task.landPreflight",
+    web: true,
+    async handle(payload, ctx) {
+      return { result: await ctx.orch.landPreflight(requireString(payload, "taskId")) }
+    },
+  },
+  {
     name: "task.land",
     blocking: true,
     web: true,

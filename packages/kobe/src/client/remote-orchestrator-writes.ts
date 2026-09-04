@@ -15,6 +15,7 @@ import type { Automation, AutomationRun } from "@sma1lboy/kobe-daemon/daemon/con
 import type { RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { WorkItem } from "@sma1lboy/kobe-daemon/daemon/work-items"
+import type { LandPreflight } from "../orchestrator/land-preflight.ts"
 import type { LandResult } from "../orchestrator/land.ts"
 import type { WorktreeResidue } from "../orchestrator/worktree/manager-remove.ts"
 import type { StoredFieldNote } from "../state/field-notes.ts"
@@ -230,6 +231,14 @@ export interface DeferredPromptFlushResult {
 /** Retry every daemon-owned prompt after the screen-based gate turns off. */
 export async function flushDeferredPromptsOp(client: KobeDaemonClient): Promise<DeferredPromptFlushResult> {
   return await client.request<DeferredPromptFlushResult>("deferredPrompt.flush", {})
+}
+
+/** Read-only land probe (`task.landPreflight`): the merge destination, the
+ *  commit count, and any refusal — all without writing. The land confirm reads
+ *  it so the dialog can name what it is merging into. */
+export async function landPreflightOp(client: KobeDaemonClient, id: TaskId | string): Promise<LandPreflight> {
+  const res = await client.request<{ result: LandPreflight }>("task.landPreflight", { taskId: String(id) })
+  return res.result
 }
 
 /** Land a task's branch back into its base repo (`task.land`). Merge or
