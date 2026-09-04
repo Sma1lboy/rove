@@ -45,7 +45,11 @@ export const en = {
     tagCurrent: "current",
     tagLatest: "latest",
     tagBreaking: "breaking",
-    breakingWarning: "⚠ installing this crosses breaking version(s) {versions} — run `rove reset` after the update.",
+    /** Shown before the user commits to a version. `enforceResetGate()` calls
+        `process.exit(1)` at every app entrance until the reset runs, so the
+        reset is mandatory, not advisory — and it costs live sessions. */
+    breakingWarning:
+      "⚠ installing this crosses breaking version(s) {versions}. Rove will refuse to start until you run `rove reset`, which stops the daemon, the PTY host, and every live session. Tasks and worktrees are kept.",
     footerHint: "j/k select · enter install · q close",
   },
 }
@@ -88,7 +92,8 @@ export const zh: typeof en = {
     tagCurrent: "当前",
     tagLatest: "最新",
     tagBreaking: "breaking",
-    breakingWarning: "⚠ 安装该版本会跨过 breaking 版本 {versions}——更新后需运行 `rove reset`。",
+    breakingWarning:
+      "⚠ 安装该版本会跨过 breaking 版本 {versions}。更新后 Rove 会拒绝启动，直到你运行 `rove reset`——它会停掉 daemon、PTY host 和所有活动会话。任务和 worktree 会保留。",
     footerHint: "j/k 选择 · enter 安装 · q 关闭",
   },
 }

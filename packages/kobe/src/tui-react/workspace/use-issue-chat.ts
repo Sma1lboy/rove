@@ -181,7 +181,7 @@ export function useIssueChat(
       }
       await finish(request, task.id)
     } catch (err) {
-      hooks.notifyError(`Couldn't start issue chat: ${errorMessage(err)}`)
+      hooks.notifyError(t("tasks.toast.issueChatFailed", { error: errorMessage(err) }))
     }
   }
 

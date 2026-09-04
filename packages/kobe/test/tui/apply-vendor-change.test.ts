@@ -64,7 +64,7 @@ describe("applyVendorChange", () => {
     // ...but the user-visible half is the point: it must name the failure
     // and carry the underlying reason.
     const said = c.notifyError.mock.calls[0]?.[0] as string
-    expect(said).toContain("Couldn't switch engine")
+    expect(said).toContain("Couldn't switch the engine")
     expect(said).toContain("daemon refused")
     // A failure must NOT also claim success.
     expect(c.notifyInfo).not.toHaveBeenCalled()

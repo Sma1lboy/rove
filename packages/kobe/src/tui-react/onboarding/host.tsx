@@ -161,10 +161,20 @@ export function WizardPage(props: {
                 </text>
               ))}
             </box>
-            <box paddingTop={1}>
+            <box flexDirection="column" paddingTop={1}>
               <text fg={ready ? theme.success : theme.error} wrapMode="word">
                 {ready ? t("onboarding.envReady") : t("onboarding.envNotReady")}
               </text>
+              {/* The CLI path of this same wizard (`cli/onboarding.ts`) prints
+                  these action lines under the same verdict. Without them the
+                  TUI tells a blocked user they are blocked and not what
+                  unblocks them — same wizard, two amounts of help. */}
+              {!ready && !props.env.engines.anyUsable ? (
+                <text fg={theme.textMuted} wrapMode="word">{`→ ${t("doctor.fix.noEngineAction")}`}</text>
+              ) : null}
+              {!ready && !props.env.git.found ? (
+                <text fg={theme.textMuted} wrapMode="word">{`→ ${t("doctor.fix.gitAction")}`}</text>
+              ) : null}
             </box>
           </box>
         ) : null}
