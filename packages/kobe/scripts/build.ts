@@ -33,6 +33,7 @@ import { chmod, cp, mkdir, rm } from "node:fs/promises"
 /** Both published bin names; each gets a launcher + the Bun bundle behind it. */
 const CLI_NAMES = ["kobe", "rove"] as const
 const OUT_FILES = CLI_NAMES.flatMap((name) => [`./dist/cli/${name}.js`, `./dist/cli/${name}-run.js`])
+const CLI_OUT_DIR = "./dist/cli"
 /** Canonical skill source (repo root) → its home in the tarball. */
 const SKILL_SRC_DIR = "../../.agents/skills/kobe"
 const SKILL_OUT_DIR = "./dist/skills/rove"
@@ -90,6 +91,13 @@ async function copySkill(): Promise<void> {
 }
 
 await buildWebUi()
+
+// Empty dist/cli before the CLI build, for the same reason copyWebUi() empties
+// dist/web-ui: splitting names chunks by content hash, so every build whose
+// sources changed leaves its predecessor's chunks behind and they ship in the
+// npm tarball forever. Everything in here is regenerated below.
+await rm(CLI_OUT_DIR, { recursive: true, force: true })
+await mkdir(CLI_OUT_DIR, { recursive: true })
 
 const result = await Bun.build({
   entrypoints: ["./src/cli/index.ts", "./src/cli/kobe.ts", "./src/cli/rove.ts"],
