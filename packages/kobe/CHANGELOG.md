@@ -1,5 +1,75 @@
 # Changelog
 
+## 0.9.125
+
+### Patch Changes
+
+- [#870](https://github.com/Sma1lboy/rove/pull/870) [`f5c4712`](https://github.com/Sma1lboy/rove/commit/f5c47120fa0079eaee58a30a788cdfd4232404f0) A killed session's exit record no longer reports `code: null` next to a tail that spells the code out.
+
+  ```json
+  "exit": { "code": null, "signal": "SIGKILL",
+            "tail": ["…", "⚠ Engine exited (code 143). Check Settings → Engines…"] }
+  ```
+
+  A signalled session has no wait-status code, so the only exit code that exists
+  at that point is the one the shell wrapper printed — and the store already had
+  the parser for it, wired to the engine layer only. `recordPtyExit` now falls
+  back to it, and the `exit` object in `get-task`/`collect` gains `layer`, so a
+  caller can tell "the PTY was killed" from "the engine died inside it" instead of
+  guessing which process `code` and `signal` describe. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#870](https://github.com/Sma1lboy/rove/pull/870) [`f5c4712`](https://github.com/Sma1lboy/rove/commit/f5c47120fa0079eaee58a30a788cdfd4232404f0) `add` and `send --tab new` stop reporting a green launch for an engine that never ran.
+
+  A hosted session stays alive after its engine exits — the wrapper `exec`s a
+  login shell in its place — so `pty.open` reports `alive` identically for a
+  healthy launch and for one pointing at nothing. The argv-delivery path read
+  readiness straight off that flag:
+
+  ```json
+  { "started": true, "engineReady": true, "delivered": true }
+  ```
+
+  for `--command /nope/does-not-exist-engine`, whose session had already printed
+  `no such file or directory` and `⚠ Engine exited (code 127)`. A fan-out of N
+  such tasks reported all green. The path now walks for the engine PROCESS
+  (`awaitEngineProcess`, the one implementation the existing-session gate already
+  uses) before claiming anything, with a 3s budget, and a launch that produces no
+  engine fails as `SESSION_FAILED` carrying the task id, the session key and the
+  session's own last line as `reason`. A repo whose `.rove/init.sh` is still
+  running reports `engineReady: false` with that stated as the reason instead of
+  holding `add` open for the install. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#871](https://github.com/Sma1lboy/rove/pull/871) [`15b22eb`](https://github.com/Sma1lboy/rove/commit/15b22ebfd66c6cf534835823129b5d36a6d38570) Rename the `kobe-web` package to `kobe-harness`
+
+  The package stopped being a browser dashboard when the native web pages were
+  removed; what is left is the `/harness` capture page and its PTY sidecar, so
+  the name now says that. Renaming surfaced a trail of references to files that
+  went with the dashboard — a doc table pointing at a deleted SPA forwarder and
+  board chip, two comments describing a web board that no longer sends anything,
+  and a response shape claiming a client-side mirror that no longer exists — all
+  of which the rename would otherwise have refreshed into fresh-looking dead
+  pointers. Six tiptap packages and two testing-library packages went with the
+  composer and the component tests that used them. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#870](https://github.com/Sma1lboy/rove/pull/870) [`f5c4712`](https://github.com/Sma1lboy/rove/commit/f5c47120fa0079eaee58a30a788cdfd4232404f0) A stale task-index lock is no longer removable by an acquirer that stopped holding it.
+
+  The takeover read the lockfile, judged its pid dead, then unlinked
+  unconditionally — never re-checking that the file still held the value it
+  judged. A rival that won the takeover in between had its live lock deleted, and
+  the next `link` admitted a second writer to the critical section. Measured on 50
+  concurrent acquires against one stale lock: 29 of 2250 created tasks were absent
+  from disk (22 of 45 rounds), against 0 of 2250 with no stale lock present. The
+  takeover now removes only a byte-identical match, through the same ownership
+  check `release` performs, and it does so synchronously — the async pair's `await`
+  was itself a scheduling point wide enough for a rival's whole takeover.
+
+  Daemon boot also sweeps what a killed writer leaves in `.rove/`: a stale
+  `tasks.json.lock` (every one of 20 `kill -9` trials left one) and orphaned
+  `tasks.json.*.tmp` staging files, which are unique per save and so are never
+  reused or noticed — 1 of those 20 trials leaked a full 11.8 MB copy of the
+  manifest. A lock naming a live process and a staging file younger than five
+  minutes are left alone: another Rove may be mid-save. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.124
 
 ### Patch Changes
