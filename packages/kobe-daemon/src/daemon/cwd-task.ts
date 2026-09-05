@@ -25,50 +25,9 @@
  * return undefined → the event is dropped.
  */
 
-import { createHash } from "node:crypto"
 import { existsSync } from "node:fs"
-import { homedir } from "node:os"
 import path from "node:path"
-import { LEGACY_KOBE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
-
-const KOBE_WORKTREE_ROOT_DIR = "worktrees"
-const REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH = ".rove/worktrees"
-const REPO_LOCAL_KOBE_WORKTREE_ROOT_SUBPATH = ".kobe/worktrees"
-const LEGACY_KOBE_WORKTREE_ROOT_SUBPATH = ".claude/worktrees"
-const REPO_LOCAL_KOBE_MANAGED_WORKTREE_ROOT_SUBPATHS = [
-  REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH,
-  REPO_LOCAL_KOBE_WORKTREE_ROOT_SUBPATH,
-  LEGACY_KOBE_WORKTREE_ROOT_SUBPATH,
-] as const
-
-function stateDir(basename: string): string {
-  return path.join(readRoveHomeDirEnv() ?? homedir(), basename)
-}
-
-function repoWorktreeDirName(repo: string): string {
-  const base = path.basename(repo) || "repo"
-  const safeBase = base.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "repo"
-  const hash = createHash("sha1").update(path.resolve(repo)).digest("hex").slice(0, 12)
-  return `${safeBase}-${hash}`
-}
-
-function worktreeRootFor(repo: string): string {
-  if (!path.isAbsolute(repo)) {
-    throw new Error(`worktreeRootFor: repo must be an absolute path, got: ${repo}`)
-  }
-  return path.join(stateDir(ROVE_STATE_DIR_BASENAME), KOBE_WORKTREE_ROOT_DIR, repoWorktreeDirName(repo))
-}
-
-function managedWorktreeRootsFor(repo: string): readonly string[] {
-  if (!path.isAbsolute(repo)) {
-    throw new Error(`managedWorktreeRootsFor: repo must be an absolute path, got: ${repo}`)
-  }
-  return [
-    worktreeRootFor(repo),
-    path.join(stateDir(LEGACY_KOBE_STATE_DIR_BASENAME), KOBE_WORKTREE_ROOT_DIR, repoWorktreeDirName(repo)),
-    ...REPO_LOCAL_KOBE_MANAGED_WORKTREE_ROOT_SUBPATHS.map((subpath) => path.join(repo, subpath)),
-  ]
-}
+import { managedWorktreeRootsFor, readWorktreeBaseOverride } from "./worktree-paths.ts"
 
 export interface CwdMatchTask {
   readonly id: string
@@ -184,7 +143,9 @@ export function findAdoptableWorktree(
     if (t.worktreePath) known.add(normalize(t.worktreePath))
   }
   for (const repo of repos) {
-    for (const root of managedWorktreeRootsFor(repo).map(normalize)) {
+    // The base override is read per repo: a `$project_dir` value expands
+    // against THIS repo, so one global setting yields a per-project root.
+    for (const root of managedWorktreeRootsFor(repo, readWorktreeBaseOverride(repo)).map(normalize)) {
       const prefix = `${root}/`
       if (!target.startsWith(prefix)) continue
       // First path segment after the managed root is the worktree dir.

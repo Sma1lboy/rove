@@ -97,6 +97,22 @@ describe("per-repo pr-instructions override", () => {
     await expect(buildPRPrompt(dir, STATE)).resolves.toBe("legacy")
   })
 
+  // The drift: `text.length > 0` accepted a file of pure whitespace and
+  // returned it as the template, blanking the prompt. `repo-init.ts` trimmed,
+  // and its rule is the one all three comments describe.
+  test("a whitespace-only .rove file does not shadow the legacy one", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "rove-pr-instructions-"))
+    writeInstructions(dir, ".rove", "\n   \n")
+    writeInstructions(dir, ".kobe", "legacy")
+    await expect(buildPRPrompt(dir, STATE)).resolves.toBe("legacy")
+  })
+
+  test("a whitespace-only file alone falls back to the built-in template", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "rove-pr-instructions-"))
+    writeInstructions(dir, ".rove", "  \n")
+    await expect(buildPRPrompt(dir, STATE)).resolves.not.toBe("  \n")
+  })
+
   test("no override file falls back to the built-in template", async () => {
     const dir = mkdtempSync(join(tmpdir(), "rove-pr-instructions-"))
     await expect(buildPRPrompt(dir, STATE)).resolves.toContain("The user requested a PR.")
