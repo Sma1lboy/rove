@@ -418,6 +418,8 @@ describe("deliverPrompt", () => {
     await expectApiError(() => deliverPrompt(new FakeClient(), target, "hello", ops), "SESSION_FAILED")
   })
 
+  // `deferredPrompt.file` is no longer a daemon verb at all; the responder
+  // below only proves the CLI would not reach for it if it came back.
   it("never calls a legacy deferral verb that can replace an accepted prompt", async () => {
     let legacyReplacements = 0
     const client = new FakeClient({

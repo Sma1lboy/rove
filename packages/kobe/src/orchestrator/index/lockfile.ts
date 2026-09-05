@@ -42,6 +42,7 @@ import { randomBytes } from "node:crypto"
 import { linkSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs"
 import { link, mkdir, readFile, unlink, writeFile } from "node:fs/promises"
 import { dirname } from "node:path"
+import { isProcessAlive } from "@sma1lboy/kobe-daemon/daemon/socket-guard"
 
 export interface LockfileOptions {
   /**
@@ -51,28 +52,9 @@ export interface LockfileOptions {
   readonly forceTakeover?: boolean
 }
 
-/**
- * Check whether a process exists. `process.kill(pid, 0)` is the standard
- * trick: signal 0 doesn't actually send a signal, it just performs the
- * permission/existence check.
- *
- * - alive → returns
- * - dead (ESRCH) → throws Error{code: "ESRCH"}
- * - permission denied (EPERM) → throws; we treat this as "alive" because
- *   the process exists, we just can't signal it.
- */
-export function isProcessAlive(pid: number): boolean {
-  if (!Number.isInteger(pid) || pid <= 0) return false
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code
-    if (code === "ESRCH") return false
-    // EPERM means the process exists but we can't signal it — count as alive.
-    return true
-  }
-}
+/** A stale holder is one whose pid is gone, so the liveness probe below is
+ *  the same one the daemon uses to decide a pidfile is stale. */
+export { isProcessAlive }
 
 export class LockfileError extends Error {
   readonly heldByPid: number

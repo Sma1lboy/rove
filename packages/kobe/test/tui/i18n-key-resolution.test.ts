@@ -28,7 +28,7 @@
  * entry in EITHER locale, so parity passed while the F1 help dialog printed
  * the literal binding id as that row's description.
  *
- * Those two tests check `en` only, and that is not a gap: `zh: typeof en` in
+ * Those tests check `en` only, and that is not a gap: `zh: typeof en` in
  * `messages/keys.ts` makes a locale missing a key a TYPE error, and the
  * parity test covers it at runtime as well.
  */
@@ -205,6 +205,21 @@ describe("keybinding catalog reachability", () => {
     // a sentence belongs. The binding's own English `description:` field is
     // never displayed; the catalog is the only source the help dialog reads.
     expect(missing).toEqual([])
+  })
+
+  // The mirror of the test above, and the reason it exists: the id→key
+  // direction only catches a MISSING description. Delete a chord and its
+  // `keys.desc` entry survives with nothing left to describe — invisible to
+  // the parity gate (both locales keep it), to `t()` (never called with it),
+  // and to knip. Seven such orphans accumulated from removed chat and dialog
+  // chords before anyone noticed.
+  test("every keys.desc entry belongs to a binding id", () => {
+    const ids = new Set(KobeKeymap.map((binding) => binding.id))
+    const orphans = Object.keys(en.keys.desc)
+      .filter((key) => !ids.has(key))
+      .sort()
+
+    expect(orphans).toEqual([])
   })
 
   test("every category header a surface can print has a keys.category entry", () => {

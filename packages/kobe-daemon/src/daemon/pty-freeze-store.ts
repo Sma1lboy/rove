@@ -229,9 +229,9 @@ function updatedAtMs(record: FrozenPtySession): number {
  * for everything actually read, so a record whose mtime drifted newer than
  * its contents (a copy, a restore-from-backup) is still expired correctly.
  *
- * Only the TTL deletes. That is what bounds the directory — `pty.sweep`
- * reaches only a RUNNING host, so a task deleted while the host was down
- * leaves its record behind, and two weeks is the backstop. Deferring a record
+ * Only the TTL deletes. That is what bounds the directory — the daemon's
+ * task-deletion sweep reaches only a RUNNING host, so a task deleted while
+ * the host was down leaves its record behind, and two weeks is the backstop. Deferring a record
  * for being over budget must never delete it: the budget is a statement about
  * this boot's memory, and the user may still want that scrollback.
  */

@@ -24,25 +24,6 @@ describe("deferredPrompt RPC handlers", () => {
     return { ctx, rec, store }
   }
 
-  it("file stores the text and records a prompt_deferred episode, returning the id", async () => {
-    const { ctx, rec, store } = await ctxWithStore()
-    const res = (await dispatch(
-      "deferredPrompt.file",
-      { taskId: TASK.id, tabId: "tab-1", prompt: "hi there", layer: "composer-not-empty" },
-      ctx,
-    )) as { id: string }
-
-    expect(res.id).toBeTruthy()
-    const record = await store.get(res.id)
-    expect(record?.prompt).toBe("hi there")
-    expect(record?.layer).toBe("composer-not-empty")
-    // The episode points at the record by id — the prompt text is NOT copied
-    // into the episode's EngineActivityDetail.
-    expect(rec.inboxPromptDeferred).toEqual([
-      { taskId: TASK.id, tabId: "tab-1", deferredId: res.id, layer: "composer-not-empty" },
-    ])
-  })
-
   it("fileIfVacant reports an occupied tab without replacing its pending prompt", async () => {
     const { ctx, rec, store } = await ctxWithStore()
     const first = (await dispatch(
@@ -117,69 +98,18 @@ describe("deferredPrompt RPC handlers", () => {
     ])
   })
 
-  it("rejects an occupied tab for clients that do not request a structured conflict", async () => {
-    const { ctx, rec, store } = await ctxWithStore()
-    const first = (await dispatch(
-      "deferredPrompt.file",
-      { taskId: TASK.id, tabId: "tab-1", prompt: "first", layer: "composer-not-empty" },
-      ctx,
-    )) as { id: string }
-
-    await expect(
-      dispatch(
-        "deferredPrompt.file",
-        { taskId: TASK.id, tabId: "tab-1", prompt: "second", layer: "composer-not-empty" },
-        ctx,
-      ),
-    ).rejects.toThrow(/already has a deferred prompt/)
-
-    expect((await store.get(first.id))?.prompt).toBe("first")
-    expect(rec.inboxPromptDeferred).toEqual([
-      { taskId: TASK.id, tabId: "tab-1", deferredId: first.id, layer: "composer-not-empty" },
-      { taskId: TASK.id, tabId: "tab-1", deferredId: first.id, layer: "composer-not-empty" },
-    ])
-  })
-
-  it("file rejects a bad layer and an unknown task", async () => {
+  it("fileIfVacant rejects a bad layer and an unknown task", async () => {
     const { ctx } = await ctxWithStore()
     await expect(
-      dispatch("deferredPrompt.file", { taskId: TASK.id, tabId: "tab-1", prompt: "x", layer: "bogus" }, ctx),
+      dispatch("deferredPrompt.fileIfVacant", { taskId: TASK.id, tabId: "tab-1", prompt: "x", layer: "bogus" }, ctx),
     ).rejects.toThrow(/layer must be/)
     await expect(
       dispatch(
-        "deferredPrompt.file",
+        "deferredPrompt.fileIfVacant",
         { taskId: "nope", tabId: "tab-1", prompt: "x", layer: "composer-not-empty" },
         ctx,
       ),
     ).rejects.toThrow(/task not found/)
-  })
-
-  it("fails the legacy pre-claim read path loud and resolves a pre-restart insert through a claim", async () => {
-    const { ctx, store } = await ctxWithStore()
-    const { id } = (await dispatch(
-      "deferredPrompt.file",
-      { taskId: TASK.id, tabId: "tab-1", prompt: "queued", layer: "recent-human-write" },
-      ctx,
-    )) as { id: string }
-
-    await expect(dispatch("deferredPrompt.get", { id }, ctx)).rejects.toThrow(
-      "legacy deferred prompt release is unsafe",
-    )
-
-    await expect(dispatch("deferredPrompt.resolve", { id }, ctx)).resolves.toMatchObject({ removed: true })
-    expect(await store.get(id)).toBeNull()
-  })
-
-  it("resolve drops BOTH the record and the pointing inbox episode", async () => {
-    const { ctx, rec } = await ctxWithStore()
-    const { id } = (await dispatch(
-      "deferredPrompt.file",
-      { taskId: TASK.id, tabId: "tab-1", prompt: "queued", layer: "composer-not-empty" },
-      ctx,
-    )) as { id: string }
-
-    await dispatch("deferredPrompt.resolve", { id }, ctx)
-    expect(rec.inboxDeleted).toEqual([{ taskId: TASK.id, tabId: "tab-1" }])
   })
 
   it("flush delivers every queued prompt in file order and resolves each episode", async () => {

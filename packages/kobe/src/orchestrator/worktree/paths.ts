@@ -56,21 +56,9 @@ export function worktreeRootFor(repo: string): string {
 }
 
 /**
- * Absolute paths of every worktree root kobe recognizes for `repo`.
- * The active root (override-aware) is first; the built-in default root
- * follows when an override moved it (so worktrees created before the
- * override stay discoverable for listing + slug allocation), then the
- * repo-local legacy roots for existing task records.
- *
- * KNOWN LIMITATION: only the CURRENT override and the built-in default
- * are recognized — we don't persist a history of past override paths.
- * If a user points the base at A, creates tasks, then re-points it at B,
- * the worktrees under A fall out of managed listing + slug allocation.
- * Those tasks are NOT lost — each task record pins its own absolute
- * `worktreePath`, so opening/removing them keeps working; they just stop
- * appearing in "list kobe-managed worktrees" and their slugs stop blocking
- * reuse. Recording every base ever used would close the gap but is
- * deliberately out of scope here.
+ * Every worktree root Rove recognizes for `repo`, override resolved. Root
+ * order and the KNOWN LIMITATION (past override paths are not remembered)
+ * are documented on the implementation in `daemon/worktree-paths`.
  */
 export function managedWorktreeRootsFor(repo: string): readonly string[] {
   return managedWorktreeRootsForBase(repo, getWorktreeBaseOverride(repo))

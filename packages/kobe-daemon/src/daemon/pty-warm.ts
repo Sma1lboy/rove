@@ -6,7 +6,7 @@
  * the session bookkeeping it must stay invisible to.
  *
  * One pre-initialized spare shell (`pty.warm`) is kept OUTSIDE the host's
- * session map — invisible to `list`/`sweepTasks`/`liveCount` (it must not
+ * session map — invisible to `list`/`liveCount` (it must not
  * pin the host open or be swept as an orphan). A matching `open` adopts it
  * under the opener's key and a replacement is warmed right away.
  * ponytail: single global slot keyed by cwd; per-worktree pools if

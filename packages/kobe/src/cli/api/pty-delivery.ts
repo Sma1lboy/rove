@@ -56,8 +56,8 @@ export type PtyHostRpc = HostedSessionRpc
 
 /**
  * A key belongs to `taskId` when its segment before the first `::` matches
- * — the same split `pty-host.ts` `sweepTasks` uses. `tab-1` is the engine
- * tab the TUI's `initialTabs()` always mints first.
+ * — the same split the daemon's task-deletion sweep uses. `tab-1` is the
+ * engine tab the TUI's `initialTabs()` always mints first.
  */
 export const isTaskKey = isHostedTaskKey
 

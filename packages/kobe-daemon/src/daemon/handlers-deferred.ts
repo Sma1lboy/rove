@@ -325,17 +325,13 @@ async function flushDeferredPrompts(ctx: DaemonHandlerContext): Promise<{
 
 export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
   {
-    // Socket-only (see deferredPrompt.get) — not on the pinned web allowlist.
-    name: "deferredPrompt.file",
-    async handle(payload, ctx) {
-      const result = await fileWithInbox(deferredPromptInput(payload), ctx)
-      if (result.kind === "occupied") throw new DeferredPromptPendingError(result.record)
-      return { id: result.record.id }
-    },
-  },
-  {
-    // New clients use a distinct verb so an old daemon cannot silently route
-    // them through its replace-the-existing-record implementation.
+    // Socket-only: not on the pinned web allowlist. Keeping the file/release
+    // verbs off the browser-reachable surface is a security contract
+    // (test/daemon/web-exposure.test.ts).
+    //
+    // The distinct name is load-bearing: an old daemon rejects it outright
+    // rather than silently routing the prompt through the retired
+    // replace-the-existing-record verb.
     name: "deferredPrompt.fileIfVacant",
     async handle(payload, ctx) {
       const result = await fileWithInbox(deferredPromptInput(payload), ctx)
@@ -347,15 +343,6 @@ export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
         expiresAt: publicRecord(result.record).expiresAt,
         ...(result.kind === "occupied" ? { layer: result.record.layer } : {}),
       }
-    },
-  },
-  {
-    name: "deferredPrompt.get",
-    async handle() {
-      // A pre-claim client can race the daemon flusher after reading the text
-      // and paste the same record twice. Fail that mixed-version exit path
-      // loud; current clients use the atomic `release` verb below.
-      throw new Error("legacy deferred prompt release is unsafe; restart Rove to update the client")
     },
   },
   {
@@ -388,22 +375,6 @@ export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
       if (!dropped) return { dismissed: false }
       await deleteDeferredInboxPointer(dropped, ctx)
       return { dismissed: true, record: publicRecord(dropped) }
-    },
-  },
-  {
-    name: "deferredPrompt.resolve",
-    async handle(payload, ctx) {
-      const id = requireString(payload, "id")
-      if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
-      // A legacy client can still finish an insert fetched before a daemon
-      // restart. Claim before trusting its resolve so it cannot erase a
-      // record that a concurrent flush owns.
-      const claimed = await ctx.deferredPrompts.claim(id)
-      if (claimed.kind !== "claimed") return { removed: false, kind: claimed.kind }
-      const report: DeliveryReport = { delivered: [], cleaned: [], expired: [], retained: [], cleanupPending: [] }
-      await ctx.deferredPrompts.markDelivered(claimed.claim)
-      await cleanupDeliveredClaim(claimed.claim, ctx, report)
-      return { removed: report.cleaned.includes(id), cleanupPending: report.cleanupPending }
     },
   },
   {

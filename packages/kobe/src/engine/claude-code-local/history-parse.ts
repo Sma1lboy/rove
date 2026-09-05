@@ -13,6 +13,7 @@
 import type { Message } from "@/types/engine"
 import { isJsonlLineWithinBound } from "../file-bounds"
 import { createAppendParseCache, sortByTimestamp } from "../history-cache"
+import { isObject } from "../json-hooks.ts"
 import { normalizeClaudeContent } from "./normalize"
 import { isClaudeCommandBreadcrumb, isSyntheticClaudeRecord } from "./synthetic"
 
@@ -108,8 +109,4 @@ function extractUsage(v: unknown): Message["usage"] {
     ...(cacheRead !== undefined ? { cache_read_input_tokens: cacheRead } : {}),
     ...(cacheCreate !== undefined ? { cache_creation_input_tokens: cacheCreate } : {}),
   }
-}
-
-export function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
 }
