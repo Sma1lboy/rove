@@ -20,7 +20,7 @@ import {
 } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
-import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
+import { readRoveHomeDirEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import {
   LEGACY_KOBE_CONFIG_DIR_BASENAME,
   LEGACY_KOBE_STATE_DIR_BASENAME,
@@ -166,7 +166,7 @@ function migrateStateEntries(
   includeConfig: boolean,
   env: NodeJS.ProcessEnv,
 ): StateLayoutMigrationResult {
-  const home = readRoveEnv("HOME_DIR", env) ?? homedir()
+  const home = readRoveHomeDirEnv(env) ?? homedir()
   const legacyState = join(home, LEGACY_KOBE_STATE_DIR_BASENAME)
   const roveState = join(home, ROVE_STATE_DIR_BASENAME)
   const legacyConfig = join(home, ".config", LEGACY_KOBE_CONFIG_DIR_BASENAME, "state.json")
@@ -224,7 +224,7 @@ function migrateStateEntries(
 const PLUGIN_ENTRIES = ["plugins.json", "plugins", "plugins-outdated.json"] as const
 
 function migrateLegacyPluginTree(env: NodeJS.ProcessEnv): StateLayoutMigrationResult {
-  const home = readRoveEnv("HOME_DIR", env) ?? homedir()
+  const home = readRoveHomeDirEnv(env) ?? homedir()
   const legacyState = join(home, LEGACY_KOBE_STATE_DIR_BASENAME)
   const roveState = join(home, ROVE_STATE_DIR_BASENAME)
   const marker = join(roveState, PLUGIN_MIGRATION_MARKER)

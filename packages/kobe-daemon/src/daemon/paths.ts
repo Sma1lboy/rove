@@ -166,7 +166,7 @@ export function fitSocketPath(naturalPath: string, homeDir: string, role: string
  */
 export function defaultDaemonSocketPath(homeDir?: string): string {
   const override = readRoveEnv("DAEMON_SOCKET_PATH")
-  if (override && override.length > 0) return override
+  if (override) return override
   const explicit = homeDir ?? readRoveHomeDirEnv()
   if (explicit && explicit.length > 0) {
     return fitSocketPath(runtimePath(explicit, "daemon.sock", "daemon.pid"), explicit, "daemon")
@@ -192,7 +192,7 @@ export function resolveDaemonHomeDir(homeDir?: string): string {
 
 export function defaultDaemonPidPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   const override = readRoveEnv("DAEMON_PID_PATH")
-  if (override && override.length > 0) return override
+  if (override) return override
   return runtimePath(homeDir, "daemon.pid", "daemon.pid")
 }
 
@@ -261,7 +261,7 @@ export function windowsPipePath(homeDir: string, role: string): string {
 
 export function defaultPtyHostSocketPath(homeDir?: string, platform: NodeJS.Platform = process.platform): string {
   const override = readRoveEnv("PTY_SOCKET_PATH")
-  if (override && override.length > 0) return override
+  if (override) return override
   const explicit = homeDir ?? readRoveHomeDirEnv()
   if (platform === "win32") return windowsPipePath(explicit || homedir(), "pty")
   if (explicit && explicit.length > 0) {
@@ -277,7 +277,7 @@ export function defaultPtyHostSocketPath(homeDir?: string, platform: NodeJS.Plat
 
 export function defaultPtyHostPidPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   const override = readRoveEnv("PTY_PID_PATH")
-  if (override && override.length > 0) return override
+  if (override) return override
   return runtimePath(homeDir, "pty.pid", "pty.pid")
 }
 
