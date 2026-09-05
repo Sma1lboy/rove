@@ -364,7 +364,8 @@ replacement in `nextCommandArgs`.
   sibling's engine). This was the `fan-out` verb, which no longer exists.
 
   `--command` picks the engine (an id from `engine-list`, or a full command
-  line). Omitted, the repo's default engine is used.
+  line). Omitted, the repo's default engine is used — skipping any engine
+  switched off in Settings → Engines, the same as the TUI's picker.
 
   `--repo` accepts paths `rove add` refuses — a checkout under `.scratch/`,
   `.dev-sandbox/` or `$TMPDIR` gets a task here and gets

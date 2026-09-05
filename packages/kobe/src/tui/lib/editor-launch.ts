@@ -1,10 +1,11 @@
 /**
- * External-editor launch for the Ops pane's file tree (`e` key).
+ * External-editor launch for the Ops pane's file tree (`enter` — `files.open`
+ * in `tui/context/keybindings-files.ts`).
  *
- * The file tree has two open actions:
- *   - `enter` → the in-TUI read-only preview/diff window (`openPreview`).
- *   - `e`     → THIS: open the file in the user's real editor (vim / nano
- *               / a custom command) in an embedded command tab.
+ * `enter` opens the file in the user's real editor (nvim / vim / nano / a
+ * custom command) in an embedded command tab. The in-TUI read-only
+ * preview/diff window (`openPreview`) is the FALLBACK below, not a separate
+ * key: it is where `enter` lands when no editor binary can be resolved.
  *
  * Why shell out instead of editing in-pane: the preview is an opentui
  * `<code>`/`<diff>` renderer with no cursor/insert/save. A real editable
@@ -14,12 +15,12 @@
  * Fallback chain (KOB — file-editor-launch): if the configured editor's
  * binary isn't on PATH (or `custom` is empty with no `$EDITOR`), this
  * returns `false` and the caller falls back to the read-only preview, so
- * `e` is never a dead key. We gate on "binary missing", NOT on the
+ * `enter` is never a dead key. We gate on "binary missing", NOT on the
  * editor's exit code — a `:cq` / non-zero quit is a real edit session,
  * not a launch failure, and must not bounce to preview.
  *
  * nvim/vim diff mode: when the resolved editor is a PLAIN nvim/vim open
- * (`<bin> <file>`, no custom flags) AND the file differs from HEAD, `e`
+ * (`<bin> <file>`, no custom flags) AND the file differs from HEAD, `enter`
  * upgrades to side-by-side diff mode — the committed HEAD blob read-only
  * on the left, the live editable file on the right. This is the sh-`-c`
  * safe form of `nvim -d <file> <(git show HEAD:<file>)`: tmux runs the
@@ -31,7 +32,8 @@
  *
  * Settings (shared `state.json`, read cross-process via getPersistedString
  * since the Ops host is its own process):
- *   - `editor.kind`          "vim" | "nano" | "custom"   (default "vim")
+ *   - `editor.kind`          "auto" | "vim" | "nvim" | "nano" | "emacs" |
+ *                            "custom"   (default "auto" — see `editor-prefs.ts`)
  *   - `editor.customCommand` e.g. `code -w` / `emacsclient` / `subl -w {file}`
  */
 
@@ -105,7 +107,7 @@ export function buildEditorCommand(
  * `relPath` is worktree-relative; `HEAD:./<rel>` pins the blob lookup to
  * the worktree cwd. If the HEAD blob can't be read (e.g. a race removed
  * the diff between the check and the launch), it falls back to a plain
- * `<bin> <file>` open so `e` still lands in an editor.
+ * `<bin> <file>` open so `enter` still lands in an editor.
  */
 export function buildNvimDiffCommand(bin: string, absPath: string, relPath: string): string {
   const file = shellQuote(absPath)

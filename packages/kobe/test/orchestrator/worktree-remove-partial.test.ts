@@ -358,3 +358,33 @@ describe("remove() when the directory is already gone", () => {
     expect(branches.split("\n")).toContain("keep-br")
   })
 })
+
+/**
+ * The `opts.branch` FALLBACK on the live-directory path (`manager-remove.ts`,
+ * the `?? opts.branch` in the pre-removal branch capture).
+ *
+ * The existing "still deletes the branch the caller asked to drop" case is
+ * named for this line and never reaches it: it `rmSync`s the directory first,
+ * so the missing-directory path consumes `opts.branch` and returns long
+ * before. Deleting the fallback here left that test green.
+ *
+ * Its real trigger is a worktree that is present but has no branch name to
+ * read: `currentBranch()` deliberately THROWS on detached HEAD rather than
+ * hand back the literal `HEAD`, which is a state a hard reset produces. The
+ * caller's recorded `task.branch` is then the only name left.
+ */
+describe("remove() when the worktree is on a detached HEAD", () => {
+  it("falls back to the caller's branch name when HEAD cannot be read", async () => {
+    const wt = join(managedRoot, "detached")
+    execSync(`git worktree add -q ${JSON.stringify(wt)} -b detached-br`, { cwd: repo, env: gitEnv })
+    execSync("git checkout -q --detach", { cwd: wt, env: gitEnv })
+    // The premise: the worktree is still there, and git will not name a branch.
+    expect(existsSync(wt)).toBe(true)
+    expect(execSync("git rev-parse --abbrev-ref HEAD", { cwd: wt, env: gitEnv, encoding: "utf8" }).trim()).toBe("HEAD")
+
+    await manager.remove(wt, { repo, deleteBranch: true, branch: "detached-br", force: true })
+
+    const branches = execSync("git branch --format='%(refname:short)'", { cwd: repo, env: gitEnv, encoding: "utf8" })
+    expect(branches.split("\n")).not.toContain("detached-br")
+  })
+})

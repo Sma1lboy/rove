@@ -63,8 +63,9 @@ export { defaultUiPrefsStatePath }
 /**
  * Read the visual-pref keys out of the state file. Never throws —
  * a missing / corrupt file yields the documented defaults (`claude`
- * theme, opaque, unset accent, `default` sort, expanded keys legend), the
- * same corrupt-file policy as the State Store and `readPersistedUiPrefs`.
+ * theme, TRANSPARENT background, unset accent, `default` sort, expanded keys
+ * legend), the same corrupt-file policy as the State Store and
+ * `readPersistedUiPrefs`.
  * The theme NAME is
  * passed through unvalidated (the daemon has no theme registry); the
  * TUI-side apply validates it against its own registry.

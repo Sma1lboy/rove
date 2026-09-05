@@ -34,33 +34,32 @@ export function legacyKobeEnvKey(roveKey: string): string | undefined {
   return `${LEGACY_KOBE_ENV_PREFIX}${roveKey.slice(ROVE_ENV_PREFIX.length)}`
 }
 
-/** Read one renamed variable without mutating the supplied environment. */
-export function readRoveEnv(suffix: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return env[`${ROVE_ENV_PREFIX}${suffix}`] ?? env[`${LEGACY_KOBE_ENV_PREFIX}${suffix}`]
-}
-
 /**
- * `ROVE_HOME_DIR` / `KOBE_HOME_DIR` as a home directory, or `undefined`.
+ * Read one renamed variable without mutating the supplied environment.
  *
- * The ONE place that decides an empty value is not a home. `VAR=` is how a
- * shell says "unset" — the visual fixture writes `ROVE_TASK_ID=` for exactly
- * that meaning — but every path accessor read the raw variable, so an empty
- * `HOME_DIR` produced `""` as the home and then RELATIVE state paths: `.rove`,
- * `.config/rove/state.json`, `.rove/daemon.pid`. Relative to whatever the
- * process's cwd happened to be, which for the TUI is the user's repository.
- * Blank is unset, and the caller's `?? homedir()` takes over.
+ * Blank is UNSET, decided per namespace rather than on the combined result.
+ * `VAR=` is how a shell says "unset" — the visual fixture writes
+ * `ROVE_TASK_ID=` for exactly that meaning — so a `??` chain over the raw
+ * values would treat a DEFINED empty `ROVE_*` as an answer and shadow the
+ * real `KOBE_*` beside it. That is not a cosmetic difference for a path: an
+ * empty `HOME_DIR` produced `""` as the home and then RELATIVE state paths
+ * (`.rove`, `.config/rove/state.json`), relative to whatever the process's
+ * cwd happened to be — the user's repository, for the TUI. For the socket
+ * and pid overrides it silently dropped an isolated daemon back onto the
+ * production one. Blank in the new name means unset, which is exactly when
+ * the legacy name is supposed to answer.
  */
-export function readRoveHomeDirEnv(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  // Per namespace, not on the combined result: `readRoveEnv`'s `??` treats a
-  // DEFINED empty `ROVE_HOME_DIR` as a value, so trimming afterwards would let
-  // it shadow a real `KOBE_HOME_DIR` and land the caller on the OS home.
-  // Blank in the new name means unset, which is exactly when the legacy name
-  // is supposed to answer.
-  for (const key of [`${ROVE_ENV_PREFIX}HOME_DIR`, `${LEGACY_KOBE_ENV_PREFIX}HOME_DIR`]) {
+export function readRoveEnv(suffix: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  for (const key of [`${ROVE_ENV_PREFIX}${suffix}`, `${LEGACY_KOBE_ENV_PREFIX}${suffix}`]) {
     const value = env[key]?.trim()
     if (value) return value
   }
   return undefined
+}
+
+/** `ROVE_HOME_DIR` / `KOBE_HOME_DIR` as a home directory, or `undefined`. */
+export function readRoveHomeDirEnv(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return readRoveEnv("HOME_DIR", env)
 }
 
 /**
@@ -78,11 +77,15 @@ export function setRoveEnv(suffix: string, value: string, env: NodeJS.ProcessEnv
 
 /**
  * Mirror every public ROVE_* control into the legacy internal namespace.
- * Existing KOBE_* values remain when no new-name value was supplied.
+ * Existing KOBE_* values remain when no new-name value was supplied — and a
+ * BLANK `ROVE_*` counts as "not supplied" for the same reason
+ * {@link readRoveEnv} does. Mirroring it copied `""` over a real `KOBE_*`,
+ * which destroys the value in the one namespace that still had it, so the
+ * per-namespace fallback there had nothing left to find.
  */
 export function installRoveEnvCompatibility(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   for (const [key, value] of Object.entries(env)) {
-    if (value === undefined || key === "ROVE_INVOKED_AS") continue
+    if (value === undefined || value.trim().length === 0 || key === "ROVE_INVOKED_AS") continue
     const legacyKey = legacyKobeEnvKey(key)
     if (legacyKey) env[legacyKey] = value
   }
