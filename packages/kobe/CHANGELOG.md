@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.9.158
+
+### Patch Changes
+
+- [#923](https://github.com/Sma1lboy/rove/pull/923) [`b9cecb3`](https://github.com/Sma1lboy/rove/commit/b9cecb389e72c09ea5941bb369ec2ab0579514bf) `rove api` now keeps the recovery half of its error envelope, and drops the last references to the web transport [#855](https://github.com/Sma1lboy/rove/issues/855) deleted.
+
+  Seven fixes to the error contract. The two flag-rejection paths in the dispatcher dropped `err.data`, so the three highest-traffic refusals on the surface — unknown flag, missing required flag, bad enum value — reached stderr stripped of the `hint` and `nextCommandArgs` the docs promise; `api get-task` with no id gave a caller nothing to run next while `api nope` gave it everything. `schema --verb`/`--group` on a name that does not resolve now answers exactly like the verb itself would (same code, same recovery argv, exit 2 — including the migration step for a REMOVED verb such as `fan-out`), instead of three different results for one typo. `engine-report --kind` is a real enum, so a mistyped kind is a local flag rejection naming the 14 legal values rather than an untyped `RPC_ERROR` that reads as "the daemon is broken"; `--detail` that is not JSON is likewise `BAD_FLAG`, and the daemon's own kind check carries a machine code. `pane-open` / `pane-close` with no target report `MISSING_TARGET` like every other verb under the same condition, not `TASK_NOT_FOUND` for an id nobody supplied. Both `BAD_EFFORT` refusals now carry a recovery command, and all four `SESSION_FAILED` throws share one constructor, so three of them stop travelling without the id of the task they just failed on. `docs/API.md` gains the table of codes the CLI itself raises — all 32 of them, derived from the source rather than remembered, so a caller matching on `code` no longer reads the table and concludes a code cannot happen — and a test now derives that list on every run, so the next code added without a row fails CI instead of drifting. Its exit-3 line no longer promises that something was created.
+
+  Four cleanups after [#855](https://github.com/Sma1lboy/rove/issues/855). `web: true` was 21 annotations and one derived allowset that nothing read, describing a browser transport that no longer exists and citing a guard test that does not; it is gone, so nobody mistakes it for a checked-in security decision. `rove doctor` no longer prints a dead `DAEMON_WEB_PORT`, fixtures no longer reserve a port for a daemon HTTP listener (`KOBE_VISUAL_PORT_BASE` now spans two ports, not three), and `AGENTS.md`, `ARCHITECTURE.md`, `CONFIGURATION.md` and the daemon design notes stop describing SSE lifetime holders, a browser transport, and a web settings API that were all deleted. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#927](https://github.com/Sma1lboy/rove/pull/927) [`0a63f8e`](https://github.com/Sma1lboy/rove/commit/0a63f8eee313af16bd2c36fc768abb460cce4947) Make the sidebar tree show seven things it already knew
+
+  Each of these was a fact the tree had in hand and did not draw, so the row
+  looked the same as a row where nothing was wrong.
+
+  - **Every task row prints the digit that jumps to it.** The `ctrl+<digit>`
+    chord worked; the number was a thing you had to count out. Rows now carry
+    it at the right edge, starting at `2` — `ctrl+1` has no encoding in the
+    legacy terminal protocol, so the first row shows the digit that actually
+    works instead of one that does nothing.
+  - **A failed deletion is visible on the worktree row.** The deletion
+    coordinator sweeps a task's PTYs before it touches the worktree, so by the
+    time a deletion fails the task has no activity and no live tab — and the
+    tab row that would have carried the mark is gated on activity it can never
+    have again. A stalled deletion was discoverable only through
+    `rove api list`. The worktree row now draws `!` for a failed deletion and
+    spins while one is in flight, beside a `deleting` / `delete failed` word.
+  - **A turn whose engine is still writing no longer reads as done.** The
+    daemon's transcript facts reach the tree rows, which is what separates a
+    finished turn from one where `turn-complete` fired and a long tool call ran
+    on in hook silence — measured at nine minutes on a real session, the whole
+    of which the row spent claiming it was idle.
+  - **A freeze-restored tab is distinguishable from a quiet one.** When the pty
+    host dies it keeps each session's scrollback and marks the process gone;
+    opening such a tab silently re-runs its recorded launch command. The row
+    wore `○`, the one glyph that means "nothing to do here". It now wears `!`.
+  - **A `pty.kill` that never reaches the host leaves a trace.** Closing a tab
+    this process holds no handle for was a bare `catch {}` documented as "the
+    same outcome as the kill succeeding". It is not: a kill that lands drops
+    the freeze record, and a miss leaves it on disk for the next host to thaw —
+    the tab you closed comes back with its engine running, which is the one
+    thing `docs/SESSIONS.md` promises cannot happen. The miss is now recorded
+    with its session key.
+
+  Also: `anyRowLoading`'s docstring described itself as the gate the sidebar
+  uses to park its spinner timer, which a per-row subscription store replaced —
+  it has no caller, and wiring it to anything today would freeze the spinner
+  under a still-working row, because it cannot see the transcript. Four
+  `Sidebar` props nothing reads are gone. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.157
 
 ### Patch Changes
