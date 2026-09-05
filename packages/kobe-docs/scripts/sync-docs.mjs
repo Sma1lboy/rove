@@ -200,21 +200,19 @@ function rewriteAssetTarget(target) {
   return target
 }
 
-function rewriteImageTarget(target) {
-  return rewriteAssetTarget(target)
-}
-
-/** Raw MDX media attributes are invisible to Markdown link rewriting. */
-function rewriteMediaTargets(markdown) {
+/** Rewrite raw media attributes and CommonMark autolinks outside fenced code. */
+function rewriteMdxLines(markdown) {
   let inFence = false
   return markdown
     .split("\n")
     .map((line) => {
       if (/^\s*```/.test(line)) inFence = !inFence
       if (inFence) return line
-      return line.replace(/\b(src|poster)=(['"])([^'"]+)\2/g, (_match, attribute, quote, target) => {
-        return `${attribute}=${quote}${rewriteAssetTarget(target)}${quote}`
-      })
+      return line
+        .replace(/\b(src|poster)=(['"])([^'"]+)\2/g, (_match, attribute, quote, target) => {
+          return `${attribute}=${quote}${rewriteAssetTarget(target)}${quote}`
+        })
+        .replace(/<(https?:\/\/[^>\s]+)>/g, "[$1]($1)")
     })
     .join("\n")
 }
@@ -223,31 +221,15 @@ function rewriteLinks(markdown) {
   return (
     markdown
       // Inline links: [text](target "optional title"). Image targets become
-      // site paths via rewriteImageTarget.
+      // site paths via rewriteAssetTarget.
       .replace(
         /(!?)\[([^\]]*)\]\((<)?([^)\s>]+)(>)?((?:\s+"[^"]*")?)\)/g,
         (match, bang, text, _open, target, _close, title) =>
-          bang ? `![${text}](${rewriteImageTarget(target)}${title})` : `[${text}](${rewriteTarget(target)}${title})`,
+          bang ? `![${text}](${rewriteAssetTarget(target)}${title})` : `[${text}](${rewriteTarget(target)}${title})`,
       )
       // Reference-style definitions: [label]: target
       .replace(/^(\[[^\]]+\]:\s+)(\S+)/gm, (match, label, target) => `${label}${rewriteTarget(target)}`)
   )
-}
-
-/**
- * CommonMark autolinks (`<https://…>`) are not valid MDX — `<` starts JSX.
- * Convert them to explicit links outside fenced code blocks.
- */
-function rewriteAutolinks(markdown) {
-  let inFence = false
-  return markdown
-    .split("\n")
-    .map((line) => {
-      if (/^\s*```/.test(line)) inFence = !inFence
-      if (inFence) return line
-      return line.replace(/<(https?:\/\/[^>\s]+)>/g, "[$1]($1)")
-    })
-    .join("\n")
 }
 
 /**
@@ -282,7 +264,7 @@ function toMdxPage(markdown, sourceFile) {
     "",
   ].join("\n")
 
-  return `${frontmatter}${rewriteAutolinks(rewriteMediaTargets(rewriteLinks(body)))}`
+  return `${frontmatter}${rewriteMdxLines(rewriteLinks(body))}`
 }
 
 await mkdir(docsOutDir, { recursive: true })

@@ -16,6 +16,12 @@ export interface RoveSocketOptions {
 export type KobeSocketOptions = RoveSocketOptions
 
 type Pending = { resolve: (payload: unknown) => void; reject: (err: Error) => void }
+type Connection = {
+  socket: Socket
+  buffer: string
+  pending: Map<string, Pending>
+  rejectConnect: (err: Error) => void
+}
 
 /** What the daemon answers `hello` with — the runtime compatibility check. */
 export interface DaemonInfo {
@@ -37,40 +43,37 @@ export interface DaemonInfo {
 }
 
 export class RoveSocket {
-  private sock: Socket | null = null
-  private buffer = ""
+  private connection: Connection | null = null
   private nextId = 1
-  private readonly pending = new Map<string, Pending>()
   private eventHandler: ((name: string, payload: unknown) => void) | null = null
   private closeHandler: ((err: Error) => void) | null = null
-  private closeNotified = false
 
   /** Connect; resolves once the socket is up (before any `hello`). */
   connect(opts: RoveSocketOptions = {}): Promise<void> {
     const path = opts.socketPath ?? process.env.ROVE_SOCKET_PATH ?? process.env.KOBE_SOCKET_PATH
     if (!path) return Promise.reject(new Error("ROVE_SOCKET_PATH is not set and no socketPath was given"))
+    this.close()
     return new Promise((resolve, reject) => {
-      const sock = createConnection(path, () => resolve())
-      sock.setEncoding("utf8")
-      sock.on("data", (chunk: string) => this.onData(chunk))
-      sock.on("error", (err) => {
-        reject(err)
-        this.failAll(err)
-      })
-      sock.on("close", () => this.failAll(new Error("daemon socket closed")))
-      this.sock = sock
+      const socket = createConnection(path, resolve)
+      const connection: Connection = { socket, buffer: "", pending: new Map(), rejectConnect: reject }
+      this.connection = connection
+      socket.setEncoding("utf8")
+      socket.on("data", (chunk: string) => this.onData(connection, chunk))
+      socket.on("error", (err) => this.disconnect(connection, err, true))
+      socket.on("close", () => this.disconnect(connection, new Error("daemon socket closed"), true))
     })
   }
 
   /** One request → its response payload (rejects on daemon error frames). */
   request<T = unknown>(name: string, payload?: unknown): Promise<T> {
-    const sock = this.sock
-    if (!sock) return Promise.reject(new Error("not connected — call connect() first"))
+    const connection = this.connection
+    if (!connection) return Promise.reject(new Error("not connected — call connect() first"))
     const id = String(this.nextId++)
     const frame: DaemonFrame = { type: "request", id, name, payload }
     return new Promise<T>((resolve, reject) => {
-      this.pending.set(id, { resolve: resolve as (p: unknown) => void, reject })
-      sock.write(`${JSON.stringify(frame)}\n`)
+      const data = `${JSON.stringify(frame)}\n`
+      connection.pending.set(id, { resolve: resolve as (p: unknown) => void, reject })
+      connection.socket.write(data)
     })
   }
 
@@ -117,45 +120,51 @@ export class RoveSocket {
   }
 
   close(): void {
-    this.closeNotified = true // deliberate teardown is not a lost connection
-    this.sock?.end()
-    this.sock = null
+    const connection = this.connection
+    if (connection) this.disconnect(connection, new Error("daemon socket closed"), false)
   }
 
-  private onData(chunk: string): void {
-    this.buffer += chunk
-    let idx = this.buffer.indexOf("\n")
-    while (idx >= 0) {
-      const line = this.buffer.slice(0, idx)
-      this.buffer = this.buffer.slice(idx + 1)
-      idx = this.buffer.indexOf("\n")
+  private onData(connection: Connection, chunk: string): void {
+    connection.buffer += chunk
+    let idx = connection.buffer.indexOf("\n")
+    while (this.connection === connection && idx >= 0) {
+      const line = connection.buffer.slice(0, idx)
+      connection.buffer = connection.buffer.slice(idx + 1)
+      idx = connection.buffer.indexOf("\n")
       if (!line.trim()) continue
-      let frame: DaemonFrame
+      let frame: unknown
       try {
-        frame = JSON.parse(line) as DaemonFrame
+        frame = JSON.parse(line)
       } catch {
         continue // torn/foreign line — skip, never crash the plugin
       }
-      if (frame.type === "response") {
-        const waiter = this.pending.get(frame.id)
+      if (typeof frame !== "object" || frame === null || !("type" in frame)) continue
+      if (frame.type === "response" && "id" in frame && typeof frame.id === "string") {
+        const waiter = connection.pending.get(frame.id)
         if (!waiter) continue
-        this.pending.delete(frame.id)
-        if (frame.error) waiter.reject(new Error(frame.error.message))
-        else waiter.resolve(frame.payload)
-      } else if (frame.type === "event") {
-        this.eventHandler?.(frame.name, frame.payload)
+        if ("error" in frame && frame.error) {
+          const error = frame.error
+          if (typeof error !== "object" || !("message" in error) || typeof error.message !== "string") continue
+          connection.pending.delete(frame.id)
+          waiter.reject(new Error(error.message))
+        } else {
+          connection.pending.delete(frame.id)
+          waiter.resolve("payload" in frame ? frame.payload : undefined)
+        }
+      } else if (frame.type === "event" && "name" in frame && typeof frame.name === "string") {
+        this.eventHandler?.(frame.name, "payload" in frame ? frame.payload : undefined)
       }
     }
   }
 
-  private failAll(err: Error): void {
-    for (const waiter of this.pending.values()) waiter.reject(err)
-    this.pending.clear()
-    // Pending requests were the ONLY thing this used to fail. A subscriber
-    // has no pending request, so it heard nothing and stayed blind forever.
-    if (this.closeNotified) return
-    this.closeNotified = true
-    this.closeHandler?.(err)
+  private disconnect(connection: Connection, err: Error, notify: boolean): void {
+    if (this.connection !== connection) return
+    this.connection = null
+    connection.rejectConnect(err)
+    for (const waiter of connection.pending.values()) waiter.reject(err)
+    connection.pending.clear()
+    connection.socket.destroy()
+    if (notify) this.closeHandler?.(err)
   }
 }
 
