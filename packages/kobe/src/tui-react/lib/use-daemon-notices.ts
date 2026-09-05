@@ -14,6 +14,7 @@ import type {
   NoticeEventPayload,
   TabClosePayload,
   TabOpenPayload,
+  TabRenamePayload,
   UiPromptPayload,
 } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { useEffect, useRef } from "react"
@@ -25,6 +26,7 @@ import { useKV } from "../context/kv"
 import { t } from "../i18n"
 import type { DialogContext } from "../ui/dialog"
 import { closeTaskTab } from "../workspace/terminal-tabs-close"
+import { renameTaskTab } from "../workspace/terminal-tabs-rename"
 import { requestPaneClose, requestTabOpen } from "../workspace/terminal-tabs-shared"
 import { useAccessor } from "./use-accessor"
 
@@ -35,6 +37,7 @@ const STALE_NOTICE_MS = 10_000
 const NO_NOTICES = createStateCell<NoticeEventPayload | null>(null)
 const NO_TAB_OPENS = createStateCell<TabOpenPayload | null>(null)
 const NO_TAB_CLOSES = createStateCell<TabClosePayload | null>(null)
+const NO_TAB_RENAMES = createStateCell<TabRenamePayload | null>(null)
 const NO_PROMPTS = createStateCell<UiPromptPayload | null>(null)
 
 /**
@@ -72,6 +75,22 @@ function useDaemonTabCloses(orch: RemoteOrchestrator | null): void {
   }, [request, kv, orch])
 }
 
+/** Bridge `tab.rename` broadcasts (`rove api rename --tab`) into the tab
+ *  state — mounted or not, `renameTaskTab` picks the route. Fire-and-forget:
+ *  the CLI already wrote the persisted snapshot, so this is the repaint half
+ *  and there is no reply to send. */
+function useDaemonTabRenames(orch: RemoteOrchestrator | null): void {
+  const kv = useKV()
+  const request = useAccessor(orch ? orch.tabRenameStore() : NO_TAB_RENAMES)
+  const seenAt = useRef<number | null>(null)
+  useEffect(() => {
+    if (!request || request.at === seenAt.current) return
+    seenAt.current = request.at
+    if (Date.now() - request.at > STALE_NOTICE_MS) return
+    renameTaskTab(kv, request.taskId, request.tabId, request.title)
+  }, [request, kv])
+}
+
 /**
  * Bridge `ui.prompt` broadcasts (host-provided plugin input dialog) into
  * the dialog stack: show the reusable input dialog, answer via
@@ -104,6 +123,7 @@ export function useDaemonNotices(
 ): void {
   useDaemonTabOpens(orch)
   useDaemonTabCloses(orch)
+  useDaemonTabRenames(orch)
   useDaemonPrompts(orch, dialog)
   const notice = useAccessor(orch ? orch.noticeStore() : NO_NOTICES)
   const seenAt = useRef<number | null>(null)

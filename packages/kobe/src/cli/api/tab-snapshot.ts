@@ -25,7 +25,13 @@ import type { PtySessionExit } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
 import { loadStateFile, patchStateFile, updateStateFile } from "../../state/store.ts"
 import { terminalTabsKey } from "../../tui-react/workspace/terminal-tabs-persist.ts"
-import { type TabsState, type TerminalTab, closeTab, initialTabs } from "../../tui/workspace/terminal-tabs-core.ts"
+import {
+  type TabsState,
+  type TerminalTab,
+  closeTab,
+  initialTabs,
+  setTabTitle,
+} from "../../tui/workspace/terminal-tabs-core.ts"
 import type { VendorId } from "../../types/vendor.ts"
 
 /**
@@ -139,6 +145,33 @@ export function closeTabsSnapshot(taskId: string, tabId: string): TerminalTab | 
     return undefined
   })
   return closing
+}
+
+/**
+ * Set one persisted tab's user title, with the same pure transition f2 uses.
+ * Returns whether the snapshot named the tab — false covers "no such tab" and
+ * "task has never opened any", which is the one case `rename --tab` reports
+ * as a miss. An empty title clears back to the tab's default name.
+ *
+ * The fresh-state transaction is what keeps a stale CLI read from overwriting
+ * a newer TUI tab list, exactly as {@link closeTabsSnapshot} does.
+ */
+export function renameTabsSnapshot(taskId: string, tabId: string, title: string): boolean {
+  let found = false
+  const key = terminalTabsKey(taskId)
+  updateStateFile((store) => {
+    const state = store[key] as TabsState | undefined
+    if (!state || !Array.isArray(state.tabs)) return false
+    if (!state.tabs.some((tab) => tab.id === tabId)) return false
+    found = true
+    const next = setTabTitle(state, tabId, title)
+    // Same object = already named that. Abort the transaction rather than
+    // rewrite an identical snapshot.
+    if (next === state) return false
+    store[key] = next
+    return undefined
+  })
+  return found
 }
 
 const aliveKeysOf = (sessions: readonly TaskSessionRow[]): Set<string> =>

@@ -65,9 +65,16 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
     name: "delete",
     group: "lifecycle",
     summary:
-      "Remove a task and its worktree; the git branch stays unless --delete-branch. Needs --force on a dirty worktree. Returns { queued } — removal itself runs in the background; add --wait for the resolved outcome.",
+      "Remove a task and its worktree; the git branch stays unless --delete-branch. Needs --force on a dirty worktree. Returns { queued } — removal itself runs in the background; add --wait for the resolved outcome. Pass --group instead of --task-id to close a whole fan-out round in one call: it returns { groupId, count, failures, results } with one entry per sibling, and a refusal on one (a dirty worktree) is recorded there rather than aborting the rest.",
     flags: [
-      F.taskId(),
+      F.taskId(false),
+      {
+        name: "group",
+        type: "string",
+        placeholder: "GROUPID",
+        description:
+          "Delete every task of one fan-out round (the `groupId` that `add --count` returns, the same selector `collect --group` takes). Mutually exclusive with --task-id.",
+      },
       {
         name: "force",
         type: "bool",

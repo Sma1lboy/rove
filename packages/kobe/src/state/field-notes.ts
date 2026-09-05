@@ -22,6 +22,11 @@ import { roveStateDir } from "../env.ts"
 export const NOTE_INJECTION_CAP = 15
 
 export interface StoredFieldNote {
+  /** Present on every note the daemon hands back (`note.list` backfills legacy
+   *  records). OPTIONAL here because this reader parses the raw file at launch,
+   *  where a store written before ids existed has none yet — and injection must
+   *  not drop those notes waiting for the first write to stamp them. */
+  readonly id?: number
   readonly at: string
   readonly text: string
   readonly taskId: string

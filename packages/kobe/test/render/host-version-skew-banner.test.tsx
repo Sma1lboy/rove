@@ -88,6 +88,7 @@ function fakeOrchestrator() {
     updateSignal: () => NULL_CELL,
     tabOpenStore: () => NULL_CELL,
     tabCloseStore: () => NULL_CELL,
+    tabRenameStore: () => NULL_CELL,
     uiPromptStore: () => NULL_CELL,
     noticeStore: () => NULL_CELL,
     reportUiEvent: () => {},

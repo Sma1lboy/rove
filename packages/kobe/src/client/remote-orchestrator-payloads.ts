@@ -28,6 +28,7 @@ import type {
   SubscribeRole,
   TabClosePayload,
   TabOpenPayload,
+  TabRenamePayload,
   UiPrefsPayload,
   UiPromptPayload,
 } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -399,6 +400,7 @@ export interface OrchestratorSignals {
   readonly setNoticeSig: (next: NoticeEventPayload | null) => void
   readonly setTabOpenSig: (next: TabOpenPayload | null) => void
   readonly setTabCloseSig: (next: TabClosePayload | null) => void
+  readonly setTabRenameSig: (next: TabRenamePayload | null) => void
   readonly setUiPromptSig: (next: UiPromptPayload | null) => void
   readonly engineLifecycleAcc: ReadableState<EngineLifecycleMap>
   readonly setEngineLifecycleSig: (next: EngineLifecycleMap) => void

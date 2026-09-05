@@ -180,6 +180,7 @@ const paneCloseBox = requestBox<{ title: string; tabId?: string }>()
 const tabCloseBox = requestBox<string>()
 const adoptBox = requestBox<readonly string[]>()
 const moveBox = requestBox<{ tabId: string; delta: -1 | 1 }>()
+const renameBox = requestBox<{ tabId: string; title: string }>()
 
 /**
  * "Activate this tab" (the F7 attention jump). The mounted TerminalTabs for
@@ -270,6 +271,19 @@ export const takeTabMove = moveBox.take
 /** The twin of {@link takeUnclaimedTabClose} for tab moves. */
 export function takeUnclaimedTabMove(): { taskId: string; tabId: string; delta: -1 | 1 } | null {
   const claimed = moveBox.takeUnclaimed()
+  return claimed && { taskId: claimed.taskId, ...claimed.payload }
+}
+
+/** "Rename this tab" (`rove api rename --tab`, arriving over the daemon's
+ *  `tab.rename` broadcast); the background write is `renameTaskTab`. */
+export function requestTabRename(taskId: string, tabId: string, title: string): void {
+  renameBox.request(taskId, { tabId, title })
+}
+export const takeTabRename = renameBox.take
+
+/** The twin of {@link takeUnclaimedTabClose} for tab renames. */
+export function takeUnclaimedTabRename(): { taskId: string; tabId: string; title: string } | null {
+  const claimed = renameBox.takeUnclaimed()
   return claimed && { taskId: claimed.taskId, ...claimed.payload }
 }
 

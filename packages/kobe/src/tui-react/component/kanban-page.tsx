@@ -213,6 +213,21 @@ export function KanbanPage(props: {
           })
         reload()
       }
+      // Status is its OWN op — the `update` op above carries title/body/taskId
+      // and nothing else, so a status move has to go through `setStatus`.
+      // Same open-time comparison as the patch: an untouched field is never
+      // written back over whatever an agent moved the card to meanwhile.
+      // `create` never reaches detail mode, but it shares the outcome union —
+      // the narrow is what lets the status read compile.
+      if (outcome.kind !== "create" && outcome.status !== issue.status) {
+        await props.orchestrator
+          ?.mutateIssue(board.repoRoot, { type: "setStatus", id: issue.id, status: outcome.status })
+          .catch((err: unknown) => {
+            console.error("[rove kanban] issue status change failed:", err)
+            notifyError(t("kanban.statusFailed", { id: String(issue.id), error: errorMessage(err) }))
+          })
+        reload()
+      }
       if (outcome.kind === "open") {
         props.onOpenTask(outcome.taskId)
         return

@@ -83,9 +83,21 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   {
     name: "note-list",
     group: "drive",
-    summary: "Read a repo's accumulated field notes, newest first. Returns { notes }.",
+    summary:
+      "Read a repo's accumulated field notes, newest first. Returns { notes } — each with the `id` note-delete takes.",
     flags: [F.repo(true)],
     handler: (ctx) => simpleRpc(ctx, "note.list", { repo: ctx.args.requireRepo("repo") }),
+  },
+  {
+    name: "note-delete",
+    group: "drive",
+    summary:
+      "Retire one field note by the id `note-list` reports. The note store is not an archive: its newest entries are injected into every fresh session on the repo, so a note whose fact has stopped being true keeps being handed to agents as if it still were. Returns { deleted } — false (not an error) when the id names nothing, which is also what an already-evicted note answers.",
+    flags: [
+      F.repo(true),
+      { name: "id", type: "int", required: true, placeholder: "N", description: "Note id from `note-list`." },
+    ],
+    handler: (ctx) => simpleRpc(ctx, "note.delete", { repo: ctx.args.requireRepo("repo"), id: ctx.args.int("id") }),
   },
   PANE_VERB,
   PANE_CLOSE_VERB,

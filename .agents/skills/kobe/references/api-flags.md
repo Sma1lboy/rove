@@ -106,6 +106,7 @@ deferred-release  --id(REQ)
 deferred-dismiss  --id(REQ)
 note              --task-id(REQ) --text(REQ)
 note-list         --repo(REQ)
+note-delete       --repo(REQ) --id(REQ)
 pane-open         --task-id --tab --command --direction{right|down}(right)
                   --placement{split|tab}(split) --title
 pane-close        --task-id --title(REQ) --tab
@@ -167,7 +168,7 @@ add          --repo(REQ) --title --branch --base-branch --command --count
              --agents <claude:2,codex:1>
              --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
              --activate(false) --prompt|--prompt-file
-rename       --task-id(REQ) --title(REQ)
+rename       --task-id(REQ) --title(REQ) --tab
 set-branch   --task-id(REQ) --branch(REQ)
 set-command  --task-id(REQ) --command(REQ)
 set-effort   --task-id(REQ) --level(REQ)
@@ -176,7 +177,7 @@ set-status   --task-id(REQ)
 pin          --task-id(REQ) --pinned(true)
 land         --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
              --remove-worktree(true)
-delete       --task-id(REQ) --force --delete-branch --wait
+delete       --task-id --group --force --delete-branch --wait
 ```
 <!-- generated:end -->
 
@@ -201,6 +202,7 @@ returns before the worktree is gone.
 <!-- generated:begin worktree -->
 ```text
 ensure-worktree     --task-id(REQ)
+remove-worktree     --task-id(REQ) --force
 discover-adoptable  --repo(REQ)
 adopt               --repo(REQ) --worktree(REQ) --branch --command --title
 ```
@@ -214,6 +216,7 @@ issue-list        --repo(REQ)
 issue-create      --repo(REQ) --title(REQ) --body
 issue-set-status  --repo(REQ) --id(REQ) --status{open|doing|hold|done}(REQ)
 issue-update      --repo(REQ) --id(REQ) --title --body --task
+issue-delete      --repo(REQ) --id(REQ)
 ```
 <!-- generated:end -->
 

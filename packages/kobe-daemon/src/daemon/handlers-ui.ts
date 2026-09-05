@@ -11,7 +11,7 @@
  */
 
 import { randomUUID } from "node:crypto"
-import { optionalBoolean, optionalString, requireString } from "./handler-validators.ts"
+import { optionalBoolean, optionalString, requireNumber, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { displayTaskTitle } from "./protocol.ts"
 
@@ -281,6 +281,24 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    name: "terminalTab.rename",
+    handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const tabId = requireString(payload, "tabId")
+      // Empty is legal and means "clear back to the default name", matching
+      // f2's dialog — so this reads the raw field rather than requiring one.
+      const title = optionalString(payload, "title") ?? ""
+      if (!ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
+      ctx.bus.publish("tab.rename", { taskId, tabId, title, at: Date.now() })
+      // No broker, unlike `terminalTab.close`: the CLI has already written
+      // the persisted snapshot, so this is the repaint half and there is
+      // nothing to wait for. `clients` reports reach the same way
+      // `notice.send` does — with no attached UI the broadcast lands nowhere,
+      // and the snapshot write is the whole of the rename.
+      return { ok: true, clients: ctx.daemon.clientCount() }
+    },
+  },
+  {
     name: "notice.send",
     async handle(payload, ctx) {
       // `kobe api notify`: one toast for every attached UI. The daemon
@@ -367,6 +385,18 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       // by the worktree launch path that seeds a fresh session with them.
       const repo = requireString(payload, "repo")
       return { notes: (await ctx.notes?.list(repo)) ?? [] }
+    },
+  },
+  {
+    name: "note.delete",
+    async handle(payload, ctx) {
+      // Retire one note by the id `note.list` reports. `deleted: false` is a
+      // real answer, not an error: the id may name a note the retention ring
+      // already evicted, and a caller sweeping stale facts must be able to
+      // tell "gone now" from "was never there" without a thrown error.
+      const repo = requireString(payload, "repo")
+      const id = requireNumber(payload, "id")
+      return { deleted: (await ctx.notes?.remove(repo, id)) ?? false }
     },
   },
 ]

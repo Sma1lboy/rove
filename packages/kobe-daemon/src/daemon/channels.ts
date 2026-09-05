@@ -246,6 +246,18 @@ export interface ChannelPayloads {
    */
   "tab.close": TabClosePayload
   /**
+   * One "rename Terminal Tab `tabId` of task X" (`kobe api rename --tab` →
+   * `terminalTab.rename` RPC → here → the TUI hosting the task repaints its
+   * tab strip). EVENT channel: consumers dedupe on `at` and drop stale
+   * replays.
+   *
+   * Unlike `tab.close` this carries no `requestId`, because it needs no
+   * reply: a rename is idempotent, so the CLI writes the persisted snapshot
+   * itself (covering the headless case) and broadcasts, and both writers
+   * converge on the same title in either order.
+   */
+  "tab.rename": TabRenamePayload
+  /**
    * LOW-FREQUENCY agent-lifecycle signals the TUI renders (compaction in
    * progress, subagent activity). Deliberately excludes the tool family —
    * that volume stays plugin-only via the PluginHost's direct feed. EVENT
@@ -381,6 +393,17 @@ export interface TerminalTabClosePayload {
 
 /** Pane closes retain their existing wire shape; exact tab closes discriminate by `kind`. */
 export type TabClosePayload = PaneClosePayload | TerminalTabClosePayload
+
+/** The `tab.rename` channel payload — one "name this Terminal Tab". */
+export interface TabRenamePayload {
+  readonly taskId: string
+  readonly tabId: string
+  /** The new user title. Empty clears back to the tab's default name — the
+   *  same meaning f2's rename dialog gives a blank field. */
+  readonly title: string
+  /** Publish time (ms epoch) — the consumer-side dedupe key. */
+  readonly at: number
+}
 
 /** The `ui.prompt` channel payload — one host-dialog text-input request. */
 export interface UiPromptPayload {

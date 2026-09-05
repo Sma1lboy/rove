@@ -8,10 +8,12 @@
  * a different failure mode from "the prompt did not land".
  */
 
+import { isAbsolute, relative } from "node:path"
 import { errorMessage } from "@/lib/error-message"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { DIRTY_WORKTREE_CODE, EMPTY_BRANCH_DIRTY_WORKTREE_CODE } from "../../orchestrator/errors.ts"
+import { canonicalize } from "../../orchestrator/worktree/paths.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { verifiedSelfSession } from "./dispatcher.ts"
 import { daemonOf } from "./handler-helpers.ts"
@@ -23,9 +25,67 @@ import { ApiError, type VerbContext, splitDaemonCode } from "./types.ts"
 const DELETE_WAIT_TIMEOUT_MS = 60_000
 const DELETE_POLL_INTERVAL_MS = 250
 
+/**
+ * `delete` — one task, or a whole fan-out round with `--group`.
+ *
+ * The round is the asymmetry this closes: creating is batched (`add --count`),
+ * reading is batched (`collect --group`), and only deleting was one-at-a-time
+ * — yet the documented workflow ends by removing the N-1 losers. `--group`
+ * selects by the same `groupId` `collect` does, so the round a coordinator
+ * compared is the round it can close.
+ */
 export async function deleteTask(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
-  const taskId = ctx.args.require("task-id")
+  const groupId = ctx.args.str("group")
+  const taskIdFlag = ctx.args.str("task-id")
+  if (groupId && taskIdFlag) throw new ApiError("pass --task-id or --group, not both", "BAD_FLAG")
+  if (!groupId && !taskIdFlag) throw new ApiError("delete needs --task-id ID or --group GROUPID", "MISSING_TARGET")
+  // One identity read for the whole round rather than per sibling — it is the
+  // same caller either way, and it shells out to verify.
+  const self = await verifiedSelfSession()
+  if (!groupId) return deleteOne(ctx, taskIdFlag as string, self)
+
+  const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
+  const members = tasks.filter((t) => t.groupId === groupId)
+  if (members.length === 0) {
+    throw new ApiError(`no tasks in group ${groupId}`, "TASK_NOT_FOUND", {
+      hint: "the groupId is the one `add --count` returned; any surviving sibling's `.groupId` in `list` recovers it",
+      nextCommandArgs: ["api", "list"],
+    })
+  }
+  // Sequential, and a sibling's refusal is RECORDED rather than thrown: a
+  // round routinely holds one dirty worktree, and aborting there would leave
+  // the caller unable to tell which of N were already removed. Every entry
+  // names its own outcome, so a partial round is readable.
+  const results: unknown[] = []
+  for (const task of members) {
+    try {
+      results.push(await deleteOne(ctx, task.id, self))
+    } catch (err) {
+      // `deleteOne` already lifted the daemon's `CODE: rest` prefix into an
+      // ApiError (that is what adds the recovery hint), so reading the code
+      // off the error comes FIRST — re-splitting its message finds nothing,
+      // because the prefix is exactly what was stripped.
+      const message = errorMessage(err)
+      const code = err instanceof ApiError ? err.code : splitDaemonCode(message)?.code
+      results.push({
+        taskId: task.id,
+        status: "failed" as const,
+        error: message,
+        ...(code ? { code } : {}),
+      })
+    }
+  }
+  const failures = results.filter((r) => (r as { status?: string }).status === "failed").length
+  return { groupId, count: members.length, failures, results }
+}
+
+async function deleteOne(
+  ctx: VerbContext,
+  taskId: string,
+  self: Awaited<ReturnType<typeof verifiedSelfSession>>,
+): Promise<unknown> {
+  const daemon = daemonOf(ctx)
   const force = ctx.args.bool("force") ?? false
   // Branch deletion is opt-in (same flag as `land`): delete drops the
   // worktree + task entry, git keeps the branch as the durable record.
@@ -34,7 +94,6 @@ export async function deleteTask(ctx: VerbContext): Promise<unknown> {
   // it, so the daemon's audit line has to name WHO asked. Same verified
   // identity `send`/`add` use, never the bare env: unverifiable
   // stays unattributed rather than blaming a stranger's session.
-  const self = await verifiedSelfSession()
   let res: { taskId: string; queued: boolean }
   try {
     res = (await daemon.request("task.delete", {
@@ -183,6 +242,60 @@ function deleteRecoveryError(err: unknown, taskId: string): unknown {
       "your worktree still holds work that this cleanup would destroy (it may be gitignored, so `git status` will not show it — check `git status --ignored`). Commit it yourself with a proper message, then report back",
     ],
   })
+}
+
+/**
+ * `remove-worktree` — the inverse of `ensure-worktree`: drop the directory,
+ * keep the task row and its branch, so `ensure-worktree` can materialise it
+ * again. The Worktrees page's delete has always done this; the CLI only had
+ * the materialise half, so a script reclaiming idle checkouts had to reach
+ * for `delete`, which takes the task record with it.
+ *
+ * Routed through the SAME `worktree.remove` RPC that page uses, deliberately:
+ * that path tears the session down first, takes the salvage snapshot on every
+ * force, refuses a dirty tree without one, and clears the task's worktree
+ * pointer afterwards. A verb that only unlinked the directory would reopen
+ * every hole those gates close.
+ *
+ * The two refusals below are this verb's own, because the RPC has none: the
+ * page is a human clicking one row, while this is scriptable and its caller
+ * is often an agent inside the very worktree it names. `land` refuses the
+ * same two edges for the same reason (`removeLandedWorktree`).
+ */
+export async function removeTaskWorktree(ctx: VerbContext): Promise<unknown> {
+  const daemon = daemonOf(ctx)
+  const taskId = ctx.args.require("task-id")
+  const force = ctx.args.bool("force") ?? false
+  const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+  const worktreePath = (task.worktreePath ?? "").trim()
+  if (!worktreePath) {
+    throw new ApiError(`task ${taskId} has no worktree on disk`, "NO_WORKTREE", {
+      hint: "nothing to remove — `ensure-worktree` materialises one",
+    })
+  }
+  const wt = canonicalize(worktreePath)
+  if (wt === canonicalize(task.repo)) {
+    throw new ApiError(
+      `refusing to remove ${worktreePath} — it is the project's own checkout, not a Rove worktree`,
+      "BASE_CHECKOUT",
+    )
+  }
+  const rel = relative(wt, canonicalize(process.cwd()))
+  if (rel === "" || (!rel.startsWith("..") && !isAbsolute(rel))) {
+    throw new ApiError(
+      `refusing to remove the caller's own worktree (${worktreePath}) — re-run from outside it`,
+      "CALLER_WORKTREE",
+    )
+  }
+  // `residue` = git deregistered the worktree but could not delete the
+  // directory. The removal is as complete as git can make it, so this is a
+  // reported outcome, not an error — and the only time that leftover path is
+  // ever named.
+  const res = await daemon.request<{ removed: boolean; residue?: { path: string; reason: string } }>(
+    "worktree.remove",
+    { path: worktreePath, force },
+  )
+  return { ok: true, taskId, worktreePath, branch: task.branch, ...res }
 }
 
 export async function adopt(ctx: VerbContext): Promise<unknown> {

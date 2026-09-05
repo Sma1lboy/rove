@@ -173,10 +173,25 @@ export function closeActiveTab(state: TabsState): { state: TabsState; closedId: 
 
 /** Rename the active tab; empty/whitespace titles clear back to default. */
 export function renameActiveTab(state: TabsState, title: string): TabsState {
+  return setTabTitle(state, state.activeId, title)
+}
+
+/**
+ * Rename ONE tab by id; empty/whitespace clears back to the default title.
+ * The by-id form f2's {@link renameActiveTab} delegates to, and the one
+ * `rove api rename --tab` needs: a CLI naming a tab of a task it is not
+ * looking at has no "active" to rename.
+ *
+ * Returns the SAME object when the title is already that value, so an
+ * idempotent rename (the CLI writes the snapshot, then an attached TUI
+ * applies the same broadcast) costs no re-render and no second persist.
+ */
+export function setTabTitle(state: TabsState, id: string, title: string): TabsState {
   const trimmed = title.trim()
-  const tabs = state.tabs.map((t) =>
-    t.id === state.activeId ? { ...t, title: trimmed.length > 0 ? trimmed : null } : t,
-  )
+  const next = trimmed.length > 0 ? trimmed : null
+  const current = state.tabs.find((t) => t.id === id)
+  if (!current || (current.title ?? null) === next) return state
+  const tabs = state.tabs.map((t): TerminalTab => (t.id === id ? { ...t, title: next } : t))
   return { ...state, tabs }
 }
 

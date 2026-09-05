@@ -48,6 +48,9 @@ export const en = {
       hold: "hold",
       done: "done",
     },
+    /** BOLD CAPS header for the status chip row — the drawer's only route out
+     *  of a column, since the board itself is read-only. */
+    statusLabel: "STATUS",
     /** `{date}` = the issue's created date (day-granular). */
     created: "created {date}",
     /** Badge for a story already linked to a task. */
@@ -71,17 +74,18 @@ export const en = {
       stay: "Stay on the board",
       follow: "Jump to the session",
     },
-    startLegend: "enter/ctrl+enter start · tab fields · ←→ engine · ↑↓ workspace · esc save & close",
+    startLegend: "enter/ctrl+enter start · tab fields · ←→ status/engine · ↑↓ workspace · esc save & close",
     /** Linked-story actions: section header, the jump, and the way back out. */
     sessionLabel: "SESSION",
     openAction: "Open the linked session ↵",
     unlinkAction: "Unlink",
-    openLegend: "enter open the focused action · tab fields · unlink returns the card to Backlog · esc save & close",
+    openLegend:
+      "enter open the focused action · tab fields · ←→ status · unlink returns the card to Backlog · esc save & close",
     /** EVENTS feed under a linked story — the engine's recent lifecycle events. */
     eventsLabel: "EVENTS",
     eventsLoading: "Loading events…",
     eventsNone: "No engine events recorded yet.",
-    doneNote: "Done stories have nothing left to start · esc save & close",
+    doneNote: "Done stories have nothing left to start — set the status back to reopen one · esc save & close",
     /** Toast after a background start. `{title}` = the spawned task title. */
     startedBackground: "Started in background: {title}",
     /** Create-mode header + legend (`n` on the board). */
@@ -138,6 +142,7 @@ export const zh: typeof en = {
       hold: "搁置",
       done: "已完成",
     },
+    statusLabel: "状态",
     created: "创建于 {date}",
     linked: "已关联会话",
     titleLabel: "标题",
@@ -156,15 +161,15 @@ export const zh: typeof en = {
       stay: "留在看板",
       follow: "跳转到会话",
     },
-    startLegend: "enter/ctrl+enter 启动 · tab 切字段 · ←→ 引擎 · ↑↓ 工作区 · esc 保存关闭",
+    startLegend: "enter/ctrl+enter 启动 · tab 切字段 · ←→ 状态/引擎 · ↑↓ 工作区 · esc 保存关闭",
     sessionLabel: "会话",
     openAction: "打开关联会话 ↵",
     unlinkAction: "解除关联",
-    openLegend: "enter 执行选中操作 · tab 切字段 · 解除关联把卡片退回 Backlog · esc 保存关闭",
+    openLegend: "enter 执行选中操作 · tab 切字段 · ←→ 状态 · 解除关联把卡片退回 Backlog · esc 保存关闭",
     eventsLabel: "事件",
     eventsLoading: "正在加载事件…",
     eventsNone: "暂无引擎事件记录。",
-    doneNote: "已完成的 story 无需启动 · esc 保存关闭",
+    doneNote: "已完成的 story 无需启动——改回状态即可重新打开 · esc 保存关闭",
     startedBackground: "已在后台启动:{title}",
     newStory: "新建 STORY",
     createLegend: "ctrl+s 仅保存 · enter/ctrl+enter 保存并启动 · tab 切字段 · esc 取消",
