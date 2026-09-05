@@ -265,7 +265,7 @@ This table is the one-line index. **Per-event trigger semantics, exact
 | `turn.prompt` / `turn.complete` / `turn.failed` / `turn.interrupted` | one event per turn edge (C, X, K; failed: C, K) | `failure` class on failed; `turn` (id/model/usage/startedAt/endedAt) on complete when the transcript yielded one |
 | `tool.pre` / `tool.post` / `tool.failed` | every tool call (C, X, K; failed: C, K); **installed into engine config only while some enabled plugin subscribes** | `tool.name`, `tool.id` |
 | `attention.permission` / `attention.question` | the engine blocked on a human (permission: C, K; question: C) | `waiting` |
-| `context.pre-compact` / `context.post-compact` | context compaction (C, X) | `compact.trigger: manual\|auto` |
+| `context.pre-compact` / `context.post-compact` | context compaction (C, X, K) | `compact.trigger: manual\|auto` |
 | `subagent.start` / `subagent.stop` | nested agent lifecycle (C, K) | `subagent.type/id` |
 
 Envelope (`ROVE_PLUGIN_EVENT_JSON`):
