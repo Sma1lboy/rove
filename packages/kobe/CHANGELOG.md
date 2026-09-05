@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.9.150
+
+### Patch Changes
+
+- [#906](https://github.com/Sma1lboy/rove/pull/906) [`7d0ee4e`](https://github.com/Sma1lboy/rove/commit/7d0ee4eb32a1f3ed0dcce69d23983f7f7aeb3f2c) `--vendor` now takes the shipped contrib engine ids (gemini, opencode, cursor, grok, droid, amp) that `engine-list` has always advertised. `routine-create`, `workitem-start` and `--agents` used to reject them with an error telling you to go read `engine-list` — where they were listed. `rove api schema` shows them too.
+
+  `rove skill --help` documents `--global`/`-g` and `-p`, and `rove update --help` documents `--channel <name>`; all four were already parsed and accepted, just undocumented on the surface `docs/CLI.md` calls authoritative. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#902](https://github.com/Sma1lboy/rove/pull/902) [`b314d55`](https://github.com/Sma1lboy/rove/commit/b314d55f22c115297006ca7f6c84d284d0a9ad9e) Keep settings and pending edits when resetting UI state cannot write the settings file. Report the failure and leave tasks and the current window intact so the reset can be retried. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#903](https://github.com/Sma1lboy/rove/pull/903) [`586bd67`](https://github.com/Sma1lboy/rove/commit/586bd67db212d3cc1e1883f8c37344e745da056c) Keep a new session unconfirmed when its launch shell retries repository initialization during the engine startup probe. A live PTY with an absent init marker no longer reports a failed launch; completed initialization and dead sessions retain their existing failure checks. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#904](https://github.com/Sma1lboy/rove/pull/904) [`6996321`](https://github.com/Sma1lboy/rove/commit/6996321d0edec66ca77539818725c6300c6708c1) Find Codex sessions and activity beyond the previous global rollout limits. Reuse directory listings and bounded session headers across concurrent worktree queries, and invalidate metadata when transcripts change or move.
+
+  Read completion markers from the reporting Codex session so another tab in the same worktree cannot end its turn. Bound transcript bytes and marker lines for both Claude and Codex, and invalidate completion caches on file replacement or same-mtime rewrites.
+
+  Reuse unchanged parsed message arrays, avoid hashing the same transcript prefix twice on append, and discard unused Copilot tool-name state. Bound Kimi index and Codex quota lines, reject malformed Kimi paths, and read Kimi activity with one index scan. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#902](https://github.com/Sma1lboy/rove/pull/902) [`b314d55`](https://github.com/Sma1lboy/rove/commit/b314d55f22c115297006ca7f6c84d284d0a9ad9e) Keep sidebar process identity current when a hosted shell restarts with a new PID, and stop tab auto-naming from writing after its workspace unmounts. Simplify daemon state reads, share background tab lookup precedence, and avoid repeated scans while grouping unregistered tabs. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.149
 
 ### Patch Changes
