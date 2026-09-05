@@ -18,11 +18,11 @@
  * there is nothing to send the kill over.
  */
 
+import { afterAll, beforeAll, expect, it } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterAll, beforeAll, expect, it } from "bun:test"
 
 let home: string
 let releaseClosedTabPtys: typeof import("../../src/tui-react/workspace/terminal-tabs-close.ts").releaseClosedTabPtys
