@@ -50,6 +50,26 @@ import {
 /** Ensure and address the task's hosted engine session (`target.tab` routes:
  *  undefined = canonical, "new" = mint + spawn a fresh tab, "tab-N" = that
  *  exact alive tab only). */
+/**
+ * Every SESSION_FAILED refusal, one shape.
+ *
+ * The task and its worktree EXIST by the time any of these fire, so the refusal
+ * has to name the task: an unattended fan-out that only reads the message would
+ * otherwise lose the id of a task it just created, and every failed launch in
+ * the batch would look identical. Three of the four sites used to travel bare —
+ * same code, same failure, no id and no recovery — which is why this is a
+ * constructor rather than a shape copied per throw site.
+ */
+function sessionFailed(taskId: string, message: string, hint: string, extra?: Record<string, unknown>): ApiError {
+  return new ApiError(message, "SESSION_FAILED", {
+    taskId,
+    ...extra,
+    hint,
+    // The session's own output is where the cause is, in all four cases.
+    nextCommandArgs: ["api", "read-output", "--task-id", taskId, "--source", "terminal"],
+  })
+}
+
 async function deliverHosted(
   target: PromptTarget,
   worktree: string,
@@ -60,9 +80,10 @@ async function deliverHosted(
   try {
     host = await ensurePtyHost()
   } catch (error) {
-    throw new ApiError(
+    throw sessionFailed(
+      target.id,
       `failed to start PTY host for ${target.id}: ${error instanceof Error ? error.message : String(error)}`,
-      "SESSION_FAILED",
+      "no PTY host to run the engine in — nothing was started; check `rove daemon status`, then retry the same send",
     )
   }
   try {
@@ -141,14 +162,16 @@ async function deliverHosted(
     // the id of a task it just created, and every failed launch in the batch
     // would look identical. `reason` is the session's own last line.
     if (result.started && !result.delivered && !result.deferred) {
-      throw new ApiError(`failed to start hosted engine session for ${target.id}`, "SESSION_FAILED", {
-        taskId: target.id,
-        session: result.session,
-        engineReady: result.engineReady,
-        ...(result.reason ? { reason: result.reason } : {}),
-        hint: "the session was created but no engine ran in it — fix the task's launch command (`api update --command`), then retry with `api send --tab new`",
-        nextCommandArgs: ["api", "read-output", "--task-id", target.id, "--source", "terminal"],
-      })
+      throw sessionFailed(
+        target.id,
+        `failed to start hosted engine session for ${target.id}`,
+        "the session was created but no engine ran in it — fix the task's launch command (`api update --command`), then retry with `api send --tab new`",
+        {
+          session: result.session,
+          engineReady: result.engineReady,
+          ...(result.reason ? { reason: result.reason } : {}),
+        },
+      )
     }
     // Make the session visible to the sidebar tree, which lists a worktree's
     // tabs from the task's persisted snapshot. Without this a CLI-started
@@ -173,9 +196,10 @@ async function deliverHosted(
     return result
   } catch (error) {
     if (error instanceof ApiError) throw error
-    throw new ApiError(
+    throw sessionFailed(
+      target.id,
       `hosted engine session failed for ${target.id}: ${error instanceof Error ? error.message : String(error)}`,
-      "SESSION_FAILED",
+      "the hosted session threw while starting or delivering — read its terminal tail for the cause, then retry the send",
     )
   } finally {
     host.close()
@@ -279,7 +303,12 @@ export async function deliverPrompt(
     },
   }
   const hosted = await ops.deliverHosted(target, worktree, prompt, defer)
-  if (!hosted) throw new ApiError(`failed to start hosted engine session for ${target.id}`, "SESSION_FAILED")
+  if (!hosted)
+    throw sessionFailed(
+      target.id,
+      `failed to start hosted engine session for ${target.id}`,
+      "delivery returned nothing — the task exists but has no session; retry with `api send --tab new`",
+    )
   return hosted
 }
 

@@ -109,15 +109,51 @@ rove api land --task-id a              # merge the winning branch
   verbatim) so a caller can self-heal without parsing prose.
   A refusal the daemon raises keeps its own machine code — `DIRTY_WORKTREE`,
   `LAND_CONFLICT`, `MISSING_REF`, `ISSUE_NOT_FOUND`, `TASK_DELETING`,
-  `GIT_COMMAND_FAILED`, the `EMPTY_BRANCH` pair — in `code`, not in the
-  prose. `RPC_ERROR` now means what it says: the daemon failed without
-  naming a reason. Never match on `message`; it is written for a human and
-  it no longer repeats the code.
+  `GIT_COMMAND_FAILED`, `BAD_EVENT_KIND`, the `EMPTY_BRANCH` pair — in
+  `code`, not in the prose. `RPC_ERROR` now means what it says: the daemon
+  failed without naming a reason. Never match on `message`; it is written for
+  a human and it no longer repeats the code.
 - Exit codes: `0` success · `1` handler/RPC failure · `2` usage errors
-  (unknown verb, bad/missing flag, unreachable daemon) · `3` partial
-  parallel round (some tasks created, some failed; the full payload still
-  goes to stdout so created tasks are never lost).
+  (unknown verb, bad/missing flag, unreachable daemon — wherever they are
+  raised, including a handler rejecting its own argument) · `3` a parallel
+  round that did not fully succeed. Exit 3 does **not** promise anything was
+  created: `--count 1` takes the same path, so a lone failure returns
+  `count: 0` with an empty `tasks`. The full payload still goes to stdout, so
+  whatever *was* created is never lost.
 - `rove api <verb> --help` prints that verb's usage and exits 0.
+
+### Codes the CLI itself raises
+
+Separate from the daemon's refusals above — these never cross the socket:
+
+| Code | Raised when |
+| --- | --- |
+| `MISSING_VERB` | `rove api` with no verb. |
+| `BAD_VERB` | A verb (or `schema --verb` / `--group`) name that never existed. |
+| `UNKNOWN_VERB` | A verb that was REMOVED; `nextCommandArgs` is its replacement. |
+| `MISSING_FLAG` | A required flag was omitted. |
+| `BAD_FLAG` | Unknown flag, bad enum value, or a value the verb could not parse. |
+| `BAD_TAB` | A `--tab` value that is not `new` or `tab-N`. |
+| `BAD_DAEMON` | The daemon could not be reached or started. |
+| `DAEMON_VERSION_SKEW` | The daemon is a different build and does not serve this verb. |
+| `MISSING_TARGET` | No `--task-id`, no `$ROVE_TASK_ID`, no active task — nothing was named. |
+| `TASK_NOT_FOUND` | An id WAS named and does not resolve. |
+| `NOT_A_REPO` | `--repo` does not point at a git repository. |
+| `NO_WORKTREE` | The task has no materialized worktree yet. |
+| `HISTORY_REQUIRED` | `read-output --source history` on an engine with no history reader. |
+| `HISTORY_UNREADABLE` | The engine's history exists but could not be parsed. |
+| `CURSOR_INVALID` | A `--cursor` value this build cannot decode. |
+| `CURSOR_TASK_MISMATCH` | The cursor belongs to a different task. |
+| `SOURCE_CHANGED` | The cursor's source/session/tab moved under it. |
+| `COMPOSER_BUSY` | The target composer held un-sent text; nothing was pasted. |
+| `NOT_DELIVERED` | The task was created but the prompt never reached its engine. |
+| `SESSION_FAILED` | A hosted engine session could not be started or written to. |
+| `BAD_EFFORT` | The task's engine declares no effort levels, or not that one. |
+| `PARTIAL_FANOUT` | A parallel round with at least one failure (exit 3). |
+
+`DELIVER_FAILED` and `CREATE_FAILED` are not error codes in that sense: they
+only ever appear inside a `PARTIAL_FANOUT` payload, on `failures[].error.code`,
+naming which stage lost that one sibling. A caller reads them from stdout.
 
 Flag parsing: `--key value` and `--key=value` both work; boolean flags may
 be given bare (`--force` ⇒ true) or explicitly (`--pinned=false`);

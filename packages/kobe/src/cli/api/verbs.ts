@@ -41,7 +41,11 @@ async function handleSchema(ctx: VerbContext): Promise<unknown> {
   const verbName = ctx.args.str("verb")
   if (verbName) {
     const v = findVerb(verbName)
-    if (!v) throw new ApiError(`unknown verb: ${verbName}`, "BAD_VERB")
+    // The SAME rejection `api <verb>` raises for the same typo — including the
+    // RETIRED_VERBS migration step. Probing a name is what `schema --verb` is
+    // FOR, so a bare `BAD_VERB` here withheld the recovery argv exactly where a
+    // caller is looking for it.
+    if (!v) throw unknownVerbError(verbName)
     return verbSchema(v)
   }
   const group = ctx.args.str("group")
@@ -81,6 +85,35 @@ export const RETIRED_VERBS: Readonly<Record<string, { hint: string; nextCommandA
     hint: "archive was removed: there is no hide-without-delete anymore — use `delete` to remove a finished task and its worktree; the git branch survives (pass --delete-branch explicitly only when the history may go)",
     nextCommandArgs: ["api", "delete", "--help"],
   },
+}
+
+const SCHEMA_STEP = {
+  hint: "list every valid verb + flag as JSON, then retry with a real verb",
+  nextCommandArgs: ["api", "schema"],
+} as const
+
+/**
+ * The typed rejection for a verb name that does not resolve. A REMOVED verb
+ * ({@link RETIRED_VERBS}) points at its replacement instead of the schema
+ * index — an agent that learned `fan-out` from an older skill or a stale
+ * transcript gets the exact argv for `add --count`, not a 40-verb dump to
+ * re-derive it from.
+ *
+ * Lives here rather than in `api-cmd.ts` so BOTH callers can reach it: the
+ * dispatcher's unknown-verb path and `schema --verb`, which cannot import the
+ * dispatcher back (load-order cycle).
+ */
+export function unknownVerbError(verbName: string): ApiError {
+  const retired = RETIRED_VERBS[verbName]
+  if (retired) {
+    return new ApiError(`unknown verb: ${verbName} (removed)`, "UNKNOWN_VERB", {
+      hint: retired.hint,
+      nextCommandArgs: [...retired.nextCommandArgs],
+    })
+  }
+  // BAD_VERB (not UNKNOWN_VERB) for a name that never existed — the
+  // documented code for a typo'd verb, unchanged.
+  return new ApiError(`unknown verb: ${verbName}`, "BAD_VERB", SCHEMA_STEP)
 }
 
 /** The `schema` verb spec — kept here because its handler references VERBS. */

@@ -113,7 +113,9 @@ pane-close        --task-id --title(REQ) --tab
 tab-close         --task-id(REQ) --tab(REQ)
 notify            --title(REQ) --body --kind(done) --task-id --source
 prompt            --title(REQ) --placeholder --initial --timeout
-engine-report     --task-id --kind(REQ) --engine --tab --detail
+engine-report     --task-id
+                  --kind{session-start|turn-start|turn-complete|turn-failed|turn-interrupted|awaiting-input|session-end|tool-pre|tool-post|tool-failed|pre-compact|post-compact|subagent-start|subagent-stop}(REQ)
+                  --engine --tab --detail
 set-active        --task-id --none
 ```
 <!-- generated:end -->

@@ -86,7 +86,10 @@ export function schemaIndex(): unknown {
 export function groupSchema(group: string): unknown {
   const verbs = VERBS.filter((v) => v.group === group)
   if (verbs.length === 0) {
-    throw new ApiError(`unknown group: ${group}. Groups: ${Object.keys(VERB_GROUPS).join(", ")}`, "BAD_FLAG")
+    throw new ApiError(`unknown group: ${group}. Groups: ${Object.keys(VERB_GROUPS).join(", ")}`, "BAD_VERB", {
+      hint: "that group does not exist — the compact index lists every group and the verbs in it",
+      nextCommandArgs: ["api", "schema"],
+    })
   }
   return {
     group,

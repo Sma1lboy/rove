@@ -16,6 +16,10 @@ const fake = vi.hoisted(() => ({
 }))
 
 vi.mock("../../src/cli/daemon-session.ts", () => ({
+  // Re-exported through this module, so the mock has to carry it: without it a
+  // verb using the implicit target dies on the mock itself, and its real
+  // no-target refusal is never reached.
+  resolveActiveTaskId: vi.fn(async () => null),
   openDaemonSession: vi.fn(async () => {
     if (fake.openError) throw fake.openError
     return {
@@ -194,5 +198,83 @@ describe("runApiSubcommand", () => {
     expect(out.requested).toBe(2)
     expect(out.failures[0]?.error.code).toBe("CREATE_FAILED")
     expect(fake.closed).toBeGreaterThanOrEqual(1)
+  })
+  // ── The recovery half of the envelope ──────────────────────────────────────
+  //
+  // docs/API.md promises `hint` + `nextCommandArgs` on common rejections. The
+  // dispatcher's two flag-rejection paths used to call `fail(msg, code, 2)`
+  // with no `data`, so the three HIGHEST-traffic refusals on the surface —
+  // unknown flag, missing required flag, bad enum value — arrived stripped of
+  // both. It was invisible because every other test on this contract asserts
+  // `toApiError()`'s return value; nothing read the envelope that actually
+  // reaches stderr. These do.
+
+  test("a MISSING_FLAG envelope carries the verb's --help recovery", async () => {
+    await expect(runApiSubcommand(["get-task"])).rejects.toThrow("exit(2)")
+    const err = stderrJson().error
+    expect(err.code).toBe("MISSING_FLAG")
+    expect(err.hint).toBeTruthy()
+    expect(err.nextCommandArgs).toEqual(["api", "get-task", "--help"])
+  })
+
+  test("an unknown-flag envelope carries the verb's --help recovery", async () => {
+    await expect(runApiSubcommand(["list", "--bogus", "x"])).rejects.toThrow("exit(2)")
+    const err = stderrJson().error
+    expect(err.code).toBe("BAD_FLAG")
+    expect(err.nextCommandArgs).toEqual(["api", "list", "--help"])
+  })
+
+  test("a bad enum value is rejected locally, with recovery, before any daemon call", async () => {
+    const { openDaemonSession } = await import("../../src/cli/daemon-session.ts")
+    await expect(runApiSubcommand(["engine-report", "--kind", "bogus"])).rejects.toThrow("exit(2)")
+    const err = stderrJson().error
+    expect(err.code).toBe("BAD_FLAG")
+    expect(err.message).toContain("turn-start")
+    expect(err.nextCommandArgs).toEqual(["api", "engine-report", "--help"])
+    expect(openDaemonSession).not.toHaveBeenCalled()
+  })
+
+  test("schema --verb on a name that never existed answers like the verb itself would", async () => {
+    // `schema --verb` is the DISCOVERY path — probing a name is what it is
+    // for — so it must not answer a typo differently from `api <typo>`.
+    await expect(runApiSubcommand(["schema", "--verb", "nope"])).rejects.toThrow("exit(2)")
+    const err = stderrJson().error
+    expect(err.code).toBe("BAD_VERB")
+    expect(err.nextCommandArgs).toEqual(["api", "schema"])
+  })
+
+  test("schema --verb on a RETIRED verb hands back the migration argv", async () => {
+    await expect(runApiSubcommand(["schema", "--verb", "fan-out"])).rejects.toThrow("exit(2)")
+    const err = stderrJson().error
+    expect(err.code).toBe("UNKNOWN_VERB")
+    expect(err.nextCommandArgs).toEqual(["api", "add", "--help"])
+  })
+
+  test("schema --group on an unknown group is a bad NAME, not a bad flag", async () => {
+    await expect(runApiSubcommand(["schema", "--group", "nope"])).rejects.toThrow("exit(2)")
+    expect(stderrJson().error.code).toBe("BAD_VERB")
+  })
+
+  test("a verb with no --task-id and no active task refuses with MISSING_TARGET", async () => {
+    // Not TASK_NOT_FOUND: nothing was named, so nothing can be missing. Same
+    // code as read-output / send / collect under the same condition.
+    await expect(runApiSubcommand(["pane-open"])).rejects.toThrow("exit(1)")
+    expect(stderrJson().error.code).toBe("MISSING_TARGET")
+  })
+
+  test("a one-task round that fails still exits 3 with count 0 — 'partial' can mean nothing created", async () => {
+    // docs/API.md used to promise exit 3 meant "some tasks created, some
+    // failed". `--count 1` goes through the same parallel path, so a lone
+    // failure lands here with an EMPTY tasks array.
+    fake.request.mockImplementation(async (name: string) => {
+      if (name === "task.create") throw new Error("create exploded")
+      return { tasks: [] }
+    })
+    await expect(runApiSubcommand(["add", "--repo", process.cwd(), "--prompt", "go", "--count", "1"])).rejects.toThrow(
+      "exit(3)",
+    )
+    const out = JSON.parse(stdoutText()) as { count: number; tasks: unknown[] }
+    expect(out.count).toBe(0)
+    expect(out.tasks).toEqual([])
   })
 })
