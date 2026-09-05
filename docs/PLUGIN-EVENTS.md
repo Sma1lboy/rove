@@ -162,8 +162,8 @@ detail shape:
 | `error` | string? | present on skips/failures: the precheck output, the missed-grace message, or the dispatch error |
 
 `automation.dispatched` covers `dispatched` and `revived` runs.
-`automation.failed` covers `dispatch_failed` and `skipped_unavailable` runs.
-The remaining statuses emit `automation.skipped`. In particular, `deferred`
+`automation.failed` covers `dispatch_failed` runs. The remaining statuses,
+including `skipped_unavailable`, emit `automation.skipped`. In particular, `deferred`
 means the queue accepted text that has **not been delivered**; `skipped_cancelled`
 means the routine was disabled, edited, deleted or stopped before handoff.
 
