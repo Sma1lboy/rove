@@ -51,10 +51,7 @@ Task rows carry worktree-level facts:
 | `▴` | Pinned Task |
 | `+N` / `−N` | Changed and deleted files in the worktree |
 | `↑N` / `↓N` | Commits this worktree has that its base does not, and the ones the base has that it does not |
-| `◇` / `◆` / `†` / `×` | Status is `in_review`, `done`, `canceled`, or `error` |
-| `✓` / `✗` / `•` | Pull-request checks passing, failing, or pending |
-| `≠` | The pull request conflicts with its base branch |
-| `»` / `≡` | The pull request is approved and clear to merge, or already merged |
+| `≠` / `✗` / `✓` | The pull request conflicts with its base, has failing checks, or has passing checks. One mark: a conflict outranks a check result |
 | jump digit | The `ctrl+2` … `ctrl+0` shortcut currently assigned to this row |
 
 `↑N` is the one mark that outlives a commit: committing empties `+N` / `−N`, so
@@ -63,31 +60,24 @@ delivered nothing render the same blank row — a difference you would otherwise
 meet at land time, as `EMPTY_BRANCH`. `↑N` and `↓N` are absent rather than zero
 when no base branch resolves, so a repo with no remote reads as it always did.
 
-The status mark is what a person said about the Task; the check mark next to it
-is what CI reports, so the two can disagree. `»` answers a third question the
-check mark cannot: green checks look identical on a PR that is approved, one
-still waiting on a reviewer, and one that merged an hour ago. All three marks
-drain to grey when the last PR poll failed — the reading stands, but nothing is
-confirming it any more. `backlog` and `in_progress` show
-nothing — those are the states Rove moves a Task through on its own, so a mark
-there would say only that the row is ordinary. Set the status from the row's
-right-click menu (**Set status**) or with `rove api set-status`; it is a label,
-and changing it leaves the worktree, the branch, and every running session
-alone.
+The PR mark drains to grey when the last PR poll failed — the reading stands,
+but nothing is confirming it any more. Pending checks, review state, and a
+merged or closed PR draw nothing. The Task's board status (`in_review`, `done`,
+…) does not appear on the row either: you set it, so you already know it. Set it
+from the row's right-click menu (**Set status**) or with `rove api set-status`;
+it is a label, and changing it leaves the worktree, the branch, and every
+running session alone.
 
-Session state belongs to the engine tab that runs it, so the status glyph sits
-on the **tab rows** underneath:
+Session state belongs to the engine tab that runs it, so the state glyph sits
+on the **tab rows** underneath. There are four states, and only one asks
+anything of you:
 
 | Glyph | Meaning |
 |---|---|
 | spinner | Engine is working (also shown while a worktree materializes or deletes) |
-| `?` | Needs your input: a permission prompt or a question |
+| `!` | Needs you: a permission prompt, a rate limit, an errored turn, a dead engine process, or a failed worktree deletion. Open the tab to see which |
 | `●` | Turn finished, and you haven't looked yet |
-| `○` | Idle or not yet observed. Includes a finished turn you've already seen |
-| `◷` | Rate limited — the engine is waiting out a quota window |
-| `×` | Error, including a failed worktree deletion |
-| `†` | The engine process exited or was killed |
-| `·` | Not an agent tab, or a custom engine without activity tracking |
+| `○` | Quiet: idle, not yet observed, a finished turn you've already seen, a shell tab, or a custom engine without activity tracking |
 
 A tab labelled `⚠ <name>` is a live hosted session that was missing from the
 saved tab list. Rove exposes it instead of hiding a running process and adopts
@@ -101,15 +91,11 @@ or reattaching does not relight a completion you already read. A later
 completion has a later timestamp and appears unread as usual.
 
 Each tab row reports its **own** activity, not the task's roll-up. Tab 2 can
-spin while tab 1 rests. The tab strip at the top of the workspace uses a
-same vocabulary (`●` running, `✓` done, `!` error, `◷` rate limited, `†`
-exited, `?` needs input, `○` idle) over the same saved timestamps: a `✓` you
-have already read settles back to `○`, and stays settled after a restart.
-
-`†` and `×` are different questions. `×` is an engine that ran and reported a
-failed turn — read the tab. `†` is an engine that is no longer running, so the
-answer is to start it again; the exit code and the last error line are kept
-(`rove api inspect`) even after the session is gone.
+spin while tab 1 rests. The tab strip at the top of the workspace and the
+attention inbox keep a finer vocabulary (`◷` rate limited, `†` exited, `?`
+needs input, `!` error) over the same saved timestamps, because there the
+glyph sits next to a word that explains it; a `✓` you have already read
+settles back to `○`, and stays settled after a restart.
 
 ## Managing Tasks in the sidebar
 

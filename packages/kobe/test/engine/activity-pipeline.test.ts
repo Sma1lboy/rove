@@ -102,11 +102,11 @@ describe("activity pipeline — vendor hook payload to sidebar badge", () => {
     expect(row.tone).toBe("primary")
   })
 
-  it("turn failed (rate limit): StopFailure error_type=rate_limit shows the clock badge", () => {
+  it("turn failed (rate limit): StopFailure error_type=rate_limit shows the attention badge", () => {
     const row = rowAfterClaudeHook("StopFailure", { error_type: "rate_limit" })
     expect(row.loading).toBe(false)
-    expect(row.stateGlyph).toBe("◷")
-    expect(row.tone).toBe("warning")
+    expect(row.stateGlyph).toBe("!")
+    expect(row.tone).toBe("error")
     // The subtitle shows the BRANCH, not a state word: the one-line tree row
     // has no subtitle at all, so the glyph above is the whole signal.
     expect(row.subtitleText).toBe("feature/sidebar")
@@ -114,25 +114,25 @@ describe("activity pipeline — vendor hook payload to sidebar badge", () => {
 
   it("turn failed (billing classifies as rate-limited too)", () => {
     const row = rowAfterClaudeHook("StopFailure", { error_type: "billing_error" })
-    expect(row.stateGlyph).toBe("◷")
+    expect(row.stateGlyph).toBe("!")
     expect(row.subtitleText).toBe("feature/sidebar")
   })
 
-  it("turn failed (other): unknown error_type shows the error badge", () => {
+  it("turn failed (other): unknown error_type shows the attention badge", () => {
     const row = rowAfterClaudeHook("StopFailure", { error_type: "hook_crashed" })
     expect(row.loading).toBe(false)
-    expect(row.stateGlyph).toBe("×")
+    expect(row.stateGlyph).toBe("!")
     expect(row.tone).toBe("error")
     expect(row.subtitleText).toBe("feature/sidebar")
   })
 
-  it("waiting on permission: the Notification permission hook shows the ? badge", () => {
+  it("waiting on permission: the Notification permission hook shows the attention badge", () => {
     const row = rowAfterClaudeHook("Notification", {
       message: "Claude needs your permission to use Bash",
     })
     expect(row.loading).toBe(false)
-    expect(row.stateGlyph).toBe("?")
-    expect(row.tone).toBe("warning")
+    expect(row.stateGlyph).toBe("!")
+    expect(row.tone).toBe("error")
     expect(row.subtitleText).toBe("feature/sidebar")
   })
 
