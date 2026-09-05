@@ -280,7 +280,12 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
     if (!force) {
       throw new Error(`remove(): ${worktreePath} is not a git worktree`)
     }
-    if (!isUnderManagedWorktreesRoot(worktreePath)) {
+    // The caller's repo is what expands a `$project_dir` worktree base; with
+    // that preset every managed worktree sits outside the default roots, so
+    // without it the guard refuses paths Rove itself created and the deletion
+    // can never converge. A caller holding only a path (the worktrees page)
+    // still gets the default-root answer.
+    if (!isUnderManagedWorktreesRoot(worktreePath, opts?.repo)) {
       throw new Error(
         `remove(): ${worktreePath} has no reachable git repo and is not under a Rove worktrees root; refusing to delete it`,
       )

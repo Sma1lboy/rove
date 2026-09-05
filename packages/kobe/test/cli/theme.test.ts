@@ -244,6 +244,24 @@ describe("runThemeSubcommand remove", () => {
     expect(err()).toContain("is a built-in theme and cannot be removed")
   })
 
+  /**
+   * `join()` resolves `..`, so a theme name is a relative path unless
+   * something says otherwise. `add` validated its name from the start; `remove`
+   * went straight from the argument to `unlinkSync`, so
+   * `rove theme remove '../../precious/notes'` printed `removed theme` and
+   * deleted a file two directories outside the themes dir. The `BUNDLED_NAMES`
+   * check it did have only answers a different question.
+   */
+  it("refuses a name that escapes the themes directory", async () => {
+    mkdirSync(join(home, "precious"), { recursive: true })
+    const outside = join(home, "precious", "notes.json")
+    writeFileSync(outside, '{"secret":"keep me"}', "utf8")
+
+    await expect(runThemeSubcommand(["remove", "../../precious/notes"])).rejects.toThrow("exit 1")
+    expect(err()).toContain('invalid theme name "../../precious/notes"')
+    expect(readFileSync(outside, "utf8")).toBe('{"secret":"keep me"}')
+  })
+
   it("fails when no such user theme exists", async () => {
     await expect(runThemeSubcommand(["remove", "nope"])).rejects.toThrow("exit 1")
     expect(err()).toContain('no user theme named "nope"')

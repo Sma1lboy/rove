@@ -12,7 +12,12 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import { managedWorktreeRootsFor, worktreeRootFor } from "../../src/orchestrator/worktree/paths.ts"
+import {
+  isUnderManagedWorktreesRoot,
+  managedWorktreeRootsFor,
+  worktreePathFor,
+  worktreeRootFor,
+} from "../../src/orchestrator/worktree/paths.ts"
 import {
   PROJECT_SIBLING_BASE,
   getWorktreeBaseOverride,
@@ -154,5 +159,44 @@ describe("worktree paths honor the override", () => {
     const defaultRoot = path.join(home, ".rove", "worktrees", path.basename(activeRoot))
     expect(roots[0]).toBe(activeRoot)
     expect(roots).toContain(defaultRoot)
+  })
+
+  /**
+   * The guard that authorizes `rm -rf` on an ORPHANED worktree — one whose
+   * upstream `.git` is gone (a deleted clone, macOS pruning `/tmp`), so no repo
+   * can be discovered from disk and `git worktree remove` has nothing to run.
+   *
+   * Under the shipped `$project_dir/..` preset ("next to project") every
+   * managed worktree lives outside every default root, and the guard was asked
+   * with no repo — which is exactly when a `$project_dir` base expands to
+   * nothing. So it answered false for a path Rove itself had created, force
+   * removal threw, and the task parked in `deletion.phase: "error"` where every
+   * retry re-ran the same unsatisfiable branch.
+   */
+  test("a $project_dir worktree is recognized as managed when the repo is known", () => {
+    writeState({ "worktree.basePath": PROJECT_SIBLING_BASE })
+    // Nested one level down so the base root is `<tmpRoot>/code`, leaving
+    // `<tmpRoot>` itself available as somewhere genuinely outside it.
+    const sibRepo = path.join(tmpRoot, "code", "myproj")
+    fs.mkdirSync(sibRepo, { recursive: true })
+
+    // Every path is created on disk: the guard canonicalizes both sides, and
+    // macOS resolves the tempdir's `/var` → `/private/var` symlink only for a
+    // path that exists — so a missing path answers false for the wrong reason.
+    const wt = worktreePathFor(sibRepo, "tapir")
+    fs.mkdirSync(wt, { recursive: true })
+
+    // The premise: this really is outside the default root.
+    expect(wt.startsWith(path.join(home, ".rove", "worktrees"))).toBe(false)
+    expect(isUnderManagedWorktreesRoot(wt, sibRepo)).toBe(true)
+
+    // Outside every root: still refused. This guard authorizes `rm -rf`, so
+    // widening it for `$project_dir` must not widen it for anything else.
+    const outside = path.join(tmpRoot, "elsewhere", "a", "b")
+    fs.mkdirSync(outside, { recursive: true })
+    expect(isUnderManagedWorktreesRoot(outside, sibRepo)).toBe(false)
+
+    // And the depth rule still holds: the per-repo dir is not itself a worktree.
+    expect(isUnderManagedWorktreesRoot(path.dirname(wt), sibRepo)).toBe(false)
   })
 })

@@ -18,7 +18,9 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { afterEach, beforeEach, expect, test } from "vitest"
+import { type ExecHost, LocalExecHost } from "../../src/exec/exec-host.ts"
 import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
+import { type SalvageRecord, salvageRef, salvageWorktree } from "../../src/orchestrator/worktree/salvage.ts"
 
 let tmpRoot: string
 let repo: string
@@ -178,4 +180,101 @@ test("a submodule's uncommitted work is reported as uncaptured, not silently mis
   // The snapshot genuinely cannot hold it — the point is that it says so.
   expect(git(repo, "ls-tree", "-r", "--name-only", record?.ref as string)).not.toContain("subwork.txt")
   expect(record?.uncaptured).toEqual(["vendor/child"])
+})
+
+/**
+ * A file the repo TRACKS whose path its own `.gitignore` also covers.
+ *
+ * That combination is ordinary — a committed `dist/README.md` under `dist/`, a
+ * committed `server.log` under `*.log` — and the snapshot silently dropped
+ * every uncommitted edit to it. The throwaway index was created EMPTY, so git
+ * saw those paths as untracked and `.gitignore` applied; the `add -f` rescue
+ * pass could not cover for it either, because its input is
+ * `git status --ignored`, which reports a tracked file as ` M` and never `!!`.
+ *
+ * The assertion is the recovered CONTENT, plus the diff direction: the broken
+ * snapshot did not merely omit the files, it recorded them as deletions while
+ * reporting a clean salvage.
+ */
+test("a tracked file that .gitignore also matches keeps its uncommitted edits", async () => {
+  fs.mkdirSync(path.join(repo, "dist"))
+  fs.writeFileSync(path.join(repo, "dist", "README.md"), "committed\n")
+  fs.writeFileSync(path.join(repo, "server.log"), "committed\n")
+  fs.writeFileSync(path.join(repo, ".gitignore"), "node_modules/\ndist/\n*.log\n")
+  git(repo, "add", "-A", "-f")
+  git(repo, "commit", "-qm", "track files the ignore rules also match")
+
+  const wt = path.join(tmpRoot, "tracked-ignored")
+  git(repo, "worktree", "add", "-q", wt, "-b", "tracked-ignored")
+  fs.appendFileSync(path.join(wt, "dist", "README.md"), "uncommitted edit\n")
+  fs.appendFileSync(path.join(wt, "server.log"), "uncommitted edit\n")
+
+  let salvaged: { ref: string } | null = null
+  await new GitWorktreeManager().remove(wt, {
+    force: true,
+    onSalvage: (record) => {
+      salvaged = record
+    },
+  })
+
+  expect(fs.existsSync(wt)).toBe(false)
+  const ref = (salvaged as unknown as { ref: string } | null)?.ref
+  expect(ref).toBeTruthy()
+  expect(git(repo, "show", `${ref}:dist/README.md`)).toBe("committed\nuncommitted edit\n")
+  expect(git(repo, "show", `${ref}:server.log`)).toBe("committed\nuncommitted edit\n")
+  // Recorded as edits, not as the deletions the empty index produced.
+  expect(git(repo, "diff", "--stat", `${ref}^`, ref as string)).not.toContain("deletion")
+})
+
+/**
+ * Two force-removes inside the same second.
+ *
+ * The ref name carries only a second-resolution stamp and a lossy slug
+ * (`feat/login` and `feat-login` flatten together), and `git update-ref`
+ * overwrites unconditionally — so deleting a batch of tasks, which lands
+ * several removals in one second by construction, left the first snapshot as a
+ * dangling commit reachable from nothing. Both callers were handed a ref and
+ * told their work was saved.
+ *
+ * The clock is pinned because the bug is invisible whenever the two calls
+ * happen to straddle a second boundary.
+ */
+test("two salvages in the same second both stay recoverable", async () => {
+  const exec = new LocalExecHost()
+  const deps = {
+    runGit: async (e: ExecHost, args: readonly string[], opts: { cwd: string; env?: Record<string, string> }) => {
+      const r = await e.run(["git", ...args], opts)
+      return { stdout: r.stdout, stderr: r.stderr, exitCode: r.exitCode }
+    },
+  }
+  const now = new Date("2026-01-02T03:04:05Z")
+
+  const refs: string[] = []
+  for (const [branch, content] of [
+    ["feat/login", "WORK-A"],
+    ["feat-login", "WORK-B"],
+  ] as const) {
+    const wt = path.join(tmpRoot, branch.replace("/", "_"))
+    git(repo, "worktree", "add", "-q", wt, "-b", branch)
+    fs.writeFileSync(path.join(wt, "only.txt"), `${content}\n`)
+    const record = await salvageWorktree(deps, exec, wt, now)
+    expect(record).not.toBeNull()
+    refs.push((record as SalvageRecord).ref)
+  }
+
+  // Distinct names, and BOTH still resolve — the second write must not have
+  // been allowed to take the first one's name.
+  expect(new Set(refs).size).toBe(2)
+  expect(git(repo, "show", `${refs[0]}:only.txt`)).toBe("WORK-A\n")
+  expect(git(repo, "show", `${refs[1]}:only.txt`)).toBe("WORK-B\n")
+  expect(git(repo, "for-each-ref", "refs/rove/salvage", "--format=%(refname)").trim().split("\n")).toHaveLength(2)
+})
+
+/** A branch with no ASCII in it must still be identifiable in the ref name.
+ *  The old `[^A-Za-z0-9._-]` filter erased it to the empty string, so every
+ *  non-ASCII branch's snapshot was called `detached-<stamp>`. */
+test("a non-ASCII branch name survives into the salvage ref", () => {
+  expect(salvageRef("修复/登录问题", new Date("2026-01-02T03:04:05Z"))).toBe(
+    "refs/rove/salvage/修复-登录问题-20260102T030405Z",
+  )
 })
