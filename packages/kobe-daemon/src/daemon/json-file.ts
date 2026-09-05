@@ -51,6 +51,13 @@ const locks = new Map<string, Promise<unknown>>()
  * must not wedge the queue for every later caller — and the map entry is
  * dropped once nobody is behind it, so a long-lived daemon does not accumulate
  * an entry per file it has ever touched.
+ *
+ * `fn` must NOT return a promise as its value. `tail.then(fn)` adopts whatever
+ * `fn` resolves to, so a returned promise extends the slot until that promise
+ * settles and every later caller queues behind it. TypeScript cannot catch
+ * this — `async () => somePromise` is typed `Promise<T>`, not `Promise<
+ * Promise<T>>`. To hand a promise back to the caller, wrap it (`[done]`,
+ * `{ done }`) and await it OUTSIDE the queue.
  */
 export function serialized<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const tail = locks.get(key) ?? Promise.resolve()

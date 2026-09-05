@@ -421,6 +421,12 @@ export class DeferredPromptsStore {
   /** Drop exactly one prompt referenced by an Inbox item, never its replacement. */
   async discard(id: string, reason: DeferredPromptDiscardReason): Promise<DeferredPromptRecord | null> {
     for (;;) {
+      // Hand the claim's promise back WRAPPED, exactly as `waitForClaims`
+      // does. Returning it bare makes the queue slot adopt it, so the slot
+      // cannot settle until the claim does — while that claim's own
+      // `releaseClaim`/`markDelivered` are queued behind this very slot. That
+      // cycle wedged the whole store: `deleteTask` (task deletion) and
+      // `list()` waited forever behind a discard that was waiting on them.
       const [waiting] = await this.enqueue(async () => {
         const active = this.claims.get(id)
         return active ? [active.done] : []

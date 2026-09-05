@@ -185,10 +185,71 @@ export function engineProcessIn(
 /** Injectable so tests never shell out. */
 export type PsSnapshot = () => Promise<string>
 
-export const psSnapshot: PsSnapshot = async () => {
-  const proc = Bun.spawn(["ps", "-A", "-o", "pid=,ppid=,args="], { stdout: "pipe", stderr: "ignore" })
-  return await new Response(proc.stdout).text()
+/**
+ * A running `ps`: the text it will produce, and the kill the deadline needs.
+ * Injectable separately from {@link PsSnapshot} so a test can stand up a child
+ * that never exits — the failure this deadline exists for.
+ */
+export interface PsProcess {
+  readonly text: Promise<string>
+  kill(): void
 }
+
+export type PsSpawn = () => PsProcess
+
+/**
+ * `ps -A` answers in ~20ms on a healthy machine, so 5s only fires on a
+ * genuinely stuck process table — wide enough to never cost a true answer.
+ *
+ * It has to be bounded at all because nothing downstream can time this out:
+ * every caller wraps the probe in try/catch, which catches a THROW and not a
+ * hang, so an unbounded await here freezes whichever gate asked until the
+ * process is restarted.
+ */
+export const PS_PROBE_TIMEOUT_MS = 5_000
+
+/**
+ * The probe could not answer — distinct from "it answered, no engine". Callers
+ * that report to a human must say "couldn't look", never invent an absence.
+ */
+export class PsProbeUnavailableError extends Error {
+  constructor(reason: string) {
+    super(`process probe unavailable: ${reason}`)
+    this.name = "PsProbeUnavailableError"
+  }
+}
+
+const bunPsSpawn: PsSpawn = () => {
+  const proc = Bun.spawn(["ps", "-A", "-o", "pid=,ppid=,args="], { stdout: "pipe", stderr: "ignore" })
+  return { text: new Response(proc.stdout).text(), kill: () => proc.kill() }
+}
+
+/** {@link psSnapshot} with its two seams exposed, for tests. */
+export async function psSnapshotWith(spawn: PsSpawn, timeoutMs = PS_PROBE_TIMEOUT_MS): Promise<string> {
+  const proc = spawn()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      proc.text,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => {
+          // Kill first: an abandoned `ps` holding a pipe nobody reads is how a
+          // one-off hang becomes a permanent leak in a long-lived daemon.
+          try {
+            proc.kill()
+          } catch {
+            /* already gone */
+          }
+          reject(new PsProbeUnavailableError(`ps did not answer within ${timeoutMs}ms`))
+        }, timeoutMs)
+      }),
+    ])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
+export const psSnapshot: PsSnapshot = () => psSnapshotWith(bunPsSpawn)
 
 /**
  * The engine running under `rootPid` (a tab's PTY shell), or null when

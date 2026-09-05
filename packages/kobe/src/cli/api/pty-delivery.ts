@@ -37,16 +37,17 @@ import {
 } from "../../engine/hosted-session.ts"
 import { engineEntry } from "../../engine/registry.ts"
 import type { EngineScreenManifest } from "../../engine/screen-state.ts"
-import { sessionHasEngine } from "../../engine/session-engine-presence.ts"
+import { enginePresence } from "../../engine/session-engine-presence.ts"
 import type { EngineSessionLaunch } from "../../engine/session-launch.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import { restoredTabsOf } from "./tab-respawn.ts"
 import { ApiError, type DeliveredPrompt, type PromptDeferralSink } from "./types.ts"
 
-// `sessionHasEngine` is the foreground gate for delivery into an existing
+// `enginePresence` is the foreground gate for delivery into an existing
 // hosted session: an alive PTY may now be a fallback shell after the engine
-// exits, and pasting there would execute the prompt as shell commands.
+// exits, and pasting there would execute the prompt as shell commands. Its
+// third answer, "unknown", refuses without claiming the engine is gone.
 /**
  * The narrow pty-host surface this module needs: request/response RPC plus
  * cleanup. `KobeDaemonClient` satisfies it; tests inject a fake that
@@ -164,9 +165,21 @@ export async function deliverHostedPrompt(
   if (existingKey) {
     // Foreground gate: the session's SPAWN argv matched an engine, but the
     // engine may have exited into the keepAlive shell since — pasting there
-    // executes the prompt as shell commands. See {@link sessionHasEngine}.
+    // executes the prompt as shell commands. See {@link enginePresence}.
     const pid = sessions.find((s) => s.key === existingKey)?.pid
-    if (!(await sessionHasEngine(pid, target.engineBin, opts?.snapshot))) {
+    const presence = await enginePresence(pid, target.engineBin, opts?.snapshot)
+    if (presence === "unknown") {
+      // Refuse, but do not claim the engine exited — we never got to look.
+      throw new ApiError(
+        `could not read the process table, so task ${target.id}'s engine tab (${existingKey}) could not be checked for a live engine`,
+        "ENGINE_PROBE_FAILED",
+        {
+          hint: "the `ps` probe failed or timed out; retry, or check the machine's process table",
+          nextCommandArgs: ["api", "pty-list"],
+        },
+      )
+    }
+    if (presence !== "engine") {
       throw new ApiError(
         `task ${target.id}'s engine tab (${existingKey}) has no live engine process — its engine exited into a plain shell`,
         "ENGINE_NOT_RUNNING",
@@ -306,7 +319,7 @@ export async function deliverHostedPrompt(
       ...disclose,
     }
     if (launch.initMarkerPath && !existsSync(launch.initMarkerPath)) return pendingInit
-    // Otherwise walk for the process — the same `sessionHasEngine` the
+    // Otherwise walk for the process — the same presence walk the
     // existing-session gate above uses, in the loop `awaitEngineProcess`
     // already owns, not a third implementation of the same question.
     const enginePid = await awaitEngineProcess(rpc, launch.key, target.engineBin, {
