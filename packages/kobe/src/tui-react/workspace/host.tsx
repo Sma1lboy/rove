@@ -43,6 +43,7 @@ import { useEditorHandles } from "./use-editor-handles"
 import { useHostNotifiers } from "./use-host-notifiers"
 import { useInboxHost } from "./use-inbox-host"
 import { useIssueChat } from "./use-issue-chat"
+import { usePrCheckNotifier } from "./use-pr-check-notifier"
 import { useScratchShell } from "./use-scratch-shell"
 import { useWorkspaceSelection } from "./use-workspace-selection"
 import { useZenMode } from "./use-zen-mode"
@@ -142,6 +143,10 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     openAttention: inbox.openItem,
     noTasksMessage: t("workspace.attention.none"),
   })
+
+  // PR checks landing (pending → passing/failing) is the OTHER cross-task
+  // edge worth a toast, and the one the daemon's PR poller was persisting for.
+  usePrCheckNotifier({ tasks, notif })
 
   // Task-action callbacks (new/delete/rename/branch/engine/pin/move)
   // — the shared lib/task-actions flows live in host-task-actions.ts.

@@ -190,6 +190,12 @@ export const en = {
     worktreeGoneTitle: 'Worktree for "{title}" is gone',
     worktreeGoneBody:
       "Closed {count} tab(s). The branch {branch} is still there — reopen the task to re-create its worktree.",
+    // PR checks RESOLVING is the edge worth interrupting for — a run that
+    // merely STARTED (none → pending) is not. `checkResolutionNotify` in
+    // monitor/pr-status.ts owns that rule; these are its two landings.
+    checksPassingTitle: 'Checks passed for "{title}"',
+    checksFailingTitle: 'Checks failed for "{title}"',
+    checksResolvedBody: "PR {pr} on {branch}",
     copiedBranch: "Copied branch {text}",
     copiedPath: "Copied path {text}",
     // Both clipboard channels refused: no platform clipboard command on PATH
@@ -356,6 +362,9 @@ export const zh: typeof en = {
     scratchCloseFailed: "无法关闭临时任务:{message}",
     worktreeGoneTitle: '"{title}" 的 worktree 已消失',
     worktreeGoneBody: "已关闭 {count} 个标签页。分支 {branch} 仍在——重新打开该任务会重建 worktree。",
+    checksPassingTitle: "「{title}」的 PR 检查已通过",
+    checksFailingTitle: "「{title}」的 PR 检查失败了",
+    checksResolvedBody: "PR {pr}，分支 {branch}",
     copiedBranch: "已复制分支 {text}",
     copiedPath: "已复制路径 {text}",
     copyFailed: "无法访问剪贴板——PATH 上没有剪贴板命令，这个终端也拒绝了 OSC 52。",
