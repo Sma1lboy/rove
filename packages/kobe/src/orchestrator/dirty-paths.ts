@@ -27,3 +27,17 @@ export function parseDirtyPaths(stdout: string): string[] {
     .map((line) => line.slice(3).trim())
     .filter((line) => line.length > 0)
 }
+
+/**
+ * Whether `git status --porcelain` output means the tree is dirty.
+ *
+ * Deliberately defined AS "{@link parseDirtyPaths} found something": the gate
+ * and the message it prints must never disagree, and they did — three call
+ * sites had three notions of empty (`stdout.length > 0`, `stdout.trim()`,
+ * and this parse), so a stdout of `"\n"` read dirty to the worktree manager's
+ * delete gate and clean to landing and syncing. A remote `ExecHost` is where
+ * that trailing newline actually comes from.
+ */
+export function isDirtyOutput(stdout: string): boolean {
+  return parseDirtyPaths(stdout).length > 0
+}

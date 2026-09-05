@@ -37,6 +37,7 @@ describe("background deletion over the daemon socket", () => {
     )
     const worktrees = {
       isDirty: vi.fn(async () => false),
+      ignoredWork: vi.fn(async () => []),
       remove,
     } as unknown as GitWorktreeManager
     const orch = new Orchestrator({ store, worktrees })

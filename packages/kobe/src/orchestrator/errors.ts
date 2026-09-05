@@ -52,16 +52,23 @@ export const DIRTY_WORKTREE_CODE = "DIRTY_WORKTREE"
  * is what did. `git status` cannot see those, so a user told only "uncommitted
  * or untracked changes" would go looking with a command that reports nothing
  * — the paths are the only way that refusal is actionable.
+ *
+ * `"unknown"` is the third answer: the ignored listing did not run, so nothing
+ * can say whether this worktree holds such work. It refuses through the SAME
+ * error on purpose — the UI already turns this one into a force-delete
+ * re-prompt, which is exactly the choice an unverifiable worktree needs.
  */
 export class DirtyWorktreeError extends Error {
   constructor(
     public readonly taskId: string,
-    public readonly ignored: readonly string[] = [],
+    public readonly ignored: readonly string[] | "unknown" = [],
   ) {
     const what =
-      ignored.length > 0
-        ? `gitignored work git status cannot see: ${ignored.join(", ")}`
-        : "uncommitted or untracked changes"
+      ignored === "unknown"
+        ? "gitignored work this check could not read (git status --ignored failed) — nothing here can confirm it is empty"
+        : ignored.length > 0
+          ? `gitignored work git status cannot see: ${ignored.join(", ")}`
+          : "uncommitted or untracked changes"
     super(`${DIRTY_WORKTREE_CODE}: task ${taskId} worktree has ${what}`)
     this.name = "DirtyWorktreeError"
   }

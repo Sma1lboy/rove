@@ -4,6 +4,7 @@ import { CannotDeleteMainTaskError, DirtyWorktreeError, WorktreeRemoveFailedErro
 import type { TaskIndexStore } from "./index/store.ts"
 import type { WorktreeResidue } from "./worktree/manager-remove.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
+import type { IgnoredWorkProbe } from "./worktree/salvage-ignored.ts"
 import type { SalvageRecord } from "./worktree/salvage.ts"
 
 /** Caller options for a task deletion. `deleteBranch` is a separate opt-in,
@@ -36,6 +37,14 @@ export class TaskDeletionCoordinator {
      * the only record that a directory is still on disk.
      */
     private readonly onResidue?: (taskId: TaskId, residue: WorktreeResidue) => void,
+    /**
+     * Notified when `deleteBranch` was asked for and git refused. Wired to the
+     * same audit log for the same reason as the two above: `finish()` removes
+     * the task row, so by the time anyone could ask, there is nothing left to
+     * ask. Without it the `removed … branch=<name>` line confirmed a deletion
+     * that had not happened.
+     */
+    private readonly onBranchKept?: (taskId: TaskId, kept: { branch: string; reason: string }) => void,
   ) {}
 
   /** Persist acceptance after the destructive dirty-worktree safety check. */
@@ -57,14 +66,24 @@ export class TaskDeletionCoordinator {
       // gitignored in this very repo. Gating on the porcelain alone let a
       // worktree whose only work was a session's notes delete with no force,
       // no confirm, and no salvage ref.
-      let ignored: readonly string[] = []
+      let ignored: IgnoredWorkProbe = []
+      let probed = true
       try {
         dirty = await this.worktrees.isDirty(task.worktreePath)
-        if (!dirty) ignored = await this.worktrees.ignoredWork(task.worktreePath)
       } catch {
-        // A missing/unreadable path is resolved by remove(), as before.
+        // A missing/unreadable path is resolved by remove(), as before — and
+        // the ignored probe is skipped with it: `git status --ignored` in a
+        // directory that is already gone answers "unknown", and refusing on
+        // that would break deleting a task whose worktree someone removed by
+        // hand.
+        probed = false
       }
-      if (dirty || ignored.length > 0) throw new DirtyWorktreeError(task.id, ignored)
+      // NOT inside that catch. The two probes used to share one `try` with an
+      // empty body, so an ignored listing that failed left `ignored = []` and
+      // the gate below read it as permission — "could not look" and "there is
+      // nothing here" were the same value.
+      if (probed && !dirty) ignored = await this.worktrees.ignoredWork(task.worktreePath)
+      if (dirty || ignored === "unknown" || ignored.length > 0) throw new DirtyWorktreeError(task.id, ignored)
     }
 
     await this.store.update(task.id, {
@@ -132,6 +151,9 @@ export class TaskDeletionCoordinator {
           // problem — and never deleted from under the user, since whatever
           // made it undeletable may be something they want.
           onResidue: (residue) => this.onResidue?.(task.id, residue),
+          // The delete stays best-effort — a refused branch never fails the
+          // removal — but it is no longer SILENT.
+          onBranchKept: (kept) => this.onBranchKept?.(task.id, kept),
         })
       }
     } catch (cause) {

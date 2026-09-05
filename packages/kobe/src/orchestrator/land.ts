@@ -126,12 +126,17 @@ export async function landTaskWithCleanup(task: Task, opts: LandTaskOpts, deps: 
       reason: worktree?.reason ?? `worktree ${task.worktreePath} was kept, and still has the branch checked out`,
     }
   } else if (opts.deleteBranch) {
-    await deps.worktrees.deleteBranch(task.repo, result.branch, {
+    // And when the worktree IS gone, the delete can still be refused — another
+    // task's worktree on the same branch, a lock, a ref that moved. That used
+    // to be discarded with the exit code; `branchKept` now carries git's own
+    // reason instead of only the one this function predicted.
+    const outcome = await deps.worktrees.deleteBranch(task.repo, result.branch, {
       force: true,
       onAnchor: (record) => {
         branchAnchor = record
       },
     })
+    if (!outcome.deleted) branchKept = { reason: outcome.reason }
   }
   return {
     ...result,

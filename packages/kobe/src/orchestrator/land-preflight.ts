@@ -21,7 +21,7 @@
 import type { ExecHost } from "../exec/exec-host.ts"
 import { READ_ONLY_GIT_ENV } from "../lib/git-env.ts"
 import type { Task } from "../types/task.ts"
-import { parseDirtyPaths } from "./dirty-paths.ts"
+import { isDirtyOutput, parseDirtyPaths } from "./dirty-paths.ts"
 import { EmptyBranchDirtyWorktreeError, EmptyBranchError, MainCheckoutDirtyError, MissingRefError } from "./errors.ts"
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
 import { GitWorktreeManager } from "./worktree/manager.ts"
@@ -99,7 +99,7 @@ export async function landGit(
 
 /** `git status --porcelain` non-empty in `dir` (untracked counts). */
 export async function isDirty(exec: ExecHost, dir: string): Promise<boolean> {
-  return (await landGit(exec, dir, ["status", "--porcelain"], { readOnly: true })).stdout.trim().length > 0
+  return isDirtyOutput((await landGit(exec, dir, ["status", "--porcelain"], { readOnly: true })).stdout)
 }
 
 /**

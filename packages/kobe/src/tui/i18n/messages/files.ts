@@ -50,6 +50,7 @@ export const en = {
     /** `gh` unavailable, the run expired, or the checks went green while the
      *  menu was open — better than pasting a prompt with no evidence in it. */
     ciNoFailingChecks: "No failing check logs to read — the run may have expired, or the checks are no longer red",
+    ciChecksUnavailable: "gh could not read this PR's checks: {detail}",
   },
 }
 
@@ -90,5 +91,6 @@ export const zh: typeof en = {
   toast: {
     prOnTargetBranch: "当前就在目标分支（{branch}）— 请在任务分支上让 agent 创建 PR",
     ciNoFailingChecks: "没有可读的失败检查日志——运行记录可能已过期，或检查已不再是红的",
+    ciChecksUnavailable: "gh 读不到这个 PR 的检查状态：{detail}",
   },
 }

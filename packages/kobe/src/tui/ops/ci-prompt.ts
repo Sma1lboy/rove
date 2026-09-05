@@ -26,6 +26,19 @@ export interface CIFailingCheck {
   readonly tail: string
 }
 
+/**
+ * What a `pr.failingChecks` read came back with.
+ *
+ * `unavailable` is the difference between "no check is red" and "nothing could
+ * be asked". Both arrive as `checks: []`, and only one of them means the user
+ * can stop worrying about the red badge they are looking at.
+ */
+export interface CIFailingChecksRead {
+  readonly checks: readonly CIFailingCheck[]
+  readonly totalFailing: number
+  readonly unavailable?: { readonly reason: string; readonly detail: string }
+}
+
 export interface CIPromptState {
   readonly branch: string
   readonly prNumber?: number

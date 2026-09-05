@@ -59,6 +59,10 @@ export interface OrchestratorDeps {
    *  the only record of the leftover, so the daemon binds it to the same audit
    *  log the rest of the deletion trail goes to. */
   readonly onWorktreeResidue?: (taskId: TaskId, residue: { readonly path: string; readonly reason: string }) => void
+  /** Called when a deletion asked for `--delete-branch` and git refused (an
+   *  unmerged branch, one another worktree has checked out). The deletion still
+   *  succeeds; this is what keeps the audit line from claiming otherwise. */
+  readonly onBranchKept?: (taskId: TaskId, kept: { readonly branch: string; readonly reason: string }) => void
   /**
    * Kill a task's engine session. Bound by the composition root to the hosted
    * session host; a TUI-local orchestrator leaves it unset. `landTask` calls
@@ -113,6 +117,7 @@ export class Orchestrator {
       (id) => this.worktreeCoordinator.forget(id),
       deps.onSalvage,
       deps.onWorktreeResidue,
+      deps.onBranchKept,
     )
     this.tasksAcc = createStateCell<Task[]>(this.store.list())
     // Seed focus from the persisted `lastActive` record (state/last-active

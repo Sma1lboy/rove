@@ -103,15 +103,29 @@ async function duKb(exec: ExecHost, worktreePath: string, paths: readonly string
 }
 
 /**
- * The ignored paths in `worktreePath` small enough to be worth snapshotting.
+ * What a caller learns about a worktree's ignored work: the small entries, or
+ * `"unknown"` when the listing itself did not run.
  *
- * Returns `[]` on any failure — salvage must degrade to its old
- * ignored-files-excluded behaviour rather than fail the removal a caller
- * already asked for. An entry whose size cannot be read is SKIPPED, not
- * guessed at: an unmeasurable path is more likely a huge tree than a note,
- * and a snapshot that swallows one is worse than one that misses it.
+ * The two are NOT the same answer and had been encoded as one. Salvage reads
+ * this to decide what to add to a snapshot, where "nothing found" and "could
+ * not look" both correctly degrade to a smaller snapshot. The non-force delete
+ * GATE reads it too, and there an empty list is the permission to destroy the
+ * directory — so a `git status --ignored` that never ran was authorising the
+ * exact deletion it exists to refuse.
  */
-export async function smallIgnoredPaths(exec: ExecHost, worktreePath: string): Promise<string[]> {
+export type IgnoredWorkProbe = readonly string[] | "unknown"
+
+/**
+ * The ignored paths in `worktreePath` small enough to be worth snapshotting,
+ * or `"unknown"` when `git status --ignored` failed or threw.
+ *
+ * An entry whose SIZE cannot be read is still SKIPPED, not guessed at: an
+ * unmeasurable path is more likely a huge tree than a note, and a snapshot
+ * that swallows one is worse than one that misses it. That is a per-entry
+ * verdict on a listing that succeeded; `"unknown"` is the absence of a
+ * listing, which no caller can read as "there is nothing here".
+ */
+export async function smallIgnoredPaths(exec: ExecHost, worktreePath: string): Promise<IgnoredWorkProbe> {
   try {
     // Lock-free, like every other status probe (`lib/git-env.ts`): this now
     // runs on the ORDINARY delete path, not just the force one, so it must not
@@ -120,7 +134,7 @@ export async function smallIgnoredPaths(exec: ExecHost, worktreePath: string): P
       cwd: worktreePath,
       env: READ_ONLY_GIT_ENV,
     })
-    if (status.exitCode !== 0) return []
+    if (status.exitCode !== 0) return "unknown"
     const paths = parseIgnoredPaths(status.stdout)
     if (paths.length === 0) return []
 
@@ -130,6 +144,6 @@ export async function smallIgnoredPaths(exec: ExecHost, worktreePath: string): P
       return kb !== undefined && kb <= MAX_IGNORED_ENTRY_KB
     })
   } catch {
-    return []
+    return "unknown"
   }
 }
