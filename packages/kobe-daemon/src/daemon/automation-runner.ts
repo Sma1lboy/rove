@@ -158,7 +158,7 @@ function emitRunEvent(
   automation: Automation,
   status: AutomationRunStatus,
   args: { scheduledFor: number; trigger: "scheduled" | "manual" },
-  extra: { taskId?: string; error?: string },
+  extra: { taskId?: string; tabId?: string; deferredId?: string; error?: string },
 ): void {
   // handleUiReport guards its own dispatch — a throw can only come from the
   // getter, which is a plain closure over the server's pluginHost.
@@ -172,6 +172,8 @@ function emitRunEvent(
       status,
       trigger: args.trigger,
       scheduledFor: new Date(args.scheduledFor).toISOString(),
+      ...(extra.tabId ? { tabId: extra.tabId } : {}),
+      ...(extra.deferredId ? { deferredId: extra.deferredId } : {}),
       ...(extra.error ? { error: extra.error } : {}),
     },
   })

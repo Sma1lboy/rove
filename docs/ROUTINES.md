@@ -258,7 +258,7 @@ run records queue acceptance, not engine delivery or work completion. Its
 with `deferred-release --id ID`. An occupied slot fails the later firing and
 preserves the earlier prompt. Viewing or revisiting the target tab keeps queued
 text; only an explicit release, dismiss or expiry removes it. For plugin consumers, a deferred run emits `automation.skipped` with
-`status: "deferred"`; it does not emit `automation.dispatched`. The queue
+`status: "deferred"`, `tabId` and `deferredId`; it does not emit `automation.dispatched`. The queue
 survives daemon restarts and retains
 its normal 24-hour expiry. Disabling or deleting a routine stops future
 scheduling; it does not retract a prompt already accepted into the Inbox.

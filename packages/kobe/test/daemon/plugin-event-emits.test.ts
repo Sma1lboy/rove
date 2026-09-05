@@ -6,8 +6,12 @@
  * contract plugins subscribe against.
  */
 
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { runAutomationOnce, sweepAutomations } from "@sma1lboy/kobe-daemon/daemon/automation-runner"
-import type { AutomationsStore } from "@sma1lboy/kobe-daemon/daemon/automations-store"
+import { AutomationsStore } from "@sma1lboy/kobe-daemon/daemon/automations-store"
+import { DeferredPromptsStore } from "@sma1lboy/kobe-daemon/daemon/deferred-prompts-store"
 import type { DaemonRequestName } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { scheduleQuotaResume } from "@sma1lboy/kobe-daemon/daemon/quota-resume"
 import type { QuotaUsageCache } from "@sma1lboy/kobe-daemon/daemon/quota-usage-cache"
@@ -84,30 +88,24 @@ describe("handler emit sites", () => {
 })
 
 describe("automation runner emit sites", () => {
-  const automation = {
-    id: "a1",
-    name: "audit",
-    repo: "/repo",
-    prompt: "p",
-    schedule: "0 9 * * *",
-    enabled: true,
-    createdAt: new Date(0).toISOString(),
-    missedRunGraceMinutes: 30,
-    nextRunAt: new Date(0).toISOString(),
-  }
-
-  function deps(overrides: Record<string, unknown> = {}) {
+  async function deps(overrides: Record<string, unknown> = {}) {
     const seen: Report[] = []
-    const runs: unknown[] = []
+    const directory = mkdtempSync(join(tmpdir(), "rove-routine-events-"))
+    const store = new AutomationsStore(join(directory, "automations.json"), () => 0)
+    await store.init()
+    const automation = await store.create({
+      name: "audit",
+      repo: process.cwd(),
+      prompt: "p",
+      schedule: "0 9 * * *",
+      missedRunGraceMinutes: 30,
+    })
     return {
       seen,
-      runs,
+      automation,
+      directory,
       deps: {
-        store: {
-          recordRun: async (r: unknown) => void runs.push(r),
-          list: () => [automation],
-          advanceNextRun: async () => {},
-        } as unknown as AutomationsStore,
+        store,
         orch: { createTask: async () => ({ id: "task-9" }) },
         runtime: { startTaskSessionWithPrompt: async () => ({ started: true }) },
         link: (() => ({})) as never,
@@ -118,16 +116,16 @@ describe("automation runner emit sites", () => {
   }
 
   it("a dispatched run fires automation.dispatched with the run detail", async () => {
-    const { seen, deps: d } = deps()
+    const { seen, automation, deps: d } = await deps()
     await runAutomationOnce(d as never, automation as never, { scheduledFor: 60_000, trigger: "manual" })
     expect(seen).toEqual([
       {
         kind: "automation.dispatched",
         taskId: "task-9",
         detail: {
-          automationId: "a1",
+          automationId: automation.id,
           name: "audit",
-          repo: "/repo",
+          repo: automation.repo,
           status: "dispatched",
           trigger: "manual",
           scheduledFor: new Date(60_000).toISOString(),
@@ -137,7 +135,11 @@ describe("automation runner emit sites", () => {
   })
 
   it("a failed engine start fires automation.failed", async () => {
-    const { seen, deps: d } = deps({ runtime: { startTaskSessionWithPrompt: async () => ({ started: false }) } })
+    const {
+      seen,
+      automation,
+      deps: d,
+    } = await deps({ runtime: { startTaskSessionWithPrompt: async () => ({ started: false }) } })
     await runAutomationOnce(d as never, automation as never, { scheduledFor: 0, trigger: "manual" })
     expect(seen[0]).toMatchObject({
       kind: "automation.failed",
@@ -146,8 +148,50 @@ describe("automation runner emit sites", () => {
     })
   })
 
+  it("a queued run emits only automation.skipped with its receipt and target", async () => {
+    const f = await deps()
+    const target = { kind: "existing-tab", taskId: "task-9", tabId: "tab-2" } as const
+    const bound = await f.deps.store.update(f.automation.id, { target })
+    const deferred = new DeferredPromptsStore(join(f.directory, "deferred.json"))
+    await runAutomationOnce(
+      {
+        ...f.deps,
+        deferred,
+        orch: { getTask: () => ({ id: target.taskId, repo: bound!.repo, worktreePath: bound!.repo }) },
+        runtime: {
+          deliverPromptToLiveEngineTabDetailed: async () => ({
+            outcome: "busy",
+            tabId: target.tabId,
+            layer: "composer-not-empty",
+          }),
+        },
+        inbox: { recordPromptDeferred: async () => {} },
+      } as never,
+      bound!,
+      { scheduledFor: 60_000, trigger: "manual" },
+    )
+    const receipt = f.deps.store.runsFor(f.automation.id)[0]
+    expect(f.seen).toEqual([
+      {
+        kind: "automation.skipped",
+        taskId: target.taskId,
+        detail: {
+          automationId: bound!.id,
+          name: bound!.name,
+          repo: bound!.repo,
+          status: "deferred",
+          trigger: "manual",
+          scheduledFor: new Date(60_000).toISOString(),
+          tabId: target.tabId,
+          deferredId: receipt?.deferredId,
+        },
+      },
+    ])
+    expect((await deferred.list()).records[0]?.id).toBe(receipt?.deferredId)
+  })
+
   it("a missed occurrence fires automation.skipped", async () => {
-    const { seen, deps: d } = deps()
+    const { seen, automation, deps: d } = await deps()
     // now far past the grace window relative to the last cron occurrence
     await sweepAutomations({ ...(d as object), now: () => Date.parse("2026-01-10T12:00:00Z") } as never)
     expect(seen[0]).toMatchObject({ kind: "automation.skipped", detail: { status: "skipped_missed" } })
