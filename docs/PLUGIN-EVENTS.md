@@ -154,13 +154,26 @@ detail shape:
 | `automationId` | string | the schedule's id |
 | `name` | string | its display name |
 | `repo` | string | target repo |
-| `status` | string | the precise outcome: `dispatched`, `revived`, `deferred`, `skipped_precheck`, `skipped_missed`, `skipped_unavailable`, `dispatch_failed`. `revived` and `deferred` are the standing-session successes — a plugin that branches on `=== "dispatched"` alone silently drops them |
+| `status` | string | the precise outcome: `dispatched`, `revived`, `deferred`, `skipped_cancelled`, `skipped_precheck`, `skipped_missed`, `skipped_unavailable`, `dispatch_failed` |
 | `trigger` | `"scheduled" \| "manual"` | cron tick or run-now |
 | `scheduledFor` | ISO string | the occurrence this run was for |
+| `tabId` | string? | the exact target tab when known |
+| `deferredId` | string? | the queue receipt when the prompt was accepted for later release |
 | `error` | string? | present on skips/failures: the precheck output, the missed-grace message, or the dispatch error |
 
-`taskId` is set when a task was created (always for `dispatched`; for
-`dispatch_failed` when the task exists but its engine did not start).
+`automation.dispatched` covers `dispatched` and `revived` runs.
+`automation.failed` covers `dispatch_failed` and `skipped_unavailable` runs.
+The remaining statuses emit `automation.skipped`. In particular, `deferred`
+means the queue accepted text that has **not been delivered**; `skipped_cancelled`
+means the routine was disabled, edited, deleted or stopped before handoff.
+
+`taskId` identifies the created, standing or explicitly bound target when known,
+including failed attempts. Its presence does not prove task creation or delivery.
+The deferred store owns subsequent release, dismiss and expiry. Disabling a
+routine does not withdraw an accepted queue item. Scheduled occurrences are
+claimed before dispatch and are not automatically replayed after restart; a
+crash between claim, delivery and receipt persistence can lose an occurrence
+or receipt. These events do not promise exactly-once delivery.
 
 ### `quota.exhausted`
 
