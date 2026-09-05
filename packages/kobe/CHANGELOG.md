@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.9.151
+
+### Patch Changes
+
+- [#905](https://github.com/Sma1lboy/rove/pull/905) [`310f0a4`](https://github.com/Sma1lboy/rove/commit/310f0a494055cd705878b09222c786ddab21c6e8) Acquire exclusive daemon home ownership before migrations and core initialization, and keep it through shutdown and pending writes. Competing sockets can no longer start two writers for the same home; crashed owners release their lease automatically.
+
+  Clean up orphaned terminal sessions using their observed generation so delayed sweeps cannot kill a newly started session. Keep unknown host or session liveness distinct from confirmed absence, and never borrow a sibling session's completion marker.
+
+  Serialize settings read-modify-write transactions across processes, including corrupt-file recovery, so independent settings changes survive concurrent writers. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#907](https://github.com/Sma1lboy/rove/pull/907) [`9c57172`](https://github.com/Sma1lboy/rove/commit/9c57172bd9426af40c25610b24bae7e48918574c) Fix five ways a destructive path could lose work without saying so.
+
+  - A salvage snapshot built its throwaway index empty, so git treated tracked
+    files as untracked and `.gitignore` applied to them. Every uncommitted edit to
+    a file the repo tracks and its own `.gitignore` also matches (a committed
+    `dist/README.md`, a committed `server.log`) was recorded as a deletion while
+    the snapshot reported success. The index is now seeded from HEAD.
+  - One gitignored file whose name starts with `-` made `du` read it as an option,
+    which emptied the ignored-work probe for the whole worktree — so the non-force
+    delete gate stopped refusing and `HANDOFF.md` / `.scratch/` were destroyed with
+    no snapshot. `du` now gets a `--` terminator, batches under ARG_MAX, and
+    measures newline-containing names one at a time.
+  - Two salvages in the same second wrote the same ref and the second silently
+    overwrote the first, though both callers were told their work was saved. The
+    write is now create-only, and a non-ASCII branch keeps its name in the ref
+    instead of collapsing to `detached`.
+  - With the "next to project" worktree location, an orphaned worktree (upstream
+    `.git` gone) could never be removed: the managed-root guard could not expand
+    `$project_dir` without the repo, so the task parked in `deletion.phase: error`
+    and every retry re-ran the same unsatisfiable branch.
+  - `rove theme remove` did not validate the name, so `remove '../../notes'`
+    deleted any reachable `.json`. Both `add` and `remove` now share one check. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#909](https://github.com/Sma1lboy/rove/pull/909) [`77e1674`](https://github.com/Sma1lboy/rove/commit/77e167400798872b9f63def63d06e92591d294a7) CI finishing on one of your tasks now says so, instead of only changing a chip
+
+  The daemon has polled `gh pr list` per task for a while, and it already wrote
+  `checkState` onto the task and pushed it to every client. Nothing in the TUI
+  ever read that field. So the only signal that a PR's checks had landed was the
+  sidebar chip changing colour — which you see if you happen to be looking at
+  that row, and which is exactly the wrong shape for the case the poller was
+  built for: four tasks in flight, you in the fifth.
+
+  Checks resolving now raise a toast naming the task, whether they passed or
+  failed, and which PR. Only the resolution is announced: a run that merely
+  started (no checks → pending) stays quiet, as does every flap in between, and a
+  task whose checks were already settled when the daemon came back does not
+  re-announce itself on restart. The rule was written and unit-tested when the
+  poller shipped (`checkResolutionNotify`); it had no subscriber until now.
+
+  Two call sites that were each deriving "is this task's repo a remote `ssh://`
+  project?" by hand — the engine launch builder and the workspace centre column —
+  now ask `remoteKeyForRepo`, the helper that was already written to be the one
+  place that decision is made. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#908](https://github.com/Sma1lboy/rove/pull/908) [`276c7ce`](https://github.com/Sma1lboy/rove/commit/276c7ce20f1d68dcb497645d956aa44ba3d9c94a) Keep Claude, Codex, and Kimi trust writes and Claude/Codex hooks in the selected vendor profile. Preserve invalid or oversized configuration and private file permissions, recognize Rove hook commands without removing user lookalikes, and keep legacy startup cleanup in the active profile. Stop Codex trust writes when its config lock times out. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.150
 
 ### Patch Changes
