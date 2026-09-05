@@ -8,10 +8,10 @@
  * writing the real file to `.agents/skills` and symlinking the agent dirs
  * that want one. Verbs:
  *
- *   install [--project] [--agent NAME]…  run the npx skills flow (no flag = it asks)
- *   status                               report whether the skill is installed
- *   command [--project] [--agent NAME]…  print the underlying npx command (don't run it)
- *   print                                print the bundled SKILL.md (herdr-style `kobe --skill`)
+ *   install [--global|-g | --project|-p] [--agent NAME]…  run the npx skills flow
+ *   status                                                report whether the skill is installed
+ *   command [--global|-g | --project|-p] [--agent NAME]…  print the npx command (don't run it)
+ *   print                                                 print the bundled SKILL.md (herdr-style `kobe --skill`)
  *
  * Installs are GLOBAL (user-level) by default — the skill drives a
  * machine-wide daemon, so one copy per machine is the right shape;
@@ -40,15 +40,16 @@ function skillUsage(): string {
     `usage: ${CLI_NAME} skill <verb>`,
     "",
     "verbs:",
-    "  install [--project] [--agent NAME]…  Install the Rove agent skill (wraps `npx skills add`)",
-    "  status                               Show whether the skill is installed",
-    "  command [--project] [--agent NAME]…  Print the underlying npx command without running it",
-    `  print                                Print the bundled SKILL.md (also: \`${CLI_NAME} --skill\`)`,
+    "  install [--global|-g | --project|-p] [--agent NAME]…  Install the Rove agent skill (wraps `npx skills add`)",
+    "  status                                                Show whether the skill is installed",
+    "  command [--global|-g | --project|-p] [--agent NAME]…  Print the underlying npx command without running it",
+    `  print                                                 Print the bundled SKILL.md (also: \`${CLI_NAME} --skill\`)`,
     "",
     `The skill teaches a coding agent how to drive \`${CLI_NAME} api\`. Installs are`,
-    "global (user-level) by default; --project installs into the current project",
-    "instead. With no --agent, the agent-skills CLI detects your installed agents",
-    "and asks; repeat --agent to name them (e.g. --agent claude-code --agent codex).",
+    "global (user-level) by default; --global/-g says so explicitly, --project/-p",
+    "installs into the current project instead. With no --agent, the agent-skills",
+    "CLI detects your installed agents and asks; repeat --agent to name them",
+    "(e.g. --agent claude-code --agent codex).",
   ].join("\n")
 }
 

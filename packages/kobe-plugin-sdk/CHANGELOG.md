@@ -1,5 +1,11 @@
 # @sma1lboy/rove-plugin-sdk
 
+## 0.1.8
+
+### Patch Changes
+
+- [#903](https://github.com/Sma1lboy/rove/pull/903) [`586bd67`](https://github.com/Sma1lboy/rove/commit/586bd67db212d3cc1e1883f8c37344e745da056c) Settle pending socket requests when a plugin closes or loses its connection. Reconnecting the same client isolates the new connection from late socket events, and invalid JSON frame shapes no longer crash plugin subscribers. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.1.7
 
 ### Patch Changes

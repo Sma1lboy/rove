@@ -77,9 +77,9 @@ flowchart TB
   daemon restart never kills a running engine. Like the tmux server, it exits
   on its own only after sitting at zero live sessions. `rove reset` is the
   explicit teardown. While it runs, it freezes every session (metadata +
-  scrollback ring) to `<home>/.rove/pty-sessions/`, throttled to one write
-  per few seconds while streaming, immediately on exit, and in full at
-  shutdown. A host that comes back up (after a crash, a reboot, an idle-exit)
+  scrollback ring) to `<home>/.rove/pty-sessions/` — see
+  [Scrollback](#scrollback) for what a periodic freeze costs and when it
+  fires — immediately on exit, and in full at shutdown. A host that comes back up (after a crash, a reboot, an idle-exit)
   thaws each surviving record into a dead *restored* session: reattaching
   replays the old screen and respawns the command in place. A boot restores
   newest first up to **64MB** of scrollback and stops there; the records past
@@ -156,12 +156,18 @@ Three related limits are easy to confuse:
 
 - **What a reattach replays.** The PTY host keeps ~512 KiB of recent output
   per session. The live copy is in memory; the complete bounded ring is also
-  frozen under `<home>/.rove/pty-sessions/` at most once every five seconds
-  while output streams, immediately when the child exits, and in full during
-  a clean host shutdown. A crash can therefore lose the newest few seconds,
-  but a reboot or host restart restores the last completed snapshot. Closing
-  the tab, deleting its task, or `rove reset` deliberately drops the relevant
-  frozen record.
+  frozen under `<home>/.rove/pty-sessions/`, immediately when the child
+  exits, in full during a clean host shutdown, and periodically while output
+  streams. A periodic freeze rewrites the whole ring, so it waits for one of
+  two gates, never sooner than **5 seconds** after the last one: **64 KiB**
+  of new output, or **60 seconds** since the last freeze. An engine session
+  emits a few hundred bytes a second, so 60 seconds is its normal cadence;
+  the byte gate is what makes a build log or a large `cat` freeze at the 5
+  second floor instead. A crash therefore loses at most the last **60
+  seconds** of terminal repaint — a reboot or host restart restores the last
+  completed snapshot, and the engine's own `--resume` carries the
+  conversation regardless. Closing the tab, deleting its task, or `rove
+  reset` deliberately drops the relevant frozen record.
 - **What diagnostics retain after a death.** `<home>/.rove/pty-exits.json`
   stores the newest 50 records. Each has the exit code or signal, time, and
   the last 40 plain-text lines extracted from up to 16 KiB of raw ring data.
