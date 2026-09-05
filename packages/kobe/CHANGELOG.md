@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.9.157
+
+### Patch Changes
+
+- [#926](https://github.com/Sma1lboy/rove/pull/926) [`c84e30e`](https://github.com/Sma1lboy/rove/commit/c84e30e575e1f3898a310b7a4c562cd464d02a4a) Resolve the behavior suite's temporary HOME so its path assertions hold on macOS.
+
+  `tmpdir()` there is the `/var` symlink to `/private/var`. Rove reports the real path, so every test comparing a path it built against one Rove printed differed by that prefix and failed locally while passing on Linux CI. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#925](https://github.com/Sma1lboy/rove/pull/925) [`f5d5dba`](https://github.com/Sma1lboy/rove/commit/f5d5dbaef5fc54b704a3597886380312e6298430) Stop the bound-delivery routine tests from failing, and leaking a spinning shell, on a machine with a slow login shell.
+
+  The precheck they start runs through an interactive login shell, which spends a second or two sourcing rc files before it reaches the command. vitest's default one-second `waitFor` expired first, so the test failed before writing the file its precheck spins on — leaving a shell forking `sleep` a hundred times a second with nothing left that would ever release it. The wait now allows for shell startup, and the release is written even when an assertion throws. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#924](https://github.com/Sma1lboy/rove/pull/924) [`6e305a7`](https://github.com/Sma1lboy/rove/commit/6e305a7a0262e63ecca8ac9f9db3d8a2425ab425) Bound a routine precheck inside the shell that runs it, so it cannot outlive the daemon.
+
+  A precheck's timeout lived only in a `setTimeout` on the daemon side. A daemon that was SIGKILLed took that timer with it and left the shell running with nothing that would ever stop it — a precheck shaped like `while [ ! -f flag ]; do sleep 0.01; done` then span at roughly a hundred forks a second until the machine was rebooted. Thirty-three such orphans held a Mac at load 170 with 86% of its CPU in the kernel.
+
+  The spawned shell now carries the same deadline itself, and a timeout kills its whole process group rather than the shell alone, so a command's own children (`gh pr list | grep …`) go with it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.156
 
 ### Patch Changes
