@@ -129,26 +129,22 @@ var — the ground-truth path is unchanged.
 
 ### What the harness replaces, and therefore cannot prove
 
-The harness swaps out the daemon spec fetch. `KOBE_PTY_DEV_COMMAND` is set by
-`packages/kobe-harness/playwright.config.ts`, `e2e/visual-serve.ts` and
-`e2e/hero-serve.ts`, and `createSpecFetcher` returns on that variable before it
-ever asks the daemon — so the whole visual track spawns a command the harness
-chose, not the one a task resolves to. **A green `bun run visual` says nothing
-about task-to-PTY resolution**: not the `engine` vs `shell` route choice, not
-the bearer token `/api/*` requires, not the error a failed lookup surfaces.
-That gap is how a web terminal broken from 0.9.60 to 0.9.102 passed ~40 CI runs.
+The sidecar resolves its launch command from `KOBE_PTY_DEV_COMMAND`. The visual
+runners set that variable and `KOBE_PTY_DEV_CWD` to launch the isolated fixture.
+`createSpecFetcher` returns the same spec for engine and shell modes and throws
+when the command is unset. It does not fetch launch specs from the daemon.
 
-`packages/kobe-harness/test/pty-spec.test.ts` is the track that does cover it: it
-drives the real branch with an injected `fetch` and a stub daemon, and fails
-if the `authorization` header is dropped. Run it with
-`cd packages/kobe-harness && bun run test`.
+The visual track proves browser input and rendering through xterm.js, the PTY
+sidecar and the real OpenTUI process. It does not exercise production task-to-PTY
+launch resolution. Changes to that path need the relevant CLI or hosted-session
+tests in addition to any visual checks.
 
-The remaining blind spot the harness cannot close is the live hop itself — a
-real sidecar talking to a real daemon over a real socket. Manual recipe when a
-change touches that path:
+`packages/kobe-harness/test/pty-spec.test.ts` checks command and cwd selection,
+mode equivalence and the missing-command error. The session lifecycle tests
+inject their own spec fetcher and cover spawn, attachment and teardown.
 
 ```bash
-cd packages/kobe-harness && bun run test   # test/pty-spec.test.ts covers fetchSpec directly
+cd packages/kobe-harness && bun run test
 ```
 
 ### `shift+<letter>` is pressed as the uppercase letter
