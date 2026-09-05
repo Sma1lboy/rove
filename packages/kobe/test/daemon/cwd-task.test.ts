@@ -240,3 +240,82 @@ describe("findAdoptableWorktree", () => {
     expect(findAdoptableWorktree(withRemote, wt)).toEqual({ repo: "/repo", worktreePath: wt })
   })
 })
+
+/**
+ * The daemon used to compute managed worktree roots from its OWN copy of the
+ * layout, and that copy never learned about `worktree.basePath`. A user who
+ * moved their worktree location in Settings → General got worktrees the
+ * adoption path could not see: no error, the worktree simply never became a
+ * task. Both sides now derive the roots from
+ * `@sma1lboy/kobe-daemon/daemon/worktree-paths`, so these assert the daemon
+ * reads the same setting the TUI writes.
+ */
+describe("findAdoptableWorktree honours the worktree.basePath override", () => {
+  let home: string
+  let prev: string | undefined
+
+  const writeBase = (value: string) => {
+    const dir = path.join(home, ".config", "rove")
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(path.join(dir, "state.json"), JSON.stringify({ "worktree.basePath": value }), "utf8")
+  }
+
+  beforeEach(() => {
+    prev = process.env.KOBE_HOME_DIR
+    home = mkdtempSync(path.join(tmpdir(), "rove-wt-base-"))
+    process.env.KOBE_HOME_DIR = home
+  })
+
+  afterEach(() => {
+    if (prev === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
+    else process.env.KOBE_HOME_DIR = prev
+    rmSync(home, { recursive: true, force: true })
+  })
+
+  it("adopts a worktree under an absolute custom base (the regression)", () => {
+    const base = path.join(home, "custom-worktrees")
+    writeBase(base)
+    const wt = path.join(worktreeRootFor("/repo"), "external")
+    expect(wt.startsWith(base)).toBe(true)
+    expect(findAdoptableWorktree([{ id: "main", repo: "/repo", worktreePath: "/repo" }], wt)).toEqual({
+      repo: "/repo",
+      worktreePath: wt,
+    })
+  })
+
+  it("expands a leading $project_dir against the task's own repo", () => {
+    writeBase("$project_dir/..")
+    const repo = path.join(home, "code", "proj")
+    const wt = path.join(worktreeRootFor(repo), "external")
+    // `$project_dir/..` puts the worktrees root beside the repo, not under it.
+    expect(wt.startsWith(path.join(home, "code"))).toBe(true)
+    expect(wt.startsWith(`${repo}/`)).toBe(false)
+    expect(findAdoptableWorktree([{ id: "main", repo, worktreePath: repo }], wt)).toEqual({ repo, worktreePath: wt })
+  })
+
+  it("keeps recognizing the default and legacy global roots while an override is set", () => {
+    writeBase(path.join(home, "custom-worktrees"))
+    const roots = managedWorktreeRootsFor("/repo")
+    const defaultRoot = roots.find((r) => r.startsWith(path.join(home, ".rove", "worktrees")))!
+    const legacyRoot = roots.find((r) => r.startsWith(path.join(home, ".kobe", "worktrees")))!
+    for (const root of [defaultRoot, legacyRoot]) {
+      const wt = path.join(root, "external")
+      expect(findAdoptableWorktree([{ id: "main", repo: "/repo", worktreePath: "/repo" }], wt)).toEqual({
+        repo: "/repo",
+        worktreePath: wt,
+      })
+    }
+  })
+
+  it("does not let one repo-key root prefix-match a longer sibling's", () => {
+    const base = path.join(home, "custom-worktrees")
+    writeBase(base)
+    // Two repo keys where one is a strict string prefix of the other. Matching
+    // on the bare root instead of `<root>/` would bill the shorter repo for a
+    // worktree that belongs to the longer one.
+    const shortRoot = worktreeRootFor("/repo")
+    const longRoot = `${shortRoot}extra`
+    const wt = path.join(longRoot, "external")
+    expect(findAdoptableWorktree([{ id: "main", repo: "/repo", worktreePath: "/repo" }], wt)).toBeUndefined()
+  })
+})

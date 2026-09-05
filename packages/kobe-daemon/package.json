@@ -77,6 +77,7 @@
     "./daemon/ui-prefs-watcher": "./src/daemon/ui-prefs-watcher.ts",
     "./daemon/web-server": "./src/daemon/web-server.ts",
     "./daemon/web-token": "./src/daemon/web-token.ts",
+    "./daemon/worktree-paths": "./src/daemon/worktree-paths.ts",
     "./daemon/web-session": "./src/daemon/web-session.ts",
     "./daemon/worktree-changes-collector": "./src/daemon/worktree-changes-collector.ts",
     "./daemon/worktree-probe": "./src/daemon/worktree-probe.ts",
