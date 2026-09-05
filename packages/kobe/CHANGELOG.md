@@ -1,5 +1,74 @@
 # Changelog
 
+## 0.9.155
+
+### Patch Changes
+
+- [#914](https://github.com/Sma1lboy/rove/pull/914) [`9111485`](https://github.com/Sma1lboy/rove/commit/91114855580015d049c9f9d5f6a2c6919ea487d5) Treat a blank `ROVE_*` environment variable as unset instead of as a value.
+  `VAR=` is how a shell says "unset", but `readRoveEnv` resolved the two
+  namespaces with `??`, so a defined-but-empty `ROVE_*` shadowed the real
+  `KOBE_*` beside it — and the mirror step copied the blank over it as well.
+  For `HOME_DIR` that produced `""` as the home and then state paths relative
+  to the process's cwd (the user's repository, for the TUI), in a module that
+  `renameSync`s the plugin tree; for the daemon/PTY socket and pid overrides it
+  dropped an isolated run back onto the production daemon.
+
+  An engine switched off in Settings → Engines is now also skipped by
+  `rove api add`'s repo default, and a `ui-prefs` payload from an older daemon
+  no longer turns remote panes opaque. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#918](https://github.com/Sma1lboy/rove/pull/918) [`a59eea2`](https://github.com/Sma1lboy/rove/commit/a59eea248253d7b28706ed52cf6803f5282f1dc3) Five probes that reported a neutral answer when they had actually failed.
+
+  `delete --delete-branch` discarded `git branch -d`'s exit code, so a branch git
+  refused to delete (the ordinary case for work that never landed) left the
+  daemon log confirming `removed … branch=<name>`. The refusal is now carried out
+  of the removal and logged as its own `branch kept …` line, with git's reason.
+  The delete itself is unchanged — still best-effort, still never fails the
+  removal.
+
+  "Fix failing checks" told users the checks were probably no longer red whenever
+  `gh` could not answer at all. A missing `gh`, an expired `gh auth login`, and a
+  genuinely green PR were one empty list; the read now reports which, and the
+  toast quotes `gh`'s own stderr.
+
+  Three probes stopped encoding "could not look" as "nothing there": the
+  non-force delete gate now refuses when `git status --ignored` fails instead of
+  reading the empty result as permission; `rove doctor` says
+  `could not read process environments` instead of `orphans: ✓ none` when the
+  environment probe never ran; and the three copies of the dirty-worktree check
+  share one definition, so a `git status` output of just a newline no longer
+  reads dirty to the delete gate and clean to landing. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#920](https://github.com/Sma1lboy/rove/pull/920) [`3356c76`](https://github.com/Sma1lboy/rove/commit/3356c76de83a7fed601457c457cefc77d97868dd) Stop one plugin's failure from abandoning every other plugin's shutdown hook.
+  `runPluginHook` documented itself as never rejecting, but two paths broke that:
+  the `mkdirSync` calls that create a hook's config/state dirs sat outside any
+  try, and a manifest may write a TOML `\u0000` escape into its argv, which makes
+  `spawn` throw synchronously. Either one escaped into `PluginHost.stop()`, where
+  `Promise.all` short-circuited and returned while the other plugins' hooks were
+  still running — unawaited, so the daemon's `process.exit` destroyed their grace
+  timers and left the orphaned children the method exists to prevent. The dir
+  failure is now recorded as a `spawnError` in that plugin's own `rove plugin
+log`, the contract is enforced where every hook call site goes through, and the
+  reap uses `allSettled`. Event dispatch is likewise isolated per plugin rather
+  than per batch, and the registry-reload timer — the last dispatch path with no
+  guard above it — no longer turns a throw into an uncaught daemon exception.
+
+  Docs: `[[engines]]` needs a Rove restart (only daemon-run hooks hot-reload);
+  `turn.interrupted` is TUI-emulated on Claude and Codex, so it never fires with
+  no TUI attached; `RoveRunOptions` / `RoveRunResult` are documented; the SDK's
+  socket table no longer presents instance methods as named exports;
+  `delivery.composerGate` no longer claims that turning it off removes all
+  typing protection; and `experimental.remoteProjects` says that it gates
+  `rove add --remote` alone. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#921](https://github.com/Sma1lboy/rove/pull/921) [`e29c08f`](https://github.com/Sma1lboy/rove/commit/e29c08f682779500fd6066988b9c558eb981fc53) The sidebar spoke twenty glyphs; now it speaks four. Every tab row is one of: spinner (working), `!` (needs you — permission, rate limit, error, dead engine, failed deletion, in one red mark), `●` (finished, unread), `○` (quiet — idle, unobserved, shell tab, untracked engine). The right-edge cluster keeps `↑ + − ↓` and one PR mark (`≠` conflict, `✗` failing, `✓` passing, in that priority); the review-state, pending, merged, and board-status chips are gone, since none of them changed what you did next. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#915](https://github.com/Sma1lboy/rove/pull/915) [`b7d44ac`](https://github.com/Sma1lboy/rove/commit/b7d44ac8147a40996444102dcc617249d1bc75f2) Clear terminal search and selection when switching sessions so a previous tab's query cannot capture input intended for the new tab. Keep the original terminal process and buffered output when returning to a tab. Route pasted text into the focused scrollback query while search is open, and restore normal terminal paste when it closes. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#917](https://github.com/Sma1lboy/rove/pull/917) [`cad0194`](https://github.com/Sma1lboy/rove/commit/cad0194c27cc616b75e6ffaf9d1cc7fb80dec2ac) Keep file previews tied to the selected path. Filenames containing brackets, wildcards, or leading pathspec syntax now open only their own diff, including after a rename.
+
+  Show pure renames and empty-file additions or deletions in both single-file and combined diffs. Missing or unreadable text files report an error with the existing retry action, while valid empty files say so. Switching previews shows loading until that path's result arrives instead of displaying the previous file under the new title. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.154
 
 ### Patch Changes
