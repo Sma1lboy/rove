@@ -461,6 +461,8 @@ export class DaemonActivityRegistry {
   }
 
   private publishIdle(taskId: string): void {
+    const previous = this.activity.get(taskId)
+    if (previous?.lapse) clearTimeout(previous.lapse)
     const entry: ActivityEntry = { state: "idle", at: this.now() }
     this.activity.set(taskId, entry)
     this.bus.publish("engine-state", this.payload(taskId, entry))

@@ -310,6 +310,7 @@ describe("activity registry liveness watchdog", () => {
       await vi.advanceTimersByTimeAsync(TTL)
       if (evidence === "death") registry.recordEngineDeath("t", "tab-1", { code: 1 }, Date.now())
       else registry.observeTab("t", "tab-1", "rest", { correctHookRunningAfterMs: 0 })
+      expect(vi.getTimerCount()).toBe(0)
       await vi.advanceTimersByTimeAsync(TTL * 2)
       expect(registry.currentNonIdle().some((entry) => entry.state === "running")).toBe(false)
     },
