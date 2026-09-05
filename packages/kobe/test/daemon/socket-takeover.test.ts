@@ -10,7 +10,7 @@
 
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { unlink } from "node:fs/promises"
-import type { Server } from "node:net"
+import { type Server, createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
@@ -57,19 +57,33 @@ function tempDaemonDir(prefix: string): {
   }
 }
 
+async function bindForeignSocket(socketPath: string, pidPath: string) {
+  const server = createServer((socket) => {
+    socket.on("data", (chunk) => {
+      for (const line of chunk.toString().trim().split("\n")) {
+        const request = JSON.parse(line)
+        socket.write(`${JSON.stringify({ type: "response", id: request.id, name: request.name, payload: {} })}\n`)
+      }
+    })
+  })
+  await new Promise<void>((resolve) => server.listen(socketPath, resolve))
+  writeFileSync(pidPath, `${process.pid}\n`)
+  return { close: () => new Promise<void>((resolve) => server.close(() => resolve())) }
+}
+
 describe("daemon socket takeover guard", () => {
   it("refuses to boot onto a socket a live daemon is serving, leaving the incumbent intact", async () => {
     const h = await bootDaemonHarness()
     try {
       await expect(
-        startDaemonServer(fakeOrchestrator(), {
+        startDaemonServer(() => fakeOrchestrator(), {
           runtime: daemonRuntime,
           socketPath: h.socketPath,
           pidPath: `${h.pidPath}.usurper`,
           homeDir: h.dir,
           ...ZERO_POLLS,
         }),
-      ).rejects.toThrow(/already serving/)
+      ).rejects.toThrow(/exclusive ownership/)
       // The incumbent's socket file was NOT unlinked — it still answers.
       const status = await h.client().request<Record<string, unknown>>("daemon.status")
       expect(status).toBeTruthy()
@@ -86,7 +100,7 @@ describe("daemon socket takeover guard", () => {
     const { socketPath, pidPath, base, cleanup } = tempDaemonDir("kobe-sock-tko-")
     try {
       let stopped = false
-      const incumbent = await startDaemonServer(fakeOrchestrator(), {
+      const incumbent = await startDaemonServer(() => fakeOrchestrator(), {
         ...base,
         socketWatchMs: 25,
         onStop: async () => {
@@ -94,7 +108,7 @@ describe("daemon socket takeover guard", () => {
         },
       })
       await unlink(socketPath)
-      const usurper = await startDaemonServer(fakeOrchestrator(), { ...base, socketWatchMs: 0 })
+      const usurper = await bindForeignSocket(socketPath, pidPath)
       expect(await waitFor(() => stopped, 3000)).toBe(true)
       // The superseded daemon's shutdown left the new owner fully intact.
       expect(await waitFor(() => existsSync(socketPath), 3000)).toBe(true)
@@ -113,9 +127,9 @@ describe("daemon socket takeover guard", () => {
   it("shutdown cleanup leaves a socket it no longer owns untouched, but still cleans an owned one", async () => {
     const { socketPath, pidPath, base, cleanup } = tempDaemonDir("kobe-sock-own-")
     try {
-      const superseded = await startDaemonServer(fakeOrchestrator(), { ...base, socketWatchMs: 0 })
+      const superseded = await startDaemonServer(() => fakeOrchestrator(), { ...base, socketWatchMs: 0 })
       await unlink(socketPath)
-      const owner = await startDaemonServer(fakeOrchestrator(), { ...base, socketWatchMs: 0 })
+      const owner = await bindForeignSocket(socketPath, pidPath)
       await superseded.close()
       // The late close of the superseded daemon deleted NOTHING of the owner's.
       expect(existsSync(socketPath)).toBe(true)
@@ -126,6 +140,8 @@ describe("daemon socket takeover guard", () => {
       probe.close()
       // A daemon that still owns its socket cleans up like always.
       await owner.close()
+      const next = await startDaemonServer(fakeOrchestrator, base)
+      await next.close()
       expect(existsSync(socketPath)).toBe(false)
       expect(existsSync(pidPath)).toBe(false)
     } finally {
@@ -196,7 +212,7 @@ describe("daemon socket takeover guard", () => {
     const socketPath = join(dir, "daemon.sock")
     writeFileSync(socketPath, "") // dead leftover: connect() fails, not a live owner
     try {
-      const server = await startDaemonServer(fakeOrchestrator(), {
+      const server = await startDaemonServer(() => fakeOrchestrator(), {
         runtime: daemonRuntime,
         socketPath,
         pidPath: join(dir, "daemon.pid"),

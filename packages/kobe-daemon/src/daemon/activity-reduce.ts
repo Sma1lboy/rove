@@ -123,11 +123,25 @@ export function resolveEngineStateTtlMs(): number {
  * the spinner never stopped. A completion at/after the last write means the
  * last thing that happened WAS the turn ending, so the badge must drop.
  */
-export interface ActivityLiveness {
-  /** Newest transcript mtime (epoch ms), or undefined when unknown. */
-  readonly mtimeMs?: number
-  /** Newest turn-completion marker timestamp (epoch ms), if any. */
-  readonly completedAt?: number
+export type ActivityLiveness =
+  | { readonly unknown: true; readonly mtimeMs?: never; readonly completedAt?: never }
+  | {
+      readonly unknown?: false
+      readonly mtimeMs?: number
+      readonly completedAt?: number
+    }
+
+/** Own completion wins over writes; an unreadable session preserves the last running claim. */
+export function activityStillWorking(
+  live: ActivityLiveness | undefined,
+  at: number,
+  now: number,
+  staleMs: number,
+): boolean {
+  if (!live) return false
+  if (live.unknown) return true
+  if (live.completedAt !== undefined && live.completedAt >= at) return false
+  return live.mtimeMs !== undefined && live.mtimeMs > now - staleMs
 }
 
 /**

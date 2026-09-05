@@ -82,6 +82,7 @@ async function connect(): Promise<KobeDaemonClient> {
 
 interface ListRow {
   key: string
+  generation?: string
   alive: boolean
   restored?: boolean
   exit?: PtySessionExit | null
@@ -116,6 +117,48 @@ describe("pty-host server freeze/restore across a restart", () => {
     })
     expect(reattached).toMatchObject({ alive: true, created: false, respawned: true })
     expect(Buffer.from(reattached.replay, "base64").toString("utf8")).toContain("scene-of-the-work")
+  })
+
+  it("guards an old inventory against kill/reopen, reattach and host restart", async () => {
+    await bootHost()
+    const a = await connect()
+    const key = "aba::tab-1"
+    const spec = { key, cwd: "/wt/aba", command: ["/bin/cat"] }
+    const generation = async (client: KobeDaemonClient) =>
+      (await client.request<{ sessions: ListRow[] }>("pty.list")).sessions[0]?.generation
+    await a.request("pty.open", spec)
+    const first = await generation(a)
+    expect(first).toEqual(expect.any(String))
+    await a.request("pty.detach", { key })
+    await a.request("pty.open", spec)
+    expect(await generation(a)).toBe(first)
+    await a.request("pty.kill", { key })
+    await a.request("pty.open", spec)
+    const second = await generation(a)
+    expect(second).not.toBe(first)
+    expect(await a.request("pty.kill", { key, expectedGeneration: first })).toEqual({
+      killed: false,
+      reason: "generation-mismatch",
+    })
+    expect(await generation(a)).toBe(second)
+    await servers.splice(0)[0].close()
+    a.close()
+    await bootHost()
+    const b = await connect()
+    const restored = await generation(b)
+    expect(restored).not.toBe(second)
+    await b.request("pty.open", spec)
+    const respawned = await generation(b)
+    expect(respawned).not.toBe(restored)
+    expect(await b.request("pty.kill", { key, expectedGeneration: restored })).toEqual({
+      killed: false,
+      reason: "generation-mismatch",
+    })
+    expect(await b.request("pty.kill", { key, expectedGeneration: respawned })).toEqual({ killed: true })
+    expect(await b.request("pty.kill", { key, expectedGeneration: respawned })).toEqual({
+      killed: false,
+      reason: "missing-session",
+    })
   })
 
   it("daemon.stop (rove reset) WIPES the freeze store — the next host comes up empty", async () => {

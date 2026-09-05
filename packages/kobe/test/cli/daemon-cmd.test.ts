@@ -173,17 +173,24 @@ describe("kobe daemon start", () => {
       close: vi.fn(),
     }
     mocks.createKobeCore.mockResolvedValue(core)
-    mocks.startDaemonServer.mockResolvedValue({ socketPath: "/tmp/x.sock", close: vi.fn() })
+    mocks.startDaemonServer.mockImplementation(async (create: () => Promise<unknown>) => {
+      expect(mocks.createKobeCore).not.toHaveBeenCalled()
+      expect(await create()).toBe(core.orchestrator)
+      return { socketPath: "/tmp/x.sock", close: vi.fn() }
+    })
 
     await runDaemonSubcommand(["start"])
 
     expect(mocks.installDaemonCrashHandlers).toHaveBeenCalledTimes(1)
-    expect(mocks.startDaemonServer).toHaveBeenCalledWith(core.orchestrator, expect.objectContaining({ homeDir: home }))
+    expect(mocks.startDaemonServer).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ socketPath: expect.any(String) }),
+    )
     expect(output()).toContain("listening on /tmp/x.sock")
   })
 
   it("refuses to migrate stores while another daemon still owns the socket", async () => {
-    mocks.probeDaemonSocket.mockResolvedValue("alive")
+    mocks.startDaemonServer.mockRejectedValue(new Error("daemon still owns home"))
     await expect(runDaemonSubcommand(["start"])).rejects.toThrow("daemon still owns")
     expect(mocks.createKobeCore).not.toHaveBeenCalled()
   })

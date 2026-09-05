@@ -11,8 +11,10 @@ import { existsSync } from "node:fs"
 import { rename, rm } from "node:fs/promises"
 import { basename, delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import { logDaemonInfo } from "../daemon/crash-log.ts"
 import { isProcessAlive, stopDaemonProcess } from "../daemon/lifecycle.ts"
 import { defaultPtyHostLogPath, defaultPtyHostPidPath, defaultPtyHostSocketPath } from "../daemon/paths.ts"
+import type { PtySessionInfo } from "../daemon/pty-observability.ts"
 import { readPidFile } from "../daemon/socket-guard.ts"
 import { resolveKobeSpawn, spawnDetachedDaemon, testDaemonResponds } from "./daemon-process.ts"
 import { KobeDaemonClient } from "./index.ts"
@@ -242,47 +244,54 @@ export async function ensurePtyHostReachable(): Promise<string> {
   throw new Error(`rove: pty host did not start (or stayed wedged) at ${socketPath}`)
 }
 
-/**
- * Fire-and-forget janitor call from the daemon: kill hosted sessions
- * whose task is gone. NEVER spawns a host (nothing to sweep if
- * none is running) and never throws — the task snapshot path must not
- * fail on pty-host hiccups.
- *
- * `homeDir` MUST be the calling daemon's own home. A daemon that resolves
- * the ambient default while running against a non-default home (the
- * test:socket suite's temp-home daemons) sweeps the REAL user pty-host
- * with ITS task list — a fake orchestrator's empty snapshot then kills
- * every live engine session on the machine, so a plain `bun run test` wipes
- * the user's running engine tabs.
- */
-export async function sweepPtyHostSessions(liveTaskIds: readonly string[], homeDir?: string): Promise<void> {
-  const socketPath = defaultPtyHostSocketPath(homeDir)
-  const client = new KobeDaemonClient(socketPath)
+/** Observe sessions before consulting current tasks; never send a captured negative task list. */
+export async function sweepPtyHostSessions(
+  liveTaskIds: () => readonly string[] | null,
+  homeDir?: string,
+): Promise<void> {
+  const client = new KobeDaemonClient(defaultPtyHostSocketPath(homeDir))
   try {
     await client.connect()
-    await client.request("pty.sweep", { liveTaskIds })
+    const { sessions } = await client.request<{ sessions: PtySessionInfo[] }>("pty.list")
+    let currentTasks: Set<string> | undefined
+    for (const session of sessions) {
+      if (!currentTasks) {
+        const ids = liveTaskIds()
+        if (ids === null) return // daemon shutdown supersedes pending observations
+        currentTasks = new Set(ids)
+      }
+      if (currentTasks.has(session.key.split("::")[0] ?? session.key)) continue
+      if (!session.generation) {
+        logDaemonInfo(
+          "pty-sweep",
+          `skipped ${session.key}: host has no session generation; restart it when sessions can be interrupted`,
+        )
+        continue
+      }
+      await client.request("pty.kill", { key: session.key, expectedGeneration: session.generation })
+      currentTasks = undefined // refresh only after yielding to another task mutation
+    }
   } catch {
-    /* no host running (or mid-exit) — nothing to sweep */
+    // An unavailable host is not permission to retry a destructive request.
   } finally {
     client.close()
   }
 }
 
-/**
- * Does the pty host still own a live (child not yet exited) session? The
- * daemon's `PtyLiveHold` keep-alive probe. NEVER spawns a host and never
- * throws: unreachable means no sessions worth staying up for. Same homeDir
- * contract as `sweepPtyHostSessions` above — a temp-home daemon must probe
- * its own pty host, not the real user's.
- */
-export async function ptyHostHasLiveSessions(homeDir?: string): Promise<boolean> {
+/** true/false are observed session state; null means the host could not be read. Never spawns. */
+export async function ptyHostHasLiveSessions(homeDir?: string): Promise<boolean | null> {
   const client = new KobeDaemonClient(defaultPtyHostSocketPath(homeDir))
   try {
     await client.connect()
     const result = await client.request<{ sessions?: Array<{ alive?: boolean }> }>("pty.list")
-    return result.sessions?.some((s) => s.alive === true) ?? false
-  } catch {
-    return false
+    if (!Array.isArray(result.sessions) || result.sessions.some((s) => typeof s.alive !== "boolean")) return null
+    return result.sessions.some((s) => s.alive)
+  } catch (err) {
+    if (err instanceof Error && "code" in err && (err.code === "ENOENT" || err.code === "ECONNREFUSED")) {
+      const pid = await readPidFile(defaultPtyHostPidPath(homeDir))
+      return pid !== null && isProcessAlive(pid) ? null : false
+    }
+    return null
   } finally {
     client.close()
   }

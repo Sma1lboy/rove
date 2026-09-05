@@ -5,6 +5,7 @@ import {
   type ActivityLivenessProbe,
   type EngineSessionInfo,
   STICKY_STATES,
+  activityStillWorking,
   reduceActivity,
   resolveEngineStateTtlMs,
 } from "./activity-reduce.ts"
@@ -41,6 +42,8 @@ interface ActivityEntry {
   /** The reporting engine's id (hook `--engine`) — what the liveness probe
    *  asks about. Carried forward like `session`. */
   vendor?: string
+  /** Exact tab report that owns this rollup; inherited session paths are not ownership. */
+  sourceHook?: TabHookEntry
   lapse?: ReturnType<typeof setTimeout>
 }
 
@@ -129,12 +132,13 @@ export class DaemonActivityRegistry {
     if (prev?.lapse) clearTimeout(prev.lapse)
     const state = reduceActivity(prev?.state, kind, detail)
     const at = this.now()
+    const lineage = tabId ? this.tabActivity.get(taskId)?.get(tabId)?.hook : prev
     const entry: ActivityEntry = {
       state,
       detail,
       at,
-      session: session ?? prev?.session,
-      vendor: vendor ?? prev?.vendor,
+      session: session ?? lineage?.session,
+      vendor: vendor ?? lineage?.vendor,
     }
     // Safety net: only `running` is policed by the lapse watchdog — a missed
     // Stop/SessionEnd must not pin it forever, so it lapses to idle once the
@@ -167,6 +171,7 @@ export class DaemonActivityRegistry {
         tabs.delete(tabId)
       } else {
         const hook: TabHookEntry = { state, detail, at, session: tabSession, vendor: tabVendor }
+        entry.sourceHook = hook
         if (!STICKY_STATES.has(state)) hook.lapse = this.armLapse({ taskId, tabId }, at)
         tabs.set(tabId, {
           hook,
@@ -187,34 +192,13 @@ export class DaemonActivityRegistry {
   }
 
   /** Probe wrapper: a best-effort filesystem read must never crash the daemon,
-   *  and a failure reads as "silent" ⇒ lapse. */
+   *  and a failed read of an identified session stays unknown. */
   private async probe(taskId: string, vendor?: string, transcriptPath?: string): Promise<ActivityLiveness | undefined> {
     try {
       return await this.livenessAt(taskId, vendor, transcriptPath)
     } catch {
-      return undefined
+      return transcriptPath ? { unknown: true } : undefined
     }
-  }
-
-  /**
-   * Is the engine still mid-turn? THE single definition behind both lapse
-   * watchdogs (task + tab), deliberately shared so the two cannot drift.
-   *
-   * A fresh transcript write means "the engine is alive", which is NOT "the
-   * turn is still running". An engine parked at its prompt waiting for the
-   * user keeps touching its transcript, so reading the two as one claim makes
-   * every lapse re-arm after a missed Stop and the spinner spin forever.
-   *
-   * A completion marker at/after the turn started settles it — the last
-   * thing that happened WAS this turn ending, so stop re-arming regardless
-   * of how recent the writes are. Only with no such marker does a fresh
-   * write keep the badge lit, which is the long-single-turn case the
-   * heartbeat exists for.
-   */
-  private stillWorking(live: ActivityLiveness | undefined, at: number): boolean {
-    if (!live) return false
-    if (live.completedAt !== undefined && live.completedAt >= at) return false
-    return live.mtimeMs !== undefined && live.mtimeMs > this.now() - this.staleMs
   }
 
   /**
@@ -242,7 +226,7 @@ export class DaemonActivityRegistry {
    * Lapse-timer callback. Never throws. Guards against the entry changing
    * across the async probe: a `report()` / `clearTask()` / `close()` that runs
    * before OR during the probe supersedes this lapse (re-read the map and
-   * confirm the same `at` both before and after the await). A rescheduled
+   * confirm the same entry identity after the await). A rescheduled
    * lapse is stored back on the live entry, so a later event can cancel it.
    *
    * One implementation covers both the task-level rollup and the per-tab hook
@@ -260,9 +244,9 @@ export class DaemonActivityRegistry {
     // while the probe was in flight. Acting on a stale `at` would clobber a
     // newer state or resurrect a cleared task.
     const cur = this.lapseEntry(target)
-    if (!cur || cur.at !== at) return
+    if (cur !== before) return
 
-    if (this.stillWorking(live, at)) {
+    if (activityStillWorking(live, at, this.now(), this.staleMs)) {
       cur.lapse = this.armLapse(target, at)
       return
     }
@@ -346,6 +330,7 @@ export class DaemonActivityRegistry {
     this.tabActivity.set(taskId, tabs)
     this.bus.publish("engine-state", this.payload(taskId, effective, tabId))
 
+    if (effective.source === "observed" && effective.state === "idle") this.clearHookRollup(taskId, entry?.hook)
     if (effective.source === "hook") return "noop" // the observation lost arbitration
     if (effective.state === "running") return "observed-running"
     return prev?.source === "hook" ? "corrected-hook-running" : "observed-idle"
@@ -401,7 +386,15 @@ export class DaemonActivityRegistry {
     if (!effective) return
     tabs.set(tabId, { hook, ...(prev?.observed ? { observed: prev.observed } : {}), effective })
     this.tabActivity.set(taskId, tabs)
+    this.clearHookRollup(taskId, prev?.hook)
     this.bus.publish("engine-state", this.payload(taskId, effective, tabId))
+  }
+
+  private clearHookRollup(taskId: string, hook: TabHookEntry | undefined): void {
+    const current = this.activity.get(taskId)
+    if (current?.state === "running" && hook && current.sourceHook === hook) {
+      this.publishIdle(taskId)
+    }
   }
 
   clearTask(taskId: string): void {
@@ -468,6 +461,8 @@ export class DaemonActivityRegistry {
   }
 
   private publishIdle(taskId: string): void {
+    const previous = this.activity.get(taskId)
+    if (previous?.lapse) clearTimeout(previous.lapse)
     const entry: ActivityEntry = { state: "idle", at: this.now() }
     this.activity.set(taskId, entry)
     this.bus.publish("engine-state", this.payload(taskId, entry))

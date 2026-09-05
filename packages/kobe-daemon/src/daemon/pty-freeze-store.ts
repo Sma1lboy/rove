@@ -27,6 +27,7 @@
  * contract); a bare SIGTERM / crash / reboot leaves it for the next host.
  */
 
+import { randomUUID } from "node:crypto"
 import { chmodSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { StringDecoder } from "node:string_decoder"
@@ -124,6 +125,7 @@ export function thawSession(record: FrozenPtySession, cap: number): PtySessionSt
   if (!ring) return null
   return {
     key: record.key,
+    generation: randomUUID(),
     cwd: record.cwd,
     proc: null,
     alive: false,

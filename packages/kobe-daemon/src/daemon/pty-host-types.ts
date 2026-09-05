@@ -2,6 +2,7 @@
  *  it sends the host without importing the host itself — behavior and
  *  ownership stay there; this is only the vocabulary. */
 
+import { randomUUID } from "node:crypto"
 import { StringDecoder } from "node:string_decoder"
 import type { DaemonFrame, PtySessionExit } from "./protocol.ts"
 import type { PtyChild, PtyDriver } from "./pty-driver.ts"
@@ -55,6 +56,7 @@ export type PtySink = (frame: DaemonFrame) => void
 export interface PtySessionState {
   /** Mutable: warm-shell adoption re-keys the spare under the opener's key. */
   key: string
+  generation: string
   readonly cwd: string
   proc: PtyChild | null
   alive: boolean
@@ -136,6 +138,7 @@ export interface PtyHostOptions {
 export function freshSessionState(key: string, spec: PtySpawnSpec, argv: readonly string[]): PtySessionState {
   return {
     key,
+    generation: randomUUID(),
     cwd: spec.cwd,
     proc: null,
     alive: true,

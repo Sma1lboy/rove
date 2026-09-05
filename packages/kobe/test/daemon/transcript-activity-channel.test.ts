@@ -82,7 +82,7 @@ describe("transcript.activity channel (daemon → client)", () => {
   })
 
   it("advertises transcript.activity in hello.capabilities", async () => {
-    server = await startDaemonServer(fakeOrchestrator(dir), {
+    server = await startDaemonServer(() => fakeOrchestrator(dir), {
       runtime: daemonRuntime,
       socketPath,
       pidPath,
@@ -103,7 +103,7 @@ describe("transcript.activity channel (daemon → client)", () => {
   })
 
   it("replays the collector's last value to a late subscriber", async () => {
-    server = await startDaemonServer(fakeOrchestrator(dir), {
+    server = await startDaemonServer(() => fakeOrchestrator(dir), {
       runtime: daemonRuntime,
       socketPath,
       pidPath,
@@ -144,7 +144,7 @@ describe("transcript.activity channel (daemon → client)", () => {
   })
 
   it("publishes nothing until a subscriber exists (hasSubscribers gate)", async () => {
-    server = await startDaemonServer(fakeOrchestrator(dir), {
+    server = await startDaemonServer(() => fakeOrchestrator(dir), {
       runtime: daemonRuntime,
       socketPath,
       pidPath,

@@ -233,12 +233,46 @@ TUI may show any task at any time.
 > do) and two daemons serve one state root, invisible to each other: their task
 > lists diverge permanently, `ensureMainTask` writes the project-main row
 > twice, and `automations.json` and `.config/rove/state.json` race as well — so
-> a lock around the task index would not have been enough. `home-owner.ts`
-> claims the home in `<home>/.rove/daemon.owner` as `pid:socketPath`; a boot
-> that finds a claim naming a DIFFERENT socket asks that socket whether anyone
-> still answers there, and refuses with the incumbent's path if so. Liveness is
-> the socket, not the pid — pids get reused, and a crashed daemon's claim is
-> then simply overwritten rather than needing a sweep.
+> a lock around the task index would not have been enough. Before calling the
+> orchestrator factory, `home-owner.ts` acquires an exclusive SQLite transaction
+> on `<home>/.rove/daemon.owner.lock`. The lease covers migration, core/store
+> initialization, serving requests, and shutdown. Concurrent starts on different
+> sockets for the same home cannot both enter the factory. Different homes have
+> independent leases.
+>
+> The lock database contains no application data and is never unlinked or
+> replaced: the inode must stay stable for exclusion to work. SQLite releases
+> the operating-system lock on process death, so a killed owner needs no stale
+> lock timeout. This supports local filesystems, like the Unix socket transport;
+> a shared network filesystem is not a supported daemon home.
+>
+> `<home>/.rove/daemon.owner` retains the legacy `pid:socketPath` format. A new
+> daemon holding the lease still checks this record and both relevant sockets.
+> A responding or wedged socket, or a recorded PID that remains alive, refuses
+> takeover: an old daemon does not participate in the SQLite lock. PID reuse
+> can therefore require operator reconciliation of a stale record; uncertainty
+> does not authorize a second writer.
+>
+> Shutdown first stops accepting work, then cancels further collector passes
+> and drains admitted requests, deletion work, and background writes. The
+> activity observer cancels effects after pending inventory/process reads and
+> waits for protocol upgrades and engine-death persistence already started.
+> Core disposal runs before the home lease is released. Failed bootstrap uses
+> the same cleanup path, and a throwing cleanup does not skip later releases.
+>
+> **Session-scoped liveness:** a running hook with a transcript path may only
+> be completed by evidence belonging to that session. Marker-capable engines
+> are queried through `latestActivityInFile`; null or a failed read means
+> unknown, never a fallback to another session's worktree-wide Stop marker.
+> Without marker support, the daemon probes only that file's mtime. Missing or
+> unreadable files remain unknown. With no transcript path, the existing
+> worktree-wide lookup remains available for compatibility.
+>
+> Unknown preserves the current running claim until its own hook, observer
+> evidence, or death signal resolves it; it cannot carry a completion timestamp.
+> A same-session terminal signal clears its task rollup too, while a sibling
+> or superseded session cannot clear a newer running claim. This intentionally
+> retains uncertainty when an older adapter cannot read the identified session.
 
 ```bash
 $ kobed start            # binds ~/.kobe/daemon.sock, writes pidfile

@@ -63,7 +63,7 @@ describe("keybindings channel (daemon → client round-trip)", () => {
   })
 
   it("delivers an initial rev, then bumps it when keybindings.yaml changes", async () => {
-    server = await startDaemonServer(fakeOrchestrator(), {
+    server = await startDaemonServer(() => fakeOrchestrator(), {
       runtime: daemonRuntime,
       socketPath,
       pidPath,
