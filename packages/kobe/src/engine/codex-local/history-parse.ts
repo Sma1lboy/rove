@@ -23,7 +23,7 @@ import { codexUsageToSnapshot } from "./usage"
 
 interface CodexParseState {
   /** `response_item` messages in file order (pre-sort). */
-  readonly messages: Message[]
+  readonly messages: readonly Message[]
   /** Winning usage snapshot so far (token_count / turn.completed). */
   readonly latestUsage: EngineUsageSnapshot | undefined
   /** Timestamp (epoch ms) of that snapshot, when it carried one. */
@@ -49,7 +49,7 @@ export function parseRolloutRaw(filePath: string, raw: string, sessionId: string
 }
 
 /** Uncached message-only parse. Exported for unit testing. */
-export function parseJsonl(raw: string, sessionId: string): Message[] {
+export function parseJsonl(raw: string, sessionId: string): readonly Message[] {
   return foldRolloutChunk(raw, emptyState, sessionId).messages
 }
 
@@ -61,7 +61,11 @@ export function deriveCodexUsageMetrics(raw: string): EngineUsageSnapshot | unde
 
 /** Fold rollout lines onto `prev` without mutating it (cache contract). */
 function foldRolloutChunk(chunk: string, prev: CodexParseState, sessionId: string): CodexParseState {
-  const messages = prev.messages.slice()
+  let updatedMessages: Message[] | undefined
+  const writableMessages = () => {
+    updatedMessages ??= [...prev.messages]
+    return updatedMessages
+  }
   let latestUsage = prev.latestUsage
   let latestUsageTimestampMs = prev.latestUsageTimestampMs
 
@@ -82,7 +86,7 @@ function foldRolloutChunk(chunk: string, prev: CodexParseState, sessionId: strin
       if (!payload) continue
       const ts = typeof parsed.timestamp === "string" ? parsed.timestamp : new Date().toISOString()
       const msg = normalizeCodexResponseItem(payload, ts, sessionId)
-      if (msg) messages.push(msg)
+      if (msg) writableMessages().push(msg)
       continue
     }
 
@@ -103,7 +107,13 @@ function foldRolloutChunk(chunk: string, prev: CodexParseState, sessionId: strin
     // record that follows the turn's response_items, so the nearest preceding
     // assistant message in file order owns it. Replace (not mutate) the entry to
     // honor the append cache's immutable-object contract.
-    stampLastUsageOnLastAssistant(messages, usageFields.lastUsage)
+    const lastUsage = usageFields.lastUsage && codexLastUsageToMessageUsage(usageFields.lastUsage)
+    if (lastUsage) {
+      const messages = updatedMessages ?? prev.messages
+      const index = messages.findLastIndex((message) => message.role === "assistant")
+      const message = messages[index]
+      if (message) writableMessages()[index] = { ...message, usage: lastUsage }
+    }
     const timestampMs = typeof parsed.timestamp === "string" ? parseTimestampMs(parsed.timestamp) : null
     if (timestampMs !== null && (latestUsageTimestampMs === null || timestampMs > latestUsageTimestampMs)) {
       latestUsageTimestampMs = timestampMs
@@ -118,7 +128,7 @@ function foldRolloutChunk(chunk: string, prev: CodexParseState, sessionId: strin
     }
   }
 
-  return { messages, latestUsage, latestUsageTimestampMs }
+  return { messages: updatedMessages ?? prev.messages, latestUsage, latestUsageTimestampMs }
 }
 
 /** A usage record's token fields plus the model context window it reported. */
@@ -161,24 +171,6 @@ function codexUsageFields(parsed: Record<string, unknown>): CodexUsageFields | u
     return usage ? { usage, lastUsage: usage, contextWindow: undefined } : undefined
   }
   return undefined
-}
-
-/**
- * Stamp a token_count's per-turn usage onto the most recent assistant message
- * so the History panel's per-message token sum reflects codex. Rebuilds that
- * one entry as a NEW object (never mutates) to keep the append-parse cache's
- * shared-prefix contract sound. No-op when there's no assistant message yet or
- * the record carried no usable last-turn usage.
- */
-function stampLastUsageOnLastAssistant(messages: Message[], lastUsage: Record<string, unknown> | undefined): void {
-  if (!lastUsage) return
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i]
-    if (msg?.role !== "assistant") continue
-    const usage = codexLastUsageToMessageUsage(lastUsage)
-    if (usage) messages[i] = { ...msg, usage }
-    return
-  }
 }
 
 /** Map codex `last_token_usage` (a TokenUsage) to the neutral `Message.usage`

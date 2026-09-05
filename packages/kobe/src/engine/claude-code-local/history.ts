@@ -182,7 +182,7 @@ export async function latestTranscriptMtimeForWorktree(worktree: string): Promis
  * identities (see ./history-parse), so the polling chat pane doesn't churn
  * row identity — a rewrite/truncation falls back to a full re-parse.
  */
-export async function readHistory(sessionId: string, deps: HistoryDeps = defaultDeps): Promise<Message[]> {
+export async function readHistory(sessionId: string, deps: HistoryDeps = defaultDeps): Promise<readonly Message[]> {
   const root = deps.projectsDir()
   const projectDirs = await deps.readdir(root)
 

@@ -85,3 +85,24 @@ describe("supportsStructuredHistory", () => {
     expect(supportsStructuredHistory("copilot")).toBe(true)
   })
 })
+
+it("finds the newest Kimi activity with one index read and one stat per matching stream", async () => {
+  const { latestTranscriptMtimeForWorktree } = await import("../../src/engine/kimi-local/history")
+  const d = deps(INDEX, { [wire("session_a")]: 200, [wire("session_b")]: 100 })
+  let reads = 0
+  let stats = 0
+  const counted = {
+    ...d,
+    readFile: async (p: string) => {
+      reads++
+      return d.readFile(p)
+    },
+    stat: async (p: string) => {
+      stats++
+      return d.stat(p)
+    },
+  }
+  expect(await latestTranscriptMtimeForWorktree("/wt", counted)).toBe(200)
+  expect(reads).toBe(1)
+  expect(stats).toBe(2)
+})

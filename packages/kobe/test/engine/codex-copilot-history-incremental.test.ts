@@ -18,7 +18,7 @@ import {
  * codex and copilot readers: (a) already-seen messages keep object identity
  * when the file only appended, (b) output stays identical to a full re-parse,
  * falling back on rewrite/truncation, and (c) copilot's cross-line fold state
- * (session.start id, tool-name map, usage) survives the cache boundary.
+ * (session.start id and usage) survives the cache boundary.
  */
 
 // ---------------------------------------------------------------- codex ----
@@ -128,7 +128,7 @@ describe("codex readHistory append-aware cache", () => {
     set(`${l1}\n${codexTurn(10)}\n${codexTurn(30)}\n`)
     const second = await readCodexHistoryWithMetrics(CODEX_UUID, deps)
     expect(second.usageMetrics).toEqual({ input_tokens: 0, output_tokens: 30 })
-    expect(second.messages[0]).toBe(first.messages[0])
+    expect(second.messages).toBe(first.messages)
   })
 })
 
@@ -225,6 +225,6 @@ describe("copilot readHistory append-aware cache", () => {
     set(`${l1}\n${shutdown}\n`)
     const second = await readCopilotHistoryWithMetrics("sess1", deps)
     expect(second.usageMetrics).toEqual({ input_tokens: 5, output_tokens: 7 })
-    expect(second.messages[0]).toBe(first.messages[0])
+    expect(second.messages).toBe(first.messages)
   })
 })
