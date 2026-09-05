@@ -146,6 +146,14 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
   target replaces the older one, and starting a new turn clears it.
   A rate-limited item also names when its automatic resume is due
   (`resumes 3:14 PM`), so you can tell a wait from a dead end.
+  A **queued message** — one the delivery guard held instead of pasting into a
+  composer that was busy — names its sender, which check held it, and how long
+  the daemon keeps the text: `from kobe · composer had text · expires in 23h`.
+  `enter` releases it (the guard runs again, so it stays queued if you are
+  still typing) and `d` sets it aside, after a confirm. Setting one aside is
+  recoverable for the rest of that 24h with
+  `rove api deferred-release --id`; `deferred-list --include-dismissed` finds
+  the id.
 - **RECENT.** The last handful of tabs you visited, most recent first. These
   aren't pending work, just jump targets; a spinner marks the ones still
   running.
@@ -153,8 +161,9 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 `enter` opens the task and, when the episode names one, its exact tab; a
 task-level episode leaves that task's current tab active. It also clears the
 item. `d` clears without navigating (ATTENTION rows only; RECENT rows have
-nothing to drop). You rarely need `d`: **visiting a target clears its item
-anyway**, since visiting any tab resolves a task-level episode, and stale items
+nothing to drop) — it asks first on a queued message, the one row where the
+keystroke would set aside work somebody sent. You rarely need `d`: **visiting
+a target clears its item anyway**, since visiting any tab resolves a task-level episode, and stale items
 whose tab or task is gone get cleaned up in the background.
 
 `F7` jumps straight to the oldest pending item across **all** projects,

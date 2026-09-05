@@ -7,6 +7,7 @@
  * delivery and clean up the Inbox pointer.
  */
 
+import { deferredPromptSender } from "./deferred-prompt-sender.ts"
 import { sweepExpiredDeferredPrompts } from "./deferred-prompt-sweep.ts"
 import {
   DEFERRED_PROMPT_TTL_MS,
@@ -29,7 +30,10 @@ function deferredPromptInput(payload: Record<string, unknown>): DeferredPromptIn
   if (layer !== "recent-human-write" && layer !== "composer-not-empty") {
     throw new Error('layer must be "recent-human-write" or "composer-not-empty"')
   }
-  const senderLabel = optionalString(payload, "senderLabel")
+  // A peer send carries its provenance in the prompt's own header and passes
+  // no `senderLabel`. Lifting it HERE is what puts a name on the Inbox card
+  // and in `deferred-list`: the episode never sees the prompt body.
+  const senderLabel = optionalString(payload, "senderLabel") ?? deferredPromptSender(prompt)
   const senderTaskId = optionalString(payload, "senderTaskId")
   return {
     taskId,
@@ -69,6 +73,7 @@ async function fileWithInbox(
     record.id,
     record.layer,
     record.at + DEFERRED_PROMPT_TTL_MS,
+    record.senderLabel,
   )
   return { kind, record }
 }
@@ -142,6 +147,7 @@ function publicRecord(record: DeferredPromptRecord): {
   expiresAt: string
   senderLabel?: string
   senderTaskId?: string
+  dismissedAt?: string
 } {
   return {
     id: record.id,
@@ -153,6 +159,7 @@ function publicRecord(record: DeferredPromptRecord): {
     expiresAt: new Date(record.at + DEFERRED_PROMPT_TTL_MS).toISOString(),
     ...(record.senderLabel !== undefined ? { senderLabel: record.senderLabel } : {}),
     ...(record.senderTaskId !== undefined ? { senderTaskId: record.senderTaskId } : {}),
+    ...(record.dismissedAt !== undefined ? { dismissedAt: new Date(record.dismissedAt).toISOString() } : {}),
   }
 }
 
@@ -292,7 +299,7 @@ async function flushDeferredPrompts(ctx: DaemonHandlerContext): Promise<{
       if (claimed.kind === "claimed") await cleanupDeliveredClaim(claimed.claim, ctx, report)
       continue
     }
-    if (ctx.runtime.composerGateEnabled()) {
+    if (ctx.runtime.deliveryGuard() === "on") {
       report.retained.push({
         id: record.id,
         taskId: record.taskId,
@@ -357,16 +364,22 @@ export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
     // set, which the sweep timer owns — plus each record's `expiresAt`, so a
     // headless sender can see how long the daemon will hold its text.
     name: "deferredPrompt.list",
-    async handle(_payload, ctx) {
+    async handle(payload, ctx) {
       if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
       const listed = await ctx.deferredPrompts.list()
-      return { records: listed.records.map(publicRecord) }
+      // Dismissed text is retained but not queued, so it is opt-in: a caller
+      // asking "what is waiting?" must not see it, and a caller undoing a
+      // dismiss must be able to find it.
+      const records = payload.includeDismissed === true ? [...listed.records, ...listed.dismissed] : listed.records
+      return { records: records.map(publicRecord) }
     },
   },
   {
-    // The Inbox's dismiss action: drop the text and its Inbox pointer without
-    // delivering. This is what unblocks a tab whose deferred slot is occupied
-    // (`DEFERRED_PROMPT_PENDING`) when the message is no longer wanted.
+    // The Inbox's dismiss action: take the message off the queue and delete
+    // its Inbox pointer without delivering. This unblocks a tab whose deferred
+    // slot is occupied (`DEFERRED_PROMPT_PENDING`). The TEXT is kept until the
+    // record's ordinary 24h expiry — a mis-hit `d` on a card that said only
+    // "message queued" used to destroy a dispatcher's instruction outright.
     name: "deferredPrompt.dismiss",
     async handle(payload, ctx) {
       const id = requireString(payload, "id")

@@ -21,7 +21,7 @@ import {
   awaitEngineProcess,
   hostedSessionFailureLine,
 } from "../../engine/hosted-session.ts"
-import { sessionHasEngine } from "../../engine/session-engine-presence.ts"
+import { enginePresence } from "../../engine/session-engine-presence.ts"
 import type { EngineSessionLaunch } from "../../engine/session-launch.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
 import type { VendorId } from "../../types/vendor.ts"
@@ -121,7 +121,19 @@ export async function deliverToExactTab(
   // engine exited (or that always was a shell tab) must not have the prompt
   // pasted into its shell. ANY running engine passes — the addressed tab's
   // engine need not match the task's vendor (cross-vendor send).
-  if (!(await sessionHasEngine(session.pid, opts?.engineBin, opts?.snapshot))) {
+  const presence = await enginePresence(session.pid, opts?.engineBin, opts?.snapshot)
+  if (presence === "unknown") {
+    // Refuse, but do not claim the tab is a shell — we never got to look.
+    throw new ApiError(
+      `could not read the process table, so tab ${tabId} on task ${taskId} could not be checked for a live engine`,
+      "ENGINE_PROBE_FAILED",
+      {
+        hint: "the `ps` probe failed or timed out; retry, or check the machine's process table",
+        nextCommandArgs: ["api", "pty-list"],
+      },
+    )
+  }
+  if (presence !== "engine") {
     throw new ApiError(
       `tab ${tabId} on task ${taskId} has no live engine process — it is a plain shell right now`,
       "ENGINE_NOT_RUNNING",

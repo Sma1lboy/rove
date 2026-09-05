@@ -246,7 +246,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     devRemoteProjects: () => prefs.toggleRemoteProjects(),
     devAutoStatus: () => prefs.toggleAutoStatus(),
     devDispatcher: () => prefs.toggleDispatcher(),
-    devComposerGate: () => prefs.toggleComposerGate(),
+    devDeliveryGuard: () => prefs.cycleDeliveryGuard(),
   }
 
   function activateBodyRow(): void {

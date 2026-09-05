@@ -30,7 +30,7 @@ describe("deferredPrompt RPC persistence races", () => {
     ;(ctx as { inbox: AttentionInboxStore }).inbox = inbox
     ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = {
       ...ctx.runtime,
-      composerGateEnabled: () => false,
+      deliveryGuard: () => "screen-off" as const,
     }
     return { ctx, store, deferredPath, inbox }
   }
@@ -50,7 +50,7 @@ describe("deferredPrompt RPC persistence races", () => {
     let deliveries = 0
     ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = {
       ...ctx.runtime,
-      composerGateEnabled: () => false,
+      deliveryGuard: () => "screen-off" as const,
       deliverPromptToLiveEngineTabDetailed: async () => {
         deliveries++
         throw new Error("transport lost after PTY write")
@@ -87,7 +87,7 @@ describe("deferredPrompt RPC persistence races", () => {
     )
     ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = {
       ...ctx.runtime,
-      composerGateEnabled: () => false,
+      deliveryGuard: () => "screen-off" as const,
       deliverPromptToLiveEngineTabDetailed: async () => ({
         outcome: "delivered",
         tabId: "tab-1",

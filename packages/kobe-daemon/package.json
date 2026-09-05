@@ -35,6 +35,7 @@
     "./daemon/crash-log": "./src/daemon/crash-log.ts",
     "./daemon/collectors": "./src/daemon/collectors.ts",
     "./daemon/cwd-task": "./src/daemon/cwd-task.ts",
+    "./daemon/deferred-prompt-sender": "./src/daemon/deferred-prompt-sender.ts",
     "./daemon/deferred-prompt-sweep": "./src/daemon/deferred-prompt-sweep.ts",
     "./daemon/deferred-prompts-store": "./src/daemon/deferred-prompts-store.ts",
     "./daemon/engine-events-log": "./src/daemon/engine-events-log.ts",

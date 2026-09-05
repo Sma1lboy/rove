@@ -30,6 +30,9 @@ interface DeferredRecordRow {
   readonly layer: string
   readonly at: string
   readonly expiresAt: string
+  readonly senderLabel?: string
+  /** Present only on a record a human dismissed; its text is still releasable. */
+  readonly dismissedAt?: string
 }
 
 /** Why a release did not deliver, as `deferredPrompt.release`'s report says. */
@@ -55,7 +58,10 @@ const LIST_STEP = {
 
 async function deferredList(ctx: VerbContext): Promise<unknown> {
   const taskId = ctx.args.str("task-id")
-  const { records } = await daemonOf(ctx).request<{ records: DeferredRecordRow[] }>("deferredPrompt.list", {})
+  const includeDismissed = ctx.args.bool("include-dismissed")
+  const { records } = await daemonOf(ctx).request<{ records: DeferredRecordRow[] }>("deferredPrompt.list", {
+    includeDismissed,
+  })
   return { records: taskId ? records.filter((record) => record.taskId === taskId) : records }
 }
 
@@ -101,8 +107,16 @@ export const DEFERRED_VERBS: readonly VerbSpec[] = [
     name: "deferred-list",
     group: "drive",
     summary:
-      "Every prompt the daemon is holding because the target composer was busy when it arrived — the Inbox, for a caller with no screen. Each record carries its `id` (for deferred-release / deferred-dismiss), the verbatim `prompt`, the `layer` that blocked it, and `expiresAt`: the daemon sweeps a record 24h after it was filed, and a swept prompt is never delivered. Returns { records }.",
-    flags: [F.taskId(false)],
+      "Every prompt the daemon is holding because the target composer was busy when it arrived — the Inbox, for a caller with no screen. Each record carries its `id` (for deferred-release / deferred-dismiss), the verbatim `prompt`, the `layer` that blocked it, `senderLabel` when the prompt named a sender, and `expiresAt`: the daemon sweeps a record 24h after it was filed, and a swept prompt is never delivered. `--include-dismissed` also lists records someone dismissed from the Inbox — their text is kept until that same 24h deadline and `deferred-release` still delivers them, which is how a mis-hit dismiss is undone. Returns { records }.",
+    flags: [
+      F.taskId(false),
+      {
+        name: "include-dismissed",
+        type: "bool",
+        description:
+          "Also list records a human dismissed. They are off the queue (their tab accepts new sends) but their text survives until the record's 24h expiry.",
+      },
+    ],
     handler: deferredList,
   },
   {
@@ -125,7 +139,7 @@ export const DEFERRED_VERBS: readonly VerbSpec[] = [
     name: "deferred-dismiss",
     group: "drive",
     summary:
-      "Drop one held prompt WITHOUT delivering it, and free its tab's deferred slot (the Inbox's dismiss action). The text is gone — dismiss a message that is no longer wanted, then send the replacement. Returns { dismissed }.",
+      "Take one held prompt off the queue WITHOUT delivering it, freeing its tab's deferred slot (the Inbox's dismiss action) — dismiss a message that is no longer wanted, then send the replacement. The TEXT is retained until the record's ordinary 24h expiry: `deferred-list --include-dismissed` still shows it and `deferred-release` still delivers it, so a dismiss made by mistake is recoverable. Returns { dismissed }.",
     flags: [
       {
         name: "id",

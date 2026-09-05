@@ -20,7 +20,7 @@ describe("deferredPrompt RPC handlers", () => {
     dir = await mkdtemp(join(tmpdir(), "kobe-deferred-handlers-"))
     const store = new Store(join(dir, "deferred-prompts.json"))
     ;(ctx as { deferredPrompts?: DeferredPromptsStore }).deferredPrompts = store
-    ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = { ...ctx.runtime, composerGateEnabled: () => false }
+    ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = { ...ctx.runtime, deliveryGuard: () => "screen-off" as const }
     return { ctx, rec, store }
   }
 
@@ -312,7 +312,7 @@ describe("deferredPrompt RPC handlers", () => {
     let deliveries = 0
     ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = {
       ...ctx.runtime,
-      composerGateEnabled: () => false,
+      deliveryGuard: () => "screen-off" as const,
       deliverPromptToLiveEngineTabDetailed: async () => {
         deliveries++
         enterDelivery()
@@ -350,7 +350,7 @@ describe("deferredPrompt RPC handlers", () => {
     let deliveries = 0
     ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = {
       ...ctx.runtime,
-      composerGateEnabled: () => false,
+      deliveryGuard: () => "screen-off" as const,
       deliverPromptToLiveEngineTabDetailed: async () => {
         deliveries++
         return { outcome: "delivered", tabId: "tab-1" }
@@ -393,12 +393,12 @@ describe("deferredPrompt RPC handlers", () => {
       layer: "composer-not-empty",
       at: Date.now() + 1,
     })
-    let gateEnabled = false
+    let guard: "on" | "screen-off" | "off" = "screen-off"
     ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = {
       ...ctx.runtime,
-      composerGateEnabled: () => gateEnabled,
+      deliveryGuard: () => guard,
       deliverPromptToLiveEngineTabDetailed: async (_target, _prompt) => {
-        gateEnabled = true
+        guard = "on"
         return { outcome: "delivered", tabId: "tab-1" }
       },
     }
@@ -430,7 +430,7 @@ describe("deferredPrompt RPC handlers", () => {
     expect(rec.inboxPromptExpired).toEqual([{ taskId: TASK.id, tabId: "tab-1", deferredId: expired.id }])
   })
 
-  it("discarding or closing a tab drops its stored prompt with its Inbox episode", async () => {
+  it("dismissing retires a stored prompt and closing its tab drops one, both with their Inbox episode", async () => {
     const { ctx, rec, store } = await ctxWithStore()
     const now = Date.now()
     const dismissed = await store.file({
@@ -461,7 +461,10 @@ describe("deferredPrompt RPC handlers", () => {
     await dispatch("attention.dismiss", { taskId: TASK.id, tabId: "tab-1", at: now }, ctx)
     await dispatch("ui.reportEvent", { kind: "tab.closed", taskId: TASK.id, detail: { tabId: "tab-2" } }, ctx)
 
-    expect(await store.get(dismissed.id)).toBeNull()
+    // Dismiss retires the record from the queue but keeps its text; closing a
+    // tab drops it outright, because there is nothing left to release it into.
+    expect((await store.get(dismissed.id))?.dismissedAt).toBeTypeOf("number")
+    expect((await store.list()).records).toEqual([])
     expect(await store.get(closed.id)).toBeNull()
     expect(rec.inboxDeleted).toContainEqual({ taskId: TASK.id, tabId: "tab-2" })
   })

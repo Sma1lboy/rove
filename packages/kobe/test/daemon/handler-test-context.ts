@@ -24,7 +24,13 @@ export interface RecordedHandlerEffects {
   readonly noteCalls: Array<{ method: string; repo: unknown; note?: unknown }>
   readonly cleared: string[]
   readonly inboxRecords: Array<{ taskId: string; kind: string; detail?: unknown; tabId?: string }>
-  readonly inboxPromptDeferred: Array<{ taskId: string; tabId: string; deferredId: string; layer: string }>
+  readonly inboxPromptDeferred: Array<{
+    taskId: string
+    tabId: string
+    deferredId: string
+    layer: string
+    sender?: string
+  }>
   readonly inboxDeleted: Array<{ taskId: string; tabId: string | null; at?: number }>
   readonly inboxPromptExpired: Array<{ taskId: string; tabId: string; deferredId: string }>
   readonly inboxRead: Array<{ taskId: string; tabId: string | null; at: number }>
@@ -83,8 +89,15 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
         rec.inboxRecords.push({ taskId, kind, detail, tabId })
         return Promise.resolve()
       },
-      recordPromptDeferred: (taskId: string, tabId: string, deferredId: string, layer: string) => {
-        rec.inboxPromptDeferred.push({ taskId, tabId, deferredId, layer })
+      recordPromptDeferred: (
+        taskId: string,
+        tabId: string,
+        deferredId: string,
+        layer: string,
+        _expiresAt?: number,
+        sender?: string,
+      ) => {
+        rec.inboxPromptDeferred.push({ taskId, tabId, deferredId, layer, ...(sender === undefined ? {} : { sender }) })
         return Promise.resolve()
       },
       recordPromptExpired: (taskId: string, tabId: string, deferredId: string) => {

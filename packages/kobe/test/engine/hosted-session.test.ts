@@ -327,7 +327,7 @@ describe("deliverToHostedKey A+C gates", () => {
       // Pinned, not defaulted: the gate now falls back to the persisted
       // setting, so leaving this out made the assertion depend on whether the
       // machine running the suite had turned the switch off.
-      composerGate: true,
+      guard: "on",
     }).then(
       () => null,
       (e) => e,
@@ -337,7 +337,7 @@ describe("deliverToHostedKey A+C gates", () => {
   })
 
   it("skips the screen check when the composer gate is off, but keeps the timing one", async () => {
-    // The escape hatch (state/composer-gate.ts) for a screen rule an engine
+    // The escape hatch (state/delivery-guard.ts) for a screen rule an engine
     // redesign has outrun. It drops the LAYOUT read only: the A layer measures
     // keystroke recency, so a composer someone is typing into right now stays
     // protected however this is set — otherwise turning it off would trade a
@@ -346,7 +346,7 @@ describe("deliverToHostedKey A+C gates", () => {
 
     const cOff = await deliverToHostedKey(rpcWith(busyScreen) as HostedSessionRpc, "t1::tab-1", "go", {
       screenManifest: manifest,
-      composerGate: false,
+      guard: "screen-off",
     }).then(
       () => "delivered",
       (e) => e,
@@ -357,7 +357,7 @@ describe("deliverToHostedKey A+C gates", () => {
       rpcWith({ ...busyScreen, lastHumanWriteMs: 1_000, humanWriteQuietMs: 10_000 }) as HostedSessionRpc,
       "t1::tab-1",
       "go",
-      { screenManifest: manifest, composerGate: false, now: () => 5_000 },
+      { screenManifest: manifest, guard: "screen-off", now: () => 5_000 },
     ).then(
       () => null,
       (e) => e,
@@ -425,7 +425,7 @@ describe("deliverToHostedKey A+C gates", () => {
 
     const outcome = await deliverToHostedKey(rpc, "t1::tab-1", "go", {
       screenManifest: CODEX_SCREEN_MANIFEST,
-      composerGate: true,
+      guard: "on",
     })
 
     expect(outcome).toMatchObject({ ready: true, confirmed: true })
@@ -452,7 +452,7 @@ describe("deliverToHostedKey A+C gates", () => {
     await expect(
       deliverToHostedKey(rpc, "t1::tab-1", "go", {
         screenManifest: CODEX_SCREEN_MANIFEST,
-        composerGate: true,
+        guard: "on",
       }),
     ).rejects.toBeInstanceOf(ComposerBusyError)
     expect(writes).toEqual([])

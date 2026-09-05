@@ -5,6 +5,7 @@ import type { KVContext } from "../context/kv"
 import { useT } from "../i18n"
 import { useLatest } from "../lib/use-latest"
 import type { DialogContext } from "../ui/dialog"
+import { DialogConfirm } from "../ui/dialog-confirm"
 import { AttentionInboxDialog } from "./AttentionInboxPane"
 import {
   attentionInboxCounts,
@@ -163,13 +164,48 @@ export function useInboxHost(args: {
     args.focusWorkspace()
   }
 
+  /**
+   * `d` on a queued message asks first.
+   *
+   * Every other episode is a NOTICE — clearing one throws away a line the
+   * daemon can rebuild. A `prompt_deferred` row is a message somebody sent
+   * that has not run yet, and its sender already exited 0 believing it was
+   * accepted, so a stray `d` is the one keystroke in this list that loses
+   * work nobody can recover from the screen. (The daemon now keeps the text
+   * until the record's 24h expiry, so a confirmed dismiss is still undoable
+   * with `deferred-release`; the confirm is what stops the accident.)
+   *
+   * `DialogConfirm.show` goes through `dialog.replace`, which UNMOUNTS the
+   * Inbox — so the Inbox is reopened after the answer either way, and the
+   * user lands back on the list they were working through instead of on the
+   * workspace.
+   */
+  async function confirmDismiss(item: AttentionInboxItem): Promise<void> {
+    if (item.state !== "prompt_deferred") {
+      notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError)
+      return
+    }
+    const confirmed = await DialogConfirm.show(
+      args.dialog,
+      t("workspace.inbox.dismissConfirmTitle"),
+      t("workspace.inbox.dismissConfirmBody"),
+      undefined,
+      t("workspace.inbox.dismissConfirmAction"),
+      { danger: true },
+    )
+    if (confirmed === true) {
+      notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError)
+    }
+    show()
+  }
+
   function show(): void {
     AttentionInboxDialog.show(args.dialog, {
       orchestrator: orch,
       selectedId: args.selectedId,
       onOpen: openItem,
       onOpenTask: openTask,
-      onDelete: (item) => notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError),
+      onDelete: (item) => void confirmDismiss(item),
     })
   }
 

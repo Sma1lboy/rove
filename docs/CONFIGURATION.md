@@ -193,9 +193,25 @@ for background consumers, but the current PureTUI tree does not consume it.
 
 ### Delivery
 
+Two checks run before a peer or `rove api` prompt is written into a running
+engine, so a message never lands in the middle of a half-typed line:
+
+- **A, the keystroke window** — someone typed into that session less than
+  ~10s ago. It measures time, so it is right about every engine.
+- **B, the screen read** — the session is rendered and the prompt is held when
+  the composer already holds text. This one knows each engine's *current*
+  layout, so a vendor redesign can make it wrong.
+
+A held prompt is deferred to your Inbox (`rove api deferred-list` without a
+screen), and a deferred prompt nobody releases is destroyed 24h later.
+
 | Key | Type | Default | What it does |
 |---|---|---|---|
-| `delivery.composerGate` | boolean | `true` | The **screen-read** half of the check that runs before a peer or `rove api` prompt is written into an engine: it renders the session and defers the prompt to your Inbox when the composer already holds text. Turning it off drops that read only. The other half — a ~10s window since your last keystroke in that session — is not switchable and still defers, so a composer you are actively typing into stays protected either way. Turn this off when a vendor moves its composer and the screen rule starts holding every delivery |
+| `delivery.guard` | `on` \| `screen-off` \| `off` | `on` | Which of the two checks run. `on` runs both. `screen-off` drops B — pick it when a vendor moves its composer and the screen rule starts holding deliveries into composers you can see are empty. `off` drops both, leaving only the refusal to paste into a bare shell — pick it for a machine nobody types at, where a held message costs more than a collided one. Read fresh at each delivery, so a change needs no restart. Settings → Dev has the same three-position control, and `ROVE_DELIVERY_GUARD` overrides both for one session |
+| `delivery.humanWriteQuietMs` | number | `10000` | How long check A holds after a keystroke, in milliseconds. Also read per delivery — the pty host's `KOBE_PTY_HUMAN_WRITE_QUIET_MS` remains as its spawn-time default, but this key changes the live window without restarting the host |
+
+`delivery.composerGate` (boolean) is the superseded spelling: an existing
+`false` is read as `screen-off`, and changing the setting replaces it.
 
 ### Experimental
 

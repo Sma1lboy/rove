@@ -83,6 +83,23 @@ export const en = {
     expiringNow: "expiring now",
     /** Expired-message card's context line. */
     expiredNote: "never delivered",
+    /** Queued-message card, first segment: who sent it. `{sender}` is the
+     *  task title lifted from the prompt's `[ROVE PEER]` header. */
+    from: "from {sender}",
+    layer: {
+      /** Held by the keystroke window (layer A) — someone was typing here. */
+      keystroke: "you were typing",
+      /** Held by the composer screen read (layer B). */
+      screen: "composer had text",
+    },
+    /** Footer verbs for a queued-message row: enter delivers the held text
+     *  rather than opening anything, and d sets it aside. */
+    releaseHint: "enter release",
+    ignoreHint: "d ignore",
+    dismissConfirmTitle: "Ignore this message?",
+    dismissConfirmBody:
+      "It has not run yet, and its sender has already been told it was accepted. Ignoring takes it off the queue so the tab accepts new messages; the text is kept for 24h from when it arrived, and `rove api deferred-release --id` still delivers it.",
+    dismissConfirmAction: "ignore",
     /** Toast title when a message is deferred because the composer was busy. */
     deferredToast: "Message queued — composer busy",
     /** Insert feedback: the A/C gate still blocked at release time. */
@@ -149,6 +166,21 @@ export const zh: typeof en = {
     expiresIn: "{in} 后过期",
     expiringNow: "即将过期",
     expiredNote: "从未送达",
+    /** 排队消息卡片的第一段:谁发的。{sender} 取自 prompt 的 [ROVE PEER] 头部。 */
+    from: "来自 {sender}",
+    layer: {
+      /** 被按键静默窗口(A 层)拦住——这里刚刚有人在打字。 */
+      keystroke: "刚才有人在打字",
+      /** 被输入框屏幕检查(B 层)拦住。 */
+      screen: "输入框里有字",
+    },
+    /** 排队消息那一行的底部动作:enter 是把扣住的文本发出去,不是「打开」;d 先放一边。 */
+    releaseHint: "enter 放行",
+    ignoreHint: "d 忽略",
+    dismissConfirmTitle: "忽略这条消息?",
+    dismissConfirmBody:
+      "它还没跑,发送方那边已经收到「已受理」的答复了。忽略只是把它移出队列、让这个 tab 能接收新消息;文本会从它到达那一刻起保留 24 小时,`rove api deferred-release --id` 仍然能把它送出去。",
+    dismissConfirmAction: "忽略",
     /** composer 忙、消息被受理延后的 toast 标题。 */
     deferredToast: "消息已排队——composer 正忙",
     /** 插入反馈：放行那一刻 A/C 闸门仍拦住。 */

@@ -56,11 +56,21 @@ describe("Inbox pane wiring", () => {
   it("renders the resume note on the card's context line", async () => {
     const src = await Bun.file(new URL("../../src/tui-react/workspace/AttentionInboxPane.tsx", import.meta.url)).text()
     expect(src).toContain("quotaResumeNote(item.state, task, t)")
-    // Present in the rendered subtitle, not just assigned to a dead local.
-    // Matched loosely inside the `subtitle=` expression rather than pinned to
-    // one shape: the subtitle now also carries a routine episode's reason, and
-    // this check is about the note REACHING the render, not about the branch
-    // order it reaches it through.
-    expect(src).toMatch(/subtitle=\{[\s\S]{0,120}?resumeNote/)
+    // Present in the rendered subtitle, not just assigned to a dead local —
+    // followed across the ONE hop the card now makes, because the subtitle
+    // also carries a routine episode's reason and a queued message's whole
+    // context line. Both halves have to hold: the note reaches `contextLine`,
+    // and `contextLine` is what the card renders.
+    expect(src).toMatch(/const contextLine =[\s\S]{0,200}?resumeNote/)
+    expect(src).toMatch(/subtitle=\{[\s\S]{0,80}?contextLine/)
+  })
+
+  it("renders the queued-message context line, which is where the sender lands", async () => {
+    // Same reason as the note above: `inbox-deferred-card.test.ts` covers the
+    // helper, and nothing else would notice the card going back to a bare
+    // "message queued" — the state that made dismissing one a coin flip.
+    const src = await Bun.file(new URL("../../src/tui-react/workspace/AttentionInboxPane.tsx", import.meta.url)).text()
+    expect(src).toContain("deferredPromptSubtitle(item, title, now, t)")
+    expect(src).toMatch(/const contextLine =[\s\S]{0,200}?deferredPromptSubtitle/)
   })
 })
