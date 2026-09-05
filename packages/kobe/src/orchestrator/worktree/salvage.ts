@@ -168,7 +168,12 @@ export async function salvageWorktree(
     // the worktrees it exists for.
     const status = await git(["status", "--porcelain"])
     if (status.exitCode !== 0) return null
-    const ignored = await smallIgnoredPaths(exec, worktreePath)
+    // `"unknown"` (the listing itself failed) degrades to the old
+    // ignored-files-excluded snapshot: salvage must never fail the removal a
+    // caller already asked for. The DELETE GATE reads the same probe and must
+    // do the opposite — see `manager-remove.ts`.
+    const probe = await smallIgnoredPaths(exec, worktreePath)
+    const ignored = probe === "unknown" ? [] : probe
     if (status.stdout.trim().length === 0 && ignored.length === 0) return null
 
     // A throwaway index INSIDE the worktree's own git dir, so staging never
