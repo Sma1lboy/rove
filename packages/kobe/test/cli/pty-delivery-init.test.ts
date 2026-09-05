@@ -38,6 +38,29 @@ it("reports init as unconfirmed immediately when its marker is absent", async ()
   expect(request.mock.calls.map(([name]) => name)).toEqual(["pty.list", "pty.open", "pty.detach"])
 })
 
+// A long-lived home is full of markers left EMPTY by pre-0.9.101 launches
+// (`: > marker` on success), and the finite worktree-name pool hands one to a
+// fresh task routinely. The launch shell re-runs init on those; while this
+// gate only asked whether the file existed it concluded the opposite, spent
+// its 3s engine probe against a shell still running `bun install`, and
+// returned SESSION_FAILED quoting the installer's progress bar.
+it.each([
+  ["empty", ""],
+  ["whitespace-only", "\n"],
+])("treats a %s marker exactly like a missing one", async (_label, contents) => {
+  const { marker, deliver, request } = fixture()
+  writeFileSync(marker, contents)
+  const snapshot = vi.fn(async () => "123 1 -sh\n")
+  expect(await deliver(snapshot)).toMatchObject({
+    started: true,
+    engineReady: false,
+    delivered: true,
+    reason: "repo init script is still running; the engine has not started yet",
+  })
+  expect(snapshot).not.toHaveBeenCalled()
+  expect(request.mock.calls.map(([name]) => name)).toEqual(["pty.list", "pty.open", "pty.detach"])
+})
+
 it("rechecks init after the launch shell replaces an old failed marker during the process probe", async () => {
   vi.useFakeTimers()
   const { marker, deliver } = fixture()

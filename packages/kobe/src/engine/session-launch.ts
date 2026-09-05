@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs"
 import { toPosixPath } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 import { worktreeInitMarkerPath } from "../env.ts"
 import { remoteKeyForRepo } from "../exec/resolve.ts"
@@ -9,6 +10,30 @@ import { protocolEntry } from "./engine-presets.ts"
 import { withDispatcherProtocol, withWorktreeProtocol } from "./worktree-protocol.ts"
 
 export const SIGINT_GUARD = "trap ':' INT; "
+
+/**
+ * True when the repo-init marker records a FINISHED run — the ONE reader of
+ * this file, shared by every caller that asks "has `.rove/init.sh` stopped?".
+ *
+ * The launch script below writes init's exit code into the marker and deletes
+ * it before re-running, so "finished" means "holds a recorded code", not
+ * "exists". Pre-0.9.101 launches left an EMPTY marker on success; the shell's
+ * own guard (`[ "$(cat m)" != "0" ]`) re-runs init on one of those, while
+ * readers that only asked `existsSync` concluded the engine had already
+ * started. On any worktree path carrying a stale marker the two answers were
+ * exactly opposite: the shell reinstalled dependencies while the CLI spent its
+ * 3s engine probe, then reported SESSION_FAILED with `bun install`'s progress
+ * bar as the reason — for a task that went on to start normally.
+ */
+export function initMarkerSaysFinished(markerPath: string): boolean {
+  try {
+    return readFileSync(markerPath, "utf8").trim().length > 0
+  } catch {
+    // Missing (init never ran, or this run deleted it to re-run) — and any
+    // unreadable shape, which is likewise not a recorded outcome.
+    return false
+  }
+}
 
 /**
  * The {@link keepAlive} banner, as a matcher.

@@ -358,25 +358,6 @@ async function startOwnedServer(
     await sockGuard.release(server)
   })
 
-  await listenOnUnixSocket(server, socketPath)
-  // Fingerprint FIRST, before any other await. Every await between bind and
-  // arm is a window in which a usurper can unlink+rebind the path; arming
-  // late meant either no stamp at all or a stamp of the usurper's inode.
-  await sockGuard.arm()
-  await writeFile(pidPath, `${process.pid}\n`, "utf8")
-  // A pre-rename binary only knows `.kobe`; without these it starts a second
-  // daemon on the same task index. See compat-link.ts.
-  await linkLegacyRuntimePath(socketPath, legacyDaemonSocketPath(homeDir))
-  await linkLegacyRuntimePath(pidPath, legacyDaemonPidPath(homeDir))
-
-  async function stopSoon(): Promise<void> {
-    if (lifetime.isStopping()) return
-    lifetime.markStopping()
-    setTimeout(() => {
-      serverApi.close().catch((err) => logDaemonError("daemon-shutdown", err))
-    }, 0).unref()
-  }
-
   // RPC dispatch seam: every plain request is a registry entry
   // (handlers.ts) — look up → validate → handle — with all daemon state
   // arriving via the per-request context built below. ONE request stays
@@ -425,6 +406,34 @@ async function startOwnedServer(
   // round-trip. Built unconditionally: the automation runner needs it to launch
   // engine sessions whether or not anyone is attached.
   const selfLink = createDirectLink({ ctx: handlerContext })
+
+  // BIND LAST. The `createServer` callback above starts dispatching frames the
+  // instant this resolves, and `dispatch` reads `handlers`/`selfLink` — `const`
+  // bindings, so reaching them early is a ReferenceError, not `undefined`. With
+  // the registry built after the bind, a client that connected during the four
+  // awaits below got `Cannot access 'handlers' before initialization` back as
+  // its hello response and the TUI exited 1; the window widened with machine
+  // load, which is why it looked like a random 1-in-5 startup flake. Nothing
+  // between here and the end of this function may be needed to answer a
+  // request.
+  await listenOnUnixSocket(server, socketPath)
+  // Fingerprint FIRST, before any other await. Every await between bind and
+  // arm is a window in which a usurper can unlink+rebind the path; arming
+  // late meant either no stamp at all or a stamp of the usurper's inode.
+  await sockGuard.arm()
+  await writeFile(pidPath, `${process.pid}\n`, "utf8")
+  // A pre-rename binary only knows `.kobe`; without these it starts a second
+  // daemon on the same task index. See compat-link.ts.
+  await linkLegacyRuntimePath(socketPath, legacyDaemonSocketPath(homeDir))
+  await linkLegacyRuntimePath(pidPath, legacyDaemonPidPath(homeDir))
+
+  async function stopSoon(): Promise<void> {
+    if (lifetime.isStopping()) return
+    lifetime.markStopping()
+    setTimeout(() => {
+      serverApi.close().catch((err) => logDaemonError("daemon-shutdown", err))
+    }, 0).unref()
+  }
 
   async function dispatch(req: Extract<DaemonFrame, { type: "request" }>, client: ClientState): Promise<unknown> {
     if (req.name === "subscribe") {

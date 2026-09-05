@@ -35,7 +35,7 @@
  */
 
 import type { PtyPeekResult, SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { engineLaunchArgv, protocolEntry, sessionProtocol } from "../../engine/engine-presets.ts"
+import { protocolEntry, sessionProtocol } from "../../engine/engine-presets.ts"
 import { type EngineHistoryReader, supportsStructuredHistory } from "../../engine/registry.ts"
 import type { Message } from "../../types/engine.ts"
 import type { VendorId } from "../../types/vendor.ts"
@@ -308,7 +308,7 @@ async function continueTerminal(
  *  the TUI always mints first. */
 async function peekTaskTerminal(
   taskId: string,
-  vendor: VendorId | undefined,
+  engineBin: string | undefined,
   tab: string | undefined,
   sinceOffset?: number,
 ): Promise<TerminalPeekPage | null | "host-unreachable"> {
@@ -319,7 +319,6 @@ async function peekTaskTerminal(
     if (tab) {
       key = `${taskId}::${tab}`
     } else {
-      const engineBin = vendor ? engineLaunchArgv({ vendor })[0] : undefined
       // Tri-state: a host that cannot be asked must not render as a task with
       // no sessions — see `listHostedSessionsOrNull`.
       const sessions = await listSessionsOrNull(host.rpc)
@@ -373,10 +372,16 @@ async function handleReadOutput(ctx: VerbContext): Promise<unknown> {
   }
   const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
   const vendor = task.vendor as VendorId | undefined
+  // The task's OWN launch binary, not its vendor's default. `findEngineKey`
+  // matches the session's spawn argv, and a task whose command is a wrapper
+  // (`claudecpa`, any custom preset) never carries the vendor's word — so
+  // deriving this from `vendor` alone made a bare `read-output` report "no
+  // live terminal session" while `--tab tab-2` returned a live tail.
+  const engineBin = vendor || task.command ? taskEngineArgv(task)[0] : undefined
   const tab = ctx.args.str("tab")
   const deps: ReadOutputDeps = {
     history: vendor && supportsStructuredHistory(sessionProtocol(vendor)) ? protocolEntry(vendor).history : null,
-    peekTerminal: (tabId, sinceOffset) => peekTaskTerminal(taskId, vendor, tabId, sinceOffset),
+    peekTerminal: (tabId, sinceOffset) => peekTaskTerminal(taskId, engineBin, tabId, sinceOffset),
   }
   const envelope = await readTaskOutput(
     {

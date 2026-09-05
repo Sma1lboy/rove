@@ -12,7 +12,6 @@
  * the vendor's own launch binary — never a hard-coded "claude"/"codex".
  */
 
-import { existsSync } from "node:fs"
 import type { PtyOpenResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
 import type { PsSnapshot } from "../../engine/foreground.ts"
@@ -38,7 +37,7 @@ import {
 import { engineEntry } from "../../engine/registry.ts"
 import type { EngineScreenManifest } from "../../engine/screen-state.ts"
 import { enginePresence } from "../../engine/session-engine-presence.ts"
-import type { EngineSessionLaunch } from "../../engine/session-launch.ts"
+import { type EngineSessionLaunch, initMarkerSaysFinished } from "../../engine/session-launch.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import { restoredTabsOf } from "./tab-respawn.ts"
@@ -307,7 +306,9 @@ export async function deliverHostedPrompt(
     // `engineReady: true, delivered: true` came back for a binary that had
     // already printed `no such file or directory`.
     //
-    // A missing init marker means the launch has not reached the engine yet.
+    // An init marker with no recorded exit code means the launch has not
+    // reached the engine yet — `initMarkerSaysFinished` is the same predicate
+    // the launch script's own re-run guard uses, so the two cannot disagree.
     // Keep that result unconfirmed without waiting through dependency install.
     const pendingInit: DeliveredPrompt = {
       session: launch.key,
@@ -318,7 +319,7 @@ export async function deliverHostedPrompt(
       reason: "repo init script is still running; the engine has not started yet",
       ...disclose,
     }
-    if (launch.initMarkerPath && !existsSync(launch.initMarkerPath)) return pendingInit
+    if (launch.initMarkerPath && !initMarkerSaysFinished(launch.initMarkerPath)) return pendingInit
     // Otherwise walk for the process — the same presence walk the
     // existing-session gate above uses, in the loop `awaitEngineProcess`
     // already owns, not a third implementation of the same question.
@@ -332,9 +333,9 @@ export async function deliverHostedPrompt(
       // loading. Check the marker after that await as well as session liveness.
       if (
         launch.initMarkerPath &&
-        !existsSync(launch.initMarkerPath) &&
+        !initMarkerSaysFinished(launch.initMarkerPath) &&
         (await listSessions(rpc)).some((session) => session.key === launch.key && session.alive) &&
-        !existsSync(launch.initMarkerPath)
+        !initMarkerSaysFinished(launch.initMarkerPath)
       ) {
         return pendingInit
       }
