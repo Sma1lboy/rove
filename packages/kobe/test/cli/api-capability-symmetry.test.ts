@@ -1,11 +1,14 @@
 /**
- * The four CLI halves that were missing while the TUI (or the create/read
+ * The five CLI halves that were missing while the TUI (or the create/read
  * side) already had them. Each test fails with its verb removed and with
  * nothing else, because each pins the ONE request the missing half has to
  * send — not the plumbing around it.
  *
  * - `issue-delete` — the kanban page's `d` runs the store's `delete` op; the
  *   CLI could only mark a story `done` and leave it.
+ * - `note-delete` — the reader dialog can retire a note; the CLI could only
+ *   append and list, so a note whose fact stopped being true kept riding into
+ *   every new session on the repo.
  * - `delete --group` — create (`add --count`) and read (`collect --group`)
  *   are batched; closing the round was one call per loser.
  * - `remove-worktree` — `ensure-worktree` materializes without an engine and
@@ -27,6 +30,29 @@ describe("issue-delete", () => {
     expect(client.requests).toEqual([
       { name: "issue.mutate", payload: { repoRoot: "/repo/x", op: { type: "delete", id: 3 } } },
     ])
+  })
+})
+
+describe("note-delete", () => {
+  it("sends the store's delete op, the same one the reader dialog's `d` runs", async () => {
+    const client = new FakeClient({ "note.delete": () => ({ deleted: true }) })
+    await invokeVerb("note-delete", ["--repo", "/repo/x", "--id", "7"], { client, runtime: stubRuntime() })
+    expect(client.requests).toEqual([{ name: "note.delete", payload: { repo: "/repo/x", id: 7 } }])
+  })
+
+  it("addresses the note by ID, not by its position in the list", async () => {
+    // Notes are prepended and evicted from the tail, so an index names a
+    // different fact tomorrow. This is the assertion that a switch to
+    // positional addressing has to break.
+    const client = new FakeClient({ "note.delete": () => ({ deleted: false }) })
+    const res = (await invokeVerb("note-delete", ["--repo", "/repo/x", "--id", "1"], {
+      client,
+      runtime: stubRuntime(),
+    })) as { deleted: boolean }
+    // An id nothing holds answers false rather than throwing — an evicted
+    // note and a mistyped id are the same answer, and neither is an error.
+    expect(res.deleted).toBe(false)
+    expect(client.requests).toEqual([{ name: "note.delete", payload: { repo: "/repo/x", id: 1 } }])
   })
 })
 
