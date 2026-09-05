@@ -38,6 +38,64 @@ const MAX_OUTPUT_CHARS = 4000
 const MAX_TIMEOUT_SECONDS = 600
 
 /**
+ * SIGKILL the shell's whole process group, falling back to the shell alone.
+ *
+ * A precheck is a shell command, so the processes that matter are usually the
+ * shell's children (`gh pr list | grep …`). Signalling only the shell's pid
+ * leaves those running, so kill the group the `detached` spawn made it leader
+ * of. Windows has no process groups; there the child itself is all we can
+ * reach.
+ */
+function killGroup(child: ReturnType<typeof spawn>): void {
+  const pid = child.pid
+  if (pid === undefined) return
+  try {
+    process.kill(-pid, "SIGKILL")
+  } catch {
+    try {
+      child.kill("SIGKILL")
+    } catch {
+      // Already reaped — nothing to signal.
+    }
+  }
+}
+
+/**
+ * Wrap the command so the SHELL enforces the timeout on itself, instead of
+ * trusting us to still be alive when it expires.
+ *
+ * The Node-side timer only fires while this process lives. A daemon that is
+ * SIGKILLed — or any crash that skips cleanup — takes the timer with it and
+ * leaves the shell running forever. A precheck shaped like
+ * `while [ ! -f release ]; do sleep 0.01; done` then spins at ~100 forks a
+ * second with nothing left that will ever create `release`: 33 such orphans
+ * held a Mac at load 170 with 86% of the CPU in the kernel, and they survive
+ * until the machine reboots. The watchdog keeps the same bound the user asked
+ * for without depending on the daemon.
+ *
+ * `set +m` turns off job control so the background watchdog neither prints
+ * `[1] 12345` into the captured stderr nor gets its own process group, which
+ * would put it out of reach of the group kill. The EXIT trap reaps the
+ * watchdog when the command finishes first, and POSIX keeps a trap from
+ * changing the exit status the caller decides on.
+ *
+ * The watchdog gets its own stdio (`>/dev/null 2>&1 </dev/null`) because a
+ * background job inherits the captured pipes otherwise, and Node reports
+ * `close` only once every writer has let go of them. A precheck that exits in
+ * milliseconds would then sit in the sweep until the watchdog's `sleep`
+ * expired — the timeout turned into a floor instead of a ceiling.
+ */
+export function withWatchdog(command: string, timeoutSeconds: number): string {
+  return [
+    "set +m 2>/dev/null",
+    `{ sleep ${timeoutSeconds} && { kill -9 -$$ 2>/dev/null || kill -9 $$ ; } ; } >/dev/null 2>&1 </dev/null &`,
+    "__rove_watchdog=$!",
+    `trap 'kill "$__rove_watchdog" 2>/dev/null' EXIT`,
+    command,
+  ].join("\n")
+}
+
+/**
  * Decode captured stream chunks to text, keeping only the last
  * `MAX_OUTPUT_CHARS`.
  *
@@ -89,13 +147,10 @@ export function runAutomationPrecheck(
     const out: (Buffer | string)[] = []
     const err: (Buffer | string)[] = []
     let settled = false
-    // Aborting fires the child's `error` event synchronously, BEFORE control
-    // returns to the abort call site. Without this flag that error settles the
-    // result first and a timeout gets misreported as a generic spawn failure —
-    // which matters, because "your precheck hangs" and "your precheck is
-    // broken" send the user to different places.
+    // Distinguishes the two ways a run ends without an exit code, because
+    // "your precheck hangs" and "your precheck is broken" send the user to
+    // different places.
     let timedOut = false
-    const controller = new AbortController()
 
     const finish = (exitCode: number | null, timedOut: boolean): void => {
       if (settled) return
@@ -112,19 +167,25 @@ export function runAutomationPrecheck(
 
     const timer = setTimeout(() => {
       timedOut = true
-      controller.abort()
-      // Belt and braces: if abort somehow did not settle us, do it here.
+      if (child) killGroup(child)
+      // The group kill should close the child, but a shell that is already
+      // unreachable would otherwise leave the sweep waiting on a promise that
+      // never settles.
       finish(null, true)
     }, timeoutMs)
     timer.unref?.()
 
-    let child: ReturnType<typeof spawn>
+    let child: ReturnType<typeof spawn> | undefined
     try {
-      child = spawn(shell, ["-ilc", precheck.command], {
+      // A second of slack so that whenever the daemon IS alive its own timer
+      // wins the race and reports a timeout, rather than the watchdog killing
+      // the shell first and surfacing as a bare signal death.
+      child = spawn(shell, ["-ilc", withWatchdog(precheck.command, timeoutMs / 1000 + 1)], {
         cwd,
         stdio: ["ignore", "pipe", "pipe"],
-        signal: controller.signal,
-        killSignal: "SIGKILL",
+        // Leader of its own process group, so a timeout can take the command's
+        // children down with the shell rather than orphaning them.
+        detached: process.platform !== "win32",
       })
     } catch (spawnError) {
       // A bad shell path throws synchronously; same verdict as a bad exit.
@@ -135,8 +196,6 @@ export function runAutomationPrecheck(
 
     child.stdout?.on("data", (chunk: Buffer | string) => out.push(chunk))
     child.stderr?.on("data", (chunk: Buffer | string) => err.push(chunk))
-    // Our own abort arrives as an `error` too — attribute it to the timeout
-    // rather than logging "The operation was aborted" as a spawn failure.
     child.on("error", (spawnError) => {
       if (timedOut) {
         finish(null, true)
