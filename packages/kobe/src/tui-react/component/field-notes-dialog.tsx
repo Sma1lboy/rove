@@ -119,13 +119,10 @@ export function FieldNotesDialogView(props: {
       { danger: true },
     ).then(async (confirmed) => {
       if (confirmed !== true) return
-      const deleted = await remove(id).catch(() => false)
-      if (!deleted) return
-      // Repaint from what we know rather than refetching: the store just told
-      // us the row is gone, and a second round-trip would blank the list.
-      setState((prev) =>
-        prev.kind === "ready" ? { kind: "ready", notes: prev.notes.filter((n) => n.id !== id) } : prev,
-      )
+      // No repaint here. The provider renders ONE dialog, so opening the
+      // confirm replaced this reader and by now it is unmounted — whatever
+      // shows the result has to be arranged by whoever opened it (`show`).
+      await remove(id).catch(() => false)
     })
   }
 
@@ -210,7 +207,16 @@ function show(dialog: DialogContext, opts: { repo: string; orchestrator: FieldNo
     <FieldNotesDialogView
       repo={repo}
       load={() => orchestrator.listFieldNotes(repo)}
-      remove={(id) => orchestrator.deleteFieldNote(repo, id)}
+      remove={async (id) => {
+        const deleted = await orchestrator.deleteFieldNote(repo, id)
+        // Reopen rather than repaint. The confirm REPLACED this reader on the
+        // way in (one dialog at a time), so pressing Confirm otherwise
+        // retired the note and left nothing on screen to show it gone.
+        // Reopening here — after the store call resolved, not racing it —
+        // reloads from the store, so the list cannot draw the note back.
+        if (deleted) show(dialog, opts)
+        return deleted
+      }}
       onClose={() => resolve(undefined)}
     />
   ))
