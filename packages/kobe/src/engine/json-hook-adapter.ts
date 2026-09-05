@@ -50,8 +50,16 @@ export async function editJsonSettings(
         // configuration it could not understand.
         if (raw === undefined) return {}
         try {
-          const parsed = JSON.parse(raw) as unknown
-          return isObject(parsed) ? parsed : undefined
+          const parsed: unknown = JSON.parse(raw)
+          if (!isObject(parsed)) return undefined
+          if (parsed.hooks !== undefined) {
+            if (!isObject(parsed.hooks)) return undefined
+            for (const groups of Object.values(parsed.hooks)) {
+              if (!Array.isArray(groups)) return undefined
+              if (groups.some((group) => !isObject(group) || !Array.isArray(group.hooks))) return undefined
+            }
+          }
+          return parsed
         } catch {
           return undefined
         }

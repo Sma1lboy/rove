@@ -9,7 +9,7 @@
  */
 
 import { mkdtempSync, rmSync } from "node:fs"
-import { homedir, tmpdir } from "node:os"
+import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -204,7 +204,7 @@ describe("kobe hook setup (deprecated cleanup)", () => {
   it("removes the old WorktreeCreate hook from the global settings and persists sync=off", async () => {
     const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
     await runHookSubcommand(["setup"])
-    expect(mocks.adapter.removeWorktreeSyncHook).toHaveBeenCalledWith(join(homedir(), ".claude", "settings.json"))
+    expect(mocks.adapter.removeWorktreeSyncHook).toHaveBeenCalledWith("/fake/.claude/settings.json")
     expect(getPersistedString("externalWorktreeSync")).toBe("off")
     expect(outSpy.mock.calls.join("")).toContain("deprecated")
     outSpy.mockRestore()
@@ -216,7 +216,7 @@ describe("kobe hook setup (deprecated cleanup)", () => {
     await runHookSubcommand(["setup"])
     expect(mocks.adapter.removeWorktreeSyncHook).toHaveBeenCalledWith(resolve("/proj/app", ".claude", "settings.json"))
     // The global settings are always swept too.
-    expect(mocks.adapter.removeWorktreeSyncHook).toHaveBeenCalledWith(join(homedir(), ".claude", "settings.json"))
+    expect(mocks.adapter.removeWorktreeSyncHook).toHaveBeenCalledWith("/fake/.claude/settings.json")
     expect(getPersistedString("externalWorktreeSync")).toBe("off")
     outSpy.mockRestore()
   })
@@ -236,7 +236,7 @@ describe("kobe hook setup (deprecated cleanup)", () => {
     // `global` maps to the same path the default sweep already covers —
     // the path set is deduped, so every adapter sweeps exactly ONE path.
     const sweptPaths = new Set(mocks.adapter.removeWorktreeSyncHook.mock.calls.map((c) => String(c[0])))
-    expect([...sweptPaths]).toEqual([join(homedir(), ".claude", "settings.json")])
+    expect([...sweptPaths]).toEqual(["/fake/.claude/settings.json"])
     outSpy.mockRestore()
   })
 })
@@ -254,7 +254,7 @@ describe("ensureGlobalKobeHooks (default-ON global install)", () => {
     // Nothing installs it.
     expect(mocks.adapter.removeWorktreeWatchHook).toHaveBeenCalledWith("/fake/.claude/settings.json")
     // The WorktreeCreate provider-hook cleanup runs on every launch.
-    expect(mocks.adapter.removeWorktreeSyncHook).toHaveBeenCalledWith(join(homedir(), ".claude", "settings.json"))
+    expect(mocks.adapter.removeWorktreeSyncHook).toHaveBeenCalledWith("/fake/.claude/settings.json")
     expect(getPersistedString("externalWorktreeSync")).toBe("off")
   })
 
@@ -263,8 +263,8 @@ describe("ensureGlobalKobeHooks (default-ON global install)", () => {
     await ensureGlobalKobeHooks()
     expect(mocks.adapter.installActivityHooks).not.toHaveBeenCalled()
     expect(mocks.adapter.removeWorktreeWatchHook).not.toHaveBeenCalled()
-    // Cleanup still runs — it doesn't depend on the engine settings path.
-    expect(mocks.adapter.removeWorktreeSyncHook).toHaveBeenCalled()
+    // With no active profile or explicit persisted path, there is nothing to sweep.
+    expect(mocks.adapter.removeWorktreeSyncHook).not.toHaveBeenCalled()
   })
 
   // A fresh install has no watch hook to remove. The uninstall still runs

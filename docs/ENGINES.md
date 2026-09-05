@@ -105,6 +105,19 @@ clobbering:
 | Copilot | `~/.copilot/config.json` → `trustedFolders` |
 | Kimi | `~/.kimi-code/workspace-trust/<record>` |
 
+Claude, Codex, and Kimi trust writes follow `CLAUDE_CONFIG_DIR`, `CODEX_HOME`,
+and `KIMI_CODE_HOME`, respectively. With `CLAUDE_CONFIG_DIR` set, the Claude
+trust file is `<CLAUDE_CONFIG_DIR>/.claude.json`. Blank overrides use the
+default paths above. Each write resolves the current profile again.
+
+Claude and Codex leave unreadable, non-regular, oversized (over 8 MiB), or
+invalid configuration unchanged; launch continues with the engine's own trust
+prompt. Codex can repair up to five duplicate standalone trust tables that
+contain only the same `trust_level = "trusted"` entry, after validating the
+complete repaired TOML. Existing Kimi records are never replaced. JSON rewrites and new Codex config
+files use owner-only read/write permissions (`0600`); updates to existing Codex
+files retain their permissions.
+
 This only ever fires for worktrees Rove itself created from a repo you already
 work in; your own directories are untouched.
 
@@ -151,6 +164,15 @@ transcript marker can. Rove labels the gap honestly rather than guessing.
 Codex won't run Rove's hooks until you trust them once via `/hooks`, so Codex
 badges stay dark until you approve. That's by design: Rove writes the hook
 definition but never bypasses the trust prompt for you.
+
+Claude and Codex hook installation and cleanup use `settings.json` under
+`CLAUDE_CONFIG_DIR` and `hooks.json` under `CODEX_HOME`. Unset or blank
+overrides use `~/.claude` and `~/.codex`. Invalid JSON or hook structure,
+unreadable files, non-regular files, and files over 8 MiB are left unchanged.
+Other user settings and commands in a shared hook group survive cleanup.
+Cleanup recognizes literal `kobe`/`rove` invocations, including absolute
+executables and Bun/Node source or bundle entry paths. Commands behind shell
+wrappers or compound shell commands are left for manual review.
 
 Mechanics: [design/engine-internals.md](./design/engine-internals.md).
 

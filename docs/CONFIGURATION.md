@@ -288,7 +288,8 @@ exactly one:
 
 - **Default (no action needed)**: every Rove launch idempotently writes its
   hooks into `~/.claude/settings.json`, and `rove skill install` places the
-  skill. This is what most existing installs use.
+  skill. If `CLAUDE_CONFIG_DIR` is set to a nonblank path, hooks instead go
+  into `<CLAUDE_CONFIG_DIR>/settings.json`. This is what most existing installs use.
 - **The Claude Code plugin.** One install carries hooks and skill together,
   with no PATH or settings.json involvement:
 
@@ -312,8 +313,13 @@ fire twice. Rove warns about this at startup and the fix is one command:
 rove hook cleanup
 ```
 
-That removes only Rove's own entries from `~/.claude/settings.json`; your
-other hooks are untouched. If you also have a pre-plugin skill copy under
+That removes Rove's entries from the active profile's `settings.json`; your
+other hooks, including commands in the same group, are preserved. Installation
+and cleanup leave invalid or unreadable settings unchanged. They also refuse
+non-regular files and files over 8 MiB. JSON rewrites use owner-only read/write
+permissions (`0600`). Startup cleanup of retired global hooks uses this same
+profile; explicitly saved repository or settings-file cleanup paths still apply.
+If you also have a pre-plugin skill copy under
 `~/.claude/skills/rove` (or `…/kobe`), delete that directory. The plugin's
 bundled copy replaces it. Rove never edits or removes either one silently.
 
