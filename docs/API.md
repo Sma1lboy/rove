@@ -140,14 +140,21 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |
 | `TAB_NOT_FOUND` | A `--tab tab-N` the task has no live (or restorable) tab for. |
 | `NOT_A_REPO` | `--repo` does not point at a git repository. |
+| `REPO_UNRESOLVABLE` | `--repo` resolved, but the repository is gone or unreadable. |
 | `NO_WORKTREE` | The task has no materialized worktree yet. |
+| `BASE_CHECKOUT` | `delete` was aimed at the project's own checkout, not a Rove worktree. |
+| `CALLER_WORKTREE` | `delete` was run from inside the worktree it would remove. |
 | `HISTORY_REQUIRED` | `read-output --source history` on an engine with no history reader. |
 | `HISTORY_UNREADABLE` | The engine's history exists but could not be parsed. |
 | `CURSOR_INVALID` | A `--cursor` value this build cannot decode. |
 | `CURSOR_TASK_MISMATCH` | The cursor belongs to a different task. |
 | `SOURCE_CHANGED` | The cursor's source/session/tab moved under it. |
 | `COMPOSER_BUSY` | The target composer held un-sent text; nothing was pasted. |
+| `TAB_RESTORED` | The `--tab` exists with its scrollback but nothing runs in it; pass `--respawn`. |
+| `ENGINE_NOT_RUNNING` | The tab's engine exited into a plain shell, so a paste would run as shell commands. |
+| `DISPATCHER_UNREACHABLE` | A bare `send` whose dispatcher tab is dead and whose task has no live engine. |
 | `NOT_DELIVERED` | The task was created but the prompt never reached its engine. |
+| `EMPTY_SUCCESS_REPORT` | A `succeeded:` report from a branch with 0 commits; commit, or pass `--allow-empty`. |
 | `DEFERRED_PROMPT_PENDING` | The tab already holds a deferred prompt; release or dismiss it first. |
 | `DEFERRED_PROMPT_NOT_FOUND` | A `deferred-release` / `deferred-dismiss` id the daemon no longer holds. |
 | `SESSION_FAILED` | A hosted engine session could not be started or written to. |

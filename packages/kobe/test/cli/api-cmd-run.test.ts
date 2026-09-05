@@ -262,6 +262,14 @@ describe("runApiSubcommand", () => {
     expect(stderrJson().error.code).toBe("MISSING_TARGET")
   })
 
+  test("pane-close reports the same MISSING_TARGET as pane-open", async () => {
+    // Its sibling. `--title` is required first, so the pre-fix TASK_NOT_FOUND
+    // here was only reachable past that flag — which is why the pane-open test
+    // alone left this half unguarded.
+    await expect(runApiSubcommand(["pane-close", "--title", "x"])).rejects.toThrow("exit(1)")
+    expect(stderrJson().error.code).toBe("MISSING_TARGET")
+  })
+
   test("a one-task round that fails still exits 3 with count 0 — 'partial' can mean nothing created", async () => {
     // docs/API.md used to promise exit 3 meant "some tasks created, some
     // failed". `--count 1` goes through the same parallel path, so a lone
