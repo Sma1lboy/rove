@@ -281,9 +281,11 @@ The global default engine can't be left disabled; switching it off hands the
 default to the first engine still on.
 
 Being in `customEngineIds` *is* the registration. There's no other step.
-Stick to `^[a-z][a-z0-9_-]{0,47}$` for ids: the web settings API enforces
-that pattern (and no collision with a built-in) and drops invalid ids on
-read, while the TUI only rejects blank, built-in, and duplicate ids.
+Settings → Engines rejects a blank id, one that shadows a built-in, and one
+already registered; it lowercases and trims what you type and accepts the rest.
+Keep ids to lowercase letters, digits, `-` and `_`: the id becomes both a
+`--command <id>` argument and a key in `state.json`, so a space or a quote in
+one makes it awkward to pass and awkward to hand-edit.
 
 A custom engine launches and runs like any other, but Rove deliberately
 doesn't guess at its internals — no history reader, no account detection, no

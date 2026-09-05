@@ -16,8 +16,9 @@
  * The secret is 32 random bytes in one 0600 file under the state dir, so the
  * OS enforces the boundary that matters on a shared machine: another local
  * user can still connect to the loopback port, but cannot read the file, and
- * so cannot form a request that passes. Rotation is `rm` + a daemon restart —
- * a missing file regenerates on the next read, so no rotate verb is needed.
+ * so cannot form a request that passes. Rotation is `rm` + restarting whatever
+ * writes it (the harness dev server, or a fixture's setup) — a missing file
+ * regenerates on the next read, so no rotate verb is needed.
  */
 
 import { randomBytes } from "node:crypto"

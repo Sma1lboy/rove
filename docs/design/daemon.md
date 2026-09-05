@@ -216,8 +216,7 @@ TUI may show any task at any time.
 >
 > - **Isolated launchers drop inherited paths.** `sandboxChildEnv()` deletes
 >   `DAEMON_SOCKET_PATH` / `DAEMON_PID_PATH` / `PTY_SOCKET_PATH` / `PTY_PID_PATH`
->   in BOTH env namespaces before stamping its own home, and takes its web port
->   from `ROVE_SANDBOX_DAEMON_WEB_PORT` rather than the ambient production one.
+>   in BOTH env namespaces before stamping its own home.
 > - **Clients verify the home behind the socket.** `hello` reports the daemon's
 >   `homeDir`; a client whose own home differs throws instead of adopting the
 >   task list (`isForeignDaemonHome`). Fatal, unlike the stale-build check —

@@ -18,8 +18,9 @@ import { setRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 type HomePolicy = "redirect" | "keep"
 
 export type FixturePorts = {
-  daemonWebPort: number
+  /** Vite, serving the harness page. */
   webPort?: number
+  /** The harness PTY sidecar. */
   ptyPort?: number
 }
 
@@ -61,12 +62,13 @@ export type TaskSeed = {
 }
 
 /**
- * Canonical ports for a fixture that runs a web server + daemon + PTY sidecar.
+ * Canonical ports for a fixture: Vite + the PTY sidecar. Two, not three — the
+ * daemon has no listener to give a port to, it is reached over its socket.
  *
  * @public — imported across the package boundary by `packages/kobe-harness/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
  */
 export function fixturePortBase(base: number): FixturePorts {
-  return { webPort: base, daemonWebPort: base + 1, ptyPort: base + 2 }
+  return { webPort: base, ptyPort: base + 1 }
 }
 
 /** Runtime paths under a given fixture home. */
@@ -129,8 +131,6 @@ const FIXTURE_SCRUBBED_SUFFIXES: readonly string[] = [
   "TERMINAL_PTY",
   "HOME_DIR",
   "SANDBOX_HOME_DIR",
-  "DAEMON_WEB_PORT",
-  "SANDBOX_DAEMON_WEB_PORT",
   "WEB_PORT",
   "PTY_PORT",
 ]
@@ -149,15 +149,14 @@ function scrubFixtureEnv(parent: NodeJS.ProcessEnv): Record<string, string> {
 }
 
 /**
- * Bearer token for a fixture's daemon web transport and PTY sidecar.
+ * Bearer token for a fixture's PTY sidecar.
  *
- * Every browser-facing route — REST, SSE, and now the PTY WebSocket that
- * spawns the harness TUI — requires the web token. Fixtures pin it instead of
- * letting the daemon mint one so the participants agree without ordering
- * games: setup writes the file before the daemon starts (`ensureWebToken`
+ * The sidecar's WebSocket — the one that spawns the harness TUI — requires it.
+ * Fixtures pin it instead of letting the daemon mint one so the participants
+ * agree without ordering games: setup writes the file first (`ensureWebToken`
  * reuses an existing one), Vite hands the same value to the browser through
- * `VITE_ROVE_WEB_TOKEN` because Vite, not the daemon, serves the SPA in these
- * stacks, and teardown can still reach `/pty/close` on a gated sidecar.
+ * `VITE_ROVE_WEB_TOKEN`, and teardown can still reach `/pty/close` on a gated
+ * sidecar.
  *
  * Safe to hard-code: a fixture home is a throwaway under `.scratch/`,
  * loopback-bound, and deleted at teardown. Production mints 32 random bytes.
@@ -206,8 +205,6 @@ export function buildFixtureEnv(config: FixtureEnvConfig): Record<string, string
   const runtime = join(config.home, ".rove")
   setRoveEnv("HOME_DIR", config.home, env)
   setRoveEnv("SANDBOX_HOME_DIR", config.home, env)
-  setRoveEnv("DAEMON_WEB_PORT", String(config.ports.daemonWebPort), env)
-  setRoveEnv("SANDBOX_DAEMON_WEB_PORT", String(config.ports.daemonWebPort), env)
   if (config.ports.webPort !== undefined) setRoveEnv("WEB_PORT", String(config.ports.webPort), env)
   if (config.ports.ptyPort !== undefined) setRoveEnv("PTY_PORT", String(config.ports.ptyPort), env)
 

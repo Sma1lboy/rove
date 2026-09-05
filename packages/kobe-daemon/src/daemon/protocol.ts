@@ -282,8 +282,8 @@ export type DaemonRequestName =
  * This set lives in the wire contract, next to {@link DaemonRequestName},
  * because both the client (which must not import the handler registry — that
  * would drag every daemon module into the CLI) and the registry need it. The
- * registry entry is where a verb DECLARES it (`blocking: true` beside
- * `web: true`), and `test/daemon/rpc-deadline.test.ts` fails if the two drift.
+ * registry entry is where a verb DECLARES it (`blocking: true`), and
+ * `test/daemon/rpc-deadline.test.ts` fails if the two drift.
  */
 export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonRequestName>([
   // Blocks on a human answering the TUI dialog (default 120s, max 600s).

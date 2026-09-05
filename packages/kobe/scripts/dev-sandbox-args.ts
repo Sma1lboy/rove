@@ -7,13 +7,6 @@ export type SandboxArgs = {
   readonly roveArgs: readonly string[]
 }
 
-/** The default (unnamed) sandbox daemon's web port -- never production's 45174. */
-export const SANDBOX_DAEMON_WEB_PORT = "5274"
-
-/** Named instances hash into this range so parallel sandboxes never collide. */
-const NAMED_PORT_BASE = 5300
-const NAMED_PORT_SPAN = 700
-
 const NAME_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/
 
 function isSandboxMode(value: string | undefined): value is SandboxMode {
@@ -39,11 +32,4 @@ export function parseSandboxArgs(args: readonly string[]): SandboxArgs {
   const roveArgs = rest.slice(1)
   if (roveArgs.length > 0 && mode !== "run") throw new Error(`unexpected argument "${roveArgs[0]}"`)
   return { mode, ...(name ? { name } : {}), roveArgs }
-}
-
-/** Deterministic per-name web port -- parallel named sandboxes don't collide. */
-export function sandboxPortForName(name: string): string {
-  let h = 0
-  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0
-  return String(NAMED_PORT_BASE + (h % NAMED_PORT_SPAN))
 }

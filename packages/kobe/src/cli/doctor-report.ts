@@ -24,14 +24,16 @@ import { defaultDaemonLogPath, defaultPtyHostLogPath } from "@sma1lboy/kobe-daem
  * Rove's own knobs, by SUFFIX — expanded to both prefixes below. Spelled once
  * because a key listed under one prefix only prints its value there and
  * redacts the other spelling of the SAME knob to `(set)`, which is how a
- * `ROVE_WEB_HOST=0.0.0.0` bug report used to arrive with the value hidden.
+ * `KOBE_WEB_HOST=0.0.0.0` bug report used to arrive with the value hidden.
+ * (`WEB_HOST` is read only by the harness PTY sidecar, and only under the
+ * `KOBE_` spelling — it is the LAN escape hatch for the one web listener Rove
+ * still runs, so its value is exactly what a report needs.)
  */
 const REPORT_ENV_SUFFIXES = [
   "HOME_DIR",
   "DAEMON_SOCKET_PATH",
   "SOCKET_PATH",
   "PTY_SOCKET_PATH",
-  "DAEMON_WEB_PORT",
   "PTY_PORT",
   "WEB_HOST",
   "BIN_PATH",

@@ -1,7 +1,6 @@
 import { resolve } from "node:path"
 import { defineConfig } from "@playwright/test"
 import {
-  VISUAL_DAEMON_PORT,
   VISUAL_ENV,
   VISUAL_HOME,
   VISUAL_PTY_COMMAND,
@@ -22,7 +21,6 @@ const baseEnv = visual
       ...VISUAL_ENV,
       KOBE_WEB_PORT: String(webPort),
       KOBE_PTY_PORT: String(ptyPort),
-      KOBE_DAEMON_WEB_PORT: String(VISUAL_DAEMON_PORT),
     }
   : process.env
 

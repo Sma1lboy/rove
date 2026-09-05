@@ -9,7 +9,6 @@
 import { resolve } from "node:path"
 import setupVisualFixture, {
   KOBE_DIR,
-  VISUAL_DAEMON_PORT,
   VISUAL_ENV,
   VISUAL_HOME,
   VISUAL_PTY_COMMAND,
@@ -26,7 +25,6 @@ const child = Bun.spawn(["bun", "run", "dev.ts"], {
     ...VISUAL_ENV,
     KOBE_HOME_DIR: VISUAL_HOME,
     KOBE_WEB_PORT: String(VISUAL_WEB_PORT),
-    KOBE_DAEMON_WEB_PORT: String(VISUAL_DAEMON_PORT),
     KOBE_PTY_PORT: String(VISUAL_PTY_PORT),
     KOBE_PTY_DEV_CWD: KOBE_DIR,
     KOBE_PTY_DEV_COMMAND: VISUAL_PTY_COMMAND,

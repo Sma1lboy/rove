@@ -12,8 +12,8 @@ rove work is tracked locally. There is no external issue tracker. Agents should 
 
 ## Issues / backlog: daemon issue store
 
-The daemon owns active issue state so web edits and agent automation see the
-same data from every worktree. Deliberately low-ceremony: no type taxonomy,
+The daemon owns active issue state so every worktree's agents and TUIs see the
+same data. Deliberately low-ceremony: no type taxonomy,
 just a `status`. The persisted daemon file is keyed by each repo's git
 common-dir, so the source checkout and its worktrees share one issue record:
 

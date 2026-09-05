@@ -38,7 +38,6 @@ const inheritedEnvironment = (environment) =>
 const isolatedEnvironment = (baseEnv, demoRoot) => {
   const kobeHome = join(demoRoot, "home")
   const nativeHome = baseEnv.HOME ?? kobeHome
-  const daemonWebPort = baseEnv.ROVE_DAEMON_WEB_PORT ?? baseEnv.KOBE_DAEMON_WEB_PORT ?? "5274"
   const hostLabel = baseEnv.ROVE_CAPTURE_HOST_LABEL ?? baseEnv.KOBE_CAPTURE_HOST_LABEL ?? "puretui-replay"
   const sessionLabel = baseEnv.ROVE_CAPTURE_SESSION_LABEL ?? baseEnv.KOBE_CAPTURE_SESSION_LABEL ?? basename(demoRoot)
   return {
@@ -59,8 +58,6 @@ const isolatedEnvironment = (baseEnv, demoRoot) => {
     KOBE_HOME_DIR: kobeHome,
     ROVE_SANDBOX_HOME_DIR: kobeHome,
     KOBE_SANDBOX_HOME_DIR: kobeHome,
-    ROVE_DAEMON_WEB_PORT: daemonWebPort,
-    KOBE_DAEMON_WEB_PORT: daemonWebPort,
     ROVE_CAPTURE_HOST_LABEL: hostLabel,
     KOBE_CAPTURE_HOST_LABEL: hostLabel,
     ROVE_CAPTURE_SESSION_LABEL: sessionLabel,
