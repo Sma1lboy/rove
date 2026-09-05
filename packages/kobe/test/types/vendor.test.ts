@@ -4,19 +4,9 @@ import {
   BUILTIN_VENDORS,
   coerceVendorId,
   isBuiltinVendor,
-  nextVendor,
   nextVendorWithin,
   resolvePersistedVendor,
 } from "../../src/types/vendor.ts"
-
-describe("nextVendor", () => {
-  it("walks ALL_VENDORS in order and wraps", () => {
-    expect(nextVendor("claude")).toBe("codex")
-    expect(nextVendor("codex")).toBe("copilot")
-    expect(nextVendor("copilot")).toBe("kimi")
-    expect(nextVendor("kimi")).toBe("claude")
-  })
-})
 
 describe("nextVendorWithin", () => {
   it("cycles within a subset, wrapping around", () => {
@@ -38,8 +28,11 @@ describe("nextVendorWithin", () => {
     expect(nextVendorWithin(["codex"], "codex")).toBe("codex")
   })
 
-  it("agrees with nextVendor when the subset is the full list", () => {
-    for (const v of ALL_VENDORS) expect(nextVendorWithin(ALL_VENDORS, v)).toBe(nextVendor(v))
+  it("walks the full built-in list in order and wraps", () => {
+    expect(nextVendorWithin(ALL_VENDORS, "claude")).toBe("codex")
+    expect(nextVendorWithin(ALL_VENDORS, "codex")).toBe("copilot")
+    expect(nextVendorWithin(ALL_VENDORS, "copilot")).toBe("kimi")
+    expect(nextVendorWithin(ALL_VENDORS, "kimi")).toBe("claude")
   })
 })
 

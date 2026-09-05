@@ -8,7 +8,6 @@ import {
   NPX_MISSING_EXIT,
   bundledSkillDir,
   installedSkillDirs,
-  isKobeSkillInstalled,
   isNpxMissing,
   kobeSkillPaths,
   kobeSkillState,
@@ -49,30 +48,6 @@ describe("kobeSkillPaths", () => {
       "/p/.agents/skills/kobe/SKILL.md",
       "/p/.claude/skills/kobe/SKILL.md",
     ])
-  })
-})
-
-describe("isKobeSkillInstalled", () => {
-  it("is false when neither location has the skill", () => {
-    expect(isKobeSkillInstalled({ home: tempDir(), cwd: tempDir() })).toBe(false)
-  })
-
-  it("is true when the project-level skill exists", () => {
-    const cwd = tempDir()
-    installSkillUnder(cwd)
-    expect(isKobeSkillInstalled({ home: tempDir(), cwd })).toBe(true)
-  })
-
-  it("is true when the user-home skill exists", () => {
-    const home = tempDir()
-    installSkillUnder(home)
-    expect(isKobeSkillInstalled({ home, cwd: tempDir() })).toBe(true)
-  })
-
-  it("still detects a legacy Kobe-named install", () => {
-    const home = tempDir()
-    installSkillUnder(home, "skill", "kobe")
-    expect(isKobeSkillInstalled({ home, cwd: tempDir() })).toBe(true)
   })
 })
 
