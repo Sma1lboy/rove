@@ -228,6 +228,12 @@ Settings → General → Terminal and applies to newly opened terminals.
 and each new query parks on the newest occurrence — a scrollback is read
 backwards, so the hit you want is nearly always the last one.
 
+Pasting while the query row is focused adds to the query; it does not send
+input to the terminal child. Line breaks in pasted queries become spaces.
+Switching terminal sessions clears the query, selection and local scroll
+position. The session's process and buffered output stay available when you
+return. Resizing the same session keeps its query open.
+
 | Key | Action |
 |---|---|
 | `ctrl+a` `/` | Open the query row |

@@ -122,6 +122,10 @@ export type TerminalProps = {
 /* --------------------------------------------------------------------- */
 
 export function Terminal(props: TerminalProps) {
+  return <TerminalSession key={props.taskId} {...props} />
+}
+
+function TerminalSession(props: TerminalProps) {
   const { theme } = useTheme()
   const t = useT()
   const registry = props.registry ?? getDefaultPtyRegistry()
