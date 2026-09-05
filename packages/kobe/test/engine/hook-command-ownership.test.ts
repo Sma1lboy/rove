@@ -22,6 +22,9 @@ const invocations = [
 describe("Rove hook command ownership", () => {
   it.each([
     "echo 'hook turn-complete'",
+    "rove\nhook turn-complete",
+    "\u00a0rove hook turn-complete",
+    "rove hook turn-complete\n",
     "audit-wrapper hook turn-complete",
     "echo rove hook turn-complete",
     "rove hook turn-complete; echo user",
@@ -67,6 +70,8 @@ describe("Rove hook command ownership", () => {
 
   it.each([
     "kobe hook turn-complete",
+    " \trove\t hook \tturn-complete \t",
+    quoteShellArgv(["/path\nwith spaces/rove", "hook", "turn-complete"]),
     "/usr/local/bin/rove hook turn-complete --engine codex",
     '"/path with spaces/rove" "hook" "turn-complete"',
     "bun --conditions=browser /repo/packages/kobe/src/cli/kobe.ts hook turn-complete",

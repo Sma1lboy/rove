@@ -39,12 +39,12 @@ export function isObject(v: unknown): v is Record<string, unknown> {
 // Accept literal argv from the current quoter and older bare/double-quoted
 // installs. Shell operators, expansions and wrappers are not ours to remove.
 const HOOK_WORD = String.raw`(?:'(?:[^']|'\\'')*'|"[^"$\x60\\]*"|[A-Za-z0-9_./:=+-]+)`
-const HOOK_ARGV = new RegExp(`^${HOOK_WORD}(?:\\s+${HOOK_WORD})*$`)
+const HOOK_ARGV = new RegExp(`^${HOOK_WORD}(?:[ \t]+${HOOK_WORD})*$`)
 
 function isRoveHook(hook: unknown, verbs: readonly string[]): boolean {
   if (!isObject(hook) || hook.type !== "command" || typeof hook.command !== "string") return false
-  const command = hook.command.trim()
-  if (!HOOK_ARGV.test(command)) return false
+  const command = hook.command.replace(/^[ \t]+|[ \t]+$/g, "")
+  if (HOOK_ARGV.exec(command)?.[0] !== command) return false
   const words = command.match(new RegExp(HOOK_WORD, "g")) ?? []
   const argv = words.map((word) => {
     if (word.startsWith("'")) return word.slice(1, -1).replaceAll("'\\''", "'")
