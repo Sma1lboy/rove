@@ -294,24 +294,18 @@ export async function deliverHostedPrompt(
     // `engineReady: true, delivered: true` came back for a binary that had
     // already printed `no such file or directory`.
     //
-    // First, the one case where the walk cannot answer: a repo-init script
-    // runs BEFORE the engine (`.rove/init.sh`, e.g. a
-    // `bun install`), and its marker file appears only when it finishes. So
-    // while that marker is absent "no engine yet" is not a failed launch, and
-    // neither answer the probe could give is right: waiting would hold `add`
-    // open for the length of the install, and reporting failure would reject a
-    // launch that is proceeding normally. Report it as unconfirmed instead.
-    if (launch.initMarkerPath && !existsSync(launch.initMarkerPath)) {
-      return {
-        session: launch.key,
-        pane: launch.key,
-        started,
-        engineReady: false,
-        delivered: true,
-        reason: "repo init script is still running; the engine has not started yet",
-        ...disclose,
-      }
+    // A missing init marker means the launch has not reached the engine yet.
+    // Keep that result unconfirmed without waiting through dependency install.
+    const pendingInit: DeliveredPrompt = {
+      session: launch.key,
+      pane: launch.key,
+      started,
+      engineReady: false,
+      delivered: true,
+      reason: "repo init script is still running; the engine has not started yet",
+      ...disclose,
     }
+    if (launch.initMarkerPath && !existsSync(launch.initMarkerPath)) return pendingInit
     // Otherwise walk for the process — the same `sessionHasEngine` the
     // existing-session gate above uses, in the loop `awaitEngineProcess`
     // already owns, not a third implementation of the same question.
@@ -321,6 +315,16 @@ export async function deliverHostedPrompt(
       snapshot: opts?.snapshot,
     })
     if (enginePid === null) {
+      // Init may restart during the probe, then finish while inventory is
+      // loading. Check the marker after that await as well as session liveness.
+      if (
+        launch.initMarkerPath &&
+        !existsSync(launch.initMarkerPath) &&
+        (await listSessions(rpc)).some((session) => session.key === launch.key && session.alive) &&
+        !existsSync(launch.initMarkerPath)
+      ) {
+        return pendingInit
+      }
       return {
         session: launch.key,
         pane: launch.key,
