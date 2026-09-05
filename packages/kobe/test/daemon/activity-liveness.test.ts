@@ -248,6 +248,87 @@ describe("activity registry liveness watchdog", () => {
     expect(tabs[0]?.state).toBe("turn_complete")
   })
 
+  it("keeps unknown scoped evidence until its own completion arrives", async () => {
+    const probe: ActivityLivenessProbe = async () => ({ unknown: true })
+    registry = new DaemonActivityRegistry(bus, TTL, () => Date.now(), probe)
+    registry.report("t", "turn-start", undefined, "tab-1", { id: "own", transcriptPath: "/own" })
+    await vi.advanceTimersByTimeAsync(TTL * 3)
+    expect(registry.currentNonIdle().every((entry) => entry.state === "running")).toBe(true)
+    registry.report("t", "turn-complete", undefined, "tab-1")
+    await vi.advanceTimersByTimeAsync(TTL * 2)
+    expect(registry.currentNonIdle().every((entry) => entry.state === "turn_complete")).toBe(true)
+  })
+
+  it("replaces unknown evidence with a recovered session's own completion", async () => {
+    let known = false
+    registry = new DaemonActivityRegistry(
+      bus,
+      TTL,
+      () => Date.now(),
+      async () => (known ? { completedAt: Date.now() } : { unknown: true }),
+    )
+    registry.report("t", "turn-start")
+    await vi.advanceTimersByTimeAsync(TTL)
+    expect(states.t).toEqual(["running"])
+    known = true
+    await vi.advanceTimersByTimeAsync(TTL)
+    expect(states.t).toEqual(["running", "idle"])
+  })
+
+  it("does not let an old probe clear a replacement session with the same timestamp", async () => {
+    const finish: Array<(value: { completedAt: number }) => void> = []
+    registry = new DaemonActivityRegistry(
+      bus,
+      TTL,
+      () => 0,
+      () =>
+        new Promise((resolve) => {
+          finish.push(resolve)
+        }),
+    )
+    registry.report("t", "turn-start", undefined, "tab-1", { id: "old", transcriptPath: "/old" })
+    await vi.advanceTimersByTimeAsync(TTL)
+    registry.report("t", "turn-start", undefined, "tab-1", { id: "new", transcriptPath: "/new" })
+    for (const resolve of finish) resolve({ completedAt: 1 })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(registry.currentNonIdle()).toEqual(
+      expect.arrayContaining([expect.objectContaining({ state: "running", sessionId: "new", transcriptPath: "/new" })]),
+    )
+    expect(registry.currentNonIdle().some((entry) => entry.state === "idle")).toBe(false)
+  })
+
+  it.each(["death", "rest"] as const)(
+    "settles an unknown session's tab and task rollup after its own %s",
+    async (evidence) => {
+      registry = new DaemonActivityRegistry(
+        bus,
+        TTL,
+        () => Date.now(),
+        async () => ({ unknown: true }),
+      )
+      registry.report("t", "turn-start", undefined, "tab-1", { id: "own", transcriptPath: "/own" })
+      await vi.advanceTimersByTimeAsync(TTL)
+      if (evidence === "death") registry.recordEngineDeath("t", "tab-1", { code: 1 }, Date.now())
+      else registry.observeTab("t", "tab-1", "rest", { correctHookRunningAfterMs: 0 })
+      await vi.advanceTimersByTimeAsync(TTL * 2)
+      expect(registry.currentNonIdle().some((entry) => entry.state === "running")).toBe(false)
+    },
+  )
+
+  it("never clears a sibling's task rollup when the other tab ends", async () => {
+    registry = new DaemonActivityRegistry(
+      bus,
+      TTL,
+      () => Date.now(),
+      async () => ({ unknown: true }),
+    )
+    registry.report("t", "turn-start", undefined, "tab-1", { id: "one", transcriptPath: "/one" })
+    registry.report("t", "turn-start", undefined, "tab-2", { id: "two", transcriptPath: "/two" })
+    registry.recordEngineDeath("t", "tab-1", { code: 1 }, Date.now())
+    await vi.advanceTimersByTimeAsync(TTL)
+    expect(registry.snapshotByTask().t).toMatchObject({ state: "running", transcriptPath: "/two" })
+  })
+
   it("never idles after the entry was cleared during the probe await", async () => {
     let resolveProbe: ((v: { mtimeMs: number }) => void) | undefined
     const probe: ActivityLivenessProbe = vi.fn(
@@ -275,16 +356,15 @@ describe("activity registry liveness watchdog", () => {
  * (the kobe main task runs many tabs in one checkout), so the worktree-wide
  * completion scan read a SIBLING's Stop as "this turn ended" and idled a
  * genuinely mid-turn engine at the TTL. With the hook-piped transcript path
- * the probe must ask that one session; a vanished file falls back to the
- * worktree scan.
+ * the probe must ask that one session; a vanished file stays unknown.
  */
 describe("readActivityLiveness session scoping", () => {
   const orch = { getTask: () => ({ worktreePath: "/wt" }) }
-  const runtimeWith = (detector: Record<string, unknown>) =>
+  const runtimeWith = (detector?: Record<string, unknown>) =>
     ({
       defaultTaskVendor: "claude",
       latestTranscriptMtime: async () => 0,
-      createEngineTurnDetector: () => ({ supportsCompletionMarkers: () => true, ...detector }),
+      createEngineTurnDetector: () => (detector ? { supportsCompletionMarkers: () => true, ...detector } : undefined),
     }) as unknown as Parameters<typeof readActivityLiveness>[1]
 
   it("prefers the reporting session's own transcript over the worktree scan", async () => {
@@ -298,15 +378,26 @@ describe("readActivityLiveness session scoping", () => {
     })
   })
 
-  it("falls back to the worktree scan when the session transcript is gone", async () => {
+  it("preserves unknown when the exact session transcript is gone", async () => {
     const runtime = runtimeWith({
       latestActivity: async () => ({ marker: { id: "wide", timestampMs: 999 }, mtimeMs: 1000 }),
       latestActivityInFile: async () => null,
     })
     await expect(readActivityLiveness(orch, runtime, "t", "claude", "/tp/gone.jsonl")).resolves.toEqual({
-      mtimeMs: 1000,
-      completedAt: 999,
+      unknown: true,
     })
+  })
+
+  it("keeps a failed scoped read unknown instead of borrowing a sibling completion", async () => {
+    const wide = vi.fn(async () => ({ marker: { id: "sibling", timestampMs: 999 }, mtimeMs: 1000 }))
+    const runtime = runtimeWith({
+      latestActivity: wide,
+      latestActivityInFile: async () => {
+        throw new Error("unreadable")
+      },
+    })
+    expect(await readActivityLiveness(orch, runtime, "t", "claude", "/own")).toEqual({ unknown: true })
+    expect(wide).not.toHaveBeenCalled()
   })
 
   it("scans the worktree when no transcript path was reported", async () => {
@@ -318,4 +409,29 @@ describe("readActivityLiveness session scoping", () => {
     await expect(readActivityLiveness(orch, runtime, "t", "claude")).resolves.toEqual({ mtimeMs: 42 })
     expect(latestActivityInFile).not.toHaveBeenCalled()
   })
+
+  it.each([true, false])(
+    "probes only the identified file when marker support is unavailable (detector %s)",
+    async (present) => {
+      const home = await mkdtemp(join(tmpdir(), "rove-scoped-mtime-"))
+      const own = join(home, "own.jsonl")
+      const wide = vi.fn(async () => 999)
+      const runtime = runtimeWith(present ? { supportsCompletionMarkers: () => false } : undefined)
+      runtime.latestTranscriptMtime = wide
+      try {
+        expect(await readActivityLiveness(orch, runtime, "t", "generic", own)).toEqual({ unknown: true })
+        expect(await readActivityLiveness(orch, runtime, "t", "generic", home)).toEqual({ unknown: true })
+        await writeFile(own, "")
+        expect(await readActivityLiveness(orch, runtime, "t", "generic", own)).toEqual({
+          mtimeMs: (await stat(own)).mtimeMs,
+        })
+        expect(wide).not.toHaveBeenCalled()
+      } finally {
+        await rm(home, { recursive: true, force: true })
+      }
+    },
+  )
 })
+import { mkdtemp, rm, stat, writeFile } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import { join } from "node:path"

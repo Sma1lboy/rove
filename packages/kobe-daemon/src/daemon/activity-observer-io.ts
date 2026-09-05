@@ -51,12 +51,13 @@ export function createActivityObserverIo(
     // the PTY-layer hook would never write. Best-effort by contract.
     onEngineExit({ taskId, tabId, vendor, pid }) {
       const key = `${taskId}::${tabId}`
-      void peek(key)
+      const pending = peek(key)
         .then((tail) =>
           recordEngineExit({ key, vendor, pid, at: new Date().toISOString(), tail }, defaultPtyExitsPath(homeDir)),
         )
         .catch((err) => logDaemonInfo("engine-exit", `record failed for ${key}: ${String(err)}`))
       logDaemonInfo("engine-exit", `${vendor} (pid ${pid ?? "?"}) gone from live session ${key}`)
+      return pending
     },
     /**
      * Boot reconciliation — the two engine deaths the vendor→null EDGE
@@ -101,7 +102,7 @@ export function createActivityObserverIo(
         if (death) activity?.recordEngineDeath(death.taskId, death.tabId, death.exit, death.at)
         return
       }
-      void peek(key)
+      return peek(key)
         .then((raw) => {
           if (engineExitCodeFromTail(plainTail(raw)) === null) return
           // `at` is NOW, flagged approximate: the banner proves the death and

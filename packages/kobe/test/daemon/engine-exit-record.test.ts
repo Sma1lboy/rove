@@ -112,8 +112,12 @@ function observeWalk(steps: readonly (string | null)[]): Promise<WalkFires> {
         return Promise.resolve(new Map(pids.map((pid) => [pid, vendor ? { vendor, pid: 9001 } : null])))
       },
       titleTurnHint: () => null,
-      onEngineExit: (info) => fired.push({ ...info }),
-      onEngineAbsentAtStart: (info) => absent.push({ ...info }),
+      onEngineExit: (info) => {
+        fired.push({ ...info })
+      },
+      onEngineAbsentAtStart: (info) => {
+        absent.push({ ...info })
+      },
     },
     () => true,
     { pollMs: 5, walkEveryTicks: 1, log: () => {} },

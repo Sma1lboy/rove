@@ -1,54 +1,19 @@
 /**
- * Single owner of `~/.config/rove/state.json` I/O.
- *
- * This file exists to kill a dual-writer hazard: with several kobe
- * processes alive at once, any writer that flushes a whole in-memory
- * snapshot clobbers keys another process wrote since that snapshot was
- * taken (the classic lost update). Every write therefore goes through
- * the read-merge-write transaction here.
- *
- * Read-merge-write: every write re-reads the file fresh and
- * applies ONLY the keys the caller actually changed, then writes the
- * merged result atomically (tmp + rename).
- * Concurrent writers touching DIFFERENT keys cannot erase each
- * other; same-key writers are last-write-wins, which is the documented
- * semantics. There is no flock — the merge shrinks the
- * race window to the read→rename span of a sync call, it does not
- * serialize writers. A true cross-process lock is the multi-instance
- * follow-up if same-key contention ever becomes real.
- *
- * Corrupt-file policy (aligned with orchestrator/index/store.ts's tasks.json
- * handling): a missing state.json reads as `{}` silently — that's the normal
- * fresh-machine case. Unparseable JSON is different: the bad file is renamed
- * to `state.json.corrupt-<ts>` (never deleted — a forensic copy survives) and
- * a warning goes to stderr once, then `{}` is returned so the UI/CLI is never
- * blocked. Either way the caller always gets `{}`, never a throw.
- *
- * tmp-write uniqueness: `writeStateFile` targets `${path}.<pid>.<nonce>.tmp`,
- * not a fixed shared name. Every write here still goes through the
- * read-merge-write of `patchStateFile`/`updateStateFile` above, but nothing
- * stops two DIFFERENT processes from calling `writeStateFile` at genuinely
- * the same instant (no flock, per the module's opening paragraph) — a shared
- * tmp path would let one process's `writeFileSync` interleave with another's
- * on the same inode and rename over a torn write. Per-process-unique tmp
- * names make that impossible; the final `rename()` stays atomic and
- * last-write-wins, unchanged.
+ * State-file transactions preserve unrelated keys from other UI/CLI writers.
+ * The task-index lock protocol serializes the entire fresh read + mutation +
+ * rename; unique staging files separately protect readers from partial JSON.
  */
 
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
 import { kvStatePath } from "../env.ts"
+import { acquireSync, releaseSync } from "../orchestrator/index/lockfile.ts"
 
 let corruptWarned = false
 
 /** The flat JSON object persisted at `kvStatePath()`. */
 export type StateSnapshot = Record<string, unknown>
 
-/**
- * Read + parse the state file. Returns `{}` for a missing file, malformed
- * JSON, or a non-object root (array/string/number) — see the corrupt-file
- * policy in the module doc. Never throws.
- */
 /**
  * `savedRepos` as stored in an already-loaded snapshot (type-filtered).
  *
@@ -63,7 +28,16 @@ export function readSavedRepos(state: StateSnapshot): readonly string[] {
   return raw.filter((entry): entry is string => typeof entry === "string")
 }
 
+/**
+ * Read + parse the state file. Returns `{}` for a missing file, malformed
+ * JSON, or a non-object root (array/string/number) — see the corrupt-file
+ * policy in the module doc. Never throws.
+ */
 export function loadStateFile(): StateSnapshot {
+  return readStateFile(false)
+}
+
+function readStateFile(ownsLock: boolean): StateSnapshot {
   const path = kvStatePath()
   let text: string
   try {
@@ -79,6 +53,22 @@ export function loadStateFile(): StateSnapshot {
     }
   } catch {
     // fall through to the corrupt-JSON handling below
+  }
+  if (!ownsLock) {
+    // A reader that saw corrupt bytes must re-read under the write lock before
+    // moving anything: another process may already have repaired the file.
+    const lockPath = `${path}.lock`
+    let token: string
+    try {
+      token = acquireSync(lockPath, 0)
+    } catch {
+      return {}
+    }
+    try {
+      return readStateFile(true)
+    } finally {
+      releaseSync(lockPath, token)
+    }
   }
   // The file exists but didn't parse as a JSON object: back it up instead of
   // silently discarding it, then start fresh. Best-effort — if the backup
@@ -134,10 +124,16 @@ function writeStateFile(state: StateSnapshot): void {
  * Returns the snapshot that is now on disk (or would be, when skipped).
  */
 export function updateStateFile(mutate: (state: StateSnapshot) => boolean | undefined): StateSnapshot {
-  const state = loadStateFile()
-  const shouldWrite = mutate(state)
-  if (shouldWrite !== false) writeStateFile(state)
-  return state
+  const lockPath = `${kvStatePath()}.lock`
+  const token = acquireSync(lockPath)
+  try {
+    const state = readStateFile(true)
+    const shouldWrite = mutate(state)
+    if (shouldWrite !== false) writeStateFile(state)
+    return state
+  } finally {
+    releaseSync(lockPath, token)
+  }
 }
 
 /**
@@ -186,5 +182,9 @@ export function setPersistedBool(key: string, value: boolean): void {
  * reintroduces the lost-update bug this module exists to fix.
  */
 export function replaceStateFile(snapshot: StateSnapshot): void {
-  writeStateFile(snapshot)
+  updateStateFile((state) => {
+    for (const key of Object.keys(state)) delete state[key]
+    Object.assign(state, snapshot)
+    return undefined
+  })
 }

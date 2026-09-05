@@ -120,8 +120,8 @@ function record(metric: keyof typeof GOLDEN, value: number, unit: string): void 
     },
     listTasks: () => [],
     activeTaskSignal: () => () => null,
-  } as unknown as Parameters<typeof startDaemonServer>[0]
-  const server = await startDaemonServer(orch, {
+  } as unknown as Awaited<ReturnType<Parameters<typeof startDaemonServer>[0]>>
+  const server = await startDaemonServer(() => orch, {
     runtime: daemonRuntime,
     socketPath: join(dir, "daemon.sock"),
     pidPath: join(dir, "daemon.pid"),

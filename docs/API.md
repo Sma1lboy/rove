@@ -295,7 +295,8 @@ replacement in `nextCommandArgs`.
   empty page because nothing can read its turns, not because it did no work.
   Read-only.
 - `pty-list` *(offline)*: hosted PTY sessions (key, alive, pid, command,
-  live window title). `sessions: []` means a live PTY host with nothing
+  live window title, optional `generation` identifying the host's current
+  in-memory session lifetime). `sessions: []` means a live PTY host with nothing
   running; `sessions: null` means there was no host to ask — "couldn't look",
   not an idle fleet. Never read `null` as "no sessions running".
 - `read-output [--task-id ID] [--tab TAB] [--source auto|history|terminal]

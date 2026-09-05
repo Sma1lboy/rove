@@ -95,6 +95,26 @@ describe("startTicker", () => {
     expect(run).toHaveBeenCalledTimes(2)
   })
 
+  it("stops scheduling immediately and drains an in-flight write before returning", async () => {
+    let finish = () => {}
+    const write = new Promise<void>((resolve) => {
+      finish = resolve
+    })
+    const run = vi.fn(() => write)
+    const stop = startTicker({ name: "write", tickMs: 100, immediate: true, run })
+    let closed = false
+    const pending = stop().then(() => {
+      closed = true
+    })
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(closed).toBe(false)
+    expect(run).toHaveBeenCalledTimes(1)
+    finish()
+    await pending
+    expect(closed).toBe(true)
+    await stop()
+  })
+
   it("stops the interval and runs onStop", () => {
     const run = vi.fn()
     const onStop = vi.fn()
@@ -106,6 +126,31 @@ describe("startTicker", () => {
     expect(onStop).toHaveBeenCalledTimes(1)
     vi.advanceTimersByTime(1000)
     expect(run).toHaveBeenCalledTimes(1)
+  })
+
+  it("drains the active pass even when extra teardown throws", async () => {
+    let finish = () => {}
+    const run = new Promise<void>((resolve) => {
+      finish = resolve
+    })
+    const stop = startTicker({
+      name: "write",
+      tickMs: 100,
+      immediate: true,
+      run: () => run,
+      onStop: () => {
+        throw new Error("close failed")
+      },
+    })
+    let rejected = false
+    const pending = stop().catch(() => {
+      rejected = true
+    })
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(rejected).toBe(false)
+    finish()
+    await pending
+    expect(rejected).toBe(true)
   })
 
   it("unrefs the timer", () => {

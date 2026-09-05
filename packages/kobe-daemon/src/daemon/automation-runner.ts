@@ -388,7 +388,10 @@ export async function sweepAutomations(deps: RunnerDeps, tickMs: number = DEFAUL
  * Start the sweep. `tickMs: 0` disables it entirely — the test harness boots a
  * daemon with every collector zeroed, and this must honour that too.
  */
-export function startAutomationRunner(deps: RunnerDeps, tickMs: number = DEFAULT_AUTOMATION_TICK_MS): () => void {
+export function startAutomationRunner(
+  deps: RunnerDeps,
+  tickMs: number = DEFAULT_AUTOMATION_TICK_MS,
+): ReturnType<typeof startTicker> {
   // Ungated for the same reason as quota-resume, only more so: a schedule
   // that requires an audience is not a schedule.
   return startTicker({ name: "automation-sweep", tickMs, run: () => sweepAutomations(deps, tickMs) })

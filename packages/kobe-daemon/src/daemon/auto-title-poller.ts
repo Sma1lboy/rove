@@ -116,7 +116,7 @@ export function startAutoTitlePoller(
   runtime: Pick<DaemonRuntimeAdapter, "deriveTitleFromSession" | "placeholderTaskTitle" | "defaultTaskVendor">,
   intervalMs: number = DEFAULT_AUTO_TITLE_POLL_MS,
   hasSubscribers?: () => boolean,
-): () => void {
+): ReturnType<typeof startTicker> {
   return startTicker({
     name: "auto-title-poller",
     tickMs: intervalMs,

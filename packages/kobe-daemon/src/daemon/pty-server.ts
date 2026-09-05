@@ -358,9 +358,14 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
         )
         return {}
       }
-      case "pty.kill":
-        ptys.kill(requireString(objectPayload(req.payload), "key"))
+      case "pty.kill": {
+        const payload = objectPayload(req.payload)
+        const key = requireString(payload, "key")
+        if ("expectedGeneration" in payload)
+          return ptys.killIfGeneration(key, requireString(payload, "expectedGeneration"))
+        void ptys.kill(key)
         return {}
+      }
       case "pty.rename": {
         const payload = objectPayload(req.payload)
         return { renamed: ptys.rename(requireString(payload, "from"), requireString(payload, "to")) }

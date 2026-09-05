@@ -9,16 +9,16 @@ import { describe, expect, it, vi } from "vitest"
  * `reevaluateIdle` hook that lets a gui-less daemon finally idle-stop).
  */
 
-function make(probe: () => Promise<boolean>) {
+function make(probe: () => Promise<boolean | null>) {
   const onRelease = vi.fn()
   const hold = new PtyLiveHold({ probe, onRelease, log: () => {} })
   return { hold, onRelease }
 }
 
 describe("PtyLiveHold", () => {
-  it("starts unheld and holds once the probe sees a live session", async () => {
+  it("holds until the initial probe can establish absence", async () => {
     const { hold, onRelease } = make(async () => true)
-    expect(hold.isHeld()).toBe(false)
+    expect(hold.isHeld()).toBe(true)
     await hold.probeSoon()
     expect(hold.isHeld()).toBe(true)
     expect(onRelease).not.toHaveBeenCalled()
@@ -47,6 +47,22 @@ describe("PtyLiveHold", () => {
     await hold.probeSoon()
     expect(hold.isHeld()).toBe(true)
     expect(onRelease).not.toHaveBeenCalled()
+  })
+
+  it("holds through unknown probes at boot and after observing a live session", async () => {
+    let live: boolean | null = null
+    const { hold, onRelease } = make(async () => live)
+    await hold.probeSoon()
+    expect(hold.isHeld()).toBe(true)
+    live = true
+    await hold.probeSoon()
+    live = null
+    await hold.probeSoon()
+    expect(onRelease).not.toHaveBeenCalled()
+    live = false
+    await hold.probeSoon()
+    expect(hold.isHeld()).toBe(false)
+    expect(onRelease).toHaveBeenCalledTimes(1)
   })
 
   it("dedupes overlapping probes onto one in-flight refresh", async () => {

@@ -139,7 +139,7 @@ export function startQuotaResumeRunner(
   tickMs: number = DEFAULT_QUOTA_RESUME_TICK_MS,
   now: () => number = Date.now,
   plugins?: () => Pick<PluginHost, "handleUiReport"> | null,
-): () => void {
+): ReturnType<typeof startTicker> {
   // Ungated on purpose: resuming a rate-limited engine while nobody is
   // attached is the entire job. `tickMs <= 0` disabling the sweep is
   // `startTicker`'s job now — `collectors.ts` reads the tick with `??`, which

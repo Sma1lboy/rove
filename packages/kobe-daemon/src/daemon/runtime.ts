@@ -16,8 +16,7 @@ export interface EngineTurnDetectorAdapter {
     marker: { id: string; timestampMs: number } | null
     mtimeMs: number
   }>
-  /** {@link latestActivity} scoped to one session transcript; `null` = not
-   *  supported by this vendor (or file gone) — fall back to the worktree scan. */
+  /** Session-scoped evidence. Null means unknown; never borrow another session's completion. */
   latestActivityInFile(transcriptPath: string): Promise<{
     marker: { id: string; timestampMs: number } | null
     mtimeMs: number

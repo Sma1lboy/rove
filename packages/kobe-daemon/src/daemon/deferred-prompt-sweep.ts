@@ -100,7 +100,7 @@ function failure(record: DeferredPromptRecord, error: string): DeferredSweepFail
 export function startDeferredPromptSweep(
   deps: DeferredSweepDeps,
   tickMs: number = DEFAULT_DEFERRED_SWEEP_TICK_MS,
-): () => void {
+): ReturnType<typeof startTicker> {
   return startTicker({
     name: "deferred-prompt-sweep",
     tickMs,
