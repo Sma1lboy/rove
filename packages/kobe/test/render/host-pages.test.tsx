@@ -230,7 +230,7 @@ function mockKv(): KVContext {
     get: () => undefined,
     set: () => {},
     flush: () => true,
-    clear: () => {},
+    clear: () => true,
   }
 }
 

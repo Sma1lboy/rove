@@ -21,20 +21,14 @@
 import { peekSharedPtyClient } from "../../tui/panes/terminal/pty-hosted-client"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { noteClosedPtyKey } from "../../tui/workspace/closed-tab-suppress"
-import {
-  type TabsState,
-  type TerminalTab,
-  closeTab,
-  tabPtyKey,
-  tabPtyKeyFor,
-} from "../../tui/workspace/terminal-tabs-core"
+import { type TerminalTab, closeTab, tabPtyKey, tabPtyKeyFor } from "../../tui/workspace/terminal-tabs-core"
 import { releaseSplitLeaves } from "./TerminalSplit"
 import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
 import {
+  knownTabsState,
   reportTabsDelta,
   requestTabClose,
   setTaskTabs,
-  tabsByTask,
   takeUnclaimedTabClose,
 } from "./terminal-tabs-shared"
 
@@ -77,16 +71,6 @@ function killHostedSession(key: string): void {
   void client.then((c) => c.request("pty.kill", { key })).catch(() => {})
 }
 
-/** The tab state a non-mounted task has: its live module entry, else the
- *  persisted snapshot. Null when the task has never opened tabs — nothing to
- *  close, as opposed to `appendBackgroundEngineTab`'s "start a fresh set". */
-function backgroundTabsState(kv: TabsSnapshotKv, taskId: string): TabsState | null {
-  const live = tabsByTask.get(taskId)
-  if (live) return live
-  const saved = kv.store[terminalTabsKey(taskId)] as TabsState | null | undefined
-  return saved && Array.isArray(saved.tabs) ? saved : null
-}
-
 /**
  * Close `tabId` of `taskId`. Returns whether anything closed — false means the
  * task named no such tab (or has never opened any), which is the one case the
@@ -94,7 +78,7 @@ function backgroundTabsState(kv: TabsSnapshotKv, taskId: string): TabsState | nu
  * empties the list and leaves the row, exactly as the mounted path does.
  */
 export function closeTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string): boolean {
-  const state = backgroundTabsState(kv, taskId)
+  const state = knownTabsState(kv, taskId)
   // Check before publishing: a mounted component claims requests by task, so
   // publishing an unknown id first would look like a successful close even
   // though closeById made no state transition.
