@@ -17,7 +17,8 @@
 
 import { expect, test } from "bun:test"
 import type { BoxRenderable } from "@opentui/core"
-import { TabTreeRow, type TreeRowShared } from "../../src/tui-react/panes/sidebar/tree-rows"
+import type { TreeRowShared } from "../../src/tui-react/panes/sidebar/tree-row-shell"
+import { TabTreeRow } from "../../src/tui-react/panes/sidebar/tree-rows"
 import { ATTENTION_GLYPH, NO_STATE_GLYPH } from "../../src/tui/panes/sidebar/row-view"
 import type { TreeTab } from "../../src/tui/panes/sidebar/tree-core"
 import type { Task } from "../../src/types/task"
