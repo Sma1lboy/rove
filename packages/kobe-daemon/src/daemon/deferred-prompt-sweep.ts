@@ -4,7 +4,7 @@
  * `DEFERRED_PROMPT_TTL_MS` is the store's stated retention policy, but nothing
  * enforced it: `list()` is the only method that computes `expired`, and its
  * only caller was `deferredPrompt.flush`, which fires when a human opens
- * Settings and toggles the composer gate. A prompt the delivery gate parked
+ * Settings and loosens the delivery guard. A prompt the delivery gate parked
  * because a composer was busy therefore sat on disk indefinitely, with a
  * permanent `prompt_deferred` Inbox row that no later turn on that tab could
  * clear (`attentionInboxItemKey` gives the deferred episode its own lane, so
@@ -15,7 +15,7 @@
  *
  * It expires ONLY. Do not fold the live-record delivery retry in here —
  * `flushDeferredPrompts` re-attempts delivery for every non-expired record,
- * and that is a deliberate human-triggered action (the gate just turned off).
+ * and that is a deliberate human-triggered action (the guard just loosened).
  */
 
 import type { AttentionInboxStore } from "./attention-inbox.ts"
@@ -74,7 +74,12 @@ export async function sweepExpiredDeferredPrompts(deps: DeferredSweepDeps): Prom
       continue
     }
     try {
-      await deps.inbox.recordPromptExpired(expired.taskId, expired.tabId, expired.id, (deps.now ?? Date.now)())
+      // A DISMISSED record has no Inbox pointer to replace — a human already
+      // said they did not want it, and resurrecting the row at expiry would
+      // undo that. Its text simply reaches the end of its retention.
+      if (expired.dismissedAt === undefined) {
+        await deps.inbox.recordPromptExpired(expired.taskId, expired.tabId, expired.id, (deps.now ?? Date.now)())
+      }
       await deps.store.completeClaim(claimed.claim)
       report.expired.push(expired.id)
     } catch (error) {

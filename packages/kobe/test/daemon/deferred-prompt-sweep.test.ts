@@ -56,6 +56,26 @@ describe("deferred-prompt expiry sweep", () => {
 
   const base = { taskId: "task-1", tabId: "tab-1", prompt: "held text", layer: "composer-not-empty" as const }
 
+  it("destroys a dismissed record at its deadline WITHOUT resurrecting an Inbox row", async () => {
+    // The "never delivered" notice exists because nobody would otherwise learn
+    // the message did not run. A human who dismissed it already knows, and
+    // putting the row back a day later would undo their answer.
+    const { store, path } = await create()
+    const inbox = fakeInbox()
+    const filed = await store.file({ ...base, at: now })
+    await store.discard(filed.id, "Inbox item dismissed")
+
+    now += DEFERRED_PROMPT_TTL_MS + 1
+    const report = await sweepExpiredDeferredPrompts({ store, inbox, now: () => now })
+
+    expect(report.expired).toEqual([filed.id])
+    expect(inbox.expired).toEqual([])
+    // The text is gone from disk — retention ended, which is the whole point
+    // of keeping the record instead of deleting it at dismiss time.
+    expect(JSON.parse(await readFile(path, "utf8"))).toEqual({ version: 1, records: [] })
+    expect(await store.get(filed.id)).toBeNull()
+  })
+
   it("drops a past-TTL record and leaves a dismissible trace in its place", async () => {
     const { store, path } = await create()
     const record = await store.file({ ...base, at: now })

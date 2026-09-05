@@ -562,20 +562,28 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     session to pick up. Nothing can confirm that paste; `clients` is a raw
     connection count (the calling CLI is one of them) and only its `0` proves
     anything — the text reached nobody.
-- `deferred-list [--task-id ID]`: every prompt the daemon is holding because
-  the target composer was busy when it arrived — the Inbox, read by a caller
-  with no screen. Each record carries its `id`, `taskId`, `tabId`, the
-  verbatim `prompt`, the `layer` that blocked it, `at`, and `expiresAt`.
-  Returns `{ records }`; `--task-id` filters to one task.
+- `deferred-list [--task-id ID] [--include-dismissed]`: every prompt the daemon
+  is holding because the target composer was busy when it arrived — the Inbox,
+  read by a caller with no screen. Each record carries its `id`, `taskId`,
+  `tabId`, the verbatim `prompt`, the `layer` that blocked it, `at`,
+  `expiresAt`, and `senderLabel` when the prompt named a sender (lifted from
+  its `[ROVE PEER]` provenance header). Returns `{ records }`; `--task-id`
+  filters to one task. `--include-dismissed` also lists records someone
+  dismissed from the Inbox: they are off the queue, but their text is kept
+  until the same 24h deadline and each carries a `dismissedAt`.
 - `deferred-release --id ID`: deliver one held prompt now (the Inbox's
   release action). It re-runs the delivery gate rather than bypassing it, so
   a composer that is STILL busy leaves the record held and returns
   `delivered: false` with the blocking `reason` — retry later. Returns
   `{ id, delivered, reason? }`; an id the daemon no longer holds is
   `DEFERRED_PROMPT_NOT_FOUND`.
-- `deferred-dismiss --id ID`: drop one held prompt WITHOUT delivering it and
-  free its tab's deferred slot. The text is gone — dismiss a message that is
-  no longer wanted, then send the replacement. Returns `{ dismissed }`.
+- `deferred-dismiss --id ID`: take one held prompt off the queue WITHOUT
+  delivering it, freeing its tab's deferred slot — dismiss a message that is
+  no longer wanted, then send the replacement. The TEXT is not destroyed: the
+  record is kept until its ordinary 24h expiry, so
+  `deferred-list --include-dismissed` still shows it and `deferred-release`
+  still delivers it. That is how a dismiss made by mistake is undone; the
+  sweep is what finally destroys the text. Returns `{ dismissed }`.
 - `note --task-id ID --text TEXT`: file a one-line field note (a resolved,
   repo-level gotcha). Appended to the repo's durable note store, so every
   future worktree session on this repo starts with it in its system prompt;

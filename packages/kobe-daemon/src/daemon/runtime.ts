@@ -225,8 +225,14 @@ export interface DaemonRuntimeAdapter {
         readonly layer: "recent-human-write" | "composer-not-empty"
       }
   >
-  /** Fresh persisted state, checked between deferred-queue deliveries. */
-  composerGateEnabled(): boolean
+  /**
+   * Fresh persisted delivery-guard state, checked between deferred-queue
+   * deliveries. `on` runs both checks (keystroke window + composer screen
+   * read), `screen-off` drops the screen read, `off` drops both. The literal
+   * union is duplicated from `rove`'s `state/delivery-guard.ts` because this
+   * package cannot depend on that one.
+   */
+  deliveryGuard(): "on" | "screen-off" | "off"
   getPersistedString(key: string): string | undefined
   setPersistedString(key: string, value: string): void
   getSavedRepos(): readonly string[]

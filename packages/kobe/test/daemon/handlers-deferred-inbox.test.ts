@@ -32,9 +32,29 @@ describe("deferredPrompt list + dismiss", () => {
     dir = await mkdtemp(join(tmpdir(), "kobe-deferred-inbox-"))
     const store = new Store(join(dir, "deferred-prompts.json"))
     ;(ctx as { deferredPrompts?: DeferredPromptsStore }).deferredPrompts = store
-    ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = { ...ctx.runtime, composerGateEnabled: () => false }
+    ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = { ...ctx.runtime, deliveryGuard: () => "screen-off" as const }
     return { ctx, rec, store }
   }
+
+  it("lifts the peer provenance header onto the record and its Inbox episode", async () => {
+    // The episode carries an id, never the prompt body, so the card can only
+    // name a sender if the daemon lifts it at filing time.
+    const { ctx, rec, store } = await ctxWithStore()
+    const filed = (await dispatch(
+      "deferredPrompt.fileIfVacant",
+      {
+        taskId: TASK.id,
+        tabId: "tab-1",
+        prompt: '[ROVE PEER] from "kobe" (task 01ABC)\n\ndo the thing',
+        layer: "composer-not-empty",
+      },
+      ctx,
+    )) as { id: string }
+
+    expect((await store.get(filed.id))?.senderLabel).toBe("kobe")
+    const episode = rec.inboxPromptDeferred.at(-1)
+    expect(episode?.sender).toBe("kobe")
+  })
 
   it("list publishes the live records with an expiry, so a headless caller can act on them", async () => {
     // Releasing a deferred prompt used to be a human action on the Inbox
@@ -59,10 +79,48 @@ describe("deferredPrompt list + dismiss", () => {
     expect(Date.parse(records[0].at)).toBe(stored?.at)
   })
 
-  it("dismiss drops the record AND its Inbox pointer, so no phantom item survives", async () => {
-    // Dropping only the record would leave the Inbox episode pointing at text
-    // that no longer exists — the same stranded-pointer shape the release path
-    // orders its two deletes to avoid.
+  it("a dismissed record is hidden by default, listed on request, and still releasable", async () => {
+    // The whole recovery path for the accident this feature exists for: a
+    // dispatcher's instruction dismissed off a card that named no sender. The
+    // sender has already exited 0, so "gone" had to stop meaning gone.
+    const { ctx, store } = await ctxWithStore()
+    const filed = (await dispatch(
+      "deferredPrompt.fileIfVacant",
+      { taskId: TASK.id, tabId: "tab-1", prompt: "the instruction", layer: "composer-not-empty" },
+      ctx,
+    )) as { id: string }
+    await dispatch("deferredPrompt.dismiss", { id: filed.id }, ctx)
+    ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = {
+      ...ctx.runtime,
+      deliverPromptToLiveEngineTabDetailed: async () => ({ outcome: "delivered", tabId: "tab-1" }),
+    }
+
+    const hidden = (await dispatch("deferredPrompt.list", {}, ctx)) as { records: { id: string }[] }
+    expect(hidden.records).toEqual([])
+
+    const shown = (await dispatch("deferredPrompt.list", { includeDismissed: true }, ctx)) as {
+      records: { id: string; prompt: string; dismissedAt?: string }[]
+    }
+    expect(shown.records.map((record) => record.id)).toEqual([filed.id])
+    expect(shown.records[0].prompt).toBe("the instruction")
+    expect(Date.parse(shown.records[0].dismissedAt ?? "")).toBeGreaterThan(0)
+
+    // ...and release still delivers it, which is what makes the dismiss undoable.
+    const released = (await dispatch("deferredPrompt.release", { id: filed.id }, ctx)) as {
+      kind: string
+      delivered: string[]
+    }
+    expect(released.kind).toBe("claimed")
+    expect(released.delivered).toEqual([filed.id])
+    expect(await store.get(filed.id)).toBeNull()
+  })
+
+  it("dismiss deletes the Inbox pointer and frees the slot, but KEEPS the text", async () => {
+    // Leaving the episode would point at text nobody can reach — the same
+    // stranded-pointer shape the release path orders its two deletes to avoid.
+    // Deleting the TEXT is the other failure: a stray `d` on a card that named
+    // no sender used to destroy a dispatcher's instruction outright, so the
+    // record survives to its ordinary TTL and stays releasable.
     const { ctx, rec, store } = await ctxWithStore()
     const filed = (await dispatch(
       "deferredPrompt.fileIfVacant",
@@ -76,7 +134,11 @@ describe("deferredPrompt list + dismiss", () => {
     }
     expect(res.dismissed).toBe(true)
     expect(res.record.prompt).toBe("unwanted")
-    expect(await store.get(filed.id)).toBeNull()
+    expect((await store.get(filed.id))?.prompt).toBe("unwanted")
+    expect((await store.get(filed.id))?.dismissedAt).toBeTypeOf("number")
+    // Off the queue: the default listing (what `deferred-list` reads) hides it.
+    expect((await store.list()).records).toEqual([])
+    expect((await store.list()).dismissed.map((r) => r.id)).toEqual([filed.id])
     expect(rec.inboxDeleted).toEqual([{ taskId: TASK.id, tabId: "tab-1" }])
     // The tab's slot is free again: a later filing is accepted, not refused
     // as occupied.

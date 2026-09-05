@@ -101,7 +101,7 @@ needs numbers, not when you want to know what a task is doing.
 send              --task-id --prompt|--prompt-file(REQ) --tab --command --respawn --plain
                   --allow-empty
 dispatch          --task-id(REQ) --prompt|--prompt-file(REQ) --tab
-deferred-list     --task-id
+deferred-list     --task-id --include-dismissed
 deferred-release  --id(REQ)
 deferred-dismiss  --id(REQ)
 note              --task-id(REQ) --text(REQ)

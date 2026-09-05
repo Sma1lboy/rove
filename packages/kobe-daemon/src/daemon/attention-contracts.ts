@@ -64,6 +64,15 @@ export interface EngineActivityDetail {
      * guessed one.
      */
     readonly expiresAt?: number
+    /**
+     * Who sent the held message, lifted from the prompt's `[ROVE PEER] from
+     * "…"` provenance header when it filed (`deferred-prompt-sender.ts`), or
+     * the routine's own label. Provenance, not prompt text — the rule above
+     * keeps the BODY out of this contract, and a card that cannot name a
+     * sender is a card nobody can judge before dismissing it. Absent when the
+     * prompt carried no header.
+     */
+    readonly sender?: string
   }
   /**
    * The routine behind a `routine_failed` episode. A schedule is the one thing

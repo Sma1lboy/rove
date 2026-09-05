@@ -113,3 +113,37 @@ export function deferredPromptNote(
     ? t("workspace.inbox.expiringNow")
     : t("workspace.inbox.expiresIn", { in: relativeCountdown(at, now) })
 }
+
+/**
+ * The whole context line of a held/expired message: WHO sent it, WHICH check
+ * held it, and HOW LONG the text survives.
+ *
+ * All three are the judgement a human makes before pressing `d`. The card used
+ * to say "message queued — 23h" and nothing else, so dismissing was a coin
+ * flip: the one real loss this file exists to prevent was a dispatcher's
+ * instruction thrown away by someone who could not see it came from a
+ * dispatcher. Sender comes off the record (lifted from the prompt's
+ * `[ROVE PEER]` header when it filed), never from the prompt body — the
+ * episode contract keeps the text in the daemon's store.
+ *
+ * Segments are dropped, not blanked, when unknown: a pre-`sender` episode
+ * shows the fallback title and the reader learns nothing false.
+ */
+export function deferredPromptSubtitle(
+  item: Pick<AttentionInboxItem, "state" | "detail">,
+  fallbackTitle: string,
+  now: number,
+  t: (key: string, params?: Record<string, string>) => string,
+): string {
+  const deferred = item.detail?.deferredPrompt
+  const sender = deferred?.sender
+  const parts = [sender ? t("workspace.inbox.from", { sender }) : fallbackTitle]
+  if (deferred?.layer) {
+    parts.push(
+      t(deferred.layer === "recent-human-write" ? "workspace.inbox.layer.keystroke" : "workspace.inbox.layer.screen"),
+    )
+  }
+  const note = deferredPromptNote(item, now, t)
+  if (note) parts.push(note)
+  return parts.filter((part) => part.length > 0).join(" · ")
+}

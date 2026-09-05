@@ -236,9 +236,15 @@ export const en = {
     dispatcherHint:
       "Field-notes dispatcher: task sessions file one-line gotchas (`rove api note`), the daemon forwards each to the repo's main session, and that session relays them to the in-flight tasks that benefit (`rove api dispatch`). Web-hosted sessions receive the relays today.",
     dispatcher: "Field-notes dispatcher",
-    composerGateHint:
-      "Before pasting a peer/API prompt into a running engine, Rove reads that session's screen and holds the message if the composer already has text in it. The check knows each engine's CURRENT layout, so a vendor redesign can make it wrong — turn it off if messages are being held over composers you can see are empty. The separate recent-keystroke guard stays on either way, so a composer you are typing into now is still protected.",
-    composerGate: "Check the composer before delivering",
+    deliveryGuardHint:
+      "Two checks run before a peer/API prompt is pasted into a running engine, so a message never lands mid-sentence: A, a ~10s window since your last keystroke in that session, and B, a read of the engine's screen that holds the message when the composer already has text. B knows each engine's CURRENT layout, so a vendor redesign can make it wrong. Held messages go to your Inbox; a message nobody releases is destroyed 24h later. Screen off: drop B — pick this when messages are held over composers you can see are empty. Off: drop both — pick this for a machine nobody types at, where a held message costs more than a collided one. Changes apply to the next delivery; no restart.",
+    deliveryGuard: "Delivery guard",
+    deliveryGuardChoice: {
+      on: "on",
+      "screen-off": "screen off",
+      off: "off",
+    },
+    deliveryGuardEnvPinned: "ROVE_DELIVERY_GUARD is set in this session's environment and overrides this choice.",
   },
 }
 
@@ -453,8 +459,14 @@ export const zh: typeof en = {
     dispatcherHint:
       "现场笔记调度器：任务会话提交一行经验（`rove api note`），daemon 将每条转发给仓库的主会话，主会话再把它们转达给能受益的进行中任务（`rove api dispatch`）。目前由 Web 托管的会话会收到转达。",
     dispatcher: "现场笔记调度器",
-    composerGateHint:
-      "把 peer/API 的消息粘进运行中的引擎之前,Rove 会读一遍那个会话的屏幕,发现输入框里已经有字就先扣住不发。这个判断依赖引擎当前的界面布局,所以厂商改版可能让它失准——如果你看着输入框明明是空的、消息却一直被扣住,就关掉它。另一道「刚刚有人在打字」的保护始终生效,正在输入的输入框仍然受保护。",
-    composerGate: "投递前检查输入框",
+    deliveryGuardHint:
+      "把 peer/API 的消息粘进运行中的引擎之前会跑两道检查,免得消息落在别人打了一半的句子中间:A 是「这个会话最近约 10 秒内有人手敲过键盘」,B 是读一遍引擎的屏幕、发现输入框里已经有字就扣住。B 依赖引擎当前的界面布局,厂商改版就可能让它失准。被扣住的消息进收件箱;24 小时内没人放行就会被销毁。只关屏幕检查:关掉 B——你看着输入框明明是空的、消息却一直被扣住时选它。全关:两道都关——没人会在这台机器上打字、扣住消息比撞车代价更大时选它。改动对下一次投递即刻生效,不用重启。",
+    deliveryGuard: "投递门",
+    deliveryGuardChoice: {
+      on: "全开",
+      "screen-off": "只关屏幕检查",
+      off: "全关",
+    },
+    deliveryGuardEnvPinned: "当前会话的环境变量里设了 ROVE_DELIVERY_GUARD,它会覆盖这里的选择。",
   },
 }

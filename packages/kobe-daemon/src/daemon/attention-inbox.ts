@@ -213,6 +213,7 @@ export class AttentionInboxStore {
     deferredId: string,
     layer: "recent-human-write" | "composer-not-empty",
     expiresAt?: number,
+    sender?: string,
   ): Promise<void> {
     await this.enqueue(async () => {
       const key = attentionInboxItemKey({ taskId, tabId, state: "prompt_deferred" })
@@ -222,7 +223,14 @@ export class AttentionInboxStore {
         taskId,
         tabId,
         state: "prompt_deferred",
-        detail: { deferredPrompt: { id: deferredId, layer, ...(expiresAt === undefined ? {} : { expiresAt }) } },
+        detail: {
+          deferredPrompt: {
+            id: deferredId,
+            layer,
+            ...(expiresAt === undefined ? {} : { expiresAt }),
+            ...(sender === undefined ? {} : { sender }),
+          },
+        },
         unread: true,
         at: this.now(),
       })
@@ -258,6 +266,9 @@ export class AttentionInboxStore {
             id: deferredId,
             layer: previous?.detail?.deferredPrompt?.layer ?? "composer-not-empty",
             expiresAt: at,
+            ...(previous?.detail?.deferredPrompt?.sender === undefined
+              ? {}
+              : { sender: previous.detail.deferredPrompt.sender }),
           },
         },
         unread: true,

@@ -13,7 +13,13 @@ import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
 import { logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
 import { AUTO_STATUS_KEY } from "../../../state/auto-status"
-import { composerGatePreferenceOn, toggleComposerGatePreference } from "../../../state/composer-gate"
+import {
+  type DeliveryGuard,
+  deliveryGuardEnvOverride,
+  deliveryGuardPreference,
+  nextDeliveryGuard,
+  setDeliveryGuardPreference,
+} from "../../../state/delivery-guard"
 import { DISPATCHER_KEY } from "../../../state/dispatcher"
 import { DEFAULT_SCROLLBACK_ROWS, SCROLLBACK_ROWS_KEY, normalizeScrollbackRows } from "../../../state/scrollback"
 import { SPLIT_STYLE_KEY, type SplitStyle, normalizeSplitStyle } from "../../../state/split-style"
@@ -54,7 +60,7 @@ import type { DialogContext } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 import { RenameTaskDialog } from "../rename-task-dialog"
 
-export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onComposerGateDisabled?: () => void) {
+export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onDeliveryGuardLoosened?: () => void) {
   const t = useT()
 
   function toastEnabled(): boolean {
@@ -141,18 +147,23 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onCompose
   function toggleDispatcher(): void {
     kv.set(DISPATCHER_KEY, !dispatcherOn())
   }
-  // ON by default (the only default-on switch here) — it is an escape hatch
-  // for a gate that reads a vendor's screen layout, not a feature to opt into.
-  function composerGateOn(): boolean {
-    return composerGatePreferenceOn(kv)
+  // The delivery gate, in three states — `on` by default. This is the only
+  // default-on switch in Dev because it is an escape hatch (a gate that reads
+  // a vendor's screen layout can go wrong), not a feature to opt into.
+  function deliveryGuard(): DeliveryGuard {
+    return deliveryGuardEnvOverride() ?? deliveryGuardPreference(kv)
   }
-  function toggleComposerGate(): void {
-    if (toggleComposerGatePreference(kv, onComposerGateDisabled) === "persist-failed") {
-      logClientError(
-        "settings",
-        "could not persist the disabled composer delivery check; deferred prompts were not flushed",
-      )
+  /** Set when the environment pins the value and the row cannot change it. */
+  function deliveryGuardForcedByEnv(): boolean {
+    return deliveryGuardEnvOverride() !== undefined
+  }
+  function selectDeliveryGuard(next: DeliveryGuard): void {
+    if (setDeliveryGuardPreference(kv, next, onDeliveryGuardLoosened) === "persist-failed") {
+      logClientError("settings", "could not persist the delivery guard; deferred prompts were not flushed")
     }
+  }
+  function cycleDeliveryGuard(): void {
+    selectDeliveryGuard(nextDeliveryGuard(deliveryGuard()))
   }
 
   // Editor preference: which editor the file tree's `e` key launches.
@@ -306,8 +317,10 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onCompose
     toggleAutoStatus,
     dispatcherOn,
     toggleDispatcher,
-    composerGateOn,
-    toggleComposerGate,
+    deliveryGuard,
+    deliveryGuardForcedByEnv,
+    selectDeliveryGuard,
+    cycleDeliveryGuard,
     editorKind,
     cycleEditorKind,
     editorCustomCommand,

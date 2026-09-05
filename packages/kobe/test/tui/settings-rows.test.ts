@@ -133,12 +133,12 @@ describe("devRows", () => {
       "devRemoteProjects",
       "devAutoStatus",
       "devDispatcher",
-      "devComposerGate",
+      "devDeliveryGuard",
     ])
     expect(rowIndex(rows, "remote-projects")).toBe(2)
     expect(rowIndex(rows, "auto-status")).toBe(3)
     expect(rowIndex(rows, "dispatcher")).toBe(4)
-    expect(rowIndex(rows, "composer-gate")).toBe(5)
+    expect(rowIndex(rows, "delivery-guard")).toBe(5)
   })
 
   it("without a daemon: the same list, one row shorter, indices shifted by one", () => {
@@ -148,12 +148,12 @@ describe("devRows", () => {
       "devRemoteProjects",
       "devAutoStatus",
       "devDispatcher",
-      "devComposerGate",
+      "devDeliveryGuard",
     ])
     expect(rowIndex(rows, "remote-projects")).toBe(1)
     expect(rowIndex(rows, "auto-status")).toBe(2)
     expect(rowIndex(rows, "dispatcher")).toBe(3)
-    expect(rowIndex(rows, "composer-gate")).toBe(4)
+    expect(rowIndex(rows, "delivery-guard")).toBe(4)
   })
 })
 

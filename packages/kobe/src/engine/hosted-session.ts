@@ -6,7 +6,12 @@ import { defaultPtyHostSocketPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 import type { PtyOpenResult, PtyPeekResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
 import type { TerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
-import { composerGateEnabled } from "../state/composer-gate.ts"
+import {
+  type DeliveryGuard,
+  type DeliveryGuardSettings,
+  deliveryGuardLayers,
+  deliveryGuardSettings,
+} from "../state/delivery-guard.ts"
 import { readPersistedTerminalDefaultColors } from "../tui/lib/terminal-colors.ts"
 import { BUILTIN_VENDORS } from "../types/vendor.ts"
 import { isComposerEmpty } from "./composer-state.ts"
@@ -179,25 +184,30 @@ export class ComposerBusyError extends Error {
 export interface HostedPromptDeliveryOpts {
   /** Engine-owned composer-empty manifest. Absence skips the C-layer gate. */
   readonly screenManifest?: EngineScreenManifest
-  /** Override for the A-layer quiet period (ms). Defaults to the host's
-   *  reported `humanWriteQuietMs` or 10s when the host omits it. */
+  /** Override for the A-layer quiet period (ms). Falls back to the stored
+   *  `delivery.humanWriteQuietMs`, then the host's reported value, then 10s. */
   readonly humanWriteQuietMs?: number
   /** Test seam for `Date.now()`. */
   readonly now?: () => number
   /** Override for the paste-readiness wait (ms). Tests shorten it. */
   readonly pasteReadyTimeoutMs?: number
   /**
-   * Run the screen-based composer check. Defaults to the persisted setting
-   * (`state/composer-gate.ts`, on unless the user turned it off); an explicit
+   * Which delivery checks run. Defaults to the persisted setting
+   * (`state/delivery-guard.ts`, `on` unless the user loosened it); an explicit
    * value is the test seam, so a suite never depends on the machine's
    * state.json.
    */
-  readonly composerGate?: boolean
+  readonly guard?: DeliveryGuard
 }
 
-function recentHumanWriteBlocks(peek: PtyPeekResult, opts: HostedPromptDeliveryOpts, now: number): boolean {
+function recentHumanWriteBlocks(
+  peek: PtyPeekResult,
+  opts: HostedPromptDeliveryOpts,
+  storedQuietMs: number | undefined,
+  now: number,
+): boolean {
   if (peek.lastHumanWriteMs === undefined || peek.lastHumanWriteMs <= 0) return false
-  const quiet = opts.humanWriteQuietMs ?? peek.humanWriteQuietMs ?? 10_000
+  const quiet = opts.humanWriteQuietMs ?? storedQuietMs ?? peek.humanWriteQuietMs ?? 10_000
   return now - peek.lastHumanWriteMs < quiet
 }
 
@@ -210,15 +220,16 @@ async function composerNonEmpty(peek: PtyPeekResult, manifest: EngineScreenManif
 
 async function assertComposerClear(peek: PtyPeekResult, key: string, opts?: HostedPromptDeliveryOpts): Promise<void> {
   const now = opts?.now?.() ?? Date.now()
-  if (recentHumanWriteBlocks(peek, opts ?? {}, now)) {
+  // Both layers answer to one three-state setting, read per delivery so a
+  // change takes effect without restarting anything — the pty host included,
+  // which is why the quiet window is resolved here rather than from the
+  // host's spawn-time env (see state/delivery-guard.ts).
+  const settings: DeliveryGuardSettings = opts?.guard !== undefined ? { guard: opts.guard } : deliveryGuardSettings()
+  const layers = deliveryGuardLayers(settings.guard)
+  if (layers.humanWrite && recentHumanWriteBlocks(peek, opts ?? {}, settings.humanWriteQuietMs, now)) {
     throw new ComposerBusyError("recent-human-write", key)
   }
-  // The A layer above measures TIME and cannot be disabled: someone typing
-  // right now is protected whatever this setting says. Only the screen read
-  // below is switchable, because only it depends on a vendor's current
-  // layout — see state/composer-gate.ts. Read per delivery, so flipping the
-  // switch takes effect without a restart.
-  if (!(opts?.composerGate ?? composerGateEnabled())) return
+  if (!layers.screen) return
   if (await composerNonEmpty(peek, opts?.screenManifest)) {
     throw new ComposerBusyError("composer-not-empty", key)
   }

@@ -13,7 +13,11 @@
  * - at most ONE deferred prompt per (taskId, tabId) — the first writer keeps
  *   the slot until release, and a later writer gets an explicit rejection;
  * - records older than {@link DEFERRED_PROMPT_TTL_MS} are returned to the
- *   queue drainer for coordinated record + Inbox cleanup.
+ *   queue drainer for coordinated record + Inbox cleanup;
+ * - a HUMAN dismiss marks {@link DeferredPromptRecord.dismissedAt} rather than
+ *   deleting: the text stays releasable until its ordinary TTL, and only the
+ *   sweep destroys it. Closing a tab or deleting a task still drops it
+ *   outright — there is nothing left to release it into.
  */
 
 import { randomUUID } from "node:crypto"
@@ -50,6 +54,18 @@ export interface DeferredPromptRecord {
   readonly deliveredAt?: number
   /** Persisted before the PTY write: an ambiguous attempt may clean up, never retry. */
   readonly deliveryStartedAt?: number
+  /**
+   * Epoch ms of a HUMAN dismiss from the Inbox (or `deferred-dismiss`).
+   *
+   * Dismiss used to delete the text on the spot, which made one keystroke on a
+   * card that said only "message queued — 23h" an unrecoverable loss: the
+   * sender had already exited 0. A dismissed record keeps its text until the
+   * ordinary TTL sweep, so `deferred-list --include-dismissed` still shows it
+   * and `deferred-release` still delivers it. It is invisible to everything
+   * else — its tab's slot is free, the flush skips it, and its Inbox pointer
+   * is gone — so dismissing still means "get this out of my way".
+   */
+  readonly dismissedAt?: number
 }
 
 export interface DeferredPromptClaim {
@@ -103,6 +119,9 @@ function normalizeRecord(value: unknown): DeferredPromptRecord | null {
     ...(typeof raw.deliveryStartedAt === "number" && Number.isFinite(raw.deliveryStartedAt)
       ? { deliveryStartedAt: raw.deliveryStartedAt }
       : {}),
+    ...(typeof raw.dismissedAt === "number" && Number.isFinite(raw.dismissedAt)
+      ? { dismissedAt: raw.dismissedAt }
+      : {}),
   }
 }
 
@@ -126,6 +145,12 @@ async function writeStore(path: string, records: readonly DeferredPromptRecord[]
 }
 
 const SUBSYSTEM = "deferred-prompts"
+
+/** `A` = the keystroke window, `B` = the composer screen read — the same two
+ *  letters the delivery-guard setting and its docs name. */
+function layerCode(layer: DeferredPromptLayer): "A" | "B" {
+  return layer === "recent-human-write" ? "A" : "B"
+}
 
 export class DeferredPromptsStore {
   private readonly claims = new Map<string, { claimId: string; done: Promise<void>; finish: () => void }>()
@@ -174,7 +199,14 @@ export class DeferredPromptsStore {
           kept.push(existing)
           continue
         }
-        if (existing.taskId === record.taskId && existing.tabId === record.tabId) {
+        // A dismissed record is retained TEXT, not a held slot: the human said
+        // "not this one", so the next send must be accepted rather than
+        // refused with DEFERRED_PROMPT_PENDING.
+        if (
+          existing.taskId === record.taskId &&
+          existing.tabId === record.tabId &&
+          existing.dismissedAt === undefined
+        ) {
           occupied = existing
         }
         kept.push(existing)
@@ -183,6 +215,10 @@ export class DeferredPromptsStore {
       const next: DeferredPromptRecord = { ...record, id: randomUUID() }
       kept.push(next)
       await writeStore(this.path, kept)
+      logDaemonInfo(
+        SUBSYSTEM,
+        `held ${next.id} for ${next.taskId}::${next.tabId} layer=${layerCode(next.layer)} from=${next.senderLabel ?? "unknown"}`,
+      )
       return next
     })
   }
@@ -251,6 +287,7 @@ export class DeferredPromptsStore {
       if (!current) throw new Error(`deferred prompt ${claim.record.id} disappeared while claimed`)
       const delivered = current.deliveredAt ? current : { ...current, deliveredAt: this.now() }
       if (!current.deliveredAt) {
+        logDaemonInfo(SUBSYSTEM, `released ${current.id} for ${current.taskId}::${current.tabId}`)
         await writeStore(
           this.path,
           store.records.map((record) => (record.id === current.id ? delivered : record)),
@@ -314,14 +351,25 @@ export class DeferredPromptsStore {
    */
   async list(): Promise<{
     readonly records: readonly DeferredPromptRecord[]
+    readonly dismissed: readonly DeferredPromptRecord[]
     readonly expired: readonly DeferredPromptRecord[]
   }> {
     return await this.enqueue(async () => {
       const now = this.now()
       const store = await readStore(this.path)
       const expired: DeferredPromptRecord[] = []
+      const dismissed: DeferredPromptRecord[] = []
       const kept = store.records.filter((record) => {
-        if (now - record.at <= DEFERRED_PROMPT_TTL_MS) return true
+        if (now - record.at <= DEFERRED_PROMPT_TTL_MS) {
+          // Dismissed text is still releasable, but it is not queued work:
+          // the flush must not deliver it and the default listing must not
+          // report it as pending.
+          if (record.dismissedAt !== undefined) {
+            dismissed.push(record)
+            return false
+          }
+          return true
+        }
         expired.push(record)
         logDaemonInfo(
           SUBSYSTEM,
@@ -333,7 +381,7 @@ export class DeferredPromptsStore {
       // each expired record so it can delete the record's Inbox pointer before
       // completing the claim. Dropping them here instead would strand those
       // pointers, which is why the log above says "cleanup requested".
-      return { records: kept, expired }
+      return { records: kept, dismissed, expired }
     })
   }
 
@@ -379,17 +427,20 @@ export class DeferredPromptsStore {
     }
     return await this.enqueue(async () => {
       const store = await readStore(this.path)
-      const dropped = store.records.find((record) => record.id === id)
-      if (!dropped) return null
+      const found = store.records.find((record) => record.id === id)
+      if (!found) return null
+      if (found.dismissedAt !== undefined) return found
+      const dismissed: DeferredPromptRecord = { ...found, dismissedAt: this.now() }
+      const expiresAt = new Date(found.at + DEFERRED_PROMPT_TTL_MS).toISOString()
       logDaemonInfo(
         SUBSYSTEM,
-        `dropped deferred prompt ${dropped.id} for ${dropped.taskId}::${dropped.tabId} — ${reason}`,
+        `dismissed ${found.id} for ${found.taskId}::${found.tabId} — ${reason}; text retained until ${expiresAt}`,
       )
       await writeStore(
         this.path,
-        store.records.filter((record) => record.id !== id),
+        store.records.map((record) => (record.id === id ? dismissed : record)),
       )
-      return dropped
+      return dismissed
     })
   }
 
