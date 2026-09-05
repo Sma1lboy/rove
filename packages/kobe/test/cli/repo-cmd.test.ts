@@ -96,9 +96,45 @@ describe("kobe repo set / show / unset round-trip", () => {
     expect(out).toContain(".rove/init.sh:        present (wins)")
     expect(out).toContain(".rove/init-prompt.md: absent")
     expect(out).toContain(".kobe/init.sh:        absent")
-    expect(out).toContain(".kobe/init-prompt.md: present (legacy fallback)")
+    // `.rove/init-prompt.md` is absent, so the legacy file IS the effective
+    // prompt. The old fixed "legacy fallback" label understated that.
+    expect(out).toContain(".kobe/init-prompt.md: present (wins)")
     expect(out).toContain('override initScript:  "echo hi"')
     expect(out).toContain("override initPrompt:  (unset)")
+  })
+
+  it("show does not call a whitespace-only file the winner (it loses to .kobe)", async () => {
+    // The one case `repo show` exists to resolve: which source is live. It used
+    // to answer with a bare existsSync, so a blank `.rove/init-prompt.md`
+    // printed "present (wins)" while the runtime actually used `.kobe/`.
+    mkdirSync(join(repo, ".rove"), { recursive: true })
+    mkdirSync(join(repo, ".kobe"), { recursive: true })
+    writeFileSync(join(repo, ".rove", "init-prompt.md"), "\n", "utf8")
+    writeFileSync(join(repo, ".kobe", "init-prompt.md"), "real", "utf8")
+    logSpy.mockClear()
+
+    await runRepoSubcommand(["show", repo])
+    const out = output()
+    expect(out).toContain(".rove/init-prompt.md: present but empty (ignored)")
+    expect(out).toContain(".kobe/init-prompt.md: present (wins)")
+    expect(out).not.toContain(".rove/init-prompt.md: present (wins)")
+
+    // …and the report agrees with what the engine would actually be handed.
+    const { resolveRepoInit } = await import("../../src/state/repo-init.ts")
+    expect(resolveRepoInit(repo, repo).initPrompt).toBe("real")
+  })
+
+  it("show marks a shadowed legacy file as shadowed, not empty", async () => {
+    mkdirSync(join(repo, ".rove"), { recursive: true })
+    mkdirSync(join(repo, ".kobe"), { recursive: true })
+    writeFileSync(join(repo, ".rove", "init-prompt.md"), "canonical", "utf8")
+    writeFileSync(join(repo, ".kobe", "init-prompt.md"), "legacy", "utf8")
+    logSpy.mockClear()
+
+    await runRepoSubcommand(["show", repo])
+    const out = output()
+    expect(out).toContain(".rove/init-prompt.md: present (wins)")
+    expect(out).toContain(".kobe/init-prompt.md: present (shadowed)")
   })
 
   it("show truncates a long override to a 60-char one-line preview", async () => {
