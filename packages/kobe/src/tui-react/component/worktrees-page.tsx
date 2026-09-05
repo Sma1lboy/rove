@@ -39,6 +39,7 @@ import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { useCursorFollow } from "../lib/use-cursor-follow"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
+import { resolveRowSelectionChrome } from "../ui/row-selection-chrome"
 import { landTaskAction } from "../workspace/land-task-action"
 
 function flattenRows(projects: readonly WorktreeProject[]): readonly WorktreeAuditRow[] {
@@ -312,21 +313,25 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
                 project.worktrees.map((row, i) => {
                   const absoluteIndex = base + i
                   const isCursor = absoluteIndex === cursor
+                  // The shared cursor vocabulary (▌ marker + row tint, no fill
+                  // under transparency). `▸` used to mean two things at once
+                  // here — it is the sidebar's and the file tree's "collapsed"
+                  // glyph — and the `primary` text tint was this page's alone.
+                  const chrome = resolveRowSelectionChrome(theme, { cursor: isCursor })
                   return (
                     <box
                       key={row.path}
                       ref={follow.rowRef(absoluteIndex)}
                       gap={0}
+                      backgroundColor={chrome.backgroundColor}
                       onMouseUp={() => setCursor(absoluteIndex)}
                     >
                       <box flexDirection="row">
-                        <text
-                          fg={isCursor ? theme.primary : theme.text}
-                          attributes={isCursor ? TextAttributes.BOLD : undefined}
-                          wrapMode="none"
-                        >
-                          {isCursor ? "▸ " : "  "}
-                          {row.branch || t("worktrees.row.detached")}
+                        <text fg={chrome.markerColor} wrapMode="none">
+                          {chrome.marker}
+                        </text>
+                        <text fg={theme.text} attributes={isCursor ? TextAttributes.BOLD : undefined} wrapMode="none">
+                          {` ${row.branch || t("worktrees.row.detached")}`}
                         </text>
                         {row.kobeManaged ? <text fg={theme.textMuted}> {t("worktrees.badge.kobeManaged")}</text> : null}
                         {row.dirty === true ? <text fg={theme.warning}> {t("worktrees.badge.dirty")}</text> : null}
@@ -341,15 +346,20 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
                         {verdictBadge(row)}
                         {busyPath === row.path ? <text fg={theme.textMuted}> …</text> : null}
                       </box>
-                      <box flexDirection="row" justifyContent="space-between" paddingLeft={2}>
-                        <text fg={theme.textMuted} wrapMode="none">
-                          {row.path}
+                      <box flexDirection="row">
+                        <text fg={chrome.markerColor} wrapMode="none">
+                          {chrome.marker}
                         </text>
-                        {row.createdAtMs > 0 ? (
+                        <box flexDirection="row" justifyContent="space-between" flexGrow={1} paddingLeft={1}>
                           <text fg={theme.textMuted} wrapMode="none">
-                            {t("worktrees.row.created", { age: relativeAge(row.createdAtMs) })}
+                            {row.path}
                           </text>
-                        ) : null}
+                          {row.createdAtMs > 0 ? (
+                            <text fg={theme.textMuted} wrapMode="none">
+                              {t("worktrees.row.created", { age: relativeAge(row.createdAtMs) })}
+                            </text>
+                          ) : null}
+                        </box>
                       </box>
                     </box>
                   )

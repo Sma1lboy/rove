@@ -67,7 +67,10 @@ export function ContextMenu(props: {
       flexDirection="column"
       {...FRAME}
       borderColor={theme.focusAccent}
-      backgroundColor={theme.backgroundElement}
+      // `backgroundMenu`, not `backgroundElement`: the menu floats OVER panel
+      // insets, and every bundled theme gives it its own lighter step so the
+      // popup separates from the row it covers, not just by its border.
+      backgroundColor={theme.backgroundMenu}
       paddingLeft={1}
       paddingRight={1}
       // The menu swallows its own press so the owner's "a click landed
@@ -89,7 +92,7 @@ export function ContextMenu(props: {
             <text
               // Contrast fg on the accent fill: `background` is alpha-0 in
               // transparent mode, so a filled row must not use it.
-              fg={active ? theme.backgroundElement : entry.danger ? theme.error : theme.text}
+              fg={active ? theme.selectedListItemText : entry.danger ? theme.error : theme.text}
               attributes={active ? TextAttributes.BOLD : undefined}
               wrapMode="none"
               flexGrow={1}
@@ -98,7 +101,7 @@ export function ContextMenu(props: {
             </text>
             {entry.cap ? (
               <text
-                fg={active ? theme.backgroundElement : theme.textMuted}
+                fg={active ? theme.selectedListItemText : theme.textMuted}
                 attributes={active ? undefined : TextAttributes.DIM}
                 wrapMode="none"
                 flexShrink={0}

@@ -5,6 +5,9 @@
 
 export const en = {
   pageTitle: "ROVE UPDATE",
+  /** Page-header close affordance, opposite the title. Keys stay literal;
+   *  only the verb is translated — same shape as `versions.footerHint`. */
+  closeHint: "q / esc close",
   /** Brand-row chip — must stay tiny, the rail is the narrowest panel. */
   chip: "↑ {version}",
   current: "current",
@@ -56,11 +59,13 @@ export const en = {
     breakingWarning:
       "⚠ installing this crosses breaking version(s) {versions}. Rove will refuse to start until you run `rove reset`, which stops the daemon, the PTY host, and every live session. Tasks and worktrees are kept.",
     footerHint: "j/k select · enter install · q close",
+    closeHint: "q / esc close",
   },
 }
 
 export const zh: typeof en = {
   pageTitle: "ROVE 更新",
+  closeHint: "q / esc 关闭",
   chip: "↑ {version}",
   current: "当前",
   latest: "最新",
@@ -101,5 +106,6 @@ export const zh: typeof en = {
     breakingWarning:
       "⚠ 安装该版本会跨过 breaking 版本 {versions}。更新后 Rove 会拒绝启动，直到你运行 `rove reset`——它会停掉 daemon、PTY host 和所有活动会话。任务和 worktree 会保留。",
     footerHint: "j/k 选择 · enter 安装 · q 关闭",
+    closeHint: "q / esc 关闭",
   },
 }

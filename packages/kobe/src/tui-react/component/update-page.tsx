@@ -28,6 +28,7 @@ import {
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { resolveRowSelectionChrome } from "../ui/row-selection-chrome"
 import { runShellUpdater } from "./run-updater.ts"
 
 type ActionId = "update" | "release" | "close"
@@ -168,7 +169,7 @@ export function UpdatePage(props: { onClose: () => void }) {
           {t("update.pageTitle")}
         </text>
         <text fg={theme.textMuted} wrapMode="none" onMouseUp={() => activate("close")}>
-          q / esc
+          {t("update.closeHint")}
         </text>
       </box>
 
@@ -207,35 +208,42 @@ export function UpdatePage(props: { onClose: () => void }) {
       ) : null}
 
       <box flexDirection="column" flexShrink={0} paddingTop={1} gap={0}>
-        {actions.map((action) => (
-          <box
-            key={action.id}
-            flexDirection="row"
-            gap={1}
-            paddingLeft={1}
-            paddingRight={1}
-            backgroundColor={selected === action.id ? theme.primary : undefined}
-            onMouseUp={() => activate(action.id)}
-          >
-            <box width={4} flexShrink={0}>
-              <text
-                fg={selected === action.id ? theme.selectedListItemText : theme.accent}
-                attributes={TextAttributes.BOLD}
-                wrapMode="none"
-              >
-                [{action.key}]
+        {actions.map((action) => {
+          // Same cursor vocabulary as every other navigable list (▌ marker +
+          // row tint, no fill under transparency) — this page is a full-window
+          // page, so a `primary` bar here painted an opaque patch straight
+          // onto the host wallpaper.
+          const cursor = selected === action.id
+          const chrome = resolveRowSelectionChrome(theme, { cursor })
+          return (
+            <box
+              key={action.id}
+              flexDirection="row"
+              gap={0}
+              backgroundColor={chrome.backgroundColor}
+              onMouseUp={() => activate(action.id)}
+            >
+              <text fg={chrome.markerColor} wrapMode="none">
+                {chrome.marker}
               </text>
+              <box flexDirection="row" gap={1} flexGrow={1} paddingLeft={1} paddingRight={1}>
+                <box width={4} flexShrink={0}>
+                  <text fg={theme.accent} attributes={TextAttributes.BOLD} wrapMode="none">
+                    [{action.key}]
+                  </text>
+                </box>
+                <box width={14} flexShrink={0}>
+                  <text fg={theme.text} attributes={cursor ? TextAttributes.BOLD : undefined} wrapMode="none">
+                    {action.label}
+                  </text>
+                </box>
+                <text fg={theme.textMuted} wrapMode="word">
+                  {action.detail}
+                </text>
+              </box>
             </box>
-            <box width={14} flexShrink={0}>
-              <text fg={selected === action.id ? theme.selectedListItemText : theme.text} wrapMode="none">
-                {action.label}
-              </text>
-            </box>
-            <text fg={selected === action.id ? theme.selectedListItemText : theme.textMuted} wrapMode="word">
-              {action.detail}
-            </text>
-          </box>
-        ))}
+          )
+        })}
       </box>
 
       {status ? (
@@ -256,7 +264,7 @@ export function UpdatePage(props: { onClose: () => void }) {
         flexShrink={1}
         stickyScroll={false}
         verticalScrollbarOptions={{
-          trackOptions: { backgroundColor: theme.background, foregroundColor: theme.borderActive },
+          trackOptions: { foregroundColor: "transparent" },
         }}
       >
         <box flexDirection="column" paddingRight={1} paddingBottom={1} gap={0}>
