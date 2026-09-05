@@ -27,7 +27,7 @@ import { roveCliInvocation } from "@/cli/invocation"
 import { engineEntry } from "@/engine/registry"
 import { getPersistedString } from "@/state/repos"
 import type { VendorId } from "@/types/task"
-import { BUILTIN_VENDORS, coerceVendorId } from "@/types/vendor"
+import { coerceVendorId } from "@/types/vendor"
 
 /**
  * Human label for a vendor (Settings → Engines rows). Sourced from the
@@ -35,10 +35,6 @@ import { BUILTIN_VENDORS, coerceVendorId } from "@/types/vendor"
  * built-in identity lives; this record stays exported for the settings
  * dialog's existing import.
  */
-const VENDOR_LABEL: Record<VendorId, string> = Object.fromEntries(
-  BUILTIN_VENDORS.map((v) => [v, engineEntry(v).displayName]),
-) as Record<VendorId, string>
-
 /** state.json key holding a vendor's launch-command override string. */
 export function engineCommandKey(vendor: VendorId): string {
   return `engineCommand.${vendor}`
