@@ -175,17 +175,28 @@ describe("worktree paths honor the override", () => {
    */
   test("a $project_dir worktree is recognized as managed when the repo is known", () => {
     writeState({ "worktree.basePath": PROJECT_SIBLING_BASE })
-    // On disk, like the orphan the guard is actually asked about: the guard
-    // canonicalizes both sides, and macOS resolves the tempdir's `/var` →
-    // `/private/var` symlink only for a path that exists.
-    const wt = worktreePathFor(repo, "tapir")
+    // Nested one level down so the base root is `<tmpRoot>/code`, leaving
+    // `<tmpRoot>` itself available as somewhere genuinely outside it.
+    const sibRepo = path.join(tmpRoot, "code", "myproj")
+    fs.mkdirSync(sibRepo, { recursive: true })
+
+    // Every path is created on disk: the guard canonicalizes both sides, and
+    // macOS resolves the tempdir's `/var` → `/private/var` symlink only for a
+    // path that exists — so a missing path answers false for the wrong reason.
+    const wt = worktreePathFor(sibRepo, "tapir")
     fs.mkdirSync(wt, { recursive: true })
 
     // The premise: this really is outside the default root.
     expect(wt.startsWith(path.join(home, ".rove", "worktrees"))).toBe(false)
-    expect(isUnderManagedWorktreesRoot(wt, repo)).toBe(true)
+    expect(isUnderManagedWorktreesRoot(wt, sibRepo)).toBe(true)
 
-    // A path Rove did NOT create stays unauthorized, repo or not.
-    expect(isUnderManagedWorktreesRoot(path.join(tmpRoot, "somewhere", "else"), repo)).toBe(false)
+    // Outside every root: still refused. This guard authorizes `rm -rf`, so
+    // widening it for `$project_dir` must not widen it for anything else.
+    const outside = path.join(tmpRoot, "elsewhere", "a", "b")
+    fs.mkdirSync(outside, { recursive: true })
+    expect(isUnderManagedWorktreesRoot(outside, sibRepo)).toBe(false)
+
+    // And the depth rule still holds: the per-repo dir is not itself a worktree.
+    expect(isUnderManagedWorktreesRoot(path.dirname(wt), sibRepo)).toBe(false)
   })
 })
