@@ -153,4 +153,26 @@ describe("ref reads", () => {
     const probeDirs = resolveGitDirs(repo) as NonNullable<ReturnType<typeof resolveGitDirs>>
     expect(readRefSha(probeDirs, "origin/nope")).toBeNull()
   })
+
+  test("readRefSha reads a packed ref when the git-dir path contains a 'refs' substring", () => {
+    // The packed-refs lookup used to recover the ref name from the joined
+    // loose path with a non-greedy `/^.*?(refs\/)/` strip, which stopped at
+    // the FIRST `refs/` in the whole absolute path. A repo whose own path
+    // carries a `refs`-substring segment (`prefs/`, `andrefs/`, a dir named
+    // `refs`) matched that inner occurrence instead of the ref namespace, so
+    // the key never matched and a packed ref read as null.
+    const parent = mkdtempSync(join(tmpdir(), "kobe-probe-andrefs-"))
+    dirs.push(parent)
+    const nested = join(parent, "prefs", "proj")
+    mkdirSync(nested, { recursive: true })
+    git(nested, "init", "-q", "-b", "main", ".")
+    writeFileSync(join(nested, "f.txt"), "x\n")
+    git(nested, "add", "-A")
+    git(nested, ...AUTHOR, "commit", "-qm", "init")
+    git(nested, "pack-refs", "--all") // move `main` out of its loose file
+
+    const probeDirs = resolveGitDirs(nested) as NonNullable<ReturnType<typeof resolveGitDirs>>
+    expect(probeDirs.gitDir).toContain("refs") // the trigger condition
+    expect(readRefSha(probeDirs, "main")).toBe(git(nested, "rev-parse", "main"))
+  })
 })
