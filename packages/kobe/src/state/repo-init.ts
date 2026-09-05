@@ -24,6 +24,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { type ObservedLanguage, detectLanguage } from "@sma1lboy/kobe-daemon/prompts/observed-language"
 import { kobeApiInvocation } from "../engine/interactive-command.ts"
+import { REPO_CONFIG_DIRS, isNonEmptyRepoFile, readFirstNonEmptyRepoFile } from "../lib/repo-config-file.ts"
 import { getRepoInitOverride } from "./repos.ts"
 
 export interface ResolvedRepoInit {
@@ -110,8 +111,8 @@ export function missingDependenciesCoda(worktreePath: string, language?: Observe
   return `PS: this worktree has no installed dependencies (${dirs} missing beside a committed lockfile). Run the repo's install step before trusting build/test results — a failure here is most likely the missing install, not a regression. If this repo always needs one, consider adding \`.rove/init.sh\`.`
 }
 
-const INIT_SCRIPT_RELS = [join(".rove", "init.sh"), join(".kobe", "init.sh")] as const
-const INIT_PROMPT_RELS = [join(".rove", "init-prompt.md"), join(".kobe", "init-prompt.md")] as const
+export const INIT_SCRIPT_FILENAME = "init.sh"
+export const INIT_PROMPT_FILENAME = "init-prompt.md"
 
 function repoFileScript(worktreePath: string): string | undefined {
   // Run the committed file by relative path: cwd is the worktree, so
@@ -119,27 +120,55 @@ function repoFileScript(worktreePath: string): string | undefined {
   //
   // Native `join` paths are only for probing. The shell command stays a POSIX
   // literal because Git Bash treats a backslash as an escape.
-  for (const [relative, command] of [
-    [INIT_SCRIPT_RELS[0], "sh .rove/init.sh"],
-    [INIT_SCRIPT_RELS[1], "sh .kobe/init.sh"],
-  ] as const) {
-    if (existsSync(join(worktreePath, relative))) return command
+  //
+  // A script is picked on EXISTENCE, not content: an empty `init.sh` is a
+  // deliberate "run nothing" that must still beat the state.json override.
+  for (const dir of REPO_CONFIG_DIRS) {
+    if (existsSync(join(worktreePath, dir, INIT_SCRIPT_FILENAME))) return `sh ${dir}/${INIT_SCRIPT_FILENAME}`
   }
   return undefined
 }
 
 function repoFilePrompt(worktreePath: string): string | undefined {
-  for (const relative of INIT_PROMPT_RELS) {
-    const p = join(worktreePath, relative)
-    if (!existsSync(p)) continue
-    try {
-      const text = readFileSync(p, "utf8")
-      if (text.trim().length > 0) return text
-    } catch {
-      // An unreadable file does not block the next candidate or user fallback.
-    }
+  return readFirstNonEmptyRepoFile(worktreePath, INIT_PROMPT_FILENAME)
+}
+
+/** One candidate repo-init file, as `rove repo show` reports it. */
+export interface RepoInitSource {
+  /** Repo-relative path, e.g. `.rove/init.sh`. */
+  readonly rel: string
+  /** The file exists on disk. */
+  readonly present: boolean
+  /** This candidate is the one {@link resolveRepoInit} actually uses. */
+  readonly effective: boolean
+}
+
+/**
+ * Which repo-init candidates exist and which one WINS, by the same rules
+ * {@link resolveRepoInit} applies.
+ *
+ * `rove repo show` used to answer this with a bare `existsSync` per file, so
+ * an EMPTY `.rove/init-prompt.md` printed "present (wins)" while the runtime
+ * silently fell through to `.kobe/` or the state.json override. That is the
+ * one question the command exists to answer, so it has to come from here.
+ */
+export function describeRepoInitSources(repoRoot: string): {
+  script: readonly RepoInitSource[]
+  prompt: readonly RepoInitSource[]
+} {
+  const describe = (filename: string, counts: (absolute: string) => boolean): RepoInitSource[] => {
+    let taken = false
+    return REPO_CONFIG_DIRS.map((dir) => {
+      const absolute = join(repoRoot, dir, filename)
+      const effective = !taken && counts(absolute)
+      if (effective) taken = true
+      return { rel: `${dir}/${filename}`, present: existsSync(absolute), effective }
+    })
   }
-  return undefined
+  return {
+    script: describe(INIT_SCRIPT_FILENAME, existsSync),
+    prompt: describe(INIT_PROMPT_FILENAME, isNonEmptyRepoFile),
+  }
 }
 
 /**
