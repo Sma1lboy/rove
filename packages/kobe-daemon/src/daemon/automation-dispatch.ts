@@ -6,7 +6,7 @@
  * paths below testable without a clock — none of them needs to know a schedule
  * exists.
  *
- * Two shapes, chosen per routine by `Automation.persistentSession`:
+ * Three targets, resolved by `automationTarget`:
  *
  *  - **Fresh** (default): create a task, spawn its engine with the prompt on
  *    the argv. One worktree and one
@@ -16,6 +16,9 @@
  *  - **Standing**: create the task once, then re-deliver into it every firing.
  *    An inspection routine ("is CI worse than yesterday?") is worthless
  *    without the previous answer in the same transcript.
+ *
+ *  - **Existing tab**: deliver only to a user-owned task and exact tab. Missing
+ *    targets fail; the routine never creates or revives them.
  *
  * ## What "continuity" actually rests on
  *
@@ -43,8 +46,9 @@
  * records this run as `dispatch_failed`.
  */
 
+import { assertAutomationTargetTask, automationTarget } from "./automation-target.ts"
 import type { Automation, AutomationRunStatus, DaemonOrchestrator, DaemonTask } from "./contracts.ts"
-import { logDaemonInfo } from "./crash-log.ts"
+import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import {
   DEFERRED_PROMPT_TTL_MS,
   DeferredPromptPendingError,
@@ -58,7 +62,7 @@ export type DispatchOrchestrator = Pick<DaemonOrchestrator, "createTask" | "getT
 
 export type DispatchRuntime = Pick<
   DaemonRuntimeAdapter,
-  "startTaskSessionWithPrompt" | "deliverPromptToLiveEngineDetailed"
+  "startTaskSessionWithPrompt" | "deliverPromptToLiveEngineDetailed" | "deliverPromptToLiveEngineTabDetailed"
 >
 
 /** The Inbox slice a deferral needs (`attention-inbox.ts`). */
@@ -82,6 +86,7 @@ export interface DispatchDeps {
   readonly deferred?: DeferredPromptsStore
   readonly inbox?: DispatchInbox
   readonly now?: () => number
+  readonly canDeliver?: () => boolean
 }
 
 /**
@@ -92,6 +97,8 @@ export interface DispatchDeps {
 export interface DispatchOutcome {
   readonly status: AutomationRunStatus
   readonly taskId?: string
+  readonly tabId?: string
+  readonly deferredId?: string
   readonly error?: string
   /** Set when the standing session was rebuilt — see `clearSessionTaskId`. */
   readonly sessionTaskIdToClear?: boolean
@@ -140,6 +147,7 @@ async function spawnWithPrompt(
   taskId: string,
   status: AutomationRunStatus,
 ): Promise<DispatchOutcome> {
+  if (deps.canDeliver?.() === false) return { status: "skipped_cancelled", taskId }
   const outcome = await deps.runtime.startTaskSessionWithPrompt(deps.link(), taskId, automation.prompt)
   if (!outcome.started) {
     return { status: "dispatch_failed", taskId, error: outcome.error ?? "engine session did not start" }
@@ -191,9 +199,21 @@ async function deferBlockedPrompt(
       error: `tab ${tabId} already has a deferred prompt (${error.existing.id})`,
     }
   }
-  await deps.inbox.recordPromptDeferred(taskId, tabId, record.id, layer, record.at + DEFERRED_PROMPT_TTL_MS)
+  let notificationError: string | undefined
+  await deps.inbox
+    .recordPromptDeferred(taskId, tabId, record.id, layer, record.at + DEFERRED_PROMPT_TTL_MS)
+    .catch((error: unknown) => {
+      logDaemonError("automation-deferred-inbox", error)
+      notificationError = `prompt queued; Inbox notification failed: ${String(error)}`
+    })
   logDaemonInfo("automation", `deferred ${automation.name} task=${taskId} tab=${tabId} layer=${layer}`)
-  return { status: "deferred", taskId }
+  return {
+    status: "deferred",
+    taskId,
+    tabId,
+    deferredId: record.id,
+    ...(notificationError ? { error: notificationError } : {}),
+  }
 }
 
 /**
@@ -201,7 +221,44 @@ async function deferBlockedPrompt(
  * it). Pure of scheduling and of run-recording — the runner does both.
  */
 export async function dispatchAutomation(deps: DispatchDeps, automation: Automation): Promise<DispatchOutcome> {
-  if (!automation.persistentSession) {
+  if (deps.canDeliver?.() === false) return { status: "skipped_cancelled" }
+  const target = automationTarget(automation)
+  if (target.kind === "existing-tab") {
+    try {
+      await assertAutomationTargetTask(automation, deps.orch)
+    } catch (error) {
+      return { status: "skipped_unavailable", taskId: target.taskId, tabId: target.tabId, error: String(error) }
+    }
+    const task = deps.orch.getTask(target.taskId)
+    if (!task || task.deletion || !task.worktreePath) {
+      return {
+        status: "skipped_unavailable",
+        taskId: target.taskId,
+        tabId: target.tabId,
+        error: "target task unavailable",
+      }
+    }
+    if (deps.canDeliver?.() === false) return { status: "skipped_cancelled", taskId: task.id, tabId: target.tabId }
+    const pending = (await deps.deferred?.listForTask(task.id))?.find((record) => record.tabId === target.tabId)
+    if (pending)
+      return {
+        status: "dispatch_failed",
+        taskId: task.id,
+        tabId: target.tabId,
+        error: `tab ${target.tabId} already has a deferred prompt (${pending.id})`,
+      }
+    if (deps.canDeliver?.() === false) return { status: "skipped_cancelled", taskId: task.id, tabId: target.tabId }
+    const currentTask = deps.orch.getTask(task.id)
+    if (!currentTask || currentTask.deletion || !currentTask.worktreePath) {
+      return { status: "skipped_unavailable", taskId: task.id, tabId: target.tabId, error: "target task unavailable" }
+    }
+    const result = await deps.runtime.deliverPromptToLiveEngineTabDetailed(
+      { id: task.id, tabId: target.tabId, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
+      automation.prompt,
+    )
+    return await liveDeliveryOutcome(deps, automation, task.id, result)
+  }
+  if (target.kind === "fresh") {
     const task = await createRunTask(deps, automation)
     return await spawnWithPrompt(deps, automation, task.id, "dispatched")
   }
@@ -228,12 +285,8 @@ export async function dispatchAutomation(deps: DispatchDeps, automation: Automat
     { id: task.id, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
     automation.prompt,
   )
-  if (result.outcome === "delivered") {
-    logDaemonInfo("automation", `delivered ${automation.name} task=${task.id} tab=${result.tabId}`)
-    return { status: "dispatched", taskId: task.id }
-  }
-  if (result.outcome === "busy") {
-    return await deferBlockedPrompt(deps, automation, task.id, result.tabId, result.layer)
+  if (result.outcome === "delivered" || result.outcome === "busy") {
+    return await liveDeliveryOutcome(deps, automation, task.id, result)
   }
   // `no-session` (the tab is gone) and `no-engine` (the tab is alive but
   // keepAlive left a login shell where the engine exited) both land here: the
@@ -244,4 +297,30 @@ export async function dispatchAutomation(deps: DispatchDeps, automation: Automat
   // typed at a zsh prompt and RUN as shell commands while the run records
   // `dispatched`.
   return await spawnWithPrompt(deps, automation, task.id, "revived")
+}
+
+async function liveDeliveryOutcome(
+  deps: DispatchDeps,
+  automation: Automation,
+  taskId: string,
+  result: Awaited<ReturnType<DispatchRuntime["deliverPromptToLiveEngineTabDetailed"]>>,
+): Promise<DispatchOutcome> {
+  switch (result.outcome) {
+    case "delivered":
+      logDaemonInfo("automation", `delivered ${automation.name} task=${taskId} tab=${result.tabId}`)
+      return { status: "dispatched", taskId, tabId: result.tabId }
+    case "busy":
+      return await deferBlockedPrompt(deps, automation, taskId, result.tabId, result.layer)
+    case "no-engine":
+    case "no-session":
+      return {
+        status: "dispatch_failed",
+        taskId,
+        tabId: automation.target?.tabId,
+        error:
+          result.outcome === "no-engine"
+            ? "target engine exited; restart it explicitly"
+            : "target tab has no live session",
+      }
+  }
 }

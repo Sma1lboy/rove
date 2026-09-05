@@ -254,10 +254,11 @@ it fires with no TUI attached.
 routine-list         (none)
 routine-create       --repo(REQ) --name(REQ) --prompt|--prompt-file(REQ) --schedule(REQ)
                      --vendor{claude|codex|copilot|kimi} --base-branch --precheck
-                     --precheck-timeout(120) --grace(60) --persistent-session --disabled
-routine-update       --id(REQ) --name --prompt|--prompt-file --schedule
-                     --vendor{claude|codex|copilot|kimi} --base-branch --precheck
                      --precheck-timeout(120) --grace(60) --persistent-session
+                     --target-task --target-tab --disabled
+routine-update       --id(REQ) --name --prompt|--prompt-file --schedule --vendor
+                     --base-branch --precheck --precheck-timeout(120) --grace(60)
+                     --persistent-session --target-task --target-tab
 routine-set-enabled  --id(REQ) --enabled(REQ)
 routine-delete       --id(REQ)
 routine-run-now      --id(REQ)

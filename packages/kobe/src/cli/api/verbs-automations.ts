@@ -1,6 +1,6 @@
 /**
- * The `routine` verb group — daemon-owned scheduled agent tasks: the schedule
- * that CREATES tasks, which is a different object from the tasks themselves.
+ * The `routine` verb group — daemon-owned schedules that create tasks or
+ * deliver prompts into an existing conversation.
  * One file per `VerbGroup`, mirroring the taxonomy
  * `rove api schema --group routine` prints — though it is each spec's own
  * `group` field, not this file, that decides where a verb lists. Specs spread back into the {@link VERBS} table, so
@@ -58,6 +58,34 @@ const PERSISTENT_FLAG = {
     "Re-deliver into ONE standing task instead of a fresh worktree per run — for a routine that needs yesterday's context (a trend check). Its task is folded behind the sidebar's routine count row. Leave off for a routine that EDITS code: a week of runs on one branch is a branch nobody can land.",
 } as const
 
+const TARGET_FLAGS = [
+  {
+    name: "target-task",
+    type: "string",
+    placeholder: "ID",
+    description:
+      "Existing task id. Requires --target-tab; never creates or revives a session. Pass both empty to clear on update.",
+  },
+  {
+    name: "target-tab",
+    type: "string",
+    placeholder: "TAB",
+    description: "Exact existing engine tab id, e.g. tab-2. Requires --target-task.",
+  },
+] as const
+
+function targetPayload(ctx: Parameters<VerbSpec["handler"]>[0]): Record<string, unknown> {
+  const hasTask = ctx.args.present("target-task")
+  const hasTab = ctx.args.present("target-tab")
+  if (!hasTask && !hasTab) return {}
+  if (!hasTask || !hasTab) throw new ApiError("--target-task and --target-tab must be supplied together", "BAD_FLAG")
+  const taskId = ctx.args.str("target-task")
+  const tabId = ctx.args.str("target-tab")
+  if (!taskId && !tabId) return { target: null }
+  if (!taskId || !tabId) throw new ApiError("both target values must be nonempty, or both empty to clear", "BAD_FLAG")
+  return { target: { kind: "existing-tab", taskId, tabId } }
+}
+
 /**
  * Shared `--precheck` → payload shape. `--precheck ''` sends `precheck: null`,
  * which the daemon reads as "clear it" on update (a no-op on create, which has
@@ -99,11 +127,11 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
     name: "routine-create",
     group: "routine",
     summary:
-      "Schedule a prompt. Each firing creates a fresh task (worktree + engine) and delivers it. An enabled routine keeps the daemon alive so it fires with no TUI attached.",
+      "Schedule a prompt. Each firing creates a fresh task (worktree + engine) and delivers it. Use --target-task and --target-tab for an existing conversation. An enabled routine keeps the daemon alive.",
     flags: [
       F.repo(),
       { name: "name", type: "string", required: true, placeholder: "N", description: "Routine name." },
-      F.prompt(true, "Text delivered as the new session's first message."),
+      F.prompt(true, "Text delivered to the selected conversation or a new session."),
       F.promptFile(),
       { ...SCHEDULE_FLAG, required: true },
       F.vendor(),
@@ -116,6 +144,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       ...PRECHECK_FLAGS,
       GRACE_FLAG,
       PERSISTENT_FLAG,
+      ...TARGET_FLAGS,
       { name: "disabled", type: "bool", description: "Create it paused instead of active." },
     ],
     handler: (ctx) =>
@@ -127,6 +156,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         ...(ctx.args.vendor() ? { vendor: ctx.args.vendor() } : {}),
         ...(ctx.args.str("base-branch") ? { baseRef: ctx.args.str("base-branch") } : {}),
         ...precheckPayload(ctx),
+        ...targetPayload(ctx),
         ...(ctx.args.nonNegativeInt("grace") !== undefined
           ? { missedRunGraceMinutes: ctx.args.nonNegativeInt("grace") }
           : {}),
@@ -144,11 +174,16 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       F.prompt(false, "New prompt."),
       F.promptFile(),
       SCHEDULE_FLAG,
-      F.vendor(),
+      {
+        ...F.vendor(),
+        type: "string",
+        description: "New engine vendor; empty clears it before binding an existing target.",
+      },
       { name: "base-branch", type: "string", placeholder: "B", description: "New base ref ('' to clear)." },
       ...PRECHECK_FLAGS,
       GRACE_FLAG,
       PERSISTENT_FLAG,
+      ...TARGET_FLAGS,
     ],
     handler: (ctx) =>
       simpleRpc(ctx, "automation.update", {
@@ -156,11 +191,12 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         ...(ctx.args.str("name") !== undefined ? { name: ctx.args.str("name") } : {}),
         ...(ctx.args.promptText() !== undefined ? { prompt: ctx.args.promptText() } : {}),
         ...(ctx.args.str("schedule") !== undefined ? { schedule: ctx.args.str("schedule") } : {}),
-        ...(ctx.args.vendor() ? { vendor: ctx.args.vendor() } : {}),
+        ...(ctx.args.present("vendor") ? { vendor: ctx.args.vendor() ?? null } : {}),
         // `--base-branch ''` clears the base ref (sends null); `present` keeps
         // that empty value visible where `str` would fold it into "absent".
         ...(ctx.args.present("base-branch") ? { baseRef: ctx.args.str("base-branch") ?? null } : {}),
         ...precheckPayload(ctx),
+        ...targetPayload(ctx),
         ...(ctx.args.nonNegativeInt("grace") !== undefined
           ? { missedRunGraceMinutes: ctx.args.nonNegativeInt("grace") }
           : {}),
@@ -204,7 +240,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
     name: "routine-runs",
     group: "routine",
     summary:
-      "Run history, newest first. Statuses: dispatched, revived (standing session respawned — files kept, conversation did not), deferred (composer busy; the prompt is queued in the Inbox, NOT lost), skipped_precheck (nothing to do), skipped_missed, skipped_unavailable, dispatch_failed.",
+      "Run history, newest first. Statuses: dispatched, revived (standing session respawned — files kept, conversation did not), deferred (queued in Inbox; not delivered), skipped_cancelled (disabled, changed or stopped before delivery), skipped_precheck (nothing to do), skipped_missed, skipped_unavailable, dispatch_failed.",
     flags: [{ name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." }],
     handler: (ctx) => simpleRpc(ctx, "automation.runs", { id: ctx.args.require("id") }),
   },

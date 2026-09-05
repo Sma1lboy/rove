@@ -41,7 +41,7 @@ describe("field order", () => {
     let field = COMPOSER_FIELDS[0] as (typeof COMPOSER_FIELDS)[number]
     for (let i = 0; i < COMPOSER_FIELDS.length; i++) {
       seen.add(field)
-      field = nextComposerField(field)
+      field = nextComposerField(field, 1, true)
     }
     expect(seen.size).toBe(COMPOSER_FIELDS.length)
   })

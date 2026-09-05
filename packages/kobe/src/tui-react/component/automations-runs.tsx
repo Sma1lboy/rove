@@ -30,6 +30,7 @@ const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
   revived: "success",
   deferred: "warning",
   skipped_precheck: "muted",
+  skipped_cancelled: "muted",
   skipped_missed: "warning",
   skipped_unavailable: "warning",
   dispatch_failed: "error",
@@ -154,7 +155,7 @@ export function RunHistory(props: { runs: readonly AutomationRun[]; now: number 
         runs.slice(0, 5).map((run) => {
           return (
             <text key={run.id} fg={runToneColor(run.status, theme)}>
-              {`${triggerGlyph(run.trigger)} #${run.runNumber} ${formatRunStatus(run.status, t)}${run.error ? ` \u2014 ${run.error}` : ""}  ${formatWhen(run.at, props.now)}`}
+              {`${triggerGlyph(run.trigger)} #${run.runNumber} ${formatRunStatus(run.status, t)}${run.tabId ? ` · ${run.tabId}` : ""}${run.deferredId ? ` · ${t("automations.queuedReceipt", { id: run.deferredId })}` : ""}${run.error ? ` \u2014 ${run.error}` : ""}  ${formatWhen(run.at, props.now)}`}
             </text>
           )
         })

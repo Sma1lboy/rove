@@ -222,6 +222,7 @@ export function AutomationsPage(props: {
     }
     const draft = await AutomationComposer.show(dialog, {
       repos,
+      tasks: orch.listTasks().filter((task) => !task.deletion),
       ...(props.focusRepo ? { defaultRepo: props.focusRepo } : {}),
     })
     if (!draft) return
@@ -427,6 +428,16 @@ export function AutomationsPage(props: {
                 {t("automations.runNow")}
               </text>
             </box>
+            <text fg={theme.textMuted} wrapMode="word">
+              {selected.target
+                ? t("automations.targetExisting", {
+                    task:
+                      props.orchestrator?.listTasks().find((task) => task.id === selected.target?.taskId)?.title ??
+                      selected.target.taskId,
+                    tab: selected.target.tabId,
+                  })
+                : t(selected.persistentSession ? "automations.targetStanding" : "automations.targetFresh")}
+            </text>
             {selected.precheck ? (
               <text fg={theme.textMuted}>{t("automations.precheck", { command: selected.precheck.command })}</text>
             ) : null}

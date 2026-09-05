@@ -43,12 +43,12 @@ function orchestrator(automations: unknown[] = []) {
     listAutomations: async () => ({ automations, keepsDaemonAlive: automations.length > 0 }),
     automationRuns: async () => ({ runs: [] }),
     listTasks: () => [{ repo: "/x/kobe" }],
-  } as never
+  }
 }
 
 test("n opens the create flow", async () => {
   const { frame, mockInput } = await renderComponent(
-    <AutomationsPage orchestrator={orchestrator()} focused={true} onClose={() => {}} />,
+    <AutomationsPage orchestrator={orchestrator() as never} focused={true} onClose={() => {}} />,
     { width: 60, height: 16, providers: { dialog: true, notifications: true } },
   )
   await new Promise((r) => setTimeout(r, 100))
@@ -61,7 +61,7 @@ test("esc closes the create flow", async () => {
   // A composer that binds escape itself and only resolves the promise is a
   // modal MEMBER outranking the barrier, so the card never pops.
   const { frame, mockInput } = await renderComponent(
-    <AutomationsPage orchestrator={orchestrator()} focused={true} onClose={() => {}} />,
+    <AutomationsPage orchestrator={orchestrator() as never} focused={true} onClose={() => {}} />,
     { width: 60, height: 16, providers: { dialog: true, notifications: true } },
   )
   await new Promise((r) => setTimeout(r, 100))
@@ -77,7 +77,7 @@ test("esc closes the page", async () => {
   let closed = false
   const { mockInput } = await renderComponent(
     <AutomationsPage
-      orchestrator={orchestrator()}
+      orchestrator={orchestrator() as never}
       focused={true}
       onClose={() => {
         closed = true
@@ -95,7 +95,7 @@ test("keys stay dead while another pane holds focus", async () => {
   // The sidebar binds `n` too (new task), and rail pages do not disable the
   // workspace chords, so both are live at once and the page must yield.
   const { frame, mockInput } = await renderComponent(
-    <AutomationsPage orchestrator={orchestrator()} focused={false} onClose={() => {}} />,
+    <AutomationsPage orchestrator={orchestrator() as never} focused={false} onClose={() => {}} />,
     { width: 60, height: 16, providers: { dialog: true, notifications: true } },
   )
   await new Promise((r) => setTimeout(r, 100))
@@ -106,7 +106,7 @@ test("keys stay dead while another pane holds focus", async () => {
 
 test("each automation renders as a boxed strip", async () => {
   const { frame } = await renderComponent(
-    <AutomationsPage orchestrator={orchestrator([AUTOMATION])} focused={true} onClose={() => {}} />,
+    <AutomationsPage orchestrator={orchestrator([AUTOMATION]) as never} focused={true} onClose={() => {}} />,
     { width: 70, height: 16, providers: { dialog: true, notifications: true } },
   )
   await new Promise((r) => setTimeout(r, 120))
@@ -127,7 +127,7 @@ test("the schedule row is five editable cells, not a text field", async () => {
   // ←/→ moves between cells and ↑/↓ changes the one under the cursor. Typing
   // cron means knowing the field order before you can say anything.
   const { frame, mockInput } = await renderComponent(
-    <AutomationsPage orchestrator={orchestrator()} focused={true} onClose={() => {}} />,
+    <AutomationsPage orchestrator={orchestrator() as never} focused={true} onClose={() => {}} />,
     { width: 72, height: 30, providers: { dialog: true, notifications: true } },
   )
   await new Promise((r) => setTimeout(r, 120))
@@ -143,8 +143,9 @@ test("the schedule row is five editable cells, not a text field", async () => {
   // And the whole thing is restated in words plus a real next-run time.
   expect(before).toContain("weekdays at 09:00")
 
-  // Tab to schedule (name → repo → prompt → schedule), step to the hour cell,
+  // Tab to schedule (name → repo → target → prompt → schedule), step to the hour cell,
   // and change it.
+  mockInput.pressTab()
   mockInput.pressTab()
   mockInput.pressTab()
   mockInput.pressTab()
@@ -162,7 +163,7 @@ test("the detail frame stays mounted with nothing selected", async () => {
   // A panel that appears and disappears makes the page jump, and the empty
   // frame is where a first-time user reads what a routine even carries.
   const { frame } = await renderComponent(
-    <AutomationsPage orchestrator={orchestrator()} focused={true} onClose={() => {}} />,
+    <AutomationsPage orchestrator={orchestrator() as never} focused={true} onClose={() => {}} />,
     { width: 74, height: 16, providers: { dialog: true, notifications: true } },
   )
   await new Promise((r) => setTimeout(r, 120))
@@ -175,9 +176,86 @@ test("a selected routine offers an on-demand run", async () => {
   // Running one now is how you find out it works without waiting for its
   // schedule — the reason it is a visible button, not only the `s` key.
   const { frame } = await renderComponent(
-    <AutomationsPage orchestrator={orchestrator([AUTOMATION])} focused={true} onClose={() => {}} />,
+    <AutomationsPage orchestrator={orchestrator([AUTOMATION]) as never} focused={true} onClose={() => {}} />,
     { width: 74, height: 20, providers: { dialog: true, notifications: true } },
   )
   await new Promise((r) => setTimeout(r, 150))
   expect(await frame()).toContain("run now")
+})
+
+test("composer binds an existing task with the selected engine tab", async () => {
+  const calls: unknown[] = []
+  const orch = {
+    ...orchestrator(),
+    listTasks: () => [{ id: "existing", title: "My existing task", repo: "/x/kobe" }],
+    createAutomation: async (draft: unknown) => {
+      calls.push(draft)
+      return {}
+    },
+  }
+  const { frame, mockInput } = await renderComponent(
+    <AutomationsPage orchestrator={orch as never} focused={true} focusRepo="/x/kobe" onClose={() => {}} />,
+    { width: 100, height: 48, providers: { dialog: true, notifications: true } },
+  )
+  await new Promise((r) => setTimeout(r, 100))
+  mockInput.typeText("n")
+  await new Promise((r) => setTimeout(r, 100))
+  mockInput.typeText("Existing routine")
+  mockInput.pressTab()
+  mockInput.pressTab()
+  await new Promise((r) => setTimeout(r, 30))
+  mockInput.pressArrow("down")
+  await new Promise((r) => setTimeout(r, 30))
+  expect(await frame()).toContain("My existing task")
+  expect(await frame()).toContain("EXISTING ENGINE TAB")
+  mockInput.pressTab()
+  await new Promise((r) => setTimeout(r, 30))
+  mockInput.pressArrow("right")
+  mockInput.pressBackspace()
+  mockInput.typeText("2")
+  mockInput.pressTab()
+  await new Promise((r) => setTimeout(r, 30))
+  mockInput.typeText("Run the report")
+  mockInput.pressTab()
+  mockInput.pressTab()
+  await new Promise((r) => setTimeout(r, 30))
+  mockInput.pressEnter()
+  await new Promise((r) => setTimeout(r, 100))
+  expect(calls).toEqual([
+    expect.objectContaining({
+      name: "Existing routine",
+      target: { kind: "existing-tab", taskId: "existing", tabId: "tab-2" },
+    }),
+  ])
+})
+
+test("a bound routine shows its exact target and queue receipt without claiming delivery", async () => {
+  const bound = { ...AUTOMATION, target: { kind: "existing-tab", taskId: "existing", tabId: "tab-2" } }
+  const orch = {
+    ...orchestrator([bound]),
+    listTasks: () => [{ id: "existing", title: "My existing task", repo: "/x/kobe" }],
+    automationRuns: async () => ({
+      runs: [
+        {
+          id: "run",
+          runNumber: 1,
+          status: "deferred",
+          trigger: "scheduled",
+          at: new Date().toISOString(),
+          taskId: "existing",
+          tabId: "tab-2",
+          deferredId: "receipt-1",
+        },
+      ],
+    }),
+  }
+  const { frame } = await renderComponent(
+    <AutomationsPage orchestrator={orch as never} focused={true} onClose={() => {}} />,
+    { width: 110, height: 28, providers: { dialog: true, notifications: true } },
+  )
+  await new Promise((r) => setTimeout(r, 150))
+  const text = await frame()
+  expect(text).toContain("My existing task / tab-2")
+  expect(text).toContain("queued, not delivered")
+  expect(text).toContain("receipt-1")
 })
