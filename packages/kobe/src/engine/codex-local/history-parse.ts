@@ -61,7 +61,11 @@ export function deriveCodexUsageMetrics(raw: string): EngineUsageSnapshot | unde
 
 /** Fold rollout lines onto `prev` without mutating it (cache contract). */
 function foldRolloutChunk(chunk: string, prev: CodexParseState, sessionId: string): CodexParseState {
-  const messages = prev.messages.slice()
+  let messages = prev.messages
+  const writableMessages = () => {
+    if (messages === prev.messages) messages = messages.slice()
+    return messages
+  }
   let latestUsage = prev.latestUsage
   let latestUsageTimestampMs = prev.latestUsageTimestampMs
 
@@ -82,7 +86,7 @@ function foldRolloutChunk(chunk: string, prev: CodexParseState, sessionId: strin
       if (!payload) continue
       const ts = typeof parsed.timestamp === "string" ? parsed.timestamp : new Date().toISOString()
       const msg = normalizeCodexResponseItem(payload, ts, sessionId)
-      if (msg) messages.push(msg)
+      if (msg) writableMessages().push(msg)
       continue
     }
 
@@ -103,7 +107,12 @@ function foldRolloutChunk(chunk: string, prev: CodexParseState, sessionId: strin
     // record that follows the turn's response_items, so the nearest preceding
     // assistant message in file order owns it. Replace (not mutate) the entry to
     // honor the append cache's immutable-object contract.
-    stampLastUsageOnLastAssistant(messages, usageFields.lastUsage)
+    const lastUsage = usageFields.lastUsage && codexLastUsageToMessageUsage(usageFields.lastUsage)
+    if (lastUsage) {
+      const index = messages.findLastIndex((message) => message.role === "assistant")
+      const message = messages[index]
+      if (message) writableMessages()[index] = { ...message, usage: lastUsage }
+    }
     const timestampMs = typeof parsed.timestamp === "string" ? parseTimestampMs(parsed.timestamp) : null
     if (timestampMs !== null && (latestUsageTimestampMs === null || timestampMs > latestUsageTimestampMs)) {
       latestUsageTimestampMs = timestampMs
@@ -161,24 +170,6 @@ function codexUsageFields(parsed: Record<string, unknown>): CodexUsageFields | u
     return usage ? { usage, lastUsage: usage, contextWindow: undefined } : undefined
   }
   return undefined
-}
-
-/**
- * Stamp a token_count's per-turn usage onto the most recent assistant message
- * so the History panel's per-message token sum reflects codex. Rebuilds that
- * one entry as a NEW object (never mutates) to keep the append-parse cache's
- * shared-prefix contract sound. No-op when there's no assistant message yet or
- * the record carried no usable last-turn usage.
- */
-function stampLastUsageOnLastAssistant(messages: Message[], lastUsage: Record<string, unknown> | undefined): void {
-  if (!lastUsage) return
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i]
-    if (msg?.role !== "assistant") continue
-    const usage = codexLastUsageToMessageUsage(lastUsage)
-    if (usage) messages[i] = { ...msg, usage }
-    return
-  }
 }
 
 /** Map codex `last_token_usage` (a TokenUsage) to the neutral `Message.usage`

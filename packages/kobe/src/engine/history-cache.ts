@@ -39,11 +39,12 @@ export interface AppendParseCacheOptions<S, C> {
    * can be extended one appended slice at a time.
    */
   parseChunk: (chunk: string, prev: S, ctx: C) => S
-  /** FIFO cap on cached files (default 8). */
+  /** Cap on cached files; evict the least recently updated prefix (default 8). */
   maxFiles?: number
 }
 
-interface CacheEntry<S> {
+interface CacheEntry<S, C> {
+  context: C
   /** Char length of the cached prefix — always ends at a `\n` boundary. */
   prefixLength: number
   /** SHA-256 hex of `raw.slice(0, prefixLength)` at cache time. */
@@ -61,16 +62,10 @@ interface CacheEntry<S> {
 export function createAppendParseCache<S, C = void>(
   opts: AppendParseCacheOptions<S, C>,
 ): (filePath: string, raw: string, ctx: C) => S {
-  // ponytail: FIFO cap, not LRU — a pane process only ever polls a handful
-  // of session files; switch to LRU if panes start juggling many sessions.
   const maxFiles = opts.maxFiles ?? 8
-  const cache = new Map<string, CacheEntry<S>>()
+  const cache = new Map<string, CacheEntry<S, C>>()
 
-  function hashPrefix(raw: string, length: number): string {
-    return createHash("sha256").update(raw.slice(0, length)).digest("hex")
-  }
-
-  function remember(filePath: string, entry: CacheEntry<S>): void {
+  function remember(filePath: string, entry: CacheEntry<S, C>): void {
     cache.delete(filePath) // re-insert so Map order tracks recency of writes
     cache.set(filePath, entry)
     if (cache.size > maxFiles) {
@@ -84,9 +79,17 @@ export function createAppendParseCache<S, C = void>(
     // partially flushed record — parse it fresh each call, never cache it.
     const stableLength = raw.lastIndexOf("\n") + 1
     const entry = cache.get(filePath)
+    const verifiedLength = Math.min(entry?.prefixLength ?? 0, stableLength)
+    // Reuse this hash after verification; extending it feeds only the suffix.
+    const hash = createHash("sha256").update(raw.slice(0, verifiedLength))
 
+    const unchanged =
+      entry !== undefined &&
+      Object.is(entry.context, ctx) &&
+      entry.prefixLength <= stableLength &&
+      hash.copy().digest("hex") === entry.prefixHash
     let prefixState: S
-    if (entry && entry.prefixLength <= stableLength && hashPrefix(raw, entry.prefixLength) === entry.prefixHash) {
+    if (unchanged) {
       // Append-only since last read: fold just the new complete lines.
       prefixState =
         entry.prefixLength < stableLength
@@ -97,10 +100,11 @@ export function createAppendParseCache<S, C = void>(
       prefixState = opts.parseChunk(raw.slice(0, stableLength), opts.initial(ctx), ctx)
     }
 
-    if (!entry || entry.prefixLength !== stableLength || entry.state !== prefixState) {
+    if (!unchanged || entry.prefixLength !== stableLength || entry.state !== prefixState) {
       remember(filePath, {
+        context: ctx,
         prefixLength: stableLength,
-        prefixHash: hashPrefix(raw, stableLength),
+        prefixHash: hash.update(raw.slice(verifiedLength, stableLength)).digest("hex"),
         state: prefixState,
       })
     }
@@ -123,13 +127,13 @@ export function createAppendParseCache<S, C = void>(
  * Stable sort: ties (same ISO timestamp) keep file-order, which roughly
  * preserves causal ordering even at sub-millisecond ties.
  */
+const sortedMessages = new WeakMap<readonly Message[], Message[]>()
+
+/** Parse folds publish immutable arrays, so a snapshot only needs sorting once. */
 export function sortByTimestamp(messages: readonly Message[]): Message[] {
-  return messages
-    .map((msg, idx) => ({ msg, idx }))
-    .sort((a, b) => {
-      if (a.msg.timestamp < b.msg.timestamp) return -1
-      if (a.msg.timestamp > b.msg.timestamp) return 1
-      return a.idx - b.idx
-    })
-    .map((entry) => entry.msg)
+  const hit = sortedMessages.get(messages)
+  if (hit) return hit
+  const sorted = [...messages].sort((a, b) => (a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0))
+  sortedMessages.set(messages, sorted)
+  return sorted
 }

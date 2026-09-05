@@ -18,7 +18,10 @@ import { isClaudeCommandBreadcrumb, isSyntheticClaudeRecord } from "./synthetic"
 
 const cache = createAppendParseCache<Message[], string>({
   initial: () => [],
-  parseChunk: (chunk, prev, sessionId) => prev.concat(parseJsonl(chunk, sessionId)),
+  parseChunk: (chunk, prev, sessionId) => {
+    const added = parseJsonl(chunk, sessionId)
+    return added.length ? prev.concat(added) : prev
+  },
 })
 
 /**
