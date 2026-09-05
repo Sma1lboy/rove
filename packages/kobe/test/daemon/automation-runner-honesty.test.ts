@@ -15,7 +15,7 @@ describe("routine failures in the Inbox", () => {
       store,
       start: async () => ({ started: false, error: "engine process never started" }),
     })
-    const a = automation()
+    const a = await store.create(automation())
     for (let firing = 0; firing < 10; firing += 1) {
       await runAutomationOnce(deps as never, a, { scheduledFor: NOW, trigger: "scheduled" })
     }
@@ -32,7 +32,7 @@ describe("routine failures in the Inbox", () => {
       store,
       start: async () => ({ started: false, error: "engine process never started" }),
     })
-    const a = automation()
+    const a = await store.create(automation())
     await runAutomationOnce(deps as never, a, { scheduledFor: NOW, trigger: "scheduled" })
     expect(episodes.size).toBe(1)
 
@@ -48,10 +48,14 @@ describe("routine failures in the Inbox", () => {
     const { deps, episodes } = fakeDeps({ store })
     // `false` exits non-zero: healthy, and filing it would train the user to
     // ignore the queue.
-    await runAutomationOnce(deps as never, automation({ precheck: { command: "false", timeoutSeconds: 5 } }), {
-      scheduledFor: NOW,
-      trigger: "scheduled",
-    })
+    await runAutomationOnce(
+      deps as never,
+      await store.create(automation({ precheck: { command: "false", timeoutSeconds: 5 } })),
+      {
+        scheduledFor: NOW,
+        trigger: "scheduled",
+      },
+    )
     expect(episodes.size).toBe(0)
   })
 })

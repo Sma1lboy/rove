@@ -55,6 +55,8 @@ export interface Automation {
    * one branch makes it unlandable.
    */
   readonly persistentSession?: boolean
+  /** Exact user-owned conversation. Never creates or revives a task or tab. */
+  readonly target?: { readonly kind: "existing-tab"; readonly taskId: string; readonly tabId: string }
   /**
    * The standing task {@link persistentSession} delivers into. Set on the
    * first firing, cleared when that task is gone (deleted, or its worktree
@@ -101,10 +103,10 @@ export type AutomationRunStatus =
   | "revived"
   /**
    * The standing session's composer was busy, so the daemon took ownership of
-   * the prompt and queued it for a human to release from the Inbox. A SUCCESS
-   * (the report is not lost), and deliberately not `dispatch_failed`.
+   * the prompt and queued it for a human to release from the Inbox. Queue acceptance only; delivery is still pending and belongs to the deferred store.
    */
   | "deferred"
+  | "skipped_cancelled"
   | "skipped_precheck"
   | "skipped_missed"
   | "skipped_unavailable"
@@ -142,6 +144,9 @@ export interface AutomationRun {
   readonly status: AutomationRunStatus
   readonly trigger: "scheduled" | "manual"
   readonly taskId?: string
+  readonly tabId?: string
+  /** Receipt for queue acceptance, not a delivery confirmation. */
+  readonly deferredId?: string
   readonly precheckResult?: AutomationPrecheckResult
   readonly error?: string
   /** ISO-8601 event time. */
@@ -152,13 +157,15 @@ export interface AutomationRun {
 export interface AutomationPatch {
   readonly name?: string
   readonly prompt?: string
-  readonly vendor?: VendorId
+  readonly vendor?: VendorId | null
   readonly schedule?: string
   readonly precheck?: AutomationPrecheck | null
   readonly baseRef?: string | null
   readonly enabled?: boolean
   readonly missedRunGraceMinutes?: number
   readonly persistentSession?: boolean
+  /** Exact user-owned conversation. Never creates or revives a task or tab. */
+  readonly target?: Automation["target"] | null
   /** `null` clears the standing session link; absent leaves it untouched. */
   readonly sessionTaskId?: string | null
 }

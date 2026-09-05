@@ -85,6 +85,9 @@ function harness(
       getTask: (id: string) => args.tasks?.[id],
     },
     runtime: {
+      deliverPromptToLiveEngineTabDetailed: async () => {
+        throw new Error("standing must not use bound-tab delivery")
+      },
       startTaskSessionWithPrompt: async (_l: DaemonRpcClient, taskId: string, prompt: string) => {
         spawned.push({ taskId, prompt })
         return { started: args.startOk !== false }

@@ -30,7 +30,7 @@ const NOW = new Date(2026, 6, 31, 10, 0, 0).getTime()
 /** Every field the store can carry, each with a distinguishable value. The
  *  store owns id/nextRunAt/createdAt/updatedAt, so those are omitted on
  *  create and read back from what it returned. */
-const FULL: Omit<DeepRequired<Automation>, "id" | "nextRunAt" | "createdAt" | "updatedAt"> = {
+const FULL: Omit<DeepRequired<Automation>, "id" | "nextRunAt" | "createdAt" | "updatedAt" | "target"> = {
   name: "nightly audit",
   repo: "/repo",
   prompt: "run the audit",
@@ -47,7 +47,7 @@ const FULL: Omit<DeepRequired<Automation>, "id" | "nextRunAt" | "createdAt" | "u
 
 /** Every patch key, each with a value that differs from FULL. `null` keys are
  *  exercised separately below, so this fixture uses the set-a-value form. */
-const PATCH: DeepRequired<AutomationPatch> = {
+const PATCH: Omit<DeepRequired<AutomationPatch>, "target"> = {
   name: "renamed",
   prompt: "run the other audit",
   vendor: "claude",
@@ -60,11 +60,33 @@ const PATCH: DeepRequired<AutomationPatch> = {
   sessionTaskId: "01ARZ3NDEKTSV4RRFFQ69G5FAW",
 }
 
+const BOUND: DeepRequired<Pick<Automation, "target">> = {
+  target: { kind: "existing-tab", taskId: "external-task", tabId: "tab-2" },
+}
+
 function tempPath(): string {
   return join(mkdtempSync(join(tmpdir(), "kobe-automations-fields-")), "automations.json")
 }
 
 describe("Automation field round-trip", () => {
+  it("binding, preserving and clearing the target survive separate daemon restarts", async () => {
+    const path = tempPath()
+    const store = new AutomationsStore(path, () => NOW)
+    await store.init()
+    const created = await store.create(FULL)
+    await store.update(created.id, { ...BOUND, vendor: null, baseRef: null, persistentSession: false })
+    await store.update(created.id, { name: "bound" })
+    const rebound = new AutomationsStore(path, () => NOW)
+    await rebound.init()
+    expect(rebound.get(created.id)).toMatchObject(BOUND)
+    expect(rebound.get(created.id)).not.toHaveProperty("vendor")
+    expect(rebound.get(created.id)).not.toHaveProperty("sessionTaskId")
+    await rebound.update(created.id, { target: null })
+    const cleared = new AutomationsStore(path, () => NOW)
+    await cleared.init()
+    expect(cleared.get(created.id)).not.toHaveProperty("target")
+  })
+
   it("every field survives create → daemon restart → get", async () => {
     const path = tempPath()
     const store = new AutomationsStore(path, () => NOW)

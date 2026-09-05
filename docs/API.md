@@ -651,7 +651,8 @@ missing (`gh-missing` / `auth` / `no-remote`) rather than a generic error.
 Scheduled agent tasks (Routines): a cron rule + a prompt + a repo. By default
 every firing creates a **fresh task** (worktree + branch + engine session) with
 the prompt as its first message; `--persistent-session` instead re-delivers into
-ONE standing task. A run is an ordinary task you can open and keep talking to.
+ONE standing task. `--target-task ID --target-tab tab-N` instead binds an existing
+conversation without creating or reviving a task or tab.
 An enabled routine keeps the daemon alive so schedules fire with no TUI
 attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 [design/automations.md](./design/automations.md).
@@ -659,15 +660,16 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 - `routine-list`: every routine with its next run time.
 - `routine-create --repo PATH --name N (--prompt TEXT | --prompt-file PATH) --schedule CRON
   [--vendor V] [--base-branch B] [--precheck CMD] [--precheck-timeout SEC]
-  [--grace MIN] [--persistent-session] [--disabled]`: schedule a prompt. `--schedule` is five-field
+  [--grace MIN] [--persistent-session] [--disabled] [--target-task ID --target-tab TAB]`: schedule a prompt. `--schedule` is five-field
   cron in the daemon host's local time (`"0 9 * * MON-FRI"`).
 - `routine-update --id ID [...]`: change any field. A new `--schedule`
-  re-anchors the next run; `--precheck ''` clears the precheck.
+  re-anchors the next run; `--precheck ''` clears the precheck. Omitted target flags
+  preserve the binding; `--target-task '' --target-tab ''` sends `target: null` to clear it.
 - `routine-set-enabled --id ID --enabled BOOL`: pause / resume.
 - `routine-run-now --id ID`: run immediately, skipping the precheck. Does
   not shift the schedule.
 - `routine-runs --id ID`: run history, newest first. `revived` and `deferred`
-  are standing-session outcomes — see below. An unknown id is an error
+  describe revival and queue acceptance; `skipped_cancelled` means disabled, changed or stopped before delivery. Bound deliveries include `taskId`/`tabId`; queue acceptance also includes `deferredId`. An unknown id is an error
   (`automation not found`), not an empty history.
 - `routine-delete --id ID`: delete it and its history (tasks it already
   created are untouched). Idempotent: deleting an id that is already gone
@@ -680,7 +682,17 @@ Inbox-reachable). Leave it off for a routine that edits code: a week of runs on
 one branch is a branch nobody can land. Two extra run statuses come with it —
 `revived` (the engine had exited, so it was respawned in the same worktree; the
 files carried over, the conversation did not) and `deferred` (the composer was
-busy, so the prompt is queued in the Inbox rather than lost — a success).
+busy, so the prompt was accepted into the Inbox and has not been delivered).
+
+**Existing target:** the daemon payload is `target: {kind: "existing-tab", taskId, tabId}`.
+The repo must match the task repo; `vendor`, `baseRef` and `persistentSession`
+are incompatible with this mode. Updates validate the merged record; clear old
+launch settings with `--vendor '' --base-branch '' --persistent-session false`
+when binding. Missing/deleting tasks, missing tabs and exited engines fail without
+fallback. Disabling stops future scheduling, including a run still in precheck;
+already queued Inbox prompts retain their own release/expiry lifecycle. Claims
+survive restarts without replay, but a crash after claim and before delivery can
+lose an occurrence. See [existing conversation delivery](ROUTINES.md#deliver-into-an-existing-conversation).
 
 **`--precheck`** runs a shell command in the repo before the engine starts;
 a non-zero exit skips the run *without* creating a task. Use it so a schedule

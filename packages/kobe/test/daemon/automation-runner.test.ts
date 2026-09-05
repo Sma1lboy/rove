@@ -102,7 +102,7 @@ describe("runAutomationOnce", () => {
   it("creates a task and starts its engine with the prompt", async () => {
     const store = await tempStore()
     const { deps, created, prompts } = fakeDeps({ store })
-    const a = automation()
+    const a = await store.create(automation())
 
     const status = await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })
 
@@ -115,7 +115,7 @@ describe("runAutomationOnce", () => {
   it("passes vendor and baseRef through to task creation", async () => {
     const store = await tempStore()
     const { deps, created } = fakeDeps({ store })
-    await runAutomationOnce(deps, automation({ vendor: "codex", baseRef: "develop" }), {
+    await runAutomationOnce(deps, await store.create(automation({ vendor: "codex", baseRef: "develop" })), {
       scheduledFor: NOW,
       trigger: "scheduled",
     })
@@ -125,7 +125,7 @@ describe("runAutomationOnce", () => {
   it("skips without creating a task when the precheck fails", async () => {
     const store = await tempStore()
     const { deps, created } = fakeDeps({ store })
-    const a = automation({ precheck: { command: "exit 1", timeoutSeconds: 10 } })
+    const a = await store.create(automation({ precheck: { command: "exit 1", timeoutSeconds: 10 } }))
 
     const status = await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })
 
@@ -138,7 +138,7 @@ describe("runAutomationOnce", () => {
   it("proceeds when the precheck exits zero", async () => {
     const store = await tempStore()
     const { deps, created } = fakeDeps({ store })
-    const a = automation({ precheck: { command: "exit 0", timeoutSeconds: 10 } })
+    const a = await store.create(automation({ precheck: { command: "exit 0", timeoutSeconds: 10 } }))
 
     expect(await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })).toBe("dispatched")
     expect(created).toHaveLength(1)
@@ -148,7 +148,7 @@ describe("runAutomationOnce", () => {
     const store = await tempStore()
     const { deps, created } = fakeDeps({ store })
     // Asking for it by hand IS the answer to "is this worth running".
-    const a = automation({ precheck: { command: "exit 1", timeoutSeconds: 10 } })
+    const a = await store.create(automation({ precheck: { command: "exit 1", timeoutSeconds: 10 } }))
 
     expect(await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "manual" })).toBe("dispatched")
     expect(created).toHaveLength(1)
@@ -162,7 +162,7 @@ describe("runAutomationOnce", () => {
         throw new Error("repo not found")
       },
     })
-    const a = automation()
+    const a = await store.create(automation())
 
     expect(await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })).toBe("skipped_unavailable")
     expect(store.runsFor(a.id)[0]?.error).toMatch(/repo not found/)
@@ -177,7 +177,7 @@ describe("runAutomationOnce", () => {
         error: "engine process never started; last session output: command not found",
       }),
     })
-    const a = automation()
+    const a = await store.create(automation())
 
     expect(await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })).toBe("dispatch_failed")
     // The task exists; surfacing its id lets the user open and retry it.

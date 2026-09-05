@@ -60,6 +60,7 @@ export function fakeDeps(args: {
   /** Tasks `resolveStandingTask` can find, keyed by id. */
   tasks?: Record<string, DaemonTask>
   deliver?: DispatchRuntime["deliverPromptToLiveEngineDetailed"]
+  deliverTab?: DispatchRuntime["deliverPromptToLiveEngineTabDetailed"]
 }) {
   const created: unknown[] = []
   const prompts: string[] = []
@@ -98,6 +99,9 @@ export function fakeDeps(args: {
         getTask: (id: string) => args.tasks?.[id],
       },
       runtime: {
+        deliverPromptToLiveEngineTabDetailed:
+          args.deliverTab ??
+          (async (target: { tabId: string }) => ({ outcome: "delivered" as const, tabId: target.tabId })),
         startTaskSessionWithPrompt:
           args.start ??
           (async (_l: DaemonRpcClient, _id: string, prompt: string) => {

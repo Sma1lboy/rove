@@ -93,7 +93,7 @@ export type AutomationOrchestrator = Pick<DaemonOrchestrator, "createTask" | "ge
 
 export type AutomationRuntime = Pick<
   DaemonRuntimeAdapter,
-  "startTaskSessionWithPrompt" | "deliverPromptToLiveEngineDetailed"
+  "startTaskSessionWithPrompt" | "deliverPromptToLiveEngineDetailed" | "deliverPromptToLiveEngineTabDetailed"
 >
 
 interface RunnerDeps {
@@ -113,6 +113,7 @@ interface RunnerDeps {
   readonly deferred?: DeferredPromptsStore
   readonly inbox?: RunnerInbox
   readonly now?: () => number
+  readonly stopped?: () => boolean
 }
 
 /**
@@ -139,12 +140,10 @@ type PluginRunReport = {
   readonly detail?: Record<string, unknown>
 }
 
-/** Run outcome → plugin event name (docs/design/plugin-events.md).
- *  `revived` and `deferred` both delivered the prompt somewhere it will be
- *  read, so they report as dispatched rather than minting event names every
- *  existing plugin would ignore. */
+/** Queue acceptance is not delivery. Deferred runs carry their status on
+ * the skipped event until the queue's owner performs delivery. */
 function runEventFor(status: AutomationRunStatus): PluginRunReport["kind"] {
-  if (status === "dispatched" || status === "revived" || status === "deferred") return "automation.dispatched"
+  if (status === "dispatched" || status === "revived") return "automation.dispatched"
   if (status === "dispatch_failed") return "automation.failed"
   return "automation.skipped"
 }
@@ -159,7 +158,7 @@ function emitRunEvent(
   automation: Automation,
   status: AutomationRunStatus,
   args: { scheduledFor: number; trigger: "scheduled" | "manual" },
-  extra: { taskId?: string; error?: string },
+  extra: { taskId?: string; tabId?: string; deferredId?: string; error?: string },
 ): void {
   // handleUiReport guards its own dispatch — a throw can only come from the
   // getter, which is a plain closure over the server's pluginHost.
@@ -173,6 +172,8 @@ function emitRunEvent(
       status,
       trigger: args.trigger,
       scheduledFor: new Date(args.scheduledFor).toISOString(),
+      ...(extra.tabId ? { tabId: extra.tabId } : {}),
+      ...(extra.deferredId ? { deferredId: extra.deferredId } : {}),
       ...(extra.error ? { error: extra.error } : {}),
     },
   })
@@ -265,7 +266,13 @@ export async function runAutomationOnce(
   const now = deps.now ?? Date.now
   const record = async (
     status: AutomationRunStatus,
-    extra: { taskId?: string; error?: string; precheckResult?: Awaited<ReturnType<typeof runAutomationPrecheck>> } = {},
+    extra: {
+      taskId?: string
+      tabId?: string
+      deferredId?: string
+      error?: string
+      precheckResult?: Awaited<ReturnType<typeof runAutomationPrecheck>>
+    } = {},
   ): Promise<AutomationRunStatus> => {
     await deps.store.recordRun({
       automationId: automation.id,
@@ -280,6 +287,15 @@ export async function runAutomationOnce(
     return status
   }
 
+  const cancelled = (): boolean =>
+    deps.stopped?.() === true ||
+    deps.store.get(automation.id) !== automation ||
+    (args.trigger === "scheduled" && !automation.enabled)
+  if (cancelled())
+    return await record("skipped_cancelled", {
+      error: "routine disabled, changed, deleted or runner stopped before delivery",
+    })
+
   if (args.trigger === "scheduled" && automation.precheck) {
     const result = await runAutomationPrecheck(automation.precheck, automation.repo)
     if (!precheckPassed(result)) {
@@ -288,10 +304,16 @@ export async function runAutomationOnce(
     }
   }
 
+  if (cancelled())
+    return await record("skipped_cancelled", {
+      error: "routine disabled, changed, deleted or runner stopped before delivery",
+    })
+
   let outcome: Awaited<ReturnType<typeof dispatchAutomation>>
   try {
     outcome = await dispatchAutomation(
       {
+        canDeliver: () => !cancelled(),
         orch: deps.orch,
         runtime: deps.runtime,
         link: () => resolveLink(deps.link),
@@ -327,6 +349,8 @@ export async function runAutomationOnce(
   }
   return await record(outcome.status, {
     ...(outcome.taskId ? { taskId: outcome.taskId } : {}),
+    ...(outcome.tabId ? { tabId: outcome.tabId } : {}),
+    ...(outcome.deferredId ? { deferredId: outcome.deferredId } : {}),
     ...(outcome.error ? { error: outcome.error } : {}),
   })
 }
@@ -337,6 +361,7 @@ export async function runAutomationOnce(
 export async function sweepAutomations(deps: RunnerDeps, tickMs: number = DEFAULT_AUTOMATION_TICK_MS): Promise<void> {
   const now = deps.now ?? Date.now
   for (const automation of dueAutomations(deps.store.list(), now())) {
+    if (deps.stopped?.()) return
     const nowMs = now()
     const occurrence = resolveDueOccurrence(automation, nowMs, tickMs)
     if (!occurrence) {
@@ -350,7 +375,8 @@ export async function sweepAutomations(deps: RunnerDeps, tickMs: number = DEFAUL
 
     // Advance BEFORE doing any work: an overlapping sweep (or a slow engine
     // spawn) must never see this occurrence as still due and fire it twice.
-    await deps.store.advanceNextRun(automation.id, occurrence.scheduledFor)
+    const claimed = await deps.store.advanceNextRun(automation.id, occurrence.scheduledFor, automation.nextRunAt)
+    if (!claimed) continue
 
     // One row for every occurrence between the armed time and the one being
     // run — recorded whatever happens next, because a routine that quietly
@@ -377,7 +403,7 @@ export async function sweepAutomations(deps: RunnerDeps, tickMs: number = DEFAUL
       continue
     }
 
-    await runAutomationOnce(deps, automation, {
+    await runAutomationOnce(deps, claimed, {
       scheduledFor: occurrence.scheduledFor,
       trigger: "scheduled",
     }).catch((err) => logDaemonError("automation-run", err))
@@ -394,5 +420,13 @@ export function startAutomationRunner(
 ): ReturnType<typeof startTicker> {
   // Ungated for the same reason as quota-resume, only more so: a schedule
   // that requires an audience is not a schedule.
-  return startTicker({ name: "automation-sweep", tickMs, run: () => sweepAutomations(deps, tickMs) })
+  let stopped = false
+  return startTicker({
+    name: "automation-sweep",
+    tickMs,
+    run: () => sweepAutomations({ ...deps, stopped: () => stopped }, tickMs),
+    onStop: () => {
+      stopped = true
+    },
+  })
 }

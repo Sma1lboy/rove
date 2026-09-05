@@ -2,6 +2,12 @@
 
 import { assertRoutineBaseRef, assertRoutineRepo } from "./automation-repo-check.ts"
 import { runAutomationOnce } from "./automation-runner.ts"
+import {
+  assertAutomationTargetOptions,
+  assertAutomationTargetTask,
+  mergeAutomationTargetOptions,
+  readAutomationTarget,
+} from "./automation-target.ts"
 import type { AutomationPatch, AutomationPrecheck, AutomationRunStatus } from "./contracts.ts"
 import { isValidCron } from "./cron.ts"
 import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
@@ -78,14 +84,24 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       const precheck = readPrecheck(payload)
       const repo = requireString(payload, "repo")
       const baseRef = optionalString(payload, "baseRef")
+      const target = "target" in payload ? readAutomationTarget(payload.target) : undefined
       // Before persisting, not after the first firing: a routine that can
       // never resolve its worktree is a row the user cannot tell from a
       // healthy one until it has already failed unattended.
-      await assertRoutineRepo(repo)
+      if (!target) await assertRoutineRepo(repo)
       if (baseRef) await assertRoutineBaseRef(repo, baseRef)
+      const targetOptions = {
+        target: target ?? undefined,
+        vendor: optionalVendor(payload, "vendor"),
+        baseRef,
+        persistentSession: optionalBoolean(payload, "persistentSession"),
+      }
+      assertAutomationTargetOptions(targetOptions)
+      await assertAutomationTargetTask({ repo, target: target ?? undefined }, ctx.orch)
       const automation = await ctx.automations.create({
         name: requireString(payload, "name"),
         repo,
+        ...(target ? { target } : {}),
         prompt: requireString(payload, "prompt"),
         schedule: requireSchedule(payload, "schedule"),
         missedRunGraceMinutes: readGraceMinutes(payload) ?? 60,
@@ -113,7 +129,12 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       const patch: AutomationPatch = {
         ...(optionalString(payload, "name") !== undefined ? { name: optionalString(payload, "name") } : {}),
         ...(optionalString(payload, "prompt") !== undefined ? { prompt: optionalString(payload, "prompt") } : {}),
-        ...(optionalVendor(payload, "vendor") !== undefined ? { vendor: optionalVendor(payload, "vendor") } : {}),
+        ...(payload.vendor === null
+          ? { vendor: null }
+          : optionalVendor(payload, "vendor") !== undefined
+            ? { vendor: optionalVendor(payload, "vendor") }
+            : {}),
+        ...("target" in payload ? { target: readAutomationTarget(payload.target) } : {}),
         ...("schedule" in payload ? { schedule: requireSchedule(payload, "schedule") } : {}),
         ...(readPrecheck(payload) !== undefined ? { precheck: readPrecheck(payload) } : {}),
         ...("baseRef" in payload ? { baseRef: optionalString(payload, "baseRef") ?? null } : {}),
@@ -123,6 +144,12 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
           ? { persistentSession: optionalBoolean(payload, "persistentSession") }
           : {}),
       }
+      const current = ctx.automations.get(id)
+      if (!current) throw new Error(`automation not found: ${id}`)
+      const targetOptions = mergeAutomationTargetOptions(current, patch)
+      assertAutomationTargetOptions(targetOptions)
+      // A stale target must remain pausable, clearable and repairable.
+      if (patch.target) await assertAutomationTargetTask({ repo: current.repo, target: patch.target }, ctx.orch)
       const automation = await ctx.automations.update(id, patch)
       if (!automation) throw new Error(`automation not found: ${id}`)
       // Disabling the last one releases the hold; nothing else would notice.

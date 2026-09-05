@@ -23,12 +23,9 @@ export function visitResolvedEpisodes(
 ): AttentionInboxItem[] {
   return items.filter(
     (item) =>
-      // `prompt_expired` is exempt: every other episode DESCRIBES the target's
-      // current condition, so landing there is genuinely seeing it. An expired
-      // notice is a past-tense fact about text that is already gone — arriving
-      // at the tab tells you nothing about it, and resolving on visit would
-      // destroy the notice unread for the most likely case of all (you come
-      // back to the tab you left). It leaves on an explicit open or dismiss.
+      // Visiting a tab neither releases queued text nor acknowledges text
+      // that expired. Both require an explicit Inbox action.
+      item.state !== "prompt_deferred" &&
       item.state !== "prompt_expired" &&
       item.taskId === visit.taskId &&
       (item.tabId === null || item.tabId === visit.tabId),

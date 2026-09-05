@@ -10,20 +10,30 @@
  */
 
 import { intlLocale, t } from "@/tui/i18n"
+import type { Automation } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import { isValidCron, nextCronAfter } from "@sma1lboy/kobe-daemon/daemon/cron"
 import { relativeBuckets } from "../../lib/relative-time"
 
 /** Card fields, in tab order. `confirm` is the Create button. */
-export type ComposerField = "name" | "repo" | "prompt" | "schedule" | "confirm"
+export type ComposerField = "name" | "repo" | "target" | "targetTab" | "prompt" | "schedule" | "confirm"
 
-export const COMPOSER_FIELDS: readonly ComposerField[] = ["name", "repo", "prompt", "schedule", "confirm"]
+export const COMPOSER_FIELDS: readonly ComposerField[] = [
+  "name",
+  "repo",
+  "target",
+  "targetTab",
+  "prompt",
+  "schedule",
+  "confirm",
+]
 
 /** Tab / shift-tab, wrapping — the card is a loop, not a wizard with an end. */
-export function nextComposerField(field: ComposerField, delta: 1 | -1 = 1): ComposerField {
-  const index = COMPOSER_FIELDS.indexOf(field)
+export function nextComposerField(field: ComposerField, delta: 1 | -1 = 1, bound = false): ComposerField {
+  const fields = bound ? COMPOSER_FIELDS : COMPOSER_FIELDS.filter((f) => f !== "targetTab")
+  const index = fields.indexOf(field)
   if (index < 0) return "name"
-  const next = (index + delta + COMPOSER_FIELDS.length) % COMPOSER_FIELDS.length
-  return COMPOSER_FIELDS[next] as ComposerField
+  const next = (index + delta + fields.length) % fields.length
+  return fields[next] ?? "name"
 }
 
 export interface ComposerDraft {
@@ -31,6 +41,7 @@ export interface ComposerDraft {
   readonly repo: string
   readonly prompt: string
   readonly schedule: string
+  readonly target?: Automation["target"]
 }
 
 export const EMPTY_DRAFT: ComposerDraft = { name: "", repo: "", prompt: "", schedule: "0 9 * * MON-FRI" }
@@ -41,6 +52,7 @@ export function canSubmitDraft(draft: ComposerDraft): boolean {
     draft.name.trim().length > 0 &&
     draft.repo.trim().length > 0 &&
     draft.prompt.trim().length > 0 &&
+    (!draft.target || (draft.target.taskId.trim().length > 0 && /^tab-[\w-]+$/.test(draft.target.tabId))) &&
     isValidCron(draft.schedule.trim())
   )
 }
@@ -53,6 +65,8 @@ export function canSubmitDraft(draft: ComposerDraft): boolean {
 export function firstIncompleteField(draft: ComposerDraft): Exclude<ComposerField, "confirm"> | null {
   if (draft.name.trim().length === 0) return "name"
   if (draft.repo.trim().length === 0) return "repo"
+  if (draft.target && !draft.target.taskId.trim()) return "target"
+  if (draft.target && !/^tab-[\w-]+$/.test(draft.target.tabId)) return "targetTab"
   if (draft.prompt.trim().length === 0) return "prompt"
   if (!isValidCron(draft.schedule.trim())) return "schedule"
   return null

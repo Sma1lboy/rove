@@ -44,10 +44,13 @@ import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "..
 import { DialogActions, DialogField, DialogFooter, DialogHeader, DialogSection } from "../ui/dialog-parts"
 import { PickerList } from "./new-task-dialog/picker-list"
 
+type TargetTask = { readonly id: string; readonly title: string; readonly repo: string }
+
 export interface AutomationComposerResult extends ComposerDraft {}
 
 function AutomationComposerView(props: {
   repos: readonly string[]
+  tasks: readonly TargetTask[]
   defaultRepo?: string
   onSubmit: (draft: AutomationComposerResult) => void
   onCancel: () => void
@@ -90,7 +93,7 @@ function AutomationComposerView(props: {
     const repo = props.repos[clampCursor(index, props.repos.length)]
     if (!repo) return
     setRepoCursor(clampCursor(index, props.repos.length))
-    patch({ repo })
+    patch({ repo, target: undefined })
   }
 
   function commit(): void {
@@ -100,6 +103,7 @@ function AutomationComposerView(props: {
         repo: draft.repo.trim(),
         prompt: draft.prompt.trim(),
         schedule: draft.schedule.trim(),
+        ...(draft.target ? { target: draft.target } : {}),
       })
       dialog.clear()
       return
@@ -121,15 +125,32 @@ function AutomationComposerView(props: {
     accent: repoWindow.start + index === repoCursor,
   }))
 
+  const targets = props.tasks.filter((task) => task.repo === draft.repo)
+  const targetCursor = draft.target ? targets.findIndex((task) => task.id === draft.target?.taskId) + 1 : 0
+  function pickTarget(delta: number): void {
+    const index = (targetCursor + delta + targets.length + 1) % (targets.length + 1)
+    const task = targets[index - 1]
+    patch({ target: task ? { kind: "existing-tab", taskId: task.id, tabId: "tab-1" } : undefined })
+  }
+  const targetLabel = draft.target
+    ? (targets[targetCursor - 1]?.title ?? draft.target.taskId)
+    : t("automations.targetFresh")
+
   useBindings(() => ({
     bindings: [
       // No escape binding: the dialog stack's ModalBarrier owns esc and both
       // resolves the promise (showDialog's onClose) and pops the card. A
       // member registration here would outrank it and only do the former.
-      { key: "tab", cmd: () => setField((f) => nextComposerField(f, 1)) },
-      { key: "shift+tab", cmd: () => setField((f) => nextComposerField(f, -1)) },
+      { key: "tab", cmd: () => setField((f) => nextComposerField(f, 1, Boolean(draft.target))) },
+      { key: "shift+tab", cmd: () => setField((f) => nextComposerField(f, -1, Boolean(draft.target))) },
       // Repo is a list, so up/down drives it while it has focus. The other
       // fields are inputs — opentui owns their arrows.
+      ...(field === "target"
+        ? [
+            { key: "up", cmd: () => pickTarget(-1) },
+            { key: "down", cmd: () => pickTarget(1) },
+          ]
+        : []),
       ...(field === "repo"
         ? [
             { key: "up", cmd: () => pickRepoAt(repoCursor - 1) },
@@ -210,6 +231,44 @@ function AutomationComposerView(props: {
       </DialogSection>
 
       <DialogSection
+        label={t("automations.fieldTarget")}
+        focused={field === "target"}
+        hint="↑/↓"
+        onPress={() => setField("target")}
+      >
+        <DialogField focused={field === "target"}>
+          <text
+            fg={theme.text}
+            onMouseUp={() => {
+              setField("target")
+              pickTarget(1)
+            }}
+          >
+            {targetLabel}
+          </text>
+        </DialogField>
+      </DialogSection>
+      {draft.target ? (
+        <DialogSection
+          label={t("automations.fieldTargetTab")}
+          focused={field === "targetTab"}
+          onPress={() => setField("targetTab")}
+        >
+          <DialogField focused={field === "targetTab"}>
+            <input
+              value={draft.target.tabId}
+              focused={field === "targetTab"}
+              onMouseUp={() => setField("targetTab")}
+              onInput={(tabId: string) => {
+                if (draft.target) patch({ target: { ...draft.target, tabId } })
+              }}
+              onSubmit={() => setField("prompt")}
+            />
+          </DialogField>
+        </DialogSection>
+      ) : null}
+
+      <DialogSection
         label={t("automations.fieldPrompt")}
         focused={field === "prompt"}
         onPress={() => setField("prompt")}
@@ -284,11 +343,12 @@ function AutomationComposerView(props: {
 export const AutomationComposer = {
   show(
     dialog: DialogContext,
-    opts: { repos: readonly string[]; defaultRepo?: string },
+    opts: { repos: readonly string[]; tasks?: readonly TargetTask[]; defaultRepo?: string },
   ): Promise<AutomationComposerResult | undefined> {
     return showDialog<AutomationComposerResult>(dialog, (resolve) => (
       <AutomationComposerView
         repos={opts.repos}
+        tasks={opts.tasks ?? []}
         {...(opts.defaultRepo ? { defaultRepo: opts.defaultRepo } : {})}
         onSubmit={(draft) => resolve(draft)}
         onCancel={() => resolve(undefined)}
