@@ -16,8 +16,10 @@ import { type ReactNode, useEffect, useMemo } from "react"
 import { charWidth } from "../../../lib/display-width"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
+import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
 import { prChip } from "../../../tui/panes/sidebar/row-chips"
 import {
+  ATTENTION_GLYPH,
   IN_PROGRESS_SPINNER,
   NO_STATE_GLYPH,
   buildSidebarRowView,
@@ -75,6 +77,11 @@ export type TreeRowShared = {
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
   readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges | null> | null
+  /** Daemon-collected transcript facts keyed by WORKTREE path. A tab row
+   *  needs them to tell a finished turn from one whose engine is still
+   *  writing in hook silence (`stillWorkingAfterCompletion`) — without it
+   *  every `turn_complete` reads as done the moment the hook fires. */
+  readonly transcriptActivity?: ReadonlyMap<string, { readonly mtimeMs: number }> | null
 }
 
 /**
@@ -97,6 +104,13 @@ function clusterCells(text: string): number {
   let cells = 1
   for (const ch of text) cells += charWidth(ch.codePointAt(0) ?? 0)
   return cells
+}
+
+/** Budget the row's own jump digit costs — it is the last cluster item, and
+ *  a label that ate its cells would push the number off the rail. */
+function jumpDigitCells(flatIndex: number): number {
+  const digit = taskJumpDigit(flatIndex)
+  return digit === null ? 0 : clusterCells(digit)
 }
 
 /** The move-mode chip a dragged ROW wears — same vocabulary as
@@ -170,7 +184,16 @@ function RowShell(props: {
  * A worktree row carries NO ENGINE state glyph: the session state belongs to
  * the chat tab that runs it, so that glyph lives on the tab row below. What
  * stays here is worktree-level fact — branch, pin, PR chip, ±change stats —
- * and a worktree being MATERIALIZED is the most worktree-level fact there is.
+ * and a worktree being MATERIALIZED or DELETED is the most worktree-level
+ * fact there is.
+ *
+ * Deletion has to be read here for the same reason materialization is, only
+ * more sharply: `TaskDeletionCoordinator` sweeps the task's PTYs before it
+ * touches the worktree, so by the time a deletion fails the task has no
+ * activity entry and no live tab — the tab row that would carry a `!` is
+ * gated on activity it can never have again. A failed deletion left the row
+ * indistinguishable from a healthy one, discoverable only through
+ * `rove api list`.
  *
  * Why the job spinner has to live here rather than on the tab row: during
  * `git worktree add` a freshly created task has no engine activity (the engine
@@ -217,11 +240,26 @@ export function WorktreeTreeRow(props: {
   // Presence in the map IS "running" — the daemon removes the entry on both
   // terminal phases (see `TaskJobState`).
   const materializing = shared.taskJobs?.get(task.id) !== undefined
-  const frame = useSpinnerFrame(materializing)
+  // Read `task.deletion` directly, the same way `taskJobs` is read and for
+  // the same reason: it is genuinely task-scoped (one deletion per task, one
+  // worktree per task), so it needs no tab to attribute it to.
+  const deletionPhase = task.deletion?.phase
+  const deleting = deletionPhase === "queued" || deletionPhase === "running"
+  const deleteFailed = deletionPhase === "error"
+  const spinning = materializing || deleting
+  const frame = useSpinnerFrame(spinning)
+  // The word the deletion states caption themselves with. A failed deletion
+  // leaves the worktree and the branch untouched, so the branch label stays
+  // and the word rides beside it rather than replacing it — with seven
+  // stalled deletions in one project, rows that all read "delete failed"
+  // and nothing else would be unusable.
+  const deletionWord = deleting || deleteFailed ? t(deleteFailed ? "tasks.subtitle.deleteFailed" : "tasks.subtitle.deleting") : null
   const reserved =
-    // The spinner column exists only while a job runs, so a quiet row spends
-    // none of its label budget on it.
-    (materializing ? 2 : 0) +
+    // The glyph column exists only while a job runs or a deletion is in
+    // flight, so a quiet row spends none of its label budget on it.
+    (spinning || deleteFailed ? 2 : 0) +
+    (deletionWord ? clusterCells(deletionWord) : 0) +
+    jumpDigitCells(props.flatIndex) +
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
     // `changes === null` is the unknown mark, one cell like any chip glyph —
@@ -234,9 +272,13 @@ export function WorktreeTreeRow(props: {
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={shared}>
-      {materializing ? (
+      {spinning ? (
         <text fg={theme.primary} wrapMode="none" width={2} flexShrink={0}>
           {`${IN_PROGRESS_SPINNER[frame % IN_PROGRESS_SPINNER.length] ?? IN_PROGRESS_SPINNER[0]} `}
+        </text>
+      ) : deleteFailed ? (
+        <text fg={theme.error} wrapMode="none" width={2} flexShrink={0}>
+          {`${ATTENTION_GLYPH} `}
         </text>
       ) : null}
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
@@ -254,6 +296,11 @@ export function WorktreeTreeRow(props: {
           </text>
         ) : null}
         <ChangeStats changes={changes} />
+        {deletionWord ? (
+          <text fg={deleteFailed ? theme.error : theme.textMuted} wrapMode="none" flexShrink={0}>
+            {deletionWord}
+          </text>
+        ) : null}
         <MoveChip rowId={props.rowId} shared={shared} />
         <JumpDigit flatIndex={props.flatIndex} dim={!isCursor} />
       </box>
@@ -273,10 +320,13 @@ export function useTabRowBaseView(args: {
   readonly activity: TaskEngineState | undefined
   readonly lifecycle: { readonly subagents: number } | undefined
   readonly job: TaskJobState | undefined
+  /** This worktree's transcript facts — what keeps a `turn_complete` whose
+   *  engine is still writing from settling to done (`row-view.ts`). */
+  readonly transcript: { readonly mtimeMs: number } | undefined
   readonly completionSeen: boolean
 }): ReturnType<typeof buildSidebarRowView> {
   const t = useT()
-  const { task, activity, lifecycle, job, completionSeen } = args
+  const { task, activity, lifecycle, job, transcript, completionSeen } = args
   return useMemo(() => {
     // Dependency-only invalidation key: rebuild when the language changes —
     // buildSidebarRowView reads the global `t` through the locale store.
@@ -286,12 +336,13 @@ export function useTabRowBaseView(args: {
       activity,
       lifecycle,
       job,
+      transcript,
       spinnerFrame: 0,
       subtitleBudget: 0,
       truncateBranch: truncateBranchLabel,
       completionSeen,
     })
-  }, [task, activity, lifecycle, job, completionSeen, t])
+  }, [task, activity, lifecycle, job, transcript, completionSeen, t])
 }
 
 export function TabTreeRow(props: {
@@ -355,21 +406,34 @@ export function TabTreeRow(props: {
     activity,
     lifecycle: carriesState ? shared.engineLifecycle?.get(props.task.id) : undefined,
     job: carriesState ? shared.taskJobs?.get(props.task.id) : undefined,
+    // Keyed by worktree path, which is all the daemon collects — so every tab
+    // of a task shares one transcript. That is the resolution available: the
+    // alternative is the pre-fix behaviour where a nine-minute tool call
+    // after `turn-complete` rendered as done.
+    transcript: shared.transcriptActivity?.get(props.task.worktreePath),
     completionSeen,
   })
   const frame = useSpinnerFrame(carriesState && baseView.loading)
   const rowView = withSpinnerFrame(baseView, () => frame)
+  // A freeze-restored tab is a corpse the pty host kept the scrollback for:
+  // its process died with the host, and OPENING it silently re-runs the
+  // recorded launch command — first prompt and all. Headless delivery refuses
+  // that without `--respawn` (TAB_RESTORED); the TUI just does it. Until the
+  // banner lands, the row at least has to stop reading `○`, which is the one
+  // glyph that means "nothing to do here". It is a dead engine process, so it
+  // takes the `!` the rail already spends on exactly that.
+  const restored = props.tab.restored === true
   // With NO daemon signal at all (fresh daemon before its first observer pass,
   // dead daemon lineage) the row rests at the same `○` a known-idle one does —
   // both readings send you into the tab to find out. See NO_STATE_GLYPH.
-  const glyph = isAgent && carriesState ? rowView.stateGlyph : NO_STATE_GLYPH
+  const glyph = restored ? ATTENTION_GLYPH : isAgent && carriesState ? rowView.stateGlyph : NO_STATE_GLYPH
   // depth 1, not 2: a tab row starts at the same column as its
   // worktree row — the circle status glyph carries the hierarchy, and the
   // extra indent cell wasted width the narrow rail doesn't have.
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={props.shared}>
       <text
-        fg={carriesState ? toneColor(theme, rowView.tone) : theme.textMuted}
+        fg={restored ? theme.error : carriesState ? toneColor(theme, rowView.tone) : theme.textMuted}
         wrapMode="none"
         width={2}
         flexShrink={0}
@@ -383,7 +447,9 @@ export function TabTreeRow(props: {
             // The 2-cell state-glyph column is this row's extra fixed spend.
             treeLabelBudget(
               shared,
-              2 + (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
+              2 +
+                jumpDigitCells(props.flatIndex) +
+                (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
             ),
             charWidth,
           )}

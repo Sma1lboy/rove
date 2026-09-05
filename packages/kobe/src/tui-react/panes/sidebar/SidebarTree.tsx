@@ -343,6 +343,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     engineLifecycle: props.engineLifecycle,
     taskJobs: props.taskJobs,
     worktreeChanges: props.worktreeChanges,
+    transcriptActivity: props.transcriptActivity,
   }
 
   return (

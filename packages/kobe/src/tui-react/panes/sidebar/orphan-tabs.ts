@@ -33,6 +33,9 @@ export interface LiveSession {
   /** Shell pid of the hosted session — roots the live-engine probe's
    *  process-tree walk for tabs this TUI never attached. */
   readonly pid?: number | null
+  /** A freeze-restored corpse awaiting its respawn-on-open: the host kept
+   *  the scrollback, the process is gone. Absent on hosts predating it. */
+  readonly restored?: boolean
 }
 
 /**
