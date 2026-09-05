@@ -93,8 +93,31 @@ export async function runPluginHook(opts: HookRunOptions): Promise<void> {
   const startedAt = Date.now()
   // 0700: config holds the settings .env (documented home for API keys) and
   // state is plugin-owned durable data; neither is anyone else's business.
-  mkdirSync(pluginConfigDir(pluginId, homeDir), { recursive: true, mode: 0o700 })
-  mkdirSync(pluginStateDir(pluginId, homeDir), { recursive: true, mode: 0o700 })
+  //
+  // Guarded because this is the one place the "never rejects" contract used to
+  // break: a config/state path occupied by a same-named FILE (EEXIST), or an
+  // unwritable/full disk (EACCES, ENOSPC), threw out of this function and out
+  // of every caller. In `PluginHost.stop` that abandoned the OTHER plugins'
+  // shutdown hooks — unawaited and unreaped, which is the orphan the doc
+  // comment there warns about. A plugin that has no config/state dir cannot
+  // honour the ROVE_PLUGIN_*_DIR contract, so record the failure and skip the
+  // spawn rather than launching a hook into a broken environment.
+  try {
+    mkdirSync(pluginConfigDir(pluginId, homeDir), { recursive: true, mode: 0o700 })
+    mkdirSync(pluginStateDir(pluginId, homeDir), { recursive: true, mode: 0o700 })
+  } catch (err) {
+    appendRecord(pluginId, homeDir, {
+      at: startedAt,
+      kind,
+      label,
+      command: spec.command,
+      exitCode: null,
+      durationMs: Date.now() - startedAt,
+      spawnError: String(err),
+    })
+    opts.log?.(`plugin ${pluginId} ${label}: ${String(err)}`)
+    return
+  }
   let exitCode: number | null = null
   let stdout = ""
   let stderr = ""

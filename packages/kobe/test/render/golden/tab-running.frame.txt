@@ -12,9 +12,9 @@
 | rove ─────────────────────── |
 |  feat/alpha                ? |
 |▌ ~ build                     |
-|  · review                    |
+|  ○ review                    |
 |  feat/bravo                ? |
-|  · tests                     |
+|  ○ tests                     |
 |                              |
 |                              |
 |                              |

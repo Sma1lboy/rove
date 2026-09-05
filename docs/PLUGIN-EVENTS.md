@@ -269,11 +269,20 @@ carries it (absent otherwise, never fabricated):
 A `rate_limit` failure also arms auto-resume, so expect a `quota.exhausted`
 right after when the quota probe finds a reset time.
 
-### `turn.interrupted` · C, X (emulated), K (native)
+### `turn.interrupted` · C (emulated), X (emulated), K (native)
 
 The user interrupted the turn. Exists because Kimi fires `Interrupt` INSTEAD
 of `Stop`. Without this verb an interrupted Kimi turn would strand in
 `running`.
+
+Kimi is the only engine with a hook for this. On Claude and Codex the event is
+**emulated by the attached TUI**, which watches the session's terminal title
+for the engine dropping back to rest and reports the interrupt itself — so on
+those two engines it behaves like a [UI moment](#ui-moments): **no attached
+TUI, no event**. A headless daemon, a `rove api` driver, or a plugin that
+only ever sees background sessions will never observe `turn.interrupted` on
+C or X. Subscribe to `agent.idle` as well if you need the interrupt to be
+noticed without a TUI.
 
 ## Tools: the high-volume family
 

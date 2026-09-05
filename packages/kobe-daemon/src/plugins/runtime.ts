@@ -158,7 +158,12 @@ export class PluginHost {
         runs.push(this.run(plugin, hook, "shutdown", { ROVE_PLUGIN_EVENT: "shutdown" }, `shutdown[${i}]`))
       }
     }
-    await Promise.all(runs)
+    // allSettled, not all: `run` below makes the "never rejects" contract
+    // true, but a short-circuit here would return while the OTHER plugins'
+    // hooks are still running — unawaited, so the caller's `process.exit`
+    // destroys their grace timers and leaves exactly the orphans the doc
+    // comment above is about. One plugin must not cost the rest their reap.
+    await Promise.allSettled(runs)
   }
 
   /** Feed every bus publish through here (server wires `bus.onPublish`). */
@@ -236,39 +241,54 @@ export class PluginHost {
   /** Fire one event at ONE plugin's matching hooks (registry transitions). */
   private dispatchTo(plugin: LoadedPlugin, event: PluginEvent): void {
     const platform = currentPluginPlatform()
-    for (const hook of plugin.manifest.events) {
-      if (hook.on !== event.event) continue
-      if (!supportsPlatform(hook, plugin.manifest, platform)) continue
-      void this.run(
-        plugin,
-        hook,
-        "event",
-        { ROVE_PLUGIN_EVENT: event.event, ROVE_PLUGIN_EVENT_JSON: JSON.stringify(event) },
-        hook.on,
-      )
+    // One plugin's data must not cost another plugin its event — and this
+    // path runs from the reload timer, where a throw is an uncaughtException
+    // rather than a caught batch. Same reason as the entry-point guards.
+    try {
+      for (const hook of plugin.manifest.events) {
+        if (hook.on !== event.event) continue
+        if (!supportsPlatform(hook, plugin.manifest, platform)) continue
+        void this.run(
+          plugin,
+          hook,
+          "event",
+          { ROVE_PLUGIN_EVENT: event.event, ROVE_PLUGIN_EVENT_JSON: JSON.stringify(event) },
+          hook.on,
+        )
+      }
+    } catch (err) {
+      this.opts.log?.(`plugin ${plugin.manifest.id}: ${event.event} dispatch failed — ${String(err)}`)
     }
   }
 
   private dispatch(event: PluginEvent): void {
     const platform = currentPluginPlatform()
     for (const plugin of this.plugins) {
-      for (const hook of plugin.manifest.events) {
-        if (hook.on !== event.event) continue
-        if (!supportsPlatform(hook, plugin.manifest, platform)) continue
-        // Task id/title also ride as plain env vars so shell plugins don't
-        // need a JSON parser for the common case.
-        void this.run(
-          plugin,
-          hook,
-          "event",
-          {
-            ROVE_PLUGIN_EVENT: event.event,
-            ROVE_PLUGIN_EVENT_JSON: JSON.stringify(event),
-            ...(event.taskId ? { ROVE_PLUGIN_TASK_ID: event.taskId } : {}),
-            ...(event.task?.title ? { ROVE_PLUGIN_TASK_TITLE: event.task.title } : {}),
-          },
-          hook.on,
-        )
+      // Per PLUGIN, not per batch: the callers' guards already keep a throw
+      // off the channel, but they catch at the batch, so one plugin's data
+      // would silently cost every plugin after it in this loop the event —
+      // and, from `handleChannel`, the rest of the batch as well.
+      try {
+        for (const hook of plugin.manifest.events) {
+          if (hook.on !== event.event) continue
+          if (!supportsPlatform(hook, plugin.manifest, platform)) continue
+          // Task id/title also ride as plain env vars so shell plugins don't
+          // need a JSON parser for the common case.
+          void this.run(
+            plugin,
+            hook,
+            "event",
+            {
+              ROVE_PLUGIN_EVENT: event.event,
+              ROVE_PLUGIN_EVENT_JSON: JSON.stringify(event),
+              ...(event.taskId ? { ROVE_PLUGIN_TASK_ID: event.taskId } : {}),
+              ...(event.task?.title ? { ROVE_PLUGIN_TASK_TITLE: event.task.title } : {}),
+            },
+            hook.on,
+          )
+        }
+      } catch (err) {
+        this.opts.log?.(`plugin ${plugin.manifest.id}: ${event.event} dispatch failed — ${String(err)}`)
       }
     }
   }
@@ -324,31 +344,49 @@ export class PluginHost {
       if (this.reloadTimer) clearTimeout(this.reloadTimer)
       this.reloadTimer = setTimeout(() => {
         if (this.stopped) return
-        const loadedBefore = new Map(this.plugins.map((p) => [p.manifest.id, p]))
-        const enabledBefore = this.enabledIds
-        this.plugins = this.loadPlugins()
-        this.opts.log?.(`plugin registry reloaded (${this.plugins.length} enabled)`)
-        // Registry transitions, delivered ONLY to the affected plugin, and
-        // diffed against REGISTRY membership: a manifest that started or
-        // stopped parsing has not been enabled or disabled by anyone, and
-        // teardown must not fire on a syntax error.
-        const at = Date.now()
-        for (const plugin of this.plugins) {
-          if (!enabledBefore.has(plugin.manifest.id)) {
-            this.dispatchTo(plugin, { event: "plugin.enabled", detail: { pluginId: plugin.manifest.id }, at })
+        // The reload is the last dispatch path with no guard above it: it runs
+        // from a timer, so a throw here is an uncaughtException in the daemon
+        // rather than one lost event batch — and nothing restarts the poll
+        // timer afterwards, so the host would stop seeing registry edits for
+        // the rest of the daemon's life.
+        try {
+          const loadedBefore = new Map(this.plugins.map((p) => [p.manifest.id, p]))
+          const enabledBefore = this.enabledIds
+          this.plugins = this.loadPlugins()
+          this.opts.log?.(`plugin registry reloaded (${this.plugins.length} enabled)`)
+          // Registry transitions, delivered ONLY to the affected plugin, and
+          // diffed against REGISTRY membership: a manifest that started or
+          // stopped parsing has not been enabled or disabled by anyone, and
+          // teardown must not fire on a syntax error.
+          const at = Date.now()
+          for (const plugin of this.plugins) {
+            if (!enabledBefore.has(plugin.manifest.id)) {
+              this.dispatchTo(plugin, { event: "plugin.enabled", detail: { pluginId: plugin.manifest.id }, at })
+            }
           }
-        }
-        for (const [id, plugin] of loadedBefore) {
-          if (!this.enabledIds.has(id)) {
-            this.dispatchTo(plugin, { event: "plugin.disabled", detail: { pluginId: id }, at })
+          for (const [id, plugin] of loadedBefore) {
+            if (!this.enabledIds.has(id)) {
+              this.dispatchTo(plugin, { event: "plugin.disabled", detail: { pluginId: id }, at })
+            }
           }
+        } catch (err) {
+          this.opts.log?.(`plugin registry reload failed — ${String(err)}`)
         }
       }, RELOAD_DEBOUNCE_MS)
     }, REGISTRY_POLL_MS)
     this.pollTimer.unref?.()
   }
 
-  /** Fire one hook. Bounded and logged by `hook-run.ts`; never rejects. */
+  /**
+   * Fire one hook. Bounded and logged by `hook-run.ts`; never rejects — and
+   * that is enforced HERE rather than assumed, because a manifest can still
+   * make `spawn` throw synchronously: TOML accepts `\u0000`, so
+   * `command = ["ec\u0000ho"]` parses fine and reaches `spawn` as argv with a
+   * NUL byte, which throws `ERR_INVALID_ARG_VALUE` inside the hook's promise
+   * executor. Every event/startup call site `void`s the result, so an
+   * escaping rejection is an unhandledRejection in a long-lived daemon; only
+   * `stop()` awaits, and there it would abandon the other plugins' hooks.
+   */
   private run(
     plugin: LoadedPlugin,
     spec: PluginCommandSpec,
@@ -368,6 +406,8 @@ export class PluginHost {
       binPath: this.opts.binPath,
       log: this.opts.log,
       inFlight: this.inFlight,
+    }).catch((err) => {
+      this.opts.log?.(`plugin ${plugin.manifest.id} ${label}: ${String(err)}`)
     })
   }
 }

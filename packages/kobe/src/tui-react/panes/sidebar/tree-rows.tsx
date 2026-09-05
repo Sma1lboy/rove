@@ -16,7 +16,7 @@ import { type ReactNode, useEffect, useMemo } from "react"
 import { charWidth } from "../../../lib/display-width"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
-import { prCheckChip, prConflictChip, prReviewChip, statusChip } from "../../../tui/panes/sidebar/row-chips"
+import { prChip } from "../../../tui/panes/sidebar/row-chips"
 import {
   IN_PROGRESS_SPINNER,
   NO_STATE_GLYPH,
@@ -200,20 +200,7 @@ export function WorktreeTreeRow(props: {
   const task = props.task
   const isCursor = shared.cursorIndex === props.flatIndex
   const changes = useChanges(shared, task)
-  const chip = prCheckChip(task)
-  // Third chip, third question: `conflict` is whether the PR can merge at all.
-  // Independent of `chip` — red checks and a conflicted merge are different
-  // facts, and a row can wear both.
-  const conflict = prConflictChip(task)
-  // Fourth chip, fourth question: `review` is where the PR stands with its
-  // REVIEWERS — approved-and-clear vs already merged vs neither. `chip` (CI)
-  // reads the same green tick in all three, which is the confusion this
-  // exists to end.
-  const review = prReviewChip(task)
-  // Two chips, two different questions: `status` is what a HUMAN said about
-  // the task, `chip` is what CI reports. Human first (left of the machine
-  // fact) so a scan reads intent then evidence; they never share a glyph.
-  const status = statusChip(task)
+  const chip = prChip(task)
   // A worktree row is named by its BRANCH; branchless rows fall back to
   // their tail-truncated path (the one derivation rule —
   // `worktreeRowLabel`). Which rows have to LOOK UP that branch is
@@ -237,9 +224,6 @@ export function WorktreeTreeRow(props: {
     (materializing ? 2 : 0) +
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
-    (conflict ? 2 : 0) +
-    (review ? 2 : 0) +
-    (status ? 2 : 0) +
     // `changes === null` is the unknown mark, one cell like any chip glyph —
     // it replaces the whole ↑/+/−/↓ cluster rather than sitting beside it.
     (changes === null ? clusterCells(UNKNOWN_CHANGES_MARK) : 0) +
@@ -264,24 +248,9 @@ export function WorktreeTreeRow(props: {
             ▴
           </text>
         ) : null}
-        {status ? (
-          <text fg={toneColor(theme, status.tone)} wrapMode="none" flexShrink={0}>
-            {status.glyph}
-          </text>
-        ) : null}
         {chip ? (
           <text fg={toneColor(theme, chip.tone)} wrapMode="none" flexShrink={0}>
             {chip.glyph}
-          </text>
-        ) : null}
-        {conflict ? (
-          <text fg={toneColor(theme, conflict.tone)} wrapMode="none" flexShrink={0}>
-            {conflict.glyph}
-          </text>
-        ) : null}
-        {review ? (
-          <text fg={toneColor(theme, review.tone)} wrapMode="none" flexShrink={0}>
-            {review.glyph}
           </text>
         ) : null}
         <ChangeStats changes={changes} />
@@ -336,11 +305,9 @@ export function TabTreeRow(props: {
   const t = useT()
   const shared = props.shared
   const isCursor = shared.cursorIndex === props.flatIndex
-  // Glyph rule: an AGENT tab always wears the state circle
-  // vocabulary — `○` at rest, live state glyph when the daemon reports
-  // activity for its session (the ACTIVE engine tab; activity is
-  // task-scoped). A non-agent tab (shell/command/content) is outside the
-  // vocabulary — plain `·`, we don't care about its state.
+  // Glyph rule: an AGENT tab wears the live state glyph when the daemon
+  // reports activity for its session; a non-agent tab (shell/command/content)
+  // or one with no signal rests at `○`.
   const isAgent = props.tab.engine === true
   // Prefer THIS tab's own activity over the task rollup. The daemon reports
   // both levels, but the task entry is last-event-wins across every tab — so
@@ -392,15 +359,9 @@ export function TabTreeRow(props: {
   })
   const frame = useSpinnerFrame(carriesState && baseView.loading)
   const rowView = withSpinnerFrame(baseView, () => frame)
-  // Glyph precedence for an agent row: with any daemon signal (running /
-  // sticky badge / a KNOWN-idle tombstone) the row wears the shared state
-  // vocabulary — buildSidebarRowView rests at `○` for known-idle. With NO
-  // signal at all (fresh daemon before its first observer pass, dead daemon
-  // lineage) it rests at the same dim dot a non-agent tab wears. A separate
-  // dotted `◌` for "the daemon doesn't know" would be a distinction without a
-  // difference — both readings send you into the tab to find out — and U+25CC
-  // is missing from common terminal fonts, so it falls back oversized and runs
-  // into the label. See NO_STATE_GLYPH.
+  // With NO daemon signal at all (fresh daemon before its first observer pass,
+  // dead daemon lineage) the row rests at the same `○` a known-idle one does —
+  // both readings send you into the tab to find out. See NO_STATE_GLYPH.
   const glyph = isAgent && carriesState ? rowView.stateGlyph : NO_STATE_GLYPH
   // depth 1, not 2: a tab row starts at the same column as its
   // worktree row — the circle status glyph carries the hierarchy, and the

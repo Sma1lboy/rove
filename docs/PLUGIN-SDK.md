@@ -121,20 +121,60 @@ await openPane("you.example.board")
 the prompt exceeded `timeoutMs`, no TUI was attached, or the underlying
 `rove api prompt` exited non-zero. Always branch on `null`.
 
+Every helper above takes the same optional `RoveRunOptions`:
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `binPath` | string? | `$ROVE_BIN_PATH`, then `$KOBE_BIN_PATH` | The Rove binary to exec. Rejects when neither is set. |
+| `cwd` | string? | the process's cwd | Working directory for the child. |
+| `env` | `Record<string, string>`? | — | Merged **over** the inherited environment. |
+| `timeoutMs` | number? | `30_000` | Millis before the child is killed. |
+
+`cwd` is the field to think about from an `[[events]]` hook: a hook runs with
+its cwd set to your PLUGIN ROOT, not the task's worktree, so a `rove` call
+that has to resolve a repo needs `{ cwd: worktreePath }` — take the path from
+the event envelope rather than assuming the process inherited it.
+
+`timeoutMs` defaults to 30_000 — the same number as the host's deadline for a
+`[[startup]]` or `[[events]]` hook, but measured from a later instant: the
+host starts its clock when it spawns your hook, this one starts when your hook
+calls `rove()`. At the defaults the host's deadline therefore always expires
+first, and it SIGKILLs the hook's whole process group, the `rove` child
+included — so at 30s you never see this rejection, you see your hook
+disappear. Raising `timeoutMs` alone changes nothing; raise the hook's
+`timeout_ms` in the manifest first.
+
+They resolve with `RoveRunResult`:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `code` | number | Child exit code. Non-zero is a resolved value, not a rejection. |
+| `stdout` | string | Captured stdout (8 MB cap). |
+| `stderr` | string | Captured stderr. |
+
+`KobeRunOptions` and `KobeRunResult` are deprecated aliases of these two,
+kept for plugins written against the original package name.
+
 ## Socket client
 
 `RoveSocket` is a newline-delimited JSON client for the daemon unix socket. It
 gives you live broadcast channels that the CLI cannot push.
 
-| Export | Signature | Purpose |
+`RoveSocket` is the only export here; everything under it is a method you
+call on an instance (`new RoveSocket().connect()`), not a named import.
+
+| Member | Signature | Purpose |
 |---|---|---|
-| `RoveSocket` | class | Daemon socket client. |
-| `connect` | `(opts?) => Promise<void>` | Connect to `ROVE_SOCKET_PATH`. |
-| `request` | `<T>(name, payload?) => Promise<T>` | One request → response; rejects on daemon error frames. |
-| `subscribe` | `(handler, channels?) => Promise<void>` | Subscribe to channels (`role: "pane"`); omit channels for all. |
-| `hello` | `() => Promise<DaemonInfo>` | Ask the RUNNING daemon its build version and channel list. |
-| `onClose` | `(handler) => void` | Called once when the connection dies (restart, crash, error). Not called for your own `close()`. |
-| `close` | `() => void` | End the socket. |
+| `RoveSocket` | class (export) | Daemon socket client. |
+| `KobeSocket` | alias (export) | Deprecated alias of `RoveSocket`. |
+| `RoveSocketOptions` | type (export) | `{ socketPath?: string }` — `connect()`'s argument. Defaults to `$ROVE_SOCKET_PATH`, then `$KOBE_SOCKET_PATH`; rejects when neither is set. `KobeSocketOptions` is its deprecated alias. |
+| `DaemonInfo` | type (export) | What `hello()` resolves with (fields below). |
+| `.connect` | method: `(opts?: RoveSocketOptions) => Promise<void>` | Connect to the daemon socket. |
+| `.request` | method: `<T>(name, payload?) => Promise<T>` | One request → response; rejects on daemon error frames. |
+| `.subscribe` | method: `(handler, channels?) => Promise<void>` | Subscribe to channels (`role: "pane"`); omit channels for all. |
+| `.hello` | method: `() => Promise<DaemonInfo>` | Ask the RUNNING daemon its build version and channel list. |
+| `.onClose` | method: `(handler) => void` | Called once when the connection dies (restart, crash, error). Not called for your own `close()`. |
+| `.close` | method: `() => void` | End the socket. |
 
 SDK consumers must always subscribe with `role: "pane"`. The SDK enforces this
 so plugins never hold the daemon's GUI lifetime open.
