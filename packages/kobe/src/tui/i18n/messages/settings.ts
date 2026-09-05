@@ -122,6 +122,8 @@ export const en = {
     /** Printed to stderr AFTER the TUI is torn down — the user reads it in
      *  their shell, so it is UI copy despite not going through a pane. */
     done: "Rove: UI state reset. Relaunch Rove to start fresh.",
+    failedTitle: "UI state was not reset",
+    failedBody: "Could not write the settings file. Your settings and tasks have been kept. Try resetting again.",
   },
   restart: {
     title: "Restart backend?",
@@ -342,6 +344,8 @@ export const zh: typeof en = {
     title: "重置界面状态？",
     body: "将清除 ~/.config/rove/state.json 和 ~/.rove/tasks.json 并退出 Rove —— 重新启动后会是一个干净的开始，工作会话列表为空。磁盘上的工作树和引擎会话历史不受影响。",
     done: "Rove：界面状态已重置。重新启动 Rove 即可从头开始。",
+    failedTitle: "UI 状态未能重置",
+    failedBody: "无法写入设置文件。设置和任务均已保留，请稍后重新尝试重置。",
   },
   restart: {
     title: "重启后端？",

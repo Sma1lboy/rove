@@ -38,8 +38,14 @@ const EMPTY: readonly LiveSession[] = []
 export function sameSessions(a: readonly LiveSession[], b: readonly LiveSession[]): boolean {
   if (a.length !== b.length) return false
   return a.every((s, i) => {
-    const other = b[i] as LiveSession
-    return s.key === other.key && s.alive === other.alive && s.title === other.title
+    const other = b[i]
+    return (
+      other !== undefined &&
+      s.key === other.key &&
+      s.alive === other.alive &&
+      s.title === other.title &&
+      s.pid === other.pid
+    )
   })
 }
 

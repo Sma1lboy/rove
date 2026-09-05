@@ -12,7 +12,7 @@
  *   - Writes are debounced (250ms) — no disk write before the window.
  */
 
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -191,11 +191,45 @@ describe("createKvCore", () => {
     const kv = createKvCore()
     kv.set("mine", 2)
     writeState(home, { mine: 1, theirs: 3 })
-    kv.clear()
+    expect(kv.clear()).toBe(true)
     expect(kv.snapshot()).toEqual({})
     expect(readState(home)).toEqual({})
     // Pending dirty keys must not survive the wipe via a later flush.
     expect(kv.flush()).toBe(true)
+    expect(readState(home)).toEqual({})
+  })
+
+  it("a failed clear keeps the snapshot and dirty patch without scheduling a later wipe", () => {
+    vi.useFakeTimers()
+    const home = isolatedHome({ mine: 1, kept: true })
+    const kv = createKvCore()
+    kv.set("mine", 2)
+    const before = kv.snapshot()
+    const changed = vi.fn()
+    const unsubscribe = kv.subscribe(changed)
+    const log = vi.spyOn(console, "error").mockImplementation(() => {})
+    const path = statePath(home)
+    renameSync(path, `${path}.saved`)
+    mkdirSync(path)
+    try {
+      const cleared = kv.clear()
+      expect(kv.snapshot()).toBe(before)
+      expect(changed).not.toHaveBeenCalled()
+      expect(cleared).toBe(false)
+      expect(log).toHaveBeenCalledWith("[rove] kv clear write failed:", expect.any(Error))
+    } finally {
+      renameSync(path, `${path}.obstacle`)
+      renameSync(`${path}.saved`, path)
+      unsubscribe()
+      log.mockRestore()
+    }
+    writeState(home, { mine: 1, kept: true, theirs: 3 })
+    expect(kv.flush()).toBe(true)
+    expect(readState(home)).toEqual({ mine: 2, kept: true, theirs: 3 })
+    vi.advanceTimersByTime(300)
+    expect(readState(home)).toEqual({ mine: 2, kept: true, theirs: 3 })
+    expect(kv.clear()).toBe(true)
+    expect(kv.snapshot()).toEqual({})
     expect(readState(home)).toEqual({})
   })
 

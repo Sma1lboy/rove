@@ -40,6 +40,13 @@ describe("sameSessions", () => {
     expect(sameSessions([session()], [session({ title: "codex" })])).toBe(false)
   })
 
+  test("a respawned shell changes the inventory even when its key, title and liveness match", () => {
+    expect(sameSessions([session({ pid: 101 })], [session({ pid: 202 })])).toBe(false)
+    expect(sameSessions([session()], [session({ pid: 202 })])).toBe(false)
+    expect(sameSessions([session({ pid: 101 })], [session({ pid: null })])).toBe(false)
+    expect(sameSessions([session({ pid: 101 })], [session({ pid: 101 })])).toBe(true)
+  })
+
   test("compares position by position, so a reordered inventory is a change", () => {
     const a = [session({ key: "a" }), session({ key: "b" })]
     const b = [session({ key: "b" }), session({ key: "a" })]

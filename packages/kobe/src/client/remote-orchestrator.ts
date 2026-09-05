@@ -1,9 +1,9 @@
 /**
- * RemoteOrchestrator (v0.6). Mirror of the slim {@link Orchestrator} that
+ * RemoteOrchestrator mirrors the slim {@link Orchestrator} that
  * runs in the daemon: same read surface (tasks signal + subscribe), and a
  * write surface forwarding each method as a daemon RPC.
  *
- * File-size-cap split: `performInit`/`handleOrchestratorEvent`
+ * The wire boundary: `performInit`/`handleOrchestratorEvent`
  * (`remote-orchestrator-connect.ts`/`-events.ts`) take an explicit
  * {@link OrchestratorSignals} deps bag — built once in the constructor from
  * the same framework-free state cells this class's read methods return — instead of
@@ -51,11 +51,7 @@ import {
   type WorktreeChangesMap,
   shouldLogReconnectAttempt,
 } from "./remote-orchestrator-payloads.ts"
-import type { ReadSignals } from "./remote-orchestrator-reads.ts"
-// Namespace imports, not named ones: every member below is a 1-line
-// delegate, and naming each twice (import list + call site) spent 60 lines
-// of this file on nothing but the second name.
-import * as reads from "./remote-orchestrator-reads.ts"
+import { subscribeTasksOp } from "./remote-orchestrator-reads.ts"
 import * as writes from "./remote-orchestrator-writes.ts"
 
 export type {
@@ -119,8 +115,6 @@ export class RemoteOrchestrator {
   private reconnectTask: Promise<void> | null = null
   /** Deps bag for `performInit`/`handleOrchestratorEvent` — see file header. */
   private readonly signals: OrchestratorSignals
-  /** Deps bag for the read-accessor delegates — see remote-orchestrator-reads.ts. */
-  private readonly reads: ReadSignals
 
   constructor(
     private readonly client: KobeDaemonClient,
@@ -161,29 +155,7 @@ export class RemoteOrchestrator {
       setKeybindingsRevSig: this.keybindingsRevAcc.set,
       setConnectionState: this.connectionStateAcc.set,
     }
-    this.reads = {
-      tasksAcc: this.tasksAcc,
-      activeTaskAcc: this.activeTaskAcc,
-      updateAcc: this.updateAcc,
-      daemonVersionAcc: this.daemonVersionAcc,
-      daemonStaleAcc: this.daemonStaleAcc,
-      engineStateAcc: this.engineStateAcc,
-      engineTabStateAcc: this.engineTabStateAcc,
-      attentionInboxAcc: this.attentionInboxAcc,
-      taskJobsAcc: this.taskJobsAcc,
-      worktreeChangesAcc: this.worktreeChangesAcc,
-      usageSnapshotAcc: this.usageSnapshotAcc,
-      contextUsageAcc: this.contextUsageAcc,
-      transcriptActivityAcc: this.transcriptActivityAcc,
-      transcriptActivityStoreInner: this.transcriptActivityAcc,
-      noticeAcc: this.noticeAcc,
-      uiPrefsAcc: this.uiPrefsAcc,
-      uiPrefsStoreInner: this.uiPrefsAcc,
-      keybindingsRevAcc: this.keybindingsRevAcc,
-      keybindingsRevStoreInner: this.keybindingsRevAcc,
-      connectionStateAcc: this.connectionStateAcc,
-    }
-    this.client.on("*", (frame) => this.handleEvent(frame.name, frame.payload))
+    this.client.on("*", (frame) => handleOrchestratorEvent(frame.name, frame.payload, this.signals))
     // Socket drop flips us to `disconnected`. What happens next depends on
     // the role:
     //   - gui:  AUTO-RECOVER (spawning). This is the front-end that owns daemon
@@ -268,42 +240,39 @@ export class RemoteOrchestrator {
     this.client.close()
   }
 
-  // --- read --- (each a thin delegate; bodies + docs moved to remote-orchestrator-reads.ts)
+  // Reads return the same cells written by hello and channel events.
 
-  readonly tasksSignal = (): ReadableState<Task[]> => reads.tasksSignalOp(this.reads)
+  readonly tasksSignal = (): ReadableState<Task[]> => this.tasksAcc
 
-  readonly activeTaskSignal = (): ReadableState<string | null> => reads.activeTaskSignalOp(this.reads)
+  readonly activeTaskSignal = (): ReadableState<string | null> => this.activeTaskAcc
 
-  readonly updateSignal = (): ReadableState<UpdateInfo | null> => reads.updateSignalOp(this.reads)
+  readonly updateSignal = (): ReadableState<UpdateInfo | null> => this.updateAcc
 
-  readonly daemonVersionSignal = (): ReadableState<string | null> => reads.daemonVersionSignalOp(this.reads)
+  readonly daemonVersionSignal = (): ReadableState<string | null> => this.daemonVersionAcc
 
-  readonly daemonStaleSignal = (): ReadableState<boolean> => reads.daemonStaleSignalOp(this.reads)
+  readonly daemonStaleSignal = (): ReadableState<boolean> => this.daemonStaleAcc
 
-  readonly engineStateSignal = (): ReadableState<ReadonlyMap<string, TaskEngineState>> =>
-    reads.engineStateSignalOp(this.reads)
+  readonly engineStateSignal = (): ReadableState<ReadonlyMap<string, TaskEngineState>> => this.engineStateAcc
 
   /** Per-TAB engine activity (taskId → tabId → state) — the F7 attention
    *  jump's tab-precise read. Sparse; see {@link EngineTabStateMap}. */
-  readonly engineTabStatesSignal = (): ReadableState<EngineTabStateMap> => reads.engineTabStatesSignalOp(this.reads)
+  readonly engineTabStatesSignal = (): ReadableState<EngineTabStateMap> => this.engineTabStateAcc
 
-  readonly attentionInboxSignal = (): ReadableState<readonly AttentionInboxItem[]> =>
-    reads.attentionInboxSignalOp(this.reads)
+  readonly attentionInboxSignal = (): ReadableState<readonly AttentionInboxItem[]> => this.attentionInboxAcc
 
-  readonly taskJobsSignal = (): ReadableState<ReadonlyMap<string, TaskJobState>> => reads.taskJobsSignalOp(this.reads)
+  readonly taskJobsSignal = (): ReadableState<ReadonlyMap<string, TaskJobState>> => this.taskJobsAcc
 
-  readonly worktreeChangesSignal = (): ReadableState<WorktreeChangesMap | null> =>
-    reads.worktreeChangesSignalOp(this.reads)
+  /** null means the daemon has not supplied this channel; readers may poll locally. */
+  readonly worktreeChangesSignal = (): ReadableState<WorktreeChangesMap | null> => this.worktreeChangesAcc
 
-  readonly usageSnapshotSignal = (): ReadableState<UsageSnapshotMap | null> => reads.usageSnapshotSignalOp(this.reads)
+  readonly usageSnapshotSignal = (): ReadableState<UsageSnapshotMap | null> => this.usageSnapshotAcc
   /** Per-session context occupancy (`usage.context`) — the footer's ctx meter. */
-  readonly contextUsageSignal = (): ReadableState<ContextUsageMap | null> => reads.contextUsageSignalOp(this.reads)
+  readonly contextUsageSignal = (): ReadableState<ContextUsageMap | null> => this.contextUsageAcc
 
-  readonly transcriptActivitySignal = (): ReadableState<TranscriptActivityMap | null> =>
-    reads.transcriptActivitySignalOp(this.reads)
+  readonly transcriptActivitySignal = (): ReadableState<TranscriptActivityMap | null> => this.transcriptActivityAcc
 
-  readonly transcriptActivityStore = (): ExternalStore<TranscriptActivityMap | null> =>
-    reads.transcriptActivityStoreOp(this.reads)
+  /** Store and signal access share one cell and one subscription stream. */
+  readonly transcriptActivityStore = (): ExternalStore<TranscriptActivityMap | null> => this.transcriptActivityAcc
 
   /** Latest daemon-broadcast notice (`notice.event`) — consumers dedupe on `at`. */
   readonly noticeStore = (): ExternalStore<NoticeEventPayload | null> => this.noticeAcc
@@ -356,23 +325,23 @@ export class RemoteOrchestrator {
   readonly reportEngineInterrupt = (taskId: TaskId | string, tabId: string): void =>
     writes.reportEngineInterruptOp(this.client, String(taskId), tabId)
 
-  readonly uiPrefsSignal = (): ReadableState<UiPrefsPayload | null> => reads.uiPrefsSignalOp(this.reads)
+  readonly uiPrefsSignal = (): ReadableState<UiPrefsPayload | null> => this.uiPrefsAcc
 
-  readonly uiPrefsStore = (): ExternalStore<UiPrefsPayload | null> => reads.uiPrefsStoreOp(this.reads)
+  readonly uiPrefsStore = (): ExternalStore<UiPrefsPayload | null> => this.uiPrefsAcc
 
-  readonly keybindingsRevSignal = (): ReadableState<number | null> => reads.keybindingsRevSignalOp(this.reads)
+  readonly keybindingsRevSignal = (): ReadableState<number | null> => this.keybindingsRevAcc
 
-  readonly keybindingsRevStore = (): ExternalStore<number | null> => reads.keybindingsRevStoreOp(this.reads)
+  readonly keybindingsRevStore = (): ExternalStore<number | null> => this.keybindingsRevAcc
 
-  readonly listTasks = (): Task[] => reads.listTasksOp(this.reads)
+  readonly listTasks = (): Task[] => this.tasksAcc()
 
-  readonly getTask = (id: TaskId | string): Task | undefined => reads.getTaskOp(this.reads, id)
+  readonly getTask = (id: TaskId | string): Task | undefined => this.tasksAcc().find((task) => task.id === id)
 
   subscribeTasks(listener: (snapshot: readonly Task[]) => void): Unsubscribe {
-    return reads.subscribeTasksOp(this.reads, listener)
+    return subscribeTasksOp(this.tasksAcc, listener)
   }
 
-  // --- write --- thin delegates (bodies in remote-orchestrator-writes.ts); terse because this file is at the cap.
+  // RPC serialization and result handling live in remote-orchestrator-writes.ts.
 
   createTask = (input: Parameters<typeof writes.createTaskOp>[1]): Promise<Task> =>
     writes.createTaskOp(this.client, input)
@@ -449,7 +418,7 @@ export class RemoteOrchestrator {
     return writes.mutateIssueOp(this.client, repoRoot, op)
   }
 
-  // Automations, work items, field notes — terse forwarding; this file is at the cap.
+  // Automations, work items and field notes.
   listAutomations = () => writes.listAutomationsOp(this.client)
   createAutomation = (i: Parameters<typeof writes.createAutomationOp>[1]) => writes.createAutomationOp(this.client, i)
   automationRuns = (id: string) => writes.automationRunsOp(this.client, id)
@@ -478,11 +447,5 @@ export class RemoteOrchestrator {
    */
   setActiveTask(id: TaskId | string | null): Promise<void> {
     return writes.setActiveTaskOp(this.client, id)
-  }
-
-  // --- internals ---
-
-  private handleEvent(name: string, payload: unknown): void {
-    handleOrchestratorEvent(name, payload, this.signals)
   }
 }
