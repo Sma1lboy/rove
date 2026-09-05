@@ -195,7 +195,7 @@ for background consumers, but the current PureTUI tree does not consume it.
 
 | Key | Type | Default | What it does |
 |---|---|---|---|
-| `delivery.composerGate` | boolean | `true` | The screen-based check that runs before a peer or `rove api` prompt is written into an engine: a composer holding half-typed text defers the prompt to your Inbox instead of pasting over it. Turning this **off removes that safety check** — deliveries land unconditionally, and a message you were mid-way through typing can be interleaved with one |
+| `delivery.composerGate` | boolean | `true` | The **screen-read** half of the check that runs before a peer or `rove api` prompt is written into an engine: it renders the session and defers the prompt to your Inbox when the composer already holds text. Turning it off drops that read only. The other half — a ~10s window since your last keystroke in that session — is not switchable and still defers, so a composer you are actively typing into stays protected either way. Turn this off when a vendor moves its composer and the screen rule starts holding every delivery |
 
 ### Experimental
 
@@ -203,7 +203,7 @@ Off by default. These can change without notice.
 
 | Key | What it enables |
 |---|---|
-| `experimental.remoteProjects` | Projects over SSH |
+| `experimental.remoteProjects` | Lets `rove add --remote` register a NEW project over SSH. Gates that one command only: remote projects already registered keep working — worktree routing and engine launch never read the flag — so turning it off does not disable them |
 | `experimental.autoStatus` | Tasks move to `in_progress` and self-report `in_review` |
 | `experimental.dispatcher` | Per-repo routing of field notes between sessions |
 

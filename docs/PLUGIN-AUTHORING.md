@@ -37,6 +37,12 @@ your `rove-plugin.toml` within about half a second — add an `[[events]]` hook,
 fire the event, and `rove plugin log` shows the run. Re-run `link` only when
 you move the plugin, or when its id or version changes.
 
+That half-second applies to the parts the DAEMON runs: `[[events]]`,
+`[[startup]]`, `[[shutdown]]`, `[[actions]]`, `[[panes]]`, `[[settings]]`. An
+`[[engines]]` table is read once per Rove process instead, so a running TUI
+keeps the engine list it booted with — see the `[[engines]]` note under
+[Manifest reference](#manifest-reference).
+
 ## Optional SDK (TypeScript)
 
 The contract above is the API: any language, no SDK required. For
@@ -202,6 +208,14 @@ any = ["ctrl-c to interrupt"]    # at least one must appear
 # bottom_lines = 12              # trailing non-empty lines examined (default 12)
 ```
 
+An `[[engines]]` edit is **not** picked up by a running TUI. The engine table
+is process-level state, built once at Rove start from the enabled plugins'
+manifests, so `rove plugin install` / `link` / `enable` from another terminal
+registers the engine on disk without any running TUI seeing it. Restart the
+TUI, or toggle the plugin off and on again in Settings → Plugins, which
+reloads the table in place. The same applies to the same-session dev loop:
+edit the `[[engines]]` table, then restart.
+
 `command` is argv, never a shell, for events, startup, shutdown and
 actions: no expansion, no pipes, no globs. **Panes are the exception** — a
 pane runs through the user's interactive login shell (`sh -ilc`, the same
@@ -262,7 +276,7 @@ This table is the one-line index. **Per-event trigger semantics, exact
 | `tab.opened` / `tab.closed` | a workspace tab appeared/went away (restores don't fire) | `tabId`, `kind`, `title`, `vendor`, `purpose` |
 | `agent.running` / `agent.idle` / `agent.turn-complete` / `agent.permission-needed` / `agent.rate-limited` / `agent.error` | activity-STATE transitions, deduped per task+tab | `tabId` when the source state identifies a tab |
 | `session.start` / `session.end` | engine session lifecycle (C, K; X start only) | |
-| `turn.prompt` / `turn.complete` / `turn.failed` / `turn.interrupted` | one event per turn edge (C, X, K; failed: C, K) | `failure` class on failed; `turn` (id/model/usage/startedAt/endedAt) on complete when the transcript yielded one |
+| `turn.prompt` / `turn.complete` / `turn.failed` / `turn.interrupted` | one event per turn edge (C, X, K; failed: C, K; **interrupted** is a native hook on K only — on C and X the attached TUI emulates it, so it never fires with no TUI attached) | `failure` class on failed; `turn` (id/model/usage/startedAt/endedAt) on complete when the transcript yielded one |
 | `tool.pre` / `tool.post` / `tool.failed` | every tool call (C, X, K; failed: C, K); **installed into engine config only while some enabled plugin subscribes** | `tool.name`, `tool.id` |
 | `attention.permission` / `attention.question` | the engine blocked on a human (permission: C, K; question: C) | `waiting` |
 | `context.pre-compact` / `context.post-compact` | context compaction (C, X, K) | `compact.trigger: manual\|auto` |
