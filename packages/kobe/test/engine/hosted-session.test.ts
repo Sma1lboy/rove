@@ -337,7 +337,7 @@ describe("deliverToHostedKey A+C gates", () => {
   })
 
   it("skips the screen check when the composer gate is off, but keeps the timing one", async () => {
-    // The escape hatch (state/composer-gate.ts) for a screen rule an engine
+    // The escape hatch (state/delivery-guard.ts) for a screen rule an engine
     // redesign has outrun. It drops the LAYOUT read only: the A layer measures
     // keystroke recency, so a composer someone is typing into right now stays
     // protected however this is set — otherwise turning it off would trade a

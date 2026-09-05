@@ -421,7 +421,10 @@ export class DeferredPromptsStore {
   /** Drop exactly one prompt referenced by an Inbox item, never its replacement. */
   async discard(id: string, reason: DeferredPromptDiscardReason): Promise<DeferredPromptRecord | null> {
     for (;;) {
-      const waiting = await this.enqueue(async () => this.claims.get(id)?.done)
+      const [waiting] = await this.enqueue(async () => {
+        const active = this.claims.get(id)
+        return active ? [active.done] : []
+      })
       if (!waiting) break
       await waiting
     }
