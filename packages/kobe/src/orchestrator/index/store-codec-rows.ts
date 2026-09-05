@@ -189,7 +189,6 @@ function coercePRStatus(value: unknown): TaskPRStatus | undefined {
     ...(typeof v.url === "string" ? { url: v.url } : {}),
     ...(typeof v.title === "string" ? { title: v.title } : {}),
     ...(typeof v.baseRef === "string" ? { baseRef: v.baseRef } : {}),
-    ...(typeof v.headRef === "string" ? { headRef: v.headRef } : {}),
     ...(typeof v.reviewDecision === "string" ? { reviewDecision: v.reviewDecision } : {}),
     ...(typeof v.mergeable === "string" ? { mergeable: v.mergeable } : {}),
     ...(typeof v.lastCheckedAt === "string" ? { lastCheckedAt: v.lastCheckedAt } : {}),
