@@ -23,7 +23,6 @@ export const ROVE_SKILL = join(KOBE_DIR, "dist", "skills", "rove", "SKILL.md")
 export const VISUAL_PORT_BASE = Number.parseInt(process.env.KOBE_VISUAL_PORT_BASE ?? "5273", 10)
 const PORTS: FixturePorts = fixturePortBase(VISUAL_PORT_BASE)
 export const VISUAL_WEB_PORT = PORTS.webPort!
-export const VISUAL_DAEMON_PORT = PORTS.daemonWebPort
 export const VISUAL_PTY_PORT = PORTS.ptyPort!
 export const VISUAL_RUN_ID = `p${VISUAL_PORT_BASE}`
 
@@ -86,8 +85,6 @@ export const VISUAL_PTY_COMMAND = `${[
   `KOBE_SANDBOX_HOME_DIR=${VISUAL_HOME}`,
   `ROVE_HOME_DIR=${VISUAL_HOME}`,
   `KOBE_HOME_DIR=${VISUAL_HOME}`,
-  `ROVE_DAEMON_WEB_PORT=${VISUAL_DAEMON_PORT}`,
-  `KOBE_DAEMON_WEB_PORT=${VISUAL_DAEMON_PORT}`,
   `ROVE_ISSUES_TODAY=${VISUAL_TODAY}`,
   `KOBE_ISSUES_TODAY=${VISUAL_TODAY}`,
   `ROVE_DAEMON_SOCKET_PATH=${PATHS.daemonSocket}`,

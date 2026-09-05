@@ -343,9 +343,6 @@ export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    // Socket-only: the exit path is the TUI inbox (a socket client). Keeping
-    // these off the web allowlist is deliberate — the browser-reachable surface
-    // is a pinned security contract (test/daemon/web-exposure.test.ts).
     name: "deferredPrompt.get",
     async handle() {
       // A pre-claim client can race the daemon flusher after reading the text

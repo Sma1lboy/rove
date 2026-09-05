@@ -126,4 +126,35 @@ describe("deliverToExactTab", () => {
     // conversation intact — a new session would be a different claim.
     expect(result).toMatchObject({ session: "t1::tab-2", delivered: true, respawned: true, started: false })
   })
+
+  // The one SESSION_FAILED outside runtime.ts's shared constructor. Its
+  // message names the task, but a caller that parses the envelope reads
+  // `data` — and an unattended fan-out reading only `message` would have to
+  // scrape prose for the id of a task it just created.
+  it("a respawn that never comes back fails with the task and tab in the envelope", async () => {
+    const restored = { ...session("t1::tab-2", ["claude"], false), restored: true }
+    const { rpc } = rpcWith([restored])
+    const inner = rpc.request
+    rpc.request = async <T>(name: string, payload?: unknown): Promise<T> =>
+      name === "pty.open" ? ({ alive: false, respawned: false } as T) : inner<T>(name, payload)
+    const err = (await deliverToExactTab(rpc, "t1", "tab-2", "/wt/t1", "go", {
+      engineBin: "claude",
+      respawn: () => ({ key: "t1::tab-2", command: ["zsh", "-lc", "claude"] }),
+    }).then(
+      () => null,
+      (e) => e,
+    )) as ApiError
+    expect(err.code).toBe("SESSION_FAILED")
+    expect(err.data).toMatchObject({ taskId: "t1", tabId: "tab-2" })
+    expect(err.data?.nextCommandArgs).toEqual([
+      "api",
+      "read-output",
+      "--task-id",
+      "t1",
+      "--tab",
+      "tab-2",
+      "--source",
+      "terminal",
+    ])
+  })
 })

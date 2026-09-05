@@ -40,8 +40,8 @@ reuse their directory and do not own a Rove-created worktree or branch.
   - `src/tui/` — framework-free keymap, state, terminal, file, sidebar, and
     workspace cores.
   - `src/tui-react/` — the only UI implementation: React 19 over opentui.
-- `packages/kobe-daemon/` — Unix-socket daemon protocol/server, browser
-  transport, standalone PTY Host implementation, and the plugin core
+- `packages/kobe-daemon/` — Unix-socket daemon protocol/server, standalone
+  PTY Host implementation, and the plugin core
   (`src/plugins/`: manifest, registry, event derivation, daemon-side host —
   see [docs/design/plugins.md](./design/plugins.md)).
 - `packages/kobe-harness/` — the `/harness` capture page and its PTY sidecar (see docs/HARNESS.md).

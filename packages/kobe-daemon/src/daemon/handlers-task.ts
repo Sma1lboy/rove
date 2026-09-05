@@ -21,7 +21,6 @@ import { auditDeletionRequested } from "./task-deletion-audit.ts"
 export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.list",
-    web: true,
     handle(_payload, ctx: DaemonHandlerContext) {
       // `activeTaskId` is the shared focus every verb using the implicit
       // target reads when `--task-id` is omitted — without it in the list
@@ -36,7 +35,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.get",
-    web: true,
     handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const task = ctx.orch.getTask(taskId)
@@ -46,7 +44,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.create",
-    web: true,
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
       // Dispatcher provenance: the CLI reads its own
@@ -73,7 +70,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.rename",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       await ctx.orch.setTitle(taskId, requireString(payload, "title"))
@@ -82,7 +78,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.setBranch",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       await ctx.orch.setBranch(taskId, requireString(payload, "branch"))
@@ -109,7 +104,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.setVendor",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const vendor = optionalVendor(payload, "vendor")
@@ -124,7 +118,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.setCommand",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       // The PROTOCOL rides along rather than being derived here: engine
@@ -137,7 +130,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.delete",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const force = optionalBoolean(payload, "force")
@@ -195,7 +187,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     // list would tell the client to drop its deadline for something that
     // finishes in milliseconds, and the land confirm awaits it inline.
     name: "task.landPreflight",
-    web: true,
     async handle(payload, ctx) {
       return { result: await ctx.orch.landPreflight(requireString(payload, "taskId")) }
     },
@@ -203,7 +194,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.land",
     blocking: true,
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const strategy = optionalString(payload, "strategy") === "squash" ? "squash" : "merge"
@@ -239,7 +229,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.pin",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       await ctx.orch.setPinned(taskId, optionalBoolean(payload, "pinned"))
@@ -248,7 +237,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.move",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const direction = requireString(payload, "direction")
@@ -259,7 +247,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.status",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const status = requireString(payload, "status")
@@ -294,7 +281,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.openDir",
-    web: true,
     async handle(payload, ctx) {
       const dir = requireString(payload, "dir")
       const task = await ctx.orch.openDirectoryTask({
@@ -309,7 +295,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     // Scratch → project migration: repoint a scratch task at the
     // repo its shell settled in and clear the flag. No-op on non-scratch rows.
     name: "task.adoptScratchRepo",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       await ctx.orch.adoptScratchRepo(taskId, requireString(payload, "repo"))
@@ -319,7 +304,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.ensureMain",
     blocking: true,
-    web: true,
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
       const task = await ctx.orch.ensureMainTask(repo)
@@ -337,7 +321,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.ensureWorktree",
     blocking: true,
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       // Long-operation feedback: `git worktree add` is
@@ -385,7 +368,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.setActive",
-    web: true,
     async handle(payload, ctx) {
       // UI/session focus lives on the bus, but setting it also touches the
       // task's updatedAt so "recent" task sorting reflects actual use.

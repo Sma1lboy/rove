@@ -28,7 +28,6 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "worktree.discoverAdoptable",
     blocking: true,
-    web: true,
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
       // `git worktree list --porcelain` drops an entry whose admin dir it
@@ -50,7 +49,6 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "worktree.adopt",
     blocking: true,
-    web: true,
     async handle(payload, ctx) {
       const task = await ctx.orch.adoptWorktree({
         repo: requireString(payload, "repo"),

@@ -291,7 +291,7 @@ export function defaultPtyExitsPath(homeDir = readRoveHomeDirEnv() ?? homedir())
   return runtimeDataPath(homeDir, "pty-exits.json")
 }
 
-/** Bearer token for the daemon-hosted web transport (`web-token.ts`) — its
+/** Bearer token the PTY sidecar authenticates with (`web-token.ts`) — its
  *  own 0600 file rather than a field in `state.json`, because state.json is
  *  user-editable preferences that get pasted into bug reports, and a
  *  single-purpose file can be chmod'd whole and rotated with one `rm`. */

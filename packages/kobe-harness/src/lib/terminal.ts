@@ -9,13 +9,21 @@ import { withWebTokenQuery } from "./web-token.ts"
 
 export type PtyMode = "engine" | "shell"
 
-/** PTY sidecar websocket origin (port + 2). */
+/**
+ * PTY sidecar websocket origin: our own, because Vite proxies `/pty` to the
+ * sidecar on `KOBE_PTY_PORT` (see `vite.config.ts`) and Vite dev is the only
+ * thing that ever serves this page (`dev.ts`).
+ *
+ * This used to derive the sidecar's port as `location.port + 2`, which made
+ * the browser a second, silent copy of the port layout `fixturePortBase()`
+ * owns in `packages/kobe/scripts/fixture-core.ts`. When that layout dropped
+ * its middle port the two copies disagreed, the socket dialed a port nothing
+ * listened on, and all five visual specs failed as 45s `data-pty-status`
+ * timeouts — while the sidecar's own log reported it had started fine. One
+ * origin, one owner of the port: the proxy.
+ */
 function ptyWsBase(): string {
-  const proto = location.protocol === "https:" ? "wss" : "ws"
-  const host = location.hostname || "localhost"
-  const currentPort = Number.parseInt(location.port || "5173", 10)
-  const ptyPort = Number.isFinite(currentPort) ? currentPort + 2 : 5175
-  return `${proto}://${host}:${ptyPort}`
+  return `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}`
 }
 
 export function ptyUrl(

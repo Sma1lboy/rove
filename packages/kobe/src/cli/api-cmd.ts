@@ -72,7 +72,7 @@ import type {
   VerbContext,
   VerbSpec,
 } from "./api/types.ts"
-import { API_VERBS, RETIRED_VERBS, VERBS, VERB_GROUPS, findVerb } from "./api/verbs.ts"
+import { API_VERBS, VERBS, VERB_GROUPS, findVerb, unknownVerbError } from "./api/verbs.ts"
 import { type DaemonSession, openDaemonSession } from "./daemon-session.ts"
 import type { DaemonRpc } from "./daemon-session.ts"
 
@@ -101,30 +101,22 @@ function makeContext(verb: VerbSpec, flags: Flags, client: DaemonRpc | null, run
   return { args: new VerbArgs(verb, flags), client, runtime }
 }
 
-const SCHEMA_STEP = {
-  hint: "list every valid verb + flag as JSON, then retry with a real verb",
-  nextCommandArgs: ["api", "schema"],
-} as const
-
 /**
- * The typed rejection for a verb name that does not resolve. A REMOVED verb
- * ({@link RETIRED_VERBS}) points at its replacement instead of the schema
- * index — an agent that learned `fan-out` from an older skill or a stale
- * transcript gets the exact argv for `add --count`, not a 40-verb dump to
- * re-derive it from.
+ * Codes the exit-code contract (docs/API.md) calls a USAGE error: the caller's
+ * argv is wrong, nothing was attempted. The pre-dispatch validators already
+ * exit 2 for these; a HANDLER that rejects its own arguments — `schema
+ * --verb nope`, `engine-report --detail 'not json'` — must not report a
+ * different number for the same class of mistake, or a script that branches on
+ * the exit code sees one typo as two different failures.
  */
-function unknownVerbError(verbName: string): ApiError {
-  const retired = RETIRED_VERBS[verbName]
-  if (retired) {
-    return new ApiError(`unknown verb: ${verbName} (removed)`, "UNKNOWN_VERB", {
-      hint: retired.hint,
-      nextCommandArgs: [...retired.nextCommandArgs],
-    })
-  }
-  // BAD_VERB (not UNKNOWN_VERB) for a name that never existed — the
-  // documented code for a typo'd verb, unchanged.
-  return new ApiError(`unknown verb: ${verbName}`, "BAD_VERB", SCHEMA_STEP)
-}
+const USAGE_ERROR_CODES: ReadonlySet<string> = new Set([
+  "BAD_VERB",
+  "UNKNOWN_VERB",
+  "BAD_FLAG",
+  "MISSING_FLAG",
+  "MISSING_VERB",
+  "BAD_DAEMON",
+])
 
 /**
  * Normalize any handler/RPC failure into an {@link ApiError} so the emitted
@@ -221,7 +213,7 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
   try {
     parsed = parseFlags(rest, booleanFlags)
   } catch (err) {
-    if (err instanceof ApiError) fail(err.message, err.code, 2)
+    if (err instanceof ApiError) fail(err.message, err.code, 2, err.data)
     fail(errorMessage(err), "BAD_FLAG", 2)
   }
 
@@ -233,7 +225,7 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
   try {
     validateAgainstSpec(verb, parsed.flags)
   } catch (err) {
-    if (err instanceof ApiError) fail(err.message, err.code, 2)
+    if (err instanceof ApiError) fail(err.message, err.code, 2, err.data)
     fail(errorMessage(err), "BAD_FLAG", 2)
   }
 
@@ -262,7 +254,7 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
       process.exit(3)
     }
     const apiErr = toApiError(err)
-    fail(apiErr.message, apiErr.code, 1, apiErr.data)
+    fail(apiErr.message, apiErr.code, USAGE_ERROR_CODES.has(apiErr.code) ? 2 : 1, apiErr.data)
   } finally {
     session?.close()
   }

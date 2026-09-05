@@ -11,7 +11,6 @@
 import { existsSync } from "node:fs"
 import { resolve } from "node:path"
 import {
-  HERO_DAEMON_PORT,
   HERO_HOME,
   HERO_PTY_PORT,
   HERO_WEB_PORT,
@@ -31,7 +30,6 @@ const child = Bun.spawn(["bun", "run", "dev.ts"], {
     ...heroEnv(),
     KOBE_WEB_PORT: String(HERO_WEB_PORT),
     ROVE_WEB_PORT: String(HERO_WEB_PORT),
-    KOBE_DAEMON_WEB_PORT: String(HERO_DAEMON_PORT),
     KOBE_PTY_PORT: String(HERO_PTY_PORT),
     ROVE_PTY_PORT: String(HERO_PTY_PORT),
     KOBE_PTY_DEV_CWD: KOBE_DIR,

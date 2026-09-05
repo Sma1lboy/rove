@@ -164,8 +164,10 @@ describe("schema drill-ins", () => {
     for (const v of result.verbs) expect(v.summary.length).toBeGreaterThan(0)
   })
 
-  it("--group with an unknown group is BAD_FLAG naming the valid groups", async () => {
-    await expectApiError(() => invokeVerb("schema", ["--group", "nope"], offline), "BAD_FLAG", /unknown group: nope/)
+  it("--group with an unknown group is a bad NAME, naming the valid groups", async () => {
+    // BAD_VERB, not BAD_FLAG: `--group` is a perfectly good flag, the value is
+    // the typo. BAD_FLAG here sent a caller off to re-read the flag contract.
+    await expectApiError(() => invokeVerb("schema", ["--group", "nope"], offline), "BAD_VERB", /unknown group: nope/)
   })
 
   it("--all returns the complete spec with the api version", async () => {

@@ -77,9 +77,9 @@ await mkdir(home, { recursive: true })
 const label = name ? `dev:sandbox ${name}` : "dev:sandbox"
 console.error(`[rove ${label}] home: ${home}`)
 
-// Isolate the sandbox daemon's home and web port from production. Both env
+// Isolate the sandbox daemon's home and sockets from production. Both env
 // namespaces are stamped so a child wrapper cannot revive an ambient value.
-const env = sandboxChildEnv(home, process.env, name)
+const env = sandboxChildEnv(home, process.env)
 
 async function stopSandbox(): Promise<void> {
   const paths = sandboxRuntimePaths(home)

@@ -84,6 +84,8 @@ export async function deliverToExactTab(
       })
       if (open.respawned !== true && open.alive !== true) {
         throw new ApiError(`tab ${tabId} on task ${taskId} could not be respawned`, "SESSION_FAILED", {
+          taskId,
+          tabId,
           hint: "the frozen record is still on disk; open the task in the TUI to see the session's own output",
           nextCommandArgs: ["api", "read-output", "--task-id", taskId, "--tab", tabId, "--source", "terminal"],
         })

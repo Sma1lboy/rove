@@ -8,11 +8,13 @@
  * {@link VERBS} table, so schema/help/validation see one canonical list.
  */
 
+import { ENGINE_ACTIVITY_KINDS } from "../../engine/hook-events.ts"
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { DEFERRED_VERBS } from "./handlers-deferred.ts"
 import { PANE_CLOSE_VERB, PANE_VERB, TAB_CLOSE_VERB } from "./handlers-pane.ts"
 import { DISPATCH_VERB, note, send, setActive } from "./handlers-tasks.ts"
+import { ApiError, helpStep } from "./types.ts"
 import type { VerbSpec } from "./types.ts"
 
 export const DRIVE_VERBS: readonly VerbSpec[] = [
@@ -189,7 +191,12 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
       F.taskId(false),
       {
         name: "kind",
-        type: "string",
+        // Enum, not a free string: the daemon rejects an unknown kind anyway,
+        // but across the RPC that arrived as an untyped `RPC_ERROR` — a typo
+        // read as "the daemon is broken". Declared here it is a local flag
+        // rejection AND `schema --verb engine-report` lists the 14 legal kinds.
+        type: "enum",
+        values: ENGINE_ACTIVITY_KINDS,
         required: true,
         placeholder: "KIND",
         description: "Normalized activity verb (see summary). Unknown kinds are rejected.",
@@ -222,7 +229,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         try {
           detail = JSON.parse(detailRaw)
         } catch {
-          throw new Error("--detail must be valid JSON")
+          throw new ApiError("--detail must be valid JSON", "BAD_FLAG", helpStep("engine-report"))
         }
       }
       return simpleRpc(ctx, "engine.reportEvent", {

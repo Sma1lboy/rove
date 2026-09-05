@@ -294,8 +294,9 @@ command on Linux.
 | Story detail | Workspace sidebar → Kanban → select fixture card → detail drawer → close | Board selection reaches the persisted story detail without mutating it. |
 | Story intake | Workspace sidebar → Kanban → New Story → title and description | The creation drawer accepts real terminal input and echoes it back. |
 
-Ports derive from `KOBE_VISUAL_PORT_BASE` (default 5273); a busy port fails
-fast — never reuse a stray server, and never point the fixture at a real HOME
+Ports derive from `KOBE_VISUAL_PORT_BASE` (default 5273): the base is Vite,
+base+1 is the PTY sidecar. Two, not three — the daemon is reached over its
+socket and has no port. A busy port fails fast — never reuse a stray server, and never point the fixture at a real HOME
 or the shared `.dev-sandbox/home`. Local Terminal screenshots, native
 `kobe-harness` pages such as `/board`, render-test frames, and `dev:mock` cannot
 approve visual changes; `test:e2e` (dev:mock) stays a PTY-transport smoke only.

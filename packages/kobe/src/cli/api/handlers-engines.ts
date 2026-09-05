@@ -130,6 +130,7 @@ async function setEffort(ctx: VerbContext): Promise<unknown> {
         engine,
         levels,
         hint: `Pass one of: ${levels.join(", ")}.`,
+        nextCommandArgs: ["api", "get-task", "--task-id", taskId],
       },
     )
   }

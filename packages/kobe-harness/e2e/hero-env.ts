@@ -38,7 +38,6 @@ export const HERO_CLI: string = join(KOBE_DIR, "dist", "cli", "rove.js")
 export const HERO_PORT_BASE = Number.parseInt(process.env.HERO_PORT_BASE ?? "5323", 10)
 const PORTS: FixturePorts = fixturePortBase(HERO_PORT_BASE)
 export const HERO_WEB_PORT = PORTS.webPort!
-export const HERO_DAEMON_PORT = PORTS.daemonWebPort
 export const HERO_PTY_PORT = PORTS.ptyPort!
 
 export const HERO_ROOT: string = join(REPO_ROOT, ".scratch", "hero")
@@ -76,10 +75,6 @@ export function heroPtyCommand(): string {
     `KOBE_HOME_DIR=${HERO_HOME}`,
     `ROVE_SANDBOX_HOME_DIR=${HERO_HOME}`,
     `KOBE_SANDBOX_HOME_DIR=${HERO_HOME}`,
-    `ROVE_DAEMON_WEB_PORT=${HERO_DAEMON_PORT}`,
-    `KOBE_DAEMON_WEB_PORT=${HERO_DAEMON_PORT}`,
-    `ROVE_SANDBOX_DAEMON_WEB_PORT=${HERO_DAEMON_PORT}`,
-    `KOBE_SANDBOX_DAEMON_WEB_PORT=${HERO_DAEMON_PORT}`,
     `ROVE_DAEMON_SOCKET_PATH=${HERO_DAEMON_SOCKET}`,
     `KOBE_DAEMON_SOCKET_PATH=${HERO_DAEMON_SOCKET}`,
     `ROVE_PTY_SOCKET_PATH=${HERO_PTY_SOCKET}`,
