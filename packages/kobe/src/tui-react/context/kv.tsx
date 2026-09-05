@@ -22,8 +22,8 @@ export type KVContext = {
   set(key: string, value: unknown): void
   /** Synchronously flush pending state (standalone pages, before exit). */
   flush(): boolean
-  /** Wipe every persisted key and write the empty file (Dev → reset). */
-  clear(): void
+  /** Wipe every persisted key; false leaves state and pending edits intact. */
+  clear(): boolean
 }
 
 const Ctx = createContext<KVContext | null>(null)

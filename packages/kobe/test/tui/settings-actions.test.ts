@@ -26,6 +26,7 @@ let stderrSpy: MockInstance<typeof process.stderr.write>
 beforeEach(() => {
   for (const mock of Object.values(mocks)) mock.mockReset()
   mocks.hasRestartable.mockReturnValue(true)
+  mocks.clear.mockReturnValue(true)
   exitSpy = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never)
   stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
 })
@@ -61,6 +62,22 @@ describe("React settings actions", () => {
     await confirmResetState({} as never, { clear: mocks.clear } as never, null)
     expect(mocks.clear).not.toHaveBeenCalled()
     expect(exitSpy).not.toHaveBeenCalled()
+  })
+
+  it("a failed settings clear reports the error and stops every later reset step", async () => {
+    mocks.confirm.mockResolvedValue(true)
+    mocks.clear.mockReturnValue(false)
+    await confirmResetState({} as never, { clear: mocks.clear } as never, { destroy: vi.fn() })
+    expect(mocks.removeTasks).not.toHaveBeenCalled()
+    expect(mocks.destroySafely).not.toHaveBeenCalled()
+    expect(stderrSpy).not.toHaveBeenCalled()
+    expect(exitSpy).not.toHaveBeenCalled()
+    expect(mocks.confirm).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "UI state was not reset",
+      expect.stringContaining("Your settings and tasks have been kept"),
+      "cancel",
+    )
   })
 
   it("restarts only a restartable daemon after confirmation", async () => {

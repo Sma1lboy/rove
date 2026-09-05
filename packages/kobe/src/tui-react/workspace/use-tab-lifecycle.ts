@@ -96,6 +96,7 @@ export function useTabNaming(io: TabLifecycleIO): void {
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once interval; reads propsRef/stateRef for freshness.
   useEffect(() => {
     let namingBusy = false
+    let cancelled = false
     const vendorOf = (tab: EngineTab): VendorId => tab.vendor ?? io.propsRef.current.vendor
     /**
      * The engine session this tab's name is read from: the id Rove pinned at
@@ -129,6 +130,7 @@ export function useTabNaming(io: TabLifecycleIO): void {
         try {
           for (const tab of undiscovered) {
             const found = await discoverSessionId(vendorOf(tab), io.propsRef.current.worktree, claimedIds(io))
+            if (cancelled) return
             if (!found) continue
             // Recording the id is what survives the restart — `spawned`
             // rides along because a session on disk IS a conversation.
@@ -138,6 +140,7 @@ export function useTabNaming(io: TabLifecycleIO): void {
             const sessionId = namingSessionId(tab)
             if (!sessionId) continue
             const title = await deriveTitleFromSessionId(vendorOf(tab), sessionId)
+            if (cancelled) return
             if (!title) continue
             let next = setTabSpawned(io.stateRef.current, tab.id, true)
             if (!tab.title && !tab.autoTitle) next = setTabAutoTitle(next, tab.id, title)
@@ -148,6 +151,9 @@ export function useTabNaming(io: TabLifecycleIO): void {
         }
       })()
     }, NAMING_POLL_MS)
-    return () => clearInterval(timer)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
   }, [])
 }

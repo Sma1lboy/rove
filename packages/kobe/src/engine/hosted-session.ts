@@ -374,17 +374,7 @@ export async function writeHostedPrompt(
  * the prompt into it. Peek never attaches, spawns, or
  * resizes — delivery is pure `pty.write`, exactly like keyboard input.
  */
-export async function deliverToHostedKey(
-  rpc: HostedSessionRpc,
-  key: string,
-  prompt: string,
-  opts?: HostedPromptDeliveryOpts,
-): Promise<PromptWriteOutcome | null> {
-  const peek = await rpc.request<PtyPeekResult>("pty.peek", { key })
-  if (!peek.alive) return null
-  await assertComposerClear(peek, key, opts)
-  return writeAndConfirm(rpc, key, prompt, peek.offset, opts)
-}
+export const deliverToHostedKey = writeHostedPromptIfClear
 
 /** Open or reattach one engine session and immediately release this client.
  *  No cols/rows: a size-less open never resizes a live session away from

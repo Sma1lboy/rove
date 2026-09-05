@@ -1,74 +1,100 @@
-/**
- * Defensive bounds for reading vendor-owned transcript / credential files.
- *
- * The engine readers (`claude-code-local`, `codex-local`, `copilot-local`
- * history; `account-detect`) load whole on-disk JSONL transcripts and JSON
- * credential files that kobe does not control. A corrupt or pathological file
- * — a multi-GB rollout, a single mega-line — could OOM or hang the TUI/daemon
- * if read and `JSON.parse`d unbounded. These helpers add cheap, best-effort
- * ceilings: stat the file before slurping it, and skip a line that's too long
- * to be real before handing it to `JSON.parse`.
- *
- * Everything here is best-effort and non-throwing into the degraded path:
- * oversize → an empty result (the same shape callers already produce for a
- * missing/empty file), never a crash, never a leak of file contents.
- */
+import { constants, closeSync, fstatSync, openSync, readSync } from "node:fs"
+import { open } from "node:fs/promises"
 
-import { readFileSync, statSync } from "node:fs"
-import { readFile, stat } from "node:fs/promises"
-
-/**
- * Hard ceiling (bytes) on a single transcript/credential file we'll read into
- * a string. 100 MiB is far above any real Claude/Codex/Copilot transcript or
- * `~/.claude.json` (typically KB–single-digit MB) yet small enough that the
- * read + `JSON.parse` can't exhaust memory. Above this we degrade rather than
- * load — a file this large is corrupt or adversarial, not a real session.
- */
 const MAX_ENGINE_FILE_BYTES = 100 * 1024 * 1024
-
-/**
- * Hard ceiling (chars) on a single JSONL line we'll attempt to `JSON.parse`.
- * Real records are at most a few hundred KB; a line past 8 MiB is pathological
- * (a mega-blob smuggled into one record) and parsing it can hang. Such a line
- * is skipped exactly like a malformed one — the reader continues.
- */
 export const MAX_JSONL_LINE_CHARS = 8 * 1024 * 1024
+const READ_CHUNK_BYTES = 64 * 1024
+const READ_FLAGS = constants.O_RDONLY | constants.O_NONBLOCK
 
-/**
- * Read a text file but bail to `""` when it exceeds {@link MAX_ENGINE_FILE_BYTES}.
- * `stat` first so a giant file is never slurped into a string. ENOENT and other
- * I/O errors propagate (callers already `catch` them to degrade); only the
- * oversize case is folded into the empty-result path.
- */
-export async function readTextFileBounded(p: string, maxBytes = MAX_ENGINE_FILE_BYTES): Promise<string> {
-  const { size } = await stat(p)
-  if (size > maxBytes) return ""
-  return readFile(p, "utf8")
+/** Cap bytes on the open handle, including growth after stat and path replacement. */
+export async function readTextFileIfRegular(p: string, maxBytes = MAX_ENGINE_FILE_BYTES): Promise<string | null> {
+  const file = await open(p, READ_FLAGS)
+  try {
+    const info = await file.stat()
+    if (!info.isFile() || info.size > maxBytes) return null
+    const chunks: Buffer[] = []
+    let total = 0
+    while (total <= maxBytes) {
+      const buffer = Buffer.allocUnsafe(Math.min(READ_CHUNK_BYTES, maxBytes + 1 - total))
+      const { bytesRead } = await file.read(buffer)
+      if (bytesRead === 0) return Buffer.concat(chunks, total).toString("utf8")
+      chunks.push(buffer.subarray(0, bytesRead))
+      total += bytesRead
+    }
+    return null
+  } finally {
+    await file.close()
+  }
 }
 
-/**
- * Synchronous twin of {@link readTextFileBounded} for `account-detect`'s
- * credential reads. Returns `null` for a missing OR oversize file so the caller
- * produces its existing "not detected" result; other I/O errors propagate.
- * Never logs file contents.
- */
-export function readTextFileSyncBounded(p: string, maxBytes = MAX_ENGINE_FILE_BYTES): string | null {
-  let st: ReturnType<typeof statSync>
+/** History readers keep their empty-result fallback for refused files. */
+export async function readTextFileBounded(p: string, maxBytes = MAX_ENGINE_FILE_BYTES): Promise<string> {
+  return (await readTextFileIfRegular(p, maxBytes)) ?? ""
+}
+
+/** Metadata discovery reads the first nonblank line, never the transcript body. */
+export async function readFirstLineBounded(p: string, maxBytes = MAX_JSONL_LINE_CHARS): Promise<string> {
+  const file = await open(p, READ_FLAGS)
   try {
-    st = statSync(p)
+    if (!(await file.stat()).isFile()) return ""
+    const chunks: Buffer[] = []
+    let total = 0
+    let start = 0
+    let nonblank = false
+    while (total <= maxBytes) {
+      const buffer = Buffer.allocUnsafe(Math.min(16 * 1024, maxBytes + 1 - total))
+      const { bytesRead } = await file.read(buffer)
+      if (!bytesRead) return Buffer.concat(chunks, total).subarray(start).toString("utf8")
+      chunks.push(buffer.subarray(0, bytesRead))
+      let segment = 0
+      for (let i = 0; i < bytesRead; i++) {
+        if (buffer[i] !== 10) continue
+        nonblank ||= buffer.subarray(segment, i).toString("utf8").trim().length > 0
+        const end = total + i
+        if (end > maxBytes) return ""
+        if (nonblank)
+          return Buffer.concat(chunks, total + bytesRead)
+            .subarray(start, end)
+            .toString("utf8")
+        start = end + 1
+        segment = i + 1
+      }
+      nonblank ||= buffer.subarray(segment, bytesRead).toString("utf8").trim().length > 0
+      total += bytesRead
+    }
+    return ""
+  } finally {
+    await file.close()
+  }
+}
+
+/** Missing or oversized credentials retain the existing not-detected result. */
+export function readTextFileSyncBounded(p: string, maxBytes = MAX_ENGINE_FILE_BYTES): string | null {
+  let fd: number
+  try {
+    fd = openSync(p, READ_FLAGS)
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null
+    if (err instanceof Error && "code" in err && err.code === "ENOENT") return null
     throw err
   }
-  if (st.size > maxBytes) return null
-  return readFileSync(p, "utf8")
+  try {
+    const info = fstatSync(fd)
+    if (!info.isFile() || info.size > maxBytes) return null
+    const chunks: Buffer[] = []
+    let total = 0
+    while (total <= maxBytes) {
+      const buffer = Buffer.allocUnsafe(Math.min(READ_CHUNK_BYTES, maxBytes + 1 - total))
+      const bytesRead = readSync(fd, buffer)
+      if (!bytesRead) return Buffer.concat(chunks, total).toString("utf8")
+      chunks.push(buffer.subarray(0, bytesRead))
+      total += bytesRead
+    }
+    return null
+  } finally {
+    closeSync(fd)
+  }
 }
 
-/**
- * True when a JSONL line is short enough to be worth `JSON.parse`-ing. A line
- * past {@link MAX_JSONL_LINE_CHARS} is treated as unparseable (skipped) so a
- * single mega-line can't hang the parser.
- */
 export function isJsonlLineWithinBound(line: string, maxChars = MAX_JSONL_LINE_CHARS): boolean {
   return line.length <= maxChars
 }

@@ -28,7 +28,7 @@ import { DEFAULT_TASK_VENDOR, type VendorId } from "@/types/task"
 const MAX_SESSIONS_SCANNED = 8
 
 /** First user message's text, truncated to a title, or `""` if none yet. */
-function titleFromMessages(messages: Message[]): string {
+function titleFromMessages(messages: readonly Message[]): string {
   const firstUser = messages.find((m) => m.role === "user")
   if (!firstUser) return ""
   const text = firstUser.blocks

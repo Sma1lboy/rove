@@ -12,6 +12,7 @@
  */
 
 import type { EngineQuotaUsage, EngineQuotaWindow } from "@/types/engine"
+import { isJsonlLineWithinBound } from "../file-bounds"
 import { type HistoryDeps, defaultHistoryDeps, listRolloutFiles } from "./history"
 
 /** Newest rollouts scanned before giving up — a session that never made a
@@ -60,7 +61,7 @@ export function usageFromRolloutRaw(raw: string, nowMs: number): EngineQuotaUsag
   const lines = raw.split("\n")
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i]
-    if (!line || !line.includes('"rate_limits"')) continue
+    if (!line || !isJsonlLineWithinBound(line) || !line.includes('"rate_limits"')) continue
     let limits: CodexRateLimits | undefined
     try {
       limits = (JSON.parse(line) as { payload?: { rate_limits?: CodexRateLimits } }).payload?.rate_limits

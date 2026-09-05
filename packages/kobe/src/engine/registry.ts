@@ -67,7 +67,7 @@ export interface EngineHistoryReader {
    */
   listSessionIdsForWorktree(worktree: string): Promise<readonly string[]>
   /** Neutral messages for one session id; `[]` when not found. */
-  readHistory(sessionId: string): Promise<Message[]>
+  readHistory(sessionId: string): Promise<readonly Message[]>
   /**
    * Session-aggregate usage in the neutral {@link EngineUsageSnapshot} —
    * the vendor-specific token math (what counts as "context", what's
