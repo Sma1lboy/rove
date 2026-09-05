@@ -138,6 +138,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `DAEMON_VERSION_SKEW` | The daemon is a different build and does not serve this verb. |
 | `MISSING_TARGET` | No `--task-id`, no `$ROVE_TASK_ID`, no active task — nothing was named. |
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |
+| `TAB_NOT_FOUND` | A `--tab tab-N` the task has no live (or restorable) tab for. |
 | `NOT_A_REPO` | `--repo` does not point at a git repository. |
 | `NO_WORKTREE` | The task has no materialized worktree yet. |
 | `HISTORY_REQUIRED` | `read-output --source history` on an engine with no history reader. |
@@ -147,6 +148,8 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `SOURCE_CHANGED` | The cursor's source/session/tab moved under it. |
 | `COMPOSER_BUSY` | The target composer held un-sent text; nothing was pasted. |
 | `NOT_DELIVERED` | The task was created but the prompt never reached its engine. |
+| `DEFERRED_PROMPT_PENDING` | The tab already holds a deferred prompt; release or dismiss it first. |
+| `DEFERRED_PROMPT_NOT_FOUND` | A `deferred-release` / `deferred-dismiss` id the daemon no longer holds. |
 | `SESSION_FAILED` | A hosted engine session could not be started or written to. |
 | `BAD_EFFORT` | The task's engine declares no effort levels, or not that one. |
 | `PARTIAL_FANOUT` | A parallel round with at least one failure (exit 3). |
