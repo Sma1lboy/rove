@@ -198,12 +198,23 @@ describe("existing-tab routine delivery", () => {
     expect(routine).not.toBeNull()
     const stopped = action === "stop" ? startAutomationRunner(f.deps, 5) : undefined
     const running = stopped ? undefined : sweepAutomations(f.deps)
-    await vi.waitFor(() => expect(existsSync(entered)).toBe(true))
-    const stopping = stopped?.()
-    if (action === "disable") await f.store.update(f.routine.id, { enabled: false })
-    if (action === "edit") await f.store.update(f.routine.id, { prompt: "replacement" })
-    writeFileSync(release, "go")
-    await (stopping ?? running)
+    try {
+      // The precheck runs through an interactive login shell, which spends a
+      // second or two sourcing the developer's rc files before it reaches the
+      // `touch`. vitest's default 1s poll expires first on a machine with a
+      // slow shell, and the test then failed before ever writing `release`.
+      await vi.waitFor(() => expect(existsSync(entered)).toBe(true), { timeout: 15_000, interval: 50 })
+      const stopping = stopped?.()
+      if (action === "disable") await f.store.update(f.routine.id, { enabled: false })
+      if (action === "edit") await f.store.update(f.routine.id, { prompt: "replacement" })
+      writeFileSync(release, "go")
+      await (stopping ?? running)
+    } finally {
+      // Release the spin loop even when an assertion above threw: nothing else
+      // in this test will ever create the file it is waiting on, and until the
+      // precheck's own watchdog expires it burns ~100 forks a second.
+      writeFileSync(release, "go")
+    }
     expect(f.deliverTab).not.toHaveBeenCalled()
     expect(f.store.runsFor(f.routine.id)[0]?.status).toBe("skipped_cancelled")
   })
