@@ -12,8 +12,8 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-|▌ feat/bravo                ? |
-|  ○ tests                     |
+|▌ feat/bravo              ? 2 |
+|  ○ tests                   3 |
 |                              |
 |                              |
 |                              |

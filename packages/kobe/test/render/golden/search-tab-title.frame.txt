@@ -12,8 +12,8 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-|▌ feat/alpha                ? |
-|  ○ review                    |
+|▌ feat/alpha              ? 2 |
+|  ○ review                  3 |
 |                              |
 |                              |
 |                              |

@@ -176,10 +176,22 @@ export function rowIsLoading(opts: RowLoadingInputs): boolean {
 }
 
 /**
- * Pane-level "is ANY visible row spinning" — the gate the React Sidebar uses
- * to suspend its 10Hz spinner interval while everything is idle (O11). Built
- * on the exact same `rowIsLoading` per-row decision the cards render with, so
- * the timer is present precisely when a row needs animating.
+ * Pane-level "is ANY visible row spinning" — the OR of `rowIsLoading` over a
+ * task list.
+ *
+ * It has NO production caller. It was the O11 gate that suspended the
+ * Sidebar's own 10Hz interval while every row was idle; `spinner-frame-store`
+ * replaced that with per-row subscription, so the interval now starts and
+ * stops on subscriber count and no pane-level question is asked. What remains
+ * here is the pure function and the agreement test below it.
+ *
+ * Before wiring it to anything, give it `transcript`. `rowIsLoading` reads
+ * that field, and the `reads` argument has no way to supply it — so a row
+ * that spins because its transcript outlived its `turn_complete`
+ * (`stillWorkingAfterCompletion`) is invisible to this function. A gate built
+ * on it today would stop the timer under a genuinely-working row and freeze
+ * its spinner, which is the exact failure `rowIsLoading`'s own docstring
+ * warns is worse than the idle CPU it saves.
  */
 export function anyRowLoading(
   tasks: readonly Task[],

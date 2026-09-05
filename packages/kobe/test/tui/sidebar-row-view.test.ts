@@ -100,10 +100,11 @@ describe("sweepBar", () => {
   })
 })
 
-// O11: the pane-level spinner gate must be exactly the OR of the per-row
-// loading decisions the cards render, or a genuinely-loading row freezes.
-// This is an agreement between three functions, which is why it survived the
-// move to the golden — the table records outputs, not that they match.
+// O11: `rowIsLoading` must stay exactly what `buildSidebarRowView` decides,
+// or a row's spinner disagrees with the row. This is an agreement between
+// functions, which is why it survived the move to the golden — the table
+// records outputs, not that they match. `anyRowLoading` no longer gates
+// anything (see its docstring); it is pinned here as a pure function.
 describe("rowIsLoading / anyRowLoading (spinner gate)", () => {
   const base = { spinnerFrame: 0, subtitleBudget: 80, truncateBranch: (b: string) => b } as const
 
