@@ -451,7 +451,7 @@ export function startPrStatusPoller(
   hasSubscribers?: () => boolean,
   run: PrViewRunner = makeGhPrViewRunner(runtime.prStatus.classify, runtime.prStatus.viewFields),
   hasWorkingAgent?: () => boolean,
-): () => void {
+): ReturnType<typeof startTicker> {
   const schedule: PrPollSchedule = new Map()
   return startTicker({
     name: "pr-status-poller",

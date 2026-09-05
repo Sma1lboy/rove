@@ -1,26 +1,6 @@
-/**
- * Liveness probe for the activity lapse watchdog: resolve taskId → worktree +
- * vendor, then read the engine's transcript for the two facts the watchdog
- * needs (`activity-registry.ts` → `stillWorking`).
- *
- * Split out of `server.ts` (which is at its size cap and is otherwise pure
- * wiring) because this is a real policy decision, not a construction step:
- *
- * - `mtimeMs` answers "is anything still being written". Alone it is NOT
- *   enough — an engine parked at its prompt keeps touching its transcript, so
- *   a missed Stop hook re-armed the watchdog forever and the sidebar spinner
- *   never stopped.
- * - `completedAt` is the newest turn-COMPLETION marker, which answers the
- *   question actually being asked: did this turn already end?
- *
- * Finding the completion already walks the transcript dir and stats its files,
- * so `latestActivity()` yields both from ONE scan — no extra IO versus the
- * mtime-only probe it replaces. Vendors with no completion markers keep the
- * plain mtime heartbeat; there is no "turn ended" fact to read for them.
- *
- * Best-effort by contract: the caller treats a throw as "silent" ⇒ lapse.
- */
+/** Session-scoped evidence for the activity lapse watchdog. Unknown is not completion. */
 
+import { stat } from "node:fs/promises"
 import type { ActivityLiveness } from "./activity-registry.ts"
 import type { VendorId } from "./contracts.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
@@ -50,17 +30,31 @@ export async function readActivityLiveness(
   // every long turn to idle mid-work.
   const vendor = (reportedVendor as VendorId | undefined) ?? task.vendor ?? runtime.defaultTaskVendor
   const detector = runtime.createEngineTurnDetector(vendor)
+  if (transcriptPath) {
+    if (!detector?.supportsCompletionMarkers()) {
+      try {
+        const file = await stat(transcriptPath)
+        return file.isFile() ? { mtimeMs: file.mtimeMs } : { unknown: true }
+      } catch {
+        return { unknown: true }
+      }
+    }
+    try {
+      const scoped = await detector.latestActivityInFile(transcriptPath)
+      if (!scoped) return { unknown: true }
+      return {
+        ...(scoped.mtimeMs > 0 ? { mtimeMs: scoped.mtimeMs } : {}),
+        ...(scoped.marker ? { completedAt: scoped.marker.timestampMs } : {}),
+      }
+    } catch {
+      return { unknown: true }
+    }
+  }
   if (!detector?.supportsCompletionMarkers()) {
     const mtimeMs = await runtime.latestTranscriptMtime(vendor, task.worktreePath)
     return mtimeMs > 0 ? { mtimeMs } : {}
   }
-  // Prefer the reporting session's OWN transcript (piped by the hook). The
-  // worktree-wide scan reads the newest completion across EVERY session in
-  // the dir — with several tabs sharing one worktree, a sibling's Stop
-  // satisfies `completedAt >= at` and idles a genuinely mid-turn engine at
-  // the TTL. A vanished file (session rotated) falls back to the wide scan.
-  const scoped = transcriptPath ? await detector.latestActivityInFile(transcriptPath) : null
-  const { marker, mtimeMs } = scoped ?? (await detector.latestActivity(task.worktreePath))
+  const { marker, mtimeMs } = await detector.latestActivity(task.worktreePath)
   return {
     ...(mtimeMs > 0 ? { mtimeMs } : {}),
     ...(marker ? { completedAt: marker.timestampMs } : {}),

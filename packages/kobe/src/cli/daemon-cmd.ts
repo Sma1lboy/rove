@@ -8,15 +8,14 @@
  */
 
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
-import { connectOrStartDaemon, probeDaemonSocket } from "@sma1lboy/kobe-daemon/client/daemon-process"
-import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
+import { connectOrStartDaemon } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { installDaemonCrashHandlers } from "@sma1lboy/kobe-daemon/daemon/crash-log"
 import { stopDaemonProcess } from "@sma1lboy/kobe-daemon/daemon/lifecycle"
 import { rotateLogIfNeeded } from "@sma1lboy/kobe-daemon/daemon/log-rotate"
 import { defaultDaemonLogPath, defaultDaemonPidPath, defaultDaemonSocketPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 import { readPidFile, startDaemonServer } from "@sma1lboy/kobe-daemon/daemon/server"
 import { daemonRuntime } from "../core/daemon-runtime.ts"
-import { createKobeCore } from "../core/index.ts"
+import { type KobeCore, createKobeCore } from "../core/index.ts"
 import { sweepIndexLeftovers } from "../orchestrator/index/sweep.ts"
 import { migrateRoveDaemonStateLayout } from "../state/layout-migration.ts"
 import { resolvePluginBinPath } from "./plugin-bin-path.ts"
@@ -118,48 +117,38 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
   // in the spawned daemon process, never in the TUI or tests.
   installDaemonCrashHandlers()
 
-  // A pre-upgrade daemon may still be writing the legacy stores. Copy those
-  // stores only after the socket is unowned, immediately before the new core
-  // reads them; otherwise a wrapper-level first-run copy can become stale.
-  const socketState = await probeDaemonSocket(socketPath)
-  if (socketState !== "absent") {
-    throw new Error(
-      `${CLI_NAME} daemon: ${socketState} daemon still owns ${socketPath}; run \`${CLI_NAME} daemon restart\``,
-    )
-  }
-  const migration = migrateRoveDaemonStateLayout()
-  for (const warning of migration.warnings) console.error(`[rove] daemon state migration will retry: ${warning}`)
-
-  const core = await createKobeCore()
-  // A killed writer leaves the index lockfile behind every time, and ~5% of
-  // the time a full staging copy of the manifest too (11.8 MB on a 30k-task
-  // index) under a name no later run reuses. Nothing else sweeps `.rove/`,
-  // so daemon boot is where a crashed predecessor's mess gets cleaned.
-  const swept = sweepIndexLeftovers(core.store.stateDir)
-  if (swept.lock || swept.tmp.length > 0) {
-    console.error(
-      `[rove] swept crash leftovers in ${core.store.stateDir}: ` +
-        `${swept.tmp.length} orphaned staging file(s) (${swept.tmpBytes} bytes)` +
-        `${swept.lock ? ", stale task-index lockfile" : ""}`,
-    )
-  }
-  const server = await startDaemonServer(core.orchestrator, {
-    runtime: daemonRuntime,
-    socketPath,
-    pidPath,
-    homeDir: core.homeDir,
-    // Plugin callbacks exec THIS Rove where that is expressible as one
-    // absolute path, else the invoked name on PATH (see plugin-bin-path.ts).
-    plugins: { binPath: resolvePluginBinPath() },
-    onStop: async () => {
-      await core.close()
+  let core: KobeCore | undefined
+  const server = await startDaemonServer(
+    async () => {
+      const migration = migrateRoveDaemonStateLayout()
+      for (const warning of migration.warnings) console.error(`[rove] daemon state migration will retry: ${warning}`)
+      core = await createKobeCore()
+      const swept = sweepIndexLeftovers(core.store.stateDir)
+      if (swept.lock || swept.tmp.length > 0) {
+        console.error(
+          `[rove] swept crash leftovers in ${core.store.stateDir}: ` +
+            `${swept.tmp.length} orphaned staging file(s) (${swept.tmpBytes} bytes)` +
+            `${swept.lock ? ", stale task-index lockfile" : ""}`,
+        )
+      }
+      return core.orchestrator
     },
-  })
+    {
+      runtime: daemonRuntime,
+      socketPath,
+      pidPath,
+      // Plugin callbacks exec THIS Rove where that is expressible as one
+      // absolute path, else the invoked name on PATH (see plugin-bin-path.ts).
+      plugins: { binPath: resolvePluginBinPath() },
+      onStop: async () => {
+        await core?.close()
+      },
+    },
+  )
   console.log(`${CLI_NAME} daemon: listening on ${server.socketPath}`)
 
   const shutdown = async () => {
     await server.close()
-    await core.close()
     process.exit(0)
   }
   process.once("SIGINT", () => void shutdown())

@@ -289,6 +289,18 @@ export class PtyHost {
     }
   }
 
+  /** Compare and remove synchronously, so a reopened key cannot inherit an old kill. */
+  killIfGeneration(
+    key: string,
+    expectedGeneration: string,
+  ): { killed: true } | { killed: false; reason: "missing-session" | "generation-mismatch" } {
+    const session = this.sessions.get(key)
+    if (!session) return { killed: false, reason: "missing-session" }
+    if (session.generation !== expectedGeneration) return { killed: false, reason: "generation-mismatch" }
+    void this.kill(key)
+    return { killed: true }
+  }
+
   /** End the child AND forget the session (explicit close / task deletion). */
   kill(key: string): Promise<void> {
     const session = this.sessions.get(key)

@@ -18,6 +18,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
+import { acquireSync, releaseSync } from "../../src/orchestrator/index/lockfile.ts"
 import { setPersistedString } from "../../src/state/repos.ts"
 import {
   getPersistedBool,
@@ -98,6 +99,53 @@ describe("loadStateFile", () => {
     expect(fs.readFileSync(path.join(path.dirname(statePath()), backup as string), "utf8")).toBe("{not valid json")
   })
 })
+
+test("a corrupt-file reader never moves a file while another writer owns its repair", () => {
+  fs.mkdirSync(path.dirname(statePath()), { recursive: true })
+  fs.writeFileSync(statePath(), "{corrupt", "utf8")
+  const token = acquireSync(`${statePath()}.lock`)
+  try {
+    expect(loadStateFile()).toEqual({})
+    expect(fs.readFileSync(statePath(), "utf8")).toBe("{corrupt")
+    writeDisk({ repaired: true })
+    expect(loadStateFile()).toEqual({ repaired: true })
+  } finally {
+    releaseSync(`${statePath()}.lock`, token)
+  }
+  expect(readDisk()).toEqual({ repaired: true })
+})
+
+test("a throwing mutation releases its lock without persisting the tentative change", () => {
+  writeDisk({ existing: true })
+  expect(() =>
+    updateStateFile((state) => {
+      state.tentative = true
+      throw new Error("abort")
+    }),
+  ).toThrow("abort")
+  patchStateFile({ next: true })
+  expect(readDisk()).toEqual({ existing: true, next: true })
+})
+
+test("replace shares transaction ordering with patches", () => {
+  patchStateFile({ before: true })
+  replaceStateFile({ reset: true })
+  patchStateFile({ after: true })
+  expect(readDisk()).toEqual({ reset: true, after: true })
+})
+
+test("a nested mutation times out without losing the outer snapshot or its lock release", () => {
+  writeDisk({ existing: true })
+  expect(() =>
+    updateStateFile(() => {
+      patchStateFile({ nested: true })
+      return undefined
+    }),
+  ).toThrow("locked by another Rove instance")
+  expect(readDisk()).toEqual({ existing: true })
+  patchStateFile({ retry: true })
+  expect(readDisk()).toEqual({ existing: true, retry: true })
+}, 10_000)
 
 describe("patchStateFile — the lost-update fix", () => {
   test("interleaved writers do not lose each other's keys", () => {

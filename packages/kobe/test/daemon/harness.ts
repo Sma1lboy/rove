@@ -112,7 +112,7 @@ export async function bootDaemonHarness(opts: DaemonHarnessOptions = {}): Promis
   for (const [key, value] of Object.entries(opts.env ?? {})) setEnv(key, value)
   opts.seedHome?.(dir)
 
-  const server = await startDaemonServer(opts.orchestrator ?? fakeOrchestrator(), {
+  const server = await startDaemonServer(() => opts.orchestrator ?? fakeOrchestrator(), {
     runtime: daemonRuntime,
     socketPath,
     pidPath,

@@ -40,8 +40,18 @@ Restart Rove to apply a hand edit everywhere.
 defaults, so a typo can't wedge the app; worst case a preference resets. If
 the file becomes invalid JSON, Rove renames it to
 `state.json.corrupt-<timestamp>` and starts fresh rather than deleting it.
-Concurrent Rove processes re-read before writing, so they don't clobber each
-other.
+Rove serializes each complete read, mutation, and atomic write with the
+state-file lock, so concurrent processes changing different keys preserve
+both changes. A whole-state reset takes the same lock and intentionally
+replaces all keys. Hand edits do not participate in this lock; finish editing
+before changing settings in another Rove process.
+
+Corruption backup also takes the write lock and re-reads the file before
+renaming it. A reader that cannot immediately acquire the lock returns defaults
+without moving the file, allowing an active writer to finish its repair.
+Writers wait up to five seconds for contention and then report failure. The UI
+retains unsuccessful dirty-key patches for its next flush; CLI writes report
+the error instead of claiming the setting was saved.
 
 ## Settings reference
 

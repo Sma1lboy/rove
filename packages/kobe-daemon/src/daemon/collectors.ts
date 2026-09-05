@@ -80,22 +80,26 @@ export interface AutomationCollectorDeps {
  * by hand in another tab says nothing about what the task's command is, and
  * secondary engine tabs may legitimately run another vendor. Naming +
  * eligibility are engine-owned (`runtime.resolveProtocolUpgrade`, absent →
- * never upgrades); the write is fire-and-forget so a slow store never
- * stalls the observer, and activity claims are untouched — a sniff names an
+ * never upgrades); the observer drains the returned write before shutdown,
+ * and activity claims are untouched — a sniff names an
  * engine, it does not resurrect a dot. Idempotent by construction: an
  * upgraded record stops being generic, so the next tick resolves null.
  */
 export function createProtocolUpgradeReporter(
   orch: Pick<DaemonOrchestrator, "getTask" | "setCommand">,
   runtime: Pick<DaemonRuntimeAdapter, "resolveProtocolUpgrade">,
-): (taskId: string, tabId: string, evidence: { readonly walkVendor: string | null; readonly title: string }) => void {
+): (
+  taskId: string,
+  tabId: string,
+  evidence: { readonly walkVendor: string | null; readonly title: string },
+) => void | Promise<void> {
   return (taskId, tabId, evidence) => {
     if (tabId !== "tab-1") return
     const task = orch.getTask(taskId)
     if (!task) return
     const upgrade = runtime.resolveProtocolUpgrade?.(task, evidence)
     if (!upgrade) return
-    void orch
+    return orch
       .setCommand(taskId, upgrade.command, upgrade.vendor)
       .then(() =>
         logDaemonInfo(
@@ -164,7 +168,7 @@ export function startDaemonCollectors(
    *  the TTL must be enforced on every daemon, including one with no
    *  routines configured. */
   deferredSweep?: DeferredSweepDeps,
-): () => void {
+): () => Promise<void> {
   // Activity observer: first tick immediately (restart seeding), then the
   // slow poll; gated per-tick on subscribers like every collector here. Its
   // per-session evidence also feeds the tier-(b) protocol sniff.
@@ -309,20 +313,23 @@ export function startDaemonCollectors(
       )
     : () => {}
 
-  // Same teardown order server.ts's close() used before the extraction.
-  return () => {
+  return async () => {
     if (updateTimer) clearInterval(updateTimer)
-    stopActivityObserver()
-    stopAutoTitlePoller()
-    stopPrStatusPoller()
-    stopQuotaResumeRunner()
-    stopAutomationRunner()
-    stopDeferredPromptSweep()
-    stopQuotaUsagePoller()
-    stopUiPrefsWatcher()
-    stopKeybindingsWatcher()
-    stopWorktreeChangesCollector()
-    stopTranscriptActivityCollector()
-    stopContextUsageCollector()
+    await Promise.allSettled(
+      [
+        stopActivityObserver,
+        stopAutoTitlePoller,
+        stopPrStatusPoller,
+        stopQuotaResumeRunner,
+        stopAutomationRunner,
+        stopDeferredPromptSweep,
+        stopQuotaUsagePoller,
+        stopUiPrefsWatcher,
+        stopKeybindingsWatcher,
+        stopWorktreeChangesCollector,
+        stopTranscriptActivityCollector,
+        stopContextUsageCollector,
+      ].map(async (stop) => stop()),
+    )
   }
 }
