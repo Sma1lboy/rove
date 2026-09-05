@@ -3,7 +3,12 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, test } from "vitest"
-import { buildEngineSessionLaunch, engineLaunchLine, engineSessionKey } from "../../src/engine/session-launch.ts"
+import {
+  buildEngineSessionLaunch,
+  engineLaunchLine,
+  engineSessionKey,
+  initMarkerSaysFinished,
+} from "../../src/engine/session-launch.ts"
 
 const tempDirs: string[] = []
 
@@ -251,6 +256,48 @@ describe("hosted engine session launch", () => {
       const { dir, marker } = scratch()
       runLaunch(dir, launchScript("export ROVE_INIT_PROBE=1; exit 1", marker))
       expect(fs.existsSync(`${marker}.env`)).toBe(false)
+    })
+
+    // Pre-0.9.101 launches marked success by TOUCHING the marker, so any home
+    // that has been around a while is full of EMPTY ones — and the worktree
+    // name pool is finite, so a fresh task lands on one routinely. The shell
+    // re-runs init on an empty marker; a reader that only asked `existsSync`
+    // said the opposite and probed for an engine that was still a `bun
+    // install` away, which is how `add` came back SESSION_FAILED with a
+    // progress bar as the reason for a task that then started fine.
+    test("an empty pre-0.9.101 marker re-runs init, and the shared predicate agrees", () => {
+      const { dir, marker } = scratch()
+      fs.mkdirSync(path.dirname(marker), { recursive: true })
+      fs.writeFileSync(marker, "")
+      expect(initMarkerSaysFinished(marker)).toBe(false)
+
+      const counter = path.join(dir, "runs")
+      runLaunch(dir, launchScript(`printf x >> ${JSON.stringify(counter)}`, marker))
+
+      expect(fs.readFileSync(counter, "utf8")).toBe("x")
+      // …and this launch replaced it with a recorded code, so the same
+      // worktree path never pays for it twice.
+      expect(fs.readFileSync(marker, "utf8")).toBe("0")
+      expect(initMarkerSaysFinished(marker)).toBe(true)
+    })
+  })
+
+  describe("initMarkerSaysFinished", () => {
+    // The question every reader asks is "has this run of init STOPPED", not
+    // "does the file exist" — the launch script deletes the marker before
+    // re-running, so a recorded failure ("1") is finished and the retry shows
+    // up as the absent state below.
+    test.each([
+      ["absent — init never ran, or this launch deleted it to retry", null, false],
+      ["empty — a pre-0.9.101 success touch the shell will re-run", "", false],
+      ["a recorded success", "0", true],
+      ["a recorded failure", "1", true],
+    ])("%s", (_label, contents, finished) => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-init-marker-"))
+      tempDirs.push(dir)
+      const marker = path.join(dir, "marker")
+      if (contents !== null) fs.writeFileSync(marker, contents)
+      expect(initMarkerSaysFinished(marker)).toBe(finished)
     })
   })
 

@@ -12,7 +12,6 @@
  * they claim a spawn succeeded — have to look.
  */
 
-import { existsSync } from "node:fs"
 import type { PtyPeekResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
 import type { PsSnapshot } from "./foreground.ts"
@@ -24,7 +23,7 @@ import {
   writeHostedPromptIfClear,
 } from "./hosted-session.ts"
 import { sessionHasEngine } from "./session-engine-presence.ts"
-import { ENGINE_EXIT_BANNER, REPO_INIT_TIMEOUT_SECONDS } from "./session-launch.ts"
+import { ENGINE_EXIT_BANNER, REPO_INIT_TIMEOUT_SECONDS, initMarkerSaysFinished } from "./session-launch.ts"
 
 /** Bounds for the first-message readiness wait (paste-delivery vendors). */
 const FIRST_MESSAGE_ENGINE_TIMEOUT_MS = 20_000
@@ -93,7 +92,7 @@ export async function awaitEngineProcess(
       const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
       const session = sessions.find((s) => s.key === key)
       if (!session?.alive) return null
-      if (existsSync(opts.initMarkerPath)) break
+      if (initMarkerSaysFinished(opts.initMarkerPath)) break
       await sleep(opts.intervalMs ?? FIRST_MESSAGE_POLL_INTERVAL_MS)
     }
   }

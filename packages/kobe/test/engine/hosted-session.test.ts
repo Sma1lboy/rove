@@ -174,7 +174,10 @@ describe("pastePromptWhenEngineUp (first-message paste delivery)", () => {
     let markerChecked = false
     const sleep = vi.fn().mockImplementation(async () => {
       if (!markerChecked) {
-        fs.writeFileSync(marker, "")
+        // The recorded exit code, which is what the launch script writes when
+        // init finishes. An EMPTY marker is the pre-0.9.101 shape the shell
+        // itself re-runs init on — see the sibling test below.
+        fs.writeFileSync(marker, "0")
         markerChecked = true
       }
     })
@@ -245,6 +248,55 @@ describe("pastePromptWhenEngineUp (first-message paste delivery)", () => {
 
     expect(delivered).not.toBeNull()
     expect(markerSleeps).toBe(2) // exited on the poll right after it appeared
+    fs.rmSync(tmp, { recursive: true, force: true })
+  })
+
+  // The stale-marker half of the same rule: an EMPTY marker is what
+  // pre-0.9.101 launches left on success, and the launch shell re-runs init on
+  // one — so it means "still running" here too. Ending the wait on it handed
+  // the engine-startup budget to a shell that had not started an engine yet.
+  it("keeps waiting through an EMPTY pre-0.9.101 marker until a code is recorded", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-hosted-init-empty-"))
+    const marker = path.join(tmp, "marker")
+    fs.writeFileSync(marker, "")
+    let written = ""
+    const request = vi.fn().mockImplementation((name: string, payload: unknown) => {
+      if (name === "pty.peek")
+        return Promise.resolve({
+          exists: true,
+          alive: true,
+          offset: 0,
+          data: Buffer.from(`\x1b[?2004h${written}`).toString("base64"),
+        })
+      if (name === "pty.write") {
+        written += (payload as { data?: string })?.data ?? ""
+        return Promise.resolve({})
+      }
+      return Promise.resolve({ sessions: [session("task-a::tab-1")] })
+    })
+    const rpc: HostedSessionRpc = { request }
+
+    let markerSleeps = 0
+    let markerLanded = false
+    const sleep = vi.fn().mockImplementation(async () => {
+      if (markerLanded) return
+      markerSleeps += 1
+      if (markerSleeps === 3) {
+        fs.writeFileSync(marker, "0")
+        markerLanded = true
+      }
+    })
+
+    const delivered = await pastePromptWhenEngineUp(rpc, "task-a::tab-1", "kimi", "fix it", {
+      initMarkerPath: marker,
+      initTimeoutMs: 600_000,
+      sleep,
+      snapshot: async () => withEngine,
+    })
+
+    expect(delivered).not.toBeNull()
+    // Zero would mean the empty marker ended the wait on the first look.
+    expect(markerSleeps).toBe(3)
     fs.rmSync(tmp, { recursive: true, force: true })
   })
 
