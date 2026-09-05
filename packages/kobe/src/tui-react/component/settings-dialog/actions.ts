@@ -36,7 +36,10 @@ export async function confirmResetState(
     { danger: true },
   )
   if (ok !== true) return
-  kv.clear()
+  if (!kv.clear()) {
+    await DialogConfirm.show(dialog, t("settings.reset.failedTitle"), t("settings.reset.failedBody"), "cancel")
+    return
+  }
   removeTasksFileForReset()
   destroyRendererSafely(renderer, "reset")
   process.stderr.write(`${t("settings.reset.done")}\n`)

@@ -40,8 +40,8 @@ export interface KvCore {
   seed(key: string, value: unknown): void
   /** Synchronously flush pending dirty keys (before process.exit). */
   flush(): boolean
-  /** Wipe every persisted key and synchronously write the empty file. */
-  clear(): void
+  /** Wipe every persisted key; false preserves the snapshot and pending edits. */
+  clear(): boolean
 }
 
 export function createKvCore(): KvCore {
@@ -117,14 +117,16 @@ export function createKvCore(): KvCore {
       return writeNow("flush")
     },
     clear() {
-      cancelTimer()
-      dirtyKeys.clear() // nothing pending survives a full wipe
-      store.set({})
       try {
         replaceStateFile({})
       } catch (err) {
         console.error("[rove] kv clear write failed:", err)
+        return false
       }
+      cancelTimer()
+      dirtyKeys.clear()
+      store.set({})
+      return true
     },
   }
 }
