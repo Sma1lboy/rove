@@ -152,6 +152,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `COMPOSER_BUSY` | The target composer held un-sent text; nothing was pasted. |
 | `TAB_RESTORED` | The `--tab` exists with its scrollback but nothing runs in it; pass `--respawn`. |
 | `ENGINE_NOT_RUNNING` | The tab's engine exited into a plain shell, so a paste would run as shell commands. |
+| `ENGINE_PROBE_FAILED` | The `ps` probe behind that check failed or blew its deadline, so the tab was never read either way. |
 | `DISPATCHER_UNREACHABLE` | A bare `send` whose dispatcher tab is dead and whose task has no live engine. |
 | `NOT_DELIVERED` | The task was created but the prompt never reached its engine. |
 | `EMPTY_SUCCESS_REPORT` | A `succeeded:` report from a branch with 0 commits; commit, or pass `--allow-empty`. |
@@ -483,8 +484,10 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   existing tab is a `BAD_FLAG` error rather than a silent switch.
   Delivery needs a live engine in that tab: one that exited into the
   keep-alive shell refuses with `ENGINE_NOT_RUNNING` and a `--tab new` hint
-  instead of pasting into a shell. Any registered engine passes, so a tab may
-  run a different vendor than its task. Without `--tab`, the canonical target
+  instead of pasting into a shell. When the `ps` probe behind that check fails
+  or blows its deadline the refusal is `ENGINE_PROBE_FAILED` instead — the tab
+  was never looked at, so nothing is claimed about its engine. Any registered
+  engine passes, so a tab may run a different vendor than its task. Without `--tab`, the canonical target
   is a live engine tab (`tab-1` first, then any surviving engine tab); when
   live tabs exist but none resolves as an engine, `send` refuses with
   `NO_ENGINE_TAB` rather than silently spawning a duplicate engine. Only a
