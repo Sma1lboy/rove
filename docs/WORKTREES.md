@@ -150,6 +150,13 @@ those paths, because `git status` will not. An ignored entry OVER the budget
 (a `node_modules/`, a build directory) is not treated as work: it neither
 blocks the delete nor lands in the snapshot.
 
+If that `git status --ignored` cannot run at all, the delete is **refused**,
+not allowed. An empty list is this gate's permission to destroy the directory,
+so a listing that failed used to hand out that permission on the strength of
+having failed. The refusal says the listing failed rather than naming paths,
+and `--force` still overrides it — which is the safer order, because the
+forced path takes a salvage snapshot first.
+
 ### Landing with `--delete-branch`
 
 `land --delete-branch` deletes the branch with `git branch -D`, which removes

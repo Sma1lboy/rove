@@ -86,6 +86,21 @@ export function auditDeletionRemoved(taskId: string, task: DaemonTask | undefine
 }
 
 /**
+ * `--delete-branch` was asked for and git refused. Logged BEFORE the `removed`
+ * line, which names the branch and would otherwise be the only record — and
+ * reads as confirmation that the branch went with the worktree.
+ *
+ * Not an error: the branch surviving is the recoverable half, and refusing to
+ * delete an unmerged one is git protecting work. It just has to be SAID.
+ */
+export function auditDeletionBranchKept(taskId: string, branch: string, reason: string): void {
+  logDaemonInfo(
+    SUBSYSTEM,
+    `branch kept task ${taskId} branch=${branch} — git refused the delete: ${reason.replace(/\s+/g, " ").trim()}. Nothing else will remove it; \`git branch -D ${branch}\` does, and drops its reflog with it.`,
+  )
+}
+
+/**
  * The worktree removal threw. The task stays in `deletion.phase === "error"`,
  * but its session was already torn down and its Inbox/activity state cleared —
  * so this line also names what has ALREADY been undone, which is the half a

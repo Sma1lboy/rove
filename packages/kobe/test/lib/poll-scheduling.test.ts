@@ -126,6 +126,23 @@ describe("applyJitter", () => {
     expect(applyJitter(1000, 0, () => 0)).toBe(1000) // no jitter
     expect(applyJitter(1000, 5, () => 0)).toBe(0) // clamp to ratio 1 → max(0, -1000) extreme
   })
+  /**
+   * The line above is satisfied by EITHER mechanism on its own — with the
+   * ratio clamp gone the floor returns 0, and with the floor gone the clamp
+   * returns exactly 0 — so only deleting both made it red. Each half needs a
+   * case the other cannot cover.
+   */
+  test("an over-1 ratio clamps on the UPPER side too, not just the lower", () => {
+    // Unclamped this is delay·(1+5) = 6000, six times the documented
+    // [0, 2·delay] band, and nothing asserted on it.
+    expect(applyJitter(1000, 5, () => 1)).toBe(2000)
+  })
+  test("a negative delay floors at 0 with the ratio clamp uninvolved", () => {
+    // ratio 0 means the clamp cannot be what produces this; only the
+    // `Math.max(0, …)` can. A delay computed as `deadline - now` goes
+    // negative whenever the deadline has already passed.
+    expect(applyJitter(-100, 0, () => 0.5)).toBe(0)
+  })
 })
 
 describe("exponentialBackoff", () => {
@@ -137,6 +154,15 @@ describe("exponentialBackoff", () => {
   test("caps at capMs and clamps negative attempts to the base", () => {
     expect(exponentialBackoff(1000, 10, 5000)).toBe(5000)
     expect(exponentialBackoff(1000, -1, 60_000)).toBe(1000)
+  })
+  test("the cap still applies on the first attempt, where every poller starts", () => {
+    // `attempt <= 0` returns before the doubling, and both cases above use a
+    // cap ABOVE the base — so `Math.min(baseMs, capMs)` degrading to `baseMs`
+    // was invisible. `pr-status.ts` calls `exponentialBackoff(base,
+    // failures - 1, cap)`, so attempt 0 is the branch a poller's FIRST failure
+    // takes, every time.
+    expect(exponentialBackoff(1000, 0, 500)).toBe(500)
+    expect(exponentialBackoff(1000, -3, 500)).toBe(500)
   })
 })
 

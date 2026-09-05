@@ -57,10 +57,10 @@ describe("loadPreviewData", () => {
     expect(data).toEqual({ kind: "code", text: "export const a = 1\n" })
   })
 
-  test("a missing file degrades to empty content, not a throw", async () => {
+  test("a missing file reports a failed read without throwing", async () => {
     const repo = makeRepo()
     const data = await loadPreviewData(repo, "nope.ts")
-    expect(data).toEqual({ kind: "code", text: "" })
+    expect(data).toMatchObject({ kind: "error" })
   })
 
   // Why: a PNG decoded as utf8 renders as mojibake — image extensions and

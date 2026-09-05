@@ -274,8 +274,11 @@ register any other CLI from **Settings → Engines**, or by hand:
 
 Switching an engine OFF in **Settings → Engines** (`space`) records it under
 `disabledEngineIds`; it keeps every override and simply stops being offered
-when you pick an engine for a task. The global default engine can't be left
-disabled; switching it off hands the default to the first engine still on.
+when you pick an engine for a task. That covers the headless path too: a
+disabled engine is skipped by `rove api add`'s repo default, so switching one
+off after using it in a project does not leave that project still launching it.
+The global default engine can't be left disabled; switching it off hands the
+default to the first engine still on.
 
 Being in `customEngineIds` *is* the registration. There's no other step.
 Stick to `^[a-z][a-z0-9_-]{0,47}$` for ids: the web settings API enforces

@@ -33,6 +33,7 @@ import type { ExecHost } from "../../exec/exec-host.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
 import { type BranchDeps, deleteBranchAnchored } from "./manager-branch.ts"
 import { canonicalize, isUnderManagedWorktreesRoot, requireAbsolute } from "./paths.ts"
+import type { IgnoredWorkProbe } from "./salvage-ignored.ts"
 import { type SalvageRecord, salvageWorktree } from "./salvage.ts"
 import { parseWorktreeListPorcelain } from "./worktree-list.ts"
 
@@ -75,6 +76,13 @@ export interface RemoveOpts {
    * there. A task carries `task.branch`; a bare worktree path does not.
    */
   readonly branch?: string
+  /**
+   * Notified when `deleteBranch` was asked for and git REFUSED — an unmerged
+   * branch (`-d` without force), one another worktree still has checked out.
+   * The removal itself still succeeds, exactly as before; this is the only
+   * thing that stops the caller reporting a branch it never deleted.
+   */
+  readonly onBranchKept?: (kept: { readonly branch: string; readonly reason: string }) => void
   /** Notified with the snapshot a force-removal took (null = nothing to
    *  save, or the snapshot could not be written). */
   readonly onSalvage?: (record: SalvageRecord | null) => void
@@ -95,8 +103,9 @@ export interface RemoveDeps {
   currentBranch(worktreePath: string): Promise<string | null>
   /** Whether the worktree has uncommitted or untracked changes. */
   isDirty(worktreePath: string): Promise<boolean>
-  /** The gitignored paths a removal would destroy — work `isDirty` is blind to. */
-  ignoredWork(worktreePath: string): Promise<readonly string[]>
+  /** The gitignored paths a removal would destroy — work `isDirty` is blind to,
+   *  or `"unknown"` when the listing did not run. */
+  ignoredWork(worktreePath: string): Promise<IgnoredWorkProbe>
   /** Deps for the opt-in post-removal branch delete. */
   branchDeps(): BranchDeps
 }
@@ -223,7 +232,8 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
       // believes a worktree has checked out). Best-effort, like every other
       // branch delete: it runs after the removal is otherwise complete.
       if (opts?.deleteBranch === true && opts.branch) {
-        await deleteBranchAnchored(deps.branchDeps(), exec, goneRepo, opts.branch, { force })
+        const outcome = await deleteBranchAnchored(deps.branchDeps(), exec, goneRepo, opts.branch, { force })
+        if (!outcome.deleted) opts.onBranchKept?.({ branch: opts.branch, reason: outcome.reason })
       }
     }
     return
@@ -332,7 +342,18 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
     // removal above would destroy it with no salvage snapshot (the force path
     // is the only one that takes one). Same rule as the snapshot, so the
     // refusal names exactly what a `--force` retry would rescue.
-    const ignored = await deps.ignoredWork(worktreePath).catch(() => [])
+    // NOT `.catch(() => [])`. An empty list is this gate's permission to
+    // destroy the directory, so a probe that threw or exited non-zero used to
+    // hand out that permission on the strength of having failed — the same
+    // shape as the `isDirty` call above, which deliberately lets its failure
+    // throw (`daemon-worktree-adapter.ts` names that as why a destructive path
+    // may not read an unverified verdict).
+    const ignored = await deps.ignoredWork(worktreePath)
+    if (ignored === "unknown") {
+      throw new Error(
+        `remove(): refusing to remove worktree at ${worktreePath} — git status --ignored failed, so nothing can confirm it holds no gitignored work (pass { force: true } to override, which salvages first)`,
+      )
+    }
     if (ignored.length > 0) {
       throw new Error(
         `remove(): refusing to remove worktree at ${worktreePath} — it holds gitignored work git status cannot see: ${ignored.join(", ")} (pass { force: true } to override)`,
@@ -366,5 +387,8 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
   // worktree's own reflog died with the directory a few lines up. Runs on the
   // residue path too: by then the branch is checked out nowhere, which is the
   // only thing that makes it undeletable.
-  if (branch) await deleteBranchAnchored(deps.branchDeps(), exec, repo, branch, { force })
+  if (branch) {
+    const outcome = await deleteBranchAnchored(deps.branchDeps(), exec, repo, branch, { force })
+    if (!outcome.deleted) opts?.onBranchKept?.({ branch, reason: outcome.reason })
+  }
 }

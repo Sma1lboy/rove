@@ -22,7 +22,7 @@
  */
 
 import type { MutableRefObject } from "react"
-import { type CIFailingCheck, buildCIPromptForWorktree } from "../../tui/ops/ci-prompt"
+import { type CIFailingChecksRead, buildCIPromptForWorktree } from "../../tui/ops/ci-prompt"
 import { useT } from "../i18n"
 
 /** The row facts the prompt names — read at call time, not captured. */
@@ -40,8 +40,18 @@ export type FixCIDeps = {
   /** The row's branch + PR number; `null` when the task is gone. */
   getTask: (taskId: string) => FixCITask | null
   /** `RemoteOrchestrator.failingChecks`. */
-  fetchChecks: (taskId: string) => Promise<{ checks: readonly CIFailingCheck[]; totalFailing: number }>
+  fetchChecks: (taskId: string) => Promise<CIFailingChecksRead>
   build?: typeof buildCIPromptForWorktree
+}
+
+/** `gh`'s stderr is multi-line (an error plus hints); a toast gets one line. */
+function firstLine(detail: string): string {
+  return (
+    detail
+      .split("\n")
+      .find((line) => line.trim().length > 0)
+      ?.trim() ?? detail.trim()
+  )
 }
 
 export function fixCIAction(deps: FixCIDeps): (taskId: string) => Promise<void> {
@@ -51,9 +61,21 @@ export function fixCIAction(deps: FixCIDeps): (taskId: string) => Promise<void> 
     const send = deps.sendToEngineFn.current
     const task = deps.getTask(taskId)
     if (!wt || !send || !task) return
-    const { checks, totalFailing } = await deps.fetchChecks(taskId)
-    // `gh` unavailable, the run expired, or the checks turned green while the
-    // menu was open. Saying so beats pasting a prompt with no evidence in it.
+    const { checks, totalFailing, unavailable } = await deps.fetchChecks(taskId)
+    // `gh` never answered — not installed, not authenticated, no network. The
+    // old toast covered this case with "the checks are no longer red", which
+    // is the one thing it definitely does not mean while the badge is red, so
+    // this branch names `gh` as the thing that failed.
+    //
+    // The toast card is 39 cells of text, so the VERDICT leads and `gh`'s own
+    // line trails: the first line is what has to survive truncation. The full
+    // stderr goes to `~/.rove/daemon.log`, which is where a multi-line hint
+    // ("please run: gh auth login") is actually readable.
+    if (unavailable) {
+      return deps.notifyError(deps.t("files.toast.ciChecksUnavailable", { detail: firstLine(unavailable.detail) }))
+    }
+    // Nothing red: the run expired, or the checks turned green while the menu
+    // was open. Saying so beats pasting a prompt with no evidence in it.
     if (checks.length === 0) return deps.notifyError(deps.t("files.toast.ciNoFailingChecks"))
     const prompt = await build(wt, {
       branch: task.branch || "HEAD",

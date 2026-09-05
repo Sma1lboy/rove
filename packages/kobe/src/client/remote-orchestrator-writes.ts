@@ -19,7 +19,7 @@ import type { LandPreflight } from "../orchestrator/land-preflight.ts"
 import type { LandResult } from "../orchestrator/land.ts"
 import type { WorktreeResidue } from "../orchestrator/worktree/manager-remove.ts"
 import type { StoredFieldNote } from "../state/field-notes.ts"
-import type { CIFailingCheck } from "../tui/ops/ci-prompt.ts"
+import type { CIFailingCheck, CIFailingChecksRead } from "../tui/ops/ci-prompt.ts"
 import type { Task, TaskId, TaskStatus, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree, WorktreeProject } from "../types/worktree.ts"
 import { deserializeTask } from "./remote-orchestrator-payloads.ts"
@@ -342,14 +342,20 @@ export async function syncBaseOp(
  * sidebar's "Fix failing checks". On demand only; the daemon spawns `gh` per
  * call, so this must never be wired to a poll.
  */
-export async function failingChecksOp(
-  client: KobeDaemonClient,
-  taskId: string,
-): Promise<{ checks: readonly CIFailingCheck[]; totalFailing: number }> {
-  const res = await client.request<{ checks?: readonly CIFailingCheck[]; totalFailing?: number }>("pr.failingChecks", {
-    taskId,
-  })
-  return { checks: res.checks ?? [], totalFailing: res.totalFailing ?? 0 }
+export async function failingChecksOp(client: KobeDaemonClient, taskId: string): Promise<CIFailingChecksRead> {
+  const res = await client.request<{
+    checks?: readonly CIFailingCheck[]
+    totalFailing?: number
+    unavailable?: { reason: string; detail: string }
+  }>("pr.failingChecks", { taskId })
+  return {
+    checks: res.checks ?? [],
+    totalFailing: res.totalFailing ?? 0,
+    // Carried through verbatim. An empty `checks` is three different answers
+    // on the daemon side and only this field separates them; dropping it here
+    // would put the collapse back one layer down.
+    ...(res.unavailable ? { unavailable: res.unavailable } : {}),
+  }
 }
 
 /** A repo's daemon-owned issues (`issue.list`) — the TUI kanban page's read. */

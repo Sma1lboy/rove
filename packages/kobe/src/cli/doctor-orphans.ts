@@ -43,7 +43,10 @@
  * failure is closed by construction — the sweep skips what it cannot verify —
  * and it costs nothing in practice, because what actually leaks is the
  * long-running third-party program (`bun`, `node`, a browser, a CLI tool),
- * whose environment reads fine.
+ * whose environment reads fine. A probe that could not run AT ALL is a
+ * different thing and is reported as one: `ps eww` failing to spawn, or Linux
+ * refusing every `/proc/<pid>/environ` under `hidepid=2`, leaves every
+ * candidate unclassified, and "none" there is a claim nothing checked.
  */
 
 import { readFileSync } from "node:fs"
@@ -67,7 +70,32 @@ export interface Orphan extends PsRow {
   readonly pgid: number
 }
 
-async function run(argv: readonly string[]): Promise<{ code: number; stdout: string }> {
+/** How a probe subprocess reports back. `code` is load-bearing: a spawn that
+ *  never ran returns 127 with empty stdout, which is indistinguishable from a
+ *  successful probe that found nothing unless somebody reads the code. */
+export interface ProbeResult {
+  readonly code: number
+  readonly stdout: string
+}
+
+export type ProbeRunner = (argv: readonly string[]) => Promise<ProbeResult>
+
+/**
+ * Test seam for the two probes the predicate rests on.
+ *
+ * `platform` is here because the environment read has two entirely different
+ * implementations (procfs on Linux, `ps eww` everywhere else) and a test that
+ * cannot pick one only ever exercises whichever OS it happens to run on —
+ * which is how a check nobody runs on Linux ships broken on Linux.
+ */
+export interface OrphanProbeDeps {
+  readonly run?: ProbeRunner
+  readonly platform?: string
+  /** Reads `/proc/<pid>/environ`; throws with an errno `code` like the real one. */
+  readonly readEnviron?: (pid: number) => string
+}
+
+const run: ProbeRunner = async (argv) => {
   try {
     const proc = Bun.spawn([...argv], { stdin: "ignore", stdout: "pipe", stderr: "ignore" })
     const [stdout, code] = await Promise.all([new Response(proc.stdout).text().catch(() => ""), proc.exited])
@@ -120,31 +148,58 @@ export function orphanCandidates(
  * the word-boundary match, so an argv that merely CONTAINS the marker text
  * cannot pass for the variable itself.
  */
-async function markedPids(pids: readonly number[]): Promise<Set<number>> {
+export interface MarkedPidsResult {
+  readonly marked: Set<number>
+  /**
+   * Why the environment read could not be TRUSTED, or null when it ran.
+   *
+   * This is the step that turns a candidate into a finding, so a probe that
+   * never ran produces the same empty set as a machine with nothing wrong —
+   * and doctor printed "✓ none" either way. A process that simply exited
+   * between the two passes is still not a finding (ENOENT is an answer); a
+   * refusal to read (`hidepid=2`, another uid, a `ps` that would not spawn)
+   * is not.
+   */
+  readonly failed: string | null
+}
+
+export async function markedPids(pids: readonly number[], deps: OrphanProbeDeps = {}): Promise<MarkedPidsResult> {
+  const runProbe = deps.run ?? run
+  const readEnviron = deps.readEnviron ?? ((pid: number) => readFileSync(`/proc/${pid}/environ`, "utf8"))
   const marked = new Set<number>()
-  if (pids.length === 0) return marked
-  if (process.platform === "linux") {
+  if (pids.length === 0) return { marked, failed: null }
+  if ((deps.platform ?? process.platform) === "linux") {
+    let refused: string | null = null
     for (const pid of pids) {
       try {
-        if (readFileSync(`/proc/${pid}/environ`, "utf8").split("\0").includes(PTY_MARKER)) marked.add(pid)
-      } catch {
-        // Gone between the two passes, or not ours to read — not a finding.
+        if (readEnviron(pid).split("\0").includes(PTY_MARKER)) marked.add(pid)
+      } catch (err) {
+        // ENOENT means it exited between the two passes — an answer, not a
+        // failure. EACCES/EPERM means the kernel refused us, which under
+        // `hidepid=2` or across uids is EVERY candidate, and reporting that
+        // as "none" is the bug.
+        const code = (err as NodeJS.ErrnoException).code
+        if (code !== "ENOENT" && code !== "ESRCH") refused ??= `/proc/${pid}/environ: ${code ?? "unreadable"}`
       }
     }
-    return marked
+    return { marked, failed: refused }
   }
-  const result = await run(["ps", "eww", "-o", "pid=,command=", "-p", pids.join(",")])
+  const result = await runProbe(["ps", "eww", "-o", "pid=,command=", "-p", pids.join(",")])
+  // A macOS `ps eww` that RAN but omitted a SIP-protected binary's environment
+  // stays closed by construction (see the file header) — only a `ps` that did
+  // not run at all is reported here.
+  if (result.code !== 0) return { marked, failed: `ps eww exited ${result.code}` }
   const marker = new RegExp(`(^|\\s)${PTY_MARKER}(\\s|$)`)
   for (const line of result.stdout.split("\n")) {
     const pid = Number.parseInt(line.trim().split(/\s+/)[0] ?? "", 10)
     if (Number.isFinite(pid) && marker.test(line)) marked.add(pid)
   }
-  return marked
+  return { marked, failed: null }
 }
 
 /** Our own process group, so the sweep can never signal the shell running it. */
-async function ownPgid(): Promise<number> {
-  const result = await run(["ps", "-o", "pgid=", "-p", String(process.pid)])
+async function ownPgid(runProbe: ProbeRunner): Promise<number> {
+  const result = await runProbe(["ps", "-o", "pgid=", "-p", String(process.pid)])
   const pgid = Number.parseInt(result.stdout.trim(), 10)
   return Number.isFinite(pgid) ? pgid : -1
 }
@@ -157,13 +212,23 @@ async function ownPgid(): Promise<number> {
  */
 export async function collectOrphans(
   liveSessionPids: ReadonlySet<number>,
+  deps: OrphanProbeDeps = {},
 ): Promise<{ orphans: Orphan[]; error: string | null }> {
-  if (process.platform === "win32") return { orphans: [], error: null }
-  const ps = await run(["ps", "-A", "-o", "pid=,ppid=,pgid=,etime=,rss=,command="])
-  if (ps.code !== 0) return { orphans: [], error: `ps exited ${ps.code}` }
+  const runProbe = deps.run ?? run
+  if ((deps.platform ?? process.platform) === "win32") return { orphans: [], error: null }
+  const ps = await runProbe(["ps", "-A", "-o", "pid=,ppid=,pgid=,etime=,rss=,command="])
+  if (ps.code !== 0) return { orphans: [], error: `could not read the process table — ps exited ${ps.code}` }
   const rows = parsePsRows(ps.stdout)
-  const candidates = orphanCandidates(rows, await ownPgid(), liveSessionPids)
-  const marked = await markedPids(candidates.map((row) => row.pid))
+  const candidates = orphanCandidates(rows, await ownPgid(runProbe), liveSessionPids)
+  // The SECOND probe gets the same treatment as the first. It did not, and it
+  // is the one that decides: with the environment read broken every candidate
+  // stays unmarked, the filter empties the list, and doctor reported a clean
+  // machine it had never managed to look at.
+  const { marked, failed } = await markedPids(
+    candidates.map((row) => row.pid),
+    deps,
+  )
+  if (failed) return { orphans: [], error: `could not read process environments — ${failed}` }
   return { orphans: candidates.filter((row) => marked.has(row.pid)), error: null }
 }
 
@@ -178,7 +243,7 @@ export function orphanDoctorLines(
   cliName: string,
   killing = false,
 ): string[] {
-  if (error) return [`orphans: ✗ could not inspect the process table — ${error}`]
+  if (error) return [`orphans: ✗ ${error}`]
   if (orphans.length === 0) return ["orphans: ✓ none — no processes left behind by a dead PTY session"]
   const totalMb = orphans.reduce((sum, row) => sum + row.rssKb, 0) / 1024
   const lines = [

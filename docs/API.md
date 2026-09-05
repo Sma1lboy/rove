@@ -364,7 +364,8 @@ replacement in `nextCommandArgs`.
   sibling's engine). This was the `fan-out` verb, which no longer exists.
 
   `--command` picks the engine (an id from `engine-list`, or a full command
-  line). Omitted, the repo's default engine is used.
+  line). Omitted, the repo's default engine is used — skipping any engine
+  switched off in Settings → Engines, the same as the TUI's picker.
 
   `--repo` accepts paths `rove add` refuses — a checkout under `.scratch/`,
   `.dev-sandbox/` or `$TMPDIR` gets a task here and gets
@@ -744,6 +745,20 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   and its worktree. **The git branch stays** unless `--delete-branch` is
   passed; git is the durable record, the task row is not. Needs `--force` on a
   dirty worktree; `--force` never implies `--delete-branch`.
+
+  **`--delete-branch` is best-effort and its outcome is in the daemon log, not
+  this reply.** `git branch -d` refuses a branch whose commits the base cannot
+  reach — the ordinary case for work that never landed — and the removal
+  succeeds anyway, by design. The reply cannot carry that verdict: by the time
+  `--wait` resolves, the task row it would ride on has been removed, which is
+  how `--wait` knows the deletion finished. So a refusal is logged instead, as
+  `branch kept task <id> branch=<name> — git refused the delete: <reason>` in
+  `~/.rove/daemon.log`, next to the `removed …` line. Check `git branch` if
+  you need the answer programmatically.
+
+  **The delete gate refuses what it cannot read.** Without `--force`, deletion
+  probes for gitignored work (`git status --ignored`); a probe that fails is a
+  refusal, not a pass. See `docs/WORKTREES.md`.
 
   **The removal runs in the background** — tearing down a worktree can take
   tens of seconds — so the default reply reports only that the request was

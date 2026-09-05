@@ -22,7 +22,7 @@
  * same reason — an offset would land somewhere else after 200 new lines.
  */
 
-import type { KeyEvent } from "@opentui/core"
+import { type KeyEvent, type PasteEvent, decodePasteBytes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { searchQueryKeystroke } from "../../../tui/panes/sidebar/view-core"
@@ -179,9 +179,17 @@ export function useTerminalSearch(opts: UseTerminalSearchOpts): TerminalSearch {
       if (!optsRef.current.focused || modalActive()) return
       setQuery((current) => searchQueryKeystroke(current, evt) ?? current)
     }
+    const paste = (evt: PasteEvent): void => {
+      if (evt.defaultPrevented || !optsRef.current.focused || modalActive()) return
+      const text = decodePasteBytes(evt.bytes).replace(/[\r\n]+/g, " ")
+      setQuery((current) => current + text)
+      evt.preventDefault()
+    }
     renderer.keyInput.on("keypress", listener)
+    renderer.keyInput.on("paste", paste)
     return () => {
       renderer.keyInput.off("keypress", listener)
+      renderer.keyInput.off("paste", paste)
     }
   }, [active, renderer])
 

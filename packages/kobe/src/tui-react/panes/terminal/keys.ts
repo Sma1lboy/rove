@@ -140,7 +140,7 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
       evt.preventDefault()
     }
     const forwardPaste = (evt: { bytes: Uint8Array; defaultPrevented: boolean; preventDefault(): void }) => {
-      if (evt.defaultPrevented || modalActive()) return
+      if (evt.defaultPrevented || modalActive() || optsRef.current.searchActive) return
       const text = decodePasteBytes(evt.bytes)
       if (text.length === 0) return
       if (!optsRef.current.focused && (!optsRef.current.unfocusedAttachmentTarget || !asAttachmentPaths(text))) return

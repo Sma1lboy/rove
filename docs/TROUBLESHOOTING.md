@@ -134,6 +134,18 @@ On macOS the environment of an Apple-signed system binary is unreadable without
 root, so those are never listed. What actually leaks — `bun`, `node`, a browser,
 a CLI tool — reads fine.
 
+A probe that could not run at all is a different answer, and doctor now prints
+it as one:
+
+```text
+orphans: ✗ could not read process environments — ps eww exited 127
+```
+
+That is the step which turns a candidate into a finding, so when it fails
+every candidate stays unclassified. `✓ none` used to cover that case too,
+which made a machine nothing had looked at indistinguishable from a clean one.
+The realistic triggers are Linux `hidepid=2` and reading across uids.
+
 ## Who deleted my task?
 
 Every task deletion is recorded in `~/.rove/daemon.log`, whether it succeeds

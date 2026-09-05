@@ -29,9 +29,11 @@ import path from "node:path"
 import type { ExecHost } from "../../exec/exec-host.ts"
 import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
 import type { AdoptableWorktree, WorktreeInfo, WorktreeManager } from "../../types/worktree.ts"
+import { isDirtyOutput } from "../dirty-paths.ts"
 import { type ExecCtx, type WorktreeExecDeps, defaultExecDeps } from "./exec-deps.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
 import {
+  type BranchDeleteOutcome,
   type BranchDeps,
   branchExists,
   branchHasUpstream,
@@ -49,7 +51,7 @@ import {
 } from "./manager-list.ts"
 import { type RemoveOpts, removeWorktree } from "./manager-remove.ts"
 import { canonicalize, remoteWorktreePathFor, requireAbsolute, worktreePathFor } from "./paths.ts"
-import { smallIgnoredPaths } from "./salvage-ignored.ts"
+import { type IgnoredWorkProbe, smallIgnoredPaths } from "./salvage-ignored.ts"
 import { type SalvageRecord, salvageWorktree } from "./salvage.ts"
 import { parseWorktreeListPorcelain } from "./worktree-list.ts"
 
@@ -232,10 +234,10 @@ export class GitWorktreeManager implements WorktreeManager {
        *  or the anchor could not be written). */
       readonly onAnchor?: (record: SalvageRecord | null) => void
     },
-  ): Promise<void> {
+  ): Promise<BranchDeleteOutcome> {
     const ctx = this.ctxFor(repo)
     requireAbsolute("repo", ctx.dir)
-    await deleteBranchAnchored(this.branchDeps(), ctx.exec, ctx.dir, branch, {
+    return await deleteBranchAnchored(this.branchDeps(), ctx.exec, ctx.dir, branch, {
       force: opts?.force === true,
       onAnchor: opts?.onAnchor,
     })
@@ -339,7 +341,7 @@ export class GitWorktreeManager implements WorktreeManager {
       cwd: worktreePath,
       readOnly: true,
     })
-    return out.stdout.length > 0
+    return isDirtyOutput(out.stdout)
   }
 
   /**
@@ -358,8 +360,11 @@ export class GitWorktreeManager implements WorktreeManager {
    * refuses for exactly what the `--force` retry would then rescue: a
    * multi-gigabyte `node_modules/` is over the size ceiling, so it neither
    * blocks the delete nor bloats the snapshot.
+   *
+   * `"unknown"` — the listing did not run — is passed through, never flattened
+   * to `[]`: for a gate, "I could not look" is not "there is nothing here".
    */
-  async ignoredWork(worktreePath: string): Promise<readonly string[]> {
+  async ignoredWork(worktreePath: string): Promise<IgnoredWorkProbe> {
     return smallIgnoredPaths(this.execAt(worktreePath), worktreePath)
   }
 

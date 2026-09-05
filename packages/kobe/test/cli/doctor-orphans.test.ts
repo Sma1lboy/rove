@@ -94,7 +94,9 @@ describe("orphanDoctorLines", () => {
   })
 
   it("reports an inspection failure instead of a clean bill of health", () => {
-    expect(orphanDoctorLines([], "ps exited 1", "rove")[0]).toContain("could not inspect")
+    expect(orphanDoctorLines([], "could not read the process table — ps exited 1", "rove")[0]).toContain(
+      "could not read the process table",
+    )
   })
 
   it("is a ✓ line when nothing is orphaned", () => {

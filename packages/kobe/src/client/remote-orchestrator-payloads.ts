@@ -117,15 +117,20 @@ export function describePayload(value: unknown): string {
  *  - `locale` absent → "" (UNSET): a payload that never mentioned the language
  *    must not yank it back to English; only a real non-empty locale changes it.
  *  - `sortMode` absent → "default"; `keysCollapsed` absent → false (expanded);
- *    `projectFilter` absent/empty → null (all projects); `transparentBackground`
- *    / `focusAccent` default off / null.
+ *    `projectFilter` absent/empty → null (all projects); `focusAccent` → null.
+ *  - `transparentBackground` absent → TRUE, the product default the two other
+ *    decoders (`ui-prefs-watcher`, `persisted-ui-prefs`) already spell as
+ *    `!== false`. Defaulting it off here was the one field that hard-reset
+ *    instead of leaving things alone: against an older daemon whose payload
+ *    omits it, every remote pane turned opaque while the local ones stayed
+ *    transparent, and no setting in the UI explained the difference.
  */
 export function decodeUiPrefsPayload(payload: unknown): UiPrefsPayload | null {
   const p = payload as Partial<UiPrefsPayload> | undefined
   if (typeof p?.theme !== "string") return null
   return {
     theme: p.theme,
-    transparentBackground: p.transparentBackground === true,
+    transparentBackground: p.transparentBackground !== false,
     focusAccent: typeof p.focusAccent === "string" ? p.focusAccent : null,
     locale: typeof p.locale === "string" ? p.locale : "",
     sortMode: p.sortMode === "recent" ? "recent" : "default",

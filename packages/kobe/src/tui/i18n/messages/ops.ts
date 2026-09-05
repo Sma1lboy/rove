@@ -30,7 +30,11 @@ export const en = {
     modeChanged: "mode changed · {from} → {to}",
     /** git refused. Carries git's own stderr rather than presenting the
      *  absent diff as an absence of changes. */
-    gitFailed: "could not read the diff",
+    previewFailed: "could not load preview",
+    readFailed: "Cannot read {path}. The file may be missing or unreadable.",
+    emptyFile: "empty file",
+    emptyAdded: "empty file added",
+    emptyDeleted: "empty file deleted",
     retryHint: "r to retry",
     /** Footer on a combined diff: review notes anchor to ONE path, so a diff
      *  spanning files carries none. Stated so the absence reads as a rule. */
@@ -75,7 +79,11 @@ export const zh: typeof en = {
     binaryChanged: "二进制文件已改动",
     imageChanged: "图片已改动",
     modeChanged: "权限位已改动 · {from} → {to}",
-    gitFailed: "读取 diff 失败",
+    previewFailed: "预览加载失败",
+    readFailed: "无法读取 {path}。文件可能已不存在或不可读。",
+    emptyFile: "空文件",
+    emptyAdded: "新增空文件",
+    emptyDeleted: "删除空文件",
     retryHint: "按 r 重试",
     notesPerFile: "备注按单文件锚定——要加备注请打开单个文件的 diff",
     review: {

@@ -21,10 +21,15 @@ describe("decodeUiPrefsPayload — backward-compat defaults", () => {
 
   it("an older daemon's theme-only payload resolves every newer field to its absent-sentinel", () => {
     // The footgun this owns: locale MUST be "" (skip), not "en"; sortMode
-    // "default"; keysCollapsed false; projectFilter null; transparent off.
+    // "default"; keysCollapsed false; projectFilter null. And
+    // transparentBackground TRUE — the product default, spelled `!== false` by
+    // the two decoders that read the state file. Defaulting it off here was
+    // the one field that hard-reset instead of leaving things alone: against
+    // an older daemon every remote pane turned opaque while the local ones
+    // stayed transparent, with no setting that explained it.
     expect(decodeUiPrefsPayload({ theme: "claude" })).toEqual({
       theme: "claude",
-      transparentBackground: false,
+      transparentBackground: true,
       focusAccent: null,
       locale: "",
       sortMode: "default",
@@ -38,7 +43,7 @@ describe("decodeUiPrefsPayload — backward-compat defaults", () => {
       decodeUiPrefsPayload({ theme: "tokyonight", locale: "zh-CN", sortMode: "recent", keysCollapsed: true }),
     ).toEqual({
       theme: "tokyonight",
-      transparentBackground: false,
+      transparentBackground: true,
       focusAccent: null,
       locale: "zh-CN",
       sortMode: "recent",
@@ -50,5 +55,7 @@ describe("decodeUiPrefsPayload — backward-compat defaults", () => {
     expect(d?.projectFilter).toBeNull()
     expect(d?.sortMode).toBe("default")
     expect(d?.focusAccent).toBe("#abc")
+    // Only an explicit `false` opts out — the same rule as the state-file side.
+    expect(decodeUiPrefsPayload({ theme: "x", transparentBackground: false })?.transparentBackground).toBe(false)
   })
 })

@@ -13,6 +13,7 @@
 import { type DiffRenderable, TextAttributes } from "@opentui/core"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { execHostForWorktreePath } from "../../exec/resolve"
+import { errorMessage } from "../../lib/error-message"
 import { formatBytes } from "../../lib/format-bytes"
 import { openWithSystemViewer } from "../../lib/open-external"
 import type { DiffReviewApi } from "../../tui/ops/diff-comments"
@@ -63,7 +64,9 @@ export function PreviewScreen(props: OpsPreviewArgs) {
   const combined = isCombinedPathspec(props.relPath)
   const pathspecLabel = props.relPath === "." ? t("ops.preview.allFiles") : props.relPath
 
-  const [data, setData] = useState<PreviewData | null>(null)
+  const identity = JSON.stringify([props.worktree, props.relPath, props.base])
+  const [loaded, setLoaded] = useState<{ identity: string; data: PreviewData } | null>(null)
+  const data = loaded?.identity === identity ? loaded.data : null
   const [reloadTick, setReloadTick] = useState(0)
   const base = props.base
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick is a TRIGGER — the effect body doesn't read it.
@@ -71,16 +74,15 @@ export function PreviewScreen(props: OpsPreviewArgs) {
     let disposed = false
     void loadPreviewData(props.worktree, props.relPath, base ? { base } : undefined)
       .then((d) => {
-        if (!disposed) setData(d)
+        if (!disposed) setLoaded({ identity, data: d })
       })
-      .catch(() => {
-        // Failure boundary: a failed read (worktree torn
-        // down mid-open) leaves the loading placeholder rather than crashing.
+      .catch((error: unknown) => {
+        if (!disposed) setLoaded({ identity, data: { kind: "error", message: errorMessage(error) } })
       })
     return () => {
       disposed = true
     }
-  }, [props.worktree, props.relPath, base, reloadTick])
+  }, [props.worktree, props.relPath, base, reloadTick, identity])
 
   // System-open (`o`) only makes sense for a LOCAL worktree — the file the
   // OS viewer would open doesn't exist on this machine for a remote one.
@@ -108,10 +110,18 @@ export function PreviewScreen(props: OpsPreviewArgs) {
   // One vocabulary for a hunk-less patch, shared by the single-file card and
   // a combined diff's sections — the two used to disagree by rendering
   // nothing in different shapes.
-  const noteLabel = (note: PatchNote, path: string): string =>
-    note.kind === "mode"
-      ? t("ops.preview.modeChanged", { from: note.from, to: note.to })
-      : t(isImagePath(path) ? "ops.preview.imageChanged" : "ops.preview.binaryChanged")
+  const noteLabel = (note: PatchNote, path: string): string => {
+    switch (note.kind) {
+      case "mode":
+        return t("ops.preview.modeChanged", { from: note.from, to: note.to })
+      case "rename":
+        return t("ops.preview.renamedFrom", { origPath: note.from })
+      case "empty-file":
+        return t(note.change === "added" ? "ops.preview.emptyAdded" : "ops.preview.emptyDeleted")
+      case "binary":
+        return t(isImagePath(path) ? "ops.preview.imageChanged" : "ops.preview.binaryChanged")
+    }
+  }
 
   const onClose = props.onClose ?? (() => process.exit(0))
   useBindings(() => ({
@@ -161,7 +171,7 @@ export function PreviewScreen(props: OpsPreviewArgs) {
               : data?.kind === "patch-note"
                 ? noteLabel(data.note, props.relPath)
                 : data?.kind === "error"
-                  ? t("ops.preview.gitFailed")
+                  ? t("ops.preview.previewFailed")
                   : t("ops.preview.file")}
         </text>
         {data?.kind === "diff" && data.origPath != null ? (
@@ -265,6 +275,8 @@ export function PreviewScreen(props: OpsPreviewArgs) {
             syntaxStyle={style}
             showLineNumbers={true}
           />
+        ) : data.text.length === 0 ? (
+          <text fg={theme.textMuted}>{t("ops.preview.emptyFile")}</text>
         ) : (
           <code content={data.text} filetype={filetype} syntaxStyle={style} />
         )}

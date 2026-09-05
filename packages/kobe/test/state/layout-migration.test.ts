@@ -149,3 +149,56 @@ describe("migrateRoveStateLayout", () => {
     expect(readFileSync(join(root, ".rove/plugins.json"), "utf8")).toContain("from-old-cli")
   })
 })
+
+/**
+ * `ROVE_HOME_DIR=` (defined, blank) is this repo's own spelling of "unset".
+ * Read as a VALUE the home becomes `""`, and every path here turns relative:
+ * `join("", ".kobe")` is `.kobe`, resolved against the process's cwd — which
+ * for the TUI is the user's repository. This module does not only copy; the
+ * plugin tree is a `renameSync`, so a repo that happens to contain a
+ * `.kobe/plugins.json` gets it MOVED out from under it.
+ */
+describe("a blank ROVE_HOME_DIR is unset, not a home", () => {
+  test("falls through to KOBE_HOME_DIR rather than shadowing it", () => {
+    root = mkdtempSync(join(tmpdir(), "rove-layout-"))
+    write(".kobe/tasks.json", "legacy tasks")
+
+    expect(migrateRoveStateLayout({ ROVE_HOME_DIR: "", KOBE_HOME_DIR: root })).toMatchObject({
+      attempted: true,
+      warnings: [],
+    })
+    expect(readFileSync(join(root, ".rove/tasks.json"), "utf8")).toBe("legacy tasks")
+  })
+
+  test("never moves a plugin registry relative to the process cwd", () => {
+    root = mkdtempSync(join(tmpdir(), "rove-layout-"))
+    write(".kobe/plugins.json", '{"plugins":[{"id":"real-home"}]}')
+
+    // The decoy is the bug's exact shape: a checkout that happens to carry a
+    // `.kobe/plugins.json`, with the process sitting inside it.
+    const repoCwd = mkdtempSync(join(tmpdir(), "rove-layout-cwd-"))
+    mkdirSync(join(repoCwd, ".kobe"), { recursive: true })
+    writeFileSync(join(repoCwd, ".kobe/plugins.json"), '{"plugins":[{"id":"users-repo"}]}', "utf8")
+
+    const previousCwd = process.cwd()
+    process.chdir(repoCwd)
+    try {
+      migrateRoveDaemonStateLayout({ ROVE_HOME_DIR: "", KOBE_HOME_DIR: root })
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    try {
+      // The negative half: the user's repo still holds its own file, as a real
+      // file and not the symlink a completed move leaves behind, and no `.rove`
+      // was created beside it.
+      expect(lstatSync(join(repoCwd, ".kobe/plugins.json")).isSymbolicLink()).toBe(false)
+      expect(readFileSync(join(repoCwd, ".kobe/plugins.json"), "utf8")).toContain("users-repo")
+      expect(existsSync(join(repoCwd, ".rove"))).toBe(false)
+      // The positive half: the isolated home is the one that migrated.
+      expect(readFileSync(join(root, ".rove/plugins.json"), "utf8")).toContain("real-home")
+    } finally {
+      rmSync(repoCwd, { recursive: true, force: true })
+    }
+  })
+})

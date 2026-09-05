@@ -6,12 +6,13 @@
  * `tmux/editor-launch.ts` (which pulls in the tmux client). The launcher
  * imports these same constants so both sides agree on the keys.
  *
- * `e` in the file tree opens the current file in this editor; `editor.kind`
- * picks which, `editor.customCommand` is the command for `kind === "custom"`.
+ * `enter` in the file tree (`files.open`) opens the current file in this
+ * editor; `editor.kind` picks which, `editor.customCommand` is the command
+ * for `kind === "custom"`.
  */
 
 /**
- * Which editor the file tree's `e` key launches.
+ * Which editor the file tree's `enter` key launches.
  *  - `auto`   — the STANDARD behaviour: honour $VISUAL / $EDITOR, and if
  *               neither is set, auto-detect the first installed of nvim →
  *               vim → emacs → nano. This is the default.
