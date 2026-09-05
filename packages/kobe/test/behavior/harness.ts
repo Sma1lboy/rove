@@ -6,7 +6,7 @@
 
 import { execFileSync, spawnSync } from "node:child_process"
 import { existsSync } from "node:fs"
-import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { chmod, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -56,7 +56,10 @@ function teardownIsolationError(env: NodeJS.ProcessEnv, home: string): string | 
 
 export async function makeBehaviorEnv(): Promise<BehaviorEnv> {
   requireDistBuild()
-  const home = await mkdtemp(join(tmpdir(), "kobe-behavior-"))
+  // Resolved, because on macOS `tmpdir()` is the `/var` symlink to
+  // `/private/var`. Rove reports the real path, so an unresolved home makes
+  // every path a test compares against Rove's output differ by that prefix.
+  const home = await realpath(await mkdtemp(join(tmpdir(), "kobe-behavior-")))
   const bin = join(home, "bin")
   const xdgConfig = join(home, ".config")
   const xdgData = join(home, ".local", "share")
