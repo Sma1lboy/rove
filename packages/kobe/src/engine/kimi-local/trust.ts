@@ -14,9 +14,9 @@
  */
 
 import { createHash } from "node:crypto"
-import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs"
-import { homedir } from "node:os"
+import { mkdirSync, realpathSync, writeFileSync } from "node:fs"
 import path from "node:path"
+import { vendorConfigHome, vendorWriteHomeDeps } from "../vendor-home.ts"
 
 /**
  * Reproduce kimi's own filename for a workspace. Two details are load-bearing,
@@ -37,18 +37,24 @@ function resolvedWorktree(worktreePath: string): string {
   }
 }
 
-export function kimiTrustFilePath(worktreePath: string, home: string = homedir()): string {
+export function kimiTrustFilePath(worktreePath: string, home?: string): string {
   const resolved = resolvedWorktree(worktreePath)
   const hash = createHash("sha256").update(resolved).digest("hex").slice(0, 12)
   const dir = path.basename(resolved).toLowerCase()
-  return path.join(home, ".kimi-code", "workspace-trust", `wd_${dir}_${hash}`)
+  return path.join(vendorConfigHome("kimi", vendorWriteHomeDeps(home)), "workspace-trust", `wd_${dir}_${hash}`)
 }
 
-export function trustKimiWorktree(worktreePath: string, home: string = homedir()): void {
+export function trustKimiWorktree(worktreePath: string, home?: string): void {
   const file = kimiTrustFilePath(worktreePath, home)
-  if (existsSync(file)) return
   mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 })
   // `root` carries the resolved path too, so the record is shaped exactly like
   // one kimi writes for itself rather than only being FILED where kimi looks.
-  writeFileSync(file, JSON.stringify({ root: resolvedWorktree(worktreePath), trustedAt: Date.now() }), { mode: 0o600 })
+  try {
+    writeFileSync(file, JSON.stringify({ root: resolvedWorktree(worktreePath), trustedAt: Date.now() }), {
+      mode: 0o600,
+      flag: "wx",
+    })
+  } catch (error) {
+    if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) throw error
+  }
 }

@@ -36,33 +36,58 @@ export function isObject(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v)
 }
 
-/** The `hook <verb>` fragments a kobe activity command may have been written
- *  with, independent of the CLI invocation prefix: the current shell-quoted
- *  `'hook' '<verb>'` form AND the legacy unquoted `hook <verb>` form.
- *  Recognizing only the quoted one leaves the unquoted entries in place on
- *  every re-install, which makes every event fire twice (double `kobe hook`
- *  spawns + duplicate daemon reports). */
-function activityMarkers(eventMap: readonly HookEventSpec[]): string[] {
-  return eventMap.flatMap((e) => [quoteShellArgv(["hook", e.verb]), `hook ${e.verb}`])
+// Accept literal argv from the current quoter and older bare/double-quoted
+// installs. Shell operators, expansions and wrappers are not ours to remove.
+const HOOK_WORD = String.raw`(?:'(?:[^']|'\\'')*'|"[^"$\x60\\]*"|[A-Za-z0-9_./:=+-]+)`
+const HOOK_ARGV = new RegExp(`^${HOOK_WORD}(?:[ \t]+${HOOK_WORD})*$`)
+
+function isRoveHook(hook: unknown, verbs: readonly string[]): boolean {
+  if (!isObject(hook) || hook.type !== "command" || typeof hook.command !== "string") return false
+  const command = hook.command.replace(/^[ \t]+|[ \t]+$/g, "")
+  if (HOOK_ARGV.exec(command)?.[0] !== command) return false
+  const words = command.match(new RegExp(HOOK_WORD, "g")) ?? []
+  const argv = words.map((word) => {
+    if (word.startsWith("'")) return word.slice(1, -1).replaceAll("'\\''", "'")
+    if (word.startsWith('"')) return word.slice(1, -1)
+    return word
+  })
+  const executable = argv[0]?.split("/").at(-1)
+  let offset = 1
+  if (executable === "bun" || executable === "node") {
+    if (argv[offset] === "--conditions=browser") offset++
+    const entry = argv[offset] ?? ""
+    if (!/(?:^|\/)(?:src|dist)\/cli\/(?:rove|kobe)\.(?:ts|js)$/.test(entry)) return false
+    offset++
+  } else if (executable !== "rove" && executable !== "kobe") {
+    return false
+  }
+  if (argv[offset] !== "hook" || !verbs.includes(argv[offset + 1])) return false
+  const rest = argv.slice(offset + 2)
+  return rest.length === 0 || (rest.length === 2 && rest[0] === "--engine" && /^[a-z][a-z0-9-]*$/.test(rest[1]))
 }
 
-/** True if a hook group is one of kobe's activity groups (by its `kobe hook
- *  <verb>` command substring). */
-function isKobeActivityGroup(group: unknown, markers: readonly string[]): boolean {
-  if (!isObject(group) || !Array.isArray(group.hooks)) return false
-  return group.hooks.some(
-    (h) => isObject(h) && typeof h.command === "string" && markers.some((m) => (h.command as string).includes(m)),
-  )
+/** A shared group can contain both Rove and user hooks; ownership is per hook. */
+export function removeRoveHooks(groups: unknown[], verbs: readonly string[]): unknown[] {
+  return groups.flatMap((group) => {
+    if (!isObject(group) || !Array.isArray(group.hooks)) return [group]
+    const kept = group.hooks.filter((hook) => !isRoveHook(hook, verbs))
+    if (kept.length === group.hooks.length) return [group]
+    return kept.length > 0 ? [{ ...group, hooks: kept }] : []
+  })
 }
 
 /** True if a shared settings object still carries any of kobe's activity hook
  *  groups (the same ownership predicate the merge uses). Detection only — the
  *  plugin-migration hint needs a read-side answer without editing the file. */
 export function hasKobeActivityHooks(current: Record<string, unknown>, eventMap: readonly HookEventSpec[]): boolean {
-  const markers = activityMarkers(eventMap)
+  const verbs = eventMap.map((spec) => spec.verb)
   const hooks = isObject(current.hooks) ? current.hooks : {}
   return Object.values(hooks).some(
-    (groups) => Array.isArray(groups) && groups.some((g) => isKobeActivityGroup(g, markers)),
+    (groups) =>
+      Array.isArray(groups) &&
+      groups.some(
+        (group) => isObject(group) && Array.isArray(group.hooks) && group.hooks.some((hook) => isRoveHook(hook, verbs)),
+      ),
   )
 }
 
@@ -70,8 +95,8 @@ export function hasKobeActivityHooks(current: Record<string, unknown>, eventMap:
 export interface ActivityHookOpts {
   /** Extra argv appended after the verb (e.g. `--engine claude`, so `kobe
    *  hook` decodes the payload with the RIGHT adapter instead of guessing).
-   *  Marker matching keys on the `hook <verb>` substring, so tagged and
-   *  legacy untagged installs merge/remove identically. */
+   *  Literal argv recognition accepts this suffix as well as legacy
+   *  untagged installs. */
   readonly extraArgs?: readonly string[]
   /** When present, only specs passing the filter are INSTALLED; every spec
    *  still participates in removal (so disabling a gated family cleans up). */
@@ -94,7 +119,8 @@ export function buildActivityHooks(
     if (matcher) group.matcher = matcher
     // Accumulate — one event may carry several matcher-scoped specs (e.g.
     // Notification: permission_prompt + idle_prompt).
-    const groups = (out[event] as unknown[] | undefined) ?? []
+    const previous = out[event]
+    const groups = Array.isArray(previous) ? previous : []
     groups.push(group)
     out[event] = groups
   }
@@ -104,8 +130,7 @@ export function buildActivityHooks(
 /**
  * Pure merge: add (`install`) or remove kobe's activity hooks in a SHARED
  * settings object, preserving the user's own hooks for those events + every
- * other key. kobe owns only the groups whose command matches an activity
- * marker; they're dropped first so re-install is idempotent and removal clean.
+ * other key. Rove owns only recognized CLI invocations; they are dropped first so re-install is idempotent and removal clean.
  */
 export function mergeActivityHooks(
   current: Record<string, unknown>,
@@ -114,14 +139,16 @@ export function mergeActivityHooks(
   inv: readonly string[] = kobeHookInvocation(),
   opts: ActivityHookOpts = {},
 ): Record<string, unknown> {
-  const markers = activityMarkers(eventMap)
+  const verbs = eventMap.map((spec) => spec.verb)
   const { hooks: rawHooks, ...restSettings } = current
   const hooks: Record<string, unknown> = isObject(rawHooks) ? { ...rawHooks } : {}
   const built = install ? buildActivityHooks(eventMap, inv, opts) : {}
   for (const { event } of eventMap) {
-    const prior = Array.isArray(hooks[event]) ? (hooks[event] as unknown[]) : []
-    const kept = prior.filter((g) => !isKobeActivityGroup(g, markers))
-    if (install && Array.isArray(built[event])) kept.push(...(built[event] as unknown[]))
+    const groups = hooks[event]
+    const prior = Array.isArray(groups) ? groups : []
+    const kept = removeRoveHooks(prior, verbs)
+    const additions = built[event]
+    if (install && Array.isArray(additions)) kept.push(...additions)
     if (kept.length > 0) hooks[event] = kept
     else delete hooks[event]
   }
@@ -136,24 +163,11 @@ export function mergeActivityHooks(
  * already written into users' settings files.
  */
 const RETIRED_WATCH_EVENT = "PostToolUse"
-const WORKTREE_WATCH_MARKER = "worktree-created"
-
-/** True if a PostToolUse group is Rove's worktree-watch hook.
- *  Keys on the command substring, so both the quoted (`'hook'
- *  'worktree-created'`) and legacy unquoted install forms are matched — and
- *  nothing else in the file is (a user's own PostToolUse hooks, and the hooks
- *  other tools install, never carry this verb). */
-function isRetiredWatchGroup(group: unknown): boolean {
-  if (!isObject(group) || !Array.isArray(group.hooks)) return false
-  return group.hooks.some(
-    (h) => isObject(h) && typeof h.command === "string" && (h.command as string).includes(WORKTREE_WATCH_MARKER),
-  )
-}
 
 /**
  * Pure merge: drop the worktree-watch hook from a SHARED settings
  * object. Removal-only (there is no install counterpart) and
- * merge-safe: it filters ONLY the groups whose command names Rove's verb, so a
+ * merge-safe: it filters only commands naming Rove's verb, so a
  * hand-edited settings file keeps the user's own PostToolUse hooks and every
  * other key untouched. Idempotent — a second pass finds nothing and returns an
  * equal object, so the write is skipped.
@@ -161,8 +175,9 @@ function isRetiredWatchGroup(group: unknown): boolean {
 export function removeWorktreeWatchHook(current: Record<string, unknown>): Record<string, unknown> {
   const { hooks: rawHooks, ...restSettings } = current
   const hooks: Record<string, unknown> = isObject(rawHooks) ? { ...rawHooks } : {}
-  const prior = Array.isArray(hooks[RETIRED_WATCH_EVENT]) ? (hooks[RETIRED_WATCH_EVENT] as unknown[]) : []
-  const kept = prior.filter((g) => !isRetiredWatchGroup(g))
+  const groups = hooks[RETIRED_WATCH_EVENT]
+  const prior = Array.isArray(groups) ? groups : []
+  const kept = removeRoveHooks(prior, ["worktree-created"])
   if (kept.length > 0) hooks[RETIRED_WATCH_EVENT] = kept
   else delete hooks[RETIRED_WATCH_EVENT]
   return Object.keys(hooks).length > 0 ? { ...restSettings, hooks } : { ...restSettings }

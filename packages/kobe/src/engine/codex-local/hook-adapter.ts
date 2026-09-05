@@ -28,12 +28,12 @@
  * badges light up only after the user approves the hook — by design.
  */
 
-import { homedir } from "node:os"
 import { join } from "node:path"
 import type { EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
 import { JsonHookAdapter } from "../json-hook-adapter.ts"
 import type { HookEventSpec } from "../json-hooks.ts"
+import { vendorConfigHome } from "../vendor-home.ts"
 
 /** Codex hook event → normalized kobe verb. The ONE place Codex event names
  *  live. Only the verbs Codex can deliver without touching a decision hook. */
@@ -58,7 +58,7 @@ export const KOBE_CODEX_HOOK_EVENTS: readonly string[] = EVENT_MAP.map((e) => e.
 
 /** Where Codex reads user hook definitions. */
 export function codexHooksPath(): string {
-  return join(homedir(), ".codex", "hooks.json")
+  return join(vendorConfigHome("codex"), "hooks.json")
 }
 
 export class CodexHookAdapter extends JsonHookAdapter {

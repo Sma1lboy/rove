@@ -1,146 +1,89 @@
 /**
- * Codex workspace trust. Codex gates a never-seen directory
- * behind its own trust prompt; the store is `~/.codex/config.toml` —
- * `[projects."<abspath>"] trust_level = "trusted"`. Pre-trusting a
- * Rove-created worktree is the same trust domain as the repo the user
- * already runs sessions in, and the only headless-viable answer.
- *
- * Append-only: a `[projects.*]` table at EOF attaches to nothing, so the
- * rest of the user's config is never parsed or rewritten.
- *
- * Concurrency: an unguarded read-check-append lets two spawns for the SAME
- * worktree (a retried launch, TUI and daemon at once) both append the
- * table. Duplicate TOML keys make codex
- * reject the ENTIRE config — every codex task on the machine fails, not
- * just the raced one. Two layers prevent that:
- *
- *   1. A lock file next to the config serializes Rove writers. The
- *      config is a user-home-level file, so the lock lives beside it in
- *      `~/.codex/`, never in a repo. The critical section is a
- *      read-plus-append of one small file — held for milliseconds.
- *   2. Self-heal under the lock: any duplicate `[projects."…"]` stanza
- *      in the EXACT shape we write (header line immediately followed by
- *      our trust line) is deduped — later copies dropped, first kept —
- *      before the header check. This backstops what the lock cannot:
- *      a stale lock left by a killed process, or codex's own rewrites.
- *      (`codex mcp add` and friends rewrite config.toml, but a codex
- *      session run never writes it — the engine doesn't race us; only
- *      user-run management commands do, and they don't take our lock.)
+ * Codex pre-trust appends a project table while preserving the user's TOML
+ * bytes. The existing local lock serializes Rove writers. Codex management
+ * commands do not take that lock, so their concurrent edits remain a race.
  */
 
-import {
-  appendFileSync,
-  closeSync,
-  existsSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs"
-import { homedir } from "node:os"
+import { appendFileSync, closeSync, mkdirSync, openSync, unlinkSync, writeFileSync } from "node:fs"
 import path from "node:path"
+import { TomlError, type TomlTable, parse as parseToml } from "smol-toml"
+import { isObject } from "../json-hooks.ts"
+import { readSharedConfigSync } from "../shared-config-write.ts"
+import { vendorConfigHome, vendorWriteHomeDeps } from "../vendor-home.ts"
 
 const TRUST_LINE = 'trust_level = "trusted"'
 const LOCK_NAME = "config.toml.rove.lock"
-/**
- * Longest we'll wait for a rival Rove writer. Its critical section is
- * milliseconds, so this only ever elapses on a stale lock (holder
- * crashed) — after which we proceed WITHOUT the lock: correctness no
- * longer depends on it (the self-heal dedupes whatever a missed race
- * produced); it only spares us the repair.
- */
 const LOCK_TIMEOUT_MS = 5_000
 const LOCK_POLL_MS = 10
+const MAX_DUPLICATE_REPAIRS = 5
 
-export function trustCodexWorktree(worktreePath: string, home: string = homedir()): void {
-  const dir = path.join(home, ".codex")
+export function trustCodexWorktree(worktreePath: string, home?: string): void {
+  const dir = vendorConfigHome("codex", vendorWriteHomeDeps(home))
   const file = path.join(dir, "config.toml")
-  // JSON.stringify doubles as a TOML basic-string quoter for the path.
   const header = `[projects.${JSON.stringify(worktreePath)}]`
   mkdirSync(dir, { recursive: true })
   withConfigLock(path.join(dir, LOCK_NAME), () => {
-    let text = readConfig(file)
-    const healed = dedupeOurTrustStanzas(text)
-    if (healed.changed) {
-      text = healed.text
-      writeFileSync(file, text)
-    }
-    if (text.includes(header)) return
-    if (!existsSync(file)) writeFileSync(file, "")
+    const before = readSharedConfigSync(file) ?? ""
+    const { text, doc } = parseTrustConfig(before)
+    const exists = isObject(doc.projects) && Object.hasOwn(doc.projects, worktreePath)
     const lead = text.length > 0 && !text.endsWith("\n") ? "\n" : ""
-    appendFileSync(file, `${lead}\n${header}\n${TRUST_LINE}\n`)
+    const addition = exists ? "" : `${lead}\n${header}\n${TRUST_LINE}\n`
+    try {
+      parseToml(text + addition)
+    } catch {
+      throw new Error("Cannot add Codex trust without changing existing TOML")
+    }
+    if (text !== before) writeFileSync(file, text + addition, { mode: 0o600 })
+    else if (addition) appendFileSync(file, addition, { mode: 0o600 })
   })
 }
 
-function readConfig(file: string): string {
-  try {
-    return readFileSync(file, "utf8")
-  } catch {
-    // No config yet — the append below creates it.
-    return ""
-  }
-}
-
-/**
- * Drop later copies of any duplicate `[projects."…"]` stanza in the
- * exact shape we append (header line immediately followed by our trust
- * line). Those are the only duplicates Rove can create. Duplicates in
- * any other shape are the user's own content and are left verbatim —
- * TOML would reject them, but silently rewriting user content is worse
- * than leaving a parse error the user can see. The first occurrence of
- * a stanza is kept: identical text, identical meaning.
- */
-function dedupeOurTrustStanzas(text: string): { text: string; changed: boolean } {
-  const lines = text.split("\n")
-  const seenHeaders = new Set<string>()
-  const out: string[] = []
-  let changed = false
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    if (line.startsWith("[projects.")) {
-      if (seenHeaders.has(line)) {
-        if (lines[i + 1] === TRUST_LINE) {
-          // Our stanza, duplicated by a missed race — drop header + body.
-          changed = true
-          i++
-          continue
-        }
-        // Not our shape: keep it rather than mangle user content.
-      } else {
-        seenHeaders.add(line)
+/** Repair only an exact duplicate, standalone trust table identified by the parser. */
+function parseTrustConfig(original: string): { text: string; doc: TomlTable } {
+  let text = original
+  for (let repairs = 0; ; repairs++) {
+    try {
+      return { text, doc: parseToml(text) }
+    } catch (error) {
+      if (!(error instanceof TomlError) || repairs >= MAX_DUPLICATE_REPAIRS) break
+      const lines = text.split("\n")
+      const index = error.line - 1
+      const header = lines[index]
+      if (!header || !/^\[projects\."(?:[^"\\]|\\.)*"\]$/.test(header) || lines[index + 1] !== TRUST_LINE) break
+      let next = index + 2
+      while (next < lines.length && lines[next].trim() === "") next++
+      if (next < lines.length && !lines[next].startsWith("[")) break
+      try {
+        const prior = parseToml(lines.slice(0, index).join("\n"))
+        const duplicate = parseToml(`${header}\n${TRUST_LINE}`)
+        if (!isObject(prior.projects) || !isObject(duplicate.projects)) break
+        const project = Object.keys(duplicate.projects)[0]
+        if (!project || !Object.hasOwn(prior.projects, project)) break
+        const trusted = prior.projects[project]
+        if (!isObject(trusted) || Object.keys(trusted).length !== 1 || trusted.trust_level !== "trusted") break
+      } catch {
+        break
       }
+      lines.splice(index, 2)
+      text = lines.join("\n")
     }
-    out.push(line)
   }
-  return { text: out.join("\n"), changed }
+  throw new Error("Codex trust config is invalid; leaving it unchanged")
 }
 
-/**
- * Serialize Rove writers via atomic create-or-fail (`wx`): exactly one
- * contender holds the lock. The lock records the holder's PID for
- * forensics. Waits up to {@link LOCK_TIMEOUT_MS} for a live holder;
- * past that, runs `fn` unprotected (see the timeout's doc above).
- */
 function withConfigLock(lockPath: string, fn: () => void): void {
-  let fd: number | undefined
+  let fd: number
   const deadline = Date.now() + LOCK_TIMEOUT_MS
+  const sleeper = new Int32Array(new SharedArrayBuffer(4))
   for (;;) {
     try {
       fd = openSync(lockPath, "wx")
       break
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err
-      if (Date.now() >= deadline) {
-        fd = undefined
-        break
-      }
-      sleepSync(LOCK_POLL_MS)
+    } catch (error) {
+      if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) throw error
+      if (Date.now() >= deadline) throw new Error("Timed out waiting for Codex config lock")
+      Atomics.wait(sleeper, 0, 0, LOCK_POLL_MS)
     }
-  }
-  if (fd === undefined) {
-    fn()
-    return
   }
   try {
     writeFileSync(fd, String(process.pid))
@@ -150,15 +93,7 @@ function withConfigLock(lockPath: string, fn: () => void): void {
     try {
       unlinkSync(lockPath)
     } catch {
-      // Already unlinked (forced takeover raced us) — nothing to release.
+      /* Another process may have removed the lock. */
     }
-  }
-}
-
-/** Portable synchronous sleep — the trust path is sync end-to-end. */
-function sleepSync(ms: number): void {
-  const end = Date.now() + ms
-  while (Date.now() < end) {
-    // busy-wait; waits here are ~10ms
   }
 }

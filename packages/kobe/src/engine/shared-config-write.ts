@@ -1,50 +1,23 @@
 /**
- * Compare-and-swap writes for the config files Rove SHARES with the engine it
- * launches — Claude Code's `~/.claude.json` (worktree trust) and
- * `~/.claude/settings.json` / `~/.codex/hooks.json` (activity hooks).
- *
- * Three Rove PROCESSES read-modify-write these on every launch (daemon
- * `core/daemon-session-adapter.ts`, TUI `tui/workspace/terminal-tab-argv.ts`,
- * CLI `cli/api/runtime.ts`) — and so does the engine itself, which rewrites the
- * whole document on every save of its own. Losing that race is invisible: an
- * already-granted `allowedTools` entry disappears and the agent re-asks for
- * permission, or a task's trust entry vanishes and its session sits at "Do you
- * trust the files in this folder?" forever. It reads as an engine bug.
- *
- * TWO writer classes, so two layers — neither alone is enough:
- *
- *   1. **Lock** (`~/.rove/shared-config-<hash>.lock`, reusing
- *      `orchestrator/index/lockfile.ts`) excludes the three Rove processes from
- *      each other, which a bare compare-and-swap cannot: check-then-rename is
- *      itself a TOCTOU, and two Rove writers can both pass the re-read and both
- *      rename. Measured on a 3-writer sandbox run, CAS alone dropped ~40% of
- *      concurrent Rove updates.
- *   2. **Compare-and-swap** (re-read the raw bytes immediately before the
- *      rename, retry when they moved) covers THE ENGINE, which will never take
- *      our lock — it is not our process and has no idea Rove exists.
- *
- * ponytail: CAS narrows the engine window from "read + parse + merge"
- * (milliseconds — `~/.claude.json` is routinely 350KB) to "re-read + rename"
- * (microseconds). It does NOT close it. An engine write landing inside that
- * window still wins and drops our key; the user's recourse is unchanged
- * (relaunch). Closing it needs the engine to cooperate — a lock it takes, or an
- * API — which no vendor offers today. So: do NOT delete the CAS believing the
- * lock covers it, and do NOT believe the lock makes this safe against claude.
- *
- * The lock lives under the RESOLVED `~/.rove/` (`env.ts#roveStateDir`), keyed by
- * the target file's absolute path. Every Rove install — brew, npm, a dev
- * checkout — resolves the same `$HOME`, so mixed installs share one lock; only
- * an explicit `ROVE_HOME_DIR` split (tests, `dev:sandbox`) separates them, which
- * is exactly what that override is for.
+ * JSON read/merge/write transactions for configuration shared with engines.
+ * The existing Rove lock serializes cooperating processes. A byte reread before
+ * staging-file rename retries changes from engine writers that ignore our lock.
+ * The reread/rename window is still a race; vendor cooperation would be needed
+ * to close it. Lock format and the current Rove state-home override are shared
+ * with the orchestrator's existing lock implementation.
  */
 
 import { createHash, randomBytes } from "node:crypto"
-import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs"
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises"
+import { mkdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs"
+import { mkdir, rename, unlink, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { roveStateDir } from "../env.ts"
 import { acquireSync, release, releaseSync } from "../orchestrator/index/lockfile.ts"
 import { acquireWithRetry } from "../orchestrator/index/store-codec.ts"
+import { readTextFileIfRegular, readTextFileIfRegularSync } from "./file-bounds.ts"
+
+/** Config writes refuse files above 8 MiB, independently of transcript limits. */
+export const MAX_SHARED_CONFIG_BYTES = 8 * 1024 * 1024
 
 /**
  * Staging path, unique per CALL rather than per process. A shared `<file>.tmp`
@@ -79,9 +52,8 @@ const MAX_ATTEMPTS = 5
 /**
  * Turn the file's raw bytes (`undefined` when it does not exist) into the
  * document to merge into, or `undefined` to abandon the write untouched. This
- * is where the two callers differ: trust treats a corrupt store as empty
- * (claude's own recovery behavior), the hook installer refuses to clobber a
- * config it could not parse.
+ * is where callers validate their own format. An unreadable or oversized file
+ * never reaches the loader as a missing document.
  */
 export type LoadSharedDoc = (raw: string | undefined) => Record<string, unknown> | undefined
 
@@ -95,20 +67,24 @@ export type BuildSharedDoc = (doc: Record<string, unknown>) => string | undefine
 /** ENOENT is "no file yet"; every other read failure (EACCES, EISDIR) must
  *  propagate rather than masquerade as an empty document we would then write
  *  over the top of. */
-function readRawSync(file: string): string | undefined {
+export function readSharedConfigSync(file: string): string | undefined {
   try {
-    return readFileSync(file, "utf8")
+    const raw = readTextFileIfRegularSync(file, MAX_SHARED_CONFIG_BYTES)
+    if (raw === null) throw new Error(`Refusing non-regular or oversized config: ${file}`)
+    return raw
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return undefined
+    if (err instanceof Error && "code" in err && err.code === "ENOENT") return undefined
     throw err
   }
 }
 
 async function readRaw(file: string): Promise<string | undefined> {
   try {
-    return await readFile(file, "utf8")
+    const raw = await readTextFileIfRegular(file, MAX_SHARED_CONFIG_BYTES)
+    if (raw === null) throw new Error(`Refusing non-regular or oversized config: ${file}`)
+    return raw
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return undefined
+    if (err instanceof Error && "code" in err && err.code === "ENOENT") return undefined
     throw err
   }
 }
@@ -118,7 +94,7 @@ export function updateSharedJsonSync(file: string, load: LoadSharedDoc, build: B
   const lockToken = acquireSync(lockPath)
   try {
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      const before = readRawSync(file)
+      const before = readSharedConfigSync(file)
       const doc = load(before)
       if (!doc) return
       const text = build(doc)
@@ -126,11 +102,11 @@ export function updateSharedJsonSync(file: string, load: LoadSharedDoc, build: B
       const tmp = stagingPath(file)
       try {
         mkdirSync(dirname(file), { recursive: true })
-        writeFileSync(tmp, text)
+        writeFileSync(tmp, text, { mode: 0o600, flag: "wx" })
         // CAS against the ENGINE (it holds no lock): bytes moved since our read
         // => our merge is built on a document somebody already replaced, and
         // writing it would drop their changes.
-        if (readRawSync(file) === before) {
+        if (readSharedConfigSync(file) === before) {
           renameSync(tmp, file)
           return
         }
@@ -161,7 +137,7 @@ export async function updateSharedJson(file: string, load: LoadSharedDoc, build:
       const tmp = stagingPath(file)
       try {
         await mkdir(dirname(file), { recursive: true })
-        await writeFile(tmp, text)
+        await writeFile(tmp, text, { mode: 0o600, flag: "wx" })
         if ((await readRaw(file)) === before) {
           await rename(tmp, file)
           return

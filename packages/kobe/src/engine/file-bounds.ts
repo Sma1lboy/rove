@@ -70,13 +70,17 @@ export async function readFirstLineBounded(p: string, maxBytes = MAX_JSONL_LINE_
 
 /** Missing or oversized credentials retain the existing not-detected result. */
 export function readTextFileSyncBounded(p: string, maxBytes = MAX_ENGINE_FILE_BYTES): string | null {
-  let fd: number
   try {
-    fd = openSync(p, READ_FLAGS)
+    return readTextFileIfRegularSync(p, maxBytes)
   } catch (err) {
     if (err instanceof Error && "code" in err && err.code === "ENOENT") return null
     throw err
   }
+}
+
+/** Synchronous strict reader: refusal is null; IO failures propagate. */
+export function readTextFileIfRegularSync(p: string, maxBytes = MAX_ENGINE_FILE_BYTES): string | null {
+  const fd = openSync(p, READ_FLAGS)
   try {
     const info = fstatSync(fd)
     if (!info.isFile() || info.size > maxBytes) return null
