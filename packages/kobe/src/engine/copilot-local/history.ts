@@ -107,8 +107,11 @@ export async function readHistoryWithMetrics(
   return { messages: state.messages, ...(state.usageMetrics ? { usageMetrics: state.usageMetrics } : {}) }
 }
 
-export async function readHistory(sessionId: string, deps: CopilotHistoryDeps = defaultDeps): Promise<Message[]> {
-  return (await readHistoryWithMetrics(sessionId, deps)).messages as Message[]
+export async function readHistory(
+  sessionId: string,
+  deps: CopilotHistoryDeps = defaultDeps,
+): Promise<readonly Message[]> {
+  return (await readHistoryWithMetrics(sessionId, deps)).messages
 }
 
 export async function deleteHistory(sessionId: string, deps: CopilotHistoryDeps = defaultDeps): Promise<void> {
@@ -173,7 +176,7 @@ export function parseWorkspaceYaml(raw: string): CopilotWorkspaceMeta {
 export function parseEvents(
   raw: string,
   fallbackSessionId: string,
-): { messages: Message[]; usageMetrics?: EngineUsageSnapshot; firstUserMessage?: string | null } {
+): { messages: readonly Message[]; usageMetrics?: EngineUsageSnapshot; firstUserMessage?: string | null } {
   const state = foldEvents(raw, initialParseState(fallbackSessionId))
   return { messages: state.messages, usageMetrics: state.usageMetrics, firstUserMessage: state.firstUserMessage }
 }
@@ -187,7 +190,7 @@ export function parseEvents(
  * a full parse exactly.
  */
 interface CopilotParseState {
-  readonly messages: Message[]
+  readonly messages: readonly Message[]
   readonly sessionId: string
   readonly usageMetrics: EngineUsageSnapshot | undefined
   readonly firstUserMessage: string | null
@@ -209,10 +212,10 @@ const eventsCache = createAppendParseCache<CopilotParseState, string>({
 
 /** Fold event lines onto `prev` without mutating it (cache contract). */
 function foldEvents(raw: string, prev: CopilotParseState): CopilotParseState {
-  let messages = prev.messages
+  let updatedMessages: Message[] | undefined
   const appendMessage = (message: Message) => {
-    if (messages === prev.messages) messages = messages.slice()
-    messages.push(message)
+    updatedMessages ??= [...prev.messages]
+    updatedMessages.push(message)
   }
   let sessionId = prev.sessionId
   let usageMetrics = prev.usageMetrics
@@ -283,7 +286,7 @@ function foldEvents(raw: string, prev: CopilotParseState): CopilotParseState {
     }
   }
 
-  return { messages, sessionId, usageMetrics, firstUserMessage }
+  return { messages: updatedMessages ?? prev.messages, sessionId, usageMetrics, firstUserMessage }
 }
 
 const PREVIEW_CHAR_CAP = 200

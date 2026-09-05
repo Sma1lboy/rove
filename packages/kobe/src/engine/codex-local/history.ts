@@ -55,8 +55,11 @@ export async function latestTranscriptMtimeForWorktree(
   return (await findLatestRolloutForWorktree(worktree, deps))?.mtimeMs ?? 0
 }
 
-export async function readHistory(sessionId: string, deps: HistoryDeps = defaultHistoryDeps): Promise<Message[]> {
-  return (await readHistoryWithMetrics(sessionId, deps)).messages as Message[]
+export async function readHistory(
+  sessionId: string,
+  deps: HistoryDeps = defaultHistoryDeps,
+): Promise<readonly Message[]> {
+  return (await readHistoryWithMetrics(sessionId, deps)).messages
 }
 
 export async function readHistoryWithMetrics(

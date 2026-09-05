@@ -16,7 +16,7 @@ import { createAppendParseCache, sortByTimestamp } from "../history-cache"
 import { normalizeClaudeContent } from "./normalize"
 import { isClaudeCommandBreadcrumb, isSyntheticClaudeRecord } from "./synthetic"
 
-const cache = createAppendParseCache<Message[], string>({
+const cache = createAppendParseCache<readonly Message[], string>({
   initial: () => [],
   parseChunk: (chunk, prev, sessionId) => {
     const added = parseJsonl(chunk, sessionId)
@@ -30,7 +30,7 @@ const cache = createAppendParseCache<Message[], string>({
  * when the file only appended since the last call. Message objects for
  * already-seen records keep their identity across calls.
  */
-export function parseSessionRaw(filePath: string, raw: string, sessionId: string): Message[] {
+export function parseSessionRaw(filePath: string, raw: string, sessionId: string): readonly Message[] {
   return sortByTimestamp(cache(filePath, raw, sessionId))
 }
 

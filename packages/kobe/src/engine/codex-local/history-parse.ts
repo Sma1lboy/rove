@@ -23,7 +23,7 @@ import { codexUsageToSnapshot } from "./usage"
 
 interface CodexParseState {
   /** `response_item` messages in file order (pre-sort). */
-  readonly messages: Message[]
+  readonly messages: readonly Message[]
   /** Winning usage snapshot so far (token_count / turn.completed). */
   readonly latestUsage: EngineUsageSnapshot | undefined
   /** Timestamp (epoch ms) of that snapshot, when it carried one. */
@@ -49,7 +49,7 @@ export function parseRolloutRaw(filePath: string, raw: string, sessionId: string
 }
 
 /** Uncached message-only parse. Exported for unit testing. */
-export function parseJsonl(raw: string, sessionId: string): Message[] {
+export function parseJsonl(raw: string, sessionId: string): readonly Message[] {
   return foldRolloutChunk(raw, emptyState, sessionId).messages
 }
 
@@ -61,10 +61,10 @@ export function deriveCodexUsageMetrics(raw: string): EngineUsageSnapshot | unde
 
 /** Fold rollout lines onto `prev` without mutating it (cache contract). */
 function foldRolloutChunk(chunk: string, prev: CodexParseState, sessionId: string): CodexParseState {
-  let messages = prev.messages
+  let updatedMessages: Message[] | undefined
   const writableMessages = () => {
-    if (messages === prev.messages) messages = messages.slice()
-    return messages
+    updatedMessages ??= [...prev.messages]
+    return updatedMessages
   }
   let latestUsage = prev.latestUsage
   let latestUsageTimestampMs = prev.latestUsageTimestampMs
@@ -109,6 +109,7 @@ function foldRolloutChunk(chunk: string, prev: CodexParseState, sessionId: strin
     // honor the append cache's immutable-object contract.
     const lastUsage = usageFields.lastUsage && codexLastUsageToMessageUsage(usageFields.lastUsage)
     if (lastUsage) {
+      const messages = updatedMessages ?? prev.messages
       const index = messages.findLastIndex((message) => message.role === "assistant")
       const message = messages[index]
       if (message) writableMessages()[index] = { ...message, usage: lastUsage }
@@ -127,7 +128,7 @@ function foldRolloutChunk(chunk: string, prev: CodexParseState, sessionId: strin
     }
   }
 
-  return { messages, latestUsage, latestUsageTimestampMs }
+  return { messages: updatedMessages ?? prev.messages, latestUsage, latestUsageTimestampMs }
 }
 
 /** A usage record's token fields plus the model context window it reported. */

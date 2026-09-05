@@ -19,8 +19,8 @@
  * prefix (we never retain the previous file content itself). Any mismatch
  * falls back to a full re-parse and replaces the cache entry.
  *
- * Vendors with cross-line parse state (copilot's session.start id /
- * tool-name map) cache that state alongside the messages: `S` is whatever
+ * Vendors with cross-line parse state (copilot's session.start id)
+ * cache that state alongside the messages: `S` is whatever
  * fold state the vendor's `parseChunk` threads through.
  */
 
@@ -127,10 +127,10 @@ export function createAppendParseCache<S, C = void>(
  * Stable sort: ties (same ISO timestamp) keep file-order, which roughly
  * preserves causal ordering even at sub-millisecond ties.
  */
-const sortedMessages = new WeakMap<readonly Message[], Message[]>()
+const sortedMessages = new WeakMap<readonly Message[], readonly Message[]>()
 
 /** Parse folds publish immutable arrays, so a snapshot only needs sorting once. */
-export function sortByTimestamp(messages: readonly Message[]): Message[] {
+export function sortByTimestamp(messages: readonly Message[]): readonly Message[] {
   const hit = sortedMessages.get(messages)
   if (hit) return hit
   const sorted = [...messages].sort((a, b) => (a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0))
