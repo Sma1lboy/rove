@@ -13,7 +13,7 @@ import { stat } from "node:fs/promises"
 import * as claudeHistory from "@/engine/claude-code-local/history"
 import * as codexHistory from "@/engine/codex-local/history"
 import type { VendorId } from "@/types/vendor"
-import { isJsonlLineWithinBound, readTextFileBounded } from "./file-bounds"
+import { isJsonlLineWithinBound, readTextFileIfRegular } from "./file-bounds"
 import { engineEntry } from "./registry.ts"
 
 /** `needs_input` comes from hooks (permission prompt / question dialog via
@@ -94,8 +94,9 @@ export abstract class EngineTurnDetector {
    * the activity lapse watchdog when several sessions share a worktree (the
    * kobe main task runs many tabs in one checkout): a sibling's Stop read as
    * "this turn ended" and idled a genuinely mid-turn engine at the TTL.
-   * `null` = this vendor can't read a single transcript (or the file is
-   * gone) — the caller falls back to the worktree scan.
+   * `null` means there is no trustworthy scan: unsupported, missing,
+   * unreadable, non-regular, or oversized. An empty readable file produces
+   * a scan with a null marker. A known path must never fall back to a sibling.
    */
   async latestActivityInFile(_transcriptPath: string): Promise<TranscriptScan | null> {
     return null
@@ -117,7 +118,7 @@ export function createEngineTurnDetector(vendor: VendorId): EngineTurnDetector {
 }
 
 interface TranscriptFileDeps {
-  readFile(path: string): Promise<string>
+  readFile(path: string): Promise<string | null>
   statMtimeMs?(path: string): Promise<number>
   statFile?(path: string): Promise<{ mtimeMs: number; size: number; ctimeMs: number; ino: number; dev: number } | null>
 }
@@ -144,18 +145,20 @@ function completionReader(
       info?.mtimeMs ??
       knownMtime ??
       (await (deps.statMtimeMs ?? (async (p) => (await statFile(p))?.mtimeMs ?? 0))(path))
-    if (!mtimeMs)
-      return knownMtime === undefined
-        ? null
-        : { marker: parse(await deps.readFile(path).catch(() => ""), path, mtimeMs), mtimeMs }
+    if (!info && knownMtime === undefined && mtimeMs === 0) return null
     const key = info ? `${info.dev}:${info.ino}:${info.size}:${info.mtimeMs}:${info.ctimeMs}` : String(mtimeMs)
     const hit = cache.get(path)
-    if (hit?.key === key) return hit.scan
-    let raw: string
+    if (mtimeMs > 0 && hit?.key === key) return hit.scan
+    let raw: string | null
     try {
       raw = await deps.readFile(path)
     } catch {
-      return { marker: null, mtimeMs }
+      cache.delete(path)
+      return null
+    }
+    if (raw === null) {
+      cache.delete(path)
+      return null
     }
     const scan = { marker: parse(raw, path, mtimeMs), mtimeMs }
     cache.delete(path)
@@ -170,7 +173,7 @@ function completionReader(
 
 const defaultClaudeDeps: ClaudeTurnDetectorDeps = {
   listSessionFiles: (worktree) => claudeHistory.listSessionFilesForWorktree(worktree),
-  readFile: readTextFileBounded,
+  readFile: readTextFileIfRegular,
   statFile,
 }
 
@@ -201,7 +204,7 @@ export class ClaudeTurnDetector extends EngineTurnDetector {
 
 const defaultCodexDeps: CodexTurnDetectorDeps = {
   findLatestRollout: (worktree) => codexHistory.findLatestRolloutForWorktree(worktree),
-  readFile: readTextFileBounded,
+  readFile: readTextFileIfRegular,
   statFile,
 }
 

@@ -62,8 +62,7 @@ describe.each([
     await file.truncate(100 * 1024 * 1024 + 1)
     await file.close()
     const scan = await make().latestActivityInFile(f.file)
-    expect(scan?.mtimeMs).toBeGreaterThan(0)
-    expect(scan?.marker).toBeNull()
+    expect(scan).toBeNull()
   })
 })
 
@@ -101,4 +100,22 @@ it("handles byte boundaries, multibyte content, unterminated and blank headers",
   await writeFile(f.file, "a".repeat(32))
   expect(await readFirstLineBounded(f.file, 32)).toBe("a".repeat(32))
   expect(await readFirstLineBounded(f.file, 31)).toBe("")
+})
+
+it("does not cache a failed scoped read after a successful stat", async () => {
+  let fail = true
+  let reads = 0
+  const detector = new CodexTurnDetector({
+    findLatestRollout: async () => null,
+    statFile: async () => ({ mtimeMs: 100, size: 5, ctimeMs: 100, ino: 1, dev: 1 }),
+    readFile: async () => {
+      reads++
+      if (fail) throw new Error("EACCES")
+      return ""
+    },
+  })
+  expect(await detector.latestActivityInFile("/scoped")).toBeNull()
+  fail = false
+  expect(await detector.latestActivityInFile("/scoped")).toEqual({ marker: null, mtimeMs: 100 })
+  expect(reads).toBe(2)
 })

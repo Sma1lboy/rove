@@ -7,11 +7,11 @@ const READ_CHUNK_BYTES = 64 * 1024
 const READ_FLAGS = constants.O_RDONLY | constants.O_NONBLOCK
 
 /** Cap bytes on the open handle, including growth after stat and path replacement. */
-export async function readTextFileBounded(p: string, maxBytes = MAX_ENGINE_FILE_BYTES): Promise<string> {
+export async function readTextFileIfRegular(p: string, maxBytes = MAX_ENGINE_FILE_BYTES): Promise<string | null> {
   const file = await open(p, READ_FLAGS)
   try {
     const info = await file.stat()
-    if (!info.isFile() || info.size > maxBytes) return ""
+    if (!info.isFile() || info.size > maxBytes) return null
     const chunks: Buffer[] = []
     let total = 0
     while (total <= maxBytes) {
@@ -21,10 +21,15 @@ export async function readTextFileBounded(p: string, maxBytes = MAX_ENGINE_FILE_
       chunks.push(buffer.subarray(0, bytesRead))
       total += bytesRead
     }
-    return ""
+    return null
   } finally {
     await file.close()
   }
+}
+
+/** History readers keep their empty-result fallback for refused files. */
+export async function readTextFileBounded(p: string, maxBytes = MAX_ENGINE_FILE_BYTES): Promise<string> {
+  return (await readTextFileIfRegular(p, maxBytes)) ?? ""
 }
 
 /** Metadata discovery reads the first nonblank line, never the transcript body. */
