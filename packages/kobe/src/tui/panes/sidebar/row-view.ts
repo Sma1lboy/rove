@@ -36,27 +36,12 @@ export interface SidebarRowView {
 
 /**
  * TONE for the attention states, so a row whose engine needs a human keeps
- * its warning/error colour even while something else makes it spin (a
- * materializing worktree, a still-writing transcript) — `loading` otherwise
- * paints every such row `primary`.
- *
- * No WORD accompanies the tone: the tree row (`tree-rows.tsx`) is one cell
- * and renders the glyph plus the tab label, nothing else, so the glyph
- * carries the state alone. That is the whole reason the
- * glyphs must stay distinct (`◷` vs `×` vs `†`): with no subtitle there is no
- * second channel to disambiguate them.
+ * its error colour even while something else makes it spin (a materializing
+ * worktree, a still-writing transcript) — `loading` otherwise paints every
+ * such row `primary`.
  */
 function activityToneFor(state: TaskActivityState | undefined): SidebarTone | null {
-  switch (state) {
-    case "rate_limited":
-    case "permission_needed":
-      return "warning"
-    case "error":
-    case "dead":
-      return "error"
-    default:
-      return null
-  }
+  return ATTENTION_STATES.has(state) ? "error" : null
 }
 
 /** Neutral fallback frames — kept under the historical name for existing consumers/tests. */
@@ -74,39 +59,33 @@ export const SPINNER_FRAME_MS = 100
 export const SPINNER_TICK_CYCLE = 600
 
 /**
- * The dim dot every row wears when it has no state to report. Three cases
- * converge on it deliberately: a custom engine with no
- * transcript store the monitor can watch (`monitor/activity.ts`), a
- * non-agent tab (shell / command / content), and a row the daemon has
- * simply not observed yet. That last case gets no separate "unknown"
- * glyph: it would tell the reader nothing they could act on —
- * both "idle" and "unknown" mean open it to find out — and a dotted `◌`
- * (U+25CC) is absent from several popular terminal fonts, so it falls back
- * to a CJK face at 1.62 cells and overlaps the label beside it. `·` is in
- * every font at one cell.
+ * The rail speaks FOUR states, and the reader acts on exactly one of them:
  *
- * Exported so the tab rows share the constant rather than re-declaring it.
+ *   spinner  working
+ *   `!`      needs you — permission, rate limit, error, dead engine,
+ *            failed deletion. Which one is the tab's job to say; the rail
+ *            only has to make you open it.
+ *   `●`      a turn finished and you have not looked
+ *   `○`      quiet — idle, unobserved, a shell tab, a custom engine with no
+ *            tracking. Every one of those means "nothing to do here".
+ *
+ * Two glyphs per row used to distinguish `◷` from `?` from `×` from `†`, and
+ * `·` from `○`; the sidebar read like a legend. None of those splits changed
+ * what the reader did next.
+ *
+ * `!` and `○` are ASCII / Latin-1 — one cell in every monospace font, the
+ * same rule that ruled out `◌` (U+25CC, oversized fallback) and `✕` (U+2715,
+ * dingbat block).
  */
-export const NO_STATE_GLYPH = "·"
+export const NO_STATE_GLYPH = "○"
+export const ATTENTION_GLYPH = "!"
 
-/**
- * Error / failed-deletion glyph. `×` (U+00D7 MULTIPLICATION SIGN), not the
- * heavier `✕` (U+2715) it replaced: U+2715 is in the dingbat block, which
- * FiraCode Nerd Font and SF Mono lack, so macOS fell it back to ZapfDingbats
- * at 1.24 cells and it bled into the next column. U+00D7 is Latin-1 — every
- * monospace font on earth has it, at exactly one cell.
- */
-export const ERROR_GLYPH = "×"
-
-/**
- * Dead-engine glyph — the engine PROCESS is gone (killed, or exited under a
- * wrapper), from the pty-host's exit record. `†` (U+2020 DAGGER), not a
- * variant of `×`: an errored engine RAN and reported a failed turn, a dead one
- * is gone, and only one of the two can be answered by restarting.
- * General Punctuation, so every monospace font has it at exactly one cell —
- * the same constraint that rules out `◌` (U+25CC renders oversized) and `✕`.
- */
-export const DEAD_GLYPH = "†"
+const ATTENTION_STATES: ReadonlySet<TaskActivityState | undefined> = new Set([
+  "rate_limited",
+  "permission_needed",
+  "error",
+  "dead",
+])
 
 /**
  * Muted subtitle shown when a custom-engine task has nothing else to say.
@@ -286,11 +265,9 @@ export function buildSidebarRowView(opts: {
     transcript: opts.transcript,
   })
   // One frame set for every engine (see `spinner-frames.ts`). It must stay
-  // visually distinct from the
-  // STATIC badge glyphs below (`●` unseen-complete, `○` idle, `·` no state):
-  // a spinner that borrows a badge glyph makes a RUNNING row read as a
-  // finished one — which is also what rules out a reduced-motion `●`/`·`
-  // pulse.
+  // visually distinct from the STATIC badge glyphs (`●` unseen-complete, `○`
+  // quiet): a spinner that borrows a badge glyph makes a RUNNING row read as
+  // a finished one.
   const spinnerFrames = DEFAULT_SPINNER_FRAMES
   const spinner = spinnerFrames[opts.spinnerFrame % spinnerFrames.length] ?? spinnerFrames[0]
   const tone = deleteFailed
@@ -324,10 +301,9 @@ export function buildSidebarRowView(opts: {
         : branchWithMarks.length > 0
           ? opts.truncateBranch(branchWithMarks, opts.subtitleBudget)
           : opts.truncateBranch(fallbackSubtitle, opts.subtitleBudget)
-  // Untracked custom engine gets a distinct dim dot. Normal tasks fall back
-  // to the hollow idle circle because the client deliberately removes an
-  // explicit `idle` activity entry; absence is therefore the idle projection.
-  const restGlyph = deleteFailed ? ERROR_GLYPH : untrackedCustomEngine ? NO_STATE_GLYPH : (activityBadge?.glyph ?? "○")
+  // The client deliberately removes an explicit `idle` activity entry, so
+  // absence is the quiet projection.
+  const restGlyph = deleteFailed ? ATTENTION_GLYPH : (activityBadge?.glyph ?? NO_STATE_GLYPH)
   return {
     isMain,
     titleText: isMain ? repoBasename(task.repo) : task.title,
@@ -359,30 +335,16 @@ export function withSpinnerFrame(view: SidebarRowView, frame: () => number): Sid
 }
 
 /**
- * herdr-style status circles (`?` for blocked-on-user):
- * ● turn done (not yet viewed), ○ idle. `completionSeen` is the herdr "seen"
- * bit — and seen means CONSUMED: a completion you have
- * already looked at is simply over, so the badge drops back to the idle
- * circle rather than lingering as a ✓ the row would wear forever.
+ * herdr-style badge: `!` needs a human, `●` turn done (not yet viewed), null
+ * for quiet. `completionSeen` is the herdr "seen" bit — and seen means
+ * CONSUMED: a completion you have already looked at is simply over, so the
+ * badge drops back to the quiet circle rather than lingering as a ✓ forever.
  */
 function activityBadgeFor(
   state: TaskActivityState | undefined,
   completionSeen: boolean,
-): { glyph: string; tone: "primary" | "warning" | "error" | "success" } | null {
-  switch (state) {
-    case "rate_limited":
-      return { glyph: "◷", tone: "warning" }
-    // Needs-input reads as a literal question — the one state where the
-    // icon asks the user for something.
-    case "permission_needed":
-      return { glyph: "?", tone: "warning" }
-    case "error":
-      return { glyph: ERROR_GLYPH, tone: "error" }
-    case "dead":
-      return { glyph: DEAD_GLYPH, tone: "error" }
-    case "turn_complete":
-      return completionSeen ? null : { glyph: "●", tone: "primary" }
-    default:
-      return null
-  }
+): { glyph: string; tone: "primary" | "error" } | null {
+  if (ATTENTION_STATES.has(state)) return { glyph: ATTENTION_GLYPH, tone: "error" }
+  if (state === "turn_complete" && !completionSeen) return { glyph: "●", tone: "primary" }
+  return null
 }

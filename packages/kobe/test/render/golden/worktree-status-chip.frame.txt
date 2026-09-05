@@ -1,5 +1,5 @@
 # sidebar frame: worktree-status-chip
-# the human-set board status joins the same right-edge cluster, LEFT of the machine PR chip; backlog/in_progress stay bare
+# the board status never reaches the rail; only the PR chip does, and a conflict outranks green checks
 # 30x22
 # GENERATED — do not hand-edit. Regenerate: KOBE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
@@ -10,12 +10,12 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-|▌ feat/review           ◇ ✓ ? |
-|  feat/shipped            ◆ ? |
-|  feat/dropped            † ? |
-|  feat/broke              × ? |
+|▌ feat/review             ✓ ? |
+|  feat/stuck              ≠ ? |
+|  feat/shipped              ? |
+|  feat/dropped              ? |
+|  feat/broke                ? |
 |  feat/quiet                ? |
-|                              |
 |                              |
 |                              |
 |                              |

@@ -10,8 +10,8 @@ act=-                  seen=0 job=0 del=-        vendor=copilot    tx=- | main=0
 act=-                  seen=0 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 act=-                  seen=0 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 act=-                  seen=0 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-act=-                  seen=0 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=·   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-act=-                  seen=0 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=·   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+act=-                  seen=0 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+act=-                  seen=0 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 act=-                  seen=0 job=0 del=queued   vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=-                  seen=0 job=0 del=queued   vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=-                  seen=0 job=0 del=queued   vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
@@ -32,16 +32,16 @@ act=-                  seen=0 job=0 del=running  vendor=kimi       tx=- | main=0
 act=-                  seen=0 job=0 del=running  vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=-                  seen=0 job=0 del=running  vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=-                  seen=0 job=0 del=running  vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-act=-                  seen=0 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=0 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=0 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=0 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=0 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=0 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=0 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=0 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=0 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=0 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=0 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=0 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=0 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=0 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=0 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=0 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=0 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=0 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=0 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=0 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=-                  seen=0 job=1 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=-                  seen=0 job=1 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=-                  seen=0 job=1 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
@@ -90,8 +90,8 @@ act=-                  seen=1 job=0 del=-        vendor=copilot    tx=- | main=0
 act=-                  seen=1 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 act=-                  seen=1 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 act=-                  seen=1 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-act=-                  seen=1 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=·   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-act=-                  seen=1 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=·   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+act=-                  seen=1 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+act=-                  seen=1 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 act=-                  seen=1 job=0 del=queued   vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=-                  seen=1 job=0 del=queued   vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=-                  seen=1 job=0 del=queued   vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
@@ -112,16 +112,16 @@ act=-                  seen=1 job=0 del=running  vendor=kimi       tx=- | main=0
 act=-                  seen=1 job=0 del=running  vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=-                  seen=1 job=0 del=running  vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=-                  seen=1 job=0 del=running  vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-act=-                  seen=1 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=1 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=1 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=1 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=1 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=1 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=1 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=1 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=1 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=-                  seen=1 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=1 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=1 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=1 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=1 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=1 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=1 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=1 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=1 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=1 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=-                  seen=1 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=-                  seen=1 job=1 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=-                  seen=1 job=1 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=-                  seen=1 job=1 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
@@ -192,16 +192,16 @@ act=idle               seen=0 job=0 del=running  vendor=kimi       tx=- | main=0
 act=idle               seen=0 job=0 del=running  vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=idle               seen=0 job=0 del=running  vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=idle               seen=0 job=0 del=running  vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-act=idle               seen=0 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=0 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=0 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=0 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=0 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=0 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=0 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=0 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=0 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=0 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=0 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=0 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=0 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=0 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=0 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=0 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=0 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=0 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=0 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=0 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=idle               seen=0 job=1 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=idle               seen=0 job=1 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=idle               seen=0 job=1 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
@@ -272,16 +272,16 @@ act=idle               seen=1 job=0 del=running  vendor=kimi       tx=- | main=0
 act=idle               seen=1 job=0 del=running  vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=idle               seen=1 job=0 del=running  vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=idle               seen=1 job=0 del=running  vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-act=idle               seen=1 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=1 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=1 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=1 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=1 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=1 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=1 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=1 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=1 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=idle               seen=1 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=1 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=1 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=1 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=1 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=1 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=1 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=1 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=1 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=1 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=idle               seen=1 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=idle               seen=1 job=1 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=idle               seen=1 job=1 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=idle               seen=1 job=1 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
@@ -512,15 +512,15 @@ act=turn_complete      seen=0 job=0 del=running  vendor=kimi       tx=- | main=0
 act=turn_complete      seen=0 job=0 del=running  vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=turn_complete      seen=0 job=0 del=running  vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=turn_complete      seen=0 job=0 del=running  vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-act=turn_complete      seen=0 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=turn_complete      seen=0 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=0 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
-act=turn_complete      seen=0 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=turn_complete      seen=0 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=0 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
-act=turn_complete      seen=0 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=turn_complete      seen=0 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=0 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
-act=turn_complete      seen=0 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=turn_complete      seen=0 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=0 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
-act=turn_complete      seen=0 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=turn_complete      seen=0 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=0 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
 act=turn_complete      seen=0 job=1 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=turn_complete      seen=0 job=1 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
@@ -592,15 +592,15 @@ act=turn_complete      seen=1 job=0 del=running  vendor=kimi       tx=- | main=0
 act=turn_complete      seen=1 job=0 del=running  vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=turn_complete      seen=1 job=0 del=running  vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=turn_complete      seen=1 job=0 del=running  vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-act=turn_complete      seen=1 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=turn_complete      seen=1 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=1 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
-act=turn_complete      seen=1 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=turn_complete      seen=1 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=1 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
-act=turn_complete      seen=1 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=turn_complete      seen=1 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=1 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
-act=turn_complete      seen=1 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=turn_complete      seen=1 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=1 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
-act=turn_complete      seen=1 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=turn_complete      seen=1 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=1 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
 act=turn_complete      seen=1 job=1 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=turn_complete      seen=1 job=1 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
@@ -642,16 +642,16 @@ act=turn_complete      seen=1 job=1 del=error    vendor=kimi       tx=- | main=0
 act=turn_complete      seen=1 job=1 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=turn_complete      seen=1 job=1 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=turn_complete      seen=1 job=1 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
-act=rate_limited       seen=0 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 act=rate_limited       seen=0 job=0 del=queued   vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=rate_limited       seen=0 job=0 del=queued   vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=rate_limited       seen=0 job=0 del=queued   vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
@@ -672,16 +672,16 @@ act=rate_limited       seen=0 job=0 del=running  vendor=kimi       tx=- | main=0
 act=rate_limited       seen=0 job=0 del=running  vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=rate_limited       seen=0 job=0 del=running  vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=rate_limited       seen=0 job=0 del=running  vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-act=rate_limited       seen=0 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=0 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=0 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=0 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=0 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=0 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=0 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=0 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=0 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=0 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=0 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=0 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=0 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=0 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=0 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=0 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=0 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=0 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=0 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=0 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=rate_limited       seen=0 job=1 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=rate_limited       seen=0 job=1 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=rate_limited       seen=0 job=1 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
@@ -722,16 +722,16 @@ act=rate_limited       seen=0 job=1 del=error    vendor=kimi       tx=- | main=0
 act=rate_limited       seen=0 job=1 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=rate_limited       seen=0 job=1 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=rate_limited       seen=0 job=1 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
-act=rate_limited       seen=1 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 act=rate_limited       seen=1 job=0 del=queued   vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=rate_limited       seen=1 job=0 del=queued   vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=rate_limited       seen=1 job=0 del=queued   vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
@@ -752,16 +752,16 @@ act=rate_limited       seen=1 job=0 del=running  vendor=kimi       tx=- | main=0
 act=rate_limited       seen=1 job=0 del=running  vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=rate_limited       seen=1 job=0 del=running  vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=rate_limited       seen=1 job=0 del=running  vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-act=rate_limited       seen=1 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=1 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=1 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=1 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=1 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=1 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=1 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=1 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=1 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=rate_limited       seen=1 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=1 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=1 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=1 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=1 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=1 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=1 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=1 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=1 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=1 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=rate_limited       seen=1 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=rate_limited       seen=1 job=1 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=rate_limited       seen=1 job=1 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=rate_limited       seen=1 job=1 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
@@ -802,16 +802,16 @@ act=rate_limited       seen=1 job=1 del=error    vendor=kimi       tx=- | main=0
 act=rate_limited       seen=1 job=1 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=rate_limited       seen=1 job=1 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=rate_limited       seen=1 job=1 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
-act=permission_needed  seen=0 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=0 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=0 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=0 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=0 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=0 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=0 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=0 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=0 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=0 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=0 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=0 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=0 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=0 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=0 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=0 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=0 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=0 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=0 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=0 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 act=permission_needed  seen=0 job=0 del=queued   vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=permission_needed  seen=0 job=0 del=queued   vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=permission_needed  seen=0 job=0 del=queued   vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
@@ -832,16 +832,16 @@ act=permission_needed  seen=0 job=0 del=running  vendor=kimi       tx=- | main=0
 act=permission_needed  seen=0 job=0 del=running  vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=permission_needed  seen=0 job=0 del=running  vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=permission_needed  seen=0 job=0 del=running  vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-act=permission_needed  seen=0 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=0 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=0 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=0 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=0 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=0 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=0 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=0 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=0 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=0 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=0 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=0 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=0 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=0 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=0 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=0 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=0 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=0 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=0 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=0 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=permission_needed  seen=0 job=1 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=permission_needed  seen=0 job=1 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=permission_needed  seen=0 job=1 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
@@ -882,16 +882,16 @@ act=permission_needed  seen=0 job=1 del=error    vendor=kimi       tx=- | main=0
 act=permission_needed  seen=0 job=1 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=permission_needed  seen=0 job=1 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=permission_needed  seen=0 job=1 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
-act=permission_needed  seen=1 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=1 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=1 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=1 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=1 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=1 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=1 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=1 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=1 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-act=permission_needed  seen=1 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=1 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=1 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=1 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=1 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=1 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=1 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=1 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=1 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=1 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=permission_needed  seen=1 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 act=permission_needed  seen=1 job=0 del=queued   vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=permission_needed  seen=1 job=0 del=queued   vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=permission_needed  seen=1 job=0 del=queued   vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
@@ -912,16 +912,16 @@ act=permission_needed  seen=1 job=0 del=running  vendor=kimi       tx=- | main=0
 act=permission_needed  seen=1 job=0 del=running  vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=permission_needed  seen=1 job=0 del=running  vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=permission_needed  seen=1 job=0 del=running  vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-act=permission_needed  seen=1 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=1 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=1 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=1 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=1 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=1 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=1 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=1 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=1 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=permission_needed  seen=1 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=1 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=1 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=1 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=1 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=1 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=1 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=1 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=1 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=1 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=permission_needed  seen=1 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=permission_needed  seen=1 job=1 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=permission_needed  seen=1 job=1 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=permission_needed  seen=1 job=1 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
@@ -962,16 +962,16 @@ act=permission_needed  seen=1 job=1 del=error    vendor=kimi       tx=- | main=0
 act=permission_needed  seen=1 job=1 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=permission_needed  seen=1 job=1 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=permission_needed  seen=1 job=1 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
-act=error              seen=0 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=0 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=0 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=0 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=0 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=0 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=0 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=0 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=0 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=0 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=0 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=0 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=0 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=0 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=0 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=0 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=0 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=0 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=0 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=0 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 act=error              seen=0 job=0 del=queued   vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=error              seen=0 job=0 del=queued   vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=error              seen=0 job=0 del=queued   vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
@@ -992,16 +992,16 @@ act=error              seen=0 job=0 del=running  vendor=kimi       tx=- | main=0
 act=error              seen=0 job=0 del=running  vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=error              seen=0 job=0 del=running  vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=error              seen=0 job=0 del=running  vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-act=error              seen=0 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=0 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=0 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=0 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=0 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=0 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=0 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=0 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=0 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=0 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=0 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=0 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=0 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=0 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=0 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=0 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=0 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=0 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=0 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=0 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=error              seen=0 job=1 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=error              seen=0 job=1 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=error              seen=0 job=1 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
@@ -1042,16 +1042,16 @@ act=error              seen=0 job=1 del=error    vendor=kimi       tx=- | main=0
 act=error              seen=0 job=1 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=error              seen=0 job=1 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=error              seen=0 job=1 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
-act=error              seen=1 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=1 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=1 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=1 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=1 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=1 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=1 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=1 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=1 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-act=error              seen=1 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=1 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=1 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=1 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=1 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=1 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=1 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=1 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=1 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=1 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=error              seen=1 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 act=error              seen=1 job=0 del=queued   vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=error              seen=1 job=0 del=queued   vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=error              seen=1 job=0 del=queued   vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
@@ -1072,16 +1072,16 @@ act=error              seen=1 job=0 del=running  vendor=kimi       tx=- | main=0
 act=error              seen=1 job=0 del=running  vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=error              seen=1 job=0 del=running  vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=error              seen=1 job=0 del=running  vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-act=error              seen=1 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=1 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=1 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=1 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=1 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=1 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=1 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=1 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=1 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=error              seen=1 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=1 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=1 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=1 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=1 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=1 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=1 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=1 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=1 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=1 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=error              seen=1 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=error              seen=1 job=1 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=error              seen=1 job=1 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=error              seen=1 job=1 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
@@ -1122,16 +1122,16 @@ act=error              seen=1 job=1 del=error    vendor=kimi       tx=- | main=0
 act=error              seen=1 job=1 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=error              seen=1 job=1 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=error              seen=1 job=1 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
-act=dead               seen=0 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=0 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=0 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=0 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=0 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=0 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=0 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=0 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=0 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=0 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=0 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=0 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=0 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=0 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=0 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=0 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=0 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=0 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=0 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=0 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 act=dead               seen=0 job=0 del=queued   vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=dead               seen=0 job=0 del=queued   vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=dead               seen=0 job=0 del=queued   vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
@@ -1152,16 +1152,16 @@ act=dead               seen=0 job=0 del=running  vendor=kimi       tx=- | main=0
 act=dead               seen=0 job=0 del=running  vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=dead               seen=0 job=0 del=running  vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=dead               seen=0 job=0 del=running  vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-act=dead               seen=0 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=0 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=0 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=0 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=0 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=0 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=0 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=0 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=0 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=0 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=0 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=0 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=0 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=0 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=0 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=0 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=0 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=0 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=0 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=0 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=dead               seen=0 job=1 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=dead               seen=0 job=1 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=dead               seen=0 job=1 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
@@ -1202,16 +1202,16 @@ act=dead               seen=0 job=1 del=error    vendor=kimi       tx=- | main=0
 act=dead               seen=0 job=1 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=dead               seen=0 job=1 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=dead               seen=0 job=1 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
-act=dead               seen=1 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=1 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=1 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=1 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=1 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=1 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=1 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=1 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=1 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-act=dead               seen=1 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=1 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=1 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=1 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=1 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=1 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=1 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=1 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=1 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=1 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=dead               seen=1 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 act=dead               seen=1 job=0 del=queued   vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=dead               seen=1 job=0 del=queued   vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=dead               seen=1 job=0 del=queued   vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
@@ -1232,16 +1232,16 @@ act=dead               seen=1 job=0 del=running  vendor=kimi       tx=- | main=0
 act=dead               seen=1 job=0 del=running  vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=dead               seen=1 job=0 del=running  vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=dead               seen=1 job=0 del=running  vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-act=dead               seen=1 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=1 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=1 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=1 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=1 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=1 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=1 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=1 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=1 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
-act=dead               seen=1 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=1 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=1 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=1 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=1 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=1 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=1 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=1 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=1 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=1 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+act=dead               seen=1 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=dead               seen=1 job=1 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=dead               seen=1 job=1 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=dead               seen=1 job=1 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
@@ -1288,26 +1288,26 @@ mainBranch=main                    act=-                  | main=1 title=rove   
 mainBranch=main                    act=idle               | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=main
 mainBranch=main                    act=running            | main=1 title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=main
 mainBranch=main                    act=turn_complete      | main=1 title=rove             glyph=●   tone=primary     load=0 matz=0 sub=main
-mainBranch=main                    act=rate_limited       | main=1 title=rove             glyph=◷   tone=warning     load=0 matz=0 sub=main
-mainBranch=main                    act=permission_needed  | main=1 title=rove             glyph=?   tone=warning     load=0 matz=0 sub=main
-mainBranch=main                    act=error              | main=1 title=rove             glyph=×   tone=error       load=0 matz=0 sub=main
-mainBranch=main                    act=dead               | main=1 title=rove             glyph=†   tone=error       load=0 matz=0 sub=main
+mainBranch=main                    act=rate_limited       | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=main
+mainBranch=main                    act=permission_needed  | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=main
+mainBranch=main                    act=error              | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=main
+mainBranch=main                    act=dead               | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=main
 mainBranch=feat/long-running-branch act=-                  | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=feat/long-running-branch
 mainBranch=feat/long-running-branch act=idle               | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=feat/long-running-branch
 mainBranch=feat/long-running-branch act=running            | main=1 title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=feat/long-running-branch
 mainBranch=feat/long-running-branch act=turn_complete      | main=1 title=rove             glyph=●   tone=primary     load=0 matz=0 sub=feat/long-running-branch
-mainBranch=feat/long-running-branch act=rate_limited       | main=1 title=rove             glyph=◷   tone=warning     load=0 matz=0 sub=feat/long-running-branch
-mainBranch=feat/long-running-branch act=permission_needed  | main=1 title=rove             glyph=?   tone=warning     load=0 matz=0 sub=feat/long-running-branch
-mainBranch=feat/long-running-branch act=error              | main=1 title=rove             glyph=×   tone=error       load=0 matz=0 sub=feat/long-running-branch
-mainBranch=feat/long-running-branch act=dead               | main=1 title=rove             glyph=†   tone=error       load=0 matz=0 sub=feat/long-running-branch
+mainBranch=feat/long-running-branch act=rate_limited       | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=feat/long-running-branch
+mainBranch=feat/long-running-branch act=permission_needed  | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=feat/long-running-branch
+mainBranch=feat/long-running-branch act=error              | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=feat/long-running-branch
+mainBranch=feat/long-running-branch act=dead               | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=feat/long-running-branch
 mainBranch=-                       act=-                  | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=—
 mainBranch=-                       act=idle               | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=—
 mainBranch=-                       act=running            | main=1 title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=—
 mainBranch=-                       act=turn_complete      | main=1 title=rove             glyph=●   tone=primary     load=0 matz=0 sub=—
-mainBranch=-                       act=rate_limited       | main=1 title=rove             glyph=◷   tone=warning     load=0 matz=0 sub=—
-mainBranch=-                       act=permission_needed  | main=1 title=rove             glyph=?   tone=warning     load=0 matz=0 sub=—
-mainBranch=-                       act=error              | main=1 title=rove             glyph=×   tone=error       load=0 matz=0 sub=—
-mainBranch=-                       act=dead               | main=1 title=rove             glyph=†   tone=error       load=0 matz=0 sub=—
+mainBranch=-                       act=rate_limited       | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=—
+mainBranch=-                       act=permission_needed  | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=—
+mainBranch=-                       act=error              | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=—
+mainBranch=-                       act=dead               | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=—
 
 ## engine-owned spinner frame sets + withSpinnerFrame overlay
 vendor=claude     frames(0..25)=⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏⠋⠙⠹⠸⠼⠴
@@ -1331,22 +1331,22 @@ act=turn_complete      frame=0    overlay: base=● after=● tone=primary     s
 act=turn_complete      frame=3    overlay: base=● after=● tone=primary     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
 act=turn_complete      frame=14   overlay: base=● after=● tone=primary     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
 act=turn_complete      frame=99   overlay: base=● after=● tone=primary     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=rate_limited       frame=0    overlay: base=◷ after=◷ tone=warning     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=rate_limited       frame=3    overlay: base=◷ after=◷ tone=warning     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=rate_limited       frame=14   overlay: base=◷ after=◷ tone=warning     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=rate_limited       frame=99   overlay: base=◷ after=◷ tone=warning     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=permission_needed  frame=0    overlay: base=? after=? tone=warning     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=permission_needed  frame=3    overlay: base=? after=? tone=warning     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=permission_needed  frame=14   overlay: base=? after=? tone=warning     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=permission_needed  frame=99   overlay: base=? after=? tone=warning     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=error              frame=0    overlay: base=× after=× tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=error              frame=3    overlay: base=× after=× tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=error              frame=14   overlay: base=× after=× tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=error              frame=99   overlay: base=× after=× tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=dead               frame=0    overlay: base=† after=† tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=dead               frame=3    overlay: base=† after=† tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=dead               frame=14   overlay: base=† after=† tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=dead               frame=99   overlay: base=† after=† tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=rate_limited       frame=0    overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=rate_limited       frame=3    overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=rate_limited       frame=14   overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=rate_limited       frame=99   overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=permission_needed  frame=0    overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=permission_needed  frame=3    overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=permission_needed  frame=14   overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=permission_needed  frame=99   overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=error              frame=0    overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=error              frame=3    overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=error              frame=14   overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=error              frame=99   overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=dead               frame=0    overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=dead               frame=3    overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=dead               frame=14   overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=dead               frame=99   overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
 defaultFrames=⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏
 
 ## turn-complete vs transcript growth — the still-working grace window
@@ -1384,14 +1384,14 @@ subagents=0    act=running            branch=feat/sidebar  | main=0 title=fix th
 subagents=0    act=running            branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
 subagents=0    act=turn_complete      branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 subagents=0    act=turn_complete      branch=-             | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=—
-subagents=0    act=rate_limited       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-subagents=0    act=rate_limited       branch=-             | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=—
-subagents=0    act=permission_needed  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-subagents=0    act=permission_needed  branch=-             | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=—
-subagents=0    act=error              branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=0    act=error              branch=-             | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=—
-subagents=0    act=dead               branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=0    act=dead               branch=-             | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=—
+subagents=0    act=rate_limited       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=0    act=rate_limited       branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=0    act=permission_needed  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=0    act=permission_needed  branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=0    act=error              branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=0    act=error              branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=0    act=dead               branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=0    act=dead               branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
 subagents=1    act=-                  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 subagents=1    act=-                  branch=-             | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
 subagents=1    act=idle               branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
@@ -1400,14 +1400,14 @@ subagents=1    act=running            branch=feat/sidebar  | main=0 title=fix th
 subagents=1    act=running            branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
 subagents=1    act=turn_complete      branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 subagents=1    act=turn_complete      branch=-             | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=—
-subagents=1    act=rate_limited       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-subagents=1    act=rate_limited       branch=-             | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=—
-subagents=1    act=permission_needed  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-subagents=1    act=permission_needed  branch=-             | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=—
-subagents=1    act=error              branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=1    act=error              branch=-             | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=—
-subagents=1    act=dead               branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=1    act=dead               branch=-             | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=—
+subagents=1    act=rate_limited       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=1    act=rate_limited       branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=1    act=permission_needed  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=1    act=permission_needed  branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=1    act=error              branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=1    act=error              branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=1    act=dead               branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=1    act=dead               branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
 subagents=3    act=-                  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 subagents=3    act=-                  branch=-             | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
 subagents=3    act=idle               branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
@@ -1416,14 +1416,14 @@ subagents=3    act=running            branch=feat/sidebar  | main=0 title=fix th
 subagents=3    act=running            branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
 subagents=3    act=turn_complete      branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 subagents=3    act=turn_complete      branch=-             | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=—
-subagents=3    act=rate_limited       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-subagents=3    act=rate_limited       branch=-             | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=—
-subagents=3    act=permission_needed  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-subagents=3    act=permission_needed  branch=-             | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=—
-subagents=3    act=error              branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=3    act=error              branch=-             | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=—
-subagents=3    act=dead               branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=3    act=dead               branch=-             | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=—
+subagents=3    act=rate_limited       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=3    act=rate_limited       branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=3    act=permission_needed  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=3    act=permission_needed  branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=3    act=error              branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=3    act=error              branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=3    act=dead               branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=3    act=dead               branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
 subagents=12   act=-                  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 subagents=12   act=-                  branch=-             | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
 subagents=12   act=idle               branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
@@ -1432,145 +1432,164 @@ subagents=12   act=running            branch=feat/sidebar  | main=0 title=fix th
 subagents=12   act=running            branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
 subagents=12   act=turn_complete      branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 subagents=12   act=turn_complete      branch=-             | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=—
-subagents=12   act=rate_limited       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-subagents=12   act=rate_limited       branch=-             | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=—
-subagents=12   act=permission_needed  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-subagents=12   act=permission_needed  branch=-             | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=—
-subagents=12   act=error              branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=12   act=error              branch=-             | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=—
-subagents=12   act=dead               branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=12   act=dead               branch=-             | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=—
+subagents=12   act=rate_limited       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=12   act=rate_limited       branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=12   act=permission_needed  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=12   act=permission_needed  branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=12   act=error              branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=12   act=error              branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=12   act=dead               branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=12   act=dead               branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
 
 ## subtitle truncation budget
 budget=0    act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=
 budget=0    act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=
-budget=0    act=rate_limited       | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=
-budget=0    act=error              | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=
+budget=0    act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=
+budget=0    act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=
 budget=1    act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=…
 budget=1    act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=…
-budget=1    act=rate_limited       | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=…
-budget=1    act=error              | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=…
+budget=1    act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=…
+budget=1    act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=…
 budget=4    act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=fea…
 budget=4    act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=fea…
-budget=4    act=rate_limited       | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=fea…
-budget=4    act=error              | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=fea…
+budget=4    act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=fea…
+budget=4    act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=fea…
 budget=8    act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feature…
 budget=8    act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feature…
-budget=8    act=rate_limited       | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feature…
-budget=8    act=error              | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feature…
+budget=8    act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature…
+budget=8    act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature…
 budget=16   act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feature/a-very-…
 budget=16   act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feature/a-very-…
-budget=16   act=rate_limited       | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feature/a-very-…
-budget=16   act=error              | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feature/a-very-…
+budget=16   act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-…
+budget=16   act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-…
 budget=24   act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feature/a-very-long-bra…
 budget=24   act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feature/a-very-long-bra…
-budget=24   act=rate_limited       | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feature/a-very-long-bra…
-budget=24   act=error              | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feature/a-very-long-bra…
+budget=24   act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-long-bra…
+budget=24   act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-long-bra…
 budget=40   act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feature/a-very-long-branch-name-indeed
 budget=40   act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feature/a-very-long-branch-name-indeed
-budget=40   act=rate_limited       | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feature/a-very-long-branch-name-indeed
-budget=40   act=error              | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feature/a-very-long-branch-name-indeed
+budget=40   act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-long-branch-name-indeed
+budget=40   act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-long-branch-name-indeed
 
 ## persisted TaskStatus x runtime activity — status must not reach the row
 status=backlog       act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=backlog       act=idle               | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=backlog       act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
 status=backlog       act=turn_complete      | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=backlog       act=rate_limited       | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=backlog       act=permission_needed  | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=backlog       act=error              | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-status=backlog       act=dead               | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
+status=backlog       act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=backlog       act=permission_needed  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=backlog       act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=backlog       act=dead               | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=in_progress   act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=in_progress   act=idle               | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=in_progress   act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
 status=in_progress   act=turn_complete      | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=in_progress   act=rate_limited       | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=in_progress   act=permission_needed  | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=in_progress   act=error              | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-status=in_progress   act=dead               | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_progress   act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_progress   act=permission_needed  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_progress   act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_progress   act=dead               | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=in_review     act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=in_review     act=idle               | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=in_review     act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
 status=in_review     act=turn_complete      | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=in_review     act=rate_limited       | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=in_review     act=permission_needed  | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=in_review     act=error              | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-status=in_review     act=dead               | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_review     act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_review     act=permission_needed  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_review     act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_review     act=dead               | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=done          act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=done          act=idle               | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=done          act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
 status=done          act=turn_complete      | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=done          act=rate_limited       | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=done          act=permission_needed  | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=done          act=error              | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-status=done          act=dead               | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
+status=done          act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=done          act=permission_needed  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=done          act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=done          act=dead               | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=canceled      act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=canceled      act=idle               | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=canceled      act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
 status=canceled      act=turn_complete      | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=canceled      act=rate_limited       | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=canceled      act=permission_needed  | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=canceled      act=error              | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-status=canceled      act=dead               | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
+status=canceled      act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=canceled      act=permission_needed  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=canceled      act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=canceled      act=dead               | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=error         act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=error         act=idle               | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=error         act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
 status=error         act=turn_complete      | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=error         act=rate_limited       | main=0 title=fix the sidebar  glyph=◷   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=error         act=permission_needed  | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=error         act=error              | main=0 title=fix the sidebar  glyph=×   tone=error       load=0 matz=0 sub=feat/sidebar
-status=error         act=dead               | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
+status=error         act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=error         act=permission_needed  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=error         act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=error         act=dead               | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 
-## PR check chip
-checkState=<no prStatus>     stale=0  chip=<none>
-checkState=<no prStatus>     stale=1  chip=<none>
-checkState=none              stale=0  chip=<none>
-checkState=none              stale=1  chip=<none>
-checkState=unknown           stale=0  chip=<none>
-checkState=unknown           stale=1  chip=<none>
-checkState=passing           stale=0  chip=✓ (success)
-checkState=passing           stale=1  chip=✓ (textMuted)
-checkState=failing           stale=0  chip=✗ (error)
-checkState=failing           stale=1  chip=✗ (textMuted)
-checkState=pending           stale=0  chip=• (warning)
-checkState=pending           stale=1  chip=• (textMuted)
+## PR chip — conflict > failing > passing, else nothing
+checkState=<no prStatus> mergeable=<absent>       stale=0  chip=<none>
+checkState=<no prStatus> mergeable=<absent>       stale=1  chip=<none>
+checkState=<no prStatus> mergeable=MERGEABLE      stale=0  chip=<none>
+checkState=<no prStatus> mergeable=MERGEABLE      stale=1  chip=<none>
+checkState=<no prStatus> mergeable=CONFLICTING    stale=0  chip=<none>
+checkState=<no prStatus> mergeable=CONFLICTING    stale=1  chip=<none>
+checkState=<no prStatus> mergeable=UNKNOWN        stale=0  chip=<none>
+checkState=<no prStatus> mergeable=UNKNOWN        stale=1  chip=<none>
+checkState=<no prStatus> mergeable=conflicting    stale=0  chip=<none>
+checkState=<no prStatus> mergeable=conflicting    stale=1  chip=<none>
+checkState=none          mergeable=<absent>       stale=0  chip=<none>
+checkState=none          mergeable=<absent>       stale=1  chip=<none>
+checkState=none          mergeable=MERGEABLE      stale=0  chip=<none>
+checkState=none          mergeable=MERGEABLE      stale=1  chip=<none>
+checkState=none          mergeable=CONFLICTING    stale=0  chip=≠ (error)
+checkState=none          mergeable=CONFLICTING    stale=1  chip=≠ (textMuted)
+checkState=none          mergeable=UNKNOWN        stale=0  chip=<none>
+checkState=none          mergeable=UNKNOWN        stale=1  chip=<none>
+checkState=none          mergeable=conflicting    stale=0  chip=≠ (error)
+checkState=none          mergeable=conflicting    stale=1  chip=≠ (textMuted)
+checkState=unknown       mergeable=<absent>       stale=0  chip=<none>
+checkState=unknown       mergeable=<absent>       stale=1  chip=<none>
+checkState=unknown       mergeable=MERGEABLE      stale=0  chip=<none>
+checkState=unknown       mergeable=MERGEABLE      stale=1  chip=<none>
+checkState=unknown       mergeable=CONFLICTING    stale=0  chip=≠ (error)
+checkState=unknown       mergeable=CONFLICTING    stale=1  chip=≠ (textMuted)
+checkState=unknown       mergeable=UNKNOWN        stale=0  chip=<none>
+checkState=unknown       mergeable=UNKNOWN        stale=1  chip=<none>
+checkState=unknown       mergeable=conflicting    stale=0  chip=≠ (error)
+checkState=unknown       mergeable=conflicting    stale=1  chip=≠ (textMuted)
+checkState=passing       mergeable=<absent>       stale=0  chip=✓ (success)
+checkState=passing       mergeable=<absent>       stale=1  chip=✓ (textMuted)
+checkState=passing       mergeable=MERGEABLE      stale=0  chip=✓ (success)
+checkState=passing       mergeable=MERGEABLE      stale=1  chip=✓ (textMuted)
+checkState=passing       mergeable=CONFLICTING    stale=0  chip=≠ (error)
+checkState=passing       mergeable=CONFLICTING    stale=1  chip=≠ (textMuted)
+checkState=passing       mergeable=UNKNOWN        stale=0  chip=✓ (success)
+checkState=passing       mergeable=UNKNOWN        stale=1  chip=✓ (textMuted)
+checkState=passing       mergeable=conflicting    stale=0  chip=≠ (error)
+checkState=passing       mergeable=conflicting    stale=1  chip=≠ (textMuted)
+checkState=failing       mergeable=<absent>       stale=0  chip=✗ (error)
+checkState=failing       mergeable=<absent>       stale=1  chip=✗ (textMuted)
+checkState=failing       mergeable=MERGEABLE      stale=0  chip=✗ (error)
+checkState=failing       mergeable=MERGEABLE      stale=1  chip=✗ (textMuted)
+checkState=failing       mergeable=CONFLICTING    stale=0  chip=≠ (error)
+checkState=failing       mergeable=CONFLICTING    stale=1  chip=≠ (textMuted)
+checkState=failing       mergeable=UNKNOWN        stale=0  chip=✗ (error)
+checkState=failing       mergeable=UNKNOWN        stale=1  chip=✗ (textMuted)
+checkState=failing       mergeable=conflicting    stale=0  chip=≠ (error)
+checkState=failing       mergeable=conflicting    stale=1  chip=≠ (textMuted)
+checkState=pending       mergeable=<absent>       stale=0  chip=<none>
+checkState=pending       mergeable=<absent>       stale=1  chip=<none>
+checkState=pending       mergeable=MERGEABLE      stale=0  chip=<none>
+checkState=pending       mergeable=MERGEABLE      stale=1  chip=<none>
+checkState=pending       mergeable=CONFLICTING    stale=0  chip=≠ (error)
+checkState=pending       mergeable=CONFLICTING    stale=1  chip=≠ (textMuted)
+checkState=pending       mergeable=UNKNOWN        stale=0  chip=<none>
+checkState=pending       mergeable=UNKNOWN        stale=1  chip=<none>
+checkState=pending       mergeable=conflicting    stale=0  chip=≠ (error)
+checkState=pending       mergeable=conflicting    stale=1  chip=≠ (textMuted)
 
-## PR merge-conflict chip
-mergeable=<absent>           stale=0  chip=<none>
-mergeable=<absent>           stale=1  chip=<none>
-mergeable=MERGEABLE          stale=0  chip=<none>
-mergeable=MERGEABLE          stale=1  chip=<none>
-mergeable=CONFLICTING        stale=0  chip=≠ (error)
-mergeable=CONFLICTING        stale=1  chip=≠ (textMuted)
-mergeable=UNKNOWN            stale=0  chip=<none>
-mergeable=UNKNOWN            stale=1  chip=<none>
-mergeable=conflicting        stale=0  chip=≠ (error)
-mergeable=conflicting        stale=1  chip=≠ (textMuted)
-<no prStatus>                stale=0  chip=<none>
-
-## PR review-state chip
-lifecycle=<no prStatus>      stale=0  chip=<none>
-lifecycle=<no prStatus>      stale=1  chip=<none>
-lifecycle=creating           stale=0  chip=<none>
-lifecycle=creating           stale=1  chip=<none>
-lifecycle=open               stale=0  chip=<none>
-lifecycle=open               stale=1  chip=<none>
-lifecycle=ready_to_merge     stale=0  chip=» (success)
-lifecycle=ready_to_merge     stale=1  chip=» (textMuted)
-lifecycle=merged             stale=0  chip=≡ (textMuted)
-lifecycle=merged             stale=1  chip=≡ (textMuted)
-lifecycle=closed             stale=0  chip=<none>
-lifecycle=closed             stale=1  chip=<none>
-lifecycle=unknown            stale=0  chip=<none>
-lifecycle=unknown            stale=1  chip=<none>
-
-## board status chip
-status=backlog               chip=<none>
-status=in_progress           chip=<none>
-status=in_review             chip=◇ (primary)
-status=done                  chip=◆ (success)
-status=canceled              chip=† (textMuted)
-status=error                 chip=× (error)
+## board status never reaches the rail
+status=backlog               chip=✓ (success)
+status=in_progress           chip=✓ (success)
+status=in_review             chip=✓ (success)
+status=done                  chip=✓ (success)
+status=canceled              chip=✓ (success)
+status=error                 chip=✓ (success)
 
 ## tabRowActivity — which entry a TAB row may read
 tabActivity=-        reported=0   active=0   -> <none>

@@ -206,8 +206,7 @@ export const SCENES: readonly Scene[] = [
   },
   {
     name: "worktree-status-chip",
-    about:
-      "the human-set board status joins the same right-edge cluster, LEFT of the machine PR chip; backlog/in_progress stay bare",
+    about: "the board status never reaches the rail; only the PR chip does, and a conflict outranks green checks",
     setup: () => seedTabs([]),
     element: tree({
       tasks: [
@@ -215,6 +214,7 @@ export const SCENES: readonly Scene[] = [
         // (the engine sets in_review, CI reports the branch) and the one place
         // the two chips must stay readable side by side.
         task("review", { status: "in_review", prStatus: { checkState: "passing" } as Task["prStatus"] }),
+        task("stuck", { prStatus: { checkState: "passing", mergeable: "CONFLICTING" } as Task["prStatus"] }),
         task("shipped", { status: "done" }),
         task("dropped", { status: "canceled" }),
         task("broke", { status: "error" }),
