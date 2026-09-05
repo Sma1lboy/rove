@@ -557,6 +557,37 @@ not depend on the answer: the Changes tab carries a `[D] diff everything` chip
 that opens the same tab with no chord, so removing the binding costs the chip's
 label and nothing else.
 
+## PROPOSED (not decided): `d` — retire a field note
+
+**Scope:** the Field notes dialog only (project header right-click →
+**Field notes**). Not a global chord, not reachable from any pane.
+
+**Why a key at all.** The note store is not an archive: its newest 15 entries
+are injected into every fresh session on the repo, so a note whose fact has
+stopped being true keeps being handed to agents as if it still were. Before
+this the dialog could only scroll and the CLI could only append — the sole
+correction was hand-editing `~/.rove/notes.json`. `rove api note-delete`
+covers the scripted half; this is the half a human reaches for while reading
+the note that is wrong.
+
+**Why `d`.** It matches the two other destructive row actions in the product
+— `d` on a Kanban card and `d` on a Tasks row — so the gesture is already
+learned. Both use the same danger confirm, which opens focused on **Cancel**,
+so a reflex keypress cannot destroy a note.
+
+**What it shadows:** nothing. This dialog binds only `↑↓`/`pageup`/`pagedown`
+and inherits `esc` from the dialog provider; it has no text input, so `d` was
+previously unclaimed here and fell through to the surface underneath. It is
+bound only when the dialog is given a delete handler, so a mock or offline
+host keeps the read-only reader it had.
+
+**What the owner still has to decide:** whether a bare destructive letter
+belongs inside a DIALOG at all — every existing `d` sits on a page or a pane
+with a visible row cursor, and this is the first one inside a modal. The
+feature does not depend on the answer: `rove api note-delete --repo PATH --id
+N` does the same thing, so dropping the binding costs the dialog's cursor and
+its footer hint, nothing else.
+
 ## Adding or moving a chord
 
 Get owner sign-off on direct versus prefix placement, the selected key, and

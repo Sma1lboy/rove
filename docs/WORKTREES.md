@@ -109,6 +109,13 @@ For a worktree tracked by a Task, Rove clears that Task's worktree pointer. It
 does not delete the Task, its branch, or engine history. Opening the Task later
 may materialize a fresh worktree from the retained branch.
 
+`rove api remove-worktree --task-id ID [--force]` is the same operation from a
+shell, for scripting a reclaim of idle checkouts. It runs this path — session
+teardown first, dirty refused without `--force`, salvage snapshot on every
+force — and adds two refusals a clicking human cannot trigger: it will not
+remove the project's own checkout (`BASE_CHECKOUT`) or the worktree the
+command is running from (`CALLER_WORKTREE`).
+
 ### When git removes the worktree but not its directory
 
 `git worktree remove` does two things — deregister the worktree's metadata and

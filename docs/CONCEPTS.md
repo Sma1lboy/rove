@@ -58,7 +58,9 @@ check. **The task branch stays.** Git is the durable record of the work;
 pass `--delete-branch` on `rove api delete` to drop it too. The separate
 [Worktrees page](WORKTREES.md) is an audit/cleanup tool: removing a directory
 there keeps its Task record and branch so the worktree can be materialized
-again later.
+again later. `rove api remove-worktree --task-id ID` is the same operation
+from a shell — the inverse of `ensure-worktree`, and what a script reclaiming
+idle checkouts wants instead of `delete`.
 
 ## Worktree and branch
 
@@ -153,9 +155,11 @@ store at `~/.rove/issues.json`, shared between a repo and all its worktrees.
 It's deliberately simple. No type taxonomy, just a status
 (`open → doing → done`, plus `hold` for things parked on purpose):
 
-- **You.** The Kanban in the TUI.
+- **You.** The Kanban in the TUI. Open a card with `enter` and tab to its
+  STATUS field to move it between columns; `d` on the board deletes the story
+  outright.
 - **Agents and scripts.** `rove api issue-list`, `issue-create`,
-  `issue-set-status`, `issue-update`.
+  `issue-set-status`, `issue-update`, `issue-delete`.
 
 Issues track *what to do*; the changelog records *what shipped*.
 
