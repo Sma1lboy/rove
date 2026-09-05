@@ -7,6 +7,7 @@
 
 import { unquoteGitPath } from "@/lib/git-parsers"
 import { readWorktreeFile, runWorktreeGit, worktreeFileSize } from "@/worktree/content"
+import { t } from "../i18n"
 
 /** Map a file extension to an opentui tree-sitter grammar name. */
 export function filetypeOf(relPath: string): string | undefined {
@@ -31,15 +32,16 @@ export function filetypeOf(relPath: string): string | undefined {
 }
 
 /**
- * What a patch that git expressed entirely in its PREAMBLE changed: a binary
- * whose bytes differ, or a file whose mode flipped. Both are real, non-empty
- * patches with no hunks — and `<diff>` draws hunk rows and nothing else, so
+ * What a patch expressed entirely in its preamble changed. Binary, mode,
+ * rename and empty-file changes are real patches with no hunks — and `<diff>` draws hunk rows and nothing else, so
  * without this they render as a blank pane, which is indistinguishable from
  * "nothing changed": the one thing the patch proves false.
  */
 export type PatchNote =
   | { readonly kind: "binary" }
   | { readonly kind: "mode"; readonly from: string; readonly to: string }
+  | { readonly kind: "rename"; readonly from: string; readonly to: string }
+  | { readonly kind: "empty-file"; readonly change: "added" | "deleted" }
 
 export type PreviewData =
   /** Unified diff → opentui `<diff>`. `origPath` is set when the patch is a
@@ -97,12 +99,21 @@ export function hunklessPatchNote(patch: string): PatchNote | null {
   let binary = false
   let from: string | undefined
   let to: string | undefined
+  let renameFrom: string | undefined
+  let renameTo: string | undefined
+  let emptyChange: "added" | "deleted" | undefined
   for (const line of patch.split("\n")) {
     if (line.startsWith("old mode ")) from = line.slice("old mode ".length).trim()
     else if (line.startsWith("new mode ")) to = line.slice("new mode ".length).trim()
+    else if (line.startsWith("rename from ")) renameFrom = unquoteGitPath(line.slice(12))
+    else if (line.startsWith("rename to ")) renameTo = unquoteGitPath(line.slice(10))
+    else if (line.startsWith("new file mode ")) emptyChange = "added"
+    else if (line.startsWith("deleted file mode ")) emptyChange = "deleted"
     else if (line.startsWith("Binary files ") || line.startsWith("GIT binary patch")) binary = true
   }
   if (binary) return { kind: "binary" }
+  if (renameFrom != null && renameTo != null) return { kind: "rename", from: renameFrom, to: renameTo }
+  if (emptyChange) return { kind: "empty-file", change: emptyChange }
   if (from != null && to != null) return { kind: "mode", from, to }
   return null
 }
@@ -172,7 +183,9 @@ export function unifiedDiffFiles(text: string): UnifiedDiffFile[] {
     }
     if (!current) continue
     current.lines.push(line)
-    if (line.startsWith("+++ ")) current.plus = sidePath(line.slice(4)) ?? undefined
+    if (line.startsWith("rename to ")) current.path = unquoteGitPath(line.slice(10))
+    else if (line.startsWith("copy to ")) current.path = unquoteGitPath(line.slice(8))
+    else if (line.startsWith("+++ ")) current.plus = sidePath(line.slice(4)) ?? undefined
     else if (line.startsWith("--- ")) current.minus = sidePath(line.slice(4)) ?? undefined
     // Hunk bodies only: `@@` headers and the `---`/`+++`/`index` preamble are
     // not rendered as rows.
@@ -224,7 +237,7 @@ async function pairRename(
     const neu = fields[i + 2]
     i += 2
     if (orig == null || neu !== relPath) continue
-    const paired = await runWorktreeGit(worktree, ["diff", spec, "--", relPath, orig])
+    const paired = await runWorktreeGit(worktree, ["--literal-pathspecs", "diff", spec, "--", relPath, orig])
     if (paired.status !== 0 || paired.stdout.trim().length === 0) return null
     return { text: paired.stdout, origPath: orig }
   }
@@ -263,31 +276,34 @@ export async function loadPreviewData(
     return { kind: "binary", image: true, sizeBytes: await worktreeFileSize(worktree, relPath) }
   }
   const spec = range ? `${range.base}...HEAD` : "HEAD"
-  const res = await runWorktreeGit(worktree, ["diff", spec, "--", relPath])
-  // A refused diff is only a FAILURE when a base was asked for. Without one,
-  // git declining means there is nothing to diff against — an unborn HEAD, or
-  // a file outside any repo — and the file's own content is the honest answer,
-  // which is what the standalone `rove ops --preview <file>` relies on.
-  if (res.status !== 0 && range) {
+  const res = await runWorktreeGit(worktree, ["--literal-pathspecs", "diff", spec, "--", relPath])
+  // A standalone file may have no repository or no HEAD yet: fall back to
+  // its content. Combined/base comparisons have no such fallback.
+  if (res.status !== 0 && (range || isCombinedPathspec(relPath))) {
     const stderr = (res.stderr ?? "").trim()
     return { kind: "error", message: stderr || `git diff ${spec} exited with code ${res.status ?? -1}` }
   }
-  const diff = res.status === 0 ? res.stdout : ""
+  let diff = res.status === 0 ? res.stdout : ""
+  let origPath: string | undefined
   if (diff.trim().length > 0) {
     if (!isCombinedPathspec(relPath)) {
       // A rename unpaired by the restricted pathspec arrives as a whole-file
       // add, so `new file mode` is the cheap gate on the recovery below.
       if (/^new file mode /m.test(diff)) {
         const paired = await pairRename(worktree, spec, relPath)
-        if (paired) return { kind: "diff", text: paired.text, origPath: paired.origPath }
+        if (paired) {
+          diff = paired.text
+          origPath = paired.origPath
+        }
       }
       const note = hunklessPatchNote(diff)
       if (note) return { kind: "patch-note", note, sizeBytes: await worktreeFileSize(worktree, relPath) }
     }
-    return { kind: "diff", text: diff }
+    return { kind: "diff", text: diff, ...(origPath ? { origPath } : {}) }
   }
   if (isCombinedPathspec(relPath)) return { kind: "empty" }
-  const text = (await readWorktreeFile(worktree, relPath)) ?? ""
+  const text = await readWorktreeFile(worktree, relPath)
+  if (text === null) return { kind: "error", message: t("ops.preview.readFailed", { path: relPath }) }
   if (looksBinaryText(text)) {
     return { kind: "binary", image: false, sizeBytes: await worktreeFileSize(worktree, relPath) }
   }
