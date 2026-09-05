@@ -74,7 +74,7 @@ retired worktree-sync hook was once installed so the next launch (or
 | `appearance.splitStyle` | `box` \| `line` | `box` | `box` frames each split; `line` is the minimal tmux-style look |
 | `locale` | `en` \| `zh` | `en` | UI language |
 | `hints.keyboard.enabled` | boolean | `true` | Keyboard discoverability hints |
-| `hints.keyboard.prefixTapPresentation` | `local` \| `guide` | `local` | What one tap of the prefix key shows: `local` a hint beside the focused pane, `guide` the full keyboard guide |
+| `hints.keyboard.prefixTapPresentation` | `local` \| `guide` | `local` | One tap of the prefix key always opens the full keyboard guide. This picks what comes with it: `local` also shows shortcut badges beside the clickable controls already on screen, `guide` hides those badges |
 
 Turning keyboard hints back on relights the first-use pane hints you'd
 already dismissed.
