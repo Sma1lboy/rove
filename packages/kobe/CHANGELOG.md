@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.9.159
+
+### Patch Changes
+
+- [#928](https://github.com/Sma1lboy/rove/pull/928) [`f119fe4`](https://github.com/Sma1lboy/rove/commit/f119fe47904b630bea9043bd87ab615a1071b219) Fix a deadlock that wedged the deferred-prompt store, and with it every task deletion.
+
+  `discard()` returned the in-flight claim's promise bare from inside the store's write queue. `serialized()` runs `tail.then(fn)`, so the queue slot ADOPTED that promise: the slot could not settle until the claim did, while the claim's own `releaseClaim`/`markDelivered` were queued behind that same slot. A dismiss arriving during a delivery closed the cycle and no later operation on the store ever ran — `deleteTask` (and so `task.delete`) sat at `phase=running` indefinitely, and `rove api deferred-list` timed out.
+
+  The wait now happens outside the queue, exactly as `waitForClaims` already did: the enqueued callback hands the promise back wrapped and the wait runs after the slot has settled. Discard semantics are unchanged — it still waits for an in-flight claim before dropping the record. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#928](https://github.com/Sma1lboy/rove/pull/928) [`f119fe4`](https://github.com/Sma1lboy/rove/commit/f119fe47904b630bea9043bd87ab615a1071b219) Bound the `ps` probe that every engine-presence check runs, and stop a failed probe from reading as "no engine".
+
+  `psSnapshot` awaited `ps -A` with no deadline and no kill. Every caller wraps the probe in try/catch, which catches a throw and never a hang, so a `ps` that did not exit froze whichever gate asked it — including prompt delivery, which sits between a deferred prompt's `beginDelivery` marker and its release. It now gives up after 5s (`ps -A` answers in ~20ms) and kills the child rather than leaving it holding a pipe nobody reads.
+
+  Failure is also an answer now. `enginePresence` reports `"engine" | "none" | "unknown"`, and `send` refuses an unreadable probe with `ENGINE_PROBE_FAILED` instead of telling you a running tab "has no live engine process — it is a plain shell right now". The write gate itself is unchanged: `sessionHasEngine` still refuses on anything but a positive walk, because a prompt pasted into a bare shell is executed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#928](https://github.com/Sma1lboy/rove/pull/928) [`f119fe4`](https://github.com/Sma1lboy/rove/commit/f119fe47904b630bea9043bd87ab615a1071b219) The delivery guard is now switchable, legible, and forgiving of a mis-hit `d`.
+
+  - **Settings → Dev** replaces the composer-gate checkbox with a three-position
+    `delivery.guard`: `on` (both checks), `screen off` (drop the engine-layout
+    read only), `off` (drop both). The keystroke window was previously not
+    switchable at all — it lived in the pty host's spawn-time environment, so
+    changing it meant restarting the host. Both checks now resolve per delivery,
+    and `ROVE_DELIVERY_GUARD` overrides the setting for one session. An existing
+    `delivery.composerGate=false` reads as `screen off`.
+  - **Inbox cards for a queued message** name the sender, which check held it,
+    and how long the text survives — `from kobe · composer had text · expires in
+23h` — instead of `message queued` and a countdown. `d` on one asks first.
+  - **Dismissing keeps the text.** A dismissed message leaves the queue (its tab
+    accepts new sends immediately) but stays on disk until its ordinary 24h
+    expiry: `rove api deferred-list --include-dismissed` finds it and
+    `deferred-release` still delivers it. Dismiss used to destroy a message the
+    sender had already been told was accepted.
+  - Every deferral, release and dismiss is now a line in `daemon.log`; only drops
+    were recorded before. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.158
 
 ### Patch Changes
