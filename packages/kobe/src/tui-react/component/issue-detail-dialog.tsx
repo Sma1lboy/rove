@@ -4,9 +4,15 @@
  * EDITABLE: the title rides a controlled <input>, the description an
  * UNCONTROLLED <textarea> (the settings feedback-form pattern — pasted
  * newlines survive; edits mirror out through onContentChange). `tab`
- * cycles the focused field (title → description → engine → workspace);
- * arrow keys only steer engine/workspace so they never fight the inputs'
- * cursors. `esc` SAVES dirty edits and closes (ctrl+c discards).
+ * cycles the focused field (title → description → status → engine →
+ * workspace); arrow keys only steer the selector fields so they never fight
+ * the inputs' cursors. `esc` SAVES dirty edits and closes (ctrl+c discards).
+ *
+ * STATUS is in that cycle because this drawer is the only place a human can
+ * move a card out of Backlog/In progress: the board's own keys steer the
+ * cursor, and `d` deletes. Without it "I finished this" and "this never
+ * existed" were the same gesture. It is deliberately a field here rather than
+ * a new board chord — the cycle already existed, a chord would be new.
  *
  * Images paste INLINE: a pasted image/PDF path — or a ctrl+v clipboard
  * screenshot, saved via the composer's `captureClipboardAttachment` — is
@@ -24,7 +30,7 @@
 
 import { TextAttributes, type TextareaRenderable } from "@opentui/core"
 import { usePaste } from "@opentui/react"
-import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
+import { ISSUE_STATUSES, type Issue, type IssueStatus } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import { type ReactNode, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { ISSUE_CHAT_PLACEMENTS, type IssueChatPlacement, withImagePlaceholders } from "../../state/issue-chat"
@@ -44,44 +50,14 @@ import {
   DialogLabel,
   DialogSection,
 } from "../ui/dialog-parts"
+import type { IssueDetailOptions, IssueDetailOutcome, IssueDraft } from "./issue-detail-contract"
 import { IssueEventsSection } from "./issue-detail-parts"
 
-export interface IssueDetailOptions {
-  readonly issue: Issue
-  /** `create` turns the drawer into the new-story intake: blank drafts,
-   *  esc CANCELS (nothing exists to save), ctrl+s creates without starting,
-   *  enter/ctrl+enter creates AND starts at the chosen placement. */
-  readonly mode?: "detail" | "create"
-  /** Engines to offer (detected built-ins + custom), in cycle order. */
-  readonly engines: readonly VendorId[]
-  readonly defaultVendor: VendorId
-  readonly engineLabel: (vendor: VendorId) => string
-  /** Live daemon connection — the linked story's EVENTS feed reads from it.
-   *  Absent (mocks, offline): the feed renders its empty state. */
-  readonly orchestrator?: RemoteOrchestrator | null
-}
+// The contract lives next door; re-exported here so the page and the render
+// tests keep one import site for "the drawer and what it answers with".
+export type { IssueDetailOptions, IssueDetailOutcome } from "./issue-detail-contract"
 
-/** Every outcome carries the drafted title/body — the page saves a dirty
- *  patch regardless of how the drawer was left. `jump` is the drawer's
- *  follow-or-stay toggle, orthogonal to placement. */
-export type IssueDetailOutcome =
-  | { kind: "start"; vendor: VendorId; placement: IssueChatPlacement; jump: boolean; title: string; body: string }
-  | { kind: "open"; taskId: string; title: string; body: string }
-  /** Drop the story's task link — the only way back out of In progress when
-   *  the linked task is gone (deleted before the daemon unlinked, or a store
-   *  restored from an older home). The page clears `taskId`; the task, its
-   *  branch and its worktree are untouched. */
-  | { kind: "unlink"; title: string; body: string }
-  | { kind: "close"; title: string; body: string }
-  /** Create-mode result — `start` null = save only ("New story" Save). */
-  | {
-      kind: "create"
-      title: string
-      body: string
-      start: { vendor: VendorId; placement: IssueChatPlacement; jump: boolean } | null
-    }
-
-type Field = "title" | "description" | "engine" | "workspace" | "jump" | "open" | "unlink"
+type Field = "title" | "description" | "status" | "engine" | "workspace" | "jump" | "open" | "unlink"
 
 /** Description editor height — tall enough to read a story, short enough
  *  to keep the start config on screen. */
@@ -109,6 +85,7 @@ export function IssueDetailDialogView(
   const [jump, setJump] = useState(false)
   const [draftTitle, setDraftTitle] = useState(issue.title)
   const [draftBody, setDraftBody] = useState(issue.body)
+  const [draftStatus, setDraftStatus] = useState<IssueStatus>(issue.status)
   // Startable stories open ready to fire (enter = start from the workspace
   // field); a new story starts typing its title; linked ones open ready to
   // JUMP (enter = open the session); done-unlinked ones open on the title.
@@ -120,11 +97,17 @@ export function IssueDetailDialogView(
   // placeholder inserts write through the ref, edits mirror into draftBody.
   const bodyEl = useRef<TextareaRenderable | null>(null)
 
-  const fields: readonly Field[] = startable
+  // `status` joins every DETAIL cycle and no create cycle: a story that does
+  // not exist yet is `open` by construction, and offering to file it as
+  // `done` would be a trap. It sits right after the text fields so the move
+  // that closes a card is two tabs away in all three shapes.
+  const fields: readonly Field[] = create
     ? ["title", "description", "engine", "workspace", "jump"]
-    : linkedTaskId
-      ? ["title", "description", "open", "unlink"]
-      : ["title", "description"]
+    : startable
+      ? ["title", "description", "status", "engine", "workspace", "jump"]
+      : linkedTaskId
+        ? ["title", "description", "status", "open", "unlink"]
+        : ["title", "description", "status"]
 
   function insertPlaceholders(paths: readonly string[]): void {
     if (paths.length === 0) return
@@ -171,11 +154,19 @@ export function IssueDetailDialogView(
     })
   }
 
-  function draft(): { title: string; body: string } {
+  function draft(): IssueDraft {
     return {
       title: draftTitle.trim() || issue.title,
       body: bodyEl.current?.plainText ?? draftBody,
+      status: draftStatus,
     }
+  }
+
+  function stepStatus(dir: 1 | -1): void {
+    setDraftStatus((s) => {
+      const i = Math.max(0, ISSUE_STATUSES.indexOf(s))
+      return ISSUE_STATUSES[(i + dir + ISSUE_STATUSES.length) % ISSUE_STATUSES.length] ?? s
+    })
   }
 
   /** Create mode needs a real title — bounce focus back when it's blank. */
@@ -188,7 +179,8 @@ export function IssueDetailDialogView(
   function commit(): void {
     if (create) {
       if (!requireTitle()) return
-      props.onSubmit({ kind: "create", start: { vendor, placement, jump }, ...draft() })
+      const { title, body } = draft()
+      props.onSubmit({ kind: "create", start: { vendor, placement, jump }, title, body })
     } else if (startable) {
       props.onSubmit({ kind: "start", vendor, placement, jump, ...draft() })
     } else if (linkedTaskId) {
@@ -202,7 +194,8 @@ export function IssueDetailDialogView(
   /** ctrl+s in create mode — file the story without starting anything. */
   function saveOnly(): void {
     if (!create || !requireTitle()) return
-    props.onSubmit({ kind: "create", start: null, ...draft() })
+    const { title, body } = draft()
+    props.onSubmit({ kind: "create", start: null, title, body })
     dialog.clear()
   }
 
@@ -232,6 +225,14 @@ export function IssueDetailDialogView(
       { key: "ctrl+v", cmd: () => pasteClipboardImage() },
       // Arrows steer ONLY the selector fields — in title/description they
       // must reach the input's own cursor, so they stay unregistered there.
+      // Status has no `return` of its own: enter on a done/parked story would
+      // otherwise fall through to `commit()`, which starts a session.
+      ...(field === "status"
+        ? [
+            { key: "left", cmd: () => stepStatus(-1) },
+            { key: "right", cmd: () => stepStatus(1) },
+          ]
+        : []),
       ...(field === "engine"
         ? [
             { key: "left", cmd: () => stepEngine(-1) },
@@ -259,12 +260,14 @@ export function IssueDetailDialogView(
     ],
   }))
 
+  // Keyed on the DRAFT, not the open-time snapshot: the header badge is the
+  // confirmation that the status field's ←/→ landed.
   const statusFg =
-    issue.status === "done"
+    draftStatus === "done"
       ? theme.success
-      : issue.status === "hold"
+      : draftStatus === "hold"
         ? theme.warning
-        : issue.status === "doing"
+        : draftStatus === "doing"
           ? theme.accent
           : theme.textMuted
 
@@ -279,7 +282,7 @@ export function IssueDetailDialogView(
               #{issue.id}
             </text>
             <text fg={statusFg} attributes={TextAttributes.BOLD} wrapMode="none">
-              {t(`kanban.detail.status.${issue.status}`)}
+              {t(`kanban.detail.status.${draftStatus}`)}
             </text>
             <text fg={theme.textMuted} wrapMode="none">
               {t("kanban.detail.created", { date: issue.created })}
@@ -333,6 +336,29 @@ export function IssueDetailDialogView(
           />
         </DialogField>
       </DialogSection>
+
+      {/* STATUS — the card's column, as a chip row. Detail mode only: this is
+          the human's only route out of Backlog / In progress, since the board
+          itself is read-only and `d` deletes rather than closes. */}
+      {create ? null : (
+        <DialogSection
+          label={t("kanban.detail.statusLabel")}
+          focused={field === "status"}
+          hint="←/→"
+          paddingBottom={1}
+          onPress={() => setField("status")}
+        >
+          <ChipRow
+            choices={ISSUE_STATUSES}
+            selected={draftStatus}
+            display={(option) => t(`kanban.detail.status.${option}`)}
+            onPick={(option) => {
+              setField("status")
+              setDraftStatus(option)
+            }}
+          />
+        </DialogSection>
+      )}
 
       {startable ? (
         <box gap={0}>

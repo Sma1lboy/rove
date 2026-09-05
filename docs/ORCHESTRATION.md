@@ -142,6 +142,11 @@ rove api land --task-id <winner>
 # into daemon.log.
 rove api delete --task-id <loser1> --wait
 rove api delete --task-id <loser2> --wait
+
+# Or close the whole round in one call, by the groupId `add --count` returned:
+# one entry per sibling, and a refusal on one (a dirty worktree) is recorded
+# there rather than aborting the rest.
+rove api delete --group <groupId> --wait
 ```
 
 `land` refuses a dirty base checkout, and on merge conflict aborts cleanly
@@ -207,7 +212,9 @@ rove api get-task --task-id <winner>       # .task.worktreePath, .task.branch
 git -C <worktreePath> log --oneline main..HEAD
 git -C <worktreePath> diff main...HEAD
 
-# 4. Land it, delete the losers' worktrees (branches stay).
+# 4. Land it, delete the losers' worktrees (branches stay). `delete --group`
+#    closes the round in one call — including the landed winner's own row,
+#    which is spent once its branch is merged.
 rove api land --task-id <winner>
 rove api delete --task-id <loser1> --wait
 rove api delete --task-id <loser2> --wait

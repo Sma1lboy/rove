@@ -381,6 +381,14 @@ export async function listFieldNotesOp(client: KobeDaemonClient, repo: string): 
   return res.notes ?? []
 }
 
+/** Retire one field note by id (`note.delete`) — the reader dialog's `d`.
+ *  `false` means the id named nothing, which the caller renders rather than
+ *  throwing: the retention ring may already have evicted it. */
+export async function deleteFieldNoteOp(client: KobeDaemonClient, repo: string, id: number): Promise<boolean> {
+  const res = await client.request<{ deleted?: boolean }>("note.delete", { repo, id })
+  return res.deleted === true
+}
+
 /** One issue-store mutation (`issue.mutate`) — the op union lives in the
  *  daemon's issues-store (create/setStatus/update/link/unlink/delete). The
  *  kanban detail drawer uses `link` (start → task) and `setStatus`. */

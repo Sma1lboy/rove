@@ -27,9 +27,11 @@ Task's worktree, plus **Copy branch name** and **Copy path**, which put the
 Task's branch or worktree path on the system clipboard for a `git checkout` or
 `cd` in another shell, and **Open in editor**, **Rename branch**, and
 **Change engine** for the row you clicked. Right-clicking a project header
-offers **New task**, **Field notes** (a read-only list of the notes agents filed
-on that repo with `rove api note`, newest first, each with its author and time)
-and **Remove project**. Clicking anywhere else dismisses that menu.
+offers **New task**, **Field notes** (the notes agents filed on that repo with
+`rove api note`, newest first, each with its author and time — `↑↓` walks them
+and `d` retires the one under the cursor, which is how a note whose fact has
+stopped being true stops being injected into new sessions) and **Remove
+project**. Clicking anywhere else dismisses that menu.
 
 Zen mode (`ctrl+a` `z`) hides Files and lets the workspace use the freed width.
 The Tasks rail remains visible. Below 70 columns, the separate
@@ -454,6 +456,13 @@ the board. Starting links the issue and flips it to `doing`. `n` creates a
 story, `d` deletes one (the issue record only; a linked task and its
 worktree are never touched). The board refreshes every few seconds, so cards
 moved by agents move on screen too.
+
+The drawer's **STATUS** field is how a human moves a card between columns: tab
+to it and `←/→` steps through `open · doing · hold · done`. The board's own
+keys steer the cursor and `d` deletes the story outright, so without this the
+only way to mark work finished was an agent running `rove api
+issue-set-status` — "I finished this" and "this never existed" were the same
+keypress.
 
 For a linked story, the drawer also shows an **EVENTS** snapshot with up to the
 12 most recent engine lifecycle events Rove still holds for that task. It is a

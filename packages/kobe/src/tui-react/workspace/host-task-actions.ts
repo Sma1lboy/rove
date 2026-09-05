@@ -250,7 +250,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     copyTaskField: (id, field) => {
       void copyTaskFieldFlow(taskActions, id, field)
     },
-    showFieldNotes: (repo) => FieldNotesDialog.show(dialog, { repo, load: () => orchestrator.listFieldNotes(repo) }),
+    showFieldNotes: (repo) => FieldNotesDialog.show(dialog, { repo, orchestrator }),
     confirmRunAgain,
     landTask,
   }

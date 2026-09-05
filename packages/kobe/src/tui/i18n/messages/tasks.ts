@@ -111,6 +111,14 @@ export const en = {
     empty: "No field notes for this repo yet — agents file one with `rove api note`.",
     loading: "Loading…",
     footer: "↑↓ scroll · esc close",
+    /** Footer when the reader can also retire a note (`d`). */
+    footerDeletable: "↑↓ select · d delete · esc close",
+    /** `d` on a note. The body quotes the note so the confirm names the fact
+     *  being retired, not just "a note". `{text}` = the note's own line. */
+    confirmDelete: {
+      title: "Delete this field note?",
+      body: "“{text}” stops being injected into new sessions on this repo. Nothing else changes.",
+    },
   },
   /** The destructive confirms on a task row (`d` on the tasks pane). Every
    *  body says what SURVIVES, because that is the fact that decides whether
@@ -320,6 +328,11 @@ export const zh: typeof en = {
     empty: "该仓库暂无现场笔记——agent 可用 `rove api note` 记录。",
     loading: "加载中…",
     footer: "↑↓ 滚动 · esc 关闭",
+    footerDeletable: "↑↓ 选择 · d 删除 · esc 关闭",
+    confirmDelete: {
+      title: "删除这条现场笔记?",
+      body: "「{text}」将不再注入该仓库的新会话。其他内容不受影响。",
+    },
   },
   moveChip: " 移动",
   recentJump: "最近:{title}",

@@ -16,14 +16,20 @@ const DIALOG_FILES = [
 ].filter((f) => f.endsWith(".tsx") && !f.endsWith("/picker-list.tsx"))
 
 /**
- * A vertical LIST inside a `DialogField` well, cursor-driven with ↑/↓, is a
- * different control from a chip row: the story drawer's WORKSPACE placements
- * are whole sentences, which chips would stack three rows tall apiece.
+ * Cursor-driven vertical lists — a different CONTROL from a chip row, so the
+ * `▸` marker here is the list idiom (`worktrees-page.tsx` renders the same
+ * one), not choose-one drift:
+ *
+ * - `issue-detail-dialog.tsx` — the story drawer's WORKSPACE placements are
+ *   whole sentences, which chips would stack three rows tall apiece.
+ * - `field-notes-dialog.tsx` — a scrollable list of RECORDS with a delete
+ *   cursor, not a field with options. There is nothing to choose; `d` acts on
+ *   the row under the cursor.
  */
-const LIST_IN_WELL = new Set(["issue-detail-dialog.tsx"])
+const CURSOR_LISTS = new Set(["issue-detail-dialog.tsx", "field-notes-dialog.tsx"])
 
 describe("dialog choose-one grammar", () => {
-  it.each(DIALOG_FILES.filter((f) => !LIST_IN_WELL.has(f)))("%s renders no hand-rolled ▸ selector", (file) => {
+  it.each(DIALOG_FILES.filter((f) => !CURSOR_LISTS.has(f)))("%s renders no hand-rolled ▸ selector", (file) => {
     const src = readFileSync(join(ROOT, "component", file), "utf8")
     expect(src.includes('"▸ " : "  "'), `${file}: use <ChipRow> for a choose-one field`).toBe(false)
   })

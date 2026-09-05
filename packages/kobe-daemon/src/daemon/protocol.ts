@@ -39,6 +39,7 @@ export {
   type SessionDeliverPayload,
   type TabClosePayload,
   type TabOpenPayload,
+  type TabRenamePayload,
   type TranscriptActivityPayload,
   type UiPrefsPayload,
   type UiPromptPayload,
@@ -190,6 +191,10 @@ export type DaemonRequestName =
   // falls back to the standalone PTY Host when nobody confirms.
   | "terminalTab.close"
   | "terminalTab.closeReply"
+  // Broadcast "name this Terminal Tab" on the `tab.rename` channel
+  // (`kobe api rename --tab`). No reply half: a rename is idempotent, so the
+  // CLI also writes the persisted snapshot and the two converge.
+  | "terminalTab.rename"
   // Broadcast one toast to every attached UI over the `notice.event`
   // channel (`kobe api notify`). The daemon only validates + publishes.
   | "notice.send"
@@ -200,6 +205,10 @@ export type DaemonRequestName =
   // the launch path seeds each fresh worktree session with it.
   | "note.file"
   | "note.list"
+  // Drop one stored note by id. The store is not an archive: its newest
+  // entries are injected into every fresh session on the repo, so a note
+  // whose fact stopped being true has to be removable.
+  | "note.delete"
   // Hosted PTYs (v4) — persistent out-of-process terminals for embedded
   // engine sessions. Served by the standalone PTY HOST process
   // (`kobe pty-host`, its own socket — see `pty-server.ts`), NOT by the

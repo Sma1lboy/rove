@@ -16,6 +16,7 @@ import {
   type SerializedTask,
   type TabClosePayload,
   type TabOpenPayload,
+  type TabRenamePayload,
   type UiPromptPayload,
   isAttentionInboxState,
 } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -364,6 +365,22 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       return
     }
     signals.setTabCloseSig(p as TabClosePayload)
+    return
+  }
+  if (name === "tab.rename") {
+    const p = payload as Partial<TabRenamePayload> | undefined
+    // `title` may legitimately be "" (clear back to the default name), so the
+    // gate is the TYPE, never truthiness.
+    if (
+      typeof p?.taskId !== "string" ||
+      typeof p.tabId !== "string" ||
+      typeof p.title !== "string" ||
+      typeof p.at !== "number"
+    ) {
+      logClientError("orch", `dropped tab.rename event: malformed payload (${describePayload(payload)})`)
+      return
+    }
+    signals.setTabRenameSig(p as TabRenamePayload)
     return
   }
   if (name === "ui.prompt") {

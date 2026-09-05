@@ -23,6 +23,7 @@ import {
   type SubscribeRole,
   type TabClosePayload,
   type TabOpenPayload,
+  type TabRenamePayload,
   type UiPrefsPayload,
   type UiPromptPayload,
   isDaemonVersionStale,
@@ -97,6 +98,7 @@ export class RemoteOrchestrator {
   private readonly noticeAcc = createStateCell<NoticeEventPayload | null>(null)
   private readonly tabOpenAcc = createStateCell<TabOpenPayload | null>(null)
   private readonly tabCloseAcc = createStateCell<TabClosePayload | null>(null)
+  private readonly tabRenameAcc = createStateCell<TabRenamePayload | null>(null)
   private readonly uiPromptAcc = createStateCell<UiPromptPayload | null>(null)
   private readonly engineLifecycleAcc = createStateCell<EngineLifecycleMap>(new Map())
   private readonly uiPrefsAcc = createStateCell<UiPrefsPayload | null>(null)
@@ -148,6 +150,7 @@ export class RemoteOrchestrator {
       setNoticeSig: this.noticeAcc.set,
       setTabOpenSig: this.tabOpenAcc.set,
       setTabCloseSig: this.tabCloseAcc.set,
+      setTabRenameSig: this.tabRenameAcc.set,
       setUiPromptSig: this.uiPromptAcc.set,
       engineLifecycleAcc: this.engineLifecycleAcc,
       setEngineLifecycleSig: this.engineLifecycleAcc.set,
@@ -282,6 +285,9 @@ export class RemoteOrchestrator {
 
   /** Latest `tab.close` request (pane or exact Terminal Tab) — consumers dedupe on `at`. */
   readonly tabCloseStore = (): ExternalStore<TabClosePayload | null> => this.tabCloseAcc
+
+  /** Latest `tab.rename` request (`rove api rename --tab`) — consumers dedupe on `at`. */
+  readonly tabRenameStore = (): ExternalStore<TabRenamePayload | null> => this.tabRenameAcc
 
   /**
    * The bare request/response seam onto this orchestrator's daemon, for the
@@ -427,6 +433,8 @@ export class RemoteOrchestrator {
   deleteAutomation = (id: string) => writes.deleteAutomationOp(this.client, id)
   listWorkItems = (a: Parameters<typeof writes.listWorkItemsOp>[1]) => writes.listWorkItemsOp(this.client, a)
   listFieldNotes = (repo: string) => writes.listFieldNotesOp(this.client, repo)
+
+  deleteFieldNote = (repo: string, id: number) => writes.deleteFieldNoteOp(this.client, repo, id)
   /** A PR's failing checks + log tails (`pr.failingChecks`). On demand only. */
   failingChecks = (taskId: string) => writes.failingChecksOp(this.client, taskId)
   /** Merge a task's base branch into its worktree (`task.syncBase`). */

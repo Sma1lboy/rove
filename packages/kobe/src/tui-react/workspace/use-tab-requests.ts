@@ -27,6 +27,7 @@ import {
   moveTab,
   openCommandTab,
   selectTab,
+  setTabTitle,
   splitLeafPtyKey,
   tabPtyKeyFor,
 } from "../../tui/workspace/terminal-tabs-core"
@@ -39,6 +40,7 @@ import {
   takeTabClose,
   takeTabMove,
   takeTabOpen,
+  takeTabRename,
 } from "./terminal-tabs-shared"
 
 export interface TabRequestIO {
@@ -114,6 +116,17 @@ export function useTabRequests(io: TabRequestIO): void {
       if (move) {
         const prev = stateRef.current
         const next = moveTab(prev, move.tabId, move.delta)
+        if (next !== prev) updateRef.current(next)
+      }
+      // Rename-from-elsewhere (`rove api rename --tab`, over the daemon's
+      // `tab.rename` broadcast). Through the single state writer so the tab
+      // strip repaints and the snapshot persists; `setTabTitle` is a
+      // same-object no-op when the name already matches, which is the normal
+      // case — the CLI wrote the snapshot before broadcasting.
+      const rename = takeTabRename(taskId)
+      if (rename) {
+        const prev = stateRef.current
+        const next = setTabTitle(prev, rename.tabId, rename.title)
         if (next !== prev) updateRef.current(next)
       }
       // Close-from-elsewhere (the sidebar tree's menu): claiming it here is

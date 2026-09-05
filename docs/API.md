@@ -535,8 +535,15 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   future worktree session on this repo starts with it in its system prompt;
   and forwarded to the dispatcher session for live relay to in-flight tasks.
 - `note-list --repo PATH`: read a repo's accumulated field notes, newest
-  first. Returns `{ notes }`. The same list is readable inside the TUI from
-  the project header's right-click menu (**Field notes**, see [TUI.md](./TUI.md)).
+  first. Returns `{ notes }`, each carrying the `id` `note-delete` takes. The
+  same list is readable inside the TUI from the project header's right-click
+  menu (**Field notes**, see [TUI.md](./TUI.md)).
+- `note-delete --repo PATH --id N`: retire one field note. The note store is
+  not an archive — its newest 15 entries are injected into every fresh session
+  on the repo, so a note whose fact has stopped being true keeps being handed
+  to agents as if it still were, and the only correction used to be editing
+  the daemon's JSON by hand. Returns `{ deleted }`; `false` is an answer, not
+  an error (the retention ring may already have evicted that note).
 - `set-active [--task-id ID] [--none]`: set (or clear) the shared active
   task every attached sidebar highlights.
 - `pane-open [--task-id ID] [--tab TAB] [--command CMD] [--direction
@@ -596,7 +603,14 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 
 ## edit
 
-- `rename --task-id ID --title T`: set a task's title.
+- `rename --task-id ID --title T [--tab TAB]`: set a task's title, or with
+  `--tab` one Terminal Tab's name — the API twin of the TUI's f2. Tab
+  lifecycle is otherwise symmetric already (`pane-open`, `tab-close`,
+  `read-output --tab`, `send --tab`), so naming was the one thing an agent
+  could not do to a tab it had opened itself. `TAB_NOT_FOUND` when the task's
+  snapshot names no such tab — `get-task` lists the addressable ids in
+  `.tabs[].id`. An attached TUI repaints its tab strip; with none attached the
+  persisted snapshot carries the name to the next mount.
 - `set-branch --task-id ID --branch B`: rename a task's branch
   (`git branch -m` if materialized, else recorded).
 - `set-command --task-id ID --command CMD`: set a task's engine launch
@@ -627,6 +641,12 @@ The daemon-owned issue store (backlog; see
   edit title/body and/or link a task (kanban: In progress; `--task none`
   unlinks). All three land in one store write, so a rejected `--task` leaves
   the title and body unchanged — the error means nothing was applied.
+- `issue-delete --repo PATH --id N`: delete an issue. Removes ONLY the tracker
+  record — a linked task, its branch and its worktree are left untouched. The
+  same store op the kanban page's `d` runs, which the CLI could not reach: an
+  agent asked to clear a batch of stale stories could previously only mark
+  them `done` and leave them. Use `issue-set-status --status done` when the
+  story was finished rather than abandoned.
 
 ## workitems
 
@@ -741,7 +761,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   `--remove-worktree=false` — or with a removal that got refused (dirty tree,
   base checkout, the caller's own worktree) — keeps the branch. The result
   says so in `branchKept` (`{ reason }`) and writes no `branchAnchor`.
-- `delete --task-id ID [--force] [--delete-branch] [--wait]`: remove a task
+- `delete (--task-id ID | --group GROUPID) [--force] [--delete-branch] [--wait]`: remove a task
   and its worktree. **The git branch stays** unless `--delete-branch` is
   passed; git is the durable record, the task row is not. Needs `--force` on a
   dirty worktree; `--force` never implies `--delete-branch`.
@@ -783,10 +803,37 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   `deletion` field carries `phase` (`queued` / `running` / `error`) and, on
   `error`, the message.
 
+  **`--group GROUPID`** closes a whole fan-out round in one call, selecting by
+  the same `groupId` `collect --group` takes (the one `add --count` returned).
+  Creating and reading were already batched; only deleting was one call per
+  loser, and the documented workflow ends by removing the N-1 that lost.
+  Returns `{ groupId, count, failures, results }` with one entry per sibling —
+  each the same object a single delete returns, or `{ taskId, status:
+  "failed", error, code }`. A refusal on one sibling (a dirty worktree is the
+  common one) is RECORDED rather than thrown, because aborting there would
+  leave the caller unable to tell which of N were already removed. Mutually
+  exclusive with `--task-id`.
+
 ## worktree
 
 - `ensure-worktree --task-id ID`: materialize a task's git worktree on
   disk now (without starting an engine). Returns `{ worktreePath }`.
+- `remove-worktree --task-id ID [--force]`: its INVERSE — remove the worktree
+  directory and keep the task row and its branch, so `ensure-worktree` can
+  materialize it again. This is what a script reclaiming idle checkouts wants;
+  `delete` takes the task record with it. Returns `{ worktreePath, branch,
+  removed, residue? }`.
+
+  Runs the same path as the Worktrees page's delete: the engine session is
+  torn down before the directory is unlinked, a dirty tree is refused without
+  `--force`, and every forced removal first takes a salvage snapshot into
+  `refs/rove/salvage/<branch>-<stamp>`. Two refusals are this verb's own,
+  because it is scriptable and its caller is often an agent inside the very
+  worktree it names: `BASE_CHECKOUT` (the project's own checkout) and
+  `CALLER_WORKTREE` (the directory the command is running from). `NO_WORKTREE`
+  when the task never materialized one. `residue` means git deregistered the
+  worktree but could not delete the directory — the removal is as complete as
+  git can make it, and this is the only time that leftover path is named.
 - `discover-adoptable --repo PATH`: list existing git worktrees not yet
   tracked as Rove tasks. Returns `{ worktrees, unreadable }`. The
   repository's own primary checkout is never offered — not even when `PATH`
