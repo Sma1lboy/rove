@@ -44,7 +44,8 @@ export function sameSessions(a: readonly LiveSession[], b: readonly LiveSession[
       s.key === other.key &&
       s.alive === other.alive &&
       s.title === other.title &&
-      s.pid === other.pid
+      s.pid === other.pid &&
+      s.restored === other.restored
     )
   })
 }

@@ -44,6 +44,7 @@ function Probe() {
     activity: undefined,
     lifecycle: undefined,
     job: undefined,
+    transcript: undefined,
     completionSeen: false,
   })
   renders += 1
@@ -87,6 +88,7 @@ test("a changed input re-derives the view", async () => {
       activity,
       lifecycle: undefined,
       job: undefined,
+      transcript: undefined,
       completionSeen: false,
     })
     renders += 1
@@ -102,4 +104,45 @@ test("a changed input re-derives the view", async () => {
   // A real input change MUST break the memo — a view frozen across input
   // changes would wear a stale glyph.
   expect(latestView).not.toBe(firstView)
+})
+
+/**
+ * The memo must not swallow the transcript. `useTabRowBaseView` forwards it
+ * to `buildSidebarRowView`, which is the only thing keeping a `turn_complete`
+ * whose engine is still writing from settling to done — drop it from the
+ * forwarded options (or from the dependency list) and this row reads "done"
+ * through the nine-minute tool call that motivated the signal.
+ */
+test("a transcript outliving its turn_complete keeps the row loading", async () => {
+  // An object, not two `let`s: a `let` assigned only inside the component
+  // reads as its initializer to control-flow analysis, which turns both
+  // assertions into compile errors. Both fields start absent, so a probe
+  // that never ran fails rather than matching by accident.
+  const seen: { done?: boolean; working?: boolean } = {}
+  const completedAt = 10_000
+  function Probe3() {
+    // Same activity for both: only the transcript differs, so a row that
+    // reads them the same is a row that never read the transcript.
+    seen.done = useTabRowBaseView({
+      task: TASK,
+      activity: { state: "turn_complete", at: completedAt },
+      lifecycle: undefined,
+      job: undefined,
+      transcript: undefined,
+      completionSeen: false,
+    }).loading
+    seen.working = useTabRowBaseView({
+      task: TASK,
+      activity: { state: "turn_complete", at: completedAt },
+      lifecycle: undefined,
+      job: undefined,
+      // Past the 2s grace: the engine kept writing after the hook fired.
+      transcript: { mtimeMs: completedAt + 60_000 },
+      completionSeen: false,
+    }).loading
+    return null
+  }
+  await renderComponent(<Probe3 />, { width: 80, height: 24 })
+  expect(seen.done).toBe(false)
+  expect(seen.working).toBe(true)
 })

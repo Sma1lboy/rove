@@ -80,20 +80,16 @@ export type SidebarProps = SidebarTaskCallbacks & {
   tasks: readonly Task[]
   selectedId: string | null
   onSelect: (id: string) => void
-  /** Fires on keyboard enter, and optionally mouse click in the Tasks pane. */
+  /** Entering the row's task. Fires on keyboard enter AND on row click —
+   *  both routes run the tree's one `activateRow`, with no opt-in flag
+   *  between them. */
   onActivate?: (taskId: string) => void
-  /** Task pane opts in because click-to-switch is cheap there. */
-  activateOnClick?: boolean
-  /** Keep a task-bound pane visually pinned to its own task after jump-away. */
-  pinnedSelection?: boolean
   focused?: boolean
   /** Presence (non-undefined) turns on the sort toggle. */
   sortMode?: TaskSortMode
   /** Presence (non-undefined, null = "all") makes the filter host-controlled. */
   projectFilter?: string | null
-  onProjectFilterChange?: (repo: string | null) => void
   onSearchActiveChange?: (active: boolean) => void
-  onCursorChange?: (taskId: string | null) => void
   /** Optional width override; defaults to the sidebar rail width. */
   width?: number
   headerStatus?: { label: string; emphasize: boolean } | null

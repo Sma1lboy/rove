@@ -2,7 +2,7 @@
 /**
  * Shared per-row React hooks for the sidebar's rows: the spinner-frame
  * subscription, the `+N −M` changes hook + chip, the unread-lamp "seen"
- * bookkeeping, and the jump-digit placeholder.
+ * bookkeeping, and the jump digit.
  *
  * Poller contract (async canon): the fire-and-forget `poll*` call lives in
  * an effect keyed on the Sidebar's `branchTick` (never in render), while
@@ -16,6 +16,7 @@ import type { TaskEngineState } from "@/client/remote-orchestrator"
 import { useEffect, useSyncExternalStore } from "react"
 import { spinnerFrameSnapshot, subscribeSpinnerFrame } from "../../../tui/lib/spinner-frame-store"
 import type { SidebarRow } from "../../../tui/panes/sidebar/groups"
+import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
 import { type WorktreeChanges, pickPushedChanges } from "../../../tui/panes/sidebar/worktree-changes"
 import { pollWorktreeChanges, worktreeChanges } from "../../../tui/panes/sidebar/worktree-changes-poller"
 import { useOptionalKV } from "../../context/kv"
@@ -226,7 +227,13 @@ export function useDurableCompletionSeen(
  * nothing rather than a digit that jumps somewhere else. Keyed on the flat
  * index directly so the tree's rows (no SidebarRow wrapper) share it.
  */
-// ponytail: the ctrl+<digit> jump chord works; the digit is not printed on the row.
-export function JumpDigit(_props: { flatIndex: number; dim: boolean }) {
-  return null
+export function JumpDigit(props: { flatIndex: number; dim: boolean }) {
+  const { theme } = useTheme()
+  const digit = taskJumpDigit(props.flatIndex)
+  if (digit === null) return null
+  return (
+    <text fg={props.dim ? theme.textMuted : theme.accent} wrapMode="none" flexShrink={0}>
+      {digit}
+    </text>
+  )
 }

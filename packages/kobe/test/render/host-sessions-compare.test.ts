@@ -38,6 +38,12 @@ describe("sameSessions", () => {
     expect(sameSessions([session()], [session({ alive: false })])).toBe(false)
     // The title projection is the reason this comparator got fields at all.
     expect(sameSessions([session()], [session({ title: "codex" })])).toBe(false)
+    // A host death turns live sessions into freeze-restored corpses in place:
+    // same key, same title, and `alive` was already false for other reasons.
+    // If this field is not compared, the row keeps the glyph that says
+    // "nothing to do here" until some unrelated field happens to move.
+    expect(sameSessions([session()], [session({ restored: true })])).toBe(false)
+    expect(sameSessions([session({ restored: true })], [session({ restored: true })])).toBe(true)
   })
 
   test("a respawned shell changes the inventory even when its key, title and liveness match", () => {

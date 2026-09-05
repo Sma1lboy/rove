@@ -16,8 +16,10 @@ import { type ReactNode, useEffect, useMemo } from "react"
 import { charWidth } from "../../../lib/display-width"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
+import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
 import { prChip } from "../../../tui/panes/sidebar/row-chips"
 import {
+  ATTENTION_GLYPH,
   IN_PROGRESS_SPINNER,
   NO_STATE_GLYPH,
   buildSidebarRowView,
@@ -28,7 +30,6 @@ import { SIDEBAR_WIDTH, toneColor, truncateBranchLabel } from "../../../tui/pane
 import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 import {
   ChangeStats,
   JumpDigit,
@@ -39,138 +40,22 @@ import {
   useDurableCompletionSeen,
   useSpinnerFrame,
 } from "./row-cards"
-
-/** Cells of indent per depth level — one: the rail is narrow, and the glyph
- *  column already separates the levels visually. */
-const INDENT_CELLS = 1
-
-export type TreeRowShared = {
-  /** Rail width in cells — the label truncation budget derives from it. */
-  readonly width?: number
-  /** Cursor position in the tree's flat id list. */
-  readonly cursorIndex: number
-  /** The row id the right pane is showing (`taskId::tabId` when a tab). */
-  readonly activeRowId: string | null
-  /** The task whose session the right pane shows. The unread-lamp digest
-   *  keys on THIS (selected task + the tab's own active bit) rather than on
-   *  `activeRowId`: that id needs the live tab map, which is cold right
-   *  after a restart — and a lamp that ignores the session you are sitting
-   *  in is wrong. */
-  readonly selectedTaskId: string | null
-  /** The row being dragged in move mode — wears the move chip.
-   *  Null outside move mode, and while a `main` row drags its whole project
-   *  (the group HEADER wears the chip then — `movingProjectId`). */
-  readonly movingRowId?: string | null
-  /** Keyed by FLAT INDEX so one scroll-follow lookup covers every row. */
-  readonly rowEls: Map<number, BoxRenderable>
-  readonly onPress: (flatIndex: number, rowId: string) => void
-  /** Right-click. Absent = right-click falls through to a plain activate. */
-  readonly onContextMenu?: (flatIndex: number, rowId: string, x: number, y: number) => void
-  /** The sidebar's ~2s poll tick — drives the ±stats poller. */
-  readonly branchTick: number
-  readonly engineState?: ReadonlyMap<string, TaskEngineState>
-  /** Per-tab activity (taskId → tabId → state) — the precise signal for a
-   *  tab row; `engineState` is the task-level rollup fallback. */
-  readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
-  readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
-  readonly taskJobs?: ReadonlyMap<string, TaskJobState>
-  readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges | null> | null
-}
-
-/**
- * Cell budget for a tree row's flexible label, so a clipped label ends in a
- * visible `…` instead of the bare hard cut Yoga produces (a chopped branch
- * name reads as the full name to anyone who doesn't know it's longer). The
- * caller passes the LIVE right-edge cluster width — same per-row subtraction
- * the flat cards do — and each cluster item costs its width plus its 1-cell
- * flex gap. Slight over-budget is safe (flex still clips); the floor keeps a
- * crowded row from erasing its label entirely.
- */
-function treeLabelBudget(shared: TreeRowShared, reserved: number): number {
-  const width = shared.width ?? SIDEBAR_WIDTH
-  // marker (1) + indent (1) + paddingRight (1) = 3 cells every row spends.
-  return Math.max(6, width - 3 - reserved)
-}
-
-/** Cells one right-cluster glyph occupies: itself plus the row's 1-cell gap. */
-function clusterCells(text: string): number {
-  let cells = 1
-  for (const ch of text) cells += charWidth(ch.codePointAt(0) ?? 0)
-  return cells
-}
-
-/** The move-mode chip a dragged ROW wears — same vocabulary as
- *  the project header's chip, so all three levels read identically. */
-function MoveChip(props: { readonly rowId: string; readonly shared: TreeRowShared }) {
-  const { theme } = useTheme()
-  const t = useT()
-  if (props.shared.movingRowId !== props.rowId) return null
-  return (
-    <text fg={theme.info} wrapMode="none" flexShrink={0}>
-      {t("tasks.moveChip").trim()}
-    </text>
-  )
-}
-
-function RowShell(props: {
-  readonly rowId: string
-  readonly flatIndex: number
-  readonly depth: number
-  readonly shared: TreeRowShared
-  readonly children: ReactNode
-}) {
-  const { theme } = useTheme()
-  const shared = props.shared
-  const selection = resolveRowSelectionChrome(theme, {
-    cursor: shared.cursorIndex === props.flatIndex,
-    selected: shared.activeRowId === props.rowId,
-  })
-  return (
-    <box
-      ref={(renderable: BoxRenderable | null) => {
-        if (!renderable) return
-        shared.rowEls.set(props.flatIndex, renderable)
-        return () => {
-          if (shared.rowEls.get(props.flatIndex) === renderable) shared.rowEls.delete(props.flatIndex)
-        }
-      }}
-      width="100%"
-      flexDirection="row"
-      gap={0}
-      backgroundColor={selection.backgroundColor}
-      onMouseUp={(evt: { button: number; x: number; y: number; stopPropagation(): void }) => {
-        // Don't bubble to the pane box's focus-grab (the workspace host's
-        // sidebar shell): activating a row hands focus to the CONTENT pane,
-        // a bubbled sidebar re-grab would overwrite it, leaving the sidebar's
-        // letter chords (d!) live over what looks like the terminal. Same
-        // guard the ZEN chip carries.
-        evt.stopPropagation()
-        // Right-click opens the row's menu instead of activating it — the
-        // terminal only forwards button 2 while mouse reporting is on, which
-        // is the same mode the left-click activate already depends on.
-        if (evt.button === MouseButton.RIGHT && shared.onContextMenu) {
-          shared.onContextMenu(props.flatIndex, props.rowId, evt.x, evt.y)
-          return
-        }
-        shared.onPress(props.flatIndex, props.rowId)
-      }}
-    >
-      <text fg={selection.markerColor} wrapMode="none">
-        {selection.marker}
-      </text>
-      <text wrapMode="none" flexShrink={0}>
-        {" ".repeat(props.depth * INDENT_CELLS)}
-      </text>
-      {props.children}
-    </box>
-  )
-}
+import { MoveChip, RowShell, type TreeRowShared, clusterCells, jumpDigitCells, treeLabelBudget } from "./tree-row-shell"
 
 /**
  * A worktree row carries NO ENGINE state glyph: the session state belongs to
  * the chat tab that runs it, so that glyph lives on the tab row below. What
  * stays here is worktree-level fact — branch, pin, PR chip, ±change stats —
- * and a worktree being MATERIALIZED is the most worktree-level fact there is.
+ * and a worktree being MATERIALIZED or DELETED is the most worktree-level
+ * fact there is.
+ *
+ * Deletion has to be read here for the same reason materialization is, only
+ * more sharply: `TaskDeletionCoordinator` sweeps the task's PTYs before it
+ * touches the worktree, so by the time a deletion fails the task has no
+ * activity entry and no live tab — the tab row that would carry a `!` is
+ * gated on activity it can never have again. A failed deletion left the row
+ * indistinguishable from a healthy one, discoverable only through
+ * `rove api list`.
  *
  * Why the job spinner has to live here rather than on the tab row: during
  * `git worktree add` a freshly created task has no engine activity (the engine
@@ -217,11 +102,27 @@ export function WorktreeTreeRow(props: {
   // Presence in the map IS "running" — the daemon removes the entry on both
   // terminal phases (see `TaskJobState`).
   const materializing = shared.taskJobs?.get(task.id) !== undefined
-  const frame = useSpinnerFrame(materializing)
+  // Read `task.deletion` directly, the same way `taskJobs` is read and for
+  // the same reason: it is genuinely task-scoped (one deletion per task, one
+  // worktree per task), so it needs no tab to attribute it to.
+  const deletionPhase = task.deletion?.phase
+  const deleting = deletionPhase === "queued" || deletionPhase === "running"
+  const deleteFailed = deletionPhase === "error"
+  const spinning = materializing || deleting
+  const frame = useSpinnerFrame(spinning)
+  // The word the deletion states caption themselves with. A failed deletion
+  // leaves the worktree and the branch untouched, so the branch label stays
+  // and the word rides beside it rather than replacing it — with seven
+  // stalled deletions in one project, rows that all read "delete failed"
+  // and nothing else would be unusable.
+  const deletionWord =
+    deleting || deleteFailed ? t(deleteFailed ? "tasks.subtitle.deleteFailed" : "tasks.subtitle.deleting") : null
   const reserved =
-    // The spinner column exists only while a job runs, so a quiet row spends
-    // none of its label budget on it.
-    (materializing ? 2 : 0) +
+    // The glyph column exists only while a job runs or a deletion is in
+    // flight, so a quiet row spends none of its label budget on it.
+    (spinning || deleteFailed ? 2 : 0) +
+    (deletionWord ? clusterCells(deletionWord) : 0) +
+    jumpDigitCells(props.flatIndex) +
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
     // `changes === null` is the unknown mark, one cell like any chip glyph —
@@ -234,9 +135,13 @@ export function WorktreeTreeRow(props: {
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={shared}>
-      {materializing ? (
+      {spinning ? (
         <text fg={theme.primary} wrapMode="none" width={2} flexShrink={0}>
           {`${IN_PROGRESS_SPINNER[frame % IN_PROGRESS_SPINNER.length] ?? IN_PROGRESS_SPINNER[0]} `}
+        </text>
+      ) : deleteFailed ? (
+        <text fg={theme.error} wrapMode="none" width={2} flexShrink={0}>
+          {`${ATTENTION_GLYPH} `}
         </text>
       ) : null}
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
@@ -254,6 +159,11 @@ export function WorktreeTreeRow(props: {
           </text>
         ) : null}
         <ChangeStats changes={changes} />
+        {deletionWord ? (
+          <text fg={deleteFailed ? theme.error : theme.textMuted} wrapMode="none" flexShrink={0}>
+            {deletionWord}
+          </text>
+        ) : null}
         <MoveChip rowId={props.rowId} shared={shared} />
         <JumpDigit flatIndex={props.flatIndex} dim={!isCursor} />
       </box>
@@ -273,10 +183,13 @@ export function useTabRowBaseView(args: {
   readonly activity: TaskEngineState | undefined
   readonly lifecycle: { readonly subagents: number } | undefined
   readonly job: TaskJobState | undefined
+  /** This worktree's transcript facts — what keeps a `turn_complete` whose
+   *  engine is still writing from settling to done (`row-view.ts`). */
+  readonly transcript: { readonly mtimeMs: number } | undefined
   readonly completionSeen: boolean
 }): ReturnType<typeof buildSidebarRowView> {
   const t = useT()
-  const { task, activity, lifecycle, job, completionSeen } = args
+  const { task, activity, lifecycle, job, transcript, completionSeen } = args
   return useMemo(() => {
     // Dependency-only invalidation key: rebuild when the language changes —
     // buildSidebarRowView reads the global `t` through the locale store.
@@ -286,12 +199,13 @@ export function useTabRowBaseView(args: {
       activity,
       lifecycle,
       job,
+      transcript,
       spinnerFrame: 0,
       subtitleBudget: 0,
       truncateBranch: truncateBranchLabel,
       completionSeen,
     })
-  }, [task, activity, lifecycle, job, completionSeen, t])
+  }, [task, activity, lifecycle, job, transcript, completionSeen, t])
 }
 
 export function TabTreeRow(props: {
@@ -355,21 +269,34 @@ export function TabTreeRow(props: {
     activity,
     lifecycle: carriesState ? shared.engineLifecycle?.get(props.task.id) : undefined,
     job: carriesState ? shared.taskJobs?.get(props.task.id) : undefined,
+    // Keyed by worktree path, which is all the daemon collects — so every tab
+    // of a task shares one transcript. That is the resolution available: the
+    // alternative is the pre-fix behaviour where a nine-minute tool call
+    // after `turn-complete` rendered as done.
+    transcript: shared.transcriptActivity?.get(props.task.worktreePath),
     completionSeen,
   })
   const frame = useSpinnerFrame(carriesState && baseView.loading)
   const rowView = withSpinnerFrame(baseView, () => frame)
+  // A freeze-restored tab is a corpse the pty host kept the scrollback for:
+  // its process died with the host, and OPENING it silently re-runs the
+  // recorded launch command — first prompt and all. Headless delivery refuses
+  // that without `--respawn` (TAB_RESTORED); the TUI just does it. Until the
+  // banner lands, the row at least has to stop reading `○`, which is the one
+  // glyph that means "nothing to do here". It is a dead engine process, so it
+  // takes the `!` the rail already spends on exactly that.
+  const restored = props.tab.restored === true
   // With NO daemon signal at all (fresh daemon before its first observer pass,
   // dead daemon lineage) the row rests at the same `○` a known-idle one does —
   // both readings send you into the tab to find out. See NO_STATE_GLYPH.
-  const glyph = isAgent && carriesState ? rowView.stateGlyph : NO_STATE_GLYPH
+  const glyph = restored ? ATTENTION_GLYPH : isAgent && carriesState ? rowView.stateGlyph : NO_STATE_GLYPH
   // depth 1, not 2: a tab row starts at the same column as its
   // worktree row — the circle status glyph carries the hierarchy, and the
   // extra indent cell wasted width the narrow rail doesn't have.
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={props.shared}>
       <text
-        fg={carriesState ? toneColor(theme, rowView.tone) : theme.textMuted}
+        fg={restored ? theme.error : carriesState ? toneColor(theme, rowView.tone) : theme.textMuted}
         wrapMode="none"
         width={2}
         flexShrink={0}
@@ -383,7 +310,9 @@ export function TabTreeRow(props: {
             // The 2-cell state-glyph column is this row's extra fixed spend.
             treeLabelBudget(
               shared,
-              2 + (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
+              2 +
+                jumpDigitCells(props.flatIndex) +
+                (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
             ),
             charWidth,
           )}

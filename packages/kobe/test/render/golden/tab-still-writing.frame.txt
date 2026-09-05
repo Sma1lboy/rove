@@ -1,5 +1,5 @@
-# sidebar frame: tab-running-sibling
-# work in a NON-active tab must light THAT row and leave the active one alone (the borrowed-spinner bug)
+# sidebar frame: tab-still-writing
+# same turn_complete as above, but the worktree's transcript kept growing after the hook — the row spins instead of settling to done
 # 30x22, spinner glyphs masked as ~
 # GENERATED — do not hand-edit. Regenerate: KOBE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
@@ -11,10 +11,10 @@
 |                              |
 | rove ─────────────────────── |
 |  feat/alpha              ? 2 |
-|▌ ○ build                   3 |
-|  ~ review                  4 |
+|  ~ build                   3 |
+|  ○ review                  4 |
 |  feat/bravo              ? 5 |
-|  ○ tests                   6 |
+|▌ ○ tests                   6 |
 |                              |
 |                              |
 |                              |

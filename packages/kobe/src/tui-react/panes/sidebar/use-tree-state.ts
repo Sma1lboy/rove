@@ -153,6 +153,16 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     return map
   }, [hostSessions])
 
+  // ptyKey → "the host is holding this as a freeze-restored corpse". The
+  // scrollback survived a host death; the process did not, and opening the
+  // tab respawns its recorded launch command. Nothing else in the tree
+  // distinguishes that from a quiet tab.
+  const restoredKeys = useMemo<ReadonlySet<string>>(() => {
+    const keys = new Set<string>()
+    for (const session of hostSessions) if (session.restored === true) keys.add(session.key)
+    return keys
+  }, [hostSessions])
+
   // Tab projection. `tasks` identity changes on every daemon snapshot echo,
   // which is also exactly when a tab's live title may have moved — so this
   // recomputing with it is correct, not wasteful.
@@ -196,12 +206,13 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
             // re-mounts, and demoting the row to a plain dot for that gap
             // reads as a lie.
             engine: tab.kind === "engine" || (live ?? null) !== null,
+            restored: restoredKeys.has(ptyKey),
           }
         }),
       )
     }
     return map
-  }, [tasks, kv, liveEngines, liveTick, liveTitles])
+  }, [tasks, kv, liveEngines, liveTick, liveTitles, restoredKeys])
 
   // Backstop: any LIVE pty session the snapshots don't answer for becomes an
   // explicit unregistered row — tab-granular, so a task whose snapshot lists
