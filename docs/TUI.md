@@ -228,9 +228,17 @@ active scope says so rather than opening blank.
 the rename and the same `+N −M` as its list row, not the whole file as added. A
 changed binary and a mode-only change each state what changed — in the
 single-file view and in a combined diff's section — because a patch git wrote
-entirely in its preamble has no hunks to draw. If git itself refuses (a pruned
+entirely in its preamble has no hunks to draw. Pure renames name the original
+path; additions and deletions of empty files state the change. These states
+have no review cursor or line comments. Filenames are literal, including
+brackets, `*`, `?`, and leading `:`; selecting one cannot include another
+file's hunks. Directory and whole-worktree diffs still combine their files. If git itself refuses (a pruned
 remote, a renamed base branch), the pane shows git's own error and `r` retries;
-a failed read is never reported as an absence of changes.
+a failed read is never reported as an absence of changes. An unreadable or
+missing text file shows a read error and the same retry action; a valid empty
+file says "empty file". While a different path, worktree, or comparison base
+loads, the preview shows a loading state instead of the previous file's text.
+A late result cannot replace the current preview or reopen a closed tab.
 
 Open a text file with `enter`. Rove uses the configured terminal editor; for a
 changed file it requests that editor's diff mode when Vim or Neovim is
