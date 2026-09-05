@@ -14,7 +14,7 @@ import { join } from "node:path"
 import type { ChatTabTurnState } from "../../src/engine/turn-detector"
 import { TAB_STRIP_MODE_KEY } from "../../src/state/tab-strip"
 import { setTransparentBackground } from "../../src/tui-react/context/theme"
-import { TabStrip } from "../../src/tui-react/workspace/tab-strip"
+import { TURN_GLYPHS, TabStrip } from "../../src/tui-react/workspace/tab-strip"
 import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
 import { renderComponent } from "./harness"
 
@@ -117,4 +117,49 @@ test("narrow strip paints no row background of its own — in either display mod
       setTransparentBackground(false)
     }
   }
+})
+
+test("narrow keeps each turn state its own tone, the way the wide strip does", async () => {
+  // The narrow form used to paint the chip in `backgroundElement` — one
+  // colour for all seven states in `TURN_GLYPHS`, so `● running` and
+  // `! error` differed only by glyph. Painting the tone ON the focusAccent
+  // fill would not have fixed it either: error red lands at a 1.02 contrast
+  // ratio there. The chip therefore sits outside the fill, on ambient.
+  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-tab-strip-tone-"))
+  mkdirSync(join(process.env.KOBE_HOME_DIR, ".config", "rove"), { recursive: true })
+  writeFileSync(
+    join(process.env.KOBE_HOME_DIR, ".config", "rove", "state.json"),
+    JSON.stringify({ [TAB_STRIP_MODE_KEY]: "always" }),
+  )
+  const turns = new Map<string, ChatTabTurnState>([
+    ["tab-2", "running"],
+    ["tab-3", "error"],
+  ])
+  async function chipFg(activeId: string) {
+    const { spans } = await renderComponent(
+      <TabStrip
+        tabs={TABS}
+        activeId={activeId}
+        turnStates={turns}
+        onSelect={() => {}}
+        vendor="claude"
+        liveTitles={new Map()}
+        turnVendors={new Map()}
+      />,
+      { width: 46, height: 4, providers: { kv: true } },
+    )
+    const glyph = TURN_GLYPHS[turns.get(activeId) as ChatTabTurnState]
+    const span = (await spans()).lines[0]?.spans.find((s) => s.text.includes(glyph))
+    expect(span).toBeDefined()
+    return span
+  }
+  const running = await chipFg("tab-2")
+  const error = await chipFg("tab-3")
+  expect(running?.fg?.toInts()).not.toEqual(error?.fg?.toInts())
+  // And on the ambient surface, not inside the active-tab fill — that fill is
+  // where every tone collapsed back into the orange.
+  const ambient = (
+    await (await renderComponent(strip("tab-2"), { width: 46, height: 4, providers: { kv: true } })).spans()
+  ).lines[2]?.spans[0]
+  expect(running?.bg?.toInts()).toEqual(ambient?.bg?.toInts())
 })

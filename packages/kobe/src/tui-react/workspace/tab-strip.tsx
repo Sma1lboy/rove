@@ -28,7 +28,7 @@ import { truncateEndCells } from "../../tui/lib/truncate"
 import { type TerminalTab, tabTitle, visibleNativeStatus } from "../../tui/workspace/terminal-tabs-core"
 import type { VendorId } from "../../types/vendor"
 import { useKV } from "../context/kv"
-import { useTheme } from "../context/theme"
+import { type Theme, useTheme } from "../context/theme"
 import { isNarrowWidth } from "../lib/narrow-mode"
 
 export { tabTitle }
@@ -50,6 +50,28 @@ export const TURN_GLYPHS: Record<ChatTabTurnState, string> = {
   needs_input: "?",
   unknown: "?",
   idle: "○",
+}
+
+/**
+ * The tone a turn glyph carries, in BOTH strip forms. Semantic activity
+ * color, never `focusAccent`: several tabs can be running at once, and the
+ * focus orange must keep meaning only "you are here".
+ */
+function turnColor(theme: Theme, turn: ChatTabTurnState) {
+  switch (turn) {
+    case "running":
+      return theme.info
+    case "done":
+      return theme.success
+    case "error":
+    case "dead":
+      return theme.error
+    case "needs_input":
+    case "rate_limited":
+      return theme.warning
+    default:
+      return theme.textMuted
+  }
 }
 
 /** How long the running→done pulse stays emphasized. */
@@ -224,13 +246,17 @@ export function TabStrip(props: {
       // alpha-0 so the host wallpaper shows through — only the active tab's
       // chip fill paints (it must stay legible against any backdrop).
       <box flexDirection="row" flexShrink={0} paddingLeft={1} paddingRight={1} gap={1} overflow="hidden">
+        {/* Chip OUTSIDE the fill, for the reason the wide branch dropped its
+            own fill: on `focusAccent` the error red lands at a 1.02 contrast
+            ratio, so every tone collapses into the orange. On the ambient
+            surface all seven states stay tellable apart. */}
+        {active.chipShown ? (
+          <text fg={turnColor(theme, active.turn)} attributes={pulse ? TextAttributes.BOLD : undefined} wrapMode="none">
+            {TURN_GLYPHS[active.turn]}
+          </text>
+        ) : null}
         <box flexDirection="row" flexShrink={1} paddingLeft={1} paddingRight={1} backgroundColor={theme.focusAccent}>
-          {active.chipShown ? (
-            <text fg={theme.backgroundElement} attributes={pulse ? TextAttributes.BOLD : undefined} wrapMode="none">
-              {`${TURN_GLYPHS[active.turn]} `}
-            </text>
-          ) : null}
-          <text fg={theme.backgroundElement} attributes={TextAttributes.BOLD} wrapMode="none">
+          <text fg={theme.selectedListItemText} attributes={TextAttributes.BOLD} wrapMode="none">
             {truncateEndCells(active.title, titleCells, approxCharCells)}
           </text>
         </box>
@@ -256,19 +282,6 @@ export function TabStrip(props: {
       <box flexDirection="row" gap={0} flexShrink={0} marginLeft={-offset}>
         {entries.map(({ tab, turn, chipShown, title }) => {
           const pulse = pulsing.has(tab.id)
-          const turnColor =
-            turn === "running"
-              ? // Semantic activity color, never `focusAccent`: several tabs
-                // can be running at once, and the focus orange must keep
-                // meaning only "you are here" (the active tab's frame).
-                theme.info
-              : turn === "done"
-                ? theme.success
-                : turn === "error" || turn === "dead"
-                  ? theme.error
-                  : turn === "needs_input" || turn === "rate_limited"
-                    ? theme.warning
-                    : theme.textMuted
           const active = tab.id === props.activeId
           return (
             <box
@@ -296,7 +309,7 @@ export function TabStrip(props: {
                   No fill behind the chip anymore — the active tab is an open
                   frame, so tone colors survive on every tab. */}
               {chipShown ? (
-                <text fg={turnColor} attributes={pulse ? TextAttributes.BOLD : undefined} wrapMode="none">
+                <text fg={turnColor(theme, turn)} attributes={pulse ? TextAttributes.BOLD : undefined} wrapMode="none">
                   {`${TURN_GLYPHS[turn]} `}
                 </text>
               ) : null}
