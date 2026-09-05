@@ -224,21 +224,26 @@ export function isKobeManagedPath(repo: string, candidate: string): boolean {
  * repo-keyed form to decide whether the directory is its own to delete.
  *
  * Only the roots THEMSELVES are checked, not the per-repo subdir under them —
- * that subdir is derived from the repo path this function does not have. The
- * guard is deliberately narrow: it authorizes deleting a directory tree, so it
- * must never say yes to a path Rove did not create. A repo-local root
- * (`<repo>/.rove/worktrees`) is not recognized here — that form needs the repo
- * to locate, which is exactly what is missing. Same for a `$project_dir`
- * override: it expands per-repo, so without one it contributes nothing and the
- * built-in default covers what is left.
+ * that subdir is derived from the repo path, which the sole caller may not
+ * have. The guard is deliberately narrow: it authorizes deleting a directory
+ * tree, so it must never say yes to a path Rove did not create. A repo-local
+ * root (`<repo>/.rove/worktrees`) is not recognized here — that form needs the
+ * repo to locate, which is exactly what is missing when it is.
+ *
+ * `projectDir` is the repo that owns `candidate`, when the caller knows it
+ * (a task record carries `task.repo`). It is REQUIRED for a `$project_dir`
+ * worktree base to be recognized at all: that override expands per-repo, so
+ * without one it contributes no root and the answer collapses to the built-in
+ * default. Under the shipped `$project_dir/..` preset (Settings → "next to
+ * project") every worktree lives outside every default root, so the guard
+ * answered false for paths Rove itself had created — and the one caller turns
+ * that into a permanent refusal, parking the task in `deletion.phase: "error"`
+ * where every retry re-runs the same unsatisfiable branch.
  */
-export function isUnderManagedWorktreesRoot(candidate: string): boolean {
+export function isUnderManagedWorktreesRoot(candidate: string, projectDir?: string): boolean {
   if (!path.isAbsolute(candidate)) return false
   const target = canonicalize(candidate)
-  // The override with no repo resolves the non-`$project_dir` forms; a
-  // `$project_dir` override falls back to the default root without one, which
-  // this list already covers.
-  const roots = [getWorktreeBaseOverride() ?? "", defaultLocalWorktreesRoot(), legacyLocalWorktreesRoot()]
+  const roots = [getWorktreeBaseOverride(projectDir) ?? "", defaultLocalWorktreesRoot(), legacyLocalWorktreesRoot()]
   for (const rootPath of roots) {
     if (!rootPath) continue
     const root = canonicalize(rootPath)

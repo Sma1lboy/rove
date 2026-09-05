@@ -41,6 +41,13 @@ export function parseIgnoredPaths(stdoutZ: string): string[] {
     .filter((p) => p.length > 0)
 }
 
+/**
+ * Argv byte budget for one `du`. ARG_MAX is 1 MB on macOS and ~2 MB on Linux;
+ * 96 KB per batch is far under both (and under the per-argument limits) while
+ * keeping the call count at one for any ordinary worktree.
+ */
+const DU_ARGV_BUDGET_BYTES = 96 * 1024
+
 /** Parse `du -sk <paths…>` output into path → kilobytes. */
 export function parseDuKb(stdout: string): Map<string, number> {
   const sizes = new Map<string, number>()
@@ -48,6 +55,50 @@ export function parseDuKb(stdout: string): Map<string, number> {
     const m = /^(\d+)\s+(.+)$/.exec(line.trim())
     if (m?.[1] && m[2]) sizes.set(m[2], Number.parseInt(m[1], 10))
   }
+  return sizes
+}
+
+/**
+ * `du -sk` over `paths`, as path → kilobytes.
+ *
+ * Each ignored directory is reported collapsed by `git status`, so this is a
+ * handful of arguments rather than a walk of the whole tree. Three things a
+ * single naked `du -sk ...paths` got wrong, each of which silently emptied the
+ * result for the WHOLE worktree — and with it every protection built on it
+ * (the non-force delete gate in `manager-remove.ts` and salvage's `add -f`
+ * pass), because a path whose size cannot be read is skipped:
+ *
+ *   - no `--`: ONE ignored file whose name begins with `-` is read as an
+ *     option (`du: invalid option -- w`, exit 64, empty stdout), so a single
+ *     `-weird.log` disarmed the gate for every other file beside it;
+ *   - no chunking: past ARG_MAX the spawn fails with E2BIG;
+ *   - a newline in a filename: `du`'s output is line-oriented, so such a path
+ *     can never be matched back to its line. Those are measured one at a time,
+ *     where the leading number is unambiguous without matching the name.
+ */
+async function duKb(exec: ExecHost, worktreePath: string, paths: readonly string[]): Promise<Map<string, number>> {
+  const sizes = new Map<string, number>()
+  const batch: string[] = []
+  let bytes = 0
+  const flush = async () => {
+    if (batch.length === 0) return
+    const du = await exec.run(["du", "-sk", "--", ...batch], { cwd: worktreePath })
+    for (const [p, kb] of parseDuKb(du.stdout)) sizes.set(p, kb)
+    batch.length = 0
+    bytes = 0
+  }
+  for (const p of paths) {
+    if (p.includes("\n")) {
+      const one = await exec.run(["du", "-sk", "--", p], { cwd: worktreePath })
+      const kb = /^\s*(\d+)/.exec(one.stdout)?.[1]
+      if (one.exitCode === 0 && kb) sizes.set(p, Number.parseInt(kb, 10))
+      continue
+    }
+    if (bytes + p.length + 1 > DU_ARGV_BUDGET_BYTES) await flush()
+    batch.push(p)
+    bytes += p.length + 1
+  }
+  await flush()
   return sizes
 }
 
@@ -73,10 +124,7 @@ export async function smallIgnoredPaths(exec: ExecHost, worktreePath: string): P
     const paths = parseIgnoredPaths(status.stdout)
     if (paths.length === 0) return []
 
-    // One `du` for every entry: each ignored directory is reported collapsed,
-    // so this is a handful of arguments, not a walk of the whole tree.
-    const du = await exec.run(["du", "-sk", ...paths], { cwd: worktreePath })
-    const sizes = parseDuKb(du.stdout)
+    const sizes = await duKb(exec, worktreePath, paths)
     return paths.filter((p) => {
       const kb = sizes.get(p)
       return kb !== undefined && kb <= MAX_IGNORED_ENTRY_KB

@@ -14,10 +14,11 @@
  * untracked tree) — and a new file nobody has `git add`ed yet is exactly the
  * kind most easily lost. So the snapshot is built by hand:
  *
- *     GIT_INDEX_FILE=<throwaway> git add -A   → stages tracked edits + untracked
- *     git write-tree                          → a tree of the whole worktree
- *     git commit-tree <tree> -p HEAD          → a commit rooted at real history
- *     git update-ref refs/rove/salvage/<slug> → a named, gc-proof anchor
+ *     GIT_INDEX_FILE=<throwaway> git read-tree HEAD  → so git knows what's TRACKED
+ *                                git add -A          → tracked edits + untracked
+ *     git write-tree                                 → a tree of the whole worktree
+ *     git commit-tree <tree> -p HEAD                 → a commit rooted at real history
+ *     git update-ref refs/rove/salvage/<slug> <c> "" → a named, gc-proof anchor
  *
  * `git add -A` honours `.gitignore` — which keeps `node_modules/` out, and
  * ALSO threw away real work: `HANDOFF.md`, `.scratch/**`, `.env*` and
@@ -67,18 +68,76 @@ async function gitlinkPaths(git: (args: readonly string[]) => Promise<GitRunResu
     .filter((p) => p.length > 0)
 }
 
+/**
+ * A branch name as one ref-name component, keeping everything
+ * `git check-ref-format` allows.
+ *
+ * Only what git actually forbids is replaced — control characters, space,
+ * `~^:?*[\`, a `..` run, a `@{` sequence, a leading/trailing `.` or `-` — plus
+ * `/`, flattened so every snapshot stays exactly one level under
+ * `refs/rove/salvage/`. Ref names are byte strings, so a UTF-8
+ * branch survives intact; the old `[^A-Za-z0-9._-]` filter erased a Chinese
+ * branch name down to the empty string and EVERY such snapshot was named
+ * `detached-<stamp>` — unidentifiable, and colliding with the next one.
+ *
+ * A `.lock` suffix needs no handling: git forbids it only at the END of a
+ * component, and the slug is always followed by `-<stamp>` in the finished ref.
+ */
+export function branchRefSlug(branch: string | null): string {
+  return (
+    (branch ?? "")
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: git defines its refname rules over exactly these bytes.
+      .replace(/[\u0000-\u0020\u007f~^:?*[\\/]+/g, "-")
+      .replace(/@\{/g, "-")
+      .replace(/\.{2,}/g, "-")
+      .replace(/^[-.]+|[-.]+$/g, "") || "detached"
+  )
+}
+
 /** `refs/rove/salvage/<branch>-<utc-stamp>` — a ref name git accepts, keyed by
  *  the two things a user remembers: which branch, and roughly when. Exported
  *  so {@link anchorBranchTip} writes into the SAME namespace: a user who lost
  *  work has one place to look and one `for-each-ref` to run, whether the loss
- *  was a force-removed worktree or a squash-landed branch. */
+ *  was a force-removed worktree or a squash-landed branch.
+ *
+ *  The stamp resolves to the SECOND, and the slug is lossy by construction
+ *  (`feat/login` and `feat-login` both flatten to `feat-login`), so this name
+ *  is a preferred name rather than a unique one — {@link createSalvageRef}
+ *  owns making the write itself collision-proof. */
 export function salvageRef(branch: string | null, now: Date): string {
   const stamp = now
     .toISOString()
     .replace(/[-:]/g, "")
     .replace(/\.\d+Z$/, "Z")
-  const slug = (branch ?? "detached").replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^[-.]+|[-.]+$/g, "")
-  return `refs/rove/salvage/${slug || "detached"}-${stamp}`
+  return `refs/rove/salvage/${branchRefSlug(branch)}-${stamp}`
+}
+
+/**
+ * Write `commit` under `preferred`, NEVER over a ref that already exists.
+ *
+ * `git update-ref <ref> <new>` overwrites unconditionally, and two names
+ * collide easily: the stamp only resolves to the second, and the slug flattens
+ * `feat/login` and `feat-login` together. Deleting a batch of tasks lands
+ * several force-removes inside one second by construction, so the first
+ * snapshot became a dangling commit reachable from nothing — while both
+ * callers were handed a ref and told their work was saved.
+ *
+ * An EMPTY `<oldvalue>` makes the write a create-only compare-and-swap (git
+ * refuses with "reference already exists"); the empty string rather than the
+ * all-zero OID because that literal is hash-length dependent and this one is
+ * not. Numbered suffixes then find the next free name. Returns the ref
+ * actually written, or null if none could be.
+ */
+async function createSalvageRef(
+  git: (args: readonly string[]) => Promise<GitRunResult>,
+  preferred: string,
+  commit: string,
+): Promise<string | null> {
+  for (let attempt = 1; attempt <= 50; attempt++) {
+    const ref = attempt === 1 ? preferred : `${preferred}-${attempt}`
+    if ((await git(["update-ref", ref, commit, ""])).exitCode === 0) return ref
+  }
+  return null
 }
 
 /**
@@ -119,7 +178,25 @@ export async function salvageWorktree(
     const withIndex = (args: readonly string[]) =>
       deps.runGit(exec, args, { cwd: worktreePath, allowFail: true, env: { GIT_INDEX_FILE: indexPath } })
 
+    // Parent the snapshot on HEAD so `git show <ref>` diffs against the real
+    // history. An unborn branch has no HEAD — commit a root instead of losing
+    // the files.
+    const head = (await git(["rev-parse", "HEAD"])).stdout.trim()
+    const branch = (await git(["rev-parse", "--abbrev-ref", "HEAD"])).stdout.trim()
+
     try {
+      // Seed the throwaway index from HEAD before staging anything.
+      //
+      // An EMPTY index makes git treat every path as untracked, and
+      // `.gitignore` only applies to untracked paths — so `add -A` skipped
+      // every TRACKED file the repo's own `.gitignore` happens to cover (a
+      // committed `dist/README.md` under `dist/`, a committed `server.log`
+      // under `*.log`). The `add -f` pass below cannot recover them either:
+      // its input comes from `git status --ignored`, which reports a tracked
+      // file as ` M` and NEVER as `!!`. The snapshot then recorded those
+      // files as DELETIONS, `uncaptured` stayed empty, and the caller
+      // reported a successful salvage over work that no longer existed.
+      if (head && (await withIndex(["read-tree", head])).exitCode !== 0) return null
       if ((await withIndex(["add", "-A"])).exitCode !== 0) return null
       // Second pass: the ignored entries that are a person's work rather than
       // build output. `-f` is what overrides `.gitignore`; without it the
@@ -129,18 +206,13 @@ export async function salvageWorktree(
       const tree = (await withIndex(["write-tree"])).stdout.trim()
       if (!tree) return null
 
-      // Parent the snapshot on HEAD so `git show <ref>` diffs against the
-      // real history. An unborn branch has no HEAD — commit a root instead
-      // of losing the files.
-      const head = (await git(["rev-parse", "HEAD"])).stdout.trim()
-      const branch = (await git(["rev-parse", "--abbrev-ref", "HEAD"])).stdout.trim()
       const message = `rove salvage: force-removed worktree ${worktreePath}`
       const commitArgs = head ? ["commit-tree", tree, "-p", head, "-m", message] : ["commit-tree", tree, "-m", message]
       const commit = (await withIndex(commitArgs)).stdout.trim()
       if (!commit) return null
 
-      const ref = salvageRef(branch && branch !== "HEAD" ? branch : null, now)
-      if ((await git(["update-ref", ref, commit])).exitCode !== 0) return null
+      const ref = await createSalvageRef(git, salvageRef(branch && branch !== "HEAD" ? branch : null, now), commit)
+      if (!ref) return null
       // Read back what the tree actually holds. A submodule or nested worktree
       // staged as a `160000` gitlink is a promise the recovery commands cannot
       // keep, so the record says which paths it missed rather than letting the

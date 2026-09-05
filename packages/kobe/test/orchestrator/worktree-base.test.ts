@@ -12,7 +12,12 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import { managedWorktreeRootsFor, worktreeRootFor } from "../../src/orchestrator/worktree/paths.ts"
+import {
+  isUnderManagedWorktreesRoot,
+  managedWorktreeRootsFor,
+  worktreePathFor,
+  worktreeRootFor,
+} from "../../src/orchestrator/worktree/paths.ts"
 import {
   PROJECT_SIBLING_BASE,
   getWorktreeBaseOverride,
@@ -154,5 +159,33 @@ describe("worktree paths honor the override", () => {
     const defaultRoot = path.join(home, ".rove", "worktrees", path.basename(activeRoot))
     expect(roots[0]).toBe(activeRoot)
     expect(roots).toContain(defaultRoot)
+  })
+
+  /**
+   * The guard that authorizes `rm -rf` on an ORPHANED worktree — one whose
+   * upstream `.git` is gone (a deleted clone, macOS pruning `/tmp`), so no repo
+   * can be discovered from disk and `git worktree remove` has nothing to run.
+   *
+   * Under the shipped `$project_dir/..` preset ("next to project") every
+   * managed worktree lives outside every default root, and the guard was asked
+   * with no repo — which is exactly when a `$project_dir` base expands to
+   * nothing. So it answered false for a path Rove itself had created, force
+   * removal threw, and the task parked in `deletion.phase: "error"` where every
+   * retry re-ran the same unsatisfiable branch.
+   */
+  test("a $project_dir worktree is recognized as managed when the repo is known", () => {
+    writeState({ "worktree.basePath": PROJECT_SIBLING_BASE })
+    // On disk, like the orphan the guard is actually asked about: the guard
+    // canonicalizes both sides, and macOS resolves the tempdir's `/var` →
+    // `/private/var` symlink only for a path that exists.
+    const wt = worktreePathFor(repo, "tapir")
+    fs.mkdirSync(wt, { recursive: true })
+
+    // The premise: this really is outside the default root.
+    expect(wt.startsWith(path.join(home, ".rove", "worktrees"))).toBe(false)
+    expect(isUnderManagedWorktreesRoot(wt, repo)).toBe(true)
+
+    // A path Rove did NOT create stays unauthorized, repo or not.
+    expect(isUnderManagedWorktreesRoot(path.join(tmpRoot, "somewhere", "else"), repo)).toBe(false)
   })
 })

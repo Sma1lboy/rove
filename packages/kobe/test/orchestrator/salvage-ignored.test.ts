@@ -41,7 +41,7 @@ beforeEach(() => {
   fs.writeFileSync(path.join(repo, "tracked.txt"), "committed\n")
   // The Rove repo's own ignore set, near enough: build output plus the files
   // that actually carry an agent's unpushed reasoning.
-  fs.writeFileSync(path.join(repo, ".gitignore"), "node_modules/\nHANDOFF.md\n.scratch/\n.env\n")
+  fs.writeFileSync(path.join(repo, ".gitignore"), "node_modules/\nHANDOFF.md\n.scratch/\n.env\n*.log\n")
   git(repo, "add", "-A")
   git(repo, "commit", "-qm", "init")
 })
@@ -169,4 +169,36 @@ test("an ignored tree over the size budget still deletes with no force", async (
   expect(git(wt, "status", "--porcelain")).toBe("")
   await new GitWorktreeManager().remove(wt)
   expect(fs.existsSync(wt)).toBe(false)
+})
+
+/**
+ * One ignored file whose name starts with `-`, and the protection for every
+ * OTHER file in the worktree switches off.
+ *
+ * `du -sk <paths…>` carried no `--`, so both BSD and GNU `du` read that name
+ * as an option bundle (`du: invalid option -- w`, exit 64, empty stdout). The
+ * empty size map then failed the `sizes.get(p) !== undefined` filter for every
+ * entry, `ignoredWork()` came back empty for the WHOLE worktree, and the
+ * non-force delete gate — the only thing standing between `HANDOFF.md` and
+ * `git worktree remove` — stopped refusing. The non-force path takes no
+ * salvage snapshot, so the file was gone with no copy anywhere.
+ *
+ * Both halves are asserted on one worktree: what the probe reports, and what
+ * is still on disk after the removal it authorizes.
+ */
+test("an ignored file named like a flag does not disarm the ignored-work gate", async () => {
+  const wt = path.join(tmpRoot, "dash-named")
+  git(repo, "worktree", "add", "-q", wt, "-b", "dash-named")
+  fs.writeFileSync(path.join(wt, "HANDOFF.md"), "a whole session of reasoning\n")
+  fs.writeFileSync(path.join(wt, "-weird.log"), "innocuous\n")
+
+  // `.gitignore` covers both, and to `git status --porcelain` this is clean.
+  expect(git(wt, "status", "--porcelain")).toBe("")
+
+  const ignored = await new GitWorktreeManager().ignoredWork(wt)
+  expect(ignored).toContain("HANDOFF.md")
+  expect(ignored).toContain("-weird.log")
+
+  await expect(new GitWorktreeManager().remove(wt)).rejects.toThrow(/gitignored work/)
+  expect(fs.existsSync(path.join(wt, "HANDOFF.md"))).toBe(true)
 })
