@@ -114,6 +114,10 @@ flags.
 ```bash
 rove add [path]      # save a repo for the new-task picker (defaults to .)
 rove remove [path]   # forget it; files, worktrees, and tasks all stay
+rove remove <ssh://…> --purge-credentials
+                     # also delete that remote project's SSH password from the
+                     # OS keychain (macOS). Off by default — forgetting a
+                     # project never destroys a stored secret on its own.
 rove adopt [glob] [--repo <path>] [--vendor <engine>] [--yes]
                      # list/import existing git worktrees as tasks
 ```

@@ -27,6 +27,9 @@ const fake = vi.hoisted(() => ({
     id: `task-${args.worktreePath.split("/").pop()}`,
     title: "adopted",
   })),
+  remoteRepos: {} as Record<string, { auth: { kind: string; keychainRef?: { service: string; account: string } } }>,
+  keychainSupported: true,
+  deleteKeychainPassword: vi.fn((_ref: { service: string; account: string }) => true),
   forgetProject: vi.fn(async (_repo: string) => {}),
   ensureMainTask: vi.fn(async (repo: string) => ({ id: "main-1", kind: "main", repo })),
   daemonClient: null as null | { request: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> },
@@ -39,6 +42,7 @@ vi.mock("../../src/state/repos.ts", () => ({
   resolveRepoRoot: vi.fn((p: string) => fake.repoRootOf[p] ?? p),
   getCustomEngineIds: vi.fn(() => [] as string[]),
   setPersistedString: vi.fn(),
+  getRemoteRepoConfig: vi.fn((key: string) => fake.remoteRepos[key] ?? null),
 }))
 vi.mock("../../src/orchestrator/index/store.ts", () => ({
   TaskIndexStore: class {
@@ -67,6 +71,10 @@ vi.mock("../../src/orchestrator/core.ts", () => ({
       return fake.adoptWorktree(args)
     }
   },
+}))
+vi.mock("../../src/exec/keychain.ts", () => ({
+  deleteKeychainPassword: fake.deleteKeychainPassword,
+  isKeychainSupported: vi.fn(() => fake.keychainSupported),
 }))
 vi.mock("@sma1lboy/kobe-daemon/client/daemon-process", () => ({
   connectIfRunning: vi.fn(async () => fake.daemonClient),
@@ -100,6 +108,9 @@ beforeEach(() => {
   fake.adoptable = []
   fake.discoverError = null
   fake.daemonClient = null
+  fake.remoteRepos = {}
+  fake.keychainSupported = true
+  fake.deleteKeychainPassword.mockClear().mockReturnValue(true)
   originalArgv = process.argv
   let exited = false
   exitSpy = vi.fn((code?: number) => {
@@ -233,6 +244,62 @@ describe("kobe remove", () => {
     fake.repoRootOf["/repo/packages/sub"] = "/repo"
     await runCli("remove", "/repo/packages/sub")
     expect(fake.forgetProject).toHaveBeenCalledWith("/repo")
+  })
+
+  // The stored SSH password is the one thing `remove` must not destroy by
+  // default — but before this it had no deletion path at all once the
+  // `remoteRepos` entry holding its keychain ref was dropped.
+  describe("remote credentials", () => {
+    const SSH = "ssh://dev@box"
+    const ref = { service: "kobe-remote-ssh", account: "dev@box" }
+
+    function withPassword(): void {
+      fake.savedRepos = [SSH]
+      fake.remoteRepos[SSH] = { auth: { kind: "password", keychainRef: ref } }
+    }
+
+    test("keeps the keychain password and names the flag that deletes it", async () => {
+      withPassword()
+      await runCli("remove", SSH)
+      expect(fake.deleteKeychainPassword).not.toHaveBeenCalled()
+      expect(logText()).toContain("--purge-credentials")
+      expect(logText()).toContain("dev@box")
+    })
+
+    test("--purge-credentials deletes it", async () => {
+      withPassword()
+      await runCli("remove", SSH, "--purge-credentials")
+      expect(fake.deleteKeychainPassword).toHaveBeenCalledWith(ref)
+      expect(fake.forgetProject).toHaveBeenCalledWith(SSH)
+    })
+
+    test("the flag is not mistaken for the path to remove", async () => {
+      withPassword()
+      await runCli("remove", "--purge-credentials", SSH)
+      expect(fake.forgetProject).toHaveBeenCalledWith(SSH)
+      expect(fake.deleteKeychainPassword).toHaveBeenCalledWith(ref)
+    })
+
+    test("says so instead of claiming success when no item was found", async () => {
+      withPassword()
+      fake.deleteKeychainPassword.mockReturnValue(false)
+      await runCli("remove", SSH, "--purge-credentials")
+      expect(logText()).not.toContain("purged the keychain password")
+    })
+
+    test("a key-auth remote has no password, so no note and no delete", async () => {
+      fake.savedRepos = [SSH]
+      fake.remoteRepos[SSH] = { auth: { kind: "key" } }
+      await runCli("remove", SSH)
+      expect(fake.deleteKeychainPassword).not.toHaveBeenCalled()
+      expect(logText()).not.toContain("--purge-credentials")
+    })
+
+    test("a local project never mentions credentials", async () => {
+      fake.savedRepos = ["/repo"]
+      await runCli("remove", "/repo")
+      expect(logText()).not.toContain("--purge-credentials")
+    })
   })
 
   test("no match prints the saved list to stderr and exits 1", async () => {
