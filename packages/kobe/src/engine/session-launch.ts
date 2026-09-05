@@ -1,9 +1,9 @@
 import { toPosixPath } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 import { worktreeInitMarkerPath } from "../env.ts"
+import { remoteKeyForRepo } from "../exec/resolve.ts"
 import { quoteShellArg, quoteShellArgv } from "../lib/shell-command.ts"
 import { readFieldNotes } from "../state/field-notes.ts"
 import { type PromptDeliveryIntent, resolveEngineLaunchInit } from "../state/repo-init.ts"
-import { isRemoteRepoKey } from "../state/repos.ts"
 import type { VendorId } from "../types/vendor.ts"
 import { protocolEntry } from "./engine-presets.ts"
 import { withDispatcherProtocol, withWorktreeProtocol } from "./worktree-protocol.ts"
@@ -239,7 +239,7 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
   // point funnels through — the Workspace host's tab open, `rove api send`,
   // and a prompted `add` alike (docs/ARCHITECTURE.md names it the canonical
   // launch builder). A per-caller check would leave whichever caller came next.
-  const remoteKey = [input.task.repo, input.worktreePath].find((key) => key && isRemoteRepoKey(key))
+  const remoteKey = remoteKeyForRepo(input.task.repo) ?? remoteKeyForRepo(input.worktreePath)
   if (remoteKey) throw new RemoteEngineLaunchError(remoteKey)
   const protocolTaskId = input.task.kind === "main" ? undefined : input.task.id
   const dispatcherTaskId = input.task.kind === "main" ? input.task.id : undefined
