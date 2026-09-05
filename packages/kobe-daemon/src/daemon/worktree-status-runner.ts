@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process"
 import type { WorktreeChanges } from "./contracts.ts"
+import { parsePorcelainRows } from "./git-porcelain.ts"
 
 /** One lock-free `git` read in a worktree; null stdout on any non-zero exit. */
 function runGit(worktreePath: string, args: readonly string[], signal: AbortSignal): Promise<string | null> {
@@ -74,9 +75,11 @@ export function parseAheadBehind(stdout: string | null): AheadBehind | null {
 export function countPorcelain(stdout: string): { added: number; deleted: number } {
   let added = 0
   let deleted = 0
-  for (const line of stdout.split("\n")) {
-    if (line.length < 3 || line.startsWith("##")) continue
-    if (line[0] === "D" || line[1] === "D") deleted++
+  // Shared parser (`git-porcelain.ts`), not a local re-scan: this counter feeds
+  // the sidebar chips while kobe's file tree renders rows from the same bytes,
+  // and a second, laxer line filter here counted junk the real parser rejects.
+  for (const row of parsePorcelainRows(stdout)) {
+    if (row.x === "D" || row.y === "D") deleted++
     else added++
   }
   return { added, deleted }
