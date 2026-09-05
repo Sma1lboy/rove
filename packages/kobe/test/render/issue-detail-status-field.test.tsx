@@ -11,8 +11,8 @@
  */
 
 import { expect, test } from "bun:test"
-import type { ReactNode } from "react"
 import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
+import type { ReactNode } from "react"
 import { IssueDetailDialogView, type IssueDetailOutcome } from "../../src/tui-react/component/issue-detail-dialog"
 import { act, renderComponent, settle } from "./harness"
 
