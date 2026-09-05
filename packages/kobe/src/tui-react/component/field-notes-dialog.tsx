@@ -35,6 +35,13 @@ import { useCursorFollow } from "../lib/use-cursor-follow"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 
+/** The two store calls {@link show} binds — named as a pair so the dialog
+ *  depends on what it uses, not on the whole orchestrator. */
+interface FieldNotesIO {
+  listFieldNotes(repo: string): Promise<readonly StoredFieldNote[]>
+  deleteFieldNote(repo: string, id: number): Promise<boolean>
+}
+
 type LoadState =
   | { readonly kind: "loading" }
   | { readonly kind: "ready"; readonly notes: readonly StoredFieldNote[] }
@@ -188,17 +195,22 @@ export function FieldNotesDialogView(props: {
   )
 }
 
-/** Open the reader; resolves when it closes (no value — the delete writes
- *  through `remove` as it happens). */
-function show(
-  dialog: DialogContext,
-  opts: { repo: string; load: () => Promise<readonly StoredFieldNote[]>; remove?: (id: number) => Promise<boolean> },
-): void {
+/**
+ * Open the reader; resolves when it closes (no value — the delete writes
+ * through `remove` as it happens).
+ *
+ * Takes the ORCHESTRATOR and binds the two store calls here, rather than
+ * making every caller pass a matching pair of closures — the same shape
+ * `IssueDetailDialog` uses. The VIEW still takes plain callbacks, so it
+ * mounts in the render track with no daemon.
+ */
+function show(dialog: DialogContext, opts: { repo: string; orchestrator: FieldNotesIO }): void {
+  const { repo, orchestrator } = opts
   void showDialog<void>(dialog, (resolve) => (
     <FieldNotesDialogView
-      repo={opts.repo}
-      load={opts.load}
-      {...(opts.remove ? { remove: opts.remove } : {})}
+      repo={repo}
+      load={() => orchestrator.listFieldNotes(repo)}
+      remove={(id) => orchestrator.deleteFieldNote(repo, id)}
       onClose={() => resolve(undefined)}
     />
   ))
