@@ -87,7 +87,10 @@ function killHostedSession(key: string): void {
   void client
     .then((c) => c.request("pty.kill", { key }))
     .catch((err) => {
-      logClientError("pty", new Error(`pty.kill failed for ${key}: ${err instanceof Error ? err.message : String(err)}`))
+      logClientError(
+        "pty",
+        new Error(`pty.kill failed for ${key}: ${err instanceof Error ? err.message : String(err)}`),
+      )
     })
 }
 

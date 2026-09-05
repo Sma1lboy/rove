@@ -253,7 +253,8 @@ export function WorktreeTreeRow(props: {
   // and the word rides beside it rather than replacing it — with seven
   // stalled deletions in one project, rows that all read "delete failed"
   // and nothing else would be unusable.
-  const deletionWord = deleting || deleteFailed ? t(deleteFailed ? "tasks.subtitle.deleteFailed" : "tasks.subtitle.deleting") : null
+  const deletionWord =
+    deleting || deleteFailed ? t(deleteFailed ? "tasks.subtitle.deleteFailed" : "tasks.subtitle.deleting") : null
   const reserved =
     // The glyph column exists only while a job runs or a deletion is in
     // flight, so a quiet row spends none of its label budget on it.
