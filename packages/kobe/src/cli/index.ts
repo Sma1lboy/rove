@@ -9,6 +9,7 @@ import { type VendorId, coerceVendorId } from "../types/vendor.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
 // Static: open-dir-cmd's own imports are cheap (node builtins); the heavy
 // orchestrator/TUI imports stay dynamic inside runOpenDirectory itself.
+import { argvHasFlag } from "./argv.ts"
 import { formatCliFailure } from "./cli-failure.ts"
 import { type CommandHandler, DYNAMIC_COMMANDS } from "./index-commands.ts"
 import { isPathLikeArg, runOpenDirectory } from "./open-dir-cmd.ts"
@@ -87,8 +88,10 @@ async function ensureProjectMainTask(repo: string): Promise<void> {
   }
 }
 
+const PURGE_FLAG = "--purge-credentials"
+
 const REMOVE_USAGE = [
-  `Usage: ${CLI_NAME} remove [path]`,
+  `Usage: ${CLI_NAME} remove [path] [--purge-credentials]`,
   "",
   "Forget a saved project (drop it from the new-task picker). Non-destructive:",
   "the repo's files, worktrees, branches and tasks all stay on disk. A remote",
@@ -97,6 +100,10 @@ const REMOVE_USAGE = [
   "  path defaults to the current directory. Pass an exact saved entry (e.g. a",
   "  remote `ssh://user@host` key) to remove it verbatim. Run with no match to",
   "  print the current saved projects.",
+  "",
+  "  --purge-credentials  also delete the remote project's SSH password from",
+  "                       the OS keychain. Off by default: forgetting a project",
+  "                       should not silently destroy a stored secret.",
   "",
 ].join("\n")
 
@@ -112,7 +119,11 @@ const REMOVE_USAGE = [
  * saved list so the user can copy the exact entry to remove.
  */
 async function runRemoveSubcommand(rest: readonly string[]): Promise<void> {
-  const arg = rest[0]
+  // Deleting a stored secret is opt-in, so it rides a flag rather than the
+  // default path; strip it before positional parsing.
+  const purgeCredentials = argvHasFlag(rest, PURGE_FLAG)
+  const positional = rest.filter((a) => a !== PURGE_FLAG && !a.startsWith(`${PURGE_FLAG}=`))
+  const arg = positional[0]
   if (arg === "--help" || arg === "-h" || arg === "help") {
     process.stdout.write(REMOVE_USAGE)
     return
@@ -121,7 +132,7 @@ async function runRemoveSubcommand(rest: readonly string[]): Promise<void> {
     process.stderr.write(`${CLI_NAME} remove: unknown flag "${arg}"\n\n${REMOVE_USAGE}`)
     process.exit(2)
   }
-  const { getSavedRepos, resolveRepoRoot } = await import("../state/repos.ts")
+  const { getRemoteRepoConfig, getSavedRepos, resolveRepoRoot } = await import("../state/repos.ts")
   const saved = getSavedRepos()
   if (saved.length === 0) {
     console.log("no saved projects to remove.")
@@ -144,6 +155,10 @@ async function runRemoveSubcommand(rest: readonly string[]): Promise<void> {
     for (const p of saved) process.stderr.write(`  ${p}\n`)
     process.exit(1)
   }
+  // Read the keychain ref BEFORE forgetting — forgetProject drops the
+  // project's `remoteRepos` entry, and the ref only lives there.
+  const auth = getRemoteRepoConfig(target)?.auth
+  const keychainRef = auth?.kind === "password" ? auth.keychainRef : null
   // forgetProject un-saves the repo AND drops the synthetic main task that
   // projects it into the sidebar — removeSavedRepo alone left an orphan main
   // row behind (it lives in the daemon-owned task index, not state.json).
@@ -154,6 +169,32 @@ async function runRemoveSubcommand(rest: readonly string[]): Promise<void> {
   })
   const remaining = getSavedRepos().length
   console.log(`removed ${target} (${remaining} saved repo${remaining === 1 ? "" : "s"} left)`)
+  if (keychainRef) await reportCredentialExit(keychainRef, purgeCredentials)
+}
+
+/**
+ * The stored SSH password outlives the project on purpose — `remove` is
+ * documented as non-destructive, and a secret is not ours to destroy on a
+ * "forget this from my picker" action. But leaving NO exit meant the item was
+ * unreachable once its `remoteRepos` entry (which held the ref) was gone. So:
+ * purge on request, and otherwise name the flag that does it.
+ */
+async function reportCredentialExit(
+  ref: { readonly service: string; readonly account: string },
+  purge: boolean,
+): Promise<void> {
+  const { deleteKeychainPassword, isKeychainSupported } = await import("../exec/keychain.ts")
+  if (!purge) {
+    console.log(`note: its SSH password is still in the OS keychain (${ref.service}/${ref.account}).`)
+    console.log(`      re-run with ${PURGE_FLAG} to delete it.`)
+    return
+  }
+  if (!isKeychainSupported()) {
+    console.error("--purge-credentials: the OS keychain is only wired for macOS; nothing deleted.")
+    return
+  }
+  if (deleteKeychainPassword(ref)) console.log(`purged the keychain password (${ref.service}/${ref.account})`)
+  else console.error(`--purge-credentials: no keychain item found for ${ref.service}/${ref.account}`)
 }
 
 /**

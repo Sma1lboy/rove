@@ -57,7 +57,6 @@ const FULL: DeepRequired<SerializedTask> = {
     url: "https://github.com/o/r/pull/42",
     title: "fix: decode",
     baseRef: "main",
-    headRef: "fix/decode",
     reviewDecision: "APPROVED",
     mergeable: "MERGEABLE",
     lastCheckedAt: "2026-08-30T00:00:00.000Z",

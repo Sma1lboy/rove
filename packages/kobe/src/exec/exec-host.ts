@@ -136,10 +136,14 @@ function shToken(s: string): string {
   return /^[A-Za-z0-9_@%+=:,./-]+$/.test(s) ? s : quoteShellArg(s)
 }
 
-/** The remote command string: `cd <cwd> && <argv>` (or just `<argv>` with no cwd). */
-export function remoteShellCommand(argv: readonly string[], cwd?: string): string {
-  const cmd = shJoin(argv)
-  return cwd ? `cd ${shQuote(cwd)} && ${cmd}` : cmd
+/**
+ * The remote command string: `cd <cwd> && <command>` (or just `<command>` with
+ * no cwd). Takes an already-composed command STRING, not argv, because the two
+ * callers compose it differently — `run` joins argv behind an env prefix, while
+ * `wrapCommand` is handed a command string it never had the argv for.
+ */
+export function remoteShellCommand(command: string, cwd?: string): string {
+  return cwd ? `cd ${shQuote(cwd)} && ${command}` : command
 }
 
 function remoteEnvPrefix(env: Readonly<Record<string, string>> | undefined): string {
@@ -342,8 +346,7 @@ export class RemoteExecHost implements ExecHost {
     this.ensureReady()
     // No sshpass here — the multiplexed master carries the channel with no
     // re-auth, so no secret ever reaches a per-call command.
-    const command = `${remoteEnvPrefix(opts.env)}${shJoin(argv)}`
-    const remote = opts.cwd ? `cd ${shQuote(opts.cwd)} && ${command}` : command
+    const remote = remoteShellCommand(`${remoteEnvPrefix(opts.env)}${shJoin(argv)}`, opts.cwd)
     const result = await this.spawnAsync([...sshConnectArgs(this.spec, { batch: true }), remote], undefined, {
       signal: opts.signal,
     })
@@ -378,7 +381,7 @@ export class RemoteExecHost implements ExecHost {
     // A string for the LOCAL shell tmux runs the pane in: ssh (reusing the
     // master) + the remote command, single-quoted so the local shell hands it
     // to ssh as one arg and the REMOTE shell parses it. No sshpass → no secret.
-    const remote = opts.cwd ? `cd ${shQuote(opts.cwd)} && ${command}` : command
+    const remote = remoteShellCommand(command, opts.cwd)
     // Quote each connection arg that needs it before joining: this string is
     // parsed by the local shell (tmux's pane launch), and the argv carries
     // paths (ControlPath, `-i` keyPath) and `user@host` that can contain spaces

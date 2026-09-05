@@ -57,7 +57,6 @@ const FULL: DeepRequired<SerializedTask> = {
     url: "https://github.com/o/r/pull/42",
     title: "fix: wire",
     baseRef: "main",
-    headRef: "fix/wire",
     reviewDecision: "APPROVED",
     mergeable: "MERGEABLE",
     lastCheckedAt: "2026-08-30T00:00:00.000Z",

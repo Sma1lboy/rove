@@ -85,7 +85,7 @@ The task's PR status changed. Compared with the PR poller's own semantics:
 
 | detail field | type | meaning |
 |---|---|---|
-| `from`, `to` | `TaskPRStatus` | each optional (absent when there was/is no PR): `provider`, `lifecycle`, `checkState`, `number?`, `url?`, `title?`, `baseRef?`, `headRef?`, `reviewDecision?`, `mergeable?`, plus `lastCheckedAt?`/`lastError?` (present in the payload, excluded from the change test) |
+| `from`, `to` | `TaskPRStatus` | each optional (absent when there was/is no PR): `provider`, `lifecycle`, `checkState`, `number?`, `url?`, `title?`, `baseRef?`, `reviewDecision?`, `mergeable?`, plus `lastCheckedAt?`/`lastError?` (present in the payload, excluded from the change test) |
 
 Typical use: toast when `to.checkState` flips to failing, or set the task's
 status to `done` when `to.lifecycle` becomes `"merged"`.

@@ -16,8 +16,7 @@ import { applyJitter, exponentialBackoff } from "@/lib/poll-scheduling"
 import type { PRCheckState, PRLifecycleState, TaskPRStatus } from "@/types/task"
 
 /** The `--json` field set the collector requests from `gh pr view`. */
-export const GH_PR_VIEW_FIELDS =
-  "number,url,title,state,baseRefName,headRefName,reviewDecision,mergeable,statusCheckRollup"
+export const GH_PR_VIEW_FIELDS = "number,url,title,state,baseRefName,reviewDecision,mergeable,statusCheckRollup"
 
 /**
  * One entry of `gh`'s `statusCheckRollup`. GitHub returns a heterogeneous
@@ -42,7 +41,6 @@ export interface GhPrView {
   readonly title?: string
   readonly state?: string
   readonly baseRefName?: string
-  readonly headRefName?: string
   readonly reviewDecision?: string
   readonly mergeable?: string
   readonly statusCheckRollup?: readonly GhCheckEntry[]
@@ -120,7 +118,6 @@ export function mapGhPrView(view: GhPrView | null | undefined, at: string): Task
     url: view.url,
     title: view.title,
     baseRef: view.baseRefName,
-    headRef: view.headRefName,
     reviewDecision: view.reviewDecision || undefined,
     mergeable: view.mergeable || undefined,
     lastCheckedAt: at,
@@ -143,7 +140,6 @@ export function samePrStatus(a: TaskPRStatus | undefined, b: TaskPRStatus | unde
     a.url === b.url &&
     a.title === b.title &&
     a.baseRef === b.baseRef &&
-    a.headRef === b.headRef &&
     a.reviewDecision === b.reviewDecision &&
     a.mergeable === b.mergeable
   )

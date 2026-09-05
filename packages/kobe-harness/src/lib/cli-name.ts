@@ -9,15 +9,7 @@ import { ROVE_PRODUCT_NAME } from "@sma1lboy/kobe-daemon/compat-env"
  */
 export const DEFAULT_CLI_NAME = ROVE_PRODUCT_NAME
 
-/** Default full `rove api` / `kobe api` invocation string. */
-export const DEFAULT_CLI_API = `${DEFAULT_CLI_NAME} api`
-
 /** Capitalized display form, e.g. "Rove". */
 export function displayProductName(name = DEFAULT_CLI_NAME): string {
   return name.charAt(0).toUpperCase() + name.slice(1)
-}
-
-/** Format a CLI subcommand using the default CLI name, e.g. `doctor`. */
-export function cliCommand(subcommand: string): string {
-  return `${DEFAULT_CLI_NAME} ${subcommand}`
 }

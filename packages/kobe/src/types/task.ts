@@ -75,7 +75,6 @@ export interface TaskPRStatus {
   readonly url?: string
   readonly title?: string
   readonly baseRef?: string
-  readonly headRef?: string
   readonly reviewDecision?: string
   readonly mergeable?: string
   readonly lastCheckedAt?: string

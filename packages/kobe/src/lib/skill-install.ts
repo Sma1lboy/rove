@@ -212,11 +212,6 @@ export function kobeSkillPaths(opts: { home?: string; cwd?: string } = {}): stri
   return [home, cwd].flatMap((root) => SKILL_REL_PATHS.map((rel) => join(root, rel)))
 }
 
-/** True if the Rove skill or a legacy Kobe-named install is present. */
-export function isKobeSkillInstalled(opts?: { home?: string; cwd?: string }): boolean {
-  return kobeSkillPaths(opts).some((p) => existsSync(p))
-}
-
 /** Parse the canonical marker or an installed legacy marker. */
 export function parseSkillVersion(content: string): number | null {
   const m = content.match(/(?:rove|kobe)-skill-version:\s*(\d+)/)
