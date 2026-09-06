@@ -17,29 +17,16 @@
  * defaults `borderStyle` to square (`ui/frame.ts`).
  */
 
-import type { RGBA } from "@opentui/core"
+import type { BoxRenderable, RGBA } from "@opentui/core"
 import { TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
 import type { ReactNode } from "react"
 import { useTheme } from "../context/theme"
+import { useDialogFocus } from "./dialog-body"
 import { FRAME } from "./frame"
 
-/**
- * Below this many terminal rows, framed pieces drop their border.
- *
- * A well and a chip each cost TWO rows the text inside them does not need,
- * and the card is capped at the viewport with nothing to scroll it — the new
- * task dialog's Clone tab carries four fields plus a picker, and at 24 rows
- * the frames pushed the Create button and `submitError` off the bottom.
- * That is the failure `new-task-short-terminal.test.tsx` exists to catch: a
- * failed create rendering into rows that do not exist reads as nothing
- * happening at all.
- *
- * So the border is what gives way, not the button. The value is the smallest
- * viewport that still fits the tallest card WITH its frames (measured on the
- * Clone tab, four wells + engine chips + a two-row picker); anything shorter
- * gets the same fields, unframed.
- */
+/** Short terminals omit borders to leave more rows for editable values.
+ * Scrolling forms still keep their header and actions outside the body. */
 const FRAMED_DIALOG_MIN_ROWS = 34
 
 /** Is the viewport too short to spend two rows per field on a border? */
@@ -64,7 +51,7 @@ function useFieldFill(): RGBA | "transparent" {
 export function DialogHeader(props: { title?: string; children?: ReactNode; onClose: () => void }) {
   const { theme } = useTheme()
   return (
-    <box flexDirection="row" justifyContent="space-between">
+    <box flexDirection="row" justifyContent="space-between" flexShrink={0}>
       {props.children ?? (
         <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="none">
           {props.title}
@@ -114,7 +101,7 @@ export function DialogField(props: { focused: boolean; children?: ReactNode; pad
   // would have put it, so the field still lines up under its label.
   if (useDialogCompact()) {
     return (
-      <box paddingLeft={2} paddingBottom={props.paddingBottom}>
+      <box paddingLeft={2} paddingBottom={props.paddingBottom} flexShrink={0}>
         {props.children}
       </box>
     )
@@ -122,6 +109,7 @@ export function DialogField(props: { focused: boolean; children?: ReactNode; pad
   return (
     <box
       {...FRAME}
+      flexShrink={0}
       borderColor={props.focused ? theme.primary : theme.borderSubtle}
       backgroundColor={fill}
       paddingLeft={1}
@@ -142,8 +130,9 @@ export function DialogSection(props: {
   children?: ReactNode
   paddingBottom?: number
 }) {
+  const focus = useDialogFocus<BoxRenderable>(props.focused)
   return (
-    <box gap={0} paddingBottom={props.paddingBottom}>
+    <box {...focus} gap={0} paddingBottom={props.paddingBottom} flexShrink={0}>
       <DialogLabel label={props.label} focused={props.focused} hint={props.hint} onPress={props.onPress} />
       {props.children}
     </box>
@@ -173,7 +162,8 @@ export function ChipButton(props: {
       fg={props.selected ? theme.primary : props.tone === "text" ? theme.text : theme.textMuted}
       attributes={props.selected ? TextAttributes.BOLD : undefined}
       wrapMode="none"
-      flexShrink={0}
+      flexShrink={1}
+      truncate
     >
       {props.label}
     </text>
@@ -181,7 +171,7 @@ export function ChipButton(props: {
   // Compact: `▸ ` carries the selection a border would have shown.
   if (useDialogCompact()) {
     return (
-      <box flexDirection="row" flexShrink={0} onMouseUp={props.onPress}>
+      <box flexDirection="row" flexShrink={0} maxWidth="100%" onMouseUp={props.onPress}>
         <text fg={props.selected ? theme.primary : theme.textMuted} wrapMode="none">
           {props.selected ? "▸ " : "  "}
         </text>
@@ -192,6 +182,8 @@ export function ChipButton(props: {
   return (
     <box
       {...FRAME}
+      flexShrink={0}
+      maxWidth="100%"
       borderColor={props.selected ? theme.primary : theme.borderSubtle}
       paddingLeft={2}
       paddingRight={2}
@@ -220,7 +212,7 @@ export function ChipRow<T extends string>(props: {
   // columnGap, not gap: Yoga's `gap` sets both gutters, and a wrapped second
   // line would then sit a blank row below the first.
   return (
-    <box flexDirection="row" flexWrap="wrap" columnGap={1}>
+    <box flexDirection="row" flexWrap="wrap" alignItems="flex-start" columnGap={1} rowGap={0} flexShrink={0}>
       {props.choices.map((choice) => (
         <ChipButton
           key={choice}
@@ -242,7 +234,7 @@ export function ChipRow<T extends string>(props: {
 export function DialogFooter(props: { children?: ReactNode }) {
   const { theme } = useTheme()
   return (
-    <box paddingBottom={1}>
+    <box paddingBottom={1} flexShrink={0}>
       <text fg={theme.textMuted} wrapMode="word">
         {props.children}
       </text>
@@ -260,7 +252,14 @@ export function DialogFooter(props: { children?: ReactNode }) {
 export function DialogActions(props: { label: string; focused: boolean; onPress: () => void }) {
   const { theme } = useTheme()
   return (
-    <box flexDirection="row" justifyContent="flex-end" alignItems="center" paddingTop={1} paddingBottom={1}>
+    <box
+      flexDirection="row"
+      justifyContent="flex-end"
+      alignItems="center"
+      paddingTop={1}
+      paddingBottom={1}
+      flexShrink={0}
+    >
       <text
         fg={props.focused ? theme.primary : theme.text}
         attributes={props.focused ? TextAttributes.BOLD : undefined}

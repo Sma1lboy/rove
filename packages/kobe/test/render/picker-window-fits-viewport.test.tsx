@@ -2,10 +2,9 @@
 /**
  * Both branch pickers must fit the terminal they are drawn in.
  *
- * They share `windowAround` + `pickerVisibleRows`, and the dialog card is
- * capped at the viewport with nothing to scroll it — so a window sized
- * independently of the height pushes the card's own bottom rows off the
- * screen. This mounts the REAL dialogs at a short and a tall viewport: the
+ * They share `windowAround` + `pickerVisibleRows`. New task scrolls the
+ * active picker into view while preserving its footer. This mounts the
+ * real dialogs at a short and a tall viewport: the
  * pure test cannot see whether a component actually calls the helper, and an
  * uncalled helper renders exactly like the bug.
  */
@@ -106,18 +105,9 @@ test("the clone tab's parent-dir picker fits a 24-row terminal", async () => {
   const shown = dirRows(text)
   expect(shown).toBeGreaterThanOrEqual(1) // still a usable list
   expect(shown).toBeLessThan(PICKER_MAX_VISIBLE) // …but not the desktop window
-  // …and the overflow line accounts for every entry the window hides. The
-  // typed `c` is consumed as the path prefix being browsed, so the list is
-  // the 19 siblings of the one the cursor sits on.
+  // Include the highlighted entry: all 20 children match the typed `c`.
+  // The old compressed layout clipped one row and only accounted for 19.
   const hidden = Number(text.match(/↓ (\d+) more/)?.[1] ?? "0")
-  expect(shown + hidden).toBe(19)
+  expect(shown).toBe(2)
+  expect(shown + hidden).toBe(20)
 })
-
-// Scope note, so the next reader does not over-trust the clone test above:
-// at 24 rows the clone card is short enough that Yoga clamps its picker to one
-// row on its own, so that test does NOT discriminate whether `use-clone-state`
-// passes the cap — removing the argument renders an identical frame. It pins
-// the user-visible contract (a usable list, an honest overflow count, and a
-// reachable Create button); the CAP ITSELF is pinned by the set-branch test
-// above, which drives the same helper at two heights and does go red when the
-// window stops following the viewport.

@@ -12,6 +12,7 @@ import type { DialogTab } from "../../../tui/component/new-task-dialog/state"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useDialogPaddingX } from "../../ui/dialog"
+import { DialogBody } from "../../ui/dialog-body"
 import { ChipRow, DialogActions, DialogFooter, DialogHeader, DialogSection } from "../../ui/dialog-parts"
 import { AdoptTab } from "./tab-adopt"
 import { CloneTab } from "./tab-clone"
@@ -35,9 +36,12 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
   }
 
   return (
-    <box paddingLeft={padX} paddingRight={padX} gap={0}>
-      <DialogHeader title={t("newTask.title")} onClose={() => props.onCancel()} />
-      <box gap={1} paddingTop={1}>
+    <box paddingLeft={padX} paddingRight={padX} gap={0} flexShrink={1} overflow="hidden">
+      {/* Scrolling border glyphs must not repaint the fixed title row. */}
+      <box flexShrink={0} zIndex={1} backgroundColor={theme.backgroundDialog}>
+        <DialogHeader title={t("newTask.title")} onClose={() => props.onCancel()} />
+      </box>
+      <DialogBody>
         {/* Mode selector — Tab reaches it; ←/→ switches while focused,
             ctrl+[/] from anywhere, click picks. Same chip row as every
             other choose-one in this dialog. */}
@@ -74,12 +78,12 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
         {vm.tab === "existing" ? <ExistingTab vm={vm} /> : null}
         {vm.tab === "clone" ? <CloneTab vm={vm} /> : null}
         {vm.tab === "adopt" ? <AdoptTab vm={vm} /> : null}
-        {vm.submitError ? (
-          <text fg={theme.error} wrapMode="word">
-            ※ {vm.submitError}
-          </text>
-        ) : null}
-      </box>
+      </DialogBody>
+      {vm.submitError ? (
+        <text fg={theme.error} wrapMode="word" flexShrink={0}>
+          ※ {vm.submitError}
+        </text>
+      ) : null}
       {/* Enter's caption follows the focused stop: it commits only on Create
           and walks the form at the other four, so a static "enter create" was
           wrong at every stop the dialog actually opens on. */}
