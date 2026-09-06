@@ -24,6 +24,15 @@ import { optionalString, optionalVendor, requireString } from "./handler-validat
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { serializeTask } from "./protocol.ts"
 
+/**
+ * Stable sentinel embedded in `worktree.remove`'s kind refusal.
+ *
+ * The RPC layer rebuilds a thrown error as `new Error(message)` — `name` does
+ * not survive the wire — so callers can only discriminate on the MESSAGE.
+ * The `CODE: rest` shape is what `splitDaemonCode` in the CLI already parses.
+ */
+export const NOT_A_ROVE_WORKTREE_CODE = "NOT_A_ROVE_WORKTREE"
+
 export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "worktree.discoverAdoptable",
@@ -87,7 +96,25 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
       // is already gone from their screen), and a dead/absent session throws
       // the same way a stuck one does, which would strand every already-dead
       // task's worktree. Logged, then the removal proceeds.
-      const taskId = ctx.orch ? matchTaskByWorktreePath(ctx.orch.listTasks(), path) : undefined
+      const tasks = ctx.orch ? ctx.orch.listTasks() : []
+      const taskId = matchTaskByWorktreePath(tasks, path)
+      // `kind` gates the DESTRUCTION, not the bookkeeping. A `dir` task's
+      // path IS the user's own directory and a `main` task's is the project
+      // checkout — neither is a Rove-created worktree, so removing one
+      // `rm -rf`s files Rove never made. Every sibling destructive path
+      // refuses these two by kind (`deleteTask`, `ensureWorktree`, `land`);
+      // this one addresses worktrees by PATH, so it never asked — and
+      // `clearWorktreePath` below early-returns for exactly these kinds, so
+      // the destructive half ran while the repair half was skipped, leaving
+      // the task pointed at a directory that no longer exists.
+      const kind = taskId ? tasks.find((t) => t.id === taskId)?.kind : undefined
+      if (kind === "dir" || kind === "main") {
+        throw new Error(
+          `${NOT_A_ROVE_WORKTREE_CODE}: ${path} is ${
+            kind === "dir" ? "a directory task's own directory" : "the project's own checkout"
+          }, not a Rove-created worktree — refusing to delete it`,
+        )
+      }
       if (taskId) {
         await ctx.runtime
           .tearDownTaskSession(taskId)
