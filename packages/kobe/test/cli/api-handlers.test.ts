@@ -83,6 +83,35 @@ describe("add handler", () => {
     expect(client.requests[0].payload).toMatchObject({ branch: "feat/ok" })
   })
 
+  it("says so when --repo resolved UP out of a subdirectory", async () => {
+    // `--repo my-repo/packages/app` came back as `"repo": "…/my-repo"` with
+    // no trace of the levels it climbed, so a typo'd path and an intended one
+    // produced identical output.
+    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
+    const result = (await invokeVerb("add", ["--repo", "/repo/x/packages/app"], {
+      client,
+      runtime: stubRuntime({ resolveRepoRoot: async () => "/repo/x" }),
+    })) as { repoResolvedFrom?: string }
+    expect(result.repoResolvedFrom).toBe("/repo/x/packages/app")
+    expect(client.requests[0].payload).toMatchObject({ repo: "/repo/x" })
+  })
+
+  it("stays quiet when --repo already named the root, or git only realpath'd it", async () => {
+    // The field must not fire on a CORRECT path. `resolveRepoRoot` shells
+    // git, which reports the realpath, so `/tmp/x` comes back as
+    // `/private/tmp/x` on macOS — a rewrite, not a climb, and not a prefix.
+    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
+    const exact = (await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })) as {
+      repoResolvedFrom?: string
+    }
+    expect(exact.repoResolvedFrom).toBeUndefined()
+    const symlinked = (await invokeVerb("add", ["--repo", "/tmp/x"], {
+      client,
+      runtime: stubRuntime({ resolveRepoRoot: async () => "/private/tmp/x" }),
+    })) as { repoResolvedFrom?: string }
+    expect(symlinked.repoResolvedFrom).toBeUndefined()
+  })
+
   it("names the home it wrote to, so a collapsed isolation is visible in a success", async () => {
     // Four fan-out tasks once landed in a production `~/.rove` behind
     // `failures: []` because the payload never said where it had written.

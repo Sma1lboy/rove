@@ -401,6 +401,11 @@ replacement in `nextCommandArgs`.
   BEFORE the task is created; a name git would refuse is `INVALID_BRANCH`
   and nothing is written.
 
+  `--repo` is resolved to the repository root, so a path pointing at a
+  SUBDIRECTORY is accepted and climbs. When it does, the result carries
+  `repoResolvedFrom` with the path you passed — absent when `--repo` already
+  named the root.
+
   A `--title` is flattened to one line: newlines, tabs and other control
   characters collapse to single spaces (the sidebar row does not wrap, and a
   raw newline breaks its height).

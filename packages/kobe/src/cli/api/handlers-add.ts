@@ -72,7 +72,8 @@ async function applyPostCreateFlags(daemon: DaemonRpc, taskId: string, args: Ver
 
 export async function add(ctx: VerbContext): Promise<unknown> {
   const { args, runtime } = ctx
-  const repo = await runtime.resolveRepoRoot(args.requireRepo("repo"))
+  const requestedRepo = args.requireRepo("repo")
+  const repo = await runtime.resolveRepoRoot(requestedRepo)
   // A task's isolation unit is a git worktree + branch, so a `--repo` that is
   // not a git repo has nothing to cut one from. Without this the create
   // SUCCEEDS: `resolveRepoRoot` falls back to the path verbatim, the row
@@ -103,8 +104,22 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   }
   const count = args.int("count")
   const agentsSpec = args.str("agents")
-  if (count !== undefined || agentsSpec) return addParallel(ctx, repo, count, agentsSpec)
-  return addOne(ctx, repo)
+  // A `--repo` pointing at a SUBDIRECTORY resolves up to the repo root, and
+  // said nothing about it: `--repo my-repo/packages/app/src` came back as
+  // `"repo": "…/my-repo"` with no trace of the four levels it climbed, so a
+  // typo'd path and an intended one produce identical output. Reported
+  // beside `identityWarning` — the other "we accepted this, but not as you
+  // wrote it" field.
+  //
+  // Gated on ANCESTRY, not on `!==`: `resolveRepoRoot` shells git, which
+  // reports the realpath, so a plain `--repo /tmp/x` on macOS comes back as
+  // `/private/tmp/x` and a `!==` test would flag every correct path there.
+  // A symlink rewrite is not a prefix of the path it rewrote; a climbed-out-of
+  // subdirectory always is.
+  const resolvedFrom = requestedRepo.startsWith(`${repo}/`) ? { repoResolvedFrom: requestedRepo } : undefined
+  const result =
+    count !== undefined || agentsSpec ? await addParallel(ctx, repo, count, agentsSpec) : await addOne(ctx, repo)
+  return resolvedFrom && result && typeof result === "object" ? { ...result, ...resolvedFrom } : result
 }
 
 async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
