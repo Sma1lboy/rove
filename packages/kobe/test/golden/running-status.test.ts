@@ -190,9 +190,12 @@ describe("golden: session events → sidebar running state", () => {
     expect(perm.registry.debugSnapshot().tasks[TASK_ID]?.lapseArmed).toBe(false)
     expect(perm.registry.debugSnapshot().tabs[TASK_ID]?.["tab-1"]?.lapseArmed).toBe(false)
 
+    // Same `!`, amber tone: the quota wall is the one attention state that
+    // resolves without anyone doing anything, so it does not wear the colour
+    // the unrecoverable ones do.
     const limited = track(harness())
     limited.registry.report(TASK_ID, "turn-failed", { failure: "rate_limit" }, "tab-1")
-    expect(limited.row("tab-1")).toMatchObject({ loading: false, glyph: "!", tone: "error" })
+    expect(limited.row("tab-1")).toMatchObject({ loading: false, glyph: "!", tone: "warning" })
 
     const errored = track(harness())
     errored.registry.report(TASK_ID, "turn-failed", { failure: "other" }, "tab-1")

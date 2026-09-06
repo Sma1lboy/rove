@@ -102,11 +102,14 @@ describe("activity pipeline — vendor hook payload to sidebar badge", () => {
     expect(row.tone).toBe("primary")
   })
 
-  it("turn failed (rate limit): StopFailure error_type=rate_limit shows the attention badge", () => {
+  it("turn failed (rate limit): StopFailure error_type=rate_limit shows the attention badge, in AMBER", () => {
     const row = rowAfterClaudeHook("StopFailure", { error_type: "rate_limit" })
     expect(row.loading).toBe(false)
     expect(row.stateGlyph).toBe("!")
-    expect(row.tone).toBe("error")
+    // Amber, not red: a quota wall clears itself when the window rolls, while
+    // the other three attention states stay broken until a human acts. The
+    // tab strip and the Inbox have always drawn this one amber.
+    expect(row.tone).toBe("warning")
     // The subtitle shows the BRANCH, not a state word: the one-line tree row
     // has no subtitle at all, so the glyph above is the whole signal.
     expect(row.subtitleText).toBe("feature/sidebar")

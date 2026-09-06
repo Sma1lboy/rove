@@ -41,7 +41,13 @@ export interface SidebarRowView {
  * such row `primary`.
  */
 function activityToneFor(state: TaskActivityState | undefined): SidebarTone | null {
-  return ATTENTION_STATES.has(state) ? "error" : null
+  if (!ATTENTION_STATES.has(state)) return null
+  // A quota wall clears itself once the window rolls; a refused permission, a
+  // hard error and a dead process do not. Amber for the one that resolves on
+  // its own, red for the ones that stay broken until you act — the same split
+  // `tab-strip.tsx`'s `turnColor` and the Inbox's `itemColor` already draw, so
+  // one tab can no longer read red on the rail and amber two panes over.
+  return state === "rate_limited" ? "warning" : "error"
 }
 
 /** Neutral fallback frames — kept under the historical name for existing consumers/tests. */
@@ -57,6 +63,7 @@ export const SPINNER_FRAME_MS = 100
  * (8/10/12/15/20/24/25).
  */
 export const SPINNER_TICK_CYCLE = 600
+
 
 /**
  * The rail speaks FOUR states, and the reader acts on exactly one of them:
@@ -86,6 +93,7 @@ const ATTENTION_STATES: ReadonlySet<TaskActivityState | undefined> = new Set([
   "error",
   "dead",
 ])
+
 
 /**
  * Muted subtitle shown when a custom-engine task has nothing else to say.
@@ -351,12 +359,19 @@ export function withSpinnerFrame(view: SidebarRowView, frame: () => number): Sid
  * for quiet. `completionSeen` is the herdr "seen" bit — and seen means
  * CONSUMED: a completion you have already looked at is simply over, so the
  * badge drops back to the quiet circle rather than lingering as a ✓ forever.
+ *
+ * The attention tone comes from {@link activityToneFor} rather than a second
+ * `ATTENTION_STATES` lookup: two copies of the same test drifted apart the
+ * moment one of them learned to tell a quota wall from a dead engine. The
+ * GLYPH stays one `!` for all of them — which kind it is is the tab's job to
+ * say, the rail only has to make you open it.
  */
 function activityBadgeFor(
   state: TaskActivityState | undefined,
   completionSeen: boolean,
-): { glyph: string; tone: "primary" | "error" } | null {
-  if (ATTENTION_STATES.has(state)) return { glyph: ATTENTION_GLYPH, tone: "error" }
+): { glyph: string; tone: SidebarTone } | null {
+  const attention = activityToneFor(state)
+  if (attention !== null) return { glyph: ATTENTION_GLYPH, tone: attention }
   if (state === "turn_complete" && !completionSeen) return { glyph: "●", tone: "primary" }
   return null
 }
