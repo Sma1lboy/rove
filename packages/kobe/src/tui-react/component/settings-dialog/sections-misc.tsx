@@ -163,6 +163,7 @@ export function DevSettingsSection(
         </text>
         <Row
           cursor={isBodyCursor(row)}
+          rowRef={props.rowRef(row)}
           onMouseUp={activate(row, act)}
           fg={theme.text}
           bold={enabled}
@@ -187,6 +188,7 @@ export function DevSettingsSection(
         </text>
         <Row
           cursor={isBodyCursor(row)}
+          rowRef={props.rowRef(row)}
           onMouseUp={activate(row, prefs.cycleDeliveryGuard)}
           fg={theme.text}
           bold={current !== "on"}
@@ -222,6 +224,7 @@ export function DevSettingsSection(
       </text>
       <Row
         cursor={isBodyCursor(0)}
+        rowRef={props.rowRef(0)}
         onMouseUp={activate(0, props.confirmReset)}
         fg={theme.warning}
         bold={true}
@@ -233,6 +236,7 @@ export function DevSettingsSection(
         <SubSection title={t("settings.dev.restart")} hint={t("settings.dev.restartHint")}>
           <Row
             cursor={isBodyCursor(1)}
+            rowRef={props.rowRef(1)}
             onMouseUp={activate(1, props.confirmRestartDaemon)}
             fg={theme.accent}
             bold={true}
@@ -337,6 +341,7 @@ export function KeybindingsSettingsSection(
             <Row
               key={presentation}
               cursor={props.level === "body" && props.bodyRow === row}
+              rowRef={props.rowRef(row)}
               onMouseUp={() => {
                 props.setLevel("body")
                 props.setBodyRow(row)
@@ -374,6 +379,7 @@ export function KeybindingsSettingsSection(
           </text>
           <Row
             cursor={props.level === "body" && props.bodyRow === rowIndex(rows, "keys-create")}
+            rowRef={props.rowRef(rowIndex(rows, "keys-create"))}
             onMouseUp={() => {
               props.setLevel("body")
               props.setBodyRow(rowIndex(rows, "keys-create"))

@@ -7,14 +7,14 @@
  *
  * It used to carry a second, overlay shape behind a `standalone` prop that was
  * only ever passed `true`. The overlay branches were unreachable and would not
- * have worked: `reportCursorEl` reads a scrollbox ref that only the page branch
- * ever set, so overlay mode had no cursor-follow at all.
+ * have worked: cursor-follow registers the page branch's scrollbox, so overlay
+ * mode had none at all.
  */
 
 import { errorMessage } from "@/lib/error-message"
-import { type BoxRenderable, type ScrollBoxRenderable, TextAttributes } from "@opentui/core"
+import { TextAttributes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useState } from "react"
 import { type KobeOrchestrator, RemoteOrchestrator, type UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { createStateCell } from "../../../lib/external-store"
 import { submitFeedback } from "../../../lib/feedback"
@@ -36,10 +36,10 @@ import { FOCUS_ACCENT_SLOTS, type FocusAccentSlot, useTheme } from "../../contex
 import { type LocaleId, currentLang, setLocaleLang, useT } from "../../i18n"
 import { useBindings } from "../../lib/keymap"
 import { useAccessor } from "../../lib/use-accessor"
+import { useCursorFollow } from "../../lib/use-cursor-follow"
 import { type DialogContext, useDialog, useDialogPaddingX } from "../../ui/dialog"
 import { confirmResetState, confirmRestartDaemon, hasRestartableDaemon } from "./actions"
 import { flushDeferredPromptsWithFeedback } from "./deferred-flush-feedback"
-import { SettingsCursorElContext } from "./rows"
 import { EngineSettingsSection } from "./sections-engines"
 import { GeneralSettingsSection, SettingsSectionSidebar } from "./sections-general"
 import { DevSettingsSection, FeedbackSettingsSection, KeybindingsSettingsSection } from "./sections-misc"
@@ -330,17 +330,13 @@ export function SettingsDialog(props: SettingsDialogProps) {
     bindings: [{ key: "return", cmd: () => void sendFeedback() }],
   }))
 
-  // Cursor-follow: the page scrollbox lives here, and the
-  // cursor Row reports its renderable through context so keyboard navigation
-  // never lands on a clipped row in a short terminal.
-  const scrollRef = useRef<ScrollBoxRenderable | null>(null)
-  const reportCursorEl = useCallback((el: BoxRenderable | null) => {
-    const scroll = scrollRef.current
-    if (!scroll || !el || scroll.viewport.height <= 0) return
-    scroll.scrollChildIntoView(el.id)
-  }, [])
+  // Cursor-follow: the page scrollbox registers here and every navigable row
+  // registers by its body index, so keyboard navigation never lands on a row
+  // clipped below the fold in a short terminal. `-1` while the sidebar holds
+  // the cursor: no body row is selected, so nothing is scrolled to.
+  const follow = useCursorFollow(level === "body" ? bodyRow : -1)
 
-  const cursorProps = { level, bodyRow, setLevel, setBodyRow }
+  const cursorProps = { level, bodyRow, setLevel, setBodyRow, rowRef: follow.rowRef }
   const navHint = (
     <box paddingTop={0}>
       <text fg={theme.textMuted}>{editingFeedback ? t("settings.nav.feedback") : t("settings.nav.default")}</text>
@@ -433,26 +429,22 @@ export function SettingsDialog(props: SettingsDialogProps) {
   )
 
   return (
-    <SettingsCursorElContext.Provider value={reportCursorEl}>
-      <box flexDirection="column" flexGrow={1}>
-        <scrollbox
-          ref={(r: ScrollBoxRenderable | null) => {
-            scrollRef.current = r
-          }}
-          flexGrow={1}
-          flexShrink={1}
-          flexBasis={0}
-          verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
-        >
-          {body}
-        </scrollbox>
-        {/* Floating footer: the page content scrolls, this line does not —
-            the nav hint is exactly what you want when a long section has
-            scrolled its own header out of sight. */}
-        <box paddingLeft={padX} paddingRight={padX}>
-          {navHint}
-        </box>
+    <box flexDirection="column" flexGrow={1}>
+      <scrollbox
+        ref={follow.scrollRef}
+        flexGrow={1}
+        flexShrink={1}
+        flexBasis={0}
+        verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
+      >
+        {body}
+      </scrollbox>
+      {/* Floating footer: the page content scrolls, this line does not —
+          the nav hint is exactly what you want when a long section has
+          scrolled its own header out of sight. */}
+      <box paddingLeft={padX} paddingRight={padX}>
+        {navHint}
       </box>
-    </SettingsCursorElContext.Provider>
+    </box>
   )
 }

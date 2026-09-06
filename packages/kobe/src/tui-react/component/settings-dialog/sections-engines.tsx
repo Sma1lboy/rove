@@ -9,7 +9,7 @@
  * you hop between two lists of the same names.
  */
 
-import { TextAttributes } from "@opentui/core"
+import { type BoxRenderable, TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
 import type { EngineAccount, EngineStatus } from "../../../engine/engine-status"
 import { displayWidth } from "../../../lib/display-width"
@@ -81,7 +81,10 @@ export function EngineSettingsSection(
               ? theme.textMuted
               : theme.accent
           return (
-            <box key={vendor} flexDirection="column" gap={0}>
+            // The whole two-line card is this row's footprint, so cursor-follow
+            // registers the outer box: the detection line comes into view with
+            // the line that carries the cursor, not one scroll step later.
+            <box key={vendor} flexDirection="column" gap={0} ref={props.rowRef(i)}>
               <box
                 flexDirection="row"
                 gap={1}
@@ -151,6 +154,7 @@ export function EngineSettingsSection(
         })}
         {/* Trailing "+ Add engine" row. */}
         <box
+          ref={props.rowRef(addRowIndex)}
           flexDirection="row"
           paddingLeft={1}
           paddingRight={1}

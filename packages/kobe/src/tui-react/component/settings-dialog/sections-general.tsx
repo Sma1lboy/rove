@@ -190,6 +190,7 @@ export function GeneralSettingsSection(
               <Row
                 key={name}
                 cursor={isBodyCursor(i)}
+                rowRef={props.rowRef(i)}
                 onMouseUp={activate(i, () => props.selectTheme(name))}
                 fg={isSelected ? theme.accent : theme.text}
                 bold={isBodyCursor(i) || isSelected}
@@ -207,6 +208,7 @@ export function GeneralSettingsSection(
               <Row
                 key={loc.id}
                 cursor={isBodyCursor(langRow)}
+                rowRef={props.rowRef(langRow)}
                 onMouseUp={activate(langRow, () => props.selectLanguage(loc.id))}
                 fg={isSelected ? theme.accent : theme.text}
                 bold={isBodyCursor(langRow) || isSelected}
@@ -219,6 +221,7 @@ export function GeneralSettingsSection(
         <SubSection title={t("settings.general.transparent")} hint={t("settings.general.transparentHint")}>
           <Row
             cursor={isBodyCursor(transparentRow)}
+            rowRef={props.rowRef(transparentRow)}
             onMouseUp={activate(transparentRow, props.toggleTransparent)}
             fg={themeCtx.transparentBackground ? theme.accent : theme.textMuted}
             bold={true}
@@ -234,6 +237,7 @@ export function GeneralSettingsSection(
               <Row
                 key={slot}
                 cursor={isBodyCursor(accentRow)}
+                rowRef={props.rowRef(accentRow)}
                 onMouseUp={activate(accentRow, () => props.selectFocusAccent(slot))}
                 fg={isSelected ? theme.focusAccent : theme.text}
                 bold={isBodyCursor(accentRow) || isSelected}
@@ -251,6 +255,7 @@ export function GeneralSettingsSection(
               <Row
                 key={style}
                 cursor={isBodyCursor(styleRow)}
+                rowRef={props.rowRef(styleRow)}
                 onMouseUp={activate(styleRow, () => prefs.selectSplitStyle(style))}
                 fg={isSelected ? theme.accent : theme.text}
                 bold={isBodyCursor(styleRow) || isSelected}
@@ -263,6 +268,7 @@ export function GeneralSettingsSection(
         <SubSection title={t("settings.general.notifications")} hint={t("settings.general.notificationsHint")}>
           <Row
             cursor={isBodyCursor(toastRow)}
+            rowRef={props.rowRef(toastRow)}
             onMouseUp={activate(toastRow, prefs.toggleToast)}
             fg={prefs.toastEnabled() ? theme.accent : theme.textMuted}
             bold={true}
@@ -272,6 +278,7 @@ export function GeneralSettingsSection(
           </Row>
           <Row
             cursor={isBodyCursor(soundRow)}
+            rowRef={props.rowRef(soundRow)}
             onMouseUp={activate(soundRow, prefs.toggleSound)}
             fg={prefs.soundEnabled() ? theme.accent : theme.textMuted}
             bold={true}
@@ -281,6 +288,7 @@ export function GeneralSettingsSection(
           </Row>
           <Row
             cursor={isBodyCursor(crossTaskRow)}
+            rowRef={props.rowRef(crossTaskRow)}
             onMouseUp={activate(crossTaskRow, prefs.toggleCrossTask)}
             fg={prefs.crossTaskEnabled() ? theme.accent : theme.textMuted}
             bold={true}
@@ -292,6 +300,7 @@ export function GeneralSettingsSection(
         <SubSection title={t("settings.general.keyHints")} hint={t("settings.general.keyHintsHint")}>
           <Row
             cursor={isBodyCursor(keyHintsRow)}
+            rowRef={props.rowRef(keyHintsRow)}
             onMouseUp={activate(keyHintsRow, () => toggleKeyHints(kv))}
             fg={keyHintsToggleOn(kv) ? theme.accent : theme.textMuted}
             bold={true}
@@ -303,6 +312,7 @@ export function GeneralSettingsSection(
         <SubSection title={t("settings.general.zen")} hint={t("settings.general.zenHint")}>
           <Row
             cursor={isBodyCursor(zenDefaultOnRow)}
+            rowRef={props.rowRef(zenDefaultOnRow)}
             onMouseUp={activate(zenDefaultOnRow, prefs.toggleZenDefaultOn)}
             fg={prefs.zenDefaultOn() ? theme.accent : theme.textMuted}
             bold={true}
@@ -311,6 +321,7 @@ export function GeneralSettingsSection(
           </Row>
           <Row
             cursor={isBodyCursor(zenKeepTasksRow)}
+            rowRef={props.rowRef(zenKeepTasksRow)}
             onMouseUp={activate(zenKeepTasksRow, prefs.toggleZenKeepsTasks)}
             fg={prefs.zenKeepsTasks() ? theme.accent : theme.textMuted}
             bold={true}
@@ -322,6 +333,7 @@ export function GeneralSettingsSection(
         <SubSection title={t("settings.general.editor")} hint={t("settings.general.editorHint")}>
           <Row
             cursor={isBodyCursor(editorKindRow)}
+            rowRef={props.rowRef(editorKindRow)}
             onMouseUp={activate(editorKindRow, prefs.cycleEditorKind)}
             fg={theme.accent}
             bold={true}
@@ -331,6 +343,7 @@ export function GeneralSettingsSection(
           </Row>
           <Row
             cursor={isBodyCursor(editorCustomRow)}
+            rowRef={props.rowRef(editorCustomRow)}
             onMouseUp={activate(editorCustomRow, () => void prefs.editEditorCustom())}
             fg={prefs.editorKind() === "custom" ? theme.text : theme.textMuted}
           >
@@ -342,6 +355,7 @@ export function GeneralSettingsSection(
         <SubSection title={t("settings.general.worktree")} hint={t("settings.general.worktreeHint")}>
           <Row
             cursor={isBodyCursor(worktreeBaseRow)}
+            rowRef={props.rowRef(worktreeBaseRow)}
             onMouseUp={activate(worktreeBaseRow, prefs.cycleWorktreeBase)}
             fg={theme.accent}
             bold={true}
@@ -351,6 +365,7 @@ export function GeneralSettingsSection(
           </Row>
           <Row
             cursor={isBodyCursor(worktreeCustomRow)}
+            rowRef={props.rowRef(worktreeCustomRow)}
             onMouseUp={activate(worktreeCustomRow, () => void prefs.editWorktreeCustom())}
             fg={prefs.worktreeKind() === "custom" ? theme.text : theme.textMuted}
           >
@@ -362,6 +377,7 @@ export function GeneralSettingsSection(
         <SubSection title={t("settings.general.terminal")} hint={t("settings.general.terminalHint")}>
           <Row
             cursor={isBodyCursor(scrollbackRow)}
+            rowRef={props.rowRef(scrollbackRow)}
             onMouseUp={activate(scrollbackRow, () => void prefs.editScrollbackRows())}
             fg={theme.accent}
             bold={true}
@@ -371,6 +387,7 @@ export function GeneralSettingsSection(
           </Row>
           <Row
             cursor={isBodyCursor(tabStripHideSingleRow)}
+            rowRef={props.rowRef(tabStripHideSingleRow)}
             onMouseUp={activate(tabStripHideSingleRow, prefs.cycleTabStripMode)}
             fg={theme.accent}
             bold={true}

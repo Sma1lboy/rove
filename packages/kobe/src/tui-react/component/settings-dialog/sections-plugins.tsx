@@ -7,7 +7,7 @@
  * this file only maps rows to boxes.
  */
 
-import { TextAttributes } from "@opentui/core"
+import { type BoxRenderable, TextAttributes } from "@opentui/core"
 import { relativeAge } from "../../../lib/relative-time"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
@@ -35,7 +35,12 @@ function toggleRowOffsets(plugins: readonly PluginRowView[]): number[] {
  * label is plugin-owned copy (like an action title) so it renders raw;
  * only the fallback wording around it is ours.
  */
-function SettingRow(props: { setting: PluginSettingRowView; cursor: boolean; onActivate: () => void }) {
+function SettingRow(props: {
+  setting: PluginSettingRowView
+  cursor: boolean
+  rowRef: (r: BoxRenderable | null) => (() => void) | undefined
+  onActivate: () => void
+}) {
   const { theme } = useTheme()
   const t = useT()
   const { setting } = props
@@ -47,6 +52,7 @@ function SettingRow(props: { setting: PluginSettingRowView; cursor: boolean; onA
       : displaySettingValue(setting) || t("settings.plugins.settingUnset")
   return (
     <box
+      ref={props.rowRef}
       flexDirection="row"
       gap={1}
       paddingLeft={5}
@@ -100,6 +106,7 @@ export function PluginSettingsSection(
             return (
               <box key={plugin.id} flexDirection="column" gap={0}>
                 <box
+                  ref={props.rowRef(toggleRow)}
                   flexDirection="row"
                   gap={1}
                   paddingLeft={1}
@@ -185,6 +192,7 @@ export function PluginSettingsSection(
                     key={setting.key}
                     setting={setting}
                     cursor={isBodyCursor(toggleRow + 1 + s)}
+                    rowRef={props.rowRef(toggleRow + 1 + s)}
                     onActivate={() => {
                       props.setLevel("body")
                       props.setBodyRow(toggleRow + 1 + s)
