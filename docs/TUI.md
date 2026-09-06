@@ -547,9 +547,19 @@ For a specific release or a browsable list of the latest 20 releases, use
 breaking version show a warning before installation.
 
 An amber **DAEMON OUT OF DATE** banner means this TUI and the already-running
-daemon are different builds. Finish any immediate interaction, run
-`rove daemon restart`, and relaunch Rove. Hosted engine sessions live in the
-separate PTY host and survive that daemon restart.
+daemon are different builds — the ordinary result of `rove update`, since the
+daemon is a long-lived process that keeps running the code it booted with.
+
+The banner names the chord that fixes it: `ctrl+a` `r` restarts the daemon and
+relaunches this Rove on the installed build, after one confirmation. Finish any
+immediate interaction first — the window goes away and comes back. Running
+engine sessions are not at risk: they live in the separate PTY host, which
+outlives both the daemon and the TUI, so open tabs reattach to the same
+sessions. Settings → Dev → **Restart backend** does the same thing, and
+`rove daemon restart` from a shell still works if you would rather.
+
+Rove offers the refresh, never takes it: there is no auto-restart, and the
+chord is only bound while the two builds actually differ.
 
 ## Narrow terminals (phone SSH)
 

@@ -98,7 +98,10 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     // a detached child instead of becoming it ourselves — otherwise
     // `kobe daemon restart` blocks the shell forever and looks "hung" to
     // anyone running it interactively.
-    await stopDaemonProcess(socketPath, pidPath)
+    // `restart`, not the default `stop`: the outgoing daemon relays it to
+    // every attached TUI, which is how a running client learns its own build
+    // is about to be the stale one — before the socket even drops.
+    await stopDaemonProcess(socketPath, pidPath, { reason: "restart" })
     // Tag the respawn. The restart path and an idle helper's autospawn go
     // through the same spawn, so without this the new daemon's boot line
     // cannot say which one it was — and "did my restart end those sessions?"

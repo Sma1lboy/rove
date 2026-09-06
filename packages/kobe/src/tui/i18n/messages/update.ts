@@ -39,7 +39,24 @@ export const en = {
   skew: {
     title: "⚠ DAEMON OUT OF DATE",
     olderBuild: "an older build",
-    hint: "daemon is {daemon} — you launched v{clientVersion}. Run `rove daemon restart`, then relaunch Rove",
+    /** The banner is now an ACTION, not a chore list: the chord does the
+     *  daemon restart and the relaunch that the old copy asked the user to
+     *  type out by hand. `{keys}` is the live chord, so a rebind is honoured. */
+    hint: "daemon is {daemon} — you launched v{clientVersion}. Press {keys} to refresh Rove onto the installed build",
+    /** Fallback wording for a build where the refresh chord is unbound. */
+    hintNoKey: "daemon is {daemon} — you launched v{clientVersion}. Run `rove daemon restart`, then relaunch Rove",
+  },
+  /** The self-refresh: restart whichever halves are behind, then come back. */
+  refresh: {
+    confirmTitle: "Refresh Rove?",
+    /** Names the one thing a user actually worries about losing. */
+    confirmBody:
+      "Rove restarts the daemon and relaunches itself on the installed build. Running engine sessions live in the PTY host and keep going; open tabs come back.",
+    confirmLabel: "Refresh",
+    relaunching: "rove: restarting on the installed build...",
+    alreadyCurrent: "Rove and the daemon already run the same build — nothing to refresh.",
+    installGone:
+      "This Rove was installed from a directory that no longer exists, so it cannot relaunch itself. Reinstall with `npm install -g @sma1lboy/rove`.",
   },
   /** This process's own install was deleted — it can never start a daemon again. */
   staleInstall: {
@@ -90,7 +107,18 @@ export const zh: typeof en = {
   skew: {
     title: "⚠ DAEMON 版本不一致",
     olderBuild: "旧版本构建",
-    hint: "daemon 运行的是 {daemon}，而你启动的是 v{clientVersion}。请运行 `rove daemon restart`，然后重新启动 Rove",
+    hint: "daemon 运行的是 {daemon}，而你启动的是 v{clientVersion}。按 {keys} 可让 Rove 刷新到已安装的版本",
+    hintNoKey:
+      "daemon 运行的是 {daemon}，而你启动的是 v{clientVersion}。请运行 `rove daemon restart`，然后重新启动 Rove",
+  },
+  refresh: {
+    confirmTitle: "刷新 Rove？",
+    confirmBody:
+      "Rove 会重启 daemon，并以已安装的版本重新启动自身。正在运行的引擎会话由 PTY host 托管，不会中断；已打开的标签页会恢复。",
+    confirmLabel: "刷新",
+    relaunching: "rove：正在以已安装的版本重新启动……",
+    alreadyCurrent: "Rove 与 daemon 已经是同一个版本 —— 无需刷新。",
+    installGone: "当前 Rove 的安装目录已不存在，无法重新启动自身。请运行 `npm install -g @sma1lboy/rove` 重新安装。",
   },
   staleInstall: {
     title: "✕ ROVE 安装已不存在",

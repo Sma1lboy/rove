@@ -72,6 +72,10 @@ export type WorkspaceKeybindingDeps = {
   syncBaseFor: (id: string) => void
   /** `t` — flip the sidebar task sort between default and recent. */
   toggleSortMode: () => void
+  /** PROPOSED prefix+r — restart the stale halves and relaunch onto the
+   *  installed build. Omitted (or `available: false`) when there is nothing
+   *  to refresh, which is what keeps the chord out of the command guide. */
+  refresh?: { readonly available: boolean; readonly run: () => void }
 }
 
 export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
@@ -141,12 +145,6 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         // prefix+z only. The configured prefix is
         // Kobe-global, so this remains reachable inside the terminal pane.
         "workspace.zenToggle": prefixAction(() => deps.toggleZen()),
-        // PROPOSED prefix+r — erase + full repaint. Global, and reachable
-        // from inside the terminal pane like every other prefix row, which
-        // is where a corrupted screen is most likely to be noticed.
-        "view.redraw": prefixAction(() => {
-          if (renderer) redrawScreen(renderer)
-        }),
         // f7 — reserved from terminal passthrough too, so "jump to the
         // next waiting task" works even while focused inside the engine.
         "attention.next": () => deps.jumpToNextAttention(),
@@ -200,6 +198,35 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
   useBindings(() => ({
     enabled: pagesClosed && focus.focused !== "sidebar",
     bindings: bindByIds({ "focus.sidebar": () => focus.setFocused("sidebar") }),
+  }))
+  // PROPOSED prefix+r — two actions share the stroke and never coexist
+  // (docs/design/keybinding-decisions.md). Each has its own group so
+  // `enabled` can carry the gate, and the gates are complements of one
+  // another: exactly ONE prefix+r binding is registered at any moment, which
+  // is what keeps `keymap-dispatch`'s shadowed-chord warning quiet.
+  //
+  // Redraw — erase + full repaint. Global, and reachable from inside the
+  // terminal pane like every other prefix row, which is where a corrupted
+  // screen is most likely to be noticed. Off while a refresh is available:
+  // the refresh relaunches the TUI, which repaints everything anyway.
+  useBindings(() => ({
+    enabled: pagesClosed && deps.refresh?.available !== true,
+    bindings: bindByIds({
+      "view.redraw": prefixAction(() => {
+        if (renderer) redrawScreen(renderer)
+      }),
+    }),
+  }))
+  // Refresh — its own group so `enabled` can carry the availability gate: the
+  // reachability scan behind the command guide reads registered bindings, so
+  // an always-registered row would advertise "Refresh Rove" to every user
+  // whose Rove has nothing to refresh — which is almost all of them, almost
+  // all of the time. Not gated on `pagesClosed`: skew is exactly as true while
+  // the Update page is open, and that is where a user who just updated is
+  // standing.
+  useBindings(() => ({
+    enabled: !pages.dialogOpen && deps.refresh?.available === true,
+    bindings: bindByIds({ "app.refresh": prefixAction(() => deps.refresh?.run()) }),
   }))
   // Same search-inactive gate as the task-lifecycle group below: while the
   // sidebar search box is active, `s`/`x`/`u` (and the group's bare `q`

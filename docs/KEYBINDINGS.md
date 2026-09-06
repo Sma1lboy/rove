@@ -59,7 +59,7 @@ shows only actions that can run right now.
 | `ctrl+a` `p` (`P` is the same key) | Create a PR — for the active task, or for the row under the cursor while the sidebar has focus ([the focus rule](#sidebar-and-files)) |
 | `ctrl+a` `k` | Pull the failing PR checks' logs into the task's engine (**proposed — awaiting owner sign-off**) |
 | `ctrl+a` `u` | Merge the base branch into the task's worktree (**proposed — awaiting owner sign-off**) |
-| `ctrl+a` `r` | Redraw the screen — erase and fully repaint (**proposed — awaiting owner sign-off**) |
+| `ctrl+a` `r` | Redraw the screen — erase and fully repaint. While the DAEMON OUT OF DATE banner is up it instead refreshes Rove onto the installed build: restarts the daemon and relaunches the TUI, after a confirm (**proposed — awaiting owner sign-off**) |
 
 `ctrl+a` `c` picks an engine first. Claude and Codex can fork their own
 conversations natively. Copilot and Kimi use a transcript handoff even for a
@@ -73,6 +73,13 @@ reflowed, a resize Rove did not see, or another program writing over Rove all
 clear in one frame. It touches nothing but pixels — no task, tab, or engine
 state changes — so it is always safe to press. Rove already repaints itself
 after a resize, so reach for this only when something slipped past that.
+
+The same stroke changes meaning while the two builds differ (the amber DAEMON
+OUT OF DATE banner): then `ctrl+a` `r` refreshes Rove onto the installed build
+— it stops the daemon and relaunches the TUI, after one confirm — and the
+redraw is not bound. Engine sessions live in the PTY host and survive the
+relaunch; the tabs reattach to the same sessions. On a current Rove the
+refresh is absent from the keymap and the command guide, and `r` redraws.
 
 The sequence cancels on timeout, `esc`, an invalid second key, or a change of
 focus or dialog.

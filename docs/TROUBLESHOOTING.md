@@ -254,14 +254,17 @@ directory; runtime files now live under `~/.rove`, with legacy paths honoured
 only while a process started before the move is still alive.)
 
 After an upgrade, both background processes can still be running old code, and
-`rove update` says so when it finishes. Doctor reports each version separately:
-a stale **daemon** is fixed by `rove daemon restart`, which never touches a
-live session. A stale **PTY host** is not — it survives daemon restarts by
-design, so it keeps serving its boot-time build until `rove reset` replaces it,
-which is also the remedy when the host is wedged. Reset stops both runtimes,
-ends every live terminal and engine session, and clears the frozen-session
-store, but does not touch git worktrees. Read the confirmation carefully before
-proceeding.
+`rove update` says so when it finishes — and so can an already-open TUI, which
+keeps executing the bundle it launched with. Doctor reports each version
+separately. A stale **daemon** is fixed by `rove daemon restart`, which never
+touches a live session; an attached Rove shows the amber **DAEMON OUT OF DATE**
+banner instead, and `ctrl+a` `r` there restarts the daemon and relaunches the
+TUI on the installed build in one confirmed step. A stale **PTY host** is not
+fixed by either — it survives daemon restarts by design, so it keeps serving
+its boot-time build until `rove reset` replaces it, which is also the remedy
+when the host is wedged. Reset stops both runtimes, ends every live terminal
+and engine session, and clears the frozen-session store, but does not touch
+git worktrees. Read the confirmation carefully before proceeding.
 
 `rove doctor --fix` walks these remedies for you, one confirmation per fix:
 safe ones (a daemon restart, a skill install) run after a per-fix `y/N`, while
@@ -404,7 +407,8 @@ cd <the worktree>
 ls -d ~/.claude/projects/"$(pwd | sed 's/[^a-zA-Z0-9]/-/g')"
 ```
 
-`rove update`, then `rove daemon restart`. No history is lost by the upgrade:
+`rove update`, then `rove daemon restart` (or `ctrl+a` `r` inside a running
+Rove, which also relaunches the TUI). No history is lost by the upgrade:
 those directories are written by Claude with the correct encoding, so the
 corrected name finds the transcripts that were there all along, including for
 the sessions that ran while the badge sat still.

@@ -183,6 +183,22 @@ export const KobeKeymap: readonly KobeBinding[] = [
     description: "Open settings",
   },
   {
+    // PROPOSED — awaiting owner sign-off (AGENTS.md: chord PLACEMENT is the
+    // owner's call). `r` is the only free prefix stroke that says "refresh",
+    // and this belongs behind the prefix rather than on a direct chord: it is
+    // rare (once per upgrade) and destructive-looking (the UI goes away and
+    // comes back), which is exactly the tier the prefix exists for.
+    //
+    // Registered only while a refresh is actually available, so the command
+    // guide never advertises a chord that would answer "nothing to refresh".
+    id: "app.refresh",
+    scope: "global",
+    keys: [],
+    prefixKeys: ["r"],
+    category: "Global",
+    description: "Refresh Rove onto the installed build (after an update)",
+  },
+  {
     // Sidebar shortcut — single letter `s` mirrors the n/q pattern
     // (plain keys when the tasks list is focused). `prefix+,`
     // (settings.open above) is the from-anywhere equivalent.

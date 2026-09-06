@@ -127,8 +127,8 @@ export const en = {
   },
   restart: {
     title: "Restart backend?",
-    body: "Quits this Rove window. Relaunch to (re)spawn the daemon. Any other attached windows keep their connection. In v0.6 the daemon's RPC surface shrank to task CRUD + subscribe, so a graceful daemon.stop RPC is no longer plumbed through the client — quit + relaunch is the path.",
-    done: "Rove: window closed. Relaunch Rove to start fresh.",
+    body: "Stops the daemon and relaunches this Rove on the installed build, so daemon / orchestrator / engine edits take effect. Running engine sessions live in the PTY host and keep going; open tabs come back. Any other attached windows reconnect on their own.",
+    done: "Rove: restarting the backend...",
   },
   deferredFlush: {
     failedTitle: "Deferred prompts were not flushed",
@@ -222,10 +222,10 @@ export const en = {
     resetButton: "[enter] Reset",
     restart: "Restart backend",
     restartHint:
-      "Stops the Rove daemon and quits this Rove window so the next launch spawns a fresh daemon — picks up daemon / orchestrator / engine edits without a process kill. Other attached Rove windows will lose their connection too.",
+      "Stops the Rove daemon and relaunches this window on the installed build — picks up daemon / orchestrator / engine edits without quitting by hand. Running engine sessions live in the PTY host and survive it; other attached Rove windows reconnect on their own.",
     restartButton: "[enter] Restart",
     doctorHint:
-      "Daemon wedged or unresponsive? From a shell, run `rove daemon restart`, then relaunch Rove. Hosted engine sessions stay alive across a daemon restart.",
+      "Daemon wedged or unresponsive? Restart backend above does it from here; from a shell it is `rove daemon restart`. Hosted engine sessions stay alive across a daemon restart.",
     experimental: "Experimental",
     remoteHint:
       "Remote projects (SSH): register a project whose git worktrees live on another host, driven from this local Rove. Unfinished — Hosted PTY engine launch over SSH is not implemented, and file/diff panes still degrade. Enables `rove add --remote`.",
@@ -355,8 +355,8 @@ export const zh: typeof en = {
   },
   restart: {
     title: "重启后端？",
-    body: "会退出当前 Rove 窗口。重新启动即可（重新）拉起 daemon。其他已连接的窗口不受影响。v0.6 起 daemon 的 RPC 只保留了任务增删改查和订阅，客户端不再接出优雅的 daemon.stop，所以退出再启动就是这条路径。",
-    done: "Rove：窗口已关闭。重新启动 Rove 即可从头开始。",
+    body: "会停掉 daemon，并以已安装的版本重新启动当前 Rove 窗口，从而让 daemon / orchestrator / 引擎的改动生效。正在运行的引擎会话由 PTY host 托管，不会中断；已打开的标签页会恢复。其他已连接的窗口会自行重连。",
+    done: "Rove：正在重启后端……",
   },
   deferredFlush: {
     failedTitle: "排队的提示词未能放行",
@@ -445,10 +445,10 @@ export const zh: typeof en = {
     resetButton: "[enter] 重置",
     restart: "重启后端",
     restartHint:
-      "停止 Rove daemon 并退出当前 Rove 窗口，下次启动会拉起一个全新的 daemon——无需杀进程即可应用 daemon / orchestrator / engine 的改动。其他已连接的 Rove 窗口也会断开连接。",
+      "停止 Rove daemon，并以已安装的版本重新启动当前窗口——无需手动退出即可应用 daemon / orchestrator / engine 的改动。正在运行的引擎会话由 PTY host 托管，不受影响；其他已连接的 Rove 窗口会自行重连。",
     restartButton: "[enter] 重启",
     doctorHint:
-      "daemon 卡住或无响应？在 shell 里运行 `rove daemon restart`，然后重新启动 Rove。Hosted PTY 引擎会话不会因 daemon 重启而退出。",
+      "daemon 卡住或无响应？上面的「重启后端」就能在这里完成；在 shell 里则是 `rove daemon restart`。Hosted PTY 引擎会话不会因 daemon 重启而退出。",
     experimental: "实验性",
     remoteHint:
       "远程项目（SSH）：注册一个 git worktree + 引擎都通过 SSH 跑在另一台主机上、由本地 Rove 驱动的项目。尚未完成——文件/diff 面板对远程仍会降级。启用 `rove add --remote`。",

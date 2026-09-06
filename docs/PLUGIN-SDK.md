@@ -216,6 +216,14 @@ channel, always delivered regardless of the filter — and **that is the last
 thing it ever receives**. There is no reconnect: after it, the socket is
 dead. A crash is worse, because the daemon sends nothing at all.
 
+Its payload carries `reason` (`"restart"` / `"stop"` / `"idle"` /
+`"socket-lost"`) and `kobeVersion`, the outgoing daemon's build. Both are
+optional: a daemon older than protocol v5 sends `{}`, and a future one may name
+a reason you have never heard of — treat anything you do not recognize as an
+ordinary stop. `"restart"` is the one worth branching on: it means the daemon
+is being replaced rather than shut down, so a reconnect is worth waiting for
+and your own build may now be behind the host's.
+
 This matters most in a pane, because a hosted pane's PTY **survives a daemon
 restart by design**. Your process stays alive and keeps drawing its last
 frame, so a board that has stopped receiving anything is visually

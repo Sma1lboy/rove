@@ -84,6 +84,9 @@ export class RemoteOrchestrator {
   private readonly activeTaskAcc = createStateCell<string | null>(null, "orchestrator.active-task")
   private readonly updateAcc = createStateCell<UpdateInfo | null>(null)
   private readonly daemonVersionAcc = createStateCell<string | null>(null)
+  /** Set by a `daemon.stopping` frame naming `reason: "restart"`, cleared by
+   *  the next successful handshake — see {@link daemonRestartingSignal}. */
+  private readonly daemonRestartingAcc = createStateCell<boolean>(false)
   private readonly daemonStaleAcc = mapReadableState(this.daemonVersionAcc, (version) =>
     isDaemonVersionStale(version ?? undefined, CURRENT_VERSION),
   )
@@ -132,6 +135,7 @@ export class RemoteOrchestrator {
       setActiveTaskSig: this.activeTaskAcc.set,
       setUpdateSig: this.updateAcc.set,
       setDaemonVersionSig: this.daemonVersionAcc.set,
+      setDaemonRestartingSig: this.daemonRestartingAcc.set,
       engineStateAcc: this.engineStateAcc,
       setEngineStateSig: this.engineStateAcc.set,
       engineTabStateAcc: this.engineTabStateAcc,
@@ -254,6 +258,32 @@ export class RemoteOrchestrator {
   readonly daemonVersionSignal = (): ReadableState<string | null> => this.daemonVersionAcc
 
   readonly daemonStaleSignal = (): ReadableState<boolean> => this.daemonStaleAcc
+
+  /**
+   * True while a daemon that announced an explicit restart has not yet come
+   * back. Narrower than "disconnected" on purpose: it is only ever set by a
+   * daemon SAYING it is being replaced, so it can never stand in for the
+   * generic socket-drop signal the workspace deliberately does not surface.
+   *
+   * Its one job is to keep a refresh from stopping a daemon somebody else is
+   * already mid-way through replacing (`planSelfRefresh`).
+   */
+  readonly daemonRestartingSignal = (): ReadableState<boolean> => this.daemonRestartingAcc
+
+  /**
+   * Ask the daemon to stop for a RESTART, then let the normal recovery path
+   * bring one back. Used by the self-refresh: the daemon reloads its code
+   * from disk on the way back up, which is the half of a build skew this
+   * process cannot fix by relaunching itself.
+   *
+   * Best-effort by design — a daemon that is already gone, already stopping,
+   * or too wedged to answer leaves nothing to stop, and the caller's next
+   * step (relaunch, which spawns a daemon if none is reachable) covers every
+   * one of those.
+   */
+  async restartDaemon(): Promise<void> {
+    await this.client.request("daemon.stop", { reason: "restart" }).catch(() => {})
+  }
 
   readonly engineStateSignal = (): ReadableState<ReadonlyMap<string, TaskEngineState>> => this.engineStateAcc
 

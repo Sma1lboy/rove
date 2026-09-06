@@ -175,6 +175,13 @@ describe("kobe daemon restart", () => {
     mocks.connectOrStartDaemon.mockResolvedValue(next)
     await runDaemonSubcommand(["restart"])
     expect(mocks.stopDaemonProcess).toHaveBeenCalledTimes(1)
+    // The stop is labelled a RESTART, which the outgoing daemon relays to
+    // every attached TUI: that frame is how a running client learns its own
+    // build is about to be the stale one, before the socket even drops. An
+    // unlabelled stop here would leave it inferring that from a reconnect.
+    expect(mocks.stopDaemonProcess).toHaveBeenCalledWith(expect.any(String), expect.any(String), {
+      reason: "restart",
+    })
     expect(mocks.connectOrStartDaemon).toHaveBeenCalledTimes(1)
     expect(next.close).toHaveBeenCalledTimes(1)
     expect(output()).toContain("restarted, listening on")

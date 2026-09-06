@@ -39,7 +39,13 @@ import {
   resolveDaemonHomeDir,
 } from "./paths.ts"
 import { PromptBroker } from "./prompt-broker.ts"
-import { type DaemonFrame, normalizeChannelFilter, serializeTask } from "./protocol.ts"
+import {
+  type DaemonFrame,
+  type DaemonStopReason,
+  type DaemonStoppingPayload,
+  normalizeChannelFilter,
+  serializeTask,
+} from "./protocol.ts"
 import { startPtyExitWatch } from "./pty-exit-watch.ts"
 import { PtyLiveHold } from "./pty-live-hold.ts"
 import type { DaemonServer, DaemonServerOptions } from "./server-options.ts"
@@ -97,6 +103,11 @@ async function startOwnedServer(
   const startedAt = options.startedAt ?? new Date()
   const clients = new Set<ClientState>()
   let nextClientId = 1
+  /** Why this daemon is going away — read once by the `daemon.stopping`
+   *  broadcast in the teardown deferral below. Every path into `stopSoon`
+   *  names its own reason; `stop` is the honest default for a shutdown
+   *  nobody labelled (an outright `close()`, a signal). */
+  let stopReason: DaemonStopReason = "stop"
   const requests = new Set<Promise<void>>()
 
   // Refcounted lazy shutdown + collector gate (KOB): the daemon's lifetime is
@@ -128,7 +139,7 @@ async function startOwnedServer(
     // PTY session (see pty-live-hold.ts: idle-stopping while engines run
     // drops their hook events and blanks the activity dots).
     keepAlive: () => automations.hasEnabled() || ptyHold.isHeld(),
-    onIdleStop: () => void stopSoon().catch((err) => logDaemonError("daemon-idle-shutdown", err)),
+    onIdleStop: () => void stopSoon("idle").catch((err) => logDaemonError("daemon-idle-shutdown", err)),
   })
   const ptyHold = new PtyLiveHold({
     probe: () => ptyHostHasLiveSessions(options.homeDir),
@@ -339,7 +350,7 @@ async function startOwnedServer(
     ...(options.socketWatchMs !== undefined ? { watchMs: options.socketWatchMs } : {}),
     onLost: () => {
       logDaemonInfo("sock", "socket path was taken over or removed — stopping so clients reconnect to the new owner")
-      void stopSoon().catch((err) => logDaemonError("daemon-socket-lost-shutdown", err))
+      void stopSoon("socket-lost").catch((err) => logDaemonError("daemon-socket-lost-shutdown", err))
     },
   })
   const serverApi: DaemonServer = {
@@ -353,7 +364,15 @@ async function startOwnedServer(
     },
   }
   resources.defer(async () => {
-    broadcast(clients, { type: "event", name: "daemon.stopping", payload: {} })
+    // WHY, not just THAT (v5). Every shutdown looks the same from a client
+    // socket, and one of them is different in kind: a `restart` means an
+    // operator is swapping this daemon's code, so an attached TUI is about to
+    // be a build behind and can offer to refresh itself the instant the frame
+    // lands — instead of waiting out a reconnect plus a `hello` under backoff.
+    // The version rides along for the same reason: it is the comparison the
+    // client would otherwise have to reconnect to make.
+    const payload: DaemonStoppingPayload = { reason: stopReason, kobeVersion: runtime.currentVersion }
+    broadcast(clients, { type: "event", name: "daemon.stopping", payload })
     for (const client of clients) client.socket.destroy()
     await sockGuard.release(server)
   })
@@ -427,8 +446,9 @@ async function startOwnedServer(
   await linkLegacyRuntimePath(socketPath, legacyDaemonSocketPath(homeDir))
   await linkLegacyRuntimePath(pidPath, legacyDaemonPidPath(homeDir))
 
-  async function stopSoon(): Promise<void> {
+  async function stopSoon(reason: DaemonStopReason = "stop"): Promise<void> {
     if (lifetime.isStopping()) return
+    stopReason = reason
     lifetime.markStopping()
     setTimeout(() => {
       serverApi.close().catch((err) => logDaemonError("daemon-shutdown", err))

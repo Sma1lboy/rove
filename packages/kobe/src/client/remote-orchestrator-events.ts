@@ -19,6 +19,7 @@ import {
   type TabRenamePayload,
   type UiPromptPayload,
   isAttentionInboxState,
+  parseDaemonStopReason,
 } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { EngineActivityDetail, TaskActivityState } from "../engine/hook-events.ts"
 import type { UpdateInfo } from "../version.ts"
@@ -125,6 +126,19 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       // log the anomaly so a stuck-list incident is diagnosable.
       logClientError("orch", `dropped task.snapshot event: tasks is not an array (got ${describePayload(value)})`)
     }
+    return
+  }
+  // The daemon's own obituary (v5) — a lifecycle frame, not a channel, so it
+  // is never replayed to a late subscriber as if current. Only `restart` is
+  // acted on: it says an operator is swapping the daemon's code, which makes
+  // this process the one about to be a build behind. Every other reason
+  // (idle, socket-lost, a plain stop) is a shutdown the reconnect loop
+  // already handles silently, and deliberately paints nothing — see the
+  // no-disconnect-banner rule in `host-banner.tsx`.
+  if (name === "daemon.stopping") {
+    const p = payload as { reason?: unknown; kobeVersion?: unknown } | undefined
+    if (typeof p?.kobeVersion === "string") signals.setDaemonVersionSig(p.kobeVersion)
+    if (parseDaemonStopReason(p?.reason) === "restart") signals.setDaemonRestartingSig(true)
     return
   }
   if (name === "active-task") {
