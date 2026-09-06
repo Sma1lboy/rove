@@ -19,7 +19,10 @@ describe("pipeToClipboardCommand", () => {
   test("a command that accepts the text reports success, and gets all of it", async () => {
     const out = join(dir, "sink.txt")
     const text = "feat/some-branch\nwith a second line"
-    expect(await pipeToClipboardCommand(text, ["sh", "-c", `cat > ${out}`])).toBe(true)
+    // Single-quoted and forward-slashed: unquoted, `sh` eats the backslashes
+    // of a Windows path and `cat` lands `C:Users…sink.txt` in the cwd.
+    const shellPath = out.replaceAll("\\", "/")
+    expect(await pipeToClipboardCommand(text, ["sh", "-c", `cat > '${shellPath}'`])).toBe(true)
     expect(readFileSync(out, "utf8")).toBe(text)
   })
 
