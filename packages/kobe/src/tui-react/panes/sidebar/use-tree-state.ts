@@ -22,6 +22,7 @@
  * you can see another worktree's tabs without switching to it first.
  */
 
+import type { TaskEngineState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { DEFAULT_TASK_VENDOR } from "@/types/task"
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -67,6 +68,10 @@ export interface TreeStateOpts {
   readonly recentTask?: Task | null
   /** Global task sort applied before shaping the tree. */
   readonly sortMode?: import("../../../tui/panes/sidebar/groups").TaskSortMode
+  /** Daemon-pushed per-task activity — what `attention` sort ranks by. The
+   *  same map the rows render their state glyph from, so the order and the
+   *  glyphs can never disagree about which row is stopped. */
+  readonly engineState?: ReadonlyMap<string, TaskEngineState>
   /** The sidebar's ~2s poll tick. Re-runs the search over freshly resolved
    *  HEADs, so a `main` row becomes findable by its branch as soon as the
    *  poller answers rather than only on the next unrelated re-render. */
@@ -259,14 +264,18 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
 
   const recentTask = opts.recentTask ?? null
   const sortMode = opts.sortMode ?? "default"
+  // Only `attention` reads activity, so the other two modes keep their memo
+  // free of a map that churns on every daemon push.
+  const sortEngineState = sortMode === "attention" ? opts.engineState : undefined
   const { rows, totalCount } = useMemo(() => {
+    const activityOf = (taskId: string) => sortEngineState?.get(taskId)?.state
     // A SEARCH builds the tree fully expanded: folding the routine
     // sessions away at rest must not make them unfindable, and search is how
     // you reach one without opening the fold first. `filterTreeRows` then
     // drops the (now empty) count row itself.
     const all = searching
-      ? buildTreeRows({ tasks, tabsByTask, sortMode, expandedRoutines: new Set(projectKeysOf(tasks)) })
-      : buildTreeRows({ tasks, tabsByTask, sortMode, expandedRoutines })
+      ? buildTreeRows({ tasks, tabsByTask, sortMode, activityOf, expandedRoutines: new Set(projectKeysOf(tasks)) })
+      : buildTreeRows({ tasks, tabsByTask, sortMode, activityOf, expandedRoutines })
     const total = treeFlatIds(all).length
     // Dependency-only invalidation key: re-run the search when the poll tick
     // moves, so a `main` row becomes findable by its branch as soon as the
@@ -286,7 +295,7 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
       rows: searching ? filterTreeRows(all, query, liveBranch) : withRecentRow(all, recentTask),
       totalCount: total,
     }
-  }, [tasks, tabsByTask, searching, query, recentTask, sortMode, expandedRoutines, opts.branchTick])
+  }, [tasks, tabsByTask, searching, query, recentTask, sortMode, sortEngineState, expandedRoutines, opts.branchTick])
   const flatIds = useMemo(() => treeFlatIds(rows), [rows])
 
   // The active row is the selected task's ACTIVE TAB, else the worktree row

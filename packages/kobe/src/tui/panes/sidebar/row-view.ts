@@ -5,7 +5,7 @@ import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
 import { t } from "@/tui/i18n"
 import { DEFAULT_TASK_VENDOR, type Task } from "@/types/task"
 import { isBuiltinVendor } from "@/types/vendor"
-import { repoBasename } from "./groups"
+import { compareRecent, repoBasename } from "./groups"
 
 export type SidebarTone = "success" | "warning" | "primary" | "textMuted" | "error"
 
@@ -99,6 +99,35 @@ const ATTENTION_STATES: ReadonlySet<TaskActivityState | undefined> = new Set([
  *  question without re-listing the states (the tab row's age chip does). */
 export function isAttentionActivity(state: TaskActivityState | undefined): boolean {
   return ATTENTION_STATES.has(state)
+}
+
+/** Bands for the `attention` sort: 0 stopped, 1 a turn landed, 2 the rest. */
+function attentionSortBand(state: TaskActivityState | undefined): 0 | 1 | 2 {
+  if (isAttentionActivity(state)) return 0
+  if (state === "turn_complete") return 1
+  return 2
+}
+
+/**
+ * The `attention` sort mode's comparator: rows that are STOPPED first, then
+ * rows whose turn landed, then the quiet ones — most-recently-touched first
+ * inside each band.
+ *
+ * The tiebreak BORROWS `compareRecent` rather than restating it, so "recent"
+ * means the same thing here, in `recent` sort, and in the Inbox's RECENT
+ * section. This is a separate comparator on purpose: `compareRecent` is
+ * shared with the Inbox, which must not learn about engine activity.
+ *
+ * Takes a state READER, not the daemon's map: `buildTreeRows` is pure over
+ * `Task[]` and a reader is what keeps it that way.
+ */
+export function compareAttention(
+  activityOf: (taskId: string) => TaskActivityState | undefined,
+): (a: Task, b: Task) => number {
+  return (a, b) => {
+    const band = attentionSortBand(activityOf(a.id)) - attentionSortBand(activityOf(b.id))
+    return band !== 0 ? band : compareRecent(a, b)
+  }
 }
 
 /**
