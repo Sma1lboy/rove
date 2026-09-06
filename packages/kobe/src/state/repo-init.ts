@@ -189,7 +189,6 @@ function firstMessageFor(
   intent: PromptDeliveryIntent,
   init: ResolvedRepoInit,
   worktreePath: string,
-  taskId?: string,
 ): FirstEngineMessage | undefined {
   if (intent.kind === "none") return undefined
   if (intent.kind === "explicit") return { source: "explicit", text: intent.prompt }
@@ -218,11 +217,10 @@ export function resolveEngineLaunchInit(
   repoRoot: string,
   worktreePath: string,
   intent: PromptDeliveryIntent = { kind: "repo-init" },
-  taskId?: string,
 ): EngineLaunchInit {
   const init = resolveRepoInit(repoRoot, worktreePath)
   return {
     initScript: init.initScript,
-    firstMessage: firstMessageFor(intent, init, worktreePath, taskId),
+    firstMessage: firstMessageFor(intent, init, worktreePath),
   }
 }

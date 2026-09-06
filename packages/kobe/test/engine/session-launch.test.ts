@@ -235,6 +235,44 @@ describe("hosted engine session launch", () => {
       expect(runLaunch(dir, script).trim()).toBe("1")
     })
 
+    /**
+     * C2: the marker is a RECEIPT, not a lock. It is deleted for the whole run
+     * ("absent means init is still going", which the paste spawner depends on)
+     * and it is keyed by WORKTREE — which every tab of a task shares
+     * (`session-launch.ts` gives one task one worktree). So two tabs opening
+     * before the first init finished both passed `[ ! -f marker ]` and both
+     * ran the script: two `bun install`s in one directory, against a contract
+     * that says once per worktree.
+     *
+     * Executed, not asserted on the script text: only running two shells at
+     * once can answer how many times the script actually ran. Sequential runs
+     * are already covered above and would pass either way.
+     */
+    test("two shells racing one worktree run init exactly once", () => {
+      const { dir, marker } = scratch()
+      const counter = path.join(dir, "runs")
+      // Long enough that the second shell is provably inside the window while
+      // the first is still working, short enough to stay a unit test.
+      const script = launchScript(
+        `printf x >> ${JSON.stringify(counter)}; export ROVE_INIT_PROBE=racewinner; sleep 1`,
+        marker,
+      )
+      const out = path.join(dir, "race")
+      execFileSync("/bin/sh", [
+        "-c",
+        `{ ${script}\n} > ${JSON.stringify(`${out}-a.log`)} 2>&1 & ` +
+          `{ ${script}\n} > ${JSON.stringify(`${out}-b.log`)} 2>&1 & wait`,
+      ])
+
+      expect(fs.readFileSync(counter, "utf8").length).toBe(1)
+      expect(fs.readFileSync(marker, "utf8")).toBe("0")
+      // C3: the loser waits for the marker rather than racing the dump, so it
+      // sources a COMPLETE one — the dump is written inside the run, before
+      // the marker. Both engines start with what init exported.
+      expect(fs.readFileSync(`${out}-a.log`, "utf8").trim()).toBe("racewinner")
+      expect(fs.readFileSync(`${out}-b.log`, "utf8").trim()).toBe("racewinner")
+    })
+
     test("keeps the env dump 0600 — an init script's exports are where a key would be", () => {
       const { dir, marker } = scratch()
       runLaunch(dir, launchScript("export ROVE_INIT_PROBE=1", marker))

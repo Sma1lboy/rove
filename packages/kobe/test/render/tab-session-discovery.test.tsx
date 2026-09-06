@@ -19,7 +19,7 @@
  */
 
 import { afterEach, expect, test } from "bun:test"
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { appendFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import type { ReactNode } from "react"
@@ -82,6 +82,19 @@ function lifecycleIO(state: TabsState, wt: string): TabLifecycleIO & { state: ()
   }
 }
 
+/** Add another session for the SAME worktree — the store answers per-worktree,
+ *  so both tabs of one task see both of these. `newer` sorts last, which is
+ *  what `pickUnclaimedSessionId` reaches for first. */
+async function seedSecondKimiSession(id: string): Promise<void> {
+  const dir = path.join(kimiHome as string, "sessions", `wd_${id}`)
+  await mkdir(path.join(dir, "agents", "main"), { recursive: true })
+  await writeFile(path.join(dir, "agents", "main", "wire.jsonl"), '{"type":"protocol-frame"}\n')
+  await appendFile(
+    path.join(kimiHome as string, "session_index.jsonl"),
+    `${JSON.stringify({ sessionId: id, sessionDir: dir, workDir: worktree })}\n`,
+  )
+}
+
 test("a rehydrated kimi tab adopts the session its worktree already has", async () => {
   await seedKimiSession()
   const state: TabsState = {
@@ -103,4 +116,47 @@ test("a rehydrated kimi tab adopts the session its worktree already has", async 
   // `spawned` rides along: a session on disk IS a conversation, and it is what
   // makes the next launch take the engine's resume verb instead of a blank one.
   expect(tab.spawned).toBe(true)
+})
+
+const SECOND_SESSION_ID = "session_fc747c28-84ge-56d3-a8g5-5cd5g4346cgg"
+
+/**
+ * Two engine tabs in one task share ONE worktree (`session-launch.ts:290-292`),
+ * so "two tabs, one worktree" is the ordinary case, not an edge one — and the
+ * kimi session store answers per-WORKTREE, so both tabs see the same list.
+ *
+ * A tab's claim exists only once `io.update` has written its sessionId back.
+ * The hydration pass used to run every tab's discovery inside one
+ * `Promise.all`, so both computed their claim set before either had recorded
+ * anything and `pickUnclaimedSessionId` handed both the same newest id — two
+ * live engines writing one transcript, the exact collision claim-tracking
+ * exists to prevent (`engine/session-identity.ts:145-152`).
+ *
+ * `useTabNaming` in the same file already did this sequentially; this is the
+ * hydration pass catching up.
+ */
+test("two rehydrated tabs in one worktree take different sessions", async () => {
+  await seedKimiSession()
+  await seedSecondKimiSession(SECOND_SESSION_ID)
+  const state: TabsState = {
+    tabs: [
+      { kind: "engine", id: "tab-1", title: null, ordinal: 1, vendor: "kimi" },
+      { kind: "engine", id: "tab-2", title: null, ordinal: 2, vendor: "kimi" },
+    ],
+    activeId: "tab-1",
+    nextOrdinal: 3,
+  }
+  const io = lifecycleIO(state, worktree as string)
+  function Probe(): ReactNode {
+    useTabHydration(true, io)
+    return <text>probe</text>
+  }
+  await renderComponent(<Probe />)
+  await until(() => io.state().tabs.every((t) => (t as EngineTab).sessionId != null))
+
+  const ids = io.state().tabs.map((t) => (t as EngineTab).sessionId)
+  expect(ids.filter(Boolean)).toHaveLength(2)
+  // The assertion is DISTINCTNESS. Asserting which tab got which id would pin
+  // the store's ordering rather than the invariant that is actually at stake.
+  expect(new Set(ids).size).toBe(2)
 })
