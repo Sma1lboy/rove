@@ -35,6 +35,7 @@
  * store) forgets a session for good.
  */
 
+import { logDaemonError } from "./crash-log.ts"
 import type { DaemonFrame, PtyPeekResult } from "./protocol.ts"
 import { PtyChildController } from "./pty-child-controller.ts"
 import { shouldFreeze } from "./pty-freeze-policy.ts"
@@ -290,16 +291,23 @@ export class PtyHost {
     }
   }
 
-  /** Compare and remove synchronously, so a reopened key cannot inherit an old kill. */
+  /**
+   * Compare and remove synchronously, so a reopened key cannot inherit an old
+   * kill. The CHILD's teardown is asynchronous (SIGTERM, up to 500ms grace,
+   * then SIGKILL), so the answer is `accepted`, not `killed`: the compare-and-
+   * remove is what this call actually completed. It said `killed: true` before
+   * the signal had been sent, which is how `rove api tab-close` reported a
+   * successful close over a PTY that was still running.
+   */
   killIfGeneration(
     key: string,
     expectedGeneration: string,
-  ): { killed: true } | { killed: false; reason: "missing-session" | "generation-mismatch" } {
+  ): { accepted: true } | { accepted: false; reason: "missing-session" | "generation-mismatch" } {
     const session = this.sessions.get(key)
-    if (!session) return { killed: false, reason: "missing-session" }
-    if (session.generation !== expectedGeneration) return { killed: false, reason: "generation-mismatch" }
-    void this.kill(key)
-    return { killed: true }
+    if (!session) return { accepted: false, reason: "missing-session" }
+    if (session.generation !== expectedGeneration) return { accepted: false, reason: "generation-mismatch" }
+    void this.kill(key).catch((err) => logDaemonError("pty-kill", err))
+    return { accepted: true }
   }
 
   /** End the child AND forget the session (explicit close / task deletion). */

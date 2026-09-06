@@ -59,7 +59,7 @@ describe("PTY observation before destructive cleanup", () => {
         }
       kills.push(payload)
       tasks.push("restored")
-      return { killed: true }
+      return { accepted: true }
     })
     await sweepPtyHostSessions(() => tasks, home)
     expect(kills).toEqual([{ key: "gone::tab-1", expectedGeneration: "first" }])

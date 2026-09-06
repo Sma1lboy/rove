@@ -137,7 +137,7 @@ describe("pty-host server freeze/restore across a restart", () => {
     const second = await generation(a)
     expect(second).not.toBe(first)
     expect(await a.request("pty.kill", { key, expectedGeneration: first })).toEqual({
-      killed: false,
+      accepted: false,
       reason: "generation-mismatch",
     })
     expect(await generation(a)).toBe(second)
@@ -151,12 +151,12 @@ describe("pty-host server freeze/restore across a restart", () => {
     const respawned = await generation(b)
     expect(respawned).not.toBe(restored)
     expect(await b.request("pty.kill", { key, expectedGeneration: restored })).toEqual({
-      killed: false,
+      accepted: false,
       reason: "generation-mismatch",
     })
-    expect(await b.request("pty.kill", { key, expectedGeneration: respawned })).toEqual({ killed: true })
+    expect(await b.request("pty.kill", { key, expectedGeneration: respawned })).toEqual({ accepted: true })
     expect(await b.request("pty.kill", { key, expectedGeneration: respawned })).toEqual({
-      killed: false,
+      accepted: false,
       reason: "missing-session",
     })
   })

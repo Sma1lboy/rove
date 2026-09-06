@@ -367,8 +367,13 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
         const key = requireString(payload, "key")
         if ("expectedGeneration" in payload)
           return ptys.killIfGeneration(key, requireString(payload, "expectedGeneration"))
-        void ptys.kill(key)
-        return {}
+        // Same as `killIfGeneration`: the session is dropped synchronously,
+        // the child's teardown is not. `accepted` says the request was taken,
+        // which is all this reply can honestly claim — and the rejection now
+        // reaches `daemon.log` under a tag instead of an anonymous
+        // unhandledRejection (see crash-log.ts).
+        void ptys.kill(key).catch((err) => logDaemonError("pty-kill", err))
+        return { accepted: true }
       }
       case "pty.rename": {
         const payload = objectPayload(req.payload)
