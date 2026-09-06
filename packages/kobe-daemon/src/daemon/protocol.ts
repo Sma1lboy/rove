@@ -257,6 +257,13 @@ export type DaemonRequestName =
   | "deferredPrompt.dismiss"
   | "deferredPrompt.discardTab"
   | "deferredPrompt.flush"
+  // Tombstones. `file`, `get` and `resolve` no longer do anything, but they
+  // stay NAMED so the registry answers them with an explicit refusal instead
+  // of the generic `unknown daemon request` — see RETIRED_DEFERRED_PROMPT_RPCS
+  // in handlers-deferred.ts for why the generic error misroutes the recovery.
+  | "deferredPrompt.file"
+  | "deferredPrompt.get"
+  | "deferredPrompt.resolve"
 
 /**
  * Verbs whose CONTRACT is to block, so the client must not put a wedge

@@ -1,9 +1,9 @@
 /**
  * Deferred-prompt RPC handlers. The delivery gate ran in a
  * kobe (CLI) process and found the target composer busy; it calls
- * `deferredPrompt.file` to hand ownership to the daemon, which stores the text
- * and records a `prompt_deferred` inbox episode. Release and bulk flush both
- * claim the record, persist a no-redelivery marker, then attempt exact-tab
+ * `deferredPrompt.fileIfVacant` to hand ownership to the daemon, which stores
+ * the text and records a `prompt_deferred` inbox episode. Release and bulk flush
+ * both claim the record, persist a no-redelivery marker, then attempt exact-tab
  * delivery and clean up the Inbox pointer.
  */
 
@@ -17,6 +17,7 @@ import {
 } from "./deferred-prompts-store.ts"
 import { optionalString, requireString } from "./handler-validators.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
+import type { DaemonRequestName } from "./protocol.ts"
 
 type DeferredPromptInput = Omit<DeferredPromptRecord, "id" | "at"> & {
   readonly at: number
@@ -323,6 +324,41 @@ async function flushDeferredPrompts(ctx: DaemonHandlerContext): Promise<{
   return report
 }
 
+/**
+ * `deferredPrompt.file` / `.get` / `.resolve` did real work once; nothing
+ * calls them now. They stay in the registry as REFUSALS rather than being
+ * deleted outright, because dropping a name is not a neutral act here: the
+ * only caller left is a client OLDER than this daemon — a pre-`fileIfVacant`
+ * CLI still filing through `.file`, or a TUI that read a record with `.get`
+ * before the daemon restarted under it — and the registry's generic
+ * `unknown daemon request: …` sends exactly that caller the wrong way. Every
+ * client maps that string to `DAEMON_VERSION_SKEW`, whose recovery is
+ * "restart the daemon"; the daemon is the current half, so restarting it
+ * changes nothing and the skew survives the fix.
+ *
+ * The recovery therefore has to ride the MESSAGE. An old client shapes errors
+ * with its own frozen code, so a structured `hint`/`nextCommandArgs` added on
+ * this end never reaches it; the `CODE: ` prefix is the one structured field a
+ * daemon error carries across the wire at all (`splitDaemonCode` in
+ * `cli/api/types.ts`), and the prose after it is what a human or an agent
+ * actually reads.
+ *
+ * `.get`/`.resolve` are refusals for a second reason that predates this: a
+ * pre-claim client can race the daemon flusher after reading the text and
+ * paste the same record twice. `.get` already threw for that. Restoring the
+ * verb restores the refusal, never the read.
+ */
+function retiredDeferredPromptRpc(name: DaemonRequestName, replacement: string): DaemonRequestHandler {
+  return {
+    name,
+    handle() {
+      throw new Error(
+        `RETIRED_RPC: ${name} is gone; use ${replacement}. This client is an older build than the daemon — restart Rove to update the client (restarting the daemon will not help).`,
+      )
+    },
+  }
+}
+
 export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     // Socket-only: not on the pinned web allowlist. Keeping the file/release
@@ -413,4 +449,7 @@ export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
       return await flushDeferredPrompts(ctx)
     },
   },
+  retiredDeferredPromptRpc("deferredPrompt.file", "deferredPrompt.fileIfVacant"),
+  retiredDeferredPromptRpc("deferredPrompt.get", "deferredPrompt.release"),
+  retiredDeferredPromptRpc("deferredPrompt.resolve", "deferredPrompt.release"),
 ]

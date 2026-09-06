@@ -399,6 +399,29 @@ describe("deferredPrompt RPC handlers", () => {
     expect(rec.inboxDeleted).toContainEqual({ taskId: TASK.id, tabId: "tab-2" })
   })
 
+  it("refuses the retired file/get/resolve verbs by name instead of falling through to the registry", async () => {
+    const { ctx } = await ctxWithStore()
+    // The failure mode this pins is a SILENT downgrade in advice quality:
+    // deleting the names outright makes the registry answer
+    // `unknown daemon request: …`, which every client maps to
+    // DAEMON_VERSION_SKEW → "restart the daemon". The only caller left is a
+    // client older than the daemon, so that recovery is the wrong half and
+    // the skew survives it. Each refusal therefore has to name the live verb
+    // and say which side is stale — the `CODE: ` prefix is the one structured
+    // field a daemon error carries across the wire.
+    const cases = [
+      ["deferredPrompt.file", "deferredPrompt.fileIfVacant"],
+      ["deferredPrompt.get", "deferredPrompt.release"],
+      ["deferredPrompt.resolve", "deferredPrompt.release"],
+    ] as const
+    for (const [retired, replacement] of cases) {
+      await expect(dispatch(retired, { id: "rec-1" }, ctx), retired).rejects.toThrow(
+        `RETIRED_RPC: ${retired} is gone; use ${replacement}. This client is an older build than the daemon — restart Rove to update the client (restarting the daemon will not help).`,
+      )
+      await expect(dispatch(retired, { id: "rec-1" }, ctx), retired).rejects.not.toThrow(/unknown daemon request/)
+    }
+  })
+
   it("does not discard a newer deferred prompt for a stale Inbox dismissal", async () => {
     const { ctx, store } = await ctxWithStore()
     const now = Date.now()
