@@ -145,9 +145,14 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 `ctrl+a` `i` opens it. The Inbox answers two questions, *what needs me?* and
 *where was I?*, with one section for each:
 
-- **ATTENTION.** Pending items, oldest first. An item appears when a turn
+- **ATTENTION.** Pending items, blocked ones first. An item appears when a turn
   completes, a session asks for input, hits a rate limit, errors, or when the
-  engine process exits. Most items target one task-and-tab; events without a
+  engine process exits. Everything that is *stopped until you act* — a
+  permission prompt, a rate limit, an error, a dead engine, a held or expired
+  prompt, a failing routine — sorts ahead of plain finished turns, and within
+  each of those two groups the oldest is first. A completed turn is the only
+  item nobody is waiting on, so it never queues in front of an agent that
+  cannot move. Most items target one task-and-tab; events without a
   tab identity target the whole task instead. A newer event for the same
   target replaces the older one, and starting a new turn clears it.
   A rate-limited item also names when its automatic resume is due
@@ -172,7 +177,8 @@ keystroke would set aside work somebody sent. You rarely need `d`: **visiting
 a target clears its item anyway**, since visiting any tab resolves a task-level episode, and stale items
 whose tab or task is gone get cleaned up in the background.
 
-`F7` jumps straight to the oldest pending item across **all** projects,
+`F7` jumps straight to the first pending item across **all** projects — the
+oldest blocked one, or the oldest finished turn when nothing is blocked —
 without opening the Inbox, and cycles on repeated presses. It works even
 while you're typing inside an engine session. With nothing pending it just
 says so.
