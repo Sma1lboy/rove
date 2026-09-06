@@ -88,13 +88,20 @@ export async function add(ctx: VerbContext): Promise<unknown> {
       helpStep("add"),
     )
   }
+  const count = args.int("count")
+  const agentsSpec = args.str("agents")
+  const parallel = count !== undefined || agentsSpec !== undefined
   // `--branch` was type-checked and passed straight through, so an unusable
   // name landed in the store and `add` still exited 0. The failure surfaced
   // at `ensure-worktree` as a raw `git worktree add` transcript under
   // `RPC_ERROR` — no code naming the cause, no hint, and a backlog row left
   // behind that can never materialize. git is asked here, before anything is
   // created, because git is what runs `worktree add -b` later.
-  const branch = args.str("branch")
+  //
+  // Skipped for a parallel round, which refuses `--branch` outright further
+  // down: siblings cannot share one branch, and "you cannot pass this flag
+  // here at all" is the more useful answer than "this name is malformed".
+  const branch = parallel ? undefined : args.str("branch")
   if (branch && !(await runtime.isValidBranchName(branch))) {
     throw new ApiError(
       `--branch ${JSON.stringify(branch)} is not a valid git branch name (no spaces, no leading "-", no "..", "~^:?*[\\", no trailing ".lock") — see \`git check-ref-format --branch\``,
@@ -102,8 +109,6 @@ export async function add(ctx: VerbContext): Promise<unknown> {
       helpStep("add"),
     )
   }
-  const count = args.int("count")
-  const agentsSpec = args.str("agents")
   // A `--repo` pointing at a SUBDIRECTORY resolves up to the repo root, and
   // said nothing about it: `--repo my-repo/packages/app/src` came back as
   // `"repo": "…/my-repo"` with no trace of the four levels it climbed, so a
@@ -117,8 +122,7 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   // A symlink rewrite is not a prefix of the path it rewrote; a climbed-out-of
   // subdirectory always is.
   const resolvedFrom = requestedRepo.startsWith(`${repo}/`) ? { repoResolvedFrom: requestedRepo } : undefined
-  const result =
-    count !== undefined || agentsSpec ? await addParallel(ctx, repo, count, agentsSpec) : await addOne(ctx, repo)
+  const result = parallel ? await addParallel(ctx, repo, count, agentsSpec) : await addOne(ctx, repo)
   return resolvedFrom && result && typeof result === "object" ? { ...result, ...resolvedFrom } : result
 }
 

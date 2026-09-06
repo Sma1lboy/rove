@@ -77,6 +77,21 @@ describe("add handler", () => {
     expect(client.requestNames).toEqual([])
   })
 
+  it("leaves a parallel round's --branch refusal to the parallel path", async () => {
+    // `--count` rejects `--branch` outright (siblings cannot share one
+    // branch), and that is the more useful answer than "this name is
+    // malformed" — so the name check must not get there first and shadow it.
+    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
+    await expectApiError(
+      () =>
+        invokeVerb("add", ["--repo", "/repo/x", "--count", "3", "--prompt", "p", "--branch", "a b"], {
+          client,
+          runtime: stubRuntime({ isValidBranchName: async () => false }),
+        }),
+      "BAD_FLAG",
+    )
+  })
+
   it("still accepts a branch name git allows", async () => {
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
     await invokeVerb("add", ["--repo", "/repo/x", "--branch", "feat/ok"], { client, runtime: stubRuntime() })
