@@ -6,9 +6,6 @@
  * `handlers-worktree.ts` — the registry is grouped by RPC-name prefix — and
  * because the work itself (two `gh` spawns) lives in `pr-failing-checks.ts`,
  * leaving only the task lookup here.
- *
- * Not web-exposed: it shells `gh` in a worktree on this machine, and the web
- * allowlist is a security contract, not a convenience list.
  */
 
 import { requireString } from "./handler-validators.ts"
