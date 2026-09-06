@@ -62,7 +62,9 @@ export interface PtySessionEndInfo {
   readonly key: string
   readonly pid: number | null
   readonly exit: PtySessionExit
-  /** Raw tail of the ring at exit time (ANSI included; consumers strip). */
+  /** Raw tail of the ring at exit time. Still carries escapes and control
+   *  bytes: `terminal-rows.ts` is the one stripper, and the exit store runs
+   *  it (`plainTail`) before anything persists or renders this. */
   readonly tail: string
 }
 

@@ -28,7 +28,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
 import { defaultPtyExitsPath } from "./paths.ts"
 import type { PtySessionEndInfo } from "./pty-observability.ts"
-import { terminalRows } from "./terminal-rows.ts"
+import { stripTerminalControls, terminalRows } from "./terminal-rows.ts"
 
 /**
  * Which process died. `pty` is the session's own child (the shell wrapper);
@@ -131,6 +131,27 @@ export interface PtyExitStoreRead {
 }
 
 /**
+ * Strip control bytes from tails ALREADY ON DISK.
+ *
+ * `plainTail` only ever stripped the escape grammar it knew, so every store
+ * written before {@link stripTerminalControls} covered bare C0 holds raw BELs
+ * and backspaces — and a record survives up to {@link MAX_RECORDS} newer
+ * deaths. Fixing the writer alone leaves those shipping out of `get-task` for
+ * as long as they live, so heal on the way out too; the prune-and-rewrite in
+ * {@link writeRecord} then persists the clean form.
+ */
+function healTails(records: Record<string, PtyExitRecord>): Record<string, PtyExitRecord> {
+  const out: Record<string, PtyExitRecord> = {}
+  for (const [key, record] of Object.entries(records)) {
+    const tail = record?.tail
+    out[key] = Array.isArray(tail)
+      ? { ...record, tail: tail.map((line) => stripTerminalControls(String(line))) }
+      : record
+  }
+  return out
+}
+
+/**
  * All records keyed by store key, plus WHY the read came back the way it did.
  *
  * "No records" and "could not read" are different facts, and the callers that
@@ -153,7 +174,7 @@ export function readPtyExitStore(path = defaultPtyExitsPath()): PtyExitStoreRead
   try {
     const parsed: unknown = JSON.parse(raw)
     if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return read("unparsable")
-    return read("ok", parsed as Record<string, PtyExitRecord>)
+    return read("ok", healTails(parsed as Record<string, PtyExitRecord>))
   } catch {
     return read("unparsable")
   }

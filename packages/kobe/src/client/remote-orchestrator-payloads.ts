@@ -128,9 +128,15 @@ export function describePayload(value: unknown): string {
  */
 export function decodeUiPrefsPayload(payload: unknown): UiPrefsPayload | null {
   const p = payload as Partial<UiPrefsPayload> | undefined
-  if (typeof p?.theme !== "string") return null
+  // `theme` stays the marker KEY — every daemon that speaks this channel sends
+  // it — but its VALUE is nullable now: `state.json` may name no selection, and
+  // the daemon has no theme registry to invent one. A null theme means "keep
+  // the theme this pane already has"; dropping the whole payload for it would
+  // take transparency, locale and sort mode down with it.
+  if (!p || typeof p !== "object" || !("theme" in p)) return null
+  if (p.theme !== null && typeof p.theme !== "string") return null
   return {
-    theme: p.theme,
+    theme: typeof p.theme === "string" && p.theme.length > 0 ? p.theme : null,
     transparentBackground: p.transparentBackground !== false,
     focusAccent: typeof p.focusAccent === "string" ? p.focusAccent : null,
     locale: typeof p.locale === "string" ? p.locale : "",

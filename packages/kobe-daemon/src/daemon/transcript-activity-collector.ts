@@ -142,7 +142,10 @@ export async function runTranscriptActivity(
  * A task with no vendor normalizes to {@link DEFAULT_TASK_VENDOR}. Pure —
  * unit-tested.
  */
-export function trackedWorktrees(tasks: readonly Task[], defaultVendor: VendorId = "claude"): Map<string, VendorId> {
+/** `defaultVendor` is required: the literal `"claude"` default it replaced
+ *  was dead (the runtime adapter injects kobe's `DEFAULT_TASK_VENDOR`) and
+ *  would silently have diverged from that constant. */
+export function trackedWorktrees(tasks: readonly Task[], defaultVendor: VendorId): Map<string, VendorId> {
   const map = new Map<string, VendorId>()
   for (const task of tasks) {
     if (!task.worktreePath) continue
@@ -177,7 +180,9 @@ export interface TranscriptActivityCollectorOptions {
    */
   readonly hasSubscribers?: () => boolean
   readonly createDetector?: (vendor: VendorId) => EngineTurnDetector
-  readonly defaultVendor?: VendorId
+  /** Vendor for a task that names none. Required — kobe owns the real value
+   *  (`DEFAULT_TASK_VENDOR`) and injects it through the runtime adapter. */
+  readonly defaultVendor: VendorId
 }
 
 /**
@@ -195,7 +200,7 @@ export class TranscriptActivityCollector {
   constructor(
     private readonly orch: TaskLister,
     private readonly bus: DaemonEventBus,
-    private readonly options: TranscriptActivityCollectorOptions = {},
+    private readonly options: TranscriptActivityCollectorOptions,
   ) {}
 
   tick(): void {

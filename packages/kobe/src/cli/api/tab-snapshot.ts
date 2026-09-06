@@ -110,6 +110,9 @@ export interface TaskSessionRow {
   readonly key: string
   readonly alive?: boolean
   readonly exit?: PtySessionExit | null
+  /** Spawn argv, as `pty.list` reports it. Absent rows simply fail the argv
+   *  half of the engine-tab judgement; they never fail the label half. */
+  readonly command?: readonly string[]
 }
 
 /** The task's persisted `terminalTabs.<taskId>` snapshot; undefined when absent/malformed/unreadable. */
@@ -341,33 +344,6 @@ function engineAliveOf(
   if (isAlive === null) return null
   if (!isAlive) return false
   return engineAlive?.has(key) === true ? (engineAlive.get(key) ?? null) : null
-}
-
-/**
- * A task is RUNNING when ANY of its engine tabs has a live hosted session
- * WITH AN ENGINE IN IT — not just the canonical first one, and not merely a
- * live PTY. The old `tab-1`-only rule reported `running:false` while later
- * engine tabs (`send --tab new`, a TUI tab opened after tab-1 closed) were
- * happily alive. The `tab-1` key stays as a snapshot-free floor: it is
- * always an engine tab by construction (`initialTabs`), so it counts even
- * when the snapshot write failed. Non-engine tabs (command/content) never
- * count — same rule delivery uses.
- *
- * `engineAlive` is the process half. Session liveness alone answered `true`
- * for a task whose engine had been reaped hours earlier, because keepAlive
- * keeps the PTY. A tab nothing could walk (`null`) still counts as running:
- * "couldn't look" must never read as stopped.
- */
-export function hasLiveEngineTab(
-  snapshot: TabsState | undefined,
-  taskId: string,
-  sessions: readonly TaskSessionRow[],
-  engineAlive?: ReadonlyMap<string, boolean>,
-): boolean {
-  const alive = aliveKeysOf(sessions)
-  const counts = (key: string): boolean => alive.has(key) && engineAlive?.get(key) !== false
-  if (counts(`${taskId}::tab-1`)) return true
-  return (snapshot?.tabs ?? []).some((t) => t.kind === "engine" && counts(`${taskId}::${t.id}`))
 }
 
 /**

@@ -31,13 +31,13 @@ import { restoredTabLaunch } from "./tab-respawn.ts"
 import {
   type TaskSessionRow,
   closeTabsSnapshot,
-  hasLiveEngineTab,
   joinTaskTabs,
   markCliTabSession,
   mintCliTab,
   publishCliTabSnapshot,
   readTabsSnapshot,
 } from "./tab-snapshot.ts"
+import { hasLiveEngineTab } from "./task-running.ts"
 import {
   ApiError,
   type ApiRuntime,
@@ -384,7 +384,7 @@ export const defaultApiRuntime: ApiRuntime = {
         const sessionId = sessionIds.get(row.id)
         return sessionId ? { ...row, sessionId } : row
       }),
-      running: hostReachable ? hasLiveEngineTab(snapshot, taskId, sessions, engineAlive) : null,
+      running: hostReachable ? hasLiveEngineTab(snapshot, taskId, sessions, engineAlive, engineArgv?.[0]) : null,
     }
   },
   closeTerminalTab: closeHeadlessTerminalTab,
