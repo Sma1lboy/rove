@@ -8,6 +8,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join, relative } from "node:path"
+import { OWNER_ONLY_FILE_MODE } from "../daemon/owner-only.ts"
 import { legacyPluginsRootDir, pluginRegistryPath, pluginsRootDir } from "./plugin-paths.ts"
 
 export interface PluginRegistryEntry {
@@ -83,7 +84,7 @@ export function savePluginRegistry(registry: PluginRegistry, homeDir?: string): 
   const path = pluginRegistryPath(homeDir)
   mkdirSync(dirname(path), { recursive: true })
   // 0600: the registry names every installed plugin and its checkout path.
-  writeFileSync(path, `${JSON.stringify(registry, null, 2)}\n`, { mode: 0o600 })
+  writeFileSync(path, `${JSON.stringify(registry, null, 2)}\n`, { mode: OWNER_ONLY_FILE_MODE })
 }
 
 /** Insert or replace the entry with the same id. */

@@ -22,13 +22,14 @@
  */
 
 import { readFileSync } from "node:fs"
-import { mkdir, unlink, writeFile } from "node:fs/promises"
+import { mkdir, unlink } from "node:fs/promises"
 import { type Server, type Socket, createServer } from "node:net"
 import { dirname } from "node:path"
 import { ClientWriter } from "./client-writer.ts"
 import { linkLegacyRuntimePath } from "./compat-link.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { objectPayload, requireString } from "./handler-validators.ts"
+import { writeTextAtomic } from "./json-file.ts"
 import { LineReceiver } from "./line-receiver.ts"
 import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
 import {
@@ -458,7 +459,8 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
   // same post-listen chmod — `listen()` applies the umask, so an unchmod'd
   // node lands world-connectable.
   await listenOnUnixSocket(server, socketPath)
-  await writeFile(pidPath, `${process.pid}\n`, "utf8")
+  // tmp+rename: a torn pidfile is EMPTY, and empty parses as pid 0.
+  await writeTextAtomic(pidPath, `${process.pid}\n`)
   // Same reason as the daemon's: a pre-rename TUI that can't see this host
   // starts a SECOND one, and the engine tabs split across the pair.
   if (!pipeSocket) {

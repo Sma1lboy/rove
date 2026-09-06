@@ -4,7 +4,7 @@
  * surface: hello / daemon.status / daemon.stop + handlers.ts + subscribe.
  */
 
-import { mkdir, unlink, writeFile } from "node:fs/promises"
+import { mkdir, unlink } from "node:fs/promises"
 import { type Server, createServer } from "node:net"
 import { dirname } from "node:path"
 import { ptyHostHasLiveSessions, sweepPtyHostSessions } from "../client/pty-process.ts"
@@ -27,6 +27,7 @@ import {
 } from "./handlers.ts"
 import { acquireHomeClaim } from "./home-owner.ts"
 import { IssuesStore, defaultIssuesStorePath } from "./issues-store.ts"
+import { writeTextAtomic } from "./json-file.ts"
 import { DaemonLifetime, FIRST_GUI_GRACE_MS, resolveIdleGraceMs } from "./lifetime.ts"
 import { LineReceiver } from "./line-receiver.ts"
 import { NotesStore, defaultNotesStorePath } from "./notes-store.ts"
@@ -441,7 +442,8 @@ async function startOwnedServer(
   // arm is a window in which a usurper can unlink+rebind the path; arming
   // late meant either no stamp at all or a stamp of the usurper's inode.
   await sockGuard.arm()
-  await writeFile(pidPath, `${process.pid}\n`, "utf8")
+  // tmp+rename: a torn pidfile is EMPTY, and empty parses as pid 0.
+  await writeTextAtomic(pidPath, `${process.pid}\n`)
   // A pre-rename binary only knows `.kobe`; without these it starts a second
   // daemon on the same task index. See compat-link.ts.
   await linkLegacyRuntimePath(socketPath, legacyDaemonSocketPath(homeDir))

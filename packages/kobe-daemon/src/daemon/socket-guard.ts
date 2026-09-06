@@ -63,10 +63,6 @@ export async function listenOnUnixSocket(server: Server, socketPath: string): Pr
   if (!isWindowsPipePath(socketPath)) await tightenFilePermissions(socketPath)
 }
 
-/** The mode a bound socket is left at — exported so a test can assert the
- *  intent rather than restate the octal. */
-export const SOCKET_MODE = OWNER_ONLY_FILE_MODE
-
 /**
  * Whether a process exists. `process.kill(pid, 0)` sends no signal — it only
  * runs the permission/existence check — so it answers in three ways:
@@ -93,11 +89,24 @@ export function isProcessAlive(pid: number): boolean {
   }
 }
 
+/**
+ * The pid in `pidPath`, or `null` when the file cannot be trusted.
+ *
+ * `Number("")` is `0`, so a pidfile truncated mid-write parses as pid `0` —
+ * the value {@link isProcessAlive} guards against precisely because
+ * `kill(0, …)` targets the caller's own process group. This is the second
+ * layer: the predicate stops the signal, and this stops the bad pid from
+ * being carried any further, so a torn pidfile reads as "no pidfile" rather
+ * than as pid `0` in `stopDaemonProcess`'s reported result.
+ *
+ * Neither layer is the root fix. That is writing the file with tmp+rename
+ * (see `writeTextAtomic`) so a torn pidfile stops being produced at all.
+ */
 export async function readPidFile(pidPath: string): Promise<number | null> {
   try {
     const raw = await readFile(pidPath, "utf8")
     const pid = Number(raw.trim())
-    return Number.isFinite(pid) ? pid : null
+    return Number.isInteger(pid) && pid > 1 ? pid : null
   } catch {
     return null
   }

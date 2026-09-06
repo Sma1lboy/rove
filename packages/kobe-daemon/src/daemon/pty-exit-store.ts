@@ -26,6 +26,7 @@
 import { randomUUID } from "node:crypto"
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
+import { OWNER_ONLY_FILE_MODE } from "./owner-only.ts"
 import { defaultPtyExitsPath } from "./paths.ts"
 import type { PtySessionEndInfo } from "./pty-observability.ts"
 import { stripTerminalControls, terminalRows } from "./terminal-rows.ts"
@@ -299,6 +300,9 @@ function writeRecord(storeKey: string, record: PtyExitRecord, path: string): voi
   const tmp = `${path}.tmp-${process.pid}-${randomUUID()}`
   // 0600: every record carries `plainTail` — the dying process's last output,
   // same class of content as the scrollback in pty-freeze-store.
-  writeFileSync(tmp, JSON.stringify(Object.fromEntries(newest), null, 2), { encoding: "utf8", mode: 0o600 })
+  writeFileSync(tmp, JSON.stringify(Object.fromEntries(newest), null, 2), {
+    encoding: "utf8",
+    mode: OWNER_ONLY_FILE_MODE,
+  })
   renameSync(tmp, path)
 }

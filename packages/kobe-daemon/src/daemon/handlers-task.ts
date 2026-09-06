@@ -87,11 +87,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.observeLanguage",
-    // NOT web-exposed: the only callers are Rove's own creation paths (CLI
-    // add, daemon automation/work-item start), which reach the daemon over
-    // the socket. The browser has no reason to write another task's
-    // observed language, and the web allowlist is a security contract —
-    // adding to it should be a deliberate act, not a reflex.
     async handle(payload, ctx) {
       // Observation, not configuration: the caller hands over the user's own
       // prompt text and the orchestrator decides what (if anything) it says
@@ -352,12 +347,12 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    // NOT web-exposed. Two writers, both on a path where the prompt is already
-    // on its way to an engine: the CLI `add` path records the brief AFTER
-    // delivery confirms, and the TUI's "Run again" copies a task's existing
-    // brief onto the fork it just created for it. The field means "this is the
-    // prompt the engine was given" in both cases — an agent reading `get-task`
-    // never sees a brief that was merely composed.
+    // Two writers, both on a path where the prompt is already on its way to
+    // an engine: the CLI `add` path records the brief AFTER delivery
+    // confirms, and the TUI's "Run again" copies a task's existing brief onto
+    // the fork it just created for it. The field means "this is the prompt
+    // the engine was given" in both cases — an agent reading `get-task` never
+    // sees a brief that was merely composed.
     name: "task.setPrompt",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
