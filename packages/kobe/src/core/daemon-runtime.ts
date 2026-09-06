@@ -3,7 +3,7 @@
 import type { DaemonRuntimeAdapter } from "@sma1lboy/kobe-daemon/daemon/runtime"
 import { parseAheadBehind } from "@sma1lboy/kobe-daemon/daemon/worktree-changes-collector"
 import { availableEngineIds } from "../engine/account-detect.ts"
-import { engineProtocolKey } from "../engine/engine-presets.ts"
+import { engineProtocolKey, protocolEntry, sessionProtocol } from "../engine/engine-presets.ts"
 import { foregroundEngineIn, parsePsSnapshot, psSnapshot } from "../engine/foreground.ts"
 import { affectsActivityState, isEngineActivityKind } from "../engine/hook-events.ts"
 import { engineDisplayName, kobeApiInvocation } from "../engine/interactive-command.ts"
@@ -79,18 +79,24 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
     }
     return out
   },
-  titleTurnHint: engineTitleTurnHint,
+  // Protocol-keyed, like every other "how do we talk to it" read in this
+  // object: a `claudecpa` task's OSC title is claude's, and `registry.ts`
+  // stays state-free so it cannot resolve the preset itself. Keying off the
+  // raw id finds the empty custom entry, whose `terminalTitle` is undefined
+  // — `titleTurnHint` then answers null forever and the interrupt observer
+  // never sees working→rest on a wrapped tab.
+  titleTurnHint: (vendor, title) => engineTitleTurnHint(sessionProtocol(vendor), title),
   // Tier-(b) protocol sniff: the record upgrade for a generic
   // task identified by its live session, plus the preset write-back —
   // rules live with the sniffer.
   resolveProtocolUpgrade: resolveProtocolUpgradeAndLearnPreset,
   // Per-turn telemetry — delegated straight to the vendor's own
   // adapter; an engine without a turn reader simply reports none.
-  readEngineTurns: async (vendor, transcriptPath) => (await engineEntry(vendor).readTurns?.(transcriptPath)) ?? [],
+  readEngineTurns: async (vendor, transcriptPath) => (await protocolEntry(vendor).readTurns?.(transcriptPath)) ?? [],
   checkLatestVersion,
   latestTranscriptMtime,
   deriveTitleFromSession,
-  createEngineTurnDetector,
+  createEngineTurnDetector: (vendor) => createEngineTurnDetector(sessionProtocol(vendor)),
   async runWorktreeStatus(worktreePath, signal, baseRef) {
     const result = await spawnCapture("git", ["status", "--porcelain=v1"], {
       cwd: worktreePath,
@@ -155,7 +161,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   // when the adapter reported it; a missing field stays missing rather than
   // becoming a fabricated `0`.
   async readEngineContextUsage(vendor, sessionId) {
-    const read = engineEntry(vendor).history.readUsageSnapshot
+    const read = protocolEntry(vendor).history.readUsageSnapshot
     if (!read) return null
     const snapshot = await read(sessionId)
     if (snapshot?.context_tokens === undefined) return null

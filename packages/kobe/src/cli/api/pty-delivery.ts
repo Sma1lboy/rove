@@ -14,6 +14,7 @@
 
 import type { PtyOpenResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
+import { protocolEntry } from "../../engine/engine-presets.ts"
 import type { PsSnapshot } from "../../engine/foreground.ts"
 import {
   ComposerBusyError,
@@ -34,7 +35,6 @@ import {
   writeHostedPrompt,
   writeHostedPromptIfClear,
 } from "../../engine/hosted-session.ts"
-import { engineEntry } from "../../engine/registry.ts"
 import type { EngineScreenManifest } from "../../engine/screen-state.ts"
 import { enginePresence } from "../../engine/session-engine-presence.ts"
 import { type EngineSessionLaunch, initMarkerSaysFinished } from "../../engine/session-launch.ts"
@@ -362,8 +362,16 @@ export async function deliverHostedPrompt(
   }
 }
 
+/**
+ * The screen manifest the composer gate classifies with — the WRAPPED
+ * engine's, via {@link protocolEntry}. A screen manifest is protocol
+ * knowledge ("what does this engine's composer look like"), so keying it off
+ * the raw id would find the empty custom entry and leave the B-layer with
+ * nothing to classify: a `claudecpa` task would get no gate at all rather
+ * than a degraded one, and `send` would paste over half-typed text.
+ */
 export function resolveComposerManifest(vendor?: VendorId): EngineScreenManifest | undefined {
-  return vendor ? engineEntry(vendor).screenManifest : undefined
+  return vendor ? protocolEntry(vendor).screenManifest : undefined
 }
 
 /**
