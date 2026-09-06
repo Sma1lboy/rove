@@ -9,8 +9,10 @@
  * a home fixture it never used.
  */
 
+import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
 import { describe, expect, it } from "vitest"
 import { hasLiveEngineTab, joinTaskTabs } from "../../src/cli/api/tab-snapshot.ts"
+import { findHostedEngineKey } from "../../src/engine/hosted-session.ts"
 import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core.ts"
 
 describe("hasLiveEngineTab (the get-task/collect .running rule)", () => {
@@ -357,5 +359,56 @@ describe("joinTaskTabs", () => {
       })
       expect(rows[0]?.exit).toEqual({ ...ptyRecord, layer: "pty" })
     })
+  })
+})
+
+/**
+ * `send` and `.running` must not disagree about which tabs hold an engine.
+ * They used to: delivery walked the launch argv while `.running` read the
+ * persisted `kind` label, so a live session missing from the snapshot — the
+ * `unregistered` shape `joinTaskTabs` renders a row for — was a tab `send`
+ * delivered to on a task `get-task` reported as stopped.
+ */
+describe("the engine-tab judgement is shared with delivery", () => {
+  const shellLaunch = (inner: string): readonly string[] => ["/bin/zsh", "-ilc", inner]
+
+  const cases: ReadonlyArray<{ name: string; sessions: PtySessionInfo[]; snapshot?: TabsState }> = [
+    {
+      name: "an engine tab the snapshot never recorded",
+      sessions: [{ key: "t1::tab-4", alive: true, command: shellLaunch("exec claude --resume") }],
+      snapshot: undefined,
+    },
+    {
+      name: "a later engine tab, snapshot present but stale",
+      sessions: [
+        { key: "t1::tab-1", alive: false, command: shellLaunch("exec claude") },
+        { key: "t1::tab-7", alive: true, command: shellLaunch("exec codex") },
+      ],
+      snapshot: { tabs: [{ kind: "engine", id: "tab-1" }], activeId: "tab-1", nextOrdinal: 2 } as unknown as TabsState,
+    },
+  ] as unknown as ReadonlyArray<{ name: string; sessions: PtySessionInfo[]; snapshot?: TabsState }>
+
+  for (const { name, sessions, snapshot } of cases) {
+    it(`agrees on ${name}`, () => {
+      // The premise: delivery finds a target here.
+      expect(findHostedEngineKey(sessions, "t1")).not.toBeNull()
+      expect(hasLiveEngineTab(snapshot, "t1", sessions)).toBe(true)
+    })
+  }
+
+  it("still refuses a bare shell tab that neither half calls an engine", () => {
+    const sessions = [{ key: "t1::tab-3", alive: true, command: ["/bin/zsh", "-il"] }] as unknown as PtySessionInfo[]
+    expect(findHostedEngineKey(sessions, "t1")).toBeNull()
+    expect(hasLiveEngineTab(undefined, "t1", sessions)).toBe(false)
+  })
+
+  it("recognises a CUSTOM engine by the task's own launch binary", () => {
+    const sessions = [
+      { key: "t1::tab-2", alive: true, command: shellLaunch("exec /opt/my-wrapper.sh") },
+    ] as unknown as PtySessionInfo[]
+    // No vendor table names `my-wrapper.sh`, so both halves need the task's argv.
+    expect(hasLiveEngineTab(undefined, "t1", sessions)).toBe(false)
+    expect(hasLiveEngineTab(undefined, "t1", sessions, undefined, "my-wrapper.sh")).toBe(true)
+    expect(findHostedEngineKey(sessions, "t1", "my-wrapper.sh")).toBe("t1::tab-2")
   })
 })

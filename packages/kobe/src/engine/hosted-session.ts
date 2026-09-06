@@ -125,6 +125,24 @@ function builtinEngineBins(): string[] {
   }).filter((bin): bin is string => Boolean(bin))
 }
 
+/**
+ * Does this session's launch argv name an engine — the ONE argv judgement.
+ *
+ * Two callers ask it about the same sessions and must not disagree:
+ * {@link findHostedEngineKey} picks the tab `send` delivers to, and
+ * `hasLiveEngineTab` decides whether the task reports `running`. When those
+ * drift, `send` finds an engine on a task `get-task` calls stopped, and an
+ * unattended loop cleans up live work.
+ *
+ * `engineBin` is the task's OWN launch binary, which is how a custom engine
+ * (a wrapper script no vendor table names) is recognised at all.
+ */
+export function sessionArgvNamesEngine(command: readonly string[] | undefined, engineBin?: string): boolean {
+  if (!command || command.length === 0) return false
+  if (engineBin && commandHasEngineWord(command, engineBin)) return true
+  return builtinEngineBins().some((bin) => commandHasEngineWord(command, bin))
+}
+
 /** Trailing `tab-<n>` as a number, `Infinity` for a non-numeric tab id. */
 function tabOrder(key: string): number {
   const n = Number(/tab-(\d+)$/.exec(key)?.[1])
@@ -162,8 +180,7 @@ export function findHostedEngineKey(
     const byCommand = mine.find((s) => commandHasEngineWord(s.command, engineBin))
     if (byCommand) return byCommand.key
   }
-  const bins = builtinEngineBins()
-  return mine.find((s) => bins.some((bin) => commandHasEngineWord(s.command, bin)))?.key ?? null
+  return mine.find((s) => sessionArgvNamesEngine(s.command))?.key ?? null
 }
 
 /** Delay between bracketed paste and submit CR so the engine reads two tty events. */

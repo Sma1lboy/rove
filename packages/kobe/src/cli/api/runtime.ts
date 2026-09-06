@@ -384,7 +384,7 @@ export const defaultApiRuntime: ApiRuntime = {
         const sessionId = sessionIds.get(row.id)
         return sessionId ? { ...row, sessionId } : row
       }),
-      running: hostReachable ? hasLiveEngineTab(snapshot, taskId, sessions, engineAlive) : null,
+      running: hostReachable ? hasLiveEngineTab(snapshot, taskId, sessions, engineAlive, engineArgv?.[0]) : null,
     }
   },
   closeTerminalTab: closeHeadlessTerminalTab,

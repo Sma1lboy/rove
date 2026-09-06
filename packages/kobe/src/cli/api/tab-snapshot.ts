@@ -23,6 +23,7 @@
 
 import type { PtySessionExit } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
+import { isHostedTaskKey, sessionArgvNamesEngine } from "../../engine/hosted-session.ts"
 import { loadStateFile, patchStateFile, updateStateFile } from "../../state/store.ts"
 import { terminalTabsKey } from "../../tui-react/workspace/terminal-tabs-persist.ts"
 import {
@@ -110,6 +111,9 @@ export interface TaskSessionRow {
   readonly key: string
   readonly alive?: boolean
   readonly exit?: PtySessionExit | null
+  /** Spawn argv, as `pty.list` reports it. Absent rows simply fail the argv
+   *  half of the engine-tab judgement; they never fail the label half. */
+  readonly command?: readonly string[]
 }
 
 /** The task's persisted `terminalTabs.<taskId>` snapshot; undefined when absent/malformed/unreadable. */
@@ -353,6 +357,16 @@ function engineAliveOf(
  * when the snapshot write failed. Non-engine tabs (command/content) never
  * count — same rule delivery uses.
  *
+ * Which tabs those ARE is decided from the LIVE sessions, not from the
+ * snapshot alone. `kind: "engine"` is a persisted display label, and a live
+ * session the snapshot lost (the `unregistered` rows `joinTaskTabs` renders
+ * right beside this) carries no label at all — so a task whose only engine
+ * was unregistered read `running: false` while `send` delivered to it
+ * happily. {@link sessionArgvNamesEngine} is the other half, and it is the
+ * SAME judgement `findHostedEngineKey` uses to pick that delivery target.
+ * The label stays in the union because it is the only thing that recognises
+ * a custom engine whose wrapper script names no known binary.
+ *
  * `engineAlive` is the process half. Session liveness alone answered `true`
  * for a task whose engine had been reaped hours earlier, because keepAlive
  * keeps the PTY. A tab nothing could walk (`null`) still counts as running:
@@ -363,11 +377,18 @@ export function hasLiveEngineTab(
   taskId: string,
   sessions: readonly TaskSessionRow[],
   engineAlive?: ReadonlyMap<string, boolean>,
+  engineBin?: string,
 ): boolean {
-  const alive = aliveKeysOf(sessions)
-  const counts = (key: string): boolean => alive.has(key) && engineAlive?.get(key) !== false
-  if (counts(`${taskId}::tab-1`)) return true
-  return (snapshot?.tabs ?? []).some((t) => t.kind === "engine" && counts(`${taskId}::${t.id}`))
+  const labelled = new Set((snapshot?.tabs ?? []).filter((t) => t.kind === "engine").map((t) => t.id))
+  return sessions.some((s) => {
+    if (s.alive !== true || !isHostedTaskKey(s.key, taskId)) return false
+    if (engineAlive?.get(s.key) === false) return false
+    if (s.key === `${taskId}::tab-1`) return true
+    // A split leaf (`<task>::tab-2::leaf-2`) is not a tab id and matches
+    // neither half, which is the rule delivery already applies.
+    const tabId = s.key.slice(taskId.length + 2)
+    return labelled.has(tabId) || sessionArgvNamesEngine(s.command, engineBin)
+  })
 }
 
 /**
