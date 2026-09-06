@@ -30,7 +30,9 @@ const root = process.argv[2] ?? "packages/kobe/src/tui-react"
 function sources(dir) {
   const out = []
   for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry)
+    // POSIX separators regardless of host: GRANDFATHERED is keyed by "/"
+    // paths, and GitHub's `::error file=` annotation wants them too.
+    const path = join(dir, entry).replaceAll("\\", "/")
     if (statSync(path).isDirectory()) out.push(...sources(path))
     else if (/\.tsx?$/.test(entry)) out.push(path)
   }
