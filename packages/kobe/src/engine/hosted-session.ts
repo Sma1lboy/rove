@@ -14,7 +14,7 @@ import {
 } from "../state/delivery-guard.ts"
 import { readPersistedTerminalDefaultColors } from "../tui/lib/terminal-colors.ts"
 import { BUILTIN_VENDORS } from "../types/vendor.ts"
-import { isComposerEmpty } from "./composer-state.ts"
+import { readComposerState } from "./composer-state.ts"
 import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from "./foreground.ts"
 import { PASTE_READY_POLL_MS, PASTE_READY_TIMEOUT_MS, bracketedPasteActive, encodePaste } from "./paste-readiness.ts"
 import { engineEntry } from "./registry.ts"
@@ -192,6 +192,14 @@ export class ComposerBusyError extends Error {
   constructor(
     readonly layer: "recent-human-write" | "composer-not-empty",
     readonly key: string,
+    /**
+     * What the composer holds, when the screen read could name it. The
+     * refusal is otherwise unactionable — the caller knows only that
+     * SOMETHING is in the way, and has to scrape the pane itself to find out
+     * what. Absent for the `recent-human-write` layer, which measures time
+     * and never looks at the screen.
+     */
+    readonly composerPreview?: string,
   ) {
     super(`composer busy on ${key}: ${layer}`)
   }
@@ -228,11 +236,17 @@ function recentHumanWriteBlocks(
   return now - peek.lastHumanWriteMs < quiet
 }
 
-async function composerNonEmpty(peek: PtyPeekResult, manifest: EngineScreenManifest | undefined): Promise<boolean> {
-  if (!manifest?.composerEmpty || manifest.composerEmpty.length === 0) return false
+/** `null` = the composer is not in the way; otherwise what it holds (which
+ *  may itself be undefined when the read could not name the text). */
+async function composerBlockingText(
+  peek: PtyPeekResult,
+  manifest: EngineScreenManifest | undefined,
+): Promise<{ preview?: string } | null> {
+  if (!manifest?.composerEmpty || manifest.composerEmpty.length === 0) return null
   const bytes = Buffer.from(peek.data, "base64")
-  const empty = await isComposerEmpty(bytes, manifest)
-  return empty === false
+  const reading = await readComposerState(bytes, manifest)
+  if (reading.empty !== false) return null
+  return reading.preview === undefined ? {} : { preview: reading.preview }
 }
 
 async function assertComposerClear(peek: PtyPeekResult, key: string, opts?: HostedPromptDeliveryOpts): Promise<void> {
@@ -247,8 +261,9 @@ async function assertComposerClear(peek: PtyPeekResult, key: string, opts?: Host
     throw new ComposerBusyError("recent-human-write", key)
   }
   if (!layers.screen) return
-  if (await composerNonEmpty(peek, opts?.screenManifest)) {
-    throw new ComposerBusyError("composer-not-empty", key)
+  const blocking = await composerBlockingText(peek, opts?.screenManifest)
+  if (blocking) {
+    throw new ComposerBusyError("composer-not-empty", key, blocking.preview)
   }
 }
 

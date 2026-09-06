@@ -30,6 +30,15 @@ const COMPOSER_RENDER_COLS = 150
 const COMPOSER_RENDER_ROWS = 60
 /** Default trailing lines to inspect for the composer prompt. */
 const COMPOSER_BOTTOM_LINES = 3
+/**
+ * Cap on the text {@link readComposerState} hands back.
+ *
+ * The preview travels in an API error/deferral payload, so it is a hint for
+ * whoever got refused — not a transcript. A composer holding a pasted diff
+ * would otherwise put kilobytes of somebody else's half-written message into
+ * a JSON reply.
+ */
+const PREVIEW_MAX_CHARS = 200
 
 interface RenderedComposerLine {
   readonly text: string
@@ -93,6 +102,54 @@ function bottomRegion(capture: readonly RenderedComposerLine[], lines: number): 
  */
 type RuleOutcome = "empty" | "text" | "absent"
 
+/**
+ * What the composer holds, when a rule saw text in it.
+ *
+ * The anchor (`all`/`any`) IS the prompt glyph, so the text after its last
+ * occurrence on that line is the composer's own content — everything before
+ * it is furniture (a box edge, indentation). Trailing box-drawing cells are
+ * dropped for the same reason: they belong to the frame, not the message.
+ *
+ * Returns undefined rather than an empty string when nothing follows the
+ * glyph: a caller reads "no preview available", never "the composer holds
+ * nothing" — which would contradict the `text` outcome it rides with.
+ */
+function composerPreview(rule: ComposerEmptyRule, region: readonly RenderedComposerLine[]): string | undefined {
+  const anchors = [...(rule.all ?? []), ...(rule.any ?? [])]
+  if (anchors.length === 0) return undefined
+  // Bottom-up: the composer is the LAST anchored line on screen, and an
+  // engine that echoes its glyph in scrollback above would otherwise win.
+  for (let i = region.length - 1; i >= 0; i--) {
+    const text = region[i]?.text ?? ""
+    for (const anchor of anchors) {
+      const at = text.lastIndexOf(anchor)
+      if (at < 0) continue
+      const rest = text
+        .slice(at + anchor.length)
+        .replace(/[│┃╎|]+\s*$/u, "")
+        .trim()
+      if (rest.length === 0) continue
+      return rest.length > PREVIEW_MAX_CHARS ? `${rest.slice(0, PREVIEW_MAX_CHARS)}…` : rest
+    }
+  }
+  return undefined
+}
+
+/**
+ * What one screen read concluded about the composer.
+ *
+ * `preview` exists because "composer busy" without it is unactionable: the
+ * caller is told its prompt was refused and has to scrape the pane itself to
+ * find out what is sitting in the way. It is only ever set alongside
+ * `empty: false` — there is nothing to preview otherwise.
+ */
+export interface ComposerReading {
+  /** `true` empty, `false` holds text, `null` could not see the composer. */
+  readonly empty: boolean | null
+  /** The composer's own text, truncated — set only when `empty` is false. */
+  readonly preview?: string
+}
+
 function ruleOutcome(rule: ComposerEmptyRule, region: readonly RenderedComposerLine[]): RuleOutcome {
   const haystack = region
     .map((line) => line.text)
@@ -118,7 +175,7 @@ function ruleOutcome(rule: ComposerEmptyRule, region: readonly RenderedComposerL
 }
 
 /**
- * Determine whether the engine's composer is empty.
+ * Read the engine's composer: is it empty, and if not, what is in it.
  *
  * - `true`  = composer is empty (only prompt glyph + allowed decoration)
  * - `false` = the composer is on screen and holds text — fail-closed, do not
@@ -133,20 +190,27 @@ function ruleOutcome(rule: ComposerEmptyRule, region: readonly RenderedComposerL
  * not "assume text forever", which silently blocks every delivery to that
  * engine with no signal that anything is wrong.
  */
-export async function isComposerEmpty(
+export async function readComposerState(
   ringBytes: Uint8Array,
   manifest: EngineScreenManifest | undefined,
-): Promise<boolean | null> {
-  if (!manifest?.composerEmpty || manifest.composerEmpty.length === 0) return null
+): Promise<ComposerReading> {
+  if (!manifest?.composerEmpty || manifest.composerEmpty.length === 0) return { empty: null }
   const capture = await renderRing(ringBytes, COMPOSER_RENDER_COLS, COMPOSER_RENDER_ROWS)
   let sawComposer = false
+  let preview: string | undefined
   for (const rule of manifest.composerEmpty) {
     const region = bottomRegion(capture, rule.bottomLines ?? COMPOSER_BOTTOM_LINES)
     if (region.length === 0) continue
     const outcome = ruleOutcome(rule, region)
-    if (outcome === "empty") return true
-    if (outcome === "text") sawComposer = true
+    if (outcome === "empty") return { empty: true }
+    if (outcome !== "text") continue
+    sawComposer = true
+    // First rule that reads text and can name it wins. A later rule may match
+    // the same line (codex declares two), so this keeps one answer rather
+    // than the last one evaluated.
+    preview ??= composerPreview(rule, region)
   }
   // Some rule found the composer and read text in it; nobody found it empty.
-  return sawComposer ? false : null
+  if (!sawComposer) return { empty: null }
+  return preview === undefined ? { empty: false } : { empty: false, preview }
 }

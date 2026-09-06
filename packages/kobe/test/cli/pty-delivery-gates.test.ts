@@ -124,7 +124,13 @@ describe("deferral sink against an older daemon", () => {
       snapshot: psWith("claude"),
       defer: { defer: async () => ({ kind: "filed", id: "deferred-1" }) },
     })
-    expect(result.deferred).toEqual({ id: "deferred-1", layer: "composer-not-empty" })
+    // The preview rides the deferral: a caller told "composer busy" and
+    // nothing else has to scrape the pane to learn what is in the way.
+    expect(result.deferred).toEqual({
+      id: "deferred-1",
+      layer: "composer-not-empty",
+      composerPreview: "hello",
+    })
     expect(result.delivered).toBe(false)
   })
 

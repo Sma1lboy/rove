@@ -419,6 +419,9 @@ export async function deferOrThrow(
         id: deferred.id,
         layer: error.layer,
         ...(deferred.expiresAt !== undefined ? { expiresAt: deferred.expiresAt } : {}),
+        // Rides the RESPONSE only — never the stored deferral, the audit log,
+        // or the Inbox episode. See `DeliveredPrompt.deferred.composerPreview`.
+        ...(error.composerPreview !== undefined ? { composerPreview: error.composerPreview } : {}),
       },
     }
   }
@@ -429,6 +432,9 @@ function composerBusyApiError(error: ComposerBusyError, taskId: string, prompt: 
   const layerText = error.layer === "recent-human-write" ? "user was typing recently" : "composer has text"
   return new ApiError(`task ${taskId}'s composer is busy (${layerText})`, "COMPOSER_BUSY", {
     layer: error.layer,
+    // The one thing `layer` cannot say: WHAT is in the way. Response-only —
+    // the text is somebody's half-written message.
+    ...(error.composerPreview !== undefined ? { composerPreview: error.composerPreview } : {}),
     hint: "wait a moment and retry, or spawn a fresh engine tab with --tab new",
     nextCommandArgs: ["api", "send", "--task-id", taskId, "--prompt", prompt],
   })
