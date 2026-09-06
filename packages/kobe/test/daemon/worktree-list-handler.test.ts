@@ -23,6 +23,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
 import { addSavedRepo } from "../../src/state/repos.ts"
 
+/**
+ * The wire contract, spelled out rather than imported: the RPC layer rebuilds
+ * a thrown error as `new Error(message)`, so this prefix is all a caller across
+ * the daemon boundary ever sees. Importing the daemon-side constant would let a
+ * rename of both sides pass while every existing caller broke.
+ */
+const NOT_A_ROVE_WORKTREE = "NOT_A_ROVE_WORKTREE"
+
 const gitEnv = {
   ...process.env,
   GIT_AUTHOR_NAME: "t",
@@ -176,6 +184,74 @@ describe("worktree.remove", () => {
 
     await expect(
       dispatchDaemonRequest(createDaemonHandlerRegistry(), "worktree.remove", { path: wt }, ctx),
+    ).resolves.toEqual({ removed: true })
+    expect(existsSync(wt)).toBe(false)
+  })
+
+  /**
+   * `worktree.remove` is the only destructive path that addresses a worktree
+   * by PATH rather than by task id, and it was the only one that never asked
+   * what KIND of task owns it. A `dir` task's path is the user's own
+   * directory, a `main` task's is the project checkout — neither is a
+   * Rove-created worktree, and both can reach this handler because
+   * `worktree.list` enumerates every registered worktree of a saved project.
+   *
+   * The assertion is that the DIRECTORY survives, not just that the call
+   * threw: the pre-fix bug removed the files and then skipped the repair
+   * (`clearWorktreePath` early-returns for these two kinds), so the task was
+   * left pointing at a path that no longer existed.
+   */
+  function ctxWithTask(task: { id: string; worktreePath: string; kind?: string }): DaemonHandlerContext {
+    return {
+      runtime: { ...daemonRuntime, tearDownTaskSession: async () => {} },
+      orch: { listTasks: () => [task], clearWorktreePath: async () => {} },
+    } as unknown as DaemonHandlerContext
+  }
+
+  it("refuses to delete a dir task's own directory, and leaves it on disk", async () => {
+    const wt = join(root, "user-directory")
+    execSync(`git worktree add -b feature/dir-task ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })
+
+    await expect(
+      dispatchDaemonRequest(
+        createDaemonHandlerRegistry(),
+        "worktree.remove",
+        { path: wt },
+        ctxWithTask({ id: "task-dir", worktreePath: wt, kind: "dir" }),
+      ),
+    ).rejects.toThrow(new RegExp(`^${NOT_A_ROVE_WORKTREE}: `))
+    expect(existsSync(wt)).toBe(true)
+  })
+
+  it("refuses to delete a main task's project checkout, and leaves it on disk", async () => {
+    const wt = join(root, "project-checkout")
+    execSync(`git worktree add -b feature/main-task ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })
+
+    await expect(
+      dispatchDaemonRequest(
+        createDaemonHandlerRegistry(),
+        "worktree.remove",
+        { path: wt },
+        ctxWithTask({ id: "task-main", worktreePath: wt, kind: "main" }),
+      ),
+    ).rejects.toThrow(new RegExp(`^${NOT_A_ROVE_WORKTREE}: `))
+    expect(existsSync(wt)).toBe(true)
+  })
+
+  // Positive control: the guard reads `kind`, not "this path owns a task".
+  // Without this, a guard that refused every tracked worktree would pass the
+  // two tests above while breaking the handler's entire purpose.
+  it("still removes a managed task's worktree", async () => {
+    const wt = join(root, "managed-worktree")
+    execSync(`git worktree add -b feature/managed ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })
+
+    await expect(
+      dispatchDaemonRequest(
+        createDaemonHandlerRegistry(),
+        "worktree.remove",
+        { path: wt },
+        ctxWithTask({ id: "task-managed", worktreePath: wt, kind: "task" }),
+      ),
     ).resolves.toEqual({ removed: true })
     expect(existsSync(wt)).toBe(false)
   })

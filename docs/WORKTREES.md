@@ -105,9 +105,16 @@ The row disappears while removal runs. If git refuses or the operation fails,
 the row returns. A successful removal deregisters and removes the working
 directory but keeps its git branch.
 
-For a worktree tracked by a Task, Rove clears that Task's worktree pointer. It
-does not delete the Task, its branch, or engine history. Opening the Task later
-may materialize a fresh worktree from the retained branch.
+The page lists every registered worktree of a saved project, including
+directories Rove did not create. Two of those it refuses to delete
+(`NOT_A_ROVE_WORKTREE`): the directory a directory Task pins, and a project's
+own checkout. Both are yours, not Rove's, and neither can be re-materialized
+from a branch.
+
+For a **Rove-created** worktree tracked by a Task, Rove clears that Task's
+worktree pointer. It does not delete the Task, its branch, or engine history.
+Opening the Task later may materialize a fresh worktree from the retained
+branch.
 
 `rove api remove-worktree --task-id ID [--force]` is the same operation from a
 shell, for scripting a reclaim of idle checkouts. It runs this path — session
