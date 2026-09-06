@@ -347,6 +347,12 @@ activity hooks, no session resume — unless you declare
 `copilot`, `kimi`), which borrows that built-in's adapter for transcript
 reads and delivery. More in [Engines](./ENGINES.md).
 
+Settings → Engines asks for it while adding the engine — a list of the
+built-ins plus **None**, so the generic adapter is something you choose rather
+than something a typo leaves you with — and prints the answer under the engine's
+row afterwards. Changing it means removing the engine (`x`) and adding it again,
+or editing the key here by hand.
+
 ## Claude Code plugin
 
 Rove integrates with Claude Code through global activity hooks (so the

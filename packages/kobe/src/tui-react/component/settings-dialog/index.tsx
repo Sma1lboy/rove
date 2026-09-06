@@ -373,6 +373,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
               vendors={engines.engineList()}
               statuses={engineStatuses}
               isCustom={engines.isCustomEngine}
+              engineProtocol={engines.engineProtocol}
               isEnabled={engines.isEngineEnabled}
               toggleEngine={engines.toggleEngineEnabled}
               chooseDefault={engines.chooseDefaultEngine}
