@@ -17,7 +17,7 @@ import { canonPath, normalizeMainRepo, randomDirTaskSuffix, titleFromRepo } from
 import type { CreateTaskInput } from "./create-task-input.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import type { MainTaskCoordinator } from "./main-task.ts"
-import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
+import { PLACEHOLDER_TASK_TITLE, sanitizeTaskTitle } from "./title.ts"
 
 /** The store alone — all a directory/scratch row needs. */
 export interface StoreDeps {
@@ -66,7 +66,7 @@ export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): P
   // so pinning a user-owned directory is unaffected.
   const mainTask = await deps.mainTasks.ensureIfEligible(input.repo, input.projectIntent ?? "explicit")
   const repo = mainTask?.repo ?? normalizeMainRepo(input.repo).repo
-  const title = (input.title ?? PLACEHOLDER_TASK_TITLE).trim() || PLACEHOLDER_TASK_TITLE
+  const title = sanitizeTaskTitle(input.title ?? PLACEHOLDER_TASK_TITLE) || PLACEHOLDER_TASK_TITLE
   // Leave the branch EMPTY for a lazily-allocated task (unless the caller
   // gave an explicit one): {@link ensureWorktree} derives a repo-convention
   // name (branch-style.ts) with collision suffixes when the worktree
