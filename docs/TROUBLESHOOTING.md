@@ -76,6 +76,34 @@ Windows executable path.
 Remote-project password auth is not available on Windows; use `--key` or
 ssh-agent. Only macOS has the keychain integration used by `--password`.
 
+## Windows: `rove update` fails with `EBUSY` on `opentui.dll`
+
+```text
+npm error code EBUSY
+npm error syscall copyfile
+npm error path ...\node_modules\@sma1lboy\rove\node_modules\@opentui\core-win32-x64\opentui.dll
+npm error dest ...\node_modules\@sma1lboy\.rove-xsdjqHxL\node_modules\@opentui\core-win32-x64\opentui.dll
+```
+
+npm moves the old package to a sibling `.rove-<hash>` directory before it
+unpacks the new one, and deletes that copy afterwards. Windows refuses to
+delete a DLL a running process has mapped — `opentui.dll` in the TUI and the
+daemon, `conpty.node` in the PTY host — and a running Rove is the normal state
+during an update, so the delete fails, npm swallows it, and the directory stays
+behind with the mapped files inside. The hash is derived from the path, so the
+*next* update targets the same directory, finds it occupied, falls back to a
+file-by-file copy, and dies copying onto the DLL that is still mapped.
+
+Current update scripts sweep those leftovers before npm runs (deleting what
+can be deleted, and renaming the rest out of npm's way — Windows allows
+renaming a mapped file), so simply running `rove update` again on a current
+build is the fix. If it still reports `EBUSY`, something is holding files in
+the old install in a way the sweep cannot get past — almost always a running
+Rove. Quit the TUI, run `rove daemon stop`, and retry; engine sessions live in
+the PTY host and survive both. A `.rove-<hash>.stale-<n>` directory next to
+the package is that leftover, parked; it is removed by a later update once
+the old build has exited.
+
 ## The Windows screen looks scrambled, and stays that way
 
 Rows overlapping each other, fragments of a pane you already left, patches of
