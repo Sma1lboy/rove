@@ -26,6 +26,7 @@ import { ALL_VENDORS, isBuiltinVendor } from "../../../types/vendor"
 import type { KVContext } from "../../context/kv"
 import { t } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"
+import { EngineProtocolPickerDialog } from "../engine-protocol-picker-dialog"
 import { RenameTaskDialog } from "../rename-task-dialog"
 
 export function useEngineSettings(
@@ -105,6 +106,18 @@ export function useEngineSettings(
   }
   function engineNameIsCustom(vendor: VendorId): boolean {
     return engineNameOverride(vendor).length > 0
+  }
+  /**
+   * The built-in adapter a custom preset borrows, or `undefined` for the
+   * generic one. Read through the kv context rather than
+   * `engine-presets.getEngineProtocol` (which reads state.json directly), so
+   * a protocol written in this dialog is visible on the row without a
+   * reload — the same reason the zen keys are read here and not there.
+   */
+  function engineProtocol(vendor: VendorId): VendorId | undefined {
+    const raw = kv.get(engineProtocolKey(vendor), "")
+    const declared = typeof raw === "string" ? raw.trim() : ""
+    return declared && ENGINE_PROTOCOLS.includes(declared) ? declared : undefined
   }
   function engineName(vendor: VendorId): string {
     // Built-ins fall back to VENDOR_LABEL; contrib engines to their catalog
@@ -194,16 +207,12 @@ export function useEngineSettings(
     if (command === undefined) return
     // Declared ONCE, here: a custom engine is a named PRESET, and its
     // protocol is what makes every later `--command <id>` dispatch
-    // deterministic instead of sniffed. Blank = the generic
-    // protocol — the engine still launches, it just gets no transcript
-    // reader, trust pre-answer, or engine-specific delivery.
-    const protocol = await RenameTaskDialog.show(dialog, "", {
-      dialogTitle: t("settings.engines.addProtocolTitle", { id }),
-      fieldLabel: t("settings.field.protocol"),
-      submitLabel: t("settings.action.next"),
-      allowEmpty: true,
-      placeholder: ENGINE_PROTOCOLS.join(" / "),
-    })
+    // deterministic instead of sniffed. The generic choice is a ROW in the
+    // picker, not a blank field — the engine still launches, it just gets no
+    // transcript reader, trust pre-answer, or engine-specific delivery, and
+    // that has to be something you picked rather than something you mistyped.
+    const protocol = await EngineProtocolPickerDialog.show(dialog, { engineId: id })
+    if (protocol === undefined) return
     const name = await RenameTaskDialog.show(dialog, id, {
       dialogTitle: t("settings.engines.addStepTitle", { id }),
       fieldLabel: t("settings.field.name"),
@@ -212,8 +221,9 @@ export function useEngineSettings(
     })
     kv.set("customEngineIds", [...customEngines(), id])
     if (command.trim()) kv.set(engineCommandKey(id), command.trim())
-    const declared = protocol?.trim().toLowerCase() ?? ""
-    if (declared && ENGINE_PROTOCOLS.includes(declared)) kv.set(engineProtocolKey(id), declared)
+    // Still validated on the way in: the picker cannot offer a bogus value,
+    // but the key it writes is the one every later dispatch trusts.
+    if (protocol && ENGINE_PROTOCOLS.includes(protocol)) kv.set(engineProtocolKey(id), protocol)
     // A typed name wins; otherwise seed a humanized form so the chip reads
     // "My Local Agent", not "my-local-agent".
     const typedName = name?.trim() ?? ""
@@ -226,6 +236,7 @@ export function useEngineSettings(
     isEngineEnabled,
     toggleEngineEnabled,
     engineName,
+    engineProtocol,
     engineCommandText,
     engineIsDefault,
     defaultEngine,

@@ -381,7 +381,11 @@ left arrow to return to the section list, and `enter` to activate a row.
   engine's own CLI). On an engine row, `space` switches it on or off (off
   keeps its settings, it just stops being offered when picking an engine for
   a task), `enter` edits the launch command, `r` renames, `x` resets a
-  built-in or removes a custom engine, and `d` makes it the default.
+  built-in or removes a custom engine, and `d` makes it the default. An engine
+  you added yourself also shows the protocol it borrows — the built-in adapter
+  that gives it a transcript reader, account detection and resume, or `generic`
+  for none. You pick it when adding the engine; to change it later, `x` the
+  engine and add it again.
 - **Plugins** enables or disables registered plugins live and edits settings
   declared by their manifests. Install, update, link and remove plugins from
   the shell.
@@ -394,9 +398,8 @@ left arrow to return to the section list, and `enter` to activate a row.
   TUI window; other attached windows and hosted sessions remain connected. Use
   `rove daemon restart` from a shell when you need to restart the daemon itself.
 
-The current PureTUI always keeps the Tasks rail visible in zen mode. The
-legacy `zen.keepTasks` value and its Settings checkbox are retained in state
-but do not change this layout.
+Zen mode always keeps the Tasks rail visible — it carries the affordance for
+leaving zen. There is no setting for this.
 
 ## Starting sessions: the new-session dialog
 

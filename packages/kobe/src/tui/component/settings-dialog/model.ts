@@ -56,7 +56,6 @@ export type SettingsRow =
   | { id: "key-hints"; kind: "keyHints" }
   | { id: string; kind: "prefixTapPresentation"; presentation: PrefixTapPresentation }
   | { id: "zen-default-on"; kind: "zenDefaultOn" }
-  | { id: "zen-keep-tasks"; kind: "zenKeepTasks" }
   | { id: "editor-kind"; kind: "editorKind" }
   | { id: "editor-custom"; kind: "editorCustom" }
   | { id: "worktree-base"; kind: "worktreeBase" }
@@ -149,7 +148,6 @@ export function generalRows(input: Pick<SettingsRowsInput, "themeNames" | "focus
     { id: "cross-task", kind: "crossTask" },
     { id: "key-hints", kind: "keyHints" },
     { id: "zen-default-on", kind: "zenDefaultOn" },
-    { id: "zen-keep-tasks", kind: "zenKeepTasks" },
     { id: "editor-kind", kind: "editorKind" },
     { id: "editor-custom", kind: "editorCustom" },
     { id: "worktree-base", kind: "worktreeBase" },

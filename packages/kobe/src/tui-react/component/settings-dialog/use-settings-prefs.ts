@@ -40,7 +40,7 @@ import {
   normalizeWorktreeBase,
   worktreeBaseKindOf,
 } from "../../../state/worktree-base"
-import { ZEN_ACTIVE_KEY, ZEN_KEEP_TASKS_KEY } from "../../../state/zen"
+import { ZEN_ACTIVE_KEY } from "../../../state/zen"
 import {
   DEFAULT_EDITOR_KIND,
   EDITOR_CUSTOM_KEY,
@@ -107,14 +107,6 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onDeliver
   }
   function toggleZenDefaultOn(): void {
     kv.set(ZEN_ACTIVE_KEY, !zenDefaultOn())
-  }
-
-  // Zen mode: whether collapsing to the engine pane keeps the Tasks rail.
-  function zenKeepsTasks(): boolean {
-    return kv.get(ZEN_KEEP_TASKS_KEY, true) !== false
-  }
-  function toggleZenKeepsTasks(): void {
-    kv.set(ZEN_KEEP_TASKS_KEY, !zenKeepsTasks())
   }
 
   // Chat tab strip: never / only with 2+ tabs / always. Cycles rather than
@@ -309,8 +301,6 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onDeliver
     selectSplitStyle,
     zenDefaultOn,
     toggleZenDefaultOn,
-    zenKeepsTasks,
-    toggleZenKeepsTasks,
     remoteProjectsEnabled,
     toggleRemoteProjects,
     autoStatusOn,
