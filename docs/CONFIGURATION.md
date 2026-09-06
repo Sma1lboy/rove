@@ -23,6 +23,43 @@ while a pre-rename process is still live, and the plugin tree is *moved* into
 `~/.rove/` on the first new-daemon start, with a symlink left at the old
 path.
 
+### Runtime path overrides
+
+`ROVE_HOME_DIR` already decides where the daemon and the PTY host put their
+socket and pidfile, so most people never touch these. Four variables move one
+file each, for the case the home cannot cover: running a second Rove *beside*
+the one you use, without the two finding each other.
+
+| Variable | Moves |
+|---|---|
+| `ROVE_DAEMON_SOCKET_PATH` | The socket the daemon listens on, and clients connect to |
+| `ROVE_DAEMON_PID_PATH` | The daemon's pidfile (what `rove daemon stop` reads) |
+| `ROVE_PTY_SOCKET_PATH` | The PTY host's socket — a named pipe on Windows |
+| `ROVE_PTY_PID_PATH` | The PTY host's pidfile |
+
+Each has a `KOBE_`-prefixed fallback (`KOBE_DAEMON_SOCKET_PATH`, and so on);
+when both spellings are set, the `ROVE_` one wins. Unset ones stay derived
+from the home.
+
+Set them **as a group**, in the same command as `ROVE_HOME_DIR`. Isolating the
+home alone still leaves the two processes on the paths they were given, and a
+half-isolated instance either refuses to start (`already served by the daemon
+on …`) or, worse, drives the terminals of the instance you are using:
+
+```sh
+env ROVE_HOME_DIR=/tmp/scratch-home \
+    ROVE_DAEMON_SOCKET_PATH=/tmp/scratch-home/daemon.sock \
+    ROVE_DAEMON_PID_PATH=/tmp/scratch-home/daemon.pid \
+    ROVE_PTY_SOCKET_PATH=/tmp/scratch-home/pty.sock \
+    ROVE_PTY_PID_PATH=/tmp/scratch-home/pty.pid \
+    rove daemon restart
+```
+
+A socket path that is too long for the platform is shortened automatically; a
+pidfile path is used as given. See
+[Troubleshooting](TROUBLESHOOTING.md#rove-says-the-daemon-serves-a-different-home)
+for what a half-applied override looks like from the outside.
+
 ## Editing settings
 
 ```sh

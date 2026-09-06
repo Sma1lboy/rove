@@ -327,9 +327,12 @@ rove daemon restart
 ```
 
 If you intentionally use a custom home, re-export its `ROVE_HOME_DIR` before
-the restart instead of unsetting it. Do not point two homes at one daemon
-socket: the server refuses a live takeover, and clients reject the wrong
-owner.
+the restart instead of unsetting it — and, when you are deliberately running a
+second instance beside your usual one, re-export the whole group of socket and
+pidfile overrides with it (see [Runtime path
+overrides](CONFIGURATION.md#runtime-path-overrides)). Do not point two homes at
+one daemon socket: the server refuses a live takeover, and clients reject the
+wrong owner.
 
 ## Rove refuses to start a second daemon on one home
 

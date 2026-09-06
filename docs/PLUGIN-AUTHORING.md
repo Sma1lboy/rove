@@ -58,12 +58,14 @@ const ev = pluginEvent()      // typed event envelope (null outside [[events]])
 
 - `pluginContext()` / `pluginEvent()`: the env contract, typed.
 - `readSettings()` / `setting()`: your `[[settings]]` values from config `.env`.
-- `rove()` / `roveJson()` + `notify` / `dispatch` / `listTasks` / `openPane`:
-  `$ROVE_BIN_PATH` callbacks.
+- `rove()` / `roveJson()` + `notify` / `dispatch` / `listTasks` / `openPane` /
+  `promptUser`: `$ROVE_BIN_PATH` callbacks. `promptUser` pops the TUI's own
+  input dialog and returns `null` for every non-submit path.
 - `RoveSocket`: daemon socket client: `request(name, payload)` + live
   channel `subscribe` (always `role: "pane"`).
-- `Pane`: a tiny pane kit for `[[panes]]` pages: alt screen, raw-mode
-  keys, resize, absolute-addressed `draw(lines)`.
+- `Pane` + `parseKeys`: a tiny pane kit for `[[panes]]` pages: alt screen,
+  raw-mode keys, resize, absolute-addressed `draw(lines)`. `parseKeys` turns
+  one raw stdin chunk into key events, for a pane driving its own read loop.
 - `PLUGIN_EVENT_NAMES` / `DAEMON_CHANNELS`: the catalogs as typed unions.
   These are the SINGLE source: the daemon itself imports them from the
   SDK's `./contract` module, so host and SDK can't drift by construction.
