@@ -228,11 +228,17 @@ export interface EngineRegistryEntry {
    */
   readonly readTurns?: EngineTurnReader
   /**
-   * Declarative screen-state rules for engines WITHOUT persisted completion
-   * markers (see `engine/screen-state.ts`): the quiescence poll classifies
-   * each pane capture into working/blocked/idle instead of "unknown".
-   * Engines with markers don't declare one — the transcript is the better
-   * authority, and hooks supersede both (`turn-state-merge.ts`).
+   * Declarative screen-state rules (see `engine/screen-state.ts`): the
+   * quiescence poll classifies each pane capture into working/blocked/idle
+   * instead of publishing "unknown".
+   *
+   * It is the BOTTOM of a three-layer ladder — hooks > transcript markers >
+   * screen — not an alternative to the top two. Marker-carrying engines
+   * declare one too (claude and codex both do, `builtin-engines.ts`), because
+   * the layers cover different gaps: hooks need the user to trust them once,
+   * markers land only after a turn ends, and neither can see a modal the
+   * engine is currently blocked on. `turn-state-merge.ts` owns the precedence;
+   * `use-turn-polls.ts` passes this through when the entry has one.
    */
   readonly screenManifest?: EngineScreenManifest
 }

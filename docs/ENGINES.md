@@ -31,6 +31,13 @@ engine does, on its own launch command.
 **Claude Code is the default** and the most complete: its quota probe drives
 rate-limit auto-resume and the Settings usage dashboard.
 
+Codex has a quota probe too, and it works differently. There is no endpoint to
+call — the Codex CLI writes the server's `rate_limits` block into its rollout
+JSONL, so Rove reads the newest rollouts off disk. That makes it a snapshot of
+the last response Codex received: a window whose reset time has already passed
+is dropped, and an account that hasn't run Codex recently publishes nothing at
+all rather than a stale number.
+
 **Contrib engines are launch + badge only.** Rove ships a catalog of
 well-known coding CLIs (`gemini`, `opencode`, `cursor`, `grok`, `droid`,
 `amp`) so they appear in the engine selector whenever the binary is on your
@@ -154,12 +161,16 @@ The sidebar shows what each session is doing: **working**, **done**, or
 hook events, falling back to its transcript when hooks aren't available.
 
 One thing worth knowing: **the depth of the badge depends on the engine**.
-Claude, codex, and kimi report through hooks: the full working / done /
-needs-input vocabulary, sub-second. Engines without hooks or a readable
-transcript (copilot today) fall back to screen reading: Rove classifies the
-visible terminal against engine-declared rules, which still distinguishes
-working from waiting-on-you but can't see a completed turn the way a
-transcript marker can. Rove labels the gap honestly rather than guessing.
+Claude and kimi report the full working / done / needs-input vocabulary
+through hooks, sub-second. Codex reports working and done through hooks, but
+not needs-input: its only "waiting" event is a permission decision hook, and
+Rove will not install an observer on a hook that gates approvals. Codex's
+needs-input therefore comes from screen reading, one layer down. Engines
+without hooks or a readable transcript (copilot today) rely on screen reading
+for everything: Rove classifies the visible terminal against engine-declared
+rules, which still distinguishes working from waiting-on-you but can't see a
+completed turn the way a transcript marker can. Rove labels the gap honestly
+rather than guessing.
 
 Codex won't run Rove's hooks until you trust them once via `/hooks`, so Codex
 badges stay dark until you approve. That's by design: Rove writes the hook
