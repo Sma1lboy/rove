@@ -33,7 +33,10 @@ describe("LocalExecHost", () => {
   })
 
   it("run executes in the given cwd with merged env and captures stdout", async () => {
-    const result = await host.run(["sh", "-c", "printf '%s' \"$KOBE_PROBE:$(pwd)\""], {
+    // `$PWD`, not `$(pwd)`: the subshell forks, and under a parallel test
+    // run MSYS sh on Windows CI occasionally fails that fork and exits with
+    // a raw 0x8000000x status. The variable carries the same answer.
+    const result = await host.run(["sh", "-c", "printf '%s' \"$KOBE_PROBE:$PWD\""], {
       cwd: dir,
       env: { KOBE_PROBE: "yes" },
     })
