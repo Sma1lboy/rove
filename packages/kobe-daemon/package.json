@@ -63,6 +63,7 @@
     "./daemon/pty-exit-store": "./src/daemon/pty-exit-store.ts",
     "./daemon/pty-freeze-store": "./src/daemon/pty-freeze-store.ts",
     "./daemon/pty-host": "./src/daemon/pty-host.ts",
+    "./daemon/pty-host-log": "./src/daemon/pty-host-log.ts",
     "./daemon/pty-host-types": "./src/daemon/pty-host-types.ts",
     "./daemon/pty-live-hold": "./src/daemon/pty-live-hold.ts",
     "./daemon/pty-observability": "./src/daemon/pty-observability.ts",

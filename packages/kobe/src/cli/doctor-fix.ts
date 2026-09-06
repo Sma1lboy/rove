@@ -67,7 +67,7 @@ export function skillInstallFix(installCommand: string, stale: boolean): DoctorF
   }
 }
 
-type ResetReason = "resetDaemonWedged" | "resetPty" | "resetLegacy"
+type ResetReason = "resetDaemonWedged" | "resetPty" | "resetPtyStale" | "resetLegacy"
 
 /** `kobe reset` kills live sessions — always print-only, one entry per reason. */
 export function resetManualFix(cliName: string, reason: ResetReason): DoctorFix {

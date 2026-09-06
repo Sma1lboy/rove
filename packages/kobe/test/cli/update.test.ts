@@ -178,6 +178,48 @@ describe("runUpdateSubcommand", () => {
     expect(out.join("")).toContain("-> 0.7.90")
   })
 
+  it("says the daemon and pty host are still on the old build after a successful install", async () => {
+    // Installing files does not replace running processes. Both keep serving
+    // the old build, and the pty host survives `daemon restart` by design —
+    // the success path used to print nothing about either.
+    const out: string[] = []
+    await runUpdateSubcommand([], {
+      spawn: (() => ({ status: 0 })) as never,
+      stdout: {
+        write: (s: string) => {
+          out.push(s)
+          return true
+        },
+      },
+      stderr: { write: () => true },
+      exit: (() => {
+        throw new Error("exit")
+      }) as never,
+    }).catch(() => undefined)
+
+    expect(out.join("")).toContain("daemon restart")
+    expect(out.join("")).toContain("pty host")
+  })
+
+  it("stays quiet about follow-ups when the install failed", async () => {
+    const out: string[] = []
+    await runUpdateSubcommand([], {
+      spawn: (() => ({ status: 3 })) as never,
+      stdout: {
+        write: (s: string) => {
+          out.push(s)
+          return true
+        },
+      },
+      stderr: { write: () => true },
+      exit: (() => {
+        throw new Error("exit")
+      }) as never,
+    }).catch(() => undefined)
+
+    expect(out.join("")).not.toContain("daemon restart")
+  })
+
   it("exits with the update script status", async () => {
     const spawn = vi.fn(() => ({ status: 7 }))
     const exits: number[] = []

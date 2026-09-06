@@ -57,6 +57,9 @@ type InspectSnapshot = {
 type PtyInventory = {
   pid?: number
   rssBytes?: number
+  /** The build the HOST is running — not this CLI's. Absent from hosts older
+   *  than the check, which is itself the answer: they are stale by definition. */
+  version?: string
   sessions?: PtySessionStatus[]
   stats?: {
     ringBytes?: number
@@ -284,6 +287,20 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
     if (typeof inventory.pid === "number" && typeof inventory.rssBytes === "number") {
       out.push(`         pid ${inventory.pid}, ${formatBytes(inventory.rssBytes)} RSS`)
     }
+    // The host is the ONE process a `daemon restart` never replaces (that is
+    // its whole job — see pty-server.ts), so an install upgraded underneath it
+    // keeps serving whatever code it booted with, for as long as sessions
+    // live. Six days of that has happened. `rove reset` is the only verb that
+    // swaps it, and it kills live sessions, so this is print-only.
+    const hostVersion = typeof inventory.version === "string" ? inventory.version : undefined
+    if (hostVersion === undefined) {
+      out.push("         build: unknown — this host predates the version check, so it is at least that old")
+      out.push(`         → \`${CLI_NAME} reset\` replaces it (ends every live terminal and engine session)`)
+    } else if (hostVersion !== CURRENT_VERSION) {
+      out.push(`         ⚠ stale build: pty host is v${hostVersion}, you launched v${CURRENT_VERSION}`)
+      out.push(`         → \`${CLI_NAME} reset\` replaces it (ends every live terminal and engine session)`)
+      fixes.push(resetManualFix(CLI_NAME, "resetPtyStale"))
+    } else out.push(`         build: v${hostVersion}`)
     const stats = inventory.stats
     if (stats && typeof stats.ringBytes === "number" && typeof stats.ringCapacityBytes === "number") {
       out.push(`         ring: ${formatBytes(stats.ringBytes)} / ${formatBytes(stats.ringCapacityBytes)}`)

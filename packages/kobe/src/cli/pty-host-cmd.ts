@@ -10,7 +10,9 @@
 import { installDaemonCrashHandlers } from "@sma1lboy/kobe-daemon/daemon/crash-log"
 import { rotateLogIfNeeded } from "@sma1lboy/kobe-daemon/daemon/log-rotate"
 import { defaultPtyHostLogPath } from "@sma1lboy/kobe-daemon/daemon/paths"
+import { formatPtyHostLine } from "@sma1lboy/kobe-daemon/daemon/pty-host-log"
 import { startPtyHostServer } from "@sma1lboy/kobe-daemon/daemon/pty-server"
+import { CURRENT_VERSION } from "../version.ts"
 
 export async function runPtyHostSubcommand(_argv: readonly string[]): Promise<void> {
   // `pty.log` is stdout/stderr inherited from the parent's
@@ -27,16 +29,26 @@ export async function runPtyHostSubcommand(_argv: readonly string[]): Promise<vo
   installDaemonCrashHandlers()
 
   const server = await startPtyHostServer({
-    log: (event, message) => console.log(`[pty-host ${event}] ${message}`),
+    log: (event, message) => console.log(formatPtyHostLine(event, message)),
+    // The build this host is FROZEN at. It outlives every `rove daemon
+    // restart`, so an install upgraded underneath it keeps serving old code
+    // with nothing saying so; `pty.list` reports this back to `rove doctor`.
+    version: CURRENT_VERSION,
     // Idle-exit path: the server already closed itself; just end the process.
     onStop: () => process.exit(0),
   })
-  console.log(`rove pty-host: listening on ${server.socketPath}`)
+  console.log(formatPtyHostLine("listen", `v${CURRENT_VERSION} listening on ${server.socketPath}`))
 
-  const shutdown = async () => {
+  const shutdown = async (signal: string) => {
+    // Name the signal in the log. A host that vanished is the same shape in
+    // `pty.log` whether it idle-exited, was reset, or was signalled by
+    // something outside Rove — and only the last one is a mystery worth
+    // chasing. The freeze store is deliberately KEPT here: a bare signal is a
+    // restart, not the explicit teardown `daemon.stop` (rove reset) performs.
+    console.log(formatPtyHostLine("signal", `${signal} received — closing host, frozen sessions kept`))
     await server.close()
     process.exit(0)
   }
-  process.once("SIGINT", () => void shutdown())
-  process.once("SIGTERM", () => void shutdown())
+  process.once("SIGINT", () => void shutdown("SIGINT"))
+  process.once("SIGTERM", () => void shutdown("SIGTERM"))
 }

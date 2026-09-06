@@ -224,11 +224,15 @@ worktree, which `git -C <path> rev-parse --is-inside-work-tree` confirms.
 directory; runtime files now live under `~/.rove`, with legacy paths honoured
 only while a process started before the move is still alive.)
 
-After an upgrade, a daemon can still be running old in-memory code. Doctor
-reports that version mismatch; fix it with `rove daemon restart`. If the PTY
-host itself is wedged, `rove reset` stops both runtimes and all live terminal
-and engine sessions, but does not touch git worktrees. Read the confirmation
-carefully before proceeding.
+After an upgrade, both background processes can still be running old code, and
+`rove update` says so when it finishes. Doctor reports each version separately:
+a stale **daemon** is fixed by `rove daemon restart`, which never touches a
+live session. A stale **PTY host** is not — it survives daemon restarts by
+design, so it keeps serving its boot-time build until `rove reset` replaces it,
+which is also the remedy when the host is wedged. Reset stops both runtimes,
+ends every live terminal and engine session, and clears the frozen-session
+store, but does not touch git worktrees. Read the confirmation carefully before
+proceeding.
 
 `rove doctor --fix` walks these remedies for you, one confirmation per fix:
 safe ones (a daemon restart, a skill install) run after a per-fix `y/N`, while

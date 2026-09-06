@@ -18,6 +18,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { defaultPtyHostLogPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { CURRENT_VERSION } from "../../src/version.ts"
 
 const mocks = vi.hoisted(() => ({
   startPtyHostServer: vi.fn(),
@@ -63,6 +64,30 @@ async function boot(): Promise<void> {
   const { runPtyHostSubcommand } = await import("../../src/cli/pty-host-cmd.ts")
   await runPtyHostSubcommand([])
 }
+
+describe("pty-host log lines and version reporting", () => {
+  it("timestamps every host log line, the way daemon.log does", async () => {
+    // Bare `[pty-host <event>] …` lines cannot be correlated against
+    // daemon.log at all: two readers of the same incident placed the same
+    // session death nine minutes apart because pty.log carried no time.
+    const logged = vi.spyOn(console, "log").mockImplementation(() => {})
+    await boot()
+
+    const emit = mocks.startPtyHostServer.mock.calls[0]?.[0]?.log as (event: string, message: string) => void
+    emit("freeze", "wrote 3 sessions")
+    const lines = logged.mock.calls.map((call) => String(call[0]))
+    expect(
+      lines.some((line) => /^\[\d{4}-\d\d-\d\dT[\d:.]+Z\] pty-host \[freeze\]: wrote 3 sessions$/.test(line)),
+    ).toBe(true)
+    // The host's own boot line is subject to the same rule.
+    expect(lines.some((line) => /^\[\d{4}-.+Z\] pty-host \[listen\]: /.test(line))).toBe(true)
+  })
+
+  it("reports the build it booted with, so doctor can catch a host older than the CLI", async () => {
+    await boot()
+    expect(mocks.startPtyHostServer.mock.calls[0]?.[0]?.version).toBe(CURRENT_VERSION)
+  })
+})
 
 describe("pty-host boot rotates pty.log", () => {
   it("rotates an over-cap log to .old before the host writes a byte", async () => {

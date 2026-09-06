@@ -30,6 +30,10 @@ vi.mock("../../src/cli/reset-gate.ts", () => ({
   stampResetGate: mocks.stampResetGate,
 }))
 
+// clearFrozenSessions stays REAL — it rm -rf's a directory under the tmp home,
+// and a stub would leave the "did reset actually drop the archives?" assertion
+// checking nothing.
+
 import { runResetSubcommand } from "../../src/cli/reset-cmd.ts"
 
 let home: string
@@ -135,6 +139,76 @@ describe("runResetSubcommand", () => {
 
     await expect(runResetSubcommand(["--hard", "--yes"])).rejects.toThrow("failed to remove task index")
     expect(output()).not.toContain("reset complete")
+  })
+
+  it("exits 2 on a non-TTY without --yes — a no-op must not report success", async () => {
+    // The full destruction plan has already been printed by then; a caller
+    // that reads only the status code would take "I did nothing" for "I reset
+    // your install".
+    const tty = process.stdin.isTTY
+    Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true })
+    try {
+      await runResetSubcommand(["--hard"])
+    } finally {
+      Object.defineProperty(process.stdin, "isTTY", { value: tty, configurable: true })
+    }
+    expect(process.exitCode).toBe(2)
+  })
+
+  it("--hard names what it destroys in the settings file, with counts", async () => {
+    // The preview used to say "UI state", which is not what gets unlinked:
+    // saved projects and every registered custom engine live in the same file
+    // and have no other record.
+    mkdirSync(join(home, ".config", "rove"), { recursive: true })
+    writeFileSync(
+      join(home, ".config", "rove", "state.json"),
+      JSON.stringify({
+        savedRepos: ["/a", "/b", "/c"],
+        customEngineIds: ["mine"],
+        "engineCommand.mine": "mine --go",
+        activeTheme: "claude",
+        onboarded: true,
+      }),
+    )
+    const tty = process.stdin.isTTY
+    Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true })
+    try {
+      await runResetSubcommand(["--hard"])
+    } finally {
+      Object.defineProperty(process.stdin, "isTTY", { value: tty, configurable: true })
+    }
+    expect(output()).toContain("saved projects: 3")
+    expect(output()).toContain("custom engines: 1")
+    expect(output()).toContain("theme")
+    expect(output()).toContain("onboarding")
+  })
+
+  it("drops frozen sessions when the host had to be signalled, not stopped gracefully", async () => {
+    // Only the `daemon.stop` RPC sets the host's own wipe flag. A wedged host
+    // — the case TROUBLESHOOTING points at reset for — never runs it, so every
+    // frozen archive used to survive and restore the whole scene next boot.
+    const freezeDir = join(home, ".rove", "pty-sessions")
+    mkdirSync(freezeDir, { recursive: true })
+    writeFileSync(join(freezeDir, "task--tab-1.json"), "{}")
+    mocks.stopDaemonProcess
+      .mockResolvedValueOnce({ pid: 1, method: "graceful" }) // the daemon
+      .mockResolvedValueOnce({ pid: 2, method: "sigkill" }) // the pty host
+
+    await runResetSubcommand(["--yes"])
+
+    expect(existsSync(freezeDir)).toBe(false)
+    expect(output()).toContain("frozen sessions: cleared")
+  })
+
+  it("leaves the freeze store to the host when it stopped gracefully", async () => {
+    const freezeDir = join(home, ".rove", "pty-sessions")
+    mkdirSync(freezeDir, { recursive: true })
+    mocks.stopDaemonProcess.mockResolvedValue({ pid: 1, method: "graceful" })
+
+    await runResetSubcommand(["--yes"])
+
+    // The host wiped it itself; reset must not claim a second time.
+    expect(output()).not.toContain("frozen sessions: cleared")
   })
 
   it("--hard without --yes on a non-TTY refuses: nothing stopped, nothing wiped", async () => {

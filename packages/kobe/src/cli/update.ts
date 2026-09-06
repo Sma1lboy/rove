@@ -227,6 +227,27 @@ async function warnBreakingCrossings(target: string | undefined, channel: Releas
   )
 }
 
+/**
+ * What a finished install has NOT done yet.
+ *
+ * Installing new files does not replace running processes, and Rove keeps two
+ * of them: the daemon (restartable, and doctor already flags it) and the PTY
+ * host, which by design survives every `daemon restart` and can only be
+ * replaced by `rove reset` — at the cost of every live session. An update that
+ * printed nothing here left both serving the old build with the CLI reporting
+ * success; the only mention of it lived in TROUBLESHOOTING, and covered only
+ * the daemon.
+ */
+const FOLLOW_UP_NOTE = [
+  "",
+  `${CLI_NAME}: installed. Two background processes are still running the old build:`,
+  `  daemon    → \`${CLI_NAME} daemon restart\` (safe; never touches live sessions)`,
+  `  pty host  → only \`${CLI_NAME} reset\` replaces it, and that ends every live`,
+  "              terminal and engine session — do it when you can afford to.",
+  `Run \`${CLI_NAME} doctor\` to see which of the two is actually stale.`,
+  "",
+].join("\n")
+
 export async function runUpdateSubcommand(args: readonly string[], deps?: Partial<RunDeps>): Promise<void> {
   const io: RunDeps = {
     spawn: deps?.spawn ?? spawnSync,
@@ -262,13 +283,17 @@ export async function runUpdateSubcommand(args: readonly string[], deps?: Partia
   io.stdout.write(`${CLI_NAME} ${CURRENT_VERSION} -> ${target ?? channel}\n`)
   if (switching) io.stdout.write(`switching channel: ${channelOf()} -> ${channel}\n`)
   io.stdout.write(`running: ${plan.display}\n`)
-  if (parsed.dryRun) return
+  // Warn BEFORE the dry-run bail. A dry run is the rehearsal — "print what you
+  // would do" that omits the one thing you would have had to act on is the
+  // wrong half to leave out.
   await warnBreakingCrossings(parsed.version, channel, io)
+  if (parsed.dryRun) return
 
   const result = io.spawn(plan.command, plan.args, { stdio: "inherit" })
   if (result.error) {
     io.stderr.write(`${CLI_NAME} update: failed to run ${plan.command}: ${result.error.message}\n`)
     io.exit(1)
   }
+  if (result.status === 0) io.stdout.write(FOLLOW_UP_NOTE)
   io.exit(result.status ?? 1)
 }

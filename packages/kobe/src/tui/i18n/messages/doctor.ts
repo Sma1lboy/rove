@@ -58,6 +58,9 @@ export const en = {
     /** PTY host process alive but its socket unreachable. A host that is
         merely down is NOT a finding — it starts on demand. */
     resetPty: "the PTY host process is alive but its socket is unreachable (wedged)",
+    /** PTY host serving an older build than the CLI. It survives daemon
+        restarts by design, so only a reset replaces its code. */
+    resetPtyStale: "the PTY host is still running an older build than the one you launched",
     /** Pre-v0.8 tmux sessions still resident */
     resetLegacy: "pre-v0.8 tmux sessions are still holding processes and memory",
 
@@ -138,6 +141,7 @@ export const zh: typeof en = {
     resetWhy: "会停掉 daemon、PTY host 和所有活动会话 — 不可撤销, 所以 doctor 只打印",
     resetDaemonWedged: "daemon 进程存活但无法连接 (卡死)",
     resetPty: "PTY host 进程存活但 socket 无法连接 (卡死)",
+    resetPtyStale: "PTY host 仍在跑比你启动的版本更旧的构建",
     resetLegacy: "v0.8 之前的 tmux 会话仍占用进程和内存",
 
     orphans: "有 {count} 个进程比启动它们的 PTY 会话活得更久, 现在还在运行",

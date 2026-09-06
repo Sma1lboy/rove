@@ -100,7 +100,10 @@ function insideEngineSession(env: NodeJS.ProcessEnv = process.env): boolean {
  * client never attaches as a gui reaps itself instead of living forever).
  * Exported for tests.
  */
-export function autospawnDaemonEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+export function autospawnDaemonEnv(
+  env: NodeJS.ProcessEnv = process.env,
+  reason: DaemonSpawnReason = "autospawn",
+): NodeJS.ProcessEnv {
   const {
     KOBE_TASK_ID: _task,
     KOBE_TAB_ID: _tab,
@@ -114,7 +117,34 @@ export function autospawnDaemonEnv(env: NodeJS.ProcessEnv = process.env): NodeJS
   } = env
   // The child re-enters through a public wrapper, so stamp both names before
   // that wrapper reapplies ROVE_* precedence.
-  return { ...rest, KOBE_DAEMON_AUTOSPAWNED: "1", ROVE_DAEMON_AUTOSPAWNED: "1" }
+  return {
+    ...rest,
+    KOBE_DAEMON_AUTOSPAWNED: "1",
+    ROVE_DAEMON_AUTOSPAWNED: "1",
+    KOBE_DAEMON_SPAWN_REASON: reason,
+    ROVE_DAEMON_SPAWN_REASON: reason,
+  }
+}
+
+/**
+ * How this daemon process came to exist. `rove daemon restart` respawns
+ * through the same {@link ensureDaemonReachable} path an idle helper takes,
+ * so both used to write byte-identical boot lines: nobody investigating "did
+ * my restart kill those engines, or did something else?" could tell which
+ * daemon in `daemon.log` was theirs. The reason rides the spawn env and is
+ * logged on the new daemon's first line.
+ *
+ * `manual` covers a `rove daemon start` typed by hand — no spawner stamped
+ * anything.
+ */
+export type DaemonSpawnReason = "autospawn" | "explicit-restart" | "manual"
+
+/** Read the spawn reason a parent stamped, for the daemon's own boot line. */
+export function daemonSpawnReason(env: NodeJS.ProcessEnv = process.env): DaemonSpawnReason {
+  const raw = env.ROVE_DAEMON_SPAWN_REASON ?? env.KOBE_DAEMON_SPAWN_REASON
+  if (raw === "explicit-restart" || raw === "autospawn") return raw
+  // Pre-0.9.158 spawners stamped no reason but did stamp the autospawn flag.
+  return env.ROVE_DAEMON_AUTOSPAWNED === "1" || env.KOBE_DAEMON_AUTOSPAWNED === "1" ? "autospawn" : "manual"
 }
 
 /**
@@ -179,6 +209,8 @@ export async function ensureDaemonReachable(
   /** Seam for tests: the spawn argv resolver. A stale install cannot be
    *  reproduced otherwise without deleting the running source tree. */
   resolveSpawn: (subcommand: readonly string[]) => string[] = resolveKobeSpawn,
+  /** Stamped into the spawned daemon's env so its boot line says who asked. */
+  spawnReason: DaemonSpawnReason = "autospawn",
 ): Promise<string> {
   const socketPath = defaultDaemonSocketPath()
   const state = await probeDaemonSocket(socketPath)
@@ -261,7 +293,7 @@ export async function ensureDaemonReachable(
     // spawn from racing a still-alive wedged daemon onto the same tasks.json
     // (split-brain).
     await stopDaemonProcess(socketPath, defaultDaemonPidPath()).catch(() => {})
-    spawnDetachedDaemon(command, args, autospawnDaemonEnv(), defaultDaemonLogPath())
+    spawnDetachedDaemon(command, args, autospawnDaemonEnv(process.env, spawnReason), defaultDaemonLogPath())
 
     const deadline = Date.now() + 5000
     while (Date.now() < deadline) {
@@ -280,8 +312,8 @@ export async function ensureDaemonReachable(
   }
 }
 
-export async function connectOrStartDaemon(): Promise<KobeDaemonClient> {
-  const socketPath = await ensureDaemonReachable()
+export async function connectOrStartDaemon(spawnReason: DaemonSpawnReason = "autospawn"): Promise<KobeDaemonClient> {
+  const socketPath = await ensureDaemonReachable(resolveKobeSpawn, spawnReason)
   const client = new KobeDaemonClient(socketPath)
   await client.connect()
   return client
