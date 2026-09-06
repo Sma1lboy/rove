@@ -134,6 +134,13 @@ export const en = {
     failedTitle: "Deferred prompts were not flushed",
     failedBody: "{message}. Restart or update the daemon, then retry.",
   },
+  /** Error toast when the debounced `state.json` write throws. Nothing awaits
+   *  that write, so without the toast a settings change looks saved for the
+   *  whole session and reverts at the next launch. */
+  stateWrite: {
+    failedTitle: "Settings were not saved",
+    failedBody: "{file} could not be written ({keys}) — the change applies to this session only.",
+  },
   engines: {
     title: "Engines",
     hint: "Every engine Rove can launch, with what detection found under each one: where its binary is, and for the engines with an account detector whether you are logged in. [x] = offered when picking an engine for a task; (●) = the global default (per-project picks, e.g. Ctrl+Shift+T, override it) — click either, or use the keys below. Override a launch command when the binary isn't on PATH or to pass default flags. space on/off · enter edit command · r rename · x reset/remove · d set default.",
@@ -361,6 +368,11 @@ export const zh: typeof en = {
   deferredFlush: {
     failedTitle: "排队的提示词未能放行",
     failedBody: "{message}。请重启或升级 daemon 后重试。",
+  },
+  /** 防抖写入 `state.json` 抛错时的错误 toast。 */
+  stateWrite: {
+    failedTitle: "设置未能保存",
+    failedBody: "{file} 写入失败（{keys}）—— 改动只在本次会话生效。",
   },
   engines: {
     title: "引擎",

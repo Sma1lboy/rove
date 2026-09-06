@@ -231,6 +231,7 @@ function mockKv(): KVContext {
     set: () => {},
     flush: () => true,
     clear: () => true,
+    onWriteError: () => () => {},
   }
 }
 

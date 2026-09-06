@@ -12,7 +12,7 @@
  */
 
 import { type ReactNode, createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react"
-import { type KvCore, createKvCore } from "./kv-core"
+import { type KvCore, type KvWriteErrorListener, createKvCore } from "./kv-core"
 
 export type KVContext = {
   readonly ready: boolean
@@ -24,6 +24,15 @@ export type KVContext = {
   flush(): boolean
   /** Wipe every persisted key; false leaves state and pending edits intact. */
   clear(): boolean
+  /**
+   * Subscribe to writes that did not reach disk; returns the unsubscribe.
+   *
+   * Exposed as a subscription rather than a constructor callback because the
+   * sink is BELOW this provider: the fixed nesting order is Theme > KV >
+   * Focus > Dialog > Notifications (see `lib/host-boot.tsx`), so the toast
+   * context does not exist yet when the core is created.
+   */
+  onWriteError(listener: KvWriteErrorListener): () => void
 }
 
 const Ctx = createContext<KVContext | null>(null)
@@ -66,6 +75,7 @@ export function KVProvider(props: { children?: ReactNode }) {
       set: core.set,
       flush: core.flush,
       clear: core.clear,
+      onWriteError: core.onWriteError,
     }),
     [core, snapshot],
   )
