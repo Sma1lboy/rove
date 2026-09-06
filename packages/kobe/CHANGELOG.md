@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.171
+
+### Patch Changes
+
+- [#952](https://github.com/Sma1lboy/rove/pull/952) [`1d4195b`](https://github.com/Sma1lboy/rove/commit/1d4195b83175e99d0ea245669be46e59b9165c6d) `.rove/init.sh` now really does run once per worktree. Its marker is a receipt, deleted for the whole run and keyed by worktree — which every tab of a task shares — so two tabs opening before the first init finished, or any worktree whose last init exited non-zero, both passed the gate and both ran the script. Two installs in one directory, and the shared env dump they raced over could reach the engine truncated or missing, leaving it without the PATH, venv, or API keys init exported. A `set -C` lock now admits one run; the other waits for its marker and sources a complete dump. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#952](https://github.com/Sma1lboy/rove/pull/952) [`1d4195b`](https://github.com/Sma1lboy/rove/commit/1d4195b83175e99d0ea245669be46e59b9165c6d) Two engine tabs in one task no longer adopt the same session on restart. All tabs of a task share one worktree, and an engine that mints its own session id (kimi) is discovered by asking its store — which answers per-worktree. The restart pass ran every tab's discovery concurrently, so each computed the claimed-id set before any sibling had recorded one and all of them were handed the same newest session: two live engines writing one transcript. Discovery is now sequential and re-reads the claim set per tab, matching what the tab-naming poll already did. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.170
 
 ### Patch Changes
