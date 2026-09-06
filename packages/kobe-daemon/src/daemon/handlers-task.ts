@@ -13,13 +13,7 @@
  */
 
 import { logDaemonError } from "./crash-log.ts"
-import {
-  optionalBoolean,
-  optionalNumber,
-  optionalString,
-  optionalVendor,
-  requireString,
-} from "./handler-validators.ts"
+import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import { publishIssueSnapshot } from "./handlers-issues.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import { serializeTask } from "./protocol.ts"

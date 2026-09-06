@@ -103,11 +103,19 @@ export async function watch(ctx: VerbContext): Promise<unknown> {
   return await new Promise((resolve, reject) => {
     let settled = false
     let events = 0
-    // The channel replays its last value on subscribe, and a repeat of the
-    // same (task, tab, state, at) is that replay rather than a new
-    // transition. Emitting it twice would make a caller counting lines
-    // double-count a single event.
-    let lastKey = ""
+    /**
+     * Events already emitted, so a repeat of the same (task, tab, state, at)
+     * never prints twice — that is one daemon transition, not two.
+     *
+     * A SET rather than a last-seen key: the registry publishes a transition
+     * at tab level and again as the task-level rollup, and the two interleave
+     * (`tab-1 running` / `running` / `tab-1 running` for a single turn start),
+     * so comparing only against the previous line lets the third through.
+     * Bounded because a long watch on a busy fleet would otherwise grow
+     * without limit; the cap is far above any plausible burst.
+     */
+    const seen = new Set<string>()
+    const SEEN_CAP = 512
 
     // `off` / `deadline` / `heartbeat` are declared below and closed over
     // here: nothing can call this before they exist (every caller is a
@@ -125,8 +133,9 @@ export async function watch(ctx: VerbContext): Promise<unknown> {
       const event = payload as unknown as EngineStateEvent
       if (!taskIds.has(event.taskId)) return
       const key = `${event.taskId}::${event.tabId ?? ""}::${event.state}::${event.at}`
-      if (key === lastKey) return
-      lastKey = key
+      if (seen.has(key)) return
+      if (seen.size >= SEEN_CAP) seen.clear()
+      seen.add(key)
       events++
       process.stdout.write(
         `${JSON.stringify({
