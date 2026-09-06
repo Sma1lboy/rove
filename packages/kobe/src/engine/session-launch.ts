@@ -146,6 +146,12 @@ export function engineLaunchLine(engineCommand: string, init?: EngineInitLaunch)
   }
   const marker = quoteShellArg(markerPath)
   const markerDir = quoteShellArg(markerDirOf(markerPath))
+  // Beside the marker, so it inherits the same per-worktree keying and the
+  // same `mkdir -p` above.
+  const lock = quoteShellArg(`${markerPath}.lock`)
+  // The winner's own ceiling plus slack for the shell around it: a loser that
+  // gave up earlier would start its engine while init was still writing.
+  const waitSeconds = String(resolveRepoInitTimeoutSeconds(init?.timeoutSeconds) + 5)
   return (
     SIGINT_GUARD +
     [
@@ -161,6 +167,21 @@ export function engineLaunchLine(engineCommand: string, init?: EngineInitLaunch)
       // code retries, exactly as a missing marker did.
       `if [ ! -f ${marker} ] || [ "$(cat ${marker} 2>/dev/null)" != "0" ]; then`,
       `mkdir -p ${markerDir} 2>/dev/null`,
+      // The marker is a RECEIPT, not a lock: it is deleted for the whole run
+      // (below), so between the test above and the write below it does not
+      // exist — and it is keyed by WORKTREE, which every tab of a task
+      // shares. Two tabs opening before the first init finished, or any
+      // worktree whose last init exited non-zero, therefore both passed the
+      // test and both ran `.rove/init.sh` — two `bun install`s in one
+      // directory, against a contract that says "once per worktree"
+      // (`state/repo-init.ts`, `docs/CONFIGURATION.md`).
+      //
+      // `set -C` makes `> file` fail when the file exists, which is POSIX
+      // sh's atomic create-or-fail — no `flock`, which not every target
+      // platform ships. The winner runs; the loser waits for the winner's
+      // marker rather than racing it, so it also sources a COMPLETE env dump
+      // (the dump is written inside the group, before the marker).
+      `if (set -C; : > ${lock}) 2>/dev/null; then`,
       // This run owns the marker while it runs: absent means "init is still
       // going", which is the question the spawner is asking. Without the
       // delete a retry would leave the previous run's code on disk and the
@@ -168,6 +189,23 @@ export function engineLaunchLine(engineCommand: string, init?: EngineInitLaunch)
       `rm -f ${marker} 2>/dev/null`,
       group,
       `printf '%s' "$__kobe_init_rc" > ${marker}`,
+      `rm -f ${lock} 2>/dev/null`,
+      "else",
+      // Wait on the LOCK, not on the marker. The winner deletes the marker as
+      // its first act, so a loser polling for the marker can still see the
+      // PREVIOUS run's one in the instant before that delete and walk on while
+      // init is running. The lock has no such window: it exists from before
+      // the marker is deleted until after the new one is written.
+      //
+      // Bounded by the same budget the init itself gets, so a crashed winner
+      // costs one wait and not a permanent stall. Falling through is the
+      // honest outcome then: the engine starts without the exports, exactly as
+      // it would have if init had failed, and clearing the stale lock lets the
+      // next launch try again.
+      "__kobe_init_w=0",
+      `while [ -f ${lock} ] && [ "$__kobe_init_w" -lt ${waitSeconds} ]; do sleep 1; __kobe_init_w=$((__kobe_init_w+1)); done`,
+      `rm -f ${lock} 2>/dev/null`,
+      "fi",
       "fi",
       restore,
       tail,
@@ -269,12 +307,7 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
   const protocolTaskId = input.task.kind === "main" ? undefined : input.task.id
   const dispatcherTaskId = input.task.kind === "main" ? input.task.id : undefined
   const gates = input.protocolGates
-  const launchInit = resolveEngineLaunchInit(
-    input.task.repo ?? "",
-    input.worktreePath,
-    input.promptIntent,
-    input.task.id,
-  )
+  const launchInit = resolveEngineLaunchInit(input.task.repo ?? "", input.worktreePath, input.promptIntent)
   // The repo's accumulated field notes ride along in the same
   // --append-system-prompt as the filing protocol, so a fresh worktree
   // session starts with what earlier sessions already learned. Read only for

@@ -159,7 +159,7 @@ describe("resolveEngineLaunchInit", () => {
   // along, because no skill can know them.
   test("new-task delivers the user's prompt verbatim — no appended instructions", () => {
     const wt = makeWorktree()
-    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix the bug" }, "task-9").firstMessage
+    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix the bug" }).firstMessage
     expect(msg?.source).toBe("explicit")
     expect(msg?.text).toBe("fix the bug")
   })
@@ -168,7 +168,7 @@ describe("resolveEngineLaunchInit", () => {
     // Pins the deletion: these strings coming back means the coda returned,
     // and the user's prompt is once again trailed by English boilerplate.
     const wt = makeWorktree()
-    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "修一下这个 bug" }, "task-9").firstMessage
+    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "修一下这个 bug" }).firstMessage
     expect(msg?.text).not.toContain("set-branch")
     expect(msg?.text).not.toContain("spawned by Rove task")
     expect(msg?.text).toBe("修一下这个 bug")
@@ -183,39 +183,39 @@ describe("resolveEngineLaunchInit", () => {
 describe("missing-dependency coda (new-task only)", () => {
   test("lockfile present, dependency dir missing, no init script → warns", () => {
     const wt = makeWorktree({ "bun.lock": "{}" })
-    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }, "task-1").firstMessage
+    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }).firstMessage
     expect(msg?.text).toContain("no installed dependencies")
     expect(msg?.text).toContain("node_modules")
   })
 
   test("dependency dir already installed → silent", () => {
     const wt = makeWorktree({ "bun.lock": "{}", "node_modules/.keep": "" })
-    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }, "task-1").firstMessage
+    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }).firstMessage
     expect(msg?.text).not.toContain("no installed dependencies")
   })
 
   test("no lockfile → silent", () => {
     const wt = makeWorktree()
-    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }, "task-1").firstMessage
+    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }).firstMessage
     expect(msg?.text).not.toContain("no installed dependencies")
   })
 
   test("repo init script configured → silent (install is init.sh's job)", () => {
     const wt = makeWorktree({ "bun.lock": "{}", ".rove/init.sh": "bun install" })
-    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }, "task-1").firstMessage
+    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }).firstMessage
     expect(msg?.text).not.toContain("no installed dependencies")
   })
 
   test("per-user init-script override also silences it", () => {
     const wt = makeWorktree({ "Cargo.lock": "" })
     setRepoInitOverride(wt, { initScript: "cargo fetch" })
-    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }, "task-1").firstMessage
+    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }).firstMessage
     expect(msg?.text).not.toContain("no installed dependencies")
   })
 
   test("non-node ecosystems map to their own dependency dir", () => {
     const wt = makeWorktree({ "Cargo.lock": "" })
-    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }, "task-1").firstMessage
+    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }).firstMessage
     expect(msg?.text).toContain("target")
   })
 
