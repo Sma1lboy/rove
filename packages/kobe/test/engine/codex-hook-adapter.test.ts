@@ -60,12 +60,23 @@ describe("CodexHookAdapter", () => {
 
   it("owns exactly the events Codex can deliver safely", () => {
     expect([...KOBE_CODEX_HOOK_EVENTS].sort()).toEqual(
-      ["SessionStart", "Stop", "UserPromptSubmit", "PreCompact", "PostCompact", "PreToolUse", "PostToolUse"].sort(),
+      [
+        "SessionStart",
+        "SessionEnd",
+        "Stop",
+        "UserPromptSubmit",
+        "PreCompact",
+        "PostCompact",
+        "SubagentStart",
+        "SubagentStop",
+        "PreToolUse",
+        "PostToolUse",
+      ].sort(),
     )
-    // The verbs with no clean Codex signal are NOT installed: no StopFailure
-    // equivalent, no Notification, and SessionEnd/Subagent* are documented
-    // upstream but absent from the pinned protocol.
-    for (const absent of ["StopFailure", "Notification", "SessionEnd", "SubagentStart", "PostToolUseFailure"]) {
+    // The verbs with no clean Codex signal stay OUT: Codex's enum has no
+    // failure event at all, and its only "waiting" event is PermissionRequest
+    // — an allow/deny DECISION hook Rove must not observe.
+    for (const absent of ["StopFailure", "PostToolUseFailure", "Notification", "PermissionRequest", "TurnFailed"]) {
       expect(KOBE_CODEX_HOOK_EVENTS).not.toContain(absent)
     }
   })
@@ -107,7 +118,7 @@ describe("CodexHookAdapter install/remove roundtrip (real file)", () => {
     expect(await readFile(file, "utf8")).toBe(malformed)
   })
 
-  it("installs SessionStart/UserPromptSubmit/Stop, preserving the user's hooks", async () => {
+  it("installs the session, turn, compaction and subagent events, preserving the user's hooks", async () => {
     // Seed a user-authored hook that must survive kobe's merge.
     await writeFile(file, JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: "command", command: "user-stop" }] }] } }))
 
@@ -117,10 +128,15 @@ describe("CodexHookAdapter install/remove roundtrip (real file)", () => {
     expect(hooks.SessionStart).toBeDefined()
     expect(hooks.UserPromptSubmit).toBeDefined()
     expect(hooks.Stop).toBeDefined()
+    // SessionEnd closes the session out — without it a cleanly-quit codex task
+    // keeps whatever state its last hook set.
+    expect(JSON.stringify(hooks.SessionEnd)).toContain("session-end")
+    expect(JSON.stringify(hooks.SubagentStart)).toContain("subagent-start")
+    expect(JSON.stringify(hooks.SubagentStop)).toContain("subagent-stop")
     // Codex never delivers these → kobe must not install them.
     expect(hooks.StopFailure).toBeUndefined()
     expect(hooks.Notification).toBeUndefined()
-    expect(hooks.SessionEnd).toBeUndefined()
+    expect(hooks.PermissionRequest).toBeUndefined()
     // kobe's Stop coexists with the user's Stop hook.
     expect(JSON.stringify(hooks.Stop)).toContain("turn-complete")
     expect(JSON.stringify(hooks.Stop)).toContain("user-stop")
