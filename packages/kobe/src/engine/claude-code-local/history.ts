@@ -44,7 +44,7 @@ import type { EngineUsageSnapshot, Message } from "@/types/engine"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
 import { isObject } from "../json-hooks.ts"
 import { vendorConfigHome } from "../vendor-home"
-import { parseSessionRaw } from "./history-parse"
+import { foldSessionUsage, parseSessionRaw } from "./history-parse"
 
 // Parsing (JSONL → Message[], sorting, and the append-aware per-file cache)
 // lives in ./history-parse; re-exported here for existing consumers/tests.
@@ -184,6 +184,22 @@ export async function latestTranscriptMtimeForWorktree(worktree: string): Promis
  * row identity — a rewrite/truncation falls back to a full re-parse.
  */
 export async function readHistory(sessionId: string, deps: HistoryDeps = defaultDeps): Promise<readonly Message[]> {
+  const found = await findSessionRaw(sessionId, deps)
+  return found ? parseSessionRaw(found.path, found.raw, sessionId) : []
+}
+
+/**
+ * Locate the JSONL for `sessionId` and return its raw contents plus the path
+ * (the append-cache key). Scans every `~/.claude/projects/<encoded-cwd>` dir
+ * for `<sessionId>.jsonl` and returns the first readable one — a missing file
+ * throws (see {@link readTextFileBounded}) and is skipped; an oversize/corrupt
+ * one degrades to `""` and stops the scan, same as the history read. Returns
+ * `undefined` when no project dir holds the session.
+ */
+async function findSessionRaw(
+  sessionId: string,
+  deps: HistoryDeps,
+): Promise<{ path: string; raw: string } | undefined> {
   const root = deps.projectsDir()
   const projectDirs = await deps.readdir(root)
 
@@ -195,44 +211,47 @@ export async function readHistory(sessionId: string, deps: HistoryDeps = default
     } catch {
       continue
     }
-    return parseSessionRaw(candidate, raw, sessionId)
+    return { path: candidate, raw }
   }
-  return []
+  return undefined
 }
 
 /**
- * Session-aggregate usage for `sessionId`, folded from the per-turn usage
- * Claude Code persists inline on assistant records. This is the ONE place
- * the vendor's context arithmetic lives: "context" = the LAST turn's full
- * prompt (fresh input + cache read + cache creation), derived — not an
- * engine-reported figure — hence `context_tokens_approximate`. Neutral
- * layers (web transcript header, cost dashboards) render the snapshot and
- * must not re-derive the math from per-message fields.
- * `undefined` when the session has no usage records (nothing reported,
- * which is different from a reported zero).
+ * Session-aggregate usage for `sessionId`, folded from the usage Claude Code
+ * persists inline on assistant records. This is the ONE place the vendor's
+ * context arithmetic lives: "context" = the LAST message's full prompt (fresh
+ * input + cache read + cache creation), derived — not an engine-reported
+ * figure — hence `context_tokens_approximate`. Neutral layers (web transcript
+ * header, cost dashboards) render the snapshot and must not re-derive the math
+ * from per-message fields.
+ *
+ * Usage is folded per assistant `message.id`, not per record: Claude writes one
+ * record per content block and stamps the same `message.usage` on each, so a
+ * per-record sum would multiply every message's cost by its block count (see
+ * {@link foldSessionUsage}). `undefined` when the session has no usage records
+ * (nothing reported, which is different from a reported zero).
  */
 export async function readUsageSnapshot(
   sessionId: string,
   deps: HistoryDeps = defaultDeps,
 ): Promise<EngineUsageSnapshot | undefined> {
-  const messages = await readHistory(sessionId, deps)
+  const found = await findSessionRaw(sessionId, deps)
+  if (!found) return undefined
+  const { byMessage, last } = foldSessionUsage(found.raw)
   let input = 0
   let output = 0
   let cacheRead = 0
   let cacheCreate = 0
-  let lastContext = 0
-  for (const message of messages) {
-    const usage = message.usage
-    if (!usage) continue
+  for (const usage of byMessage.values()) {
     input += usage.input_tokens
     output += usage.output_tokens
-    const read = usage.cache_read_input_tokens ?? 0
-    const create = usage.cache_creation_input_tokens ?? 0
-    cacheRead += read
-    cacheCreate += create
-    lastContext = usage.input_tokens + read + create
+    cacheRead += usage.cache_read_input_tokens ?? 0
+    cacheCreate += usage.cache_creation_input_tokens ?? 0
   }
   if (input === 0 && output === 0) return undefined
+  const lastContext = last
+    ? last.input_tokens + (last.cache_read_input_tokens ?? 0) + (last.cache_creation_input_tokens ?? 0)
+    : 0
   return {
     input_tokens: input,
     output_tokens: output,
