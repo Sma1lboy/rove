@@ -100,19 +100,41 @@ function capSlug(tokens: readonly string[]): string {
 }
 
 /**
+ * Fallback slug for a title that kebab-cases down to nothing.
+ *
+ * `slugTokens` keeps only `[a-z0-9]`, so EVERY title written in a non-Latin
+ * script — Chinese, Japanese, Korean, Cyrillic — plus emoji-only and
+ * punctuation-only titles reduce to zero tokens. The old fallback was the
+ * constant `"task"`, so those titles didn't just lose their meaning, they
+ * all collided: `uniqueBranchName` handed the second one `task-2` and the
+ * third `task-3`, and a sidebar of Chinese-titled tasks read as a numbered
+ * pile whose branch names said nothing about which was which.
+ *
+ * The task id is the one thing that distinguishes them without inventing a
+ * transliteration. Same 6-char suffix `uniqueBranchName` already falls back
+ * to, so the two last resorts read alike.
+ */
+function identitySlug(taskId: string): string {
+  return `task-${taskId.slice(-6).toLowerCase()}`
+}
+
+/**
  * Derive a convention-following branch name from a task title. In a typed
  * repo, a leading type word in the title becomes the prefix ("Fix login
  * flow" → `fix/login-flow`); otherwise the repo's most common prefix is
- * used. In a bare repo the slug stands alone. Empty slug → "task".
+ * used. In a bare repo the slug stands alone. A title with no slug-able
+ * characters falls back to {@link identitySlug}, which is why `taskId` is
+ * required rather than optional — a caller that could omit it would get the
+ * colliding constant back.
  */
-export function deriveConventionBranch(title: string, style: BranchStyle): string {
+export function deriveConventionBranch(title: string, style: BranchStyle, taskId: string): string {
   const tokens = slugTokens(title)
   if (style.kind === "typed") {
     const first = tokens[0]
     const prefix = first !== undefined && TYPE_PREFIXES.has(first) ? (tokens.shift() as string) : style.defaultPrefix
-    return `${prefix}/${capSlug(tokens) || "task"}`
+    return `${prefix}/${capSlug(tokens) || identitySlug(taskId)}`
   }
-  return capSlug(tokens) || "task"
+  return capSlug(tokens) || identitySlug(taskId)
 }
 
 /**

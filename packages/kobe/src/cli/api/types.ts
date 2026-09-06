@@ -372,6 +372,10 @@ export interface ApiRuntime {
    *  handler test need a real repo on disk. Remote (`ssh://…`) keys answer true:
    *  the remote-add flow validates those. */
   isUsableRepo(absPath: string): Promise<boolean>
+  /** Would git accept this as a branch name? On the same seam and for the
+   *  same reason as {@link isUsableRepo}: the answer comes from `git
+   *  check-ref-format`, and handler tests must not have to spawn git. */
+  isValidBranchName(branch: string): Promise<boolean>
   /** Preferred engine for new tasks in `repo`; undefined delegates to daemon defaults. */
   defaultVendor(repo?: string): Promise<VendorId | undefined>
   /** Uncommitted +/− counts for a worktree; `null` when git could not be

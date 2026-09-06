@@ -101,6 +101,47 @@ describe("recomputeTabActivity", () => {
     expect(eff).toMatchObject({ state: "idle", source: "observed", vendor: "claude", session: { id: "s1" } })
   })
 
+  it("a NEWER observed running unsticks a hook dead (the no-hook-engine escape)", () => {
+    // A dead process emits nothing, so observed output after the death can
+    // only come from a NEW engine. Without this an engine whose adapter never
+    // emits session-start (copilot's NoopHookAdapter) wore `dead` forever:
+    // the only other way to clear the slot is a hook event it never sends.
+    const eff = recomputeTabActivity(
+      {
+        hook: { state: "dead", at: 0, vendor: "copilot", session: { id: "s1" } },
+        observed: { state: "running", at: T },
+      },
+      T,
+    )
+    expect(eff).toMatchObject({ state: "running", source: "observed" })
+    // Lineage survives the hand-off — the liveness probe still needs it.
+    expect(eff).toMatchObject({ vendor: "copilot", session: { id: "s1" } })
+  })
+
+  it("an observed IDLE never unsticks a hook dead — a live shell is not a live engine", () => {
+    // The counter-case that keeps the escape honest: a killed engine leaves
+    // its shell running, and that shell walks as at-rest on every pass. If
+    // rest could clear `dead`, the death badge would evaporate one poll later
+    // for every engine, hooks or not.
+    const eff = recomputeTabActivity({ hook: { state: "dead", at: 0 }, observed: { state: "idle", at: T } }, T, 0)
+    expect(eff).toMatchObject({ state: "dead", source: "hook" })
+  })
+
+  it("an observed running OLDER than the death leaves dead standing", () => {
+    // Ordering is the whole proof. A `running` recorded before the exit is
+    // evidence about the engine that died, not about a new one — mutating the
+    // `at` comparison away must fail here.
+    const eff = recomputeTabActivity(
+      { hook: { state: "dead", at: T }, observed: { state: "running", at: T - 1_000 } },
+      T,
+    )
+    expect(eff).toMatchObject({ state: "dead", source: "hook" })
+    // Same instant is not "after" either.
+    expect(
+      recomputeTabActivity({ hook: { state: "dead", at: T }, observed: { state: "running", at: T } }, T),
+    ).toMatchObject({ state: "dead", source: "hook" })
+  })
+
   it("hook detail rides the effective payload (badge subtitles read it)", () => {
     const eff = recomputeTabActivity(
       { hook: { state: "permission_needed", at: T, detail: { waiting: "permission" } } },

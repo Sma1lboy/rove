@@ -97,6 +97,23 @@ export function isGitRepo(absPath: string): boolean {
 }
 
 /**
+ * Whether git would accept `branch` as a branch name — asked of git itself
+ * (`check-ref-format --branch`) rather than reimplemented, because the rules
+ * are a long tail (`..`, `@{`, a trailing `.lock`, a leading `-`, control
+ * bytes) and the authority has to be the same program that later runs
+ * `git worktree add -b`.
+ *
+ * No repo needed: this is a pure string check, so it runs from wherever the
+ * caller is and cannot be confused by the surrounding checkout. `-rf`-style
+ * names are safe to pass — the arg vector is fixed (`shell: false`) and git
+ * reads `--branch`'s value positionally.
+ */
+export function isValidBranchName(branch: string): boolean {
+  const r = spawnSync("git", ["check-ref-format", "--branch", branch], { encoding: "utf8", shell: false })
+  return r.status === 0
+}
+
+/**
  * Resolve a local path to the repository's PRIMARY checkout. `git rev-parse
  * --show-toplevel` returns the linked worktree when called from a task
  * worktree; scripted task creation wants the source repo instead so new tasks

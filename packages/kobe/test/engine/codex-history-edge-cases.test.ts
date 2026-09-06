@@ -232,6 +232,35 @@ describe("parseJsonl — tool call / result records", () => {
     }
   })
 
+  it("reads a single-record tool's own status instead of hard-coding isError:false", () => {
+    // `status` shapes taken from real `~/.codex/sessions` rollouts: call
+    // records carry `"completed"`, and Codex's own failure verdict spells
+    // itself `"failed"` (221 of them across one month of local sessions).
+    // `in_progress` is the Responses-API "still running", not a failure.
+    const cases: ReadonlyArray<[string | undefined, boolean]> = [
+      ["completed", false],
+      ["in_progress", false],
+      ["failed", true],
+      ["incomplete", true],
+      [undefined, false], // no verdict recorded ⇒ no failure claimed
+    ]
+    for (const [status, isError] of cases) {
+      const raw = meta({ type: "local_shell_call", call_id: "c9", ...(status ? { status } : {}), query: "x" })
+      const result = parseJsonl(raw, SID)[0]?.blocks[1]
+      expect({ status, isError: (result as { isError: boolean }).isError }).toEqual({ status, isError })
+    }
+  })
+
+  it("keeps `status` out of the tool_call INPUT — it is metadata, not an argument", () => {
+    const raw = meta({ type: "local_shell_call", call_id: "c9", status: "failed", query: "x" })
+    expect(parseJsonl(raw, SID)[0]?.blocks[0]).toEqual({
+      type: "tool_call",
+      callId: "c9",
+      name: "local_shell_call",
+      input: { query: "x" },
+    })
+  })
+
   it("synthesizes a call_id for a single-record tool when none is given", () => {
     const raw = meta({ type: "web_search_call", query: "x" })
     const out = parseJsonl(raw, SID)

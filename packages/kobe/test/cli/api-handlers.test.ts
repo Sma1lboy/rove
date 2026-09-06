@@ -58,6 +58,75 @@ describe("add handler", () => {
     expect(client.requestNames).toEqual([])
   })
 
+  it("refuses a --branch git will not accept, before anything is created", async () => {
+    // `--branch` was only type-checked, so `add --branch "a b"` exited 0 with
+    // the row in the backlog and the failure deferred to `ensure-worktree`,
+    // where it surfaced as a raw `git worktree add` transcript under
+    // `RPC_ERROR` — no code, no hint, and a row that can never materialize.
+    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
+    for (const bad of ["a b", "-rf", "feat/x..y"]) {
+      await expectApiError(
+        () =>
+          invokeVerb("add", ["--repo", "/repo/x", "--branch", bad], {
+            client,
+            runtime: stubRuntime({ isValidBranchName: async () => false }),
+          }),
+        "INVALID_BRANCH",
+      )
+    }
+    expect(client.requestNames).toEqual([])
+  })
+
+  it("leaves a parallel round's --branch refusal to the parallel path", async () => {
+    // `--count` rejects `--branch` outright (siblings cannot share one
+    // branch), and that is the more useful answer than "this name is
+    // malformed" — so the name check must not get there first and shadow it.
+    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
+    await expectApiError(
+      () =>
+        invokeVerb("add", ["--repo", "/repo/x", "--count", "3", "--prompt", "p", "--branch", "a b"], {
+          client,
+          runtime: stubRuntime({ isValidBranchName: async () => false }),
+        }),
+      "BAD_FLAG",
+    )
+  })
+
+  it("still accepts a branch name git allows", async () => {
+    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
+    await invokeVerb("add", ["--repo", "/repo/x", "--branch", "feat/ok"], { client, runtime: stubRuntime() })
+    expect(client.requests[0].payload).toMatchObject({ branch: "feat/ok" })
+  })
+
+  it("says so when --repo resolved UP out of a subdirectory", async () => {
+    // `--repo my-repo/packages/app` came back as `"repo": "…/my-repo"` with
+    // no trace of the levels it climbed, so a typo'd path and an intended one
+    // produced identical output.
+    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
+    const result = (await invokeVerb("add", ["--repo", "/repo/x/packages/app"], {
+      client,
+      runtime: stubRuntime({ resolveRepoRoot: async () => "/repo/x" }),
+    })) as { repoResolvedFrom?: string }
+    expect(result.repoResolvedFrom).toBe("/repo/x/packages/app")
+    expect(client.requests[0].payload).toMatchObject({ repo: "/repo/x" })
+  })
+
+  it("stays quiet when --repo already named the root, or git only realpath'd it", async () => {
+    // The field must not fire on a CORRECT path. `resolveRepoRoot` shells
+    // git, which reports the realpath, so `/tmp/x` comes back as
+    // `/private/tmp/x` on macOS — a rewrite, not a climb, and not a prefix.
+    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
+    const exact = (await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })) as {
+      repoResolvedFrom?: string
+    }
+    expect(exact.repoResolvedFrom).toBeUndefined()
+    const symlinked = (await invokeVerb("add", ["--repo", "/tmp/x"], {
+      client,
+      runtime: stubRuntime({ resolveRepoRoot: async () => "/private/tmp/x" }),
+    })) as { repoResolvedFrom?: string }
+    expect(symlinked.repoResolvedFrom).toBeUndefined()
+  })
+
   it("names the home it wrote to, so a collapsed isolation is visible in a success", async () => {
     // Four fan-out tasks once landed in a production `~/.rove` behind
     // `failures: []` because the payload never said where it had written.

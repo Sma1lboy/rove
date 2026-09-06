@@ -34,7 +34,6 @@ export function loadPluginEngines(homeDir?: string): readonly string[] {
           // shortName falls back to the engine's display name — a plugin
           // declaring nothing still gets a sensible label.
           const identity = {
-            vendorId: engine.id,
             shortName: engine.identity?.shortName ?? engine.name,
           }
           const ok = registerPluginEngine(engine.id, {

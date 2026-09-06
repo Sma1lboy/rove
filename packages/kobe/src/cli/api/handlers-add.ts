@@ -72,7 +72,8 @@ async function applyPostCreateFlags(daemon: DaemonRpc, taskId: string, args: Ver
 
 export async function add(ctx: VerbContext): Promise<unknown> {
   const { args, runtime } = ctx
-  const repo = await runtime.resolveRepoRoot(args.requireRepo("repo"))
+  const requestedRepo = args.requireRepo("repo")
+  const repo = await runtime.resolveRepoRoot(requestedRepo)
   // A task's isolation unit is a git worktree + branch, so a `--repo` that is
   // not a git repo has nothing to cut one from. Without this the create
   // SUCCEEDS: `resolveRepoRoot` falls back to the path verbatim, the row
@@ -89,8 +90,40 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   }
   const count = args.int("count")
   const agentsSpec = args.str("agents")
-  if (count !== undefined || agentsSpec) return addParallel(ctx, repo, count, agentsSpec)
-  return addOne(ctx, repo)
+  const parallel = count !== undefined || agentsSpec !== undefined
+  // `--branch` was type-checked and passed straight through, so an unusable
+  // name landed in the store and `add` still exited 0. The failure surfaced
+  // at `ensure-worktree` as a raw `git worktree add` transcript under
+  // `RPC_ERROR` — no code naming the cause, no hint, and a backlog row left
+  // behind that can never materialize. git is asked here, before anything is
+  // created, because git is what runs `worktree add -b` later.
+  //
+  // Skipped for a parallel round, which refuses `--branch` outright further
+  // down: siblings cannot share one branch, and "you cannot pass this flag
+  // here at all" is the more useful answer than "this name is malformed".
+  const branch = parallel ? undefined : args.str("branch")
+  if (branch && !(await runtime.isValidBranchName(branch))) {
+    throw new ApiError(
+      `--branch ${JSON.stringify(branch)} is not a valid git branch name (no spaces, no leading "-", no "..", "~^:?*[\\", no trailing ".lock") — see \`git check-ref-format --branch\``,
+      "INVALID_BRANCH",
+      helpStep("add"),
+    )
+  }
+  // A `--repo` pointing at a SUBDIRECTORY resolves up to the repo root, and
+  // said nothing about it: `--repo my-repo/packages/app/src` came back as
+  // `"repo": "…/my-repo"` with no trace of the four levels it climbed, so a
+  // typo'd path and an intended one produce identical output. Reported
+  // beside `identityWarning` — the other "we accepted this, but not as you
+  // wrote it" field.
+  //
+  // Gated on ANCESTRY, not on `!==`: `resolveRepoRoot` shells git, which
+  // reports the realpath, so a plain `--repo /tmp/x` on macOS comes back as
+  // `/private/tmp/x` and a `!==` test would flag every correct path there.
+  // A symlink rewrite is not a prefix of the path it rewrote; a climbed-out-of
+  // subdirectory always is.
+  const resolvedFrom = requestedRepo.startsWith(`${repo}/`) ? { repoResolvedFrom: requestedRepo } : undefined
+  const result = parallel ? await addParallel(ctx, repo, count, agentsSpec) : await addOne(ctx, repo)
+  return resolvedFrom && result && typeof result === "object" ? { ...result, ...resolvedFrom } : result
 }
 
 async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {

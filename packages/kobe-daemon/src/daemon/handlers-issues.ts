@@ -3,7 +3,30 @@
  *  from one truth instead of patching its own copy. */
 
 import { requireString } from "./handler-validators.ts"
-import type { DaemonRequestHandler } from "./handlers.ts"
+import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
+import type { RepoIssues } from "./issues-store.ts"
+
+/**
+ * Publish a repo's issue snapshot — but only when somebody is subscribed to
+ * the channel.
+ *
+ * `issue.snapshot` has no in-repo subscriber (its one consumer, the browser
+ * Issues pane, was deleted in #855; the TUI kanban uses the `issue.list` /
+ * `issue.mutate` RPCs). The channel survives because it is a public plugin
+ * API, so out-of-repo subscribers nobody here can enumerate may hold it — but
+ * with nobody attached, every task delete, every task→done transition and
+ * every issue edit was serializing a repo's ENTIRE issue state for no reader.
+ * `channels.ts` named this exact gate as the fix; this is it.
+ *
+ * `hasSubscribersFor` is optional on the context (older test doubles omit the
+ * whole thing), and its absence must mean "publish" — the safe direction: a
+ * missing gate costs one wasted publish, a wrongly-closed one silently drops a
+ * plugin's events.
+ */
+export function publishIssueSnapshot(ctx: DaemonHandlerContext, state: RepoIssues): void {
+  if (ctx.daemon.hasSubscribersFor?.("issue.snapshot") === false) return
+  ctx.bus.publish("issue.snapshot", state)
+}
 
 export const ISSUE_HANDLERS: readonly DaemonRequestHandler[] = [
   {
@@ -45,8 +68,7 @@ export const ISSUE_HANDLERS: readonly DaemonRequestHandler[] = [
         }
       }
       const state = await ctx.issues.mutate(repoRoot, payload.op)
-      // Write-only in this repo; kept as a plugin API — see `channels.ts`.
-      ctx.bus.publish("issue.snapshot", state)
+      publishIssueSnapshot(ctx, state)
       ctx.plugins?.handleUiReport({
         kind: "issue.changed",
         detail: {

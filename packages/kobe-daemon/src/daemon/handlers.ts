@@ -33,6 +33,7 @@ import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import type { AgentTurnsStore } from "./agent-turns-store.ts"
 import type { AttentionInboxStore } from "./attention-inbox.ts"
 import type { AutomationsStore } from "./automations-store.ts"
+import type { ChannelName } from "./channels.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import type { DeferredPromptsStore } from "./deferred-prompts-store.ts"
@@ -146,6 +147,11 @@ export interface DaemonHandlerContext {
      *  whichever client hosts the session, so this — not the GUI refcount —
      *  is what says a dispatch could reach anyone. */
     clientCount(): number
+    /** Is anyone subscribed who would actually RECEIVE a publish on this
+     *  channel? The same per-channel gate the background collectors use, so a
+     *  handler can skip building a payload nobody is listening for. Absent in
+     *  older test doubles — treat `undefined` as "publish anyway". */
+    hasSubscribersFor?(channel: ChannelName): boolean
     /** Graceful self-stop (`daemon.stop`). The reason rides out on the
      *  `daemon.stopping` broadcast — see {@link DaemonStopReason}. */
     stopSoon(reason?: DaemonStopReason): Promise<void>

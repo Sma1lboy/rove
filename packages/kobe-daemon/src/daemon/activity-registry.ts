@@ -307,9 +307,9 @@ export class DaemonActivityRegistry {
     )
     if (!effective) return "noop" // unreachable — the observed slot was just written
 
-    // A hook `running` that observation just DISPROVED is dead — retire the
-    // slot (and its watchdog) instead of leaving it to win the next
-    // arbitration. Keeping it resurrects the corrected tab as a phantom
+    // A hook claim that observation just DISPROVED — a `running` corrected to
+    // rest, or a `dead` outlived by fresh output — is retired along with its
+    // watchdog, instead of being left to win the next arbitration. Keeping it resurrects the corrected tab as a phantom
     // `running` on the very next ungated pass (the host-unreachable retire
     // path passes no correction gate, so the Infinity default re-elects the
     // stale claim at its original `at`), and its lapse watchdog then re-arms
