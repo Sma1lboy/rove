@@ -167,12 +167,9 @@ jobs:
     # Windows is a supported platform (README) but until this job nothing in
     # CI ran there, which is how a migration bug that fired on every Windows
     # launch shipped unnoticed (#931). Mirrors typecheck-and-test's chain on
-    # windows-latest.
-    #
-    # HARVEST PHASE: the unit-test step is continue-on-error while this job
-    # collects the real Windows-failing set from a real runner. Once that set
-    # is pinned as a vitest exclude ratchet, drop continue-on-error so the
-    # job gates like the others.
+    # windows-latest. Test files that do not pass on Windows yet are listed
+    # in packages/kobe/test/windows-known-failing.txt (a shrink-only ratchet
+    # that vitest.config.ts excludes on win32) so this job gates on the rest.
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -197,7 +194,6 @@ jobs:
 
       - name: Unit tests (kobe package)
         working-directory: packages/kobe
-        continue-on-error: true
         run: bun run test:fast
 
       - name: Build (kobe package)
