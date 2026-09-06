@@ -21,8 +21,17 @@ import type { TabsState } from "@/tui/workspace/terminal-tabs-core"
 import { type Task, toTaskId } from "@/types/task"
 import type { ReactNode } from "react"
 
-/** Fixed instant for every activity `at` — the row view compares timestamps. */
-const AT = 1_760_000_000_000
+/**
+ * Every activity `at`, as a fixed AGE rather than a fixed instant: a working
+ * or blocked tab row prints how long it has been that way, so a hard-coded
+ * epoch would render a number that grows by one every day and re-break these
+ * goldens on a schedule.
+ *
+ * 22½ minutes renders `22m` and sits half a minute from either bucket edge,
+ * so the whole scene sweep can straddle a wall-clock minute without flipping
+ * the string. Read once at module load, so every scene shares one instant.
+ */
+const AT = Date.now() - (22 * 60 + 30) * 1000
 
 export const SCENE_WIDTH = 30
 export const SCENE_HEIGHT = 22

@@ -11,9 +11,10 @@
 
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
-import { type BoxRenderable, MouseButton } from "@opentui/core"
+import { type BoxRenderable, MouseButton, TextAttributes } from "@opentui/core"
 import { type ReactNode, useEffect, useMemo } from "react"
 import { charWidth } from "../../../lib/display-width"
+import { relativeAge } from "../../../lib/relative-time"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
@@ -23,6 +24,7 @@ import {
   IN_PROGRESS_SPINNER,
   NO_STATE_GLYPH,
   buildSidebarRowView,
+  isAttentionActivity,
   withSpinnerFrame,
 } from "../../../tui/panes/sidebar/row-view"
 import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
@@ -41,6 +43,28 @@ import {
   useSpinnerFrame,
 } from "./row-cards"
 import { MoveChip, RowShell, type TreeRowShared, clusterCells, jumpDigitCells, treeLabelBudget } from "./tree-row-shell"
+
+/**
+ * How long this tab has been in its current state — `12m`, `2h` — or null
+ * when the state is one nobody is waiting on.
+ *
+ * Shown for exactly two readings: a row that is WORKING (how long has it been
+ * at it) and a row that is STOPPED (how long has it been stuck). A quiet row
+ * gets nothing: `○` already means there is nothing to wait for, and dating it
+ * would put a number on every idle tab in the rail.
+ *
+ * No timer of its own. The tree re-renders on the sidebar's ~2s branch tick
+ * (`shared.branchTick`), so the age walks by itself, and this stays outside
+ * `useTabRowBaseView`'s memo so an idle row still rebuilds nothing.
+ */
+function activityAgeLabel(activity: TaskEngineState | undefined, loading: boolean): string | null {
+  if (activity === undefined) return null
+  if (!loading && !isAttentionActivity(activity.state)) return null
+  // A clock skewed ahead of the daemon would otherwise print a huge age; the
+  // clamp inside `relativeAge` turns that into `0s`, which reads as "just
+  // now" rather than as a wrong number.
+  return relativeAge(activity.at)
+}
 
 /**
  * A worktree row carries NO ENGINE state glyph: the session state belongs to
@@ -290,6 +314,7 @@ export function TabTreeRow(props: {
   // dead daemon lineage) the row rests at the same `○` a known-idle one does —
   // both readings send you into the tab to find out. See NO_STATE_GLYPH.
   const glyph = restored ? ATTENTION_GLYPH : isAgent && carriesState ? rowView.stateGlyph : NO_STATE_GLYPH
+  const age = carriesState ? activityAgeLabel(activity, rowView.loading) : null
   // depth 1, not 2: a tab row starts at the same column as its
   // worktree row — the circle status glyph carries the hierarchy, and the
   // extra indent cell wasted width the narrow rail doesn't have.
@@ -312,11 +337,17 @@ export function TabTreeRow(props: {
               shared,
               2 +
                 jumpDigitCells(props.flatIndex) +
+                (age ? clusterCells(age) : 0) +
                 (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
             ),
             charWidth,
           )}
         </text>
+        {age ? (
+          <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" flexShrink={0}>
+            {age}
+          </text>
+        ) : null}
         <MoveChip rowId={props.rowId} shared={shared} />
         <JumpDigit flatIndex={props.flatIndex} dim={!isCursor} />
       </box>

@@ -94,6 +94,12 @@ const ATTENTION_STATES: ReadonlySet<TaskActivityState | undefined> = new Set([
   "dead",
 ])
 
+/** Whether this activity is one the rail marks `!` — the row is stopped and
+ *  stays stopped until somebody acts. Exported so renderers can ask the
+ *  question without re-listing the states (the tab row's age chip does). */
+export function isAttentionActivity(state: TaskActivityState | undefined): boolean {
+  return ATTENTION_STATES.has(state)
+}
 
 /**
  * Muted subtitle shown when a custom-engine task has nothing else to say.
