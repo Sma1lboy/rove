@@ -20,8 +20,11 @@
 
 import { readFileSync, readdirSync, existsSync } from "node:fs"
 import { join, basename } from "node:path"
+import { fileURLToPath } from "node:url"
 
-const ROOT = new URL("..", import.meta.url).pathname
+// `fileURLToPath`, not `.pathname`: on Windows the latter is `/C:/…`, which
+// `join` turns into `\C:\…` and every fs call rejects with ENOENT.
+const ROOT = fileURLToPath(new URL("..", import.meta.url))
 const DIR = join(ROOT, ".changeset")
 
 /**
