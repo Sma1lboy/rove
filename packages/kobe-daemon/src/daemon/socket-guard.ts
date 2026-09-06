@@ -67,6 +67,32 @@ export async function listenOnUnixSocket(server: Server, socketPath: string): Pr
  *  intent rather than restate the octal. */
 export const SOCKET_MODE = OWNER_ONLY_FILE_MODE
 
+/**
+ * Whether a process exists. `process.kill(pid, 0)` sends no signal — it only
+ * runs the permission/existence check — so it answers in three ways:
+ *
+ * - returns → alive
+ * - throws `ESRCH` → gone
+ * - throws `EPERM` → alive, just owned by another user and not signalable
+ *
+ * The pid guard is load-bearing, not defensive typing: `kill(0, 0)` targets
+ * the CALLER'S OWN process group and succeeds, so a pidfile that parsed to
+ * `0` would otherwise report a dead daemon as alive and block every cleanup
+ * path that waits for it to go away.
+ *
+ * Any other error code counts as alive. Callers use this to decide whether
+ * to kill a process or steal a lock, and both are unsafe to do on a guess.
+ */
+export function isProcessAlive(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code !== "ESRCH"
+  }
+}
+
 export async function readPidFile(pidPath: string): Promise<number | null> {
   try {
     const raw = await readFile(pidPath, "utf8")

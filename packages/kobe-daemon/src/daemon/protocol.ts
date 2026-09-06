@@ -220,15 +220,13 @@ export type DaemonRequestName =
   // palette even while no emulator is attached. `pty.open` attaches
   // the calling CONNECTION (spawning on first open, replaying the ring
   // buffer on reattach); output streams back as targeted `pty.data` event
-  // frames written only to attached connections. `pty.sweep` is the
-  // daemon→host janitor call: kill sessions whose task was deleted.
+  // frames written only to attached connections.
   | "pty.open"
   | "pty.write"
   | "pty.resize"
   | "pty.kill"
   | "pty.detach"
   | "pty.list"
-  | "pty.sweep"
   // Re-key a running session (`{from, to}` → `{renamed: boolean}`) — the
   // scratch-fold move: the child keeps running, only its ownership label
   // changes so sweeps and future attaches see it under the adopting task's
@@ -246,22 +244,26 @@ export type DaemonRequestName =
   // paying shell startup. Best-effort; older hosts reject the verb.
   | "pty.warm"
   // Deferred prompts: the delivery gate accepted a prompt
-  // it could not paste (composer busy) into daemon ownership. New clients use
-  // `fileIfVacant`, whose distinct name makes old replace-on-file daemons fail
-  // loud. `release` and `flush` claim records before exact-tab delivery;
-  // `get`/`resolve` remain only for loud legacy skew and pre-restart cleanup.
-  // `list`/`dismiss` are the read + drop half the TUI Inbox performs on a
-  // screen, so a headless caller can act on its own deferred prompt instead
-  // of waiting out the 24h TTL (`rove api deferred-list|-release|-dismiss`).
-  | "deferredPrompt.file"
+  // it could not paste (composer busy) into daemon ownership. Clients file
+  // through `fileIfVacant`, whose distinct name makes old replace-on-file
+  // daemons fail loud. `release` and `flush` claim records before exact-tab
+  // delivery. `list`/`dismiss` are the read + drop half the TUI Inbox
+  // performs on a screen, so a headless caller can act on its own deferred
+  // prompt instead of waiting out the 24h TTL
+  // (`rove api deferred-list|-release|-dismiss`).
   | "deferredPrompt.fileIfVacant"
-  | "deferredPrompt.get"
   | "deferredPrompt.list"
-  | "deferredPrompt.resolve"
   | "deferredPrompt.release"
   | "deferredPrompt.dismiss"
   | "deferredPrompt.discardTab"
   | "deferredPrompt.flush"
+  // Tombstones. `file`, `get` and `resolve` no longer do anything, but they
+  // stay NAMED so the registry answers them with an explicit refusal instead
+  // of the generic `unknown daemon request` — see RETIRED_DEFERRED_PROMPT_RPCS
+  // in handlers-deferred.ts for why the generic error misroutes the recovery.
+  | "deferredPrompt.file"
+  | "deferredPrompt.get"
+  | "deferredPrompt.resolve"
 
 /**
  * Verbs whose CONTRACT is to block, so the client must not put a wedge

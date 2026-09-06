@@ -21,7 +21,8 @@
  * after code changes) never touches running sessions, exactly like a
  * persistent terminal server outliving the TUI. An exited session is kept,
  * scrollback intact, so a reattach can still show how the child died; it is
- * removed by an explicit `kill` or task deletion (`sweepTasks`).
+ * removed by an explicit `kill` or the daemon's task-deletion sweep
+ * (`sweepPtyHostSessions` in `client/pty-process.ts`).
  *
  * Freeze/restore (`pty-freeze-store.ts`): every session's metadata and
  * ring persist to disk (throttled while streaming, immediately on exit,
@@ -381,19 +382,6 @@ export class PtyHost {
   /** Retention facts for diagnostics; no terminal bytes leave the host. */
   stats(): PtyHostStats {
     return hostStats(this.sessions.values(), this.scrollbackCap, this.parkRestoreDeltas, this.parkRestoreFallbacks)
-  }
-
-  /**
-   * Task-deletion sweep: kill every session whose task id (the segment of
-   * the key before the first `::` — see the TUI's `tabPtyKey`) is no
-   * longer a live task. Keeps a headless task deletion from
-   * leaking an engine that runs forever with no owner.
-   */
-  sweepTasks(liveTaskIds: ReadonlySet<string>): void {
-    for (const key of Array.from(this.sessions.keys())) {
-      const taskId = key.split("::")[0] ?? key
-      if (!liveTaskIds.has(taskId)) this.kill(key)
-    }
   }
 
   /** Kill every session and the warm spare before host shutdown completes. */

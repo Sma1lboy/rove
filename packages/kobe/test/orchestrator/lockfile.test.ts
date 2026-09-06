@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { isProcessAlive as daemonIsProcessAlive } from "@sma1lboy/kobe-daemon/daemon/lifecycle"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { LockfileError, acquire, isProcessAlive, release } from "../../src/orchestrator/index/lockfile.ts"
 
@@ -10,6 +11,11 @@ describe("isProcessAlive", () => {
     expect(isProcessAlive(process.pid)).toBe(true)
   })
 
+  // The pid guard, not defensive typing. `kill(0, 0)` targets the CALLER'S
+  // OWN process group and SUCCEEDS, so without the guard a pidfile that
+  // parsed to `0` reports a long-dead daemon as alive — and every caller
+  // that waits for it to go away (restart, reset, the pty-host sweep) waits
+  // forever. Drop `pid <= 0` and this case flips to `true`.
   it("rejects non-positive / non-integer pids without throwing", () => {
     expect(isProcessAlive(0)).toBe(false)
     expect(isProcessAlive(-1)).toBe(false)
@@ -19,6 +25,34 @@ describe("isProcessAlive", () => {
 
   it("returns false for a pid far above the typical max", () => {
     expect(isProcessAlive(999_999)).toBe(false)
+  })
+
+  // ESRCH is the ONLY code that means gone. Everything else means the probe
+  // failed, not that the process did — and every caller uses this answer to
+  // decide whether to kill something or steal a lock, both unsafe on a guess.
+  // (EPERM has its own test below, with the real `process.kill` mocked.)
+  it.each([
+    ["ESRCH", false],
+    ["EPERM", true],
+    ["EINVAL", true],
+    [undefined, true],
+  ] as const)("treats a %s kill probe as alive=%s", (code, alive) => {
+    const killSpy = vi.spyOn(process, "kill").mockImplementation(() => {
+      throw Object.assign(new Error(String(code)), code === undefined ? {} : { code })
+    })
+    try {
+      expect(isProcessAlive(4242)).toBe(alive)
+    } finally {
+      killSpy.mockRestore()
+    }
+  })
+
+  // The daemon used to carry its own copy with neither the pid guard nor the
+  // non-ESRCH default (only EPERM counted as alive), so `lifecycle`'s answer
+  // and the lockfile's disagreed on exactly the two cases above. One
+  // implementation now, reached through both historical import paths.
+  it("is the same function the daemon's lifecycle exports", () => {
+    expect(daemonIsProcessAlive).toBe(isProcessAlive)
   })
 })
 
@@ -95,7 +129,7 @@ describe("acquire / release — edge branches", () => {
     await rm(lockPath, { force: true })
   })
 
-  it("treats an EPERM kill probe as alive (exists but not signalable)", () => {
+  it("treats an EPERM kill probe on a real system pid as alive", () => {
     const killSpy = vi.spyOn(process, "kill").mockImplementation(() => {
       throw Object.assign(new Error("EPERM"), { code: "EPERM" })
     })

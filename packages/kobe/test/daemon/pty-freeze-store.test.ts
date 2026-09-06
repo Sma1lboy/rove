@@ -199,7 +199,7 @@ describe("pruning stale + over-budget records", () => {
   it("deletes records past the TTL instead of thawing them", () => {
     const now = Date.parse("2026-08-30T00:00:00.000Z")
     writeRecord("fresh::tab-1", new Date(now - DAY).toISOString())
-    // A task deleted while the host was down: `pty.sweep` only reaches a
+    // A task deleted while the host was down: the sweep only reaches a
     // RUNNING host, so nothing ever removed this record.
     writeRecord("orphan::tab-1", new Date(now - 30 * DAY).toISOString())
 

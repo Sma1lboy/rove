@@ -93,15 +93,18 @@ describe("daemon handler registry", () => {
       "note.file",
       "note.list",
       "note.delete",
-      "deferredPrompt.file",
       "deferredPrompt.fileIfVacant",
-      "deferredPrompt.get",
       "deferredPrompt.list",
-      "deferredPrompt.resolve",
       "deferredPrompt.release",
       "deferredPrompt.dismiss",
       "deferredPrompt.discardTab",
       "deferredPrompt.flush",
+      // Tombstones: named so the registry refuses them explicitly instead of
+      // answering the generic `unknown daemon request`, whose recovery
+      // ("restart the daemon") is the wrong half for an older CLIENT.
+      "deferredPrompt.file",
+      "deferredPrompt.get",
+      "deferredPrompt.resolve",
     ]
     const registry = createDaemonHandlerRegistry()
     for (const name of rpcNames) expect(registry.get(name), name).toBeDefined()

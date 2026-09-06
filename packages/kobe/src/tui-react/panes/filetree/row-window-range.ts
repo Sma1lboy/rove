@@ -13,7 +13,7 @@
 const OVERSCAN = 16
 
 /** Rows rendered before the first layout has given the viewport a height. */
-export const PRE_LAYOUT_ROWS = 64
+const PRE_LAYOUT_ROWS = 64
 
 export function rowWindowRange(top: number, height: number, rowCount: number): { start: number; end: number } {
   if (rowCount <= 0) return { start: 0, end: 0 }

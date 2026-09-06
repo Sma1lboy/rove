@@ -17,7 +17,7 @@
 
 import { unlink } from "node:fs/promises"
 import { KobeDaemonClient } from "../client/index.ts"
-import { readPidFile } from "./socket-guard.ts"
+import { isProcessAlive, readPidFile } from "./socket-guard.ts"
 
 /**
  * How {@link stopDaemonProcess} stopped the daemon — the strongest signal
@@ -36,21 +36,11 @@ export interface StopDaemonResult {
   method: DaemonStopMethod
 }
 
-/** `kill(pid, 0)` throws ESRCH once a process is gone; EPERM means it's
- *  alive but owned by another user.
- *
- *  Exported because it is the ONLY honest liveness answer we have: a socket
- *  probe reports whether the daemon ANSWERED, which a busy daemon can fail
- *  while being perfectly healthy. Callers deciding whether to kill anything
- *  must ask the OS, not the socket. */
-export function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (err) {
-    return (err as NodeJS.ErrnoException).code === "EPERM"
-  }
-}
+/** Re-exported because it is the ONLY honest liveness answer we have: a
+ *  socket probe reports whether the daemon ANSWERED, which a busy daemon can
+ *  fail while being perfectly healthy. Callers deciding whether to kill
+ *  anything must ask the OS, not the socket. */
+export { isProcessAlive }
 
 /**
  * Stop the daemon listening on `socketPath`, wait until its process is

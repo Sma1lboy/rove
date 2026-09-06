@@ -42,8 +42,9 @@ import { homedir } from "node:os"
 import path from "node:path"
 import type { EngineUsageSnapshot, Message } from "@/types/engine"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
+import { isObject } from "../json-hooks.ts"
 import { vendorConfigHome } from "../vendor-home"
-import { isObject, parseSessionRaw } from "./history-parse"
+import { parseSessionRaw } from "./history-parse"
 
 // Parsing (JSONL → Message[], sorting, and the append-aware per-file cache)
 // lives in ./history-parse; re-exported here for existing consumers/tests.
