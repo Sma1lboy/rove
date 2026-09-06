@@ -17,42 +17,17 @@
  */
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { homeDir } from "../../env.ts"
 import { ulid } from "../../orchestrator/index/ulid.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
 import type { TaskStatus } from "../../types/task.ts"
 import { DEFAULT_VENDOR, type VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
+import { type EngineChoice, effortFor, engineChoice, enginePayload } from "./add-engine-fields.ts"
 import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
 import { FANOUT_CAP, buildCountPlan, parseAgentsSpec } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, helpStep } from "./types.ts"
-
-/** The engine fields a create carries: the raw command + its resolved protocol. */
-interface EngineChoice {
-  readonly command?: string
-  readonly vendor?: VendorId
-}
-
-/**
- * Resolve `--command` into what a task record needs. A bare preset id stays
- * verbatim in `command` (so a later `engineCommand.<id>` edit in Settings
- * still reaches this task) with its declared protocol alongside; a full
- * command line records both too. No `--command` = the repo's default engine,
- * which is a preset id, so it goes in the same two fields.
- */
-async function engineChoice(ctx: VerbContext, repo: string): Promise<EngineChoice> {
-  const command = ctx.args.str("command")
-  if (command) return { command, vendor: resolveCommandProtocol(command) }
-  const fallback = await ctx.runtime.defaultVendor(repo)
-  return fallback ? { command: fallback, vendor: fallback } : {}
-}
-
-/** The engine fields as a flat `task.create` payload fragment. */
-function enginePayload(choice: EngineChoice): Record<string, string> {
-  return { ...(choice.command ? { command: choice.command } : {}), ...(choice.vendor ? { vendor: choice.vendor } : {}) }
-}
 
 /**
  * `--status` / `--pin` aren't create-time fields on the RPC — apply them as
@@ -138,7 +113,8 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   // Record who dispatched this create — the reply address a
   // sub-task's bare `send` routes its outcome back to.
   const choice = await engineChoice(ctx, repo)
-  const payload: Record<string, string> = { repo, ...(await dispatcherEnvPayload()), ...enginePayload(choice) }
+  const effort = effortFor(ctx, choice.vendor ? [choice.vendor] : [])
+  const payload: Record<string, string> = { repo, ...(await dispatcherEnvPayload()), ...enginePayload(choice, effort) }
   const title = args.str("title") || (prompt ? deriveTitleFromPrompt(prompt) : "")
   if (title) payload.title = title
   const branch = args.str("branch")
@@ -317,6 +293,7 @@ async function addParallel(
       "BAD_FLAG",
     )
   }
+  const effort = effortFor(ctx, plan)
   const groupId = ulid()
 
   // Create serially — task.create is a pure store write (worktrees are lazy,
@@ -335,7 +312,7 @@ async function addParallel(
     // `--agents` picks each sibling's engine BY ID, so its command is that
     // id; a `--count` round reuses the caller's own `--command` verbatim.
     const engine: EngineChoice = agentsSpec ? { command: vendor, vendor } : { ...choice, vendor }
-    const payload: Record<string, string> = { repo, groupId, ...dispatcher, ...enginePayload(engine) }
+    const payload: Record<string, string> = { repo, groupId, ...dispatcher, ...enginePayload(engine, effort) }
     if (title) payload.title = plan.length > 1 ? `${title} #${i + 1}/${plan.length}` : title
     if (baseRef) payload.baseRef = baseRef
     try {

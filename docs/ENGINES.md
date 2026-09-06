@@ -84,14 +84,16 @@ can drive; a selected effort is ignored there rather than passed through.
 
 Three places select one:
 
-- the web board's engine picker, when you start a task from an issue;
+- `rove api add --command codex --effort LEVEL`, which is the only one that
+  reaches the task's **first** session — the other two rebuild it;
 - the sidebar row menu's **Change engine** entry, whose second row lists the
   engine's levels (`←→` picks one, and "engine default" clears it). Engines
   that declare no levels show no row;
 - `rove api set-effort --task-id ID --level LEVEL` from a shell.
 
-All three take effect on the task's next session rebuild, not on the running
-one.
+The board's start-a-task-from-an-issue picker chooses an engine but not a
+level, so a task started that way runs its first session on the engine's
+default until you set one.
 
 ### Workspace trust
 

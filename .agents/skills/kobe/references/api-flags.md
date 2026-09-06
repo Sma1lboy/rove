@@ -166,7 +166,7 @@ clear the shared active task.
 
 <!-- generated:begin create,edit,lifecycle -->
 ```text
-add          --repo(REQ) --title --branch --base-branch --command --count
+add          --repo(REQ) --title --branch --base-branch --command --effort --count
              --agents <claude:2,codex:1>
              --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
              --activate(false) --prompt|--prompt-file
