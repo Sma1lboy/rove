@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import type { TerminalRow } from "../../src/tui/panes/terminal/pty-types"
-import { XtermTaskPty } from "../../src/tui/panes/terminal/pty-xterm-base"
+import { FakeTransportPty, rowsText, settleRefresh } from "./pty-fake"
 
 /**
  * Lazy snapshot rebuild for unwatched PTYs.
@@ -15,32 +14,14 @@ import { XtermTaskPty } from "../../src/tui/panes/terminal/pty-xterm-base"
  * `onData` subscribe still always see fresh content.
  */
 
-class FakeTransportPty extends XtermTaskPty {
-  protected transportWrite(_data: string): void {}
-  protected transportResize(_cols: number, _rows: number): void {}
-  protected transportKill(): void {}
-  pump(data: string): void {
-    this.feed(data)
-  }
-}
-
-function rowsText(rows: readonly TerminalRow[]): string {
-  return rows.map((row) => row.map((chunk) => chunk.text).join("")).join("\n")
-}
-
-/** Let xterm's async write callback + the 16ms refresh debounce drain. */
-function settle(ms = 60): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 describe("XtermTaskPty lazy snapshot (no subscribers)", () => {
   it("defers the rebuild until capture(), then serves it without re-converting", async () => {
     const pty = new FakeTransportPty({ taskId: "t1", cwd: "/wt" })
     // biome-ignore lint/suspicious/noExplicitAny: reaching a private method to observe laziness
     const refresh = vi.spyOn(pty as any, "refreshSnapshot")
 
-    pty.pump("hello from background\r\n")
-    await settle()
+    await pty.pump("hello from background\r\n")
+    await settleRefresh()
     // Output landed but nobody is watching — no conversion ran.
     expect(refresh).not.toHaveBeenCalled()
 
@@ -58,8 +39,8 @@ describe("XtermTaskPty lazy snapshot (no subscribers)", () => {
 
   it("primes a late onData subscriber with fresh content, not the stale snapshot", async () => {
     const pty = new FakeTransportPty({ taskId: "t1", cwd: "/wt" })
-    pty.pump("first output\r\n")
-    await settle()
+    await pty.pump("first output\r\n")
+    await settleRefresh()
 
     const primed: string[] = []
     pty.onData((snap) => primed.push(rowsText(snap)))
@@ -74,8 +55,8 @@ describe("XtermTaskPty lazy snapshot (no subscribers)", () => {
     const seen: string[] = []
     pty.onData((snap) => seen.push(rowsText(snap)))
 
-    pty.pump("streamed line\r\n")
-    await settle()
+    await pty.pump("streamed line\r\n")
+    await settleRefresh()
     // No capture() needed — the subscriber was pushed the fresh snapshot.
     expect(seen.some((s) => s.includes("streamed line"))).toBe(true)
 
