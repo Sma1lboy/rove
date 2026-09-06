@@ -140,6 +140,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |
 | `TAB_NOT_FOUND` | A `--tab tab-N` the task has no live (or restorable) tab for. |
 | `NOT_A_REPO` | `--repo` does not point at a git repository. |
+| `INVALID_BRANCH` | `--branch` is a name git will not accept (`git check-ref-format --branch`). |
 | `REPO_UNRESOLVABLE` | `--repo` resolved, but the repository is gone or unreadable. |
 | `NO_WORKTREE` | The task has no materialized worktree yet. |
 | `BASE_CHECKOUT` | `delete` was aimed at the project's own checkout, not a Rove worktree. |
@@ -392,7 +393,17 @@ replacement in `nextCommandArgs`.
   auto-derived from the title following the repo's own branch-naming
   convention (inferred from its existing local + origin branches, e.g.
   `feat/login-flow` in a type-prefixed repo, `login-flow` in a bare-slug or
-  empty repo; name collisions get a short `-2`/`-3` suffix).
+  empty repo; name collisions get a short `-2`/`-3` suffix). A title that
+  kebab-cases to nothing — written in a non-Latin script, or all emoji /
+  punctuation — falls back to `task-<last 6 of the task id>`, so two such
+  tasks get two distinct names instead of `task` and `task-2`.
+  An explicit `--branch` is checked against `git check-ref-format --branch`
+  BEFORE the task is created; a name git would refuse is `INVALID_BRANCH`
+  and nothing is written.
+
+  A `--title` is flattened to one line: newlines, tabs and other control
+  characters collapse to single spaces (the sidebar row does not wrap, and a
+  raw newline breaks its height).
   `--base-branch` cuts the new branch from that ref instead of the repo's
   current HEAD and is persisted on the task (`.task.baseRef`) — the fork
   point `collect` measures against, durable across daemon restarts. The

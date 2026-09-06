@@ -87,6 +87,20 @@ export async function add(ctx: VerbContext): Promise<unknown> {
       helpStep("add"),
     )
   }
+  // `--branch` was type-checked and passed straight through, so an unusable
+  // name landed in the store and `add` still exited 0. The failure surfaced
+  // at `ensure-worktree` as a raw `git worktree add` transcript under
+  // `RPC_ERROR` — no code naming the cause, no hint, and a backlog row left
+  // behind that can never materialize. git is asked here, before anything is
+  // created, because git is what runs `worktree add -b` later.
+  const branch = args.str("branch")
+  if (branch && !(await runtime.isValidBranchName(branch))) {
+    throw new ApiError(
+      `--branch ${JSON.stringify(branch)} is not a valid git branch name (no spaces, no leading "-", no "..", "~^:?*[\\", no trailing ".lock") — see \`git check-ref-format --branch\``,
+      "INVALID_BRANCH",
+      helpStep("add"),
+    )
+  }
   const count = args.int("count")
   const agentsSpec = args.str("agents")
   if (count !== undefined || agentsSpec) return addParallel(ctx, repo, count, agentsSpec)

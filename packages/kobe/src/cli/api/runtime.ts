@@ -394,6 +394,7 @@ export const defaultApiRuntime: ApiRuntime = {
     const { isGitRepo, isRemoteRepoKey } = await import("../../state/repos.ts")
     return isRemoteRepoKey(absPath) || isGitRepo(absPath)
   },
+  isValidBranchName: async (branch) => (await import("../../state/repos.ts")).isValidBranchName(branch),
   defaultVendor: async (repo) => {
     const { getGlobalDefaultVendor, getRepoLastActiveVendor } = await import("../../state/vendor-prefs.ts")
     return (repo ? getRepoLastActiveVendor(repo) : undefined) ?? getGlobalDefaultVendor()

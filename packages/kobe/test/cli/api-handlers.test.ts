@@ -58,6 +58,31 @@ describe("add handler", () => {
     expect(client.requestNames).toEqual([])
   })
 
+  it("refuses a --branch git will not accept, before anything is created", async () => {
+    // `--branch` was only type-checked, so `add --branch "a b"` exited 0 with
+    // the row in the backlog and the failure deferred to `ensure-worktree`,
+    // where it surfaced as a raw `git worktree add` transcript under
+    // `RPC_ERROR` — no code, no hint, and a row that can never materialize.
+    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
+    for (const bad of ["a b", "-rf", "feat/x..y"]) {
+      await expectApiError(
+        () =>
+          invokeVerb("add", ["--repo", "/repo/x", "--branch", bad], {
+            client,
+            runtime: stubRuntime({ isValidBranchName: async () => false }),
+          }),
+        "INVALID_BRANCH",
+      )
+    }
+    expect(client.requestNames).toEqual([])
+  })
+
+  it("still accepts a branch name git allows", async () => {
+    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
+    await invokeVerb("add", ["--repo", "/repo/x", "--branch", "feat/ok"], { client, runtime: stubRuntime() })
+    expect(client.requests[0].payload).toMatchObject({ branch: "feat/ok" })
+  })
+
   it("names the home it wrote to, so a collapsed isolation is visible in a success", async () => {
     // Four fan-out tasks once landed in a production `~/.rove` behind
     // `failures: []` because the payload never said where it had written.
