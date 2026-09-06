@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.169
+
+### Patch Changes
+
+- [#950](https://github.com/Sma1lboy/rove/pull/950) [`3425d50`](https://github.com/Sma1lboy/rove/commit/3425d50656efa31583d8f042cf06ff4eab77b2c8) The Worktrees page can no longer delete a directory Task's own directory, or a project's own checkout. Both appear on the page — it lists every registered worktree of a saved project — and deleting one removed files Rove never created, then skipped the pointer repair, leaving the Task aimed at a directory that no longer existed. `worktree.remove` now refuses both by task kind (`NOT_A_ROVE_WORKTREE`), matching every other destructive path. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.168
 
 ### Patch Changes
