@@ -20,8 +20,7 @@ if (!includeSocket) {
 // — see the header of test/windows-known-failing.txt.
 if (process.platform === "win32") {
   const listed = readFileSync(path.resolve(__dirname, "test/windows-known-failing.txt"), "utf8")
-    .split("
-")
+    .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0 && !line.startsWith("#"))
   exclude.push(...listed)
