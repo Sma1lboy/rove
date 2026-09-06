@@ -436,7 +436,7 @@ describe("framework-free store twins (React hosts)", () => {
     const { client, emit } = fakeClient()
     const orch = new RemoteOrchestrator(client)
     const store = orch.uiPrefsStore()
-    const seen: Array<string | undefined> = []
+    const seen: Array<string | null | undefined> = []
     const unsub = store.subscribe(() => seen.push(store.get()?.theme))
     emit("ui-prefs", { theme: "nord" })
     expect(store.get()?.theme).toBe("nord")

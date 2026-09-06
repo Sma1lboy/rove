@@ -8,7 +8,7 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { runAutoTitlePass } from "@sma1lboy/kobe-daemon/daemon/auto-title-poller"
+import { runAutoTitlePass as runPassWithVendor } from "@sma1lboy/kobe-daemon/daemon/auto-title-poller"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import { Orchestrator, PLACEHOLDER_TASK_TITLE } from "../../src/orchestrator/core.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
@@ -39,6 +39,12 @@ async function makeTask(opts: { title?: string; worktree?: string; groupId?: str
   if (opts.worktree !== undefined) await store.update(task.id, { worktreePath: opts.worktree })
   return task.id
 }
+
+/** The pass takes its placeholder and default vendor from the runtime adapter
+ *  in production; neither is what these cases are about. */
+const runAutoTitlePass = (
+  ...args: [Parameters<typeof runPassWithVendor>[0], Parameters<typeof runPassWithVendor>[1]]
+): ReturnType<typeof runPassWithVendor> => runPassWithVendor(args[0], args[1], "(new task)", "claude")
 
 describe("runAutoTitlePass", () => {
   test("renames only placeholder tasks that have a worktree", async () => {

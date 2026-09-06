@@ -19,6 +19,17 @@ describe("decodeUiPrefsPayload — backward-compat defaults", () => {
     expect(decodeUiPrefsPayload({ theme: 42 })).toBeNull()
   })
 
+  it("keeps a payload whose theme is null — state.json names no selection", () => {
+    // The daemon has no theme registry, so `null` is its honest answer and the
+    // rest of the snapshot must still land. `applyUiPrefs` reads a non-string
+    // theme as "leave the current one alone".
+    const decoded = decodeUiPrefsPayload({ theme: null, locale: "zh", sortMode: "recent" })
+    expect(decoded).not.toBeNull()
+    expect(decoded?.theme).toBeNull()
+    expect(decoded?.locale).toBe("zh")
+    expect(decoded?.sortMode).toBe("recent")
+  })
+
   it("an older daemon's theme-only payload resolves every newer field to its absent-sentinel", () => {
     // The footgun this owns: locale MUST be "" (skip), not "en"; sortMode
     // "default"; keysCollapsed false; projectFilter null. And

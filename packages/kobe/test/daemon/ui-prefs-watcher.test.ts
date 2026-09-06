@@ -80,7 +80,7 @@ describe("defaultUiPrefsStatePath", () => {
 describe("readUiPrefsFromStateFile", () => {
   test("missing file yields the documented defaults", () => {
     expect(readUiPrefsFromStateFile(statePath)).toEqual({
-      theme: "claude",
+      theme: null, // the daemon has no theme registry — the TUI picks the default
       transparentBackground: true, // transparent-by-default
       focusAccent: null,
       locale: "en",
@@ -94,7 +94,7 @@ describe("readUiPrefsFromStateFile", () => {
     fs.mkdirSync(path.dirname(statePath), { recursive: true })
     fs.writeFileSync(statePath, "{not json", "utf8")
     expect(readUiPrefsFromStateFile(statePath)).toEqual({
-      theme: "claude",
+      theme: null, // the daemon has no theme registry — the TUI picks the default
       transparentBackground: true, // transparent-by-default
       focusAccent: null,
       locale: "en",

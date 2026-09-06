@@ -79,7 +79,10 @@ export function readUiPrefsFromStateFile(statePath: string): UiPrefsPayload {
     // Missing or malformed state.json → defaults. Never surface — the
     // prefs channel must always have a sane value to replay.
   }
-  const theme = typeof parsed.activeTheme === "string" && parsed.activeTheme.length > 0 ? parsed.activeTheme : "claude"
+  // Not `"claude"`: naming a default here would fork the TUI's theme registry,
+  // which is the only thing that knows what the default IS. `null` says
+  // "state.json has no selection" and lets the registry answer.
+  const theme = typeof parsed.activeTheme === "string" && parsed.activeTheme.length > 0 ? parsed.activeTheme : null
   // Default-true: only an explicit stored `false` opts out.
   const transparentBackground = parsed.transparentBackground !== false
   const focusAccent =
