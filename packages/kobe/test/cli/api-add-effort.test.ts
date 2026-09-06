@@ -36,28 +36,31 @@ function createClient(): FakeClient {
 }
 
 describe("add --effort", () => {
+  // These assert the ENGINE fields, never the whole payload: `--repo` is
+  // absolutized against the runner's cwd, so `/repo/x` arrives as `D:\repo\x`
+  // on the windows job and a whole-payload equality fails there while passing
+  // everywhere else.
   it("rides on task.create as `effort`, so the first session carries it", async () => {
     const client = createClient()
     await invokeVerb("add", ["--repo", "/repo/x", "--command", "codex", "--effort", "xhigh"], {
       client,
       runtime: stubRuntime(),
     })
-    // `effort` is the WIRE key the daemon maps onto the record's
-    // `modelEffort`; sending `modelEffort` here is dropped without a word, and
-    // the create still succeeds — so the payload name is the assertion.
-    expect(client.requests[0]).toEqual({
-      name: "task.create",
-      payload: { repo: "/repo/x", command: "codex", vendor: "codex", effort: "xhigh" },
-    })
+    expect(client.requests[0]?.name).toBe("task.create")
+    expect(client.requests[0]?.payload).toMatchObject({ command: "codex", vendor: "codex", effort: "xhigh" })
+    // `effort` is the WIRE key the daemon maps onto the record's `modelEffort`
+    // (`handlers-task.ts` task.create). Sending `modelEffort` instead is
+    // dropped without a word and the create still succeeds, so the key's NAME
+    // is the whole assertion — hence the negative half.
+    expect(client.requests[0]?.payload).not.toHaveProperty("modelEffort")
   })
 
   it("is optional — an add without it sends no effort at all", async () => {
     const client = createClient()
     await invokeVerb("add", ["--repo", "/repo/x", "--command", "codex"], { client, runtime: stubRuntime() })
-    expect(client.requests[0]).toEqual({
-      name: "task.create",
-      payload: { repo: "/repo/x", command: "codex", vendor: "codex" },
-    })
+    expect(client.requests[0]?.name).toBe("task.create")
+    expect(client.requests[0]?.payload).toMatchObject({ command: "codex", vendor: "codex" })
+    expect(client.requests[0]?.payload).not.toHaveProperty("effort")
   })
 
   it("refuses a level the engine does not declare, before creating anything", async () => {
