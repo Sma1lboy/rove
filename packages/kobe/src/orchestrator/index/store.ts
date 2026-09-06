@@ -398,11 +398,20 @@ export class TaskIndexStore {
    * `void` made "deleted" and "there was nothing here" the same answer — a
    * caller working from a cache that never saw the task (a peer created it)
    * got a silent no-op indistinguishable from a deletion. Hence the boolean.
+   *
+   * Rolls back like its siblings when the write does not land. Without that,
+   * a failed delete was the worst of both: the row left the sidebar while the
+   * caller was told the delete failed, the task stayed on disk with its
+   * `deletion.phase` still `running` (so the next launch restored a row whose
+   * worktree `task-deletion.finish` had already removed), and the tombstone
+   * stayed in `removedIds` for the next UNRELATED successful save to flush —
+   * completing the deletion minutes later, silently.
    */
   async remove(id: TaskId | string): Promise<boolean> {
     this.assertLoaded()
     const idx = this.cache.tasks.findIndex((t) => t.id === id)
-    if (idx < 0) return false
+    const removed = this.cache.tasks[idx]
+    if (idx < 0 || !removed) return false
     this.cache.tasks.splice(idx, 1)
     // Record the deletion so the read-merge-write doesn't resurrect this task
     // from a stale on-disk copy, and stop treating it as a pending edit. The
@@ -410,7 +419,18 @@ export class TaskIndexStore {
     // task dirty in memory don't write it back either.
     this.dirtyIds.delete(String(id))
     this.removedIds.set(String(id), new Date().toISOString())
-    await this.save()
+    await this.saveOrRollback(String(id), () => {
+      // By object identity, like the other undos: if anything put this id back
+      // while we were writing, that mutation owns it and carries its own save.
+      if (this.cache.tasks.some((t) => t.id === removed.id)) return false
+      // The tombstone is the half that outlives the cache: leaving it behind
+      // is what let a later save finish the rejected deletion.
+      this.removedIds.delete(String(id))
+      // Clamp: a concurrent create can have shifted the tail. Position is
+      // best-effort, the restored entry is not.
+      this.cache.tasks.splice(Math.min(idx, this.cache.tasks.length), 0, removed)
+      return true
+    })
     this.notifyListeners()
     return true
   }
