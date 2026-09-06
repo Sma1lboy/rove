@@ -20,13 +20,13 @@ import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   closeTabsSnapshot,
-  hasLiveEngineTab,
   joinTaskTabs,
   markCliTabSession,
   mintCliTab,
   publishCliTabSnapshot,
   readTabsSnapshot,
 } from "../../src/cli/api/tab-snapshot.ts"
+import { hasLiveEngineTab } from "../../src/cli/api/task-running.ts"
 import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core.ts"
 
 let home: string

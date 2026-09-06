@@ -11,7 +11,8 @@
 
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
 import { describe, expect, it } from "vitest"
-import { hasLiveEngineTab, joinTaskTabs } from "../../src/cli/api/tab-snapshot.ts"
+import { joinTaskTabs } from "../../src/cli/api/tab-snapshot.ts"
+import { hasLiveEngineTab } from "../../src/cli/api/task-running.ts"
 import { findHostedEngineKey } from "../../src/engine/hosted-session.ts"
 import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core.ts"
 

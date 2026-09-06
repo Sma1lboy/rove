@@ -23,7 +23,6 @@
 
 import type { PtySessionExit } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
-import { isHostedTaskKey, sessionArgvNamesEngine } from "../../engine/hosted-session.ts"
 import { loadStateFile, patchStateFile, updateStateFile } from "../../state/store.ts"
 import { terminalTabsKey } from "../../tui-react/workspace/terminal-tabs-persist.ts"
 import {
@@ -345,50 +344,6 @@ function engineAliveOf(
   if (isAlive === null) return null
   if (!isAlive) return false
   return engineAlive?.has(key) === true ? (engineAlive.get(key) ?? null) : null
-}
-
-/**
- * A task is RUNNING when ANY of its engine tabs has a live hosted session
- * WITH AN ENGINE IN IT — not just the canonical first one, and not merely a
- * live PTY. The old `tab-1`-only rule reported `running:false` while later
- * engine tabs (`send --tab new`, a TUI tab opened after tab-1 closed) were
- * happily alive. The `tab-1` key stays as a snapshot-free floor: it is
- * always an engine tab by construction (`initialTabs`), so it counts even
- * when the snapshot write failed. Non-engine tabs (command/content) never
- * count — same rule delivery uses.
- *
- * Which tabs those ARE is decided from the LIVE sessions, not from the
- * snapshot alone. `kind: "engine"` is a persisted display label, and a live
- * session the snapshot lost (the `unregistered` rows `joinTaskTabs` renders
- * right beside this) carries no label at all — so a task whose only engine
- * was unregistered read `running: false` while `send` delivered to it
- * happily. {@link sessionArgvNamesEngine} is the other half, and it is the
- * SAME judgement `findHostedEngineKey` uses to pick that delivery target.
- * The label stays in the union because it is the only thing that recognises
- * a custom engine whose wrapper script names no known binary.
- *
- * `engineAlive` is the process half. Session liveness alone answered `true`
- * for a task whose engine had been reaped hours earlier, because keepAlive
- * keeps the PTY. A tab nothing could walk (`null`) still counts as running:
- * "couldn't look" must never read as stopped.
- */
-export function hasLiveEngineTab(
-  snapshot: TabsState | undefined,
-  taskId: string,
-  sessions: readonly TaskSessionRow[],
-  engineAlive?: ReadonlyMap<string, boolean>,
-  engineBin?: string,
-): boolean {
-  const labelled = new Set((snapshot?.tabs ?? []).filter((t) => t.kind === "engine").map((t) => t.id))
-  return sessions.some((s) => {
-    if (s.alive !== true || !isHostedTaskKey(s.key, taskId)) return false
-    if (engineAlive?.get(s.key) === false) return false
-    if (s.key === `${taskId}::tab-1`) return true
-    // A split leaf (`<task>::tab-2::leaf-2`) is not a tab id and matches
-    // neither half, which is the rule delivery already applies.
-    const tabId = s.key.slice(taskId.length + 2)
-    return labelled.has(tabId) || sessionArgvNamesEngine(s.command, engineBin)
-  })
 }
 
 /**
