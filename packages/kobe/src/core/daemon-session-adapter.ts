@@ -1,7 +1,7 @@
 import type { DaemonRpcClient } from "@sma1lboy/kobe-daemon/client/rpc"
 import { resolveLoginShell } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { engineLaunchArgv } from "../engine/engine-presets.ts"
+import { engineLaunchArgv, protocolEntry } from "../engine/engine-presets.ts"
 import {
   ComposerBusyError,
   awaitEngineProcess,
@@ -16,7 +16,6 @@ import {
   openHostedSessionHost,
   pastePromptWhenEngineUp,
 } from "../engine/hosted-session.ts"
-import { engineEntry } from "../engine/registry.ts"
 import { sessionHasEngine } from "../engine/session-engine-presence.ts"
 import { buildEngineSessionLaunch } from "../engine/session-launch.ts"
 import { trustEngineWorktree } from "../engine/trust-worktree.ts"
@@ -197,7 +196,7 @@ export async function deliverPromptToLiveEngineAdapter(
     const key = findHostedEngineKey(sessions, task.id, engineArgv[0])
     if (!key) return false
     if (!(await sessionHasEngine(sessions.find((s) => s.key === key)?.pid, engineArgv))) return false
-    const manifest = task.vendor ? engineEntry(task.vendor).screenManifest : undefined
+    const manifest = task.vendor ? protocolEntry(task.vendor).screenManifest : undefined
     return (
       (await deliverToHostedKey(host.rpc, key, prompt, {
         screenManifest: manifest,
@@ -264,7 +263,7 @@ export async function deliverPromptToLiveEngineDetailedAdapter(
     if (!(await sessionHasEngine(sessions.find((s) => s.key === key)?.pid, engineArgv))) {
       return { outcome: "no-engine", tabId: tabIdFromHostedKey(key) }
     }
-    const manifest = task.vendor ? engineEntry(task.vendor).screenManifest : undefined
+    const manifest = task.vendor ? protocolEntry(task.vendor).screenManifest : undefined
     try {
       const delivered = await deliverToHostedKey(host.rpc, key, prompt, {
         screenManifest: manifest,
@@ -326,7 +325,7 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
       vendor: target.vendor,
     })
     if (!(await sessionHasEngine(session.pid, engineArgv))) return { outcome: "no-engine", tabId: target.tabId }
-    const manifest = target.vendor ? engineEntry(target.vendor).screenManifest : undefined
+    const manifest = target.vendor ? protocolEntry(target.vendor).screenManifest : undefined
     try {
       const delivered = await deliverToHostedKey(host.rpc, key, prompt, {
         screenManifest: manifest,
