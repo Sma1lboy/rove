@@ -49,7 +49,9 @@
  * candidate unclassified, and "none" there is a claim nothing checked.
  */
 
-import { readFileSync } from "node:fs"
+import { appendFileSync, readFileSync } from "node:fs"
+import { formatDaemonInfo } from "@sma1lboy/kobe-daemon/daemon/crash-log"
+import { defaultDaemonLogPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 
 /** Set by the PTY host on every child it spawns; inherited by the subtree. */
 const PTY_MARKER = "KOBE_TERMINAL_PTY=1"
@@ -269,6 +271,27 @@ export function orphanDoctorLines(
 const GROUP_EXIT_GRACE_MS = 2_000
 const GROUP_POLL_MS = 100
 
+/**
+ * Append one line per killed group to `daemon.log`.
+ *
+ * This is the only path in Rove that can end a hosted session's process tree
+ * WITHOUT going through the PTY host, so nothing else records it: the host
+ * writes no exit record (it was never asked), and doctor is a short-lived CLI
+ * whose stdout is gone the moment the terminal scrolls. Someone later asking
+ * "who SIGKILLed those two shells?" had every Rove path to rule out except
+ * this one, which left no trace at all. Written straight to the file — doctor
+ * runs this whether or not a daemon is up, so there is no socket to route it
+ * through — with the same ISO prefix the daemon uses, so it interleaves.
+ */
+function logOrphanKill(pgid: number, signal: NodeJS.Signals, logPath: string = defaultDaemonLogPath()): void {
+  try {
+    appendFileSync(logPath, formatDaemonInfo("doctor-kill-orphans", `${signal} process group ${pgid}`))
+  } catch {
+    // A missing log directory or a read-only home must not stop the reclaim
+    // the user explicitly asked for.
+  }
+}
+
 function groupAlive(pgid: number): boolean {
   try {
     process.kill(-pgid, 0)
@@ -289,6 +312,7 @@ export async function killOrphanGroups(orphans: readonly Orphan[]): Promise<{ gr
   for (const pgid of groups) {
     try {
       process.kill(-pgid, "SIGTERM")
+      logOrphanKill(pgid, "SIGTERM")
     } catch {
       // Already gone, or the last member exited between listing and signalling.
     }
@@ -302,6 +326,7 @@ export async function killOrphanGroups(orphans: readonly Orphan[]): Promise<{ gr
   for (const pgid of survivors) {
     try {
       process.kill(-pgid, "SIGKILL")
+      logOrphanKill(pgid, "SIGKILL")
     } catch {
       // Raced with its own exit — the next liveness check is the verdict.
     }

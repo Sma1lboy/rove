@@ -17,7 +17,7 @@ instead.
 | Close a tab | — that tab only | — that tab's ring is dropped | ✓ | ✓ |
 | Delete a managed/directory Task | — all of that Task's tabs | — those rings are dropped | task record removed; worktree removed unless it's a directory Task (branch stays; a force-delete salvages uncommitted work under `refs/rove/salvage/`) | ✓ |
 | Press F5 | — active terminal is replaced | — old ring is dropped | ✓ | ✓ |
-| `rove reset` | — all hosted sessions | — all frozen rings are dropped | worktrees ✓; task index kept unless `--hard` | ✓ |
+| `rove reset` | — all hosted sessions | — all frozen rings are dropped | worktrees ✓; task index and settings file kept unless `--hard` | ✓ |
 
 ![The TUI detaches while the engine process, scrollback ring, and task list stay lit below](assets/detach-survives.png)
 
@@ -35,10 +35,15 @@ thaws a dead **restored** session, then the first attach replays its old screen
 and respawns the command in place. Your conversation files survive separately
 because the engine owns them.
 
-`rove reset` stops the daemon and PTY host and wipes the frozen-session store.
-The normal form keeps the task index, UI state, worktrees, and engine history;
-`rove reset --hard` also removes the task and UI indexes, but still does not
-delete git worktrees or engine-owned transcripts.
+`rove reset` stops the daemon and PTY host and wipes the frozen-session store —
+including when the host had to be signalled rather than stopped gracefully,
+which is exactly the wedged case reset exists for. The normal form keeps the
+task index, your settings, worktrees, and engine history. `rove reset --hard`
+also deletes `tasks.json` **and the whole settings file**
+(`~/.config/rove/state.json`): saved projects, registered custom engines,
+theme, default engine, language, onboarding. It still does not delete git
+worktrees or engine-owned transcripts. See
+[CLI → reset](./CLI.md#reset) for the full list.
 
 ## Why: three processes, three lifetimes
 
@@ -74,7 +79,12 @@ flowchart TB
   snapshots. Restarting the daemon is routine: `rove daemon restart`.
 - **The standalone PTY host** owns every TUI/API engine and shell process, plus their
   scrollback. It's deliberately a *separate* process from the daemon, so a
-  daemon restart never kills a running engine. Like the tmux server, it exits
+  daemon restart never kills a running engine — with one exception: a starting
+  daemon sweeps hosted sessions whose task is no longer in the index, so a
+  session belonging to a task deleted while no daemon was up is ended on the
+  next daemon boot. Because the host outlives daemon restarts, it also keeps
+  running whatever build it started with; `rove doctor` reports its version,
+  and only `rove reset` replaces it. Like the tmux server, it exits
   on its own only after sitting at zero live sessions. `rove reset` is the
   explicit teardown. While it runs, it freezes every session (metadata +
   scrollback ring) to `<home>/.rove/pty-sessions/` — see

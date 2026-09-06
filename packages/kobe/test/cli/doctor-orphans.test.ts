@@ -5,8 +5,13 @@
  * something it must not.
  */
 
-import { describe, expect, it } from "vitest"
-import { orphanCandidates, orphanDoctorLines, parsePsRows } from "../../src/cli/doctor-orphans.ts"
+import { spawn } from "node:child_process"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { defaultDaemonLogPath } from "@sma1lboy/kobe-daemon/daemon/paths"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { killOrphanGroups, orphanCandidates, orphanDoctorLines, parsePsRows } from "../../src/cli/doctor-orphans.ts"
 
 const PS = [
   //  pid  ppid  pgid  etime         rss    command
@@ -101,5 +106,46 @@ describe("orphanDoctorLines", () => {
 
   it("is a ✓ line when nothing is orphaned", () => {
     expect(orphanDoctorLines([], null, "rove")[0]).toContain("✓ none")
+  })
+})
+
+describe("killOrphanGroups leaves a trace", () => {
+  // This is the ONLY path in Rove that ends a hosted session's process tree
+  // without going through the PTY host, so nothing else records it: the host
+  // writes no exit record (it was never asked) and doctor's stdout is gone as
+  // soon as the terminal scrolls. Someone asking later "who killed those two
+  // shells?" could rule out every Rove path except this one, which left
+  // nothing at all behind.
+  let home: string
+  const prevHome = process.env.ROVE_HOME_DIR
+
+  beforeEach(() => {
+    home = mkdtempSync(join(tmpdir(), "kobe-orphan-log-"))
+    process.env.ROVE_HOME_DIR = home
+    mkdirSync(join(defaultDaemonLogPath(home), ".."), { recursive: true })
+  })
+
+  afterEach(() => {
+    if (prevHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+    else process.env.ROVE_HOME_DIR = prevHome
+    rmSync(home, { recursive: true, force: true })
+  })
+
+  it("writes one timestamped daemon.log line naming the pgid, signal, and who did it", async () => {
+    // A real detached child so the kill is a real kill: `detached` makes the
+    // child its own group leader, which is the shape the sweep signals.
+    const child = spawn("sleep", ["30"], { detached: true, stdio: "ignore" })
+    child.unref()
+    const pgid = child.pid
+    if (pgid === undefined) throw new Error("could not spawn a detached child")
+
+    const result = await killOrphanGroups([
+      { pid: pgid, ppid: 1, pgid, etime: "01:00:00", rssKb: 1024, command: "sleep 30" },
+    ])
+    expect(result.survivors).toEqual([])
+
+    const log = readFileSync(defaultDaemonLogPath(home), "utf8")
+    expect(log).toMatch(/^\[\d{4}-\d\d-\d\dT[\d:.]+Z\] daemon \[doctor-kill-orphans\]: SIGTERM process group \d+$/m)
+    expect(log).toContain(`process group ${pgid}`)
   })
 })

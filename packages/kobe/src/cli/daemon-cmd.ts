@@ -8,8 +8,8 @@
  */
 
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
-import { connectOrStartDaemon } from "@sma1lboy/kobe-daemon/client/daemon-process"
-import { installDaemonCrashHandlers } from "@sma1lboy/kobe-daemon/daemon/crash-log"
+import { connectOrStartDaemon, daemonSpawnReason } from "@sma1lboy/kobe-daemon/client/daemon-process"
+import { installDaemonCrashHandlers, logDaemonInfo } from "@sma1lboy/kobe-daemon/daemon/crash-log"
 import { stopDaemonProcess } from "@sma1lboy/kobe-daemon/daemon/lifecycle"
 import { rotateLogIfNeeded } from "@sma1lboy/kobe-daemon/daemon/log-rotate"
 import { defaultDaemonLogPath, defaultDaemonPidPath, defaultDaemonSocketPath } from "@sma1lboy/kobe-daemon/daemon/paths"
@@ -18,6 +18,7 @@ import { daemonRuntime } from "../core/daemon-runtime.ts"
 import { type KobeCore, createKobeCore } from "../core/index.ts"
 import { sweepIndexLeftovers } from "../orchestrator/index/sweep.ts"
 import { migrateRoveDaemonStateLayout } from "../state/layout-migration.ts"
+import { CURRENT_VERSION } from "../version.ts"
 import { resolvePluginBinPath } from "./plugin-bin-path.ts"
 import { activeCliName } from "./rename-compat.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
@@ -98,7 +99,11 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     // `kobe daemon restart` blocks the shell forever and looks "hung" to
     // anyone running it interactively.
     await stopDaemonProcess(socketPath, pidPath)
-    const next = await connectOrStartDaemon()
+    // Tag the respawn. The restart path and an idle helper's autospawn go
+    // through the same spawn, so without this the new daemon's boot line
+    // cannot say which one it was — and "did my restart end those sessions?"
+    // has no answer in the log.
+    const next = await connectOrStartDaemon("explicit-restart")
     next.close()
     console.log(`${CLI_NAME} daemon: restarted, listening on ${socketPath}`)
     return
@@ -116,6 +121,11 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
   // silently killing the daemon. Safe here because this branch only runs
   // in the spawned daemon process, never in the TUI or tests.
   installDaemonCrashHandlers()
+
+  // First line this daemon writes: who asked for it. `explicit-restart` is a
+  // `rove daemon restart`, `autospawn` a client that found no daemon
+  // answering, `manual` a `rove daemon start` typed by hand.
+  logDaemonInfo("boot", `daemon starting — ${daemonSpawnReason()} (pid ${process.pid}, v${CURRENT_VERSION})`)
 
   let core: KobeCore | undefined
   const server = await startDaemonServer(

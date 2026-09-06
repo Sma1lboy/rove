@@ -107,6 +107,11 @@ export interface PtyHostServerOptions {
   /** Called after close() when the host stops itself (idle / daemon.stop). */
   readonly onStop?: () => void
   readonly log?: (event: string, message: string) => void
+  /** The Rove build this host is running, echoed back by `pty.list`. The host
+   *  outlives every daemon restart, so an install upgraded underneath it keeps
+   *  serving old code; this is how `rove doctor` can say so. Absent when the
+   *  entry point could not resolve one (an older host reports nothing at all). */
+  readonly version?: string
 }
 
 export interface PtyHostServer {
@@ -381,7 +386,13 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
         }
         return {}
       case "pty.list":
-        return { pid: process.pid, rssBytes: process.memoryUsage().rss, sessions: ptys.list(), stats: ptys.stats() }
+        return {
+          pid: process.pid,
+          rssBytes: process.memoryUsage().rss,
+          sessions: ptys.list(),
+          stats: ptys.stats(),
+          ...(options.version ? { version: options.version } : {}),
+        }
       case "pty.peek": {
         const payload = objectPayload(req.payload)
         return ptys.peek(

@@ -5,7 +5,7 @@ import { errorMessage } from "@/lib/error-message"
 import { matchPathGlob } from "../lib/path-glob.ts"
 import { expandTilde } from "../lib/path-home.ts"
 import { rejectionReason } from "../state/project-eligibility.ts"
-import { type VendorId, coerceVendorId } from "../types/vendor.ts"
+import { BUILTIN_VENDORS, type VendorId, coerceVendorId, isBuiltinVendor } from "../types/vendor.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
 // Static: open-dir-cmd's own imports are cheap (node builtins); the heavy
 // orchestrator/TUI imports stay dynamic inside runOpenDirectory itself.
@@ -311,8 +311,20 @@ async function runAdoptSubcommand(args: readonly string[]): Promise<void> {
     }
   }
 
-  const { resolveRepoRoot } = await import("../state/repos.ts")
+  const { getCustomEngineIds, resolveRepoRoot } = await import("../state/repos.ts")
   const repo = resolveRepoRoot(resolve(process.cwd(), expandTilde(repoArg && repoArg.length > 0 ? repoArg : ".")))
+
+  // Reject an unknown engine BEFORE anything is created. `coerceVendorId`
+  // only rejects the empty string, so a typo used to be written verbatim onto
+  // every task the glob matched, and only surfaced when each of them first
+  // tried to launch a binary that does not exist — one batch adopt poisoning
+  // every worktree it touched. Same accept-set `resolvePersistedVendor`
+  // already uses: the built-ins plus the user's registered custom engines.
+  const typed = vendorArg?.trim()
+  if (typed && !isBuiltinVendor(typed) && !getCustomEngineIds().includes(typed)) {
+    const known = [...BUILTIN_VENDORS, ...getCustomEngineIds()].join(", ")
+    adoptUsageError(`unknown engine "${typed}" — no task was created. Known engines: ${known}`)
+  }
   const vendor = coerceVendorId(vendorArg)
 
   // Discovery is a local read (git + tasks.json) — no daemon needed, so

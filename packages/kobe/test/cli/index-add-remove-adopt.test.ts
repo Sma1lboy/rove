@@ -16,6 +16,7 @@ const fake = vi.hoisted(() => ({
   isGitRepo: true,
   repoRootOf: {} as Record<string, string>,
   adoptable: [] as Array<{ path: string; branch: string; dirty?: boolean; kobeManaged?: boolean }>,
+  customEngineIds: [] as string[],
   discoverError: null as Error | null,
   // Mirrors the real `addSavedRepo`, which owns the admission gate: an
   // ineligible path comes back `rejected` instead of being written.
@@ -40,7 +41,7 @@ vi.mock("../../src/state/repos.ts", () => ({
   isGitRepo: vi.fn(() => fake.isGitRepo),
   getSavedRepos: vi.fn(() => fake.savedRepos),
   resolveRepoRoot: vi.fn((p: string) => fake.repoRootOf[p] ?? p),
-  getCustomEngineIds: vi.fn(() => [] as string[]),
+  getCustomEngineIds: vi.fn(() => fake.customEngineIds),
   setPersistedString: vi.fn(),
   getRemoteRepoConfig: vi.fn((key: string) => fake.remoteRepos[key] ?? null),
 }))
@@ -106,6 +107,7 @@ beforeEach(() => {
   fake.isGitRepo = true
   fake.repoRootOf = {}
   fake.adoptable = []
+  fake.customEngineIds = []
   fake.discoverError = null
   fake.daemonClient = null
   fake.remoteRepos = {}
@@ -381,6 +383,31 @@ describe("kobe adopt", () => {
     await runCli("adopt", "--vendor")
     expect(exitSpy).toHaveBeenCalledWith(2)
     expect(stderrText()).toContain("--vendor requires a value")
+  })
+
+  test("a misspelled --vendor exits 2 and creates nothing", async () => {
+    // coerceVendorId only rejects the empty string, so a typo used to be
+    // written onto every matched task and only surface when each of them first
+    // failed to launch a binary that does not exist.
+    fake.adoptable = [
+      { path: "/repo/wt-a", branch: "a" },
+      { path: "/repo/wt-b", branch: "b" },
+    ]
+    await runCli("adopt", "/repo/wt-*", "--yes", "--vendor", "cluade")
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(fake.adoptWorktree).not.toHaveBeenCalled()
+    expect(stderrText()).toContain('unknown engine "cluade"')
+    // Naming the accept-set is the whole point — a bare rejection leaves the
+    // caller guessing which spelling this install actually knows.
+    expect(stderrText()).toContain("claude")
+  })
+
+  test("a registered custom engine is accepted, not just the built-ins", async () => {
+    fake.customEngineIds = ["my-engine"]
+    fake.adoptable = [{ path: "/repo/wt-a", branch: "a" }]
+    await runCli("adopt", "/repo/wt-*", "--yes", "--vendor", "my-engine")
+    expect(exitSpy).not.toHaveBeenCalled()
+    expect(fake.adoptWorktree).toHaveBeenCalledWith(expect.objectContaining({ vendor: "my-engine" }))
   })
 
   test("--help prints usage without scanning anything", async () => {

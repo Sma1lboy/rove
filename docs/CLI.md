@@ -58,9 +58,21 @@ rove updates using whichever package manager owns the `rove` on your `PATH`,
 so the new version can't land in a shadowed prefix. Manual fallback:
 `npm install -g @sma1lboy/rove@latest` (or `@nightly`).
 
-Some versions are marked breaking. Installing across one prints a heads-up,
-and the next launch asks you to run `rove reset` first. Worktrees are never
-touched.
+Some versions are marked breaking. Installing across one prints a heads-up
+(`dry-run` included, so the rehearsal shows it too), and the next launch asks
+you to run `rove reset` first. Worktrees are never touched.
+
+**Installing new files does not replace running processes.** Rove keeps two of
+them, and a finished `rove update` says so:
+
+- The **daemon** holds the fast-moving code. `rove daemon restart` replaces it
+  and never touches a live session.
+- The **PTY host** owns every running engine and terminal. It survives a
+  daemon restart *by design*, so only `rove reset` replaces it — at the cost
+  of every live session. A long-lived host can end up serving code from
+  several releases ago.
+
+`rove doctor` reports both versions and tells you which one is actually stale.
 
 ## Launching
 
@@ -339,8 +351,27 @@ rove reset [--hard] [--yes]
 
 Recovers a wedged install: stops the daemon and the PTY host (ending all
 background sessions), and also stops any pre-v0.8 tmux sessions the retired
-runtime left behind. **Never touches git worktrees.** `--hard` also deletes
-your task index and UI state. Asks for confirmation unless `--yes` (`-y`).
+runtime left behind. It also clears the frozen-session store, so the next host
+comes up empty instead of restoring the scene you just ended.
+**Never touches git worktrees.**
+
+`--hard` additionally deletes two files outright:
+
+- `~/.rove/tasks.json` — the task index.
+- `~/.config/rove/state.json` — the whole settings file `rove config` opens,
+  not a UI-only slice of it. That means your **saved projects**, every
+  **custom engine** you registered (`customEngineIds` and the
+  `engineCommand.*` / `engineName.*` entries that define them — this file is
+  the only place they exist), your **theme**, **default engine**,
+  **language**, and the **onboarding** flag, so the wizard runs again. None
+  of it is recoverable, and the saved-project backfill cannot help because
+  `--hard` deletes the task index in the same run.
+
+The confirmation prints the real list with counts before anything happens.
+Reset asks for it unless `--yes` (`-y`). Without a terminal to prompt on,
+`--yes` is **required**: a non-interactive `rove reset` without it prints the
+plan, changes nothing, and exits `2` rather than reporting success for a run
+that did nothing.
 
 ## daemon
 

@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   probeDaemonSocket: vi.fn(),
   stopDaemonProcess: vi.fn(),
   installDaemonCrashHandlers: vi.fn(),
+  logDaemonInfo: vi.fn(),
   startDaemonServer: vi.fn(),
   createKobeCore: vi.fn(),
 }))
@@ -28,13 +29,16 @@ vi.mock("@sma1lboy/kobe-daemon/client", () => ({
   })),
 }))
 
-vi.mock("@sma1lboy/kobe-daemon/client/daemon-process", () => ({
-  connectOrStartDaemon: mocks.connectOrStartDaemon,
-  probeDaemonSocket: mocks.probeDaemonSocket,
-}))
+vi.mock("@sma1lboy/kobe-daemon/client/daemon-process", async (importOriginal) => {
+  // `daemonSpawnReason` stays REAL: it reads the env the spawner stamped, and
+  // a stub would make the boot-line assertions test nothing.
+  const actual = await importOriginal<typeof import("@sma1lboy/kobe-daemon/client/daemon-process")>()
+  return { ...actual, connectOrStartDaemon: mocks.connectOrStartDaemon, probeDaemonSocket: mocks.probeDaemonSocket }
+})
 
 vi.mock("@sma1lboy/kobe-daemon/daemon/crash-log", () => ({
   installDaemonCrashHandlers: mocks.installDaemonCrashHandlers,
+  logDaemonInfo: mocks.logDaemonInfo,
 }))
 
 vi.mock("@sma1lboy/kobe-daemon/daemon/lifecycle", () => ({
@@ -55,6 +59,8 @@ import { runDaemonSubcommand } from "../../src/cli/daemon-cmd.ts"
 let home: string
 let originalRoveHome: string | undefined
 let originalHome: string | undefined
+let originalSpawnReason: string | undefined
+let originalAutospawned: string | undefined
 let logSpy: MockInstance<typeof console.log>
 let errSpy: MockInstance<typeof process.stderr.write>
 let exitSpy: MockInstance<typeof process.exit>
@@ -66,6 +72,13 @@ beforeEach(() => {
   process.env.ROVE_HOME_DIR = home
   process.env.KOBE_HOME_DIR = home
   mkdirSync(join(home, ".rove"), { recursive: true })
+  // An agent/dev shell can already be inside a spawned daemon's environment,
+  // which would make `daemonSpawnReason()` read "autospawn" for a `daemon
+  // start` this test typed itself.
+  originalSpawnReason = process.env.ROVE_DAEMON_SPAWN_REASON
+  originalAutospawned = process.env.ROVE_DAEMON_AUTOSPAWNED
+  Reflect.deleteProperty(process.env, "ROVE_DAEMON_SPAWN_REASON")
+  Reflect.deleteProperty(process.env, "ROVE_DAEMON_AUTOSPAWNED")
 
   mocks.daemonRequest.mockReset()
   mocks.daemonClose.mockReset()
@@ -73,6 +86,7 @@ beforeEach(() => {
   mocks.probeDaemonSocket.mockReset().mockResolvedValue("absent")
   mocks.stopDaemonProcess.mockReset().mockResolvedValue({ pid: null, method: "absent" })
   mocks.installDaemonCrashHandlers.mockReset()
+  mocks.logDaemonInfo.mockReset()
   mocks.startDaemonServer.mockReset()
   mocks.createKobeCore.mockReset()
 
@@ -89,6 +103,10 @@ afterEach(() => {
   else process.env.ROVE_HOME_DIR = originalRoveHome
   if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
   else process.env.KOBE_HOME_DIR = originalHome
+  if (originalSpawnReason === undefined) Reflect.deleteProperty(process.env, "ROVE_DAEMON_SPAWN_REASON")
+  else process.env.ROVE_DAEMON_SPAWN_REASON = originalSpawnReason
+  if (originalAutospawned === undefined) Reflect.deleteProperty(process.env, "ROVE_DAEMON_AUTOSPAWNED")
+  else process.env.ROVE_DAEMON_AUTOSPAWNED = originalAutospawned
   rmSync(home, { recursive: true, force: true })
   logSpy.mockRestore()
   errSpy.mockRestore()
@@ -161,6 +179,15 @@ describe("kobe daemon restart", () => {
     expect(next.close).toHaveBeenCalledTimes(1)
     expect(output()).toContain("restarted, listening on")
   })
+
+  it("tags the respawn so the new daemon's boot line can say it was an explicit restart", async () => {
+    // Restart and a client's autospawn share `connectOrStartDaemon`, so
+    // without the tag both daemons write the same boot line and "did my
+    // restart end those sessions?" has no answer in daemon.log.
+    mocks.connectOrStartDaemon.mockResolvedValue({ close: vi.fn() })
+    await runDaemonSubcommand(["restart"])
+    expect(mocks.connectOrStartDaemon).toHaveBeenCalledWith("explicit-restart")
+  })
 })
 
 describe("kobe daemon start", () => {
@@ -187,6 +214,8 @@ describe("kobe daemon start", () => {
       expect.objectContaining({ socketPath: expect.any(String) }),
     )
     expect(output()).toContain("listening on /tmp/x.sock")
+    // A bare `daemon start` was nobody's autospawn and nobody's restart.
+    expect(mocks.logDaemonInfo).toHaveBeenCalledWith("boot", expect.stringContaining("manual"))
   })
 
   it("refuses to migrate stores while another daemon still owns the socket", async () => {

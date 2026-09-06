@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { CURRENT_VERSION } from "../../src/version.ts"
 
 const mocks = vi.hoisted(() => ({
   request: vi.fn(),
@@ -132,6 +133,37 @@ describe("runDoctorSubcommand", () => {
     expect(output()).toContain("parked screens: 100 KB")
     expect(output()).toContain("park wakes: 7 delta, 2 full replay fallback")
     expect(output()).toContain("legacy tmux: tmux 3.6b — no sessions on `kobe`")
+    // No `version` in the reply: an older host, which is itself the finding.
+    expect(output()).toContain("build: unknown — this host predates the version check")
+  })
+
+  it("flags a pty host serving an older build than the CLI, and points at reset", async () => {
+    // The host is the one process `daemon restart` never replaces — that is
+    // its purpose — so an install upgraded underneath it keeps running old
+    // code for as long as sessions live. Doctor could not see this at all.
+    mocks.request.mockImplementation(async (name: string) => {
+      if (name === "daemon.status") return { daemonPid: 42, kobeVersion: CURRENT_VERSION }
+      if (name === "pty.list") return { sessions: [], version: "0.0.1-ancient" }
+      throw new Error(`unexpected request ${name}`)
+    })
+
+    await runDoctorSubcommand([])
+
+    expect(output()).toContain(`⚠ stale build: pty host is v0.0.1-ancient, you launched v${CURRENT_VERSION}`)
+    expect(output()).toContain("reset")
+  })
+
+  it("says nothing alarming when the pty host is on the same build as the CLI", async () => {
+    mocks.request.mockImplementation(async (name: string) => {
+      if (name === "daemon.status") return { daemonPid: 42, kobeVersion: CURRENT_VERSION }
+      if (name === "pty.list") return { sessions: [], version: CURRENT_VERSION }
+      throw new Error(`unexpected request ${name}`)
+    })
+
+    await runDoctorSubcommand([])
+
+    expect(output()).toContain(`build: v${CURRENT_VERSION}`)
+    expect(output()).not.toContain("stale build: pty host")
   })
 
   it("prints the whole terminal section, multiplexer and kitty probe included", async () => {
