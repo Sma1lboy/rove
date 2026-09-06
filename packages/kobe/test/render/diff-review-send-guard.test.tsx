@@ -31,7 +31,7 @@ import {
   diffCommentsKey,
   unsentComments,
 } from "../../src/tui/ops/diff-comments"
-import { renderComponent, settle, waitForFrameText } from "./harness"
+import { act, renderComponent, settle, waitForFrameText } from "./harness"
 
 const DIFF = ["--- a/a.ts", "+++ b/a.ts", "@@ -1,1 +1,3 @@", " const a = 1", "+const b = 2", "+const c = 3"].join("\n")
 const REL = "a.ts"
@@ -102,12 +102,22 @@ async function writeNote(
   body: string,
   location: string,
 ): Promise<void> {
-  handle.mockInput.typeText("c")
+  await act(async () => {
+    await handle.mockInput.typeText("c")
+  })
   await waitForFrameText(handle.frame, location)
-  handle.mockInput.typeText(body)
+  await act(async () => {
+    await handle.mockInput.typeText(body)
+  })
+  // The dialog commits its submit through a state update outside React's event
+  // system, so the old `settle(150)` was a bet on when that landed. When it lost,
+  // the next frame still showed the OPEN note dialog and a `notes: 0` footer —
+  // the CI failure. `act` flushes the commit; the closed prompt is then the
+  // observable proof it happened, not the clock.
+  await act(async () => {
+    handle.mockInput.pressEnter()
+  })
   await settle(60)
-  handle.mockInput.pressEnter()
-  await settle(150)
 }
 
 test("s keeps the notes unsent and says why when there is no engine session", async () => {
@@ -121,14 +131,16 @@ test("s keeps the notes unsent and says why when there is no engine session", as
   await writeNote(handle, "please rename this", "Review note")
   expect(await handle.frame()).toContain("notes: 1 · 1 unsent")
 
-  handle.mockInput.typeText("s")
-  await settle(200)
-
+  await act(async () => {
+    await handle.mockInput.typeText("s")
+  })
+  // Wait for the refusal to paint, THEN assert the count. Asserting the
+  // unchanged count first would pass on a frame where `s` had not been
+  // handled at all — the same clock bet, silently inverted into a false green.
+  expect(await waitForFrameText(handle.frame, "No engine session")).toContain("No engine session")
   // The note survived and is still pending — the count is the whole assertion.
   expect(await handle.frame()).toContain("notes: 1 · 1 unsent")
   expect(unsentComments(kv.read())).toHaveLength(1)
-  // …and the refusal is on screen rather than in a log nobody can read.
-  expect(await handle.frame()).toContain("No engine session")
 })
 
 test("s still marks them sent once delivery answers", async () => {
@@ -140,10 +152,10 @@ test("s still marks them sent once delivery answers", async () => {
   })
   await settle(120)
   await writeNote(handle, "please rename this", "Review note")
-  handle.mockInput.typeText("s")
-  await settle(200)
-
-  expect(await handle.frame()).toContain("notes: 1 · 0 unsent")
+  await act(async () => {
+    await handle.mockInput.typeText("s")
+  })
+  expect(await waitForFrameText(handle.frame, "notes: 1 · 0 unsent")).toContain("notes: 1 · 0 unsent")
   expect(unsentComments(kv.read())).toHaveLength(0)
 })
 
@@ -158,10 +170,10 @@ test("x drops the note under the cursor", async () => {
   await writeNote(handle, "typo", "Review note")
   expect(await handle.frame()).toContain("notes: 1")
 
-  handle.mockInput.typeText("x")
-  await settle(200)
-
-  expect(await handle.frame()).toContain("notes: 0 · 0 unsent")
+  await act(async () => {
+    await handle.mockInput.typeText("x")
+  })
+  expect(await waitForFrameText(handle.frame, "notes: 0 · 0 unsent")).toContain("notes: 0 · 0 unsent")
   expect(kv.read()).toHaveLength(0)
 })
 
