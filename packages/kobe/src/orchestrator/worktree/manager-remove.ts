@@ -30,6 +30,7 @@
 
 import path from "node:path"
 import type { ExecHost } from "../../exec/exec-host.ts"
+import { DIRTY_WORKTREE_CODE, describeDirtyWorktreeWork } from "../errors.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
 import { type BranchDeps, deleteBranchAnchored } from "./manager-branch.ts"
 import { canonicalize, isUnderManagedWorktreesRoot, requireAbsolute } from "./paths.ts"
@@ -174,6 +175,24 @@ async function deregisteredWorktreeResidue(exec: ExecHost, worktreePath: string)
   if (at < 0) return false
   // `<repo>/.git` — alive for a deregistered worktree, gone for an orphan.
   return await exec.exists(pointer.slice(0, at))
+}
+
+/**
+ * The refusal message every non-force `remove()` gate throws.
+ *
+ * `DIRTY_WORKTREE_CODE` first so a caller across the daemon boundary can
+ * discriminate on it (the only field that survives the wire), then the same
+ * sentence {@link DirtyWorktreeError} produces, so the three states read
+ * identically whichever path refused. Named paths matter most in the ignored
+ * case: `git status` cannot see those, so a user told only "it has work" would
+ * go looking with a command that reports nothing.
+ *
+ * No `{ force: true }` in the text. Every surface already offers the remedy in
+ * its own vocabulary — the worktrees page as a force-delete re-prompt, the CLI
+ * as `--force` — and API syntax read badly in the dialog that IS the override.
+ */
+function dirtyRefusal(worktreePath: string, ignored: IgnoredWorkProbe): string {
+  return `${DIRTY_WORKTREE_CODE}: ${worktreePath} has ${describeDirtyWorktreeWork(ignored)} — forcing the removal salvages it to a ref first`
 }
 
 /**
@@ -332,10 +351,15 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
     const salvaged = await salvageWorktree({ runGit: (e, a, o) => deps.runGit(e, a, o) }, exec, worktreePath)
     opts?.onSalvage?.(salvaged)
   } else {
+    // All three refusals below lead the message with DIRTY_WORKTREE_CODE and
+    // phrase the reason with the SAME sentence `DirtyWorktreeError` uses. The
+    // RPC layer rebuilds a thrown error as `new Error(message)`, so the
+    // message is the only thing a caller across the daemon boundary can
+    // discriminate on — and the worktrees page used to match prose that only
+    // the first of the three produced, dropping the other two into a dead-end
+    // error toast with no force-delete re-prompt.
     if (await deps.isDirty(worktreePath)) {
-      throw new Error(
-        `remove(): refusing to remove dirty worktree at ${worktreePath} (pass { force: true } to override)`,
-      )
+      throw new Error(dirtyRefusal(worktreePath, []))
     }
     // `status --porcelain` is blind to `.gitignore`d entries, so a worktree
     // whose only work is `HANDOFF.md` or `.scratch/` reads clean and the
@@ -349,15 +373,8 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
     // throw (`daemon-worktree-adapter.ts` names that as why a destructive path
     // may not read an unverified verdict).
     const ignored = await deps.ignoredWork(worktreePath)
-    if (ignored === "unknown") {
-      throw new Error(
-        `remove(): refusing to remove worktree at ${worktreePath} — git status --ignored failed, so nothing can confirm it holds no gitignored work (pass { force: true } to override, which salvages first)`,
-      )
-    }
-    if (ignored.length > 0) {
-      throw new Error(
-        `remove(): refusing to remove worktree at ${worktreePath} — it holds gitignored work git status cannot see: ${ignored.join(", ")} (pass { force: true } to override)`,
-      )
+    if (ignored === "unknown" || ignored.length > 0) {
+      throw new Error(dirtyRefusal(worktreePath, ignored))
     }
   }
 

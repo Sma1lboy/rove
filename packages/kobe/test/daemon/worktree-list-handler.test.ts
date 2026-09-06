@@ -110,8 +110,41 @@ describe("worktree.remove", () => {
     execSync(`git worktree add -b feature/dirty ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })
     writeFileSync(join(wt, "untracked.txt"), "uncommitted")
 
-    await expect(dispatch("worktree.remove", { path: wt })).rejects.toThrow(/refusing to remove dirty worktree/)
+    // The CODE, not the prose: the message is all that survives the RPC, and
+    // the worktrees page discriminates on exactly this prefix.
+    await expect(dispatch("worktree.remove", { path: wt })).rejects.toThrow(/^DIRTY_WORKTREE: /)
     await expect(dispatch("worktree.remove", { path: wt, force: true })).resolves.toEqual({ removed: true })
+  })
+
+  /**
+   * The refusal the worktrees page could not see. `status --porcelain` is
+   * blind to gitignored entries, so a worktree whose only work is a
+   * `HANDOFF.md` reads clean and refuses through a DIFFERENT message than the
+   * porcelain-dirty one — which is why the page's old prose match dropped it
+   * into a dead-end error toast instead of the force re-prompt.
+   *
+   * Two assertions, both load-bearing: the CODE (what the page discriminates
+   * on) and the PATH (what makes the refusal actionable — `git status` will
+   * never name it, so a user told only "it has work" searches with a command
+   * that reports nothing).
+   */
+  it("refuses gitignored-only work with the same code, naming the path", async () => {
+    const wt = join(root, "ignored-only-worktree")
+    writeFileSync(join(repo, ".gitignore"), "HANDOFF.md\n")
+    execSync("git add .gitignore && git commit -q -m ignore", { cwd: repo, env: gitEnv })
+    execSync(`git worktree add -b feature/ignored ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })
+    writeFileSync(join(wt, "HANDOFF.md"), "session notes")
+
+    // Not dirty by the badge's own measure — that is the whole trap.
+    expect(execSync("git status --porcelain", { cwd: wt, env: gitEnv }).toString()).toBe("")
+
+    await expect(dispatch("worktree.remove", { path: wt })).rejects.toThrow(/^DIRTY_WORKTREE: /)
+    await expect(dispatch("worktree.remove", { path: wt })).rejects.toThrow(/HANDOFF\.md/)
+    expect(existsSync(join(wt, "HANDOFF.md"))).toBe(true)
+
+    // And force still gets through, which is what the second confirm authorizes.
+    await expect(dispatch("worktree.remove", { path: wt, force: true })).resolves.toEqual({ removed: true })
+    expect(existsSync(wt)).toBe(false)
   })
 
   it("rejects a missing path", async () => {
