@@ -14,6 +14,7 @@
 
 import type { PtyPeekResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
+import { terminalRows } from "@sma1lboy/kobe-daemon/daemon/terminal-rows"
 import type { PsSnapshot } from "./foreground.ts"
 import {
   type HostedPromptDeliveryOpts,
@@ -128,8 +129,7 @@ export async function hostedSessionFailureLine(
 ): Promise<string | undefined> {
   try {
     const peek = await rpc.request<PtyPeekResult>("pty.peek", { key })
-    const lines = stripAnsi(Buffer.from(peek.data, "base64").toString("utf8"))
-      .split(/\r?\n/)
+    const lines = terminalRows(Buffer.from(peek.data, "base64").toString("utf8"))
       .map((row) => row.trim())
       .filter((row) => row.length > 0)
     const line = lines.findLast((row) => ENGINE_EXIT_BANNER.test(row)) ?? lines.at(-1)
@@ -137,14 +137,6 @@ export async function hostedSessionFailureLine(
   } catch {
     return undefined
   }
-}
-
-/** Enough of a stripper to make a PTY ring readable as text: OSC strings (which
- *  run to BEL or ST) and CSI/two-byte escapes. Not a terminal emulator — the
- *  caller wants one line for a run record, not a rendered screen. */
-function stripAnsi(text: string): string {
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: reading a raw PTY ring is the point
-  return text.replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, "").replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, "")
 }
 
 /**

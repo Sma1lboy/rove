@@ -32,9 +32,36 @@ const CURSOR_POSITION_RE = /\x1b\[[\d;]*[Hf]/g
  *  cannot turn a short capture into a huge array. A real screen is ~50 rows. */
 const MAX_ROWS_PER_ESCAPE = 200
 
-// Same escape grammar every reader here strips (CSI / OSC / single-char).
+// Same escape grammar every reader here strips: CSI, OSC, and the generic
+// `ESC <intermediates> <final>` form. That last alternative used to be
+// `\x1b[@-_]` (the C1 set only), which left the charset-select `ESC ( B` that
+// every full-screen redraw emits sitting in the output as visible garbage.
 // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping raw ANSI escapes is the point
-const ANSI_RE = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b[@-_]/g
+const ANSI_RE = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b[ -/]*[0-~]/g
+
+/**
+ * Bare control bytes no escape sequence introduces — a shell's BEL, a
+ * spinner's backspace, a stray NUL. A terminal renders them as nothing, so
+ * they survive unnoticed until something that is NOT a terminal reads the
+ * text: `get-task`'s `exit.tail` shipped them to every API consumer, where
+ * `jq -r`, a log file, or a diff each show a different kind of damage.
+ * `\t` (\x09), `\n` (\x0a) and `\r` (\x0d) are the three that carry meaning
+ * here — `\r` is the CR-overwrite {@link terminalRows} honours below — so
+ * they stay; DEL rides along because it is invisible for the same reason.
+ */
+// biome-ignore lint/suspicious/noControlCharactersInRegex: stripping raw control bytes is the point
+const CONTROL_RE = /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g
+
+/**
+ * Raw terminal bytes → text safe to hand a non-terminal: escapes and bare
+ * control bytes gone, line structure untouched.
+ *
+ * The one stripper — {@link terminalRows} is this plus row recovery, and the
+ * durable exit store runs it over records written before it existed.
+ */
+export function stripTerminalControls(text: string): string {
+  return text.replace(ANSI_RE, "").replace(CONTROL_RE, "")
+}
 
 /** Turn vertical cursor motion into newlines, so an alt-screen paint has rows
  *  to be split on. Must run BEFORE {@link ANSI_RE} deletes the escapes. */
@@ -52,7 +79,7 @@ function breakRowsOnCursorMotion(raw: string): string {
  * budget (the death record does; `read-output` does not).
  */
 export function terminalRows(raw: string, maxLineChars?: number): string[] {
-  const plain = breakRowsOnCursorMotion(raw).replace(ANSI_RE, "").replace(/\r\n/g, "\n")
+  const plain = stripTerminalControls(breakRowsOnCursorMotion(raw)).replace(/\r\n/g, "\n")
   return plain.split("\n").map((line) => {
     const overwritten = line.split("\r").pop() ?? ""
     return maxLineChars === undefined ? overwritten : overwritten.slice(0, maxLineChars)
