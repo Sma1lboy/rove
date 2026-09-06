@@ -15,6 +15,7 @@ import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { DIRTY_WORKTREE_CODE, EMPTY_BRANCH_DIRTY_WORKTREE_CODE } from "../../orchestrator/errors.ts"
 import { canonicalize } from "../../orchestrator/worktree/paths.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
+import { reportBranchDeletion } from "./delete-branch-report.ts"
 import { verifiedSelfSession } from "./dispatcher.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, splitDaemonCode } from "./types.ts"
@@ -90,6 +91,18 @@ async function deleteOne(
   // Branch deletion is opt-in (same flag as `land`): delete drops the
   // worktree + task entry, git keeps the branch as the durable record.
   const deleteBranch = ctx.args.bool("delete-branch") ?? false
+  // A SEPARATE opt-in, never implied by --delete-branch. Deleting a local
+  // branch is recoverable from any clone that has it; deleting the remote one
+  // is not recoverable by anyone, and it breaks an open PR. Two destructive
+  // radii, two consents — the same rule that keeps --force from implying
+  // --delete-branch.
+  const deleteRemote = ctx.args.bool("delete-remote") ?? false
+  // Read BEFORE the delete: repo and branch are the only way back to git
+  // afterwards, and by the time the removal resolves the task row is gone.
+  const subject =
+    deleteBranch || deleteRemote
+      ? (await daemon.request<{ task: { repo: string; branch?: string } }>("task.get", { taskId })).task
+      : undefined
   // Deleting somebody else's task destroys their worktree and every tab in
   // it, so the daemon's audit line has to name WHO asked. Same verified
   // identity `send`/`add` use, never the bare env: unverifiable
@@ -115,8 +128,21 @@ async function deleteOne(
   // Removal runs in the background, so the default reply can only say the work
   // was scheduled. A caller that needs the OUTCOME (a cleanup script deciding
   // whether to retry, an agent tearing down its own fan-out) asks for it.
-  if (!ctx.args.bool("wait")) return { ...res, status: "queued" as const }
-  return { ...res, ...(await awaitDeletion(daemon, taskId)) }
+  //
+  // A branch flag asks for it implicitly: git refuses to delete a branch a
+  // live worktree still holds, so the branch report is only truthful once the
+  // removal has resolved. Returning `queued` beside a branch verdict read a
+  // moment too early is the exact failure this whole verb is fixing.
+  if (!ctx.args.bool("wait") && !subject) return { ...res, status: "queued" as const }
+  const outcome = await awaitDeletion(daemon, taskId)
+  // Only after a `removed`: a deletion that failed or is still pending leaves
+  // the worktree in place, and git's refusal would then describe THAT, not
+  // whether the branch was kept on its own merits.
+  const branch =
+    subject && outcome.status === "removed"
+      ? reportBranchDeletion(subject.repo, subject.branch ?? "", { deleteBranch, force, deleteRemote })
+      : undefined
+  return { ...res, ...outcome, ...(branch ? { branch } : {}) }
 }
 
 /**

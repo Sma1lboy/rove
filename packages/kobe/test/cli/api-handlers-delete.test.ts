@@ -40,12 +40,37 @@ describe("task delete handler", () => {
     const { tearDownSession } = recordingTearDown()
     await invokeVerb("delete", ["--task-id", "t1"], { client, runtime: stubRuntime({ tearDownSession }) })
     expect(client.requests[0].payload).toEqual({ taskId: "t1", force: false, deleteBranch: false })
+    // No branch flag, no branch work: the plain delete does not read the task
+    // and does not wait, exactly as before.
+    expect(client.requests.map((r) => r.name)).toEqual(["task.delete"])
+  })
 
-    await invokeVerb("delete", ["--task-id", "t1", "--delete-branch"], {
+  /**
+   * A branch flag turns the delete into a REPORTED one. The task has to be
+   * read BEFORE the removal (its repo and branch are the only way back to git
+   * afterwards — the row is gone by the time the removal resolves), and the
+   * call has to wait, because git refuses to delete a branch a live worktree
+   * still holds and a verdict read before then would describe the worktree.
+   */
+  it("--delete-branch reads the task first, then waits for the removal", async () => {
+    const client = new FakeClient({
+      "task.get": () => ({ task: taskFixture({ id: "t1", repo: "/nonexistent-repo", branch: "fix/x" }) }),
+      "task.delete": () => ({ taskId: "t1", queued: true }),
+      "task.list": () => ({ tasks: [] }),
+    })
+    const { tearDownSession } = recordingTearDown()
+    const result = (await invokeVerb("delete", ["--task-id", "t1", "--delete-branch"], {
       client,
       runtime: stubRuntime({ tearDownSession }),
-    })
+    })) as { status: string; branch?: { branch: string } }
+
+    expect(client.requests.map((r) => r.name)).toEqual(["task.get", "task.delete", "task.list"])
     expect(client.requests[1].payload).toEqual({ taskId: "t1", force: false, deleteBranch: true })
+    // The task is gone from `task.list`, so the removal resolved; the branch
+    // half is then read off git — which cannot see this fixture repo, so it
+    // reports the branch as absent rather than inventing a refusal.
+    expect(result.status).toBe("removed")
+    expect(result.branch).toMatchObject({ branch: "fix/x", deleted: true })
   })
 
   // The three outcomes of a delete must be three
