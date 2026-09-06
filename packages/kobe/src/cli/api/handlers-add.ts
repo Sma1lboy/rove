@@ -27,6 +27,7 @@ import type { DaemonRpc } from "../daemon-session.ts"
 import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
 import { FANOUT_CAP, buildCountPlan, parseAgentsSpec } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
+import { assertEngineAcceptsEffort } from "./handlers-engines.ts"
 import { ApiError, type VerbContext, helpStep } from "./types.ts"
 
 /** The engine fields a create carries: the raw command + its resolved protocol. */
@@ -50,8 +51,38 @@ async function engineChoice(ctx: VerbContext, repo: string): Promise<EngineChoic
 }
 
 /** The engine fields as a flat `task.create` payload fragment. */
-function enginePayload(choice: EngineChoice): Record<string, string> {
-  return { ...(choice.command ? { command: choice.command } : {}), ...(choice.vendor ? { vendor: choice.vendor } : {}) }
+function enginePayload(choice: EngineChoice, effort?: string): Record<string, string> {
+  return {
+    ...(choice.command ? { command: choice.command } : {}),
+    ...(choice.vendor ? { vendor: choice.vendor } : {}),
+    // Wire key is `effort`; the daemon maps it to the record's `modelEffort`
+    // (`handlers-task.ts` task.create). Sending `modelEffort` here is silently
+    // dropped — the create succeeds and the level simply never lands.
+    ...(effort ? { effort } : {}),
+  }
+}
+
+/**
+ * `--effort`, validated against the engine(s) this create will actually
+ * launch — before anything is created, so a bad level costs no orphan task.
+ *
+ * Deliberately not an `enum` flag: levels are per-engine and a plugin engine
+ * may declare its own, so the closed list lives on the registry entry, not on
+ * the flag spec (the same reason `set-effort` takes a free string). It shares
+ * that verb's gate, so a level `add` accepts is one `set-effort` would accept
+ * too.
+ *
+ * A fan-out validates EVERY engine in the plan: `--agents claude:1,codex:1
+ * --effort xhigh` is rejected outright rather than applied to the codex
+ * sibling and silently dropped on the claude one.
+ */
+function effortFor(ctx: VerbContext, engines: readonly VendorId[]): string | undefined {
+  const level = ctx.args.str("effort")?.trim()
+  if (!level) return undefined
+  for (const engine of new Set(engines)) {
+    assertEngineAcceptsEffort(engine, level, ["api", "engine-list"])
+  }
+  return level
 }
 
 /**
@@ -138,7 +169,8 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   // Record who dispatched this create — the reply address a
   // sub-task's bare `send` routes its outcome back to.
   const choice = await engineChoice(ctx, repo)
-  const payload: Record<string, string> = { repo, ...(await dispatcherEnvPayload()), ...enginePayload(choice) }
+  const effort = effortFor(ctx, choice.vendor ? [choice.vendor] : [])
+  const payload: Record<string, string> = { repo, ...(await dispatcherEnvPayload()), ...enginePayload(choice, effort) }
   const title = args.str("title") || (prompt ? deriveTitleFromPrompt(prompt) : "")
   if (title) payload.title = title
   const branch = args.str("branch")
@@ -317,6 +349,7 @@ async function addParallel(
       "BAD_FLAG",
     )
   }
+  const effort = effortFor(ctx, plan)
   const groupId = ulid()
 
   // Create serially — task.create is a pure store write (worktrees are lazy,
@@ -335,7 +368,7 @@ async function addParallel(
     // `--agents` picks each sibling's engine BY ID, so its command is that
     // id; a `--count` round reuses the caller's own `--command` verbatim.
     const engine: EngineChoice = agentsSpec ? { command: vendor, vendor } : { ...choice, vendor }
-    const payload: Record<string, string> = { repo, groupId, ...dispatcher, ...enginePayload(engine) }
+    const payload: Record<string, string> = { repo, groupId, ...dispatcher, ...enginePayload(engine, effort) }
     if (title) payload.title = plan.length > 1 ? `${title} #${i + 1}/${plan.length}` : title
     if (baseRef) payload.baseRef = baseRef
     try {

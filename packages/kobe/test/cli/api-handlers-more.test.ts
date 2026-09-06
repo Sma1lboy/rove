@@ -8,7 +8,10 @@
  * request traffic; these pin RPC names + payloads scripts depend on.
  */
 
-import { describe, expect, it } from "vitest"
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   API_SCHEMA_VERSION,
   ApiError,
@@ -60,6 +63,42 @@ function stubRuntime(): ApiRuntime {
     tearDownSession: async () => {},
   }
 }
+
+/**
+ * Register a `mycodex` preset declaring the codex protocol, in a throwaway
+ * KOBE_HOME_DIR. `engine-presets.ts` reads state.json per call, so writing the
+ * file is the whole registration.
+ */
+function withPreset(): void {
+  const home = mkdtempSync(join(tmpdir(), "kobe-api-effort-"))
+  presetHomes.push(home)
+  const dir = join(home, ".config", "rove")
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(
+    join(dir, "state.json"),
+    JSON.stringify({
+      customEngineIds: ["mycodex"],
+      "engineCommand.mycodex": "codex",
+      "engineProtocol.mycodex": "codex",
+      "engineName.mycodex": "My Codex",
+    }),
+    "utf8",
+  )
+  process.env.KOBE_HOME_DIR = home
+}
+
+const presetHomes: string[] = []
+let homeBeforePreset: string | undefined
+beforeEach(() => {
+  homeBeforePreset = process.env.KOBE_HOME_DIR
+})
+afterEach(() => {
+  if (homeBeforePreset === undefined) {
+    // biome-ignore lint/performance/noDelete: the var must be truly unset when it started unset.
+    delete process.env.KOBE_HOME_DIR
+  } else process.env.KOBE_HOME_DIR = homeBeforePreset
+  for (const home of presetHomes.splice(0)) rmSync(home, { recursive: true, force: true })
+})
 
 async function expectApiError(run: () => Promise<unknown>, code: string, message?: string | RegExp): Promise<void> {
   try {
@@ -280,6 +319,36 @@ describe("edit verbs — RPC name + payload", () => {
         /declares no reasoning effort levels/,
       )
       expect(client.requests.map((r) => r.name)).toEqual(["task.get"])
+    })
+
+    // A preset declaring the codex protocol IS a codex launch, and the TUI
+    // records the preset id in `vendor`. Reading that id raw found the
+    // registry's empty custom entry, so every level was refused — set-effort
+    // could not set one at all on the tasks most likely to want one.
+    it("accepts a level on a wrapped preset that declares the engine's protocol", async () => {
+      withPreset()
+      const client = new FakeClient({ ...taskOf({ vendor: "mycodex" }), "task.setVendor": () => ({}) })
+      const out = await invokeVerb("set-effort", ["--task-id", "t1", "--level", "high"], {
+        client,
+        runtime: stubRuntime(),
+      })
+      expect(out).toEqual({ ok: true, taskId: "t1", engine: "codex", effort: "high" })
+    })
+
+    // Setting a level must not change WHICH engine the task says it is: the
+    // footer labels a task from `engineName.<vendor>`, so rewriting `mycodex`
+    // to `codex` silently dropped the user's own name for it.
+    it("leaves a wrapped preset's own id on the task", async () => {
+      withPreset()
+      const client = new FakeClient({
+        ...taskOf({ vendor: "mycodex", command: "codex" }),
+        "task.setVendor": () => ({}),
+      })
+      await invokeVerb("set-effort", ["--task-id", "t1", "--level", "high"], { client, runtime: stubRuntime() })
+      expect(client.requests.at(-1)).toEqual({
+        name: "task.setVendor",
+        payload: { taskId: "t1", vendor: "mycodex", effort: "high" },
+      })
     })
   })
 
