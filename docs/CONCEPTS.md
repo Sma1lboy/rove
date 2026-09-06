@@ -60,9 +60,10 @@ pass `--delete-branch` on `rove api delete` to drop it too. That runs
 `git branch -d`, which refuses a branch whose commits neither the repo's HEAD
 nor the branch's own upstream already contains — so work that was never pushed
 and never landed survives the flag, and `--force` is what upgrades the delete
-to `git branch -D`. **The remote branch is never touched** in any case:
-`git push origin --delete <branch>` stays yours to run. The reply reports only
-that the task was removed; whether the branch went is in the daemon log.
+to `git branch -D`. **The remote branch is only touched when you ask for it**,
+with the separate `--delete-remote` — a local branch is recoverable from any
+clone that still has it, a remote one is recoverable by nobody, and deleting
+it closes an open PR, so one flag never implies the other.
 
 The separate
 [Worktrees page](WORKTREES.md) is an audit/cleanup tool: removing a directory
@@ -71,11 +72,21 @@ again later. `rove api remove-worktree --task-id ID` is the same operation
 from a shell — the inverse of `ensure-worktree`, and what a script reclaiming
 idle checkouts wants instead of `delete`.
 
+**What the delete did to the branch is in the reply.** With either branch flag
+the result carries `branch` — `{ branch, deleted, keptReason?, remote? }` — so
+"the branch went with it" is a fact you read rather than one you infer from
+`status: "removed"`, which is the worktree's outcome. When git kept the branch,
+`keptReason` is its own sentence about why.
+
 ## Worktree and branch
 
 Every managed Task gets its own git worktree at
 `~/.rove/worktrees/<repo-key>/<task-slug>/`, checked out to the task's
-branch. That's what makes running many tasks at once safe: N tasks means N
+branch. The slug is drawn from a pool of animal names, so parallel Tasks in
+one repo get distinguishable directories without anyone choosing them;
+`rove api add --worktree-name NAME` overrides that when a script needs to
+predict the path instead of reading it back, and refuses a name already in
+use rather than suffixing it. That's what makes running many tasks at once safe: N tasks means N
 working trees that can't overwrite each other or your main checkout. Edits
 cross over only when you merge.
 

@@ -72,6 +72,7 @@ digest       --repo(REQ) --since-days(7)
 agent-turns  --task-id --repo --since-days(7) --limit(200)
 inspect      --task-id
 read-output  --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit(40)
+watch        --task-ids <a,b,c> --group --until(REQ) <STATE[,STATE]> --timeout
 ```
 <!-- generated:end -->
 
@@ -101,6 +102,7 @@ needs numbers, not when you want to know what a task is doing.
 send              --task-id --prompt|--prompt-file(REQ) --tab --command --respawn --plain
                   --allow-empty
 dispatch          --task-id(REQ) --prompt|--prompt-file(REQ) --tab
+interrupt         --task-id(REQ) --tab
 deferred-list     --task-id --include-dismissed
 deferred-release  --id(REQ)
 deferred-dismiss  --id(REQ)
@@ -166,8 +168,8 @@ clear the shared active task.
 
 <!-- generated:begin create,edit,lifecycle -->
 ```text
-add          --repo(REQ) --title --branch --base-branch --command --effort --count
-             --agents <claude:2,codex:1>
+add          --repo(REQ) --title --branch --base-branch --worktree-name --command --effort
+             --count --agents <claude:2,codex:1>
              --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
              --activate(false) --prompt|--prompt-file
 rename       --task-id(REQ) --title(REQ) --tab
@@ -176,10 +178,11 @@ set-command  --task-id(REQ) --command(REQ)
 set-effort   --task-id(REQ) --level(REQ)
 set-status   --task-id(REQ)
              --status{backlog|in_progress|in_review|done|canceled|error}(REQ)
+             --report-branch --report-pr --report-summary
 pin          --task-id(REQ) --pinned(true)
 land         --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
              --remove-worktree(true)
-delete       --task-id --group --force --delete-branch --wait
+delete       --task-id --group --force --delete-branch --delete-remote --wait
 ```
 <!-- generated:end -->
 
@@ -342,6 +345,11 @@ Errors go to stderr as `{"error":{"message","code",...}}`. Most carry `hint`
 | `EMPTY_SUCCESS_REPORT` | `succeeded:` from a branch with 0 commits | commit first, or say so with `--allow-empty` |
 | `SOURCE_CHANGED` | `read-output` cursor's target moved | re-read without the cursor |
 | `EMPTY_BRANCH` | `land` on zero commits ahead | the worker committed nothing |
+| `UNSUPPORTED` | `interrupt` on an engine that never declared how it is interrupted | stop it by hand in its tab, or `tab-close` |
+| `WATCH_TIMEOUT` | `watch` hit --timeout before any --until state | nothing happened yet, not "nothing will" — `collect --task-ids` |
+| `DAEMON_GONE` | the daemon died mid-`watch` | `rove daemon status`, then re-run the watch |
+| `WORKTREE_NAME_TAKEN` | `add --worktree-name` names a directory already in use | pick another name, or omit the flag for a generated one |
+| `INVALID_WORKTREE_NAME` | `--worktree-name` is not one plain path segment | letters/digits/`.`/`_`/`-`, not starting with `.` |
 
 Daemon-side refusals carry their OWN code (`DIRTY_WORKTREE`, `LAND_CONFLICT`,
 `MISSING_REF`, `GIT_COMMAND_FAILED`, …), not `RPC_ERROR`. Match on `code`; the
