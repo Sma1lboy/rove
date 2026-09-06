@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.168
+
+### Patch Changes
+
+- [#949](https://github.com/Sma1lboy/rove/pull/949) [`1639497`](https://github.com/Sma1lboy/rove/commit/163949700bd2059b676235934a04e2061269a690) Settings → General drops the "Keep Tasks pane" switch, which changed nothing
+
+  The row wrote `zen.keepTasks` and no layout ever read it: zen keeps the Tasks rail unconditionally, because the rail carries the affordance for leaving zen. Its own hint had been reduced to "legacy — no layout effect today", which is a switch admitting in place that flipping it does nothing. The row and its plumbing are gone; a `zen.keepTasks` value left in an older `state.json` is ignored, as unknown keys always were. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#949](https://github.com/Sma1lboy/rove/pull/949) [`1639497`](https://github.com/Sma1lboy/rove/commit/163949700bd2059b676235934a04e2061269a690) A custom engine's protocol is now picked from a list, and shown on its row
+
+  Adding an engine through Settings asked for its protocol as free text, so a misspelt `cluade` failed validation, wrote nothing, and left an engine quietly running the generic adapter — no transcript reader, no account detection, no resume — with nothing on screen saying which one it got. The step is now the same picker the status and branch dialogs use: the built-in adapters plus a **None** row, so the generic adapter is chosen rather than mistyped, and `esc` abandons the add the way it already did on the id and command steps. Each custom engine's detection line now prints the protocol it borrows, `generic` included. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#949](https://github.com/Sma1lboy/rove/pull/949) [`1639497`](https://github.com/Sma1lboy/rove/commit/163949700bd2059b676235934a04e2061269a690) Settings → Engines and Plugins now scroll with the keyboard cursor
+
+  The two sections built from bare boxes never registered a cursor row, so only General, Keybindings and Dev followed the cursor. On a narrow terminal the Engines header wraps to about fourteen lines and pushes every engine row below the fold: `j`/`k` moved a cursor nobody could see, which made switching an engine on, renaming it, resetting it, setting the default, or adding a new one unreachable by keyboard on the one page that registers custom engines. Both sections now register through `useCursorFollow`, the mechanism the sidebar and Kanban pages already use, and the settings-only second mechanism it duplicated is gone. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.167
 
 ### Patch Changes
