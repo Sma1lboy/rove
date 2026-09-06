@@ -826,9 +826,15 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   **`--delete-branch` is best-effort and its outcome is in the daemon log, not
   this reply.** `git branch -d` refuses a branch whose commits the base cannot
   reach — the ordinary case for work that never landed — and the removal
-  succeeds anyway, by design. The reply cannot carry that verdict: by the time
-  `--wait` resolves, the task row it would ride on has been removed, which is
-  how `--wait` knows the deletion finished. So a refusal is logged instead, as
+  succeeds anyway, by design. It is git's own rule, so a branch that was pushed
+  deletes even unmerged: `-d` also accepts anything the branch's upstream
+  already contains. `--force` upgrades the delete to `git branch -D` and takes
+  the unmerged case too. **Neither spelling touches the remote** —
+  `git push origin --delete <branch>` stays yours to run.
+
+  The reply cannot carry that verdict: by the time `--wait` resolves, the task
+  row it would ride on has been removed, which is how `--wait` knows the
+  deletion finished. So a refusal is logged instead, as
   `branch kept task <id> branch=<name> — git refused the delete: <reason>` in
   `~/.rove/daemon.log`, next to the `removed …` line. Check `git branch` if
   you need the answer programmatically.

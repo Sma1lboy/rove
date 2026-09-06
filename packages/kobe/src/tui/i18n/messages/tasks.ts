@@ -38,8 +38,8 @@ export const en = {
     reorder: "Reorder row",
     /** Re-fire the task's stored brief as a new task. Menu-only. */
     runAgain: "Run again",
-    /** The one entry with no chord behind it — status has no key yet, so the
-     *  menu is its only route. */
+    /** Menu-only, like `runAgain`, `land`, `fieldNotes` and the two copies —
+     *  status has no key yet, so the menu is its only route. */
     setStatus: "Set status",
     /** Also chord-less: put the row's branch / worktree path on the clipboard. */
     copyBranch: "Copy branch name",

@@ -56,7 +56,7 @@ shows only actions that can run right now.
 | `ctrl+a` `1` / `2` / `3` | Kanban / Routines / Issues |
 | `ctrl+a` `z` | Toggle zen mode |
 | `ctrl+a` `,` | Open Settings |
-| `ctrl+a` `p` / `P` | Create a PR from the active task, or from the sidebar row under the cursor |
+| `ctrl+a` `p` (`P` is the same key) | Create a PR — for the active task, or for the row under the cursor while the sidebar has focus ([the focus rule](#sidebar-and-files)) |
 | `ctrl+a` `k` | Pull the failing PR checks' logs into the task's engine (**proposed — awaiting owner sign-off**) |
 | `ctrl+a` `u` | Merge the base branch into the task's worktree (**proposed — awaiting owner sign-off**) |
 
@@ -194,14 +194,17 @@ anywhere else, or `esc`, dismisses it. Common row actions also have direct
 chords. A Task or tab row also offers **New conversation** (the `ctrl+e`
 engine/shell picker) and **New shell** (a bare shell tab) for that worktree,
 both enter the Task first, exactly as pressing the chord there would.
-Four entries have no chord. **Set status** opens a picker over the six Task
-statuses and writes the one you choose. **Copy branch name** and **Copy path**
-put the Task's branch or recorded worktree path on the system clipboard (local
-clipboard command plus OSC 52, so it also works over SSH); copying never
-creates the worktree, and a project-main or directory row, whose stored branch
-is empty, offers only Copy path. **Land into base branch** runs the same land
-the Worktrees page's `l` does, and appears only on a managed Task row that has
-a branch — a project-main or directory row owns no Rove branch to land.
+These entries have no chord of their own. **Set status** opens a picker over
+the six Task statuses and writes the one you choose. **Copy branch name** and
+**Copy path** put the Task's branch or recorded worktree path on the system
+clipboard (local clipboard command plus OSC 52, so it also works over SSH);
+copying never creates the worktree, and a project-main or directory row, whose
+stored branch is empty, offers only Copy path. **Run again** re-fires the
+Task's stored brief as a new Task, and appears only on a row that recorded
+one. **Land into base branch** runs the same land the Worktrees page's `l`
+does, and appears only on a managed Task row that has a branch — a
+project-main or directory row owns no Rove branch to land. On a project
+header, **Field notes** reads the repo's durable notes (`rove api note`).
 **Open in editor**, **Rename branch**, and
 **Change engine** are the `o`, `b`, and `v` chords for the row you clicked;
 the engine entry opens a picker over your available engines instead of

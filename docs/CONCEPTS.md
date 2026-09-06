@@ -45,7 +45,8 @@ more: `canceled` does not stop a session or remove a worktree, and `done` does
 not close anything. Rove moves a Task from `backlog` to `in_progress` by itself
 when its engine starts a turn, and the system prompt asks the agent to set
 `in_review` when it finishes; everything past that is yours. The sidebar row
-shows the status as a mark once it leaves `backlog`/`in_progress`
+does not draw it: the one mark in that cell is the PR's, and the status is
+something you already know because you set it
 (see [TUI](./TUI.md#status-glyphs-in-the-sidebar)).
 
 **Delete is explicit and kind-aware.** A project-main Task cannot go through
@@ -55,7 +56,15 @@ managed Tasks. Deleting a directory Task removes only its Rove record, never
 the directory.
 Deleting a managed Task removes its worktree after the dirty-worktree safety
 check. **The task branch stays.** Git is the durable record of the work;
-pass `--delete-branch` on `rove api delete` to drop it too. The separate
+pass `--delete-branch` on `rove api delete` to drop it too. That runs
+`git branch -d`, which refuses a branch whose commits neither the repo's HEAD
+nor the branch's own upstream already contains — so work that was never pushed
+and never landed survives the flag, and `--force` is what upgrades the delete
+to `git branch -D`. **The remote branch is never touched** in any case:
+`git push origin --delete <branch>` stays yours to run. The reply reports only
+that the task was removed; whether the branch went is in the daemon log.
+
+The separate
 [Worktrees page](WORKTREES.md) is an audit/cleanup tool: removing a directory
 there keeps its Task record and branch so the worktree can be materialized
 again later. `rove api remove-worktree --task-id ID` is the same operation
