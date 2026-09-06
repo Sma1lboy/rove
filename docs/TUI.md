@@ -394,9 +394,8 @@ left arrow to return to the section list, and `enter` to activate a row.
   TUI window; other attached windows and hosted sessions remain connected. Use
   `rove daemon restart` from a shell when you need to restart the daemon itself.
 
-The current PureTUI always keeps the Tasks rail visible in zen mode. The
-legacy `zen.keepTasks` value and its Settings checkbox are retained in state
-but do not change this layout.
+Zen mode always keeps the Tasks rail visible — it carries the affordance for
+leaving zen. There is no setting for this.
 
 ## Starting sessions: the new-session dialog
 

@@ -1,7 +1,7 @@
 /**
  * Zen mode state for the PureTUI workspace: the layout collapses
- * to the engine pane, hiding files and terminal (and the Tasks rail too, when
- * `zen.keepTasks` is off).
+ * to the engine pane, hiding files and terminal. The Tasks rail stays either
+ * way — it carries the affordance for leaving zen.
  *
  * The on/off intent is persisted under `zen.active`, so the workspace comes
  * back in the layout it left in — Settings → General → "Start in zen mode"

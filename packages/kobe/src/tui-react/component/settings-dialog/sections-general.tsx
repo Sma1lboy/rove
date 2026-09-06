@@ -166,7 +166,6 @@ export function GeneralSettingsSection(
   const crossTaskRow = rowIdx("cross-task")
   const keyHintsRow = rowIdx("key-hints")
   const zenDefaultOnRow = rowIdx("zen-default-on")
-  const zenKeepTasksRow = rowIdx("zen-keep-tasks")
   const editorKindRow = rowIdx("editor-kind")
   const editorCustomRow = rowIdx("editor-custom")
   const worktreeBaseRow = rowIdx("worktree-base")
@@ -318,16 +317,6 @@ export function GeneralSettingsSection(
             bold={true}
           >
             {`${check(prefs.zenDefaultOn())} ${t("settings.general.zenDefaultOn")}`}
-          </Row>
-          <Row
-            cursor={isBodyCursor(zenKeepTasksRow)}
-            rowRef={props.rowRef(zenKeepTasksRow)}
-            onMouseUp={activate(zenKeepTasksRow, prefs.toggleZenKeepsTasks)}
-            fg={prefs.zenKeepsTasks() ? theme.accent : theme.textMuted}
-            bold={true}
-            hint={hint("settings.general.zenKeepTasksHint")}
-          >
-            {pad(`${check(prefs.zenKeepsTasks())} ${t("settings.general.zenKeepTasks")}`)}
           </Row>
         </SubSection>
         <SubSection title={t("settings.general.editor")} hint={t("settings.general.editorHint")}>

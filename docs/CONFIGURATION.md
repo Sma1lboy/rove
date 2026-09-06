@@ -158,9 +158,9 @@ engine or shell in the workspace remains visible. Toggle with `ctrl+a` `z`.
 |---|---|---|---|
 | `zen.active` | boolean | `false` | On/off. Persisted, so switching projects keeps you in zen |
 
-The current PureTUI always keeps the Tasks rail visible in zen mode because
-the rail also contains the exit affordance. `zen.keepTasks` is a legacy value:
-Settings can still write it, but it currently has no layout effect.
+Zen always keeps the Tasks rail visible, because the rail also contains the
+exit affordance. A `zen.keepTasks` value left in your `state.json` by an older
+Rove is ignored; nothing reads or writes it any more.
 
 ### Worktree location
 

@@ -56,8 +56,6 @@ export const en = {
     zen: "Zen mode",
     zenHint: "The `zen` chip and `prefix`+z hide Files, keeping the Tasks rail and workspace.",
     zenDefaultOn: "Start in zen mode",
-    zenKeepTasks: "Keep Tasks pane",
-    zenKeepTasksHint: "legacy — no layout effect today",
     editor: "Editor",
     editorHint:
       "What enter opens a file with in the file tree — diff mode when the editor supports it, the read-only preview when it isn't installed.",
@@ -304,8 +302,6 @@ export const zh: typeof en = {
     zen: "禅模式",
     zenHint: "`zen` 标记和 `prefix`+z 隐藏 Files，保留 Tasks 侧栏与 workspace。",
     zenDefaultOn: "启动即进入禅模式",
-    zenKeepTasks: "保留 Tasks 面板",
-    zenKeepTasksHint: "旧设置 — 当前不改变布局",
     editor: "编辑器",
     editorHint: "文件树里按 enter 用什么打开文件——支持时走编辑器 diff 模式，未安装时回退到只读预览。",
     editorRow: "编辑器: < {kind} >",
