@@ -109,7 +109,10 @@ describe("orphanDoctorLines", () => {
   })
 })
 
-describe("killOrphanGroups leaves a trace", () => {
+// POSIX only, like the sweep itself (see the module header): Windows has no
+// process groups to signal, so `process.kill(-pgid)` throws there and nothing
+// is ever killed OR logged. `sleep` is not on PATH there either.
+describe.skipIf(process.platform === "win32")("killOrphanGroups leaves a trace", () => {
   // This is the ONLY path in Rove that ends a hosted session's process tree
   // without going through the PTY host, so nothing else records it: the host
   // writes no exit record (it was never asked) and doctor's stdout is gone as

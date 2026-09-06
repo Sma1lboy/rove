@@ -189,7 +189,7 @@ describe("runResetSubcommand", () => {
     // frozen archive used to survive and restore the whole scene next boot.
     const freezeDir = join(home, ".rove", "pty-sessions")
     mkdirSync(freezeDir, { recursive: true })
-    writeFileSync(join(freezeDir, "task::tab-1.json"), "{}")
+    writeFileSync(join(freezeDir, "task--tab-1.json"), "{}")
     mocks.stopDaemonProcess
       .mockResolvedValueOnce({ pid: 1, method: "graceful" }) // the daemon
       .mockResolvedValueOnce({ pid: 2, method: "sigkill" }) // the pty host
