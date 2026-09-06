@@ -104,6 +104,27 @@ describe("migrateRoveStateLayout", () => {
     expect(readlinkSync(migrated)).toBe("base.json")
   })
 
+  // Regression: the temp file is flushed through a handle that must be
+  // writable on Windows, and `copyFileSync` carries the legacy file's mode
+  // onto it. A read-only source therefore breaks a naive "r" open (EPERM on
+  // Windows) and a naive "r+" open (EACCES on POSIX) alike.
+  test("migrates a read-only legacy file", () => {
+    root = mkdtempSync(join(tmpdir(), "rove-layout-"))
+    write(".config/kobe/state.json", "legacy prefs")
+    const source = join(root, ".config/kobe/state.json")
+    chmodSync(source, 0o444)
+
+    try {
+      const result = migrateRoveClientStateLayout({ ROVE_HOME_DIR: root })
+
+      expect(result.warnings).toEqual([])
+      expect(readFileSync(join(root, ".config/rove/state.json"), "utf8")).toBe("legacy prefs")
+      expect(existsSync(join(root, ".rove/.layout-client-migration-v1"))).toBe(true)
+    } finally {
+      chmodSync(source, 0o644)
+    }
+  })
+
   test.skipIf(process.platform === "win32")("leaves the marker absent after a partial failure and retries", () => {
     root = mkdtempSync(join(tmpdir(), "rove-layout-"))
     write(".kobe/settings/keybindings.yaml", "ctrl+x: task.close")

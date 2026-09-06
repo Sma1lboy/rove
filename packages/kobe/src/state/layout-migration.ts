@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto"
 import type { Stats } from "node:fs"
 import {
   constants,
+  chmodSync,
   closeSync,
   copyFileSync,
   fsyncSync,
@@ -14,6 +15,7 @@ import {
   readdirSync,
   readlinkSync,
   renameSync,
+  statSync,
   symlinkSync,
   unlinkSync,
   writeFileSync,
@@ -80,12 +82,30 @@ function removeTemp(path: string): void {
   }
 }
 
+/**
+ * Flush a just-published temp file to disk.
+ *
+ * The handle must be WRITABLE: Windows backs fsync with FlushFileBuffers,
+ * which requires write access and returns EPERM on a read-only handle, while
+ * POSIX flushes an O_RDONLY descriptor happily. `copyFileSync` carries the
+ * source's mode onto the temp on both platforms, so a legacy file with no
+ * write bit yields a temp we cannot open "r+" either. The temp is exclusively
+ * ours (pid + uuid in the name), so widen it for the flush and restore the
+ * mode we intend to publish.
+ */
 function syncFile(path: string): void {
-  const handle = openSync(path, "r")
+  const mode = statSync(path).mode
+  const writable = (mode & 0o200) !== 0
+  if (!writable) chmodSync(path, mode | 0o200)
   try {
-    fsyncSync(handle)
+    const handle = openSync(path, "r+")
+    try {
+      fsyncSync(handle)
+    } finally {
+      closeSync(handle)
+    }
   } finally {
-    closeSync(handle)
+    if (!writable) chmodSync(path, mode)
   }
 }
 
