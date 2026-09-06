@@ -64,6 +64,17 @@ export interface EngineQuotaUsage {
 export interface EngineCapabilities {
   /** Optional vendor-owned adjustments for its full-screen terminal UI. */
   readonly terminalPresentation?: EngineTerminalPresentation
+  /**
+   * The bytes that stop this engine's current turn, written to its pty as
+   * if typed (`rove api interrupt`).
+   *
+   * Vendor-owned because there is no shared answer: an engine that reads Esc
+   * as "cancel the turn" reads ctrl-C as "quit the process", and the two are
+   * swapped in others. Absent = this engine has not told Rove how to
+   * interrupt it, and the verb refuses (`UNSUPPORTED`) rather than guessing —
+   * a wrong guess kills a session instead of pausing it.
+   */
+  readonly interruptSequence?: string
 }
 
 /**

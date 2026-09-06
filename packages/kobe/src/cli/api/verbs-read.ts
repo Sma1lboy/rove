@@ -19,6 +19,7 @@ import { DIGEST_VERB } from "./handlers-digest.ts"
 import { collect } from "./handlers-fanout.ts"
 import { INSPECT_VERB } from "./handlers-inspect.ts"
 import { getTask, list } from "./handlers-tasks.ts"
+import { WATCH_VERB } from "./handlers-watch.ts"
 import { READ_OUTPUT_VERB } from "./read-output.ts"
 import type { VerbSpec } from "./types.ts"
 
@@ -74,4 +75,5 @@ export const READ_VERBS: readonly VerbSpec[] = [
   // handler in ./handlers-inspect.ts.
   INSPECT_VERB,
   READ_OUTPUT_VERB,
+  WATCH_VERB,
 ]

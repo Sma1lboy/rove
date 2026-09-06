@@ -12,6 +12,7 @@ import { ENGINE_ACTIVITY_KINDS } from "../../engine/hook-events.ts"
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { DEFERRED_VERBS } from "./handlers-deferred.ts"
+import { INTERRUPT_VERB } from "./handlers-interrupt.ts"
 import { PANE_CLOSE_VERB, PANE_VERB, TAB_CLOSE_VERB } from "./handlers-pane.ts"
 import { DISPATCH_VERB, note, send, setActive } from "./handlers-tasks.ts"
 import { ApiError, helpStep } from "./types.ts"
@@ -64,6 +65,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
     handler: send,
   },
   DISPATCH_VERB,
+  INTERRUPT_VERB,
   ...DEFERRED_VERBS,
   {
     name: "note",
