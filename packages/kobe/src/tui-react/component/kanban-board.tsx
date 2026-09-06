@@ -68,6 +68,9 @@ export interface KanbanBoardProps {
   readonly follow: CursorFollow<number>
   readonly onSelect: (issueId: number) => void
   readonly onOpen: (issue: Issue) => void
+  /** Right-click on a card, with the click's screen cell — the page owns the
+   *  menu's state and its verbs, the board only reports where it landed. */
+  readonly onCardContextMenu?: (issue: Issue, x: number, y: number) => void
 }
 
 export function KanbanBoard(props: KanbanBoardProps): ReactNode {
@@ -98,6 +101,7 @@ export function KanbanBoard(props: KanbanBoardProps): ReactNode {
         activity={activity}
         onSelect={() => props.onSelect(issue.id)}
         onOpen={() => props.onOpen(issue)}
+        onContextMenu={props.onCardContextMenu ? (x, y) => props.onCardContextMenu?.(issue, x, y) : undefined}
         boxRef={props.follow.rowRef(issue.id)}
       />
     )
