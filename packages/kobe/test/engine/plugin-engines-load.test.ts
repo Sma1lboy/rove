@@ -77,14 +77,14 @@ describe("loadPluginEngines", () => {
     expect(entry.displayName).toBe("Aider")
     // The manifest sets `input_placeholder`, a key the loader does not know:
     // it must register without throwing, and the field is simply absent.
-    expect(entry.identity).toEqual({ vendorId: "aider", shortName: "Aid" })
+    expect(entry.identity).toEqual({ shortName: "Aid" })
   })
 
   it("shortName falls back to the engine name when identity is absent", () => {
     const bare = MANIFEST.replace(/\[engines\.identity\][^\[]*/, "")
     homeWith([{ id: "acme.engines", root: pluginRoot(bare) }])
     expect(loadPluginEngines()).toEqual(["aider"])
-    expect(engineEntry("aider").identity).toEqual({ vendorId: "aider", shortName: "Aider" })
+    expect(engineEntry("aider").identity).toEqual({ shortName: "Aider" })
   })
 
   it("skips disabled plugins and unreadable manifests without throwing", () => {

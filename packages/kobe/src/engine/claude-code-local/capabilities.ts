@@ -12,6 +12,5 @@ import type { EngineCapabilities, EngineIdentity } from "@/types/engine"
 export const claudeCapabilities: EngineCapabilities = {}
 
 export const claudeIdentity: EngineIdentity = {
-  vendorId: "claude",
   shortName: "Claude",
 }

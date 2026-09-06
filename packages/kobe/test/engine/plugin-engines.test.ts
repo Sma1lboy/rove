@@ -118,7 +118,7 @@ describe("plugin engine registration", () => {
       displayName: "Aider",
       defaultCommand: ["aider"],
       screenManifest: { rules: [{ state: "working", any: ["ctrl-c to interrupt"] }] },
-      identity: { vendorId: "aider", shortName: "Aider" },
+      identity: { shortName: "Aider" },
     })
     expect(ok).toBe(true)
     expect(pluginEngineIds()).toEqual(["aider"])
@@ -128,7 +128,7 @@ describe("plugin engine registration", () => {
     expect(entry.screenManifest).toBeDefined()
     expect(entry.builtin).toBe(false)
     // Identity rides the overlay — TUI copy comes from here, never hard-coded.
-    expect(entry.identity).toEqual({ vendorId: "aider", shortName: "Aider" })
+    expect(entry.identity).toEqual({ shortName: "Aider" })
   })
 
   it("a shipped catalog id cannot be overridden by a plugin", () => {
