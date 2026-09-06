@@ -31,6 +31,12 @@ import { randomUUID } from "node:crypto"
 import { chmodSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { StringDecoder } from "node:string_decoder"
+import {
+  OWNER_ONLY_DIR_MODE,
+  OWNER_ONLY_FILE_MODE,
+  tightenDirPermissionsSync,
+  tightenFilePermissionsSync,
+} from "./owner-only.ts"
 import { defaultPtyFreezeDir } from "./paths.ts"
 import type { PtySessionExit } from "./protocol.ts"
 import type { PtySessionState } from "./pty-host-types.ts"
@@ -300,32 +306,16 @@ export function loadFrozenSessions(
   return kept
 }
 
-/** Owner-only. See {@link tightenExistingPermissions} for why the mode
- *  arguments on mkdir/write are not enough on their own. */
-const DIR_MODE = 0o700
-const FILE_MODE = 0o600
-
 /**
  * Re-`chmod` the freeze directory and every record already in it.
  *
- * The `mode` options on `mkdirSync` / `writeFileSync` apply ONLY when the
- * path is created — for a path that already exists they are a silent no-op.
- * So an install whose freeze directory was created with a laxer umask keeps
- * its 0755 directory and its 0644 records forever: the directory stays
- * traversable by every local user, and any session not re-frozen since keeps
- * world-readable scrollback. Closing that takes a remediation pass over the
- * existing paths, not just correct modes on files created from here on.
- *
- * Best-effort and idempotent, like every other write in this module: a
- * chmod that fails (foreign owner, read-only mount) must never take the
- * terminal down.
+ * The SWEEP is what is specific to this module — a record not re-frozen
+ * since the laxer-umask days keeps world-readable scrollback, so the repair
+ * has to walk what is already on disk. Why a repair pass is needed at all is
+ * the shared reasoning in `owner-only.ts`.
  */
 export function tightenExistingPermissions(dir: string): void {
-  try {
-    chmodSync(dir, DIR_MODE)
-  } catch {
-    /* absent, or not ours to chmod — the mkdir below still creates it 0700 */
-  }
+  tightenDirPermissionsSync(dir)
   let names: string[]
   try {
     names = readdirSync(dir)
@@ -333,12 +323,7 @@ export function tightenExistingPermissions(dir: string): void {
     return // no directory yet: nothing pre-existing to tighten
   }
   for (const name of names) {
-    if (!name.endsWith(".json")) continue
-    try {
-      chmodSync(join(dir, name), FILE_MODE)
-    } catch {
-      /* one stubborn file must not cost the rest */
-    }
+    if (name.endsWith(".json")) tightenFilePermissionsSync(join(dir, name))
   }
 }
 
@@ -354,10 +339,10 @@ export function fileFreezeSink(dir = defaultPtyFreezeDir()): PtyFreezeSink {
         // 0700/0600: `ringB64` is the session's whole scrollback, so this file
         // holds every byte the agent printed — `env` output, `cat`ed credential
         // files, a git remote carrying a PAT. Owner-only, like a private key.
-        mkdirSync(dir, { recursive: true, mode: DIR_MODE })
+        mkdirSync(dir, { recursive: true, mode: OWNER_ONLY_DIR_MODE })
         const target = recordFile(dir, record.key)
         const staging = `${target}.${process.pid}.tmp`
-        writeFileSync(staging, JSON.stringify(record), { encoding: "utf8", mode: FILE_MODE })
+        writeFileSync(staging, JSON.stringify(record), { encoding: "utf8", mode: OWNER_ONLY_FILE_MODE })
         renameSync(staging, target)
       } catch {
         /* best-effort by contract — a freeze hiccup never kills the terminal */

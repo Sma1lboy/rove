@@ -20,6 +20,7 @@ import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
 import type { AgentTurnRecord } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { serialized, writeJsonAtomic } from "./json-file.ts"
+import { OWNER_ONLY_FILE_MODE } from "./owner-only.ts"
 
 interface AgentTurnsFile {
   readonly version: 1
@@ -164,7 +165,7 @@ export class AgentTurnsStore {
     try {
       // 0600: no credentials here, but the records do name every repo you work
       // in and when — defense in depth, and free.
-      await writeJsonAtomic(this.path, body, { mode: 0o600, compact: true })
+      await writeJsonAtomic(this.path, body, { mode: OWNER_ONLY_FILE_MODE, compact: true })
     } catch (err) {
       logDaemonError("agent-turns-write", err)
     }

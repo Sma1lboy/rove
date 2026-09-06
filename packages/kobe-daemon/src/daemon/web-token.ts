@@ -22,13 +22,14 @@
  */
 
 import { randomBytes } from "node:crypto"
-import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
-
-/** Owner-only, for the same reason `pty-freeze-store.ts` is: this file is a
- *  credential, and the mode arguments below only bind at creation time. */
-const DIR_MODE = 0o700
-const FILE_MODE = 0o600
+import {
+  OWNER_ONLY_DIR_MODE,
+  OWNER_ONLY_FILE_MODE,
+  tightenDirPermissionsSync,
+  tightenFilePermissionsSync,
+} from "./owner-only.ts"
 
 /** 32 bytes ≈ 256 bits, base64url so it survives a header and a query string. */
 function mintToken(): string {
@@ -38,28 +39,14 @@ function mintToken(): string {
 /**
  * Re-`chmod` an existing token file and its directory.
  *
- * `mkdirSync`/`writeFileSync`'s `mode` option applies ONLY when the path is
- * created — for a path that already exists it is a silent no-op. An install
- * whose `.rove` directory predates this module keeps its 0755 mode, and a
- * token file written by a build without the mode argument keeps 0644, leaving
- * the credential world-readable forever. Remediating only on creation would
- * therefore fix every install except the ones that are actually exposed.
- *
- * Best-effort: a chmod that fails (foreign owner, read-only mount) must not
- * take the web transport down — the token still works, it is just not as
- * tight as we would like.
+ * The dir+file PAIR is what is specific to this module; why a repair pass is
+ * needed at all (mkdir/write modes bind only at creation, so the loose
+ * installs are exactly the ones creation-time modes cannot reach) is the
+ * shared reasoning in `owner-only.ts`.
  */
 export function tightenTokenPermissions(file: string): void {
-  try {
-    chmodSync(dirname(file), DIR_MODE)
-  } catch {
-    /* absent, or not ours — the mkdir below still creates it 0700 */
-  }
-  try {
-    chmodSync(file, FILE_MODE)
-  } catch {
-    /* absent, or not ours to chmod */
-  }
+  tightenDirPermissionsSync(dirname(file))
+  tightenFilePermissionsSync(file)
 }
 
 /**
@@ -80,9 +67,9 @@ export function ensureWebToken(file: string): string {
     }
   }
   const token = mintToken()
-  mkdirSync(dirname(file), { recursive: true, mode: DIR_MODE })
+  mkdirSync(dirname(file), { recursive: true, mode: OWNER_ONLY_DIR_MODE })
   const staging = `${file}.${process.pid}.tmp`
-  writeFileSync(staging, token, { encoding: "utf8", mode: FILE_MODE })
+  writeFileSync(staging, token, { encoding: "utf8", mode: OWNER_ONLY_FILE_MODE })
   renameSync(staging, file)
   tightenTokenPermissions(file)
   return token

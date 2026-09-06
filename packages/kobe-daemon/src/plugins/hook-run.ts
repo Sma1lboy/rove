@@ -23,6 +23,7 @@
 import { spawn } from "node:child_process"
 import { appendFileSync, mkdirSync } from "node:fs"
 import { rotateLogIfNeeded } from "../daemon/log-rotate.ts"
+import { OWNER_ONLY_DIR_MODE, OWNER_ONLY_FILE_MODE } from "../daemon/owner-only.ts"
 import { buildPluginEnv } from "./env.ts"
 import type { PluginCommandSpec } from "./manifest.ts"
 import { pluginConfigDir, pluginLogPath, pluginStateDir } from "./plugin-paths.ts"
@@ -81,7 +82,7 @@ function appendRecord(pluginId: string, homeDir: string | undefined, record: Rec
     // that prints its own token on failure writes it here — 0600, and
     // capped like daemon.log so a per-tool-call hook can't fill the disk.
     rotateLogIfNeeded(logPath, PLUGIN_LOG_CAP_BYTES)
-    appendFileSync(logPath, `${JSON.stringify(record)}\n`, { mode: 0o600 })
+    appendFileSync(logPath, `${JSON.stringify(record)}\n`, { mode: OWNER_ONLY_FILE_MODE })
   } catch {
     // Log write failure must never take the daemon down.
   }
@@ -103,8 +104,8 @@ export async function runPluginHook(opts: HookRunOptions): Promise<void> {
   // honour the ROVE_PLUGIN_*_DIR contract, so record the failure and skip the
   // spawn rather than launching a hook into a broken environment.
   try {
-    mkdirSync(pluginConfigDir(pluginId, homeDir), { recursive: true, mode: 0o700 })
-    mkdirSync(pluginStateDir(pluginId, homeDir), { recursive: true, mode: 0o700 })
+    mkdirSync(pluginConfigDir(pluginId, homeDir), { recursive: true, mode: OWNER_ONLY_DIR_MODE })
+    mkdirSync(pluginStateDir(pluginId, homeDir), { recursive: true, mode: OWNER_ONLY_DIR_MODE })
   } catch (err) {
     appendRecord(pluginId, homeDir, {
       at: startedAt,

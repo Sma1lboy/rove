@@ -24,6 +24,7 @@
  * daemon that will not start.
  */
 
+import { chmodSync } from "node:fs"
 import { chmod, mkdir } from "node:fs/promises"
 import { join } from "node:path"
 import { ROVE_STATE_DIR_BASENAME } from "../compat-env.ts"
@@ -50,6 +51,30 @@ export function tightenDirPermissions(dir: string): Promise<void> {
 /** Re-`chmod` an existing file to 0600. Safe on an absent path. */
 export function tightenFilePermissions(file: string): Promise<void> {
   return tighten(file, OWNER_ONLY_FILE_MODE)
+}
+
+/**
+ * Sync twins, for the two modules that must tighten on a synchronous path:
+ * the token minter (`web-token.ts`) and the freeze-record store
+ * (`pty-freeze-store.ts`). Same swallow-everything contract as above —
+ * having only the async form is what made both of them fork these modes and
+ * re-explain the `mkdirSync`-mode-is-a-no-op reasoning in the header.
+ */
+export function tightenDirPermissionsSync(dir: string): void {
+  try {
+    chmodSync(dir, OWNER_ONLY_DIR_MODE)
+  } catch {
+    /* absent, not ours, or a filesystem without modes */
+  }
+}
+
+/** Re-`chmod` an existing file to 0600, synchronously. Safe on an absent path. */
+export function tightenFilePermissionsSync(file: string): void {
+  try {
+    chmodSync(file, OWNER_ONLY_FILE_MODE)
+  } catch {
+    /* absent, not ours, or a filesystem without modes */
+  }
 }
 
 /**

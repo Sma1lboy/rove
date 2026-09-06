@@ -63,10 +63,6 @@ export async function listenOnUnixSocket(server: Server, socketPath: string): Pr
   if (!isWindowsPipePath(socketPath)) await tightenFilePermissions(socketPath)
 }
 
-/** The mode a bound socket is left at — exported so a test can assert the
- *  intent rather than restate the octal. */
-export const SOCKET_MODE = OWNER_ONLY_FILE_MODE
-
 /**
  * Whether a process exists. `process.kill(pid, 0)` sends no signal — it only
  * runs the permission/existence check — so it answers in three ways:

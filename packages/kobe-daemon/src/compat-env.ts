@@ -26,8 +26,6 @@ export const LEGACY_KOBE_CONFIG_DIR_BASENAME = "kobe" as const
 
 /** @deprecated Legacy runtime/plugin layout; prefer an explicit canonical or legacy constant. */
 export const COMPAT_STATE_DIR_BASENAME = ".kobe" as const
-/** @deprecated Legacy config layout; canonical product data uses `rove`. */
-export const COMPAT_CONFIG_DIR_BASENAME = "kobe" as const
 
 export function legacyKobeEnvKey(roveKey: string): string | undefined {
   if (!roveKey.startsWith(ROVE_ENV_PREFIX)) return undefined

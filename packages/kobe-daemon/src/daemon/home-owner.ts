@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { type DaemonSocketState, probeDaemonSocket } from "../client/daemon-process.ts"
 import { ROVE_STATE_DIR_BASENAME } from "../compat-env.ts"
 import { isProcessAlive } from "./lifecycle.ts"
-import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
+import { OWNER_ONLY_FILE_MODE, ensureOwnerOnlyStateDir } from "./owner-only.ts"
 
 export interface HomeOwnerClaim {
   readonly pid: number
@@ -97,7 +97,7 @@ export async function acquireHomeClaim(options: {
       throw new Error(`rove daemon: another daemon is already serving ${socketPath}; refusing to replace it`)
     }
     const staging = `${path}.${process.pid}.tmp`
-    await writeFile(staging, `${process.pid}:${socketPath}\n`, { encoding: "utf8", mode: 0o600 })
+    await writeFile(staging, `${process.pid}:${socketPath}\n`, { encoding: "utf8", mode: OWNER_ONLY_FILE_MODE })
     await rename(staging, path)
   } catch (err) {
     database.close()
