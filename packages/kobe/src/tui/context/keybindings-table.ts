@@ -329,6 +329,23 @@ export const KobeKeymap: readonly KobeBinding[] = [
     category: "Navigation",
     description: "Toggle zen mode (hide the files column)",
   },
+  {
+    // PROPOSED prefix+r — awaiting owner sign-off (docs/design/
+    // keybinding-decisions.md). Erase + fully repaint the screen, for the
+    // corruption nothing can detect: a terminal that reflowed without
+    // changing the cell grid, a background image bleeding through a
+    // transparent theme, another program that scribbled on the alternate
+    // screen. `r` was the only free second stroke with the right mnemonic.
+    // Prefix-only and deliberately not a direct ctrl+l: that chord belongs
+    // to the shell and the engine inside the terminal pane, and "clear" is
+    // exactly what a user expects it to do THERE.
+    id: "view.redraw",
+    scope: "global",
+    keys: [],
+    prefixKeys: ["r"],
+    category: "Global",
+    description: "Redraw the screen",
+  },
   // ─── Sidebar + Tasks pane ─────────────────────────────────────────────
   // The rows below this header live in keybindings-sidebar.ts — a long
   // literal cut at its scope headers, not a responsibility boundary. Order

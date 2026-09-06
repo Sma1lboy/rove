@@ -69,7 +69,7 @@ retired worktree-sync hook was once installed so the next launch (or
 | Key | Type | Default | What it does |
 |---|---|---|---|
 | `activeTheme` | theme name | `"claude"` | See [Themes](#themes) |
-| `transparentBackground` | boolean | `true` | Let the terminal background show through. In transparent mode Rove detects the terminal's actual background (OSC 11) and adjusts body, muted, and host-backed warning text to stay readable on it. Warning text on opaque dialogs and controls keeps the theme color. No setting is needed |
+| `transparentBackground` | boolean | `true`, `false` on Windows | Let the terminal background show through. In transparent mode Rove detects the terminal's actual background (OSC 11) and adjusts body, muted, and host-backed warning text to stay readable on it. Warning text on opaque dialogs and controls keeps the theme color. No setting is needed. Windows starts opaque because Windows Terminal ships acrylic and background images on by default, and a transparent Rove has no opaque surface to scrub stale glyphs against — set it to `true` to turn transparency on there, and a value you have already chosen is never overwritten |
 | `focusAccent` | `primary` \| `success` \| `info` | `primary` | Color of the focused-pane indicator |
 | `appearance.splitStyle` | `box` \| `line` | `box` | `box` frames each split; `line` is the minimal tmux-style look |
 | `locale` | `en` \| `zh` | `en` | UI language |

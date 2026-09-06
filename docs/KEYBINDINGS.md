@@ -59,12 +59,20 @@ shows only actions that can run right now.
 | `ctrl+a` `p` / `P` | Create a PR from the active task, or from the sidebar row under the cursor |
 | `ctrl+a` `k` | Pull the failing PR checks' logs into the task's engine (**proposed — awaiting owner sign-off**) |
 | `ctrl+a` `u` | Merge the base branch into the task's worktree (**proposed — awaiting owner sign-off**) |
+| `ctrl+a` `r` | Redraw the screen — erase and fully repaint (**proposed — awaiting owner sign-off**) |
 
 `ctrl+a` `c` picks an engine first. Claude and Codex can fork their own
 conversations natively. Copilot and Kimi use a transcript handoff even for a
 same-engine continuation; a built-in source can also hand off to a different
 built-in or custom target. A custom source has no readable transcript, so its
 continuation is refused. See [Engines](./ENGINES.md#resuming-and-forking).
+
+`ctrl+a` `r` is the escape hatch for a screen that has gone wrong: it erases
+the display and repaints every cell, so leftover glyphs from a terminal that
+reflowed, a resize Rove did not see, or another program writing over Rove all
+clear in one frame. It touches nothing but pixels — no task, tab, or engine
+state changes — so it is always safe to press. Rove already repaints itself
+after a resize, so reach for this only when something slipped past that.
 
 The sequence cancels on timeout, `esc`, an invalid second key, or a change of
 focus or dialog.
