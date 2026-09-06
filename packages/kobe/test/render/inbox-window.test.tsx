@@ -57,6 +57,7 @@ function stubKv(): KVContext {
     },
     flush: () => true,
     clear: () => true,
+    onWriteError: () => () => {},
   }
 }
 

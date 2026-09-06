@@ -36,6 +36,61 @@ export function isObject(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v)
 }
 
+/**
+ * Whether a hook merge reached the settings file.
+ *
+ * Returned rather than thrown: every caller is on a best-effort launch path
+ * and must continue either way. What changed is that "continue" no longer
+ * means "say nothing" — a permanently skipped install used to leave the
+ * product looking merely slow (every badge back on the daemon's ~10s activity
+ * poll) with not one line naming the file responsible.
+ */
+export type HookEditOutcome =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly file: string; readonly reason: string }
+
+/**
+ * A settings document the hook merge may run on, or the reason it may not.
+ *
+ * Rejecting is deliberate: a best-effort install must never clobber an engine
+ * configuration it could not understand. But abandoning the write and
+ * abandoning it SILENTLY are different things — a hand-edited
+ * `~/.claude/settings.json` whose `hooks` fails this check means Rove
+ * permanently stops installing hooks, every badge falls back to the ~10s
+ * activity poll, and the product reads as slow rather than misconfigured.
+ * Hence a reason string that names the offending path inside the document.
+ */
+export type HookSettingsParse =
+  | { readonly ok: true; readonly doc: Record<string, unknown> }
+  | { readonly ok: false; readonly reason: string }
+
+/**
+ * Validate the bytes of a shared settings file for the hook merge. A missing
+ * file (`undefined`) is an EMPTY document, not a rejection — that is the
+ * first-launch case the install exists to serve.
+ *
+ * Shared with `cli/doctor-hook-channel.ts` so doctor reports the same verdict
+ * on the same file rather than re-deriving a second opinion.
+ */
+export function parseHookSettings(raw: string | undefined): HookSettingsParse {
+  if (raw === undefined) return { ok: true, doc: {} }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch (err) {
+    return { ok: false, reason: `not valid JSON (${err instanceof Error ? err.message : String(err)})` }
+  }
+  if (!isObject(parsed)) return { ok: false, reason: "top level is not a JSON object" }
+  if (parsed.hooks === undefined) return { ok: true, doc: parsed }
+  if (!isObject(parsed.hooks)) return { ok: false, reason: '"hooks" is not an object' }
+  for (const [event, groups] of Object.entries(parsed.hooks)) {
+    if (!Array.isArray(groups)) return { ok: false, reason: `"hooks.${event}" is not an array` }
+    const bad = groups.findIndex((group) => !isObject(group) || !Array.isArray(group.hooks))
+    if (bad >= 0) return { ok: false, reason: `"hooks.${event}[${bad}]" is not an object with a "hooks" array` }
+  }
+  return { ok: true, doc: parsed }
+}
+
 // Accept literal argv from the current quoter and older bare/double-quoted
 // installs. Shell operators, expansions and wrappers are not ours to remove.
 const HOOK_WORD = String.raw`(?:'(?:[^']|'\\'')*'|"[^"$\x60\\]*"|[A-Za-z0-9_./:=+-]+)`

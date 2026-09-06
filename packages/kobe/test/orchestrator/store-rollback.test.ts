@@ -102,6 +102,24 @@ describe("TaskIndexStore rollback on a failed save", () => {
     expect(await diskTitles()).toEqual(["a", "b", "c"])
   })
 
+  it("keeps a task whose delete failed, and no later save completes the deletion", async () => {
+    const store = new TaskIndexStore({ homeDir: home })
+    await store.load()
+    const task = await store.create(input("doomed"))
+
+    await breakSaves()
+    await expect(store.remove(task.id)).rejects.toThrow()
+    // The caller was told the delete failed; the sidebar must agree — the row
+    // vanishing next to a "delete failed" toast is the reported symptom.
+    expect(store.list().map((t) => t.title)).toEqual(["doomed"])
+
+    // The durable half: the tombstone must be gone too, or the next unrelated
+    // save carries the rejected deletion to disk minutes later.
+    await healSaves()
+    await store.create(input("unrelated"))
+    expect((await diskTitles()).sort()).toEqual(["doomed", "unrelated"])
+  })
+
   it("never lets two failed updates on one id reach disk, whichever rolls back first", async () => {
     const store = new TaskIndexStore({ homeDir: home })
     await store.load()

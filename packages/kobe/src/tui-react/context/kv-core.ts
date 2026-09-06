@@ -19,10 +19,22 @@
  *     including keys other processes wrote after we loaded.
  */
 
+import { kvStatePath } from "../../env.ts"
 import { createStateCell } from "../../lib/external-store"
 import { loadStateFile, patchStateFile, replaceStateFile } from "../../state/store.ts"
 
 const WRITE_DEBOUNCE_MS = 250
+
+/** A debounced or exit flush that did not reach disk. */
+export interface KvWriteFailure {
+  /** The keys still unwritten — deduped, so a repeat failure on the same key is silent. */
+  readonly keys: readonly string[]
+  /** The file that could not be written, so the toast can name it. */
+  readonly file: string
+  readonly error: unknown
+}
+
+export type KvWriteErrorListener = (failure: KvWriteFailure) => void
 
 export interface KvCore {
   /** Current in-memory snapshot (immutable per change; React-safe). */
@@ -42,6 +54,17 @@ export interface KvCore {
   flush(): boolean
   /** Wipe every persisted key; false preserves the snapshot and pending edits. */
   clear(): boolean
+  /**
+   * Subscribe to flushes that did not reach disk; returns the unsubscribe.
+   *
+   * The debounced write is fire-and-forget — nothing awaits it and `set()`
+   * has already updated the snapshot, so a rejected write used to be
+   * invisible: the UI showed the new theme/toggle/width all session and
+   * silently reverted at the next launch. `console.error` alone does not
+   * count as surfacing under an alternate screen (see
+   * `workspace/use-host-notifiers.ts`), so the on-screen half needs a sink.
+   */
+  onWriteError(listener: KvWriteErrorListener): () => void
 }
 
 export function createKvCore(): KvCore {
@@ -50,6 +73,22 @@ export function createKvCore(): KvCore {
   /** Keys this process has `set()` since the last successful flush. */
   const dirtyKeys = new Set<string>()
   let writeTimer: ReturnType<typeof setTimeout> | null = null
+  const errorListeners = new Set<KvWriteErrorListener>()
+  /**
+   * Keys already reported as unwritten. A read-only state dir fails EVERY
+   * 250ms flush, and dirty keys survive a failed write, so without this the
+   * same key raises a toast on every keystroke that touches it. Cleared on
+   * the next write that lands, so a failure that comes back is reported again.
+   */
+  const reportedKeys = new Set<string>()
+
+  function reportWriteError(err: unknown): void {
+    const fresh = [...dirtyKeys].filter((key) => !reportedKeys.has(key))
+    if (fresh.length === 0) return
+    for (const key of fresh) reportedKeys.add(key)
+    const failure: KvWriteFailure = { keys: fresh, file: kvStatePath(), error: err }
+    for (const listener of errorListeners) listener(failure)
+  }
 
   function writeNow(label: string): boolean {
     if (dirtyKeys.size === 0) return true // nothing of ours to merge
@@ -62,9 +101,12 @@ export function createKvCore(): KvCore {
       for (const key of dirtyKeys) patch[key] = snap[key]
       patchStateFile(patch)
       dirtyKeys.clear()
+      reportedKeys.clear()
       return true
     } catch (err) {
+      // Kept for log forensics; `reportWriteError` is the on-screen half.
       console.error(`[rove] kv ${label} failed:`, err)
+      reportWriteError(err)
       return false
     }
   }
@@ -125,8 +167,15 @@ export function createKvCore(): KvCore {
       }
       cancelTimer()
       dirtyKeys.clear()
+      reportedKeys.clear()
       store.set({})
       return true
+    },
+    onWriteError(listener) {
+      errorListeners.add(listener)
+      return () => {
+        errorListeners.delete(listener)
+      }
     },
   }
 }

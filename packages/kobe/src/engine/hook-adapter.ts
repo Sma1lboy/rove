@@ -21,6 +21,7 @@
 
 import type { VendorId } from "../types/vendor.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "./hook-events.ts"
+import type { HookEditOutcome } from "./json-hooks.ts"
 import { engineEntry } from "./registry.ts"
 
 /** An engine session's own identity, as reported by its hook payload. */
@@ -72,8 +73,13 @@ export interface EngineHookAdapter {
    * a task). Must be IDEMPOTENT (safe on every launch; skips the write when
    * already in place), merge-safe (preserves the user's own hooks), and must
    * never throw fatally.
+   *
+   * Returns whether the merge actually reached the file. A refusal (a
+   * settings document this adapter cannot understand) is not an error the
+   * launch may fail on, but it is not nothing either: hooks stay uninstalled
+   * for good and every badge falls back to the daemon's ~10s poll.
    */
-  installActivityHooks(settingsFilePath: string, opts?: { toolEvents?: boolean }): Promise<void>
+  installActivityHooks(settingsFilePath: string, opts?: { toolEvents?: boolean }): Promise<HookEditOutcome>
   /** Remove the activity hooks this adapter installed. Idempotent. */
   removeActivityHooks(settingsFilePath: string): Promise<void>
 
@@ -129,8 +135,9 @@ export class NoopHookAdapter implements EngineHookAdapter {
   sessionFromPayload(): EngineSessionRef | undefined {
     return undefined // no wired hooks → no payload this adapter understands
   }
-  async installActivityHooks(): Promise<void> {
+  async installActivityHooks(): Promise<HookEditOutcome> {
     /* no-op until this engine's hook format is implemented */
+    return { ok: true }
   }
   async removeActivityHooks(): Promise<void> {
     /* no-op */

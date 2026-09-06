@@ -36,7 +36,7 @@ import { kobeHookInvocation } from "../../cli/invocation.ts"
 import { quoteShellArgv } from "../../lib/shell-command.ts"
 import type { EngineHookAdapter, EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
-import { GATED_TOOL_VERBS, type HookEventSpec } from "../json-hooks.ts"
+import { GATED_TOOL_VERBS, type HookEditOutcome, type HookEventSpec } from "../json-hooks.ts"
 import { vendorConfigHome } from "../vendor-home.ts"
 
 /** Kimi hook event → normalized kobe verb. The ONE place Kimi event names live. */
@@ -214,11 +214,13 @@ export class KimiHookAdapter implements EngineHookAdapter {
     return { sessionId: payload.session_id }
   }
 
-  async installActivityHooks(settingsFilePath: string, opts: { toolEvents?: boolean } = {}): Promise<void> {
+  async installActivityHooks(settingsFilePath: string, opts: { toolEvents?: boolean } = {}): Promise<HookEditOutcome> {
     // Don't materialize ~/.kimi-code for a user who never installed Kimi —
-    // no config dir means no Kimi to read the hooks anyway.
-    if (!existsSync(dirname(settingsFilePath))) return
+    // no config dir means no Kimi to read the hooks anyway. Not a refusal:
+    // there is no engine here whose badges could go missing.
+    if (!existsSync(dirname(settingsFilePath))) return { ok: true }
     await editTomlConfig(settingsFilePath, (cur) => mergeKimiHooks(cur, true, undefined, opts))
+    return { ok: true }
   }
 
   async removeActivityHooks(settingsFilePath: string): Promise<void> {

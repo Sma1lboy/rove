@@ -17,10 +17,11 @@ import type { EngineHookAdapter, EngineSessionRef } from "./hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "./hook-events.ts"
 import {
   GATED_TOOL_VERBS,
+  type HookEditOutcome,
   type HookEventSpec,
   removeWorktreeWatchHook as dropWorktreeWatchHook,
-  isObject,
   mergeActivityHooks,
+  parseHookSettings,
 } from "./json-hooks.ts"
 import { updateSharedJson } from "./shared-config-write.ts"
 
@@ -35,34 +36,31 @@ import { updateSharedJson } from "./shared-config-write.ts"
  * design) and lands via tmp+rename, never a write straight onto the live file a
  * starting session may be reading.
  *
- * Best-effort: a failure to read/parse/write must never block a launch.
+ * Best-effort: a failure to read/parse/write must never block a launch — it is
+ * REPORTED rather than thrown ({@link HookEditOutcome}). Reporting is the
+ * caller's job so the noise lands once: `ensureGlobalKobeHooks` runs an
+ * install and two removals over the same file on every launch, and three
+ * lines about one file is how a real signal gets read as boilerplate.
  */
 export async function editJsonSettings(
   settingsFilePath: string,
   transform: (current: Record<string, unknown>) => Record<string, unknown>,
-): Promise<void> {
+): Promise<HookEditOutcome> {
+  // Set by the loader when it refuses the document. The loader signals refusal
+  // to `updateSharedJson` with `undefined` — the same value it returns for
+  // "nothing to do" — so the reason has to come back out of band.
+  let rejected: string | undefined
   try {
     await updateSharedJson(
       settingsFilePath,
       (raw) => {
-        // A missing file starts empty; any other read or parse failure abandons
-        // the write so a best-effort install cannot clobber an existing engine
-        // configuration it could not understand.
-        if (raw === undefined) return {}
-        try {
-          const parsed: unknown = JSON.parse(raw)
-          if (!isObject(parsed)) return undefined
-          if (parsed.hooks !== undefined) {
-            if (!isObject(parsed.hooks)) return undefined
-            for (const groups of Object.values(parsed.hooks)) {
-              if (!Array.isArray(groups)) return undefined
-              if (groups.some((group) => !isObject(group) || !Array.isArray(group.hooks))) return undefined
-            }
-          }
-          return parsed
-        } catch {
-          return undefined
-        }
+        // A missing file starts empty; a document we cannot understand abandons
+        // the write so a best-effort install never clobbers an existing engine
+        // configuration.
+        const parsed = parseHookSettings(raw)
+        if (parsed.ok) return parsed.doc
+        rejected = parsed.reason
+        return undefined
       },
       (current) => {
         const next = transform(current)
@@ -70,9 +68,11 @@ export async function editJsonSettings(
         return json === JSON.stringify(current, null, 2) ? undefined : `${json}\n`
       },
     )
-  } catch {
-    /* best-effort — never block launch */
+  } catch (err) {
+    return { ok: false, file: settingsFilePath, reason: err instanceof Error ? err.message : String(err) }
   }
+  if (rejected !== undefined) return { ok: false, file: settingsFilePath, reason: rejected }
+  return { ok: true }
 }
 
 export abstract class JsonHookAdapter implements EngineHookAdapter {
@@ -118,9 +118,9 @@ export abstract class JsonHookAdapter implements EngineHookAdapter {
     return GATED_TOOL_VERBS
   }
 
-  async installActivityHooks(settingsFilePath: string, opts: { toolEvents?: boolean } = {}): Promise<void> {
+  async installActivityHooks(settingsFilePath: string, opts: { toolEvents?: boolean } = {}): Promise<HookEditOutcome> {
     const gated = this.gatedVerbs()
-    await editJsonSettings(settingsFilePath, (cur) =>
+    const outcome = await editJsonSettings(settingsFilePath, (cur) =>
       mergeActivityHooks(cur, true, this.eventMap, undefined, {
         // Phase 0 (docs/design/plugin-events.md): tag the report with the
         // vendor so `kobe hook` decodes with the right adapter, not a guess.
@@ -128,6 +128,11 @@ export abstract class JsonHookAdapter implements EngineHookAdapter {
         buildFilter: (spec) => opts.toolEvents === true || !gated.has(spec.verb),
       }),
     )
+    // stderr, not a throw: under `rove daemon` this lands in daemon.log, which
+    // is where `rove doctor` sends a reader whose hook channel is dead. The
+    // removals stay silent — this is the write whose absence costs the badges.
+    if (!outcome.ok) process.stderr.write(`[rove hooks] ${this.vendor}: skipped ${outcome.file}: ${outcome.reason}\n`)
+    return outcome
   }
 
   async removeActivityHooks(settingsFilePath: string): Promise<void> {

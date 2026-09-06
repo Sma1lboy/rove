@@ -15,6 +15,7 @@ import {
 } from "@sma1lboy/kobe-daemon/daemon/paths"
 import { isForeignDaemonHome } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { readPidFile } from "@sma1lboy/kobe-daemon/daemon/server"
+import { hookConfigIssues } from "../engine/hook-config-check.ts"
 import { homeDir, kvStatePath, roveStateDir } from "../env.ts"
 import { formatBytes } from "../lib/format-bytes.ts"
 import { kobeSkillState, skillInstallCommand } from "../lib/skill-install.ts"
@@ -252,7 +253,9 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
     const snapshot = await requestIfReachable<InspectSnapshot>(daemonSocket, "debug.inspect")
     const tabs = snapshot?.activity?.tabs
     if (tabs) {
-      const hookInput = { socketPath: daemonSocket }
+      // The second way the channel dies (see doctor-hook-channel.ts): the
+      // install was refused, so the hooks were never written at all.
+      const hookInput = { socketPath: daemonSocket, configIssues: hookConfigIssues() }
       const verdict = classifyHookChannel({ tabs, ...hookInput })
       out.push("", ...hookChannelDoctorLines(verdict, hookInput, CLI_NAME))
       if (verdict.kind === "down") fixes.push(daemonRestartFix(CLI_NAME, "hooksDown"), engineTabsManualFix())

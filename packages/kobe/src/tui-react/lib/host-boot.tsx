@@ -48,6 +48,7 @@ import { type PersistedUiPrefs, readPersistedUiPrefs } from "../../tui/lib/persi
 import { installScreenSelfHeal } from "../../tui/lib/screen-refresh"
 import { FocusProvider } from "../context/focus"
 import { KVProvider } from "../context/kv"
+import { KvWriteErrorToasts } from "../context/kv-write-error-toasts"
 import { NotificationsProvider } from "../context/notifications"
 import {
   ThemeProvider,
@@ -265,6 +266,7 @@ export async function bootPaneHost(opts: BootPaneHostOpts): Promise<void> {
   const body = (
     <>
       <UiPrefsSync />
+      <KvWriteErrorToasts />
       <PaneErrorBoundary>{screen.root()}</PaneErrorBoundary>
     </>
   )
