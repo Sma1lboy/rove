@@ -57,19 +57,25 @@ export const DIRTY_WORKTREE_CODE = "DIRTY_WORKTREE"
  * can say whether this worktree holds such work. It refuses through the SAME
  * error on purpose — the UI already turns this one into a force-delete
  * re-prompt, which is exactly the choice an unverifiable worktree needs.
+ *
+ * The sentence itself is {@link describeDirtyWorktreeWork}, shared with
+ * `GitWorktreeManager.remove`'s own refusals — the same three states, and a
+ * caller across the daemon boundary sees only the message either way.
  */
+export function describeDirtyWorktreeWork(ignored: readonly string[] | "unknown"): string {
+  return ignored === "unknown"
+    ? "gitignored work this check could not read (git status --ignored failed) — nothing here can confirm it is empty"
+    : ignored.length > 0
+      ? `gitignored work git status cannot see: ${ignored.join(", ")}`
+      : "uncommitted or untracked changes"
+}
+
 export class DirtyWorktreeError extends Error {
   constructor(
     public readonly taskId: string,
     public readonly ignored: readonly string[] | "unknown" = [],
   ) {
-    const what =
-      ignored === "unknown"
-        ? "gitignored work this check could not read (git status --ignored failed) — nothing here can confirm it is empty"
-        : ignored.length > 0
-          ? `gitignored work git status cannot see: ${ignored.join(", ")}`
-          : "uncommitted or untracked changes"
-    super(`${DIRTY_WORKTREE_CODE}: task ${taskId} worktree has ${what}`)
+    super(`${DIRTY_WORKTREE_CODE}: task ${taskId} worktree has ${describeDirtyWorktreeWork(ignored)}`)
     this.name = "DirtyWorktreeError"
   }
 }

@@ -45,6 +45,10 @@ export const en = {
         overstating the danger pushes people to cancel a safe operation. */
     forceBody:
       '"{branch}" has uncommitted, untracked, or gitignored work. Force delete removes the worktree, but the work is snapshotted first to a salvage ref — list them with `git for-each-ref refs/rove/salvage`. Force delete anyway?',
+    /** The daemon's own words for WHICH of the three refusals fired. Only that
+        message names the gitignored paths, and `git status` cannot see those —
+        without them the user goes looking with a command that reports nothing. */
+    forceReason: "Refused because: {reason}",
     failed: "Failed to delete worktree: {error}",
     residue:
       "Git deregistered the worktree, but couldn't delete {path} ({reason}). Rove is done with it — retrying won't help; delete the directory by hand if you want the space.",
@@ -115,6 +119,7 @@ export const zh: typeof en = {
     forceTitle: "强制删除 worktree？",
     forceBody:
       '"{branch}" 存在未提交、未跟踪或被 gitignore 的改动。强制删除会移除 worktree，但这些改动会先被快照到一个 salvage ref——用 `git for-each-ref refs/rove/salvage` 可以列出它们。仍要强制删除吗？',
+    forceReason: "拒绝原因：{reason}",
     failed: "删除 worktree 失败：{error}",
     residue:
       "Git 已注销该 worktree，但没能删掉 {path}（{reason}）。Rove 这边已经处理完了——重试没有用；想要回磁盘空间请手动删除该目录。",
