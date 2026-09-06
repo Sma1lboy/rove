@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.170
+
+### Patch Changes
+
+- [#951](https://github.com/Sma1lboy/rove/pull/951) [`5256e37`](https://github.com/Sma1lboy/rove/commit/5256e37a16cce23b281d70eb787815262a537036) The Worktrees page reaches the force-delete confirm for all three delete refusals, not just one. A worktree whose only work is gitignored — a `HANDOFF.md`, a `.scratch/` — refuses through a different message than a porcelain-dirty one, and the page matched that one message as prose, so two of the three refusals dead-ended in a red toast with no way to reach the two-stage force flow. The page now discriminates on `DIRTY_WORKTREE`, the same test the task-row delete uses, and the force confirm names the gitignored paths `git status` cannot show you. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.169
 
 ### Patch Changes
