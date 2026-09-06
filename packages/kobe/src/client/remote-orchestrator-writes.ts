@@ -31,6 +31,7 @@ export async function createTaskOp(
     title?: string
     branch?: string
     baseRef?: string
+    worktreeName?: string
     vendor?: VendorId
     modelEffort?: string
     groupId?: string

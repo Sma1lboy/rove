@@ -462,6 +462,8 @@ export function deserializeTask(s: SerializedTask): Task {
     dispatcher: s.dispatcher,
     prompt: s.prompt,
     baseRef: s.baseRef,
+    worktreeName: s.worktreeName,
+    report: s.report,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
   }

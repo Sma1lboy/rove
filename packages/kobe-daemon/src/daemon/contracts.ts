@@ -71,6 +71,21 @@ export interface TaskQuotaResumeState {
   readonly requestedAt: string
 }
 
+/**
+ * A worker's own outcome claim (mirrors kobe/types/task.ts).
+ *
+ * Kept apart from {@link TaskPRStatus} on purpose: this is what the worker
+ * SAID, that is what the daemon OBSERVED by polling the forge. A dispatcher
+ * deciding whether to land needs to know which of the two it is holding.
+ */
+export interface TaskWorkerReport {
+  readonly branch?: string
+  readonly pr?: number
+  readonly summary?: string
+  /** ISO-8601 time the report was written. */
+  readonly at: string
+}
+
 export interface TaskPRStatus {
   readonly provider: "github" | "gitlab" | "bitbucket" | "unknown"
   readonly lifecycle: "creating" | "open" | "ready_to_merge" | "merged" | "closed" | "unknown"
@@ -143,6 +158,12 @@ export interface DaemonTask {
    *  Absent on records that predate the field (signals fall back to a
    *  base guess). */
   readonly baseRef?: string
+  /** Caller-chosen worktree directory name (`add --worktree-name`), instead
+   *  of one drawn from the animal pool. Absent = generated. */
+  readonly worktreeName?: string
+  /** The WORKER's own account of what it delivered (`set-status --report-*`).
+   *  A claim, unlike `prStatus`, which the daemon observed from the forge. */
+  readonly report?: TaskWorkerReport
   readonly createdAt: string
   readonly updatedAt: string
 }
@@ -225,6 +246,7 @@ export interface DaemonOrchestrator {
     title?: string
     branch?: string
     baseRef?: string
+    worktreeName?: string
     vendor?: VendorId
     /** Raw engine launch command; `vendor` carries its resolved protocol. */
     command?: string
@@ -254,6 +276,10 @@ export interface DaemonOrchestrator {
   setPinned(id: string, pinned?: boolean): Promise<void>
   moveTask(id: string, delta: -1 | 1): Promise<void>
   setStatus(id: string, status: TaskStatus): Promise<void>
+  /** Record what the worker says it delivered (`set-status --report-*`).
+   *  Separate from `setStatus` because a report on an already-`done` task is
+   *  ordinary, and `setStatus` returns early when the status is unchanged. */
+  setWorkerReport(id: string, report: Omit<TaskWorkerReport, "at">): Promise<void>
   setPRStatus(id: string, status: TaskPRStatus | null): Promise<void>
   /** Stamp the external tracker item a task was started from. */
   setLinkedWorkItem(id: string, item: TaskLinkedWorkItem | null): Promise<void>

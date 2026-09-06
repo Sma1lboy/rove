@@ -20,6 +20,7 @@ import type {
   TaskQuotaResumeState,
   TaskRoutineLink,
   TaskStatus,
+  TaskWorkerReport,
 } from "../../types/task.ts"
 import { toTaskId } from "../../types/task.ts"
 import { coerceVendorId } from "../../types/vendor.ts"
@@ -62,6 +63,7 @@ export function coerceTask(value: unknown): Task | null {
   const dispatcher = coerceDispatcher(v.dispatcher)
   const routine = coerceRoutine(v.routine)
 
+  const report = coerceWorkerReport(v.report)
   return {
     id: toTaskId(v.id),
     title: v.title,
@@ -111,8 +113,33 @@ export function coerceTask(value: unknown): Task | null {
     // materialises (branches then silently cut from the guessed base), and
     // `collect`'s ahead/diffstat signals revert to the wrong comparison ref.
     ...(typeof v.baseRef === "string" && v.baseRef.trim().length > 0 ? { baseRef: v.baseRef } : {}),
+    // Caller-chosen worktree directory (`add --worktree-name`). Same reason
+    // `baseRef` survives the coercion: allocation is lazy, so a restart
+    // between create and first enter would otherwise hand the task a random
+    // animal name after the caller was told which path to expect.
+    ...(typeof v.worktreeName === "string" && v.worktreeName.trim().length > 0 ? { worktreeName: v.worktreeName } : {}),
+    // The worker's own outcome claim (`set-status --report-*`) — durable so a
+    // dispatcher reading `collect` days later still sees what was reported.
+    ...(report ? { report } : {}),
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
+  }
+}
+
+/**
+ * A worker's `set-status --report-*` claim. Every field is optional, so the
+ * only thing that makes a report a report is its timestamp — an object
+ * without one is a malformed row, not a report with a missing field.
+ */
+function coerceWorkerReport(value: unknown): TaskWorkerReport | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const v = value as Record<string, unknown>
+  if (typeof v.at !== "string" || v.at.length === 0) return undefined
+  return {
+    at: v.at,
+    ...(typeof v.branch === "string" && v.branch.length > 0 ? { branch: v.branch } : {}),
+    ...(typeof v.pr === "number" && Number.isFinite(v.pr) ? { pr: v.pr } : {}),
+    ...(typeof v.summary === "string" && v.summary.length > 0 ? { summary: v.summary } : {}),
   }
 }
 

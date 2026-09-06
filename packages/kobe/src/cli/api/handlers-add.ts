@@ -121,6 +121,8 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   if (branch) payload.branch = branch
   const baseRef = args.str("base-branch")
   if (baseRef) payload.baseRef = baseRef
+  const worktreeName = args.str("worktree-name")
+  if (worktreeName) payload.worktreeName = worktreeName
 
   const res = await daemon.request<{ taskId: string; task: SerializedTask }>("task.create", payload)
   const taskId = res.taskId
@@ -249,6 +251,15 @@ async function addParallel(
   if (args.str("branch")) {
     throw new ApiError(
       "--branch names ONE branch and cannot be shared by parallel siblings — drop it (each sibling gets its own auto branch) or spawn them one at a time",
+      "BAD_FLAG",
+      helpStep("add"),
+    )
+  }
+  // Same reason, one directory instead of one branch: the second sibling
+  // would collide on the name and the round would half-spawn.
+  if (args.str("worktree-name")) {
+    throw new ApiError(
+      "--worktree-name names ONE directory and cannot be shared by parallel siblings — drop it (each sibling gets its own generated name) or spawn them one at a time",
       "BAD_FLAG",
       helpStep("add"),
     )

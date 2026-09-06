@@ -34,6 +34,7 @@
  * race, but that's already broken on the store's tasks.json writes.
  */
 
+import { WorktreeNameTakenError } from "../errors.ts"
 import { ANIMAL_NAMES } from "./animal-names.ts"
 import { listWorktreeDirNames } from "./paths.ts"
 
@@ -102,6 +103,36 @@ export class SlugAllocator {
     await previous
     try {
       return await this.pickLocked(repo)
+    } finally {
+      release()
+    }
+  }
+
+  /**
+   * Take a CALLER-CHOSEN slug (`add --worktree-name`), or refuse it.
+   *
+   * Same occupied set `allocate()` picks against — active tasks, directories
+   * already on disk, and picks not yet committed — so a name a random pick
+   * would have skipped is a name this rejects. It never falls back to a
+   * `-v2` suffix: the caller named this directory so a script could predict
+   * the path, and silently handing back `probe-1-v2` would break exactly the
+   * caller the flag exists for.
+   *
+   * Serialized on the same chain as {@link allocate}, so a claim and a
+   * concurrent random pick cannot both take one name.
+   */
+  async claim(repo: string, slug: string): Promise<string> {
+    const previous = this.chain
+    let release!: () => void
+    this.chain = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await previous
+    try {
+      const occupied = await this.occupiedSlugs(repo)
+      if (occupied.has(slug)) throw new WorktreeNameTakenError(slug)
+      this.addPending(repo, slug)
+      return slug
     } finally {
       release()
     }
