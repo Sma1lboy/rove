@@ -64,10 +64,12 @@ export interface ChannelPayloads {
    * request/response RPCs instead. The channel stays because it is a public
    * plugin API — it is in `DAEMON_CHANNELS` (`kobe-plugin-sdk`) and
    * documented in `docs/PLUGIN-SDK.md`, so out-of-repo subscribers nobody
-   * here can enumerate depend on it. If the cost of publishing a full
-   * snapshot per task mutation ever shows up in a profile, gate the publish
-   * on `lifetime.hasSubscribersFor("issue.snapshot")` — the same gate
-   * `startDaemonCollectors` uses — rather than removing the channel.
+   * here can enumerate depend on it. So the publish is GATED rather than
+   * removed: every writer goes through `publishIssueSnapshot`
+   * (`handlers-issues.ts`), which asks `lifetime.hasSubscribersFor` — the
+   * same per-channel gate `startDaemonCollectors` uses — before serializing a
+   * repo's whole issue state. With nobody attached it costs nothing; with a
+   * plugin attached it behaves exactly as before.
    */
   "issue.snapshot": RepoIssues
   /**

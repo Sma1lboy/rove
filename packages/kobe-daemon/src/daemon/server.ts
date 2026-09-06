@@ -414,6 +414,7 @@ async function startOwnedServer(
         pid: process.pid,
         guiCount: () => lifetime.guiCount(),
         clientCount: () => clients.size,
+        hasSubscribersFor: (channel) => lifetime.hasSubscribersFor(channel),
         stopSoon,
         reevaluateIdle: () => lifetime.reevaluateIdle(),
       },
