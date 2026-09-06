@@ -56,8 +56,10 @@ import {
   DAEMON_PROTOCOL_VERSION,
   type DaemonError,
   type DaemonRequestName,
+  type DaemonStopReason,
   MIN_COMPATIBLE_PROTOCOL_VERSION,
   isProtocolCompatible,
+  parseDaemonStopReason,
   serializeTask,
 } from "./protocol.ts"
 import type { QuotaUsageCache } from "./quota-usage-cache.ts"
@@ -144,8 +146,9 @@ export interface DaemonHandlerContext {
      *  whichever client hosts the session, so this — not the GUI refcount —
      *  is what says a dispatch could reach anyone. */
     clientCount(): number
-    /** Graceful self-stop (`daemon.stop`). */
-    stopSoon(): Promise<void>
+    /** Graceful self-stop (`daemon.stop`). The reason rides out on the
+     *  `daemon.stopping` broadcast — see {@link DaemonStopReason}. */
+    stopSoon(reason?: DaemonStopReason): Promise<void>
     /** Re-check idle shutdown after a keep-alive hold may have been released
      *  (the last automation was disabled or deleted with no gui attached). */
     reevaluateIdle(): void
@@ -298,8 +301,15 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     },
     {
       name: "daemon.stop",
-      async handle(_payload, ctx) {
-        await ctx.daemon.stopSoon()
+      async handle(payload, ctx) {
+        // `restart` is the only reason a caller may claim, and only
+        // `daemon restart` (plus the TUI's refresh) claims it: it tells every
+        // attached client the code is being swapped, not that the daemon is
+        // done. Anything else — including an unset or unrecognized field —
+        // reads as a plain `stop`, so a stale or hostile caller can never
+        // make an ordinary shutdown look like an upgrade.
+        const reason = parseDaemonStopReason(payload.reason) === "restart" ? "restart" : "stop"
+        await ctx.daemon.stopSoon(reason)
         return {}
       },
     },

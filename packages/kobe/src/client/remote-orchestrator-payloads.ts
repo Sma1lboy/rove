@@ -382,6 +382,9 @@ export interface OrchestratorSignals {
   readonly setActiveTaskSig: (next: string | null) => void
   readonly setUpdateSig: (next: UpdateInfo | null) => void
   readonly setDaemonVersionSig: (next: string | null) => void
+  /** True from a `daemon.stopping` frame that named `reason: "restart"`
+   *  until the next successful handshake — see `daemonRestartingSignal`. */
+  readonly setDaemonRestartingSig: (next: boolean) => void
   readonly engineStateAcc: ReadableState<ReadonlyMap<string, TaskEngineState>>
   readonly setEngineStateSig: (next: ReadonlyMap<string, TaskEngineState>) => void
   readonly engineTabStateAcc: ReadableState<EngineTabStateMap>

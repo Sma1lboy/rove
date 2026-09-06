@@ -617,6 +617,48 @@ this should be a `rove` subcommand or nothing. The Windows fix does not depend
 on the answer: dropping the row leaves the resize repaint and the focus
 repaint intact.
 
+**Shares the stroke with Refresh Rove (next section).** Both landed on `r`
+independently, and both are display-or-process repair actions a user reaches
+for when "Rove looks wrong". They never coexist: the redraw group is disabled
+exactly while a refresh is available, so at any moment prefix+`r` has ONE
+enabled binding (`keymap-dispatch` warns on two). Precedence goes to the
+refresh because it relaunches the TUI, which repaints everything anyway.
+
+## PROPOSED (not decided): `ctrl+a` `r` — Refresh Rove
+
+**Why a key at all.** Rove ships several times a day, and the daemon is a
+long-lived process that outlives an `npm i -g` — so "new binary, stale daemon"
+is the ordinary result of updating, not an edge case. The amber DAEMON OUT OF
+DATE banner already said so; what it could only do was ask the user to quit,
+run `rove daemon restart`, and start Rove again. Every step of that is
+something Rove can do itself, so the banner now names a chord instead of a
+chore list.
+
+**Why the prefix, not a direct chord.** It fires roughly once per upgrade, and
+it tears down the visible UI on the way. Both put it squarely in the tier the
+prefix exists for (docs/KEYBINDINGS.md: "everything less frequent"), and a
+direct `ctrl+r` would collide with reverse-search inside every embedded engine
+and shell terminal.
+
+**Why `r`.** The only free prefix stroke that says the word. `p`/`P`, `k`, `u`,
+`w`, `c`, `f`, `i`, `n`, `o`, `m`, `z`, `,`, `/` and `1`/`2`/`3` are taken.
+
+**What it shadows:** nothing — `r` was an unclaimed second stroke. It is
+registered only while a refresh is actually available (the two builds differ,
+or a daemon announced a restart), so on a current Rove the chord is unbound and
+the command guide does not advertise it.
+
+**Consent.** One confirm before anything happens, focused on Cancel, naming the
+thing users actually worry about: engine sessions live in the PTY host and are
+not affected. There is no auto-refresh.
+
+**What the owner still has to decide:** whether `r` is the right stroke, and
+whether an availability-gated chord is acceptable at all — a binding that
+appears and disappears is new in this keymap. The feature does not depend on
+the answer: Settings → Dev → **Restart backend** performs the identical action,
+so dropping the chord costs the banner its one-keypress affordance and nothing
+else.
+
 ## Adding or moving a chord
 
 Get owner sign-off on direct versus prefix placement, the selected key, and

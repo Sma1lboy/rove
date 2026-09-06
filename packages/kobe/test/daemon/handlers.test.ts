@@ -3,7 +3,6 @@ import { PromptBroker } from "@sma1lboy/kobe-daemon/daemon/prompt-broker"
 import type { DaemonRequestName } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { type DaemonHandlerContext, createDaemonHandlerRegistry } from "@sma1lboy/kobe-daemon/daemon/server"
 import { describe, expect, it } from "vitest"
-import { CURRENT_VERSION } from "../../src/version.ts"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
 /**
@@ -24,7 +23,9 @@ import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
  * `lazy-shutdown.test.ts` over a real socket.
  *
  * Task CRUD, the issue store, and the worktree verbs live in the sibling
- * `handlers-task-crud.test.ts` (this file hit the 500-line cap).
+ * `handlers-task-crud.test.ts`, and the daemon-PROCESS verbs (`daemon.status`,
+ * `daemon.stop`) in `handlers-daemon-lifecycle.test.ts` — this file keeps the
+ * RPCs that move task and UI state (both splits were the 500-line cap).
  */
 
 describe("daemon handler registry", () => {
@@ -443,25 +444,7 @@ describe("daemon handler registry", () => {
     })
   })
 
-  describe("daemon surface", () => {
-    it("daemon.status reports the ctx-provided facts in the wire shape", async () => {
-      const { ctx } = fakeCtx({ listTasks: () => [TASK] })
-      const status = (await dispatch("daemon.status", {}, ctx)) as Record<string, unknown>
-      expect(status.daemonPid).toBe(4242)
-      expect(status.attachedClients).toBe(1)
-      expect(status.taskCount).toBe(1)
-      expect(status.socketPath).toBe("/tmp/fake/daemon.sock")
-      expect(status.startedAt).toBe("2026-06-01T00:00:00.000Z")
-      expect(status.uptimeMs).toBeGreaterThanOrEqual(0)
-      expect(status.kobeVersion).toBe(CURRENT_VERSION)
-    })
-
-    it("daemon.stop drives stopSoon and returns the empty object", async () => {
-      const { ctx, rec } = fakeCtx()
-      await expect(dispatch("daemon.stop", {}, ctx)).resolves.toEqual({})
-      expect(rec.stopped).toBe(1)
-    })
-
+  describe("active-task focus channel", () => {
     it("task.setActive publishes the active-task channel after the orchestrator call", async () => {
       const active: Array<string | null> = []
       const { ctx, rec } = fakeCtx({

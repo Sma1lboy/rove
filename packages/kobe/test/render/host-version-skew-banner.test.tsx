@@ -66,11 +66,13 @@ function fakeOrchestrator() {
   const daemonVersion = createStateCell<string | null>(null)
   const connection = createStateCell<DaemonConnectionState>("online")
   const staleInstall = createStateCell<string | null>(null)
+  const daemonRestarting = createStateCell(false)
   const orchestrator = {
     connectionStateSignal: () => connection,
     staleInstallSignal: () => staleInstall,
     daemonStaleSignal: () => stale,
     daemonVersionSignal: () => daemonVersion,
+    daemonRestartingSignal: () => daemonRestarting,
     tasksSignal: () => EMPTY_ARR,
     activeTaskSignal: () => NULL_CELL,
     engineStateSignal: () => EMPTY_MAP,
@@ -95,7 +97,7 @@ function fakeOrchestrator() {
     reportEngineInterrupt: () => {},
     listTasks: () => [],
   } as unknown as RemoteOrchestrator
-  return { orchestrator, stale, daemonVersion, connection, staleInstall }
+  return { orchestrator, stale, daemonVersion, connection, staleInstall, daemonRestarting }
 }
 
 async function mountHost(orchestrator: RemoteOrchestrator) {
@@ -123,10 +125,13 @@ test("the host mounts the skew banner and drives it from the daemon signal", asy
   await settle(60)
   const text = await frame()
   expect(text).toContain("DAEMON OUT OF DATE")
-  // The hint must name BOTH builds and the command — "out of date" alone
-  // leaves the user with nothing to do about it.
+  // The hint must name BOTH builds and the way out — "out of date" alone
+  // leaves the user with nothing to do about it. That way out is now a CHORD:
+  // quitting, running two commands and starting over is a correct instruction
+  // and a bad affordance, since every step of it is something Rove can do.
   expect(text).toContain("v0.9.1")
-  expect(text).toContain("rove daemon restart")
+  expect(text).toContain("refresh Rove")
+  expect(text).not.toContain("rove daemon restart")
 
   // And it clears itself: a restarted daemon reports the matching version, so
   // the banner has to go without anyone remounting the workspace.

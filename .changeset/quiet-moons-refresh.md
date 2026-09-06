@@ -1,0 +1,9 @@
+---
+"@sma1lboy/rove": patch
+---
+
+**Rove can now reload itself after an update** — the amber `DAEMON OUT OF DATE` banner is an action instead of a chore list. Rove ships several times a day and the daemon is a long-lived process that outlives an `npm i -g`, so "new binary, stale daemon" is the ordinary result of updating; until now the only cure was quitting, running `rove daemon restart`, and starting Rove again by hand, because a running TUI keeps executing the bundle it launched with. Press `ctrl+a` `r` on the banner (proposed chord, awaiting sign-off) and Rove restarts the daemon and relaunches itself on the installed build after one confirmation. Running engine sessions are untouched — they live in the separate PTY host — and open tabs reattach to the same sessions. The chord is bound only while the two builds actually differ, so it never appears (or shows up in the command guide) on a Rove that is already current, and there is no auto-refresh: Rove offers, you decide.
+
+**Settings → Dev → Restart backend now actually restarts.** It used to destroy the renderer and exit, leaving you at a shell prompt to type `rove` again — which never reloaded the client's own code, the half the dev loop it exists for needs reloaded. It now stops the daemon and relaunches this window on the installed build, so an edit to daemon / orchestrator / engine code takes effect in one step.
+
+**`rove daemon restart` tells attached windows why it is stopping.** The daemon's `daemon.stopping` frame carries a `reason` (`restart` / `stop` / `idle` / `socket-lost`) and its own build version (protocol v5, additive — older daemons and older clients keep working unchanged). An attached Rove learns its code is about to be a build behind while the outgoing daemon is still on the wire, instead of inferring it from a socket close plus a reconnect under backoff. Plugins reading `daemon.stopping` can branch on the same field; see `docs/PLUGIN-SDK.md`.

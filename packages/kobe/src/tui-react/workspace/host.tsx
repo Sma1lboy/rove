@@ -6,7 +6,7 @@
  * Settings, worktrees, and update surfaces swap in-process instead of exiting.
  */
 
-import { useTerminalDimensions } from "@opentui/react"
+import { useRenderer, useTerminalDimensions } from "@opentui/react"
 import { connectOrStartDaemon } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { useEffect, useRef, useState } from "react"
 import { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
@@ -25,6 +25,7 @@ import { useDaemonNotices } from "../lib/use-daemon-notices"
 import { useLatest } from "../lib/use-latest"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
 import { useDialog } from "../ui/dialog"
+import { DialogConfirm } from "../ui/dialog-confirm"
 import { FullWindowPage, useHostBanner } from "./host-banner"
 import { HostFilesPane } from "./host-files-pane"
 import { WorkspaceFrame } from "./host-footer"
@@ -34,6 +35,7 @@ import { HostSidebarMount } from "./host-sidebar-mount"
 import { useWorkspaceTaskActions } from "./host-task-actions"
 import { openTaskWorktreeFor } from "./open-task-worktree"
 import { useQuickFork } from "./quick-fork"
+import { selfRefreshAction } from "./self-refresh-action"
 import { ShowWorkspace } from "./show-workspace"
 import { activeTabIdFor, forgetTaskTabs, requestTabActivation, setUiEventReporter } from "./terminal-tabs-shared"
 import { useAttention } from "./use-attention"
@@ -58,6 +60,9 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   const kv = useKV()
   const focus = useFocus()
   const dims = useTerminalDimensions()
+  // Held for the self-refresh, which has to hand the terminal back (mouse
+  // tracking, kitty keyboard) before its successor inherits it.
+  const renderer = useRenderer()
   const notif = useNotifications()
   const orch = props.orchestrator
   // Daemon-broadcast toasts (`kobe api notify` → notice.event).
@@ -253,6 +258,33 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // Filled by the mounted SidebarTree; null until it mounts (a rail page,
   // zen), which is fine — every reader is gated on sidebar focus.
   const cursorTaskIdRef = useRef<() => string | null>(() => null)
+
+  // Top-of-window banner (skew / gone-install) + the update chip's payload —
+  // one question, three render paths below. See `host-banner.tsx`. Read up
+  // here, above the keybindings, because it also answers whether the refresh
+  // chord has anything to do — the gate that keeps it out of the command
+  // guide on the Rove that is already current.
+  const banner = useHostBanner(orch, dims.width)
+  const refreshRove = (): void => {
+    void selfRefreshAction(
+      {
+        orchestrator: orch,
+        renderer,
+        confirm: () =>
+          DialogConfirm.show(
+            dialog,
+            t("update.refresh.confirmTitle"),
+            t("update.refresh.confirmBody"),
+            t("common.cancel"),
+            t("update.refresh.confirmLabel"),
+          ).then((ok) => ok === true),
+        notifyError,
+        t,
+      },
+      banner.refresh.inputs,
+    )
+  }
+
   useWorkspaceKeybindings({
     focus,
     dialog,
@@ -291,6 +323,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
       setMoveMode(true)
     },
     toggleSortMode,
+    refresh: { available: banner.refresh.available, run: refreshRove },
   })
 
   // Keybinding focus is suppressed while a dialog overlay is up: pane focus
@@ -301,10 +334,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // focused renderable when !defaultPrevented). Border colors keep using the
   // live `focus.focused` so the pane frame stays lit under the dim backdrop.
   const activePane = dialog.stack.length > 0 ? null : focus.focused
-
-  // Top-of-window banner (skew / gone-install) + the update chip's payload —
-  // one question, three render paths below. See `host-banner.tsx`.
-  const banner = useHostBanner(orch, dims.width)
 
   const fullWindow = pageRender.settingsPage ?? pageRender.fullWindowPage
   if (fullWindow)

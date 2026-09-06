@@ -53,6 +53,7 @@ afterEach(() => {
 // `useAccessor` re-renders on snapshot IDENTITY change, so a getter returning
 // a fresh value each call spins forever. Every constant below is hoisted.
 const NULL_CELL = createStateCell(null)
+const FALSE_CELL = createStateCell(false)
 const EMPTY_MAP = createStateCell(new Map())
 const EMPTY_ARR = createStateCell(Object.freeze([]))
 
@@ -87,6 +88,9 @@ function fakeOrchestrator(initial: readonly Task[]) {
     staleInstallSignal: () => NULL_CELL,
     daemonStaleSignal: () => createStateCell(false),
     daemonVersionSignal: () => NULL_CELL,
+    // The host's banner hook reads this to decide whether the refresh chord
+    // has anything to do; a plain false is "nothing is being replaced".
+    daemonRestartingSignal: () => FALSE_CELL,
     engineStateSignal: () => EMPTY_MAP,
     engineLifecycleSignal: () => EMPTY_MAP,
     engineTabStatesSignal: () => EMPTY_MAP,

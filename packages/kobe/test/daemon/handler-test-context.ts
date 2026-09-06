@@ -37,6 +37,8 @@ export interface RecordedHandlerEffects {
   readonly inboxTaskDeleted: string[]
   readonly deletions: string[]
   stopped: number
+  /** Reasons `daemon.stop` passed to `stopSoon`, in order (protocol v5). */
+  stopReasons: string[]
   idleReevaluations: number
 }
 
@@ -64,6 +66,7 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     inboxTaskDeleted: [],
     deletions: [],
     stopped: 0,
+    stopReasons: [],
     idleReevaluations: 0,
   }
   const ctx: DaemonHandlerContext = {
@@ -185,8 +188,9 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
       pid: 4242,
       guiCount: () => 1,
       clientCount: () => 1,
-      stopSoon: async () => {
+      stopSoon: async (reason?: string) => {
         rec.stopped++
+        rec.stopReasons.push(reason ?? "")
       },
       reevaluateIdle: () => {
         rec.idleReevaluations++

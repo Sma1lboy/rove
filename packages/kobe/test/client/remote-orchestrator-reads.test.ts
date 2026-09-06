@@ -12,6 +12,7 @@ it("read methods stay bound when handed to a consumer and return stable state ce
       orch.updateSignal,
       orch.daemonVersionSignal,
       orch.daemonStaleSignal,
+      orch.daemonRestartingSignal,
       orch.engineStateSignal,
       orch.engineTabStatesSignal,
       orch.attentionInboxSignal,

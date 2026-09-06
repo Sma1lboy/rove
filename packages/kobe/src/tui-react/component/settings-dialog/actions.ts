@@ -3,6 +3,7 @@
  * (`actions-core.ts`); only the confirm-dialog wiring lives here.
  */
 
+import { relaunchSelf } from "../../../cli/self-relaunch"
 import type { KobeOrchestrator } from "../../../client/remote-orchestrator"
 import {
   type DestroyableRenderer,
@@ -47,8 +48,16 @@ export async function confirmResetState(
 }
 
 /**
- * Stop this kobe window so a relaunch spawns a fresh daemon from disk,
- * picking up daemon/orchestrator/engine edits.
+ * Restart the backend from inside Rove: stop the daemon, then relaunch this
+ * process on the build that is on disk.
+ *
+ * It used to do only the first half of its own name — destroy the renderer and
+ * `process.exit(0)`, leaving the user at a shell prompt to type `rove` again,
+ * which is a quit with an explanation rather than a restart. Both halves have
+ * to reload from disk for the dev loop this row exists for (edit daemon code,
+ * see it run) to close, and only a relaunch can reload this half. Engine
+ * sessions are untouched either way: they belong to the separate PTY host,
+ * which outlives both processes.
  */
 export async function confirmRestartDaemon(
   dialog: DialogContext,
@@ -58,7 +67,13 @@ export async function confirmRestartDaemon(
   if (!hasRestartableDaemon(orchestrator)) return
   const ok = await DialogConfirm.show(dialog, t("settings.restart.title"), t("settings.restart.body"), "cancel")
   if (ok !== true) return
-  destroyRendererSafely(renderer, "daemon restart")
-  process.stderr.write(`${t("settings.restart.done")}\n`)
-  process.exit(0)
+  // Stop the daemon BEFORE the relaunch, never after — this process is about
+  // to stop existing, so anything queued to happen "later" simply does not.
+  // `restart` is what the outgoing daemon tells every OTHER attached window,
+  // so their reconnect loops learn the code is being swapped rather than that
+  // the daemon is done. Best-effort: a daemon already gone or too wedged to
+  // answer leaves nothing to stop, and the successor spawns one on its first
+  // connect regardless.
+  await orchestrator.restartDaemon()
+  relaunchSelf({ renderer, notice: t("settings.restart.done") })
 }

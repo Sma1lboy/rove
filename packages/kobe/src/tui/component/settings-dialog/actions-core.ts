@@ -10,8 +10,14 @@ import { RemoteOrchestrator } from "../../../client/remote-orchestrator"
 import type { KobeOrchestrator } from "../../../client/remote-orchestrator"
 import { roveStateDir } from "../../../env"
 
-/** "Restart backend" is only offered when attached to a real daemon. */
-export function hasRestartableDaemon(orchestrator: KobeOrchestrator | undefined): boolean {
+/**
+ * "Restart backend" is only offered when attached to a real daemon.
+ *
+ * A type predicate, not a plain boolean: the caller's next move is to ask that
+ * daemon to stop, and narrowing here is what keeps that from needing a second
+ * `instanceof` (or a cast) saying the same thing one line later.
+ */
+export function hasRestartableDaemon(orchestrator: KobeOrchestrator | undefined): orchestrator is RemoteOrchestrator {
   return orchestrator instanceof RemoteOrchestrator
 }
 

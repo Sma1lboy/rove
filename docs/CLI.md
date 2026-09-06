@@ -388,8 +388,11 @@ The daemon auto-starts when the TUI or `rove api` needs it, so `start` is
 mainly for debugging. Logs are at `~/.rove/daemon.log`; read them first when
 something's wrong.
 
-> **Working on Rove itself?** Run `rove daemon restart` after editing
-> daemon/orchestrator/engine code. Bun doesn't hot-reload.
+> **Working on Rove itself?** Restart after editing daemon/orchestrator/engine
+> code — Bun doesn't hot-reload. `rove daemon restart` reloads the daemon; an
+> attached TUI is told the code is being swapped and offers `ctrl+a` `r` to
+> reload itself too. Settings → Dev → **Restart backend** does both in one
+> step. Hosted engine sessions live in the PTY host and survive all of it.
 
 ## feedback
 

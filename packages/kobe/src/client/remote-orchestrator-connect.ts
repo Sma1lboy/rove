@@ -160,6 +160,12 @@ export async function performInit(
   // Re-set on every init so a reconnect to a freshly-restarted daemon clears
   // the banner once versions match.
   signals.setDaemonVersionSig(typeof hello.kobeVersion === "string" ? hello.kobeVersion : null)
+  // A daemon that announced `reason: "restart"` on its way out has now come
+  // back and re-answered `hello`, so the swap is over: clear the flag and let
+  // the version comparison above be the only thing that decides whether a
+  // refresh is still worth offering. Without this a single restart would keep
+  // offering a reload forever, including to a client that is already current.
+  signals.setDaemonRestartingSig(false)
   // Hydrate the task list from `hello` only when this orchestrator actually
   // subscribes to `task.snapshot`. A channel-filtered consumer (UiPrefsSync)
   // that excluded it would otherwise deserialize the whole list into a

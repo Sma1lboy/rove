@@ -338,6 +338,41 @@ export type SubscribeRole = "gui" | "pane"
  */
 export type DaemonEventName = ChannelName | "daemon.stopping" | "pty.data" | "pty.exit"
 
+/**
+ * WHY a daemon is going away, carried on the `daemon.stopping` frame (v5).
+ *
+ * Without it every shutdown looks identical from a client socket: the peer
+ * closed. That is fine for the three reasons a client can only wait out
+ * (`idle`, `socket-lost`, `stop`), and wrong for the fourth — a `restart` is
+ * an operator replacing this daemon's CODE, which is the moment an attached
+ * TUI learns it is about to be a build behind. Inferring that from the close
+ * alone costs a reconnect plus a `hello` round trip under backoff, and the
+ * TUI would rather say "a refresh is available" the instant it is true.
+ *
+ * `stop` is the default so a daemon that stops for a reason nobody labelled
+ * never claims to be restarting.
+ */
+export type DaemonStopReason = "restart" | "stop" | "idle" | "socket-lost"
+
+/**
+ * The `daemon.stopping` frame's payload. Every field optional: a v4 daemon
+ * broadcasts `{}`, and a v4 client ignores what it does not know — so this
+ * shape may only ever GROW optional fields.
+ */
+export interface DaemonStoppingPayload {
+  readonly reason?: DaemonStopReason
+  /** The outgoing daemon's build version, so a client can compare without
+   *  waiting for the next `hello`. */
+  readonly kobeVersion?: string
+}
+
+/** Narrow an unknown `daemon.stopping` payload field to a known reason.
+ *  Unknown/absent → `undefined` (a daemon that predates the field, or a
+ *  newer one naming a reason this build has never heard of). Pure. */
+export function parseDaemonStopReason(value: unknown): DaemonStopReason | undefined {
+  return value === "restart" || value === "stop" || value === "idle" || value === "socket-lost" ? value : undefined
+}
+
 export interface DaemonError {
   readonly message: string
   readonly name?: string

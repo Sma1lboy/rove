@@ -29,8 +29,15 @@
  * event frames). Additive — an older client never sends `pty.*`, a newer
  * client against an older daemon gets "unknown daemon request" and falls back
  * to a local PTY — so MIN stays 2.
+ *
+ * v5: the `daemon.stopping` lifecycle frame carries a
+ * {@link import("./protocol").DaemonStopReason} payload, and `daemon.stop`
+ * accepts one. Additive on both sides of the wire: an older DAEMON keeps
+ * broadcasting the `{}` it always sent (a newer client reads that as an
+ * unlabelled stop) and ignores the extra `daemon.stop` field, while an older
+ * CLIENT ignores payload fields it does not know. MIN stays 2.
  */
-export const DAEMON_PROTOCOL_VERSION = 4
+export const DAEMON_PROTOCOL_VERSION = 5
 
 /** Oldest protocol version this build can still interoperate with. */
 export const MIN_COMPATIBLE_PROTOCOL_VERSION = 2
