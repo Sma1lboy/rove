@@ -40,8 +40,14 @@ The Tasks rail remains visible. Below 70 columns, the separate
 With no tasks at all (a first launch, or all tasks deleted), the workspace
 column shows a welcome panel instead of an empty pane: the keys to create a
 task and open help (read from your live keymap, so rebinds show correctly),
-which engine CLIs were detected, and — when something is missing (no engine
-CLI, no git) — what to install, with `rove doctor` as the full diagnosis.
+and one line about the engines. That line reads one of three ways, because
+"installed" and "usable" are different questions: the engines that can run a
+task (installed **and** signed in), or — when none can — the ones that are
+installed but whose login Rove cannot find, or, failing that, none at all. It
+is the same `probeEngines` check `rove doctor` runs, so the two surfaces
+cannot reach opposite verdicts. When something is missing (no engine CLI, no
+git) the panel also says what to install, with `rove doctor` as the full
+diagnosis.
 Creating your first task replaces it with the normal workspace.
 
 ## Status glyphs in the sidebar
@@ -246,7 +252,7 @@ engine without submitting it, and `o` sends audio, video, or PDF files to the
 system application. Remote files cannot use a local system viewer.
 
 The pane watches local worktrees for changes and also supports `r` for an
-explicit refresh. Set `KOBE_FILETREE_WATCH=0` to turn the watcher off and leave
+explicit refresh. Set `ROVE_FILETREE_WATCH=0` to turn the watcher off and leave
 `r` as the only way to repopulate the list. See
 [Keybindings](KEYBINDINGS.md#sidebar-and-files) for the complete navigation
 table.
