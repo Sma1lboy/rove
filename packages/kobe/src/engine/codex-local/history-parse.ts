@@ -292,6 +292,16 @@ function normalizeCodexToolResult(
   return { role: "user", blocks: [block], timestamp, sessionId }
 }
 
+/**
+ * Statuses a rollout's single-record tool is NOT reporting a failure with.
+ * `completed` is what a successful record carries; `in_progress` is the
+ * Responses-API "still running", which is not a failure either. Anything
+ * else — `failed` in the wild, `incomplete` in the API's own enum — is.
+ * Written as an allow-list so a spelling nobody here has seen reads as an
+ * error rather than silently as a success.
+ */
+const CODEX_OK_STATUSES: ReadonlySet<string> = new Set(["completed", "in_progress"])
+
 function normalizeSingleRecordTool(
   payload: Record<string, unknown>,
   timestamp: string,
@@ -303,13 +313,26 @@ function normalizeSingleRecordTool(
   const name = stringOr(payload.name, type)
   const input = stripPayload(payload, ["type", "call_id", "status"])
   const output = stripPayload(payload, ["type", "call_id"])
+  // This record carries its own verdict — the same `status` the line above
+  // strips out of the tool ARGUMENTS, because it is metadata about the call
+  // rather than an argument to it. It used to be dropped on both sides and
+  // the result was hard-coded `isError: false`, so a failed web search or
+  // local shell call rendered in the transcript as a success.
+  //
+  // The `*_output` paths (`normalizeCodexToolResult`) genuinely cannot do
+  // this: `custom_tool_call_output` / `function_call_output` records are
+  // `{type, id, call_id, output}` and carry no verdict at all. Codex records
+  // theirs on `item_completed.item.status`, a record type this parser does
+  // not read.
+  const status = payload.status
+  const isError = typeof status === "string" && !CODEX_OK_STATUSES.has(status)
   return {
     role: "assistant",
     timestamp,
     sessionId,
     blocks: [
       { type: "tool_call", callId, name, input },
-      { type: "tool_result", callId, output, isError: false },
+      { type: "tool_result", callId, output, isError },
     ],
   }
 }
