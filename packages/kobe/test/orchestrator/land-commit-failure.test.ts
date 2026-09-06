@@ -28,6 +28,28 @@ import type { WorktreeExecDeps } from "../../src/orchestrator/worktree/exec-deps
 import type { Task } from "../../src/types/task.ts"
 import { toTaskId } from "../../src/types/task.ts"
 
+/**
+ * Per-test budget for this file, replacing vitest's 5000ms default.
+ *
+ * Each case here runs twenty real `git` processes — counted with a PATH shim:
+ * fourteen through the fixture's synchronous helpers (repo setup, the diverged
+ * branch, the broken signing config, the closing `status`) and six through
+ * `landTask`'s own async `ExecHost`. There is nothing to wait on and no race;
+ * the cost is entirely process spawn, which on windows-latest (Git-for-Windows'
+ * fork emulation plus on-access scanning of every child) runs an order of
+ * magnitude above the ~25ms it costs here.
+ *
+ * The default is worse than just small — it measures the wrong subset. The
+ * fixture's `git()`/`gitOk()` are `spawnSync`, which pins the event loop, so
+ * vitest's timer cannot fire while they run. Measured with a shim that adds a
+ * fixed delay per spawn: at 600ms/spawn this file burns 43 SECONDS of wall
+ * clock and still reports green; at 900ms/spawn it fails `Test timed out in
+ * 5000ms`. Only the six async spawns are ever on a clock, so the threshold is
+ * really "an async git spawn costs more than ~830ms", which a loaded Windows
+ * runner sits right on. Budget the whole thing instead.
+ */
+const GIT_SPAWN_HEAVY_TIMEOUT_MS = 30_000
+
 let tmpRoot: string
 let repo: string
 
@@ -94,7 +116,7 @@ afterEach(() => {
   }
 })
 
-describe("a git commit that fails mid-land", () => {
+describe("a git commit that fails mid-land", { timeout: GIT_SPAWN_HEAVY_TIMEOUT_MS }, () => {
   test("squash surfaces git's own error and does NOT reset the staged merge away", async () => {
     branchAheadOfMovedMain()
     breakCommitting()

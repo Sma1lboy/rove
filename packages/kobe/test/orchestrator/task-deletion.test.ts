@@ -7,6 +7,27 @@ import { DirtyWorktreeError, TaskDeletingError, WorktreeRemoveFailedError } from
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 import type { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 
+/**
+ * Per-test budget for this file, replacing vitest's 5000ms default.
+ *
+ * Nothing here waits on an event — every case is a straight line of
+ * `TaskIndexStore.save()` calls, and each save is a full durable write:
+ * lockfile acquire (mkdir + write sidecar + link + unlink), read-merge, then
+ * open + write + **fsync** + close + rename, then release (read + unlink).
+ * Roughly eleven filesystem syscalls and one fsync apiece. The two cases that
+ * timed out on the Windows runner are exactly the two heaviest — 10 saves and
+ * 8 saves; every case at 3-5 saves stayed green in the same run. That is a
+ * volume-vs-budget ratio, not a race, and 5000ms is a vitest default nobody
+ * sized against ten fsyncs on a filesystem with on-access virus scanning.
+ *
+ * The default is also actively misleading here: the store's own lock wait is
+ * `LOCK_MAX_WAIT_MS = 5_000` (index/store-codec.ts), the same number, so a
+ * genuinely contended index could never report itself — vitest would kill the
+ * test first and the `LockfileError` naming the holding pid would never throw.
+ * Any budget for this file has to clear that deadline to stay diagnosable.
+ */
+const DURABLE_WRITE_TIMEOUT_MS = 30_000
+
 let home: string
 let store: TaskIndexStore
 let orch: Orchestrator
@@ -39,7 +60,7 @@ async function makeTask(worktreePath = "/wt/task") {
   return orch.getTask(task.id)!
 }
 
-describe("durable background task deletion", () => {
+describe("durable background task deletion", { timeout: DURABLE_WRITE_TIMEOUT_MS }, () => {
   it("persists queued/running before physical cleanup and removes the task only on success", async () => {
     const task = await makeTask()
 
@@ -273,7 +294,7 @@ describe("durable background task deletion", () => {
   })
 })
 
-describe("dir tasks on the daemon's prepare→begin→finish path", () => {
+describe("dir tasks on the daemon's prepare→begin→finish path", { timeout: DURABLE_WRITE_TIMEOUT_MS }, () => {
   it("NEVER removes the user's own directory, and never probes it for dirt", async () => {
     // This is the path `rove api delete` takes. `finish()` has its OWN
     // `kind !== "dir"` guard, separate from the one `deleteNow()` reaches

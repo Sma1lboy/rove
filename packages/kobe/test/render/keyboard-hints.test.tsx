@@ -271,8 +271,9 @@ describe("footer hint clicks", () => {
     )
     await settle()
     const spot = locate(await frame(), "[settings]")
-    await mockMouse.click(spot.x + 1, spot.y)
-    await settle()
+    await act(async () => {
+      await mockMouse.click(spot.x + 1, spot.y)
+    })
     expect(settingsOpened.length).toBe(1)
   })
 
@@ -285,9 +286,16 @@ describe("footer hint clicks", () => {
     )
     await settle()
     const spot = locate(await frame(), "F1 help")
-    await mockMouse.click(spot.x + 1, spot.y)
-    await settle()
-    expect(await frame()).toContain("Rove — keybindings")
+    // The click opens the dialog through a React state update that is neither
+    // inside React's event system nor inside `flushSync`, so its commit rides
+    // the concurrent scheduler. `settle()` + one `frame()` was a bet on that
+    // landing inside 60ms; when it did not, the captured frame was the footer
+    // with no dialog over it — the CI failure. `act` flushes the commit and
+    // `waitForFrameText` waits for the paint instead of guessing at it.
+    await act(async () => {
+      await mockMouse.click(spot.x + 1, spot.y)
+    })
+    expect(await waitForFrameText(frame, "Rove — keybindings")).toContain("Rove — keybindings")
   })
 
   it("clicking the commands caption arms the real prefix and shows the which-key guide", async () => {
