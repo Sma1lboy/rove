@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.167
+
+### Patch Changes
+
+- [#947](https://github.com/Sma1lboy/rove/pull/947) [`34dab1f`](https://github.com/Sma1lboy/rove/commit/34dab1f5a6975931079100f68cc6658c0becf6f5) `rove api add --effort` sets a task's reasoning level on its FIRST session, and `set-effort` stops rewriting a wrapped preset's engine identity
+
+  Scripting a codex task at `xhigh` used to take three steps — `add`, `set-effort`, then a session rebuild — so the opening session always ran at the engine default. `add --effort` validates the level through the same gate `set-effort` uses and carries it into the create. Two `set-effort` fixes ride along: it now resolves a task's engine through the preset's declared protocol (so a level was not refused outright on every preset task created from the TUI), and it leaves the task's own vendor alone instead of overwriting a `mycodex` preset with `codex`, which silently dropped the user's `engineName.mycodex` label from the footer. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#948](https://github.com/Sma1lboy/rove/pull/948) [`9a29cf9`](https://github.com/Sma1lboy/rove/commit/9a29cf9a0f0461cc1430740b2a927a58f17807d5) a settings file the hook installer cannot parse is now named on stderr and in `rove doctor`, instead of silently disabling every badge — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#948](https://github.com/Sma1lboy/rove/pull/948) [`9a29cf9`](https://github.com/Sma1lboy/rove/commit/9a29cf9a0f0461cc1430740b2a927a58f17807d5) a settings write that never reaches disk now raises an error toast instead of vanishing into the alternate screen — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#948](https://github.com/Sma1lboy/rove/pull/948) [`9a29cf9`](https://github.com/Sma1lboy/rove/commit/9a29cf9a0f0461cc1430740b2a927a58f17807d5) `pty.kill` answers `accepted` for the removal it actually completed, and a failed teardown reaches daemon.log under a tag — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#948](https://github.com/Sma1lboy/rove/pull/948) [`9a29cf9`](https://github.com/Sma1lboy/rove/commit/9a29cf9a0f0461cc1430740b2a927a58f17807d5) a delete whose index write fails no longer removes the row, and no later save quietly completes it — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.166
 
 ### Patch Changes
