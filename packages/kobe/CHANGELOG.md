@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.9.161
+
+### Patch Changes
+
+- [#935](https://github.com/Sma1lboy/rove/pull/935) [`6d77908`](https://github.com/Sma1lboy/rove/commit/6d77908c91ec25ee318bef5291cfd2e9bb794fe1) **The user docs now match what the code does, in seven places they had drifted
+  from.** The sidebar row stopped drawing the board status when the PR chip
+  collapsed to three glyphs, but CONCEPTS still promised a status mark; the
+  `ctrl+a p` table row described one chord as two actions when it is one handler
+  that follows focus; the row menu's chord-less entries were counted as "four"
+  and had grown to six; `KOBE_FILETREE_WATCH` never followed the rename to
+  `ROVE_`; and the welcome panel's engine line has been three readings — usable,
+  installed-but-signed-out, none — since it stopped calling a logged-out CLI
+  ready, while TUI said only "detected".
+
+  `--delete-branch` on `rove api delete` is now documented as what git actually
+  does: `git branch -d`, so it keeps a branch neither the repo's HEAD nor the
+  branch's upstream contains (work that was never pushed and never landed),
+  `--force` upgrades it to `-D`, and **the remote branch is never touched** in
+  any case. The outcome is in the daemon log, not the reply. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#936](https://github.com/Sma1lboy/rove/pull/936) [`3b114e8`](https://github.com/Sma1lboy/rove/commit/3b114e89acdecab471d276cc50547f6322b722bd) Delete nine things that no longer had a reader, and one kill path that had no safety check. Three `exports` in the daemon package pointed at files that were removed long ago, so importing them failed with `ERR_MODULE_NOT_FOUND` instead of resolving. The `pty.sweep` RPC and its `sweepTasks` implementation were unreachable — the sweep the daemon actually runs is `sweepPtyHostSessions`, which kills each session with an `expectedGeneration` guard; `pty.sweep` killed by task id with no such check, so a stale caller could have killed a session that had already been replaced. The `deferredPrompt.file` / `.get` / `.resolve` RPCs lost their implementations but kept their names: they now answer with an explicit `RETIRED_RPC:` refusal naming the live verb, because the only caller left is a client older than the daemon and the generic `unknown daemon request` reaches it as "restart the daemon" — the half that is already current. Also gone: the `tui/history` message and window helpers left behind by the Solid renderer, seven `keys.desc` descriptions for chat and dialog chords that were removed, and a second `isProcessAlive` in the daemon that answered "alive" for pid `0` because `kill(0, 0)` targets the caller's own process group. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.160
 
 ### Patch Changes
