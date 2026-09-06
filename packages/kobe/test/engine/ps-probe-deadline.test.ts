@@ -70,3 +70,32 @@ describe("engine presence when the probe cannot answer", () => {
     expect(await sessionHasEngine(200, undefined, hang)).toBe(false)
   })
 })
+
+/**
+ * The Windows failure that motivated the second half of the deadline's rule:
+ * Git for Windows' Cygwin `ps` rejects `-A` and exits 1 with EMPTY stdout, so
+ * the probe "succeeded" with zero rows — and every reader published that as a
+ * confident "no engine anywhere" instead of "couldn't look".
+ */
+describe("a snapshot with no rows in it is a failed probe, not an empty machine", () => {
+  const empty = (text: string) => (): PsProcess => ({ text: Promise.resolve(text), kill: () => {} })
+
+  it("rejects on empty output", async () => {
+    await expect(psSnapshotWith(empty(""), 150)).rejects.toBeInstanceOf(PsProbeUnavailableError)
+  })
+
+  it("rejects when nothing in the output parses as a process row", async () => {
+    await expect(psSnapshotWith(empty("ps: unknown option -- A\n"), 150)).rejects.toBeInstanceOf(
+      PsProbeUnavailableError,
+    )
+  })
+
+  it("travels to the reporting caller as unknown, not as an absence", async () => {
+    expect(await enginePresence(100, undefined, () => psSnapshotWith(empty(""), 150))).toBe("unknown")
+  })
+
+  it("leaves a healthy ps untouched — one row is already an answer", async () => {
+    expect(await psSnapshotWith(empty("  1     0 /sbin/launchd\n"), 150)).toBe("  1     0 /sbin/launchd\n")
+    expect(await psSnapshotWith(empty(PS_LINE), 150)).toBe(PS_LINE)
+  })
+})

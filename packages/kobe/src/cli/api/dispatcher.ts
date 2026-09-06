@@ -24,8 +24,8 @@ export type Dispatcher = NonNullable<SerializedTask["dispatcher"]>
 export interface SelfSessionProbe {
   /** Live pty-host inventory (`pty.list`) — `[]` when the host is gone. */
   sessions(): Promise<readonly { key: string; pid: number | null; alive: boolean }[]>
-  /** `ps -A -o pid=,ppid=,args=` output. */
-  ps(): Promise<string>
+  /** Snapshot text, given the shell pids the walk anchors on (see `PsSnapshot`). */
+  ps(anchors?: readonly number[]): Promise<string>
   /** This process's pid — the far end of the lineage walk. */
   pid: number
 }
@@ -110,7 +110,7 @@ async function resolveSelfSession(env: NodeJS.ProcessEnv, probe?: SelfSessionPro
     const session = (await p.sessions()).find((s) => s.key === key && s.alive)
     if (session?.pid) {
       const { hasAncestor, parsePsSnapshot } = await import("../../engine/foreground.ts")
-      if (hasAncestor(parsePsSnapshot(await p.ps()), p.pid, session.pid)) {
+      if (hasAncestor(parsePsSnapshot(await p.ps([session.pid])), p.pid, session.pid)) {
         // A verified resolution clears any warning a previous one left. The
         // memo makes that a single resolution per process today; this keeps
         // the pair honest if the memo is ever relaxed.

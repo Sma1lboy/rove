@@ -71,7 +71,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   // The activity observer's foreground walk: ONE `ps`
   // snapshot, then the same shallowest-engine walk `kobe api inspect` uses.
   async foregroundEngines(pids) {
-    const rows = parsePsSnapshot(await psSnapshot())
+    const rows = parsePsSnapshot(await psSnapshot([...pids]))
     const out = new Map<number, { vendor: VendorId; pid: number } | null>()
     for (const pid of pids) {
       const found = foregroundEngineIn(rows, pid)

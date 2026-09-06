@@ -31,7 +31,7 @@ export async function enginePresence(
 ): Promise<EnginePresence> {
   if (!pid) return "none"
   try {
-    return engineProcessIn(parsePsSnapshot(await snapshot()), pid, extraLaunch) ? "engine" : "none"
+    return engineProcessIn(parsePsSnapshot(await snapshot([pid])), pid, extraLaunch) ? "engine" : "none"
   } catch {
     return "unknown"
   }
