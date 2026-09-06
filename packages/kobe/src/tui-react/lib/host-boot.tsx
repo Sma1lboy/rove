@@ -45,6 +45,7 @@ import {
 } from "../../tui/lib/host-render-options"
 import { createHostImeOutput } from "../../tui/lib/ime-anchor-output"
 import { type PersistedUiPrefs, readPersistedUiPrefs } from "../../tui/lib/persisted-ui-prefs"
+import { installScreenSelfHeal } from "../../tui/lib/screen-refresh"
 import { FocusProvider } from "../context/focus"
 import { KVProvider } from "../context/kv"
 import { NotificationsProvider } from "../context/notifications"
@@ -255,6 +256,11 @@ export async function bootPaneHost(opts: BootPaneHostOpts): Promise<void> {
     ...imeOutput.rendererOptions,
   })
   detachImeOutput = imeOutput.attach(renderer)
+  // OpenTUI never forces a full repaint after a resize in alternate-screen
+  // mode, so on Windows the reflowed leftovers of the old geometry survive
+  // every later diffed frame. No-op off win32 — see `screen-refresh.ts`.
+  // Never detached: it lives exactly as long as the renderer.
+  installScreenSelfHeal({ renderer })
 
   const body = (
     <>

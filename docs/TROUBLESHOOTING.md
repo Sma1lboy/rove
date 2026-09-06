@@ -76,6 +76,29 @@ Windows executable path.
 Remote-project password auth is not available on Windows; use `--key` or
 ssh-agent. Only macOS has the keychain integration used by `--password`.
 
+## The Windows screen looks scrambled, and stays that way
+
+Rows overlapping each other, fragments of a pane you already left, patches of
+the terminal's background image showing through. Rove's renderer draws each
+frame by writing only the cells that CHANGED since the last one, and a
+terminal that reflowed its own grid — on a resize, a font-size change, a
+window split — has moved cells the renderer still believes it owns. Nothing
+corrected that, so the leftovers survived every later frame and the only cure
+was quitting.
+
+Rove now repaints every cell after a resize and whenever the window regains
+focus, so the ordinary cases clear themselves. For anything that slips past —
+a terminal that reflowed without changing the cell grid, another program
+writing over Rove — press `ctrl+a` `r` to erase and repaint. Nothing but the
+screen changes: no task, tab, or engine state moves.
+
+Rove also starts opaque on Windows. Windows Terminal ships acrylic and
+background images on by default, and in transparent mode Rove paints no opaque
+cell of its own, so anything a frame does not cover shows the wallpaper rather
+than the previous frame. Set `transparentBackground` to `true` in
+`state.json`, or turn it on in **Settings → General**, if you want it anyway;
+a value you have already chosen is left alone.
+
 ## The daemon, sidebar, or a terminal session looks wedged
 
 Run the read-only diagnosis first:

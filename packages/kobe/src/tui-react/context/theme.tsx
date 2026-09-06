@@ -44,7 +44,10 @@ const store = createStateCell<State>({
   active: DEFAULT_THEME,
   mode: "dark",
   // Transparent by default — kobe sits on the terminal's own
-  // background unless the user explicitly turns transparency off.
+  // background unless the user explicitly turns transparency off. Every
+  // host reseeds this before its first render from
+  // `readPersistedUiPrefs`, whose unset default is platform-aware
+  // (`defaultTransparentBackground` — opaque on Windows, see there).
   transparentBackground: true,
   focusAccent: "primary",
 })

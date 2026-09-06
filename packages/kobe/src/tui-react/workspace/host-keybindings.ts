@@ -16,6 +16,7 @@
 
 import { useRenderer } from "@opentui/react"
 import { prefixAction } from "../../tui/lib/keymap-dispatch"
+import { redrawScreen } from "../../tui/lib/screen-refresh"
 import { HelpDialog } from "../component/help-dialog"
 import type { FocusContextValue, PaneId } from "../context/focus"
 import { bindByIds } from "../context/keybindings"
@@ -88,6 +89,8 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
     try {
       renderer?.destroy()
     } catch (err) {
+      // silent-catch-ok: the next statement exits the process — there is no
+      // screen left to put a toast on, and the log is the only forensics.
       console.error("Rove: renderer.destroy() failed during quit:", err)
     }
     process.exit(0)
@@ -138,6 +141,12 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         // prefix+z only. The configured prefix is
         // Kobe-global, so this remains reachable inside the terminal pane.
         "workspace.zenToggle": prefixAction(() => deps.toggleZen()),
+        // PROPOSED prefix+r — erase + full repaint. Global, and reachable
+        // from inside the terminal pane like every other prefix row, which
+        // is where a corrupted screen is most likely to be noticed.
+        "view.redraw": prefixAction(() => {
+          if (renderer) redrawScreen(renderer)
+        }),
         // f7 — reserved from terminal passthrough too, so "jump to the
         // next waiting task" works even while focused inside the engine.
         "attention.next": () => deps.jumpToNextAttention(),

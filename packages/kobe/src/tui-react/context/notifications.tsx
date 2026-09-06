@@ -10,6 +10,7 @@
  * back to a one-time `state.json` snapshot.
  */
 
+import { useRenderer } from "@opentui/react"
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { loadStateFile } from "../../state/store"
 import {
@@ -22,6 +23,7 @@ import {
   removeUnread,
   shouldShowToast,
 } from "../../tui/lib/notify-state"
+import { writeThroughRenderer } from "../../tui/lib/screen-refresh"
 import { pulse as pulseSound } from "../../tui/lib/sound"
 import { useOptionalKV } from "./kv"
 
@@ -43,6 +45,7 @@ export function NotificationsProvider(props: { children?: ReactNode }) {
   // Read toggles from KV when available; otherwise fall back to the mount-time
   // snapshot (render tests / mock hosts intentionally omit KVProvider).
   const kv = useOptionalKV()
+  const renderer = useRenderer()
   const snapshot = useMemo(() => loadStateFile(), [])
   const prefs = useMemo(
     () => ({
@@ -85,11 +88,11 @@ export function NotificationsProvider(props: { children?: ReactNode }) {
       // user's LOCAL terminal — unlike `afplay`, which rings on the remote box.
       // Unsupported terminals ignore the unknown OSC silently.
       if ((prefs["notifications.sound.enabled"] as boolean | undefined) !== false) {
-        try {
-          process.stdout.write(`\x07${osc9(`Rove — ${input.title}`)}`)
-        } catch {
-          /* swallow — bell/OSC is best-effort */
-        }
+        // Through the renderer, not `process.stdout`: the native render
+        // thread owns fd 1 while `useThread` is on (everywhere but Linux),
+        // so a bare write can interleave with a frame's escape sequences.
+        // Same bytes, defined ordering. See `screen-refresh.ts`.
+        writeThroughRenderer(renderer, `\x07${osc9(`Rove — ${input.title}`)}`)
         pulseSound()
       }
 
@@ -106,7 +109,7 @@ export function NotificationsProvider(props: { children?: ReactNode }) {
         timers.current.add(timer)
       }
     },
-    [prefs, dismiss],
+    [prefs, dismiss, renderer],
   )
 
   const markRead = useCallback((taskId: string, tabId: string): void => {

@@ -588,6 +588,35 @@ feature does not depend on the answer: `rove api note-delete --repo PATH --id
 N` does the same thing, so dropping the binding costs the dialog's cursor and
 its footer hint, nothing else.
 
+## PROPOSED (not decided): `ctrl+a` `r` — redraw the screen
+
+**Scope:** global prefix sequence, reachable from every pane including inside
+the embedded engine terminal (the prefix's first stroke never passes through).
+
+**Why a key at all.** Some screen corruption is undetectable from inside the
+process. Rove now forces a full repaint after every resize and focus-in on
+Windows, which covers the ordinary cases — but a terminal can reflow without
+changing the cell grid, a background image can bleed through a transparent
+theme, and another program can write over the alternate screen. Before this
+the only cure was quitting and relaunching.
+
+**Why `r`.** The mnemonic ("redraw") on the only free second stroke that
+carried it. `1`/`2`/`3`/`,`/`/`/`c`/`f`/`h`/`i`/`k`/`l`/`m`/`n`/`o`/`p`/`u`/
+`w`/`z` were all taken; `r` was not.
+
+**Why not a direct `ctrl+l`.** `ctrl+l` is the shell's and the engine's clear
+chord, and inside the terminal pane that is exactly what a user means by it.
+Claiming it Rove-wide would break the thing users press it for most.
+
+**What it shadows:** nothing. The action is display-only — no task, tab, or
+engine state changes — so a mis-press costs one frame.
+
+**What the owner still has to decide:** whether a repair action deserves a
+prefix slot at all, or whether the automatic repaint on resize is enough and
+this should be a `rove` subcommand or nothing. The Windows fix does not depend
+on the answer: dropping the row leaves the resize repaint and the focus
+repaint intact.
+
 ## Adding or moving a chord
 
 Get owner sign-off on direct versus prefix placement, the selected key, and
