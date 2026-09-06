@@ -351,7 +351,7 @@ export const defaultApiRuntime: ApiRuntime = {
       )
       const walkable = sessions.filter((s) => s.alive && typeof s.pid === "number" && s.pid > 0)
       if (walkable.length > 0) {
-        const rows = parsePsSnapshot(await psSnapshot())
+        const rows = parsePsSnapshot(await psSnapshot(walkable.map((s) => s.pid as number)))
         liveVendors = new Map(walkable.map((s) => [s.key, foregroundEngineIn(rows, s.pid as number)?.vendor ?? null]))
         // `engineArgv` is the task's own launch command: without it a custom
         // engine (a wrapper script no vendor table names) walks as "no

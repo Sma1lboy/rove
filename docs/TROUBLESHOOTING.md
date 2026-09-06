@@ -99,6 +99,35 @@ than the previous frame. Set `transparentBackground` to `true` in
 `state.json`, or turn it on in **Settings → General**, if you want it anyway;
 a value you have already chosen is left alone.
 
+## Windows: `engineAlive` and `liveVendor` come back as `unknown`
+
+"Is an engine running in this tab" is answered from the process tree, and on
+Windows that answer needs two things macOS and Linux do not:
+
+- **Windows PowerShell** (`%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`)
+  for the process table. The `ps` on a Git for Windows PATH is a Cygwin build
+  that rejects `-A`, so Rove reads `Get-CimInstance Win32_Process` instead.
+- **node-pty's `conpty_console_list` addon**, which ships prebuilt with
+  Rove's `node-pty` dependency. An npm-installed engine launches through a
+  `.cmd` shim whose `cmd.exe` exits immediately, so the process table alone
+  cannot link a tab's shell to its engine — the tab's ConPTY console can, and
+  that addon is what reads it.
+
+When either is missing the walk reports **unknown** rather than guessing.
+`rove api collect` and `get-task` leave `engineAlive`/`liveVendor` unset and
+`running` untouched; `rove api send` refuses with `ENGINE_PROBE_FAILED` (not
+`ENGINE_NOT_RUNNING` — that one is a positive "this tab is a bare shell").
+Check that both exist, then retry:
+
+```powershell
+where.exe powershell
+rove api inspect --task-id <id>
+```
+
+The Windows walk costs roughly half a second per probe, most of it PowerShell
+startup, where the POSIX `ps` costs ~20ms. That is why the sidebar's live
+engine badge can lag a second or so behind an engine you just quit.
+
 ## The daemon, sidebar, or a terminal session looks wedged
 
 Run the read-only diagnosis first:

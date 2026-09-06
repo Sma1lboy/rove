@@ -124,7 +124,7 @@ export function createLiveEngines(opts: LiveEngineOpts = {}): LiveEngineStore {
       if (pids.size > 0) {
         let rows: ReturnType<typeof parsePsSnapshot>
         try {
-          rows = parsePsSnapshot(await snapshot())
+          rows = parsePsSnapshot(await snapshot([...pids.values()]))
         } catch {
           if (changed) emit()
           return // an identity we can't read leaves the last one standing

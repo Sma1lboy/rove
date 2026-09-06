@@ -82,7 +82,8 @@ async function sessionsSection(taskId: string | undefined): Promise<unknown> {
   // ONE ps snapshot serves every session — same economy as live-engine.ts.
   let rows: ReturnType<typeof parsePsSnapshot> | null = null
   try {
-    rows = parsePsSnapshot(await psSnapshot())
+    const pids = sessions.map((s) => s.pid).filter((pid): pid is number => typeof pid === "number" && pid > 0)
+    rows = parsePsSnapshot(await psSnapshot(pids))
   } catch {
     rows = null
   }
