@@ -33,34 +33,55 @@ describe("inferBranchStyle", () => {
 describe("deriveConventionBranch", () => {
   const typed = { kind: "typed", defaultPrefix: "feat" } as const
   const bare = { kind: "bare" } as const
+  const ID = "01K9ZZZZZZZZZZZZZZZABC123"
 
   it("applies the repo's default prefix in a typed repo", () => {
-    expect(deriveConventionBranch("Add login flow", typed)).toBe("feat/add-login-flow")
+    expect(deriveConventionBranch("Add login flow", typed, ID)).toBe("feat/add-login-flow")
   })
 
   it("lifts a leading type word out of the title as the prefix", () => {
-    expect(deriveConventionBranch("Fix login flow", typed)).toBe("fix/login-flow")
-    expect(deriveConventionBranch("docs update quickstart", typed)).toBe("docs/update-quickstart")
+    expect(deriveConventionBranch("Fix login flow", typed, ID)).toBe("fix/login-flow")
+    expect(deriveConventionBranch("docs update quickstart", typed, ID)).toBe("docs/update-quickstart")
   })
 
   it("emits a bare kebab slug in a bare repo", () => {
-    expect(deriveConventionBranch("Fix login flow", bare)).toBe("fix-login-flow")
+    expect(deriveConventionBranch("Fix login flow", bare, ID)).toBe("fix-login-flow")
   })
 
   it("NEVER contains rove/kobe brand tokens", () => {
     for (const style of [typed, bare]) {
-      const branch = deriveConventionBranch("rove kobe integration for Rove", style)
+      const branch = deriveConventionBranch("rove kobe integration for Rove", style, ID)
       expect(branch).not.toMatch(/rove|kobe/)
     }
   })
 
-  it("falls back to 'task' when the title has no slug-able chars", () => {
-    expect(deriveConventionBranch("!!!", bare)).toBe("task")
-    expect(deriveConventionBranch("", typed)).toBe("feat/task")
+  it("falls back to the TASK ID when the title has no slug-able chars", () => {
+    // Not the bare constant `task`: that made every such title collide, and
+    // `uniqueBranchName` then numbered them `task`, `task-2`, `task-3`.
+    expect(deriveConventionBranch("!!!", bare, ID)).toBe("task-abc123")
+    expect(deriveConventionBranch("", typed, ID)).toBe("feat/task-abc123")
+  })
+
+  it("gives non-Latin titles distinct, id-keyed branches instead of task/task-2", () => {
+    // The bug this fixes: `slugTokens` keeps only [a-z0-9], so a Chinese,
+    // Japanese, or emoji title kebab-cases to nothing. Two such tasks must
+    // still get two DIFFERENT branch names.
+    const zh = deriveConventionBranch("修复中文标题的分支推导", bare, "01AAAAAAAAAAAAAAAAA111111")
+    const emoji = deriveConventionBranch("😀😀😀", bare, "01BBBBBBBBBBBBBBBBB222222")
+    const ja = deriveConventionBranch("ログイン画面を直す", bare, "01CCCCCCCCCCCCCCCCC333333")
+    expect([zh, emoji, ja]).toEqual(["task-111111", "task-222222", "task-333333"])
+    expect(new Set([zh, emoji, ja]).size).toBe(3)
+  })
+
+  it("still slugs the Latin part of a mixed-script title", () => {
+    // Mixed titles are NOT pushed onto the id fallback — a readable token
+    // survives, so the branch keeps saying something.
+    expect(deriveConventionBranch("修复 login flow", bare, ID)).toBe("login-flow")
+    expect(deriveConventionBranch("fix 中文标题", typed, ID)).toBe("fix/task-abc123")
   })
 
   it("caps the slug at 32 chars without a trailing hyphen", () => {
-    const branch = deriveConventionBranch("fix the very long feature name that exceeds the cap", typed)
+    const branch = deriveConventionBranch("fix the very long feature name that exceeds the cap", typed, ID)
     const slug = branch.slice("fix/".length)
     expect(slug.length).toBeLessThanOrEqual(32)
     expect(slug.endsWith("-")).toBe(false)
