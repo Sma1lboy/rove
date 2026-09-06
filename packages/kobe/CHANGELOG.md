@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.9.160
+
+### Patch Changes
+
+- [#930](https://github.com/Sma1lboy/rove/pull/930) [`a90258e`](https://github.com/Sma1lboy/rove/commit/a90258e4f7e7f48afc24f23922ab206c582cd924) Three places where Rove decided something was ready before it was.
+
+  `rove api add` on a repo with a `.rove/init.sh` no longer reports
+  `SESSION_FAILED` — quoting `bun install`'s progress bar as the reason — for a
+  task that goes on to start normally. Repo init records its exit code in a
+  per-worktree marker; a marker left empty by an older release meant "re-run
+  init" to the launch shell and "init already finished" to the CLI, so the CLI
+  spent its engine probe against a shell that was still installing dependencies.
+  Both sides now read the marker the same way.
+
+  `rove api read-output --source terminal` without `--tab` finds an engine that
+  is running on a tab other than tab-1 when the task launches through a wrapper
+  command (`claudecpa`, any custom preset). It was searching the live sessions
+  for the task's _vendor_ binary rather than the task's own, and answered "no
+  live terminal session for this task" while `--tab tab-2` returned a live tail.
+
+  The daemon no longer answers `Cannot access 'handlers' before initialization`
+  to a client that connects during the last moments of its startup — the socket
+  now starts accepting only once the request path is complete. This showed up as
+  Rove exiting 1 on roughly one launch in five on a busy machine. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#931](https://github.com/Sma1lboy/rove/pull/931) [`26f8c1a`](https://github.com/Sma1lboy/rove/commit/26f8c1a9c79ddc4aa00c94ed50fa91e152a6b44f) Migrating a legacy `kobe` install to the Rove layout now succeeds on Windows.
+
+  Every launch reported `state migration will retry: state.json: EPERM:
+operation not permitted, fsync` and then migrated nothing, so a machine
+  upgrading from `kobe` kept its old settings, themes and attachments stranded
+  under `~/.kobe` and `~/.config/kobe` forever — the failure left the completion
+  marker unwritten, which is what makes the next launch retry, so the warning
+  repeated indefinitely.
+
+  The migration flushes each copied file before publishing it, and it was
+  reopening the file read-only to do so. Windows backs `fsync` with
+  `FlushFileBuffers`, which requires a writable handle and rejects a read-only
+  one; POSIX flushes an `O_RDONLY` descriptor without complaint, so the bug was
+  invisible everywhere CI runs. Because `copyFileSync` also carries the source
+  file's mode onto the copy, a legacy file with no write bit defeats a writable
+  reopen just as thoroughly — on Windows and POSIX alike. The flush now widens
+  the temporary file's mode when it has to, then restores the mode it publishes. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.159
 
 ### Patch Changes
