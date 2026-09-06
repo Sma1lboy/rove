@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.172
+
+### Patch Changes
+
+- [#953](https://github.com/Sma1lboy/rove/pull/953) [`35ed68e`](https://github.com/Sma1lboy/rove/commit/35ed68e32516e8434967fab582f7a133d690eed8) Delete the last prose describing the web-RPC allowset. The `web` registry field and its derivation are already gone; four comments still called the allowlist a live security contract, and one told the next author which flag to flip to extend it. Nothing they describe exists. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#953](https://github.com/Sma1lboy/rove/pull/953) [`35ed68e`](https://github.com/Sma1lboy/rove/commit/35ed68e32516e8434967fab582f7a133d690eed8) The owner-only file modes have one owner again. `web-token.ts` and `pty-freeze-store.ts` each kept a private `0o700`/`0o600` pair plus their own copy of the "mkdir's mode is a no-op on an existing path" reasoning, because `owner-only.ts` offered only async tighteners and both of them run synchronously; it now offers sync twins. Nine more bare octals became the named constants, and two exports whose only remaining line was their own declaration are gone. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#953](https://github.com/Sma1lboy/rove/pull/953) [`35ed68e`](https://github.com/Sma1lboy/rove/commit/35ed68e32516e8434967fab582f7a133d690eed8) Stop producing the torn pidfile that made `isProcessAlive`'s pid-`0` guard necessary. Both the daemon's and the PTY host's pidfiles were written with a plain `writeFile`, which truncates before it writes, so an interrupted write left an EMPTY file — and `Number("")` is `0`, the pid `kill` reads as the caller's own process group. They now go through tmp+rename like every other file-backed store in the daemon, `readPidFile` refuses any implausible pid instead of passing it on, and `stopDaemonProcess` has coverage proving it signals nothing for a torn pidfile. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.171
 
 ### Patch Changes
