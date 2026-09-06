@@ -39,6 +39,7 @@ import {
   completionSeenFor,
   completionStampOf,
   useChanges,
+  useDonePulse,
   useDurableCompletionSeen,
   useSpinnerFrame,
 } from "./row-cards"
@@ -315,13 +316,26 @@ export function TabTreeRow(props: {
   // both readings send you into the tab to find out. See NO_STATE_GLYPH.
   const glyph = restored ? ATTENTION_GLYPH : isAgent && carriesState ? rowView.stateGlyph : NO_STATE_GLYPH
   const age = carriesState ? activityAgeLabel(activity, rowView.loading) : null
+  // The landing flash. Gated on `carriesState` for the same reason the seen
+  // bit is: a sibling row passing the task rollup would flash for a turn that
+  // finished in another tab.
+  const pulsing = useDonePulse(carriesState ? completionStampOf(activity) : undefined)
   // depth 1, not 2: a tab row starts at the same column as its
   // worktree row — the circle status glyph carries the hierarchy, and the
   // extra indent cell wasted width the narrow rail doesn't have.
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={props.shared}>
       <text
-        fg={restored ? theme.error : carriesState ? toneColor(theme, rowView.tone) : theme.textMuted}
+        fg={
+          pulsing
+            ? theme.success
+            : restored
+              ? theme.error
+              : carriesState
+                ? toneColor(theme, rowView.tone)
+                : theme.textMuted
+        }
+        attributes={pulsing ? TextAttributes.BOLD : undefined}
         wrapMode="none"
         width={2}
         flexShrink={0}
@@ -329,7 +343,14 @@ export function TabTreeRow(props: {
         {`${glyph} `}
       </text>
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
-        <text fg={theme.textMuted} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
+        <text
+          fg={pulsing ? theme.text : theme.textMuted}
+          attributes={pulsing ? TextAttributes.BOLD : undefined}
+          wrapMode="none"
+          flexBasis={0}
+          flexGrow={1}
+          flexShrink={1}
+        >
           {truncateEndCells(
             props.tab.label,
             // The 2-cell state-glyph column is this row's extra fixed spend.

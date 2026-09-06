@@ -25,6 +25,7 @@ import {
   tabStripVisible,
 } from "../../state/tab-strip"
 import { truncateEndCells } from "../../tui/lib/truncate"
+import { DONE_PULSE_MS } from "../../tui/panes/sidebar/row-view"
 import { type TerminalTab, tabTitle, visibleNativeStatus } from "../../tui/workspace/terminal-tabs-core"
 import type { VendorId } from "../../types/vendor"
 import { useKV } from "../context/kv"
@@ -73,9 +74,6 @@ function turnColor(theme: Theme, turn: ChatTabTurnState) {
       return theme.textMuted
   }
 }
-
-/** How long the running→done pulse stays emphasized. */
-const DONE_PULSE_MS = 600
 
 /** Active tab: three sides, so the missing bottom edge reads as a notch. */
 /** A tab's own chrome: 2 cells of frame + 2 of padding, plus the strip's

@@ -64,6 +64,13 @@ export const SPINNER_FRAME_MS = 100
  */
 export const SPINNER_TICK_CYCLE = 600
 
+/**
+ * How long a row stays emphasized after its turn lands. Lives here with the
+ * other state-glyph timings because BOTH surfaces that flash use it — the
+ * workspace tab strip and the sidebar's tab rows — and two independently
+ * chosen durations would make one landing cue look like two events.
+ */
+export const DONE_PULSE_MS = 600
 
 /**
  * The rail speaks FOUR states, and the reader acts on exactly one of them:
