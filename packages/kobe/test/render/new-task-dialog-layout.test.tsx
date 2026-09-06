@@ -144,3 +144,44 @@ test("a focused last field remains visible after narrowing and shortening the te
   expect(frame).not.toContain("╭")
   act(() => h.destroy())
 })
+
+for (const { width, height } of [
+  { width: 153, height: 35 },
+  { width: 153, height: 34 },
+  { width: 200, height: 30 },
+]) {
+  test(`${width}x${height}: footer spacing leaves the parent well or compact form intact`, async () => {
+    const h = await mount(width, height)
+    await press(h, "right")
+    await press(h, "tab")
+    await press(h, "tab")
+    await act(async () => h.mockInput.typeText("https://github.com/Sma1lboy/mc-rpg.git"))
+    const frame = await h.frame()
+    const scroll = descendants(h.renderer.root).find(
+      (node): node is ScrollBoxRenderable => node instanceof ScrollBoxRenderable,
+    )!
+    const lines = frame.split("\n")
+    const create = lines.findIndex((line) => line.includes("[ Create ]"))
+    const legendEnd = lines.findIndex((line) => line.includes("esc cancel"))
+    expect(create).toBe(legendEnd + 1)
+    if (height >= 34) {
+      const wells = descendants(h.renderer.root).filter(
+        (node): node is BoxRenderable => node instanceof BoxRenderable && !!node.border,
+      )
+      const parent = wells[9]!
+      expect(parent.height).toBe(3)
+      expect(parent.y + parent.height).toBeLessThanOrEqual(scroll.viewport.y + scroll.viewport.height)
+      expect(frame).toMatch(/↓ \d+ more rows/)
+      for (let i = 0; i < 3; i++) await press(h, "tab")
+      const bottom = await h.frame()
+      expect(bottom).toMatch(/↑ \d+ more rows/)
+      expect(bottom).not.toMatch(/↓ \d+ more rows/)
+    } else {
+      expect(scroll.scrollHeight).toBeLessThanOrEqual(scroll.viewport.height)
+      const base = lines.findIndex((line) => line.includes("BASE BRANCH"))
+      expect(lines[base + 1]).toContain("main")
+      expect(frame).not.toContain("more rows")
+    }
+    act(() => h.destroy())
+  })
+}

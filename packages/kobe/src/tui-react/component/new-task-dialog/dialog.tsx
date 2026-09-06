@@ -87,7 +87,7 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
       {/* Enter's caption follows the focused stop: it commits only on Create
           and walks the form at the other four, so a static "enter create" was
           wrong at every stop the dialog actually opens on. */}
-      <DialogFooter>
+      <DialogFooter paddingBottom={0}>
         {t("newTask.legend", {
           enter: t(vm.field === "confirm" ? "newTask.enterCreate" : "newTask.enterNext"),
         })}
@@ -95,6 +95,7 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
       {/* Create commits on click; also reachable by tabbing to the confirm
           field (Enter), or Enter on the last input of the active tab. */}
       <DialogActions
+        paddingTop={0}
         label={vm.cloneInFlight ? t("newTask.button.cloning") : t("newTask.button.create")}
         focused={vm.field === "confirm"}
         onPress={() => vm.commit()}

@@ -231,10 +231,10 @@ export function ChipRow<T extends string>(props: {
  * that dialog answers to. The card owns only `paddingTop`, so the last row
  * has to carry its own bottom cell or it sits flush against the card's edge.
  */
-export function DialogFooter(props: { children?: ReactNode }) {
+export function DialogFooter(props: { children?: ReactNode; paddingBottom?: number }) {
   const { theme } = useTheme()
   return (
-    <box paddingBottom={1} flexShrink={0}>
+    <box paddingBottom={props.paddingBottom ?? 1} flexShrink={0}>
       <text fg={theme.textMuted} wrapMode="word">
         {props.children}
       </text>
@@ -249,14 +249,14 @@ export function DialogFooter(props: { children?: ReactNode }) {
  * drawer) has no such field and states the verb in its legend instead — a
  * button nothing can focus would be a fourth thing to explain.
  */
-export function DialogActions(props: { label: string; focused: boolean; onPress: () => void }) {
+export function DialogActions(props: { label: string; focused: boolean; onPress: () => void; paddingTop?: number }) {
   const { theme } = useTheme()
   return (
     <box
       flexDirection="row"
       justifyContent="flex-end"
       alignItems="center"
-      paddingTop={1}
+      paddingTop={props.paddingTop ?? 1}
       paddingBottom={1}
       flexShrink={0}
     >
