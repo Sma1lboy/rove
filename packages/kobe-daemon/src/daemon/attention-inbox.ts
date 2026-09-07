@@ -41,8 +41,6 @@ interface AttentionInboxFile {
  */
 export const MAX_EPISODES = 500
 
-export type AttentionInboxLane = "activity" | "prompt_deferred"
-
 export function defaultAttentionInboxPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "attention-inbox.json")
 }
@@ -91,8 +89,7 @@ async function readStore(path: string): Promise<AttentionInboxItem[]> {
     // authoritative "nothing needs you" AND made memory the source of truth,
     // so the next `commit()` rewrote the whole file from an empty map — one
     // transient EACCES/EMFILE/EIO permanently destroyed the queue. Re-throw,
-    // the shape `deferred-prompts-store.ts` already uses; only errors that
-    // carry an errno are I/O. A `SyntaxError` from genuinely malformed JSON
+    // only errors that carry an errno are I/O. A `SyntaxError` from genuinely malformed JSON
     // has none and still reads as empty, which is the recorded decision.
     if (code !== undefined) throw err
     logDaemonError("attention-inbox-load", err)
@@ -179,8 +176,8 @@ export class AttentionInboxStore {
   /**
    * Record a `dead` episode: the tab's engine PROCESS is gone, from the
    * pty-host's exit record (pty-exit-watch.ts). Its own path rather than a
-   * `record()` kind, for the same reason `recordPromptDeferred` has one —
-   * there is no hook event behind it, so it has no {@link EngineActivityKind}.
+   * `record()` kind: there is no hook event behind it, so it has no
+   * {@link EngineActivityKind}.
    *
    * Every OTHER episode is something the engine reported about itself, so a
    * KILLED engine (no Stop, no SessionEnd, no hook at all) has nothing to
@@ -201,121 +198,22 @@ export class AttentionInboxStore {
   }
 
   /**
-   * Record a `prompt_deferred` episode: a prompt the
-   * delivery gate blocked was accepted into the DeferredPromptsStore, and the
-   * episode points at that record by id (the prompt text is NOT copied here —
-   * `EngineActivityDetail` describes engine activity). One pending episode per
-   * task+tab, so a fresh deferral replaces the previous episode for the tab.
-   */
-  async recordPromptDeferred(
-    taskId: string,
-    tabId: string,
-    deferredId: string,
-    layer: "recent-human-write" | "composer-not-empty",
-    expiresAt?: number,
-    sender?: string,
-  ): Promise<void> {
-    await this.enqueue(async () => {
-      const key = attentionInboxItemKey({ taskId, tabId, state: "prompt_deferred" })
-      const next = new Map(this.items)
-      next.delete(key)
-      next.set(key, {
-        taskId,
-        tabId,
-        state: "prompt_deferred",
-        detail: {
-          deferredPrompt: {
-            id: deferredId,
-            layer,
-            ...(expiresAt === undefined ? {} : { expiresAt }),
-            ...(sender === undefined ? {} : { sender }),
-          },
-        },
-        unread: true,
-        at: this.now(),
-      })
-      await this.commit(next)
-    })
-  }
-
-  /**
-   * Replace a `prompt_deferred` episode with the notice that its text was
-   * destroyed undelivered.
-   *
-   * The expiry sweep used to just delete the row. `rove api send` had already
-   * exited 0 calling the deferral a success and the sender's session was long
-   * gone, so a silent delete meant NOBODY ever learned the message did not
-   * run. Same key as the episode it replaces (`prompt_expired` shares the
-   * deferred lane), so this is an in-place swap and the user still dismisses
-   * it the way they dismiss anything else.
-   */
-  async recordPromptExpired(taskId: string, tabId: string, deferredId: string, at: number): Promise<void> {
-    await this.enqueue(async () => {
-      const key = attentionInboxItemKey({ taskId, tabId, state: "prompt_expired" })
-      const previous = this.items.get(key)
-      const next = new Map(this.items)
-      next.delete(key)
-      next.set(key, {
-        taskId,
-        tabId,
-        state: "prompt_expired",
-        // The layer is carried over so the row still says which gate held the
-        // text; the id keeps the episode addressable by the same RPCs.
-        detail: {
-          deferredPrompt: {
-            id: deferredId,
-            layer: previous?.detail?.deferredPrompt?.layer ?? "composer-not-empty",
-            expiresAt: at,
-            ...(previous?.detail?.deferredPrompt?.sender === undefined
-              ? {}
-              : { sender: previous.detail.deferredPrompt.sender }),
-          },
-        },
-        unread: true,
-        at,
-      })
-      await this.commit(next)
-    })
-  }
-
-  /**
    * Legacy RPC (pre queue-drain model): opening now DELETES the episode
    * (`deleteEpisode` via attention.dismiss). Kept for old clients whose
    * open still calls attention.markRead — treat it as the same resolve.
    */
-  async markRead(
-    taskId: string,
-    tabId: string | null,
-    at: number,
-    lane?: AttentionInboxLane,
-    deferredId?: string,
-  ): Promise<boolean> {
-    return await this.deleteEpisode(taskId, tabId, at, lane, deferredId)
+  async markRead(taskId: string, tabId: string | null, at: number): Promise<boolean> {
+    return await this.deleteEpisode(taskId, tabId, at)
   }
 
-  /** Delete a matching episode; lane and deferredId narrow cross-store cleanup. */
-  async deleteEpisode(
-    taskId: string,
-    tabId: string | null,
-    at?: number,
-    lane?: AttentionInboxLane,
-    deferredId?: string,
-  ): Promise<boolean> {
+  /** Delete the episode for a task+tab, optionally pinned to its event time. */
+  async deleteEpisode(taskId: string, tabId: string | null, at?: number): Promise<boolean> {
     return await this.enqueue(async () => {
-      const activityKey = attentionInboxItemKey({ taskId, tabId })
-      const deferredKey = attentionInboxItemKey({ taskId, tabId, state: "prompt_deferred" })
-      const keys =
-        lane === "activity" ? [activityKey] : lane === "prompt_deferred" ? [deferredKey] : [activityKey, deferredKey]
+      const key = attentionInboxItemKey({ taskId, tabId })
+      const item = this.items.get(key)
+      if (!item || (at !== undefined && item.at !== at)) return false
       const next = new Map(this.items)
-      let removed = false
-      for (const key of keys) {
-        const item = this.items.get(key)
-        if (!item || (at !== undefined && item.at !== at)) continue
-        if (deferredId !== undefined && item.detail?.deferredPrompt?.id !== deferredId) continue
-        next.delete(key)
-        removed = true
-      }
-      if (!removed) return false
+      next.delete(key)
       await this.commit(next)
       return true
     })

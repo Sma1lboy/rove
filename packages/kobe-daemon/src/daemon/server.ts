@@ -161,19 +161,8 @@ async function startOwnedServer(
 
   // Daemon-owned durable stores + the per-task teardown runner — CREATED in
   // stores.ts, wired together here; see initDaemonStores.
-  const {
-    activity,
-    inbox,
-    agentTurns,
-    deletions,
-    issues,
-    notes,
-    deferredPrompts,
-    automations,
-    workItems,
-    quotaUsage,
-    engineEvents,
-  } = await initDaemonStores(orch, runtime, bus, options.homeDir)
+  const { activity, inbox, agentTurns, deletions, issues, notes, automations, workItems, quotaUsage, engineEvents } =
+    await initDaemonStores(orch, runtime, bus, options.homeDir)
   resources.defer(() => activity.close())
   resources.defer(() => deletions.drain())
   resources.defer(async () => {
@@ -302,13 +291,9 @@ async function startOwnedServer(
       // Same construction-order deferral: the plugin host starts right after
       // the collectors, and the sweep only reads it on a tick.
       plugins: () => pluginHost,
-      // A standing routine session whose composer is busy hands its report to
-      // these instead of dropping it.
-      ...(deferredPrompts ? { deferred: deferredPrompts } : {}),
       inbox,
     },
     activity,
-    deferredPrompts ? { store: deferredPrompts, inbox } : undefined,
   )
 
   resources.defer(stopCollectors)
@@ -399,7 +384,6 @@ async function startOwnedServer(
       deletions,
       issues,
       notes,
-      deferredPrompts,
       automations,
       workItems,
       selfLink,

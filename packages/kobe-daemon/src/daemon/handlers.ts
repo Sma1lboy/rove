@@ -36,13 +36,11 @@ import type { AutomationsStore } from "./automations-store.ts"
 import type { ChannelName } from "./channels.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
-import type { DeferredPromptsStore } from "./deferred-prompts-store.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import { objectPayload, optionalActivityDetail, optionalString, requireString } from "./handler-validators.ts"
 import { AGENT_TURN_HANDLERS } from "./handlers-agent-turns.ts"
 import { ATTENTION_HANDLERS } from "./handlers-attention.ts"
 import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
-import { DEFERRED_PROMPT_HANDLERS } from "./handlers-deferred.ts"
 import { ENGINE_REPORT_HANDLER } from "./handlers-engine-report.ts"
 import { ISSUE_HANDLERS } from "./handlers-issues.ts"
 import { PR_HANDLERS } from "./handlers-pr.ts"
@@ -104,8 +102,6 @@ export interface DaemonHandlerContext {
   readonly issues: IssuesStore
   /** Durable field notes, same key convention (absent in older tests). */
   readonly notes?: NotesStore
-  /** Deferred prompts accepted by the delivery gate (absent in older tests). */
-  readonly deferredPrompts?: DeferredPromptsStore
   /** Short-TTL cache over external tracker items (read-only view). */
   readonly workItems: WorkItemCache
   /** Daemon-owned scheduled automations + their run history. */
@@ -332,7 +328,6 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...AGENT_TURN_HANDLERS,
     ...UI_HANDLERS,
     ...ISSUE_HANDLERS,
-    ...DEFERRED_PROMPT_HANDLERS,
     ...PR_HANDLERS,
     {
       // Production diagnostics (`kobe api inspect`): what the daemon's

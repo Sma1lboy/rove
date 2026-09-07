@@ -114,7 +114,6 @@ function normalizeRun(value: unknown): AutomationRun | null {
   if (
     raw.status !== "dispatched" &&
     raw.status !== "revived" &&
-    raw.status !== "deferred" &&
     raw.status !== "skipped_cancelled" &&
     raw.status !== "skipped_precheck" &&
     raw.status !== "skipped_missed" &&
@@ -132,7 +131,6 @@ function normalizeRun(value: unknown): AutomationRun | null {
     trigger: raw.trigger === "manual" ? "manual" : "scheduled",
     ...(str(raw.taskId) ? { taskId: raw.taskId } : {}),
     ...(str(raw.tabId) ? { tabId: raw.tabId } : {}),
-    ...(str(raw.deferredId) ? { deferredId: raw.deferredId } : {}),
     ...(raw.precheckResult ? { precheckResult: raw.precheckResult } : {}),
     ...(str(raw.error) ? { error: raw.error } : {}),
     at,
