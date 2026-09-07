@@ -69,12 +69,23 @@ describe("deliverToKey", () => {
     // pty.peek, NOT pty.open: an open would last-attach-wins resize the
     // live session away from its attached TUI — delivery must
     // be indistinguishable from keyboard input (pure pty.write).
-    // Peeks (gate, readiness, confirm) then two writes — still no open/resize.
-    expect(calls.map((c) => c.name)).toEqual(["pty.peek", "pty.peek", "pty.write", "pty.write", "pty.peek"])
+    // Peeks (gate, readiness, pre-paste offset) then the paste, a peek for
+    // the submit key, the CR, a peek re-checking the footer, and the echo
+    // confirm — still no open/resize.
+    expect(calls.map((c) => c.name)).toEqual([
+      "pty.peek",
+      "pty.peek",
+      "pty.peek",
+      "pty.write",
+      "pty.peek",
+      "pty.write",
+      "pty.peek",
+      "pty.peek",
+    ])
     expect(calls[0].payload).toEqual({ key: "t1::tab-1" })
     // Bracketed paste markers wrap the prompt; the CR is a SEPARATE write.
-    expect(calls[2].payload).toEqual({ key: "t1::tab-1", data: "\x1b[200~do the thing\x1b[201~" })
-    expect(calls[3].payload).toEqual({ key: "t1::tab-1", data: "\r" })
+    expect(calls[3].payload).toEqual({ key: "t1::tab-1", data: "\x1b[200~do the thing\x1b[201~" })
+    expect(calls[5].payload).toEqual({ key: "t1::tab-1", data: "\r" })
   })
 
   it("returns false without writing when the session is dead", async () => {
@@ -191,8 +202,11 @@ describe("deliverHostedPrompt", () => {
       "pty.open",
       "pty.peek",
       "pty.peek",
+      "pty.peek",
       "pty.write",
+      "pty.peek",
       "pty.write",
+      "pty.peek",
       "pty.peek",
       "pty.detach",
     ])
