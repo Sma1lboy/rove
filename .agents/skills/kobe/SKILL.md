@@ -305,28 +305,6 @@ rove api collect --group <groupId> --pretty
 rove api list --pretty
 ```
 
-**A `deferred` send was ACCEPTED, not delivered — and headless, nobody will
-release it for you.** When the target composer holds half-typed text, `send`
-exits 0 with `"deferred"` in the JSON instead of pasting over it: the daemon
-took ownership of the message and queued a `prompt_deferred` Inbox episode.
-Do NOT re-send the same text — the daemon has it, and a second send to that
-tab fails `DEFERRED_PROMPT_PENDING` anyway. But do not treat it as delivered
-either: with a human attached, they release it from the Inbox; with nobody
-attached, that never happens and the daemon sweeps the text at
-`deferred.expiresAt` (24h after filing), undelivered and silently. Finish the
-handoff yourself:
-
-```bash
-rove api deferred-list                     # what the daemon is holding, and until when
-rove api deferred-release --id <id>        # deliver it now → { delivered: true }
-rove api deferred-dismiss --id <id>        # drop it and free the tab's slot
-```
-
-`deferred-release` re-runs the gate rather than bypassing it, so a composer
-that is still busy answers `delivered: false` with the blocking `reason` —
-retry it, do not re-send. Read the `delivered` / `deferred` keys, not just
-the exit code.
-
 `.running` is `true` / `false` / `null`. It means an ENGINE PROCESS is alive
 in one of the task's engine tabs — a live shell, command, or content tab alone
 does not count, and neither does an engine tab whose engine exited (the PTY
