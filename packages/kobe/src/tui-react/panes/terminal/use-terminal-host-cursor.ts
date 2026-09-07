@@ -1,6 +1,7 @@
 /**
  * Host-side terminal output effects: push geometry changes to the PTY and
- * anchor the native host cursor to the visible terminal cell for macOS IME.
+ * anchor the native host cursor to the visible terminal cell for the IME
+ * (macOS input methods and Windows Terminal place the composition there).
  *
  * Its own hook because everything here is IMPERATIVE: renderer and PTY side
  * effects plus the retention objects that survive across output frames, none

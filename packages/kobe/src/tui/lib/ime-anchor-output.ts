@@ -1,9 +1,10 @@
 /**
- * macOS IME cursor anchoring at the OpenTUI output boundary.
+ * IME cursor anchoring at the OpenTUI output boundary (macOS and Windows).
  *
  * OpenTUI restores a visible cursor after each diff frame, but a hidden
- * cursor is left at the last painted cell. macOS input methods use that real
- * terminal cursor for preedit/candidate placement. This adapter buffers each
+ * cursor is left at the last painted cell. macOS input methods and Windows
+ * Terminal's TSF composition use that real terminal cursor for
+ * preedit/candidate placement. This adapter buffers each
  * synchronized update as one transaction and inserts the focused embedded
  * terminal's hidden cursor position immediately before its terminator. A
  * truncated frame is therefore discarded before any partial paint can reach
@@ -212,14 +213,24 @@ export function createImeAnchoredOutput(
   }
 }
 
-/** Select the custom output path only for the affected fullscreen macOS TUI. */
+/**
+ * Platforms whose terminals place the IME preedit/candidate window at the
+ * REAL cursor: macOS terminals, and Windows Terminal / conhost (the TSF
+ * composition follows the console cursor). Without the anchor, Windows drew
+ * a pinyin composition at whatever cell OpenTUI painted last — the sidebar's
+ * top row — instead of at the engine's input line. Linux terminals vary;
+ * left on the direct path until one is shown to need it.
+ */
+const IME_ANCHOR_PLATFORMS: ReadonlySet<NodeJS.Platform> = new Set<NodeJS.Platform>(["darwin", "win32"])
+
+/** Select the custom output path only for fullscreen TUIs on an IME-anchoring platform. */
 export function createHostImeOutput(opts: {
   readonly platform: NodeJS.Platform
   readonly fullscreen: boolean
   readonly stdout: NodeJS.WriteStream
   readonly controller?: ImeAnchorController
 }): HostImeOutput {
-  if (opts.platform !== "darwin" || !opts.fullscreen) {
+  if (!IME_ANCHOR_PLATFORMS.has(opts.platform) || !opts.fullscreen) {
     return {
       active: false,
       rendererOptions: {},
