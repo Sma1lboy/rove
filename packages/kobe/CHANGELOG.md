@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.176
+
+### Patch Changes
+
+- [#960](https://github.com/Sma1lboy/rove/pull/960) [`2862588`](https://github.com/Sma1lboy/rove/commit/28625888355619796d19bbeef5d83a149b87a593) Remove the PTY host's human-write sensor. `lastHumanWriteMs` and the
+  `KOBE_PTY_HUMAN_WRITE_QUIET_MS` quiet period only ever fed the delivery gate,
+  which is gone — `pty.peek` no longer reports them, and a freeze record written
+  by an older host thaws normally with the stale field ignored. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.175
 
 ### Patch Changes
