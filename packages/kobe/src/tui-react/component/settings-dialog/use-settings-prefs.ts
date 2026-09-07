@@ -13,13 +13,6 @@ import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
 import { logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
 import { AUTO_STATUS_KEY } from "../../../state/auto-status"
-import {
-  type DeliveryGuard,
-  deliveryGuardEnvOverride,
-  deliveryGuardPreference,
-  nextDeliveryGuard,
-  setDeliveryGuardPreference,
-} from "../../../state/delivery-guard"
 import { DISPATCHER_KEY } from "../../../state/dispatcher"
 import { DEFAULT_SCROLLBACK_ROWS, SCROLLBACK_ROWS_KEY, normalizeScrollbackRows } from "../../../state/scrollback"
 import { SPLIT_STYLE_KEY, type SplitStyle, normalizeSplitStyle } from "../../../state/split-style"
@@ -60,7 +53,7 @@ import type { DialogContext } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 import { RenameTaskDialog } from "../rename-task-dialog"
 
-export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onDeliveryGuardLoosened?: () => void) {
+export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   const t = useT()
 
   function toastEnabled(): boolean {
@@ -139,25 +132,6 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onDeliver
   function toggleDispatcher(): void {
     kv.set(DISPATCHER_KEY, !dispatcherOn())
   }
-  // The delivery gate, in three states — `on` by default. This is the only
-  // default-on switch in Dev because it is an escape hatch (a gate that reads
-  // a vendor's screen layout can go wrong), not a feature to opt into.
-  function deliveryGuard(): DeliveryGuard {
-    return deliveryGuardEnvOverride() ?? deliveryGuardPreference(kv)
-  }
-  /** Set when the environment pins the value and the row cannot change it. */
-  function deliveryGuardForcedByEnv(): boolean {
-    return deliveryGuardEnvOverride() !== undefined
-  }
-  function selectDeliveryGuard(next: DeliveryGuard): void {
-    if (setDeliveryGuardPreference(kv, next, onDeliveryGuardLoosened) === "persist-failed") {
-      logClientError("settings", "could not persist the delivery guard; deferred prompts were not flushed")
-    }
-  }
-  function cycleDeliveryGuard(): void {
-    selectDeliveryGuard(nextDeliveryGuard(deliveryGuard()))
-  }
-
   // Editor preference: which editor the file tree's `e` key launches.
   function editorKind(): EditorKind {
     return normalizeEditorKind(kv.get(EDITOR_KIND_KEY, DEFAULT_EDITOR_KIND))
@@ -307,10 +281,6 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onDeliver
     toggleAutoStatus,
     dispatcherOn,
     toggleDispatcher,
-    deliveryGuard,
-    deliveryGuardForcedByEnv,
-    selectDeliveryGuard,
-    cycleDeliveryGuard,
     editorKind,
     cycleEditorKind,
     editorCustomCommand,
