@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.174
+
+### Patch Changes
+
+- [#958](https://github.com/Sma1lboy/rove/pull/958) [`50f62d0`](https://github.com/Sma1lboy/rove/commit/50f62d01de14d6444c12c795d90baeb9d21de902) Preserve engine conversations when restoring tabs after a reboot. A restored tab's saved engine identity no longer counts as a live process observation, so the shell startup window cannot erase its session ID and turn it into a plain shell. Codex, Copilot, and Kimi history lookup also matches Windows directories written with native backslashes or Git's forward slashes, keeping recorded conversations eligible for resume. Engines that generate their own session IDs rediscover their conversation when a saved ID is no longer valid, including an ID left over from another engine. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.173
 
 ### Patch Changes
