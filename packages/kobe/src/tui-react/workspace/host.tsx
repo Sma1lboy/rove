@@ -132,7 +132,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     openAutomations: () => pages.openAutomations(),
     focusWorkspace: () => focus.setFocused("workspace"),
     notifyError,
-    notifyInfo,
   })
 
   // Cross-task attention: rising-edge notify for non-selected tasks +

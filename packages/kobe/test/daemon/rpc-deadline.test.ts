@@ -25,8 +25,6 @@ const BLOCKING: readonly DaemonRequestName[] = [
   "task.land",
   "workitem.start",
   "automation.runNow",
-  "deferredPrompt.flush",
-  "deferredPrompt.release",
   "task.ensureWorktree",
   "task.ensureMain",
   "worktree.discoverAdoptable",

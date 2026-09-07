@@ -21,7 +21,7 @@ import {
   type HostedSessionRpc,
   type PromptWriteOutcome,
   awaitPasteReady,
-  writeHostedPromptIfClear,
+  writeHostedPromptIfLive,
 } from "./hosted-session.ts"
 import { sessionHasEngine } from "./session-engine-presence.ts"
 import { ENGINE_EXIT_BANNER, REPO_INIT_TIMEOUT_SECONDS, initMarkerSaysFinished } from "./session-launch.ts"
@@ -164,7 +164,7 @@ export async function pastePromptWhenEngineUp(
     if (!(await awaitPasteReady(rpc, key, { timeoutMs: opts.pasteReadyTimeoutMs, sleep }))) {
       await sleep(opts.settleMs ?? FIRST_MESSAGE_SETTLE_MS)
     }
-    return await writeHostedPromptIfClear(rpc, key, prompt, opts)
+    return await writeHostedPromptIfLive(rpc, key, prompt, opts)
   }
   return null
 }

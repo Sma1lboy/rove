@@ -46,35 +46,6 @@ export interface EngineActivityDetail {
     readonly lastLine?: string
   }
   /**
-   * Reference to a daemon-owned deferred-prompt record.
-   * Present only on `prompt_deferred` inbox episodes. The prompt TEXT lives in
-   * the DeferredPromptsStore, never here — this contract describes engine
-   * activity, and a raw prompt is not engine activity.
-   */
-  readonly deferredPrompt?: {
-    readonly id: string
-    readonly layer: "recent-human-write" | "composer-not-empty"
-    /**
-     * Epoch ms at which the sweep destroys the held text
-     * (`record.at + DEFERRED_PROMPT_TTL_MS`). Copied onto the episode because
-     * the row is the only place a human meets this record, and `rove api
-     * deferred-list` already publishes the same number — the API half promised
-     * a deadline the screen half could not show. Absent on episodes written
-     * before this field existed; the row then shows no deadline rather than a
-     * guessed one.
-     */
-    readonly expiresAt?: number
-    /**
-     * Who sent the held message, lifted from the prompt's `[ROVE PEER] from
-     * "…"` provenance header when it filed (`deferred-prompt-sender.ts`), or
-     * the routine's own label. Provenance, not prompt text — the rule above
-     * keeps the BODY out of this contract, and a card that cannot name a
-     * sender is a card nobody can judge before dismissing it. Absent when the
-     * prompt carried no header.
-     */
-    readonly sender?: string
-  }
-  /**
    * The routine behind a `routine_failed` episode. A schedule is the one thing
    * in Rove that acts with nobody watching, so when its firing needs a human
    * the Inbox is where that has to land — and the episode's subject is the
@@ -108,24 +79,16 @@ export type TaskActivityState =
 
 /** States represented by pending Inbox items until handled or the same
  * Terminal Tab starts another turn. Deliberately NOT a subset of
- * {@link TaskActivityState}: `prompt_deferred` is a queue/ownership state (a
- * prompt the daemon accepted but could not paste), not an engine activity —
- * the engine may be idle while a deferred prompt waits for release. */
+ * {@link TaskActivityState}: `routine_failed` is a schedule's state, not an
+ * engine's. */
 export const ATTENTION_INBOX_STATES = [
   "turn_complete",
   "permission_needed",
   "error",
   "rate_limited",
-  "prompt_deferred",
   /** The engine PROCESS died (pty-host exit record). An episode a user must
    *  see: nothing else in the queue tells them the agent is simply gone. */
   "dead",
-  /** The daemon destroyed a held prompt at its TTL without delivering it.
-   *  `rove api send` returned exit 0 and called the deferral a success, so
-   *  deleting the row on expiry was the one outcome that guaranteed nobody
-   *  ever learned the message did not run. Shares the `prompt_deferred` lane
-   *  (see {@link attentionInboxItemKey}) because it REPLACES that episode. */
-  "prompt_expired",
   /** A routine's latest firing needs a human (see
    *  {@link automationRunNeedsAttention}). The only episode whose subject is
    *  not a task: a routine pointed at a repo that moved never creates one, so
@@ -151,17 +114,9 @@ export function attentionInboxItemKey(item: {
   // the task would file 1,440 episodes a day for one broken schedule.
   if (item.state === "routine_failed" && item.detail?.routine)
     return `\u0000routine\u0000${item.detail.routine.automationId}`
-  // `prompt_deferred` gets its own lane. Every other episode DESCRIBES the
-  // engine, so one-per-tab is right: a fresh turn-complete should replace the
-  // stale one. A deferred prompt is not a description — the daemon is holding
-  // a human's text and this episode is the only pointer to it, so sharing the
-  // tab's single slot lets the target's next turn silently orphan the record
-  // — stored prompts with nothing in the inbox pointing at them.
-  // `prompt_expired` shares the lane it replaces: the expired notice takes
-  // the deferred episode's slot in place, and `attention.dismiss` reaches it
-  // through the same key.
-  const lane = item.state === "prompt_deferred" || item.state === "prompt_expired" ? "\0deferred" : ""
-  return `${item.taskId}\0${item.tabId ?? ""}${lane}`
+  // Every other episode DESCRIBES the engine, so one-per-tab is right: a
+  // fresh turn-complete should replace the stale one.
+  return `${item.taskId}\0${item.tabId ?? ""}`
 }
 
 /** One daemon-owned, durable attention episode for a task's engine tab. */

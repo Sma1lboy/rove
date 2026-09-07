@@ -20,7 +20,7 @@
  * event is `PermissionRequest`, an allow/deny DECISION hook — installing kobe's
  * observer on it could interfere with Codex's approval flow, the same
  * provider-hook trap that broke `claude --worktree`, so we leave it alone).
- * The polling fallback and `CODEX_SCREEN_MANIFEST` still cover those states.
+ * The polling fallback still covers those states.
  *
  * Trust model: Codex won't RUN a non-managed command hook until the user trusts
  * it once via `/hooks` (or launches with `--dangerously-bypass-hook-trust`).

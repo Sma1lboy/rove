@@ -27,7 +27,7 @@
  */
 
 import type { DaemonRpcClient } from "../client/rpc.ts"
-import { type DispatchInbox, dispatchAutomation } from "./automation-dispatch.ts"
+import { dispatchAutomation } from "./automation-dispatch.ts"
 import { formatPrecheckSkip, precheckPassed, runAutomationPrecheck } from "./automation-precheck.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import {
@@ -38,7 +38,6 @@ import {
 } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { countCronBetween, latestCronAtOrBefore } from "./cron.ts"
-import type { DeferredPromptsStore } from "./deferred-prompts-store.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { startTicker } from "./ticker.ts"
 
@@ -107,24 +106,20 @@ interface RunnerDeps {
   /** Plugin event sink (getter for the same construction-order reason as
    *  `link`). Every recorded run fires one automation.* plugin event. */
   readonly plugins?: () => { handleUiReport(report: PluginRunReport): void } | null
-  /** Ownership of a prompt a busy composer refused (standing sessions only).
-   *  Absent in a daemon booted without the stores; the firing then records a
-   *  failure rather than dropping the report silently. */
-  readonly deferred?: DeferredPromptsStore
   readonly inbox?: RunnerInbox
   readonly now?: () => number
   readonly stopped?: () => boolean
 }
 
 /**
- * The Inbox slice the RUNNER needs, on top of the dispatch path's.
+ * The Inbox slice the RUNNER needs.
  *
  * A schedule is the only thing here that acts unattended, so a firing that
  * needs a human has nowhere else to surface: the run history records it, but
  * reading the run history is exactly the going-and-looking a schedule exists
  * to avoid.
  */
-export interface RunnerInbox extends DispatchInbox {
+export interface RunnerInbox {
   recordRoutineFailure(
     routine: { automationId: string; name: string; status: string; error?: string },
     taskId: string | null,
@@ -140,8 +135,6 @@ type PluginRunReport = {
   readonly detail?: Record<string, unknown>
 }
 
-/** Queue acceptance is not delivery. Deferred runs carry their status on
- * the skipped event until the queue's owner performs delivery. */
 function runEventFor(status: AutomationRunStatus): PluginRunReport["kind"] {
   if (status === "dispatched" || status === "revived") return "automation.dispatched"
   if (status === "dispatch_failed") return "automation.failed"
@@ -158,7 +151,7 @@ function emitRunEvent(
   automation: Automation,
   status: AutomationRunStatus,
   args: { scheduledFor: number; trigger: "scheduled" | "manual" },
-  extra: { taskId?: string; tabId?: string; deferredId?: string; error?: string },
+  extra: { taskId?: string; tabId?: string; error?: string },
 ): void {
   // handleUiReport guards its own dispatch — a throw can only come from the
   // getter, which is a plain closure over the server's pluginHost.
@@ -173,7 +166,6 @@ function emitRunEvent(
       trigger: args.trigger,
       scheduledFor: new Date(args.scheduledFor).toISOString(),
       ...(extra.tabId ? { tabId: extra.tabId } : {}),
-      ...(extra.deferredId ? { deferredId: extra.deferredId } : {}),
       ...(extra.error ? { error: extra.error } : {}),
     },
   })
@@ -269,7 +261,6 @@ export async function runAutomationOnce(
     extra: {
       taskId?: string
       tabId?: string
-      deferredId?: string
       error?: string
       precheckResult?: Awaited<ReturnType<typeof runAutomationPrecheck>>
     } = {},
@@ -317,8 +308,6 @@ export async function runAutomationOnce(
         orch: deps.orch,
         runtime: deps.runtime,
         link: () => resolveLink(deps.link),
-        ...(deps.deferred ? { deferred: deps.deferred } : {}),
-        ...(deps.inbox ? { inbox: deps.inbox } : {}),
         ...(deps.now ? { now: deps.now } : {}),
       },
       automation,
@@ -350,7 +339,6 @@ export async function runAutomationOnce(
   return await record(outcome.status, {
     ...(outcome.taskId ? { taskId: outcome.taskId } : {}),
     ...(outcome.tabId ? { tabId: outcome.tabId } : {}),
-    ...(outcome.deferredId ? { deferredId: outcome.deferredId } : {}),
     ...(outcome.error ? { error: outcome.error } : {}),
   })
 }

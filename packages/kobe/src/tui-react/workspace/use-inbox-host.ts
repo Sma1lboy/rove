@@ -5,7 +5,6 @@ import type { KVContext } from "../context/kv"
 import { useT } from "../i18n"
 import { useLatest } from "../lib/use-latest"
 import type { DialogContext } from "../ui/dialog"
-import { DialogConfirm } from "../ui/dialog-confirm"
 import { AttentionInboxDialog } from "./AttentionInboxPane"
 import {
   attentionInboxCounts,
@@ -14,7 +13,6 @@ import {
   partitionAttentionInboxAvailability,
   visitResolvedEpisodes,
 } from "./attention-inbox-core"
-import { insertDeferredPrompt } from "./deferred-prompt-insert"
 import { dismissEpisode, requestInboxItemOpen } from "./inbox-open-action"
 import { notifyInboxRpcFailure } from "./inbox-rpc-errors"
 import { writeInboxVisit } from "./inbox-visits"
@@ -40,8 +38,6 @@ export function useInboxHost(args: {
   openAutomations: () => void
   focusWorkspace: () => void
   notifyError: (message: string) => void
-  /** Neutral (done-styled) toast — insert feedback for the deferred exit path. */
-  notifyInfo: (message: string) => void
 }) {
   const { orchestrator: orch } = args
   const t = useT()
@@ -99,27 +95,6 @@ export function useInboxHost(args: {
     }
   }, [unavailableSignature, orch])
 
-  /**
-   * Release a `prompt_deferred` episode (issue #78 B exit path). The text is
-   * fetched from the daemon store (the episode carries only its id), inserted
-   * with a FRESH A/C gate, and — only on success — resolved. The gate still
-   * blocking means the human is typing again; the message stays queued.
-   */
-  async function releaseDeferredPrompt(item: AttentionInboxItem, deferredId: string): Promise<void> {
-    try {
-      const outcome = await insertDeferredPrompt({ orch, deferredId })
-      if (outcome === "missing") {
-        notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError)
-        return
-      }
-      if (outcome === "deferred-again") args.notifyInfo(t("workspace.inbox.deferredStillQueued"))
-      else if (outcome === "unavailable") args.notifyInfo(t("workspace.inbox.deferredUnavailable"))
-      // "inserted" → the resolve RPC dropped both the record and the episode.
-    } catch {
-      args.notifyError(t("workspace.inbox.deferredInsertFailed"))
-    }
-  }
-
   function openItem(item: AttentionInboxItem, knownAvailable?: boolean): void {
     // routine_failed: the subject is a SCHEDULE, so opening lands on the
     // Routines page — where the run history and `run now` are — rather than
@@ -137,18 +112,6 @@ export function useInboxHost(args: {
     const available =
       knownAvailable ?? isAttentionInboxItemAvailable(item, task, (tabId) => taskTabExists(args.kv, taskId, tabId))
 
-    // prompt_deferred: opening IS the release action — jump AND insert. The
-    // episode is NOT dismissed up front; the gate decides whether it clears.
-    const deferredId = item.detail?.deferredPrompt?.id
-    if (item.state === "prompt_deferred" && item.tabId && deferredId) {
-      if (args.dialog.stack.length > 0) args.dialog.clear({ refocus: false })
-      args.selectTask(taskId)
-      requestTabActivation(taskId, item.tabId)
-      args.focusWorkspace()
-      void releaseDeferredPrompt(item, deferredId)
-      return
-    }
-
     if (!requestInboxItemOpen(item, available, orch, args.notifyError)) return
     if (args.dialog.stack.length > 0) args.dialog.clear({ refocus: false })
     args.selectTask(taskId)
@@ -164,48 +127,13 @@ export function useInboxHost(args: {
     args.focusWorkspace()
   }
 
-  /**
-   * `d` on a queued message asks first.
-   *
-   * Every other episode is a NOTICE — clearing one throws away a line the
-   * daemon can rebuild. A `prompt_deferred` row is a message somebody sent
-   * that has not run yet, and its sender already exited 0 believing it was
-   * accepted, so a stray `d` is the one keystroke in this list that loses
-   * work nobody can recover from the screen. (The daemon now keeps the text
-   * until the record's 24h expiry, so a confirmed dismiss is still undoable
-   * with `deferred-release`; the confirm is what stops the accident.)
-   *
-   * `DialogConfirm.show` goes through `dialog.replace`, which UNMOUNTS the
-   * Inbox — so the Inbox is reopened after the answer either way, and the
-   * user lands back on the list they were working through instead of on the
-   * workspace.
-   */
-  async function confirmDismiss(item: AttentionInboxItem): Promise<void> {
-    if (item.state !== "prompt_deferred") {
-      notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError)
-      return
-    }
-    const confirmed = await DialogConfirm.show(
-      args.dialog,
-      t("workspace.inbox.dismissConfirmTitle"),
-      t("workspace.inbox.dismissConfirmBody"),
-      undefined,
-      t("workspace.inbox.dismissConfirmAction"),
-      { danger: true },
-    )
-    if (confirmed === true) {
-      notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError)
-    }
-    show()
-  }
-
   function show(): void {
     AttentionInboxDialog.show(args.dialog, {
       orchestrator: orch,
       selectedId: args.selectedId,
       onOpen: openItem,
       onOpenTask: openTask,
-      onDelete: (item) => void confirmDismiss(item),
+      onDelete: (item) => notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError),
     })
   }
 

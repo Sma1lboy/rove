@@ -406,8 +406,6 @@ export class RemoteOrchestrator {
     writes.dismissRoutineAttentionOp(this.client, automationId)
   markAttentionRead = (taskId: TaskId | string, tabId: string | null, at: number): Promise<boolean> =>
     writes.markAttentionReadOp(this.client, taskId, tabId, at)
-  releaseDeferredPrompt = (id: string) => writes.releaseDeferredPromptOp(this.client, id)
-  flushDeferredPrompts = () => writes.flushDeferredPromptsOp(this.client)
 
   /** Land a task's branch back into its base repo (`task.land`). Throws with a
    *  `LAND_CONFLICT` / `MAIN_CHECKOUT_DIRTY` sentinel in the message on the

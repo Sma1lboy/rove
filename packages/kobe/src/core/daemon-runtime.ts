@@ -18,7 +18,6 @@ import { GH_PR_VIEW_FIELDS, classifyGhFailure, mapGhPrView, nextPrPoll, samePrSt
 import { maybeAutoStart } from "../monitor/status-rules.ts"
 import { type Orchestrator, PLACEHOLDER_TASK_TITLE } from "../orchestrator/core.ts"
 import { SYNC_TIMEOUT_MS, syncWorktreeWithBase } from "../orchestrator/sync-base.ts"
-import { deliveryGuard } from "../state/delivery-guard.ts"
 import { getCustomEngineIds, getPersistedString, getSavedRepos, setPersistedString } from "../state/repos.ts"
 import { parsePorcelain } from "../tui/panes/sidebar/worktree-changes.ts"
 import { DEFAULT_TASK_VENDOR, isTaskStatus } from "../types/task.ts"
@@ -182,7 +181,6 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   deliverPromptToLiveEngine: deliverPromptToLiveEngineAdapter,
   deliverPromptToLiveEngineDetailed: deliverPromptToLiveEngineDetailedAdapter,
   deliverPromptToLiveEngineTabDetailed: deliverPromptToLiveEngineTabDetailedAdapter,
-  deliveryGuard,
   getPersistedString,
   setPersistedString,
   getSavedRepos: () => [...getSavedRepos()],

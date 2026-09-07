@@ -80,27 +80,14 @@ class CountingTasks extends Array<Task> {
 }
 
 let pushEdge: () => void = () => {}
-let pushDeferred: (at: number) => void = () => {}
 
 function AttentionScaleProbe(props: { tasks: CountingTasks; notif: NotificationsContext }) {
   const [engineState, setEngineState] = useState<ReadonlyMap<string, TaskEngineState>>(
     () => new Map([["task-1", { state: "idle", at: 1 }]]),
   )
-  const [inboxItems, setInboxItems] = useState<AttentionInboxItem[]>([])
+  const inboxItems: AttentionInboxItem[] = []
   useEffect(() => {
     pushEdge = () => setEngineState(new Map([["task-1", { state: "turn_complete", at: 2 }]]))
-    pushDeferred = (at: number) =>
-      setInboxItems((prev) => [
-        ...prev,
-        {
-          taskId: "task-2",
-          tabId: "tab-1",
-          state: "prompt_deferred",
-          unread: true,
-          at,
-          detail: { deferredPrompt: { id: "d1", layer: "composer-not-empty" } },
-        },
-      ])
   }, [])
   useAttention({
     tasks: props.tasks,
@@ -115,7 +102,7 @@ function AttentionScaleProbe(props: { tasks: CountingTasks; notif: Notifications
   return null
 }
 
-test("edge and deferred-episode toasts perform zero per-item tasks.find scans", async () => {
+test("edge toasts perform zero per-item tasks.find scans", async () => {
   const { notif, calls } = notifSpy()
   const tasks = new CountingTasks(task("task-1"), task("task-2"), task("task-3"))
   await renderComponent(<AttentionScaleProbe tasks={tasks} notif={notif} />, { width: 80, height: 24 })
@@ -123,13 +110,11 @@ test("edge and deferred-episode toasts perform zero per-item tasks.find scans", 
 
   await act(async () => {
     pushEdge() // rising edge: idle → turn_complete on task-1
-    pushDeferred(1000) // fresh prompt_deferred episode on task-2
   })
   await act(async () => {})
-  // Both notifiers fired (proves the loops actually ran)…
+  // The notifier fired (proves the loop actually ran)…
   expect(calls.some((c) => c.kind === "done" && c.taskId === "task-1")).toBe(true)
-  expect(calls.some((c) => c.kind === "needs_input" && c.taskId === "task-2")).toBe(true)
   // …without a single linear tasks scan. Reverting the Map hoist makes this
-  // count 2 (one find per loop body).
+  // count 1 (one find per loop body).
   expect(tasks.finds).toBe(0)
 })

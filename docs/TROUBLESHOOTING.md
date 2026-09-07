@@ -442,46 +442,6 @@ A bare `send` (no `--task-id`) targets the dispatcher's tab when run from a
 task another Rove session spawned, and otherwise the active task — it never
 silently spawns an engine on a guess.
 
-## `rove api send` reports `deferred` over a composer that is empty
-
-A `deferred` result is a success, not an error: the delivery gate found the
-target busy, so the daemon took ownership of the text and queued a
-`prompt_deferred` episode for you to release from the Inbox. Do not retry. The
-daemon keeps the first deferred prompt for each tab. A later send fails with
-`DEFERRED_PROMPT_PENDING` until you release or dismiss the existing Inbox item,
-or until it expires, so no accepted prompt is silently replaced.
-
-If the send instead fails with an unknown `deferredPrompt.fileIfVacant`
-request, the client found an older running daemon whose filing behavior is not
-safe for this retry. Restart Rove, then run the original send again.
-
-Two gates can defer, and the `layer` in the response says which:
-
-- **`recent-human-write`** — someone typed into that session within the last
-  10 seconds. Wait it out.
-- **`composer-not-empty`** — Rove rendered the session's screen and read text
-  in its composer.
-
-The second one reads the engine's CURRENT on-screen layout, so a vendor
-redesign can make it wrong: it holds every message while reporting a composer
-you can see is empty. If that happens, turn the check off in **Settings → Dev
-→ Check the composer before delivering**. Delivery then skips the screen read
-and immediately retries every queued prompt in its original order. A prompt
-that still cannot reach its exact live engine tab stays in the Inbox; an alive
-PTY whose engine exited into its fallback shell is never used. Later tabs are
-still attempted, so one dead or recently typed-in tab cannot strand the rest. The
-keystroke-recency guard remains active and can keep a prompt queued until the
-10-second quiet period passes. Explicitly closing that tab discards its queued
-prompt, clears the stale Inbox entry, and records the discard in the daemon log.
-
-Turning the check back on cancels the remaining flush after its current item;
-both setting transitions are persisted synchronously. If the attached daemon
-is too old to support queue flushing, Settings shows an error dialog. Restart
-Rove to load the matching daemon, then toggle the setting again.
-
-Leave it on otherwise. It is what stops an agent's message landing in the
-middle of a half-typed sentence.
-
 ## `rove api set-branch` fails, but the branch was renamed anyway
 
 The call exits non-zero with git's own complaint, stamped with the path of the

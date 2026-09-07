@@ -17,11 +17,6 @@ import type { ChannelName } from "./channels.ts"
 import { DEFAULT_CONTEXT_USAGE_TICK_MS, startContextUsageCollector } from "./context-usage-collector.ts"
 import type { DaemonOrchestrator, UpdateInfo } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
-import {
-  DEFAULT_DEFERRED_SWEEP_TICK_MS,
-  type DeferredSweepDeps,
-  startDeferredPromptSweep,
-} from "./deferred-prompt-sweep.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import {
   DEFAULT_KEYBINDINGS_DEBOUNCE_MS,
@@ -57,7 +52,6 @@ export interface DaemonCollectorOptions {
   readonly quotaResumeTickMs?: number
   readonly quotaUsageTickMs?: number
   readonly automationTickMs?: number
-  readonly deferredSweepTickMs?: number
 }
 
 /** What the automation sweep needs; omitted in tests that don't exercise it. */
@@ -66,9 +60,6 @@ export interface AutomationCollectorDeps {
   readonly link: DaemonRpcClient | (() => DaemonRpcClient)
   /** Plugin host getter (constructed after the collectors start, like `link`). */
   readonly plugins?: () => import("../plugins/runtime.ts").PluginHost | null
-  /** Where a standing session's blocked report goes instead of
-   *  being dropped. Optional so tests that don't exercise it keep working. */
-  readonly deferred?: import("./deferred-prompts-store.ts").DeferredPromptsStore
   readonly inbox?: import("./automation-runner.ts").RunnerInbox
 }
 
@@ -164,10 +155,6 @@ export function startDaemonCollectors(
    *  Optional so handler-level tests that build collectors without one keep
    *  working; the real server always passes it. */
   activity?: DaemonActivityRegistry,
-  /** Deferred-prompt expiry sweep. Separate from `automations` on purpose:
-   *  the TTL must be enforced on every daemon, including one with no
-   *  routines configured. */
-  deferredSweep?: DeferredSweepDeps,
 ): () => Promise<void> {
   // Activity observer: first tick immediately (restart seeding), then the
   // slow poll; gated per-tick on subscribers like every collector here. Its
@@ -283,19 +270,10 @@ export function startDaemonCollectors(
           runtime,
           link: automations.link,
           ...(automations.plugins ? { plugins: automations.plugins } : {}),
-          ...(automations.deferred ? { deferred: automations.deferred } : {}),
           ...(automations.inbox ? { inbox: automations.inbox } : {}),
         },
         options.automationTickMs ?? DEFAULT_AUTOMATION_TICK_MS,
       )
-    : () => {}
-
-  // Deferred-prompt TTL: ungated for the same reason as the two above —
-  // expiring a record nobody is watching is the point — and with an
-  // immediate first pass, so a restart clears what went stale while the
-  // daemon was down.
-  const stopDeferredPromptSweep = deferredSweep
-    ? startDeferredPromptSweep(deferredSweep, options.deferredSweepTickMs ?? DEFAULT_DEFERRED_SWEEP_TICK_MS)
     : () => {}
 
   // Usage poller (Settings dashboard + workspace footer): gated on
@@ -322,7 +300,6 @@ export function startDaemonCollectors(
         stopPrStatusPoller,
         stopQuotaResumeRunner,
         stopAutomationRunner,
-        stopDeferredPromptSweep,
         stopQuotaUsagePoller,
         stopUiPrefsWatcher,
         stopKeybindingsWatcher,

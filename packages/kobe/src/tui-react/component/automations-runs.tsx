@@ -25,10 +25,8 @@ import { formatRunStatus, formatWhen } from "./automations-format"
 const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
   dispatched: "success",
   // Delivered, so not grey: `revived` reached a respawned session (the status
-  // text carries the lost-context caveat), `deferred` reached the Inbox and is
-  // warning rather than success because it is parked until a human releases it.
+  // text carries the lost-context caveat).
   revived: "success",
-  deferred: "warning",
   skipped_precheck: "muted",
   skipped_cancelled: "muted",
   skipped_missed: "warning",
@@ -155,7 +153,7 @@ export function RunHistory(props: { runs: readonly AutomationRun[]; now: number 
         runs.slice(0, 5).map((run) => {
           return (
             <text key={run.id} fg={runToneColor(run.status, theme)}>
-              {`${triggerGlyph(run.trigger)} #${run.runNumber} ${formatRunStatus(run.status, t)}${run.tabId ? ` · ${run.tabId}` : ""}${run.deferredId ? ` · ${t("automations.queuedReceipt", { id: run.deferredId })}` : ""}${run.error ? ` \u2014 ${run.error}` : ""}  ${formatWhen(run.at, props.now)}`}
+              {`${triggerGlyph(run.trigger)} #${run.runNumber} ${formatRunStatus(run.status, t)}${run.tabId ? ` · ${run.tabId}` : ""}${run.error ? ` \u2014 ${run.error}` : ""}  ${formatWhen(run.at, props.now)}`}
             </text>
           )
         })

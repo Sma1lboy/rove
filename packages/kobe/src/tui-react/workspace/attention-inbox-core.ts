@@ -21,15 +21,7 @@ export function visitResolvedEpisodes(
   items: readonly AttentionInboxItem[],
   visit: { taskId: string; tabId: string | null },
 ): AttentionInboxItem[] {
-  return items.filter(
-    (item) =>
-      // Visiting a tab neither releases queued text nor acknowledges text
-      // that expired. Both require an explicit Inbox action.
-      item.state !== "prompt_deferred" &&
-      item.state !== "prompt_expired" &&
-      item.taskId === visit.taskId &&
-      (item.tabId === null || item.tabId === visit.tabId),
-  )
+  return items.filter((item) => item.taskId === visit.taskId && (item.tabId === null || item.tabId === visit.tabId))
 }
 
 /**

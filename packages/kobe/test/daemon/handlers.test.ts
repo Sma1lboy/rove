@@ -94,18 +94,6 @@ describe("daemon handler registry", () => {
       "note.file",
       "note.list",
       "note.delete",
-      "deferredPrompt.fileIfVacant",
-      "deferredPrompt.list",
-      "deferredPrompt.release",
-      "deferredPrompt.dismiss",
-      "deferredPrompt.discardTab",
-      "deferredPrompt.flush",
-      // Tombstones: named so the registry refuses them explicitly instead of
-      // answering the generic `unknown daemon request`, whose recovery
-      // ("restart the daemon") is the wrong half for an older CLIENT.
-      "deferredPrompt.file",
-      "deferredPrompt.get",
-      "deferredPrompt.resolve",
     ]
     const registry = createDaemonHandlerRegistry()
     for (const name of rpcNames) expect(registry.get(name), name).toBeDefined()
@@ -287,25 +275,6 @@ describe("daemon handler registry", () => {
         withOutcome(ctx, { outcome: "delivered", tabId: "tab-2" }),
       )
       expect(result).toEqual({ ok: true, delivered: true, tabId: "tab-2", clients: 1 })
-      expect(rec.published).toHaveLength(0)
-    })
-
-    it("refuses a busy composer instead of writing over someone mid-message", async () => {
-      const { ctx, rec } = fakeCtx({ getTask: () => TASK })
-      const result = await dispatch(
-        "session.deliver",
-        { taskId: "t1", text: "hi", tabId: "tab-2" },
-        withOutcome(ctx, { outcome: "busy", tabId: "tab-2", layer: "composer-not-empty" }),
-      )
-      expect(result).toEqual({
-        ok: true,
-        delivered: false,
-        reason: "busy",
-        layer: "composer-not-empty",
-        tabId: "tab-2",
-        clients: 1,
-      })
-      // Broadcasting here would hand a browser the same clobber we refused.
       expect(rec.published).toHaveLength(0)
     })
 

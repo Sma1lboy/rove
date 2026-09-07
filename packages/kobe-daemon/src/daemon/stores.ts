@@ -15,7 +15,6 @@ import { initAutomationsStore } from "./automation-wiring.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
-import { DeferredPromptsStore, defaultDeferredPromptsPath } from "./deferred-prompts-store.ts"
 import { EngineEventLog } from "./engine-events-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import { IssuesStore, defaultIssuesStorePath } from "./issues-store.ts"
@@ -33,7 +32,6 @@ export interface DaemonStores {
   readonly deletions: TaskDeletionRunner
   readonly issues: IssuesStore
   readonly notes: NotesStore
-  readonly deferredPrompts: DeferredPromptsStore
   readonly automations: AutomationsStore
   readonly workItems: WorkItemCache
   readonly quotaUsage: QuotaUsageCache
@@ -63,14 +61,10 @@ export async function initDaemonStores(
   // other daemon-owned stores so a sandbox home never writes to the real one.
   const agentTurns = new AgentTurnsStore(defaultAgentTurnsPath(homeDir))
   await agentTurns.init().catch((err) => logDaemonError("agent-turns-init", err))
-  // Deferred prompts — the delivery gate hands blocked
-  // prompts to daemon ownership; same homeDir isolation as the other stores.
-  const deferredPrompts = new DeferredPromptsStore(defaultDeferredPromptsPath(homeDir))
   const clearTaskState = (taskId: string) =>
     inbox
       .deleteTaskBestEffort(taskId)
       .finally(() => agentTurns.deleteTask(taskId).catch((err) => logDaemonError("agent-turns-delete", err)))
-      .finally(() => deferredPrompts.deleteTask(taskId).catch((err) => logDaemonError("deferred-prompts-delete", err)))
       .finally(() => activity.clearTask(taskId))
   const deletions = new TaskDeletionRunner(orch, runtime, clearTaskState)
   // Daemon-owned issue tracker (web Issues panel) — a single store keyed by
@@ -99,7 +93,6 @@ export async function initDaemonStores(
     deletions,
     issues,
     notes,
-    deferredPrompts,
     automations,
     workItems,
     quotaUsage,

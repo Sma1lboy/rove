@@ -264,68 +264,11 @@ export interface DeliveredPrompt {
    * started yet and the prompt is still riding its unexecuted launch argv.
    */
   readonly reason?: string
-  /**
-   * Present when the delivery gate found the composer busy and the prompt was
-   * accepted-but-deferred rather than dropped: the daemon
-   * stored the text and queued a `prompt_deferred` inbox episode. This is a
-   * SUCCESS outcome for the caller — the daemon now owns the message and will
-   * hold it for a human to release from the Inbox. Callers MUST NOT retry a
-   * deferred send: the tab's deferred slot stays occupied until release or
-   * expiry, and a later send fails with `DEFERRED_PROMPT_PENDING`. Absent on
-   * direct delivery and on genuine failure.
-   *
-   * `expiresAt` is when the daemon's sweep drops the text (ISO 8601). Held
-   * text is not delivered text: a caller with no human to open the Inbox
-   * releases it itself with `deferred-release --id`, or drops it with
-   * `deferred-dismiss --id`. Absent when an older daemon did not report it.
-   */
-  readonly deferred?: {
-    readonly id: string
-    readonly layer: "recent-human-write" | "composer-not-empty"
-    readonly expiresAt?: string
-    /**
-     * The text already sitting in the target composer, truncated to 200
-     * chars — WHY this deferred. Without it a dispatcher knows only that
-     * something is in the way and has to `read-output` the pane to find
-     * out what; with it, "the worker is mid-sentence" and "somebody left a
-     * stray keystroke in there" are one field apart.
-     *
-     * Response-only, deliberately: the text is somebody's half-written
-     * message, so it never reaches daemon.log or the Inbox episode. Absent
-     * for the `recent-human-write` layer (which measures time, not the
-     * screen) and whenever the screen read could not name the text.
-     */
-    readonly composerPreview?: string
-  }
-}
-
-/** What the delivery layer calls to hand a blocked prompt to daemon ownership. */
-export interface PromptDeferralSink {
-  /**
-   * Try to store the blocked prompt. Implementations perform the
-   * `deferredPrompt.file` daemon RPC; tests inject a fake.
-   */
-  defer(info: {
-    readonly taskId: string
-    readonly tabId: string
-    readonly prompt: string
-    readonly layer: "recent-human-write" | "composer-not-empty"
-  }): Promise<{
-    readonly kind: "filed" | "occupied"
-    readonly id: string
-    /** When the daemon's TTL sweep drops the text (ISO 8601); older daemons omit it. */
-    readonly expiresAt?: string
-  }>
 }
 
 /** Hosted prompt delivery seam, injectable for handler/unit tests. */
 export interface PromptDeliveryOps {
-  deliverHosted(
-    target: PromptTarget,
-    worktree: string,
-    prompt: string,
-    defer?: PromptDeferralSink,
-  ): Promise<DeliveredPrompt>
+  deliverHosted(target: PromptTarget, worktree: string, prompt: string): Promise<DeliveredPrompt>
 }
 
 /**

@@ -39,7 +39,6 @@ import { useAccessor } from "../../lib/use-accessor"
 import { useCursorFollow } from "../../lib/use-cursor-follow"
 import { type DialogContext, useDialog, useDialogPaddingX } from "../../ui/dialog"
 import { confirmResetState, confirmRestartDaemon, hasRestartableDaemon } from "./actions"
-import { flushDeferredPromptsWithFeedback } from "./deferred-flush-feedback"
 import { EngineSettingsSection } from "./sections-engines"
 import { GeneralSettingsSection, SettingsSectionSidebar } from "./sections-general"
 import { DevSettingsSection, FeedbackSettingsSection, KeybindingsSettingsSection } from "./sections-misc"
@@ -75,9 +74,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const themeNames = useMemo<readonly string[]>(() => themeCtx.all().slice().sort(), [themeCtx])
   const hasDaemon = hasRestartableDaemon(props.orchestrator)
   const remote = props.orchestrator instanceof RemoteOrchestrator ? props.orchestrator : null
-  const prefs = useSettingsPrefs(props.kv, dialog, () => {
-    if (remote) void flushDeferredPromptsWithFeedback(remote, dialog)
-  })
+  const prefs = useSettingsPrefs(props.kv, dialog)
   const engines = useEngineSettings(props.kv, dialog, (max) => setBodyRow((r) => Math.max(0, Math.min(r, max))))
   // A local orchestrator has no daemon quota channel and uses the empty cell.
   const usage = useAccessor(remote ? remote.usageSnapshotSignal() : EMPTY_USAGE_SIGNAL)
@@ -245,7 +242,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
     devRemoteProjects: () => prefs.toggleRemoteProjects(),
     devAutoStatus: () => prefs.toggleAutoStatus(),
     devDispatcher: () => prefs.toggleDispatcher(),
-    devDeliveryGuard: () => prefs.cycleDeliveryGuard(),
   }
 
   function activateBodyRow(): void {

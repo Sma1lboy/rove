@@ -169,15 +169,9 @@ export interface DaemonRuntimeAdapter {
     prompt: string,
   ): Promise<boolean>
   /**
-   * {@link deliverPromptToLiveEngine} with the composer-busy outcome as DATA
-   * rather than a thrown `ComposerBusyError` — the error class lives in the
-   * `rove` package, which depends on this one, so the daemon cannot catch it
-   * by type. A caller that must not drop the prompt (a routine's daily
-   * report) reads `busy` and files a deferral; quota-resume keeps using the
-   * boolean form, where dropping is the right answer.
-   *
-   * `tabId` names which tab the live engine was found on, so the deferral and
-   * its Inbox episode point at the tab a human will actually open.
+   * {@link deliverPromptToLiveEngine} reporting WHICH tab it reached and WHY
+   * it could not, as data. Quota-resume keeps using the boolean form, where
+   * "it didn't land" is the whole answer.
    *
    * `no-engine` is a session that is alive with no engine IN it — keepAlive
    * left a login shell where the engine exited. It is separate from
@@ -196,15 +190,10 @@ export interface DaemonRuntimeAdapter {
     | { readonly outcome: "delivered"; readonly tabId: string }
     | { readonly outcome: "no-session" }
     | { readonly outcome: "no-engine"; readonly tabId: string }
-    | {
-        readonly outcome: "busy"
-        readonly tabId: string
-        readonly layer: "recent-human-write" | "composer-not-empty"
-      }
   >
   /**
-   * Deliver to one exact live tab. Used when draining daemon-owned deferred
-   * prompts: rerouting a queued tab-2 message into tab-1 would be data loss.
+   * Deliver to one exact live tab. Used by a routine bound to an exact tab:
+   * rerouting its message into tab-1 would be delivery to the wrong engine.
    */
   deliverPromptToLiveEngineTabDetailed(
     target: {
@@ -219,20 +208,7 @@ export interface DaemonRuntimeAdapter {
     | { readonly outcome: "delivered"; readonly tabId: string }
     | { readonly outcome: "no-session" }
     | { readonly outcome: "no-engine"; readonly tabId: string }
-    | {
-        readonly outcome: "busy"
-        readonly tabId: string
-        readonly layer: "recent-human-write" | "composer-not-empty"
-      }
   >
-  /**
-   * Fresh persisted delivery-guard state, checked between deferred-queue
-   * deliveries. `on` runs both checks (keystroke window + composer screen
-   * read), `screen-off` drops the screen read, `off` drops both. The literal
-   * union is duplicated from `rove`'s `state/delivery-guard.ts` because this
-   * package cannot depend on that one.
-   */
-  deliveryGuard(): "on" | "screen-off" | "off"
   getPersistedString(key: string): string | undefined
   setPersistedString(key: string, value: string): void
   getSavedRepos(): readonly string[]

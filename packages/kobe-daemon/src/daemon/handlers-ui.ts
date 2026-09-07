@@ -46,11 +46,10 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       }
       const task = ctx.orch.getTask(taskId)
       if (!task) throw new Error(`task not found: ${taskId}`)
-      // Delivery is engine-owned: both adapters respect each engine's composer
-      // gate, and NEITHER spawns — they paste into an already-live hosted
-      // session or report `no-session`. `dispatch`'s own contract ("requires
-      // an already-hosted session") is exactly that, so a miss here is honest
-      // rather than a reason to start something.
+      // Delivery is engine-owned, and NEITHER adapter spawns — they paste into
+      // an already-live hosted session or report `no-session`. `dispatch`'s own
+      // contract ("requires an already-hosted session") is exactly that, so a
+      // miss here is honest rather than a reason to start something.
       const outcome = task.worktreePath
         ? await (tabId === undefined
             ? ctx.runtime.deliverPromptToLiveEngineDetailed(
@@ -67,8 +66,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       // browser-hosted session is invisible to the PTY host (the SPA mints its
       // own tab ids), so the channel is still the only way to reach one — but
       // publishing after a successful paste would make a listening browser
-      // paste the same text a second time, and publishing over `busy` would
-      // clobber a composer somebody is typing in right now.
+      // paste the same text a second time.
       const broadcast = outcome.outcome === "no-session"
       if (broadcast) {
         ctx.bus.publish("session.deliver", {
@@ -90,8 +88,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         },
       })
       // `delivered` is OBSERVED, not claimed: true only when a paste actually
-      // landed in a live engine session. `false` with `reason: "busy"` means a
-      // human is mid-message and the text was deliberately not written;
+      // landed in a live engine session. `false` with
       // `reason: "no-engine"` means the tab is alive but its engine died into
       // a login shell, which would EXECUTE the text rather than read it; false
       // with `reason: "broadcast"` means no hosted session answered and the
@@ -100,16 +97,6 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       // reach signal there, and 0 proves the text reached nobody.
       if (outcome.outcome === "delivered") {
         return { ok: true, delivered: true, tabId: outcome.tabId, clients: ctx.daemon.clientCount() }
-      }
-      if (outcome.outcome === "busy") {
-        return {
-          ok: true,
-          delivered: false,
-          reason: "busy",
-          layer: outcome.layer,
-          tabId: outcome.tabId,
-          clients: ctx.daemon.clientCount(),
-        }
       }
       // The tab is alive with no engine in it: keepAlive `exec`ed a login
       // shell where the engine exited, so the text would not be READ, it
@@ -139,12 +126,6 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       const detail = payload.detail
       const eventDetail =
         detail && typeof detail === "object" && !Array.isArray(detail) ? (detail as Record<string, unknown>) : undefined
-      if (kind === "tab.closed" && taskId && typeof eventDetail?.tabId === "string" && ctx.deferredPrompts) {
-        const dropped = await ctx.deferredPrompts.discardTab(taskId, eventDetail.tabId, "tab closed")
-        for (const record of dropped) {
-          await ctx.inbox.deleteEpisode(taskId, eventDetail.tabId, undefined, "prompt_deferred", record.id)
-        }
-      }
       ctx.plugins?.handleUiReport({
         kind: kind as import("../plugins/manifest.ts").PluginEventName,
         ...(taskId ? { taskId } : {}),

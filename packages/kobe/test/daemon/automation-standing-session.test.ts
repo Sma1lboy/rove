@@ -13,10 +13,6 @@
  * (4) is the one worth the most: a stored task id whose task is gone would
  * otherwise wedge the routine permanently, and a wedged schedule looks exactly
  * like a schedule that is merely quiet.
- *
- * The composer-busy case is here for the same reason: dropping a routine's
- * daily report and never running at all are indistinguishable to the user, so
- * the prompt must end up owned by the deferred store, not on the floor.
  */
 
 import { mkdtempSync } from "node:fs"
@@ -28,7 +24,6 @@ import { type DispatchDeps, dispatchAutomation } from "../../../kobe-daemon/src/
 import { runAutomationOnce } from "../../../kobe-daemon/src/daemon/automation-runner.ts"
 import { AutomationsStore } from "../../../kobe-daemon/src/daemon/automations-store.ts"
 import type { Automation, DaemonTask } from "../../../kobe-daemon/src/daemon/contracts.ts"
-import { DeferredPromptsStore } from "../../../kobe-daemon/src/daemon/deferred-prompts-store.ts"
 
 const NOW = new Date(2026, 6, 31, 10, 0, 0).getTime()
 const REPO = process.cwd()
@@ -192,86 +187,6 @@ describe("standing session — later firings", () => {
       expect(created).toHaveLength(1)
       expect(outcome.sessionTaskIdToSet).toBe("task-1")
     }
-  })
-})
-
-describe("standing session — busy composer", () => {
-  it("hands the report to the deferred store instead of dropping it", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "kobe-routine-defer-"))
-    const deferred = new DeferredPromptsStore(join(dir, "deferred.json"), () => NOW)
-    const episodes: Array<{ taskId: string; tabId: string; layer: string }> = []
-    const { deps } = harness({
-      tasks: { "task-1": task() },
-      deliver: async () => ({ outcome: "busy" as const, tabId: "tab-2", layer: "composer-not-empty" as const }),
-    })
-
-    const outcome = await dispatchAutomation(
-      {
-        ...deps,
-        deferred,
-        inbox: {
-          recordPromptDeferred: async (taskId, tabId, _id, layer) => {
-            episodes.push({ taskId, tabId, layer })
-          },
-        },
-      },
-      automation({ sessionTaskId: "task-1" }),
-    )
-
-    // A SUCCESS: the daemon owns the text now. Reporting this as a failure
-    // would send a human hunting for a broken routine that is working.
-    expect(outcome).toMatchObject({ status: "deferred", taskId: "task-1" })
-    const stored = await deferred.listForTask("task-1")
-    expect(stored).toHaveLength(1)
-    expect(stored[0]).toMatchObject({ prompt: "what changed since yesterday?", tabId: "tab-2" })
-    // The episode points at the tab the engine was actually found on, so
-    // releasing it lands on the session that holds the conversation.
-    expect(episodes).toEqual([{ taskId: "task-1", tabId: "tab-2", layer: "composer-not-empty" }])
-  })
-
-  it("reports a failure rather than losing the report when no store is wired", async () => {
-    const { deps } = harness({
-      tasks: { "task-1": task() },
-      deliver: async () => ({ outcome: "busy" as const, tabId: "tab-1", layer: "recent-human-write" as const }),
-    })
-
-    const outcome = await dispatchAutomation(deps, automation({ sessionTaskId: "task-1" }))
-
-    expect(outcome.status).toBe("dispatch_failed")
-    expect(outcome.error).toContain("composer busy")
-  })
-
-  it("reports a failure instead of replacing an earlier deferred report", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "kobe-routine-defer-full-"))
-    const deferred = new DeferredPromptsStore(join(dir, "deferred.json"), () => NOW)
-    const first = await deferred.file({
-      taskId: "task-1",
-      tabId: "tab-1",
-      prompt: "first report",
-      layer: "composer-not-empty",
-      at: NOW - 1,
-    })
-    const { deps } = harness({
-      tasks: { "task-1": task() },
-      deliver: async () => ({ outcome: "busy" as const, tabId: "tab-1", layer: "composer-not-empty" as const }),
-    })
-    const episodes: string[] = []
-
-    const outcome = await dispatchAutomation(
-      {
-        ...deps,
-        deferred,
-        inbox: { recordPromptDeferred: async (_taskId, _tabId, id) => void episodes.push(id) },
-      },
-      automation({ sessionTaskId: "task-1" }),
-    )
-
-    expect(outcome).toMatchObject({ status: "dispatch_failed", taskId: "task-1" })
-    expect(outcome.error).toContain(first.id)
-    expect(await deferred.get(first.id)).toEqual(first)
-    // If the first filing died after the record rename, this retry repairs
-    // the missing Inbox pointer while still rejecting the newer report.
-    expect(episodes).toEqual([first.id])
   })
 })
 

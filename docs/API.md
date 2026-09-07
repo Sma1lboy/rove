@@ -151,15 +151,12 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `CURSOR_INVALID` | A `--cursor` value this build cannot decode. |
 | `CURSOR_TASK_MISMATCH` | The cursor belongs to a different task. |
 | `SOURCE_CHANGED` | The cursor's source/session/tab moved under it. |
-| `COMPOSER_BUSY` | The target composer held un-sent text; nothing was pasted. |
 | `TAB_RESTORED` | The `--tab` exists with its scrollback but nothing runs in it; pass `--respawn`. |
 | `ENGINE_NOT_RUNNING` | The tab's engine exited into a plain shell, so a paste would run as shell commands. |
 | `ENGINE_PROBE_FAILED` | The `ps` probe behind that check failed or blew its deadline, so the tab's engine was never read. |
 | `DISPATCHER_UNREACHABLE` | A bare `send` whose dispatcher tab is dead and whose task has no live engine. |
 | `NOT_DELIVERED` | The task was created but the prompt never reached its engine. |
 | `EMPTY_SUCCESS_REPORT` | A `succeeded:` report from a branch with 0 commits; commit, or pass `--allow-empty`. |
-| `DEFERRED_PROMPT_PENDING` | The tab already holds a deferred prompt; release or dismiss it first. |
-| `DEFERRED_PROMPT_NOT_FOUND` | A `deferred-release` / `deferred-dismiss` id the daemon no longer holds. |
 | `SESSION_FAILED` | A hosted engine session could not be started or written to. |
 | `BAD_EFFORT` | The task's engine declares no effort levels, or not that one. |
 | `PARTIAL_FANOUT` | A parallel round with at least one failure (exit 3). |
@@ -556,31 +553,12 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   task with no live session at all auto-starts its canonical engine tab, in
   the task's worktree. `started: true` in the result marks that fresh
   session (vs. delivery into an existing one).
-  If a busy composer defers the prompt, the result has `delivered: false` and
-  a `deferred` record — its `id`, the `layer` that blocked it,
-  `expiresAt` (the moment the daemon's sweep drops the text), and
-  `composerPreview`: the text already sitting in that composer, truncated to
-  200 characters. That last field is what turns "composer busy" into
-  something you can act on — before it, a dispatcher knew only that
-  SOMETHING was in the way and had to `read-output` the pane to find out
-  what, and "the worker is mid-sentence" and "somebody left a stray
-  keystroke in there" call for opposite responses. `COMPOSER_BUSY` errors
-  carry the same field. It is present only for the `composer-not-empty`
-  layer (`recent-human-write` measures time and never looks at the screen)
-  and only when the screen read could name the text.
 
-  **The preview travels in the RESPONSE only.** It is somebody's half-written
-  message, so it is never written to `daemon.log`, never stored with the
-  deferral, and never rendered in the Inbox episode. **Deferred is
-  not delivered.** The daemon keeps one deferred prompt per tab, and a later
-  send to that tab fails with `DEFERRED_PROMPT_PENDING` until that record is
-  released, dismissed, or expires; it never replaces text the daemon already
-  accepted. With a human attached, the Inbox is where the prompt gets
-  released. With nobody attached, `deferred-release` is — see the three
-  verbs below; a record nobody acts on is swept 24h after it was filed and
-  never delivered. During an upgrade, a new client fails the send if the
-  running daemon cannot provide first-writer-wins filing. Restart Rove to use
-  the new daemon, then retry the original command.
+  **The prompt is pasted and submitted, unconditionally.** Rove does not read
+  the target composer or wait out a quiet keyboard first: a `send` that
+  reaches a live engine tab is written to it. The only refusals left are
+  physical — no such tab, a dead PTY, no engine process in it — and each has
+  its own error code in the table above.
 
   A prompt opening with `succeeded:` is checked against the SENDER's own
   branch before any delivery: sent from a verified managed task whose branch
@@ -656,36 +634,11 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   result's `delivered` is the verdict:
   - `true` — the daemon pasted the text into a live engine session, and
     `tabId` names which tab took it.
-  - `false` with `reason: "busy"` — a human is mid-message in that composer,
-    so nothing was written (`layer` says which gate held it back). Retry when
-    the composer is clear, or use `send`, which files a deferral instead.
   - `false` with `reason: "broadcast"` — no hosted session answered, so the
     text went out on the `session.deliver` channel for a browser-hosted
     session to pick up. Nothing can confirm that paste; `clients` is a raw
     connection count (the calling CLI is one of them) and only its `0` proves
     anything — the text reached nobody.
-- `deferred-list [--task-id ID] [--include-dismissed]`: every prompt the daemon
-  is holding because the target composer was busy when it arrived — the Inbox,
-  read by a caller with no screen. Each record carries its `id`, `taskId`,
-  `tabId`, the verbatim `prompt`, the `layer` that blocked it, `at`,
-  `expiresAt`, and `senderLabel` when the prompt named a sender (lifted from
-  its `[ROVE PEER]` provenance header). Returns `{ records }`; `--task-id`
-  filters to one task. `--include-dismissed` also lists records someone
-  dismissed from the Inbox: they are off the queue, but their text is kept
-  until the same 24h deadline and each carries a `dismissedAt`.
-- `deferred-release --id ID`: deliver one held prompt now (the Inbox's
-  release action). It re-runs the delivery gate rather than bypassing it, so
-  a composer that is STILL busy leaves the record held and returns
-  `delivered: false` with the blocking `reason` — retry later. Returns
-  `{ id, delivered, reason? }`; an id the daemon no longer holds is
-  `DEFERRED_PROMPT_NOT_FOUND`.
-- `deferred-dismiss --id ID`: take one held prompt off the queue WITHOUT
-  delivering it, freeing its tab's deferred slot — dismiss a message that is
-  no longer wanted, then send the replacement. The TEXT is not destroyed: the
-  record is kept until its ordinary 24h expiry, so
-  `deferred-list --include-dismissed` still shows it and `deferred-release`
-  still delivers it. That is how a dismiss made by mistake is undone; the
-  sweep is what finally destroys the text. Returns `{ dismissed }`.
 - `note --task-id ID --text TEXT`: file a one-line field note (a resolved,
   repo-level gotcha). Appended to the repo's durable note store, so every
   future worktree session on this repo starts with it in its system prompt;
@@ -864,8 +817,8 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 - `routine-set-enabled --id ID --enabled BOOL`: pause / resume.
 - `routine-run-now --id ID`: run immediately, skipping the precheck. Does
   not shift the schedule.
-- `routine-runs --id ID`: run history, newest first. `revived` and `deferred`
-  describe revival and queue acceptance; `skipped_cancelled` means disabled, changed or stopped before delivery. Bound deliveries include `taskId`/`tabId`; queue acceptance also includes `deferredId`. An unknown id is an error
+- `routine-runs --id ID`: run history, newest first. `revived` describes a
+  respawned standing session; `skipped_cancelled` means disabled, changed or stopped before delivery. Bound deliveries include `taskId`/`tabId`. An unknown id is an error
   (`automation not found`), not an empty history.
 - `routine-delete --id ID`: delete it and its history (tasks it already
   created are untouched). Idempotent: deleting an id that is already gone
@@ -875,18 +828,16 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 into it, so a daily check can build on yesterday. Its task is folded behind the
 sidebar's `N routine sessions` count row (still findable by search, still
 Inbox-reachable). Leave it off for a routine that edits code: a week of runs on
-one branch is a branch nobody can land. Two extra run statuses come with it —
+one branch is a branch nobody can land. One extra run status comes with it —
 `revived` (the engine had exited, so it was respawned in the same worktree; the
-files carried over, the conversation did not) and `deferred` (the composer was
-busy, so the prompt was accepted into the Inbox and has not been delivered).
+files carried over, the conversation did not).
 
 **Existing target:** the daemon payload is `target: {kind: "existing-tab", taskId, tabId}`.
 The repo must match the task repo; `vendor`, `baseRef` and `persistentSession`
 are incompatible with this mode. Updates validate the merged record; clear old
 launch settings with `--vendor '' --base-branch '' --persistent-session false`
 when binding. Missing/deleting tasks, missing tabs and exited engines fail without
-fallback. Disabling stops future scheduling, including a run still in precheck;
-already queued Inbox prompts retain their own release/expiry lifecycle. Claims
+fallback. Disabling stops future scheduling, including a run still in precheck. Claims
 survive restarts without replay, but a crash after claim and before delivery can
 lose an occurrence. See [existing conversation delivery](ROUTINES.md#deliver-into-an-existing-conversation).
 
