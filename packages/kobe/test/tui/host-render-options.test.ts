@@ -46,13 +46,14 @@ describe("hostRenderOptions", () => {
 })
 
 describe("createHostImeOutput", () => {
-  it("uses a local custom-output feed only for fullscreen macOS hosts", () => {
+  it("uses a local custom-output feed for fullscreen macOS and Windows hosts", () => {
     const stdout = fakeTty()
-    const mac = createHostImeOutput({ platform: "darwin", fullscreen: true, stdout })
-
-    expect(mac.rendererOptions.remote).toBe(false)
-    expect(mac.rendererOptions.stdout).not.toBe(stdout)
-    expect(mac.active).toBe(true)
+    for (const platform of ["darwin", "win32"] as const) {
+      const host = createHostImeOutput({ platform, fullscreen: true, stdout })
+      expect(host.rendererOptions.remote).toBe(false)
+      expect(host.rendererOptions.stdout).not.toBe(stdout)
+      expect(host.active).toBe(true)
+    }
   })
 
   it("leaves Linux and inline command hosts on the direct stdout path", () => {
@@ -60,6 +61,7 @@ describe("createHostImeOutput", () => {
 
     expect(createHostImeOutput({ platform: "linux", fullscreen: true, stdout }).rendererOptions).toEqual({})
     expect(createHostImeOutput({ platform: "darwin", fullscreen: false, stdout }).rendererOptions).toEqual({})
+    expect(createHostImeOutput({ platform: "win32", fullscreen: false, stdout }).rendererOptions).toEqual({})
   })
 })
 
