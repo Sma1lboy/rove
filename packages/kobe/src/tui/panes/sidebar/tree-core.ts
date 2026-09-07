@@ -20,19 +20,29 @@
  */
 
 import { homedir } from "node:os"
+import type { TaskActivityState } from "@/engine/hook-events"
 import type { Task } from "@/types/task"
 import { truncateStart } from "../../lib/truncate"
 import { fuzzyMatch } from "./fuzzy"
 import { compareRecent, repoBasename, sidebarProjectKey, sidebarProjectLabel } from "./groups"
+import { compareAttention } from "./row-view"
 
 // Search lives in its own module — this file decides what rows EXIST, that one
 // decides which survive a query — but stays part of tree-core's public surface,
 // so every caller imports the tree's vocabulary from one place.
 export { filterTreeRows } from "./tree-search"
-
-/** Separator between a task id and a tab id in a tab row's id. Matches the
- *  PTY registry's key format so one parse rule covers both. */
-const TAB_ROW_SEPARATOR = "::"
+// Row naming/addressing lives next door (`tree-row-naming.ts`) — re-exported
+// so every caller still takes the tree's whole vocabulary from this module.
+export {
+  RECENT_ROW_ID,
+  SCRATCH_SECTION_ID,
+  parseRowId,
+  projectKeyOfRoutinesRow,
+  rowLiveBranchPath,
+  tabRowId,
+  worktreeRowLabel,
+} from "./tree-row-naming"
+import { RECENT_ROW_ID, SCRATCH_SECTION_ID, routinesRowId, tabRowId } from "./tree-row-naming"
 
 /** A worktree row's tab, as the sidebar needs it (the tab module owns the
  *  real shape; this is the projection the tree renders). */
@@ -81,42 +91,6 @@ export type TreeRow =
       readonly depth: 1
     }
 
-/**
- * Navigation id of the narrow-mode "↩ recent" jump row.
- * Not a ULID and free of {@link TAB_ROW_SEPARATOR}, so `parseRowId` on it
- * yields a task id no task can have — cursor chords that don't special-case
- * it fall through to a lookup miss instead of acting on a real task.
- */
-export const RECENT_ROW_ID = "~recent"
-
-/**
- * Header id of the Scratch section. Like {@link RECENT_ROW_ID},
- * not a repo path and free of the separator, so project-header consumers
- * (move mode, context menu, `mainTaskIdOfProject`) that look it up simply
- * miss — a Scratch header has no main task to move and no repo to file into.
- */
-export const SCRATCH_SECTION_ID = "~scratch"
-
-/**
- * Navigation id of a project's routine count row. Prefixed like
- * the other sentinels so it can never collide with a ULID, and carrying the
- * project key so two projects' rows stay distinct.
- *
- * This row is the ONE fold in a tree that otherwise has none (see
- * `tree-panel.tsx`). It is scoped deliberately: it
- * folds only tasks a SCHEDULE created, never a task a human opened, so the
- * "everything under a project is always visible" promise still holds for
- * everything the user made themselves.
- */
-function routinesRowId(projectKey: string): string {
-  return `~routines:${projectKey}`
-}
-
-/** The project key a routines row id names, or null for any other id. */
-export function projectKeyOfRoutinesRow(id: string): string | null {
-  return id.startsWith("~routines:") ? id.slice("~routines:".length) : null
-}
-
 /** True for a task the sidebar folds behind a routine count row. */
 function isRoutineTask(task: Task): boolean {
   return task.routine !== undefined
@@ -132,79 +106,6 @@ export function withRecentRow(rows: readonly TreeRow[], recent: Task | null): Tr
   return [{ kind: "recent", id: RECENT_ROW_ID, task: recent, depth: 1 }, ...rows]
 }
 
-/** Compose a tab row's navigation id. */
-export function tabRowId(taskId: string, tabId: string): string {
-  return `${taskId}${TAB_ROW_SEPARATOR}${tabId}`
-}
-
-/**
- * Split a row id back into its parts. A task row id has no separator and
- * yields `tabId: null` — callers switch on that rather than string-matching
- * the separator themselves.
- *
- * Task ids are ULIDs and tab ids are `tab-N`, so neither contains the
- * separator; splitting on the FIRST occurrence is unambiguous either way.
- */
-export function parseRowId(rowId: string): { taskId: string; tabId: string | null } {
-  const at = rowId.indexOf(TAB_ROW_SEPARATOR)
-  if (at < 0) return { taskId: rowId, tabId: null }
-  return { taskId: rowId.slice(0, at), tabId: rowId.slice(at + TAB_ROW_SEPARATOR.length) }
-}
-
-/** Widest path label a worktree row renders before tail-truncation — the
- *  default rail width minus row chrome. The row's flex still end-clips on
- *  narrower rails; pre-truncating from the START keeps the leaf visible at
- *  the default width, which is the half that disambiguates a path. */
-const PATH_LABEL_MAX = 24
-
-/**
- * What a worktree row is CALLED — the one derivation rule:
- * a task with a branch is named by it; a branchless `dir` task (plain
- * `rove .` opens and scratch shells alike) by its tail-truncated
- * directory — the stored title is deliberately ignored there, because
- * dir-task titles are auto-generated noise (`jacksonc-xxxx`) and existing
- * rows render by this rule with no data migration. A regular task
- * before its worktree materialises (no branch yet, path not its own)
- * keeps its title, else the label falls back to the path and finally
- * "scratch" so a row is never blank.
- *
- * `liveBranch` is the caller-resolved HEAD for the rows that own no branch of
- * their own (see {@link rowLiveBranchPath} and `git-head.ts`); `home` is
- * injectable so the tildification unit-tests without the real $HOME.
- */
-/**
- * The checkout whose LIVE HEAD names this row, or `""` when the row already
- * carries its own branch.
- *
- * Rove-created worktrees store `branch`, so their label is fixed. Two kinds
- * store none and move freely: `main` (its checkout is the user's to switch)
- * and `dir` — an arbitrary directory the user opened, which is what a scratch
- * shell becomes. A scratch shell opened inside a repo IS on a branch, so
- * labelling it with its path while every worktree row beside it showed a
- * branch made it read as a different species of row. Not-a-repo still falls
- * back to the path: the poller answers `""` for anything it can't resolve.
- */
-export function rowLiveBranchPath(task: Task): string {
-  if (task.kind !== "main" && task.kind !== "dir") return ""
-  return task.worktreePath || task.repo || ""
-}
-
-export function worktreeRowLabel(
-  task: Task,
-  opts: { readonly liveBranch?: string; readonly home?: string } = {},
-): string {
-  const branch = (opts.liveBranch ?? task.branch) || task.branch
-  if (branch) return branch
-  if (task.kind !== "dir" && task.title) return task.title
-  const path = task.worktreePath || task.repo
-  if (path) {
-    const home = opts.home ?? homedir()
-    const tildified = home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path
-    return truncateStart(tildified, PATH_LABEL_MAX)
-  }
-  return task.title || "scratch"
-}
-
 export interface TreeInput {
   readonly tasks: readonly Task[]
   /** Tabs per task id. A task absent from the map contributes no tab rows —
@@ -212,6 +113,13 @@ export interface TreeInput {
   readonly tabsByTask: ReadonlyMap<string, readonly TreeTab[]>
   /** Task sort applied within each project group. Defaults to input order. */
   readonly sortMode?: import("./groups").TaskSortMode
+  /**
+   * Live engine activity per task id — read ONLY by `attention` sort, which
+   * needs to know which rows are stopped. A reader rather than the daemon's
+   * map so this module stays pure over `Task[]`; omitted, `attention` sorts
+   * every row into the same band and degrades to plain recency.
+   */
+  readonly activityOf?: (taskId: string) => TaskActivityState | undefined
   /** Project keys whose routine count row is open. Absent = all
    *  closed, which is the resting state a fresh session starts in. */
   readonly expandedRoutines?: ReadonlySet<string>
@@ -292,7 +200,15 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
   // directory would name a home they don't have. They render in one
   // Scratch section ABOVE every project — the "unfiled live sessions" bench.
   const scratchTasks = tasks.filter((task) => task.kind === "dir" && task.scratch === true)
-  if (sortMode === "recent") scratchTasks.sort(compareRecent)
+  // One comparator for both partitions below, resolved once: `default` keeps
+  // the input (orchestrator) order and sorts nothing at all.
+  const compare =
+    sortMode === "recent"
+      ? compareRecent
+      : sortMode === "attention"
+        ? compareAttention(input.activityOf ?? (() => undefined))
+        : null
+  if (compare) scratchTasks.sort(compare)
 
   for (const task of tasks) {
     if (task.kind === "dir" && task.scratch === true) continue
@@ -331,14 +247,14 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
     }
   }
 
-  if (sortMode === "recent") {
+  if (compare) {
     for (const entry of byProject.values()) {
       entry.tasks.sort((a, b) => {
         // Keep the repo's main checkout as the first worktree row under its
-        // project header; only the regular worktrees reorder by recency.
+        // project header; only the regular worktrees reorder.
         if (a.kind === "main" && b.kind !== "main") return -1
         if (b.kind === "main" && a.kind !== "main") return 1
-        return compareRecent(a, b)
+        return compare(a, b)
       })
     }
   }

@@ -146,7 +146,7 @@ export interface ChannelPayloads {
     focusAccent: string | null
     /** UI language id (`state.json`'s `locale`). Opaque to the daemon — the TUI validates it. */
     locale: string
-    sortMode: "default" | "recent"
+    sortMode: "default" | "recent" | "attention"
     keysCollapsed: boolean
     projectFilter: string | null
   }

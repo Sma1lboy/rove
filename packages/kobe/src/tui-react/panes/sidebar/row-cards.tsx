@@ -13,10 +13,11 @@
  */
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
-import { useEffect, useSyncExternalStore } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { spinnerFrameSnapshot, subscribeSpinnerFrame } from "../../../tui/lib/spinner-frame-store"
 import type { SidebarRow } from "../../../tui/panes/sidebar/groups"
 import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
+import { DONE_PULSE_MS } from "../../../tui/panes/sidebar/row-view"
 import { type WorktreeChanges, pickPushedChanges } from "../../../tui/panes/sidebar/worktree-changes"
 import { pollWorktreeChanges, worktreeChanges } from "../../../tui/panes/sidebar/worktree-changes-poller"
 import { useOptionalKV } from "../../context/kv"
@@ -192,6 +193,39 @@ export function completionSeenFor(
  *  sitting on a completion at all. */
 export function completionStampOf(activity: TaskEngineState | undefined): number | undefined {
   return activity?.state === "turn_complete" ? activity.at : undefined
+}
+
+/**
+ * True for {@link DONE_PULSE_MS} after a NEW completion arrives — the sidebar
+ * half of the landing cue the tab strip already flashes. The rail needed its
+ * own because the strip is hidden by default (`DEFAULT_TAB_STRIP_MODE`), so on
+ * a stock install the one surface that announced "this turn just landed" was
+ * one nobody had turned on.
+ *
+ * Edge-triggered on the completion STAMP, not on the state: `turn_complete`
+ * sits on a row for as long as nobody reads it, so re-flashing on every
+ * re-render would leave a rail of permanently bold rows. A stamp that is
+ * merely NEW to this component (first mount, a row scrolled back into view)
+ * deliberately does not fire either — the ref seeds from the first stamp seen,
+ * so only a change while mounted is a landing.
+ */
+export function useDonePulse(completionAt: number | undefined): boolean {
+  const [pulsingAt, setPulsingAt] = useState<number | null>(null)
+  const seenRef = useRef<number | undefined>(undefined)
+  const seeded = useRef(false)
+  useEffect(() => {
+    const previous = seenRef.current
+    seenRef.current = completionAt
+    if (!seeded.current) {
+      seeded.current = true
+      return
+    }
+    if (completionAt === undefined || completionAt === previous) return
+    setPulsingAt(completionAt)
+    const timer = setTimeout(() => setPulsingAt(null), DONE_PULSE_MS)
+    return () => clearTimeout(timer)
+  }, [completionAt])
+  return pulsingAt !== null && pulsingAt === completionAt
 }
 
 /**

@@ -642,16 +642,16 @@ act=turn_complete      seen=1 job=1 del=error    vendor=kimi       tx=- | main=0
 act=turn_complete      seen=1 job=1 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=turn_complete      seen=1 job=1 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=turn_complete      seen=1 job=1 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
-act=rate_limited       seen=0 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=0 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=0 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
 act=rate_limited       seen=0 job=0 del=queued   vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=rate_limited       seen=0 job=0 del=queued   vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=rate_limited       seen=0 job=0 del=queued   vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
@@ -722,16 +722,16 @@ act=rate_limited       seen=0 job=1 del=error    vendor=kimi       tx=- | main=0
 act=rate_limited       seen=0 job=1 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=rate_limited       seen=0 job=1 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=rate_limited       seen=0 job=1 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
-act=rate_limited       seen=1 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-act=rate_limited       seen=1 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+act=rate_limited       seen=1 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
 act=rate_limited       seen=1 job=0 del=queued   vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=rate_limited       seen=1 job=0 del=queued   vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=rate_limited       seen=1 job=0 del=queued   vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
@@ -1288,7 +1288,7 @@ mainBranch=main                    act=-                  | main=1 title=rove   
 mainBranch=main                    act=idle               | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=main
 mainBranch=main                    act=running            | main=1 title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=main
 mainBranch=main                    act=turn_complete      | main=1 title=rove             glyph=●   tone=primary     load=0 matz=0 sub=main
-mainBranch=main                    act=rate_limited       | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=main
+mainBranch=main                    act=rate_limited       | main=1 title=rove             glyph=!   tone=warning     load=0 matz=0 sub=main
 mainBranch=main                    act=permission_needed  | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=main
 mainBranch=main                    act=error              | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=main
 mainBranch=main                    act=dead               | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=main
@@ -1296,7 +1296,7 @@ mainBranch=feat/long-running-branch act=-                  | main=1 title=rove  
 mainBranch=feat/long-running-branch act=idle               | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=feat/long-running-branch
 mainBranch=feat/long-running-branch act=running            | main=1 title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=feat/long-running-branch
 mainBranch=feat/long-running-branch act=turn_complete      | main=1 title=rove             glyph=●   tone=primary     load=0 matz=0 sub=feat/long-running-branch
-mainBranch=feat/long-running-branch act=rate_limited       | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=feat/long-running-branch
+mainBranch=feat/long-running-branch act=rate_limited       | main=1 title=rove             glyph=!   tone=warning     load=0 matz=0 sub=feat/long-running-branch
 mainBranch=feat/long-running-branch act=permission_needed  | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=feat/long-running-branch
 mainBranch=feat/long-running-branch act=error              | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=feat/long-running-branch
 mainBranch=feat/long-running-branch act=dead               | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=feat/long-running-branch
@@ -1304,7 +1304,7 @@ mainBranch=-                       act=-                  | main=1 title=rove   
 mainBranch=-                       act=idle               | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=—
 mainBranch=-                       act=running            | main=1 title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=—
 mainBranch=-                       act=turn_complete      | main=1 title=rove             glyph=●   tone=primary     load=0 matz=0 sub=—
-mainBranch=-                       act=rate_limited       | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=—
+mainBranch=-                       act=rate_limited       | main=1 title=rove             glyph=!   tone=warning     load=0 matz=0 sub=—
 mainBranch=-                       act=permission_needed  | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=—
 mainBranch=-                       act=error              | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=—
 mainBranch=-                       act=dead               | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=—
@@ -1331,10 +1331,10 @@ act=turn_complete      frame=0    overlay: base=● after=● tone=primary     s
 act=turn_complete      frame=3    overlay: base=● after=● tone=primary     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
 act=turn_complete      frame=14   overlay: base=● after=● tone=primary     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
 act=turn_complete      frame=99   overlay: base=● after=● tone=primary     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=rate_limited       frame=0    overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=rate_limited       frame=3    overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=rate_limited       frame=14   overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
-act=rate_limited       frame=99   overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=rate_limited       frame=0    overlay: base=! after=! tone=warning     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=rate_limited       frame=3    overlay: base=! after=! tone=warning     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=rate_limited       frame=14   overlay: base=! after=! tone=warning     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
+act=rate_limited       frame=99   overlay: base=! after=! tone=warning     sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
 act=permission_needed  frame=0    overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
 act=permission_needed  frame=3    overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
 act=permission_needed  frame=14   overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
@@ -1384,8 +1384,8 @@ subagents=0    act=running            branch=feat/sidebar  | main=0 title=fix th
 subagents=0    act=running            branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
 subagents=0    act=turn_complete      branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 subagents=0    act=turn_complete      branch=-             | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=—
-subagents=0    act=rate_limited       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=0    act=rate_limited       branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=0    act=rate_limited       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+subagents=0    act=rate_limited       branch=-             | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=—
 subagents=0    act=permission_needed  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 subagents=0    act=permission_needed  branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
 subagents=0    act=error              branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
@@ -1400,8 +1400,8 @@ subagents=1    act=running            branch=feat/sidebar  | main=0 title=fix th
 subagents=1    act=running            branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
 subagents=1    act=turn_complete      branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 subagents=1    act=turn_complete      branch=-             | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=—
-subagents=1    act=rate_limited       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=1    act=rate_limited       branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=1    act=rate_limited       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+subagents=1    act=rate_limited       branch=-             | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=—
 subagents=1    act=permission_needed  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 subagents=1    act=permission_needed  branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
 subagents=1    act=error              branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
@@ -1416,8 +1416,8 @@ subagents=3    act=running            branch=feat/sidebar  | main=0 title=fix th
 subagents=3    act=running            branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
 subagents=3    act=turn_complete      branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 subagents=3    act=turn_complete      branch=-             | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=—
-subagents=3    act=rate_limited       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=3    act=rate_limited       branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=3    act=rate_limited       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+subagents=3    act=rate_limited       branch=-             | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=—
 subagents=3    act=permission_needed  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 subagents=3    act=permission_needed  branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
 subagents=3    act=error              branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
@@ -1432,8 +1432,8 @@ subagents=12   act=running            branch=feat/sidebar  | main=0 title=fix th
 subagents=12   act=running            branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
 subagents=12   act=turn_complete      branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 subagents=12   act=turn_complete      branch=-             | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=—
-subagents=12   act=rate_limited       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=12   act=rate_limited       branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=12   act=rate_limited       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+subagents=12   act=rate_limited       branch=-             | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=—
 subagents=12   act=permission_needed  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 subagents=12   act=permission_needed  branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
 subagents=12   act=error              branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
@@ -1444,31 +1444,31 @@ subagents=12   act=dead               branch=-             | main=0 title=fix th
 ## subtitle truncation budget
 budget=0    act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=
 budget=0    act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=
-budget=0    act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=
+budget=0    act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=
 budget=0    act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=
 budget=1    act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=…
 budget=1    act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=…
-budget=1    act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=…
+budget=1    act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=…
 budget=1    act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=…
 budget=4    act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=fea…
 budget=4    act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=fea…
-budget=4    act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=fea…
+budget=4    act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=fea…
 budget=4    act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=fea…
 budget=8    act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feature…
 budget=8    act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feature…
-budget=8    act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature…
+budget=8    act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feature…
 budget=8    act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature…
 budget=16   act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feature/a-very-…
 budget=16   act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feature/a-very-…
-budget=16   act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-…
+budget=16   act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feature/a-very-…
 budget=16   act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-…
 budget=24   act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feature/a-very-long-bra…
 budget=24   act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feature/a-very-long-bra…
-budget=24   act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-long-bra…
+budget=24   act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feature/a-very-long-bra…
 budget=24   act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-long-bra…
 budget=40   act=-                  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feature/a-very-long-branch-name-indeed
 budget=40   act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feature/a-very-long-branch-name-indeed
-budget=40   act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-long-branch-name-indeed
+budget=40   act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feature/a-very-long-branch-name-indeed
 budget=40   act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-long-branch-name-indeed
 
 ## persisted TaskStatus x runtime activity — status must not reach the row
@@ -1476,7 +1476,7 @@ status=backlog       act=-                  | main=0 title=fix the sidebar  glyp
 status=backlog       act=idle               | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=backlog       act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
 status=backlog       act=turn_complete      | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=backlog       act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=backlog       act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
 status=backlog       act=permission_needed  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=backlog       act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=backlog       act=dead               | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
@@ -1484,7 +1484,7 @@ status=in_progress   act=-                  | main=0 title=fix the sidebar  glyp
 status=in_progress   act=idle               | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=in_progress   act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
 status=in_progress   act=turn_complete      | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=in_progress   act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_progress   act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
 status=in_progress   act=permission_needed  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=in_progress   act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=in_progress   act=dead               | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
@@ -1492,7 +1492,7 @@ status=in_review     act=-                  | main=0 title=fix the sidebar  glyp
 status=in_review     act=idle               | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=in_review     act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
 status=in_review     act=turn_complete      | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=in_review     act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_review     act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
 status=in_review     act=permission_needed  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=in_review     act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=in_review     act=dead               | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
@@ -1500,7 +1500,7 @@ status=done          act=-                  | main=0 title=fix the sidebar  glyp
 status=done          act=idle               | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=done          act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
 status=done          act=turn_complete      | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=done          act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=done          act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
 status=done          act=permission_needed  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=done          act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=done          act=dead               | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
@@ -1508,7 +1508,7 @@ status=canceled      act=-                  | main=0 title=fix the sidebar  glyp
 status=canceled      act=idle               | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=canceled      act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
 status=canceled      act=turn_complete      | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=canceled      act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=canceled      act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
 status=canceled      act=permission_needed  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=canceled      act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=canceled      act=dead               | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
@@ -1516,7 +1516,7 @@ status=error         act=-                  | main=0 title=fix the sidebar  glyp
 status=error         act=idle               | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 status=error         act=running            | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
 status=error         act=turn_complete      | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=error         act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=error         act=rate_limited       | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
 status=error         act=permission_needed  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=error         act=error              | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
 status=error         act=dead               | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar

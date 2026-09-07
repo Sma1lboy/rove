@@ -11,9 +11,10 @@
 
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
-import { type BoxRenderable, MouseButton } from "@opentui/core"
+import { type BoxRenderable, MouseButton, TextAttributes } from "@opentui/core"
 import { type ReactNode, useEffect, useMemo } from "react"
 import { charWidth } from "../../../lib/display-width"
+import { relativeAge } from "../../../lib/relative-time"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
@@ -23,6 +24,7 @@ import {
   IN_PROGRESS_SPINNER,
   NO_STATE_GLYPH,
   buildSidebarRowView,
+  isAttentionActivity,
   withSpinnerFrame,
 } from "../../../tui/panes/sidebar/row-view"
 import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
@@ -37,10 +39,33 @@ import {
   completionSeenFor,
   completionStampOf,
   useChanges,
+  useDonePulse,
   useDurableCompletionSeen,
   useSpinnerFrame,
 } from "./row-cards"
 import { MoveChip, RowShell, type TreeRowShared, clusterCells, jumpDigitCells, treeLabelBudget } from "./tree-row-shell"
+
+/**
+ * How long this tab has been in its current state — `12m`, `2h` — or null
+ * when the state is one nobody is waiting on.
+ *
+ * Shown for exactly two readings: a row that is WORKING (how long has it been
+ * at it) and a row that is STOPPED (how long has it been stuck). A quiet row
+ * gets nothing: `○` already means there is nothing to wait for, and dating it
+ * would put a number on every idle tab in the rail.
+ *
+ * No timer of its own. The tree re-renders on the sidebar's ~2s branch tick
+ * (`shared.branchTick`), so the age walks by itself, and this stays outside
+ * `useTabRowBaseView`'s memo so an idle row still rebuilds nothing.
+ */
+function activityAgeLabel(activity: TaskEngineState | undefined, loading: boolean): string | null {
+  if (activity === undefined) return null
+  if (!loading && !isAttentionActivity(activity.state)) return null
+  // A clock skewed ahead of the daemon would otherwise print a huge age; the
+  // clamp inside `relativeAge` turns that into `0s`, which reads as "just
+  // now" rather than as a wrong number.
+  return relativeAge(activity.at)
+}
 
 /**
  * A worktree row carries NO ENGINE state glyph: the session state belongs to
@@ -290,13 +315,27 @@ export function TabTreeRow(props: {
   // dead daemon lineage) the row rests at the same `○` a known-idle one does —
   // both readings send you into the tab to find out. See NO_STATE_GLYPH.
   const glyph = restored ? ATTENTION_GLYPH : isAgent && carriesState ? rowView.stateGlyph : NO_STATE_GLYPH
+  const age = carriesState ? activityAgeLabel(activity, rowView.loading) : null
+  // The landing flash. Gated on `carriesState` for the same reason the seen
+  // bit is: a sibling row passing the task rollup would flash for a turn that
+  // finished in another tab.
+  const pulsing = useDonePulse(carriesState ? completionStampOf(activity) : undefined)
   // depth 1, not 2: a tab row starts at the same column as its
   // worktree row — the circle status glyph carries the hierarchy, and the
   // extra indent cell wasted width the narrow rail doesn't have.
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={props.shared}>
       <text
-        fg={restored ? theme.error : carriesState ? toneColor(theme, rowView.tone) : theme.textMuted}
+        fg={
+          pulsing
+            ? theme.success
+            : restored
+              ? theme.error
+              : carriesState
+                ? toneColor(theme, rowView.tone)
+                : theme.textMuted
+        }
+        attributes={pulsing ? TextAttributes.BOLD : undefined}
         wrapMode="none"
         width={2}
         flexShrink={0}
@@ -304,7 +343,14 @@ export function TabTreeRow(props: {
         {`${glyph} `}
       </text>
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
-        <text fg={theme.textMuted} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
+        <text
+          fg={pulsing ? theme.text : theme.textMuted}
+          attributes={pulsing ? TextAttributes.BOLD : undefined}
+          wrapMode="none"
+          flexBasis={0}
+          flexGrow={1}
+          flexShrink={1}
+        >
           {truncateEndCells(
             props.tab.label,
             // The 2-cell state-glyph column is this row's extra fixed spend.
@@ -312,11 +358,17 @@ export function TabTreeRow(props: {
               shared,
               2 +
                 jumpDigitCells(props.flatIndex) +
+                (age ? clusterCells(age) : 0) +
                 (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
             ),
             charWidth,
           )}
         </text>
+        {age ? (
+          <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" flexShrink={0}>
+            {age}
+          </text>
+        ) : null}
         <MoveChip rowId={props.rowId} shared={shared} />
         <JumpDigit flatIndex={props.flatIndex} dim={!isCursor} />
       </box>
