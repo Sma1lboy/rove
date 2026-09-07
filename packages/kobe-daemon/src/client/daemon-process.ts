@@ -1,4 +1,3 @@
-import { type StdioOptions, spawn } from "node:child_process"
 import { closeSync, existsSync, mkdirSync, openSync, statSync, unlinkSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -7,6 +6,7 @@ import { isProcessAlive, stopDaemonProcess } from "../daemon/lifecycle.ts"
 import { defaultDaemonLogPath, defaultDaemonPidPath, defaultDaemonSocketPath } from "../daemon/paths.ts"
 import { DAEMON_PROTOCOL_VERSION } from "../daemon/protocol.ts"
 import { readPidFile } from "../daemon/socket-guard.ts"
+import { spawnDetachedDaemon } from "./detached-spawn.ts"
 import { KobeDaemonClient } from "./index.ts"
 
 const DAEMON_START_ARGS = ["daemon", "start"] as const
@@ -28,57 +28,6 @@ const DAEMON_HELLO_TIMEOUT_MS = 3000
  * task creation.
  */
 const BUSY_DAEMON_GRACE_MS = 15_000
-
-/**
- * How a background child is cut loose from this process.
- *
- * On Windows `detached: true` means DETACHED_PROCESS: the child gets its OWN
- * console, which the OS renders as a stray terminal window next to the TUI,
- * retitling itself after whatever the hosted PTY happens to be running. libuv
- * gives DETACHED_PROCESS precedence over CREATE_NO_WINDOW, so `windowsHide`
- * cannot suppress it — on Windows the flag must be absent. Nothing is lost:
- * `detached` only buys POSIX setsid, and an unref'd Windows child already
- * outlives its parent.
- */
-export function detachOptions(
-  platform: NodeJS.Platform = process.platform,
-): { windowsHide: true } | { detached: true } {
-  return platform === "win32" ? { windowsHide: true } : { detached: true }
-}
-
-/**
- * Spawn the detached daemon child with stdout/stderr appended to
- * `logPath`, so a crash leaves a trace. Falls back to `"ignore"` if the
- * log file can't be opened (never block the daemon from starting over a
- * log file).
- * The parent closes its copy of the fd after the fork; the child keeps
- * its own.
- */
-export function spawnDetachedDaemon(
-  command: string,
-  args: readonly string[],
-  env: NodeJS.ProcessEnv,
-  logPath: string,
-): void {
-  let stdio: StdioOptions = "ignore"
-  let logFd: number | undefined
-  try {
-    mkdirSync(dirname(logPath), { recursive: true })
-    logFd = openSync(logPath, "a")
-    stdio = ["ignore", logFd, logFd]
-  } catch {
-    stdio = "ignore"
-  }
-  const child = spawn(command, [...args], { ...detachOptions(), stdio, env })
-  child.unref()
-  if (logFd !== undefined) {
-    try {
-      closeSync(logFd)
-    } catch {
-      /* parent's copy only — child holds its own dup */
-    }
-  }
-}
 
 /**
  * True when this process runs INSIDE a kobe engine session — the launch
