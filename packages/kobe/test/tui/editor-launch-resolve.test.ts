@@ -9,10 +9,12 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
+import { posixShell } from "../../src/lib/posix-shell.ts"
 
 const state = vi.hoisted(() => ({
   persisted: {} as Record<string, string | undefined>,
-  binaryExitCode: 0, // `sh -c "command -v …"` exit code
+  binaryExitCode: 0, // `<shell> -c "command -v …"` exit code
+  spawned: [] as string[][],
   diffExitCode: 1, // `git diff --quiet` exit code (1 = has a diff)
 }))
 
@@ -27,6 +29,7 @@ let prevEditor: string | undefined
 
 function resetState(): void {
   state.persisted = {}
+  state.spawned = []
   state.binaryExitCode = 0
   state.diffExitCode = 1
 }
@@ -38,9 +41,14 @@ beforeEach(() => {
   prevEditor = process.env.EDITOR
   Reflect.deleteProperty(process.env, "VISUAL")
   Reflect.deleteProperty(process.env, "EDITOR")
+  state.spawned = []
   vi.stubGlobal("Bun", {
     spawn: (cmd: string[]) => {
-      if (cmd[0] === "sh") return { exited: Promise.resolve(state.binaryExitCode) }
+      state.spawned.push(cmd)
+      // The shell is `sh` on POSIX and Git Bash on Windows — matching the
+      // literal "sh" here made these tests pass everywhere except the one
+      // platform the shell choice exists for.
+      if (cmd[0] === posixShell()) return { exited: Promise.resolve(state.binaryExitCode) }
       if (cmd[0] === "git") return { exited: Promise.resolve(state.diffExitCode) }
       return { exited: Promise.resolve(1) }
     },
@@ -60,6 +68,14 @@ describe("binaryAvailable", () => {
   test("true when `command -v` exits 0", async () => {
     state.binaryExitCode = 0
     await expect(editorLaunch.binaryAvailable("vim")).resolves.toBe(true)
+  })
+
+  test("probes through the platform's POSIX shell, not a hardcoded `sh`", async () => {
+    // On Windows there is no `sh` on PATH: a bare one throws, the catch below
+    // turns that into "not installed", and every editor looks missing.
+    await editorLaunch.binaryAvailable("vim")
+    expect(state.spawned[0]?.[0]).toBe(posixShell())
+    expect(state.spawned[0]?.[1]).toBe("-c")
   })
 
   test("false when the binary isn't found", async () => {
