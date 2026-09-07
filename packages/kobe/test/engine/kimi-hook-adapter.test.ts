@@ -65,7 +65,7 @@ describe("mergeKimiHooks (pure TOML block merge)", () => {
     expect(out).toContain("# >>> rove hooks")
     expect(out).toContain("# <<< rove hooks")
     expect(out).toContain('event = "Interrupt"')
-    expect(out).toContain(`command = "'kobe' 'hook' 'turn-interrupted' '--engine' 'kimi'"`)
+    expect(out).toContain(`command = "kobe hook turn-interrupted --engine kimi"`)
     // Gated tool family is absent by default…
     expect(out).not.toContain('event = "PreToolUse"')
     // …and present when a plugin subscribes tool.* events.
