@@ -19,7 +19,6 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { resolveComposerManifest } from "../../src/cli/api/pty-delivery.ts"
 import { protocolEntry, sessionProtocol } from "../../src/engine/engine-presets.ts"
 import { engineEntry } from "../../src/engine/registry.ts"
 
@@ -69,11 +68,6 @@ describe("a wrapped preset resolves the protocol's adapter, not the empty custom
     expect(protocolEntry("claudecpa").readTurns).toBe(engineEntry("claude").readTurns)
   })
 
-  it("classifies the composer with claude's screen manifest", () => {
-    expect(resolveComposerManifest("claudecpa")).toBe(engineEntry("claude").screenManifest)
-    expect(resolveComposerManifest("claudecpa")).toBeDefined()
-  })
-
   it("reads the OSC title turn hint with claude's title rules", () => {
     expect(protocolEntry("claudecpa").terminalTitle).toBe(engineEntry("claude").terminalTitle)
   })
@@ -85,7 +79,6 @@ describe("a wrapped preset resolves the protocol's adapter, not the empty custom
 
   it("leaves an unregistered id generic rather than guessing claude", () => {
     expect(sessionProtocol("mystery-engine")).toBe("mystery-engine")
-    expect(resolveComposerManifest("mystery-engine")).toBeUndefined()
   })
 })
 

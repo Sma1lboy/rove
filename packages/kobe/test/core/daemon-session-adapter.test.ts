@@ -2,14 +2,6 @@ import type { DaemonRpcClient } from "@sma1lboy/kobe-daemon/client/rpc"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
-  ComposerBusyError: class extends Error {
-    constructor(
-      readonly layer: "recent-human-write" | "composer-not-empty",
-      readonly key: string,
-    ) {
-      super(`composer busy on ${key}: ${layer}`)
-    }
-  },
   close: vi.fn(),
   ensureHost: vi.fn(),
   openHost: vi.fn(),
@@ -35,7 +27,6 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock("../../src/engine/hosted-session.ts", () => ({
-  ComposerBusyError: mocks.ComposerBusyError,
   ensureHostedSessionHost: mocks.ensureHost,
   openHostedSessionHost: mocks.openHost,
   ensureHostedEngine: mocks.ensureEngine,

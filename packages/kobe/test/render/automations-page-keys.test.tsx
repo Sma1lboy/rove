@@ -229,7 +229,7 @@ test("composer binds an existing task with the selected engine tab", async () =>
   ])
 })
 
-test("a bound routine shows its exact target and queue receipt without claiming delivery", async () => {
+test("a bound routine shows its exact target in the detail box", async () => {
   const bound = { ...AUTOMATION, target: { kind: "existing-tab", taskId: "existing", tabId: "tab-2" } }
   const orch = {
     ...orchestrator([bound]),
@@ -239,12 +239,11 @@ test("a bound routine shows its exact target and queue receipt without claiming 
         {
           id: "run",
           runNumber: 1,
-          status: "deferred",
+          status: "dispatched",
           trigger: "scheduled",
           at: new Date().toISOString(),
           taskId: "existing",
           tabId: "tab-2",
-          deferredId: "receipt-1",
         },
       ],
     }),
@@ -256,6 +255,5 @@ test("a bound routine shows its exact target and queue receipt without claiming 
   await new Promise((r) => setTimeout(r, 150))
   const text = await frame()
   expect(text).toContain("My existing task / tab-2")
-  expect(text).toContain("queued, not delivered")
-  expect(text).toContain("receipt-1")
+  expect(text).toContain("tab-2")
 })

@@ -83,18 +83,6 @@ describe("send handler", () => {
     expect(result).toMatchObject({ delivered: true, bytes: 42, promptEcho: "confirmed" })
   })
 
-  it("reports a deferred prompt as delivered:false, not as an error", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc" }) }) })
-    const { deliver } = recordingDelivery({ delivered: false, deferred: { id: "d1", layer: "composer-not-empty" } })
-    const result = (await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
-      client,
-      runtime: stubRuntime({ deliverPrompt: deliver }),
-    })) as { ok: boolean; delivered: boolean; deferred: unknown }
-    expect(result.ok).toBe(true)
-    expect(result.delivered).toBe(false)
-    expect(result.deferred).toBeDefined()
-  })
-
   it("requires an explicit or active target", async () => {
     await expectApiError(
       () => invokeVerb("send", ["--prompt", "hi"], { client: new FakeClient(), runtime: stubRuntime() }),

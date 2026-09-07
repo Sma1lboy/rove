@@ -10,7 +10,6 @@ import {
 } from "../../../kobe-daemon/src/daemon/automation-runner.ts"
 import { AutomationsStore } from "../../../kobe-daemon/src/daemon/automations-store.ts"
 import type { DaemonTask } from "../../../kobe-daemon/src/daemon/contracts.ts"
-import { DeferredPromptsStore } from "../../../kobe-daemon/src/daemon/deferred-prompts-store.ts"
 import { NOW, REPO, automation, fakeDeps } from "./automation-runner-fixtures.ts"
 
 const TARGET = { kind: "existing-tab", taskId: "existing", tabId: "tab-2" } as const
@@ -39,8 +38,7 @@ async function fixture() {
     tabId: target.tabId,
   }))
   const fake = fakeDeps({ store, tasks: { [TASK.id]: TASK }, deliverTab })
-  const deferred = new DeferredPromptsStore(join(dir, "deferred.json"), () => NOW)
-  return { dir, path, store, routine, deliverTab, deferred, ...fake }
+  return { dir, path, store, routine, deliverTab, ...fake }
 }
 
 describe("existing-tab routine delivery", () => {
@@ -117,76 +115,6 @@ describe("existing-tab routine delivery", () => {
       expect(f.prompts).toEqual([])
     },
   )
-
-  it("busy acceptance belongs to the existing queue; disable and restart preserve its receipt", async () => {
-    const f = await fixture()
-    const runtime = {
-      ...f.deps.runtime,
-      deliverPromptToLiveEngineTabDetailed: async () => ({
-        outcome: "busy" as const,
-        tabId: TARGET.tabId,
-        layer: "composer-not-empty" as const,
-      }),
-    }
-    const deps = { ...f.deps, runtime, deferred: f.deferred }
-    await sweepAutomations(deps)
-    const record = (await f.deferred.list()).records[0]
-    expect(record).toMatchObject({ taskId: TASK.id, tabId: TARGET.tabId, prompt: f.routine.prompt })
-    expect(f.store.runsFor(f.routine.id)[0]).toMatchObject({
-      status: "deferred",
-      deferredId: record?.id,
-      tabId: TARGET.tabId,
-    })
-    await f.store.update(f.routine.id, { enabled: false })
-    const queue = new DeferredPromptsStore(join(f.dir, "deferred.json"), () => NOW)
-    expect(await queue.list()).toEqual(await f.deferred.list())
-    await runAutomationOnce(deps, f.store.get(f.routine.id)!, { trigger: "manual", scheduledFor: NOW })
-    expect(f.store.runsFor(f.routine.id)[0]?.status).toBe("dispatch_failed")
-    expect((await f.deferred.list()).records).toHaveLength(1)
-  })
-
-  it("keeps the queue receipt when its Inbox notification fails", async () => {
-    const f = await fixture()
-    const runtime = {
-      ...f.deps.runtime,
-      deliverPromptToLiveEngineTabDetailed: async () => ({
-        outcome: "busy" as const,
-        tabId: TARGET.tabId,
-        layer: "composer-not-empty" as const,
-      }),
-    }
-    const inbox = {
-      ...f.inbox,
-      recordPromptDeferred: async () => {
-        throw new Error("notification unavailable")
-      },
-    }
-    await runAutomationOnce({ ...f.deps, runtime, inbox, deferred: f.deferred }, f.routine, {
-      trigger: "manual",
-      scheduledFor: NOW,
-    })
-    expect(f.store.runsFor(f.routine.id)[0]).toMatchObject({
-      status: "deferred",
-      deferredId: expect.any(String),
-      error: expect.stringContaining("Inbox notification failed"),
-    })
-    expect((await f.deferred.list()).records).toHaveLength(1)
-  })
-
-  it("a prior queued prompt blocks a newer firing even after the composer clears", async () => {
-    const f = await fixture()
-    await f.deferred.file({
-      taskId: TARGET.taskId,
-      tabId: TARGET.tabId,
-      prompt: "older",
-      layer: "recent-human-write",
-      at: NOW,
-    })
-    await runAutomationOnce({ ...f.deps, deferred: f.deferred }, f.routine, { trigger: "manual", scheduledFor: NOW })
-    expect(f.deliverTab).not.toHaveBeenCalled()
-    expect(f.store.runsFor(f.routine.id)[0]?.status).toBe("dispatch_failed")
-    expect((await f.deferred.list()).records[0]?.prompt).toBe("older")
-  })
 
   it.each(["disable", "edit", "stop"])("%s after precheck began prevents delivery", async (action) => {
     const f = await fixture()
