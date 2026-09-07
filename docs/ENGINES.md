@@ -166,8 +166,9 @@ One thing worth knowing: **the depth of the badge depends on the engine**.
 Claude and kimi report the full working / done / needs-input vocabulary
 through hooks, sub-second. Codex reports working and done through hooks, but
 not needs-input: its only "waiting" event is a permission decision hook, and
-Rove will not install an observer on a hook that gates approvals. Codex's
-needs-input therefore comes from screen reading, one layer down. Engines
+Rove will not install an observer on a hook that gates approvals. Codex ships
+no screen rules either, so it has no needs-input source at all today — a Codex
+session waiting on you reads as whatever its last hook said. Engines
 without hooks or a readable transcript (copilot today) rely on screen reading
 for everything: Rove classifies the visible terminal against engine-declared
 rules, which still distinguishes working from waiting-on-you but can't see a
