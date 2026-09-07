@@ -351,7 +351,7 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
       }
       case "pty.write": {
         const payload = objectPayload(req.payload)
-        ptys.write(requireString(payload, "key"), typeof payload.data === "string" ? payload.data : "", client)
+        ptys.write(requireString(payload, "key"), typeof payload.data === "string" ? payload.data : "")
         return {}
       }
       case "pty.resize": {
