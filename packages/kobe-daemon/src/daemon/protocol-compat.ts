@@ -1,4 +1,4 @@
-import { samePath } from "../path-identity"
+import { samePath } from "../path-identity.ts"
 
 /**
  * Handshake compatibility POLICY: whether two builds may talk to each other

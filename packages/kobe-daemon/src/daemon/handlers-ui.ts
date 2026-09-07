@@ -11,7 +11,7 @@
  */
 
 import { randomUUID } from "node:crypto"
-import { samePath } from "../path-identity"
+import { samePath } from "../path-identity.ts"
 import { optionalBoolean, optionalString, requireNumber, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { displayTaskTitle } from "./protocol.ts"

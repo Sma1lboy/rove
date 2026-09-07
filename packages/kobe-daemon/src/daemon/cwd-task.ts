@@ -27,7 +27,7 @@
 
 import { existsSync } from "node:fs"
 import path from "node:path"
-import { pathIdentity as normalize, pathSyntax, pathWithin, samePath } from "../path-identity"
+import { pathIdentity as normalize, pathSyntax, pathWithin, samePath } from "../path-identity.ts"
 import { managedWorktreeRootsFor, readWorktreeBaseOverride } from "./worktree-paths.ts"
 
 export interface CwdMatchTask {
