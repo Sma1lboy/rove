@@ -36,11 +36,20 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
-    "@changesets/changelog-github": "^1.0.0",
+    "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^2.31.1"
   },
   "trustedDependencies": ["electron", "node-pty"],
   "overrides": {
     "postcss": "^8.5.26"
+  },
+  "dependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "fumadocs-core": "^16.15.8",
+    "fumadocs-ui": "^16.15.8",
+    "next": "^16.3.4",
+    "postcss": "^8.5.26",
+    "ws": "^8.21.3"
   }
 }
