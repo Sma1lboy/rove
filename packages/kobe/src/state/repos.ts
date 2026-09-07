@@ -23,6 +23,7 @@
 
 import { spawnSync } from "node:child_process"
 import { realpathSync } from "node:fs"
+import { pathIdentity, samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import { kvStatePath } from "../env.ts"
 import { type ProjectIntent, type ProjectRejection, projectRejection } from "./project-eligibility.ts"
 import { isRemoteRepoKey, readRemoteRepos } from "./remote-repos.ts"
@@ -268,7 +269,7 @@ export function addSavedRepo(absPath: string, opts: AddSavedRepoOpts = {}): AddR
   let result: AddResult = { added: false, path: normalized, total: 0 }
   updateStateFile((state) => {
     const cur = readSavedRepos(state)
-    if (cur.includes(normalized)) {
+    if (cur.some((repo) => samePath(repo, normalized))) {
       result = { added: false, path: normalized, total: cur.length }
       return false // already present — leave the file untouched
     }
@@ -321,11 +322,11 @@ export function normalizeSavedRepos(): void {
   for (const p of cur) {
     const top = resolveMainRepoRoot(p)
     if (top !== p) changed = true
-    if (seen.has(top)) {
+    if (seen.has(pathIdentity(top))) {
       changed = true
       continue
     }
-    seen.add(top)
+    seen.add(pathIdentity(top))
     next.push(top)
   }
   if (!changed) return
@@ -361,7 +362,10 @@ function coerceOverride(entry: unknown): RepoInitOverride {
 
 /** Read the per-user state.json override for a repo (by git toplevel). */
 export function getRepoInitOverride(repoRoot: string): RepoInitOverride {
-  return coerceOverride(readRepoConfigs(loadStateFile())[resolveRepoRoot(repoRoot)])
+  const configs = readRepoConfigs(loadStateFile())
+  const normalized = resolveRepoRoot(repoRoot)
+  const key = Object.keys(configs).find((key) => samePath(key, normalized)) ?? normalized
+  return coerceOverride(configs[key])
 }
 
 /**
@@ -370,10 +374,11 @@ export function getRepoInitOverride(repoRoot: string): RepoInitOverride {
  * repo's entry is dropped entirely so state.json stays tidy.
  */
 export function setRepoInitOverride(repoRoot: string, patch: RepoInitOverride): RepoInitOverride {
-  const normalized = resolveRepoRoot(repoRoot)
+  const resolved = resolveRepoRoot(repoRoot)
   let next: RepoInitOverride = {}
   updateStateFile((state) => {
     const configs = { ...readRepoConfigs(state) }
+    const normalized = Object.keys(configs).find((key) => samePath(key, resolved)) ?? resolved
     const cur = coerceOverride(configs[normalized])
     const nextScript = patch.initScript === undefined ? cur.initScript : patch.initScript || undefined
     const nextPrompt = patch.initPrompt === undefined ? cur.initPrompt : patch.initPrompt || undefined
@@ -410,11 +415,12 @@ export function removeSavedRepo(absPath: string): RemoveResult {
   let result: RemoveResult = { removed: false, path: absPath, total: 0 }
   updateStateFile((state) => {
     const cur = readSavedRepos(state)
-    if (!cur.includes(absPath)) {
+    if (!cur.some((repo) => samePath(repo, absPath))) {
       result = { removed: false, path: absPath, total: cur.length }
       return false // nothing to remove — leave the file untouched
     }
-    state.savedRepos = cur.filter((p) => p !== absPath)
+    const remaining = cur.filter((p) => !samePath(p, absPath))
+    state.savedRepos = remaining
     // For a remote project (`ssh://…` key) also drop its connection config so
     // we don't leave an orphan `remoteRepos` entry pointing at a project the
     // user just forgot. The OS-keychain password (a separate, destructive side
@@ -427,7 +433,7 @@ export function removeSavedRepo(absPath: string): RemoveResult {
         state.remoteRepos = next
       }
     }
-    result = { removed: true, path: absPath, total: cur.length - 1 }
+    result = { removed: true, path: absPath, total: remaining.length }
     return undefined
   })
   return result

@@ -21,6 +21,7 @@
 
 import { homedir } from "node:os"
 import type { Task } from "@/types/task"
+import { tildify } from "../../../lib/path-home"
 import { truncateStart } from "../../lib/truncate"
 import { fuzzyMatch } from "./fuzzy"
 import { compareRecent, repoBasename, sidebarProjectKey, sidebarProjectLabel } from "./groups"
@@ -199,7 +200,7 @@ export function worktreeRowLabel(
   const path = task.worktreePath || task.repo
   if (path) {
     const home = opts.home ?? homedir()
-    const tildified = home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path
+    const tildified = tildify(path, home)
     return truncateStart(tildified, PATH_LABEL_MAX)
   }
   return task.title || "scratch"

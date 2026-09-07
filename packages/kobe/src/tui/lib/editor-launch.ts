@@ -47,6 +47,7 @@ import {
   type EditorKind,
   normalizeEditorKind,
 } from "@/tui/lib/editor-prefs"
+import { pathSyntax, pathWithin } from "@sma1lboy/kobe-daemon/path-identity"
 
 /** Token replaced with the (shell-quoted) file path in a custom command. */
 const FILE_PLACEHOLDER = "{file}"
@@ -128,8 +129,7 @@ export function buildNvimDiffCommand(bin: string, absPath: string, relPath: stri
  * `worktree` (then the diff upgrade is skipped and we just open the file).
  */
 export function relativeToWorktree(worktree: string, absPath: string): string | null {
-  const prefix = worktree.endsWith("/") ? worktree : `${worktree}/`
-  return absPath.startsWith(prefix) ? absPath.slice(prefix.length) : null
+  return pathWithin(worktree, absPath) || null
 }
 
 /**
@@ -240,6 +240,6 @@ async function maybeDiffCommand(
 
 /** Basename of the file path, used as the editor tab label. */
 export function editorWindowLabel(absPath: string): string {
-  const base = absPath.slice(absPath.lastIndexOf("/") + 1).trim()
+  const base = pathSyntax(absPath).basename(absPath).trim()
   return base.length > 0 ? base : "edit"
 }

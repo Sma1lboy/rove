@@ -27,6 +27,7 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { relativeAge } from "../../lib/relative-time"
@@ -71,9 +72,8 @@ function dirtyRefusalReason(err: unknown): string | null {
 
 /** Match a worktree row's path to a tracked task id (loose realpath tolerance). */
 function taskIdForPath(orch: RemoteOrchestrator, wtPath: string): string | undefined {
-  const norm = (p: string): string => p.replace(/^\/private\//, "/").replace(/\/+$/, "")
-  const target = norm(wtPath)
-  return orch.listTasks().find((task) => task.worktreePath && norm(task.worktreePath) === target)?.id
+  const norm = (p: string): string => p.replace(/^\/private\//, "/")
+  return orch.listTasks().find((task) => task.worktreePath && samePath(norm(task.worktreePath), norm(wtPath)))?.id
 }
 
 export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; onClose: () => void }): ReactNode {

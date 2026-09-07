@@ -16,6 +16,8 @@
 
 import * as fs from "node:fs"
 import * as os from "node:os"
+import { pathSyntax } from "@sma1lboy/kobe-daemon/path-identity"
+import { tildify } from "../../lib/path-home"
 
 /**
  * Last `/`-separated segment of a path — the shared owner of leaf-name
@@ -24,7 +26,13 @@ import * as os from "node:os"
  * here. Semantics: trailing slash → `""`, no slash → the whole string.
  */
 export function pathLeaf(p: string): string {
-  return p.slice(p.lastIndexOf("/") + 1)
+  return p.slice(lastSeparator(p) + 1)
+}
+
+function lastSeparator(p: string): number {
+  return pathSyntax(p).sep === "\\" || (process.platform === "win32" && !p.startsWith("/"))
+    ? Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"))
+    : p.lastIndexOf("/")
 }
 
 /**
@@ -36,7 +44,7 @@ export function pathLeaf(p: string): string {
  */
 export function expandHome(p: string): string {
   if (p === "~") return os.homedir()
-  if (p.startsWith("~/")) return os.homedir() + p.slice(1)
+  if (p.startsWith("~/") || (process.platform === "win32" && p.startsWith("~\\"))) return os.homedir() + p.slice(1)
   return p
 }
 
@@ -51,7 +59,10 @@ export function expandHome(p: string): string {
  * answer, never in the field itself. Root stays `/`.
  */
 export function stripTrailingSlash(p: string): string {
-  return p.length > 1 && p.endsWith("/") ? p.slice(0, -1) : p
+  const root = pathSyntax(p).parse(p).root
+  let end = p.length
+  while (end > root.length && lastSeparator(p.slice(0, end)) === end - 1) end--
+  return p.slice(0, end)
 }
 
 export type PathSplit = { base: string; filter: string }
@@ -80,8 +91,7 @@ export function splitPathForDirSuggest(value: string): PathSplit {
   // Treat bare `~` as `~/` so we list the home directory.
   const normalized = value === "~" ? "~/" : value
   const expanded = expandHome(normalized)
-  if (expanded.endsWith("/")) return { base: expanded, filter: "" }
-  const lastSlash = expanded.lastIndexOf("/")
+  const lastSlash = lastSeparator(expanded)
   if (lastSlash === -1) return { base: "", filter: expanded }
   return { base: expanded.slice(0, lastSlash + 1), filter: expanded.slice(lastSlash + 1) }
 }
@@ -137,9 +147,8 @@ export function filterSubdirs(all: readonly string[], filter: string): readonly 
 export function joinDrill(typedValue: string, baseExpanded: string, name: string): string {
   const out = `${baseExpanded + name}/`
   if (typedValue.startsWith("~")) {
-    const home = os.homedir()
-    if (out === `${home}/`) return "~/"
-    if (out.startsWith(`${home}/`)) return `~${out.slice(home.length)}`
+    const short = tildify(out)
+    if (short.startsWith("~")) return short === "~" ? "~/" : `${short}/`
   }
   return out
 }
@@ -155,9 +164,7 @@ export function joinDrill(typedValue: string, baseExpanded: string, name: string
 export function joinPicked(typedValue: string, baseExpanded: string, name: string): string {
   const out = baseExpanded + name
   if (typedValue.startsWith("~")) {
-    const home = os.homedir()
-    if (out === home) return "~"
-    if (out.startsWith(`${home}/`)) return `~${out.slice(home.length)}`
+    return tildify(out)
   }
   return out
 }

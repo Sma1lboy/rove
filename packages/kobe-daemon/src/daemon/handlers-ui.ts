@@ -11,6 +11,7 @@
  */
 
 import { randomUUID } from "node:crypto"
+import { samePath } from "../path-identity"
 import { optionalBoolean, optionalString, requireNumber, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { displayTaskTitle } from "./protocol.ts"
@@ -325,7 +326,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         ?.append(author.repo, { at: new Date().toISOString(), text, taskId, author: label })
         .then(() => true)
         .catch(() => false)
-      const main = ctx.orch.listTasks().find((t) => (t.kind ?? "task") === "main" && t.repo === author.repo)
+      const main = ctx.orch.listTasks().find((t) => (t.kind ?? "task") === "main" && samePath(t.repo, author.repo))
       // No dispatcher seat, or the dispatcher noting to itself: accepted
       // but unrouted — filing must never error a working agent. It is
       // persisted above, so an unrouted note is not a loss.

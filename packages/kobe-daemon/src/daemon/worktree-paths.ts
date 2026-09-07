@@ -64,7 +64,11 @@ export function repoWorktreeDirName(repo: string): string {
 /** True iff `raw` starts with `$project_dir` as its first path segment. */
 export function hasProjectDirToken(raw: string): boolean {
   const trimmed = raw.trim()
-  return trimmed === PROJECT_DIR_TOKEN || trimmed.startsWith(`${PROJECT_DIR_TOKEN}/`)
+  return (
+    trimmed === PROJECT_DIR_TOKEN ||
+    trimmed.startsWith(`${PROJECT_DIR_TOKEN}/`) ||
+    (process.platform === "win32" && trimmed.startsWith(`${PROJECT_DIR_TOKEN}\\`))
+  )
 }
 
 /**
@@ -88,12 +92,13 @@ export function normalizeWorktreeBase(raw: string | undefined | null, projectDir
   if (!trimmed) return null
   if (hasProjectDirToken(trimmed)) {
     if (!projectDir) return null
-    const rest = trimmed.slice(PROJECT_DIR_TOKEN.length).replace(/^\/+/, "")
+    const rest = trimmed.slice(PROJECT_DIR_TOKEN.length).replace(process.platform === "win32" ? /^[/\\]+/ : /^\/+/, "")
     return path.resolve(projectDir, rest)
   }
   const home = resolveProductHomeDir()
   if (trimmed === "~") return home
-  const expanded = trimmed.startsWith("~/") ? path.join(home, trimmed.slice(2)) : trimmed
+  const tilde = trimmed.startsWith("~/") || (process.platform === "win32" && trimmed.startsWith("~\\"))
+  const expanded = tilde ? path.join(home, trimmed.slice(2)) : trimmed
   return path.isAbsolute(expanded) ? expanded : path.resolve(home, expanded)
 }
 

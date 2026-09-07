@@ -17,6 +17,7 @@
  */
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
+import { pathWithin } from "@sma1lboy/kobe-daemon/path-identity"
 import { homeDir } from "../../env.ts"
 import { ulid } from "../../orchestrator/index/ulid.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
@@ -96,7 +97,7 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   // `/private/tmp/x` and a `!==` test would flag every correct path there.
   // A symlink rewrite is not a prefix of the path it rewrote; a climbed-out-of
   // subdirectory always is.
-  const resolvedFrom = requestedRepo.startsWith(`${repo}/`) ? { repoResolvedFrom: requestedRepo } : undefined
+  const resolvedFrom = pathWithin(repo, requestedRepo) ? { repoResolvedFrom: requestedRepo } : undefined
   const result = parallel ? await addParallel(ctx, repo, count, agentsSpec) : await addOne(ctx, repo)
   return resolvedFrom && result && typeof result === "object" ? { ...result, ...resolvedFrom } : result
 }
