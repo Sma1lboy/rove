@@ -4,6 +4,7 @@
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { Terminal as XtermHeadless } from "@xterm/headless"
 import { persistedScrollbackRows } from "../../../state/scrollback"
+import { hostTargetFps } from "../../lib/host-render-options"
 import { profileSpan, profileTick } from "../../lib/render-profile"
 import { type TerminalInputModes, encodeMouseButton, encodeWheel } from "./keys-pure"
 import { PtyListeners } from "./pty-listeners"
@@ -24,21 +25,22 @@ import { XtermRefreshTracker, wireXtermChannels, wireXtermDefaultColorQueries } 
 /**
  * How long a burst of PTY output is coalesced before one snapshot is built.
  *
- * This is the renderer's frame period, not a guess. `createCliRenderer` runs
- * at `targetFps` 30 (src/tui/lib/host-render-options.ts sets no override, and
- * `snapshot-coalesce.test.tsx` reads 30 off a live renderer), so a snapshot
- * produced more often than every 33ms is built, published, committed through
- * React and laid out by opentui for a frame that is then never drawn.
+ * This is the renderer's frame period, not a guess: it derives from the same
+ * `hostTargetFps()` that `hostRenderOptions` hands `createCliRenderer` (30 —
+ * 33ms — except Windows at 60 — 16ms; see host-render-options.ts for why). A
+ * snapshot produced more often than once per frame is built, published,
+ * committed through React and laid out by opentui for a frame that is then
+ * never drawn.
  *
- * It used to be 16ms — 62.5Hz against a 30Hz renderer. Measured on a pane
- * streaming 200 lines/s at 200x50: 49 refreshes/s where the renderer drew 30,
- * so ~40% of the whole snapshot→paint pass was discarded work.
+ * It used to be a flat 16ms — 62.5Hz against a 30Hz renderer. Measured on a
+ * pane streaming 200 lines/s at 200x50: 49 refreshes/s where the renderer
+ * drew 30, so ~40% of the whole snapshot→paint pass was discarded work.
  *
- * Raising it costs no visible latency: the extra snapshots were never on
- * screen. It must not exceed the frame period either, or output visibly lags
- * the renderer — hence the test that pins it to the live `targetFps`.
+ * Matching the frame costs no visible latency: the extra snapshots were never
+ * on screen. It must not exceed the frame period either, or output visibly
+ * lags the renderer — hence the test that pins it to `targetFps`.
  */
-export const SNAPSHOT_COALESCE_MS = 33
+export const SNAPSHOT_COALESCE_MS = Math.round(1000 / hostTargetFps())
 
 export abstract class XtermTaskPty implements TaskPtyLike {
   readonly taskId: string
