@@ -13,11 +13,32 @@
  */
 
 import { logDaemonError } from "./crash-log.ts"
-import { optionalBoolean, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
+import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import { publishIssueSnapshot } from "./handlers-issues.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import { serializeTask } from "./protocol.ts"
 import { auditDeletionRequested } from "./task-deletion-audit.ts"
+
+/**
+ * The `set-status --report-*` fields, or undefined when the caller sent none.
+ *
+ * Undefined and "an empty report" are deliberately different: writing an
+ * empty one would restamp `at` and tell a dispatcher the worker reported
+ * again when it only changed status.
+ */
+function optionalWorkerReport(
+  payload: Record<string, unknown>,
+): { branch?: string; pr?: number; summary?: string } | undefined {
+  const branch = optionalString(payload, "reportBranch")
+  const summary = optionalString(payload, "reportSummary")
+  const pr = optionalNumber(payload, "reportPr")
+  if (branch === undefined && summary === undefined && pr === undefined) return undefined
+  return {
+    ...(branch !== undefined ? { branch } : {}),
+    ...(pr !== undefined ? { pr } : {}),
+    ...(summary !== undefined ? { summary } : {}),
+  }
+}
 
 export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
@@ -60,6 +81,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         title: optionalString(payload, "title"),
         branch: optionalString(payload, "branch"),
         baseRef: optionalString(payload, "baseRef"),
+        worktreeName: optionalString(payload, "worktreeName"),
         vendor: optionalVendor(payload, "vendor"),
         command: optionalString(payload, "command"),
         modelEffort: optionalString(payload, "effort"),
@@ -252,6 +274,11 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       const linked = status === "done" ? ctx.orch.getTask(taskId) : undefined
       const prevStatus = linked?.status
       await ctx.orch.setStatus(taskId, status)
+      // The worker's own outcome claim rides the same call — one round trip
+      // for "I am done, and here is what I delivered". Written AFTER the
+      // status so a report never lands on a transition that was refused.
+      const report = optionalWorkerReport(payload)
+      if (report) await ctx.orch.setWorkerReport(taskId, report)
       // Done-mirroring: a task reaching `done` flips its source issue to
       // `done` too, so a unified board stays consistent. The reverse-look-up
       // (issue owns the link via `Issue.taskId`) and the conditional flip run

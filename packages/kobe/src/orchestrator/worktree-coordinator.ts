@@ -27,10 +27,18 @@ import type { Task, TaskId, VendorId } from "../types/task.ts"
 import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
 import type { AdoptableWorktree, WorktreeInfo } from "../types/worktree.ts"
 import { deriveConventionBranch, inferBranchStyle, uniqueBranchName } from "./branch-style.ts"
+import { InvalidWorktreeNameError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 import { SlugAllocator } from "./worktree/slug-allocator.ts"
+
+/**
+ * A legal worktree directory name: one path segment, no `..`, no leading dot.
+ * The value becomes a single segment under the repo's worktree root, and
+ * everything that later cleans up a worktree is scoped to that root.
+ */
+const WORKTREE_NAME_RE = /^[A-Za-z0-9_][A-Za-z0-9._-]*$/
 
 /** Resolve a canonical path — injected by the Orchestrator so both sides dedupe identically. */
 type CanonPath = (p: string) => string
@@ -102,6 +110,20 @@ export class WorktreeCoordinator {
     )
   }
 
+  /**
+   * Take a caller-chosen worktree directory name for `repo`, or refuse it.
+   *
+   * Called at CREATE time, not at materialise time, so `add --worktree-name`
+   * fails while the caller is still looking at it — a collision surfacing on
+   * first enter would strand a task row nobody asked for. The name is held in
+   * the allocator's pending set from here until the worktree is committed,
+   * which is what stops two concurrent creates taking it.
+   */
+  async claimWorktreeName(repo: string, name: string): Promise<string> {
+    if (!WORKTREE_NAME_RE.test(name)) throw new InvalidWorktreeNameError(name)
+    return await this.slugs.claim(repo, name)
+  }
+
   /** Drop a task's in-flight worktree lock (on delete / forget). */
   forget(id: TaskId): void {
     this.worktreeLocks.delete(id)
@@ -143,7 +165,10 @@ export class WorktreeCoordinator {
    * spurious {@link TaskNotFoundError}.
    */
   private async createWorktree(task: Task): Promise<string> {
-    const slug = await this.slugs.allocate(task.repo)
+    // A caller-chosen name was already claimed (and validated) at create
+    // time, so this reuses it rather than re-claiming: the pending slot is
+    // still held, and `claim` would now refuse its own reservation.
+    const slug = task.worktreeName || (await this.slugs.allocate(task.repo))
     const branch = task.branch || (await this.deriveAutoBranch(task))
     // The recorded fork point (`add --base-branch`), persisted on the task at
     // create time — durable across daemon restarts between create and this

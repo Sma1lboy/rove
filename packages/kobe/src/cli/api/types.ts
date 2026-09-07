@@ -283,6 +283,19 @@ export interface DeliveredPrompt {
     readonly id: string
     readonly layer: "recent-human-write" | "composer-not-empty"
     readonly expiresAt?: string
+    /**
+     * The text already sitting in the target composer, truncated to 200
+     * chars — WHY this deferred. Without it a dispatcher knows only that
+     * something is in the way and has to `read-output` the pane to find
+     * out what; with it, "the worker is mid-sentence" and "somebody left a
+     * stray keystroke in there" are one field apart.
+     *
+     * Response-only, deliberately: the text is somebody's half-written
+     * message, so it never reaches daemon.log or the Inbox episode. Absent
+     * for the `recent-human-write` layer (which measures time, not the
+     * screen) and whenever the screen read could not name the text.
+     */
+    readonly composerPreview?: string
   }
 }
 

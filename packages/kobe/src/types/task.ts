@@ -266,8 +266,48 @@ export interface Task {
    * guess.
    */
   readonly baseRef?: string
+  /**
+   * The directory name this task's worktree will take under the repo's
+   * worktree root (`add --worktree-name`), instead of a name picked from the
+   * animal pool. Persisted because allocation is LAZY: the pick happens on
+   * first enter, possibly in a later daemon process than the create.
+   * Absent = the usual generated name.
+   */
+  readonly worktreeName?: string
+  /**
+   * What the WORKER said it delivered (`set-status --report-*`).
+   *
+   * Deliberately separate from {@link prStatus}, which the daemon polls from
+   * the forge: this is a claim, that is an observation, and a dispatcher
+   * deciding whether to land needs to know which one it is reading. A worker
+   * can write `report.pr = 921` for a PR that does not exist; only
+   * `prStatus.checkState` comes from asking GitHub.
+   */
+  readonly report?: TaskWorkerReport
   readonly createdAt: string
   readonly updatedAt: string
+}
+
+/**
+ * A worker's own account of what it produced, stamped by
+ * `set-status --report-branch/--report-pr/--report-summary`.
+ *
+ * The gap it closes: outcomes travelled as PROSE in a `send` back to the
+ * dispatcher, which then parsed `succeeded: … (branch fix/x)` by convention.
+ * A worker that phrased it differently was silently unparseable, and nothing
+ * in the task row said what had been delivered. Every field is optional —
+ * a report naming only a summary is still a report.
+ */
+export interface TaskWorkerReport {
+  /** The branch the worker says holds the work. */
+  readonly branch?: string
+  /** The PR number the worker says it opened. NOT the same fact as
+   *  `prStatus.number`, which the daemon read from the forge. */
+  readonly pr?: number
+  /** One line of what was delivered. */
+  readonly summary?: string
+  /** When the report was written (ISO 8601). */
+  readonly at: string
 }
 
 /**

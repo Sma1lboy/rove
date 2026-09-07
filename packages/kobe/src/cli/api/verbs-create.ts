@@ -26,6 +26,13 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
         description: "Explicit branch name (else derived from the title in the repo's own style). Single task only.",
       },
       { name: "base-branch", type: "string", placeholder: "B", description: "Base ref the worktree branches from." },
+      {
+        name: "worktree-name",
+        type: "string",
+        placeholder: "NAME",
+        description:
+          "Name the worktree DIRECTORY instead of taking one from the animal pool — so the caller can predict `.task.worktreePath` (`<worktrees root>/<NAME>`) rather than reading it back with get-task. One path segment of letters/digits/`.`/`_`/`-`, not starting with `.` (INVALID_WORKTREE_NAME otherwise). A name already in use in this repo — by a live task, a directory on disk, or a concurrent create — is REFUSED with WORKTREE_NAME_TAKEN, never silently suffixed `-v2`. Single task only.",
+      },
       F.command(),
       {
         name: "effort",

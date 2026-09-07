@@ -139,6 +139,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `MISSING_TARGET` | No `--task-id`, no `$ROVE_TASK_ID`, no active task — nothing was named. |
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |
 | `TAB_NOT_FOUND` | A `--tab tab-N` the task has no live (or restorable) tab for. |
+| `NO_ENGINE_TAB` | The task has live tabs but none of them is an engine, so there is nothing to deliver to or interrupt. |
 | `NOT_A_REPO` | `--repo` does not point at a git repository. |
 | `INVALID_BRANCH` | `--branch` is a name git will not accept (`git check-ref-format --branch`). |
 | `REPO_UNRESOLVABLE` | `--repo` resolved, but the repository is gone or unreadable. |
@@ -162,6 +163,9 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `SESSION_FAILED` | A hosted engine session could not be started or written to. |
 | `BAD_EFFORT` | The task's engine declares no effort levels, or not that one. |
 | `PARTIAL_FANOUT` | A parallel round with at least one failure (exit 3). |
+| `UNSUPPORTED` | `interrupt` on an engine that never declared how it is interrupted. |
+| `WATCH_TIMEOUT` | `watch` reached `--timeout` before any `--until` state; nothing has happened YET. |
+| `DAEMON_GONE` | The daemon died mid-`watch`; the verb never reconnects silently. |
 
 `DELIVER_FAILED` and `CREATE_FAILED` are not error codes in that sense: they
 only ever appear inside a `PARTIAL_FANOUT` payload, on `failures[].error.code`,
@@ -355,6 +359,35 @@ replacement in `nextCommandArgs`.
   tab's hosted terminal session (terminal-only; `TAB_NOT_FOUND` when the tab
   has no session). A dead session's terminal page includes `terminal.exit`
   (`code`/`signal`/`at`) while the PTY host still runs.
+- `watch (--task-ids a,b,c | --group GROUPID) --until STATE[,STATE]
+  [--timeout MS]`: block until a watched task's engine reaches one of
+  `--until`'s states, streaming every transition on the way. This is the
+  push-driven replacement for a `collect` polling loop: the daemon already
+  publishes each activity transition, so a supervisor no longer pays a
+  process spawn and a socket per tick to find out nothing changed.
+
+  Valid states: `idle`, `running`, `turn_complete`, `rate_limited`,
+  `permission_needed`, `error`, `dead`. A state that does not exist is
+  refused up front with `BAD_FLAG` — for a verb whose whole job is to wait, a
+  typo that waits forever is the worst possible failure.
+
+  **`dead` is the one polling is worst at.** A `SIGKILL`ed engine fires no
+  hook, so the daemon writes `dead` from the PTY host's exit record and
+  pushes it here immediately, instead of it surfacing whenever the next poll
+  happened to land.
+
+  **Output is a stream, then a result.** One NDJSON line per transition —
+  `{ taskId, tabId?, state, at }` — followed by the usual single result
+  object when the watch ends. Reading line-by-line lets a caller act on the
+  first line; reading the whole output gets both. The channel replays its
+  current value on subscribe, so a task that is ALREADY in an `--until`
+  state matches immediately, which is the intended answer.
+
+  Exit codes: `0` with `matched` on a hit; `WATCH_TIMEOUT` when `--timeout`
+  (default 300000 ms) elapses first — that says nothing has happened yet,
+  never that nothing will; `DAEMON_GONE` when the daemon dies mid-watch. The
+  verb never reconnects on its own: reconnecting silently would hide the gap
+  in which transitions were missed.
 - `inspect [--task-id ID]` *(offline)*: diagnostics in one read, across four
   sections: `daemon` (raw per-task/per-tab activity entries, plus
   `contextUsage` — the collector's current reading per live engine session,
@@ -385,6 +418,7 @@ replacement in `nextCommandArgs`.
 ## create
 
 - `add --repo PATH [--title T] [--branch B] [--base-branch B]
+  [--worktree-name NAME]
   [--command CMD] [--count N | --agents claude:2,codex:1] [--status S]
   [--pin] [--activate] [--prompt TEXT | --prompt-file PATH]`: create a task (appears in the
   sidebar immediately). With `--prompt` it also materializes the worktree,
@@ -409,6 +443,18 @@ replacement in `nextCommandArgs`.
   A `--title` is flattened to one line: newlines, tabs and other control
   characters collapse to single spaces (the sidebar row does not wrap, and a
   raw newline breaks its height).
+
+  `--worktree-name` names the worktree DIRECTORY instead of taking one from
+  the animal pool, so a caller can predict `.task.worktreePath`
+  (`<worktrees root>/<NAME>`) rather than reading it back with `get-task`
+  afterwards. It must be one path segment of letters, digits, `.`, `_` or `-`
+  and may not start with `.` (`INVALID_WORKTREE_NAME`); a name already in use
+  in this repo — a live task, a directory on disk, or a concurrent create —
+  is refused with `WORKTREE_NAME_TAKEN` and never silently suffixed `-v2`,
+  because a caller that asked for `probe-1` and quietly got `probe-1-v2`
+  looks in the wrong place and finds out somewhere else. Single task only,
+  like `--branch`.
+
   `--base-branch` cuts the new branch from that ref instead of the repo's
   current HEAD and is persisted on the task (`.task.baseRef`) — the fork
   point `collect` measures against, durable across daemon restarts. The
@@ -511,8 +557,21 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   the task's worktree. `started: true` in the result marks that fresh
   session (vs. delivery into an existing one).
   If a busy composer defers the prompt, the result has `delivered: false` and
-  a `deferred` record — its `id`, the `layer` that blocked it, and
-  `expiresAt`, the moment the daemon's sweep drops the text. **Deferred is
+  a `deferred` record — its `id`, the `layer` that blocked it,
+  `expiresAt` (the moment the daemon's sweep drops the text), and
+  `composerPreview`: the text already sitting in that composer, truncated to
+  200 characters. That last field is what turns "composer busy" into
+  something you can act on — before it, a dispatcher knew only that
+  SOMETHING was in the way and had to `read-output` the pane to find out
+  what, and "the worker is mid-sentence" and "somebody left a stray
+  keystroke in there" call for opposite responses. `COMPOSER_BUSY` errors
+  carry the same field. It is present only for the `composer-not-empty`
+  layer (`recent-human-write` measures time and never looks at the screen)
+  and only when the screen read could name the text.
+
+  **The preview travels in the RESPONSE only.** It is somebody's half-written
+  message, so it is never written to `daemon.log`, never stored with the
+  deferral, and never rendered in the Inbox episode. **Deferred is
   not delivered.** The daemon keeps one deferred prompt per tab, and a later
   send to that tab fails with `DEFERRED_PROMPT_PENDING` until that record is
   released, dismissed, or expires; it never replaces text the daemon already
@@ -565,6 +624,30 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   stays `true` (the prompt is still riding an argv that has not run yet) and
   `reason` says so, rather than holding `add` open for the length of an
   install.
+- `interrupt --task-id ID [--tab TAB]`: stop the turn a task's engine is
+  currently running — the headless twin of pressing the engine's own
+  interrupt key. The session, its conversation and its worktree all survive,
+  which is what separates this from `tab-close` and `delete`.
+
+  It exists because the escalation had a hole in the middle. When a worker
+  runs away, `send` cannot reach it (delivery needs a quiet composer, and a
+  runaway engine's composer is exactly not that), so the only remaining
+  levers destroyed something: `tab-close` throws the conversation away,
+  `delete` throws the worktree away. Dispatchers took the second option
+  because it was the only one that existed.
+
+  Delivery is a plain PTY write of the ENGINE'S OWN interrupt bytes, from
+  the engine registry (`EngineCapabilities.interruptSequence`) — the same
+  thing a human pressing the key produces. An engine that has not declared
+  them (every `generic` protocol engine) is refused with `UNSUPPORTED`
+  rather than guessed at: `Esc` and `ctrl-C` mean opposite things across
+  engines, and one of the two guesses quits the process.
+
+  Returns `{ taskId, tabId, vendor, interrupted, bytes }`. `interrupted`
+  reports the WRITE, not the effect — an engine acknowledges an interrupt on
+  its own screen and its own schedule, so read `collect`'s `.activity.state`
+  for what actually happened.
+
 - `dispatch --task-id ID (--prompt TEXT | --prompt-file PATH) [--tab TAB]`: route text into a
   task's live session (the dispatcher's messenger; see
   [design/dispatcher.md](./design/dispatcher.md)). Unlike `send` it never
@@ -698,8 +781,28 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   claude declares none. A level the engine does not declare is rejected
   (`BAD_EFFORT`, naming the levels it does accept) rather than passed through,
   because the launch path drops an unknown level silently.
-- `set-status --task-id ID --status S`: set lifecycle status:
+- `set-status --task-id ID --status S [--report-branch B] [--report-pr N]
+  [--report-summary TEXT]`: set lifecycle status:
   `backlog`, `in_progress`, `in_review`, `done`, `canceled`, `error`.
+
+  The `--report-*` flags record what the WORKER says it delivered, as
+  `.report` on the task (`{ branch?, pr?, summary?, at }`), readable from
+  `get-task` and `collect`. Before this, an outcome travelled as prose in a
+  `send` back to the dispatcher, which parsed `succeeded: … (branch fix/x)`
+  by convention — a worker that phrased it differently was silently
+  unparseable.
+
+  **`.report` is a CLAIM; `.prStatus` is an OBSERVATION.** The daemon polls
+  the forge for `prStatus.number` / `prStatus.checkState`; `report.pr` is
+  whatever the worker typed, and a worker can report a PR that does not
+  exist. A dispatcher deciding whether to land needs to know which of the two
+  it is holding, which is why they are separate fields and not one merged
+  view.
+
+  Report fields MERGE onto any previous report and restamp `at`, so a
+  follow-up naming only `--report-pr` keeps the branch reported earlier.
+  A `set-status` with no `--report-*` flag writes no report at all — an empty
+  one would restamp `at` and claim the worker reported again.
 
 ## issues
 
@@ -834,26 +937,45 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   `--remove-worktree=false` — or with a removal that got refused (dirty tree,
   base checkout, the caller's own worktree) — keeps the branch. The result
   says so in `branchKept` (`{ reason }`) and writes no `branchAnchor`.
-- `delete (--task-id ID | --group GROUPID) [--force] [--delete-branch] [--wait]`: remove a task
+- `delete (--task-id ID | --group GROUPID) [--force] [--delete-branch]
+  [--delete-remote] [--wait]`: remove a task
   and its worktree. **The git branch stays** unless `--delete-branch` is
   passed; git is the durable record, the task row is not. Needs `--force` on a
   dirty worktree; `--force` never implies `--delete-branch`.
 
-  **`--delete-branch` is best-effort and its outcome is in the daemon log, not
-  this reply.** `git branch -d` refuses a branch whose commits the base cannot
-  reach — the ordinary case for work that never landed — and the removal
-  succeeds anyway, by design. It is git's own rule, so a branch that was pushed
-  deletes even unmerged: `-d` also accepts anything the branch's upstream
-  already contains. `--force` upgrades the delete to `git branch -D` and takes
-  the unmerged case too. **Neither spelling touches the remote** —
-  `git push origin --delete <branch>` stays yours to run.
+  **`--delete-branch` deletes the LOCAL branch by git's own rules.**
+  `git branch -d` refuses a branch whose commits the base cannot reach — the
+  ordinary case for work that never landed — but also accepts anything the
+  branch's upstream already contains, so a pushed branch deletes even
+  unmerged. `--force` upgrades the delete to `git branch -D` and takes the
+  unmerged case too. The removal succeeds either way, by design.
 
-  The reply cannot carry that verdict: by the time `--wait` resolves, the task
-  row it would ride on has been removed, which is how `--wait` knows the
-  deletion finished. So a refusal is logged instead, as
-  `branch kept task <id> branch=<name> — git refused the delete: <reason>` in
-  `~/.rove/daemon.log`, next to the `removed …` line. Check `git branch` if
-  you need the answer programmatically.
+  **`--delete-remote` is a separate opt-in that `--delete-branch` never
+  implies.** A local branch is recoverable from any clone that still has it;
+  a remote one is recoverable by nobody, and deleting it closes an open PR.
+  It pushes `git push <remote> --delete <branch>` to the branch's own
+  configured remote (`branch.<name>.remote`), falling back to `origin`.
+
+  **The branch outcome is in the reply.** With either branch flag the result
+  carries `branch`:
+
+  ```json
+  { "branch": "fix/x", "deleted": true,
+    "remote": { "name": "origin", "deleted": true } }
+  ```
+
+  `deleted: false` comes with `keptReason` — git's own sentence about why it
+  kept the branch (unmerged work under `-d`, or a sibling worktree still
+  holding it). The point is that you can now read which happened instead of
+  inferring it from `status: "removed"`, which is the worktree's outcome and
+  never the branch's. `branch.remote.deleted: false` carries `error` the same
+  way.
+
+  Both flags therefore imply `--wait`: git refuses to delete a branch a live
+  worktree still holds, so a verdict read before the removal resolves would
+  be describing the worktree. The daemon still logs `branch kept task <id>
+  branch=<name> — git refused the delete: <reason>` to `~/.rove/daemon.log`,
+  next to the `removed …` line.
 
   **The delete gate refuses what it cannot read.** Without `--force`, deletion
   probes for gitignored work (`git status --ignored`); a probe that fails is a

@@ -96,6 +96,13 @@ const FULL_TASK: DeepRequired<Task> = {
   },
   prompt: "the full task brief — never truncated on the way to disk",
   baseRef: "release/2.x",
+  worktreeName: "probe-1",
+  report: {
+    branch: "fix/round-trip",
+    pr: 921,
+    summary: "worker's own account of what it delivered",
+    at: "2026-08-27T00:00:00.000Z",
+  },
   createdAt: "2026-08-27T00:00:00.000Z",
   updatedAt: "2026-08-27T00:00:00.000Z",
 }

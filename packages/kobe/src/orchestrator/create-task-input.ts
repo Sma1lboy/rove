@@ -20,6 +20,13 @@ export interface CreateTaskInput {
   readonly branch?: string
   /** Optional base ref for the new lazy worktree branch. */
   readonly baseRef?: string
+  /**
+   * Directory name for the lazy worktree, instead of one drawn from the
+   * animal pool. Refused (rather than suffixed) when the name is already in
+   * use in this repo — a caller naming the directory is a caller that
+   * intends to predict the path. Single task only, like {@link branch}.
+   */
+  readonly worktreeName?: string
   /** Engine PROTOCOL for the monitor's history-reader hint (derived from
    *  {@link command} when the caller passed one). */
   readonly vendor?: VendorId

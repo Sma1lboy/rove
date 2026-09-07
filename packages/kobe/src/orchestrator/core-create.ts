@@ -27,6 +27,16 @@ export interface StoreDeps {
 /** Plus the project-row coordinator, for a repo-backed task. */
 export interface CreateDeps extends StoreDeps {
   readonly mainTasks: MainTaskCoordinator
+  /**
+   * Take a caller-chosen worktree directory name, or throw.
+   *
+   * Injected rather than reached for so this module keeps needing only the
+   * store: the check belongs to the slug allocator, which the worktree
+   * coordinator owns. Called BEFORE the row is written — a name collision
+   * must not leave a task behind that can never materialise where its caller
+   * was told to look.
+   */
+  readonly claimWorktreeName: (repo: string, name: string) => Promise<string>
 }
 
 /** Options for {@link openDirectoryTaskRow}. */
@@ -67,6 +77,11 @@ export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): P
   const mainTask = await deps.mainTasks.ensureIfEligible(input.repo, input.projectIntent ?? "explicit")
   const repo = mainTask?.repo ?? normalizeMainRepo(input.repo).repo
   const title = sanitizeTaskTitle(input.title ?? PLACEHOLDER_TASK_TITLE) || PLACEHOLDER_TASK_TITLE
+  // Against the NORMALIZED repo, which is the key the allocator's occupied
+  // set is built under — checking the caller's possibly-subdirectory path
+  // would compare against a different repo's names.
+  const worktreeName = input.worktreeName?.trim()
+  if (worktreeName) await deps.claimWorktreeName(repo, worktreeName)
   // Leave the branch EMPTY for a lazily-allocated task (unless the caller
   // gave an explicit one): {@link ensureWorktree} derives a repo-convention
   // name (branch-style.ts) with collision suffixes when the worktree
@@ -92,6 +107,10 @@ export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): P
     // branch signals compare against the recorded fork point instead of
     // re-guessing the base.
     ...(input.baseRef?.trim() ? { baseRef: input.baseRef.trim() } : {}),
+    // Persisted for the same reason as `baseRef`: the directory is allocated
+    // lazily, possibly in a later daemon process, and the caller has already
+    // been told which path to expect.
+    ...(worktreeName ? { worktreeName } : {}),
   })
   return task
 }

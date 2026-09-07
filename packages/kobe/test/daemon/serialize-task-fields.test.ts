@@ -82,6 +82,13 @@ const FULL: DeepRequired<SerializedTask> = {
   dispatcher: { taskId: "01ARZ3NDEKTSV4RRFFQ69G5FAX", tabId: "tab-1" },
   prompt: "the full task brief — never truncated on the way to the wire",
   baseRef: "release/2.x",
+  worktreeName: "probe-1",
+  report: {
+    branch: "fix/wire",
+    pr: 921,
+    summary: "worker's own account of what it delivered",
+    at: "2026-08-27T00:00:00.000Z",
+  },
   createdAt: "2026-08-30T00:00:00.000Z",
   updatedAt: "2026-08-30T00:00:00.000Z",
 }

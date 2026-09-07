@@ -100,6 +100,11 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
       vendor: task.vendor,
       status: task.status,
       ...(task.groupId ? { groupId: task.groupId } : {}),
+      // The worker's own claim (`set-status --report-*`). Beside `base.ahead`
+      // and `tabs` on purpose: this is the one line where "what it says it
+      // did" sits next to what the repo actually shows, which is the whole
+      // reason a dispatcher opens `collect` before landing anything.
+      ...(task.report ? { report: task.report } : {}),
       // Lineage read: who dispatched this task, so a parallel
       // round's parent is programmatically discoverable.
       ...(task.dispatcher ? { dispatcher: task.dispatcher } : {}),

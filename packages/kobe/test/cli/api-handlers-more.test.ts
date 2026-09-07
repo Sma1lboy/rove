@@ -161,6 +161,7 @@ describe("schema drill-ins", () => {
       "agent-turns",
       "inspect",
       "read-output",
+      "watch",
     ])
     for (const v of result.verbs) expect(v.summary.length).toBeGreaterThan(0)
   })

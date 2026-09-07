@@ -411,6 +411,11 @@ export interface SerializedTask {
   readonly prompt?: DaemonTask["prompt"]
   /** The recorded fork point (`add --base-branch`) branch signals measure against. */
   readonly baseRef?: DaemonTask["baseRef"]
+  /** Caller-chosen worktree directory name (`add --worktree-name`). */
+  readonly worktreeName?: DaemonTask["worktreeName"]
+  /** The worker's own outcome claim (`set-status --report-*`) — a CLAIM,
+   *  where `prStatus` is the daemon's own observation of the forge. */
+  readonly report?: DaemonTask["report"]
   readonly createdAt: string
   readonly updatedAt: string
 }
@@ -452,6 +457,8 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     dispatcher: task.dispatcher,
     prompt: task.prompt,
     baseRef: task.baseRef,
+    worktreeName: task.worktreeName,
+    report: task.report,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
   }

@@ -19,6 +19,7 @@ import type {
   TaskPRStatus,
   TaskQuotaResumeState,
   TaskStatus,
+  TaskWorkerReport,
   VendorId,
 } from "../types/task.ts"
 import { deriveConventionBranch, inferBranchStyle, uniqueBranchName } from "./branch-style.ts"
@@ -221,6 +222,25 @@ export class TaskEditor {
       throw new IllegalTransitionError(task.status, status, task.id)
     }
     await this.store.update(task.id, { status })
+  }
+
+  /**
+   * Record what the WORKER says it delivered (`set-status --report-*`).
+   *
+   * Its own method rather than a parameter on {@link setStatus}, because
+   * that one returns early when the status is unchanged — and re-reporting
+   * on an already-`done` task is the ordinary case (a worker corrects its PR
+   * number, or files a summary after the fact). Folded in there, exactly
+   * those reports would vanish without a word.
+   *
+   * Fields MERGE onto any previous report: a follow-up naming only `pr` must
+   * not erase the branch the worker named ten minutes earlier. `at` always
+   * restamps, so the timestamp means "last reported", not "first".
+   */
+  async setWorkerReport(id: TaskId | string, report: Omit<TaskWorkerReport, "at">): Promise<void> {
+    const task = this.requireTask(id)
+    const next: TaskWorkerReport = { ...task.report, ...report, at: new Date().toISOString() }
+    await this.store.update(task.id, { report: next })
   }
 
   /**
