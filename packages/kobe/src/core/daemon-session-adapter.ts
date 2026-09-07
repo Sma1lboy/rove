@@ -1,9 +1,8 @@
 import type { DaemonRpcClient } from "@sma1lboy/kobe-daemon/client/rpc"
 import { resolveLoginShell } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { engineLaunchArgv, protocolEntry } from "../engine/engine-presets.ts"
+import { engineLaunchArgv } from "../engine/engine-presets.ts"
 import {
-  ComposerBusyError,
   awaitEngineProcess,
   deliverToHostedKey,
   ensureHostedEngine,
@@ -196,16 +195,8 @@ export async function deliverPromptToLiveEngineAdapter(
     const key = findHostedEngineKey(sessions, task.id, engineArgv[0])
     if (!key) return false
     if (!(await sessionHasEngine(sessions.find((s) => s.key === key)?.pid, engineArgv))) return false
-    const manifest = task.vendor ? protocolEntry(task.vendor).screenManifest : undefined
-    return (
-      (await deliverToHostedKey(host.rpc, key, prompt, {
-        screenManifest: manifest,
-      })) !== null
-    )
-  } catch (err) {
-    // Composer-busy is not a silent failure: let the quota-resume runner log
-    // it instead of dropping the prompt without a trace.
-    if (err instanceof ComposerBusyError) throw err
+    return (await deliverToHostedKey(host.rpc, key, prompt)) !== null
+  } catch {
     return false
   } finally {
     host.close()
@@ -218,13 +209,9 @@ function tabIdFromHostedKey(key: string): string {
 }
 
 /**
- * {@link deliverPromptToLiveEngineAdapter} reporting composer-busy as a VALUE.
- *
- * The routine runner must not drop a daily report the way
- * quota-resume drops a continue nudge: a dropped report and a routine that
- * never ran look identical to the user. It needs the busy layer and the tab
- * to file a deferral, and the daemon cannot catch `ComposerBusyError` by type
- * across the package boundary — so the outcome crosses as data.
+ * {@link deliverPromptToLiveEngineAdapter} reporting WHICH tab it reached and
+ * WHY it could not, as data — the routine runner records the tab in its run
+ * history, and quota-resume keeps using the boolean form.
  *
  * `no-engine` is the same fact as {@link deliverPromptToLiveEngineAdapter}'s
  * refusal, kept distinct from `no-session` because the caller acts on it
@@ -241,14 +228,7 @@ export async function deliverPromptToLiveEngineDetailedAdapter(
   },
   prompt: string,
 ): Promise<
-  | { outcome: "delivered"; tabId: string }
-  | { outcome: "no-session" }
-  | { outcome: "no-engine"; tabId: string }
-  | {
-      outcome: "busy"
-      tabId: string
-      layer: "recent-human-write" | "composer-not-empty"
-    }
+  { outcome: "delivered"; tabId: string } | { outcome: "no-session" } | { outcome: "no-engine"; tabId: string }
 > {
   const host = await openHostedSessionHost()
   if (!host) return { outcome: "no-session" }
@@ -263,22 +243,8 @@ export async function deliverPromptToLiveEngineDetailedAdapter(
     if (!(await sessionHasEngine(sessions.find((s) => s.key === key)?.pid, engineArgv))) {
       return { outcome: "no-engine", tabId: tabIdFromHostedKey(key) }
     }
-    const manifest = task.vendor ? protocolEntry(task.vendor).screenManifest : undefined
-    try {
-      const delivered = await deliverToHostedKey(host.rpc, key, prompt, {
-        screenManifest: manifest,
-      })
-      return delivered === null ? { outcome: "no-session" } : { outcome: "delivered", tabId: tabIdFromHostedKey(key) }
-    } catch (err) {
-      if (err instanceof ComposerBusyError) {
-        return {
-          outcome: "busy",
-          tabId: tabIdFromHostedKey(key),
-          layer: err.layer,
-        }
-      }
-      throw err
-    }
+    const delivered = await deliverToHostedKey(host.rpc, key, prompt)
+    return delivered === null ? { outcome: "no-session" } : { outcome: "delivered", tabId: tabIdFromHostedKey(key) }
   } catch {
     // A host that went away mid-delivery is indistinguishable from one that
     // was never there — both mean "revive it", which is the caller's fallback.
@@ -288,7 +254,7 @@ export async function deliverPromptToLiveEngineDetailedAdapter(
   }
 }
 
-/** Exact-tab variant used by deferred queue draining. Never reroutes or spawns. */
+/** Exact-tab variant (a routine bound to one tab). Never reroutes or spawns. */
 export async function deliverPromptToLiveEngineTabDetailedAdapter(
   target: {
     readonly id: string
@@ -299,14 +265,7 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
   },
   prompt: string,
 ): Promise<
-  | { outcome: "delivered"; tabId: string }
-  | { outcome: "no-session" }
-  | { outcome: "no-engine"; tabId: string }
-  | {
-      outcome: "busy"
-      tabId: string
-      layer: "recent-human-write" | "composer-not-empty"
-    }
+  { outcome: "delivered"; tabId: string } | { outcome: "no-session" } | { outcome: "no-engine"; tabId: string }
 > {
   const host = await openHostedSessionHost()
   if (!host) return { outcome: "no-session" }
@@ -325,18 +284,8 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
       vendor: target.vendor,
     })
     if (!(await sessionHasEngine(session.pid, engineArgv))) return { outcome: "no-engine", tabId: target.tabId }
-    const manifest = target.vendor ? protocolEntry(target.vendor).screenManifest : undefined
-    try {
-      const delivered = await deliverToHostedKey(host.rpc, key, prompt, {
-        screenManifest: manifest,
-      })
-      return delivered === null ? { outcome: "no-session" } : { outcome: "delivered", tabId: target.tabId }
-    } catch (err) {
-      if (err instanceof ComposerBusyError) {
-        return { outcome: "busy", tabId: target.tabId, layer: err.layer }
-      }
-      throw err
-    }
+    const delivered = await deliverToHostedKey(host.rpc, key, prompt)
+    return delivered === null ? { outcome: "no-session" } : { outcome: "delivered", tabId: target.tabId }
   } finally {
     host.close()
   }

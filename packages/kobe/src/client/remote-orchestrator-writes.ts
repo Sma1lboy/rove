@@ -192,55 +192,6 @@ export async function markAttentionReadOp(
   return res.updated
 }
 
-export type DeferredPromptReleaseOutcome =
-  | "inserted"
-  | "deferred-again"
-  | "unavailable"
-  | "in-flight"
-  | "missing"
-  | "cleanup-pending"
-
-/** Claim, deliver, and durably resolve one queued prompt inside the daemon. */
-export async function releaseDeferredPromptOp(
-  client: KobeDaemonClient,
-  id: string,
-): Promise<DeferredPromptReleaseOutcome> {
-  const res = await client.request<{
-    kind: "claimed" | "in-flight" | "missing"
-    delivered: readonly string[]
-    cleaned: readonly string[]
-    retained: readonly { reason: string }[]
-    cleanupPending: readonly unknown[]
-  }>("deferredPrompt.release", { id })
-  if (res.kind !== "claimed") return res.kind
-  if (res.cleanupPending.length > 0) return "cleanup-pending"
-  if (res.delivered.includes(id) || res.cleaned.includes(id)) return "inserted"
-  return res.retained[0]?.reason === "busy" ? "deferred-again" : "unavailable"
-}
-
-export interface DeferredPromptFlushResult {
-  readonly delivered: readonly string[]
-  readonly cleaned: readonly string[]
-  readonly expired: readonly string[]
-  readonly cleanupPending: readonly {
-    readonly id: string
-    readonly error: string
-  }[]
-  readonly retained: readonly {
-    readonly id: string
-    readonly taskId: string
-    readonly tabId: string
-    readonly reason: "busy" | "unavailable" | "error" | "in-flight" | "gate-enabled"
-    readonly layer?: "recent-human-write" | "composer-not-empty"
-    readonly error?: string
-  }[]
-}
-
-/** Retry every daemon-owned prompt after the screen-based gate turns off. */
-export async function flushDeferredPromptsOp(client: KobeDaemonClient): Promise<DeferredPromptFlushResult> {
-  return await client.request<DeferredPromptFlushResult>("deferredPrompt.flush", {})
-}
-
 /** Read-only land probe (`task.landPreflight`): the merge destination, the
  *  commit count, and any refusal — all without writing. The land confirm reads
  *  it so the dialog can name what it is merging into. */

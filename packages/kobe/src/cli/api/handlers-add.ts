@@ -161,10 +161,9 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     },
     brief,
   )
-  // A prompt that never confirmed AND was not deferred is a failure — but the
+  // A prompt that never confirmed is a failure — but the
   // task IS created, so carry the taskId in the error so a script can find it.
-  // A deferred prompt is a SUCCESS: the daemon owns the message now.
-  if (!delivered.delivered && !delivered.deferred) {
+  if (!delivered.delivered) {
     throw new ApiError(
       `task ${taskId} created but the prompt was not delivered (paste did not land)`,
       "NOT_DELIVERED",
@@ -201,7 +200,6 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     // Only set when nothing confirmed the engine — say WHY rather than
     // leaving `engineReady: false` to be read as a bare failure.
     ...(delivered.reason ? { reason: delivered.reason } : {}),
-    ...(delivered.deferred ? { deferred: delivered.deferred } : {}),
     ...(promptPersisted ? {} : { promptPersisted: false }),
   }
 }
@@ -369,13 +367,7 @@ async function addParallel(
   const persistedPrompts: Promise<unknown>[] = []
   settled.forEach((r, i) => {
     const { taskId, vendor } = created[i]
-    if (r.status === "fulfilled" && (r.value.delivered || r.value.deferred)) {
-      // A deferred prompt is a SUCCESS, exactly as `addOne`/`send`
-      // treat it: the daemon took ownership of the prompt and queued an inbox
-      // episode, so the caller must NOT retry (the tab stays occupied until
-      // that deferred prompt is released, dismissed, or expires). It
-      // resolves with `delivered:false`, so route it here — not to `failures` —
-      // and carry the marker through so a script can see it was queued.
+    if (r.status === "fulfilled" && r.value.delivered) {
       const row: Record<string, unknown> = {
         ok: true,
         taskId,
@@ -384,7 +376,6 @@ async function addParallel(
         engineReady: r.value.engineReady,
         session: r.value.session,
         ...(r.value.reason ? { reason: r.value.reason } : {}),
-        ...(r.value.deferred ? { deferred: r.value.deferred } : {}),
       }
       tasks.push(row)
       // Same contract as `addOne`: a refused persist keeps the sibling a
@@ -398,8 +389,8 @@ async function addParallel(
       )
       return
     }
-    // Either deliverPrompt threw, or it resolved un-delivered AND un-deferred
-    // (the paste never landed). The task IS created (engine already burning
+    // Either deliverPrompt threw, or it resolved un-delivered (the paste
+    // never landed). The task IS created (engine already burning
     // tokens) — always carry its taskId so a script can find/retry it instead
     // of orphaning it.
     const err =

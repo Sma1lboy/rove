@@ -14,10 +14,8 @@
 
 import type { PtyOpenResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
-import { protocolEntry } from "../../engine/engine-presets.ts"
 import type { PsSnapshot } from "../../engine/foreground.ts"
 import {
-  ComposerBusyError,
   type HostedSessionRpc,
   type PromptWriteOutcome,
   awaitEngineProcess,
@@ -33,15 +31,13 @@ import {
   openHostedSessionHost,
   pastePromptWhenEngineUp,
   writeHostedPrompt,
-  writeHostedPromptIfClear,
+  writeHostedPromptIfLive,
 } from "../../engine/hosted-session.ts"
-import type { EngineScreenManifest } from "../../engine/screen-state.ts"
 import { enginePresence } from "../../engine/session-engine-presence.ts"
 import { type EngineSessionLaunch, initMarkerSaysFinished } from "../../engine/session-launch.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
-import type { VendorId } from "../../types/vendor.ts"
 import { restoredTabsOf } from "./tab-respawn.ts"
-import { ApiError, type DeliveredPrompt, type PromptDeferralSink } from "./types.ts"
+import { ApiError, type DeliveredPrompt } from "./types.ts"
 
 // `enginePresence` is the foreground gate for delivery into an existing
 // hosted session: an alive PTY may now be a fallback shell after the engine
@@ -88,13 +84,13 @@ export const listSessionsOrNull = listHostedSessionsOrNull
 
 /**
  * Deliver `prompt` into an existing hosted engine session and submit it —
- * the bracketed+deferred-Enter pty twin of `pasteAndSubmit`, shared with the
- * daemon's quota-resume path (see `hosted-session.ts`). Returns whether the
- * session was alive to receive it.
+ * the pty twin of `pasteAndSubmit`, shared with the daemon's quota-resume
+ * path (see `hosted-session.ts`). Returns whether the session was alive to
+ * receive it.
  */
 export const deliverToKey = deliverToHostedKey
 
-const writePrompt = writeHostedPromptIfClear
+const writePrompt = writeHostedPromptIfLive
 
 /**
  * How long a fresh argv-delivery spawn gets to put an engine in the process
@@ -152,8 +148,6 @@ export async function deliverHostedPrompt(
   opts?: {
     readonly forceNew?: boolean
     readonly snapshot?: PsSnapshot
-    readonly vendor?: VendorId
-    readonly defer?: PromptDeferralSink
   },
 ): Promise<DeliveredPrompt> {
   const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
@@ -191,15 +185,7 @@ export async function deliverHostedPrompt(
     // No pty.detach: delivery peeks + writes without ever attaching, and a
     // detach from a never-attached client would clear a parked TUI's
     // exact-delta restore state as a side effect.
-    const deliveryOpts = { screenManifest: resolveComposerManifest(opts?.vendor) }
-    const tabId = existingKey.split("::")[1] ?? "tab-1"
-    let outcome: PromptWriteOutcome | null
-    try {
-      outcome = await deliverToKey(rpc, existingKey, prompt, deliveryOpts)
-    } catch (err) {
-      if (err instanceof ComposerBusyError) return deferOrThrow(err, opts?.defer, target.id, tabId, prompt)
-      throw err
-    }
+    const outcome = await deliverToKey(rpc, existingKey, prompt)
     return { session: existingKey, pane: existingKey, started: false, ...outcomeFields(outcome) }
   }
 
@@ -259,18 +245,10 @@ export async function deliverHostedPrompt(
     // the engine process is up. A paste that never lands is a failed start,
     // not a delivered prompt.
     if (launch.firstMessage) {
-      const tabId = launch.key.split("::")[1] ?? "tab-1"
-      let outcome: PromptWriteOutcome | null
-      try {
-        outcome = await pastePromptWhenEngineUp(rpc, launch.key, target.engineBin, launch.firstMessage, {
-          initMarkerPath: launch.initMarkerPath,
-          initTimeoutMs: launch.initTimeoutMs,
-          screenManifest: resolveComposerManifest(opts?.vendor),
-        })
-      } catch (err) {
-        if (err instanceof ComposerBusyError) return deferOrThrow(err, opts?.defer, target.id, tabId, prompt)
-        throw err
-      }
+      const outcome = await pastePromptWhenEngineUp(rpc, launch.key, target.engineBin, launch.firstMessage, {
+        initMarkerPath: launch.initMarkerPath,
+        initTimeoutMs: launch.initTimeoutMs,
+      })
       return {
         session: launch.key,
         pane: launch.key,
@@ -285,16 +263,7 @@ export async function deliverHostedPrompt(
     // prompt rode its argv), so pasting here would deliver it twice.
     const started = open.created !== false || open.respawned === true
     if (open.created === false && open.respawned !== true) {
-      const tabId = launch.key.split("::")[1] ?? "tab-1"
-      let outcome: PromptWriteOutcome | null
-      try {
-        outcome = await writePrompt(rpc, launch.key, prompt, {
-          screenManifest: resolveComposerManifest(opts?.vendor),
-        })
-      } catch (err) {
-        if (err instanceof ComposerBusyError) return deferOrThrow(err, opts?.defer, target.id, tabId, prompt)
-        throw err
-      }
+      const outcome = await writePrompt(rpc, launch.key, prompt)
       return { session: launch.key, pane: launch.key, started, ...outcomeFields(outcome), ...disclose }
     }
     // OUR launch carried the prompt in its argv, so no paste happened here.
@@ -360,84 +329,6 @@ export async function deliverHostedPrompt(
   } finally {
     await rpc.request("pty.detach", { key: launch.key }).catch(() => {})
   }
-}
-
-/**
- * The screen manifest the composer gate classifies with — the WRAPPED
- * engine's, via {@link protocolEntry}. A screen manifest is protocol
- * knowledge ("what does this engine's composer look like"), so keying it off
- * the raw id would find the empty custom entry and leave the B-layer with
- * nothing to classify: a `claudecpa` task would get no gate at all rather
- * than a degraded one, and `send` would paste over half-typed text.
- */
-export function resolveComposerManifest(vendor?: VendorId): EngineScreenManifest | undefined {
-  return vendor ? protocolEntry(vendor).screenManifest : undefined
-}
-
-/**
- * Gate blocked the paste. With a deferral sink (issue #78 B-layer), try to
- * hand the prompt to daemon ownership. Report deferred success only when the
- * daemon accepts it; an occupied slot or failed handoff is an error. Without
- * a sink there is no queue, so surface the legacy typed error.
- */
-export async function deferOrThrow(
-  error: ComposerBusyError,
-  sink: PromptDeferralSink | undefined,
-  taskId: string,
-  tabId: string,
-  prompt: string,
-): Promise<DeliveredPrompt> {
-  if (sink) {
-    let deferred: Awaited<ReturnType<PromptDeferralSink["defer"]>>
-    try {
-      deferred = await sink.defer({ taskId, tabId, prompt, layer: error.layer })
-    } catch {
-      // The handoff failed (including when an older daemon lacks this verb).
-      // Fail rather than claim ownership of unstored text.
-      throw composerBusyApiError(error, taskId, prompt)
-    }
-    if (deferred.kind === "occupied") {
-      // The recovery used to be a verbatim replay of the send that just
-      // failed, which fails again for as long as the slot is held — a
-      // self-healing step that cannot heal. Point at the action that actually
-      // frees the slot; the retry is the caller's next move after that.
-      throw new ApiError(`task ${taskId} tab ${tabId} already has a deferred prompt`, "DEFERRED_PROMPT_PENDING", {
-        taskId,
-        tabId,
-        existingId: deferred.id,
-        hint: "a prompt is already held for this tab — deliver it with `deferred-release --id`, or drop it with `deferred-dismiss --id`, then send yours again (`deferred-list` shows the text and its expiry)",
-        nextCommandArgs: ["api", "deferred-release", "--id", deferred.id],
-      })
-    }
-    return {
-      session: `${taskId}::${tabId}`,
-      pane: `${taskId}::${tabId}`,
-      started: false,
-      engineReady: false,
-      delivered: false,
-      deferred: {
-        id: deferred.id,
-        layer: error.layer,
-        ...(deferred.expiresAt !== undefined ? { expiresAt: deferred.expiresAt } : {}),
-        // Rides the RESPONSE only — never the stored deferral, the audit log,
-        // or the Inbox episode. See `DeliveredPrompt.deferred.composerPreview`.
-        ...(error.composerPreview !== undefined ? { composerPreview: error.composerPreview } : {}),
-      },
-    }
-  }
-  throw composerBusyApiError(error, taskId, prompt)
-}
-
-function composerBusyApiError(error: ComposerBusyError, taskId: string, prompt: string): ApiError {
-  const layerText = error.layer === "recent-human-write" ? "user was typing recently" : "composer has text"
-  return new ApiError(`task ${taskId}'s composer is busy (${layerText})`, "COMPOSER_BUSY", {
-    layer: error.layer,
-    // The one thing `layer` cannot say: WHAT is in the way. Response-only —
-    // the text is somebody's half-written message.
-    ...(error.composerPreview !== undefined ? { composerPreview: error.composerPreview } : {}),
-    hint: "wait a moment and retry, or spawn a fresh engine tab with --tab new",
-    nextCommandArgs: ["api", "send", "--task-id", taskId, "--prompt", prompt],
-  })
 }
 
 /** Kill every hosted session for a task (its engine + any tabs). */

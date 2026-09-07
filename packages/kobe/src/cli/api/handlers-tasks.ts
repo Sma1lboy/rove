@@ -220,12 +220,9 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     },
     text,
   )
-  // A prompt that never landed AND was not deferred is a delivery FAILURE the
-  // script must see — non-zero exit, not a phantom `ok:true`. A deferred
-  // prompt is a SUCCESS: the daemon owns the message and queued
-  // an inbox episode. The caller must NOT retry — a retry would stack a
-  // duplicate of the same message in the deferred queue.
-  if (!delivered.delivered && !delivered.deferred) {
+  // A prompt that never landed is a delivery FAILURE the script must see —
+  // non-zero exit, not a phantom `ok:true`.
+  if (!delivered.delivered) {
     throw new ApiError(`prompt was not confirmed in ${taskId}'s engine (paste did not land)`, "NOT_DELIVERED")
   }
   return {
@@ -235,16 +232,11 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     started: delivered.started,
     engineReady: delivered.engineReady,
     // The measured delivery facts, spelled the same way `add` spells them
-    // (handlers-add.ts) — `send` used to compute them and throw them away, so
-    // a successful send omitted `delivered` entirely while a deferred one
-    // reported it as the only outcome field.
+    // (handlers-add.ts).
     delivered: delivered.delivered,
     ...(delivered.bytes === undefined ? {} : { bytes: delivered.bytes }),
     ...(delivered.promptEcho ? { promptEcho: delivered.promptEcho } : {}),
     ...(delivered.reason ? { reason: delivered.reason } : {}), // see `DeliveredPrompt.reason`
-    // The deferred outcome is a SUCCESS, not an error — say so explicitly so a
-    // scripted sender does not read `deferred` as a failure and retry.
-    ...(delivered.deferred ? { deferred: delivered.deferred } : {}),
     // This call reopened a frozen tab rather than delivering into a session
     // that was already running (`send --tab tab-N --respawn`).
     ...(delivered.respawned ? { respawned: true } : {}),

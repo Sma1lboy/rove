@@ -6,19 +6,11 @@ import { defaultPtyHostSocketPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 import type { PtyOpenResult, PtyPeekResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
 import type { TerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
-import {
-  type DeliveryGuard,
-  type DeliveryGuardSettings,
-  deliveryGuardLayers,
-  deliveryGuardSettings,
-} from "../state/delivery-guard.ts"
 import { readPersistedTerminalDefaultColors } from "../tui/lib/terminal-colors.ts"
 import { BUILTIN_VENDORS } from "../types/vendor.ts"
-import { readComposerState } from "./composer-state.ts"
 import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from "./foreground.ts"
 import { PASTE_READY_POLL_MS, PASTE_READY_TIMEOUT_MS, bracketedPasteActive, encodePaste } from "./paste-readiness.ts"
 import { engineEntry } from "./registry.ts"
-import type { EngineScreenManifest } from "./screen-state.ts"
 import { ENGINE_EXIT_BANNER, type EngineSessionLaunch, REPO_INIT_TIMEOUT_SECONDS } from "./session-launch.ts"
 
 export interface HostedSessionRpc {
@@ -186,85 +178,10 @@ export function findHostedEngineKey(
 /** Delay between bracketed paste and submit CR so the engine reads two tty events. */
 const SUBMIT_DELAY_MS = 150
 
-/** Typed rejection from the delivery gate. Neutral code catches
- *  this and surfaces a `COMPOSER_BUSY` ApiError to the user/agent. */
-export class ComposerBusyError extends Error {
-  constructor(
-    readonly layer: "recent-human-write" | "composer-not-empty",
-    readonly key: string,
-    /**
-     * What the composer holds, when the screen read could name it. The
-     * refusal is otherwise unactionable — the caller knows only that
-     * SOMETHING is in the way, and has to scrape the pane itself to find out
-     * what. Absent for the `recent-human-write` layer, which measures time
-     * and never looks at the screen.
-     */
-    readonly composerPreview?: string,
-  ) {
-    super(`composer busy on ${key}: ${layer}`)
-  }
-}
-
-/** Options for gated prompt delivery. */
+/** Options for prompt delivery. */
 export interface HostedPromptDeliveryOpts {
-  /** Engine-owned composer-empty manifest. Absence skips the C-layer gate. */
-  readonly screenManifest?: EngineScreenManifest
-  /** Override for the A-layer quiet period (ms). Falls back to the stored
-   *  `delivery.humanWriteQuietMs`, then the host's reported value, then 10s. */
-  readonly humanWriteQuietMs?: number
-  /** Test seam for `Date.now()`. */
-  readonly now?: () => number
   /** Override for the paste-readiness wait (ms). Tests shorten it. */
   readonly pasteReadyTimeoutMs?: number
-  /**
-   * Which delivery checks run. Defaults to the persisted setting
-   * (`state/delivery-guard.ts`, `on` unless the user loosened it); an explicit
-   * value is the test seam, so a suite never depends on the machine's
-   * state.json.
-   */
-  readonly guard?: DeliveryGuard
-}
-
-function recentHumanWriteBlocks(
-  peek: PtyPeekResult,
-  opts: HostedPromptDeliveryOpts,
-  storedQuietMs: number | undefined,
-  now: number,
-): boolean {
-  if (peek.lastHumanWriteMs === undefined || peek.lastHumanWriteMs <= 0) return false
-  const quiet = opts.humanWriteQuietMs ?? storedQuietMs ?? peek.humanWriteQuietMs ?? 10_000
-  return now - peek.lastHumanWriteMs < quiet
-}
-
-/** `null` = the composer is not in the way; otherwise what it holds (which
- *  may itself be undefined when the read could not name the text). */
-async function composerBlockingText(
-  peek: PtyPeekResult,
-  manifest: EngineScreenManifest | undefined,
-): Promise<{ preview?: string } | null> {
-  if (!manifest?.composerEmpty || manifest.composerEmpty.length === 0) return null
-  const bytes = Buffer.from(peek.data, "base64")
-  const reading = await readComposerState(bytes, manifest)
-  if (reading.empty !== false) return null
-  return reading.preview === undefined ? {} : { preview: reading.preview }
-}
-
-async function assertComposerClear(peek: PtyPeekResult, key: string, opts?: HostedPromptDeliveryOpts): Promise<void> {
-  const now = opts?.now?.() ?? Date.now()
-  // Both layers answer to one three-state setting, read per delivery so a
-  // change takes effect without restarting anything — the pty host included,
-  // which is why the quiet window is resolved here rather than from the
-  // host's spawn-time env (see state/delivery-guard.ts).
-  const settings: DeliveryGuardSettings = opts?.guard !== undefined ? { guard: opts.guard } : deliveryGuardSettings()
-  const layers = deliveryGuardLayers(settings.guard)
-  if (layers.humanWrite && recentHumanWriteBlocks(peek, opts ?? {}, settings.humanWriteQuietMs, now)) {
-    throw new ComposerBusyError("recent-human-write", key)
-  }
-  if (!layers.screen) return
-  const blocking = await composerBlockingText(peek, opts?.screenManifest)
-  if (blocking) {
-    throw new ComposerBusyError("composer-not-empty", key, blocking.preview)
-  }
 }
 
 /**
@@ -343,7 +260,7 @@ async function writeAndConfirm(
   return { bytes, ready, confirmed }
 }
 
-export async function writeHostedPromptIfClear(
+export async function writeHostedPromptIfLive(
   rpc: HostedSessionRpc,
   key: string,
   prompt: string,
@@ -351,7 +268,6 @@ export async function writeHostedPromptIfClear(
 ): Promise<PromptWriteOutcome | null> {
   const peek = await rpc.request<PtyPeekResult>("pty.peek", { key })
   if (!peek.alive) return null
-  await assertComposerClear(peek, key, opts)
   return writeAndConfirm(rpc, key, prompt, peek.offset, opts)
 }
 
@@ -417,7 +333,7 @@ export async function writeHostedPrompt(
  * the prompt into it. Peek never attaches, spawns, or
  * resizes — delivery is pure `pty.write`, exactly like keyboard input.
  */
-export const deliverToHostedKey = writeHostedPromptIfClear
+export const deliverToHostedKey = writeHostedPromptIfLive
 
 /** Open or reattach one engine session and immediately release this client.
  *  No cols/rows: a size-less open never resizes a live session away from

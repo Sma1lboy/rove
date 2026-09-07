@@ -151,7 +151,6 @@ export const TAB_CLOSE_VERB: VerbSpec = {
     const reply = await daemonOf(ctx).request<{ handled?: boolean }>("terminalTab.close", { taskId, tabId })
     if (reply.handled) return { ok: true, taskId, tabId, handledBy: "tui" }
     const result = await ctx.runtime.closeTerminalTab(taskId, tabId)
-    await daemonOf(ctx).request("deferredPrompt.discardTab", { taskId, tabId })
     return { ok: true, taskId, tabId, handledBy: "headless", ...result }
   },
 }
