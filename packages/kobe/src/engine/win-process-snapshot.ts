@@ -33,6 +33,18 @@
  *    membership and re-attaches each cohort member whose parent is missing to
  *    the tab's shell, rebuilding a walkable tree.
  *
+ *    The same break happens on the OTHER end of the identity walk. A `rove
+ *    api` call from an engine's Bash tool runs through the npm `sh` shim:
+ *    Git-Bash forks, the fork execs `sh.exe`, and — `sh.exe` being an MSYS
+ *    program whose parent is another MSYS process — the forked bash's Windows
+ *    process exits instead of lingering as an exec stub. `sh.exe`'s
+ *    ParentProcessId is dead, and `hasAncestor(cli, tabShell)` was false for
+ *    every call made that way: no task recorded its dispatcher, and every
+ *    bare `send` fell back to the ACTIVE task — whichever tab the user was
+ *    looking at. The CLI's own console (the hidden one the Bash tool runs
+ *    in) still names its whole chain, so the same repair, anchored on the
+ *    CLI itself, re-attaches the orphan to that console's root.
+ *
  * Nothing here runs off win32: `psSnapshot` branches on the platform, and the
  * POSIX `ps` path is untouched.
  */
@@ -45,17 +57,21 @@ import { type ProcRow, PsProbeUnavailableError, serializeProcRows } from "./proc
 /**
  * `Get-CimInstance Win32_Process` rendered as `pid ppid commandline`.
  *
- * `-Property` narrows the CIM fetch to the four fields the walk reads.
+ * `-Property` narrows the CIM fetch to the five fields the walk reads.
  * `CommandLine` is null for processes this user may not open (and for the
  * kernel's own), so `Name` stands in: a row with no text at all would be
  * dropped by the parser and could break a chain that runs THROUGH it.
  * Command lines are flattened because a Windows command line may contain
  * literal newlines — Rove's own launch script does — and the snapshot format
- * is one process per line.
+ * is one process per line. Rows come out in creation order: when a console
+ * cohort holds several processes whose parents are off the console,
+ * {@link repairConsoleParentage} takes the OLDEST as that console's root, and
+ * row order is how it knows which one that is.
  */
 export const WIN_PROCESS_LIST_COMMAND =
   "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; " +
-  "Get-CimInstance -ClassName Win32_Process -Property ProcessId,ParentProcessId,CommandLine,Name | " +
+  "Get-CimInstance -ClassName Win32_Process -Property ProcessId,ParentProcessId,CommandLine,Name,CreationDate | " +
+  "Sort-Object CreationDate | " +
   "ForEach-Object { $c = $_.CommandLine; if (-not $c) { $c = $_.Name }; " +
   "\"$($_.ProcessId) $($_.ParentProcessId) $($c -replace '[\\r\\n\\t]+', ' ')\" }"
 
@@ -100,20 +116,28 @@ export function parseWinProcessList(text: string): ProcRow[] {
 }
 
 /**
- * Re-attach each console cohort's orphans to the shell that console belongs
- * to, so the tree is walkable again.
+ * Re-attach each console cohort's orphans to the root of that console, so the
+ * tree is walkable again.
  *
- * `cohorts` maps a tab's shell pid to every pid attached to its console
- * (`null` = the console could not be read, e.g. the shell already exited —
- * that anchor is left alone rather than guessed at). Membership is the
- * authority: a process on this console really is running inside this tab.
- * So a cohort member whose parent is ALSO in the cohort keeps its real
- * parent — depth is preserved, and the shallowest-engine walk still prefers
- * a wrapper's engine child over that engine's own helpers — while a member
- * whose parent is dead or off-console hangs off the shell directly.
+ * `cohorts` maps an anchor pid to every pid attached to its console (`null` =
+ * the console could not be read, e.g. the shell already exited — that anchor
+ * is left alone rather than guessed at). Membership is the authority: a
+ * process on this console really is running inside whatever that console
+ * belongs to. So a cohort member whose parent is ALSO in the cohort keeps its
+ * real parent — depth is preserved, and the shallowest-engine walk still
+ * prefers a wrapper's engine child over that engine's own helpers — while a
+ * member whose parent is dead or off-console hangs off the root directly.
  *
- * The shell itself is never reparented (its parent is the PTY host, which is
- * not attached to the console), so the repair cannot build a cycle.
+ * The root is the anchor when the anchor is where the console begins — a
+ * tab's shell, whose parent is the PTY host and not on the console. An anchor
+ * can also be a LEAF: the `rove api` CLI asking about its own console, which
+ * Git-Bash's `fork` + `exec` of the npm `sh` shim breaks the same way the
+ * shim's `cmd.exe` breaks the engine's (the forked bash's Windows process
+ * exits the moment it execs `sh.exe`, so the CLI's parent chain reaches a
+ * dead pid before it reaches the tab). There the root is the oldest member
+ * whose parent is alive and off the console — the process that brought the
+ * console into the tree — and the leaf itself is never a target, so the
+ * repair cannot build a cycle.
  */
 export function repairConsoleParentage(
   rows: readonly ProcRow[],
@@ -124,11 +148,13 @@ export function repairConsoleParentage(
   for (const [anchor, members] of cohorts) {
     if (!members || !byPid.has(anchor)) continue
     const cohort = new Set(members.filter((pid) => byPid.has(pid)))
+    const root = cohortRoot(rows, byPid, cohort, anchor)
+    if (root === undefined) continue
     for (const pid of cohort) {
-      if (pid === anchor || reparent.has(pid)) continue
+      if (pid === root || reparent.has(pid)) continue
       const row = byPid.get(pid)
       if (!row || cohort.has(row.ppid)) continue
-      reparent.set(pid, anchor)
+      reparent.set(pid, root)
     }
   }
   if (reparent.size === 0) return [...rows]
@@ -136,6 +162,31 @@ export function repairConsoleParentage(
     const ppid = reparent.get(row.pid)
     return ppid === undefined || ppid === row.ppid ? row : { ...row, ppid }
   })
+}
+
+/**
+ * The member a console's orphans hang off: the anchor when its own parent is
+ * off the console (a tab's shell), else the oldest member whose parent is
+ * alive and off the console, else the oldest whose parent is merely off it.
+ * `rows` are in creation order (see {@link WIN_PROCESS_LIST_COMMAND}), so
+ * "first" is "oldest". `undefined` when every member's parent is also a
+ * member — a cycle, which a real process table cannot hold.
+ */
+function cohortRoot(
+  rows: readonly ProcRow[],
+  byPid: ReadonlyMap<number, ProcRow>,
+  cohort: ReadonlySet<number>,
+  anchor: number,
+): number | undefined {
+  const anchorRow = byPid.get(anchor)
+  if (anchorRow && !cohort.has(anchorRow.ppid)) return anchor
+  let orphanRoot: number | undefined
+  for (const row of rows) {
+    if (!cohort.has(row.pid) || cohort.has(row.ppid)) continue
+    if (byPid.has(row.ppid)) return row.pid
+    orphanRoot ??= row.pid
+  }
+  return orphanRoot
 }
 
 /** The two Windows reads, injectable so tests never spawn anything. */
@@ -287,10 +338,12 @@ export function defaultWinProcessProbe(budgetMs: number = WIN_PROBE_TIMEOUT_MS):
  * The win32 replacement for one `ps -A -o pid=,ppid=,args=` run, in the same
  * text shape.
  *
- * `anchors` are the shell pids about to be walked. They are what the console
- * repair needs — and the reason {@link import("./foreground.ts").PsSnapshot}
- * takes them at all; the POSIX branch ignores them, because a POSIX parent
- * chain is already intact.
+ * `anchors` are the pids whose consoles the walk runs through: the shell of
+ * every tab about to be walked, plus the caller itself when the walk is an
+ * ancestry check on the caller. They are what the console repair needs — and
+ * the reason {@link import("./foreground.ts").PsSnapshot} takes them at all;
+ * the POSIX branch ignores them, because a POSIX parent chain is already
+ * intact.
  *
  * Failure is a THROW, never a thin snapshot: with the parent chain severed,
  * rows we could not repair would answer "no engine" for a tab whose engine is
