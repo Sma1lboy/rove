@@ -7,7 +7,7 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { updaterShell, updaterShellFailureHint } from "../../lib/updater-shell.ts"
+import { missingPosixShellHint, posixShell } from "../../lib/posix-shell.ts"
 import { CURRENT_VERSION } from "../../version.ts"
 
 type UpdaterT = (key: string, params?: Record<string, string>) => string
@@ -40,13 +40,13 @@ export async function runShellUpdater(opts: {
   process.stdout.write(`\nrove ${CURRENT_VERSION} -> ${opts.targetLabel}\n`)
   process.stdout.write(`running: ${opts.command}\n\n`)
   // Bare `sh` exists on POSIX only; Windows resolves to Git Bash. The chip
-  // and `rove update` must agree — see lib/updater-shell.ts.
-  const shell = updaterShell()
+  // and `rove update` must agree — see lib/posix-shell.ts.
+  const shell = posixShell()
   const result = spawnSync(shell, ["-c", opts.command], { stdio: "inherit" })
   const code = result.status ?? (result.error ? 1 : 0)
   if (result.error) {
     process.stderr.write(`\nrove update: failed to start updater (${shell}): ${result.error.message}\n`)
-    const hint = updaterShellFailureHint()
+    const hint = missingPosixShellHint()
     if (hint) process.stderr.write(hint)
   }
   process.stdout.write(

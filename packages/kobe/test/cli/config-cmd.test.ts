@@ -14,6 +14,7 @@ vi.mock("../../src/tui/lib/editor-launch.ts", () => ({
 }))
 
 import { runConfigSubcommand } from "../../src/cli/config-cmd.ts"
+import { posixShell } from "../../src/lib/posix-shell.ts"
 
 class ExitError extends Error {
   constructor(readonly code: number | undefined) {
@@ -87,8 +88,10 @@ describe("runConfigSubcommand", () => {
 
     await expect(runConfigSubcommand([])).rejects.toBeInstanceOf(ExitError)
 
+    // Not bare `sh`: Windows has none on PATH, which is why `rove config`
+    // could never open an editor there (the probe below is the same story).
     expect(spawn).toHaveBeenCalledWith(
-      ["sh", "-c", `vim ${configPath()}`],
+      [posixShell(), "-c", `vim ${configPath()}`],
       expect.objectContaining({ stdin: "inherit" }),
     )
     expect(exitSpy).toHaveBeenCalledWith(0)

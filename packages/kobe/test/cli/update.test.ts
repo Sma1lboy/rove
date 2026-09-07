@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest"
 import { parseUpdateArgs, runUpdateSubcommand, updatePlan } from "../../src/cli/update.ts"
-import { updaterShell } from "../../src/lib/updater-shell.ts"
+import { posixShell } from "../../src/lib/posix-shell.ts"
 import { PACKAGE_NAME, UPDATE_COMMAND, UPDATE_SCRIPT_URL, recommendedGlobalInstallCommand } from "../../src/version.ts"
 
 describe("updatePlan", () => {
   it("delegates to the GitHub-hosted update script", () => {
     expect(updatePlan()).toEqual({
-      command: updaterShell(),
+      command: posixShell(),
       args: ["-c", UPDATE_COMMAND],
       display: UPDATE_COMMAND,
     })
@@ -18,7 +18,7 @@ describe("updatePlan", () => {
     // npm makes no distinction between a version and a dist-tag in
     // `pkg@<arg>`, so the channel needs no separate flag downstream.
     expect(updatePlan("nightly")).toEqual({
-      command: updaterShell(),
+      command: posixShell(),
       args: ["-c", `${UPDATE_COMMAND} -s -- nightly`],
       display: `${UPDATE_COMMAND} -s -- nightly`,
     })
@@ -26,7 +26,7 @@ describe("updatePlan", () => {
 
   it("a pinned version rides into the script as `sh -s -- <version>`", () => {
     expect(updatePlan("0.7.90")).toEqual({
-      command: updaterShell(),
+      command: posixShell(),
       args: ["-c", `${UPDATE_COMMAND} -s -- 0.7.90`],
       display: `${UPDATE_COMMAND} -s -- 0.7.90`,
     })
@@ -237,7 +237,7 @@ describe("runUpdateSubcommand", () => {
       expect((err as Error).message).toBe("exit")
     })
 
-    expect(spawn).toHaveBeenCalledWith(updaterShell(), ["-c", UPDATE_COMMAND], { stdio: "inherit" })
+    expect(spawn).toHaveBeenCalledWith(posixShell(), ["-c", UPDATE_COMMAND], { stdio: "inherit" })
     expect(exits).toEqual([7])
   })
 
@@ -283,7 +283,7 @@ describe("runUpdateSubcommand", () => {
     }).catch((e) => {
       expect((e as Error).message).toBe("exit")
     })
-    expect(err.join("")).toContain(`kobe update: failed to run ${updaterShell()}: ENOENT`)
+    expect(err.join("")).toContain(`kobe update: failed to run ${posixShell()}: ENOENT`)
     expect(exits).toEqual([1])
   })
 

@@ -38,6 +38,7 @@
  */
 
 import { readOnlyGitProcessEnv } from "@/lib/git-env"
+import { posixShell } from "@/lib/posix-shell"
 import { quoteShellArg as shellQuote } from "@/lib/shell-command"
 import { getPersistedString } from "@/state/repos"
 import {
@@ -47,6 +48,7 @@ import {
   type EditorKind,
   normalizeEditorKind,
 } from "@/tui/lib/editor-prefs"
+import { toPosixPath } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 
 /** Token replaced with the (shell-quoted) file path in a custom command. */
 const FILE_PLACEHOLDER = "{file}"
@@ -75,8 +77,13 @@ export function buildEditorCommand(
   customCommand: string,
   absPath: string,
   envEditor?: string,
+  platform: NodeJS.Platform = process.platform,
 ): { bin: string; command: string } | null {
-  const file = shellQuote(absPath)
+  // MSYS form on Windows: this string is interpolated INTO a shell script.
+  // Git Bash reads `C:\a\b` as an escape soup, while `/c/a/b` is understood
+  // by its own tools AND converted back to a native path by the MSYS runtime
+  // when the command turns out to be a Windows binary (notepad, code).
+  const file = shellQuote(toPosixPath(absPath, platform))
   // Explicit terminal editors map straight to their binary.
   if (kind === "vim") return { bin: "vim", command: `vim ${file}` }
   if (kind === "nvim") return { bin: "nvim", command: `nvim ${file}` }
@@ -109,8 +116,13 @@ export function buildEditorCommand(
  * the diff between the check and the launch), it falls back to a plain
  * `<bin> <file>` open so `enter` still lands in an editor.
  */
-export function buildNvimDiffCommand(bin: string, absPath: string, relPath: string): string {
-  const file = shellQuote(absPath)
+export function buildNvimDiffCommand(
+  bin: string,
+  absPath: string,
+  relPath: string,
+  platform: NodeJS.Platform = process.platform,
+): string {
+  const file = shellQuote(toPosixPath(absPath, platform))
   const head = shellQuote(`HEAD:./${relPath}`)
   return [
     "f=$(mktemp 2>/dev/null)",
@@ -150,17 +162,32 @@ export async function resolveEditorCommand(absPath: string): Promise<{ bin: stri
   // auto: honour the standard env first…
   if (env) return buildEditorCommand("custom", "", absPath, env)
   // …else probe for an installed terminal editor, in preference order.
-  const file = shellQuote(absPath)
+  // Same MSYS form buildEditorCommand uses — this branch composes its own
+  // command string and would otherwise hand Git Bash a backslash path.
+  const file = shellQuote(toPosixPath(absPath))
   for (const bin of AUTO_EDITOR_CANDIDATES) {
     if (await binaryAvailable(bin)) return { bin, command: `${bin} ${file}` }
   }
   return null
 }
 
-/** Is `bin` resolvable on PATH (or as an absolute path)? Pre-flight for fallback. */
+/**
+ * Is `bin` resolvable on PATH (or as an absolute path)? Pre-flight for fallback.
+ *
+ * Probed through the SAME shell the editor is launched in, which is what
+ * makes `command -v` the right question on every platform rather than a
+ * POSIX-only one: on Windows that shell is Git Bash, whose PATH carries both
+ * the Windows entries and its own `/usr/bin` (where its vim lives). Asking
+ * `where.exe` instead would answer about a different PATH than the one the
+ * launch actually runs under.
+ *
+ * A missing shell throws, and the catch turns that into "not installed" —
+ * which is why bare `sh` made every editor look absent on Windows instead of
+ * reporting anything.
+ */
 export async function binaryAvailable(bin: string): Promise<boolean> {
   try {
-    const proc = Bun.spawn(["sh", "-c", `command -v ${shellQuote(bin)} >/dev/null 2>&1`], {
+    const proc = Bun.spawn([posixShell(), "-c", `command -v ${shellQuote(bin)} >/dev/null 2>&1`], {
       stdin: "ignore",
       stdout: "ignore",
       stderr: "ignore",
@@ -231,7 +258,10 @@ async function maybeDiffCommand(
 ): Promise<string> {
   const { bin, command } = resolved
   if (bin !== "nvim" && bin !== "vim") return command
-  if (command !== `${bin} ${shellQuote(absPath)}`) return command
+  // Must use the same path form the command was BUILT with, or this
+  // "is it the plain `<bin> <file>` form?" test never matches on Windows and
+  // the diff upgrade silently disappears there.
+  if (command !== `${bin} ${shellQuote(toPosixPath(absPath))}`) return command
   const rel = relativeToWorktree(worktree, absPath)
   if (!rel) return command
   if (!(await fileHasDiff(worktree, rel))) return command

@@ -56,9 +56,10 @@ Windows needs three separate runtimes:
 - **Node.js** runs the Windows Hosted PTY process. A Bun-only global install
   does not install Node for you.
 - **Git for Windows**, including its Git Bash, supplies the POSIX shell used by
-  every engine and terminal launch — and by `rove update`, whose install
-  script is POSIX shell. Rove deliberately does not use the WSL `bash.exe`,
-  because it cannot address the Windows worktree correctly.
+  every engine and terminal launch, by `rove update`, and by every editor
+  launch (`rove config`, the file tree's `enter`). Rove deliberately does not
+  use the WSL `bash.exe`, because it cannot address the Windows worktree
+  correctly.
 
 Start with:
 

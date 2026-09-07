@@ -16,7 +16,7 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { updaterShell, updaterShellFailureHint } from "../lib/updater-shell.ts"
+import { missingPosixShellHint, posixShell } from "../lib/posix-shell.ts"
 import {
   BREAKING_VERSIONS,
   CURRENT_VERSION,
@@ -56,8 +56,8 @@ type RunDeps = {
 export function updatePlan(target?: string): UpdatePlan {
   const shell = target === undefined ? UPDATE_COMMAND : `${UPDATE_COMMAND} -s -- ${target}`
   return {
-    // Not bare `sh`: Windows has none on PATH. See lib/updater-shell.ts.
-    command: updaterShell(),
+    // Not bare `sh`: Windows has none on PATH. See lib/posix-shell.ts.
+    command: posixShell(),
     args: ["-c", shell],
     display: shell,
   }
@@ -294,8 +294,8 @@ export async function runUpdateSubcommand(args: readonly string[], deps?: Partia
   const result = io.spawn(plan.command, plan.args, { stdio: "inherit" })
   if (result.error) {
     io.stderr.write(`${CLI_NAME} update: failed to run ${plan.command}: ${result.error.message}\n`)
-    const hint = updaterShellFailureHint()
-    if (hint) io.stderr.write(hint)
+    const hint = missingPosixShellHint()
+    if (hint) io.stderr.write(`${hint}Or update by hand:\n  ${recommendedGlobalInstallCommand()}\n\n`)
     io.exit(1)
   }
   if (result.status === 0) io.stdout.write(FOLLOW_UP_NOTE)

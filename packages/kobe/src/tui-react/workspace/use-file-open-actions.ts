@@ -10,6 +10,7 @@
 import { join } from "node:path"
 import type { RefObject } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
+import { posixShell } from "../../lib/posix-shell.ts"
 import { resolveEditorLaunch } from "../../tui/lib/editor-launch.ts"
 import { pathLeaf } from "../../tui/lib/path-helpers"
 import { openExternally } from "../../tui/panes/filetree/open-external"
@@ -52,7 +53,9 @@ export function useFileOpenActions(deps: {
     // the file belongs to the worktree it was resolved against, not whatever
     // tab mount is live now.
     if (selectedWorktreeRef.current !== wt || openEditorTabFn.current !== openEditorTab) return
-    openEditorTab?.(["sh", "-c", launch.command], launch.label)
+    // Bare `sh` is POSIX-only; on Windows this resolves to Git Bash, the same
+    // shell the PTY host launches every other tab through (lib/posix-shell.ts).
+    openEditorTab?.([posixShell(), "-c", launch.command], launch.label)
     opened("editor")
     focus.setFocused("workspace")
   }
