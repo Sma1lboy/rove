@@ -50,6 +50,28 @@ export function bracketedPasteActive(output: string): boolean {
   return on > output.lastIndexOf(BRACKETED_PASTE_OFF)
 }
 
+/**
+ * The composer hint an engine shows while a turn is RUNNING and the input box
+ * holds text: Claude Code prints `tab to queue message` in its footer, and in
+ * that state Enter no longer submits — the text just sits there. Tab queues
+ * it behind the running turn. A `send` that pressed Enter regardless left
+ * every dispatched `succeeded:` report parked in the coordinator's input box
+ * until a human noticed. Matched loosely (whitespace collapsed by the caller,
+ * case-insensitive) so a footer that wraps or restyles still counts.
+ */
+const QUEUE_HINT = /tab to queue message/i
+
+/** Whether the engine's output says the composer wants TAB to queue, not Enter to submit. */
+export function queueHintVisible(output: string): boolean {
+  return QUEUE_HINT.test(output.replace(/\s+/g, " "))
+}
+
+/** The key that hands the composer's text to the engine: Enter normally, Tab
+ *  while a turn is running and the engine says so. */
+export function submitKeyFor(output: string): "\r" | "\t" {
+  return queueHintVisible(output) ? "\t" : "\r"
+}
+
 /** Wrap `prompt` for an engine that asked for bracketed paste; send it bare
  *  otherwise. Mirrors the interactive backend's conditional wrapping — an
  *  engine that never enabled DECSET 2004 would render `\x1b[200~` as text. */

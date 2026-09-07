@@ -180,8 +180,41 @@ describe("deliverToHostedKey", () => {
   it("delivers into a live session", async () => {
     const { rpc, writes } = echoingRpc("\u276f")
     const outcome = await deliverToHostedKey(rpc, "t1::tab-1", "go")
-    expect(outcome).toMatchObject({ ready: true, confirmed: true })
+    expect(outcome).toMatchObject({ ready: true, confirmed: true, queued: false })
     expect(writes).toEqual(["pty.write", "pty.write"])
+  })
+
+  it("presses TAB, not Enter, when the engine is mid-turn and says 'tab to queue message'", async () => {
+    // Claude Code with a turn running: Enter leaves the text in the composer;
+    // the footer asks for Tab. A `send` that pressed Enter parked every
+    // dispatched report in the coordinator's input box.
+    const sent: string[] = []
+    let written = ""
+    const rpc: HostedSessionRpc = {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        if (name === "pty.peek") {
+          const footer = written.length > 0 ? "\n  tab to queue message" : ""
+          return {
+            exists: true,
+            alive: true,
+            pid: 42,
+            offset: 0,
+            data: Buffer.from(`\x1b[?2004h\u276f ${written}${footer}`, "utf8").toString("base64"),
+            sinceValid: false,
+            exit: null,
+          } as T
+        }
+        if (name === "pty.write") {
+          const data = (payload as { data?: string })?.data ?? ""
+          written += data
+          sent.push(data)
+        }
+        return {} as T
+      },
+    }
+    const outcome = await deliverToHostedKey(rpc, "t1::tab-1", "report: done")
+    expect(outcome).toMatchObject({ confirmed: true, queued: true })
+    expect(sent).toEqual(["\x1b[200~report: done\x1b[201~", "\t"])
   })
 
   it("delivers even when the composer already holds text", async () => {

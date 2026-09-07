@@ -586,6 +586,10 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     engines that collapse a large paste into a `[Pasted text #1]` placeholder
     never echo the text, so a positive proves delivery while a negative
     merely fails to.
+  - `queued` — `true` when the engine was mid-turn and asked for Tab (Claude
+    Code's "tab to queue message" footer): the prompt was queued behind the
+    running turn instead of submitted, and runs when that turn ends. Absent
+    when Enter submitted it immediately.
   - `reason` — why nothing was confirmed. Present only with
     `engineReady: false`.
 

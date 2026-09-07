@@ -115,6 +115,8 @@ export function outcomeFields(outcome: PromptWriteOutcome | null): {
   delivered: boolean
   bytes?: number
   promptEcho?: "confirmed" | "unconfirmed"
+  /** The engine was mid-turn: the prompt is QUEUED behind it (Tab), not running yet. */
+  queued?: true
 } {
   if (!outcome) return { engineReady: false, delivered: false }
   return {
@@ -122,6 +124,7 @@ export function outcomeFields(outcome: PromptWriteOutcome | null): {
     delivered: true,
     bytes: outcome.bytes,
     promptEcho: outcome.confirmed ? "confirmed" : "unconfirmed",
+    ...(outcome.queued ? { queued: true as const } : {}),
   }
 }
 
