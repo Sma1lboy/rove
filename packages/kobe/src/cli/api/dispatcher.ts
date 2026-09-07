@@ -24,7 +24,7 @@ export type Dispatcher = NonNullable<SerializedTask["dispatcher"]>
 export interface SelfSessionProbe {
   /** Live pty-host inventory (`pty.list`) — `[]` when the host is gone. */
   sessions(): Promise<readonly { key: string; pid: number | null; alive: boolean }[]>
-  /** Snapshot text, given the shell pids the walk anchors on (see `PsSnapshot`). */
+  /** Snapshot text, given the pids whose consoles the walk runs through — the tab's shell and this CLI (see `PsSnapshot`). */
   ps(anchors?: readonly number[]): Promise<string>
   /** This process's pid — the far end of the lineage walk. */
   pid: number
@@ -110,7 +110,11 @@ async function resolveSelfSession(env: NodeJS.ProcessEnv, probe?: SelfSessionPro
     const session = (await p.sessions()).find((s) => s.key === key && s.alive)
     if (session?.pid) {
       const { hasAncestor, parsePsSnapshot } = await import("../../engine/foreground.ts")
-      if (hasAncestor(parsePsSnapshot(await p.ps([session.pid])), p.pid, session.pid)) {
+      // Both ends of the walk are anchors: the tab's shell, whose console
+      // re-links the engine to it, and this CLI, whose console re-links it
+      // to the engine's Bash tool — Windows severs the chain at both places
+      // (win-process-snapshot.ts). POSIX ignores the list.
+      if (hasAncestor(parsePsSnapshot(await p.ps([session.pid, p.pid])), p.pid, session.pid)) {
         // A verified resolution clears any warning a previous one left. The
         // memo makes that a single resolution per process today; this keeps
         // the pair honest if the memo is ever relaxed.

@@ -180,12 +180,14 @@ export function engineProcessIn(
 /**
  * Injectable so tests never shell out.
  *
- * `anchors` are the shell pids the caller is about to walk. POSIX ignores
- * them — a `ps` forest already carries every parent link there is. Windows
- * needs them: an npm-shim `cmd.exe` exits mid-chain and takes the link to the
- * engine with it, so the snapshot has to ask each tab's CONSOLE who is on it
- * before the tree is walkable (see `win-process-snapshot.ts`). Optional so
- * every existing zero-argument stub still satisfies the type.
+ * `anchors` are the pids whose consoles the caller's walk runs through: each
+ * tab shell it descends from, plus the caller itself when it is checking its
+ * own ancestry. POSIX ignores them — a `ps` forest already carries every
+ * parent link there is. Windows needs them: an npm shim exits mid-chain and
+ * takes a link with it (the engine's `cmd.exe`, the CLI's forked bash), so
+ * the snapshot has to ask each CONSOLE who is on it before the tree is
+ * walkable (see `win-process-snapshot.ts`). Optional so every existing
+ * zero-argument stub still satisfies the type.
  */
 export type PsSnapshot = (anchors?: readonly number[]) => Promise<string>
 
