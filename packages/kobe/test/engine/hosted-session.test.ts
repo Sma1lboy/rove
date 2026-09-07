@@ -151,7 +151,7 @@ describe("deliverToHostedKey", () => {
   /** A pty that is reading (DECSET 2004) and echoes back whatever it is sent,
    *  so both readiness and the echo confirmation settle on the first poll.
    *  `screen` is whatever the composer already shows. */
-  function echoingRpc(screen: string, opts?: { lastHumanWriteMs?: number }) {
+  function echoingRpc(screen: string) {
     const writes: string[] = []
     let written = ""
     const rpc: HostedSessionRpc = {
@@ -165,7 +165,6 @@ describe("deliverToHostedKey", () => {
             data: Buffer.from(`\x1b[?2004h${screen}${written}`, "utf8").toString("base64"),
             sinceValid: false,
             exit: null,
-            ...(opts?.lastHumanWriteMs === undefined ? {} : { lastHumanWriteMs: opts.lastHumanWriteMs }),
           } as T
         }
         if (name === "pty.write") {
@@ -185,10 +184,10 @@ describe("deliverToHostedKey", () => {
     expect(writes).toEqual(["pty.write", "pty.write"])
   })
 
-  it("delivers even when the composer already holds text and someone just typed", async () => {
+  it("delivers even when the composer already holds text", async () => {
     // The delivery gate that used to hold this back is gone: `send` pastes and
     // submits, and the only refusal left is a session that cannot take bytes.
-    const { rpc, writes } = echoingRpc("\u276f hello", { lastHumanWriteMs: Date.now() })
+    const { rpc, writes } = echoingRpc("\u276f hello")
     const outcome = await deliverToHostedKey(rpc, "t1::tab-1", "go")
     expect(outcome).toMatchObject({ ready: true, confirmed: true })
     expect(writes).toEqual(["pty.write", "pty.write"])
