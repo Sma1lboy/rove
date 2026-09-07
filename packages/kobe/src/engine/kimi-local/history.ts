@@ -23,6 +23,7 @@ import { stat } from "node:fs/promises"
 import { homedir } from "node:os"
 import path from "node:path"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
+import { sameHistoryWorktree } from "../history-worktree"
 import { vendorConfigHome } from "../vendor-home"
 
 export interface KimiHistoryDeps {
@@ -101,7 +102,7 @@ async function worktreeSessionFiles(
   if (!worktree) return []
   const matches: { id: string; mtimeMs: number }[] = []
   for (const entry of await sessionIndex(deps)) {
-    if (entry.workDir !== worktree) continue
+    if (!sameHistoryWorktree(entry.workDir, worktree)) continue
     const file = wirePath(entry.sessionDir)
     const info = await deps.stat(file).catch(() => null)
     if (info) matches.push({ id: entry.sessionId, mtimeMs: info.mtimeMs })

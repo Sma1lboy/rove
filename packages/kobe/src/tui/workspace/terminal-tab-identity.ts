@@ -27,6 +27,16 @@
 import type { VendorId } from "../../types/vendor"
 import type { TerminalTab } from "./terminal-tabs-core"
 
+export function createTabIdentityObserver() {
+  const observed = new Map<string, VendorId>()
+  return (tab: TerminalTab, live: VendorId | null | undefined, shell: readonly string[]): TerminalTab => {
+    const previous = observed.get(tab.id)
+    if (live) observed.set(tab.id, live)
+    else observed.delete(tab.id)
+    return demoteExitedEngine(tab, previous, live, shell)
+  }
+}
+
 /**
  * The engine in this tab exited: reset it to the shell it always was.
  *

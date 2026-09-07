@@ -6,6 +6,13 @@ their commands on attach. Closing a tab, deleting a managed/directory Task,
 resetting a terminal, or running `rove reset` is an intentional teardown
 instead.
 
+During recovery, an engine tab keeps its saved conversation while its shell
+starts. Rove converts it to a shell tab only after observing the engine run
+and then exit in the current TUI session. On Windows, engine history lookup
+accepts both native backslashes and Git's forward slashes for the same directory.
+For engines that generate their own session IDs, an invalid saved ID triggers
+discovery of an unclaimed conversation in that directory before relaunch.
+
 ## What survives
 
 | If you… | Running process | Scrollback | Tasks + worktrees | Conversation files |
