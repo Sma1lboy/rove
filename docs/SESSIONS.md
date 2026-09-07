@@ -1,5 +1,10 @@
 # Sessions: what survives what
 
+On Windows, session discovery and hook-to-task attribution accept both native
+backslashes and Git-style forward slashes. Trailing directory separators and
+drive-letter spelling do not change the matched task. Daemon home verification
+uses the same path comparison.
+
 Short answer: **quitting Rove only detaches.** A PTY-host restart or machine
 reboot ends the child processes, but restores their screens and relaunches
 their commands on attach. Closing a tab, deleting a managed/directory Task,

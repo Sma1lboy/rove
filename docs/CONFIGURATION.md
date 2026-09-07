@@ -3,6 +3,10 @@
 Most settings are written for you by the Settings dialog. Press `ctrl+a`,
 then `,`. This page is for when you want to edit them by hand.
 
+Saved repository lookups and per-repository init overrides match equivalent
+Windows path spellings. A repository saved with backslashes can be selected or
+configured using Git-style forward slashes without creating a second entry.
+
 ## Where things live
 
 | Path | What | Written by |

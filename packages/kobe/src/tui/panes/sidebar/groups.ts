@@ -24,6 +24,7 @@
 
 import { reconcileStableRows } from "@/tui/lib/stable-rows"
 import type { Task } from "@/types/task"
+import { pathIdentity, pathSyntax } from "@sma1lboy/kobe-daemon/path-identity"
 import { fuzzyMatch } from "./fuzzy"
 
 export type TaskSortMode = "default" | "recent"
@@ -148,24 +149,19 @@ function taskTime(task: Task): number {
  * could drift if the user renamed the directory). Pure / framework-free.
  */
 export function repoBasename(repo: string): string {
-  const segments = repo.split("/").filter(Boolean)
-  return segments[segments.length - 1] ?? repo
+  return pathSyntax(repo).basename(repo) || repo
 }
 
 export function sidebarProjectKey(repo: string): string {
-  const trimmed = repo.trim().replace(/[\\/]+$/, "")
-  return trimmed || repo
+  return pathIdentity(repo.trim()) || repo
 }
 
 export function sidebarProjectLabel(repo: string, repos: readonly string[]): string {
   const base = repoBasename(repo)
   const collides = repos.some((r) => r !== repo && repoBasename(r) === base)
   if (!collides) return base
-  return repo
-    .replace(/[\\/]+$/, "")
-    .split(/[\\/]+/)
-    .slice(-2)
-    .join("/")
+  const syntax = pathSyntax(repo)
+  return syntax.normalize(repo).split(syntax.sep).filter(Boolean).slice(-2).join("/")
 }
 
 export function buildProjectOptions(tasks: readonly Task[]): SidebarProjectOption[] {

@@ -8,9 +8,9 @@
  * a different failure mode from "the prompt did not land".
  */
 
-import { isAbsolute, relative } from "node:path"
 import { errorMessage } from "@/lib/error-message"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
+import { pathWithin, samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { DIRTY_WORKTREE_CODE, EMPTY_BRANCH_DIRTY_WORKTREE_CODE } from "../../orchestrator/errors.ts"
 import { canonicalize } from "../../orchestrator/worktree/paths.ts"
@@ -300,14 +300,13 @@ export async function removeTaskWorktree(ctx: VerbContext): Promise<unknown> {
     })
   }
   const wt = canonicalize(worktreePath)
-  if (wt === canonicalize(task.repo)) {
+  if (samePath(wt, canonicalize(task.repo))) {
     throw new ApiError(
       `refusing to remove ${worktreePath} — it is the project's own checkout, not a Rove worktree`,
       "BASE_CHECKOUT",
     )
   }
-  const rel = relative(wt, canonicalize(process.cwd()))
-  if (rel === "" || (!rel.startsWith("..") && !isAbsolute(rel))) {
+  if (pathWithin(wt, canonicalize(process.cwd())) !== null) {
     throw new ApiError(
       `refusing to remove the caller's own worktree (${worktreePath}) — re-run from outside it`,
       "CALLER_WORKTREE",

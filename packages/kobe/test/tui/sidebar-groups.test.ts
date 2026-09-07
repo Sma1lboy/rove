@@ -4,12 +4,23 @@ import {
   buildRows,
   cursorIndexForProjectScope,
   reconcileSidebarRows,
+  repoBasename,
   resolveCursorTarget,
   sameSidebarRowTask,
+  sidebarProjectKey,
+  sidebarProjectLabel,
   splitSidebarRows,
 } from "../../src/tui/panes/sidebar/groups.ts"
 import type { Task } from "../../src/types/task.ts"
 import { toTaskId } from "../../src/types/task.ts"
+
+it("uses one sidebar identity and basename for Windows repo spellings", () => {
+  expect(sidebarProjectKey("c:\\Projects\\demo\\")).toBe(sidebarProjectKey("C:/Projects/demo"))
+  expect(repoBasename("C:\\Projects\\demo\\")).toBe("demo")
+  expect(sidebarProjectKey("ssh://host/srv/demo")).toBe("ssh://host/srv/demo")
+  expect(repoBasename("/srv/demo\\part")).toBe("demo\\part")
+  expect(sidebarProjectLabel("/srv/demo\\part", ["/other/demo\\part"])).toBe("srv/demo\\part")
+})
 
 function task(overrides: Omit<Partial<Task>, "id"> & { id: string; title: string }): Task {
   return {

@@ -4,6 +4,7 @@
  * Interactive engine processes and Terminal Tab state have separate owners.
  */
 
+import { samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import { type ReadableState, type StateCell, createStateCell } from "../lib/external-store.ts"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
 import { getRemoteRepoConfig, getSavedRepos, removeSavedRepo } from "../state/repos.ts"
@@ -154,7 +155,7 @@ export class Orchestrator {
     try {
       const promotable = promotableDirTasks({
         tasks: this.store.list(),
-        isRepoRoot: (path) => isGitRepo(path) && resolveRepoRoot(path) === path,
+        isRepoRoot: (path) => isGitRepo(path) && samePath(resolveRepoRoot(path), path),
       })
       for (const task of promotable) await this.mainTasks.ensureIfEligible(task.repo, "explicit")
     } catch {

@@ -27,6 +27,7 @@
 
 import { existsSync } from "node:fs"
 import path from "node:path"
+import { pathIdentity as normalize, pathSyntax, pathWithin, samePath } from "../path-identity.ts"
 import { managedWorktreeRootsFor, readWorktreeBaseOverride } from "./worktree-paths.ts"
 
 export interface CwdMatchTask {
@@ -34,16 +35,6 @@ export interface CwdMatchTask {
   readonly worktreePath?: string | null
   /** The task's repo root — names which repos kobe already tracks. */
   readonly repo?: string | null
-}
-
-/** Strip a single trailing slash (but keep a bare root "/"). */
-function normalize(p: string): string {
-  return p.length > 1 && p.endsWith("/") ? p.slice(0, -1) : p
-}
-
-/** True if `wt` is `cwd` itself or a path-segment ancestor of it. */
-function isAncestorOrSelf(wt: string, cwd: string): boolean {
-  return cwd === wt || cwd.startsWith(`${wt}/`)
 }
 
 /**
@@ -62,8 +53,10 @@ function isAncestorOrSelf(wt: string, cwd: string): boolean {
  * every legitimate match.
  */
 function crossesRepoBoundary(wt: string, cwd: string): boolean {
-  for (let dir = cwd; dir.length > wt.length; dir = path.dirname(dir)) {
-    if (existsSync(path.join(dir, ".git"))) return true
+  const syntax = pathSyntax(cwd)
+  for (let dir = cwd; !samePath(dir, wt); dir = syntax.dirname(dir)) {
+    if (existsSync(syntax.join(dir, ".git"))) return true
+    if (samePath(dir, syntax.dirname(dir))) break
   }
   return false
 }
@@ -85,7 +78,7 @@ export function matchTaskByCwd(tasks: ReadonlyArray<CwdMatchTask>, cwd: string):
   for (const t of tasks) {
     if (!t.worktreePath) continue
     const wt = normalize(t.worktreePath)
-    if (isAncestorOrSelf(wt, target) && wt.length > bestLen) {
+    if (pathWithin(wt, target) !== null && wt.length > bestLen) {
       bestLen = wt.length
       bestWt = wt
       bestId = t.id
@@ -146,10 +139,10 @@ export function findAdoptableWorktree(
     // The base override is read per repo: a `$project_dir` value expands
     // against THIS repo, so one global setting yields a per-project root.
     for (const root of managedWorktreeRootsFor(repo, readWorktreeBaseOverride(repo)).map(normalize)) {
-      const prefix = `${root}/`
-      if (!target.startsWith(prefix)) continue
+      const prefix = root.endsWith("/") ? root : `${root}/`
+      const rest = pathWithin(root, target)
+      if (!rest) continue
       // First path segment after the managed root is the worktree dir.
-      const rest = target.slice(prefix.length)
       const name = rest.split("/")[0]
       if (!name) continue
       const worktreePath = `${prefix}${name}`

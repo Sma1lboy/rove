@@ -26,6 +26,8 @@
  * only decides.
  */
 
+import { pathWithin, samePath } from "@sma1lboy/kobe-daemon/path-identity"
+
 /** A non-scratch task that could already own the shell's cwd. */
 export interface ScratchOwnerTask {
   readonly id: string
@@ -54,19 +56,23 @@ export type ScratchAdoptDecision =
   | { readonly kind: "fold"; readonly taskId: string }
   | { readonly kind: "adopt"; readonly repo: string; readonly known: boolean }
 
-const inDir = (path: string, dir: string): boolean => path === dir || path.startsWith(`${dir}/`)
-
 export function decideScratchAdopt(input: ScratchAdoptInput): ScratchAdoptDecision {
   if (!input.repoRoot || !input.harnessLive) return { kind: "stay" }
   const owners = input.ownerTasks.filter((task) => task.dir !== "")
   if (input.cwd) {
     const cwd = input.cwd
-    const managed = owners.find((task) => task.kind === "task" && inDir(cwd, task.dir))
+    const managed = owners.find((task) => task.kind === "task" && pathWithin(task.dir, cwd) !== null)
     if (managed) return { kind: "fold", taskId: managed.id }
   }
   for (const kind of ["main", "dir"] as const) {
-    const owned = owners.find((task) => task.kind === kind && (task.dir === input.cwd || task.dir === input.repoRoot))
+    const owned = owners.find(
+      (task) => task.kind === kind && (samePath(task.dir, input.cwd) || samePath(task.dir, input.repoRoot)),
+    )
     if (owned) return { kind: "fold", taskId: owned.id }
   }
-  return { kind: "adopt", repo: input.repoRoot, known: input.knownRepos.has(input.repoRoot) }
+  return {
+    kind: "adopt",
+    repo: input.repoRoot,
+    known: [...input.knownRepos].some((repo) => samePath(repo, input.repoRoot)),
+  }
 }

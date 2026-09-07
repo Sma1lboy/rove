@@ -10,6 +10,7 @@
  * unchanged. Moved verbatim from `core.ts` — no behaviour change.
  */
 
+import { samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import { detectLanguage } from "@sma1lboy/kobe-daemon/prompts/observed-language"
 import { samePrStatus } from "../monitor/pr-status.ts"
 import type {
@@ -204,7 +205,9 @@ export class TaskEditor {
       .filter((t) =>
         isMain
           ? (t.kind ?? "task") === "main"
-          : (t.kind ?? "task") !== "main" && t.repo === task.repo && (t.pinned ?? false) === (task.pinned ?? false),
+          : (t.kind ?? "task") !== "main" &&
+            samePath(t.repo, task.repo) &&
+            (t.pinned ?? false) === (task.pinned ?? false),
       )
       .map((t) => String(t.id))
     await this.store.move(task.id, delta, groupIds)

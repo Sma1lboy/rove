@@ -37,6 +37,32 @@ function orchestrator(removeWorktree: (path: string, force: boolean) => Promise<
 
 const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 100))
 
+test("landing a Git worktree row finds the task saved with Windows native separators", async () => {
+  const preflights: string[] = []
+  const orch = Object.assign(
+    orchestrator(async () => {}),
+    {
+      listWorktrees: async () => [
+        { repo: "C:/Projects/demo", worktrees: [{ ...ROW, path: "C:/worktrees/feature-a" }] },
+      ],
+      listTasks: () => [{ id: "windows-task", worktreePath: "C:\\worktrees\\feature-a" }],
+      landPreflight: async (taskId: string) => {
+        preflights.push(taskId)
+        return { refusal: "MAIN_CHECKOUT_DIRTY" }
+      },
+    },
+  )
+  const { mockInput } = await renderComponent(<WorktreesPage orchestrator={orch} onClose={() => {}} />, {
+    width: 70,
+    height: 20,
+    providers: { dialog: true, notifications: true },
+  })
+  await settle()
+  mockInput.typeText("l")
+  await settle()
+  expect(preflights).toEqual(["windows-task"])
+})
+
 test("the row disappears before the daemon delete resolves", async () => {
   let release = (): void => {}
   const pending = new Promise<void>((r) => {

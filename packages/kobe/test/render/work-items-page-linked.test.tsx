@@ -38,6 +38,30 @@ test("enter on an already-started issue opens its task, never a second start", a
   expect(opened).toEqual(["T1", "T1"])
 })
 
+test("Windows project spellings select and reuse the existing linked task", async () => {
+  let starts = 0
+  const opened: string[] = []
+  const linked = { id: "T1", repo: "C:\\Projects\\demo", title: "windows-issue", linkedWorkItem: { number: 412 } }
+  const { mockInput } = await renderComponent(
+    <WorkItemsPage
+      orchestrator={orch(
+        [{ id: "other", repo: "C:/Projects/other" }, { id: "main", repo: "C:/Projects/demo" }, linked],
+        async () => ({ started: true, taskId: `new-${++starts}` }),
+      )}
+      focusRepo="c:\\Projects\\demo"
+      focused={true}
+      onClose={() => {}}
+      onOpenTask={(id) => opened.push(id)}
+    />,
+    { width: 90, height: 12, providers: { notifications: true } },
+  )
+  await settle(150)
+  mockInput.pressEnter()
+  await settle(150)
+  expect(starts).toBe(0)
+  expect(opened).toEqual(["T1"])
+})
+
 test("a task on another repo or issue does not count as linked", async () => {
   let starts = 0
   const other = [

@@ -22,6 +22,7 @@ import {
   type AutomationRunStatus,
   automationRunNeedsAttention,
 } from "@sma1lboy/kobe-daemon/daemon/contracts"
+import { pathSyntax } from "@sma1lboy/kobe-daemon/path-identity"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { errorMessage } from "../../lib/error-message"
@@ -44,7 +45,7 @@ import { RunHistory, runGlyph, runToneColor } from "./automations-runs"
 const POLL_MS = 5_000
 
 function repoLabel(repo: string): string {
-  return repo.split("/").filter(Boolean).pop() ?? repo
+  return pathSyntax(repo).basename(repo) || repo
 }
 
 export function AutomationsPage(props: {

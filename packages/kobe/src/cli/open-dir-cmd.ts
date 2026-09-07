@@ -20,6 +20,7 @@
 
 import { statSync } from "node:fs"
 import { resolve } from "node:path"
+import { pathSyntax } from "@sma1lboy/kobe-daemon/path-identity"
 import { expandTilde } from "../lib/path-home.ts"
 import { withDaemonOrLocal } from "./orchestrator-bridge.ts"
 import { activeCliName } from "./rename-compat.ts"
@@ -36,9 +37,13 @@ export function isPathLikeArg(arg: string): boolean {
     arg === ".." ||
     arg.startsWith("./") ||
     arg.startsWith("../") ||
+    arg.startsWith(".\\") ||
+    arg.startsWith("..\\") ||
+    pathSyntax(arg).isAbsolute(arg) ||
     arg.startsWith("/") ||
     arg === "~" ||
-    arg.startsWith("~/")
+    arg.startsWith("~/") ||
+    arg.startsWith("~\\")
   )
 }
 

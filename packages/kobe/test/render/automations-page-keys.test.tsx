@@ -183,18 +183,21 @@ test("a selected routine offers an on-demand run", async () => {
   expect(await frame()).toContain("run now")
 })
 
-test("composer binds an existing task with the selected engine tab", async () => {
+test.each([
+  { taskRepo: "/x/kobe", focusRepo: "/x/kobe" },
+  { taskRepo: "C:\\Projects\\demo", focusRepo: "c:/Projects/demo" },
+])("composer binds an existing task with the selected engine tab: %o", async ({ taskRepo, focusRepo }) => {
   const calls: unknown[] = []
   const orch = {
     ...orchestrator(),
-    listTasks: () => [{ id: "existing", title: "My existing task", repo: "/x/kobe" }],
+    listTasks: () => [{ id: "existing", title: "My existing task", repo: taskRepo }],
     createAutomation: async (draft: unknown) => {
       calls.push(draft)
       return {}
     },
   }
   const { frame, mockInput } = await renderComponent(
-    <AutomationsPage orchestrator={orch as never} focused={true} focusRepo="/x/kobe" onClose={() => {}} />,
+    <AutomationsPage orchestrator={orch as never} focused={true} focusRepo={focusRepo} onClose={() => {}} />,
     { width: 100, height: 48, providers: { dialog: true, notifications: true } },
   )
   await new Promise((r) => setTimeout(r, 100))

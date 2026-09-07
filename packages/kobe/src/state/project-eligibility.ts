@@ -32,7 +32,8 @@
  */
 
 import { tmpdir } from "node:os"
-import { isAbsolute, join, relative, resolve, sep } from "node:path"
+import { join } from "node:path"
+import { pathSyntax, pathWithin } from "@sma1lboy/kobe-daemon/path-identity"
 import { homeDir, legacyKobeStateDir, roveStateDir } from "../env.ts"
 
 /** Why a path may not become a project. `null` = eligible. */
@@ -59,8 +60,7 @@ function isRemoteKey(key: string): boolean {
  *  paths — no fs access, so it answers the same way for a directory that has
  *  since been deleted. */
 function isInside(candidate: string, root: string): boolean {
-  const rel = relative(resolve(root), resolve(candidate))
-  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel))
+  return pathWithin(root, candidate) !== null
 }
 
 /**
@@ -107,8 +107,15 @@ export function pathRejection(absPath: string, intent: ProjectIntent = "derived"
   // A remote project's key is a synthetic ssh:// URL validated by the
   // remote-add flow — none of the local path rules can speak about it.
   if (isRemoteKey(raw)) return null
-  if (!isAbsolute(raw)) return "notAbsolute"
-  if (raw.split(sep).some((s) => THROWAWAY_SEGMENTS.has(s))) return "insideSandbox"
+  const syntax = pathSyntax(raw)
+  if (!syntax.isAbsolute(raw)) return "notAbsolute"
+  if (
+    syntax
+      .normalize(raw)
+      .split(syntax.sep)
+      .some((s) => THROWAWAY_SEGMENTS.has(s))
+  )
+    return "insideSandbox"
   for (const root of roveInternalRoots()) {
     if (isInside(raw, root)) return "roveInternal"
   }

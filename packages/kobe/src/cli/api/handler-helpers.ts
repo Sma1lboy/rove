@@ -6,6 +6,7 @@
  * without depending on any one handler group.
  */
 
+import { samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { ApiError, type VerbContext } from "./types.ts"
 
@@ -58,11 +59,11 @@ export async function repoFilter(
   for (const repo of new Set(repos)) {
     const root = await runtime.resolveRepoRoot(repo)
     resolved.set(repo, root)
-    if (root !== target && !(await runtime.isUsableRepo(root))) unresolvable.add(repo)
+    if (!samePath(root, target) && !(await runtime.isUsableRepo(root))) unresolvable.add(repo)
   }
   return {
     target,
-    matches: (repo) => resolved.get(repo) === target,
+    matches: (repo) => samePath(resolved.get(repo), target),
     unresolvableRepos: [...unresolvable].sort(),
   }
 }

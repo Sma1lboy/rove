@@ -318,10 +318,12 @@ describe("landTaskWithCleanup worktree cleanup", () => {
     expect(fs.existsSync(path.join(repo, "b.txt"))).toBe(true)
   })
 
-  test("caller inside the worktree is refused on the default path too", async () => {
+  test.each(["", "..cache"])("caller inside worktree subdirectory %s is protected", async (subdir) => {
     makeWorktree()
+    const callerCwd = path.join(wt, subdir)
+    fs.mkdirSync(callerCwd, { recursive: true })
     const { deps: d } = deps()
-    const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, { callerCwd: wt }, d)
+    const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, { callerCwd }, d)
     expect(res.worktree?.removed).toBe(false)
     expect(res.worktree?.reason).toMatch(/caller's own worktree/)
     expect(fs.existsSync(wt)).toBe(true)

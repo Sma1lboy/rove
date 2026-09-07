@@ -23,6 +23,7 @@
  */
 
 import { basename } from "node:path"
+import { samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import type { Task, TaskId, VendorId } from "../types/task.ts"
 import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
 import type { AdoptableWorktree, WorktreeInfo } from "../types/worktree.ts"
@@ -101,7 +102,7 @@ export class WorktreeCoordinator {
     this.slugs = new SlugAllocator((repo) =>
       this.store
         .list()
-        .filter((t) => t.repo === repo && t.kind !== "main")
+        .filter((t) => samePath(t.repo, repo) && t.kind !== "main")
         .map((t) => {
           const slug = t.worktreePath.match(/([^/\\]+)[/\\]*$/)?.[1] ?? ""
           return slug

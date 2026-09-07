@@ -35,6 +35,14 @@ describe("splitRepoInput", () => {
 })
 
 describe("resolveRepoInput", () => {
+  it("keeps native Windows input intact and recognizes saved aliases when displaying a name", () => {
+    expect(resolveRepoInput("C:\\Projects\\demo", ["C:/other/demo"])).toEqual({
+      kind: "path",
+      path: "C:\\Projects\\demo",
+    })
+    expect(nameOrPath("C:\\Projects\\demo", ["c:/Projects/demo"])).toBe("demo")
+    expect(nameOrPath("C:\\Projects\\different", ["C:/other/different"])).toBe("C:\\Projects\\different")
+  })
   const repos = ["/Users/me/i/quokka", "/Users/me/i/wisp"]
 
   it("resolves a known name to its one path", () => {
