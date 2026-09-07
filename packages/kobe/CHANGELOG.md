@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.177
+
+### Patch Changes
+
+- [#961](https://github.com/Sma1lboy/rove/pull/961) [`89c7c58`](https://github.com/Sma1lboy/rove/commit/89c7c58bbf3cd28ce203c9dcd722ff1d20a4927c) Use shared filesystem path comparisons across Windows session discovery, daemon home checks, task attribution, project pickers, saved repository settings, automations, and worktree actions. Native and Git path separators, drive-letter spelling, trailing separators, UNC paths, and long-path prefixes now identify the same location. Keep POSIX names and remote repository keys distinct, and preserve the current-worktree removal guard for directories named with a leading `..`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.176
 
 ### Patch Changes
