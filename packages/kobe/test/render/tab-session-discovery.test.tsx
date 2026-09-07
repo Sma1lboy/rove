@@ -120,6 +120,36 @@ test("a rehydrated kimi tab adopts the session its worktree already has", async 
 
 const SECOND_SESSION_ID = "session_fc747c28-84ge-56d3-a8g5-5cd5g4346cgg"
 
+test("a stale id from another engine does not prevent discovery of the current engine's conversation", async () => {
+  await seedKimiSession()
+  const io = lifecycleIO(
+    {
+      tabs: [
+        {
+          kind: "engine",
+          id: "tab-1",
+          title: null,
+          ordinal: 1,
+          vendor: "kimi",
+          sessionId: "old-engine-id",
+          spawned: true,
+        },
+      ],
+      activeId: "tab-1",
+      nextOrdinal: 2,
+    },
+    worktree as string,
+  )
+  let hydrating = true
+  function Probe(): ReactNode {
+    hydrating = useTabHydration(true, io)
+    return <text>probe</text>
+  }
+  await renderComponent(<Probe />)
+  await until(() => !hydrating)
+  expect(io.state().tabs[0]).toMatchObject({ sessionId: SESSION_ID, spawned: true })
+})
+
 /**
  * Two engine tabs in one task share ONE worktree (`session-launch.ts:290-292`),
  * so "two tabs, one worktree" is the ordinary case, not an edge one — and the
