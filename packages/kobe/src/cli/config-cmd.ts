@@ -3,6 +3,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
 import { kvStatePath } from "../env.ts"
+import { missingPosixShellHint, posixShell } from "../lib/posix-shell.ts"
 import { binaryAvailable, resolveEditorCommand } from "../tui/lib/editor-launch.ts"
 import { activeCliName } from "./rename-compat.ts"
 
@@ -56,12 +57,16 @@ export async function runConfigSubcommand(argv: readonly string[] = []): Promise
     process.stderr.write(
       `${CLI_NAME} config: no editor found — set $EDITOR (or Settings → General → Editor), or edit directly:\n  ${path}\n`,
     )
+    // Without a shell the probe above can never pass, so "set $EDITOR" is
+    // advice that cannot work — say what actually would.
+    const hint = missingPosixShellHint()
+    if (hint) process.stderr.write(`\n${hint}`)
     process.exit(1)
   }
 
   // Inherit stdio so the terminal editor takes over this TTY; exit with its
   // code so `:cq` / a non-zero quit propagates.
-  const proc = Bun.spawn(["sh", "-c", resolved.command], {
+  const proc = Bun.spawn([posixShell(), "-c", resolved.command], {
     stdin: "inherit",
     stdout: "inherit",
     stderr: "inherit",

@@ -119,3 +119,24 @@ describe("normalizeEditorKind", () => {
     expect(normalizeEditorKind(42)).toBe("auto")
   })
 })
+
+describe("windows path form", () => {
+  // These strings are interpolated INTO a shell script that Git Bash runs.
+  // `C:\a\b` there is escape soup; `/c/a/b` is understood by Git's own tools
+  // and converted back to a native path by the MSYS runtime when the command
+  // turns out to be a Windows binary.
+  it("converts a drive path to MSYS form on win32", () => {
+    expect(buildEditorCommand("vim", "", "C:\\Users\\z\\.config\\rove\\state.json", undefined, "win32")?.command).toBe(
+      "vim '/c/Users/z/.config/rove/state.json'",
+    )
+    expect(buildEditorCommand("custom", "code -w {file}", "C:\\a b\\x.ts", undefined, "win32")?.command).toBe(
+      "code -w '/c/a b/x.ts'",
+    )
+    expect(buildNvimDiffCommand("nvim", "C:\\wt\\a.ts", "a.ts", "win32")).toContain("'/c/wt/a.ts'")
+  })
+
+  it("leaves POSIX paths alone on POSIX", () => {
+    expect(buildEditorCommand("vim", "", "/wt/a.ts", undefined, "linux")?.command).toBe("vim '/wt/a.ts'")
+    expect(buildNvimDiffCommand("nvim", "/wt/a.ts", "a.ts", "darwin")).toContain("'/wt/a.ts'")
+  })
+})

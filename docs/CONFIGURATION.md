@@ -130,6 +130,13 @@ action and `rove config`. Opening an entire worktree (`o` in the sidebar or
 In `editor.customCommand`, `{file}` is replaced by the quoted file path. Without
 it, the path is appended.
 
+The command is a POSIX shell line. On Windows it runs through Git for Windows'
+bash — the same shell every engine and terminal tab uses — so both Git Bash's
+own editors (`vim`) and Windows binaries (`notepad`, `code`) resolve, and the
+file path is passed in MSYS form (`/c/Users/…`), which Git Bash converts back
+to a native path for Windows programs. Without Git for Windows installed there
+is no editor at all, and `rove config` says so.
+
 Set `ROVE_OPEN_EDITOR` to choose the GUI editor for a whole worktree, for
 example `ROVE_OPEN_EDITOR=zed`. `KOBE_OPEN_EDITOR` remains a compatibility
 fallback; when both are set, `ROVE_OPEN_EDITOR` wins. Without either variable,
