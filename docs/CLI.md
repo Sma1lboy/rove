@@ -58,6 +58,11 @@ rove updates using whichever package manager owns the `rove` on your `PATH`,
 so the new version can't land in a shadowed prefix. Manual fallback:
 `npm install -g @sma1lboy/rove@latest` (or `@nightly`).
 
+The update script is POSIX shell. On Windows, Rove runs it through Git for
+Windows' bash — the same shell every engine and terminal tab launches through
+— so `rove update` needs Git for Windows installed, exactly like the rest of
+the app. Without it the command says so and points at the manual fallback.
+
 Some versions are marked breaking. Installing across one prints a heads-up
 (`dry-run` included, so the rehearsal shows it too), and the next launch asks
 you to run `rove reset` first. Worktrees are never touched.
