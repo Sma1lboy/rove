@@ -11,6 +11,7 @@
     "./client": "./src/client/index.ts",
     "./client/client-log": "./src/client/client-log.ts",
     "./client/daemon-process": "./src/client/daemon-process.ts",
+    "./client/detached-spawn": "./src/client/detached-spawn.ts",
     "./client/pty-process": "./src/client/pty-process.ts",
     "./client/rpc": "./src/client/rpc.ts",
     "./daemon/activity-arbitrate": "./src/daemon/activity-arbitrate.ts",
