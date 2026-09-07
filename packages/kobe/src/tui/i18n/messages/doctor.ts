@@ -55,10 +55,20 @@ export const en = {
     resetWhy: "stops the daemon, the PTY host, and every live session — not undoable, so doctor only prints it",
     /** Daemon process alive but its socket unreachable */
     resetDaemonWedged: "the daemon process is alive but unreachable (wedged)",
-    /** PTY host unreachable or down */
-    resetPty: "the PTY host is unreachable or not running",
+    /** PTY host process alive but its socket unreachable. A host that is
+        merely down is NOT a finding — it starts on demand. */
+    resetPty: "the PTY host process is alive but its socket is unreachable (wedged)",
+    /** PTY host serving an older build than the CLI. It survives daemon
+        restarts by design, so only a reset replaces its code. */
+    resetPtyStale: "the PTY host is still running an older build than the one you launched",
     /** Pre-v0.8 tmux sessions still resident */
     resetLegacy: "pre-v0.8 tmux sessions are still holding processes and memory",
+
+    /** Processes left behind by a PTY session something outside Rove killed; {count} of them */
+    orphans: "{count} process(es) outlived the PTY session that spawned them and are still running",
+    /** Why the orphan sweep is print-only */
+    orphansWhy:
+      "kills processes, which is not undoable — and a task you backgrounded on purpose looks the same; read the list, then run it yourself",
 
     /** Hook channel down: the other half of the remedy, owned by the user */
     engineTabs: "engine tabs may hold a stale daemon socket path",
@@ -82,8 +92,14 @@ export const en = {
     gitAction: "install git with your OS package manager",
     /** No engine has both a CLI binary and an account */
     noEngine: "no usable engine — no engine CLI is both installed and logged in",
-    /** The manual action for {@link noEngine} */
+    /** The manual action for {@link noEngine}: nothing is installed at all */
     noEngineAction: "install an engine CLI (claude, codex, copilot, or kimi) and log in",
+    /** An engine CLI IS installed — only the login is missing */
+    noEngineLogin: "no usable engine — an engine CLI is installed but not signed in",
+    /** The manual action for {@link noEngineLogin}. `{list}` is the installed
+     *  engine CLIs; telling this user to install one would point at a binary
+     *  whose absolute path doctor printed two lines above. */
+    noEngineLoginAction: "run one of the installed engine CLIs ({list}) in a shell and complete its login",
     /** Windows only: no node, so the PTY host cannot start */
     windowsNode: "Node.js is missing — the Windows PTY host cannot start",
     /** The manual action for {@link windowsNode} */
@@ -124,8 +140,12 @@ export const zh: typeof en = {
 
     resetWhy: "会停掉 daemon、PTY host 和所有活动会话 — 不可撤销, 所以 doctor 只打印",
     resetDaemonWedged: "daemon 进程存活但无法连接 (卡死)",
-    resetPty: "PTY host 无法连接或没有在运行",
+    resetPty: "PTY host 进程存活但 socket 无法连接 (卡死)",
+    resetPtyStale: "PTY host 仍在跑比你启动的版本更旧的构建",
     resetLegacy: "v0.8 之前的 tmux 会话仍占用进程和内存",
+
+    orphans: "有 {count} 个进程比启动它们的 PTY 会话活得更久, 现在还在运行",
+    orphansWhy: "会杀进程, 不可撤销 — 而且你故意放后台的任务看起来一模一样; 先看清单, 再自己执行",
 
     engineTabs: "引擎 tab 可能持有过期的 daemon socket 路径",
     engineTabsAction: "在 TUI 里关闭并重开受影响的引擎 tab",
@@ -140,6 +160,8 @@ export const zh: typeof en = {
     gitAction: "用你的系统包管理器安装 git",
     noEngine: "没有可用引擎 — 没有任何引擎 CLI 同时满足已安装且已登录",
     noEngineAction: "安装任一引擎 CLI（claude、codex、copilot 或 kimi）并登录",
+    noEngineLogin: "没有可用引擎 — 引擎 CLI 已安装, 但没有登录",
+    noEngineLoginAction: "在 shell 里运行已安装的引擎 CLI（{list}）之一并完成登录",
     windowsNode: "缺少 Node.js — Windows PTY host 无法启动",
     windowsNodeAction: "从 https://nodejs.org 安装 Node.js",
     staleBun: "运行 Rove 的 Bun 版本低于本构建的要求 — 终端不会有任何输出",

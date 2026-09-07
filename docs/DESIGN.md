@@ -52,14 +52,12 @@ the dirty-worktree safety check before attempting to remove its task branch.
 
 - The Daemon owns Task/Worktree control-plane state.
 - The standalone PTY Host owns interactive child lifetime and output buffers.
-- The `rove web` Node PTY sidecar owns browser-created terminal children only.
 - The Workspace Host attaches and renders; closing it detaches only.
 
 This separation makes live engine sessions survive TUI exits and daemon
 restarts. The standalone host also freezes bounded terminal state so host
 restarts and reboots can restore the screen and relaunch on attach. TUI/API
-sessions have one standalone-host backend and one launch behavior; the frozen
-browser dashboard's Node PTY sidecar is a separate maintenance boundary.
+sessions have one standalone-host backend and one launch behavior.
 
 ### 4. State stays with its natural owner
 

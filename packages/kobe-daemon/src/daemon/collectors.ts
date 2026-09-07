@@ -7,11 +7,13 @@
  */
 
 import type { DaemonRpcClient } from "../client/rpc.ts"
-import { createActivityObserverIo, startActivityObserver } from "./activity-observer.ts"
+import { createActivityObserverIo } from "./activity-observer-io.ts"
+import { startActivityObserver } from "./activity-observer.ts"
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import { DEFAULT_AUTO_TITLE_POLL_MS, startAutoTitlePoller } from "./auto-title-poller.ts"
 import { DEFAULT_AUTOMATION_TICK_MS, startAutomationRunner } from "./automation-runner.ts"
 import type { AutomationsStore } from "./automations-store.ts"
+import type { ChannelName } from "./channels.ts"
 import { DEFAULT_CONTEXT_USAGE_TICK_MS, startContextUsageCollector } from "./context-usage-collector.ts"
 import type { DaemonOrchestrator, UpdateInfo } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
@@ -67,7 +69,7 @@ export interface AutomationCollectorDeps {
   /** Where a standing session's blocked report goes instead of
    *  being dropped. Optional so tests that don't exercise it keep working. */
   readonly deferred?: import("./deferred-prompts-store.ts").DeferredPromptsStore
-  readonly inbox?: import("./automation-dispatch.ts").DispatchInbox
+  readonly inbox?: import("./automation-runner.ts").RunnerInbox
 }
 
 /**
@@ -78,22 +80,26 @@ export interface AutomationCollectorDeps {
  * by hand in another tab says nothing about what the task's command is, and
  * secondary engine tabs may legitimately run another vendor. Naming +
  * eligibility are engine-owned (`runtime.resolveProtocolUpgrade`, absent →
- * never upgrades); the write is fire-and-forget so a slow store never
- * stalls the observer, and activity claims are untouched — a sniff names an
+ * never upgrades); the observer drains the returned write before shutdown,
+ * and activity claims are untouched — a sniff names an
  * engine, it does not resurrect a dot. Idempotent by construction: an
  * upgraded record stops being generic, so the next tick resolves null.
  */
 export function createProtocolUpgradeReporter(
   orch: Pick<DaemonOrchestrator, "getTask" | "setCommand">,
   runtime: Pick<DaemonRuntimeAdapter, "resolveProtocolUpgrade">,
-): (taskId: string, tabId: string, evidence: { readonly walkVendor: string | null; readonly title: string }) => void {
+): (
+  taskId: string,
+  tabId: string,
+  evidence: { readonly walkVendor: string | null; readonly title: string },
+) => void | Promise<void> {
   return (taskId, tabId, evidence) => {
     if (tabId !== "tab-1") return
     const task = orch.getTask(taskId)
     if (!task) return
     const upgrade = runtime.resolveProtocolUpgrade?.(task, evidence)
     if (!upgrade) return
-    void orch
+    return orch
       .setCommand(taskId, upgrade.command, upgrade.vendor)
       .then(() =>
         logDaemonInfo(
@@ -108,8 +114,12 @@ export function createProtocolUpgradeReporter(
 /**
  * Start every daemon-owned background collector. Returns a single `stop()`
  * that tears them down in the same order server.ts's `close()` historically
- * used. `hasSubscribers` gates the per-tick work of the pollers that would
- * otherwise burn CPU / network for nobody on a gui-less daemon.
+ * used. `hasSubscribersFor` gates the per-tick work of the pollers that would
+ * otherwise burn CPU / network for nobody: each collector is wired to the
+ * channel it PUBLISHES, so a client that filtered its subscribe down to
+ * `["ui-prefs", "keybindings"]` never starts the git/gh pollers whose frames
+ * it would drop at the socket anyway. An unfiltered subscriber (every real
+ * gui) opens all of them, as before.
  *
  * What each one is for:
  *   - update poll (KOB): poll npm once on start + on an interval and publish
@@ -145,7 +155,7 @@ export function startDaemonCollectors(
   orch: DaemonOrchestrator,
   runtime: DaemonRuntimeAdapter,
   bus: DaemonEventBus,
-  hasSubscribers: () => boolean,
+  hasSubscribersFor: (channel: ChannelName) => boolean,
   options: DaemonCollectorOptions,
   quotaUsage?: QuotaUsageCache,
   automations?: AutomationCollectorDeps,
@@ -158,7 +168,7 @@ export function startDaemonCollectors(
    *  the TTL must be enforced on every daemon, including one with no
    *  routines configured. */
   deferredSweep?: DeferredSweepDeps,
-): () => void {
+): () => Promise<void> {
   // Activity observer: first tick immediately (restart seeding), then the
   // slow poll; gated per-tick on subscribers like every collector here. Its
   // per-session evidence also feeds the tier-(b) protocol sniff.
@@ -166,10 +176,10 @@ export function startDaemonCollectors(
     ? startActivityObserver(
         activity,
         {
-          ...createActivityObserverIo(options.homeDir, runtime),
+          ...createActivityObserverIo(options.homeDir, runtime, activity),
           onEngineEvidence: createProtocolUpgradeReporter(orch, runtime),
         },
-        hasSubscribers,
+        () => hasSubscribersFor("engine-state"),
       )
     : () => {}
   const checkUpdate = options.checkUpdate ?? runtime.checkLatestVersion
@@ -190,7 +200,8 @@ export function startDaemonCollectors(
     orch,
     runtime,
     options.autoTitlePollMs ?? DEFAULT_AUTO_TITLE_POLL_MS,
-    hasSubscribers,
+    // A rename rides the task push, so the consumer to gate on is task.snapshot.
+    () => hasSubscribersFor("task.snapshot"),
   )
 
   const stopUiPrefsWatcher = startUiPrefsWatcher(bus, {
@@ -208,7 +219,11 @@ export function startDaemonCollectors(
     runtime,
     bus,
     options.worktreeChangesTickMs ?? DEFAULT_WORKTREE_CHANGES_TICK_MS,
-    hasSubscribers,
+    () => hasSubscribersFor("worktree.changes"),
+    // Worktrees with a working engine keep the fast cadence — the change
+    // probe behind the collector's quiet backoff is blind to nested writes,
+    // which is exactly what a working engine produces.
+    activity ? () => activity.currentNonIdle().map((e) => e.taskId) : undefined,
   )
 
   const stopTranscriptActivityCollector = startTranscriptActivityCollector(
@@ -216,7 +231,7 @@ export function startDaemonCollectors(
     runtime,
     bus,
     options.transcriptActivityTickMs ?? DEFAULT_TRANSCRIPT_ACTIVITY_TICK_MS,
-    hasSubscribers,
+    () => hasSubscribersFor("transcript.activity"),
   )
 
   // Context-window occupancy per live engine session (the footer's `ctx N%`).
@@ -230,7 +245,7 @@ export function startDaemonCollectors(
         bus,
         runtime,
         options.contextUsageTickMs ?? DEFAULT_CONTEXT_USAGE_TICK_MS,
-        hasSubscribers,
+        () => hasSubscribersFor("usage.context"),
       )
     : () => {}
 
@@ -242,7 +257,8 @@ export function startDaemonCollectors(
     orch,
     runtime,
     options.prStatusPollMs ?? DEFAULT_PR_STATUS_POLL_MS,
-    hasSubscribers,
+    // prStatus rides the task push too.
+    () => hasSubscribersFor("task.snapshot"),
     undefined,
     activity ? () => activity.currentNonIdle().some((e) => e.state !== "idle") : undefined,
   )
@@ -289,23 +305,31 @@ export function startDaemonCollectors(
   // with no open task still has a number worth showing. Cadence (slow poll,
   // backoff, per-vendor floor) lives entirely in the cache.
   const stopQuotaUsagePoller = quotaUsage
-    ? startQuotaUsagePoller(quotaUsage, () => runtime.vendorsWithQuotaProbe(), hasSubscribers, options.quotaUsageTickMs)
+    ? startQuotaUsagePoller(
+        quotaUsage,
+        () => runtime.vendorsWithQuotaProbe(),
+        () => hasSubscribersFor("usage.snapshot"),
+        options.quotaUsageTickMs,
+      )
     : () => {}
 
-  // Same teardown order server.ts's close() used before the extraction.
-  return () => {
+  return async () => {
     if (updateTimer) clearInterval(updateTimer)
-    stopActivityObserver()
-    stopAutoTitlePoller()
-    stopPrStatusPoller()
-    stopQuotaResumeRunner()
-    stopAutomationRunner()
-    stopDeferredPromptSweep()
-    stopQuotaUsagePoller()
-    stopUiPrefsWatcher()
-    stopKeybindingsWatcher()
-    stopWorktreeChangesCollector()
-    stopTranscriptActivityCollector()
-    stopContextUsageCollector()
+    await Promise.allSettled(
+      [
+        stopActivityObserver,
+        stopAutoTitlePoller,
+        stopPrStatusPoller,
+        stopQuotaResumeRunner,
+        stopAutomationRunner,
+        stopDeferredPromptSweep,
+        stopQuotaUsagePoller,
+        stopUiPrefsWatcher,
+        stopKeybindingsWatcher,
+        stopWorktreeChangesCollector,
+        stopTranscriptActivityCollector,
+        stopContextUsageCollector,
+      ].map(async (stop) => stop()),
+    )
   }
 }

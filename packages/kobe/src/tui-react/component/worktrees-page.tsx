@@ -30,6 +30,7 @@ import { TextAttributes } from "@opentui/core"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { relativeAge } from "../../lib/relative-time"
+import { DIRTY_WORKTREE_CODE } from "../../orchestrator/errors"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import type { WorktreeAuditRow, WorktreeProject } from "../../types/worktree"
 import { useNotifications } from "../context/notifications"
@@ -39,13 +40,34 @@ import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { useCursorFollow } from "../lib/use-cursor-follow"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
+import { resolveRowSelectionChrome } from "../ui/row-selection-chrome"
 import { landTaskAction } from "../workspace/land-task-action"
 
 function flattenRows(projects: readonly WorktreeProject[]): readonly WorktreeAuditRow[] {
   return projects.flatMap((p) => p.worktrees)
 }
 
-const DIRTY_REFUSAL_RE = /refusing to remove dirty worktree/
+/**
+ * Read a dirty refusal out of a daemon error, or `null` when it is something
+ * else. The RPC layer rebuilds a thrown error as `new Error(message)`, so the
+ * message is all that survives — the same test `tui/lib/task-actions.ts` uses
+ * for the task-row delete, which is the other half of this one event.
+ *
+ * Matching the CODE and not prose is the point: `GitWorktreeManager.remove`
+ * refuses in three ways (porcelain-dirty, `git status --ignored` failed,
+ * gitignored work present) and the old regex recognised only the first, so the
+ * other two never reached the force re-prompt at all.
+ *
+ * The returned reason is what follows the code — it names the gitignored paths
+ * in the case where that is what refused, which is the only way that refusal is
+ * actionable: `git status` cannot see them.
+ */
+function dirtyRefusalReason(err: unknown): string | null {
+  if (!(err instanceof Error)) return null
+  const at = err.message.indexOf(DIRTY_WORKTREE_CODE)
+  if (at < 0) return null
+  return err.message.slice(at + DIRTY_WORKTREE_CODE.length).replace(/^:\s*/, "")
+}
 
 /** Match a worktree row's path to a tracked task id (loose realpath tolerance). */
 function taskIdForPath(orch: RemoteOrchestrator, wtPath: string): string | undefined {
@@ -159,11 +181,12 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
       refetch()
     } catch (err) {
       setRemovingPaths((paths) => paths.filter((p) => p !== row.path))
-      if (!force && err instanceof Error && DIRTY_REFUSAL_RE.test(err.message)) {
+      const reason = force ? null : dirtyRefusalReason(err)
+      if (reason !== null) {
         const confirmed = await DialogConfirm.show(
           dialog,
           t("worktrees.delete.forceTitle"),
-          t("worktrees.delete.forceBody", { branch: row.branch || row.path }),
+          `${t("worktrees.delete.forceBody", { branch: row.branch || row.path })}\n\n${t("worktrees.delete.forceReason", { reason })}`,
           t("common.cancel"),
           t("worktrees.delete.button"),
           { danger: true },
@@ -207,11 +230,12 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
       await landTaskAction(
         {
           orchestrator: orch,
-          confirm: (branch) =>
+          // Rendered by `landTaskAction` (destination + commit count).
+          confirm: (body) =>
             DialogConfirm.show(
               dialog,
               t("worktrees.land.confirmTitle"),
-              t("worktrees.land.confirmBody", { branch }),
+              body,
               t("common.cancel"),
               t("worktrees.land.button"),
             ).then((ok) => ok === true),
@@ -311,37 +335,53 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
                 project.worktrees.map((row, i) => {
                   const absoluteIndex = base + i
                   const isCursor = absoluteIndex === cursor
+                  // The shared cursor vocabulary (▌ marker + row tint, no fill
+                  // under transparency). `▸` used to mean two things at once
+                  // here — it is the sidebar's and the file tree's "collapsed"
+                  // glyph — and the `primary` text tint was this page's alone.
+                  const chrome = resolveRowSelectionChrome(theme, { cursor: isCursor })
                   return (
                     <box
                       key={row.path}
                       ref={follow.rowRef(absoluteIndex)}
                       gap={0}
+                      backgroundColor={chrome.backgroundColor}
                       onMouseUp={() => setCursor(absoluteIndex)}
                     >
                       <box flexDirection="row">
-                        <text
-                          fg={isCursor ? theme.primary : theme.text}
-                          attributes={isCursor ? TextAttributes.BOLD : undefined}
-                          wrapMode="none"
-                        >
-                          {isCursor ? "▸ " : "  "}
-                          {row.branch || t("worktrees.row.detached")}
+                        <text fg={chrome.markerColor} wrapMode="none">
+                          {chrome.marker}
+                        </text>
+                        <text fg={theme.text} attributes={isCursor ? TextAttributes.BOLD : undefined} wrapMode="none">
+                          {` ${row.branch || t("worktrees.row.detached")}`}
                         </text>
                         {row.kobeManaged ? <text fg={theme.textMuted}> {t("worktrees.badge.kobeManaged")}</text> : null}
-                        {row.dirty ? <text fg={theme.warning}> {t("worktrees.badge.dirty")}</text> : null}
+                        {row.dirty === true ? <text fg={theme.warning}> {t("worktrees.badge.dirty")}</text> : null}
+                        {/* `null` = the status probe FAILED. It reads as its own
+                            badge, not as the absence of "dirty": a worktree whose
+                            git answers "Permission denied" still holds whatever it
+                            held, and this row is where a user decides to delete it. */}
+                        {row.dirty === null ? (
+                          <text fg={theme.textMuted}> {t("worktrees.badge.dirtyUnknown")}</text>
+                        ) : null}
                         {remoteBadge(row.branchOnRemote)}
                         {verdictBadge(row)}
                         {busyPath === row.path ? <text fg={theme.textMuted}> …</text> : null}
                       </box>
-                      <box flexDirection="row" justifyContent="space-between" paddingLeft={2}>
-                        <text fg={theme.textMuted} wrapMode="none">
-                          {row.path}
+                      <box flexDirection="row">
+                        <text fg={chrome.markerColor} wrapMode="none">
+                          {chrome.marker}
                         </text>
-                        {row.createdAtMs > 0 ? (
+                        <box flexDirection="row" justifyContent="space-between" flexGrow={1} paddingLeft={1}>
                           <text fg={theme.textMuted} wrapMode="none">
-                            {t("worktrees.row.created", { age: relativeAge(row.createdAtMs) })}
+                            {row.path}
                           </text>
-                        ) : null}
+                          {row.createdAtMs > 0 ? (
+                            <text fg={theme.textMuted} wrapMode="none">
+                              {t("worktrees.row.created", { age: relativeAge(row.createdAtMs) })}
+                            </text>
+                          ) : null}
+                        </box>
                       </box>
                     </box>
                   )

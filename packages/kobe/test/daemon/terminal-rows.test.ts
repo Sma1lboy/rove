@@ -14,7 +14,7 @@
  */
 
 import { plainTail } from "@sma1lboy/kobe-daemon/daemon/pty-exit-store"
-import { terminalRows } from "@sma1lboy/kobe-daemon/daemon/terminal-rows"
+import { stripTerminalControls, terminalRows } from "@sma1lboy/kobe-daemon/daemon/terminal-rows"
 import { describe, expect, it } from "vitest"
 
 /** A rate-limit dialog as claude actually paints it: every row reached with
@@ -82,5 +82,37 @@ describe("plainTail (the death record's tail)", () => {
     expect(tail.length).toBeGreaterThan(1)
     expect(tail.join("\n")).toContain("What do you want to do?")
     expect(tail[tail.length - 1]).toContain("Enter to confirm")
+  })
+})
+
+/**
+ * A shell dying under SIGKILL, as `pty-exits.json` actually captured it: an
+ * SGR colour, a BEL the shell rang, a backspace from a spinner, and the
+ * charset-select `ESC ( B` a full redraw emits. Every one of those reached
+ * `get-task`'s `exit.tail` verbatim, because the old escape grammar covered
+ * neither bare C0 nor `ESC <intermediate> <final>`.
+ */
+const SIGKILL_TAIL = "boot\x1b[31mRED\x1b[0m\x07back\bspace\x1b(Bcharset"
+
+describe("control bytes never reach a non-terminal consumer", () => {
+  const bareControls = (text: string): string[] =>
+    [...text].filter((ch) => ch.charCodeAt(0) < 0x20 && ch !== "\n" && ch !== "\t")
+
+  it("strips bare C0 and ESC-intermediate escapes the CSI/OSC grammar misses", () => {
+    // The premise: the sequences below are exactly the ones that used to survive.
+    expect(bareControls(SIGKILL_TAIL).length).toBeGreaterThan(0)
+
+    expect(terminalRows(SIGKILL_TAIL)).toEqual(["bootREDbackspacecharset"])
+    expect(bareControls(plainTail(SIGKILL_TAIL).join("\n"))).toEqual([])
+  })
+
+  it("keeps the bytes that carry line structure", () => {
+    // \t survives; \r still means "overwrite this row", not "delete me".
+    expect(terminalRows("a\tb")).toEqual(["a\tb"])
+    expect(terminalRows("first\rsecond")).toEqual(["second"])
+  })
+
+  it("leaves ordinary text alone", () => {
+    expect(stripTerminalControls("plain text — no escapes")).toBe("plain text — no escapes")
   })
 })

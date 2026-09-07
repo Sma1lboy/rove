@@ -6,8 +6,12 @@
  */
 
 import { homedir } from "node:os"
-import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
-import { auditDeletionResidue, auditDeletionSalvaged } from "@sma1lboy/kobe-daemon/daemon/task-deletion-audit"
+import { readRoveHomeDirEnv } from "@sma1lboy/kobe-daemon/compat-env"
+import {
+  auditDeletionBranchKept,
+  auditDeletionResidue,
+  auditDeletionSalvaged,
+} from "@sma1lboy/kobe-daemon/daemon/task-deletion-audit"
 import { Orchestrator } from "../orchestrator/core.ts"
 import { TaskIndexStore } from "../orchestrator/index/store.ts"
 import { GitWorktreeManager } from "../orchestrator/worktree/manager.ts"
@@ -27,7 +31,7 @@ export interface KobeCore {
 }
 
 export async function createKobeCore(options: KobeCoreOptions = {}): Promise<KobeCore> {
-  const homeDir = options.homeDir ?? readRoveEnv("HOME_DIR") ?? homedir()
+  const homeDir = options.homeDir ?? readRoveHomeDirEnv() ?? homedir()
   const store = new TaskIndexStore({ homeDir })
   await store.load()
   const worktrees = new GitWorktreeManager()
@@ -38,11 +42,15 @@ export async function createKobeCore(options: KobeCoreOptions = {}): Promise<Kob
     // deletion audit trail, which is where TROUBLESHOOTING already sends a
     // user asking "what happened to my task".
     onSalvage: (taskId, salvage) =>
-      auditDeletionSalvaged(String(taskId), salvage.ref, salvage.commit, store.get(taskId)?.repo),
+      auditDeletionSalvaged(String(taskId), salvage.ref, salvage.commit, store.get(taskId)?.repo, salvage.uncaptured),
     // The task IS deleted in this case, so nothing else will ever mention the
     // directory git could not unlink. Same log, same reason as the salvage
     // line: it is where a user is already told to look.
     onWorktreeResidue: (taskId, residue) => auditDeletionResidue(String(taskId), residue.path, residue.reason),
+    // Same log, same reason again: the task row is gone by the time the
+    // deletion resolves, so this line is the only place a kept branch is ever
+    // mentioned.
+    onBranchKept: (taskId, kept) => auditDeletionBranchKept(String(taskId), kept.branch, kept.reason),
     // A landed worktree is about to be unlinked; anything the engine writes
     // into it after that is written to nothing. Same ordering the task-
     // deletion runner already uses.

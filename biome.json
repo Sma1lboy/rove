@@ -16,7 +16,7 @@
       "bun.lock",
       "packages/branding/**",
       "branding/**",
-      "packages/kobe-web/**",
+      "packages/kobe-harness/**",
       "packages/*/.dev-sandbox/**",
       "packages/*/.dev-fixture/**",
       "**/.dev-sandbox/**",

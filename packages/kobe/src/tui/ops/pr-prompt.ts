@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs"
 import path from "node:path"
 import { readOnlyGitProcessEnv } from "@/lib/git-env"
+import { readFirstNonEmptyRepoFile } from "../../lib/repo-config-file.ts"
 import { spawnCapture } from "../lib/background-poll"
 
 export interface PRPromptState {
@@ -122,24 +123,13 @@ export function renderPRPrompt(template: string, state: PRPromptState): string {
  * file wins — an empty `.rove/pr-instructions.md` is a no-op placeholder,
  * not an instruction to blank the prompt.
  */
-const PR_INSTRUCTION_RELS = [
-  path.join(".rove", "pr-instructions.md"),
-  path.join(".kobe", "pr-instructions.md"),
-] as const
+const PR_INSTRUCTION_FILENAME = "pr-instructions.md"
 
-async function loadTemplate(worktree: string): Promise<string> {
-  for (const relative of PR_INSTRUCTION_RELS) {
-    try {
-      const text = await fs.readFile(path.join(worktree, relative), "utf8")
-      if (text.length > 0) return text
-    } catch {
-      // An unreadable/absent file does not block the next candidate.
-    }
-  }
-  return DEFAULT_PR_PROMPT_TEMPLATE
+function loadTemplate(worktree: string): string {
+  return readFirstNonEmptyRepoFile(worktree, PR_INSTRUCTION_FILENAME) ?? DEFAULT_PR_PROMPT_TEMPLATE
 }
 
 export async function buildPRPrompt(worktree: string, state?: PRPromptState): Promise<string> {
-  const [template, resolved] = await Promise.all([loadTemplate(worktree), state ?? gatherPRPromptState(worktree)])
-  return renderPRPrompt(template, resolved)
+  const resolved = state ?? (await gatherPRPromptState(worktree))
+  return renderPRPrompt(loadTemplate(worktree), resolved)
 }

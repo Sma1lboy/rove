@@ -12,7 +12,7 @@
 import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
 import {
   type AttentionInboxItem,
   type AttentionInboxState,
@@ -43,7 +43,7 @@ export const MAX_EPISODES = 500
 
 export type AttentionInboxLane = "activity" | "prompt_deferred"
 
-export function defaultAttentionInboxPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+export function defaultAttentionInboxPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "attention-inbox.json")
 }
 
@@ -57,12 +57,16 @@ function stateFor(kind: EngineActivityKind, detail?: EngineActivityDetail): Atte
 function normalizeItem(value: unknown): AttentionInboxItem | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null
   const item = value as Partial<AttentionInboxItem>
-  if (typeof item.taskId !== "string" || item.taskId.length === 0) return null
+  // `null` is legal only for a routine episode, which has no task by nature.
+  const taskless = item.taskId === null || item.taskId === undefined
+  if (taskless ? item.state !== "routine_failed" : typeof item.taskId !== "string" || item.taskId.length === 0) {
+    return null
+  }
   if (item.tabId !== null && typeof item.tabId !== "string") return null
   if (!isAttentionInboxState(item.state)) return null
   if (typeof item.at !== "number" || !Number.isFinite(item.at)) return null
   return {
-    taskId: item.taskId,
+    taskId: taskless ? null : (item.taskId as string),
     tabId: item.tabId,
     state: item.state,
     ...(item.detail ? { detail: item.detail } : {}),
@@ -79,7 +83,18 @@ async function readStore(path: string): Promise<AttentionInboxItem[]> {
     if (!Array.isArray(parsed.items)) return []
     return parsed.items.map(normalizeItem).filter((item): item is AttentionInboxItem => item !== null)
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return []
+    const code = (err as NodeJS.ErrnoException).code
+    // Nothing CAN be there: no file (ENOENT), or a path component that is not
+    // a directory (ENOTDIR — broken config, and the write will fail too).
+    if (code === "ENOENT" || code === "ENOTDIR") return []
+    // An I/O failure is not an empty queue. Returning `[]` published an
+    // authoritative "nothing needs you" AND made memory the source of truth,
+    // so the next `commit()` rewrote the whole file from an empty map — one
+    // transient EACCES/EMFILE/EIO permanently destroyed the queue. Re-throw,
+    // the shape `deferred-prompts-store.ts` already uses; only errors that
+    // carry an errno are I/O. A `SyntaxError` from genuinely malformed JSON
+    // has none and still reads as empty, which is the recorded decision.
+    if (code !== undefined) throw err
     logDaemonError("attention-inbox-load", err)
     return []
   }
@@ -92,6 +107,10 @@ async function writeStore(path: string, items: readonly AttentionInboxItem[]): P
 
 export class AttentionInboxStore {
   private readonly items = new Map<string, AttentionInboxItem>()
+  /** False until one read of the file SUCCEEDED. Every write rewrites the
+   *  document whole, so committing before that would publish an empty map as
+   *  the new truth — see the guard in {@link commit}. */
+  private loaded = false
 
   constructor(
     private readonly path: string,
@@ -101,8 +120,10 @@ export class AttentionInboxStore {
 
   async init(): Promise<void> {
     await this.enqueue(async () => {
+      const items = await readStore(this.path)
       this.items.clear()
-      for (const item of await readStore(this.path)) this.items.set(attentionInboxItemKey(item), item)
+      for (const item of items) this.items.set(attentionInboxItemKey(item), item)
+      this.loaded = true
       this.publish()
     })
   }
@@ -191,6 +212,8 @@ export class AttentionInboxStore {
     tabId: string,
     deferredId: string,
     layer: "recent-human-write" | "composer-not-empty",
+    expiresAt?: number,
+    sender?: string,
   ): Promise<void> {
     await this.enqueue(async () => {
       const key = attentionInboxItemKey({ taskId, tabId, state: "prompt_deferred" })
@@ -200,9 +223,56 @@ export class AttentionInboxStore {
         taskId,
         tabId,
         state: "prompt_deferred",
-        detail: { deferredPrompt: { id: deferredId, layer } },
+        detail: {
+          deferredPrompt: {
+            id: deferredId,
+            layer,
+            ...(expiresAt === undefined ? {} : { expiresAt }),
+            ...(sender === undefined ? {} : { sender }),
+          },
+        },
         unread: true,
         at: this.now(),
+      })
+      await this.commit(next)
+    })
+  }
+
+  /**
+   * Replace a `prompt_deferred` episode with the notice that its text was
+   * destroyed undelivered.
+   *
+   * The expiry sweep used to just delete the row. `rove api send` had already
+   * exited 0 calling the deferral a success and the sender's session was long
+   * gone, so a silent delete meant NOBODY ever learned the message did not
+   * run. Same key as the episode it replaces (`prompt_expired` shares the
+   * deferred lane), so this is an in-place swap and the user still dismisses
+   * it the way they dismiss anything else.
+   */
+  async recordPromptExpired(taskId: string, tabId: string, deferredId: string, at: number): Promise<void> {
+    await this.enqueue(async () => {
+      const key = attentionInboxItemKey({ taskId, tabId, state: "prompt_expired" })
+      const previous = this.items.get(key)
+      const next = new Map(this.items)
+      next.delete(key)
+      next.set(key, {
+        taskId,
+        tabId,
+        state: "prompt_expired",
+        // The layer is carried over so the row still says which gate held the
+        // text; the id keeps the episode addressable by the same RPCs.
+        detail: {
+          deferredPrompt: {
+            id: deferredId,
+            layer: previous?.detail?.deferredPrompt?.layer ?? "composer-not-empty",
+            expiresAt: at,
+            ...(previous?.detail?.deferredPrompt?.sender === undefined
+              ? {}
+              : { sender: previous.detail.deferredPrompt.sender }),
+          },
+        },
+        unread: true,
+        at,
       })
       await this.commit(next)
     })
@@ -269,6 +339,49 @@ export class AttentionInboxStore {
     await this.deleteTask(taskId).catch((err) => logDaemonError("attention-inbox-task-delete", err))
   }
 
+  /**
+   * Record (or refresh) the `routine_failed` episode for one routine.
+   *
+   * Its own path for the same reason `recordEngineDeath` has one: no engine
+   * reported anything. A schedule fired with nobody watching and could not do
+   * its work, and every other surface that would have shown it — the sidebar
+   * badge, the tab strip, a toast — is keyed on a task this firing may never
+   * have created.
+   *
+   * Deduped on the ROUTINE, not the task: a fresh-task routine mints a task
+   * per firing, so a schedule failing every minute produces ONE episode that
+   * keeps being replaced with the latest reason, not 1,440 a day.
+   */
+  async recordRoutineFailure(
+    routine: { automationId: string; name: string; status: string; error?: string },
+    taskId: string | null,
+    at: number,
+  ): Promise<void> {
+    await this.enqueue(async () => {
+      const detail: EngineActivityDetail = { routine }
+      const key = attentionInboxItemKey({ taskId, tabId: null, state: "routine_failed", detail })
+      const next = new Map(this.items)
+      next.delete(key)
+      next.set(key, { taskId, tabId: null, state: "routine_failed", detail, unread: true, at })
+      await this.commit(next)
+    })
+  }
+
+  /** Drop a deleted routine's episode — nothing else would ever clear it, and
+   *  the queue is supposed to describe things that still exist. */
+  async deleteRoutineEpisode(automationId: string): Promise<void> {
+    await this.enqueue(async () => {
+      const next = new Map(this.items)
+      let changed = false
+      for (const [key, item] of next) {
+        if (item.detail?.routine?.automationId !== automationId) continue
+        next.delete(key)
+        changed = true
+      }
+      if (changed) await this.commit(next)
+    })
+  }
+
   /** Serialize mutations so concurrent hook/RPC writes cannot clobber the file. */
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
     return serialized(this.path, operation)
@@ -276,6 +389,11 @@ export class AttentionInboxStore {
 
   /** Serialize mutations so concurrent hook/RPC writes cannot clobber the file. */
   private async commit(next: ReadonlyMap<string, AttentionInboxItem>): Promise<void> {
+    // Never write a file we could not read. `init()` leaves this false when
+    // the load threw (its caller logs and carries on), and every commit
+    // rewrites the document whole — so writing here would turn a recoverable
+    // read blip into the permanent deletion of every pending episode.
+    if (!this.loaded) throw new Error(`attention inbox never loaded (${this.path}) — refusing to overwrite it`)
     // Sorted ascending by `at`, so the tail is the newest — prune-oldest.
     const items = [...next.values()].sort(compareItems).slice(-MAX_EPISODES)
     await writeStore(this.path, items)
@@ -290,5 +408,5 @@ export class AttentionInboxStore {
 }
 
 function compareItems(a: AttentionInboxItem, b: AttentionInboxItem): number {
-  return a.at - b.at || a.taskId.localeCompare(b.taskId) || (a.tabId ?? "").localeCompare(b.tabId ?? "")
+  return a.at - b.at || (a.taskId ?? "").localeCompare(b.taskId ?? "") || (a.tabId ?? "").localeCompare(b.tabId ?? "")
 }

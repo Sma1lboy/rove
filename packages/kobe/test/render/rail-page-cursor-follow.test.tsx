@@ -126,6 +126,7 @@ function issue(id: number) {
 function boardOrchestrator() {
   return {
     listTasks: () => [{ id: "T1", repo: REPO }],
+    listIssueRepos: async () => [REPO],
     listIssues: async () => ({ repoRoot: REPO, exists: true, nextId: 9, issues: [issue(1), issue(2)] }),
     activeTaskSignal: () => ({ get: () => null }),
   } as never

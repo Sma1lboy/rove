@@ -80,6 +80,9 @@ function restoreRowColor(diff: DiffRenderable, row: DiffRow | undefined, index: 
 export function useDiffReview(args: {
   review: DiffReviewApi | undefined
   relPath: string
+  /** Worktree root — passed to `send` so the prompt can mark a note whose
+   *  path the branch no longer has. */
+  worktree: string
   diffText: string | null
   focused: boolean
   diffRef: RefObject<DiffRenderable | null>
@@ -159,7 +162,7 @@ export function useDiffReview(args: {
   function sendAll(): void {
     const review = args.review
     if (!review) return
-    if (review.send()) return
+    if (review.send(args.worktree)) return
     notif.notify({ kind: "error", taskId: "", tabId: "", title: t("ops.preview.review.sendNoEngine") })
   }
 
@@ -172,26 +175,48 @@ export function useDiffReview(args: {
   useBindings(() => ({
     enabled: enabled && args.focused,
     bindings: [
-      { key: "j", cmd: () => moveCursor(1) },
-      { key: "down", cmd: () => moveCursor(1) },
-      { key: "k", cmd: () => moveCursor(-1) },
-      { key: "up", cmd: () => moveCursor(-1) },
-      { key: "v", cmd: () => setAnchor((a) => (a == null ? cursor : null)) },
-      { key: "c", cmd: () => void promptNote() },
-      { key: "x", cmd: () => dropNoteAtCursor() },
-      { key: "s", cmd: () => sendAll() },
+      // The `id`s mirror the doc-only `diff.review.*` rows in KobeKeymap. The
+      // chords stay literal here (FIXED_BINDING_IDS rejects overrides for
+      // them) — the id is what puts the rows in the reachability scan, so F1
+      // lists them only while a diff with rows is actually focused.
+      { key: "j", id: "diff.review.cursor", cmd: () => moveCursor(1) },
+      { key: "down", id: "diff.review.cursor", cmd: () => moveCursor(1) },
+      { key: "k", id: "diff.review.cursor", cmd: () => moveCursor(-1) },
+      { key: "up", id: "diff.review.cursor", cmd: () => moveCursor(-1) },
+      { key: "v", id: "diff.review.range", cmd: () => setAnchor((a) => (a == null ? cursor : null)) },
+      { key: "c", id: "diff.review.note", cmd: () => void promptNote() },
+      { key: "x", id: "diff.review.drop", cmd: () => dropNoteAtCursor() },
+      { key: "s", id: "diff.review.send", cmd: () => sendAll() },
     ],
   }))
 
   /* --------- footer --------- */
   const unsent = unsentComments(comments).length
+  // Per-file, because the paint is per-file: a footer counting the whole
+  // task claimed notes on a file that has none and shows none.
+  const here = comments.filter((c) => c.filePath === args.relPath).length
+  // Opaque background: the row is mostly spaces, and a diff drawn behind it
+  // showed through them — `0 notes · 0 unsent` arrived as `06notesn· 06unsent`
+  // with the diff's next line bleeding through every gap.
   const footer = enabled ? (
-    <box flexDirection="row" justifyContent="space-between" paddingLeft={1} paddingRight={1} flexShrink={0}>
+    <box
+      flexDirection="row"
+      justifyContent="space-between"
+      paddingLeft={1}
+      paddingRight={1}
+      flexShrink={0}
+      backgroundColor={theme.background}
+    >
       <text fg={unsent > 0 ? theme.warning : theme.textMuted} wrapMode="none">
-        {t("ops.preview.review.count", { total: comments.length, unsent })}
+        {here === comments.length
+          ? t("ops.preview.review.count", { total: comments.length, unsent })
+          : t("ops.preview.review.countElsewhere", { here, total: comments.length, unsent })}
       </text>
       <text fg={theme.textMuted} wrapMode="none">
-        {t("ops.preview.review.keysHint")}
+        {/* The review chords need this pane focused; opening a diff
+            deliberately does not steal focus, so until it has focus the hint
+            says how to get there rather than listing keys that do nothing. */}
+        {args.focused ? t("ops.preview.review.keysHint") : t("ops.preview.review.focusHint")}
       </text>
     </box>
   ) : null

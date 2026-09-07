@@ -22,7 +22,7 @@
 import { stat } from "node:fs/promises"
 import { homedir } from "node:os"
 import path from "node:path"
-import { readTextFileBounded } from "../file-bounds"
+import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
 import { vendorConfigHome } from "../vendor-home"
 
 export interface KimiHistoryDeps {
@@ -53,10 +53,21 @@ export interface KimiSessionEntry {
 export function parseSessionIndex(raw: string): KimiSessionEntry[] {
   const out: KimiSessionEntry[] = []
   for (const line of raw.split("\n")) {
-    if (!line.trim()) continue
+    if (!isJsonlLineWithinBound(line) || !line.trim()) continue
     try {
-      const { sessionId, sessionDir, workDir } = JSON.parse(line) as Partial<KimiSessionEntry>
-      if (sessionId && sessionDir && workDir) out.push({ sessionId, sessionDir, workDir })
+      const record: unknown = JSON.parse(line)
+      if (typeof record !== "object" || record === null) continue
+      if (!("sessionId" in record) || !("sessionDir" in record) || !("workDir" in record)) continue
+      const { sessionId, sessionDir, workDir } = record
+      if (
+        typeof sessionId === "string" &&
+        sessionId &&
+        typeof sessionDir === "string" &&
+        sessionDir &&
+        typeof workDir === "string" &&
+        workDir
+      )
+        out.push({ sessionId, sessionDir, workDir })
     } catch {
       // partial line from a concurrent append — skip
     }
@@ -83,22 +94,33 @@ function wirePath(sessionDir: string): string {
  * conversation actually worked in most recently, not merely created last.
  * Sessions whose stream is missing are dropped: nothing to hand over.
  */
-export async function listSessionIdsForWorktree(
+async function worktreeSessionFiles(
   worktree: string,
-  deps: KimiHistoryDeps = defaultDeps,
-): Promise<string[]> {
+  deps: KimiHistoryDeps,
+): Promise<{ id: string; mtimeMs: number }[]> {
   if (!worktree) return []
   const matches: { id: string; mtimeMs: number }[] = []
   for (const entry of await sessionIndex(deps)) {
     if (entry.workDir !== worktree) continue
-    const mtimeMs = await deps
-      .stat(wirePath(entry.sessionDir))
-      .then((s) => s.mtimeMs)
-      .catch(() => null)
-    if (mtimeMs === null) continue
-    matches.push({ id: entry.sessionId, mtimeMs })
+    const file = wirePath(entry.sessionDir)
+    const info = await deps.stat(file).catch(() => null)
+    if (info) matches.push({ id: entry.sessionId, mtimeMs: info.mtimeMs })
   }
-  return matches.sort((a, b) => a.mtimeMs - b.mtimeMs).map((m) => m.id)
+  return matches.sort((a, b) => a.mtimeMs - b.mtimeMs)
+}
+
+export async function listSessionIdsForWorktree(
+  worktree: string,
+  deps: KimiHistoryDeps = defaultDeps,
+): Promise<string[]> {
+  return (await worktreeSessionFiles(worktree, deps)).map((file) => file.id)
+}
+
+export async function latestTranscriptMtimeForWorktree(
+  worktree: string,
+  deps: KimiHistoryDeps = defaultDeps,
+): Promise<number> {
+  return (await worktreeSessionFiles(worktree, deps)).at(-1)?.mtimeMs ?? 0
 }
 
 /** mtime (epoch ms) of a stream this module resolved, or 0 when it went

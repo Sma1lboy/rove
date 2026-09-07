@@ -19,13 +19,18 @@ import type { WorktreeVerdict, WorktreeVerdictReason } from "../orchestrator/wor
  * Snapshot of a worktree on disk.
  *
  * `path` is absolute; `head` is the commit SHA; `dirty` is true iff
- * `git status --porcelain` returns any entries (untracked or modified).
+ * `git status --porcelain` returns any entries (untracked or modified),
+ * and `null` when that probe FAILED (unreadable `.git`, worktree gone
+ * between the porcelain snapshot and the probe). `null` is not `false`:
+ * a worktree holding uncommitted work whose status answers "Permission
+ * denied" must not list as clean, because clean is what a user reads
+ * before deleting it.
  */
 export interface WorktreeInfo {
   readonly path: string
   readonly branch: string
   readonly head: string
-  readonly dirty: boolean
+  readonly dirty: boolean | null
 }
 
 /**
@@ -39,7 +44,8 @@ export interface AdoptableWorktree {
   readonly path: string
   readonly branch: string
   readonly head: string
-  readonly dirty: boolean
+  /** As {@link WorktreeInfo.dirty}: `null` = the probe failed, not clean. */
+  readonly dirty: boolean | null
   readonly kobeManaged: boolean
   /**
    * Last-activity time (epoch ms) — the worktree HEAD's commit time,

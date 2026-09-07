@@ -143,7 +143,36 @@ describe("AutomationsStore", () => {
     const advanced = await store.advanceNextRun(created.id, fired)
     // Strictly-after, or the sweep would re-fire the same occurrence forever.
     expect(Date.parse(advanced?.nextRunAt ?? "")).toBeGreaterThan(fired)
-    expect(advanced?.lastRunAt).toBe(new Date(fired).toISOString())
+    expect(advanced?.lastOccurrenceAt).toBe(new Date(fired).toISOString())
+  })
+
+  it("reads a pre-rename lastRunAt as lastOccurrenceAt", async () => {
+    const t = tempStore()
+    // The field was renamed because it never meant "last run" — it is the
+    // occurrence the sweep consumed, stamped before dispatch and set for
+    // skips too. A file written by an older Rove must keep its value.
+    writeFileSync(
+      t.path,
+      JSON.stringify({
+        version: 1,
+        automations: [
+          {
+            id: "legacy",
+            name: "n",
+            repo: "/r",
+            prompt: "p",
+            schedule: "0 9 * * *",
+            nextRunAt: "2026-08-01T09:00:00.000Z",
+            enabled: true,
+            lastRunAt: "2026-07-30T09:00:00.000Z",
+          },
+        ],
+        runs: [],
+      }),
+    )
+    store = t.store
+    await store.init()
+    expect(store.get("legacy")?.lastOccurrenceAt).toBe("2026-07-30T09:00:00.000Z")
   })
 
   it("disables an automation whose stored schedule can no longer resolve", async () => {

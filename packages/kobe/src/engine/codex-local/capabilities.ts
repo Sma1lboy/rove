@@ -11,6 +11,5 @@ export const codexCapabilities: EngineCapabilities = {
 }
 
 export const codexIdentity: EngineIdentity = {
-  vendorId: "codex",
   shortName: "Codex",
 }

@@ -77,15 +77,4 @@ describe("PtyHost death records", () => {
 
     expect(h.records).toEqual([])
   })
-
-  it("records nothing for the task-deletion sweep either", async () => {
-    const h = harness()
-    h.host.open("gone::tab-1", SPEC, {}, () => {})
-    h.host.open("live::tab-1", SPEC, {}, () => {})
-    h.host.sweepTasks(new Set(["live"]))
-    await settle()
-
-    expect(h.records).toEqual([])
-    expect(h.host.list().map((s) => s.key)).toEqual(["live::tab-1"])
-  })
 })

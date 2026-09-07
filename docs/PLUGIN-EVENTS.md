@@ -85,7 +85,7 @@ The task's PR status changed. Compared with the PR poller's own semantics:
 
 | detail field | type | meaning |
 |---|---|---|
-| `from`, `to` | `TaskPRStatus` | each optional (absent when there was/is no PR): `provider`, `lifecycle`, `checkState`, `number?`, `url?`, `title?`, `baseRef?`, `headRef?`, `reviewDecision?`, `mergeable?`, plus `lastCheckedAt?`/`lastError?` (present in the payload, excluded from the change test) |
+| `from`, `to` | `TaskPRStatus` | each optional (absent when there was/is no PR): `provider`, `lifecycle`, `checkState`, `number?`, `url?`, `title?`, `baseRef?`, `reviewDecision?`, `mergeable?`, plus `lastCheckedAt?`/`lastError?` (present in the payload, excluded from the change test) |
 
 Typical use: toast when `to.checkState` flips to failing, or set the task's
 status to `done` when `to.lifecycle` becomes `"merged"`.
@@ -154,13 +154,26 @@ detail shape:
 | `automationId` | string | the schedule's id |
 | `name` | string | its display name |
 | `repo` | string | target repo |
-| `status` | string | the precise outcome: `dispatched`, `revived`, `deferred`, `skipped_precheck`, `skipped_missed`, `skipped_unavailable`, `dispatch_failed`. `revived` and `deferred` are the standing-session successes — a plugin that branches on `=== "dispatched"` alone silently drops them |
+| `status` | string | the precise outcome: `dispatched`, `revived`, `deferred`, `skipped_cancelled`, `skipped_precheck`, `skipped_missed`, `skipped_unavailable`, `dispatch_failed` |
 | `trigger` | `"scheduled" \| "manual"` | cron tick or run-now |
 | `scheduledFor` | ISO string | the occurrence this run was for |
+| `tabId` | string? | the exact target tab when known |
+| `deferredId` | string? | the queue receipt when the prompt was accepted for later release |
 | `error` | string? | present on skips/failures: the precheck output, the missed-grace message, or the dispatch error |
 
-`taskId` is set when a task was created (always for `dispatched`; for
-`dispatch_failed` when the task exists but its engine did not start).
+`automation.dispatched` covers `dispatched` and `revived` runs.
+`automation.failed` covers `dispatch_failed` runs. The remaining statuses,
+including `skipped_unavailable`, emit `automation.skipped`. In particular, `deferred`
+means the queue accepted text that has **not been delivered**; `skipped_cancelled`
+means the routine was disabled, edited, deleted or stopped before handoff.
+
+`taskId` identifies the created, standing or explicitly bound target when known,
+including failed attempts. Its presence does not prove task creation or delivery.
+The deferred store owns subsequent release, dismiss and expiry. Disabling a
+routine does not withdraw an accepted queue item. Scheduled occurrences are
+claimed before dispatch and are not automatically replayed after restart; a
+crash between claim, delivery and receipt persistence can lose an occurrence
+or receipt. These events do not promise exactly-once delivery.
 
 ### `quota.exhausted`
 
@@ -256,11 +269,20 @@ carries it (absent otherwise, never fabricated):
 A `rate_limit` failure also arms auto-resume, so expect a `quota.exhausted`
 right after when the quota probe finds a reset time.
 
-### `turn.interrupted` · C, X (emulated), K (native)
+### `turn.interrupted` · C (emulated), X (emulated), K (native)
 
 The user interrupted the turn. Exists because Kimi fires `Interrupt` INSTEAD
 of `Stop`. Without this verb an interrupted Kimi turn would strand in
 `running`.
+
+Kimi is the only engine with a hook for this. On Claude and Codex the event is
+**emulated by the attached TUI**, which watches the session's terminal title
+for the engine dropping back to rest and reports the interrupt itself — so on
+those two engines it behaves like a [UI moment](#ui-moments): **no attached
+TUI, no event**. A headless daemon, a `rove api` driver, or a plugin that
+only ever sees background sessions will never observe `turn.interrupted` on
+C or X. Subscribe to `agent.idle` as well if you need the interrupt to be
+noticed without a TUI.
 
 ## Tools: the high-volume family
 

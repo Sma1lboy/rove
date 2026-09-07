@@ -15,7 +15,7 @@ export function isSyntheticCodexUserRow(blocks: readonly CodexTextLikeBlock[]): 
   for (const b of blocks) {
     if (b.type !== "text") return false
     const t = (b.text ?? "").trim()
-    if (!isEnvironmentContextEnvelope(t) && !isInstructionsEnvelope(t)) return false
+    if (!isTagEnvelope(t) && !isInstructionsEnvelope(t)) return false
   }
   return true
 }
@@ -36,14 +36,27 @@ export function visibleCodexUserText(content: unknown): string | null {
   return text.length > 0 ? text : null
 }
 
-function isEnvironmentContextEnvelope(text: string): boolean {
-  return text.startsWith("<environment_context>") && text.endsWith("</environment_context>")
+/** Codex's whole-message XML-ish envelopes: the row IS the tag. */
+const ENVELOPE_TAGS = ["environment_context", "recommended_plugins", "user_instructions"] as const
+
+function isTagEnvelope(text: string): boolean {
+  return ENVELOPE_TAGS.some((tag) => text.startsWith(`<${tag}>`) && text.endsWith(`</${tag}>`))
 }
 
+/**
+ * Codex's AGENTS.md preamble: a markdown heading followed by an
+ * `<INSTRUCTIONS>` block.
+ *
+ * Deliberately loose about everything after the heading word. The previous
+ * spelling demanded a trailing `for ` (Codex also emits the heading bare),
+ * exact `\n` padding around the tag, and that the message END at
+ * `</INSTRUCTIONS>` (real rollouts append more). Each of those made the filter
+ * miss, and a missed filter is not silent: the auto-titler takes the
+ * transcript's first `role: "user"` record, so the repo's contributor rules
+ * became the task's name in the sidebar and in `tasks.json`. The heading plus
+ * the tag is specific enough — a genuine prompt has to open with that exact
+ * heading and contain an `<INSTRUCTIONS>` block to be dropped.
+ */
 function isInstructionsEnvelope(text: string): boolean {
-  return (
-    text.startsWith("# AGENTS.md instructions for ") &&
-    text.includes("\n<INSTRUCTIONS>\n") &&
-    text.endsWith("</INSTRUCTIONS>")
-  )
+  return text.startsWith("# AGENTS.md instructions") && text.includes("<INSTRUCTIONS>")
 }

@@ -65,7 +65,6 @@ const FULL_TASK: DeepRequired<Task> = {
     url: "https://github.com/o/r/pull/42",
     title: "fix: round trip",
     baseRef: "main",
-    headRef: "fix/round-trip",
     reviewDecision: "APPROVED",
     mergeable: "MERGEABLE",
     lastCheckedAt: "2026-08-27T00:00:00.000Z",

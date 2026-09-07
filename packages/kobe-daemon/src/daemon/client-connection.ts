@@ -20,12 +20,11 @@ export type ClientState = DaemonClientConnection & {
   /**
    * Backpressure-aware writer for this socket (fix E). Every server→client
    * frame goes through it so a slow/stalled client buffers in a bounded
-   * per-client queue (oldest droppable frames shed past the high-water mark)
+   * per-client queue (full snapshots replaced only by newer snapshots)
    * instead of letting Node queue unbounded heap on the long-lived daemon.
    * Lifecycle/response frames are never dropped. See {@link ClientWriter}.
    */
   writer: ClientWriter
-  buffer: string
   /** True once the client has called `subscribe` (broadcast target). */
   subscribed: boolean
   /**
@@ -49,21 +48,28 @@ export type ClientState = DaemonClientConnection & {
   channels: ReadonlySet<ChannelName> | null
 }
 
-/**
- * Critical frames are never dropped under backpressure (fix E): the
- * `daemon.stopping` lifecycle signal (every client must learn the daemon is
- * going down) and every RPC `response` (dropping one would hang the client's
- * pending request). Channel `event` frames are droppable — the bus
- * last-value-coalesces them, so a dropped intermediate is superseded by the
- * next publish.
- */
-function isCriticalFrame(frame: DaemonFrame): boolean {
-  if (frame.type === "event") return frame.name === "daemon.stopping"
-  return true
+/** Only full-channel snapshots are replaceable. Per-task/repo updates and
+ * commands retain every frame: replay alone cannot reconstruct their history. */
+function replacementKey(frame: DaemonFrame): string | null {
+  if (frame.type !== "event") return null
+  switch (frame.name) {
+    case "task.snapshot":
+    case "active-task":
+    case "update":
+    case "attention.inbox":
+    case "ui-prefs":
+    case "worktree.changes":
+    case "transcript.activity":
+    case "usage.snapshot":
+    case "usage.context":
+      return frame.name
+    default:
+      return null
+  }
 }
 
 export function writeFrame(client: Pick<ClientState, "writer">, frame: DaemonFrame): void {
-  client.writer.write(frameToLine(frame), isCriticalFrame(frame))
+  client.writer.write(frameToLine(frame), replacementKey(frame))
 }
 
 export function broadcast(clients: ReadonlySet<ClientState>, frame: DaemonFrame): void {
@@ -81,45 +87,38 @@ export function broadcast(clients: ReadonlySet<ClientState>, frame: DaemonFrame)
   // Backpressure (fix E): each client's writer obeys its own socket's drain
   // signal and buffers in a bounded per-client queue, so one slow client can
   // neither stall the fan-out for healthy clients nor grow the daemon heap
-  // unbounded. Critical-ness is identical for all clients, so compute it once.
-  const critical = isCriticalFrame(frame)
+  // unbounded. Replacement policy is identical for all clients, so compute it once.
+  const replaceKey = replacementKey(frame)
   let line: string | null = null
   for (const client of clients) {
     if (!client.subscribed && frame.type === "event") continue
     if (channel && client.channels && !client.channels.has(channel)) continue
     line ??= frameToLine(frame)
-    client.writer.write(line, critical)
+    client.writer.write(line, replaceKey)
   }
 }
 
 /**
- * Split the client's accumulated buffer on newlines and hand each complete
- * request frame to `onRequest`. A malformed line (bad JSON / non-request
+ * Parse one complete request line from LineReceiver and hand it to `onRequest`. A malformed line (bad JSON / non-request
  * frame) answers with a bare `{ message }` parse-error response — it never
  * carried an Error `name` on the wire, and keeping that here preserves the
  * exact bytes.
  */
-export function drainClientBuffer(
+export function handleClientLine(
   client: ClientState,
+  line: string,
   onRequest: (req: Extract<DaemonFrame, { type: "request" }>, client: ClientState) => void,
 ): void {
-  let nl = client.buffer.indexOf("\n")
-  while (nl !== -1) {
-    const line = client.buffer.slice(0, nl)
-    client.buffer = client.buffer.slice(nl + 1)
-    if (line.trim().length > 0) {
-      try {
-        const frame = JSON.parse(line) as DaemonFrame
-        if (frame.type !== "request") throw new Error("daemon only accepts request frames from clients")
-        onRequest(frame, client)
-      } catch (err) {
-        writeFrame(client, {
-          type: "response",
-          id: "parse-error",
-          error: { message: err instanceof Error ? err.message : String(err) },
-        })
-      }
-    }
-    nl = client.buffer.indexOf("\n")
+  if (line.trim().length === 0) return
+  try {
+    const frame = JSON.parse(line) as DaemonFrame
+    if (frame.type !== "request") throw new Error("daemon only accepts request frames from clients")
+    onRequest(frame, client)
+  } catch (err) {
+    writeFrame(client, {
+      type: "response",
+      id: "parse-error",
+      error: { message: err instanceof Error ? err.message : String(err) },
+    })
   }
 }

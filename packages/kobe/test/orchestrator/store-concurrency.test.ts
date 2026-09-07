@@ -168,6 +168,48 @@ describe("TaskIndexStore multi-process consistency", () => {
     expect(disk.tasks).toHaveLength(0)
   })
 
+  it("evicts a task a peer deleted from its own cache, and tells listeners", async () => {
+    const procA = new TaskIndexStore({ homeDir: home })
+    await procA.load()
+    const doomed = await procA.create(input("doomed"))
+
+    const procB = new TaskIndexStore({ homeDir: home })
+    await procB.load()
+    expect(procB.get(doomed.id)).toBeDefined()
+
+    let sawRemoval = false
+    procB.subscribe((snapshot) => {
+      sawRemoval = !snapshot.some((t) => t.id === doomed.id)
+    })
+    sawRemoval = false // ignore subscribe's eager fire
+
+    await procA.remove(doomed.id)
+    // B's own read-merge-write correctly omits the task from the BYTES, but
+    // used to fold the merge into its cache additively only — so B kept
+    // listing a row that no longer existed, forever, and kept rewriting a
+    // file without it. The eviction has to be tombstone-scoped: an entry the
+    // merge simply never saw (a create racing the write) must survive.
+    await procB.create(input("unrelated"))
+
+    expect(procB.get(doomed.id)).toBeUndefined()
+    expect(procB.list().map((t) => t.title)).toEqual(["unrelated"])
+    expect(sawRemoval).toBe(true)
+  })
+
+  it("reports whether remove() had anything to remove", async () => {
+    const procA = new TaskIndexStore({ homeDir: home })
+    await procA.load()
+    // B's cache predates the task, exactly like a peer process that has not
+    // reloaded. `remove` used to return void either way, so "deleted" and
+    // "there was nothing here" were the same answer.
+    const procB = new TaskIndexStore({ homeDir: home })
+    await procB.load()
+    const task = await procA.create(input("unseen-by-b"))
+
+    expect(await procB.remove(task.id)).toBe(false)
+    expect(await procA.remove(task.id)).toBe(true)
+  })
+
   it("blocks the write path on the index lock", async () => {
     const store = new TaskIndexStore({ homeDir: home })
     await store.load()

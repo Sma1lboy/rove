@@ -19,8 +19,8 @@
  */
 
 import { errorMessage } from "@/lib/error-message"
-import type { ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
+import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   type GitScope,
@@ -38,7 +38,7 @@ import {
   computePathBudget,
   computeStatWidths,
   expandOrDescendAction,
-  followScrollTop,
+  gitErrorIsRetryable,
   summarizeGitError,
   toggleDir,
   watchWorktree,
@@ -57,8 +57,8 @@ import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useBindings } from "../../lib/keymap"
 import { useLatest } from "../../lib/use-latest"
+import { FileTreeBodyView } from "./body-view"
 import { FileTreeHeaderView } from "./header-view"
-import { FileTreeRowView } from "./row-view"
 
 /** Public props. */
 export type FileTreeProps = {
@@ -232,13 +232,13 @@ export function FileTree(props: FileTreeProps) {
     return () => controller.abort()
   }, [scope, base, refetch])
 
-  // Realtime watch is on by default; `KOBE_FILETREE_WATCH=0` opts out (see
+  // Realtime watch is on by default; `ROVE_FILETREE_WATCH=0` opts out (see
   // watchWorktree) and leaves explicit refresh (`r`) plus tab/worktree
   // changes as the only paths that repopulate the pane.
   useEffect(() => {
     const path = props.worktreePath
     if (path == null) return
-    if (process.env.KOBE_FILETREE_WATCH === "0") return
+    if (readRoveEnv("FILETREE_WATCH") === "0") return
     return watchWorktree(path, () => setRefreshTick((n) => n + 1))
   }, [props.worktreePath])
 
@@ -384,23 +384,24 @@ export function FileTree(props: FileTreeProps) {
       },
       openDiff: () => {
         const row = rows[cursorIndex]
-        if (!row || row.kind === "dir" || row.path.endsWith("/")) return
+        if (!row) return
+        // A directory is a git PATHSPEC, so it opens the combined diff of
+        // everything under it in ONE tab — reviewing a 12-file attempt used to
+        // cost 12 presses and 12 tabs. Normalised with a trailing slash: that
+        // is what tells the loader (and the preview) this diff spans files, so
+        // an empty result reports "no changes in src/" instead of falling back
+        // to reading a directory as if it were a file.
+        const spec = row.kind === "dir" || row.path.endsWith("/") ? `${row.path.replace(/\/+$/, "")}/` : row.path
         // Branch scope diffs vs the resolved base; working scope vs HEAD.
-        props.onOpenDiff?.(row.path, scope === "branch" && base != null ? base : undefined)
+        props.onOpenDiff?.(spec, scope === "branch" && base != null ? base : undefined)
+      },
+      openDiffAll: () => {
+        props.onOpenDiff?.(".", scope === "branch" && base != null ? base : undefined)
       },
       expandOrDescend: () => applyNav(expandOrDescendAction(rows, cursorIndex)),
       collapseOrParent: () => applyNav(collapseOrParentAction(rows, cursorIndex)),
     }),
   }))
-
-  // ---------- viewport follow ----------
-  const scrollRef = useRef<ScrollBoxRenderable | null>(null)
-  useEffect(() => {
-    const scroll = scrollRef.current
-    if (!scroll || rows.length === 0) return
-    const y = followScrollTop(scroll.scrollTop, scroll.viewport.height, cursorIndex)
-    if (y != null) scroll.scrollTo({ x: 0, y })
-  }, [cursorIndex, rows])
 
   // ---------- render ----------
   const loaded = (tab === "all" && allFiles != null) || (tab === "changes" && changes != null)
@@ -413,50 +414,24 @@ export function FileTree(props: FileTreeProps) {
         onSelectTab={setTab}
         onZenToggle={props.onZenToggle}
         onCreatePR={props.onCreatePR}
+        onDiffAll={
+          props.onOpenDiff
+            ? () => props.onOpenDiff?.(".", scope === "branch" && base != null ? base : undefined)
+            : undefined
+        }
       />
 
-      {/* Body: scrollable list. Track + thumb both transparent → invisible
-         by default but still scrollable. */}
-      <scrollbox
-        ref={(r: ScrollBoxRenderable | null) => {
-          scrollRef.current = r
-        }}
-        flexGrow={1}
-        verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
-      >
-        {props.worktreePath == null ? (
-          <box paddingTop={1} paddingLeft={1}>
-            <text fg={theme.textMuted}>{t("files.empty.noTask")}</text>
-          </box>
-        ) : error != null ? (
-          <box paddingTop={1} paddingLeft={1} flexDirection="column" gap={0}>
-            <text fg={theme.error} wrapMode="word">
-              {summarizeGitError(error, t)}
-            </text>
-            <text fg={theme.textMuted} wrapMode="word">
-              {t("files.error.retryHint")}
-            </text>
-          </box>
-        ) : rows.length === 0 && loaded ? (
-          <box paddingTop={1} paddingLeft={1}>
-            <text fg={theme.textMuted}>{tab === "all" ? t("files.empty.noFiles") : t("files.empty.noChanges")}</text>
-          </box>
-        ) : rows.length > 0 ? (
-          <box flexShrink={0} gap={0} paddingRight={1}>
-            {rows.map((row, index) => (
-              <FileTreeRowView
-                key={`${row.kind}:${row.path}`}
-                row={row}
-                index={index}
-                cursor={index === cursorIndex}
-                statWidths={statWidths}
-                pathBudget={pathBudget}
-                onActivate={handleRowActivate}
-              />
-            ))}
-          </box>
-        ) : null}
-      </scrollbox>
+      <FileTreeBodyView
+        rows={rows}
+        cursorIndex={cursorIndex}
+        statWidths={statWidths}
+        pathBudget={pathBudget}
+        onActivate={handleRowActivate}
+        worktreePath={props.worktreePath}
+        error={error}
+        loaded={loaded}
+        tab={tab}
+      />
 
       {/* Footer hint — shown only when a worktree is loaded so the
          "no task" placeholder stays clean. First use shows the fuller

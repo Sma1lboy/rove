@@ -24,12 +24,12 @@
 
 import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
 import { currentLang, setLocaleLang } from "@/tui/i18n"
-import { NO_STATE_GLYPH, buildSidebarRowView } from "@/tui/panes/sidebar/row-view"
+import { ATTENTION_GLYPH, NO_STATE_GLYPH, buildSidebarRowView } from "@/tui/panes/sidebar/row-view"
 import { truncateBranchLabel } from "@/tui/panes/sidebar/view-core"
 import { type Task, toTaskId } from "@/types/task"
 import { afterAll, beforeAll, expect, test } from "vitest"
 import { goldenDocument, goldenPath, matchGolden } from "./golden-file"
-import { conflictChipBlock, prChipBlock, reviewChipBlock, statusChipBlock } from "./sidebar-chip-blocks"
+import { prChipBlock, statusChipBlock } from "./sidebar-chip-blocks"
 import {
   OMITTED_FIELDS,
   RECORDED_FIELDS,
@@ -69,10 +69,8 @@ test("sidebar row state matrix matches the committed golden", () => {
       title: "persisted TaskStatus x runtime activity — status must not reach the row",
       lines: statusVsActivityBlock(),
     },
-    { title: "PR check chip", lines: prChipBlock() },
-    { title: "PR merge-conflict chip", lines: conflictChipBlock() },
-    { title: "PR review-state chip", lines: reviewChipBlock() },
-    { title: "board status chip", lines: statusChipBlock() },
+    { title: "PR chip — conflict > failing > passing, else nothing", lines: prChipBlock() },
+    { title: "board status never reaches the rail", lines: statusChipBlock() },
     { title: "tabRowActivity — which entry a TAB row may read", lines: tabActivityBlock() },
   ])
 
@@ -84,14 +82,10 @@ test("sidebar row state matrix matches the committed golden", () => {
  * enumeration so they can never disagree with what the golden captured.
  */
 test("no spinner frame collides with a settled-state badge glyph", () => {
-  // A running row that borrows `●`/`○`/`·` reads as a finished one — this is
+  // A running row that borrows `●`/`○`/`!` reads as a finished one — this is
   // why the reduced-motion pulse was removed, and the collision would
   // otherwise be invisible in a golden full of correct-looking glyphs.
-  //
-  // `·` is in this set because it is the single no-state glyph (untracked
-  // custom engine + non-agent tab + unobserved agent tab), so no spinner set
-  // may use it as a frame.
-  const settled = new Set(["●", "○", "·", "✓", "?", "◷", "×"])
+  const settled = new Set(["●", NO_STATE_GLYPH, ATTENTION_GLYPH])
   const spinnerLines = spinnerBlock().filter((line) => line.includes("frames(0..25)="))
   expect(spinnerLines.length).toBeGreaterThan(0)
   for (const line of spinnerLines) {
@@ -125,47 +119,31 @@ test("no spinner frame collides with a settled-state badge glyph", () => {
  */
 test("every rendered glyph is in the font-verified vocabulary", () => {
   const VERIFIED = new Map<string, string>([
-    ["·", "U+00B7 Latin-1 — the no-state dot"],
-    ["×", "U+00D7 Latin-1 — error / failed deletion"],
-    // U+2020 General Punctuation — dead engine process. Checked with
-    // `fc-list :charset=2020`: present in Fira Code, FiraCode/JetBrainsMono
-    // Nerd Font, and Menlo — the same coverage as `×` above, and strictly
-    // better than the `◌`/`✕` this rule was written for (both absent from
-    // Fira Code, which is what made macOS fall back oversized).
-    ["†", "U+2020 — dead engine; in Fira Code / JetBrainsMono / Menlo"],
-    ["○", "U+25CB — idle; in every mono font checked"],
+    ["○", "U+25CB — quiet; in every mono font checked"],
     ["●", "U+25CF — unread completion; ditto"],
+    ["!", "ASCII — needs you"],
     ["◇", "U+25C7 — subagent count prefix"],
-    ["◷", "U+25F7 — rate limited (falls back to Menlo at 1 cell where absent)"],
-    ["✓", "U+2713 — seen; the one dingbat-adjacent glyph both fonts carry"],
-    ["?", "ASCII — needs input"],
     ["▴", "U+25B4 — pinned marker"],
+    ["✓", "U+2713 — PR checks passing; the one dingbat-adjacent glyph both fonts carry"],
     ["✗", "U+2717 — PR checks failing; the sibling of ✓ both fonts carry"],
-    ["•", "U+2022 General Punctuation — PR checks pending"],
     // U+2260 Mathematical Operators — the PR cannot merge. `fc-list
     // :charset=2260`: Fira Code, FiraCode/JetBrainsMono Nerd Font, Menlo AND
     // Monaco — the widest coverage of any glyph in this table. The intuitive
     // `⑂` (U+2442 OCR FORK) is in NONE of them and was rejected here.
     ["≠", "U+2260 — PR merge conflict; in Fira Code / JetBrainsMono / Menlo / Monaco"],
-    // U+25C6 joins its hollow twin U+25C7 (already here for the subagent
-    // prefix) for the `done` status chip. `fc-list :charset=25c6`: Fira Code,
-    // FiraCode/JetBrainsMono Nerd Font, Menlo AND Monaco — strictly wider
-    // coverage than U+25C7, so if the outline diamond is safe this is.
-    ["◆", "U+25C6 — status done; in Fira Code / JetBrainsMono / Menlo / Monaco"],
     ...DEFAULT_SPINNER_FRAMES.map((frame) => [frame, "braille — uniform AppleBraille fallback"] as const),
   ])
   // Glyph cells the matrix emits, plus the constants the tab rows render
-  // directly (they never reach `buildSidebarRowView`). The two CHIP blocks
-  // are scanned too: they render into the same row at the same one cell, so a
-  // chip glyph that falls back oversized overruns the label exactly like a
-  // state glyph would — leaving them out is how `◆` would have entered the
-  // vocabulary unchecked.
-  const rendered = new Set<string>([NO_STATE_GLYPH])
+  // directly (they never reach `buildSidebarRowView`). The CHIP block is
+  // scanned too: it renders into the same row at the same one cell, so a chip
+  // glyph that falls back oversized overruns the label exactly like a state
+  // glyph would.
+  const rendered = new Set<string>([NO_STATE_GLYPH, ATTENTION_GLYPH])
   for (const line of activityCrossProduct()) {
     const glyph = / glyph=(\S+)/.exec(line)?.[1]
     if (glyph) for (const ch of glyph) rendered.add(ch)
   }
-  for (const line of [...prChipBlock(), ...conflictChipBlock(), ...statusChipBlock()]) {
+  for (const line of prChipBlock()) {
     const glyph = /chip=(\S+) \(/.exec(line)?.[1]
     if (glyph) for (const ch of glyph) rendered.add(ch)
   }

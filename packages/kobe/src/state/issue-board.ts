@@ -1,16 +1,20 @@
 /**
  * Kanban column math for the daemon-owned issue store — framework-free so
- * the TUI page (and any future surface) renders from the same bucketing the
- * web Board pinned (kobe-web/src/lib/board.ts, docs/design/web-kanban.md).
+ * the TUI page and any future surface render from the same bucketing.
  *
  * Columns bind to the ISSUE's own lifecycle, never task status:
  *   - Done        — terminal disposition (wins over a stale task link).
  *   - Parked      — parked disposition (`hold` / unknown): work stopped on
  *                   purpose, worktree preserved — linked or not.
- *   - In progress — the issue is linked to a task (`taskId` set = started).
- *   - Backlog     — everything else (open / doing / unlinked).
+ *   - In progress — the issue says so (`doing`) OR it is linked to a task
+ *                   (`taskId` set = started).
+ *   - Backlog     — everything else (open / unlinked).
  * `in_progress` is DERIVED from the link, not stored — `kobe api issue-update
- * --task <id>` is the "move card" gesture, `--task none` moves it back.
+ * --task <id>` is the "move card" gesture, `--task none` moves it back. The
+ * link is not the ONLY route in: `doing` is the issue's own lifecycle step
+ * (`docs/WORK-TRACKING.md`: open → doing → done) and reading it needs no task
+ * at all, which is what the board's `project` placement — a session that runs
+ * on the main checkout with no task to link — depends on to move its card.
  */
 
 import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
@@ -92,17 +96,25 @@ export function issueColumnKey(issue: Issue, taskExists?: (taskId: string) => bo
   if (disposition === "terminal") return "done"
   if (disposition === "parked") return "parked"
   if (issue.taskId !== undefined && issue.taskId !== "" && (taskExists?.(issue.taskId) ?? true)) return "in_progress"
+  // The issue's own "I picked this up". Unlinked `doing` used to be
+  // indistinguishable from `open`, so the documented open → doing step moved
+  // no card and an agent that followed it watched its story sit in Backlog.
+  if (issue.status === "doing") return "in_progress"
   return "backlog"
 }
 
 /** Activity states where the linked engine is BLOCKED and won't progress on
- *  its own — a permission prompt, a dead turn, or a quota wall. These float
- *  to the head of In progress as the "needs you" group. `turn_complete` is
- *  deliberately excluded: a finished turn is the normal end state, and
- *  floating every finished card would drown the actually-blocked ones.
+ *  its own — a permission prompt, a dead turn, a quota wall, or a process
+ *  that is simply gone. These float to the head of In progress as the "needs
+ *  you" group. `turn_complete` is deliberately excluded: a finished turn is
+ *  the normal end state, and floating every finished card would drown the
+ *  actually-blocked ones. `dead` belongs here for the reason it belongs in
+ *  `attentionKindFor` and `itemGlyph`: a SIGKILLed / OOMed / 403'd engine
+ *  will never move again, and the board was the last attention surface still
+ *  reading such a card as ordinary work in progress.
  *  String-typed (like notify-state's `attentionKindFor`) so this module
  *  stays free of the engine import. */
-const BOARD_ATTENTION_STATES: readonly string[] = ["permission_needed", "rate_limited", "error"]
+const BOARD_ATTENTION_STATES: readonly string[] = ["permission_needed", "rate_limited", "error", "dead"]
 
 export function isBoardAttentionState(state: string | undefined): boolean {
   return state !== undefined && BOARD_ATTENTION_STATES.includes(state)

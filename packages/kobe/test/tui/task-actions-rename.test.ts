@@ -65,6 +65,7 @@ function makeCtx(opts: {
   wirePickStatus?: boolean
   /** Same shape as `wirePickStatus`: false = a host with no clipboard writer. */
   wireCopyText?: boolean
+  copyTextResult?: boolean
 }): {
   ctx: TaskActionContext
   promptText: ReturnType<typeof vi.fn>
@@ -76,7 +77,7 @@ function makeCtx(opts: {
 } {
   const promptText = vi.fn(async () => opts.promptTextResult)
   const pickStatus = vi.fn(async () => opts.pickStatusResult)
-  const copyText = vi.fn()
+  const copyText = vi.fn(async () => opts.copyTextResult ?? true)
   const notifyError = vi.fn()
   const notifyInfo = vi.fn()
   const reload = vi.fn(async () => {})
@@ -131,7 +132,7 @@ describe("renameTaskFlow", () => {
 
     await renameTaskFlow(ctx, "t1")
 
-    expect(notifyError).toHaveBeenCalledWith("Couldn't rename task: boom")
+    expect(notifyError).toHaveBeenCalledWith("Couldn't rename the task — it keeps its old title: boom")
     expect(reload).not.toHaveBeenCalled()
   })
 
@@ -193,7 +194,7 @@ describe("renameBranchFlow", () => {
 
     await renameBranchFlow(ctx, "t1")
 
-    expect(notifyError).toHaveBeenCalledWith("Couldn't rename branch: bad branch name")
+    expect(notifyError).toHaveBeenCalledWith('Couldn\'t rename the branch — it stays "kobe/t1": bad branch name')
     expect(reload).not.toHaveBeenCalled()
   })
 })
@@ -226,7 +227,7 @@ describe("cycleVendorFlow", () => {
 
     await cycleVendorFlow(ctx, "t1")
 
-    expect(notifyError).toHaveBeenCalledWith("Couldn't switch engine: nope")
+    expect(notifyError).toHaveBeenCalledWith("Couldn't switch the engine — the task keeps the one it had: nope")
     expect(notifyInfo).not.toHaveBeenCalled()
     expect(reload).not.toHaveBeenCalled()
   })
@@ -319,7 +320,7 @@ describe("setStatusFlow", () => {
 
     await setStatusFlow(ctx, "t1")
 
-    expect(notifyError).toHaveBeenCalledWith("Couldn't set status: daemon down")
+    expect(notifyError).toHaveBeenCalledWith("Couldn't set the status — it stays backlog: daemon down")
     expect(notifyInfo).not.toHaveBeenCalled()
     expect(reload).not.toHaveBeenCalled()
   })
@@ -343,7 +344,9 @@ describe("setStatusFlow", () => {
 
     await setStatusFlow(ctx, "t1")
 
-    expect(notifyError).toHaveBeenCalledWith("Couldn't set status: illegal transition for task t1: done -> error")
+    expect(notifyError).toHaveBeenCalledWith(
+      "Couldn't set the status — it stays done: illegal transition for task t1: done -> error",
+    )
     expect(reload).not.toHaveBeenCalled()
   })
 
@@ -371,45 +374,60 @@ describe("setStatusFlow", () => {
 })
 
 describe("copyTaskFieldFlow", () => {
-  test("branch: copies the stored branch verbatim and toasts it", () => {
+  test("branch: copies the stored branch verbatim and toasts it", async () => {
     const tasks = [makeTask({ id: "t1", branch: "feat/copy" })]
     const { ctx, copyText, notifyInfo } = makeCtx({ tasks, orch: makeOrch() })
 
-    copyTaskFieldFlow(ctx, "t1", "branch")
+    await copyTaskFieldFlow(ctx, "t1", "branch")
 
     expect(copyText).toHaveBeenCalledWith("feat/copy")
     expect(notifyInfo).toHaveBeenCalledTimes(1)
     expect(notifyInfo.mock.calls[0][0]).toContain("feat/copy")
   })
 
-  test("path: copies the RECORDED worktree path — never materializes it", () => {
+  test("both clipboard channels refused → the failure is named, not a copy toast", async () => {
+    const tasks = [makeTask({ id: "t1", branch: "feat/copy" })]
+    const { ctx, notifyInfo, notifyError } = makeCtx({
+      tasks,
+      orch: makeOrch(),
+      copyTextResult: false,
+    })
+
+    await copyTaskFieldFlow(ctx, "t1", "branch")
+
+    expect(notifyInfo).not.toHaveBeenCalled()
+    expect(notifyError).toHaveBeenCalledTimes(1)
+    expect(notifyError.mock.calls[0][0]).toContain("clipboard")
+  })
+
+  test("path: copies the RECORDED worktree path — never materializes it", async () => {
     // The path may not exist yet (a task opened once never ran ensureWorktree);
     // a copy is a read, so the flow has no orchestrator call to make at all.
     const orch = makeOrch()
     const tasks = [makeTask({ id: "t1", worktreePath: "/wt/not-yet" })]
     const { ctx, copyText } = makeCtx({ tasks, orch })
 
-    copyTaskFieldFlow(ctx, "t1", "path")
+    await copyTaskFieldFlow(ctx, "t1", "path")
 
     expect(copyText).toHaveBeenCalledWith("/wt/not-yet")
     for (const fn of Object.values(orch)) expect(fn).not.toHaveBeenCalled()
   })
 
-  test("an empty branch (main/dir row) copies nothing and shows no toast", () => {
+  test("an empty branch (main/dir row) copies nothing and shows no toast", async () => {
     const tasks = [makeTask({ id: "t1", branch: "", kind: "main" })]
     const { ctx, copyText, notifyInfo } = makeCtx({ tasks, orch: makeOrch() })
 
-    copyTaskFieldFlow(ctx, "t1", "branch")
+    await copyTaskFieldFlow(ctx, "t1", "branch")
 
     expect(copyText).not.toHaveBeenCalled()
     expect(notifyInfo).not.toHaveBeenCalled()
   })
 
-  test("a host with no clipboard writer is a silent no-op, not a crash", () => {
+  test("a host with no clipboard writer is a silent no-op, not a crash", async () => {
     const tasks = [makeTask({ id: "t1" })]
     const { ctx, notifyInfo } = makeCtx({ tasks, orch: makeOrch(), wireCopyText: false })
 
-    expect(() => copyTaskFieldFlow(ctx, "t1", "path")).not.toThrow()
+    await expect(copyTaskFieldFlow(ctx, "t1", "path")).resolves.toBeUndefined()
     expect(notifyInfo).not.toHaveBeenCalled()
   })
 })

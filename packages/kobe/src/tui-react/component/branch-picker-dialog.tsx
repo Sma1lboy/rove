@@ -31,6 +31,7 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
+import { DialogField, DialogSection } from "../ui/dialog-parts"
 import { PickerList } from "./new-task-dialog/picker-list"
 
 export function BranchPickerDialogView(props: {
@@ -91,19 +92,20 @@ export function BranchPickerDialogView(props: {
           esc
         </text>
       </box>
-      <box gap={0}>
-        <text fg={theme.accent}>{t("tasks.reBranch.fieldLabel")}</text>
-        <input
-          value={value}
-          placeholder={props.currentBranch}
-          focused={true}
-          onInput={(v: string) => {
-            setValue(stripNewlines(v))
-            setCursor(0)
-          }}
-          onSubmit={() => commit(resolveBaseRef(value, filtered, cursor))}
-        />
-      </box>
+      <DialogSection label={t("tasks.reBranch.fieldLabel")} focused={true}>
+        <DialogField focused={true}>
+          <input
+            value={value}
+            placeholder={props.currentBranch}
+            focused={true}
+            onInput={(v: string) => {
+              setValue(stripNewlines(v))
+              setCursor(0)
+            }}
+            onSubmit={() => commit(resolveBaseRef(value, filtered, cursor))}
+          />
+        </DialogField>
+      </DialogSection>
       {filtered.length === 0 ? (
         <box gap={0} paddingBottom={1}>
           <text fg={theme.textMuted} wrapMode="none">

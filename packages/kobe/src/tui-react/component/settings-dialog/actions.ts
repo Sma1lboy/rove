@@ -3,6 +3,7 @@
  * (`actions-core.ts`); only the confirm-dialog wiring lives here.
  */
 
+import { relaunchSelf } from "../../../cli/self-relaunch"
 import type { KobeOrchestrator } from "../../../client/remote-orchestrator"
 import {
   type DestroyableRenderer,
@@ -11,6 +12,7 @@ import {
   removeTasksFileForReset,
 } from "../../../tui/component/settings-dialog/actions-core"
 import type { KVContext } from "../../context/kv"
+import { t } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 
@@ -28,23 +30,34 @@ export async function confirmResetState(
 ): Promise<void> {
   const ok = await DialogConfirm.show(
     dialog,
-    "Reset UI state?",
-    "Wipes ~/.config/rove/state.json and ~/.rove/tasks.json, then quits Rove — relaunch for a fresh start with an empty working session list. Worktrees on disk and engine session history are NOT touched.",
+    t("settings.reset.title"),
+    t("settings.reset.body"),
     "cancel",
     undefined,
     { danger: true },
   )
   if (ok !== true) return
-  kv.clear()
+  if (!kv.clear()) {
+    await DialogConfirm.show(dialog, t("settings.reset.failedTitle"), t("settings.reset.failedBody"), "cancel")
+    return
+  }
   removeTasksFileForReset()
   destroyRendererSafely(renderer, "reset")
-  process.stderr.write("Rove: UI state reset. Relaunch Rove to start fresh.\n")
+  process.stderr.write(`${t("settings.reset.done")}\n`)
   process.exit(0)
 }
 
 /**
- * Stop this kobe window so a relaunch spawns a fresh daemon from disk,
- * picking up daemon/orchestrator/engine edits.
+ * Restart the backend from inside Rove: stop the daemon, then relaunch this
+ * process on the build that is on disk.
+ *
+ * It used to do only the first half of its own name — destroy the renderer and
+ * `process.exit(0)`, leaving the user at a shell prompt to type `rove` again,
+ * which is a quit with an explanation rather than a restart. Both halves have
+ * to reload from disk for the dev loop this row exists for (edit daemon code,
+ * see it run) to close, and only a relaunch can reload this half. Engine
+ * sessions are untouched either way: they belong to the separate PTY host,
+ * which outlives both processes.
  */
 export async function confirmRestartDaemon(
   dialog: DialogContext,
@@ -52,14 +65,15 @@ export async function confirmRestartDaemon(
   renderer: DestroyableRenderer | null | undefined,
 ): Promise<void> {
   if (!hasRestartableDaemon(orchestrator)) return
-  const ok = await DialogConfirm.show(
-    dialog,
-    "Restart backend?",
-    "Quits this Rove window. Relaunch to (re)spawn the daemon. Any other attached windows keep their connection. In v0.6 the daemon's RPC surface shrank to task CRUD + subscribe, so a graceful daemon.stop RPC is no longer plumbed through the client — quit + relaunch is the path.",
-    "cancel",
-  )
+  const ok = await DialogConfirm.show(dialog, t("settings.restart.title"), t("settings.restart.body"), "cancel")
   if (ok !== true) return
-  destroyRendererSafely(renderer, "daemon restart")
-  process.stderr.write("Rove: window closed. Relaunch Rove to start fresh.\n")
-  process.exit(0)
+  // Stop the daemon BEFORE the relaunch, never after — this process is about
+  // to stop existing, so anything queued to happen "later" simply does not.
+  // `restart` is what the outgoing daemon tells every OTHER attached window,
+  // so their reconnect loops learn the code is being swapped rather than that
+  // the daemon is done. Best-effort: a daemon already gone or too wedged to
+  // answer leaves nothing to stop, and the successor spawns one on its first
+  // connect regardless.
+  await orchestrator.restartDaemon()
+  relaunchSelf({ renderer, notice: t("settings.restart.done") })
 }

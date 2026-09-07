@@ -18,23 +18,18 @@
  * surface — this one reaches into the PTY registry and the split helper.
  */
 
+import { logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
 import { peekSharedPtyClient } from "../../tui/panes/terminal/pty-hosted-client"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { noteClosedPtyKey } from "../../tui/workspace/closed-tab-suppress"
-import {
-  type TabsState,
-  type TerminalTab,
-  closeTab,
-  tabPtyKey,
-  tabPtyKeyFor,
-} from "../../tui/workspace/terminal-tabs-core"
+import { type TerminalTab, closeTab, tabPtyKey, tabPtyKeyFor } from "../../tui/workspace/terminal-tabs-core"
 import { releaseSplitLeaves } from "./TerminalSplit"
 import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
 import {
+  knownTabsState,
   reportTabsDelta,
   requestTabClose,
   setTaskTabs,
-  tabsByTask,
   takeUnclaimedTabClose,
 } from "./terminal-tabs-shared"
 
@@ -66,25 +61,37 @@ export function releaseClosedTabPtys(taskId: string, closing: TerminalTab | unde
   if (!local) killHostedSession(key)
 }
 
-/** Best-effort `pty.kill` for a key with no local handle, over the shared
- *  connection IF this process has one — dialing the host here would let a
- *  tab close pin a client (see `peekSharedPtyClient`). Every failure mode
- *  (no host, no verb, dead socket) leaves the session unreachable from here,
- *  the same outcome as the kill succeeding. */
+/**
+ * Best-effort `pty.kill` for a key with no local handle, over the shared
+ * connection IF this process has one — dialing the host here would let a tab
+ * close pin a client (see `peekSharedPtyClient`), which is how a render test
+ * starves the suite that owns the real socket.
+ *
+ * A skipped or failed kill is NOT "the same outcome as the kill succeeding",
+ * which is what this used to claim. A kill reaches `freeze.drop` and the
+ * record is gone; a miss leaves it on disk with a fresh `updatedAt`, and the
+ * next pty host inside the 14-day TTL thaws it back into a restored session —
+ * the tab the user explicitly closed returns with its old scrollback and its
+ * engine still running, against the promise in `docs/SESSIONS.md` that an
+ * intentional end is never resurrected.
+ *
+ * So the miss is recorded rather than swallowed. It is still a miss: this
+ * process cannot both stay out of the connection cache and reach the host.
+ */
 function killHostedSession(key: string): void {
   const client = peekSharedPtyClient()
-  if (!client) return
-  void client.then((c) => c.request("pty.kill", { key })).catch(() => {})
-}
-
-/** The tab state a non-mounted task has: its live module entry, else the
- *  persisted snapshot. Null when the task has never opened tabs — nothing to
- *  close, as opposed to `appendBackgroundEngineTab`'s "start a fresh set". */
-function backgroundTabsState(kv: TabsSnapshotKv, taskId: string): TabsState | null {
-  const live = tabsByTask.get(taskId)
-  if (live) return live
-  const saved = kv.store[terminalTabsKey(taskId)] as TabsState | null | undefined
-  return saved && Array.isArray(saved.tabs) ? saved : null
+  if (!client) {
+    logClientError("pty", new Error(`pty.kill skipped for ${key}: no shared pty client in this process`))
+    return
+  }
+  void client
+    .then((c) => c.request("pty.kill", { key }))
+    .catch((err) => {
+      logClientError(
+        "pty",
+        new Error(`pty.kill failed for ${key}: ${err instanceof Error ? err.message : String(err)}`),
+      )
+    })
 }
 
 /**
@@ -94,7 +101,7 @@ function backgroundTabsState(kv: TabsSnapshotKv, taskId: string): TabsState | nu
  * empties the list and leaves the row, exactly as the mounted path does.
  */
 export function closeTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string): boolean {
-  const state = backgroundTabsState(kv, taskId)
+  const state = knownTabsState(kv, taskId)
   // Check before publishing: a mounted component claims requests by task, so
   // publishing an unknown id first would look like a successful close even
   // though closeById made no state transition.

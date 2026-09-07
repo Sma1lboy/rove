@@ -22,9 +22,9 @@
  */
 
 import { readFileSync } from "node:fs"
-import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 import { connectIfRunning } from "@sma1lboy/kobe-daemon/client/daemon-process"
+import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import { readPluginManifest } from "@sma1lboy/kobe-daemon/plugins/manifest"
 import { loadPluginRegistry } from "@sma1lboy/kobe-daemon/plugins/registry"
 import { type EngineSessionRef, createEngineHookAdapter } from "../engine/hook-adapter.ts"
@@ -154,7 +154,7 @@ export async function runHookSubcommand(argv: readonly string[]): Promise<void> 
     // silently-dropped Stop leaves the sidebar spinning with zero evidence
     // anywhere, and a catch that leaves no trace is undebuggable. Opt-in so
     // normal runs stay quiet.
-    if (process.env.KOBE_HOOK_DEBUG) {
+    if (readRoveEnv("HOOK_DEBUG")) {
       console.error(`[rove hook] ${verb} failed:`, err instanceof Error ? err.message : String(err))
     }
   }
@@ -173,10 +173,9 @@ function activityHookAdapters() {
   return ALL_VENDORS.map((v) => createEngineHookAdapter(v)).filter((a) => a.supportsHooks())
 }
 
-/** Where kobe's GLOBAL activity hooks live (the OS home's ~/.claude, where
- *  Claude Code reads user settings — NOT kobe's KOBE_HOME_DIR). */
-function globalSettingsPath(): string {
-  return join(homedir(), ".claude", "settings.json")
+/** The engine that installed the legacy provider hook owns its active profile. */
+function globalSettingsPath(): string | undefined {
+  return worktreeSyncAdapters()[0]?.globalSettingsPath()
 }
 
 /** Resolve a persisted sync setting to the settings-file path the
@@ -298,7 +297,11 @@ async function cleanupWorktreeSyncHook(): Promise<void> {
   const adapters = worktreeSyncAdapters()
   if (adapters.length === 0) return
   const stored = getPersistedString(SYNC_SETTING_KEY)
-  const paths = new Set<string>([globalSettingsPath()])
+  const paths = new Set<string>()
+  for (const adapter of adapters) {
+    const file = adapter.globalSettingsPath()
+    if (file) paths.add(file)
+  }
   const prev = persistedSyncPath(stored)
   if (prev) paths.add(prev)
   for (const a of adapters) for (const p of paths) await a.removeWorktreeSyncHook(p)

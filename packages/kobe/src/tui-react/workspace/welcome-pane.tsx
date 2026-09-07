@@ -13,7 +13,7 @@
 import { TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
-import { installedEngineIds } from "../../engine/account-detect.ts"
+import { detectEngineStatuses, probeableEngineIds, summarizeEngines } from "../../engine/engine-status.ts"
 import { displayWidth, padEndCells } from "../../lib/display-width"
 import { formatChord } from "../../tui/lib/chord-glyphs"
 import { legendCap } from "../../tui/lib/help-groups"
@@ -22,18 +22,32 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 
 export type WelcomeEnv = {
+  /** Engines that can actually run a task: installed AND signed in. */
   readonly engines: readonly string[]
+  /** Installed, but the login Rove can read says there is no account. */
+  readonly signedOut: readonly string[]
   readonly git: boolean
 }
 
-/** Real probe: engine binaries (memoized in account-detect) + git on PATH. */
+/**
+ * Real probe: engine binary AND account, plus git on PATH.
+ *
+ * Binary-on-PATH alone is what this pane used to ask, and on the most likely
+ * new-user machine — every CLI installed, none logged in — that renders a `✓`
+ * seconds after the setup wizard said `✗ No usable engine yet` about the same
+ * home. Same probe as `rove doctor` now (`probeEngines`), so the two surfaces
+ * cannot reach opposite verdicts again.
+ */
 async function probeWelcomeEnv(): Promise<WelcomeEnv> {
-  const engines = await installedEngineIds().catch(() => [] as const)
+  const { usable, signedOut } = await probeableEngineIds()
+    .then(detectEngineStatuses)
+    .then(summarizeEngines)
+    .catch(() => ({ usable: [], signedOut: [] }))
   // ponytail: Bun.which is absent under vitest's node runtime; there we
   // assume git exists rather than shell out — a false "missing" warning on a
   // dev box is worse than skipping the check outside production.
   const git = globalThis.Bun?.which ? globalThis.Bun.which("git") !== null : true
-  return { engines, git }
+  return { engines: usable, signedOut, git }
 }
 
 type StepLine = { cap: string; msg: "stepNew" | "stepHelp" | "stepPrefix" }
@@ -73,6 +87,16 @@ export function WelcomePane(props: { probe?: () => Promise<WelcomeEnv> }): React
   // every message row.
   const capWidth = Math.max(...steps.map((s) => displayWidth(s.cap)), 0)
   const broken = env !== null && (env.engines.length === 0 || !env.git)
+  // Three states, not two. "Installed but not signed in" is the common cold
+  // state and used to have no rendering at all: it fell into the ✓ branch.
+  const engineLine =
+    env === null
+      ? null
+      : env.engines.length > 0
+        ? { key: "enginesFound" as const, fg: theme.textMuted, list: env.engines.join(" · ") }
+        : env.signedOut.length > 0
+          ? { key: "enginesSignedOut" as const, fg: theme.warning, list: env.signedOut.join(" · ") }
+          : { key: "enginesMissing" as const, fg: theme.warning, list: "" }
 
   return (
     <box flexGrow={1} alignItems="center" justifyContent="center">
@@ -102,17 +126,11 @@ export function WelcomePane(props: { probe?: () => Promise<WelcomeEnv> }): React
             {t("workspace.welcome.worktreeExplain")}
           </text>
         </box>
-        {env !== null ? (
+        {env !== null && engineLine !== null ? (
           <box flexDirection="column" paddingTop={1}>
-            {env.engines.length > 0 ? (
-              <text fg={theme.textMuted} wrapMode="word">
-                {t("workspace.welcome.enginesFound", { list: env.engines.join(" · ") })}
-              </text>
-            ) : (
-              <text fg={theme.warning} wrapMode="word">
-                {t("workspace.welcome.enginesMissing")}
-              </text>
-            )}
+            <text fg={engineLine.fg} wrapMode="word">
+              {t(`workspace.welcome.${engineLine.key}`, { list: engineLine.list })}
+            </text>
             {env.git ? null : (
               <text fg={theme.warning} wrapMode="word">
                 {t("workspace.welcome.gitMissing")}

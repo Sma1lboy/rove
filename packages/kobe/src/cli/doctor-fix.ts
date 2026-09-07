@@ -67,7 +67,7 @@ export function skillInstallFix(installCommand: string, stale: boolean): DoctorF
   }
 }
 
-type ResetReason = "resetDaemonWedged" | "resetPty" | "resetLegacy"
+type ResetReason = "resetDaemonWedged" | "resetPty" | "resetPtyStale" | "resetLegacy"
 
 /** `kobe reset` kills live sessions — always print-only, one entry per reason. */
 export function resetManualFix(cliName: string, reason: ResetReason): DoctorFix {
@@ -77,6 +77,22 @@ export function resetManualFix(cliName: string, reason: ResetReason): DoctorFix 
     label: t(`doctor.fix.${reason}`),
     action: `${cliName} reset`,
     why: t("doctor.fix.resetWhy"),
+  }
+}
+
+/**
+ * Orphaned PTY descendants: print-only, because the list can contain a process
+ * the user deliberately backgrounded. Killing it is not undoable, and only the
+ * user can tell those apart from a leak — so doctor shows the command and the
+ * list, and never runs it behind a y/N.
+ */
+export function killOrphansManualFix(cliName: string, count: number): DoctorFix {
+  return {
+    kind: "manual",
+    id: "kill-orphans",
+    label: t("doctor.fix.orphans", { count }),
+    action: `${cliName} doctor --kill-orphans`,
+    why: t("doctor.fix.orphansWhy"),
   }
 }
 
@@ -117,17 +133,35 @@ export function spawnHelperFix(paths: readonly string[]): DoctorFix {
   }
 }
 
-type HumanOnlyReason = "git" | "noEngine" | "windowsNode" | "staleBun"
+type HumanOnlyReason = "git" | "noEngine" | "noEngineLogin" | "windowsNode" | "staleBun"
 
 /** Installs and logins: doctor can only point, a human has to act. */
-export function humanOnlyFix(reason: HumanOnlyReason): DoctorFix {
+export function humanOnlyFix(reason: HumanOnlyReason, vars?: Record<string, string>): DoctorFix {
   return {
     kind: "manual",
     id: reason,
     label: t(`doctor.fix.${reason}`),
-    action: t(`doctor.fix.${reason}Action`),
+    action: t(`doctor.fix.${reason}Action`, vars),
     why: t("doctor.fix.humanOnlyWhy"),
   }
+}
+
+/**
+ * The engine remedy, branched on WHICH half failed. Nothing installed → say
+ * install. A CLI on PATH with no account → say log in, and name the engines:
+ * "install an engine CLI" printed under a row carrying that CLI's absolute
+ * path sends the user to solve a problem they do not have.
+ */
+export function noEngineFix(signedOut: readonly string[]): DoctorFix {
+  return signedOut.length > 0 ? humanOnlyFix("noEngineLogin", { list: signedOut.join(", ") }) : humanOnlyFix("noEngine")
+}
+
+/** Just the remedy line, for surfaces that print prose rather than a fix list
+ *  (the wizard's closing banner). Same branch, so the two cannot drift. */
+export function noEngineAction(signedOut: readonly string[]): string {
+  return signedOut.length > 0
+    ? t("doctor.fix.noEngineLoginAction", { list: signedOut.join(", ") })
+    : t("doctor.fix.noEngineAction")
 }
 
 /** Drop repeat proposals of the same remedy (first occurrence wins). */

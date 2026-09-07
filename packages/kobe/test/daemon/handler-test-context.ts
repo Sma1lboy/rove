@@ -24,12 +24,21 @@ export interface RecordedHandlerEffects {
   readonly noteCalls: Array<{ method: string; repo: unknown; note?: unknown }>
   readonly cleared: string[]
   readonly inboxRecords: Array<{ taskId: string; kind: string; detail?: unknown; tabId?: string }>
-  readonly inboxPromptDeferred: Array<{ taskId: string; tabId: string; deferredId: string; layer: string }>
+  readonly inboxPromptDeferred: Array<{
+    taskId: string
+    tabId: string
+    deferredId: string
+    layer: string
+    sender?: string
+  }>
   readonly inboxDeleted: Array<{ taskId: string; tabId: string | null; at?: number }>
+  readonly inboxPromptExpired: Array<{ taskId: string; tabId: string; deferredId: string }>
   readonly inboxRead: Array<{ taskId: string; tabId: string | null; at: number }>
   readonly inboxTaskDeleted: string[]
   readonly deletions: string[]
   stopped: number
+  /** Reasons `daemon.stop` passed to `stopSoon`, in order (protocol v5). */
+  stopReasons: string[]
   idleReevaluations: number
 }
 
@@ -52,10 +61,12 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     inboxRecords: [],
     inboxPromptDeferred: [],
     inboxDeleted: [],
+    inboxPromptExpired: [],
     inboxRead: [],
     inboxTaskDeleted: [],
     deletions: [],
     stopped: 0,
+    stopReasons: [],
     idleReevaluations: 0,
   }
   const ctx: DaemonHandlerContext = {
@@ -81,8 +92,19 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
         rec.inboxRecords.push({ taskId, kind, detail, tabId })
         return Promise.resolve()
       },
-      recordPromptDeferred: (taskId: string, tabId: string, deferredId: string, layer: string) => {
-        rec.inboxPromptDeferred.push({ taskId, tabId, deferredId, layer })
+      recordPromptDeferred: (
+        taskId: string,
+        tabId: string,
+        deferredId: string,
+        layer: string,
+        _expiresAt?: number,
+        sender?: string,
+      ) => {
+        rec.inboxPromptDeferred.push({ taskId, tabId, deferredId, layer, ...(sender === undefined ? {} : { sender }) })
+        return Promise.resolve()
+      },
+      recordPromptExpired: (taskId: string, tabId: string, deferredId: string) => {
+        rec.inboxPromptExpired.push({ taskId, tabId, deferredId })
         return Promise.resolve()
       },
       deleteEpisode: (taskId: string, tabId: string | null, at?: number) => {
@@ -166,8 +188,9 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
       pid: 4242,
       guiCount: () => 1,
       clientCount: () => 1,
-      stopSoon: async () => {
+      stopSoon: async (reason?: string) => {
         rec.stopped++
+        rec.stopReasons.push(reason ?? "")
       },
       reevaluateIdle: () => {
         rec.idleReevaluations++

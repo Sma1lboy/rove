@@ -67,25 +67,6 @@ export async function openDaemonSession(opts: DaemonSessionOptions = {}): Promis
 }
 
 /**
- * Run `work` against an open session and ALWAYS close the socket — on
- * success, on a thrown error, and on a rejected promise. `work` receives
- * `null` when `mode: "require-running"` found no live daemon (it still
- * runs, mirroring the non-spawning hook contract where absence is a
- * normal, non-error outcome).
- */
-export async function withDaemonSession<T>(
-  work: (client: KobeDaemonClient | null) => Promise<T>,
-  opts: DaemonSessionOptions = {},
-): Promise<T> {
-  const session = await openDaemonSession(opts)
-  try {
-    return await work(session?.client ?? null)
-  } finally {
-    session?.close()
-  }
-}
-
-/**
  * Read the daemon's currently active task once. Subscribes to the
  * `active-task` push channel and returns the initial replay value, then
  * tears the listener down. Used by `kobe api` verbs and `kobe plugin pane

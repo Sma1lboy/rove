@@ -16,8 +16,7 @@ export interface EngineTurnDetectorAdapter {
     marker: { id: string; timestampMs: number } | null
     mtimeMs: number
   }>
-  /** {@link latestActivity} scoped to one session transcript; `null` = not
-   *  supported by this vendor (or file gone) — fall back to the worktree scan. */
+  /** Session-scoped evidence. Null means unknown; never borrow another session's completion. */
   latestActivityInFile(transcriptPath: string): Promise<{
     marker: { id: string; timestampMs: number } | null
     mtimeMs: number
@@ -92,6 +91,14 @@ export interface DaemonRuntimeAdapter {
   readEngineContextUsage(vendor: VendorId, sessionId: string): Promise<EngineContextUsage | null>
   maybeAutoStart(orch: DaemonOrchestrator, taskId: string): Promise<string>
   listWorktreeProjects(network: boolean): Promise<unknown[]>
+  /**
+   * Worktree admin-dir NAMES that `git worktree list --porcelain` omitted
+   * without an error or a non-zero exit — git's own silence about a worktree
+   * whose admin dir it cannot read. Names only: an unreadable admin dir takes
+   * its path/branch/head with it. Best-effort, `[]` when nothing to report or
+   * nothing could be enumerated.
+   */
+  listUnreadableWorktrees(repo: string): Promise<readonly string[]>
   /** Remove a worktree. Resolves with the leftover directory when git
    *  deregistered the worktree but could not delete it (a partial removal that
    *  no retry can advance); resolves with null on a clean removal. */
@@ -109,12 +116,10 @@ export interface DaemonRuntimeAdapter {
   availableEngineIds(): Promise<readonly VendorId[]>
   engineDisplayName(vendor: VendorId): string
   kobeApiInvocation(): string
-  engineSpec(link: DaemonRpcClient, taskId: string): Promise<{ cwd: string; command: string[]; firstMessage?: string }>
-  terminalSpec(link: DaemonRpcClient, taskId: string): Promise<{ cwd: string; command: string[] }>
   ensureTaskSession(link: DaemonRpcClient, taskId: string): Promise<{ session: string; worktreePath: string }>
   /**
    * Materialize a task's worktree and START its engine with `prompt` as the
-   * launch-time first message. Returns false when the session did not come up.
+   * launch-time first message.
    *
    * The spawning sibling of {@link deliverPromptToLiveEngine}, which exists for
    * the opposite case (resume a session that is already alive, never spawn).
@@ -122,8 +127,18 @@ export interface DaemonRuntimeAdapter {
    * one. The prompt rides the engine's own argv rather than being typed into
    * the PTY afterwards — a cold engine can swallow a raced paste, and an
    * unattended run has nobody watching to notice.
+   *
+   * `started` means the ENGINE process was seen running. The adapter looks at
+   * the process table to answer that, because the PTY's own liveness is the
+   * login shell's and stays true for an engine binary that does not exist.
+   * `error` carries what the session last printed, which is the only thing
+   * that can tell an unattended caller a `code 127` from a real start.
    */
-  startTaskSessionWithPrompt(link: DaemonRpcClient, taskId: string, prompt: string): Promise<boolean>
+  startTaskSessionWithPrompt(
+    link: DaemonRpcClient,
+    taskId: string,
+    prompt: string,
+  ): Promise<{ started: boolean; error?: string }>
   tearDownTaskSession(taskId: string): Promise<void>
   /**
    * Engine-owned subscription-quota probe: snapshot of the vendor account's
@@ -163,6 +178,11 @@ export interface DaemonRuntimeAdapter {
    *
    * `tabId` names which tab the live engine was found on, so the deferral and
    * its Inbox episode point at the tab a human will actually open.
+   *
+   * `no-engine` is a session that is alive with no engine IN it — keepAlive
+   * left a login shell where the engine exited. It is separate from
+   * `no-session` because pasting there would have the shell EXECUTE the
+   * prompt; the caller must revive, never deliver.
    */
   deliverPromptToLiveEngineDetailed(
     task: {
@@ -175,6 +195,7 @@ export interface DaemonRuntimeAdapter {
   ): Promise<
     | { readonly outcome: "delivered"; readonly tabId: string }
     | { readonly outcome: "no-session" }
+    | { readonly outcome: "no-engine"; readonly tabId: string }
     | {
         readonly outcome: "busy"
         readonly tabId: string
@@ -197,22 +218,21 @@ export interface DaemonRuntimeAdapter {
   ): Promise<
     | { readonly outcome: "delivered"; readonly tabId: string }
     | { readonly outcome: "no-session" }
+    | { readonly outcome: "no-engine"; readonly tabId: string }
     | {
         readonly outcome: "busy"
         readonly tabId: string
         readonly layer: "recent-human-write" | "composer-not-empty"
       }
   >
-  /** Fresh persisted state, checked between deferred-queue deliveries. */
-  composerGateEnabled(): boolean
-  settingsSnapshot(): Response
-  settingsPatch(request: Request): Promise<Response>
-  handleDiffRequest(request: Request, url: URL): Promise<Response | null>
-  handleHistoryRequest(request: Request, url: URL): Promise<Response | null>
-  handleNotesRequest(request: Request, url: URL): Promise<Response | null>
-  handleThemesRequest(request: Request, url: URL): Response | null
-  handleWorktreesRequest(request: Request, url: URL): Promise<Response | null>
-  issueAssetsDir(): string
+  /**
+   * Fresh persisted delivery-guard state, checked between deferred-queue
+   * deliveries. `on` runs both checks (keystroke window + composer screen
+   * read), `screen-off` drops the screen read, `off` drops both. The literal
+   * union is duplicated from `rove`'s `state/delivery-guard.ts` because this
+   * package cannot depend on that one.
+   */
+  deliveryGuard(): "on" | "screen-off" | "off"
   getPersistedString(key: string): string | undefined
   setPersistedString(key: string, value: string): void
   getSavedRepos(): readonly string[]

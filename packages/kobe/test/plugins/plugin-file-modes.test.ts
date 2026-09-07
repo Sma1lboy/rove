@@ -23,6 +23,7 @@ import {
 import { savePluginRegistry } from "@sma1lboy/kobe-daemon/plugins/registry"
 import { PluginHost } from "@sma1lboy/kobe-daemon/plugins/runtime"
 import { afterEach, describe, expect, it } from "vitest"
+import { linkPlugin } from "../../src/cli/plugin-install.ts"
 
 const dirs: string[] = []
 function tmp(prefix: string): string {
@@ -74,6 +75,26 @@ describe("plugin subsystem files are owner-only", () => {
     mkdirSync(join(home, ".kobe"), { recursive: true })
     savePluginRegistry({ plugins: [] }, home)
     expect(mode(pluginRegistryPath(home))).toBe(0o600)
+  })
+
+  it("creates config/state 0700 when the CLI registers the plugin first", () => {
+    // Whoever mkdirs first sets the mode: `mkdirSync` never chmods an
+    // existing directory, so a 0755 from `plugin link` survives every later
+    // 0700 the daemon asks for. The daemon-side assertion below cannot see
+    // that — it only ever runs against a home the CLI never touched.
+    const home = tmp("kobe-pmode-link-")
+    const root = tmp("kobe-pmode-link-root-")
+    writeFileSync(join(root, "rove-plugin.toml"), LEAKY)
+    const saved = process.env.KOBE_HOME_DIR
+    process.env.KOBE_HOME_DIR = home
+    try {
+      linkPlugin(root)
+      expect(mode(pluginConfigDir("example.leaky", home))).toBe(0o700)
+      expect(mode(pluginStateDir("example.leaky", home))).toBe(0o700)
+    } finally {
+      if (saved === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
+      else process.env.KOBE_HOME_DIR = saved
+    }
   })
 
   it("writes the captured-output log as 0600 in 0700 config/state dirs", async () => {

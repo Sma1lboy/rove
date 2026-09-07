@@ -62,6 +62,7 @@ function readyEnv(): OnboardingEnvReport {
     engines: {
       lines: ["engines:", "  claude  ✓ /bin/claude — logged in (a@b.c)"],
       anyUsable: true,
+      signedOut: [],
     },
   }
 }
@@ -78,6 +79,7 @@ function emptyEnv(): OnboardingEnvReport {
     engines: {
       lines: ["engines:", "  claude  ✗ not found on PATH", "  codex   ✗ not found on PATH"],
       anyUsable: false,
+      signedOut: [],
     },
   }
 }

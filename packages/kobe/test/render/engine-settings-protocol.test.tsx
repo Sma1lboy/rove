@@ -7,11 +7,12 @@
  * sniffed. Three rules are pinned here because getting any of them wrong is
  * silent:
  *
- *   - the prompt ORDER (id → command → protocol → name), since the flow
+ *   - the step ORDER (id → command → protocol → name), since the flow
  *     assigns answers positionally;
- *   - a blank or bogus protocol writes NOTHING rather than a junk key, so the
- *     preset degrades to the generic protocol instead of claiming an adapter
- *     that would point the history reader at another vendor's files;
+ *   - the generic adapter is a CHOSEN row that writes NOTHING rather than a
+ *     junk key, so the preset degrades to the generic protocol instead of
+ *     claiming an adapter that would point the history reader at another
+ *     vendor's files, and cancelling the picker aborts the whole add;
  *   - removing a preset clears its protocol, so re-adding the same id later
  *     cannot inherit a stale declaration.
  *
@@ -27,6 +28,7 @@ import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { useEffect, useRef } from "react"
+import { EngineProtocolPickerDialog } from "../../src/tui-react/component/engine-protocol-picker-dialog"
 import { RenameTaskDialog } from "../../src/tui-react/component/rename-task-dialog"
 import { useEngineSettings } from "../../src/tui-react/component/settings-dialog/use-engine-settings"
 import { type KVContext, useKV } from "../../src/tui-react/context/kv"
@@ -36,24 +38,30 @@ import { renderComponent, settle } from "./harness"
 const NOOP = (): void => {}
 
 /**
- * Answer each `RenameTaskDialog.show` with the next scripted string (or
- * `undefined` to cancel), recording each prompt's field label so a changed
- * prompt ORDER can't silently reassign answers to the wrong fields.
+ * Answer each step of the flow with the next scripted string (or `undefined`
+ * to cancel), recording what each step asked for so a changed step ORDER can't
+ * silently reassign answers to the wrong fields. The text fields answer by
+ * their field label; the protocol step is a picker, so it records `PROTOCOL`.
  */
 function scriptDialog(answers: readonly (string | undefined)[]) {
   const asked: string[] = []
   let i = 0
-  const original = RenameTaskDialog.show
-  RenameTaskDialog.show = (async (_dialog: unknown, _current: string, opts?: { fieldLabel?: string }) => {
-    asked.push(opts?.fieldLabel ?? "?")
-    // A prompt past the end of the script means the flow grew a field this
-    // suite doesn't answer. Throw rather than return undefined-as-cancel, so
-    // it surfaces as a failure here instead of a silently shortened flow.
-    if (i >= answers.length) throw new Error(`unscripted prompt for "${opts?.fieldLabel ?? "?"}"`)
+  const originalRename = RenameTaskDialog.show
+  const originalPicker = EngineProtocolPickerDialog.show
+  // A step past the end of the script means the flow grew a field this suite
+  // doesn't answer. Throw rather than return undefined-as-cancel, so it
+  // surfaces as a failure here instead of a silently shortened flow.
+  const answer = (label: string): string | undefined => {
+    asked.push(label)
+    if (i >= answers.length) throw new Error(`unscripted step for "${label}"`)
     return answers[i++]
-  }) as typeof RenameTaskDialog.show
+  }
+  RenameTaskDialog.show = (async (_dialog: unknown, _current: string, opts?: { fieldLabel?: string }) =>
+    answer(opts?.fieldLabel ?? "?")) as typeof RenameTaskDialog.show
+  EngineProtocolPickerDialog.show = (async () => answer("PROTOCOL")) as typeof EngineProtocolPickerDialog.show
   const restore = (): void => {
-    RenameTaskDialog.show = original
+    RenameTaskDialog.show = originalRename
+    EngineProtocolPickerDialog.show = originalPicker
   }
   return { asked, restore }
 }
@@ -119,20 +127,34 @@ describe("Settings → Engines protocol declaration", () => {
     expect(read("engineName.mypi")).toBe("My Pi")
   })
 
-  it("writes no protocol key at all when the answer is blank or bogus", async () => {
-    for (const answer of ["", "frobnicate"]) {
-      const script = scriptDialog(["aider", "aider --model sonnet", answer, ""])
-      let read: (key: string) => unknown = () => undefined
-      try {
-        read = await withEngineSettings((api) => api.addEngineFlow())
-      } finally {
-        script.restore()
-      }
-      // Absent, not empty-string: the preset reads as generic, and a junk
-      // value must never look like a declaration.
-      expect(read("engineProtocol.aider")).toBeUndefined()
-      expect(read("customEngineIds")).toEqual(["aider"])
+  it("writes no protocol key at all when the generic row is chosen", async () => {
+    const script = scriptDialog(["aider", "aider --model sonnet", "", ""])
+    let read: (key: string) => unknown = () => undefined
+    try {
+      read = await withEngineSettings((api) => api.addEngineFlow())
+    } finally {
+      script.restore()
     }
+    // Absent, not empty-string: the preset reads as generic, and nothing here
+    // may look like a declaration.
+    expect(read("engineProtocol.aider")).toBeUndefined()
+    expect(read("customEngineIds")).toEqual(["aider"])
+  })
+
+  // Why: esc on the id and command steps already abandons the add. A picker
+  // esc that fell through instead would register an engine the user was in
+  // the middle of abandoning — with the generic adapter, silently.
+  it("registers nothing when the protocol picker is cancelled", async () => {
+    const script = scriptDialog(["aider", "aider --model sonnet", undefined])
+    let read: (key: string) => unknown = () => undefined
+    try {
+      read = await withEngineSettings((api) => api.addEngineFlow())
+    } finally {
+      script.restore()
+    }
+    expect(read("customEngineIds")).toBeUndefined()
+    expect(read("engineCommand.aider")).toBeUndefined()
+    expect(script.asked).toEqual(["ID", "COMMAND", "PROTOCOL"])
   })
 
   it("clears the protocol when the preset is removed, so a re-add starts clean", async () => {

@@ -23,6 +23,43 @@ while a pre-rename process is still live, and the plugin tree is *moved* into
 `~/.rove/` on the first new-daemon start, with a symlink left at the old
 path.
 
+### Runtime path overrides
+
+`ROVE_HOME_DIR` already decides where the daemon and the PTY host put their
+socket and pidfile, so most people never touch these. Four variables move one
+file each, for the case the home cannot cover: running a second Rove *beside*
+the one you use, without the two finding each other.
+
+| Variable | Moves |
+|---|---|
+| `ROVE_DAEMON_SOCKET_PATH` | The socket the daemon listens on, and clients connect to |
+| `ROVE_DAEMON_PID_PATH` | The daemon's pidfile (what `rove daemon stop` reads) |
+| `ROVE_PTY_SOCKET_PATH` | The PTY host's socket — a named pipe on Windows |
+| `ROVE_PTY_PID_PATH` | The PTY host's pidfile |
+
+Each has a `KOBE_`-prefixed fallback (`KOBE_DAEMON_SOCKET_PATH`, and so on);
+when both spellings are set, the `ROVE_` one wins. Unset ones stay derived
+from the home.
+
+Set them **as a group**, in the same command as `ROVE_HOME_DIR`. Isolating the
+home alone still leaves the two processes on the paths they were given, and a
+half-isolated instance either refuses to start (`already served by the daemon
+on …`) or, worse, drives the terminals of the instance you are using:
+
+```sh
+env ROVE_HOME_DIR=/tmp/scratch-home \
+    ROVE_DAEMON_SOCKET_PATH=/tmp/scratch-home/daemon.sock \
+    ROVE_DAEMON_PID_PATH=/tmp/scratch-home/daemon.pid \
+    ROVE_PTY_SOCKET_PATH=/tmp/scratch-home/pty.sock \
+    ROVE_PTY_PID_PATH=/tmp/scratch-home/pty.pid \
+    rove daemon restart
+```
+
+A socket path that is too long for the platform is shortened automatically; a
+pidfile path is used as given. See
+[Troubleshooting](TROUBLESHOOTING.md#rove-says-the-daemon-serves-a-different-home)
+for what a half-applied override looks like from the outside.
+
 ## Editing settings
 
 ```sh
@@ -40,8 +77,18 @@ Restart Rove to apply a hand edit everywhere.
 defaults, so a typo can't wedge the app; worst case a preference resets. If
 the file becomes invalid JSON, Rove renames it to
 `state.json.corrupt-<timestamp>` and starts fresh rather than deleting it.
-Concurrent Rove processes re-read before writing, so they don't clobber each
-other.
+Rove serializes each complete read, mutation, and atomic write with the
+state-file lock, so concurrent processes changing different keys preserve
+both changes. A whole-state reset takes the same lock and intentionally
+replaces all keys. Hand edits do not participate in this lock; finish editing
+before changing settings in another Rove process.
+
+Corruption backup also takes the write lock and re-reads the file before
+renaming it. A reader that cannot immediately acquire the lock returns defaults
+without moving the file, allowing an active writer to finish its repair.
+Writers wait up to five seconds for contention and then report failure. The UI
+retains unsuccessful dirty-key patches for its next flush; CLI writes report
+the error instead of claiming the setting was saved.
 
 ## Settings reference
 
@@ -59,12 +106,12 @@ retired worktree-sync hook was once installed so the next launch (or
 | Key | Type | Default | What it does |
 |---|---|---|---|
 | `activeTheme` | theme name | `"claude"` | See [Themes](#themes) |
-| `transparentBackground` | boolean | `true` | Let the terminal background show through. In transparent mode Rove detects the terminal's actual background (OSC 11) and adjusts body, muted, and host-backed warning text to stay readable on it. Warning text on opaque dialogs and controls keeps the theme color. No setting is needed |
+| `transparentBackground` | boolean | `true`, `false` on Windows | Let the terminal background show through. In transparent mode Rove detects the terminal's actual background (OSC 11) and adjusts body, muted, and host-backed warning text to stay readable on it. Warning text on opaque dialogs and controls keeps the theme color. No setting is needed. Windows starts opaque because Windows Terminal ships acrylic and background images on by default, and a transparent Rove has no opaque surface to scrub stale glyphs against — set it to `true` to turn transparency on there, and a value you have already chosen is never overwritten |
 | `focusAccent` | `primary` \| `success` \| `info` | `primary` | Color of the focused-pane indicator |
 | `appearance.splitStyle` | `box` \| `line` | `box` | `box` frames each split; `line` is the minimal tmux-style look |
 | `locale` | `en` \| `zh` | `en` | UI language |
 | `hints.keyboard.enabled` | boolean | `true` | Keyboard discoverability hints |
-| `hints.keyboard.prefixTapPresentation` | `local` \| `guide` | `local` | What one tap of the prefix key shows: `local` a hint beside the focused pane, `guide` the full keyboard guide |
+| `hints.keyboard.prefixTapPresentation` | `local` \| `guide` | `local` | One tap of the prefix key always opens the full keyboard guide. This picks what comes with it: `local` also shows shortcut badges beside the clickable controls already on screen, `guide` hides those badges |
 
 Turning keyboard hints back on relights the first-use pane hints you'd
 already dismissed.
@@ -91,7 +138,7 @@ then the platform opener. These variables do not change the file tree's
 per-file TTY editor.
 
 The Files pane watches the worktree so edits appear without a keypress. Set
-`KOBE_FILETREE_WATCH=0` to turn that watcher off — worth doing on a repo large
+`ROVE_FILETREE_WATCH=0` to turn that watcher off — worth doing on a repo large
 enough that a recursive watcher costs more than the staleness it removes. With
 it off, `r` is the only thing that repopulates the list.
 
@@ -148,9 +195,9 @@ engine or shell in the workspace remains visible. Toggle with `ctrl+a` `z`.
 |---|---|---|---|
 | `zen.active` | boolean | `false` | On/off. Persisted, so switching projects keeps you in zen |
 
-The current PureTUI always keeps the Tasks rail visible in zen mode because
-the rail also contains the exit affordance. `zen.keepTasks` is a legacy value:
-Settings can still write it, but it currently has no layout effect.
+Zen always keeps the Tasks rail visible, because the rail also contains the
+exit affordance. A `zen.keepTasks` value left in your `state.json` by an older
+Rove is ignored; nothing reads or writes it any more.
 
 ### Worktree location
 
@@ -183,9 +230,25 @@ for background consumers, but the current PureTUI tree does not consume it.
 
 ### Delivery
 
+Two checks run before a peer or `rove api` prompt is written into a running
+engine, so a message never lands in the middle of a half-typed line:
+
+- **A, the keystroke window** — someone typed into that session less than
+  ~10s ago. It measures time, so it is right about every engine.
+- **B, the screen read** — the session is rendered and the prompt is held when
+  the composer already holds text. This one knows each engine's *current*
+  layout, so a vendor redesign can make it wrong.
+
+A held prompt is deferred to your Inbox (`rove api deferred-list` without a
+screen), and a deferred prompt nobody releases is destroyed 24h later.
+
 | Key | Type | Default | What it does |
 |---|---|---|---|
-| `delivery.composerGate` | boolean | `true` | The screen-based check that runs before a peer or `rove api` prompt is written into an engine: a composer holding half-typed text defers the prompt to your Inbox instead of pasting over it. Turning this **off removes that safety check** — deliveries land unconditionally, and a message you were mid-way through typing can be interleaved with one |
+| `delivery.guard` | `on` \| `screen-off` \| `off` | `on` | Which of the two checks run. `on` runs both. `screen-off` drops B — pick it when a vendor moves its composer and the screen rule starts holding deliveries into composers you can see are empty. `off` drops both, leaving only the refusal to paste into a bare shell — pick it for a machine nobody types at, where a held message costs more than a collided one. Read fresh at each delivery, so a change needs no restart. Settings → Dev has the same three-position control, and `ROVE_DELIVERY_GUARD` overrides both for one session |
+| `delivery.humanWriteQuietMs` | number | `10000` | How long check A holds after a keystroke, in milliseconds. Also read per delivery — the pty host's `KOBE_PTY_HUMAN_WRITE_QUIET_MS` remains as its spawn-time default, but this key changes the live window without restarting the host |
+
+`delivery.composerGate` (boolean) is the superseded spelling: an existing
+`false` is read as `screen-off`, and changing the setting replaces it.
 
 ### Experimental
 
@@ -193,7 +256,7 @@ Off by default. These can change without notice.
 
 | Key | What it enables |
 |---|---|
-| `experimental.remoteProjects` | Projects over SSH |
+| `experimental.remoteProjects` | Lets `rove add --remote` register a NEW project over SSH. Gates that one command only: remote projects already registered keep working — worktree routing and engine launch never read the flag — so turning it off does not disable them |
 | `experimental.autoStatus` | Tasks move to `in_progress` and self-report `in_review` |
 | `experimental.dispatcher` | Per-repo routing of field notes between sessions |
 
@@ -264,13 +327,18 @@ register any other CLI from **Settings → Engines**, or by hand:
 
 Switching an engine OFF in **Settings → Engines** (`space`) records it under
 `disabledEngineIds`; it keeps every override and simply stops being offered
-when you pick an engine for a task. The global default engine can't be left
-disabled; switching it off hands the default to the first engine still on.
+when you pick an engine for a task. That covers the headless path too: a
+disabled engine is skipped by `rove api add`'s repo default, so switching one
+off after using it in a project does not leave that project still launching it.
+The global default engine can't be left disabled; switching it off hands the
+default to the first engine still on.
 
 Being in `customEngineIds` *is* the registration. There's no other step.
-Stick to `^[a-z][a-z0-9_-]{0,47}$` for ids: the web settings API enforces
-that pattern (and no collision with a built-in) and drops invalid ids on
-read, while the TUI only rejects blank, built-in, and duplicate ids.
+Settings → Engines rejects a blank id, one that shadows a built-in, and one
+already registered; it lowercases and trims what you type and accepts the rest.
+Keep ids to lowercase letters, digits, `-` and `_`: the id becomes both a
+`--command <id>` argument and a key in `state.json`, so a space or a quote in
+one makes it awkward to pass and awkward to hand-edit.
 
 A custom engine launches and runs like any other, but Rove deliberately
 doesn't guess at its internals — no history reader, no account detection, no
@@ -278,6 +346,12 @@ activity hooks, no session resume — unless you declare
 `"engineProtocol.<id>"` (one of the built-in ids: `claude`, `codex`,
 `copilot`, `kimi`), which borrows that built-in's adapter for transcript
 reads and delivery. More in [Engines](./ENGINES.md).
+
+Settings → Engines asks for it while adding the engine — a list of the
+built-ins plus **None**, so the generic adapter is something you choose rather
+than something a typo leaves you with — and prints the answer under the engine's
+row afterwards. Changing it means removing the engine (`x`) and adding it again,
+or editing the key here by hand.
 
 ## Claude Code plugin
 
@@ -288,7 +362,8 @@ exactly one:
 
 - **Default (no action needed)**: every Rove launch idempotently writes its
   hooks into `~/.claude/settings.json`, and `rove skill install` places the
-  skill. This is what most existing installs use.
+  skill. If `CLAUDE_CONFIG_DIR` is set to a nonblank path, hooks instead go
+  into `<CLAUDE_CONFIG_DIR>/settings.json`. This is what most existing installs use.
 - **The Claude Code plugin.** One install carries hooks and skill together,
   with no PATH or settings.json involvement:
 
@@ -312,8 +387,13 @@ fire twice. Rove warns about this at startup and the fix is one command:
 rove hook cleanup
 ```
 
-That removes only Rove's own entries from `~/.claude/settings.json`; your
-other hooks are untouched. If you also have a pre-plugin skill copy under
+That removes Rove's entries from the active profile's `settings.json`; your
+other hooks, including commands in the same group, are preserved. Installation
+and cleanup leave invalid or unreadable settings unchanged. They also refuse
+non-regular files and files over 8 MiB. JSON rewrites use owner-only read/write
+permissions (`0600`). Startup cleanup of retired global hooks uses this same
+profile; explicitly saved repository or settings-file cleanup paths still apply.
+If you also have a pre-plugin skill copy under
 `~/.claude/skills/rove` (or `…/kobe`), delete that directory. The plugin's
 bundled copy replaces it. Rove never edits or removes either one silently.
 

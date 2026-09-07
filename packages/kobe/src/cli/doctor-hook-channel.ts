@@ -19,6 +19,8 @@
  * hook entry yet and is perfectly healthy.
  */
 
+import type { HookConfigIssue } from "../engine/hook-config-check.ts"
+
 /** The one field of a `debug.inspect` tab entry this check reads. */
 interface InspectTabEntry {
   readonly source?: string
@@ -38,6 +40,14 @@ export interface HookChannelInput {
    * branch), so any such comparison is unreachable by construction.
    */
   readonly socketPath: string
+  /**
+   * Engine settings files whose hook install was refused (see
+   * `engine/json-hooks.ts#parseHookSettings`). The SECOND way the channel
+   * dies, and the one nothing used to diagnose: a stale socket at least
+   * leaves live tabs behind, whereas a `hooks` shape Rove cannot parse means
+   * the install never ran and nothing on the machine says so.
+   */
+  readonly configIssues?: readonly HookConfigIssue[]
 }
 
 export type HookChannelVerdict =
@@ -72,17 +82,28 @@ export function classifyHookChannel(input: HookChannelInput): HookChannelVerdict
  */
 export function hookChannelDoctorLines(
   verdict: HookChannelVerdict,
-  input: Pick<HookChannelInput, "socketPath">,
+  input: Pick<HookChannelInput, "socketPath" | "configIssues">,
   cliName: string,
 ): string[] {
-  if (verdict.kind === "no-tabs") return ["hooks:   — no engine tabs yet (nothing to check)"]
+  // A refused settings file is worth reporting whatever the tab verdict says:
+  // one engine's hooks can be live while another's install has been skipped on
+  // every launch since the file was hand-edited.
+  const configLines = (input.configIssues ?? []).flatMap((issue) => [
+    `         ⚠ hook install skipped: ${issue.file}`,
+    `           ${issue.reason} — fix the file, then relaunch Rove`,
+  ])
+  if (verdict.kind === "no-tabs") return ["hooks:   — no engine tabs yet (nothing to check)", ...configLines]
   if (verdict.kind === "live") {
-    return [`hooks:   ✓ engine hook channel live (${verdict.hookTabs}/${verdict.totalTabs} tab(s) hook-sourced)`]
+    return [
+      `hooks:   ✓ engine hook channel live (${verdict.hookTabs}/${verdict.totalTabs} tab(s) hook-sourced)`,
+      ...configLines,
+    ]
   }
   const out = [
     `hooks:   ✗ NO hook events reaching the daemon (0/${verdict.totalTabs} tab(s) hook-sourced)`,
     "         badges fall back to a ~10s poll, so activity looks seconds late",
     `         daemon socket: ${input.socketPath}`,
+    ...configLines,
   ]
   // The failure this names: an engine (and every hook it forks) inherits a
   // `*_DAEMON_SOCKET_PATH` pointing at a socket that is gone, so every hook

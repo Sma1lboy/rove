@@ -23,7 +23,6 @@
  * user's own hooks for the same events are preserved.
  */
 
-import { homedir } from "node:os"
 import { join } from "node:path"
 import type { EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
@@ -33,8 +32,10 @@ import {
   buildActivityHooks,
   isObject,
   mergeActivityHooks as mergeActivityHooksCore,
+  removeRoveHooks,
   removeWorktreeWatchHook,
 } from "../json-hooks.ts"
+import { vendorConfigHome } from "../vendor-home.ts"
 
 export { removeWorktreeWatchHook }
 
@@ -88,21 +89,13 @@ function failureFromErrorType(errorType: unknown): EngineActivityDetail["failure
   return "other"
 }
 
-/** Where Claude Code reads user settings (the OS home, NOT kobe's KOBE_HOME_DIR). */
+/** Settings in the active Claude profile, independent of Rove state home. */
 export function claudeSettingsPath(): string {
-  return join(homedir(), ".claude", "settings.json")
+  return join(vendorConfigHome("claude"), "settings.json")
 }
 
-/** Substring identifying kobe's WorktreeCreate hook in a shared settings file. */
-const WORKTREE_SYNC_MARKER = "worktree-created"
-
-/** True if a WorktreeCreate hook group is the one kobe installed (by its command). */
-function isKobeWorktreeSyncGroup(group: unknown): boolean {
-  if (!isObject(group) || !Array.isArray(group.hooks)) return false
-  return group.hooks.some(
-    (h) => isObject(h) && typeof h.command === "string" && h.command.includes(WORKTREE_SYNC_MARKER),
-  )
-}
+/** Retired Rove verb in Claude WorktreeCreate hook records. */
+const WORKTREE_SYNC_VERB = "worktree-created"
 
 /** Build kobe's Claude activity hook groups (thin wrapper over the shared core,
  *  bound to Claude's {@link CLAUDE_HOOK_EVENT_MAP}). Exported for tests. */
@@ -133,8 +126,8 @@ export function mergeWorktreeSyncHook(
 ): Record<string, unknown> {
   const { hooks: rawHooks, ...restSettings } = current
   const { WorktreeCreate, ...otherHooks } = isObject(rawHooks) ? rawHooks : {}
-  const prior = Array.isArray(WorktreeCreate) ? (WorktreeCreate as unknown[]) : []
-  const kept = prior.filter((g) => !isKobeWorktreeSyncGroup(g))
+  const prior = Array.isArray(WorktreeCreate) ? WorktreeCreate : []
+  const kept = removeRoveHooks(prior, [WORKTREE_SYNC_VERB])
   if (command !== null) kept.push({ hooks: [{ type: "command", command }] })
   const nextHooks: Record<string, unknown> = { ...otherHooks }
   if (kept.length > 0) nextHooks.WorktreeCreate = kept

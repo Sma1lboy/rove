@@ -7,7 +7,8 @@
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { DEFAULT_FEEDBACK_CATEGORY_SLUG, submitFeedback } from "../../lib/feedback.ts"
-import { daemonOf } from "./handler-helpers.ts"
+import { daemonOf, repoFilter } from "./handler-helpers.ts"
+import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext } from "./types.ts"
 
 /** One entry of the daemon activity registry's task dump (`debug.inspect`). */
@@ -21,18 +22,29 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
   const groupFlag = args.str("group")
 
   let taskIds: string[]
+  let unresolvableRepos: readonly string[] = []
   if (idsFlag) {
     taskIds = idsFlag
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean)
   } else if (repoFlag || groupFlag) {
-    const target = repoFlag ? await runtime.resolveRepoRoot(repoFlag) : null
     const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
+    // Throws when `--repo` itself does not resolve, and carries the task
+    // repos it could not resolve into the response — an empty `tasks` list
+    // beside a non-empty `unresolvableRepos` is NOT "nothing is running".
+    const filter = repoFlag
+      ? await repoFilter(
+          runtime,
+          repoFlag,
+          tasks.map((t) => t.repo),
+        )
+      : null
+    unresolvableRepos = filter?.unresolvableRepos ?? []
     taskIds = []
     for (const t of tasks) {
       if (groupFlag && t.groupId !== groupFlag) continue
-      if (target !== null && (await runtime.resolveRepoRoot(t.repo)) !== target) continue
+      if (filter && !filter.matches(t.repo)) continue
       taskIds.push(t.id)
     }
   } else {
@@ -59,13 +71,18 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
     // One liveness read serves both `running` and the per-tab list a
     // coordinator needs to pick a `send --tab tab-N` target without a
     // second get-task hop (same join as get-task).
-    const { tabs, running } = await runtime.taskTabs(taskId)
+    const { tabs, running } = await runtime.taskTabs(taskId, taskEngineArgv(task))
     // `changes` is the UNCOMMITTED view; `base` is the committed one (ahead
     // and behind counts + diffstat vs the merge-base). Both matter when
     // picking a parallel-round winner: an attempt that commits its work reads
     // +0/−0 here, and `base.behind` says whether it was building against a
     // base that has since moved.
-    const changes = task.worktreePath ? await runtime.readWorktreeChanges(task.worktreePath) : { added: 0, deleted: 0 }
+    //
+    // `null` when there is nothing to read (no worktree) or the read failed —
+    // the same honest-unknown `base` has always emitted beside it. Never
+    // `{0,0}`: this verb's summary tells the caller non-zero means the attempt
+    // cannot land, so a fabricated zero is a claim the caller acts on.
+    const changes = task.worktreePath ? await runtime.readWorktreeChanges(task.worktreePath) : null
     const base = task.worktreePath
       ? await runtime.readBranchSignals(task.worktreePath, task.baseRef)
       : { baseRef: null, ahead: null, behind: null, diff: null }
@@ -93,7 +110,7 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
       base,
     })
   }
-  return { tasks: out }
+  return { tasks: out, ...(unresolvableRepos.length > 0 ? { unresolvableRepos } : {}) }
 }
 
 export async function feedback(ctx: VerbContext): Promise<unknown> {

@@ -92,6 +92,22 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "d" },
   },
   {
+    // PROPOSED, awaiting owner sign-off (docs/design/keybinding-decisions.md).
+    // Shift+D → the whole worktree's diff in one tab: the "bigger d". Shadows
+    // nothing in the Files table, and the header chip does the same job with
+    // no chord at all, so the feature ships whatever the owner decides here.
+    //
+    // Spelled `shift+d`, not `"D"`: matchKey mints `shift+d` from Shift+D, so
+    // a bare uppercase key never matches — the same rule `sidebar.localMerge`
+    // records next door.
+    id: "files.diffAll",
+    scope: "files",
+    keys: ["shift+d"],
+    category: "Files",
+    description: "Open the whole worktree's diff in one workspace tab",
+    hint: { keys: "D" },
+  },
+  {
     id: "files.openExternal",
     scope: "files",
     keys: ["o"],
@@ -189,5 +205,27 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     category: "Diff review",
     description: "Send all unsent review notes to the engine",
     hint: { keys: "s" },
+  },
+  {
+    // The diff footer has always named six keys; the table carried four, so
+    // F1 listed four. These two close that gap rather than adding a chord:
+    // both have been registered and reachable since they landed
+    // (`x` in preview-review.tsx, `r` in preview.tsx).
+    id: "diff.review.drop",
+    scope: "workspace",
+    keys: [],
+    category: "Diff review",
+    description: "Drop the review note the cursor sits inside",
+    hint: { keys: "x" },
+  },
+  {
+    // Registered by the preview itself, not the review layer, so it is live
+    // on an image or binary preview too — hence "file", not "diff".
+    id: "diff.review.reload",
+    scope: "workspace",
+    keys: [],
+    category: "Diff review",
+    description: "Reload the previewed file from disk",
+    hint: { keys: "r" },
   },
 ]

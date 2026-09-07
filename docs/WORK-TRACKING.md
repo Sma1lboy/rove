@@ -12,8 +12,8 @@ rove work is tracked locally. There is no external issue tracker. Agents should 
 
 ## Issues / backlog: daemon issue store
 
-The daemon owns active issue state so web edits and agent automation see the
-same data from every worktree. Deliberately low-ceremony: no type taxonomy,
+The daemon owns active issue state so every worktree's agents and TUIs see the
+same data. Deliberately low-ceremony: no type taxonomy,
 just a `status`. The persisted daemon file is keyed by each repo's git
 common-dir, so the source checkout and its worktrees share one issue record:
 
@@ -34,10 +34,9 @@ common-dir, so the source checkout and its worktrees share one issue record:
 
 - **`status`**: `open` → `doing` → `done`, plus `hold` for issues parked on purpose (waiting on a decision, blocked, deliberately deferred). `hold` is a parking lot, not a lifecycle step. Resume by flipping back to `open`. Held issues stay visible in the active file like every other status. Status is still the only dimension; don't add label/type fields.
 - **`id`**: take `nextId`, then increment `nextId`. Ids are never reused.
-- **Adding**: use the web Issues page or `rove api issue-create --repo <path> --title ...`. The daemon stores the repo's issue record under the repo's git common-dir, so a source checkout and its task worktrees share the same issues.
+- **Adding**: `rove api issue-create --repo <path> --title ...`. The daemon stores the repo's issue record under the repo's git common-dir, so a source checkout and its task worktrees share the same issues.
 - **Closing**: flip `status` to `done`. Done issues stay visible in the Done column until a future archive/export flow exists.
 - **Agent automation**: use `rove api issue-list`, `rove api issue-create`, `rove api issue-set-status`, and `rove api issue-update`. From a task worktree, `--repo .` resolves to the same daemon issue record as the source checkout.
-- **Web panel**: the `rove web` dashboard's Issues page proxies `/api/issues` to daemon `issue.*` RPCs (status flips incl. `hold`, new issues, one-click quick-start of a Rove task from an issue).
 
 Code changes still land their user-facing line as a **Changeset** (see [`RELEASING.md`](./RELEASING.md)). Issues are the *backlog of what to do*, the changelog is the *record of what shipped*. They're different things; an issue often closes by landing a change that carries its own changeset.
 

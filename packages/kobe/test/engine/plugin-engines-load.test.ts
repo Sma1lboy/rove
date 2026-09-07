@@ -77,14 +77,14 @@ describe("loadPluginEngines", () => {
     expect(entry.displayName).toBe("Aider")
     // The manifest sets `input_placeholder`, a key the loader does not know:
     // it must register without throwing, and the field is simply absent.
-    expect(entry.identity).toEqual({ vendorId: "aider", shortName: "Aid" })
+    expect(entry.identity).toEqual({ shortName: "Aid" })
   })
 
   it("shortName falls back to the engine name when identity is absent", () => {
     const bare = MANIFEST.replace(/\[engines\.identity\][^\[]*/, "")
     homeWith([{ id: "acme.engines", root: pluginRoot(bare) }])
     expect(loadPluginEngines()).toEqual(["aider"])
-    expect(engineEntry("aider").identity).toEqual({ vendorId: "aider", shortName: "Aider" })
+    expect(engineEntry("aider").identity).toEqual({ shortName: "Aider" })
   })
 
   it("skips disabled plugins and unreadable manifests without throwing", () => {
@@ -99,5 +99,21 @@ describe("loadPluginEngines", () => {
   it("an empty registry registers nothing", () => {
     homeWith([])
     expect(loadPluginEngines()).toEqual([])
+  })
+
+  // A subcommand- or directory-positional CLI dies on its own first prompt
+  // under the "argv" default. The manifest key is the author's only fix, so it
+  // has to survive all three hops: TOML parse -> ContribEngineSpec -> registry.
+  it("carries first_message_delivery from the manifest to the registry entry", () => {
+    const paste = MANIFEST.replace('command = ["aider"]', 'command = ["aider"]\nfirst_message_delivery = "paste"')
+    homeWith([{ id: "acme.engines", root: pluginRoot(paste) }])
+    expect(loadPluginEngines()).toEqual(["aider"])
+    expect(engineEntry("aider").firstMessageDelivery).toBe("paste")
+  })
+
+  it("omitting first_message_delivery leaves the registry's argv default", () => {
+    homeWith([{ id: "acme.engines", root: pluginRoot(MANIFEST) }])
+    expect(loadPluginEngines()).toEqual(["aider"])
+    expect(engineEntry("aider").firstMessageDelivery).toBeUndefined()
   })
 })

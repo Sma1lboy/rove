@@ -54,6 +54,27 @@ tricks — rejected as not worth it, same call as the original daemon doc).
   starts a fresh conversation (a `--resume` of a never-conversed id errors
   hard; the snapshot only records ids of sessions that started).
 
+## Guarded cleanup
+
+New hosts expose `generation` on each `pty.list` row. This token identifies
+that host's current in-memory session lifetime: restore and every child start
+create a fresh UUID, including respawn in the same Session object and a
+same-key kill/reopen. Ordinary attach and detach retain it. The token is not
+written to the freeze format, so restarting the host invalidates old inventory.
+
+The wire-level `pty.kill` request accepts optional `expectedGeneration`; this
+is not a CLI flag. The host compares it and kills in one synchronous decision.
+A match returns `{ killed: true }`; a missing session returns
+`{ killed: false, reason: "missing-session" }`, and an absent or different
+session token returns `{ killed: false, reason: "generation-mismatch" }`.
+Omitting the guard preserves the existing unconditional kill and its response.
+
+The daemon janitor first lists sessions, then reads the latest task inventory.
+It sends guarded kills only for observed orphans, refreshing tasks after each
+await. A same-key replacement or host restart therefore makes an old kill a
+no-op. An older host without tokens is skipped with a diagnostic; its sessions
+must not be deleted using an unverifiable generation.
+
 ## Boundaries kept
 
 - The host stays vendor-neutral: it persists and re-runs launch lines; the

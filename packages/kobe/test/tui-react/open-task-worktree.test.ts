@@ -62,7 +62,7 @@ describe("requestTaskWorktreeOpen", () => {
 
     await requestTaskWorktreeOpen("task-1", options)
 
-    expect(options.notifyError).toHaveBeenCalledWith("Couldn't create worktree: disk full")
+    expect(options.notifyError).toHaveBeenCalledWith("Couldn't create the worktree: disk full")
     expect(mocks.openWorktree).not.toHaveBeenCalled()
   })
 

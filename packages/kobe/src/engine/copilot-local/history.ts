@@ -107,8 +107,11 @@ export async function readHistoryWithMetrics(
   return { messages: state.messages, ...(state.usageMetrics ? { usageMetrics: state.usageMetrics } : {}) }
 }
 
-export async function readHistory(sessionId: string, deps: CopilotHistoryDeps = defaultDeps): Promise<Message[]> {
-  return (await readHistoryWithMetrics(sessionId, deps)).messages as Message[]
+export async function readHistory(
+  sessionId: string,
+  deps: CopilotHistoryDeps = defaultDeps,
+): Promise<readonly Message[]> {
+  return (await readHistoryWithMetrics(sessionId, deps)).messages
 }
 
 export async function deleteHistory(sessionId: string, deps: CopilotHistoryDeps = defaultDeps): Promise<void> {
@@ -173,7 +176,7 @@ export function parseWorkspaceYaml(raw: string): CopilotWorkspaceMeta {
 export function parseEvents(
   raw: string,
   fallbackSessionId: string,
-): { messages: Message[]; usageMetrics?: EngineUsageSnapshot; firstUserMessage?: string | null } {
+): { messages: readonly Message[]; usageMetrics?: EngineUsageSnapshot; firstUserMessage?: string | null } {
   const state = foldEvents(raw, initialParseState(fallbackSessionId))
   return { messages: state.messages, usageMetrics: state.usageMetrics, firstUserMessage: state.firstUserMessage }
 }
@@ -181,15 +184,13 @@ export function parseEvents(
 /**
  * Fold state for `events.jsonl` parsing. Unlike claude/codex, the copilot
  * event stream is NOT line-local: `session.start` sets the sessionId for
- * everything after it, tool names are resolved from an earlier
- * `tool.execution_start`, and firstUserMessage/usage are first/last-wins.
+ * everything after it, firstUserMessage/usage are first/last-wins.
  * The append-aware cache therefore snapshots this whole fold state at the
  * cached prefix boundary, so folding an appended slice onto it reproduces
  * a full parse exactly.
  */
 interface CopilotParseState {
-  readonly messages: Message[]
-  readonly toolNameById: ReadonlyMap<string, string>
+  readonly messages: readonly Message[]
   readonly sessionId: string
   readonly usageMetrics: EngineUsageSnapshot | undefined
   readonly firstUserMessage: string | null
@@ -198,7 +199,6 @@ interface CopilotParseState {
 function initialParseState(fallbackSessionId: string): CopilotParseState {
   return {
     messages: [],
-    toolNameById: new Map(),
     sessionId: fallbackSessionId,
     usageMetrics: undefined,
     firstUserMessage: null,
@@ -212,8 +212,11 @@ const eventsCache = createAppendParseCache<CopilotParseState, string>({
 
 /** Fold event lines onto `prev` without mutating it (cache contract). */
 function foldEvents(raw: string, prev: CopilotParseState): CopilotParseState {
-  const messages = prev.messages.slice()
-  const toolNameById = new Map(prev.toolNameById)
+  let updatedMessages: Message[] | undefined
+  const appendMessage = (message: Message) => {
+    updatedMessages ??= [...prev.messages]
+    updatedMessages.push(message)
+  }
   let sessionId = prev.sessionId
   let usageMetrics = prev.usageMetrics
   let firstUserMessage = prev.firstUserMessage
@@ -245,7 +248,7 @@ function foldEvents(raw: string, prev: CopilotParseState): CopilotParseState {
       // buffer, so a 200-char preview would otherwise pin the full message
       // text for as long as a caller retains the preview.
       if (!firstUserMessage) firstUserMessage = Buffer.from(text.slice(0, PREVIEW_CHAR_CAP), "utf8").toString("utf8")
-      messages.push({ role: "user", blocks: [{ type: "text", text }], timestamp, sessionId })
+      appendMessage({ role: "user", blocks: [{ type: "text", text }], timestamp, sessionId })
       continue
     }
 
@@ -261,23 +264,15 @@ function foldEvents(raw: string, prev: CopilotParseState): CopilotParseState {
         const name = typeof req.name === "string" ? req.name : typeof req.toolName === "string" ? req.toolName : "tool"
         blocks.push({ type: "tool_call", callId, name, input: req.arguments ?? {} })
       }
-      if (blocks.length > 0) messages.push({ role: "assistant", blocks, timestamp, sessionId })
-      continue
-    }
-
-    if (record.type === "tool.execution_start") {
-      const callId = typeof data.toolCallId === "string" ? data.toolCallId : undefined
-      const name = typeof data.toolName === "string" ? data.toolName : "tool"
-      if (callId) toolNameById.set(callId, name)
+      if (blocks.length > 0) appendMessage({ role: "assistant", blocks, timestamp, sessionId })
       continue
     }
 
     if (record.type === "tool.execution_complete") {
       const callId = typeof data.toolCallId === "string" ? data.toolCallId : undefined
       if (!callId) continue
-      const name = toolNameById.get(callId) ?? (typeof data.toolName === "string" ? data.toolName : "tool")
       const output = data.result ?? (data.success === false ? { success: false } : undefined)
-      messages.push({
+      appendMessage({
         role: "assistant",
         blocks: [{ type: "tool_result", callId, output, isError: data.success === false }],
         timestamp,
@@ -291,7 +286,7 @@ function foldEvents(raw: string, prev: CopilotParseState): CopilotParseState {
     }
   }
 
-  return { messages, toolNameById, sessionId, usageMetrics, firstUserMessage }
+  return { messages: updatedMessages ?? prev.messages, sessionId, usageMetrics, firstUserMessage }
 }
 
 const PREVIEW_CHAR_CAP = 200

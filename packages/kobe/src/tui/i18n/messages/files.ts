@@ -13,6 +13,8 @@ export const en = {
   actions: {
     zen: "Zen",
     createPR: "Ask agent to create PR",
+    /** Chip on the Changes tab — the whole worktree's diff in one tab. */
+    diffAll: "[D] diff everything",
   },
   legend: {
     changes: "M modified · A added · D deleted · ? untracked",
@@ -21,6 +23,9 @@ export const en = {
     working: "scope: working tree",
     branch: "scope: vs {base}",
     toggleHint: "b to toggle",
+    /** Stated in place of the toggle hint when no base ref resolved: Branch
+     *  scope is unreachable, and a silent `b` reads as a broken key. */
+    noBase: "no base ref for branch scope (no origin/HEAD, main or master)",
   },
   empty: {
     noTask: "(no task — press n to create)",
@@ -28,11 +33,16 @@ export const en = {
     noChanges: "(no changes — clean worktree)",
   },
   error: {
+    /** Only rendered for the two kinds `r` can actually resolve — see
+     *  {@link gitErrorIsRetryable}. */
     retryHint: "press r to retry",
-    notGitRepo: "not a git repository",
-    pathMissing: "worktree path is missing",
-    permissionDenied: "permission denied",
-    gitNotInstalled: "git is not installed",
+    notGitRepo: "not a git repository — run `git init` here, or open a task in a repo",
+    // Matches `tasks.toast.worktreeGoneBody`, which prescribes the same
+    // recovery for the same condition.
+    pathMissing: "the worktree directory is gone — reopen the task to re-create it",
+    permissionDenied: "permission denied reading the worktree — check the directory's owner and mode",
+    // Wording aligned with `doctor.fix.git` / `doctor.fix.gitAction`.
+    gitNotInstalled: "git is not on PATH — install it with your OS package manager",
     gitFailed: "git command failed",
   },
   toast: {
@@ -40,6 +50,7 @@ export const en = {
     /** `gh` unavailable, the run expired, or the checks went green while the
      *  menu was open — better than pasting a prompt with no evidence in it. */
     ciNoFailingChecks: "No failing check logs to read — the run may have expired, or the checks are no longer red",
+    ciChecksUnavailable: "gh could not read this PR's checks: {detail}",
   },
 }
 
@@ -53,6 +64,7 @@ export const zh: typeof en = {
   actions: {
     zen: "专注模式",
     createPR: "让 agent 创建 PR",
+    diffAll: "[D] 查看全部改动",
   },
   legend: {
     changes: "M 已修改 · A 已添加 · D 已删除 · ? 未跟踪",
@@ -61,6 +73,7 @@ export const zh: typeof en = {
     working: "范围：工作区改动",
     branch: "范围：对比 {base}",
     toggleHint: "按 b 切换",
+    noBase: "分支范围没有基准 ref（没有 origin/HEAD、main 或 master）",
   },
   empty: {
     noTask: "（暂无任务 — 按 n 创建）",
@@ -69,14 +82,15 @@ export const zh: typeof en = {
   },
   error: {
     retryHint: "按 r 重试",
-    notGitRepo: "不是 git 仓库",
-    pathMissing: "worktree 路径不存在",
-    permissionDenied: "权限不足",
-    gitNotInstalled: "未安装 git",
+    notGitRepo: "不是 git 仓库——在这里执行 `git init`，或改为打开仓库里的任务",
+    pathMissing: "worktree 目录已不存在——重新打开该任务会重建它",
+    permissionDenied: "读取 worktree 时权限不足——请检查该目录的属主和权限",
+    gitNotInstalled: "PATH 上找不到 git——请用系统包管理器安装",
     gitFailed: "git 命令失败",
   },
   toast: {
     prOnTargetBranch: "当前就在目标分支（{branch}）— 请在任务分支上让 agent 创建 PR",
     ciNoFailingChecks: "没有可读的失败检查日志——运行记录可能已过期，或检查已不再是红的",
+    ciChecksUnavailable: "gh 读不到这个 PR 的检查状态：{detail}",
   },
 }

@@ -25,6 +25,7 @@ export type TreeNode = {
  */
 export function buildTree(paths: readonly string[]): TreeNode {
   const root: TreeNode = { name: "", path: "", isDir: true, children: [] }
+  const indexes = new Map<TreeNode, Map<string, TreeNode>>()
   for (const p of paths) {
     if (!p) continue
     const segs = p.split("/").filter((s) => s.length > 0)
@@ -34,7 +35,13 @@ export function buildTree(paths: readonly string[]): TreeNode {
       const seg = segs[i] as string
       const isLast = i === segs.length - 1
       const isDir = !isLast
-      let child = cur.children.find((c) => c.name === seg && c.isDir === isDir)
+      let index = indexes.get(cur)
+      if (!index) {
+        index = new Map()
+        indexes.set(cur, index)
+      }
+      const key = `${isDir ? "d" : "f"}:${seg}`
+      let child = index.get(key)
       if (!child) {
         child = {
           name: seg,
@@ -43,6 +50,7 @@ export function buildTree(paths: readonly string[]): TreeNode {
           children: [],
         }
         cur.children.push(child)
+        index.set(key, child)
       }
       cur = child
     }

@@ -11,6 +11,8 @@
  */
 
 import { useCallback, useState } from "react"
+import { formatChord } from "../../../tui/lib/chord-glyphs"
+import { legendCap } from "../../../tui/lib/help-groups"
 import type { TreeRow } from "../../../tui/panes/sidebar/tree-core"
 import { type TreeMenuAction, type TreeMenuContext, treeMenuItems } from "../../../tui/panes/sidebar/tree-menu"
 import { useT } from "../../i18n"
@@ -52,6 +54,13 @@ export interface TreeMenuDeps {
   readonly actions: SidebarTaskCallbacks
 }
 
+/** The chord an entry advertises, or `undefined` for a menu-only verb. */
+function menuCap(bindingId: string | undefined): string | undefined {
+  if (!bindingId) return undefined
+  const cap = legendCap(bindingId)
+  return cap ? formatChord(cap) : undefined
+}
+
 interface OpenMenu {
   readonly row: TreeRow
   readonly actions: readonly TreeMenuAction[]
@@ -72,7 +81,16 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
       setMenu({
         row,
         actions: items.map((item) => item.action),
-        entries: items.map((item) => ({ id: item.action, label: t(item.labelKey), danger: item.danger })),
+        // Caps resolve at OPEN time, from the live keymap — the menu is
+        // transient, so there is nothing to re-render on a mid-menu rebind,
+        // and `legendCap` already drops an unbound or unknown id to `null`
+        // rather than advertising a dead chord.
+        entries: items.map((item) => ({
+          id: item.action,
+          label: t(item.labelKey),
+          danger: item.danger,
+          cap: menuCap(item.bindingId),
+        })),
         x,
         y,
       })

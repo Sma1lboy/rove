@@ -13,7 +13,7 @@
 import type { PtyChild, PtyDriver, PtyExit } from "@sma1lboy/kobe-daemon/daemon/pty-driver"
 import type { FrozenPtySession, PtyFreezeSink } from "@sma1lboy/kobe-daemon/daemon/pty-freeze-store"
 import { PtyHost } from "@sma1lboy/kobe-daemon/daemon/pty-host"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 class FakeChild {
   static nextPid = 1000
@@ -48,6 +48,9 @@ interface Harness {
   host: PtyHost
   children: FakeChild[]
   saved: Map<string, FrozenPtySession>
+  /** Every save the host asked for, in order — `saved` only keeps the last
+   *  per key, and the freeze gate is about HOW OFTEN a write happens. */
+  writes: FrozenPtySession[]
   requests: Array<{ argv: readonly string[]; cwd: string }>
   failNextSpawn: () => void
 }
@@ -55,6 +58,7 @@ interface Harness {
 function harness(): Harness {
   const children: FakeChild[] = []
   const saved = new Map<string, FrozenPtySession>()
+  const writes: FrozenPtySession[] = []
   const requests: Array<{ argv: readonly string[]; cwd: string }> = []
   let failSpawn = false
   const driver: PtyDriver = (request) => {
@@ -68,12 +72,16 @@ function harness(): Harness {
     return child as unknown as PtyChild
   }
   const freeze: PtyFreezeSink = {
-    save: (record) => saved.set(record.key, record),
+    save: (record) => {
+      writes.push(record)
+      saved.set(record.key, record)
+    },
     drop: (key) => saved.delete(key),
   }
   return {
     children,
     saved,
+    writes,
     requests,
     failNextSpawn: () => {
       failSpawn = true
@@ -105,6 +113,52 @@ describe("PtyHost freeze/restore", () => {
 
     h.host.flushFrozen()
     expect(replayText(h.saved.get("t1::tab-1")?.ringB64 ?? "")).toContain("two")
+  })
+
+  it("periodic freezes follow appended bytes, not the 5s floor alone", () => {
+    // Each freeze rewrites the WHOLE ring (~683KB of base64 at the 512KB
+    // cap), so writing on the 5s floor alone cost 683KB per ~4KB an engine
+    // actually printed. Measured before this gate: 2.3 MB/s across 18
+    // working sessions, 0.17 TB a day.
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date("2026-01-01T00:00:00Z"))
+      const h = harness()
+      h.host.open("t1::tab-1", SPEC, TOKEN, SINK)
+      h.children[0].write("boot")
+      expect(h.writes.length).toBe(1)
+
+      // Six 10s rounds of a 1KB trickle — a real engine repainting its
+      // status line. Every round clears the 5s floor; none reaches 64KB, so
+      // only the 60s staleness cap writes, once.
+      for (let i = 0; i < 6; i++) {
+        vi.setSystemTime(Date.now() + 10_000)
+        h.children[0].write("x".repeat(1024))
+      }
+      expect(h.writes.length).toBe(2)
+
+      // A session that really does produce 64KB is not throttled by the
+      // gate: it writes on the next chunk past the floor, as before.
+      vi.setSystemTime(Date.now() + 10_000)
+      h.children[0].write("y".repeat(64 * 1024))
+      expect(h.writes.length).toBe(3)
+
+      // The counter resets on every write, so a trickle AFTER a burst is
+      // throttled again — without that reset one big chunk would put the
+      // session back on the 5s floor for the rest of its life.
+      vi.setSystemTime(Date.now() + 10_000)
+      h.children[0].write("z".repeat(1024))
+      expect(h.writes.length).toBe(3)
+
+      // Nothing appended since — a forced flush still writes (an exit
+      // record is a change the byte counter cannot see), a periodic one
+      // does not.
+      vi.setSystemTime(Date.now() + 120_000)
+      h.host.flushFrozen()
+      expect(h.writes.length).toBe(4)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("a thawed corpse respawns IN PLACE on open: ring kept, caller spec wins", () => {

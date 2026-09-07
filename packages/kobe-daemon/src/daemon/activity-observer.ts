@@ -34,17 +34,17 @@
  *
  * Findings fold into the registry via `observeTab` (hook events outrank
  * observation; only a stale hook `running` is ever corrected — see there).
+ * The loop runs on a SLOW lane when nothing is subscribed rather than
+ * stopping: an agent fleet never attaches a TUI, and gating the walk on a
+ * subscriber made the death edge invisible to precisely the caller that
+ * cannot look at a screen.
  * The FIRST tick runs immediately and includes a walk, so a daemon restart
  * re-seeds busy sessions' dots within seconds instead of at the next
  * turn boundary.
  */
 
-import { KobeDaemonClient } from "../client/index.ts"
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import { logDaemonInfo } from "./crash-log.ts"
-import { defaultPtyExitsPath, defaultPtyHostSocketPath } from "./paths.ts"
-import { recordEngineExit } from "./pty-exit-store.ts"
-import type { DaemonRuntimeAdapter } from "./runtime.ts"
 
 /** Poll cadence — bounds state-flip latency; `pty.list` is one local RPC. */
 export const DEFAULT_OBSERVER_POLL_MS = 10_000
@@ -57,6 +57,18 @@ export const DEFAULT_OBSERVER_POLL_MS = 10_000
 export const DEFAULT_SILENCE_MS = 30_000
 /** Walk cadence in ticks (~60s at the default poll — the foreground reconciler). */
 export const DEFAULT_WALK_EVERY_TICKS = 6
+/**
+ * Tick cadence for the UNSUBSCRIBED lane (~60s at the default poll). The
+ * subscriber gate is a cost control for a parked daemon, not a correctness
+ * boundary: skipping the tick outright also skipped the engine-death edge,
+ * which is the only place an engine dying inside a live PTY is observable —
+ * so every headless caller (an agent fleet has no attached TUI, by
+ * definition) got `.activity: null` and zero `layer:"engine"` records while
+ * engines died in front of it. The slow lane restores the fact and keeps the
+ * saving: one `pty.list` a minute, and a host owning no live sessions still
+ * does no per-session work.
+ */
+export const DEFAULT_UNSUBSCRIBED_EVERY_TICKS = 6
 /**
  * Never correct a hook-claimed `running` younger than this: at a turn
  * boundary the title/output evidence can trail the hook by one poll, and a
@@ -93,20 +105,34 @@ export interface ActivityObserverIo {
     taskId: string,
     tabId: string,
     evidence: { readonly walkVendor: string | null; readonly title: string },
-  ): void
+  ): void | Promise<void>
   /**
    * An engine vanished from a session whose PTY is STILL ALIVE — the blind
    * spot the PTY-layer exit hook cannot see. Fired once per transition
    * (vendor → no-engine), never on a repeat poll and never for a session
    * that was never walked with an engine. Optional.
    */
-  onEngineExit?(info: { taskId: string; tabId: string; vendor: string; pid: number | null }): void
+  onEngineExit?(info: { taskId: string; tabId: string; vendor: string; pid: number | null }): void | Promise<void>
+  /**
+   * A live session had NO engine on the FIRST walk this daemon ever ran —
+   * so there is no vendor→null edge to fire, and anything that died in there
+   * died while nobody was watching (this daemon was restarted, or was down
+   * entirely). Fired once per pre-existing session, only on the boot walk.
+   *
+   * The loop cannot tell that apart from a tab whose engine was never
+   * started; the consumer owns that judgement (it reads the session's ring).
+   * Optional.
+   */
+  onEngineAbsentAtStart?(info: { taskId: string; tabId: string }): void | Promise<void>
 }
 
 export interface ActivityObserverOptions {
   readonly pollMs?: number
   readonly silenceMs?: number
   readonly walkEveryTicks?: number
+  /** Tick cadence when nothing is subscribed. See
+   *  {@link DEFAULT_UNSUBSCRIBED_EVERY_TICKS}; 1 makes every tick run. */
+  readonly unsubscribedEveryTicks?: number
   readonly correctAfterMs?: number
   readonly log?: (event: string, message: string) => void
 }
@@ -133,23 +159,35 @@ interface SessionTrack {
 
 /**
  * Start the observer loop. First tick fires immediately (with a walk, which
- * is the restart seeding); per-tick work is gated on `hasSubscribers` like the
- * other collectors, so a parked daemon polls nobody. Returns stop().
+ * is the restart seeding). `hasSubscribers` chooses the CADENCE, not whether
+ * the loop runs: subscribed = every tick, unsubscribed = every
+ * `unsubscribedEveryTicks`. A parked daemon whose host owns no live sessions
+ * still does no per-session work either way. Returns stop().
  */
 export function startActivityObserver(
   activity: DaemonActivityRegistry,
   io: ActivityObserverIo,
   hasSubscribers: () => boolean,
   options: ActivityObserverOptions = {},
-): () => void {
+): () => Promise<void> {
   const pollMs = options.pollMs ?? DEFAULT_OBSERVER_POLL_MS
   const silenceMs = options.silenceMs ?? DEFAULT_SILENCE_MS
   const walkEvery = Math.max(1, options.walkEveryTicks ?? DEFAULT_WALK_EVERY_TICKS)
+  const unsubscribedEvery = Math.max(1, options.unsubscribedEveryTicks ?? DEFAULT_UNSUBSCRIBED_EVERY_TICKS)
   const correctAfterMs = options.correctAfterMs ?? DEFAULT_CORRECT_AFTER_MS
   const log = options.log ?? logDaemonInfo
   const tracks = new Map<string, SessionTrack>()
   let tickCount = 0
-  let inFlight = false
+  let unsubscribedTicks = 0
+  let inFlight: Promise<void> | undefined
+  let stopped = false
+  /** Has a walk ever RESOLVED verdicts in this process. Gates the boot
+   *  reconciliation below to the first one — every session listed then
+   *  predates this daemon, which is exactly what makes "no engine, never
+   *  walked" mean "it died before we existed" rather than "it is starting".
+   *  Not `tickCount === 0`: an unreachable host on the first tick must not
+   *  burn the boot walk. */
+  let bootWalkDone = false
 
   const applyRest = (track: Pick<SessionTrack, "taskId" | "tabId" | "vendor">, why: string): void => {
     const outcome = activity.observeTab(track.taskId, track.tabId, "rest", {
@@ -162,13 +200,21 @@ export function startActivityObserver(
   }
 
   const tick = async (): Promise<void> => {
-    if (inFlight) return
-    inFlight = true
+    const effects: Array<void | Promise<void>> = []
     try {
-      if (!hasSubscribers()) return
-      const walkTick = tickCount % walkEvery === 0
+      // Two lanes, not a gate. A subscriber (an attached TUI wanting its dots
+      // now) gets every tick; nobody subscribed drops to
+      // `unsubscribedEvery` — which still runs the walk, because the
+      // engine-death edge below is the ONLY report of an engine dying inside
+      // a live PTY and a headless fleet is exactly who needs it. The saving
+      // survives: `listSessions` on a host owning nothing returns `[]` and
+      // every loop below is empty.
+      const subscribed = hasSubscribers()
+      if (!subscribed && unsubscribedTicks++ % unsubscribedEvery !== 0) return
+      const walkTick = !subscribed || tickCount % walkEvery === 0
       tickCount++
       const listed = await io.listSessions()
+      if (stopped) return
       if (listed === null) {
         // Host unreachable — maybe restarting, maybe gone. That is NOT
         // positive evidence against hook claims, so only retire what this
@@ -245,6 +291,9 @@ export function startActivityObserver(
             .map((t) => pidByKey.get(`${t.taskId}::${t.tabId}`))
             .filter((pid): pid is number => pid !== undefined)
           const verdicts = await io.foregroundEngines(pids)
+          if (stopped) return
+          const bootWalk = !bootWalkDone
+          bootWalkDone = true
           for (const track of toWalk) {
             const pid = pidByKey.get(`${track.taskId}::${track.tabId}`)
             if (pid === undefined || !verdicts.has(pid)) continue
@@ -256,12 +305,21 @@ export function startActivityObserver(
             // `enginePid` is the DEAD engine's pid, captured on the last
             // walk that still saw it (it is unresolvable now, by definition).
             if (found === null && typeof track.vendor === "string") {
-              io.onEngineExit?.({
-                taskId: track.taskId,
-                tabId: track.tabId,
-                vendor: track.vendor,
-                pid: track.enginePid,
-              })
+              effects.push(
+                io.onEngineExit?.({
+                  taskId: track.taskId,
+                  tabId: track.tabId,
+                  vendor: track.vendor,
+                  pid: track.enginePid,
+                }),
+              )
+            } else if (found === null && track.vendor === undefined && bootWalk) {
+              // No engine, and this daemon has never walked this session:
+              // there is no edge to fire and never will be, because the
+              // observer starts every track at `vendor: undefined`. Whatever
+              // ran in here died unwatched — hand it to the consumer, which
+              // owns the "did an engine actually die" evidence.
+              effects.push(io.onEngineAbsentAtStart?.({ taskId: track.taskId, tabId: track.tabId }))
             }
             track.vendor = found?.vendor ?? null
             track.enginePid = found?.pid ?? null
@@ -272,6 +330,7 @@ export function startActivityObserver(
         }
       }
 
+      if (stopped) return
       // Claims. Walk evidence gates everything: an unwalked session gets no
       // claim at all (conservative — absence of knowledge is the client's
       // "unknown", not idle). With a walked vendor, precedence is: a
@@ -285,7 +344,9 @@ export function startActivityObserver(
         const key = `${track.taskId}::${track.tabId}`
         const session = sessions.find((s) => s.key === key)
         if (!session || track.vendor === undefined) continue
-        io.onEngineEvidence?.(track.taskId, track.tabId, { walkVendor: track.vendor, title: session.title })
+        effects.push(
+          io.onEngineEvidence?.(track.taskId, track.tabId, { walkVendor: track.vendor, title: session.title }),
+        )
         if (track.vendor === null) {
           // The engine is gone from this session's foreground. That is
           // positive evidence against a live claim, so a stale hook `running`
@@ -316,72 +377,22 @@ export function startActivityObserver(
     } catch {
       // Observation is best-effort; a failed tick must never hurt the daemon.
     } finally {
-      inFlight = false
+      await Promise.allSettled(effects)
     }
   }
 
-  void tick()
-  const timer = setInterval(() => void tick(), pollMs)
+  const schedule = (): void => {
+    if (stopped || inFlight) return
+    inFlight = tick().finally(() => {
+      inFlight = undefined
+    })
+  }
+  schedule()
+  const timer = setInterval(schedule, pollMs)
   timer.unref?.()
-  return () => clearInterval(timer)
-}
-
-/**
- * Production IO: `pty.list` against the standalone pty host's socket
- * (NEVER spawns one; unreachable reads as null — same contract as
- * `ptyHostHasLiveSessions`), walk + title vocabulary via the injected
- * runtime adapter (engine knowledge stays kobe-owned).
- */
-export function createActivityObserverIo(
-  homeDir: string | undefined,
-  runtime: Pick<DaemonRuntimeAdapter, "foregroundEngines" | "titleTurnHint">,
-): ActivityObserverIo {
-  const peek = async (key: string): Promise<string> => {
-    const client = new KobeDaemonClient(defaultPtyHostSocketPath(homeDir))
-    try {
-      await client.connect()
-      const result = await client.request<{ data?: string }>("pty.peek", { key })
-      return Buffer.from(result.data ?? "", "base64").toString("utf8")
-    } catch {
-      return ""
-    } finally {
-      client.close()
-    }
-  }
-  return {
-    // The engine died inside a living PTY: grab that PTY's tail (the
-    // provider error / usage-limit line lives there) and persist a record
-    // the PTY-layer hook would never write. Best-effort by contract.
-    onEngineExit({ taskId, tabId, vendor, pid }) {
-      const key = `${taskId}::${tabId}`
-      void peek(key)
-        .then((tail) =>
-          recordEngineExit({ key, vendor, pid, at: new Date().toISOString(), tail }, defaultPtyExitsPath(homeDir)),
-        )
-        .catch((err) => logDaemonInfo("engine-exit", `record failed for ${key}: ${String(err)}`))
-      logDaemonInfo("engine-exit", `${vendor} (pid ${pid ?? "?"}) gone from live session ${key}`)
-    },
-    async listSessions() {
-      const client = new KobeDaemonClient(defaultPtyHostSocketPath(homeDir))
-      try {
-        await client.connect()
-        const result = await client.request<{
-          sessions?: Array<{ key?: string; alive?: boolean; pid?: number | null; title?: string; totalBytes?: number }>
-        }>("pty.list")
-        return (result.sessions ?? []).map((s) => ({
-          key: s.key ?? "",
-          alive: s.alive === true,
-          pid: typeof s.pid === "number" ? s.pid : null,
-          title: typeof s.title === "string" ? s.title : "",
-          totalBytes: typeof s.totalBytes === "number" ? s.totalBytes : 0,
-        }))
-      } catch {
-        return null
-      } finally {
-        client.close()
-      }
-    },
-    foregroundEngines: (pids) => runtime.foregroundEngines(pids),
-    titleTurnHint: (vendor, title) => runtime.titleTurnHint(vendor, title),
+  return async () => {
+    stopped = true
+    clearInterval(timer)
+    await inFlight
   }
 }

@@ -24,16 +24,30 @@ export interface WriteJsonAtomicOptions {
   compact?: boolean
 }
 
+/**
+ * The tmp+rename on its own, for the runtime files that are not JSON: the
+ * daemon and PTY-host pidfiles.
+ *
+ * `writeFile` truncates before it writes, so an interrupted write leaves an
+ * EMPTY file — and an empty pidfile is not merely unreadable, it parses as
+ * pid `0`, which `kill` reads as the caller's own process group. Every other
+ * file-backed store here already renames into place; the pidfile was the
+ * exception, and the one whose torn state is dangerous rather than annoying.
+ */
+export async function writeTextAtomic(path: string, text: string, mode?: number): Promise<void> {
+  await mkdir(dirname(path), { recursive: true })
+  const tmp = `${path}.tmp-${process.pid}-${randomUUID()}`
+  await writeFile(tmp, text, { encoding: "utf8", mode })
+  await rename(tmp, path)
+}
+
 export async function writeJsonAtomic(
   path: string,
   body: unknown,
   { mode, compact = false }: WriteJsonAtomicOptions = {},
 ): Promise<void> {
-  await mkdir(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp-${process.pid}-${randomUUID()}`
   const text = compact ? JSON.stringify(body) : JSON.stringify(body, null, 2)
-  await writeFile(tmp, `${text}\n`, { encoding: "utf8", mode })
-  await rename(tmp, path)
+  await writeTextAtomic(path, `${text}\n`, mode)
 }
 
 const locks = new Map<string, Promise<unknown>>()
@@ -51,6 +65,13 @@ const locks = new Map<string, Promise<unknown>>()
  * must not wedge the queue for every later caller — and the map entry is
  * dropped once nobody is behind it, so a long-lived daemon does not accumulate
  * an entry per file it has ever touched.
+ *
+ * `fn` must NOT return a promise as its value. `tail.then(fn)` adopts whatever
+ * `fn` resolves to, so a returned promise extends the slot until that promise
+ * settles and every later caller queues behind it. TypeScript cannot catch
+ * this — `async () => somePromise` is typed `Promise<T>`, not `Promise<
+ * Promise<T>>`. To hand a promise back to the caller, wrap it (`[done]`,
+ * `{ done }`) and await it OUTSIDE the queue.
  */
 export function serialized<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const tail = locks.get(key) ?? Promise.resolve()

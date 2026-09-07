@@ -1,10 +1,11 @@
 /** @jsxImportSource @opentui/react */
 /** Real-render coverage for the prefix guide and its F1 reference view. */
 
-import { afterEach, describe, expect, it } from "bun:test"
+import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { displayWidth } from "../../src/lib/display-width"
 import { HelpDialog } from "../../src/tui-react/component/help-dialog"
 import { PrefixHud } from "../../src/tui-react/component/prefix-hud"
 import { ShortcutRevealProvider } from "../../src/tui-react/component/shortcut-reveal"
@@ -14,6 +15,7 @@ import { useDialog } from "../../src/tui-react/ui/dialog"
 import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keybindings"
 import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
 import { bindByIds } from "../../src/tui/context/keybindings"
+import { currentLang, setLocaleLang } from "../../src/tui/i18n"
 import { CTRL_HOLD_THRESHOLD_MS } from "../../src/tui/lib/ctrl-hold"
 import {
   PREFIX_GUIDE_DELAY_MS,
@@ -333,5 +335,51 @@ describe("which-key prefix guide", () => {
     const bottomBorderRow = rows.findIndex((row) => row.includes("╰"))
     expect(bottomBorderRow).toBeGreaterThan(overflowRow)
     expect(bottomBorderRow).toBeLessThan(height)
+  })
+})
+
+describe("the resolved-action feed against a CELL budget", () => {
+  /**
+   * Rove defaults to Simplified Chinese, so a wide label is the ordinary case
+   * for this row. The HUD's `width` is CELLS; a code-point truncator reads
+   * `ctrl+a + 2 → 打开例行任务（定时任务）` as 25 points against a 26 budget,
+   * returns it whole, and `wrapMode="none"` lets Yoga hard-cut it — the user
+   * gets a label ending in a dangling 「（」 with no ellipsis to say anything
+   * was dropped. The English twin clips cleanly at the same width, which is
+   * why an ASCII-only assertion cannot catch this.
+   */
+  const HUD_WIDTH = 28 // 26 cells of text between the 1-cell paddings
+
+  let restore = currentLang()
+  beforeEach(() => {
+    restore = currentLang()
+    act(() => resetPrefixHud())
+  })
+  afterEach(() => {
+    setLocaleLang(restore)
+    act(() => resetPrefixHud())
+  })
+
+  async function feedRow(lang: "en" | "zh"): Promise<string> {
+    setLocaleLang(lang)
+    prefixHudPush({ prefixKey: "ctrl+a", stroke: "2", action: "automations.open", at: Date.now() })
+    const { frame } = await renderComponent(<PrefixHud left={1} width={HUD_WIDTH} />, { width: 80, height: 24 })
+    const row = (await frame()).split("\n").find((line) => line.includes("ctrl+a + 2"))
+    if (row === undefined) throw new Error("no HUD row rendered")
+    return row
+  }
+
+  it("clips a Chinese label with an ellipsis inside its cell budget", async () => {
+    const row = await feedRow("zh")
+    expect(row).toContain("打开例行任务…")
+    // The tail the code-point truncator kept, and Yoga then sheared off.
+    expect(row).not.toContain("定时任务）")
+    expect(displayWidth(row.trim())).toBeLessThanOrEqual(HUD_WIDTH - 2)
+  })
+
+  it("still clips the English label the same way", async () => {
+    const row = await feedRow("en")
+    expect(row).toContain("Open routine…")
+    expect(displayWidth(row.trim())).toBeLessThanOrEqual(HUD_WIDTH - 2)
   })
 })

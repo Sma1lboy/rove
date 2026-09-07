@@ -25,7 +25,12 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
     // adapter, older daemon); an unmatched cwd (an unrelated repo, a
     // project with no kobe task) is silently dropped.
     const kind = requireString(payload, "kind")
-    if (!ctx.runtime.isEngineActivityKind(kind)) throw new Error(`unknown engine event kind: ${kind}`)
+    // `CODE: ` prefix (the daemon's only channel for a machine code — `name`
+    // does not survive the RPC wire), so a caller that mistypes a kind reads
+    // BAD_EVENT_KIND instead of a bare RPC_ERROR meaning "daemon failed, no
+    // reason given". `rove api engine-report` rejects it earlier, at the flag;
+    // this covers every other caller of the RPC.
+    if (!ctx.runtime.isEngineActivityKind(kind)) throw new Error(`BAD_EVENT_KIND: unknown engine event kind: ${kind}`)
     // `taskId` (legacy/direct) wins; otherwise resolve from `cwd`.
     const explicitId = optionalString(payload, "taskId")
     const cwd = optionalString(payload, "cwd")

@@ -55,11 +55,12 @@
  */
 
 import { errorMessage } from "@/lib/error-message"
+import { ensurePluginEnginesLoaded } from "../engine/plugin-engines.ts"
 import { takeIdentityWarning } from "./api/dispatcher.ts"
 import { VerbArgs, buildCountPlan, parseAgentsSpec, parseFlags, validateAgainstSpec } from "./api/flags.ts"
 import { defaultApiRuntime, deliverPrompt } from "./api/runtime.ts"
 import { API_SCHEMA_VERSION, apiUsage, fullSchema, schemaIndex, verbHelp, verbSchema } from "./api/schema.ts"
-import { ApiError } from "./api/types.ts"
+import { ApiError, splitDaemonCode } from "./api/types.ts"
 import type {
   ApiRuntime,
   DeliveredPrompt,
@@ -71,7 +72,7 @@ import type {
   VerbContext,
   VerbSpec,
 } from "./api/types.ts"
-import { API_VERBS, RETIRED_VERBS, VERBS, VERB_GROUPS, findVerb } from "./api/verbs.ts"
+import { API_VERBS, VERBS, VERB_GROUPS, findVerb, unknownVerbError } from "./api/verbs.ts"
 import { type DaemonSession, openDaemonSession } from "./daemon-session.ts"
 import type { DaemonRpc } from "./daemon-session.ts"
 
@@ -100,30 +101,22 @@ function makeContext(verb: VerbSpec, flags: Flags, client: DaemonRpc | null, run
   return { args: new VerbArgs(verb, flags), client, runtime }
 }
 
-const SCHEMA_STEP = {
-  hint: "list every valid verb + flag as JSON, then retry with a real verb",
-  nextCommandArgs: ["api", "schema"],
-} as const
-
 /**
- * The typed rejection for a verb name that does not resolve. A REMOVED verb
- * ({@link RETIRED_VERBS}) points at its replacement instead of the schema
- * index — an agent that learned `fan-out` from an older skill or a stale
- * transcript gets the exact argv for `add --count`, not a 40-verb dump to
- * re-derive it from.
+ * Codes the exit-code contract (docs/API.md) calls a USAGE error: the caller's
+ * argv is wrong, nothing was attempted. The pre-dispatch validators already
+ * exit 2 for these; a HANDLER that rejects its own arguments — `schema
+ * --verb nope`, `engine-report --detail 'not json'` — must not report a
+ * different number for the same class of mistake, or a script that branches on
+ * the exit code sees one typo as two different failures.
  */
-function unknownVerbError(verbName: string): ApiError {
-  const retired = RETIRED_VERBS[verbName]
-  if (retired) {
-    return new ApiError(`unknown verb: ${verbName} (removed)`, "UNKNOWN_VERB", {
-      hint: retired.hint,
-      nextCommandArgs: [...retired.nextCommandArgs],
-    })
-  }
-  // BAD_VERB (not UNKNOWN_VERB) for a name that never existed — the
-  // documented code for a typo'd verb, unchanged.
-  return new ApiError(`unknown verb: ${verbName}`, "BAD_VERB", SCHEMA_STEP)
-}
+const USAGE_ERROR_CODES: ReadonlySet<string> = new Set([
+  "BAD_VERB",
+  "UNKNOWN_VERB",
+  "BAD_FLAG",
+  "MISSING_FLAG",
+  "MISSING_VERB",
+  "BAD_DAEMON",
+])
 
 /**
  * Normalize any handler/RPC failure into an {@link ApiError} so the emitted
@@ -131,6 +124,14 @@ function unknownVerbError(verbName: string): ApiError {
  * unknown task id as a prose `task not found: <id>` RPC error — map it to a
  * typed `TASK_NOT_FOUND` with the recovery command, since a stale task id is
  * the single most common scripted-caller failure.
+ *
+ * Everything else that arrives already CODED gets that code lifted into the
+ * envelope rather than flattened to `RPC_ERROR`. The alternative — a
+ * pattern-per-code allowlist — is what let `delete`'s `DIRTY_WORKTREE`
+ * refusal, the one an unattended cleanup loop hits most, reach a caller as an
+ * untyped `RPC_ERROR` whose only discriminator was the prose. The prefix is
+ * stripped because the code now IS the `code` field; a caller that still
+ * string-matches reads `code`, which is the point.
  */
 export function toApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err
@@ -142,6 +143,8 @@ export function toApiError(err: unknown): ApiError {
     })
   }
   if (/unknown daemon request:/i.test(message)) return versionSkewError(message)
+  const coded = splitDaemonCode(message)
+  if (coded) return new ApiError(coded.rest, coded.code)
   return new ApiError(message, "RPC_ERROR")
 }
 
@@ -195,6 +198,10 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
     process.stdout.write(`${apiUsage()}\n`)
     return
   }
+  // Before any verb runs: `--command fake-coder` must resolve to the plugin's
+  // engine, not `generic`, or the created task loses the identity and screen
+  // rules `engine-list` just promised for that id.
+  ensurePluginEnginesLoaded()
   const verb = findVerb(verbName)
   if (!verb) {
     const err = unknownVerbError(verbName)
@@ -206,7 +213,7 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
   try {
     parsed = parseFlags(rest, booleanFlags)
   } catch (err) {
-    if (err instanceof ApiError) fail(err.message, err.code, 2)
+    if (err instanceof ApiError) fail(err.message, err.code, 2, err.data)
     fail(errorMessage(err), "BAD_FLAG", 2)
   }
 
@@ -218,7 +225,7 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
   try {
     validateAgainstSpec(verb, parsed.flags)
   } catch (err) {
-    if (err instanceof ApiError) fail(err.message, err.code, 2)
+    if (err instanceof ApiError) fail(err.message, err.code, 2, err.data)
     fail(errorMessage(err), "BAD_FLAG", 2)
   }
 
@@ -247,7 +254,7 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
       process.exit(3)
     }
     const apiErr = toApiError(err)
-    fail(apiErr.message, apiErr.code, 1, apiErr.data)
+    fail(apiErr.message, apiErr.code, USAGE_ERROR_CODES.has(apiErr.code) ? 2 : 1, apiErr.data)
   } finally {
     session?.close()
   }

@@ -15,7 +15,12 @@
 import { type ScrollBoxRenderable, TextAttributes } from "@opentui/core"
 import { useMemo, useRef } from "react"
 import { formatChord } from "../../tui/lib/chord-glyphs"
-import { type HelpGrammarSection, type HelpSurface, grammarHelpSections } from "../../tui/lib/help-groups"
+import {
+  type HelpGrammarSection,
+  type HelpSurface,
+  grammarHelpSections,
+  scopeCategory,
+} from "../../tui/lib/help-groups"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
 import type { BindingReachability } from "../../tui/lib/keymap-reachability"
 import { KobeKeymap, useKeymapVersion } from "../context/keybindings"
@@ -23,15 +28,6 @@ import { useTheme } from "../context/theme"
 import { tKeys, useT } from "../i18n"
 import { currentBindingReachability, useBindings } from "../lib/keymap"
 import { type DialogContext, useDialog, useDialogPaddingX } from "../ui/dialog"
-
-function scopeCategory(scope: HelpGrammarSection["scope"]): string {
-  if (!scope) return "Global"
-  if (scope === "sidebar") return "Sidebar"
-  if (scope === "workspace") return "Workspace"
-  if (scope === "files") return "Files"
-  if (scope === "terminal") return "Terminal"
-  return "Dialog"
-}
 
 function displayCap(cap: string): string {
   return cap
@@ -114,9 +110,19 @@ export function HelpDialog(props: {
             })}
           </text>
         </box>
-        <text fg={theme.textMuted} onMouseUp={close}>
-          {t("help.esc")}
-        </text>
+        {/* Corner, not a fourth header line: the fold this hint is about is
+            exactly what another header row would eat into. Always shown —
+            the keys work whether or not this particular list overflows, and
+            measuring the scrollbox needs post-layout state for a hint that
+            costs nothing when the content fits. */}
+        <box flexDirection="row" gap={2} flexShrink={0}>
+          <text fg={theme.textMuted} attributes={TextAttributes.DIM}>
+            {t("help.scrollKeys")}
+          </text>
+          <text fg={theme.textMuted} onMouseUp={close}>
+            {t("help.esc")}
+          </text>
+        </box>
       </box>
       {/* Long-content dialogs handle their own overflow: flexShrink={1}
           fits the dialog's maxHeight, the scrollbox owns the scrolling. */}

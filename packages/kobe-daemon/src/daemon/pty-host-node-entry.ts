@@ -16,6 +16,7 @@
 import { rotateLogIfNeeded } from "./log-rotate.ts"
 import { defaultPtyHostLogPath } from "./paths.ts"
 import { nodePtyDriver } from "./pty-driver.ts"
+import { formatPtyHostLine } from "./pty-host-log.ts"
 import { startPtyHostServer } from "./pty-server.ts"
 
 async function main(): Promise<void> {
@@ -26,16 +27,19 @@ async function main(): Promise<void> {
   // No installDaemonCrashHandlers(): that lives in the Bun-side crash-log
   // module. Keep the net local and dependency-free so this entry stays
   // node-clean.
-  process.on("uncaughtException", (err) => console.error(`[pty-host crash] ${err?.stack ?? String(err)}`))
-  process.on("unhandledRejection", (err) => console.error(`[pty-host reject] ${String(err)}`))
+  process.on("uncaughtException", (err) => console.error(formatPtyHostLine("crash", err?.stack ?? String(err))))
+  process.on("unhandledRejection", (err) => console.error(formatPtyHostLine("reject", String(err))))
 
   const driver = await nodePtyDriver()
   const server = await startPtyHostServer({
     driver,
-    log: (event, message) => console.log(`[pty-host ${event}] ${message}`),
+    log: (event, message) => console.log(formatPtyHostLine(event, message)),
+    // Windows spawns this host from a bundle that cannot see the CLI's
+    // package.json; the spawner stamps the version it is serving instead.
+    version: process.env.ROVE_PTY_HOST_VERSION,
     onStop: () => process.exit(0),
   })
-  console.log(`rove pty-host (node): listening on ${server.socketPath}`)
+  console.log(formatPtyHostLine("listen", `node host listening on ${server.socketPath}`))
 
   const shutdown = async (): Promise<void> => {
     await server.close()

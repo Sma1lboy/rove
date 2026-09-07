@@ -23,15 +23,14 @@
  */
 
 import { createHash } from "node:crypto"
-import { homedir } from "node:os"
 import { join } from "node:path"
 import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import {
-  LEGACY_KOBE_CONFIG_DIR_BASENAME,
-  LEGACY_KOBE_STATE_DIR_BASENAME,
-  ROVE_CONFIG_DIR_BASENAME,
-  ROVE_STATE_DIR_BASENAME,
-} from "./product.ts"
+  defaultKeybindingsPath,
+  defaultUiPrefsStatePath,
+  resolveProductHomeDir,
+} from "@sma1lboy/kobe-daemon/daemon/product-paths"
+import { LEGACY_KOBE_CONFIG_DIR_BASENAME, LEGACY_KOBE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "./product.ts"
 
 /**
  * `ROVE_DEV=1` (or compatible `KOBE_DEV=1`) — declares the binary is running from a developer
@@ -52,7 +51,7 @@ export function isDev(): boolean {
  * so they don't trample the real `~/.rove/`.
  */
 export function homeDir(): string {
-  return readRoveEnv("HOME_DIR") ?? homedir()
+  return resolveProductHomeDir()
 }
 
 /**
@@ -81,7 +80,7 @@ export function legacyKobeStateDir(): string {
  * this accessor is the one place the path is spelled.
  */
 export function kvStatePath(): string {
-  return join(homeDir(), ".config", ROVE_CONFIG_DIR_BASENAME, "state.json")
+  return defaultUiPrefsStatePath(homeDir())
 }
 
 /** Compatibility path copied on first launch after upgrade. */
@@ -108,19 +107,7 @@ export function roveSettingsDir(): string {
  * absent.
  */
 export function keybindingsConfigPath(): string {
-  return join(roveSettingsDir(), "keybindings.yaml")
-}
-
-/**
- * Directory for issue-attachment uploads served by the web bridge —
- * `<home>/.rove/issue-assets/`. Scoped per-repo (by a hex hash of the repo
- * root) one level down so an upload can happen before the issue exists. Not
- * created eagerly — the upload route mkdir's at the write site, readers treat
- * a missing dir as "no asset". Honours `KOBE_HOME_DIR` like every other state
- * path via {@link roveStateDir}.
- */
-export function issueAssetsDir(): string {
-  return join(roveStateDir(), "issue-assets")
+  return defaultKeybindingsPath(homeDir())
 }
 
 /**

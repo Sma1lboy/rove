@@ -38,10 +38,25 @@ export async function branchExists(deps: BranchDeps, ctx: ExecCtx, branch: strin
 }
 
 /**
+ * What happened to the branch a caller asked to delete.
+ *
+ * `deleted: false` is the whole point of this type. The delete is
+ * best-effort by design — it must never fail a removal the caller already
+ * committed to — but "best-effort" had been implemented as `allowFail` with
+ * the exit code dropped on the floor, so a branch git REFUSED to delete was
+ * indistinguishable from one that went away. `git branch -d` refuses an
+ * unmerged branch (the ordinary case for `delete --delete-branch` on work
+ * that never landed) and both spellings refuse a branch some worktree still
+ * has checked out. `land.ts` already had to invent its own `branchKept` to
+ * work around this; the answer now comes from the delete itself.
+ */
+export type BranchDeleteOutcome = { readonly deleted: true } | { readonly deleted: false; readonly reason: string }
+
+/**
  * Delete a branch in `repo`. `git branch -d` (safe: refuses an unmerged
- * branch) unless `force`, which uses `-D`. Best-effort — a branch that's
- * checked out elsewhere, unmerged (without force), or already gone just
- * returns; the caller (task delete / land cleanup) treats it as non-fatal.
+ * branch) unless `force`, which uses `-D`. Never throws — a branch that's
+ * checked out elsewhere, unmerged (without force), or already gone comes back
+ * as an outcome the caller reports rather than an error it has to handle.
  */
 async function deleteBranchIn(
   deps: BranchDeps,
@@ -49,9 +64,19 @@ async function deleteBranchIn(
   repo: string,
   branch: string,
   force: boolean,
-): Promise<void> {
-  if (!branch || branch === "HEAD") return
-  await deps.runGit(exec, ["branch", force ? "-D" : "-d", branch], { cwd: repo, allowFail: true })
+): Promise<BranchDeleteOutcome> {
+  if (!branch || branch === "HEAD") return { deleted: false, reason: "no branch to delete" }
+  const out = await deps.runGit(exec, ["branch", force ? "-D" : "-d", branch], { cwd: repo, allowFail: true })
+  if (out.exitCode === 0) return { deleted: true }
+  // Re-probe rather than trust the exit code, the same way `removeWorktree`
+  // classifies a failed `git worktree remove`: a branch that is already gone
+  // IS the end state the caller asked for, and git spells that refusal
+  // ("branch 'x' not found") in whatever language it is running in.
+  if (!(await branchExists(deps, { exec, dir: repo, remote: exec.isRemote }, branch))) return { deleted: true }
+  return {
+    deleted: false,
+    reason: out.stderr.trim() || out.stdout.trim() || `git branch exited ${out.exitCode}`,
+  }
 }
 
 /**
@@ -76,9 +101,9 @@ export async function deleteBranchAnchored(
   repo: string,
   branch: string,
   opts: { readonly force: boolean; readonly onAnchor?: (record: SalvageRecord | null) => void },
-): Promise<void> {
+): Promise<BranchDeleteOutcome> {
   if (opts.force) opts.onAnchor?.(await anchorBranchTip(deps, exec, repo, branch))
-  await deleteBranchIn(deps, exec, repo, branch, opts.force)
+  return await deleteBranchIn(deps, exec, repo, branch, opts.force)
 }
 
 /**

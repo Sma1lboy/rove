@@ -40,7 +40,8 @@ function stubKv(): KVContext {
       store[key] = value
     },
     flush: () => true,
-    clear: () => void 0,
+    clear: () => true,
+    onWriteError: () => () => {},
   }
 }
 
@@ -117,6 +118,7 @@ function InboxProbe(props: { orch: RemoteOrchestrator; items: AttentionInboxItem
     dialog: stubDialog(),
     selectedId: null,
     selectTask: () => {},
+    openAutomations: () => {},
     focusWorkspace: () => {},
     notifyError: () => {},
     notifyInfo: (message: string) => {

@@ -16,8 +16,10 @@ import {
   type SerializedTask,
   type TabClosePayload,
   type TabOpenPayload,
+  type TabRenamePayload,
   type UiPromptPayload,
   isAttentionInboxState,
+  parseDaemonStopReason,
 } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { EngineActivityDetail, TaskActivityState } from "../engine/hook-events.ts"
 import type { UpdateInfo } from "../version.ts"
@@ -126,6 +128,19 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
     }
     return
   }
+  // The daemon's own obituary (v5) — a lifecycle frame, not a channel, so it
+  // is never replayed to a late subscriber as if current. Only `restart` is
+  // acted on: it says an operator is swapping the daemon's code, which makes
+  // this process the one about to be a build behind. Every other reason
+  // (idle, socket-lost, a plain stop) is a shutdown the reconnect loop
+  // already handles silently, and deliberately paints nothing — see the
+  // no-disconnect-banner rule in `host-banner.tsx`.
+  if (name === "daemon.stopping") {
+    const p = payload as { reason?: unknown; kobeVersion?: unknown } | undefined
+    if (typeof p?.kobeVersion === "string") signals.setDaemonVersionSig(p.kobeVersion)
+    if (parseDaemonStopReason(p?.reason) === "restart") signals.setDaemonRestartingSig(true)
+    return
+  }
   if (name === "active-task") {
     const id = (payload as { taskId?: string | null } | undefined)?.taskId
     signals.setActiveTaskSig(typeof id === "string" ? id : null)
@@ -213,23 +228,41 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       logClientError("orch", `dropped attention.inbox event: items is not an array (${describePayload(items)})`)
       return
     }
-    const valid = items.every((item) => {
+    // Per ITEM, not `every`: this payload is the whole Inbox, so rejecting it
+    // wholesale for one unrecognized row silently blanks a queue whose entire
+    // job is to be noticed — no count, no rows, and nothing to dismiss, on
+    // every republish and every fresh attach. A newer daemon's state, or one
+    // corrupt line on disk, must cost exactly its own row.
+    const kept = items.filter((item) => {
       if (!item || typeof item !== "object" || Array.isArray(item)) return false
       const p = item as Partial<AttentionInboxItem>
+      // Same rule as the daemon's `normalizeItem`: `null` is legal only for a
+      // routine episode. A routine episode may equally NAME a task — a firing
+      // that built one and then failed to start its engine carries that id
+      // (see `AttentionInboxItem.taskId`), and demanding `null` here rejected
+      // the episode the daemon actually writes.
+      const taskIdOk = typeof p.taskId === "string" || (p.taskId === null && p.state === "routine_failed")
       return (
-        typeof p.taskId === "string" &&
+        taskIdOk &&
         (p.tabId === null || typeof p.tabId === "string") &&
         isAttentionInboxState(p.state) &&
         (p.unread === undefined || typeof p.unread === "boolean") &&
         typeof p.at === "number"
       )
     })
-    if (!valid) {
-      logClientError("orch", `dropped attention.inbox event: malformed item (${describePayload(items)})`)
-      return
+    if (kept.length !== items.length) {
+      logClientError(
+        "orch",
+        `dropped ${items.length - kept.length} malformed attention.inbox item(s) of ${items.length} (${describePayload(items)})`,
+      )
     }
+    // Nothing readable at ALL is not evidence the queue is empty — that is the
+    // one case the old whole-event drop got right, so keep the previous
+    // snapshot rather than invent an empty one. A genuinely empty Inbox
+    // arrives as `items: []` and still publishes.
+    if (kept.length === 0 && items.length > 0) return
     signals.setAttentionInboxSig(
-      items.map((item) => ({
+      kept.map((item) => ({
         ...(item as AttentionInboxItem),
         unread: (item as Partial<AttentionInboxItem>).unread !== false,
       })),
@@ -346,6 +379,22 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       return
     }
     signals.setTabCloseSig(p as TabClosePayload)
+    return
+  }
+  if (name === "tab.rename") {
+    const p = payload as Partial<TabRenamePayload> | undefined
+    // `title` may legitimately be "" (clear back to the default name), so the
+    // gate is the TYPE, never truthiness.
+    if (
+      typeof p?.taskId !== "string" ||
+      typeof p.tabId !== "string" ||
+      typeof p.title !== "string" ||
+      typeof p.at !== "number"
+    ) {
+      logClientError("orch", `dropped tab.rename event: malformed payload (${describePayload(payload)})`)
+      return
+    }
+    signals.setTabRenameSig(p as TabRenamePayload)
     return
   }
   if (name === "ui.prompt") {

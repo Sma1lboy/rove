@@ -2,6 +2,7 @@
  *  it sends the host without importing the host itself — behavior and
  *  ownership stay there; this is only the vocabulary. */
 
+import { randomUUID } from "node:crypto"
 import { StringDecoder } from "node:string_decoder"
 import type { DaemonFrame, PtySessionExit } from "./protocol.ts"
 import type { PtyChild, PtyDriver } from "./pty-driver.ts"
@@ -55,6 +56,7 @@ export type PtySink = (frame: DaemonFrame) => void
 export interface PtySessionState {
   /** Mutable: warm-shell adoption re-keys the spare under the opener's key. */
   key: string
+  generation: string
   readonly cwd: string
   proc: PtyChild | null
   alive: boolean
@@ -97,6 +99,10 @@ export interface PtySessionState {
   restored: boolean
   /** Freeze bookkeeping: output/exit drift since the last persisted snapshot. */
   lastFreezeAtMs: number
+  /** `totalBytes` as of the last persisted snapshot — the periodic freeze
+   *  gate spends a whole-ring rewrite only once this much has moved. Optional
+   *  so a record thawed by an older host reads as "nothing frozen yet". */
+  frozenTotalBytes?: number
   /** Epoch ms of the most recent write that originated from an attached
    *  client (a human typing). Zero means "never seen a human write". Used by
    *  the delivery gate to refuse auto-pastes while the user is composing. */
@@ -132,6 +138,7 @@ export interface PtyHostOptions {
 export function freshSessionState(key: string, spec: PtySpawnSpec, argv: readonly string[]): PtySessionState {
   return {
     key,
+    generation: randomUUID(),
     cwd: spec.cwd,
     proc: null,
     alive: true,
@@ -152,6 +159,7 @@ export function freshSessionState(key: string, spec: PtySpawnSpec, argv: readonl
     exit: null,
     restored: false,
     lastFreezeAtMs: 0,
+    frozenTotalBytes: 0,
     lastHumanWriteMs: 0,
   }
 }

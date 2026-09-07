@@ -28,6 +28,13 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
       { name: "base-branch", type: "string", placeholder: "B", description: "Base ref the worktree branches from." },
       F.command(),
       {
+        name: "effort",
+        type: "string",
+        placeholder: "LEVEL",
+        description:
+          "Reasoning effort for the FIRST session, not just later ones. Validated against the engine's declared levels (codex: none/low/medium/high/xhigh/max; claude declares none) — free-form, since a plugin engine may declare its own. With --agents, every engine in the plan must declare it.",
+      },
+      {
         name: "count",
         type: "int",
         placeholder: "N",

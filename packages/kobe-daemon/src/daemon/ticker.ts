@@ -37,11 +37,12 @@ export interface TickerOptions {
   readonly onStop?: () => void
 }
 
-export function startTicker(opts: TickerOptions): () => void {
-  if (opts.tickMs <= 0) return () => {}
-  let running = false
+export function startTicker(opts: TickerOptions): () => Promise<void> {
+  if (opts.tickMs <= 0) return async () => {}
+  let running: Promise<void> | null = null
+  let stopped = false
   const tick = (): void => {
-    if (opts.gate && !opts.gate()) return
+    if (stopped || (opts.gate && !opts.gate())) return
     if (running) return
     let result: unknown
     try {
@@ -56,19 +57,26 @@ export function startTicker(opts: TickerOptions): () => void {
     // the pass. Only a pass that returns a promise gets guarded, which is
     // exactly the shape the other five hand-rolled.
     if (!isThenable(result)) return
-    running = true
-    void result
+    running = Promise.resolve(result)
+      .then(() => undefined)
       .catch((err: unknown) => logDaemonError(opts.name, err))
       .finally(() => {
-        running = false
+        running = null
       })
   }
   if (opts.immediate) tick()
   const timer = setInterval(tick, opts.tickMs)
   // Without unref a gui-less daemon never exits and `rove daemon restart` hangs.
   timer.unref?.()
-  return () => {
-    clearInterval(timer)
-    opts.onStop?.()
+  return async () => {
+    try {
+      if (!stopped) {
+        stopped = true
+        clearInterval(timer)
+        opts.onStop?.()
+      }
+    } finally {
+      await running
+    }
   }
 }

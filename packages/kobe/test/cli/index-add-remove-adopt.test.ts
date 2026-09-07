@@ -16,6 +16,7 @@ const fake = vi.hoisted(() => ({
   isGitRepo: true,
   repoRootOf: {} as Record<string, string>,
   adoptable: [] as Array<{ path: string; branch: string; dirty?: boolean; kobeManaged?: boolean }>,
+  customEngineIds: [] as string[],
   discoverError: null as Error | null,
   // Mirrors the real `addSavedRepo`, which owns the admission gate: an
   // ineligible path comes back `rejected` instead of being written.
@@ -27,6 +28,9 @@ const fake = vi.hoisted(() => ({
     id: `task-${args.worktreePath.split("/").pop()}`,
     title: "adopted",
   })),
+  remoteRepos: {} as Record<string, { auth: { kind: string; keychainRef?: { service: string; account: string } } }>,
+  keychainSupported: true,
+  deleteKeychainPassword: vi.fn((_ref: { service: string; account: string }) => true),
   forgetProject: vi.fn(async (_repo: string) => {}),
   ensureMainTask: vi.fn(async (repo: string) => ({ id: "main-1", kind: "main", repo })),
   daemonClient: null as null | { request: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> },
@@ -37,8 +41,9 @@ vi.mock("../../src/state/repos.ts", () => ({
   isGitRepo: vi.fn(() => fake.isGitRepo),
   getSavedRepos: vi.fn(() => fake.savedRepos),
   resolveRepoRoot: vi.fn((p: string) => fake.repoRootOf[p] ?? p),
-  getCustomEngineIds: vi.fn(() => [] as string[]),
+  getCustomEngineIds: vi.fn(() => fake.customEngineIds),
   setPersistedString: vi.fn(),
+  getRemoteRepoConfig: vi.fn((key: string) => fake.remoteRepos[key] ?? null),
 }))
 vi.mock("../../src/orchestrator/index/store.ts", () => ({
   TaskIndexStore: class {
@@ -67,6 +72,10 @@ vi.mock("../../src/orchestrator/core.ts", () => ({
       return fake.adoptWorktree(args)
     }
   },
+}))
+vi.mock("../../src/exec/keychain.ts", () => ({
+  deleteKeychainPassword: fake.deleteKeychainPassword,
+  isKeychainSupported: vi.fn(() => fake.keychainSupported),
 }))
 vi.mock("@sma1lboy/kobe-daemon/client/daemon-process", () => ({
   connectIfRunning: vi.fn(async () => fake.daemonClient),
@@ -98,8 +107,12 @@ beforeEach(() => {
   fake.isGitRepo = true
   fake.repoRootOf = {}
   fake.adoptable = []
+  fake.customEngineIds = []
   fake.discoverError = null
   fake.daemonClient = null
+  fake.remoteRepos = {}
+  fake.keychainSupported = true
+  fake.deleteKeychainPassword.mockClear().mockReturnValue(true)
   originalArgv = process.argv
   let exited = false
   exitSpy = vi.fn((code?: number) => {
@@ -235,6 +248,62 @@ describe("kobe remove", () => {
     expect(fake.forgetProject).toHaveBeenCalledWith("/repo")
   })
 
+  // The stored SSH password is the one thing `remove` must not destroy by
+  // default — but before this it had no deletion path at all once the
+  // `remoteRepos` entry holding its keychain ref was dropped.
+  describe("remote credentials", () => {
+    const SSH = "ssh://dev@box"
+    const ref = { service: "kobe-remote-ssh", account: "dev@box" }
+
+    function withPassword(): void {
+      fake.savedRepos = [SSH]
+      fake.remoteRepos[SSH] = { auth: { kind: "password", keychainRef: ref } }
+    }
+
+    test("keeps the keychain password and names the flag that deletes it", async () => {
+      withPassword()
+      await runCli("remove", SSH)
+      expect(fake.deleteKeychainPassword).not.toHaveBeenCalled()
+      expect(logText()).toContain("--purge-credentials")
+      expect(logText()).toContain("dev@box")
+    })
+
+    test("--purge-credentials deletes it", async () => {
+      withPassword()
+      await runCli("remove", SSH, "--purge-credentials")
+      expect(fake.deleteKeychainPassword).toHaveBeenCalledWith(ref)
+      expect(fake.forgetProject).toHaveBeenCalledWith(SSH)
+    })
+
+    test("the flag is not mistaken for the path to remove", async () => {
+      withPassword()
+      await runCli("remove", "--purge-credentials", SSH)
+      expect(fake.forgetProject).toHaveBeenCalledWith(SSH)
+      expect(fake.deleteKeychainPassword).toHaveBeenCalledWith(ref)
+    })
+
+    test("says so instead of claiming success when no item was found", async () => {
+      withPassword()
+      fake.deleteKeychainPassword.mockReturnValue(false)
+      await runCli("remove", SSH, "--purge-credentials")
+      expect(logText()).not.toContain("purged the keychain password")
+    })
+
+    test("a key-auth remote has no password, so no note and no delete", async () => {
+      fake.savedRepos = [SSH]
+      fake.remoteRepos[SSH] = { auth: { kind: "key" } }
+      await runCli("remove", SSH)
+      expect(fake.deleteKeychainPassword).not.toHaveBeenCalled()
+      expect(logText()).not.toContain("--purge-credentials")
+    })
+
+    test("a local project never mentions credentials", async () => {
+      fake.savedRepos = ["/repo"]
+      await runCli("remove", "/repo")
+      expect(logText()).not.toContain("--purge-credentials")
+    })
+  })
+
   test("no match prints the saved list to stderr and exits 1", async () => {
     fake.savedRepos = ["/other"]
     await runCli("remove", "/nope")
@@ -314,6 +383,31 @@ describe("kobe adopt", () => {
     await runCli("adopt", "--vendor")
     expect(exitSpy).toHaveBeenCalledWith(2)
     expect(stderrText()).toContain("--vendor requires a value")
+  })
+
+  test("a misspelled --vendor exits 2 and creates nothing", async () => {
+    // coerceVendorId only rejects the empty string, so a typo used to be
+    // written onto every matched task and only surface when each of them first
+    // failed to launch a binary that does not exist.
+    fake.adoptable = [
+      { path: "/repo/wt-a", branch: "a" },
+      { path: "/repo/wt-b", branch: "b" },
+    ]
+    await runCli("adopt", "/repo/wt-*", "--yes", "--vendor", "cluade")
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(fake.adoptWorktree).not.toHaveBeenCalled()
+    expect(stderrText()).toContain('unknown engine "cluade"')
+    // Naming the accept-set is the whole point — a bare rejection leaves the
+    // caller guessing which spelling this install actually knows.
+    expect(stderrText()).toContain("claude")
+  })
+
+  test("a registered custom engine is accepted, not just the built-ins", async () => {
+    fake.customEngineIds = ["my-engine"]
+    fake.adoptable = [{ path: "/repo/wt-a", branch: "a" }]
+    await runCli("adopt", "/repo/wt-*", "--yes", "--vendor", "my-engine")
+    expect(exitSpy).not.toHaveBeenCalled()
+    expect(fake.adoptWorktree).toHaveBeenCalledWith(expect.objectContaining({ vendor: "my-engine" }))
   })
 
   test("--help prints usage without scanning anything", async () => {

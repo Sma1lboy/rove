@@ -6,12 +6,16 @@
  * shape against the pty host's own socket.
  */
 
+import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
 import { rename, rm } from "node:fs/promises"
 import { basename, delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { stopDaemonProcess } from "../daemon/lifecycle.ts"
+import { logDaemonInfo } from "../daemon/crash-log.ts"
+import { isProcessAlive, stopDaemonProcess } from "../daemon/lifecycle.ts"
 import { defaultPtyHostLogPath, defaultPtyHostPidPath, defaultPtyHostSocketPath } from "../daemon/paths.ts"
+import type { PtySessionInfo } from "../daemon/pty-observability.ts"
+import { readPidFile } from "../daemon/socket-guard.ts"
 import { resolveKobeSpawn, spawnDetachedDaemon, testDaemonResponds } from "./daemon-process.ts"
 import { KobeDaemonClient } from "./index.ts"
 
@@ -158,14 +162,74 @@ export async function resolveNodePtyHostSpawn(deps: NodePtyHostResolution = {}):
 }
 
 /**
+ * How long a pty host whose PROCESS is alive gets to answer `hello` before it
+ * counts as wedged. The twin of `daemon-process.ts`'s `BUSY_DAEMON_GRACE_MS`,
+ * and for the same reason: one 3s probe decides "is this host quick", and
+ * only a sustained silence may license a kill. The pty host had no such
+ * window, so a host merely busy for three seconds was reaped — along with
+ * every engine it hosted.
+ */
+const BUSY_PTY_HOST_GRACE_MS = 15_000
+
+/** Live child processes of `pid` — the pty host's sessions, each a shell
+ *  leader. One `ps`; unreadable output counts as zero, which only ever
+ *  makes the reap below MORE permissive, never less. */
+async function liveChildCount(pid: number): Promise<number> {
+  try {
+    const proc = spawn("/bin/ps", ["-A", "-o", "ppid="], { stdio: ["ignore", "pipe", "ignore"] })
+    const text = await new Promise<string>((done) => {
+      let out = ""
+      proc.stdout.on("data", (chunk) => {
+        out += String(chunk)
+      })
+      proc.on("close", () => done(out))
+      proc.on("error", () => done(""))
+    })
+    return text.split("\n").filter((row) => Number(row.trim()) === pid).length
+  } catch {
+    return 0
+  }
+}
+
+/**
  * If the pty host socket already answers `hello`, do nothing. Otherwise
  * clear any wedged process and spawn a detached `kobe pty-host`, polling
  * until reachable. Returns the socket path. The terminal pane is the
  * product — it may resurrect an idle-exited host.
+ *
+ * "Idle-exited" is the whole licence. A host that EXITED owns nothing, so
+ * clearing its stale socket and pidfile is free. A host that is ALIVE and
+ * merely slow is a different thing entirely: killing it kills every hosted
+ * engine with it, and `send` used to do exactly that off ONE 3s probe and
+ * then report a bare `ok: true` — a caller asked to deliver one prompt got
+ * its whole fleet reaped and was told nothing. So a live host gets the grace
+ * window first, and a live host still holding sessions after it is refused
+ * out loud rather than reaped silently: N engines with running work must not
+ * be spent to deliver one message.
  */
 export async function ensurePtyHostReachable(): Promise<string> {
   const socketPath = defaultPtyHostSocketPath()
   if (await testDaemonResponds(socketPath)) return socketPath
+
+  const hostPid = await readPidFile(defaultPtyHostPidPath())
+  if (hostPid !== null && hostPid !== process.pid && isProcessAlive(hostPid)) {
+    const deadline = Date.now() + BUSY_PTY_HOST_GRACE_MS
+    while (Date.now() < deadline) {
+      await new Promise((resolveTimer) => setTimeout(resolveTimer, 250))
+      if (await testDaemonResponds(socketPath)) return socketPath
+      // It died on its own while we waited: the pid is gone, so the
+      // stop+spawn below is now the free idle-exit path.
+      if (!isProcessAlive(hostPid)) break
+    }
+    if (isProcessAlive(hostPid)) {
+      const sessions = await liveChildCount(hostPid)
+      if (sessions > 0) {
+        throw new Error(
+          `rove: the pty host (pid ${hostPid}) is not answering but still holds ${sessions} live session(s) — refusing to restart it, which would kill every engine running in them. Inspect it with \`rove api pty-list\`, or kill ${hostPid} yourself once you have accepted losing those sessions.`,
+        )
+      }
+    }
+  }
 
   await stopDaemonProcess(socketPath, defaultPtyHostPidPath()).catch(() => {})
 
@@ -180,47 +244,54 @@ export async function ensurePtyHostReachable(): Promise<string> {
   throw new Error(`rove: pty host did not start (or stayed wedged) at ${socketPath}`)
 }
 
-/**
- * Fire-and-forget janitor call from the daemon: kill hosted sessions
- * whose task is gone. NEVER spawns a host (nothing to sweep if
- * none is running) and never throws — the task snapshot path must not
- * fail on pty-host hiccups.
- *
- * `homeDir` MUST be the calling daemon's own home. A daemon that resolves
- * the ambient default while running against a non-default home (the
- * test:socket suite's temp-home daemons) sweeps the REAL user pty-host
- * with ITS task list — a fake orchestrator's empty snapshot then kills
- * every live engine session on the machine, so a plain `bun run test` wipes
- * the user's running engine tabs.
- */
-export async function sweepPtyHostSessions(liveTaskIds: readonly string[], homeDir?: string): Promise<void> {
-  const socketPath = defaultPtyHostSocketPath(homeDir)
-  const client = new KobeDaemonClient(socketPath)
+/** Observe sessions before consulting current tasks; never send a captured negative task list. */
+export async function sweepPtyHostSessions(
+  liveTaskIds: () => readonly string[] | null,
+  homeDir?: string,
+): Promise<void> {
+  const client = new KobeDaemonClient(defaultPtyHostSocketPath(homeDir))
   try {
     await client.connect()
-    await client.request("pty.sweep", { liveTaskIds })
+    const { sessions } = await client.request<{ sessions: PtySessionInfo[] }>("pty.list")
+    let currentTasks: Set<string> | undefined
+    for (const session of sessions) {
+      if (!currentTasks) {
+        const ids = liveTaskIds()
+        if (ids === null) return // daemon shutdown supersedes pending observations
+        currentTasks = new Set(ids)
+      }
+      if (currentTasks.has(session.key.split("::")[0] ?? session.key)) continue
+      if (!session.generation) {
+        logDaemonInfo(
+          "pty-sweep",
+          `skipped ${session.key}: host has no session generation; restart it when sessions can be interrupted`,
+        )
+        continue
+      }
+      await client.request("pty.kill", { key: session.key, expectedGeneration: session.generation })
+      currentTasks = undefined // refresh only after yielding to another task mutation
+    }
   } catch {
-    /* no host running (or mid-exit) — nothing to sweep */
+    // An unavailable host is not permission to retry a destructive request.
   } finally {
     client.close()
   }
 }
 
-/**
- * Does the pty host still own a live (child not yet exited) session? The
- * daemon's `PtyLiveHold` keep-alive probe. NEVER spawns a host and never
- * throws: unreachable means no sessions worth staying up for. Same homeDir
- * contract as `sweepPtyHostSessions` above — a temp-home daemon must probe
- * its own pty host, not the real user's.
- */
-export async function ptyHostHasLiveSessions(homeDir?: string): Promise<boolean> {
+/** true/false are observed session state; null means the host could not be read. Never spawns. */
+export async function ptyHostHasLiveSessions(homeDir?: string): Promise<boolean | null> {
   const client = new KobeDaemonClient(defaultPtyHostSocketPath(homeDir))
   try {
     await client.connect()
     const result = await client.request<{ sessions?: Array<{ alive?: boolean }> }>("pty.list")
-    return result.sessions?.some((s) => s.alive === true) ?? false
-  } catch {
-    return false
+    if (!Array.isArray(result.sessions) || result.sessions.some((s) => typeof s.alive !== "boolean")) return null
+    return result.sessions.some((s) => s.alive)
+  } catch (err) {
+    if (err instanceof Error && "code" in err && (err.code === "ENOENT" || err.code === "ECONNREFUSED")) {
+      const pid = await readPidFile(defaultPtyHostPidPath(homeDir))
+      return pid !== null && isProcessAlive(pid) ? null : false
+    }
+    return null
   } finally {
     client.close()
   }

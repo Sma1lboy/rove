@@ -9,6 +9,7 @@
  * only damage one session.
  */
 
+import { randomUUID } from "node:crypto"
 import { resolveLoginShell } from "./platform-shell.js"
 import type { PtySessionExit } from "./protocol.ts"
 import { type PtyChild, type PtyDriver, type PtyExit, bunTerminalDriver } from "./pty-driver.ts"
@@ -62,6 +63,7 @@ export class PtyChildController {
    * own log line, and warm-spare adoption skips the callback entirely).
    */
   startChild(session: PtySessionState): void {
+    session.generation = randomUUID()
     try {
       session.proc = (this.deps.driver ?? bunTerminalDriver())({
         argv: [...session.command],

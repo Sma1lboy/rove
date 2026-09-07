@@ -35,6 +35,7 @@ beforeEach(() => {
     installedVersion: 2,
     currentVersion: 2,
     stale: false,
+    legacyCopies: [],
   })
   mocks.bunSpawn.mockReset().mockReturnValue({ exited: Promise.resolve(0) })
   vi.stubGlobal("Bun", { spawn: mocks.bunSpawn })
@@ -92,7 +93,13 @@ describe("kobe skill status", () => {
   })
 
   it("reports not installed with the install hint", async () => {
-    mocks.kobeSkillState.mockReturnValue({ installed: false, installedVersion: null, currentVersion: 2, stale: false })
+    mocks.kobeSkillState.mockReturnValue({
+      installed: false,
+      installedVersion: null,
+      currentVersion: 2,
+      stale: false,
+      legacyCopies: [],
+    })
     await runSkillSubcommand(["status"])
     const text = out()
     expect(text).toContain("✗ not installed")
@@ -100,12 +107,24 @@ describe("kobe skill status", () => {
   })
 
   it("reports an out-of-date skill (stamped) and an unstamped one", async () => {
-    mocks.kobeSkillState.mockReturnValue({ installed: true, installedVersion: 1, currentVersion: 2, stale: true })
+    mocks.kobeSkillState.mockReturnValue({
+      installed: true,
+      installedVersion: 1,
+      currentVersion: 2,
+      stale: true,
+      legacyCopies: [],
+    })
     await runSkillSubcommand(["status"])
     expect(out()).toContain("⚠ out of date (installed v1, this Rove wants v2)")
 
     outSpy.mockClear()
-    mocks.kobeSkillState.mockReturnValue({ installed: true, installedVersion: null, currentVersion: 2, stale: true })
+    mocks.kobeSkillState.mockReturnValue({
+      installed: true,
+      installedVersion: null,
+      currentVersion: 2,
+      stale: true,
+      legacyCopies: [],
+    })
     await runSkillSubcommand(["status"])
     expect(out()).toContain("out of date (installed unstamped, this Rove wants v2)")
   })

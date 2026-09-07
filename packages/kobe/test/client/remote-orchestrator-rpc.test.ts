@@ -139,6 +139,31 @@ describe("RemoteOrchestrator RPC wire mapping", () => {
     errSpy.mockRestore()
   })
 
+  it("carries pr.failingChecks' `unavailable` through instead of dropping it", async () => {
+    // `checks: []` means three things on the daemon side — `gh` missing, `gh`
+    // unauthenticated, and the checks genuinely green — and only this field
+    // separates them. Dropping it here would put the collapse back one layer
+    // down, where the toast can no longer tell the user which one it was.
+    // Its own client rather than `fakeClient()`: this is the one reply shape
+    // that reply table does not model, and widening it there would let every
+    // other wire test accept a `pr.failingChecks` payload it never asserts.
+    const client = {
+      on: () => () => {},
+      onLifecycle: () => () => {},
+      request: async () => ({
+        checks: [],
+        totalFailing: 0,
+        unavailable: { reason: "gh_failed", detail: "gh auth login" },
+      }),
+    } as unknown as KobeDaemonClient
+    const local = new RemoteOrchestrator(client)
+    expect(await local.failingChecks("t1")).toEqual({
+      checks: [],
+      totalFailing: 0,
+      unavailable: { reason: "gh_failed", detail: "gh auth login" },
+    })
+  })
+
   it("getTask finds by id from the current snapshot", () => {
     expect(orch.getTask("nope")).toBeUndefined()
     expect(orch.listTasks()).toEqual([])

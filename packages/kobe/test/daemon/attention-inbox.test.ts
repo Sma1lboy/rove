@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { AttentionInboxStore, MAX_EPISODES } from "@sma1lboy/kobe-daemon/daemon/attention-inbox"
@@ -260,6 +260,27 @@ describe("daemon attention inbox", () => {
     await expect(store.init()).resolves.toBeUndefined()
     expect(store.snapshot()).toEqual([])
     expect(bus.snapshot()).toContainEqual({ channel: "attention.inbox", payload: { items: [] } })
+  })
+
+  it("refuses to overwrite a file it could not READ, instead of publishing an empty queue", async () => {
+    // A directory at the store path makes every `readFile` fail with EISDIR —
+    // deterministically, at any uid — standing in for the EACCES/EMFILE/EIO
+    // blip this guard exists for. Before: the load logged and returned `[]`,
+    // `init()` published that as an authoritative "nothing needs you", and the
+    // next hook event rewrote the whole file from the empty map — a transient
+    // read failure permanently destroyed every pending episode.
+    dir = await mkdtemp(join(tmpdir(), "kobe-attention-inbox-unreadable-"))
+    const path = join(dir, "attention-inbox.json")
+    await mkdir(path)
+    const bus = new DaemonEventBus()
+    const store = new AttentionInboxStore(path, bus)
+
+    await expect(store.init()).rejects.toThrow(/EISDIR/)
+    // Nothing invented: the UI is told nothing rather than told it is empty.
+    expect(bus.snapshot().find((event) => event.channel === "attention.inbox")).toBeUndefined()
+    // And the next episode refuses rather than writing over what it never read.
+    await expect(store.record("task-1", "turn-complete", undefined, "tab-1")).rejects.toThrow(/never loaded/)
+    expect((await stat(path)).isDirectory()).toBe(true)
   })
 
   it("keeps memory unchanged when an atomic write fails", async () => {

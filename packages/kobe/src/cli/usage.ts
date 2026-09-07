@@ -21,7 +21,6 @@ export function topLevelUsage(cliName: ProductCliName = activeCliName()): string
     `Run \`${cliName} .\` (or \`${cliName} <path>\`) to open a directory as a standalone task.`,
     "",
     "Commands:",
-    "  web [options]           Launch the browser dashboard",
     "  completions <shell>     Generate shell completion script (bash/zsh/fish)",
     "  add [path]              Save a repo path for the new-task picker",
     "  remove [path]           Forget a saved project (inverse of add; non-destructive)",

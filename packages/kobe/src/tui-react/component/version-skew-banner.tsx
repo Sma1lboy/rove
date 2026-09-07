@@ -7,6 +7,13 @@
  * clears. The daemon answers fine, it is just running a different BUILD than
  * this process.
  *
+ * The hint names a CHORD, not a chore list. Telling a user to quit, run two
+ * commands and start over is a correct instruction and a bad affordance —
+ * every step of it is something Rove can do itself, so the banner's job is to
+ * offer the one keypress that does. It falls back to the old two-command
+ * wording only when the chord is unbound, since a key that does nothing is
+ * worse than a command that works.
+ *
  * Do NOT add a red socket-disconnect banner here. Rove keeps working with the
  * daemon down and the reconnect loop recovers most drops in under a second,
  * so a full-width alert would interrupt with nothing to act on. Skew is the
@@ -65,6 +72,9 @@ export type VersionSkewBannerProps = {
   daemonVersion: string | null
   /** This process's own build version (e.g. "0.7.4"). */
   clientVersion: string
+  /** The live `app.refresh` chord to advertise, or null when the action is
+   *  unavailable or unbound — then the hint names the two commands instead. */
+  refreshChord?: string | null
   /** Available width (cells) so the accent rule fills the strip. */
   width: number
 }
@@ -73,17 +83,14 @@ export function VersionSkewBanner(props: VersionSkewBannerProps) {
   const { theme } = useTheme()
   const t = useT()
   if (!props.stale) return null
-  // One-line action hint: terse + actionable, naming both versions and the
-  // two commands that fix it.
+  // One-line action hint: terse + actionable, naming both versions and either
+  // the chord that fixes it or — with no chord to offer — the commands.
   const daemon = props.daemonVersion ? `v${props.daemonVersion}` : t("update.skew.olderBuild")
-  return (
-    <BannerStrip
-      tone={theme.warning}
-      title={t("update.skew.title")}
-      hint={t("update.skew.hint", { daemon, clientVersion: props.clientVersion })}
-      width={props.width}
-    />
-  )
+  const params = { daemon, clientVersion: props.clientVersion }
+  const hint = props.refreshChord
+    ? t("update.skew.hint", { ...params, keys: props.refreshChord })
+    : t("update.skew.hintNoKey", params)
+  return <BannerStrip tone={theme.warning} title={t("update.skew.title")} hint={hint} width={props.width} />
 }
 
 export type StaleInstallBannerProps = {

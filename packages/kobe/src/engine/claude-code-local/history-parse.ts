@@ -13,12 +13,16 @@
 import type { Message } from "@/types/engine"
 import { isJsonlLineWithinBound } from "../file-bounds"
 import { createAppendParseCache, sortByTimestamp } from "../history-cache"
+import { isObject } from "../json-hooks.ts"
 import { normalizeClaudeContent } from "./normalize"
 import { isClaudeCommandBreadcrumb, isSyntheticClaudeRecord } from "./synthetic"
 
-const cache = createAppendParseCache<Message[], string>({
+const cache = createAppendParseCache<readonly Message[], string>({
   initial: () => [],
-  parseChunk: (chunk, prev, sessionId) => prev.concat(parseJsonl(chunk, sessionId)),
+  parseChunk: (chunk, prev, sessionId) => {
+    const added = parseJsonl(chunk, sessionId)
+    return added.length ? prev.concat(added) : prev
+  },
 })
 
 /**
@@ -27,7 +31,7 @@ const cache = createAppendParseCache<Message[], string>({
  * when the file only appended since the last call. Message objects for
  * already-seen records keep their identity across calls.
  */
-export function parseSessionRaw(filePath: string, raw: string, sessionId: string): Message[] {
+export function parseSessionRaw(filePath: string, raw: string, sessionId: string): readonly Message[] {
   return sortByTimestamp(cache(filePath, raw, sessionId))
 }
 
@@ -105,8 +109,4 @@ function extractUsage(v: unknown): Message["usage"] {
     ...(cacheRead !== undefined ? { cache_read_input_tokens: cacheRead } : {}),
     ...(cacheCreate !== undefined ? { cache_creation_input_tokens: cacheCreate } : {}),
   }
-}
-
-export function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
 }

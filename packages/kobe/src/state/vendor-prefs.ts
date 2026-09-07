@@ -7,17 +7,36 @@
  */
 
 import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
-import { type VendorId, isBuiltinVendor } from "../types/vendor.ts"
-import { getCustomEngineIds, getPersistedString, setPersistedString } from "./repos.ts"
+import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "../types/vendor.ts"
+import { getCustomEngineIds, getDisabledEngineIds, getPersistedString, setPersistedString } from "./repos.ts"
 
 const REPO_KEY_PREFIX = "lastActiveVendor."
 
-/** Validate one persisted value; undefined lets the chain fall through. */
+/**
+ * Validate one persisted value; undefined lets the chain fall through.
+ *
+ * A DISABLED engine falls through too. Switching an engine off in Settings →
+ * Engines is documented as "it stops being offered when you pick an engine
+ * for a task", and the disabled set was read in exactly one place —
+ * `availableEngineIds()`, which only feeds the TUI's picker. Every headless
+ * path (`rove api add`, quick-fork, main-task) resolved its engine through
+ * these preference layers instead and happily launched the engine the user
+ * had turned off. The filter belongs on the layer both sides share.
+ */
 function validVendor(value: string | undefined, customIds: readonly string[]): VendorId | undefined {
   const v = value?.trim()
   if (!v) return undefined
+  if (getDisabledEngineIds().includes(v)) return undefined
   if (isBuiltinVendor(v) || customIds.includes(v)) return v
   return undefined
+}
+
+/** First engine that is not switched off, for when every layer fell through.
+ *  `DEFAULT_TASK_VENDOR` is the last resort even when it is itself disabled —
+ *  a task needs SOME engine, and Settings refuses to disable the last one. */
+function firstEnabledVendor(): VendorId {
+  const disabled = new Set(getDisabledEngineIds())
+  return [...BUILTIN_VENDORS, ...getCustomEngineIds()].find((id) => !disabled.has(id)) ?? DEFAULT_TASK_VENDOR
 }
 
 /** The project's last actively-used engine (undefined = never recorded). */
@@ -44,11 +63,12 @@ export function setGlobalDefaultVendor(vendor: VendorId): void {
 
 /**
  * The vendor a new task / relaunch should default to: the repo's last-active
- * engine, else the Settings global default, else `claude`. Each level is
- * validated independently, so a corrupt repo entry falls through to the
- * global default rather than straight to the built-in fallback.
+ * engine, else the Settings global default, else the first engine that is
+ * still switched on. Each level is validated independently, so a corrupt (or
+ * disabled) repo entry falls through to the global default rather than
+ * straight to the built-in fallback.
  */
 export function resolvePreferredVendor(repo?: string): VendorId {
   const repoPick = repo ? getRepoLastActiveVendor(repo) : undefined
-  return repoPick ?? getGlobalDefaultVendor() ?? DEFAULT_TASK_VENDOR
+  return repoPick ?? getGlobalDefaultVendor() ?? firstEnabledVendor()
 }

@@ -19,14 +19,18 @@
  * `recomputeTabActivity` is the ONE place the priority order lives — add a
  * source by adding a slot and a rule here, never by special-casing a writer:
  *
+ *   0. an observed `running` newer than a hook `dead` wins — see rule 1.
  *   1. a hook entry in a STICKY state (`turn_complete` / `permission_needed`
  *      / `error` / `rate_limited` / `dead`) always wins — those mean "a human
  *      should look", carry no output by nature, and observation must never dim
  *      them. `dead` is the strongest case: the process is GONE, so no live
- *      claim about it can be true, and observation can only ever answer "at
- *      rest" — which is precisely what made a killed engine read as an idle
- *      one. It is displaced only by a newer hook event, i.e. a new session in
- *      the same tab.
+ *      claim about it can be true, and an observed REST about it says nothing
+ *      new — which is precisely what made a killed engine read as an idle one.
+ *      Its one escape (rule 0) is an observed `running` newer than the death:
+ *      a dead process emits no output, so that fact can only come from a new
+ *      engine in the tab. Needed because an engine with a `NoopHookAdapter`
+ *      never emits the session-start that would otherwise displace the slot,
+ *      leaving its badge `dead` for the life of the daemon.
  *   2. a hook `running` wins UNLESS an observed `rest` fact is fresher than
  *      the claim (herdr's `fallback_not_older_than_hook` — a stale
  *      observation must never idle a fresh turn) AND the claim is at least
@@ -120,6 +124,20 @@ export function recomputeTabActivity(
 ): EffectiveActivity | undefined {
   const { hook, observed } = slots
   if (hook) {
+    // `dead` is sticky because a dead engine writes nothing — but that
+    // reasoning inverts the moment observation sees NEW output in the tab:
+    // a dead process cannot produce any. For an engine with hooks the slot
+    // clears on the next session-start; an engine with a `NoopHookAdapter`
+    // (copilot) never emits one, so its `dead` badge — written by the
+    // pty-exit record, which needs no hook — outlived every restart forever.
+    // Only `running` may win, and only if it was observed AFTER the death:
+    // a shell still alive around a genuinely dead engine walks as idle, and
+    // idle must not un-dim the badge. The observer's own vendor gate does
+    // the rest — it claims `working` only for a walked engine in the tab's
+    // foreground, never for a bare shell.
+    if (hook.state === "dead" && observed?.state === "running" && observed.at > hook.at) {
+      return fromObserved(observed, hook)
+    }
     if (STICKY_STATES.has(hook.state)) return fromHook(hook)
     if (
       hook.state === "running" &&

@@ -147,7 +147,7 @@ describe("runAddRemote key-auth registration", () => {
 
     await runAddRemote(["--host", "box", "--user", "dev", "--path", "/srv/work", "--port", "2222", "--key", "/k"])
 
-    const key = "ssh://dev@box:2222"
+    const key = "ssh://dev@box:2222/srv/work"
     expect(getSavedRepos()).toContain(key)
     expect(getRemoteRepos()[key]).toMatchObject({
       host: "box",
@@ -171,7 +171,7 @@ describe("runAddRemote key-auth registration", () => {
     await runAddRemote(["--host", "box", "--user", "dev", "--path", "/srv", "--key"])
 
     expect(log()).toContain('reachable, but base path "/srv" is not a directory')
-    expect(getRemoteRepos()["ssh://dev@box"]).toBeDefined()
+    expect(getRemoteRepos()["ssh://dev@box/srv"]).toBeDefined()
   })
 
   it("keeps the project saved when the probe cannot connect", async () => {
@@ -183,7 +183,7 @@ describe("runAddRemote key-auth registration", () => {
 
     expect(log()).toContain("could not connect (connection refused)")
     expect(log()).toContain("the project is saved")
-    expect(getRemoteRepos()["ssh://dev@box"]).toBeDefined()
+    expect(getRemoteRepos()["ssh://dev@box/srv"]).toBeDefined()
   })
 
   it("--help prints usage and exits 0 without registering anything", async () => {
@@ -217,7 +217,7 @@ describe("runAddRemote password-auth registration", () => {
     const ref = "kobe-ssh:dev@box:22"
     expect(mocks.setKeychainPassword).toHaveBeenCalledWith(ref, "hunter2")
     // state.json carries the keychainRef, never the secret.
-    const stored = getRemoteRepos()["ssh://dev@box"]
+    const stored = getRemoteRepos()["ssh://dev@box/srv"]
     expect(stored?.auth).toEqual({ kind: "password", keychainRef: ref })
     expect(JSON.stringify(stored)).not.toContain("hunter2")
     // The probe still ran against the (mocked) remote host.
@@ -232,7 +232,7 @@ describe("runAddRemote password-auth registration", () => {
     )
     expect(err()).toContain("empty password")
     expect(mocks.setKeychainPassword).not.toHaveBeenCalled()
-    expect(getRemoteRepos()["ssh://dev@box"]).toBeUndefined()
+    expect(getRemoteRepos()["ssh://dev@box/srv"]).toBeUndefined()
   })
 
   it("a keychain write failure aborts with exit 2 and registers nothing", async () => {
@@ -242,6 +242,6 @@ describe("runAddRemote password-auth registration", () => {
       "exit 2",
     )
     expect(err()).toContain("failed to store the password in the keychain")
-    expect(getRemoteRepos()["ssh://dev@box"]).toBeUndefined()
+    expect(getRemoteRepos()["ssh://dev@box/srv"]).toBeUndefined()
   })
 })

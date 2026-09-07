@@ -11,8 +11,10 @@
  * this is a real state, not a hypothetical.
  *
  * A symlink at the legacy path closes that direction: `connect()` follows
- * symlinks, and so does every pidfile read. Cheap enough to do unconditionally
- * on every bind.
+ * symlinks, and so does every pidfile read. Done on every bind — but only into
+ * a legacy state dir that already EXISTS. Creating one gave every fresh
+ * install a `~/.kobe/` full of dangling links after shutdown, for a binary
+ * that, had it ever run on this machine, would have made the directory itself.
  *
  * Never clobbers a REAL file at the legacy path — that would be another
  * daemon's live socket or pidfile, and stealing it is the one thing
@@ -21,17 +23,17 @@
  * binaries have always had to tolerate.
  */
 
-import { lstat, mkdir, symlink, unlink } from "node:fs/promises"
+import { lstat, symlink, unlink } from "node:fs/promises"
 import { dirname } from "node:path"
 
 /** Point `legacy` at `canonical`, unless something real already sits there. */
 export async function linkLegacyRuntimePath(canonical: string, legacy: string): Promise<boolean> {
   if (canonical === legacy) return false
   try {
+    if (!(await lstat(dirname(legacy)).catch(() => null))) return false
     const existing = await lstat(legacy).catch(() => null)
     if (existing && !existing.isSymbolicLink()) return false
     if (existing) await unlink(legacy).catch(() => {})
-    await mkdir(dirname(legacy), { recursive: true })
     await symlink(canonical, legacy)
     return true
   } catch {

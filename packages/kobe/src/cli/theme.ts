@@ -189,10 +189,7 @@ async function addTheme(args: string[]): Promise<void> {
     fail(`source is not a valid Rove theme: ${result.reason}`)
   }
 
-  const name = opts.name ?? defaultName
-  if (!name || !/^[a-zA-Z0-9._-]+$/.test(name)) {
-    fail(`invalid theme name "${name}" (use letters, digits, '.', '_', '-')`)
-  }
+  const name = requireThemeName(opts.name ?? defaultName)
 
   const dir = userThemesDir()
   mkdirSync(dir, { recursive: true })
@@ -208,10 +205,28 @@ async function addTheme(args: string[]): Promise<void> {
   process.stdout.write(`installed theme "${name}" -> ${dest}\n`)
 }
 
+/**
+ * A theme name that is safe to turn into `<userThemesDir()>/<name>.json`, or
+ * exit.
+ *
+ * `join()` resolves `..`, so a name is a relative path unless something says
+ * otherwise. `add` said so from the start; `remove` did not, and went straight
+ * from an argument to `unlinkSync` — `rove theme remove '../../precious/notes'`
+ * printed `removed theme` and deleted `~/precious/notes.json`. The
+ * `BUNDLED_NAMES` check it did have only covers the built-in names, which is a
+ * different question entirely. One check, both verbs, so they cannot drift.
+ */
+function requireThemeName(name: string | undefined): string {
+  if (!name || !/^[a-zA-Z0-9._-]+$/.test(name) || name === "." || name === "..") {
+    fail(`invalid theme name "${name}" (use letters, digits, '.', '_', '-')`)
+  }
+  return name
+}
+
 function removeTheme(args: string[]): void {
-  const name = args[0]
-  if (!name) failUsage("missing <name>")
-  if (args.length > 1) failUsage(`unexpected extra arguments after "${name}"`)
+  if (!args[0]) failUsage("missing <name>")
+  if (args.length > 1) failUsage(`unexpected extra arguments after "${args[0]}"`)
+  const name = requireThemeName(args[0])
   if (BUNDLED_NAMES.includes(name)) {
     fail(`"${name}" is a built-in theme and cannot be removed`)
   }

@@ -25,8 +25,7 @@ const NEUTRAL_ROOTS = [
   "packages/kobe/src/tui-react",
   "packages/kobe/src/orchestrator",
   "packages/kobe/src/client",
-  "packages/kobe/src/web",
-  "packages/kobe-web/src",
+  "packages/kobe-harness/src",
   "packages/kobe-daemon/src",
 ]
 
@@ -44,7 +43,6 @@ const EXEMPT_LINES: Record<string, readonly string[]> = {
   // list silently made the rest unselectable. The daemon route has NO
   // fallback of its own: an empty registry yields `{ engines: [] }`, which is
   // what lets the SPA keep this list.
-  "packages/kobe-web/src/lib/engines.ts": ['label: "Claude"', 'label: "Codex"', 'label: "Copilot"', 'label: "Kimi"'],
 }
 
 function sourceFiles(dir: string, files: string[] = []): string[] {

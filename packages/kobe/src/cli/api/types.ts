@@ -8,6 +8,7 @@
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import type { VerbArgs } from "./flags.ts"
+import type { RestoredTabRef } from "./tab-respawn.ts"
 import type { TaskTabRow } from "./tab-snapshot.ts"
 
 export type Flags = Map<string, string>
@@ -36,6 +37,29 @@ export class ApiError extends Error {
   ) {
     super(message)
   }
+}
+
+/**
+ * A daemon refusal's machine code, as the orchestrator writes it: every
+ * sentinel in `orchestrator/errors.ts` (`DIRTY_WORKTREE`, `LAND_CONFLICT`,
+ * `MISSING_REF`, …) rides the MESSAGE as a `CODE: ` prefix, because an
+ * error's `name` does not survive the RPC wire.
+ */
+const DAEMON_CODE_PREFIX = /^([A-Z][A-Z0-9_]{2,}): /
+
+/**
+ * Split `CODE: rest` into its parts, or report `null` for an uncoded message.
+ *
+ * One reader for the prefix, shared by the generic boundary (`toApiError`,
+ * which lifts the code for EVERY daemon error) and the handful of verbs that
+ * additionally attach an executable recovery to a code they know. Both drop
+ * the prefix from the message they emit: it is the `code` field now, and
+ * printing it twice invites a caller to keep parsing prose.
+ */
+export function splitDaemonCode(message: string): { code: string; rest: string } | null {
+  const match = DAEMON_CODE_PREFIX.exec(message)
+  if (!match?.[1]) return null
+  return { code: match[1], rest: message.slice(match[0].length) }
 }
 
 /** The `hint` + `nextCommandArgs` pair pointing an agent at a verb's own `--help`. */
@@ -157,6 +181,14 @@ export interface PromptTarget {
    * `PromptDeliveryIntent`'s `new-task` kind). `send` never sets it.
    */
   readonly newTask?: boolean
+  /**
+   * Consent to REVIVE a freeze-restored `--tab tab-N` (`send --respawn`).
+   * Without it an addressed tab a pty-host restart froze stays a typed
+   * refusal (`TAB_RESTORED`): respawning re-runs the tab's recorded launch,
+   * and for a tab with no pinned conversation id that command still carries
+   * the task's original first prompt. Never inferred — a caller asks.
+   */
+  readonly respawn?: boolean
 }
 
 export interface DeliveredPrompt {
@@ -201,6 +233,38 @@ export interface DeliveredPrompt {
    */
   readonly promptEcho?: "confirmed" | "unconfirmed"
   /**
+   * Freeze-restored (thawed, dead) engine tabs on this task that this call
+   * did NOT deliver into — the conversations a pty-host restart froze.
+   *
+   * Present only when a NEW session was started (`started: true`), which is
+   * the branch where the two outcomes are indistinguishable otherwise: a
+   * first start of a fresh task and "your two real conversations are frozen,
+   * so I opened a blank one" both report `started/engineReady/delivered:
+   * true`, and `get-task` then says `running: true` because the blank tab is
+   * alive. Each entry carries the tab id to address and the conversation id
+   * to resume it with, so the caller can act instead of guessing.
+   */
+  readonly frozenTabs?: readonly RestoredTabRef[]
+  /**
+   * This delivery RESPAWNED a freeze-restored tab before writing into it
+   * (`send --tab tab-N --respawn`). Distinct from {@link started}, which
+   * means a new session: a respawn reopens the SAME tab, keeping its
+   * scrollback, and resumes its pinned conversation when it has one.
+   */
+  readonly respawned?: true
+  /**
+   * Why nothing was confirmed — the session's own last line (its shell's
+   * `no such file or directory`, or the wrapper's `Engine exited (code N)`
+   * banner) when a fresh spawn produced no engine process. Present only
+   * alongside `engineReady: false` on a launch that reported `started`, so a
+   * fan-out sees WHICH launch failed instead of N uniform green results.
+   *
+   * `engineReady: false` with `delivered: true` is the one non-failure it
+   * describes: a repo-init script is still running, so the engine has not
+   * started yet and the prompt is still riding its unexecuted launch argv.
+   */
+  readonly reason?: string
+  /**
    * Present when the delivery gate found the composer busy and the prompt was
    * accepted-but-deferred rather than dropped: the daemon
    * stored the text and queued a `prompt_deferred` inbox episode. This is a
@@ -209,8 +273,17 @@ export interface DeliveredPrompt {
    * deferred send: the tab's deferred slot stays occupied until release or
    * expiry, and a later send fails with `DEFERRED_PROMPT_PENDING`. Absent on
    * direct delivery and on genuine failure.
+   *
+   * `expiresAt` is when the daemon's sweep drops the text (ISO 8601). Held
+   * text is not delivered text: a caller with no human to open the Inbox
+   * releases it itself with `deferred-release --id`, or drops it with
+   * `deferred-dismiss --id`. Absent when an older daemon did not report it.
    */
-  readonly deferred?: { readonly id: string; readonly layer: "recent-human-write" | "composer-not-empty" }
+  readonly deferred?: {
+    readonly id: string
+    readonly layer: "recent-human-write" | "composer-not-empty"
+    readonly expiresAt?: string
+  }
 }
 
 /** What the delivery layer calls to hand a blocked prompt to daemon ownership. */
@@ -224,7 +297,12 @@ export interface PromptDeferralSink {
     readonly tabId: string
     readonly prompt: string
     readonly layer: "recent-human-write" | "composer-not-empty"
-  }): Promise<{ readonly kind: "filed"; readonly id: string } | { readonly kind: "occupied"; readonly id: string }>
+  }): Promise<{
+    readonly kind: "filed" | "occupied"
+    readonly id: string
+    /** When the daemon's TTL sweep drops the text (ISO 8601); older daemons omit it. */
+    readonly expiresAt?: string
+  }>
 }
 
 /** Hosted prompt delivery seam, injectable for handler/unit tests. */
@@ -237,6 +315,19 @@ export interface PromptDeliveryOps {
   ): Promise<DeliveredPrompt>
 }
 
+/**
+ * A tab row plus the conversation id pinned on it (`TerminalTab.sessionId`)
+ * — the exact uuid `claude --resume` / `codex resume` needs. Rove has always
+ * persisted it per engine tab and exposed it on no read surface, so the
+ * documented recovery for a dead tab was to hunt for the id in the engine's
+ * own picker while it sat one field away in `state.json`.
+ *
+ * Declared here rather than on `TaskTabRow` itself only because the join
+ * happens in `runtime.ts`, where the snapshot is already in hand; folding
+ * the field into `joinTaskTabs` is the tidier home for it.
+ */
+export type TaskTabRowWithSession = TaskTabRow & { readonly sessionId?: string }
+
 // ── Runtime (the side-effect seam handlers run against) ─────────────────────
 
 /**
@@ -247,24 +338,53 @@ export interface PromptDeliveryOps {
  * git.
  */
 export interface ApiRuntime {
-  /** True iff ANY of the task's hosted engine tabs is live (not just tab-1). */
-  isTaskRunning(taskId: string): Promise<boolean>
+  /** {@link taskTabs}'s `.running`, for callers that need nothing else. */
+  isTaskRunning(taskId: string, engineArgv?: readonly string[]): Promise<boolean | null>
   /**
    * The task's persisted terminal tabs joined with hosted-session liveness,
    * plus the derived `.running` — the same answer {@link isTaskRunning}
    * gives, from the same read (`get-task` needs both, one host round-trip).
+   *
+   * `running` is TRI-STATE. `true`/`false` are verdicts about engine
+   * processes; `null` means the pty host could not be asked, which is
+   * "couldn't look" and not "nothing is running" — the distinction
+   * `pty-list` already publishes as `sessions: null`, and the one an
+   * unattended cleanup loop needs before it deletes a worktree.
+   *
+   * `engineArgv` is the task's own launch command. Without it a custom
+   * engine — a wrapper script no vendor table names — walks as "no engine"
+   * and its task reads stopped while it works; callers holding the task
+   * should pass `engineLaunchArgv({command, vendor})`.
    */
-  taskTabs(taskId: string): Promise<{ tabs: readonly TaskTabRow[]; running: boolean }>
+  taskTabs(
+    taskId: string,
+    engineArgv?: readonly string[],
+  ): Promise<{ tabs: readonly TaskTabRowWithSession[]; running: boolean | null }>
   /** Close one exact Terminal Tab without a mounted TUI. */
   closeTerminalTab(taskId: string, tabId: string): Promise<{ kind: TaskTabRow["kind"]; wasAlive: boolean }>
   /** Deliver a prompt into a task's engine pane (building the session if needed). */
   deliverPrompt(client: DaemonRpc, target: PromptTarget, prompt: string): Promise<DeliveredPrompt>
   /** Canonical source repo for task creation and grouping. */
   resolveRepoRoot(absPath: string): Promise<string>
+  /** Is this resolved repo something a worktree can be cut from? On the seam
+   *  beside {@link resolveRepoRoot} because it asks about the same path at the
+   *  same boundary — and because a direct `git` shell-out here would make every
+   *  handler test need a real repo on disk. Remote (`ssh://…`) keys answer true:
+   *  the remote-add flow validates those. */
+  isUsableRepo(absPath: string): Promise<boolean>
+  /** Would git accept this as a branch name? On the same seam and for the
+   *  same reason as {@link isUsableRepo}: the answer comes from `git
+   *  check-ref-format`, and handler tests must not have to spawn git. */
+  isValidBranchName(branch: string): Promise<boolean>
   /** Preferred engine for new tasks in `repo`; undefined delegates to daemon defaults. */
   defaultVendor(repo?: string): Promise<VendorId | undefined>
-  /** Uncommitted +/− counts for a worktree. */
-  readWorktreeChanges(worktreePath: string): Promise<{ added: number; deleted: number }>
+  /** Uncommitted +/− counts for a worktree; `null` when git could not be
+   *  read at all (unreadable admin dir, git off PATH, worktree gone). NOT
+   *  `{0,0}` — that is the answer for a genuinely clean worktree, and
+   *  `collect`'s own summary says non-zero means the attempt cannot land, so
+   *  a fabricated zero reads as "safe to land / safe to delete". Mirrors the
+   *  all-null contract `readBranchSignals` already keeps for `base`. */
+  readWorktreeChanges(worktreePath: string): Promise<{ added: number; deleted: number } | null>
   /** Committed work vs the branch's base: ahead/behind counts + diffstat (`collect`).
    *  `recordedBaseRef` is the task's persisted fork point (`add --base-branch`);
    *  when present it wins over the base guess; absent/unresolvable falls back. */

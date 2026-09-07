@@ -57,6 +57,7 @@ async function expectErrorToast(
 test("kanban: a failed issue delete shows an error toast, not just a log line", async () => {
   const orch = {
     listTasks: () => [{ repo: REPO }],
+    listIssueRepos: async () => [REPO],
     listIssues: async () => ({ repoRoot: REPO, exists: true, nextId: 9, issues: [issue(1)] }),
     activeTaskSignal: () => ({ get: () => null }),
     mutateIssue: async () => {
@@ -96,6 +97,7 @@ test("kanban: a failed issue delete shows an error toast, not just a log line", 
 test("kanban: a failed issue create shows an error toast", async () => {
   const orch = {
     listTasks: () => [{ repo: REPO }],
+    listIssueRepos: async () => [REPO],
     listIssues: async () => ({ repoRoot: REPO, exists: true, nextId: 9, issues: [issue(1)] }),
     activeTaskSignal: () => ({ get: () => null }),
     mutateIssue: async () => {
@@ -172,7 +174,10 @@ test("automations: a failed delete shows an error toast instead of a muted line"
   await settle()
   mockInput.pressEnter()
   await settle(150)
-  await expectErrorToast(await frame(), spans, "daemon refused", "in 1h")
+  // Assert the toast's own prefix, the way the kanban cases above do: the
+  // toast is one truncated line, so a 90-column frame cuts the daemon's
+  // message off the end. The prefix is what tells the user WHICH action died.
+  await expectErrorToast(await frame(), spans, 'Couldn\'t delete "weekday audit"', "in 1h")
 })
 
 test("automations: a failed toggle shows an error toast", async () => {
@@ -195,7 +200,9 @@ test("automations: a failed toggle shows an error toast", async () => {
   await settle(150)
   mockInput.typeText("e")
   await settle(150)
-  await expectErrorToast(await frame(), spans, "daemon refused", "in 1h")
+  // The routine was enabled, so the toast names the state it KEPT — a toggle
+  // that failed must not read as though it half-applied.
+  await expectErrorToast(await frame(), spans, '"weekday audit" stays enabled', "in 1h")
 })
 
 const WORK_ITEM = {
@@ -308,7 +315,13 @@ test("work-items: list rows render with number, labels, and age", async () => {
   expect(text).toContain("#42")
   expect(text).toContain("Fix the thing")
   expect(text).toContain("octocat · bug · p2")
-  expect(text).toContain("0m")
+  // The age column, by SHAPE not by literal: the fixture stamps `updatedAt`
+  // at module load, so the exact value depends on how long the file took to
+  // reach this test. It used to read `0m` because the page carried its own
+  // rounding copy of `relativeAge` with no seconds step; on the shared clock
+  // a freshly-stamped row reads `3s`, and both are the same assertion —
+  // "a row prints an age".
+  expect(text).toMatch(/\b\d+[smhd]\b/)
 })
 
 test("work-items: a failed list names the fix inline", async () => {

@@ -16,16 +16,40 @@
  * unit-testable without touching disk.
  */
 
-import { readFileSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { dirname, join } from "node:path"
 import { defaultDaemonLogPath, defaultPtyHostLogPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 
 /**
+ * Rove's own knobs, by SUFFIX — expanded to both prefixes below. Spelled once
+ * because a key listed under one prefix only prints its value there and
+ * redacts the other spelling of the SAME knob to `(set)`, which is how a
+ * `KOBE_WEB_HOST=0.0.0.0` bug report used to arrive with the value hidden.
+ * (`WEB_HOST` is read only by the harness PTY sidecar, and only under the
+ * `KOBE_` spelling — it is the LAN escape hatch for the one web listener Rove
+ * still runs, so its value is exactly what a report needs.)
+ */
+const REPORT_ENV_SUFFIXES = [
+  "HOME_DIR",
+  "DAEMON_SOCKET_PATH",
+  "SOCKET_PATH",
+  "PTY_SOCKET_PATH",
+  "PTY_PORT",
+  "WEB_HOST",
+  "BIN_PATH",
+  "DEV",
+  "DEBUG",
+  "TERMINAL_BACKEND",
+  "TASK_ID",
+  "TAB_ID",
+] as const
+
+/**
  * Keys whose VALUE is printed verbatim. Everything else is reported as `(set)`.
- * Add a key here when its value is what you'd ask a reporter for anyway — a
+ * Add one here when its value is what you'd ask a reporter for anyway — a
  * path, a port, a mode flag. Never add one that could hold a credential.
  */
-const REPORT_ENV_KEYS = [
+const REPORT_ENV_KEYS: readonly string[] = [
   "SHELL",
   "TERM",
   "TERM_PROGRAM",
@@ -33,33 +57,11 @@ const REPORT_ENV_KEYS = [
   "COLORTERM",
   "VISUAL",
   "EDITOR",
-  // Rove's own knobs: where state lives, which transport, which engine.
-  "ROVE_HOME_DIR",
-  "KOBE_HOME_DIR",
-  "ROVE_DAEMON_SOCKET_PATH",
-  "KOBE_DAEMON_SOCKET_PATH",
-  "ROVE_SOCKET_PATH",
-  "KOBE_SOCKET_PATH",
-  "KOBE_PTY_SOCKET_PATH",
-  "ROVE_DAEMON_WEB_PORT",
-  "KOBE_DAEMON_WEB_PORT",
-  "KOBE_PTY_PORT",
-  "KOBE_WEB_HOST",
-  "ROVE_BIN_PATH",
-  "KOBE_BIN_PATH",
-  "KOBE_WORKTREE_ROOT_DIR",
+  ...REPORT_ENV_SUFFIXES.flatMap((suffix) => [`ROVE_${suffix}`, `KOBE_${suffix}`]),
+  // No KOBE_ twin on purpose: `installRoveEnvCompatibility` deliberately skips
+  // this one, so a `KOBE_INVOKED_AS` line would always read `(unset)`.
   "ROVE_INVOKED_AS",
-  "ROVE_PRODUCT_NAME",
-  "ROVE_DEV",
-  "KOBE_DEV",
-  "KOBE_DEBUG",
-  "KOBE_TERMINAL_BACKEND",
-  "KOBE_TEST_ENGINE",
-  "ROVE_TASK_ID",
-  "KOBE_TASK_ID",
-  "ROVE_TAB_ID",
-  "KOBE_TAB_ID",
-] as const
+]
 
 /** How many trailing log lines each log section carries (also named in its header). */
 const LOG_TAIL_LINES = 200
@@ -117,9 +119,24 @@ export function buildReportBundle(
   ].join("\n")
 }
 
-/** Write the bundle to `rove-doctor-report.txt` in the cwd; return its path. */
+/**
+ * Write the bundle next to the logs it quotes — `<home>/.rove/`, the
+ * directory `defaultDaemonLogPath()` already resolves, so the report cannot
+ * drift away from the `daemon.log` / `pty.log` it tails and it inherits the
+ * same `ROVE_HOME_DIR` override for free. Returns its path.
+ *
+ * It used to land in `process.cwd()`. The instruction we give users is "run
+ * `rove doctor --report` and attach the file", and they run it where the
+ * trouble is — inside their repo, which is where it landed, untracked and
+ * matched by no `.gitignore`. That is a bug bundle full of daemon logs and
+ * env one reflexive `git add -A` away from a commit. A fixed home-rooted
+ * path is also the same path every time, which is what makes the printed
+ * location worth reading out over chat.
+ */
 export function writeReportBundle(doctorLines: readonly string[]): string {
-  const path = join(process.cwd(), "rove-doctor-report.txt")
+  const dir = dirname(defaultDaemonLogPath())
+  mkdirSync(dir, { recursive: true })
+  const path = join(dir, "rove-doctor-report.txt")
   writeFileSync(
     path,
     buildReportBundle(doctorLines, {

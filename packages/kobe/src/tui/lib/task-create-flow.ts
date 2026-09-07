@@ -183,7 +183,7 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
       createdId = task.id
     } catch (err) {
       ctx.logger.error(`${ctx.logPrefix} task.create failed:`, err)
-      ctx.notifyError?.(`Couldn't create task: ${errorMessage(err)}`)
+      ctx.notifyError?.(t("tasks.toast.createFailed", { error: errorMessage(err) }))
       return
     }
   }

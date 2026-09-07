@@ -4,7 +4,7 @@ Work that runs without you. A **Routine** is a cron rule + a prompt + a repo,
 owned by the daemon. By default every firing creates a fresh [task](CONCEPTS.md)
 with its own worktree, its own branch, and its own engine session, carrying the
 prompt as that session's first message. A routine that needs to remember what it
-said yesterday can instead keep [one standing session](#one-standing-session-instead-of-a-task-per-run).
+said yesterday can instead keep [one standing session](#one-standing-session-instead-of-a-task-per-run), or deliver into [an existing task and tab](#deliver-into-an-existing-conversation).
 
 That last part is the design, not an implementation detail. A run is not a
 hidden background job with a log file somewhere; it is an ordinary task in your
@@ -22,7 +22,7 @@ The example throughout this page is the one in the screenshot: *every morning at
 
 1. `ctrl+a` `2` (or click **Routines** in the sidebar rail) opens the page.
 2. `n` opens the composer. `tab` / `shift+tab` walk the fields: **name**,
-   **repo** (a scrolling picker over your projects), **prompt**, and
+   **repo** (a scrolling picker over your projects), **deliver to** (new task or an existing task in that repo), the existing **engine tab** when selected, **prompt**, and
    **schedule**, five labelled cells (min / hour / day / month / weekday)
    where `←`/`→` picks a cell and `↑`/`↓` changes it. The composer restates
    the next fire time in your own clock as you type ("weekdays at 12:00 · in
@@ -36,7 +36,7 @@ The example throughout this page is the one in the screenshot: *every morning at
 ![The New routine composer: name, repo picker and prompt above five labelled cron cells, with the hour cell selected and the schedule restated underneath as "weekdays at 12:00 · in 2d · Mon 12:00"](assets/routines-composer.png)
 
 There is no in-page editing: recreate the routine, or use `rove api
-routine-update`. The composer carries name, repo, prompt, schedule and the
+routine-update`. The composer carries name, repo, delivery target, prompt, schedule and the
 confirm step; everything else is CLI-only — `--precheck` (below),
 `--precheck-timeout`, `--vendor`, `--base-branch`, `--grace`,
 `--persistent-session` and `--disabled`.
@@ -79,6 +79,16 @@ rove api routine-create --repo . --name "Morning reply" --schedule "0 9 * * *" \
 Reply via `rove api send --task-id $ROVE_TASK_ID` with what changed overnight.
 EOF
 ```
+
+`--repo` and `--base-branch` are checked when the routine is saved, not when it
+fires: a path that is not a git repository, or a base ref that does not resolve
+in it, is refused with a message naming the value. The check is not a guarantee
+— a repo deleted after the routine was saved still fails at 03:00 — it just
+catches the typo while you are still at the keyboard.
+
+`--precheck-timeout` only means something alongside `--precheck`; on its own it
+is refused rather than quietly ignored. To change just the timeout, pass the
+command again.
 
 Full flag list: `rove api schema --group routine`, or [rove api](API.md).
 
@@ -173,16 +183,94 @@ needed:
 
 | Status | Meaning |
 |---|---|
-| `dispatched` | Task created (or delivered into the standing session), engine started with the prompt |
+| `dispatched` | A new task started with the prompt, or the prompt was delivered into a live standing or bound conversation |
 | `revived` | Standing session only: its engine had died, so it was respawned in the same worktree. The files carried over, the **conversation did not** |
-| `deferred` | Standing session only: the composer was busy, so the prompt is queued in your Inbox. **Not lost** — release it there |
+| `deferred` | The composer was busy. The daemon accepted the prompt into your Inbox; it has **not been delivered**. `deferredId` links its queue receipt. Release it from the Inbox or `deferred-release` |
+| `skipped_cancelled` | The routine was disabled, edited, deleted, or its runner stopped before delivery |
 | `skipped_precheck` | The precheck said there was nothing to do. **Healthy** |
-| `skipped_missed` | The occurrence was older than the grace window |
-| `skipped_unavailable` | The dispatch threw before it produced an outcome — the repo or worktree could not be resolved, but a branch collision, a worktree-creation error or a full disk lands here too. The `error` field names which |
-| `dispatch_failed` | The prompt did not reach an engine. Either the task's engine did not start, or a standing session's composer was busy and the deferral could not be filed (its Inbox slot is already taken). **Needs you** |
+| `skipped_missed` | The occurrence was older than the grace window, **or** the sweep never reached it. A busy sweep no longer drops occurrences silently: one row records how many were passed over and when the first was due |
+| `skipped_unavailable` | The dispatch threw before it produced an outcome — the repo or worktree could not be resolved, but a branch collision, a worktree-creation error or a full disk lands here too. The `error` field names which. **Needs you** |
+| `dispatch_failed` | The prompt did not reach an engine. Either the engine process never started, or a standing session's composer was busy and the deferral could not be filed (its Inbox slot is already taken). **Needs you** |
 
 `skipped_precheck` and `dispatch_failed` are opposite signals; they never share
 a label.
+
+`dispatched` means the engine PROCESS was seen running — not that the terminal
+opened. An engine whose launch command points at something that is not there
+exits immediately and leaves the login shell behind it, and the terminal is
+alive either way; a run that ends that way records `dispatch_failed` with the
+engine's own `Engine exited (code 127)` line in `error`. That check costs a
+firing nothing when the engine is fine and a few seconds when it is not.
+
+### You do not have to go looking
+
+The two statuses marked **Needs you** raise an entry in your **Inbox**, and the
+**Routines** page marks the row — `†` an engine that would not start, `!` a
+routine whose target is gone, `✓` a healthy last run, `·` nothing to do — with
+a count of how many need you in its header. One entry per routine, refreshed
+rather than repeated, so a routine failing every minute is one line and not
+1,440; it clears itself when the routine runs cleanly again.
+
+## Deliver into an existing conversation
+
+Use this for a prompt that belongs in a conversation you already opened. Get the
+exact tab id from `rove api get-task --task-id TASK_ID`, then bind both ids:
+
+```bash
+rove api routine-create --repo . --name "Check this conversation" \
+  --schedule "*/15 * * * *" --prompt "Check the current work and report progress." \
+  --target-task TASK_ID --target-tab tab-2
+rove api routine-list
+rove api routine-run-now --id ROUTINE_ID
+rove api routine-runs --id ROUTINE_ID
+rove api routine-update --id ROUTINE_ID --target-task TASK_ID --target-tab tab-3
+rove api routine-set-enabled --id ROUTINE_ID --enabled false
+```
+
+The composer also offers **Deliver to**. Select an existing task with the current
+up/down controls, then enter its engine tab id. The detail panel shows the bound
+task and tab; each delivery receipt carries `taskId` and `tabId`. Existing
+`e` pause/resume, `s` Run now, and the visible Run now button use this target.
+Use the API to edit a saved routine, as with its other fields.
+
+The public binding is `target: {kind: "existing-tab", taskId, tabId}`. Omitting
+`target` from an update preserves it. `target: null` clears it; the CLI spelling
+is `--target-task '' --target-tab ''`. Both CLI flags must be supplied together.
+Clearing returns to new-task behavior. Old records without a target retain their
+original fresh-task or standing-session behavior.
+
+The routine repo must match the target task's repo. A bound directory task
+does not require a git repository because the routine creates no worktree. An existing binding cannot
+also set `vendor`, `baseRef` or `persistentSession`, including values already
+stored before an update. Clear those values in the same update when switching
+modes: `--vendor '' --base-branch '' --persistent-session false`. The target
+keeps its own engine, worktree and conversation; routine runs never change its
+ownership or add a task or tab. Its precheck still runs in the routine repo.
+
+Scheduled and manual delivery use the same exact-tab gate. A missing or deleting
+task records `skipped_unavailable`. A missing tab or exited engine records
+`dispatch_failed`. None of these creates a replacement, selects another tab, or
+revives an engine. Repair the target or retarget the routine explicitly.
+
+A busy composer hands the prompt to the existing deferred store. A `deferred`
+run records queue acceptance, not engine delivery or work completion. Its
+`deferredId` identifies the item in `deferred-list`; release it from the Inbox or
+with `deferred-release --id ID`. An occupied slot fails the later firing and
+preserves the earlier prompt. Viewing or revisiting the target tab keeps queued
+text; only an explicit release, dismiss or expiry removes it. For plugin consumers, a deferred run emits `automation.skipped` with
+`status: "deferred"`, `tabId` and `deferredId`; it does not emit `automation.dispatched`. The queue
+survives daemon restarts and retains
+its normal 24-hour expiry. Disabling or deleting a routine stops future
+scheduling; it does not retract a prompt already accepted into the Inbox.
+
+The runner persists an occurrence claim before delivery, so overlapping ticks
+and a daemon restart cannot deliver that scheduled occurrence twice. It checks
+for disable, edits, deletion and stop again after precheck and before handing
+the prompt to delivery. An already handed-off prompt may finish. This is
+**at most once**, with a crash limitation: a crash after claim persistence but
+before delivery can lose that occurrence, and a crash before its run receipt is
+saved can leave no receipt. Restart does not retry that claimed occurrence.
+Unclaimed due occurrences follow the normal missed-run grace policy.
 
 ## One standing session instead of a task per run
 

@@ -5,6 +5,9 @@
 
 export const en = {
   pageTitle: "ROVE UPDATE",
+  /** Page-header close affordance, opposite the title. Keys stay literal;
+   *  only the verb is translated — same shape as `versions.footerHint`. */
+  closeHint: "q / esc close",
   /** Brand-row chip — must stay tiny, the rail is the narrowest panel. */
   chip: "↑ {version}",
   current: "current",
@@ -12,6 +15,11 @@ export const en = {
   /** The registry check failed (offline, npm down, timeout). Must stay
    *  distinct from "you are up to date". */
   latestUnknown: "unknown — could not reach the registry",
+  /** The registry answered and nothing is newer. Distinct from
+   *  `latestUnknown`: this one is a checked fact, not a failed lookup. Worded
+   *  for BOTH cases it covers — the installed build can equal the published
+   *  release or be ahead of it (a local build, a lagging dist-tag). */
+  upToDate: "No newer release — nothing to install.",
   releaseUrlUnavailable: "release URL unavailable",
   statusReleaseOpened: "Opened release page in your browser.",
   statusReleaseError: "Could not open release URL.",
@@ -31,7 +39,24 @@ export const en = {
   skew: {
     title: "⚠ DAEMON OUT OF DATE",
     olderBuild: "an older build",
-    hint: "daemon is {daemon} — you launched v{clientVersion}. Run `rove daemon restart`, then relaunch Rove",
+    /** The banner is now an ACTION, not a chore list: the chord does the
+     *  daemon restart and the relaunch that the old copy asked the user to
+     *  type out by hand. `{keys}` is the live chord, so a rebind is honoured. */
+    hint: "daemon is {daemon} — you launched v{clientVersion}. Press {keys} to refresh Rove onto the installed build",
+    /** Fallback wording for a build where the refresh chord is unbound. */
+    hintNoKey: "daemon is {daemon} — you launched v{clientVersion}. Run `rove daemon restart`, then relaunch Rove",
+  },
+  /** The self-refresh: restart whichever halves are behind, then come back. */
+  refresh: {
+    confirmTitle: "Refresh Rove?",
+    /** Names the one thing a user actually worries about losing. */
+    confirmBody:
+      "Rove restarts the daemon and relaunches itself on the installed build. Running engine sessions live in the PTY host and keep going; open tabs come back.",
+    confirmLabel: "Refresh",
+    relaunching: "rove: restarting on the installed build...",
+    alreadyCurrent: "Rove and the daemon already run the same build — nothing to refresh.",
+    installGone:
+      "This Rove was installed from a directory that no longer exists, so it cannot relaunch itself. Reinstall with `npm install -g @sma1lboy/rove`.",
   },
   /** This process's own install was deleted — it can never start a daemon again. */
   staleInstall: {
@@ -45,17 +70,24 @@ export const en = {
     tagCurrent: "current",
     tagLatest: "latest",
     tagBreaking: "breaking",
-    breakingWarning: "⚠ installing this crosses breaking version(s) {versions} — run `rove reset` after the update.",
+    /** Shown before the user commits to a version. `enforceResetGate()` calls
+        `process.exit(1)` at every app entrance until the reset runs, so the
+        reset is mandatory, not advisory — and it costs live sessions. */
+    breakingWarning:
+      "⚠ installing this crosses breaking version(s) {versions}. Rove will refuse to start until you run `rove reset`, which stops the daemon, the PTY host, and every live session. Tasks and worktrees are kept.",
     footerHint: "j/k select · enter install · q close",
+    closeHint: "q / esc close",
   },
 }
 
 export const zh: typeof en = {
   pageTitle: "ROVE 更新",
+  closeHint: "q / esc 关闭",
   chip: "↑ {version}",
   current: "当前",
   latest: "最新",
   latestUnknown: "未知 —— 无法连接到 registry",
+  upToDate: "没有更新的版本 —— 无需安装。",
   releaseUrlUnavailable: "发布链接不可用",
   statusReleaseOpened: "已在浏览器中打开发布说明页面。",
   statusReleaseError: "无法打开发布链接。",
@@ -75,7 +107,18 @@ export const zh: typeof en = {
   skew: {
     title: "⚠ DAEMON 版本不一致",
     olderBuild: "旧版本构建",
-    hint: "daemon 运行的是 {daemon}，而你启动的是 v{clientVersion}。请运行 `rove daemon restart`，然后重新启动 Rove",
+    hint: "daemon 运行的是 {daemon}，而你启动的是 v{clientVersion}。按 {keys} 可让 Rove 刷新到已安装的版本",
+    hintNoKey:
+      "daemon 运行的是 {daemon}，而你启动的是 v{clientVersion}。请运行 `rove daemon restart`，然后重新启动 Rove",
+  },
+  refresh: {
+    confirmTitle: "刷新 Rove？",
+    confirmBody:
+      "Rove 会重启 daemon，并以已安装的版本重新启动自身。正在运行的引擎会话由 PTY host 托管，不会中断；已打开的标签页会恢复。",
+    confirmLabel: "刷新",
+    relaunching: "rove：正在以已安装的版本重新启动……",
+    alreadyCurrent: "Rove 与 daemon 已经是同一个版本 —— 无需刷新。",
+    installGone: "当前 Rove 的安装目录已不存在，无法重新启动自身。请运行 `npm install -g @sma1lboy/rove` 重新安装。",
   },
   staleInstall: {
     title: "✕ ROVE 安装已不存在",
@@ -88,7 +131,9 @@ export const zh: typeof en = {
     tagCurrent: "当前",
     tagLatest: "最新",
     tagBreaking: "breaking",
-    breakingWarning: "⚠ 安装该版本会跨过 breaking 版本 {versions}——更新后需运行 `rove reset`。",
+    breakingWarning:
+      "⚠ 安装该版本会跨过 breaking 版本 {versions}。更新后 Rove 会拒绝启动，直到你运行 `rove reset`——它会停掉 daemon、PTY host 和所有活动会话。任务和 worktree 会保留。",
     footerHint: "j/k 选择 · enter 安装 · q 关闭",
+    closeHint: "q / esc 关闭",
   },
 }

@@ -1,20 +1,23 @@
 /**
  * Deferred-prompt RPC handlers. The delivery gate ran in a
  * kobe (CLI) process and found the target composer busy; it calls
- * `deferredPrompt.file` to hand ownership to the daemon, which stores the text
- * and records a `prompt_deferred` inbox episode. Release and bulk flush both
- * claim the record, persist a no-redelivery marker, then attempt exact-tab
+ * `deferredPrompt.fileIfVacant` to hand ownership to the daemon, which stores
+ * the text and records a `prompt_deferred` inbox episode. Release and bulk flush
+ * both claim the record, persist a no-redelivery marker, then attempt exact-tab
  * delivery and clean up the Inbox pointer.
  */
 
+import { deferredPromptSender } from "./deferred-prompt-sender.ts"
 import { sweepExpiredDeferredPrompts } from "./deferred-prompt-sweep.ts"
 import {
+  DEFERRED_PROMPT_TTL_MS,
   type DeferredPromptClaim,
   DeferredPromptPendingError,
   type DeferredPromptRecord,
 } from "./deferred-prompts-store.ts"
 import { optionalString, requireString } from "./handler-validators.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
+import type { DaemonRequestName } from "./protocol.ts"
 
 type DeferredPromptInput = Omit<DeferredPromptRecord, "id" | "at"> & {
   readonly at: number
@@ -28,7 +31,10 @@ function deferredPromptInput(payload: Record<string, unknown>): DeferredPromptIn
   if (layer !== "recent-human-write" && layer !== "composer-not-empty") {
     throw new Error('layer must be "recent-human-write" or "composer-not-empty"')
   }
-  const senderLabel = optionalString(payload, "senderLabel")
+  // A peer send carries its provenance in the prompt's own header and passes
+  // no `senderLabel`. Lifting it HERE is what puts a name on the Inbox card
+  // and in `deferred-list`: the episode never sees the prompt body.
+  const senderLabel = optionalString(payload, "senderLabel") ?? deferredPromptSender(prompt)
   const senderTaskId = optionalString(payload, "senderTaskId")
   return {
     taskId,
@@ -62,7 +68,14 @@ async function fileWithInbox(
   // This commit is intentionally retried for an occupied slot. A daemon can
   // die after the deferred record rename but before the Inbox rename; the
   // next filing reconstructs the pointer instead of stranding the text.
-  await ctx.inbox.recordPromptDeferred(record.taskId, record.tabId, record.id, record.layer)
+  await ctx.inbox.recordPromptDeferred(
+    record.taskId,
+    record.tabId,
+    record.id,
+    record.layer,
+    record.at + DEFERRED_PROMPT_TTL_MS,
+    record.senderLabel,
+  )
   return { kind, record }
 }
 
@@ -115,6 +128,40 @@ interface DeliveryReport {
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+/**
+ * One record as an API caller sees it. `at`/`expiresAt` are ISO strings (the
+ * shape every other timestamp on the API wears) and `expiresAt` is derived
+ * rather than stored — the TTL is a daemon constant, so publishing the
+ * deadline is the only way a caller can know its text has a shelf life at all.
+ * The claim/delivery bookkeeping (`deliveredAt`, `deliveryStartedAt`) stays
+ * internal: it describes a transaction in flight, not the caller's message.
+ */
+function publicRecord(record: DeferredPromptRecord): {
+  id: string
+  taskId: string
+  tabId: string
+  prompt: string
+  layer: string
+  at: string
+  expiresAt: string
+  senderLabel?: string
+  senderTaskId?: string
+  dismissedAt?: string
+} {
+  return {
+    id: record.id,
+    taskId: record.taskId,
+    tabId: record.tabId,
+    prompt: record.prompt,
+    layer: record.layer,
+    at: new Date(record.at).toISOString(),
+    expiresAt: new Date(record.at + DEFERRED_PROMPT_TTL_MS).toISOString(),
+    ...(record.senderLabel !== undefined ? { senderLabel: record.senderLabel } : {}),
+    ...(record.senderTaskId !== undefined ? { senderTaskId: record.senderTaskId } : {}),
+    ...(record.dismissedAt !== undefined ? { dismissedAt: new Date(record.dismissedAt).toISOString() } : {}),
+  }
 }
 
 async function deleteDeferredInboxPointer(record: DeferredPromptRecord, ctx: DaemonHandlerContext): Promise<void> {
@@ -253,7 +300,7 @@ async function flushDeferredPrompts(ctx: DaemonHandlerContext): Promise<{
       if (claimed.kind === "claimed") await cleanupDeliveredClaim(claimed.claim, ctx, report)
       continue
     }
-    if (ctx.runtime.composerGateEnabled()) {
+    if (ctx.runtime.deliveryGuard() === "on") {
       report.retained.push({
         id: record.id,
         taskId: record.taskId,
@@ -277,55 +324,93 @@ async function flushDeferredPrompts(ctx: DaemonHandlerContext): Promise<{
   return report
 }
 
+/**
+ * `deferredPrompt.file` / `.get` / `.resolve` did real work once; nothing
+ * calls them now. They stay in the registry as REFUSALS rather than being
+ * deleted outright, because dropping a name is not a neutral act here: the
+ * only caller left is a client OLDER than this daemon — a pre-`fileIfVacant`
+ * CLI still filing through `.file`, or a TUI that read a record with `.get`
+ * before the daemon restarted under it — and the registry's generic
+ * `unknown daemon request: …` sends exactly that caller the wrong way. Every
+ * client maps that string to `DAEMON_VERSION_SKEW`, whose recovery is
+ * "restart the daemon"; the daemon is the current half, so restarting it
+ * changes nothing and the skew survives the fix.
+ *
+ * The recovery therefore has to ride the MESSAGE. An old client shapes errors
+ * with its own frozen code, so a structured `hint`/`nextCommandArgs` added on
+ * this end never reaches it; the `CODE: ` prefix is the one structured field a
+ * daemon error carries across the wire at all (`splitDaemonCode` in
+ * `cli/api/types.ts`), and the prose after it is what a human or an agent
+ * actually reads.
+ *
+ * `.get`/`.resolve` are refusals for a second reason that predates this: a
+ * pre-claim client can race the daemon flusher after reading the text and
+ * paste the same record twice. `.get` already threw for that. Restoring the
+ * verb restores the refusal, never the read.
+ */
+function retiredDeferredPromptRpc(name: DaemonRequestName, replacement: string): DaemonRequestHandler {
+  return {
+    name,
+    handle() {
+      throw new Error(
+        `RETIRED_RPC: ${name} is gone; use ${replacement}. This client is an older build than the daemon — restart Rove to update the client (restarting the daemon will not help).`,
+      )
+    },
+  }
+}
+
 export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
   {
-    // Socket-only (see deferredPrompt.get) — not on the pinned web allowlist.
-    name: "deferredPrompt.file",
-    async handle(payload, ctx) {
-      const result = await fileWithInbox(deferredPromptInput(payload), ctx)
-      if (result.kind === "occupied") throw new DeferredPromptPendingError(result.record)
-      return { id: result.record.id }
-    },
-  },
-  {
-    // New clients use a distinct verb so an old daemon cannot silently route
-    // them through its replace-the-existing-record implementation.
+    // Socket-only: not on the pinned web allowlist. Keeping the file/release
+    // verbs off the browser-reachable surface is a security contract
+    // (test/daemon/web-exposure.test.ts).
+    //
+    // The distinct name is load-bearing: an old daemon rejects it outright
+    // rather than silently routing the prompt through the retired
+    // replace-the-existing-record verb.
     name: "deferredPrompt.fileIfVacant",
     async handle(payload, ctx) {
       const result = await fileWithInbox(deferredPromptInput(payload), ctx)
       return {
         kind: result.kind,
         id: result.record.id,
+        // The sender's `deferred` payload is the only place it learns the
+        // text has a deadline at all; an older CLI just ignores the field.
+        expiresAt: publicRecord(result.record).expiresAt,
         ...(result.kind === "occupied" ? { layer: result.record.layer } : {}),
       }
     },
   },
   {
-    // Socket-only: the exit path is the TUI inbox (a socket client). Keeping
-    // these off the web allowlist is deliberate — the browser-reachable surface
-    // is a pinned security contract (test/daemon/web-exposure.test.ts).
-    name: "deferredPrompt.get",
-    async handle() {
-      // A pre-claim client can race the daemon flusher after reading the text
-      // and paste the same record twice. Fail that mixed-version exit path
-      // loud; current clients use the atomic `release` verb below.
-      throw new Error("legacy deferred prompt release is unsafe; restart Rove to update the client")
+    // The read half of the TUI Inbox, for a caller with no screen. Reports the
+    // LIVE records only — `store.list()` already separates the TTL-expired
+    // set, which the sweep timer owns — plus each record's `expiresAt`, so a
+    // headless sender can see how long the daemon will hold its text.
+    name: "deferredPrompt.list",
+    async handle(payload, ctx) {
+      if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
+      const listed = await ctx.deferredPrompts.list()
+      // Dismissed text is retained but not queued, so it is opt-in: a caller
+      // asking "what is waiting?" must not see it, and a caller undoing a
+      // dismiss must be able to find it.
+      const records = payload.includeDismissed === true ? [...listed.records, ...listed.dismissed] : listed.records
+      return { records: records.map(publicRecord) }
     },
   },
   {
-    name: "deferredPrompt.resolve",
+    // The Inbox's dismiss action: take the message off the queue and delete
+    // its Inbox pointer without delivering. This unblocks a tab whose deferred
+    // slot is occupied (`DEFERRED_PROMPT_PENDING`). The TEXT is kept until the
+    // record's ordinary 24h expiry — a mis-hit `d` on a card that said only
+    // "message queued" used to destroy a dispatcher's instruction outright.
+    name: "deferredPrompt.dismiss",
     async handle(payload, ctx) {
       const id = requireString(payload, "id")
       if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
-      // A legacy client can still finish an insert fetched before a daemon
-      // restart. Claim before trusting its resolve so it cannot erase a
-      // record that a concurrent flush owns.
-      const claimed = await ctx.deferredPrompts.claim(id)
-      if (claimed.kind !== "claimed") return { removed: false, kind: claimed.kind }
-      const report: DeliveryReport = { delivered: [], cleaned: [], expired: [], retained: [], cleanupPending: [] }
-      await ctx.deferredPrompts.markDelivered(claimed.claim)
-      await cleanupDeliveredClaim(claimed.claim, ctx, report)
-      return { removed: report.cleaned.includes(id), cleanupPending: report.cleanupPending }
+      const dropped = await ctx.deferredPrompts.discard(id, "Inbox item dismissed")
+      if (!dropped) return { dismissed: false }
+      await deleteDeferredInboxPointer(dropped, ctx)
+      return { dismissed: true, record: publicRecord(dropped) }
     },
   },
   {
@@ -364,4 +449,7 @@ export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
       return await flushDeferredPrompts(ctx)
     },
   },
+  retiredDeferredPromptRpc("deferredPrompt.file", "deferredPrompt.fileIfVacant"),
+  retiredDeferredPromptRpc("deferredPrompt.get", "deferredPrompt.release"),
+  retiredDeferredPromptRpc("deferredPrompt.resolve", "deferredPrompt.release"),
 ]

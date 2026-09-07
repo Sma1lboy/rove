@@ -23,7 +23,7 @@ import type { CursorFollow } from "../lib/use-cursor-follow"
 import { FRAME } from "../ui/frame"
 import { KanbanCard } from "./kanban-card"
 
-export const COLUMN_LABEL_KEY: Record<BoardColumnKey, string> = {
+const COLUMN_LABEL_KEY: Record<BoardColumnKey, string> = {
   backlog: "kanban.column.backlog",
   in_progress: "kanban.column.inProgress",
   parked: "kanban.column.parked",

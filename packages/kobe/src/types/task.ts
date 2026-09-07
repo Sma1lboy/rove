@@ -75,7 +75,6 @@ export interface TaskPRStatus {
   readonly url?: string
   readonly title?: string
   readonly baseRef?: string
-  readonly headRef?: string
   readonly reviewDecision?: string
   readonly mergeable?: string
   readonly lastCheckedAt?: string
@@ -215,7 +214,7 @@ export interface Task {
   readonly prStatus?: TaskPRStatus
   /**
    * Reasoning/effort level for the task's engine, when the vendor supports
-   * one (codex: `none`/`low`/`medium`/`high`/`xhigh`). Optional + additive:
+   * one (codex: `none`/`low`/`medium`/`high`/`xhigh`/`max`). Optional + additive:
    * missing records load unchanged, and a vendor with no effort levels
    * (claude today) leaves it undefined. The launch path maps it to the
    * vendor-correct flag (see `interactive-command.ts`).

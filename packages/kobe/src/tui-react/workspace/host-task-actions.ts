@@ -14,10 +14,11 @@
  * (`TaskActionContext.tasks` is `() => readonly Task[]`).
  */
 
-import { errorMessage } from "@/lib/error-message"
+import { userFacingErrorMessage } from "@/lib/error-message"
 import { useRenderer } from "@opentui/react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { availableEngineIds } from "../../engine/account-detect"
+import { t } from "../../tui/i18n"
 import { copyTextToSystemClipboard } from "../../tui/lib/clipboard-copy"
 import {
   applyVendorChange,
@@ -137,13 +138,13 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     const task = tasks().find((t) => t.id === id)
     if (!task) return
     await orchestrator.setPinned(id, !task.pinned).catch((err) => {
-      notifyError(`Couldn't pin: ${errorMessage(err)}`)
+      notifyError(t("tasks.toast.pinFailed", { error: userFacingErrorMessage(err) }))
     })
   }
 
   async function moveTask(id: string, delta: -1 | 1): Promise<void> {
     await orchestrator.moveTask(id, delta).catch((err) => {
-      notifyError(`Couldn't move: ${errorMessage(err)}`)
+      notifyError(t("tasks.toast.moveFailed", { error: userFacingErrorMessage(err) }))
     })
   }
 
@@ -159,7 +160,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     const next = await BranchPickerDialog.show(dialog, { currentBranch: task.branch, repo: task.repo })
     if (!next) return
     await orchestrator.setBranch(id, next).catch((err) => {
-      notifyError(`Couldn't rename branch: ${errorMessage(err)}`)
+      notifyError(t("tasks.toast.renameBranchFailed", { branch: task.branch, error: userFacingErrorMessage(err) }))
     })
   }
 
@@ -199,11 +200,13 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     await landTaskAction(
       {
         orchestrator,
-        confirm: (branch) =>
+        // Body arrives rendered from `landTaskAction` — it names the
+        // destination branch and commit count, which the preflight owns.
+        confirm: (body) =>
           DialogConfirm.show(
             dialog,
             t("worktrees.land.confirmTitle"),
-            t("worktrees.land.confirmBody", { branch }),
+            body,
             t("common.cancel"),
             t("worktrees.land.button"),
           ).then((ok: unknown) => ok === true),
@@ -244,8 +247,10 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     togglePin,
     moveTask,
     setStatus: (id) => setStatusFlow(taskActions, id),
-    copyTaskField: (id, field) => copyTaskFieldFlow(taskActions, id, field),
-    showFieldNotes: (repo) => FieldNotesDialog.show(dialog, { repo, load: () => orchestrator.listFieldNotes(repo) }),
+    copyTaskField: (id, field) => {
+      void copyTaskFieldFlow(taskActions, id, field)
+    },
+    showFieldNotes: (repo) => FieldNotesDialog.show(dialog, { repo, orchestrator }),
     confirmRunAgain,
     landTask,
   }

@@ -1,3 +1,4 @@
+import { homedir } from "node:os"
 import { afterEach, describe, expect, test } from "vitest"
 import {
   homeDir,
@@ -41,6 +42,30 @@ describe("rename-compatible environment access", () => {
 
   test("KOBE_HOME_DIR remains a supported fallback", () => {
     Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+    process.env.KOBE_HOME_DIR = "/legacy-home"
+    expect(homeDir()).toBe("/legacy-home")
+  })
+
+  // `VAR=` is how a shell says "unset". Read raw, it made the home `""` and
+  // every state path RELATIVE — `.rove`, `.config/rove/state.json` — resolved
+  // against whatever cwd the process happened to have, which for the TUI is
+  // the user's repository.
+  test("an empty HOME_DIR means unset, never a relative state root", () => {
+    process.env.ROVE_HOME_DIR = ""
+    process.env.KOBE_HOME_DIR = ""
+    expect(homeDir()).toBe(homedir())
+    expect(roveStateDir()).toBe(`${homedir()}/.rove`)
+    expect(kvStatePath()).toBe(`${homedir()}/.config/rove/state.json`)
+  })
+
+  test("a whitespace-only HOME_DIR is unset too", () => {
+    process.env.ROVE_HOME_DIR = "   "
+    Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
+    expect(homeDir()).toBe(homedir())
+  })
+
+  test("an empty ROVE_HOME_DIR still yields to a real KOBE_HOME_DIR", () => {
+    process.env.ROVE_HOME_DIR = ""
     process.env.KOBE_HOME_DIR = "/legacy-home"
     expect(homeDir()).toBe("/legacy-home")
   })

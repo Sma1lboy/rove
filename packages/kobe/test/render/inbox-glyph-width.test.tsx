@@ -82,7 +82,8 @@ function stubKv(): KVContext {
       store[key] = value
     },
     flush: () => true,
-    clear: () => void 0,
+    clear: () => true,
+    onWriteError: () => () => {},
   }
 }
 

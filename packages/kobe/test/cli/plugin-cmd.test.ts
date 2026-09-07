@@ -126,7 +126,7 @@ describe("plugin command workflow", () => {
     await runPluginSubcommand(["link", root])
 
     const client = {
-      request: vi.fn().mockResolvedValue(undefined),
+      request: vi.fn().mockResolvedValue({ clients: 0 }),
     }
     sessionMocks.openDaemonSession.mockResolvedValue({ client, close: vi.fn() })
     sessionMocks.resolveActiveTaskId.mockResolvedValue("task-42")
@@ -146,6 +146,19 @@ describe("plugin command workflow", () => {
         placement: "split",
       }),
     )
-    expect(output.join("\n")).toContain("opened pane example.logs in task task-42")
+    // The resolved task rides the env contract into the pane, so the pane can
+    // name its own task instead of guessing from its cwd.
+    const script = (client.request.mock.calls.find(([name]) => name === "tab.open")?.[1] as { argv: string[] })
+      .argv[2] as string
+    expect(script).toContain("'ROVE_PLUGIN_TASK_ID=task-42'")
+    // Machine-readable like `api pane-open`: `clients` 0 means the broadcast
+    // went out but no attached UI performed the split — exit 0 cannot say that.
+    expect(JSON.parse(output.join("\n"))).toMatchObject({
+      ok: true,
+      clients: 0,
+      pane: "example.logs",
+      taskId: "task-42",
+      title: "Logs",
+    })
   })
 })

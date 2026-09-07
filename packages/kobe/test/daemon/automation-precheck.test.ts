@@ -1,12 +1,14 @@
+import { execSync, spawn } from "node:child_process"
 import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import {
   formatPrecheckSkip,
   precheckPassed,
   runAutomationPrecheck,
   tail,
+  withWatchdog,
 } from "../../../kobe-daemon/src/daemon/automation-precheck.ts"
 
 const CWD = process.cwd()
@@ -100,7 +102,13 @@ describe("runAutomationPrecheck", () => {
     chmodSync(spy, 0o755)
     const result = await runAutomationPrecheck({ command: "true", timeoutSeconds: 10 }, CWD, spy)
     expect(result.exitCode).toBe(0)
-    expect(readFileSync(argsFile, "utf8")).toBe("-ilc\ntrue\n")
+    // The script argument is itself multi-line, so read the file whole rather
+    // than splitting it back into arguments.
+    const argv = readFileSync(argsFile, "utf8")
+    expect(argv.startsWith("-ilc\n")).toBe(true)
+    // The user's command is the last line, below the watchdog preamble that
+    // bounds it when the daemon is not around to do so.
+    expect(argv.trimEnd().endsWith("\ntrue")).toBe(true)
   })
 
   it("truncates runaway output instead of buffering it all", async () => {
@@ -111,4 +119,65 @@ describe("runAutomationPrecheck", () => {
     )
     expect(result.stdout.length).toBeLessThanOrEqual(4000)
   })
+})
+
+describe("orphan containment", () => {
+  // A precheck that outlives the daemon is not a tidiness problem. The shape
+  // that shipped — `while [ ! -f release ]; do sleep 0.01; done` in a test
+  // fixture — spins at ~100 forks a second, and nothing is left to ever
+  // create `release`. Thirty-three of them held a Mac at load 170 with 86% of
+  // the CPU in the kernel, surviving every daemon restart. Both tests below
+  // assert on the PROCESSES, because the old timeout test asserted only that
+  // the result said `timedOut` and passed the whole time the leak existed.
+
+  // `pgrep -fx` matches the whole argv, and the markers below are durations
+  // nothing else would pick, so this cannot collide with unrelated sleeps on
+  // a dev machine.
+  const sleepersFor = (marker: string): number =>
+    Number(execSync(`pgrep -fx 'sleep ${marker}' | wc -l`).toString().trim())
+
+  it.skipIf(process.platform === "win32")(
+    "a timeout kills the command's children, not just the shell",
+    async () => {
+      const marker = "24771"
+      // Three seconds, not one: the interactive shell sources the user's rc
+      // files before it reaches the command, so a tighter timeout can fire
+      // before the children exist and pass vacuously — which is how the leak
+      // stayed invisible.
+      const result = await runAutomationPrecheck(
+        { command: `sleep ${marker} & sleep ${marker} | cat`, timeoutSeconds: 3 },
+        CWD,
+      )
+      expect(result.timedOut).toBe(true)
+      await new Promise((r) => setTimeout(r, 500))
+      expect(sleepersFor(marker)).toBe(0)
+      execSync(`pkill -fx 'sleep ${marker}' || true`)
+    },
+    20_000,
+  )
+
+  it.skipIf(process.platform === "win32")(
+    "the wrapped command bounds itself with no one watching",
+    async () => {
+      // The real leak: a SIGKILLed daemon takes its timer with it, so anything
+      // depending on this process still running is already gone. So run the
+      // wrapped command the way an abandoned precheck ends up — detached, with
+      // nothing that will ever signal it — and require it to end on its own.
+      const marker = "24772"
+      const child = spawn("/bin/sh", ["-c", withWatchdog(`sleep ${marker}`, 3)], {
+        detached: true,
+        stdio: "ignore",
+      })
+      child.unref()
+      try {
+        await vi.waitFor(() => expect(sleepersFor(marker)).toBe(1), { timeout: 10_000, interval: 100 })
+        // Before the fix this sleep outlived every daemon restart; the only
+        // deadline it has now is the one the shell carries itself.
+        await vi.waitFor(() => expect(sleepersFor(marker)).toBe(0), { timeout: 15_000, interval: 250 })
+      } finally {
+        execSync(`pkill -fx 'sleep ${marker}' || true`)
+      }
+    },
+    30_000,
+  )
 })

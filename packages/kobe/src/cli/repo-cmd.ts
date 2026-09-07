@@ -112,22 +112,19 @@ export async function runRepoSubcommand(args: readonly string[]): Promise<void> 
   if (!SUBCOMMAND_VERBS.repo.includes(verb)) usageError(`unknown verb "${verb}"`)
 
   const { getRepoInitOverride, setRepoInitOverride, resolveRepoRoot } = await import("../state/repos.ts")
-  const { existsSync } = await import("node:fs")
-  const { join } = await import("node:path")
 
   if (verb === "show") {
     const [pathArg] = rest.filter((a) => !a.startsWith("-"))
     const repo = resolveRepoRoot(resolve(process.cwd(), expandTilde(pathArg ?? ".")))
     const override = getRepoInitOverride(repo)
-    const hasRoveScript = existsSync(join(repo, ".rove", "init.sh"))
-    const hasRovePrompt = existsSync(join(repo, ".rove", "init-prompt.md"))
-    const hasKobeScript = existsSync(join(repo, ".kobe", "init.sh"))
-    const hasKobePrompt = existsSync(join(repo, ".kobe", "init-prompt.md"))
+    const { describeRepoInitSources } = await import("../state/repo-init.ts")
+    const sources = describeRepoInitSources(repo)
     console.log(`repo: ${repo}`)
-    console.log(`  .rove/init.sh:        ${hasRoveScript ? "present (wins)" : "absent"}`)
-    console.log(`  .rove/init-prompt.md: ${hasRovePrompt ? "present (wins)" : "absent"}`)
-    console.log(`  .kobe/init.sh:        ${hasKobeScript ? "present (legacy fallback)" : "absent"}`)
-    console.log(`  .kobe/init-prompt.md: ${hasKobePrompt ? "present (legacy fallback)" : "absent"}`)
+    for (const group of [sources.script, sources.prompt]) {
+      group.forEach((source, index) => {
+        console.log(`  ${`${source.rel}:`.padEnd(22)}${describeSource(group, index)}`)
+      })
+    }
     console.log(`  override initScript:  ${override.initScript ? quotePreview(override.initScript) : "(unset)"}`)
     console.log(`  override initPrompt:  ${override.initPrompt ? quotePreview(override.initPrompt) : "(unset)"}`)
     return
@@ -165,6 +162,23 @@ export async function runRepoSubcommand(args: readonly string[]): Promise<void> 
   // Unreachable via the gate above; kept so a verb added to SUBCOMMAND_VERBS
   // without a branch here fails loud instead of silently doing nothing.
   usageError(`unknown verb "${verb}"`)
+}
+
+/**
+ * How `repo show` labels one repo-init candidate. "wins" comes from
+ * `describeRepoInitSources`, which applies the SAME rules as the runtime — a
+ * file present but empty is reported as ignored rather than winning, which is
+ * exactly the confusion this command is run to resolve.
+ */
+function describeSource(group: readonly { present: boolean; effective: boolean }[], index: number): string {
+  const source = group[index]
+  if (!source) return "absent"
+  if (source.effective) return "present (wins)"
+  if (!source.present) return "absent"
+  // Present but not used: either a higher-precedence candidate took it, or it
+  // holds nothing but whitespace and the runtime skipped it.
+  const shadowed = group.slice(0, index).some((earlier) => earlier.effective)
+  return shadowed ? "present (shadowed)" : "present but empty (ignored)"
 }
 
 /** Single-line preview of a possibly multi-line value for `repo show`. */

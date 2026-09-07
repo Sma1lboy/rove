@@ -53,11 +53,15 @@ describe("shQuote / shJoin", () => {
 
 describe("remoteShellCommand", () => {
   it("prefixes cd <cwd> when a cwd is given", () => {
-    expect(remoteShellCommand(["git", "status"], "/srv/wt")).toBe("cd '/srv/wt' && 'git' 'status'")
+    expect(remoteShellCommand(shJoin(["git", "status"]), "/srv/wt")).toBe("cd '/srv/wt' && 'git' 'status'")
   })
 
   it("omits the cd when no cwd is given", () => {
-    expect(remoteShellCommand(["git", "status"])).toBe("'git' 'status'")
+    expect(remoteShellCommand(shJoin(["git", "status"]))).toBe("'git' 'status'")
+  })
+
+  it("passes an env-prefixed command through untouched (the `run` shape)", () => {
+    expect(remoteShellCommand("FOO='b ar' 'git' 'status'", "/srv/wt")).toBe("cd '/srv/wt' && FOO='b ar' 'git' 'status'")
   })
 })
 

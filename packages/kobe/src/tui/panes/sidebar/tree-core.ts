@@ -47,6 +47,11 @@ export interface TreeTab {
   /** A coding-agent tab. Shell/command/content tabs are outside the state
    *  vocabulary entirely — they always wear the plain dot. */
   readonly engine?: boolean
+  /** The pty host holds this tab as a FREEZE-RESTORED corpse: scrollback
+   *  kept, process gone, and the next open respawns its recorded launch
+   *  command. Distinct from a quiet tab, which is what it otherwise looks
+   *  like. */
+  readonly restored?: boolean
 }
 
 export type TreeRow =

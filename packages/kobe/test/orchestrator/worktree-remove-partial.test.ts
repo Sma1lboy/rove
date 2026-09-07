@@ -295,3 +295,96 @@ describe("remove() when the worktree is nested inside its own repo", () => {
     expect(existsSync(wt)).toBe(true)
   })
 })
+
+/**
+ * `remove()` when the worktree DIRECTORY is already gone (a user deleted it,
+ * or a tool did).
+ *
+ * The removal here is nothing but a `git worktree prune` in the owning repo —
+ * and that prune never ran. The repo was re-discovered by walking up from
+ * `path.dirname(worktreePath)`, which for a real Rove worktree is
+ * `~/.rove/worktrees/<key>`: inside no repository at all. So `remove()`
+ * returned `removed` while git still listed the entry as `prunable`, `git
+ * branch -D` failed forever with "used by worktree at <gone path>", and
+ * `discover-adoptable` kept offering the ghost. The owning repo was known the
+ * whole time — a task carries `task.repo`; it was simply never passed down.
+ */
+describe("remove() when the directory is already gone", () => {
+  it("prunes the stale admin record using the repo the caller passed", async () => {
+    const wt = join(managedRoot, "vanished")
+    execSync(`git worktree add -q ${JSON.stringify(wt)} -b vanish`, { cwd: repo, env: gitEnv })
+    rmSync(wt, { recursive: true, force: true })
+
+    // The premise: nothing on disk can lead git back to the owning repo.
+    expect(
+      execSync("git rev-parse --git-common-dir 2>&1 || true", {
+        cwd: join(managedRoot),
+        env: gitEnv,
+        encoding: "utf8",
+        shell: "/bin/sh",
+      }),
+    ).toContain("not a git repository")
+
+    await manager.remove(wt, { repo })
+
+    expect(registered(wt)).toBe(false)
+    // The user-visible consequence: the branch is usable again.
+    execSync("git branch -D vanish", { cwd: repo, env: gitEnv })
+  })
+
+  it("still deletes the branch the caller asked to drop", async () => {
+    // The branch to delete is normally read out of the worktree, and that
+    // read needs the directory. With it gone `currentBranch` answered null,
+    // so `deleteBranch: true` deleted nothing and `delete --delete-branch`
+    // reported `removed` with the branch still sitting in `git branch`.
+    const wt = join(managedRoot, "vanished-br")
+    execSync(`git worktree add -q ${JSON.stringify(wt)} -b vanish-br`, { cwd: repo, env: gitEnv })
+    rmSync(wt, { recursive: true, force: true })
+
+    await manager.remove(wt, { repo, deleteBranch: true, branch: "vanish-br", force: true })
+
+    const branches = execSync("git branch --format='%(refname:short)'", { cwd: repo, env: gitEnv, encoding: "utf8" })
+    expect(branches.split("\n")).not.toContain("vanish-br")
+  })
+
+  it("without deleteBranch the branch survives, as it does everywhere else", async () => {
+    const wt = join(managedRoot, "vanished-keep")
+    execSync(`git worktree add -q ${JSON.stringify(wt)} -b keep-br`, { cwd: repo, env: gitEnv })
+    rmSync(wt, { recursive: true, force: true })
+
+    await manager.remove(wt, { repo, branch: "keep-br" })
+
+    const branches = execSync("git branch --format='%(refname:short)'", { cwd: repo, env: gitEnv, encoding: "utf8" })
+    expect(branches.split("\n")).toContain("keep-br")
+  })
+})
+
+/**
+ * The `opts.branch` FALLBACK on the live-directory path (`manager-remove.ts`,
+ * the `?? opts.branch` in the pre-removal branch capture).
+ *
+ * The existing "still deletes the branch the caller asked to drop" case is
+ * named for this line and never reaches it: it `rmSync`s the directory first,
+ * so the missing-directory path consumes `opts.branch` and returns long
+ * before. Deleting the fallback here left that test green.
+ *
+ * Its real trigger is a worktree that is present but has no branch name to
+ * read: `currentBranch()` deliberately THROWS on detached HEAD rather than
+ * hand back the literal `HEAD`, which is a state a hard reset produces. The
+ * caller's recorded `task.branch` is then the only name left.
+ */
+describe("remove() when the worktree is on a detached HEAD", () => {
+  it("falls back to the caller's branch name when HEAD cannot be read", async () => {
+    const wt = join(managedRoot, "detached")
+    execSync(`git worktree add -q ${JSON.stringify(wt)} -b detached-br`, { cwd: repo, env: gitEnv })
+    execSync("git checkout -q --detach", { cwd: wt, env: gitEnv })
+    // The premise: the worktree is still there, and git will not name a branch.
+    expect(existsSync(wt)).toBe(true)
+    expect(execSync("git rev-parse --abbrev-ref HEAD", { cwd: wt, env: gitEnv, encoding: "utf8" }).trim()).toBe("HEAD")
+
+    await manager.remove(wt, { repo, deleteBranch: true, branch: "detached-br", force: true })
+
+    const branches = execSync("git branch --format='%(refname:short)'", { cwd: repo, env: gitEnv, encoding: "utf8" })
+    expect(branches.split("\n")).not.toContain("detached-br")
+  })
+})

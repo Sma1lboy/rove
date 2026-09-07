@@ -310,7 +310,9 @@ describe("landTaskWithCleanup worktree cleanup", () => {
     const { deps: d, cleared } = deps()
     const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, {}, d)
     expect(res.worktree?.removed).toBe(false)
-    expect(res.worktree?.reason).toMatch(/dirty/)
+    // The code, not the prose: it is the only part of a refusal that survives
+    // the daemon wire, so it is what every caller discriminates on.
+    expect(res.worktree?.reason).toMatch(/DIRTY_WORKTREE: /)
     expect(fs.existsSync(path.join(wt, "wip.txt"))).toBe(true)
     expect(cleared).toEqual([])
     expect(fs.existsSync(path.join(repo, "b.txt"))).toBe(true)
@@ -447,7 +449,7 @@ describe("landTaskWithCleanup worktree cleanup", () => {
     const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, { deleteBranch: true }, d)
     expect(res.worktree?.removed).toBe(false)
     expect(branchExists("feat")).toBe(true)
-    expect(res.branchKept?.reason).toMatch(/dirty/)
+    expect(res.branchKept?.reason).toMatch(/DIRTY_WORKTREE: /)
   })
 
   test("the worktree going lets --delete-branch through", async () => {

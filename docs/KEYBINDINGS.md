@@ -45,7 +45,7 @@ shows only actions that can run right now.
 
 | Sequence | Action |
 |---|---|
-| `ctrl+a` `f` | New-conversation dialog, preset to "fork a child task": new managed worktree, branched off this Task's branch |
+| `ctrl+a` `f` | New-conversation dialog, preset to "fork a child task": new managed worktree, branched off this Task's branch. Its ATTEMPTS row fans one prompt out to a round of up to 5 |
 | `ctrl+a` `c` | New-conversation dialog, preset to "continue this chat" in a new tab of the same Task directory |
 | `ctrl+a` `i` | Open the Inbox |
 | `ctrl+a` `h` / `l` | Move focus left / right across panes |
@@ -56,15 +56,30 @@ shows only actions that can run right now.
 | `ctrl+a` `1` / `2` / `3` | Kanban / Routines / Issues |
 | `ctrl+a` `z` | Toggle zen mode |
 | `ctrl+a` `,` | Open Settings |
-| `ctrl+a` `p` / `P` | Create a PR from the active task, or from the sidebar row under the cursor |
+| `ctrl+a` `p` (`P` is the same key) | Create a PR — for the active task, or for the row under the cursor while the sidebar has focus ([the focus rule](#sidebar-and-files)) |
 | `ctrl+a` `k` | Pull the failing PR checks' logs into the task's engine (**proposed — awaiting owner sign-off**) |
 | `ctrl+a` `u` | Merge the base branch into the task's worktree (**proposed — awaiting owner sign-off**) |
+| `ctrl+a` `r` | Redraw the screen — erase and fully repaint. While the DAEMON OUT OF DATE banner is up it instead refreshes Rove onto the installed build: restarts the daemon and relaunches the TUI, after a confirm (**proposed — awaiting owner sign-off**) |
 
 `ctrl+a` `c` picks an engine first. Claude and Codex can fork their own
 conversations natively. Copilot and Kimi use a transcript handoff even for a
 same-engine continuation; a built-in source can also hand off to a different
 built-in or custom target. A custom source has no readable transcript, so its
 continuation is refused. See [Engines](./ENGINES.md#resuming-and-forking).
+
+`ctrl+a` `r` is the escape hatch for a screen that has gone wrong: it erases
+the display and repaints every cell, so leftover glyphs from a terminal that
+reflowed, a resize Rove did not see, or another program writing over Rove all
+clear in one frame. It touches nothing but pixels — no task, tab, or engine
+state changes — so it is always safe to press. Rove already repaints itself
+after a resize, so reach for this only when something slipped past that.
+
+The same stroke changes meaning while the two builds differ (the amber DAEMON
+OUT OF DATE banner): then `ctrl+a` `r` refreshes Rove onto the installed build
+— it stops the daemon and relaunches the TUI, after one confirm — and the
+redraw is not bound. Engine sessions live in the PTY host and survive the
+relaunch; the tabs reattach to the same sessions. On a current Rove the
+refresh is absent from the keymap and the command guide, and `r` redraws.
 
 The sequence cancels on timeout, `esc`, an invalid second key, or a change of
 focus or dialog.
@@ -173,7 +188,8 @@ through a Task row in that project.
 | `j` / `k` (or arrows) | Move |
 | `h` / `l` (or `←`/`→`) | Collapse / expand |
 | `enter` | Open in your configured editor; changed files use a Vim/Nvim diff when available, otherwise Rove falls back to its read-only preview |
-| `d` | Open a read-only diff in a workspace tab without moving focus |
+| `d` | Open a read-only diff in a workspace tab without moving focus. On a directory row it opens everything under it as one combined diff |
+| `shift+D` | Open the whole worktree's diff in one tab (**proposed**, awaiting sign-off — the Changes tab's `[D] diff everything` chip does the same with no chord) |
 | `r` | Refresh the current file tab |
 | `b` | On Changes, switch working-tree changes ⇄ branch vs base |
 | `o` | Open audio, video, or PDF files in the system application |
@@ -193,14 +209,17 @@ anywhere else, or `esc`, dismisses it. Common row actions also have direct
 chords. A Task or tab row also offers **New conversation** (the `ctrl+e`
 engine/shell picker) and **New shell** (a bare shell tab) for that worktree,
 both enter the Task first, exactly as pressing the chord there would.
-Four entries have no chord. **Set status** opens a picker over the six Task
-statuses and writes the one you choose. **Copy branch name** and **Copy path**
-put the Task's branch or recorded worktree path on the system clipboard (local
-clipboard command plus OSC 52, so it also works over SSH); copying never
-creates the worktree, and a project-main or directory row, whose stored branch
-is empty, offers only Copy path. **Land into base branch** runs the same land
-the Worktrees page's `l` does, and appears only on a managed Task row that has
-a branch — a project-main or directory row owns no Rove branch to land.
+These entries have no chord of their own. **Set status** opens a picker over
+the six Task statuses and writes the one you choose. **Copy branch name** and
+**Copy path** put the Task's branch or recorded worktree path on the system
+clipboard (local clipboard command plus OSC 52, so it also works over SSH);
+copying never creates the worktree, and a project-main or directory row, whose
+stored branch is empty, offers only Copy path. **Run again** re-fires the
+Task's stored brief as a new Task, and appears only on a row that recorded
+one. **Land into base branch** runs the same land the Worktrees page's `l`
+does, and appears only on a managed Task row that has a branch — a
+project-main or directory row owns no Rove branch to land. On a project
+header, **Field notes** reads the repo's durable notes (`rove api note`).
 **Open in editor**, **Rename branch**, and
 **Change engine** are the `o`, `b`, and `v` chords for the row you clicked;
 the engine entry opens a picker over your available engines instead of
@@ -226,6 +245,12 @@ Settings → General → Terminal and applies to newly opened terminals.
 `ctrl+a` `/` opens a query row in the pane footer. Typing filters as you go,
 and each new query parks on the newest occurrence — a scrollback is read
 backwards, so the hit you want is nearly always the last one.
+
+Pasting while the query row is focused adds to the query; it does not send
+input to the terminal child. Line breaks in pasted queries become spaces.
+Switching terminal sessions clears the query, selection and local scroll
+position. The session's process and buffered output stay available when you
+return. Resizing the same session keeps its query open.
 
 | Key | Action |
 |---|---|

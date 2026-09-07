@@ -15,11 +15,11 @@
  * and the rate-limit badge stays for the user, exactly as before.
  */
 
-import { readFile } from "node:fs/promises"
 import { homedir, userInfo } from "node:os"
 import path from "node:path"
 import { spawnCapture } from "../../lib/poll-scheduling.ts"
 import type { EngineQuotaUsage, EngineQuotaWindow } from "../../types/engine.ts"
+import { readTextFileBounded } from "../file-bounds"
 import { vendorConfigHome } from "../vendor-home.ts"
 
 const OAUTH_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
@@ -125,7 +125,7 @@ const isFresh = (c: OAuthCredentials): boolean => c.expiresAt === undefined || c
 
 async function readFileCredentials(dir: string): Promise<OAuthCredentials | null> {
   try {
-    return parseCredentials(await readFile(path.join(dir, ".credentials.json"), "utf8"))
+    return parseCredentials(await readTextFileBounded(path.join(dir, ".credentials.json")))
   } catch {
     return null
   }

@@ -14,7 +14,7 @@
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { COMPAT_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { COMPAT_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
 
 /**
  * Plugins live under the canonical state dir. An install predating the rename
@@ -25,7 +25,7 @@ import { COMPAT_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveEnv } from 
  * exactly one writer.
  */
 function stateRoot(homeDir?: string): string {
-  const home = homeDir ?? readRoveEnv("HOME_DIR") ?? homedir()
+  const home = homeDir ?? readRoveHomeDirEnv() ?? homedir()
   const canonical = join(home, ROVE_STATE_DIR_BASENAME)
   if (existsSync(join(canonical, "plugins.json"))) return canonical
   const legacy = join(home, COMPAT_STATE_DIR_BASENAME)
@@ -43,7 +43,7 @@ export function pluginsRootDir(homeDir?: string): string {
 
 /** Where the plugin tree lived before the `.kobe` → `.rove` rename. */
 export function legacyPluginsRootDir(homeDir?: string): string {
-  const home = homeDir ?? readRoveEnv("HOME_DIR") ?? homedir()
+  const home = homeDir ?? readRoveHomeDirEnv() ?? homedir()
   return join(home, COMPAT_STATE_DIR_BASENAME, "plugins")
 }
 

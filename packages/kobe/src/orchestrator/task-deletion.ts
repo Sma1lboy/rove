@@ -4,6 +4,7 @@ import { CannotDeleteMainTaskError, DirtyWorktreeError, WorktreeRemoveFailedErro
 import type { TaskIndexStore } from "./index/store.ts"
 import type { WorktreeResidue } from "./worktree/manager-remove.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
+import type { IgnoredWorkProbe } from "./worktree/salvage-ignored.ts"
 import type { SalvageRecord } from "./worktree/salvage.ts"
 
 /** Caller options for a task deletion. `deleteBranch` is a separate opt-in,
@@ -36,6 +37,14 @@ export class TaskDeletionCoordinator {
      * the only record that a directory is still on disk.
      */
     private readonly onResidue?: (taskId: TaskId, residue: WorktreeResidue) => void,
+    /**
+     * Notified when `deleteBranch` was asked for and git refused. Wired to the
+     * same audit log for the same reason as the two above: `finish()` removes
+     * the task row, so by the time anyone could ask, there is nothing left to
+     * ask. Without it the `removed … branch=<name>` line confirmed a deletion
+     * that had not happened.
+     */
+    private readonly onBranchKept?: (taskId: TaskId, kept: { branch: string; reason: string }) => void,
   ) {}
 
   /** Persist acceptance after the destructive dirty-worktree safety check. */
@@ -51,12 +60,30 @@ export class TaskDeletionCoordinator {
     // doesn't apply — only the index entry goes away.
     if (task.worktreePath && !force && task.kind !== "dir") {
       let dirty = false
+      // Work `status --porcelain` cannot see. `.gitignore`d files survive a
+      // land and a sync, so they are not "dirty" — but they do NOT survive a
+      // worktree removal, and `HANDOFF.md` / `.scratch/**` / `.env*` are
+      // gitignored in this very repo. Gating on the porcelain alone let a
+      // worktree whose only work was a session's notes delete with no force,
+      // no confirm, and no salvage ref.
+      let ignored: IgnoredWorkProbe = []
+      let probed = true
       try {
         dirty = await this.worktrees.isDirty(task.worktreePath)
       } catch {
-        // A missing/unreadable path is resolved by remove(), as before.
+        // A missing/unreadable path is resolved by remove(), as before — and
+        // the ignored probe is skipped with it: `git status --ignored` in a
+        // directory that is already gone answers "unknown", and refusing on
+        // that would break deleting a task whose worktree someone removed by
+        // hand.
+        probed = false
       }
-      if (dirty) throw new DirtyWorktreeError(task.id)
+      // NOT inside that catch. The two probes used to share one `try` with an
+      // empty body, so an ignored listing that failed left `ignored = []` and
+      // the gate below read it as permission — "could not look" and "there is
+      // nothing here" were the same value.
+      if (probed && !dirty) ignored = await this.worktrees.ignoredWork(task.worktreePath)
+      if (dirty || ignored === "unknown" || ignored.length > 0) throw new DirtyWorktreeError(task.id, ignored)
     }
 
     await this.store.update(task.id, {
@@ -95,6 +122,16 @@ export class TaskDeletionCoordinator {
         await this.worktrees.remove(task.worktreePath, {
           force: task.deletion.force,
           deleteBranch: task.deletion.deleteBranch === true,
+          // The owning repo, for the case where the worktree DIRECTORY is
+          // already gone: its stale admin record can only be pruned from
+          // here, and with the directory missing nothing on disk still points
+          // back at the repo. A task has always known this; it just never
+          // passed it down, so the prune silently never ran.
+          repo: task.repo,
+          // The branch to drop, for the same missing-directory case: it is
+          // normally read out of the worktree, which by then does not exist,
+          // so `deleteBranch` deleted nothing and said it had.
+          branch: task.branch,
           // `force` was frozen at prepare() time and this runs on a later
           // tick — possibly in a later daemon process (`resume()` replays a
           // queued deletion after a restart), so the worktree may have gone
@@ -114,6 +151,9 @@ export class TaskDeletionCoordinator {
           // problem — and never deleted from under the user, since whatever
           // made it undeletable may be something they want.
           onResidue: (residue) => this.onResidue?.(task.id, residue),
+          // The delete stays best-effort — a refused branch never fails the
+          // removal — but it is no longer SILENT.
+          onBranchKept: (kept) => this.onBranchKept?.(task.id, kept),
         })
       }
     } catch (cause) {

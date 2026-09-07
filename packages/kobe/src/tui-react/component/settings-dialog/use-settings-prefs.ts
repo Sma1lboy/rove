@@ -13,7 +13,13 @@ import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
 import { logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
 import { AUTO_STATUS_KEY } from "../../../state/auto-status"
-import { composerGatePreferenceOn, toggleComposerGatePreference } from "../../../state/composer-gate"
+import {
+  type DeliveryGuard,
+  deliveryGuardEnvOverride,
+  deliveryGuardPreference,
+  nextDeliveryGuard,
+  setDeliveryGuardPreference,
+} from "../../../state/delivery-guard"
 import { DISPATCHER_KEY } from "../../../state/dispatcher"
 import { DEFAULT_SCROLLBACK_ROWS, SCROLLBACK_ROWS_KEY, normalizeScrollbackRows } from "../../../state/scrollback"
 import { SPLIT_STYLE_KEY, type SplitStyle, normalizeSplitStyle } from "../../../state/split-style"
@@ -34,7 +40,7 @@ import {
   normalizeWorktreeBase,
   worktreeBaseKindOf,
 } from "../../../state/worktree-base"
-import { ZEN_ACTIVE_KEY, ZEN_KEEP_TASKS_KEY } from "../../../state/zen"
+import { ZEN_ACTIVE_KEY } from "../../../state/zen"
 import {
   DEFAULT_EDITOR_KIND,
   EDITOR_CUSTOM_KEY,
@@ -54,7 +60,7 @@ import type { DialogContext } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 import { RenameTaskDialog } from "../rename-task-dialog"
 
-export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onComposerGateDisabled?: () => void) {
+export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onDeliveryGuardLoosened?: () => void) {
   const t = useT()
 
   function toastEnabled(): boolean {
@@ -103,14 +109,6 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onCompose
     kv.set(ZEN_ACTIVE_KEY, !zenDefaultOn())
   }
 
-  // Zen mode: whether collapsing to the engine pane keeps the Tasks rail.
-  function zenKeepsTasks(): boolean {
-    return kv.get(ZEN_KEEP_TASKS_KEY, true) !== false
-  }
-  function toggleZenKeepsTasks(): void {
-    kv.set(ZEN_KEEP_TASKS_KEY, !zenKeepsTasks())
-  }
-
   // Chat tab strip: never / only with 2+ tabs / always. Cycles rather than
   // toggles — "off" is the default now that the sidebar tree lists tabs, so
   // the setting has three states rather than a boolean (state/tab-strip.ts).
@@ -141,18 +139,23 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onCompose
   function toggleDispatcher(): void {
     kv.set(DISPATCHER_KEY, !dispatcherOn())
   }
-  // ON by default (the only default-on switch here) — it is an escape hatch
-  // for a gate that reads a vendor's screen layout, not a feature to opt into.
-  function composerGateOn(): boolean {
-    return composerGatePreferenceOn(kv)
+  // The delivery gate, in three states — `on` by default. This is the only
+  // default-on switch in Dev because it is an escape hatch (a gate that reads
+  // a vendor's screen layout can go wrong), not a feature to opt into.
+  function deliveryGuard(): DeliveryGuard {
+    return deliveryGuardEnvOverride() ?? deliveryGuardPreference(kv)
   }
-  function toggleComposerGate(): void {
-    if (toggleComposerGatePreference(kv, onComposerGateDisabled) === "persist-failed") {
-      logClientError(
-        "settings",
-        "could not persist the disabled composer delivery check; deferred prompts were not flushed",
-      )
+  /** Set when the environment pins the value and the row cannot change it. */
+  function deliveryGuardForcedByEnv(): boolean {
+    return deliveryGuardEnvOverride() !== undefined
+  }
+  function selectDeliveryGuard(next: DeliveryGuard): void {
+    if (setDeliveryGuardPreference(kv, next, onDeliveryGuardLoosened) === "persist-failed") {
+      logClientError("settings", "could not persist the delivery guard; deferred prompts were not flushed")
     }
+  }
+  function cycleDeliveryGuard(): void {
+    selectDeliveryGuard(nextDeliveryGuard(deliveryGuard()))
   }
 
   // Editor preference: which editor the file tree's `e` key launches.
@@ -170,9 +173,12 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onCompose
   }
   async function editEditorCustom(): Promise<void> {
     const next = await RenameTaskDialog.show(dialog, editorCustomCommand(), {
-      dialogTitle: "Custom editor command (use {file} for the path)",
-      fieldLabel: "COMMAND",
-      submitLabel: "save",
+      // No params on purpose: the `{file}` in this title is a command
+      // placeholder the user types, not an i18n slot. `interpolate` leaves
+      // the template untouched when no params are passed.
+      dialogTitle: t("settings.general.editorCustomTitle"),
+      fieldLabel: t("settings.field.command"),
+      submitLabel: t("settings.action.save"),
       allowEmpty: true,
     })
     if (next === undefined) return
@@ -192,7 +198,7 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onCompose
     const next = await RenameTaskDialog.show(dialog, String(scrollbackRows()), {
       dialogTitle: t("settings.general.scrollbackTitle"),
       fieldLabel: t("settings.general.scrollbackField"),
-      submitLabel: "save",
+      submitLabel: t("settings.action.save"),
       placeholder: String(DEFAULT_SCROLLBACK_ROWS),
     })
     if (next === undefined) return
@@ -245,7 +251,7 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onCompose
     const next = await RenameTaskDialog.show(dialog, worktreeCustomPath(), {
       dialogTitle: t("settings.general.worktreeBaseTitle"),
       fieldLabel: t("settings.general.worktreeBaseField"),
-      submitLabel: "save",
+      submitLabel: t("settings.action.save"),
       placeholder: `${PROJECT_DIR_TOKEN}/../worktrees`,
       allowEmpty: true,
     })
@@ -256,8 +262,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onCompose
       if (!hasProjectDirToken(raw)) {
         await DialogConfirm.show(
           dialog,
-          "Can't use that worktree location",
-          `${PROJECT_DIR_TOKEN} only expands as the leading path segment (e.g. ${PROJECT_DIR_TOKEN}/../kobe-worktrees). Keeping the previous setting.`,
+          t("settings.general.worktreeBaseInvalidTitle"),
+          t("settings.general.worktreeBaseTokenBody", { token: PROJECT_DIR_TOKEN }),
           "cancel",
         )
         return
@@ -270,8 +276,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onCompose
       } catch (err) {
         await DialogConfirm.show(
           dialog,
-          "Can't use that worktree location",
-          `${resolved} isn't usable (${errorMessage(err)}). Keeping the previous setting — pick a writable directory.`,
+          t("settings.general.worktreeBaseInvalidTitle"),
+          t("settings.general.worktreeBaseUnusableBody", { path: resolved, error: errorMessage(err) }),
           "cancel",
         )
         return
@@ -295,16 +301,16 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onCompose
     selectSplitStyle,
     zenDefaultOn,
     toggleZenDefaultOn,
-    zenKeepsTasks,
-    toggleZenKeepsTasks,
     remoteProjectsEnabled,
     toggleRemoteProjects,
     autoStatusOn,
     toggleAutoStatus,
     dispatcherOn,
     toggleDispatcher,
-    composerGateOn,
-    toggleComposerGate,
+    deliveryGuard,
+    deliveryGuardForcedByEnv,
+    selectDeliveryGuard,
+    cycleDeliveryGuard,
     editorKind,
     cycleEditorKind,
     editorCustomCommand,

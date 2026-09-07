@@ -1,5 +1,4 @@
 import type { DaemonRpcClient } from "@sma1lboy/kobe-daemon/client/rpc"
-import { resolveLoginShell } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
@@ -16,10 +15,19 @@ const mocks = vi.hoisted(() => ({
   openHost: vi.fn(),
   ensureEngine: vi.fn(async () => ({ alive: true, created: true })),
   listSessions: vi.fn(async () => [{ key: "task-3::tab-1", alive: true }]),
+  // Same rule as the real resolver for these fixtures: the task's first alive
+  // session. What matters here is that it resolves a key from the SPAWN argv
+  // and therefore keeps resolving one after the engine is gone.
+  findEngineKey: vi.fn(
+    (sessions: readonly { key: string; alive?: boolean }[], taskId: string) =>
+      sessions.find((s) => s.alive && s.key.startsWith(`${taskId}::`))?.key ?? null,
+  ),
   taskKeys: vi.fn(() => ["task-3::tab-1"]),
   killSessions: vi.fn(async () => {}),
   deliver: vi.fn(async () => ({ bytes: 1 })),
   sessionHasEngine: vi.fn(async () => true),
+  awaitEngineProcess: vi.fn(async (): Promise<number | null> => 4242),
+  failureLine: vi.fn(async () => "⚠ Engine exited (code 127)."),
   buildLaunch: vi.fn((input: { task: { id: string } }): { key: string; command: string[]; firstMessage?: string } => ({
     key: `${input.task.id}::tab-1`,
     command: ["/bin/zsh", "-ilc", "claude 'repo prompt'"],
@@ -32,20 +40,23 @@ vi.mock("../../src/engine/hosted-session.ts", () => ({
   openHostedSessionHost: mocks.openHost,
   ensureHostedEngine: mocks.ensureEngine,
   listHostedSessions: mocks.listSessions,
+  findHostedEngineKey: mocks.findEngineKey,
   hostedTaskKeys: mocks.taskKeys,
   killHostedSessions: mocks.killSessions,
   deliverToHostedKey: mocks.deliver,
+  awaitEngineProcess: mocks.awaitEngineProcess,
+  hostedSessionFailureLine: mocks.failureLine,
 }))
 vi.mock("../../src/engine/session-launch.ts", () => ({ buildEngineSessionLaunch: mocks.buildLaunch }))
 vi.mock("../../src/engine/session-engine-presence.ts", () => ({ sessionHasEngine: mocks.sessionHasEngine }))
 
 import {
+  deliverPromptToLiveEngineAdapter,
+  deliverPromptToLiveEngineDetailedAdapter,
   deliverPromptToLiveEngineTabDetailedAdapter,
-  engineSpecAdapter,
   ensureTaskSessionAdapter,
   startTaskSessionWithPromptAdapter,
   tearDownTaskSessionAdapter,
-  terminalSpecAdapter,
 } from "../../src/core/daemon-session-adapter.ts"
 
 function link(): DaemonRpcClient {
@@ -95,34 +106,26 @@ describe("daemon session adapter", () => {
   it("launches an explicit first prompt as a new-task intent (branch-rename coda)", async () => {
     // Both callers (automation runner, work-item start) create the task
     // immediately ahead of this call, so the first prompt is a new-worktree entry.
-    await expect(startTaskSessionWithPromptAdapter(link(), "task-1", "do the thing")).resolves.toBe(true)
+    await expect(startTaskSessionWithPromptAdapter(link(), "task-1", "do the thing")).resolves.toEqual({
+      started: true,
+    })
     expect(mocks.buildLaunch).toHaveBeenCalledWith(
       expect.objectContaining({ promptIntent: { kind: "new-task", prompt: "do the thing" } }),
     )
   })
 
-  it("builds engine and terminal specs without duplicating the first prompt", async () => {
-    const engine = await engineSpecAdapter(link(), "task-2")
-    expect(engine.cwd).toBe("/worktrees/story")
-    expect(engine.command).toEqual(["/bin/zsh", "-ilc", "claude 'repo prompt'"])
-    await expect(terminalSpecAdapter(link(), "task-2")).resolves.toEqual({
-      cwd: "/worktrees/story",
-      command: [resolveLoginShell({ fallback: "/bin/zsh" }), "-il"],
+  // An argv-delivery vendor has nothing left to deliver after the spawn, which
+  // is exactly why nothing used to check that the spawn produced an ENGINE:
+  // `pty.open` reports the LOGIN SHELL alive, and keepAlive keeps that shell
+  // alive when the engine binary does not exist. A routine then recorded
+  // `dispatched` forever with a dead task behind every firing.
+  it("reports a start only once the engine process is seen, and says why when it isn't", async () => {
+    mocks.awaitEngineProcess.mockResolvedValueOnce(null)
+    await expect(startTaskSessionWithPromptAdapter(link(), "task-1", "do the thing")).resolves.toEqual({
+      started: false,
+      error: "engine process never started; last session output: ⚠ Engine exited (code 127).",
     })
-  })
-
-  it("surfaces a paste-delivery vendor's first message in the engine spec", async () => {
-    // kimi's repo init-prompt rides OUTSIDE the launch argv; the web PTY
-    // sidecar pastes it post-spawn, so the spec must carry it — dropping it
-    // here would silently lose the message.
-    mocks.buildLaunch.mockReturnValueOnce({
-      key: "task-7::tab-1",
-      command: ["/bin/zsh", "-ilc", "kimi"],
-      firstMessage: "repo init prompt",
-    })
-    const engine = await engineSpecAdapter(link(), "task-7")
-    expect(engine.command).toEqual(["/bin/zsh", "-ilc", "kimi"])
-    expect(engine.firstMessage).toBe("repo init prompt")
+    expect(mocks.awaitEngineProcess).toHaveBeenCalled()
   })
 
   it("tears down a task session best-effort", async () => {
@@ -154,10 +157,10 @@ describe("daemon session adapter", () => {
             : { worktreePath: null }) as T,
       ),
     } as unknown as DaemonRpcClient
-    await expect(terminalSpecAdapter(missing, "task-5")).rejects.toThrow("has no worktree")
+    await expect(ensureTaskSessionAdapter(missing, "task-5")).rejects.toThrow("has no worktree")
   })
 
-  it("refuses engine and terminal specs for a task being deleted", async () => {
+  it("refuses to materialize a session for a task being deleted", async () => {
     const deleting = {
       request: vi.fn(
         async <T>() =>
@@ -173,8 +176,7 @@ describe("daemon session adapter", () => {
       ),
     } as unknown as DaemonRpcClient
 
-    await expect(engineSpecAdapter(deleting, "task-6")).rejects.toThrow("TASK_DELETING")
-    await expect(terminalSpecAdapter(deleting, "task-6")).rejects.toThrow("TASK_DELETING")
+    await expect(ensureTaskSessionAdapter(deleting, "task-6")).rejects.toThrow("TASK_DELETING")
     expect(mocks.ensureEngine).not.toHaveBeenCalled()
   })
 
@@ -187,9 +189,52 @@ describe("daemon session adapter", () => {
         { id: "task-3", tabId: "tab-1", vendor: "claude", worktreePath: "/worktrees/story" },
         "do not run this in zsh",
       ),
-    ).resolves.toEqual({ outcome: "no-session" })
+    ).resolves.toEqual({ outcome: "no-engine", tabId: "tab-1" })
     expect(mocks.sessionHasEngine).toHaveBeenCalledWith(4242, expect.arrayContaining(["claude"]))
     expect(mocks.deliver).not.toHaveBeenCalled()
+  })
+
+  // The two adapters below resolve their tab by matching the session's SPAWN
+  // argv, which keeps matching after the engine exits — keepAlive leaves a
+  // login shell in its place. Delivering there does not paste text into an
+  // engine, it hands zsh a natural-language instruction to RUN. Both must
+  // refuse for the same reason the exact-tab sibling already does.
+  it("the routine runner refuses a tab whose engine exited to the fallback shell", async () => {
+    mocks.listSessions.mockResolvedValueOnce([{ key: "task-3::tab-1", alive: true, pid: 4242 } as never])
+    mocks.sessionHasEngine.mockResolvedValueOnce(false)
+
+    await expect(
+      deliverPromptToLiveEngineDetailedAdapter(
+        { id: "task-3", vendor: "claude", worktreePath: "/worktrees/story" },
+        "clean up the stale branches",
+      ),
+    ).resolves.toEqual({ outcome: "no-engine", tabId: "tab-1" })
+    expect(mocks.deliver).not.toHaveBeenCalled()
+  })
+
+  it("the quota-resume runner refuses the same tab", async () => {
+    mocks.listSessions.mockResolvedValueOnce([{ key: "task-3::tab-1", alive: true, pid: 4242 } as never])
+    mocks.sessionHasEngine.mockResolvedValueOnce(false)
+
+    await expect(
+      deliverPromptToLiveEngineAdapter(
+        { id: "task-3", vendor: "claude", worktreePath: "/worktrees/story" },
+        "continue",
+      ),
+    ).resolves.toBe(false)
+    expect(mocks.deliver).not.toHaveBeenCalled()
+  })
+
+  it("a LIVE engine still receives the routine's prompt", async () => {
+    mocks.listSessions.mockResolvedValueOnce([{ key: "task-3::tab-1", alive: true, pid: 4242 } as never])
+
+    await expect(
+      deliverPromptToLiveEngineDetailedAdapter(
+        { id: "task-3", vendor: "claude", worktreePath: "/worktrees/story" },
+        "daily report please",
+      ),
+    ).resolves.toEqual({ outcome: "delivered", tabId: "tab-1" })
+    expect(mocks.deliver).toHaveBeenCalled()
   })
 
   it("passes the custom engine's complete launch argv to the foreground gate", async () => {

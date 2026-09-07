@@ -46,7 +46,10 @@ let tmpHome: string
 let originalHome: string | undefined
 
 beforeEach(() => {
-  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-repos-"))
+  // realpath: macOS `os.tmpdir()` is a symlink (`/var` → `/private/var`), and
+  // savedRepos stores the repository's RESOLVED primary checkout — so a fixture
+  // built under the un-resolved spelling would compare unequal to what was saved.
+  tmpHome = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "kobe-repos-")))
   originalHome = process.env.KOBE_HOME_DIR
   process.env.KOBE_HOME_DIR = tmpHome
 })

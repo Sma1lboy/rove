@@ -21,59 +21,28 @@
  * `<repo>` is always absolute. Callers must normalize before invoking.
  */
 
-import { createHash } from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
-import { legacyKobeStateDir, roveStateDir } from "../../env.ts"
+import {
+  defaultLocalWorktreesRoot,
+  legacyLocalWorktreesRoot,
+  managedWorktreeRootsFor as managedWorktreeRootsForBase,
+  worktreeRootFor as worktreeRootForBase,
+} from "@sma1lboy/kobe-daemon/daemon/worktree-paths"
 import { execHostForRepo } from "../../exec/resolve.ts"
 import { getRemoteRepoConfig, isRemoteRepoKey } from "../../state/repos.ts"
 import { getWorktreeBaseOverride } from "../../state/worktree-base.ts"
 
 /**
- * Directory under kobe's state dir where kobe stores all of its worktrees.
- *
- * Exposed so the worktree manager's `list()` implementation can scope
- * its enumeration to "kobe-managed only" without reaching into another
- * module's private constant.
+ * Repo-local compatibility roots, re-exported from the shared derivation in
+ * `@sma1lboy/kobe-daemon/daemon/worktree-paths` so the daemon's own recognition
+ * pass and this module can no longer disagree about the layout.
  */
-const KOBE_WORKTREE_ROOT_DIR = "worktrees"
-export const REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH = ".rove/worktrees"
-export const REPO_LOCAL_KOBE_WORKTREE_ROOT_SUBPATH = ".kobe/worktrees"
-export const LEGACY_KOBE_WORKTREE_ROOT_SUBPATH = ".claude/worktrees"
-
-/**
- * Repo-local compatibility roots. Creation does not use these; recognition and
- * listing keep old task records working.
- */
-const REPO_LOCAL_KOBE_MANAGED_WORKTREE_ROOT_SUBPATHS = [
-  REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH,
-  REPO_LOCAL_KOBE_WORKTREE_ROOT_SUBPATH,
+export {
   LEGACY_KOBE_WORKTREE_ROOT_SUBPATH,
-] as const
-
-/**
- * The `worktrees` root that new LOCAL tasks are created under. Defaults
- * to `<home>/.rove/worktrees`; a user-configured global override
- * (Settings → General → Worktree location) relocates it wholesale. The
- * override IS the worktrees root — the per-repo `<repo-key>` subdir is
- * still appended below it by {@link worktreeRootFor}. An override with
- * a leading `$project_dir` token expands against `repo`, so the root
- * lands relative to each project (e.g. `$project_dir/../`). Read fresh
- * so a settings change needs no daemon restart.
- */
-function localWorktreesRoot(repo: string): string {
-  return getWorktreeBaseOverride(repo) ?? path.join(roveStateDir(), KOBE_WORKTREE_ROOT_DIR)
-}
-
-/** The built-in default worktrees root, ignoring any override. */
-function defaultLocalWorktreesRoot(): string {
-  return path.join(roveStateDir(), KOBE_WORKTREE_ROOT_DIR)
-}
-
-/** Pre-rename global root. Existing worktree records and discovery keep it live. */
-function legacyLocalWorktreesRoot(): string {
-  return path.join(legacyKobeStateDir(), KOBE_WORKTREE_ROOT_DIR)
-}
+  REPO_LOCAL_KOBE_WORKTREE_ROOT_SUBPATH,
+  REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH,
+} from "@sma1lboy/kobe-daemon/daemon/worktree-paths"
 
 /**
  * Absolute path of the worktree root for a given repo.
@@ -83,43 +52,16 @@ function legacyLocalWorktreesRoot(): string {
  * is set, `<override>/proj-a1b2c3d4e5f6`).
  */
 export function worktreeRootFor(repo: string): string {
-  if (!path.isAbsolute(repo)) {
-    throw new Error(`worktreeRootFor: repo must be an absolute path, got: ${repo}`)
-  }
-  return path.join(localWorktreesRoot(repo), repoWorktreeDirName(repo))
+  return worktreeRootForBase(repo, getWorktreeBaseOverride(repo))
 }
 
 /**
- * Absolute paths of every worktree root kobe recognizes for `repo`.
- * The active root (override-aware) is first; the built-in default root
- * follows when an override moved it (so worktrees created before the
- * override stay discoverable for listing + slug allocation), then the
- * repo-local legacy roots for existing task records.
- *
- * KNOWN LIMITATION: only the CURRENT override and the built-in default
- * are recognized — we don't persist a history of past override paths.
- * If a user points the base at A, creates tasks, then re-points it at B,
- * the worktrees under A fall out of managed listing + slug allocation.
- * Those tasks are NOT lost — each task record pins its own absolute
- * `worktreePath`, so opening/removing them keeps working; they just stop
- * appearing in "list kobe-managed worktrees" and their slugs stop blocking
- * reuse. Recording every base ever used would close the gap but is
- * deliberately out of scope here.
+ * Every worktree root Rove recognizes for `repo`, override resolved. Root
+ * order and the KNOWN LIMITATION (past override paths are not remembered)
+ * are documented on the implementation in `daemon/worktree-paths`.
  */
 export function managedWorktreeRootsFor(repo: string): readonly string[] {
-  if (!path.isAbsolute(repo)) {
-    throw new Error(`managedWorktreeRootsFor: repo must be an absolute path, got: ${repo}`)
-  }
-  const active = worktreeRootFor(repo)
-  const fallback = path.join(defaultLocalWorktreesRoot(), repoWorktreeDirName(repo))
-  const legacy = path.join(legacyLocalWorktreesRoot(), repoWorktreeDirName(repo))
-  const primaryRoots = [active, fallback, legacy]
-  return [
-    ...new Set([
-      ...primaryRoots,
-      ...REPO_LOCAL_KOBE_MANAGED_WORKTREE_ROOT_SUBPATHS.map((subpath) => path.join(repo, subpath)),
-    ]),
-  ]
+  return managedWorktreeRootsForBase(repo, getWorktreeBaseOverride(repo))
 }
 
 /**
@@ -224,21 +166,26 @@ export function isKobeManagedPath(repo: string, candidate: string): boolean {
  * repo-keyed form to decide whether the directory is its own to delete.
  *
  * Only the roots THEMSELVES are checked, not the per-repo subdir under them —
- * that subdir is derived from the repo path this function does not have. The
- * guard is deliberately narrow: it authorizes deleting a directory tree, so it
- * must never say yes to a path Rove did not create. A repo-local root
- * (`<repo>/.rove/worktrees`) is not recognized here — that form needs the repo
- * to locate, which is exactly what is missing. Same for a `$project_dir`
- * override: it expands per-repo, so without one it contributes nothing and the
- * built-in default covers what is left.
+ * that subdir is derived from the repo path, which the sole caller may not
+ * have. The guard is deliberately narrow: it authorizes deleting a directory
+ * tree, so it must never say yes to a path Rove did not create. A repo-local
+ * root (`<repo>/.rove/worktrees`) is not recognized here — that form needs the
+ * repo to locate, which is exactly what is missing when it is.
+ *
+ * `projectDir` is the repo that owns `candidate`, when the caller knows it
+ * (a task record carries `task.repo`). It is REQUIRED for a `$project_dir`
+ * worktree base to be recognized at all: that override expands per-repo, so
+ * without one it contributes no root and the answer collapses to the built-in
+ * default. Under the shipped `$project_dir/..` preset (Settings → "next to
+ * project") every worktree lives outside every default root, so the guard
+ * answered false for paths Rove itself had created — and the one caller turns
+ * that into a permanent refusal, parking the task in `deletion.phase: "error"`
+ * where every retry re-runs the same unsatisfiable branch.
  */
-export function isUnderManagedWorktreesRoot(candidate: string): boolean {
+export function isUnderManagedWorktreesRoot(candidate: string, projectDir?: string): boolean {
   if (!path.isAbsolute(candidate)) return false
   const target = canonicalize(candidate)
-  // The override with no repo resolves the non-`$project_dir` forms; a
-  // `$project_dir` override falls back to the default root without one, which
-  // this list already covers.
-  const roots = [getWorktreeBaseOverride() ?? "", defaultLocalWorktreesRoot(), legacyLocalWorktreesRoot()]
+  const roots = [getWorktreeBaseOverride(projectDir) ?? "", defaultLocalWorktreesRoot(), legacyLocalWorktreesRoot()]
   for (const rootPath of roots) {
     if (!rootPath) continue
     const root = canonicalize(rootPath)
@@ -314,11 +261,4 @@ export function canonicalize(p: string): string {
   } catch {
     return path.resolve(p)
   }
-}
-
-function repoWorktreeDirName(repo: string): string {
-  const base = path.basename(repo) || "repo"
-  const safeBase = base.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "repo"
-  const hash = createHash("sha1").update(path.resolve(repo)).digest("hex").slice(0, 12)
-  return `${safeBase}-${hash}`
 }

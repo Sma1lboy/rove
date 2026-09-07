@@ -61,7 +61,11 @@ export const PANE_VERB: VerbSpec = {
     // $ROVE_TASK_ID the help text advertises as well as the alias.
     const taskId = ctx.args.str("task-id") ?? process.env.KOBE_TASK_ID ?? (await resolveActiveTaskId(client))
     if (!taskId) {
-      throw new ApiError("no target task: pass --task-id (no $ROVE_TASK_ID, no active task)", "TASK_NOT_FOUND")
+      // MISSING_TARGET: no id was GIVEN. Reporting "that task does not exist"
+      // for a call that named no task sends the caller to `api list`, where it
+      // finds plenty of live tasks and concludes the code is lying. Same
+      // condition, same code as read-output / send / collect.
+      throw new ApiError("no target task: pass --task-id (no $ROVE_TASK_ID, no active task)", "MISSING_TARGET")
     }
     const command = ctx.args.str("command")
     // Same integration path as the engine tab (session-launch.ts): the user's
@@ -111,7 +115,11 @@ export const PANE_CLOSE_VERB: VerbSpec = {
     const client = daemonOf(ctx)
     const taskId = ctx.args.str("task-id") ?? process.env.KOBE_TASK_ID ?? (await resolveActiveTaskId(client))
     if (!taskId) {
-      throw new ApiError("no target task: pass --task-id (no $ROVE_TASK_ID, no active task)", "TASK_NOT_FOUND")
+      // MISSING_TARGET: no id was GIVEN. Reporting "that task does not exist"
+      // for a call that named no task sends the caller to `api list`, where it
+      // finds plenty of live tasks and concludes the code is lying. Same
+      // condition, same code as read-output / send / collect.
+      throw new ApiError("no target task: pass --task-id (no $ROVE_TASK_ID, no active task)", "MISSING_TARGET")
     }
     const tabId = ctx.args.str("tab")
     return simpleRpc(ctx, "tab.close", {

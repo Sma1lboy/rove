@@ -10,7 +10,7 @@
 
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
-import { deleteTask, land } from "./handlers-tasks.ts"
+import { deleteTask, land } from "./handlers-lifecycle.ts"
 import type { VerbSpec } from "./types.ts"
 
 export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
@@ -32,6 +32,12 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
       "Merge a task's branch back into its base repo's current branch. Refuses a dirty base checkout, a branch that no longer resolves in the base repo (MISSING_REF — renamed or deleted outside Rove), and a branch with zero commits ahead of the base (EMPTY_BRANCH; EMPTY_BRANCH_DIRTY_WORKTREE with a send-back recovery path when the worktree still holds the uncommitted work). On conflict, aborts and returns the conflicted files (resolve by hand). Returns { landedOn, commit }.",
     flags: [
       F.taskId(),
+      {
+        name: "dry-run",
+        type: "bool",
+        description:
+          "Report whether the land would proceed, and write nothing. Returns { branch, landedOn, ahead?, baseDirty?, refusal?, dirtyFiles?, baseDir } — `landedOn` is the base checkout's CURRENT branch (the merge destination), `ahead` the commits that would land, and `refusal` one of DETACHED_HEAD, UNREADABLE_BASE, UNBORN_BASE, SAME_BRANCH, MAIN_CHECKOUT_DIRTY, MISSING_REF, EMPTY_BRANCH, EMPTY_BRANCH_DIRTY_WORKTREE when the land would be refused. Ignores --strategy/--delete-branch/--remove-worktree.",
+      },
       {
         name: "strategy",
         type: "enum",
@@ -59,9 +65,16 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
     name: "delete",
     group: "lifecycle",
     summary:
-      "Remove a task and its worktree; the git branch stays unless --delete-branch. Needs --force on a dirty worktree. Returns { queued } — removal itself runs in the background; add --wait for the resolved outcome.",
+      "Remove a task and its worktree; the git branch stays unless --delete-branch. Needs --force on a dirty worktree. Returns { queued } — removal itself runs in the background; add --wait for the resolved outcome. Pass --group instead of --task-id to close a whole fan-out round in one call: it returns { groupId, count, failures, results } with one entry per sibling, and a refusal on one (a dirty worktree) is recorded there rather than aborting the rest.",
     flags: [
-      F.taskId(),
+      F.taskId(false),
+      {
+        name: "group",
+        type: "string",
+        placeholder: "GROUPID",
+        description:
+          "Delete every task of one fan-out round (the `groupId` that `add --count` returns, the same selector `collect --group` takes). Mutually exclusive with --task-id.",
+      },
       {
         name: "force",
         type: "bool",

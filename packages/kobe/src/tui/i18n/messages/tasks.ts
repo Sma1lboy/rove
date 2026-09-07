@@ -38,8 +38,8 @@ export const en = {
     reorder: "Reorder row",
     /** Re-fire the task's stored brief as a new task. Menu-only. */
     runAgain: "Run again",
-    /** The one entry with no chord behind it — status has no key yet, so the
-     *  menu is its only route. */
+    /** Menu-only, like `runAgain`, `land`, `fieldNotes` and the two copies —
+     *  status has no key yet, so the menu is its only route. */
     setStatus: "Set status",
     /** Also chord-less: put the row's branch / worktree path on the clipboard. */
     copyBranch: "Copy branch name",
@@ -80,7 +80,7 @@ export const en = {
     done: "Merged {base} into this worktree",
     alreadyCurrent: "Already up to date with {base}",
     conflict: "Merge conflict — resolve then commit: {files}",
-    dirty: "Commit or stash the worktree's changes first, then sync: {files}",
+    dirty: "Commit the worktree's changes first, then sync: {files}",
     failed: "Sync failed: {error}",
   },
   /** Change-engine picker dialog (the menu route of `v`). */
@@ -111,6 +111,37 @@ export const en = {
     empty: "No field notes for this repo yet — agents file one with `rove api note`.",
     loading: "Loading…",
     footer: "↑↓ scroll · esc close",
+    /** Footer when the reader can also retire a note (`d`). */
+    footerDeletable: "↑↓ select · d delete · esc close",
+    /** `d` on a note. The body quotes the note so the confirm names the fact
+     *  being retired, not just "a note". `{text}` = the note's own line. */
+    confirmDelete: {
+      title: "Delete this field note?",
+      body: "“{text}” stops being injected into new sessions on this repo. Nothing else changes.",
+    },
+  },
+  /** The destructive confirms on a task row (`d` on the tasks pane). Every
+   *  body says what SURVIVES, because that is the fact that decides whether
+   *  a user should press enter. */
+  confirm: {
+    cancel: "cancel",
+    /** A project row is a saved repo, not a worktree — `d` un-saves it. */
+    forgetProjectTitle: 'Remove project "{title}"?',
+    forgetProjectBody:
+      "Forgets it from the projects list. The repo, its branches, worktrees, and any tasks under it stay on disk — re-add it with `rove add`.",
+    forgetProjectConfirm: "remove",
+    deleteTitle: 'Delete "{title}"?',
+    /** A `dir` task pins the user's own directory; deletion never touches it. */
+    deleteBodyDir: "Removes the task entry. The directory itself stays on disk. Its hosted sessions are stopped.",
+    deleteBodyTask: "Removes the task entry and its worktree. The git branch stays. Its hosted sessions are stopped.",
+    deleteConfirm: "delete",
+    forceDeleteTitle: '"{title}" has uncommitted changes',
+    forceDeleteConfirm: "force delete",
+  },
+  /** Bare text prompt behind `b` on hosts without the branch picker. */
+  renameBranch: {
+    title: "Rename branch",
+    fieldLabel: "branch",
   },
   /** Inline chip while move/reorder mode is active */
   moveChip: " move",
@@ -152,7 +183,9 @@ export const en = {
   },
   /** Toast / error messages */
   toast: {
-    noDaemonWorktree: "No daemon running — can't create the worktree",
+    // `rove daemon restart` is what `doctor.fix.daemonDown` prescribes for the
+    // identical condition — the TUI and doctor must not disagree on the fix.
+    noDaemonWorktree: "No daemon running — can't create the worktree. Start it with `rove daemon restart`.",
     noEditor: "No editor found — set ROVE_OPEN_EDITOR (e.g. 'code', 'cursor', 'nvim')",
     openWorktreeFailed: "Couldn't open worktree with {label}",
     worktreeErrorDeleting: "This task is being deleted — it can't be opened",
@@ -165,8 +198,39 @@ export const en = {
     worktreeGoneTitle: 'Worktree for "{title}" is gone',
     worktreeGoneBody:
       "Closed {count} tab(s). The branch {branch} is still there — reopen the task to re-create its worktree.",
+    // PR checks RESOLVING is the edge worth interrupting for — a run that
+    // merely STARTED (none → pending) is not. `checkResolutionNotify` in
+    // monitor/pr-status.ts owns that rule; these are its two landings.
+    checksPassingTitle: 'Checks passed for "{title}"',
+    checksFailingTitle: 'Checks failed for "{title}"',
+    checksResolvedBody: "PR {pr} on {branch}",
     copiedBranch: "Copied branch {text}",
     copiedPath: "Copied path {text}",
+    // Both clipboard channels refused: no platform clipboard command on PATH
+    // (a headless box), and a terminal that answers "no" to OSC 52.
+    copyFailed: "Couldn't reach a clipboard — no clipboard command on PATH, and this terminal refused OSC 52.",
+
+    /** Action failures. Each names the state that SURVIVED the failure —
+     *  the `kanban.*` block's shape, and the thing a user needs in order to
+     *  know whether to retry or to stop worrying. */
+    forgetProjectFailed: "Couldn't remove the project — it stays in the projects list: {error}",
+    deleteFailed: 'Couldn\'t delete "{title}" — the task and its worktree are untouched: {error}',
+    createFailed: "Couldn't create the task — nothing was created: {error}",
+    forkFailed: "Couldn't fork the task — the original is untouched: {error}",
+    renameFailed: "Couldn't rename the task — it keeps its old title: {error}",
+    renameBranchFailed: 'Couldn\'t rename the branch — it stays "{branch}": {error}',
+    switchEngineFailed: "Couldn't switch the engine — the task keeps the one it had: {error}",
+    setStatusFailed: "Couldn't set the status — it stays {status}: {error}",
+    pinFailed: "Couldn't change the pin — the task keeps its current place: {error}",
+    moveFailed: "Couldn't move the task — it keeps its current place: {error}",
+    issueChatFailed: "Couldn't start the issue chat — the issue is unchanged: {error}",
+    inboxMarkReadFailed: "Couldn't mark it read — it stays in the inbox: {error}",
+    inboxDismissFailed: "Couldn't dismiss it — it stays in the inbox: {error}",
+
+    /** Successes with nothing on screen to show them — both changes only
+     *  become visible later, so the toast is the only feedback. */
+    engineSwitched: "Engine → {engine} (applies on reopen)",
+    statusSet: "Status → {status}",
   },
 }
 
@@ -224,7 +288,7 @@ export const zh: typeof en = {
     done: "已把 {base} 合并进该工作树",
     alreadyCurrent: "已经和 {base} 同步",
     conflict: "合并冲突——解决后提交：{files}",
-    dirty: "请先提交或暂存工作树里的改动，再同步：{files}",
+    dirty: "请先提交工作树里的改动，再同步：{files}",
     failed: "同步失败：{error}",
   },
   changeEngine: {
@@ -242,11 +306,33 @@ export const zh: typeof en = {
     confirm: "重新运行",
     footer: "\u2191\u2193 滚动 \u00B7 \u2190\u2192 选择 \u00B7 enter 运行 \u00B7 esc 取消",
   },
+  confirm: {
+    cancel: "取消",
+    forgetProjectTitle: "从列表中移除项目「{title}」？",
+    forgetProjectBody:
+      "只是把它从项目列表里忘掉。仓库、分支、worktree 以及它下面的任务都会留在磁盘上——之后可以用 `rove add` 重新加回来。",
+    forgetProjectConfirm: "移除",
+    deleteTitle: "删除「{title}」？",
+    deleteBodyDir: "只删除任务条目。目录本身会留在磁盘上。它的托管会话会被停止。",
+    deleteBodyTask: "删除任务条目和它的 worktree。git 分支会保留。它的托管会话会被停止。",
+    deleteConfirm: "删除",
+    forceDeleteTitle: "「{title}」有未提交的改动",
+    forceDeleteConfirm: "强制删除",
+  },
+  renameBranch: {
+    title: "重命名分支",
+    fieldLabel: "分支",
+  },
   fieldNotes: {
     title: "现场笔记",
     empty: "该仓库暂无现场笔记——agent 可用 `rove api note` 记录。",
     loading: "加载中…",
     footer: "↑↓ 滚动 · esc 关闭",
+    footerDeletable: "↑↓ 选择 · d 删除 · esc 关闭",
+    confirmDelete: {
+      title: "删除这条现场笔记?",
+      body: "「{text}」将不再注入该仓库的新会话。其他内容不受影响。",
+    },
   },
   moveChip: " 移动",
   recentJump: "最近:{title}",
@@ -277,7 +363,7 @@ export const zh: typeof en = {
     footer: "↑↓ 选择 · enter 设置 · esc 取消",
   },
   toast: {
-    noDaemonWorktree: "守护进程未运行——无法创建 worktree",
+    noDaemonWorktree: "守护进程未运行——无法创建 worktree。请运行 `rove daemon restart` 启动它。",
     noEditor: "未找到编辑器——请设置 ROVE_OPEN_EDITOR（如 'code'、'cursor'、'nvim'）",
     openWorktreeFailed: "无法用 {label} 打开 worktree",
     worktreeErrorDeleting: "该任务正在删除中——无法打开",
@@ -289,7 +375,28 @@ export const zh: typeof en = {
     scratchCloseFailed: "无法关闭临时任务:{message}",
     worktreeGoneTitle: '"{title}" 的 worktree 已消失',
     worktreeGoneBody: "已关闭 {count} 个标签页。分支 {branch} 仍在——重新打开该任务会重建 worktree。",
+    checksPassingTitle: "「{title}」的 PR 检查已通过",
+    checksFailingTitle: "「{title}」的 PR 检查失败了",
+    checksResolvedBody: "PR {pr}，分支 {branch}",
     copiedBranch: "已复制分支 {text}",
     copiedPath: "已复制路径 {text}",
+    copyFailed: "无法访问剪贴板——PATH 上没有剪贴板命令，这个终端也拒绝了 OSC 52。",
+
+    forgetProjectFailed: "移除项目失败——它仍在项目列表里：{error}",
+    deleteFailed: "删除「{title}」失败——任务和它的 worktree 都没有被改动：{error}",
+    createFailed: "创建任务失败——什么都没有被创建：{error}",
+    forkFailed: "fork 任务失败——原任务没有被改动：{error}",
+    renameFailed: "重命名任务失败——它仍用原来的标题：{error}",
+    renameBranchFailed: "重命名分支失败——它仍是「{branch}」：{error}",
+    switchEngineFailed: "切换引擎失败——任务仍使用原来的引擎：{error}",
+    setStatusFailed: "设置状态失败——它仍是 {status}：{error}",
+    pinFailed: "修改置顶状态失败——任务仍在原来的位置：{error}",
+    moveFailed: "移动任务失败——它仍在原来的位置：{error}",
+    issueChatFailed: "启动议题会话失败——议题没有被改动：{error}",
+    inboxMarkReadFailed: "标记为已读失败——它仍留在收件箱里：{error}",
+    inboxDismissFailed: "忽略失败——它仍留在收件箱里：{error}",
+
+    engineSwitched: "引擎 → {engine}（重新打开后生效）",
+    statusSet: "状态 → {status}",
   },
 }

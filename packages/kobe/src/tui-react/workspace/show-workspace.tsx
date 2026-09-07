@@ -10,7 +10,7 @@
 import type { ReactNode } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
-import { isRemoteRepoKey } from "../../state/repos.ts"
+import { remoteKeyForRepo } from "../../exec/resolve.ts"
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "../../types/task.ts"
 import type { QuickTaskResult } from "../component/quick-task-composer"
 import { useOptionalKV } from "../context/kv"
@@ -77,7 +77,7 @@ export function ShowWorkspace(props: {
   // refuses. Say so here instead of mounting TerminalTabs and letting that
   // refusal throw through the render path — a thrown launch reaches the user as
   // "This pane crashed", which tells them nothing about what is unimplemented.
-  const remoteKey = [props.task?.repo, path].find((key) => key && isRemoteRepoKey(key))
+  const remoteKey = remoteKeyForRepo(props.task?.repo) ?? remoteKeyForRepo(path)
   if (remoteKey) {
     return (
       <box flexGrow={1} alignItems="center" justifyContent="center">

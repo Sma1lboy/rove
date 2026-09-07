@@ -15,6 +15,7 @@
  */
 
 import { describe, expect, it } from "vitest"
+import { foregroundEngineIn, parsePsSnapshot } from "../../src/engine/foreground"
 import { tabTitle, tabTitleStable } from "../../src/tui/workspace/terminal-tab-split"
 import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
 
@@ -148,5 +149,30 @@ describe("tabTitleStable", () => {
     expect(tabTitleStable(bare, "codex", "codex")).toBe("codex 1")
     // A named thread is a name again, with no further signal needed.
     expect(tabTitleStable(tab, "codex", "codex", "⠹ rework the parser")).toBe("rework the parser 1")
+  })
+})
+
+/**
+ * The demotion branch (`liveVendor === null` on an engine tab → "shell N")
+ * is right: a ctrl+C'd tab must stop wearing its engine's name. It was only
+ * ever wrong because the probe LIED — the walk's id set was built-ins only,
+ * so a working OpenCode answered the confirmed-no-engine arm and its tab
+ * lost its title. Wired through the real walk, not a hand-passed `null`.
+ */
+describe("tabTitleStable over the real foreground walk", () => {
+  const rows = parsePsSnapshot(`
+100 1 /bin/zsh -l
+101 100 /usr/local/bin/opencode
+200 1 /bin/zsh -l
+`)
+  const probe = (pid: number) => foregroundEngineIn(rows, pid)?.vendor ?? null
+  const tab = engineTab({ vendor: "opencode", lastTitle: "Refactor the parser" })
+
+  it("a live contrib engine tab keeps its name instead of demoting to a shell", () => {
+    expect(tabTitleStable(tab, "opencode", probe(100))).toBe("Refactor the parser 1")
+  })
+
+  it("and a contrib tab whose engine really quit still demotes", () => {
+    expect(tabTitleStable(tab, "opencode", probe(200))).toBe("shell 1")
   })
 })

@@ -31,7 +31,14 @@ export const TERMINAL_TAIL_BYTES = 64 * 1024
 
 type ReadSource = "history" | "terminal"
 export type ReadSourceArg = "auto" | ReadSource
-export type FallbackReason = "engine_unsupported" | "history_missing" | "history_unreadable"
+export type FallbackReason =
+  | "engine_unsupported"
+  | "history_missing"
+  | "history_unreadable"
+  /** The pty host could not be asked — "couldn't look", not "no session".
+   *  Same distinction `pty-list`'s `sessions: null` publishes; without it an
+   *  unreachable host and a task that never started read identically. */
+  | "pty_host_unreachable"
 
 export interface ReadOutputEnvelope {
   readonly taskId: string

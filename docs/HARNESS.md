@@ -110,8 +110,8 @@ bun run visual          # hermetic journey: real OpenTUI drives, assertions read
 
 bun run visual:serve    # warm iteration servers + reusable fixture (keep running)
 bun run visual:dev      # fast baseline check against visual:serve (~2s)
-cd packages/kobe-web && bun run visual:shot -- ctrl+h c   # ad-hoc screenshot (~2s)
-cd packages/kobe-web && bun run visual:shot -- --scale=2 --out=shot.png
+cd packages/kobe-harness && bun run visual:shot -- ctrl+h c   # ad-hoc screenshot (~2s)
+cd packages/kobe-harness && bun run visual:shot -- --scale=2 --out=shot.png
 ```
 
 Iterate with the warm loop (`visual:serve` once, then `visual:dev` /
@@ -127,14 +127,51 @@ out. Ports come from `KOBE_VISUAL_PORT_BASE`, so pointing the shot at another
 harness instance (a throwaway home with a richer fixture, say) is just an env
 var — the ground-truth path is unchanged.
 
+### What the harness replaces, and therefore cannot prove
+
+The sidecar resolves its launch command from `KOBE_PTY_DEV_COMMAND`. The visual
+runners set that variable and `KOBE_PTY_DEV_CWD` to launch the isolated fixture.
+`createSpecFetcher` returns the same spec for engine and shell modes and throws
+when the command is unset. It does not fetch launch specs from the daemon.
+
+The visual track proves browser input and rendering through xterm.js, the PTY
+sidecar and the real OpenTUI process. It does not exercise production task-to-PTY
+launch resolution. Changes to that path need the relevant CLI or hosted-session
+tests in addition to any visual checks.
+
+`packages/kobe-harness/test/pty-spec.test.ts` checks command and cwd selection,
+mode equivalence and the missing-command error. The session lifecycle tests
+inject their own spec fetcher and cover spawn, attachment and teardown.
+
+```bash
+cd packages/kobe-harness && bun run test
+```
+
+### `shift+<letter>` is pressed as the uppercase letter
+
+`visual:shot`'s `shift+d` token presses `D`, not Shift-held-over-`d`. Through
+Playwright → xterm.js the held modifier is dropped and the PTY receives a bare
+`d`, so before this was fixed **every `shift+<letter>` chord measured through
+the harness silently read as its unshifted twin** — `shift+g` (jump to bottom)
+looked like a dead key, and `shift+d` looked like it was firing `d`'s action.
+The probe that pins it: open the rename dialog and send `shift+q shift+w`. The
+field must read `QW`; `qw` means the transport is eating Shift again.
+
+A real terminal sends `0x44` for Shift+D and opentui's parser turns that back
+into `{name:"d", shift:true}` (`s >= "A" && s <= "Z"` → `key.name =
+s.toLowerCase(); key.shift = true`), which is exactly what pressing `D`
+reproduces. Chords with a second modifier (`ctrl+shift+x`) are NOT covered by
+this and remain unmeasurable here — legacy terminals send them as the same C0
+byte as the unshifted chord anyway.
+
 ### README and docs assets
 
 Marketing stills and the demo video ride that same `/harness` path, against a
 RICHER throwaway home — the visual fixture is one empty task and photographs
-as an empty product. `packages/kobe-web/e2e/hero-*.ts` owns it:
+as an empty product. `packages/kobe-harness/e2e/hero-*.ts` owns it:
 
 ```bash
-cd packages/kobe-web
+cd packages/kobe-harness
 bun e2e/hero-fixture.ts --fresh   # isolated home + a real repo with history
 bun e2e/hero-seed.ts              # REAL Claude Code turns on two worktrees
 bun e2e/hero-issues.ts            # the kanban board's stories (no quota)
@@ -165,7 +202,8 @@ only its beats. `--encode-only` re-encodes the take already on disk.
   transcript, and so the framing, to differ every run. Seeding is idempotent:
   a re-shoot reuses the sessions it already paid quota for.
 - **The kanban capture is the exception: no engine, fully deterministic.** A
-  card reaches In progress by being LINKED to a task, so `hero-issues.ts`
+  card reaches In progress by being LINKED to a task or by its own `doing`
+  status; the take is about the link, so `hero-issues.ts`
   seeds the board off the fixture's idle tasks, and `hero-kanban.ts` fires a
   real `rove api issue-update --task` mid-take to move a card on camera. It
   files a story and creates a task, so it is NOT idempotent — re-shoot from
@@ -256,12 +294,13 @@ command on Linux.
 | Story detail | Workspace sidebar → Kanban → select fixture card → detail drawer → close | Board selection reaches the persisted story detail without mutating it. |
 | Story intake | Workspace sidebar → Kanban → New Story → title and description | The creation drawer accepts real terminal input and echoes it back. |
 
-Ports derive from `KOBE_VISUAL_PORT_BASE` (default 5273); a busy port fails
-fast — never reuse a stray server, and never point the fixture at a real HOME
+Ports derive from `KOBE_VISUAL_PORT_BASE` (default 5273): the base is Vite,
+base+1 is the PTY sidecar. Two, not three — the daemon is reached over its
+socket and has no port. A busy port fails fast — never reuse a stray server, and never point the fixture at a real HOME
 or the shared `.dev-sandbox/home`. Local Terminal screenshots, native
-`kobe-web` pages such as `/board`, render-test frames, and `dev:mock` cannot
+`kobe-harness` pages such as `/board`, render-test frames, and `dev:mock` cannot
 approve visual changes; `test:e2e` (dev:mock) stays a PTY-transport smoke only.
-Failure artifacts land in `packages/kobe-web/test-results/` (actual/diff/trace).
+Failure artifacts land in `packages/kobe-harness/test-results/` (actual/diff/trace).
 
 ### Driving a live engine to observe STATE
 

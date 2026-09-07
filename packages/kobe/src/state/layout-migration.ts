@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto"
 import type { Stats } from "node:fs"
 import {
   constants,
+  chmodSync,
   closeSync,
   copyFileSync,
   fsyncSync,
@@ -14,13 +15,14 @@ import {
   readdirSync,
   readlinkSync,
   renameSync,
+  statSync,
   symlinkSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
-import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
+import { readRoveHomeDirEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import {
   LEGACY_KOBE_CONFIG_DIR_BASENAME,
   LEGACY_KOBE_STATE_DIR_BASENAME,
@@ -30,7 +32,13 @@ import {
 
 const CLIENT_MIGRATION_MARKER = ".layout-client-migration-v1"
 const PLUGIN_MIGRATION_MARKER = ".layout-plugins-migration-v1"
-const DAEMON_MIGRATION_MARKER = ".layout-daemon-migration-v1"
+/**
+ * Written under `.rove/` once daemon-owned state has been copied across.
+ * Its presence is what makes the legacy `.kobe` copies STALE rather than a
+ * fallback, so readers outside this module import it instead of re-spelling
+ * the filename (`orchestrator/index/store-codec.ts`).
+ */
+export const DAEMON_MIGRATION_MARKER = ".layout-daemon-migration-v1"
 
 /** Client-owned data can move while a pre-upgrade daemon is still alive. */
 const CLIENT_STATE_ENTRIES = ["attachments", "settings", "themes"] as const
@@ -74,12 +82,30 @@ function removeTemp(path: string): void {
   }
 }
 
+/**
+ * Flush a just-published temp file to disk.
+ *
+ * The handle must be WRITABLE: Windows backs fsync with FlushFileBuffers,
+ * which requires write access and returns EPERM on a read-only handle, while
+ * POSIX flushes an O_RDONLY descriptor happily. `copyFileSync` carries the
+ * source's mode onto the temp on both platforms, so a legacy file with no
+ * write bit yields a temp we cannot open "r+" either. The temp is exclusively
+ * ours (pid + uuid in the name), so widen it for the flush and restore the
+ * mode we intend to publish.
+ */
 function syncFile(path: string): void {
-  const handle = openSync(path, "r")
+  const mode = statSync(path).mode
+  const writable = (mode & 0o200) !== 0
+  if (!writable) chmodSync(path, mode | 0o200)
   try {
-    fsyncSync(handle)
+    const handle = openSync(path, "r+")
+    try {
+      fsyncSync(handle)
+    } finally {
+      closeSync(handle)
+    }
   } finally {
-    closeSync(handle)
+    if (!writable) chmodSync(path, mode)
   }
 }
 
@@ -160,7 +186,7 @@ function migrateStateEntries(
   includeConfig: boolean,
   env: NodeJS.ProcessEnv,
 ): StateLayoutMigrationResult {
-  const home = readRoveEnv("HOME_DIR", env) ?? homedir()
+  const home = readRoveHomeDirEnv(env) ?? homedir()
   const legacyState = join(home, LEGACY_KOBE_STATE_DIR_BASENAME)
   const roveState = join(home, ROVE_STATE_DIR_BASENAME)
   const legacyConfig = join(home, ".config", LEGACY_KOBE_CONFIG_DIR_BASENAME, "state.json")
@@ -218,7 +244,7 @@ function migrateStateEntries(
 const PLUGIN_ENTRIES = ["plugins.json", "plugins", "plugins-outdated.json"] as const
 
 function migrateLegacyPluginTree(env: NodeJS.ProcessEnv): StateLayoutMigrationResult {
-  const home = readRoveEnv("HOME_DIR", env) ?? homedir()
+  const home = readRoveHomeDirEnv(env) ?? homedir()
   const legacyState = join(home, LEGACY_KOBE_STATE_DIR_BASENAME)
   const roveState = join(home, ROVE_STATE_DIR_BASENAME)
   const marker = join(roveState, PLUGIN_MIGRATION_MARKER)

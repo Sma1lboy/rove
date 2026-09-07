@@ -1,22 +1,22 @@
 /**
  * kobe daemon server: the single writer for the task index, plus the
- * push-channel bus every attached TUI/pane/web client subscribes to. RPC
+ * push-channel bus every attached TUI/pane client subscribes to. RPC
  * surface: hello / daemon.status / daemon.stop + handlers.ts + subscribe.
  */
 
-import { mkdir, unlink, writeFile } from "node:fs/promises"
+import { mkdir, unlink } from "node:fs/promises"
 import { type Server, createServer } from "node:net"
 import { dirname } from "node:path"
-import { StringDecoder } from "node:string_decoder"
-import { probeDaemonSocket } from "../client/daemon-process.ts"
 import { ptyHostHasLiveSessions, sweepPtyHostSessions } from "../client/pty-process.ts"
+import { tightenInstalledPluginPermissions } from "../plugins/permissions.ts"
 import { maybeStartPluginHost } from "../plugins/runtime.ts"
-import { type ClientState, broadcast, drainClientBuffer, writeFrame } from "./client-connection.ts"
+import { type ClientState, broadcast, handleClientLine, writeFrame } from "./client-connection.ts"
 import { ClientWriter } from "./client-writer.ts"
 import { startDaemonCollectors } from "./collectors.ts"
 import { linkLegacyRuntimePath } from "./compat-link.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import { createDirectLink } from "./direct-link.ts"
 import { DaemonEventBus } from "./event-bus.ts"
 import {
   type DaemonHandlerContext,
@@ -25,9 +25,13 @@ import {
   objectPayload,
   shapeDaemonError,
 } from "./handlers.ts"
+import { acquireHomeClaim } from "./home-owner.ts"
 import { IssuesStore, defaultIssuesStorePath } from "./issues-store.ts"
+import { writeTextAtomic } from "./json-file.ts"
 import { DaemonLifetime, FIRST_GUI_GRACE_MS, resolveIdleGraceMs } from "./lifetime.ts"
+import { LineReceiver } from "./line-receiver.ts"
 import { NotesStore, defaultNotesStorePath } from "./notes-store.ts"
+import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
 import {
   defaultDaemonPidPath,
   defaultDaemonSocketPath,
@@ -36,19 +40,25 @@ import {
   resolveDaemonHomeDir,
 } from "./paths.ts"
 import { PromptBroker } from "./prompt-broker.ts"
-import { type DaemonFrame, normalizeChannelFilter, serializeTask } from "./protocol.ts"
+import {
+  type DaemonFrame,
+  type DaemonStopReason,
+  type DaemonStoppingPayload,
+  normalizeChannelFilter,
+  serializeTask,
+} from "./protocol.ts"
 import { startPtyExitWatch } from "./pty-exit-watch.ts"
 import { PtyLiveHold } from "./pty-live-hold.ts"
 import type { DaemonServer, DaemonServerOptions } from "./server-options.ts"
+import { DaemonResources } from "./server-resources.ts"
 import { createSocketOwnershipGuard, listenOnUnixSocket } from "./socket-guard.ts"
 import { initDaemonStores } from "./stores.ts"
 import { handleSubscribe } from "./subscribe.ts"
 import { TabCloseBroker } from "./tab-close-broker.ts"
-import { type DaemonWebServer, createDirectWebLink, startDaemonWebServer } from "./web-server.ts"
 import { WorkItemCache } from "./work-items.ts"
 
 // RPC handler registry + per-request dispatch seam — re-exported so consumers
-// (tests, kobe-web bridge) keep the existing `daemon/server` import path.
+// (tests) keep the existing `daemon/server` import path.
 export {
   blockingRpcNames,
   createDaemonHandlerRegistry,
@@ -63,32 +73,47 @@ export { NotesStore, defaultNotesStorePath } from "./notes-store.ts"
 export type { DaemonClientConnection } from "./client-connection.ts"
 export type { DaemonServer, DaemonServerOptions } from "./server-options.ts"
 
-export async function startDaemonServer(orch: DaemonOrchestrator, options: DaemonServerOptions): Promise<DaemonServer> {
+export async function startDaemonServer(
+  createOrchestrator: () => DaemonOrchestrator | Promise<DaemonOrchestrator>,
+  options: DaemonServerOptions,
+): Promise<DaemonServer> {
+  const homeDir = resolveDaemonHomeDir(options.homeDir)
+  const socketPath = options.socketPath ?? defaultDaemonSocketPath(options.homeDir)
+  const lease = await acquireHomeClaim({ homeDir, socketPath })
+  const resources = new DaemonResources()
+  resources.defer(() => lease.release())
+  resources.defer(() => options.onStop?.())
+  try {
+    const orch = await createOrchestrator()
+    return await startOwnedServer(orch, options, resources)
+  } catch (err) {
+    await resources.close()
+    throw err
+  }
+}
+
+async function startOwnedServer(
+  orch: DaemonOrchestrator,
+  options: DaemonServerOptions,
+  resources: DaemonResources,
+): Promise<DaemonServer> {
   const runtime = options.runtime
   const socketPath = options.socketPath ?? defaultDaemonSocketPath(options.homeDir)
   const pidPath = options.pidPath ?? defaultDaemonPidPath(options.homeDir)
-  // The state root this daemon actually serves. Reported by `hello` so a
-  // client can refuse a daemon that belongs to a DIFFERENT home before it
-  // renders that daemon's (empty) task list as its own — see
-  // `isForeignDaemonHome` in protocol.ts.
   const homeDir = resolveDaemonHomeDir(options.homeDir)
   const startedAt = options.startedAt ?? new Date()
-  // Never steal a live daemon's socket: an unconditional pre-bind unlink lets
-  // an autospawned daemon usurp the path while the incumbent keeps serving
-  // its attached clients — hooks and TUI split across two daemons, activity
-  // badges gone. Probed FIRST so a refused boot constructs nothing. A dead
-  // ("absent") or hung ("wedged", connects but won't answer hello —
-  // replaceable) socket may still be cleared below.
-  if ((await probeDaemonSocket(socketPath)) === "alive") {
-    throw new Error(`rove daemon: another daemon is already serving ${socketPath} — refusing to replace it`)
-  }
   const clients = new Set<ClientState>()
-  const webClients = new Set<{ subscribed: boolean; holdsLifetime: boolean }>()
   let nextClientId = 1
+  /** Why this daemon is going away — read once by the `daemon.stopping`
+   *  broadcast in the teardown deferral below. Every path into `stopSoon`
+   *  names its own reason; `stop` is the honest default for a shutdown
+   *  nobody labelled (an outright `close()`, a signal). */
+  let stopReason: DaemonStopReason = "stop"
+  const requests = new Set<Promise<void>>()
 
   // Refcounted lazy shutdown + collector gate (KOB): the daemon's lifetime is
   // bound to the number of attached GUIs — a front-end that subscribed with
-  // `role: "gui"` (the `kobe` TUI process, or the kobe-web bridge). The count
+  // `role: "gui"` (the `rove` TUI process). The count
   // deliberately EXCLUDES helper panes (Tasks/Ops/settings, `role: "pane"`):
   // those subscribe for push channels but persist after the user quits the
   // front-end, so counting them kept the daemon alive forever (N Terminal Tabs
@@ -104,7 +129,6 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   const lifetime = new DaemonLifetime({
     clients: function* () {
       yield* clients
-      yield* webClients
     },
     idleGraceMs: resolveIdleGraceMs(),
     // Autospawned daemons (connectOrStartDaemon's spawn stamps the env
@@ -116,13 +140,14 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     // PTY session (see pty-live-hold.ts: idle-stopping while engines run
     // drops their hook events and blanks the activity dots).
     keepAlive: () => automations.hasEnabled() || ptyHold.isHeld(),
-    onIdleStop: () => void stopSoon().catch((err) => logDaemonError("daemon-idle-shutdown", err)),
+    onIdleStop: () => void stopSoon("idle").catch((err) => logDaemonError("daemon-idle-shutdown", err)),
   })
   const ptyHold = new PtyLiveHold({
     probe: () => ptyHostHasLiveSessions(options.homeDir),
     onRelease: () => lifetime.reevaluateIdle(),
   })
-  ptyHold.start()
+  resources.defer(() => lifetime.markStopping())
+  resources.defer(() => ptyHold.stop())
 
   // Channel event bus: the single hub the daemon publishes push
   // events to. One sink fans each publish out to subscribed sockets; the
@@ -149,9 +174,22 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     quotaUsage,
     engineEvents,
   } = await initDaemonStores(orch, runtime, bus, options.homeDir)
+  resources.defer(() => activity.close())
+  resources.defer(() => deletions.drain())
+  resources.defer(async () => {
+    await Promise.allSettled(requests)
+  })
 
+  // 0700 on creation AND on every boot: the socket below has no peer-
+  // credential check, so this directory's mode is the entire ACL, and an
+  // install that predates the mode argument is exactly the one that is
+  // exposed (see owner-only.ts).
+  await ensureOwnerOnlyStateDir(homeDir)
   await mkdir(dirname(socketPath), { recursive: true })
   await mkdir(dirname(pidPath), { recursive: true })
+  // Same repair for the plugin tree, whose `.env` is where PLUGIN-AUTHORING
+  // tells authors to keep API keys.
+  tightenInstalledPluginPermissions(options.homeDir)
   // Stale leftover only — a live owner was refused at the top of this boot.
   await unlink(socketPath).catch(() => {})
 
@@ -160,22 +198,32 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       id: nextClientId++,
       connectedAt: new Date(),
       socket,
-      writer: new ClientWriter(socket),
-      buffer: "",
+      writer: new ClientWriter(socket, {
+        onOverflow: () => {
+          logDaemonInfo("backpressure", "disconnecting daemon client whose queue exceeded 8MiB")
+          socket.destroy()
+        },
+      }),
       subscribed: false,
       holdsLifetime: false,
       channels: null,
     }
     clients.add(client)
 
-    // Per-connection decoder: holds a partial multibyte UTF-8 sequence (CJK,
-    // em-dash, emoji) across TCP chunk boundaries. Decoding each chunk with a
-    // bare `toString("utf8")` would emit U+FFFD for a codepoint split between
-    // two chunks, silently corrupting task titles / field notes / prompts.
-    const decoder = new StringDecoder("utf8")
-    socket.on("data", (chunk) => {
-      client.buffer += decoder.write(chunk)
-      drainClientBuffer(client, (req, c) => void handleRequest(req, c))
+    const receiver = new LineReceiver()
+    socket.on("data", (chunk: Buffer) => {
+      if (
+        !receiver.push(chunk, (line) =>
+          handleClientLine(client, line, (req, c) => {
+            if (lifetime.isStopping()) return
+            const pending = handleRequest(req, c).finally(() => requests.delete(pending))
+            requests.add(pending)
+          }),
+        )
+      ) {
+        logDaemonInfo("framing", "disconnecting daemon client whose request exceeded 8MiB")
+        socket.destroy()
+      }
     })
     socket.on("error", () => {})
     socket.on("close", () => {
@@ -191,32 +239,37 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       // transient CLI poke leaves the gui count unchanged, so neither trips
       // shutdown when it disconnects. Refresh the pty hold first so the
       // grace recheck reads live-session truth, not a poll-stale cache.
-      if (client.holdsLifetime) void ptyHold.probeSoon()
-      lifetime.clientDisconnected(client.holdsLifetime)
+      if (client.holdsLifetime) {
+        void ptyHold.probeSoon().then(() => lifetime.clientDisconnected(true))
+      }
     })
   })
 
-  // Push every task-list change to subscribed clients as a snapshot via
-  // the bus. v0.5 sent per-task deltas; re-sending the full list on every
-  // mutation is cheaper than diffing for this small surface — clients
-  // re-derive their delta locally. `subscribeTasks` fires once eagerly
-  // with the current list, which warms the bus's last-value cache so a
-  // subscriber connecting before the first mutation still replays the
-  // current tasks (no cold cache).
+  let sweep: Promise<void> | undefined
+  let sweepNeeded = false
+  const scheduleSweep = (): void => {
+    sweepNeeded = true
+    sweep ??= (async () => {
+      while (sweepNeeded && !lifetime.isStopping()) {
+        sweepNeeded = false
+        await sweepPtyHostSessions(
+          () => (lifetime.isStopping() ? null : orch.listTasks().map((task) => task.id)),
+          options.homeDir,
+        )
+      }
+    })().finally(() => {
+      sweep = undefined
+      if (sweepNeeded && !lifetime.isStopping()) scheduleSweep()
+    })
+  }
+  resources.defer(async () => {
+    await sweep
+  })
   const unsubscribeStore = orch.subscribeTasks((snapshot) => {
     bus.publish("task.snapshot", { tasks: snapshot.map(serializeTask) })
-    // Janitor call to the standalone pty host: a deleted task must not leave
-    // a background engine running forever with no owner — covers headless
-    // deletes (`kobe api`) where no TUI sends pty.kill. Fire-and-forget;
-    // never spawns a host, never throws. MUST pass this server's homeDir
-    // (like every other path above): a temp-home daemon resolving the
-    // ambient default sweeps the REAL pty-host with its own task list, which
-    // kills the engines a human is running.
-    void sweepPtyHostSessions(
-      snapshot.map((t) => t.id),
-      options.homeDir,
-    )
+    scheduleSweep()
   })
+  resources.defer(unsubscribeStore)
   deletions.resume(orch.listTasks())
 
   // Warm the active-task channel with the orchestrator's restored focus
@@ -237,7 +290,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     orch,
     runtime,
     bus,
-    () => lifetime.hasSubscribers(),
+    (channel) => lifetime.hasSubscribersFor(channel),
     options,
     quotaUsage,
     {
@@ -258,8 +311,11 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     deferredPrompts ? { store: deferredPrompts, inbox } : undefined,
   )
 
+  resources.defer(stopCollectors)
+
   // Plugin runtime: startup hooks + channel-derived event hooks (plugins/runtime.ts).
   const pluginHost = maybeStartPluginHost(bus, options, socketPath, (line) => logDaemonInfo("plugin-host", line))
+  resources.defer(() => pluginHost?.stop())
   // session.exited plugin events off the pty-host's death records (the host
   // is a separate process; the file is the channel — see pty-exit-watch.ts).
   const stopPtyExitWatch = pluginHost
@@ -275,15 +331,15 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       })
     : () => {}
 
+  resources.defer(stopPtyExitWatch)
+
   // Pending host-dialog prompts (`ui.prompt` ↔ `ui.promptReply`).
   const prompts = new PromptBroker()
   const tabCloses = new TabCloseBroker()
-
-  let webServer: DaemonWebServer | null = null
-  // Why the web transport isn't listening (port taken, bind failed). Surfaced
-  // via daemon.status so `kobe daemon status` reports the real reason instead
-  // of the TUI's misleading "daemon did not start".
-  let webError: string | null = null
+  resources.defer(() => {
+    prompts.clear()
+    tabCloses.clear()
+  })
 
   // Ownership watch (rationale in socket-guard.ts): a daemon whose
   // socket path was taken over is unreachable for every NEW connection and
@@ -295,81 +351,32 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     ...(options.socketWatchMs !== undefined ? { watchMs: options.socketWatchMs } : {}),
     onLost: () => {
       logDaemonInfo("sock", "socket path was taken over or removed — stopping so clients reconnect to the new owner")
-      void stopSoon().catch((err) => logDaemonError("daemon-socket-lost-shutdown", err))
+      void stopSoon("socket-lost").catch((err) => logDaemonError("daemon-socket-lost-shutdown", err))
     },
   })
   const serverApi: DaemonServer = {
     socketPath,
     pidPath,
     startedAt,
-    get webPort() {
-      return webServer?.port
-    },
     clients,
-    async close() {
+    close() {
       lifetime.markStopping()
-      // Release in a `finally`: a throw between the halves used to strand a
-      // zombie — `stopping` latched and the internals gone, but the socket and
-      // pidfile still on disk answering `hello`. `pluginHost.stop()` throws
-      // (its `run` spawns outside the inner promise).
-      try {
-        unsubscribeStore()
-        webServer?.close()
-        webServer = null
-        stopCollectors()
-        ptyHold.stop()
-        stopPtyExitWatch()
-        // Awaited: [[shutdown]] hooks finish inside stop()'s bounded grace.
-        await pluginHost?.stop()
-        prompts.clear()
-        tabCloses.clear()
-        activity.close()
-      } catch (err) {
-        logDaemonError("daemon-shutdown", err)
-      } finally {
-        // Hosted PTYs are deliberately NOT touched here: they live in the
-        // standalone `kobe pty-host` process, so `kobe daemon restart` never
-        // ends a running engine session — only `kobe reset` does.
-        // Task sessions are intentionally untouched here: closing the daemon
-        // never tears them down. Session teardown lives ONLY in `kobe reset` /
-        // `kobe kill-sessions`. Keep it that way.
-        broadcast(clients, { type: "event", name: "daemon.stopping", payload: {} })
-        for (const client of Array.from(clients)) {
-          client.socket.destroy()
-        }
-        // Ownership-aware teardown: a superseded daemon must neither close the
-        // listener nor unlink files another daemon owns — see socket-guard.ts.
-        await sockGuard.release(server)
-      }
+      return resources.close()
     },
   }
-
-  await listenOnUnixSocket(server, socketPath)
-  // Fingerprint FIRST, before any other await. Every await between bind and
-  // arm is a window in which a usurper can unlink+rebind the path; arming
-  // late meant either no stamp at all or a stamp of the usurper's inode.
-  await sockGuard.arm()
-  await writeFile(pidPath, `${process.pid}\n`, "utf8")
-  // A pre-rename binary only knows `.kobe`; without these it starts a second
-  // daemon on the same task index. See compat-link.ts.
-  await linkLegacyRuntimePath(socketPath, legacyDaemonSocketPath(homeDir))
-  await linkLegacyRuntimePath(pidPath, legacyDaemonPidPath(homeDir))
-
-  async function stopSoon(): Promise<void> {
-    if (lifetime.isStopping()) return
-    lifetime.markStopping()
-    try {
-      await options.onStop?.()
-    } catch (err) {
-      // The latch is set, so nothing re-arms the idle timer: a stop hook that
-      // took the close below with it left the daemon outliving every request
-      // to stop it — idle, takeover and `rove daemon stop` all route here.
-      logDaemonError("daemon-stop-hook", err)
-    }
-    setTimeout(() => {
-      serverApi.close().catch((err) => logDaemonError("daemon-shutdown", err))
-    }, 0).unref()
-  }
+  resources.defer(async () => {
+    // WHY, not just THAT (v5). Every shutdown looks the same from a client
+    // socket, and one of them is different in kind: a `restart` means an
+    // operator is swapping this daemon's code, so an attached TUI is about to
+    // be a build behind and can offer to refresh itself the instant the frame
+    // lands — instead of waiting out a reconnect plus a `hello` under backoff.
+    // The version rides along for the same reason: it is the comparison the
+    // client would otherwise have to reconnect to make.
+    const payload: DaemonStoppingPayload = { reason: stopReason, kobeVersion: runtime.currentVersion }
+    broadcast(clients, { type: "event", name: "daemon.stopping", payload })
+    for (const client of clients) client.socket.destroy()
+    await sockGuard.release(server)
+  })
 
   // RPC dispatch seam: every plain request is a registry entry
   // (handlers.ts) — look up → validate → handle — with all daemon state
@@ -405,11 +412,10 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
         startedAt,
         socketPath,
         homeDir,
-        webPort: webServer?.port,
-        webError,
         pid: process.pid,
         guiCount: () => lifetime.guiCount(),
-        clientCount: () => clients.size + webClients.size,
+        clientCount: () => clients.size,
+        hasSubscribersFor: (channel) => lifetime.hasSubscribersFor(channel),
         stopSoon,
         reevaluateIdle: () => lifetime.reevaluateIdle(),
       },
@@ -417,51 +423,39 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     }
   }
 
-  // In-process RPC client over the daemon's OWN handler registry — no socket,
-  // no web transport. Built unconditionally: the automation runner needs it to
-  // launch engine sessions whether or not `--web-port` was passed. The web
-  // server reuses the same object when it is enabled.
-  const selfLink = createDirectWebLink({ orch, bus, activity, ctx: handlerContext })
+  // In-process RPC client over the daemon's OWN handler registry — no socket
+  // round-trip. Built unconditionally: the automation runner needs it to launch
+  // engine sessions whether or not anyone is attached.
+  const selfLink = createDirectLink({ ctx: handlerContext })
 
-  if (options.webPort !== undefined) {
-    // The web transport is a SECONDARY surface — a bind failure (port taken by
-    // a stray `vite preview`, another kobe daemon, whatever) must NEVER take
-    // the daemon down. Degrade to socket-only, record the reason for status,
-    // and keep serving every attached TUI/pane over the unix socket.
-    try {
-      webServer = await startDaemonWebServer({
-        runtime,
-        port: options.webPort,
-        hostname: options.webHost,
-        staticDir: options.webStaticDir,
-        link: selfLink,
-        onEvent: (sink) => bus.onPublish(sink),
-        onSseOpen: () => {
-          const client = { subscribed: true, holdsLifetime: true }
-          webClients.add(client)
-          lifetime.guiAttached()
-          logDaemonInfo(
-            "conn",
-            `web client subscribed — ${clients.size + webClients.size} client(s), ${lifetime.guiCount()} gui`,
-          )
-          return () => {
-            webClients.delete(client)
-            logDaemonInfo(
-              "conn",
-              `web client disconnected — ${clients.size + webClients.size} client(s), ${lifetime.guiCount()} gui left`,
-            )
-            void ptyHold.probeSoon()
-            lifetime.clientDisconnected(true)
-          }
-        },
-      })
-      logDaemonInfo("web", `daemon web transport listening on http://${webServer.hostname}:${webServer.port}`)
-    } catch (err) {
-      webServer = null
-      webError = err instanceof Error ? err.message : String(err)
-      logDaemonError("web", err)
-      logDaemonInfo("web", "daemon running socket-only — web transport disabled (see error above)")
-    }
+  // BIND LAST. The `createServer` callback above starts dispatching frames the
+  // instant this resolves, and `dispatch` reads `handlers`/`selfLink` — `const`
+  // bindings, so reaching them early is a ReferenceError, not `undefined`. With
+  // the registry built after the bind, a client that connected during the four
+  // awaits below got `Cannot access 'handlers' before initialization` back as
+  // its hello response and the TUI exited 1; the window widened with machine
+  // load, which is why it looked like a random 1-in-5 startup flake. Nothing
+  // between here and the end of this function may be needed to answer a
+  // request.
+  await listenOnUnixSocket(server, socketPath)
+  // Fingerprint FIRST, before any other await. Every await between bind and
+  // arm is a window in which a usurper can unlink+rebind the path; arming
+  // late meant either no stamp at all or a stamp of the usurper's inode.
+  await sockGuard.arm()
+  // tmp+rename: a torn pidfile is EMPTY, and empty parses as pid 0.
+  await writeTextAtomic(pidPath, `${process.pid}\n`)
+  // A pre-rename binary only knows `.kobe`; without these it starts a second
+  // daemon on the same task index. See compat-link.ts.
+  await linkLegacyRuntimePath(socketPath, legacyDaemonSocketPath(homeDir))
+  await linkLegacyRuntimePath(pidPath, legacyDaemonPidPath(homeDir))
+
+  async function stopSoon(reason: DaemonStopReason = "stop"): Promise<void> {
+    if (lifetime.isStopping()) return
+    stopReason = reason
+    lifetime.markStopping()
+    setTimeout(() => {
+      serverApi.close().catch((err) => logDaemonError("daemon-shutdown", err))
+    }, 0).unref()
   }
 
   async function dispatch(req: Extract<DaemonFrame, { type: "request" }>, client: ClientState): Promise<unknown> {
@@ -500,5 +494,6 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     }
   }
 
+  ptyHold.start()
   return serverApi
 }

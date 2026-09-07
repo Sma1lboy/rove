@@ -55,6 +55,8 @@ export interface Automation {
    * one branch makes it unlandable.
    */
   readonly persistentSession?: boolean
+  /** Exact user-owned conversation. Never creates or revives a task or tab. */
+  readonly target?: { readonly kind: "existing-tab"; readonly taskId: string; readonly tabId: string }
   /**
    * The standing task {@link persistentSession} delivers into. Set on the
    * first firing, cleared when that task is gone (deleted, or its worktree
@@ -66,7 +68,18 @@ export interface Automation {
   readonly nextRunAt: string
   /** How late a missed occurrence may still run. Older ones are skipped. */
   readonly missedRunGraceMinutes: number
-  readonly lastRunAt?: string
+  /**
+   * The scheduled time of the most recent occurrence the sweep CONSUMED —
+   * stamped by `advanceNextRun` before the dispatch is even attempted, so it
+   * is set for skips and failures exactly as it is for successes.
+   *
+   * Named for what it is. As `lastRunAt` it was in the `automation.list`
+   * payload claiming a run had happened for routines that had only ever
+   * recorded `skipped_unavailable`, which is the one conclusion that makes a
+   * reader stop looking. "When did it last actually run, and what happened" is
+   * `automation.runs`, which answers with a status attached.
+   */
+  readonly lastOccurrenceAt?: string
   readonly createdAt: string
   readonly updatedAt: string
 }
@@ -90,14 +103,28 @@ export type AutomationRunStatus =
   | "revived"
   /**
    * The standing session's composer was busy, so the daemon took ownership of
-   * the prompt and queued it for a human to release from the Inbox. A SUCCESS
-   * (the report is not lost), and deliberately not `dispatch_failed`.
+   * the prompt and queued it for a human to release from the Inbox. Queue acceptance only; delivery is still pending and belongs to the deferred store.
    */
   | "deferred"
+  | "skipped_cancelled"
   | "skipped_precheck"
   | "skipped_missed"
   | "skipped_unavailable"
   | "dispatch_failed"
+
+/**
+ * Run outcomes that mean a human has to do something.
+ *
+ * The whole point of splitting the "didn't run" reasons was so this line could
+ * be drawn: `skipped_precheck` is a healthy routine finding nothing to do and
+ * must never raise an alarm, while an engine that would not start and a repo
+ * that is no longer there will repeat every firing until someone intervenes.
+ * One definition, because the Inbox and the Routines list have to agree about
+ * which routines are broken — two thresholds would be two answers.
+ */
+export function automationRunNeedsAttention(status: AutomationRunStatus): boolean {
+  return status === "dispatch_failed" || status === "skipped_unavailable"
+}
 
 export interface AutomationPrecheckResult {
   readonly exitCode: number | null
@@ -117,6 +144,9 @@ export interface AutomationRun {
   readonly status: AutomationRunStatus
   readonly trigger: "scheduled" | "manual"
   readonly taskId?: string
+  readonly tabId?: string
+  /** Receipt for queue acceptance, not a delivery confirmation. */
+  readonly deferredId?: string
   readonly precheckResult?: AutomationPrecheckResult
   readonly error?: string
   /** ISO-8601 event time. */
@@ -127,13 +157,15 @@ export interface AutomationRun {
 export interface AutomationPatch {
   readonly name?: string
   readonly prompt?: string
-  readonly vendor?: VendorId
+  readonly vendor?: VendorId | null
   readonly schedule?: string
   readonly precheck?: AutomationPrecheck | null
   readonly baseRef?: string | null
   readonly enabled?: boolean
   readonly missedRunGraceMinutes?: number
   readonly persistentSession?: boolean
+  /** Exact user-owned conversation. Never creates or revives a task or tab. */
+  readonly target?: Automation["target"] | null
   /** `null` clears the standing session link; absent leaves it untouched. */
   readonly sessionTaskId?: string | null
 }

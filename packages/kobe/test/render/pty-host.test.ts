@@ -227,18 +227,10 @@ describe("PtyHost", () => {
     }
   })
 
-  test("sweepTasks kills sessions whose task is gone", async () => {
-    const host = makeHost()
-    host.open("live-task::tab1", SPEC, {}, collector().sink)
-    host.open("dead-task::tab1", SPEC, {}, collector().sink)
-    host.sweepTasks(new Set(["live-task"]))
-    expect(host.list()).toMatchObject([{ key: "live-task::tab1", alive: true }])
-  })
-
   // Why: folding a scratch shell into the task that owns its cwd re-keys the
   // RUNNING session instead of respawning it, so the engine inside survives
-  // the move and the sweep judges it by its new owner.
-  test("rename re-keys a running session; sweep and reattach see the new owner", async () => {
+  // the move and later attaches find it under its new owner.
+  test("rename re-keys a running session; reattach sees the new owner", async () => {
     const host = makeHost()
     const a = collector()
     host.open("scratch::tab-1", SPEC, {}, a.sink)
@@ -249,7 +241,6 @@ describe("PtyHost", () => {
     expect(host.list()).toMatchObject([{ key: "owner::tab-3", alive: true }])
     // The pre-rename key is gone: killing it is a no-op, the session lives on.
     await host.kill("scratch::tab-1")
-    host.sweepTasks(new Set(["owner"]))
     expect(host.list()).toMatchObject([{ key: "owner::tab-3", alive: true }])
 
     // Reattach under the new key replays the pre-move scrollback.

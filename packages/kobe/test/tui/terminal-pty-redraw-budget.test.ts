@@ -1,26 +1,12 @@
 import { describe, expect, it, vi } from "vitest"
 import type { CursorPos, TerminalRow } from "../../src/tui/panes/terminal/pty-types"
-import { XtermTaskPty } from "../../src/tui/panes/terminal/pty-xterm-base"
 import { xtermLineToChunks } from "../../src/tui/panes/terminal/xterm-chunks"
+import { FakeTransportPty, settleRefresh } from "./pty-fake"
 
 vi.mock("../../src/tui/panes/terminal/xterm-chunks", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../../src/tui/panes/terminal/xterm-chunks")>()
   return { ...mod, xtermLineToChunks: vi.fn(mod.xtermLineToChunks) }
 })
-
-class FakeTransportPty extends XtermTaskPty {
-  protected transportWrite(_data: string): void {}
-  protected transportResize(_cols: number, _rows: number): void {}
-  protected transportKill(): void {}
-
-  pump(data: string): void {
-    this.feed(data)
-  }
-}
-
-function settle(ms = 60): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
 
 function makePty(): FakeTransportPty {
   return new FakeTransportPty({ taskId: "t1", cwd: "/wt", cols: 40, rows: 10, scrollback: 20 })
@@ -35,26 +21,26 @@ describe("XtermTaskPty redraw budget", () => {
     pty.onData(onData)
     pty.onTitleChange(onTitle)
 
-    pty.pump("seed")
-    await settle()
+    await pty.pump("seed")
+    await settleRefresh()
     const before = pty.capture()
     onData.mockClear()
     onTitle.mockClear()
     vi.mocked(xtermLineToChunks).mockClear()
 
-    pty.pump("\x1b]2;vim\x07")
-    await settle()
+    await pty.pump("\x1b]2;vim\x07")
+    await settleRefresh()
     expect(onTitle).toHaveBeenCalledWith("vim")
     expect(onData).not.toHaveBeenCalled()
     expect(pty.capture()).toBe(before)
 
-    pty.pump("\x1b[1;5H")
-    await settle()
+    await pty.pump("\x1b[1;5H")
+    await settleRefresh()
     expect(onData).not.toHaveBeenCalled()
     expect(pty.capture()).toBe(before)
 
-    pty.pump("\x1b[?2026h\x1b[1;5H\x1b[?2026l")
-    await settle()
+    await pty.pump("\x1b[?2026h\x1b[1;5H\x1b[?2026l")
+    await settleRefresh()
     expect(onData).not.toHaveBeenCalled()
     expect(pty.capture()).toBe(before)
     expect(xtermLineToChunks).not.toHaveBeenCalled()
@@ -75,16 +61,16 @@ describe("XtermTaskPty redraw budget", () => {
     const pty = makePty() // rows 10 + scrollback 20 -> saturates at 30 lines
     const text = (rows: readonly TerminalRow[]) => rows.map((r) => r.map((c) => c.text).join("")).join("\n")
 
-    for (let i = 0; i < 60; i++) pty.pump(`line-${i}\r\n`)
-    await settle()
+    for (let i = 0; i < 60; i++) await pty.pump(`line-${i}\r\n`)
+    await settleRefresh()
     const saturated = pty.capture()
     expect(text(saturated)).toContain("line-59")
     const topBefore = text(saturated).split("\n")[0]
 
     // A sync-marked frame, which is what forces dirty={kind:"all"} — exactly
     // the case the fast path short-circuits.
-    pty.pump("\x1b[?2026hline-60\r\n\x1b[?2026l")
-    await settle()
+    await pty.pump("\x1b[?2026hline-60\r\n\x1b[?2026l")
+    await settleRefresh()
 
     const shifted = pty.capture()
     expect(shifted).not.toBe(saturated)
@@ -98,13 +84,13 @@ describe("XtermTaskPty redraw budget", () => {
     const onData = vi.fn<(rows: readonly TerminalRow[], cursor: CursorPos | null) => void>()
     pty.onData(onData)
 
-    pty.pump("seed")
-    await settle()
+    await pty.pump("seed")
+    await settleRefresh()
     const before = pty.capture()
     onData.mockClear()
 
-    pty.pump("!")
-    await settle()
+    await pty.pump("!")
+    await settleRefresh()
 
     expect(onData).toHaveBeenCalledTimes(1)
     expect(pty.capture()).not.toBe(before)
@@ -116,13 +102,13 @@ describe("XtermTaskPty redraw budget", () => {
     const onData = vi.fn()
     pty.onData(onData)
 
-    pty.pump("A")
-    await settle()
+    await pty.pump("A")
+    await settleRefresh()
     const before = pty.capture()
     onData.mockClear()
 
-    pty.pump("\r\x1b[31mA")
-    await settle()
+    await pty.pump("\r\x1b[31mA")
+    await settleRefresh()
 
     expect(onData).toHaveBeenCalledTimes(1)
     expect(pty.capture()).not.toBe(before)
@@ -143,17 +129,17 @@ describe("XtermTaskPty redraw budget", () => {
     })
     pty.onData(() => {})
 
-    pty.pump("\x1b[48;2;48;48;47mcomposer")
-    await settle()
+    await pty.pump("\x1b[48;2;48;48;47mcomposer")
+    await settleRefresh()
     expect(pty.capture()[0]?.[0]?.fg).toBeUndefined()
     expect(pty.capture()[0]?.[0]?.bg).toEqual([48, 48, 47])
 
-    pty.pump("\x1b[?1049h\x1b[0m\x1b[48;2;48;48;47mtranscript")
-    await settle()
+    await pty.pump("\x1b[?1049h\x1b[0m\x1b[48;2;48;48;47mtranscript")
+    await settleRefresh()
     expect(pty.capture()[0]?.[0]).toMatchObject({ fg: [20, 20, 19], bg: [234, 231, 223] })
 
-    pty.pump("\x1b[?1049l")
-    await settle()
+    await pty.pump("\x1b[?1049l")
+    await settleRefresh()
     expect(pty.capture()[0]?.[0]?.fg).toBeUndefined()
     expect(pty.capture()[0]?.[0]?.bg).toEqual([48, 48, 47])
     pty.kill()
@@ -164,13 +150,13 @@ describe("XtermTaskPty redraw budget", () => {
     const seen: Array<{ rows: readonly TerminalRow[]; cursor: CursorPos | null }> = []
     pty.onData((rows, cursor) => seen.push({ rows, cursor }))
 
-    pty.pump("seed")
-    await settle()
+    await pty.pump("seed")
+    await settleRefresh()
     const before = pty.capture()
     seen.length = 0
 
-    pty.pump("\x1b[D")
-    await settle()
+    await pty.pump("\x1b[D")
+    await settleRefresh()
 
     expect(seen).toHaveLength(1)
     expect(seen[0]?.rows).toBe(before)
@@ -183,24 +169,24 @@ describe("XtermTaskPty redraw budget", () => {
     const seen: Array<{ rows: readonly TerminalRow[]; cursor: CursorPos | null }> = []
     pty.onData((rows, cursor) => seen.push({ rows, cursor }))
 
-    pty.pump("seed")
-    await settle()
+    await pty.pump("seed")
+    await settleRefresh()
     const before = pty.capture()
     seen.length = 0
 
-    pty.pump("\x1b[?25l")
-    await settle()
+    await pty.pump("\x1b[?25l")
+    await settleRefresh()
     expect(seen).toEqual([{ rows: before, cursor: null }])
 
     const hiddenRows = pty.capture()
     seen.length = 0
-    pty.pump("\x1b[10C")
-    await settle()
+    await pty.pump("\x1b[10C")
+    await settleRefresh()
     expect(seen).toHaveLength(0)
     expect(pty.capture()).toBe(hiddenRows)
 
-    pty.pump("\x1b[?25h")
-    await settle()
+    await pty.pump("\x1b[?25h")
+    await settleRefresh()
     expect(seen).toHaveLength(1)
     expect(seen[0]?.cursor).toEqual({ x: 14, y: 0 })
     pty.kill()
@@ -211,14 +197,14 @@ describe("XtermTaskPty redraw budget", () => {
     const seen: Array<CursorPos | null> = []
     pty.onData((_rows, cursor) => seen.push(cursor))
 
-    pty.pump("input")
-    await settle()
-    pty.pump("\x1b[?1049h\x1b[?25lpager")
-    await settle()
+    await pty.pump("input")
+    await settleRefresh()
+    await pty.pump("\x1b[?1049h\x1b[?25lpager")
+    await settleRefresh()
     expect(seen.at(-1)).toBeNull()
 
-    pty.pump("\x1b[?1049l\x1b[?25h")
-    await settle()
+    await pty.pump("\x1b[?1049l\x1b[?25h")
+    await settleRefresh()
     expect(seen.at(-1)).toEqual({ x: 5, y: 0 })
     pty.kill()
   })

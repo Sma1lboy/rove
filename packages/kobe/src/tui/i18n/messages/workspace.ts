@@ -33,8 +33,11 @@ export const en = {
     stepHelp: "shows every shortcut reachable from the current focus",
     /** {key} is the live prefix chord */
     stepPrefix: "opens the command menu",
-    /** {list} is the detected engine CLIs, e.g. "claude · codex" */
+    /** {list} is the engine CLIs that are installed AND signed in */
     enginesFound: "✓ engines: {list}",
+    /** {list} is the installed-but-logged-out engine CLIs. The common cold state:
+     *  the CLI is there, so "install one" would be wrong advice. */
+    enginesSignedOut: "✗ installed but not signed in: {list} — run one of them in a shell and log in",
     enginesMissing: "✗ no engine CLI found — install claude, codex, copilot, or kimi, then restart Rove",
     gitMissing: "✗ git not found on PATH — Rove needs git to create worktrees",
     doctorHint: "run `rove doctor` in a shell for the full diagnosis",
@@ -64,10 +67,39 @@ export const en = {
       dead: "engine exited",
       /** A peer/API message accepted by the daemon but not yet pasted. */
       promptDeferred: "message queued",
+      /** A queued message the daemon destroyed at its TTL, undelivered. */
+      promptExpired: "message expired",
+      /** A routine whose latest firing needs a human. */
+      routineFailed: "routine needs you",
     },
     /** Rate-limited card's context line: when the armed auto-resume fires.
      *  `{time}` is a locale-formatted clock time. */
     resumesAt: "resumes {time}",
+    /** Queued-message card's context line: how long before the daemon drops
+     *  the text undelivered. `{in}` is a compact duration ("47m", "23h"). */
+    expiresIn: "expires in {in}",
+    /** Same line once the deadline has passed — the hourly sweep has not run
+     *  yet, so the text is still there, and only just. */
+    expiringNow: "expiring now",
+    /** Expired-message card's context line. */
+    expiredNote: "never delivered",
+    /** Queued-message card, first segment: who sent it. `{sender}` is the
+     *  task title lifted from the prompt's `[ROVE PEER]` header. */
+    from: "from {sender}",
+    layer: {
+      /** Held by the keystroke window (layer A) — someone was typing here. */
+      keystroke: "you were typing",
+      /** Held by the composer screen read (layer B). */
+      screen: "composer had text",
+    },
+    /** Footer verbs for a queued-message row: enter delivers the held text
+     *  rather than opening anything, and d sets it aside. */
+    releaseHint: "enter release",
+    ignoreHint: "d ignore",
+    dismissConfirmTitle: "Ignore this message?",
+    dismissConfirmBody:
+      "It has not run yet, and its sender has already been told it was accepted. Ignoring takes it off the queue so the tab accepts new messages; the text is kept for 24h from when it arrived, and `rove api deferred-release --id` still delivers it.",
+    dismissConfirmAction: "ignore",
     /** Toast title when a message is deferred because the composer was busy. */
     deferredToast: "Message queued — composer busy",
     /** Insert feedback: the A/C gate still blocked at release time. */
@@ -98,6 +130,7 @@ export const zh: typeof en = {
     stepHelp: "查看当前焦点下的全部快捷键",
     stepPrefix: "打开命令菜单",
     enginesFound: "✓ 已检测到引擎:{list}",
+    enginesSignedOut: "✗ 已安装但未登录:{list}——请在 shell 里运行其中之一并完成登录",
     enginesMissing: "✗ 未找到引擎 CLI——请安装 claude、codex、copilot 或 kimi 后重启 Rove",
     gitMissing: "✗ PATH 上没有 git——Rove 需要 git 来创建 worktree",
     doctorHint: "在 shell 里运行 `rove doctor` 查看完整诊断",
@@ -125,8 +158,29 @@ export const zh: typeof en = {
       dead: "引擎已退出",
       /** peer/API 消息已被 daemon 受理但尚未插入。 */
       promptDeferred: "消息已排队",
+      /** 排队的消息到期被 daemon 丢弃，从未送达。 */
+      promptExpired: "消息已过期",
+      routineFailed: "例行任务需要处理",
     },
     resumesAt: "{time} 恢复",
+    expiresIn: "{in} 后过期",
+    expiringNow: "即将过期",
+    expiredNote: "从未送达",
+    /** 排队消息卡片的第一段:谁发的。{sender} 取自 prompt 的 [ROVE PEER] 头部。 */
+    from: "来自 {sender}",
+    layer: {
+      /** 被按键静默窗口(A 层)拦住——这里刚刚有人在打字。 */
+      keystroke: "刚才有人在打字",
+      /** 被输入框屏幕检查(B 层)拦住。 */
+      screen: "输入框里有字",
+    },
+    /** 排队消息那一行的底部动作:enter 是把扣住的文本发出去,不是「打开」;d 先放一边。 */
+    releaseHint: "enter 放行",
+    ignoreHint: "d 忽略",
+    dismissConfirmTitle: "忽略这条消息?",
+    dismissConfirmBody:
+      "它还没跑,发送方那边已经收到「已受理」的答复了。忽略只是把它移出队列、让这个 tab 能接收新消息;文本会从它到达那一刻起保留 24 小时,`rove api deferred-release --id` 仍然能把它送出去。",
+    dismissConfirmAction: "忽略",
     /** composer 忙、消息被受理延后的 toast 标题。 */
     deferredToast: "消息已排队——composer 正忙",
     /** 插入反馈：放行那一刻 A/C 闸门仍拦住。 */

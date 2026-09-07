@@ -11,9 +11,9 @@
  * so a move survives restart with no new persistence key.
  */
 
-import { type TabsState, moveTab } from "../../tui/workspace/terminal-tabs-core"
+import { moveTab } from "../../tui/workspace/terminal-tabs-core"
 import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
-import { requestTabMove, setTaskTabs, tabsByTask, takeUnclaimedTabMove } from "./terminal-tabs-shared"
+import { knownTabsState, requestTabMove, setTaskTabs, takeUnclaimedTabMove } from "./terminal-tabs-shared"
 
 /**
  * Move `tabId` of `taskId` by `delta`. Returns whether the order changed —
@@ -27,8 +27,7 @@ export function moveTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string, d
   // state writer. Report "changed" — the component edge-stops identically.
   if (!unclaimed) return true
 
-  const saved = kv.store[terminalTabsKey(taskId)] as TabsState | null | undefined
-  const state = tabsByTask.get(taskId) ?? (saved && Array.isArray(saved.tabs) ? saved : null)
+  const state = knownTabsState(kv, taskId)
   if (!state) return false
   const next = moveTab(state, tabId, delta)
   if (next === state) return false

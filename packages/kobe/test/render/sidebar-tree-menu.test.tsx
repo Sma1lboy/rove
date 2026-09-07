@@ -11,6 +11,7 @@
 import { expect, test } from "bun:test"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
+import { BUNDLED_THEMES, DEFAULT_THEME, applyDisplayOverlay, resolveTheme } from "../../src/tui/context/theme-core"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 import { renderComponent } from "./harness"
@@ -317,4 +318,22 @@ test("Set status fires the row's callback with that row's task", async () => {
   await settle()
 
   expect(asked).toEqual(["b"])
+})
+
+test("the menu panel sits on `backgroundMenu`, a step above the inset it covers", async () => {
+  // Every bundled theme defines its own `backgroundMenu` (claude: #33312E vs
+  // element #2B2A27), and nothing read it — the popup shared the exact fill of
+  // the panel inset underneath, so only its border separated the two. The
+  // fallback in `theme-core` is for themes that DON'T define the token; these
+  // do.
+  const theme = applyDisplayOverlay(resolveTheme(BUNDLED_THEMES[DEFAULT_THEME], "dark"), "primary", true)
+  expect(theme.backgroundMenu.toInts()).not.toEqual(theme.backgroundElement.toInts())
+  tabsByTask.clear()
+  const { frame, spans, mockMouse } = await renderComponent(tree(), { width: 40, height: 24 })
+  await settle()
+  await mockMouse.click(2, lineOf(await frame(), "feat/a"), RIGHT)
+  await settle()
+  const rename = (await spans()).lines.flatMap((line) => line.spans).find((span) => span.text.includes("Rename"))
+  expect(rename).toBeDefined()
+  expect(rename?.bg?.toInts()).toEqual(theme.backgroundMenu.toInts())
 })

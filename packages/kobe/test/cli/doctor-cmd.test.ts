@@ -1,7 +1,8 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { CURRENT_VERSION } from "../../src/version.ts"
 
 const mocks = vi.hoisted(() => ({
   request: vi.fn(),
@@ -69,6 +70,7 @@ beforeEach(() => {
     installedVersion: 3,
     currentVersion: 3,
     stale: false,
+    legacyCopies: [],
   })
   mocks.listPresetIds.mockReset().mockReturnValue(["claude", "codex", "copilot", "kimi"])
   mocks.detectEngineStatuses.mockReset().mockImplementation(async (vendors: readonly string[]) =>
@@ -131,6 +133,37 @@ describe("runDoctorSubcommand", () => {
     expect(output()).toContain("parked screens: 100 KB")
     expect(output()).toContain("park wakes: 7 delta, 2 full replay fallback")
     expect(output()).toContain("legacy tmux: tmux 3.6b — no sessions on `kobe`")
+    // No `version` in the reply: an older host, which is itself the finding.
+    expect(output()).toContain("build: unknown — this host predates the version check")
+  })
+
+  it("flags a pty host serving an older build than the CLI, and points at reset", async () => {
+    // The host is the one process `daemon restart` never replaces — that is
+    // its purpose — so an install upgraded underneath it keeps running old
+    // code for as long as sessions live. Doctor could not see this at all.
+    mocks.request.mockImplementation(async (name: string) => {
+      if (name === "daemon.status") return { daemonPid: 42, kobeVersion: CURRENT_VERSION }
+      if (name === "pty.list") return { sessions: [], version: "0.0.1-ancient" }
+      throw new Error(`unexpected request ${name}`)
+    })
+
+    await runDoctorSubcommand([])
+
+    expect(output()).toContain(`⚠ stale build: pty host is v0.0.1-ancient, you launched v${CURRENT_VERSION}`)
+    expect(output()).toContain("reset")
+  })
+
+  it("says nothing alarming when the pty host is on the same build as the CLI", async () => {
+    mocks.request.mockImplementation(async (name: string) => {
+      if (name === "daemon.status") return { daemonPid: 42, kobeVersion: CURRENT_VERSION }
+      if (name === "pty.list") return { sessions: [], version: CURRENT_VERSION }
+      throw new Error(`unexpected request ${name}`)
+    })
+
+    await runDoctorSubcommand([])
+
+    expect(output()).toContain(`build: v${CURRENT_VERSION}`)
+    expect(output()).not.toContain("stale build: pty host")
   })
 
   it("prints the whole terminal section, multiplexer and kitty probe included", async () => {
@@ -196,22 +229,56 @@ describe("runDoctorSubcommand", () => {
     // Runnable fix shown with its exact command…
     expect(output()).toContain("will run:")
     expect(output()).toContain("daemon restart")
-    // …the dangerous remedy is print-only…
-    expect(output()).toContain("reset")
+    // …and a cold home proposes NO `reset`. Nothing here is broken: the PTY
+    // host is started on demand by the first task tab, so "no pidfile, no
+    // socket" is the normal state of a brand-new install. Doctor used to
+    // prescribe `reset` — which it describes in the same breath as not
+    // undoable and as killing every live session — to a user with nothing
+    // wrong and nothing to lose yet.
+    expect(output()).not.toContain("rove reset")
+    expect(output()).not.toContain("kobe reset")
+    expect(output()).toContain("starts on demand")
     // …and nothing ran (no TTY → no confirmations → no executions).
     expect(output()).toContain("nothing was executed")
     expect(output()).not.toContain("✓ done")
   })
 
-  it("--report writes a bundle file and points the user at it", async () => {
+  it("still proposes reset for a WEDGED pty host (live pid, dead socket)", async () => {
+    // The positive control for the cold case above: same unreachable socket,
+    // but a pidfile whose process is alive. That IS broken, and `reset` is
+    // the documented remedy.
     mocks.request.mockRejectedValue(new Error("not running"))
-    const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(home)
+    const { defaultPtyHostPidPath } = await import("@sma1lboy/kobe-daemon/daemon/paths")
+    const pidPath = defaultPtyHostPidPath()
+    mkdirSync(join(pidPath, ".."), { recursive: true })
+    writeFileSync(pidPath, String(process.pid))
+
+    await runDoctorSubcommand(["--fix"])
+
+    expect(output()).toContain("WEDGED")
+    expect(output()).toMatch(/(rove|kobe) reset/)
+    expect(output()).not.toContain("starts on demand")
+    // The label must name the condition that actually fired. "unreachable or
+    // not running" read as true either way, including in the cold case above
+    // where doctor now (correctly) proposes nothing at all.
+    expect(output()).toContain("the PTY host process is alive but its socket is unreachable (wedged)")
+  })
+
+  // The cwd is mocked to a DIFFERENT directory than the home on purpose: the
+  // bundle landing in the user's repo (untracked, gitignored nowhere, full of
+  // logs and env) is the regression, so "not in the cwd" is half the contract
+  // and asserting only the home path would pass with both writes happening.
+  it("--report writes the bundle under the Rove home, never the cwd", async () => {
+    mocks.request.mockRejectedValue(new Error("not running"))
+    const cwd = mkdtempSync(join(tmpdir(), "rove-doctor-cwd-"))
+    const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(cwd)
 
     await runDoctorSubcommand(["--report"])
 
-    expect(output()).toContain("report written:")
-    expect(existsSync(join(home, "rove-doctor-report.txt"))).toBe(true)
-    const bundle = readFileSync(join(home, "rove-doctor-report.txt"), "utf8")
+    const reportPath = join(home, ".rove", "rove-doctor-report.txt")
+    expect(output()).toContain(`report written: ${reportPath}`)
+    expect(existsSync(join(cwd, "rove-doctor-report.txt"))).toBe(false)
+    const bundle = readFileSync(reportPath, "utf8")
     expect(bundle).toContain("# Rove doctor report")
     expect(bundle).toContain("## diagnosis")
     cwdSpy.mockRestore()

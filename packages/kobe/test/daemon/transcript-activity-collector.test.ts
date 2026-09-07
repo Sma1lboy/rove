@@ -77,6 +77,7 @@ function harness(initialTasks: Task[], facts: Record<string, TranscriptActivityE
   const runs: Array<{ path: string; vendor: VendorId }> = []
   const collector = new TranscriptActivityCollector({ listTasks: () => tasks }, bus, {
     cadence: FAST,
+    defaultVendor: "claude",
     run: async (worktreePath, vendor) => {
       runs.push({ path: worktreePath, vendor })
       const value = facts[worktreePath]
@@ -106,7 +107,7 @@ describe("trackedWorktrees", () => {
       task({ id: "main1", kind: "main", repo: "/repo", worktreePath: "/repo", vendor: "claude" }),
       task({ id: "main2", kind: "main", repo: "/repo", worktreePath: "/repo", vendor: "codex" }),
     ]
-    const map = trackedWorktrees(tasks)
+    const map = trackedWorktrees(tasks, "claude")
     expect([...map.keys()].sort()).toEqual(["/repo", "/wt/a"])
     expect(map.get("/wt/a")).toBe("codex")
     // First task at the shared path (main1, vendor claude) picks the vendor.
@@ -114,7 +115,7 @@ describe("trackedWorktrees", () => {
   })
 
   test("a task without a vendor normalizes to the default (claude)", () => {
-    const map = trackedWorktrees([task({ id: "a", vendor: undefined })])
+    const map = trackedWorktrees([task({ id: "a", vendor: undefined })], "claude")
     expect(map.get("/wt/a")).toBe("claude")
   })
 })
@@ -191,6 +192,7 @@ describe("TranscriptActivityCollector", () => {
     const runs: string[] = []
     const collector = new TranscriptActivityCollector({ listTasks: () => [task({ id: "a" })] }, bus, {
       cadence: FAST,
+      defaultVendor: "claude",
       run: (worktreePath) => {
         runs.push(worktreePath)
         return new Promise((r) => {
@@ -216,6 +218,7 @@ describe("TranscriptActivityCollector", () => {
     })
     const collector = new TranscriptActivityCollector({ listTasks: () => tasks.current }, bus, {
       cadence: FAST,
+      defaultVendor: "claude",
       run: () =>
         new Promise((r) => {
           release = r
@@ -239,6 +242,7 @@ describe("TranscriptActivityCollector", () => {
     const runs: string[] = []
     const collector = new TranscriptActivityCollector({ listTasks: () => [task({ id: "a" })] }, bus, {
       cadence: FAST,
+      defaultVendor: "claude",
       hasSubscribers: () => subscribed,
       run: async (worktreePath) => {
         runs.push(worktreePath)
@@ -267,7 +271,7 @@ describe("TranscriptActivityCollector", () => {
         },
       },
       bus,
-      { cadence: FAST, run: async () => entry(0) },
+      { cadence: FAST, defaultVendor: "claude", run: async () => entry(0) },
     )
     expect(() => collector.tick()).not.toThrow()
   })

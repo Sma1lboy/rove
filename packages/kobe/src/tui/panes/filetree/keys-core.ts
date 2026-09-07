@@ -62,9 +62,12 @@ export type FileTreeController = {
   /** `b` — toggle the Changes tab between working-tree and Branch (vs-base)
    *  scope. No-op on the All tab. */
   toggleScope?: () => void
-  /** `d` — open the current file's read-only diff in a workspace content tab
-   *  (content swap, does not steal focus). */
+  /** `d` — open the current row's read-only diff in a workspace content tab
+   *  (content swap, does not steal focus). On a directory row that is the
+   *  combined diff of everything under it, in one tab. */
   openDiff?: () => void
+  /** PROPOSED `D` — the same, for the whole worktree (pathspec `.`). */
+  openDiffAll?: () => void
 }
 
 /**
@@ -101,5 +104,6 @@ export function fileTreeBindings(opts: FileTreeController): Binding[] {
     "files.refresh": () => opts.refresh(),
     "files.scope": () => opts.toggleScope?.(),
     "files.diff": () => opts.openDiff?.(),
+    "files.diffAll": () => opts.openDiffAll?.(),
   })
 }

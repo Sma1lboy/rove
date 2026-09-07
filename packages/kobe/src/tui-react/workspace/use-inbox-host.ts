@@ -5,6 +5,7 @@ import type { KVContext } from "../context/kv"
 import { useT } from "../i18n"
 import { useLatest } from "../lib/use-latest"
 import type { DialogContext } from "../ui/dialog"
+import { DialogConfirm } from "../ui/dialog-confirm"
 import { AttentionInboxDialog } from "./AttentionInboxPane"
 import {
   attentionInboxCounts,
@@ -14,7 +15,7 @@ import {
   visitResolvedEpisodes,
 } from "./attention-inbox-core"
 import { insertDeferredPrompt } from "./deferred-prompt-insert"
-import { requestInboxItemOpen } from "./inbox-open-action"
+import { dismissEpisode, requestInboxItemOpen } from "./inbox-open-action"
 import { notifyInboxRpcFailure } from "./inbox-rpc-errors"
 import { writeInboxVisit } from "./inbox-visits"
 import { activeTabIdFor, requestTabActivation, taskTabExists } from "./terminal-tabs-shared"
@@ -35,6 +36,8 @@ export function useInboxHost(args: {
   dialog: DialogContext
   selectedId: string | null
   selectTask: (taskId: string) => void
+  /** Where a `routine_failed` episode lands — the Routines page. */
+  openAutomations: () => void
   focusWorkspace: () => void
   notifyError: (message: string) => void
   /** Neutral (done-styled) toast — insert feedback for the deferred exit path. */
@@ -92,7 +95,7 @@ export function useInboxHost(args: {
       const key = episodeKey(item)
       if (attemptedUnavailable.current.has(key)) continue
       attemptedUnavailable.current.add(key)
-      notifyInboxRpcFailure(orch.dismissAttention(item.taskId, item.tabId, item.at), "dismiss", notifyErrorRef.current)
+      notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", notifyErrorRef.current)
     }
   }, [unavailableSignature, orch])
 
@@ -106,7 +109,7 @@ export function useInboxHost(args: {
     try {
       const outcome = await insertDeferredPrompt({ orch, deferredId })
       if (outcome === "missing") {
-        notifyInboxRpcFailure(orch.dismissAttention(item.taskId, item.tabId, item.at), "dismiss", args.notifyError)
+        notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError)
         return
       }
       if (outcome === "deferred-again") args.notifyInfo(t("workspace.inbox.deferredStillQueued"))
@@ -118,17 +121,29 @@ export function useInboxHost(args: {
   }
 
   function openItem(item: AttentionInboxItem, knownAvailable?: boolean): void {
-    const task = orch.getTask(item.taskId)
+    // routine_failed: the subject is a SCHEDULE, so opening lands on the
+    // Routines page — where the run history and `run now` are — rather than
+    // on a task that may not exist.
+    if (item.state === "routine_failed") {
+      notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError)
+      if (args.dialog.stack.length > 0) args.dialog.clear({ refocus: false })
+      args.openAutomations()
+      return
+    }
+
+    const taskId = item.taskId
+    if (taskId === null) return
+    const task = orch.getTask(taskId)
     const available =
-      knownAvailable ?? isAttentionInboxItemAvailable(item, task, (tabId) => taskTabExists(args.kv, item.taskId, tabId))
+      knownAvailable ?? isAttentionInboxItemAvailable(item, task, (tabId) => taskTabExists(args.kv, taskId, tabId))
 
     // prompt_deferred: opening IS the release action — jump AND insert. The
     // episode is NOT dismissed up front; the gate decides whether it clears.
     const deferredId = item.detail?.deferredPrompt?.id
     if (item.state === "prompt_deferred" && item.tabId && deferredId) {
       if (args.dialog.stack.length > 0) args.dialog.clear({ refocus: false })
-      args.selectTask(item.taskId)
-      requestTabActivation(item.taskId, item.tabId)
+      args.selectTask(taskId)
+      requestTabActivation(taskId, item.tabId)
       args.focusWorkspace()
       void releaseDeferredPrompt(item, deferredId)
       return
@@ -136,8 +151,8 @@ export function useInboxHost(args: {
 
     if (!requestInboxItemOpen(item, available, orch, args.notifyError)) return
     if (args.dialog.stack.length > 0) args.dialog.clear({ refocus: false })
-    args.selectTask(item.taskId)
-    if (item.tabId) requestTabActivation(item.taskId, item.tabId)
+    args.selectTask(taskId)
+    if (item.tabId) requestTabActivation(taskId, item.tabId)
     args.focusWorkspace()
   }
 
@@ -149,14 +164,48 @@ export function useInboxHost(args: {
     args.focusWorkspace()
   }
 
+  /**
+   * `d` on a queued message asks first.
+   *
+   * Every other episode is a NOTICE — clearing one throws away a line the
+   * daemon can rebuild. A `prompt_deferred` row is a message somebody sent
+   * that has not run yet, and its sender already exited 0 believing it was
+   * accepted, so a stray `d` is the one keystroke in this list that loses
+   * work nobody can recover from the screen. (The daemon now keeps the text
+   * until the record's 24h expiry, so a confirmed dismiss is still undoable
+   * with `deferred-release`; the confirm is what stops the accident.)
+   *
+   * `DialogConfirm.show` goes through `dialog.replace`, which UNMOUNTS the
+   * Inbox — so the Inbox is reopened after the answer either way, and the
+   * user lands back on the list they were working through instead of on the
+   * workspace.
+   */
+  async function confirmDismiss(item: AttentionInboxItem): Promise<void> {
+    if (item.state !== "prompt_deferred") {
+      notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError)
+      return
+    }
+    const confirmed = await DialogConfirm.show(
+      args.dialog,
+      t("workspace.inbox.dismissConfirmTitle"),
+      t("workspace.inbox.dismissConfirmBody"),
+      undefined,
+      t("workspace.inbox.dismissConfirmAction"),
+      { danger: true },
+    )
+    if (confirmed === true) {
+      notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError)
+    }
+    show()
+  }
+
   function show(): void {
     AttentionInboxDialog.show(args.dialog, {
       orchestrator: orch,
       selectedId: args.selectedId,
       onOpen: openItem,
       onOpenTask: openTask,
-      onDelete: (item) =>
-        notifyInboxRpcFailure(orch.dismissAttention(item.taskId, item.tabId, item.at), "dismiss", args.notifyError),
+      onDelete: (item) => void confirmDismiss(item),
     })
   }
 
@@ -174,11 +223,7 @@ export function useInboxHost(args: {
         const key = episodeKey(item)
         if (attemptedResolved.current.has(key)) continue
         attemptedResolved.current.add(key)
-        notifyInboxRpcFailure(
-          orch.dismissAttention(item.taskId, item.tabId, item.at),
-          "dismiss",
-          notifyErrorRef.current,
-        )
+        notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", notifyErrorRef.current)
       }
     },
     [orch],

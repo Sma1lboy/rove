@@ -67,7 +67,9 @@ test("tab moves from Open to Unlink and enter drops the task link", async () => 
   act(() => mockInput.pressTab())
   act(() => mockInput.pressEnter())
 
-  expect(outcomes).toEqual([{ kind: "unlink", title: LINKED_ISSUE.title, body: LINKED_ISSUE.body }])
+  expect(outcomes).toEqual([
+    { kind: "unlink", title: LINKED_ISSUE.title, body: LINKED_ISSUE.body, status: LINKED_ISSUE.status },
+  ])
 })
 
 test("enter on the Open chip resolves with the linked task id", async () => {
@@ -81,7 +83,13 @@ test("enter on the Open chip resolves with the linked task id", async () => {
   act(() => mockInput.pressEnter())
 
   expect(outcomes).toEqual([
-    { kind: "open", taskId: LINKED_ISSUE.taskId, title: LINKED_ISSUE.title, body: LINKED_ISSUE.body },
+    {
+      kind: "open",
+      taskId: LINKED_ISSUE.taskId,
+      title: LINKED_ISSUE.title,
+      body: LINKED_ISSUE.body,
+      status: LINKED_ISSUE.status,
+    },
   ])
 })
 

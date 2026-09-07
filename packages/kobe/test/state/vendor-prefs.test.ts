@@ -11,6 +11,7 @@ import os from "node:os"
 import path from "node:path"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import { setPersistedString } from "../../src/state/repos.ts"
+import { patchStateFile } from "../../src/state/store.ts"
 import {
   getGlobalDefaultVendor,
   getRepoLastActiveVendor,
@@ -61,6 +62,50 @@ describe("vendor preference layers", () => {
     setPersistedString("lastActiveVendor./repo", "gpt9-typo")
     setGlobalDefaultVendor("codex")
     expect(getRepoLastActiveVendor("/repo")).toBeUndefined()
+    expect(resolvePreferredVendor("/repo")).toBe("codex")
+  })
+})
+
+/**
+ * Switching an engine off in Settings -> Engines is documented as "it stops
+ * being offered when you pick an engine for a task". The disabled set was read
+ * in one place — `availableEngineIds()`, which only feeds the TUI picker — so
+ * every headless resolution (`rove api add`, quick-fork, main-task) went
+ * through these layers instead and launched the engine anyway. A user who ran
+ * codex once in a repo and then switched it off got codex back from
+ * `rove api add --repo <that repo>`.
+ */
+describe("a disabled engine is not offered by any layer", () => {
+  /** Settings -> Engines writes this key as a `string[]` through its own kv. */
+  function setDisabled(ids: readonly string[]): void {
+    patchStateFile({ disabledEngineIds: [...ids] })
+  }
+
+  test("the repo's last-active entry falls through when that engine is off", () => {
+    setRepoLastActiveVendor("/repo", "codex")
+    setGlobalDefaultVendor("copilot")
+    setDisabled(["codex"])
+
+    expect(getRepoLastActiveVendor("/repo")).toBeUndefined()
+    expect(resolvePreferredVendor("/repo")).toBe("copilot")
+  })
+
+  test("the global default falls through too, down to the first engine left on", () => {
+    setGlobalDefaultVendor("codex")
+    setDisabled(["codex", "claude"])
+
+    expect(getGlobalDefaultVendor()).toBeUndefined()
+    // claude is the built-in fallback and is itself off, so the resolution
+    // continues to the next enabled built-in rather than handing back a
+    // default nobody is allowed to pick.
+    expect(resolvePreferredVendor("/repo")).toBe("copilot")
+  })
+
+  test("switching it back on restores the stored preference untouched", () => {
+    setRepoLastActiveVendor("/repo", "codex")
+    setDisabled(["codex"])
+    expect(resolvePreferredVendor("/repo")).not.toBe("codex")
+    setDisabled([])
     expect(resolvePreferredVendor("/repo")).toBe("codex")
   })
 })

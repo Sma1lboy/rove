@@ -2,7 +2,7 @@
 
 How the engineering skills should consume this repo's domain documentation when exploring the codebase.
 
-**Layout: single-context.** One glossary + one ADR directory at the root; the monorepo packages (`kobe`, `kobe-daemon`, `kobe-web`, `branding`) share the same domain language.
+**Layout: single-context.** One glossary + one ADR directory at the root; the monorepo packages (`kobe`, `kobe-daemon`, `kobe-harness`, `branding`) share the same domain language.
 
 ## Before exploring, read these
 

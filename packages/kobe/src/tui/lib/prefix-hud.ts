@@ -5,7 +5,9 @@
  * chords (`prefixKey: ""`). Keeps the last three plus the active prefix or
  * direct-shortcut guide;
  * entries carry a timestamp and the OVERLAY enforces expiry, so this module
- * owns no timers and stays inert for headless/unit-test dispatch.
+ * owns no timers and stays inert for headless/unit-test dispatch. It does own
+ * the CLOCK those overlay timers read, so a render test can drive the delayed
+ * reveal instead of racing a real setTimeout — see {@link setPrefixHudClock}.
  */
 
 import { type ReadableState, createStateCell } from "../../lib/external-store"
@@ -50,6 +52,40 @@ type PrefixHudGuide =
       readonly options: readonly PrefixHudOption[]
     }
 
+/**
+ * Clock the HUD overlay reads for `now` and for its expiry timers. Real
+ * timers make the PREFIX_GUIDE_DELAY_MS reveal a race: the render suite
+ * saturates the event loop, and the armed prefix cancels itself
+ * DEFAULT_PREFIX_CONFIGURATION.timeoutMs after the tap, so a slipped timer
+ * deletes the answer rather than merely delaying it. Tests swap in a manual
+ * clock and advance it.
+ */
+export type PrefixHudClock = {
+  now(): number
+  /** Run `fn` after `ms`; returns a cancel function. */
+  schedule(fn: () => void, ms: number): () => void
+}
+
+const realClock: PrefixHudClock = {
+  now: () => Date.now(),
+  schedule: (fn, ms) => {
+    const timer = setTimeout(fn, ms)
+    return () => clearTimeout(timer)
+  },
+}
+
+let clock: PrefixHudClock = realClock
+
+/** Clock the overlay must use for timestamps and expiry timers. */
+export function prefixHudClock(): PrefixHudClock {
+  return clock
+}
+
+/** Test seam — install a manual clock, or `null` to restore real time. */
+export function setPrefixHudClock(next: PrefixHudClock | null): void {
+  clock = next ?? realClock
+}
+
 const cell = createStateCell<PrefixHudSnapshot>({ guide: null, entries: [] })
 let nextEntryId = 1
 
@@ -62,7 +98,7 @@ export function prefixHudSetArmed(
 ): void {
   cell.update((current) => {
     if (!armed) return current.guide?.kind === "prefix" ? { ...current, guide: null } : current
-    return { ...current, guide: { kind: "prefix", armedAt: armedAt ?? Date.now(), options } }
+    return { ...current, guide: { kind: "prefix", armedAt: armedAt ?? clock.now(), options } }
   })
 }
 

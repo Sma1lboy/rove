@@ -9,7 +9,7 @@
  * you hop between two lists of the same names.
  */
 
-import { TextAttributes } from "@opentui/core"
+import { type BoxRenderable, TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
 import type { EngineAccount, EngineStatus } from "../../../engine/engine-status"
 import { displayWidth } from "../../../lib/display-width"
@@ -32,6 +32,8 @@ export function EngineSettingsSection(
     isDefault: (vendor: VendorId) => boolean
     /** True for a user-added engine (shown with a `(custom)` tag; `x` removes it). */
     isCustom: (vendor: VendorId) => boolean
+    /** Built-in adapter a CUSTOM engine borrows; `undefined` = the generic one. */
+    engineProtocol: (vendor: VendorId) => VendorId | undefined
     /** False for an engine switched off — kept here, not offered for new tasks. */
     isEnabled: (vendor: VendorId) => boolean
     /** True for the DEFAULT engine for new tasks (the ● marker; set with `d`). */
@@ -60,6 +62,21 @@ export function EngineSettingsSection(
     props.vendors.reduce((max, v) => Math.max(max, displayWidth(props.displayName(v))), 0),
   )
   const padName = (name: string): string => name + " ".repeat(Math.max(0, nameWidth - displayWidth(name)))
+  /**
+   * The protocol chip, for CUSTOM engines only. A built-in or contrib engine
+   * IS its own protocol, so printing one there would be noise; a custom engine
+   * without a declaration silently gets the generic adapter — no transcript
+   * reader, no account detection, no resume — and that was the one fact about
+   * the row nothing on screen stated.
+   */
+  const protocolChip = (vendor: VendorId): { label: string; declared: boolean } | undefined => {
+    if (!props.isCustom(vendor)) return undefined
+    const declared = props.engineProtocol(vendor)
+    return {
+      label: t("settings.engines.protocolRow", { protocol: declared ?? t("settings.engines.protocolGeneric") }),
+      declared: declared !== undefined,
+    }
+  }
   return (
     <box flexDirection="column" gap={1}>
       <text fg={theme.text} attributes={TextAttributes.BOLD}>
@@ -81,7 +98,10 @@ export function EngineSettingsSection(
               ? theme.textMuted
               : theme.accent
           return (
-            <box key={vendor} flexDirection="column" gap={0}>
+            // The whole two-line card is this row's footprint, so cursor-follow
+            // registers the outer box: the detection line comes into view with
+            // the line that carries the cursor, not one scroll step later.
+            <box key={vendor} flexDirection="column" gap={0} ref={props.rowRef(i)}>
               <box
                 flexDirection="row"
                 gap={1}
@@ -145,12 +165,17 @@ export function EngineSettingsSection(
                   {props.commandText(vendor) + (props.isCustom(vendor) ? t("settings.engines.customTag") : "")}
                 </text>
               </box>
-              <EngineStatusLine status={byVendor.get(vendor) ?? null} probing={props.statuses === null} />
+              <EngineStatusLine
+                status={byVendor.get(vendor) ?? null}
+                probing={props.statuses === null}
+                protocol={protocolChip(vendor)}
+              />
             </box>
           )
         })}
         {/* Trailing "+ Add engine" row. */}
         <box
+          ref={props.rowRef(addRowIndex)}
           flexDirection="row"
           paddingLeft={1}
           paddingRight={1}
@@ -176,13 +201,27 @@ export function EngineSettingsSection(
  * in. An engine without one shows the binary alone; claiming "not logged in"
  * for it would be a guess.
  */
-function EngineStatusLine(props: { status: EngineStatus | null; probing: boolean }) {
+function EngineStatusLine(props: {
+  status: EngineStatus | null
+  probing: boolean
+  /** Custom engines only — which adapter this preset borrows. */
+  protocol?: { label: string; declared: boolean }
+}) {
   const { theme } = useTheme()
   const t = useT()
   const s = props.status
+  // Rendered in BOTH branches, and before the detection results: the protocol
+  // is known without probing anything, so it must not blink in when the probe
+  // lands.
+  const protocol = props.protocol ? (
+    <text fg={props.protocol.declared ? theme.accent : theme.textMuted} wrapMode="none">
+      {props.protocol.label}
+    </text>
+  ) : null
   if (!s)
     return (
-      <box paddingLeft={6}>
+      <box flexDirection="row" gap={1} paddingLeft={6} overflow="hidden">
+        {protocol}
         <text fg={theme.textMuted}>{props.probing ? t("settings.accounts.checking") : " "}</text>
       </box>
     )
@@ -191,6 +230,7 @@ function EngineStatusLine(props: { status: EngineStatus | null; probing: boolean
     // the part worth losing, so it is the one that shrinks. `overflow="hidden"`
     // + `wrapMode="none"` clips at the pane edge instead of overdrawing.
     <box flexDirection="row" gap={1} paddingLeft={6} overflow="hidden">
+      {protocol}
       {s.account === null ? null : <AccountLine account={s.account} />}
       {s.accountError ? (
         <text fg={theme.warning} wrapMode="none">

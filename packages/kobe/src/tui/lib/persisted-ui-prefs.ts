@@ -20,6 +20,25 @@ import { DEFAULT_LOCALE, type LocaleId, isLocaleId } from "../i18n/catalog"
 /** state.json key holding the persisted UI language. */
 export const LOCALE_KEY = "locale"
 
+/**
+ * Default for `transparentBackground` when the user has never set it.
+ *
+ * Transparent everywhere except Windows. In transparent mode the theme's
+ * background and panel slots are rewritten to alpha 0
+ * (`theme-core.ts#applyDisplayOverlay`), so no surface in the app paints an
+ * opaque cell — the terminal shows through by design. On macOS and Linux
+ * that lands on a plain terminal background and reads the way it should.
+ * Windows Terminal ships acrylic and background images on by default, and
+ * every cell Rove has not repainted this frame shows the wallpaper instead
+ * of the previous frame, which turns ordinary render skew into visible
+ * debris. Windows starts opaque; `transparentBackground: true` in
+ * `state.json` still turns it on, and an existing user who already chose
+ * transparency keeps it (only an ABSENT key takes this default).
+ */
+export function defaultTransparentBackground(platform: NodeJS.Platform = process.platform): boolean {
+  return platform !== "win32"
+}
+
 export interface PersistedUiPrefs {
   /** Active theme name, validated against the registry (stale names fall back). */
   readonly theme: string
@@ -49,8 +68,10 @@ export function readPersistedUiPrefs(
     const parsed = JSON.parse(readFileSync(kvStatePath(), "utf8")) as Record<string, unknown>
     const theme =
       typeof parsed.activeTheme === "string" && isKnownTheme(parsed.activeTheme) ? parsed.activeTheme : fallbackTheme
-    // Default-true: only an explicit stored `false` opts out.
-    const transparent = parsed.transparentBackground !== false
+    // Only an explicitly stored boolean overrides the per-platform default,
+    // so nobody's deliberate choice is rewritten by the Windows default.
+    const transparent =
+      typeof parsed.transparentBackground === "boolean" ? parsed.transparentBackground : defaultTransparentBackground()
     const focusAccent =
       typeof parsed.focusAccent === "string" && (FOCUS_ACCENT_SLOTS as readonly string[]).includes(parsed.focusAccent)
         ? (parsed.focusAccent as FocusAccentSlot)
@@ -58,6 +79,11 @@ export function readPersistedUiPrefs(
     const locale = isLocaleId(parsed[LOCALE_KEY]) ? parsed[LOCALE_KEY] : DEFAULT_LOCALE
     return { theme, transparent, focusAccent, locale }
   } catch {
-    return { theme: fallbackTheme, transparent: true, focusAccent: null, locale: DEFAULT_LOCALE }
+    return {
+      theme: fallbackTheme,
+      transparent: defaultTransparentBackground(),
+      focusAccent: null,
+      locale: DEFAULT_LOCALE,
+    }
   }
 }

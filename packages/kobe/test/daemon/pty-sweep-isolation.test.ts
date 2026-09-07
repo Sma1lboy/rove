@@ -40,7 +40,7 @@ describe("sweepPtyHostSessions homeDir isolation", () => {
     })
     await new Promise<void>((resolve) => server?.listen(socketPath, resolve))
 
-    await sweepPtyHostSessions([], dir)
+    await sweepPtyHostSessions(() => [], dir)
 
     expect(connections).toBe(1)
   })

@@ -79,12 +79,6 @@ const inheritedEnvironment = (): Record<string, string> =>
     ),
   ) as Record<string, string>
 
-const capturePort = (demoRoot: string): string => {
-  let hash = 2166136261
-  for (const char of demoRoot) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0
-  return String(30_000 + (hash % 15_000))
-}
-
 /**
  * A shell beat can only be waited on if the prompt is a known string, so the
  * capture pins it rather than inheriting whatever the operator's shell paints.
@@ -113,7 +107,6 @@ export const captureEnvironment = (demoRoot: string, shellPrompt?: string): Reco
     TERM_PROGRAM: "kobe-capture",
     KOBE_HOME_DIR: kobeHome,
     KOBE_SANDBOX_HOME_DIR: kobeHome,
-    KOBE_DAEMON_WEB_PORT: capturePort(demoRoot),
     KOBE_CAPTURE_HOST_LABEL: "puretui-replay",
     KOBE_CAPTURE_SESSION_LABEL: basename(demoRoot),
     ...shellPromptEnvironment(shellPrompt),

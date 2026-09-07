@@ -77,7 +77,7 @@ interface GhResult {
 /** Chunks are joined as BYTES before decoding: a stdout pipe splits on an
  *  arbitrary boundary, so a multi-byte UTF-8 sequence in a non-ASCII issue
  *  title can straddle two chunks and decode to `�` if handled per-chunk.
- *  Same reasoning as `pr-status-collector.ts`'s `decodeSpawnChunks`. */
+ *  Same reasoning as `poll-scheduling.ts`'s `decodeCapturedChunks`. */
 function decodeChunks(chunks: readonly (Buffer | string)[]): string {
   return Buffer.concat(chunks.map((c) => (typeof c === "string" ? Buffer.from(c) : c))).toString("utf8")
 }

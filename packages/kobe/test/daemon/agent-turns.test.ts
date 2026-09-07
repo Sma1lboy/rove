@@ -1,8 +1,9 @@
 /** Durable per-turn telemetry: store persistence + the hook-driven ingest. */
 
-import { mkdtemp, rm, stat } from "node:fs/promises"
+import { mkdtemp, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { daemonRuntime } from "@/core/daemon-runtime"
 import { ingestAgentTurns } from "@sma1lboy/kobe-daemon/daemon/agent-turns-ingest"
 import { AgentTurnsStore } from "@sma1lboy/kobe-daemon/daemon/agent-turns-store"
 import type { AgentTurn, AgentTurnRecord, DaemonOrchestrator } from "@sma1lboy/kobe-daemon/daemon/contracts"
@@ -166,5 +167,79 @@ describe("ingestAgentTurns", () => {
     const { runtime, orch, asked } = deps()
     await ingestAgentTurns(store, runtime, orch, { taskId: "task-1", transcriptPath: "/t.jsonl" })
     expect(asked[0].vendor).toBe("claude")
+  })
+
+  // The whole join, with NO stubbed reader: real runtime adapter -> real
+  // registry lookup -> the vendor's own parser. This is what tells an
+  // `agent-turns` page that is honestly empty apart from one that is empty
+  // because the engine has no reader — with codex's `readTurns` unregistered
+  // this records 0 and the assertions below fail.
+  it("records codex turns through the real runtime adapter", async () => {
+    const { store } = await createStore()
+    const rollout = join(dir as string, "rollout.jsonl")
+    const turnId = "01a060d6-dd1a-7621-889f-d9da35a4699e"
+    await writeFile(
+      rollout,
+      [
+        { timestamp: "2026-09-02T06:38:09.182Z", type: "session_meta", payload: { session_id: "sess-cx" } },
+        {
+          timestamp: "2026-09-02T06:38:09.182Z",
+          type: "event_msg",
+          payload: { type: "task_started", turn_id: turnId, model_context_window: 258400 },
+        },
+        {
+          timestamp: "2026-09-02T06:38:09.398Z",
+          type: "turn_context",
+          payload: { turn_id: turnId, model: "gpt-5.6-luna" },
+        },
+        {
+          timestamp: "2026-09-02T06:38:16.153Z",
+          type: "event_msg",
+          payload: {
+            type: "token_count",
+            info: {
+              total_token_usage: { input_tokens: 19292, cached_input_tokens: 8960, output_tokens: 276 },
+              last_token_usage: { input_tokens: 19292, cached_input_tokens: 8960, output_tokens: 276 },
+            },
+          },
+        },
+        {
+          timestamp: "2026-09-02T06:39:02.616Z",
+          type: "event_msg",
+          payload: { type: "task_complete", turn_id: turnId },
+        },
+      ]
+        .map((r) => JSON.stringify(r))
+        .join("\n"),
+    )
+    const orch = { getTask: () => ({ repo: "/repo", vendor: "codex" }) } as unknown as DaemonOrchestrator
+
+    const result = await ingestAgentTurns(store, daemonRuntime, orch, {
+      taskId: "task-cx",
+      vendor: "codex",
+      transcriptPath: rollout,
+    })
+
+    expect(result.recorded).toBe(1)
+    expect(store.list()).toEqual([
+      {
+        id: turnId,
+        // Read off the rollout's `session_meta`, so the record names the codex
+        // session it came from and not just the Rove task.
+        sessionId: "sess-cx",
+        taskId: "task-cx",
+        vendor: "codex",
+        model: "gpt-5.6-luna",
+        repo: "/repo",
+        startedAt: Date.parse("2026-09-02T06:38:09.182Z"),
+        endedAt: Date.parse("2026-09-02T06:39:02.616Z"),
+        usage: {
+          input_tokens: 10332,
+          output_tokens: 276,
+          cache_read_input_tokens: 8960,
+          context_window_tokens: 258400,
+        },
+      },
+    ])
   })
 })

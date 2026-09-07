@@ -11,14 +11,15 @@
  */
 
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
-import type { Automation, AutomationRun } from "@sma1lboy/kobe-daemon/daemon/contracts"
+import type { Automation, AutomationRun, AutomationRunStatus } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import type { RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { WorkItem } from "@sma1lboy/kobe-daemon/daemon/work-items"
+import type { LandPreflight } from "../orchestrator/land-preflight.ts"
 import type { LandResult } from "../orchestrator/land.ts"
 import type { WorktreeResidue } from "../orchestrator/worktree/manager-remove.ts"
 import type { StoredFieldNote } from "../state/field-notes.ts"
-import type { CIFailingCheck } from "../tui/ops/ci-prompt.ts"
+import type { CIFailingCheck, CIFailingChecksRead } from "../tui/ops/ci-prompt.ts"
 import type { Task, TaskId, TaskStatus, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree, WorktreeProject } from "../types/worktree.ts"
 import { deserializeTask } from "./remote-orchestrator-payloads.ts"
@@ -168,6 +169,13 @@ export async function dismissAttentionOp(
   return res.deleted
 }
 
+/** Delete a routine's attention episode — addressed by the SCHEDULE, since a
+ *  routine that cannot run may have produced no task to address it by. */
+export async function dismissRoutineAttentionOp(client: KobeDaemonClient, automationId: string): Promise<boolean> {
+  const res = await client.request<{ deleted: boolean }>("attention.dismissRoutine", { automationId })
+  return res.deleted
+}
+
 /** Legacy compatibility alias: resolving this exact episode removes it. */
 export async function markAttentionReadOp(
   client: KobeDaemonClient,
@@ -230,6 +238,14 @@ export interface DeferredPromptFlushResult {
 /** Retry every daemon-owned prompt after the screen-based gate turns off. */
 export async function flushDeferredPromptsOp(client: KobeDaemonClient): Promise<DeferredPromptFlushResult> {
   return await client.request<DeferredPromptFlushResult>("deferredPrompt.flush", {})
+}
+
+/** Read-only land probe (`task.landPreflight`): the merge destination, the
+ *  commit count, and any refusal — all without writing. The land confirm reads
+ *  it so the dialog can name what it is merging into. */
+export async function landPreflightOp(client: KobeDaemonClient, id: TaskId | string): Promise<LandPreflight> {
+  const res = await client.request<{ result: LandPreflight }>("task.landPreflight", { taskId: String(id) })
+  return res.result
 }
 
 /** Land a task's branch back into its base repo (`task.land`). Merge or
@@ -326,19 +342,34 @@ export async function syncBaseOp(
  * sidebar's "Fix failing checks". On demand only; the daemon spawns `gh` per
  * call, so this must never be wired to a poll.
  */
-export async function failingChecksOp(
-  client: KobeDaemonClient,
-  taskId: string,
-): Promise<{ checks: readonly CIFailingCheck[]; totalFailing: number }> {
-  const res = await client.request<{ checks?: readonly CIFailingCheck[]; totalFailing?: number }>("pr.failingChecks", {
-    taskId,
-  })
-  return { checks: res.checks ?? [], totalFailing: res.totalFailing ?? 0 }
+export async function failingChecksOp(client: KobeDaemonClient, taskId: string): Promise<CIFailingChecksRead> {
+  const res = await client.request<{
+    checks?: readonly CIFailingCheck[]
+    totalFailing?: number
+    unavailable?: { reason: string; detail: string }
+  }>("pr.failingChecks", { taskId })
+  return {
+    checks: res.checks ?? [],
+    totalFailing: res.totalFailing ?? 0,
+    // Carried through verbatim. An empty `checks` is three different answers
+    // on the daemon side and only this field separates them; dropping it here
+    // would put the collapse back one layer down.
+    ...(res.unavailable ? { unavailable: res.unavailable } : {}),
+  }
 }
 
 /** A repo's daemon-owned issues (`issue.list`) — the TUI kanban page's read. */
 export async function listIssuesOp(client: KobeDaemonClient, repoRoot: string): Promise<RepoIssues> {
   return client.request<RepoIssues>("issue.list", { repoRoot })
+}
+
+/** Repo roots the issue store holds a record for (`issue.repos`) — the kanban
+ *  page's board source. A repo with a backlog is a board section; deriving the
+ *  set from the task index instead made a landed-and-deleted task take its
+ *  whole backlog off screen. */
+export async function listIssueReposOp(client: KobeDaemonClient): Promise<readonly string[]> {
+  const res = await client.request<{ repos?: readonly string[] }>("issue.repos", {})
+  return res.repos ?? []
 }
 
 /** A repo's durable field notes, newest first (`note.list`) — the sidebar's
@@ -350,6 +381,14 @@ export async function listFieldNotesOp(client: KobeDaemonClient, repo: string): 
   return res.notes ?? []
 }
 
+/** Retire one field note by id (`note.delete`) — the reader dialog's `d`.
+ *  `false` means the id named nothing, which the caller renders rather than
+ *  throwing: the retention ring may already have evicted it. */
+export async function deleteFieldNoteOp(client: KobeDaemonClient, repo: string, id: number): Promise<boolean> {
+  const res = await client.request<{ deleted?: boolean }>("note.delete", { repo, id })
+  return res.deleted === true
+}
+
 /** One issue-store mutation (`issue.mutate`) — the op union lives in the
  *  daemon's issues-store (create/setStatus/update/link/unlink/delete). The
  *  kanban detail drawer uses `link` (start → task) and `setStatus`. */
@@ -357,10 +396,15 @@ export async function mutateIssueOp(client: KobeDaemonClient, repoRoot: string, 
   return client.request<RepoIssues>("issue.mutate", { repoRoot, op })
 }
 
-/** Scheduled automations (`automation.list`) — the automations page read. */
-export async function listAutomationsOp(
-  client: KobeDaemonClient,
-): Promise<{ automations: Automation[]; keepsDaemonAlive: boolean }> {
+/** Scheduled automations (`automation.list`) — the automations page read.
+ *  `lastRunStatus` is the latest run's status per automation id, absent for a
+ *  routine that has never run: what a list row needs to show health without a
+ *  second request per row. */
+export async function listAutomationsOp(client: KobeDaemonClient): Promise<{
+  automations: Automation[]
+  keepsDaemonAlive: boolean
+  lastRunStatus?: Record<string, AutomationRunStatus>
+}> {
   return client.request("automation.list", {})
 }
 

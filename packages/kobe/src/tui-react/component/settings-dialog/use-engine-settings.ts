@@ -24,7 +24,9 @@ import { getGlobalDefaultVendor, setGlobalDefaultVendor } from "../../../state/v
 import { DEFAULT_TASK_VENDOR, type VendorId } from "../../../types/task"
 import { ALL_VENDORS, isBuiltinVendor } from "../../../types/vendor"
 import type { KVContext } from "../../context/kv"
+import { t } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"
+import { EngineProtocolPickerDialog } from "../engine-protocol-picker-dialog"
 import { RenameTaskDialog } from "../rename-task-dialog"
 
 export function useEngineSettings(
@@ -105,6 +107,18 @@ export function useEngineSettings(
   function engineNameIsCustom(vendor: VendorId): boolean {
     return engineNameOverride(vendor).length > 0
   }
+  /**
+   * The built-in adapter a custom preset borrows, or `undefined` for the
+   * generic one. Read through the kv context rather than
+   * `engine-presets.getEngineProtocol` (which reads state.json directly), so
+   * a protocol written in this dialog is visible on the row without a
+   * reload — the same reason the zen keys are read here and not there.
+   */
+  function engineProtocol(vendor: VendorId): VendorId | undefined {
+    const raw = kv.get(engineProtocolKey(vendor), "")
+    const declared = typeof raw === "string" ? raw.trim() : ""
+    return declared && ENGINE_PROTOCOLS.includes(declared) ? declared : undefined
+  }
   function engineName(vendor: VendorId): string {
     // Built-ins fall back to VENDOR_LABEL; contrib engines to their catalog
     // name; a plain custom engine falls back to its id.
@@ -138,9 +152,9 @@ export function useEngineSettings(
 
   async function editEngine(vendor: VendorId): Promise<void> {
     const next = await RenameTaskDialog.show(dialog, engineCommandText(vendor), {
-      dialogTitle: `${engineName(vendor)} launch command`,
-      fieldLabel: "COMMAND",
-      submitLabel: "save",
+      dialogTitle: t("settings.engines.launchCommandTitle", { name: engineName(vendor) }),
+      fieldLabel: t("settings.field.command"),
+      submitLabel: t("settings.action.save"),
       allowEmpty: true, // blank clears the override → built-in default
     })
     if (next === undefined) return
@@ -148,9 +162,9 @@ export function useEngineSettings(
   }
   async function renameEngine(vendor: VendorId): Promise<void> {
     const next = await RenameTaskDialog.show(dialog, engineName(vendor), {
-      dialogTitle: `${engineName(vendor)} display name (blank = default)`,
-      fieldLabel: "NAME",
-      submitLabel: "save",
+      dialogTitle: t("settings.engines.displayNameTitle", { name: engineName(vendor) }),
+      fieldLabel: t("settings.field.name"),
+      submitLabel: t("settings.action.save"),
       allowEmpty: true, // blank clears the name override → default label
     })
     if (next === undefined) return
@@ -176,43 +190,40 @@ export function useEngineSettings(
   // name and register a new custom engine. Reuses RenameTaskDialog per field.
   async function addEngineFlow(): Promise<void> {
     const idRaw = await RenameTaskDialog.show(dialog, "", {
-      dialogTitle: "Add engine",
-      fieldLabel: "ID",
-      submitLabel: "next",
-      placeholder: "lowercase slug, e.g. aider",
+      dialogTitle: t("settings.engines.addTitle"),
+      fieldLabel: t("settings.field.id"),
+      submitLabel: t("settings.action.next"),
+      placeholder: t("settings.engines.idPlaceholder"),
     })
     if (idRaw === undefined) return
     const id = idRaw.trim().toLowerCase()
     if (!id || isBuiltinVendor(id) || customEngines().includes(id)) return // no blank / shadow / dup
     const command = await RenameTaskDialog.show(dialog, "", {
-      dialogTitle: `Add engine · ${id}`,
-      fieldLabel: "COMMAND",
-      submitLabel: "next",
-      placeholder: "e.g. aider --model sonnet",
+      dialogTitle: t("settings.engines.addStepTitle", { id }),
+      fieldLabel: t("settings.field.command"),
+      submitLabel: t("settings.action.next"),
+      placeholder: t("settings.engines.commandPlaceholder"),
     })
     if (command === undefined) return
     // Declared ONCE, here: a custom engine is a named PRESET, and its
     // protocol is what makes every later `--command <id>` dispatch
-    // deterministic instead of sniffed. Blank = the generic
-    // protocol — the engine still launches, it just gets no transcript
-    // reader, trust pre-answer, or engine-specific delivery.
-    const protocol = await RenameTaskDialog.show(dialog, "", {
-      dialogTitle: `Add engine · ${id} — protocol (blank = none)`,
-      fieldLabel: "PROTOCOL",
-      submitLabel: "next",
-      allowEmpty: true,
-      placeholder: ENGINE_PROTOCOLS.join(" / "),
-    })
+    // deterministic instead of sniffed. The generic choice is a ROW in the
+    // picker, not a blank field — the engine still launches, it just gets no
+    // transcript reader, trust pre-answer, or engine-specific delivery, and
+    // that has to be something you picked rather than something you mistyped.
+    const protocol = await EngineProtocolPickerDialog.show(dialog, { engineId: id })
+    if (protocol === undefined) return
     const name = await RenameTaskDialog.show(dialog, id, {
-      dialogTitle: `Add engine · ${id}`,
-      fieldLabel: "NAME",
-      submitLabel: "add",
+      dialogTitle: t("settings.engines.addStepTitle", { id }),
+      fieldLabel: t("settings.field.name"),
+      submitLabel: t("settings.action.add"),
       allowEmpty: true, // blank = humanized id
     })
     kv.set("customEngineIds", [...customEngines(), id])
     if (command.trim()) kv.set(engineCommandKey(id), command.trim())
-    const declared = protocol?.trim().toLowerCase() ?? ""
-    if (declared && ENGINE_PROTOCOLS.includes(declared)) kv.set(engineProtocolKey(id), declared)
+    // Still validated on the way in: the picker cannot offer a bogus value,
+    // but the key it writes is the one every later dispatch trusts.
+    if (protocol && ENGINE_PROTOCOLS.includes(protocol)) kv.set(engineProtocolKey(id), protocol)
     // A typed name wins; otherwise seed a humanized form so the chip reads
     // "My Local Agent", not "my-local-agent".
     const typedName = name?.trim() ?? ""
@@ -225,6 +236,7 @@ export function useEngineSettings(
     isEngineEnabled,
     toggleEngineEnabled,
     engineName,
+    engineProtocol,
     engineCommandText,
     engineIsDefault,
     defaultEngine,

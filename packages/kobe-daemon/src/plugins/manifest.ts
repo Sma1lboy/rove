@@ -13,11 +13,22 @@ import { existsSync, readFileSync } from "node:fs"
 import { basename, join } from "node:path"
 import { PLUGIN_EVENT_NAMES, type PluginEventName } from "@sma1lboy/rove-plugin-sdk/contract"
 import { parse as parseToml } from "smol-toml"
+import {
+  ManifestError,
+  PLUGIN_PLATFORMS,
+  type PluginPlatform,
+  asCommand,
+  asPlatforms,
+  asSettingDefault,
+  asString,
+  asStringArray,
+  asTableArray,
+  asTimeoutMs,
+  fail,
+} from "./manifest-coerce.ts"
 import { settingKeyRejection } from "./setting-keys.ts"
 
-export type PluginPlatform = "macos" | "linux" | "windows"
-
-export const PLUGIN_PLATFORMS: readonly PluginPlatform[] = ["macos", "linux", "windows"]
+export { PLUGIN_PLATFORMS, type PluginPlatform }
 
 /** The event catalog lives in the published SDK's contract module — ONE
  *  source shared by the daemon and external plugin authors (catalog docs:
@@ -29,6 +40,13 @@ export interface PluginCommandSpec {
   readonly command: readonly string[]
   /** Item-level platform override; absent → the manifest-level list. */
   readonly platforms?: readonly PluginPlatform[]
+  /**
+   * Deadline in ms for `[[startup]]` / `[[events]]` / `[[shutdown]]` hooks,
+   * after which the host SIGKILLs the hook's whole process group. Absent →
+   * the host default for that kind. Actions and panes are user-driven and
+   * carry no deadline; declaring one there is a manifest warning.
+   */
+  readonly timeoutMs?: number
 }
 
 export interface PluginAction extends PluginCommandSpec {
@@ -54,7 +72,9 @@ export interface PluginSetting {
   readonly type: "string" | "number" | "boolean" | "enum" | "secret"
   /** Enum choices (required for type = "enum"). */
   readonly options?: readonly string[]
-  /** Default shown when the .env has no value; storage is always a string. */
+  /** Default shown when the .env has no value; storage is always a string —
+   *  TOML `true` / `false` / numbers are accepted and stored as `"1"` /
+   *  absent / their decimal spelling. */
   readonly default?: string
 }
 
@@ -107,6 +127,15 @@ export interface PluginEngine {
   readonly identity?: {
     readonly shortName?: string
   }
+  /**
+   * How this CLI takes a session's FIRST message. Default `"argv"` appends the
+   * prompt as a positional, which is right for most CLIs and fatal for the ones
+   * whose positional slot means something else — a subcommand, or a project
+   * directory. Such an engine declares `"paste"` and the first message is typed
+   * into the running pane instead. Without this key the author's only fix is to
+   * not use the feature.
+   */
+  readonly firstMessageDelivery?: "argv" | "paste"
 }
 
 export interface PluginManifest {
@@ -204,12 +233,6 @@ export function supportsPlatform(
   return platform !== undefined && declared.includes(platform)
 }
 
-class ManifestError extends Error {}
-
-function fail(message: string): never {
-  throw new ManifestError(`rove-plugin.toml: ${message}`)
-}
-
 /** Parse manifest text while preserving the source filename in diagnostics.
  * Direct callers default to the canonical filename; file readers pass the
  * actual basename so legacy manifests remain debuggable. */
@@ -222,34 +245,6 @@ export function parsePluginManifest(text: string, filename: string = PLUGIN_MANI
     }
     throw err
   }
-}
-
-function asString(value: unknown, field: string): string {
-  if (typeof value !== "string" || value.length === 0) fail(`\`${field}\` must be a non-empty string`)
-  return value
-}
-
-function asCommand(value: unknown, field: string): string[] {
-  if (!Array.isArray(value) || value.length === 0 || !value.every((v) => typeof v === "string" && v.length > 0)) {
-    fail(`\`${field}\` must be a non-empty array of strings (argv form)`)
-  }
-  return value
-}
-
-function asPlatforms(value: unknown, field: string): PluginPlatform[] | undefined {
-  if (value === undefined) return undefined
-  if (!Array.isArray(value) || !value.every((v) => (PLUGIN_PLATFORMS as readonly string[]).includes(v as string))) {
-    fail(`\`${field}\` must be an array drawn from ${PLUGIN_PLATFORMS.join(", ")}`)
-  }
-  return value as PluginPlatform[]
-}
-
-function asTableArray(value: unknown, field: string): Record<string, unknown>[] {
-  if (value === undefined) return []
-  if (!Array.isArray(value) || !value.every((v) => typeof v === "object" && v !== null && !Array.isArray(v))) {
-    fail(`\`[[${field}]]\` must be an array of tables`)
-  }
-  return value as Record<string, unknown>[]
 }
 
 /**
@@ -289,14 +284,21 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
   const startup = asTableArray(raw.startup, "startup").map((t, i) => ({
     command: asCommand(t.command, `startup[${i}].command`),
     platforms: asPlatforms(t.platforms, `startup[${i}].platforms`),
+    timeoutMs: asTimeoutMs(t.timeout_ms, `startup[${i}].timeout_ms`),
   }))
   const shutdown = asTableArray(raw.shutdown, "shutdown").map((t, i) => ({
     command: asCommand(t.command, `shutdown[${i}].command`),
     platforms: asPlatforms(t.platforms, `shutdown[${i}].platforms`),
+    timeoutMs: asTimeoutMs(t.timeout_ms, `shutdown[${i}].timeout_ms`),
   }))
 
   const actions = asTableArray(raw.actions, "actions").map((t, i) => {
     const actionId = asString(t.id, `actions[${i}].id`)
+    if (t.timeout_ms !== undefined) {
+      warnings.push(
+        `actions[${i}] declares \`timeout_ms\`; actions are user-invoked and are never killed on a deadline`,
+      )
+    }
     if (!LOCAL_ID_RE.test(actionId)) fail(`action id \`${actionId}\` may not contain dots`)
     return {
       id: actionId,
@@ -317,6 +319,9 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
   const panes = asTableArray(raw.panes, "panes").map((t, i) => {
     const paneId = asString(t.id, `panes[${i}].id`)
     if (!LOCAL_ID_RE.test(paneId)) fail(`pane id \`${paneId}\` may not contain dots`)
+    if (t.timeout_ms !== undefined) {
+      warnings.push(`panes[${i}] declares \`timeout_ms\`; a pane is a terminal the user closes, not a bounded hook`)
+    }
     if (t.placement !== undefined && t.placement !== "tab" && t.placement !== "split") {
       warnings.push(`pane \`${paneId}\` placement \`${String(t.placement)}\` is not supported yet; opening as a split`)
     }
@@ -340,6 +345,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       on: on as PluginEventName,
       command: asCommand(t.command, `events[${i}].command`),
       platforms: asPlatforms(t.platforms, `events[${i}].platforms`),
+      timeoutMs: asTimeoutMs(t.timeout_ms, `events[${i}].timeout_ms`),
     }
     if (!(PLUGIN_EVENT_NAMES as readonly string[]).includes(on)) {
       warnings.push(`unknown event \`${on}\`; this hook will never fire on this Rove version`)
@@ -359,6 +365,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
           ? (t.options as string[])
           : fail(`settings[${i}].options must be an array of strings`)
     if (type === "enum" && (!options || options.length === 0)) fail(`settings[${i}] enum needs \`options\``)
+    const settingDefault = asSettingDefault(t.default, `settings[${i}].default`)
     const key = asString(t.key, `settings[${i}].key`)
     const rejection = settingKeyRejection(key)
     if (rejection) fail(`settings[${i}].key ${rejection}`)
@@ -367,7 +374,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       label: asString(t.label, `settings[${i}].label`),
       type: type as PluginSetting["type"],
       ...(options ? { options } : {}),
-      ...(t.default === undefined ? {} : { default: asString(t.default, `settings[${i}].default`) }),
+      ...(settingDefault === undefined ? {} : { default: settingDefault }),
     }
   })
 
@@ -396,14 +403,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       if (state !== "working" && state !== "blocked" && state !== "idle") {
         fail(`engines[${i}].rules[${j}].state must be working | blocked | idle`)
       }
-      const strings = (value: unknown, field: string): string[] | undefined => {
-        if (value === undefined) return undefined
-        if (!Array.isArray(value) || !value.every((v) => typeof v === "string" && v.length > 0)) {
-          fail(`\`${field}\` must be a non-empty array of strings`)
-        }
-        return value as string[]
-      }
-      const lineRegex = strings(r.line_regex, `engines[${i}].rules[${j}].line_regex`)
+      const lineRegex = asStringArray(r.line_regex, `engines[${i}].rules[${j}].line_regex`)
       for (const re of lineRegex ?? []) {
         try {
           new RegExp(re)
@@ -411,8 +411,8 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
           fail(`engines[${i}].rules[${j}].line_regex \`${re}\` is not a valid regex`)
         }
       }
-      const all = strings(r.all, `engines[${i}].rules[${j}].all`)
-      const any = strings(r.any, `engines[${i}].rules[${j}].any`)
+      const all = asStringArray(r.all, `engines[${i}].rules[${j}].all`)
+      const any = asStringArray(r.any, `engines[${i}].rules[${j}].any`)
       if (!all && !any && !lineRegex) fail(`engines[${i}].rules[${j}] needs at least one of all/any/line_regex`)
       return {
         state: state as "working" | "blocked" | "idle",
@@ -436,6 +436,14 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
         ...(shortName !== undefined ? { shortName } : {}),
       }
     }
+    let firstMessageDelivery: PluginEngine["firstMessageDelivery"]
+    if (t.first_message_delivery !== undefined) {
+      const raw = asString(t.first_message_delivery, `engines[${i}].first_message_delivery`)
+      // A typo here would otherwise fall back to "argv" and kill the launch on
+      // the engine's own first prompt — the exact failure the key exists to fix.
+      if (raw !== "argv" && raw !== "paste") fail(`engines[${i}].first_message_delivery must be argv | paste`)
+      firstMessageDelivery = raw
+    }
     return {
       id: engineId,
       name: asString(t.name, `engines[${i}].name`),
@@ -445,6 +453,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
         : { processNames: asCommand(t.process_names, `engines[${i}].process_names`) }),
       rules,
       ...(identity ? { identity } : {}),
+      ...(firstMessageDelivery ? { firstMessageDelivery } : {}),
     }
   })
   const engineSeen = new Set<string>()

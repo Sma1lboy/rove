@@ -17,7 +17,10 @@ let store: TaskIndexStore
 let originalHome: string | undefined
 
 beforeEach(async () => {
-  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-main-task-"))
+  // realpath: macOS `os.tmpdir()` is a symlink (`/var` → `/private/var`), and
+  // savedRepos stores the repository's RESOLVED primary checkout — so a fixture
+  // built under the un-resolved spelling would compare unequal to what was saved.
+  tmpRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "kobe-main-task-")))
   repo = path.join(tmpRoot, "repo")
   const r = spawnSync("bash", [REPO_INIT, repo], { encoding: "utf8" })
   if (r.status !== 0) throw new Error(`repo-init.sh failed: ${r.stderr}\n${r.stdout}`)

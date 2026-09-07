@@ -52,6 +52,8 @@ function stubRuntime(): ApiRuntime {
       throw new Error("deliverPrompt should not run in this test")
     },
     resolveRepoRoot: async (p) => p,
+    isUsableRepo: async () => true,
+    isValidBranchName: async () => true,
     defaultVendor: async () => undefined,
     readWorktreeChanges: async () => ({ added: 0, deleted: 0 }),
     readBranchSignals: async () => ({ baseRef: null, ahead: null, behind: null, diff: null }),
@@ -163,8 +165,10 @@ describe("schema drill-ins", () => {
     for (const v of result.verbs) expect(v.summary.length).toBeGreaterThan(0)
   })
 
-  it("--group with an unknown group is BAD_FLAG naming the valid groups", async () => {
-    await expectApiError(() => invokeVerb("schema", ["--group", "nope"], offline), "BAD_FLAG", /unknown group: nope/)
+  it("--group with an unknown group is a bad NAME, naming the valid groups", async () => {
+    // BAD_VERB, not BAD_FLAG: `--group` is a perfectly good flag, the value is
+    // the typo. BAD_FLAG here sent a caller off to re-read the flag contract.
+    await expectApiError(() => invokeVerb("schema", ["--group", "nope"], offline), "BAD_VERB", /unknown group: nope/)
   })
 
   it("--all returns the complete spec with the api version", async () => {
@@ -222,61 +226,6 @@ describe("edit verbs — RPC name + payload", () => {
     expect(client.requests).toEqual([
       { name: "task.setCommand", payload: { taskId: "t1", command: "codex --search", vendor: "codex" } },
     ])
-  })
-
-  describe("set-effort", () => {
-    /** A task.get responder — the verb reads the task to learn its engine. */
-    const taskOf = (task: Record<string, unknown>) => ({ "task.get": () => ({ task: { id: "t1", ...task } }) })
-
-    it("sends the level on task.setVendor once the task's engine declares it", async () => {
-      const client = new FakeClient({ ...taskOf({ vendor: "codex" }), "task.setVendor": () => ({}) })
-      const out = await invokeVerb("set-effort", ["--task-id", "t1", "--level", "xhigh"], {
-        client,
-        runtime: stubRuntime(),
-      })
-      expect(out).toEqual({ ok: true, taskId: "t1", engine: "codex", effort: "xhigh" })
-      expect(client.requests.at(-1)).toEqual({
-        name: "task.setVendor",
-        payload: { taskId: "t1", vendor: "codex", effort: "xhigh" },
-      })
-    })
-
-    it("resolves the engine from a PINNED command, not just the recorded vendor", async () => {
-      // A task launched with `--command "codex --search"` is a codex launch;
-      // reading `vendor` alone would judge the level against the wrong engine.
-      const client = new FakeClient({
-        ...taskOf({ vendor: "generic", command: "codex --search" }),
-        "task.setVendor": () => ({}),
-      })
-      await invokeVerb("set-effort", ["--task-id", "t1", "--level", "high"], { client, runtime: stubRuntime() })
-      expect(client.requests.at(-1)).toEqual({
-        name: "task.setVendor",
-        payload: { taskId: "t1", vendor: "codex", effort: "high" },
-      })
-    })
-
-    it("refuses a level the engine does not declare, naming the ones it does", async () => {
-      // The whole point of the verb: `withEngineEffort` DROPS an unknown
-      // level at launch, so passing it through would look like success and
-      // run at the default.
-      const client = new FakeClient(taskOf({ vendor: "codex" }))
-      await expectApiError(
-        () => invokeVerb("set-effort", ["--task-id", "t1", "--level", "turbo"], { client, runtime: stubRuntime() }),
-        "BAD_EFFORT",
-        /none, low, medium, high, xhigh/,
-      )
-      expect(client.requests.map((r) => r.name)).toEqual(["task.get"])
-    })
-
-    it("refuses any level on an engine with no declared levels", async () => {
-      const client = new FakeClient(taskOf({ vendor: "claude" }))
-      await expectApiError(
-        () => invokeVerb("set-effort", ["--task-id", "t1", "--level", "xhigh"], { client, runtime: stubRuntime() }),
-        "BAD_EFFORT",
-        /declares no reasoning effort levels/,
-      )
-      expect(client.requests.map((r) => r.name)).toEqual(["task.get"])
-    })
   })
 
   it("set-status → task.status with a validated status", async () => {
@@ -365,9 +314,7 @@ describe("issue verbs", () => {
       client,
       runtime: stubRuntime(),
     })
-    expect(client.requests).toEqual([
-      { name: "issue.mutate", payload: { repoRoot: "/repo/x", op: { type: "link", id: 7, taskId: "01TASK" } } },
-    ])
+    expect(client.requests[0].payload).toMatchObject({ op: { type: "update", id: 7, taskId: "01TASK" } })
   })
 
   it("issue-update --task none unlinks", async () => {
@@ -376,18 +323,27 @@ describe("issue verbs", () => {
       client,
       runtime: stubRuntime(),
     })
-    expect(client.requests).toEqual([
-      { name: "issue.mutate", payload: { repoRoot: "/repo/x", op: { type: "unlink", id: 7 } } },
-    ])
+    expect(client.requests[0].payload).toMatchObject({ op: { type: "update", id: 7, taskId: null } })
   })
 
-  it("issue-update with title AND task sends update then link, in that order", async () => {
+  // The half-apply: title/body and the link used to be two RPCs, so a rejected
+  // link left the rename committed behind a total-failure error. One RPC is
+  // what makes the store's single lock cover the whole command.
+  it("issue-update with title AND task sends ONE mutate carrying both", async () => {
     const client = new FakeClient({ "issue.mutate": () => ({ issues: [] }) })
     await invokeVerb("issue-update", ["--repo", "/repo/x", "--id", "7", "--title", "Renamed", "--task", "01TASK"], {
       client,
       runtime: stubRuntime(),
     })
-    expect(client.requests.map((r) => (r.payload as { op: { type: string } }).op.type)).toEqual(["update", "link"])
+    expect(client.requests).toEqual([
+      {
+        name: "issue.mutate",
+        payload: {
+          repoRoot: "/repo/x",
+          op: { type: "update", id: 7, title: "Renamed", body: undefined, taskId: "01TASK" },
+        },
+      },
+    ])
   })
 })
 

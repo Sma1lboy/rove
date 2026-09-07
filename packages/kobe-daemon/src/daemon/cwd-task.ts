@@ -13,53 +13,21 @@
  * `main` task's worktreePath can be the repo root itself, so the more specific
  * (longer) worktree must win.
  *
+ * A prefix match alone is NOT enough: the hooks are global, so a session in a
+ * DIFFERENT repository nested under a tracked project's root (a vendored
+ * clone under `refs/`, a `.dev-sandbox` checkout, any repo under a `$HOME`
+ * scratch shell's directory task) prefix-matches that project and would be
+ * billed its badge, its events, its plugin dispatch and its tokens. So a
+ * candidate is rejected when a repository boundary sits between the task's
+ * worktree and the cwd — see {@link crossesRepoBoundary}.
+ *
  * cwds that match no task (an unrelated repo, a project root with no main task)
  * return undefined → the event is dropped.
  */
 
-import { createHash } from "node:crypto"
-import { homedir } from "node:os"
+import { existsSync } from "node:fs"
 import path from "node:path"
-import { LEGACY_KOBE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
-
-const KOBE_WORKTREE_ROOT_DIR = "worktrees"
-const REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH = ".rove/worktrees"
-const REPO_LOCAL_KOBE_WORKTREE_ROOT_SUBPATH = ".kobe/worktrees"
-const LEGACY_KOBE_WORKTREE_ROOT_SUBPATH = ".claude/worktrees"
-const REPO_LOCAL_KOBE_MANAGED_WORKTREE_ROOT_SUBPATHS = [
-  REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH,
-  REPO_LOCAL_KOBE_WORKTREE_ROOT_SUBPATH,
-  LEGACY_KOBE_WORKTREE_ROOT_SUBPATH,
-] as const
-
-function stateDir(basename: string): string {
-  return path.join(readRoveEnv("HOME_DIR") ?? homedir(), basename)
-}
-
-function repoWorktreeDirName(repo: string): string {
-  const base = path.basename(repo) || "repo"
-  const safeBase = base.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "repo"
-  const hash = createHash("sha1").update(path.resolve(repo)).digest("hex").slice(0, 12)
-  return `${safeBase}-${hash}`
-}
-
-function worktreeRootFor(repo: string): string {
-  if (!path.isAbsolute(repo)) {
-    throw new Error(`worktreeRootFor: repo must be an absolute path, got: ${repo}`)
-  }
-  return path.join(stateDir(ROVE_STATE_DIR_BASENAME), KOBE_WORKTREE_ROOT_DIR, repoWorktreeDirName(repo))
-}
-
-function managedWorktreeRootsFor(repo: string): readonly string[] {
-  if (!path.isAbsolute(repo)) {
-    throw new Error(`managedWorktreeRootsFor: repo must be an absolute path, got: ${repo}`)
-  }
-  return [
-    worktreeRootFor(repo),
-    path.join(stateDir(LEGACY_KOBE_STATE_DIR_BASENAME), KOBE_WORKTREE_ROOT_DIR, repoWorktreeDirName(repo)),
-    ...REPO_LOCAL_KOBE_MANAGED_WORKTREE_ROOT_SUBPATHS.map((subpath) => path.join(repo, subpath)),
-  ]
-}
+import { managedWorktreeRootsFor, readWorktreeBaseOverride } from "./worktree-paths.ts"
 
 export interface CwdMatchTask {
   readonly id: string
@@ -79,21 +47,51 @@ function isAncestorOrSelf(wt: string, cwd: string): boolean {
 }
 
 /**
+ * True when some directory strictly below `wt`, down to and including `cwd`,
+ * is a git repository root of its own — i.e. walking up from the engine's cwd
+ * to the task's worktree crosses out of one repository into another.
+ *
+ * `.git` is tested with a bare existence check because both spellings mean the
+ * same thing here: a directory for a normal clone, a file for a submodule or a
+ * linked worktree. Either way `git rev-parse --show-toplevel` in `cwd` would
+ * answer something other than the task's worktree, so the engine is not
+ * working on that task's code.
+ *
+ * `wt` itself is deliberately never tested — a task's own worktree IS a repo
+ * root (or a linked worktree with a `.git` file), and testing it would reject
+ * every legitimate match.
+ */
+function crossesRepoBoundary(wt: string, cwd: string): boolean {
+  for (let dir = cwd; dir.length > wt.length; dir = path.dirname(dir)) {
+    if (existsSync(path.join(dir, ".git"))) return true
+  }
+  return false
+}
+
+/**
  * Return the id of the task whose worktree contains `cwd`, preferring the
- * longest (most specific) worktree path, or undefined if none match.
+ * longest (most specific) worktree path, or undefined if none match or the
+ * best match is in a different repository than `cwd`.
+ *
+ * Only the winner is boundary-checked: a boundary below the longest candidate
+ * is below every shorter one too, so if the most specific match crosses, so
+ * does every alternative.
  */
 export function matchTaskByCwd(tasks: ReadonlyArray<CwdMatchTask>, cwd: string): string | undefined {
   const target = normalize(cwd)
   let bestId: string | undefined
+  let bestWt = ""
   let bestLen = -1
   for (const t of tasks) {
     if (!t.worktreePath) continue
     const wt = normalize(t.worktreePath)
     if (isAncestorOrSelf(wt, target) && wt.length > bestLen) {
       bestLen = wt.length
+      bestWt = wt
       bestId = t.id
     }
   }
+  if (bestId && crossesRepoBoundary(bestWt, target)) return undefined
   return bestId
 }
 
@@ -145,7 +143,9 @@ export function findAdoptableWorktree(
     if (t.worktreePath) known.add(normalize(t.worktreePath))
   }
   for (const repo of repos) {
-    for (const root of managedWorktreeRootsFor(repo).map(normalize)) {
+    // The base override is read per repo: a `$project_dir` value expands
+    // against THIS repo, so one global setting yields a per-project root.
+    for (const root of managedWorktreeRootsFor(repo, readWorktreeBaseOverride(repo)).map(normalize)) {
       const prefix = `${root}/`
       if (!target.startsWith(prefix)) continue
       // First path segment after the managed root is the worktree dir.

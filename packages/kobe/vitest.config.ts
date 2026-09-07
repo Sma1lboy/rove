@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs"
 import path from "node:path"
 import { defineConfig } from "vitest/config"
 
@@ -13,6 +14,16 @@ const exclude: string[] = ["test/render/**"]
 if (!includeBehavior) exclude.push("test/behavior/**")
 if (!includeSocket) {
   exclude.push("test/daemon/**", "test/orchestrator/bridge.test.ts")
+}
+// Windows ratchet: files known to fail on windows-latest, harvested from
+// ci.yml's `windows` job so it can gate on the rest. The list may only shrink
+// — see the header of test/windows-known-failing.txt.
+if (process.platform === "win32") {
+  const listed = readFileSync(path.resolve(__dirname, "test/windows-known-failing.txt"), "utf8")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"))
+  exclude.push(...listed)
 }
 
 export default defineConfig({

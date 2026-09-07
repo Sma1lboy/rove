@@ -147,6 +147,51 @@ describe("IssuesStore", () => {
     expect(Object.values(after.repos)[0]?.repoRoot).toBe(canonicalRepo)
   })
 
+  // `update` carries the link so the CLI's `--title X --task Y` is ONE locked
+  // write. Split across two ops, a rejected link left the rename committed.
+  describe("update carrying a taskId", () => {
+    async function seeded(): Promise<{ repo: string; store: IssuesStore }> {
+      const repo = await makeRepo()
+      const home = await mkdtemp(join(tmpdir(), "kobe-issues-store-update-link-"))
+      cleanups.push(home)
+      const store = new IssuesStore(join(home, ".kobe", "issues.json"))
+      await store.mutate(repo, { type: "create", title: "Story", body: "B1" })
+      return { repo, store }
+    }
+
+    it("applies title, body and the link in one write", async () => {
+      const { repo, store } = await seeded()
+      await store.mutate(repo, { type: "update", id: 1, title: "Renamed", body: "B2", taskId: "task-abc" })
+      expect((await store.list(repo)).issues[0]).toMatchObject({ title: "Renamed", body: "B2", taskId: "task-abc" })
+    })
+
+    it("taskId null unlinks; absent leaves the link alone", async () => {
+      const { repo, store } = await seeded()
+      await store.mutate(repo, { type: "update", id: 1, taskId: "task-abc" })
+      await store.mutate(repo, { type: "update", id: 1, title: "Renamed" })
+      expect((await store.list(repo)).issues[0]).toMatchObject({ title: "Renamed", taskId: "task-abc" })
+      await store.mutate(repo, { type: "update", id: 1, taskId: null })
+      expect((await store.list(repo)).issues[0]?.taskId).toBeUndefined()
+    })
+
+    it("a rejected taskId writes nothing — the title does not half-land", async () => {
+      const { repo, store } = await seeded()
+      await expect(store.mutate(repo, { type: "update", id: 1, title: "Renamed", taskId: "" })).rejects.toThrow(
+        "taskId must be a non-empty string or null",
+      )
+      expect((await store.list(repo)).issues[0]).toMatchObject({ title: "Story", body: "B1" })
+    })
+
+    it("an update that omits body leaves a concurrently-written body alone", async () => {
+      const { repo, store } = await seeded()
+      // The C2 shape at the store layer: a title-only patch must not carry a
+      // stale body back over what another writer put there.
+      await store.mutate(repo, { type: "update", id: 1, body: "AGENT WROTE THIS" })
+      await store.mutate(repo, { type: "update", id: 1, title: "Typo fixed" })
+      expect((await store.list(repo)).issues[0]).toMatchObject({ title: "Typo fixed", body: "AGENT WROTE THIS" })
+    })
+  })
+
   describe("mirrorTaskDone", () => {
     async function linkedStore(): Promise<{ repo: string; store: IssuesStore }> {
       const repo = await makeRepo()
@@ -234,5 +279,123 @@ describe("IssuesStore", () => {
         else process.env.KOBE_ISSUES_TODAY = prior
       }
     })
+  })
+})
+
+/**
+ * A read that drops entries must SAY it dropped them, and must not hand the
+ * next `create` an id that is already in the file.
+ *
+ * `normalizeIssue` returns null for a non-numeric `id` while coercing every
+ * OTHER bad field to a placeholder, and `readStore` filtered those nulls away
+ * without counting them: a story the user filed stopped existing in every
+ * read — board, CLI, everything — while still sitting on disk, with
+ * `exists: true` and no warning anywhere.
+ */
+describe("IssuesStore corrupt-record honesty", () => {
+  async function seed(
+    entry: Record<string, unknown>,
+    nextId: unknown,
+  ): Promise<{ store: IssuesStore; repo: string; storePath: string }> {
+    const repo = await realpath(await makeRepo())
+    const dir = await mkdtemp(join(tmpdir(), "kobe-issues-corrupt-"))
+    cleanups.push(dir)
+    const storePath = join(dir, "issues.json")
+    const store = new IssuesStore(storePath)
+    // Create through the store so the repo key is whatever `resolveRepo`
+    // derives, then hand-edit that record — the shape a crashed write or a
+    // pre-numeric-id record leaves behind.
+    await store.mutate(repo, { type: "create", title: "ship the thing" })
+    await store.mutate(repo, { type: "create", title: "second story" })
+    const raw = JSON.parse(await readFile(storePath, "utf8")) as {
+      repos: Record<string, { nextId: unknown; issues: Record<string, unknown>[] }>
+    }
+    const key = Object.keys(raw.repos)[0]!
+    raw.repos[key]!.issues[0] = { ...raw.repos[key]!.issues[0], ...entry }
+    raw.repos[key]!.nextId = nextId
+    await writeFile(storePath, JSON.stringify(raw), "utf8")
+    return { store, repo, storePath }
+  }
+
+  it("counts an unreadable entry instead of reporting the survivors as the whole board", async () => {
+    // id 2 becomes the STRING "2" — the one field normalizeIssue refuses.
+    const { store, repo } = await seed({ id: "2" }, 3)
+    const listed = await store.list(repo)
+    expect(listed.issues).toHaveLength(1)
+    // Without this, `exists: true` + a one-item list is indistinguishable from
+    // a board that only ever had one story.
+    expect(listed.skipped).toBe(1)
+  })
+
+  it("reports skipped: 0 when every entry parsed", async () => {
+    const repo = await realpath(await makeRepo())
+    const dir = await mkdtemp(join(tmpdir(), "kobe-issues-clean-"))
+    cleanups.push(dir)
+    const store = new IssuesStore(join(dir, "issues.json"))
+    await store.mutate(repo, { type: "create", title: "ship the thing" })
+    await expect(store.list(repo)).resolves.toMatchObject({ skipped: 0 })
+  })
+
+  it("allocates past the highest id on disk when nextId is corrupt", async () => {
+    // nextId is the STRING "3": the old fallback was a flat `1`, which
+    // `create` then handed out — colliding with issue #1 already in the file,
+    // after which every id-keyed op hits whichever card `find` reaches first.
+    const { store, repo } = await seed({}, "3")
+    await expect(store.list(repo)).resolves.toMatchObject({ nextId: 3 })
+    const created = await store.mutate(repo, { type: "create", title: "collision probe" })
+    expect(created.issues[0]?.id).toBe(3)
+    expect(new Set(created.issues.map((issue) => issue.id)).size).toBe(created.issues.length)
+  })
+
+  it("keeps an unreadable entry on disk across an unrelated mutation", async () => {
+    // The warning used to document a recovery window one mutation wide: the
+    // read counted issue "2" into `skipped`, then the next whole-file write
+    // re-emitted only what it had parsed and the story was gone for good.
+    const { store, repo, storePath } = await seed({ id: "2" }, 3)
+    await store.mutate(repo, { type: "setStatus", id: 1, status: "done" })
+    const onDisk = JSON.parse(await readFile(storePath, "utf8")) as {
+      repos: Record<string, { issues: { id: unknown }[] }>
+    }
+    const ids = Object.values(onDisk.repos)[0]!.issues.map((issue) => issue.id)
+    expect(ids).toContain("2")
+    // …and the read still says so, rather than going quiet now that the write
+    // "cleaned up".
+    await expect(store.list(repo)).resolves.toMatchObject({ skipped: 1 })
+  })
+
+  it("refuses to write over a record whose `issues` is an object, and never calls it skipped: 0", async () => {
+    const repo = await realpath(await makeRepo())
+    const dir = await mkdtemp(join(tmpdir(), "kobe-issues-object-"))
+    cleanups.push(dir)
+    const storePath = join(dir, "issues.json")
+    const store = new IssuesStore(storePath)
+    await store.mutate(repo, { type: "create", title: "ship the thing" })
+    await store.mutate(repo, { type: "create", title: "second story" })
+    const raw = JSON.parse(await readFile(storePath, "utf8")) as {
+      repos: Record<string, { issues: unknown }>
+    }
+    const key = Object.keys(raw.repos)[0]!
+    const before = raw.repos[key]!.issues as { id: number }[]
+    // A map keyed by id — the shape a hand-edit or an older writer leaves.
+    raw.repos[key]!.issues = Object.fromEntries(before.map((issue) => [String(issue.id), issue]))
+    await writeFile(storePath, JSON.stringify(raw), "utf8")
+
+    // `skipped: 0` is the one value the field documents as "you have it all",
+    // and the object branch used to report exactly that after dropping both.
+    await expect(store.list(repo)).resolves.toMatchObject({ skipped: 2 })
+    // The next create used to persist the emptiness. Now it refuses by name.
+    await expect(store.mutate(repo, { type: "create", title: "would erase two" })).rejects.toThrow(
+      "ISSUE_STORE_UNREADABLE",
+    )
+    const after = JSON.parse(await readFile(storePath, "utf8")) as { repos: Record<string, { issues: unknown }> }
+    expect(after.repos[key]!.issues).toEqual(raw.repos[key]!.issues)
+  })
+
+  it("counts an unusable id toward the next allocation, so the fallback cannot reuse it", async () => {
+    const { store, repo } = await seed({ id: "2" }, "nope")
+    // Issue "2" is dropped from `issues`, but its id is still spoken for on
+    // disk: deriving the fallback from the PARSED list alone would hand out 2.
+    const created = await store.mutate(repo, { type: "create", title: "after the hole" })
+    expect(created.issues[0]?.id).toBe(3)
   })
 })

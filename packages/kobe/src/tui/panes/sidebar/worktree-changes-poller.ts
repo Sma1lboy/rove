@@ -12,9 +12,12 @@
  * cadence, timeout + hard backoff) is the generic
  * `src/tui/lib/background-poll.ts` — this module is the worktree-changes
  * binding: one async `git status --porcelain=v1` per worktree, parsed
- * into `+N −M` counts. Failure / timeout keeps the last value — the chip
- * goes stale or stays hidden rather than flashing a bogus zero, the same
- * "never error, just hide" contract as the sync helper.
+ * into `+N −M` counts. Failure / timeout keeps the LAST value; a worktree
+ * that has never read cleanly reads `null`, which the row renders as
+ * UNKNOWN. Deliberately not zeros: an EACCES `.git`, a repo whose status
+ * walk blows POLL_TIMEOUT_MS (then sits out SLOW_REPO_RETRY_MS), and git
+ * off PATH would otherwise all be indistinguishable from a clean worktree
+ * — and this chip is what a user checks before deleting a task.
  *
  * Deleted rows never call `poll()` at all (the Sidebar shows only live
  * tasks): a deleted task must not pay git-status for worktrees that no
@@ -42,10 +45,9 @@ export const SLOW_REPO_RETRY_MS = 60_000
 /** Floor between successful polls — matches the sidebar's ~2s tick. */
 export const MIN_POLL_INTERVAL_MS = 1_500
 
-const ZERO: WorktreeChanges = { added: 0, deleted: 0 }
-
-const poller = createBackgroundPoller<WorktreeChanges>({
-  initial: ZERO,
+const poller = createBackgroundPoller<WorktreeChanges | null>({
+  /** Unknown until a poll lands — see the header: never zeros. */
+  initial: null,
   // Value-equality so a poll returning the same counts doesn't
   // re-render every visible row each tick.
   equals: sameWorktreeChanges,
@@ -68,9 +70,10 @@ const poller = createBackgroundPoller<WorktreeChanges>({
 
 /**
  * Reactive read of the last known change counts for `worktreePath`.
- * Returns zeros (chip hidden) until a poll has completed.
+ * `null` until a poll has completed successfully — the row renders that as
+ * unknown, not as clean.
  */
-export function worktreeChanges(worktreePath: string): WorktreeChanges {
+export function worktreeChanges(worktreePath: string): WorktreeChanges | null {
   return poller.read(worktreePath)
 }
 

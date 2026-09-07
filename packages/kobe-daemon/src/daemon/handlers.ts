@@ -33,6 +33,7 @@ import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import type { AgentTurnsStore } from "./agent-turns-store.ts"
 import type { AttentionInboxStore } from "./attention-inbox.ts"
 import type { AutomationsStore } from "./automations-store.ts"
+import type { ChannelName } from "./channels.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import type { DeferredPromptsStore } from "./deferred-prompts-store.ts"
@@ -56,8 +57,10 @@ import {
   DAEMON_PROTOCOL_VERSION,
   type DaemonError,
   type DaemonRequestName,
+  type DaemonStopReason,
   MIN_COMPATIBLE_PROTOCOL_VERSION,
   isProtocolCompatible,
+  parseDaemonStopReason,
   serializeTask,
 } from "./protocol.ts"
 import type { QuotaUsageCache } from "./quota-usage-cache.ts"
@@ -133,11 +136,9 @@ export interface DaemonHandlerContext {
      *  render as a legitimate "you have no tasks". */
     readonly homeDir?: string
     /** Loopback web transport port, when this daemon is exposing browser routes. */
-    readonly webPort?: number
     /** Why the web transport isn't listening (port taken / bind failed), or
      *  null when it's up or was never requested. Reported by `daemon.status`
      *  so a socket-only degrade shows the real reason, not a generic error. */
-    readonly webError?: string | null
     /** The daemon process pid (reported by `hello` / `daemon.status`). */
     readonly pid: number
     /** Attached-GUI refcount (reported as `attachedClients`). */
@@ -146,8 +147,14 @@ export interface DaemonHandlerContext {
      *  whichever client hosts the session, so this — not the GUI refcount —
      *  is what says a dispatch could reach anyone. */
     clientCount(): number
-    /** Graceful self-stop (`daemon.stop`). */
-    stopSoon(): Promise<void>
+    /** Is anyone subscribed who would actually RECEIVE a publish on this
+     *  channel? The same per-channel gate the background collectors use, so a
+     *  handler can skip building a payload nobody is listening for. Absent in
+     *  older test doubles — treat `undefined` as "publish anyway". */
+    hasSubscribersFor?(channel: ChannelName): boolean
+    /** Graceful self-stop (`daemon.stop`). The reason rides out on the
+     *  `daemon.stopping` broadcast — see {@link DaemonStopReason}. */
+    stopSoon(reason?: DaemonStopReason): Promise<void>
     /** Re-check idle shutdown after a keep-alive hold may have been released
      *  (the last automation was disabled or deleted with no gui attached). */
     reevaluateIdle(): void
@@ -166,17 +173,8 @@ export interface DaemonHandlerContext {
 export interface DaemonRequestHandler {
   readonly name: DaemonRequestName
   /**
-   * Browser-reachable through POST /api/rpc? Absent/false means socket-only.
-   * This is the ONE place an RPC declares its web exposure — the web
-   * transport derives its allowset from the registry (see
-   * {@link webExposedRpcNames}), so a new verb is not browser-reachable
-   * until its entry says so. Connection-scoped verbs (`hello`), the daemon
-   * kill switch (`daemon.stop`), and hook-ingest paths must stay unexposed.
-   */
-  readonly web?: boolean
-  /**
    * Can this verb legitimately outlive the client's 20s wedge deadline?
-   * Declared HERE, beside `web`, so the question is in front of whoever
+   * Declared on the entry itself, so the question is in front of whoever
    * writes the handler — the socket client cannot import this registry
    * (that would pull every daemon module into the CLI), so it reads the
    * mirror in `protocol.ts`. `test/daemon/rpc-deadline.test.ts` fails when
@@ -184,15 +182,6 @@ export interface DaemonRequestHandler {
    */
   readonly blocking?: boolean
   handle(payload: Record<string, unknown>, ctx: DaemonHandlerContext): Promise<unknown> | unknown
-}
-
-/** The registry-derived web-RPC allowset: every entry marked `web: true`. */
-export function webExposedRpcNames(
-  registry: ReadonlyMap<DaemonRequestName, DaemonRequestHandler>,
-): ReadonlySet<DaemonRequestName> {
-  const names = new Set<DaemonRequestName>()
-  for (const entry of registry.values()) if (entry.web === true) names.add(entry.name)
-  return names
 }
 
 /** The registry-derived blocking set: every entry marked `blocking: true`. */
@@ -290,7 +279,6 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     },
     {
       name: "daemon.status",
-      web: true,
       handle(_payload, ctx) {
         return {
           daemonPid: ctx.daemon.pid,
@@ -314,15 +302,20 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           // which otherwise reads as "my tasks vanished".
           homeDir: ctx.daemon.homeDir,
           socketPath: ctx.daemon.socketPath,
-          webPort: ctx.daemon.webPort ?? null,
-          webError: ctx.daemon.webError ?? null,
         }
       },
     },
     {
       name: "daemon.stop",
-      async handle(_payload, ctx) {
-        await ctx.daemon.stopSoon()
+      async handle(payload, ctx) {
+        // `restart` is the only reason a caller may claim, and only
+        // `daemon restart` (plus the TUI's refresh) claims it: it tells every
+        // attached client the code is being swapped, not that the daemon is
+        // done. Anything else — including an unset or unrecognized field —
+        // reads as a plain `stop`, so a stale or hostile caller can never
+        // make an ordinary shutdown look like an upgrade.
+        const reason = parseDaemonStopReason(payload.reason) === "restart" ? "restart" : "stop"
+        await ctx.daemon.stopSoon(reason)
         return {}
       },
     },

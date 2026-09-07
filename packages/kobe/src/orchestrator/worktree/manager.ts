@@ -29,9 +29,11 @@ import path from "node:path"
 import type { ExecHost } from "../../exec/exec-host.ts"
 import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
 import type { AdoptableWorktree, WorktreeInfo, WorktreeManager } from "../../types/worktree.ts"
+import { isDirtyOutput } from "../dirty-paths.ts"
 import { type ExecCtx, type WorktreeExecDeps, defaultExecDeps } from "./exec-deps.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
 import {
+  type BranchDeleteOutcome,
   type BranchDeps,
   branchExists,
   branchHasUpstream,
@@ -39,9 +41,17 @@ import {
   hasLocalBranch,
   renameBranch,
 } from "./manager-branch.ts"
-import { type ListDeps, adoptablePaths, listAllAdoptable, listBranchNames, listManaged } from "./manager-list.ts"
+import {
+  type ListDeps,
+  adoptablePaths,
+  listAllAdoptable,
+  listBranchNames,
+  listManaged,
+  unreadableWorktreeNames,
+} from "./manager-list.ts"
 import { type RemoveOpts, removeWorktree } from "./manager-remove.ts"
 import { canonicalize, remoteWorktreePathFor, requireAbsolute, worktreePathFor } from "./paths.ts"
+import { type IgnoredWorkProbe, smallIgnoredPaths } from "./salvage-ignored.ts"
 import { type SalvageRecord, salvageWorktree } from "./salvage.ts"
 import { parseWorktreeListPorcelain } from "./worktree-list.ts"
 
@@ -204,6 +214,7 @@ export class GitWorktreeManager implements WorktreeManager {
         findRepoFor: (exec, p) => this.findRepoFor(exec, p),
         currentBranch: (p) => this.currentBranch(p),
         isDirty: (p) => this.isDirty(p),
+        ignoredWork: (p) => this.ignoredWork(p),
         branchDeps: () => this.branchDeps(),
       },
       worktreePath,
@@ -223,10 +234,10 @@ export class GitWorktreeManager implements WorktreeManager {
        *  or the anchor could not be written). */
       readonly onAnchor?: (record: SalvageRecord | null) => void
     },
-  ): Promise<void> {
+  ): Promise<BranchDeleteOutcome> {
     const ctx = this.ctxFor(repo)
     requireAbsolute("repo", ctx.dir)
-    await deleteBranchAnchored(this.branchDeps(), ctx.exec, ctx.dir, branch, {
+    return await deleteBranchAnchored(this.branchDeps(), ctx.exec, ctx.dir, branch, {
       force: opts?.force === true,
       onAnchor: opts?.onAnchor,
     })
@@ -288,6 +299,12 @@ export class GitWorktreeManager implements WorktreeManager {
     return adoptablePaths(this.listDeps(), this.ctxFor(repo))
   }
 
+  /** Worktree admin-dir names `git worktree list` silently omitted — the ones
+   *  {@link listAll} cannot see. Body in `manager-list.ts`. */
+  listUnreadableWorktrees(repo: string): Promise<readonly string[]> {
+    return unreadableWorktreeNames(this.listDeps(), this.ctxFor(repo))
+  }
+
   /** Branch names of `repo` (local + origin, prefix-stripped) — the input
    *  to repo-convention branch naming. Body in `manager-list.ts`. */
   listBranchNames(repo: string): Promise<readonly string[]> {
@@ -324,7 +341,31 @@ export class GitWorktreeManager implements WorktreeManager {
       cwd: worktreePath,
       readOnly: true,
     })
-    return out.stdout.length > 0
+    return isDirtyOutput(out.stdout)
+  }
+
+  /**
+   * The gitignored paths in `worktreePath` that a delete would destroy — the
+   * work {@link isDirty} cannot see.
+   *
+   * A SEPARATE question from `isDirty`, deliberately, because the two have
+   * different answers and different consequences. `.gitignore`d files survive
+   * a land and a sync; they do not survive a worktree removal, and
+   * `HANDOFF.md` / `.scratch/**` / `.env*` are gitignored in this very repo.
+   * Folding this into `isDirty` would make every worktree holding a `.env`
+   * read dirty to the sidebar and to `land`'s preflight, which is a different
+   * (and wrong) claim.
+   *
+   * Same rule as the salvage snapshot ({@link smallIgnoredPaths}), so the gate
+   * refuses for exactly what the `--force` retry would then rescue: a
+   * multi-gigabyte `node_modules/` is over the size ceiling, so it neither
+   * blocks the delete nor bloats the snapshot.
+   *
+   * `"unknown"` — the listing did not run — is passed through, never flattened
+   * to `[]`: for a gate, "I could not look" is not "there is nothing here".
+   */
+  async ignoredWork(worktreePath: string): Promise<IgnoredWorkProbe> {
+    return smallIgnoredPaths(this.execAt(worktreePath), worktreePath)
   }
 
   /**

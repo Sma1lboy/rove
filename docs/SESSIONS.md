@@ -13,27 +13,37 @@ instead.
 | Quit the TUI | ✓ | ✓ | ✓ | ✓ |
 | Drop your SSH connection | ✓ | ✓ | ✓ | ✓ |
 | `rove daemon restart` | ✓ | ✓ | ✓ | ✓ |
-| Reboot, or the PTY host dies | — command relaunched on attach | ✓ restored, for the 64 newest records under 14 days old | ✓ | ✓ |
+| Reboot, or the PTY host dies | — command relaunched on attach | ✓ restored, newest first, up to 64MB of scrollback | ✓ | ✓ |
 | Close a tab | — that tab only | — that tab's ring is dropped | ✓ | ✓ |
 | Delete a managed/directory Task | — all of that Task's tabs | — those rings are dropped | task record removed; worktree removed unless it's a directory Task (branch stays; a force-delete salvages uncommitted work under `refs/rove/salvage/`) | ✓ |
-| Stop `rove web` | browser-owned PTYs end; standalone-host PTYs stay | browser sidecar has no freeze/thaw | ✓ | engine-owned files stay |
 | Press F5 | — active terminal is replaced | — old ring is dropped | ✓ | ✓ |
-| `rove reset` | — all hosted sessions | — all frozen rings are dropped | worktrees ✓; task index kept unless `--hard` | ✓ |
+| `rove reset` | — all hosted sessions | — all frozen rings are dropped | worktrees ✓; task index and settings file kept unless `--hard` | ✓ |
 
 ![The TUI detaches while the engine process, scrollback ring, and task list stay lit below](assets/detach-survives.png)
 
 The first three rows are the whole point: the TUI is a viewport, and the
-daemon is replaceable. The reboot row is the freeze/restore contract: nothing
+daemon is replaceable. That extends to what the daemon only holds in memory.
+Engine badges are not persisted, so a restarting daemon re-derives them: it
+walks every surviving session once, and a tab that is a bare shell because
+its engine died keeps its `dead` badge instead of coming back as `idle` —
+which is what a tab that never ran an engine looks like, and which typing
+into would run your prompt as shell commands. The same pass records an engine
+that died while no daemon was up at all. The reboot row is the freeze/restore contract: nothing
 keeps processes alive across a reboot, but the PTY host persists every
 session's metadata and bounded scrollback ring to disk. The next host first
 thaws a dead **restored** session, then the first attach replays its old screen
 and respawns the command in place. Your conversation files survive separately
 because the engine owns them.
 
-`rove reset` stops the daemon and PTY host and wipes the frozen-session store.
-The normal form keeps the task index, UI state, worktrees, and engine history;
-`rove reset --hard` also removes the task and UI indexes, but still does not
-delete git worktrees or engine-owned transcripts.
+`rove reset` stops the daemon and PTY host and wipes the frozen-session store —
+including when the host had to be signalled rather than stopped gracefully,
+which is exactly the wedged case reset exists for. The normal form keeps the
+task index, your settings, worktrees, and engine history. `rove reset --hard`
+also deletes `tasks.json` **and the whole settings file**
+(`~/.config/rove/state.json`): saved projects, registered custom engines,
+theme, default engine, language, onboarding. It still does not delete git
+worktrees or engine-owned transcripts. See
+[CLI → reset](./CLI.md#reset) for the full list.
 
 ## Why: three processes, three lifetimes
 
@@ -41,7 +51,6 @@ delete git worktrees or engine-owned transcripts.
 flowchart TB
   subgraph clients["Attach clients (N, disposable)"]
     tui["Rove (TUI)"]
-    web["rove web (browser)"]
   end
   subgraph daemon["rove daemon (state, refcounted)"]
     orch[Orchestrator]
@@ -52,13 +61,8 @@ flowchart TB
     p2["engine PTY: task B"]
     ring["per-session scrollback ring"]
   end
-  subgraph browserHost["Node browser PTY sidecar"]
-    bp["browser-owned PTYs"]
-  end
   tui <-->|unix socket| daemon
-  web <-->|HTTP/SSE| daemon
   tui <-->|unix socket| host
-  web <-->|WebSocket| bp
   orch --- idx
   p1 --- ring
   p2 --- ring
@@ -66,11 +70,6 @@ flowchart TB
 
 - **The TUI** is an attach client for standalone-host sessions. Closing it
   only detaches.
-- **The browser** is a control-plane client of the same Daemon, but its
-  terminals belong to the Node sidecar started by `rove web`. Closing a page
-  can reconnect to the same sidecar later; stopping the `rove web` process
-  stops that sidecar and all browser-owned PTYs. It does not touch standalone
-  TUI/API sessions.
 - **The daemon** owns your task index, worktree records, and the event bus.
   It starts on first launch and stops after the last attached GUI disconnects,
   unless an enabled routine or a live session in the PTY host holds it alive.
@@ -80,18 +79,26 @@ flowchart TB
   snapshots. Restarting the daemon is routine: `rove daemon restart`.
 - **The standalone PTY host** owns every TUI/API engine and shell process, plus their
   scrollback. It's deliberately a *separate* process from the daemon, so a
-  daemon restart never kills a running engine. Like the tmux server, it exits
+  daemon restart never kills a running engine — with one exception: a starting
+  daemon sweeps hosted sessions whose task is no longer in the index, so a
+  session belonging to a task deleted while no daemon was up is ended on the
+  next daemon boot. Because the host outlives daemon restarts, it also keeps
+  running whatever build it started with; `rove doctor` reports its version,
+  and only `rove reset` replaces it. Like the tmux server, it exits
   on its own only after sitting at zero live sessions. `rove reset` is the
   explicit teardown. While it runs, it freezes every session (metadata +
-  scrollback ring) to `<home>/.rove/pty-sessions/`, throttled to one write
-  per few seconds while streaming, immediately on exit, and in full at
-  shutdown. A host that comes back up (after a crash, a reboot, an idle-exit)
+  scrollback ring) to `<home>/.rove/pty-sessions/` — see
+  [Scrollback](#scrollback) for what a periodic freeze costs and when it
+  fires — immediately on exit, and in full at shutdown. A host that comes back up (after a crash, a reboot, an idle-exit)
   thaws each surviving record into a dead *restored* session: reattaching
-  replays the old screen and respawns the command in place. Two limits prune
-  the rest at boot rather than thawing them: a record untouched for **14 days**
-  is deleted, and only the **64 most recently updated** survive — past that,
-  the oldest go. Closing a tab, deleting a task, or `rove reset` deletes the
-  record too. An intentional end is never resurrected.
+  replays the old screen and respawns the command in place. A boot restores
+  newest first up to **64MB** of scrollback and stops there; the records past
+  that budget are left on disk untouched, so a directory bigger than one boot
+  wants to read never loses anything. What actually deletes is age: a record
+  untouched for **14 days** goes, which is what keeps the directory bounded.
+  Closing a tab, deleting a task, or `rove reset` deletes the record too. An
+  intentional end is never resurrected. Each boot writes what it restored,
+  deferred, and expired to `pty.log`.
 
 ## Detaching and reattaching
 
@@ -159,12 +166,18 @@ Three related limits are easy to confuse:
 
 - **What a reattach replays.** The PTY host keeps ~512 KiB of recent output
   per session. The live copy is in memory; the complete bounded ring is also
-  frozen under `<home>/.rove/pty-sessions/` at most once every five seconds
-  while output streams, immediately when the child exits, and in full during
-  a clean host shutdown. A crash can therefore lose the newest few seconds,
-  but a reboot or host restart restores the last completed snapshot. Closing
-  the tab, deleting its task, or `rove reset` deliberately drops the relevant
-  frozen record.
+  frozen under `<home>/.rove/pty-sessions/`, immediately when the child
+  exits, in full during a clean host shutdown, and periodically while output
+  streams. A periodic freeze rewrites the whole ring, so it waits for one of
+  two gates, never sooner than **5 seconds** after the last one: **64 KiB**
+  of new output, or **60 seconds** since the last freeze. An engine session
+  emits a few hundred bytes a second, so 60 seconds is its normal cadence;
+  the byte gate is what makes a build log or a large `cat` freeze at the 5
+  second floor instead. A crash therefore loses at most the last **60
+  seconds** of terminal repaint — a reboot or host restart restores the last
+  completed snapshot, and the engine's own `--resume` carries the
+  conversation regardless. Closing the tab, deleting its task, or `rove
+  reset` deliberately drops the relevant frozen record.
 - **What diagnostics retain after a death.** `<home>/.rove/pty-exits.json`
   stores the newest 50 records. Each has the exit code or signal, time, and
   the last 40 plain-text lines extracted from up to 16 KiB of raw ring data.
@@ -206,20 +219,16 @@ process, including a reboot.
   convenience, not an invariant — closing the last tab yourself leaves the task
   with none.)
 - To resume a conversation that is not represented by a tab, use the engine's
-  own picker (e.g. claude-code's `/resume`) inside a fresh engine tab.
-
-## rove web as a second client
-
-`rove web` is a second live client of the same daemon: same tasks, same
-issues, same event stream. An open browser tab keeps the daemon alive exactly
-like an attached TUI does.
-
-One difference: the web dashboard's terminals are **not** views of the TUI's
-sessions. They're spawned by a separate sidecar process with their own
-lifetime. They survive page reloads and reconnects, and several browser views
-of one tab share a single terminal, but they're independent of the sessions
-your TUI is attached to. Stopping `rove web` stops the sidecar and its browser
-PTYs; they do not use the standalone host's freeze/thaw store.
+  own picker (e.g. claude-code's `/resume`) inside a fresh engine tab. When
+  the conversation IS a tab, you do not have to hunt for the id: `rove api
+  get-task --task-id <id>` prints each engine tab's `sessionId`.
+- Headlessly, a tab a host restart froze is revived by
+  `rove api send --task-id <id> --tab tab-N --respawn --prompt "…"`. Without
+  `--respawn` that tab refuses with `TAB_RESTORED` rather than being re-run
+  behind your back — reviving a tab Rove holds no snapshot for replays its
+  frozen launch command, first prompt and all. A `send` that starts a fresh session while
+  such tabs exist lists them in `frozenTabs`, so an automation is told the
+  message did not reach the conversation it thought it did.
 
 ## Not supported
 

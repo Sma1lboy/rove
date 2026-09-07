@@ -45,7 +45,8 @@ more: `canceled` does not stop a session or remove a worktree, and `done` does
 not close anything. Rove moves a Task from `backlog` to `in_progress` by itself
 when its engine starts a turn, and the system prompt asks the agent to set
 `in_review` when it finishes; everything past that is yours. The sidebar row
-shows the status as a mark once it leaves `backlog`/`in_progress`
+does not draw it: the one mark in that cell is the PR's, and the status is
+something you already know because you set it
 (see [TUI](./TUI.md#status-glyphs-in-the-sidebar)).
 
 **Delete is explicit and kind-aware.** A project-main Task cannot go through
@@ -55,10 +56,20 @@ managed Tasks. Deleting a directory Task removes only its Rove record, never
 the directory.
 Deleting a managed Task removes its worktree after the dirty-worktree safety
 check. **The task branch stays.** Git is the durable record of the work;
-pass `--delete-branch` on `rove api delete` to drop it too. The separate
+pass `--delete-branch` on `rove api delete` to drop it too. That runs
+`git branch -d`, which refuses a branch whose commits neither the repo's HEAD
+nor the branch's own upstream already contains — so work that was never pushed
+and never landed survives the flag, and `--force` is what upgrades the delete
+to `git branch -D`. **The remote branch is never touched** in any case:
+`git push origin --delete <branch>` stays yours to run. The reply reports only
+that the task was removed; whether the branch went is in the daemon log.
+
+The separate
 [Worktrees page](WORKTREES.md) is an audit/cleanup tool: removing a directory
 there keeps its Task record and branch so the worktree can be materialized
-again later.
+again later. `rove api remove-worktree --task-id ID` is the same operation
+from a shell — the inverse of `ensure-worktree`, and what a script reclaiming
+idle checkouts wants instead of `delete`.
 
 ## Worktree and branch
 
@@ -127,14 +138,11 @@ survive you:
 ```mermaid
 flowchart LR
   TUI["Rove (TUI)"] --> D["Daemon"]
-  WEB["rove web / browser"] --> D
   API["rove api"] --> D
   TUI --> P["PTY Host"]
   API --> P
-  WEB --> BP["Browser PTY sidecar"]
   D --> IDX["Task index + worktrees"]
   P --> E["TUI/API engine + shell sessions"]
-  BP --> BE["browser-owned terminal sessions"]
 ```
 
 - **Daemon.** Owns your task list, worktrees, and the issue store. Starts on
@@ -143,9 +151,6 @@ flowchart LR
   (it must stay up to collect engine activity, or the status dots go stale).
 - **PTY host.** Owns the running engine and shell processes. Survives both
   the TUI *and* a daemon restart.
-- **Browser PTY sidecar.** A separate Node process started by `rove web` for
-  browser-owned terminals. It is not the standalone PTY host and does not own
-  the TUI's hosted sessions.
 - **The TUI.** Just a viewport. Quitting it kills nothing.
 
 Full lifetime rules, and exactly what survives a reboot:
@@ -159,9 +164,11 @@ store at `~/.rove/issues.json`, shared between a repo and all its worktrees.
 It's deliberately simple. No type taxonomy, just a status
 (`open → doing → done`, plus `hold` for things parked on purpose):
 
-- **You.** The Issues page in `rove web`, or the Kanban in the TUI.
+- **You.** The Kanban in the TUI. Open a card with `enter` and tab to its
+  STATUS field to move it between columns; `d` on the board deletes the story
+  outright.
 - **Agents and scripts.** `rove api issue-list`, `issue-create`,
-  `issue-set-status`, `issue-update`.
+  `issue-set-status`, `issue-update`, `issue-delete`.
 
 Issues track *what to do*; the changelog records *what shipped*.
 
@@ -200,12 +207,6 @@ on that machine, so dropping SSH does not end hosted sessions. SSH back in and
 run `rove` to reattach. Clipboard and terminal notifications depend on the
 attached terminal connection; attention that happens while disconnected stays
 available in Rove's Inbox when you return.
-
-**The browser dashboard as a maintenance surface.** `rove web` serves the
-frozen browser SPA (default `http://localhost:45174`). It shares daemon-owned
-Task and issue data with the TUI, but browser terminal tabs belong to the
-browser PTY sidecar and are not the TUI's hosted Terminal Tabs. New product
-surface work belongs in the TUI; `/harness` remains the visual test path.
 
 ## Glossary
 

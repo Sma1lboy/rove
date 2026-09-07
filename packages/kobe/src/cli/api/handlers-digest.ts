@@ -15,7 +15,7 @@
 
 import type { Automation, AutomationRun, AutomationRunStatus } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { daemonOf } from "./handler-helpers.ts"
+import { daemonOf, repoFilter } from "./handler-helpers.ts"
 import type { VerbContext, VerbSpec } from "./types.ts"
 
 /** Default look-back for a digest, in days. */
@@ -70,30 +70,42 @@ export function buildDigest(
 async function digest(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const { args, runtime } = ctx
-  const repo = await runtime.resolveRepoRoot(args.requireRepo("repo"))
+  const repoFlag = args.requireRepo("repo")
   const sinceMs = Date.now() - (args.int("since-days") ?? DEFAULT_SINCE_DAYS) * 86_400_000
 
   const { tasks: allTasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
+  const { automations } = await daemon.request<{ automations: Automation[] }>("automation.list")
+  // Throws when `--repo` itself does not resolve, and names the repos it
+  // could not resolve. A zero-task digest beside a non-empty
+  // `unresolvableRepos` is a failed lookup, not a quiet week.
+  const filter = await repoFilter(runtime, repoFlag, [
+    ...allTasks.map((t) => t.repo),
+    ...automations.map((a) => a.repo),
+  ])
+  const repo = filter.target
+
   const tasks: SerializedTask[] = []
   for (const task of allTasks) {
     // Only board CARDS are units of work — the repo's `main` seat (the
     // dispatcher) and `dir` entries would park a constant in the count.
     if ((task.kind ?? "task") !== "task") continue
     if ((epochOf(task.updatedAt) ?? 0) < sinceMs) continue
-    if ((await runtime.resolveRepoRoot(task.repo)) === repo) tasks.push(task)
+    if (filter.matches(task.repo)) tasks.push(task)
   }
 
-  const { automations } = await daemon.request<{ automations: Automation[] }>("automation.list")
   const runs: AutomationRun[] = []
   for (const automation of automations) {
-    if ((await runtime.resolveRepoRoot(automation.repo)) !== repo) continue
+    if (!filter.matches(automation.repo)) continue
     const page = await daemon.request<{ runs: AutomationRun[] }>("automation.runs", { id: automation.id })
     for (const run of page.runs) {
       if ((epochOf(run.at) ?? 0) >= sinceMs) runs.push(run)
     }
   }
 
-  return buildDigest(repo, sinceMs, tasks, runs)
+  return {
+    ...buildDigest(repo, sinceMs, tasks, runs),
+    ...(filter.unresolvableRepos.length > 0 ? { unresolvableRepos: filter.unresolvableRepos } : {}),
+  }
 }
 
 /** Spec half of the digest verb — spread into {@link VERBS} in `verbs.ts`. */

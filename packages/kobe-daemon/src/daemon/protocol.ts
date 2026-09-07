@@ -4,6 +4,10 @@
  * Engine sessions live in hosted PTYs, so the daemon's only job is to be
  * a single writer for the task index: the protocol is a task-CRUD +
  * subscribe shape.
+ *
+ * Two questions live under this name: the compatibility POLICY (can these two
+ * builds talk — `protocol-compat.ts`, re-exported below) and the wire
+ * VOCABULARY (frames, request names, task serialization — this file).
  */
 
 import type { ChannelName } from "./channels.ts"
@@ -35,6 +39,7 @@ export {
   type SessionDeliverPayload,
   type TabClosePayload,
   type TabOpenPayload,
+  type TabRenamePayload,
   type TranscriptActivityPayload,
   type UiPrefsPayload,
   type UiPromptPayload,
@@ -43,97 +48,16 @@ export {
   normalizeChannelFilter,
 } from "./channels.ts"
 
-/**
- * The handshake negotiates a COMPATIBILITY RANGE rather than requiring an
- * exact match (LSP-style): each peer advertises its current version plus the oldest
- * version it can still talk to ({@link MIN_COMPATIBLE_PROTOCOL_VERSION}),
- * and unknown extra fields are ignored. A backward-compatible change bumps
- * `DAEMON_PROTOCOL_VERSION` while leaving `MIN_COMPATIBLE_PROTOCOL_VERSION`
- * put, so a newer daemon keeps serving a slightly-older TUI through a
- * rolling upgrade instead of hard-rejecting it. Bump the MIN only on a
- * breaking change.
- *
- * v3: no `daemon.web.start` / `daemon.web.stop` in the socket protocol.
- * Browser HTTP/SSE lives on the daemon-owned web transport instead of a
- * socket RPC that starts/stops routes. A v2 client's `kobe web` gets a clear
- * "unknown daemon request" error; everything else still interoperates, so MIN
- * stays 2.
- *
- * v4: daemon-hosted PTYs (`pty.*` requests + targeted `pty.data`/`pty.exit`
- * event frames). Additive — an older client never sends `pty.*`, a newer
- * client against an older daemon gets "unknown daemon request" and falls back
- * to a local PTY — so MIN stays 2.
- */
-export const DAEMON_PROTOCOL_VERSION = 4
-
-/** Oldest protocol version this build can still interoperate with. */
-export const MIN_COMPATIBLE_PROTOCOL_VERSION = 2
-
-/**
- * Two protocol peers are compatible iff EACH side's current version is at
- * least the OTHER side's minimum-supported version. Symmetric; unknown
- * extra hello fields are ignored by the caller. Pure — unit-tested.
- */
-export function isProtocolCompatible(args: {
-  readonly localVersion: number
-  readonly localMin: number
-  readonly remoteVersion: number
-  readonly remoteMin: number
-}): boolean {
-  return args.remoteVersion >= args.localMin && args.localVersion >= args.remoteMin
-}
-
-/**
- * Build-version skew check (KOB) — distinct from the protocol check above.
- * The protocol range only catches a BREAKING wire change; a normal patch
- * upgrade keeps the same protocol version, so a stale-build daemon (the user
- * upgraded the binary but the long-lived daemon is still running the code it
- * booted with) is otherwise invisible. This compares the daemon's reported build
- * version (`hello.kobeVersion` / `daemon.status`'s `kobeVersion`) against the
- * client's own {@link import("../version").CURRENT_VERSION}.
- *
- * NON-FATAL by design: a mismatch means "the code is stale, restart it", not
- * "these two can't talk" — so this only drives a dismissible banner, never a
- * thrown error. Returns `false` when the daemon's version is unknown (an older
- * daemon that predates this field omits it), so an old daemon never produces a
- * false "stale" signal — it just goes unflagged.
- *
- * Pure — unit-tested. A plain string inequality (not semver) is intentional:
- * any difference at all — newer OR older daemon — is worth a restart prompt,
- * and the build versions are the package.json strings on both sides.
- */
-export function isDaemonVersionStale(daemonVersion: string | undefined, clientVersion: string): boolean {
-  if (!daemonVersion) return false
-  return daemonVersion !== clientVersion
-}
-
-/**
- * Home-ownership check — the third, and bluntest, `hello` guard.
- *
- * The protocol range catches a breaking wire change and the build-version
- * check catches stale code; neither notices a daemon that speaks perfectly but
- * belongs to a DIFFERENT state root. That happens whenever an explicit
- * `*_DAEMON_SOCKET_PATH` outranks a sandbox's `*_HOME_DIR` (see
- * `scripts/dev-sandbox-args.ts`): the sandbox daemon binds the production
- * socket and answers `hello` with its own empty task index, which the TUI
- * would otherwise render as a truthful "No active tasks" while every task
- * sits intact on disk.
- *
- * FATAL by design, unlike {@link isDaemonVersionStale}: serving another home's
- * data is silent corruption of what the user sees, so the client refuses the
- * connection and keeps reconnecting rather than trusting the payload.
- *
- * Returns `false` when the daemon reports no home (one that predates the
- * field), so an older daemon is never falsely rejected. Trailing separators
- * are insignificant — `XDG_RUNTIME_DIR` and friends arrive both ways.
- *
- * Pure — unit-tested.
- */
-export function isForeignDaemonHome(daemonHome: string | undefined, clientHome: string): boolean {
-  if (!daemonHome) return false
-  const strip = (value: string): string => value.replace(/[/\\]+$/, "")
-  return strip(daemonHome) !== strip(clientHome)
-}
+// Handshake compatibility policy — version range, build skew, home ownership.
+// Lives in protocol-compat.ts (it changes on a different clock than the wire
+// vocabulary below); re-exported so `daemon/protocol` stays the one import.
+export {
+  DAEMON_PROTOCOL_VERSION,
+  MIN_COMPATIBLE_PROTOCOL_VERSION,
+  isDaemonVersionStale,
+  isForeignDaemonHome,
+  isProtocolCompatible,
+} from "./protocol-compat.ts"
 
 export type DaemonFrame =
   | { readonly type: "request"; readonly id: string; readonly name: DaemonRequestName; readonly payload?: unknown }
@@ -168,6 +92,10 @@ export type DaemonRequestName =
   // of the worktree→engine→branch lifecycle that had no product path; refuses a
   // dirty base checkout and aborts on conflict, returning the conflicted files.
   | "task.land"
+  // The read-only half of a land: which branch the base checkout is on, how
+  // many commits ahead the task branch is, whether either refuses the merge.
+  // Four git reads — deliberately NOT in BLOCKING_RPCS.
+  | "task.landPreflight"
   // Merge a task's base branch INTO its worktree — the answer to the sidebar's
   // behind-base drift chip. Merge, never rebase: the worktree may have a live
   // engine holding files open.
@@ -178,8 +106,6 @@ export type DaemonRequestName =
   // Record the task brief on the task row AFTER the prompt was confirmed
   // delivered into the engine — the engine's own transcript is not durable,
   // and this field is the copy that survives a dead engine/context loss.
-  // Deliberately NOT web-exposed: the browser has no reason to write another
-  // task's brief, and the web allowlist is a security contract.
   | "task.setPrompt"
   | "task.ensureMain"
   // Open an existing directory as a standalone `kind:"dir"` task (`kobe .`).
@@ -190,6 +116,9 @@ export type DaemonRequestName =
   | "task.ensureWorktree"
   | "task.setActive"
   | "issue.list"
+  // Repo roots the issue store holds a record for — a board section means
+  // "this repo has a backlog", which the task index cannot answer.
+  | "issue.repos"
   | "issue.mutate"
   | "worktree.discoverAdoptable"
   | "worktree.adopt"
@@ -207,6 +136,7 @@ export type DaemonRequestName =
   // Remove the durable Inbox item at the supplied event timestamp. Explicit
   // removal, opening, and visiting the target all use this guarded operation.
   | "attention.dismiss"
+  | "attention.dismissRoutine"
   // Legacy alias for resolving the exact item; `at` guards stale clients.
   | "attention.read"
   // Scheduled Automations (docs/design/automations.md): CRUD over the
@@ -259,6 +189,10 @@ export type DaemonRequestName =
   // falls back to the standalone PTY Host when nobody confirms.
   | "terminalTab.close"
   | "terminalTab.closeReply"
+  // Broadcast "name this Terminal Tab" on the `tab.rename` channel
+  // (`kobe api rename --tab`). No reply half: a rename is idempotent, so the
+  // CLI also writes the persisted snapshot and the two converge.
+  | "terminalTab.rename"
   // Broadcast one toast to every attached UI over the `notice.event`
   // channel (`kobe api notify`). The daemon only validates + publishes.
   | "notice.send"
@@ -269,6 +203,10 @@ export type DaemonRequestName =
   // the launch path seeds each fresh worktree session with it.
   | "note.file"
   | "note.list"
+  // Drop one stored note by id. The store is not an archive: its newest
+  // entries are injected into every fresh session on the repo, so a note
+  // whose fact stopped being true has to be removable.
+  | "note.delete"
   // Hosted PTYs (v4) — persistent out-of-process terminals for embedded
   // engine sessions. Served by the standalone PTY HOST process
   // (`kobe pty-host`, its own socket — see `pty-server.ts`), NOT by the
@@ -280,15 +218,13 @@ export type DaemonRequestName =
   // palette even while no emulator is attached. `pty.open` attaches
   // the calling CONNECTION (spawning on first open, replaying the ring
   // buffer on reattach); output streams back as targeted `pty.data` event
-  // frames written only to attached connections. `pty.sweep` is the
-  // daemon→host janitor call: kill sessions whose task was deleted.
+  // frames written only to attached connections.
   | "pty.open"
   | "pty.write"
   | "pty.resize"
   | "pty.kill"
   | "pty.detach"
   | "pty.list"
-  | "pty.sweep"
   // Re-key a running session (`{from, to}` → `{renamed: boolean}`) — the
   // scratch-fold move: the child keeps running, only its ownership label
   // changes so sweeps and future attaches see it under the adopting task's
@@ -306,17 +242,26 @@ export type DaemonRequestName =
   // paying shell startup. Best-effort; older hosts reject the verb.
   | "pty.warm"
   // Deferred prompts: the delivery gate accepted a prompt
-  // it could not paste (composer busy) into daemon ownership. New clients use
-  // `fileIfVacant`, whose distinct name makes old replace-on-file daemons fail
-  // loud. `release` and `flush` claim records before exact-tab delivery;
-  // `get`/`resolve` remain only for loud legacy skew and pre-restart cleanup.
-  | "deferredPrompt.file"
+  // it could not paste (composer busy) into daemon ownership. Clients file
+  // through `fileIfVacant`, whose distinct name makes old replace-on-file
+  // daemons fail loud. `release` and `flush` claim records before exact-tab
+  // delivery. `list`/`dismiss` are the read + drop half the TUI Inbox
+  // performs on a screen, so a headless caller can act on its own deferred
+  // prompt instead of waiting out the 24h TTL
+  // (`rove api deferred-list|-release|-dismiss`).
   | "deferredPrompt.fileIfVacant"
-  | "deferredPrompt.get"
-  | "deferredPrompt.resolve"
+  | "deferredPrompt.list"
   | "deferredPrompt.release"
+  | "deferredPrompt.dismiss"
   | "deferredPrompt.discardTab"
   | "deferredPrompt.flush"
+  // Tombstones. `file`, `get` and `resolve` no longer do anything, but they
+  // stay NAMED so the registry answers them with an explicit refusal instead
+  // of the generic `unknown daemon request` — see RETIRED_DEFERRED_PROMPT_RPCS
+  // in handlers-deferred.ts for why the generic error misroutes the recovery.
+  | "deferredPrompt.file"
+  | "deferredPrompt.get"
+  | "deferredPrompt.resolve"
 
 /**
  * Verbs whose CONTRACT is to block, so the client must not put a wedge
@@ -337,8 +282,8 @@ export type DaemonRequestName =
  * This set lives in the wire contract, next to {@link DaemonRequestName},
  * because both the client (which must not import the handler registry — that
  * would drag every daemon module into the CLI) and the registry need it. The
- * registry entry is where a verb DECLARES it (`blocking: true` beside
- * `web: true`), and `test/daemon/rpc-deadline.test.ts` fails if the two drift.
+ * registry entry is where a verb DECLARES it (`blocking: true`), and
+ * `test/daemon/rpc-deadline.test.ts` fails if the two drift.
  */
 export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonRequestName>([
   // Blocks on a human answering the TUI dialog (default 120s, max 600s).
@@ -390,6 +335,41 @@ export type SubscribeRole = "gui" | "pane"
  * corrupts the client's VT state), and never pass through the event bus.
  */
 export type DaemonEventName = ChannelName | "daemon.stopping" | "pty.data" | "pty.exit"
+
+/**
+ * WHY a daemon is going away, carried on the `daemon.stopping` frame (v5).
+ *
+ * Without it every shutdown looks identical from a client socket: the peer
+ * closed. That is fine for the three reasons a client can only wait out
+ * (`idle`, `socket-lost`, `stop`), and wrong for the fourth — a `restart` is
+ * an operator replacing this daemon's CODE, which is the moment an attached
+ * TUI learns it is about to be a build behind. Inferring that from the close
+ * alone costs a reconnect plus a `hello` round trip under backoff, and the
+ * TUI would rather say "a refresh is available" the instant it is true.
+ *
+ * `stop` is the default so a daemon that stops for a reason nobody labelled
+ * never claims to be restarting.
+ */
+export type DaemonStopReason = "restart" | "stop" | "idle" | "socket-lost"
+
+/**
+ * The `daemon.stopping` frame's payload. Every field optional: a v4 daemon
+ * broadcasts `{}`, and a v4 client ignores what it does not know — so this
+ * shape may only ever GROW optional fields.
+ */
+export interface DaemonStoppingPayload {
+  readonly reason?: DaemonStopReason
+  /** The outgoing daemon's build version, so a client can compare without
+   *  waiting for the next `hello`. */
+  readonly kobeVersion?: string
+}
+
+/** Narrow an unknown `daemon.stopping` payload field to a known reason.
+ *  Unknown/absent → `undefined` (a daemon that predates the field, or a
+ *  newer one naming a reason this build has never heard of). Pure. */
+export function parseDaemonStopReason(value: unknown): DaemonStopReason | undefined {
+  return value === "restart" || value === "stop" || value === "idle" || value === "socket-lost" ? value : undefined
+}
 
 export interface DaemonError {
   readonly message: string

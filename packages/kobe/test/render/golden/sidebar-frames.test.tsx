@@ -23,7 +23,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test"
 import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
 import { currentLang, setLocaleLang } from "@/tui/i18n"
 import { goldenPath, matchGolden } from "../../golden/golden-file"
-import { renderComponent, settle } from "../harness"
+import { act, renderComponent, settle } from "../harness"
 import { SCENES, SCENE_HEIGHT, SCENE_WIDTH, type Scene } from "./sidebar-scenes"
 
 /** Let opentui's mount, the tree's follow effect, and the layout pass settle
@@ -93,7 +93,17 @@ for (const scene of SCENES) {
     })
     await settle(SETTLE_MS)
     for (const key of scene.keys ?? []) {
-      mockInput.typeText(key)
+      // `act` is what makes the keyed scenes deterministic, not the sleep.
+      // The sidebar's search box captures keys on a RAW renderer listener and
+      // calls `setQuery` from it (use-tree-search.ts), outside React's event
+      // system and outside `flushSync` — so the commit rides the concurrent
+      // scheduler and a fixed sleep is a bet on when it lands. Losing that bet
+      // captures the frame BEFORE the query renders, which is the `/ █ fuzzy
+      // filter` vs `/review█ 2/5` golden diff seen on CI. Awaiting `act` flushes
+      // the pending work instead of waiting for it.
+      await act(async () => {
+        await mockInput.typeText(key)
+      })
       await settle(SETTLE_MS)
     }
     const captured = scene.animated ? maskSpinner(await frame()) : await frame()

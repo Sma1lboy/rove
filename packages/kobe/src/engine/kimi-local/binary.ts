@@ -8,9 +8,13 @@
 import path from "node:path"
 import { BinaryNotFoundError, createBinaryFinder } from "../binary-discovery.ts"
 
+/** @public — one of four identical per-engine re-exports (claude-code-local,
+ *  codex-local, copilot-local, kimi-local). Tests import three of them; this
+ *  one is unconsumed today and stays for symmetry, because the odd engine out
+ *  is the shape a reader trips on. */
 export type { BinaryDiscoveryDeps } from "../binary-discovery.ts"
 
-export class KimiBinaryNotFoundError extends BinaryNotFoundError {
+class KimiBinaryNotFoundError extends BinaryNotFoundError {
   constructor(checkedPaths: readonly string[]) {
     super("Kimi Code CLI binary", "Ensure 'kimi' is on PATH or installed at ~/.kimi-code/bin/kimi.", checkedPaths)
     this.name = "KimiBinaryNotFoundError"

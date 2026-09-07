@@ -130,8 +130,12 @@ function movePluginTree(from: string, to: string): void {
 
 function register(entry: PluginRegistryEntry): void {
   savePluginRegistry(upsertPluginEntry(loadPluginRegistry(), entry))
-  mkdirSync(pluginConfigDir(entry.id), { recursive: true })
-  mkdirSync(pluginStateDir(entry.id), { recursive: true })
+  // 0700, matching the daemon's own mkdir: config holds the settings `.env`
+  // (the documented home for API keys) and state is plugin-owned data.
+  // Whoever creates the directory FIRST sets its mode — `mkdirSync` never
+  // chmods an existing one — so a 0755 here would outlive every later 0700.
+  mkdirSync(pluginConfigDir(entry.id), { recursive: true, mode: 0o700 })
+  mkdirSync(pluginStateDir(entry.id), { recursive: true, mode: 0o700 })
 }
 
 /** Installs and returns the plugin id the manifest declared. */
@@ -205,6 +209,14 @@ export function linkPlugin(dir: string): void {
     fail(`\`${id}\` is installed from GitHub; uninstall it before linking a local copy`)
   }
   for (const w of parsed.warnings) console.log(`warning: ${w}`)
+  // A warning, not a refusal: `install` fails here, but developing a
+  // Windows-only plugin on a Mac is legitimate. What is not legitimate is
+  // registering it with no hint that nothing will ever run it.
+  if (!supportsPlatform({}, parsed.manifest, currentPluginPlatform())) {
+    console.log(
+      `warning: declares platforms [${parsed.manifest.platforms?.join(", ")}]; nothing will run on this machine`,
+    )
+  }
   register({
     id,
     source: { kind: "link" },

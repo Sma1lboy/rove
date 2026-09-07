@@ -47,6 +47,29 @@ describe("trustKimiWorktree", () => {
     expect(typeof record.trustedAt).toBe("number")
   })
 
+  // Kimi hashes the RESOLVED path and lowercases the basename — read off a
+  // record kimi 0.40.1 wrote itself. A record keyed on the literal path
+  // suppresses no dialog, which is the whole point of writing one.
+  it("hashes the resolved path and lowercases the dirname segment", () => {
+    const home = tempHome()
+    const real = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "kobe-real-"))
+    tempDirs.push(real)
+    const target = path.join(real, "Task-A")
+    fs.mkdirSync(target)
+    const link = path.join(real, "link")
+    fs.symlinkSync(real, link)
+    const viaLink = path.join(link, "Task-A")
+
+    const file = kimiTrustFilePath(viaLink, home)
+    expect(path.basename(file)).toBe(`wd_task-a_${createHash("sha256").update(target).digest("hex").slice(0, 12)}`)
+    // …and the same worktree reached the long way round lands on one record.
+    expect(kimiTrustFilePath(target, home)).toBe(file)
+    // The record's own `root` resolves too, so it is shaped like one kimi
+    // writes rather than merely being FILED where kimi looks.
+    trustKimiWorktree(viaLink, home)
+    expect((JSON.parse(fs.readFileSync(file, "utf8")) as { root: string }).root).toBe(target)
+  })
+
   it("is idempotent — an existing record is not rewritten", () => {
     const home = tempHome()
     trustKimiWorktree(WORKTREE, home)

@@ -183,6 +183,22 @@ export const KobeKeymap: readonly KobeBinding[] = [
     description: "Open settings",
   },
   {
+    // PROPOSED — awaiting owner sign-off (AGENTS.md: chord PLACEMENT is the
+    // owner's call). `r` is the only free prefix stroke that says "refresh",
+    // and this belongs behind the prefix rather than on a direct chord: it is
+    // rare (once per upgrade) and destructive-looking (the UI goes away and
+    // comes back), which is exactly the tier the prefix exists for.
+    //
+    // Registered only while a refresh is actually available, so the command
+    // guide never advertises a chord that would answer "nothing to refresh".
+    id: "app.refresh",
+    scope: "global",
+    keys: [],
+    prefixKeys: ["r"],
+    category: "Global",
+    description: "Refresh Rove onto the installed build (after an update)",
+  },
+  {
     // Sidebar shortcut — single letter `s` mirrors the n/q pattern
     // (plain keys when the tasks list is focused). `prefix+,`
     // (settings.open above) is the from-anywhere equivalent.
@@ -330,16 +346,21 @@ export const KobeKeymap: readonly KobeBinding[] = [
     description: "Toggle zen mode (hide the files column)",
   },
   {
-    // Doc-only: the chord is registered inline in Chat.tsx (gated on
-    // focused + streaming + no dialog). ESC does NOT "detach" focus back to
-    // the sidebar — that would pull focus out from under the user mid-edit.
-    // Use `ctrl+q` (`focus.sidebar`) for the explicit detach;
-    // ESC in chat is reserved for interrupting the current turn.
-    id: "chat.interrupt",
-    scope: "workspace",
+    // PROPOSED prefix+r — awaiting owner sign-off (docs/design/
+    // keybinding-decisions.md). Erase + fully repaint the screen, for the
+    // corruption nothing can detect: a terminal that reflowed without
+    // changing the cell grid, a background image bleeding through a
+    // transparent theme, another program that scribbled on the alternate
+    // screen. `r` was the only free second stroke with the right mnemonic.
+    // Prefix-only and deliberately not a direct ctrl+l: that chord belongs
+    // to the shell and the engine inside the terminal pane, and "clear" is
+    // exactly what a user expects it to do THERE.
+    id: "view.redraw",
+    scope: "global",
     keys: [],
-    category: "Workspace",
-    description: "Interrupt current turn (esc while streaming)",
+    prefixKeys: ["r"],
+    category: "Global",
+    description: "Redraw the screen",
   },
   // ─── Sidebar + Tasks pane ─────────────────────────────────────────────
   // The rows below this header live in keybindings-sidebar.ts — a long
@@ -436,30 +457,12 @@ export const KobeKeymap: readonly KobeBinding[] = [
   // Those aren't user-configurable shortcuts — they're terminal-pane
   // behavior that has to forward whatever the user types to the shell.
 
-  // ─── Dialog (informational) ───────────────────────────────────────────
-  {
-    // Dialogs (DialogProvider, DialogConfirm, etc.) own their own escape
-    // binding higher on the binding stack. We list this here for the
-    // help dialog only — there's no global ESC handler anymore: ESC is
-    // owned by DialogProvider (when a dialog is open) and Chat.tsx (when
-    // chat is focused + streaming). Idle ESC is a no-op.
-    id: "dialog.cancel",
-    scope: "global",
-    keys: [],
-    category: "Dialog",
-    description: "Close the top dialog (esc)",
-  },
-  {
-    // New-task dialog sub-tab cycling. Chord is registered inside the
-    // dialog's own useBindings (so it wins over the workspace
-    // `chat.tab.cycle-*` bindings, which are gated off while a dialog
-    // is on the stack). This entry is doc-only — help dialog and any
-    // future settings UI render it from here.
-    id: "dialog.newtask.tab.cycle",
-    scope: "global",
-    keys: [],
-    category: "Dialog",
-    description: "Switch New Task tab (Existing / New Repo)",
-    hint: { keys: "ctrl+[/]" },
-  },
+  // ─── Dialog ───────────────────────────────────────────────────────────
+  // No rows. Every dialog owns its own chrome and prints its own chords —
+  // `esc` in the corner, `MODE  ctrl+[ ]` above the new-task chips — and
+  // dialogs are modal, so F1 cannot open over one anyway. The two rows that
+  // used to live here (`dialog.cancel`, `dialog.newtask.tab.cycle`) could
+  // only ever render where they were false: `dialog.cancel` had no `hint`
+  // and rendered nowhere at all, and the new-task chord showed in the
+  // sidebar, workspace and terminal — i.e. whenever the dialog was closed.
 ] as const

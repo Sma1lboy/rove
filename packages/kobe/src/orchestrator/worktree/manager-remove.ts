@@ -30,9 +30,11 @@
 
 import path from "node:path"
 import type { ExecHost } from "../../exec/exec-host.ts"
+import { DIRTY_WORKTREE_CODE, describeDirtyWorktreeWork } from "../errors.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
 import { type BranchDeps, deleteBranchAnchored } from "./manager-branch.ts"
 import { canonicalize, isUnderManagedWorktreesRoot, requireAbsolute } from "./paths.ts"
+import type { IgnoredWorkProbe } from "./salvage-ignored.ts"
 import { type SalvageRecord, salvageWorktree } from "./salvage.ts"
 import { parseWorktreeListPorcelain } from "./worktree-list.ts"
 
@@ -53,6 +55,35 @@ export interface WorktreeResidue {
 export interface RemoveOpts {
   readonly force?: boolean
   readonly deleteBranch?: boolean
+  /**
+   * The repo that owns this worktree, when the caller knows it.
+   *
+   * Only load-bearing for a worktree whose DIRECTORY IS ALREADY GONE: the
+   * stale `.git/worktrees/<name>` admin record can only be pruned from the
+   * owning repo, and with the directory missing there is nothing left to
+   * discover it from — `~/.rove/worktrees/<key>` is inside no repository at
+   * all. A task carries `task.repo`; a bare worktree path does not, and that
+   * caller keeps the (best-effort) discovery fallback.
+   */
+  readonly repo?: string
+  /**
+   * The branch this worktree has checked out, when the caller knows it.
+   *
+   * Same reason as {@link repo}, for the same missing-directory case: the
+   * branch to delete is normally read out of the worktree with
+   * `currentBranch(worktreePath)`, and that needs the directory. With it gone
+   * the read returns null and `deleteBranch: true` silently deletes nothing —
+   * the verb reports success and the branch the user asked to drop is still
+   * there. A task carries `task.branch`; a bare worktree path does not.
+   */
+  readonly branch?: string
+  /**
+   * Notified when `deleteBranch` was asked for and git REFUSED — an unmerged
+   * branch (`-d` without force), one another worktree still has checked out.
+   * The removal itself still succeeds, exactly as before; this is the only
+   * thing that stops the caller reporting a branch it never deleted.
+   */
+  readonly onBranchKept?: (kept: { readonly branch: string; readonly reason: string }) => void
   /** Notified with the snapshot a force-removal took (null = nothing to
    *  save, or the snapshot could not be written). */
   readonly onSalvage?: (record: SalvageRecord | null) => void
@@ -73,6 +104,9 @@ export interface RemoveDeps {
   currentBranch(worktreePath: string): Promise<string | null>
   /** Whether the worktree has uncommitted or untracked changes. */
   isDirty(worktreePath: string): Promise<boolean>
+  /** The gitignored paths a removal would destroy — work `isDirty` is blind to,
+   *  or `"unknown"` when the listing did not run. */
+  ignoredWork(worktreePath: string): Promise<IgnoredWorkProbe>
   /** Deps for the opt-in post-removal branch delete. */
   branchDeps(): BranchDeps
 }
@@ -144,6 +178,24 @@ async function deregisteredWorktreeResidue(exec: ExecHost, worktreePath: string)
 }
 
 /**
+ * The refusal message every non-force `remove()` gate throws.
+ *
+ * `DIRTY_WORKTREE_CODE` first so a caller across the daemon boundary can
+ * discriminate on it (the only field that survives the wire), then the same
+ * sentence {@link DirtyWorktreeError} produces, so the three states read
+ * identically whichever path refused. Named paths matter most in the ignored
+ * case: `git status` cannot see those, so a user told only "it has work" would
+ * go looking with a command that reports nothing.
+ *
+ * No `{ force: true }` in the text. Every surface already offers the remedy in
+ * its own vocabulary — the worktrees page as a force-delete re-prompt, the CLI
+ * as `--force` — and API syntax read badly in the dialog that IS the override.
+ */
+function dirtyRefusal(worktreePath: string, ignored: IgnoredWorkProbe): string {
+  return `${DIRTY_WORKTREE_CODE}: ${worktreePath} has ${describeDirtyWorktreeWork(ignored)} — forcing the removal salvages it to a ref first`
+}
+
+/**
  * Remove a worktree. Refuses to remove a dirty worktree unless `opts.force`
  * is true.
  *
@@ -174,16 +226,35 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
   const force = opts?.force === true
 
   if (!(await exec.exists(worktreePath))) {
-    // Best-effort metadata prune — the directory may be gone but a stale
-    // entry can survive in `.git/worktrees/`. `git worktree remove` will
-    // refuse, so we use prune.
+    // The directory is gone but a stale entry survives in `.git/worktrees/`,
+    // and only a prune IN THE OWNING REPO clears it. `git worktree remove`
+    // refuses a missing path, so prune is the whole of the removal here — skip
+    // it and the delete reports `removed` while git still lists the worktree
+    // as `prunable`, `git branch -D` fails forever with "used by worktree at
+    // <gone path>", and `discover-adoptable` keeps offering the ghost.
     //
-    // Probed from the PARENT: git runs with `cwd` set to the path, and a
-    // spawn into a directory this branch just proved is missing returns
-    // exit -1 (`exec-host.ts`), so probing the path itself always answered
-    // null and this prune never ran.
-    const goneRepo = await deps.findRepoFor(exec, path.dirname(worktreePath))
-    if (goneRepo) await deps.runGit(exec, ["worktree", "prune"], { cwd: goneRepo, allowFail: true })
+    // The caller's `repo` is preferred because discovery CANNOT find it: git
+    // runs with `cwd` set to the path, and a spawn into a directory this
+    // branch just proved is missing returns exit -1 (`exec-host.ts`), so the
+    // probe walks up from the PARENT instead — and `~/.rove/worktrees/<key>`
+    // is in no repository, so it answers null and the prune never runs. Where
+    // that parent does happen to sit inside some unrelated repo it answers the
+    // wrong one, which is worse. The fallback stays for callers holding only a
+    // path (the worktrees page), which is where it can still work.
+    const goneRepo = opts?.repo ?? (await deps.findRepoFor(exec, path.dirname(worktreePath)))
+    if (goneRepo) {
+      await deps.runGit(exec, ["worktree", "prune"], { cwd: goneRepo, allowFail: true })
+      // An opt-in branch delete still has to happen here. `currentBranch`
+      // cannot answer for a directory that is gone, so this is the one path
+      // where the branch has to arrive from the caller — and the prune above
+      // is what makes it deletable at all (git refuses a branch it still
+      // believes a worktree has checked out). Best-effort, like every other
+      // branch delete: it runs after the removal is otherwise complete.
+      if (opts?.deleteBranch === true && opts.branch) {
+        const outcome = await deleteBranchAnchored(deps.branchDeps(), exec, goneRepo, opts.branch, { force })
+        if (!outcome.deleted) opts.onBranchKept?.({ branch: opts.branch, reason: outcome.reason })
+      }
+    }
     return
   }
 
@@ -238,7 +309,12 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
     if (!force) {
       throw new Error(`remove(): ${worktreePath} is not a git worktree`)
     }
-    if (!isUnderManagedWorktreesRoot(worktreePath)) {
+    // The caller's repo is what expands a `$project_dir` worktree base; with
+    // that preset every managed worktree sits outside the default roots, so
+    // without it the guard refuses paths Rove itself created and the deletion
+    // can never converge. A caller holding only a path (the worktrees page)
+    // still gets the default-root answer.
+    if (!isUnderManagedWorktreesRoot(worktreePath, opts?.repo)) {
       throw new Error(
         `remove(): ${worktreePath} has no reachable git repo and is not under a Rove worktrees root; refusing to delete it`,
       )
@@ -261,7 +337,12 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
 
   // Capture the branch BEFORE removal (once the worktree is gone we can't
   // read its HEAD) so an opt-in `deleteBranch` can clean it up after.
-  const branch = opts?.deleteBranch ? await deps.currentBranch(worktreePath).catch(() => null) : null
+  // The caller's `branch` is the fallback, not the primary: the worktree's own
+  // HEAD is the truth while the directory is readable (a caller's record can be
+  // stale), and `task.branch` is what is left when it is not.
+  const branch = opts?.deleteBranch
+    ? ((await deps.currentBranch(worktreePath).catch(() => null)) ?? opts.branch ?? null)
+    : null
 
   if (force) {
     // The last moment at which the doomed files still exist. The dirty check
@@ -270,11 +351,30 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
     const salvaged = await salvageWorktree({ runGit: (e, a, o) => deps.runGit(e, a, o) }, exec, worktreePath)
     opts?.onSalvage?.(salvaged)
   } else {
-    const dirty = await deps.isDirty(worktreePath)
-    if (dirty) {
-      throw new Error(
-        `remove(): refusing to remove dirty worktree at ${worktreePath} (pass { force: true } to override)`,
-      )
+    // All three refusals below lead the message with DIRTY_WORKTREE_CODE and
+    // phrase the reason with the SAME sentence `DirtyWorktreeError` uses. The
+    // RPC layer rebuilds a thrown error as `new Error(message)`, so the
+    // message is the only thing a caller across the daemon boundary can
+    // discriminate on — and the worktrees page used to match prose that only
+    // the first of the three produced, dropping the other two into a dead-end
+    // error toast with no force-delete re-prompt.
+    if (await deps.isDirty(worktreePath)) {
+      throw new Error(dirtyRefusal(worktreePath, []))
+    }
+    // `status --porcelain` is blind to `.gitignore`d entries, so a worktree
+    // whose only work is `HANDOFF.md` or `.scratch/` reads clean and the
+    // removal above would destroy it with no salvage snapshot (the force path
+    // is the only one that takes one). Same rule as the snapshot, so the
+    // refusal names exactly what a `--force` retry would rescue.
+    // NOT `.catch(() => [])`. An empty list is this gate's permission to
+    // destroy the directory, so a probe that threw or exited non-zero used to
+    // hand out that permission on the strength of having failed — the same
+    // shape as the `isDirty` call above, which deliberately lets its failure
+    // throw (`daemon-worktree-adapter.ts` names that as why a destructive path
+    // may not read an unverified verdict).
+    const ignored = await deps.ignoredWork(worktreePath)
+    if (ignored === "unknown" || ignored.length > 0) {
+      throw new Error(dirtyRefusal(worktreePath, ignored))
     }
   }
 
@@ -304,5 +404,8 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
   // worktree's own reflog died with the directory a few lines up. Runs on the
   // residue path too: by then the branch is checked out nowhere, which is the
   // only thing that makes it undeletable.
-  if (branch) await deleteBranchAnchored(deps.branchDeps(), exec, repo, branch, { force })
+  if (branch) {
+    const outcome = await deleteBranchAnchored(deps.branchDeps(), exec, repo, branch, { force })
+    if (!outcome.deleted) opts?.onBranchKept?.({ branch, reason: outcome.reason })
+  }
 }

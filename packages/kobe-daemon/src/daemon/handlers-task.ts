@@ -14,6 +14,7 @@
 
 import { logDaemonError } from "./crash-log.ts"
 import { optionalBoolean, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
+import { publishIssueSnapshot } from "./handlers-issues.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import { serializeTask } from "./protocol.ts"
 import { auditDeletionRequested } from "./task-deletion-audit.ts"
@@ -21,7 +22,6 @@ import { auditDeletionRequested } from "./task-deletion-audit.ts"
 export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.list",
-    web: true,
     handle(_payload, ctx: DaemonHandlerContext) {
       // `activeTaskId` is the shared focus every verb using the implicit
       // target reads when `--task-id` is omitted — without it in the list
@@ -36,7 +36,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.get",
-    web: true,
     handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const task = ctx.orch.getTask(taskId)
@@ -46,7 +45,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.create",
-    web: true,
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
       // Dispatcher provenance: the CLI reads its own
@@ -73,7 +71,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.rename",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       await ctx.orch.setTitle(taskId, requireString(payload, "title"))
@@ -82,7 +79,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.setBranch",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       await ctx.orch.setBranch(taskId, requireString(payload, "branch"))
@@ -91,11 +87,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.observeLanguage",
-    // NOT web-exposed: the only callers are Rove's own creation paths (CLI
-    // add, daemon automation/work-item start), which reach the daemon over
-    // the socket. The browser has no reason to write another task's
-    // observed language, and the web allowlist is a security contract —
-    // adding to it should be a deliberate act, not a reflex.
     async handle(payload, ctx) {
       // Observation, not configuration: the caller hands over the user's own
       // prompt text and the orchestrator decides what (if anything) it says
@@ -109,7 +100,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.setVendor",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const vendor = optionalVendor(payload, "vendor")
@@ -124,7 +114,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.setCommand",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       // The PROTOCOL rides along rather than being derived here: engine
@@ -137,7 +126,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.delete",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const force = optionalBoolean(payload, "force")
@@ -172,7 +160,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       if (task) {
         try {
           const next = await ctx.issues.unlinkTask(task.repo, taskId)
-          if (next) ctx.bus.publish("issue.snapshot", next)
+          if (next) publishIssueSnapshot(ctx, next)
         } catch (err) {
           logDaemonError("issue-delete-unlink", err)
         }
@@ -188,9 +176,19 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    // Read-only sibling of `task.land`: four git reads (HEAD, status,
+    // rev-list, and the worktree's status only when the count is zero), no
+    // writes. Deliberately NOT `blocking` — putting it on the long-operation
+    // list would tell the client to drop its deadline for something that
+    // finishes in milliseconds, and the land confirm awaits it inline.
+    name: "task.landPreflight",
+    async handle(payload, ctx) {
+      return { result: await ctx.orch.landPreflight(requireString(payload, "taskId")) }
+    },
+  },
+  {
     name: "task.land",
     blocking: true,
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const strategy = optionalString(payload, "strategy") === "squash" ? "squash" : "merge"
@@ -226,7 +224,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.pin",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       await ctx.orch.setPinned(taskId, optionalBoolean(payload, "pinned"))
@@ -235,7 +232,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.move",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const direction = requireString(payload, "direction")
@@ -246,7 +242,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.status",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const status = requireString(payload, "status")
@@ -270,7 +265,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       if (status === "done" && prevStatus !== "done" && linked) {
         try {
           const next = await ctx.issues.mirrorTaskDone(linked.repo, taskId)
-          if (next) ctx.bus.publish("issue.snapshot", next)
+          if (next) publishIssueSnapshot(ctx, next)
         } catch (err) {
           logDaemonError("issue-done-mirror", err)
         }
@@ -280,7 +275,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.openDir",
-    web: true,
     async handle(payload, ctx) {
       const dir = requireString(payload, "dir")
       const task = await ctx.orch.openDirectoryTask({
@@ -295,7 +289,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     // Scratch → project migration: repoint a scratch task at the
     // repo its shell settled in and clear the flag. No-op on non-scratch rows.
     name: "task.adoptScratchRepo",
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       await ctx.orch.adoptScratchRepo(taskId, requireString(payload, "repo"))
@@ -305,7 +298,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.ensureMain",
     blocking: true,
-    web: true,
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
       const task = await ctx.orch.ensureMainTask(repo)
@@ -323,7 +315,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.ensureWorktree",
     blocking: true,
-    web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       // Long-operation feedback: `git worktree add` is
@@ -356,12 +347,12 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    // NOT web-exposed. Two writers, both on a path where the prompt is already
-    // on its way to an engine: the CLI `add` path records the brief AFTER
-    // delivery confirms, and the TUI's "Run again" copies a task's existing
-    // brief onto the fork it just created for it. The field means "this is the
-    // prompt the engine was given" in both cases — an agent reading `get-task`
-    // never sees a brief that was merely composed.
+    // Two writers, both on a path where the prompt is already on its way to
+    // an engine: the CLI `add` path records the brief AFTER delivery
+    // confirms, and the TUI's "Run again" copies a task's existing brief onto
+    // the fork it just created for it. The field means "this is the prompt
+    // the engine was given" in both cases — an agent reading `get-task` never
+    // sees a brief that was merely composed.
     name: "task.setPrompt",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
@@ -371,7 +362,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.setActive",
-    web: true,
     async handle(payload, ctx) {
       // UI/session focus lives on the bus, but setting it also touches the
       // task's updatedAt so "recent" task sorting reflects actual use.

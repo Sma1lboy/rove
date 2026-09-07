@@ -12,12 +12,12 @@
  * rather than the box — the page owns the frame and the order.
  */
 
-import { TextAttributes } from "@opentui/core"
+import { type RGBA, TextAttributes } from "@opentui/core"
 import type { AutomationRun } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import type { ReactNode } from "react"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
-import { formatWhen } from "./automations-format"
+import { formatRunStatus, formatWhen } from "./automations-format"
 
 /** Run-status → how it should read at a glance. The four "didn't run" reasons
  *  are deliberately distinct: `skipped_precheck` is healthy (nothing to do),
@@ -30,9 +30,38 @@ const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
   revived: "success",
   deferred: "warning",
   skipped_precheck: "muted",
+  skipped_cancelled: "muted",
   skipped_missed: "warning",
   skipped_unavailable: "warning",
   dispatch_failed: "error",
+}
+
+/** A run's tone as a colour. Shared with the LIST, so a row's health glyph and
+ *  the detail box's history line can never disagree about what a status means. */
+export function runToneColor(
+  status: string,
+  theme: { success: RGBA; warning: RGBA; error: RGBA; textMuted: RGBA },
+): RGBA {
+  const tone = RUN_TONE[status] ?? "muted"
+  if (tone === "success") return theme.success
+  if (tone === "warning") return theme.warning
+  if (tone === "error") return theme.error
+  return theme.textMuted
+}
+
+/**
+ * One cell saying how the latest run went, in the vocabulary the sidebar rail
+ * and the Inbox already use (`inbox-item-view.ts`): `✓` done, `†` the engine
+ * process is gone, `!` wants a look, `·` nothing to do. Three surfaces
+ * describing one failure in three vocabularies is what makes a broken routine
+ * and a quiet one look alike.
+ */
+export function runGlyph(status: string): string {
+  const tone = RUN_TONE[status] ?? "muted"
+  if (tone === "success") return "✓"
+  if (tone === "error") return "†"
+  if (tone === "warning") return "!"
+  return "·"
 }
 
 /** `·` cron fired it, `▸` a human did. One cell, and it answers "did I run
@@ -124,18 +153,9 @@ export function RunHistory(props: { runs: readonly AutomationRun[]; now: number 
         <text fg={theme.textMuted}>{t("automations.noRuns")}</text>
       ) : (
         runs.slice(0, 5).map((run) => {
-          const tone = RUN_TONE[run.status] ?? "muted"
-          const color =
-            tone === "success"
-              ? theme.success
-              : tone === "warning"
-                ? theme.warning
-                : tone === "error"
-                  ? theme.error
-                  : theme.textMuted
           return (
-            <text key={run.id} fg={color}>
-              {`${triggerGlyph(run.trigger)} #${run.runNumber} ${run.status}${run.error ? ` \u2014 ${run.error}` : ""}  ${formatWhen(run.at, props.now)}`}
+            <text key={run.id} fg={runToneColor(run.status, theme)}>
+              {`${triggerGlyph(run.trigger)} #${run.runNumber} ${formatRunStatus(run.status, t)}${run.tabId ? ` · ${run.tabId}` : ""}${run.deferredId ? ` · ${t("automations.queuedReceipt", { id: run.deferredId })}` : ""}${run.error ? ` \u2014 ${run.error}` : ""}  ${formatWhen(run.at, props.now)}`}
             </text>
           )
         })

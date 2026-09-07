@@ -28,7 +28,7 @@ import { useLatest } from "../../lib/use-latest"
 import { ContextMenu } from "../../ui/context-menu"
 import { SidebarBrandHeader, SidebarCreateAction, SidebarNavRail, SidebarSearchInput, SidebarZenChip } from "./chrome"
 import { SidebarTreeBody } from "./tree-panel"
-import type { TreeRowShared } from "./tree-rows"
+import type { TreeRowShared } from "./tree-row-shell"
 import type { SidebarProps } from "./types"
 import { cursorTaskIdOf, useTreeBindings } from "./use-tree-bindings"
 import { useTreeMenu } from "./use-tree-menu"
@@ -343,6 +343,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     engineLifecycle: props.engineLifecycle,
     taskJobs: props.taskJobs,
     worktreeChanges: props.worktreeChanges,
+    transcriptActivity: props.transcriptActivity,
   }
 
   return (

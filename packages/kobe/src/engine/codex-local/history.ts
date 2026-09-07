@@ -26,253 +26,21 @@
  * whole result.
  */
 
-import { readdir, stat, unlink } from "node:fs/promises"
-import { homedir } from "node:os"
-import path from "node:path"
+import { unlink } from "node:fs/promises"
 import type { EngineHistory, Message } from "@/types/engine"
-import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
-import { vendorConfigHome } from "../vendor-home"
 import { parseRolloutRaw } from "./history-parse"
+import { type HistoryDeps, defaultHistoryDeps, findLatestRolloutForWorktree, findRolloutFile } from "./session-files"
 
 export { deriveCodexUsageMetrics, parseJsonl } from "./history-parse"
-
-export interface HistoryDeps {
-  /** Absolute path to `~/.codex/sessions`. */
-  sessionsDir(): string
-  readdir(p: string): Promise<string[]>
-  readFile(p: string): Promise<string>
-  /** mtime probe — injected so the activity poll is unit-testable. */
-  stat(p: string): Promise<{ mtimeMs: number }>
-}
-
-export const defaultHistoryDeps: HistoryDeps = {
-  sessionsDir() {
-    return path.join(vendorConfigHome("codex"), "sessions")
-  },
-  async readdir(p) {
-    try {
-      return await readdir(p)
-    } catch {
-      return []
-    }
-  },
-  async readFile(p) {
-    // Size-bounded: an oversize/corrupt rollout degrades to "" rather than
-    // slurping a multi-GB file into memory.
-    return await readTextFileBounded(p)
-  },
-  stat,
-}
-
-/**
- * Cap on rollout paths {@link listRolloutFiles} will collect from the date
- * tree. Consistent with the other `MAX_*` scan caps below, this guards the
- * traversal against a pathological/corrupt `~/.codex/sessions` tree with an
- * unbounded number of entries. Newest-first ordering means recent sessions are
- * always covered; older ones past the cap are dropped (noted once, see below).
- * Set well above any realistic session count so normal history is untouched.
- */
-const MAX_ROLLOUT_FILES = 5000
-
-/** Warn-once guard so the 1.5–4s pollers don't spam the truncation note. */
-let warnedRolloutTruncation = false
-
-/**
- * Scan the date tree, newest first. Returns absolute paths to rollout
- * files in approximate newest→oldest order. Best-effort: missing /
- * unreadable dirs are skipped silently.
- */
-export async function listRolloutFiles(deps: HistoryDeps = defaultHistoryDeps): Promise<string[]> {
-  const root = deps.sessionsDir()
-  const years = (await deps.readdir(root)).sort().reverse()
-  const out: string[] = []
-  for (const y of years) {
-    const yp = path.join(root, y)
-    const months = (await deps.readdir(yp)).sort().reverse()
-    for (const m of months) {
-      const mp = path.join(yp, m)
-      const days = (await deps.readdir(mp)).sort().reverse()
-      for (const d of days) {
-        const dp = path.join(mp, d)
-        const files = (await deps.readdir(dp)).filter((f) => f.startsWith("rollout-") && f.endsWith(".jsonl"))
-        // Files within a day: lexicographic == chronological (filename
-        // begins with the ISO timestamp), so reversed = newest first.
-        files.sort().reverse()
-        for (const f of files) {
-          out.push(path.join(dp, f))
-          if (out.length >= MAX_ROLLOUT_FILES) {
-            if (!warnedRolloutTruncation) {
-              warnedRolloutTruncation = true
-              console.warn(
-                `[codex history] rollout scan truncated at ${MAX_ROLLOUT_FILES} files; older sessions may be omitted`,
-              )
-            }
-            return out
-          }
-        }
-      }
-    }
-  }
-  return out
-}
-
-/**
- * Find the rollout file whose UUID matches `sessionId`. Returns the
- * absolute path or `undefined` if no match. We scan newest-first so
- * recent sessions resolve in a couple of stat calls.
- */
-export async function findRolloutFile(
-  sessionId: string,
-  deps: HistoryDeps = defaultHistoryDeps,
-): Promise<string | undefined> {
-  if (!sessionId) return undefined
-  const want = sessionId.toLowerCase()
-  const all = await listRolloutFiles(deps)
-  for (const p of all) {
-    // Match the FULL embedded UUID, not an `endsWith(`-${sessionId}`)` suffix:
-    // a partial/truncated id can align to an internal UUID `-` boundary and
-    // resolve an unrelated session's transcript.
-    if (path.basename(p).match(UUID_AT_END)?.[1]?.toLowerCase() === want) return p
-  }
-  return undefined
-}
-
-/** UUID embedded at the tail of a `rollout-<ISO>-<UUID>.jsonl` filename. */
-const UUID_AT_END = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/i
-
-/** The `cwd` recorded on a rollout's `session_meta` line, or `""`. */
-export function rolloutCwd(raw: string): string {
-  for (const line of raw.split("\n")) {
-    const trimmed = line.trim()
-    if (!trimmed) continue
-    // A mega first line is treated as "no parseable meta" — same as malformed.
-    if (!isJsonlLineWithinBound(trimmed)) return ""
-    try {
-      const rec = JSON.parse(trimmed) as { type?: string; payload?: { cwd?: string } }
-      if (rec.type === "session_meta") return rec.payload?.cwd ?? ""
-    } catch {
-      // tolerate a malformed leading line
-    }
-    // session_meta is the first record; if the first JSON line isn't it,
-    // this rollout has no meta — stop probing.
-    return ""
-  }
-  return ""
-}
-
-/**
- * `session_meta.cwd` memo, keyed by rollout path. A rollout's
- * `session_meta` is its FIRST line, written once at session start, and
- * rollout filenames embed a UUID + ISO timestamp so a path is never
- * reused — a successfully parsed, non-empty cwd is immutable and can be
- * cached forever. The polling callers (the Ops pane's 2.5s activity poll
- * and 1.5s turn poll, the daemon's 4s auto-title tick) would otherwise
- * re-READ up to 12–200 whole rollout JSONLs per tick just to re-derive
- * the same first-line cwd.
- *
- * Two deliberate non-caches:
- *   - `""` (no/invalid session_meta) is NOT cached: a rollout caught
- *     mid-write can briefly have a partial first line, and pinning `""`
- *     would permanently hide that session from the pollers.
- *   - a failed read is NOT cached (the file may appear/become readable).
- *
- * Keyed per `HistoryDeps` object (WeakMap) so injected test deps never
- * share state with production or with each other.
- */
-const rolloutCwdCaches = new WeakMap<HistoryDeps, Map<string, string>>()
-
-/** Cached cwd for one rollout file: `""` = no meta, `null` = unreadable. */
-async function rolloutCwdForFile(file: string, deps: HistoryDeps): Promise<string | null> {
-  let cache = rolloutCwdCaches.get(deps)
-  if (!cache) {
-    cache = new Map()
-    rolloutCwdCaches.set(deps, cache)
-  }
-  const hit = cache.get(file)
-  if (hit !== undefined) return hit
-  let raw: string
-  try {
-    raw = await deps.readFile(file)
-  } catch {
-    return null
-  }
-  const cwd = rolloutCwd(raw)
-  if (cwd) cache.set(file, cwd)
-  return cwd
-}
-
-/** Cap on rollout files probed by {@link listSessionIdsForWorktree}. */
-const MAX_WORKTREE_SCAN = 200
-
-/**
- * Session UUIDs whose rollout `session_meta.cwd` equals `worktree`,
- * oldest-first. The Codex analogue of claude-code's
- * `listSessionFilesForWorktree` — Codex stores rollouts in a global
- * date tree (not per-worktree dirs), so we scan newest-first (capped)
- * and filter by the recorded cwd, then reverse to oldest-first so the
- * caller sees the worktree's origin conversation first. cwd probes hit
- * the {@link rolloutCwdForFile} memo, so a repeat scan (the auto-title
- * poller's tick) reads no rollout it has seen before.
- */
-export async function listSessionIdsForWorktree(
-  worktree: string,
-  deps: HistoryDeps = defaultHistoryDeps,
-): Promise<string[]> {
-  if (!worktree) return []
-  const files = await listRolloutFiles(deps)
-  const matches: string[] = []
-  let scanned = 0
-  for (const file of files) {
-    if (scanned >= MAX_WORKTREE_SCAN) break
-    scanned++
-    if ((await rolloutCwdForFile(file, deps)) !== worktree) continue
-    const id = path.basename(file).match(UUID_AT_END)?.[1]
-    if (id) matches.push(id)
-  }
-  return matches.reverse()
-}
-
-/** Newest-first files probed for the max-mtime scan in {@link findLatestRolloutForWorktree}. */
-const MAX_MTIME_SCAN = 12
-
-/**
- * The rollout with the newest mtime recorded for `worktree` (path +
- * that mtime), or `null` when none match. Walks `listRolloutFiles`
- * (newest-first by filename ≈ chronological) and returns the cwd match
- * with the greatest mtime — the "newest activity" signal the Ops badge
- * and turn detector consume. This is the max mtime across the
- * worktree's rollouts, matching the Claude and Copilot readers'
- * `latestTranscriptMtimeForWorktree` semantics: filename order is
- * creation order, so a resumed older session (a rollout appended to
- * after a newer, idle one was created) can carry the higher mtime, and
- * the older-by-filename file is then the one the agent is truly active
- * in. With the {@link rolloutCwdForFile} memo a REPEAT poll issues no
- * file reads at all (directory listings + one stat per match). Capped
- * at {@link MAX_MTIME_SCAN} probes so a busy machine with many
- * unrelated sessions can't make the poll expensive. A match whose stat
- * fails (deleted mid-scan) is skipped and the scan continues.
- */
-export async function findLatestRolloutForWorktree(
-  worktree: string,
-  deps: HistoryDeps = defaultHistoryDeps,
-): Promise<{ path: string; mtimeMs: number } | null> {
-  if (!worktree) return null
-  const files = await listRolloutFiles(deps)
-  let scanned = 0
-  let best: { path: string; mtimeMs: number } | null = null
-  for (const file of files) {
-    if (scanned >= MAX_MTIME_SCAN) break
-    scanned++
-    if ((await rolloutCwdForFile(file, deps)) !== worktree) continue
-    try {
-      const mtimeMs = (await deps.stat(file)).mtimeMs
-      if (!best || mtimeMs > best.mtimeMs) best = { path: file, mtimeMs }
-    } catch {
-      // vanished between listing and stat — keep scanning older rollouts
-    }
-  }
-  return best
-}
+export {
+  type HistoryDeps,
+  defaultHistoryDeps,
+  findLatestRolloutForWorktree,
+  findRolloutFile,
+  listRolloutFiles,
+  listSessionIdsForWorktree,
+  rolloutCwd,
+} from "./session-files"
 
 /**
  * Newest rollout mtime (epoch ms) for `worktree`, or 0 when none match.
@@ -287,8 +55,11 @@ export async function latestTranscriptMtimeForWorktree(
   return (await findLatestRolloutForWorktree(worktree, deps))?.mtimeMs ?? 0
 }
 
-export async function readHistory(sessionId: string, deps: HistoryDeps = defaultHistoryDeps): Promise<Message[]> {
-  return (await readHistoryWithMetrics(sessionId, deps)).messages as Message[]
+export async function readHistory(
+  sessionId: string,
+  deps: HistoryDeps = defaultHistoryDeps,
+): Promise<readonly Message[]> {
+  return (await readHistoryWithMetrics(sessionId, deps)).messages
 }
 
 export async function readHistoryWithMetrics(

@@ -79,7 +79,7 @@ export function activeTabIdFor(taskId: string): string | null {
  *  mounted before the context exists) still sees the live tabs instead of
  *  crashing: the in-memory map is authoritative for anything running now,
  *  and the snapshot only adds tasks that have not mounted since restart. */
-function knownTabsState(kv: TabsSnapshotKv | null, taskId: string): TabsState | null {
+export function knownTabsState(kv: TabsSnapshotKv | null, taskId: string): TabsState | null {
   const live = tabsByTask.get(taskId)
   if (live) return live
   const saved = kv?.store[terminalTabsKey(taskId)] as TabsState | null | undefined
@@ -180,6 +180,7 @@ const paneCloseBox = requestBox<{ title: string; tabId?: string }>()
 const tabCloseBox = requestBox<string>()
 const adoptBox = requestBox<readonly string[]>()
 const moveBox = requestBox<{ tabId: string; delta: -1 | 1 }>()
+const renameBox = requestBox<{ tabId: string; title: string }>()
 
 /**
  * "Activate this tab" (the F7 attention jump). The mounted TerminalTabs for
@@ -270,6 +271,19 @@ export const takeTabMove = moveBox.take
 /** The twin of {@link takeUnclaimedTabClose} for tab moves. */
 export function takeUnclaimedTabMove(): { taskId: string; tabId: string; delta: -1 | 1 } | null {
   const claimed = moveBox.takeUnclaimed()
+  return claimed && { taskId: claimed.taskId, ...claimed.payload }
+}
+
+/** "Rename this tab" (`rove api rename --tab`, arriving over the daemon's
+ *  `tab.rename` broadcast); the background write is `renameTaskTab`. */
+export function requestTabRename(taskId: string, tabId: string, title: string): void {
+  renameBox.request(taskId, { tabId, title })
+}
+export const takeTabRename = renameBox.take
+
+/** The twin of {@link takeUnclaimedTabClose} for tab renames. */
+export function takeUnclaimedTabRename(): { taskId: string; tabId: string; title: string } | null {
+  const claimed = renameBox.takeUnclaimed()
   return claimed && { taskId: claimed.taskId, ...claimed.payload }
 }
 

@@ -76,6 +76,58 @@ Windows executable path.
 Remote-project password auth is not available on Windows; use `--key` or
 ssh-agent. Only macOS has the keychain integration used by `--password`.
 
+## The Windows screen looks scrambled, and stays that way
+
+Rows overlapping each other, fragments of a pane you already left, patches of
+the terminal's background image showing through. Rove's renderer draws each
+frame by writing only the cells that CHANGED since the last one, and a
+terminal that reflowed its own grid — on a resize, a font-size change, a
+window split — has moved cells the renderer still believes it owns. Nothing
+corrected that, so the leftovers survived every later frame and the only cure
+was quitting.
+
+Rove now repaints every cell after a resize and whenever the window regains
+focus, so the ordinary cases clear themselves. For anything that slips past —
+a terminal that reflowed without changing the cell grid, another program
+writing over Rove — press `ctrl+a` `r` to erase and repaint. Nothing but the
+screen changes: no task, tab, or engine state moves.
+
+Rove also starts opaque on Windows. Windows Terminal ships acrylic and
+background images on by default, and in transparent mode Rove paints no opaque
+cell of its own, so anything a frame does not cover shows the wallpaper rather
+than the previous frame. Set `transparentBackground` to `true` in
+`state.json`, or turn it on in **Settings → General**, if you want it anyway;
+a value you have already chosen is left alone.
+
+## Windows: `engineAlive` and `liveVendor` come back as `unknown`
+
+"Is an engine running in this tab" is answered from the process tree, and on
+Windows that answer needs two things macOS and Linux do not:
+
+- **Windows PowerShell** (`%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`)
+  for the process table. The `ps` on a Git for Windows PATH is a Cygwin build
+  that rejects `-A`, so Rove reads `Get-CimInstance Win32_Process` instead.
+- **node-pty's `conpty_console_list` addon**, which ships prebuilt with
+  Rove's `node-pty` dependency. An npm-installed engine launches through a
+  `.cmd` shim whose `cmd.exe` exits immediately, so the process table alone
+  cannot link a tab's shell to its engine — the tab's ConPTY console can, and
+  that addon is what reads it.
+
+When either is missing the walk reports **unknown** rather than guessing.
+`rove api collect` and `get-task` leave `engineAlive`/`liveVendor` unset and
+`running` untouched; `rove api send` refuses with `ENGINE_PROBE_FAILED` (not
+`ENGINE_NOT_RUNNING` — that one is a positive "this tab is a bare shell").
+Check that both exist, then retry:
+
+```powershell
+where.exe powershell
+rove api inspect --task-id <id>
+```
+
+The Windows walk costs roughly half a second per probe, most of it PowerShell
+startup, where the POSIX `ps` costs ~20ms. That is why the sidebar's live
+engine badge can lag a second or so behind an engine you just quit.
+
 ## The daemon, sidebar, or a terminal session looks wedged
 
 Run the read-only diagnosis first:
@@ -89,15 +141,62 @@ rove api inspect --task-id <task-id> --pretty
 PTY sessions, persisted tab snapshots, and durable abnormal-exit records, so
 it is the best first attachment for a badge, label, or engine-crash report.
 `rove doctor --report` writes a bundle containing the same diagnosis plus
-recent logs and environment details.
+recent logs and environment details. It lands at
+`~/.rove/rove-doctor-report.txt` — beside the logs it quotes, and the same
+path wherever you ran the command from, so it never drops an untracked file
+into the repo you were debugging.
 
 The raw logs live under the active Rove home (normally your OS home):
 
 | Path | Contains |
 |---|---|
-| `~/.rove/daemon.log` | daemon startup, crashes, RPC and web-transport failures, task-deletion audit |
+| `~/.rove/daemon.log` | daemon startup, crashes, RPC failures, task-deletion audit |
 | `~/.rove/pty.log` | Hosted PTY startup and session-host failures |
 | `~/.rove/client.log` | TUI/pane connection, disconnect, and reconnect diagnostics |
+
+## Processes keep running days after their task is gone
+
+Ending a session in Rove ends its whole subtree: the PTY host signals the
+child's process *group*, which reaches the shell, the engine, and everything
+they spawned. That only happens when Rove is the one doing the killing. Kill an
+engine from outside — `kill -9`, an OOM reaper, a crashed PTY host — and Rove is
+never told, so it never signals the group, and whatever the engine had spawned
+is reparented to init and runs until you reboot. A machine that has been through
+a few of those accumulates test runners, dev servers, and browsers burning CPU
+for something you closed last week.
+
+`rove doctor` lists them under `orphans:`, with age, memory, and command:
+
+```text
+orphans: ⚠ 3 process(es) outlived the PTY session that spawned them (97 MB RSS)
+         pid 15752 (group 14297) up 04-21:22:21, 25 MB: bun test test/render
+```
+
+A process is listed only when its environment carries the marker the PTY host
+sets on every child it spawns, its parent is init, its process group has no
+leader left, and that group is not one the PTY host still reports as live. A
+healthy task never matches, and neither does anything you started outside Rove.
+
+Killing needs `rove doctor --kill-orphans`, and doctor never does it on its own:
+a database tunnel or dev server you deliberately backgrounded from a Rove
+terminal, whose tab you then closed, is indistinguishable from a leak. Read the
+list first.
+
+On macOS the environment of an Apple-signed system binary is unreadable without
+root, so those are never listed. What actually leaks — `bun`, `node`, a browser,
+a CLI tool — reads fine.
+
+A probe that could not run at all is a different answer, and doctor now prints
+it as one:
+
+```text
+orphans: ✗ could not read process environments — ps eww exited 127
+```
+
+That is the step which turns a candidate into a finding, so when it fails
+every candidate stays unclassified. `✓ none` used to cover that case too,
+which made a machine nothing had looked at indistinguishable from a clean one.
+The realistic triggers are Linux `hidepid=2` and reading across uids.
 
 ## Who deleted my task?
 
@@ -119,7 +218,7 @@ worktree path, the `--force`/`--delete-branch` flags, and who asked:
 - `spawnedBy=<taskId>::<tabId>` — the deleted task's own spawner. Useful
   context, but it names who CREATED the task, not who deleted it.
 - `client=<n>` — the daemon connection id, which distinguishes concurrent
-  callers when neither identity above is present (a TUI keypress, the web UI).
+  callers when neither identity above is present (a TUI keypress, `rove api`).
 
 A `salvaged` line appears between `requested` and `removed` when a **forced**
 deletion had uncommitted work to destroy. It names the git ref holding a
@@ -131,7 +230,7 @@ Recover with: git -C <repo> show refs/rove/salvage/<branch>-<stamp> | ...
 ```
 
 The same line is written for a forced worktree removal from the worktrees page
-or the web UI (`salvaged worktree <path> — …`). No `salvaged` line means there
+(`salvaged worktree <path> — …`). No `salvaged` line means there
 was nothing uncommitted to save. See
 [WORKTREES](./WORKTREES.md#recovering-work-a-force-delete-destroyed).
 
@@ -154,11 +253,18 @@ worktree, which `git -C <path> rev-parse --is-inside-work-tree` confirms.
 directory; runtime files now live under `~/.rove`, with legacy paths honoured
 only while a process started before the move is still alive.)
 
-After an upgrade, a daemon can still be running old in-memory code. Doctor
-reports that version mismatch; fix it with `rove daemon restart`. If the PTY
-host itself is wedged, `rove reset` stops both runtimes and all live terminal
-and engine sessions, but does not touch git worktrees. Read the confirmation
-carefully before proceeding.
+After an upgrade, both background processes can still be running old code, and
+`rove update` says so when it finishes — and so can an already-open TUI, which
+keeps executing the bundle it launched with. Doctor reports each version
+separately. A stale **daemon** is fixed by `rove daemon restart`, which never
+touches a live session; an attached Rove shows the amber **DAEMON OUT OF DATE**
+banner instead, and `ctrl+a` `r` there restarts the daemon and relaunches the
+TUI on the installed build in one confirmed step. A stale **PTY host** is not
+fixed by either — it survives daemon restarts by design, so it keeps serving
+its boot-time build until `rove reset` replaces it, which is also the remedy
+when the host is wedged. Reset stops both runtimes, ends every live terminal
+and engine session, and clears the frozen-session store, but does not touch
+git worktrees. Read the confirmation carefully before proceeding.
 
 `rove doctor --fix` walks these remedies for you, one confirmation per fix:
 safe ones (a daemon restart, a skill install) run after a per-fix `y/N`, while
@@ -221,9 +327,40 @@ rove daemon restart
 ```
 
 If you intentionally use a custom home, re-export its `ROVE_HOME_DIR` before
-the restart instead of unsetting it. Do not point two homes at one daemon
-socket: the server refuses a live takeover, and clients reject the wrong
-owner.
+the restart instead of unsetting it — and, when you are deliberately running a
+second instance beside your usual one, re-export the whole group of socket and
+pidfile overrides with it (see [Runtime path
+overrides](CONFIGURATION.md#runtime-path-overrides)). Do not point two homes at
+one daemon socket: the server refuses a live takeover, and clients reject the
+wrong owner.
+
+## Rove refuses to start a second daemon on one home
+
+The mirror of the case above: two socket paths, one state home. Rove refuses
+the second daemon and names the socket that already owns the home.
+
+```
+rove daemon: /Users/me is already served by the daemon on
+/Users/me/.rove/daemon.sock (pid 61439) — refusing to start a second daemon on
+one home.
+```
+
+This happens when a shell overrides `ROVE_DAEMON_SOCKET_PATH` but leaves
+`ROVE_HOME_DIR` pointing at a home another daemon is already serving. Letting
+both run is worse than the refusal: neither can see the other, so their task
+lists diverge permanently, the project-main row gets written twice, and
+`automations.json` and `.config/rove/state.json` are raced as well.
+
+Either stop the incumbent, or give the new daemon its own home:
+
+```bash
+rove daemon stop                       # from the incumbent's environment
+# …or, to run both:
+export ROVE_HOME_DIR=/path/to/other-home
+```
+
+A crashed daemon's claim never blocks a restart: the check asks the recorded
+socket whether anything still answers there, so a dead one is just replaced.
 
 ## Claude or Codex activity badges do not update
 
@@ -273,7 +410,8 @@ cd <the worktree>
 ls -d ~/.claude/projects/"$(pwd | sed 's/[^a-zA-Z0-9]/-/g')"
 ```
 
-`rove update`, then `rove daemon restart`. No history is lost by the upgrade:
+`rove update`, then `rove daemon restart` (or `ctrl+a` `r` inside a running
+Rove, which also relaunches the TUI). No history is lost by the upgrade:
 those directories are written by Claude with the correct encoding, so the
 corrected name finds the transcripts that were there all along, including for
 the sessions that ran while the badge sat still.
@@ -466,9 +604,6 @@ set -g set-clipboard on
 and uses your terminal's native local selection + copy, which always lands on
 your local clipboard, at the cost of selecting across the whole Rove
 window (no pane awareness), exactly like tmux.
-
-**Remote workflows:** the rove web dashboard sidesteps all of this. The
-browser owns the clipboard.
 
 ## Right-click opens my terminal's menu instead of Rove's
 

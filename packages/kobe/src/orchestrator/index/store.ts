@@ -9,26 +9,27 @@
  * manifests normalize on load, and listeners fire after every mutation.
  */
 
-import { mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises"
+import { mkdir, open, rename, unlink, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
+import { readRoveHomeDirEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import { LEGACY_KOBE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "../../product.ts"
 import type { Task, TaskId, TaskIndex, TaskStatus } from "../../types/task.ts"
 import { DEFAULT_TASK_VENDOR, toTaskId } from "../../types/task.ts"
 import { release } from "./lockfile.ts"
-import {
-  acquireWithRetry,
-  backupCorruptManifest,
-  mergeTasksWithDisk,
-  normalizeIndex,
-  readDiskIndex,
-  recoverUnsupportedVersion,
-  warnManifestRecovery,
-} from "./store-codec.ts"
+import { acquireWithRetry, mergeTasksWithDisk, readDiskIndex, recoverIndexFromDisk } from "./store-codec.ts"
 import { ulid } from "./ulid.ts"
 
 export interface TaskIndexStoreOptions {
-  /** Override the user's home dir. Tests use this to write into tmp. */
+  /**
+   * Override the user's home dir. Tests use this to write into tmp.
+   *
+   * Omitting it does NOT mean the OS home: the constructor falls back to
+   * `ROVE_HOME_DIR`/`KOBE_HOME_DIR` first. That default is load-bearing —
+   * every isolation recipe in this repo is those variables, and the CLI's
+   * daemon-down write fallback (`openLocalOrchestrator`) constructs this
+   * store with no options at all.
+   */
   readonly homeDir?: string
 }
 
@@ -65,7 +66,7 @@ export class TaskIndexStore {
   private readonly removedIds = new Map<string, string>()
 
   constructor(options: TaskIndexStoreOptions = {}) {
-    this.homeDir = options.homeDir ?? homedir()
+    this.homeDir = options.homeDir ?? readRoveHomeDirEnv() ?? homedir()
     this.roveDir = join(this.homeDir, ROVE_STATE_DIR_BASENAME)
     this.path = join(this.roveDir, "tasks.json")
     this.legacyPath = join(this.homeDir, LEGACY_KOBE_STATE_DIR_BASENAME, "tasks.json")
@@ -101,69 +102,54 @@ export class TaskIndexStore {
     // pending local changes to protect during the next merge.
     this.dirtyIds.clear()
     this.removedIds.clear()
-    let raw: string
-    let sourcePath = this.path
-    try {
-      raw = await readFile(this.path, "utf8")
-    } catch (err) {
-      const code = (err as NodeJS.ErrnoException).code
-      if (code === "ENOENT") {
-        sourcePath = this.legacyPath
-        try {
-          raw = await readFile(sourcePath, "utf8")
-        } catch (legacyErr) {
-          if ((legacyErr as NodeJS.ErrnoException).code !== "ENOENT") throw legacyErr
-          this.cache = { version: CURRENT_VERSION, tasks: [] }
-          this.loaded = true
-          this.notifyListeners()
-          return this.snapshot()
-        }
-      } else {
-        throw err
-      }
-    }
-
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(raw)
-    } catch (err) {
-      // Back the original bytes up FIRST: the next save read-merge-writes
-      // from this empty recovery base and replaces the corrupt file, so
-      // without a copy the user's tasks are gone for good.
-      const backup = await backupCorruptManifest(sourcePath)
-      warnManifestRecovery(
-        `[rove] tasks.json at ${sourcePath} is corrupted (${(err as Error).message}); recovering with empty index.${
-          backup ? ` Original bytes backed up to ${backup}.` : " Backup copy failed; the stale file is left in place."
-        }`,
-        sourcePath,
-      )
-      this.cache = { version: CURRENT_VERSION, tasks: [] }
-      this.loaded = true
-      this.notifyListeners()
-      return this.snapshot()
-    }
-
-    // A future build's manifest empties the index just as thoroughly as a
-    // corrupt one does, and the next save replaces the file — so its bytes
-    // get the same copy-aside before we recover empty.
-    if (await recoverUnsupportedVersion(parsed, sourcePath)) {
-      this.cache = { version: CURRENT_VERSION, tasks: [] }
-      this.loaded = true
-      this.notifyListeners()
-      return this.snapshot()
-    }
-
-    this.cache = normalizeIndex(parsed, sourcePath)
+    this.cache = await recoverIndexFromDisk(this.path, this.legacyPath)
     this.loaded = true
     this.notifyListeners()
     return this.snapshot()
   }
 
+  /**
+   * Flush pending changes, serialized behind any save already in flight.
+   *
+   * Contract the mutators rely on: **a rejection means nothing was written.**
+   * {@link doSave} upholds it by never letting a failure that happens AFTER
+   * the manifest rename escape — see the release handler there.
+   */
   async save(): Promise<void> {
     this.assertLoaded()
     const next = this.saveChain.then(() => this.doSave())
     this.saveChain = next.catch(() => {})
     return next
+  }
+
+  /**
+   * Persist a mutation that has ALREADY been applied to the cache, and undo
+   * that change when the write does not land.
+   *
+   * Without the undo a reported failure becomes a delayed success: the entry
+   * stays in the cache (so `get`/`list` and every UI reading them show it)
+   * and stays in `dirtyIds`, so the next UNRELATED successful save flushes
+   * someone else's failed write to disk minutes later. For `create --prompt`
+   * that is a task materialising after the caller gave up — no worktree, no
+   * branch, no engine, and nobody expecting it.
+   *
+   * `undo` reverts by OBJECT IDENTITY and reports whether it did: if a newer
+   * mutation has since replaced or removed our entry, that mutation owns the
+   * id (and carries its own save), so we leave both it and the dirty flag
+   * alone. Listeners are re-notified after a real undo because a concurrent
+   * mutation's successful save can already have pushed a snapshot carrying
+   * the optimistic value.
+   */
+  private async saveOrRollback(id: string, undo: () => boolean): Promise<void> {
+    try {
+      await this.save()
+    } catch (err) {
+      if (undo()) {
+        this.dirtyIds.delete(id)
+        this.notifyListeners()
+      }
+      throw err
+    }
   }
 
   private async doSave(): Promise<void> {
@@ -180,6 +166,10 @@ export class TaskIndexStore {
     // Rove instances (TUI + daemon + CLI) can't interleave and lose updates.
     // The lock is held only for this critical section, never across saves.
     const lockToken = await acquireWithRetry(this.lockPath)
+    // Set when the merge changed our own cache (a peer's create folded in, or
+    // a peer's deletion evicted). Notified after the lock is released so a
+    // slow listener never sits inside the cross-process critical section.
+    let cacheChanged = false
     try {
       const disk = await readDiskIndex(this.path, this.legacyPath)
       const merged = mergeTasksWithDisk(this.cache.tasks, disk.tasks, dirty, removed, disk.removed)
@@ -225,11 +215,42 @@ export class TaskIndexStore {
       // mutation that ran on the live cache while we were writing.
       const present = new Set(this.cache.tasks.map((t) => t.id))
       for (const task of merged.tasks) {
-        if (!present.has(task.id)) this.cache.tasks.push(task)
+        if (present.has(task.id)) continue
+        this.cache.tasks.push(task)
+        cacheChanged = true
+      }
+
+      // And drop what the merge DELETED. A task a peer tombstoned is absent
+      // from the bytes we just wrote, so keeping it in the cache leaves this
+      // process listing a row that no longer exists — and rewriting a file
+      // without it — forever, even after its own read-merge-write. Only
+      // TOMBSTONED ids are evicted: a cache entry the merge simply never saw
+      // (a create that ran on the live cache while we were writing) must
+      // survive, which is the same reason the fold above only ever adds.
+      const tombstoned = new Set(merged.removed.map((t) => t.id))
+      if (tombstoned.size > 0) {
+        for (let i = this.cache.tasks.length - 1; i >= 0; i--) {
+          const entry = this.cache.tasks[i]
+          if (!entry || !tombstoned.has(entry.id)) continue
+          this.cache.tasks.splice(i, 1)
+          cacheChanged = true
+        }
       }
     } finally {
-      await release(this.lockPath, lockToken)
+      // Releasing the lock is the ONLY thing here that can fail after the
+      // rename made the write durable, and it must never decide the save's
+      // outcome: the mutators undo their cache change when save() rejects, so
+      // rethrowing here would leave the cache contradicting a file already on
+      // disk — the exact report/state disagreement the rollback exists to end.
+      // Swallowing it is what keeps save()'s contract true: every remaining
+      // throw site sits BEFORE the rename, so a rejection means nothing was
+      // written. A stale lock is the lesser harm and the next acquirer's
+      // staleness check clears it.
+      await release(this.lockPath, lockToken).catch((err) => {
+        console.error("[rove TaskIndexStore] index lock release failed:", err)
+      })
     }
+    if (cacheChanged) this.notifyListeners()
   }
 
   get(id: TaskId | string): Task | undefined {
@@ -254,7 +275,12 @@ export class TaskIndexStore {
     }
     this.cache.tasks.push(task)
     this.dirtyIds.add(task.id)
-    await this.save()
+    await this.saveOrRollback(task.id, () => {
+      const at = this.cache.tasks.indexOf(task)
+      if (at < 0) return false
+      this.cache.tasks.splice(at, 1)
+      return true
+    })
     this.notifyListeners()
     return task
   }
@@ -283,7 +309,12 @@ export class TaskIndexStore {
     }
     this.cache.tasks[idx] = next
     this.dirtyIds.add(String(id))
-    await this.save()
+    await this.saveOrRollback(String(id), () => {
+      const at = this.cache.tasks.indexOf(next)
+      if (at < 0) return false
+      this.cache.tasks[at] = existing
+      return true
+    })
     this.notifyListeners()
     return next
   }
@@ -344,15 +375,43 @@ export class TaskIndexStore {
     const next: Task = { ...moved, updatedAt: new Date().toISOString() }
     this.cache.tasks.splice(insertAt, 0, next)
     this.dirtyIds.add(String(id))
-    await this.save()
+    await this.saveOrRollback(String(id), () => {
+      const at = this.cache.tasks.indexOf(next)
+      if (at < 0) return false
+      // Put the ORIGINAL object back (restoring `updatedAt` too) at the index
+      // it came from. A concurrent create can have shifted the tail, so clamp
+      // — position is best-effort here, the reverted value is not.
+      this.cache.tasks.splice(at, 1)
+      this.cache.tasks.splice(Math.min(fromIdx, this.cache.tasks.length), 0, moved)
+      return true
+    })
     this.notifyListeners()
     return next
   }
 
-  async remove(id: TaskId | string): Promise<void> {
+  /**
+   * Delete a task. Returns whether there was one to delete.
+   *
+   * Deliberately does NOT throw like its siblings `update`/`move` do on an
+   * unknown id: the daemon replays a queued deletion after a restart, and a
+   * replay finding nothing left is success, not an error. But returning
+   * `void` made "deleted" and "there was nothing here" the same answer — a
+   * caller working from a cache that never saw the task (a peer created it)
+   * got a silent no-op indistinguishable from a deletion. Hence the boolean.
+   *
+   * Rolls back like its siblings when the write does not land. Without that,
+   * a failed delete was the worst of both: the row left the sidebar while the
+   * caller was told the delete failed, the task stayed on disk with its
+   * `deletion.phase` still `running` (so the next launch restored a row whose
+   * worktree `task-deletion.finish` had already removed), and the tombstone
+   * stayed in `removedIds` for the next UNRELATED successful save to flush —
+   * completing the deletion minutes later, silently.
+   */
+  async remove(id: TaskId | string): Promise<boolean> {
     this.assertLoaded()
     const idx = this.cache.tasks.findIndex((t) => t.id === id)
-    if (idx < 0) return
+    const removed = this.cache.tasks[idx]
+    if (idx < 0 || !removed) return false
     this.cache.tasks.splice(idx, 1)
     // Record the deletion so the read-merge-write doesn't resurrect this task
     // from a stale on-disk copy, and stop treating it as a pending edit. The
@@ -360,8 +419,20 @@ export class TaskIndexStore {
     // task dirty in memory don't write it back either.
     this.dirtyIds.delete(String(id))
     this.removedIds.set(String(id), new Date().toISOString())
-    await this.save()
+    await this.saveOrRollback(String(id), () => {
+      // By object identity, like the other undos: if anything put this id back
+      // while we were writing, that mutation owns it and carries its own save.
+      if (this.cache.tasks.some((t) => t.id === removed.id)) return false
+      // The tombstone is the half that outlives the cache: leaving it behind
+      // is what let a later save finish the rejected deletion.
+      this.removedIds.delete(String(id))
+      // Clamp: a concurrent create can have shifted the tail. Position is
+      // best-effort, the restored entry is not.
+      this.cache.tasks.splice(Math.min(idx, this.cache.tasks.length), 0, removed)
+      return true
+    })
     this.notifyListeners()
+    return true
   }
 
   /**

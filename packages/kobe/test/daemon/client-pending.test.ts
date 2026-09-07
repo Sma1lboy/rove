@@ -116,19 +116,19 @@ describe("KobeDaemonClient wedged-daemon deadline", () => {
   let dir: string
   let socketPath: string
   let server: Server | null
-  const prev = process.env.KOBE_RPC_TIMEOUT_MS
+  const prev = process.env.ROVE_RPC_TIMEOUT_MS
 
   beforeEach(async () => {
     dir = mkdtempSync(join(tmpdir(), "kobe-clientwedge-"))
     socketPath = join(dir, "daemon.sock")
     server = await silentServer(socketPath) // accepts, never answers → wedged
-    process.env.KOBE_RPC_TIMEOUT_MS = "40" // short deadline for the test
+    process.env.ROVE_RPC_TIMEOUT_MS = "40" // short deadline for the test
   })
 
   afterEach(async () => {
     // biome-ignore lint/performance/noDelete: env must fully unset when it was unset pre-test (assigning undefined leaves the string "undefined").
-    if (prev === undefined) delete process.env.KOBE_RPC_TIMEOUT_MS
-    else process.env.KOBE_RPC_TIMEOUT_MS = prev
+    if (prev === undefined) delete process.env.ROVE_RPC_TIMEOUT_MS
+    else process.env.ROVE_RPC_TIMEOUT_MS = prev
     await new Promise<void>((resolve) => {
       if (!server) return resolve()
       server.close(() => resolve())

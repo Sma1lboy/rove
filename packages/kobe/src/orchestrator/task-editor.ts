@@ -24,7 +24,7 @@ import type {
 import { deriveConventionBranch, inferBranchStyle, uniqueBranchName } from "./branch-style.ts"
 import { IllegalTransitionError, TaskNotFoundError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
-import { isPlaceholderDerivedBranch } from "./title.ts"
+import { isPlaceholderDerivedBranch, sanitizeTaskTitle } from "./title.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 
 /**
@@ -49,7 +49,7 @@ export class TaskEditor {
    *  SCRATCH task is the "keep this" gesture — it clears the
    *  flag, so the row survives its shell exiting. */
   async setTitle(id: TaskId | string, title: string): Promise<void> {
-    const trimmed = title.trim()
+    const trimmed = sanitizeTaskTitle(title)
     if (!trimmed) throw new Error("setTitle: title is required (empty or whitespace-only rejected)")
     const task = this.requireTask(id)
     if (task.title === trimmed && task.scratch !== true) return
@@ -82,7 +82,7 @@ export class TaskEditor {
     if (!isPlaceholderDerivedBranch(taskBefore.branch, taskBefore.id)) return
     try {
       const names = await this.worktrees.listBranchNames(taskBefore.repo)
-      const base = deriveConventionBranch(newTitle, inferBranchStyle(names))
+      const base = deriveConventionBranch(newTitle, inferBranchStyle(names), taskBefore.id)
       if (base === taskBefore.branch) return
       if (await this.worktrees.branchHasUpstream(taskBefore.worktreePath, taskBefore.branch)) return
       // Exclude the branch we're renaming FROM so a placeholder like

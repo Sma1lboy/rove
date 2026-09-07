@@ -22,7 +22,7 @@ const flushProbe = () => act(async () => {})
 describe("WelcomePane", () => {
   it("teaches the live keys and lists detected engines", async () => {
     const { frame } = await renderComponent(
-      <WelcomePane probe={probeWith({ engines: ["claude", "codex"], git: true })} />,
+      <WelcomePane probe={probeWith({ engines: ["claude", "codex"], signedOut: [], git: true })} />,
     )
     await flushProbe()
     const out = await frame()
@@ -37,8 +37,26 @@ describe("WelcomePane", () => {
     expect(out).toContain("docs.rove.run")
   })
 
+  it("says installed-but-logged-out rather than a bare ✓", async () => {
+    // The likely new-user machine: every CLI present, none signed in. This
+    // used to take the ✓ branch, contradicting the wizard on the same home.
+    const { frame } = await renderComponent(
+      <WelcomePane probe={probeWith({ engines: [], signedOut: ["claude", "codex"], git: true })} />,
+    )
+    await flushProbe()
+    const out = await frame()
+    expect(out).toContain("installed but not signed in")
+    expect(out).toContain("claude · codex")
+    expect(out).not.toContain("✓ engines")
+    // Not "install one" — the CLIs are there.
+    expect(out).not.toContain("no engine CLI found")
+    expect(out).toContain("rove doctor")
+  })
+
   it("is honest when the environment is missing pieces", async () => {
-    const { frame } = await renderComponent(<WelcomePane probe={probeWith({ engines: [], git: false })} />)
+    const { frame } = await renderComponent(
+      <WelcomePane probe={probeWith({ engines: [], signedOut: [], git: false })} />,
+    )
     await flushProbe()
     const out = await frame()
     expect(out).toContain("no engine CLI found")

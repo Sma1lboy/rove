@@ -14,26 +14,27 @@
  * `../shared-config-write.ts`. Read its module doc before changing the write.
  */
 
-import { homedir } from "node:os"
-import path from "node:path"
+import { isObject } from "../json-hooks.ts"
 import { updateSharedJsonSync } from "../shared-config-write.ts"
+import { claudeGlobalConfigPath, vendorWriteHomeDeps } from "../vendor-home.ts"
 
-export function trustClaudeWorktree(worktreePath: string, home: string = homedir()): void {
+export function trustClaudeWorktree(worktreePath: string, home?: string): void {
+  const deps = vendorWriteHomeDeps(home)
   updateSharedJsonSync(
-    path.join(home, ".claude.json"),
+    claudeGlobalConfigPath(deps.env, deps.home()),
     (raw) => {
       if (raw === undefined) return {}
-      try {
-        return JSON.parse(raw) as Record<string, unknown>
-      } catch {
-        // Corrupt — start from an empty doc; that is claude's own recovery
-        // behavior too (it rewrites the file wholesale on every save).
-        return {}
-      }
+      const doc: unknown = JSON.parse(raw)
+      if (!isObject(doc)) throw new Error("Claude trust config must be a JSON object")
+      return doc
     },
     (doc) => {
-      const projects = { ...((doc.projects as Record<string, unknown> | undefined) ?? {}) }
-      const existing = (projects[worktreePath] ?? {}) as Record<string, unknown>
+      if (doc.projects !== undefined && !isObject(doc.projects)) {
+        throw new Error("Claude trust projects must be an object")
+      }
+      const projects = { ...doc.projects }
+      const existing = Object.hasOwn(projects, worktreePath) ? projects[worktreePath] : {}
+      if (!isObject(existing)) throw new Error("Claude trust project must be an object")
       if (existing.hasTrustDialogAccepted === true) return undefined
       projects[worktreePath] = { ...existing, hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true }
       return JSON.stringify({ ...doc, projects }, null, 2)

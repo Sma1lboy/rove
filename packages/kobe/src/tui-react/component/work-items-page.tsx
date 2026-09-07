@@ -19,6 +19,7 @@ import type { WorkItem } from "@sma1lboy/kobe-daemon/daemon/work-items"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { errorMessage } from "../../lib/error-message"
+import { relativeAge as sharedRelativeAge } from "../../lib/relative-time"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
 import type { Task } from "../../types/task"
@@ -59,14 +60,13 @@ function errorHint(error: string, t: ReturnType<typeof useT>): string {
   }
 }
 
+/** ISO shell over the product's one relative clock. The local copy this
+ *  replaces ROUNDED where every other age on screen floors, so the same
+ *  instant read `2h` here and `1h` two panes over. */
 function relativeAge(iso: string, now: number): string {
   const at = Date.parse(iso)
   if (!Number.isFinite(at)) return ""
-  const mins = Math.round((now - at) / 60_000)
-  if (mins < 60) return `${Math.max(mins, 0)}m`
-  const hours = Math.round(mins / 60)
-  if (hours < 24) return `${hours}h`
-  return `${Math.round(hours / 24)}d`
+  return sharedRelativeAge(at, now)
 }
 
 export function WorkItemsPage(props: {

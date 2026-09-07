@@ -21,7 +21,8 @@
  * after code changes) never touches running sessions, exactly like a
  * persistent terminal server outliving the TUI. An exited session is kept,
  * scrollback intact, so a reattach can still show how the child died; it is
- * removed by an explicit `kill` or task deletion (`sweepTasks`).
+ * removed by an explicit `kill` or the daemon's task-deletion sweep
+ * (`sweepPtyHostSessions` in `client/pty-process.ts`).
  *
  * Freeze/restore (`pty-freeze-store.ts`): every session's metadata and
  * ring persist to disk (throttled while streaming, immediately on exit,
@@ -34,8 +35,10 @@
  * store) forgets a session for good.
  */
 
+import { logDaemonError } from "./crash-log.ts"
 import type { DaemonFrame, PtyPeekResult } from "./protocol.ts"
 import { PtyChildController } from "./pty-child-controller.ts"
+import { shouldFreeze } from "./pty-freeze-policy.ts"
 import { type FrozenPtySession, freezeSession, thawSession } from "./pty-freeze-store.ts"
 import type { PtyAttachResult, PtyHostOptions, PtySessionState, PtySink, PtySpawnSpec } from "./pty-host-types.ts"
 import {
@@ -74,9 +77,9 @@ function resolveHumanWriteQuietMs(): number {
   return Number.isFinite(n) && n >= 0 ? n : DEFAULT_HUMAN_WRITE_QUIET_MS
 }
 
-/** Minimum gap between a session's periodic freeze writes (crash-loss bound).
- *  Exits and shutdowns flush immediately; this only throttles the live stream. */
-export const FREEZE_INTERVAL_MS = 5_000
+/** Freeze cadence policy (`pty-freeze-policy.ts`) — re-exported because the
+ *  host is where callers look for it. */
+export { FREEZE_INTERVAL_MS, FREEZE_MIN_APPENDED_BYTES, FREEZE_STALE_MS } from "./pty-freeze-policy.ts"
 
 export class PtyHost {
   private readonly sessions = new Map<string, PtySessionState>()
@@ -288,6 +291,25 @@ export class PtyHost {
     }
   }
 
+  /**
+   * Compare and remove synchronously, so a reopened key cannot inherit an old
+   * kill. The CHILD's teardown is asynchronous (SIGTERM, up to 500ms grace,
+   * then SIGKILL), so the answer is `accepted`, not `killed`: the compare-and-
+   * remove is what this call actually completed. It said `killed: true` before
+   * the signal had been sent, which is how `rove api tab-close` reported a
+   * successful close over a PTY that was still running.
+   */
+  killIfGeneration(
+    key: string,
+    expectedGeneration: string,
+  ): { accepted: true } | { accepted: false; reason: "missing-session" | "generation-mismatch" } {
+    const session = this.sessions.get(key)
+    if (!session) return { accepted: false, reason: "missing-session" }
+    if (session.generation !== expectedGeneration) return { accepted: false, reason: "generation-mismatch" }
+    void this.kill(key).catch((err) => logDaemonError("pty-kill", err))
+    return { accepted: true }
+  }
+
   /** End the child AND forget the session (explicit close / task deletion). */
   kill(key: string): Promise<void> {
     const session = this.sessions.get(key)
@@ -370,19 +392,6 @@ export class PtyHost {
     return hostStats(this.sessions.values(), this.scrollbackCap, this.parkRestoreDeltas, this.parkRestoreFallbacks)
   }
 
-  /**
-   * Task-deletion sweep: kill every session whose task id (the segment of
-   * the key before the first `::` — see the TUI's `tabPtyKey`) is no
-   * longer a live task. Keeps a headless task deletion from
-   * leaking an engine that runs forever with no owner.
-   */
-  sweepTasks(liveTaskIds: ReadonlySet<string>): void {
-    for (const key of Array.from(this.sessions.keys())) {
-      const taskId = key.split("::")[0] ?? key
-      if (!liveTaskIds.has(taskId)) this.kill(key)
-    }
-  }
-
   /** Kill every session and the warm spare before host shutdown completes. */
   async killAll(): Promise<void> {
     const sessions = Array.from(this.sessions.keys(), (key) => this.kill(key))
@@ -451,10 +460,11 @@ export class PtyHost {
   }
 
   /**
-   * Throttled freeze writer. The write happens at most once per
-   * FREEZE_INTERVAL_MS per session (a host crash loses at most that much
-   * scrollback), immediately on exit, and for every session on shutdown.
-   * Internal keys (the warm spare) never freeze.
+   * Throttled freeze writer. A periodic write happens only when
+   * `shouldFreeze` says the whole-ring rewrite has earned itself (see
+   * `pty-freeze-policy.ts` for the numbers). `force` (exit, rename,
+   * shutdown) writes regardless: an exit record is a change no byte counter
+   * can see. Internal keys (the warm spare) never freeze.
    */
   private maybeFreeze(session: PtySessionState, force = false): void {
     const freeze = this.opts.freeze
@@ -468,8 +478,9 @@ export class PtyHost {
     // this function owes the same promise.
     if (session.closedByRequest) return
     const now = Date.now()
-    if (!force && now - session.lastFreezeAtMs < FREEZE_INTERVAL_MS) return
+    if (!force && !shouldFreeze(session, now)) return
     session.lastFreezeAtMs = now
+    session.frozenTotalBytes = session.totalBytes
     freeze.save(freezeSession(session))
   }
 

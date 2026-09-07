@@ -18,16 +18,11 @@
  */
 
 import { basename } from "node:path"
-import { BUILTIN_VENDORS, type VendorId } from "../types/vendor"
-import { engineEntry } from "./registry"
+import type { VendorId } from "../types/vendor"
+import { type ProcRow, PsProbeUnavailableError } from "./process-rows.ts"
+import { engineEntry, identifiableEngineIds } from "./registry"
 
-/** One line of `ps -A -o pid=,ppid=,args=`. */
-export type ProcRow = {
-  readonly pid: number
-  readonly ppid: number
-  /** Full command line, argv joined by spaces (what `ps` prints). */
-  readonly args: string
-}
+export { type ProcRow, PsProbeUnavailableError } from "./process-rows.ts"
 
 /** The live engine found running inside a tab's shell. */
 export type ForegroundEngine = {
@@ -65,6 +60,12 @@ function executableNameFromArgv(argv: readonly string[]): string | null {
  * counts — scanning arguments is what made the title heuristic wrong
  * (`cc-switch start claude …` is cc-switch, not claude; its claude CHILD
  * is what identifies, and the tree walk finds that one).
+ *
+ * Asks about every id the registry can name state-free
+ * ({@link identifiableEngineIds}), not just the built-ins: a running
+ * OpenCode answering `null` here is not "no engine", it is this function
+ * not having been asked about OpenCode — and every consumer of the walk
+ * reads that `null` as a POSITIVE no-engine verdict.
  */
 export function vendorFromArgv(commandLine: string): VendorId | null {
   const name = executableNameFromArgv(commandLine.trim().split(/\s+/))
@@ -72,7 +73,7 @@ export function vendorFromArgv(commandLine: string): VendorId | null {
   // defaultCommand[0] is the launch binary; processNames covers engines
   // that rewrite their process title post-launch (kimi → `kimi-co`).
   return (
-    BUILTIN_VENDORS.find((v) => {
+    identifiableEngineIds().find((v) => {
       const entry = engineEntry(v)
       return entry.defaultCommand[0] === name || entry.processNames?.includes(name) === true
     }) ?? null
@@ -176,12 +177,99 @@ export function engineProcessIn(
   return false
 }
 
-/** Injectable so tests never shell out. */
-export type PsSnapshot = () => Promise<string>
+/**
+ * Injectable so tests never shell out.
+ *
+ * `anchors` are the shell pids the caller is about to walk. POSIX ignores
+ * them — a `ps` forest already carries every parent link there is. Windows
+ * needs them: an npm-shim `cmd.exe` exits mid-chain and takes the link to the
+ * engine with it, so the snapshot has to ask each tab's CONSOLE who is on it
+ * before the tree is walkable (see `win-process-snapshot.ts`). Optional so
+ * every existing zero-argument stub still satisfies the type.
+ */
+export type PsSnapshot = (anchors?: readonly number[]) => Promise<string>
 
-export const psSnapshot: PsSnapshot = async () => {
+/**
+ * A running `ps`: the text it will produce, and the kill the deadline needs.
+ * Injectable separately from {@link PsSnapshot} so a test can stand up a child
+ * that never exits — the failure this deadline exists for.
+ */
+export interface PsProcess {
+  readonly text: Promise<string>
+  kill(): void
+}
+
+export type PsSpawn = () => PsProcess
+
+/**
+ * `ps -A` answers in ~20ms on a healthy machine, so 5s only fires on a
+ * genuinely stuck process table — wide enough to never cost a true answer.
+ *
+ * It has to be bounded at all because nothing downstream can time this out:
+ * every caller wraps the probe in try/catch, which catches a THROW and not a
+ * hang, so an unbounded await here freezes whichever gate asked until the
+ * process is restarted.
+ */
+export const PS_PROBE_TIMEOUT_MS = 5_000
+
+const bunPsSpawn: PsSpawn = () => {
   const proc = Bun.spawn(["ps", "-A", "-o", "pid=,ppid=,args="], { stdout: "pipe", stderr: "ignore" })
-  return await new Response(proc.stdout).text()
+  return { text: new Response(proc.stdout).text(), kill: () => proc.kill() }
+}
+
+/**
+ * {@link psSnapshot} with its two seams exposed, for tests.
+ *
+ * A snapshot with no parseable rows in it is a FAILED probe, not an empty
+ * machine — `ps` itself is always in there. It joins the timeout as an
+ * "unknown", which every reader already publishes as such and no reporting
+ * gate may restate as "no engine". Windows is where this bites: the `ps` on
+ * PATH is Git for Windows' Cygwin build, which rejects `-A` and exits 1 with
+ * EMPTY stdout, and zero rows were read as a confident "no engine in any
+ * tab". Unreachable on macOS/Linux, where a healthy `ps -A` returns hundreds
+ * of rows.
+ */
+export async function psSnapshotWith(spawn: PsSpawn, timeoutMs = PS_PROBE_TIMEOUT_MS): Promise<string> {
+  const proc = spawn()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const text = await Promise.race([
+      proc.text,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => {
+          // Kill first: an abandoned `ps` holding a pipe nobody reads is how a
+          // one-off hang becomes a permanent leak in a long-lived daemon.
+          try {
+            proc.kill()
+          } catch {
+            /* already gone */
+          }
+          reject(new PsProbeUnavailableError(`ps did not answer within ${timeoutMs}ms`))
+        }, timeoutMs)
+      }),
+    ])
+    if (parsePsSnapshot(text).length === 0) throw new PsProbeUnavailableError("ps returned no usable rows")
+    return text
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
+/**
+ * One process-table snapshot, in the `pid ppid args` text every walk parses.
+ *
+ * Two implementations, chosen by platform and nothing else: POSIX runs the
+ * `ps` this file has always run, win32 runs the CIM + ConPTY walk in
+ * `win-process-snapshot.ts` (there is no working `ps` there, and no intact
+ * parent chain to the engine either).
+ */
+export const psSnapshot: PsSnapshot = async (anchors) => {
+  if (process.platform !== "win32") return psSnapshotWith(bunPsSpawn)
+  const { defaultWinProcessProbe, winProcessSnapshot } = await import("./win-process-snapshot.ts")
+  // Its own budget, not PS_PROBE_TIMEOUT_MS: PowerShell + CIM is ~0.8s where
+  // `ps` is ~20ms, so the POSIX cap fires on merely-slow probes. See
+  // `WIN_PROBE_TIMEOUT_MS`.
+  return winProcessSnapshot(anchors ?? [], defaultWinProcessProbe())
 }
 
 /**
@@ -194,7 +282,7 @@ export async function foregroundEngine(
   snapshot: PsSnapshot = psSnapshot,
 ): Promise<ForegroundEngine | null> {
   try {
-    return foregroundEngineIn(parsePsSnapshot(await snapshot()), rootPid)
+    return foregroundEngineIn(parsePsSnapshot(await snapshot([rootPid])), rootPid)
   } catch {
     return null
   }

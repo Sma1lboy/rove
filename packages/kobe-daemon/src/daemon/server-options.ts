@@ -35,12 +35,6 @@ export interface DaemonServerOptions {
   readonly worktreeChangesTickMs?: number
   /** Transcript-activity collector tick in ms; `0` disables. Defaults to `DEFAULT_TRANSCRIPT_ACTIVITY_TICK_MS`. */
   readonly transcriptActivityTickMs?: number
-  /** Optional loopback HTTP/SSE browser transport. Omitted in tests unless explicitly requested. */
-  readonly webPort?: number
-  /** Optional hostname for the browser transport. Defaults to 127.0.0.1. */
-  readonly webHost?: string
-  /** Optional static web UI directory served by the daemon web transport. */
-  readonly webStaticDir?: string
   /** Enable the plugin runtime; `binPath` becomes plugins' ROVE_BIN_PATH plus its legacy alias. */
   readonly plugins?: { readonly binPath: string }
   /** Socket-ownership watch interval in ms; `0` disables the periodic check. */
@@ -51,7 +45,6 @@ export interface DaemonServer {
   readonly socketPath: string
   readonly pidPath: string
   readonly startedAt: Date
-  readonly webPort?: number
   readonly clients: ReadonlySet<DaemonClientConnection>
   close(): Promise<void>
 }

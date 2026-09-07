@@ -1,11 +1,15 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import {
   MAX_FAILING_JOBS,
   failingCheckTargets,
   joinFailingChecks,
   parseFailedRunLog,
+  readFailingChecks,
   runIdFromDetailsUrl,
 } from "@sma1lboy/kobe-daemon/daemon/pr-failing-checks"
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 describe("runIdFromDetailsUrl", () => {
   it("pulls the workflow run id out of a CheckRun details url", () => {
@@ -114,5 +118,48 @@ describe("joinFailingChecks", () => {
   it("still reports a job whose log could not be read, with an empty tail", () => {
     const result = joinFailingChecks([target("a")], new Map())
     expect(result.checks).toEqual([{ jobName: "a", conclusion: "FAILURE", url: "u/a", tail: "" }])
+  })
+})
+
+/**
+ * `readFailingChecks` against a REAL `gh` on PATH — a fake one that exits
+ * non-zero the way an expired `gh auth login` does.
+ *
+ * A stub of `spawnGh` would prove nothing here: the bug was that `ghText`
+ * received `status`, `stderr` and `spawnError` and dropped all three one line
+ * later, so the test has to go through the actual spawn to show they survive.
+ */
+describe("readFailingChecks when gh cannot answer", () => {
+  let binDir: string
+  let cwd: string
+  let previousPath: string | undefined
+
+  beforeEach(() => {
+    binDir = mkdtempSync(join(tmpdir(), "rove-fake-gh-"))
+    cwd = mkdtempSync(join(tmpdir(), "rove-gh-cwd-"))
+    writeFileSync(
+      join(binDir, "gh"),
+      '#!/bin/sh\necho "gh: To get started with GitHub CLI, please run: gh auth login" >&2\nexit 4\n',
+      { mode: 0o755 },
+    )
+    previousPath = process.env.PATH
+    process.env.PATH = `${binDir}:${previousPath ?? ""}`
+  })
+
+  afterEach(() => {
+    process.env.PATH = previousPath ?? ""
+    rmSync(binDir, { recursive: true, force: true })
+    rmSync(cwd, { recursive: true, force: true })
+  })
+
+  it("says gh failed, and quotes it, instead of returning a bare empty list", async () => {
+    const res = await readFailingChecks({ worktreePath: cwd, prNumber: 7 })
+
+    expect(res.checks).toEqual([])
+    expect(res.totalFailing).toBe(0)
+    // The whole point: an empty `checks` used to be the ONLY thing the caller
+    // saw, and it renders as "the checks are no longer red".
+    expect(res.unavailable?.reason).toBe("gh_failed")
+    expect(res.unavailable?.detail).toContain("gh auth login")
   })
 })

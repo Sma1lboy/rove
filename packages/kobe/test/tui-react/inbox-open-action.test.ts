@@ -15,14 +15,14 @@ const item: AttentionInboxItem = {
 // only navigation differs (an unavailable target can't be jumped to).
 describe("requestInboxItemOpen", () => {
   it("resolves an available item and allows navigation", () => {
-    const rpc = { dismissAttention: vi.fn().mockResolvedValue(undefined) }
+    const rpc = { dismissAttention: vi.fn().mockResolvedValue(undefined), dismissRoutineAttention: vi.fn() }
 
     expect(requestInboxItemOpen(item, true, rpc, vi.fn())).toBe(true)
     expect(rpc.dismissAttention).toHaveBeenCalledWith("task-1", "tab-2", 123)
   })
 
   it("resolves an unavailable item without navigating", () => {
-    const rpc = { dismissAttention: vi.fn().mockResolvedValue(undefined) }
+    const rpc = { dismissAttention: vi.fn().mockResolvedValue(undefined), dismissRoutineAttention: vi.fn() }
 
     expect(requestInboxItemOpen(item, false, rpc, vi.fn())).toBe(false)
     expect(rpc.dismissAttention).toHaveBeenCalledWith("task-1", "tab-2", 123)

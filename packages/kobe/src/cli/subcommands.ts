@@ -11,7 +11,6 @@
  * Internal process hosts are not included in the public completion list.
  */
 export const TOP_LEVEL_SUBCOMMANDS = [
-  "web",
   "completions",
   "add",
   "remove",

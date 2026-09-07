@@ -4,7 +4,7 @@
  * `DEFERRED_PROMPT_TTL_MS` is the store's stated retention policy, but nothing
  * enforced it: `list()` is the only method that computes `expired`, and its
  * only caller was `deferredPrompt.flush`, which fires when a human opens
- * Settings and toggles the composer gate. A prompt the delivery gate parked
+ * Settings and loosens the delivery guard. A prompt the delivery gate parked
  * because a composer was busy therefore sat on disk indefinitely, with a
  * permanent `prompt_deferred` Inbox row that no later turn on that tab could
  * clear (`attentionInboxItemKey` gives the deferred episode its own lane, so
@@ -15,7 +15,7 @@
  *
  * It expires ONLY. Do not fold the live-record delivery retry in here —
  * `flushDeferredPrompts` re-attempts delivery for every non-expired record,
- * and that is a deliberate human-triggered action (the gate just turned off).
+ * and that is a deliberate human-triggered action (the guard just loosened).
  */
 
 import type { AttentionInboxStore } from "./attention-inbox.ts"
@@ -28,7 +28,8 @@ export const DEFAULT_DEFERRED_SWEEP_TICK_MS = 60 * 60 * 1000
 
 export interface DeferredSweepDeps {
   readonly store: DeferredPromptsStore
-  readonly inbox: Pick<AttentionInboxStore, "deleteEpisode">
+  readonly inbox: Pick<AttentionInboxStore, "recordPromptExpired">
+  readonly now?: () => number
 }
 
 export interface DeferredSweepFailure {
@@ -48,12 +49,20 @@ function errorText(error: unknown): string {
 }
 
 /**
- * Drop every past-TTL record together with its Inbox pointer.
+ * Drop every past-TTL record and turn its Inbox pointer into the notice that
+ * the text was destroyed undelivered.
+ *
+ * The row is REPLACED, not deleted. `rove api send` exits 0 on a deferral and
+ * documents it as a success, and the sender's session is typically gone a day
+ * later — so deleting the row silently was the one outcome that guaranteed
+ * nobody would ever learn the message never ran. The report this function
+ * returns goes to `logDaemonInfo` and no further; the durable episode is what
+ * a human actually meets.
  *
  * Order matters: the Inbox row goes first, then the claim completes. A record
- * whose pointer deletion throws keeps its claim released and is reported as
- * `cleanupPending`, so the next pass retries it rather than orphaning a row
- * that points at a record that is gone.
+ * whose pointer rewrite throws keeps its claim released and is reported as
+ * `cleanupPending`, so the next pass retries it rather than leaving a row that
+ * points at a record that is gone.
  */
 export async function sweepExpiredDeferredPrompts(deps: DeferredSweepDeps): Promise<DeferredSweepReport> {
   const report: DeferredSweepReport = { expired: [], cleanupPending: [] }
@@ -65,7 +74,12 @@ export async function sweepExpiredDeferredPrompts(deps: DeferredSweepDeps): Prom
       continue
     }
     try {
-      await deps.inbox.deleteEpisode(expired.taskId, expired.tabId, undefined, "prompt_deferred", expired.id)
+      // A DISMISSED record has no Inbox pointer to replace — a human already
+      // said they did not want it, and resurrecting the row at expiry would
+      // undo that. Its text simply reaches the end of its retention.
+      if (expired.dismissedAt === undefined) {
+        await deps.inbox.recordPromptExpired(expired.taskId, expired.tabId, expired.id, (deps.now ?? Date.now)())
+      }
       await deps.store.completeClaim(claimed.claim)
       report.expired.push(expired.id)
     } catch (error) {
@@ -91,7 +105,7 @@ function failure(record: DeferredPromptRecord, error: string): DeferredSweepFail
 export function startDeferredPromptSweep(
   deps: DeferredSweepDeps,
   tickMs: number = DEFAULT_DEFERRED_SWEEP_TICK_MS,
-): () => void {
+): ReturnType<typeof startTicker> {
   return startTicker({
     name: "deferred-prompt-sweep",
     tickMs,

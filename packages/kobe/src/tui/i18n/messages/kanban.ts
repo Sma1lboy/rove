@@ -8,10 +8,21 @@ export const en = {
   /** Footer/legend hint. */
   hint: "tab project · ←↓↑→ card · enter detail · n new · d delete · r refresh · esc close",
   loading: "Loading issues…",
-  /** No saved projects / no tasks to derive repos from. */
-  noRepos: "No projects yet — create a task first.",
+  /** Nothing to render a section for: no saved project, no live task, and no
+   *  repo in the issue store. It used to say "create a task first" while
+   *  deriving its sections from the task index alone, so a store full of
+   *  stories read as an empty one. */
+  noRepos: "No projects yet — add one with `rove add <path>`, or file a story with `rove api issue-create`.",
   /** A repo section with zero issues. */
   empty: "No issues — agents file them via `rove api issue-create`.",
+  /** In place of the four columns when THIS project's issue read rejected.
+   *  The project keeps its slot in the selector: dropping it made a whole
+   *  repo — and every card in it — vanish, reading as "you only have one
+   *  project". `{error}` = the daemon's message. */
+  readFailed: "Couldn't read this project's stories: {error}",
+  /** Error toast for the same failure, naming which project it was.
+   *  `{repo}` = the project label, `{error}` = the daemon's message. */
+  readFailedToast: "Couldn't read stories for {repo}: {error}",
   /** One column with zero cards — a quiet placeholder so the empty lane
    *  reads as intentional rather than unrendered. */
   columnEmpty: "No cards",
@@ -37,6 +48,9 @@ export const en = {
       hold: "hold",
       done: "done",
     },
+    /** BOLD CAPS header for the status chip row — the drawer's only route out
+     *  of a column, since the board itself is read-only. */
+    statusLabel: "STATUS",
     /** `{date}` = the issue's created date (day-granular). */
     created: "created {date}",
     /** Badge for a story already linked to a task. */
@@ -60,17 +74,18 @@ export const en = {
       stay: "Stay on the board",
       follow: "Jump to the session",
     },
-    startLegend: "enter/ctrl+enter start · tab fields · ←→ engine · ↑↓ workspace · esc save & close",
+    startLegend: "enter/ctrl+enter start · tab fields · ←→ status/engine · ↑↓ workspace · esc save & close",
     /** Linked-story actions: section header, the jump, and the way back out. */
     sessionLabel: "SESSION",
     openAction: "Open the linked session ↵",
     unlinkAction: "Unlink",
-    openLegend: "enter open the focused action · tab fields · unlink returns the card to Backlog · esc save & close",
+    openLegend:
+      "enter open the focused action · tab fields · ←→ status · unlink returns the card to Backlog · esc save & close",
     /** EVENTS feed under a linked story — the engine's recent lifecycle events. */
     eventsLabel: "EVENTS",
     eventsLoading: "Loading events…",
     eventsNone: "No engine events recorded yet.",
-    doneNote: "Done stories have nothing left to start · esc save & close",
+    doneNote: "Done stories have nothing left to start — set the status back to reopen one · esc save & close",
     /** Toast after a background start. `{title}` = the spawned task title. */
     startedBackground: "Started in background: {title}",
     /** Create-mode header + legend (`n` on the board). */
@@ -106,8 +121,10 @@ export const zh: typeof en = {
   title: "看板",
   hint: "tab 切项目 · ←↓↑→ 选卡片 · enter 详情 · n 新建 · d 删除 · r 刷新 · esc 关闭",
   loading: "正在加载 issues…",
-  noRepos: "还没有项目——先创建一个任务。",
+  noRepos: "还没有项目——用 `rove add <路径>` 添加一个，或用 `rove api issue-create` 创建一个 story。",
   empty: "暂无 issue——agent 可通过 `rove api issue-create` 创建。",
+  readFailed: "读取该项目的 story 失败：{error}",
+  readFailedToast: "读取 {repo} 的 story 失败：{error}",
   columnEmpty: "暂无卡片",
   column: {
     backlog: "待办",
@@ -125,6 +142,7 @@ export const zh: typeof en = {
       hold: "搁置",
       done: "已完成",
     },
+    statusLabel: "状态",
     created: "创建于 {date}",
     linked: "已关联会话",
     titleLabel: "标题",
@@ -143,15 +161,15 @@ export const zh: typeof en = {
       stay: "留在看板",
       follow: "跳转到会话",
     },
-    startLegend: "enter/ctrl+enter 启动 · tab 切字段 · ←→ 引擎 · ↑↓ 工作区 · esc 保存关闭",
+    startLegend: "enter/ctrl+enter 启动 · tab 切字段 · ←→ 状态/引擎 · ↑↓ 工作区 · esc 保存关闭",
     sessionLabel: "会话",
     openAction: "打开关联会话 ↵",
     unlinkAction: "解除关联",
-    openLegend: "enter 执行选中操作 · tab 切字段 · 解除关联把卡片退回 Backlog · esc 保存关闭",
+    openLegend: "enter 执行选中操作 · tab 切字段 · ←→ 状态 · 解除关联把卡片退回 Backlog · esc 保存关闭",
     eventsLabel: "事件",
     eventsLoading: "正在加载事件…",
     eventsNone: "暂无引擎事件记录。",
-    doneNote: "已完成的 story 无需启动 · esc 保存关闭",
+    doneNote: "已完成的 story 无需启动——改回状态即可重新打开 · esc 保存关闭",
     startedBackground: "已在后台启动:{title}",
     newStory: "新建 STORY",
     createLegend: "ctrl+s 仅保存 · enter/ctrl+enter 保存并启动 · tab 切字段 · esc 取消",

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
+import { clearPluginEngines, registerPluginEngine } from "../../src/engine/contrib-engines.ts"
 import {
   engineProcessIn,
   foregroundEngine,
@@ -175,5 +176,55 @@ describe("hasAncestor (env inherits, a pid chain doesn't)", () => {
   it("is false for an unknown pid, and terminates on a cyclic snapshot", () => {
     expect(hasAncestor(rows, 999, 10)).toBe(false)
     expect(hasAncestor(parsePsSnapshot("30 31 a\n31 30 b"), 30, 10)).toBe(false)
+  })
+})
+
+/**
+ * The walk's id set. `null` from this module is read by every consumer as
+ * "walked the shell, positively no engine" — so an id the loop never asks
+ * about is not a missing answer, it is a WRONG one: the daemon writes a
+ * `rest` observation over a working engine, the TUI attaches no turn
+ * detector, and the tab is relabelled "shell N".
+ */
+describe("vendorFromArgv covers every engine the registry can name state-free", () => {
+  afterEach(() => clearPluginEngines())
+
+  it("identifies a shipped contrib engine, not just the built-ins", () => {
+    expect(vendorFromArgv("/usr/local/bin/opencode")).toBe("opencode")
+    expect(vendorFromArgv("/opt/homebrew/bin/gemini --yolo")).toBe("gemini")
+    // Contrib entries whose binary name differs from their id.
+    expect(vendorFromArgv("cursor-agent")).toBe("cursor")
+  })
+
+  it("identifies a plugin-registered engine, and forgets it when the plugin unloads", () => {
+    registerPluginEngine("aider", { displayName: "Aider", defaultCommand: ["aider"], screenManifest: { rules: [] } })
+    expect(vendorFromArgv("/usr/local/bin/aider --model gpt-5")).toBe("aider")
+    clearPluginEngines()
+    expect(vendorFromArgv("/usr/local/bin/aider --model gpt-5")).toBeNull()
+  })
+
+  it("walks to a live contrib engine under a tab's shell", () => {
+    const rows = parsePsSnapshot(`
+100 1 /bin/zsh -l
+101 100 /usr/local/bin/opencode
+200 1 /bin/zsh -l
+`)
+    expect(foregroundEngineIn(rows, 100)?.vendor).toBe("opencode")
+    expect(foregroundEngineIn(rows, 100)?.pid).toBe(101)
+    // Still honestly null for a shell with no engine under it.
+    expect(foregroundEngineIn(rows, 200)).toBeNull()
+  })
+
+  it("a genuinely custom engine stays unnameable here — callers pass its launch argv", () => {
+    // `engineCommand.<id>` lives in state this module must not read, so the
+    // walk cannot name `my-agent`; the delivery gate's `extraLaunch` is how
+    // a caller holding that state asks about it.
+    const rows = parsePsSnapshot(`
+10 1 /bin/zsh -l
+11 10 /Users/me/bin/my-agent --serve
+`)
+    expect(foregroundEngineIn(rows, 10)).toBeNull()
+    expect(engineProcessIn(rows, 10)).toBe(false)
+    expect(engineProcessIn(rows, 10, "/Users/me/bin/my-agent")).toBe(true)
   })
 })

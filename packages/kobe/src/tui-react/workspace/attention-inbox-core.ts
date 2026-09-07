@@ -21,7 +21,15 @@ export function visitResolvedEpisodes(
   items: readonly AttentionInboxItem[],
   visit: { taskId: string; tabId: string | null },
 ): AttentionInboxItem[] {
-  return items.filter((item) => item.taskId === visit.taskId && (item.tabId === null || item.tabId === visit.tabId))
+  return items.filter(
+    (item) =>
+      // Visiting a tab neither releases queued text nor acknowledges text
+      // that expired. Both require an explicit Inbox action.
+      item.state !== "prompt_deferred" &&
+      item.state !== "prompt_expired" &&
+      item.taskId === visit.taskId &&
+      (item.tabId === null || item.tabId === visit.tabId),
+  )
 }
 
 /**
@@ -40,7 +48,12 @@ export function isAttentionInboxItemAvailable(
   task: Pick<Task, "deletion"> | undefined,
   hasTab: (tabId: string) => boolean | undefined,
 ): boolean {
-  if (task === undefined || task.deletion) return false
+  // A routine episode's target is the SCHEDULE, which exists whether or not
+  // the firing produced a task — a routine pointed at a repo that moved never
+  // creates one. Without this it fails the task lookup below, is classified as
+  // garbage, and the host silently deletes the only notice the user gets.
+  if (item.state === "routine_failed") return true
+  if (item.taskId === null || task === undefined || task.deletion) return false
   if (item.tabId === null) return true
   return hasTab(item.tabId) !== false
 }
@@ -54,8 +67,11 @@ export function partitionAttentionInboxAvailability(
   const availableItems: AttentionInboxItem[] = []
   const unavailableItems: AttentionInboxItem[] = []
   for (const item of items) {
-    const available = isAttentionInboxItemAvailable(item, tasksById.get(item.taskId), (tabId) =>
-      hasTab(item.taskId, tabId),
+    const taskId = item.taskId
+    const available = isAttentionInboxItemAvailable(
+      item,
+      taskId === null ? undefined : tasksById.get(taskId),
+      (tabId) => (taskId === null ? undefined : hasTab(taskId, tabId)),
     )
     if (available) availableItems.push(item)
     else unavailableItems.push(item)
@@ -77,7 +93,8 @@ export function sortAttentionInbox(
     const age = a.at - b.at
     if (age !== 0) return age
     const task =
-      (taskIndex.get(a.taskId) ?? Number.MAX_SAFE_INTEGER) - (taskIndex.get(b.taskId) ?? Number.MAX_SAFE_INTEGER)
+      (taskIndex.get(a.taskId ?? "") ?? Number.MAX_SAFE_INTEGER) -
+      (taskIndex.get(b.taskId ?? "") ?? Number.MAX_SAFE_INTEGER)
     if (task !== 0) return task
     return attentionInboxItemKey(a).localeCompare(attentionInboxItemKey(b))
   })
@@ -264,7 +281,16 @@ export function nextAttentionInboxTarget(
   isAvailable: (item: AttentionInboxItem) => boolean = () => true,
 ): AttentionInboxItem | null {
   const liveTasks = new Set(taskOrder)
-  const ordered = sortAttentionInbox(items, taskOrder).filter((item) => liveTasks.has(item.taskId) && isAvailable(item))
+  const ordered = sortAttentionInbox(items, taskOrder).filter(
+    // A routine episode's subject is the SCHEDULE, so a live task is not what
+    // makes it reachable — the same rule `isAttentionInboxItemAvailable` states,
+    // and opening one lands on the Routines page rather than on any task.
+    // Gating on a live task here made the episode that DOES name one (the
+    // firing created a task, its engine never started) visible in the pane and
+    // unreachable from F7 — listed, and skipped, forever.
+    (item) =>
+      (item.state === "routine_failed" || item.taskId === null || liveTasks.has(item.taskId)) && isAvailable(item),
+  )
   if (ordered.length === 0) return null
   const currentKey = current.taskId === null ? null : attentionInboxItemKey(current)
   const currentIndex =

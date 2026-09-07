@@ -2,17 +2,16 @@
  * First/follow-up prompts for a session started from a story in the
  * daemon-owned issue store.
  *
- * ONE implementation, in the package both callers can reach. The TUI
- * (`kobe/src/state/issue-chat.ts`) and the web board
- * (`kobe-web/src/lib/issues.ts`) each carried a hand-kept copy of this
- * wording, and they had already drifted: the web copy interpolated the
- * product name while the TUI copy hard-coded "Rove", so the same action
- * sent different text depending on which surface you started it from.
+ * ONE implementation, in the package every caller can reach. The TUI
+ * (`kobe/src/state/issue-chat.ts`) is the only caller left; it and the
+ * since-removed web board each carried a hand-kept copy of this wording and
+ * had already drifted — the web copy interpolated the product name while the
+ * TUI copy hard-coded "Rove", so the same action sent different text
+ * depending on which surface you started it from.
  *
- * `product` is a parameter rather than a constant because the two callers
- * derive the display name differently (kobe-web's `cli-name.ts`, kobe's
- * `product.ts`) — passing it in is what let the two copies collapse into
- * this one.
+ * `product` stays a parameter because that drift is what collapsing the two
+ * copies had to fix: the callers derived the display name differently, so the
+ * name had to come in from outside rather than be baked in here.
  */
 
 import type { Issue } from "../daemon/issues-store.ts"

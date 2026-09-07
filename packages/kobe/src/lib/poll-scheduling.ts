@@ -5,6 +5,9 @@
  * because `src/tui/lib/background-poll.ts`, `src/monitor/pr-status.ts`,
  * `src/core/daemon-runtime.ts` and `src/engine/claude-code-local/quota.ts`
  * all import from here.
+ *
+ * @public — the type re-exports are consumed by `kobe-daemon`'s collectors
+ * across the package boundary, which knip's `packages/kobe` scope cannot see.
  */
 
 export {

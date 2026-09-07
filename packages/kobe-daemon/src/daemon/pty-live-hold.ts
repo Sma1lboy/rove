@@ -18,7 +18,7 @@
  * is a separate process, the cached flag is refreshed by polling its socket:
  * a slow interval for the steady state, plus `probeSoon()` on gui disconnect
  * so the idle-grace recheck reads a fresh value instead of a poll-stale one.
- * The probe never spawns a host; unreachable reads as "no live sessions".
+ * The probe never spawns a host; an unreadable host keeps the hold until absence is confirmed.
  */
 
 import { logDaemonInfo } from "./crash-log.ts"
@@ -29,9 +29,8 @@ import { logDaemonInfo } from "./crash-log.ts"
 const DEFAULT_POLL_MS = 15_000
 
 export interface PtyLiveHoldOptions {
-  /** Asks the pty host for live sessions. Must resolve false when the host
-   *  is unreachable and never spawn one (`ptyHostHasLiveSessions`). */
-  readonly probe: () => Promise<boolean>
+  /** Null is unknown; only a confirmed false releases the hold. Never spawns. */
+  readonly probe: () => Promise<boolean | null>
   /** Fired once per held→released transition; wire to `reevaluateIdle()`. */
   readonly onRelease: () => void
   readonly pollMs?: number
@@ -40,11 +39,12 @@ export interface PtyLiveHoldOptions {
 }
 
 export class PtyLiveHold {
-  private readonly probe: () => Promise<boolean>
+  private readonly probe: () => Promise<boolean | null>
   private readonly onRelease: () => void
   private readonly pollMs: number
   private readonly log: (event: string, message: string) => void
-  private held = false
+  private held = true
+  private probed = false
   private inFlight: Promise<void> | null = null
   private timer: ReturnType<typeof setInterval> | null = null
 
@@ -82,15 +82,21 @@ export class PtyLiveHold {
   }
 
   private async refresh(): Promise<void> {
-    let next: boolean
+    let next: boolean | null
     try {
       next = await this.probe()
     } catch {
       return // probe contract is throw-free; on a bug, keep the last answer
     }
+    const initialProbe = !this.probed
+    this.probed = true
+    if (next === null) {
+      this.held = true
+      return
+    }
     if (next === this.held) return
     this.held = next
     this.log("idle", next ? "pty host has live sessions — holding daemon open" : "last live pty session gone")
-    if (!next) this.onRelease()
+    if (!next && !initialProbe) this.onRelease()
   }
 }

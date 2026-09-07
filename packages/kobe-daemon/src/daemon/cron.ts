@@ -317,3 +317,39 @@ export function latestCronAtOrBefore(expression: string, nowMs: number, notBefor
   }
   return null
 }
+
+/**
+ * How many occurrences fall in `[fromMs, beforeMs)`, capped at `cap`.
+ *
+ * The counterpart to {@link latestCronAtOrBefore}'s deliberate amnesia. That
+ * function answers "which occurrence am I running" with only the most recent
+ * one, so a sweep that arrives four minutes late runs the newest occurrence
+ * and the three it passed over leave no trace at all. This counts them, so
+ * the run history can say an occurrence was lost instead of showing an
+ * unbroken column of successes.
+ *
+ * Capped because the interval is unbounded in practice — a per-minute
+ * schedule and a daemon that was down for a week is 10,000 instants, and the
+ * caller wants a number for one run record, not the walk.
+ */
+export function countCronBetween(expression: string, fromMs: number, beforeMs: number, cap = 500): number {
+  if (!(fromMs < beforeMs)) return 0
+  let count = 0
+  // `nextCronAfter` is strictly-after and every instant is minute-aligned, so
+  // starting one millisecond early makes `fromMs` itself the first candidate.
+  let cursor = fromMs - 1
+  while (count < cap) {
+    let at: number
+    try {
+      at = nextCronAfter(expression, cursor)
+    } catch {
+      // Past the scan bound. Whatever was counted so far is still true, and a
+      // count is not worth failing a sweep over.
+      return count
+    }
+    if (at >= beforeMs) return count
+    count += 1
+    cursor = at
+  }
+  return count
+}

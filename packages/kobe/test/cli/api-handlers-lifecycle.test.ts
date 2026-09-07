@@ -44,6 +44,7 @@ describe("collect handler", () => {
               lastTitle: null,
               autoTitle: null,
               alive: id === "a",
+              engineAlive: id === "a",
               exit: null,
             },
           ],
@@ -64,7 +65,7 @@ describe("collect handler", () => {
     expect(result.tasks[0].changes).toEqual({ added: 2, deleted: 1 })
   })
 
-  it("skips changes for a task without a worktree", async () => {
+  it("reports changes as unknown, not clean, for a task without a worktree", async () => {
     const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ worktreePath: "" }) }) })
     const result = (await invokeVerb("collect", ["--task-ids", "a"], {
       client,
@@ -77,7 +78,10 @@ describe("collect handler", () => {
         },
       }),
     })) as { tasks: Array<{ changes: unknown; base: unknown }> }
-    expect(result.tasks[0].changes).toEqual({ added: 0, deleted: 0 })
+    // `null`, matching the all-null `base` beside it: there was nothing to
+    // read. `{0,0}` would be a positive claim the caller acts on — the verb
+    // documents non-zero `changes` as "this attempt cannot land".
+    expect(result.tasks[0].changes).toBeNull()
     expect(result.tasks[0].base).toEqual({ baseRef: null, ahead: null, behind: null, diff: null })
   })
 
@@ -213,6 +217,7 @@ describe("task lifecycle handlers", () => {
         lastTitle: null,
         autoTitle: null,
         alive: false,
+        engineAlive: false,
         exit: { code: 1, signal: null, at: "2026-08-11T00:00:00.000Z" },
       },
       {
@@ -224,6 +229,7 @@ describe("task lifecycle handlers", () => {
         lastTitle: "wiring tests",
         autoTitle: null,
         alive: true,
+        engineAlive: true,
         exit: null,
       },
     ] as const
@@ -296,13 +302,22 @@ describe("task lifecycle handlers", () => {
         )
       },
     })
-    // No hint/nextCommandArgs mapping — toApiError falls through to RPC_ERROR,
-    // and the EMPTY_BRANCH code still rides the message for matching.
-    await expectApiError(
-      () => invokeVerb("land", ["--task-id", "t1"], { client, runtime: stubRuntime() }),
-      "RPC_ERROR",
-      /EMPTY_BRANCH/,
-    )
+    // The code is lifted out of the message like every other daemon refusal,
+    // but this one gets NO recovery path: "the worker reported success and
+    // delivered nothing" is for a human to look at, not to auto-retry.
+    try {
+      await invokeVerb("land", ["--task-id", "t1"], { client, runtime: stubRuntime() })
+      expect.unreachable("should have thrown")
+    } catch (err) {
+      expect(err).toBeInstanceOf(ApiError)
+      const apiErr = err as ApiError
+      expect(apiErr.code).toBe("EMPTY_BRANCH")
+      expect(apiErr.message).toMatch(/no commits ahead of 'main'/)
+      // The prefix is gone from the message — it IS the `code` field now.
+      expect(apiErr.message).not.toMatch(/^EMPTY_BRANCH:/)
+      expect(apiErr.data?.hint).toBeUndefined()
+      expect(apiErr.data?.nextCommandArgs).toBeUndefined()
+    }
   })
 
   it("sets and clears active task", async () => {
@@ -403,6 +418,8 @@ describe("deliverPrompt", () => {
     await expectApiError(() => deliverPrompt(new FakeClient(), target, "hello", ops), "SESSION_FAILED")
   })
 
+  // `deferredPrompt.file` is no longer a daemon verb at all; the responder
+  // below only proves the CLI would not reach for it if it came back.
   it("never calls a legacy deferral verb that can replace an accepted prompt", async () => {
     let legacyReplacements = 0
     const client = new FakeClient({

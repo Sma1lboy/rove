@@ -7,6 +7,8 @@ import type { PtyExit } from "./pty-driver.ts"
 /** One session's inventory row — what `pty.list` reports. */
 export interface PtySessionInfo {
   readonly key: string
+  /** Incarnation token, absent on hosts predating conditional teardown. */
+  readonly generation?: string
   readonly alive: boolean
   readonly pid: number | null
   readonly command: readonly string[]
@@ -29,6 +31,7 @@ export interface PtySessionInfo {
 /** One session state → its `pty.list` row (the host's `list()` mapping). */
 export function sessionInfo(s: {
   key: string
+  generation?: string
   alive: boolean
   proc: { readonly pid: number } | null
   command: readonly string[]
@@ -41,6 +44,7 @@ export function sessionInfo(s: {
 }): PtySessionInfo {
   return {
     key: s.key,
+    generation: s.generation,
     alive: s.alive,
     pid: s.proc?.pid ?? null,
     command: s.command,
@@ -58,7 +62,9 @@ export interface PtySessionEndInfo {
   readonly key: string
   readonly pid: number | null
   readonly exit: PtySessionExit
-  /** Raw tail of the ring at exit time (ANSI included; consumers strip). */
+  /** Raw tail of the ring at exit time. Still carries escapes and control
+   *  bytes: `terminal-rows.ts` is the one stripper, and the exit store runs
+   *  it (`plainTail`) before anything persists or renders this. */
   readonly tail: string
 }
 

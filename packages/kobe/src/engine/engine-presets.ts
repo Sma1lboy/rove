@@ -269,10 +269,15 @@ export function engineResumeArgv(
 
 /**
  * True when this engine can BRANCH a conversation — declared by the adapter
- * (`EngineSessionIdentity.forkArgv`), not listed here. Claude and codex ship
- * a fork verb; copilot's `--resume` and kimi's `-S` only REOPEN a session,
- * which would put two live processes on one transcript, so Rove refuses
- * instead of pretending.
+ * (`EngineSessionIdentity.forkArgv`), not listed here. The bar is a verb that
+ * LAUNCHES the branched session, because this argv becomes a tab's command.
+ * Claude and codex clear it. Copilot's `--resume` only REOPENs a session,
+ * which would put two live processes on one transcript. Kimi 0.40.1 does have
+ * a `fork [sessionId]` subcommand, but it is a one-shot: it prints
+ * `Forked to session_<new-id> … in <n>ms` and EXITS (verified 2026-09-04), so
+ * as a tab command it would open a pane that dies on the first frame.
+ * Branching it would take fork-then-`-S <new-id>`, which is two launches and
+ * does not fit this contract. Rove refuses instead of pretending.
  *
  * Protocol-resolved like {@link withPinnedSessionId}: a preset `claudecpa`
  * declaring the claude protocol IS a claude launch, so it forks. Keying off

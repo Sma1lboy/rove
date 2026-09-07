@@ -8,6 +8,15 @@
 
 import { DAEMON_CHANNELS } from "@sma1lboy/rove-plugin-sdk/contract"
 import type {
+  EngineLifecyclePayload,
+  NoticeEventPayload,
+  SessionDeliverPayload,
+  TabClosePayload,
+  TabOpenPayload,
+  TabRenamePayload,
+  UiPromptPayload,
+} from "./channels-events.ts"
+import type {
   AttentionInboxItem,
   EngineActivityDetail,
   EngineContextUsage,
@@ -15,6 +24,17 @@ import type {
   TaskActivityState,
   UpdateInfo,
 } from "./contracts.ts"
+export type {
+  EngineLifecyclePayload,
+  NoticeEventPayload,
+  PaneClosePayload,
+  SessionDeliverPayload,
+  TabClosePayload,
+  TabOpenPayload,
+  TabRenamePayload,
+  TerminalTabClosePayload,
+  UiPromptPayload,
+} from "./channels-events.ts"
 import type { RepoIssues } from "./issues-store.ts"
 import type { SerializedTask } from "./protocol.ts"
 
@@ -35,13 +55,21 @@ export interface ChannelPayloads {
   "task.snapshot": { tasks: SerializedTask[] }
   /**
    * Daemon-owned issue tracker snapshot for ONE repo. Published after every
-   * `issue.mutate`, so every attached web Issues pane updates from the same
-   * source of truth whether the edit came from web, TUI, or `kobe api`.
-   * The payload is the repo's full issue state, not a delta, matching the
-   * `/api/issues` route and keeping clients stateless. Last-value replay only
-   * carries the most recently changed repo; browsers still do their normal
-   * initial `/api/issues` load for every visible repo, then use this channel
-   * for live updates.
+   * `issue.mutate`. The payload is the repo's full issue state, not a delta,
+   * which keeps subscribers stateless; last-value replay carries only the
+   * most recently changed repo.
+   *
+   * WRITE-ONLY IN THIS REPO. Its subscriber was the browser Issues pane,
+   * deleted in #855; the TUI kanban uses the `issue.list` / `issue.mutate`
+   * request/response RPCs instead. The channel stays because it is a public
+   * plugin API — it is in `DAEMON_CHANNELS` (`kobe-plugin-sdk`) and
+   * documented in `docs/PLUGIN-SDK.md`, so out-of-repo subscribers nobody
+   * here can enumerate depend on it. So the publish is GATED rather than
+   * removed: every writer goes through `publishIssueSnapshot`
+   * (`handlers-issues.ts`), which asks `lifetime.hasSubscribersFor` — the
+   * same per-channel gate `startDaemonCollectors` uses — before serializing a
+   * repo's whole issue state. With nobody attached it costs nothing; with a
+   * plugin attached it behaves exactly as before.
    */
   "issue.snapshot": RepoIssues
   /**
@@ -109,7 +137,11 @@ export interface ChannelPayloads {
    * file.
    */
   "ui-prefs": {
-    theme: string
+    /** Selected theme NAME, or `null` when `state.json` names none. The daemon
+     *  has no theme registry, so it cannot supply a default — a literal here
+     *  would be a second, silently-drifting copy of the TUI's. `null` means
+     *  "no opinion": `applyUiPrefs` leaves whatever theme the pane already has. */
+    theme: string | null
     transparentBackground: boolean
     focusAccent: string | null
     /** UI language id (`state.json`'s `locale`). Opaque to the daemon — the TUI validates it. */
@@ -172,6 +204,16 @@ export interface ChannelPayloads {
    */
   "worktree.changes": {
     changes: Record<string, { added: number; deleted: number }>
+    /**
+     * Tracked worktrees whose `git status` FAILED — absent from `changes`
+     * because there are no counts, but present here so a subscriber can tell
+     * "could not read" from "not collected". Without it both look like an
+     * absent key, which the sidebar renders as a clean row: exactly the
+     * signal a user checks before deleting a task. Additive: an older client
+     * ignores the field and keeps today's behaviour, and an older DAEMON
+     * omits it, which a newer client reads as "nothing unreadable".
+     */
+    unreadable?: string[]
   }
   /**
    * Engine-transcript activity for every collected worktree (perf —
@@ -230,6 +272,18 @@ export interface ChannelPayloads {
    */
   "tab.close": TabClosePayload
   /**
+   * One "rename Terminal Tab `tabId` of task X" (`kobe api rename --tab` →
+   * `terminalTab.rename` RPC → here → the TUI hosting the task repaints its
+   * tab strip). EVENT channel: consumers dedupe on `at` and drop stale
+   * replays.
+   *
+   * Unlike `tab.close` this carries no `requestId`, because it needs no
+   * reply: a rename is idempotent, so the CLI writes the persisted snapshot
+   * itself (covering the headless case) and broadcasts, and both writers
+   * converge on the same title in either order.
+   */
+  "tab.rename": TabRenamePayload
+  /**
    * LOW-FREQUENCY agent-lifecycle signals the TUI renders (compaction in
    * progress, subagent activity). Deliberately excludes the tool family —
    * that volume stays plugin-only via the PluginHost's direct feed. EVENT
@@ -281,100 +335,6 @@ export interface ChannelPayloads {
   // `client.onChannel(name, …)` in a consumer — that's the whole recipe:
   // "cost": { taskId: string; usd: number; tokens: number }
   // "pr-status": { taskId: string; state: "open" | "merged" | "closed" | "none" }
-}
-
-/** The `notice.event` channel payload — one toast for every attached UI. */
-export interface NoticeEventPayload {
-  readonly title: string
-  /**
-   * Free-form kind tag. The TUI styles the known severities
-   * ("done" / "needs_input" / "error" — its NotificationKind vocabulary)
-   * and renders anything else neutrally, so agents may invent their own.
-   */
-  readonly kind: string
-  /** Optional task the notice concerns (drives the sidebar unread mark). */
-  readonly taskId?: string
-  /** Publish time (ms epoch) — the consumer-side dedupe key. */
-  readonly at: number
-  /** Free-form origin tag (e.g. "api", an agent name). */
-  readonly source?: string
-}
-
-/** The `session.deliver` channel payload — one "paste this into task X". */
-export interface SessionDeliverPayload {
-  readonly taskId: string
-  readonly text: string
-  /** Exact terminal tab to deliver into (`dispatch --tab`); absent = the
-   *  canonical engine tab. */
-  readonly tabId?: string
-  /** Publish time (ms epoch) — the consumer-side dedupe key. */
-  readonly at: number
-  readonly source: "note" | "dispatcher"
-}
-
-/** The `engine.lifecycle` channel payload — one low-frequency agent-lifecycle signal. */
-export interface EngineLifecyclePayload {
-  readonly taskId: string
-  readonly kind: "pre-compact" | "post-compact" | "subagent-start" | "subagent-stop"
-  readonly tabId?: string
-  /** Publish time (ms epoch) — the consumer-side dedupe key. */
-  readonly at: number
-}
-
-/** The `tab.open` channel payload — one "open a terminal pane running argv". */
-export interface TabOpenPayload {
-  readonly taskId: string
-  /** Argv the pane's PTY spawns verbatim (no shell wrap on this side). */
-  readonly argv: readonly string[]
-  readonly title: string
-  /** Host tab for the split (`pane-open --tab`); absent = the focused tab. */
-  readonly tabId?: string
-  /** `split` (default) joins the focused Terminal Tab's split group; `tab` opens a separate tab. */
-  readonly placement?: "split" | "tab"
-  /** Split orientation: `right` (default) lays the new pane beside the
-   *  active leaf, `down` stacks it below. Ignored for `placement: "tab"`. */
-  readonly direction?: "right" | "down"
-  /** Publish time (ms epoch) — the consumer-side dedupe key. */
-  readonly at: number
-}
-
-/** The `tab.close` channel's pane-close variant. */
-export interface PaneClosePayload {
-  readonly taskId: string
-  /** Pane label to close — matches the `title` split leaves / command tabs
-   *  were opened with (`tab.open`); engine leaves are never closed. */
-  readonly title: string
-  /** Scope the title match to one tab (`pane-close --tab`); absent = all
-   *  tabs of the task. */
-  readonly tabId?: string
-  /** Publish time (ms epoch) — the consumer-side dedupe key. */
-  readonly at: number
-}
-
-/** The `tab.close` channel's exact Terminal Tab close variant. */
-export interface TerminalTabClosePayload {
-  readonly kind: "terminal-tab"
-  readonly taskId: string
-  readonly tabId: string
-  /** Correlates the TUI's close result with the waiting CLI request. */
-  readonly requestId: string
-  readonly at: number
-}
-
-/** Pane closes retain their existing wire shape; exact tab closes discriminate by `kind`. */
-export type TabClosePayload = PaneClosePayload | TerminalTabClosePayload
-
-/** The `ui.prompt` channel payload — one host-dialog text-input request. */
-export interface UiPromptPayload {
-  /** Broker key the answering `ui.promptReply` names. */
-  readonly promptId: string
-  /** Dialog title (plugin-provided, shown verbatim). */
-  readonly title: string
-  readonly placeholder?: string
-  /** Pre-filled input value. */
-  readonly initial?: string
-  /** Publish time (ms epoch) — the consumer-side dedupe key. */
-  readonly at: number
 }
 
 /** The `ui-prefs` channel payload — the persisted visual prefs snapshot. */

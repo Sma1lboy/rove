@@ -536,6 +536,129 @@ What the owner still has to decide: the letter, and whether an action that
 mutates the worktree belongs behind a two-stroke sequence at all rather than
 staying menu-only where it is harder to fire by accident.
 
+## PROPOSED (not decided): `shift+D` — diff the whole worktree
+
+Status: **proposed, awaiting owner sign-off.**
+
+What it does: opens the whole worktree's combined diff (`git diff <base>...HEAD`
+with pathspec `.`) in one read-only tab, from the Files pane. The per-directory
+form needs no chord at all — it rides the existing `d` on a directory row.
+
+Why `shift+D`, direct rather than behind the prefix: it shadows nothing in the Files
+table, it is files-scoped so it cannot collide outside the pane, and it reads as
+"the bigger `d`" sitting next to the `d` it generalises. Behind the prefix it
+would be a two-stroke sequence for a read-only view, which is heavier than the
+action.
+
+What the owner still has to decide: whether a capital letter belongs in the
+Files table at all — every other chord there is lowercase, so `D` is the first
+shift-letter in that scope and sets a precedent for the rest. The feature does
+not depend on the answer: the Changes tab carries a `[D] diff everything` chip
+that opens the same tab with no chord, so removing the binding costs the chip's
+label and nothing else.
+
+## PROPOSED (not decided): `d` — retire a field note
+
+**Scope:** the Field notes dialog only (project header right-click →
+**Field notes**). Not a global chord, not reachable from any pane.
+
+**Why a key at all.** The note store is not an archive: its newest 15 entries
+are injected into every fresh session on the repo, so a note whose fact has
+stopped being true keeps being handed to agents as if it still were. Before
+this the dialog could only scroll and the CLI could only append — the sole
+correction was hand-editing `~/.rove/notes.json`. `rove api note-delete`
+covers the scripted half; this is the half a human reaches for while reading
+the note that is wrong.
+
+**Why `d`.** It matches the two other destructive row actions in the product
+— `d` on a Kanban card and `d` on a Tasks row — so the gesture is already
+learned. Both use the same danger confirm, which opens focused on **Cancel**,
+so a reflex keypress cannot destroy a note.
+
+**What it shadows:** nothing. This dialog binds only `↑↓`/`pageup`/`pagedown`
+and inherits `esc` from the dialog provider; it has no text input, so `d` was
+previously unclaimed here and fell through to the surface underneath. It is
+bound only when the dialog is given a delete handler, so a mock or offline
+host keeps the read-only reader it had.
+
+**What the owner still has to decide:** whether a bare destructive letter
+belongs inside a DIALOG at all — every existing `d` sits on a page or a pane
+with a visible row cursor, and this is the first one inside a modal. The
+feature does not depend on the answer: `rove api note-delete --repo PATH --id
+N` does the same thing, so dropping the binding costs the dialog's cursor and
+its footer hint, nothing else.
+
+## PROPOSED (not decided): `ctrl+a` `r` — redraw the screen
+
+**Scope:** global prefix sequence, reachable from every pane including inside
+the embedded engine terminal (the prefix's first stroke never passes through).
+
+**Why a key at all.** Some screen corruption is undetectable from inside the
+process. Rove now forces a full repaint after every resize and focus-in on
+Windows, which covers the ordinary cases — but a terminal can reflow without
+changing the cell grid, a background image can bleed through a transparent
+theme, and another program can write over the alternate screen. Before this
+the only cure was quitting and relaunching.
+
+**Why `r`.** The mnemonic ("redraw") on the only free second stroke that
+carried it. `1`/`2`/`3`/`,`/`/`/`c`/`f`/`h`/`i`/`k`/`l`/`m`/`n`/`o`/`p`/`u`/
+`w`/`z` were all taken; `r` was not.
+
+**Why not a direct `ctrl+l`.** `ctrl+l` is the shell's and the engine's clear
+chord, and inside the terminal pane that is exactly what a user means by it.
+Claiming it Rove-wide would break the thing users press it for most.
+
+**What it shadows:** nothing. The action is display-only — no task, tab, or
+engine state changes — so a mis-press costs one frame.
+
+**What the owner still has to decide:** whether a repair action deserves a
+prefix slot at all, or whether the automatic repaint on resize is enough and
+this should be a `rove` subcommand or nothing. The Windows fix does not depend
+on the answer: dropping the row leaves the resize repaint and the focus
+repaint intact.
+
+**Shares the stroke with Refresh Rove (next section).** Both landed on `r`
+independently, and both are display-or-process repair actions a user reaches
+for when "Rove looks wrong". They never coexist: the redraw group is disabled
+exactly while a refresh is available, so at any moment prefix+`r` has ONE
+enabled binding (`keymap-dispatch` warns on two). Precedence goes to the
+refresh because it relaunches the TUI, which repaints everything anyway.
+
+## PROPOSED (not decided): `ctrl+a` `r` — Refresh Rove
+
+**Why a key at all.** Rove ships several times a day, and the daemon is a
+long-lived process that outlives an `npm i -g` — so "new binary, stale daemon"
+is the ordinary result of updating, not an edge case. The amber DAEMON OUT OF
+DATE banner already said so; what it could only do was ask the user to quit,
+run `rove daemon restart`, and start Rove again. Every step of that is
+something Rove can do itself, so the banner now names a chord instead of a
+chore list.
+
+**Why the prefix, not a direct chord.** It fires roughly once per upgrade, and
+it tears down the visible UI on the way. Both put it squarely in the tier the
+prefix exists for (docs/KEYBINDINGS.md: "everything less frequent"), and a
+direct `ctrl+r` would collide with reverse-search inside every embedded engine
+and shell terminal.
+
+**Why `r`.** The only free prefix stroke that says the word. `p`/`P`, `k`, `u`,
+`w`, `c`, `f`, `i`, `n`, `o`, `m`, `z`, `,`, `/` and `1`/`2`/`3` are taken.
+
+**What it shadows:** nothing — `r` was an unclaimed second stroke. It is
+registered only while a refresh is actually available (the two builds differ,
+or a daemon announced a restart), so on a current Rove the chord is unbound and
+the command guide does not advertise it.
+
+**Consent.** One confirm before anything happens, focused on Cancel, naming the
+thing users actually worry about: engine sessions live in the PTY host and are
+not affected. There is no auto-refresh.
+
+**What the owner still has to decide:** whether `r` is the right stroke, and
+whether an availability-gated chord is acceptable at all — a binding that
+appears and disappears is new in this keymap. The feature does not depend on
+the answer: Settings → Dev → **Restart backend** performs the identical action,
+so dropping the chord costs the banner its one-keypress affordance and nothing
+else.
+
 ## Adding or moving a chord
 
 Get owner sign-off on direct versus prefix placement, the selected key, and

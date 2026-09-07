@@ -163,6 +163,24 @@ describe("settings + file handlers", () => {
     ])
   })
 
+  it("stores a TOML boolean or number default as the string it is stored as", () => {
+    // `type = "boolean"` invites `default = true`; that used to fail the whole
+    // manifest with "must be a non-empty string". `false` means no default,
+    // matching the storage convention where a boolean is on iff its value is "1".
+    const settings = (toml: string) => parsePluginManifest(`${base}${toml}`).manifest.settings
+    expect(settings('[[settings]]\nkey = "K_ON"\nlabel = "On"\ntype = "boolean"\ndefault = true')).toEqual([
+      { key: "K_ON", label: "On", type: "boolean", default: "1" },
+    ])
+    expect(settings('[[settings]]\nkey = "K_OFF"\nlabel = "Off"\ntype = "boolean"\ndefault = false')).toEqual([
+      { key: "K_OFF", label: "Off", type: "boolean" },
+    ])
+    expect(settings('[[settings]]\nkey = "K_N"\nlabel = "N"\ntype = "number"\ndefault = 5')).toEqual([
+      { key: "K_N", label: "N", type: "number", default: "5" },
+    ])
+    // Anything else still has to be a real string.
+    expect(() => settings('[[settings]]\nkey = "K_X"\nlabel = "X"\ntype = "string"\ndefault = ""')).toThrow(/default/)
+  })
+
   it("rejects an enum setting without options and unknown types", () => {
     expect(() => parsePluginManifest(`${base}[[settings]]\nkey = "K"\nlabel = "L"\ntype = "enum"`)).toThrow(/options/)
     expect(() => parsePluginManifest(`${base}[[settings]]\nkey = "K"\nlabel = "L"\ntype = "list"`)).toThrow(/type/)

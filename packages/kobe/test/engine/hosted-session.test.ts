@@ -147,122 +147,6 @@ describe("pastePromptWhenEngineUp (first-message paste delivery)", () => {
     expect(delivered).toBeNull()
     expect(request).not.toHaveBeenCalledWith("pty.write", expect.anything())
   })
-
-  it("waits for the init marker before budgeting engine-startup time", async () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-hosted-init-marker-"))
-    const marker = path.join(tmp, "marker")
-    let written = ""
-    const request = vi.fn().mockImplementation((name: string, payload: unknown) => {
-      // A ready engine (bracketed paste on) that echoes what it is written,
-      // so the readiness wait and the capture confirmation both settle.
-      if (name === "pty.peek")
-        return Promise.resolve({
-          exists: true,
-          alive: true,
-          offset: 0,
-          data: Buffer.from(`\x1b[?2004h${written}`).toString("base64"),
-        })
-      if (name === "pty.write") {
-        written += (payload as { data?: string })?.data ?? ""
-        return Promise.resolve({})
-      }
-      return Promise.resolve({ sessions: [session("task-a::tab-1")] })
-    })
-    const rpc: HostedSessionRpc = { request }
-
-    let engineChecked = false
-    let markerChecked = false
-    const sleep = vi.fn().mockImplementation(async () => {
-      if (!markerChecked) {
-        fs.writeFileSync(marker, "")
-        markerChecked = true
-      }
-    })
-    const snapshot = vi.fn().mockImplementation(async () => {
-      engineChecked = true
-      return withEngine
-    })
-
-    const delivered = await pastePromptWhenEngineUp(rpc, "task-a::tab-1", "kimi", "fix it", {
-      initMarkerPath: marker,
-      initTimeoutMs: 50,
-      sleep,
-      snapshot,
-    })
-
-    expect(delivered).not.toBeNull()
-    expect(markerChecked).toBe(true)
-    expect(engineChecked).toBe(true)
-    expect(snapshot).toHaveBeenCalled()
-    fs.rmSync(tmp, { recursive: true, force: true })
-  })
-
-  // The marker records the init OUTCOME, so it appears on a failing init too.
-  // While it only appeared on success, "init failed" and "init still running"
-  // were the same observation from here and this loop sat out its whole
-  // 120s budget before the prompt was ever pasted.
-  it("stops waiting on the first poll after a FAILING init records its outcome", async () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-hosted-init-failed-"))
-    const marker = path.join(tmp, "marker")
-    let written = ""
-    const request = vi.fn().mockImplementation((name: string, payload: unknown) => {
-      if (name === "pty.peek")
-        return Promise.resolve({
-          exists: true,
-          alive: true,
-          offset: 0,
-          data: Buffer.from(`\x1b[?2004h${written}`).toString("base64"),
-        })
-      if (name === "pty.write") {
-        written += (payload as { data?: string })?.data ?? ""
-        return Promise.resolve({})
-      }
-      return Promise.resolve({ sessions: [session("task-a::tab-1")] })
-    })
-    const rpc: HostedSessionRpc = { request }
-
-    // Two marker-loop sleeps, then the launch script records `1` (init failed).
-    let markerSleeps = 0
-    let markerLanded = false
-    const sleep = vi.fn().mockImplementation(async () => {
-      if (markerLanded) return
-      markerSleeps += 1
-      if (markerSleeps === 2) {
-        fs.writeFileSync(marker, "1")
-        markerLanded = true
-      }
-    })
-
-    const delivered = await pastePromptWhenEngineUp(rpc, "task-a::tab-1", "kimi", "fix it", {
-      initMarkerPath: marker,
-      // A budget far larger than the marker wait: if the loop ran to the
-      // deadline instead of reacting to the sentinel, `markerSleeps` would
-      // keep climbing.
-      initTimeoutMs: 600_000,
-      sleep,
-      snapshot: async () => withEngine,
-    })
-
-    expect(delivered).not.toBeNull()
-    expect(markerSleeps).toBe(2) // exited on the poll right after it appeared
-    fs.rmSync(tmp, { recursive: true, force: true })
-  })
-
-  it("returns false if the session dies while waiting for the init marker", async () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-hosted-init-marker-"))
-    const marker = path.join(tmp, "marker")
-    const request = vi.fn().mockResolvedValue({ sessions: [{ ...session("task-a::tab-1"), alive: false }] })
-    const rpc: HostedSessionRpc = { request }
-
-    const delivered = await pastePromptWhenEngineUp(rpc, "task-a::tab-1", "kimi", "fix it", {
-      initMarkerPath: marker,
-      initTimeoutMs: 50,
-      sleep: noSleep,
-    })
-
-    expect(delivered).toBeNull()
-    fs.rmSync(tmp, { recursive: true, force: true })
-  })
 })
 
 describe("deliverToHostedKey A+C gates", () => {
@@ -327,7 +211,7 @@ describe("deliverToHostedKey A+C gates", () => {
       // Pinned, not defaulted: the gate now falls back to the persisted
       // setting, so leaving this out made the assertion depend on whether the
       // machine running the suite had turned the switch off.
-      composerGate: true,
+      guard: "on",
     }).then(
       () => null,
       (e) => e,
@@ -337,7 +221,7 @@ describe("deliverToHostedKey A+C gates", () => {
   })
 
   it("skips the screen check when the composer gate is off, but keeps the timing one", async () => {
-    // The escape hatch (state/composer-gate.ts) for a screen rule an engine
+    // The escape hatch (state/delivery-guard.ts) for a screen rule an engine
     // redesign has outrun. It drops the LAYOUT read only: the A layer measures
     // keystroke recency, so a composer someone is typing into right now stays
     // protected however this is set — otherwise turning it off would trade a
@@ -346,7 +230,7 @@ describe("deliverToHostedKey A+C gates", () => {
 
     const cOff = await deliverToHostedKey(rpcWith(busyScreen) as HostedSessionRpc, "t1::tab-1", "go", {
       screenManifest: manifest,
-      composerGate: false,
+      guard: "screen-off",
     }).then(
       () => "delivered",
       (e) => e,
@@ -357,7 +241,7 @@ describe("deliverToHostedKey A+C gates", () => {
       rpcWith({ ...busyScreen, lastHumanWriteMs: 1_000, humanWriteQuietMs: 10_000 }) as HostedSessionRpc,
       "t1::tab-1",
       "go",
-      { screenManifest: manifest, composerGate: false, now: () => 5_000 },
+      { screenManifest: manifest, guard: "screen-off", now: () => 5_000 },
     ).then(
       () => null,
       (e) => e,
@@ -425,7 +309,7 @@ describe("deliverToHostedKey A+C gates", () => {
 
     const outcome = await deliverToHostedKey(rpc, "t1::tab-1", "go", {
       screenManifest: CODEX_SCREEN_MANIFEST,
-      composerGate: true,
+      guard: "on",
     })
 
     expect(outcome).toMatchObject({ ready: true, confirmed: true })
@@ -452,7 +336,7 @@ describe("deliverToHostedKey A+C gates", () => {
     await expect(
       deliverToHostedKey(rpc, "t1::tab-1", "go", {
         screenManifest: CODEX_SCREEN_MANIFEST,
-        composerGate: true,
+        guard: "on",
       }),
     ).rejects.toBeInstanceOf(ComposerBusyError)
     expect(writes).toEqual([])

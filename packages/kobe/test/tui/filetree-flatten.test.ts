@@ -109,14 +109,24 @@ describe("readWorktreeChanges", () => {
     rmSync(repo, { recursive: true, force: true })
   })
 
-  test("returns zeros for an empty path and for a non-repo dir", () => {
-    expect(readWorktreeChanges("")).toEqual({ added: 0, deleted: 0 })
+  // The three failure branches must be UNKNOWN, never `{0,0}`: `{0,0}` is the
+  // real answer for a clean worktree, and `collect` documents non-zero as
+  // "cannot land", so a fabricated zero reads as safe to land / safe to delete.
+  test("returns null — not zeros — when the counts cannot be read", () => {
+    expect(readWorktreeChanges("")).toBeNull()
     const notRepo = mkdtempSync(join(tmpdir(), "kobe-not-repo-"))
     try {
-      expect(readWorktreeChanges(notRepo)).toEqual({ added: 0, deleted: 0 })
+      // git exits non-zero outside a repo.
+      expect(readWorktreeChanges(notRepo)).toBeNull()
     } finally {
       rmSync(notRepo, { recursive: true, force: true })
     }
+    // A directory that does not exist at all makes the spawn itself throw.
+    expect(readWorktreeChanges(join(tmpdir(), "rove-definitely-not-here-xyz"))).toBeNull()
+  })
+
+  test("a genuinely clean worktree still reads as zeros, not unknown", () => {
+    expect(readWorktreeChanges(repo)).toEqual({ added: 0, deleted: 0 })
   })
 
   test("counts untracked and modified files from real porcelain output", () => {
@@ -124,7 +134,7 @@ describe("readWorktreeChanges", () => {
     mkdirSync(join(repo, "sub"), { recursive: true })
     writeFileSync(join(repo, "sub", "extra.txt"), "hi")
     const changes = readWorktreeChanges(repo)
-    expect(changes.added).toBeGreaterThan(0)
-    expect(changes.deleted).toBe(0)
+    expect(changes?.added).toBeGreaterThan(0)
+    expect(changes?.deleted).toBe(0)
   })
 })

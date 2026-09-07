@@ -14,34 +14,39 @@
 
 import type { PtyOpenResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
+import { protocolEntry } from "../../engine/engine-presets.ts"
 import type { PsSnapshot } from "../../engine/foreground.ts"
 import {
   ComposerBusyError,
   type HostedSessionRpc,
   type PromptWriteOutcome,
+  awaitEngineProcess,
   deliverToHostedKey,
   ensureHostedSessionHost,
   findHostedEngineKey,
+  hostedSessionFailureLine,
   hostedTaskKeys,
   isHostedTaskKey,
   killHostedSessions,
   listHostedSessions,
+  listHostedSessionsOrNull,
   openHostedSessionHost,
   pastePromptWhenEngineUp,
   writeHostedPrompt,
   writeHostedPromptIfClear,
 } from "../../engine/hosted-session.ts"
-import { engineEntry } from "../../engine/registry.ts"
 import type { EngineScreenManifest } from "../../engine/screen-state.ts"
-import { sessionHasEngine } from "../../engine/session-engine-presence.ts"
-import type { EngineSessionLaunch } from "../../engine/session-launch.ts"
+import { enginePresence } from "../../engine/session-engine-presence.ts"
+import { type EngineSessionLaunch, initMarkerSaysFinished } from "../../engine/session-launch.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
 import type { VendorId } from "../../types/vendor.ts"
+import { restoredTabsOf } from "./tab-respawn.ts"
 import { ApiError, type DeliveredPrompt, type PromptDeferralSink } from "./types.ts"
 
-// `sessionHasEngine` is the foreground gate for delivery into an existing
+// `enginePresence` is the foreground gate for delivery into an existing
 // hosted session: an alive PTY may now be a fallback shell after the engine
-// exits, and pasting there would execute the prompt as shell commands.
+// exits, and pasting there would execute the prompt as shell commands. Its
+// third answer, "unknown", refuses without claiming the engine is gone.
 /**
  * The narrow pty-host surface this module needs: request/response RPC plus
  * cleanup. `KobeDaemonClient` satisfies it; tests inject a fake that
@@ -51,8 +56,8 @@ export type PtyHostRpc = HostedSessionRpc
 
 /**
  * A key belongs to `taskId` when its segment before the first `::` matches
- * — the same split `pty-host.ts` `sweepTasks` uses. `tab-1` is the engine
- * tab the TUI's `initialTabs()` always mints first.
+ * — the same split the daemon's task-deletion sweep uses. `tab-1` is the
+ * engine tab the TUI's `initialTabs()` always mints first.
  */
 export const isTaskKey = isHostedTaskKey
 
@@ -79,6 +84,7 @@ export const ensurePtyHost = ensureHostedSessionHost
 
 /** Session inventory from the pty host; `[]` on any RPC hiccup. */
 export const listSessions = listHostedSessions
+export const listSessionsOrNull = listHostedSessionsOrNull
 
 /**
  * Deliver `prompt` into an existing hosted engine session and submit it —
@@ -91,12 +97,24 @@ export const deliverToKey = deliverToHostedKey
 const writePrompt = writeHostedPromptIfClear
 
 /**
+ * How long a fresh argv-delivery spawn gets to put an engine in the process
+ * table before this call reports it unobserved. Short on purpose: a caller
+ * is blocked on the answer, a failed launch (`command not found`) never
+ * produces one, and an engine that is merely slow reports
+ * `engineReady: false` with the session's own output as the reason rather
+ * than a claim nobody checked.
+ */
+export const ENGINE_START_PROBE_MS = 3_000
+export const ENGINE_START_POLL_MS = 150
+export const ENGINE_NOT_OBSERVED_REASON = `no engine process appeared in the session within ${ENGINE_START_PROBE_MS}ms`
+
+/**
  * Turn an observed write into the API's outcome fields. One place so every
  * delivery path reports the same measured facts instead of each inventing
  * its own optimistic defaults — which is how `delivered: true` came to mean
  * "we called write()" on one path and "we checked" on another.
  */
-function outcomeFields(outcome: PromptWriteOutcome | null): {
+export function outcomeFields(outcome: PromptWriteOutcome | null): {
   engineReady: boolean
   delivered: boolean
   bytes?: number
@@ -146,9 +164,21 @@ export async function deliverHostedPrompt(
   if (existingKey) {
     // Foreground gate: the session's SPAWN argv matched an engine, but the
     // engine may have exited into the keepAlive shell since — pasting there
-    // executes the prompt as shell commands. See {@link sessionHasEngine}.
+    // executes the prompt as shell commands. See {@link enginePresence}.
     const pid = sessions.find((s) => s.key === existingKey)?.pid
-    if (!(await sessionHasEngine(pid, target.engineBin, opts?.snapshot))) {
+    const presence = await enginePresence(pid, target.engineBin, opts?.snapshot)
+    if (presence === "unknown") {
+      // Refuse, but do not claim the engine exited — we never got to look.
+      throw new ApiError(
+        `could not read the process table, so task ${target.id}'s engine tab (${existingKey}) could not be checked for a live engine`,
+        "ENGINE_PROBE_FAILED",
+        {
+          hint: "the `ps` probe failed or timed out; retry, or check the machine's process table",
+          nextCommandArgs: ["api", "pty-list"],
+        },
+      )
+    }
+    if (presence !== "engine") {
       throw new ApiError(
         `task ${target.id}'s engine tab (${existingKey}) has no live engine process — its engine exited into a plain shell`,
         "ENGINE_NOT_RUNNING",
@@ -191,6 +221,12 @@ export async function deliverHostedPrompt(
     }
   }
 
+  // Everything below SPAWNS. Name the conversations a pty-host restart froze
+  // and this call is about to pass over: without it "started a blank session
+  // while your real work sits frozen" is byte-identical to a healthy first
+  // start. See {@link DeliveredPrompt.frozenTabs}.
+  const frozen = restoredTabsOf(sessions, target.id, launch.key)
+  const disclose = frozen.length > 0 ? { frozenTabs: frozen } : {}
   const staleCanonical = sessions.find((session) => session.key === launch.key && !session.alive)
   // A FREEZE-RESTORED corpse is not killed: `pty.open` respawns it in place
   // (pre-restart scrollback kept), so the launch below both revives the tab
@@ -215,6 +251,7 @@ export async function deliverHostedPrompt(
         started: open.created !== false || open.respawned === true,
         engineReady: false,
         delivered: false,
+        ...disclose,
       }
     }
     // Paste-delivery vendor (kimi — issue #25): the launch spawned the bare
@@ -239,6 +276,7 @@ export async function deliverHostedPrompt(
         pane: launch.key,
         started: open.created !== false || open.respawned === true,
         ...outcomeFields(outcome),
+        ...disclose,
       }
     }
     // Another API process may win the create race after our pty.list. Its
@@ -257,20 +295,67 @@ export async function deliverHostedPrompt(
         if (err instanceof ComposerBusyError) return deferOrThrow(err, opts?.defer, target.id, tabId, prompt)
         throw err
       }
-      return { session: launch.key, pane: launch.key, started, ...outcomeFields(outcome) }
+      return { session: launch.key, pane: launch.key, started, ...outcomeFields(outcome), ...disclose }
     }
     // OUR launch carried the prompt in its argv, so no paste happened here.
-    // The engine receives the prompt from its own command line — a delivery
-    // this code never observed, and must not claim to have confirmed. It
-    // used to hardcode `delivered = true` (and copy that into engineReady),
-    // which is how a task that received nothing still reported a clean
-    // success on all three fields.
+    // The engine reads the prompt from its own command line — a delivery this
+    // code never observed, and the only thing that can confirm it is the
+    // engine PROCESS existing. `open.alive` is not that: keepAlive `exec`s a
+    // login shell where the engine exits, so a session whose launch command
+    // does not exist reports `alive` exactly like a healthy one, and
+    // `engineReady: true, delivered: true` came back for a binary that had
+    // already printed `no such file or directory`.
+    //
+    // An init marker with no recorded exit code means the launch has not
+    // reached the engine yet — `initMarkerSaysFinished` is the same predicate
+    // the launch script's own re-run guard uses, so the two cannot disagree.
+    // Keep that result unconfirmed without waiting through dependency install.
+    const pendingInit: DeliveredPrompt = {
+      session: launch.key,
+      pane: launch.key,
+      started,
+      engineReady: false,
+      delivered: true,
+      reason: "repo init script is still running; the engine has not started yet",
+      ...disclose,
+    }
+    if (launch.initMarkerPath && !initMarkerSaysFinished(launch.initMarkerPath)) return pendingInit
+    // Otherwise walk for the process — the same presence walk the
+    // existing-session gate above uses, in the loop `awaitEngineProcess`
+    // already owns, not a third implementation of the same question.
+    const enginePid = await awaitEngineProcess(rpc, launch.key, target.engineBin, {
+      timeoutMs: ENGINE_START_PROBE_MS,
+      intervalMs: ENGINE_START_POLL_MS,
+      snapshot: opts?.snapshot,
+    })
+    if (enginePid === null) {
+      // Init may restart during the probe, then finish while inventory is
+      // loading. Check the marker after that await as well as session liveness.
+      if (
+        launch.initMarkerPath &&
+        !initMarkerSaysFinished(launch.initMarkerPath) &&
+        (await listSessions(rpc)).some((session) => session.key === launch.key && session.alive) &&
+        !initMarkerSaysFinished(launch.initMarkerPath)
+      ) {
+        return pendingInit
+      }
+      return {
+        session: launch.key,
+        pane: launch.key,
+        started,
+        engineReady: false,
+        delivered: false,
+        reason: (await hostedSessionFailureLine(rpc, launch.key)) ?? ENGINE_NOT_OBSERVED_REASON,
+        ...disclose,
+      }
+    }
     return {
       session: launch.key,
       pane: launch.key,
       started,
-      engineReady: open.alive,
+      engineReady: true,
       delivered: true,
+      ...disclose,
     }
   } finally {
     await rpc.request("pty.detach", { key: launch.key }).catch(() => {})
@@ -278,60 +363,15 @@ export async function deliverHostedPrompt(
 }
 
 /**
- * Deliver into ONE exact tab (`send --tab tab-N`) — no fallback, no spawn.
- * The addressed tab must exist and be alive; anything else is a typed error
- * so a script targeting "the second tab" never silently lands in the first.
+ * The screen manifest the composer gate classifies with — the WRAPPED
+ * engine's, via {@link protocolEntry}. A screen manifest is protocol
+ * knowledge ("what does this engine's composer look like"), so keying it off
+ * the raw id would find the empty custom entry and leave the B-layer with
+ * nothing to classify: a `claudecpa` task would get no gate at all rather
+ * than a degraded one, and `send` would paste over half-typed text.
  */
-export async function deliverToExactTab(
-  rpc: PtyHostRpc,
-  taskId: string,
-  tabId: string,
-  cwd: string,
-  prompt: string,
-  opts?: {
-    readonly engineBin?: string
-    readonly snapshot?: PsSnapshot
-    readonly vendor?: VendorId
-    readonly defer?: PromptDeferralSink
-  },
-): Promise<DeliveredPrompt> {
-  const key = `${taskId}::${tabId}`
-  const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
-  const session = sessions.find((s) => s.key === key)
-  if (!session?.alive) {
-    throw new ApiError(
-      `tab ${tabId} has no live session on task ${taskId} — see \`rove api pty-list\` for alive tabs`,
-      "TAB_NOT_FOUND",
-    )
-  }
-  // Same foreground gate as the canonical path: an addressed tab whose
-  // engine exited (or that always was a shell tab) must not have the prompt
-  // pasted into its shell. ANY running engine passes — the addressed tab's
-  // engine need not match the task's vendor (cross-vendor send).
-  if (!(await sessionHasEngine(session.pid, opts?.engineBin, opts?.snapshot))) {
-    throw new ApiError(
-      `tab ${tabId} on task ${taskId} has no live engine process — it is a plain shell right now`,
-      "ENGINE_NOT_RUNNING",
-      {
-        hint: "spawn a fresh engine tab for this prompt with --tab new, or pick an engine tab from pty-list",
-        nextCommandArgs: ["api", "pty-list"],
-      },
-    )
-  }
-  // No pty.detach — see deliverHostedPrompt's existing-key path.
-  const deliveryOpts = { screenManifest: resolveComposerManifest(opts?.vendor) }
-  let outcome: PromptWriteOutcome | null
-  try {
-    outcome = await deliverToKey(rpc, key, prompt, deliveryOpts)
-  } catch (err) {
-    if (err instanceof ComposerBusyError) return deferOrThrow(err, opts?.defer, taskId, tabId, prompt)
-    throw err
-  }
-  return { session: key, pane: key, started: false, ...outcomeFields(outcome) }
-}
-
-function resolveComposerManifest(vendor?: VendorId): EngineScreenManifest | undefined {
-  return vendor ? engineEntry(vendor).screenManifest : undefined
+export function resolveComposerManifest(vendor?: VendorId): EngineScreenManifest | undefined {
+  return vendor ? protocolEntry(vendor).screenManifest : undefined
 }
 
 /**
@@ -340,7 +380,7 @@ function resolveComposerManifest(vendor?: VendorId): EngineScreenManifest | unde
  * daemon accepts it; an occupied slot or failed handoff is an error. Without
  * a sink there is no queue, so surface the legacy typed error.
  */
-async function deferOrThrow(
+export async function deferOrThrow(
   error: ComposerBusyError,
   sink: PromptDeferralSink | undefined,
   taskId: string,
@@ -357,12 +397,16 @@ async function deferOrThrow(
       throw composerBusyApiError(error, taskId, prompt)
     }
     if (deferred.kind === "occupied") {
+      // The recovery used to be a verbatim replay of the send that just
+      // failed, which fails again for as long as the slot is held — a
+      // self-healing step that cannot heal. Point at the action that actually
+      // frees the slot; the retry is the caller's next move after that.
       throw new ApiError(`task ${taskId} tab ${tabId} already has a deferred prompt`, "DEFERRED_PROMPT_PENDING", {
         taskId,
         tabId,
         existingId: deferred.id,
-        hint: "release or dismiss the existing Inbox prompt before retrying",
-        nextCommandArgs: ["api", "send", "--task-id", taskId, "--tab", tabId, "--prompt", prompt],
+        hint: "a prompt is already held for this tab — deliver it with `deferred-release --id`, or drop it with `deferred-dismiss --id`, then send yours again (`deferred-list` shows the text and its expiry)",
+        nextCommandArgs: ["api", "deferred-release", "--id", deferred.id],
       })
     }
     return {
@@ -371,7 +415,11 @@ async function deferOrThrow(
       started: false,
       engineReady: false,
       delivered: false,
-      deferred: { id: deferred.id, layer: error.layer },
+      deferred: {
+        id: deferred.id,
+        layer: error.layer,
+        ...(deferred.expiresAt !== undefined ? { expiresAt: deferred.expiresAt } : {}),
+      },
     }
   }
   throw composerBusyApiError(error, taskId, prompt)

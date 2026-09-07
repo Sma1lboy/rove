@@ -144,6 +144,23 @@ export const SCENES: readonly Scene[] = [
     element: tree({ engineTabState: tabState("turn_complete"), selectedId: "bravo", selectedTabId: "tab-1" }),
   },
   {
+    name: "tab-still-writing",
+    about:
+      "same turn_complete as above, but the worktree's transcript kept growing after the hook — the row spins instead of settling to done",
+    setup: seedStandard,
+    // Identical to `tab-turn-complete` except for `transcriptActivity`. The
+    // pair is the whole point: drop the tree's transcript wiring and this
+    // frame becomes that one, which is what a nine-minute tool call after a
+    // `turn-complete` hook rendered as before.
+    element: tree({
+      engineTabState: tabState("turn_complete"),
+      selectedId: "bravo",
+      selectedTabId: "tab-1",
+      transcriptActivity: new Map([["/wt/alpha", { mtimeMs: AT + 60_000 }]]),
+    }),
+    animated: true,
+  },
+  {
     name: "tab-permission-needed",
     about: "blocked on the user — the one state whose glyph literally asks a question",
     setup: seedStandard,
@@ -206,8 +223,7 @@ export const SCENES: readonly Scene[] = [
   },
   {
     name: "worktree-status-chip",
-    about:
-      "the human-set board status joins the same right-edge cluster, LEFT of the machine PR chip; backlog/in_progress stay bare",
+    about: "the board status never reaches the rail; only the PR chip does, and a conflict outranks green checks",
     setup: () => seedTabs([]),
     element: tree({
       tasks: [
@@ -215,6 +231,7 @@ export const SCENES: readonly Scene[] = [
         // (the engine sets in_review, CI reports the branch) and the one place
         // the two chips must stay readable side by side.
         task("review", { status: "in_review", prStatus: { checkState: "passing" } as Task["prStatus"] }),
+        task("stuck", { prStatus: { checkState: "passing", mergeable: "CONFLICTING" } as Task["prStatus"] }),
         task("shipped", { status: "done" }),
         task("dropped", { status: "canceled" }),
         task("broke", { status: "error" }),

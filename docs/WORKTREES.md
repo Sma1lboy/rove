@@ -62,6 +62,14 @@ automatic cleanup decision:
 | `PR closed` | GitHub reports a closed, unmerged PR. |
 | `stale` | No stronger signal exists and the last activity is more than 14 days old. |
 
+`dirty` is `git status --porcelain` and nothing else, so a worktree whose only
+work is gitignored — a `HANDOFF.md`, a `.scratch/` — carries no `dirty` badge
+and can still read `in main`. Deletion checks more than the badge does
+(`git status --ignored` as well), so such a row looks safe to clean here and is
+still refused at the delete, offering the two-stage force flow below. That is
+the gate working: the badge reports what git reports, and the refusal names the
+paths git will not.
+
 The `rove` badge describes where the directory lives. **Adoption** describes
 whether Rove has a Task for that worktree. Either a Rove-managed or external
 worktree can be adopted through New task → Adopt Worktree or `rove adopt`.
@@ -90,9 +98,12 @@ manual conflict resolution to you.
 
 A successful land removes the worktree — it is spent once its branch is in —
 and the row leaves the page. The **branch survives**: git keeps the durable
-record. If removal is refused (the worktree is dirty, it is the base
-checkout, or it is the directory Rove itself is running from), the land still
-stands and the page reports why the worktree is still there. Deleting the
+record. Removal after a land is never forced, so it is refused by everything
+a plain delete is refused by: the worktree is dirty, it holds gitignored work
+`git status` cannot see (a `HANDOFF.md`, a `.scratch/`), that ignored listing
+could not run, it is the base checkout, or it is the directory Rove itself is
+running from. The land still stands and the page reports why the worktree is
+still there. Deleting the
 task and deleting the source branch remain separate lifecycle decisions;
 from the CLI, `rove api land --remove-worktree=false` keeps the worktree.
 
@@ -105,9 +116,23 @@ The row disappears while removal runs. If git refuses or the operation fails,
 the row returns. A successful removal deregisters and removes the working
 directory but keeps its git branch.
 
-For a worktree tracked by a Task, Rove clears that Task's worktree pointer. It
-does not delete the Task, its branch, or engine history. Opening the Task later
-may materialize a fresh worktree from the retained branch.
+The page lists every registered worktree of a saved project, including
+directories Rove did not create. Two of those it refuses to delete
+(`NOT_A_ROVE_WORKTREE`): the directory a directory Task pins, and a project's
+own checkout. Both are yours, not Rove's, and neither can be re-materialized
+from a branch.
+
+For a **Rove-created** worktree tracked by a Task, Rove clears that Task's
+worktree pointer. It does not delete the Task, its branch, or engine history.
+Opening the Task later may materialize a fresh worktree from the retained
+branch.
+
+`rove api remove-worktree --task-id ID [--force]` is the same operation from a
+shell, for scripting a reclaim of idle checkouts. It runs this path — session
+teardown first, dirty refused without `--force`, salvage snapshot on every
+force — and adds two refusals a clicking human cannot trigger: it will not
+remove the project's own checkout (`BASE_CHECKOUT`) or the worktree the
+command is running from (`CALLER_WORKTREE`).
 
 ### When git removes the worktree but not its directory
 
@@ -141,6 +166,22 @@ The first confirmation can never silently turn into a force deletion. The
 second confirmation is the boundary that authorizes data loss. The branch is
 still retained, but uncommitted and untracked files are not part of it.
 
+Step 2 checks more than `git status --porcelain` reports. A gitignored
+`HANDOFF.md` or `.scratch/` shows in no status output, so the check also asks
+`git status --ignored` and refuses on any ignored entry under the 64 MB
+per-entry budget below — the same budget the snapshot uses, so the delete
+refuses for exactly what the forced retry then rescues. The refusal names
+those paths, because `git status` will not. An ignored entry OVER the budget
+(a `node_modules/`, a build directory) is not treated as work: it neither
+blocks the delete nor lands in the snapshot.
+
+If that `git status --ignored` cannot run at all, the delete is **refused**,
+not allowed. An empty list is this gate's permission to destroy the directory,
+so a listing that failed used to hand out that permission on the strength of
+having failed. The refusal says the listing failed rather than naming paths,
+and `--force` still overrides it — which is the safer order, because the
+forced path takes a salvage snapshot first.
+
 ### Landing with `--delete-branch`
 
 `land --delete-branch` deletes the branch with `git branch -D`, which removes
@@ -166,14 +207,21 @@ ordinary merge case, nor when no branch was deleted at all.
 The delete needs the worktree to be gone first: git refuses to delete a branch
 a live worktree has checked out. A land that kept the worktree — because you
 passed `--remove-worktree=false`, or because removal was refused (dirty tree,
-base checkout, the worktree you are running from) — keeps the branch too, and
-reports it as `branchKept` with the reason. Clear the worktree and re-run.
+gitignored work, an ignored listing that failed, base checkout, the worktree
+you are running from) — keeps the branch too, and reports it as `branchKept`
+with the reason. Clear the worktree and re-run.
 
 ### Recovering work a force delete destroyed
 
-Before any forced removal, Rove snapshots what the removal is about to
+Before a forced removal, Rove snapshots what the removal is about to
 destroy — modified tracked files and files you never `git add`ed — into a git
 ref in the owning repo.
+
+One force path takes no snapshot, because it cannot: a directory whose git
+repo is unreachable at all. Snapshotting runs `git` inside the worktree, and
+reaching that path means there is no repo to run it in. `--force` there is a
+plain delete of a directory under a Rove worktrees root, with nothing to
+recover afterwards.
 
 Files matched by `.gitignore` are included too, but only up to 64 MB per
 top-level entry. That threshold is the whole rule: a gitignored note or
@@ -182,6 +230,13 @@ build directory is far larger and is skipped, because a snapshot carrying one
 is too big to be useful. An ignored entry whose size cannot be read is
 skipped. So a gitignored `HANDOFF.md` or `.scratch/` is recoverable, and a
 gitignored 200 MB `dist/` is not.
+
+One thing a snapshot cannot hold: a submodule or a nested worktree. `git add`
+records those as a commit pointer rather than their files, so uncommitted work
+inside one is in neither the snapshot nor the commit that pointer names. Rove
+does not pretend otherwise — the audit line lists those paths as `NOT
+captured`, and the `git restore` commands below will not produce anything
+under them.
 
 List the snapshots, newest last:
 

@@ -13,6 +13,7 @@
 import type { TextRenderable } from "@opentui/core"
 import { StyledText } from "@opentui/core"
 import { useEffect, useMemo, useState } from "react"
+import { profileSpan, profileTick } from "../../../tui/lib/render-profile"
 import type { TerminalRow } from "../../../tui/panes/terminal/pty"
 import { rowsToStyledText } from "../../../tui/panes/terminal/sgr-to-text-chunk"
 import {
@@ -41,17 +42,21 @@ export interface UseTerminalPaintOpts {
 export function useTerminalPaint(opts: UseTerminalPaintOpts): (el: TextRenderable | null) => void {
   const { visibleRows, firstRow, cols, selection, paintMatches, cursor, focused, colors } = opts
 
-  const cursorRows = useMemo(() => {
-    const withSelection = overlaySelection(visibleRows, selection, firstRow, cols)
-    // Search hits paint OVER the selection: the two can coexist (a highlight
-    // survives until the next click), and the hit is what you are steering.
-    const withMatches = paintMatches(withSelection, firstRow, cols)
-    // While a selection is active, the synthetic cursor cell is hidden
-    // (tmux copy-mode behavior): cursor and selection share the same
-    // inverse styling, so a cursor sitting just past the selection read
-    // as the highlight overrunning by one blinking cell.
-    return overlayCursor(withMatches, focused && !selection ? cursor : null, colors)
-  }, [visibleRows, selection, firstRow, cols, paintMatches, cursor, focused, colors])
+  const cursorRows = useMemo(
+    () =>
+      profileSpan("overlay", () => {
+        const withSelection = overlaySelection(visibleRows, selection, firstRow, cols)
+        // Search hits paint OVER the selection: the two can coexist (a highlight
+        // survives until the next click), and the hit is what you are steering.
+        const withMatches = paintMatches(withSelection, firstRow, cols)
+        // While a selection is active, the synthetic cursor cell is hidden
+        // (tmux copy-mode behavior): cursor and selection share the same
+        // inverse styling, so a cursor sitting just past the selection read
+        // as the highlight overrunning by one blinking cell.
+        return overlayCursor(withMatches, focused && !selection ? cursor : null, colors)
+      }),
+    [visibleRows, selection, firstRow, cols, paintMatches, cursor, focused, colors],
+  )
 
   // Flatten every visible row into ONE `StyledText`. A single element (not
   // per-row `<text>`s) is what makes the cursor positioning math work: the
@@ -62,11 +67,15 @@ export function useTerminalPaint(opts: UseTerminalPaintOpts): (el: TextRenderabl
   // so a wrapped underlined URL underlines everything below it. Its doc
   // comment has the full mechanism; drop this call once opentui resets per
   // row.
-  const styledSnapshot = useMemo(() => {
-    const resolved = resolveInverseAttributes(cursorRows, colors.foreground, colors.background)
-    const sealed = sealRowEndAttributes(resolved, cols, colors.foreground, colors.background)
-    return new StyledText(rowsToStyledText(sealed))
-  }, [cursorRows, cols, colors])
+  const styledSnapshot = useMemo(
+    () =>
+      profileSpan("styled", () => {
+        const resolved = resolveInverseAttributes(cursorRows, colors.foreground, colors.background)
+        const sealed = sealRowEndAttributes(resolved, cols, colors.foreground, colors.background)
+        return new StyledText(rowsToStyledText(sealed))
+      }),
+    [cursorRows, cols, colors],
+  )
 
   // Imperative content push — opentui 0.4 won't accept StyledText as a
   // JSX child or through the content prop (stringifies it).
@@ -76,7 +85,10 @@ export function useTerminalPaint(opts: UseTerminalPaintOpts): (el: TextRenderabl
     // <text> unmounts, but its null ref lands a render AFTER this effect
     // re-runs with the stale element — writing to it throws "TextBuffer is
     // destroyed" into the error boundary.
-    if (snapshotTextEl && !snapshotTextEl.isDestroyed) snapshotTextEl.content = styledSnapshot
+    if (snapshotTextEl && !snapshotTextEl.isDestroyed) {
+      profileTick("push")
+      snapshotTextEl.content = styledSnapshot
+    }
   }, [snapshotTextEl, styledSnapshot])
 
   return setSnapshotTextEl

@@ -67,8 +67,71 @@ describe("daemon deferred-prompts store", () => {
       const fresh = await store.file({ ...base, taskId: "task-new", at: now })
 
       expect(await store.get(old.id)).toEqual(old)
-      expect(await store.list()).toEqual({ records: [fresh], expired: [old] })
+      expect(await store.list()).toEqual({ records: [fresh], dismissed: [], expired: [old] })
       expect(log.lines.join("")).toContain("expired deferred prompt")
+    } finally {
+      log.restore()
+    }
+  })
+
+  it("dismiss retires the record without destroying its text, and frees the tab's slot", async () => {
+    // The loss this replaces: one `d` on an Inbox card that named no sender
+    // destroyed a dispatcher's instruction, and `send` had already exited 0.
+    const { store } = await create()
+    const log = spyDaemonLog()
+    try {
+      const filed = await store.file({ ...base, at: now })
+      now += 60_000
+      const dismissed = await store.discard(filed.id, "Inbox item dismissed")
+
+      expect(dismissed?.prompt).toBe("hello")
+      expect(dismissed?.dismissedAt).toBe(now)
+      // Off the queue but still on disk and still addressable by id, which is
+      // what makes `deferred-release` an undo.
+      const listed = await store.list()
+      expect(listed.records).toEqual([])
+      expect(listed.dismissed.map((record) => record.id)).toEqual([filed.id])
+      expect((await store.get(filed.id))?.prompt).toBe("hello")
+      expect(log.lines.join("")).toContain(`dismissed ${filed.id}`)
+
+      // The slot is free: the whole point of dismissing is unblocking the tab.
+      const replacement = await store.file({ ...base, prompt: "replacement", at: now })
+      expect(replacement.id).not.toBe(filed.id)
+      expect((await store.list()).records.map((record) => record.prompt)).toEqual(["replacement"])
+    } finally {
+      log.restore()
+    }
+  })
+
+  it("expires a dismissed record on the ORIGINAL deadline, not a fresh one", async () => {
+    // Retention is measured from arrival, so dismissing does not extend the
+    // 24h the sender was promised — nor restart it.
+    const { store } = await create()
+    const filed = await store.file({ ...base, at: now })
+    now += DEFERRED_PROMPT_TTL_MS - 1_000
+    await store.discard(filed.id, "Inbox item dismissed")
+    expect((await store.list()).dismissed.map((record) => record.id)).toEqual([filed.id])
+
+    now += 2_000
+    const listed = await store.list()
+    expect(listed.dismissed).toEqual([])
+    expect(listed.expired.map((record) => record.id)).toEqual([filed.id])
+  })
+
+  it("logs every held prompt with its layer letter and sender", async () => {
+    const log = spyDaemonLog()
+    try {
+      const { store } = await create()
+      const held = await store.file({ ...base, senderLabel: "Auth attempt", at: now })
+      expect(log.lines.join("")).toContain(`held ${held.id} for task-1::tab-1 layer=B from=Auth attempt`)
+
+      const anonymous = await store.file({
+        ...base,
+        tabId: "tab-2",
+        layer: "recent-human-write",
+        at: now,
+      })
+      expect(log.lines.join("")).toContain(`held ${anonymous.id} for task-1::tab-2 layer=A from=unknown`)
     } finally {
       log.restore()
     }
@@ -96,7 +159,7 @@ describe("daemon deferred-prompts store", () => {
     const fresh = await store.file({ ...base, prompt: "fresh", at: now })
 
     expect(await store.get(old.id)).toBeNull()
-    expect(await store.list()).toEqual({ records: [fresh], expired: [] })
+    expect(await store.list()).toEqual({ records: [fresh], dismissed: [], expired: [] })
   })
 
   it("does not let an unrelated expired claim block filing another tab", async () => {

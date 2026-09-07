@@ -1,4 +1,7 @@
-import { type CIFailingCheck, buildCIPrompt, renderCIPrompt } from "@/tui/ops/ci-prompt"
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { type CIFailingCheck, buildCIPrompt, buildCIPromptForWorktree, renderCIPrompt } from "@/tui/ops/ci-prompt"
 import { describe, expect, it } from "vitest"
 
 const check = (over: Partial<CIFailingCheck> = {}): CIFailingCheck => ({
@@ -50,5 +53,44 @@ describe("buildCIPrompt", () => {
 
   it("leaves unknown template tokens alone (a repo override may use its own)", () => {
     expect(renderCIPrompt("{{branch}} {{nope}}", { branch: "b", checks: [] })).toBe("b {{nope}}")
+  })
+})
+
+/**
+ * The `.rove/` → `.kobe/` template fallback, which had no coverage here at all
+ * while `loadTemplate` accepted a whitespace-only file as a real template and
+ * blanked the prompt. All three readers now share `lib/repo-config-file.ts`.
+ */
+describe("buildCIPromptForWorktree per-repo override", () => {
+  const state = { branch: "feat/x", checks: [check()] }
+  const write = (dir: string, relDir: string, body: string) => {
+    mkdirSync(join(dir, relDir), { recursive: true })
+    writeFileSync(join(dir, relDir, "ci-instructions.md"), body)
+  }
+  const tmp = () => mkdtempSync(join(tmpdir(), "rove-ci-instructions-"))
+
+  it("reads the canonical .rove/ci-instructions.md", async () => {
+    const dir = tmp()
+    write(dir, ".rove", "canonical")
+    await expect(buildCIPromptForWorktree(dir, state)).resolves.toBe("canonical")
+  })
+
+  it("falls back to the legacy .kobe spelling", async () => {
+    const dir = tmp()
+    write(dir, ".kobe", "legacy")
+    await expect(buildCIPromptForWorktree(dir, state)).resolves.toBe("legacy")
+  })
+
+  it("does not let a whitespace-only canonical file shadow the legacy one", async () => {
+    const dir = tmp()
+    write(dir, ".rove", "\n   \n")
+    write(dir, ".kobe", "legacy")
+    await expect(buildCIPromptForWorktree(dir, state)).resolves.toBe("legacy")
+  })
+
+  it("falls back to the built-in template when the only file is whitespace", async () => {
+    const dir = tmp()
+    write(dir, ".rove", "  \n")
+    await expect(buildCIPromptForWorktree(dir, state)).resolves.toBe(buildCIPrompt(state))
   })
 })

@@ -4,8 +4,8 @@
  * `parseEngineCommand` (and `process.argv`) keep `--flag=value` as ONE token,
  * so a bare `argv.includes("--flag")` guard silently misses the attached form —
  * the recurring bug class behind double `--session-id` (claude refuses to
- * launch), double `--append-system-prompt` injection, and `rove web
- * --port=N` binding the default port with no error.
+ * launch), double `--append-system-prompt` injection, and a `--port=N` that
+ * bound the default port with no error.
  * The rule: presence checks go through `argvHasFlag`, value reads through
  * `flagValue` (both in src/cli/argv.ts). A check that genuinely must match
  * ONLY the bare token needs an allowlist entry here with its reason.

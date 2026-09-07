@@ -24,6 +24,29 @@ export const TITLE_CHAR_CAP = 40
 export const PLACEHOLDER_TASK_TITLE = "(new task)"
 
 /**
+ * Flatten a title to a single line and trim it.
+ *
+ * The sidebar renders a title in a `<text wrapMode="none">` row, and
+ * `lib/display-width.ts` measures every codepoint below `0x20` as ZERO cells
+ * — so a newline is invisible to the truncator, passes through untouched, and
+ * blows the row's height open at render time. The TUI's new-task dialog has
+ * stripped newlines at its input edge for years; nothing did for a title
+ * arriving over the daemon RPC, which is how `add --title $'line1\nline2'`
+ * landed verbatim in the store.
+ *
+ * So the guard moves to the two orchestrator entry points every title passes
+ * through — `createTask` and `setTitle` — where an agent-written title and a
+ * hand-typed one meet. All C0 controls, not just `\n`: they share the
+ * zero-width measurement, and a title carrying a raw `\x1b` is no better.
+ * Whitespace runs collapse to ONE space rather than vanishing, so
+ * `"line1\nline2"` stays two readable words instead of becoming `line1line2`.
+ */
+export function sanitizeTaskTitle(title: string): string {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: these bytes are exactly what the sidebar cannot render.
+  return title.replace(/[\u0000-\u0020\u007f]+/g, " ").trim()
+}
+
+/**
  * Reduce an arbitrary user prompt to a one-line sidebar label.
  */
 export function deriveTitleFromPrompt(prompt: string): string {

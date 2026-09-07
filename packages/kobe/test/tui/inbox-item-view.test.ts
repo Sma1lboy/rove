@@ -8,7 +8,12 @@
  * body is caught here.
  */
 import { describe, expect, it } from "vitest"
-import { itemGlyph, itemStateKey, quotaResumeNote } from "../../src/tui-react/workspace/inbox-item-view"
+import {
+  deferredPromptNote,
+  itemGlyph,
+  itemStateKey,
+  quotaResumeNote,
+} from "../../src/tui-react/workspace/inbox-item-view"
 import type { Task } from "../../src/types/task"
 
 const t = (key: string, params?: Record<string, string>) => (params ? `${key}:${Object.values(params).join(",")}` : key)
@@ -44,5 +49,47 @@ describe("inbox item glyphs", () => {
   it("keeps rate limited distinct from error", () => {
     expect(itemGlyph("rate_limited")).not.toBe(itemGlyph("error"))
     expect(itemStateKey("rate_limited")).not.toBe(itemStateKey("error"))
+  })
+})
+
+describe("deferredPromptNote", () => {
+  // The API half has always been honest — `rove api deferred-list` publishes
+  // `expiresAt` and says outright that "a swept prompt is never delivered".
+  // The screen half showed `≡ message queued` and a relative age, so a row an
+  // hour from destruction looked exactly like one filed a minute ago; then the
+  // row was simply absent. These two notes are that missing half.
+  const now = Date.UTC(2026, 8, 4, 12, 0, 0)
+  const queued = (expiresAt?: number) => ({
+    state: "prompt_deferred" as const,
+    detail: { deferredPrompt: { id: "d1", layer: "composer-not-empty" as const, ...(expiresAt ? { expiresAt } : {}) } },
+  })
+
+  it("counts down to the deadline the daemon actually stored", () => {
+    expect(deferredPromptNote(queued(now + 47 * 60_000), now, t)).toBe("workspace.inbox.expiresIn:47m")
+    expect(deferredPromptNote(queued(now + 23 * 3_600_000), now, t)).toBe("workspace.inbox.expiresIn:23h")
+  })
+
+  it("says 'expiring' rather than a negative countdown once the deadline passes", () => {
+    // The sweep ticks hourly, so a record can sit past its TTL and still be
+    // there — "due, waiting for the next pass" is the honest reading.
+    expect(deferredPromptNote(queued(now - 60_000), now, t)).toBe("workspace.inbox.expiringNow")
+  })
+
+  it("shows no deadline at all for an episode written before `expiresAt` existed", () => {
+    // A guessed deadline would be worse than none: the episode's own `at` is
+    // when the POINTER was written, which the crash-recovery path in
+    // `automation-dispatch` re-stamps long after the text was filed.
+    expect(deferredPromptNote(queued(), now, t)).toBeNull()
+  })
+
+  it("gives an expired message its own mark, word and epitaph", () => {
+    expect(deferredPromptNote({ state: "prompt_expired", detail: {} }, now, t)).toBe("workspace.inbox.expiredNote")
+    expect(itemGlyph("prompt_expired")).not.toBe(itemGlyph("prompt_deferred"))
+    expect(itemStateKey("prompt_expired")).toBe("workspace.inbox.state.promptExpired")
+  })
+
+  it("says nothing about states that have no deadline", () => {
+    expect(deferredPromptNote({ state: "rate_limited" }, now, t)).toBeNull()
+    expect(deferredPromptNote({ state: "dead" }, now, t)).toBeNull()
   })
 })

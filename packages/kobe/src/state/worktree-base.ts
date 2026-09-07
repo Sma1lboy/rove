@@ -27,11 +27,23 @@
  * remote host under the project's own `basePath` (`remoteWorktreeRootFor`).
  */
 
-import { isAbsolute, join, resolve } from "node:path"
-import { homeDir } from "../env.ts"
+import {
+  PROJECT_DIR_TOKEN,
+  WORKTREE_BASE_KEY,
+  hasProjectDirToken,
+  normalizeWorktreeBase,
+} from "@sma1lboy/kobe-daemon/daemon/worktree-paths"
 import { loadStateFile } from "./store.ts"
 
-export const WORKTREE_BASE_KEY = "worktree.basePath"
+/**
+ * The key and its interpretation live in
+ * `@sma1lboy/kobe-daemon/daemon/worktree-paths` — the daemon resolves the very
+ * same setting when it decides whether an engine's cwd is an adoptable
+ * worktree, and a second copy of "what does this string mean" is exactly what
+ * drifted before. Only the READ policy is this module's (the State Store's
+ * corrupt-file backup); the meaning is shared.
+ */
+export { PROJECT_DIR_TOKEN, WORKTREE_BASE_KEY, hasProjectDirToken, normalizeWorktreeBase }
 
 /**
  * TUI-only companion key remembering the last custom path the user
@@ -39,9 +51,6 @@ export const WORKTREE_BASE_KEY = "worktree.basePath"
  * instead of forcing a retype. The daemon never reads this.
  */
 export const WORKTREE_BASE_CUSTOM_KEY = "worktree.basePath.custom"
-
-/** Leading-segment token that expands to the task's project root. */
-export const PROJECT_DIR_TOKEN = "$project_dir"
 
 /**
  * The stored value behind the "next to project" preset: worktrees land
@@ -61,43 +70,6 @@ export function worktreeBaseKindOf(raw: string): WorktreeBaseKind {
   if (!trimmed) return "default"
   if (trimmed.replace(/\/+$/, "") === PROJECT_SIBLING_BASE) return "nextToProject"
   return "custom"
-}
-
-/** True iff `raw` starts with `$project_dir` as its first path segment. */
-export function hasProjectDirToken(raw: string): boolean {
-  const trimmed = raw.trim()
-  return trimmed === PROJECT_DIR_TOKEN || trimmed.startsWith(`${PROJECT_DIR_TOKEN}/`)
-}
-
-/**
- * Normalize a raw user-entered base path to an absolute directory, or
- * `null` when it's unset/blank (meaning "use Rove's default root").
- *
- * A leading `~` / `~/` expands to the OS home; relative paths resolve
- * against it too, so a user who types `code/worktrees` gets a stable
- * absolute location instead of one that depends on kobe's cwd.
- *
- * A leading `$project_dir` segment expands to `projectDir` (the repo
- * root of the task being created), with `..` segments collapsed — so
- * `$project_dir/../wt` lands next to each project. When the token is
- * present but no `projectDir` context exists (a global read with no
- * repo at hand), the result is `null`: fall back to the default root
- * rather than inventing a literal `$project_dir` directory.
- */
-export function normalizeWorktreeBase(raw: string | undefined | null, projectDir?: string): string | null {
-  if (typeof raw !== "string") return null
-  const trimmed = raw.trim()
-  if (!trimmed) return null
-  if (hasProjectDirToken(trimmed)) {
-    if (!projectDir) return null
-    const rest = trimmed.slice(PROJECT_DIR_TOKEN.length).replace(/^\/+/, "")
-    return resolve(projectDir, rest)
-  }
-  // homeDir() already falls back to os.homedir() when KOBE_HOME_DIR is unset.
-  const home = homeDir()
-  if (trimmed === "~") return home
-  const expanded = trimmed.startsWith("~/") ? join(home, trimmed.slice(2)) : trimmed
-  return isAbsolute(expanded) ? expanded : resolve(home, expanded)
 }
 
 /**

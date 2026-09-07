@@ -33,6 +33,9 @@ export interface LiveSession {
   /** Shell pid of the hosted session — roots the live-engine probe's
    *  process-tree walk for tabs this TUI never attached. */
   readonly pid?: number | null
+  /** A freeze-restored corpse awaiting its respawn-on-open: the host kept
+   *  the scrollback, the process is gone. Absent on hosts predating it. */
+  readonly restored?: boolean
 }
 
 /**
@@ -56,6 +59,7 @@ export function orphanTabsByTask(
   registered: ReadonlySet<string>,
 ): Map<string, readonly TreeTab[]> {
   const byTask = new Map<string, TreeTab[]>()
+  const known = new Set(registered)
   for (const session of sessions) {
     if (session.alive === false) continue
     // A pty key IS a tab row id (`<taskId>::<tabId>`) — same separator, same
@@ -64,9 +68,10 @@ export function orphanTabsByTask(
     if (!rawTabId) continue
     // A split's extra shell leaf (`<tabId>::leaf-N`) belongs to its tab.
     const tabId = rawTabId.split("::")[0] as string
-    if (registered.has(tabRowId(taskId, tabId))) continue
+    const rowId = tabRowId(taskId, tabId)
+    if (known.has(rowId)) continue
+    known.add(rowId)
     const tabs = byTask.get(taskId) ?? []
-    if (tabs.some((tab) => tab.id === tabId)) continue
     tabs.push({
       id: tabId,
       label: `⚠ ${stripEngineStatusPrefix(session.title?.trim() ?? "", null).trim() || tabId}`,

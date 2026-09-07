@@ -21,6 +21,7 @@
  */
 
 import type { ExecHost } from "../../exec/exec-host.ts"
+import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
 
 /**
  * Per-entry size ceiling, in kilobytes. 64 MB: comfortably above any plausible
@@ -40,6 +41,13 @@ export function parseIgnoredPaths(stdoutZ: string): string[] {
     .filter((p) => p.length > 0)
 }
 
+/**
+ * Argv byte budget for one `du`. ARG_MAX is 1 MB on macOS and ~2 MB on Linux;
+ * 96 KB per batch is far under both (and under the per-argument limits) while
+ * keeping the call count at one for any ordinary worktree.
+ */
+const DU_ARGV_BUDGET_BYTES = 96 * 1024
+
 /** Parse `du -sk <paths…>` output into path → kilobytes. */
 export function parseDuKb(stdout: string): Map<string, number> {
   const sizes = new Map<string, number>()
@@ -51,30 +59,91 @@ export function parseDuKb(stdout: string): Map<string, number> {
 }
 
 /**
- * The ignored paths in `worktreePath` small enough to be worth snapshotting.
+ * `du -sk` over `paths`, as path → kilobytes.
  *
- * Returns `[]` on any failure — salvage must degrade to its old
- * ignored-files-excluded behaviour rather than fail the removal a caller
- * already asked for. An entry whose size cannot be read is SKIPPED, not
- * guessed at: an unmeasurable path is more likely a huge tree than a note,
- * and a snapshot that swallows one is worse than one that misses it.
+ * Each ignored directory is reported collapsed by `git status`, so this is a
+ * handful of arguments rather than a walk of the whole tree. Three things a
+ * single naked `du -sk ...paths` got wrong, each of which silently emptied the
+ * result for the WHOLE worktree — and with it every protection built on it
+ * (the non-force delete gate in `manager-remove.ts` and salvage's `add -f`
+ * pass), because a path whose size cannot be read is skipped:
+ *
+ *   - no `--`: ONE ignored file whose name begins with `-` is read as an
+ *     option (`du: invalid option -- w`, exit 64, empty stdout), so a single
+ *     `-weird.log` disarmed the gate for every other file beside it;
+ *   - no chunking: past ARG_MAX the spawn fails with E2BIG;
+ *   - a newline in a filename: `du`'s output is line-oriented, so such a path
+ *     can never be matched back to its line. Those are measured one at a time,
+ *     where the leading number is unambiguous without matching the name.
  */
-export async function smallIgnoredPaths(exec: ExecHost, worktreePath: string): Promise<string[]> {
+async function duKb(exec: ExecHost, worktreePath: string, paths: readonly string[]): Promise<Map<string, number>> {
+  const sizes = new Map<string, number>()
+  const batch: string[] = []
+  let bytes = 0
+  const flush = async () => {
+    if (batch.length === 0) return
+    const du = await exec.run(["du", "-sk", "--", ...batch], { cwd: worktreePath })
+    for (const [p, kb] of parseDuKb(du.stdout)) sizes.set(p, kb)
+    batch.length = 0
+    bytes = 0
+  }
+  for (const p of paths) {
+    if (p.includes("\n")) {
+      const one = await exec.run(["du", "-sk", "--", p], { cwd: worktreePath })
+      const kb = /^\s*(\d+)/.exec(one.stdout)?.[1]
+      if (one.exitCode === 0 && kb) sizes.set(p, Number.parseInt(kb, 10))
+      continue
+    }
+    if (bytes + p.length + 1 > DU_ARGV_BUDGET_BYTES) await flush()
+    batch.push(p)
+    bytes += p.length + 1
+  }
+  await flush()
+  return sizes
+}
+
+/**
+ * What a caller learns about a worktree's ignored work: the small entries, or
+ * `"unknown"` when the listing itself did not run.
+ *
+ * The two are NOT the same answer and had been encoded as one. Salvage reads
+ * this to decide what to add to a snapshot, where "nothing found" and "could
+ * not look" both correctly degrade to a smaller snapshot. The non-force delete
+ * GATE reads it too, and there an empty list is the permission to destroy the
+ * directory — so a `git status --ignored` that never ran was authorising the
+ * exact deletion it exists to refuse.
+ */
+export type IgnoredWorkProbe = readonly string[] | "unknown"
+
+/**
+ * The ignored paths in `worktreePath` small enough to be worth snapshotting,
+ * or `"unknown"` when `git status --ignored` failed or threw.
+ *
+ * An entry whose SIZE cannot be read is still SKIPPED, not guessed at: an
+ * unmeasurable path is more likely a huge tree than a note, and a snapshot
+ * that swallows one is worse than one that misses it. That is a per-entry
+ * verdict on a listing that succeeded; `"unknown"` is the absence of a
+ * listing, which no caller can read as "there is nothing here".
+ */
+export async function smallIgnoredPaths(exec: ExecHost, worktreePath: string): Promise<IgnoredWorkProbe> {
   try {
-    const status = await exec.run(["git", "status", "--porcelain", "-z", "--ignored"], { cwd: worktreePath })
-    if (status.exitCode !== 0) return []
+    // Lock-free, like every other status probe (`lib/git-env.ts`): this now
+    // runs on the ORDINARY delete path, not just the force one, so it must not
+    // compete with an engine's `git commit` for `.git/index.lock`.
+    const status = await exec.run(["git", "status", "--porcelain", "-z", "--ignored"], {
+      cwd: worktreePath,
+      env: READ_ONLY_GIT_ENV,
+    })
+    if (status.exitCode !== 0) return "unknown"
     const paths = parseIgnoredPaths(status.stdout)
     if (paths.length === 0) return []
 
-    // One `du` for every entry: each ignored directory is reported collapsed,
-    // so this is a handful of arguments, not a walk of the whole tree.
-    const du = await exec.run(["du", "-sk", ...paths], { cwd: worktreePath })
-    const sizes = parseDuKb(du.stdout)
+    const sizes = await duKb(exec, worktreePath, paths)
     return paths.filter((p) => {
       const kb = sizes.get(p)
       return kb !== undefined && kb <= MAX_IGNORED_ENTRY_KB
     })
   } catch {
-    return []
+    return "unknown"
   }
 }

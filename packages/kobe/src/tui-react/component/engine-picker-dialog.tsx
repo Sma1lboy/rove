@@ -9,10 +9,10 @@
  *
  * Engines that DECLARE reasoning levels (`EngineRegistryEntry.effortLevels` —
  * codex today) get a second row under the list, so the level is settable on a
- * task that already exists — otherwise the web board's create-time picker is
- * the only surface that can set one, and a codex task is stuck on whatever it
- * launched with. Engines with no declared levels render no row at all,
- * matching the web picker's rule.
+ * task that already exists. Engines with no declared levels render no row at
+ * all. The board's start-from-an-issue picker sets an engine but no level, so
+ * this and `rove api set-effort` are the two ways to change one after the
+ * fact; only `rove api add --effort` reaches the FIRST session.
  *
  * Picking persists the task's vendor (and level) and nothing else; like `v`,
  * it takes effect on the task's next enter (`applyVendorChange` says so in

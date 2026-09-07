@@ -8,10 +8,13 @@
  * {@link VERBS} table, so schema/help/validation see one canonical list.
  */
 
+import { ENGINE_ACTIVITY_KINDS } from "../../engine/hook-events.ts"
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
+import { DEFERRED_VERBS } from "./handlers-deferred.ts"
 import { PANE_CLOSE_VERB, PANE_VERB, TAB_CLOSE_VERB } from "./handlers-pane.ts"
 import { DISPATCH_VERB, note, send, setActive } from "./handlers-tasks.ts"
+import { ApiError, helpStep } from "./types.ts"
 import type { VerbSpec } from "./types.ts"
 
 export const DRIVE_VERBS: readonly VerbSpec[] = [
@@ -38,6 +41,13 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
           "Engine launch command for a `--tab new` tab — the API twin of the TUI's ctrl+e pick. Lets one worktree run two agents on the same files (e.g. hand the stuck work to codex without leaving the branch). An engine id from `engine-list` or a full command line; pinned to that tab, so it survives restarts and a later set-command on the task. Only valid with --tab new.",
       },
       {
+        name: "respawn",
+        type: "bool",
+        required: false,
+        description:
+          "Revive a FREEZE-RESTORED --tab tab-N before delivering. After a pty-host restart (reboot, crash) a tab keeps its scrollback and launch command but nothing runs in it; without this flag such a tab is refused (TAB_RESTORED) rather than silently re-run. With it, the tab is respawned in place and resumes its pinned conversation when it has one (`get-task` shows each tab's sessionId) — a tab with none replays its recorded launch command, which for claude carries the task's original first prompt. Only valid with --tab tab-N.",
+      },
+      {
         name: "plain",
         type: "bool",
         required: false,
@@ -54,6 +64,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
     handler: send,
   },
   DISPATCH_VERB,
+  ...DEFERRED_VERBS,
   {
     name: "note",
     group: "drive",
@@ -74,9 +85,21 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   {
     name: "note-list",
     group: "drive",
-    summary: "Read a repo's accumulated field notes, newest first. Returns { notes }.",
+    summary:
+      "Read a repo's accumulated field notes, newest first. Returns { notes } — each with the `id` note-delete takes.",
     flags: [F.repo(true)],
     handler: (ctx) => simpleRpc(ctx, "note.list", { repo: ctx.args.requireRepo("repo") }),
+  },
+  {
+    name: "note-delete",
+    group: "drive",
+    summary:
+      "Retire one field note by the id `note-list` reports. The note store is not an archive: its newest entries are injected into every fresh session on the repo, so a note whose fact has stopped being true keeps being handed to agents as if it still were. Returns { deleted } — false (not an error) when the id names nothing, which is also what an already-evicted note answers.",
+    flags: [
+      F.repo(true),
+      { name: "id", type: "int", required: true, placeholder: "N", description: "Note id from `note-list`." },
+    ],
+    handler: (ctx) => simpleRpc(ctx, "note.delete", { repo: ctx.args.requireRepo("repo"), id: ctx.args.int("id") }),
   },
   PANE_VERB,
   PANE_CLOSE_VERB,
@@ -93,6 +116,12 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         required: true,
         placeholder: "TEXT",
         description: "Toast text (one line).",
+      },
+      {
+        name: "body",
+        type: "string",
+        placeholder: "TEXT",
+        description: "Optional second line under the title — context, not a second message.",
       },
       {
         name: "kind",
@@ -113,6 +142,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
     handler: async (ctx) => {
       return simpleRpc(ctx, "notice.send", {
         title: ctx.args.str("title"),
+        body: ctx.args.str("body"),
         kind: ctx.args.str("kind") ?? "done",
         taskId: ctx.args.str("task-id"),
         source: ctx.args.str("source"),
@@ -161,7 +191,12 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
       F.taskId(false),
       {
         name: "kind",
-        type: "string",
+        // Enum, not a free string: the daemon rejects an unknown kind anyway,
+        // but across the RPC that arrived as an untyped `RPC_ERROR` — a typo
+        // read as "the daemon is broken". Declared here it is a local flag
+        // rejection AND `schema --verb engine-report` lists the 14 legal kinds.
+        type: "enum",
+        values: ENGINE_ACTIVITY_KINDS,
         required: true,
         placeholder: "KIND",
         description: "Normalized activity verb (see summary). Unknown kinds are rejected.",
@@ -194,7 +229,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         try {
           detail = JSON.parse(detailRaw)
         } catch {
-          throw new Error("--detail must be valid JSON")
+          throw new ApiError("--detail must be valid JSON", "BAD_FLAG", helpStep("engine-report"))
         }
       }
       return simpleRpc(ctx, "engine.reportEvent", {

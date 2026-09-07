@@ -16,6 +16,7 @@
 
 import { promises as fs } from "node:fs"
 import path from "node:path"
+import { readFirstNonEmptyRepoFile } from "../../lib/repo-config-file.ts"
 
 /** One failing check as the daemon's `pr.failingChecks` returns it. */
 export interface CIFailingCheck {
@@ -23,6 +24,19 @@ export interface CIFailingCheck {
   readonly conclusion: string
   readonly url: string
   readonly tail: string
+}
+
+/**
+ * What a `pr.failingChecks` read came back with.
+ *
+ * `unavailable` is the difference between "no check is red" and "nothing could
+ * be asked". Both arrive as `checks: []`, and only one of them means the user
+ * can stop worrying about the red badge they are looking at.
+ */
+export interface CIFailingChecksRead {
+  readonly checks: readonly CIFailingCheck[]
+  readonly totalFailing: number
+  readonly unavailable?: { readonly reason: string; readonly detail: string }
 }
 
 export interface CIPromptState {
@@ -33,7 +47,7 @@ export interface CIPromptState {
   readonly totalFailing?: number
 }
 
-export const DEFAULT_CI_PROMPT_TEMPLATE = `CI is failing on this branch and the user wants it green.
+const DEFAULT_CI_PROMPT_TEMPLATE = `CI is failing on this branch and the user wants it green.
 
 The current branch is {{branch}}.
 {{prSentence}}
@@ -99,21 +113,10 @@ export function renderCIPrompt(template: string, state: CIPromptState): string {
  * `.rove/` → `.kobe/` fallback pair `pr-prompt.ts` reads for its own template.
  * First readable NON-EMPTY file wins.
  */
-const CI_INSTRUCTION_RELS = [
-  path.join(".rove", "ci-instructions.md"),
-  path.join(".kobe", "ci-instructions.md"),
-] as const
+const CI_INSTRUCTION_FILENAME = "ci-instructions.md"
 
-async function loadTemplate(worktree: string): Promise<string> {
-  for (const relative of CI_INSTRUCTION_RELS) {
-    try {
-      const text = await fs.readFile(path.join(worktree, relative), "utf8")
-      if (text.length > 0) return text
-    } catch {
-      // An unreadable/absent file does not block the next candidate.
-    }
-  }
-  return DEFAULT_CI_PROMPT_TEMPLATE
+function loadTemplate(worktree: string): string {
+  return readFirstNonEmptyRepoFile(worktree, CI_INSTRUCTION_FILENAME) ?? DEFAULT_CI_PROMPT_TEMPLATE
 }
 
 /** Pure entry point (the unit-tested one): default template + state. */
@@ -123,5 +126,5 @@ export function buildCIPrompt(state: CIPromptState): string {
 
 /** The repo-aware build the action uses — same shape as `buildPRPrompt`. */
 export async function buildCIPromptForWorktree(worktree: string, state: CIPromptState): Promise<string> {
-  return renderCIPrompt(await loadTemplate(worktree), state)
+  return renderCIPrompt(loadTemplate(worktree), state)
 }

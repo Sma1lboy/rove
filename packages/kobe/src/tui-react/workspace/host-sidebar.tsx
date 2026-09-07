@@ -48,7 +48,7 @@ export interface HostSidebarProps
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
-  readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges> | null
+  readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges | null> | null
   readonly transcriptActivity?: ReadonlyMap<string, { readonly mtimeMs: number }> | null
   readonly onAddTask: () => void
   readonly onSearchActiveChange: (active: boolean) => void

@@ -28,6 +28,7 @@ import type {
   SubscribeRole,
   TabClosePayload,
   TabOpenPayload,
+  TabRenamePayload,
   UiPrefsPayload,
   UiPromptPayload,
 } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -63,6 +64,16 @@ export type EngineTabStateMap = ReadonlyMap<string, ReadonlyMap<string, TaskEngi
 /** Durable daemon-owned attention episode, pushed as a full snapshot. */
 export type AttentionInboxItem = ChannelPayloads["attention.inbox"]["items"][number]
 
+// The `worktree.changes` wire contract lives in its own module (its payload
+// carries two facts per key); re-exported here so existing importers keep
+// naming it through this one.
+import type { WorktreeChangesMap } from "./remote-orchestrator-worktree-changes.ts"
+export {
+  type WorktreeChangesMap,
+  parseWorktreeChangesPayload,
+  sameWorktreeChangesMap,
+} from "./remote-orchestrator-worktree-changes.ts"
+
 /**
  * A long daemon operation currently IN FLIGHT for a task, accumulated from
  * the `task.jobs` channel (today: `ensureWorktree` — `git worktree add` is
@@ -74,16 +85,6 @@ export type AttentionInboxItem = ChannelPayloads["attention.inbox"]["items"][num
 export interface TaskJobState {
   readonly kind: "ensureWorktree"
 }
-
-/**
- * Daemon-collected `+N −M` counts keyed by worktree path, from the
- * `worktree.changes` channel (one collector in the daemon
- * instead of per-pane git polling). `null` means "no daemon-collected
- * data": either the daemon predates the channel (absent from
- * `hello.capabilities`) or `init()` hasn't completed — the sidebar then
- * falls back to its local poller.
- */
-export type WorktreeChangesMap = ReadonlyMap<string, WorktreeChanges>
 
 /**
  * Compact, bounded description of a dropped event payload for `client.log` —
@@ -106,29 +107,6 @@ export function describePayload(value: unknown): string {
 }
 
 /**
- * Parse a `worktree.changes` wire payload into a path→counts map.
- * Returns `null` for a malformed payload (the event is then ignored —
- * never clobber a good map with garbage). Exported for unit tests.
- */
-export function parseWorktreeChangesPayload(payload: unknown): Map<string, WorktreeChanges> | null {
-  const changes = (payload as { changes?: unknown } | undefined)?.changes
-  if (!changes || typeof changes !== "object" || Array.isArray(changes)) return null
-  const map = new Map<string, WorktreeChanges>()
-  for (const [path, value] of Object.entries(changes as Record<string, unknown>)) {
-    const counts = value as { added?: unknown; deleted?: unknown; behind?: unknown } | undefined
-    if (typeof counts?.added !== "number" || typeof counts.deleted !== "number") return null
-    // `behind` is additive: an older daemon omits it, and the chip then simply
-    // does not draw — never a fabricated zero.
-    map.set(path, {
-      added: counts.added,
-      deleted: counts.deleted,
-      ...(typeof counts.behind === "number" ? { behind: counts.behind } : {}),
-    })
-  }
-  return map
-}
-
-/**
  * Decode a `ui-prefs` wire payload into a fully-defaulted {@link UiPrefsPayload},
  * or `null` when it's unusable (no `theme` string — the event is then ignored).
  * The single owner of the backward-compat defaults: an older daemon omits newer
@@ -140,35 +118,32 @@ export function parseWorktreeChangesPayload(payload: unknown): Map<string, Workt
  *  - `locale` absent → "" (UNSET): a payload that never mentioned the language
  *    must not yank it back to English; only a real non-empty locale changes it.
  *  - `sortMode` absent → "default"; `keysCollapsed` absent → false (expanded);
- *    `projectFilter` absent/empty → null (all projects); `transparentBackground`
- *    / `focusAccent` default off / null.
+ *    `projectFilter` absent/empty → null (all projects); `focusAccent` → null.
+ *  - `transparentBackground` absent → TRUE, the product default the two other
+ *    decoders (`ui-prefs-watcher`, `persisted-ui-prefs`) already spell as
+ *    `!== false`. Defaulting it off here was the one field that hard-reset
+ *    instead of leaving things alone: against an older daemon whose payload
+ *    omits it, every remote pane turned opaque while the local ones stayed
+ *    transparent, and no setting in the UI explained the difference.
  */
 export function decodeUiPrefsPayload(payload: unknown): UiPrefsPayload | null {
   const p = payload as Partial<UiPrefsPayload> | undefined
-  if (typeof p?.theme !== "string") return null
+  // `theme` stays the marker KEY — every daemon that speaks this channel sends
+  // it — but its VALUE is nullable now: `state.json` may name no selection, and
+  // the daemon has no theme registry to invent one. A null theme means "keep
+  // the theme this pane already has"; dropping the whole payload for it would
+  // take transparency, locale and sort mode down with it.
+  if (!p || typeof p !== "object" || !("theme" in p)) return null
+  if (p.theme !== null && typeof p.theme !== "string") return null
   return {
-    theme: p.theme,
-    transparentBackground: p.transparentBackground === true,
+    theme: typeof p.theme === "string" && p.theme.length > 0 ? p.theme : null,
+    transparentBackground: p.transparentBackground !== false,
     focusAccent: typeof p.focusAccent === "string" ? p.focusAccent : null,
     locale: typeof p.locale === "string" ? p.locale : "",
     sortMode: p.sortMode === "recent" ? "recent" : "default",
     keysCollapsed: p.keysCollapsed === true,
     projectFilter: typeof p.projectFilter === "string" && p.projectFilter.length > 0 ? p.projectFilter : null,
   }
-}
-
-/**
- * Entry-wise equality for two changes maps — an unchanged republish (e.g.
- * the bus replaying its last value across a reconnect) must not churn the
- * signal and re-render every sidebar row. Exported for unit tests.
- */
-export function sameWorktreeChangesMap(a: WorktreeChangesMap, b: WorktreeChangesMap): boolean {
-  if (a.size !== b.size) return false
-  for (const [path, counts] of a) {
-    const other = b.get(path)
-    if (!other || !sameWorktreeChanges(counts, other)) return false
-  }
-  return true
 }
 
 /**
@@ -413,6 +388,9 @@ export interface OrchestratorSignals {
   readonly setActiveTaskSig: (next: string | null) => void
   readonly setUpdateSig: (next: UpdateInfo | null) => void
   readonly setDaemonVersionSig: (next: string | null) => void
+  /** True from a `daemon.stopping` frame that named `reason: "restart"`
+   *  until the next successful handshake — see `daemonRestartingSignal`. */
+  readonly setDaemonRestartingSig: (next: boolean) => void
   readonly engineStateAcc: ReadableState<ReadonlyMap<string, TaskEngineState>>
   readonly setEngineStateSig: (next: ReadonlyMap<string, TaskEngineState>) => void
   readonly engineTabStateAcc: ReadableState<EngineTabStateMap>
@@ -431,6 +409,7 @@ export interface OrchestratorSignals {
   readonly setNoticeSig: (next: NoticeEventPayload | null) => void
   readonly setTabOpenSig: (next: TabOpenPayload | null) => void
   readonly setTabCloseSig: (next: TabClosePayload | null) => void
+  readonly setTabRenameSig: (next: TabRenamePayload | null) => void
   readonly setUiPromptSig: (next: UiPromptPayload | null) => void
   readonly engineLifecycleAcc: ReadableState<EngineLifecycleMap>
   readonly setEngineLifecycleSig: (next: EngineLifecycleMap) => void

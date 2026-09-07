@@ -16,6 +16,17 @@
  * `bodyEl` MUST be React state (not a plain ref) — the measurement effect
  * needs to re-run the instant the box ref is attached, and a plain `useRef`
  * would silently skip that first measurement.
+ *
+ * The caller's ref callback for that box MUST also be an inline arrow rather
+ * than the stable `setBodyEl`. A fresh callback identity makes React detach
+ * and reattach on every render, and that re-attach is what re-runs this
+ * measurement after Yoga's first pass: when the ref first attaches the box
+ * still reports 0x0, and `onSizeChange` arrives from the renderer's own loop,
+ * after the mount has already settled. Stabilise that ref and a pane can
+ * settle with no geometry and therefore no PTY at all — measured as three
+ * Terminal render tests losing their PTY. A replacement that re-measures on
+ * the renderer's frame event, on a 0ms or 16ms timer, or via one forced
+ * post-mount render all land too late for the same reason.
  */
 
 import type { BoxRenderable } from "@opentui/core"

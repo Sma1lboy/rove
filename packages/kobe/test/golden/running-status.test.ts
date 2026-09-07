@@ -184,7 +184,7 @@ describe("golden: session events → sidebar running state", () => {
     const perm = track(harness())
     perm.registry.report(TASK_ID, "awaiting-input", { waiting: "permission" }, "tab-1")
     const permRow = perm.row("tab-1")
-    expect(permRow).toMatchObject({ loading: false, glyph: "?", tone: "warning" })
+    expect(permRow).toMatchObject({ loading: false, glyph: "!", tone: "error" })
     // Sticky: no lapse watchdog armed — an engine blocked on the user writes
     // nothing, so a watchdog here would idle exactly the tasks needing a human.
     expect(perm.registry.debugSnapshot().tasks[TASK_ID]?.lapseArmed).toBe(false)
@@ -192,11 +192,11 @@ describe("golden: session events → sidebar running state", () => {
 
     const limited = track(harness())
     limited.registry.report(TASK_ID, "turn-failed", { failure: "rate_limit" }, "tab-1")
-    expect(limited.row("tab-1")).toMatchObject({ loading: false, glyph: "◷", tone: "warning" })
+    expect(limited.row("tab-1")).toMatchObject({ loading: false, glyph: "!", tone: "error" })
 
     const errored = track(harness())
     errored.registry.report(TASK_ID, "turn-failed", { failure: "other" }, "tab-1")
-    expect(errored.row("tab-1")).toMatchObject({ loading: false, glyph: "×", tone: "error" })
+    expect(errored.row("tab-1")).toMatchObject({ loading: false, glyph: "!", tone: "error" })
   })
 
   it("a tab row never borrows a sibling's spinner (a85f0919)", () => {

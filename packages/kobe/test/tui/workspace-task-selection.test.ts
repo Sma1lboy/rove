@@ -251,4 +251,15 @@ describe("activation failures map onto user-visible copy", () => {
     expect(message).toContain("tasks.toast.worktreeErrorGeneric")
     expect(message).toContain("worktree is locked")
   })
+
+  test("the worktree manager's throw-site prefix never reaches the toast", () => {
+    // Verbatim from `orchestrator/worktree/manager.ts` — the toast already
+    // says "Couldn't create the worktree", so a leading `create():` reads as
+    // the verb stuttering, and names a symbol the user cannot act on.
+    const raw = "create(): /w/slug exists but is not a registered git worktree"
+    const message = activationErrorMessage(new Error(raw), translate)
+    expect(message).toContain("tasks.toast.worktreeErrorGeneric")
+    expect(message).not.toContain("create()")
+    expect(message).toContain("exists but is not a registered git worktree")
+  })
 })

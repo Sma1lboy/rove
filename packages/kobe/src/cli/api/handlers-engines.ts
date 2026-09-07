@@ -24,8 +24,9 @@ import {
   describePreset,
   listEnginePresets,
   resolveCommandProtocol,
+  sessionProtocol,
 } from "../../engine/engine-presets.ts"
-import { loadPluginEngines } from "../../engine/plugin-engines.ts"
+import { ensurePluginEnginesLoaded } from "../../engine/plugin-engines.ts"
 import { engineEntry } from "../../engine/registry.ts"
 import { type VendorId, coerceVendorId } from "../../types/vendor.ts"
 import { F } from "./flags.ts"
@@ -44,7 +45,7 @@ import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 async function listAllEnginePresets() {
   // Plugin-contributed engines are loaded from enabled plugin manifests at
   // process start in the TUI, but the CLI path must load them explicitly.
-  loadPluginEngines()
+  ensurePluginEnginesLoaded()
   const presets = [...listEnginePresets()]
   const seen = new Set(presets.map((p) => p.id))
   for (const id of await installedEngineIds()) {
@@ -92,9 +93,16 @@ export const SET_COMMAND_VERB: VerbSpec = {
 
 /**
  * The engine whose effort levels govern a task: its PINNED command when it
- * has one, else its recorded protocol — the same resolution
+ * has one, else its `vendor`'s PROTOCOL — the same resolution
  * `engineLaunchArgv` performs, so the level this verb accepts is the level
  * the launch actually carries.
+ *
+ * `sessionProtocol`, not the raw `vendor`: a task created from the TUI's
+ * new-task dialog records the picked engine id in `vendor` with no `command`
+ * (`tui/lib/task-create-flow.ts`), so a `mycodex` preset declaring the codex
+ * protocol arrived here as `mycodex`, found the registry's empty custom entry,
+ * and had every level rejected — `set-effort` could not set one at all on the
+ * tasks most likely to want one. A built-in id resolves to itself.
  */
 function taskEngine(task: Pick<SerializedTask, "command" | "vendor">): VendorId {
   const command = task.command?.trim()
@@ -102,24 +110,29 @@ function taskEngine(task: Pick<SerializedTask, "command" | "vendor">): VendorId 
     const resolved = resolveCommandProtocol(command)
     if (resolved !== GENERIC_PROTOCOL) return resolved
   }
-  return coerceVendorId(task.vendor)
+  return sessionProtocol(coerceVendorId(task.vendor))
 }
 
-async function setEffort(ctx: VerbContext): Promise<unknown> {
-  const taskId = ctx.args.require("task-id")
-  const level = ctx.args.require("level").trim()
-  const daemon = daemonOf(ctx)
-  const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
-  const engine = taskEngine(task)
-  // Validated HERE rather than passed through: `withEngineEffort` drops a
-  // level the engine never declared, silently — which is how a user picks
-  // "high" and gets the default with no error anywhere.
+/**
+ * Reject `level` unless `engine` declares it. Exported because `add --effort`
+ * must refuse exactly what `set-effort` refuses — one gate, two entry points,
+ * so a level accepted at create time cannot be one `set-effort` would have
+ * rejected.
+ *
+ * Validated HERE rather than passed through: `withEngineEffort` drops a level
+ * the engine never declared, silently — which is how a user picks "high" and
+ * gets the default with no error anywhere.
+ *
+ * `recover` is the argv the error's `nextCommandArgs` offers: `get-task` when
+ * the task already exists, `engine-list` when it does not yet.
+ */
+export function assertEngineAcceptsEffort(engine: VendorId, level: string, recover: readonly string[]): void {
   const levels = engineEntry(engine).effortLevels ?? []
   if (levels.length === 0) {
     throw new ApiError(`engine ${engine} declares no reasoning effort levels`, "BAD_EFFORT", {
       engine,
       hint: `Only engines with declared levels accept one (codex today). Check the task's engine with \`get-task\`.`,
-      nextCommandArgs: ["api", "get-task", "--task-id", taskId],
+      nextCommandArgs: [...recover],
     })
   }
   if (!levels.includes(level)) {
@@ -130,10 +143,35 @@ async function setEffort(ctx: VerbContext): Promise<unknown> {
         engine,
         levels,
         hint: `Pass one of: ${levels.join(", ")}.`,
+        nextCommandArgs: [...recover],
       },
     )
   }
-  await simpleRpc(ctx, "task.setVendor", { taskId, vendor: engine, effort: level })
+}
+
+async function setEffort(ctx: VerbContext): Promise<unknown> {
+  const taskId = ctx.args.require("task-id")
+  const level = ctx.args.require("level").trim()
+  const daemon = daemonOf(ctx)
+  const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+  const engine = taskEngine(task)
+  assertEngineAcceptsEffort(engine, level, ["api", "get-task", "--task-id", taskId])
+  // Which vendor to write back. `taskEngine` resolved the PROTOCOL — the right
+  // thing to validate a level against, and the wrong thing to persist when the
+  // record already spells that protocol as a preset id: a `mycodex` task
+  // silently became `codex`, so the footer stopped rendering the user's
+  // `engineName.mycodex` label. Launch never depended on the write
+  // (`engineLaunchArgv` prefers the pinned command), so the label was the only
+  // casualty.
+  //
+  // A record whose vendor does NOT resolve to the engine is a different case:
+  // that is a stale or generic vendor next to a command naming a real one, and
+  // naming it is a genuine upgrade (the same one `resolveProtocolUpgrade`
+  // performs). So: keep the id when it already means this engine, correct it
+  // when it does not.
+  const recorded = coerceVendorId(task.vendor)
+  const vendor = sessionProtocol(recorded) === engine ? recorded : engine
+  await simpleRpc(ctx, "task.setVendor", { taskId, vendor, effort: level })
   return { ok: true, taskId, engine, effort: level }
 }
 
@@ -141,7 +179,7 @@ export const SET_EFFORT_VERB: VerbSpec = {
   name: "set-effort",
   group: "edit",
   summary:
-    "Set a task's reasoning effort level (takes effect on the next session rebuild). Rejected when the task's engine declares no levels, or does not declare THIS one — the error names the levels it does accept. Codex accepts none/low/medium/high/xhigh; claude has none.",
+    "Set a task's reasoning effort level (takes effect on the next session rebuild). Rejected when the task's engine declares no levels, or does not declare THIS one — the error names the levels it does accept. Codex accepts none/low/medium/high/xhigh/max; claude has none.",
   flags: [
     F.taskId(),
     // Deliberately not an enum: levels are declared PER ENGINE (registry
@@ -153,7 +191,7 @@ export const SET_EFFORT_VERB: VerbSpec = {
       type: "string",
       required: true,
       placeholder: "LEVEL",
-      description: "Effort level the task's engine declares (codex: none, low, medium, high, xhigh).",
+      description: "Effort level the task's engine declares (codex: none, low, medium, high, xhigh, max).",
     },
   ],
   handler: setEffort,

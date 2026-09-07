@@ -58,16 +58,27 @@ rove updates using whichever package manager owns the `rove` on your `PATH`,
 so the new version can't land in a shadowed prefix. Manual fallback:
 `npm install -g @sma1lboy/rove@latest` (or `@nightly`).
 
-Some versions are marked breaking. Installing across one prints a heads-up,
-and the next launch asks you to run `rove reset` first. Worktrees are never
-touched.
+Some versions are marked breaking. Installing across one prints a heads-up
+(`dry-run` included, so the rehearsal shows it too), and the next launch asks
+you to run `rove reset` first. Worktrees are never touched.
+
+**Installing new files does not replace running processes.** Rove keeps two of
+them, and a finished `rove update` says so:
+
+- The **daemon** holds the fast-moving code. `rove daemon restart` replaces it
+  and never touches a live session.
+- The **PTY host** owns every running engine and terminal. It survives a
+  daemon restart *by design*, so only `rove reset` replaces it — at the cost
+  of every live session. A long-lived host can end up serving code from
+  several releases ago.
+
+`rove doctor` reports both versions and tells you which one is actually stale.
 
 ## Launching
 
 ```bash
 rove            # the TUI (first run: onboarding wizard)
 rove .          # open a directory as a task, the `code .` gesture
-rove web        # the browser dashboard on http://localhost:45174
 ```
 
 A typo never silently opens the TUI: an unknown subcommand prints usage and
@@ -84,7 +95,6 @@ Run with no command to launch PureTUI.
 Run `rove .` (or `rove <path>`) to open a directory as a standalone task.
 
 Commands:
-  web [options]           Launch the browser dashboard
   completions <shell>     Generate shell completion script (bash/zsh/fish)
   add [path]              Save a repo path for the new-task picker
   remove [path]           Forget a saved project (inverse of add; non-destructive)
@@ -116,12 +126,21 @@ flags.
 ```bash
 rove add [path]      # save a repo for the new-task picker (defaults to .)
 rove remove [path]   # forget it; files, worktrees, and tasks all stay
+rove remove <ssh://…> --purge-credentials
+                     # also delete that remote project's SSH password from the
+                     # OS keychain (macOS). Off by default — forgetting a
+                     # project never destroys a stored secret on its own.
 rove adopt [glob] [--repo <path>] [--vendor <engine>] [--yes]
                      # list/import existing git worktrees as tasks
 ```
 
 `rove add` needs a real git repo. It creates the project's sidebar row and
 folds in any existing unlinked worktrees as tasks.
+
+Point it at a *linked* worktree and it saves the repository, not the worktree:
+one repo is one project, whichever of its checkouts you name. The folded-in
+worktrees never include the repository's own primary checkout — that is the
+project, not a disposable task.
 
 `rove adopt` scans the current repo by default; `--repo <path>` selects another
 one and `--vendor <engine>` chooses the engine recorded on imported tasks. With
@@ -136,6 +155,10 @@ rove add --remote --host <host> --user <user> --path <basePath> \
          [--port N] [--key [path] | --password]
 ```
 
+A remote project is identified by host, user, port **and** `--path`, so two
+repositories on one host are two projects. A project registered before the
+base path was part of that identity keeps its original `ssh://user@host` key.
+
 Auth is either `--key` (ssh-agent when you omit the path) or `--password`.
 Password auth is **macOS-only today**: Rove prompts for it and stores only a
 reference in `state.json`; the secret lives in the macOS keychain. Linux and
@@ -149,26 +172,6 @@ lack full remote parity. Do not use this experiment as a security boundary or
 assume prompts, engine execution, or repository reads are confined to the SSH
 host.
 
-## web
-
-```bash
-rove web [--port <n>] [--routes-only] [--no-takeover]
-```
-
-(`--bridge-only` is accepted as a legacy alias for `--routes-only`.)
-
-Serves the dashboard on `:45174`, plus a sidecar for browser terminal tabs.
-`--routes-only` starts/verifies only the daemon-hosted HTTP/SSE routes, for a
-separate Vite dev server. Normally Rove may replace an older Rove PTY sidecar
-on `<port + 2>`; `--no-takeover` disables that replacement and never probes or
-kills the prior sidecar.
-
-`ROVE_DAEMON_WEB_PORT` is read when the **daemon starts** (`0`/`off`/`false`
-disables its web transport). It is not a substitute for `rove web --port`:
-`rove web` targets `45174` unless `--port` is present. Neither setting can
-rebind a daemon that is already running; after changing the daemon port, run
-`rove daemon restart`, then pass the same port to `rove web`.
-
 ## completions
 
 ```bash
@@ -180,7 +183,7 @@ rove completions fish > ~/.config/fish/completions/rove.fish
 Completes two levels: the subcommand, then its verb.
 
 ```text
-rove <TAB>          web completions add remove adopt export repo api daemon …
+rove <TAB>          completions add remove adopt export repo api daemon …
 rove daemon <TAB>   status start stop restart
 rove theme <TAB>    list add remove
 rove api routine-<TAB>   routine-list routine-create routine-update …
@@ -298,12 +301,13 @@ Changes apply to a running daemon without a restart. Writing one:
 ## doctor
 
 ```bash
-rove doctor [--report] [--fix]
+rove doctor [--report] [--fix] [--kill-orphans]
 ```
 
 Read-only check of your build (including install integrity and a stale bundled
 Bun), terminal, git, engine CLIs and logins, the engine hook channel, daemon,
-running sessions, leftover pre-v0.8 tmux sessions, node-pty's macOS
+running sessions, processes left behind by a PTY session that died without
+Rove seeing it, leftover pre-v0.8 tmux sessions, node-pty's macOS
 `spawn-helper` exec bit, agent skill, and state files. The terminal section names
 `TERM`/`TERM_PROGRAM`/`COLORTERM`, whether you are inside a multiplexer (tmux,
 zellij, screen — all three rewrite keys on the way in), and asks the terminal
@@ -329,6 +333,13 @@ and prints its path; attach that to bug reports.
   git/Node.js, engine logins) is shown with the step and why doctor won't run
   it. Without a TTY (`--fix` in a script), nothing at all is executed.
 
+`--kill-orphans` ends the process groups listed under `orphans:` — SIGTERM,
+then SIGKILL on whatever survives. It is a separate flag rather than a `--fix`
+entry because the report cannot tell a leak from a process you backgrounded on
+purpose from a Rove terminal and then closed the tab on: both are reparented to
+init with a dead group leader. Run the plain report, read the list, then pass
+the flag. See [Troubleshooting](./TROUBLESHOOTING.md).
+
 The remedies mirror [Troubleshooting](./TROUBLESHOOTING.md) — `--fix` is that
 page's executable half.
 
@@ -340,8 +351,27 @@ rove reset [--hard] [--yes]
 
 Recovers a wedged install: stops the daemon and the PTY host (ending all
 background sessions), and also stops any pre-v0.8 tmux sessions the retired
-runtime left behind. **Never touches git worktrees.** `--hard` also deletes
-your task index and UI state. Asks for confirmation unless `--yes` (`-y`).
+runtime left behind. It also clears the frozen-session store, so the next host
+comes up empty instead of restoring the scene you just ended.
+**Never touches git worktrees.**
+
+`--hard` additionally deletes two files outright:
+
+- `~/.rove/tasks.json` — the task index.
+- `~/.config/rove/state.json` — the whole settings file `rove config` opens,
+  not a UI-only slice of it. That means your **saved projects**, every
+  **custom engine** you registered (`customEngineIds` and the
+  `engineCommand.*` / `engineName.*` entries that define them — this file is
+  the only place they exist), your **theme**, **default engine**,
+  **language**, and the **onboarding** flag, so the wizard runs again. None
+  of it is recoverable, and the saved-project backfill cannot help because
+  `--hard` deletes the task index in the same run.
+
+The confirmation prints the real list with counts before anything happens.
+Reset asks for it unless `--yes` (`-y`). Without a terminal to prompt on,
+`--yes` is **required**: a non-interactive `rove reset` without it prints the
+plan, changes nothing, and exits `2` rather than reporting success for a run
+that did nothing.
 
 ## daemon
 
@@ -358,8 +388,11 @@ The daemon auto-starts when the TUI or `rove api` needs it, so `start` is
 mainly for debugging. Logs are at `~/.rove/daemon.log`; read them first when
 something's wrong.
 
-> **Working on Rove itself?** Run `rove daemon restart` after editing
-> daemon/orchestrator/engine code. Bun doesn't hot-reload.
+> **Working on Rove itself?** Restart after editing daemon/orchestrator/engine
+> code — Bun doesn't hot-reload. `rove daemon restart` reloads the daemon; an
+> attached TUI is told the code is being swapped and offers `ctrl+a` `r` to
+> reload itself too. Settings → Dev → **Restart backend** does both in one
+> step. Hosted engine sessions live in the PTY host and survive all of it.
 
 ## feedback
 
@@ -410,11 +443,13 @@ are set: `ROVE_HOME_DIR` beats `KOBE_HOME_DIR`, `ROVE_OPEN_EDITOR` beats
 |---|---|
 | `ROVE_HOME_DIR` | Move Rove's home-rooted task/runtime data; platform settings and engine-owned history keep their own locations |
 | `ROVE_OPEN_EDITOR` | Command that opens a worktree in a GUI editor (`code`, `cursor`, …) |
-| `ROVE_DAEMON_WEB_PORT` | Daemon web-transport port at daemon startup (default 45174; `0`/`off`/`false` disables). `rove web` itself uses `--port`. |
-| `ROVE_WEB_HOST` | Host the daemon binds its web transport to, read at daemon startup |
 | `ROVE_DEV=1` | Mark a developer checkout; hides the update chip |
 | `ROVE_DEBUG=1` | Print full startup errors instead of one line |
 | `ROVE_TASK_ID` / `ROVE_TAB_ID` | Set inside tabs Rove opens; how `rove api` verbs resolve the calling task |
+| `ROVE_FILETREE_WATCH=0` | Turn off the Files pane's worktree watcher; `r` becomes the only refresh |
+| `ROVE_RPC_TIMEOUT_MS` | Deadline for one daemon RPC (default 20000; `0` or negative waits forever) |
+| `ROVE_DAEMON_IDLE_GRACE_MS` | Grace before a daemon with no attached GUI stops itself (default 3000ms) |
+| `ROVE_HOOK_DEBUG=1` | Print engine-hook failures to stderr instead of swallowing them |
 
 The `KOBE_*` aliases stay fully supported: engine hooks and older automation
 keep reading `KOBE_TASK_ID` / `KOBE_TAB_ID`, which Rove exports beside the
@@ -441,6 +476,7 @@ path is honoured only while a pre-rename daemon, PTY host, or plugin registry
 is still live, and after binding on the new paths Rove leaves symlinks at the
 old ones so older binaries still find the running daemon. The first launch
 copies supported legacy state additively and never overwrites canonical files
-— except the plugin tree (`plugins.json`, `plugins/<id>/`), which is *moved*
-with a compatibility symlink left behind. Daemon-owned stores are copied at
+— except the plugin tree (`plugins.json`, `plugins/<id>/`) and the PTY host's
+own data (`pty-exits.json`, `pty-sessions/`), which are *moved* with a
+compatibility symlink left behind: the host moves its two at its next start. Daemon-owned stores are copied at
 new-daemon startup, only after the legacy writer has stopped.

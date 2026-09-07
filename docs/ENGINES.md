@@ -19,7 +19,7 @@ you need git-level isolation and a separate branch.
 | Engine | Id | Account detect | Activity badge | History | Effort levels |
 |---|---|---|---|---|---|
 | Claude Code | `claude` | ✓ | ✓ | ✓ | — |
-| Codex | `codex` | ✓ | ✓ (after you trust hooks) | ✓ | `none`/`low`/`medium`/`high`/`xhigh` |
+| Codex | `codex` | ✓ | ✓ (after you trust hooks) | ✓ | `none`/`low`/`medium`/`high`/`xhigh`/`max` |
 | GitHub Copilot | `copilot` | ✓ | ✓ (screen-based) | ✓ | — |
 | Kimi Code | `kimi` | ✓ | ✓ | handoff only | — |
 | Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid, Amp | contrib | binary only | ✓ (screen-based) | — | — |
@@ -31,12 +31,22 @@ engine does, on its own launch command.
 **Claude Code is the default** and the most complete: its quota probe drives
 rate-limit auto-resume and the Settings usage dashboard.
 
+Codex has a quota probe too, and it works differently. There is no endpoint to
+call — the Codex CLI writes the server's `rate_limits` block into its rollout
+JSONL, so Rove reads the newest rollouts off disk. That makes it a snapshot of
+the last response Codex received: a window whose reset time has already passed
+is dropped, and an account that hasn't run Codex recently publishes nothing at
+all rather than a stale number.
+
 **Contrib engines are launch + badge only.** Rove ships a catalog of
 well-known coding CLIs (`gemini`, `opencode`, `cursor`, `grok`, `droid`,
 `amp`) so they appear in the engine selector whenever the binary is on your
 PATH, with a proper name, a launch command, and screen-based activity
-badges. Settings → Engines lists them (and your own registered engines) with
-their binary discovery, and that is all detection can answer for them. No
+badges. A catalog entry also declares how its CLI takes a first message:
+OpenCode's positional argument is a project directory, so Rove pastes the
+prompt after launch instead of appending it to the command line.
+Settings → Engines lists them (and your own registered engines) with their
+binary discovery, and that is all detection can answer for them. No
 login state, history, or model picker; those need a real adapter, which is
 what promotes an engine to built-in.
 
@@ -68,30 +78,34 @@ it, so Rove assumes you meant it.
 
 ### Reasoning effort
 
-Codex accepts `none`, `low`, `medium`, `high`, `xhigh`, passed as
+Codex accepts `none`, `low`, `medium`, `high`, `xhigh`, `max`, passed as
 `-c model_reasoning_effort=<level>`. Other engines have no effort flag Rove
 can drive; a selected effort is ignored there rather than passed through.
 
 Three places select one:
 
-- the web board's engine picker, when you start a task from an issue;
+- `rove api add --command codex --effort LEVEL`, which is the only one that
+  reaches the task's **first** session — the other two rebuild it;
 - the sidebar row menu's **Change engine** entry, whose second row lists the
   engine's levels (`←→` picks one, and "engine default" clears it). Engines
   that declare no levels show no row;
 - `rove api set-effort --task-id ID --level LEVEL` from a shell.
 
-All three take effect on the task's next session rebuild, not on the running
-one.
+The board's start-a-task-from-an-issue picker chooses an engine but not a
+level, so a task started that way runs its first session on the engine's
+default until you set one.
 
 ### Workspace trust
 
 All four builtin engines gate a first launch in a never-seen directory behind
 a trust dialog, and every task worktree is such a directory, so a hosted
-session can't answer it (Kimi's dialog even exits the process when a pasted
-first message lands on "Don't trust"; Copilot's cursor sits on a
-session-only "Yes", so it returns every launch). Before spawning an engine
-into a Rove-created worktree, Rove writes that vendor's own trust record for
-the path, merging into existing entries, never clobbering:
+session can't answer it — nobody is at the pane to press a key, so the launch
+sits on the dialog instead of starting the turn (and with Kimi, whether a
+stray Enter accepts or exits the process depends on the Kimi version;
+Copilot's cursor sits on a session-only "Yes", so it returns every launch).
+Before spawning an engine into a Rove-created worktree, Rove writes that
+vendor's own trust record for the path, merging into existing entries, never
+clobbering:
 
 | Engine | Trust record |
 | --- | --- |
@@ -100,8 +114,30 @@ the path, merging into existing entries, never clobbering:
 | Copilot | `~/.copilot/config.json` → `trustedFolders` |
 | Kimi | `~/.kimi-code/workspace-trust/<record>` |
 
+Claude, Codex, and Kimi trust writes follow `CLAUDE_CONFIG_DIR`, `CODEX_HOME`,
+and `KIMI_CODE_HOME`, respectively. With `CLAUDE_CONFIG_DIR` set, the Claude
+trust file is `<CLAUDE_CONFIG_DIR>/.claude.json`. Blank overrides use the
+default paths above. Each write resolves the current profile again.
+
+Claude and Codex leave unreadable, non-regular, oversized (over 8 MiB), or
+invalid configuration unchanged; launch continues with the engine's own trust
+prompt. Codex can repair up to five duplicate standalone trust tables that
+contain only the same `trust_level = "trusted"` entry, after validating the
+complete repaired TOML. Existing Kimi records are never replaced. JSON rewrites and new Codex config
+files use owner-only read/write permissions (`0600`); updates to existing Codex
+files retain their permissions.
+
 This only ever fires for worktrees Rove itself created from a repo you already
 work in; your own directories are untouched.
+
+Contrib, plugin, and custom engines have no trust record Rove knows how to
+write, so whether a task worktree launches cleanly is up to the CLI. OpenCode
+does not gate at all (checked against 0.6.3 in an unseen directory, including
+with an empty config, so it needs nothing). Cursor Agent does gate — its
+`--trust` flag only applies to `--print`/headless runs, so an interactive
+task worktree stops at its trust prompt and you have to answer it once in the
+pane. The rest are unmeasured; if a task sits on a dialog at launch, that is
+what you are looking at.
 
 ### Custom launch commands
 
@@ -127,16 +163,29 @@ The sidebar shows what each session is doing: **working**, **done**, or
 hook events, falling back to its transcript when hooks aren't available.
 
 One thing worth knowing: **the depth of the badge depends on the engine**.
-Claude, codex, and kimi report through hooks: the full working / done /
-needs-input vocabulary, sub-second. Engines without hooks or a readable
-transcript (copilot today) fall back to screen reading: Rove classifies the
-visible terminal against engine-declared rules, which still distinguishes
-working from waiting-on-you but can't see a completed turn the way a
-transcript marker can. Rove labels the gap honestly rather than guessing.
+Claude and kimi report the full working / done / needs-input vocabulary
+through hooks, sub-second. Codex reports working and done through hooks, but
+not needs-input: its only "waiting" event is a permission decision hook, and
+Rove will not install an observer on a hook that gates approvals. Codex's
+needs-input therefore comes from screen reading, one layer down. Engines
+without hooks or a readable transcript (copilot today) rely on screen reading
+for everything: Rove classifies the visible terminal against engine-declared
+rules, which still distinguishes working from waiting-on-you but can't see a
+completed turn the way a transcript marker can. Rove labels the gap honestly
+rather than guessing.
 
 Codex won't run Rove's hooks until you trust them once via `/hooks`, so Codex
 badges stay dark until you approve. That's by design: Rove writes the hook
 definition but never bypasses the trust prompt for you.
+
+Claude and Codex hook installation and cleanup use `settings.json` under
+`CLAUDE_CONFIG_DIR` and `hooks.json` under `CODEX_HOME`. Unset or blank
+overrides use `~/.claude` and `~/.codex`. Invalid JSON or hook structure,
+unreadable files, non-regular files, and files over 8 MiB are left unchanged.
+Other user settings and commands in a shared hook group survive cleanup.
+Cleanup recognizes literal `kobe`/`rove` invocations, including absolute
+executables and Bun/Node source or bundle entry paths. Commands behind shell
+wrappers or compound shell commands are left for manual review.
 
 Mechanics: [design/engine-internals.md](./design/engine-internals.md).
 
@@ -164,11 +213,14 @@ conversation. The two resulting tabs keep the source context and then diverge:
 | `claude` | ✓ | `--resume <src> --fork-session` |
 | `codex` | ✓ | `codex fork <src>` |
 | `copilot` | — | starts a fresh Copilot session with a transcript handoff |
-| `kimi` | — | starts a fresh Kimi session with a transcript handoff |
+| `kimi` | — | has a `kimi fork` verb, but it exits instead of opening the session — transcript handoff instead |
 | custom | — | refused, unless the preset declares a built-in protocol (then it forks like that engine) |
 
-Copilot's `--resume` and Kimi's `-S` reopen rather than branch, which would put
-two live processes on one transcript. Rove therefore uses the same transcript
+Copilot's `--resume` reopens rather than branches, which would put two live
+processes on one transcript. Kimi 0.40.1 does ship a `fork [sessionId]`
+subcommand, but it is a one-shot that prints the new session id and exits, so
+it cannot BE a tab's launch command — branching there would mean forking and
+then resuming, two launches. Rove therefore uses the same transcript
 handoff as a cross-engine continuation: the new tab is a fresh conversation
 that reads where the previous one stopped. A custom engine without a known
 session store is refused instead of silently opening a blank continuation.

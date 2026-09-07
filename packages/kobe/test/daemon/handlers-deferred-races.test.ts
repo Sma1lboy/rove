@@ -30,7 +30,7 @@ describe("deferredPrompt RPC persistence races", () => {
     ;(ctx as { inbox: AttentionInboxStore }).inbox = inbox
     ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = {
       ...ctx.runtime,
-      composerGateEnabled: () => false,
+      deliveryGuard: () => "screen-off" as const,
     }
     return { ctx, store, deferredPath, inbox }
   }
@@ -50,7 +50,7 @@ describe("deferredPrompt RPC persistence races", () => {
     let deliveries = 0
     ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = {
       ...ctx.runtime,
-      composerGateEnabled: () => false,
+      deliveryGuard: () => "screen-off" as const,
       deliverPromptToLiveEngineTabDetailed: async () => {
         deliveries++
         throw new Error("transport lost after PTY write")
@@ -87,7 +87,7 @@ describe("deferredPrompt RPC persistence races", () => {
     )
     ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = {
       ...ctx.runtime,
-      composerGateEnabled: () => false,
+      deliveryGuard: () => "screen-off" as const,
       deliverPromptToLiveEngineTabDetailed: async () => ({
         outcome: "delivered",
         tabId: "tab-1",
@@ -157,10 +157,17 @@ describe("deferredPrompt RPC persistence races", () => {
 
     expect(replacement.id).not.toBe(old.id)
     expect((await store.get(replacement.id))?.prompt).toBe("replacement")
+    const replacementRecord = await store.get(replacement.id)
     expect(inbox.snapshot()).toEqual([
       expect.objectContaining({
         detail: {
-          deferredPrompt: { id: replacement.id, layer: "recent-human-write" },
+          // `expiresAt` rides the pointer so the Inbox row can show the
+          // deadline the API half has always published.
+          deferredPrompt: {
+            id: replacement.id,
+            layer: "recent-human-write",
+            expiresAt: (replacementRecord?.at ?? 0) + 24 * 60 * 60 * 1000,
+          },
         },
       }),
     ])

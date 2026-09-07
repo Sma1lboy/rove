@@ -23,37 +23,6 @@ describe("daemon lifetime under a failing dependency", () => {
     await h.close()
   })
 
-  it("does not pin the gui refcount when the SSE hydration snapshot throws", async () => {
-    h = await bootDaemonHarness({
-      web: {
-        snapshot: () => {
-          throw new Error("listTasks exploded")
-        },
-      },
-    })
-    const web = h.web
-    if (!web) throw new Error("harness web transport missing")
-
-    await web.fetch("/events").catch(() => null)
-
-    // The acquire hands back the ONLY way to release, so an open that dies
-    // before it can return that closure leaves a gui nothing can subtract.
-    expect(web.sse.opened).toBe(web.sse.closed)
-  })
-
-  it("still balances the refcount on a healthy open/close", async () => {
-    h = await bootDaemonHarness({ web: true })
-    const web = h.web
-    if (!web) throw new Error("harness web transport missing")
-
-    const controller = new AbortController()
-    await web.fetch("/events", { signal: controller.signal })
-    expect(web.sse.opened).toBe(1)
-
-    controller.abort()
-    expect(await waitFor(() => web.sse.closed === 1, 1000)).toBe(true)
-  })
-
   it("close() unlinks the socket even when the teardown throws partway", async () => {
     h = await bootDaemonHarness({
       orchestrator: fakeOrchestrator({

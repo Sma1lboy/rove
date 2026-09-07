@@ -7,6 +7,7 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { findBinding } from "../../../tui/context/keybindings"
 import { formatChord } from "../../../tui/lib/chord-glyphs"
 import { currentPrefixConfiguration } from "../../../tui/lib/keymap-dispatch"
 import type { GitScope } from "../../../tui/panes/filetree/git"
@@ -28,6 +29,10 @@ export type FileTreeHeaderProps = {
   /** Optional Ops-pane chips (see FileTreeProps). */
   onZenToggle?: () => void
   onCreatePR?: () => void
+  /** Open the whole worktree's combined diff in one tab. Rendered as a chip on
+   *  the Changes tab so the feature is reachable with no chord at all — its
+   *  `D` binding is still PROPOSED (docs/design/keybinding-decisions.md). */
+  onDiffAll?: () => void
 }
 
 export function FileTreeHeaderView(props: FileTreeHeaderProps) {
@@ -38,6 +43,11 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
   // disabled: the chip stays clickable, just without a chord label.
   const prefixKey = currentPrefixConfiguration().key
   const createPRChord = prefixKey ? `[${formatChord(prefixKey)} P]` : null
+  // Zen is prefix-only too, so its cap comes from the same live pair. It used
+  // to be the string literal `[~]`, and `~` is bound to nothing anywhere in
+  // Rove — the chip taught a dead key while `prefix+z` was the real one.
+  const zenStroke = findBinding("workspace.zenToggle")?.prefixKeys?.[0]
+  const zenChord = prefixKey && zenStroke ? `[${formatChord(prefixKey)} ${zenStroke.toUpperCase()}]` : null
   return (
     <>
       {/* Action row — sits above the All / Changes tabs so it's reachable
@@ -80,9 +90,11 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
                 props.onZenToggle?.()
               }}
             >
-              <text fg={theme.accent} attributes={TextAttributes.BOLD} wrapMode="none">
-                [~]
-              </text>
+              {zenChord ? (
+                <text fg={theme.accent} attributes={TextAttributes.BOLD} wrapMode="none">
+                  {zenChord}
+                </text>
+              ) : null}
               <text fg={theme.text} wrapMode="none">
                 {t("files.actions.zen")}
               </text>
@@ -138,15 +150,34 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
          when a base resolved, the `b` toggle affordance. */}
       {props.tab === "changes" ? (
         <box flexDirection="column" paddingBottom={1} flexShrink={0} gap={0}>
-          <text fg={theme.textMuted} wrapMode="none">
+          {/* Wraps: the no-base reason does not fit a narrow pane on one
+             line, and a truncated reason is no better than no reason. */}
+          <text fg={theme.textMuted} wrapMode="word">
             {props.scope === "branch" && props.base != null
               ? t("files.scope.branch", { base: props.base })
               : t("files.scope.working")}
-            {props.base != null ? `  ${t("files.scope.toggleHint")}` : ""}
+            {/* No base means Branch scope cannot be entered at all, so `b` is
+               a no-op. Saying why beats a bare scope line next to a sidebar
+               row reporting commits the pane cannot show. */}
+            {props.base != null ? `  ${t("files.scope.toggleHint")}` : `  ${t("files.scope.noBase")}`}
           </text>
           <text fg={theme.textMuted} wrapMode="none">
             {t("files.legend.changes")}
           </text>
+          {props.onDiffAll ? (
+            // stopPropagation for the same reason the Zen chip does it: a chip
+            // click is an action, never a background click on the pane.
+            <text
+              fg={theme.accent}
+              wrapMode="none"
+              onMouseUp={(e: { stopPropagation(): void }) => {
+                e.stopPropagation()
+                props.onDiffAll?.()
+              }}
+            >
+              {t("files.actions.diffAll")}
+            </text>
+          ) : null}
         </box>
       ) : (
         <box flexDirection="row" paddingBottom={1} flexShrink={0} />

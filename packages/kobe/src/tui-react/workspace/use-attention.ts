@@ -158,7 +158,7 @@ export function useAttention(args: {
   useEffect(() => {
     const next = new Map<string, { taskId: string; tabId: string; at: number }>()
     for (const item of inboxItems) {
-      if (item.state !== "prompt_deferred" || !item.tabId) continue
+      if (item.state !== "prompt_deferred" || !item.tabId || item.taskId === null) continue
       next.set(notifyTargetKey(item.taskId, item.tabId), { taskId: item.taskId, tabId: item.tabId, at: item.at })
     }
     const prev = prevDeferred.current
@@ -199,7 +199,7 @@ export function useAttention(args: {
         isAttentionInboxItemAvailable(
           item,
           tasks.find((task) => task.id === item.taskId),
-          (tabId) => taskTabExists(kv, item.taskId, tabId),
+          (tabId) => (item.taskId === null ? undefined : taskTabExists(kv, item.taskId, tabId)),
         ),
     )
     if (!target) {

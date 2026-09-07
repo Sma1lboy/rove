@@ -110,7 +110,7 @@ export function usePluginSettings(section: SectionId, dialog: DialogContext): Pl
         // The label is plugin-owned copy, like an action title — shown raw.
         dialogTitle: setting.label,
         fieldLabel: key,
-        submitLabel: "save",
+        submitLabel: t("settings.action.save"),
         allowEmpty: true,
         placeholder: setting.type === "secret" && setting.value !== "" ? "••••••••" : setting.defaultValue,
       })

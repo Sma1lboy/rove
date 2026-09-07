@@ -110,7 +110,7 @@ describe("EnginePickerDialogView", () => {
     const p = mount("codex")
     const { frame, mockInput } = await p
     await frame()
-    // choices are [engine default, none, low, medium, high, xhigh]
+    // choices are [engine default, none, low, medium, high, xhigh, max]
     for (let i = 0; i < 5; i++) act(() => mockInput.pressArrow("right"))
     act(() => mockInput.pressEnter())
     await frame()

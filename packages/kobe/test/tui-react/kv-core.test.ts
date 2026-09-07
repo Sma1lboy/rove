@@ -12,11 +12,11 @@
  *   - Writes are debounced (250ms) — no disk write before the window.
  */
 
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { createKvCore } from "../../src/tui-react/context/kv-core"
+import { type KvWriteFailure, createKvCore } from "../../src/tui-react/context/kv-core"
 import {
   type TabsSnapshotKv,
   sweepOrphanTabsSnapshots,
@@ -191,11 +191,45 @@ describe("createKvCore", () => {
     const kv = createKvCore()
     kv.set("mine", 2)
     writeState(home, { mine: 1, theirs: 3 })
-    kv.clear()
+    expect(kv.clear()).toBe(true)
     expect(kv.snapshot()).toEqual({})
     expect(readState(home)).toEqual({})
     // Pending dirty keys must not survive the wipe via a later flush.
     expect(kv.flush()).toBe(true)
+    expect(readState(home)).toEqual({})
+  })
+
+  it("a failed clear keeps the snapshot and dirty patch without scheduling a later wipe", () => {
+    vi.useFakeTimers()
+    const home = isolatedHome({ mine: 1, kept: true })
+    const kv = createKvCore()
+    kv.set("mine", 2)
+    const before = kv.snapshot()
+    const changed = vi.fn()
+    const unsubscribe = kv.subscribe(changed)
+    const log = vi.spyOn(console, "error").mockImplementation(() => {})
+    const path = statePath(home)
+    renameSync(path, `${path}.saved`)
+    mkdirSync(path)
+    try {
+      const cleared = kv.clear()
+      expect(kv.snapshot()).toBe(before)
+      expect(changed).not.toHaveBeenCalled()
+      expect(cleared).toBe(false)
+      expect(log).toHaveBeenCalledWith("[rove] kv clear write failed:", expect.any(Error))
+    } finally {
+      renameSync(path, `${path}.obstacle`)
+      renameSync(`${path}.saved`, path)
+      unsubscribe()
+      log.mockRestore()
+    }
+    writeState(home, { mine: 1, kept: true, theirs: 3 })
+    expect(kv.flush()).toBe(true)
+    expect(readState(home)).toEqual({ mine: 2, kept: true, theirs: 3 })
+    vi.advanceTimersByTime(300)
+    expect(readState(home)).toEqual({ mine: 2, kept: true, theirs: 3 })
+    expect(kv.clear()).toBe(true)
+    expect(kv.snapshot()).toEqual({})
     expect(readState(home)).toEqual({})
   })
 
@@ -209,6 +243,59 @@ describe("createKvCore", () => {
     // Round-tripping through parse must reproduce the exact bytes.
     const raw = readFileSync(statePath(home), "utf8")
     expect(raw).toBe(JSON.stringify(JSON.parse(raw)))
+  })
+
+  it("reports a failed flush to onWriteError subscribers, once per key", () => {
+    const home = isolatedHome({})
+    // Break the write deterministically: a DIRECTORY where the lockfile goes
+    // makes `acquireSync`'s link fail EEXIST, then reading the holder fails
+    // EISDIR — which is not contention, so it propagates immediately.
+    mkdirSync(`${statePath(home)}.lock`, { recursive: true })
+    const kv = createKvCore()
+    const failures: KvWriteFailure[] = []
+    const off = kv.onWriteError((failure) => failures.push(failure))
+
+    kv.set("activeTheme", "tokyonight")
+    expect(kv.flush()).toBe(false)
+    expect(failures).toHaveLength(1)
+    expect(failures[0]?.keys).toEqual(["activeTheme"])
+    expect(failures[0]?.file).toBe(statePath(home))
+
+    // A read-only state dir fails EVERY 250ms flush and dirty keys survive a
+    // failure, so the same key must not raise a toast per keystroke.
+    kv.set("activeTheme", "gruvbox")
+    expect(kv.flush()).toBe(false)
+    expect(failures).toHaveLength(1)
+
+    // A NEW key is still worth saying out loud.
+    kv.set("sidebar.width", 40)
+    expect(kv.flush()).toBe(false)
+    expect(failures).toHaveLength(2)
+    expect(failures[1]?.keys).toEqual(["sidebar.width"])
+
+    off()
+    kv.set("another", 1)
+    expect(kv.flush()).toBe(false)
+    expect(failures).toHaveLength(2)
+  })
+
+  it("re-reports a key after a write lands in between", () => {
+    const home = isolatedHome({})
+    const lock = `${statePath(home)}.lock`
+    mkdirSync(lock, { recursive: true })
+    const kv = createKvCore()
+    const failures: KvWriteFailure[] = []
+    kv.onWriteError((failure) => failures.push(failure))
+
+    kv.set("activeTheme", "tokyonight")
+    expect(kv.flush()).toBe(false)
+    rmSync(lock, { recursive: true, force: true })
+    expect(kv.flush()).toBe(true)
+
+    mkdirSync(lock, { recursive: true })
+    kv.set("activeTheme", "gruvbox")
+    expect(kv.flush()).toBe(false)
+    expect(failures).toHaveLength(2)
   })
 
   it("notifies subscribers on set and supports unsubscribe", () => {

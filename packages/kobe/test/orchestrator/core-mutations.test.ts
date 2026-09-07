@@ -33,6 +33,7 @@ let store: TaskIndexStore
 let orch: Orchestrator
 let fakeWorktrees: {
   isDirty: ReturnType<typeof vi.fn>
+  ignoredWork: ReturnType<typeof vi.fn>
   remove: ReturnType<typeof vi.fn>
 }
 
@@ -42,6 +43,7 @@ beforeEach(async () => {
   await store.load()
   fakeWorktrees = {
     isDirty: vi.fn(async () => false),
+    ignoredWork: vi.fn(async () => []),
     remove: vi.fn(async () => {}),
   }
   orch = new Orchestrator({ store, worktrees: fakeWorktrees as unknown as GitWorktreeManager })

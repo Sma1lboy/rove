@@ -17,7 +17,12 @@ import { randomUUID } from "node:crypto"
 import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
+import {
+  assertAutomationTargetOptions,
+  mergeAutomationTargetOptions,
+  readAutomationTarget,
+} from "./automation-target.ts"
 import type { Automation, AutomationPatch, AutomationRun } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { nextCronAfter } from "./cron.ts"
@@ -33,7 +38,7 @@ interface AutomationsFile {
   readonly runs: AutomationRun[]
 }
 
-export function defaultAutomationsPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+export function defaultAutomationsPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "automations.json")
 }
 
@@ -53,7 +58,18 @@ function normalizeAutomation(value: unknown): Automation | null {
   if (!id || !name || !repo || !prompt || !schedule || !nextRunAt) return null
   if (!Number.isFinite(Date.parse(nextRunAt))) return null
 
+  let target: Automation["target"]
+  try {
+    target = raw.target === undefined ? undefined : (readAutomationTarget(raw.target) ?? undefined)
+    assertAutomationTargetOptions({ ...raw, target })
+  } catch {
+    return null
+  }
   const precheckCommand = str(raw.precheck?.command)
+  // `lastRunAt` is the pre-rename spelling on disk (the field claimed a run
+  // had happened for occurrences that only ever skipped). Read it so an
+  // existing automations.json carries its value across the rename.
+  const lastOccurrenceAt = str(raw.lastOccurrenceAt ?? (value as { lastRunAt?: unknown }).lastRunAt)
   const grace = raw.missedRunGraceMinutes
   const now = new Date().toISOString()
   return {
@@ -63,6 +79,7 @@ function normalizeAutomation(value: unknown): Automation | null {
     prompt,
     schedule,
     nextRunAt,
+    ...(target ? { target } : {}),
     enabled: raw.enabled !== false,
     missedRunGraceMinutes: typeof grace === "number" && Number.isFinite(grace) && grace >= 0 ? grace : 60,
     ...(raw.vendor ? { vendor: raw.vendor } : {}),
@@ -80,7 +97,7 @@ function normalizeAutomation(value: unknown): Automation | null {
     ...(str(raw.baseRef) ? { baseRef: raw.baseRef } : {}),
     ...(raw.persistentSession === true ? { persistentSession: true } : {}),
     ...(str(raw.sessionTaskId) ? { sessionTaskId: raw.sessionTaskId } : {}),
-    ...(str(raw.lastRunAt) ? { lastRunAt: raw.lastRunAt } : {}),
+    ...(lastOccurrenceAt ? { lastOccurrenceAt } : {}),
     createdAt: str(raw.createdAt) ?? now,
     updatedAt: str(raw.updatedAt) ?? now,
   }
@@ -98,6 +115,7 @@ function normalizeRun(value: unknown): AutomationRun | null {
     raw.status !== "dispatched" &&
     raw.status !== "revived" &&
     raw.status !== "deferred" &&
+    raw.status !== "skipped_cancelled" &&
     raw.status !== "skipped_precheck" &&
     raw.status !== "skipped_missed" &&
     raw.status !== "skipped_unavailable" &&
@@ -113,6 +131,8 @@ function normalizeRun(value: unknown): AutomationRun | null {
     status: raw.status,
     trigger: raw.trigger === "manual" ? "manual" : "scheduled",
     ...(str(raw.taskId) ? { taskId: raw.taskId } : {}),
+    ...(str(raw.tabId) ? { tabId: raw.tabId } : {}),
+    ...(str(raw.deferredId) ? { deferredId: raw.deferredId } : {}),
     ...(raw.precheckResult ? { precheckResult: raw.precheckResult } : {}),
     ...(str(raw.error) ? { error: raw.error } : {}),
     at,
@@ -216,6 +236,7 @@ export class AutomationsStore {
     input: Omit<Automation, "id" | "nextRunAt" | "createdAt" | "updatedAt" | "enabled"> & { enabled?: boolean },
   ): Promise<Automation> {
     return await this.enqueue(async () => {
+      assertAutomationTargetOptions(input)
       const nowMs = this.now()
       const iso = new Date(nowMs).toISOString()
       const automation: Automation = {
@@ -239,13 +260,15 @@ export class AutomationsStore {
       const index = this.automations.findIndex((a) => a.id === id)
       if (index === -1) return null
       const current = this.automations[index] as Automation
+      const targetOptions = mergeAutomationTargetOptions(current, patch)
+      assertAutomationTargetOptions(targetOptions)
       const nowMs = this.now()
       const schedule = patch.schedule ?? current.schedule
       const next: Automation = {
         ...current,
         ...(patch.name !== undefined ? { name: patch.name } : {}),
         ...(patch.prompt !== undefined ? { prompt: patch.prompt } : {}),
-        ...(patch.vendor !== undefined ? { vendor: patch.vendor } : {}),
+        ...targetOptions,
         ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
         ...(patch.missedRunGraceMinutes !== undefined ? { missedRunGraceMinutes: patch.missedRunGraceMinutes } : {}),
         schedule,
@@ -255,19 +278,6 @@ export class AutomationsStore {
           ? { precheck: undefined }
           : patch.precheck !== undefined
             ? { precheck: patch.precheck }
-            : {}),
-        ...(patch.baseRef === null
-          ? { baseRef: undefined }
-          : patch.baseRef !== undefined
-            ? { baseRef: patch.baseRef }
-            : {}),
-        ...(patch.persistentSession !== undefined ? { persistentSession: patch.persistentSession } : {}),
-        // `null` clears the standing-session link outright: a stored null
-        // would read as "linked to nothing" on the next firing's lookup.
-        ...(patch.sessionTaskId === null
-          ? { sessionTaskId: undefined }
-          : patch.sessionTaskId !== undefined
-            ? { sessionTaskId: patch.sessionTaskId }
             : {}),
         // Re-anchor the schedule whenever the expression changes, else a stale
         // nextRunAt fires on a rule the user just replaced.
@@ -292,15 +302,17 @@ export class AutomationsStore {
   }
 
   /**
-   * Move the schedule past `afterMs` and stamp `lastRunAt`. Called BEFORE the
-   * run is dispatched so an overlapping sweep can never fire the same
-   * occurrence twice.
+   * Move the schedule past `afterMs` and stamp `lastOccurrenceAt`. Called
+   * BEFORE the run is dispatched so an overlapping sweep can never fire the
+   * same occurrence twice — which is also why the stamp is the occurrence's
+   * SCHEDULED time and says nothing about whether the run then succeeded.
    */
-  async advanceNextRun(id: string, afterMs: number): Promise<Automation | null> {
+  async advanceNextRun(id: string, afterMs: number, expectedNextRunAt?: string): Promise<Automation | null> {
     return await this.enqueue(async () => {
       const index = this.automations.findIndex((a) => a.id === id)
       if (index === -1) return null
       const current = this.automations[index] as Automation
+      if (expectedNextRunAt !== undefined && (!current.enabled || current.nextRunAt !== expectedNextRunAt)) return null
       const iso = new Date(afterMs).toISOString()
       let nextRunAt: string
       try {
@@ -310,12 +322,12 @@ export class AutomationsStore {
         // once-only date now in the past) must not wedge the sweep on a
         // permanently-due row: disable it and surface it in `automation-list`.
         logDaemonError("automations-advance", err)
-        const disabled: Automation = { ...current, enabled: false, lastRunAt: iso, updatedAt: iso }
+        const disabled: Automation = { ...current, enabled: false, lastOccurrenceAt: iso, updatedAt: iso }
         this.automations = this.automations.map((a, i) => (i === index ? disabled : a))
         await this.commit()
         return disabled
       }
-      const next: Automation = { ...current, nextRunAt, lastRunAt: iso, updatedAt: iso }
+      const next: Automation = { ...current, nextRunAt, lastOccurrenceAt: iso, updatedAt: iso }
       this.automations = this.automations.map((a, i) => (i === index ? next : a))
       await this.commit()
       return next

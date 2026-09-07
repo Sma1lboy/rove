@@ -188,7 +188,7 @@ export class WorktreeCoordinator {
    */
   private async deriveAutoBranch(task: Task): Promise<string> {
     const names = await this.worktrees.listBranchNames(task.repo)
-    const base = deriveConventionBranch(task.title, inferBranchStyle(names))
+    const base = deriveConventionBranch(task.title, inferBranchStyle(names), task.id)
     const taken = new Set([...names, ...this.reservedBranches])
     const branch = uniqueBranchName(base, taken, task.id)
     this.reservedBranches.add(branch)

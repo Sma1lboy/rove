@@ -6,7 +6,7 @@
  * Settings, worktrees, and update surfaces swap in-process instead of exiting.
  */
 
-import { useTerminalDimensions } from "@opentui/react"
+import { useRenderer, useTerminalDimensions } from "@opentui/react"
 import { connectOrStartDaemon } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { useEffect, useRef, useState } from "react"
 import { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
@@ -25,6 +25,7 @@ import { useDaemonNotices } from "../lib/use-daemon-notices"
 import { useLatest } from "../lib/use-latest"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
 import { useDialog } from "../ui/dialog"
+import { DialogConfirm } from "../ui/dialog-confirm"
 import { FullWindowPage, useHostBanner } from "./host-banner"
 import { HostFilesPane } from "./host-files-pane"
 import { WorkspaceFrame } from "./host-footer"
@@ -34,16 +35,19 @@ import { HostSidebarMount } from "./host-sidebar-mount"
 import { useWorkspaceTaskActions } from "./host-task-actions"
 import { openTaskWorktreeFor } from "./open-task-worktree"
 import { useQuickFork } from "./quick-fork"
+import { selfRefreshAction } from "./self-refresh-action"
 import { ShowWorkspace } from "./show-workspace"
 import { activeTabIdFor, forgetTaskTabs, requestTabActivation, setUiEventReporter } from "./terminal-tabs-shared"
 import { useAttention } from "./use-attention"
 import { requestCreatePR } from "./use-create-pr"
 import { useDaemonState } from "./use-daemon-state"
 import { useEditorHandles } from "./use-editor-handles"
+import { useHostNotifiers } from "./use-host-notifiers"
 import { useInboxHost } from "./use-inbox-host"
 import { useIssueChat } from "./use-issue-chat"
+import { usePrCheckNotifier } from "./use-pr-check-notifier"
 import { useScratchShell } from "./use-scratch-shell"
-import { type WorktreeGoneEvent, useWorkspaceSelection } from "./use-workspace-selection"
+import { useWorkspaceSelection } from "./use-workspace-selection"
 import { useZenMode } from "./use-zen-mode"
 
 /** Exported for the render track: the banner wiring can only be proven by
@@ -56,6 +60,9 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   const kv = useKV()
   const focus = useFocus()
   const dims = useTerminalDimensions()
+  // Held for the self-refresh, which has to hand the terminal back (mouse
+  // tracking, kitty keyboard) before its successor inherits it.
+  const renderer = useRenderer()
   const notif = useNotifications()
   const orch = props.orchestrator
   // Daemon-broadcast toasts (`kobe api notify` → notice.event).
@@ -76,7 +83,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   } = useDaemonState(orch)
 
   // Sidebar-search gate: mutes the host's letter chords while typing. Move
-  // mode / toasts live in useSidebarHostState below.
+  // mode lives in useSidebarHostState below.
   const [searchActive, setSearchActive] = useState(false)
 
   // Selection + adopt-first-focus + the deleting-task PTY sweep — one hook in
@@ -84,26 +91,14 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // the user on" and get it wrong together if they drift apart.
   const t = useT()
 
-  // Declared before useWorkspaceSelection so its worktree-gone callback can
-  // reach the toast surface; `notif.notify` is stable and the sidebar hook's
-  // notifyError/notifyInfo below need `selectedId`, which the selection hook
-  // produces. Same shape those two use (see use-sidebar-host-state).
-  const notifyWorktreeGone = (event: WorktreeGoneEvent): void => {
-    notif.notify({
-      kind: "error",
-      taskId: event.taskId,
-      tabId: "",
-      title: t("tasks.toast.worktreeGoneTitle", { title: event.title }),
-      body: t("tasks.toast.worktreeGoneBody", { count: String(event.closed), branch: event.branch || "—" }),
-    })
-  }
-
-  // Same pre-declaration reason as notifyWorktreeGone above: a refused
-  // activation must reach the toast surface, and `useSidebarHostState`'s
-  // notifyError can't be built yet (it needs `selectedId` from this hook).
-  const notifyActivationError = (message: string): void => {
-    notif.notify({ kind: "error", taskId: "", tabId: "", title: message })
-  }
+  // Every toast this host raises. It sits above the hooks that take one
+  // because `selectedId` reaches it as a getter, so nothing here has to be
+  // ordered against the selection hook below — see use-host-notifiers.ts.
+  const { notifyError, notifyInfo, notifyNeedsInput, notifyWorktreeGone } = useHostNotifiers({
+    notif,
+    t,
+    selectedId: () => selectedId,
+  })
 
   const { selectedId, setSelectedId, selectedTask, selectTask, activateTask } = useWorkspaceSelection({
     orch,
@@ -112,14 +107,17 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     focusWorkspace: () => focus.setFocused("workspace"),
     kv,
     notifyWorktreeGone,
-    notifyError: notifyActivationError,
+    notifyError,
   })
   const worktree = selectedTask?.worktreePath || null
 
-  // Toasts + global sort pref + move-mode — the sidebar-adjacent wiring,
-  // extracted to the hook next to the Sidebar itself.
-  const { sortMode, toggleSortMode, moveMode, setMoveMode, notifyError, notifyInfo, onLocalMergeRequest } =
-    useSidebarHostState({ kv, notif, tasks, selectedId, setSelectedId })
+  // Global sort pref + move-mode — the sidebar-adjacent wiring, extracted to
+  // the hook next to the Sidebar itself.
+  const { sortMode, toggleSortMode, moveMode, setMoveMode, onLocalMergeRequest } = useSidebarHostState({
+    kv,
+    tasks,
+    setSelectedId,
+  })
 
   const inbox = useInboxHost({
     orchestrator: orch,
@@ -129,6 +127,9 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     dialog,
     selectedId,
     selectTask,
+    // `pages` is constructed below; this closure only ever runs from a user
+    // opening a routine episode, long after that.
+    openAutomations: () => pages.openAutomations(),
     focusWorkspace: () => focus.setFocused("workspace"),
     notifyError,
     notifyInfo,
@@ -148,6 +149,10 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     noTasksMessage: t("workspace.attention.none"),
   })
 
+  // PR checks landing (pending → passing/failing) is the OTHER cross-task
+  // edge worth a toast, and the one the daemon's PR poller was persisting for.
+  usePrCheckNotifier({ tasks, notif })
+
   // Task-action callbacks (new/delete/rename/branch/engine/pin/move)
   // — the shared lib/task-actions flows live in host-task-actions.ts.
   // Kept as ONE bundle rather than destructured: the sidebar mount takes it
@@ -159,7 +164,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     dialog,
     notifyError,
     notifyInfo,
-    notifyNeedsInput: (message) => notif.notify({ kind: "needs_input", taskId: "", tabId: "", title: message }),
+    notifyNeedsInput,
     t,
     selectedId: () => selectedId,
     setSelectedId,
@@ -176,7 +181,13 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // `quick-fork.ts` because the create/enter/pending-prompt shape is identical
   // regardless of host — the other caller is TerminalTabs, and both must stay
   // one implementation.
-  const quickFork = useQuickFork(orch, { selectTask: setSelectedId, enterTask: activateTask, notifyError })
+  const quickFork = useQuickFork(orch, {
+    selectTask: setSelectedId,
+    enterTask: activateTask,
+    notifyError,
+    notify: notifyInfo,
+    t,
+  })
 
   // Scratch temp shell tasks — open gesture, exit deletion, and
   // the quiet adoption loop all live in the hook.
@@ -247,6 +258,33 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // Filled by the mounted SidebarTree; null until it mounts (a rail page,
   // zen), which is fine — every reader is gated on sidebar focus.
   const cursorTaskIdRef = useRef<() => string | null>(() => null)
+
+  // Top-of-window banner (skew / gone-install) + the update chip's payload —
+  // one question, three render paths below. See `host-banner.tsx`. Read up
+  // here, above the keybindings, because it also answers whether the refresh
+  // chord has anything to do — the gate that keeps it out of the command
+  // guide on the Rove that is already current.
+  const banner = useHostBanner(orch, dims.width)
+  const refreshRove = (): void => {
+    void selfRefreshAction(
+      {
+        orchestrator: orch,
+        renderer,
+        confirm: () =>
+          DialogConfirm.show(
+            dialog,
+            t("update.refresh.confirmTitle"),
+            t("update.refresh.confirmBody"),
+            t("common.cancel"),
+            t("update.refresh.confirmLabel"),
+          ).then((ok) => ok === true),
+        notifyError,
+        t,
+      },
+      banner.refresh.inputs,
+    )
+  }
+
   useWorkspaceKeybindings({
     focus,
     dialog,
@@ -285,6 +323,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
       setMoveMode(true)
     },
     toggleSortMode,
+    refresh: { available: banner.refresh.available, run: refreshRove },
   })
 
   // Keybinding focus is suppressed while a dialog overlay is up: pane focus
@@ -295,10 +334,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // focused renderable when !defaultPrevented). Border colors keep using the
   // live `focus.focused` so the pane frame stays lit under the dim backdrop.
   const activePane = dialog.stack.length > 0 ? null : focus.focused
-
-  // Top-of-window banner (skew / gone-install) + the update chip's payload —
-  // one question, three render paths below. See `host-banner.tsx`.
-  const banner = useHostBanner(orch, dims.width)
 
   const fullWindow = pageRender.settingsPage ?? pageRender.fullWindowPage
   if (fullWindow)

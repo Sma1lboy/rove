@@ -1,7 +1,14 @@
 /** Automation CRUD + manual-trigger RPC handlers. */
 
+import { assertRoutineBaseRef, assertRoutineRepo } from "./automation-repo-check.ts"
 import { runAutomationOnce } from "./automation-runner.ts"
-import type { AutomationPatch, AutomationPrecheck } from "./contracts.ts"
+import {
+  assertAutomationTargetOptions,
+  assertAutomationTargetTask,
+  mergeAutomationTargetOptions,
+  readAutomationTarget,
+} from "./automation-target.ts"
+import type { AutomationPatch, AutomationPrecheck, AutomationRunStatus } from "./contracts.ts"
 import { isValidCron } from "./cron.ts"
 import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
@@ -51,8 +58,20 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "automation.list",
     async handle(_payload, ctx) {
       const automations = ctx.automations.list()
+      // The latest run's STATUS per routine, so a list can show which ones are
+      // broken. Without it every row renders identically and finding the
+      // failing routine means opening each one in turn — which is exactly the
+      // work an unattended schedule is supposed to save. Status only: the
+      // error text, the task and the precheck output stay behind
+      // `automation.runs`, which the detail view already fetches.
+      const lastRunStatus: Record<string, AutomationRunStatus> = {}
+      for (const automation of automations) {
+        const latest = ctx.automations.runsFor(automation.id, 1)[0]
+        if (latest) lastRunStatus[automation.id] = latest.status
+      }
       return {
         automations,
+        lastRunStatus,
         // The keep-alive reason, surfaced so `automation-list` explains why the
         // daemon is staying up without a second round-trip.
         keepsDaemonAlive: ctx.automations.hasEnabled(),
@@ -63,15 +82,32 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "automation.create",
     async handle(payload, ctx) {
       const precheck = readPrecheck(payload)
+      const repo = requireString(payload, "repo")
+      const baseRef = optionalString(payload, "baseRef")
+      const target = "target" in payload ? readAutomationTarget(payload.target) : undefined
+      // Before persisting, not after the first firing: a routine that can
+      // never resolve its worktree is a row the user cannot tell from a
+      // healthy one until it has already failed unattended.
+      if (!target) await assertRoutineRepo(repo)
+      if (baseRef) await assertRoutineBaseRef(repo, baseRef)
+      const targetOptions = {
+        target: target ?? undefined,
+        vendor: optionalVendor(payload, "vendor"),
+        baseRef,
+        persistentSession: optionalBoolean(payload, "persistentSession"),
+      }
+      assertAutomationTargetOptions(targetOptions)
+      await assertAutomationTargetTask({ repo, target: target ?? undefined }, ctx.orch)
       const automation = await ctx.automations.create({
         name: requireString(payload, "name"),
-        repo: requireString(payload, "repo"),
+        repo,
+        ...(target ? { target } : {}),
         prompt: requireString(payload, "prompt"),
         schedule: requireSchedule(payload, "schedule"),
         missedRunGraceMinutes: readGraceMinutes(payload) ?? 60,
         ...(optionalVendor(payload, "vendor") ? { vendor: optionalVendor(payload, "vendor") } : {}),
         ...(precheck ? { precheck } : {}),
-        ...(optionalString(payload, "baseRef") ? { baseRef: optionalString(payload, "baseRef") } : {}),
+        ...(baseRef ? { baseRef } : {}),
         ...(optionalBoolean(payload, "persistentSession") === true ? { persistentSession: true } : {}),
         ...(optionalBoolean(payload, "enabled") !== undefined ? { enabled: optionalBoolean(payload, "enabled") } : {}),
       })
@@ -84,10 +120,21 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "automation.update",
     async handle(payload, ctx) {
       const id = requireString(payload, "id")
+      // A base ref set here is as permanently fatal as one set at create, and
+      // `--base-branch ''` (clear) has nothing to check. The repo is not
+      // patchable, so it is validated only where it is chosen.
+      const nextBaseRef = "baseRef" in payload ? optionalString(payload, "baseRef") : undefined
+      const currentRepo = ctx.automations.get(id)?.repo
+      if (nextBaseRef && currentRepo) await assertRoutineBaseRef(currentRepo, nextBaseRef)
       const patch: AutomationPatch = {
         ...(optionalString(payload, "name") !== undefined ? { name: optionalString(payload, "name") } : {}),
         ...(optionalString(payload, "prompt") !== undefined ? { prompt: optionalString(payload, "prompt") } : {}),
-        ...(optionalVendor(payload, "vendor") !== undefined ? { vendor: optionalVendor(payload, "vendor") } : {}),
+        ...(payload.vendor === null
+          ? { vendor: null }
+          : optionalVendor(payload, "vendor") !== undefined
+            ? { vendor: optionalVendor(payload, "vendor") }
+            : {}),
+        ...("target" in payload ? { target: readAutomationTarget(payload.target) } : {}),
         ...("schedule" in payload ? { schedule: requireSchedule(payload, "schedule") } : {}),
         ...(readPrecheck(payload) !== undefined ? { precheck: readPrecheck(payload) } : {}),
         ...("baseRef" in payload ? { baseRef: optionalString(payload, "baseRef") ?? null } : {}),
@@ -97,6 +144,12 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
           ? { persistentSession: optionalBoolean(payload, "persistentSession") }
           : {}),
       }
+      const current = ctx.automations.get(id)
+      if (!current) throw new Error(`automation not found: ${id}`)
+      const targetOptions = mergeAutomationTargetOptions(current, patch)
+      assertAutomationTargetOptions(targetOptions)
+      // A stale target must remain pausable, clearable and repairable.
+      if (patch.target) await assertAutomationTargetTask({ repo: current.repo, target: patch.target }, ctx.orch)
       const automation = await ctx.automations.update(id, patch)
       if (!automation) throw new Error(`automation not found: ${id}`)
       // Disabling the last one releases the hold; nothing else would notice.
@@ -109,7 +162,13 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const id = requireString(payload, "id")
       const deleted = await ctx.automations.delete(id)
-      if (deleted) ctx.daemon.reevaluateIdle()
+      if (deleted) {
+        // The routine's Inbox episode outlives the routine otherwise: nothing
+        // else ever clears it, and the queue is meant to describe things that
+        // still exist.
+        await ctx.inbox.deleteRoutineEpisode(id).catch(() => {})
+        ctx.daemon.reevaluateIdle()
+      }
       return { deleted }
     },
   },
@@ -117,6 +176,10 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "automation.runs",
     async handle(payload, ctx) {
       const automationId = requireString(payload, "id")
+      // An unknown id used to answer `{runs:[]}`, which reads as "it exists and
+      // has not run yet" — the one conclusion that makes an agent wait instead
+      // of fixing the id. Same failure as `setEnabled` / `runNow`.
+      if (!ctx.automations.get(automationId)) throw new Error(`automation not found: ${automationId}`)
       return { runs: ctx.automations.runsFor(automationId) }
     },
   },

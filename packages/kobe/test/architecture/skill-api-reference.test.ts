@@ -81,8 +81,16 @@ describe("the error-code table names codes the source throws", () => {
    * renamed or deleted code — without inventing one.
    */
   test("every documented code appears as a literal in the source", () => {
-    const source = ["src/cli", "src/orchestrator"]
-      .map((dir) => readTsSources(join(ROOT, "packages", "kobe", dir)))
+    // The daemon is in scope because its refusals now reach the caller as
+    // their own `code` (the CLI boundary lifts the `CODE: ` message prefix
+    // instead of flattening everything to RPC_ERROR), so a documented code
+    // can just as well be a daemon-side literal as a CLI one.
+    const source = [
+      join(ROOT, "packages", "kobe", "src", "cli"),
+      join(ROOT, "packages", "kobe", "src", "orchestrator"),
+      join(ROOT, "packages", "kobe-daemon", "src", "daemon"),
+    ]
+      .map(readTsSources)
       .join("\n")
     const codes = reference()
       .split("\n")

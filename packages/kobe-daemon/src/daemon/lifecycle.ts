@@ -17,7 +17,8 @@
 
 import { unlink } from "node:fs/promises"
 import { KobeDaemonClient } from "../client/index.ts"
-import { readPidFile } from "./socket-guard.ts"
+import type { DaemonStopReason } from "./protocol.ts"
+import { isProcessAlive, readPidFile } from "./socket-guard.ts"
 
 /**
  * How {@link stopDaemonProcess} stopped the daemon — the strongest signal
@@ -36,21 +37,11 @@ export interface StopDaemonResult {
   method: DaemonStopMethod
 }
 
-/** `kill(pid, 0)` throws ESRCH once a process is gone; EPERM means it's
- *  alive but owned by another user.
- *
- *  Exported because it is the ONLY honest liveness answer we have: a socket
- *  probe reports whether the daemon ANSWERED, which a busy daemon can fail
- *  while being perfectly healthy. Callers deciding whether to kill anything
- *  must ask the OS, not the socket. */
-export function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (err) {
-    return (err as NodeJS.ErrnoException).code === "EPERM"
-  }
-}
+/** Re-exported because it is the ONLY honest liveness answer we have: a
+ *  socket probe reports whether the daemon ANSWERED, which a busy daemon can
+ *  fail while being perfectly healthy. Callers deciding whether to kill
+ *  anything must ask the OS, not the socket. */
+export { isProcessAlive }
 
 /**
  * Stop the daemon listening on `socketPath`, wait until its process is
@@ -59,9 +50,17 @@ export function isProcessAlive(pid: number): boolean {
  * stale socket/pidfile and returns `{ method: "absent" }`.
  *
  * Does NOT respawn — that's the caller's job (restart respawns, reset
- * doesn't).
+ * doesn't). `reason` is what the outgoing daemon tells its attached clients
+ * on the way out (`daemon.stopping`); a caller that WILL respawn passes
+ * `"restart"`, so an attached TUI knows its code is being replaced rather
+ * than that the daemon is done for the day. Only the graceful RPC can carry
+ * it — a daemon we had to signal says nothing.
  */
-export async function stopDaemonProcess(socketPath: string, pidPath: string): Promise<StopDaemonResult> {
+export async function stopDaemonProcess(
+  socketPath: string,
+  pidPath: string,
+  opts: { readonly reason?: DaemonStopReason } = {},
+): Promise<StopDaemonResult> {
   const oldPid = await readPidFile(pidPath)
   // Was a real daemon running? Decide BEFORE the graceful RPC so a stale
   // pidfile (pid points at a dead process) reports "absent" rather than
@@ -75,7 +74,7 @@ export async function stopDaemonProcess(socketPath: string, pidPath: string): Pr
   // `daemon.stop` doesn't round-trip in 2s we fall through to signals.
   // Harmless when nothing is listening (the connect just fails fast).
   const client = new KobeDaemonClient(socketPath)
-  const stopRequest = client.request("daemon.stop").catch(() => undefined)
+  const stopRequest = client.request("daemon.stop", { reason: opts.reason ?? "stop" }).catch(() => undefined)
   const stopTimeout = new Promise<void>((resolve) => setTimeout(resolve, 2000))
   await Promise.race([stopRequest, stopTimeout])
   client.close()

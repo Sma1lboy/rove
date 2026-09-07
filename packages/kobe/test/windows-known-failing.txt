@@ -1,0 +1,91 @@
+# Test files known to fail on windows-latest — the Windows CI ratchet.
+#
+# ci.yml's `windows` job excludes these so it can gate on everything else.
+# Harvested from a real windows-latest run (ci.yml run 34030859567, base
+# 6c12ee7f6). This list may only SHRINK: fix a file on Windows, delete its
+# line. Never add a line to get a PR green — fix the test or skipIf(win32)
+# the specific case with a reason.
+#
+# Lines are vitest exclude globs relative to packages/kobe. `#` comments and
+# blank lines are ignored.
+test/architecture/claude-plugin.test.ts
+test/architecture/package-distribution.test.ts
+test/cli/api-capability-symmetry.test.ts
+test/cli/api-dispatcher.test.ts
+test/cli/api-handlers-digest.test.ts
+test/cli/api-handlers-lifecycle.test.ts
+test/cli/api-handlers-more.test.ts
+test/cli/api-handlers-send.test.ts
+test/cli/api-handlers.test.ts
+test/cli/bun-runtime.test.ts
+test/cli/dev-sandbox-args.test.ts
+test/cli/hook-profile-cleanup.test.ts
+test/cli/index-add-remove-adopt.test.ts
+test/cli/plugin-bin-path.test.ts
+test/cli/plugin-install.test.ts
+test/cli/rename-compat.test.ts
+test/cli/repo-cmd.test.ts
+test/client/daemon-process.test.ts
+test/core/base-ref-cache.test.ts
+test/core/daemon-worktree-adapter.test.ts
+test/engine/account-detect-edge-cases.test.ts
+test/engine/binary-default-deps.test.ts
+test/engine/binary-discovery.test.ts
+test/engine/claude-history-incremental.test.ts
+test/engine/claude-usage-snapshot.test.ts
+test/engine/codex-copilot-history-incremental.test.ts
+test/engine/codex-history-edge-cases.test.ts
+test/engine/codex-local.test.ts
+test/engine/config-file-permissions.test.ts
+test/engine/config-write-safety.test.ts
+test/engine/copilot-history-edge-cases.test.ts
+test/engine/copilot-history.test.ts
+test/engine/engine-status.test.ts
+test/engine/file-bounds-race.test.ts
+test/engine/file-bounds-strict-sync.test.ts
+test/engine/kimi-history.test.ts
+test/engine/rollout-catalog.test.ts
+test/engine/session-discovery-limits.test.ts
+test/engine/session-launch.test.ts
+test/engine/transcript-bounds.test.ts
+test/engine/transcript-mtime.test.ts
+test/engine/trust-worktree.test.ts
+test/engine/vendor-home.test.ts
+test/env.test.ts
+test/lib/path-home.test.ts
+test/lib/skill-install.test.ts
+test/monitor/auto-title.test.ts
+test/orchestrator/adopt.test.ts
+test/orchestrator/branch-anchor.test.ts
+test/orchestrator/branch-follow.test.ts
+test/orchestrator/dir-task.test.ts
+test/orchestrator/ensure-worktree.test.ts
+test/orchestrator/failure-collapsed-to-neutral.test.ts
+test/orchestrator/git-runner.test.ts
+test/orchestrator/land.test.ts
+test/orchestrator/main-task.test.ts
+test/orchestrator/salvage-ignored.test.ts
+test/orchestrator/worktree-manager-edges.test.ts
+test/orchestrator/worktree-remote.test.ts
+test/orchestrator/worktree-remove-partial.test.ts
+test/orchestrator/worktree-salvage.test.ts
+test/orchestrator/worktree.test.ts
+test/plugins/events-pipeline.test.ts
+test/plugins/hook-bounds.test.ts
+test/plugins/lifecycle-events.test.ts
+test/plugins/plugin-file-modes.test.ts
+test/plugins/plugin-shutdown-isolation.test.ts
+test/plugins/registry.test.ts
+test/state/file-modes.test.ts
+test/state/project-eligibility.test.ts
+test/state/repos-roots.test.ts
+test/state/repos.test.ts
+test/tui-react/file-open-actions.test.ts
+test/tui-react/ops-preview-core.test.ts
+test/tui-react/ops-preview-paths.test.ts
+test/tui/lib/attachments.test.ts
+test/tui/pty-dispatch-budget.test.ts
+test/tui/render-path-sync-guard.test.ts
+test/tui/terminal-pipe-env.test.ts
+test/tui/terminal-pty-redraw-budget.test.ts
+test/tui/worktree-opener.test.ts

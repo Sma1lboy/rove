@@ -17,20 +17,21 @@
  * Requests served: `hello` (reachability probe), `pty.open/write/resize/
  * kill/detach/list`, `pty.peek` (read-only ring snapshot — no attach),
  * `pty.warm` (pre-spawn one idle shell for adoption),
- * `pty.sweep` (daemon janitor: kill sessions of deleted tasks),
  * `daemon.stop` (reset teardown — shared with `stopDaemonProcess`'s
  * graceful path).
  */
 
 import { readFileSync } from "node:fs"
-import { mkdir, unlink, writeFile } from "node:fs/promises"
+import { mkdir, unlink } from "node:fs/promises"
 import { type Server, type Socket, createServer } from "node:net"
 import { dirname } from "node:path"
-import { StringDecoder } from "node:string_decoder"
 import { ClientWriter } from "./client-writer.ts"
 import { linkLegacyRuntimePath } from "./compat-link.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { objectPayload, requireString } from "./handler-validators.ts"
+import { writeTextAtomic } from "./json-file.ts"
+import { LineReceiver } from "./line-receiver.ts"
+import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
 import {
   defaultPtyFreezeDir,
   defaultPtyHostPidPath,
@@ -41,10 +42,18 @@ import {
   resolveDaemonHomeDir,
 } from "./paths.ts"
 import { DAEMON_PROTOCOL_VERSION, type DaemonFrame, frameToLine } from "./protocol.ts"
+import { migrateLegacyPtyHostData } from "./pty-data-migration.ts"
 import type { PtyDriver } from "./pty-driver.ts"
 import { recordPtyExit } from "./pty-exit-store.ts"
-import { clearFrozenSessions, fileFreezeSink, loadFrozenSessions } from "./pty-freeze-store.ts"
+import {
+  FREEZE_RESTORE_MAX_BYTES,
+  FREEZE_TTL_MS,
+  clearFrozenSessions,
+  fileFreezeSink,
+  loadFrozenSessions,
+} from "./pty-freeze-store.ts"
 import { PtyHost } from "./pty-host.ts"
+import { listenOnUnixSocket } from "./socket-guard.ts"
 import { parseTerminalDefaultColors } from "./terminal-colors.ts"
 
 /**
@@ -99,6 +108,11 @@ export interface PtyHostServerOptions {
   /** Called after close() when the host stops itself (idle / daemon.stop). */
   readonly onStop?: () => void
   readonly log?: (event: string, message: string) => void
+  /** The Rove build this host is running, echoed back by `pty.list`. The host
+   *  outlives every daemon restart, so an install upgraded underneath it keeps
+   *  serving old code; this is how `rove doctor` can say so. Absent when the
+   *  entry point could not resolve one (an older host reports nothing at all). */
+  readonly version?: string
 }
 
 export interface PtyHostServer {
@@ -110,10 +124,12 @@ export interface PtyHostServer {
 interface PtyClientState {
   socket: Socket
   writer: ClientWriter
-  buffer: string
 }
 
 export async function startPtyHostServer(options: PtyHostServerOptions = {}): Promise<PtyHostServer> {
+  // Before ANY host-owned path resolves: this is the single-writer moment for
+  // the exit + freeze stores, so it is where they leave the legacy layout.
+  migrateLegacyPtyHostData()
   const socketPath = options.socketPath ?? defaultPtyHostSocketPath()
   const pidPath = options.pidPath ?? defaultPtyHostPidPath()
   const freezeDir = options.freezeDir ?? defaultPtyFreezeDir()
@@ -223,11 +239,28 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
     driver: options.driver,
     log,
   })
-  ptys.restoreFrozen(loadFrozenSessions(freezeDir))
+  ptys.restoreFrozen(
+    loadFrozenSessions(freezeDir, Date.now(), (s) => {
+      // Say what the boot did with the store. Restoring fewer sessions than
+      // the directory holds is the one thing a user cannot otherwise see, and
+      // `expired` is a deletion — silence there is how a store quietly loses
+      // scrollback nobody knew was at risk.
+      const mib = (bytes: number): string => `${Math.round(bytes / (1024 * 1024))}MB`
+      const notes = [`restored ${s.restored} (${mib(s.bytesRead)})`]
+      if (s.deferred > 0) notes.push(`${s.deferred} left unread past the ${mib(FREEZE_RESTORE_MAX_BYTES)} budget`)
+      if (s.expired > 0) notes.push(`${s.expired} deleted past the ${FREEZE_TTL_MS / 86_400_000}-day TTL`)
+      if (s.unreadable > 0) notes.push(`${s.unreadable} unreadable`)
+      log("freeze", notes.join(", "))
+    }),
+  )
 
   // A Windows named pipe lives in the `\\.\pipe` namespace, not the
   // filesystem — there is no parent directory to create.
   const pipeSocket = isWindowsPipePath(socketPath)
+  // 0700 on creation AND on every boot — same reasoning as the daemon's, and
+  // the same directory: this host spawns shells for whoever reaches its
+  // socket, so the directory mode is the gate (see owner-only.ts).
+  await ensureOwnerOnlyStateDir(resolveDaemonHomeDir())
   if (!pipeSocket) await mkdir(dirname(socketPath), { recursive: true })
   await mkdir(dirname(pidPath), { recursive: true })
   // Never unlink before listen: an already-running host keeps its socket
@@ -245,13 +278,14 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
           socket.destroy()
         },
       }),
-      buffer: "",
     }
     clients.add(client)
-    const decoder = new StringDecoder("utf8")
-    socket.on("data", (chunk) => {
-      client.buffer += decoder.write(chunk)
-      drain(client)
+    const receiver = new LineReceiver()
+    socket.on("data", (chunk: Buffer) => {
+      if (!receiver.push(chunk, (line) => handleLine(client, line))) {
+        log("framing", "disconnecting PTY client whose request exceeded 8MiB")
+        socket.destroy()
+      }
     })
     socket.on("error", () => {})
     socket.on("close", () => {
@@ -329,9 +363,19 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
         )
         return {}
       }
-      case "pty.kill":
-        ptys.kill(requireString(objectPayload(req.payload), "key"))
-        return {}
+      case "pty.kill": {
+        const payload = objectPayload(req.payload)
+        const key = requireString(payload, "key")
+        if ("expectedGeneration" in payload)
+          return ptys.killIfGeneration(key, requireString(payload, "expectedGeneration"))
+        // Same as `killIfGeneration`: the session is dropped synchronously,
+        // the child's teardown is not. `accepted` says the request was taken,
+        // which is all this reply can honestly claim — and the rejection now
+        // reaches `daemon.log` under a tag instead of an anonymous
+        // unhandledRejection (see crash-log.ts).
+        void ptys.kill(key).catch((err) => logDaemonError("pty-kill", err))
+        return { accepted: true }
+      }
       case "pty.rename": {
         const payload = objectPayload(req.payload)
         return { renamed: ptys.rename(requireString(payload, "from"), requireString(payload, "to")) }
@@ -348,7 +392,13 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
         }
         return {}
       case "pty.list":
-        return { pid: process.pid, rssBytes: process.memoryUsage().rss, sessions: ptys.list(), stats: ptys.stats() }
+        return {
+          pid: process.pid,
+          rssBytes: process.memoryUsage().rss,
+          sessions: ptys.list(),
+          stats: ptys.stats(),
+          ...(options.version ? { version: options.version } : {}),
+        }
       case "pty.peek": {
         const payload = objectPayload(req.payload)
         return ptys.peek(
@@ -366,14 +416,6 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
         )
         return {}
       }
-      case "pty.sweep": {
-        const payload = objectPayload(req.payload)
-        const ids = Array.isArray(payload.liveTaskIds)
-          ? payload.liveTaskIds.filter((id): id is string => typeof id === "string")
-          : []
-        ptys.sweepTasks(new Set(ids))
-        return {}
-      }
       case "daemon.stop":
         // Shared graceful-stop verb so `stopDaemonProcess` (kobe reset)
         // works against this socket unchanged. Reset's "starts fresh"
@@ -386,44 +428,39 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
     }
   }
 
-  function drain(client: PtyClientState): void {
-    let nl = client.buffer.indexOf("\n")
-    while (nl !== -1) {
-      const line = client.buffer.slice(0, nl)
-      client.buffer = client.buffer.slice(nl + 1)
-      if (line.trim().length > 0) {
-        let frame: DaemonFrame | null = null
-        try {
-          frame = JSON.parse(line) as DaemonFrame
-        } catch {
-          writeFrame(client, { type: "response", id: "parse-error", error: { message: "malformed frame" } })
-        }
-        if (frame) {
-          if (frame.type !== "request") {
-            writeFrame(client, { type: "response", id: "parse-error", error: { message: "requests only" } })
-          } else {
-            try {
-              writeFrame(client, { type: "response", id: frame.id, name: frame.name, payload: dispatch(frame, client) })
-            } catch (err) {
-              writeFrame(client, {
-                type: "response",
-                id: frame.id,
-                name: frame.name,
-                error: { message: err instanceof Error ? err.message : String(err) },
-              })
-            }
+  function handleLine(client: PtyClientState, line: string): void {
+    if (line.trim().length > 0) {
+      let frame: DaemonFrame | null = null
+      try {
+        frame = JSON.parse(line) as DaemonFrame
+      } catch {
+        writeFrame(client, { type: "response", id: "parse-error", error: { message: "malformed frame" } })
+      }
+      if (frame) {
+        if (frame.type !== "request") {
+          writeFrame(client, { type: "response", id: "parse-error", error: { message: "requests only" } })
+        } else {
+          try {
+            writeFrame(client, { type: "response", id: frame.id, name: frame.name, payload: dispatch(frame, client) })
+          } catch (err) {
+            writeFrame(client, {
+              type: "response",
+              id: frame.id,
+              name: frame.name,
+              error: { message: err instanceof Error ? err.message : String(err) },
+            })
           }
         }
       }
-      nl = client.buffer.indexOf("\n")
     }
   }
 
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject)
-    server.listen(socketPath, () => resolve())
-  })
-  await writeFile(pidPath, `${process.pid}\n`, "utf8")
+  // Shared with the daemon's bind (socket-guard.ts) so both sockets get the
+  // same post-listen chmod — `listen()` applies the umask, so an unchmod'd
+  // node lands world-connectable.
+  await listenOnUnixSocket(server, socketPath)
+  // tmp+rename: a torn pidfile is EMPTY, and empty parses as pid 0.
+  await writeTextAtomic(pidPath, `${process.pid}\n`)
   // Same reason as the daemon's: a pre-rename TUI that can't see this host
   // starts a SECOND one, and the engine tabs split across the pair.
   if (!pipeSocket) {
@@ -439,5 +476,5 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
 function writeFrame(client: Pick<PtyClientState, "writer">, frame: DaemonFrame): void {
   // Everything on this socket is critical: RPC responses and ordered PTY
   // byte-stream frames — dropping either corrupts the client.
-  client.writer.write(frameToLine(frame), true)
+  client.writer.write(frameToLine(frame))
 }

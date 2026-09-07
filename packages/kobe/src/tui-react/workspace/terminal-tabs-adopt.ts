@@ -14,7 +14,7 @@
 import { adoptTabs } from "../../tui/workspace/tabs-adopt"
 import type { TabsState } from "../../tui/workspace/terminal-tabs-core"
 import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
-import { requestTabAdopt, setTaskTabs, tabsByTask, takeUnclaimedTabAdopt } from "./terminal-tabs-shared"
+import { knownTabsState, requestTabAdopt, setTaskTabs, takeUnclaimedTabAdopt } from "./terminal-tabs-shared"
 
 /**
  * Register `tabIds` as engine tabs of `taskId`. No-op when they are all
@@ -28,8 +28,7 @@ export function adoptTaskTabs(kv: TabsSnapshotKv, taskId: string, tabIds: readon
   const unclaimed = takeUnclaimedTabAdopt()
   if (!unclaimed) return false
 
-  const saved = kv.store[terminalTabsKey(taskId)] as TabsState | null | undefined
-  const state = tabsByTask.get(taskId) ?? (saved && Array.isArray(saved.tabs) ? saved : null)
+  const state = knownTabsState(kv, taskId)
   // No state at all: the task never opened tabs, yet a session runs under
   // one of its tab keys. Start EMPTY and let adoption fill it — seeding
   // `initialTabs()` instead would invent a second, session-less `tab-1`.

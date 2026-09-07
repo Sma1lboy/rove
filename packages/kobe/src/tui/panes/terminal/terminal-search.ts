@@ -15,6 +15,7 @@
 import { charWidth } from "../../../lib/display-width"
 import type { Chunk } from "./sgr"
 import { type SelectionRange, type SpanPaint, overlaySelection } from "./terminal-selection"
+import { type LogicalLine, type RowWrapFlags, logicalLines, rowAtOffset } from "./terminal-wrap"
 
 /** Terminal-cell width of text: wide glyphs count 2, combining marks 0. */
 function cellWidth(text: string): number {
@@ -45,26 +46,55 @@ function foldCase(text: string): string {
 }
 
 /**
+ * Turn `[at, to)` within one logical line into a snapshot `SelectionRange`.
+ * A hit that crosses a soft wrap spans rows, which is the shape `rowSpan`
+ * already means by "first row from the start column, last row to the end
+ * column" — so the existing highlight paints it with no changes.
+ * Null when the hit covers no cells (zero-width marks only).
+ */
+function matchRange(line: LogicalLine, at: number, to: number): SelectionRange | null {
+  if (cellWidth(line.text.slice(at, to)) <= 0) return null
+  const head = rowAtOffset(line, to - 1)
+  const anchor = rowAtOffset(line, at)
+  const headFrom = Math.max(at, head.start)
+  const headCol = cellWidth(line.text.slice(head.start, headFrom))
+  return {
+    anchor: { row: anchor.row, col: cellWidth(line.text.slice(anchor.start, at)) },
+    head: { row: head.row, col: headCol + cellWidth(line.text.slice(headFrom, to)) - 1 },
+  }
+}
+
+/**
  * Every occurrence of `query` in `rows`, top-first, in ABSOLUTE snapshot
  * coordinates. An empty query yields nothing: it matches everywhere, which
  * is the same as matching nothing worth painting.
+ *
+ * Searching is done over LOGICAL lines: a row the emulator soft-wrapped is
+ * half of the line above it, and a per-row `indexOf` cannot see a needle
+ * straddling that break — it answers "no matches" for text the user can read
+ * two rows up. `wrapped` is the snapshot's per-row flags; without them every
+ * row is its own line, which is the pre-wrap behavior.
  */
-export function findMatches(rows: readonly (readonly Chunk[])[], query: string): readonly SelectionRange[] {
+export function findMatches(
+  rows: readonly (readonly Chunk[])[],
+  query: string,
+  wrapped?: RowWrapFlags,
+): readonly SelectionRange[] {
   const needle = foldCase(query)
   if (needle.length === 0) return []
   const out: SelectionRange[] = []
-  for (let row = 0; row < rows.length; row++) {
-    const text = rowText(rows[row] ?? [])
-    const haystack = foldCase(text)
+  for (const line of logicalLines(
+    rows.map((row) => rowText(row ?? [])),
+    wrapped,
+  )) {
+    const haystack = foldCase(line.text)
     let from = 0
     for (;;) {
       const at = haystack.indexOf(needle, from)
       if (at < 0) break
       from = at + needle.length
-      const col = cellWidth(text.slice(0, at))
-      const width = cellWidth(text.slice(at, from))
-      // A hit made only of zero-width marks covers no cells to highlight.
-      if (width > 0) out.push({ anchor: { row, col }, head: { row, col: col + width - 1 } })
+      const range = matchRange(line, at, from)
+      if (range) out.push(range)
     }
   }
   return out
@@ -93,7 +123,9 @@ export function overlayMatches(
   let out = rows
   for (let i = 0; i < matches.length; i++) {
     const match = matches[i] as SelectionRange
-    if (match.anchor.row < firstRow || match.anchor.row > lastRow) continue
+    // Compared on the whole SPAN, not the anchor alone: a hit across a soft
+    // wrap starts one row above the viewport and still has a tail inside it.
+    if (match.head.row < firstRow || match.anchor.row > lastRow) continue
     out = overlaySelection(out, match, firstRow, width, i === current ? currentPaint : "inverse")
   }
   return out
@@ -110,4 +142,64 @@ export function scrollOffsetForRow(total: number, height: number, row: number): 
   const body = Math.max(1, height)
   const max = Math.max(0, total - body)
   return Math.min(max, Math.max(0, total - body + Math.floor(body / 3) - row))
+}
+
+/**
+ * Which hit the viewport is parked on, addressed so it survives the buffer
+ * moving underneath it.
+ *
+ * An array POSITION does not: the local scrollback is bounded, so once it
+ * saturates every new line drops a hit off the front and every survivor
+ * shifts down one slot — the counter keeps saying `3/5` while the accent
+ * highlight has walked to a different occurrence. The absolute line id is the
+ * same address `moveViewportScroll` anchors the viewport by, and it is stable
+ * across a trim.
+ *
+ * `position` is the degraded form for backends with no stable line ids
+ * (`PipeTaskPty`, mocks, the alternate screen): there is nothing better to
+ * park on there, so it keeps the old behavior rather than pretending.
+ */
+export type ParkedHit =
+  | { readonly kind: "line"; readonly epoch: number; readonly line: number; readonly col: number }
+  | { readonly kind: "position"; readonly at: number }
+
+/** Address match `at` for parking, given the snapshot's current window. */
+export function parkHit(
+  matches: readonly SelectionRange[],
+  at: number,
+  window: { readonly epoch: number; readonly startLine: number } | null,
+): ParkedHit | null {
+  const match = matches[at]
+  if (!match) return null
+  if (!window) return { kind: "position", at }
+  return { kind: "line", epoch: window.epoch, line: window.startLine + match.anchor.row, col: match.anchor.col }
+}
+
+/**
+ * Re-derive the parked hit's position in a freshly recomputed match list.
+ *
+ * Returns -1 when the park cannot be honoured rather than pointing at a
+ * neighbour: a resize reflows history and bumps `epoch`, so the recorded id
+ * names content that no longer exists under that numbering —
+ * `followWindowShift` drops a selection on exactly that signal, and guessing
+ * here would put the accent on a line the user never walked to. A hit the
+ * scrollback trimmed away falls forward to the next surviving hit, which is
+ * where `enter` would have taken them anyway.
+ */
+export function resolveParkedIndex(
+  parked: ParkedHit | null,
+  matches: readonly SelectionRange[],
+  window: { readonly epoch: number; readonly startLine: number } | null,
+): number {
+  if (!parked || matches.length === 0) return -1
+  if (parked.kind === "position") return Math.min(parked.at, matches.length - 1)
+  if (!window || window.epoch !== parked.epoch) return -1
+  let fallback = -1
+  for (let i = 0; i < matches.length; i++) {
+    const match = matches[i] as SelectionRange
+    const line = window.startLine + match.anchor.row
+    if (line === parked.line && match.anchor.col === parked.col) return i
+    if (fallback < 0 && line >= parked.line) fallback = i
+  }
+  return fallback >= 0 ? fallback : matches.length - 1
 }

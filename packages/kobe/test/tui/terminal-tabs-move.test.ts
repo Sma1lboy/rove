@@ -76,6 +76,16 @@ describe("moveTaskTab (background write)", () => {
     expect(order(tabsByTask.get("t2") as TabsState)).toEqual(["tab-2", "tab-1", "tab-3"])
   })
 
+  it("keeps an empty live state authoritative over an older populated snapshot", () => {
+    const kv = kvStub()
+    kv.store["terminalTabs.t1"] = state(["tab-1", "tab-2"])
+    const live = state([])
+    tabsByTask.set("t1", live)
+    expect(moveTaskTab(kv, "t1", "tab-2", -1)).toBe(false)
+    expect(tabsByTask.get("t1")).toBe(live)
+    expect(kv.writes).toEqual([])
+  })
+
   it("edge-stop writes NOTHING — top/bottom is a silent no-op", () => {
     const kv = kvStub()
     const s = state(["tab-1", "tab-2"])

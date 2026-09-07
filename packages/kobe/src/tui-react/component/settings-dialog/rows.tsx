@@ -7,15 +7,8 @@
  */
 
 import { type BoxRenderable, type RGBA, TextAttributes } from "@opentui/core"
-import { type ReactNode, createContext, useContext, useEffect, useRef } from "react"
+import type { ReactNode } from "react"
 import { useTheme } from "../../context/theme"
-
-/**
- * Cursor-follow channel: the dialog provides a reporter; whichever `Row`
- * currently carries the keyboard cursor hands its renderable up so the
- * owning scrollbox can keep it visible on short terminals.
- */
-export const SettingsCursorElContext = createContext<((el: BoxRenderable | null) => void) | null>(null)
 
 /**
  * One navigable settings row: cursor row paints `theme.primary` behind
@@ -25,6 +18,8 @@ export const SettingsCursorElContext = createContext<((el: BoxRenderable | null)
  */
 export function Row(props: {
   cursor: boolean
+  /** `props.rowRef(<this row's body index>)` — cursor-follow registration. */
+  rowRef: (r: BoxRenderable | null) => (() => void) | undefined
   onMouseUp: () => void
   /** Foreground when NOT the cursor row (the caller owns that logic). */
   fg: RGBA
@@ -40,17 +35,9 @@ export function Row(props: {
   children?: ReactNode
 }) {
   const { theme } = useTheme()
-  const reportCursorEl = useContext(SettingsCursorElContext)
-  const elRef = useRef<BoxRenderable | null>(null)
-  const { cursor } = props
-  useEffect(() => {
-    if (cursor) reportCursorEl?.(elRef.current)
-  }, [cursor, reportCursorEl])
   return (
     <box
-      ref={(r: BoxRenderable | null) => {
-        elRef.current = r
-      }}
+      ref={props.rowRef}
       flexDirection="row"
       gap={1}
       paddingLeft={1}
@@ -97,4 +84,11 @@ export type SectionCursorProps = {
   bodyRow: number
   setLevel: (level: "sidebar" | "body") => void
   setBodyRow: (row: number) => void
+  /**
+   * Cursor-follow registration for ONE navigable row, keyed by its body
+   * index — `useCursorFollow`'s `rowRef` (see `tui-react/lib/use-cursor-follow`),
+   * threaded through here rather than a settings-only context so a section
+   * built from bare boxes (Engines, Plugins) registers the same way `Row` does.
+   */
+  rowRef: (row: number) => (r: BoxRenderable | null) => (() => void) | undefined
 }

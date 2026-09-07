@@ -8,8 +8,7 @@
  */
 
 import type { BinaryStatus } from "../engine/account-detect.ts"
-import { listPresetIds } from "../engine/engine-presets.ts"
-import { describeAccount, detectEngineStatuses, engineUsable } from "../engine/engine-status.ts"
+import { describeAccount, detectEngineStatuses, probeableEngineIds, summarizeEngines } from "../engine/engine-status.ts"
 
 export interface GitProbeResult {
   /** The doctor-formatted one-liner (`git: ✓ …` / `git: ✗ …`). */
@@ -22,6 +21,11 @@ export interface EngineProbeResult {
   readonly lines: string[]
   /** True when at least one engine could actually run a task right now. */
   readonly anyUsable: boolean
+  /** Engines whose CLI IS installed but whose readable login says "no account".
+   *  Empty with `anyUsable: false` means nothing is installed at all — the two
+   *  states take opposite remedies, so the caller must be able to tell them
+   *  apart before printing one. */
+  readonly signedOut: readonly string[]
 }
 
 /** What the onboarding wizard's environment page and closing banner render. */
@@ -55,12 +59,13 @@ function binaryLabel(binary: BinaryStatus): string {
  * `detectEngineStatuses` is the same probe Settings →
  * Accounts uses, so the two surfaces can't disagree.
  *
- * Order is `listPresetIds()`: the built-ins in their stable cycle order
+ * Order is `probeableEngineIds()`: the built-ins in their stable cycle order
  * (claude, codex, copilot, kimi), then the user's own presets in registration
- * order.
+ * order, then any contrib engine actually installed — so a machine whose only
+ * CLI is `opencode` gets an opencode row here instead of "no usable engine".
  */
 export async function probeEngines(): Promise<EngineProbeResult> {
-  const statuses = await detectEngineStatuses(listPresetIds())
+  const statuses = await detectEngineStatuses(await probeableEngineIds())
   const lines = ["engines:"]
   for (const status of statuses) {
     const account = describeAccount(status.account)
@@ -72,7 +77,8 @@ export async function probeEngines(): Promise<EngineProbeResult> {
   }
   // "Usable" = binary present AND some account. One usable engine is enough;
   // a missing vendor the user never launches is not a finding.
-  return { lines, anyUsable: statuses.some(engineUsable) }
+  const { usable, signedOut } = summarizeEngines(statuses)
+  return { lines, anyUsable: usable.length > 0, signedOut }
 }
 
 /**

@@ -32,6 +32,17 @@ rove plugin link .            # register your working directory (dev loop)
 rove plugin log you.hello     # inspect hook runs (exit codes, output, timing)
 ```
 
+`link` is a one-time registration. After it, a running daemon picks up edits to
+your `rove-plugin.toml` within about half a second — add an `[[events]]` hook,
+fire the event, and `rove plugin log` shows the run. Re-run `link` only when
+you move the plugin, or when its id or version changes.
+
+That half-second applies to the parts the DAEMON runs: `[[events]]`,
+`[[startup]]`, `[[shutdown]]`, `[[actions]]`, `[[panes]]`, `[[settings]]`. An
+`[[engines]]` table is read once per Rove process instead, so a running TUI
+keeps the engine list it booted with — see the `[[engines]]` note under
+[Manifest reference](#manifest-reference).
+
 ## Optional SDK (TypeScript)
 
 The contract above is the API: any language, no SDK required. For
@@ -47,12 +58,14 @@ const ev = pluginEvent()      // typed event envelope (null outside [[events]])
 
 - `pluginContext()` / `pluginEvent()`: the env contract, typed.
 - `readSettings()` / `setting()`: your `[[settings]]` values from config `.env`.
-- `rove()` / `roveJson()` + `notify` / `dispatch` / `listTasks` / `openPane`:
-  `$ROVE_BIN_PATH` callbacks.
+- `rove()` / `roveJson()` + `notify` / `dispatch` / `listTasks` / `openPane` /
+  `promptUser`: `$ROVE_BIN_PATH` callbacks. `promptUser` pops the TUI's own
+  input dialog and returns `null` for every non-submit path.
 - `RoveSocket`: daemon socket client: `request(name, payload)` + live
   channel `subscribe` (always `role: "pane"`).
-- `Pane`: a tiny pane kit for `[[panes]]` pages: alt screen, raw-mode
-  keys, resize, absolute-addressed `draw(lines)`.
+- `Pane` + `parseKeys`: a tiny pane kit for `[[panes]]` pages: alt screen,
+  raw-mode keys, resize, absolute-addressed `draw(lines)`. `parseKeys` turns
+  one raw stdin chunk into key events, for a pane driving its own read loop.
 - `PLUGIN_EVENT_NAMES` / `DAEMON_CHANNELS`: the catalogs as typed unions.
   These are the SINGLE source: the daemon itself imports them from the
   SDK's `./contract` module, so host and SDK can't drift by construction.
@@ -65,7 +78,7 @@ Module-by-module SDK reference: [PLUGIN-SDK.md](./PLUGIN-SDK.md).
 Five runnable examples live under `packages/kobe-plugin-sdk/examples/`, one
 per surface. Each clip below is the real TUI — recorded through the same
 browser-PTY path the README assets use, against a throwaway home with the
-example already linked (`packages/kobe-web/e2e/hero-plugin-demos.ts`), so what
+example already linked (`packages/kobe-harness/e2e/hero-plugin-demos.ts`), so what
 you see is where your plugin actually shows up.
 
 ![task-board](./assets/plugins/task-board.gif)
@@ -93,7 +106,7 @@ copy appears as a toast in every attached UI.*
 Re-record with:
 
 ```bash
-cd packages/kobe-web
+cd packages/kobe-harness
 bun e2e/hero-fixture.ts --fresh   # throwaway home + a real repo
 bun e2e/hero-plugins.ts           # link all five examples (BEFORE the TUI boots)
 bun e2e/hero-serve.ts             # warm capture stack (keep running)
@@ -128,6 +141,10 @@ command = ["npm", "install"]     # self-provision deps INTO the plugin dir; `lin
 
 [[startup]]                      # once per daemon start; the socket may not accept connections yet — retry your connect. One-shot, not a daemon
 command = ["node", "restore.js"]
+timeout_ms = 30000               # optional, 100…600000; the host SIGKILLs the
+                                 # hook's process group at the deadline.
+                                 # Default 30s for [[startup]]/[[events]], 3s
+                                 # for [[shutdown]] (it delays daemon stop)
 
 [[shutdown]]                     # at daemon stop; bounded (~3s), the host kills a hook that lingers
 command = ["node", "flush.js"]
@@ -156,7 +173,12 @@ key = "YOU_EXAMPLE_MODE"         # stored as KEY=value in your config .env;
 label = "Mode"
 type = "enum"                    # string | number | boolean | enum | secret
 options = ["fast", "fancy"]
-default = "fast"
+default = "fast"                 # what the Settings editor pre-fills, NOT a
+                                 # stored value: nothing reaches the config
+                                 # .env until the user saves, so read it as
+                                 # `setting(dir, key, "fast")`. TOML `true` /
+                                 # `false` / numbers are accepted and become
+                                 # "1" / no default / their decimal spelling
 
 [[settings]]                     # `secret` masks the value everywhere it is
 key = "YOU_EXAMPLE_TOKEN"        # shown, for keys the user pastes in
@@ -172,6 +194,7 @@ id = "aider"                     # VendorId; may not shadow a built-in (claude/c
 name = "Aider"                   # display name in the selector and Settings
 command = ["aider"]              # launch argv; argv[0] is the binary
 # process_names = ["aider-core"] # extra ps basenames (post-launch renames)
+# first_message_delivery = "paste"  # argv (default) | paste — see below
 
 [engines.identity]               # optional product identity for UI labels
 short_name = "Aider"             # falls back to `name`
@@ -187,9 +210,33 @@ any = ["ctrl-c to interrupt"]    # at least one must appear
 # bottom_lines = 12              # trailing non-empty lines examined (default 12)
 ```
 
-`command` is always argv: never a shell, no expansion (panes expand only
-`$ROVE_PLUGIN_ROOT`). Unknown event names are warnings (forward compat);
+An `[[engines]]` edit is **not** picked up by a running TUI. The engine table
+is process-level state, built once at Rove start from the enabled plugins'
+manifests, so `rove plugin install` / `link` / `enable` from another terminal
+registers the engine on disk without any running TUI seeing it. Restart the
+TUI, or toggle the plugin off and on again in Settings → Plugins, which
+reloads the table in place. The same applies to the same-session dev loop:
+edit the `[[engines]]` table, then restart.
+
+`command` is argv, never a shell, for events, startup, shutdown and
+actions: no expansion, no pipes, no globs. **Panes are the exception** — a
+pane runs through the user's interactive login shell (`sh -ilc`, the same
+launch path as an engine tab), expands `$ROVE_PLUGIN_ROOT`, and therefore
+inherits the rc-file environment: your `command[0]` must resolve on the PATH
+the user's `.zshrc`/`.bashrc` builds, not the daemon's, and anything those
+files print (version-manager chatter, MOTDs, banners) reaches the terminal
+before your first draw. The pane kit's `start()` handles that for you — it
+enters the alternate screen and clears it, so rc output stays on the primary
+screen; a pane that does not use the kit should clear the screen itself
+before its first frame. Unknown event names are warnings (forward compat);
 invalid types/patterns are install-time errors.
+
+`first_message_delivery` says how the CLI takes a session's first message.
+The default `"argv"` appends the prompt as a positional argument. Declare
+`"paste"` when argv[1] means something else — a subcommand, or a project
+directory — or the launch dies on the prompt text instead of running it
+(`opencode "Run ls -la"` exits with `Failed to change directory to …`).
+With `"paste"` the message is typed into the running pane instead.
 
 The accepted platform tokens are exactly `macos`, `linux`, and `windows`.
 A top-level list applies to the whole plugin; `platforms` on an individual
@@ -222,19 +269,19 @@ This table is the one-line index. **Per-event trigger semantics, exact
 | `note.filed` | a session filed a field note (`rove api note`) | `repo`, `author`, `text`, `routed`, `persisted` |
 | `message.delivered` | text was dispatched into a task's live session (`dispatch`/note relay) | `source`, `tabId`, `length` |
 | `attention.handled` | the human resolved an inbox episode | `how: dismissed\|read`, `tabId` |
-| `automation.dispatched` / `automation.skipped` / `automation.failed` | one scheduled-automation run finished with that outcome | `automationId`, `name`, `repo`, `status`, `trigger`, `scheduledFor`, `error` |
+| `automation.dispatched` / `automation.skipped` / `automation.failed` | one scheduled-automation run finished with that outcome | `automationId`, `name`, `repo`, `status`, `trigger`, `scheduledFor`, `tabId`, `deferredId`, `error` |
 | `quota.exhausted` / `quota.resumed` | rate-limit auto-resume armed / delivered its continue prompt | `vendor`, `resumeAt` / `delivered` |
 | `session.exited` | a hosted PTY child died abnormally (the crash signal; the engine's own `session.end` hook never fires on a crash) | `tabId`, `pid`, `code`, `signal`, `exitedAt`, `tail` |
-| `plugin.enabled` / `plugin.disabled` | YOUR plugin was enabled/disabled in the registry (delivered only to the affected plugin) | `pluginId` |
+| `plugin.enabled` / `plugin.disabled` | YOUR plugin was enabled/disabled in the registry (delivered only to the affected plugin). Registry membership only — a manifest that stops parsing does not fire teardown | `pluginId` |
 | `task.opened` / `project.opened` | the user selects/enters a task / project row | |
 | `file.will-open` / `file.opened` / `file.closed` | Files-pane open, before/after; editor tab closed | `path`, `via: plugin\|editor\|external` |
 | `tab.opened` / `tab.closed` | a workspace tab appeared/went away (restores don't fire) | `tabId`, `kind`, `title`, `vendor`, `purpose` |
 | `agent.running` / `agent.idle` / `agent.turn-complete` / `agent.permission-needed` / `agent.rate-limited` / `agent.error` | activity-STATE transitions, deduped per task+tab | `tabId` when the source state identifies a tab |
 | `session.start` / `session.end` | engine session lifecycle (C, K; X start only) | |
-| `turn.prompt` / `turn.complete` / `turn.failed` / `turn.interrupted` | one event per turn edge (C, X, K; failed: C, K) | `failure` class on failed; `turn` (id/model/usage/startedAt/endedAt) on complete when the transcript yielded one |
+| `turn.prompt` / `turn.complete` / `turn.failed` / `turn.interrupted` | one event per turn edge (C, X, K; failed: C, K; **interrupted** is a native hook on K only — on C and X the attached TUI emulates it, so it never fires with no TUI attached) | `failure` class on failed; `turn` (id/model/usage/startedAt/endedAt) on complete when the transcript yielded one |
 | `tool.pre` / `tool.post` / `tool.failed` | every tool call (C, X, K; failed: C, K); **installed into engine config only while some enabled plugin subscribes** | `tool.name`, `tool.id` |
 | `attention.permission` / `attention.question` | the engine blocked on a human (permission: C, K; question: C) | `waiting` |
-| `context.pre-compact` / `context.post-compact` | context compaction (C, X) | `compact.trigger: manual\|auto` |
+| `context.pre-compact` / `context.post-compact` | context compaction (C, X, K) | `compact.trigger: manual\|auto` |
 | `subagent.start` / `subagent.stop` | nested agent lifecycle (C, K) | `subagent.type/id` |
 
 Envelope (`ROVE_PLUGIN_EVENT_JSON`):
@@ -265,7 +312,7 @@ Every plugin command gets, on top of the user's environment:
 
 | Variable | Meaning |
 |---|---|
-| `ROVE_BIN_PATH` | exec this to call back into Rove |
+| `ROVE_BIN_PATH` | exec this to call back into Rove — the absolute path of the running install when that is a runnable file (an npm install, a compiled binary), otherwise the bare `rove`/`kobe` name resolved on `PATH`, which is what a dev checkout run through `bun` falls back to. In that fallback your callbacks run **a different build than the daemon that launched you**, so a verb or flag the daemon has can still fail as a usage error: compare `$ROVE_BIN_PATH --version` against the daemon's own `roveVersion` (see [Which host am I talking to](#which-host-am-i-talking-to)) before blaming your own arguments |
 | `ROVE_SOCKET_PATH` | daemon unix socket, for raw JSON requests |
 | `ROVE_HOME_DIR` | set when Rove runs against a non-default home (keep passing it through) |
 | `ROVE_PLUGIN_ID`, `ROVE_PLUGIN_ROOT` | who you are, where your files are |
@@ -275,7 +322,7 @@ Every plugin command gets, on top of the user's environment:
 | startup | `ROVE_PLUGIN_EVENT=startup` |
 | shutdown | `ROVE_PLUGIN_EVENT=shutdown` |
 | actions | `ROVE_PLUGIN_ACTION_ID`, `ROVE_PLUGIN_INVOKE_CWD` (where the user invoked, usually "the repo I mean") |
-| panes | `ROVE_PLUGIN_ENTRYPOINT_ID`; cwd is the task worktree |
+| panes | `ROVE_PLUGIN_ENTRYPOINT_ID`, `ROVE_PLUGIN_TASK_ID`; cwd is the task worktree. Panes get no `_TASK_TITLE` — read it with `"$ROVE_BIN_PATH" api get-task --task-id "$ROVE_PLUGIN_TASK_ID"` |
 
 Every `ROVE_*` variable above is also injected under its established `KOBE_*`
 alias. Existing plugins need no edits; when both are supplied, SDK readers
@@ -314,12 +361,36 @@ The high-value verbs live under `rove api`: machine-readable list via
 "$ROVE_BIN_PATH" plugin pane open you.example.board            # qualified-id form
 "$ROVE_BIN_PATH" plugin pane open --plugin you.example \
   --entrypoint board                                           # equivalent flag form
+"$ROVE_BIN_PATH" plugin pane open you.example.board --task ID  # a specific task, not the active one
 ```
+
+`plugin pane open` prints JSON: `{"ok":true,"clients":N,"pane":…,"taskId":…,"title":…}`.
+Branch on `clients`, not the exit code — the open is a broadcast, and `0`
+means no attached UI performed the split. Without `--task` the host uses the
+active task and fails when there is none, so an event hook should pass its
+own `$ROVE_PLUGIN_TASK_ID`.
 
 **Socket (advanced):** newline-delimited JSON frames on `ROVE_SOCKET_PATH`
 (`{"type":"request","id":"1","name":"task.list","payload":{}}`); request
 names and payloads in `packages/kobe-daemon/src/daemon/protocol.ts`. Prefer
 the CLI unless you need push channels.
+
+### Which host am I talking to
+
+The `hello` request answers it, and it is the only thing that can: your SDK
+version describes what YOU were built against, not what the running daemon
+knows. Send `{"type":"request","id":"1","name":"hello","payload":{}}` (the
+SDK wraps it as `RoveSocket.hello()`) and read back:
+
+- `kobeVersion` — the daemon's build version. The SDK also surfaces it as
+  `roveVersion`; the wire field keeps its original spelling.
+- `capabilities` — the broadcast channels **this** daemon has. A channel name
+  it does not know is dropped from a `subscribe` filter silently, so this is
+  how you tell "the host is too old for that channel" from "nothing has
+  happened yet".
+- `protocolVersion` / `minProtocolVersion` — the wire range it accepts.
+- `homeDir` — its state root. A different home means you reached a foreign
+  daemon (a sandbox one on the production socket path).
 
 ## Interaction surfaces
 
@@ -355,6 +426,12 @@ the CLI unless you need push channels.
 - **Hooks must be fast and silent.** Event hooks run on real product
   moments; do your slow work detached. Exit non-zero only for real failures;
   output is capped at 8 KB per run in `log.jsonl`.
+- **Every hook has a deadline.** 30s for `[[startup]]` and `[[events]]`, 3s
+  for `[[shutdown]]`, or whatever `timeout_ms` you declare. At the deadline
+  the host SIGKILLs the hook's whole process group, so a `curl` with no
+  `--max-time` on a `tool.post` hook stops one process short of leaking one
+  per tool call. A hook still running after ~2s gets a `phase: "running"`
+  record in `log.jsonl`, ahead of the record its exit will write.
 - **Never block.** Events are observers; there is no veto surface. Blocking
   tweaks (deny a tool call) belong in engine-native hooks the user installs
   directly.

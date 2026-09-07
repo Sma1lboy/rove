@@ -58,6 +58,22 @@ describe("rove api hosted PTY lifecycle (behavior)", () => {
     await env.dispose()
   })
 
+  /**
+   * `sessions: []` used to be the answer for BOTH "a live host with nothing
+   * running" and "no host at all", so an agent reading `{"sessions":[]}`
+   * concluded the fleet was idle — and could respawn work that was actually
+   * running, or call a live task dead. `null` means "could not look", the same
+   * shape `inspect`'s sessions section has always returned for this failure.
+   *
+   * Runs FIRST, before anything spawns a host. The live-host half (an actual
+   * array) is every other `pty-list` assertion in this file.
+   */
+  it("pty-list answers null when there is no pty host to ask", () => {
+    const cold = runRove(["api", "pty-list", "--pretty"], env)
+    expect(cold.code, `pty-list failed: ${cold.stderr}`).toBe(0)
+    expect((JSON.parse(cold.stdout) as { sessions: unknown }).sessions).toBeNull()
+  }, 15_000)
+
   it("add --prompt materializes a worktree and auto-starts the canonical engine session", () => {
     const result = runRove(["api", "add", "--repo", repo, "--prompt", "hello from behavior", "--pretty"], env)
     expect(result.code).toBe(0)

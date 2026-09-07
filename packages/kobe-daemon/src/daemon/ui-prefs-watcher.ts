@@ -38,12 +38,11 @@
  */
 
 import { readFileSync } from "node:fs"
-import { homedir } from "node:os"
-import { basename, join } from "node:path"
-import { ROVE_CONFIG_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { basename } from "node:path"
 import { logDaemonError } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import { startFileWatchTrigger } from "./file-watch-trigger.ts"
+import { defaultUiPrefsStatePath } from "./product-paths.ts"
 import type { UiPrefsPayload } from "./protocol.ts"
 
 /** Default debounce between a state-file event and the read+publish. */
@@ -56,21 +55,17 @@ export const DEFAULT_UI_PREFS_DEBOUNCE_MS = 200
  */
 const FOCUS_ACCENT_SLOT_NAMES = ["primary", "success", "info"] as const
 
-/**
- * Path of the shared KV blob for a kobe home. Mirrors `kvStatePath()` in
- * `packages/kobe/src/env.ts` (keep in sync — same `defaultDaemonPidPath`
- * pattern as `daemon/paths.ts`): the daemon resolves it from the homeDir
- * the server was started with so sandbox/test homes stay isolated.
- */
-export function defaultUiPrefsStatePath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
-  return join(homeDir, ".config", ROVE_CONFIG_DIR_BASENAME, "state.json")
-}
+// Path of the shared KV blob — derived in `product-paths.ts`, which the TUI's
+// `kvStatePath()` wraps too. Re-exported here because this module's own
+// importers (collectors, tests) address it by the watcher.
+export { defaultUiPrefsStatePath }
 
 /**
  * Read the visual-pref keys out of the state file. Never throws —
  * a missing / corrupt file yields the documented defaults (`claude`
- * theme, opaque, unset accent, `default` sort, expanded keys legend), the
- * same corrupt-file policy as the State Store and `readPersistedUiPrefs`.
+ * theme, TRANSPARENT background, unset accent, `default` sort, expanded keys
+ * legend), the same corrupt-file policy as the State Store and
+ * `readPersistedUiPrefs`.
  * The theme NAME is
  * passed through unvalidated (the daemon has no theme registry); the
  * TUI-side apply validates it against its own registry.
@@ -84,7 +79,10 @@ export function readUiPrefsFromStateFile(statePath: string): UiPrefsPayload {
     // Missing or malformed state.json → defaults. Never surface — the
     // prefs channel must always have a sane value to replay.
   }
-  const theme = typeof parsed.activeTheme === "string" && parsed.activeTheme.length > 0 ? parsed.activeTheme : "claude"
+  // Not `"claude"`: naming a default here would fork the TUI's theme registry,
+  // which is the only thing that knows what the default IS. `null` says
+  // "state.json has no selection" and lets the registry answer.
+  const theme = typeof parsed.activeTheme === "string" && parsed.activeTheme.length > 0 ? parsed.activeTheme : null
   // Default-true: only an explicit stored `false` opts out.
   const transparentBackground = parsed.transparentBackground !== false
   const focusAccent =

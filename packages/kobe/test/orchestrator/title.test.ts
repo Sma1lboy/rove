@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { TITLE_CHAR_CAP, deriveTitleFromPrompt, isPlaceholderDerivedBranch } from "../../src/orchestrator/title.ts"
+import {
+  TITLE_CHAR_CAP,
+  deriveTitleFromPrompt,
+  isPlaceholderDerivedBranch,
+  sanitizeTaskTitle,
+} from "../../src/orchestrator/title.ts"
 
 describe("isPlaceholderDerivedBranch", () => {
   it("recognizes the convention-era placeholder shapes", () => {
@@ -52,5 +57,37 @@ describe("deriveTitleFromPrompt", () => {
     // No lone surrogate: a UTF-8 round-trip is lossless only if every surrogate
     // is paired.
     expect(Buffer.from(out, "utf8").toString("utf8")).toBe(out)
+  })
+})
+
+describe("sanitizeTaskTitle", () => {
+  it("flattens a newline into a single space instead of letting it through", () => {
+    // `add --title $'line1\nline2'` used to land verbatim in the store. The
+    // sidebar row is `wrapMode="none"` and display-width measures a newline
+    // as ZERO cells, so the truncator never sees it and the row grows a
+    // second line at render time.
+    expect(sanitizeTaskTitle("line1\nline2")).toBe("line1 line2")
+    expect(sanitizeTaskTitle("a\r\nb")).toBe("a b")
+  })
+
+  it("strips every C0 control, not just the newline — they all measure zero", () => {
+    expect(sanitizeTaskTitle("a\tb")).toBe("a b")
+    expect(sanitizeTaskTitle("red\u001b[31mtext")).toBe("red [31mtext")
+    expect(sanitizeTaskTitle("a\u0000b")).toBe("a b")
+  })
+
+  it("collapses runs and trims the edges, so nothing becomes a wall of spaces", () => {
+    expect(sanitizeTaskTitle("  \n\n a  \n b \n ")).toBe("a b")
+  })
+
+  it("leaves an ordinary title — including a non-Latin one — byte-for-byte alone", () => {
+    expect(sanitizeTaskTitle("fix the login flow")).toBe("fix the login flow")
+    expect(sanitizeTaskTitle("修复中文标题的分支推导")).toBe("修复中文标题的分支推导")
+    expect(sanitizeTaskTitle("😀😀😀")).toBe("😀😀😀")
+  })
+
+  it("reduces a control-only title to the empty string, so callers can fall back", () => {
+    // `createTask` swaps this for the placeholder; `setTitle` rejects it.
+    expect(sanitizeTaskTitle("\n\n\t ")).toBe("")
   })
 })

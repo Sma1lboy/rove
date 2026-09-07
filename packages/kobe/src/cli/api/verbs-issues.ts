@@ -71,4 +71,16 @@ export const ISSUE_VERBS: readonly VerbSpec[] = [
     ],
     handler: issueUpdate,
   },
+  {
+    name: "issue-delete",
+    group: "issues",
+    summary:
+      "Delete a daemon-owned issue. Removes ONLY the tracker record — a linked task, its branch and its worktree are left untouched. The same `delete` op the kanban page's `d` runs; use `issue-set-status --status done` when the story was finished rather than abandoned.",
+    flags: [F.repo(), { name: "id", type: "int", required: true, placeholder: "N", description: "Issue id." }],
+    handler: (ctx) =>
+      simpleRpc(ctx, "issue.mutate", {
+        repoRoot: ctx.args.requireRepo("repo"),
+        op: { type: "delete", id: ctx.args.int("id") },
+      }),
+  },
 ]

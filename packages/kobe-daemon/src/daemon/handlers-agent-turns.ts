@@ -7,10 +7,6 @@ import type { DaemonRequestHandler } from "./handlers.ts"
 export const AGENT_TURN_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "agentTurn.list",
-    // Socket-only for now: nothing in the browser dashboard reads turns yet,
-    // and the web allowset is a deliberate, test-pinned surface (see
-    // `test/daemon/web-exposure.test.ts`). Flip to `web: true` in the PR that
-    // actually renders them.
     handle(payload, ctx) {
       const taskId = optionalString(payload, "taskId")
       const repo = optionalString(payload, "repoRoot")

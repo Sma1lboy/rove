@@ -2,7 +2,7 @@
 /**
  * Shared per-row React hooks for the sidebar's rows: the spinner-frame
  * subscription, the `+N −M` changes hook + chip, the unread-lamp "seen"
- * bookkeeping, and the jump-digit placeholder.
+ * bookkeeping, and the jump digit.
  *
  * Poller contract (async canon): the fire-and-forget `poll*` call lives in
  * an effect keyed on the Sidebar's `branchTick` (never in render), while
@@ -16,6 +16,7 @@ import type { TaskEngineState } from "@/client/remote-orchestrator"
 import { useEffect, useSyncExternalStore } from "react"
 import { spinnerFrameSnapshot, subscribeSpinnerFrame } from "../../../tui/lib/spinner-frame-store"
 import type { SidebarRow } from "../../../tui/panes/sidebar/groups"
+import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
 import { type WorktreeChanges, pickPushedChanges } from "../../../tui/panes/sidebar/worktree-changes"
 import { pollWorktreeChanges, worktreeChanges } from "../../../tui/panes/sidebar/worktree-changes-poller"
 import { useOptionalKV } from "../../context/kv"
@@ -43,10 +44,15 @@ export function useSpinnerFrame(active: boolean): number {
  * poller cache (poll scheduled in an effect). The param is structural —
  * the tree's row props carry exactly the two fields it reads.
  */
+const NO_CHANGES: WorktreeChanges = { added: 0, deleted: 0 }
+
 export function useChanges(
-  sources: { readonly branchTick: number; readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges> | null },
+  sources: {
+    readonly branchTick: number
+    readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges | null> | null
+  },
   task: SidebarRow["task"],
-): WorktreeChanges {
+): WorktreeChanges | null {
   const pushed = pickPushedChanges(sources.worktreeChanges, task.worktreePath)
   const hasPushed = pushed !== null
   useEffect(() => {
@@ -55,25 +61,64 @@ export function useChanges(
     if (hasPushed) return
     pollWorktreeChanges(task.worktreePath)
   }, [hasPushed, task.worktreePath, sources.branchTick])
+  // A row with NO worktree yet (task created, not yet materialized) has no
+  // uncommitted worktree work — that is a fact, not an unknown, so it draws no
+  // chip. Only a worktree that EXISTS and could not be read reads as unknown;
+  // otherwise every fresh task would wear a `?` while its job is still running,
+  // which the materializing spinner already says better.
+  if (!task.worktreePath) return NO_CHANGES
+  // `"unknown"` = the DAEMON tracked this worktree and its git read failed;
+  // `null` from the poller = the same fact on the no-daemon path. Both render
+  // as the unknown mark, so they collapse here.
+  if (pushed === "unknown") return null
   return pushed ?? worktreeChanges(task.worktreePath)
 }
+
+/** Cells the unknown mark occupies — one, same as any single chip glyph. */
+export const UNKNOWN_CHANGES_MARK = "?"
 
 /** Right-edge git metrics stay one non-shrinking cluster while metadata takes
  * the flexible middle column. This keeps every row scannable at the same
  * visual anchor even when a branch/title is long. Shared with the tree rows.
  *
- * `+N −M` count UNCOMMITTED files; `↓K` counts COMMITS the base has that this
- * worktree does not. It sits last and in the warning tone because it is the
- * only one of the three that is not about work the row did: main moves several
- * times a day, and an attempt that has been running for two hours is building
- * against a base that no longer exists. Absent (not zero) when no base ref
- * resolves, so a repo with no remote reads exactly as it always did. */
-export function ChangeStats(props: { readonly changes: WorktreeChanges }) {
+ * `+N −M` count UNCOMMITTED files; `↑J` counts COMMITS this worktree has that
+ * its base does not, and `↓K` the ones the base has that it does not. `↑J`
+ * leads, in the success tone, because it is the row's own delivered work — and
+ * because committing empties `+N −M`, it is the ONLY thing that separates a
+ * worker that shipped from one that reported success and shipped nothing. `↓K`
+ * sits last and in the warning tone because it is the only one that is not
+ * about work the row did: main moves several times a day, and an attempt that
+ * has been running for two hours is building against a base that no longer
+ * exists. Both are absent (not zero) when no base ref resolves, so a repo with
+ * no remote reads exactly as it always did.
+ *
+ * `↑`/`↓` are U+2191/U+2193 (Arrows) — single-width in every monospace font we
+ * target, same coverage rule the `row-view.ts` glyph comments record. */
+export function ChangeStats(props: { readonly changes: WorktreeChanges | null }) {
   const { theme } = useTheme()
+  // `null` = the git read failed or has not landed yet. It must NOT render
+  // like a clean row: hiding the cluster is what let an unreadable worktree
+  // read as "nothing uncommitted here" right before the user deleted it. A
+  // muted `?` says the counts are unknown — the same muted-tone vocabulary
+  // `prCheckChip` already uses for a value nothing is confirming any more,
+  // and `?` is free in the glyph set this cluster shares.
+  if (props.changes === null) {
+    return (
+      <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
+        {UNKNOWN_CHANGES_MARK}
+      </text>
+    )
+  }
+  const ahead = props.changes.ahead ?? 0
   const behind = props.changes.behind ?? 0
-  if (props.changes.added <= 0 && props.changes.deleted <= 0 && behind <= 0) return null
+  if (props.changes.added <= 0 && props.changes.deleted <= 0 && ahead <= 0 && behind <= 0) return null
   return (
     <box flexDirection="row" gap={1} flexShrink={0}>
+      {ahead > 0 ? (
+        <text fg={theme.success} wrapMode="none" flexShrink={0}>
+          ↑{ahead}
+        </text>
+      ) : null}
       {props.changes.added > 0 ? (
         <text fg={theme.success} wrapMode="none" flexShrink={0}>
           +{props.changes.added}
@@ -182,7 +227,13 @@ export function useDurableCompletionSeen(
  * nothing rather than a digit that jumps somewhere else. Keyed on the flat
  * index directly so the tree's rows (no SidebarRow wrapper) share it.
  */
-// ponytail: the ctrl+<digit> jump chord works; the digit is not printed on the row.
-export function JumpDigit(_props: { flatIndex: number; dim: boolean }) {
-  return null
+export function JumpDigit(props: { flatIndex: number; dim: boolean }) {
+  const { theme } = useTheme()
+  const digit = taskJumpDigit(props.flatIndex)
+  if (digit === null) return null
+  return (
+    <text fg={props.dim ? theme.textMuted : theme.accent} wrapMode="none" flexShrink={0}>
+      {digit}
+    </text>
+  )
 }

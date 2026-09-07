@@ -19,6 +19,29 @@ vi.mock("../../src/cli/invocation.ts", () => ({
 describe("CodexHookAdapter", () => {
   const adapter = new CodexHookAdapter()
 
+  // Field names + nullability taken from the `stop.command.input` JSON schema
+  // embedded in codex-cli 0.153.2's binary, which REQUIRES both keys. Without
+  // this the daemon records a turn-complete carrying no transcript, so codex's
+  // turn reader is never reached and `agent-turns` stays empty.
+  it("extracts session identity from a Stop payload", () => {
+    expect(
+      adapter.sessionFromPayload({
+        hook_event_name: "Stop",
+        session_id: "01a060d6-aae5-7c90-91c0-d5f81da8f343",
+        transcript_path: "/Users/x/.codex/sessions/2026/09/01/rollout-x.jsonl",
+        model: "gpt-5.6-luna",
+      }),
+    ).toEqual({
+      sessionId: "01a060d6-aae5-7c90-91c0-d5f81da8f343",
+      transcriptPath: "/Users/x/.codex/sessions/2026/09/01/rollout-x.jsonl",
+    })
+  })
+
+  it("tolerates the schema's nullable transcript_path and an absent session", () => {
+    expect(adapter.sessionFromPayload({ session_id: "s1", transcript_path: null })).toEqual({ sessionId: "s1" })
+    expect(adapter.sessionFromPayload({ transcript_path: "/t.jsonl" })).toBeUndefined()
+  })
+
   it("declares itself a wired hook engine writing ~/.codex/hooks.json", () => {
     expect(adapter.vendor).toBe("codex")
     expect(adapter.supportsHooks()).toBe(true)
@@ -37,12 +60,23 @@ describe("CodexHookAdapter", () => {
 
   it("owns exactly the events Codex can deliver safely", () => {
     expect([...KOBE_CODEX_HOOK_EVENTS].sort()).toEqual(
-      ["SessionStart", "Stop", "UserPromptSubmit", "PreCompact", "PostCompact", "PreToolUse", "PostToolUse"].sort(),
+      [
+        "SessionStart",
+        "SessionEnd",
+        "Stop",
+        "UserPromptSubmit",
+        "PreCompact",
+        "PostCompact",
+        "SubagentStart",
+        "SubagentStop",
+        "PreToolUse",
+        "PostToolUse",
+      ].sort(),
     )
-    // The verbs with no clean Codex signal are NOT installed: no StopFailure
-    // equivalent, no Notification, and SessionEnd/Subagent* are documented
-    // upstream but absent from the pinned protocol.
-    for (const absent of ["StopFailure", "Notification", "SessionEnd", "SubagentStart", "PostToolUseFailure"]) {
+    // The verbs with no clean Codex signal stay OUT: Codex's enum has no
+    // failure event at all, and its only "waiting" event is PermissionRequest
+    // — an allow/deny DECISION hook Rove must not observe.
+    for (const absent of ["StopFailure", "PostToolUseFailure", "Notification", "PermissionRequest", "TurnFailed"]) {
       expect(KOBE_CODEX_HOOK_EVENTS).not.toContain(absent)
     }
   })
@@ -84,7 +118,7 @@ describe("CodexHookAdapter install/remove roundtrip (real file)", () => {
     expect(await readFile(file, "utf8")).toBe(malformed)
   })
 
-  it("installs SessionStart/UserPromptSubmit/Stop, preserving the user's hooks", async () => {
+  it("installs the session, turn, compaction and subagent events, preserving the user's hooks", async () => {
     // Seed a user-authored hook that must survive kobe's merge.
     await writeFile(file, JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: "command", command: "user-stop" }] }] } }))
 
@@ -94,10 +128,15 @@ describe("CodexHookAdapter install/remove roundtrip (real file)", () => {
     expect(hooks.SessionStart).toBeDefined()
     expect(hooks.UserPromptSubmit).toBeDefined()
     expect(hooks.Stop).toBeDefined()
+    // SessionEnd closes the session out — without it a cleanly-quit codex task
+    // keeps whatever state its last hook set.
+    expect(JSON.stringify(hooks.SessionEnd)).toContain("session-end")
+    expect(JSON.stringify(hooks.SubagentStart)).toContain("subagent-start")
+    expect(JSON.stringify(hooks.SubagentStop)).toContain("subagent-stop")
     // Codex never delivers these → kobe must not install them.
     expect(hooks.StopFailure).toBeUndefined()
     expect(hooks.Notification).toBeUndefined()
-    expect(hooks.SessionEnd).toBeUndefined()
+    expect(hooks.PermissionRequest).toBeUndefined()
     // kobe's Stop coexists with the user's Stop hook.
     expect(JSON.stringify(hooks.Stop)).toContain("turn-complete")
     expect(JSON.stringify(hooks.Stop)).toContain("user-stop")

@@ -65,6 +65,9 @@ export function useTabDialogs(deps: {
   state: TabsState
   active: TerminalTab
   vendor: VendorId
+  /** The task these tabs belong to — rides into a plugin pane's env as
+   *  `ROVE_PLUGIN_TASK_ID` so the pane can name its own task. */
+  taskId: string
   worktree: string
   liveTitles: ReadonlyMap<string, string>
   update: (next: TabsState) => void
@@ -175,7 +178,11 @@ export function useTabDialogs(deps: {
       // offered in the default combo (the dialog filters otherwise).
       let panes: PaneLaunch[] = []
       try {
-        panes = listPaneLaunches({ socketPath: defaultDaemonSocketPath(), binPath: activeCliName() })
+        panes = listPaneLaunches({
+          socketPath: defaultDaemonSocketPath(),
+          binPath: activeCliName(),
+          taskId: deps.taskId,
+        })
       } catch {
         /* registry unreadable → engines only */
       }

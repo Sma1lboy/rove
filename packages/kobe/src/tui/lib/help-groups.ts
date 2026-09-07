@@ -4,6 +4,11 @@
  * help dialog share. `groupBindings` stays generic over the `category`
  * field; the cap helpers read the real keymap via `findBinding` (itself
  * framework-free and vitest-safe — tests import both directly).
+ *
+ * The two category mappers live here rather than in their rendering
+ * components for the same reason: which header a binding prints under is the
+ * only thing that says which `keys.category` entries the catalog must carry,
+ * and a CI guard cannot import an opentui component to ask.
  */
 
 import type { KobeBinding, KobeBindingScope } from "../context/keybindings"
@@ -78,8 +83,13 @@ export type HelpGrammarSection = {
 
 function directCap(row: KobeBinding): string | null {
   if (row.keys.length > 0) return row.hint?.keys ?? row.keys[0] ?? null
-  // Documentation-only rows (composer and diff keys) still describe a
-  // direct, surface-owned gesture through their friendly hint.
+  // Documentation-only rows (the diff-review keys, the new-task tab cycler)
+  // still describe a direct, surface-owned gesture through their friendly
+  // hint. They carry no `keys`, so they are never dispatched from the table —
+  // the owning component registers the raw chord and tags it with this row's
+  // id, which is what puts them in the reachability scan alongside every
+  // other row. A doc-only row whose owner is not mounted is unreachable and
+  // must not be advertised.
   return row.prefixKeys?.length ? null : (row.hint?.keys ?? null)
 }
 
@@ -117,8 +127,7 @@ export function grammarHelpSections(
     const prefixAvailable = reachability ? reachability.prefix.has(binding.id) : staticallyAvailable
     if (cap) {
       const row = { binding, primary: cap, aliases: binding.keys.filter((key) => key !== cap) }
-      const docOnlyHere = binding.keys.length === 0 && !binding.prefixKeys?.length && staticallyAvailable
-      if ((directAvailable && (staticallyAvailable || binding.presentation === "onePress")) || docOnlyHere) {
+      if (directAvailable && (staticallyAvailable || binding.presentation === "onePress")) {
         if (binding.presentation === "onePress") direct.push(row)
         else here.push(row)
       } else if (!staticallyAvailable && binding.scope !== "global") {
@@ -142,4 +151,44 @@ export function grammarHelpSections(
   if (prefix.length) sections.push({ kind: "prefix", rows: prefix })
   for (const [scope, rows] of other) sections.push({ kind: "other", scope, rows })
   return sections
+}
+
+/**
+ * The category header the F1 help dialog prints a section under. The dialog
+ * groups by SCOPE, not by the binding's own `category` field.
+ *
+ * A `Record` over the closed scope union rather than an if-chain with a
+ * default: the chain ended in `return "Dialog"`, which no scope ever meant —
+ * `inbox` fell through it and F1 headed the Inbox rows `OTHER PANE — Dialog`.
+ * A default that is a valid catalogue string also satisfies the "every header
+ * resolves" guard, so nothing caught it. Exhaustiveness makes the next scope
+ * added to the union a compile error instead of a wrong-but-plausible header.
+ */
+const SCOPE_CATEGORY: Record<KobeBindingScope, string> = {
+  global: "Global",
+  sidebar: "Sidebar",
+  workspace: "Workspace",
+  files: "Files",
+  inbox: "Inbox",
+  terminal: "Terminal",
+}
+
+export function scopeCategory(scope: HelpGrammarSection["scope"]): string {
+  return scope ? SCOPE_CATEGORY[scope] : "Global"
+}
+
+/**
+ * The category header the prefix HUD's guide groups an action under. Mostly
+ * a synthetic set of its own (`Views` / `Sessions` / `Tasks` / …) that has no
+ * counterpart in `KobeKeymap.category`, falling through to the binding's own
+ * category — and then to `Global` — only for actions no rule claims.
+ */
+export function guideCategory(action: string): string {
+  if (["kanban.open", "automations.open", "workItems.open"].includes(action)) return "Views"
+  if (action.startsWith("focus.")) return "Navigation"
+  if (action.startsWith("inbox.") || action.startsWith("attention.")) return "Attention"
+  if (action.startsWith("chat.tab.") || action.startsWith("chat.session.")) return "Sessions"
+  if (action.startsWith("chat.fork.") || action.startsWith("task.")) return "Tasks"
+  if (action.startsWith("settings.") || action === "workspace.zenToggle") return "Tools"
+  return findBinding(action)?.category ?? "Global"
 }

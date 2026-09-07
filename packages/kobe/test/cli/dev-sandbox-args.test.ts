@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { SANDBOX_DAEMON_WEB_PORT, parseSandboxArgs, sandboxPortForName } from "../../scripts/dev-sandbox-args"
+import { parseSandboxArgs } from "../../scripts/dev-sandbox-args"
 import { sandboxChildEnv } from "../../scripts/dev-sandbox-env"
 
 describe("parseSandboxArgs", () => {
@@ -30,16 +30,6 @@ describe("parseSandboxArgs", () => {
     })
     expect(() => parseSandboxArgs(["--name", "Bad Name"])).toThrow(/instance name/)
     expect(() => parseSandboxArgs(["--name"])).toThrow(/instance name/)
-  })
-})
-
-describe("sandboxPortForName", () => {
-  it("is deterministic, in-range, and distinct across names", () => {
-    const a = Number(sandboxPortForName("ex-a"))
-    expect(a).toBe(Number(sandboxPortForName("ex-a")))
-    expect(a).toBeGreaterThanOrEqual(5300)
-    expect(a).toBeLessThan(6000)
-    expect(sandboxPortForName("ex-a")).not.toBe(sandboxPortForName("ex-b"))
   })
 })
 
@@ -94,29 +84,12 @@ describe("sandboxChildEnv", () => {
     expect(env.ROVE_HOME_DIR).toBe("/tmp/isolated")
   })
 
-  it("ignores an ambient production web port and uses the sandbox default", () => {
-    const env = sandboxChildEnv("/tmp/isolated", {
-      ROVE_DAEMON_WEB_PORT: "45174",
-      KOBE_DAEMON_WEB_PORT: "45174",
-    })
-
-    expect(env.ROVE_DAEMON_WEB_PORT).toBe(SANDBOX_DAEMON_WEB_PORT)
-    expect(env.KOBE_DAEMON_WEB_PORT).toBe(SANDBOX_DAEMON_WEB_PORT)
-  })
-
-  it("a named instance derives its own stable port", () => {
-    const env = sandboxChildEnv("/tmp/isolated", {}, "ex-a")
-    expect(env.ROVE_DAEMON_WEB_PORT).toBe(sandboxPortForName("ex-a"))
-    expect(env.ROVE_DAEMON_WEB_PORT).not.toBe(SANDBOX_DAEMON_WEB_PORT)
-  })
-
-  it("still honours an explicitly sandbox-scoped web port", () => {
-    const env = sandboxChildEnv("/tmp/isolated", {
-      ROVE_SANDBOX_DAEMON_WEB_PORT: "6123",
-      KOBE_DAEMON_WEB_PORT: "45174",
-    })
-
-    expect(env.ROVE_DAEMON_WEB_PORT).toBe("6123")
-    expect(env.KOBE_DAEMON_WEB_PORT).toBe("6123")
+  // The daemon has no HTTP listener, so the sandbox allocates no port for one.
+  // What isolates a sandbox instance is its home and its sockets — both pinned
+  // above. A port stamped here would only look like a second isolation
+  // mechanism to whoever reads this next.
+  it("stamps no web-port knob at all", () => {
+    const env = sandboxChildEnv("/tmp/isolated", { HOME: "/Users/op" })
+    for (const key of Object.keys(env)) expect(key).not.toMatch(/WEB_PORT$/)
   })
 })

@@ -101,12 +101,5 @@ export const kimiHistoryReader: EngineHistoryReader = {
   // kimi honestly as "no message reader".
   readHistory: EMPTY_HISTORY.readHistory,
   transcriptPath: (sessionId) => kimiHistory.transcriptPath(sessionId),
-  // Activity = newest stream mtime, which the id walk already stats.
-  async latestTranscriptMtimeForWorktree(worktree) {
-    const ids = await kimiHistory.listSessionIdsForWorktree(worktree)
-    const newest = ids.at(-1)
-    if (!newest) return 0
-    const file = await kimiHistory.transcriptPath(newest)
-    return file ? await kimiHistory.transcriptMtime(file) : 0
-  },
+  latestTranscriptMtimeForWorktree: (worktree) => kimiHistory.latestTranscriptMtimeForWorktree(worktree),
 }

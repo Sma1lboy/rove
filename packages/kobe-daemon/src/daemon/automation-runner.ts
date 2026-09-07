@@ -20,17 +20,24 @@
  * module actually has to answer: an occurrence that came and went unobserved.
  * That is `missedRunGraceMinutes` — run it late if it is still recent enough
  * to be useful, otherwise record `skipped_missed` and move on. Only the most
- * recent missed occurrence is ever considered; a week offline must not
- * stampede seven runs at boot.
+ * recent missed occurrence is ever RUN; a week offline must not stampede
+ * seven runs at boot. The ones passed over are still COUNTED and recorded
+ * ({@link droppedOccurrences}), because "did not run it" and "did not mention
+ * it" are different promises, and only the second one is a lie.
  */
 
 import type { DaemonRpcClient } from "../client/rpc.ts"
 import { type DispatchInbox, dispatchAutomation } from "./automation-dispatch.ts"
 import { formatPrecheckSkip, precheckPassed, runAutomationPrecheck } from "./automation-precheck.ts"
 import type { AutomationsStore } from "./automations-store.ts"
-import type { Automation, AutomationRunStatus, DaemonOrchestrator } from "./contracts.ts"
+import {
+  type Automation,
+  type AutomationRunStatus,
+  type DaemonOrchestrator,
+  automationRunNeedsAttention,
+} from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
-import { latestCronAtOrBefore } from "./cron.ts"
+import { countCronBetween, latestCronAtOrBefore } from "./cron.ts"
 import type { DeferredPromptsStore } from "./deferred-prompts-store.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { startTicker } from "./ticker.ts"
@@ -86,7 +93,7 @@ export type AutomationOrchestrator = Pick<DaemonOrchestrator, "createTask" | "ge
 
 export type AutomationRuntime = Pick<
   DaemonRuntimeAdapter,
-  "startTaskSessionWithPrompt" | "deliverPromptToLiveEngineDetailed"
+  "startTaskSessionWithPrompt" | "deliverPromptToLiveEngineDetailed" | "deliverPromptToLiveEngineTabDetailed"
 >
 
 interface RunnerDeps {
@@ -104,8 +111,27 @@ interface RunnerDeps {
    *  Absent in a daemon booted without the stores; the firing then records a
    *  failure rather than dropping the report silently. */
   readonly deferred?: DeferredPromptsStore
-  readonly inbox?: DispatchInbox
+  readonly inbox?: RunnerInbox
   readonly now?: () => number
+  readonly stopped?: () => boolean
+}
+
+/**
+ * The Inbox slice the RUNNER needs, on top of the dispatch path's.
+ *
+ * A schedule is the only thing here that acts unattended, so a firing that
+ * needs a human has nowhere else to surface: the run history records it, but
+ * reading the run history is exactly the going-and-looking a schedule exists
+ * to avoid.
+ */
+export interface RunnerInbox extends DispatchInbox {
+  recordRoutineFailure(
+    routine: { automationId: string; name: string; status: string; error?: string },
+    taskId: string | null,
+    at: number,
+  ): Promise<void>
+  /** Optional so a daemon booted with only the dispatch slice still runs. */
+  deleteRoutineEpisode?(automationId: string): Promise<void>
 }
 
 type PluginRunReport = {
@@ -114,12 +140,10 @@ type PluginRunReport = {
   readonly detail?: Record<string, unknown>
 }
 
-/** Run outcome → plugin event name (docs/design/plugin-events.md).
- *  `revived` and `deferred` both delivered the prompt somewhere it will be
- *  read, so they report as dispatched rather than minting event names every
- *  existing plugin would ignore. */
+/** Queue acceptance is not delivery. Deferred runs carry their status on
+ * the skipped event until the queue's owner performs delivery. */
 function runEventFor(status: AutomationRunStatus): PluginRunReport["kind"] {
-  if (status === "dispatched" || status === "revived" || status === "deferred") return "automation.dispatched"
+  if (status === "dispatched" || status === "revived") return "automation.dispatched"
   if (status === "dispatch_failed") return "automation.failed"
   return "automation.skipped"
 }
@@ -134,7 +158,7 @@ function emitRunEvent(
   automation: Automation,
   status: AutomationRunStatus,
   args: { scheduledFor: number; trigger: "scheduled" | "manual" },
-  extra: { taskId?: string; error?: string },
+  extra: { taskId?: string; tabId?: string; deferredId?: string; error?: string },
 ): void {
   // handleUiReport guards its own dispatch — a throw can only come from the
   // getter, which is a plain closure over the server's pluginHost.
@@ -148,9 +172,85 @@ function emitRunEvent(
       status,
       trigger: args.trigger,
       scheduledFor: new Date(args.scheduledFor).toISOString(),
+      ...(extra.tabId ? { tabId: extra.tabId } : {}),
+      ...(extra.deferredId ? { deferredId: extra.deferredId } : {}),
       ...(extra.error ? { error: extra.error } : {}),
     },
   })
+}
+
+/**
+ * Keep the Inbox agreeing with the latest run.
+ *
+ * Only the outcomes that need a person raise an episode
+ * ({@link automationRunNeedsAttention}) — `skipped_precheck` is a healthy
+ * routine finding nothing to do, and filing that would train the user to
+ * ignore the queue. A run that goes back to working clears the episode, so a
+ * routine that was broken and is fixed does not leave a permanent scar.
+ * Best-effort throughout: the Inbox is a notification, and failing to write
+ * one must never fail the run that was already recorded.
+ */
+async function raiseOrClearInboxEpisode(
+  deps: RunnerDeps,
+  automation: Automation,
+  status: AutomationRunStatus,
+  extra: { taskId?: string; error?: string },
+): Promise<void> {
+  const inbox = deps.inbox
+  if (!inbox) return
+  const now = deps.now ?? Date.now
+  const write = automationRunNeedsAttention(status)
+    ? inbox.recordRoutineFailure(
+        {
+          automationId: automation.id,
+          name: automation.name,
+          status,
+          ...(extra.error ? { error: extra.error } : {}),
+        },
+        extra.taskId ?? null,
+        now(),
+      )
+    : inbox.deleteRoutineEpisode?.(automation.id)
+  await write?.catch((err: unknown) => logDaemonError("automation-inbox", err))
+}
+
+/** Record a run the sweep decided NOT to make. Shared by both skip paths so
+ *  the record + plugin event never drift apart between them. */
+async function recordSkip(
+  deps: RunnerDeps,
+  automation: Automation,
+  status: AutomationRunStatus,
+  scheduledFor: number,
+  error: string,
+): Promise<void> {
+  const now = deps.now ?? Date.now
+  await deps.store.recordRun({
+    automationId: automation.id,
+    scheduledFor: new Date(scheduledFor).toISOString(),
+    status,
+    trigger: "scheduled",
+    at: new Date(now()).toISOString(),
+    error,
+  })
+  emitRunEvent(deps, automation, status, { scheduledFor, trigger: "scheduled" }, { error })
+}
+
+/**
+ * Occurrences this automation was armed for that the sweep never reached.
+ *
+ * A sweep pass is serial and its ticker drops re-entrant ticks, so one slow
+ * precheck stalls every routine behind it. The stall itself is bounded and
+ * survivable; the LIE is not. `latestCronAtOrBefore` returns only the newest
+ * occurrence, so the ones passed over used to vanish with no record of any
+ * kind — a per-minute routine that fired five times out of nine showed five
+ * `dispatched` runs and nothing else. This is the gap between what the
+ * automation was armed for and what the sweep actually found.
+ */
+function droppedOccurrences(automation: Automation, scheduledFor: number): { count: number; firstMs: number } | null {
+  const armedAt = Date.parse(automation.nextRunAt)
+  if (!Number.isFinite(armedAt) || armedAt >= scheduledFor) return null
+  const count = countCronBetween(automation.schedule, armedAt, scheduledFor)
+  return count > 0 ? { count, firstMs: armedAt } : null
 }
 
 /**
@@ -166,7 +266,13 @@ export async function runAutomationOnce(
   const now = deps.now ?? Date.now
   const record = async (
     status: AutomationRunStatus,
-    extra: { taskId?: string; error?: string; precheckResult?: Awaited<ReturnType<typeof runAutomationPrecheck>> } = {},
+    extra: {
+      taskId?: string
+      tabId?: string
+      deferredId?: string
+      error?: string
+      precheckResult?: Awaited<ReturnType<typeof runAutomationPrecheck>>
+    } = {},
   ): Promise<AutomationRunStatus> => {
     await deps.store.recordRun({
       automationId: automation.id,
@@ -177,8 +283,18 @@ export async function runAutomationOnce(
       ...extra,
     })
     emitRunEvent(deps, automation, status, args, extra)
+    await raiseOrClearInboxEpisode(deps, automation, status, extra)
     return status
   }
+
+  const cancelled = (): boolean =>
+    deps.stopped?.() === true ||
+    deps.store.get(automation.id) !== automation ||
+    (args.trigger === "scheduled" && !automation.enabled)
+  if (cancelled())
+    return await record("skipped_cancelled", {
+      error: "routine disabled, changed, deleted or runner stopped before delivery",
+    })
 
   if (args.trigger === "scheduled" && automation.precheck) {
     const result = await runAutomationPrecheck(automation.precheck, automation.repo)
@@ -188,10 +304,16 @@ export async function runAutomationOnce(
     }
   }
 
+  if (cancelled())
+    return await record("skipped_cancelled", {
+      error: "routine disabled, changed, deleted or runner stopped before delivery",
+    })
+
   let outcome: Awaited<ReturnType<typeof dispatchAutomation>>
   try {
     outcome = await dispatchAutomation(
       {
+        canDeliver: () => !cancelled(),
         orch: deps.orch,
         runtime: deps.runtime,
         link: () => resolveLink(deps.link),
@@ -227,6 +349,8 @@ export async function runAutomationOnce(
   }
   return await record(outcome.status, {
     ...(outcome.taskId ? { taskId: outcome.taskId } : {}),
+    ...(outcome.tabId ? { tabId: outcome.tabId } : {}),
+    ...(outcome.deferredId ? { deferredId: outcome.deferredId } : {}),
     ...(outcome.error ? { error: outcome.error } : {}),
   })
 }
@@ -237,6 +361,7 @@ export async function runAutomationOnce(
 export async function sweepAutomations(deps: RunnerDeps, tickMs: number = DEFAULT_AUTOMATION_TICK_MS): Promise<void> {
   const now = deps.now ?? Date.now
   for (const automation of dueAutomations(deps.store.list(), now())) {
+    if (deps.stopped?.()) return
     const nowMs = now()
     const occurrence = resolveDueOccurrence(automation, nowMs, tickMs)
     if (!occurrence) {
@@ -244,31 +369,41 @@ export async function sweepAutomations(deps: RunnerDeps, tickMs: number = DEFAUL
       continue
     }
 
+    // Read the gap BEFORE advancing: `nextRunAt` is what this automation was
+    // armed for, and advancing overwrites it with the occurrence we found.
+    const dropped = droppedOccurrences(automation, occurrence.scheduledFor)
+
     // Advance BEFORE doing any work: an overlapping sweep (or a slow engine
     // spawn) must never see this occurrence as still due and fire it twice.
-    await deps.store.advanceNextRun(automation.id, occurrence.scheduledFor)
+    const claimed = await deps.store.advanceNextRun(automation.id, occurrence.scheduledFor, automation.nextRunAt)
+    if (!claimed) continue
 
-    if (occurrence.missed) {
-      const error = `missed by more than the ${automation.missedRunGraceMinutes}m grace window`
-      await deps.store.recordRun({
-        automationId: automation.id,
-        scheduledFor: new Date(occurrence.scheduledFor).toISOString(),
-        status: "skipped_missed",
-        trigger: "scheduled",
-        at: new Date(nowMs).toISOString(),
-        error,
-      })
-      emitRunEvent(
+    // One row for every occurrence between the armed time and the one being
+    // run — recorded whatever happens next, because a routine that quietly
+    // became four-hourly and one that ran every minute must not read the same.
+    if (dropped) {
+      const first = new Date(dropped.firstMs).toISOString()
+      await recordSkip(
         deps,
         automation,
         "skipped_missed",
-        { scheduledFor: occurrence.scheduledFor, trigger: "scheduled" },
-        { error },
+        dropped.firstMs,
+        `${dropped.count} earlier occurrence${dropped.count === 1 ? "" : "s"} never ran (from ${first})`,
+      ).catch((err) => logDaemonError("automation-dropped", err))
+    }
+
+    if (occurrence.missed) {
+      await recordSkip(
+        deps,
+        automation,
+        "skipped_missed",
+        occurrence.scheduledFor,
+        `missed by more than the ${automation.missedRunGraceMinutes}m grace window`,
       )
       continue
     }
 
-    await runAutomationOnce(deps, automation, {
+    await runAutomationOnce(deps, claimed, {
       scheduledFor: occurrence.scheduledFor,
       trigger: "scheduled",
     }).catch((err) => logDaemonError("automation-run", err))
@@ -279,8 +414,19 @@ export async function sweepAutomations(deps: RunnerDeps, tickMs: number = DEFAUL
  * Start the sweep. `tickMs: 0` disables it entirely — the test harness boots a
  * daemon with every collector zeroed, and this must honour that too.
  */
-export function startAutomationRunner(deps: RunnerDeps, tickMs: number = DEFAULT_AUTOMATION_TICK_MS): () => void {
+export function startAutomationRunner(
+  deps: RunnerDeps,
+  tickMs: number = DEFAULT_AUTOMATION_TICK_MS,
+): ReturnType<typeof startTicker> {
   // Ungated for the same reason as quota-resume, only more so: a schedule
   // that requires an audience is not a schedule.
-  return startTicker({ name: "automation-sweep", tickMs, run: () => sweepAutomations(deps, tickMs) })
+  let stopped = false
+  return startTicker({
+    name: "automation-sweep",
+    tickMs,
+    run: () => sweepAutomations({ ...deps, stopped: () => stopped }, tickMs),
+    onStop: () => {
+      stopped = true
+    },
+  })
 }

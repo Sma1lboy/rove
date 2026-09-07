@@ -50,7 +50,7 @@ function orchestratorWithStandingTask(): Orchestrator {
 
 /** A runtime whose live engine always refuses: the composer has text in it. */
 const busyRuntime = {
-  startTaskSessionWithPrompt: async () => true,
+  startTaskSessionWithPrompt: async () => ({ started: true }),
   deliverPromptToLiveEngineDetailed: async () => ({
     outcome: "busy" as const,
     tabId: "tab-1",

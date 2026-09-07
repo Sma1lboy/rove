@@ -19,7 +19,8 @@ import { sidebarEmptyStateKey } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { SectionHeader } from "./chrome"
-import { RecentJumpRow, RoutinesTreeRow, TabTreeRow, type TreeRowShared, WorktreeTreeRow } from "./tree-rows"
+import type { TreeRowShared } from "./tree-row-shell"
+import { RecentJumpRow, RoutinesTreeRow, TabTreeRow, WorktreeTreeRow } from "./tree-rows"
 
 export function SidebarTreeBody(props: {
   readonly rows: readonly TreeRow[]

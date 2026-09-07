@@ -1,6 +1,6 @@
 # ADR 0002 — Engine-state policies (activity / triage / notify) stay separate
 
-- Status: accepted
+- Status: superseded by #855 (2026-09-03)
 - Date: 2026-06-14
 
 ## Context
@@ -45,3 +45,19 @@ The three modules look similar but encode **deliberately different** rules:
 - `triage` and `notify` keep their own predicates. If they ever need to share a
   helper, extract the *specific* shared predicate explicitly — do not fold them
   into one state-meta record, which would conflate the attention sets.
+
+## Superseded
+
+The three modules this ADR is about — `lib/activity.ts`, `lib/triage.ts`,
+`lib/notify.ts` — belonged to the browser dashboard and were deleted with it in
+#855. None of the three, nor the `activityMeta` this ADR asked for, exists in
+the tree today:
+
+```
+git grep -l "activityMeta" -- packages/            # → nothing
+find packages -path '*/lib/activity.ts'            # → nothing
+```
+
+The reasoning still transfers if the same three-way switch reappears (the TUI
+has its own activity/attention rules), which is why the record stays. Read it
+as an argument, not as a description of code you can go and find.

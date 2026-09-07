@@ -40,7 +40,7 @@ describe("NoopHookAdapter", () => {
   })
 
   it("every install/remove is a resolved no-op (never throws into the launch path)", async () => {
-    await expect(noop.installActivityHooks()).resolves.toBeUndefined()
+    await expect(noop.installActivityHooks()).resolves.toEqual({ ok: true })
     await expect(noop.removeActivityHooks()).resolves.toBeUndefined()
     await expect(noop.removeWorktreeSyncHook()).resolves.toBeUndefined()
     await expect(noop.removeWorktreeWatchHook()).resolves.toBeUndefined()

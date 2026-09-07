@@ -34,7 +34,7 @@
  * touches a subprocess.
  */
 
-import { logDaemonError } from "./crash-log.ts"
+import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { PR_VIEW_TIMEOUT_MS, spawnGh } from "./pr-status-collector.ts"
 
 /** At most this many failing jobs are reported — the rest are counted, not read. */
@@ -55,10 +55,30 @@ export interface PrFailingCheck {
   readonly tail: string
 }
 
+/** Why no answer could be obtained, as opposed to "the answer was none". */
+export interface PrChecksUnavailable {
+  /** `gh_failed` — the CLI ran and refused (not installed, not authenticated,
+   *  no network, no such PR); `gh_error` — the read threw before/while parsing. */
+  readonly reason: "gh_failed" | "gh_error"
+  /** `gh`'s own stderr (or the thrown message), trimmed. The only thing in
+   *  here that tells a user WHICH of those it was. */
+  readonly detail: string
+}
+
 export interface PrFailingChecksResult {
   readonly checks: readonly PrFailingCheck[]
   /** How many failing checks existed before the {@link MAX_FAILING_JOBS} cap. */
   readonly totalFailing: number
+  /**
+   * Set when the rollup could not be read at all.
+   *
+   * `checks: []` alone had to mean three different things — `gh` missing, `gh`
+   * unauthenticated, and the checks genuinely turning green — and the UI could
+   * only render the third. A user staring at a red PR badge was told the
+   * checks were probably no longer red; the actual answer was an expired
+   * `gh auth login`.
+   */
+  readonly unavailable?: PrChecksUnavailable
 }
 
 /** A failing rollup entry reduced to what the log fetch needs. */
@@ -161,13 +181,28 @@ export function joinFailingChecks(
   return { checks, totalFailing: targets.length }
 }
 
-/** Run one `gh` command under a timeout; "" on any failure (best-effort). */
-async function ghText(args: readonly string[], cwd: string, timeoutMs: number): Promise<string> {
+/**
+ * Run one `gh` command under a timeout.
+ *
+ * Returns the failure instead of flattening it to `""`. `spawnGh` already
+ * captures `stderr` and `spawnError` precisely so a caller can tell an absent
+ * `gh` from an unauthenticated one from a real empty answer — this function
+ * used to throw all three away one line after receiving them.
+ */
+async function ghText(
+  args: readonly string[],
+  cwd: string,
+  timeoutMs: number,
+): Promise<{ ok: true; stdout: string } | { ok: false; detail: string }> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const res = await spawnGh(args, cwd, controller.signal)
-    return res.status === 0 ? res.stdout : ""
+    if (res.status === 0) return { ok: true, stdout: res.stdout }
+    const stderr = res.stderr.trim()
+    if (res.spawnError) return { ok: false, detail: stderr || "gh could not be started — is the GitHub CLI installed?" }
+    if (controller.signal.aborted) return { ok: false, detail: `gh timed out after ${timeoutMs}ms` }
+    return { ok: false, detail: stderr || `gh exited ${res.status}` }
   } finally {
     clearTimeout(timer)
   }
@@ -184,13 +219,19 @@ export async function readFailingChecks(opts: {
   readonly prNumber: number
 }): Promise<PrFailingChecksResult> {
   try {
-    const rollupJson = await ghText(
+    const rollupRead = await ghText(
       ["pr", "view", String(opts.prNumber), "--json", "statusCheckRollup"],
       opts.worktreePath,
       PR_VIEW_TIMEOUT_MS,
     )
-    if (!rollupJson) return { checks: [], totalFailing: 0 }
-    const parsed = JSON.parse(rollupJson) as { statusCheckRollup?: unknown }
+    if (!rollupRead.ok) {
+      // The toast can only carry one truncated line, so the whole of `gh`'s
+      // stderr goes here — this is the only place the hint after the first
+      // line ("please run: gh auth login") survives.
+      logDaemonInfo("pr-failing-checks", `gh could not read PR #${opts.prNumber}: ${rollupRead.detail}`)
+      return { checks: [], totalFailing: 0, unavailable: { reason: "gh_failed", detail: rollupRead.detail } }
+    }
+    const parsed = JSON.parse(rollupRead.stdout) as { statusCheckRollup?: unknown }
     const rollup = Array.isArray(parsed.statusCheckRollup) ? parsed.statusCheckRollup : []
     const targets = failingCheckTargets(rollup)
     if (targets.length === 0) return { checks: [], totalFailing: 0 }
@@ -203,12 +244,20 @@ export async function readFailingChecks(opts: {
     }
     const logsByJob = new Map<string, string[]>()
     for (const runId of runIds) {
-      const text = await ghText(["run", "view", runId, "--log-failed"], opts.worktreePath, RUN_LOG_TIMEOUT_MS)
-      for (const [job, lines] of parseFailedRunLog(text)) if (!logsByJob.has(job)) logsByJob.set(job, lines)
+      // A log download that fails still degrades quietly: the check list is
+      // already known, and `joinFailingChecks` reports a job with an empty
+      // tail rather than dropping it. That is a partial answer, not none.
+      const log = await ghText(["run", "view", runId, "--log-failed"], opts.worktreePath, RUN_LOG_TIMEOUT_MS)
+      if (!log.ok) continue
+      for (const [job, lines] of parseFailedRunLog(log.stdout)) if (!logsByJob.has(job)) logsByJob.set(job, lines)
     }
     return joinFailingChecks(targets, logsByJob)
   } catch (err) {
     logDaemonError("pr-failing-checks", err)
-    return { checks: [], totalFailing: 0 }
+    return {
+      checks: [],
+      totalFailing: 0,
+      unavailable: { reason: "gh_error", detail: err instanceof Error ? err.message : String(err) },
+    }
   }
 }

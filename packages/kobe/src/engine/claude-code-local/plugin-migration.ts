@@ -18,9 +18,9 @@
  * `enabledPlugins` schema are Claude Code's), hence this directory.
  */
 
-import { existsSync, readFileSync } from "node:fs"
+import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
-import { join } from "node:path"
+import { installedSkillDirs } from "../../lib/skill-install.ts"
 import { hasKobeActivityHooks, isObject } from "../json-hooks.ts"
 import { CLAUDE_HOOK_EVENT_MAP, claudeSettingsPath } from "./hook-adapter.ts"
 
@@ -62,9 +62,11 @@ export function detectLegacyInstalls(opts: { settingsFilePath?: string; home?: s
   // activity verb, so check it via its own marker substring.
   const legacyHooks =
     settings !== null && (hasKobeActivityHooks(settings, CLAUDE_HOOK_EVENT_MAP) || settingsHasWorktreeWatch(settings))
-  const legacySkillDirs = ["rove", "kobe"]
-    .map((name) => join(home, ".claude", "skills", name))
-    .filter((dir) => existsSync(join(dir, "SKILL.md")))
+  // Every hand-installed copy, not just `.claude/skills/{rove,kobe}`: the
+  // agent-skills CLI writes the real file into `.agents/skills` and symlinks
+  // the agent dirs at it, so a `--copy`-free install has nothing under
+  // `.claude` at all and used to slip past this gate entirely.
+  const legacySkillDirs = installedSkillDirs(home)
   return { legacyHooks, legacySkillDirs }
 }
 

@@ -56,8 +56,6 @@ export const en = {
     zen: "Zen mode",
     zenHint: "The `zen` chip and `prefix`+z hide Files, keeping the Tasks rail and workspace.",
     zenDefaultOn: "Start in zen mode",
-    zenKeepTasks: "Keep Tasks pane",
-    zenKeepTasksHint: "legacy — no layout effect today",
     editor: "Editor",
     editorHint:
       "What enter opens a file with in the file tree — diff mode when the editor supports it, the read-only preview when it isn't installed.",
@@ -76,6 +74,13 @@ export const en = {
     worktreeCustomUnset: "(unset — enter to edit)",
     worktreeBaseTitle: "Custom worktree location (blank = default; $project_dir = project root)",
     worktreeBaseField: "PATH",
+    editorCustomTitle: "Custom editor command (use {file} for the path)",
+    worktreeBaseInvalidTitle: "Can't use that worktree location",
+    /** `{token}` is the literal `$project_dir`, not a translatable word. */
+    worktreeBaseTokenBody:
+      "{token} only expands as the leading path segment (e.g. {token}/../kobe-worktrees). Keeping the previous setting.",
+    worktreeBaseUnusableBody:
+      "{path} isn't usable ({error}). Keeping the previous setting — pick a writable directory.",
     terminal: "Terminal",
     terminalHint: "Applies to terminals opened after the change.",
     scrollbackRow: "scrollback: {rows} rows",
@@ -92,11 +97,63 @@ export const en = {
       always: "always",
     },
   },
+  /**
+   * Copy for the modals the Settings screen opens — `DialogConfirm` bodies
+   * and the field labels / submit captions of the `RenameTaskDialog` it
+   * reuses per field. These sit INSIDE a translated dialog, so leaving them
+   * as literals produced a Chinese screen with an English modal on top.
+   */
+  field: {
+    command: "COMMAND",
+    name: "NAME",
+    id: "ID",
+  },
+  action: {
+    save: "save",
+    next: "next",
+    add: "add",
+  },
+  reset: {
+    title: "Reset UI state?",
+    body: "Wipes ~/.config/rove/state.json and ~/.rove/tasks.json, then quits Rove — relaunch for a fresh start with an empty working session list. Worktrees on disk and engine session history are NOT touched.",
+    /** Printed to stderr AFTER the TUI is torn down — the user reads it in
+     *  their shell, so it is UI copy despite not going through a pane. */
+    done: "Rove: UI state reset. Relaunch Rove to start fresh.",
+    failedTitle: "UI state was not reset",
+    failedBody: "Could not write the settings file. Your settings and tasks have been kept. Try resetting again.",
+  },
+  restart: {
+    title: "Restart backend?",
+    body: "Stops the daemon and relaunches this Rove on the installed build, so daemon / orchestrator / engine edits take effect. Running engine sessions live in the PTY host and keep going; open tabs come back. Any other attached windows reconnect on their own.",
+    done: "Rove: restarting the backend...",
+  },
+  deferredFlush: {
+    failedTitle: "Deferred prompts were not flushed",
+    failedBody: "{message}. Restart or update the daemon, then retry.",
+  },
+  /** Error toast when the debounced `state.json` write throws. Nothing awaits
+   *  that write, so without the toast a settings change looks saved for the
+   *  whole session and reverts at the next launch. */
+  stateWrite: {
+    failedTitle: "Settings were not saved",
+    failedBody: "{file} could not be written ({keys}) — the change applies to this session only.",
+  },
   engines: {
     title: "Engines",
     hint: "Every engine Rove can launch, with what detection found under each one: where its binary is, and for the engines with an account detector whether you are logged in. [x] = offered when picking an engine for a task; (●) = the global default (per-project picks, e.g. Ctrl+Shift+T, override it) — click either, or use the keys below. Override a launch command when the binary isn't on PATH or to pass default flags. space on/off · enter edit command · r rename · x reset/remove · d set default.",
     customTag: "  (custom)",
     addEngine: "+ Add engine",
+    launchCommandTitle: "{name} launch command",
+    displayNameTitle: "{name} display name (blank = default)",
+    addTitle: "Add engine",
+    addStepTitle: "Add engine · {id}",
+    protocolTitle: "Add engine · {id} — protocol",
+    protocolNone: "None — generic adapter",
+    protocolFooter: "↑↓ choose · enter pick · esc cancel",
+    protocolRow: "protocol {protocol}",
+    protocolGeneric: "generic",
+    idPlaceholder: "lowercase slug, e.g. aider",
+    commandPlaceholder: "e.g. aider --model sonnet",
   },
   accounts: {
     checking: "Checking…",
@@ -123,6 +180,7 @@ export const en = {
     lastRun: "· last run {label} {status} {ago} ago",
     neverRun: "· never run",
     runOk: "ok",
+    runRunning: "still running",
     runFailed: "failed to start",
     runExit: "exit {code}",
     settingUnset: "(unset — enter to edit)",
@@ -172,10 +230,10 @@ export const en = {
     resetButton: "[enter] Reset",
     restart: "Restart backend",
     restartHint:
-      "Stops the Rove daemon and quits this Rove window so the next launch spawns a fresh daemon — picks up daemon / orchestrator / engine edits without a process kill. Other attached Rove windows will lose their connection too.",
+      "Stops the Rove daemon and relaunches this window on the installed build — picks up daemon / orchestrator / engine edits without quitting by hand. Running engine sessions live in the PTY host and survive it; other attached Rove windows reconnect on their own.",
     restartButton: "[enter] Restart",
     doctorHint:
-      "Daemon wedged or unresponsive? From a shell, run `rove daemon restart`, then relaunch Rove. Hosted engine sessions stay alive across a daemon restart.",
+      "Daemon wedged or unresponsive? Restart backend above does it from here; from a shell it is `rove daemon restart`. Hosted engine sessions stay alive across a daemon restart.",
     experimental: "Experimental",
     remoteHint:
       "Remote projects (SSH): register a project whose git worktrees live on another host, driven from this local Rove. Unfinished — Hosted PTY engine launch over SSH is not implemented, and file/diff panes still degrade. Enables `rove add --remote`.",
@@ -186,9 +244,15 @@ export const en = {
     dispatcherHint:
       "Field-notes dispatcher: task sessions file one-line gotchas (`rove api note`), the daemon forwards each to the repo's main session, and that session relays them to the in-flight tasks that benefit (`rove api dispatch`). Web-hosted sessions receive the relays today.",
     dispatcher: "Field-notes dispatcher",
-    composerGateHint:
-      "Before pasting a peer/API prompt into a running engine, Rove reads that session's screen and holds the message if the composer already has text in it. The check knows each engine's CURRENT layout, so a vendor redesign can make it wrong — turn it off if messages are being held over composers you can see are empty. The separate recent-keystroke guard stays on either way, so a composer you are typing into now is still protected.",
-    composerGate: "Check the composer before delivering",
+    deliveryGuardHint:
+      "Two checks run before a peer/API prompt is pasted into a running engine, so a message never lands mid-sentence: A, a ~10s window since your last keystroke in that session, and B, a read of the engine's screen that holds the message when the composer already has text. B knows each engine's CURRENT layout, so a vendor redesign can make it wrong. Held messages go to your Inbox; a message nobody releases is destroyed 24h later. Screen off: drop B — pick this when messages are held over composers you can see are empty. Off: drop both — pick this for a machine nobody types at, where a held message costs more than a collided one. Changes apply to the next delivery; no restart.",
+    deliveryGuard: "Delivery guard",
+    deliveryGuardChoice: {
+      on: "on",
+      "screen-off": "screen off",
+      off: "off",
+    },
+    deliveryGuardEnvPinned: "ROVE_DELIVERY_GUARD is set in this session's environment and overrides this choice.",
   },
 }
 
@@ -241,8 +305,6 @@ export const zh: typeof en = {
     zen: "禅模式",
     zenHint: "`zen` 标记和 `prefix`+z 隐藏 Files，保留 Tasks 侧栏与 workspace。",
     zenDefaultOn: "启动即进入禅模式",
-    zenKeepTasks: "保留 Tasks 面板",
-    zenKeepTasksHint: "旧设置 — 当前不改变布局",
     editor: "编辑器",
     editorHint: "文件树里按 enter 用什么打开文件——支持时走编辑器 diff 模式，未安装时回退到只读预览。",
     editorRow: "编辑器: < {kind} >",
@@ -260,6 +322,10 @@ export const zh: typeof en = {
     worktreeCustomUnset: "(未设置 — enter 编辑)",
     worktreeBaseTitle: "自定义工作树位置（留空 = 默认；$project_dir = 项目根目录）",
     worktreeBaseField: "路径",
+    editorCustomTitle: "自定义编辑器命令（用 {file} 代表文件路径）",
+    worktreeBaseInvalidTitle: "无法使用该工作树位置",
+    worktreeBaseTokenBody: "{token} 只能作为路径的第一段展开（如 {token}/../kobe-worktrees）。保留原设置。",
+    worktreeBaseUnusableBody: "{path} 不可用（{error}）。保留原设置 —— 请选择一个可写目录。",
     terminal: "终端",
     terminalHint: "对修改后新打开的终端生效。",
     scrollbackRow: "回滚行数: {rows} 行",
@@ -275,11 +341,53 @@ export const zh: typeof en = {
       always: "始终显示",
     },
   },
+  field: {
+    command: "命令",
+    name: "名称",
+    id: "标识",
+  },
+  action: {
+    save: "保存",
+    next: "下一步",
+    add: "添加",
+  },
+  reset: {
+    title: "重置界面状态？",
+    body: "将清除 ~/.config/rove/state.json 和 ~/.rove/tasks.json 并退出 Rove —— 重新启动后会是一个干净的开始，工作会话列表为空。磁盘上的工作树和引擎会话历史不受影响。",
+    done: "Rove：界面状态已重置。重新启动 Rove 即可从头开始。",
+    failedTitle: "UI 状态未能重置",
+    failedBody: "无法写入设置文件。设置和任务均已保留，请稍后重新尝试重置。",
+  },
+  restart: {
+    title: "重启后端？",
+    body: "会停掉 daemon，并以已安装的版本重新启动当前 Rove 窗口，从而让 daemon / orchestrator / 引擎的改动生效。正在运行的引擎会话由 PTY host 托管，不会中断；已打开的标签页会恢复。其他已连接的窗口会自行重连。",
+    done: "Rove：正在重启后端……",
+  },
+  deferredFlush: {
+    failedTitle: "排队的提示词未能放行",
+    failedBody: "{message}。请重启或升级 daemon 后重试。",
+  },
+  /** 防抖写入 `state.json` 抛错时的错误 toast。 */
+  stateWrite: {
+    failedTitle: "设置未能保存",
+    failedBody: "{file} 写入失败（{keys}）—— 改动只在本次会话生效。",
+  },
   engines: {
     title: "引擎",
     hint: "Rove 能启动的所有引擎，每个下面跟着本地探测到的情况：二进制在哪，以及对有账户探测器的引擎是否已登录。[x] = 为任务选引擎时会列出它；(●) = 全局默认引擎（各项目自己的选择会覆盖它，如 Ctrl+Shift+T）——两者都可直接点，也可用下面的按键。二进制不在 PATH 上、或要传默认参数时，覆盖它的启动命令。space 开/关 · enter 编辑命令 · r 重命名 · x 重置/移除 · d 设为默认。",
     customTag: "  (自定义)",
     addEngine: "+ 添加引擎",
+    launchCommandTitle: "{name} 的启动命令",
+    displayNameTitle: "{name} 的显示名称（留空 = 默认）",
+    addTitle: "添加引擎",
+    addStepTitle: "添加引擎 · {id}",
+    protocolTitle: "添加引擎 · {id} —— 协议",
+    protocolNone: "无 —— 通用适配器",
+    protocolFooter: "↑↓ 选择 · enter 确认 · esc 取消",
+    protocolRow: "协议 {protocol}",
+    protocolGeneric: "通用",
+    idPlaceholder: "小写短名，如 aider",
+    commandPlaceholder: "如 aider --model sonnet",
   },
   accounts: {
     checking: "检查中…",
@@ -306,6 +414,7 @@ export const zh: typeof en = {
     lastRun: "· 上次运行 {label} {status} {ago}前",
     neverRun: "· 尚未运行过",
     runOk: "成功",
+    runRunning: "仍在运行",
     runFailed: "启动失败",
     runExit: "退出码 {code}",
     settingUnset: "(未设置 — enter 编辑)",
@@ -350,10 +459,10 @@ export const zh: typeof en = {
     resetButton: "[enter] 重置",
     restart: "重启后端",
     restartHint:
-      "停止 Rove daemon 并退出当前 Rove 窗口，下次启动会拉起一个全新的 daemon——无需杀进程即可应用 daemon / orchestrator / engine 的改动。其他已连接的 Rove 窗口也会断开连接。",
+      "停止 Rove daemon，并以已安装的版本重新启动当前窗口——无需手动退出即可应用 daemon / orchestrator / engine 的改动。正在运行的引擎会话由 PTY host 托管，不受影响；其他已连接的 Rove 窗口会自行重连。",
     restartButton: "[enter] 重启",
     doctorHint:
-      "daemon 卡住或无响应？在 shell 里运行 `rove daemon restart`，然后重新启动 Rove。Hosted PTY 引擎会话不会因 daemon 重启而退出。",
+      "daemon 卡住或无响应？上面的「重启后端」就能在这里完成；在 shell 里则是 `rove daemon restart`。Hosted PTY 引擎会话不会因 daemon 重启而退出。",
     experimental: "实验性",
     remoteHint:
       "远程项目（SSH）：注册一个 git worktree + 引擎都通过 SSH 跑在另一台主机上、由本地 Rove 驱动的项目。尚未完成——文件/diff 面板对远程仍会降级。启用 `rove add --remote`。",
@@ -364,8 +473,14 @@ export const zh: typeof en = {
     dispatcherHint:
       "现场笔记调度器：任务会话提交一行经验（`rove api note`），daemon 将每条转发给仓库的主会话，主会话再把它们转达给能受益的进行中任务（`rove api dispatch`）。目前由 Web 托管的会话会收到转达。",
     dispatcher: "现场笔记调度器",
-    composerGateHint:
-      "把 peer/API 的消息粘进运行中的引擎之前,Rove 会读一遍那个会话的屏幕,发现输入框里已经有字就先扣住不发。这个判断依赖引擎当前的界面布局,所以厂商改版可能让它失准——如果你看着输入框明明是空的、消息却一直被扣住,就关掉它。另一道「刚刚有人在打字」的保护始终生效,正在输入的输入框仍然受保护。",
-    composerGate: "投递前检查输入框",
+    deliveryGuardHint:
+      "把 peer/API 的消息粘进运行中的引擎之前会跑两道检查,免得消息落在别人打了一半的句子中间:A 是「这个会话最近约 10 秒内有人手敲过键盘」,B 是读一遍引擎的屏幕、发现输入框里已经有字就扣住。B 依赖引擎当前的界面布局,厂商改版就可能让它失准。被扣住的消息进收件箱;24 小时内没人放行就会被销毁。只关屏幕检查:关掉 B——你看着输入框明明是空的、消息却一直被扣住时选它。全关:两道都关——没人会在这台机器上打字、扣住消息比撞车代价更大时选它。改动对下一次投递即刻生效,不用重启。",
+    deliveryGuard: "投递门",
+    deliveryGuardChoice: {
+      on: "全开",
+      "screen-off": "只关屏幕检查",
+      off: "全关",
+    },
+    deliveryGuardEnvPinned: "当前会话的环境变量里设了 ROVE_DELIVERY_GUARD,它会覆盖这里的选择。",
   },
 }

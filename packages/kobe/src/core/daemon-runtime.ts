@@ -1,15 +1,15 @@
 /** Production Adapter for the daemon package's consumer-owned runtime seam. */
 
 import type { DaemonRuntimeAdapter } from "@sma1lboy/kobe-daemon/daemon/runtime"
+import { parseAheadBehind } from "@sma1lboy/kobe-daemon/daemon/worktree-changes-collector"
 import { availableEngineIds } from "../engine/account-detect.ts"
-import { engineProtocolKey } from "../engine/engine-presets.ts"
+import { engineProtocolKey, protocolEntry, sessionProtocol } from "../engine/engine-presets.ts"
 import { foregroundEngineIn, parsePsSnapshot, psSnapshot } from "../engine/foreground.ts"
 import { affectsActivityState, isEngineActivityKind } from "../engine/hook-events.ts"
 import { engineDisplayName, kobeApiInvocation } from "../engine/interactive-command.ts"
 import { protocolUpgradeFromLiveSession, protocolWriteBackFromLiveSession } from "../engine/protocol-sniff.ts"
 import { engineEntry, engineTitleTurnHint, vendorsWithQuotaProbe } from "../engine/registry.ts"
 import { createEngineTurnDetector } from "../engine/turn-detector.ts"
-import { issueAssetsDir } from "../env.ts"
 import { readOnlyGitProcessEnv } from "../lib/git-env.ts"
 import { spawnCapture } from "../lib/poll-scheduling.ts"
 import { latestTranscriptMtime } from "../monitor/activity.ts"
@@ -18,30 +18,24 @@ import { GH_PR_VIEW_FIELDS, classifyGhFailure, mapGhPrView, nextPrPoll, samePrSt
 import { maybeAutoStart } from "../monitor/status-rules.ts"
 import { type Orchestrator, PLACEHOLDER_TASK_TITLE } from "../orchestrator/core.ts"
 import { SYNC_TIMEOUT_MS, syncWorktreeWithBase } from "../orchestrator/sync-base.ts"
-import { composerGateEnabled } from "../state/composer-gate.ts"
+import { deliveryGuard } from "../state/delivery-guard.ts"
 import { getCustomEngineIds, getPersistedString, getSavedRepos, setPersistedString } from "../state/repos.ts"
 import { parsePorcelain } from "../tui/panes/sidebar/worktree-changes.ts"
 import { DEFAULT_TASK_VENDOR, isTaskStatus } from "../types/task.ts"
 import type { VendorId } from "../types/vendor.ts"
 import { CURRENT_VERSION, checkLatestVersion } from "../version.ts"
-import { handleDiffRequest } from "../web/diff.ts"
-import { handleHistoryRequest } from "../web/history.ts"
-import { handleNotesRequest } from "../web/notes.ts"
-import { handleThemesRequest } from "../web/themes.ts"
 import { resolveBaseRefCached } from "./base-ref-cache.ts"
+import { driftCached } from "./behind-cache.ts"
 import {
   deliverPromptToLiveEngineAdapter,
   deliverPromptToLiveEngineDetailedAdapter,
   deliverPromptToLiveEngineTabDetailedAdapter,
-  engineSpecAdapter,
   ensureTaskSessionAdapter,
   startTaskSessionWithPromptAdapter,
   tearDownTaskSessionAdapter,
-  terminalSpecAdapter,
 } from "./daemon-session-adapter.ts"
-import { daemonSettingsPatch, daemonSettingsSnapshot } from "./daemon-settings-adapter.ts"
 import {
-  handleWorktreesRequestAdapter,
+  listUnreadableWorktreesAdapter,
   listWorktreeProjectsAdapter,
   removeWorktreeAdapter,
 } from "./daemon-worktree-adapter.ts"
@@ -77,7 +71,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   // The activity observer's foreground walk: ONE `ps`
   // snapshot, then the same shallowest-engine walk `kobe api inspect` uses.
   async foregroundEngines(pids) {
-    const rows = parsePsSnapshot(await psSnapshot())
+    const rows = parsePsSnapshot(await psSnapshot([...pids]))
     const out = new Map<number, { vendor: VendorId; pid: number } | null>()
     for (const pid of pids) {
       const found = foregroundEngineIn(rows, pid)
@@ -85,18 +79,24 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
     }
     return out
   },
-  titleTurnHint: engineTitleTurnHint,
+  // Protocol-keyed, like every other "how do we talk to it" read in this
+  // object: a `claudecpa` task's OSC title is claude's, and `registry.ts`
+  // stays state-free so it cannot resolve the preset itself. Keying off the
+  // raw id finds the empty custom entry, whose `terminalTitle` is undefined
+  // — `titleTurnHint` then answers null forever and the interrupt observer
+  // never sees working→rest on a wrapped tab.
+  titleTurnHint: (vendor, title) => engineTitleTurnHint(sessionProtocol(vendor), title),
   // Tier-(b) protocol sniff: the record upgrade for a generic
   // task identified by its live session, plus the preset write-back —
   // rules live with the sniffer.
   resolveProtocolUpgrade: resolveProtocolUpgradeAndLearnPreset,
   // Per-turn telemetry — delegated straight to the vendor's own
   // adapter; an engine without a turn reader simply reports none.
-  readEngineTurns: async (vendor, transcriptPath) => (await engineEntry(vendor).readTurns?.(transcriptPath)) ?? [],
+  readEngineTurns: async (vendor, transcriptPath) => (await protocolEntry(vendor).readTurns?.(transcriptPath)) ?? [],
   checkLatestVersion,
   latestTranscriptMtime,
   deriveTitleFromSession,
-  createEngineTurnDetector,
+  createEngineTurnDetector: (vendor) => createEngineTurnDetector(sessionProtocol(vendor)),
   async runWorktreeStatus(worktreePath, signal, baseRef) {
     const result = await spawnCapture("git", ["status", "--porcelain=v1"], {
       cwd: worktreePath,
@@ -105,23 +105,32 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
     })
     if (result.status !== 0) throw new Error("git status failed")
     const counts = parsePorcelain(result.stdout)
-    // The behind-base drift, on the SAME guarded run as the status walk so it
-    // inherits its in-flight dedupe, timeout and backoff. The base resolution
-    // ladder lives here rather than in the daemon: `resolveBaseRef` is kobe's,
-    // and kobe-daemon does not import kobe sources.
+    // The base drift BOTH ways, on the SAME guarded run as the status walk so
+    // it inherits its in-flight dedupe, timeout and backoff. One
+    // `--left-right --count` process yields behind and ahead together: two
+    // separate counts would cost a second fork per poll per worktree and
+    // could straddle a commit, reporting a pair that never coexisted. The
+    // base resolution ladder lives here rather than in the daemon:
+    // `resolveBaseRef` is kobe's, and kobe-daemon does not import kobe
+    // sources.
     const base = await resolveBaseRefCached(worktreePath, baseRef, signal)
     if (!base) return counts
-    const behind = await spawnCapture("git", ["rev-list", "--count", `HEAD..${base}`], {
-      cwd: worktreePath,
-      env: readOnlyGitProcessEnv(),
-      signal,
+    // Memoised on the HEAD/base shas read from the ref files: the counts can
+    // only move when one of them does, and re-deriving them every tick was
+    // half the collector's spawns.
+    const drift = await driftCached(worktreePath, base, async () => {
+      const out = await spawnCapture("git", ["rev-list", "--left-right", "--count", `${base}...HEAD`], {
+        cwd: worktreePath,
+        env: readOnlyGitProcessEnv(),
+        signal,
+      })
+      return out.status === 0 ? parseAheadBehind(out.stdout) : null
     })
-    if (behind.status !== 0) return counts
-    const n = Number.parseInt(behind.stdout.trim(), 10)
-    return Number.isInteger(n) && n >= 0 ? { ...counts, behind: n } : counts
+    return drift === null ? counts : { ...counts, ...drift }
   },
   maybeAutoStart: (orch, taskId) => maybeAutoStart(orch as Orchestrator, taskId),
   listWorktreeProjects: listWorktreeProjectsAdapter,
+  listUnreadableWorktrees: listUnreadableWorktreesAdapter,
   removeWorktree: removeWorktreeAdapter,
   async syncWorktreeWithBase(worktreePath, recordedBaseRef) {
     const controller = new AbortController()
@@ -138,8 +147,6 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   engineDisplayName,
   kobeApiInvocation,
   engineEntry,
-  engineSpec: engineSpecAdapter,
-  terminalSpec: terminalSpecAdapter,
   ensureTaskSession: ensureTaskSessionAdapter,
   startTaskSessionWithPrompt: startTaskSessionWithPromptAdapter,
   tearDownTaskSession: tearDownTaskSessionAdapter,
@@ -154,7 +161,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   // when the adapter reported it; a missing field stays missing rather than
   // becoming a fabricated `0`.
   async readEngineContextUsage(vendor, sessionId) {
-    const read = engineEntry(vendor).history.readUsageSnapshot
+    const read = protocolEntry(vendor).history.readUsageSnapshot
     if (!read) return null
     const snapshot = await read(sessionId)
     if (snapshot?.context_tokens === undefined) return null
@@ -175,15 +182,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   deliverPromptToLiveEngine: deliverPromptToLiveEngineAdapter,
   deliverPromptToLiveEngineDetailed: deliverPromptToLiveEngineDetailedAdapter,
   deliverPromptToLiveEngineTabDetailed: deliverPromptToLiveEngineTabDetailedAdapter,
-  composerGateEnabled,
-  settingsSnapshot: daemonSettingsSnapshot,
-  settingsPatch: daemonSettingsPatch,
-  handleDiffRequest,
-  handleHistoryRequest,
-  handleNotesRequest,
-  handleThemesRequest,
-  handleWorktreesRequest: handleWorktreesRequestAdapter,
-  issueAssetsDir,
+  deliveryGuard,
   getPersistedString,
   setPersistedString,
   getSavedRepos: () => [...getSavedRepos()],

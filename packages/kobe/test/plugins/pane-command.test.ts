@@ -47,6 +47,17 @@ describe("buildPaneArgv", () => {
       expect(script).toContain(frag)
     }
   })
+
+  it("injects the task id so a pane can name its own task", () => {
+    const pane = { id: "b", title: "B", placement: "split" as const, command: ["run"] }
+    const script = buildPaneArgv("p.id", "/plug/root", pane, { ...OPTS, taskId: "01TASK" })[2] as string
+    for (const frag of ["'ROVE_PLUGIN_TASK_ID=01TASK'", "'KOBE_PLUGIN_TASK_ID=01TASK'"]) {
+      expect(script).toContain(frag)
+    }
+    // No task resolved (an opener that never had one) → no empty var to
+    // read as "task id is the empty string".
+    expect(buildPaneArgv("p.id", "/plug/root", pane, OPTS)[2] as string).not.toContain("PLUGIN_TASK_ID")
+  })
 })
 
 describe("listPaneLaunches", () => {

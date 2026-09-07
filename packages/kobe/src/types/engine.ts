@@ -72,7 +72,6 @@ export interface EngineCapabilities {
  * strings in TUI code.
  */
 export interface EngineIdentity {
-  readonly vendorId: VendorId
   readonly shortName: string
 }
 

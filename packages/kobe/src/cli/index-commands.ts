@@ -102,13 +102,6 @@ export const DYNAMIC_COMMANDS = new Map<string, CommandHandler>([
     },
   ],
   [
-    "web",
-    async (args) => {
-      const { runWebSubcommand } = await import("./web-cmd.ts")
-      await runWebSubcommand(args)
-    },
-  ],
-  [
     "skill",
     async (args) => {
       // Install / inspect the kobe agent skill that ships in this package.

@@ -7,10 +7,15 @@
  *     `lockfile.ts` `acquire` with the fixed-backoff wait a contended
  *     machine needs, so the store's `doSave` critical section is a plain
  *     acquire/try/release.
- *   - **On-disk codec.** {@link normalizeIndex} + {@link coerceTask} turn an
- *     arbitrary parsed JSON value into a v3 task list, migrating v1/v2
- *     manifests by stripping dropped fields and self-healing legacy status
- *     rows.
+ *   - **On-disk codec.** {@link normalizeIndex} turns an arbitrary parsed JSON
+ *     value into a v3 task list, migrating v1/v2 manifests. The per-ROW half
+ *     of that — one entry → a {@link Task}, field by field — lives in
+ *     `store-codec-rows.ts`; the seam is manifest scope vs row scope.
+ *   - **Load-time recovery ladder.** {@link recoverIndexFromDisk} walks
+ *     missing file → gated legacy twin → corrupt JSON → future-build version,
+ *     each rung ending in an empty index with the original bytes copied
+ *     aside. It answers "what does this manifest mean"; the store only wants
+ *     the cache that falls out.
  *   - **Read-merge-write helpers.** {@link readDiskIndex} + {@link mergeTasksWithDisk}
  *     implement the disk side of the save protocol: a fresh read of the
  *     manifest (tasks + deletion tombstones) and the three-way merge between
@@ -24,24 +29,15 @@
  * the mutable half — cache, dirty tracking, when to persist.
  */
 
+import { existsSync } from "node:fs"
 import { copyFile, readFile } from "node:fs/promises"
-import { dirname } from "node:path"
+import { dirname, join } from "node:path"
 import { logClient } from "@sma1lboy/kobe-daemon/client/client-log"
 import { defaultClientLogPath } from "@sma1lboy/kobe-daemon/daemon/paths"
-import type {
-  Task,
-  TaskDeletionState,
-  TaskDispatcher,
-  TaskLinkedWorkItem,
-  TaskPRStatus,
-  TaskQuotaResumeState,
-  TaskRoutineLink,
-  TaskStatus,
-  TaskTombstone,
-} from "../../types/task.ts"
-import { toTaskId } from "../../types/task.ts"
-import { coerceVendorId } from "../../types/vendor.ts"
+import { DAEMON_MIGRATION_MARKER } from "../../state/layout-migration.ts"
+import type { Task, TaskTombstone } from "../../types/task.ts"
 import { LockfileError, acquire } from "./lockfile.ts"
+import { coerceTask } from "./store-codec-rows.ts"
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -83,7 +79,7 @@ const CURRENT_VERSION = 3 as const
  * Best-effort: a backup failure must never block startup/save; returns the
  * backup path for the caller's warn line, or null when the copy failed.
  */
-export async function backupCorruptManifest(path: string, now: () => Date = () => new Date()): Promise<string | null> {
+async function backupCorruptManifest(path: string, now: () => Date = () => new Date()): Promise<string | null> {
   const backupPath = `${path}.corrupt-${now().toISOString().replaceAll(":", "-")}`
   try {
     await copyFile(path, backupPath)
@@ -104,7 +100,7 @@ const SUPPORTED_VERSIONS: ReadonlySet<unknown> = new Set([1, 2, 3])
  * reason `client-log.ts` exists. A recovery that silently empties the task
  * index must leave a trace a human can actually find afterwards.
  */
-export function warnManifestRecovery(message: string, manifestPath?: string): void {
+function warnManifestRecovery(message: string, manifestPath?: string): void {
   console.warn(message)
   // `<home>/.rove|.kobe/tasks.json` → that same home's client.log. Resolved
   // from the manifest rather than the ambient default so a store opened on an
@@ -122,7 +118,7 @@ export function warnManifestRecovery(message: string, manifestPath?: string): vo
  *
  * Returns true when it handled the value (caller recovers empty).
  */
-export async function recoverUnsupportedVersion(parsed: unknown, sourcePath: string): Promise<boolean> {
+async function recoverUnsupportedVersion(parsed: unknown, sourcePath: string): Promise<boolean> {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false
   const version = (parsed as { version?: unknown }).version
   if (version === undefined || SUPPORTED_VERSIONS.has(version)) return false
@@ -183,6 +179,20 @@ export function normalizeIndex(parsed: unknown, source: string): { version: type
 const TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000
 
 /**
+ * The legacy `~/.kobe/tasks.json` as a READ fallback, or `undefined` once it
+ * is stale. The fallback exists for daemon-free readers (`export`, the
+ * orchestrator bridge) on a pre-rename home that no daemon has migrated yet.
+ * Once the daemon migration marker sits beside the canonical file, the legacy
+ * copy is a frozen snapshot: reading it resurrects every task deleted since
+ * the move — the whole index after Settings › Developer › Reset UI state,
+ * which unlinks only the canonical file, and any single deletion on the next
+ * save (the read-merge-write folds unknown ids back in as concurrent creates).
+ */
+export function readableLegacyIndexPath(canonicalPath: string, legacyPath: string): string | undefined {
+  return existsSync(join(dirname(canonicalPath), DAEMON_MIGRATION_MARKER)) ? undefined : legacyPath
+}
+
+/**
  * Read + parse the manifest fresh from disk, returning the tasks and the
  * deletion tombstones. Mirrors {@link TaskIndexStore.load}: a missing
  * canonical file falls back to `legacyPath`, while both absent or a corrupt
@@ -199,7 +209,9 @@ export async function readDiskIndex(
     raw = await readFile(sourcePath, "utf8")
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
-    sourcePath = legacyPath
+    const legacy = readableLegacyIndexPath(path, legacyPath)
+    if (!legacy) return { tasks: [], removed: [] }
+    sourcePath = legacy
     try {
       raw = await readFile(sourcePath, "utf8")
     } catch (legacyErr) {
@@ -298,194 +310,68 @@ export function mergeTasksWithDisk(
 }
 
 /**
- * Coerce one persisted task entry into a v3 {@link Task}. Tolerant of
- * v1 / v2 shapes — silently drops the dropped fields.
+ * Turn whatever is on disk into a v3 index the store can hold.
+ *
+ * The seam against `store.ts`: every branch here answers "what does this
+ * manifest mean", and every failure answers it with an EMPTY index after
+ * copying the original bytes aside. The store does not care which branch ran
+ * — it just gets a cache — so the recovery ladder (missing file, gated legacy
+ * twin, corrupt JSON, a future build's version) lives with the codec that
+ * already owns `normalizeIndex`, `backupCorruptManifest` and the recovery
+ * warnings, instead of as a third of the store class.
  */
-function coerceTask(value: unknown): Task | null {
-  if (!value || typeof value !== "object") return null
-  const v = value as Record<string, unknown>
-  if (
-    typeof v.id !== "string" ||
-    typeof v.title !== "string" ||
-    typeof v.repo !== "string" ||
-    typeof v.branch !== "string" ||
-    typeof v.worktreePath !== "string" ||
-    typeof v.status !== "string" ||
-    typeof v.createdAt !== "string" ||
-    typeof v.updatedAt !== "string"
-  ) {
-    return null
+export async function recoverIndexFromDisk(
+  path: string,
+  legacyPath: string,
+): Promise<{ version: typeof CURRENT_VERSION; tasks: Task[] }> {
+  let raw: string
+  let sourcePath = path
+  try {
+    raw = await readFile(path, "utf8")
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code
+    if (code !== "ENOENT") throw err
+    // Gated, not unconditional: after the daemon migration marker lands the
+    // legacy file is a stale snapshot (see readableLegacyIndexPath).
+    const legacy = readableLegacyIndexPath(path, legacyPath)
+    let legacyRaw: string | undefined
+    if (legacy) {
+      try {
+        legacyRaw = await readFile(legacy, "utf8")
+        sourcePath = legacy
+      } catch (legacyErr) {
+        if ((legacyErr as NodeJS.ErrnoException).code !== "ENOENT") throw legacyErr
+      }
+    }
+    if (legacyRaw === undefined) {
+      return { version: CURRENT_VERSION, tasks: [] }
+    }
+    raw = legacyRaw
   }
-  if (!isTaskStatus(v.status)) return null
 
-  // A `main` (project root) task has NO session lifecycle that maintains
-  // its status — nothing ever flips it to in_progress on a turn start or
-  // back to backlog on a turn end. So a persisted in_progress/done on a
-  // main row is junk. Reset a main row to a neutral backlog so the
-  // project's liveness comes ONLY from a real live engine handle.
-  const kind: Task["kind"] = v.kind === "main" ? "main" : v.kind === "dir" ? "dir" : "task"
-  // Scratch only means anything on a dir task — a corrupt flag elsewhere is
-  // dropped rather than inventing a Scratch worktree row.
-  const scratch = kind === "dir" && v.scratch === true
-  const healedStatus: TaskStatus =
-    kind === "main" && (v.status === "in_progress" || v.status === "done") ? "backlog" : v.status
-  const deletion = coerceDeletion(v.deletion)
-  const quotaResume = coerceQuotaResume(v.quotaResume)
-  const linkedWorkItem = coerceLinkedWorkItem(v.linkedWorkItem)
-  const dispatcher = coerceDispatcher(v.dispatcher)
-  const routine = coerceRoutine(v.routine)
-
-  return {
-    id: toTaskId(v.id),
-    title: v.title,
-    repo: v.repo,
-    branch: v.branch,
-    worktreePath: v.worktreePath,
-    status: healedStatus,
-    pinned: typeof v.pinned === "boolean" ? v.pinned : false,
-    kind,
-    ...(scratch ? { scratch: true } : {}),
-    ...(routine ? { routine } : {}),
-    vendor: coerceVendorId(typeof v.vendor === "string" ? v.vendor : undefined),
-    // Raw launch command (`add --command` / `set-command`) — must survive
-    // the load coercion or the task falls back to its protocol's preset on
-    // every daemon restart, silently dropping the user's own command line.
-    ...(typeof v.command === "string" && v.command.trim().length > 0 ? { command: v.command } : {}),
-    prStatus: coercePRStatus(v.prStatus),
-    // Engine reasoning/effort level — must survive the load coercion or the
-    // task forgets its effort on every daemon restart.
-    ...(typeof v.modelEffort === "string" && v.modelEffort.length > 0 ? { modelEffort: v.modelEffort } : {}),
-    // Fan-out round marker — must survive the load coercion or siblings
-    // lose their grouping on every daemon restart.
-    ...(typeof v.groupId === "string" && v.groupId.length > 0 ? { groupId: v.groupId } : {}),
-    // Observed user language — must survive the load coercion or a daemon
-    // restart silently reverts injected prompts to English for a user who
-    // never writes it. Same failure mode as the fields above: absent from
-    // this list, the field writes fine and vanishes on load.
-    ...(v.observedLanguage === "zh" || v.observedLanguage === "en" ? { observedLanguage: v.observedLanguage } : {}),
-    ...(deletion ? { deletion } : {}),
-    // The optional records below were written to disk but silently dropped
-    // on load, so each survived only until the next daemon restart: a
-    // pending quota resume was forgotten by the very runner whose
-    // durability rationale is "absolute timestamp on disk", and a task
-    // lost the tracker item it was started from.
-    ...(quotaResume ? { quotaResume } : {}),
-    ...(linkedWorkItem ? { linkedWorkItem } : {}),
-    // Reply address for the collaboration loop — must survive the
-    // load coercion or a daemon restart severs every sub-task's route home.
-    // Records that predate the field normalize to undefined.
-    ...(dispatcher ? { dispatcher } : {}),
-    // The task brief (`add --prompt`) — must survive the load coercion or a
-    // daemon restart destroys the only durable copy of what the task was
-    // asked to do (the engine transcript does not survive the engine).
-    ...(typeof v.prompt === "string" && v.prompt.length > 0 ? { prompt: v.prompt } : {}),
-    // Recorded fork point (`add --base-branch`) — must survive the load
-    // coercion or a daemon restart loses it before the lazy worktree
-    // materialises (branches then silently cut from the guessed base), and
-    // `collect`'s ahead/diffstat signals revert to the wrong comparison ref.
-    ...(typeof v.baseRef === "string" && v.baseRef.trim().length > 0 ? { baseRef: v.baseRef } : {}),
-    createdAt: v.createdAt,
-    updatedAt: v.updatedAt,
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch (err) {
+    // Back the original bytes up FIRST: the next save read-merge-writes
+    // from this empty recovery base and replaces the corrupt file, so
+    // without a copy the user's tasks are gone for good.
+    const backup = await backupCorruptManifest(sourcePath)
+    warnManifestRecovery(
+      `[rove] tasks.json at ${sourcePath} is corrupted (${(err as Error).message}); recovering with empty index.${
+        backup ? ` Original bytes backed up to ${backup}.` : " Backup copy failed; the stale file is left in place."
+      }`,
+      sourcePath,
+    )
+    return { version: CURRENT_VERSION, tasks: [] }
   }
-}
 
-function coerceDispatcher(value: unknown): TaskDispatcher | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
-  const v = value as Record<string, unknown>
-  if (typeof v.taskId !== "string" || v.taskId.length === 0) return undefined
-  if (typeof v.tabId !== "string" || v.tabId.length === 0) return undefined
-  return { taskId: v.taskId, tabId: v.tabId }
-}
-
-/** Routine back-pointer. A link with no automation id is junk —
- *  dropped, so the task reads as an ordinary one rather than folding itself
- *  behind a routine section that can never be resolved back to a schedule. */
-function coerceRoutine(value: unknown): TaskRoutineLink | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
-  const v = value as Record<string, unknown>
-  if (typeof v.automationId !== "string" || v.automationId.length === 0) return undefined
-  return { automationId: v.automationId }
-}
-
-function coerceQuotaResume(value: unknown): TaskQuotaResumeState | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
-  const v = value as Record<string, unknown>
-  if (typeof v.resumeAt !== "string" || v.resumeAt.length === 0) return undefined
-  if (typeof v.requestedAt !== "string" || v.requestedAt.length === 0) return undefined
-  return { resumeAt: v.resumeAt, requestedAt: v.requestedAt }
-}
-
-function coerceLinkedWorkItem(value: unknown): TaskLinkedWorkItem | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
-  const v = value as Record<string, unknown>
-  if (v.provider !== "github") return undefined
-  if (v.type !== "issue" && v.type !== "pr") return undefined
-  if (typeof v.number !== "number" || !Number.isFinite(v.number)) return undefined
-  if (typeof v.title !== "string" || typeof v.url !== "string" || v.url.length === 0) return undefined
-  return { provider: v.provider, type: v.type, number: v.number, title: v.title, url: v.url }
-}
-
-function coerceDeletion(value: unknown): TaskDeletionState | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
-  const v = value as Record<string, unknown>
-  if (
-    (v.phase !== "queued" && v.phase !== "running" && v.phase !== "error") ||
-    typeof v.force !== "boolean" ||
-    typeof v.requestedAt !== "string" ||
-    v.requestedAt.length === 0 ||
-    (v.error !== undefined && typeof v.error !== "string")
-  ) {
-    return undefined
+  // A future build's manifest empties the index just as thoroughly as a
+  // corrupt one does, and the next save replaces the file — so its bytes
+  // get the same copy-aside before we recover empty.
+  if (await recoverUnsupportedVersion(parsed, sourcePath)) {
+    return { version: CURRENT_VERSION, tasks: [] }
   }
-  return {
-    phase: v.phase,
-    force: v.force,
-    // Delete-branch opt-in — must survive the load coercion or a daemon
-    // restart silently downgrades the user's "delete branch too" to keep.
-    ...(typeof v.deleteBranch === "boolean" ? { deleteBranch: v.deleteBranch } : {}),
-    requestedAt: v.requestedAt,
-    ...(typeof v.error === "string" ? { error: v.error } : {}),
-  }
-}
 
-function coercePRStatus(value: unknown): TaskPRStatus | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
-  const v = value as Record<string, unknown>
-  if (!isPRProviderId(v.provider) || !isPRLifecycleState(v.lifecycle) || !isPRCheckState(v.checkState)) {
-    return undefined
-  }
-  return {
-    provider: v.provider,
-    lifecycle: v.lifecycle,
-    checkState: v.checkState,
-    ...(typeof v.number === "number" && Number.isFinite(v.number) ? { number: v.number } : {}),
-    ...(typeof v.url === "string" ? { url: v.url } : {}),
-    ...(typeof v.title === "string" ? { title: v.title } : {}),
-    ...(typeof v.baseRef === "string" ? { baseRef: v.baseRef } : {}),
-    ...(typeof v.headRef === "string" ? { headRef: v.headRef } : {}),
-    ...(typeof v.reviewDecision === "string" ? { reviewDecision: v.reviewDecision } : {}),
-    ...(typeof v.mergeable === "string" ? { mergeable: v.mergeable } : {}),
-    ...(typeof v.lastCheckedAt === "string" ? { lastCheckedAt: v.lastCheckedAt } : {}),
-    ...(typeof v.lastError === "string" ? { lastError: v.lastError } : {}),
-  }
-}
-
-function isPRProviderId(v: unknown): v is TaskPRStatus["provider"] {
-  return v === "github" || v === "gitlab" || v === "bitbucket" || v === "unknown"
-}
-
-function isPRLifecycleState(v: unknown): v is TaskPRStatus["lifecycle"] {
-  return (
-    v === "creating" || v === "open" || v === "ready_to_merge" || v === "merged" || v === "closed" || v === "unknown"
-  )
-}
-
-function isPRCheckState(v: unknown): v is TaskPRStatus["checkState"] {
-  return v === "none" || v === "pending" || v === "passing" || v === "failing" || v === "unknown"
-}
-
-function isTaskStatus(s: string): s is TaskStatus {
-  return (
-    s === "backlog" || s === "in_progress" || s === "in_review" || s === "done" || s === "canceled" || s === "error"
-  )
+  return normalizeIndex(parsed, sourcePath)
 }

@@ -11,7 +11,7 @@
  */
 
 import { randomUUID } from "node:crypto"
-import { optionalBoolean, optionalString, requireString } from "./handler-validators.ts"
+import { optionalBoolean, optionalString, requireNumber, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { displayTaskTitle } from "./protocol.ts"
 
@@ -91,7 +91,9 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       })
       // `delivered` is OBSERVED, not claimed: true only when a paste actually
       // landed in a live engine session. `false` with `reason: "busy"` means a
-      // human is mid-message and the text was deliberately not written; false
+      // human is mid-message and the text was deliberately not written;
+      // `reason: "no-engine"` means the tab is alive but its engine died into
+      // a login shell, which would EXECUTE the text rather than read it; false
       // with `reason: "broadcast"` means no hosted session answered and the
       // event went out for a browser to pick up, which nothing can confirm —
       // `clients` (raw CONNECTION count, the calling CLI included) is the only
@@ -105,6 +107,18 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
           delivered: false,
           reason: "busy",
           layer: outcome.layer,
+          tabId: outcome.tabId,
+          clients: ctx.daemon.clientCount(),
+        }
+      }
+      // The tab is alive with no engine in it: keepAlive `exec`ed a login
+      // shell where the engine exited, so the text would not be READ, it
+      // would be RUN. Nothing was written and nothing was broadcast.
+      if (outcome.outcome === "no-engine") {
+        return {
+          ok: true,
+          delivered: false,
+          reason: "no-engine",
           tabId: outcome.tabId,
           clients: ctx.daemon.clientCount(),
         }
@@ -267,12 +281,33 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    name: "terminalTab.rename",
+    handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const tabId = requireString(payload, "tabId")
+      // Empty is legal and means "clear back to the default name", matching
+      // f2's dialog — so this reads the raw field rather than requiring one.
+      const title = optionalString(payload, "title") ?? ""
+      if (!ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
+      ctx.bus.publish("tab.rename", { taskId, tabId, title, at: Date.now() })
+      // No broker, unlike `terminalTab.close`: the CLI has already written
+      // the persisted snapshot, so this is the repaint half and there is
+      // nothing to wait for. `clients` reports reach the same way
+      // `notice.send` does — with no attached UI the broadcast lands nowhere,
+      // and the snapshot write is the whole of the rename.
+      return { ok: true, clients: ctx.daemon.clientCount() }
+    },
+  },
+  {
     name: "notice.send",
     async handle(payload, ctx) {
       // `kobe api notify`: one toast for every attached UI. The daemon
       // only validates + broadcasts; NotificationsProvider in each
       // subscribed host renders it (and dedupes replays on `at`).
       const title = requireString(payload, "title")
+      // Optional second line: context under the title, same slot the TUI's
+      // toast already renders for engine-side notifications.
+      const body = optionalString(payload, "body")
       // Free-form kind: known severities get styled by the TUI, anything
       // else renders neutrally — agents may invent their own vocabulary.
       const kind = optionalString(payload, "kind") ?? "done"
@@ -280,7 +315,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       const taskId = optionalString(payload, "taskId")
       if (taskId !== undefined && !ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
       const source = optionalString(payload, "source")
-      ctx.bus.publish("notice.event", { title, kind, taskId, at: Date.now(), source })
+      ctx.bus.publish("notice.event", { title, body, kind, taskId, at: Date.now(), source })
       // Headless honesty: with no attached UI the toast reaches nobody, and
       // `clients` is the only signal (same reach report as session.deliver).
       return { ok: true, clients: ctx.daemon.clientCount() }
@@ -350,6 +385,18 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       // by the worktree launch path that seeds a fresh session with them.
       const repo = requireString(payload, "repo")
       return { notes: (await ctx.notes?.list(repo)) ?? [] }
+    },
+  },
+  {
+    name: "note.delete",
+    async handle(payload, ctx) {
+      // Retire one note by the id `note.list` reports. `deleted: false` is a
+      // real answer, not an error: the id may name a note the retention ring
+      // already evicted, and a caller sweeping stale facts must be able to
+      // tell "gone now" from "was never there" without a thrown error.
+      const repo = requireString(payload, "repo")
+      const id = requireNumber(payload, "id")
+      return { deleted: (await ctx.notes?.remove(repo, id)) ?? false }
     },
   },
 ]

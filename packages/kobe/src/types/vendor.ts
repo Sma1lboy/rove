@@ -43,12 +43,6 @@ export function isBuiltinVendor(id: string | undefined): id is BuiltinVendorId {
   return id !== undefined && (BUILTIN_VENDORS as readonly string[]).includes(id)
 }
 
-/** Next vendor in {@link ALL_VENDORS} order, wrapping around. */
-export function nextVendor(current: VendorId): VendorId {
-  const i = ALL_VENDORS.indexOf(current)
-  return ALL_VENDORS[(i + 1) % ALL_VENDORS.length] ?? ALL_VENDORS[0]
-}
-
 /**
  * Next vendor within an arbitrary subset (e.g. the detected-only list the
  * new-task dialog renders), wrapping around. `current` need not be in the

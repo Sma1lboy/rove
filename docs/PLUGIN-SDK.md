@@ -67,6 +67,11 @@ const mode = setting(ctx.configDir, "YOU_EXAMPLE_MODE", "fast")
 Booleans store as `"1"` or are absent; numbers remain strings, so cast if you
 need another type.
 
+A manifest `default` is the Settings editor's pre-fill, not a stored value: the
+config `.env` does not exist until the user saves one, so `setting(dir, key)`
+with no fallback returns `""` on a fresh install. Pass the same value you
+declared as the `default` — that is what the `fallback` parameter is for.
+
 ## Calling Rove from code
 
 These helpers exec `$ROVE_BIN_PATH` (falling back to `$KOBE_BIN_PATH`). Use
@@ -80,7 +85,7 @@ channels.
 | `notify` | `(title, body?, opts?) => Promise<RoveRunResult>` | `rove api notify`; toast in every attached UI. |
 | `dispatch` | `(taskId, prompt, opts?) => Promise<RoveRunResult>` | `rove api dispatch`; text into a live session. |
 | `listTasks` | `<T>(opts?) => Promise<T>` | `rove api list`; all tasks as daemon-serialized JSON. |
-| `openPane` | `(qualifiedPaneId, opts?) => Promise<RoveRunResult>` | `rove plugin pane open`; opens one of your `[[panes]]`. |
+| `openPane` | `(qualifiedPaneId, opts?) => Promise<RoveRunResult & { clients?: number }>` | `rove plugin pane open`; opens one of your `[[panes]]`. `opts.taskId` picks the task (pass an event's `ctx.taskId`); without it the host uses the active task and fails when there is none. Check `clients` — `0` means no attached UI performed the split. |
 | `promptUser` | `(title, opts?) => Promise<string \| null>` | `rove api prompt`; host input dialog. Returns `null` on cancel, timeout, no attached TUI, or non-zero exit. |
 
 Combined example:
@@ -116,18 +121,60 @@ await openPane("you.example.board")
 the prompt exceeded `timeoutMs`, no TUI was attached, or the underlying
 `rove api prompt` exited non-zero. Always branch on `null`.
 
+Every helper above takes the same optional `RoveRunOptions`:
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `binPath` | string? | `$ROVE_BIN_PATH`, then `$KOBE_BIN_PATH` | The Rove binary to exec. Rejects when neither is set. |
+| `cwd` | string? | the process's cwd | Working directory for the child. |
+| `env` | `Record<string, string>`? | — | Merged **over** the inherited environment. |
+| `timeoutMs` | number? | `30_000` | Millis before the child is killed. |
+
+`cwd` is the field to think about from an `[[events]]` hook: a hook runs with
+its cwd set to your PLUGIN ROOT, not the task's worktree, so a `rove` call
+that has to resolve a repo needs `{ cwd: worktreePath }` — take the path from
+the event envelope rather than assuming the process inherited it.
+
+`timeoutMs` defaults to 30_000 — the same number as the host's deadline for a
+`[[startup]]` or `[[events]]` hook, but measured from a later instant: the
+host starts its clock when it spawns your hook, this one starts when your hook
+calls `rove()`. At the defaults the host's deadline therefore always expires
+first, and it SIGKILLs the hook's whole process group, the `rove` child
+included — so at 30s you never see this rejection, you see your hook
+disappear. Raising `timeoutMs` alone changes nothing; raise the hook's
+`timeout_ms` in the manifest first.
+
+They resolve with `RoveRunResult`:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `code` | number | Child exit code. Non-zero is a resolved value, not a rejection. |
+| `stdout` | string | Captured stdout (8 MB cap). |
+| `stderr` | string | Captured stderr. |
+
+`KobeRunOptions` and `KobeRunResult` are deprecated aliases of these two,
+kept for plugins written against the original package name.
+
 ## Socket client
 
 `RoveSocket` is a newline-delimited JSON client for the daemon unix socket. It
 gives you live broadcast channels that the CLI cannot push.
 
-| Export | Signature | Purpose |
+`RoveSocket` is the only export here; everything under it is a method you
+call on an instance (`new RoveSocket().connect()`), not a named import.
+
+| Member | Signature | Purpose |
 |---|---|---|
-| `RoveSocket` | class | Daemon socket client. |
-| `connect` | `(opts?) => Promise<void>` | Connect to `ROVE_SOCKET_PATH`. |
-| `request` | `<T>(name, payload?) => Promise<T>` | One request → response; rejects on daemon error frames. |
-| `subscribe` | `(handler, channels?) => Promise<void>` | Subscribe to channels (`role: "pane"`); omit channels for all. |
-| `close` | `() => void` | End the socket. |
+| `RoveSocket` | class (export) | Daemon socket client. |
+| `KobeSocket` | alias (export) | Deprecated alias of `RoveSocket`. |
+| `RoveSocketOptions` | type (export) | `{ socketPath?: string }` — `connect()`'s argument. Defaults to `$ROVE_SOCKET_PATH`, then `$KOBE_SOCKET_PATH`; rejects when neither is set. `KobeSocketOptions` is its deprecated alias. |
+| `DaemonInfo` | type (export) | What `hello()` resolves with (fields below). |
+| `.connect` | method: `(opts?: RoveSocketOptions) => Promise<void>` | Connect to the daemon socket. |
+| `.request` | method: `<T>(name, payload?) => Promise<T>` | One request → response; rejects on daemon error frames. |
+| `.subscribe` | method: `(handler, channels?) => Promise<void>` | Subscribe to channels (`role: "pane"`); omit channels for all. |
+| `.hello` | method: `() => Promise<DaemonInfo>` | Ask the RUNNING daemon its build version and channel list. |
+| `.onClose` | method: `(handler) => void` | Called once when the connection dies (restart, crash, error). Not called for your own `close()`. |
+| `.close` | method: `() => void` | End the socket. |
 
 SDK consumers must always subscribe with `role: "pane"`. The SDK enforces this
 so plugins never hold the daemon's GUI lifetime open.
@@ -139,39 +186,119 @@ the shape your target Rove version actually emits. The channel names are the
 `task.snapshot`, `issue.snapshot`, `active-task`, `update`, `engine-state`,
 `attention.inbox`, `ui-prefs`, `keybindings`, `task.jobs`, `worktree.changes`,
 `transcript.activity`, `session.deliver`, `tab.open`, `tab.close`,
-`engine.lifecycle`, `notice.event`, `usage.snapshot`, `ui.prompt`.
+`engine.lifecycle`, `notice.event`, `usage.snapshot`, `usage.context`,
+`ui.prompt`.
 
-Your handler also receives `daemon.stopping` at daemon shutdown — not a
-channel, always delivered regardless of the filter.
+A name the daemon does not know is dropped from the filter, not rejected: the
+subscribe succeeds and that channel simply never arrives. So a channel can be
+dead for two reasons that look identical, and `DAEMON_CHANNELS` cannot tell
+them apart — it is the list YOUR SDK was built against, not the list the host
+has. Ask the host with `hello()`:
 
 ```ts
-import { Pane, RoveSocket } from "@sma1lboy/rove-plugin-sdk"
+const info = await daemon.hello()
+if (!info.capabilities.includes("usage.snapshot")) {
+  console.error(`Rove ${info.roveVersion} has no usage.snapshot channel`)
+}
+```
 
+`DaemonInfo` carries `roveVersion` / `kobeVersion` (the same build version
+under both spellings; the wire field is `kobeVersion`), `capabilities`,
+`protocolVersion` / `minProtocolVersion`, `daemonPid`, and `homeDir` — a
+`homeDir` that is not yours means you reached a foreign daemon. It is also
+the way to check `$ROVE_BIN_PATH --version` against the host: in a dev
+checkout those are different builds.
+
+### Surviving a daemon restart
+
+Your handler receives `daemon.stopping` at a graceful daemon shutdown — not a
+channel, always delivered regardless of the filter — and **that is the last
+thing it ever receives**. There is no reconnect: after it, the socket is
+dead. A crash is worse, because the daemon sends nothing at all.
+
+Its payload carries `reason` (`"restart"` / `"stop"` / `"idle"` /
+`"socket-lost"`) and `kobeVersion`, the outgoing daemon's build. Both are
+optional: a daemon older than protocol v5 sends `{}`, and a future one may name
+a reason you have never heard of — treat anything you do not recognize as an
+ordinary stop. `"restart"` is the one worth branching on: it means the daemon
+is being replaced rather than shut down, so a reconnect is worth waiting for
+and your own build may now be behind the host's.
+
+This matters most in a pane, because a hosted pane's PTY **survives a daemon
+restart by design**. Your process stays alive and keeps drawing its last
+frame, so a board that has stopped receiving anything is visually
+indistinguishable from a live one. Register `onClose` and either reconnect or
+say so on screen:
+
+```ts
+function connect(): void {
+  const daemon = new RoveSocket()
+  daemon.onClose(() => {
+    live = false
+    frame() // draw a "host gone — reconnecting" line, not a stale board
+    setTimeout(connect, 1000)
+  })
+  daemon
+    .connect()
+    .then(() => daemon.subscribe(onEvent, ["task.snapshot"]))
+    .then(() => {
+      live = true
+      frame()
+    })
+    .catch(() => {}) // onClose already scheduled the retry
+}
+```
+
+```ts
+import { Pane, pluginContext, RoveSocket } from "@sma1lboy/rove-plugin-sdk"
+
+const ctx = pluginContext()
 const pane = new Pane()
-const daemon = new RoveSocket()
-await daemon.connect()
 
 let tasks: any[] = []
+let live = false
 function frame() {
   pane.draw([
-    "MY BOARD",
-    "",
+    `MY BOARD — ${ctx.taskTitle ?? "no task"}`,
+    live ? "" : "  host unreachable — reconnecting",
     ...tasks.map((t) => `  ${t.status.padEnd(8)} ${t.title}`),
   ])
 }
 
-await daemon.subscribe((name, payload) => {
-  if (name === "task.snapshot") {
-    tasks = (payload as any).tasks ?? []
+function connect() {
+  const daemon = new RoveSocket()
+  // Without this the pane goes silently blind on a daemon restart: its PTY
+  // outlives the daemon, so it keeps drawing the frame above forever.
+  daemon.onClose(() => {
+    live = false
     frame()
-  }
-}, ["task.snapshot"])
+    setTimeout(connect, 1000)
+  })
+  daemon
+    .connect()
+    .then(() =>
+      daemon.subscribe((name, payload) => {
+        if (name !== "task.snapshot") return
+        tasks = (payload as any).tasks ?? []
+        live = true
+        frame()
+      }, ["task.snapshot"]),
+    )
+    .catch(() => {}) // onClose scheduled the retry
+}
 
 pane.start()
 pane.onKey((k) => { if (k.name === "q") pane.exit(0) })
 pane.onResize(frame)
 frame()
+connect()
 ```
+
+`pluginContext()` gives a pane the `taskId` it opened in, and its cwd is that
+task's worktree — do not try to identify the task by matching cwd against
+`worktreePath`, which is ambiguous for the task kinds that reuse an existing
+checkout. Panes get no `taskTitle`; fetch it with
+`roveJson(["api", "get-task", "--task-id", ctx.taskId!])`.
 
 ## Pane kit
 
@@ -200,6 +327,11 @@ mind or the embedded terminal will ghost-wrap:
    double-width characters.
 3. **Redraw the whole frame on every update.** The screen is not scrollback;
    paint every row you want visible.
+
+`Pane.start()` enters the alternate screen and clears it, which is what keeps
+these rules workable: a pane runs through the user's interactive login shell,
+so anything their rc files print lands in the terminal before your first
+frame. Clear the screen yourself if you draw without the kit.
 
 ```ts
 import { Pane } from "@sma1lboy/rove-plugin-sdk"
@@ -230,7 +362,7 @@ for the event catalog and channel list, so host and SDK cannot drift.
 | Export | Kind | Meaning |
 |---|---|---|
 | `PLUGIN_EVENT_NAMES` | `readonly string[]` | Every event a plugin can subscribe to. |
-| `DAEMON_CHANNELS` | `readonly string[]` | Every broadcast channel on the socket. |
+| `DAEMON_CHANNELS` | `readonly string[]` | Every broadcast channel this SDK knows. For what the RUNNING daemon has, call `hello()`. |
 | `PluginEventName` | type | Union of event names. |
 | `PluginEventEnvelope` | type | The `ROVE_PLUGIN_EVENT_JSON` envelope. |
 | `PluginEventTask` | type | Task block embedded in envelopes that map to a task. |

@@ -29,6 +29,14 @@ export interface ContribEngineSpec {
   readonly screenManifest: EngineScreenManifest
   /** Plugin-declared product identity (composer placeholder etc.). */
   readonly identity?: EngineIdentity
+  /**
+   * How this CLI accepts a session's FIRST message — same field the built-in
+   * table declares (see `registry.ts`). Contrib entries otherwise inherit the
+   * `"argv"` default, which appends the prompt as a positional; declare
+   * `"paste"` when the positional slot means something else, or the launch
+   * dies on the prompt text.
+   */
+  readonly firstMessageDelivery?: "argv" | "paste"
 }
 
 /**
@@ -63,16 +71,32 @@ const GEMINI: EngineScreenManifest = {
   ],
 }
 
+// Footer vocabulary verified against opencode 0.6.3 on 2026-09-04: a running
+// turn ends `…working...  esc interrupt` and a resting one `enter send`.
+// `esc interrupt` is the string copilot's manifest already carries; the
+// `esc to interrupt` spellings are kept so an older opencode still matches.
 const OPENCODE: EngineScreenManifest = {
   rules: [
     { state: "blocked", any: ["△ permission required"] },
     { state: "blocked", all: ["esc dismiss"], any: ["enter confirm", "enter submit", "enter toggle"] },
-    { state: "working", any: ["esc to interrupt", "ctrl+c to interrupt", "esc again to interrupt"] },
+    { state: "working", any: ["esc interrupt", "esc to interrupt", "ctrl+c to interrupt", "esc again to interrupt"] },
+    // The rest footer, LAST so a running turn (which draws `enter send` too)
+    // still reads working. Without an idle rule the badge that finally lights
+    // up on the rule above could never come back down.
+    { state: "idle", any: ["enter send"] },
   ],
 }
 
 const CURSOR: EngineScreenManifest = {
   rules: [
+    // The login wall, captured from cursor-agent 2026.04.17 in a fresh git
+    // directory. Without this rule an unauthenticated cursor task classifies
+    // exactly like a healthy resting one — no rule matches either, the
+    // classifier answers null, and the badge stays wherever it was. A task
+    // that CANNOT RUN AT ALL is blocked on a human, which is what this state
+    // means everywhere else, so it gets the same "go look at it" badge rather
+    // than a new vocabulary.
+    { state: "blocked", any: ["press any key to log in"] },
     { state: "blocked", all: ["proceed (y)"] },
     { state: "blocked", any: ["run this command?", "waiting for approval", "skip (esc or n)", "(y) (enter)"] },
     { state: "working", any: ["esc to cancel", "ctrl+c to stop"] },
@@ -119,7 +143,19 @@ const AMP: EngineScreenManifest = {
 /** The shipped catalog. Key = the engine's VendorId. */
 export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
   gemini: { displayName: "Gemini CLI", defaultCommand: ["gemini"], screenManifest: GEMINI },
-  opencode: { displayName: "OpenCode", defaultCommand: ["opencode"], screenManifest: OPENCODE },
+  // opencode's positional is a project DIRECTORY ("Positionals: project  path
+  // to start opencode in"), so an argv-delivered first message becomes a path:
+  // `opencode "Run the shell command: ls -la"` exits with
+  // `Failed to change directory to <cwd>/Run the shell command: ls -la`.
+  // Verified against opencode 0.6.3 on 2026-09-04. The other catalog entries
+  // keep the "argv" default — their positional semantics are UNVERIFIED here
+  // (binaries absent from the machine this was checked on).
+  opencode: {
+    displayName: "OpenCode",
+    defaultCommand: ["opencode"],
+    screenManifest: OPENCODE,
+    firstMessageDelivery: "paste",
+  },
   cursor: { displayName: "Cursor Agent", defaultCommand: ["cursor-agent"], screenManifest: CURSOR },
   grok: { displayName: "Grok CLI", defaultCommand: ["grok"], screenManifest: GROK },
   droid: { displayName: "Droid", defaultCommand: ["droid"], screenManifest: DROID },
@@ -148,5 +184,6 @@ export function contribEngineEntry(id: string, base: EngineRegistryEntry): Engin
     ...(spec.processNames ? { processNames: spec.processNames } : {}),
     screenManifest: spec.screenManifest,
     ...(spec.identity ? { identity: spec.identity } : {}),
+    ...(spec.firstMessageDelivery ? { firstMessageDelivery: spec.firstMessageDelivery } : {}),
   }
 }

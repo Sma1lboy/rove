@@ -28,8 +28,40 @@ import { useT } from "../i18n"
 import { bootPaneHost } from "../lib/host-boot"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 
-/** header(2) + blank + answered(2) + env title/explain + git + ~5 engine rows + verdict + legend + slack */
-const INLINE_ROWS = 20
+/**
+ * Inline height for the wizard, derived from the ENGINE BLOCK it will actually
+ * print rather than guessed.
+ *
+ * Everything but that block is fixed: header(2) + blank + answered(2) + env
+ * title/explain + blank + git + blank + verdict + blank + legend = 13, plus 2
+ * rows of slack. The engine block is not: it is one row per registered engine
+ * (plus an `⚠` row for any account error), and once the contrib catalog joined
+ * the probe a normal machine reached seven. The old flat 20 budgeted "~5
+ * engine rows", and one row over it the terminal scrolls and the inline
+ * renderer repaints over stale cells — a visibly corrupted first screen.
+ * `env.engines.lines` IS the rendered array, so this cannot drift from it.
+ */
+function inlineRowsFor(env: OnboardingEnvReport): number {
+  return 15 + env.engines.lines.length + envActionKeys(env).length
+}
+
+/**
+ * The `→ <action>` lines the environment page prints under a failing verdict,
+ * as i18n keys. Same conditions the CLI wizard branches on in
+ * `cli/onboarding.ts`, so a user is never told less for having run the wizard
+ * in the TUI.
+ *
+ * A list rather than two inline conditions so {@link inlineRowsFor} can COUNT
+ * them: they are the only rows on this page that the budget did not know
+ * about, and one row of overflow is the corrupted repaint that function's own
+ * note describes.
+ */
+function envActionKeys(env: OnboardingEnvReport): string[] {
+  const keys: string[] = []
+  if (!env.engines.anyUsable) keys.push("doctor.fix.noEngineAction")
+  if (!env.git.found) keys.push("doctor.fix.gitAction")
+  return keys
+}
 
 type StepId = "completions" | "skill"
 type WizardPageKind = "questions" | "env" | "keys"
@@ -147,10 +179,15 @@ export function WizardPage(props: {
                 </text>
               ))}
             </box>
-            <box paddingTop={1}>
+            <box paddingTop={1} flexDirection="column">
               <text fg={ready ? theme.success : theme.error} wrapMode="word">
                 {ready ? t("onboarding.envReady") : t("onboarding.envNotReady")}
               </text>
+              {/* The verdict names the blocker; without these the TUI wizard
+                  stops there while the CLI wizard goes on to print the action. */}
+              {envActionKeys(props.env).map((key) => (
+                <text key={key} fg={theme.textMuted} wrapMode="word">{`→ ${t(key)}`}</text>
+              ))}
             </box>
           </box>
         ) : null}
@@ -211,7 +248,7 @@ export async function runOnboardingWizard(
 ): Promise<OnboardingChoices> {
   return await new Promise<OnboardingChoices>((resolve) => {
     void bootPaneHost({
-      inlineRows: INLINE_ROWS,
+      inlineRows: inlineRowsFor(env),
       setup: () => ({ root: () => <WizardPage shell={shell} env={env} mode={mode} onDone={resolve} /> }),
     })
   })

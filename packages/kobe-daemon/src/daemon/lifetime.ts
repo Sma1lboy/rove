@@ -28,6 +28,8 @@
  * or a wall-clock grace.
  */
 
+import { readRoveEnv } from "../compat-env.ts"
+import type { ChannelName } from "./channels.ts"
 import { logDaemonInfo } from "./crash-log.ts"
 
 /** The slice of a client the lifetime policy reads. The server's full
@@ -35,24 +37,31 @@ import { logDaemonInfo } from "./crash-log.ts"
 export interface LifetimeClient {
   readonly subscribed: boolean
   readonly holdsLifetime: boolean
+  /**
+   * The client's per-channel subscribe filter, as `ClientState` carries it:
+   * `null` (or absent, for the web clients that have no filter) = "every
+   * channel". Read by {@link DaemonLifetime.hasSubscribersFor} so a narrow
+   * consumer only starts the collectors that feed the channels it asked for.
+   */
+  readonly channels?: ReadonlySet<ChannelName> | null
 }
 
 /**
  * Grace before a subscriber-less daemon self-stops (refcounted lazy
  * shutdown). The window absorbs reconnect races — `manualReconnect()`
  * force-disconnects then re-subscribes, briefly dropping to zero — so a
- * blip doesn't tear the daemon down. Override via `KOBE_DAEMON_IDLE_GRACE_MS`.
+ * blip doesn't tear the daemon down. Override via `ROVE_DAEMON_IDLE_GRACE_MS`.
  */
 const DEFAULT_IDLE_GRACE_MS = 3000
 
-/** First-gui window for AUTOSPAWNED daemons (`KOBE_DAEMON_AUTOSPAWNED`) —
+/** First-gui window for AUTOSPAWNED daemons (`ROVE_DAEMON_AUTOSPAWNED`) —
  *  generous enough for a slow TUI boot to attach, short enough that a
  *  daemon born from a stray helper (an agent's `kobe api` inside an
  *  engine tab) never becomes a week-old zombie holding the socket. */
 export const FIRST_GUI_GRACE_MS = 60_000
 
 export function resolveIdleGraceMs(): number {
-  const raw = process.env.KOBE_DAEMON_IDLE_GRACE_MS
+  const raw = readRoveEnv("DAEMON_IDLE_GRACE_MS")
   if (raw === undefined) return DEFAULT_IDLE_GRACE_MS
   const n = Number(raw)
   return Number.isFinite(n) && n >= 0 ? n : DEFAULT_IDLE_GRACE_MS
@@ -143,9 +152,36 @@ export class DaemonLifetime {
     return n
   }
 
-  /** Any subscribed consumer (gui OR pane) — the background-collector gate. */
+  /** Any subscribed consumer (gui OR pane), whatever they asked for. Used
+   *  for the "collectors resume" log line and the subscribe-time quota wake,
+   *  neither of which is per-channel. Collectors use
+   *  {@link hasSubscribersFor} instead. */
   hasSubscribers(): boolean {
     for (const c of this.clients()) if (c.subscribed) return true
+    return false
+  }
+
+  /**
+   * The background-collector gate, per channel: is anyone subscribed who
+   * would actually RECEIVE what this collector publishes?
+   *
+   * `hasSubscribers()` alone is the wrong granularity. `client.channels` is
+   * the filter the publish path already honours (client-connection.ts's
+   * `broadcast`), so a pane subscribing to `["ui-prefs", "keybindings"]` —
+   * what the TUI's UiPrefsSync does — used to start every collector and get
+   * every frame dropped at the socket: 194 `git` spawns in 8 seconds to
+   * deliver two frames it did not ask for. A `null`/absent filter still
+   * means "all channels", so a real gui opens everything exactly as before.
+   *
+   * One walk of the client set per call, same cost as `hasSubscribers()`;
+   * each collector calls it once per tick, so there is no per-tick
+   * clients × channels scan.
+   */
+  hasSubscribersFor(channel: ChannelName): boolean {
+    for (const c of this.clients()) {
+      if (!c.subscribed) continue
+      if (!c.channels || c.channels.has(channel)) return true
+    }
     return false
   }
 

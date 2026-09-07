@@ -244,8 +244,15 @@ export function attachUntrackedChildren(entries: StatusEntry[], others: readonly
  * ref off `task.prStatus`, the only place kobe persists a base). Otherwise
  * asks git for the repo's default branch — `origin/HEAD`, falling back to
  * `origin/main` / `origin/master` — mirroring `daemon-worktree-adapter`'s
- * `defaultRef`. Returns `null` when none resolves (no remote / detached),
- * and the caller stays in working scope.
+ * `defaultRef`, then to a LOCAL `main` / `master` for a repo that has no
+ * remote at all. Returns `null` only when nothing resolves (orphan branch, or
+ * a repo whose default branch is the one checked out here), and the caller
+ * stays in working scope and says so.
+ *
+ * The local fallback is what keeps a remoteless repo's Branch scope reachable.
+ * Without it an attempt that committed all its work showed `no changes —
+ * clean worktree` beside a sidebar row reading `↑1`: the diff existed, the
+ * base to compare it against did not, and `b` was a silent no-op.
  */
 export async function resolveBase(
   worktreePath: string,
@@ -267,7 +274,25 @@ export async function resolveBase(
       // rev-parse --verify exits non-zero when the ref is absent; try next.
     }
   }
+  const head = await revParse("HEAD", worktreePath, signal)
+  for (const guess of ["main", "master"]) {
+    const sha = await revParse(guess, worktreePath, signal)
+    // Skip a local default that IS this worktree's HEAD: `main...HEAD` is
+    // empty by construction there, and offering it would just move the empty
+    // pane behind a toggle instead of saying there is nothing to compare to.
+    if (sha != null && sha !== head) return guess
+  }
   return null
+}
+
+/** `git rev-parse --verify <ref>`, or `null` when the ref does not resolve. */
+async function revParse(ref: string, worktreePath: string, signal?: AbortSignal): Promise<string | null> {
+  try {
+    const out = (await runGit(["rev-parse", "--verify", "--quiet", ref], worktreePath, signal)).trim()
+    return out.length > 0 ? out : null
+  } catch {
+    return null
+  }
 }
 
 /**

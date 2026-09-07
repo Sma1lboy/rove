@@ -19,6 +19,7 @@
 import { charWidth } from "../../../lib/display-width"
 import type { TerminalSnapshotWindow } from "./pty-types"
 import { ATTR, type Chunk, type RGB } from "./sgr"
+import { type RowWrapFlags, isWrapContinuation } from "./terminal-wrap"
 
 export type CellPoint = { readonly row: number; readonly col: number }
 export type SelectionRange = { readonly anchor: CellPoint; readonly head: CellPoint }
@@ -144,15 +145,28 @@ function sliceTextByCells(text: string, from: number, to: number): CellSlice {
  * survives, matching what `overlaySelection` highlights. Dropping it collapsed
  * two visibly-selected lines into one on copy.
  */
-export function extractSelection(rows: readonly (readonly Chunk[])[], range: SelectionRange): string {
+export function extractSelection(
+  rows: readonly (readonly Chunk[])[],
+  range: SelectionRange,
+  wrapped?: RowWrapFlags,
+): string {
   const { start, end } = orderRange(range)
+  const first = Math.max(0, start.row)
   const lines: string[] = []
-  for (let r = Math.max(0, start.row); r <= Math.min(rows.length - 1, end.row); r++) {
+  for (let r = first; r <= Math.min(rows.length - 1, end.row); r++) {
     const text = rowText(rows[r] ?? [])
     const span = rowSpan(range, r, Math.max(textCells(text), 1))
-    lines.push(span ? sliceTextByCells(text, span[0], span[1]).selected.trimEnd() : "")
+    const slice = span ? sliceTextByCells(text, span[0], span[1]).selected : ""
+    // A soft-wrap continuation is the SAME line the emulator ran out of
+    // columns on, so it appends with no separator. Only a row that starts a
+    // logical line opens a new one; the row the selection starts on always
+    // does, since its predecessor is outside the selection.
+    if (r > first && isWrapContinuation(wrapped, r) && lines.length > 0) lines[lines.length - 1] += slice
+    else lines.push(slice)
   }
-  return lines.join("\n")
+  // Trimmed per LOGICAL line, not per row: the padding a user never selected
+  // sits at the end of the line, and a wrap point is mid-line.
+  return lines.map((line) => line.trimEnd()).join("\n")
 }
 
 /**
@@ -356,14 +370,26 @@ export function extractShadowedSelection(
   snapshot: readonly (readonly Chunk[])[],
   shadow: SelectionShadow,
   range: SelectionRange,
+  wrapped?: RowWrapFlags,
 ): string {
-  if (shadow.above.length === 0 && shadow.below.length === 0) return extractSelection(snapshot, range)
+  if (shadow.above.length === 0 && shadow.below.length === 0) return extractSelection(snapshot, range, wrapped)
   const offset = shadow.above.length
   const rows = [...shadow.above, ...snapshot, ...shadow.below]
-  return extractSelection(rows, {
-    anchor: { row: range.anchor.row + offset, col: range.anchor.col },
-    head: { row: range.head.row + offset, col: range.head.col },
-  })
+  // Shadow rows are whole screens banked during an ALT-screen drag, and this
+  // path only runs there. They carry no wrap flags of their own — an app that
+  // owns its own scrollback positions each row itself rather than letting the
+  // emulator wrap — so they count as line starts.
+  const shifted = wrapped
+    ? [...new Array<boolean>(offset).fill(false), ...wrapped, ...new Array<boolean>(shadow.below.length).fill(false)]
+    : undefined
+  return extractSelection(
+    rows,
+    {
+      anchor: { row: range.anchor.row + offset, col: range.anchor.col },
+      head: { row: range.head.row + offset, col: range.head.col },
+    },
+    shifted,
+  )
 }
 
 /**

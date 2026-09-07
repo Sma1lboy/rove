@@ -74,6 +74,10 @@ vi.mock("../../src/cli/api/pty-delivery.ts", () => ({
   ensurePtyHost: mocks.ensurePtyHost,
   deliverHostedPrompt: mocks.deliverHostedPrompt,
   listSessions: mocks.listSessions,
+  // Same stub behind both: the tri-state reader is what `taskTabs` calls now,
+  // and every `mocks.listSessions.mockResolvedValue([...])` below is still
+  // "the host answered with this inventory".
+  listSessionsOrNull: mocks.listSessions,
   findEngineKey: mocks.findEngineKey,
   taskKeys: mocks.taskKeys,
   killTaskSessions: mocks.killTaskSessions,
@@ -147,9 +151,11 @@ describe("defaultApiRuntime", () => {
     await expect(defaultApiRuntime.isTaskRunning("t1")).resolves.toBe(false)
   })
 
-  it("isTaskRunning is false when no PTY Host is running", async () => {
+  // An unreachable host is "could not look", and a caller that deletes
+  // worktrees on `running:false` must never be handed one for it.
+  it("isTaskRunning is null — not false — when the PTY host cannot be reached", async () => {
     mocks.openPtyHost.mockResolvedValueOnce(null)
-    await expect(defaultApiRuntime.isTaskRunning("t1")).resolves.toBe(false)
+    await expect(defaultApiRuntime.isTaskRunning("t1")).resolves.toBeNull()
   })
 
   it("taskTabs joins the persisted snapshot with per-tab session liveness", async () => {
@@ -177,6 +183,7 @@ describe("defaultApiRuntime", () => {
         lastTitle: "boot",
         autoTitle: null,
         alive: false,
+        engineAlive: false,
         exit: null,
       },
       {
@@ -188,6 +195,9 @@ describe("defaultApiRuntime", () => {
         lastTitle: null,
         autoTitle: null,
         alive: true,
+        // These rows carry no pid, so nothing walked them: `null` is
+        // "couldn't look", and `running` still reads true because of it.
+        engineAlive: null,
         exit: null,
       },
     ])

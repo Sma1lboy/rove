@@ -62,6 +62,15 @@ export interface TreeMenuItem {
   readonly labelKey: string
   /** Destructive — the renderer paints it in the danger tone. */
   readonly danger?: boolean
+  /**
+   * The keymap row this entry mirrors, when there is one. The renderer runs
+   * it through `legendCap`, so the entry advertises the chord the keyboard
+   * actually has right now and shows nothing once the id is unbound — a
+   * mouse user meets the vocabulary here rather than only in F1. Menu-only
+   * verbs (`setStatus`, the copies, `fieldNotes`, `land`, `runAgain`) carry
+   * no id, which is the same statement as "there is no chord for this yet".
+   */
+  readonly bindingId?: string
 }
 
 export interface TreeMenuContext {
@@ -76,7 +85,9 @@ export interface TreeMenuContext {
  *  shell tab that picker's "shell" choice mints. */
 function newTabVerbs(): TreeMenuItem[] {
   return [
-    { action: "newChat", labelKey: "tasks.menu.newChat" },
+    { action: "newChat", labelKey: "tasks.menu.newChat", bindingId: "chat.tab.chooseEngine" },
+    // No id: the picker's "shell" choice is a row inside that dialog, not a
+    // chord of its own.
     { action: "newShell", labelKey: "tasks.menu.newShell" },
   ]
 }
@@ -87,11 +98,15 @@ function newTabVerbs(): TreeMenuItem[] {
  *  and an entry that does nothing is worse than no entry — the same rule
  *  `closeTab` follows above. */
 function taskVerbs(task: Task): TreeMenuItem[] {
-  const verbs: TreeMenuItem[] = [{ action: "rename", labelKey: "tasks.menu.rename" }]
+  const verbs: TreeMenuItem[] = [{ action: "rename", labelKey: "tasks.menu.rename", bindingId: "sidebar.rename" }]
   if (task.kind !== "main") {
-    verbs.push({ action: "pin", labelKey: task.pinned === true ? "tasks.menu.unpin" : "tasks.menu.pin" })
+    verbs.push({
+      action: "pin",
+      labelKey: task.pinned === true ? "tasks.menu.unpin" : "tasks.menu.pin",
+      bindingId: "sidebar.pin",
+    })
   }
-  verbs.push({ action: "reorder", labelKey: "tasks.menu.reorder" })
+  verbs.push({ action: "reorder", labelKey: "tasks.menu.reorder", bindingId: "sidebar.localMerge" })
   // Re-fire the task's stored brief as a NEW task. Gated on the brief being
   // there: `prompt` is only recorded once a prompt was actually delivered, so
   // a task created without one has nothing to re-run — the same
@@ -113,9 +128,10 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   // active task — see use-tree-menu.ts). `b` is gated exactly like
   // `copyBranch`: a `main`/`dir` row has no branch of its own to rename, and
   // `set-branch` refuses it, so the entry could only end in the error toast.
-  verbs.push({ action: "openEditor", labelKey: "tasks.menu.openEditor" })
-  if (task.branch !== "") verbs.push({ action: "renameBranch", labelKey: "tasks.menu.renameBranch" })
-  verbs.push({ action: "changeEngine", labelKey: "tasks.menu.changeEngine" })
+  verbs.push({ action: "openEditor", labelKey: "tasks.menu.openEditor", bindingId: "tasks.openWorktree" })
+  if (task.branch !== "")
+    verbs.push({ action: "renameBranch", labelKey: "tasks.menu.renameBranch", bindingId: "tasks.renameBranch" })
+  verbs.push({ action: "changeEngine", labelKey: "tasks.menu.changeEngine", bindingId: "tasks.cycleEngine" })
   // Pull the failing CI job's log into this task's engine. Gated on the PR
   // chip the row is ALREADY showing: with anything but `failing` there is no
   // log to fetch, and an entry that can only end in "nothing to report" is
@@ -123,7 +139,7 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   // until the proposed `ctrl+a k` chord is signed off
   // (docs/design/keybinding-decisions.md).
   if (task.prStatus?.checkState === "failing") {
-    verbs.push({ action: "fixChecks", labelKey: "tasks.menu.fixChecks" })
+    verbs.push({ action: "fixChecks", labelKey: "tasks.menu.fixChecks", bindingId: "files.fixChecks" })
   }
   // Merge the base branch INTO this worktree — the action behind the `↓N`
   // drift chip. Gated exactly like `land`: neither a `main`/`dir` row nor a
@@ -131,7 +147,7 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   // only until the proposed `ctrl+a u` chord is signed off
   // (docs/design/keybinding-decisions.md).
   if (task.kind === "task" && task.branch !== "") {
-    verbs.push({ action: "syncBase", labelKey: "tasks.menu.syncBase" })
+    verbs.push({ action: "syncBase", labelKey: "tasks.menu.syncBase", bindingId: "files.syncBase" })
   }
   // Menu-only, like `setStatus`: landing is the Worktrees page's `l`, and a
   // second chord for it is the owner's call
@@ -142,7 +158,7 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   if (task.kind === "task" && task.branch !== "") {
     verbs.push({ action: "land", labelKey: "tasks.menu.land" })
   }
-  verbs.push({ action: "delete", labelKey: "tasks.menu.delete", danger: true })
+  verbs.push({ action: "delete", labelKey: "tasks.menu.delete", danger: true, bindingId: "sidebar.delete" })
   return verbs
 }
 
@@ -155,19 +171,24 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
     // Field notes are menu-only, like `setStatus` (no chord). Agents file
     // them with `rove api note`.
     return [
-      { action: "newTask", labelKey: "tasks.menu.newTask" },
+      { action: "newTask", labelKey: "tasks.menu.newTask", bindingId: "task.new" },
       { action: "fieldNotes", labelKey: "tasks.menu.fieldNotes" },
-      { action: "forgetProject", labelKey: "tasks.menu.forgetProject", danger: true },
+      { action: "forgetProject", labelKey: "tasks.menu.forgetProject", danger: true, bindingId: "sidebar.delete" },
     ]
   }
   if (row.kind === "worktree") {
-    return [{ action: "open", labelKey: "tasks.menu.open" }, ...newTabVerbs(), ...taskVerbs(row.task)]
+    return [
+      { action: "open", labelKey: "tasks.menu.open", bindingId: "sidebar.select" },
+      ...newTabVerbs(),
+      ...taskVerbs(row.task),
+    ]
   }
   // The routine count row is a fold toggle, not a task — there is
   // no task for any verb here to act on, and an entry that does nothing is
   // worse than no entry (the same rule `closeTab` follows above).
   if (row.kind === "routines") return []
-  const tabItems: TreeMenuItem[] = [{ action: "open", labelKey: "tasks.menu.openTab" }]
-  if ((ctx.tabCount ?? 0) > 0) tabItems.push({ action: "closeTab", labelKey: "tasks.menu.closeTab" })
+  const tabItems: TreeMenuItem[] = [{ action: "open", labelKey: "tasks.menu.openTab", bindingId: "sidebar.select" }]
+  if ((ctx.tabCount ?? 0) > 0)
+    tabItems.push({ action: "closeTab", labelKey: "tasks.menu.closeTab", bindingId: "chat.tab.close" })
   return [...tabItems, ...newTabVerbs(), ...taskVerbs(row.task)]
 }

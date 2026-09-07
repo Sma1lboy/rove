@@ -84,7 +84,14 @@ export async function listWorktreeProjectsAdapter(network: boolean): Promise<Wor
           ])
           const judgement = judgeWorktree(
             {
-              dirty: worktree.dirty,
+              // The staleness cascade's `dirty` signal stays a boolean: an
+              // UNREADABLE probe reads as not-dirty here, exactly as it did
+              // before `dirty` grew a null. Safe because the destructive path
+              // does not consult this verdict — `manager-remove.ts` calls
+              // `isDirty` UNCAUGHT, so removing an unreadable worktree throws
+              // rather than proceeding. The honest `null` still reaches the
+              // row, which is where the user reads it.
+              dirty: worktree.dirty === true,
               prState: states?.get(worktree.branch) ?? null,
               aheadOfDefault: aheadBy,
               lastActivityMs: worktree.lastActivityMs,
@@ -107,7 +114,17 @@ export async function listWorktreeProjectsAdapter(network: boolean): Promise<Wor
 }
 
 /**
- * The worktrees page / web DELETE path. Its force retry re-uses a `row`
+ * Worktree admin dirs of `repo` that `git worktree list` omitted without an
+ * error — see `manager-list.ts`'s `unreadableWorktreeNames`. Reported next to
+ * `discover-adoptable`'s rows so an empty `worktrees` array means only "this
+ * repo has nothing to adopt", never "one of them is unreadable".
+ */
+export async function listUnreadableWorktreesAdapter(repo: string): Promise<readonly string[]> {
+  return manager.listUnreadableWorktrees(repo)
+}
+
+/**
+ * The daemon runtime's `removeWorktree`. Its force retry re-uses a `row`
  * captured BEFORE the first attempt's dirty refusal, so by the time the user
  * answers the confirm the tree may hold work the confirm never described.
  * `manager.remove` salvages any uncommitted work first; this records where.
@@ -120,7 +137,7 @@ export async function removeWorktreeAdapter(
   await manager.remove(path, {
     force,
     onSalvage: (record) => {
-      if (record) auditWorktreeSalvaged(path, record.ref, record.commit)
+      if (record) auditWorktreeSalvaged(path, record.ref, record.commit, record.uncaptured)
     },
     // git deregistered the worktree but could not delete the directory. Not a
     // failure — the removal is as complete as git can make it and retrying is
@@ -132,26 +149,4 @@ export async function removeWorktreeAdapter(
     },
   })
   return residue
-}
-
-export async function handleWorktreesRequestAdapter(request: Request, url: URL): Promise<Response | null> {
-  if (url.pathname !== "/api/worktrees") return null
-  if (request.method === "GET") {
-    try {
-      return Response.json({ projects: await listWorktreeProjectsAdapter(true) })
-    } catch (error) {
-      return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 })
-    }
-  }
-  if (request.method === "DELETE") {
-    try {
-      const body = (await request.json()) as { path?: unknown; force?: unknown }
-      if (typeof body.path !== "string" || !body.path) return Response.json({ error: "missing path" }, { status: 400 })
-      const residue = await removeWorktreeAdapter(body.path, body.force === true)
-      return Response.json({ removed: true, ...(residue ? { residue } : {}) })
-    } catch (error) {
-      return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 400 })
-    }
-  }
-  return Response.json({ error: "method not allowed" }, { status: 405 })
 }

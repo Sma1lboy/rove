@@ -49,6 +49,27 @@ describe("fixCIAction", () => {
     expect(seen).toEqual([{ branch: "feat/x", prNumber: 7, checks: [CHECK], totalFailing: 1 }])
   })
 
+  test("distinguishes an unreadable gh from checks that are no longer red", async () => {
+    // Both arrive as `checks: []`. Only one of them means the user can stop
+    // worrying about the red badge they clicked on.
+    const { base, sent, errors } = deps({
+      fetchChecks: async () => ({
+        checks: [],
+        totalFailing: 0,
+        unavailable: {
+          reason: "gh_failed",
+          detail: "gh: To get started with GitHub CLI, please run: gh auth login\nhint: more",
+        },
+      }),
+      t: (key: string, params?: Record<string, string | number>) => `${key}:${params?.detail ?? ""}`,
+    })
+    await fixCIAction(base)("t1")
+    expect(sent).toEqual([])
+    expect(errors).toEqual([
+      "files.toast.ciChecksUnavailable:gh: To get started with GitHub CLI, please run: gh auth login",
+    ])
+  })
+
   test("toasts instead of sending when the daemon reports no failing checks", async () => {
     const { base, sent, errors } = deps({ fetchChecks: async () => ({ checks: [], totalFailing: 0 }) })
     await fixCIAction(base)("t1")

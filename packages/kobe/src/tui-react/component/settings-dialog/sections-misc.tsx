@@ -9,6 +9,7 @@
 import { TextAttributes, type TextareaRenderable } from "@opentui/core"
 import { useEffect, useRef } from "react"
 import { tildify } from "../../../lib/path-home"
+import { DELIVERY_GUARDS } from "../../../state/delivery-guard"
 import { stripNewlines } from "../../../tui/component/new-task-dialog/state"
 import {
   devRows,
@@ -23,6 +24,7 @@ import { PREFIX_TAP_PRESENTATIONS } from "../../../tui/lib/prefix-tap-presentati
 import { useKeymapVersion } from "../../context/keybindings"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { ChipRow } from "../../ui/dialog-parts"
 import { Row, type SectionCursorProps, SubSection } from "./rows"
 import type { SettingsPrefs } from "./use-settings-prefs"
 
@@ -161,6 +163,7 @@ export function DevSettingsSection(
         </text>
         <Row
           cursor={isBodyCursor(row)}
+          rowRef={props.rowRef(row)}
           onMouseUp={activate(row, act)}
           fg={theme.text}
           bold={enabled}
@@ -168,6 +171,46 @@ export function DevSettingsSection(
         >
           {`${enabled ? "[x]" : "[ ]"} ${t(labelKey)}`}
         </Row>
+      </box>
+    )
+  }
+  // The one three-state control in Dev, so it is a ChipRow rather than a
+  // checkbox: `on` / `screen-off` / `off` are three positions on one dial, and
+  // a checkbox can only ever show two of them. Enter on the row cycles;
+  // clicking a chip picks it directly.
+  const deliveryGuardRow = () => {
+    const row = rowIndex(rows, "delivery-guard")
+    const current = prefs.deliveryGuard()
+    return (
+      <box flexDirection="column" gap={0} paddingTop={1}>
+        <text fg={theme.textMuted} wrapMode="word">
+          {t("settings.dev.deliveryGuardHint")}
+        </text>
+        <Row
+          cursor={isBodyCursor(row)}
+          rowRef={props.rowRef(row)}
+          onMouseUp={activate(row, prefs.cycleDeliveryGuard)}
+          fg={theme.text}
+          bold={current !== "on"}
+          idleBackground={theme.backgroundElement}
+        >
+          {t("settings.dev.deliveryGuard")}
+        </Row>
+        <ChipRow
+          choices={DELIVERY_GUARDS}
+          selected={current}
+          display={(choice) => t(`settings.dev.deliveryGuardChoice.${choice}`)}
+          onPick={(choice) => {
+            props.setLevel("body")
+            props.setBodyRow(row)
+            prefs.selectDeliveryGuard(choice)
+          }}
+        />
+        {prefs.deliveryGuardForcedByEnv() ? (
+          <text fg={theme.warning} wrapMode="word">
+            {t("settings.dev.deliveryGuardEnvPinned")}
+          </text>
+        ) : null}
       </box>
     )
   }
@@ -181,6 +224,7 @@ export function DevSettingsSection(
       </text>
       <Row
         cursor={isBodyCursor(0)}
+        rowRef={props.rowRef(0)}
         onMouseUp={activate(0, props.confirmReset)}
         fg={theme.warning}
         bold={true}
@@ -192,6 +236,7 @@ export function DevSettingsSection(
         <SubSection title={t("settings.dev.restart")} hint={t("settings.dev.restartHint")}>
           <Row
             cursor={isBodyCursor(1)}
+            rowRef={props.rowRef(1)}
             onMouseUp={activate(1, props.confirmRestartDaemon)}
             fg={theme.accent}
             bold={true}
@@ -230,13 +275,7 @@ export function DevSettingsSection(
           "settings.dev.dispatcher",
           prefs.toggleDispatcher,
         )}
-        {toggleRow(
-          "composer-gate",
-          prefs.composerGateOn(),
-          "settings.dev.composerGateHint",
-          "settings.dev.composerGate",
-          prefs.toggleComposerGate,
-        )}
+        {deliveryGuardRow()}
       </box>
     </box>
   )
@@ -302,6 +341,7 @@ export function KeybindingsSettingsSection(
             <Row
               key={presentation}
               cursor={props.level === "body" && props.bodyRow === row}
+              rowRef={props.rowRef(row)}
               onMouseUp={() => {
                 props.setLevel("body")
                 props.setBodyRow(row)
@@ -339,6 +379,7 @@ export function KeybindingsSettingsSection(
           </text>
           <Row
             cursor={props.level === "body" && props.bodyRow === rowIndex(rows, "keys-create")}
+            rowRef={props.rowRef(rowIndex(rows, "keys-create"))}
             onMouseUp={() => {
               props.setLevel("body")
               props.setBodyRow(rowIndex(rows, "keys-create"))

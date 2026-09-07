@@ -100,7 +100,7 @@ function VersionsPage(props: { onClose: () => void }) {
           {t("update.versions.pageTitle")}
         </text>
         <text fg={theme.textMuted} wrapMode="none" onMouseUp={props.onClose}>
-          q / esc
+          {t("update.versions.closeHint")}
         </text>
       </box>
 
@@ -153,7 +153,7 @@ function VersionsPage(props: { onClose: () => void }) {
             flexShrink={1}
             stickyScroll={false}
             verticalScrollbarOptions={{
-              trackOptions: { backgroundColor: theme.background, foregroundColor: theme.borderActive },
+              trackOptions: { foregroundColor: "transparent" },
             }}
           >
             <box flexDirection="column" paddingRight={1} paddingBottom={1} gap={0}>

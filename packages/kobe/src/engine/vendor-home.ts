@@ -39,6 +39,11 @@ const defaultVendorHomeDeps: VendorHomeDeps = {
   home: () => homedir(),
 }
 
+/** An explicitly supplied home isolates write fixtures from ambient profiles. */
+export function vendorWriteHomeDeps(home?: string): VendorHomeDeps {
+  return home === undefined ? defaultVendorHomeDeps : { env: () => undefined, home: () => home }
+}
+
 /**
  * The vendor's config directory. An override that is empty or whitespace
  * counts as unset — `.trim()` was already reaching for that, and treating

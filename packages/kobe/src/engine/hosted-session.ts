@@ -6,7 +6,12 @@ import { defaultPtyHostSocketPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 import type { PtyOpenResult, PtyPeekResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
 import type { TerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
-import { composerGateEnabled } from "../state/composer-gate.ts"
+import {
+  type DeliveryGuard,
+  type DeliveryGuardSettings,
+  deliveryGuardLayers,
+  deliveryGuardSettings,
+} from "../state/delivery-guard.ts"
 import { readPersistedTerminalDefaultColors } from "../tui/lib/terminal-colors.ts"
 import { BUILTIN_VENDORS } from "../types/vendor.ts"
 import { isComposerEmpty } from "./composer-state.ts"
@@ -14,7 +19,7 @@ import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from ".
 import { PASTE_READY_POLL_MS, PASTE_READY_TIMEOUT_MS, bracketedPasteActive, encodePaste } from "./paste-readiness.ts"
 import { engineEntry } from "./registry.ts"
 import type { EngineScreenManifest } from "./screen-state.ts"
-import { type EngineSessionLaunch, REPO_INIT_TIMEOUT_SECONDS } from "./session-launch.ts"
+import { ENGINE_EXIT_BANNER, type EngineSessionLaunch, REPO_INIT_TIMEOUT_SECONDS } from "./session-launch.ts"
 
 export interface HostedSessionRpc {
   request<T = unknown>(name: string, payload?: unknown): Promise<T>
@@ -50,13 +55,34 @@ export async function ensureHostedSessionHost(): Promise<HostedSessionClient> {
   return connectHostedSessionClient(await ensurePtyHostReachable())
 }
 
-export async function listHostedSessions(rpc: HostedSessionRpc): Promise<PtySessionInfo[]> {
+/**
+ * `pty.list`, keeping the ASKING distinct from the ANSWER: `null` means the
+ * host could not be asked (gone, wedged, any RPC failure), `[]` means it
+ * answered and holds nothing.
+ *
+ * A liveness READ needs that difference and nothing else can recover it —
+ * connecting to a stopped host SUCCEEDS (the kernel accepts into the listen
+ * backlog) and only the request times out, so "the socket opened" is not
+ * evidence the host is answering. Collapsing the two is how four running
+ * engines rendered as a stopped task with every tab `alive: false`.
+ */
+export async function listHostedSessionsOrNull(rpc: HostedSessionRpc): Promise<PtySessionInfo[] | null> {
   try {
     const { sessions } = await rpc.request<{ sessions: PtySessionInfo[] }>("pty.list", {})
     return sessions ?? []
   } catch {
-    return []
+    return null
   }
+}
+
+/**
+ * {@link listHostedSessionsOrNull} collapsed for callers that ACT on the
+ * inventory (deliver into a key, kill a task's sessions, resolve a tab):
+ * "couldn't ask" and "nothing there" both mean there is nothing to act on.
+ * Readers must use the tri-state version instead.
+ */
+export async function listHostedSessions(rpc: HostedSessionRpc): Promise<PtySessionInfo[]> {
+  return (await listHostedSessionsOrNull(rpc)) ?? []
 }
 
 export function isHostedTaskKey(key: string, taskId: string): boolean {
@@ -99,6 +125,24 @@ function builtinEngineBins(): string[] {
   }).filter((bin): bin is string => Boolean(bin))
 }
 
+/**
+ * Does this session's launch argv name an engine — the ONE argv judgement.
+ *
+ * Two callers ask it about the same sessions and must not disagree:
+ * {@link findHostedEngineKey} picks the tab `send` delivers to, and
+ * `hasLiveEngineTab` decides whether the task reports `running`. When those
+ * drift, `send` finds an engine on a task `get-task` calls stopped, and an
+ * unattended loop cleans up live work.
+ *
+ * `engineBin` is the task's OWN launch binary, which is how a custom engine
+ * (a wrapper script no vendor table names) is recognised at all.
+ */
+export function sessionArgvNamesEngine(command: readonly string[] | undefined, engineBin?: string): boolean {
+  if (!command || command.length === 0) return false
+  if (engineBin && commandHasEngineWord(command, engineBin)) return true
+  return builtinEngineBins().some((bin) => commandHasEngineWord(command, bin))
+}
+
 /** Trailing `tab-<n>` as a number, `Infinity` for a non-numeric tab id. */
 function tabOrder(key: string): number {
   const n = Number(/tab-(\d+)$/.exec(key)?.[1])
@@ -136,8 +180,7 @@ export function findHostedEngineKey(
     const byCommand = mine.find((s) => commandHasEngineWord(s.command, engineBin))
     if (byCommand) return byCommand.key
   }
-  const bins = builtinEngineBins()
-  return mine.find((s) => bins.some((bin) => commandHasEngineWord(s.command, bin)))?.key ?? null
+  return mine.find((s) => sessionArgvNamesEngine(s.command))?.key ?? null
 }
 
 /** Delay between bracketed paste and submit CR so the engine reads two tty events. */
@@ -158,25 +201,30 @@ export class ComposerBusyError extends Error {
 export interface HostedPromptDeliveryOpts {
   /** Engine-owned composer-empty manifest. Absence skips the C-layer gate. */
   readonly screenManifest?: EngineScreenManifest
-  /** Override for the A-layer quiet period (ms). Defaults to the host's
-   *  reported `humanWriteQuietMs` or 10s when the host omits it. */
+  /** Override for the A-layer quiet period (ms). Falls back to the stored
+   *  `delivery.humanWriteQuietMs`, then the host's reported value, then 10s. */
   readonly humanWriteQuietMs?: number
   /** Test seam for `Date.now()`. */
   readonly now?: () => number
   /** Override for the paste-readiness wait (ms). Tests shorten it. */
   readonly pasteReadyTimeoutMs?: number
   /**
-   * Run the screen-based composer check. Defaults to the persisted setting
-   * (`state/composer-gate.ts`, on unless the user turned it off); an explicit
+   * Which delivery checks run. Defaults to the persisted setting
+   * (`state/delivery-guard.ts`, `on` unless the user loosened it); an explicit
    * value is the test seam, so a suite never depends on the machine's
    * state.json.
    */
-  readonly composerGate?: boolean
+  readonly guard?: DeliveryGuard
 }
 
-function recentHumanWriteBlocks(peek: PtyPeekResult, opts: HostedPromptDeliveryOpts, now: number): boolean {
+function recentHumanWriteBlocks(
+  peek: PtyPeekResult,
+  opts: HostedPromptDeliveryOpts,
+  storedQuietMs: number | undefined,
+  now: number,
+): boolean {
   if (peek.lastHumanWriteMs === undefined || peek.lastHumanWriteMs <= 0) return false
-  const quiet = opts.humanWriteQuietMs ?? peek.humanWriteQuietMs ?? 10_000
+  const quiet = opts.humanWriteQuietMs ?? storedQuietMs ?? peek.humanWriteQuietMs ?? 10_000
   return now - peek.lastHumanWriteMs < quiet
 }
 
@@ -189,15 +237,16 @@ async function composerNonEmpty(peek: PtyPeekResult, manifest: EngineScreenManif
 
 async function assertComposerClear(peek: PtyPeekResult, key: string, opts?: HostedPromptDeliveryOpts): Promise<void> {
   const now = opts?.now?.() ?? Date.now()
-  if (recentHumanWriteBlocks(peek, opts ?? {}, now)) {
+  // Both layers answer to one three-state setting, read per delivery so a
+  // change takes effect without restarting anything — the pty host included,
+  // which is why the quiet window is resolved here rather than from the
+  // host's spawn-time env (see state/delivery-guard.ts).
+  const settings: DeliveryGuardSettings = opts?.guard !== undefined ? { guard: opts.guard } : deliveryGuardSettings()
+  const layers = deliveryGuardLayers(settings.guard)
+  if (layers.humanWrite && recentHumanWriteBlocks(peek, opts ?? {}, settings.humanWriteQuietMs, now)) {
     throw new ComposerBusyError("recent-human-write", key)
   }
-  // The A layer above measures TIME and cannot be disabled: someone typing
-  // right now is protected whatever this setting says. Only the screen read
-  // below is switchable, because only it depends on a vendor's current
-  // layout — see state/composer-gate.ts. Read per delivery, so flipping the
-  // switch takes effect without a restart.
-  if (!(opts?.composerGate ?? composerGateEnabled())) return
+  if (!layers.screen) return
   if (await composerNonEmpty(peek, opts?.screenManifest)) {
     throw new ComposerBusyError("composer-not-empty", key)
   }
@@ -353,17 +402,7 @@ export async function writeHostedPrompt(
  * the prompt into it. Peek never attaches, spawns, or
  * resizes — delivery is pure `pty.write`, exactly like keyboard input.
  */
-export async function deliverToHostedKey(
-  rpc: HostedSessionRpc,
-  key: string,
-  prompt: string,
-  opts?: HostedPromptDeliveryOpts,
-): Promise<PromptWriteOutcome | null> {
-  const peek = await rpc.request<PtyPeekResult>("pty.peek", { key })
-  if (!peek.alive) return null
-  await assertComposerClear(peek, key, opts)
-  return writeAndConfirm(rpc, key, prompt, peek.offset, opts)
-}
+export const deliverToHostedKey = writeHostedPromptIfClear
 
 /** Open or reattach one engine session and immediately release this client.
  *  No cols/rows: a size-less open never resizes a live session away from
@@ -384,97 +423,14 @@ export async function ensureHostedEngine(
   return result
 }
 
-/** Bounds for the first-message readiness wait (paste-delivery vendors). */
-const FIRST_MESSAGE_ENGINE_TIMEOUT_MS = 20_000
-const FIRST_MESSAGE_POLL_INTERVAL_MS = 500
-/**
- * Post-detection grace, kept ONLY as the fallback for an engine that never
- * announces bracketed paste. The readiness wait (`awaitPasteReady`) is the
- * real gate now: this sleep was the whole bug. It guessed that 1.5s after
- * the engine PROCESS appears the engine is reading its tty — but a process
- * that has forked is not a process that has called `stty raw`, and a write
- * into that window is discarded past the tty's 1024-byte canonical buffer.
- * Measured: kimi announces bracketed paste at ~1953ms, i.e. AFTER this
- * timer fired, which is why kimi was the vendor that lost 8.6KB prompts.
- */
-const FIRST_MESSAGE_SETTLE_MS = 1_500
-
-export interface PasteFirstMessageOptions extends HostedPromptDeliveryOpts {
-  readonly timeoutMs?: number
-  readonly intervalMs?: number
-  readonly settleMs?: number
-  /** Test seam for the process-table read (see `pty-delivery.ts`'s gate). */
-  readonly snapshot?: PsSnapshot
-  readonly sleep?: (ms: number) => Promise<void>
-  /** When the launch includes a repo-init script, wait for this marker file
-   *  before budgeting the engine-startup wait. Prevents a short paste-delivery
-   *  window from expiring while dependencies are still installing. The launch
-   *  script writes it when init FINISHES, whatever the outcome — a
-   *  success-only marker made "init failed" indistinguishable from "init is
-   *  still running", and the loop below then sat out the whole budget. */
-  readonly initMarkerPath?: string
-  /** How long to wait for {@link initMarkerPath} to appear (ms). */
-  readonly initTimeoutMs?: number
-}
-
-/**
- * Deliver a paste-delivery vendor's FIRST message: the launch
- * spawned the bare engine (its positional argv slot is a subcommand, not a
- * prompt), so the prompt is bracketed-pasted once the engine process is
- * actually up — the same reason `send` into a cold engine embeds nowhere
- * but waits here instead. Polls the session's process tree until an engine
- * child appears (or the session dies / the wait budget runs out), grants a
- * waits for it to start READING, then pastes + submits.
- * Returns what the write observed, or `null` when it never happened.
- */
-export async function pastePromptWhenEngineUp(
-  rpc: HostedSessionRpc,
-  key: string,
-  engineBin: string | undefined,
-  prompt: string,
-  opts: PasteFirstMessageOptions = {},
-): Promise<PromptWriteOutcome | null> {
-  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
-  const snapshot = opts.snapshot ?? psSnapshot
-
-  // If the session was launched with a repo-init script, the engine child does
-  // not appear until init finishes. Wait for the init marker before starting
-  // the engine-startup budget so a slow `bun install` does not eat the whole
-  // paste-delivery window.
-  if (opts.initMarkerPath) {
-    const initDeadline = Date.now() + (opts.initTimeoutMs ?? REPO_INIT_TIMEOUT_SECONDS * 1000)
-    while (Date.now() < initDeadline) {
-      const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
-      const session = sessions.find((s) => s.key === key)
-      if (!session?.alive) return null
-      if (existsSync(opts.initMarkerPath)) break
-      await sleep(opts.intervalMs ?? FIRST_MESSAGE_POLL_INTERVAL_MS)
-    }
-  }
-
-  const deadline = Date.now() + (opts.timeoutMs ?? FIRST_MESSAGE_ENGINE_TIMEOUT_MS)
-  while (Date.now() < deadline) {
-    const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
-    const session = sessions.find((s) => s.key === key)
-    if (!session?.alive) return null
-    if (session.pid) {
-      let up = false
-      try {
-        up = engineProcessIn(parsePsSnapshot(await snapshot()), session.pid, engineBin)
-      } catch {
-        up = false // ps hiccup — treat as "not yet", keep polling
-      }
-      if (up) {
-        // The engine process exists; now wait for it to actually be READING
-        // (see `awaitPasteReady`). Only when it never announces bracketed
-        // paste do we fall back to a blind settle.
-        if (!(await awaitPasteReady(rpc, key, { timeoutMs: opts.pasteReadyTimeoutMs, sleep }))) {
-          await sleep(opts.settleMs ?? FIRST_MESSAGE_SETTLE_MS)
-        }
-        return await writeHostedPromptIfClear(rpc, key, prompt, opts)
-      }
-    }
-    await sleep(opts.intervalMs ?? FIRST_MESSAGE_POLL_INTERVAL_MS)
-  }
-  return null
-}
+// Engine-readiness probing lives in its own module (see its header for the
+// seam), re-exported here because every caller reaches these THROUGH a hosted
+// session and several tests mock this module as a whole.
+/** @public — `PasteFirstMessageOptions` is re-exported for callers that reach
+ *  it through a hosted session; knip sees the re-export, not those importers. */
+export {
+  awaitEngineProcess,
+  hostedSessionFailureLine,
+  type PasteFirstMessageOptions,
+  pastePromptWhenEngineUp,
+} from "./hosted-session-readiness.ts"

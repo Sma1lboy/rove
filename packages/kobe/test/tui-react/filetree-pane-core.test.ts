@@ -13,6 +13,7 @@ import {
   computeStatWidths,
   expandOrDescendAction,
   followScrollTop,
+  gitErrorIsRetryable,
   statCell,
   statusToken,
   summarizeGitError,
@@ -76,6 +77,20 @@ describe("summarizeGitError", () => {
   test("falls back to the raw text, then the generic key", () => {
     expect(summarizeGitError("  weird failure  ", t)).toBe("weird failure")
     expect(summarizeGitError("   ", t)).toBe("<files.error.gitFailed>")
+  })
+})
+
+describe("gitErrorIsRetryable", () => {
+  test("hides `press r to retry` where pressing r can never change the answer", () => {
+    // Each label now carries its own action (`git init`, install git); the
+    // retry hint beside them contradicts it.
+    expect(gitErrorIsRetryable("fatal: not a git repository")).toBe(false)
+    expect(gitErrorIsRetryable("bash: git: not found")).toBe(false)
+  })
+  test("keeps it for the kinds a second attempt can resolve", () => {
+    expect(gitErrorIsRetryable("EACCES permission denied")).toBe(true)
+    expect(gitErrorIsRetryable("ENOENT: no such file")).toBe(true)
+    expect(gitErrorIsRetryable("git ls-files (cwd=/x) exited with code 128: something odd")).toBe(true)
   })
 })
 

@@ -20,6 +20,7 @@ import {
   getCapabilities,
   supportsStructuredHistory,
   vendorsWithQuotaProbe,
+  vendorsWithTurnReader,
 } from "../../src/engine/registry.ts"
 
 /** A DetectDeps with every binary found and no files/env, overridable per test. */
@@ -150,6 +151,21 @@ describe("vendorsWithQuotaProbe", () => {
 
   it("omits engines with no probe rather than listing them as silent failures", () => {
     expect(vendorsWithQuotaProbe()).not.toContain("copilot")
+  })
+})
+
+describe("vendorsWithTurnReader", () => {
+  it("lists every engine that can report per-turn telemetry", () => {
+    // `agent-turns` builds its own summary from this, so an empty page can say
+    // WHY it is empty. Hard-coding the pair in the CLI layer would put vendor
+    // strings in neutral code and go stale on the third adapter.
+    const vendors = vendorsWithTurnReader()
+    expect([...vendors].sort()).toEqual(["claude", "codex"])
+    for (const vendor of vendors) expect(engineEntry(vendor).readTurns).toBeDefined()
+  })
+
+  it("omits engines with no reader rather than implying they report nothing", () => {
+    expect(vendorsWithTurnReader()).not.toContain("kimi")
   })
 })
 

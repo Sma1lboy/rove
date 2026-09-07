@@ -27,9 +27,11 @@ Task's worktree, plus **Copy branch name** and **Copy path**, which put the
 Task's branch or worktree path on the system clipboard for a `git checkout` or
 `cd` in another shell, and **Open in editor**, **Rename branch**, and
 **Change engine** for the row you clicked. Right-clicking a project header
-offers **New task**, **Field notes** (a read-only list of the notes agents filed
-on that repo with `rove api note`, newest first, each with its author and time)
-and **Remove project**. Clicking anywhere else dismisses that menu.
+offers **New task**, **Field notes** (the notes agents filed on that repo with
+`rove api note`, newest first, each with its author and time — `↑↓` walks them
+and `d` retires the one under the cursor, which is how a note whose fact has
+stopped being true stops being injected into new sessions) and **Remove
+project**. Clicking anywhere else dismisses that menu.
 
 Zen mode (`ctrl+a` `z`) hides Files and lets the workspace use the freed width.
 The Tasks rail remains visible. Below 70 columns, the separate
@@ -38,8 +40,14 @@ The Tasks rail remains visible. Below 70 columns, the separate
 With no tasks at all (a first launch, or all tasks deleted), the workspace
 column shows a welcome panel instead of an empty pane: the keys to create a
 task and open help (read from your live keymap, so rebinds show correctly),
-which engine CLIs were detected, and — when something is missing (no engine
-CLI, no git) — what to install, with `rove doctor` as the full diagnosis.
+and one line about the engines. That line reads one of three ways, because
+"installed" and "usable" are different questions: the engines that can run a
+task (installed **and** signed in), or — when none can — the ones that are
+installed but whose login Rove cannot find, or, failing that, none at all. It
+is the same `probeEngines` check `rove doctor` runs, so the two surfaces
+cannot reach opposite verdicts. When something is missing (no engine CLI, no
+git) the panel also says what to install, with `rove doctor` as the full
+diagnosis.
 Creating your first task replaces it with the normal workspace.
 
 ## Status glyphs in the sidebar
@@ -50,37 +58,34 @@ Task rows carry worktree-level facts:
 |---|---|
 | `▴` | Pinned Task |
 | `+N` / `−N` | Changed and deleted files in the worktree |
-| `◇` / `◆` / `†` / `×` | Status is `in_review`, `done`, `canceled`, or `error` |
-| `✓` / `✗` / `•` | Pull-request checks passing, failing, or pending |
-| `≠` | The pull request conflicts with its base branch |
-| `»` / `≡` | The pull request is approved and clear to merge, or already merged |
+| `↑N` / `↓N` | Commits this worktree has that its base does not, and the ones the base has that it does not |
+| `≠` / `✗` / `✓` | The pull request conflicts with its base, has failing checks, or has passing checks. One mark: a conflict outranks a check result |
 | jump digit | The `ctrl+2` … `ctrl+0` shortcut currently assigned to this row |
 
-The status mark is what a person said about the Task; the check mark next to it
-is what CI reports, so the two can disagree. `»` answers a third question the
-check mark cannot: green checks look identical on a PR that is approved, one
-still waiting on a reviewer, and one that merged an hour ago. All three marks
-drain to grey when the last PR poll failed — the reading stands, but nothing is
-confirming it any more. `backlog` and `in_progress` show
-nothing — those are the states Rove moves a Task through on its own, so a mark
-there would say only that the row is ordinary. Set the status from the row's
-right-click menu (**Set status**) or with `rove api set-status`; it is a label,
-and changing it leaves the worktree, the branch, and every running session
-alone.
+`↑N` is the one mark that outlives a commit: committing empties `+N` / `−N`, so
+without it a worker that committed its work and one that reported success and
+delivered nothing render the same blank row — a difference you would otherwise
+meet at land time, as `EMPTY_BRANCH`. `↑N` and `↓N` are absent rather than zero
+when no base branch resolves, so a repo with no remote reads as it always did.
 
-Session state belongs to the engine tab that runs it, so the status glyph sits
-on the **tab rows** underneath:
+The PR mark drains to grey when the last PR poll failed — the reading stands,
+but nothing is confirming it any more. Pending checks, review state, and a
+merged or closed PR draw nothing. The Task's board status (`in_review`, `done`,
+…) does not appear on the row either: you set it, so you already know it. Set it
+from the row's right-click menu (**Set status**) or with `rove api set-status`;
+it is a label, and changing it leaves the worktree, the branch, and every
+running session alone.
+
+Session state belongs to the engine tab that runs it, so the state glyph sits
+on the **tab rows** underneath. There are four states, and only one asks
+anything of you:
 
 | Glyph | Meaning |
 |---|---|
 | spinner | Engine is working (also shown while a worktree materializes or deletes) |
-| `?` | Needs your input: a permission prompt or a question |
+| `!` | Needs you: a permission prompt, a rate limit, an errored turn, a dead engine process, or a failed worktree deletion. Open the tab to see which |
 | `●` | Turn finished, and you haven't looked yet |
-| `○` | Idle or not yet observed. Includes a finished turn you've already seen |
-| `◷` | Rate limited — the engine is waiting out a quota window |
-| `×` | Error, including a failed worktree deletion |
-| `†` | The engine process exited or was killed |
-| `·` | Not an agent tab, or a custom engine without activity tracking |
+| `○` | Quiet: idle, not yet observed, a finished turn you've already seen, a shell tab, or a custom engine without activity tracking |
 
 A tab labelled `⚠ <name>` is a live hosted session that was missing from the
 saved tab list. Rove exposes it instead of hiding a running process and adopts
@@ -94,15 +99,11 @@ or reattaching does not relight a completion you already read. A later
 completion has a later timestamp and appears unread as usual.
 
 Each tab row reports its **own** activity, not the task's roll-up. Tab 2 can
-spin while tab 1 rests. The tab strip at the top of the workspace uses a
-same vocabulary (`●` running, `✓` done, `!` error, `◷` rate limited, `†`
-exited, `?` needs input, `○` idle) over the same saved timestamps: a `✓` you
-have already read settles back to `○`, and stays settled after a restart.
-
-`†` and `×` are different questions. `×` is an engine that ran and reported a
-failed turn — read the tab. `†` is an engine that is no longer running, so the
-answer is to start it again; the exit code and the last error line are kept
-(`rove api inspect`) even after the session is gone.
+spin while tab 1 rests. The tab strip at the top of the workspace and the
+attention inbox keep a finer vocabulary (`◷` rate limited, `†` exited, `?`
+needs input, `!` error) over the same saved timestamps, because there the
+glyph sits next to a word that explains it; a `✓` you have already read
+settles back to `○`, and stays settled after a restart.
 
 ## Managing Tasks in the sidebar
 
@@ -151,6 +152,14 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
   target replaces the older one, and starting a new turn clears it.
   A rate-limited item also names when its automatic resume is due
   (`resumes 3:14 PM`), so you can tell a wait from a dead end.
+  A **queued message** — one the delivery guard held instead of pasting into a
+  composer that was busy — names its sender, which check held it, and how long
+  the daemon keeps the text: `from kobe · composer had text · expires in 23h`.
+  `enter` releases it (the guard runs again, so it stays queued if you are
+  still typing) and `d` sets it aside, after a confirm. Setting one aside is
+  recoverable for the rest of that 24h with
+  `rove api deferred-release --id`; `deferred-list --include-dismissed` finds
+  the id.
 - **RECENT.** The last handful of tabs you visited, most recent first. These
   aren't pending work, just jump targets; a spinner marks the ones still
   running.
@@ -158,8 +167,9 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 `enter` opens the task and, when the episode names one, its exact tab; a
 task-level episode leaves that task's current tab active. It also clears the
 item. `d` clears without navigating (ATTENTION rows only; RECENT rows have
-nothing to drop). You rarely need `d`: **visiting a target clears its item
-anyway**, since visiting any tab resolves a task-level episode, and stale items
+nothing to drop) — it asks first on a queued message, the one row where the
+keystroke would set aside work somebody sent. You rarely need `d`: **visiting
+a target clears its item anyway**, since visiting any tab resolves a task-level episode, and stale items
 whose tab or task is gone get cleaned up in the background.
 
 `F7` jumps straight to the oldest pending item across **all** projects,
@@ -203,15 +213,46 @@ is clean and Rove can resolve a base branch, it automatically switches to the
 whole branch-versus-base view so committed agent work does not disappear. Press
 `b` to choose the scope manually; the header always names the active scope.
 
+The base is the task's PR base when it has one, then `origin/HEAD`,
+`origin/main`, or `origin/master`, then a local `main` or `master` — so a repo
+with no remote still gets a branch view instead of an empty pane beside a
+sidebar row reporting commits. When none of those resolve, the scope line names
+that as the reason rather than leaving `b` as a silent no-op.
+
+**Combined diffs.** `d` on a **directory** row opens everything under it as one
+diff in one tab, and the Changes tab's `[D] diff everything` chip does the same
+for the whole worktree — reviewing a twelve-file attempt is one keypress and one
+tab instead of twelve of each. A combined diff is **read-only**: a review note
+anchors to a single path, so a diff spanning files carries none, and its footer
+says so. Per-file notes are unchanged. A directory with nothing changed in the
+active scope says so rather than opening blank.
+
+**What a diff states instead of drawing nothing.** A renamed file's diff shows
+the rename and the same `+N −M` as its list row, not the whole file as added. A
+changed binary and a mode-only change each state what changed — in the
+single-file view and in a combined diff's section — because a patch git wrote
+entirely in its preamble has no hunks to draw. Pure renames name the original
+path; additions and deletions of empty files state the change. These states
+have no review cursor or line comments. Filenames are literal, including
+brackets, `*`, `?`, and leading `:`; selecting one cannot include another
+file's hunks. Directory and whole-worktree diffs still combine their files. If git itself refuses (a pruned
+remote, a renamed base branch), the pane shows git's own error and `r` retries;
+a failed read is never reported as an absence of changes. An unreadable or
+missing text file shows a read error and the same retry action; a valid empty
+file says "empty file". While a different path, worktree, or comparison base
+loads, the preview shows a loading state instead of the previous file's text.
+A late result cannot replace the current preview or reopen a closed tab.
+
 Open a text file with `enter`. Rove uses the configured terminal editor; for a
 changed file it requests that editor's diff mode when Vim or Neovim is
 available, otherwise it opens Rove's read-only preview. `d` always opens the
-read-only diff in a workspace tab, `a` pastes an `@path` mention into the active
+read-only diff in a workspace tab — for a directory row, the combined diff of
+everything under it — `a` pastes an `@path` mention into the active
 engine without submitting it, and `o` sends audio, video, or PDF files to the
 system application. Remote files cannot use a local system viewer.
 
 The pane watches local worktrees for changes and also supports `r` for an
-explicit refresh. Set `KOBE_FILETREE_WATCH=0` to turn the watcher off and leave
+explicit refresh. Set `ROVE_FILETREE_WATCH=0` to turn the watcher off and leave
 `r` as the only way to repopulate the list. See
 [Keybindings](KEYBINDINGS.md#sidebar-and-files) for the complete navigation
 table.
@@ -340,7 +381,11 @@ left arrow to return to the section list, and `enter` to activate a row.
   engine's own CLI). On an engine row, `space` switches it on or off (off
   keeps its settings, it just stops being offered when picking an engine for
   a task), `enter` edits the launch command, `r` renames, `x` resets a
-  built-in or removes a custom engine, and `d` makes it the default.
+  built-in or removes a custom engine, and `d` makes it the default. An engine
+  you added yourself also shows the protocol it borrows — the built-in adapter
+  that gives it a transcript reader, account detection and resume, or `generic`
+  for none. You pick it when adding the engine; to change it later, `x` the
+  engine and add it again.
 - **Plugins** enables or disables registered plugins live and edits settings
   declared by their manifests. Install, update, link and remove plugins from
   the shell.
@@ -353,9 +398,8 @@ left arrow to return to the section list, and `enter` to activate a row.
   TUI window; other attached windows and hosted sessions remain connected. Use
   `rove daemon restart` from a shell when you need to restart the daemon itself.
 
-The current PureTUI always keeps the Tasks rail visible in zen mode. The
-legacy `zen.keepTasks` value and its Settings checkbox are retained in state
-but do not change this layout.
+Zen mode always keeps the Tasks rail visible — it carries the affordance for
+leaving zen. There is no setting for this.
 
 ## Starting sessions: the new-session dialog
 
@@ -376,9 +420,19 @@ built-in source can also hand off to a different built-in or custom target.
 A custom source has no readable transcript, so Rove refuses to continue it
 instead of opening a context-free tab.
 
-**Fork a child task** opens the quick composer (prompt, engine, branch). The
-child branches from your task's **current branch**, so committed work carries
-over. Uncommitted changes stay behind; commit first if the child needs them.
+**Fork a child task** opens the quick composer (prompt, attempts, engine,
+branch). The child branches from your task's **current branch**, so committed
+work carries over. Uncommitted changes stay behind; commit first if the child
+needs them.
+
+**Attempts** fans the same prompt out to a round of up to 5 siblings, the
+keyboard path to `rove api add --count N --prompt …`. They share one round id,
+so `rove api collect --group <id>` reports them together. A round does not move
+you: the siblings appear in the sidebar and start working while you stay on the
+task you fired from — only a single attempt still carries you into the child,
+because that one is "carry on from here". The chip stops at 5 where the CLI
+allows 10; [Orchestration](ORCHESTRATION.md) calls 3-4 the sweet spot, and past
+five the shell command is the better tool.
 
 `ctrl+a` `c` (continue in a new tab) and `ctrl+a` `f` (fork a child task)
 open the same dialog with the toggles pre-set.
@@ -399,12 +453,16 @@ workspace. The chords stay live, so you can hop between pages directly.
 ![The Kanban board: Backlog, In progress and Done for one project, with the card cursor on an in-progress story](assets/kanban.png)
 
 The [issue store](CONCEPTS.md#the-issue-store) as a board, one project at a
-time (`tab` cycles projects). Four columns:
+time (`tab` cycles projects). A project gets a section if it can hold a
+backlog at all — the issue store has a record for it, you saved it as a
+project, or a live task runs in it — so deleting the task you finished leaves
+its stories on the board. Four columns:
 
-- **Backlog.** Open or doing, not linked to a task.
-- **In progress.** Linked to a task. The link *is* the column: agents move
-  cards with `rove api issue-update --task`, and in-progress cards show the
-  linked task's live engine activity.
+- **Backlog.** Status `open`, not linked to a task.
+- **In progress.** Status `doing`, or linked to a task. Either route works:
+  agents move cards with `rove api issue-update --task`, a session started
+  from the drawer sets `doing`, and in-progress cards show the linked task's
+  live engine activity when there is a task to read it from.
 - **Parked.** Status `hold`, linked or not; sits between In progress and
   Done.
 - **Done.** Status `done`.
@@ -416,6 +474,13 @@ the board. Starting links the issue and flips it to `doing`. `n` creates a
 story, `d` deletes one (the issue record only; a linked task and its
 worktree are never touched). The board refreshes every few seconds, so cards
 moved by agents move on screen too.
+
+The drawer's **STATUS** field is how a human moves a card between columns: tab
+to it and `←/→` steps through `open · doing · hold · done`. The board's own
+keys steer the cursor and `d` deletes the story outright, so without this the
+only way to mark work finished was an agent running `rove api
+issue-set-status` — "I finished this" and "this never existed" were the same
+keypress.
 
 For a linked story, the drawer also shows an **EVENTS** snapshot with up to the
 12 most recent engine lifecycle events Rove still holds for that task. It is a
@@ -485,9 +550,19 @@ For a specific release or a browsable list of the latest 20 releases, use
 breaking version show a warning before installation.
 
 An amber **DAEMON OUT OF DATE** banner means this TUI and the already-running
-daemon are different builds. Finish any immediate interaction, run
-`rove daemon restart`, and relaunch Rove. Hosted engine sessions live in the
-separate PTY host and survive that daemon restart.
+daemon are different builds — the ordinary result of `rove update`, since the
+daemon is a long-lived process that keeps running the code it booted with.
+
+The banner names the chord that fixes it: `ctrl+a` `r` restarts the daemon and
+relaunches this Rove on the installed build, after one confirmation. Finish any
+immediate interaction first — the window goes away and comes back. Running
+engine sessions are not at risk: they live in the separate PTY host, which
+outlives both the daemon and the TUI, so open tabs reattach to the same
+sessions. Settings → Dev → **Restart backend** does the same thing, and
+`rove daemon restart` from a shell still works if you would rather.
+
+Rove offers the refresh, never takes it: there is no auto-restart, and the
+chord is only bound while the two builds actually differ.
 
 ## Narrow terminals (phone SSH)
 

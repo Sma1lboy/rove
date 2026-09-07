@@ -13,10 +13,12 @@
  *
  * Implementation: a single synchronous `git status --porcelain=v1`
  * call, classified per row (any `D` in either column → `−`, anything
- * else → `+`). Falls back to all-zeros for any failure mode (missing
- * repo, EACCES, git not on PATH, worktree gone) so the chip is hidden
- * rather than showing a confusing error state. Never throws — the
- * sidebar must always render.
+ * else → `+`). Never throws — the sidebar must always render — but a
+ * failure returns `null`, NOT zeros: a missing repo, an EACCES, git off
+ * PATH or a vanished worktree all mean "could not read", and `+0 −0` is
+ * the legitimate answer for a genuinely clean worktree. Rendering the two
+ * the same is how a coordinator reads an unreadable worktree as safe to
+ * land and a user reads it as safe to delete.
  *
  * ⚠️ SYNC — one-shot CLI use ONLY (`kobe api` task queries). `git
  * status` is O(repo size); calling this from a render path froze the
@@ -49,6 +51,14 @@ export interface WorktreeChanges {
    * only reads `git status` and therefore knows nothing about the base.
    */
   readonly behind?: number
+  /**
+   * Commits this worktree has that its base does NOT, from the same
+   * `--left-right` read that produced `behind`. Absent under exactly the same
+   * conditions. It is the only chip that survives a commit: committing empties
+   * `added`/`deleted`, so without it a worker that shipped and one that
+   * shipped nothing render identically.
+   */
+  readonly ahead?: number
 }
 
 const ZERO: WorktreeChanges = { added: 0, deleted: 0 }
@@ -59,8 +69,9 @@ const ZERO: WorktreeChanges = { added: 0, deleted: 0 }
  * pushed-map comparison, so "unchanged counts don't re-render rows"
  * (DESIGN §5.5) is one predicate everywhere.
  */
-export function sameWorktreeChanges(a: WorktreeChanges, b: WorktreeChanges): boolean {
-  return a.added === b.added && a.deleted === b.deleted && a.behind === b.behind
+export function sameWorktreeChanges(a: WorktreeChanges | null, b: WorktreeChanges | null): boolean {
+  if (a === null || b === null) return a === b
+  return a.added === b.added && a.deleted === b.deleted && a.behind === b.behind && a.ahead === b.ahead
 }
 
 /**
@@ -73,19 +84,25 @@ export function sameWorktreeChanges(a: WorktreeChanges, b: WorktreeChanges): boo
  * exactly the rows the daemon deliberately skips. Pure — unit-tested.
  */
 export function pickPushedChanges(
-  pushed: ReadonlyMap<string, WorktreeChanges> | null | undefined,
+  pushed: ReadonlyMap<string, WorktreeChanges | null> | null | undefined,
   worktreePath: string,
-): WorktreeChanges | null {
+): WorktreeChanges | "unknown" | null {
   if (!pushed) return null
-  return pushed.get(worktreePath) ?? ZERO
+  // PRESENT-with-null is the daemon saying it tried and could not read. That
+  // is not the same as an absent key, and it must not collapse into ZERO — the
+  // hidden chip is what let an unreadable worktree read as clean.
+  if (pushed.has(worktreePath)) return pushed.get(worktreePath) ?? "unknown"
+  return ZERO
 }
 
 /**
- * Read worktree change counts for `worktreePath`. Never throws —
- * returns zeros for any failure mode so the renderer skips the chip.
+ * Read worktree change counts for `worktreePath`. Never throws; returns
+ * `null` when the counts could not be read at all — an empty path, a
+ * non-zero `git status`, or a spawn that threw. `null` is NOT `{0,0}`:
+ * callers must render/report it as unknown, never as clean.
  */
-export function readWorktreeChanges(worktreePath: string): WorktreeChanges {
-  if (!worktreePath) return ZERO
+export function readWorktreeChanges(worktreePath: string): WorktreeChanges | null {
+  if (!worktreePath) return null
   try {
     const out = spawnSync("git", ["status", "--porcelain=v1"], {
       cwd: worktreePath,
@@ -98,10 +115,10 @@ export function readWorktreeChanges(worktreePath: string): WorktreeChanges {
       // makes this read-only: inspect, don't write, never take the lock.
       env: readOnlyGitProcessEnv(),
     })
-    if (out.status !== 0 || !out.stdout) return ZERO
+    if (out.status !== 0 || out.stdout === undefined || out.stdout === null) return null
     return parsePorcelain(out.stdout)
   } catch {
-    return ZERO
+    return null
   }
 }
 

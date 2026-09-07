@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest"
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { afterEach, beforeEach, describe, expect, it, test } from "vitest"
 import {
   type DiffComment,
   buildDiffReview,
@@ -256,5 +259,34 @@ describe("buildDiffReview", () => {
     buildDiffReview(kv, "t1", () => true).remove(stored[0]?.id ?? "")
     const after = kv.store.get(diffCommentsKey("t1")) as DiffComment[]
     expect(after.map((c) => c.body)).toEqual(["keep"])
+  })
+})
+
+describe("stale paths in the sent prompt", () => {
+  // The anchoring ceiling keeps a note on the path it was written against
+  // forever. When the branch renames or deletes that file, the prompt named a
+  // path the agent cannot open and said nothing about why.
+  const note = { filePath: "src/parser.js", line: 2, body: "use String() not trim" }
+  let root: string
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), "kobe-notes-"))
+  })
+  afterEach(() => rmSync(root, { recursive: true, force: true }))
+
+  test("marks a note whose path the branch no longer has", () => {
+    const out = formatDiffComments([note], root)
+    expect(out).toContain("File: src/parser.js")
+    expect(out).toContain("no longer in the branch")
+  })
+
+  test("says nothing about a path that is still there", () => {
+    mkdirSync(join(root, "src"), { recursive: true })
+    writeFileSync(join(root, "src", "parser.js"), "x\n")
+    expect(formatDiffComments([note], root)).not.toContain("no longer in the branch")
+  })
+
+  test("with no worktree to check against, marks nothing", () => {
+    expect(formatDiffComments([note])).not.toContain("no longer in the branch")
   })
 })

@@ -64,6 +64,29 @@ describe("isSyntheticCodexUserRow", () => {
     expect(isSyntheticCodexUserRow([{ type: "text", text }])).toBe(true)
   })
 
+  // Three shapes seen in live rollouts that the old predicate missed. A miss
+  // is not silent: auto-title takes the transcript's first `role: "user"`
+  // record, so the repo's contributor rules became the task's name.
+  it("detects an AGENTS.md envelope with no `for <path>` segment", () => {
+    const text = "# AGENTS.md instructions\n<INSTRUCTIONS>\nbe terse\n</INSTRUCTIONS>"
+    expect(isSyntheticCodexUserRow([{ type: "text", text }])).toBe(true)
+  })
+
+  it("detects an AGENTS.md envelope with trailing content after </INSTRUCTIONS>", () => {
+    const text = "# AGENTS.md instructions for /repo\n<INSTRUCTIONS>\nbe terse\n</INSTRUCTIONS>\n\nmore preamble"
+    expect(isSyntheticCodexUserRow([{ type: "text", text }])).toBe(true)
+  })
+
+  it("detects a recommended_plugins envelope", () => {
+    expect(isSyntheticCodexUserRow([{ type: "text", text: "<recommended_plugins>a</recommended_plugins>" }])).toBe(true)
+  })
+
+  it("still preserves a real prompt that merely mentions the envelopes", () => {
+    expect(
+      isSyntheticCodexUserRow([{ type: "text", text: "why does <INSTRUCTIONS> show up in my task titles?" }]),
+    ).toBe(false)
+  })
+
   it("is false when a real block is mixed in with an envelope", () => {
     expect(
       isSyntheticCodexUserRow([

@@ -77,3 +77,47 @@ test("a failed delete puts the row back", async () => {
   await settle()
   expect(await frame()).toContain("feature-a")
 })
+
+/**
+ * `GitWorktreeManager.remove` refuses in three ways, and only ONE of them said
+ * "refusing to remove dirty worktree" — the prose the page used to match. A
+ * worktree whose only work is gitignored (a `HANDOFF.md`, a `.scratch/`) hits
+ * the other refusal, so it never reached the force re-prompt: red toast, row
+ * back, and no way to get to the two-stage flow `docs/WORKTREES.md` documents.
+ *
+ * The page now discriminates on `DIRTY_WORKTREE`, the same test the task-row
+ * delete uses (`tui/lib/task-actions.ts`) for the other half of this one event.
+ */
+test("a gitignored-work refusal opens the force re-prompt, naming the paths", async () => {
+  const calls: boolean[] = []
+  const remove = (_path: string, force: boolean): Promise<void> => {
+    calls.push(force)
+    return force
+      ? Promise.resolve()
+      : Promise.reject(
+          new Error("DIRTY_WORKTREE: /x/wt/feature-a has gitignored work git status cannot see: HANDOFF.md"),
+        )
+  }
+  const { frame, mockInput } = await renderComponent(
+    <WorktreesPage orchestrator={orchestrator(remove)} onClose={() => {}} />,
+    { width: 70, height: 24, providers: { dialog: true, notifications: true } },
+  )
+  await settle()
+  mockInput.typeText("d")
+  await settle()
+  mockInput.pressArrow("right")
+  await settle()
+  mockInput.pressEnter() // confirm the ordinary delete
+  await settle()
+
+  // The second, more severe confirm — and it names what `git status` cannot.
+  const forcePrompt = await frame()
+  expect(forcePrompt).toContain("Force delete")
+  expect(forcePrompt).toContain("HANDOFF.md")
+
+  mockInput.pressArrow("right")
+  await settle()
+  mockInput.pressEnter() // authorize the force
+  await settle()
+  expect(calls).toEqual([false, true])
+})

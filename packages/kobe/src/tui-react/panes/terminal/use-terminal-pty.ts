@@ -24,7 +24,11 @@ import type {
   TerminalSnapshotWindow,
 } from "../../../tui/panes/terminal/pty"
 import type { PtyRegistry } from "../../../tui/panes/terminal/registry"
+import type { RowWrapFlags } from "../../../tui/panes/terminal/terminal-wrap"
 import { useLatest } from "../../lib/use-latest"
+
+/** Shared empty flags — a stable reference for backends that report none. */
+const NO_WRAP: RowWrapFlags = []
 
 export interface UseTerminalPtyOpts {
   cwd: string | null
@@ -58,6 +62,8 @@ export interface UseTerminalPtyResult {
   pty: TaskPty | null
   snapshot: readonly TerminalRow[]
   snapshotWindow: TerminalSnapshotWindow | null
+  /** Soft-wrap flags parallel to `snapshot` — see `DataListener`. */
+  wrapped: RowWrapFlags
   cursor: CursorPos | null
   exited: boolean
   acquireError: string | null
@@ -71,6 +77,10 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
   const [acquireError, setAcquireError] = useState<string | null>(null)
   const [snapshot, setSnapshot] = useState<readonly TerminalRow[]>([])
   const snapshotWindowRef = useRef<TerminalSnapshotWindow | null>(null)
+  // A ref for the same reason `snapshotWindow` is one: it is written in the
+  // same `onData` callback that calls `setSnapshot`, so the render triggered
+  // by that state change already sees the flags belonging to those rows.
+  const wrappedRef = useRef<RowWrapFlags>(NO_WRAP)
   const [cursor, setCursor] = useState<CursorPos | null>(null)
   // Dead-shell flag (revival checklist #5): flips when the PTY reports
   // exit for any reason. The last snapshot stays visible; the banner +
@@ -103,6 +113,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
       setPty(null)
       setSnapshot([])
       snapshotWindowRef.current = null
+      wrappedRef.current = NO_WRAP
       setCursor(null)
       setAcquireError(null)
       return
@@ -126,12 +137,14 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
       setPty(null)
       setSnapshot([])
       snapshotWindowRef.current = null
+      wrappedRef.current = NO_WRAP
       setCursor(null)
       return
     }
     setAcquireError(null)
     setSnapshot([])
     snapshotWindowRef.current = null
+    wrappedRef.current = NO_WRAP
     setCursor(null)
     setExited(handle.killed)
     setPty(handle)
@@ -157,8 +170,9 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
       setExited(true)
       onExitRef.current?.({ deadOnAttach: pty.deadOnAttach === true })
     })
-    const unsubscribe = pty.onData((snap, c, window) => {
+    const unsubscribe = pty.onData((snap, c, window, wrapped) => {
       snapshotWindowRef.current = window
+      wrappedRef.current = wrapped ?? NO_WRAP
       setSnapshot(snap)
       setCursor(c)
     })
@@ -168,6 +182,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
     try {
       const initial = pty.capture()
       snapshotWindowRef.current = pty.captureWindow()
+      wrappedRef.current = pty.captureWrapped?.() ?? NO_WRAP
       if (initial.length > 0) setSnapshot(initial)
       setCursor(pty.captureCursor())
     } catch {
@@ -202,6 +217,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
         setPty(fresh)
         setSnapshot([])
         snapshotWindowRef.current = null
+        wrappedRef.current = NO_WRAP
         setCursor(null)
         onFreshPtyRef.current()
       } catch (err) {
@@ -214,6 +230,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
         setPty(null)
         setSnapshot([])
         snapshotWindowRef.current = null
+        wrappedRef.current = NO_WRAP
         setCursor(null)
       }
     },
@@ -240,5 +257,14 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
     // satisfies the linter without changing when this effect re-fires.
   }, [opts.resetToken, forceReacquire])
 
-  return { pty, snapshot, snapshotWindow: snapshotWindowRef.current, cursor, exited, acquireError, forceReacquire }
+  return {
+    pty,
+    snapshot,
+    snapshotWindow: snapshotWindowRef.current,
+    wrapped: wrappedRef.current,
+    cursor,
+    exited,
+    acquireError,
+    forceReacquire,
+  }
 }

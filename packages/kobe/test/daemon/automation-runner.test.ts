@@ -2,8 +2,6 @@ import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, expect, it, vi } from "vitest"
-import type { DaemonRpcClient } from "../../../kobe-daemon/src/client/rpc.ts"
-import type { DispatchRuntime } from "../../../kobe-daemon/src/daemon/automation-dispatch.ts"
 import {
   dueAutomations,
   resolveDueOccurrence,
@@ -12,83 +10,7 @@ import {
   sweepAutomations,
 } from "../../../kobe-daemon/src/daemon/automation-runner.ts"
 import { AutomationsStore } from "../../../kobe-daemon/src/daemon/automations-store.ts"
-import type { Automation, DaemonTask } from "../../../kobe-daemon/src/daemon/contracts.ts"
-
-const NOW = new Date(2026, 6, 31, 10, 0, 0).getTime() // Fri 2026-07-31 10:00 local
-const HOUR = 3_600_000
-/** A real directory: prechecks spawn with `cwd: automation.repo`. */
-const REPO = process.cwd()
-
-function automation(overrides: Partial<Automation> = {}): Automation {
-  return {
-    id: "auto-1",
-    name: "audit",
-    repo: REPO,
-    prompt: "run the audit",
-    schedule: "0 9 * * *",
-    enabled: true,
-    nextRunAt: new Date(NOW).toISOString(),
-    missedRunGraceMinutes: 60,
-    createdAt: new Date(NOW - 30 * 24 * HOUR).toISOString(),
-    updatedAt: new Date(NOW - 30 * 24 * HOUR).toISOString(),
-    ...overrides,
-  }
-}
-
-async function tempStore(now = () => NOW): Promise<AutomationsStore> {
-  const dir = mkdtempSync(join(tmpdir(), "kobe-automation-runner-"))
-  const store = new AutomationsStore(join(dir, "automations.json"), now)
-  await store.init()
-  return store
-}
-
-const link = {} as DaemonRpcClient
-
-function fakeDeps(args: {
-  store: AutomationsStore
-  createTask?: (input: unknown) => Promise<DaemonTask>
-  start?: (link: DaemonRpcClient, taskId: string, prompt: string) => Promise<boolean>
-  /** Tasks `resolveStandingTask` can find, keyed by id. */
-  tasks?: Record<string, DaemonTask>
-  deliver?: DispatchRuntime["deliverPromptToLiveEngineDetailed"]
-}) {
-  const created: unknown[] = []
-  const prompts: string[] = []
-  const delivered: string[] = []
-  return {
-    created,
-    prompts,
-    delivered,
-    deps: {
-      store: args.store,
-      orch: {
-        createTask:
-          args.createTask ??
-          (async (input: unknown) => {
-            created.push(input)
-            return { id: "task-1" } as DaemonTask
-          }),
-        getTask: (id: string) => args.tasks?.[id],
-      },
-      runtime: {
-        startTaskSessionWithPrompt:
-          args.start ??
-          (async (_l: DaemonRpcClient, _id: string, prompt: string) => {
-            prompts.push(prompt)
-            return true
-          }),
-        deliverPromptToLiveEngineDetailed:
-          args.deliver ??
-          (async (_task: unknown, prompt: string) => {
-            delivered.push(prompt)
-            return { outcome: "delivered" as const, tabId: "tab-1" }
-          }),
-      },
-      link,
-      now: () => NOW,
-    },
-  }
-}
+import { HOUR, NOW, REPO, automation, fakeDeps, tempStore } from "./automation-runner-fixtures.ts"
 
 describe("dueAutomations", () => {
   it("selects only enabled schedules whose time has arrived", () => {
@@ -180,7 +102,7 @@ describe("runAutomationOnce", () => {
   it("creates a task and starts its engine with the prompt", async () => {
     const store = await tempStore()
     const { deps, created, prompts } = fakeDeps({ store })
-    const a = automation()
+    const a = await store.create(automation())
 
     const status = await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })
 
@@ -193,7 +115,7 @@ describe("runAutomationOnce", () => {
   it("passes vendor and baseRef through to task creation", async () => {
     const store = await tempStore()
     const { deps, created } = fakeDeps({ store })
-    await runAutomationOnce(deps, automation({ vendor: "codex", baseRef: "develop" }), {
+    await runAutomationOnce(deps, await store.create(automation({ vendor: "codex", baseRef: "develop" })), {
       scheduledFor: NOW,
       trigger: "scheduled",
     })
@@ -203,7 +125,7 @@ describe("runAutomationOnce", () => {
   it("skips without creating a task when the precheck fails", async () => {
     const store = await tempStore()
     const { deps, created } = fakeDeps({ store })
-    const a = automation({ precheck: { command: "exit 1", timeoutSeconds: 10 } })
+    const a = await store.create(automation({ precheck: { command: "exit 1", timeoutSeconds: 10 } }))
 
     const status = await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })
 
@@ -216,7 +138,7 @@ describe("runAutomationOnce", () => {
   it("proceeds when the precheck exits zero", async () => {
     const store = await tempStore()
     const { deps, created } = fakeDeps({ store })
-    const a = automation({ precheck: { command: "exit 0", timeoutSeconds: 10 } })
+    const a = await store.create(automation({ precheck: { command: "exit 0", timeoutSeconds: 10 } }))
 
     expect(await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })).toBe("dispatched")
     expect(created).toHaveLength(1)
@@ -226,7 +148,7 @@ describe("runAutomationOnce", () => {
     const store = await tempStore()
     const { deps, created } = fakeDeps({ store })
     // Asking for it by hand IS the answer to "is this worth running".
-    const a = automation({ precheck: { command: "exit 1", timeoutSeconds: 10 } })
+    const a = await store.create(automation({ precheck: { command: "exit 1", timeoutSeconds: 10 } }))
 
     expect(await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "manual" })).toBe("dispatched")
     expect(created).toHaveLength(1)
@@ -240,7 +162,7 @@ describe("runAutomationOnce", () => {
         throw new Error("repo not found")
       },
     })
-    const a = automation()
+    const a = await store.create(automation())
 
     expect(await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })).toBe("skipped_unavailable")
     expect(store.runsFor(a.id)[0]?.error).toMatch(/repo not found/)
@@ -248,8 +170,14 @@ describe("runAutomationOnce", () => {
 
   it("records dispatch_failed but keeps the task id when the engine will not start", async () => {
     const store = await tempStore()
-    const { deps } = fakeDeps({ store, start: async () => false })
-    const a = automation()
+    const { deps } = fakeDeps({
+      store,
+      start: async () => ({
+        started: false,
+        error: "engine process never started; last session output: command not found",
+      }),
+    })
+    const a = await store.create(automation())
 
     expect(await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })).toBe("dispatch_failed")
     // The task exists; surfacing its id lets the user open and retry it.

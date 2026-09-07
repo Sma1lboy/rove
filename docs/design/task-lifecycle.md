@@ -38,6 +38,14 @@ The new contract:
 
 - `delete` → worktree gone, index entry gone, **branch stays**. Always.
 - `delete --delete-branch` → also `git branch -d` (or `-D` under `--force`).
+  git can refuse that: `-d` will not drop a branch whose commits the base
+  cannot reach, and neither spelling touches a branch some other worktree
+  still has checked out. The delete stays best-effort — a refused branch never
+  fails the removal — but it is no longer silent: `~/.rove/daemon.log` gets a
+  `branch kept task <id> branch=<name> — git refused the delete: <git's own
+  reason>` line just before the `removed …` line. Without it that `removed …
+  branch=<name>` line read as confirmation the branch had gone with the
+  worktree.
 - `--force` continues to mean "I accept losing uncommitted work in the
   worktree". It never implies `--delete-branch`; the two escalations are
   orthogonal and must be requested separately.

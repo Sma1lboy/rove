@@ -43,10 +43,21 @@ describe("issueColumnKey", () => {
     expect(issueColumnKey(issue({ id: 7, status: "doing", taskId: "01T" }))).toBe("in_progress")
   })
 
-  test("open / doing / empty-link are backlog", () => {
+  test("open / empty-link are backlog", () => {
     expect(issueColumnKey(issue({ id: 8 }))).toBe("backlog")
-    expect(issueColumnKey(issue({ id: 9, status: "doing" }))).toBe("backlog")
     expect(issueColumnKey(issue({ id: 10, taskId: "" }))).toBe("backlog")
+  })
+
+  // `doing` needs no task to mean what it says. Bucketing it with `open` made
+  // the documented open → doing step move no card, and left the drawer's
+  // `project` placement — which writes exactly this status and links nothing —
+  // running an engine behind a card still sitting in Backlog.
+  test("an unlinked `doing` issue is in progress on its own say-so", () => {
+    expect(issueColumnKey(issue({ id: 9, status: "doing" }))).toBe("in_progress")
+    expect(issueColumnKey(issue({ id: 11, status: "doing", taskId: "" }))).toBe("in_progress")
+    // …and a `doing` card whose task vanished stays there rather than falling
+    // back to Backlog: the link is gone, the issue's own status is not.
+    expect(issueColumnKey(issue({ id: 12, status: "doing", taskId: "01GONE" }), () => false)).toBe("in_progress")
   })
 
   // The defensive half of the link contract. The daemon unlinks an issue when
@@ -173,6 +184,24 @@ describe("applyBoardAttention", () => {
     expect(columns.find((c) => c.key === "done")?.issues.map((i) => i.id)).toEqual([20])
     expect(columns.find((c) => c.key === "backlog")?.issues.map((i) => i.id)).toEqual([10])
     expect(attentionCount).toBe(3)
+  })
+
+  test("a dead engine is an attention state — the board was the last surface that missed it", () => {
+    // `dead` = the engine PROCESS is gone (SIGKILL / OOM / a quota 403). It
+    // will never move again, so a card linked to one is blocked in exactly the
+    // sense this group exists for. `BOARD_ATTENTION_STATES` predates the state
+    // and was never extended, so the column read "1 needs input" while TWO
+    // tasks were stuck — and the killed one sat below the fold looking like
+    // ordinary work in progress. Every other surface already knew:
+    // `attentionKindFor` → error, `itemGlyph` → `†`, the sidebar rail and the
+    // tab strip both render it.
+    const states = new Map([
+      ["T1", "permission_needed"],
+      ["T2", "dead"],
+    ])
+    const { columns, attentionCount } = applyBoardAttention(base, (id) => states.get(id))
+    expect(inProgress(columns)).toEqual([2, 1, 3])
+    expect(attentionCount).toBe(2)
   })
 
   test("empty board is a no-op", () => {

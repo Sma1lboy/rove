@@ -26,6 +26,8 @@
 
 import { readFile, stat, unlink } from "node:fs/promises"
 import type { Server } from "node:net"
+import { OWNER_ONLY_FILE_MODE, tightenFilePermissions } from "./owner-only.ts"
+import { isWindowsPipePath } from "./paths.ts"
 
 /** How often a running daemon re-checks that it still owns its socket path. */
 export const DEFAULT_SOCKET_WATCH_MS = 5000
@@ -35,10 +37,22 @@ type EventedServer = Server & {
   removeListener(event: "error", listener: (err: Error) => void): void
 }
 
-/** Bind `server` to `socketPath`; resolves once listening, rejects on the
- *  first bind error (EADDRINUSE, path too long, …). */
-export function listenOnUnixSocket(server: Server, socketPath: string): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
+/**
+ * Bind `server` to `socketPath`; resolves once listening, rejects on the
+ * first bind error (EADDRINUSE, path too long, …).
+ *
+ * The socket is chmod'd to 0600 after the bind, not before: `listen()` applies
+ * the process umask, so under the default 022 the node lands `srwxr-xr-x` and
+ * any local user can connect. The containing directory being 0700
+ * (`ensureOwnerOnlyDir`) already closes that, but the socket is the thing the
+ * whole no-peer-credential design leans on, so it says owner-only itself
+ * rather than borrowing the statement from its parent.
+ *
+ * A Windows named pipe has no filesystem node to chmod; its ACL comes from the
+ * pipe namespace instead.
+ */
+export async function listenOnUnixSocket(server: Server, socketPath: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
     const evented = server as EventedServer
     evented.once("error", reject)
     server.listen(socketPath, () => {
@@ -46,13 +60,53 @@ export function listenOnUnixSocket(server: Server, socketPath: string): Promise<
       resolve()
     })
   })
+  if (!isWindowsPipePath(socketPath)) await tightenFilePermissions(socketPath)
 }
 
+/**
+ * Whether a process exists. `process.kill(pid, 0)` sends no signal — it only
+ * runs the permission/existence check — so it answers in three ways:
+ *
+ * - returns → alive
+ * - throws `ESRCH` → gone
+ * - throws `EPERM` → alive, just owned by another user and not signalable
+ *
+ * The pid guard is load-bearing, not defensive typing: `kill(0, 0)` targets
+ * the CALLER'S OWN process group and succeeds, so a pidfile that parsed to
+ * `0` would otherwise report a dead daemon as alive and block every cleanup
+ * path that waits for it to go away.
+ *
+ * Any other error code counts as alive. Callers use this to decide whether
+ * to kill a process or steal a lock, and both are unsafe to do on a guess.
+ */
+export function isProcessAlive(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code !== "ESRCH"
+  }
+}
+
+/**
+ * The pid in `pidPath`, or `null` when the file cannot be trusted.
+ *
+ * `Number("")` is `0`, so a pidfile truncated mid-write parses as pid `0` —
+ * the value {@link isProcessAlive} guards against precisely because
+ * `kill(0, …)` targets the caller's own process group. This is the second
+ * layer: the predicate stops the signal, and this stops the bad pid from
+ * being carried any further, so a torn pidfile reads as "no pidfile" rather
+ * than as pid `0` in `stopDaemonProcess`'s reported result.
+ *
+ * Neither layer is the root fix. That is writing the file with tmp+rename
+ * (see `writeTextAtomic`) so a torn pidfile stops being produced at all.
+ */
 export async function readPidFile(pidPath: string): Promise<number | null> {
   try {
     const raw = await readFile(pidPath, "utf8")
     const pid = Number(raw.trim())
-    return Number.isFinite(pid) ? pid : null
+    return Number.isInteger(pid) && pid > 1 ? pid : null
   } catch {
     return null
   }

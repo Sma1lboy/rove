@@ -47,10 +47,35 @@ export const DIRTY_WORKTREE_CODE = "DIRTY_WORKTREE"
  * changes and `force` was not requested. The UI catches it (via
  * {@link DIRTY_WORKTREE_CODE}) and re-prompts for explicit force-delete
  * confirmation rather than silently destroying the work.
+ *
+ * `ignored` names the gitignored paths that triggered the refusal, when that
+ * is what did. `git status` cannot see those, so a user told only "uncommitted
+ * or untracked changes" would go looking with a command that reports nothing
+ * — the paths are the only way that refusal is actionable.
+ *
+ * `"unknown"` is the third answer: the ignored listing did not run, so nothing
+ * can say whether this worktree holds such work. It refuses through the SAME
+ * error on purpose — the UI already turns this one into a force-delete
+ * re-prompt, which is exactly the choice an unverifiable worktree needs.
+ *
+ * The sentence itself is {@link describeDirtyWorktreeWork}, shared with
+ * `GitWorktreeManager.remove`'s own refusals — the same three states, and a
+ * caller across the daemon boundary sees only the message either way.
  */
+export function describeDirtyWorktreeWork(ignored: readonly string[] | "unknown"): string {
+  return ignored === "unknown"
+    ? "gitignored work this check could not read (git status --ignored failed) — nothing here can confirm it is empty"
+    : ignored.length > 0
+      ? `gitignored work git status cannot see: ${ignored.join(", ")}`
+      : "uncommitted or untracked changes"
+}
+
 export class DirtyWorktreeError extends Error {
-  constructor(public readonly taskId: string) {
-    super(`${DIRTY_WORKTREE_CODE}: task ${taskId} worktree has uncommitted or untracked changes`)
+  constructor(
+    public readonly taskId: string,
+    public readonly ignored: readonly string[] | "unknown" = [],
+  ) {
+    super(`${DIRTY_WORKTREE_CODE}: task ${taskId} worktree has ${describeDirtyWorktreeWork(ignored)}`)
     this.name = "DirtyWorktreeError"
   }
 }

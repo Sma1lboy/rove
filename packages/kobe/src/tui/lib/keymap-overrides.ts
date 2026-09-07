@@ -59,6 +59,8 @@ export const FIXED_BINDING_IDS: Readonly<Record<string, string>> = {
   "diff.review.range": "diff-review range anchor is a fixed raw binding (v), not keymap-driven",
   "diff.review.note": "diff-review note is a fixed raw binding (c), not keymap-driven",
   "diff.review.send": "diff-review send is a fixed raw binding (s), not keymap-driven",
+  "diff.review.drop": "diff-review drop-note is a fixed raw binding (x), not keymap-driven",
+  "diff.review.reload": "preview reload is a fixed raw binding (r), not keymap-driven",
 }
 
 /**

@@ -27,6 +27,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { verbHelp, verbSchema } from "../../src/cli/api/schema.ts"
 import { findVerb } from "../../src/cli/api/verbs.ts"
+import { CONTRIB_ENGINE_IDS } from "../../src/engine/contrib-engines.ts"
 import { GENERIC_PROTOCOL, listEnginePresets, resolveCommandProtocol } from "../../src/engine/engine-presets.ts"
 import { ALL_VENDORS } from "../../src/types/vendor.ts"
 import { FakeClient, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
@@ -190,8 +191,35 @@ describe("--vendor discovery on the surfaces that still use it", () => {
     expect(verbHelp(findVerb("workitem-start")!)).toMatch(/--vendor \{[^}]*\bclaudecpa\b[^}]*\}/)
   })
 
-  it("lists only built-ins when no custom engine is registered", () => {
+  it("lists the shipped contrib engines alongside the built-ins", () => {
     writeState({})
-    expect(vendorValues(verbSchema(findVerb("workitem-start")!))).toEqual([...ALL_VENDORS])
+    // These are the ids `engine-list` advertises and `add --command` already
+    // takes. Leaving them out of `--vendor` made the gate reject a value its
+    // own error told the agent to go read off `engine-list`.
+    expect(vendorValues(verbSchema(findVerb("workitem-start")!))).toEqual([...ALL_VENDORS, ...CONTRIB_ENGINE_IDS])
+  })
+
+  it.each(["routine-create", "workitem-start"])("%s accepts a shipped contrib engine id", async (verb) => {
+    writeState({})
+    const client = new FakeClient({
+      "automation.create": () => ({ ok: true }),
+      "workitem.start": () => ({ ok: true }),
+    })
+    const argv =
+      verb === "routine-create"
+        ? ["--repo", "/repo/x", "--name", "nightly", "--prompt", "go", "--schedule", "0 9 * * MON"]
+        : ["--repo", "/repo/x", "--number", "7"]
+    await invokeVerb(verb, [...argv, "--vendor", "opencode"], { client, runtime })
+    expect(client.requests[0]?.payload).toMatchObject({ vendor: "opencode" })
+  })
+
+  it("still rejects an engine id nothing registers", async () => {
+    writeState({})
+    await expect(
+      invokeVerb("workitem-start", ["--repo", "/repo/x", "--number", "7", "--vendor", "nope"], {
+        client: new FakeClient({}),
+        runtime,
+      }),
+    ).rejects.toThrow(/--vendor/)
   })
 })

@@ -54,8 +54,14 @@ export interface AutoTitled {
 export async function runAutoTitlePass(
   orch: DaemonOrchestrator,
   derive: TitleDeriver,
-  placeholderTitle = "(new task)",
-  defaultVendor: VendorId = "claude",
+  /** Also required, and dead for the same reason: the runtime adapter passes
+   *  kobe's `PLACEHOLDER_TASK_TITLE`. */
+  placeholderTitle: string,
+  /** Required. The literal `"claude"` that used to sit here was a dead
+   *  fallback — every caller injects kobe's `DEFAULT_TASK_VENDOR` through the
+   *  runtime adapter — and it would not have followed that constant if it
+   *  ever changed. */
+  defaultVendor: VendorId,
 ): Promise<AutoTitled[]> {
   const renamed: AutoTitled[] = []
   const snapshot = orch.listTasks()
@@ -116,7 +122,7 @@ export function startAutoTitlePoller(
   runtime: Pick<DaemonRuntimeAdapter, "deriveTitleFromSession" | "placeholderTaskTitle" | "defaultTaskVendor">,
   intervalMs: number = DEFAULT_AUTO_TITLE_POLL_MS,
   hasSubscribers?: () => boolean,
-): () => void {
+): ReturnType<typeof startTicker> {
   return startTicker({
     name: "auto-title-poller",
     tickMs: intervalMs,

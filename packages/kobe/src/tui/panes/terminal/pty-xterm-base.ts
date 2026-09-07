@@ -4,19 +4,41 @@
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { Terminal as XtermHeadless } from "@xterm/headless"
 import { persistedScrollbackRows } from "../../../state/scrollback"
+import { profileSpan, profileTick } from "../../lib/render-profile"
 import { type TerminalInputModes, encodeMouseButton, encodeWheel } from "./keys-pure"
 import { PtyListeners } from "./pty-listeners"
 import {
   type CursorPos,
   DEFAULT_COLS,
   DEFAULT_ROWS,
+  type DataListener,
   type TaskPtyLike,
   type TaskPtyOpts,
   type TerminalRow,
   type TerminalSnapshotWindow,
 } from "./pty-types"
 import { XtermSnapshotEngine } from "./pty-xterm-snapshot"
+import type { RowWrapFlags } from "./terminal-wrap"
 import { XtermRefreshTracker, wireXtermChannels, wireXtermDefaultColorQueries } from "./xterm-refresh"
+
+/**
+ * How long a burst of PTY output is coalesced before one snapshot is built.
+ *
+ * This is the renderer's frame period, not a guess. `createCliRenderer` runs
+ * at `targetFps` 30 (src/tui/lib/host-render-options.ts sets no override, and
+ * `snapshot-coalesce.test.tsx` reads 30 off a live renderer), so a snapshot
+ * produced more often than every 33ms is built, published, committed through
+ * React and laid out by opentui for a frame that is then never drawn.
+ *
+ * It used to be 16ms — 62.5Hz against a 30Hz renderer. Measured on a pane
+ * streaming 200 lines/s at 200x50: 49 refreshes/s where the renderer drew 30,
+ * so ~40% of the whole snapshot→paint pass was discarded work.
+ *
+ * Raising it costs no visible latency: the extra snapshots were never on
+ * screen. It must not exceed the frame period either, or output visibly lags
+ * the renderer — hence the test that pins it to the live `targetFps`.
+ */
+export const SNAPSHOT_COALESCE_MS = 33
 
 export abstract class XtermTaskPty implements TaskPtyLike {
   readonly taskId: string
@@ -26,6 +48,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   private snapshot: readonly TerminalRow[] = []
   private cursor: CursorPos | null = null
   private snapshotWindow: TerminalSnapshotWindow | null = null
+  private snapshotWrapped: RowWrapFlags = []
   /** Output arrived while nobody was subscribed — snapshot is stale and
    * will be rebuilt lazily on the next capture()/subscribe. Keeps the N
    * background sessions of a multi-task workspace from re-converting
@@ -235,16 +258,14 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     }
   }
 
-  onData(
-    cb: (snapshot: readonly TerminalRow[], cursor: CursorPos | null, window: TerminalSnapshotWindow | null) => void,
-  ): () => void {
+  onData(cb: DataListener): () => void {
     // Refresh before registering so the lazy rebuild cannot double-notify.
     this.ensureFreshSnapshot()
     const off = this.listeners.addData(cb)
     this._unwatchedSince = null
     if (this.snapshot.length > 0) {
       try {
-        cb(this.snapshot, this.cursor, this.snapshotWindow)
+        cb(this.snapshot, this.cursor, this.snapshotWindow, this.snapshotWrapped)
       } catch {
         /* one listener must not break the others */
       }
@@ -318,6 +339,11 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     return this.snapshotWindow
   }
 
+  captureWrapped(): RowWrapFlags {
+    this.ensureFreshSnapshot()
+    return this.snapshotWrapped
+  }
+
   /** Rebuild a lazily-deferred snapshot unless synchronized output is mid-frame. */
   private ensureFreshSnapshot(): void {
     if (!this.snapshotDirty || this._killed) return
@@ -349,6 +375,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   private feedInternal(data: string | Uint8Array, muteReplies: boolean): void {
     if (this._killed) return
     if (muteReplies) this.muteReplies = true
+    profileTick("feed")
     this.term.write(data, () => {
       if (muteReplies) this.muteReplies = false
       if (!this.refreshTracker.supported) this.refreshTracker.markAll()
@@ -368,19 +395,21 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     setTimeout(() => {
       this.refreshQueued = false
       this.refreshSnapshot()
-    }, 16)
+    }, SNAPSHOT_COALESCE_MS)
   }
 
   private refreshSnapshot(): void {
     if (this._killed) return
-    const result = this.snapshotEngine.refresh(
-      this.term,
-      this.rows,
-      this.scrollbackRows,
-      this.refreshTracker,
-      this.snapshot,
-      this.cursor,
-      this.snapshotWindow,
+    const result = profileSpan("refresh", () =>
+      this.snapshotEngine.refresh(
+        this.term,
+        this.rows,
+        this.scrollbackRows,
+        this.refreshTracker,
+        this.snapshot,
+        this.cursor,
+        this.snapshotWindow,
+      ),
     )
     if (result === null) {
       // Don't snapshot a half-painted frame. Self-reschedule rather than
@@ -392,12 +421,14 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     this.snapshot = result.snapshot
     this.cursor = result.cursor
     this.snapshotWindow = result.snapshotWindow
+    this.snapshotWrapped = result.wrapped
     this.snapshotDirty = false
     if (result.changed) this.publishSnapshot()
   }
 
   private publishSnapshot(): void {
-    this.listeners.publishData(this.snapshot, this.cursor, this.snapshotWindow)
+    profileTick("publish")
+    this.listeners.publishData(this.snapshot, this.cursor, this.snapshotWindow, this.snapshotWrapped)
   }
 
   /** Free the emulator's cell buffers NOW instead of waiting for GC — the

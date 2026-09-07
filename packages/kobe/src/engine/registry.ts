@@ -27,7 +27,7 @@
  */
 
 import type { EngineCapabilities, EngineIdentity, EngineQuotaUsage, EngineUsageSnapshot, Message } from "@/types/engine"
-import { type VendorId, isBuiltinVendor } from "@/types/vendor"
+import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@/types/vendor"
 import type {
   ClaudeAccount,
   CodexAccount,
@@ -38,7 +38,7 @@ import type {
 } from "./account-detect.ts"
 import type { EngineTurnReader } from "./agent-turn.ts"
 import { BUILTIN_ENGINES } from "./builtin-engines.ts"
-import { contribEngineEntry, isContribEngine } from "./contrib-engines.ts"
+import { CONTRIB_ENGINE_IDS, contribEngineEntry, isContribEngine, pluginEngineIds } from "./contrib-engines.ts"
 import { EMPTY_HISTORY } from "./history-readers.ts"
 import { type EngineHookAdapter, NoopHookAdapter } from "./hook-adapter.ts"
 import type { EngineScreenManifest } from "./screen-state.ts"
@@ -67,7 +67,7 @@ export interface EngineHistoryReader {
    */
   listSessionIdsForWorktree(worktree: string): Promise<readonly string[]>
   /** Neutral messages for one session id; `[]` when not found. */
-  readHistory(sessionId: string): Promise<Message[]>
+  readHistory(sessionId: string): Promise<readonly Message[]>
   /**
    * Session-aggregate usage in the neutral {@link EngineUsageSnapshot} —
    * the vendor-specific token math (what counts as "context", what's
@@ -213,8 +213,8 @@ export interface EngineRegistryEntry {
   /**
    * Pre-trust a Rove-created worktree in the vendor's first-run trust
    * store. Every vendor gates a never-seen directory behind a
-   * modal trust dialog; hosted sessions can't answer one (kimi's even
-   * EXITS when the pasted first message's Enter lands on "Don't trust").
+   * modal trust dialog; hosted sessions can't answer one, so the pane stalls
+   * on the dialog. Writing the record is what skips it.
    * Called before a hosted spawn; must be idempotent and merge-preserving.
    * Absent = the vendor has no gate kobe knows how to pre-answer.
    */
@@ -228,11 +228,17 @@ export interface EngineRegistryEntry {
    */
   readonly readTurns?: EngineTurnReader
   /**
-   * Declarative screen-state rules for engines WITHOUT persisted completion
-   * markers (see `engine/screen-state.ts`): the quiescence poll classifies
-   * each pane capture into working/blocked/idle instead of "unknown".
-   * Engines with markers don't declare one — the transcript is the better
-   * authority, and hooks supersede both (`turn-state-merge.ts`).
+   * Declarative screen-state rules (see `engine/screen-state.ts`): the
+   * quiescence poll classifies each pane capture into working/blocked/idle
+   * instead of publishing "unknown".
+   *
+   * It is the BOTTOM of a three-layer ladder — hooks > transcript markers >
+   * screen — not an alternative to the top two. Marker-carrying engines
+   * declare one too (claude and codex both do, `builtin-engines.ts`), because
+   * the layers cover different gaps: hooks need the user to trust them once,
+   * markers land only after a turn ends, and neither can see a modal the
+   * engine is currently blocked on. `turn-state-merge.ts` owns the precedence;
+   * `use-turn-polls.ts` passes this through when the entry has one.
    */
   readonly screenManifest?: EngineScreenManifest
 }
@@ -272,6 +278,23 @@ export function engineEntry(vendor: VendorId): EngineRegistryEntry {
   // Shipped contrib engines (data-only long tail): the custom empty entry
   // overlaid with the catalog's identity + screen manifest.
   return isContribEngine(vendor) ? contribEngineEntry(vendor, custom) : custom
+}
+
+/**
+ * Every engine id whose launch binary this module can NAME without reading
+ * state: the built-ins, the shipped contrib catalog, and whatever plugins
+ * registered this run. That is the identifiable set — a truly custom id
+ * carries its binary in `engineCommand.<id>`, which lives in state this
+ * module deliberately never reads, so callers holding that state pass the
+ * launch argv in themselves (see `foreground.ts#engineProcessIn`'s
+ * `extraLaunch`).
+ *
+ * Recomputed per call rather than cached: `pluginEngineIds()` changes when
+ * plugins are enabled/disabled at runtime, and the array is small enough
+ * that a stale cache would cost more than it saves.
+ */
+export function identifiableEngineIds(): readonly VendorId[] {
+  return [...BUILTIN_VENDORS, ...CONTRIB_ENGINE_IDS, ...pluginEngineIds()]
 }
 
 /**
@@ -379,5 +402,19 @@ export function getCapabilities(vendor: VendorId): EngineCapabilities | undefine
 export function vendorsWithQuotaProbe(): readonly VendorId[] {
   return Object.values(BUILTIN_ENGINES)
     .filter((entry) => entry.quotaUsage)
+    .map((entry) => entry.vendor)
+}
+
+/**
+ * Built-in vendors that ship a per-turn reader. `agent-turns` names these in
+ * its own summary so an empty page can say WHY it is empty — an engine with no
+ * reader contributes nothing, which is a different fact from a task that did no
+ * work. Derived rather than written down: a hard-coded pair in the CLI layer
+ * would be a vendor string in neutral code AND would go stale the moment a
+ * third adapter lands.
+ */
+export function vendorsWithTurnReader(): readonly VendorId[] {
+  return Object.values(BUILTIN_ENGINES)
+    .filter((entry) => entry.readTurns)
     .map((entry) => entry.vendor)
 }

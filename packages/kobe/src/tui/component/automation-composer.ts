@@ -9,20 +9,31 @@
  * rather than letting the daemon reject a typo after the fact.
  */
 
+import { intlLocale, t } from "@/tui/i18n"
+import type { Automation } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import { isValidCron, nextCronAfter } from "@sma1lboy/kobe-daemon/daemon/cron"
 import { relativeBuckets } from "../../lib/relative-time"
 
 /** Card fields, in tab order. `confirm` is the Create button. */
-export type ComposerField = "name" | "repo" | "prompt" | "schedule" | "confirm"
+export type ComposerField = "name" | "repo" | "target" | "targetTab" | "prompt" | "schedule" | "confirm"
 
-export const COMPOSER_FIELDS: readonly ComposerField[] = ["name", "repo", "prompt", "schedule", "confirm"]
+export const COMPOSER_FIELDS: readonly ComposerField[] = [
+  "name",
+  "repo",
+  "target",
+  "targetTab",
+  "prompt",
+  "schedule",
+  "confirm",
+]
 
 /** Tab / shift-tab, wrapping — the card is a loop, not a wizard with an end. */
-export function nextComposerField(field: ComposerField, delta: 1 | -1 = 1): ComposerField {
-  const index = COMPOSER_FIELDS.indexOf(field)
+export function nextComposerField(field: ComposerField, delta: 1 | -1 = 1, bound = false): ComposerField {
+  const fields = bound ? COMPOSER_FIELDS : COMPOSER_FIELDS.filter((f) => f !== "targetTab")
+  const index = fields.indexOf(field)
   if (index < 0) return "name"
-  const next = (index + delta + COMPOSER_FIELDS.length) % COMPOSER_FIELDS.length
-  return COMPOSER_FIELDS[next] as ComposerField
+  const next = (index + delta + fields.length) % fields.length
+  return fields[next] ?? "name"
 }
 
 export interface ComposerDraft {
@@ -30,6 +41,7 @@ export interface ComposerDraft {
   readonly repo: string
   readonly prompt: string
   readonly schedule: string
+  readonly target?: Automation["target"]
 }
 
 export const EMPTY_DRAFT: ComposerDraft = { name: "", repo: "", prompt: "", schedule: "0 9 * * MON-FRI" }
@@ -40,6 +52,7 @@ export function canSubmitDraft(draft: ComposerDraft): boolean {
     draft.name.trim().length > 0 &&
     draft.repo.trim().length > 0 &&
     draft.prompt.trim().length > 0 &&
+    (!draft.target || (draft.target.taskId.trim().length > 0 && /^tab-[\w-]+$/.test(draft.target.tabId))) &&
     isValidCron(draft.schedule.trim())
   )
 }
@@ -52,6 +65,8 @@ export function canSubmitDraft(draft: ComposerDraft): boolean {
 export function firstIncompleteField(draft: ComposerDraft): Exclude<ComposerField, "confirm"> | null {
   if (draft.name.trim().length === 0) return "name"
   if (draft.repo.trim().length === 0) return "repo"
+  if (draft.target && !draft.target.taskId.trim()) return "target"
+  if (draft.target && !/^tab-[\w-]+$/.test(draft.target.tabId)) return "targetTab"
   if (draft.prompt.trim().length === 0) return "prompt"
   if (!isValidCron(draft.schedule.trim())) return "schedule"
   return null
@@ -88,18 +103,21 @@ export function previewSchedule(expression: string, nowMs: number): SchedulePrev
 
 function formatRelative(deltaMs: number): string {
   const { minutes, hours, days } = relativeBuckets(deltaMs)
-  if (minutes < 60) return `in ${Math.max(1, minutes)}m`
-  if (hours < 24) return `in ${hours}h`
-  return `in ${days}d`
+  if (minutes < 60) return t("automations.when.inMinutes", { n: Math.max(1, minutes) })
+  if (hours < 24) return t("automations.when.inHours", { n: hours })
+  return t("automations.when.inDays", { n: days })
 }
-
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const
 
 /**
  * Local wall-clock, at the coarsest useful precision: `09:00` when it fires
- * today, `Mon 09:00` within the week, `Mon Aug 3, 09:00` beyond it. The date
+ * today, `Mon 09:00` within the week, `Mon, Aug 3, 09:00` beyond it. The date
  * is what disambiguates a schedule; repeating today's is noise.
+ *
+ * The calendar words and their ORDER come from `Intl` for the UI locale, not
+ * from an English table plus a hand-built template: zh reads `8月3日周一`,
+ * not `周一 8月 3`, and every locale added later gets its own order for free.
+ * The 24-hour clock is built by hand on purpose — it is the same instant in
+ * every locale, and `Intl`'s en-US default would turn it into `9:00 AM`.
  */
 function formatAbsolute(atMs: number, nowMs: number): string {
   const at = new Date(atMs)
@@ -108,7 +126,10 @@ function formatAbsolute(atMs: number, nowMs: number): string {
   const sameDay =
     at.getFullYear() === now.getFullYear() && at.getMonth() === now.getMonth() && at.getDate() === now.getDate()
   if (sameDay) return time
-  const weekday = WEEKDAYS[at.getDay()] ?? ""
-  if (atMs - nowMs < 6 * 24 * 60 * 60 * 1000) return `${weekday} ${time}`
-  return `${weekday} ${MONTHS[at.getMonth()] ?? ""} ${at.getDate()}, ${time}`
+  const withinWeek = atMs - nowMs < 6 * 24 * 60 * 60 * 1000
+  const date = at.toLocaleDateString(
+    intlLocale(),
+    withinWeek ? { weekday: "short" } : { weekday: "short", month: "short", day: "numeric" },
+  )
+  return withinWeek ? `${date} ${time}` : t("automations.when.dateTime", { date, time })
 }

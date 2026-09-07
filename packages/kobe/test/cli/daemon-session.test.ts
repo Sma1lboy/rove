@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@sma1lboy/kobe-daemon/client/daemon-process", () => mocks)
 
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
-import { openDaemonSession, resolveActiveTaskId, withDaemonSession } from "../../src/cli/daemon-session.ts"
+import { openDaemonSession, resolveActiveTaskId } from "../../src/cli/daemon-session.ts"
 
 function fakeClient(): KobeDaemonClient & { close: ReturnType<typeof vi.fn> } {
   return { close: vi.fn() } as unknown as KobeDaemonClient & { close: ReturnType<typeof vi.fn> }
@@ -49,43 +49,6 @@ describe("openDaemonSession", () => {
   it("propagates a connect-or-start failure to the caller", async () => {
     mocks.connectOrStartDaemon.mockRejectedValue(new Error("daemon did not start"))
     await expect(openDaemonSession()).rejects.toThrow("daemon did not start")
-  })
-})
-
-describe("withDaemonSession", () => {
-  it("closes the socket after successful work and returns its value", async () => {
-    const client = fakeClient()
-    mocks.connectOrStartDaemon.mockResolvedValue(client)
-    const result = await withDaemonSession(async (c) => {
-      expect(c).toBe(client)
-      expect(client.close).not.toHaveBeenCalled()
-      return 42
-    })
-    expect(result).toBe(42)
-    expect(client.close).toHaveBeenCalledTimes(1)
-  })
-
-  it("closes the socket even when work throws", async () => {
-    const client = fakeClient()
-    mocks.connectOrStartDaemon.mockResolvedValue(client)
-    await expect(
-      withDaemonSession(async () => {
-        throw new Error("handler exploded")
-      }),
-    ).rejects.toThrow("handler exploded")
-    expect(client.close).toHaveBeenCalledTimes(1)
-  })
-
-  it("require-running mode runs work with null when the daemon is absent", async () => {
-    mocks.connectIfRunning.mockResolvedValue(null)
-    const seen: unknown[] = []
-    await withDaemonSession(
-      async (c) => {
-        seen.push(c)
-      },
-      { mode: "require-running" },
-    )
-    expect(seen).toEqual([null])
   })
 })
 

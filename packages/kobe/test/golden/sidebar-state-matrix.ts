@@ -48,7 +48,7 @@ const CUSTOM_VENDOR = "my-engine"
 
 /** `undefined` is a real, distinct INPUT everywhere below — no activity entry
  *  at all reaches different code than an `idle` one, even though both render
- *  as the same dim `·`. Keeping them apart here is what proves that. */
+ *  as the same quiet `○`. Keeping them apart here is what proves that. */
 const ACTIVITY_STATES: ReadonlyArray<TaskActivityState | undefined> = [undefined, ...TASK_ACTIVITY_STATES]
 
 const DELETION_PHASES = [undefined, "queued", "running", "error"] as const

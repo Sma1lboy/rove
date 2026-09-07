@@ -122,6 +122,10 @@ export type TerminalProps = {
 /* --------------------------------------------------------------------- */
 
 export function Terminal(props: TerminalProps) {
+  return <TerminalSession key={props.taskId} {...props} />
+}
+
+function TerminalSession(props: TerminalProps) {
   const { theme } = useTheme()
   const t = useT()
   const registry = props.registry ?? getDefaultPtyRegistry()
@@ -149,7 +153,7 @@ export function Terminal(props: TerminalProps) {
     [props.terminalPresentation, defaultColors],
   )
 
-  const { pty, snapshot, snapshotWindow, cursor, exited, acquireError, forceReacquire } = useTerminalPty({
+  const { pty, snapshot, snapshotWindow, wrapped, cursor, exited, acquireError, forceReacquire } = useTerminalPty({
     cwd: props.cwd,
     taskId: props.taskId,
     command: props.command,
@@ -214,6 +218,7 @@ export function Terminal(props: TerminalProps) {
     visibleRangeStart: visibleRange.start,
     snapshot,
     snapshotWindow,
+    wrapped,
     scrollBy: scrollFromPointer,
     // Same `mouseTrackingMode` the forwarded press is gated on, read rather
     // than clicked — the pane has to notice the app taking the mouse under a
@@ -227,6 +232,7 @@ export function Terminal(props: TerminalProps) {
     focused,
     snapshot,
     snapshotWindow,
+    wrapped,
     bodyRows,
     onAlternateScreen: pty?.onAlternateScreen ?? false,
     scrollState,
@@ -408,6 +414,9 @@ export function Terminal(props: TerminalProps) {
         </box>
       ) : null}
 
+      {/* The inline arrow is load-bearing, not an oversight: it re-attaches on
+          every render, which is what re-runs the geometry measurement until
+          Yoga has laid the box out. See `use-terminal-geometry.ts`. */}
       <box ref={(r: BoxRenderable | null) => setBodyEl(r)} onSizeChange={bumpGeomTick} flexGrow={1} overflow="hidden">
         {/* Body */}
         {pty ? (

@@ -16,6 +16,17 @@ export type {
   AutomationRunStatus,
   TaskRoutineLink,
 } from "./automation-contracts.ts"
+export { automationRunNeedsAttention } from "./automation-contracts.ts"
+
+// Engine activity + the attention Inbox, same arrangement and same reason.
+export type {
+  AttentionInboxItem,
+  AttentionInboxState,
+  EngineActivityDetail,
+  EngineActivityKind,
+  TaskActivityState,
+} from "./attention-contracts.ts"
+export { ATTENTION_INBOX_STATES, attentionInboxItemKey, isAttentionInboxState } from "./attention-contracts.ts"
 
 /** Engine id (kobe `VendorId`). Deliberately plain `string`: the daemon
  *  treats vendor ids as opaque pass-through values and never narrows on
@@ -68,7 +79,6 @@ export interface TaskPRStatus {
   readonly url?: string
   readonly title?: string
   readonly baseRef?: string
-  readonly headRef?: string
   readonly reviewDecision?: string
   readonly mergeable?: string
   readonly lastCheckedAt?: string
@@ -137,6 +147,34 @@ export interface DaemonTask {
   readonly updatedAt: string
 }
 
+/**
+ * Result of a `task.landPreflight` — the read-only "may this land, and into
+ * what" probe. Mirrors the orchestrator's `LandPreflight`. `refusal` set means
+ * the land would be refused for that reason; absent means it may proceed.
+ */
+export interface LandPreflightResult {
+  readonly branch: string
+  /** The merge destination: the base checkout's current branch. Empty only
+   *  under the detached-HEAD refusal, where there is no branch to name. */
+  readonly landedOn: string
+  /** Commits on `branch` the destination does not have. Absent — never a
+   *  fabricated zero — when git could not count them. */
+  readonly ahead?: number
+  readonly baseDirty?: boolean
+  readonly refusal?:
+    | "DETACHED_HEAD"
+    | "UNREADABLE_BASE"
+    | "UNBORN_BASE"
+    | "SAME_BRANCH"
+    | "MAIN_CHECKOUT_DIRTY"
+    | "MISSING_REF"
+    | "EMPTY_BRANCH"
+    | "EMPTY_BRANCH_DIRTY_WORKTREE"
+  /** Uncommitted paths in the task's worktree — only with `EMPTY_BRANCH_DIRTY_WORKTREE`. */
+  readonly dirtyFiles?: readonly string[]
+  readonly baseDir: string
+}
+
 /** Result of a `task.land` — mirrors the orchestrator's `LandResult`. */
 export interface LandResult {
   readonly branch: string
@@ -169,7 +207,10 @@ export interface AdoptableWorktree {
   readonly path: string
   readonly branch: string
   readonly head: string
-  readonly dirty: boolean
+  /** `null` = the `git status` probe FAILED (unreadable `.git`, worktree
+   *  gone mid-scan), not "clean". A worktree holding uncommitted work whose
+   *  status answers "Permission denied" must not be reported as `false`. */
+  readonly dirty: boolean | null
   readonly kobeManaged: boolean
   readonly lastActivityMs: number
 }
@@ -224,6 +265,8 @@ export interface DaemonOrchestrator {
   prepareTaskDeletion(id: string, options?: { force?: boolean; deleteBranch?: boolean }): Promise<boolean>
   beginTaskDeletion(id: string): Promise<boolean>
   finishTaskDeletion(id: string): Promise<void>
+  /** Read-only land probe — no writes; see {@link LandPreflightResult}. */
+  landPreflight(id: string): Promise<LandPreflightResult>
   landTask(
     id: string,
     options?: {
@@ -246,70 +289,6 @@ export interface DaemonOrchestrator {
     ifExists: "return" | "error"
   }): Promise<DaemonTask>
 }
-
-export type EngineActivityKind =
-  | "session-start"
-  | "turn-start"
-  | "turn-complete"
-  | "turn-failed"
-  | "turn-interrupted"
-  | "awaiting-input"
-  | "session-end"
-  // Lifecycle-only kinds — plugin-facing, never folded into the activity badge.
-  | "tool-pre"
-  | "tool-post"
-  | "tool-failed"
-  | "pre-compact"
-  | "post-compact"
-  | "subagent-start"
-  | "subagent-stop"
-
-export interface EngineActivityDetail {
-  readonly failure?: "rate_limit" | "billing" | "other"
-  readonly waiting?: "permission" | "input"
-  readonly tool?: { readonly name?: string; readonly id?: string }
-  readonly compact?: { readonly trigger?: "manual" | "auto" }
-  readonly subagent?: { readonly type?: string; readonly id?: string }
-  readonly note?: string
-  /**
-   * For the `dead` state: how the engine process died, straight off the
-   * pty-host's exit record. `code`/`signal` answer "who killed it" (143 =
-   * 128+SIGTERM, an outside signal, not a self-exit) and `lastLine` is the
-   * last non-blank line of the recorded tail — the 403 / auth / quota text
-   * that sits on disk with nothing else surfacing it.
-   */
-  readonly exit?: {
-    readonly code?: number | null
-    readonly signal?: string | null
-    readonly lastLine?: string
-  }
-  /**
-   * Reference to a daemon-owned deferred-prompt record.
-   * Present only on `prompt_deferred` inbox episodes. The prompt TEXT lives in
-   * the DeferredPromptsStore, never here — this contract describes engine
-   * activity, and a raw prompt is not engine activity.
-   */
-  readonly deferredPrompt?: {
-    readonly id: string
-    readonly layer: "recent-human-write" | "composer-not-empty"
-  }
-}
-
-export type TaskActivityState =
-  | "idle"
-  | "running"
-  | "turn_complete"
-  | "rate_limited"
-  | "permission_needed"
-  | "error"
-  /**
-   * The engine PROCESS died — an exit record exists for the tab's session
-   * (`pty-exits.json`). Distinct from `error`: `error` is an engine that ran
-   * and reported a failed turn, `dead` is an engine that is gone.
-   * A killed engine fires no hook at all, so this state can only ever be
-   * written from the exit record, never from `reduceActivity`.
-   */
-  | "dead"
 
 /**
  * The ENGINE half of a turn record — what the vendor's adapter
@@ -344,56 +323,6 @@ export interface AgentTurnRecord extends Omit<AgentTurn, "sessionId"> {
   readonly sessionId?: string
   /** Source repo of the task, so a digest can scope by project. */
   readonly repo?: string
-}
-
-/** States represented by pending Inbox items until handled or the same
- * Terminal Tab starts another turn. Deliberately NOT a subset of
- * {@link TaskActivityState}: `prompt_deferred` is a queue/ownership state (a
- * prompt the daemon accepted but could not paste), not an engine activity —
- * the engine may be idle while a deferred prompt waits for release. */
-export const ATTENTION_INBOX_STATES = [
-  "turn_complete",
-  "permission_needed",
-  "error",
-  "rate_limited",
-  "prompt_deferred",
-  /** The engine PROCESS died (pty-host exit record). An episode a user must
-   *  see: nothing else in the queue tells them the agent is simply gone. */
-  "dead",
-] as const
-
-export type AttentionInboxState = (typeof ATTENTION_INBOX_STATES)[number]
-
-export function isAttentionInboxState(value: unknown): value is AttentionInboxState {
-  return typeof value === "string" && (ATTENTION_INBOX_STATES as readonly string[]).includes(value)
-}
-
-export function attentionInboxItemKey(item: {
-  taskId: string | null
-  tabId: string | null
-  state?: AttentionInboxState
-}): string {
-  // `prompt_deferred` gets its own lane. Every other episode DESCRIBES the
-  // engine, so one-per-tab is right: a fresh turn-complete should replace the
-  // stale one. A deferred prompt is not a description — the daemon is holding
-  // a human's text and this episode is the only pointer to it, so sharing the
-  // tab's single slot lets the target's next turn silently orphan the record
-  // — stored prompts with nothing in the inbox pointing at them.
-  const lane = item.state === "prompt_deferred" ? "\0deferred" : ""
-  return `${item.taskId}\0${item.tabId ?? ""}${lane}`
-}
-
-/** One daemon-owned, durable attention episode for a task's engine tab. */
-export interface AttentionInboxItem {
-  readonly taskId: string
-  /** `null` for hook events that predate or lack a tab identity. */
-  readonly tabId: string | null
-  readonly state: AttentionInboxState
-  readonly detail?: EngineActivityDetail
-  /** Compatibility field ignored by the queue model; new episodes set it to `true`. */
-  readonly unread: boolean
-  /** Event time, epoch milliseconds. Stable across daemon/TUI restarts. */
-  readonly at: number
 }
 
 export interface UpdateInfo {
@@ -443,4 +372,16 @@ export interface WorktreeChanges {
    * rather than reporting a fabricated zero.
    */
   readonly behind?: number
+  /**
+   * Commits this worktree has that its base does NOT (the right half of `git
+   * rev-list --left-right --count <base>...HEAD`). Absent under exactly the
+   * same conditions as `behind` — they come off one process — so a repo with
+   * no resolvable base reports neither rather than a fabricated zero.
+   *
+   * This is the only number that separates a worker that committed (clean
+   * worktree, `ahead > 0`) from one that reported success and delivered
+   * nothing (clean worktree, `ahead === 0`); without it both rows render
+   * blank and the difference only surfaces at land time as `EMPTY_BRANCH`.
+   */
+  readonly ahead?: number
 }

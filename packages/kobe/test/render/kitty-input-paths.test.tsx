@@ -7,6 +7,24 @@ import { Terminal } from "../../src/tui-react/panes/terminal/Terminal"
 import { createScriptedPtyRegistry } from "../../src/tui/panes/terminal/pty-scripted"
 import { act, renderComponent, settle } from "./harness"
 
+/**
+ * Wait until `<Terminal>` has actually taken a pty out of the registry.
+ *
+ * One `await frame()` flushes a render pass, which is not the same thing: the
+ * acquire happens in a mount effect, so a loaded machine can paint the first
+ * frame with the registry still empty and `harness.last()` throws "scripted pty
+ * registry: nothing acquired yet" — an error that reads like a broken fixture
+ * rather than a race. Seen once in ten soak runs of the render track.
+ */
+async function acquiredPty(harness: ReturnType<typeof createScriptedPtyRegistry>, timeoutMs = 2_000) {
+  const deadline = Date.now() + timeoutMs
+  while (harness.ptys.length === 0) {
+    if (Date.now() >= deadline) throw new Error(`no pty acquired within ${timeoutMs}ms`)
+    await settle(10)
+  }
+  return harness.last()
+}
+
 function ComposerProbe() {
   const [value, setValue] = useState("")
   useBindings(() => ({ bindings: [] }))
@@ -28,11 +46,11 @@ test("kitty all-keys-as-escapes input still types into a composer", async () => 
 
 test("kitty modifier, text, keypad, and navigation events are re-encoded for the embedded PTY", async () => {
   const harness = createScriptedPtyRegistry()
-  const { mockInput, frame } = await renderComponent(
+  const { mockInput } = await renderComponent(
     <Terminal cwd="/wt" taskId="kitty-wire" focused registry={harness.registry} />,
     { width: 60, height: 12, providers: { dialog: true } },
   )
-  await frame()
+  await acquiredPty(harness)
 
   const wireEvents = [
     "\x1b[57442;5u",
@@ -78,13 +96,11 @@ test("kitty modifier, text, keypad, and navigation events are re-encoded for the
 
 test("kitty navigation follows the child PTY application cursor and keypad modes", async () => {
   const harness = createScriptedPtyRegistry()
-  const { mockInput, frame } = await renderComponent(
+  const { mockInput } = await renderComponent(
     <Terminal cwd="/wt" taskId="kitty-application-modes" focused registry={harness.registry} />,
     { width: 60, height: 12, providers: { dialog: true } },
   )
-  await frame()
-
-  harness.last().modes = { applicationCursorKeys: true, applicationKeypad: true }
+  ;(await acquiredPty(harness)).modes = { applicationCursorKeys: true, applicationKeypad: true }
   act(() => {
     mockInput.pressKey("\x1b[1;1:1A")
     mockInput.pressKey("\x1b[1;1:1H")
