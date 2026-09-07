@@ -17,7 +17,8 @@ describe("shared hook groups", () => {
     const installed = mergeActivityHooks(current, true, events, ["kobe"])
     expect(installed).toMatchObject({
       extra: true,
-      hooks: { Stop: [kept, { hooks: [{ command: "'kobe' 'hook' 'turn-complete'" }] }] },
+      // The single-quoted legacy entry is recognized as ours and re-written bare.
+      hooks: { Stop: [kept, { hooks: [{ command: "kobe hook turn-complete" }] }] },
     })
     expect(mergeActivityHooks(installed, false, events, ["kobe"])).toEqual({ extra: true, hooks: { Stop: [kept] } })
     expect(current.hooks.Stop[0].hooks).toHaveLength(2)
