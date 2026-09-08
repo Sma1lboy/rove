@@ -47,10 +47,22 @@ describe("nextSoundVolume", () => {
     expect(SOUND_VOLUME_STEPS).toContain(DEFAULT_SOUND_VOLUME)
   })
 
-  it("lands on a step from a value between steps, never staying put", () => {
-    const off = nextSoundVolume(0.33)
-    expect(SOUND_VOLUME_STEPS).toContain(off)
-    expect(off).not.toBe(0.33)
+  it("advances by exactly one step from a value between steps, never skipping one", () => {
+    // A hand-edited state.json can hold a value that is not itself a step;
+    // cycling must land on the next step UP, not the one after it.
+    expect(nextSoundVolume(0.33)).toBe(0.4)
+    expect(nextSoundVolume(0.5)).toBe(0.6)
+    expect(nextSoundVolume(0.7)).toBe(0.8)
+  })
+
+  it("cycles up to the quietest step from a sub-minimum value, including the silent 0", () => {
+    expect(nextSoundVolume(0.05)).toBe(SOUND_VOLUME_STEPS[0])
+    expect(nextSoundVolume(0)).toBe(SOUND_VOLUME_STEPS[0])
+  })
+
+  it("advances by exactly one step from every on-step value, wrapping at the top", () => {
+    const advanced = SOUND_VOLUME_STEPS.map((step) => nextSoundVolume(step))
+    expect(advanced).toEqual([...SOUND_VOLUME_STEPS.slice(1), SOUND_VOLUME_STEPS[0]])
   })
 
   it("offers something quieter than the default to cycle down to", () => {
