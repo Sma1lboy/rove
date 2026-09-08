@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.183
+
+### Patch Changes
+
+- [#972](https://github.com/Sma1lboy/rove/pull/972) [`f2489ac`](https://github.com/Sma1lboy/rove/commit/f2489ac9ca76510346a4b7bf0775815bb83f7161) Bump the agent skill to v43, and make a missed bump a red build.
+
+  Staleness compares marker numbers only, never content, so four PRs in a row ([#868](https://github.com/Sma1lboy/rove/issues/868), [#869](https://github.com/Sma1lboy/rove/issues/869), [#959](https://github.com/Sma1lboy/rove/issues/959), [#970](https://github.com/Sma1lboy/rove/issues/970)) edited `SKILL.md` while it stayed stamped v42. Every machine that installed the skill kept the older text and `rove skill status` still reported `✓ v42` — Claude and Codex both read that copy, so both were following instructions for a `send` deferred-inbox flow that had already been deleted, and neither had the "Communicate at handoffs" guidance.
+
+  `test/architecture/skill-version-bump.test.ts` now records a sha256 of each skill file alongside the version it belongs to. Editing the skill without bumping fails the build and prints the exact edit to make, including the replacement fingerprint. `rove skill status` also gained a second opinion for copies already in the field: when the installed text differs from the bundled one at the same version it says so, instead of a bare `✓`.
+
+  If you installed the skill before this release, refresh it: `rove skill install`, or `rove --skill > ~/.agents/skills/rove/SKILL.md`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.182
 
 ### Patch Changes
