@@ -2,8 +2,9 @@
  * Notification sound (`tui/lib/sound.ts`): player discovery on PATH, the
  * per-player argv table, and the never-throws contract. `pulse()` is
  * best-effort by design — the tests pin that a missing player is a silent
- * no-op (terminal BEL is the fallback) and that the argv actually names the
- * player found on PATH with the volume mapped per player family.
+ * no-op (terminal BEL is the fallback), that the argv names the player found
+ * on PATH, and that VOLUME reaches the file rather than the argv (four
+ * players, Windows' among them, take no volume flag at all).
  *
  * The module caches the picked player + copied asset at module scope, so each
  * test re-imports a fresh module (vi.resetModules). Bun's runtime globals
@@ -83,17 +84,21 @@ describe("pulse", () => {
     const bun = fakeBun()
     const pulse = await freshPulse()
 
-    pulse()
+    pulse(0.4)
     await settle()
 
     expect(bun.spawn).toHaveBeenCalledTimes(1)
     const [argv, opts] = bun.spawn.mock.calls[0] as [string[], Record<string, string>]
     expect(argv[0]).toBe("afplay")
-    expect(argv[1]).toMatch(/kobe-sfx.*pulse\.wav$/)
+    expect(argv[1]).toMatch(/kobe-sfx.*pulse@40\.wav$/)
     expect(opts).toMatchObject({ stdin: "ignore", stdout: "ignore", stderr: "ignore" })
   })
 
-  test("maps volume per player family (ffplay takes a filter-graph float)", async () => {
+  test("carries volume in the FILE, not the argv — no player gets a volume flag", async () => {
+    // Windows only ever reaches the powershell.exe fallback, whose
+    // Media.SoundPlayer has no volume API, so an argv volume was discarded
+    // there: the chime rang at full system level and no setting could lower
+    // it. Every player now receives an already-scaled file instead.
     writeFileSync(join(pathDir, "ffplay"), "#!/bin/sh\n")
     process.env.PATH = pathDir
     const bun = fakeBun()
@@ -103,7 +108,35 @@ describe("pulse", () => {
     await settle()
 
     const [argv] = bun.spawn.mock.calls[0] as [string[]]
-    expect(argv).toEqual(["ffplay", "-autoexit", "-nodisp", "-af", "volume=0.7", expect.stringMatching(/pulse\.wav$/)])
+    expect(argv).toEqual(["ffplay", "-autoexit", "-nodisp", expect.stringMatching(/pulse@70\.wav$/)])
+    expect(argv.join(" ")).not.toContain("volume=")
+  })
+
+  test("caches one asset per volume, so two levels never share a file", async () => {
+    writeFileSync(join(pathDir, "afplay"), "")
+    process.env.PATH = pathDir
+    const bun = fakeBun()
+    const pulse = await freshPulse()
+
+    pulse(0.1)
+    pulse(1)
+    await settle()
+
+    const files = bun.spawn.mock.calls.map((call) => (call as [string[]])[0][1])
+    expect(files[0]).toMatch(/pulse@10\.wav$/)
+    expect(files[1]).toMatch(/pulse@100\.wav$/)
+  })
+
+  test("volume 0 is silence, and spawns nothing at all", async () => {
+    writeFileSync(join(pathDir, "afplay"), "")
+    process.env.PATH = pathDir
+    const bun = fakeBun()
+    const pulse = await freshPulse()
+
+    pulse(0)
+    await settle()
+
+    expect(bun.spawn).not.toHaveBeenCalled()
   })
 
   test("prefers the first PLAYERS entry present when several are installed", async () => {
@@ -114,7 +147,7 @@ describe("pulse", () => {
     const bun = fakeBun()
     const pulse = await freshPulse()
 
-    pulse()
+    pulse(0.4)
     await settle()
 
     expect((bun.spawn.mock.calls[0] as [string[]])[0][0]).toBe("ffplay")
@@ -125,7 +158,7 @@ describe("pulse", () => {
     const bun = fakeBun()
     const pulse = await freshPulse()
 
-    pulse()
+    pulse(0.4)
     await settle()
 
     expect(bun.spawn).not.toHaveBeenCalled()
@@ -141,7 +174,7 @@ describe("pulse", () => {
     })
     const pulse = await freshPulse()
 
-    expect(() => pulse()).not.toThrow()
+    expect(() => pulse(0.4)).not.toThrow()
     await settle() // the rejection path must also stay contained
   })
 
@@ -152,7 +185,7 @@ describe("pulse", () => {
     const bun = fakeBun({ spawn: vi.fn(() => ({ unref })) })
     const pulse = await freshPulse()
 
-    pulse()
+    pulse(0.4)
     await settle()
 
     expect(bun.spawn).toHaveBeenCalledTimes(1)

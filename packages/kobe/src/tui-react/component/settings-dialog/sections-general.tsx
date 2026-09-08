@@ -163,6 +163,7 @@ export function GeneralSettingsSection(
   const transparentRow = rowIdx("transparent")
   const toastRow = rowIdx("toast")
   const soundRow = rowIdx("sound")
+  const soundVolumeRow = rowIdx("sound-volume")
   const crossTaskRow = rowIdx("cross-task")
   const keyHintsRow = rowIdx("key-hints")
   const zenDefaultOnRow = rowIdx("zen-default-on")
@@ -284,6 +285,16 @@ export function GeneralSettingsSection(
             hint={hint("settings.general.soundHint")}
           >
             {pad(`${check(prefs.soundEnabled())} ${t("settings.general.sound")}`)}
+          </Row>
+          <Row
+            cursor={isBodyCursor(soundVolumeRow)}
+            rowRef={props.rowRef(soundVolumeRow)}
+            onMouseUp={activate(soundVolumeRow, prefs.cycleSoundVolume)}
+            fg={prefs.soundEnabled() ? theme.accent : theme.textMuted}
+            bold={true}
+            hint={hint("settings.general.soundVolumeHint")}
+          >
+            {pad(t("settings.general.soundVolume", { percent: String(Math.round(prefs.soundVolume() * 100)) }))}
           </Row>
           <Row
             cursor={isBodyCursor(crossTaskRow)}
