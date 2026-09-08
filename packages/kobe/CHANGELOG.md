@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.180
+
+### Patch Changes
+
+- [#968](https://github.com/Sma1lboy/rove/pull/968) [`16b7117`](https://github.com/Sma1lboy/rove/commit/16b7117c93ea93feb8be4417b16e66af4de900c5) `rove api send` now gets through to an engine that is mid-turn. Claude Code, while a turn is running, no longer submits on Enter: its footer says "tab to queue message" and the text just sits in the composer — which is where every dispatched `succeeded:` report landed while the coordinator was busy. Delivery now reads that hint off the screen after pasting and presses Tab instead, so the prompt is queued and runs when the turn ends; a late footer redraw is caught by one re-check after Enter. The result reports `queued: true` when that happened, so a dispatcher knows the report is waiting behind a turn rather than being processed now. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#966](https://github.com/Sma1lboy/rove/pull/966) [`b71ae37`](https://github.com/Sma1lboy/rove/commit/b71ae3749a3a31510930fbf3e6152fd7aaad53dc) Render at 60fps on Windows and coalesce terminal output every 16ms instead of 33ms. An engine tab on Windows sits behind two ConPTYs — the pty host's and Windows Terminal's — and the inner one already paces its output in 16–60ms batches, so Rove's own 33ms snapshot window plus a 33ms frame on top made typing feel a beat behind a native `claude` in the same terminal. Halving both takes about 33ms off the worst case. macOS and Linux keep 30fps. The snapshot window and the renderer's frame rate now come from one place, so they cannot drift apart. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#967](https://github.com/Sma1lboy/rove/pull/967) [`a711cf8`](https://github.com/Sma1lboy/rove/commit/a711cf835ba1d03e70b8eb051516f4e84136ffaf) Make engine hooks fire on Windows. The hook commands Rove writes into `~/.codex/hooks.json`, Claude's settings and kimi's config were POSIX single-quoted (`'kobe' 'hook' 'turn-complete' '--engine' 'codex'`), which cmd.exe and PowerShell cannot run — cmd looks for a program named `'kobe'`, PowerShell reads a string literal — so on Windows a codex tab never reported a turn, a badge, or an attention item. Hook commands are now written as bare tokens (`kobe hook turn-complete --engine codex`), which every shell on every platform runs the same way; a token that does need quoting gets the platform's own dialect. Existing installs are rewritten on the next hook install; codex may ask you to trust the changed hooks once. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#965](https://github.com/Sma1lboy/rove/pull/965) [`c2324aa`](https://github.com/Sma1lboy/rove/commit/c2324aacf61ad8eb95cc40cca958956e4a3e8cea) Put the IME composition window where you are typing on Windows. Windows Terminal draws the pinyin (and any other input-method) preedit and candidate list at the console cursor, and Rove left that cursor at the last cell it painted — the top of the sidebar — so the composition appeared far from the engine's input line. The cursor anchor that already fixed this on macOS now runs on Windows too: after every frame the hidden host cursor is parked on the focused terminal's cursor cell, so the IME window follows your typing. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.179
 
 ### Patch Changes
