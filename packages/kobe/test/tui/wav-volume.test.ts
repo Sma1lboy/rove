@@ -9,6 +9,7 @@
  * one is not.
  */
 
+import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 import { scaleWavVolume } from "../../src/tui/lib/wav-volume"
 
@@ -100,5 +101,40 @@ describe("scaleWavVolume", () => {
   it("scales stereo the same way — the walk is per sample, not per frame", () => {
     const out = scaleWavVolume(wav([100, 200, 300, 400], { channels: 2 }), 0.5) as Buffer
     expect(samplesOf(out)).toEqual([50, 100, 150, 200])
+  })
+})
+
+/**
+ * The bundled asset is the only real input `scaleWavVolume` ever gets, so
+ * the whole volume feature rests on it staying the 16-bit PCM this parses.
+ * It also has to leave headroom: the chime it replaced was mastered at full
+ * scale with a zero-length attack, which is a click, and on Windows — where
+ * the volume argument was discarded — that click was all you ever heard.
+ */
+describe("the bundled chime", () => {
+  const asset = readFileSync(new URL("../../src/tui/asset/pulse.wav", import.meta.url))
+
+  it("is 16-bit PCM that scales, not something the scaler has to refuse", () => {
+    expect(scaleWavVolume(asset, 0.4)).not.toBeNull()
+  })
+
+  it("leaves headroom instead of sitting at full scale", () => {
+    const peak = Math.max(...samplesOf(asset).map(Math.abs))
+    expect(peak).toBeLessThan(32767 * 0.8)
+    expect(peak).toBeGreaterThan(32767 * 0.2) // still audible before scaling
+  })
+
+  it("opens with a ramp rather than a click", () => {
+    // A notification that starts at full amplitude on sample one reads as a
+    // click no matter how quiet it is made afterwards.
+    const first = samplesOf(asset).slice(0, 64).map(Math.abs)
+    const peak = Math.max(...samplesOf(asset).map(Math.abs))
+    expect(Math.max(...first)).toBeLessThan(peak * 0.5)
+  })
+
+  it("is short — a notification, not a ring", () => {
+    // 16-bit stereo at 44.1kHz: 4 bytes a frame.
+    const frames = samplesOf(asset).length / 2
+    expect(frames / 44100).toBeLessThan(0.6)
   })
 })
