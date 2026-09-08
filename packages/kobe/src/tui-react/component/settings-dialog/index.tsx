@@ -218,6 +218,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     focusAccent: (row) => selectFocusAccent(row.slot),
     toast: () => prefs.toggleToast(),
     sound: () => prefs.toggleSound(),
+    soundVolume: () => prefs.cycleSoundVolume(),
     crossTask: () => prefs.toggleCrossTask(),
     keyHints: () => toggleKeyHints(props.kv),
     prefixTapPresentation: (row) => prefs.selectPrefixTapPresentation(row.presentation),

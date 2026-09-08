@@ -185,6 +185,7 @@ All three default to on.
 |---|---|---|
 | `notifications.toast.enabled` | boolean | In-TUI completion toasts |
 | `notifications.sound.enabled` | boolean | Chime when a background tab finishes |
+| `notifications.sound.volume` | number | Chime level, 0-1 (default 0.4) |
 | `notifications.crossTask.enabled` | boolean | Toasts for tasks you aren't looking at |
 
 Error toasts always show, even with toasts off. See
@@ -291,8 +292,15 @@ red outrank green when both fire for the same tab. Three delivery channels:
   `notifications.sound.enabled` toggle as the chime.
 - **Sound.** A short chime when a background tab finishes. Rove uses the
   first player it finds on `PATH` (`ffplay`, `mpv`, `mpg123`, … `afplay`,
-  `play`, `aplay`, …). With none installed it's silent and the terminal bell
-  is the fallback.
+  `play`, `aplay`, …), and on Windows falls back to PowerShell. With none
+  installed it's silent and the terminal bell is the fallback.
+
+  **Volume** is a property of the audio Rove hands the player, not a flag it
+  passes: several players (`afplay`, `aplay`, and the Windows fallback, whose
+  `Media.SoundPlayer` has no volume API) accept no volume argument at all, so
+  Rove scales the chime's samples itself and caches one copy per level. Cycle
+  it from **Settings → General → Chime volume**, or set
+  `notifications.sound.volume` directly; `0` is silent.
 
 ## Custom engines
 

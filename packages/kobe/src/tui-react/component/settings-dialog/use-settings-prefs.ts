@@ -15,6 +15,12 @@ import { logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
 import { AUTO_STATUS_KEY } from "../../../state/auto-status"
 import { DISPATCHER_KEY } from "../../../state/dispatcher"
 import { DEFAULT_SCROLLBACK_ROWS, SCROLLBACK_ROWS_KEY, normalizeScrollbackRows } from "../../../state/scrollback"
+import {
+  DEFAULT_SOUND_VOLUME,
+  SOUND_VOLUME_KEY,
+  nextSoundVolume,
+  normalizeSoundVolume,
+} from "../../../state/sound-volume"
 import { SPLIT_STYLE_KEY, type SplitStyle, normalizeSplitStyle } from "../../../state/split-style"
 import {
   TAB_STRIP_HIDE_SINGLE_KEY,
@@ -67,6 +73,16 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   }
   function toggleSound(): void {
     kv.set("notifications.sound.enabled", !soundEnabled())
+  }
+  // Chime level, applied to the WAV's samples at play time (see
+  // tui/lib/sound.ts). Cycles rather than prompting: it is one number with a
+  // handful of useful values, and hearing the next one is how you pick. The
+  // toggle above stays the mute.
+  function soundVolume(): number {
+    return normalizeSoundVolume(kv.get(SOUND_VOLUME_KEY, DEFAULT_SOUND_VOLUME))
+  }
+  function cycleSoundVolume(): void {
+    kv.set(SOUND_VOLUME_KEY, nextSoundVolume(soundVolume()))
   }
   // Cross-task attention: notify (bell/toast/OSC 9) when a NON-selected task
   // pauses on an approval / errors / finishes a turn. Default on — this is the
@@ -266,6 +282,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     toastEnabled,
     toggleToast,
     soundEnabled,
+    soundVolume,
+    cycleSoundVolume,
     toggleSound,
     crossTaskEnabled,
     toggleCrossTask,

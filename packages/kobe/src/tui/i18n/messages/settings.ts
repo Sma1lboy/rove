@@ -45,6 +45,8 @@ export const en = {
     toastHint: "bottom-right popup",
     sound: "Sound",
     soundHint: "bell + chime + an OSC 9 desktop notification (rides SSH)",
+    soundVolume: "Chime volume — {percent}%",
+    soundVolumeHint: "enter cycles; applies to the next chime",
     crossTask: "Cross-task",
     crossTaskHint: "also for a task you switched away from",
     /** SubSection title for the keyboard-hints toggle */
@@ -283,6 +285,8 @@ export const zh: typeof en = {
     toastHint: "右下角弹窗",
     sound: "声音",
     soundHint: "响铃 + 提示音 + OSC 9 桌面通知（经 SSH 直达本地）",
+    soundVolume: "提示音音量 — {percent}%",
+    soundVolumeHint: "回车循环切换；下一声提示音生效",
     crossTask: "跨任务",
     crossTaskHint: "你已切走的任务也通知",
     keyHints: "键盘提示",
