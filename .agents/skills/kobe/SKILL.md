@@ -43,16 +43,17 @@ lifecycle tracking, and an explicit outcome contract.
   channel: it reaches a process, not a task, so nothing it delivers is
   attributable, watchable, or replyable). Sent from
   inside a Rove task, the prompt arrives prefixed `[ROVE PEER] from
-  "<title>" (task <id> — load the Rove agent skill FIRST …)`, so the
-  receiver knows who is talking, that this skill is required reading, and
-  how to answer — the baked-in reply command is tab-precise
+  "<title>" (task <id> — Rove agent skill /rove, read it once per session …)`,
+  so the receiver knows who is talking, that this skill is required reading,
+  and how to answer — the baked-in reply command is tab-precise
   (`--task-id <sender> --tab <sender's tab>`), so peer conversations need
   no coordinator and no human relay. That prefix is the contract: do not
   strip it with `--plain` for
   coordination messages (`--plain` is only for a verbatim paste the
   receiver should treat as content, not conversation). Received a
-  `[ROVE PEER]` message yourself? Load this skill first — required, not
-  optional — then reply with the baked-in command, not by asking the user.
+  `[ROVE PEER]` message yourself? Read this skill once per session. The
+  baked-in command identifies where a necessary reply goes; it is not an
+  instruction to acknowledge every message. Act on FYIs without replying.
 - `send` carries text, but that text can carry FILES: peers share a
   filesystem, so put the absolute path of a screenshot, log, diff, or any
   artifact in the prompt and the receiver opens it with its own Read tool —
@@ -467,6 +468,30 @@ Give each round a scoped prompt, report returned IDs, then use
 `collect` to compare. Do not recursively fan out from spawned tasks. Do not
 poll `send` in a tight loop or use it as casual chat; every call is a full
 engine turn.
+
+### Communicate at handoffs, not at every step
+
+Default to one complete task brief and one final outcome. Send an interim
+message only when it changes the recipient's next action: a blocking
+dependency, a file-ownership or interface conflict, a scope correction, or
+evidence that makes their current approach invalid. Resolve routine choices
+within the assigned scope without asking the dispatcher.
+
+Do not send receipt acknowledgements, skill-loaded notices, starting-work
+announcements, routine progress, or acknowledgements of acknowledgements.
+An incoming message does not by itself require a response. Answer explicit
+questions once; bundle related findings and review corrections into one
+message with artifact paths. Forward only the facts the recipient needs, not
+the research trail or messages already delivered.
+
+Before `send`, ask: does this unblock or change work now? If not, include it
+in the final report. If a handoff contract has already been agreed, do not
+reconfirm it. Avoid status pings; use a bounded read-only `get-task` or
+`collect` when an actual coordination decision needs current state.
+
+The dispatcher gives the user concise milestone updates; workers need not
+relay those updates back to the dispatcher. Do not create another task
+solely to coordinate or review a small, reversible change.
 
 ### Completion flows back through an engine tab (`send`)
 
