@@ -20,14 +20,25 @@
  * unbounded half is now awaited, not slept through. Only the coalesce timer
  * is left, and {@link REFRESH_WINDOW_MS} budgets that one alone, anchored to
  * the product constant so raising it can't silently eat the margin again.
+ *
+ * The headroom over that constant is ABSOLUTE, not a multiple of it. It was
+ * `SNAPSHOT_COALESCE_MS * 4`, which assumed the constant only ever grows;
+ * when Windows went to 60fps the coalesce period HALVED to 16ms and the whole
+ * budget fell with it, to 64ms, reproducing on windows-latest exactly the
+ * flake this barrier exists to prevent. What needs covering is one timer
+ * dispatch on a loaded shared runner, and that cost has nothing to do with
+ * how fast the renderer draws.
  */
 
 import type { TerminalRow } from "../../src/tui/panes/terminal/pty-types"
 import { SNAPSHOT_COALESCE_MS, XtermTaskPty } from "../../src/tui/panes/terminal/pty-xterm-base"
 
-/** One coalesce period plus 3x headroom for the single timer dispatch left
- *  after `pump()` has already awaited the parse. */
-export const REFRESH_WINDOW_MS = SNAPSHOT_COALESCE_MS * 4
+/** Slack for the single timer dispatch left after `pump()` has awaited the
+ *  parse — a scheduling cost on a shared runner, independent of frame rate. */
+const TIMER_DISPATCH_HEADROOM_MS = 100
+
+/** One coalesce period plus that slack. */
+export const REFRESH_WINDOW_MS = SNAPSHOT_COALESCE_MS + TIMER_DISPATCH_HEADROOM_MS
 
 export class FakeTransportPty extends XtermTaskPty {
   protected transportWrite(_data: string): void {}
