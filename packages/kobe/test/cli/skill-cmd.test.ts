@@ -10,6 +10,7 @@ import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } fr
 const mocks = vi.hoisted(() => ({
   kobeSkillState: vi.fn(),
   kobeSkillPaths: vi.fn(() => ["/home/u/.claude/skills/kobe/SKILL.md", "/proj/.claude/skills/kobe/SKILL.md"]),
+  installedSkillDiffersFromBundled: vi.fn(() => false),
   bunSpawn: vi.fn(),
 }))
 
@@ -19,6 +20,7 @@ vi.mock("../../src/lib/skill-install.ts", async (importOriginal) => {
     ...actual,
     kobeSkillState: mocks.kobeSkillState,
     kobeSkillPaths: mocks.kobeSkillPaths,
+    installedSkillDiffersFromBundled: mocks.installedSkillDiffersFromBundled,
   }
 })
 
@@ -36,7 +38,9 @@ beforeEach(() => {
     currentVersion: 2,
     stale: false,
     legacyCopies: [],
+    path: "/home/u/.claude/skills/kobe/SKILL.md",
   })
+  mocks.installedSkillDiffersFromBundled.mockReset().mockReturnValue(false)
   mocks.bunSpawn.mockReset().mockReturnValue({ exited: Promise.resolve(0) })
   vi.stubGlobal("Bun", { spawn: mocks.bunSpawn })
 
@@ -127,6 +131,23 @@ describe("kobe skill status", () => {
     })
     await runSkillSubcommand(["status"])
     expect(out()).toContain("out of date (installed unstamped, this Rove wants v2)")
+  })
+
+  // The failure mode that shipped four times: someone edits SKILL.md without
+  // bumping the marker, so every installed copy reports ✓ while teaching the
+  // old flow. Version parity can't see it; the text comparison can.
+  it("flags a copy whose TEXT drifted from the bundled skill at the same version", async () => {
+    mocks.installedSkillDiffersFromBundled.mockReturnValue(true)
+    await runSkillSubcommand(["status"])
+    const text = out()
+    expect(text).toContain("✓ installed (v2)")
+    expect(text).toContain("content differs from the copy bundled with this Rove at the same version")
+    expect(text).toContain("run `kobe --skill > /home/u/.claude/skills/kobe/SKILL.md`")
+  })
+
+  it("says nothing about content when the installed copy matches the bundle", async () => {
+    await runSkillSubcommand(["status"])
+    expect(out()).not.toContain("content differs")
   })
 })
 

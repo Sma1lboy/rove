@@ -43,8 +43,13 @@ import { getPersistedString, setPersistedString } from "../state/repos.ts"
  * marker is below this number is STALE: the binary moved on, the skill
  * didn't, so we prompt the developer to re-run the active CLI's
  * `skill install` command.
+ *
+ * Editing the skill's TEXT without bumping this is invisible at runtime —
+ * staleness compares markers, never content — so
+ * `test/architecture/skill-version-bump.test.ts` goes red on any content
+ * change that skips the bump, and prints the exact edit to make.
  */
-export const KOBE_SKILL_VERSION = 42
+export const KOBE_SKILL_VERSION = 43
 
 /**
  * Where an installed kobe skill can be FOUND, relative to a home/project
@@ -233,6 +238,8 @@ export interface SkillState {
    * first path found made the whole thing invisible.
    */
   readonly legacyCopies: readonly SkillCopy[]
+  /** Where the reported copy lives (null when nothing is installed). */
+  readonly path: string | null
 }
 
 /** One skill file on disk: where it is and which marker version it carries. */
@@ -313,6 +320,7 @@ export function kobeSkillState(opts: { home?: string; cwd?: string } = {}): Skil
       currentVersion: KOBE_SKILL_VERSION,
       stale: false,
       legacyCopies: [],
+      path: null,
     }
   }
   const stale = best.version === null || best.version < KOBE_SKILL_VERSION
@@ -322,6 +330,25 @@ export function kobeSkillState(opts: { home?: string; cwd?: string } = {}): Skil
     currentVersion: KOBE_SKILL_VERSION,
     stale,
     legacyCopies: legacy.filter((copy) => copy.path !== best.path),
+    path: best.path,
+  }
+}
+
+/**
+ * True when an installed SKILL.md's TEXT differs from the one bundled in this
+ * build. The marker version is the only thing staleness looks at, so a skill
+ * edited without a version bump installs as "current" and stays wrong
+ * forever; this is the second opinion `skill status` reports. Unknown
+ * (`false`) when there is no bundled copy to compare against — an unbuilt
+ * checkout must not manufacture a warning.
+ */
+export function installedSkillDiffersFromBundled(installedPath: string): boolean {
+  const bundled = bundledSkillDir()
+  if (!bundled) return false
+  try {
+    return readFileSync(join(bundled, "SKILL.md"), "utf8") !== readFileSync(installedPath, "utf8")
+  } catch {
+    return false
   }
 }
 
