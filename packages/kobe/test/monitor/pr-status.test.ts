@@ -64,6 +64,17 @@ describe("checkStateFromRollup", () => {
       "failing",
     )
   })
+  test("a passing check mixed with an unreadable entry is unknown, not a false green", () => {
+    // A single entry we cannot classify must not be swept under a "passing"
+    // headline — that would tell the user CI is clear when one check's state
+    // is actually unknown. `passing` requires every remaining entry to pass.
+    expect(checkStateFromRollup([{ __typename: "CheckRun", status: "COMPLETED", conclusion: "SUCCESS" }, {}])).toBe(
+      "unknown",
+    )
+  })
+  test("pending precedence beats an unreadable sibling", () => {
+    expect(checkStateFromRollup([{ __typename: "CheckRun", status: "IN_PROGRESS" }, {}])).toBe("pending")
+  })
 })
 
 describe("mapGhPrView", () => {
