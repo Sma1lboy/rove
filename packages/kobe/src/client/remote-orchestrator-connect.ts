@@ -30,6 +30,21 @@ export interface PerformInitOptions {
   readonly channels?: readonly ChannelName[]
   /** `false` when a channel filter excludes `task.snapshot` — skip hello task hydration. */
   readonly subscribesTasks: boolean
+  /**
+   * True for a MACHINE connection (a remote daemon reached through an SSH
+   * tunnel). A different `homeDir` is then the expected answer, not the
+   * sandbox-squatting-the-socket accident the guard exists to catch — see the
+   * guard site below. Absent/false keeps the local behaviour byte-for-byte.
+   */
+  readonly expectForeignHome?: boolean
+  /** Called with the peer's identity once the handshake succeeds — how a
+   *  machine learns which host actually answered its forwarded socket. */
+  readonly onPeerIdentity?: (peer: {
+    hostname: string
+    homeDir: string
+    daemonPid: number
+    kobeVersion: string
+  }) => void
 }
 
 /**
@@ -115,6 +130,10 @@ export async function performInit(
     // The state root the daemon serves. Omitted by a daemon that predates
     // the field, in which case the ownership check below is skipped.
     homeDir?: string
+    // The host the daemon runs on. Omitted by a daemon that predates the
+    // field; a machine falls back to its alias then.
+    hostname?: string
+    daemonPid?: number
     // The daemon's channel/feature set. The client gates the
     // `worktree.changes` consumer on it (see below) — a capability list
     // is the honest rollout mechanism for an additive channel: an old
@@ -146,8 +165,13 @@ export async function performInit(
   // task sits intact on disk. Throwing keeps the caller's
   // reconnect loop running, so the moment the real daemon reclaims the socket
   // the client re-syncs on its own.
+  // A machine's daemon serves ITS OWN home by definition, so the ownership
+  // guard is scoped to local sockets. It is not weakened for them: the failure
+  // it catches — a sandbox daemon squatting the production socket — is a
+  // local-socket accident, and a tunnel that reaches the wrong machine is
+  // caught instead by the identity triple recorded below.
   const clientHome = homeDir()
-  if (isForeignDaemonHome(hello.homeDir, clientHome)) {
+  if (!opts.expectForeignHome && isForeignDaemonHome(hello.homeDir, clientHome)) {
     throw new Error(
       `Rove daemon on this socket serves ${hello.homeDir}, but this client uses ${clientHome}. A sandbox or dev daemon has taken the production socket — stop it (\`rove daemon stop\`), or unset ROVE_DAEMON_SOCKET_PATH / KOBE_DAEMON_SOCKET_PATH before starting it.`,
     )
@@ -160,6 +184,12 @@ export async function performInit(
   // Re-set on every init so a reconnect to a freshly-restarted daemon clears
   // the banner once versions match.
   signals.setDaemonVersionSig(typeof hello.kobeVersion === "string" ? hello.kobeVersion : null)
+  opts.onPeerIdentity?.({
+    hostname: typeof hello.hostname === "string" ? hello.hostname : "",
+    homeDir: typeof hello.homeDir === "string" ? hello.homeDir : "",
+    daemonPid: typeof hello.daemonPid === "number" ? hello.daemonPid : 0,
+    kobeVersion: typeof hello.kobeVersion === "string" ? hello.kobeVersion : "",
+  })
   // A daemon that announced `reason: "restart"` on its way out has now come
   // back and re-answered `hello`, so the swap is over: clear the flag and let
   // the version comparison above be the only thing that decides whether a

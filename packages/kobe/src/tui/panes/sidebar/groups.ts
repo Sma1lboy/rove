@@ -152,14 +152,67 @@ export function repoBasename(repo: string): string {
   return pathSyntax(repo).basename(repo) || repo
 }
 
-export function sidebarProjectKey(repo: string): string {
-  return pathIdentity(repo.trim()) || repo
+/**
+ * The identity of a project row.
+ *
+ * A path alone is NOT an identity once more than one machine is connected:
+ * `~/i/kobe` exists on the laptop and on the build box, and keying on the path
+ * merged the two into one row whose tasks came from both. So the key is
+ * `machineId + NUL + pathIdentity(repo)`, with the local machine's id fixed at
+ * `"local"`.
+ *
+ * `machineId` is OPTIONAL and defaults to `"local"`, which is what keeps the
+ * zero-machine install byte-identical: every existing caller passes one
+ * argument and gets exactly the string it got before.
+ */
+export function sidebarProjectKey(repo: string, machineId = "local"): string {
+  const path = pathIdentity(repo.trim()) || repo
+  return machineId === "local" ? path : `${machineId}\u0000${path}`
 }
 
-export function sidebarProjectLabel(repo: string, repos: readonly string[]): string {
+/** The project key for a task, honouring the machine it came from. */
+export function sidebarProjectKeyOfTask(task: Pick<Task, "repo" | "origin">): string {
+  return sidebarProjectKey(task.repo, task.origin?.machineId ?? "local")
+}
+
+/** A repo as the label rules see it: its path plus the host it lives on. */
+export interface LabelledRepo {
+  readonly repo: string
+  readonly hostLabel?: string
+}
+
+/**
+ * What a project header is CALLED.
+ *
+ * Three tiers, narrowest first:
+ *   1. no collision → the bare basename (`kobe`);
+ *   2. collides across MACHINES → `host:basename` (`narwhal:kobe`), because the
+ *      machine is the thing that tells them apart and a path tail would not;
+ *   3. collides on the SAME machine → the last two path segments (`work/api`),
+ *      the rule that predates machines and still reads best there.
+ *
+ * `repos` may be plain strings (every pre-machines caller) or
+ * {@link LabelledRepo}s. With no host labels anywhere the function is exactly
+ * the two-tier rule it always was.
+ */
+export function sidebarProjectLabel(
+  repo: string,
+  repos: readonly (string | LabelledRepo)[],
+  hostLabel?: string,
+): string {
   const base = repoBasename(repo)
-  const collides = repos.some((r) => r !== repo && repoBasename(r) === base)
-  if (!collides) return base
+  const others = repos
+    .map((entry) => (typeof entry === "string" ? { repo: entry } : entry))
+    .filter((entry) => entry.repo !== repo || (entry.hostLabel ?? "") !== (hostLabel ?? ""))
+  const collisions = others.filter((entry) => repoBasename(entry.repo) === base)
+  if (collisions.length === 0) return base
+  // Some colliding repo is on a DIFFERENT host — name the host, which is the
+  // only thing that distinguishes two checkouts at the same path. THIS
+  // machine's row keeps the bare name: the local checkout is the one the user
+  // is sitting at, and prefixing it too would make the common case pay for the
+  // rare one. `kobe` and `narwhal:kobe` read correctly side by side.
+  const crossMachine = collisions.some((entry) => (entry.hostLabel ?? "") !== (hostLabel ?? ""))
+  if (crossMachine) return hostLabel ? `${hostLabel}:${base}` : base
   const syntax = pathSyntax(repo)
   return syntax.normalize(repo).split(syntax.sep).filter(Boolean).slice(-2).join("/")
 }

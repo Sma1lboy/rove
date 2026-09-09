@@ -16,6 +16,7 @@ import type { Task } from "@/types/task"
 import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
 import { type MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useMachineRows } from "../../../machines/hub-singleton"
 import { createSidebarController } from "../../../tui/panes/sidebar/controller"
 import { RECENT_ROW_ID, type TreeRow, parseRowId } from "../../../tui/panes/sidebar/tree-core"
 import { MAIN_BRANCH_POLL_MS, SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
@@ -72,6 +73,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     return () => clearInterval(timer)
   }, [])
 
+  const machines = useMachineRows()
   const search = useTreeSearch({ focused, onActiveChange: props.onSearchActiveChange })
   const tree = useTreeState({
     tasks: props.tasks,
@@ -82,6 +84,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     recentTask: props.recentTask ?? null,
     sortMode: props.sortMode,
     branchTick,
+    machines,
   })
   const flatIndexOf = useMemo(() => {
     const map = new Map<string, number>()

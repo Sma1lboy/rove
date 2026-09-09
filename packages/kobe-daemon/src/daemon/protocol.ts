@@ -392,6 +392,13 @@ export interface SerializedTask {
   /** The worker's own outcome claim (`set-status --report-*`) — a CLAIM,
    *  where `prStatus` is the daemon's own observation of the forge. */
   readonly report?: DaemonTask["report"]
+  /**
+   * Which machine served this task. NEVER set by a daemon — the merging
+   * client stamps it after deserializing, and `rove api list` passes it
+   * through. Declared here so the CLI's wire type and the client's `Task`
+   * agree on the field rather than each widening the other with a cast.
+   */
+  readonly origin?: { readonly machineId: string; readonly hostLabel: string }
   readonly createdAt: string
   readonly updatedAt: string
 }

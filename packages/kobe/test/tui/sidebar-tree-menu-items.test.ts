@@ -29,7 +29,14 @@ function task(over: Partial<Task> = {}): Task {
   }
 }
 
-const projectRow: TreeRow = { kind: "project", id: "/repos/rove", repo: "/repos/rove", label: "kobe", depth: 0 }
+const projectRow: TreeRow = {
+  kind: "project",
+  machineId: "local",
+  id: "/repos/rove",
+  repo: "/repos/rove",
+  label: "kobe",
+  depth: 0,
+}
 const worktreeRow = (over: Partial<Task> = {}): TreeRow => ({ kind: "worktree", id: "a", task: task(over), depth: 1 })
 const tabRow: TreeRow = { kind: "tab", id: "a::tab-2", task: task(), tab: { id: "tab-2", label: "tab 2" }, depth: 2 }
 

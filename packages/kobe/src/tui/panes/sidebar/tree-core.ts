@@ -19,21 +19,28 @@
  * never disagree about what identifies a tab.
  */
 
-import { homedir } from "node:os"
 import type { Task } from "@/types/task"
-import { tildify } from "../../../lib/path-home"
-import { truncateStart } from "../../lib/truncate"
 import { fuzzyMatch } from "./fuzzy"
-import { compareRecent, repoBasename, sidebarProjectKey, sidebarProjectLabel } from "./groups"
+import { type LabelledRepo, compareRecent, repoBasename, sidebarProjectKeyOfTask, sidebarProjectLabel } from "./groups"
+import { RECENT_ROW_ID, SCRATCH_SECTION_ID, routinesRowId, tabRowId } from "./tree-ids"
 
 // Search lives in its own module — this file decides what rows EXIST, that one
 // decides which survive a query — but stays part of tree-core's public surface,
 // so every caller imports the tree's vocabulary from one place.
 export { filterTreeRows } from "./tree-search"
-
-/** Separator between a task id and a tab id in a tab row's id. Matches the
- *  PTY registry's key format so one parse rule covers both. */
-const TAB_ROW_SEPARATOR = "::"
+// The row-id vocabulary and the row-label rule live in their own modules —
+// both are read by code that never builds a tree (the PTY registry composes
+// the same tab key; the row renderer labels one task at a time). Re-exported
+// here so every caller still names them through the tree's vocabulary.
+export {
+  RECENT_ROW_ID,
+  SCRATCH_SECTION_ID,
+  machineRowId,
+  parseRowId,
+  projectKeyOfRoutinesRow,
+  tabRowId,
+} from "./tree-ids"
+export { rowLiveBranchPath, worktreeRowLabel } from "./tree-labels"
 
 /** A worktree row's tab, as the sidebar needs it (the tab module owns the
  *  real shape; this is the projection the tree renders). */
@@ -56,16 +63,38 @@ export interface TreeTab {
 }
 
 export type TreeRow =
-  | { readonly kind: "project"; readonly id: string; readonly repo: string; readonly label: string; readonly depth: 0 }
-  | { readonly kind: "worktree"; readonly id: string; readonly task: Task; readonly depth: 1 }
+  /**
+   * A MACHINE section header — another computer running its own Rove daemon.
+   * Emitted only when at least one machine is registered; with none, the tree
+   * has no machine rows at all and every depth below is what it always was.
+   */
+  | {
+      readonly kind: "machine"
+      readonly id: string
+      readonly alias: string
+      readonly label: string
+      readonly state: MachineRowState
+      readonly version?: string
+      readonly depth: 0
+    }
+  | {
+      readonly kind: "project"
+      readonly id: string
+      readonly repo: string
+      readonly label: string
+      /** Which machine's checkout this is; `"local"` for this computer. */
+      readonly machineId: string
+      readonly depth: number
+    }
+  | { readonly kind: "worktree"; readonly id: string; readonly task: Task; readonly depth: number }
   | {
       readonly kind: "tab"
       readonly id: string
       readonly task: Task
       readonly tab: TreeTab
-      readonly depth: 2
+      readonly depth: number
     }
-  | { readonly kind: "recent"; readonly id: typeof RECENT_ROW_ID; readonly task: Task; readonly depth: 1 }
+  | { readonly kind: "recent"; readonly id: typeof RECENT_ROW_ID; readonly task: Task; readonly depth: number }
   /**
    * The routine count row: one row standing in for a project's
    * routine session tasks, which are background noise beside the handful of
@@ -79,44 +108,13 @@ export type TreeRow =
       readonly projectKey: string
       readonly count: number
       readonly expanded: boolean
-      readonly depth: 1
+      readonly depth: number
     }
 
-/**
- * Navigation id of the narrow-mode "↩ recent" jump row.
- * Not a ULID and free of {@link TAB_ROW_SEPARATOR}, so `parseRowId` on it
- * yields a task id no task can have — cursor chords that don't special-case
- * it fall through to a lookup miss instead of acting on a real task.
- */
-export const RECENT_ROW_ID = "~recent"
-
-/**
- * Header id of the Scratch section. Like {@link RECENT_ROW_ID},
- * not a repo path and free of the separator, so project-header consumers
- * (move mode, context menu, `mainTaskIdOfProject`) that look it up simply
- * miss — a Scratch header has no main task to move and no repo to file into.
- */
-export const SCRATCH_SECTION_ID = "~scratch"
-
-/**
- * Navigation id of a project's routine count row. Prefixed like
- * the other sentinels so it can never collide with a ULID, and carrying the
- * project key so two projects' rows stay distinct.
- *
- * This row is the ONE fold in a tree that otherwise has none (see
- * `tree-panel.tsx`). It is scoped deliberately: it
- * folds only tasks a SCHEDULE created, never a task a human opened, so the
- * "everything under a project is always visible" promise still holds for
- * everything the user made themselves.
- */
-function routinesRowId(projectKey: string): string {
-  return `~routines:${projectKey}`
-}
-
-/** The project key a routines row id names, or null for any other id. */
-export function projectKeyOfRoutinesRow(id: string): string | null {
-  return id.startsWith("~routines:") ? id.slice("~routines:".length) : null
-}
+/** What a machine row says about its connection. `mismatch` is a remote Rove
+ *  whose protocol range this build cannot talk to — its own row's problem,
+ *  never the whole tree's. */
+export type MachineRowState = "connecting" | "online" | "offline" | "unsupported" | "mismatch"
 
 /** True for a task the sidebar folds behind a routine count row. */
 function isRoutineTask(task: Task): boolean {
@@ -131,79 +129,6 @@ function isRoutineTask(task: Task): boolean {
 export function withRecentRow(rows: readonly TreeRow[], recent: Task | null): TreeRow[] {
   if (!recent) return [...rows]
   return [{ kind: "recent", id: RECENT_ROW_ID, task: recent, depth: 1 }, ...rows]
-}
-
-/** Compose a tab row's navigation id. */
-export function tabRowId(taskId: string, tabId: string): string {
-  return `${taskId}${TAB_ROW_SEPARATOR}${tabId}`
-}
-
-/**
- * Split a row id back into its parts. A task row id has no separator and
- * yields `tabId: null` — callers switch on that rather than string-matching
- * the separator themselves.
- *
- * Task ids are ULIDs and tab ids are `tab-N`, so neither contains the
- * separator; splitting on the FIRST occurrence is unambiguous either way.
- */
-export function parseRowId(rowId: string): { taskId: string; tabId: string | null } {
-  const at = rowId.indexOf(TAB_ROW_SEPARATOR)
-  if (at < 0) return { taskId: rowId, tabId: null }
-  return { taskId: rowId.slice(0, at), tabId: rowId.slice(at + TAB_ROW_SEPARATOR.length) }
-}
-
-/** Widest path label a worktree row renders before tail-truncation — the
- *  default rail width minus row chrome. The row's flex still end-clips on
- *  narrower rails; pre-truncating from the START keeps the leaf visible at
- *  the default width, which is the half that disambiguates a path. */
-const PATH_LABEL_MAX = 24
-
-/**
- * What a worktree row is CALLED — the one derivation rule:
- * a task with a branch is named by it; a branchless `dir` task (plain
- * `rove .` opens and scratch shells alike) by its tail-truncated
- * directory — the stored title is deliberately ignored there, because
- * dir-task titles are auto-generated noise (`jacksonc-xxxx`) and existing
- * rows render by this rule with no data migration. A regular task
- * before its worktree materialises (no branch yet, path not its own)
- * keeps its title, else the label falls back to the path and finally
- * "scratch" so a row is never blank.
- *
- * `liveBranch` is the caller-resolved HEAD for the rows that own no branch of
- * their own (see {@link rowLiveBranchPath} and `git-head.ts`); `home` is
- * injectable so the tildification unit-tests without the real $HOME.
- */
-/**
- * The checkout whose LIVE HEAD names this row, or `""` when the row already
- * carries its own branch.
- *
- * Rove-created worktrees store `branch`, so their label is fixed. Two kinds
- * store none and move freely: `main` (its checkout is the user's to switch)
- * and `dir` — an arbitrary directory the user opened, which is what a scratch
- * shell becomes. A scratch shell opened inside a repo IS on a branch, so
- * labelling it with its path while every worktree row beside it showed a
- * branch made it read as a different species of row. Not-a-repo still falls
- * back to the path: the poller answers `""` for anything it can't resolve.
- */
-export function rowLiveBranchPath(task: Task): string {
-  if (task.kind !== "main" && task.kind !== "dir") return ""
-  return task.worktreePath || task.repo || ""
-}
-
-export function worktreeRowLabel(
-  task: Task,
-  opts: { readonly liveBranch?: string; readonly home?: string } = {},
-): string {
-  const branch = (opts.liveBranch ?? task.branch) || task.branch
-  if (branch) return branch
-  if (task.kind !== "dir" && task.title) return task.title
-  const path = task.worktreePath || task.repo
-  if (path) {
-    const home = opts.home ?? homedir()
-    const tildified = tildify(path, home)
-    return truncateStart(tildified, PATH_LABEL_MAX)
-  }
-  return task.title || "scratch"
 }
 
 export interface TreeInput {
@@ -297,7 +222,7 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
 
   for (const task of tasks) {
     if (task.kind === "dir" && task.scratch === true) continue
-    const key = sidebarProjectKey(task.repo)
+    const key = sidebarProjectKeyOfTask(task)
     const entry = byProject.get(key) ?? { repo: task.repo, tasks: [] }
     // The main task carries the canonical repo path — a regular task's
     // `repo` is the same value, but taking it from main keeps the header
@@ -319,7 +244,7 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
   const seen = new Set<string>()
   for (const task of tasks) {
     if (task.kind !== "main") continue
-    const key = sidebarProjectKey(task.repo)
+    const key = sidebarProjectKeyOfTask(task)
     if (!seen.has(key)) {
       seen.add(key)
       orderedKeys.push(key)
@@ -350,7 +275,7 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
   // The header reuses the project-row shape (id is a sentinel no repo path
   // can be — see SCRATCH_SECTION_ID); the renderer translates its label.
   if (scratchTasks.length > 0) {
-    rows.push({ kind: "project", id: SCRATCH_SECTION_ID, repo: "", label: "Scratch", depth: 0 })
+    rows.push({ kind: "project", id: SCRATCH_SECTION_ID, repo: "", label: "Scratch", machineId: "local", depth: 0 })
     // A scratch task renders NO worktree row of its own: its
     // auto-generated name is noise, and the shell IS the whole session — so
     // its tab rows hang directly under the section header. The task remains a
@@ -382,15 +307,20 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
     const entry = byProject.get(key)
     return entry ? !isClosedDownProject(entry.tasks, tabsByTask) : false
   })
-  const projectRepos = visibleKeys.map((key) => byProject.get(key)?.repo ?? "")
+  const projectRepos: LabelledRepo[] = visibleKeys.map((key) => {
+    const entry = byProject.get(key)
+    return { repo: entry?.repo ?? "", hostLabel: hostLabelOf(entry?.tasks[0]) }
+  })
   for (const key of visibleKeys) {
     const entry = byProject.get(key)
     if (!entry) continue
+    const hostLabel = hostLabelOf(entry.tasks[0])
     rows.push({
       kind: "project",
       id: key,
       repo: entry.repo,
-      label: sidebarProjectLabel(entry.repo, projectRepos),
+      label: sidebarProjectLabel(entry.repo, projectRepos, hostLabel),
+      machineId: entry.tasks[0]?.origin?.machineId ?? "local",
       depth: 0,
     })
     // Routine sessions sort to the END of their project, behind
@@ -418,6 +348,14 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
   return rows
 }
 
+/** The host a task's rows display under — undefined for the local machine, so
+ *  a machine-free tree carries no host anywhere in the label rules. */
+function hostLabelOf(task: Task | undefined): string | undefined {
+  const origin = task?.origin
+  if (!origin || origin.machineId === "local") return undefined
+  return origin.hostLabel || origin.machineId
+}
+
 function pushWorktree(rows: TreeRow[], task: Task, tabsByTask: ReadonlyMap<string, readonly TreeTab[]>): void {
   rows.push({ kind: "worktree", id: task.id, task, depth: 1 })
   for (const tab of tabsByTask.get(task.id) ?? []) {
@@ -439,7 +377,7 @@ export function treeFlatIds(rows: readonly TreeRow[]): string[] {
   for (const row of rows) {
     // The routines count row IS navigable, unlike a project header: opening
     // it is the whole point, so the cursor has to be able to land on it.
-    if (row.kind !== "project") ids.push(row.id)
+    if (row.kind !== "project" && row.kind !== "machine") ids.push(row.id)
   }
   return ids
 }
@@ -450,7 +388,7 @@ export function treeFlatIds(rows: readonly TreeRow[]): string[] {
  *  the same key `buildTreeRows` groups it under. */
 export function ownerProjectKey(task: Task): string | null {
   if (task.kind === "dir" && task.scratch === true) return SCRATCH_SECTION_ID
-  return sidebarProjectKey(task.repo)
+  return sidebarProjectKeyOfTask(task)
 }
 
 /**
@@ -485,7 +423,7 @@ export function projectKeysOf(tasks: readonly Task[]): string[] {
 export function mainTaskIdOfProject(tasks: readonly Task[], projectKey: string): string | null {
   for (const task of tasks) {
     if (task.kind !== "main") continue
-    if (sidebarProjectKey(task.repo) === projectKey) return String(task.id)
+    if (sidebarProjectKeyOfTask(task) === projectKey) return String(task.id)
   }
   return null
 }

@@ -33,7 +33,13 @@ type DeepRequired<T> = {
 }
 
 /** Every field the wire shape can carry, each with a distinguishable value. */
-const FULL: DeepRequired<SerializedTask> = {
+/**
+ * `origin` is excluded on purpose. It is the ONE field on a task that no
+ * daemon ever produces and no store ever keeps: the client stamps it while
+ * merging several machines' task lists (`machines/hub.ts`), so a round-trip
+ * guard demanding it survive would be asserting the opposite of the design.
+ */
+const FULL: DeepRequired<Omit<SerializedTask, "origin">> = {
   id: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
   title: "wire fixture",
   repo: "/repo",

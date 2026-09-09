@@ -347,6 +347,20 @@ export type DaemonConnectionState = "online" | "disconnected"
 
 export interface RemoteOrchestratorOptions {
   /**
+   * True for a MACHINE connection: the daemon on the far end of an SSH tunnel
+   * serves its OWN home, so the foreign-home guard must not fire. Defaults to
+   * false, which keeps every local connection's behaviour unchanged.
+   */
+  readonly expectForeignHome?: boolean
+  /** Told who answered the handshake — hostname / homeDir / daemonPid, the
+   *  triple that identifies a machine (`machines/registry.ts`). */
+  readonly onPeerIdentity?: (peer: {
+    hostname: string
+    homeDir: string
+    daemonPid: number
+    kobeVersion: string
+  }) => void
+  /**
    * Bring the daemon back on the socket this client already points
    * at. Shared mode uses the stable production socket; single/owned
    * mode injects a restart function for its per-TUI socket.

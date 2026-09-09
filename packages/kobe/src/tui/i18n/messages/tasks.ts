@@ -149,6 +149,16 @@ export const en = {
   recentJump: "Recent: {title}",
   /** The fold row standing in for a project's routine sessions */
   routinesRow: "{count} routine sessions",
+  /** Machine section headers — another computer running its own Rove daemon */
+  machine: {
+    connecting: "connecting…",
+    offline: "offline",
+    unsupported: "unsupported",
+    mismatch: "protocol mismatch",
+    /** Files/diff placeholder for a task whose worktree is on another machine */
+    filesElsewhere: "on {host}",
+    filesHint: "This task's worktree lives on {host}. Opening remote files arrives in a later release.",
+  },
   /** Empty-state messages */
   empty: {
     noMatchSearch: "No matching tasks — esc to clear.",
@@ -337,6 +347,14 @@ export const zh: typeof en = {
   moveChip: " 移动",
   recentJump: "最近:{title}",
   routinesRow: "{count} 个 routine 会话",
+  machine: {
+    connecting: "连接中…",
+    offline: "离线",
+    unsupported: "不支持",
+    mismatch: "协议不兼容",
+    filesElsewhere: "在 {host} 上",
+    filesHint: "这个任务的 worktree 在 {host} 上。读取远端文件会在后续版本提供。",
+  },
   empty: {
     noMatchSearch: "无匹配任务——按 esc 清除。",
     noActiveProject: "该项目暂无活跃任务。",

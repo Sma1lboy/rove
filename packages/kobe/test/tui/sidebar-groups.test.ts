@@ -371,3 +371,28 @@ describe("resolveCursorTarget", () => {
     expect(resolveCursorTarget(null, ids, 9)).toBe(2) // out of range → clamp to last
   })
 })
+
+describe("project identity and labels across machines", () => {
+  it("keys the same path on two machines as two projects", () => {
+    // Without the machine in the key, `~/i/kobe` on the laptop and on the
+    // build box merged into ONE sidebar row carrying both machines' tasks.
+    expect(sidebarProjectKey("/i/kobe", "narwhal")).not.toBe(sidebarProjectKey("/i/kobe"))
+  })
+
+  it("leaves the local key byte-identical to the pre-machines one", () => {
+    expect(sidebarProjectKey("/i/kobe", "local")).toBe(sidebarProjectKey("/i/kobe"))
+  })
+
+  it("disambiguates a cross-machine basename collision by host", () => {
+    const repos = [
+      { repo: "/i/kobe", hostLabel: undefined },
+      { repo: "/i/kobe", hostLabel: "narwhal" },
+    ]
+    expect(sidebarProjectLabel("/i/kobe", repos)).toBe("kobe")
+    expect(sidebarProjectLabel("/i/kobe", repos, "narwhal")).toBe("narwhal:kobe")
+  })
+
+  it("still uses the path tail for a collision on ONE machine", () => {
+    expect(sidebarProjectLabel("/work/api", ["/work/api", "/oss/api"])).toBe("work/api")
+  })
+})

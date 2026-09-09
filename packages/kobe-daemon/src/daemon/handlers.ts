@@ -28,6 +28,7 @@
  * `packages/kobe/test/daemon/handlers.test.ts`).
  */
 
+import { hostname } from "node:os"
 import type { DaemonRpcClient } from "../client/rpc.ts"
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import type { AgentTurnsStore } from "./agent-turns-store.ts"
@@ -50,6 +51,7 @@ import { WORK_ITEM_HANDLERS } from "./handlers-work-items.ts"
 import { WORKTREE_HANDLERS } from "./handlers-worktree.ts"
 import type { IssuesStore } from "./issues-store.ts"
 import type { NotesStore } from "./notes-store.ts"
+import { defaultPtyHostSocketPath } from "./paths.ts"
 import {
   CHANNEL_NAMES,
   DAEMON_PROTOCOL_VERSION,
@@ -269,6 +271,12 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           // inherited the production socket path) and must reject the list
           // instead of rendering an empty sidebar — protocol.isForeignDaemonHome.
           homeDir: ctx.daemon.homeDir,
+          // The host this daemon runs on. A client reaching it through an SSH
+          // tunnel sees only a local socket path, so this is the only thing
+          // that says WHICH machine answered — and, with `homeDir` +
+          // `daemonPid` above, the triple that recognizes two machine aliases
+          // as one machine (`machines/registry.ts` duplicateAliasOf).
+          hostname: hostname(),
           tasks: ctx.orch.listTasks().map(serializeTask),
         }
       },
@@ -298,6 +306,13 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           // which otherwise reads as "my tasks vanished".
           homeDir: ctx.daemon.homeDir,
           socketPath: ctx.daemon.socketPath,
+          // The PTY host's socket, and this daemon's host. `rove machine add`
+          // reads both over SSH (`rove daemon status --json`) so the local side
+          // never has to GUESS a remote socket path — the remote home may be a
+          // different user, and `fitSocketPath` can shorten either path to fit
+          // the platform's sun_path limit, so neither is derivable from here.
+          ptySocketPath: defaultPtyHostSocketPath(ctx.daemon.homeDir),
+          hostname: hostname(),
         }
       },
     },

@@ -443,6 +443,11 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           onZenToggle={toggleZen}
           onCreatePR={() => void editor.onCreatePR()}
           taskKind={selectedTask?.kind}
+          remoteHost={
+            selectedTask?.origin && selectedTask.origin.machineId !== "local"
+              ? selectedTask.origin.hostLabel
+              : undefined
+          }
         />
       ) : null}
 
@@ -470,9 +475,19 @@ export async function startWorkspaceHost(): Promise<void> {
       const orchestrator = new RemoteOrchestrator(client, { role: "gui" })
       await orchestrator.init()
       process.env.KOBE_DAEMON_SOCKET_PATH = client.socketPath
+      // Other computers running Rove. `attach()` is synchronous and a no-op
+      // when none are registered, so an install without machines pays one map
+      // lookup and boots exactly as before.
+      const { MachineHub } = await import("../../machines/hub.ts")
+      const { setMachineHub } = await import("../../machines/hub-singleton.ts")
+      const machines = new MachineHub(orchestrator)
+      machines.attach()
+      setMachineHub(machines)
       return {
         root: () => <WorkspaceRoot orchestrator={orchestrator} />,
         onDestroy: () => {
+          setMachineHub(null)
+          machines.dispose()
           orchestrator.dispose()
           // Detach, don't kill: hosted PTYs (the `kobe pty-host` process)
           // keep their engine sessions RUNNING in the background and

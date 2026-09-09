@@ -29,6 +29,7 @@ export function topLevelUsage(cliName: ProductCliName = activeCliName()): string
     "  repo <verb>             Per-repo init script + first prompt (show|set|unset)",
     `  api <verb>              Scriptable RPC surface for agents (see \`${cliName} api --help\`)`,
     "  daemon <verb>           Manage the daemon (start|stop|status|restart)",
+    "  machine <verb>          Other computers running Rove (add|remove|list)",
     "  doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies",
     `  config [--path]         Open ${cliName}'s config file (state.json) in your editor`,
     "  reset [--hard]          Stop runtimes; optionally wipe task/UI state",

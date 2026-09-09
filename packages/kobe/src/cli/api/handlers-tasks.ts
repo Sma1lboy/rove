@@ -319,7 +319,12 @@ export async function getTask(ctx: VerbContext): Promise<unknown> {
 }
 
 export async function list(ctx: VerbContext): Promise<unknown> {
-  return daemonOf(ctx).request<{ tasks: SerializedTask[] }>("task.list")
+  const local = await daemonOf(ctx).request<{ tasks: SerializedTask[] }>("task.list")
+  // With no machine registered this hands back the daemon's own response
+  // object untouched, so the single-machine payload is byte-identical to what
+  // it was before machines existed.
+  const { mergeTaskList } = await import("../../machines/api-merge.ts")
+  return await mergeTaskList(local)
 }
 
 export async function setActive(ctx: VerbContext): Promise<unknown> {
