@@ -163,6 +163,39 @@ describe("read-output history paging", () => {
     expect(clipped.text.length).toBeLessThan(STRING_CLIP_CHARS + 100)
     expect(clipped.text).toContain("chars clipped]")
   })
+
+  it("clips on a code-point boundary so an astral char straddling the cut is not bisected", () => {
+    // The emoji is the last code point within the cap, but its two UTF-16
+    // units straddle the raw `STRING_CLIP_CHARS` index — a bare `.slice` would
+    // keep only its high surrogate and drop the low one, leaving an orphaned
+    // half that renders as U+FFFD in the JSON an agent reads back.
+    const value = `${"y".repeat(STRING_CLIP_CHARS - 1)}😀${"z".repeat(10)}`
+    const clipped = clipStrings({ text: value }) as { text: string }
+    // No lone surrogate survives: a UTF-8 round-trip is lossless only when
+    // every surrogate is paired, and there is no replacement glyph.
+    expect(Buffer.from(clipped.text, "utf8").toString("utf8")).toBe(clipped.text)
+    expect(clipped.text).not.toContain("�")
+    // The emoji is kept whole (it is the final in-cap code point); only the
+    // trailing `z`s past the cap are clipped.
+    expect(clipped.text).toBe(`${"y".repeat(STRING_CLIP_CHARS - 1)}😀…[+10 chars clipped]`)
+  })
+
+  it("counts clipped code points, not UTF-16 units, in the tally", () => {
+    // 300 astral chars past the cap is 300 clipped CHARS, even though they are
+    // 600 UTF-16 units — the label must not double-count them.
+    const value = `${"y".repeat(STRING_CLIP_CHARS)}${"😀".repeat(300)}`
+    const clipped = clipStrings({ text: value }) as { text: string }
+    expect(clipped.text).toContain("[+300 chars clipped]")
+  })
+
+  it("keeps a string whose code-point count is within the cap even when its UTF-16 length exceeds it", () => {
+    // All astral: STRING_CLIP_CHARS code points spelled with 2× that many
+    // UTF-16 units. It is within the cap by the "chars" the field name and
+    // clip label speak in, so it passes through unclipped.
+    const value = "😀".repeat(STRING_CLIP_CHARS)
+    const clipped = clipStrings({ text: value }) as { text: string }
+    expect(clipped.text).toBe(value)
+  })
 })
 
 describe("read-output fallback labeling", () => {

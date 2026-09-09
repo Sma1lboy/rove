@@ -120,8 +120,21 @@ export function decodeCursor(raw: string, taskId: string): Cursor {
  *  when a single tool result is huge). Messages are plain parsed JSON. */
 export function clipStrings(value: unknown): unknown {
   if (typeof value === "string") {
+    // Fast path by UTF-16 length: a string within the cap in code UNITS is
+    // also within it in code POINTS (points ≤ units always), so nothing needs
+    // clipping and we skip the spread below.
     if (value.length <= STRING_CLIP_CHARS) return value
-    return `${value.slice(0, STRING_CLIP_CHARS)}…[+${value.length - STRING_CLIP_CHARS} chars clipped]`
+    // Clip on a code-POINT boundary, not a UTF-16 code unit: a bare
+    // `value.slice(0, N)` can bisect a surrogate pair (emoji / astral char)
+    // straddling the boundary and leave an orphaned half that renders as
+    // U+FFFD in the JSON an agent reads back. `orchestrator/title.ts` guards
+    // the identical hazard the same way. Counting points also makes the
+    // `[+N chars clipped]` tally honest — one astral char is one char, not
+    // the two UTF-16 units a `.length` subtraction would report.
+    const points = [...value]
+    if (points.length <= STRING_CLIP_CHARS) return value
+    const kept = points.slice(0, STRING_CLIP_CHARS).join("")
+    return `${kept}…[+${points.length - STRING_CLIP_CHARS} chars clipped]`
   }
   if (Array.isArray(value)) return value.map(clipStrings)
   if (value !== null && typeof value === "object") {
