@@ -53,7 +53,13 @@ export async function initDaemonStores(
   // for why it reads a completion marker and not just the transcript mtime.
   const livenessAt: ActivityLivenessProbe = (taskId, vendor, transcriptPath) =>
     readActivityLiveness(orch, runtime, taskId, vendor, transcriptPath)
-  const activity = new DaemonActivityRegistry(bus, undefined, undefined, livenessAt)
+  const activity = new DaemonActivityRegistry(
+    bus,
+    undefined,
+    undefined,
+    livenessAt,
+    (taskId) => orch.getTask(taskId) !== undefined,
+  )
   const inbox = new AttentionInboxStore(defaultAttentionInboxPath(homeDir), bus)
   await inbox.init().catch((err) => logDaemonError("attention-inbox-init", err))
   // Durable per-turn telemetry — written by the `turn-complete`
