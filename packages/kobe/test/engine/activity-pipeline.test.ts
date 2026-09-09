@@ -67,12 +67,13 @@ function rowAfterClaudeHook(event: string, payload: Record<string, unknown>) {
     // wake (monitor stream ending), not a completion.
     if (verb !== "turn-start" && verb !== "session-start") registry.report("task-1", "turn-start")
     registry.report("task-1", verb, detail)
-    const published = registry.snapshotByTask()["task-1"]
-    expect(published).toBeDefined()
     // 5. Client side: RemoteOrchestrator accumulates non-idle states into
-    //    TaskEngineState (an `idle` publish deletes the entry → undefined).
-    const activity: TaskEngineState | undefined =
-      published.state === "idle" ? undefined : { state: published.state, detail: published.detail, at: published.at }
+    //    TaskEngineState — which is exactly what the registry's derived
+    //    rollup replays, so an idle task is simply absent here.
+    const published = registry.currentNonIdle().find((p) => p.taskId === "task-1" && !p.tabId)
+    const activity: TaskEngineState | undefined = published
+      ? { state: published.state, detail: published.detail, at: published.at }
+      : undefined
     // 6. Render: the sidebar badge.
     return buildSidebarRowView({
       task: task(),

@@ -1,4 +1,6 @@
+import { DaemonActivityRegistry } from "@sma1lboy/kobe-daemon/daemon/activity-registry"
 import { EngineEventLog } from "@sma1lboy/kobe-daemon/daemon/engine-events-log"
+import { DaemonEventBus } from "@sma1lboy/kobe-daemon/daemon/event-bus"
 import { PromptBroker } from "@sma1lboy/kobe-daemon/daemon/prompt-broker"
 import type { DaemonRequestName } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { type DaemonHandlerContext, createDaemonHandlerRegistry } from "@sma1lboy/kobe-daemon/daemon/server"
@@ -112,6 +114,30 @@ describe("daemon handler registry", () => {
       await dispatch("ui.reportEvent", { kind: "file.opened", taskId: "t1", detail: { path: "/x.mp4" } }, ctx)
       expect(seen).toEqual([{ kind: "file.opened", taskId: "t1", detail: { path: "/x.mp4" } }])
       await expect(dispatch("ui.reportEvent", { kind: "task.created" }, ctx)).rejects.toThrow(/unknown ui event/)
+    })
+
+    // `tab.closed` is the ONE place every terminal-tab close funnels through
+    // (the TUI's own path, and the daemon's `terminalTab.close`, which drives
+    // it). A real registry, not a spy: the assertion is that the LEDGER is
+    // swept, so cutting either the wiring here or `clearTab` itself fails.
+    it("sweeps the closed tab's activity ledger entry", async () => {
+      const { ctx } = fakeCtx({ getTask: () => TASK })
+      const bus = new DaemonEventBus()
+      const activity = new DaemonActivityRegistry(bus, 60_000)
+      ;(ctx as { activity: DaemonActivityRegistry }).activity = activity
+      ;(ctx as { plugins?: unknown }).plugins = { handleEngineReport: () => {}, handleUiReport: () => {} }
+      try {
+        activity.report("t1", "turn-start", undefined, "tab-1")
+        expect(activity.debugSnapshot().tabs.t1?.["tab-1"]?.state).toBe("running")
+
+        await dispatch("ui.reportEvent", { kind: "tab.closed", taskId: "t1", detail: { tabId: "tab-1" } }, ctx)
+
+        expect(activity.debugSnapshot().tabs.t1?.["tab-1"]).toBeUndefined()
+        // …and the task row follows: nothing is left to be running.
+        expect(activity.currentNonIdle()).toEqual([])
+      } finally {
+        activity.close()
+      }
     })
   })
 

@@ -120,8 +120,10 @@ describe("golden: session events → sidebar running state", () => {
     const row = h.row("tab-1")
     expect(row.loading).toBe(true)
     expect(row.tone).toBe("primary")
-    const last = h.published.at(-1)
+    const last = h.published.filter((p) => p.tabId).at(-1)
     expect(last).toMatchObject({ taskId: TASK_ID, tabId: "tab-1", state: "running", sessionId: "s1" })
+    // …and the derived task rollup follows it, so the task row spins too.
+    expect(h.published.at(-1)).toMatchObject({ taskId: TASK_ID, state: "running", sessionId: "s1" })
   })
 
   it("a Stop after running lands the unseen ●, which digests once seen", () => {

@@ -150,19 +150,16 @@ describe("RemoteOrchestrator channel handling", () => {
   // sessionId/transcriptPath ride the engine-state payload (additive
   // optional fields — an old daemon simply omits them). They land on both
   // the task-level entry and the per-tab map so "which engine session is
-  // live here" resolves at either granularity.
+  // live here" resolves at either granularity. The daemon publishes the pair
+  // — tab event, then the rollup it derives — and the client no longer
+  // re-derives the task level from the tab event (activity-rollup.ts).
   it("accumulates sessionId/transcriptPath from engine-state into both levels", () => {
     const { client, emit } = fakeClient()
     const orch = new RemoteOrchestrator(client)
 
-    emit("engine-state", {
-      taskId: "t1",
-      tabId: "tab-1",
-      state: "running",
-      sessionId: "sess-1",
-      transcriptPath: "/tmp/sess-1.jsonl",
-      at: 10,
-    })
+    const session = { sessionId: "sess-1", transcriptPath: "/tmp/sess-1.jsonl" }
+    emit("engine-state", { taskId: "t1", tabId: "tab-1", state: "running", ...session, at: 10 })
+    emit("engine-state", { taskId: "t1", state: "running", ...session, at: 10 })
     const taskEntry = orch.engineStateSignal()().get("t1")
     expect(taskEntry?.sessionId).toBe("sess-1")
     expect(taskEntry?.transcriptPath).toBe("/tmp/sess-1.jsonl")

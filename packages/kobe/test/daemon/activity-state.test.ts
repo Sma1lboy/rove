@@ -164,7 +164,12 @@ describe("daemon activity state", () => {
     })
 
     registry.report("task-1", "awaiting-input", { waiting: "input" }, "tab-2")
-    expect(published).toEqual([{ taskId: "task-1", tabId: "tab-2", state: "permission_needed" }])
+    // Two publishes per tab report: the tab entry, then the DERIVED task
+    // rollup that follows from it (activity-rollup.ts).
+    expect(published).toEqual([
+      { taskId: "task-1", tabId: "tab-2", state: "permission_needed" },
+      { taskId: "task-1", tabId: undefined, state: "permission_needed" },
+    ])
     // Replay carries the task rollup AND the tab entry.
     expect(registry.currentNonIdle().map((p) => [p.taskId, p.tabId, p.state])).toEqual([
       ["task-1", undefined, "permission_needed"],
@@ -210,9 +215,10 @@ describe("daemon activity state", () => {
     expect(published[0]).toEqual({ state: "running", sessionId: "sess-abc", transcriptPath: "/tmp/sess-abc.jsonl" })
 
     // An event WITHOUT session info keeps the latest-known id (carry-forward)
-    // on both the task rollup and the tab entry.
+    // on both the tab entry and the rollup derived from it. `published[2]` is
+    // the tab publish — index 1 is the task rollup that followed the first.
     registry.report("task-1", "turn-complete", undefined, "tab-1")
-    expect(published[1]).toEqual({
+    expect(published[2]).toEqual({
       state: "turn_complete",
       sessionId: "sess-abc",
       transcriptPath: "/tmp/sess-abc.jsonl",
@@ -247,7 +253,7 @@ describe("daemon activity state", () => {
     // A different engine boots in tab-b; its hooks pipe NO session id.
     registry.report("task-1", "session-start", undefined, "tab-b")
 
-    const last = published.at(-1)
+    const last = published.filter((p) => p.tabId).at(-1)
     expect(last?.tabId).toBe("tab-b")
     expect(last?.sessionId).toBeUndefined()
     registry.close()

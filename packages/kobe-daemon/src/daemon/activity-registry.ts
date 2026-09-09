@@ -1,14 +1,14 @@
 import { type EffectiveActivity, type HookSlot, type ObservedSlot, recomputeTabActivity } from "./activity-arbitrate.ts"
 import { type ActivityDebugSnapshot, buildActivityDebugSnapshot } from "./activity-debug-dump.ts"
+import { ActivityLapseWatchdog, type LapseEntry, type LapseTarget } from "./activity-lapse.ts"
 import {
-  type ActivityLiveness,
   type ActivityLivenessProbe,
   type EngineSessionInfo,
   STICKY_STATES,
-  activityStillWorking,
   reduceActivity,
   resolveEngineStateTtlMs,
 } from "./activity-reduce.ts"
+import { type RollupCandidate, deriveTaskActivity, rollupCandidates } from "./activity-rollup.ts"
 import type { EngineActivityDetail, EngineActivityKind, TaskActivityState } from "./contracts.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import type { ChannelPayloads } from "./protocol.ts"
@@ -30,8 +30,14 @@ export {
   type TabActivitySlots,
   recomputeTabActivity,
 } from "./activity-arbitrate.ts"
+export { type RollupCandidate, deriveTaskActivity, rollupCandidates } from "./activity-rollup.ts"
 
-/** Task-level rollup entry — last-event-wins across the task's tabs. */
+/**
+ * A TAB-LESS hook entry: an engine the user started in a shell kobe did not
+ * spawn inherits no `KOBE_TAB_ID`, so its hooks report task-only (see
+ * `attention-inbox.ts`'s `record`). It is one more rollup candidate beside the
+ * task's tabs — NOT the rollup itself, which is derived (activity-rollup.ts).
+ */
 interface ActivityEntry {
   state: TaskActivityState
   detail?: EngineActivityDetail
@@ -42,8 +48,6 @@ interface ActivityEntry {
   /** The reporting engine's id (hook `--engine`) — what the liveness probe
    *  asks about. Carried forward like `session`. */
   vendor?: string
-  /** Exact tab report that owns this rollup; inherited session paths are not ownership. */
-  sourceHook?: TabHookEntry
   lapse?: ReturnType<typeof setTimeout>
 }
 
@@ -84,28 +88,29 @@ interface PayloadSource {
  * This is UI state, not task lifecycle: it is replayed to subscribers and the
  * web snapshot, but never persisted to tasks.json.
  *
- * Two levels: the task-level rollup (last-event-wins across tabs, every
- * existing consumer reads it) and the per-tab ledger (the F7 attention jump's
- * tab precision + the tab strip's chip). The per-tab ledger is where the
- * multi-source arbitration lives: hook events and observer facts occupy
- * separate slots and ONE pure function decides what subscribers see, instead
- * of each writer special-casing the other source's entries.
+ * The per-tab ledger is the ONLY thing written: hook events and observer facts
+ * occupy separate slots and ONE pure function decides what subscribers see
+ * (activity-arbitrate.ts), instead of each writer special-casing the other
+ * source's entries. The task-level rollup every consumer reads is DERIVED from
+ * that ledger on demand (activity-rollup.ts) rather than maintained as a
+ * second copy — see that file for why the copy could not be kept correct.
  */
-/** Scope key for the unified lapse watchdog — one abstraction covers both
- *  the task-level rollup and a per-tab hook slot. */
-interface LapseTarget {
-  readonly taskId: string
-  readonly tabId?: string
-}
-
-/** The subset of an entry the lapse-timer abstraction reads and writes. */
-type LapseEntry = Pick<ActivityEntry, "at" | "vendor" | "session" | "lapse">
-
 export class DaemonActivityRegistry {
+  /** Tab-less hook entries only (see {@link ActivityEntry}) — one rollup
+   *  candidate per task, not the rollup. */
   private readonly activity = new Map<string, ActivityEntry>()
   /** Per-tab records (taskId → tabId → entry) for events that carried a
    *  `tabId`. UI state like everything here — replayed, never persisted. */
   private readonly tabActivity = new Map<string, Map<string, TabEntry>>()
+  /**
+   * Per-tab REDUCER lineage (taskId → tabId → last reduced state), including
+   * idle. The ledger above drops an idle tab — a closed tab must not stay a
+   * rollup candidate — but {@link reduceActivity} still has to tell "this tab
+   * went quiet on the record" from "this daemon has never heard of it": a Stop
+   * on the first is an automated wake to swallow, on the second a turn that
+   * outlived a daemon restart, and its ● lamp is owed.
+   */
+  private readonly tabLineage = new Map<string, Map<string, TaskActivityState>>()
 
   constructor(
     private readonly bus: DaemonEventBus,
@@ -118,7 +123,25 @@ export class DaemonActivityRegistry {
      * whether the engine is still writing its transcript before idling.
      */
     private readonly livenessAt: ActivityLivenessProbe = () => Promise.resolve(undefined),
-  ) {}
+    /**
+     * Does this task still exist? The observer walks PTY sessions, which can
+     * outlive the task's removal from the index by a poll — without this a
+     * deleted task's observation re-created its ledger entry, resurrecting a
+     * badge for a task the UI had already dropped.
+     */
+    private readonly taskExists: (taskId: string) => boolean = () => true,
+  ) {
+    this.lapse = new ActivityLapseWatchdog({
+      staleMs: this.staleMs,
+      now: this.now,
+      livenessAt: (taskId, vendor, transcriptPath) => this.livenessAt(taskId, vendor, transcriptPath),
+      entryAt: (target) => this.lapseEntry(target),
+      retire: (target) => this.retireLapsed(target),
+    })
+  }
+
+  /** Safety net for a missed Stop/SessionEnd — see activity-lapse.ts. */
+  private readonly lapse: ActivityLapseWatchdog
 
   report(
     taskId: string,
@@ -128,51 +151,35 @@ export class DaemonActivityRegistry {
     session?: EngineSessionInfo,
     vendor?: string,
   ): void {
-    const prev = this.activity.get(taskId)
-    if (prev?.lapse) clearTimeout(prev.lapse)
-    const state = reduceActivity(prev?.state, kind, detail)
     const at = this.now()
-    const lineage = tabId ? this.tabActivity.get(taskId)?.get(tabId)?.hook : prev
-    const entry: ActivityEntry = {
-      state,
-      detail,
-      at,
-      session: session ?? lineage?.session,
-      vendor: vendor ?? lineage?.vendor,
-    }
-    // Safety net: only `running` is policed by the lapse watchdog — a missed
-    // Stop/SessionEnd must not pin it forever, so it lapses to idle once the
-    // engine genuinely goes silent (heartbeat probe below). Sticky states
-    // (turn_complete + the attention states a user walks away to handle) stay
-    // visible until the next real event clears them; see {@link STICKY_STATES}.
-    if (state !== "idle" && !STICKY_STATES.has(state)) {
-      entry.lapse = this.armLapse({ taskId }, at)
-    }
-    this.activity.set(taskId, entry)
-    // Per-tab ledger. A TAB-scoped publish must carry the TAB's session
-    // lineage only — the event's own id, or the same tab's previous one.
-    // Inheriting the task-level rollup here leaked another tab's (even
-    // another ENGINE's) session onto a fresh tab whose hooks don't pipe
-    // session ids. A hook event SUPERSEDES the observed slot for its tab:
-    // hooks are authoritative while the engine lives (see
-    // activity-arbitrate.ts), so the observation that filled the gap is
-    // dropped rather than left to age against the fresh claim.
-    let publishEntry: PayloadSource = entry
+    // The reduce's `previous` is PER SOURCE. Reading the task rollup here was
+    // the same conflation the rollup itself was: tab B's Stop reduced against
+    // tab A's turn-start, so one tab's completion state depended on another's.
     if (tabId) {
+      // A TAB-scoped publish must carry the TAB's session lineage only — the
+      // event's own id, or the same tab's previous one. Inheriting a
+      // task-level id here leaked another tab's (even another ENGINE's)
+      // session onto a fresh tab whose hooks don't pipe session ids. A hook
+      // event SUPERSEDES the observed slot for its tab: hooks are
+      // authoritative while the engine lives (see activity-arbitrate.ts), so
+      // the observation that filled the gap is dropped rather than left to
+      // age against the fresh claim.
       const tabs = this.tabActivity.get(taskId) ?? new Map<string, TabEntry>()
       const prevTab = tabs.get(tabId)
+      const lineage = this.tabLineage.get(taskId) ?? new Map<string, TaskActivityState>()
+      const state = reduceActivity(prevTab?.effective.state ?? lineage.get(tabId), kind, detail)
+      lineage.set(tabId, state)
+      this.tabLineage.set(taskId, lineage)
       if (prevTab?.hook?.lapse) clearTimeout(prevTab.hook.lapse)
       const tabSession = session ?? prevTab?.hook?.session
       const tabVendor = vendor ?? prevTab?.hook?.vendor
-      publishEntry = { state, detail, at, session: tabSession }
       if (state === "idle") {
         // A closed/ended tab must not linger as a candidate — idle CLEARS
         // the tab's record (both slots) rather than being stored.
         tabs.delete(tabId)
       } else {
         const hook: TabHookEntry = { state, detail, at, session: tabSession, vendor: tabVendor }
-        entry.sourceHook = hook
-        if (!STICKY_STATES.has(state)) hook.lapse = this.armLapse({ taskId, tabId }, at)
+        if (!STICKY_STATES.has(state)) hook.lapse = this.lapse.arm({ taskId, tabId }, at)
         tabs.set(tabId, {
           hook,
           effective: {
@@ -187,70 +194,76 @@ export class DaemonActivityRegistry {
       }
       if (tabs.size > 0) this.tabActivity.set(taskId, tabs)
       else this.tabActivity.delete(taskId)
-    }
-    this.bus.publish("engine-state", this.payload(taskId, publishEntry, tabId))
-  }
-
-  /** Probe wrapper: a best-effort filesystem read must never crash the daemon,
-   *  and a failed read of an identified session stays unknown. */
-  private async probe(taskId: string, vendor?: string, transcriptPath?: string): Promise<ActivityLiveness | undefined> {
-    try {
-      return await this.livenessAt(taskId, vendor, transcriptPath)
-    } catch {
-      return transcriptPath ? { unknown: true } : undefined
-    }
-  }
-
-  /**
-   * Arm (or re-arm) the lapse watchdog for the entry stamped `at`. A long
-   * single turn emits only `turn-start` … `Stop` over many minutes — nothing
-   * in between — so a fixed timer would fire mid-turn and wrongly idle a
-   * working agent. Bumping the TTL only moves that cliff. Instead, when the
-   * timer fires we probe whether the engine is still writing its transcript:
-   * a write within the trailing `staleMs` window ⇒ the turn is alive, so we
-   * re-arm (a heartbeat) instead of idling. Only a genuinely silent engine
-   * (no recent write ⇒ a missed Stop / hung process) lapses to idle.
-   *
-   * One helper covers both the task-level rollup and per-tab hook slots; the
-   * callback resolves the right ledger by the scope key.
-   */
-  private armLapse(target: LapseTarget, at: number): ReturnType<typeof setTimeout> {
-    const timer = setTimeout(() => {
-      void this.handleLapse(target, at)
-    }, this.staleMs)
-    timer.unref?.()
-    return timer
-  }
-
-  /**
-   * Lapse-timer callback. Never throws. Guards against the entry changing
-   * across the async probe: a `report()` / `clearTask()` / `close()` that runs
-   * before OR during the probe supersedes this lapse (re-read the map and
-   * confirm the same entry identity after the await). A rescheduled
-   * lapse is stored back on the live entry, so a later event can cancel it.
-   *
-   * One implementation covers both the task-level rollup and the per-tab hook
-   * slot — the policy (probe, supersede guard, heartbeat) is identical; only
-   * the idle cleanup differs.
-   */
-  private async handleLapse(target: LapseTarget, at: number): Promise<void> {
-    // Superseded before we even probed (a fresh report swapped the entry).
-    const before = this.lapseEntry(target)
-    if (!before || before.at !== at) return
-
-    const live = await this.probe(target.taskId, before.vendor, before.session?.transcriptPath)
-
-    // Re-read after the await: the entry may have been replaced or cleared
-    // while the probe was in flight. Acting on a stale `at` would clobber a
-    // newer state or resurrect a cleared task.
-    const cur = this.lapseEntry(target)
-    if (cur !== before) return
-
-    if (activityStillWorking(live, at, this.now(), this.staleMs)) {
-      cur.lapse = this.armLapse(target, at)
+      this.bus.publish("engine-state", this.payload(taskId, { state, detail, at, session: tabSession }, tabId))
+      this.publishRollup(taskId)
       return
     }
 
+    const prev = this.activity.get(taskId)
+    if (prev?.lapse) clearTimeout(prev.lapse)
+    const state = reduceActivity(prev?.state, kind, detail)
+    const entry: ActivityEntry = {
+      state,
+      detail,
+      at,
+      session: session ?? prev?.session,
+      vendor: vendor ?? prev?.vendor,
+    }
+    // Safety net: only `running` is policed by the lapse watchdog — a missed
+    // Stop/SessionEnd must not pin it forever, so it lapses to idle once the
+    // engine genuinely goes silent (heartbeat probe below). Sticky states
+    // (turn_complete + the attention states a user walks away to handle) stay
+    // visible until the next real event clears them; see {@link STICKY_STATES}.
+    if (state !== "idle" && !STICKY_STATES.has(state)) {
+      entry.lapse = this.lapse.arm({ taskId }, at)
+    }
+    this.activity.set(taskId, entry)
+    this.publishRollup(taskId)
+  }
+
+  /** The derived task-level state, or `undefined` when nothing ever reported. */
+  private rollup(taskId: string): RollupCandidate | undefined {
+    return deriveTaskActivity(rollupCandidates(this.activity.get(taskId), this.tabActivity.get(taskId)))
+  }
+
+  /**
+   * Publish the DERIVED task-level state. Every writer calls this after
+   * touching the ledger — that is what makes an engine death, an observer
+   * correction and a lapse all move the task row without any of them owning
+   * a copy of it. An empty ledger publishes an explicit idle so subscribers
+   * clear the badge rather than keeping the last non-idle one.
+   */
+  private publishRollup(taskId: string): void {
+    const derived = this.rollup(taskId)
+    this.bus.publish("engine-state", this.payload(taskId, derived ?? { state: "idle", at: this.now() }))
+  }
+
+  /**
+   * Drop a closed tab's ledger entry. A tab that is GONE has no state to
+   * arbitrate: leaving it behind kept its last claim in the rollup (and in
+   * every late subscriber's replay) for the life of the daemon, so closing
+   * the running tab of a task left the task row spinning.
+   */
+  clearTab(taskId: string, tabId: string): void {
+    const tabs = this.tabActivity.get(taskId)
+    const entry = tabs?.get(tabId)
+    if (!tabs || !entry) return
+    if (entry.hook?.lapse) clearTimeout(entry.hook.lapse)
+    tabs.delete(tabId)
+    if (tabs.size === 0) this.tabActivity.delete(taskId)
+    const lineage = this.tabLineage.get(taskId)
+    lineage?.delete(tabId)
+    if (lineage?.size === 0) this.tabLineage.delete(taskId)
+    this.bus.publish("engine-state", { taskId, tabId, state: "idle", at: this.now() })
+    this.publishRollup(taskId)
+  }
+
+  /**
+   * Retire a claim the watchdog found silent: drop it from the ledger and
+   * republish the task rollup, so the lapse moves the task row like every
+   * other writer does.
+   */
+  private retireLapsed(target: LapseTarget): void {
     if (target.tabId) {
       const tabs = this.tabActivity.get(target.taskId)
       if (tabs) {
@@ -259,11 +272,12 @@ export class DaemonActivityRegistry {
       }
       this.bus.publish("engine-state", { taskId: target.taskId, tabId: target.tabId, state: "idle", at: this.now() })
     } else {
-      this.publishIdle(target.taskId)
+      this.activity.delete(target.taskId)
     }
+    this.publishRollup(target.taskId)
   }
 
-  /** Read the hook entry that a lapse watchdog polices at a given scope. */
+  /** Read the hook entry the watchdog polices at a given scope. */
   private lapseEntry(target: LapseTarget): LapseEntry | undefined {
     if (target.tabId) {
       return this.tabActivity.get(target.taskId)?.get(target.tabId)?.hook
@@ -291,6 +305,9 @@ export class DaemonActivityRegistry {
     claim: "working" | "rest",
     opts: { vendor?: string; correctHookRunningAfterMs?: number } = {},
   ): ObserveTabOutcome {
+    // A PTY session outliving its task's deletion must not re-create a ledger
+    // entry for a task nothing can navigate to.
+    if (!this.taskExists(taskId)) return "noop"
     const tabs = this.tabActivity.get(taskId) ?? new Map<string, TabEntry>()
     const entry = tabs.get(tabId)
     const prev = entry?.effective
@@ -329,8 +346,8 @@ export class DaemonActivityRegistry {
     tabs.set(tabId, { ...(hook ? { hook } : {}), observed, effective })
     this.tabActivity.set(taskId, tabs)
     this.bus.publish("engine-state", this.payload(taskId, effective, tabId))
+    this.publishRollup(taskId)
 
-    if (effective.source === "observed" && effective.state === "idle") this.clearHookRollup(taskId, entry?.hook)
     if (effective.source === "hook") return "noop" // the observation lost arbitration
     if (effective.state === "running") return "observed-running"
     return prev?.source === "hook" ? "corrected-hook-running" : "observed-idle"
@@ -386,15 +403,8 @@ export class DaemonActivityRegistry {
     if (!effective) return
     tabs.set(tabId, { hook, ...(prev?.observed ? { observed: prev.observed } : {}), effective })
     this.tabActivity.set(taskId, tabs)
-    this.clearHookRollup(taskId, prev?.hook)
     this.bus.publish("engine-state", this.payload(taskId, effective, tabId))
-  }
-
-  private clearHookRollup(taskId: string, hook: TabHookEntry | undefined): void {
-    const current = this.activity.get(taskId)
-    if (current?.state === "running" && hook && current.sourceHook === hook) {
-      this.publishIdle(taskId)
-    }
+    this.publishRollup(taskId)
   }
 
   clearTask(taskId: string): void {
@@ -405,6 +415,7 @@ export class DaemonActivityRegistry {
     // subscriber drops its tab-level candidates too.
     const tabs = this.tabActivity.get(taskId)
     this.tabActivity.delete(taskId)
+    this.tabLineage.delete(taskId)
     if (tabs) {
       for (const [tabId, tabEntry] of tabs) {
         if (tabEntry.hook?.lapse) clearTimeout(tabEntry.hook.lapse)
@@ -413,20 +424,21 @@ export class DaemonActivityRegistry {
     }
     // Publish an explicit idle so every subscriber clears this task's badge.
     // The bus only caches one last value per channel, so this also prevents a
-    // stale per-task replay if the id is quickly recreated.
-    if (gone) this.bus.publish("engine-state", { taskId, state: "idle", at: this.now() })
+    // stale per-task replay if the id is quickly recreated. Gated on EITHER
+    // level having held something — most tasks only ever ledger per-tab.
+    if (gone || tabs) this.bus.publish("engine-state", { taskId, state: "idle", at: this.now() })
   }
 
-  snapshotByTask(): Record<string, EngineStatePayload> {
-    const out: Record<string, EngineStatePayload> = {}
-    for (const [taskId, entry] of this.activity) out[taskId] = this.payload(taskId, entry)
-    return out
+  /** Every task with a ledger entry at either level. */
+  private taskIds(): Set<string> {
+    return new Set([...this.activity.keys(), ...this.tabActivity.keys()])
   }
 
   currentNonIdle(): EngineStatePayload[] {
     const out: EngineStatePayload[] = []
-    for (const [taskId, entry] of this.activity) {
-      if (entry.state !== "idle") out.push(this.payload(taskId, entry))
+    for (const taskId of this.taskIds()) {
+      const derived = this.rollup(taskId)
+      if (derived && derived.state !== "idle") out.push(this.payload(taskId, derived))
     }
     // Tab entries ride the same replay so a late subscriber rebuilds its
     // per-tab map too. Hook-driven entries are only stored non-idle; the
@@ -444,7 +456,12 @@ export class DaemonActivityRegistry {
    * the wire payload.
    */
   debugSnapshot(): ActivityDebugSnapshot {
-    return buildActivityDebugSnapshot(this.activity, this.tabActivity)
+    const derived = new Map<string, RollupCandidate>()
+    for (const taskId of this.taskIds()) {
+      const entry = this.rollup(taskId)
+      if (entry) derived.set(taskId, entry)
+    }
+    return buildActivityDebugSnapshot(derived, this.tabActivity)
   }
 
   close(): void {
@@ -458,14 +475,7 @@ export class DaemonActivityRegistry {
     }
     this.activity.clear()
     this.tabActivity.clear()
-  }
-
-  private publishIdle(taskId: string): void {
-    const previous = this.activity.get(taskId)
-    if (previous?.lapse) clearTimeout(previous.lapse)
-    const entry: ActivityEntry = { state: "idle", at: this.now() }
-    this.activity.set(taskId, entry)
-    this.bus.publish("engine-state", this.payload(taskId, entry))
+    this.tabLineage.clear()
   }
 
   private payload(taskId: string, entry: PayloadSource, tabId?: string): EngineStatePayload {

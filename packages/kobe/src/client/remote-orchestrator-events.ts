@@ -177,20 +177,19 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       ...(tabId ? { tabId } : {}),
       at: typeof p.at === "number" ? p.at : 0,
     }
-    // Accumulate per-task into a fresh Map (new ref → re-render). A tabId-
-    // carrying event updates BOTH levels: the daemon publishes one event per
-    // report, and the task entry is its last-event-wins rollup — EXCEPT that
-    // a tab-scoped idle only clears a rollup the SAME tab wrote: the activity
-    // observer publishes per-tab idles for quiet sessions, and letting any
-    // tab's idle delete the rollup blanks a task whose live work — another
-    // tab, or an untagged external session — is still going.
-    const prevTask = signals.engineStateAcc().get(p.taskId)
-    const prevTaskState = prevTask?.state
-    const next = new Map(signals.engineStateAcc())
-    if (p.state === "idle") {
-      if (!tabId || prevTask?.tabId === tabId) next.delete(p.taskId)
-    } else next.set(p.taskId, entry)
-    signals.setEngineStateSig(next)
+    // The task rollup comes from the daemon's TASK-level events only (no
+    // `tabId`). It used to be re-derived here from tab events too — a second
+    // copy of a rule the daemon already owns, and the two disagreed the moment
+    // a task had more than one tab. The daemon now publishes its derived
+    // rollup alongside every tab event (activity-rollup.ts), so this just
+    // records what it says.
+    const prevTaskState = signals.engineStateAcc().get(p.taskId)?.state
+    if (!tabId) {
+      const next = new Map(signals.engineStateAcc())
+      if (p.state === "idle") next.delete(p.taskId)
+      else next.set(p.taskId, entry)
+      signals.setEngineStateSig(next)
+    }
     // Transient lifecycle marks (subagent counts) must never outlive
     // the evidence: a turn ending clears them, and so does a FRESH running
     // edge — a cancelled compaction never sends post-compact, and an

@@ -127,6 +127,14 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       const detail = payload.detail
       const eventDetail =
         detail && typeof detail === "object" && !Array.isArray(detail) ? (detail as Record<string, unknown>) : undefined
+      // A closed tab has no activity to arbitrate. This is the ONE place every
+      // close funnels through — the TUI's own close path and the daemon's
+      // `terminalTab.close` (which drives that same path) both land here — so
+      // the ledger is swept without a second hook on the close broker.
+      if (kind === "tab.closed" && taskId) {
+        const closedTabId = eventDetail?.tabId
+        if (typeof closedTabId === "string" && closedTabId) ctx.activity.clearTab(taskId, closedTabId)
+      }
       ctx.plugins?.handleUiReport({
         kind: kind as import("../plugins/manifest.ts").PluginEventName,
         ...(taskId ? { taskId } : {}),
