@@ -90,6 +90,21 @@ describe("add --count (parallel round)", () => {
     expect(calls.every((call) => call.target.newTask === true)).toBe(true)
   })
 
+  it("names each sibling the way the sidebar does — title and branch, ahead of the rest", async () => {
+    const client = fanClient()
+    const result = (await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "go", "--count", "2"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: recordingDelivery().deliver }),
+    })) as { tasks: Array<Record<string, unknown>> }
+    // Without these the spawner has only opaque ids and reaches for the
+    // worktree directory name, which appears nowhere in the UI.
+    expect(result.tasks.map((t) => [t.title, t.branch])).toEqual([
+      ["T", "kobe/t-t1"],
+      ["T", "kobe/t-t1"],
+    ])
+    expect(Object.keys(result.tasks[0]).slice(0, 4)).toEqual(["ok", "taskId", "title", "branch"])
+  })
+
   it("applies --status and --pin to every sibling, not just a single add", async () => {
     const client = new FakeClient({
       "task.create": (_payload, index) => ({ taskId: `t${index + 1}`, task: taskFixture({ id: `t${index + 1}` }) }),
