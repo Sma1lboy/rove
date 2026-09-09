@@ -84,22 +84,31 @@ function entryCheckState(entry: GhCheckEntry): PRCheckState {
 /**
  * Roll the per-check states up to the PR headline. Precedence is the same
  * mental model GitHub's own badge uses: **any** failing → failing; else any
- * pending → pending; else all-passing → passing; an empty rollup is `none`
- * (no checks configured); anything we can't read is `unknown`.
+ * pending → pending; else `passing` ONLY when every remaining entry passed;
+ * an empty rollup is `none` (no checks configured); an unreadable entry
+ * mixed in (`unknown`) pulls the headline to `unknown`.
+ *
+ * `passing` reports "all checks are green", so a single entry we could not
+ * classify must not be swept under a green headline — that would tell the
+ * user CI is clear when one check's state is actually unknown. Real
+ * `gh pr view` output never produces an `unknown` entry ({@link
+ * entryCheckState} covers every CheckRun status/conclusion and StatusContext
+ * state), so this only hardens the malformed / partial-payload case; a
+ * well-formed all-green rollup still reports `passing`.
  */
 export function checkStateFromRollup(rollup: readonly GhCheckEntry[] | undefined): PRCheckState {
   if (!rollup || rollup.length === 0) return "none"
   let sawPending = false
-  let sawPassing = false
+  let sawUnknown = false
   for (const entry of rollup) {
     const s = entryCheckState(entry)
     if (s === "failing") return "failing"
     if (s === "pending") sawPending = true
-    else if (s === "passing") sawPassing = true
+    else if (s === "unknown") sawUnknown = true
   }
   if (sawPending) return "pending"
-  if (sawPassing) return "passing"
-  return "unknown"
+  if (sawUnknown) return "unknown"
+  return "passing"
 }
 
 /**
