@@ -96,6 +96,57 @@ function extractMessage(record: Record<string, unknown>, fallbackSessionId: stri
     : { role, blocks, timestamp: ts, sessionId: sid }
 }
 
+/**
+ * Session usage folded by assistant `message.id`, straight from the raw JSONL.
+ *
+ * Claude Code writes one record per assistant content block (thinking,
+ * tool_use, text) and stamps the SAME `message.usage` on every record of a
+ * message, so summing usage per RECORD multiplies a message's cost by its
+ * block count — the exact quirk {@link import("./turns").parseClaudeTurns}
+ * already folds per turn. This folds it session-wide: one usage per id.
+ * Records with no id (older transcript shapes) each get a distinct key, so
+ * they still count exactly once rather than collapsing together.
+ *
+ * `last` is the usage of the newest record by timestamp (file order breaks
+ * ties and covers records without a timestamp) — the final, largest prompt,
+ * which the snapshot reports as the session's context window.
+ */
+export function foldSessionUsage(raw: string): {
+  byMessage: Map<string, NonNullable<Message["usage"]>>
+  last: NonNullable<Message["usage"]> | undefined
+} {
+  const byMessage = new Map<string, NonNullable<Message["usage"]>>()
+  let last: NonNullable<Message["usage"]> | undefined
+  let lastAt = Number.NEGATIVE_INFINITY
+  let anon = 0
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim()
+    if (!trimmed || !isJsonlLineWithinBound(trimmed)) continue
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(trimmed)
+    } catch {
+      continue
+    }
+    if (!isObject(parsed) || isSyntheticClaudeRecord(parsed)) continue
+    const inner = isObject(parsed.message) ? (parsed.message as Record<string, unknown>) : parsed
+    if (inner.role !== "assistant") continue
+    const usage = extractUsage(inner.usage)
+    if (!usage) continue
+    const id = typeof inner.id === "string" && inner.id ? inner.id : `#anon-${anon++}`
+    byMessage.set(id, usage)
+    // Newest by timestamp is the context prompt; a record with no parseable
+    // timestamp folds into the running max so the last one in file order wins.
+    const at = typeof parsed.timestamp === "string" ? Date.parse(parsed.timestamp) : Number.NaN
+    const ts = Number.isFinite(at) ? at : lastAt
+    if (ts >= lastAt) {
+      last = usage
+      lastAt = ts
+    }
+  }
+  return { byMessage, last }
+}
+
 function extractUsage(v: unknown): Message["usage"] {
   if (!isObject(v)) return undefined
   const inTok = typeof v.input_tokens === "number" ? v.input_tokens : undefined
