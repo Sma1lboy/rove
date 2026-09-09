@@ -31,9 +31,9 @@ const SKILL_DIR = join(ROOT, ".agents", "skills", "kobe")
  * Regenerate with the command the failure message prints.
  */
 const FINGERPRINT = {
-  version: 43,
+  version: 44,
   sha256: {
-    "SKILL.md": "07d271241d33921fcba1ae71c1186e8a3dcd0e99af0fd275ac81d7cff35eec41",
+    "SKILL.md": "5bbb0ffb067d546923d7bd44de29fca5dbdfef5ba4cc520618a4f866d2360339",
     "references/api-flags.md": "596ed554d8dc1eadde254adb8d6fde87d8877c6f61904be2b218ccfb242b6004",
   },
 } as const
@@ -48,7 +48,8 @@ function hashOf(file: SkillFile): string {
 
 /** The whole fix, spelled out — a red build here should cost one paste. */
 function howToFix(): string {
-  const next = KOBE_SKILL_VERSION + 1
+  // Already bumped the constant? Then `next` is that number, not one past it.
+  const next = Math.max(KOBE_SKILL_VERSION, FINGERPRINT.version + 1)
   const rows = (Object.keys(FINGERPRINT.sha256) as SkillFile[])
     .map((f) => `      ${JSON.stringify(f)}: "${hashOf(f)}",`)
     .join("\n")

@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 43 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 44 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -79,7 +79,7 @@ user asks for Rove by name.
 | Term | What it is | Isolation it gives | Users also say |
 |---|---|---|---|
 | **Task** | one tracked workspace record — managed worktree, saved-project main, or existing directory | managed Tasks own files + branch; main/directory Tasks reuse files | "a task", "a new one", "a separate attempt" |
-| **Worktree** | the isolated git working tree a managed Task owns (`.task.worktreePath`) | — | "workspace", "this checkout", "this branch", "here" |
+| **Worktree** | the isolated git working tree a managed Task owns (`.task.worktreePath`) — a filesystem address, never shown in the UI | — | "workspace", "this checkout", "this branch", "here" |
 | **Terminal Tab** | one engine, shell, command, or content surface inside a Task | an engine tab has its own conversation, but every tab uses the SAME Task files | "tab", "chattab", "another chat", "a second agent on this" |
 | **Split** | the tree that divides ONE Terminal Tab into several regions (the `pane-open` verb's unit; a leaf is not called a pane) | none — same session's screen, same files | "split it", "side by side", "put the logs next to it" |
 
@@ -145,7 +145,8 @@ a tab to, so `add` (single or `--count`) is the only routing available.
 
 ```bash
 echo "$ROVE_TASK_ID / $ROVE_TAB_ID"          # who you are (empty = not a Rove session)
-rove api get-task --task-id "$ROVE_TASK_ID"  # .task.worktreePath, .task.branch, .running, .tabs[]
+rove api get-task --task-id "$ROVE_TASK_ID"  # .task.title, .task.branch, .task.id, .running, .tabs[]
+                                             # .task.worktreePath too — only if you are about to read/write its files
 ```
 
 `get-task` is the per-task read that answers "what is my worktree, my
@@ -153,6 +154,24 @@ branch, and which sibling tabs exist" — `.tabs[]` carries each tab's `id`, `ki
 `vendor`, `liveVendor`, `lastTitle` and `alive`, which is exactly the target list for
 `send --tab`. A tab flagged `unregistered: true` is a live session the tab
 snapshot lost; it is addressable like any other.
+
+### Refer to a task the way the user sees it
+
+The sidebar row is the task's **title**; the line under it is its **branch**.
+Nothing in Rove's UI ever renders `worktreePath`, so the directory name in it
+(`~/.rove/worktrees/<repo>/marlin`) is a filesystem address the daemon picked
+from an animal pool — the user has never read that word and cannot find it on
+screen. **Never name a task by its directory** to a user or in a report.
+
+Use the **title** when a human reads it, the **task id** (or its last six
+characters) when you need it to be unique, and both when you need both:
+
+- ❌ `marlin opened a PR` · `landed in zorilla` · `see mammoth's branch`
+- ✅ `"Skill version guard…" (task …CWWA) opened PR #972`
+- ✅ `succeeded: guard now fails the build (branch fix/skill-version-bump)`
+
+`worktreePath` earns a mention only when the sentence is about files on disk —
+`cd`, a path in a command, a file you edited.
 
 ## Found a defect in ANOTHER project? File a request, don't work around
 
