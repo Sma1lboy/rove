@@ -1,0 +1,5 @@
+---
+"@sma1lboy/rove": patch
+---
+
+**`rove update` on Windows no longer dies with `EBUSY` on `opentui.dll` every second time.** npm moves the old package to a sibling `.rove-<hash>` directory before unpacking the new one and deletes it afterwards, but Windows refuses to delete a DLL a running process has mapped — and a running Rove (the daemon, the PTY host, an open TUI) is the normal state during an update. npm swallowed that, reported success, and left the directory behind; since the hash comes from the path, the next update targeted the same directory, fell back to a file-by-file copy, and failed copying onto the still-mapped DLL. The update script now sweeps those leftovers before npm runs: it deletes what can be deleted (all of it, once the old build has exited) and moves what cannot out of npm's way, since Windows allows renaming a mapped file. When npm still reports `EBUSY`, the script now says a running Rove is holding files and names the remedy (quit Rove, `rove daemon stop`, retry) instead of leaving a bare errno.
