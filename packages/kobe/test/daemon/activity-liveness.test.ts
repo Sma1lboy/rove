@@ -177,8 +177,9 @@ describe("activity registry liveness watchdog", () => {
     await vi.advanceTimersByTimeAsync(TTL)
 
     expect(probe).toHaveBeenCalledWith("t", "claude", undefined)
-    // Carried forward: a later event without the tag keeps the known vendor.
-    registry.report("t", "turn-start")
+    // Carried forward WITHIN the reporting source: a later event on the same
+    // tab without the tag keeps that tab's known vendor.
+    registry.report("t", "turn-start", undefined, "tab-1")
     await vi.advanceTimersByTimeAsync(TTL)
     expect(probe).toHaveBeenLastCalledWith("t", "claude", undefined)
   })
@@ -327,7 +328,7 @@ describe("activity registry liveness watchdog", () => {
     registry.report("t", "turn-start", undefined, "tab-2", { id: "two", transcriptPath: "/two" })
     registry.recordEngineDeath("t", "tab-1", { code: 1 }, Date.now())
     await vi.advanceTimersByTimeAsync(TTL)
-    expect(registry.snapshotByTask().t).toMatchObject({ state: "running", transcriptPath: "/two" })
+    expect(registry.currentNonIdle().find((p) => !p.tabId)).toMatchObject({ state: "running", transcriptPath: "/two" })
   })
 
   it("never idles after the entry was cleared during the probe await", async () => {
