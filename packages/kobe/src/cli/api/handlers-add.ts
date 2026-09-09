@@ -367,11 +367,17 @@ async function addParallel(
   // delivered sibling into a failure row: the engine already has the prompt.
   const persistedPrompts: Promise<unknown>[] = []
   settled.forEach((r, i) => {
-    const { taskId, vendor } = created[i]
+    const { taskId, vendor, task } = created[i]
     if (r.status === "fulfilled" && r.value.delivered) {
+      // `title` and `branch` before the rest: they are what the sidebar shows,
+      // so they are the only handles the spawner can use to name a sibling to
+      // the user. A row of bare taskIds pushes the caller toward the worktree
+      // directory name (`marlin`), which appears nowhere in the UI.
       const row: Record<string, unknown> = {
         ok: true,
         taskId,
+        title: task.title,
+        branch: task.branch,
         vendor,
         started: r.value.started,
         engineReady: r.value.engineReady,
