@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.184
+
+### Patch Changes
+
+- [#973](https://github.com/Sma1lboy/rove/pull/973) [`83543f9`](https://github.com/Sma1lboy/rove/commit/83543f9ac201e8cb76520fc82ec891b8df3de4d3) Agent skill v44: name a task by its title and branch, not its worktree directory.
+
+  The sidebar renders a task's title and, under it, its branch — `worktreePath`
+  appears nowhere in the UI. Agents reached for the directory name anyway
+  (`marlin`, `zorilla`), leaving the user with a word they cannot find on screen.
+  The skill now says which fields the user actually sees, `rove api schema` says
+  it on `add` and `get-task`, and each `--count` / `--agents` sibling's result row
+  carries its `title` and `branch` instead of only an id. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.183
 
 ### Patch Changes
