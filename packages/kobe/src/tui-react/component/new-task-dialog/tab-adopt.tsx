@@ -67,6 +67,7 @@ export function AdoptTab({ vm }: { vm: NewTaskVm }) {
         <PickerList
           window={vm.adoptWindow}
           cursor={vm.adoptCursor}
+          focused={vm.field === "adoptFilter"}
           rows={rows}
           onPick={vm.pickAdoptAt}
           footer={
