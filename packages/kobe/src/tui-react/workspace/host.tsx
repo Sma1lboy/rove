@@ -9,7 +9,7 @@
 import { useRenderer, useTerminalDimensions } from "@opentui/react"
 import { connectOrStartDaemon } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { useEffect, useRef, useState } from "react"
-import { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
+import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { sidebarWidthFor } from "../../tui/panes/sidebar/view-core"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { PrefixHud } from "../component/prefix-hud"
@@ -464,38 +464,4 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
       <PrefixHud left={1} width={sidebarWidthFor(dims.width) - 2} />
     </WorkspaceFrame>
   )
-}
-
-export async function startWorkspaceHost(): Promise<void> {
-  await bootPaneHost({
-    logContext: "workspace",
-    providers: { kv: true, focus: true, notifications: true },
-    setup: async () => {
-      const client = await connectOrStartDaemon()
-      const orchestrator = new RemoteOrchestrator(client, { role: "gui" })
-      await orchestrator.init()
-      process.env.KOBE_DAEMON_SOCKET_PATH = client.socketPath
-      // Other computers running Rove. `attach()` is synchronous and a no-op
-      // when none are registered, so an install without machines pays one map
-      // lookup and boots exactly as before.
-      const { MachineHub } = await import("../../machines/hub.ts")
-      const { setMachineHub } = await import("../../machines/hub-singleton.ts")
-      const machines = new MachineHub(orchestrator)
-      machines.attach()
-      setMachineHub(machines)
-      return {
-        root: () => <WorkspaceRoot orchestrator={orchestrator} />,
-        onDestroy: () => {
-          setMachineHub(null)
-          machines.dispose()
-          orchestrator.dispose()
-          // Detach, don't kill: hosted PTYs (the `kobe pty-host` process)
-          // keep their engine sessions RUNNING in the background and
-          // reattach on next boot. Local-backend PTYs (no detach()) are
-          // still killed — a child of this process can't outlive it usefully.
-          getDefaultPtyRegistry().detachAll()
-        },
-      }
-    },
-  })
 }

@@ -35,6 +35,6 @@ export async function startTui(): Promise<void> {
   const { loadPluginEngines } = await import("../engine/plugin-engines.ts")
   loadPluginEngines()
 
-  const { startWorkspaceHost } = await import("../tui-react/workspace/host.tsx")
+  const { startWorkspaceHost } = await import("../tui-react/workspace/start-workspace.tsx")
   await startWorkspaceHost()
 }

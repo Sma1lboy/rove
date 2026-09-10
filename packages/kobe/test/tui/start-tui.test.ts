@@ -12,7 +12,7 @@ vi.mock("../../src/cli/hook-cmd.ts", () => ({ ensureGlobalKobeHooks: spies.insta
 vi.mock("../../src/cli/reset-gate.ts", () => ({ enforceResetGate: spies.enforceResetGate }))
 vi.mock("../../src/lib/skill-install.ts", () => ({ maybeHintSkillInstall: spies.hintSkillInstall }))
 vi.mock("../../src/tui/lib/outer-terminal-title.ts", () => ({ publishKobeTerminalTitle: spies.publishTitle }))
-vi.mock("../../src/tui-react/workspace/host", () => ({ startWorkspaceHost: spies.startWorkspaceHost }))
+vi.mock("../../src/tui-react/workspace/start-workspace", () => ({ startWorkspaceHost: spies.startWorkspaceHost }))
 
 import { startTui } from "../../src/tui/index"
 
