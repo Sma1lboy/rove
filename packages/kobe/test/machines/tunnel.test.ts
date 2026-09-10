@@ -12,6 +12,13 @@ import { startTunnel } from "../../src/machines/tunnel.ts"
 
 const config: MachineConfig = { host: "narwhal", auth: { kind: "key" } }
 
+/**
+ * POSIX-only. Every assertion below is about unix-socket forwarding, which
+ * OpenSSH on Windows does not have — `startTunnel` reports `unsupported`
+ * there rather than pretending, and the path arithmetic uses `/`.
+ */
+const POSIX = process.platform !== "win32"
+
 /** Drives the tunnel with queued answers and a manual clock. */
 function harness(answers: { ensure: boolean[]; check: boolean[] }) {
   const pending: Array<() => void> = []
@@ -43,7 +50,7 @@ function harness(answers: { ensure: boolean[]; check: boolean[] }) {
   return { handle, tick, pending, ensureCalls }
 }
 
-describe("startTunnel", () => {
+describe.skipIf(!POSIX)("startTunnel", () => {
   it("is online once the forward is up", async () => {
     const h = harness({ ensure: [true], check: [] })
     expect(h.handle.state()).toBe("connecting")

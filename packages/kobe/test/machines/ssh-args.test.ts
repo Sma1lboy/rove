@@ -11,7 +11,14 @@ import { machineSocketDir, machineSshArgs } from "../../src/machines/ssh-args.ts
 const HOME = "/tmp/rove-home"
 const config: MachineConfig = { host: "narwhal", auth: { kind: "key" } }
 
-describe("machineSshArgs", () => {
+/**
+ * POSIX-only. Every assertion below is about unix-socket forwarding, which
+ * OpenSSH on Windows does not have — `startTunnel` reports `unsupported`
+ * there rather than pretending, and the path arithmetic uses `/`.
+ */
+const POSIX = process.platform !== "win32"
+
+describe.skipIf(!POSIX)("machineSshArgs", () => {
   it("multiplexes one connection per machine and fails fast", () => {
     const argv = machineSshArgs("narwhal", config, { home: HOME })
     expect(argv[0]).toBe("ssh")
@@ -30,7 +37,7 @@ describe("machineSshArgs", () => {
   })
 })
 
-describe("machineSocketDir", () => {
+describe.skipIf(!POSIX)("machineSocketDir", () => {
   it("keeps the natural path when it fits", () => {
     expect(machineSocketDir("narwhal", "/Users/x")).toBe("/Users/x/.rove/machines/narwhal")
   })
