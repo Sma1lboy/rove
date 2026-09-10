@@ -284,8 +284,36 @@ export interface Task {
    * `prStatus.checkState` comes from asking GitHub.
    */
   readonly report?: TaskWorkerReport
+  /**
+   * Which MACHINE this task came from — stamped by the client that merged
+   * several daemons' task lists (`machines/hub.ts`), never by a daemon: a
+   * daemon has no idea who is looking at it or under what alias.
+   *
+   * ABSENT when only the local daemon is connected, which is the state of
+   * every install with no registered machines. That is deliberate: the field
+   * appearing is what says "more than one machine is in play", so a
+   * single-machine `rove api list` payload is byte-identical to what it was
+   * before machines existed.
+   */
+  readonly origin?: TaskOrigin
   readonly createdAt: string
   readonly updatedAt: string
+}
+
+/** Where a merged task came from. `machineId` is the local alias; `hostLabel`
+ *  is what a row displays (the remote hostname, falling back to the alias). */
+export interface TaskOrigin {
+  readonly machineId: string
+  readonly hostLabel: string
+  /**
+   * The machine is unreachable and this row is its LAST KNOWN state.
+   *
+   * The row survives the disconnect on purpose: a machine whose lid closed
+   * has not stopped having these tasks, and dropping them would erase the
+   * only record of where the work is. So it stays and says it is stale
+   * instead — the one thing a vanished row cannot do.
+   */
+  readonly stale?: boolean
 }
 
 /**

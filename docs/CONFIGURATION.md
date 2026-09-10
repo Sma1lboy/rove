@@ -233,6 +233,20 @@ as `activeSortMode` and read back on startup. Older state files may contain
 `tasksPane.projectFilter`; the daemon still mirrors that compatibility value
 for background consumers, but the current PureTUI tree does not consume it.
 
+### Machines
+
+`machines` maps a local alias to another computer running Rove. Written by
+[`rove machine add`](./MACHINES.md); nothing here needs hand-editing.
+
+| Field | What |
+|---|---|
+| `host` | SSH host as typed — usually an `ssh_config` `Host` alias, not a DNS name |
+| `user` | Login user, or absent to let `ssh_config` decide |
+| `port` | SSH port, or absent for the `ssh_config` default |
+| `auth` | `{"kind":"key"}` (agent / default identities), `{"kind":"key","keyPath":"…"}`, or `{"kind":"password","keychainRef":{…}}` — a password is never stored here, only a pointer to it |
+| `identity` | `{hostname, homeDir, daemonPid}` learned from the machine's last handshake. Two aliases whose triples match are one machine |
+| `addedAt` | ISO timestamp of registration |
+
 ### Experimental
 
 Off by default. These can change without notice.

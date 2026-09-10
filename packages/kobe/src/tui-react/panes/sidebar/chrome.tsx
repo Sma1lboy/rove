@@ -24,6 +24,12 @@ export function SectionHeader(props: {
   onPress?: () => void
   /** Right-click, with the click's screen cell (the tree's project menu). */
   onContextMenu?: (x: number, y: number) => void
+  /** Drop the label's BOLD — how an offline machine section reads as inactive
+   *  without inventing a colour the theme does not define. */
+  muted?: boolean
+  /** Tree depth. Non-zero indents the header, so a project sitting under a
+   *  machine header reads as belonging to it. */
+  depth?: number
 }) {
   const { theme, transparentBackground } = useTheme()
   const dividerColor = transparentBackground ? theme.border : theme.borderSubtle
@@ -39,7 +45,7 @@ export function SectionHeader(props: {
         flexDirection="row"
         flexShrink={0}
         gap={1}
-        paddingLeft={1}
+        paddingLeft={1 + (props.depth ?? 0) * 2}
         paddingRight={1}
         onMouseUp={
           props.onPress || props.onContextMenu
@@ -58,7 +64,12 @@ export function SectionHeader(props: {
             {props.prefix}
           </text>
         ) : null}
-        <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
+        <text
+          fg={theme.textMuted}
+          attributes={props.muted ? undefined : TextAttributes.BOLD}
+          wrapMode="none"
+          flexShrink={0}
+        >
           {props.label}
         </text>
         <text fg={dividerColor} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>

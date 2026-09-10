@@ -16,6 +16,7 @@ import type {
   TranscriptActivityMap,
   WorktreeChangesMap,
 } from "../../client/remote-orchestrator-payloads"
+import { useMergedTasks } from "../../machines/hub-singleton"
 import type { Task } from "../../types/task"
 import { useAccessor } from "../lib/use-accessor"
 import { useAnsweredTabStates, useOptimisticEngineState } from "./use-optimistic-engine-state"
@@ -34,7 +35,9 @@ export interface UseDaemonStateResult {
 }
 
 export function useDaemonState(orchestrator: RemoteOrchestrator): UseDaemonStateResult {
-  const tasks = useAccessor(orchestrator.tasksSignal())
+  // Machines-aware: the merged list when any machine is registered, the
+  // orchestrator's own cell otherwise (`hub-singleton.ts`).
+  const tasks = useMergedTasks(orchestrator)
   const activeTaskId = useAccessor(orchestrator.activeTaskSignal())
   const engineState = useAccessor(orchestrator.engineStateSignal())
   const engineLifecycle = useAccessor(orchestrator.engineLifecycleSignal())

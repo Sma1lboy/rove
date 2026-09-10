@@ -12,6 +12,7 @@ import { useTerminalDimensions } from "@opentui/react"
 import { sidebarWidthFor } from "../../tui/panes/sidebar/view-core"
 import { useFocus } from "../context/focus"
 import { useTheme } from "../context/theme"
+import { useT } from "../i18n"
 import { FileTree } from "../panes/filetree/FileTree"
 
 const WORKTREE_TOOLS_MIN_WIDTH = 22
@@ -35,8 +36,14 @@ export function HostFilesPane(props: {
    *  `"dir"` rows point at a directory whose branch Rove does not own, so they
    *  keep it. */
   readonly taskKind: "main" | "task" | "dir" | undefined
+  /** Host the selected task's worktree lives on, when that is not this
+   *  machine. A remote worktree path means nothing to the local filesystem —
+   *  reading it would list whatever happens to sit at the same path here — so
+   *  the pane names the machine instead of showing a tree. */
+  readonly remoteHost?: string
 }) {
   const { theme } = useTheme()
+  const t = useT()
   const focus = useFocus()
   const dims = useTerminalDimensions()
   const inactiveBorder = theme.borderActive
@@ -50,20 +57,31 @@ export function HostFilesPane(props: {
       borderColor={focus.focused === "files" ? theme.focusAccent : inactiveBorder}
       onMouseUp={() => focus.setFocused("files")}
     >
-      <FileTree
-        worktreePath={props.worktree}
-        paneWidth={width - 2 /* box border */}
-        prBaseRef={props.prBaseRef}
-        focused={props.focused}
-        onOpenFile={props.onOpenFile}
-        onOpenDiff={props.onOpenDiff}
-        onMention={props.onMention}
-        onZenToggle={props.onZenToggle}
-        // Withholding the chip is not withholding the action: `files.createPR`
-        // is a GLOBAL prefix binding, so prefix+P still fires on a main row and
-        // still explains itself with the toast.
-        onCreatePR={props.taskKind === "main" ? undefined : props.onCreatePR}
-      />
+      {props.remoteHost ? (
+        <box flexDirection="column" padding={1} gap={1}>
+          <text fg={theme.textMuted} wrapMode="word">
+            {t("tasks.machine.filesElsewhere", { host: props.remoteHost })}
+          </text>
+          <text fg={theme.textMuted} wrapMode="word">
+            {t("tasks.machine.filesHint", { host: props.remoteHost })}
+          </text>
+        </box>
+      ) : (
+        <FileTree
+          worktreePath={props.worktree}
+          paneWidth={width - 2 /* box border */}
+          prBaseRef={props.prBaseRef}
+          focused={props.focused}
+          onOpenFile={props.onOpenFile}
+          onOpenDiff={props.onOpenDiff}
+          onMention={props.onMention}
+          onZenToggle={props.onZenToggle}
+          // Withholding the chip is not withholding the action: `files.createPR`
+          // is a GLOBAL prefix binding, so prefix+P still fires on a main row and
+          // still explains itself with the toast.
+          onCreatePR={props.taskKind === "main" ? undefined : props.onCreatePR}
+        />
+      )}
     </box>
   )
 }

@@ -115,6 +115,9 @@ export class RemoteOrchestrator {
   private readonly channels?: readonly ChannelName[]
   /** True when the filter excludes `task.snapshot` — skip hello task hydration. */
   private readonly subscribesTasks: boolean
+  /** Machine connection: the far daemon's own home is expected to differ. */
+  private readonly expectForeignHome: boolean
+  private readonly onPeerIdentity: RemoteOrchestratorOptions["onPeerIdentity"]
   /** One shared retry task: repeated close events and an explicit reconnect
    *  join the same loop instead of racing two hello/subscribe handshakes. */
   private reconnectTask: Promise<void> | null = null
@@ -129,6 +132,8 @@ export class RemoteOrchestrator {
     this.role = options.role ?? "pane"
     this.channels = options.channels
     this.subscribesTasks = !options.channels || options.channels.includes("task.snapshot")
+    this.expectForeignHome = options.expectForeignHome === true
+    this.onPeerIdentity = options.onPeerIdentity
     this.signals = {
       tasksAcc: this.tasksAcc,
       setTasks: this.tasksAcc.set,
@@ -220,7 +225,13 @@ export class RemoteOrchestrator {
   async init(): Promise<void> {
     await performInit(
       this.client,
-      { role: this.role, channels: this.channels, subscribesTasks: this.subscribesTasks },
+      {
+        role: this.role,
+        channels: this.channels,
+        subscribesTasks: this.subscribesTasks,
+        expectForeignHome: this.expectForeignHome,
+        onPeerIdentity: this.onPeerIdentity,
+      },
       this.signals,
     )
   }

@@ -77,6 +77,8 @@ export function WorktreeTreeRow(props: {
   readonly rowId: string
   readonly flatIndex: number
   readonly task: Task
+  /** Tree depth — 1 at rest, one deeper under a machine header. */
+  readonly depth?: number
   readonly shared: TreeRowShared
 }) {
   const { theme } = useTheme()
@@ -134,7 +136,7 @@ export function WorktreeTreeRow(props: {
     ((changes?.behind ?? 0) > 0 ? clusterCells(`↓${changes?.behind}`) : 0) +
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
   return (
-    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={shared}>
+    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared}>
       {spinning ? (
         <text fg={theme.primary} wrapMode="none" width={2} flexShrink={0}>
           {`${IN_PROGRESS_SPINNER[frame % IN_PROGRESS_SPINNER.length] ?? IN_PROGRESS_SPINNER[0]} `}
@@ -145,7 +147,17 @@ export function WorktreeTreeRow(props: {
         </text>
       ) : null}
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
-        <text fg={theme.text} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
+        {/* A row from an unreachable machine is the LAST KNOWN state, not a
+            live one — it keeps its place and drops to muted rather than
+            disappearing, which would erase the only record of where the work
+            is. */}
+        <text
+          fg={task.origin?.stale ? theme.textMuted : theme.text}
+          wrapMode="none"
+          flexBasis={0}
+          flexGrow={1}
+          flexShrink={1}
+        >
           {truncateEndCells(label, treeLabelBudget(shared, reserved), charWidth)}
         </text>
         {task.pinned === true ? (
@@ -213,6 +225,8 @@ export function TabTreeRow(props: {
   readonly flatIndex: number
   readonly task: Task
   readonly tab: TreeTab
+  /** Tree depth — 1 at rest, one deeper under a machine header. */
+  readonly depth?: number
   readonly shared: TreeRowShared
 }) {
   const { theme } = useTheme()
@@ -294,7 +308,7 @@ export function TabTreeRow(props: {
   // worktree row — the circle status glyph carries the hierarchy, and the
   // extra indent cell wasted width the narrow rail doesn't have.
   return (
-    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={props.shared}>
+    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={props.shared}>
       <text
         fg={restored ? theme.error : carriesState ? toneColor(theme, rowView.tone) : theme.textMuted}
         wrapMode="none"

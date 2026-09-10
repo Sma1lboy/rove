@@ -9,7 +9,7 @@
 import { useRenderer, useTerminalDimensions } from "@opentui/react"
 import { connectOrStartDaemon } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { useEffect, useRef, useState } from "react"
-import { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
+import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { sidebarWidthFor } from "../../tui/panes/sidebar/view-core"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { PrefixHud } from "../component/prefix-hud"
@@ -443,6 +443,11 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           onZenToggle={toggleZen}
           onCreatePR={() => void editor.onCreatePR()}
           taskKind={selectedTask?.kind}
+          remoteHost={
+            selectedTask?.origin && selectedTask.origin.machineId !== "local"
+              ? selectedTask.origin.hostLabel
+              : undefined
+          }
         />
       ) : null}
 
@@ -459,28 +464,4 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
       <PrefixHud left={1} width={sidebarWidthFor(dims.width) - 2} />
     </WorkspaceFrame>
   )
-}
-
-export async function startWorkspaceHost(): Promise<void> {
-  await bootPaneHost({
-    logContext: "workspace",
-    providers: { kv: true, focus: true, notifications: true },
-    setup: async () => {
-      const client = await connectOrStartDaemon()
-      const orchestrator = new RemoteOrchestrator(client, { role: "gui" })
-      await orchestrator.init()
-      process.env.KOBE_DAEMON_SOCKET_PATH = client.socketPath
-      return {
-        root: () => <WorkspaceRoot orchestrator={orchestrator} />,
-        onDestroy: () => {
-          orchestrator.dispose()
-          // Detach, don't kill: hosted PTYs (the `kobe pty-host` process)
-          // keep their engine sessions RUNNING in the background and
-          // reattach on next boot. Local-backend PTYs (no detach()) are
-          // still killed — a child of this process can't outlive it usefully.
-          getDefaultPtyRegistry().detachAll()
-        },
-      }
-    },
-  })
 }
