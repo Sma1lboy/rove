@@ -220,7 +220,7 @@ describe("activity registry liveness watchdog", () => {
       { tabId: "tab-1", state: "idle" },
     ])
     // The lapsed tab entry must not linger in the replay set.
-    expect(registry.currentNonIdle().filter((p) => "tabId" in p && p.tabId)).toEqual([])
+    expect(registry.replaySnapshot().filter((p) => "tabId" in p && p.tabId)).toEqual([])
   })
 
   it("keeps an alive per-tab running entry lit across windows (heartbeat)", async () => {
@@ -231,7 +231,7 @@ describe("activity registry liveness watchdog", () => {
     await vi.advanceTimersByTimeAsync(TTL)
     await vi.advanceTimersByTimeAsync(TTL)
 
-    const tabs = registry.currentNonIdle().filter((p) => "tabId" in p && p.tabId)
+    const tabs = registry.replaySnapshot().filter((p) => "tabId" in p && p.tabId)
     expect(tabs).toHaveLength(1)
     expect(tabs[0]?.state).toBe("running")
   })
@@ -244,7 +244,7 @@ describe("activity registry liveness watchdog", () => {
     registry.report("t", "turn-complete", undefined, "tab-1")
     await vi.advanceTimersByTimeAsync(TTL * 3)
 
-    const tabs = registry.currentNonIdle().filter((p) => "tabId" in p && p.tabId)
+    const tabs = registry.replaySnapshot().filter((p) => "tabId" in p && p.tabId)
     expect(tabs).toHaveLength(1)
     expect(tabs[0]?.state).toBe("turn_complete")
   })
@@ -254,10 +254,10 @@ describe("activity registry liveness watchdog", () => {
     registry = new DaemonActivityRegistry(bus, TTL, () => Date.now(), probe)
     registry.report("t", "turn-start", undefined, "tab-1", { id: "own", transcriptPath: "/own" })
     await vi.advanceTimersByTimeAsync(TTL * 3)
-    expect(registry.currentNonIdle().every((entry) => entry.state === "running")).toBe(true)
+    expect(registry.replaySnapshot().every((entry) => entry.state === "running")).toBe(true)
     registry.report("t", "turn-complete", undefined, "tab-1")
     await vi.advanceTimersByTimeAsync(TTL * 2)
-    expect(registry.currentNonIdle().every((entry) => entry.state === "turn_complete")).toBe(true)
+    expect(registry.replaySnapshot().every((entry) => entry.state === "turn_complete")).toBe(true)
   })
 
   it("replaces unknown evidence with a recovered session's own completion", async () => {
@@ -292,10 +292,10 @@ describe("activity registry liveness watchdog", () => {
     registry.report("t", "turn-start", undefined, "tab-1", { id: "new", transcriptPath: "/new" })
     for (const resolve of finish) resolve({ completedAt: 1 })
     await vi.advanceTimersByTimeAsync(0)
-    expect(registry.currentNonIdle()).toEqual(
+    expect(registry.replaySnapshot()).toEqual(
       expect.arrayContaining([expect.objectContaining({ state: "running", sessionId: "new", transcriptPath: "/new" })]),
     )
-    expect(registry.currentNonIdle().some((entry) => entry.state === "idle")).toBe(false)
+    expect(registry.replaySnapshot().some((entry) => entry.state === "idle")).toBe(false)
   })
 
   it.each(["death", "rest"] as const)(
@@ -313,7 +313,7 @@ describe("activity registry liveness watchdog", () => {
       else registry.observeTab("t", "tab-1", "rest", { correctHookRunningAfterMs: 0 })
       expect(vi.getTimerCount()).toBe(0)
       await vi.advanceTimersByTimeAsync(TTL * 2)
-      expect(registry.currentNonIdle().some((entry) => entry.state === "running")).toBe(false)
+      expect(registry.replaySnapshot().some((entry) => entry.state === "running")).toBe(false)
     },
   )
 
@@ -328,7 +328,7 @@ describe("activity registry liveness watchdog", () => {
     registry.report("t", "turn-start", undefined, "tab-2", { id: "two", transcriptPath: "/two" })
     registry.recordEngineDeath("t", "tab-1", { code: 1 }, Date.now())
     await vi.advanceTimersByTimeAsync(TTL)
-    expect(registry.currentNonIdle().find((p) => !p.tabId)).toMatchObject({ state: "running", transcriptPath: "/two" })
+    expect(registry.replaySnapshot().find((p) => !p.tabId)).toMatchObject({ state: "running", transcriptPath: "/two" })
   })
 
   it("never idles after the entry was cleared during the probe await", async () => {

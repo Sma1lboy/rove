@@ -2,16 +2,25 @@ import { type EffectiveActivity, type HookSlot, type ObservedSlot, recomputeTabA
 import { type ActivityDebugSnapshot, buildActivityDebugSnapshot } from "./activity-debug-dump.ts"
 import { ActivityLapseWatchdog, type LapseEntry, type LapseTarget } from "./activity-lapse.ts"
 import {
+  type EngineStatePayload,
+  type PayloadSource,
+  activityPayload,
+  ledgerTaskIds,
+  liveSessions,
+  replaySnapshot,
+  taskRollup,
+  workingTaskIds,
+} from "./activity-readers.ts"
+import {
   type ActivityLivenessProbe,
   type EngineSessionInfo,
   STICKY_STATES,
   reduceActivity,
   resolveEngineStateTtlMs,
 } from "./activity-reduce.ts"
-import { type RollupCandidate, deriveTaskActivity, rollupCandidates } from "./activity-rollup.ts"
+import type { RollupCandidate } from "./activity-rollup.ts"
 import type { EngineActivityDetail, EngineActivityKind, TaskActivityState } from "./contracts.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
-import type { ChannelPayloads } from "./protocol.ts"
 
 // Pure reducer + policy constants/types live in activity-reduce.ts (file-size
 // cap split); re-exported so this stays the one public entry point. The
@@ -31,6 +40,8 @@ export {
   recomputeTabActivity,
 } from "./activity-arbitrate.ts"
 export { type RollupCandidate, deriveTaskActivity, rollupCandidates } from "./activity-rollup.ts"
+// The read half — pure projections of the ledger below (activity-readers.ts).
+export type { EngineStatePayload } from "./activity-readers.ts"
 
 /**
  * A TAB-LESS hook entry: an engine the user started in a shell kobe did not
@@ -71,16 +82,6 @@ interface TabEntry {
 
 /** What `observeTab` did — the caller (activity-observer) logs corrections. */
 export type ObserveTabOutcome = "noop" | "observed-running" | "observed-idle" | "corrected-hook-running"
-
-export type EngineStatePayload = ChannelPayloads["engine-state"]
-
-/** The subset of an entry the wire payload reads. */
-interface PayloadSource {
-  state: TaskActivityState
-  detail?: EngineActivityDetail
-  session?: EngineSessionInfo
-  at: number
-}
 
 /**
  * In-memory, daemon-owned activity registry for hook-driven engine badges.
@@ -223,7 +224,7 @@ export class DaemonActivityRegistry {
 
   /** The derived task-level state, or `undefined` when nothing ever reported. */
   private rollup(taskId: string): RollupCandidate | undefined {
-    return deriveTaskActivity(rollupCandidates(this.activity.get(taskId), this.tabActivity.get(taskId)))
+    return taskRollup(taskId, this.activity, this.tabActivity)
   }
 
   /**
@@ -431,23 +432,22 @@ export class DaemonActivityRegistry {
 
   /** Every task with a ledger entry at either level. */
   private taskIds(): Set<string> {
-    return new Set([...this.activity.keys(), ...this.tabActivity.keys()])
+    return ledgerTaskIds(this.activity, this.tabActivity)
   }
 
-  currentNonIdle(): EngineStatePayload[] {
-    const out: EngineStatePayload[] = []
-    for (const taskId of this.taskIds()) {
-      const derived = this.rollup(taskId)
-      if (derived && derived.state !== "idle") out.push(this.payload(taskId, derived))
-    }
-    // Tab entries ride the same replay so a late subscriber rebuilds its
-    // per-tab map too. Hook-driven entries are only stored non-idle; the
-    // OBSERVED slot includes known-idle ones on purpose — replaying them is
-    // what lets a late client tell "known idle" from "no signal" (unknown).
-    for (const [taskId, tabs] of this.tabActivity) {
-      for (const [tabId, entry] of tabs) out.push(this.payload(taskId, entry.effective, tabId))
-    }
-    return out
+  /** Tasks with a working engine — a GATE, not the replay. See activity-readers.ts. */
+  workingTaskIds(): string[] {
+    return workingTaskIds(this.activity, this.tabActivity)
+  }
+
+  /** Every tab holding a live engine session, idle included. */
+  liveSessions(): EngineStatePayload[] {
+    return liveSessions(this.tabActivity)
+  }
+
+  /** The full `engine-state` replay for a late subscriber. */
+  replaySnapshot(): EngineStatePayload[] {
+    return replaySnapshot(this.activity, this.tabActivity)
   }
 
   /**
@@ -479,14 +479,6 @@ export class DaemonActivityRegistry {
   }
 
   private payload(taskId: string, entry: PayloadSource, tabId?: string): EngineStatePayload {
-    return {
-      taskId,
-      ...(tabId ? { tabId } : {}),
-      state: entry.state,
-      ...(entry.detail ? { detail: entry.detail } : {}),
-      ...(entry.session ? { sessionId: entry.session.id } : {}),
-      ...(entry.session?.transcriptPath ? { transcriptPath: entry.session.transcriptPath } : {}),
-      at: entry.at,
-    }
+    return activityPayload(taskId, entry, tabId)
   }
 }

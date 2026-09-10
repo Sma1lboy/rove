@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest"
 
 /** The derived task-level rollup, as every production consumer reads it. */
 function rollup(registry: DaemonActivityRegistry) {
-  return registry.currentNonIdle().find((payload) => !payload.tabId)
+  return registry.replaySnapshot().find((payload) => !payload.tabId)
 }
 
 describe("derived task rollup", () => {
@@ -71,7 +71,7 @@ describe("derived task rollup", () => {
       now = 2
       registry.clearTab("t", "tab-1")
       expect(rollup(registry)).toBeUndefined()
-      expect(registry.currentNonIdle()).toEqual([])
+      expect(registry.replaySnapshot()).toEqual([])
     } finally {
       registry.close()
     }
@@ -87,7 +87,7 @@ describe("derived task rollup", () => {
     )
     try {
       expect(registry.observeTab("gone", "tab-1", "working")).toBe("noop")
-      expect(registry.currentNonIdle()).toEqual([])
+      expect(registry.replaySnapshot()).toEqual([])
       expect(registry.observeTab("alive", "tab-1", "working")).toBe("observed-running")
     } finally {
       registry.close()

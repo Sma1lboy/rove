@@ -236,7 +236,7 @@ describe("activity observer", () => {
     await waitFor(() => w.row("tab-1")?.state === "idle")
     // Late subscriber: replay must carry the known-idle fact for tab-1 —
     // and nothing for tab-9, which stays unknown.
-    const replay = w.registry.currentNonIdle()
+    const replay = w.registry.replaySnapshot()
     expect(replay.some((p) => p.tabId === "tab-1" && p.state === "idle")).toBe(true)
     expect(replay.some((p) => p.tabId === "tab-9")).toBe(false)
   })

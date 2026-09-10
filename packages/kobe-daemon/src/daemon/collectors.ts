@@ -210,7 +210,7 @@ export function startDaemonCollectors(
     // Worktrees with a working engine keep the fast cadence — the change
     // probe behind the collector's quiet backoff is blind to nested writes,
     // which is exactly what a working engine produces.
-    activity ? () => activity.currentNonIdle().map((e) => e.taskId) : undefined,
+    activity ? () => activity.workingTaskIds() : undefined,
   )
 
   const stopTranscriptActivityCollector = startTranscriptActivityCollector(
@@ -247,7 +247,7 @@ export function startDaemonCollectors(
     // prStatus rides the task push too.
     () => hasSubscribersFor("task.snapshot"),
     undefined,
-    activity ? () => activity.currentNonIdle().some((e) => e.state !== "idle") : undefined,
+    activity ? () => activity.workingTaskIds().length > 0 : undefined,
   )
 
   // Quota-resume runner: deliberately NOT gated on `hasSubscribers` — its
