@@ -40,8 +40,19 @@ import { type TunnelHandle, startTunnel } from "./tunnel.ts"
 /** What a machine row in the sidebar renders from. */
 export interface MachineStatus {
   readonly alias: string
-  /** Remote hostname once known, else the alias. */
+  /**
+   * What the machine is CALLED on screen — the alias, always.
+   *
+   * Not the remote hostname. The alias is the name the user chose for this
+   * machine, and they chose it because it is short: a real hostname
+   * (`Nahuels-Mac-mini.local`) fills the whole sidebar rail and turns a
+   * disambiguated repo into `Nahuels-Mac-mini.local:kobe`. The hostname stays
+   * where it answers a different question — `machine list`, and the identity
+   * triple that recognizes two aliases as one machine.
+   */
   readonly hostLabel: string
+  /** The machine's own hostname, once a handshake reported it. */
+  readonly hostname?: string
   readonly state: "connecting" | "online" | "offline" | "unsupported" | "mismatch"
   /** Remote build version, once a handshake succeeded. */
   readonly version?: string
@@ -161,10 +172,13 @@ export class MachineHub {
     if (!slot || this.disposed || slot.orchestrator) return
     const client = new KobeDaemonClient(tunnel.daemonSocketPath)
     const orchestrator = new RemoteOrchestrator(client, {
-      // A machine's tasks are read-only in PR 1, and holding a remote daemon
-      // open from here would keep someone else's machine awake for a sidebar
-      // row. `pane` reads without taking the GUI refcount.
-      role: "pane",
+      // `gui`, not `pane`: this connection holds the remote daemon open for as
+      // long as its rows are on screen. A pane-role watcher does not take that
+      // refcount, so the remote daemon idle-stopped three seconds after its
+      // own last window closed and the machine row flapped online → offline →
+      // online while somebody was looking straight at it. Someone IS looking
+      // at that machine, which is exactly what the refcount counts.
+      role: "gui",
       expectForeignHome: true,
       onPeerIdentity: (peer) => this.onPeerIdentity(entry.alias, peer),
     })
@@ -177,10 +191,26 @@ export class MachineHub {
       logClientError("machines", err)
       return
     }
-    slot.unsubscribe = orchestrator.tasksSignal().subscribe(() => {
+    const stopTasks = orchestrator.tasksSignal().subscribe(() => {
       slot.tasks = orchestrator.tasksSignal().get()
       this.republishTasks()
     })
+    // The daemon's own connection state, not just the tunnel's. A forwarded
+    // socket keeps ACCEPTING after the far daemon dies — ssh answers locally
+    // and only then discovers there is nothing behind it — so a liveness poll
+    // on the socket alone reports a machine as online while its Rove is gone.
+    // The orchestrator is the layer that actually talks to that daemon, so its
+    // verdict is the one the row shows.
+    const stopConnection = orchestrator.connectionStateSignal().subscribe(() => {
+      const connected = orchestrator.connectionStateSignal().get() === "online"
+      if (this.slots.get(entry.alias) !== slot) return
+      this.setStatus(entry.alias, { state: connected ? "online" : "offline" })
+      this.republishTasks()
+    })
+    slot.unsubscribe = () => {
+      stopTasks()
+      stopConnection()
+    }
     slot.tasks = orchestrator.tasksSignal().get()
     this.setStatus(entry.alias, { state: "online", version: orchestrator.daemonVersionSignal().get() ?? undefined })
     this.republishTasks()
@@ -196,7 +226,7 @@ export class MachineHub {
     setMachineIdentity(alias, identity)
     const duplicate = duplicateAliasOf(readMachines(loadStateFile()), alias, identity)
     this.setStatus(alias, {
-      hostLabel: peer.hostname || alias,
+      hostname: peer.hostname || undefined,
       version: peer.kobeVersion || undefined,
       ...(duplicate ? { duplicateOf: duplicate } : {}),
     })
@@ -212,7 +242,7 @@ export class MachineHub {
     this.machinesAcc.set(
       [...this.slots.values()].map((slot) => ({
         alias: slot.entry.alias,
-        hostLabel: slot.entry.identity?.hostname || slot.entry.alias,
+        hostLabel: slot.entry.alias,
         state: "connecting" as const,
       })),
     )

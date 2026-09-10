@@ -1,85 +1,82 @@
 /**
- * The tunnel's lifecycle: when it counts as up, and what it does when ssh dies.
+ * The tunnel's lifecycle: when a machine counts as up, what happens when its
+ * forward dies, and that a stopped tunnel stops trying.
  *
- * Driven with an injected spawn and an injected timer, so the reconnect policy
+ * Driven with an injected forward + health check + timer, so the retry policy
  * is tested without an ssh binary and without waiting out real backoff.
  */
 
-import type { ChildProcess } from "node:child_process"
-import { EventEmitter } from "node:events"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 import type { MachineConfig } from "../../src/machines/registry.ts"
 import { startTunnel } from "../../src/machines/tunnel.ts"
 
 const config: MachineConfig = { host: "narwhal", auth: { kind: "key" } }
 
-class FakeSsh extends EventEmitter {
-  killed = false
-  kill(): boolean {
-    this.killed = true
-    return true
-  }
-}
-
-function start(spawns: FakeSsh[], retries: Array<() => void>) {
-  return startTunnel({
+/** Drives the tunnel with queued answers and a manual clock. */
+function harness(answers: { ensure: boolean[]; check: boolean[] }) {
+  const pending: Array<() => void> = []
+  const ensureCalls: number[] = []
+  const handle = startTunnel({
     alias: "narwhal",
     config,
     remoteDaemonSocket: "/r/daemon.sock",
     remotePtySocket: "/r/pty.sock",
     home: "/tmp/rove-tunnel-test",
-    spawnFn: () => {
-      const proc = new FakeSsh()
-      spawns.push(proc)
-      return proc as unknown as ChildProcess
+    ensureFn: async () => {
+      ensureCalls.push(1)
+      return answers.ensure.shift() ?? false
     },
+    checkFn: async () => answers.check.shift() ?? true,
     setTimeoutFn: (fn) => {
-      retries.push(fn)
+      pending.push(fn)
       return 0
     },
   })
+  /** Run every scheduled callback once, then let their promises settle. */
+  const tick = async (): Promise<void> => {
+    const due = pending.splice(0, pending.length)
+    for (const fn of due) fn()
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+  }
+  return { handle, tick, pending, ensureCalls }
 }
 
-beforeEach(() => vi.useFakeTimers())
-afterEach(() => vi.useRealTimers())
-
 describe("startTunnel", () => {
-  it("counts as online only once ssh has outlived a bind failure", () => {
-    // `ssh -N` prints nothing on success, so surviving the window IS the
-    // readiness signal — `ExitOnForwardFailure=yes` makes a failed bind an
-    // immediate exit.
-    const spawns: FakeSsh[] = []
-    const handle = start(spawns, [])
-    expect(handle.state()).toBe("connecting")
-    vi.advanceTimersByTime(800)
-    expect(handle.state()).toBe("online")
-    handle.stop()
+  it("is online once the forward is up", async () => {
+    const h = harness({ ensure: [true], check: [] })
+    expect(h.handle.state()).toBe("connecting")
+    await h.tick()
+    expect(h.handle.state()).toBe("online")
   })
 
-  it("goes offline and schedules a retry when ssh exits", () => {
-    const spawns: FakeSsh[] = []
-    const retries: Array<() => void> = []
-    const handle = start(spawns, retries)
-    vi.advanceTimersByTime(800)
-    const seen: string[] = []
-    handle.onState((state) => seen.push(state))
-    spawns[0]?.emit("exit", 255)
-    expect(handle.state()).toBe("offline")
-    expect(seen).toEqual(["offline"])
-    expect(retries).toHaveLength(1)
-    retries[0]?.()
-    expect(spawns).toHaveLength(2)
-    handle.stop()
+  it("stays offline and keeps retrying while the machine is unreachable", async () => {
+    const h = harness({ ensure: [false, false, true], check: [] })
+    await h.tick()
+    expect(h.handle.state()).toBe("offline")
+    expect(h.pending.length).toBe(1) // a retry is scheduled
+    await h.tick()
+    expect(h.handle.state()).toBe("offline")
+    await h.tick()
+    expect(h.handle.state()).toBe("online")
   })
 
-  it("stops retrying once stopped, and kills the child", () => {
-    const spawns: FakeSsh[] = []
-    const retries: Array<() => void> = []
-    const handle = start(spawns, retries)
-    vi.advanceTimersByTime(800)
-    handle.stop()
-    expect(spawns[0]?.killed).toBe(true)
-    spawns[0]?.emit("exit", 0)
-    expect(retries).toHaveLength(0)
+  it("goes offline when a live forward stops answering, then re-establishes it", async () => {
+    const h = harness({ ensure: [true, true], check: [false] })
+    await h.tick()
+    expect(h.handle.state()).toBe("online")
+    await h.tick() // the health check fires and finds the socket dead
+    expect(h.handle.state()).toBe("online") // re-ensured within the same turn
+    expect(h.ensureCalls.length).toBe(2)
+  })
+
+  it("stops trying once stopped", async () => {
+    const h = harness({ ensure: [false], check: [] })
+    await h.tick()
+    h.handle.stop()
+    const before = h.ensureCalls.length
+    await h.tick()
+    expect(h.ensureCalls.length).toBe(before)
   })
 })

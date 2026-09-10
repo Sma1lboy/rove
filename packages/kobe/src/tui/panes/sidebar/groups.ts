@@ -184,12 +184,22 @@ export interface LabelledRepo {
 /**
  * What a project header is CALLED.
  *
- * Three tiers, narrowest first:
- *   1. no collision → the bare basename (`kobe`);
- *   2. collides across MACHINES → `host:basename` (`narwhal:kobe`), because the
- *      machine is the thing that tells them apart and a path tail would not;
- *   3. collides on the SAME machine → the last two path segments (`work/api`),
- *      the rule that predates machines and still reads best there.
+ * Narrowest label that still tells this project apart from every other one on
+ * screen, resolved in that order:
+ *
+ *   1. nothing else shares the basename → the bare basename (`kobe`);
+ *   2. something on the SAME machine shares it → the last two path segments
+ *      (`gihub/kobe` vs `i/kobe`), because on one machine the path is what
+ *      differs and the machine name would say nothing;
+ *   3. only another MACHINE shares it → `host:basename` (`narwhal:kobe`).
+ *      The local machine keeps the bare name: it is the one you are sitting
+ *      at, and prefixing it makes the common case pay for the rare one.
+ *
+ * Step 2 runs before step 3 on purpose. Two checkouts of `kobe` on one remote
+ * machine both answered `narwhal:kobe` when the machine test came first — two
+ * headers reading as one project, which is the whole failure this function
+ * exists to prevent. When a same-machine tail is ITSELF ambiguous across
+ * machines, the host still goes in front of it.
  *
  * `repos` may be plain strings (every pre-machines caller) or
  * {@link LabelledRepo}s. With no host labels anywhere the function is exactly
@@ -201,18 +211,24 @@ export function sidebarProjectLabel(
   hostLabel?: string,
 ): string {
   const base = repoBasename(repo)
+  const host = hostLabel ?? ""
   const others = repos
     .map((entry) => (typeof entry === "string" ? { repo: entry } : entry))
-    .filter((entry) => entry.repo !== repo || (entry.hostLabel ?? "") !== (hostLabel ?? ""))
+    .filter((entry) => entry.repo !== repo || (entry.hostLabel ?? "") !== host)
   const collisions = others.filter((entry) => repoBasename(entry.repo) === base)
   if (collisions.length === 0) return base
-  // Some colliding repo is on a DIFFERENT host — name the host, which is the
-  // only thing that distinguishes two checkouts at the same path. THIS
-  // machine's row keeps the bare name: the local checkout is the one the user
-  // is sitting at, and prefixing it too would make the common case pay for the
-  // rare one. `kobe` and `narwhal:kobe` read correctly side by side.
-  const crossMachine = collisions.some((entry) => (entry.hostLabel ?? "") !== (hostLabel ?? ""))
-  if (crossMachine) return hostLabel ? `${hostLabel}:${base}` : base
+  if (collisions.some((entry) => (entry.hostLabel ?? "") === host)) {
+    const tail = pathTail(repo)
+    // The tail settles the same-machine collision; only a tail that ALSO
+    // repeats on another machine still needs the host in front of it.
+    const tailRepeats = collisions.some((entry) => (entry.hostLabel ?? "") !== host && pathTail(entry.repo) === tail)
+    return tailRepeats && host ? `${host}:${tail}` : tail
+  }
+  return host ? `${host}:${base}` : base
+}
+
+/** The last two path segments — `work/api`, `gihub/kobe`. */
+function pathTail(repo: string): string {
   const syntax = pathSyntax(repo)
   return syntax.normalize(repo).split(syntax.sep).filter(Boolean).slice(-2).join("/")
 }

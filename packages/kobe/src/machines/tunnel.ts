@@ -1,28 +1,31 @@
 /**
- * One `ssh -N -L … -L …` process per machine, kept alive.
+ * The SSH forward that makes a machine's daemon reachable as a local socket.
  *
- * The two forwards turn the remote daemon socket and the remote PTY-host
- * socket into local unix sockets under `<home>/.rove/machines/<alias>/`. Every
- * other layer then treats a machine exactly like the local daemon — a socket
- * path — which is why nothing above this file knows SSH exists.
+ * Both forwards ride the machine's shared ControlMaster connection
+ * (`ssh -O forward`), which outlives the process that created it by
+ * `ControlPersist` seconds. That is what lets a millisecond-long `rove api`
+ * process and a day-long TUI use the SAME mechanism: neither has to hold an
+ * `ssh -N` open, and neither can knock the other's forward down by racing it
+ * for the same socket path — which is exactly what happened while the two were
+ * separate.
+ *
+ * So {@link ensureForwards} is the whole transport, and {@link startTunnel} is
+ * that plus a liveness poll: it re-establishes the forward when the socket
+ * stops answering, with exponential backoff, forever. The far side coming back
+ * is the expected outcome — a machine you registered should not need
+ * re-registering after a lid close.
  *
  * Windows has no `AF_UNIX` forwarding in OpenSSH's `-L local-socket` form, so
- * {@link startTunnel} reports `unsupported` there rather than spawning
- * something that cannot work. The module still IMPORTS cleanly on Windows —
- * `rove machine list` must run everywhere.
- *
- * Reconnect policy mirrors the daemon client's: exponential backoff capped at
- * a few seconds, forever, because the far side coming back is the expected
- * outcome and a machine the user registered should not need re-registering
- * after a lid close.
+ * both entry points report failure there rather than pretending. The module
+ * still IMPORTS cleanly on Windows — `rove machine list` must run everywhere.
  */
 
-import { type ChildProcess, spawn } from "node:child_process"
+import { spawn } from "node:child_process"
 import { mkdirSync, rmSync } from "node:fs"
 import { connect as netConnect } from "node:net"
 import { homeDir } from "../env.ts"
 import type { MachineConfig } from "./registry.ts"
-import { localDaemonSocketPath, localPtySocketPath, machineSocketDir, machineSshArgs, tunnelArgs } from "./ssh-args.ts"
+import { localDaemonSocketPath, localPtySocketPath, machineSocketDir, machineSshArgs } from "./ssh-args.ts"
 
 /** Owner-only, like every other directory under `<home>/.rove`: the sockets in
  *  here reach a daemon that runs commands as its owner. */
@@ -48,29 +51,32 @@ export interface StartTunnelOptions {
   readonly remoteDaemonSocket: string
   readonly remotePtySocket: string
   readonly home?: string
-  /** Injected for tests: spawn the ssh child. */
-  readonly spawnFn?: (argv: readonly string[]) => ChildProcess
-  /** Injected for tests: schedule the next reconnect attempt. */
+  /** Injected for tests: bring the forward up. Resolves true when it is up. */
+  readonly ensureFn?: () => Promise<boolean>
+  /** Injected for tests: whether the forwarded daemon socket answers. */
+  readonly checkFn?: () => Promise<boolean>
+  /** Injected for tests: schedule the next attempt / health check. */
   readonly setTimeoutFn?: (fn: () => void, ms: number) => unknown
 }
 
 const BACKOFF_START_MS = 500
 const BACKOFF_MAX_MS = 5_000
+/** How often a live forward is re-checked. Long enough to be free, short
+ *  enough that a closed lid greys its rows within one glance. */
+const HEALTH_INTERVAL_MS = 10_000
 
 /**
- * Spawn (and re-spawn) the tunnel. Returns immediately with a handle whose
- * state starts at `connecting`; callers watch {@link TunnelHandle.onState}
- * rather than awaiting, because a machine that is down must not block the
- * ones that are up.
+ * Keep a machine's forward up. Returns immediately with a handle whose state
+ * starts at `connecting`; callers watch {@link TunnelHandle.onState} rather
+ * than awaiting, because a machine that is down must not block the ones that
+ * are up.
  */
 export function startTunnel(opts: StartTunnelOptions): TunnelHandle {
   const home = opts.home ?? homeDir()
-  const dir = machineSocketDir(opts.alias, home)
   const daemonSocketPath = localDaemonSocketPath(opts.alias, home)
   const ptySocketPath = localPtySocketPath(opts.alias, home)
   const listeners = new Set<(state: TunnelState) => void>()
   let state: TunnelState = "connecting"
-  let child: ChildProcess | null = null
   let stopped = false
   let backoff = BACKOFF_START_MS
 
@@ -79,93 +85,7 @@ export function startTunnel(opts: StartTunnelOptions): TunnelHandle {
     state = next
     for (const listener of listeners) listener(next)
   }
-
-  if (process.platform === "win32") {
-    setState("unsupported")
-    return {
-      alias: opts.alias,
-      daemonSocketPath,
-      ptySocketPath,
-      state: () => state,
-      onState: (listener) => {
-        listeners.add(listener)
-        return () => listeners.delete(listener)
-      },
-      stop: () => {},
-    }
-  }
-
-  const connect = (): void => {
-    if (stopped) return
-    try {
-      mkdirSync(dir, { recursive: true, mode: DIR_MODE })
-    } catch {
-      /* a home on a filesystem without modes, or already there */
-    }
-    // ssh REFUSES to bind a local forward socket that already exists — a
-    // leftover from a killed tunnel would otherwise make every reconnect fail
-    // with `ExitOnForwardFailure` and read as "that machine is permanently
-    // down". Only our own two paths, only inside our own directory.
-    for (const path of [daemonSocketPath, ptySocketPath]) {
-      try {
-        rmSync(path, { force: true })
-      } catch {
-        /* nothing there */
-      }
-    }
-    const argv = tunnelArgs({
-      alias: opts.alias,
-      config: opts.config,
-      remoteDaemonSocket: opts.remoteDaemonSocket,
-      remotePtySocket: opts.remotePtySocket,
-      home,
-    })
-    const spawnFn = opts.spawnFn ?? ((a: readonly string[]) => spawn(a[0] ?? "ssh", a.slice(1), { stdio: "ignore" }))
-    let proc: ChildProcess
-    try {
-      proc = spawnFn(argv)
-    } catch {
-      scheduleRetry()
-      return
-    }
-    child = proc
-    // `ssh -N` prints nothing on success, so there is no "ready" line to wait
-    // for. Staying up past the moment ssh would have failed IS the readiness
-    // signal: `ExitOnForwardFailure=yes` makes a bind failure an immediate
-    // exit, so a process still alive after the grace window has both forwards.
-    const readyTimer = setTimeout(() => {
-      if (child === proc && !stopped) {
-        backoff = BACKOFF_START_MS
-        setState("online")
-      }
-    }, 700)
-    proc.on("exit", () => {
-      clearTimeout(readyTimer)
-      if (child !== proc || stopped) return
-      child = null
-      setState("offline")
-      scheduleRetry()
-    })
-    proc.on("error", () => {
-      clearTimeout(readyTimer)
-      if (child !== proc || stopped) return
-      child = null
-      setState("offline")
-      scheduleRetry()
-    })
-  }
-
-  const scheduleRetry = (): void => {
-    if (stopped) return
-    const wait = backoff
-    backoff = Math.min(backoff * 2, BACKOFF_MAX_MS)
-    const schedule = opts.setTimeoutFn ?? ((fn: () => void, ms: number) => setTimeout(fn, ms))
-    schedule(() => connect(), wait)
-  }
-
-  connect()
-
-  return {
+  const handle: TunnelHandle = {
     alias: opts.alias,
     daemonSocketPath,
     ptySocketPath,
@@ -176,26 +96,67 @@ export function startTunnel(opts: StartTunnelOptions): TunnelHandle {
     },
     stop: () => {
       stopped = true
-      child?.kill("SIGTERM")
-      child = null
-      setState("offline")
     },
   }
+
+  if (process.platform === "win32") {
+    setState("unsupported")
+    return handle
+  }
+
+  const schedule = opts.setTimeoutFn ?? ((fn: () => void, ms: number) => setTimeout(fn, ms))
+  const ensure =
+    opts.ensureFn ??
+    (() =>
+      ensureForwards({
+        alias: opts.alias,
+        config: opts.config,
+        remoteDaemonSocket: opts.remoteDaemonSocket,
+        remotePtySocket: opts.remotePtySocket,
+        home,
+      }))
+  const check = opts.checkFn ?? (() => socketAnswers(daemonSocketPath))
+
+  const attempt = async (): Promise<void> => {
+    if (stopped) return
+    const up = await ensure()
+    if (stopped) return
+    if (up) {
+      backoff = BACKOFF_START_MS
+      setState("online")
+      schedule(() => void health(), HEALTH_INTERVAL_MS)
+      return
+    }
+    setState("offline")
+    const wait = backoff
+    backoff = Math.min(backoff * 2, BACKOFF_MAX_MS)
+    schedule(() => void attempt(), wait)
+  }
+
+  const health = async (): Promise<void> => {
+    if (stopped) return
+    if (await check()) {
+      if (!stopped) schedule(() => void health(), HEALTH_INTERVAL_MS)
+      return
+    }
+    // The forward went away — the master timed out, the network dropped, or
+    // the machine went to sleep. Rows stay on screen and grey out; this side
+    // just starts trying again.
+    setState("offline")
+    void attempt()
+  }
+
+  void attempt()
+  return handle
 }
 
 /**
- * Install the two forwards onto the machine's SHARED ssh connection, without
- * leaving a process behind — the CLI's way in.
- *
- * A `rove api` process lives for milliseconds, so it cannot hold an `ssh -N`
- * open the way the TUI does. `ssh -O forward` adds a forward to a running
- * ControlMaster instead, and the master outlives the client that created it by
- * `ControlPersist` seconds. So the first CLI call that needs a machine pays
- * one connect, and the next few minutes of calls find the socket already there.
+ * Install both forwards onto the machine's shared ssh connection, leaving no
+ * process behind.
  *
  * Best-effort: every failure answers `false`, and the caller reports the
- * machine as offline. Returns true when the forwarded daemon socket exists
- * afterwards, which is the only claim worth making.
+ * machine as offline. Returns true only when the forwarded daemon socket
+ * actually answers afterwards, which is the only claim worth making.
  */
 export async function ensureForwards(args: {
   readonly alias: string
@@ -211,10 +172,14 @@ export async function ensureForwards(args: {
   try {
     mkdirSync(machineSocketDir(args.alias, home), { recursive: true, mode: DIR_MODE })
   } catch {
-    /* already there */
+    /* already there, or a filesystem without modes */
   }
+  // Already up — including when another Rove process on this machine put it
+  // up. Sharing the forward is the point: a second one on the same path is
+  // what `ExitOnForwardFailure` would refuse.
   if (await socketAnswers(daemonLocal)) return true
-  // A leftover socket file from a dead master would make `-O forward` fail.
+  // A socket FILE with nothing behind it is a leftover from a dead master;
+  // ssh refuses to bind over it. Only our own two paths, in our own directory.
   for (const path of [daemonLocal, ptyLocal]) {
     try {
       rmSync(path, { force: true })

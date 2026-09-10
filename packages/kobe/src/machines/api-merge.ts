@@ -97,7 +97,8 @@ export async function mergeTaskList(local: { tasks?: SerializedTask[] }): Promis
   for (const entry of machines) {
     const remote = await machineTasks(entry)
     if (!remote) continue
-    const hostLabel = entry.identity?.hostname || entry.alias
+    // The alias, not the hostname — see `MachineStatus.hostLabel`.
+    const hostLabel = entry.alias
     for (const task of remote) tasks.push({ ...task, origin: { machineId: entry.alias, hostLabel } })
   }
   return { tasks }

@@ -79,6 +79,7 @@ export function SidebarTreeBody(props: {
                 label={isScratch ? t("tasks.header.scratch") : row.label}
                 suffix={props.movingProjectId === row.id ? t("tasks.moveChip") : undefined}
                 topPad={i > 0}
+                depth={row.depth}
                 onContextMenu={
                   props.onProjectContextMenu && !isScratch
                     ? (x, y) => props.onProjectContextMenu?.(row.id, x, y)

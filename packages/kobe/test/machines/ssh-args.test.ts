@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from "vitest"
 import type { MachineConfig } from "../../src/machines/registry.ts"
-import { localDaemonSocketPath, localPtySocketPath, machineSshArgs, tunnelArgs } from "../../src/machines/ssh-args.ts"
+import { machineSocketDir, machineSshArgs } from "../../src/machines/ssh-args.ts"
 
 const HOME = "/tmp/rove-home"
 const config: MachineConfig = { host: "narwhal", auth: { kind: "key" } }
@@ -30,28 +30,24 @@ describe("machineSshArgs", () => {
   })
 })
 
-describe("tunnelArgs", () => {
-  const argv = tunnelArgs({
-    alias: "narwhal",
-    config,
-    remoteDaemonSocket: "/Users/n/.rove/daemon.sock",
-    remotePtySocket: "/Users/n/.rove/pty.sock",
-    home: HOME,
+describe("machineSocketDir", () => {
+  it("keeps the natural path when it fits", () => {
+    expect(machineSocketDir("narwhal", "/Users/x")).toBe("/Users/x/.rove/machines/narwhal")
   })
 
-  it("forwards both sockets, unix end to unix end", () => {
-    expect(argv).toContain(`${localDaemonSocketPath("narwhal", HOME)}:/Users/n/.rove/daemon.sock`)
-    expect(argv).toContain(`${localPtySocketPath("narwhal", HOME)}:/Users/n/.rove/pty.sock`)
+  it("falls back to a short path when a socket inside it would not fit", () => {
+    // A Rove home inside a worktree already spends most of the ~104-byte
+    // sun_path budget; ssh's own refusal is `ControlPath too long`, which
+    // names neither the machine nor the remedy.
+    const deep = "/Users/someone/.rove/worktrees/kobe-0aff3858ab76/ocelot/.scratch/opentui-visual-5473/home"
+    const dir = machineSocketDir("narwhal", deep)
+    expect(dir).not.toContain(deep)
+    expect(Buffer.byteLength(`${dir}/daemon.sock`)).toBeLessThanOrEqual(100)
   })
 
-  it("exits on a forward that cannot bind", () => {
-    // Without this, ssh stays up looking healthy while the socket it was
-    // supposed to create does not exist — the machine reads as online forever.
-    expect(argv).toContain("ExitOnForwardFailure=yes")
-    expect(argv).toContain("-N")
-  })
-
-  it("keeps the target last, after every flag", () => {
-    expect(argv.at(-1)).toBe("narwhal")
+  it("gives the same fallback every time — a client must find the same socket", () => {
+    const deep = "/Users/someone/.rove/worktrees/kobe-0aff3858ab76/ocelot/.scratch/opentui-visual-5473/home"
+    expect(machineSocketDir("narwhal", deep)).toBe(machineSocketDir("narwhal", deep))
+    expect(machineSocketDir("narwhal", deep)).not.toBe(machineSocketDir("other", deep))
   })
 })

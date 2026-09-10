@@ -395,4 +395,25 @@ describe("project identity and labels across machines", () => {
   it("still uses the path tail for a collision on ONE machine", () => {
     expect(sidebarProjectLabel("/work/api", ["/work/api", "/oss/api"])).toBe("work/api")
   })
+
+  it("uses the path tail when the collision is on the same REMOTE machine", () => {
+    // Both checkouts answered `narwhal:kobe` when the machine test came
+    // first — two headers reading as one project, on the very machine whose
+    // name was supposed to be doing the telling-apart.
+    const repos = [
+      { repo: "/Users/n/gihub/kobe", hostLabel: "narwhal" },
+      { repo: "/Users/n/i/kobe", hostLabel: "narwhal" },
+    ]
+    expect(sidebarProjectLabel("/Users/n/gihub/kobe", repos, "narwhal")).toBe("gihub/kobe")
+    expect(sidebarProjectLabel("/Users/n/i/kobe", repos, "narwhal")).toBe("i/kobe")
+  })
+
+  it("puts the host in front of a tail that also repeats across machines", () => {
+    const repos = [
+      { repo: "/a/i/kobe", hostLabel: "narwhal" },
+      { repo: "/b/i/kobe", hostLabel: "narwhal" },
+      { repo: "/c/i/kobe", hostLabel: "vps" },
+    ]
+    expect(sidebarProjectLabel("/a/i/kobe", repos, "narwhal")).toBe("narwhal:i/kobe")
+  })
 })

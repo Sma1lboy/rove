@@ -11,7 +11,9 @@
  * where a machine's version of it is stated.
  */
 
+import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { shortHomeTag } from "@sma1lboy/kobe-daemon/daemon/paths"
 import { homeDir } from "../env.ts"
 import type { MachineConfig } from "./registry.ts"
 import { sshTargetOf } from "./registry.ts"
@@ -19,11 +21,33 @@ import { sshTargetOf } from "./registry.ts"
 /** How long a shared master outlives its last channel, in seconds. */
 export const CONTROL_PERSIST_SECONDS = 300
 
-/** `<home>/.rove/machines/<alias>` — holds the control socket and both
- *  forwarded sockets. Owner-only; created by the tunnel. */
+/**
+ * `<home>/.rove/machines/<alias>` — holds the control socket and both
+ * forwarded sockets. Owner-only; created by the tunnel.
+ *
+ * Falls back to a short `$TMPDIR` directory when the natural path would put a
+ * socket past the kernel's `sun_path` limit — a real case, not a theoretical
+ * one: a Rove home inside a worktree (`~/.rove/worktrees/<name>/…`) already
+ * spends 60 of the ~104 bytes before `machines/<alias>/daemon.sock` starts,
+ * and ssh's own refusal reads `ControlPath too long`, which names neither the
+ * machine nor the remedy. Keyed on home + alias via the same
+ * {@link shortHomeTag} the daemon's sockets use, so the fallback path is the
+ * SAME string every time — a client that computed a different one would look
+ * for the forward in the wrong place.
+ */
 export function machineSocketDir(alias: string, home = homeDir()): string {
-  return join(home, ".rove", "machines", alias)
+  const natural = join(home, ".rove", "machines", alias)
+  // The longest name this directory has to hold. Measuring the DIRECTORY
+  // against the limit would pass and then fail on the socket inside it.
+  if (Buffer.byteLength(join(natural, "daemon.sock"), "utf8") <= SOCKET_PATH_LIMIT) return natural
+  return join(tmpdir(), `rove-m-${shortHomeTag(home)}-${shortHomeTag(alias)}`)
 }
+
+/**
+ * Budget for a unix socket path. `sun_path` is 104 bytes on macOS and 108 on
+ * Linux; the daemon's own paths use 100 as the safe floor and so does this.
+ */
+const SOCKET_PATH_LIMIT = 100
 
 /** The local end of the forwarded DAEMON socket for a machine. */
 export function localDaemonSocketPath(alias: string, home = homeDir()): string {
@@ -67,42 +91,5 @@ export function machineSshArgs(
   if (config.port) argv.push("-p", String(config.port))
   if (config.auth.kind === "key" && config.auth.keyPath) argv.push("-i", config.auth.keyPath)
   argv.push(sshTargetOf(config))
-  return argv
-}
-
-/**
- * The two `-L` forwards that make a remote daemon reachable as a local socket.
- * Local-socket-to-remote-socket forwarding (`-L /local:/remote`) is an OpenSSH
- * 6.7+ feature; it is what lets both ends stay unix sockets, so neither daemon
- * ever opens a TCP port.
- *
- * `ExitOnForwardFailure=yes` is load-bearing: without it a forward that cannot
- * bind leaves ssh running and healthy-looking while the socket it was supposed
- * to create does not exist, and the machine reads as online forever.
- */
-export function tunnelArgs(args: {
-  readonly alias: string
-  readonly config: MachineConfig
-  readonly remoteDaemonSocket: string
-  readonly remotePtySocket: string
-  readonly home?: string
-}): string[] {
-  const argv = machineSshArgs(args.alias, args.config, { home: args.home })
-  argv.splice(
-    1,
-    0,
-    "-N",
-    "-o",
-    "ExitOnForwardFailure=yes",
-    "-o",
-    "ServerAliveInterval=15",
-    "-o",
-    "ServerAliveCountMax=3",
-  )
-  const daemonLocal = localDaemonSocketPath(args.alias, args.home)
-  const ptyLocal = localPtySocketPath(args.alias, args.home)
-  // Insert the forwards before the target (the last element).
-  argv.splice(argv.length - 1, 0, "-L", `${daemonLocal}:${args.remoteDaemonSocket}`)
-  argv.splice(argv.length - 1, 0, "-L", `${ptyLocal}:${args.remotePtySocket}`)
   return argv
 }

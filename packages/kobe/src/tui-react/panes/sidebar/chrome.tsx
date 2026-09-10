@@ -27,6 +27,9 @@ export function SectionHeader(props: {
   /** Drop the label's BOLD — how an offline machine section reads as inactive
    *  without inventing a colour the theme does not define. */
   muted?: boolean
+  /** Tree depth. Non-zero indents the header, so a project sitting under a
+   *  machine header reads as belonging to it. */
+  depth?: number
 }) {
   const { theme, transparentBackground } = useTheme()
   const dividerColor = transparentBackground ? theme.border : theme.borderSubtle
@@ -42,7 +45,7 @@ export function SectionHeader(props: {
         flexDirection="row"
         flexShrink={0}
         gap={1}
-        paddingLeft={1}
+        paddingLeft={1 + (props.depth ?? 0) * 2}
         paddingRight={1}
         onMouseUp={
           props.onPress || props.onContextMenu
