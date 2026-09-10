@@ -6,6 +6,12 @@
  * Split from `host.tsx`, which owns the COMPONENT. The two jobs share only the
  * orchestrator: this file has no JSX beyond handing the root back, and the
  * component knows nothing about daemons, machines or PTY registries.
+ *
+ * Nothing here is reachable from a render test, and that is the point of the
+ * split rather than a gap in it: every line opens a real daemon socket, a real
+ * SSH tunnel or the PTY registry whose teardown it owns. `WorkspaceRoot` next
+ * door IS mountable and is covered as such; what is left over here is the
+ * process entry point (see `docs/HARNESS.md` on the coverage gate).
  */
 
 import { connectOrStartDaemon } from "@sma1lboy/kobe-daemon/client/daemon-process"
