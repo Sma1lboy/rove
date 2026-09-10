@@ -90,10 +90,11 @@ export function readUiPrefsFromStateFile(statePath: string): UiPrefsPayload {
     (FOCUS_ACCENT_SLOT_NAMES as readonly string[]).includes(parsed.focusAccent)
       ? parsed.focusAccent
       : null
-  // Only `recent` is a non-default sort; any other / missing value is the
-  // `default` ordering (the TUI's `TaskSortMode` union — kept in sync,
-  // same UI-neutral mirror stance as the focus-accent slot list).
-  const sortMode = parsed.activeSortMode === "recent" ? "recent" : "default"
+  // `recent` and `attention` are the non-default sorts; any other / missing
+  // value is the `default` ordering (the TUI's `TaskSortMode` union — kept in
+  // sync, same UI-neutral mirror stance as the focus-accent slot list).
+  const sortMode =
+    parsed.activeSortMode === "recent" || parsed.activeSortMode === "attention" ? parsed.activeSortMode : "default"
   // Tasks-pane `── keys ──` legend fold (`?`); only an explicit `true`
   // collapses, anything else (missing / non-bool) is expanded.
   const keysCollapsed = parsed["tasksPane.keysCollapsed"] === true

@@ -72,9 +72,31 @@ export function partitionAttentionInboxAvailability(
 }
 
 /**
- * Oldest first — the Inbox is a queue that drains top-down (opening an
- * episode removes it; a fresh event re-records at the latest position).
- * Task order breaks same-instant ties for stability.
+ * Which band an episode sorts into. Band 0 BLOCKS: the agent has stopped and
+ * will not move again until a human acts. `turn_complete` is the one episode
+ * blocked on nobody — a turn ended, which is what turns are supposed to do —
+ * so it alone trails.
+ *
+ * Named as the exception rather than as a list of blocking states so a state
+ * added to `ATTENTION_INBOX_STATES` bands as blocking without touching this
+ * file. That default is the safe one: a new episode kind mis-sorted into the
+ * blocking band costs one extra F7 press, while the same kind mis-sorted into
+ * the trailing band is buried behind every finished turn.
+ */
+function inboxBand(item: AttentionInboxItem): 0 | 1 {
+  return item.state === "turn_complete" ? 1 : 0
+}
+
+/**
+ * Blocked episodes first, then oldest-first WITHIN each band — the Inbox is
+ * still a queue that drains top-down, but F7 walks it, and one agent stuck on
+ * a permission prompt used to sit behind four finished turns purely because
+ * it had the newer timestamp. Age alone ranks by when something happened;
+ * what the reader needs ranked is what is still stopped.
+ *
+ * Only the BAND is new. Inside a band the order is unchanged (oldest first,
+ * task order breaking same-instant ties), so a queue of one kind reads
+ * exactly as it did before.
  */
 export function sortAttentionInbox(
   items: readonly AttentionInboxItem[],
@@ -82,6 +104,8 @@ export function sortAttentionInbox(
 ): AttentionInboxItem[] {
   const taskIndex = new Map(taskOrder.map((id, index) => [id, index]))
   return [...items].sort((a, b) => {
+    const band = inboxBand(a) - inboxBand(b)
+    if (band !== 0) return band
     const age = a.at - b.at
     if (age !== 0) return age
     const task =
