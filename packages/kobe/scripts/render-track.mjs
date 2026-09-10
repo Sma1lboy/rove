@@ -7,10 +7,10 @@
 // 0.9.175) and 2026-09-08 (main CI) the job printed its last `(pass)`, opened
 // `test/render/pty-hosted.test.ts` / `pty-host.test.ts`, and emitted nothing
 // for ~12m45s until `timeout-minutes: 15` cancelled it. No summary line, no
-// coverage — the other 114 files' results were lost along with it.
+// coverage — the rest of the suite's results were lost along with it.
 //
 // Splitting does not stop a child from wedging. It bounds the blast radius:
-// the PTY files run LAST in their own process, so the other 114 have already
+// the PTY files run LAST in their own process, so the rest have already
 // run, reported, and written their coverage before anything can wedge.
 //
 // Both halves always run — a failure in the first does not skip the second —
@@ -48,8 +48,26 @@ if (pty.length === 0 || main.length === 0) {
   process.exit(2)
 }
 
+/**
+ * Wall-clock ceiling on the PTY half. The 7 PTY files take ~15s; three minutes
+ * is twelve times that, so this can only fire on a process that has stopped
+ * making progress altogether — never on a slow runner.
+ *
+ * This is NOT `--bail` and NOT the job's `timeout-minutes`. Both of those hide
+ * the problem: `--bail` would drop the other files' results, and a bigger job
+ * timeout just buys a longer silence. This converts the one failure mode we
+ * have actually seen — a blank log cancelled by the runner at 15 minutes, with
+ * no summary and no coverage — into a red run three minutes in that says what
+ * happened and still carries the other half's results.
+ *
+ * If this ever fires, it is oven-sh/bun#42171: a PTY child and the runtime
+ * deadlock in a synchronous `wait4()`, and no signal to the child clears it.
+ * SIGKILL to the bun process does, and takes its stuck children with it.
+ */
+const PTY_TIMEOUT_MS = 3 * 60_000
+
 /** One `bun test` process over `files`, coverage into its own directory. */
-function run(label, files, coverageDir) {
+function run(label, files, coverageDir, timeoutMs) {
   console.log(`\n=== render track: ${label} (${files.length} files) → ${coverageDir} ===\n`)
   const result = spawnSync(
     "bun",
@@ -61,16 +79,29 @@ function run(label, files, coverageDir) {
       "--coverage-reporter=lcov",
       `--coverage-dir=${coverageDir}`,
     ],
-    { stdio: "inherit" },
+    { stdio: "inherit", timeout: timeoutMs, killSignal: "SIGKILL" },
   )
+  if (result.error?.code === "ETIMEDOUT") {
+    console.error(
+      `
+render track: the ${label} half produced no result within ${Math.round(timeoutMs / 1000)}s and was killed.
+This is the wedge in oven-sh/bun#42171, not a slow runner: a PTY child and the
+bun runtime deadlock in a synchronous wait4(), so the process sits at 0% CPU
+forever. Whatever the other half reported above still stands.
+`,
+    )
+    return false
+  }
   // A signalled process reports status null; that is a failure, not a pass.
   return result.status === 0 && !result.signal
 }
 
 // PTY last, deliberately: whatever it does, the other half has already
 // reported by the time it starts.
-const mainOk = run("main", main, "coverage-render")
-const ptyOk = run("pty", pty, "coverage-render-pty")
+// The main half is deliberately unbounded: it has never wedged, and a ceiling
+// there would be a guess. Only the half that has actually hung gets a clock.
+const mainOk = run("main", main, "coverage-render", undefined)
+const ptyOk = run("pty", pty, "coverage-render-pty", PTY_TIMEOUT_MS)
 
 if (!mainOk || !ptyOk) {
   console.error(`\nrender track failed (main=${mainOk ? "pass" : "FAIL"}, pty=${ptyOk ? "pass" : "FAIL"})`)
