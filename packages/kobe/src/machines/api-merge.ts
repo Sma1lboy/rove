@@ -17,7 +17,7 @@
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { ApiError } from "../cli/api/types.ts"
-import { type MachineEntry, listMachines } from "./registry.ts"
+import { type MachineEntry, dedupeMachines, listMachines } from "./registry.ts"
 import { localDaemonSocketPath } from "./ssh-args.ts"
 import { ensureForwards } from "./tunnel.ts"
 
@@ -85,7 +85,10 @@ async function tasksOf(socketPath: string): Promise<SerializedTask[] | null> {
  * consumer never has to read an absent field as "this one is local".
  */
 export async function mergeTaskList(local: { tasks?: SerializedTask[] }): Promise<{ tasks: SerializedTask[] }> {
-  const machines = listMachines()
+  // Two aliases for one machine list its tasks ONCE — the same rule the
+  // sidebar renders by, so the two surfaces can never disagree about how many
+  // machines there are.
+  const machines = dedupeMachines(listMachines())
   if (machines.length === 0) return local as { tasks: SerializedTask[] }
   const tasks: SerializedTask[] = (local.tasks ?? []).map((task) => ({
     ...task,
@@ -113,7 +116,7 @@ export async function mergeTaskList(local: { tasks?: SerializedTask[] }): Promis
  */
 export async function assertLocalTask(taskId: string | undefined): Promise<void> {
   if (!taskId) return
-  const machines = listMachines()
+  const machines = dedupeMachines(listMachines())
   if (machines.length === 0) return
   for (const entry of machines) {
     const remote = await machineTasks(entry)

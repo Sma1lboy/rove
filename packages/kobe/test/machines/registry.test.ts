@@ -9,6 +9,8 @@
 import { describe, expect, it } from "vitest"
 import {
   type MachineConfig,
+  type MachineEntry,
+  dedupeMachines,
   duplicateAliasOf,
   isValidMachineAlias,
   parseSshTarget,
@@ -92,5 +94,31 @@ describe("duplicateAliasOf", () => {
 
   it("ignores a machine that has never connected (no identity yet)", () => {
     expect(duplicateAliasOf({ fresh: { host: "h", auth: { kind: "key" } } }, "x", identity)).toBeNull()
+  })
+})
+
+describe("dedupeMachines", () => {
+  const identity = { hostname: "mac-mini", homeDir: "/Users/n", daemonPid: 42 }
+  const entry = (alias: string, over: Partial<MachineEntry> = {}): MachineEntry => ({
+    alias,
+    host: alias,
+    auth: { kind: "key" },
+    ...over,
+  })
+
+  it("keeps the first alias when two name one machine", () => {
+    // The sidebar and `rove api list` share this rule: the two disagreeing is
+    // exactly the bug — one row on screen, every remote task listed twice.
+    const kept = dedupeMachines([
+      entry("narwhal", { identity }),
+      entry("nar2", { identity }),
+      entry("vps", { identity: { ...identity, hostname: "vps" } }),
+    ])
+    expect(kept.map((m) => m.alias)).toEqual(["narwhal", "vps"])
+  })
+
+  it("keeps an entry that has never connected — it may be its own machine", () => {
+    const kept = dedupeMachines([entry("narwhal", { identity }), entry("fresh")])
+    expect(kept.map((m) => m.alias)).toEqual(["narwhal", "fresh"])
   })
 })

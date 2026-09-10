@@ -28,6 +28,7 @@ import type { Task } from "../types/task.ts"
 import { discoverMachine } from "./discover.ts"
 import {
   type MachineEntry,
+  dedupeMachines,
   duplicateAliasOf,
   listMachines,
   readMachines,
@@ -103,7 +104,7 @@ export class MachineHub {
    * slot reports its own state as it settles and none of them are awaited.
    */
   attach(): void {
-    const entries = listMachines()
+    const entries = dedupeMachines(listMachines())
     if (entries.length === 0) return
     for (const entry of entries) {
       this.slots.set(entry.alias, { entry, tasks: [] })
@@ -172,11 +173,7 @@ export class MachineHub {
       await orchestrator.init()
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      // A protocol range mismatch is the machine's own problem and must not
-      // reach the top level: the other machines keep working, this row says
-      // what is wrong with this one.
-      const mismatch = /protocol v/i.test(message)
-      this.setStatus(entry.alias, { state: mismatch ? "mismatch" : "offline", error: message })
+      this.setStatus(entry.alias, { state: classifyHandshakeFailure(message), error: message })
       logClientError("machines", err)
       return
     }
@@ -252,6 +249,23 @@ export class MachineHub {
     }
     this.slots.clear()
   }
+}
+
+/**
+ * What a failed handshake means for the machine's row.
+ *
+ * A protocol-range mismatch is that ONE machine's problem: the other machines
+ * keep working and its row says what is wrong with it, rather than the failure
+ * reaching the top level as if Rove were broken. `performInit` phrases that
+ * rejection as "Rove daemon is protocol vN (min vM)" on the client side and
+ * "daemon is protocol vN" on the daemon side — both name a protocol version,
+ * which nothing else in the handshake path does.
+ *
+ * Everything else is `offline`: unreachable, wedged, or gone. Pure, so the
+ * classification is tested without a daemon to be incompatible with.
+ */
+export function classifyHandshakeFailure(message: string): MachineStatus["state"] {
+  return /protocol v\d/i.test(message) ? "mismatch" : "offline"
 }
 
 export function stampOrigin(task: Task, machineId: string, hostLabel: string, stale = false): Task {

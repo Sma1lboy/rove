@@ -165,6 +165,35 @@ export function removeMachine(alias: string): boolean {
 }
 
 /**
+ * Registered machines with the duplicates dropped: when two aliases name one
+ * machine, the FIRST in stored order survives.
+ *
+ * One rule, shared by the sidebar and by `rove api list`, because the two
+ * disagreeing is exactly the bug it exists to prevent — a machine that renders
+ * as one row while the CLI lists its tasks twice. An entry that has never
+ * connected has no identity to compare and is always kept: it may turn out to
+ * be a machine of its own.
+ */
+export function dedupeMachines(entries: readonly MachineEntry[]): MachineEntry[] {
+  const kept: MachineEntry[] = []
+  const seen: MachineIdentity[] = []
+  for (const entry of entries) {
+    const identity = entry.identity
+    if (identity) {
+      if (seen.some((other) => sameMachine(other, identity))) continue
+      seen.push(identity)
+    }
+    kept.push(entry)
+  }
+  return kept
+}
+
+/** All three parts must agree — see {@link duplicateAliasOf}. */
+function sameMachine(a: MachineIdentity, b: MachineIdentity): boolean {
+  return a.hostname === b.hostname && a.homeDir === b.homeDir && a.daemonPid === b.daemonPid
+}
+
+/**
  * The already-registered alias that names the SAME machine as `identity`, or
  * null. `self` is excluded so re-connecting an alias never reports itself as
  * its own duplicate.
