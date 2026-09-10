@@ -16,6 +16,29 @@ import {
   activityStillWorking,
 } from "./activity-reduce.ts"
 
+/**
+ * How many CONSECUTIVE "could not read it" probes may re-arm the watchdog
+ * before it retires the claim anyway.
+ *
+ * An unknown probe is the ABSENCE of evidence, not evidence of work. Treating
+ * it as "still working" unconditionally is the second way a `running` claim
+ * outlives its engine: once the transcript stops being readable at all — the
+ * worktree was deleted, the session was replaced, the path moved — every probe
+ * from then on answers unknown, so the watchdog re-arms forever and the badge
+ * never goes out.
+ *
+ * The bound has to be generous, because one unreadable probe really is a
+ * transient filesystem error and idling a mid-turn engine over it is the worse
+ * failure. Three in a row, each a full TTL apart (30 minutes at the default),
+ * is not a hiccup.
+ *
+ * Retiring is not a verdict of "idle", either: it drops the HOOK claim and
+ * lets the observer's own PTY evidence decide the tab, which is the source
+ * that can still see it. So the cost of being wrong here is one poll, not a
+ * wrong badge.
+ */
+export const MAX_UNKNOWN_REARMS = 3
+
 /** Scope key: a task's tab-less entry, or one of its tabs. */
 export interface LapseTarget {
   readonly taskId: string
@@ -53,9 +76,9 @@ export class ActivityLapseWatchdog {
    * heartbeat) instead of retiring. Only a genuinely silent engine (no recent
    * write ⇒ a missed Stop / hung process) lapses.
    */
-  arm(target: LapseTarget, at: number): ReturnType<typeof setTimeout> {
+  arm(target: LapseTarget, at: number, unknowns = 0): ReturnType<typeof setTimeout> {
     const timer = setTimeout(() => {
-      void this.fire(target, at)
+      void this.fire(target, at, unknowns)
     }, this.deps.staleMs)
     timer.unref?.()
     return timer
@@ -78,7 +101,7 @@ export class ActivityLapseWatchdog {
    * same entry identity after the await). A rescheduled lapse is stored back
    * on the live entry, so a later event can cancel it.
    */
-  private async fire(target: LapseTarget, at: number): Promise<void> {
+  private async fire(target: LapseTarget, at: number, unknowns = 0): Promise<void> {
     // Superseded before we even probed (a fresh report swapped the entry).
     const before = this.deps.entryAt(target)
     if (!before || before.at !== at) return
@@ -92,7 +115,15 @@ export class ActivityLapseWatchdog {
     if (cur !== before) return
 
     if (activityStillWorking(live, at, this.deps.now(), this.deps.staleMs)) {
-      cur.lapse = this.arm(target, at)
+      // Count only the probes that said "I don't know". A probe that actually
+      // read a recent write resets the streak, so a long turn on a healthy
+      // transcript re-arms indefinitely exactly as before.
+      const streak = live?.unknown === true ? unknowns + 1 : 0
+      if (streak > MAX_UNKNOWN_REARMS) {
+        this.deps.retire(target)
+        return
+      }
+      cur.lapse = this.arm(target, at, streak)
       return
     }
     this.deps.retire(target)

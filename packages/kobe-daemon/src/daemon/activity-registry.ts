@@ -40,6 +40,9 @@ export {
   recomputeTabActivity,
 } from "./activity-arbitrate.ts"
 export { type RollupCandidate, deriveTaskActivity, rollupCandidates } from "./activity-rollup.ts"
+// The watchdog's one policy constant, surfaced here for the same reason as the
+// rest: this file is the module's public entry point.
+export { MAX_UNKNOWN_REARMS } from "./activity-lapse.ts"
 // The read half — pure projections of the ledger below (activity-readers.ts).
 export type { EngineStatePayload } from "./activity-readers.ts"
 
