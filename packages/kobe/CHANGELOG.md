@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.9.186
+
+### Patch Changes
+
+- [#976](https://github.com/Sma1lboy/rove/pull/976) [`608f6e1`](https://github.com/Sma1lboy/rove/commit/608f6e135218c1eb7d5a9d06a673109bea14ad75) Give the New task form two more rows by tightening the space before Create. Keep the parent-directory well complete at 34–35 rows and restore the full compact form at 30 rows. Show how many rows remain above or below the form in its footer separator. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#982](https://github.com/Sma1lboy/rove/pull/982) [`4c94d9e`](https://github.com/Sma1lboy/rove/commit/4c94d9ea81a8b1ddeeb6a8282f095dac1fd189f2) A tab whose engine has stopped no longer keeps re-lighting its activity badge. When an engine dies mid-turn it leaves its last spinner frame in the terminal title, and nothing will ever rewrite it — so the observer that watches PTY titles has to time how long that frame has sat still before it can call the tab idle. It kept that clock in memory alongside the session it was watching, and threw the whole thing away every time a `pty.list` call failed. The next call rebuilt it from scratch with the clock at zero, the frozen frame counted as fresh evidence all over again, and the dot came back on. In one report that happened roughly every ninety seconds for hours, so a stopped engine's badge read `running` essentially forever. The observer now keeps its clocks across a failed call: a session is written off on evidence — its process exited, or a list that actually answered no longer names it — never because the daemon briefly could not look. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#979](https://github.com/Sma1lboy/rove/pull/979) [`2c155ed`](https://github.com/Sma1lboy/rove/commit/2c155edeff5a05779a1fd7a1eb50c7a31cb92803) See every machine you code on in one sidebar. `rove machine add <ssh-target>` registers another computer running Rove; its tasks appear under a row of their own, and a repo you have on both machines reads `kobe` here and `narwhal:kobe` there. A machine that goes offline keeps its rows — greyed, not gone — and reconnects on its own.
+
+  Read-only in this release: opening a remote session, and `rove api` verbs aimed at a remote task, arrive next. Those verbs refuse with `NOT_YET_SUPPORTED_REMOTE` rather than quietly running against your local daemon. See `docs/MACHINES.md`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#975](https://github.com/Sma1lboy/rove/pull/975) [`a55d121`](https://github.com/Sma1lboy/rove/commit/a55d121d98996e95be04d5b49265decf52627ebe) The per-task PR badge no longer reports a branch's checks as passing when one of them is unreadable. The status rollup that condenses a PR's check runs into a single headline treated any entry it could not classify as if it were absent, so a mix of one green check and one unreadable entry surfaced as a clean "passing" — telling you CI was clear when a check's state was actually unknown. It now reports "passing" only when every check that is not failing or pending is genuinely green, and pulls the headline to "unknown" otherwise; a failing check still wins, a pending one still beats an unknown sibling, and a well-formed all-green PR is unaffected. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#980](https://github.com/Sma1lboy/rove/pull/980) [`6346ab2`](https://github.com/Sma1lboy/rove/commit/6346ab29ffb83a9c9b264a24e1d83ac828334b55) Idle worktrees stop being probed with `git` every two seconds. The daemon's
+  "which tasks have a working engine?" gate was reading the activity replay,
+  which carries known-idle tab entries on purpose — so every task that had ever
+  opened a terminal tab counted as busy and skipped the 60s quiet backoff for the
+  life of the daemon. The gate now reads the derived task rollup instead. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#964](https://github.com/Sma1lboy/rove/pull/964) [`6aa9951`](https://github.com/Sma1lboy/rove/commit/6aa9951dbd165a11bddf09ff97da3dc2c6da94b4) Clip oversized strings in `rove api read-output` on a character boundary instead of a UTF-16 one. A tool result long enough to be clipped could be cut through the middle of an emoji or other astral character, leaving an orphaned surrogate half that read back as a `�` replacement glyph in the JSON an agent consumes; the same cut now keeps whole characters, and the `[+N chars clipped]` tally counts characters rather than double-counting astral ones as two. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#976](https://github.com/Sma1lboy/rove/pull/976) [`608f6e1`](https://github.com/Sma1lboy/rove/commit/608f6e135218c1eb7d5a9d06a673109bea14ad75) Keep the New task dialog's engine chips, field borders, and footer separated when the form is taller than the terminal. All three tabs now scroll their fields and picker rows into view while the header, errors, and Create action remain visible. Long engine labels stay within the dialog width. — [@NarwhalChen](https://github.com/NarwhalChen)
+
 ## 0.9.185
 
 ### Patch Changes
