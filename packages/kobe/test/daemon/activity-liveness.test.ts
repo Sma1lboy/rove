@@ -3,6 +3,7 @@ import {
   type ActivityLivenessProbe,
   DaemonActivityRegistry,
   type EngineStatePayload,
+  MAX_UNKNOWN_REARMS,
 } from "@sma1lboy/kobe-daemon/daemon/activity-registry"
 import { DaemonEventBus } from "@sma1lboy/kobe-daemon/daemon/event-bus"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -258,6 +259,51 @@ describe("activity registry liveness watchdog", () => {
     registry.report("t", "turn-complete", undefined, "tab-1")
     await vi.advanceTimersByTimeAsync(TTL * 2)
     expect(registry.replaySnapshot().every((entry) => entry.state === "turn_complete")).toBe(true)
+  })
+
+  it("stops re-arming once the transcript has been unreadable for MAX_UNKNOWN_REARMS probes", async () => {
+    // The second way a `running` claim outlives its engine. An unknown probe
+    // is the absence of evidence, and the watchdog treated it as evidence of
+    // work — so once the transcript stopped being readable at all (worktree
+    // deleted, session replaced), every probe from then on said unknown and
+    // the claim re-armed forever.
+    registry = new DaemonActivityRegistry(
+      bus,
+      TTL,
+      () => Date.now(),
+      async () => ({ unknown: true }),
+    )
+    registry.report("t", "turn-start")
+
+    // Generous on purpose: one unreadable probe is a filesystem hiccup, and
+    // idling a mid-turn engine over it is the worse failure.
+    await vi.advanceTimersByTimeAsync(TTL * MAX_UNKNOWN_REARMS)
+    expect(states.t).toEqual(["running"])
+
+    // …but it is a bound, not a licence.
+    await vi.advanceTimersByTimeAsync(TTL)
+    expect(states.t).toEqual(["running", "idle"])
+  })
+
+  it("a readable probe resets the unknown streak, so a long healthy turn never lapses", async () => {
+    // The streak counts CONSECUTIVE unknowns. A transcript that flickers
+    // unreadable and comes back is a working engine, and must keep its badge
+    // however long the turn runs.
+    let readable = false
+    registry = new DaemonActivityRegistry(
+      bus,
+      TTL,
+      () => Date.now(),
+      async () => (readable ? { mtimeMs: Date.now() } : { unknown: true }),
+    )
+    registry.report("t", "turn-start")
+    for (let i = 0; i < 4; i++) {
+      await vi.advanceTimersByTimeAsync(TTL * MAX_UNKNOWN_REARMS)
+      readable = true
+      await vi.advanceTimersByTimeAsync(TTL)
+      readable = false
+    }
+    expect(states.t).toEqual(["running"])
   })
 
   it("replaces unknown evidence with a recovered session's own completion", async () => {
