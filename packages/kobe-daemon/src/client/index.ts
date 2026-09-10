@@ -48,6 +48,44 @@ function rpcTimeoutMs(): number {
 }
 
 /**
+ * The daemon's socket never accepted the connection. Distinct from
+ * {@link RpcTimeoutError}, which is a live connection that stopped answering:
+ * here nothing was ever established, so there is no wedge to recover from —
+ * the address is simply not there (or not reachable).
+ *
+ * Without a deadline this is not an error at all, it is a HANG: on Windows the
+ * PTY host's address is a named pipe (`\\\\.\\pipe\\…`, see
+ * `daemon/paths.ts` `windowsPipePath`), and libuv's pipe connect waits for an
+ * instance that never appears instead of failing. Node's `net.connect` exposes
+ * no connect timeout, so the promise stays pending forever and every caller
+ * above it — `ensurePtyHostReachable`'s first probe included — sits silent with
+ * no output to explain itself.
+ */
+export class ConnectTimeoutError extends Error {
+  constructor(socketPath: string, timeoutMs: number) {
+    super(
+      `connecting to ${socketPath} timed out after ${timeoutMs}ms — nothing accepted the connection (daemon or PTY host not listening at that address)`,
+    )
+    this.name = "ConnectTimeoutError"
+  }
+}
+
+/**
+ * Default connect deadline. A local socket connect answers in microseconds;
+ * 5s only ever fires on the hang described above. `ROVE_CONNECT_TIMEOUT_MS`
+ * overrides it (0/negative disables the deadline) — the operator escape hatch
+ * and the test seam, mirroring `rpcTimeoutMs`.
+ */
+function connectTimeoutMs(): number {
+  const raw = readRoveEnv("CONNECT_TIMEOUT_MS")?.trim()
+  if (raw) {
+    const parsed = Number.parseInt(raw, 10)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return 5_000
+}
+
+/**
  * Single connection-lifecycle hook — fires when the socket transitions from
  * open to closed for ANY reason (daemon died, kernel dropped the socket,
  * manual `forceDisconnect`). The host TUI subscribes to this and prompts
@@ -261,7 +299,23 @@ export class KobeDaemonClient implements DaemonRpcClient {
     return new Promise((resolve, reject) => {
       const socket = connect(this.socketPath)
       this.socket = socket
+      // The connect deadline. Declared ahead of both handlers because each
+      // one clears it; cleared on BOTH other outcomes so a settled socket
+      // never fires it. On expiry the socket is destroyed, so the half-open
+      // handle does not outlive the promise that gave up on it.
+      const timeoutMs = connectTimeoutMs()
+      let timer: ReturnType<typeof setTimeout> | undefined
+      if (timeoutMs > 0) {
+        timer = setTimeout(() => {
+          socket.off("connect", onConnect)
+          socket.off("error", onError)
+          socket.destroy()
+          if (this.socket === socket) this.socket = null
+          reject(new ConnectTimeoutError(this.socketPath, timeoutMs))
+        }, timeoutMs)
+      }
       const onConnect = () => {
+        if (timer) clearTimeout(timer)
         socket.off("error", onError)
         // Post-connect socket errors (EPIPE writing to a peer that's mid-
         // exit, ECONNRESET) must NOT become unhandled 'error' events — an
@@ -272,6 +326,7 @@ export class KobeDaemonClient implements DaemonRpcClient {
         resolve()
       }
       const onError = (err: Error) => {
+        if (timer) clearTimeout(timer)
         socket.off("connect", onConnect)
         if (this.socket === socket) this.socket = null
         reject(err)

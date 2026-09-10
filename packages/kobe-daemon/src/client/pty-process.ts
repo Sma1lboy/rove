@@ -19,6 +19,7 @@ import { readPidFile } from "../daemon/socket-guard.ts"
 import { resolveKobeSpawn, testDaemonResponds } from "./daemon-process.ts"
 import { spawnDetachedDaemon } from "./detached-spawn.ts"
 import { KobeDaemonClient } from "./index.ts"
+import { windowsPowershellPath } from "./win-detached-launch.ts"
 
 const PTY_HOST_START_ARGS = ["pty-host"] as const
 
@@ -172,24 +173,116 @@ export async function resolveNodePtyHostSpawn(deps: NodePtyHostResolution = {}):
  */
 const BUSY_PTY_HOST_GRACE_MS = 15_000
 
-/** Live child processes of `pid` — the pty host's sessions, each a shell
- *  leader. One `ps`; unreadable output counts as zero, which only ever
- *  makes the reap below MORE permissive, never less. */
-async function liveChildCount(pid: number): Promise<number> {
-  try {
-    const proc = spawn("/bin/ps", ["-A", "-o", "ppid="], { stdio: ["ignore", "pipe", "ignore"] })
-    const text = await new Promise<string>((done) => {
-      let out = ""
-      proc.stdout.on("data", (chunk) => {
-        out += String(chunk)
-      })
-      proc.on("close", () => done(out))
-      proc.on("error", () => done(""))
+/**
+ * A child-count probe's whole budget. `ps` answers in ~20ms; a PowerShell
+ * start plus a CIM query is ~0.8s. 5s only ever fires on a stuck process
+ * table, and it is bounded at all because an abandoned probe here would hang
+ * the very recovery path it guards.
+ */
+const CHILD_PROBE_TIMEOUT_MS = 5_000
+
+/** Injectable so the Windows half is testable on a POSIX CI host. */
+export interface ChildProbeDeps {
+  readonly platform?: NodeJS.Platform
+  readonly env?: Readonly<Record<string, string | undefined>>
+  readonly timeoutMs?: number
+  /** Filesystem probe, like {@link NodePtyHostResolution.exists}. */
+  readonly exists?: (path: string) => boolean
+  /** Runs one command to completion, returning stdout. Throws on failure. */
+  readonly run?: (command: readonly string[], timeoutMs: number) => Promise<string>
+}
+
+/**
+ * The process-table read, per platform.
+ *
+ * POSIX is `ps -A -o ppid=`. Windows has NO usable `ps`: the one on PATH is
+ * Git for Windows' Cygwin build, which rejects `-A` and exits 1 with EMPTY
+ * stdout (see `packages/kobe/src/engine/win-process-snapshot.ts`, which
+ * documented the same finding for the foreground probe). `Get-CimInstance
+ * Win32_Process` is the only table that answers there.
+ *
+ * `[Console]::OutputEncoding` is pinned to UTF-8 first: under an OEM codepage
+ * (936 on a Chinese Windows) PowerShell 5.1 writes its stdout in that
+ * codepage, and a UTF-8 read of it is mojibake. The answer here is digits, so
+ * it survives either way — but the pin costs nothing and keeps the two
+ * Windows PowerShell reads in this repo agreeing.
+ *
+ * Exported for tests.
+ */
+export function childProbeCommand(deps: ChildProbeDeps = {}): readonly string[] {
+  const env = deps.env ?? process.env
+  if ((deps.platform ?? process.platform) !== "win32") return ["ps", "-A", "-o", "ppid="]
+  return [
+    windowsPowershellPath(env, deps.exists ?? existsSync),
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    // One ParentProcessId per line — the SAME shape POSIX `ps -o ppid=`
+    // prints, so one parser reads both. Emitting a count instead would need a
+    // second answer format and a second set of tests for the same number.
+    "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; " +
+      "Get-CimInstance -ClassName Win32_Process -Property ParentProcessId | " +
+      "Select-Object -ExpandProperty ParentProcessId",
+  ]
+}
+
+/** Run a child to completion by deadline, or throw. Exported for tests. */
+export function runChildProbe(command: readonly string[], timeoutMs: number): Promise<string> {
+  return new Promise((done, fail) => {
+    const proc = spawn(command[0] ?? "", command.slice(1), { stdio: ["ignore", "pipe", "ignore"] })
+    let out = ""
+    const finish = (err: Error | null): void => {
+      clearTimeout(timer)
+      // Kill first: an abandoned probe holding a pipe nobody reads is how a
+      // one-off hang becomes a permanent leak in a long-lived daemon.
+      try {
+        proc.kill()
+      } catch {
+        /* already gone */
+      }
+      if (err) fail(err)
+      else done(out)
+    }
+    const timer = setTimeout(() => finish(new Error(`did not answer within ${timeoutMs}ms`)), timeoutMs)
+    proc.stdout?.on("data", (chunk) => {
+      out += String(chunk)
     })
-    return text.split("\n").filter((row) => Number(row.trim()) === pid).length
+    proc.on("error", (err) => finish(err))
+    proc.on("close", () => finish(null))
+  })
+}
+
+/**
+ * Live child processes of `pid` — the pty host's sessions, each a shell
+ * leader. **`null` means "could not read the process table"**, which is not
+ * the same answer as zero and must never be folded into one.
+ *
+ * It used to be: `/bin/ps`, unreadable output counting as zero. On Windows
+ * `/bin/ps` is always ENOENT, so the count was ALWAYS zero there, and the
+ * refusal below — a live host still holding sessions may not be reaped —
+ * was dead code that silently killed the PTY host and every engine in it.
+ * POSIX cannot answer "zero children" with an empty table either: a healthy
+ * `ps -A` returns hundreds of rows, so NO rows is a failed probe, exactly the
+ * reasoning `engine/foreground.ts` applies to its own snapshot.
+ *
+ * Exported for tests.
+ */
+export async function liveChildCount(pid: number, deps: ChildProbeDeps = {}): Promise<number | null> {
+  const timeoutMs = deps.timeoutMs ?? CHILD_PROBE_TIMEOUT_MS
+  const command = childProbeCommand(deps)
+  const run = deps.run ?? runChildProbe
+  let text: string
+  try {
+    text = await run(command, timeoutMs)
   } catch {
-    return 0
+    return null
   }
+  const rows = text
+    .split("\n")
+    .map((row) => row.trim())
+    .filter((row) => row.length > 0)
+  if (rows.length === 0) return null
+  return rows.filter((row) => Number(row) === pid).length
 }
 
 /**
@@ -224,6 +317,11 @@ export async function ensurePtyHostReachable(): Promise<string> {
     }
     if (isProcessAlive(hostPid)) {
       const sessions = await liveChildCount(hostPid)
+      if (sessions === null) {
+        throw new Error(
+          `rove: the pty host (pid ${hostPid}) is not answering and Rove could not read this machine's process table, so it cannot tell whether the host still holds live sessions — refusing to restart it, which would kill every engine running in them. Inspect it with \`rove api pty-list\`, or kill ${hostPid} yourself once you have accepted losing those sessions.`,
+        )
+      }
       if (sessions > 0) {
         throw new Error(
           `rove: the pty host (pid ${hostPid}) is not answering but still holds ${sessions} live session(s) — refusing to restart it, which would kill every engine running in them. Inspect it with \`rove api pty-list\`, or kill ${hostPid} yourself once you have accepted losing those sessions.`,
@@ -242,7 +340,9 @@ export async function ensurePtyHostReachable(): Promise<string> {
     if (await testDaemonResponds(socketPath)) return socketPath
     await new Promise((resolveTimer) => setTimeout(resolveTimer, 100))
   }
-  throw new Error(`rove: pty host did not start (or stayed wedged) at ${socketPath}`)
+  throw new Error(
+    `rove: pty host did not start (or stayed wedged) at ${socketPath}; check ${defaultPtyHostLogPath()} or run \`rove doctor\``,
+  )
 }
 
 /** Observe sessions before consulting current tasks; never send a captured negative task list. */
