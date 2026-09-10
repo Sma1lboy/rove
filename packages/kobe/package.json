@@ -57,7 +57,7 @@
     "test:socket": "KOBE_INCLUDE_SOCKET=1 vitest run test/daemon --pool forks --minWorkers=1 --maxWorkers=4 --passWithNoTests",
     "test:socket:coverage": "KOBE_INCLUDE_SOCKET=1 KOBE_COVERAGE_DAEMON=1 vitest run test/daemon --coverage --pool forks --minWorkers=1 --maxWorkers=4 --passWithNoTests",
     "test:behavior": "KOBE_INCLUDE_BEHAVIOR=1 vitest run test/behavior --pool forks --minWorkers=1 --maxWorkers=1 --retry=2 --passWithNoTests",
-    "test:render": "bun test test/render --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage-render",
+    "test:render": "bun scripts/render-track.mjs",
     "coverage": "vitest run --coverage --passWithNoTests",
     "bench": "vitest bench --run",
     "lint": "biome check .",

@@ -23,13 +23,17 @@
 // escape hatch, see the comment at its definition.
 
 import { execSync } from "node:child_process"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
 
 const MIN = Number(process.env.KOBE_COVERAGE_MIN ?? "50")
 const baseRef = process.env.BASE_REF
 const prBody = process.env.PR_BODY ?? ""
 const renderCoverage = process.env.KOBE_RENDER_COVERAGE === "1"
+// One per `bun test` process the render track splits into — see
+// packages/kobe/scripts/render-track.mjs. A missing dir is skipped so the
+// gate still reports on whichever halves produced coverage.
+const RENDER_COVERAGE_DIRS = ["coverage-render", "coverage-render-pty"]
 
 if (!baseRef) {
   console.error("coverage-gate: BASE_REF is required")
@@ -99,40 +103,75 @@ function isRenderTrackOnly(file) {
   }
 }
 
-function renderCoverageSummary(path) {
+/** Every `DA:` record for a source file, one entry per lcov that mentions it. */
+function renderRecords(paths) {
   const byRelative = new Map()
-  let source = null
-  let found = 0
-  let total = 0
-  const finish = () => {
-    if (source === null) return
-    const normal = source.replace(/\\/g, "/")
-    const index = normal.indexOf("packages/kobe/src/")
-    const relative = index >= 0 ? normal.slice(index) : normal.startsWith("src/") ? `packages/kobe/${normal}` : null
-    if (relative !== null) byRelative.set(relative, { lines: { pct: total === 0 ? 100 : (found / total) * 100 } })
-    source = null
-    found = 0
-    total = 0
-  }
-  for (const line of readFileSync(path, "utf8").split("\n")) {
-    if (line.startsWith("SF:")) {
-      finish()
-      source = line.slice(3)
-    } else if (line.startsWith("DA:")) {
-      const hits = Number(line.slice(3).split(",")[1])
-      total++
-      if (hits > 0) found++
-    } else if (line === "end_of_record") {
-      finish()
+  for (const path of paths) {
+    let relative = null
+    let lines = null
+    for (const line of readFileSync(path, "utf8").split("\n")) {
+      if (line.startsWith("SF:")) {
+        const normal = line.slice(3).replace(/\\/g, "/")
+        const index = normal.indexOf("packages/kobe/src/")
+        relative = index >= 0 ? normal.slice(index) : normal.startsWith("src/") ? `packages/kobe/${normal}` : null
+        lines = relative === null ? null : new Map()
+      } else if (line.startsWith("DA:") && lines) {
+        const [number, hits] = line.slice(3).split(",")
+        lines.set(number, Number(hits))
+      } else if (line === "end_of_record" && lines) {
+        const records = byRelative.get(relative) ?? []
+        records.push(lines)
+        byRelative.set(relative, records)
+        relative = null
+        lines = null
+      }
     }
   }
-  finish()
+  return byRelative
+}
+
+/**
+ * Line-% per source file, merged across the render track's several `bun test`
+ * processes (see packages/kobe/scripts/render-track.mjs).
+ *
+ * Two processes do NOT always agree on which lines of a file are executable:
+ * `src/engine/paste-readiness.ts` comes back with 25 lines from the main half
+ * and 15 from the PTY half. So the merge is two-stage — union the hit counts
+ * of records that report the SAME line set (that is a sound sum), and take
+ * the best percentage across line sets that differ (those denominators are
+ * not comparable, and unioning them counts one process's extra lines as
+ * misses: it read paste-readiness.ts as 60% where a single process read
+ * 100%).
+ *
+ * Letting the last record win — what this did when the track was one process
+ * and duplicate `SF:` blocks could not happen — silently replaces a
+ * well-covered file with whichever process touched it least.
+ */
+function renderCoverageSummary(paths) {
+  const byRelative = new Map()
+  for (const [relative, records] of renderRecords(paths)) {
+    const byLineSet = new Map()
+    for (const lines of records) {
+      const key = [...lines.keys()].sort().join(",")
+      const merged = byLineSet.get(key)
+      if (!merged) byLineSet.set(key, new Map(lines))
+      else for (const [number, hits] of lines) merged.set(number, Math.max(merged.get(number) ?? 0, hits))
+    }
+    let pct = 0
+    for (const lines of byLineSet.values()) {
+      const found = [...lines.values()].filter((hits) => hits > 0).length
+      pct = Math.max(pct, lines.size === 0 ? 100 : (found / lines.size) * 100)
+    }
+    byRelative.set(relative, { lines: { pct } })
+  }
   return byRelative
 }
 
 let byRelative
 if (renderCoverage) {
-  byRelative = renderCoverageSummary(resolve("packages/kobe/coverage-render/lcov.info"))
+  byRelative = renderCoverageSummary(
+    RENDER_COVERAGE_DIRS.map((dir) => resolve(`packages/kobe/${dir}/lcov.info`)).filter((path) => existsSync(path)),
+  )
 } else {
   const summaryPath = resolve("packages/kobe/coverage/coverage-summary.json")
   const summary = JSON.parse(readFileSync(summaryPath, "utf8"))

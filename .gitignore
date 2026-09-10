@@ -71,6 +71,7 @@ packages/*/coverage-daemon/
 # `bun test test/render --coverage` output (the render-track sibling of the
 # vitest coverage/ above) — see docs/HARNESS.md "render track".
 packages/*/coverage-render/
+packages/*/coverage-render-pty/
 
 # Session handoff — local working state / scratchpad for the next agent in
 # THIS environment. Not shared history (the durable record lives in git
