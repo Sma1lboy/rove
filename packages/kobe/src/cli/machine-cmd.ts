@@ -18,12 +18,14 @@ import { discoverMachine } from "../machines/discover.ts"
 import {
   type MachineConfig,
   addMachine,
+  defaultMachineAlias,
   duplicateAliasOf,
   getMachine,
   isValidMachineAlias,
   listMachines,
   parseSshTarget,
   removeMachine,
+  sanitizeAlias,
   setMachineIdentity,
   sshTargetOf,
 } from "../machines/registry.ts"
@@ -46,7 +48,7 @@ const MACHINE_USAGE = [
   "  list                    Show registered machines",
   "",
   "Add options:",
-  "  --alias <name>          Local name for the machine (default: its hostname)",
+  "  --alias <name>          Local name for the machine (default: the target you typed)",
   "  --port <n>              SSH port (default: whatever ssh_config says)",
   "  --identity <file>       SSH private key (default: ssh-agent / ssh_config)",
   "",
@@ -102,9 +104,10 @@ async function add(argv: readonly string[]): Promise<void> {
   if (port !== undefined && (!Number.isInteger(port) || port < 1 || port > 65535)) usageError("--port must be 1-65535")
   const identity = flagValue(argv, "identity")
 
-  // The alias defaults to the machine's own hostname, which is only knowable
-  // AFTER the probe — so probe under a provisional alias (the target text),
-  // then rename. The provisional alias only names a ControlMaster socket.
+  // The default alias may depend on the machine's own hostname, which is only
+  // knowable AFTER the probe — so probe under a provisional alias derived from
+  // the target text, then settle. The provisional alias only names a
+  // ControlMaster socket.
   const requested = flagValue(argv, "alias")
   if (requested && !isValidMachineAlias(requested)) {
     usageError(`--alias must be letters/digits/._- and cannot be "local" (got "${requested}")`)
@@ -121,7 +124,14 @@ async function add(argv: readonly string[]): Promise<void> {
   const found = await discoverMachine(probeAlias, config)
   if (!found.ok) fail(found.message)
 
-  const alias = requested ?? sanitizeAlias(found.status.hostname || parsed.host)
+  const alias =
+    requested ??
+    defaultMachineAlias({
+      typedHost: parsed.host,
+      typedUser: parsed.user,
+      port,
+      remoteHostname: found.status.hostname,
+    })
   if (!isValidMachineAlias(alias))
     fail(`could not derive a usable alias from "${found.status.hostname}" — pass --alias`)
 
@@ -212,11 +222,4 @@ function positionalOf(argv: readonly string[]): string | undefined {
     return arg
   }
   return undefined
-}
-
-/** An ssh target or hostname as a filesystem-safe alias: `Nahuels-Mac-mini.local`
- *  keeps its dots and dashes, anything else collapses to `-`. */
-function sanitizeAlias(raw: string): string {
-  const base = raw.split(".")[0] ?? raw
-  return base.replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 64)
 }

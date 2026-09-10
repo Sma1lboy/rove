@@ -97,6 +97,49 @@ export function parseSshTarget(target: string): { host: string; user?: string; p
   return { host, ...(user ? { user } : {}), ...(port ? { port } : {}) }
 }
 
+/**
+ * What to call a machine when the user did not pass `--alias`.
+ *
+ * A BARE host — `rove machine add narwhal`, no user, no port — is already a
+ * name the user chose, almost always an `ssh_config` `Host` they picked
+ * precisely because it is short. Replacing it with the machine's own hostname
+ * overwrites a chosen name with one they never picked, and hostnames are long
+ * enough to fill the sidebar rail (`Nahuels-Mac-mini.local`).
+ *
+ * Anything else is addressing rather than a name — `user@host`, an explicit
+ * port, a bare IP — so the remote hostname is the better answer there, and an
+ * IP would in any case survive {@link sanitizeAlias} as its first octet.
+ *
+ * Pure: `remoteHostname` is passed in, because it is only knowable after the
+ * probe.
+ */
+export function defaultMachineAlias(args: {
+  readonly typedHost: string
+  readonly typedUser?: string
+  readonly port?: number
+  readonly remoteHostname?: string
+}): string {
+  const bare = !args.typedUser && args.port === undefined && !isIpLiteral(args.typedHost)
+  const source = bare ? args.typedHost : args.remoteHostname || args.typedHost
+  return sanitizeAlias(source)
+}
+
+/** An IPv4 dotted quad or an IPv6 literal — addressing, never a chosen name. */
+function isIpLiteral(host: string): boolean {
+  return host.includes(":") || /^\d{1,3}(\.\d{1,3}){3}$/.test(host)
+}
+
+/**
+ * A host or alias as a filesystem-safe alias: the leading label only
+ * (`Nahuels-Mac-mini.local` → `Nahuels-Mac-mini`), with anything outside
+ * `[A-Za-z0-9._-]` collapsed to `-`. The result names a directory under
+ * `<home>/.rove/machines/`, so it has to survive being a path segment.
+ */
+export function sanitizeAlias(raw: string): string {
+  const base = raw.split(".")[0] ?? raw
+  return base.replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 64)
+}
+
 /** `user@host` (or bare `host`) — what goes on the ssh command line. */
 export function sshTargetOf(config: MachineConfig): string {
   return config.user ? `${config.user}@${config.host}` : config.host

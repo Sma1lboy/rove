@@ -11,6 +11,7 @@ import {
   type MachineConfig,
   type MachineEntry,
   dedupeMachines,
+  defaultMachineAlias,
   duplicateAliasOf,
   isValidMachineAlias,
   parseSshTarget,
@@ -120,5 +121,33 @@ describe("dedupeMachines", () => {
   it("keeps an entry that has never connected — it may be its own machine", () => {
     const kept = dedupeMachines([entry("narwhal", { identity }), entry("fresh")])
     expect(kept.map((m) => m.alias)).toEqual(["narwhal", "fresh"])
+  })
+})
+
+describe("defaultMachineAlias", () => {
+  it("keeps a bare host — the user already named that machine", () => {
+    // `rove machine add narwhal` should give you a machine called `narwhal`.
+    // They picked that short name in ssh_config; the hostname is one they
+    // never chose, and `Nahuels-Mac-mini.local` fills the sidebar rail.
+    expect(defaultMachineAlias({ typedHost: "narwhal", remoteHostname: "Nahuels-Mac-mini.local" })).toBe("narwhal")
+  })
+
+  it("prefers the remote hostname when the target is addressing, not a name", () => {
+    const remoteHostname = "Nahuels-Mac-mini.local"
+    expect(defaultMachineAlias({ typedHost: "mac.local", typedUser: "nahuel", remoteHostname })).toBe(
+      "Nahuels-Mac-mini",
+    )
+    expect(defaultMachineAlias({ typedHost: "mac.local", port: 2222, remoteHostname })).toBe("Nahuels-Mac-mini")
+    expect(defaultMachineAlias({ typedHost: "192.168.1.5", remoteHostname })).toBe("Nahuels-Mac-mini")
+    expect(defaultMachineAlias({ typedHost: "fe80::1", remoteHostname })).toBe("Nahuels-Mac-mini")
+  })
+
+  it("falls back to the typed host when the machine reported no hostname", () => {
+    // An IP with nothing to fall back to would otherwise become `192`.
+    expect(defaultMachineAlias({ typedHost: "build-box", typedUser: "ci" })).toBe("build-box")
+  })
+
+  it("always yields something usable as a path segment", () => {
+    expect(defaultMachineAlias({ typedHost: "weird host/name" })).toBe("weird-host-name")
   })
 })

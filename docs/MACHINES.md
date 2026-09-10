@@ -40,16 +40,19 @@ Rove never guesses a remote socket path — the remote home may be a different
 user, and the path may have been shortened to fit the platform's socket-name
 limit.
 
-The alias defaults to the machine's own hostname, and it is what the sidebar
-shows — so give it a short one when the hostname isn't:
+The alias is what the sidebar shows. It defaults to the target you typed —
+`rove machine add narwhal` gives you a machine called `narwhal`, because that
+is the name you already chose for it. A target that is addressing rather than a
+name (`user@host`, an explicit port, a bare IP) takes the machine's own
+hostname instead. Override either with `--alias`:
 
 ```console
-$ rove machine add narwhal --alias narwhal
+$ rove machine add nahuel@mac-mini.local --alias narwhal
 ```
 
 | Option | What it does |
 | --- | --- |
-| `--alias <name>` | Local name for the machine. Default: its hostname. |
+| `--alias <name>` | Local name for the machine. Default: the target you typed, or the machine's hostname when the target is `user@host` / has a port / is an IP. |
 | `--port <n>` | SSH port. Default: whatever `ssh_config` says. |
 | `--identity <file>` | SSH private key. Default: ssh-agent / `ssh_config`. |
 
