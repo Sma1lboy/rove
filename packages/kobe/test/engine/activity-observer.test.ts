@@ -200,6 +200,50 @@ describe("activity observer", () => {
     expect(w.row("tab-1")?.state).toBe("idle")
   })
 
+  it("a host blip never re-lights a frozen working title (issue #104)", async () => {
+    // The engine died mid-turn: its last OSC title is a spinner frame that
+    // nothing will ever rewrite, and its byte counter is parked. Silence
+    // retires the dot correctly — once. Then `pty.list` failed for a tick
+    // (a per-poll socket connect, under load), the loop dropped every track,
+    // and the reborn track restarted its silence clock at zero: the SAME
+    // frozen frame scored as fresh evidence and re-lit the dot. In prod that
+    // ran every ~90s for hours (57 `seeded running` lines on one tab), so the
+    // badge read running for a stopped engine essentially forever.
+    const w = world({ silenceMs: 60 })
+    const frozen = { key: KEY, alive: true, pid: 42, title: "⠹ 从零构建建筑", totalBytes: 100 }
+    w.state.sessions = [frozen]
+    w.state.engines.set(42, "codex")
+    await waitFor(() => w.row("tab-1")?.state === "running")
+    await waitFor(() => w.row("tab-1")?.state === "idle")
+
+    w.state.sessions = null // the RPC fails — a fact about the socket, not the session
+    await wait(60)
+    w.state.sessions = [frozen] // …and answers again with the very same frame
+
+    // Sampled far finer than the poll: a re-light lasts a full silence
+    // window, so any single flip is caught.
+    const deadline = Date.now() + 180
+    while (Date.now() < deadline) {
+      expect(w.row("tab-1")?.state).toBe("idle")
+      await wait(5)
+    }
+  })
+
+  it("a host blip still lets REAL output re-light the tab", async () => {
+    // The other half of the same clock: keeping the track must not make the
+    // dot un-relightable. Movement after the outage is genuine evidence.
+    const w = world({ silenceMs: 60 })
+    const session = { key: KEY, alive: true, pid: 42, title: "⠹ 从零构建建筑", totalBytes: 100 }
+    w.state.sessions = [session]
+    w.state.engines.set(42, "codex")
+    await waitFor(() => w.row("tab-1")?.state === "idle")
+    w.state.sessions = null
+    await wait(60)
+    w.state.sessions = [session]
+    session.totalBytes += 50
+    await waitFor(() => w.row("tab-1")?.state === "running")
+  })
+
   it("a fresh hook turn after a correction relights the tab (the retire is not permanent)", async () => {
     const w = world()
     w.registry.report(TASK, "turn-start", undefined, "tab-1", { id: "s1" }, "claude")

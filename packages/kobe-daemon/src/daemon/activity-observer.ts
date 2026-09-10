@@ -220,9 +220,18 @@ export function startActivityObserver(
         // positive evidence against hook claims, so only retire what this
         // loop itself asserted: observed-running entries flip to idle
         // (no `correctHookRunningAfterMs` → hook entries stand).
-        for (const [key, track] of tracks) {
+        //
+        // The TRACKS survive the outage. They hold the only clock that can
+        // ever refute a title frame, and a failed RPC is a fact about the
+        // socket, not about the session. Dropping them restarted every
+        // silence clock at `firstSeenAt = now`, so a dead engine's last
+        // spinner glyph — frozen, never re-read as anything else — scored as
+        // fresh evidence again on the very next list and re-lit the dot,
+        // every outage, forever. A track is retired on EVIDENCE (`alive:
+        // false`, or missing from a list that actually answered), never on
+        // our own blindness.
+        for (const track of tracks.values()) {
           activity.observeTab(track.taskId, track.tabId, "rest", {})
-          tracks.delete(key)
         }
         return
       }
