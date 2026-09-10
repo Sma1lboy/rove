@@ -134,18 +134,33 @@ function renderRecords(paths) {
  * Line-% per source file, merged across the render track's several `bun test`
  * processes (see packages/kobe/scripts/render-track.mjs).
  *
- * Two processes do NOT always agree on which lines of a file are executable:
- * `src/engine/paste-readiness.ts` comes back with 25 lines from the main half
- * and 15 from the PTY half. So the merge is two-stage — union the hit counts
- * of records that report the SAME line set (that is a sound sum), and take
- * the best percentage across line sets that differ (those denominators are
- * not comparable, and unioning them counts one process's extra lines as
- * misses: it read paste-readiness.ts as 60% where a single process read
- * 100%).
+ * THE TWO-STAGE GROUPING BELOW IS LOAD-BEARING. It reads like ceremony around
+ * what "should" be a per-line union, and both simpler shapes were measured
+ * against a single-process baseline before this one was written:
  *
- * Letting the last record win — what this did when the track was one process
- * and duplicate `SF:` blocks could not happen — silently replaces a
- * well-covered file with whichever process touched it least.
+ *   - Last record wins (what this did when the track was ONE process and
+ *     duplicate `SF:` blocks could not happen): the 7 PTY files re-report 142
+ *     sources the main half already covers, so a file's real coverage is
+ *     replaced by whichever process touched it least.
+ *
+ *   - Plain per-line union: WRONG, because two processes do not agree on
+ *     which lines of a file are executable. `src/engine/paste-readiness.ts`
+ *     comes back as 25 lines from the main half and 15 from the PTY half;
+ *     unioning counts the extra ten as misses and reads 60% where a single
+ *     process read 100%. Those denominators are not comparable.
+ *
+ * So: union the hit counts of records reporting the SAME line set (a sound
+ * sum), and take the best percentage across line sets that DIFFER. Measured
+ * across the whole tree, that reproduces the single-process numbers for every
+ * file the render gate enforces (128 same, 1 better, 0 worse).
+ *
+ * Three `src/tui/**` files do read lower than a single process did, and that
+ * is correct: e.g. `src/tui/panes/filetree/rows.ts` reports the same 102
+ * lines either way, but 12 of them were only ever hit because leaked
+ * module-level pollers from earlier files kept running during the PTY files
+ * in the shared process — the PTY half does not load rows.ts at all. That was
+ * accidental coverage, and losing it is the honest number. (None of the three
+ * is render-gated, so the gate itself is unaffected.)
  */
 function renderCoverageSummary(paths) {
   const byRelative = new Map()
