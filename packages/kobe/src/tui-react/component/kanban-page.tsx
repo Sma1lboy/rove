@@ -22,7 +22,7 @@
 
 import { type BoxRenderable, TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
-import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
+import type { Issue, IssueStatus } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator, TaskEngineState } from "../../client/remote-orchestrator"
 import { availableEngineIds } from "../../engine/account-detect"
@@ -37,6 +37,7 @@ import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useCursorFollow } from "../lib/use-cursor-follow"
+import { ContextMenu } from "../ui/context-menu"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { quickForkDefaultVendor } from "../workspace/quick-fork"
@@ -44,6 +45,7 @@ import type { IssueChatStart } from "../workspace/use-issue-chat"
 import { IssueDetailDialog } from "./issue-detail-dialog"
 import { KanbanBoard, needsSingleLane } from "./kanban-board"
 import { type KanbanBoardEntry, useKanbanBoards } from "./use-kanban-boards"
+import { useKanbanCardMenu } from "./use-kanban-card-menu"
 
 /** paddingLeft + paddingRight on the page root, whose width is what we measure. */
 const PAGE_PADDING_CELLS = 4
@@ -78,7 +80,10 @@ export function KanbanPage(props: {
   }
   // Below the narrow breakpoint four side-by-side columns degrade to
   // one-word-per-line strips, so the board shows ONE full-width lane there.
-  const narrow = isNarrowWidth(useTerminalDimensions().width)
+  // The full screen, not the page box: the card menu is clamped against it,
+  // and the page is inset two cells on both sides.
+  const dims = useTerminalDimensions()
+  const narrow = isNarrowWidth(dims.width)
   // …and the terminal is not the board: the sidebar takes its share first.
   // Measure the page root (which is mounted in BOTH layouts — measuring the
   // four-lane box instead would unmount the thing being measured and
@@ -155,6 +160,24 @@ export function KanbanPage(props: {
   // four lanes: `scrollChildIntoView` resolves the card through the lane's own
   // descendants and no-ops on the three that do not hold it.
   const follow = useCursorFollow(selectedId)
+
+  // The board's only one-step move between columns. It routes to the SAME
+  // `setStatus` op the detail drawer's status chips use, error toast
+  // included — the menu adds a route, not a capability.
+  const cardMenu = useKanbanCardMenu({
+    onSelect: setSelectedId,
+    setStatus: (issue: Issue, status: IssueStatus) => {
+      const repoRoot = activeBoard?.repoRoot
+      if (!repoRoot) return
+      void props.orchestrator
+        ?.mutateIssue(repoRoot, { type: "setStatus", id: issue.id, status })
+        .catch((err: unknown) => {
+          console.error("[rove kanban] issue status change failed:", err)
+          notifyError(t("kanban.statusFailed", { id: String(issue.id), error: errorMessage(err) }))
+        })
+        .finally(() => reload())
+    },
+  })
 
   function cycleProject(delta: number): void {
     if (boardList.length === 0) return
@@ -337,7 +360,9 @@ export function KanbanPage(props: {
     // Dormant while the detail drawer is up (the dialog owns the keyboard),
     // and while another pane has focus — the board shares the window with the
     // sidebar now, so its bare letters must not fire from over there.
-    enabled: dialog.stack.length === 0 && props.focused !== false,
+    // The card menu owns the keyboard while it is up, for the same reason the
+    // drawer does — its own bindings are registered separately below.
+    enabled: dialog.stack.length === 0 && props.focused !== false && !cardMenu.open,
     bindings: [
       ...pageCloseBindings(props.onClose),
       { key: "r", cmd: () => reload() },
@@ -441,10 +466,21 @@ export function KanbanPage(props: {
               follow={follow}
               onSelect={setSelectedId}
               onOpen={openDetail}
+              onCardContextMenu={cardMenu.openForCard}
             />
           )}
         </>
       )}
+      {cardMenu.open ? (
+        <ContextMenu
+          entries={cardMenu.entries}
+          cursor={cardMenu.cursor}
+          x={cardMenu.x}
+          y={cardMenu.y}
+          dims={dims}
+          onPick={cardMenu.pick}
+        />
+      ) : null}
     </box>
   )
 }

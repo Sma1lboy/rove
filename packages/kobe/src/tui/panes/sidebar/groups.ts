@@ -27,7 +27,15 @@ import type { Task } from "@/types/task"
 import { pathIdentity, pathSyntax } from "@sma1lboy/kobe-daemon/path-identity"
 import { fuzzyMatch } from "./fuzzy"
 
-export type TaskSortMode = "default" | "recent"
+/**
+ * How the sidebar orders tasks inside a project group.
+ *
+ * `attention` is the "who needs me" order — blocked rows first, then unread
+ * completions, then the rest. Its comparator lives in `row-view.ts` with the
+ * attention-state list it reads (`compareAttention`); this module cannot own
+ * it because `row-view.ts` already imports from here.
+ */
+export type TaskSortMode = "default" | "recent" | "attention"
 
 /**
  * One visible row in the sidebar body. Wave 4.5 collapsed the row union

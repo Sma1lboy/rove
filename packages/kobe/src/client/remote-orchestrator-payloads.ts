@@ -140,7 +140,7 @@ export function decodeUiPrefsPayload(payload: unknown): UiPrefsPayload | null {
     transparentBackground: p.transparentBackground !== false,
     focusAccent: typeof p.focusAccent === "string" ? p.focusAccent : null,
     locale: typeof p.locale === "string" ? p.locale : "",
-    sortMode: p.sortMode === "recent" ? "recent" : "default",
+    sortMode: p.sortMode === "recent" || p.sortMode === "attention" ? p.sortMode : "default",
     keysCollapsed: p.keysCollapsed === true,
     projectFilter: typeof p.projectFilter === "string" && p.projectFilter.length > 0 ? p.projectFilter : null,
   }

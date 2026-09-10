@@ -19,9 +19,11 @@
  * never disagree about what identifies a tab.
  */
 
+import type { TaskActivityState } from "@/engine/hook-events"
 import type { Task } from "@/types/task"
 import { fuzzyMatch } from "./fuzzy"
 import { type LabelledRepo, compareRecent, repoBasename, sidebarProjectKeyOfTask, sidebarProjectLabel } from "./groups"
+import { compareAttention } from "./row-view"
 import { RECENT_ROW_ID, SCRATCH_SECTION_ID, routinesRowId, tabRowId } from "./tree-ids"
 
 // Search lives in its own module — this file decides what rows EXIST, that one
@@ -138,6 +140,13 @@ export interface TreeInput {
   readonly tabsByTask: ReadonlyMap<string, readonly TreeTab[]>
   /** Task sort applied within each project group. Defaults to input order. */
   readonly sortMode?: import("./groups").TaskSortMode
+  /**
+   * Live engine activity per task id — read ONLY by `attention` sort, which
+   * needs to know which rows are stopped. A reader rather than the daemon's
+   * map so this module stays pure over `Task[]`; omitted, `attention` sorts
+   * every row into the same band and degrades to plain recency.
+   */
+  readonly activityOf?: (taskId: string) => TaskActivityState | undefined
   /** Project keys whose routine count row is open. Absent = all
    *  closed, which is the resting state a fresh session starts in. */
   readonly expandedRoutines?: ReadonlySet<string>
@@ -218,7 +227,15 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
   // directory would name a home they don't have. They render in one
   // Scratch section ABOVE every project — the "unfiled live sessions" bench.
   const scratchTasks = tasks.filter((task) => task.kind === "dir" && task.scratch === true)
-  if (sortMode === "recent") scratchTasks.sort(compareRecent)
+  // One comparator for both partitions below, resolved once: `default` keeps
+  // the input (orchestrator) order and sorts nothing at all.
+  const compare =
+    sortMode === "recent"
+      ? compareRecent
+      : sortMode === "attention"
+        ? compareAttention(input.activityOf ?? (() => undefined))
+        : null
+  if (compare) scratchTasks.sort(compare)
 
   for (const task of tasks) {
     if (task.kind === "dir" && task.scratch === true) continue
@@ -257,14 +274,14 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
     }
   }
 
-  if (sortMode === "recent") {
+  if (compare) {
     for (const entry of byProject.values()) {
       entry.tasks.sort((a, b) => {
         // Keep the repo's main checkout as the first worktree row under its
-        // project header; only the regular worktrees reorder by recency.
+        // project header; only the regular worktrees reorder.
         if (a.kind === "main" && b.kind !== "main") return -1
         if (b.kind === "main" && a.kind !== "main") return 1
-        return compareRecent(a, b)
+        return compare(a, b)
       })
     }
   }
