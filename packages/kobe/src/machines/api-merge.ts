@@ -17,8 +17,9 @@
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { ApiError } from "../cli/api/types.ts"
-import { listMachines } from "./registry.ts"
+import { type MachineEntry, listMachines } from "./registry.ts"
 import { localDaemonSocketPath } from "./ssh-args.ts"
+import { ensureForwards } from "./tunnel.ts"
 
 /**
  * Refusal for a verb aimed at a task on another machine.
@@ -38,6 +39,29 @@ export function remoteTaskUnsupported(taskId: string, machineId: string): ApiErr
       nextCommandArgs: ["machine", "list"],
     },
   )
+}
+
+/**
+ * A machine's tasks, opening its forwarded socket first if nothing is
+ * listening there yet.
+ *
+ * The forward rides the shared ssh connection (`ensureForwards`), so the first
+ * CLI call after a quiet period pays one connect and the next few minutes of
+ * calls find it already up. A machine that cannot be reached answers null —
+ * the caller reports it as offline rather than failing the whole command.
+ */
+async function machineTasks(entry: MachineEntry): Promise<SerializedTask[] | null> {
+  const socketPath = localDaemonSocketPath(entry.alias)
+  const direct = await tasksOf(socketPath)
+  if (direct) return direct
+  if (!entry.sockets) return null
+  const up = await ensureForwards({
+    alias: entry.alias,
+    config: entry,
+    remoteDaemonSocket: entry.sockets.daemon,
+    remotePtySocket: entry.sockets.pty,
+  })
+  return up ? await tasksOf(socketPath) : null
 }
 
 async function tasksOf(socketPath: string): Promise<SerializedTask[] | null> {
@@ -68,7 +92,7 @@ export async function mergeTaskList(local: { tasks?: SerializedTask[] }): Promis
     origin: { machineId: "local", hostLabel: "local" },
   }))
   for (const entry of machines) {
-    const remote = await tasksOf(localDaemonSocketPath(entry.alias))
+    const remote = await machineTasks(entry)
     if (!remote) continue
     const hostLabel = entry.identity?.hostname || entry.alias
     for (const task of remote) tasks.push({ ...task, origin: { machineId: entry.alias, hostLabel } })
@@ -92,7 +116,7 @@ export async function assertLocalTask(taskId: string | undefined): Promise<void>
   const machines = listMachines()
   if (machines.length === 0) return
   for (const entry of machines) {
-    const remote = await tasksOf(localDaemonSocketPath(entry.alias))
+    const remote = await machineTasks(entry)
     if (!remote) continue
     if (remote.some((task) => task.id === taskId)) throw remoteTaskUnsupported(taskId, entry.alias)
   }

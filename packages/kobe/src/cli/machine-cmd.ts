@@ -132,12 +132,28 @@ async function add(argv: readonly string[]): Promise<void> {
   }
   const duplicate = duplicateAliasOf(readMachines(loadStateFile()), alias, identityTriple)
 
-  addMachine(alias, { ...config, identity: identityTriple })
+  const sockets = { daemon: found.status.socketPath, pty: found.status.ptySocketPath }
+  addMachine(alias, { ...config, identity: identityTriple, sockets })
   setMachineIdentity(alias, identityTriple)
+  // Bring the forward up now, on the connection the probe just opened. Without
+  // it the machine is registered but unreachable until a TUI starts one, and
+  // `rove machine list` would report a machine `rove api list` cannot see.
+  const { ensureForwards } = await import("../machines/tunnel.ts")
+  const up = await ensureForwards({
+    alias,
+    config,
+    remoteDaemonSocket: sockets.daemon,
+    remotePtySocket: sockets.pty,
+  })
 
   process.stdout.write(
     `${CLI_NAME} machine: ${alias} → ${sshTargetOf(config)} (rove ${found.status.kobeVersion || "?"} on ${found.status.hostname || "?"})\n`,
   )
+  if (!up) {
+    process.stderr.write(
+      `${CLI_NAME} machine: registered, but could not forward ${alias}'s socket yet — it will show as offline until the connection comes up\n`,
+    )
+  }
   if (duplicate) {
     // Not an error: two names for one machine is a reasonable thing to do by
     // accident, and the fix (pick one) is the user's. The sidebar renders one

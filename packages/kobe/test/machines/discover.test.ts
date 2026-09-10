@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest"
-import { parseStatusJson } from "../../src/machines/discover.ts"
+import { looksLikeOldStatus, parseStatusJson } from "../../src/machines/discover.ts"
 
 const FULL = JSON.stringify({
   daemonPid: 900,
@@ -42,5 +42,15 @@ describe("parseStatusJson", () => {
     expect(parseStatusJson("rove daemon: no daemon running at /x/daemon.sock")).toBeNull()
     expect(parseStatusJson("")).toBeNull()
     expect(parseStatusJson("{not json")).toBeNull()
+  })
+})
+
+describe("looksLikeOldStatus", () => {
+  it("recognizes a machine whose Rove predates the pty socket field", () => {
+    // This is the difference between "that machine needs upgrading" and "its
+    // daemon would not start" — two remedies, and only one of them works.
+    expect(looksLikeOldStatus(JSON.stringify({ socketPath: "/s.sock", homeDir: "/h" }))).toBe(true)
+    expect(looksLikeOldStatus(FULL)).toBe(false)
+    expect(looksLikeOldStatus("rove daemon: no daemon running")).toBe(false)
   })
 })

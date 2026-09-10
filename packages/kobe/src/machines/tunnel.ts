@@ -19,9 +19,10 @@
 
 import { type ChildProcess, spawn } from "node:child_process"
 import { mkdirSync, rmSync } from "node:fs"
+import { connect as netConnect } from "node:net"
 import { homeDir } from "../env.ts"
 import type { MachineConfig } from "./registry.ts"
-import { localDaemonSocketPath, localPtySocketPath, machineSocketDir, tunnelArgs } from "./ssh-args.ts"
+import { localDaemonSocketPath, localPtySocketPath, machineSocketDir, machineSshArgs, tunnelArgs } from "./ssh-args.ts"
 
 /** Owner-only, like every other directory under `<home>/.rove`: the sockets in
  *  here reach a daemon that runs commands as its owner. */
@@ -180,4 +181,83 @@ export function startTunnel(opts: StartTunnelOptions): TunnelHandle {
       setState("offline")
     },
   }
+}
+
+/**
+ * Install the two forwards onto the machine's SHARED ssh connection, without
+ * leaving a process behind — the CLI's way in.
+ *
+ * A `rove api` process lives for milliseconds, so it cannot hold an `ssh -N`
+ * open the way the TUI does. `ssh -O forward` adds a forward to a running
+ * ControlMaster instead, and the master outlives the client that created it by
+ * `ControlPersist` seconds. So the first CLI call that needs a machine pays
+ * one connect, and the next few minutes of calls find the socket already there.
+ *
+ * Best-effort: every failure answers `false`, and the caller reports the
+ * machine as offline. Returns true when the forwarded daemon socket exists
+ * afterwards, which is the only claim worth making.
+ */
+export async function ensureForwards(args: {
+  readonly alias: string
+  readonly config: MachineConfig
+  readonly remoteDaemonSocket: string
+  readonly remotePtySocket: string
+  readonly home?: string
+}): Promise<boolean> {
+  if (process.platform === "win32") return false
+  const home = args.home ?? homeDir()
+  const daemonLocal = localDaemonSocketPath(args.alias, home)
+  const ptyLocal = localPtySocketPath(args.alias, home)
+  try {
+    mkdirSync(machineSocketDir(args.alias, home), { recursive: true, mode: DIR_MODE })
+  } catch {
+    /* already there */
+  }
+  if (await socketAnswers(daemonLocal)) return true
+  // A leftover socket file from a dead master would make `-O forward` fail.
+  for (const path of [daemonLocal, ptyLocal]) {
+    try {
+      rmSync(path, { force: true })
+    } catch {
+      /* nothing there */
+    }
+  }
+  const base = machineSshArgs(args.alias, args.config, { home })
+  // `true` is the cheapest remote command that establishes the master.
+  if ((await runSsh([...base, "true"])) !== 0) return false
+  const target = base.at(-1) ?? args.alias
+  const flags = base.slice(0, -1)
+  const forwarded = await runSsh([
+    ...flags,
+    "-O",
+    "forward",
+    "-L",
+    `${daemonLocal}:${args.remoteDaemonSocket}`,
+    "-L",
+    `${ptyLocal}:${args.remotePtySocket}`,
+    target,
+  ])
+  return forwarded === 0 && (await socketAnswers(daemonLocal))
+}
+
+function runSsh(argv: readonly string[]): Promise<number> {
+  return new Promise((resolve) => {
+    const child = spawn(argv[0] ?? "ssh", argv.slice(1), { stdio: "ignore" })
+    child.on("error", () => resolve(-1))
+    child.on("close", (code) => resolve(code ?? -1))
+  })
+}
+
+/** Whether a unix socket at `path` accepts a connection right now. */
+function socketAnswers(path: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = netConnect(path)
+    const done = (answer: boolean): void => {
+      socket.destroy()
+      resolve(answer)
+    }
+    socket.once("connect", () => done(true))
+    socket.once("error", () => done(false))
+    socket.setTimeout(1500, () => done(false))
+  })
 }

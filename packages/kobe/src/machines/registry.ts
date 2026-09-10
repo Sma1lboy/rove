@@ -36,6 +36,12 @@ export interface MachineConfig {
    * recognized as one machine. Absent until the first successful connect.
    */
   readonly identity?: MachineIdentity
+  /**
+   * The remote socket paths, as that machine last reported them. Cached so a
+   * reconnect does not need a second SSH round-trip before it can forward
+   * anything — never derived locally (see `discover.ts`).
+   */
+  readonly sockets?: { readonly daemon: string; readonly pty: string }
   /** ISO timestamp of registration, for `machine list` ordering. */
   readonly addedAt?: string
 }
@@ -128,16 +134,21 @@ export function addMachine(alias: string, config: MachineConfig): { added: boole
   return { added }
 }
 
-/** Record the identity learned from a successful `hello`. */
-export function setMachineIdentity(alias: string, identity: MachineIdentity): void {
+/** Record what a successful handshake or probe taught us about a machine. */
+export function updateMachine(alias: string, patch: Partial<MachineConfig>): void {
   updateStateFile((state) => {
     const machines = { ...readMachines(state) }
     const existing = machines[alias]
     if (!existing) return false
-    machines[alias] = { ...existing, identity }
+    machines[alias] = { ...existing, ...patch }
     state.machines = machines
     return undefined
   })
+}
+
+/** Record the identity learned from a successful `hello`. */
+export function setMachineIdentity(alias: string, identity: MachineIdentity): void {
+  updateMachine(alias, { identity })
 }
 
 export function removeMachine(alias: string): boolean {

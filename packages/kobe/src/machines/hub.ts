@@ -26,7 +26,14 @@ import { createStateCell } from "../lib/external-store.ts"
 import { loadStateFile } from "../state/store.ts"
 import type { Task } from "../types/task.ts"
 import { discoverMachine } from "./discover.ts"
-import { type MachineEntry, duplicateAliasOf, listMachines, readMachines, setMachineIdentity } from "./registry.ts"
+import {
+  type MachineEntry,
+  duplicateAliasOf,
+  listMachines,
+  readMachines,
+  setMachineIdentity,
+  updateMachine,
+} from "./registry.ts"
 import { type TunnelHandle, startTunnel } from "./tunnel.ts"
 
 /** What a machine row in the sidebar renders from. */
@@ -112,15 +119,20 @@ export class MachineHub {
     if (!slot || this.disposed) return
     const found = await discoverMachine(entry.alias, entry)
     if (this.disposed) return
-    if (!found.ok) {
-      this.setStatus(entry.alias, { state: "offline", error: found.message })
+    // A probe that failed is not fatal when we already know where that machine
+    // listens: the paths do not move, and reusing them lets the tunnel's own
+    // backoff be what waits for a machine that is merely asleep.
+    const sockets = found.ok ? { daemon: found.status.socketPath, pty: found.status.ptySocketPath } : entry.sockets
+    if (!sockets) {
+      this.setStatus(entry.alias, { state: "offline", error: found.ok ? undefined : found.message })
       return
     }
+    if (found.ok) updateMachine(entry.alias, { sockets })
     const tunnel = startTunnel({
       alias: entry.alias,
       config: entry,
-      remoteDaemonSocket: found.status.socketPath,
-      remotePtySocket: found.status.ptySocketPath,
+      remoteDaemonSocket: sockets.daemon,
+      remotePtySocket: sockets.pty,
     })
     slot.tunnel = tunnel
     if (tunnel.state() === "unsupported") {

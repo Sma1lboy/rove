@@ -10,8 +10,9 @@
  */
 
 import { spawn } from "node:child_process"
+import { mkdirSync } from "node:fs"
 import type { MachineConfig } from "./registry.ts"
-import { machineSshArgs } from "./ssh-args.ts"
+import { machineSocketDir, machineSshArgs } from "./ssh-args.ts"
 
 export interface RemoteDaemonStatus {
   readonly socketPath: string
@@ -39,6 +40,15 @@ export async function runOnMachine(
   command: string,
   opts: { readonly home?: string; readonly timeoutMs?: number } = {},
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  // The ControlPath's directory must exist before ssh tries to bind there.
+  // Without it ssh reports `Control socket connect(...): No such file or
+  // directory` — a message that names the .rove path and reads like a missing
+  // Rove rather than a missing directory.
+  try {
+    mkdirSync(machineSocketDir(alias, opts.home), { recursive: true, mode: 0o700 })
+  } catch {
+    /* already there, or a filesystem without modes */
+  }
   const argv = [...machineSshArgs(alias, config, { home: opts.home }), command]
   return await new Promise((resolve) => {
     let stdout = ""
@@ -85,7 +95,10 @@ export async function discoverMachine(
   const parsed = parseStatusJson(first.stdout)
   if (parsed) return { ok: true, status: parsed }
   const combined = `${first.stdout}\n${first.stderr}`.trim()
-  if (/command not found|not found: rove|No such file or directory/i.test(combined) && /rove/i.test(combined)) {
+  // Match the SHELL's own "no such command" phrasings, anchored on the command
+  // name. A bare `No such file or directory` is not enough: ssh says exactly
+  // that about its own control socket, whose path contains `.rove`.
+  if (/(?:^|\W)rove:? (?:command not found|not found)|command not found:? rove/i.test(combined)) {
     return {
       ok: false,
       code: "NO_ROVE",
@@ -100,10 +113,32 @@ export async function discoverMachine(
   const second = await runOnMachine(alias, config, "rove daemon status --json", opts)
   const retry = parseStatusJson(second.stdout)
   if (retry) return { ok: true, status: retry }
+  // A remote Rove old enough to predate `ptySocketPath` answers `daemon
+  // status` perfectly and still cannot be tunnelled — say so, rather than
+  // reporting it as a daemon that would not start.
+  if (looksLikeOldStatus(second.stdout)) {
+    return {
+      ok: false,
+      code: "BAD_STATUS",
+      message: `${alias} runs a Rove too old for machines (its \`daemon status\` reports no pty socket). Upgrade it: \`ssh ${alias} npm i -g @sma1lboy/rove\`.`,
+    }
+  }
   return {
     ok: false,
     code: started.exitCode === 0 ? "BAD_STATUS" : "NO_DAEMON",
     message: `could not read a daemon status from ${alias}: ${`${second.stdout}\n${second.stderr}\n${started.stderr}`.trim() || "no output"}`,
+  }
+}
+
+/** A status payload that parses but predates `ptySocketPath`. */
+export function looksLikeOldStatus(stdout: string): boolean {
+  const at = stdout.indexOf("{")
+  if (at < 0) return false
+  try {
+    const raw = JSON.parse(stdout.slice(at)) as Record<string, unknown>
+    return typeof raw.socketPath === "string" && typeof raw.ptySocketPath !== "string"
+  } catch {
+    return false
   }
 }
 
