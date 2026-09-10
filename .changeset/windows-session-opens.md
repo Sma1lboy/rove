@@ -1,0 +1,5 @@
+---
+"@sma1lboy/rove": patch
+---
+
+Rove on Windows now opens a session from PowerShell instead of hanging silently. Three things on that path were written for one platform only. The session shell was taken from `$SHELL` with a hard-coded `/bin/zsh` fallback, bypassing the resolver that already knows Windows spawns Git for Windows' bash; on Windows that path is not something CreateProcess can run, so the engine tab never came up. The daemon socket connect had no deadline, and the PTY host's address there is a named pipe — libuv waits for an instance that never appears rather than refusing, so the very first probe pending forever and the whole launch sat with no output; it now gives up after five seconds and says what it waited on. And the guard that refuses to restart a PTY host still holding live sessions read the process table through `/bin/ps`, which on Windows is always ENOENT and was folded into a count of zero, making that guard dead code that killed a host and every engine in it; it now reads the Windows table through PowerShell 5.1 and reports "could not read the table" as a refusal instead of a zero.

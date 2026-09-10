@@ -18,6 +18,7 @@ import { readPidFile } from "../daemon/socket-guard.ts"
 import { resolveKobeSpawn, testDaemonResponds } from "./daemon-process.ts"
 import { spawnDetachedDaemon } from "./detached-spawn.ts"
 import { KobeDaemonClient } from "./index.ts"
+import { windowsPowershellPath } from "./win-detached-launch.ts"
 
 const PTY_HOST_START_ARGS = ["pty-host"] as const
 
@@ -155,23 +156,89 @@ export async function resolveNodePtyHostSpawn(deps: NodePtyHostResolution = {}):
  */
 const BUSY_PTY_HOST_GRACE_MS = 15_000
 
-/** Live children of `pid` (each a session's shell leader). Unreadable `ps`
- *  counts as zero, which only makes the reap below more permissive. */
-async function liveChildCount(pid: number): Promise<number> {
-  try {
-    const proc = spawn("/bin/ps", ["-A", "-o", "ppid="], { stdio: ["ignore", "pipe", "ignore"] })
-    const text = await new Promise<string>((done) => {
-      let out = ""
-      proc.stdout.on("data", (chunk) => {
-        out += String(chunk)
-      })
-      proc.on("close", () => done(out))
-      proc.on("error", () => done(""))
+/** Child-count probe budget (`ps` ~20ms, PowerShell + CIM ~0.8s); bounded
+ *  because a hung probe would hang the recovery path it guards. */
+const CHILD_PROBE_TIMEOUT_MS = 5_000
+
+/** Injectable so the Windows half is testable on a POSIX CI host. */
+export interface ChildProbeDeps {
+  readonly platform?: NodeJS.Platform
+  readonly env?: Readonly<Record<string, string | undefined>>
+  readonly timeoutMs?: number
+  /** Filesystem probe, like {@link NodePtyHostResolution.exists}. */
+  readonly exists?: (path: string) => boolean
+  /** Runs one command to completion, returning stdout. Throws on failure. */
+  readonly run?: (command: readonly string[], timeoutMs: number) => Promise<string>
+}
+
+/**
+ * The process-table read, per platform. Windows' `ps` on PATH is Git for
+ * Windows' Cygwin build, which rejects `-A` (see `engine/win-process-snapshot.ts`),
+ * so it reads `Win32_Process` instead, output pinned to UTF-8 like the other
+ * PowerShell read. Exported for tests.
+ */
+export function childProbeCommand(deps: ChildProbeDeps = {}): readonly string[] {
+  const env = deps.env ?? process.env
+  if ((deps.platform ?? process.platform) !== "win32") return ["ps", "-A", "-o", "ppid="]
+  return [
+    windowsPowershellPath(env, deps.exists ?? existsSync),
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    // One ParentProcessId per line, the same shape as `ps -o ppid=`, so one parser reads both.
+    "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; " +
+      "Get-CimInstance -ClassName Win32_Process -Property ParentProcessId | " +
+      "Select-Object -ExpandProperty ParentProcessId",
+  ]
+}
+
+/** Run a child to completion by deadline, or throw. Exported for tests. */
+export function runChildProbe(command: readonly string[], timeoutMs: number): Promise<string> {
+  return new Promise((done, fail) => {
+    const proc = spawn(command[0] ?? "", command.slice(1), { stdio: ["ignore", "pipe", "ignore"] })
+    let out = ""
+    const finish = (err: Error | null): void => {
+      clearTimeout(timer)
+      // An abandoned probe holding an unread pipe leaks in a long-lived daemon.
+      try {
+        proc.kill()
+      } catch {
+        /* already gone */
+      }
+      if (err) fail(err)
+      else done(out)
+    }
+    const timer = setTimeout(() => finish(new Error(`did not answer within ${timeoutMs}ms`)), timeoutMs)
+    proc.stdout?.on("data", (chunk) => {
+      out += String(chunk)
     })
-    return text.split("\n").filter((row) => Number(row.trim()) === pid).length
+    proc.on("error", (err) => finish(err))
+    proc.on("close", () => finish(null))
+  })
+}
+
+/**
+ * Live children of `pid` (each a session's shell leader). `null` means the
+ * process table could not be read — never fold it into zero, or the refusal
+ * below becomes a silent reap. A healthy `ps -A` has hundreds of rows, so an
+ * empty table is a failed probe too. Exported for tests.
+ */
+export async function liveChildCount(pid: number, deps: ChildProbeDeps = {}): Promise<number | null> {
+  const timeoutMs = deps.timeoutMs ?? CHILD_PROBE_TIMEOUT_MS
+  const command = childProbeCommand(deps)
+  const run = deps.run ?? runChildProbe
+  let text: string
+  try {
+    text = await run(command, timeoutMs)
   } catch {
-    return 0
+    return null
   }
+  const rows = text
+    .split("\n")
+    .map((row) => row.trim())
+    .filter((row) => row.length > 0)
+  if (rows.length === 0) return null
+  return rows.filter((row) => Number(row) === pid).length
 }
 
 /**
@@ -196,6 +263,11 @@ export async function ensurePtyHostReachable(): Promise<string> {
     }
     if (isProcessAlive(hostPid)) {
       const sessions = await liveChildCount(hostPid)
+      if (sessions === null) {
+        throw new Error(
+          `rove: the pty host (pid ${hostPid}) is not answering and Rove could not read this machine's process table, so it cannot tell whether the host still holds live sessions — refusing to restart it, which would kill every engine running in them. Inspect it with \`rove api pty-list\`, or kill ${hostPid} yourself once you have accepted losing those sessions.`,
+        )
+      }
       if (sessions > 0) {
         throw new Error(
           `rove: the pty host (pid ${hostPid}) is not answering but still holds ${sessions} live session(s) — refusing to restart it, which would kill every engine running in them. Inspect it with \`rove api pty-list\`, or kill ${hostPid} yourself once you have accepted losing those sessions.`,
@@ -214,7 +286,9 @@ export async function ensurePtyHostReachable(): Promise<string> {
     if (await testDaemonResponds(socketPath)) return socketPath
     await new Promise((resolveTimer) => setTimeout(resolveTimer, 100))
   }
-  throw new Error(`rove: pty host did not start (or stayed wedged) at ${socketPath}`)
+  throw new Error(
+    `rove: pty host did not start (or stayed wedged) at ${socketPath}; check ${defaultPtyHostLogPath()} or run \`rove doctor\``,
+  )
 }
 
 /** Observe sessions before consulting current tasks; never send a captured negative task list. */
