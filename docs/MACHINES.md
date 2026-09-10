@@ -18,6 +18,13 @@ Nothing else. Rove opens no ports and adds no authentication of its own: the
 remote daemon keeps listening on its private unix socket, and SSH forwards that
 socket to yours. SSH *is* the transport and the authentication.
 
+Both machines need a Rove new enough to have machines — an older one reports no
+PTY socket in `rove daemon status`, and `machine add` says so rather than
+half-connecting.
+
+While a machine's rows are on screen, Rove counts as one attached window on
+that machine, so its daemon stays up for as long as you are looking at it.
+
 ## Add a machine
 
 ```console
@@ -33,7 +40,8 @@ Rove never guesses a remote socket path — the remote home may be a different
 user, and the path may have been shortened to fit the platform's socket-name
 limit.
 
-The alias defaults to the machine's own hostname. Give it a shorter one:
+The alias defaults to the machine's own hostname, and it is what the sidebar
+shows — so give it a short one when the hostname isn't:
 
 ```console
 $ rove machine add narwhal --alias narwhal
@@ -65,7 +73,9 @@ narwhal · v0.9.185            ← a machine
 
 - **Two machines, one repo name.** A repo called `kobe` on both machines shows
   as `kobe` here and `narwhal:kobe` there. The local one keeps the bare name —
-  it is the one you are sitting at.
+  it is the one you are sitting at. Two checkouts of `kobe` on the *same*
+  machine take the path instead (`gihub/kobe`, `i/kobe`): there the machine
+  name would say nothing.
 - **Offline machines keep their rows.** A laptop whose lid closed has not
   stopped having those tasks, so the row stays and greys out instead of
   vanishing. Rove reconnects in the background and the rows come back to life.
@@ -114,6 +124,11 @@ Windows has no unix-socket forwarding. Such a machine's row reads
 | `<home>/.rove/machines/<alias>/daemon.sock` | Local end of the forwarded daemon socket |
 | `<home>/.rove/machines/<alias>/pty.sock` | Local end of the forwarded PTY-host socket |
 | `<home>/.rove/machines/<alias>/cm` | The shared SSH connection (ControlMaster) |
+
+Under a deeply-nested home these move to a short `$TMPDIR/rove-m-…` directory:
+a unix socket path cannot exceed ~104 bytes, and `<home>/.rove/machines/…`
+overruns that before it starts. The fallback is derived from the home and the
+alias, so it is the same path every time.
 
 The directory is owner-only (`0700`); so are the sockets in it. They reach a
 daemon that runs commands as its owner.
