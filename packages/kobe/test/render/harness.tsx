@@ -75,24 +75,34 @@ export interface RenderHandle {
   destroy: () => void
 }
 
-// Tracks the most recently created renderer so `afterEach` can destroy it even
-// if a test forgets to (or fails before its own destroy).
+// Every renderer this test created, so `afterEach` can destroy them all even
+// if the test forgets to (or fails before its own destroy).
 //
-// Destroying it does NOT reliably drain the module-global `useBindings` stack.
+// A SET, not a single slot. Holding only the newest renderer meant a test that
+// called `renderComponent` twice abandoned the first one for the rest of the
+// PROCESS: never destroyed, tree still live, its effects' cleanups never run.
+// 55 of the 121 files here render more than once.
+//
+// This does NOT measurably reduce the cross-file `act(...)` warnings — counted
+// before and after over a full run, the ones printing under a later file's
+// group moved 166/123/50 → 191/121/54, i.e. not at all. Those updates come
+// from somewhere else (`worktree-changes-poller.ts` and `git-head.ts` hold
+// MODULE-level pollers that export a `reset()` no test here calls). Fixing
+// the abandoned renderer is right on its own terms; don't read it as having
+// fixed that.
+//
+// Destroying does NOT reliably drain the module-global `useBindings` stack.
 // Measured on the full suite: 30 `renderComponent` calls across 9 files start
 // with a `modalOwner` barrier still registered from an earlier test, and in 7
 // of them the barrier is still there on the line after `destroy()` returned —
-// no throw, the effect cleanup just never ran. `liveRenderer` also only ever
-// holds the LAST renderer, so a test that calls `renderComponent` twice
-// abandons the first one entirely: never destroyed, tree still live, pending
-// timers in it still firing after the test ended.
+// no throw, the effect cleanup just never ran.
 //
 // So: assume stale key registrations carry into the next test. The one thing
 // that clears them is `ensureInstalled` in src/tui-react/lib/keymap.ts, which
 // wipes the stack when the next test's first `useBindings` render installs a
 // new renderer — and which stops an abandoned tree from registering back into
 // the live stack afterwards (test/render/keymap-superseded-modal-leak).
-let liveRenderer: TestRenderer | null = null
+const liveRenderers = new Set<TestRenderer>()
 
 // opentui/core's process-wide TerminalConsoleCache singleton picks up one
 // listener per `testRender()`; a file with >10 tests trips Node's default
@@ -104,13 +114,16 @@ afterEach(() => {
   // A manual clock is process-global; leaving one installed freezes every
   // later file's HUD timers.
   setPrefixHudClock(null)
-  if (!liveRenderer) return
-  try {
-    liveRenderer.destroy()
-  } catch {
-    // already destroyed by the test itself — fine
+  // Oldest first: an abandoned tree's teardown can touch the newer one's
+  // module-global state, and destroying in mount order matches unmount order.
+  for (const renderer of liveRenderers) {
+    try {
+      renderer.destroy()
+    } catch {
+      // already destroyed by the test itself — fine
+    }
   }
-  liveRenderer = null
+  liveRenderers.clear()
 })
 
 /**
@@ -231,7 +244,7 @@ export async function renderComponent(ui: ReactNode, options: RenderOptions = {}
     width,
     height,
   })
-  liveRenderer = renderer
+  liveRenderers.add(renderer)
   await flush()
 
   return {
@@ -252,7 +265,7 @@ export async function renderComponent(ui: ReactNode, options: RenderOptions = {}
     resize,
     destroy: () => {
       renderer.destroy()
-      if (liveRenderer === renderer) liveRenderer = null
+      liveRenderers.delete(renderer)
     },
   }
 }
