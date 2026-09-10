@@ -70,7 +70,7 @@ function rowAfterClaudeHook(event: string, payload: Record<string, unknown>) {
     // 5. Client side: RemoteOrchestrator accumulates non-idle states into
     //    TaskEngineState — which is exactly what the registry's derived
     //    rollup replays, so an idle task is simply absent here.
-    const published = registry.currentNonIdle().find((p) => p.taskId === "task-1" && !p.tabId)
+    const published = registry.replaySnapshot().find((p) => p.taskId === "task-1" && !p.tabId)
     const activity: TaskEngineState | undefined = published
       ? { state: published.state, detail: published.detail, at: published.at }
       : undefined

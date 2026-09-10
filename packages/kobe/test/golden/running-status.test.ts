@@ -281,7 +281,7 @@ describe("golden: session events → sidebar running state", () => {
     h.registry.report(TASK_ID, "turn-start", undefined, "tab-1", { id: "s1" }, "claude")
     // A fresh client attaches: no live events, only the subscribe-time replay.
     const late = h.makeClient()
-    for (const payload of h.registry.currentNonIdle()) {
+    for (const payload of h.registry.replaySnapshot()) {
       handleOrchestratorEvent("engine-state", payload, late.signals)
     }
     expect(late.row("tab-1").loading).toBe(true)

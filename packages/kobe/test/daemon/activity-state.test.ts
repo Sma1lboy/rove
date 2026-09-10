@@ -76,7 +76,7 @@ describe("daemon activity state", () => {
     registry.report("task-err", "turn-failed", { failure: "other" })
     registry.report("task-rl", "turn-failed", { failure: "rate_limit" })
 
-    expect(registry.currentNonIdle().map((p) => [p.taskId, p.state])).toEqual([
+    expect(registry.replaySnapshot().map((p) => [p.taskId, p.state])).toEqual([
       ["task-err", "error"],
       ["task-rl", "rate_limited"],
     ])
@@ -90,7 +90,7 @@ describe("daemon activity state", () => {
     registry.report("task-1", "turn-start")
     registry.report("task-2", "awaiting-input", { waiting: "permission" })
 
-    expect(registry.currentNonIdle().map((p) => [p.taskId, p.state])).toEqual([
+    expect(registry.replaySnapshot().map((p) => [p.taskId, p.state])).toEqual([
       ["task-1", "running"],
       ["task-2", "permission_needed"],
     ])
@@ -139,10 +139,10 @@ describe("daemon activity state", () => {
     const registry = new DaemonActivityRegistry(bus, 1_000)
 
     registry.report("task-1", "turn-start")
-    expect(registry.currentNonIdle().map((p) => p.state)).toEqual(["running"])
+    expect(registry.replaySnapshot().map((p) => p.state)).toEqual(["running"])
 
     registry.report("task-1", "turn-interrupted")
-    expect(registry.currentNonIdle()).toEqual([])
+    expect(registry.replaySnapshot()).toEqual([])
 
     registry.close()
   })
@@ -171,14 +171,14 @@ describe("daemon activity state", () => {
       { taskId: "task-1", tabId: undefined, state: "permission_needed" },
     ])
     // Replay carries the task rollup AND the tab entry.
-    expect(registry.currentNonIdle().map((p) => [p.taskId, p.tabId, p.state])).toEqual([
+    expect(registry.replaySnapshot().map((p) => [p.taskId, p.tabId, p.state])).toEqual([
       ["task-1", undefined, "permission_needed"],
       ["task-1", "tab-2", "permission_needed"],
     ])
 
     // A tab's session-end drops its per-tab entry (idle is never stored).
     registry.report("task-1", "session-end", undefined, "tab-2")
-    expect(registry.currentNonIdle()).toEqual([])
+    expect(registry.replaySnapshot()).toEqual([])
 
     // clearTask publishes per-tab idles so subscribers drop tab candidates.
     registry.report("task-1", "turn-start", undefined, "tab-3")
@@ -225,7 +225,7 @@ describe("daemon activity state", () => {
     })
 
     // Replay (late subscriber) carries it too — task rollup + tab entry.
-    const replayed = registry.currentNonIdle()
+    const replayed = registry.replaySnapshot()
     expect(replayed).toHaveLength(2)
     for (const p of replayed) expect((p as { sessionId?: string }).sessionId).toBe("sess-abc")
 
@@ -256,6 +256,55 @@ describe("daemon activity state", () => {
     const last = published.filter((p) => p.tabId).at(-1)
     expect(last?.tabId).toBe("tab-b")
     expect(last?.sessionId).toBeUndefined()
+    registry.close()
+  })
+})
+
+/**
+ * The ledger holds known-idle TAB entries on purpose (the client draws
+ * absence as unknown), so "what is in the ledger" and "what is working" are
+ * different questions. One reader answering both reported every task that had
+ * ever opened a tab as busy — which pinned the worktree-changes collector's
+ * 2 s cadence on worktrees nothing was writing to.
+ */
+describe("activity readers", () => {
+  function world() {
+    let now = 1_000
+    const registry = new DaemonActivityRegistry(new DaemonEventBus(), 60_000, () => now)
+    return {
+      registry,
+      tick(ms: number) {
+        now += ms
+      },
+    }
+  }
+
+  it("a task whose only tab was observed idle is not a working task", () => {
+    const { registry, tick } = world()
+    registry.report("quiet", "turn-start", undefined, "tab-1", { id: "s1", transcriptPath: "/s1" }, "claude")
+    registry.report("busy", "turn-start", undefined, "tab-1", { id: "s2", transcriptPath: "/s2" }, "claude")
+    tick(5_000)
+    expect(registry.observeTab("quiet", "tab-1", "rest", { correctHookRunningAfterMs: 1_000 })).toBe(
+      "corrected-hook-running",
+    )
+
+    expect(registry.workingTaskIds()).toEqual(["busy"])
+    // The entry survives the idle — that is exactly what the old reader
+    // mistook for work.
+    expect(registry.replaySnapshot().filter((p) => p.taskId === "quiet")).toMatchObject([
+      { tabId: "tab-1", state: "idle" },
+    ])
+    registry.close()
+  })
+
+  it("liveSessions keeps an idle tab holding a session, and skips a tab without one", () => {
+    const { registry, tick } = world()
+    registry.report("t", "turn-start", undefined, "with-session", { id: "s1", transcriptPath: "/s1" }, "claude")
+    registry.report("t", "turn-start", undefined, "no-session")
+    tick(5_000)
+    registry.observeTab("t", "with-session", "rest", { correctHookRunningAfterMs: 1_000 })
+
+    expect(registry.liveSessions()).toMatchObject([{ tabId: "with-session", state: "idle", sessionId: "s1" }])
     registry.close()
   })
 })

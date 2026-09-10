@@ -134,7 +134,7 @@ describe("daemon handler registry", () => {
 
         expect(activity.debugSnapshot().tabs.t1?.["tab-1"]).toBeUndefined()
         // …and the task row follows: nothing is left to be running.
-        expect(activity.currentNonIdle()).toEqual([])
+        expect(activity.replaySnapshot()).toEqual([])
       } finally {
         activity.close()
       }
