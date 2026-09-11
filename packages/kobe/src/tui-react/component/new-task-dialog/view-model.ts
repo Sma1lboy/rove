@@ -70,11 +70,21 @@ export type NewTaskDialogProps = {
   discoverAdoptable?: (repo: string) => Promise<readonly AdoptableWorktree[]>
   /** Repos that already have a project checkout — gates the intent choice. */
   mainRepos?: ReadonlySet<string>
+  /** Repos found on disk beside the saved ones; listed after them in the picker. */
+  discoveredRepos?: readonly string[]
 }
+
+/** Shared default for `discoveredRepos` — same identity reason as `EMPTY_MAIN_REPOS`. */
+const EMPTY_REPOS: readonly string[] = []
 
 /** Shared default for `mainRepos` — a fresh `new Set()` per render would be a
  *  new identity every time and defeat any memo keyed on it. */
 const EMPTY_MAIN_REPOS: ReadonlySet<string> = new Set()
+
+/** The saved list followed by the discovered one — the picker's raw input. */
+function allKnownRepos(props: NewTaskDialogProps): readonly string[] {
+  return props.discoveredRepos?.length ? [...props.savedRepos, ...props.discoveredRepos] : props.savedRepos
+}
 
 export function useNewTaskViewModel(props: NewTaskDialogProps) {
   const dialog = useDialog()
@@ -93,7 +103,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   // as `pickRepo`: a basename shared with another saved repo would open the
   // dialog on an ambiguous value, so that case keeps the path.
   const [repo, setRepo] = useState(() =>
-    nameOrPath(props.defaultRepo, computeRepoOptions(props.defaultRepo, props.savedRepos), looksLikeGitRepo),
+    nameOrPath(props.defaultRepo, computeRepoOptions(props.defaultRepo, allKnownRepos(props)), looksLikeGitRepo),
   )
   // Initial baseRef tracks the cwd's current branch (worktree forked from a
   // feature branch defaults to it, not hardcoded "main").
@@ -119,9 +129,13 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
 
   /* ── Derived lists (shared pure helpers; sync fs/git reads memoized) ── */
 
+  // Saved first, then what the disk scan found beside them — one list, so
+  // a never-saved sibling filters, picks and resolves exactly like a saved
+  // one. `computeRepoOptions` dedupes the overlap.
+  const discoveredRepos = props.discoveredRepos ?? EMPTY_REPOS
   const repoOptions = useMemo(
-    () => computeRepoOptions(props.defaultRepo, props.savedRepos),
-    [props.defaultRepo, props.savedRepos],
+    () => computeRepoOptions(props.defaultRepo, [...props.savedRepos, ...discoveredRepos]),
+    [props.defaultRepo, props.savedRepos, discoveredRepos],
   )
   // Live per render — opentui re-renders on resize, so a terminal dragged
   // short re-windows the pickers instead of clipping the Create button.

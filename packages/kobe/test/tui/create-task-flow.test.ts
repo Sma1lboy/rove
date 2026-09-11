@@ -21,6 +21,14 @@ vi.mock("../../src/state/repos", () => ({
 // addSavedRepo normalizes to the git toplevel and returns it. Default: the
 // identity case; the subdirectory test below makes it actually normalize.
 const mockAddSavedRepo = vi.fn((path: string) => ({ added: false, path, total: 1 }))
+// The disk scan beside the known repos is fs-only and would otherwise list
+// whatever sits under `/` on the test machine. Stubbed to something legible.
+vi.mock("../../src/tui/lib/sibling-repos", () => ({
+  nearestGitRoot: (p: string) => mockNearestGitRoot(p),
+  discoverSiblingRepos: (known: readonly string[]) => mockDiscoverSiblingRepos(known),
+}))
+const mockNearestGitRoot = vi.fn((p: string): string | null => p)
+const mockDiscoverSiblingRepos = vi.fn((_known: readonly string[]): readonly string[] => [])
 vi.mock("../../src/engine/account-detect", () => ({
   availableEngineIds: () => mockAvailableEngineIds(),
 }))
@@ -40,6 +48,7 @@ function makeCreateCtx(opts: {
   createTask?: (input: { repo: string; baseRef?: string; vendor: unknown }) => Promise<{ id: string }>
   promptNewTask?: () => Promise<NewTaskInput | undefined>
   orch?: KobeOrchestrator | null
+  cursorRepo?: string
 }): {
   ctx: CreateTaskContext
   notifyInfo: ReturnType<typeof vi.fn>
@@ -79,7 +88,7 @@ function makeCreateCtx(opts: {
     reload,
     selectTask,
     enterTask,
-    cursorRepo: () => "/repo",
+    cursorRepo: () => opts.cursorRepo ?? "/repo",
     lastVendor: () => "claude" as never,
     rememberVendor,
     promptNewTask:
@@ -279,6 +288,26 @@ describe("createTaskFlow — create mode + guards", () => {
     // invocation against this test's own createTask spy.
     const savedAt = mockAddSavedRepo.mock.invocationCallOrder.at(-1) ?? Number.POSITIVE_INFINITY
     expect(savedAt).toBeLessThan(createTask.mock.invocationCallOrder[0] ?? 0)
+  })
+
+  // A fresh install has no saved repos and defaults to the cwd — often a
+  // subdirectory of a repo. The dialog must still be offered what is on disk
+  // beside the repo ROOT, and beside every saved repo.
+  test("hands the dialog the repos found beside the default repo's ROOT and the saved ones", async () => {
+    mockNearestGitRoot.mockImplementationOnce(() => "/Users/me/Projects/rove")
+    mockDiscoverSiblingRepos.mockImplementationOnce(() => ["/Users/me/Projects/axios", "/Users/me/Projects/rove"])
+    const promptNewTask = vi.fn(async () => undefined)
+    const { ctx } = makeCreateCtx({ promptNewTask, cursorRepo: "/Users/me/Projects/rove/packages/kobe" })
+
+    await createTaskFlow(ctx)
+
+    expect(mockNearestGitRoot).toHaveBeenCalledWith("/Users/me/Projects/rove/packages/kobe")
+    expect(mockDiscoverSiblingRepos).toHaveBeenCalledWith(["/Users/me/Projects/rove", "/repo"])
+    expect(promptNewTask).toHaveBeenCalledWith(
+      "/Users/me/Projects/rove/packages/kobe",
+      ["/repo"],
+      expect.objectContaining({ discoveredRepos: ["/Users/me/Projects/axios", "/Users/me/Projects/rove"] }),
+    )
   })
 
   test("no daemon (orch null): saves the repo/vendor choice but logs instead of creating", async () => {

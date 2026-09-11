@@ -101,6 +101,14 @@ export type NewTaskDialogOptions = {
    * choice never appears and the tab behaves as it always did.
    */
   mainRepos?: ReadonlySet<string>
+  /**
+   * Git checkouts found ON DISK beside the known repos (see
+   * `lib/sibling-repos.ts`) — listed in the Existing tab's picker after the
+   * saved ones, so a repo that was never `rove add`ed is still one keystroke
+   * away, like an editor's open-project list. Omitted/empty means the picker
+   * shows only what was saved, as it always did.
+   */
+  discoveredRepos?: readonly string[]
 }
 
 export type DialogTab = "existing" | "clone" | "adopt"

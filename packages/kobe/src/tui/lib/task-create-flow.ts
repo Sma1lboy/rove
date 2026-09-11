@@ -11,6 +11,7 @@ import { availableEngineIds } from "@/engine/account-detect"
 import { errorMessage } from "@/lib/error-message"
 import { addSavedRepo, getSavedRepos } from "@/state/repos"
 import { t } from "@/tui/i18n"
+import { discoverSiblingRepos, nearestGitRoot } from "@/tui/lib/sibling-repos"
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "@/types/task"
 import type { NewTaskDialogOptions, NewTaskInput } from "../component/new-task-dialog/state"
 import type { TaskActionContext } from "./task-actions"
@@ -102,6 +103,11 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
     // list rather than savedRepos: a saved repo with no main row has no
     // project to open, and the difference is exactly what the choice turns on.
     mainRepos: mainRepoSet(ctx.tasks()),
+    // What else is on disk beside the repos we know — so a fresh install (or
+    // a checkout that was never `rove add`ed) still has something to pick.
+    // The default repo is walked up to its git root first: a cwd deep inside
+    // a monorepo would otherwise nominate a parent that holds no repos.
+    discoveredRepos: discoverSiblingRepos([nearestGitRoot(defaultRepo) ?? defaultRepo, ...repos]),
   })
   if (!result) return
   // Auto-save the chosen repo so the saved list self-populates and
