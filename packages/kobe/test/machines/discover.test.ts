@@ -33,6 +33,22 @@ describe("parseStatusJson", () => {
     expect(parseStatusJson(`Welcome to narwhal\n${FULL}`)?.hostname).toBe("Nahuels-Mac-mini.local")
   })
 
+  it("skips an rc-file echo printed after the JSON", () => {
+    // A non-interactive shell prints on the way out as readily as on the way
+    // in ("you have mail", an rc-file echo). A trailing line must not make a
+    // healthy daemon read as "could not read a daemon status".
+    expect(parseStatusJson(`${FULL}\nyou have mail`)?.hostname).toBe("Nahuels-Mac-mini.local")
+  })
+
+  it("extracts the object with noise on both sides", () => {
+    expect(parseStatusJson(`Welcome\n${FULL}\nlogout`)?.socketPath).toBe("/Users/nahuelchen/.rove/daemon.sock")
+  })
+
+  it("is unfazed by a brace inside a socket path", () => {
+    const braced = JSON.stringify({ ...JSON.parse(FULL), socketPath: "/tmp/rove-{1}/daemon.sock" })
+    expect(parseStatusJson(`${braced}\ntrailing`)?.socketPath).toBe("/tmp/rove-{1}/daemon.sock")
+  })
+
   it("refuses a status without a pty socket — that machine needs upgrading", () => {
     const old = JSON.stringify({ socketPath: "/s.sock", homeDir: "/h", daemonPid: 1 })
     expect(parseStatusJson(old)).toBeNull()
@@ -52,5 +68,10 @@ describe("looksLikeOldStatus", () => {
     expect(looksLikeOldStatus(JSON.stringify({ socketPath: "/s.sock", homeDir: "/h" }))).toBe(true)
     expect(looksLikeOldStatus(FULL)).toBe(false)
     expect(looksLikeOldStatus("rove daemon: no daemon running")).toBe(false)
+  })
+
+  it("still recognizes an old status wrapped in shell noise", () => {
+    const old = JSON.stringify({ socketPath: "/s.sock", homeDir: "/h" })
+    expect(looksLikeOldStatus(`motd\n${old}\nlogout`)).toBe(true)
   })
 })

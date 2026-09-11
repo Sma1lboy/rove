@@ -124,12 +124,37 @@ export async function discoverMachine(
   }
 }
 
+/**
+ * The first brace-balanced `{…}` in `text`, or null. Matching the closing `}`
+ * lets a trailing shell line survive; braces inside strings are skipped.
+ */
+function firstJsonObject(text: string): string | null {
+  const start = text.indexOf("{")
+  if (start < 0) return null
+  let depth = 0
+  let inString = false
+  let escaped = false
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i]
+    if (inString) {
+      if (escaped) escaped = false
+      else if (ch === "\\") escaped = true
+      else if (ch === '"') inString = false
+      continue
+    }
+    if (ch === '"') inString = true
+    else if (ch === "{") depth++
+    else if (ch === "}" && --depth === 0) return text.slice(start, i + 1)
+  }
+  return null
+}
+
 /** A status payload that parses but predates `ptySocketPath`. */
 export function looksLikeOldStatus(stdout: string): boolean {
-  const at = stdout.indexOf("{")
-  if (at < 0) return false
+  const json = firstJsonObject(stdout)
+  if (json === null) return false
   try {
-    const raw = JSON.parse(stdout.slice(at)) as Record<string, unknown>
+    const raw = JSON.parse(json) as Record<string, unknown>
     return typeof raw.socketPath === "string" && typeof raw.ptySocketPath !== "string"
   } catch {
     return false
@@ -139,17 +164,18 @@ export function looksLikeOldStatus(stdout: string): boolean {
 /**
  * Pull the status object out of a command's stdout.
  *
- * Scans for the first `{` to tolerate leading noise (login banner, update
- * notice) — common on non-interactive logins. Returns null unless BOTH socket
+ * Extracts the first brace-balanced object to tolerate noise on both sides
+ * (login banner or update notice before, rc-file echo or "you have mail"
+ * after) — common on non-interactive logins. Returns null unless BOTH socket
  * paths are present, so an older remote Rove (no `ptySocketPath`) is a clean
  * "upgrade that machine", not a half-forwarding tunnel.
  */
 export function parseStatusJson(stdout: string): RemoteDaemonStatus | null {
-  const at = stdout.indexOf("{")
-  if (at < 0) return null
+  const json = firstJsonObject(stdout)
+  if (json === null) return null
   let raw: unknown
   try {
-    raw = JSON.parse(stdout.slice(at))
+    raw = JSON.parse(json)
   } catch {
     return null
   }
