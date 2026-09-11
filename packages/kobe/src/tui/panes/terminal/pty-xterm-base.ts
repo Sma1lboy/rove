@@ -74,6 +74,10 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   protected cols: number
   protected rows: number
   private refreshQueued = false
+  /** When the last snapshot refresh was ATTEMPTED — the leading edge of the
+   *  coalesce window (see `queueRefresh`). 0 = never, so the first output
+   *  after a subscriber attaches draws immediately. */
+  private lastRefreshAt = 0
   private readonly refreshTracker: XtermRefreshTracker
   /** Scrollback rows resolved from the persisted preference at construction
    * (Settings → General → Terminal) — fixed for this PTY's lifetime. */
@@ -393,15 +397,39 @@ export abstract class XtermTaskPty implements TaskPtyLike {
       return
     }
     if (this.refreshQueued) return
+    // LEADING edge: a frame period has already passed with nothing drawn, so
+    // this output is not part of a burst and waiting buys nothing. This is
+    // the keystroke-echo path — you type into an idle shell, the child echoes
+    // in ~0.03ms, and a trailing-only throttle then sat on it for a whole
+    // frame before the pane had anything to draw. Measured on macOS at 120x40
+    // (`cat`, 60 samples, 200ms idle between them, write → snapshot published):
+    // p50 35.8ms trailing-only vs 1.5ms here, against a raw PTY echo of
+    // 0.03ms. p90 stays ~23ms on purpose — those samples land inside a burst,
+    // which is the case the coalesce is for.
+    //
+    // The BURST behaviour is unchanged, which is the property the coalesce
+    // exists for: the next refresh inside the period still waits for the
+    // boundary, so a streaming pane still builds at most one snapshot per
+    // frame and none of them is discarded work.
+    const since = Date.now() - this.lastRefreshAt
+    if (since >= SNAPSHOT_COALESCE_MS) {
+      this.refreshSnapshot()
+      return
+    }
     this.refreshQueued = true
     setTimeout(() => {
       this.refreshQueued = false
       this.refreshSnapshot()
-    }, SNAPSHOT_COALESCE_MS)
+    }, SNAPSHOT_COALESCE_MS - since)
   }
 
   private refreshSnapshot(): void {
     if (this._killed) return
+    // Stamped on the ATTEMPT, not on success: the `result === null`
+    // half-painted path below re-queues, and a leading edge that only moved
+    // on success would find the period still elapsed and re-enter
+    // synchronously, forever.
+    this.lastRefreshAt = Date.now()
     const result = profileSpan("refresh", () =>
       this.snapshotEngine.refresh(
         this.term,
