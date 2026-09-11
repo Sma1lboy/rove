@@ -10,7 +10,7 @@
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { basename, join } from "node:path"
 import { afterAll, describe, expect, it, vi } from "vitest"
 
 // `os.homedir()` reads the SYSTEM account on macOS, not $HOME, so the
@@ -152,9 +152,11 @@ describe("pi-family session store", () => {
     }
     const withFiles: PiHistoryDeps = {
       ...deps,
-      readdir: async (dir) =>
-        dir.endsWith("sessions") ? ["--Users-me-i-kobe--"] : (files[dir.split("/").pop() as string] ?? []),
-      stat: async (file) => ({ mtimeMs: file.endsWith("/2026-01-02_b.jsonl") ? 200 : 100, isFile: true }),
+      // Basename, never a "/"-split: the injected deps still build their paths
+      // with `path.join`, which is a backslash on Windows — and this suite runs
+      // there too (the split version answered `[]` under the Windows job).
+      readdir: async (dir) => (basename(dir) === "sessions" ? ["--Users-me-i-kobe--"] : (files[basename(dir)] ?? [])),
+      stat: async (file) => ({ mtimeMs: file.endsWith("2026-01-02_b.jsonl") ? 200 : 100, isFile: true }),
     }
     expect(await listSessionIdsForWorktree("pi", "/Users/me/i/kobe", withFiles)).toEqual(["a", "b"])
     expect(await latestTranscriptMtimeForWorktree("pi", "/Users/me/i/kobe", withFiles)).toBe(200)
