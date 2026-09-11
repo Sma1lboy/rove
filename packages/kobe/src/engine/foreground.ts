@@ -18,6 +18,7 @@
  */
 
 import { basename } from "node:path"
+import { recordSpawn } from "../lib/spawn-profile.ts"
 import { loadStateFile } from "../state/store.ts"
 import type { VendorId } from "../types/vendor"
 import { type ProcRow, PsProbeUnavailableError } from "./process-rows.ts"
@@ -271,6 +272,7 @@ export type PsSpawn = () => PsProcess
 export const PS_PROBE_TIMEOUT_MS = 5_000
 
 const bunPsSpawn: PsSpawn = () => {
+  recordSpawn("engine.foregroundWalk", ["ps", "-A", "-o", "pid=,ppid=,args="])
   const proc = Bun.spawn(["ps", "-A", "-o", "pid=,ppid=,args="], { stdout: "pipe", stderr: "ignore" })
   return { text: new Response(proc.stdout).text(), kill: () => proc.kill() }
 }

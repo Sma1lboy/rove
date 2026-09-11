@@ -155,6 +155,48 @@ The raw logs live under the active Rove home (normally your OS home):
 | `~/.rove/pty.log` | Hosted PTY startup and session-host failures |
 | `~/.rove/client.log` | TUI/pane connection, disconnect, and reconnect diagnostics |
 
+## Rove is spawning more processes than it should
+
+A terminal tab title that flickers between your shell's name and `git`, a fan
+that will not settle, or an editor that feels a beat behind: all three can mean
+Rove is forking child processes far more often than its polls intend. Two
+things Rove does on a timer legitimately fork — the engine walk that answers
+"which engine is live in this tab" runs `ps` every 2 seconds, and the
+worktree-changes chip runs `git status` per worktree, though only when no
+daemon is connected (a connected daemon polls once, centrally, and pushes the
+counts). Anything beyond those two is a bug worth reporting.
+
+`ps` cannot tell you which is which: a `git` that lives a few milliseconds is
+caught mid-exec and macOS reports its arguments as `(git)`. `git`'s own
+`trace2` sees every invocation on the machine but records no parent, so on a
+machine running several agents it cannot say who asked.
+
+Set `ROVE_SPAWN_PROFILE` to a file path and Rove logs one JSON line per child
+it spawns, naming the code that wanted it:
+
+```bash
+ROVE_SPAWN_PROFILE=/tmp/rove-spawns.log rove
+```
+
+Leave it running for 30 seconds of the behaviour you are chasing, then count
+by site:
+
+```console
+$ jq -r .site /tmp/rove-spawns.log | sort | uniq -c | sort -rn
+    14 engine.foregroundWalk
+     6 sidebar.gitHead
+     2 sidebar.worktreeChanges
+```
+
+Divide by your window to get a rate. `engine.foregroundWalk` at roughly one
+every 2 seconds is the design; `sidebar.worktreeChanges` firing steadily while
+a daemon is connected is not, and neither is any site in the tens per second.
+Each line also carries `cwd`, which names the worktree being polled — useful
+when one repo is responsible for all of it. Include the counts in a bug
+report.
+
+Unset, the variable costs one boolean test per spawn and touches no disk.
+
 ## Processes keep running days after their task is gone
 
 Ending a session in Rove ends its whole subtree: the PTY host signals the

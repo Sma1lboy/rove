@@ -25,6 +25,7 @@ import { spawnSync } from "node:child_process"
 import { realpathSync } from "node:fs"
 import { pathIdentity, samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import { kvStatePath } from "../env.ts"
+import { recordSpawn } from "../lib/spawn-profile.ts"
 import { type ProjectIntent, type ProjectRejection, projectRejection } from "./project-eligibility.ts"
 import { isRemoteRepoKey, readRemoteRepos } from "./remote-repos.ts"
 import { type StateSnapshot, loadStateFile, patchStateFile, readSavedRepos, updateStateFile } from "./store.ts"
@@ -60,6 +61,7 @@ export function resolveRepoRoot(absPath: string): string {
   // there is nothing to canonicalize (and no local git repo to ask). Pass it
   // through untouched so it round-trips as the stable savedRepos key.
   if (isRemoteRepoKey(absPath)) return absPath
+  recordSpawn("repos.resolveRepoRoot", ["git", "rev-parse", "--show-toplevel"], absPath)
   const r = spawnSync("git", ["rev-parse", "--show-toplevel"], {
     cwd: absPath,
     encoding: "utf8",
@@ -89,6 +91,7 @@ export function resolveRepoRoot(absPath: string): string {
  */
 export function isGitRepo(absPath: string): boolean {
   if (isRemoteRepoKey(absPath)) return false
+  recordSpawn("repos.isGitRepo", ["git", "rev-parse", "--is-inside-work-tree"], absPath)
   const r = spawnSync("git", ["rev-parse", "--is-inside-work-tree"], {
     cwd: absPath,
     encoding: "utf8",
@@ -122,6 +125,7 @@ export function isValidBranchName(branch: string): boolean {
  */
 export function resolveMainRepoRoot(absPath: string): string {
   if (isRemoteRepoKey(absPath)) return absPath
+  recordSpawn("repos.resolveMainRepoRoot", ["git", "worktree", "list", "--porcelain"], absPath)
   const r = spawnSync("git", ["worktree", "list", "--porcelain"], {
     cwd: absPath,
     encoding: "utf8",

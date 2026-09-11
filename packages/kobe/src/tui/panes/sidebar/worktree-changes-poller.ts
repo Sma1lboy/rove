@@ -33,6 +33,7 @@
  */
 
 import { readOnlyGitProcessEnv } from "@/lib/git-env"
+import { recordSpawn } from "@/lib/spawn-profile"
 import { computeNextAllowedAt, createBackgroundPoller, spawnCapture } from "../../lib/background-poll"
 import { type WorktreeChanges, parsePorcelain, sameWorktreeChanges } from "./worktree-changes"
 
@@ -58,6 +59,7 @@ const poller = createBackgroundPoller<WorktreeChanges | null>({
     // Same flags + lock policy as the sync helper: porcelain v1, and
     // GIT_OPTIONAL_LOCKS=0 so the read never takes .git/index.lock from
     // under the engine's own commits.
+    recordSpawn("sidebar.worktreeChanges", ["git", "status", "--porcelain=v1"], worktreePath)
     const res = await spawnCapture("git", ["status", "--porcelain=v1"], {
       cwd: worktreePath,
       env: readOnlyGitProcessEnv(),

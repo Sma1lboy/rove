@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs"
 import path from "node:path"
 import { readOnlyGitProcessEnv } from "@/lib/git-env"
+import { recordSpawn } from "@/lib/spawn-profile"
 import { readFirstNonEmptyRepoFile } from "../../lib/repo-config-file.ts"
 import { spawnCapture } from "../lib/background-poll"
 
@@ -40,6 +41,7 @@ async function git(cwd: string, args: readonly string[]): Promise<string | null>
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), GIT_TIMEOUT_MS)
   try {
+    recordSpawn("tui.prPrompt", ["git", ...args], cwd)
     const out = await spawnCapture("git", args, {
       cwd,
       // Read-only inspection (`status`, `rev-parse`, `symbolic-ref`).

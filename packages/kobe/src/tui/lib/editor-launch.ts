@@ -39,6 +39,7 @@
 
 import { readOnlyGitProcessEnv } from "@/lib/git-env"
 import { quoteShellArg as shellQuote } from "@/lib/shell-command"
+import { recordSpawn } from "@/lib/spawn-profile"
 import { getPersistedString } from "@/state/repos"
 import {
   AUTO_EDITOR_CANDIDATES,
@@ -183,6 +184,7 @@ export async function binaryAvailable(bin: string): Promise<boolean> {
  */
 export async function fileHasDiff(worktree: string, relPath: string): Promise<boolean> {
   try {
+    recordSpawn("tui.fileHasDiff", ["git", "diff", "--quiet", "HEAD", "--", relPath], worktree)
     const proc = Bun.spawn(["git", "diff", "--quiet", "HEAD", "--", relPath], {
       cwd: worktree,
       stdin: "ignore",
