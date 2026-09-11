@@ -20,6 +20,7 @@
 
 import { spawnSync } from "node:child_process"
 import * as fs from "node:fs"
+import { recordSpawn } from "@/lib/spawn-profile"
 import { t } from "@/tui/i18n"
 
 /** Default base ref when the user leaves the branch field blank or HEAD can't be read. */
@@ -84,6 +85,7 @@ function git(
   args: readonly string[],
 ): { status: number; stdout: string; missing: boolean; spawned: boolean } {
   try {
+    recordSpawn("tui.gitSnapshot", ["git", ...args], repo)
     const out = spawnSync("git", args, {
       cwd: repo,
       encoding: "utf-8",

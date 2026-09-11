@@ -38,6 +38,7 @@
 import { spawnSync } from "node:child_process"
 import { readOnlyGitProcessEnv } from "@/lib/git-env"
 import { parsePorcelainRows } from "@/lib/git-parsers"
+import { recordSpawn } from "@/lib/spawn-profile"
 
 export interface WorktreeChanges {
   /** Files added, modified, renamed, copied, or untracked. */
@@ -104,6 +105,7 @@ export function pickPushedChanges(
 export function readWorktreeChanges(worktreePath: string): WorktreeChanges | null {
   if (!worktreePath) return null
   try {
+    recordSpawn("sidebar.worktreeChangesSync", ["git", "status", "--porcelain=v1"], worktreePath)
     const out = spawnSync("git", ["status", "--porcelain=v1"], {
       cwd: worktreePath,
       encoding: "utf8",
