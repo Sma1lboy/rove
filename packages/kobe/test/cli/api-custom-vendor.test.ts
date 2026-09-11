@@ -80,18 +80,18 @@ describe("engine-list", () => {
 
   it("lists a registered preset with its declared protocol", async () => {
     writeState({
-      customEngineIds: ["pi"],
-      "engineCommand.pi": "pi --interactive",
-      "engineName.pi": "Pi",
-      "engineProtocol.pi": "claude",
+      customEngineIds: ["my-pi"],
+      "engineCommand.my-pi": "my-pi --interactive",
+      "engineName.my-pi": "Pi",
+      "engineProtocol.my-pi": "claude",
     })
     const { engines } = (await invokeVerb("engine-list", [], { client: null, runtime })) as {
       engines: Array<{ id: string; name: string; command: string; protocol: string; builtin: boolean }>
     }
-    expect(engines.find((e) => e.id === "pi")).toEqual({
-      id: "pi",
+    expect(engines.find((e) => e.id === "my-pi")).toEqual({
+      id: "my-pi",
       name: "Pi",
-      command: "pi --interactive",
+      command: "my-pi --interactive",
       protocol: "claude",
       builtin: false,
     })
@@ -108,8 +108,8 @@ describe("engine-list", () => {
 
 describe("protocol resolution from a raw command", () => {
   it("a preset id resolves to its declared protocol", () => {
-    writeState({ customEngineIds: ["pi"], "engineCommand.pi": "pi", "engineProtocol.pi": "codex" })
-    expect(resolveCommandProtocol("pi")).toBe("codex")
+    writeState({ customEngineIds: ["my-pi"], "engineCommand.my-pi": "my-pi", "engineProtocol.my-pi": "codex" })
+    expect(resolveCommandProtocol("my-pi")).toBe("codex")
   })
 
   it("a preset id wins over a coincidental binary of the same name", () => {
@@ -130,8 +130,12 @@ describe("protocol resolution from a raw command", () => {
   })
 
   it("a command line matching a preset's OWN command inherits its protocol", () => {
-    writeState({ customEngineIds: ["pi"], "engineCommand.pi": "pi-cli --interactive", "engineProtocol.pi": "claude" })
-    expect(resolveCommandProtocol("pi-cli --other-flag")).toBe("claude")
+    writeState({
+      customEngineIds: ["my-pi"],
+      "engineCommand.my-pi": "my-pi-cli --interactive",
+      "engineProtocol.my-pi": "claude",
+    })
+    expect(resolveCommandProtocol("my-pi-cli --other-flag")).toBe("claude")
   })
 
   it("an unrecognisable command is generic — never a guessed vendor", () => {
@@ -141,19 +145,19 @@ describe("protocol resolution from a raw command", () => {
   })
 
   it("only lists ids that are actually registered", () => {
-    writeState({ customEngineIds: ["pi"] })
-    expect(listEnginePresets().map((p) => p.id)).toEqual([...ALL_VENDORS, "pi"])
+    writeState({ customEngineIds: ["my-pi"] })
+    expect(listEnginePresets().map((p) => p.id)).toEqual([...ALL_VENDORS, "my-pi"])
   })
 })
 
 describe("the dispatch face takes a command, not an engine enum", () => {
   it("`add --command` carries a registered preset id through to task.create", async () => {
-    writeState({ customEngineIds: ["pi"], "engineCommand.pi": "pi", "engineProtocol.pi": "claude" })
+    writeState({ customEngineIds: ["my-pi"], "engineCommand.my-pi": "my-pi", "engineProtocol.my-pi": "claude" })
     const client = new FakeClient({ "task.create": () => ({ taskId: "t9", task: taskFixture({ id: "t9" }) }) })
-    await invokeVerb("add", ["--repo", "/repo/x", "--command", "pi"], { client, runtime })
+    await invokeVerb("add", ["--repo", "/repo/x", "--command", "my-pi"], { client, runtime })
     // The ID is recorded, not its expansion — so a later Settings edit of
-    // `engineCommand.pi` still reaches this task.
-    expect(client.requests[0]?.payload).toMatchObject({ command: "pi", vendor: "claude" })
+    // `engineCommand.my-pi` still reaches this task.
+    expect(client.requests[0]?.payload).toMatchObject({ command: "my-pi", vendor: "claude" })
   })
 
   it("`add --command` takes a raw command line no registry knows", async () => {

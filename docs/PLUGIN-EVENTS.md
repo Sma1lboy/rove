@@ -31,8 +31,10 @@ Ground rules that apply to every event here:
 
 - **Optional means absent**, never null-filled. A field listed below can be
   missing whenever its source didn't know it, so validate what you read.
-- Engine support marks: **C** Claude Code · **X** Codex · **K** Kimi Code.
-  Product-layer events are engine-independent.
+- Engine support marks: **C** Claude Code · **X** Codex · **K** Kimi Code ·
+  **P** Pi · **O** OMP (the pi coding agent's fork — same adapter, same hook
+  file, so the two only differ where noted). Product-layer events are
+  engine-independent.
 
 ## Task lifecycle
 
@@ -191,7 +193,7 @@ The resume schedule came due and the continue prompt was sent.
 
 ## Sessions and crashes
 
-### `session.start` / `session.end` · C, X (start only), K
+### `session.start` / `session.end` · C, X (start only), K, P, O
 
 The engine's own session lifecycle, from its hooks. `session.end` never
 fires on a crash. That is what `session.exited` is for.
@@ -233,11 +235,11 @@ Activity-state transitions. Keyed per task+tab: the same state twice in a
 row is suppressed. `tabId` is present when the reporting session identifies
 its tab. No detail beyond the envelope.
 
-### `turn.prompt` · C, X, K
+### `turn.prompt` · C, X, K, P, O
 
 A user prompt entered the engine (`turn-start`). One per turn.
 
-### `turn.complete` · C, X, K
+### `turn.complete` · C, X, K, P, O
 
 The turn finished. When the engine's transcript yielded telemetry, `detail.turn`
 carries it (absent otherwise, never fabricated):
@@ -256,7 +258,11 @@ carries it (absent otherwise, never fabricated):
                         "startedAt": 1690000000000, "endedAt": 1690000042000 } } }
 ```
 
-### `turn.failed` · C, K
+### `turn.failed` · C, K, P, O
+
+On pi and OMP the failure text comes from the assistant message that failed
+(`stopReason: "error"`) and, on OMP, from a final `auto_retry_end` — a retry
+that RECOVERED reports nothing.
 
 | detail field | type | meaning |
 |---|---|---|
@@ -266,13 +272,14 @@ carries it (absent otherwise, never fabricated):
 A `rate_limit` failure also arms auto-resume, so expect a `quota.exhausted`
 right after when the quota probe finds a reset time.
 
-### `turn.interrupted` · C (emulated), X (emulated), K (native)
+### `turn.interrupted` · C (emulated), X (emulated), K (native), P, O (native)
 
 The user interrupted the turn. Exists because Kimi fires `Interrupt` INSTEAD
 of `Stop`. Without this verb an interrupted Kimi turn would strand in
 `running`.
 
-Kimi is the only engine with a hook for this. On Claude and Codex the event is
+Kimi, pi and OMP report this natively (pi and OMP read it off the assistant
+message that was aborted). On Claude and Codex the event is
 **emulated by the attached TUI**, which watches the session's terminal title
 for the engine dropping back to rest and reports the interrupt itself — so on
 those two engines it behaves like a [UI moment](#ui-moments): **no attached
@@ -283,7 +290,7 @@ noticed without a TUI.
 
 ## Tools: the high-volume family
 
-### `tool.pre` / `tool.post` · C, X, K · `tool.failed` · C, K
+### `tool.pre` / `tool.post` · C, X, K, P, O · `tool.failed` · C, K, P, O
 
 One event per engine tool call, before/after. **Volume-gated install**: the
 underlying engine hooks are written into engine config only while some
@@ -300,7 +307,11 @@ sub-second and silent.
 
 ## Attention (engine blocked on a human)
 
-### `attention.permission` · C, K · `attention.question` · C
+### `attention.permission` · C, K, O · `attention.question` · C, O
+
+OMP reports both from its own events: `tool_approval_requested` for the
+native approval prompt, and its question tool (`ask`). Pi has no approval
+prompt, so it has no permission source — only its screen rules.
 
 The engine stopped and is waiting. One `awaiting-input` report splits on why:
 
@@ -310,7 +321,7 @@ The engine stopped and is waiting. One `awaiting-input` report splits on why:
 
 ## Context compaction
 
-### `context.pre-compact` / `context.post-compact` · C, X, K
+### `context.pre-compact` / `context.post-compact` · C, X, K, P, O
 
 | detail field | type | meaning |
 |---|---|---|

@@ -171,6 +171,36 @@ describe("runHookSubcommand — activity verbs", () => {
     )
   })
 
+  // Why: the pi family's `pi.exec` cannot pipe stdin (stdio is fixed to
+  // ["ignore","pipe","pipe"]), so its extension hands the payload over argv.
+  // Merged OVER stdin, not instead of it, and it must reach the adapter —
+  // that is where session identity and the failure class are decoded.
+  it("merges --payload over the stdin payload and feeds it to the adapter", async () => {
+    stubStdin({ cwd: "/from/stdin", keep: "me" })
+    await runHookSubcommand([
+      "turn-failed",
+      "--engine",
+      "omp",
+      "--payload",
+      JSON.stringify({ cwd: "/from/flag", error_message: "429 Too Many Requests" }),
+    ])
+    expect(mocks.adapter.activityDetailFromPayload).toHaveBeenCalledWith("turn-failed", {
+      cwd: "/from/flag",
+      keep: "me",
+      error_message: "429 Too Many Requests",
+    })
+    expect(mocks.request).toHaveBeenCalledWith(
+      "engine.reportEvent",
+      expect.objectContaining({ cwd: "/from/flag", kind: "turn-failed", engine: "omp" }),
+    )
+  })
+
+  it("drops a malformed --payload rather than failing the engine", async () => {
+    stubStdin({ cwd: "/x" })
+    await runHookSubcommand(["turn-start", "--payload", "{not json"])
+    expect(mocks.request).toHaveBeenCalledWith("engine.reportEvent", { cwd: "/x", kind: "turn-start" })
+  })
+
   it("drops the event silently when no daemon is running (never spawns one)", async () => {
     mocks.connectIfRunning.mockResolvedValue(null)
     await runHookSubcommand(["turn-complete"])

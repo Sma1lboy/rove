@@ -230,7 +230,7 @@ own store. These are the INBOUND user reports; Rove issues are the backlog.
 ```text
 workitem-list   --repo(REQ) --state{open|closed|all}(open) --limit(20) --search --assignee
                 --label
-workitem-start  --repo(REQ) --number(REQ) --vendor{claude|codex|copilot|kimi}
+workitem-start  --repo(REQ) --number(REQ) --vendor{claude|codex|copilot|kimi|pi|omp}
                 --base-branch
 ```
 <!-- generated:end -->
@@ -253,7 +253,7 @@ it fires with no TUI attached.
 ```text
 routine-list         (none)
 routine-create       --repo(REQ) --name(REQ) --prompt|--prompt-file(REQ) --schedule(REQ)
-                     --vendor{claude|codex|copilot|kimi} --base-branch --precheck
+                     --vendor{claude|codex|copilot|kimi|pi|omp} --base-branch --precheck
                      --precheck-timeout(120) --grace(60) --persistent-session
                      --target-task --target-tab --disabled
 routine-update       --id(REQ) --name --prompt|--prompt-file --schedule --vendor

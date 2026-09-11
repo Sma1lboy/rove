@@ -190,7 +190,7 @@ pattern = "\\.(png|jpg)$"        # JS regex, case-insensitive, vs the file name
 action = "greet"                 # your action, invoked with the absolute path
 
 [[engines]]                      # contribute a coding-CLI engine
-id = "aider"                     # VendorId; may not shadow a built-in (claude/codex/copilot/kimi) or shipped engine (gemini/opencode/cursor/grok/droid/amp)
+id = "aider"                     # VendorId; may not shadow a built-in (claude/codex/copilot/kimi/pi/omp) or shipped engine (gemini/opencode/cursor/grok/droid/amp)
 name = "Aider"                   # display name in the selector and Settings
 command = ["aider"]              # launch argv; argv[0] is the binary
 # process_names = ["aider-core"] # extra ps basenames (post-launch renames)

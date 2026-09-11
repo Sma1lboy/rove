@@ -27,6 +27,15 @@ vi.mock("../../src/engine/engine-presets.ts", async (importOriginal) => {
   return { ...actual, listPresetIds: mocks.listPresetIds }
 })
 
+// The registry list is the mocked authority here, so the machine's own
+// installed CLIs must not widen it: `probeableEngineIds` unions the presets
+// with whatever binary discovery finds, which made this assertion depend on
+// which engines the developer happened to have installed.
+vi.mock("../../src/engine/account-detect.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/engine/account-detect.ts")>()
+  return { ...actual, installedEngineIds: async () => [] }
+})
+
 vi.mock("@sma1lboy/kobe-daemon/client", () => ({
   KobeDaemonClient: vi.fn().mockImplementation(() => ({
     request: mocks.request,

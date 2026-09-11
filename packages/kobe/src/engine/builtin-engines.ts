@@ -13,6 +13,8 @@
  * Must stay importable from vitest and MUST NOT import from `src/tui/`.
  */
 
+// Type-only, so the registry↔table pair is not a runtime cycle.
+import type { BuiltinVendorId } from "@/types/vendor"
 import {
   type ClaudeAccount,
   type CodexAccount,
@@ -44,17 +46,30 @@ import {
   codexHistoryReader,
   copilotHistoryReader,
   kimiHistoryReader,
+  ompHistoryReader,
+  piHistoryReader,
 } from "./history-readers.ts"
 import { type EngineHookAdapter, NoopHookAdapter } from "./hook-adapter.ts"
 import { KimiHookAdapter } from "./kimi-local/hook-adapter.ts"
 import { KIMI_SCREEN_MANIFEST } from "./kimi-local/screen.ts"
 import { trustKimiWorktree } from "./kimi-local/trust.ts"
-// Type-only, so the registry↔table pair is not a runtime cycle.
+import { ompCapabilities, ompIdentity, piCapabilities, piIdentity } from "./pi-local/capabilities.ts"
+import { PiFamilyHookAdapter } from "./pi-local/hook-adapter.ts"
+import { OMP_SCREEN_MANIFEST, PI_SCREEN_MANIFEST } from "./pi-local/screen.ts"
+import {
+  OMP_ATTENTION_PREFIXES,
+  OMP_STATUS_PREFIXES,
+  OMP_WORKING_PREFIXES,
+  PI_STATUS_PREFIXES,
+} from "./pi-local/terminal-title.ts"
+import { trustPiWorktree } from "./pi-local/trust.ts"
 import type { EngineRegistryEntry } from "./registry.ts"
 import { ClaudeTurnDetector, CodexTurnDetector, UnknownTurnDetector } from "./turn-detector.ts"
 
-/** The first-party entries — registered here and nowhere else. */
-export const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", EngineRegistryEntry> = {
+/** The first-party entries — registered here and nowhere else. Keyed by the
+ *  vendor union rather than a hand-written list, so adding an id to
+ *  `BUILTIN_VENDORS` fails to compile until its entry lands here. */
+export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
   claude: {
     vendor: "claude",
     builtin: true,
@@ -202,5 +217,80 @@ export const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", En
       resumeArgv: (base, id) => [...base, "-S", id],
     },
     screenManifest: KIMI_SCREEN_MANIFEST,
+  },
+  pi: {
+    vendor: "pi",
+    builtin: true,
+    displayName: piIdentity.shortName,
+    defaultCommand: ["pi"],
+    // Both pi-family CLIs take the same reasoning flag with their own level
+    // set, read off `--thinking`'s own help line on 2026-09-11 (`off,
+    // minimal, low, medium, high, xhigh, max`).
+    effortLevels: ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
+    effortArgv: (base, level) => [...base, "--thinking", level],
+    history: piHistoryReader,
+    // No account detector: pi authenticates from `~/.pi/agent/auth.json` OR a
+    // provider env var / `--api-key`, so a missing auth file is not "not
+    // logged in" — and the registry's rule is that an absent detector reads
+    // as "not detectable" rather than vetoing the engine.
+    createHookAdapter: () => new PiFamilyHookAdapter("pi"),
+    // pi persists no turn-completion marker of its own that Rove reads; the
+    // hook channel is the authority and the screen manifest is the fallback.
+    createTurnDetector: () => new UnknownTurnDetector("pi"),
+    capabilities: piCapabilities,
+    identity: piIdentity,
+    trustWorktree: trustPiWorktree,
+    terminalTitle: {
+      // pi writes `π - <session name> - <cwd>` and nothing else: no spinner,
+      // no run-state separator. So it OWNS no status, and Rove's own turn
+      // glyph stays the state indicator; only the brand prefix is noise, and
+      // stripping it leaves the name pi chose for the conversation.
+      ownsStatus: false,
+      statusPrefixes: PI_STATUS_PREFIXES,
+    },
+    // `--session-id <id>` pins the id of a new project session ("Use exact
+    // project session ID, creating it if missing"), and `--session <id>` is
+    // the documented way to open one. `-c/--continue` and `-r/--resume` mean
+    // the command already controls its own session.
+    sessionIdentity: {
+      pinFlag: "--session-id",
+      sessionControlFlags: ["--session-id", "--session", "-c", "--continue", "-r", "--resume", "--fork"],
+      resumeArgv: (base, id) => [...base, "--session", id],
+      forkArgv: (base, sourceId) => [...base, "--fork", sourceId],
+    },
+    screenManifest: PI_SCREEN_MANIFEST,
+  },
+  omp: {
+    vendor: "omp",
+    builtin: true,
+    displayName: ompIdentity.shortName,
+    defaultCommand: ["omp"],
+    // Same flag and level set as pi (omp is the fork that kept both).
+    effortLevels: ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
+    effortArgv: (base, level) => [...base, "--thinking", level],
+    history: ompHistoryReader,
+    createHookAdapter: () => new PiFamilyHookAdapter("omp"),
+    createTurnDetector: () => new UnknownTurnDetector("omp"),
+    capabilities: ompCapabilities,
+    identity: ompIdentity,
+    terminalTitle: {
+      // `π <separator> <label>`, where the separator IS the run state
+      // (spinner frames working, `>` at rest, `!` blocked on a human) — so
+      // omp owns the status and Rove must not draw a second one.
+      ownsStatus: true,
+      statusPrefixes: OMP_STATUS_PREFIXES,
+      workingPrefixes: OMP_WORKING_PREFIXES,
+      attentionPrefixes: OMP_ATTENTION_PREFIXES,
+    },
+    // omp mints its own session ids and exposes no pin flag: `-r/--resume
+    // [id prefix]` is the only way to reach an existing session, and
+    // `-c/--continue` means the command already owns one. Its id is therefore
+    // discovered after the fact — from the hook payload (`session_id`) or the
+    // session store this entry's `history` reader indexes by worktree.
+    sessionIdentity: {
+      sessionControlFlags: ["-c", "--continue", "-r", "--resume"],
+      resumeArgv: (base, id) => [...base, "-r", id],
+    },
+    screenManifest: OMP_SCREEN_MANIFEST,
   },
 }

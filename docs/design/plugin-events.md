@@ -53,9 +53,11 @@ Subagents run the inner `Turn` machine nested one level
 
 ## Event catalog
 
-Support: **C** Claude Code · **X** Codex · **K** Kimi Code. `N` native hook,
-`F` emulatable by watching session files, `—` absent. Status: ✅ shipped,
-💤 deferred.
+Support: **C** Claude Code · **X** Codex · **K** Kimi Code · **P** Pi ·
+**O** OMP. `N` native hook, `F` emulatable by watching session files, `—`
+absent. Status: ✅ shipped, 💤 deferred. Pi and OMP share one adapter and one
+generated extension module (`engine/pi-local/`), so their columns differ only
+where the CLIs do — OMP's approval/question events, pi's `--fork`.
 
 ### Product layer (Rove-owned, engine-independent)
 
@@ -81,27 +83,27 @@ Support: **C** Claude Code · **X** Codex · **K** Kimi Code. `N` native hook,
 
 ### A. Session
 
-| Event | C | X | K | Status | Payload notes |
-|---|---|---|---|---|---|
-| `session.start` | N | N | N | ✅ | `source: startup\|resume\|clear\|compact` as detail, not separate events |
-| `session.end` | N | N* | N | ✅ (Claude) | *Codex: documented upstream, absent from the pinned protocol — version-gate |
+| Event | C | X | K | P | O | Status | Payload notes |
+|---|---|---|---|---|---|---|---|
+| `session.start` | N | N | N | N | N | ✅ | `source: startup\|resume\|clear\|compact` as detail, not separate events |
+| `session.end` | N | N* | N | N | N | ✅ (Claude, pi, OMP) | *Codex: documented upstream, absent from the pinned protocol — version-gate |
 
 ### B. Turn
 
-| Event | C | X | K | Status |
-|---|---|---|---|---|
-| `turn.prompt` | N | N | N | ✅ |
-| `turn.complete` | N | N | N | ✅ (`agent.turn-complete`) |
-| `turn.failed` | N | F | N | ✅ (`agent.error` / `agent.rate-limited`) |
-| `turn.interrupted` | — | F | N | ✅ verb wired — on Kimi, `Stop` does NOT fire after an interrupt, so without this verb an interrupted Kimi turn strands in `running` |
+| Event | C | X | K | P | O | Status |
+|---|---|---|---|---|---|---|
+| `turn.prompt` | N | N | N | N | N | ✅ |
+| `turn.complete` | N | N | N | N | N | ✅ (`agent.turn-complete`; pi/OMP: `agent_end`, skipped when a continuation is already scheduled) |
+| `turn.failed` | N | F | N | N | N | ✅ (`agent.error` / `agent.rate-limited`) |
+| `turn.interrupted` | — | F | N | N | N | ✅ verb wired — on Kimi, `Stop` does NOT fire after an interrupt, so without this verb an interrupted Kimi turn strands in `running`; pi/OMP report it from the aborted assistant message (`stopReason: "aborted"`) |
 
-### C. Tool — the biggest gap, full native tri-engine coverage
+### C. Tool
 
-| Event | C | X | K | Status |
-|---|---|---|---|---|
-| `tool.pre` | N | N | N | ✅ (gated install) |
-| `tool.post` | N | N | N | ✅ (gated install) |
-| `tool.failed` | N | — (folded into tool_response) | N | ✅ (Claude, gated) |
+| Event | C | X | K | P | O | Status |
+|---|---|---|---|---|---|---|
+| `tool.pre` | N | N | N | N | N | ✅ (gated install) |
+| `tool.post` | N | N | N | N | N | ✅ (gated install) |
+| `tool.failed` | N | — (folded into tool_response) | N | N | N | ✅ (gated, except Codex) |
 
 Normalized payload: `{ toolName, toolUseId, input?, output?, ok }` — the
 vendor field spellings (`tool_result` / `tool_response` / `tool_output`)
@@ -111,28 +113,28 @@ are the adapter's problem, never the plugin's. Note Rove's existing
 
 ### D. Attention
 
-| Event | C | X | K | Status |
-|---|---|---|---|---|
-| `attention.permission` | N | N† | N | ✅ (Claude; Codex opt-in deferred) |
-| `attention.question` (elicitation) | N | F | F | ✅ (Claude) |
-| `attention.notification` | N | — | N | 💤 |
+| Event | C | X | K | P | O | Status |
+|---|---|---|---|---|---|---|
+| `attention.permission` | N | N† | N | — | N | ✅ (Claude, OMP; Codex opt-in deferred). OMP reports it from `tool_approval_requested` — pi has no approval prompt |
+| `attention.question` (elicitation) | N | F | F | — | N | ✅ (Claude, OMP's `ask` tool) |
+| `attention.notification` | N | — | N | — | — | 💤 |
 
 † Codex `PermissionRequest` hooks are SYNCHRONOUS: exit 0 + empty stdout is
 an explicitly supported no-op, but a slow hook wedges the approval dialog.
 `rove hook` must stay sub-second on this path (it already is: bounded stdin
 read, connect-if-running, always exit 0).
 
-### E. Context / compaction — cheapest win, uniform tri-engine shape
+### E. Context / compaction
 
-| Event | C | X | K | Status |
-|---|---|---|---|---|
-| `context.pre-compact` / `context.post-compact` | N | N | N | ✅ — `trigger: manual\|auto` |
+| Event | C | X | K | P | O | Status |
+|---|---|---|---|---|---|---|
+| `context.pre-compact` / `context.post-compact` | N | N | N | N | N | ✅ — `trigger: manual\|auto` |
 
 ### F. Subagent
 
-| Event | C | X | K | Status |
-|---|---|---|---|---|
-| `subagent.start` / `subagent.stop` | N | N* | N | ✅ (Claude) — `{ type, id }`; feeds the nested-subagent-rows rule (CLAUDE.md §Engine-owned UI data) |
+| Event | C | X | K | P | O | Status |
+|---|---|---|---|---|---|---|
+| `subagent.start` / `subagent.stop` | N | N* | N | — | — | ✅ (Claude) — `{ type, id }`; feeds the nested-subagent-rows rule (CLAUDE.md §Engine-owned UI data). Neither pi-family CLI exposes a subagent lifecycle event |
 
 ## Payload envelope (plugin-facing)
 
@@ -209,6 +211,12 @@ builds: notify, log, mirror state, auto-file, auto-bootstrap, dashboards.
 - **Attention split (done for Claude).** `awaiting-input` maps to
   `attention.permission` vs `attention.question` by `detail.waiting`. Codex
   PermissionRequest opt-in and `attention.notification` remain deferred.
+- **Pi-family adapter** (shipped 2026-09-11): `PiFamilyHookAdapter` writes
+  `rove-activity.ts` into `<agent dir>/extensions/` for `pi` and `omp`,
+  driving both installed binaries (0.80.6 / 18.1.17) through a real turn:
+  every event in the A–F tables above was live-fired, including OMP's
+  `tool_approval_requested` at a real approval prompt. The payload rides
+  argv (`kobe hook --payload <json>`) because `pi.exec` cannot pipe stdin.
 - **Kimi adapter** (shipped 2026-08-23): `KimiHookAdapter` writes a
   marker-delimited `[[hooks]]` block into `~/.kimi-code/config.toml`
   (append-at-EOF, merge-safe; payload fields verified against the installed
@@ -225,7 +233,9 @@ published contract).
 ## Sources
 
 Engine docs: code.claude.com/docs/en/hooks · learn.chatgpt.com/docs/hooks ·
-MoonshotAI/kimi-code docs/en/customization/hooks.md. Local ground truth:
+MoonshotAI/kimi-code docs/en/customization/hooks.md · the installed
+pi/omp packages' `extensibility/hooks|extensions/types.ts` (the event
+signatures the generated module is written against). Local ground truth:
 `src/engine/hook-events.ts`, `src/engine/claude-code-local/hook-adapter.ts`,
 `src/engine/codex-local/hook-adapter.ts`, `src/cli/hook-cmd.ts`,
 `kobe-daemon/src/daemon/handlers.ts` (`engine.reportEvent`), and the
