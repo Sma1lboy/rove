@@ -60,6 +60,14 @@ export function splitRepoInput(value: string, resolved: boolean): { name: string
  *     repos flat under one parent this is routine, and picking the
  *     alphabetically-first one would silently open the wrong repo, so the
  *     caller must send the user back to the list instead of guessing.
+ *   - `path` to a SIBLING — a name no saved repo carries, but one that names
+ *     a git checkout next to a saved one. Saved repos cluster under a few
+ *     parents (`~/Projects/*`, `~/i/*`), and a repo the list has never seen
+ *     almost always lives in one of them; typing its bare name should reach
+ *     it the way typing a saved name does. `isRepoDir` is the probe — this
+ *     file stays fs-free, so the caller injects one (`looksLikeGitRepo`);
+ *     without it there are no siblings to find. Two parents both holding
+ *     the name is `ambiguous` for the same reason two saved repos are.
  *   - `path` with the raw text — an unknown name. Left alone so
  *     `validateRepoPath` produces its own "path does not exist" rather than
  *     this layer inventing a second vocabulary for the same failure.
@@ -68,7 +76,13 @@ export type RepoResolution =
   | { kind: "path"; path: string }
   | { kind: "ambiguous"; name: string; matches: readonly string[] }
 
-export function resolveRepoInput(value: string, repoOptions: readonly string[]): RepoResolution {
+export type RepoDirProbe = (path: string) => boolean
+
+export function resolveRepoInput(
+  value: string,
+  repoOptions: readonly string[],
+  isRepoDir?: RepoDirProbe,
+): RepoResolution {
   const trimmed = value.trim()
   // Anything path-shaped is already the answer — the same test `pickerModeFor`
   // uses to decide it is looking at a path rather than a query.
@@ -76,7 +90,30 @@ export function resolveRepoInput(value: string, repoOptions: readonly string[]):
   const matches = repoOptions.filter((p) => splitRepoRow(p).base === trimmed)
   if (matches.length === 1) return { kind: "path", path: matches[0] as string }
   if (matches.length > 1) return { kind: "ambiguous", name: trimmed, matches }
+  // The saved list only answers for names it holds. Before giving up, look
+  // beside the saved repos: the same name under one of their parent dirs.
+  const siblings = isRepoDir ? siblingRepoCandidates(trimmed, repoOptions).filter(isRepoDir) : []
+  if (siblings.length === 1) return { kind: "path", path: siblings[0] as string }
+  if (siblings.length > 1) return { kind: "ambiguous", name: trimmed, matches: siblings }
   return { kind: "path", path: trimmed }
+}
+
+/**
+ * Where a repo called `name` COULD live, judging by the saved repos: `name`
+ * under each distinct parent directory of the saved list, in list order.
+ *
+ * Pure path arithmetic — which of these exist is the probe's question. The
+ * parents are deduped so a hundred repos flat under `~/i/` yield one
+ * candidate, not a hundred identical ones, and a saved entry with no
+ * directory part (a bare name, a trailing slash) contributes nothing.
+ */
+export function siblingRepoCandidates(name: string, repoOptions: readonly string[]): readonly string[] {
+  const parents = new Set<string>()
+  for (const p of repoOptions) {
+    const { dir } = splitRepoRow(p.trim())
+    if (dir) parents.add(dir)
+  }
+  return [...parents].map((dir) => dir + name)
 }
 
 /**
@@ -86,10 +123,13 @@ export function resolveRepoInput(value: string, repoOptions: readonly string[]):
  * The point of showing a name is that it identifies the repo. A basename
  * shared with another saved repo resolves to `ambiguous` and a name outside
  * the saved list resolves to itself — in both cases the name identifies
- * nothing, so the path stays and keeps doing the job.
+ * nothing, so the path stays and keeps doing the job. Given the same probe
+ * `resolveRepoInput` gets, a browsed-to sibling of a saved repo round-trips
+ * through its name too, so it shows as `foo` beside its directory rather
+ * than as the whole path.
  */
-export function nameOrPath(path: string, repoOptions: readonly string[]): string {
+export function nameOrPath(path: string, repoOptions: readonly string[], isRepoDir?: RepoDirProbe): string {
   const name = splitRepoInput(path, true).name
-  const back = resolveRepoInput(name, repoOptions)
+  const back = resolveRepoInput(name, repoOptions, isRepoDir)
   return back.kind === "path" && back.path === path ? name : path
 }

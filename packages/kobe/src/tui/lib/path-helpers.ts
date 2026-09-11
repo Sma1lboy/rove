@@ -16,6 +16,7 @@
 
 import * as fs from "node:fs"
 import * as os from "node:os"
+import * as path from "node:path"
 
 /**
  * Last `/`-separated segment of a path — the shared owner of leaf-name
@@ -25,6 +26,26 @@ import * as os from "node:os"
  */
 export function pathLeaf(p: string): string {
   return p.slice(p.lastIndexOf("/") + 1)
+}
+
+/**
+ * Does `p` look like the root of a git checkout — a directory with a `.git`
+ * entry in it? The entry may be a directory (an ordinary clone) or a file
+ * (a linked worktree), so this asks for existence, not type.
+ *
+ * A PROBE, not validation: one `existsSync`, no subprocess, so the repo
+ * field can ask it once per candidate on every keystroke without tripping
+ * the render-path sync guard. `validateRepoPath` (git-snapshot.ts) still
+ * has the final say at submit time; this only decides which path to hand
+ * it.
+ */
+export function looksLikeGitRepo(p: string): boolean {
+  if (!p) return false
+  try {
+    return fs.existsSync(path.join(p, ".git"))
+  } catch {
+    return false
+  }
 }
 
 /**

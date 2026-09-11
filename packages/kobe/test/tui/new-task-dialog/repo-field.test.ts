@@ -10,8 +10,13 @@
  * one sorts first.
  */
 
-import { nameOrPath, resolveRepoInput, splitRepoInput } from "@/tui/component/new-task-dialog/repo-field"
-import { describe, expect, it } from "vitest"
+import {
+  nameOrPath,
+  resolveRepoInput,
+  siblingRepoCandidates,
+  splitRepoInput,
+} from "@/tui/component/new-task-dialog/repo-field"
+import { describe, expect, it, vi } from "vitest"
 
 describe("splitRepoInput", () => {
   it("splits a resolved path into the name and the directory that locates it", () => {
@@ -57,6 +62,60 @@ describe("resolveRepoInput", () => {
   it("treats an empty value as an empty path, not as a name matching nothing", () => {
     expect(resolveRepoInput("   ", repos)).toEqual({ kind: "path", path: "" })
   })
+
+  describe("a name the saved list does not hold, with a probe", () => {
+    // Saved repos cluster under a few parents; a repo the list has never
+    // seen almost always lives beside one of them. The probe is injected so
+    // this module stays fs-free — here it is a set of paths that "exist".
+    const spread = ["/Users/me/i/quokka", "/Users/me/i/wisp", "/Users/me/work/api"]
+    const probeFor = (existing: readonly string[]) => (p: string) => existing.includes(p)
+
+    it("resolves to the same-named git dir under a saved repo's parent", () => {
+      const probe = probeFor(["/Users/me/work/rove"])
+      expect(resolveRepoInput("rove", spread, probe)).toEqual({ kind: "path", path: "/Users/me/work/rove" })
+    })
+
+    it("REFUSES a name found under two parents, rather than picking one", () => {
+      const probe = probeFor(["/Users/me/i/rove", "/Users/me/work/rove"])
+      expect(resolveRepoInput("rove", spread, probe)).toEqual({
+        kind: "ambiguous",
+        name: "rove",
+        matches: ["/Users/me/i/rove", "/Users/me/work/rove"],
+      })
+    })
+
+    it("still leaves the raw name alone when no parent holds it", () => {
+      expect(resolveRepoInput("rove", spread, probeFor([]))).toEqual({ kind: "path", path: "rove" })
+    })
+
+    it("never probes when a saved repo already answers", () => {
+      const probe = vi.fn(() => true)
+      expect(resolveRepoInput("quokka", spread, probe)).toEqual({ kind: "path", path: "/Users/me/i/quokka" })
+      expect(probe).not.toHaveBeenCalled()
+    })
+
+    it("never probes for a path-shaped value", () => {
+      const probe = vi.fn(() => true)
+      resolveRepoInput("~/anything", spread, probe)
+      resolveRepoInput("/tmp/x", spread, probe)
+      expect(probe).not.toHaveBeenCalled()
+    })
+  })
+})
+
+describe("siblingRepoCandidates", () => {
+  it("puts the name under each DISTINCT saved parent, in list order", () => {
+    const repos = ["/Users/me/i/quokka", "/Users/me/i/wisp", "/Users/me/work/api"]
+    expect(siblingRepoCandidates("rove", repos)).toEqual(["/Users/me/i/rove", "/Users/me/work/rove"])
+  })
+
+  it("skips saved entries that carry no directory part", () => {
+    // A bare name or a trailing slash locates nothing, so it cannot have
+    // siblings; a stray whitespace entry should not produce ` rove` either.
+    expect(siblingRepoCandidates("rove", ["quokka", "/Users/me/i/", " /Users/me/i/wisp "])).toEqual([
+      "/Users/me/i/rove",
+    ])
+  })
 })
 
 describe("nameOrPath (what the field should hold)", () => {
@@ -76,5 +135,18 @@ describe("nameOrPath (what the field should hold)", () => {
     // Its basename resolves to itself, not back to the path, so the name would
     // name nothing the dialog can find.
     expect(nameOrPath("/tmp/scratch", repos)).toBe("/tmp/scratch")
+  })
+
+  it("uses the name for a browsed-to sibling the probe can find again", () => {
+    // Picked from the directory browser, never saved — but it sits beside the
+    // saved repos, so its name round-trips and the field can show it short.
+    const probe = (p: string) => p === "/Users/me/i/rove"
+    expect(nameOrPath("/Users/me/i/rove", repos, probe)).toBe("rove")
+  })
+
+  it("keeps the PATH for a sibling whose name is also found elsewhere", () => {
+    const probe = (p: string) => p === "/Users/me/i/rove" || p === "/Users/me/work/rove"
+    const spread = [...repos, "/Users/me/work/api"]
+    expect(nameOrPath("/Users/me/i/rove", spread, probe)).toBe("/Users/me/i/rove")
   })
 })

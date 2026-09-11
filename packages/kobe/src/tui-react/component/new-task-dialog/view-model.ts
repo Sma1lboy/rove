@@ -45,7 +45,7 @@ import {
 } from "../../../tui/component/new-task-dialog/state"
 import { t } from "../../../tui/i18n"
 import { DEFAULT_BASE_REF, getCurrentBranch, listLocalBranches, validateRepoPath } from "../../../tui/lib/git-snapshot"
-import { expandHome, joinPicked } from "../../../tui/lib/path-helpers"
+import { expandHome, joinPicked, looksLikeGitRepo } from "../../../tui/lib/path-helpers"
 import { useBindings } from "../../lib/keymap"
 import { useDialog } from "../../ui/dialog"
 import { resolveInitialVendor, resolveVendorSet } from "./pure"
@@ -93,7 +93,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   // as `pickRepo`: a basename shared with another saved repo would open the
   // dialog on an ambiguous value, so that case keeps the path.
   const [repo, setRepo] = useState(() =>
-    nameOrPath(props.defaultRepo, computeRepoOptions(props.defaultRepo, props.savedRepos)),
+    nameOrPath(props.defaultRepo, computeRepoOptions(props.defaultRepo, props.savedRepos), looksLikeGitRepo),
   )
   // Initial baseRef tracks the cwd's current branch (worktree forked from a
   // feature branch defaults to it, not hardcoded "main").
@@ -133,7 +133,11 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   // as its edit buffer, so a field showing one string while state held another
   // wrote the shown one back on the next keystroke and the two oscillated.
   // One representation, resolved to a path at the boundaries instead.
-  const repoResolution = resolveRepoInput(repo, repoOptions)
+  //
+  // Memoized because the resolver may probe the filesystem — one `existsSync`
+  // per distinct saved-repo parent when the name is not in the list — and
+  // the inputs only change on a keystroke, not on every re-render.
+  const repoResolution = useMemo(() => resolveRepoInput(repo, repoOptions, looksLikeGitRepo), [repo, repoOptions])
   // The directory the chosen NAME resolves to — muted, at the row's right
   // edge, so a bare name still says where it is. Empty whenever the field
   // already holds a path: the directory is then in the field itself, and
@@ -215,7 +219,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
    * selection route already goes through, so the conversion belongs here.
    */
   function pickRepo(path: string): void {
-    changeRepo(nameOrPath(path, repoOptions))
+    changeRepo(nameOrPath(path, repoOptions, looksLikeGitRepo))
   }
 
   function setRepoText(v: string): void {

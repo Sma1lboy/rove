@@ -258,6 +258,29 @@ describe("createTaskFlow — create mode + guards", () => {
     expect(rememberVendor).toHaveBeenCalledWith("/repo", "claude")
   })
 
+  // A repo reached through the directory browser is not in `savedRepos` (the
+  // mocked list holds only `/repo`). The flow must remember it the same way
+  // it remembers a picked one, so the picker offers it next time instead of
+  // making the user browse to it again.
+  test("a browse-mode path (not yet saved) is added to savedRepos before the task is created", async () => {
+    const promptNewTask = vi.fn(async () => ({
+      mode: "create" as const,
+      repo: "/Users/me/Projects/fresh",
+      baseRef: "main",
+      vendor: "claude",
+    }))
+    const { ctx, createTask } = makeCreateCtx({ promptNewTask })
+
+    await createTaskFlow(ctx)
+
+    expect(mockAddSavedRepo).toHaveBeenLastCalledWith("/Users/me/Projects/fresh")
+    expect(createTask).toHaveBeenCalledWith(expect.objectContaining({ repo: "/Users/me/Projects/fresh" }))
+    // Saved BEFORE the create — the mock is module-wide, so compare its latest
+    // invocation against this test's own createTask spy.
+    const savedAt = mockAddSavedRepo.mock.invocationCallOrder.at(-1) ?? Number.POSITIVE_INFINITY
+    expect(savedAt).toBeLessThan(createTask.mock.invocationCallOrder[0] ?? 0)
+  })
+
   test("no daemon (orch null): saves the repo/vendor choice but logs instead of creating", async () => {
     const promptNewTask = vi.fn(async () => ({
       mode: "create" as const,

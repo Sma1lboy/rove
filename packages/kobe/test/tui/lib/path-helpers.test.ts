@@ -13,9 +13,18 @@
  * keeps the rendered input readable.
  */
 
+import * as fs from "node:fs"
 import * as os from "node:os"
-import { expandHome, filterSubdirs, joinDrill, joinPicked, splitPathForDirSuggest } from "@/tui/lib/path-helpers"
-import { describe, expect, it } from "vitest"
+import * as path from "node:path"
+import {
+  expandHome,
+  filterSubdirs,
+  joinDrill,
+  joinPicked,
+  looksLikeGitRepo,
+  splitPathForDirSuggest,
+} from "@/tui/lib/path-helpers"
+import { afterEach, describe, expect, it } from "vitest"
 
 describe("expandHome", () => {
   it("expands bare ~ and ~/-prefixed paths", () => {
@@ -111,5 +120,38 @@ describe("joinPicked (select, don't drill — no trailing slash)", () => {
   it("keeps absolute display when the user typed an absolute path", () => {
     const home = os.homedir()
     expect(joinPicked(`${home}/`, `${home}/`, "code")).toBe(`${home}/code`)
+  })
+})
+
+describe("looksLikeGitRepo", () => {
+  const roots: string[] = []
+  afterEach(() => {
+    for (const r of roots.splice(0)) fs.rmSync(r, { recursive: true, force: true })
+  })
+  function scratch(): string {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "rove-git-probe-"))
+    roots.push(dir)
+    return dir
+  }
+
+  it("is true for a directory holding a .git directory (an ordinary clone)", () => {
+    const repo = path.join(scratch(), "repo")
+    fs.mkdirSync(path.join(repo, ".git"), { recursive: true })
+    expect(looksLikeGitRepo(repo)).toBe(true)
+  })
+
+  it("is true for a directory holding a .git FILE (a linked worktree)", () => {
+    const wt = path.join(scratch(), "wt")
+    fs.mkdirSync(wt)
+    fs.writeFileSync(path.join(wt, ".git"), "gitdir: /elsewhere/.git/worktrees/wt\n")
+    expect(looksLikeGitRepo(wt)).toBe(true)
+  })
+
+  it("is false for a plain directory, a missing path, and an empty string", () => {
+    const plain = path.join(scratch(), "plain")
+    fs.mkdirSync(plain)
+    expect(looksLikeGitRepo(plain)).toBe(false)
+    expect(looksLikeGitRepo(path.join(plain, "nope"))).toBe(false)
+    expect(looksLikeGitRepo("")).toBe(false)
   })
 })
