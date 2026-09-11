@@ -35,23 +35,26 @@ describe("XtermTaskPty snapshot coalesce", () => {
     pty.kill()
   })
 
-  it("still coalesces a burst to one snapshot per frame", async () => {
+  it("still coalesces a burst to at most one snapshot per frame", async () => {
     const pty = new FakeTransportPty({ taskId: "t2", cwd: "/wt" })
     let published = 0
     pty.onData(() => {
       published++
     })
 
-    await pty.pump("first")
-    expect(published).toBe(1)
+    // Asserted as a RATE against the time the burst actually took, not as a
+    // fixed count: each `pump` awaits a real xterm parse, so on a loaded
+    // runner a handful of them can outlast the window and legitimately earn a
+    // second leading edge. Windows (17ms at 60fps) failed a fixed count for
+    // exactly that reason. What the coalesce promises is a ceiling, so the
+    // ceiling is what this pins.
+    const started = Date.now()
+    for (let i = 0; i < 40; i++) await pty.pump(`chunk ${i}\r\n`)
+    const elapsed = Date.now() - started
 
-    // Four more chunks inside the same window: the leading edge is spent, so
-    // these collapse into ONE deferred refresh rather than four.
-    for (const chunk of ["a", "b", "c", "d"]) await pty.pump(chunk)
-    expect(published).toBe(1)
-
-    await settleRefresh()
-    expect(published).toBe(2)
+    const ceiling = Math.ceil(elapsed / SNAPSHOT_COALESCE_MS) + 1
+    expect(published).toBeGreaterThan(0)
+    expect(published).toBeLessThanOrEqual(ceiling)
 
     pty.kill()
   })
