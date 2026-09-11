@@ -15,24 +15,30 @@ export interface RecentEngineEvent {
   readonly at: number
 }
 
-const PER_TASK_CAP = 100
-/** ponytail: crude LRU on task count; per-entry eviction if this ever matters. */
-const TASK_CAP = 100
+export const PER_TASK_CAP = 100
+/** Task-count ceiling. Eviction is recency-based (see `append`): the
+ *  least-recently-appended task is dropped, never an active one. */
+export const TASK_CAP = 100
 
 export class EngineEventLog {
   private readonly byTask = new Map<string, RecentEngineEvent[]>()
 
   append(taskId: string, event: RecentEngineEvent): void {
     let list = this.byTask.get(taskId)
-    if (!list) {
-      // Re-inserting moves the task to the Map's tail (newest); evict the head.
-      if (this.byTask.size >= TASK_CAP) {
-        const oldest = this.byTask.keys().next().value
-        if (oldest !== undefined) this.byTask.delete(oldest)
-      }
-      list = []
-      this.byTask.set(taskId, list)
+    if (list) {
+      // Touching an existing task must move it to the Map's tail so the head
+      // stays the least-recently-active task. A `Map` only appends on a NEW
+      // key — `set` on an existing one keeps its original slot — so an
+      // in-place `get`+push leaves insertion order frozen at first-append
+      // (FIFO), and eviction below then drops whichever task was seen first,
+      // even one being appended to right now. Delete + re-set re-keys it.
+      this.byTask.delete(taskId)
+    } else if (this.byTask.size >= TASK_CAP) {
+      const oldest = this.byTask.keys().next().value
+      if (oldest !== undefined) this.byTask.delete(oldest)
     }
+    if (!list) list = []
+    this.byTask.set(taskId, list)
     list.push(event)
     if (list.length > PER_TASK_CAP) list.splice(0, list.length - PER_TASK_CAP)
   }
