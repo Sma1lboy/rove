@@ -6,7 +6,7 @@ import { Terminal as XtermHeadless } from "@xterm/headless"
 import { persistedScrollbackRows } from "../../../state/scrollback"
 import { hostTargetFps } from "../../lib/host-render-options"
 import { profileSpan, profileTick } from "../../lib/render-profile"
-import { type TerminalInputModes, encodeMouseButton, encodeWheel } from "./keys-pure"
+import type { TerminalInputModes } from "./keys-pure"
 import { PtyListeners } from "./pty-listeners"
 import {
   type CursorPos,
@@ -20,6 +20,13 @@ import {
 } from "./pty-types"
 import { XtermSnapshotEngine } from "./pty-xterm-snapshot"
 import type { RowWrapFlags } from "./terminal-wrap"
+import {
+  appOwnsMouse,
+  mouseButtonSequence,
+  onAlternateScreen,
+  readInputModes,
+  wheelSequence,
+} from "./xterm-input-modes"
 import { XtermRefreshTracker, wireXtermChannels, wireXtermDefaultColorQueries } from "./xterm-refresh"
 
 /**
@@ -74,6 +81,10 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   protected cols: number
   protected rows: number
   private refreshQueued = false
+  /** When the last snapshot refresh was ATTEMPTED — the leading edge of the
+   *  coalesce window (see `queueRefresh`). 0 = never, so the first output
+   *  after a subscriber attaches draws immediately. */
+  private lastRefreshAt = 0
   private readonly refreshTracker: XtermRefreshTracker
   /** Scrollback rows resolved from the persisted preference at construction
    * (Settings → General → Terminal) — fixed for this PTY's lifetime. */
@@ -148,14 +159,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   }
 
   inputModes(): TerminalInputModes {
-    try {
-      return {
-        applicationCursorKeys: this.term.modes.applicationCursorKeysMode === true,
-        applicationKeypad: this.term.modes.applicationKeypadMode === true,
-      }
-    } catch {
-      return { applicationCursorKeys: false, applicationKeypad: false }
-    }
+    return readInputModes(this.term)
   }
 
   onExit(cb: () => void): () => void {
@@ -189,28 +193,12 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     this.write(bracketed ? `\x1b[200~${text}\x1b[201~` : text)
   }
 
+  /** Mouse gestures are DELIVERED here but DECIDED in `xterm-input-modes.ts`:
+   *  whether the program wants this event at all is a question about its
+   *  mode state, and a null answer means Rove keeps the gesture for itself
+   *  (scrollback, selection). */
   wheel(direction: "up" | "down", col: number, row: number): boolean {
-    if (this._killed) return false
-    try {
-      const modes = this.term.modes
-      const seq = encodeWheel(
-        {
-          mouseTracking: modes.mouseTrackingMode !== "none",
-          applicationCursorKeys: modes.applicationCursorKeysMode === true,
-          alternateScreen: this.term.buffer.active.type === "alternate",
-        },
-        direction,
-        col,
-        row,
-      )
-      if (seq !== null) {
-        this.write(seq)
-        return true
-      }
-    } catch {
-      /* mode probe is best-effort */
-    }
-    return false
+    return this.emit(this._killed ? null : wheelSequence(this.term, direction, col, row))
   }
 
   click(
@@ -220,44 +208,23 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     row: number,
     modifiers?: { shift?: boolean; alt?: boolean; ctrl?: boolean },
   ): boolean {
-    if (this._killed) return false
-    try {
-      const seq = encodeMouseButton(
-        { mouseTracking: this.term.modes.mouseTrackingMode },
-        kind,
-        button,
-        col,
-        row,
-        modifiers,
-      )
-      if (seq !== null) {
-        this.write(seq)
-        return true
-      }
-    } catch {
-      /* mode probe is best-effort */
-    }
-    return false
+    return this.emit(this._killed ? null : mouseButtonSequence(this.term, kind, button, col, row, modifiers))
+  }
+
+  /** Write `seq` to the child when there is one; the boolean is "the program
+   *  took this gesture", which is what the pane branches on. */
+  private emit(seq: string | null): boolean {
+    if (seq === null) return false
+    this.write(seq)
+    return true
   }
 
   get appOwnsMouse(): boolean {
-    if (this._killed) return false
-    try {
-      return this.term.modes.mouseTrackingMode !== "none"
-    } catch {
-      /* mode probe is best-effort */
-      return false
-    }
+    return this._killed ? false : appOwnsMouse(this.term)
   }
 
   get onAlternateScreen(): boolean {
-    if (this._killed) return false
-    try {
-      return this.term.buffer.active.type === "alternate"
-    } catch {
-      /* buffer probe is best-effort */
-      return false
-    }
+    return this._killed ? false : onAlternateScreen(this.term)
   }
 
   onData(cb: DataListener): () => void {
@@ -393,15 +360,39 @@ export abstract class XtermTaskPty implements TaskPtyLike {
       return
     }
     if (this.refreshQueued) return
+    // LEADING edge: a frame period has already passed with nothing drawn, so
+    // this output is not part of a burst and waiting buys nothing. This is
+    // the keystroke-echo path — you type into an idle shell, the child echoes
+    // in ~0.03ms, and a trailing-only throttle then sat on it for a whole
+    // frame before the pane had anything to draw. Measured on macOS at 120x40
+    // (`cat`, 60 samples, 200ms idle between them, write → snapshot published):
+    // p50 35.8ms trailing-only vs 1.5ms here, against a raw PTY echo of
+    // 0.03ms. p90 stays ~23ms on purpose — those samples land inside a burst,
+    // which is the case the coalesce is for.
+    //
+    // The BURST behaviour is unchanged, which is the property the coalesce
+    // exists for: the next refresh inside the period still waits for the
+    // boundary, so a streaming pane still builds at most one snapshot per
+    // frame and none of them is discarded work.
+    const since = Date.now() - this.lastRefreshAt
+    if (since >= SNAPSHOT_COALESCE_MS) {
+      this.refreshSnapshot()
+      return
+    }
     this.refreshQueued = true
     setTimeout(() => {
       this.refreshQueued = false
       this.refreshSnapshot()
-    }, SNAPSHOT_COALESCE_MS)
+    }, SNAPSHOT_COALESCE_MS - since)
   }
 
   private refreshSnapshot(): void {
     if (this._killed) return
+    // Stamped on the ATTEMPT, not on success: the `result === null`
+    // half-painted path below re-queues, and a leading edge that only moved
+    // on success would find the period still elapsed and re-enter
+    // synchronously, forever.
+    this.lastRefreshAt = Date.now()
     const result = profileSpan("refresh", () =>
       this.snapshotEngine.refresh(
         this.term,
