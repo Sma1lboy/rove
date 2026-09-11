@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.191
+
+### Patch Changes
+
+- [#989](https://github.com/Sma1lboy/rove/pull/989) [`f14a64d`](https://github.com/Sma1lboy/rove/commit/f14a64d96f6a2291bd48f4d5471a434d0c073122) Rove now drives `pi` and `omp` as first-class engines, with the same activity badges as the other built-ins. Per-task engine selection, the reasoning-effort picker (`off` through `max`, passed as `--thinking`), tab naming from the engine's own terminal title, session resume, `--fork`, transcript-backed history, and screen-state fallback all apply; and because pi gates a never-seen directory behind a "Trust project folder?" modal that a hosted session cannot answer, Rove pre-answers it in `~/.pi/agent/trust.json`.
+
+  The badge channel is a hook Rove writes itself: `rove-activity.ts` goes into `<agent dir>/extensions/`, and both CLIs load it (OMP is Stencil Labs' fork of the pi coding agent and dispatches the same `pi.on(...)` events). It reports session start/end, turn start/complete/failed/interrupted, compaction, and — on OMP — the native approval prompt and question tool as needs-input. It is the one hook install that calls an engine API rather than editing a settings file, and it hands its payload over argv (`kobe hook --payload <json>`) because that API cannot pipe stdin. Nothing is written when `~/.pi` or `~/.omp` does not exist.
+
+  Waiting is where the two differ, and the badge follows each CLI rather than the pair: OMP reports its approval prompt exactly, pi has no approval prompt to report and falls back to its screen rules. Pi and OMP also report a user interrupt from the aborted assistant message, which is the first native interrupt signal Rove has from any engine. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#990](https://github.com/Sma1lboy/rove/pull/990) [`bfaffc2`](https://github.com/Sma1lboy/rove/commit/bfaffc2dc9c2806579a0bd733b6c46ba33708b07) Find out what Rove is forking. A terminal tab title that flickers between your shell and `git`, a fan that will not settle, an editor a beat behind — all three can mean Rove is spawning child processes far more often than its polls intend, and until now there was no way to tell which poll. `ps` cannot say: a `git` that lives a few milliseconds is caught mid-exec and macOS reports its arguments as `(git)`, so sampling a whole burst yields names and no arguments. `git`'s own `trace2` sees every invocation on the machine but records no parent, so on a machine running several agents it cannot say who asked. Set `ROVE_SPAWN_PROFILE` to a file path and Rove logs one JSON line per child it spawns, naming the code that wanted it, its arguments and the directory it ran in — `jq -r .site` and `sort | uniq -c` then give you a rate per caller. Unset, it costs one boolean test per spawn and touches no disk. See TROUBLESHOOTING for what the normal rates look like. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.190
 
 ### Patch Changes
