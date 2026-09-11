@@ -130,12 +130,45 @@ export async function discoverMachine(
   }
 }
 
+/**
+ * The first brace-balanced `{…}` run in a string, or null when there is none.
+ *
+ * A non-interactive `ssh` login prints on BOTH sides of a command's output — a
+ * banner before, a "you have mail" or an rc-file echo after — and the daemon
+ * status is a single JSON object somewhere in the middle. Scanning to the first
+ * `{` skips a leading banner; slicing to its MATCHING `}` is what lets a
+ * trailing line survive too, where a bare `JSON.parse(rest)` throws on it and
+ * reports a healthy machine as "could not read a daemon status". Braces inside
+ * string literals are skipped, so a socket path carrying a `{` cannot unbalance
+ * the scan.
+ */
+function firstJsonObject(text: string): string | null {
+  const start = text.indexOf("{")
+  if (start < 0) return null
+  let depth = 0
+  let inString = false
+  let escaped = false
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i]
+    if (inString) {
+      if (escaped) escaped = false
+      else if (ch === "\\") escaped = true
+      else if (ch === '"') inString = false
+      continue
+    }
+    if (ch === '"') inString = true
+    else if (ch === "{") depth++
+    else if (ch === "}" && --depth === 0) return text.slice(start, i + 1)
+  }
+  return null
+}
+
 /** A status payload that parses but predates `ptySocketPath`. */
 export function looksLikeOldStatus(stdout: string): boolean {
-  const at = stdout.indexOf("{")
-  if (at < 0) return false
+  const json = firstJsonObject(stdout)
+  if (json === null) return false
   try {
-    const raw = JSON.parse(stdout.slice(at)) as Record<string, unknown>
+    const raw = JSON.parse(json) as Record<string, unknown>
     return typeof raw.socketPath === "string" && typeof raw.ptySocketPath !== "string"
   } catch {
     return false
@@ -145,8 +178,9 @@ export function looksLikeOldStatus(stdout: string): boolean {
 /**
  * Pull the status object out of a command's stdout.
  *
- * Tolerant of leading noise (a login banner, an update notice) by scanning for
- * the first `{` — a machine whose shell prints something on every
+ * Tolerant of noise on BOTH sides of the JSON (a login banner or update notice
+ * before, an rc-file echo or "you have mail" after) by extracting the first
+ * brace-balanced object — a machine whose shell prints something on every
  * non-interactive login is common enough that being strict here would read as
  * "Rove is broken on that host". Returns null unless BOTH socket paths are
  * present, so an older remote Rove — which reports `socketPath` but not
@@ -154,11 +188,11 @@ export function looksLikeOldStatus(stdout: string): boolean {
  * that half-forwards.
  */
 export function parseStatusJson(stdout: string): RemoteDaemonStatus | null {
-  const at = stdout.indexOf("{")
-  if (at < 0) return null
+  const json = firstJsonObject(stdout)
+  if (json === null) return null
   let raw: unknown
   try {
-    raw = JSON.parse(stdout.slice(at))
+    raw = JSON.parse(json)
   } catch {
     return null
   }
