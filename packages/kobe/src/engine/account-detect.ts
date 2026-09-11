@@ -51,6 +51,7 @@ import { CONTRIB_ENGINES, CONTRIB_ENGINE_IDS, pluginEngineIds } from "./contrib-
 import { findCopilotBinary } from "./copilot-local/binary"
 import { readTextFileSyncBounded } from "./file-bounds"
 import { findKimiBinary } from "./kimi-local/binary"
+import { findOmpBinary, findPiBinary } from "./pi-local/binary"
 import { claudeGlobalConfigPath, codexAuthPath, copilotConfigPath, kimiCredentialsPath } from "./vendor-home"
 
 export type ClaudeAccount =
@@ -97,6 +98,8 @@ export interface DetectDeps {
   findCodexBinary(): Promise<string>
   findCopilotBinary(): Promise<string>
   findKimiBinary(): Promise<string>
+  findPiBinary(): Promise<string>
+  findOmpBinary(): Promise<string>
 }
 
 const defaultDeps: DetectDeps = {
@@ -124,6 +127,12 @@ const defaultDeps: DetectDeps = {
   },
   findKimiBinary() {
     return findKimiBinary()
+  },
+  findPiBinary() {
+    return findPiBinary()
+  },
+  findOmpBinary() {
+    return findOmpBinary()
   },
 }
 
@@ -164,7 +173,7 @@ async function probeBinary(probe: () => Promise<string>): Promise<BinaryStatus> 
 
 /**
  * The vendors whose engine CLI binary is detected on this machine, in
- * {@link VendorId} cycle order (claude → codex → copilot). Pure binary
+ * {@link VendorId} cycle order (`BUILTIN_VENDORS`). Pure binary
  * discovery — the same probe the Accounts section uses — with account
  * state deliberately NOT consulted: having the CLI installed is the only
  * gate. The new-task dialog uses this to hide vendors you can't run.
@@ -192,6 +201,8 @@ async function probeAvailableVendors(deps: DetectDeps): Promise<readonly VendorI
     ["codex", () => deps.findCodexBinary()],
     ["copilot", () => deps.findCopilotBinary()],
     ["kimi", () => deps.findKimiBinary()],
+    ["pi", () => deps.findPiBinary()],
+    ["omp", () => deps.findOmpBinary()],
   ]
   const detected = await Promise.all(
     probes.map(async ([vendor, probe]) => ((await probeBinary(probe)).found ? vendor : null)),

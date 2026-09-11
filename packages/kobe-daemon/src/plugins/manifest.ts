@@ -180,6 +180,8 @@ export const RESERVED_ENGINE_IDS: readonly string[] = [
   "codex",
   "copilot",
   "kimi",
+  "pi",
+  "omp",
   "gemini",
   "opencode",
   "cursor",

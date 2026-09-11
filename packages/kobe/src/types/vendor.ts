@@ -22,7 +22,7 @@
 export type VendorId = "claude" | "codex" | "copilot" | "kimi" | (string & {})
 
 /** The first-party engines that ship with kobe (cycle order). */
-export const BUILTIN_VENDORS = ["claude", "codex", "copilot", "kimi"] as const
+export const BUILTIN_VENDORS = ["claude", "codex", "copilot", "kimi", "pi", "omp"] as const
 export type BuiltinVendorId = (typeof BUILTIN_VENDORS)[number]
 
 /** The engine everything falls back to: a fresh install's default, and where

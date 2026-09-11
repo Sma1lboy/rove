@@ -1,8 +1,8 @@
 # Engines
 
 An **engine** is the AI coding CLI a task runs on: `claude`, `codex`,
-`copilot`, `kimi`, or one you register yourself. Rove runs the real
-interactive CLI inside the task's terminal session.
+`copilot`, `kimi`, `pi`, `omp`, or one you register yourself. Rove runs the
+real interactive CLI inside the task's terminal session.
 
 ```text
 Managed task = one git worktree + one branch + one or more terminal tabs
@@ -22,6 +22,8 @@ you need git-level isolation and a separate branch.
 | Codex | `codex` | ✓ | ✓ (after you trust hooks) | ✓ | `none`/`low`/`medium`/`high`/`xhigh`/`max` |
 | GitHub Copilot | `copilot` | ✓ | ✓ (screen-based) | ✓ | — |
 | Kimi Code | `kimi` | ✓ | ✓ | handoff only | — |
+| Pi | `pi` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` |
+| OMP | `omp` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` |
 | Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid, Amp | contrib | binary only | ✓ (screen-based) | — | — |
 | Anything you register | custom | binary only | — | — | — |
 
@@ -79,8 +81,10 @@ it, so Rove assumes you meant it.
 ### Reasoning effort
 
 Codex accepts `none`, `low`, `medium`, `high`, `xhigh`, `max`, passed as
-`-c model_reasoning_effort=<level>`. Other engines have no effort flag Rove
-can drive; a selected effort is ignored there rather than passed through.
+`-c model_reasoning_effort=<level>`. Pi and OMP take the same levels (plus
+`off`) as `--thinking <level>`. The remaining engines have no effort flag
+Rove can drive; a selected effort is ignored there rather than passed
+through.
 
 Three places select one:
 
@@ -97,15 +101,15 @@ default until you set one.
 
 ### Workspace trust
 
-All four builtin engines gate a first launch in a never-seen directory behind
-a trust dialog, and every task worktree is such a directory, so a hosted
-session can't answer it — nobody is at the pane to press a key, so the launch
-sits on the dialog instead of starting the turn (and with Kimi, whether a
-stray Enter accepts or exits the process depends on the Kimi version;
-Copilot's cursor sits on a session-only "Yes", so it returns every launch).
-Before spawning an engine into a Rove-created worktree, Rove writes that
-vendor's own trust record for the path, merging into existing entries, never
-clobbering:
+Five of the six builtin engines gate a first launch in a never-seen
+directory behind a trust dialog, and every task worktree is such a directory,
+so a hosted session can't answer it — nobody is at the pane to press a key,
+so the launch sits on the dialog instead of starting the turn (and with Kimi,
+whether a stray Enter accepts or exits the process depends on the Kimi
+version; Copilot's cursor sits on a session-only "Yes", so it returns every
+launch). Before spawning an engine into a Rove-created worktree, Rove writes
+that vendor's own trust record for the path, merging into existing entries,
+never clobbering:
 
 | Engine | Trust record |
 | --- | --- |
@@ -113,9 +117,12 @@ clobbering:
 | Codex | `~/.codex/config.toml` → `[projects."<path>"] trust_level = "trusted"` |
 | Copilot | `~/.copilot/config.json` → `trustedFolders` |
 | Kimi | `~/.kimi-code/workspace-trust/<record>` |
+| Pi | `~/.pi/agent/trust.json` → `{ "<canonical path>": true }` |
+| OMP | none — OMP has no project-trust gate |
 
 Claude, Codex, and Kimi trust writes follow `CLAUDE_CONFIG_DIR`, `CODEX_HOME`,
-and `KIMI_CODE_HOME`, respectively. With `CLAUDE_CONFIG_DIR` set, the Claude
+and `KIMI_CODE_HOME`, respectively; Pi's follows `PI_CODING_AGENT_DIR` (the
+directory itself — `~/.pi/agent` by default). With `CLAUDE_CONFIG_DIR` set, the Claude
 trust file is `<CLAUDE_CONFIG_DIR>/.claude.json`. Blank overrides use the
 default paths above. Each write resolves the current profile again.
 
@@ -163,7 +170,7 @@ The sidebar shows what each session is doing: **working**, **done**, or
 hook events, falling back to its transcript when hooks aren't available.
 
 One thing worth knowing: **the depth of the badge depends on the engine**.
-Claude and kimi report the full working / done / needs-input vocabulary
+Claude, kimi, and omp report the full working / done / needs-input vocabulary
 through hooks, sub-second. Codex reports working and done through hooks, but
 not needs-input: its only "waiting" event is a permission decision hook, and
 Rove will not install an observer on a hook that gates approvals. Codex ships
@@ -175,9 +182,28 @@ rules, which still distinguishes working from waiting-on-you but can't see a
 completed turn the way a transcript marker can. Rove labels the gap honestly
 rather than guessing.
 
+**Pi and OMP differ from each other on waiting.** They share one adapter and
+one hook file — OMP is Stencil Labs' fork of the pi coding agent, so both
+load a TypeScript extension from `<agent dir>/extensions/` and dispatch the
+same `pi.on(...)` events. Rove writes `rove-activity.ts` there, and it is the
+only hook install that shells out through an engine API (`pi.exec`) rather
+than editing a settings file. OMP emits `tool_approval_requested` when it
+blocks on its native approval prompt — and its question tool reports the same
+way — so its needs-input badge is exact. pi has no tool-approval prompt at
+all, so there its needs-input source is the screen rules (its trust dialog,
+and any other modal). pi and OMP also report a user interrupt from the
+assistant message itself (`stopReason: "aborted"`), which is the one native
+interrupt signal Rove sees anywhere — on claude and codex an interrupt has to
+be inferred from the terminal title.
+
 Codex won't run Rove's hooks until you trust them once via `/hooks`, so Codex
 badges stay dark until you approve. That's by design: Rove writes the hook
 definition but never bypasses the trust prompt for you.
+
+Pi and OMP hook installation writes `rove-activity.ts` into
+`<agent dir>/extensions/`, and cleanup removes that file. The agent directory
+is `PI_CODING_AGENT_DIR` when set, else `~/.pi/agent` or `~/.omp/agent`. If
+that directory does not exist, nothing is written: there is no CLI to read it.
 
 Claude and Codex hook installation and cleanup use `settings.json` under
 `CLAUDE_CONFIG_DIR` and `hooks.json` under `CODEX_HOME`. Unset or blank
@@ -199,6 +225,9 @@ into the same conversation instead of a blank one. Codex and Kimi mint their
 own ids — Codex announces its in the terminal title, Kimi's is discovered
 from its session store after the fact — and each reopens the last
 conversation with its own resume verb (`codex resume <id>`, `kimi -S <id>`).
+Pi pins one too (`--session-id`, reopened with `--session <id>`); OMP mints
+its own and Rove learns it from the hook payload or the session store, then
+reopens it with `-r <id prefix>`.
 Copilot and custom engines have no resume verb Rove knows, so their tabs
 relaunch fresh. A tab that never sent a first message isn't resumed; there's
 no transcript yet.
@@ -213,6 +242,8 @@ conversation. The two resulting tabs keep the source context and then diverge:
 |---|---|---|
 | `claude` | ✓ | `--resume <src> --fork-session` |
 | `codex` | ✓ | `codex fork <src>` |
+| `pi` | ✓ | `--fork <src>` |
+| `omp` | — | no fork verb — transcript handoff |
 | `copilot` | — | starts a fresh Copilot session with a transcript handoff |
 | `kimi` | — | has a `kimi fork` verb, but it exits instead of opening the session — transcript handoff instead |
 | custom | — | refused, unless the preset declares a built-in protocol (then it forks like that engine) |
@@ -324,6 +355,7 @@ Engines own their own history. Rove reads it, never writes it.
 | `codex` | `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-*.jsonl` |
 | `copilot` | `~/.copilot/session-state/<id>/events.jsonl` |
 | `kimi` | `~/.kimi-code/session_index.jsonl` maps each session to its dir; the stream is `<sessionDir>/agents/main/wire.jsonl` |
+| `pi`, `omp` | `<agent dir>/sessions/<encoded-cwd>/<timestamp>_<session id>.jsonl` — `~/.pi/agent` and `~/.omp/agent` unless `PI_CODING_AGENT_DIR` says otherwise. pi encodes the cwd as an absolute path, OMP as one relative to your home (or the temp root); Rove reads both spellings |
 
 That's why a crash never loses a conversation, and why history survives
 `rove reset` and a machine reboot.

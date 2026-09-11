@@ -134,7 +134,7 @@ terminal output has separate persistence rules; see [Sessions](SESSIONS.md).
 ## Engines
 
 An engine is the execution backend a task runs on. Rove embeds the **real
-interactive CLI** (`claude`, `codex`, `copilot`, `kimi`, or one you register
+interactive CLI** (`claude`, `codex`, `copilot`, `kimi`, `pi`, `omp`, or one
 yourself) inside a hosted terminal session. No API wrappers, no re-rendered
 output: what you see is the actual engine running next to your dependencies
 and credentials.

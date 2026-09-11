@@ -100,7 +100,42 @@ Codex also won't run a non-managed hook until you trust it once via `/hooks`
 definition but never auto-bypasses trust, so Codex activity badges light up
 only after you approve, by design.
 
-### Copilot, Kimi, custom engines
+### Pi and OMP: a generated extension module
+
+The pi family has no hook TABLE to merge into. Its extension points are
+TypeScript modules discovered from `<agent dir>/extensions/*.ts`, so the
+adapter's `globalSettingsPath()` is the module Rove WRITES —
+`rove-activity.ts` — and install is a whole-file write (skipped when the
+bytes are unchanged, so a launch does not churn the mtime). Both CLIs load
+its default export and dispatch the same `pi.on(...)` event names, so one
+generated file serves `pi` 0.80.6 and `omp` 18.1.17.
+
+The extension is the one hook install that calls an ENGINE API:
+`pi.exec(command, args)` spawns `kobe hook <verb> --engine <id>` with the
+engine's environment inherited. It cannot pipe stdin (that API fixes stdio to
+`["ignore","pipe","pipe"]`), which is why the payload rides argv via
+`kobe hook --payload <json>` instead of Claude's stdin channel.
+
+| pi-family event | Neutral verb |
+|---|---|
+| `session_start` | `session-start` |
+| `turn_start` | `turn-start` |
+| `agent_end` (skipped when `willContinue`) | `turn-complete` |
+| `message_end` (assistant, `stopReason: "error"`) | `turn-failed` (classified from the error text; message-level and gated, unlike Claude's StopFailure) |
+| `message_end` (assistant, `stopReason: "aborted"`) | `turn-interrupted` |
+| `auto_retry_end` (`success: false`) | `turn-failed` — a retry that recovered reports nothing |
+| `tool_approval_requested` (OMP only) | `awaiting-input` (`waiting: permission`) |
+| `tool_call` for the `ask` tool (OMP only) | `awaiting-input` (`waiting: input`) |
+| `tool_approval_resolved` (OMP only) | `turn-start` — the turn resumes |
+| `session_before_compact` / `session_compact` | `pre-compact` / `post-compact` |
+| `tool_call` / `tool_result` | `tool-pre` / `tool-post` / `tool-failed` (gated) |
+| `session_shutdown` | `session-end` (the one report awaited, so it survives exit) |
+
+Install writes nothing when the agent directory does not exist (`~/.pi`,
+`~/.omp`): there is no CLI to read the file. Only pi needs a trust
+pre-answer (see `piTrustWorktree`); OMP has no project-trust gate.
+
+### Copilot and custom engines
 
 No hook mechanism is wired (`NoopHookAdapter`); install is a no-op and
 nothing is written to their config.
@@ -148,8 +183,8 @@ never fail the engine's action).
 The sidebar badge (working / done / needs-input) is fed by **three layers**,
 merged hook-wins (`src/tui/workspace/turn-state-merge.ts`):
 
-1. **Hooks** (claude, codex). Authoritative while reporting: a hook-driven
-   `engine-state` push supersedes anything the pollers conclude.
+1. **Hooks** (claude, codex, kimi, pi, omp). Authoritative while reporting: a
+   hook-driven `engine-state` push supersedes anything the pollers conclude.
    `needs_input` is **hook-only** — no amount of polling can distinguish
    "waiting for a permission prompt" from "thinking".
 2. **Turn detectors** — transcript-based completion detection per engine
@@ -205,12 +240,13 @@ its tab's observed slot (hooks are authoritative while the engine lives); a
 hook idle clears the tab's record outright. Only hook slots get the lapse
 watchdog; observed entries are retired by the observer's own poll.
 
-The user-visible consequence: **only claude/codex sessions can ever show
-needs-input**; every other engine tops out at working/done.
+The user-visible consequence: **only engines whose hooks report a wait can
+show needs-input** (claude, kimi, omp — the pi family's `pi` has no approval
+prompt to report); every other engine tops out at working/done.
 
 ## Terminal titles
 
-Claude and Codex own their OSC title while visible
+Claude, Codex and OMP own their OSC title while visible
 (`terminalTitle.ownsStatus`), so neutral tab chrome doesn't prefix a
 duplicate turn glyph. The title stream IS the tab label — Rove strips only
 the engine's own status decoration (`terminalTitle.statusPrefixes`, drawn in
@@ -226,6 +262,7 @@ no neutral layer ever names a vendor:
 |---|---|---|
 | `launchArgs` | ask the engine for a better title at launch | codex: `-c tui.terminal_title=["activity","thread-title"]` |
 | `sessionIdFromTitle` | the title IS a session id — don't render it, and name the tab from that session | codex: its thread UUID |
+| `attentionPrefixes` | the title says "blocked on a human" — refuse a `rest` verdict for it | omp: `π !` |
 
 An engine whose bad title carries no session id at all would need a sibling
 knob beside `sessionIdFromTitle`; none does today, so none exists.
@@ -239,6 +276,12 @@ before because codex accepts no caller-set `--session-id`. The judgement is
 display-side: snapshots that already recorded a UUID heal without a migration,
 and the moment codex names a thread its real title wins again.
 
+OMP's separator IS its run state (`π ⠋` working, `π >` at rest, `π !` blocked),
+which is what `attentionPrefixes` exists for: without it, an approval pause
+would read as `rest` and the ESC-interrupt observer would idle a turn the
+engine is merely waiting on. Pi writes `π - <session name> - <cwd>` and no
+state at all, so it declares `ownsStatus: false` and only strips its brand.
+
 ## Transcript readers
 
 Each engine with a verified on-disk format ships a reader behind the neutral
@@ -251,6 +294,7 @@ polling.
 | `claude` | `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl` |
 | `codex` | `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<ts>-<uuid>.jsonl` |
 | `copilot` | `~/.copilot/session-state/<id>/` (`workspace.yaml` records the cwd) |
+| `pi`, `omp` | `<agent dir>/sessions/<encoded-cwd>/<timestamp>_<session id>.jsonl` — pi encodes the cwd absolutely, OMP relative to the home/temp root (both spellings are read, because OMP's own store holds directories written by either rule) |
 
 Readers are best-effort: size-bounded, tolerant of corrupt entries, and they
 never throw. A missing or unreadable transcript degrades to "no session"
