@@ -18,6 +18,7 @@
  */
 
 import { basename } from "node:path"
+import { loadStateFile } from "../state/store.ts"
 import type { VendorId } from "../types/vendor"
 import { type ProcRow, PsProbeUnavailableError } from "./process-rows.ts"
 import { engineEntry, identifiableEngineIds } from "./registry"
@@ -126,22 +127,77 @@ export function hasAncestor(rows: readonly ProcRow[], pid: number, ancestorPid: 
 }
 
 /**
- * Breadth-first hunt for an engine among `rootPid`'s descendants —
- * shallowest wins, so a wrapper's engine child is found before that
- * engine's own helper processes (claude spawns `claude bg-pty-host`
- * subprocesses; the session itself is nearer the shell).
+ * Launch binaries of the user's CUSTOM engine presets, keyed by the
+ * executable name a `ps` row would carry.
+ *
+ * {@link vendorFromArgv} deliberately stops at {@link identifiableEngineIds}
+ * — what the registry can name without reading state — so a preset the user
+ * registered themselves (id in `customEngineIds`, command in
+ * `engineCommand.<id>`) was invisible to the walk. Every consumer reads a
+ * null walk as a POSITIVE "no engine here", so a live custom-engine tab lost
+ * its turn detector, its sidebar state dot, and its name: `tabTitleStable`
+ * demoted it to `shell N` while the engine was still running in it.
+ *
+ * Read straight from state.json rather than pushed in at boot because the
+ * walk runs in three processes (TUI probe, daemon activity observer, `api
+ * inspect`) and none of them shares a registration step. One small
+ * `readFileSync` per walk that finds no built-in engine — never per `ps` row.
  */
-export function foregroundEngineIn(rows: readonly ProcRow[], rootPid: number): ForegroundEngine | null {
+function customEngineBinaries(): ReadonlyMap<string, VendorId> {
+  const state = loadStateFile()
+  const ids = state.customEngineIds
+  const out = new Map<string, VendorId>()
+  if (!Array.isArray(ids)) return out
+  for (const id of ids) {
+    if (typeof id !== "string" || id.trim().length === 0) continue
+    const command = state[`engineCommand.${id}`]
+    const argv = typeof command === "string" && command.trim().length > 0 ? command.trim().split(/\s+/) : [id]
+    const name = executableNameFromArgv(argv)
+    if (name) out.set(name, id)
+  }
+  return out
+}
+
+/** Shallowest descendant of `rootPid` that `identify` names, or null. */
+function walkDescendants(
+  rows: readonly ProcRow[],
+  rootPid: number,
+  identify: (args: string) => VendorId | null,
+): ForegroundEngine | null {
   const kids = childrenIndex(rows)
   const queue = [...(kids.get(rootPid) ?? [])]
   while (queue.length > 0) {
     const row = queue.shift()
     if (!row) break
-    const vendor = vendorFromArgv(row.args)
+    const vendor = identify(row.args)
     if (vendor) return { vendor, argv: row.args, pid: row.pid }
     queue.push(...(kids.get(row.pid) ?? []))
   }
   return null
+}
+
+/**
+ * Breadth-first hunt for an engine among `rootPid`'s descendants —
+ * shallowest wins, so a wrapper's engine child is found before that
+ * engine's own helper processes (claude spawns `claude bg-pty-host`
+ * subprocesses; the session itself is nearer the shell).
+ *
+ * Custom presets are a SECOND pass, not another arm of the first: a preset
+ * is usually a wrapper around a real engine (`claudecpa` ends up running
+ * claude), and the built-in underneath is the identity that carries adapter
+ * knowledge — history, status-prefix rules, turn hints. Only when the whole
+ * tree names no built-in does the preset's own binary answer.
+ */
+export function foregroundEngineIn(rows: readonly ProcRow[], rootPid: number): ForegroundEngine | null {
+  const builtin = walkDescendants(rows, rootPid, vendorFromArgv)
+  if (builtin) return builtin
+  const custom = customEngineBinaries()
+  if (custom.size === 0) return null
+  return walkDescendants(
+    rows,
+    rootPid,
+    (args) => custom.get(executableNameFromArgv(args.trim().split(/\s+/)) ?? "") ?? null,
+  )
 }
 
 /**

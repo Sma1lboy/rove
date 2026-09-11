@@ -1,4 +1,7 @@
-import { afterEach, describe, expect, it } from "vitest"
+import { mkdirSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { clearPluginEngines, registerPluginEngine } from "../../src/engine/contrib-engines.ts"
 import {
   engineProcessIn,
@@ -215,10 +218,10 @@ describe("vendorFromArgv covers every engine the registry can name state-free", 
     expect(foregroundEngineIn(rows, 200)).toBeNull()
   })
 
-  it("a genuinely custom engine stays unnameable here — callers pass its launch argv", () => {
-    // `engineCommand.<id>` lives in state this module must not read, so the
-    // walk cannot name `my-agent`; the delivery gate's `extraLaunch` is how
-    // a caller holding that state asks about it.
+  it("an UNREGISTERED custom binary stays unnameable — callers pass its launch argv", () => {
+    // Nothing in `customEngineIds` claims `my-agent`, so the walk has no
+    // business naming it; the delivery gate's `extraLaunch` is how a caller
+    // holding that launch command asks about it.
     const rows = parsePsSnapshot(`
 10 1 /bin/zsh -l
 11 10 /Users/me/bin/my-agent --serve
@@ -226,5 +229,71 @@ describe("vendorFromArgv covers every engine the registry can name state-free", 
     expect(foregroundEngineIn(rows, 10)).toBeNull()
     expect(engineProcessIn(rows, 10)).toBe(false)
     expect(engineProcessIn(rows, 10, "/Users/me/bin/my-agent")).toBe(true)
+  })
+})
+
+/**
+ * The walk's second pass. Without it a live custom-engine tab reads as a bare
+ * shell everywhere: no turn detector (`targetFor` treats null as a confirmed
+ * shell), no sidebar state dot, and `tabTitleStable` renaming it `shell N`
+ * while the engine is still running in it.
+ */
+describe("custom engine presets in the walk", () => {
+  const home = join(tmpdir(), `rove-foreground-custom-${process.pid}`)
+  // Restored, not just deleted: vitest reuses a worker across FILES, so a
+  // leaked home (pointing at a directory this file removed) silently
+  // re-homes every later suite's state reads.
+  let previousHome: string | undefined
+
+  beforeEach(() => {
+    previousHome = process.env.KOBE_HOME_DIR
+    const dir = join(home, ".config", "rove")
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(
+      join(dir, "state.json"),
+      JSON.stringify({
+        customEngineIds: ["claudecpa", "cluadex"],
+        "engineCommand.claudecpa": "claudecpa",
+        // A preset whose id and BINARY differ — the binary is what `ps` shows.
+        "engineCommand.cluadex": "claudex --yolo",
+      }),
+    )
+    process.env.KOBE_HOME_DIR = home
+  })
+
+  afterEach(() => {
+    rmSync(home, { recursive: true, force: true })
+    if (previousHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
+    else process.env.KOBE_HOME_DIR = previousHome
+  })
+
+  it("names a registered preset by the binary its command launches", () => {
+    const rows = parsePsSnapshot(`
+10 1 /bin/zsh -l
+11 10 bun /opt/homebrew/bin/claudecpa
+20 1 /bin/zsh -l
+21 20 /Users/me/.local/bin/claudex --yolo
+`)
+    expect(foregroundEngineIn(rows, 10)?.vendor).toBe("claudecpa")
+    expect(foregroundEngineIn(rows, 20)?.vendor).toBe("cluadex")
+    expect(engineProcessIn(rows, 10)).toBe(true)
+  })
+
+  it("a built-in under the same shell still wins — the preset is the fallback", () => {
+    // `claudecpa`-shaped: the preset's own wrapper plus the real claude it
+    // ends up running. claude carries the adapter knowledge, so it answers.
+    const rows = parsePsSnapshot(`
+10 1 /bin/zsh -l
+11 10 /opt/homebrew/bin/claudecpa
+12 11 /opt/homebrew/bin/claude --model opus
+`)
+    expect(foregroundEngineIn(rows, 10)?.vendor).toBe("claude")
+  })
+
+  it("still answers a confirmed null for a shell running nothing", () => {
+    const rows = parsePsSnapshot(`
+10 1 /bin/zsh -l
+`)
+    expect(foregroundEngineIn(rows, 10)).toBeNull()
   })
 })
