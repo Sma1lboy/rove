@@ -23,9 +23,20 @@ const mocks = vi.hoisted(() => ({
   runOnboardingWizard: vi.fn(),
   checkOnboardingEnv: vi.fn(),
   loadStateFile: vi.fn(() => ({}) as Record<string, unknown>),
+  /** The home `os.homedir()` reports; undefined = the real one. */
+  home: undefined as string | undefined,
 }))
 
 vi.mock("node:child_process", () => ({ spawnSync: mocks.spawnSync }))
+// The install path writes the completions hook into `os.homedir()`. Redirect it
+// at the source rather than through $HOME, which Windows ignores — otherwise
+// these tests write into the developer's (or CI runner's) real rc file, and one
+// test's leftover hook decides the next test's answer. `tmpdir()` stays real so
+// `freshHome()` still makes a temp directory.
+vi.mock("node:os", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:os")>()
+  return { ...actual, homedir: () => mocks.home ?? actual.homedir() }
+})
 vi.mock("../../src/state/store.ts", () => ({
   getPersistedBool: mocks.getPersistedBool,
   setPersistedBool: mocks.setPersistedBool,
@@ -115,7 +126,8 @@ describe("detectShell", () => {
 describe("installCompletions", () => {
   it("appends one guarded source line to a missing .zshrc", () => {
     const home = freshHome()
-    const rc = installCompletions("zsh", home, "rove")
+    const { path: rc, installed } = installCompletions("zsh", home, "rove")
+    expect(installed).toBe(true)
     expect(rc).toBe(join(home, ".zshrc"))
     const content = readFileSync(rc, "utf8")
     expect(content).toContain("source <(rove completions zsh)")
@@ -125,7 +137,8 @@ describe("installCompletions", () => {
   it("is idempotent — a second run never stacks a duplicate line", () => {
     const home = freshHome()
     installCompletions("zsh", home, "rove")
-    installCompletions("zsh", home, "rove")
+    const second = installCompletions("zsh", home, "rove")
+    expect(second.installed).toBe(false)
     const content = readFileSync(join(home, ".zshrc"), "utf8")
     expect(content.match(/rove completions zsh/g)).toHaveLength(1)
   })
@@ -134,16 +147,18 @@ describe("installCompletions", () => {
     const home = freshHome()
     const rc = join(home, ".bashrc")
     writeFileSync(rc, "# mine\nsource ~/.bash_completion.d/rove # rove completions via fpath\n")
-    installCompletions("bash", home, "rove")
+    const { installed } = installCompletions("bash", home, "rove")
+    // The marker was already present → nothing appended, and it says so.
+    expect(installed).toBe(false)
     const content = readFileSync(rc, "utf8")
     expect(content).toContain("# mine")
-    // The marker was already present → nothing appended.
     expect(content).not.toContain("source <(rove completions bash)")
   })
 
   it("fish gets an autoloaded completions file, no rc edit", () => {
     const home = freshHome()
-    const path = installCompletions("fish", home, "rove")
+    const { path, installed } = installCompletions("fish", home, "rove")
+    expect(installed).toBe(true)
     expect(path).toBe(join(home, ".config", "fish", "completions", "rove.fish"))
     expect(readFileSync(path, "utf8")).toBe("rove completions fish | source\n")
     expect(existsSync(join(home, ".config", "fish", "config.fish"))).toBe(false)
@@ -151,7 +166,7 @@ describe("installCompletions", () => {
 
   it("uses the active cli name (kobe) when no product is pinned", () => {
     const home = freshHome()
-    const rc = installCompletions("zsh", home)
+    const { path: rc } = installCompletions("zsh", home)
     const content = readFileSync(rc, "utf8")
     expect(content).toContain("source <(kobe completions zsh)")
     expect(content).toContain("command -v kobe")
@@ -161,9 +176,10 @@ describe("installCompletions", () => {
     const home = freshHome()
     const shipped = join(freshHome(), "rove.zsh")
     writeFileSync(shipped, "#compdef rove\n")
-    const rc = installCompletions("zsh", home, "rove", shipped)
-    installCompletions("zsh", home, "rove", shipped)
-    const content = readFileSync(rc, "utf8")
+    expect(installCompletions("zsh", home, "rove", shipped).installed).toBe(true)
+    const second = installCompletions("zsh", home, "rove", shipped)
+    expect(second.installed).toBe(false)
+    const content = readFileSync(second.path, "utf8")
     expect(content).toContain(`[ -f "${shipped}" ] && source "${shipped}"`)
     // The whole point: nothing on this line spawns a process.
     expect(content).not.toContain("source <(")
@@ -178,7 +194,8 @@ describe("installCompletions", () => {
     writeFileSync(rc, "# mine\n\n# rove completions\ncommand -v rove >/dev/null && source <(rove completions zsh)\n")
     const shipped = join(freshHome(), "rove.zsh")
     writeFileSync(shipped, "#compdef rove\n")
-    installCompletions("zsh", home, "rove", shipped)
+    const { installed } = installCompletions("zsh", home, "rove", shipped)
+    expect(installed).toBe(true)
     const content = readFileSync(rc, "utf8")
     expect(content).toContain("# mine")
     expect(content).toContain(`source "${shipped}"`)
@@ -189,7 +206,7 @@ describe("installCompletions", () => {
     const home = freshHome()
     const shipped = join(freshHome(), "rove.fish")
     writeFileSync(shipped, "# rove fish completions\n")
-    const path = installCompletions("fish", home, "rove", shipped)
+    const { path } = installCompletions("fish", home, "rove", shipped)
     expect(readFileSync(path, "utf8")).toBe(`test -f "${shipped}"; and source "${shipped}"\n`)
   })
 })
@@ -202,12 +219,17 @@ describe("applyOnboardingChoices", () => {
     // vi.clearAllMocks() wipes the hoisted default return too, so restore the
     // "npx is present" baseline every test starts from.
     mocks.isNpxMissing.mockReturnValue(false)
+    // The apply step writes the completions hook into `os.homedir()`. Give it a
+    // throwaway home so the result is about this code and not a real rc file
+    // that already has a completions line in it.
+    mocks.home = freshHome()
   })
 
   afterEach(() => {
     stdoutSpy.mockRestore()
     vi.clearAllMocks()
     process.env.ROVE_INVOKED_AS = undefined
+    mocks.home = undefined
   })
 
   it("declines everything when shell is unknown", async () => {
@@ -375,12 +397,18 @@ describe("maybeRunOnboarding", () => {
     setProduct("kobe")
     const savedShell = process.env.SHELL
     process.env.SHELL = "/bin/zsh"
+    // The apply step writes the completions hook into the home it is handed.
+    // Without a throwaway one this reads the developer's real rc: a machine
+    // that already carries a completions line takes the "already there" branch
+    // and gets nothing written — a result about THEIR shell, not this code.
+    mocks.home = freshHome()
     const { maybeRunOnboarding } = await import("../../src/cli/onboarding.ts")
     Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true })
     Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true })
     const result = await maybeRunOnboarding()
     if (savedShell !== undefined) process.env.SHELL = savedShell
     else process.env.SHELL = undefined
+    mocks.home = undefined
     expect(result).toBe(true)
     expect(mocks.setPersistedBool).toHaveBeenCalledWith("onboarded", true)
     // A resolved wizard delivered the keyboard page — the primer is done too.

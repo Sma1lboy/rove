@@ -199,6 +199,16 @@ describe("runCompletionsSubcommand with a shipped script", () => {
     expect(readFileSync(join(home, ".zshrc"), "utf8")).toContain("source <(kobe completions zsh)")
   })
 
+  test("--install says so when the rc already holds a hand-rolled block", async () => {
+    const home = mkdtempSync(join(tmpdir(), "kobe-completions-home-"))
+    const rc = join(home, ".zshrc")
+    writeFileSync(rc, "# mine\n# kobe completions\n_zsh_cached_completions kobe\n")
+    await runCompletionsSubcommand(["zsh", "--install"], "kobe", { shippedDir, home })
+    // A user's own loader is never clobbered — and the CLI must not claim otherwise.
+    expect(readFileSync(rc, "utf8")).toBe("# mine\n# kobe completions\n_zsh_cached_completions kobe\n")
+    expect(stdoutText()).toContain("already has a completions block")
+  })
+
   test("--path together with --install is a usage error, not a silent pick", async () => {
     await expect(runCompletionsSubcommand(["zsh", "--path", "--install"], "kobe", { shippedDir })).rejects.toThrow(
       "exit sentinel",

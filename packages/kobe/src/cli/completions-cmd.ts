@@ -110,8 +110,9 @@ export async function runCompletionsSubcommand(
     // and a static import here would make every `completions <shell>` pay for
     // the i18n store and the whole onboarding graph.
     const [{ installCompletions }, { t }] = await Promise.all([import("./onboarding.ts"), import("../tui/i18n")])
-    const target = installCompletions(shell, deps.home, cliName, shipped)
-    process.stdout.write(`${t("onboarding.appliedCompletions", { path: target })}\n`)
+    const completion = installCompletions(shell, deps.home, cliName, shipped)
+    const line = completion.installed ? "onboarding.appliedCompletions" : "onboarding.keptCompletions"
+    process.stdout.write(`${t(line, { path: completion.path })}\n`)
     return
   }
 

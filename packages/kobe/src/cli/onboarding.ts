@@ -75,11 +75,25 @@ function shippedScriptFor(shell: ShellKind, cli: ProductCliName): string | null 
   return existsSync(path) ? path : null
 }
 
+/** What {@link installCompletions} did. */
+export interface CompletionInstall {
+  /** The rc file (or fish autoload file) the hook lives in. */
+  readonly path: string
+  /**
+   * False when the file already covered this shell, so nothing was written —
+   * the caller must not claim it installed something. A hand-rolled
+   * `# <cli> completions` block the user wrote themselves lands here too:
+   * their file, their line, never clobbered.
+   */
+  readonly installed: boolean
+}
+
 /**
- * Hook completions into the shell, returning the file that was touched.
- * zsh/bash get one `source "<shipped script>"` line in their rc file (the
- * generated zsh script self-registers via compdef when sourced); fish gets a
- * one-liner in its autoload directory, which fish reads with no rc edit.
+ * Hook completions into the shell, returning the file it touched and whether
+ * this call wrote it. zsh/bash get one `source "<shipped script>"` line in
+ * their rc file (the generated zsh script self-registers via compdef when
+ * sourced); fish gets a one-liner in its autoload directory, which fish reads
+ * with no rc edit.
  *
  * `shipped` defaults to the script generated beside the installed bundle, so
  * completions track the binary that owns them and can never go stale.
@@ -89,28 +103,29 @@ export function installCompletions(
   home: string = homedir(),
   cli: ProductCliName = activeCliName(),
   shipped: string | null = shippedScriptFor(shell, cli),
-): string {
+): CompletionInstall {
   const hook = completionHook(shell, cli, shipped)
   if (shell === "fish") {
     const dir = join(home, ".config", "fish", "completions")
     const path = join(dir, `${cli}.fish`)
     mkdirSync(dir, { recursive: true })
     writeFileSync(path, `${hook}\n`)
-    return path
+    return { path, installed: true }
   }
   const rc = join(home, shell === "zsh" ? ".zshrc" : ".bashrc")
   const existing = existsSync(rc) ? readFileSync(rc, "utf8") : ""
-  if (existing.includes(hook)) return rc
+  if (existing.includes(hook)) return { path: rc, installed: false }
   // An install from before the pre-generated files: upgrade that one line in
   // place rather than deciding the user is already hooked.
   const legacy = legacyCompletionHook(shell, cli)
   if (existing.includes(legacy)) {
     writeFileSync(rc, existing.replace(legacy, hook))
-    return rc
+    return { path: rc, installed: true }
   }
   // Anything else mentioning `<cli> completions` is the user's own block.
-  if (!existing.includes(`${cli} completions`)) appendFileSync(rc, `\n# ${cli} completions\n${hook}\n`)
-  return rc
+  if (existing.includes(`${cli} completions`)) return { path: rc, installed: false }
+  appendFileSync(rc, `\n# ${cli} completions\n${hook}\n`)
+  return { path: rc, installed: true }
 }
 
 function isOnboarded(): boolean {
@@ -175,7 +190,12 @@ export function applyOnboardingChoices(
   const out = (line: string) => process.stdout.write(`${line}\n`)
   if (shell !== null) {
     if (choices.completions) {
-      out(t("onboarding.appliedCompletions", { path: installCompletions(shell) }))
+      const completion = installCompletions(shell)
+      out(
+        t(completion.installed ? "onboarding.appliedCompletions" : "onboarding.keptCompletions", {
+          path: completion.path,
+        }),
+      )
     } else {
       out(t("onboarding.skippedCompletions", { command: completionsHelp }))
     }
