@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.192
+
+### Patch Changes
+
+- [#995](https://github.com/Sma1lboy/rove/pull/995) [`7604cca`](https://github.com/Sma1lboy/rove/commit/7604cca7748686410317c79e57918125814d56bb) `rove completions <shell> --install` no longer reports a hook it did not write. When your shell config already carried a completions block — a cache shim of your own, or a hand-rolled `# rove completions` line — the command (and the first-run wizard) printed "✓ completions hooked into ~/.zshrc" while leaving the file alone, which is exactly the case a user replacing their own shim needs an honest answer for. It now says the file was left untouched. Your block is still never edited: the only line rove rewrites in place is the live `source <(…)` line an older rove wrote itself. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#994](https://github.com/Sma1lboy/rove/pull/994) [`d916a9a`](https://github.com/Sma1lboy/rove/commit/d916a9a748b420fdb70db17468850c0d67df207f) Shell completions no longer cost a process per shell. The script is a build-time constant — 1876 bytes of static text — but `source <(rove completions zsh)` started the CLI (node launcher → bun, ~0.3s) on every new shell just to print it, so anyone who minded had to write their own cache shim. The build now bakes the same generators' output into `dist/completions/<rove|kobe>.<bash|zsh|fish>` and ships it: `rove completions zsh --path` prints that file's path, `rove completions zsh --install` writes `source "<path>"` into your rc file (fish gets a guard one-liner in its autoload directory), and the first-run wizard writes that form too. Measured on the machine this came from: 0.33s → 0.05s of shell startup. The script lives beside the binary that owns it, so it cannot go stale across upgrades; `--install` rewrites in place the live `source <(…)` line an older rove left in the rc file, and a source checkout (no `dist`) keeps generating on the fly — `--path` there fails loudly instead of printing a path that does not exist. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.191
 
 ### Patch Changes
