@@ -2,15 +2,15 @@
 // Terminal-mock content (branch names, TUI chrome) deliberately stays English.
 var KOBE_I18N = (function () {
   var zh = {
+    'nav.assembly': '总装图',
     'meta.title': 'Rove — 主题',
-    'meta.desc': '每个内置 Rove 主题都由它真实的配色文件渲染，另附如何编写并发布你自己的主题。一个主题就是一个 JSON 文件，没有需要挤进去的注册表。',
-    'nav.workflow': '--原语', 'nav.install': '--安装', 'nav.docs': '--文档', 'nav.plugins': '--插件', 'nav.themes': '--主题', 'nav.changelog': '--更新日志',
+    'meta.desc': '每个内置 Rove 主题都由它真实的配色文件渲染，另附如何编写并发布你自己的主题。一个主题就是一个 JSON 文件，没有需要挤进去的注册表。', 'nav.docs': '文档', 'nav.plugins': '插件', 'nav.themes': '主题', 'nav.changelog': '更新日志',
     'head.kicker': '外观',
     'head.title': '内置三套，<span class="acc">另外十套</span>一条命令。',
     'head.lede': '下面每一块面板都由真实的主题文件绘制——就是 Rove 启动时加载的那份 JSON，不是谁手工调色的截图。在 <code>设置 → General → Theme</code> 里挑内置的三套之一，其余的一条命令装上，或者自己写——一个主题就是一个 JSON 文件，没有需要挤进去的注册表。',
     'bundled.no': '1.0 · 内置',
     'bundled.title': '随 Rove 一起发布。',
-    'bundled.body': 'Rove 刻意把内置的一套保持得很小——用 <code>ctrl+,</code> 打开设置直接选，无需安装。每个预览都用该主题自己的色槽绘制侧边栏、选中的任务和一段 diff，所以你看到的就是实际会得到的对比度。每个主题同时定义了浅色模式，预览展示的是深色。',
+    'bundled.body': 'Rove 刻意把内置的一套保持得很小——用 <code>ctrl+a</code> <code>,</code> 打开设置直接选，无需安装。每个预览都用该主题自己的色槽绘制侧边栏、选中的任务和一段 diff，所以你看到的就是实际会得到的对比度。每个主题同时定义了浅色模式，预览展示的是深色。',
     'tag.default': '默认',
     'note.claude': '暖石墨配陶土色——Rove 自己的身份色，与 Claude Code 的配色一致。',
     'note.conductor': '近黑与近白。没有色相来跟你的 diff 抢注意力——投屏时首选这套。',
@@ -46,15 +46,15 @@ var KOBE_I18N = (function () {
     'footer.plugins': '插件', 'footer.changelog': '更新日志', 'footer.themedocs': '主题文档', 'footer.keybindings': '快捷键',
   };
   var en = {
+    'nav.assembly': 'Assembly',
     'meta.title': 'Rove: themes',
-    'meta.desc': "Every bundled Rove theme, rendered from its real color file, plus how to write and publish your own. A theme is one JSON file; there is no registry to get into.",
-    'nav.workflow': '--primitives', 'nav.install': '--install', 'nav.docs': '--docs', 'nav.plugins': '--plugins', 'nav.themes': '--themes', 'nav.changelog': '--changelog',
+    'meta.desc': "Every bundled Rove theme, rendered from its real color file, plus how to write and publish your own. A theme is one JSON file; there is no registry to get into.", 'nav.docs': 'Docs', 'nav.plugins': 'Plugins', 'nav.themes': 'Themes', 'nav.changelog': 'Changelog',
     'head.kicker': 'Appearance',
     'head.title': 'Three in the box, <span class="acc">ten more</span> a command away.',
     'head.lede': "Every panel below is drawn from a real theme file, the same JSON Rove loads at boot, not a screenshot someone re-tinted by hand. Pick one of the three bundled ones in <code>Settings → General → Theme</code>, install any of the rest with one command, or write your own. A theme is one JSON file, and there is no registry to get into.",
     'bundled.no': '1.0 · Bundled',
     'bundled.title': 'Ships with Rove.',
-    'bundled.body': "Rove keeps its bundled set deliberately small. Open Settings with <code>ctrl+,</code> and pick one; nothing to install. Each preview paints the sidebar, the selected task, and a diff with that theme's own slots, so what you see is the contrast you'll actually get. Every theme also defines a light mode; the previews show dark.",
+    'bundled.body': "Rove keeps its bundled set deliberately small. Open Settings with <code>ctrl+a</code> <code>,</code> and pick one; nothing to install. Each preview paints the sidebar, the selected task, and a diff with that theme's own slots, so what you see is the contrast you'll actually get. Every theme also defines a light mode; the previews show dark.",
     'tag.default': 'default',
     'note.claude': "Warm graphite and terracotta. Rove's own identity, matched to the Claude Code palette.",
     'note.conductor': 'Near-black and near-white. No hue competes with your diff. The one to reach for on a projector.',

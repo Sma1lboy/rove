@@ -17,446 +17,806 @@
 <meta name="twitter:image" content="https://rove.run/assets/og-card.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=DM+Sans:opsz,wght@9..40,300..700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/chrome.css">
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/blueprint.css">
 <link rel="stylesheet" href="/themes.css">
 </head>
 <body>
+<a class="skip" href="#main">Skip to drawing</a>
 
-<header class="navbar">
-  <span class="ps" aria-hidden="true">$</span>
-  <a class="bin" href="/">Rove</a>
-  <nav aria-label="Main">
-  <a class="nl" href="/#workflow" data-i18n="nav.workflow">--primitives</a>
-  <a class="nl" href="/#install" data-i18n="nav.install">--install</a>
-  <a class="nl" href="https://docs.rove.run" data-i18n="nav.docs">--docs</a>
-  <a class="nl" href="/plugins" data-i18n="nav.plugins">--plugins</a>
-  <a class="nl" href="/themes" aria-current="page" data-i18n="nav.themes">--themes</a>
-  <a class="nl" href="/changelog" data-i18n="nav.changelog">--changelog</a>
-  </nav>
-  <span class="caret" aria-hidden="true"></span>
-  <button id="langToggle" class="lang-btn">中文</button>
-  <a class="gh-link" href="https://github.com/Sma1lboy/rove" target="_blank" rel="noopener">
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" style="flex:none;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-    <span>GitHub</span>
-    <span class="gh-stars">
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" style="flex:none;"><path d="M8 .25l2.06 4.18 4.61.67-3.34 3.25.79 4.6L8 10.97l-4.12 2.17.79-4.6L1.33 5.1l4.61-.67L8 .25z"/></svg>
-      <span id="starCount">–</span>
-    </span>
-  </a>
-</header>
+<!-- shared draughting symbols: arrowheads, hatch ------------------------- -->
+<svg width="0" height="0" aria-hidden="true" style="position:absolute">
+  <defs>
+    <marker id="arw" viewBox="0 0 10 8" refX="9.4" refY="4" markerWidth="9" markerHeight="7.2" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M0 0.4 L10 4 L0 7.6 Z" fill="var(--ink-3)"/>
+    </marker>
+    <marker id="arwk" viewBox="0 0 10 8" refX="9.4" refY="4" markerWidth="8" markerHeight="6.4" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M0 0.4 L10 4 L0 7.6 Z" fill="var(--ink)"/>
+    </marker>
+    <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="7" stroke="var(--hatch)" stroke-width="1"/>
+    </pattern>
+    <pattern id="hatch2" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+      <line x1="0" y1="0" x2="0" y2="9" stroke="var(--hatch)" stroke-width="1"/>
+    </pattern>
+  </defs>
+</svg>
 
-<div class="wrap">
+<div class="sheet">
+<div class="inner">
+  <div class="zone-side" aria-hidden="true"><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span></div>
+  <div class="zone-top" aria-hidden="true">
+    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span>
+  </div>
 
-  <section class="top">
-    <p class="kicker" data-i18n="head.kicker">Appearance</p>
-    <h1 data-i18n-html="head.title">Three in the box, <span class="acc">ten more</span> a command away.</h1>
-    <p class="lede" data-i18n-html="head.lede">Every panel below is drawn from a real theme file, the same JSON Rove loads at boot, not a screenshot someone re-tinted by hand. Pick one of the three bundled ones in <code>Settings → General → Theme</code>, install any of the rest with one command, or write your own. A theme is one JSON file, and there is no registry to get into.</p>
-  </section>
+  <!-- HEADER -->
+  <header class="head">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 64 64" width="28" height="28" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#191713"/><path d="M19 13H12V51h7" stroke="#CC785C" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 13V51" stroke="#CC785C" stroke-width="4" fill="none" stroke-linecap="round"/><g transform="translate(19.811 45) scale(.01745 -.01745)"><path d="M111 0H419V521H689C690 521 691 521 692 521L956 0H1286L987 579C1154 656 1253 804 1253 1001C1253 1301 1043 1490 707 1490H111ZM419 768V1234H688C851 1234 952 1143 952 1001C952 859 851 768 689 768Z" fill="#EAE7DF"/></g><path d="M45 13h7V51h-7" stroke="#CC785C" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M52 13V51" stroke="#CC785C" stroke-width="4" fill="none" stroke-linecap="round"/></svg>
+      <span class="wm">Rove</span>
+    </a>
+    <span class="stamp">Rev 0.9.191 &middot; Sheet 3 of 4</span>
+    <span class="spacer"></span>
+    <nav aria-label="Primary">
+      <a href="https://docs.rove.run" data-i18n="nav.docs">Docs</a>
+      <a href="/" data-i18n="nav.assembly">Assembly</a>
+      <a href="/plugins" data-i18n="nav.plugins">Plugins</a>
+      <a href="/themes" aria-current="page" style="border-bottom-color:transparent;color:var(--accent-text)" data-i18n="nav.themes">Themes</a>
+      <a href="/changelog" data-i18n="nav.changelog">Changelog</a>
+    </nav>
+    <button id="langToggle" class="lang-btn">&#20013;&#25991;</button>
+    <a class="gh-link" href="https://github.com/Sma1lboy/rove" target="_blank" rel="noopener">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      <span>GitHub</span>
+      <span class="gh-stars">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M8 .25l2.06 4.18 4.61.67-3.34 3.25.79 4.6L8 10.97l-4.12 2.17.79-4.6L1.33 5.1l4.61-.67L8 .25z"/></svg>
+        <span id="starCount">&ndash;</span>
+      </span>
+    </a>
+  </header>
 
-  <div class="rule"></div>
+  <main id="main">
 
-  <section class="sec">
-    <p class="sec-no" data-i18n="bundled.no">1.0 · Bundled</p>
-    <h2 data-i18n="bundled.title">Ships with Rove.</h2>
-    <p class="body" data-i18n-html="bundled.body">Rove keeps its bundled set deliberately small. Open Settings with <code>ctrl+,</code> and pick one; nothing to install. Each preview paints the sidebar, the selected task, and a diff with that theme's own slots, so what you see is the contrast you'll actually get. Every theme also defines a light mode; the previews show dark.</p>
+  <!-- ZONE A — HERO -->
+  <section class="hero" data-zone="A">
+    <div class="hero-l">
+      <span class="kicker micro" data-i18n="head.kicker">Appearance</span>
+      <h1 data-i18n-html="head.title">Three in the box, <span class="acc">ten more</span> a command away.</h1>
+      <p class="lede" data-i18n-html="head.lede">Every panel below is drawn from a real theme file, the same JSON Rove loads at boot, not a screenshot someone re-tinted by hand. Pick one of the three bundled ones in <code>Settings &rarr; General &rarr; Theme</code>, install any of the rest with one command, or write your own. A theme is one JSON file, and there is no registry to get into.</p>
 
-    <div class="grid" id="grid">
-      <article class="tcard" style="--t-bg:#141413;--t-panel:#1A1917;--t-element:#2B2A27;--t-text:#EAE7DF;--t-muted:#A9A39A;--t-primary:#CC785C;--t-accent:#CC785C;--t-border:#3A3835;--t-bordersub:#2B2A27;--t-success:#9ACA86;--t-warning:#E8C96B;--t-error:#D47563;--t-seltext:#141413">
-        <div class="tc-head"><span class="tc-name">claude</span><span class="tc-tag" data-i18n="tag.default">default</span></div>
-        <p class="tc-note" data-i18n="note.claude">Warm graphite and terracotta. Rove's own identity, matched to the Claude Code palette.</p>
-        <div class="mock">
-          <div class="mock-side">
-            <div class="m-hdr">PROJECTS</div>
-            <div class="m-row"><span class="m-dot">●</span> rove</div>
-            <div class="m-hdr">TASKS</div>
-            <div class="m-row sel">fix/auth-retry</div>
-            <div class="m-row">feat/theme-picker</div>
-            <div class="m-row dim">chore/bump-deps</div>
-          </div>
-          <div class="mock-main">
-            <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
-            <div class="m-add">+ retry on 401 once</div>
-            <div class="m-del">- throw immediately</div>
-            <div class="m-ctx">  return session</div>
-            <div class="m-warn">! 2 files unstaged</div>
-            <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
-          </div>
-        </div>
-        <div class="sw">
-          <i style="background:#CC785C"></i><i style="background:#D4967E"></i><i style="background:#9ACA86"></i><i style="background:#E8C96B"></i><i style="background:#D47563"></i><i style="background:#61AAF2"></i>
-        </div>
-      </article>
-      <article class="tcard" style="--t-bg:#0a0a0a;--t-panel:#111111;--t-element:#181818;--t-text:#e8e8e8;--t-muted:#909090;--t-primary:#e8e8e8;--t-accent:#7da5c8;--t-border:#363636;--t-bordersub:#1f1f1f;--t-success:#7fd88f;--t-warning:#d6a668;--t-error:#e06c75;--t-seltext:#0a0a0a">
-        <div class="tc-head"><span class="tc-name">conductor</span><span class="tc-tag">mono</span></div>
-        <p class="tc-note" data-i18n="note.conductor">Near-black and near-white. No hue competes with your diff. The one to reach for on a projector.</p>
-        <div class="mock">
-          <div class="mock-side">
-            <div class="m-hdr">PROJECTS</div>
-            <div class="m-row"><span class="m-dot">●</span> rove</div>
-            <div class="m-hdr">TASKS</div>
-            <div class="m-row sel">fix/auth-retry</div>
-            <div class="m-row">feat/theme-picker</div>
-            <div class="m-row dim">chore/bump-deps</div>
-          </div>
-          <div class="mock-main">
-            <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
-            <div class="m-add">+ retry on 401 once</div>
-            <div class="m-del">- throw immediately</div>
-            <div class="m-ctx">  return session</div>
-            <div class="m-warn">! 2 files unstaged</div>
-            <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
-          </div>
-        </div>
-        <div class="sw">
-          <i style="background:#e8e8e8"></i><i style="background:#9bc3e3"></i><i style="background:#7fd88f"></i><i style="background:#d6a668"></i><i style="background:#e06c75"></i><i style="background:#7da5c8"></i>
-        </div>
-      </article>
-      <article class="tcard" style="--t-bg:#1a1b26;--t-panel:#1e2030;--t-element:#222436;--t-text:#c8d3f5;--t-muted:#828bb8;--t-primary:#82aaff;--t-accent:#ff966c;--t-border:#737aa2;--t-bordersub:#545c7e;--t-success:#c3e88d;--t-warning:#ff966c;--t-error:#ff757f;--t-seltext:#1a1b26">
-        <div class="tc-head"><span class="tc-name">tokyonight</span><span class="tc-tag">cool</span></div>
-        <p class="tc-note" data-i18n="note.tokyonight">Indigo night with a coral accent. Pairs with the tokyonight setup you probably already run in nvim.</p>
-        <div class="mock">
-          <div class="mock-side">
-            <div class="m-hdr">PROJECTS</div>
-            <div class="m-row"><span class="m-dot">●</span> rove</div>
-            <div class="m-hdr">TASKS</div>
-            <div class="m-row sel">fix/auth-retry</div>
-            <div class="m-row">feat/theme-picker</div>
-            <div class="m-row dim">chore/bump-deps</div>
-          </div>
-          <div class="mock-main">
-            <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
-            <div class="m-add">+ retry on 401 once</div>
-            <div class="m-del">- throw immediately</div>
-            <div class="m-ctx">  return session</div>
-            <div class="m-warn">! 2 files unstaged</div>
-            <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
+      <button id="copyBtn" class="copy" aria-label="Copy the install command">
+        <span class="tag" aria-hidden="true">Apply</span>
+        <span class="cmd">rove theme add &lt;raw-url&gt;</span>
+        <span id="copyLabel" class="hint">click to copy</span>
+      </button>
+      <div class="alts">
+        <button class="alt" data-cmd="rove theme list">rove theme list</button>
+        <button class="alt" data-cmd="rove theme add ./my-theme.json --name darkside">rove theme add ./my-theme.json --name darkside</button>
+        <button class="alt" data-cmd="rove theme remove darkside">rove theme remove darkside</button>
+      </div>
+    </div>
+
+    <div class="hero-r">
+      <div class="subject" data-measure="1 JSON FILE" data-measure-axis="y">
+        <div class="cap micro">Subject of drawing</div>
+        <div class="body">
+          <div class="eq">
+            <div class="row"><span class="op"></span><span class="lhs">One finish</span></div>
+            <div class="row"><span class="op">=</span><span class="bl">1</span><span>theme</span></div>
+            <div class="row"><span class="op">+</span><span class="bl">2</span><span>defs</span></div>
+            <div class="row"><span class="op">+</span><span class="bl">3</span><span>$schema</span></div>
           </div>
         </div>
-        <div class="sw">
-          <i style="background:#82aaff"></i><i style="background:#c099ff"></i><i style="background:#c3e88d"></i><i style="background:#ff966c"></i><i style="background:#ff757f"></i><i style="background:#82aaff"></i>
-        </div>
-      </article>
+        <div class="foot micro"><span>See Fig. 3-2</span><span>1 required</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <svg width="62" height="30" viewBox="0 0 62 30" aria-hidden="true">
+          <rect x="2" y="7" width="17" height="16" class="thin"/>
+          <rect x="21" y="7" width="17" height="16" class="thin" fill="url(#hatch)"/>
+          <rect x="40" y="7" width="20" height="16" class="acc"/>
+          <line x1="2" y1="27" x2="60" y2="27" class="dim"/>
+        </svg>
+        <span class="micro">Specimen, three coats</span>
+      </div>
     </div>
   </section>
 
-  <section class="sec">
-    <p class="sec-no" data-i18n="dl.no">2.0 · Downloadable</p>
-    <h2 data-i18n="dl.title">Ten more, one command away.</h2>
-    <p class="body" data-i18n-html="dl.body">These live here as plain JSON instead of inside the binary, which is all a theme ever is. Copy the command, run it, restart Rove. Several of them shipped bundled in earlier versions; nothing changed about them except where they're stored.</p>
-    <div class="grid">
-      <article class="tcard" style="--t-bg:#282a36;--t-panel:#21222c;--t-element:#44475a;--t-text:#f8f8f2;--t-muted:#6272a4;--t-primary:#bd93f9;--t-accent:#8be9fd;--t-border:#44475a;--t-bordersub:#191a21;--t-success:#50fa7b;--t-warning:#f1fa8c;--t-error:#ff5555;--t-seltext:#282a36">
-        <div class="tc-head"><span class="tc-name">dracula</span><span class="tc-tag">classic</span></div>
-        <p class="tc-note" data-i18n="note.dracula">The one everybody already has muscle memory for. Highest-saturation set here.</p>
-        <div class="mock">
-          <div class="mock-side">
-            <div class="m-hdr">PROJECTS</div>
-            <div class="m-row"><span class="m-dot">●</span> rove</div>
-            <div class="m-hdr">TASKS</div>
-            <div class="m-row sel">fix/auth-retry</div>
-            <div class="m-row">feat/theme-picker</div>
-            <div class="m-row dim">chore/bump-deps</div>
-          </div>
-          <div class="mock-main">
-            <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
-            <div class="m-add">+ retry on 401 once</div>
-            <div class="m-del">- throw immediately</div>
-            <div class="m-ctx">  return session</div>
-            <div class="m-warn">! 2 files unstaged</div>
-            <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
-          </div>
-        </div>
-        <div class="sw">
-          <i style="background:#bd93f9"></i><i style="background:#ff79c6"></i><i style="background:#50fa7b"></i><i style="background:#f1fa8c"></i><i style="background:#ff5555"></i><i style="background:#8be9fd"></i>
-        </div>
-        <button class="tc-cmd" data-cmd="https://rove.run/themes/dracula.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>dracula.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
-      </article>
-      <article class="tcard" style="--t-bg:#2E3440;--t-panel:#3B4252;--t-element:#434C5E;--t-text:#ECEFF4;--t-muted:#8B95A7;--t-primary:#88C0D0;--t-accent:#8FBCBB;--t-border:#434C5E;--t-bordersub:#434C5E;--t-success:#A3BE8C;--t-warning:#D08770;--t-error:#BF616A;--t-seltext:#2E3440">
-        <div class="tc-head"><span class="tc-name">nord</span><span class="tc-tag">cool</span></div>
-        <p class="tc-note" data-i18n="note.nord">Arctic blue-grey, low contrast by design. The calmest option for long sessions.</p>
-        <div class="mock">
-          <div class="mock-side">
-            <div class="m-hdr">PROJECTS</div>
-            <div class="m-row"><span class="m-dot">●</span> rove</div>
-            <div class="m-hdr">TASKS</div>
-            <div class="m-row sel">fix/auth-retry</div>
-            <div class="m-row">feat/theme-picker</div>
-            <div class="m-row dim">chore/bump-deps</div>
-          </div>
-          <div class="mock-main">
-            <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
-            <div class="m-add">+ retry on 401 once</div>
-            <div class="m-del">- throw immediately</div>
-            <div class="m-ctx">  return session</div>
-            <div class="m-warn">! 2 files unstaged</div>
-            <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
-          </div>
-        </div>
-        <div class="sw">
-          <i style="background:#88C0D0"></i><i style="background:#81A1C1"></i><i style="background:#A3BE8C"></i><i style="background:#D08770"></i><i style="background:#BF616A"></i><i style="background:#8FBCBB"></i>
-        </div>
-        <button class="tc-cmd" data-cmd="https://rove.run/themes/nord.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>nord.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
-      </article>
-      <article class="tcard" style="--t-bg:#161616;--t-panel:#1f1f1f;--t-element:#282828;--t-text:#eeeeee;--t-muted:#808080;--t-primary:#fab283;--t-accent:#7da5c8;--t-border:#545454;--t-bordersub:#484848;--t-success:#7fd88f;--t-warning:#f5a742;--t-error:#e06c75;--t-seltext:#161616">
-        <div class="tc-head"><span class="tc-name">opencode</span><span class="tc-tag">warm dark</span></div>
-        <p class="tc-note" data-i18n="note.opencode">Neutral charcoal with a sand accent. Familiar if you came from opencode.</p>
-        <div class="mock">
-          <div class="mock-side">
-            <div class="m-hdr">PROJECTS</div>
-            <div class="m-row"><span class="m-dot">●</span> rove</div>
-            <div class="m-hdr">TASKS</div>
-            <div class="m-row sel">fix/auth-retry</div>
-            <div class="m-row">feat/theme-picker</div>
-            <div class="m-row dim">chore/bump-deps</div>
-          </div>
-          <div class="mock-main">
-            <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
-            <div class="m-add">+ retry on 401 once</div>
-            <div class="m-del">- throw immediately</div>
-            <div class="m-ctx">  return session</div>
-            <div class="m-warn">! 2 files unstaged</div>
-            <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
-          </div>
-        </div>
-        <div class="sw">
-          <i style="background:#fab283"></i><i style="background:#5c9cf5"></i><i style="background:#7fd88f"></i><i style="background:#f5a742"></i><i style="background:#e06c75"></i><i style="background:#56b6c2"></i>
-        </div>
-        <button class="tc-cmd" data-cmd="https://rove.run/themes/opencode.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>opencode.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
-      </article>
-      <article class="tcard" style="--t-bg:#111c18;--t-panel:#1a2520;--t-element:#23372B;--t-text:#C1C497;--t-muted:#53685B;--t-primary:#2DD5B7;--t-accent:#2DD5B7;--t-border:#3d4a44;--t-bordersub:#23372B;--t-success:#549e6a;--t-warning:#E5C736;--t-error:#FF5345;--t-seltext:#111c18">
-        <div class="tc-head"><span class="tc-name">osaka-jade</span><span class="tc-tag">high contrast</span></div>
-        <p class="tc-note" data-i18n="note.osaka">Deep jade ground with a mint signal color. The most opinionated set, and the loudest running indicator.</p>
-        <div class="mock">
-          <div class="mock-side">
-            <div class="m-hdr">PROJECTS</div>
-            <div class="m-row"><span class="m-dot">●</span> rove</div>
-            <div class="m-hdr">TASKS</div>
-            <div class="m-row sel">fix/auth-retry</div>
-            <div class="m-row">feat/theme-picker</div>
-            <div class="m-row dim">chore/bump-deps</div>
-          </div>
-          <div class="mock-main">
-            <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
-            <div class="m-add">+ retry on 401 once</div>
-            <div class="m-del">- throw immediately</div>
-            <div class="m-ctx">  return session</div>
-            <div class="m-warn">! 2 files unstaged</div>
-            <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
-          </div>
-        </div>
-        <div class="sw">
-          <i style="background:#2DD5B7"></i><i style="background:#D2689C"></i><i style="background:#549e6a"></i><i style="background:#E5C736"></i><i style="background:#FF5345"></i><i style="background:#C1C497"></i>
-        </div>
-        <button class="tc-cmd" data-cmd="https://rove.run/themes/osaka-jade.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>osaka-jade.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
-      </article>
-      <article class="tcard" style="--t-bg:#1d2021;--t-panel:#282828;--t-element:#32302f;--t-text:#ebdbb2;--t-muted:#a89984;--t-primary:#fe8019;--t-accent:#fabd2f;--t-border:#7c6f64;--t-bordersub:#665c54;--t-success:#b8bb26;--t-warning:#fabd2f;--t-error:#fb4934;--t-seltext:#1d2021">
-        <div class="tc-head"><span class="tc-name">gruvbox</span><span class="tc-tag">retro</span></div>
-        <p class="tc-note" data-i18n="note.gruvbox"></p>
-        <div class="mock">
-          <div class="mock-side">
-            <div class="m-hdr">PROJECTS</div>
-            <div class="m-row"><span class="m-dot">●</span> rove</div>
-            <div class="m-hdr">TASKS</div>
-            <div class="m-row sel">fix/auth-retry</div>
-            <div class="m-row">feat/theme-picker</div>
-            <div class="m-row dim">chore/bump-deps</div>
-          </div>
-          <div class="mock-main">
-            <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
-            <div class="m-add">+ retry on 401 once</div>
-            <div class="m-del">- throw immediately</div>
-            <div class="m-ctx">  return session</div>
-            <div class="m-warn">! 2 files unstaged</div>
-            <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
-          </div>
-        </div>
-        <div class="sw"><i style="background:#fe8019"></i><i style="background:#d3869b"></i><i style="background:#b8bb26"></i><i style="background:#fabd2f"></i><i style="background:#fb4934"></i><i style="background:#fe8019"></i></div>
-        <button class="tc-cmd" data-cmd="https://rove.run/themes/gruvbox.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>gruvbox.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
-      </article>
-      <article class="tcard" style="--t-bg:#1e1e2e;--t-panel:#181825;--t-element:#313244;--t-text:#cdd6f4;--t-muted:#a6adc8;--t-primary:#cba6f7;--t-accent:#b4befe;--t-border:#7f849c;--t-bordersub:#6c7086;--t-success:#a6e3a1;--t-warning:#f9e2af;--t-error:#f38ba8;--t-seltext:#1e1e2e">
-        <div class="tc-head"><span class="tc-name">catppuccin</span><span class="tc-tag">pastel</span></div>
-        <p class="tc-note" data-i18n="note.catppuccin"></p>
-        <div class="mock">
-          <div class="mock-side">
-            <div class="m-hdr">PROJECTS</div>
-            <div class="m-row"><span class="m-dot">●</span> rove</div>
-            <div class="m-hdr">TASKS</div>
-            <div class="m-row sel">fix/auth-retry</div>
-            <div class="m-row">feat/theme-picker</div>
-            <div class="m-row dim">chore/bump-deps</div>
-          </div>
-          <div class="mock-main">
-            <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
-            <div class="m-add">+ retry on 401 once</div>
-            <div class="m-del">- throw immediately</div>
-            <div class="m-ctx">  return session</div>
-            <div class="m-warn">! 2 files unstaged</div>
-            <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
-          </div>
-        </div>
-        <div class="sw"><i style="background:#cba6f7"></i><i style="background:#cba6f7"></i><i style="background:#a6e3a1"></i><i style="background:#f9e2af"></i><i style="background:#f38ba8"></i><i style="background:#cba6f7"></i></div>
-        <button class="tc-cmd" data-cmd="https://rove.run/themes/catppuccin.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>catppuccin.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
-      </article>
-      <article class="tcard" style="--t-bg:#191724;--t-panel:#1f1d2e;--t-element:#26233a;--t-text:#e0def4;--t-muted:#908caa;--t-primary:#c4a7e7;--t-accent:#ebbcba;--t-border:#6e6a86;--t-bordersub:#524f67;--t-success:#31748f;--t-warning:#f6c177;--t-error:#eb6f92;--t-seltext:#191724">
-        <div class="tc-head"><span class="tc-name">rose-pine</span><span class="tc-tag">muted</span></div>
-        <p class="tc-note" data-i18n="note.rosepine"></p>
-        <div class="mock">
-          <div class="mock-side">
-            <div class="m-hdr">PROJECTS</div>
-            <div class="m-row"><span class="m-dot">●</span> rove</div>
-            <div class="m-hdr">TASKS</div>
-            <div class="m-row sel">fix/auth-retry</div>
-            <div class="m-row">feat/theme-picker</div>
-            <div class="m-row dim">chore/bump-deps</div>
-          </div>
-          <div class="mock-main">
-            <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
-            <div class="m-add">+ retry on 401 once</div>
-            <div class="m-del">- throw immediately</div>
-            <div class="m-ctx">  return session</div>
-            <div class="m-warn">! 2 files unstaged</div>
-            <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
-          </div>
-        </div>
-        <div class="sw"><i style="background:#c4a7e7"></i><i style="background:#c4a7e7"></i><i style="background:#31748f"></i><i style="background:#f6c177"></i><i style="background:#eb6f92"></i><i style="background:#c4a7e7"></i></div>
-        <button class="tc-cmd" data-cmd="https://rove.run/themes/rose-pine.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>rose-pine.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
-      </article>
-      <article class="tcard" style="--t-bg:#2d353b;--t-panel:#272e33;--t-element:#343f44;--t-text:#d3c6aa;--t-muted:#9da9a0;--t-primary:#a7c080;--t-accent:#83c092;--t-border:#56635f;--t-bordersub:#4f585e;--t-success:#a7c080;--t-warning:#dbbc7f;--t-error:#e67e80;--t-seltext:#2d353b">
-        <div class="tc-head"><span class="tc-name">everforest</span><span class="tc-tag">forest</span></div>
-        <p class="tc-note" data-i18n="note.everforest"></p>
-        <div class="mock">
-          <div class="mock-side">
-            <div class="m-hdr">PROJECTS</div>
-            <div class="m-row"><span class="m-dot">●</span> rove</div>
-            <div class="m-hdr">TASKS</div>
-            <div class="m-row sel">fix/auth-retry</div>
-            <div class="m-row">feat/theme-picker</div>
-            <div class="m-row dim">chore/bump-deps</div>
-          </div>
-          <div class="mock-main">
-            <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
-            <div class="m-add">+ retry on 401 once</div>
-            <div class="m-del">- throw immediately</div>
-            <div class="m-ctx">  return session</div>
-            <div class="m-warn">! 2 files unstaged</div>
-            <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
-          </div>
-        </div>
-        <div class="sw"><i style="background:#a7c080"></i><i style="background:#d699b6"></i><i style="background:#a7c080"></i><i style="background:#dbbc7f"></i><i style="background:#e67e80"></i><i style="background:#a7c080"></i></div>
-        <button class="tc-cmd" data-cmd="https://rove.run/themes/everforest.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>everforest.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
-      </article>
-      <article class="tcard" style="--t-bg:#1f1f28;--t-panel:#16161d;--t-element:#2a2a37;--t-text:#dcd7ba;--t-muted:#c8c093;--t-primary:#7e9cd8;--t-accent:#7fb4ca;--t-border:#727169;--t-bordersub:#54546d;--t-success:#98bb6c;--t-warning:#e6c384;--t-error:#e46876;--t-seltext:#1f1f28">
-        <div class="tc-head"><span class="tc-name">kanagawa</span><span class="tc-tag">ukiyo-e</span></div>
-        <p class="tc-note" data-i18n="note.kanagawa"></p>
-        <div class="mock">
-          <div class="mock-side">
-            <div class="m-hdr">PROJECTS</div>
-            <div class="m-row"><span class="m-dot">●</span> rove</div>
-            <div class="m-hdr">TASKS</div>
-            <div class="m-row sel">fix/auth-retry</div>
-            <div class="m-row">feat/theme-picker</div>
-            <div class="m-row dim">chore/bump-deps</div>
-          </div>
-          <div class="mock-main">
-            <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
-            <div class="m-add">+ retry on 401 once</div>
-            <div class="m-del">- throw immediately</div>
-            <div class="m-ctx">  return session</div>
-            <div class="m-warn">! 2 files unstaged</div>
-            <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
-          </div>
-        </div>
-        <div class="sw"><i style="background:#7e9cd8"></i><i style="background:#957fb8"></i><i style="background:#98bb6c"></i><i style="background:#e6c384"></i><i style="background:#e46876"></i><i style="background:#7e9cd8"></i></div>
-        <button class="tc-cmd" data-cmd="https://rove.run/themes/kanagawa.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>kanagawa.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
-      </article>
-      <article class="tcard" style="--t-bg:#002b36;--t-panel:#00212b;--t-element:#073642;--t-text:#eee8d5;--t-muted:#93a1a1;--t-primary:#268bd2;--t-accent:#2aa198;--t-border:#586e75;--t-bordersub:#356266;--t-success:#859900;--t-warning:#b58900;--t-error:#dc322f;--t-seltext:#002b36">
-        <div class="tc-head"><span class="tc-name">solarized</span><span class="tc-tag">classic</span></div>
-        <p class="tc-note" data-i18n="note.solarized"></p>
-        <div class="mock">
-          <div class="mock-side">
-            <div class="m-hdr">PROJECTS</div>
-            <div class="m-row"><span class="m-dot">●</span> rove</div>
-            <div class="m-hdr">TASKS</div>
-            <div class="m-row sel">fix/auth-retry</div>
-            <div class="m-row">feat/theme-picker</div>
-            <div class="m-row dim">chore/bump-deps</div>
-          </div>
-          <div class="mock-main">
-            <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
-            <div class="m-add">+ retry on 401 once</div>
-            <div class="m-del">- throw immediately</div>
-            <div class="m-ctx">  return session</div>
-            <div class="m-warn">! 2 files unstaged</div>
-            <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
-          </div>
-        </div>
-        <div class="sw"><i style="background:#268bd2"></i><i style="background:#6c71c4"></i><i style="background:#859900"></i><i style="background:#b58900"></i><i style="background:#dc322f"></i><i style="background:#268bd2"></i></div>
-        <button class="tc-cmd" data-cmd="https://rove.run/themes/solarized.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>solarized.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
-      </article>
+  <!-- ZONE B — NOTE 1, THE SCHEDULE -->
+  <section class="note wide" data-zone="B">
+    <h2><span class="num">Note 1</span> &mdash; Finish schedule <span class="dash"></span> <span class="micro">All finishes, dark specimen</span></h2>
+
+    <div class="fig-col">
+      <div class="t-scroll">
+        <table class="sched" data-measure="13 FINISHES">
+          <caption>Schedule of finishes &mdash; 3 bundled, 10 hosted</caption>
+          <thead>
+            <tr>
+              <th class="t-item">Code</th>
+              <th>Finish</th>
+              <th>Class</th>
+              <th class="t-n">Slots</th>
+              <th>Ground</th>
+              <th>Source</th>
+              <th>Specimen &mdash; ground &middot; panel &middot; border &middot; text &middot; primary &middot; accent &middot; success &middot; warning &middot; error</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="--sp-bg:#141413;--sp-panel:#1A1917;--sp-bd:#3A3835;--sp-txt:#EAE7DF;--sp-pri:#CC785C;--sp-acc:#CC785C;--sp-ok:#9ACA86;--sp-wrn:#E8C96B;--sp-err:#D47563">
+              <td class="t-item">B-01</td><th scope="row">claude</th><td class="t-class">Bundled &middot; default</td><td class="t-n">54</td><td class="t-hex">#141413</td><td class="t-src">in the box</td>
+              <td><span class="sp" role="img" aria-label="claude specimen: ground #141413, panel #1A1917, border #3A3835, text #EAE7DF, primary #CC785C, accent #CC785C, success #9ACA86, warning #E8C96B, error #D47563"><i class="c-bg"></i><i class="c-panel"></i><i class="c-bd"></i><i class="c-txt"></i><i class="c-pri"></i><i class="c-acc"></i><i class="c-ok"></i><i class="c-wrn"></i><i class="c-err"></i></span></td>
+            </tr>
+            <tr style="--sp-bg:#0a0a0a;--sp-panel:#111111;--sp-bd:#363636;--sp-txt:#e8e8e8;--sp-pri:#e8e8e8;--sp-acc:#7da5c8;--sp-ok:#7fd88f;--sp-wrn:#d6a668;--sp-err:#e06c75">
+              <td class="t-item">B-02</td><th scope="row">conductor</th><td class="t-class">Bundled</td><td class="t-n">35</td><td class="t-hex">#0a0a0a</td><td class="t-src">in the box</td>
+              <td><span class="sp" role="img" aria-label="conductor specimen: ground #0a0a0a, panel #111111, border #363636, text #e8e8e8, primary #e8e8e8, accent #7da5c8, success #7fd88f, warning #d6a668, error #e06c75"><i class="c-bg"></i><i class="c-panel"></i><i class="c-bd"></i><i class="c-txt"></i><i class="c-pri"></i><i class="c-acc"></i><i class="c-ok"></i><i class="c-wrn"></i><i class="c-err"></i></span></td>
+            </tr>
+            <tr style="--sp-bg:#1a1b26;--sp-panel:#1e2030;--sp-bd:#737aa2;--sp-txt:#c8d3f5;--sp-pri:#82aaff;--sp-acc:#ff966c;--sp-ok:#c3e88d;--sp-wrn:#ff966c;--sp-err:#ff757f">
+              <td class="t-item">B-03</td><th scope="row">tokyonight</th><td class="t-class">Bundled</td><td class="t-n">50</td><td class="t-hex">#1a1b26</td><td class="t-src">in the box</td>
+              <td><span class="sp" role="img" aria-label="tokyonight specimen: ground #1a1b26, panel #1e2030, border #737aa2, text #c8d3f5, primary #82aaff, accent #ff966c, success #c3e88d, warning #ff966c, error #ff757f"><i class="c-bg"></i><i class="c-panel"></i><i class="c-bd"></i><i class="c-txt"></i><i class="c-pri"></i><i class="c-acc"></i><i class="c-ok"></i><i class="c-wrn"></i><i class="c-err"></i></span></td>
+            </tr>
+            <tr style="--sp-bg:#1e1e2e;--sp-panel:#181825;--sp-bd:#7f849c;--sp-txt:#cdd6f4;--sp-pri:#cba6f7;--sp-acc:#b4befe;--sp-ok:#a6e3a1;--sp-wrn:#f9e2af;--sp-err:#f38ba8">
+              <td class="t-item">H-01</td><th scope="row">catppuccin</th><td class="t-class">Hosted</td><td class="t-n">53</td><td class="t-hex">#1e1e2e</td><td class="t-src">rove.run/themes</td>
+              <td><span class="sp" role="img" aria-label="catppuccin specimen: ground #1e1e2e, panel #181825, border #7f849c, text #cdd6f4, primary #cba6f7, accent #b4befe, success #a6e3a1, warning #f9e2af, error #f38ba8"><i class="c-bg"></i><i class="c-panel"></i><i class="c-bd"></i><i class="c-txt"></i><i class="c-pri"></i><i class="c-acc"></i><i class="c-ok"></i><i class="c-wrn"></i><i class="c-err"></i></span></td>
+            </tr>
+            <tr style="--sp-bg:#282a36;--sp-panel:#21222c;--sp-bd:#44475a;--sp-txt:#f8f8f2;--sp-pri:#bd93f9;--sp-acc:#8be9fd;--sp-ok:#50fa7b;--sp-wrn:#f1fa8c;--sp-err:#ff5555">
+              <td class="t-item">H-02</td><th scope="row">dracula</th><td class="t-class">Hosted</td><td class="t-n">50</td><td class="t-hex">#282a36</td><td class="t-src">rove.run/themes</td>
+              <td><span class="sp" role="img" aria-label="dracula specimen: ground #282a36, panel #21222c, border #44475a, text #f8f8f2, primary #bd93f9, accent #8be9fd, success #50fa7b, warning #f1fa8c, error #ff5555"><i class="c-bg"></i><i class="c-panel"></i><i class="c-bd"></i><i class="c-txt"></i><i class="c-pri"></i><i class="c-acc"></i><i class="c-ok"></i><i class="c-wrn"></i><i class="c-err"></i></span></td>
+            </tr>
+            <tr style="--sp-bg:#2d353b;--sp-panel:#272e33;--sp-bd:#56635f;--sp-txt:#d3c6aa;--sp-pri:#a7c080;--sp-acc:#83c092;--sp-ok:#a7c080;--sp-wrn:#dbbc7f;--sp-err:#e67e80">
+              <td class="t-item">H-03</td><th scope="row">everforest</th><td class="t-class">Hosted</td><td class="t-n">53</td><td class="t-hex">#2d353b</td><td class="t-src">rove.run/themes</td>
+              <td><span class="sp" role="img" aria-label="everforest specimen: ground #2d353b, panel #272e33, border #56635f, text #d3c6aa, primary #a7c080, accent #83c092, success #a7c080, warning #dbbc7f, error #e67e80"><i class="c-bg"></i><i class="c-panel"></i><i class="c-bd"></i><i class="c-txt"></i><i class="c-pri"></i><i class="c-acc"></i><i class="c-ok"></i><i class="c-wrn"></i><i class="c-err"></i></span></td>
+            </tr>
+            <tr style="--sp-bg:#1d2021;--sp-panel:#282828;--sp-bd:#7c6f64;--sp-txt:#ebdbb2;--sp-pri:#fe8019;--sp-acc:#fabd2f;--sp-ok:#b8bb26;--sp-wrn:#fabd2f;--sp-err:#fb4934">
+              <td class="t-item">H-04</td><th scope="row">gruvbox</th><td class="t-class">Hosted</td><td class="t-n">53</td><td class="t-hex">#1d2021</td><td class="t-src">rove.run/themes</td>
+              <td><span class="sp" role="img" aria-label="gruvbox specimen: ground #1d2021, panel #282828, border #7c6f64, text #ebdbb2, primary #fe8019, accent #fabd2f, success #b8bb26, warning #fabd2f, error #fb4934"><i class="c-bg"></i><i class="c-panel"></i><i class="c-bd"></i><i class="c-txt"></i><i class="c-pri"></i><i class="c-acc"></i><i class="c-ok"></i><i class="c-wrn"></i><i class="c-err"></i></span></td>
+            </tr>
+            <tr style="--sp-bg:#1f1f28;--sp-panel:#16161d;--sp-bd:#727169;--sp-txt:#dcd7ba;--sp-pri:#7e9cd8;--sp-acc:#7fb4ca;--sp-ok:#98bb6c;--sp-wrn:#e6c384;--sp-err:#e46876">
+              <td class="t-item">H-05</td><th scope="row">kanagawa</th><td class="t-class">Hosted</td><td class="t-n">53</td><td class="t-hex">#1f1f28</td><td class="t-src">rove.run/themes</td>
+              <td><span class="sp" role="img" aria-label="kanagawa specimen: ground #1f1f28, panel #16161d, border #727169, text #dcd7ba, primary #7e9cd8, accent #7fb4ca, success #98bb6c, warning #e6c384, error #e46876"><i class="c-bg"></i><i class="c-panel"></i><i class="c-bd"></i><i class="c-txt"></i><i class="c-pri"></i><i class="c-acc"></i><i class="c-ok"></i><i class="c-wrn"></i><i class="c-err"></i></span></td>
+            </tr>
+            <tr style="--sp-bg:#2E3440;--sp-panel:#3B4252;--sp-bd:#434C5E;--sp-txt:#ECEFF4;--sp-pri:#88C0D0;--sp-acc:#8FBCBB;--sp-ok:#A3BE8C;--sp-wrn:#D08770;--sp-err:#BF616A">
+              <td class="t-item">H-06</td><th scope="row">nord</th><td class="t-class">Hosted</td><td class="t-n">50</td><td class="t-hex">#2E3440</td><td class="t-src">rove.run/themes</td>
+              <td><span class="sp" role="img" aria-label="nord specimen: ground #2E3440, panel #3B4252, border #434C5E, text #ECEFF4, primary #88C0D0, accent #8FBCBB, success #A3BE8C, warning #D08770, error #BF616A"><i class="c-bg"></i><i class="c-panel"></i><i class="c-bd"></i><i class="c-txt"></i><i class="c-pri"></i><i class="c-acc"></i><i class="c-ok"></i><i class="c-wrn"></i><i class="c-err"></i></span></td>
+            </tr>
+            <tr style="--sp-bg:#161616;--sp-panel:#1f1f1f;--sp-bd:#545454;--sp-txt:#eeeeee;--sp-pri:#fab283;--sp-acc:#7da5c8;--sp-ok:#7fd88f;--sp-wrn:#f5a742;--sp-err:#e06c75">
+              <td class="t-item">H-07</td><th scope="row">opencode</th><td class="t-class">Hosted</td><td class="t-n">50</td><td class="t-hex">#161616</td><td class="t-src">rove.run/themes</td>
+              <td><span class="sp" role="img" aria-label="opencode specimen: ground #161616, panel #1f1f1f, border #545454, text #eeeeee, primary #fab283, accent #7da5c8, success #7fd88f, warning #f5a742, error #e06c75"><i class="c-bg"></i><i class="c-panel"></i><i class="c-bd"></i><i class="c-txt"></i><i class="c-pri"></i><i class="c-acc"></i><i class="c-ok"></i><i class="c-wrn"></i><i class="c-err"></i></span></td>
+            </tr>
+            <tr style="--sp-bg:#111c18;--sp-panel:#1a2520;--sp-bd:#3d4a44;--sp-txt:#C1C497;--sp-pri:#2DD5B7;--sp-acc:#549e6a;--sp-ok:#549e6a;--sp-wrn:#E5C736;--sp-err:#FF5345">
+              <td class="t-item">H-08</td><th scope="row">osaka-jade</th><td class="t-class">Hosted</td><td class="t-n">50</td><td class="t-hex">#111c18</td><td class="t-src">rove.run/themes</td>
+              <td><span class="sp" role="img" aria-label="osaka-jade specimen: ground #111c18, panel #1a2520, border #3d4a44, text #C1C497, primary #2DD5B7, accent #549e6a, success #549e6a, warning #E5C736, error #FF5345"><i class="c-bg"></i><i class="c-panel"></i><i class="c-bd"></i><i class="c-txt"></i><i class="c-pri"></i><i class="c-acc"></i><i class="c-ok"></i><i class="c-wrn"></i><i class="c-err"></i></span></td>
+            </tr>
+            <tr style="--sp-bg:#191724;--sp-panel:#1f1d2e;--sp-bd:#6e6a86;--sp-txt:#e0def4;--sp-pri:#c4a7e7;--sp-acc:#ebbcba;--sp-ok:#31748f;--sp-wrn:#f6c177;--sp-err:#eb6f92">
+              <td class="t-item">H-09</td><th scope="row">rose-pine</th><td class="t-class">Hosted</td><td class="t-n">53</td><td class="t-hex">#191724</td><td class="t-src">rove.run/themes</td>
+              <td><span class="sp" role="img" aria-label="rose-pine specimen: ground #191724, panel #1f1d2e, border #6e6a86, text #e0def4, primary #c4a7e7, accent #ebbcba, success #31748f, warning #f6c177, error #eb6f92"><i class="c-bg"></i><i class="c-panel"></i><i class="c-bd"></i><i class="c-txt"></i><i class="c-pri"></i><i class="c-acc"></i><i class="c-ok"></i><i class="c-wrn"></i><i class="c-err"></i></span></td>
+            </tr>
+            <tr style="--sp-bg:#002b36;--sp-panel:#00212b;--sp-bd:#586e75;--sp-txt:#eee8d5;--sp-pri:#268bd2;--sp-acc:#2aa198;--sp-ok:#859900;--sp-wrn:#b58900;--sp-err:#dc322f">
+              <td class="t-item">H-10</td><th scope="row">solarized</th><td class="t-class">Hosted</td><td class="t-n">53</td><td class="t-hex">#002b36</td><td class="t-src">rove.run/themes</td>
+              <td><span class="sp" role="img" aria-label="solarized specimen: ground #002b36, panel #00212b, border #586e75, text #eee8d5, primary #268bd2, accent #2aa198, success #859900, warning #b58900, error #dc322f"><i class="c-bg"></i><i class="c-panel"></i><i class="c-bd"></i><i class="c-txt"></i><i class="c-pri"></i><i class="c-acc"></i><i class="c-ok"></i><i class="c-wrn"></i><i class="c-err"></i></span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="t-note">
+        Specimens are the <em>specified</em> values, resolved out of each finish's own JSON in dark mode &mdash; the hex is the spec, not decoration. SLOTS is how many the file fills; the rest fall through.
+        Hosted source is <span class="mono">rove.run/themes/&lt;finish&gt;.json</span> &middot; <svg class="tri" viewBox="0 0 19 17" aria-hidden="true"><path d="M9.5 1.5 L18 15 H1 Z"/><text x="9.5" y="13.6" text-anchor="middle">1</text></svg> see revision table.
+        Total in schedule &mdash; <span class="reread"><span class="r">13 finishes</span><span class="r">13 themes</span><span class="r">3 bundled + 10 hosted</span></span>
+      </p>
+    </div>
+
+    <div class="txt-col">
+      <div>
+        <span class="micro" data-i18n="bundled.no">1.0 &middot; Bundled</span>
+        <p class="lead-line" data-i18n="bundled.title">Ships with Rove.</p>
+        <p data-i18n-html="bundled.body">Rove keeps its bundled set deliberately small. Open Settings with <code>ctrl+,</code> and pick one; nothing to install. Each preview paints the sidebar, the selected task, and a diff with that theme's own slots, so what you see is the contrast you'll actually get. Every theme also defines a light mode; the previews show dark.</p>
+      </div>
+      <div>
+        <span class="micro" data-i18n="dl.no">2.0 &middot; Downloadable</span>
+        <p class="lead-line" data-i18n="dl.title">Ten more, one command away.</p>
+        <p data-i18n-html="dl.body">These live here as plain JSON instead of inside the binary, which is all a theme ever is. Copy the command, run it, restart Rove. Several of them shipped bundled in earlier versions; nothing changed about them except where they're stored.</p>
+      </div>
     </div>
   </section>
 
-  <section class="sec">
-    <p class="sec-no" data-i18n="write.no">3.0 · Write one</p>
-    <h2 data-i18n="write.title">A theme is one JSON file.</h2>
-    <p class="body" data-i18n-html="write.body">Drop any <code>*.json</code> into <code>~/.rove/themes/</code> and it appears in the picker at next boot. Name it after a bundled theme and yours wins. You don't have to fill every slot. Missing ones fall through (<code>borderActive</code> → <code>border</code> → <code>text</code>), so a dozen lines is already a usable theme.</p>
+  <!-- ZONE C — NOTE 2, BUNDLED SPECIMENS -->
+  <section class="note wide" data-zone="C">
+    <h2><span class="num">Note 2</span> &mdash; Specimens, bundled <span class="dash"></span> <span class="micro">B-01 to B-03 &middot; no install</span></h2>
+    <div class="fig-col">
+      <div class="grid" id="grid" data-measure="3 BUNDLED">
+        <article class="tcard" style="--t-bg:#141413;--t-panel:#1A1917;--t-element:#2B2A27;--t-text:#EAE7DF;--t-muted:#A9A39A;--t-primary:#CC785C;--t-accent:#CC785C;--t-border:#3A3835;--t-bordersub:#2B2A27;--t-success:#9ACA86;--t-warning:#E8C96B;--t-error:#D47563;--t-seltext:#141413">
+                <div class="tc-head"><span class="tc-code">B-01</span><span class="tc-name">claude</span><span class="tc-tag" data-i18n="tag.default">default</span></div>
+                <p class="tc-note" data-i18n="note.claude">Warm graphite and terracotta. Rove's own identity, matched to the Claude Code palette.</p>
+                <div class="mock">
+                  <div class="mock-side">
+                    <div class="m-hdr">PROJECTS</div>
+                    <div class="m-row"><span class="m-dot">●</span> rove</div>
+                    <div class="m-hdr">TASKS</div>
+                    <div class="m-row sel">fix/auth-retry</div>
+                    <div class="m-row">feat/theme-picker</div>
+                    <div class="m-row dim">chore/bump-deps</div>
+                  </div>
+                  <div class="mock-main">
+                    <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
+                    <div class="m-add">+ retry on 401 once</div>
+                    <div class="m-del">- throw immediately</div>
+                    <div class="m-ctx">  return session</div>
+                    <div class="m-warn">! 2 files unstaged</div>
+                    <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
+                  </div>
+                </div>
+                <div class="sw">
+                  <i style="background:#CC785C"></i><i style="background:#D4967E"></i><i style="background:#9ACA86"></i><i style="background:#E8C96B"></i><i style="background:#D47563"></i><i style="background:#61AAF2"></i>
+                </div>
+              </article>
+        <article class="tcard" style="--t-bg:#0a0a0a;--t-panel:#111111;--t-element:#181818;--t-text:#e8e8e8;--t-muted:#909090;--t-primary:#e8e8e8;--t-accent:#7da5c8;--t-border:#363636;--t-bordersub:#1f1f1f;--t-success:#7fd88f;--t-warning:#d6a668;--t-error:#e06c75;--t-seltext:#0a0a0a">
+                <div class="tc-head"><span class="tc-code">B-02</span><span class="tc-name">conductor</span><span class="tc-tag">mono</span></div>
+                <p class="tc-note" data-i18n="note.conductor">Near-black and near-white. No hue competes with your diff. The one to reach for on a projector.</p>
+                <div class="mock">
+                  <div class="mock-side">
+                    <div class="m-hdr">PROJECTS</div>
+                    <div class="m-row"><span class="m-dot">●</span> rove</div>
+                    <div class="m-hdr">TASKS</div>
+                    <div class="m-row sel">fix/auth-retry</div>
+                    <div class="m-row">feat/theme-picker</div>
+                    <div class="m-row dim">chore/bump-deps</div>
+                  </div>
+                  <div class="mock-main">
+                    <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
+                    <div class="m-add">+ retry on 401 once</div>
+                    <div class="m-del">- throw immediately</div>
+                    <div class="m-ctx">  return session</div>
+                    <div class="m-warn">! 2 files unstaged</div>
+                    <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
+                  </div>
+                </div>
+                <div class="sw">
+                  <i style="background:#e8e8e8"></i><i style="background:#9bc3e3"></i><i style="background:#7fd88f"></i><i style="background:#d6a668"></i><i style="background:#e06c75"></i><i style="background:#7da5c8"></i>
+                </div>
+              </article>
+        <article class="tcard" style="--t-bg:#1a1b26;--t-panel:#1e2030;--t-element:#222436;--t-text:#c8d3f5;--t-muted:#828bb8;--t-primary:#82aaff;--t-accent:#ff966c;--t-border:#737aa2;--t-bordersub:#545c7e;--t-success:#c3e88d;--t-warning:#ff966c;--t-error:#ff757f;--t-seltext:#1a1b26">
+                <div class="tc-head"><span class="tc-code">B-03</span><span class="tc-name">tokyonight</span><span class="tc-tag">cool</span></div>
+                <p class="tc-note" data-i18n="note.tokyonight">Indigo night with a coral accent. Pairs with the tokyonight setup you probably already run in nvim.</p>
+                <div class="mock">
+                  <div class="mock-side">
+                    <div class="m-hdr">PROJECTS</div>
+                    <div class="m-row"><span class="m-dot">●</span> rove</div>
+                    <div class="m-hdr">TASKS</div>
+                    <div class="m-row sel">fix/auth-retry</div>
+                    <div class="m-row">feat/theme-picker</div>
+                    <div class="m-row dim">chore/bump-deps</div>
+                  </div>
+                  <div class="mock-main">
+                    <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
+                    <div class="m-add">+ retry on 401 once</div>
+                    <div class="m-del">- throw immediately</div>
+                    <div class="m-ctx">  return session</div>
+                    <div class="m-warn">! 2 files unstaged</div>
+                    <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
+                  </div>
+                </div>
+                <div class="sw">
+                  <i style="background:#82aaff"></i><i style="background:#c099ff"></i><i style="background:#c3e88d"></i><i style="background:#ff966c"></i><i style="background:#ff757f"></i><i style="background:#82aaff"></i>
+                </div>
+              </article>
+      </div>
+      <p class="t-note">Three entries, one markup block, one rule set. The only thing that differs between them is the thirteen custom properties on the card, taken from that finish's own file. A row is selected by filling it with <span class="mono">primary</span> and setting its text to <span class="mono">selectedListItemText</span>, which every one of the thirteen resolves to the ground &mdash; which is why a finish that spends <span class="mono">primary</span> on near-white reads as a plain inversion.</p>
+    </div>
+  </section>
 
-    <div class="well">
-<pre><span class="c">// ~/.rove/themes/darkside.json</span>
+  <!-- ZONE D — NOTE 3, HOSTED SPECIMENS -->
+  <section class="note wide" data-zone="D">
+    <h2><span class="num">Note 3</span> &mdash; Specimens, hosted <span class="dash"></span> <span class="micro">H-01 to H-10 &middot; one command</span> <svg class="tri" viewBox="0 0 19 17" aria-hidden="true"><path d="M9.5 1.5 L18 15 H1 Z"/><text x="9.5" y="13.6" text-anchor="middle">1</text></svg></h2>
+    <div class="fig-col">
+      <div class="grid" data-measure="10 HOSTED">
+        <article class="tcard" style="--t-bg:#1e1e2e;--t-panel:#181825;--t-element:#313244;--t-text:#cdd6f4;--t-muted:#a6adc8;--t-primary:#cba6f7;--t-accent:#b4befe;--t-border:#7f849c;--t-bordersub:#6c7086;--t-success:#a6e3a1;--t-warning:#f9e2af;--t-error:#f38ba8;--t-seltext:#1e1e2e">
+                <div class="tc-head"><span class="tc-code">H-01</span><span class="tc-name">catppuccin</span><span class="tc-tag">pastel</span></div>
+                <p class="tc-note" data-i18n="note.catppuccin">Soft pastels on a cool grey base, mauve signature, nothing shouts. Ships Mocha for dark and Latte for light.</p>
+                <div class="mock">
+                  <div class="mock-side">
+                    <div class="m-hdr">PROJECTS</div>
+                    <div class="m-row"><span class="m-dot">●</span> rove</div>
+                    <div class="m-hdr">TASKS</div>
+                    <div class="m-row sel">fix/auth-retry</div>
+                    <div class="m-row">feat/theme-picker</div>
+                    <div class="m-row dim">chore/bump-deps</div>
+                  </div>
+                  <div class="mock-main">
+                    <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
+                    <div class="m-add">+ retry on 401 once</div>
+                    <div class="m-del">- throw immediately</div>
+                    <div class="m-ctx">  return session</div>
+                    <div class="m-warn">! 2 files unstaged</div>
+                    <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
+                  </div>
+                </div>
+                <div class="sw"><i style="background:#cba6f7"></i><i style="background:#cba6f7"></i><i style="background:#a6e3a1"></i><i style="background:#f9e2af"></i><i style="background:#f38ba8"></i><i style="background:#cba6f7"></i></div>
+                <button class="tc-cmd" data-install="https://rove.run/themes/catppuccin.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>catppuccin.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
+              </article>
+        <article class="tcard" style="--t-bg:#282a36;--t-panel:#21222c;--t-element:#44475a;--t-text:#f8f8f2;--t-muted:#6272a4;--t-primary:#bd93f9;--t-accent:#8be9fd;--t-border:#44475a;--t-bordersub:#191a21;--t-success:#50fa7b;--t-warning:#f1fa8c;--t-error:#ff5555;--t-seltext:#282a36">
+                <div class="tc-head"><span class="tc-code">H-02</span><span class="tc-name">dracula</span><span class="tc-tag">classic</span></div>
+                <p class="tc-note" data-i18n="note.dracula">The one everybody already has muscle memory for. Highest-saturation set here.</p>
+                <div class="mock">
+                  <div class="mock-side">
+                    <div class="m-hdr">PROJECTS</div>
+                    <div class="m-row"><span class="m-dot">●</span> rove</div>
+                    <div class="m-hdr">TASKS</div>
+                    <div class="m-row sel">fix/auth-retry</div>
+                    <div class="m-row">feat/theme-picker</div>
+                    <div class="m-row dim">chore/bump-deps</div>
+                  </div>
+                  <div class="mock-main">
+                    <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
+                    <div class="m-add">+ retry on 401 once</div>
+                    <div class="m-del">- throw immediately</div>
+                    <div class="m-ctx">  return session</div>
+                    <div class="m-warn">! 2 files unstaged</div>
+                    <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
+                  </div>
+                </div>
+                <div class="sw">
+                  <i style="background:#bd93f9"></i><i style="background:#ff79c6"></i><i style="background:#50fa7b"></i><i style="background:#f1fa8c"></i><i style="background:#ff5555"></i><i style="background:#8be9fd"></i>
+                </div>
+                <button class="tc-cmd" data-install="https://rove.run/themes/dracula.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>dracula.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
+              </article>
+        <article class="tcard" style="--t-bg:#2d353b;--t-panel:#272e33;--t-element:#343f44;--t-text:#d3c6aa;--t-muted:#9da9a0;--t-primary:#a7c080;--t-accent:#83c092;--t-border:#56635f;--t-bordersub:#4f585e;--t-success:#a7c080;--t-warning:#dbbc7f;--t-error:#e67e80;--t-seltext:#2d353b">
+                <div class="tc-head"><span class="tc-code">H-03</span><span class="tc-name">everforest</span><span class="tc-tag">forest</span></div>
+                <p class="tc-note" data-i18n="note.everforest">Desaturated forest greens, tuned for long sessions on a warm background.</p>
+                <div class="mock">
+                  <div class="mock-side">
+                    <div class="m-hdr">PROJECTS</div>
+                    <div class="m-row"><span class="m-dot">●</span> rove</div>
+                    <div class="m-hdr">TASKS</div>
+                    <div class="m-row sel">fix/auth-retry</div>
+                    <div class="m-row">feat/theme-picker</div>
+                    <div class="m-row dim">chore/bump-deps</div>
+                  </div>
+                  <div class="mock-main">
+                    <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
+                    <div class="m-add">+ retry on 401 once</div>
+                    <div class="m-del">- throw immediately</div>
+                    <div class="m-ctx">  return session</div>
+                    <div class="m-warn">! 2 files unstaged</div>
+                    <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
+                  </div>
+                </div>
+                <div class="sw"><i style="background:#a7c080"></i><i style="background:#d699b6"></i><i style="background:#a7c080"></i><i style="background:#dbbc7f"></i><i style="background:#e67e80"></i><i style="background:#a7c080"></i></div>
+                <button class="tc-cmd" data-install="https://rove.run/themes/everforest.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>everforest.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
+              </article>
+        <article class="tcard" style="--t-bg:#1d2021;--t-panel:#282828;--t-element:#32302f;--t-text:#ebdbb2;--t-muted:#a89984;--t-primary:#fe8019;--t-accent:#fabd2f;--t-border:#7c6f64;--t-bordersub:#665c54;--t-success:#b8bb26;--t-warning:#fabd2f;--t-error:#fb4934;--t-seltext:#1d2021">
+                <div class="tc-head"><span class="tc-code">H-04</span><span class="tc-name">gruvbox</span><span class="tc-tag">retro</span></div>
+                <p class="tc-note" data-i18n="note.gruvbox">Retro groove: warm browns under a signal orange. The highest-contrast warm set, and the one most people mean by "terminal colors".</p>
+                <div class="mock">
+                  <div class="mock-side">
+                    <div class="m-hdr">PROJECTS</div>
+                    <div class="m-row"><span class="m-dot">●</span> rove</div>
+                    <div class="m-hdr">TASKS</div>
+                    <div class="m-row sel">fix/auth-retry</div>
+                    <div class="m-row">feat/theme-picker</div>
+                    <div class="m-row dim">chore/bump-deps</div>
+                  </div>
+                  <div class="mock-main">
+                    <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
+                    <div class="m-add">+ retry on 401 once</div>
+                    <div class="m-del">- throw immediately</div>
+                    <div class="m-ctx">  return session</div>
+                    <div class="m-warn">! 2 files unstaged</div>
+                    <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
+                  </div>
+                </div>
+                <div class="sw"><i style="background:#fe8019"></i><i style="background:#d3869b"></i><i style="background:#b8bb26"></i><i style="background:#fabd2f"></i><i style="background:#fb4934"></i><i style="background:#fe8019"></i></div>
+                <button class="tc-cmd" data-install="https://rove.run/themes/gruvbox.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>gruvbox.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
+              </article>
+        <article class="tcard" style="--t-bg:#1f1f28;--t-panel:#16161d;--t-element:#2a2a37;--t-text:#dcd7ba;--t-muted:#c8c093;--t-primary:#7e9cd8;--t-accent:#7fb4ca;--t-border:#727169;--t-bordersub:#54546d;--t-success:#98bb6c;--t-warning:#e6c384;--t-error:#e46876;--t-seltext:#1f1f28">
+                <div class="tc-head"><span class="tc-code">H-05</span><span class="tc-name">kanagawa</span><span class="tc-tag">ukiyo-e</span></div>
+                <p class="tc-note" data-i18n="note.kanagawa">Inspired by Katsushika Hokusai's wave: ink blues over sumi black, lotus for light.</p>
+                <div class="mock">
+                  <div class="mock-side">
+                    <div class="m-hdr">PROJECTS</div>
+                    <div class="m-row"><span class="m-dot">●</span> rove</div>
+                    <div class="m-hdr">TASKS</div>
+                    <div class="m-row sel">fix/auth-retry</div>
+                    <div class="m-row">feat/theme-picker</div>
+                    <div class="m-row dim">chore/bump-deps</div>
+                  </div>
+                  <div class="mock-main">
+                    <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
+                    <div class="m-add">+ retry on 401 once</div>
+                    <div class="m-del">- throw immediately</div>
+                    <div class="m-ctx">  return session</div>
+                    <div class="m-warn">! 2 files unstaged</div>
+                    <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
+                  </div>
+                </div>
+                <div class="sw"><i style="background:#7e9cd8"></i><i style="background:#957fb8"></i><i style="background:#98bb6c"></i><i style="background:#e6c384"></i><i style="background:#e46876"></i><i style="background:#7e9cd8"></i></div>
+                <button class="tc-cmd" data-install="https://rove.run/themes/kanagawa.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>kanagawa.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
+              </article>
+        <article class="tcard" style="--t-bg:#2E3440;--t-panel:#3B4252;--t-element:#434C5E;--t-text:#ECEFF4;--t-muted:#8B95A7;--t-primary:#88C0D0;--t-accent:#8FBCBB;--t-border:#434C5E;--t-bordersub:#434C5E;--t-success:#A3BE8C;--t-warning:#D08770;--t-error:#BF616A;--t-seltext:#2E3440">
+                <div class="tc-head"><span class="tc-code">H-06</span><span class="tc-name">nord</span><span class="tc-tag">cool</span></div>
+                <p class="tc-note" data-i18n="note.nord">Arctic blue-grey, low contrast by design. The calmest option for long sessions.</p>
+                <div class="mock">
+                  <div class="mock-side">
+                    <div class="m-hdr">PROJECTS</div>
+                    <div class="m-row"><span class="m-dot">●</span> rove</div>
+                    <div class="m-hdr">TASKS</div>
+                    <div class="m-row sel">fix/auth-retry</div>
+                    <div class="m-row">feat/theme-picker</div>
+                    <div class="m-row dim">chore/bump-deps</div>
+                  </div>
+                  <div class="mock-main">
+                    <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
+                    <div class="m-add">+ retry on 401 once</div>
+                    <div class="m-del">- throw immediately</div>
+                    <div class="m-ctx">  return session</div>
+                    <div class="m-warn">! 2 files unstaged</div>
+                    <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
+                  </div>
+                </div>
+                <div class="sw">
+                  <i style="background:#88C0D0"></i><i style="background:#81A1C1"></i><i style="background:#A3BE8C"></i><i style="background:#D08770"></i><i style="background:#BF616A"></i><i style="background:#8FBCBB"></i>
+                </div>
+                <button class="tc-cmd" data-install="https://rove.run/themes/nord.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>nord.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
+              </article>
+        <article class="tcard" style="--t-bg:#161616;--t-panel:#1f1f1f;--t-element:#282828;--t-text:#eeeeee;--t-muted:#808080;--t-primary:#fab283;--t-accent:#7da5c8;--t-border:#545454;--t-bordersub:#484848;--t-success:#7fd88f;--t-warning:#f5a742;--t-error:#e06c75;--t-seltext:#161616">
+                <div class="tc-head"><span class="tc-code">H-07</span><span class="tc-name">opencode</span><span class="tc-tag">warm dark</span></div>
+                <p class="tc-note" data-i18n="note.opencode">Neutral charcoal with a sand accent. Familiar if you came from opencode.</p>
+                <div class="mock">
+                  <div class="mock-side">
+                    <div class="m-hdr">PROJECTS</div>
+                    <div class="m-row"><span class="m-dot">●</span> rove</div>
+                    <div class="m-hdr">TASKS</div>
+                    <div class="m-row sel">fix/auth-retry</div>
+                    <div class="m-row">feat/theme-picker</div>
+                    <div class="m-row dim">chore/bump-deps</div>
+                  </div>
+                  <div class="mock-main">
+                    <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
+                    <div class="m-add">+ retry on 401 once</div>
+                    <div class="m-del">- throw immediately</div>
+                    <div class="m-ctx">  return session</div>
+                    <div class="m-warn">! 2 files unstaged</div>
+                    <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
+                  </div>
+                </div>
+                <div class="sw">
+                  <i style="background:#fab283"></i><i style="background:#5c9cf5"></i><i style="background:#7fd88f"></i><i style="background:#f5a742"></i><i style="background:#e06c75"></i><i style="background:#56b6c2"></i>
+                </div>
+                <button class="tc-cmd" data-install="https://rove.run/themes/opencode.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>opencode.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
+              </article>
+        <article class="tcard" style="--t-bg:#111c18;--t-panel:#1a2520;--t-element:#23372B;--t-text:#C1C497;--t-muted:#53685B;--t-primary:#2DD5B7;--t-accent:#549e6a;--t-border:#3d4a44;--t-bordersub:#23372B;--t-success:#549e6a;--t-warning:#E5C736;--t-error:#FF5345;--t-seltext:#111c18">
+                <div class="tc-head"><span class="tc-code">H-08</span><span class="tc-name">osaka-jade</span><span class="tc-tag">high contrast</span></div>
+                <p class="tc-note" data-i18n="note.osaka">Deep jade ground with a mint signal color. The most opinionated set, and the loudest running indicator.</p>
+                <div class="mock">
+                  <div class="mock-side">
+                    <div class="m-hdr">PROJECTS</div>
+                    <div class="m-row"><span class="m-dot">●</span> rove</div>
+                    <div class="m-hdr">TASKS</div>
+                    <div class="m-row sel">fix/auth-retry</div>
+                    <div class="m-row">feat/theme-picker</div>
+                    <div class="m-row dim">chore/bump-deps</div>
+                  </div>
+                  <div class="mock-main">
+                    <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
+                    <div class="m-add">+ retry on 401 once</div>
+                    <div class="m-del">- throw immediately</div>
+                    <div class="m-ctx">  return session</div>
+                    <div class="m-warn">! 2 files unstaged</div>
+                    <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
+                  </div>
+                </div>
+                <div class="sw">
+                  <i style="background:#2DD5B7"></i><i style="background:#D2689C"></i><i style="background:#549e6a"></i><i style="background:#E5C736"></i><i style="background:#FF5345"></i><i style="background:#C1C497"></i>
+                </div>
+                <button class="tc-cmd" data-install="https://rove.run/themes/osaka-jade.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>osaka-jade.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
+              </article>
+        <article class="tcard" style="--t-bg:#191724;--t-panel:#1f1d2e;--t-element:#26233a;--t-text:#e0def4;--t-muted:#908caa;--t-primary:#c4a7e7;--t-accent:#ebbcba;--t-border:#6e6a86;--t-bordersub:#524f67;--t-success:#31748f;--t-warning:#f6c177;--t-error:#eb6f92;--t-seltext:#191724">
+                <div class="tc-head"><span class="tc-code">H-09</span><span class="tc-name">rose-pine</span><span class="tc-tag">muted</span></div>
+                <p class="tc-note" data-i18n="note.rosepine">Low-saturation iris and rose on near-black plum. Quiet without going grey; Dawn is the light side.</p>
+                <div class="mock">
+                  <div class="mock-side">
+                    <div class="m-hdr">PROJECTS</div>
+                    <div class="m-row"><span class="m-dot">●</span> rove</div>
+                    <div class="m-hdr">TASKS</div>
+                    <div class="m-row sel">fix/auth-retry</div>
+                    <div class="m-row">feat/theme-picker</div>
+                    <div class="m-row dim">chore/bump-deps</div>
+                  </div>
+                  <div class="mock-main">
+                    <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
+                    <div class="m-add">+ retry on 401 once</div>
+                    <div class="m-del">- throw immediately</div>
+                    <div class="m-ctx">  return session</div>
+                    <div class="m-warn">! 2 files unstaged</div>
+                    <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
+                  </div>
+                </div>
+                <div class="sw"><i style="background:#c4a7e7"></i><i style="background:#c4a7e7"></i><i style="background:#31748f"></i><i style="background:#f6c177"></i><i style="background:#eb6f92"></i><i style="background:#c4a7e7"></i></div>
+                <button class="tc-cmd" data-install="https://rove.run/themes/rose-pine.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>rose-pine.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
+              </article>
+        <article class="tcard" style="--t-bg:#002b36;--t-panel:#00212b;--t-element:#073642;--t-text:#eee8d5;--t-muted:#93a1a1;--t-primary:#268bd2;--t-accent:#2aa198;--t-border:#586e75;--t-bordersub:#356266;--t-success:#859900;--t-warning:#b58900;--t-error:#dc322f;--t-seltext:#002b36">
+                <div class="tc-head"><span class="tc-code">H-10</span><span class="tc-name">solarized</span><span class="tc-tag">classic</span></div>
+                <p class="tc-note" data-i18n="note.solarized">The 2011 original that started precision terminal palettes. Both sides share one accent set.</p>
+                <div class="mock">
+                  <div class="mock-side">
+                    <div class="m-hdr">PROJECTS</div>
+                    <div class="m-row"><span class="m-dot">●</span> rove</div>
+                    <div class="m-hdr">TASKS</div>
+                    <div class="m-row sel">fix/auth-retry</div>
+                    <div class="m-row">feat/theme-picker</div>
+                    <div class="m-row dim">chore/bump-deps</div>
+                  </div>
+                  <div class="mock-main">
+                    <div class="m-top"><span class="m-branch">fix/auth-retry</span><span class="m-state">● running</span></div>
+                    <div class="m-add">+ retry on 401 once</div>
+                    <div class="m-del">- throw immediately</div>
+                    <div class="m-ctx">  return session</div>
+                    <div class="m-warn">! 2 files unstaged</div>
+                    <div style="margin-top:5px"><span class="m-chip">3 tabs</span></div>
+                  </div>
+                </div>
+                <div class="sw"><i style="background:#268bd2"></i><i style="background:#6c71c4"></i><i style="background:#859900"></i><i style="background:#b58900"></i><i style="background:#dc322f"></i><i style="background:#268bd2"></i></div>
+                <button class="tc-cmd" data-install="https://rove.run/themes/solarized.json"><span class="ps">$</span><span class="tc-cmd-t">rove theme add https://rove.run/<wbr>themes/<wbr>solarized.json</span><span class="tc-copy" data-i18n="card.copy">copy</span></button>
+              </article>
+      </div>
+      <p class="t-note">Each entry carries its own supply line. Click it to take the command.</p>
+    </div>
+  </section>
+
+  <!-- ZONE E — NOTE 4, WHERE A SLOT LANDS -->
+  <section class="note" data-zone="E">
+    <h2><span class="num">Note 4</span> &mdash; Where a slot lands <span class="dash"></span> <span class="micro">Fig. 3-1</span></h2>
+
+    <div class="fig-col">
+      <figure class="fig fig-wide">
+              <svg viewBox="0 0 560 330" role="img" aria-label="Section through the interface with leader lines from five named theme slots to the parts they colour: primary to the selected task row, border to the frame, text to the body and task rows, accent to a called-out value, and background to the field behind everything.">
+                <!-- the frame: border -->
+                <rect x="140" y="30" width="250" height="220" class="v" data-draw/>
+                <!-- sidebar: a separate ground, hatched as a separate material -->
+                <rect x="140" y="30" width="108" height="220" class="v" data-draw/>
+                <rect x="140" y="30" width="108" height="220" fill="url(#hatch)" class="fade hatchband"/>
+                <!-- selected row: primary -->
+                <rect x="140" y="62" width="108" height="20" class="acc" data-draw/>
+                <g class="fade">
+                  <text class="tx-m" x="148" y="77" fill="var(--accent-text)">fix/auth</text>
+                  <text class="tx-m" x="148" y="103">refactor</text>
+                  <text class="tx-m" x="148" y="127">docs</text>
+                  <!-- body: text -->
+                  <line x1="260" y1="56" x2="345" y2="56" class="thin"/>
+                  <line x1="260" y1="76" x2="378" y2="76" class="thin"/>
+                  <line x1="260" y1="96" x2="320" y2="96" class="thin"/>
+                  <line x1="260" y1="116" x2="368" y2="116" class="thin"/>
+                  <rect x="260" y="132" width="70" height="12" class="acc"/>
+                  <line x1="260" y1="168" x2="358" y2="168" class="thin"/>
+                  <line x1="260" y1="188" x2="330" y2="188" class="thin"/>
+                  <!-- status strip -->
+                  <line x1="140" y1="224" x2="390" y2="224" class="v"/>
+                  <text class="tx-m" x="260" y="240">3 tasks</text>
+                </g>
+      
+                <!-- leaders, left -->
+                <g class="fade">
+                  <text class="tx" x="6" y="58">primary</text>
+                  <text class="tx-s" x="6" y="76">Selected row fill</text>
+                  <path d="M6 86 H108 V72 H136" class="dim" marker-end="url(#arwk)"/>
+      
+                  <text class="tx" x="6" y="196">border</text>
+                  <text class="tx-s" x="6" y="214">Every frame rule</text>
+                  <path d="M6 224 H100 V250 H136" class="dim" marker-end="url(#arwk)"/>
+                </g>
+      
+                <!-- leaders, right -->
+                <g class="fade">
+                  <text class="tx" x="554" y="58" text-anchor="end">text</text>
+                  <text class="tx-s" x="554" y="76" text-anchor="end">Body and task rows</text>
+                  <path d="M554 86 H470 V76 H382" class="dim" marker-end="url(#arwk)"/>
+      
+                  <text class="tx" x="554" y="126" text-anchor="end">accent</text>
+                  <text class="tx-s" x="554" y="144" text-anchor="end">Called-out value</text>
+                  <path d="M554 154 H460 V138 H334" class="dim" marker-end="url(#arwk)"/>
+      
+                  <text class="tx" x="554" y="194" text-anchor="end">background</text>
+                  <text class="tx-s" x="554" y="212" text-anchor="end">Everything behind</text>
+                  <path d="M554 222 H450 V202 H362" class="dim" marker-end="url(#arwk)"/>
+                </g>
+      
+                <!-- overall dimension: what the resolver guarantees -->
+                <g class="fade">
+                  <line x1="140" y1="254" x2="140" y2="298" class="dim"/>
+                  <line x1="390" y1="254" x2="390" y2="298" class="dim"/>
+                  <line x1="140" y1="290" x2="390" y2="290" class="dim" marker-start="url(#arw)" marker-end="url(#arw)"/>
+                  <text class="dimtx" x="265" y="314" text-anchor="middle">25 slots resolved &middot; 2 roots</text>
+                </g>
+              </svg>
+              <figcaption>Fig. 3-1 — Slot to surface · Hatched face = a separate ground from the body</figcaption>
+            </figure>
+    </div>
+
+    <div class="txt-col">
+      <p>A slot is a named place in the interface, not a colour with a mood. Fill <span class="mono">primary</span> and you have changed the selected row, the focused pane indicator and the markdown headings at once, because they all read the same slot.</p>
+      <p>You do not have to fill every slot. The resolver guarantees twenty-five of them, and anything left out falls through to a neighbour: <span class="mono">borderActive</span> &rarr; <span class="mono">border</span> &rarr; <span class="mono">text</span>, <span class="mono">backgroundPanel</span> &rarr; <span class="mono">background</span>, <span class="mono">diffAdded</span> &rarr; <span class="mono">success</span>. Only <span class="mono">text</span> and <span class="mono">background</span> have nothing left to fall to.</p>
+      <div class="legend" data-measure="6 SLOT GROUPS">
+        <div><span class="g">ground</span><span class="m"><b>background</b> &middot; backgroundPanel &middot; backgroundElement &middot; backgroundMenu &middot; backgroundDialog</span></div>
+        <div><span class="g">lettering</span><span class="m"><b>text</b> &middot; textMuted</span></div>
+        <div><span class="g">rule</span><span class="m"><b>border</b> &middot; borderActive &middot; borderSubtle</span></div>
+        <div><span class="g">brand</span><span class="m"><b>primary</b> &middot; secondary &middot; accent</span></div>
+        <div><span class="g">state</span><span class="m"><b>success</b> &middot; warning &middot; error &middot; info</span></div>
+        <div><span class="g">diff</span><span class="m"><b>diffAdded</b> &middot; diffRemoved &middot; diffContext &middot; and their grounds</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ZONE F — NOTE 5, THE FORMAT -->
+  <section class="note" data-zone="F">
+    <h2><span class="num">Note 5</span> &mdash; Specimen of the format <span class="dash"></span> <span class="micro">Both slot forms</span></h2>
+
+    <div class="fig-col">
+      <pre class="code"><span class="c">// ~/.rove/themes/darkside.json</span>
 {
-  <span class="k">"$schema"</span>: <span class="s">"https://raw.githubusercontent.com/sma1lboy/rove/main/packages/kobe/src/tui/context/theme/theme.schema.json"</span>,
-  <span class="k">"defs"</span>: { <span class="k">"brand"</span>: <span class="s">"#cc785c"</span> },
+  <span class="k">"$schema"</span>: "https://raw.githubusercontent.com/sma1lboy/rove
+             /main/packages/kobe/src/tui/context/theme
+             /theme.schema.json",
+  <span class="k">"defs"</span>: { "brand": "#cc785c" },
   <span class="k">"theme"</span>: {
-    <span class="k">"background"</span>: <span class="s">"#141413"</span>,
-    <span class="k">"text"</span>: <span class="s">"#eae7df"</span>,
-    <span class="k">"primary"</span>: <span class="s">"brand"</span>,
-    <span class="k">"accent"</span>: { <span class="k">"dark"</span>: <span class="s">"#cc785c"</span>, <span class="k">"light"</span>: <span class="s">"#c96442"</span> }
+    "background": "#141413",
+    "text":       "#eae7df",
+    "primary":    "brand",
+    "accent": { "dark": "#cc785c", "light": "#c96442" }
   }
 }</pre>
+      <p class="t-note">The file name is the finish name. A user file with the same name as a bundled finish wins.</p>
     </div>
 
-    <p class="body" style="margin-top:22px" data-i18n-html="write.body2"><code>defs</code> is an optional named palette a slot can reference by name. A slot value is a hex string, a <code>defs</code> key, or a <code>{ dark, light }</code> pair. When you use the pair form, both sides are required. The <code>$schema</code> line is what gives you autocomplete in your editor.</p>
+    <div class="txt-col">
+      <span class="micro" data-i18n="write.no">3.0 &middot; Write one</span>
+      <p class="lead-line" data-i18n="write.title">A theme is one JSON file.</p>
+      <p data-i18n-html="write.body">Drop any <code>*.json</code> into <code>~/.rove/themes/</code> and it appears in the picker at next boot. Name it after a bundled theme and yours wins. You don't have to fill every slot. Missing ones fall through (<code>borderActive</code> &rarr; <code>border</code> &rarr; <code>text</code>), so a dozen lines is already a usable theme.</p>
+      <p data-i18n-html="write.body2"><code>defs</code> is an optional named palette a slot can reference by name. A slot value is a hex string, a <code>defs</code> key, or a <code>{ dark, light }</code> pair. When you use the pair form, both sides are required. The <code>$schema</code> line is what gives you autocomplete in your editor.</p>
+      <p class="t-note">Worked examples: <span class="mono">claude.json</span> fills 54 slots off 42 defs; <span class="mono">conductor.json</span> fills 35. Copy either and start deleting.</p>
+    </div>
   </section>
 
-  <section class="sec">
-    <p class="sec-no" data-i18n="pub.no">4.0 · Publish</p>
-    <h2 data-i18n="pub.title">Share a URL. That's the whole registry.</h2>
-    <p class="body" data-i18n="pub.body">There is no submission queue and no manifest to write. Installation reads a raw file over HTTPS, so anything you can link to is installable: a repo, a gist, your own host.</p>
+  <!-- ZONE G — NOTE 6, APPLICATION AND SUPPLY -->
+  <section class="note" data-zone="G">
+    <h2><span class="num">Note 6</span> &mdash; Application and supply <span class="dash"></span> <span class="micro">Fig. 3-2</span></h2>
 
-    <div class="steps">
-      <p class="step" data-i18n-html="pub.s1">Commit the JSON to a <b>public repo or gist</b>.</p>
-      <p class="step" data-i18n-html="pub.s2">Hit <b>Raw</b> on GitHub and copy the URL. It looks like <code>raw.githubusercontent.com/&lt;you&gt;/&lt;repo&gt;/main/&lt;theme&gt;.json</code>.</p>
-      <p class="step" data-i18n-html="pub.s3">Tell people to run <code>rove theme add &lt;raw-url&gt;</code>. It validates the JSON before writing and refuses to clobber an existing theme without <code>--force</code>.</p>
-      <p class="step" data-i18n-html="pub.s4">Tag the repo <code>rove-theme</code> on GitHub so it's findable, and open a PR against this page to get it listed with a preview.</p>
+    <div class="fig-col">
+      <figure class="fig fig-wide">
+              <svg viewBox="0 0 560 236" role="img" aria-label="The install path: a raw JSON file over HTTPS is validated, written to the user themes directory, and appears in the picker at the next boot. An invalid file is refused, and an existing file of the same name is refused without the force flag.">
+                <g class="fade">
+                  <rect x="2" y="24" width="126" height="52" class="vf"/>
+                  <text class="tx" x="14" y="46">Any raw URL</text>
+                  <text class="tx-s" x="14" y="64">repo · gist · host</text>
+                </g>
+                <line x1="128" y1="50" x2="176" y2="50" class="v" data-draw marker-end="url(#arwk)"/>
+      
+                <!-- validate gate -->
+                <g>
+                  <rect x="176" y="18" width="128" height="64" class="v" data-draw/>
+                  <text class="tx fade" x="188" y="42">Validate</text>
+                  <text class="tx-s fade" x="188" y="62">Same rules as boot</text>
+                </g>
+                <!-- refused: hidden line, the branch that does not land -->
+                <g class="fade">
+                  <line x1="240" y1="82" x2="240" y2="126" class="hid"/>
+                  <text class="tx-s" x="250" y="120" fill="var(--ink-2)">Refused &mdash; one-line reason</text>
+                </g>
+      
+                <line x1="304" y1="50" x2="352" y2="50" class="v" data-draw marker-end="url(#arwk)"/>
+                <g>
+                  <rect x="352" y="18" width="206" height="64" class="v" data-draw/>
+                  <text class="tx-m fade" x="364" y="42">~/.rove/themes/</text>
+                  <text class="tx-m fade" x="364" y="62">&lt;name&gt;.json</text>
+                </g>
+                <!-- clobber gate -->
+                <g class="fade">
+                  <line x1="455" y1="82" x2="455" y2="126" class="hid"/>
+                  <text class="tx-s" x="548" y="120" text-anchor="end" fill="var(--ink-2)">Exists &mdash; needs</text>
+                  <text class="tx-m" x="548" y="138" text-anchor="end">--force</text>
+                </g>
+      
+                <!-- boot -->
+                <g class="fade">
+                  <path d="M455 82 L455 168 L304 168" class="ctr"/>
+                  <rect x="176" y="146" width="128" height="44" class="vf"/>
+                  <text class="tx" x="188" y="164">Next boot</text>
+                  <text class="tx-s" x="188" y="182">In the picker</text>
+                </g>
+      
+                <!-- dimension across the whole route -->
+                <g class="fade">
+                  <line x1="2" y1="76" x2="2" y2="222" class="dim"/>
+                  <line x1="558" y1="82" x2="558" y2="222" class="dim"/>
+                  <line x1="2" y1="214" x2="558" y2="214" class="dim" marker-start="url(#arw)" marker-end="url(#arw)"/>
+                  <text class="dimtx" x="280" y="232" text-anchor="middle">1 command &mdash; no registry, no manifest</text>
+                </g>
+              </svg>
+              <figcaption>Fig. 3-2 — Supply route · Hidden line = the branch that does not land</figcaption>
+            </figure>
     </div>
 
-    <button id="copyBtn" class="copy-cmd">
-      <span class="ps">$</span>
-      <span>rove theme add &lt;raw-url&gt;</span>
-      <span id="copyLabel" class="hint">click to copy</span>
-    </button>
+    <div class="txt-col">
+      <span class="micro" data-i18n="pub.no">4.0 &middot; Publish</span>
+      <p class="lead-line" data-i18n="pub.title">Share a URL. That's the whole registry.</p>
+      <p data-i18n="pub.body">There is no submission queue and no manifest to write. Installation reads a raw file over HTTPS, so anything you can link to is installable: a repo, a gist, your own host.</p>
+      <ol class="gnotes" data-measure="4 STEPS TO PUBLISH">
+        <li data-i18n-html="pub.s1">Commit the JSON to a <b>public repo or gist</b>.</li>
+        <li data-i18n-html="pub.s2">Hit <b>Raw</b> on GitHub and copy the URL. It looks like <code>raw.githubusercontent.com/&lt;you&gt;/&lt;repo&gt;/main/&lt;theme&gt;.json</code>.</li>
+        <li data-i18n-html="pub.s3">Tell people to run <code>rove theme add &lt;raw-url&gt;</code>. It validates the JSON before writing and refuses to clobber an existing theme without <code>--force</code>.</li>
+        <li data-i18n-html="pub.s4">Tag the repo <code>rove-theme</code> on GitHub so it's findable, and open a PR against this page to get it listed with a preview.</li>
+      </ol>
+    </div>
   </section>
 
-</div>
+  </main>
 
-<footer class="foot-dense foot-spaced">
-  <div class="foot-inner">
-    <p class="foot-id">
-      <span class="mark">[Rove]</span> <span class="tagline" data-i18n="footer.tagline">a terminal multiplexer for coding agents.</span>
-      <span class="foot-colophon" data-i18n="footer.themes">Previews are rendered from each theme's real color file, not screenshots.</span>
-    </p>
-    <nav class="foot-links" aria-label="Footer">
-      <a href="https://github.com/Sma1lboy/rove" target="_blank" rel="noopener">GitHub</a>
-      <a href="https://www.npmjs.com/package/@sma1lboy/rove" target="_blank" rel="noopener">npm</a>
-      <a href="/plugins" data-i18n="footer.plugins">plugins</a>
-      <a href="/changelog" data-i18n="footer.changelog">changelog</a>
-      <a href="https://docs.rove.run/rove/themes" data-i18n="footer.themedocs">theme docs</a>
-      <a href="https://docs.rove.run/rove/keybindings" data-i18n="footer.keybindings">keybindings</a>
-    </nav>
-  </div>
-</footer>
+  <!-- ZONE H — TITLE BLOCK -->
+  <section class="endmatter" data-zone="H" aria-label="Title block">
+    <div class="revtab">
+      <table>
+        <caption>Revisions</caption>
+        <thead><tr><th style="width:44px">Rev</th><th style="width:76px">Date</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">&mdash;</td>
+            <td class="mono">2026-09</td>
+            <td>Released as <span class="mono">0.9.191</span> on npm</td>
+          </tr>
+          <tr>
+            <td><svg class="tri" viewBox="0 0 19 17" aria-hidden="true"><path d="M9.5 1.5 L18 15 H1 Z"/><text x="9.5" y="13.6" text-anchor="middle">1</text></svg></td>
+            <td class="mono">2026-09</td>
+            <td>Ten finishes moved out of the binary to <span class="mono">rove.run/themes</span> &mdash; same files, installed with <span class="mono">theme add</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tblock">
+      <div class="tb-grid">
+        <div class="tb span4"><span class="k">Title</span><span class="v">Rove &mdash; theme finishes, schedule</span></div>
+        <div class="tb span2"><span class="k">Part no.</span><span class="v mono">@sma1lboy/rove</span></div>
+        <div class="tb"><span class="k">Rev</span><span class="v mono">0.9.191</span></div>
+        <div class="tb"><span class="k">Sheet</span><span class="v">3 of 4</span></div>
+        <div class="tb"><span class="k">Drawn by</span><span class="v">Sma1lboy</span></div>
+        <div class="tb"><span class="k">Checked</span><span class="v">CI</span></div>
+        <div class="tb"><span class="k">Date</span><span class="v mono">2026-09-12</span></div>
+        <div class="tb"><span class="k">Scale</span><span class="v mono">NTS</span></div>
+        <div class="tb"><span class="k">On board</span><span class="v mono" data-elapsed>00:00</span></div>
+        <div class="tb span2"><span class="k">Material</span><span class="v">JSON &mdash; one file per finish</span></div>
+        <div class="tb"><span class="k">Finish</span><span class="v">MIT</span></div>
+        <div class="tb"><span class="k">Units</span><span class="v">Slots</span></div>
+        <div class="tb span4"><span class="k">Coats</span><span class="v">Dark and light &mdash; every slot in all thirteen is written as a dark/light pair</span></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span class="c"><b>[Rove]</b> <span data-i18n="footer.tagline">a terminal multiplexer for coding agents.</span> <span data-i18n="footer.themes">Previews are rendered from each theme's real color file, not screenshots.</span></span>
+    <span class="sp"></span>
+    <a href="https://github.com/Sma1lboy/rove" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.npmjs.com/package/@sma1lboy/rove" target="_blank" rel="noopener">npm</a>
+    <a href="/plugins" data-i18n="footer.plugins">plugins</a>
+    <a href="/changelog" data-i18n="footer.changelog">changelog</a>
+    <a href="https://docs.rove.run/rove/themes" data-i18n="footer.themedocs">theme docs</a>
+    <a href="https://docs.rove.run/rove/keybindings" data-i18n="footer.keybindings">keybindings</a>
+  </footer>
+
+</div><!-- /inner -->
+</div><!-- /sheet -->
 
 <script src="/themes.js"></script>
+<script>
+/* blueprint-idle.js binds copy-on-click to every [data-cmd] on the sheet. The
+   thirteen supply lines already belong to themes.js, which prepends
+   `rove theme add` to the URL; two handlers on one click would race and leave
+   the bare URL on the clipboard. They therefore ship as data-install and
+   become data-cmd only after the deferred shared script has finished binding,
+   so themes.js stays the single owner of that click. themes.js reads the
+   attribute at click time, so the late promotion costs it nothing. */
+addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-install]').forEach(function (b) {
+    b.setAttribute('data-cmd', b.getAttribute('data-install'));
+  });
+});
+</script>
+<script src="/blueprint-idle.js" defer></script>
 
 </body>
 </html>

@@ -17,324 +17,943 @@
 <meta name="twitter:image" content="https://rove.run/assets/og-card.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=DM+Sans:opsz,wght@9..40,300..700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/chrome.css">
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/blueprint.css">
 <style>
-/* ============ PAGE HEAD ============ */
-.head{padding:clamp(112px,14vh,152px) 0 0;text-align:center}
-.kicker{display:inline-block;font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;color:var(--muted)}
-h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(38px,5.6vw,70px);font-weight:380;letter-spacing:-.028em;line-height:1.02;color:var(--ink);max-width:17ch;margin:24px auto 20px}
-.head-sub{font-size:clamp(15px,1.5vw,17px);max-width:60ch;color:var(--ink-soft);margin:0 auto}
-.head-term{max-width:640px;margin:34px auto 0;text-align:left}
-.rise{opacity:0;transform:translateY(20px);animation:rise .85s var(--ease-out) forwards}
-@keyframes rise{to{opacity:1;transform:none}}
+/* ═══ SHEET 2 ADDITIONS ONLY — every colour here is a token ═══════════════ */
+.head nav a[aria-current="page"]{color:var(--accent-text);border-bottom:0}
+.note[hidden]{display:none} /* class selector out-specifies the UA [hidden] rule */
 
-/* dark terminal block — same well as the home page */
-.term-frame{border-radius:6px;overflow:hidden;background:linear-gradient(180deg,oklch(24% 0.021 50),var(--well) 60%);border:1px solid oklch(32% 0.024 50);box-shadow:0 22px 52px oklch(42% 0.06 50/.2)}
-.tbar{display:flex;align-items:center;gap:8px;padding:11px 18px;background:linear-gradient(180deg,oklch(30% 0.022 50),var(--well-2));font-family:var(--font-mono);font-size:11px;color:oklch(68% 0.035 60);border-bottom:1px solid oklch(19% 0.018 50);box-shadow:inset 0 1px 0 oklch(90% 0.04 70/.08)}
-.tbar i{width:9px;height:9px;border-radius:50%;background:oklch(42% 0.02 55)}
-.tbar i.r{background:oklch(65% 0.16 25)}
-.tbar i.y{background:oklch(78% 0.13 85)}
-.tbar i.g{background:oklch(72% 0.14 145)}
-.tbar span{margin-left:8px;letter-spacing:.04em}
-.term-out{color:var(--well-ink);padding:20px 24px;font-family:var(--font-mono);font-size:12.5px;line-height:1.95;overflow-x:auto;white-space:pre}
-.term-out .ps{color:oklch(75% 0.13 50)}
-.term-out .a{color:oklch(85% 0.07 60)}
-.term-out .k{color:oklch(78% 0.09 60)}
-.term-out .s{color:oklch(80% 0.11 145)}
-.term-out .d{color:oklch(62% 0.02 70)}
+/* header instruments: language stamp + live star readout ----------------- */
+.lang-btn{
+  font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.18em;
+  font-size:10.5px;font-weight:600;color:var(--ink-2);cursor:pointer;
+  background:transparent;border:1px solid var(--rule);padding:4px 9px;
+}
+.lang-btn:hover{border-color:var(--accent-line);color:var(--accent-text)}
+.gh-link{
+  display:inline-flex;align-items:center;gap:7px;border:1px solid var(--rule);
+  padding:3px 9px;font-family:var(--font-tech);text-transform:uppercase;
+  letter-spacing:.16em;font-size:11px;font-weight:600;
+}
+.gh-link:hover{border-color:var(--accent-line)}
+.gh-stars{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;letter-spacing:0;color:var(--ink-2)}
+.gh-stars svg{fill:var(--ink-3)}
 
-/* ============ SECTION SHELL ============ */
-.sec{padding:clamp(64px,8vw,96px) 0 0}
-.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:22px}
-.sec-no{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:12px}
-.sec h2{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(26px,3.2vw,38px);font-weight:400;letter-spacing:-.018em;line-height:1.12;color:var(--ink)}
-.sec-lede{font-size:15px;color:var(--muted);max-width:60ch;margin-top:10px}
+/* a note child that spans both columns of the note grid ------------------ */
+.wide{grid-column:1/-1;min-width:0}
+.cmd-wrap{max-width:600px}
+.parts .t-cmd{overflow-wrap:anywhere}
+.parts td:nth-child(3){min-width:22ch}
 
-/* ============ MARKETPLACE CONTROLS ============ */
-.controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:26px 0 14px}
-.field{display:inline-flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line-2);padding:10px 18px;transition:border-color 140ms}
-.field:focus-within{border-color:var(--accent-line)}
-.field .ps{font-family:var(--font-mono);color:var(--accent);font-size:13px}
-.field input{border:0;background:transparent;color:var(--ink);font-family:var(--font-mono);font-size:13px;width:min(30vw,240px);outline:0}
-.field input::placeholder{color:var(--faint)}
-.field select{border:0;background:transparent;color:var(--ink);font-family:var(--font-mono);font-size:12.5px;outline:0}
-.field label{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.06em;color:var(--faint)}
-.count{font-family:var(--font-mono);font-size:12px;color:var(--faint);margin-left:auto}
-@media(max-width:560px){.field input{width:auto;flex:1;min-width:0}.controls .field:first-child{flex:1 1 100%}.count{margin-left:0}}
+/* CAUTION notice — the frame a drawing puts round a warning -------------- */
+.caution{margin-top:18px;border:1.6px solid var(--accent-line);display:grid;grid-template-columns:auto minmax(0,1fr)}
+.caution[hidden]{display:none}
+.caution .sym{border-right:1px solid var(--accent-line);padding:14px 13px;display:flex;align-items:flex-start;justify-content:center}
+.caution .sym svg{display:block;width:34px;height:31px}
+.caution .sym path{fill:none;stroke:var(--accent-line);stroke-width:1.6;stroke-linejoin:round}
+.caution .sym text{font-family:var(--font-tech);font-weight:700;font-size:15px;fill:var(--accent-text)}
+.caution .bd{padding:13px 16px 14px;min-width:0}
+.caution h3{margin:0 0 9px;font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.26em;font-size:12px;font-weight:700;color:var(--accent-text)}
+.caution p{margin:0 0 9px;font-size:13px;line-height:1.55;color:var(--ink)}
+.caution p:last-child{margin:0}
 
-.notice{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--muted);background:oklch(62% 0.11 80/.08);border:1px solid oklch(62% 0.11 80/.3);padding:12px 16px;margin-bottom:26px}
-.notice[hidden]{display:none} /* class selector out-specifies the UA [hidden] rule */
-.notice .mk{font-family:var(--font-mono);color:var(--warn);flex:none}
-.notice.err{background:var(--accent-wash);border-color:var(--accent-line)}
-.notice.err .mk{color:var(--accent)}
+/* the marketplace's own status notice (written by marketplace.js) -------- */
+.notice{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;line-height:1.55;color:var(--ink-2);border:1px solid var(--rule);border-left:2px solid var(--ink-2);padding:10px 13px;margin:0 0 14px}
+.notice[hidden]{display:none}
+.notice .mk{font-family:var(--font-mono);color:var(--ink-2);flex:none}
+.notice.err{border-color:var(--accent-line);border-left-width:2px}
+.notice.err .mk{color:var(--accent-text)}
 
-/* ============ PLUGIN CARDS ============ */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px}
-.card{display:flex;flex-direction:column;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:22px 24px;transition:border-color 160ms}
-.card:hover{border-color:var(--accent-line)}
-.card-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
-.card-name{font-family:var(--font-mono);font-size:14px;font-weight:500;color:var(--ink);min-width:0;overflow-wrap:anywhere}
-.card-name:hover{color:var(--accent)}
-.card-name .owner{color:var(--faint);font-weight:400}
-.card-stars{flex:none;display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:12px;color:var(--muted)}
-.card-stars svg{fill:oklch(70% 0.11 80)}
-.card-desc{font-size:14px;color:var(--muted);flex:1;overflow-wrap:anywhere}
-.card-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-family:var(--font-mono);font-size:11.5px;color:var(--faint)}
-.card-meta .dot{width:7px;height:7px;border-radius:50%;background:var(--accent-2);flex:none}
-.card-meta .sep{color:var(--line-2)}
-.tag-first{border:1px solid var(--accent-line);background:var(--accent-wash);color:var(--accent);padding:2px 9px;font-size:10.5px;letter-spacing:.04em}
-.card-install{display:flex;align-items:center;gap:9px;width:100%;text-align:left;font-family:var(--font-mono);font-size:11.5px;color:var(--ink-soft);background:transparent;border:1px dashed var(--line-2);padding:9px 15px;transition:border-color 140ms,color 140ms,background 140ms}
-.card-install:hover{border-style:solid;border-color:var(--accent-line);color:var(--ink);background:var(--accent-wash)}
-.card-install .ps{color:var(--accent);flex:none}
-/* The command used to ellipse on one line, and what it cut was the plugin
-   NAME — the only part that differs between cards, so all six read
-   `…/kobe-plugi…`. It fits in two lines, so show the whole thing: this is
-   a command someone copies, and a truncated command is not one. */
-.card-install{align-items:flex-start}
+/* ═══ CATALOGUE CONTROLS — ruled instruments, no radius ═══════════════════ */
+.controls{display:flex;flex-wrap:wrap;align-items:stretch;border:1.6px solid var(--ink);margin:0 0 16px}
+.field{display:flex;align-items:center;gap:8px;padding:7px 12px;border-right:1px solid var(--rule);min-width:0}
+.field .ps{font-family:var(--font-mono);font-size:12.5px;color:var(--ink-3);flex:none}
+.field label{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.2em;font-size:10px;font-weight:600;color:var(--ink-2);flex:none}
+#q,#sort{border:0;background:transparent;color:var(--ink);font-family:var(--font-mono);font-size:12.5px;outline:0;min-width:0}
+#q{width:min(34vw,260px);-webkit-appearance:none;appearance:none}
+#q::placeholder{color:var(--ink-3)}
+#sort{cursor:pointer}
+.count{
+  margin-left:auto;display:flex;align-items:center;padding:7px 12px;
+  border-left:1px solid var(--rule);
+  font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.18em;
+  font-size:10.5px;font-weight:600;color:var(--ink-2);white-space:nowrap;
+}
+
+/* ═══ THE CATALOGUE — a ruled schedule of bought-in parts ═════════════════ */
+.grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));
+  gap:0;border-top:1.6px solid var(--ink);border-left:1px solid var(--rule);
+  counter-reset:item;
+}
+.card{
+  display:flex;flex-direction:column;gap:9px;min-width:0;padding:13px 15px 0;
+  border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  counter-increment:item;cursor:pointer;
+}
+.card:hover{background:var(--paper-2)}
+.card-top{display:flex;align-items:baseline;gap:10px}
+.card-top::before{
+  content:counter(item,decimal-leading-zero);flex:none;
+  font-family:var(--font-mono);font-size:11px;color:var(--ink-3);
+}
+.card-name{
+  flex:1 1 auto;min-width:0;overflow-wrap:anywhere;border-bottom:0;
+  font-family:var(--font-mono);font-size:13.5px;font-weight:500;color:var(--ink);
+}
+.card-name .owner{color:var(--ink-3);font-weight:400}
+.card:hover .card-name{color:var(--accent-text)}
+.card-stars{flex:none;display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:11.5px;color:var(--ink-2)}
+.card-stars svg{fill:var(--ink-3)}
+.card-desc{margin:0;flex:1 1 auto;font-size:13px;line-height:1.55;color:var(--ink-2);overflow-wrap:anywhere}
+.card-meta{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.14em;
+  font-size:10px;font-weight:600;color:var(--ink-3);
+}
+.card-meta .dot,.det-facts .dot{width:6px;height:6px;background:var(--ink-3);flex:none}
+.card-meta .sep,.det-facts .sep{color:var(--rule)}
+.tag-first{border:1px solid var(--ink-2);color:var(--ink-2);padding:1px 7px;letter-spacing:.16em}
+.card-install{
+  margin:9px -15px 0;width:calc(100% + 30px);display:flex;align-items:flex-start;gap:8px;
+  background:transparent;border:0;border-top:1px solid var(--rule);
+  font-family:var(--font-mono);font-size:11.5px;line-height:1.5;color:var(--ink-2);
+  text-align:left;cursor:pointer;padding:8px 15px;
+}
+.card-install:hover{border-top-color:var(--accent-line);color:var(--ink)}
+.card-install .ps{color:var(--ink-3);flex:none}
 .card-install .cmd{min-width:0;overflow-wrap:anywhere}
-.skel{background:var(--surface);border:1px solid var(--line);border-radius:6px;height:170px;animation:pulse 1.5s ease-in-out infinite}
-@keyframes pulse{50%{opacity:.5}}
-.empty{font-family:var(--font-mono);font-size:13px;color:var(--faint);padding:34px 0}
+.skel{border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);height:150px;background:var(--paper-2)}
+.empty{
+  grid-column:1/-1;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  margin:0;padding:26px 15px;font-family:var(--font-tech);text-transform:uppercase;
+  letter-spacing:.18em;font-size:11px;font-weight:600;color:var(--ink-2);
+}
 
-/* ============ PLUGIN DETAIL ============ */
-#detail{padding-top:clamp(108px,13.5vh,148px);max-width:860px} /* padding-top only — .wrap owns the side gutters */
-.det-back{display:inline-block;font-family:var(--font-mono);font-size:12px;color:var(--muted);border-bottom:1px solid transparent;transition:color 140ms,border-color 140ms}
-.det-back:hover{color:var(--accent);border-color:var(--accent-line)}
-.det-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:18px 0 0}
-.det-name{font-family:var(--font-mono);font-size:clamp(21px,3vw,27px);font-weight:500;letter-spacing:-.01em;color:var(--ink);overflow-wrap:anywhere}
-.det-name .owner{color:var(--faint);font-weight:400}
-.det-desc{font-size:16px;color:var(--muted);margin-top:12px;max-width:62ch}
-.det-facts{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-family:var(--font-mono);font-size:11.5px;color:var(--faint);margin-top:16px}
+/* ═══ DETAIL — one part, drawn as its own data sheet ══════════════════════ */
+#detail{padding:26px 0 34px;min-width:0}
+#detail[hidden]{display:none}
+.det-back{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.18em;font-size:10.5px;font-weight:600;color:var(--ink-2);border-bottom:1px solid var(--rule)}
+.det-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:20px 0 0}
+.det-name{
+  margin:0;font-family:var(--font-mono);font-size:clamp(19px,2.6vw,26px);font-weight:500;
+  letter-spacing:-.01em;color:var(--ink);overflow-wrap:anywhere;min-width:0;
+}
+.det-name .owner{color:var(--ink-3);font-weight:400}
+.det-desc{margin:12px 0 0;max-width:62ch;font-size:15px;color:var(--ink-2);overflow-wrap:anywhere}
+.det-facts{
+  display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:16px 0 0;
+  padding:8px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.16em;
+  font-size:10.5px;font-weight:600;color:var(--ink-2);
+}
 .det-fact{display:inline-flex;align-items:center;gap:5px}
-.det-fact svg{fill:oklch(70% 0.11 80)}
-.det-facts .dot{width:7px;height:7px;border-radius:50%;background:var(--accent-2);flex:none}
-.det-facts .sep{color:var(--line-2)}
-.det-gh{margin-left:auto;color:var(--muted);border-bottom:1px solid var(--line-2);transition:color 140ms,border-color 140ms}
-.det-gh:hover{color:var(--accent);border-color:var(--accent-line)}
-.det-install{width:auto;max-width:100%;margin-top:20px;font-size:12.5px;padding:11px 20px}
-.det-readme{margin-top:38px;border-top:1px solid var(--line);padding-top:26px}
-.det-readme-label{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.22em;color:var(--accent);display:block;margin-bottom:14px}
-
-/* rendered README — same register as the page, just quieter */
-.md{font-size:15px;color:var(--muted)}
-.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{font-family:var(--font-display);font-optical-sizing:auto;font-weight:400;color:var(--ink);letter-spacing:-.014em;line-height:1.2;margin:26px 0 10px}
-.md h1{font-size:25px}.md h2{font-size:21px}.md h3{font-size:18px}
-.md h4,.md h5,.md h6{font-family:var(--font-mono);font-size:14px;font-weight:500}
+.det-fact svg{fill:var(--ink-3)}
+.det-gh{margin-left:auto;border-bottom:1px solid var(--rule)}
+.det-install{
+  margin:18px 0 0;width:auto;max-width:100%;
+  border:1.6px solid var(--ink);border-top-width:1.6px;padding:10px 14px;font-size:12.5px;
+}
+.det-install:hover{border-color:var(--accent-line);border-top-color:var(--accent-line)}
+.det-readme{margin-top:30px;border-top:1.6px solid var(--ink);padding-top:18px}
+.det-readme-label{
+  display:block;margin-bottom:14px;font-family:var(--font-tech);text-transform:uppercase;
+  letter-spacing:.26em;font-size:10.5px;font-weight:600;color:var(--ink-2);
+}
+/* rendered README — quieter than the sheet, same ink */
+.md{font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}
+.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{
+  margin:24px 0 9px;font-family:var(--font-tech);text-transform:uppercase;
+  letter-spacing:.14em;font-weight:600;color:var(--ink);line-height:1.25;
+  max-width:none;overflow-wrap:break-word; /* the sheet's own h1 is capped at 15ch */
+}
+.md h1{font-size:19px}.md h2{font-size:16px}.md h3{font-size:14px}
+.md h4,.md h5,.md h6{font-family:var(--font-mono);text-transform:none;letter-spacing:0;font-size:13px;font-weight:500}
 .md > :first-child{margin-top:0}
-.md p{margin:0 0 14px}
-.md a{color:var(--accent);border-bottom:1px solid var(--accent-line)}
-.md a:hover{border-bottom-color:var(--accent)}
-.md strong{color:var(--ink);font-weight:600}
-.md .md-list{margin:0 0 14px;padding-left:20px}
-.md .md-list li{margin-bottom:6px}
-.md .md-list li::marker{color:var(--accent-2)}
-.md .md-hr{border:0;border-top:1px solid var(--line);margin:24px 0}
-.md .md-pre{background:linear-gradient(180deg,oklch(24% 0.021 50),var(--well) 60%);border:1px solid oklch(32% 0.024 50);border-radius:6px;color:var(--well-ink);font-family:var(--font-mono);font-size:12.5px;line-height:1.9;padding:16px 20px;margin:0 0 16px;overflow-x:auto}
-.md .md-pre code{background:transparent;border:0;padding:0;color:inherit;font-size:inherit}
-.md .md-fail{font-family:var(--font-mono);font-size:12.5px;color:var(--faint)}
+.md p{margin:0 0 13px}
+.md code{font-family:var(--font-mono);font-size:12px;color:var(--ink);background:var(--paper-2);padding:1px 4px}
+.md strong{color:var(--ink);font-weight:500}
+.md .md-list{margin:0 0 13px;padding-left:20px}
+.md .md-list li{margin-bottom:5px}
+.md .md-list li::marker{font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
+.md .md-hr{border:0;border-top:1px solid var(--rule);margin:22px 0}
+.md .md-pre{
+  margin:0 0 14px;padding:12px 14px;overflow-x:auto;
+  border:1px solid var(--rule);border-left:2px solid var(--ink);background:var(--paper-2);
+  font-family:var(--font-mono);font-size:12px;line-height:1.65;color:var(--ink);
+}
+.md .md-pre code{background:transparent;padding:0;font-size:inherit}
+.md .md-fail{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.14em;font-size:11px;font-weight:600;color:var(--ink-2)}
 
-/* ============ PUBLISH ============ */
-.publish{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:clamp(28px,4.5vw,56px);align-items:start;margin-top:26px}
-@media(max-width:880px){.publish{grid-template-columns:1fr}}
-.steps{list-style:none;counter-reset:s}
-.steps li{counter-increment:s;position:relative;padding:0 0 22px 44px;font-size:15px;color:var(--muted)}
-.steps li::before{content:counter(s);position:absolute;left:0;top:-1px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-family:var(--font-mono);font-size:12px;color:var(--accent);background:var(--accent-wash);border:1px solid var(--accent-line)}
-.steps li::after{content:"";position:absolute;left:13.5px;top:32px;bottom:4px;width:1px;background:var(--line-2)}
-.steps li:last-child{padding-bottom:0}
-.steps li:last-child::after{display:none}
-.steps b{color:var(--ink);font-weight:600}
-code{font-family:var(--font-mono);font-size:12.5px;background:var(--accent-wash);border:1px solid oklch(62% 0.13 45/.18);border-radius:5px;padding:1px 6px;color:oklch(46% 0.11 45);overflow-wrap:anywhere}
-
+@media (max-width:620px){
+  .caution{grid-template-columns:minmax(0,1fr)}
+  .caution .sym{border-right:0;border-bottom:1px solid var(--accent-line);justify-content:flex-start;padding:11px 13px}
+  .controls{border-width:1.2px}
+  .field{border-right:0;border-bottom:1px solid var(--rule);flex:1 1 100%}
+  #q{width:auto;flex:1 1 auto}
+  .count{margin-left:0;border-left:0;flex:1 1 100%;padding:7px 12px}
+  .grid{border-left:0}
+  .card{border-right:0}
+}
 </style>
 </head>
 <body>
+<a class="skip" href="#main" data-i18n="a11y.skip">Skip to drawing</a>
 
-<!-- NAV · terminal command in a glass pill -->
-<header class="navbar">
-  <span class="ps" aria-hidden="true">$</span>
-  <a class="bin" href="/">Rove</a>
-  <nav aria-label="Main">
-  <a class="nl" href="/#workflow" data-i18n="nav.workflow">--primitives</a>
-  <a class="nl" href="/#install" data-i18n="nav.install">--install</a>
-  <a class="nl" href="https://docs.rove.run" data-i18n="nav.docs">--docs</a>
-  <a class="nl" href="/plugins" aria-current="page" data-i18n="nav.plugins">--plugins</a>
-  <a class="nl" href="/themes" data-i18n="nav.themes">--themes</a>
-  <a class="nl" href="/changelog" data-i18n="nav.changelog">--changelog</a>
-  </nav>
-  <span class="caret" aria-hidden="true"></span>
-  <button id="langToggle" class="lang-btn">中文</button>
-  <a class="gh-link" href="https://github.com/Sma1lboy/rove" target="_blank" rel="noopener">
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" style="flex:none;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-    <span>GitHub</span>
-    <span class="gh-stars">
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" style="flex:none;"><path d="M8 .25l2.06 4.18 4.61.67-3.34 3.25.79 4.6L8 10.97l-4.12 2.17.79-4.6L1.33 5.1l4.61-.67L8 .25z"/></svg>
-      <span id="starCount">–</span>
-    </span>
-  </a>
-</header>
+<!-- shared draughting symbols: arrowheads, hatch ------------------------- -->
+<svg width="0" height="0" aria-hidden="true" style="position:absolute">
+  <defs>
+    <marker id="arw" viewBox="0 0 10 8" refX="9.4" refY="4" markerWidth="9" markerHeight="7.2" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M0 0.4 L10 4 L0 7.6 Z" fill="var(--ink-3)"/>
+    </marker>
+    <marker id="arwa" viewBox="0 0 10 8" refX="9.4" refY="4" markerWidth="9" markerHeight="7.2" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M0 0.4 L10 4 L0 7.6 Z" fill="var(--accent-line)"/>
+    </marker>
+    <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="7" stroke="var(--hatch)" stroke-width="1"/>
+    </pattern>
+  </defs>
+</svg>
 
-<!-- HEAD -->
-<section id="top" class="head wrap">
-  <p class="kicker rise" style="animation-delay:.06s" data-i18n-html="plug.kicker">a directory · a <span class="acc" style="font-style:normal;font-weight:700">rove-plugin.toml</span> · the whole CLI as the API</p>
-  <h1 class="rise" style="animation-delay:.16s" data-i18n-html="plug.title">Workflow, packaged and <span class="acc">shareable</span>.</h1>
-  <p class="head-sub rise" style="animation-delay:.28s" data-i18n="plug.sub">A Rove plugin is a directory with a rove-plugin.toml manifest. There is no required SDK: the whole Rove CLI is the plugin API, so anything you can script against your fleet, you can ship to someone else.</p>
-  <figure class="term-frame head-term rise" style="animation-delay:.4s"><div class="tbar" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i><span>install</span></div>
-  <pre class="term-out"><span class="ps">$</span> rove plugin install owner/repo<span class="d">[/subdir]</span>
-<span class="ps">$</span> rove plugin list
-<span class="d">notify · github-start · worktree-include</span></pre></figure>
-</section>
-
-<!-- MARKETPLACE -->
-<section id="marketplace" class="sec wrap">
-  <div class="sec-head">
-    <div>
-      <span class="sec-no" data-i18n="mk.no">01 · MARKETPLACE</span>
-      <h2 data-i18n-html="mk.title">Everything tagged <span class="acc">rove-plugin</span>.</h2>
-      <p class="sec-lede" data-i18n="mk.lede">This list is not curated by hand. It combines the canonical rove-plugin topic with legacy kobe-plugin repositories, fetched live when you open the page.</p>
-    </div>
+<div class="sheet">
+<div class="inner">
+  <div class="zone-side" aria-hidden="true"><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span></div>
+  <div class="zone-top" aria-hidden="true">
+    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span>
   </div>
 
-  <div class="controls">
-    <div class="field">
-      <span class="ps" aria-hidden="true">/</span>
-      <input id="q" type="search" autocomplete="off" placeholder="filter plugins…" aria-label="Filter plugins">
-    </div>
-    <div class="field">
-      <label for="sort" data-i18n="mk.sortLabel">SORT</label>
-      <select id="sort">
-        <option value="stars" data-i18n="mk.sortStars">stars</option>
-        <option value="pushed" data-i18n="mk.sortPushed">recently pushed</option>
-        <option value="newest" data-i18n="mk.sortNewest">newest</option>
-      </select>
-    </div>
-    <span class="count" id="count"></span>
-  </div>
-
-  <div class="notice" id="disclaimer">
-    <span class="mk" aria-hidden="true">!</span>
-    <span data-i18n="mk.disclaimer">These are community repositories, listed automatically and reviewed by nobody. A plugin runs with your shell's privileges, so read the manifest before you install.</span>
-  </div>
-
-  <div class="grid" id="grid" aria-live="polite">
-    <div class="skel"></div><div class="skel"></div><div class="skel"></div>
-  </div>
-</section>
-
-<!-- DETAIL · one plugin, hash-routed (#owner/repo[/subdir]); rendered by marketplace.js -->
-<section id="detail" class="wrap" hidden aria-live="polite"></section>
-
-<!-- PUBLISH -->
-<section id="publish" class="sec wrap">
-  <span class="sec-no" data-i18n="pub.no">02 · PUBLISH</span>
-  <h2 data-i18n="pub.title">Ship yours in three steps.</h2>
-  <div class="publish">
-    <ol class="steps">
-      <li data-i18n-html="pub.s1"><b>Put a manifest in a public repo.</b> A <code>rove-plugin.toml</code> at the repo root, or in a subdirectory if you keep several plugins in one repo.</li>
-      <li data-i18n-html="pub.s2"><b>Add the GitHub topic <code>rove-plugin</code>.</b> Repo page → the gear next to About → Topics.</li>
-      <li data-i18n-html="pub.s3"><b>Done.</b> It shows up on this page on the next load, and anyone can run <code>rove plugin install you/your-repo</code>.</li>
-    </ol>
-    <figure class="term-frame"><div class="tbar" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i><span>rove-plugin.toml</span></div>
-    <pre class="term-out"><span class="k">id</span> = <span class="s">"notify"</span>
-<span class="k">name</span> = <span class="s">"Notify"</span>
-<span class="k">version</span> = <span class="s">"0.1.0"</span>
-<span class="k">min_rove_version</span> = <span class="s">"0.8.0"</span>
-
-<span class="a">[[actions]]</span>
-<span class="k">id</span> = <span class="s">"test"</span>
-<span class="k">title</span> = <span class="s">"Send a test notification"</span>
-<span class="k">command</span> = [<span class="s">"sh"</span>, <span class="s">"notify.sh"</span>, <span class="s">"test"</span>]
-
-<span class="a">[[events]]</span>
-<span class="k">on</span> = <span class="s">"agent.turn-complete"</span>
-<span class="k">command</span> = [<span class="s">"sh"</span>, <span class="s">"notify.sh"</span>]</pre></figure>
-  </div>
-</section>
-
-<!-- FOOTER · dense colophon -->
-<footer class="foot-dense foot-spaced">
-  <div class="foot-inner">
-    <p class="foot-id">
-      <span class="mark">[Rove]</span> <span class="tagline" data-i18n="footer.tagline">a terminal multiplexer for coding agents.</span>
-      <span class="foot-colophon" data-i18n="footer.colophon">Built with Bun, OpenTUI and React. Set in Fraunces, DM Sans and JetBrains Mono. MIT licensed.</span>
-    </p>
-    <nav class="foot-links" aria-label="Footer">
-      <a href="https://github.com/Sma1lboy/rove" target="_blank" rel="noopener">GitHub</a>
-      <a href="https://www.npmjs.com/package/@sma1lboy/rove" target="_blank" rel="noopener">npm</a>
-      <a href="/themes" data-i18n="footer.themesLink">themes</a>
-      <a href="/changelog" data-i18n="footer.changelog">changelog</a>
-      <a href="https://docs.rove.run/plugins/authoring" data-i18n="footer.plugindocs">plugin docs</a>
-      <a href="https://docs.rove.run/rove/keybindings" data-i18n="footer.keybindings">keybindings</a>
+  <!-- ══ HEADER ══════════════════════════════════════════════════════════ -->
+  <header class="head">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 64 64" width="28" height="28" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#191713"/><path d="M19 13H12V51h7" stroke="#CC785C" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 13V51" stroke="#CC785C" stroke-width="4" fill="none" stroke-linecap="round"/><g transform="translate(19.811 45) scale(.01745 -.01745)"><path d="M111 0H419V521H689C690 521 691 521 692 521L956 0H1286L987 579C1154 656 1253 804 1253 1001C1253 1301 1043 1490 707 1490H111ZM419 768V1234H688C851 1234 952 1143 952 1001C952 859 851 768 689 768Z" fill="#EAE7DF"/></g><path d="M45 13h7V51h-7" stroke="#CC785C" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M52 13V51" stroke="#CC785C" stroke-width="4" fill="none" stroke-linecap="round"/></svg>
+      <span class="wm">Rove</span>
+    </a>
+    <span class="stamp" data-i18n="sheet.stamp">Rev 0.9.191 · Sheet 2 of 4</span>
+    <span class="spacer"></span>
+    <nav aria-label="Primary">
+      <a href="https://docs.rove.run" data-i18n="nav.docs">Docs</a>
+      <a href="/" data-i18n="nav.assembly">Assembly</a>
+      <a href="/plugins" aria-current="page" data-i18n="nav.plugins">Plugins</a>
+      <a href="/themes" data-i18n="nav.themes">Themes</a>
+      <a href="/changelog" data-i18n="nav.changelog">Changelog</a>
     </nav>
-  </div>
-</footer>
+    <button id="langToggle" class="lang-btn">中文</button>
+    <a class="gh-link" href="https://github.com/Sma1lboy/rove" target="_blank" rel="noopener">
+      <span>GitHub</span>
+      <span class="gh-stars">
+        <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 .25l2.06 4.18 4.61.67-3.34 3.25.79 4.6L8 10.97l-4.12 2.17.79-4.6L1.33 5.1l4.61-.67L8 .25z"/></svg>
+        <span id="starCount">–</span>
+      </span>
+    </a>
+  </header>
+
+  <main id="main">
+
+  <!-- ══ STATIC FRAME (zones A–E) ════════════════════════════════════════
+       #top is the marketplace's "list header" section: marketplace.js hides
+       it whole when a plugin detail is routed to, so the notes that frame
+       the catalogue live inside it and leave with it. -->
+  <section id="top">
+
+  <!-- ── HERO ─────────────────────────────────────────────────────────── -->
+  <section class="hero" data-zone="A">
+    <div class="hero-l">
+      <h1 data-i18n-html="hero.h1">Standard parts <span class="thin">bought in</span></h1>
+      <p class="lede" data-i18n-html="hero.lede">Sheet 1 drew the assembly. These are the parts nobody on this drawing made. A Rove plugin is <b>a directory with a <span class="mono">rove-plugin.toml</span> manifest</b> — that is the whole requirement. There is no required SDK, because the entire Rove CLI is the plugin API.</p>
+
+      <div class="cmd-wrap">
+        <button class="copy" data-cmd="rove plugin install owner/repo" aria-label="Copy command: rove plugin install owner/repo">
+          <span class="tag" aria-hidden="true" data-i18n="hero.tag">Install</span>
+          <span class="cmd">rove plugin install owner/repo</span>
+          <span class="hint" data-hint data-i18n="hero.hint">Click to copy</span>
+        </button>
+      </div>
+      <div class="alts">
+        <button class="alt" data-cmd="rove plugin install owner/repo/subdir">rove plugin install owner/repo/subdir</button>
+        <button class="alt" data-cmd="rove plugin list">rove plugin list</button>
+      </div>
+      <p class="platform" data-i18n="hero.platform">Anything you can script against your fleet, you can ship to someone else.</p>
+    </div>
+
+    <div class="hero-r">
+      <div class="subject" data-measure="1 REQUIRED FILE">
+        <div class="cap micro" data-i18n="subj.cap">Subject of drawing</div>
+        <div class="body">
+          <div class="eq">
+            <div class="row"><span class="op"></span><span class="lhs" data-i18n="subj.lhs">Plugin</span></div>
+            <div class="row"><span class="op">=</span><span class="bl">1</span><span data-i18n="subj.r1">directory</span></div>
+            <div class="row"><span class="op">+</span><span class="bl">2</span><span>rove-plugin.toml</span></div>
+            <div class="row"><span class="op">+</span><span class="bl">3</span><span data-i18n="subj.r3">nothing else</span></div>
+          </div>
+        </div>
+        <div class="foot micro"><span data-i18n="subj.f1">See Fig. 1</span><span data-i18n="subj.f2">1 mating face</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <svg width="62" height="30" viewBox="0 0 62 30" aria-hidden="true">
+          <path d="M6 10 L6 20 L30 20 L30 10 Z" class="thin"/>
+          <path d="M30 12 L58 12 M30 15 L58 15 M30 18 L58 18" class="thin"/>
+          <line x1="1" y1="15" x2="62" y2="15" class="ctr"/>
+        </svg>
+        <span class="micro" data-i18n="hero.bought">Bought-in part</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── NOTE 1 — MATING INTERFACE ────────────────────────────────────── -->
+  <section class="note" data-zone="B">
+    <h2><span class="num" data-i18n="note1.num">Note 1</span> — <span data-i18n="note1.h">Mating interface</span> <span class="dash"></span> <span class="micro" data-i18n="note1.fig">Fig. 1</span></h2>
+
+    <div class="fig-col">
+      <figure class="fig fig-wide">
+        <svg viewBox="0 0 560 360" role="img" aria-label="The manifest is the mating face between a plugin directory and the Rove CLI. The CLI is drawn as the threaded bore the manifest engages. Six manifest fields are called out on leader lines below, four of them required. The optional SDK is drawn in hidden line because it may be absent.">
+          <!-- ── the plugin: a part you supply ── -->
+          <g>
+            <rect x="4" y="52" width="138" height="96" class="vf" data-draw/>
+            <text class="tx fade" x="16" y="80" data-i18n="f1.plugin">Your plugin</text>
+            <text class="tx-s fade" x="16" y="100" data-i18n="f1.anylang">Any language</text>
+            <text class="tx-m fade" x="16" y="124">./my-plugin/</text>
+          </g>
+
+          <!-- ── the mating face: rove-plugin.toml ── -->
+          <g>
+            <rect x="142" y="32" width="30" height="136" class="acc" data-draw/>
+            <rect x="142" y="32" width="30" height="136" fill="url(#hatch)" class="hatchband fade"/>
+            <g class="fade">
+              <line x1="157" y1="32" x2="157" y2="14" class="dim"/>
+              <line x1="157" y1="14" x2="176" y2="14" class="dim"/>
+              <text class="tx-m" x="182" y="18" fill="var(--accent-text)">rove-plugin.toml</text>
+            </g>
+          </g>
+
+          <!-- ── engagement ── -->
+          <g class="fade">
+            <line x1="176" y1="100" x2="242" y2="100" class="dim" marker-end="url(#arw)"/>
+            <text class="tx-s" x="209" y="90" text-anchor="middle" data-i18n="f1.mates">Mates</text>
+          </g>
+
+          <!-- ── the CLI: the thread it screws into ── -->
+          <g>
+            <rect x="246" y="32" width="310" height="136" class="v" data-draw/>
+            <g class="fade">
+              <line x1="246" y1="70" x2="268" y2="70" class="thin"/>
+              <line x1="246" y1="82" x2="268" y2="82" class="thin"/>
+              <line x1="246" y1="94" x2="268" y2="94" class="thin"/>
+              <line x1="246" y1="106" x2="268" y2="106" class="thin"/>
+              <line x1="246" y1="118" x2="268" y2="118" class="thin"/>
+              <line x1="246" y1="130" x2="268" y2="130" class="thin"/>
+            </g>
+            <text class="tx fade" x="284" y="74">Rove CLI</text>
+            <text class="tx-s fade" x="284" y="94" data-i18n="f1.cliapi">The plugin API</text>
+            <text class="tx-m fade" x="284" y="118">every rove api verb</text>
+            <text class="tx-m fade" x="284" y="140">the daemon socket</text>
+          </g>
+
+          <!-- ── the optional SDK: hidden line, it may be absent ── -->
+          <g class="fade">
+            <line x1="72" y1="148" x2="72" y2="196" class="hid"/>
+            <rect x="4" y="196" width="138" height="60" class="hid"/>
+            <text class="tx" x="16" y="222" fill="var(--ink-2)">SDK</text>
+            <text class="tx-s" x="16" y="242" data-i18n="f1.optional">Optional</text>
+            <text class="tx-m" x="4" y="276">@sma1lboy/rove-plugin-sdk</text>
+          </g>
+
+          <!-- ── field schedule, on leader lines off the mating face ── -->
+          <g class="fade">
+            <line x1="157" y1="168" x2="157" y2="188" class="dim"/>
+            <line x1="157" y1="188" x2="200" y2="188" class="dim"/>
+            <line x1="200" y1="188" x2="200" y2="338" class="dim"/>
+
+            <line x1="200" y1="196" x2="212" y2="196" class="dim"/><circle cx="212" cy="196" r="2.4" class="dot"/>
+            <text class="tx-m" x="220" y="200">id &#183; name &#183; version</text>
+            <text class="tx-s" x="386" y="200" data-i18n="f1.req1">Required</text>
+
+            <line x1="200" y1="224" x2="212" y2="224" class="dim"/><circle cx="212" cy="224" r="2.4" class="dot"/>
+            <text class="tx-m" x="220" y="228">min_rove_version</text>
+            <text class="tx-s" x="386" y="228" data-i18n="f1.req2">Required</text>
+
+            <line x1="200" y1="252" x2="212" y2="252" class="dim"/><circle cx="212" cy="252" r="2.4" class="dot"/>
+            <text class="tx-m" x="220" y="256">[[events]]</text>
+            <text class="tx-s" x="386" y="256" data-i18n="f1.events">Daemon fires your argv</text>
+
+            <line x1="200" y1="280" x2="212" y2="280" class="dim"/><circle cx="212" cy="280" r="2.4" class="dot"/>
+            <text class="tx-m" x="220" y="284">[[panes]]</text>
+            <text class="tx-s" x="386" y="284" data-i18n="f1.panes">A tab in the task</text>
+
+            <line x1="200" y1="308" x2="212" y2="308" class="dim"/><circle cx="212" cy="308" r="2.4" class="dot"/>
+            <text class="tx-m" x="220" y="312">[[actions]]</text>
+            <text class="tx-s" x="386" y="312" data-i18n="f1.actions">On demand</text>
+
+            <line x1="200" y1="336" x2="212" y2="336" class="dim"/><circle cx="212" cy="336" r="2.4" class="dot"/>
+            <text class="tx-m" x="220" y="340">[[engines]]</text>
+            <text class="tx-s" x="386" y="340" data-i18n="f1.engines">See Fig. 2</text>
+          </g>
+        </svg>
+        <figcaption data-i18n="note1.cap">Fig. 1 — Mating interface · The manifest is the face, the CLI is the thread · Hidden line = the part that may be absent</figcaption>
+      </figure>
+    </div>
+
+    <div class="txt-col">
+      <p data-i18n="note1.p1">A plugin bolts on through one face: the manifest. Rove reads it, and from then on the plugin is ordinary argv that Rove knows when to launch — on a daemon event, on demand, or as a pane tab in a task workspace.</p>
+      <p data-i18n-html="note1.p2"><b>There is no required SDK.</b> Anything you can already script against your fleet — a <span class="mono">rove api</span> verb, a shell one-liner, a binary you wrote — is a plugin the moment you put a manifest beside it. A TypeScript SDK, <span class="mono">@sma1lboy/rove-plugin-sdk</span>, exists and is optional; it is drawn in hidden line for exactly that reason.</p>
+      <p data-i18n="note1.p3">That is why this sheet is short. There is no framework to learn on the way in, so the interface fits on one drawing and the specimen in Note 4 fits in nine lines.</p>
+    </div>
+  </section>
+
+  <!-- ── NOTE 2 — PARTS LIST ──────────────────────────────────────────── -->
+  <section class="note" data-zone="C">
+    <h2><span class="num" data-i18n="note2.num">Note 2</span> — <span data-i18n="note2.h">Parts list</span> <span class="dash"></span> <span class="micro" data-i18n="note2.sub">First-party examples</span></h2>
+
+    <div class="fig-col">
+      <div class="t-scroll">
+        <table class="parts" data-measure="6 PARTS LISTED">
+          <caption><span data-i18n="parts.cap">Parts list</span> — <span class="reread"><span class="r" data-i18n="parts.rr1">6 parts</span><span class="r" data-i18n="parts.rr2">6 subdirectories</span><span class="r" data-i18n="parts.rr3">6 install commands</span></span></caption>
+          <thead>
+            <tr><th class="t-item" data-i18n="parts.th1">Item</th><th data-i18n="parts.th2">Part no.</th><th data-i18n="parts.th3">Description</th><th data-i18n="parts.th4">Source</th><th class="t-qty" data-i18n="parts.th5">Qty</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="t-item">1</td>
+              <th scope="row" class="t-cmd">Sma1lboy/kobe-plugins/notify</th>
+              <td data-i18n="parts.d1">Desktop or ntfy notification when an agent finishes a turn or needs input</td>
+              <td class="t-class" data-i18n="parts.first">First party</td><td class="t-qty">1</td>
+            </tr>
+            <tr>
+              <td class="t-item">2</td>
+              <th scope="row" class="t-cmd">Sma1lboy/kobe-plugins/github-start</th>
+              <td data-i18n="parts.d2">Start a task straight from a GitHub issue or pull request</td>
+              <td class="t-class" data-i18n="parts.first2">First party</td><td class="t-qty">1</td>
+            </tr>
+            <tr>
+              <td class="t-item">3</td>
+              <th scope="row" class="t-cmd">Sma1lboy/kobe-plugins/worktree-include</th>
+              <td data-i18n="parts.d3">Copy chosen ignored files into every new worktree</td>
+              <td class="t-class" data-i18n="parts.first3">First party</td><td class="t-qty">1</td>
+            </tr>
+            <tr>
+              <td class="t-item">4</td>
+              <th scope="row" class="t-cmd">Sma1lboy/kobe-plugins/linear-start</th>
+              <td data-i18n="parts.d4">Pick a Linear issue with fzf and start a task on its branch</td>
+              <td class="t-class" data-i18n="parts.first4">First party</td><td class="t-qty">1</td>
+            </tr>
+            <tr>
+              <td class="t-item">5</td>
+              <th scope="row" class="t-cmd">Sma1lboy/kobe-plugins/browser</th>
+              <td data-i18n="parts.d5">A real Chromium rendered as terminal cells in a pane tab</td>
+              <td class="t-class" data-i18n="parts.first5">First party</td><td class="t-qty">1</td>
+            </tr>
+            <tr>
+              <td class="t-item">6</td>
+              <th scope="row" class="t-cmd">Sma1lboy/kobe-plugins/lazygit</th>
+              <td data-i18n="parts.d6">Open lazygit on the task worktree, in a terminal-tab pane</td>
+              <td class="t-class" data-i18n="parts.first6">First party</td><td class="t-qty">1</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="t-note" data-i18n-html="parts.note">
+        Fit a part with <span class="mono">rove plugin install &lt;part no.&gt;</span>. One repository holds all six, so the trailing
+        segment selects one — that is what <span class="mono">owner/repo/subdir</span> is for. <span class="mono">rove plugin list</span> reports what is fitted.
+      </p>
+    </div>
+
+    <div class="txt-col">
+      <p data-i18n="note2.p1">These six ship as examples, not as a curated shelf. Each one is a workflow that does not belong in every install: a notification channel, two starting points from an issue tracker, a file-copy rule, a browser, a git UI.</p>
+      <p data-i18n="note2.p2">Read them as reference drawings. Each is a manifest and a handful of commands, and every one of them was written against the same interface in Fig. 1 that you would use.</p>
+      <p data-i18n-html="note2.p3">The <span class="mono">browser</span> and <span class="mono">lazygit</span> parts both arrive as <span class="mono">[[panes]]</span> — a terminal tab inside the task workspace, running in the task's own worktree. Nothing about a pane is special-cased for them.</p>
+    </div>
+  </section>
+
+  <!-- ── NOTE 3 — ENGINE CONTRIBUTION ─────────────────────────────────── -->
+  <section class="note" data-zone="D">
+    <h2><span class="num" data-i18n="note3.num">Note 3</span> — <span data-i18n="note3.h">Engine contribution</span> <span class="dash"></span> <span class="micro" data-i18n="note3.sub">Fig. 2</span></h2>
+
+    <div class="fig-col">
+      <figure class="fig fig-wide" data-measure="3 ENGINE ROUTES">
+        <svg viewBox="0 0 560 250" role="img" aria-label="Three routes into the same engine socket: four built-in engines, the contrib catalogue which is offered only if its binary is found, and a plugin-contributed engine which is offered without that check.">
+          <!-- the engine tab -->
+          <g>
+            <rect x="0" y="86" width="112" height="52" class="vf" data-draw/>
+            <text class="tx-m fade" x="12" y="108">&#8250;_ engine</text>
+            <text class="tx-m fade" x="12" y="126">tab</text>
+            <line x1="112" y1="112" x2="146" y2="112" class="v" data-draw/>
+          </g>
+
+          <!-- the socket every engine enters -->
+          <g>
+            <rect x="146" y="18" width="34" height="190" class="vf" data-draw/>
+            <text class="tx-s fade" x="146" y="12" data-i18n="f2.socket">One socket</text>
+            <g class="fade">
+              <rect x="180" y="39" width="12" height="22" class="v"/>
+              <rect x="180" y="109" width="12" height="22" class="v"/>
+              <rect x="180" y="179" width="12" height="22" class="v"/>
+            </g>
+          </g>
+
+          <!-- route 1 — built in -->
+          <g>
+            <line x1="192" y1="50" x2="268" y2="50" class="v" data-draw/>
+            <rect x="268" y="32" width="288" height="36" class="vf" data-draw/>
+            <text class="tx-m fade" x="280" y="55">claude · codex · copilot · kimi</text>
+            <text class="tx-s fade" x="268" y="84" data-i18n="f2.r1">Built in — always offered</text>
+          </g>
+
+          <!-- route 2 — contrib catalogue, gated on the binary -->
+          <g>
+            <line x1="192" y1="120" x2="268" y2="120" class="v" data-draw/>
+            <g class="fade">
+              <circle cx="230" cy="120" r="11" fill="var(--paper)" class="thin"/>
+              <path d="M225 120 L229 125 L236 115" class="thin"/>
+            </g>
+            <rect x="268" y="102" width="288" height="36" class="vf" data-draw/>
+            <text class="tx-m fade" x="280" y="125">gemini · opencode · cursor · grok</text>
+            <text class="tx-s fade" x="268" y="154" data-i18n="f2.r2">Contrib — only if the binary is found</text>
+          </g>
+
+          <!-- route 3 — contributed by a plugin, no check -->
+          <g>
+            <line x1="192" y1="190" x2="268" y2="190" class="acc" data-draw/>
+            <rect x="268" y="172" width="288" height="36" class="acc" data-draw/>
+            <text class="tx-m fade" x="280" y="195" fill="var(--accent-text)">[[engines]] in a manifest</text>
+            <g class="fade">
+              <line x1="192" y1="216" x2="268" y2="216" class="dim" marker-start="url(#arwa)" marker-end="url(#arwa)"/>
+              <text class="dimtx" x="230" y="210" text-anchor="middle" fill="var(--accent-text)" data-i18n="f2.checks">0 checks</text>
+            </g>
+            <text class="tx-s fade" x="268" y="228" data-i18n="f2.r3">Offered without the binary check</text>
+          </g>
+        </svg>
+        <figcaption data-i18n="note3.cap">Fig. 2 — A plugin-contributed engine in the common socket · Gate symbol = a binary look-up on PATH</figcaption>
+      </figure>
+    </div>
+
+    <div class="txt-col">
+      <p data-i18n-html="note3.p1">A plugin can contribute an engine. An <span class="mono">[[engines]]</span> entry registers one with a display name, a launch command, a screen manifest and an identity — the same four things the built-in engines supply, entering the same socket.</p>
+      <p data-i18n-html="note3.p2">One difference, and it is deliberate. The built-in contrib catalogue only offers an engine once it finds that engine's binary; a plugin engine is offered without that look-up. <b>Installing the plugin is the opt-in</b> — you already said yes when you fitted the part, so there is nothing left to detect.</p>
+      <p data-i18n-html="note3.p3">The screen manifest is what lets Rove read state off a terminal it has never seen: rules that map lines on screen to <em>working</em>, <em>blocked</em>, and the rest. Sheet 1's sidebar marks come from exactly that.</p>
+    </div>
+  </section>
+
+  <!-- ── NOTE 4 — MANIFEST SPECIMEN ───────────────────────────────────── -->
+  <section class="note" data-zone="E">
+    <h2><span class="num" data-i18n="note4.num">Note 4</span> — <span data-i18n="note4.h">Manifest specimen</span> <span class="dash"></span> <span class="micro">rove-plugin.toml</span></h2>
+
+    <div class="fig-col">
+      <pre class="code" data-measure="4 REQUIRED FIELDS">id = <span class="k">"acme.lazygit"</span>
+name = <span class="k">"Lazygit"</span>
+version = <span class="k">"0.1.0"</span>
+min_rove_version = <span class="k">"0.9.0"</span>
+
+<span class="k">[[panes]]</span>
+id = <span class="k">"git"</span>
+title = <span class="k">"lazygit"</span>
+command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task worktree</span></pre>
+      <p class="t-note" data-i18n="note4.note">Specimen only — nine lines, of which the first four are the whole requirement. Everything after the blank line is one optional contribution.</p>
+    </div>
+
+    <div class="txt-col">
+      <p data-i18n="note4.p1">Four fields identify the part: an id, a name, a version, and the oldest Rove it works on. A manifest carrying only those four is valid, and a plugin that does nothing else is a plugin.</p>
+      <p data-i18n="note4.p2">Everything below the blank line is a contribution — something the plugin adds to the product. Panes, events, actions and engines are each a table array, so a manifest may carry none of them, one of them, or all four.</p>
+      <p data-i18n-html="note4.p3"><span class="mono">command</span> is argv, not a shell string. Rove launches it directly.</p>
+    </div>
+  </section>
+
+  </section><!-- /#top -->
+
+  <!-- ══ NOTE 5 — THE LIVE CATALOGUE (zone F) ════════════════════════════
+       #marketplace, #grid, #q, #sort, #count and #disclaimer are the DOM
+       contract marketplace.js writes into. Markup is ours, ids are its. -->
+  <section id="marketplace" class="note" data-zone="F">
+    <h2><span class="num" data-i18n="note5.num">Note 5</span> — <span data-i18n="note5.h">Catalogue in service</span> <span class="dash"></span> <span class="micro" data-i18n="note5.fig">Fig. 3</span></h2>
+
+    <div class="fig-col">
+      <figure class="fig fig-wide">
+        <svg viewBox="0 0 560 230" role="img" aria-label="How a repository reaches this catalogue: two GitHub topic searches, rove-plugin and the legacy kobe-plugin, are merged and de-duplicated into one list. The first-party parts are seeded from this repository in hidden line, because a subdirectory cannot carry a topic, and the parent repository is dropped from the search results because its parts are already listed.">
+          <!-- the two inlet searches -->
+          <g>
+            <rect x="4" y="14" width="180" height="44" class="vf" data-draw/>
+            <text class="tx-m fade" x="16" y="36">topic:rove-plugin</text>
+            <text class="tx-s fade" x="16" y="52" data-i18n="f3.canonical">Canonical</text>
+          </g>
+          <g>
+            <rect x="4" y="76" width="180" height="44" class="vf" data-draw/>
+            <text class="tx-m fade" x="16" y="98">topic:kobe-plugin</text>
+            <text class="tx-s fade" x="16" y="114" data-i18n="f3.legacy">Legacy — still searched</text>
+          </g>
+          <g class="fade">
+            <line x1="184" y1="36" x2="230" y2="36" class="dim" marker-end="url(#arw)"/>
+            <line x1="184" y1="98" x2="230" y2="98" class="dim" marker-end="url(#arw)"/>
+          </g>
+
+          <!-- the parts seeded from this repository: hidden line, no topic of their own -->
+          <g class="fade">
+            <rect x="4" y="152" width="180" height="44" class="hid"/>
+            <text class="tx-m" x="16" y="174" fill="var(--ink-2)">6 first-party parts</text>
+            <text class="tx-s" x="16" y="190" data-i18n="f3.seeded">Seeded, no topic</text>
+            <line x1="184" y1="174" x2="230" y2="174" class="hid"/>
+          </g>
+
+          <!-- merge and de-duplicate -->
+          <g>
+            <rect x="232" y="14" width="30" height="182" class="vf" data-draw/>
+            <text class="tx-s fade" x="232" y="8" data-i18n="f3.merge">Merge · dedupe</text>
+          </g>
+
+          <!-- the parent repo is dropped: it would duplicate the six seeds -->
+          <g class="fade">
+            <line x1="262" y1="50" x2="300" y2="50" class="dim"/><circle cx="300" cy="50" r="2.4" class="dot"/>
+            <text class="tx-m" x="308" y="54">Sma1lboy/kobe-plugins</text>
+            <text class="tx-s" x="308" y="72" data-i18n="f3.dropped">Dropped — already seeded</text>
+          </g>
+
+          <!-- one list on the sheet -->
+          <g>
+            <line x1="262" y1="150" x2="308" y2="150" class="v" data-draw/>
+            <rect x="308" y="128" width="248" height="44" class="vf" data-draw/>
+            <text class="tx-m fade" x="320" y="150" data-i18n="f3.out">Catalogue in service</text>
+            <text class="tx-s fade" x="308" y="188" data-i18n="f3.sort">Sorted by stars · pushed · newest</text>
+          </g>
+        </svg>
+        <figcaption data-i18n="note5.cap">Fig. 3 — How a repository reaches this list · Hidden line = seeded, because a subdirectory cannot carry a topic</figcaption>
+      </figure>
+      <div class="caution" id="disclaimer" data-measure="0 SANDBOX · 0 REVIEW">
+        <div class="sym">
+          <svg viewBox="0 0 34 31" role="img" aria-label="Caution">
+            <path d="M17 2 L33 29 H1 Z"/>
+            <text x="17" y="26" text-anchor="middle">!</text>
+          </svg>
+        </div>
+        <div class="bd">
+          <h3 data-i18n="caut.h">Caution — read the manifest first</h3>
+          <p data-i18n="mk.disclaimer">These are community repositories, listed automatically and reviewed by nobody. A plugin runs with your shell's privileges, so read the manifest before you install.</p>
+          <p data-i18n="caut.p2">A plugin is not sandboxed and it is not inspected. Whatever your own commands can reach — your files, your keys, your network — it can reach too.</p>
+          <p data-i18n="caut.p3">The manifest is short by design, and it lists every command Rove will ever launch. Read it before you install.</p>
+        </div>
+      </div>
+      <p class="t-note" data-i18n-html="note5.note">Stars, language and push date come from the GitHub API on page load. The six first-party parts in Note 2 are seeded from this repository, because a subdirectory cannot carry a topic.</p>
+    </div>
+
+    <div class="txt-col">
+      <p data-i18n-html="note5.p1"><b>Discovery is not curated.</b> Every public repository carrying the GitHub topic <span class="mono">rove-plugin</span> is on this list. Nobody approves it, nobody ranks it, and nobody can keep you out — the listing is a search.</p>
+      <p><span data-i18n-html="note5.p2">The legacy topic <span class="mono">kobe-plugin</span> is searched too, so parts published under the old name stay listed without being touched.</span><svg class="tri" viewBox="0 0 19 17" aria-hidden="true"><path d="M9.5 1.5 L18 15 H1 Z"/><text x="9.5" y="13.6" text-anchor="middle">1</text></svg></p>
+      <p data-i18n="note5.p3">A catalogue with no gate at the front prints its caution on the same sheet. Rove checks that a manifest parses and shows you the commands it holds. It does not judge them, and it cannot: an argv array is the whole interface.</p>
+    </div>
+
+    <div class="wide">
+      <div class="controls">
+        <div class="field">
+          <span class="ps" aria-hidden="true">/</span>
+          <input id="q" type="search" autocomplete="off" placeholder="filter plugins…" aria-label="Filter plugins">
+        </div>
+        <div class="field">
+          <label for="sort" data-i18n="mk.sortLabel">SORT</label>
+          <select id="sort">
+            <option value="stars" data-i18n="mk.sortStars">stars</option>
+            <option value="pushed" data-i18n="mk.sortPushed">recently pushed</option>
+            <option value="newest" data-i18n="mk.sortNewest">newest</option>
+          </select>
+        </div>
+        <span class="count" id="count"></span>
+      </div>
+
+      <div class="grid" id="grid" aria-live="polite">
+        <div class="skel"></div><div class="skel"></div><div class="skel"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ DETAIL · one part, hash-routed (#owner/repo[/subdir]) ═══════════ -->
+  <section id="detail" hidden aria-live="polite"></section>
+
+  <!-- ══ NOTE 6 — TO PUBLISH A PART (zone G) ═════════════════════════════ -->
+  <section id="publish" class="note" data-zone="G">
+    <h2><span class="num" data-i18n="note6.num">Note 6</span> — <span data-i18n="pub.title">To publish a part</span> <span class="dash"></span> <span class="micro" data-i18n="pub.no">The topic is the whole submission</span></h2>
+
+    <div class="fig-col">
+      <ol class="gnotes" data-measure="3 STEPS">
+        <li data-i18n-html="pub.s1"><b>Put a manifest in a public repository.</b> A <span class="mono">rove-plugin.toml</span> at the repo root, or in a subdirectory if you keep several plugins in one repo.</li>
+        <li data-i18n-html="pub.s2"><b>Add the GitHub topic <span class="mono">rove-plugin</span>.</b> Repo page → the gear next to About → Topics.</li>
+        <li data-i18n-html="pub.s3"><b>Done.</b> It appears in Note 5 on the next load, and anyone can run <span class="mono">rove plugin install you/your-repo</span>.</li>
+      </ol>
+      <p class="t-note" data-i18n="pub.note">There is no submission form, no review queue and no registry to get into. The topic is read straight off GitHub each time this sheet is opened.</p>
+    </div>
+
+    <div class="txt-col">
+      <p data-i18n="note6.p1">Publishing is three steps because there is nothing to publish to. The catalogue in Note 5 is a search that runs in your browser, so the only thing that puts a part on it is the topic on your own repository.</p>
+      <p data-i18n-html="note6.p2">Full authoring reference: <a href="https://docs.rove.run/plugins/authoring">docs.rove.run</a> — the plugin authoring page carries the event catalogue, the environment contract, and the placement rules a pane can ask for.</p>
+      <p data-i18n="note6.p3">A part you publish is read by strangers with your commands in their hands. Keep the manifest legible, and put the commands it launches in the README beside it.</p>
+    </div>
+  </section>
+
+  </main>
+
+  <!-- ══ TITLE BLOCK ═════════════════════════════════════════════════════ -->
+  <section class="endmatter" data-zone="H" aria-label="Title block">
+    <div class="revtab">
+      <table>
+        <caption data-i18n="rev.cap">Revisions</caption>
+        <thead><tr><th style="width:44px" data-i18n="rev.th1">Rev</th><th style="width:76px" data-i18n="rev.th2">Date</th><th data-i18n="rev.th3">Description</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><svg class="tri" viewBox="0 0 19 17" aria-hidden="true"><path d="M9.5 1.5 L18 15 H1 Z"/><text x="9.5" y="13.6" text-anchor="middle">1</text></svg></td>
+            <td class="mono">2026-09</td>
+            <td data-i18n-html="rev.r1">Canonical topic is <span class="mono">rove-plugin</span>; legacy <span class="mono">kobe-plugin</span> still included</td>
+          </tr>
+          <tr><td class="mono">—</td><td class="mono">2026-09</td><td data-i18n-html="rev.r2">A manifest may contribute an engine through <span class="mono">[[engines]]</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tblock">
+      <div class="tb-grid">
+        <div class="tb span4"><span class="k" data-i18n="tb.title">Title</span><span class="v" data-i18n="tb.titleV">Rove — standard parts, plugin catalogue</span></div>
+        <div class="tb span2"><span class="k" data-i18n="tb.partno">Part no.</span><span class="v mono">rove-plugin.toml</span></div>
+        <div class="tb"><span class="k" data-i18n="tb.rev">Rev</span><span class="v mono">0.9.191</span></div>
+        <div class="tb"><span class="k" data-i18n="tb.sheet">Sheet</span><span class="v" data-i18n="tb.sheetV">2 of 4</span></div>
+        <div class="tb"><span class="k" data-i18n="tb.drawn">Drawn by</span><span class="v">Sma1lboy</span></div>
+        <div class="tb"><span class="k" data-i18n="tb.checked">Checked</span><span class="v">CI</span></div>
+        <div class="tb"><span class="k" data-i18n="tb.date">Date</span><span class="v mono">2026-09-12</span></div>
+        <div class="tb"><span class="k" data-i18n="tb.scale">Scale</span><span class="v mono">N.T.S.</span></div>
+        <div class="tb"><span class="k" data-i18n="tb.onboard">On board</span><span class="v mono" data-elapsed>00:00</span></div>
+        <div class="tb span2"><span class="k" data-i18n="tb.material">Material</span><span class="v" data-i18n="tb.materialV">TOML manifest · argv commands</span></div>
+        <div class="tb"><span class="k" data-i18n="tb.finish">Finish</span><span class="v">MIT</span></div>
+        <div class="tb"><span class="k" data-i18n="tb.units">Units</span><span class="v" data-i18n="tb.unitsV">Parts</span></div>
+        <div class="tb span4"><span class="k" data-i18n="tb.supply">Supply</span><span class="v" data-i18n="tb.supplyV">Listed automatically from the GitHub topic rove-plugin — no submission, no review</span></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <a href="https://github.com/Sma1lboy/rove" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.npmjs.com/package/@sma1lboy/rove" target="_blank" rel="noopener">npm</a>
+    <a href="https://docs.rove.run/plugins/authoring" data-i18n="footer.plugindocs">plugin docs</a>
+    <a href="https://docs.rove.run/rove/keybindings" data-i18n="footer.keybindings">keybindings</a>
+    <a href="/themes" data-i18n="footer.themesLink">themes</a>
+    <a href="/changelog" data-i18n="footer.changelog">changelog</a>
+    <span class="sp"></span>
+    <span class="c" data-i18n="footer.colophon">© 2026 Sma1lboy · MIT · Sheet 2 of 4</span>
+  </footer>
+
+</div><!-- /inner -->
+</div><!-- /sheet -->
 
 <script>
   // EN / 中文 — same dictionary shape as the home page, same localStorage key.
   var KOBE_I18N = (function () {
     var zh = {
-      'meta.title': 'Rove — 插件',
+      'meta.title': 'Rove — 标准件 · 插件目录',
       'meta.desc': 'Rove 插件市场——基于 Rove CLI 的可分享工作流包。rove-plugin 与兼容的 kobe-plugin 仓库都会自动列出。',
-      'nav.workflow': '--原语', 'nav.install': '--安装', 'nav.docs': '--文档', 'nav.plugins': '--插件', 'nav.themes': '--主题', 'nav.changelog': '--更新日志',
-      'plug.kicker': '一个目录 · 一份 <span class="acc" style="font-style:normal;font-weight:700">rove-plugin.toml</span> · 整个 CLI 就是 API',
-      'plug.title': '把工作流打包，<span class="acc">拿去分享</span>。',
-      'plug.sub': 'Rove 插件就是一个带 rove-plugin.toml 清单的目录。无需 SDK：整个 Rove CLI 就是插件 API——你能用脚本对机群做的事，就能打包给别人。',
-      'mk.no': '01 · 插件市场',
-      'mk.title': '所有带 <span class="acc">rove-plugin</span> 话题的仓库。',
-      'mk.lede': '这份列表不是人工挑的。它合并 rove-plugin 与兼容的 kobe-plugin 公开仓库，在你打开页面时实时拉取。',
+      'a11y.skip': '跳到图纸',
+      'sheet.stamp': '版本 0.9.191 · 第 2 张 / 共 4 张',
+      'nav.docs': '文档', 'nav.assembly': '总装', 'nav.plugins': '插件', 'nav.themes': '主题', 'nav.changelog': '更新日志',
+      'hero.h1': '外购<span class="thin">标准件</span>',
+      'hero.lede': '第 1 张图画的是总装。这里是图上没人自制的那些件。Rove 插件就是<b>一个带 <span class="mono">rove-plugin.toml</span> 清单的目录</b>——要求仅此一条。没有必需的 SDK，因为整个 Rove CLI 就是插件 API。',
+      'hero.tag': '安装',
+      'hero.hint': '点击复制',
+      'hero.platform': '你能用脚本对机群做的事，就能打包给别人。',
+      'hero.bought': '外购件',
+      'subj.cap': '本图对象',
+      'subj.lhs': '插件',
+      'subj.r1': '个目录',
+      'subj.r3': '再无其他',
+      'subj.f1': '见图 1',
+      'subj.f2': '1 个配合面',
+      'note1.num': '注 1', 'note1.h': '配合接口', 'note1.fig': '图 1',
+      'note1.cap': '图 1 — 配合接口 · 清单是配合面，CLI 是与之啮合的螺纹 · 虚线 = 可以不存在的那部分',
+      'note1.p1': '插件靠一个面装上去：清单。Rove 读它，此后插件就是普通的 argv，只是 Rove 知道该在什么时候启动它——守护进程发出事件时、你按需触发时，或者作为任务工作区里的一个面板 tab。',
+      'note1.p2': '<b>没有必需的 SDK。</b>你已经能用脚本对机群做的任何事——一个 <span class="mono">rove api</span> 动词、一行 shell、你自己写的二进制——在旁边放上一份清单的那一刻就是插件了。TypeScript SDK <span class="mono">@sma1lboy/rove-plugin-sdk</span> 存在，但可选；图上用虚线画它正是因为这个。',
+      'note1.p3': '所以这张图很短。入门处没有框架要学，接口一张图就画得下，注 4 的样本九行就写完了。',
+      'f1.plugin': '你的插件', 'f1.anylang': '任何语言', 'f1.mates': '配合',
+      'f1.cliapi': '插件 API', 'f1.optional': '可选',
+      'f1.req1': '必填', 'f1.req2': '必填',
+      'f1.events': '守护进程触发你的 argv', 'f1.panes': '任务里的一个 tab',
+      'f1.actions': '按需触发', 'f1.engines': '见图 2',
+      'note2.num': '注 2', 'note2.h': '零件明细表', 'note2.sub': '第一方示例',
+      'parts.cap': '零件明细表',
+      'parts.rr1': '6 个零件', 'parts.rr2': '6 个子目录', 'parts.rr3': '6 条安装命令',
+      'parts.th1': '序号', 'parts.th2': '件号', 'parts.th3': '说明', 'parts.th4': '来源', 'parts.th5': '数量',
+      'parts.d1': '代理跑完一轮或需要你介入时，发桌面通知 / ntfy 推送',
+      'parts.d2': '直接从一个 GitHub issue 或 PR 起一个任务',
+      'parts.d3': '把指定的 gitignore 文件复制进每个新建的 worktree',
+      'parts.d4': '用 fzf 选一个 Linear issue，在它的分支上起任务',
+      'parts.d5': '真 Chromium 以终端字符渲染，跑在面板 tab 里',
+      'parts.d6': '在终端 tab 面板里对任务 worktree 打开 lazygit',
+      'parts.first': '第一方', 'parts.first2': '第一方', 'parts.first3': '第一方',
+      'parts.first4': '第一方', 'parts.first5': '第一方', 'parts.first6': '第一方',
+      'parts.note': '用 <span class="mono">rove plugin install &lt;件号&gt;</span> 装上一个件。六个都在同一个仓库里，所以末段用来选其中一个——<span class="mono">owner/repo/subdir</span> 就是干这个的。<span class="mono">rove plugin list</span> 报告装了哪些。',
+      'note2.p1': '这六个是示例，不是精选货架。每一个都是不该塞进每份安装里的工作流：一个通知通道、两个从 issue 起步的入口、一条文件复制规则、一个浏览器、一个 git 界面。',
+      'note2.p2': '把它们当参考图看。每个都只是一份清单加几条命令，而且它们写的都是图 1 里你要用的同一个接口。',
+      'note2.p3': '<span class="mono">browser</span> 和 <span class="mono">lazygit</span> 都以 <span class="mono">[[panes]]</span> 的形式到来——任务工作区里的一个终端 tab，跑在任务自己的 worktree 里。面板对它们没有任何特殊处理。',
+      'note3.num': '注 3', 'note3.h': '引擎贡献', 'note3.sub': '图 2',
+      'note3.cap': '图 2 — 插件贡献的引擎进入同一个插座 · 闸门符号 = 在 PATH 上查一次二进制',
+      'note3.p1': '插件可以贡献一个引擎。一条 <span class="mono">[[engines]]</span> 记录用显示名、启动命令、屏幕清单和身份注册它——和内置引擎提供的是同样四件事，进的是同一个插座。',
+      'note3.p2': '有一处不同，而且是刻意的。内置的 contrib 目录只有找到那个引擎的二进制才会提供它；插件引擎则不做这次查找就直接提供。<b>装插件本身就是那次同意</b>——你装上这个件的时候已经说过「要」了，没什么可再探测的。',
+      'note3.p3': '屏幕清单让 Rove 能从一个它从没见过的终端上读出状态：把屏幕上的行映射到<em>工作中</em>、<em>被挡住</em>等状态的规则。第 1 张图上的侧边栏标记就是这么来的。',
+      'f2.socket': '同一个插座',
+      'f2.r1': '内置——始终提供',
+      'f2.r2': 'Contrib——找到二进制才提供',
+      'f2.checks': '0 次检查',
+      'f2.r3': '不做二进制检查就提供',
+      'note4.num': '注 4', 'note4.h': '清单样本',
+      'note4.note': '仅为样本——九行，其中前四行就是全部要求。空行之后的一切都是一项可选贡献。',
+      'note4.p1': '四个字段标识这个件：id、名称、版本，以及它能跑的最老的 Rove。只带这四个字段的清单是合法的，什么都不做的插件也是插件。',
+      'note4.p2': '空行以下全是贡献——插件给产品添的东西。panes、events、actions、engines 各自是一个表数组，所以一份清单可以一个都不带、带一个，或者四个都带。',
+      'note4.p3': '<span class="mono">command</span> 是 argv，不是 shell 字符串。Rove 直接启动它。',
+      'note5.num': '注 5', 'note5.h': '在役目录',
+      'note5.fig': '图 3',
+      'note5.cap': '图 3 — 一个仓库怎么上这份清单 · 虚线 = 播种进来的，因为子目录没法带话题',
+      'f3.canonical': '规范话题', 'f3.legacy': '兼容话题——仍在搜索',
+      'f3.seeded': '播种，无话题', 'f3.merge': '合并 · 去重',
+      'f3.dropped': '丢弃——已由上方播种', 'f3.out': '在役目录',
+      'f3.sort': '按星标 · 推送 · 创建时间排序',
       'mk.sortLabel': '排序', 'mk.sortStars': '星标', 'mk.sortPushed': '最近推送', 'mk.sortNewest': '最新创建',
       'mk.disclaimer': '这些是社区仓库，自动收录，无人审核。插件以你 shell 的权限运行——安装前先读一遍清单。',
       'mk.filterPlaceholder': '过滤插件…',
       'mk.offline': 'GitHub API 暂时读不到（多半是限流）。下面是本仓库自带的第一方示例插件。',
       'mk.empty': '还没有公开仓库打上 rove-plugin 或兼容的 kobe-plugin 话题。下面是第一方示例插件——第一个列在这里的可以是你的。',
       'mk.copy': '复制安装命令', 'mk.copied': '✓ 已复制',
-      'mk.count': '个插件', 'mk.none': '没有匹配的插件。',
+      'mk.count': '个零件', 'mk.none': '没有匹配的插件。',
       'mk.firstParty': '第一方',
-      'det.back': '← 返回全部插件',
+      'caut.h': '注意——先读清单',
+      'caut.p2': '插件没有沙箱，也没人检查。你自己的命令够得着的东西——你的文件、你的密钥、你的网络——它同样够得着。',
+      'caut.p3': '清单被刻意做得很短，而且列出了 Rove 会启动的每一条命令。装之前读一遍。',
+      'note5.note': '星标、语言和推送时间在页面加载时从 GitHub API 取。注 2 里那六个第一方件由本仓库播种，因为子目录没法带话题。',
+      'note5.p1': '<b>收录不经人工挑选。</b>每一个带 GitHub 话题 <span class="mono">rove-plugin</span> 的公开仓库都在这份列表上。没人批准，没人排名，也没人拦得住你——这份列表就是一次搜索。',
+      'note5.p2': '兼容话题 <span class="mono">kobe-plugin</span> 同样在搜索范围内，所以用旧名发布的件不用改动就继续在列。',
+      'note5.p3': '前面没有闸门的目录，就把注意事项印在同一张图上。Rove 检查清单能不能解析，并把它带的命令给你看。它不评判这些命令，也没法评判：argv 数组就是全部接口。',
+      'det.back': '← 返回全部零件',
       'det.pushed': '最近推送',
       'det.viewGithub': '在 GitHub 上查看',
       'det.readmeLoading': '正在读取 README…',
       'det.readmeFail': '这个插件的 README 读不到。',
-      'pub.no': '02 · 发布',
-      'pub.title': '三步发布你自己的插件。',
-      'pub.s1': '<b>把清单放进一个公开仓库。</b>仓库根目录放一份 <code>rove-plugin.toml</code>——如果一个仓库里放好几个插件，也可以放在子目录里。',
-      'pub.s2': '<b>加上 GitHub 话题 <code>rove-plugin</code>。</b>仓库页 → About 旁边的齿轮 → Topics。',
-      'pub.s3': '<b>就这样。</b>下次有人打开这个页面时它就出现了，任何人都能跑 <code>rove plugin install you/your-repo</code>。',
-      'footer.tagline': '终端里的编码代理多路复用器。',
-      'footer.colophon': '用 Bun、OpenTUI 和 React 构建。字体为 Fraunces、DM Sans 与 JetBrains Mono。MIT 许可。',
+      'note6.num': '注 6',
+      'pub.no': '话题就是全部的投稿手续',
+      'pub.title': '发布一个件',
+      'pub.s1': '<b>把清单放进一个公开仓库。</b>仓库根目录放一份 <span class="mono">rove-plugin.toml</span>——如果一个仓库里放好几个插件，也可以放在子目录里。',
+      'pub.s2': '<b>加上 GitHub 话题 <span class="mono">rove-plugin</span>。</b>仓库页 → About 旁边的齿轮 → Topics。',
+      'pub.s3': '<b>就这样。</b>下次有人打开这张图时它就出现在注 5 里了，任何人都能跑 <span class="mono">rove plugin install you/your-repo</span>。',
+      'pub.note': '没有投稿表单，没有审核队列，也没有需要挤进去的注册表。每次打开这张图，话题都直接从 GitHub 上读。',
+      'note6.p1': '发布只有三步，是因为根本没有「发布到哪里」这回事。注 5 的目录是一次在你浏览器里跑的搜索，所以让一个件上榜的只有你自己仓库上的那个话题。',
+      'note6.p2': '完整的编写参考：<a href="https://docs.rove.run/plugins/authoring">docs.rove.run</a>——插件编写页上有事件目录、环境契约，以及一个面板可以申请的摆放规则。',
+      'note6.p3': '你发布的件，会被陌生人拿着你的命令去读。把清单写清楚，并在旁边的 README 里写明它启动了哪些命令。',
+      'rev.cap': '修订', 'rev.th1': '版', 'rev.th2': '日期', 'rev.th3': '说明',
+      'rev.r1': '规范话题为 <span class="mono">rove-plugin</span>；兼容的 <span class="mono">kobe-plugin</span> 仍在收录范围',
+      'rev.r2': '清单可以通过 <span class="mono">[[engines]]</span> 贡献一个引擎',
+      'tb.title': '图名', 'tb.titleV': 'Rove — 标准件 · 插件目录',
+      'tb.partno': '件号', 'tb.rev': '版本', 'tb.sheet': '图号', 'tb.sheetV': '第 2 张 / 共 4 张',
+      'tb.drawn': '制图', 'tb.checked': '审核', 'tb.date': '日期', 'tb.scale': '比例',
+      'tb.onboard': '在板时间', 'tb.material': '材料', 'tb.materialV': 'TOML 清单 · argv 命令',
+      'tb.finish': '表面处理', 'tb.units': '单位', 'tb.unitsV': '件',
+      'tb.supply': '供货', 'tb.supplyV': '按 GitHub 话题 rove-plugin 自动收录——无投稿、无审核',
       'footer.themesLink': '主题', 'footer.changelog': '更新日志', 'footer.plugindocs': '插件文档', 'footer.keybindings': '快捷键',
+      'footer.colophon': '© 2026 Sma1lboy · MIT · 第 2 张 / 共 4 张',
     };
     var en = {
       'meta.title': 'Rove: plugins',
       'meta.desc': 'The Rove plugin marketplace: shareable workflow packages built on the Rove CLI. rove-plugin and legacy kobe-plugin repositories are listed automatically.',
-      'nav.workflow': '--primitives', 'nav.install': '--install', 'nav.docs': '--docs', 'nav.plugins': '--plugins', 'nav.themes': '--themes', 'nav.changelog': '--changelog',
-      'plug.kicker': 'a directory · a <span class="acc" style="font-style:normal;font-weight:700">rove-plugin.toml</span> · the whole CLI as the API',
-      'plug.title': 'Workflow, packaged and <span class="acc">shareable</span>.',
-      'plug.sub': 'A Rove plugin is a directory with a rove-plugin.toml manifest. There is no required SDK: the whole Rove CLI is the plugin API, so anything you can script against your fleet, you can ship to someone else.',
-      'mk.no': '01 · MARKETPLACE',
-      'mk.title': 'Everything tagged <span class="acc">rove-plugin</span>.',
-      'mk.lede': 'This list is not curated by hand. It combines rove-plugin with legacy kobe-plugin repositories, fetched live when you open the page.',
+      'a11y.skip': 'Skip to drawing',
+      'sheet.stamp': 'Rev 0.9.191 · Sheet 2 of 4',
+      'nav.docs': 'Docs', 'nav.assembly': 'Assembly', 'nav.plugins': 'Plugins', 'nav.themes': 'Themes', 'nav.changelog': 'Changelog',
+      'hero.h1': 'Standard parts <span class="thin">bought in</span>',
+      'hero.lede': 'Sheet 1 drew the assembly. These are the parts nobody on this drawing made. A Rove plugin is <b>a directory with a <span class="mono">rove-plugin.toml</span> manifest</b> — that is the whole requirement. There is no required SDK, because the entire Rove CLI is the plugin API.',
+      'hero.tag': 'Install',
+      'hero.hint': 'Click to copy',
+      'hero.platform': 'Anything you can script against your fleet, you can ship to someone else.',
+      'hero.bought': 'Bought-in part',
+      'subj.cap': 'Subject of drawing',
+      'subj.lhs': 'Plugin',
+      'subj.r1': 'directory',
+      'subj.r3': 'nothing else',
+      'subj.f1': 'See Fig. 1',
+      'subj.f2': '1 mating face',
+      'note1.num': 'Note 1', 'note1.h': 'Mating interface', 'note1.fig': 'Fig. 1',
+      'note1.cap': 'Fig. 1 — Mating interface · The manifest is the face, the CLI is the thread · Hidden line = the part that may be absent',
+      'note1.p1': 'A plugin bolts on through one face: the manifest. Rove reads it, and from then on the plugin is ordinary argv that Rove knows when to launch — on a daemon event, on demand, or as a pane tab in a task workspace.',
+      'note1.p2': '<b>There is no required SDK.</b> Anything you can already script against your fleet — a <span class="mono">rove api</span> verb, a shell one-liner, a binary you wrote — is a plugin the moment you put a manifest beside it. A TypeScript SDK, <span class="mono">@sma1lboy/rove-plugin-sdk</span>, exists and is optional; it is drawn in hidden line for exactly that reason.',
+      'note1.p3': 'That is why this sheet is short. There is no framework to learn on the way in, so the interface fits on one drawing and the specimen in Note 4 fits in nine lines.',
+      'f1.plugin': 'Your plugin', 'f1.anylang': 'Any language', 'f1.mates': 'Mates',
+      'f1.cliapi': 'The plugin API', 'f1.optional': 'Optional',
+      'f1.req1': 'Required', 'f1.req2': 'Required',
+      'f1.events': 'Daemon fires your argv', 'f1.panes': 'A tab in the task',
+      'f1.actions': 'On demand', 'f1.engines': 'See Fig. 2',
+      'note2.num': 'Note 2', 'note2.h': 'Parts list', 'note2.sub': 'First-party examples',
+      'parts.cap': 'Parts list',
+      'parts.rr1': '6 parts', 'parts.rr2': '6 subdirectories', 'parts.rr3': '6 install commands',
+      'parts.th1': 'Item', 'parts.th2': 'Part no.', 'parts.th3': 'Description', 'parts.th4': 'Source', 'parts.th5': 'Qty',
+      'parts.d1': 'Desktop or ntfy notification when an agent finishes a turn or needs input',
+      'parts.d2': 'Start a task straight from a GitHub issue or pull request',
+      'parts.d3': 'Copy chosen ignored files into every new worktree',
+      'parts.d4': 'Pick a Linear issue with fzf and start a task on its branch',
+      'parts.d5': 'A real Chromium rendered as terminal cells in a pane tab',
+      'parts.d6': 'Open lazygit on the task worktree, in a terminal-tab pane',
+      'parts.first': 'First party', 'parts.first2': 'First party', 'parts.first3': 'First party',
+      'parts.first4': 'First party', 'parts.first5': 'First party', 'parts.first6': 'First party',
+      'parts.note': 'Fit a part with <span class="mono">rove plugin install &lt;part no.&gt;</span>. One repository holds all six, so the trailing segment selects one — that is what <span class="mono">owner/repo/subdir</span> is for. <span class="mono">rove plugin list</span> reports what is fitted.',
+      'note2.p1': 'These six ship as examples, not as a curated shelf. Each one is a workflow that does not belong in every install: a notification channel, two starting points from an issue tracker, a file-copy rule, a browser, a git UI.',
+      'note2.p2': 'Read them as reference drawings. Each is a manifest and a handful of commands, and every one of them was written against the same interface in Fig. 1 that you would use.',
+      'note2.p3': 'The <span class="mono">browser</span> and <span class="mono">lazygit</span> parts both arrive as <span class="mono">[[panes]]</span> — a terminal tab inside the task workspace, running in the task\'s own worktree. Nothing about a pane is special-cased for them.',
+      'note3.num': 'Note 3', 'note3.h': 'Engine contribution', 'note3.sub': 'Fig. 2',
+      'note3.cap': 'Fig. 2 — A plugin-contributed engine in the common socket · Gate symbol = a binary look-up on PATH',
+      'note3.p1': 'A plugin can contribute an engine. An <span class="mono">[[engines]]</span> entry registers one with a display name, a launch command, a screen manifest and an identity — the same four things the built-in engines supply, entering the same socket.',
+      'note3.p2': 'One difference, and it is deliberate. The built-in contrib catalogue only offers an engine once it finds that engine\'s binary; a plugin engine is offered without that look-up. <b>Installing the plugin is the opt-in</b> — you already said yes when you fitted the part, so there is nothing left to detect.',
+      'note3.p3': 'The screen manifest is what lets Rove read state off a terminal it has never seen: rules that map lines on screen to <em>working</em>, <em>blocked</em>, and the rest. Sheet 1\'s sidebar marks come from exactly that.',
+      'f2.socket': 'One socket',
+      'f2.r1': 'Built in — always offered',
+      'f2.r2': 'Contrib — only if the binary is found',
+      'f2.checks': '0 checks',
+      'f2.r3': 'Offered without the binary check',
+      'note4.num': 'Note 4', 'note4.h': 'Manifest specimen',
+      'note4.note': 'Specimen only — nine lines, of which the first four are the whole requirement. Everything after the blank line is one optional contribution.',
+      'note4.p1': 'Four fields identify the part: an id, a name, a version, and the oldest Rove it works on. A manifest carrying only those four is valid, and a plugin that does nothing else is a plugin.',
+      'note4.p2': 'Everything below the blank line is a contribution — something the plugin adds to the product. Panes, events, actions and engines are each a table array, so a manifest may carry none of them, one of them, or all four.',
+      'note4.p3': '<span class="mono">command</span> is argv, not a shell string. Rove launches it directly.',
+      'note5.num': 'Note 5', 'note5.h': 'Catalogue in service',
+      'note5.fig': 'Fig. 3',
+      'note5.cap': 'Fig. 3 — How a repository reaches this list · Hidden line = seeded, because a subdirectory cannot carry a topic',
+      'f3.canonical': 'Canonical', 'f3.legacy': 'Legacy — still searched',
+      'f3.seeded': 'Seeded, no topic', 'f3.merge': 'Merge · dedupe',
+      'f3.dropped': 'Dropped — already seeded', 'f3.out': 'Catalogue in service',
+      'f3.sort': 'Sorted by stars · pushed · newest',
       'mk.sortLabel': 'SORT', 'mk.sortStars': 'stars', 'mk.sortPushed': 'recently pushed', 'mk.sortNewest': 'newest',
       'mk.disclaimer': "These are community repositories, listed automatically and reviewed by nobody. A plugin runs with your shell's privileges, so read the manifest before you install.",
       'mk.filterPlaceholder': 'filter plugins…',
       'mk.offline': "Couldn't reach the GitHub API (usually rate limiting). Showing the first-party example plugins that ship in this repo.",
       'mk.empty': 'No public repository carries the rove-plugin or legacy kobe-plugin topic yet. Below are the first-party examples. The first community one listed here could be yours.',
       'mk.copy': 'copy install command', 'mk.copied': '✓ copied',
-      'mk.count': 'plugins', 'mk.none': 'No plugins match that filter.',
+      'mk.count': 'parts', 'mk.none': 'No plugins match that filter.',
       'mk.firstParty': 'first-party',
-      'det.back': '← all plugins',
+      'caut.h': 'Caution — read the manifest first',
+      'caut.p2': 'A plugin is not sandboxed and it is not inspected. Whatever your own commands can reach — your files, your keys, your network — it can reach too.',
+      'caut.p3': 'The manifest is short by design, and it lists every command Rove will ever launch. Read it before you install.',
+      'note5.note': 'Stars, language and push date come from the GitHub API on page load. The six first-party parts in Note 2 are seeded from this repository, because a subdirectory cannot carry a topic.',
+      'note5.p1': '<b>Discovery is not curated.</b> Every public repository carrying the GitHub topic <span class="mono">rove-plugin</span> is on this list. Nobody approves it, nobody ranks it, and nobody can keep you out — the listing is a search.',
+      'note5.p2': 'The legacy topic <span class="mono">kobe-plugin</span> is searched too, so parts published under the old name stay listed without being touched.',
+      'note5.p3': 'A catalogue with no gate at the front prints its caution on the same sheet. Rove checks that a manifest parses and shows you the commands it holds. It does not judge them, and it cannot: an argv array is the whole interface.',
+      'det.back': '← all parts',
       'det.pushed': 'pushed',
       'det.viewGithub': 'view on GitHub',
       'det.readmeLoading': 'loading README…',
       'det.readmeFail': "Couldn't load this plugin's README.",
-      'pub.no': '02 · PUBLISH',
-      'pub.title': 'Ship yours in three steps.',
-      'pub.s1': '<b>Put a manifest in a public repo.</b> A <code>rove-plugin.toml</code> at the repo root, or in a subdirectory if you keep several plugins in one repo.',
-      'pub.s2': '<b>Add the GitHub topic <code>rove-plugin</code>.</b> Repo page → the gear next to About → Topics.',
-      'pub.s3': '<b>Done.</b> It shows up on this page on the next load, and anyone can run <code>rove plugin install you/your-repo</code>.',
-      'footer.tagline': 'a terminal multiplexer for coding agents.',
-      'footer.colophon': 'Built with Bun, OpenTUI and React. Set in Fraunces, DM Sans and JetBrains Mono. MIT licensed.',
+      'note6.num': 'Note 6',
+      'pub.no': 'The topic is the whole submission',
+      'pub.title': 'To publish a part',
+      'pub.s1': '<b>Put a manifest in a public repository.</b> A <span class="mono">rove-plugin.toml</span> at the repo root, or in a subdirectory if you keep several plugins in one repo.',
+      'pub.s2': '<b>Add the GitHub topic <span class="mono">rove-plugin</span>.</b> Repo page → the gear next to About → Topics.',
+      'pub.s3': '<b>Done.</b> It appears in Note 5 on the next load, and anyone can run <span class="mono">rove plugin install you/your-repo</span>.',
+      'pub.note': 'There is no submission form, no review queue and no registry to get into. The topic is read straight off GitHub each time this sheet is opened.',
+      'note6.p1': 'Publishing is three steps because there is nothing to publish to. The catalogue in Note 5 is a search that runs in your browser, so the only thing that puts a part on it is the topic on your own repository.',
+      'note6.p2': 'Full authoring reference: <a href="https://docs.rove.run/plugins/authoring">docs.rove.run</a> — the plugin authoring page carries the event catalogue, the environment contract, and the placement rules a pane can ask for.',
+      'note6.p3': 'A part you publish is read by strangers with your commands in their hands. Keep the manifest legible, and put the commands it launches in the README beside it.',
+      'rev.cap': 'Revisions', 'rev.th1': 'Rev', 'rev.th2': 'Date', 'rev.th3': 'Description',
+      'rev.r1': 'Canonical topic is <span class="mono">rove-plugin</span>; legacy <span class="mono">kobe-plugin</span> still included',
+      'rev.r2': 'A manifest may contribute an engine through <span class="mono">[[engines]]</span>',
+      'tb.title': 'Title', 'tb.titleV': 'Rove — standard parts, plugin catalogue',
+      'tb.partno': 'Part no.', 'tb.rev': 'Rev', 'tb.sheet': 'Sheet', 'tb.sheetV': '2 of 4',
+      'tb.drawn': 'Drawn by', 'tb.checked': 'Checked', 'tb.date': 'Date', 'tb.scale': 'Scale',
+      'tb.onboard': 'On board', 'tb.material': 'Material', 'tb.materialV': 'TOML manifest · argv commands',
+      'tb.finish': 'Finish', 'tb.units': 'Units', 'tb.unitsV': 'Parts',
+      'tb.supply': 'Supply', 'tb.supplyV': 'Listed automatically from the GitHub topic rove-plugin — no submission, no review',
       'footer.themesLink': 'themes', 'footer.changelog': 'changelog', 'footer.plugindocs': 'plugin docs', 'footer.keybindings': 'keybindings',
+      'footer.colophon': '© 2026 Sma1lboy · MIT · Sheet 2 of 4',
     };
     var dicts = { en: en, zh: zh };
     var lang = 'en';
@@ -397,5 +1016,6 @@ code{font-family:var(--font-mono);font-size:12.5px;background:var(--accent-wash)
 
 <!-- marketplace list + plugin detail view (needs KOBE_I18N above) -->
 <script src="marketplace.js"></script>
+<script src="/blueprint-idle.js" defer></script>
 </body>
 </html>
