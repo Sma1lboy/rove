@@ -49,6 +49,8 @@ export const en = {
   notReadyHeader: "Not ready yet:",
   /** Post-wizard: completions line was written; {path} is the rc/completions file */
   appliedCompletions: "✓ completions hooked into {path} (takes effect in new shells)",
+  /** Post-wizard / `completions --install`: {path} already had a completions block — nothing written */
+  keptCompletions: "· {path} already has a completions block — left untouched",
   /** Post-wizard: completions declined; {command} re-runs it later */
   skippedCompletions: "· completions skipped — run `{command}` anytime",
   /** Post-wizard: about to run the skill installer; {command} is the npx command */
@@ -89,6 +91,7 @@ export const zh: typeof en = {
   envLegend: "enter 继续 · q 跳过设置",
   notReadyHeader: "还没准备好：",
   appliedCompletions: "✓ 补全已写入 {path}（新开的 shell 生效）",
+  keptCompletions: "· {path} 里已有补全配置 — 未改动",
   skippedCompletions: "· 已跳过补全 — 之后可随时运行 `{command}`",
   installingSkill: "正在安装 Rove agent skill（{command}）…",
   skillFailed: "! skill 安装失败 — 可用 `{command}` 重试",
