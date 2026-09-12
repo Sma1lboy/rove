@@ -19,7 +19,7 @@ var KOBE_I18N = (function () {
     // ── 标题栏 / 修订记录
     'tb.revisions': '修订记录', 'tb.revH': '版本', 'tb.dateH': '日期', 'tb.descH': '说明',
     'tb.r1': '引擎 <span class="mono">pi</span>、<span class="mono">omp</span> 归入 contrib 类',
-    'tb.r2': '以 <span class="mono">0.9.191</span> 发布到 npm',
+    'tb.r2': '以 <span class="mono">0.9.192</span> 发布到 npm',
     'tb.title': '图名', 'tb.titleVal': 'Rove —— 托管任务总装图',
     'tb.part': '件号', 'tb.rev': '版本', 'tb.sheet': '图号', 'tb.sheetVal': '第 1 张 / 共 4 张',
     'tb.drawn': '制图', 'tb.checked': '校核', 'tb.date': '日期', 'tb.scale': '比例',
@@ -130,7 +130,7 @@ var KOBE_I18N = (function () {
     // ── title block / revision table
     'tb.revisions': 'Revisions', 'tb.revH': 'Rev', 'tb.dateH': 'Date', 'tb.descH': 'Description',
     'tb.r1': 'Engines <span class="mono">pi</span>, <span class="mono">omp</span> added to the contrib class',
-    'tb.r2': 'Released as <span class="mono">0.9.191</span> on npm',
+    'tb.r2': 'Released as <span class="mono">0.9.192</span> on npm',
     'tb.title': 'Title', 'tb.titleVal': 'Rove — managed task, general assembly',
     'tb.part': 'Part no.', 'tb.rev': 'Rev', 'tb.sheet': 'Sheet', 'tb.sheetVal': '1 of 4',
     'tb.drawn': 'Drawn by', 'tb.checked': 'Checked', 'tb.date': 'Date', 'tb.scale': 'Scale',
