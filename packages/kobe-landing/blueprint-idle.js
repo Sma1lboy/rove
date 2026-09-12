@@ -25,6 +25,12 @@
 (function () {
   'use strict';
 
+  /* Everything below reads the DOM on the way in, so it must not run before the
+     body exists. The pages load this deferred, but a deferred tag stops being
+     deferred the moment someone inlines the file — which is exactly how the whole
+     sheet went still once. Wait for the document either way. */
+  function boot() {
+
   var reduceQ = window.matchMedia('(prefers-reduced-motion: reduce)');
   var reduce = reduceQ.matches;
   var root = document.documentElement;
@@ -68,6 +74,23 @@
       });
     }, { threshold: 0.18, rootMargin: '0px 0px -8% 0px' });
     figs.forEach(function (f) { drawIO.observe(f); });
+
+    /* The threshold above is tuned for a figure scrolling up into frame. A figure
+       already on screen when the sheet opens never crosses it from a standing
+       start, so the first one sat there as an unfinished outline until you
+       happened to scroll. Draw those at boot, one frame later so the primed
+       state paints first and the stroke still travels. */
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        figs.forEach(function (f) {
+          var r = f.getBoundingClientRect();
+          if (r.top < window.innerHeight && r.bottom > 0) {
+            drawFigure(f);
+            drawIO.unobserve(f);
+          }
+        });
+      });
+    });
 
     /* a figure on screen keeps its centre lines marching */
     var liveIO = new IntersectionObserver(function (entries) {
@@ -448,4 +471,11 @@
 
   trackZones();
   poke();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot, { once: true });
+  } else {
+    boot();
+  }
 })();
