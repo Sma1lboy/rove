@@ -25,7 +25,7 @@
     "kobe": "dist/cli/kobe.js",
     "rove": "dist/cli/rove.js"
   },
-  "files": ["dist/cli", "dist/web-ui", "dist/skills", "dist/*.wav", "README.md", "LICENSE"],
+  "files": ["dist/cli", "dist/completions", "dist/web-ui", "dist/skills", "dist/*.wav", "README.md", "LICENSE"],
   "publishConfig": {
     "access": "public"
   },

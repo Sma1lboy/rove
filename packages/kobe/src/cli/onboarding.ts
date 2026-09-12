@@ -22,8 +22,10 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import { homedir } from "node:os"
 import { basename, join } from "node:path"
 import { isNpxMissing, markSkillHintSeen, npxSkillsArgv, npxSkillsCommand } from "../lib/skill-install.ts"
+import type { ProductCliName } from "../product.ts"
 import { getPersistedBool, loadStateFile, setPersistedBool } from "../state/store.ts"
 import { t } from "../tui/i18n"
+import { type ShellKind, shippedCompletionsPath } from "./completion-scripts.ts"
 import { noEngineAction } from "./doctor-fix.ts"
 import { type OnboardingEnvReport, checkOnboardingEnv } from "./env-checks.ts"
 import { activeCliName } from "./rename-compat.ts"
@@ -31,8 +33,6 @@ import { LAST_RUN_VERSION_KEY } from "./reset-gate.ts"
 
 const ONBOARDED_KEY = "onboarded"
 const PRIMER_KEY = "onboardedPrimer"
-
-export type ShellKind = "zsh" | "bash" | "fish"
 
 /** The wizard's answers; a skipped wizard (q/esc) declines everything. */
 export interface OnboardingChoices {
@@ -47,28 +47,69 @@ export function detectShell(env: NodeJS.ProcessEnv = process.env): ShellKind | n
 }
 
 /**
- * Hook completions into the shell, returning the file that was touched.
- * zsh/bash get one guarded `source <(<cli> completions <shell>)` line in
- * their rc file (the generated zsh script self-registers via compdef when
- * sourced); fish gets a lazy one-liner completions file, which fish
- * autoloads with no rc edit. All three re-generate from the live binary,
- * so completions never go stale across updates.
+ * The hook line for one shell, given the pre-generated script (or null).
+ *
+ * Sourced from the shipped file the shell starts nothing: the guard is a
+ * `test -f`, not a subprocess. Without one (a source checkout, which has no
+ * `dist/completions`) the old live line stands — correct, but it pays a
+ * process per shell.
  */
-export function installCompletions(shell: ShellKind, home: string = homedir(), cli: string = activeCliName()): string {
-  const rcMarker = `${cli} completions`
+function completionHook(shell: ShellKind, cli: ProductCliName, shipped: string | null): string {
+  if (shipped === null) return legacyCompletionHook(shell, cli)
+  // fish spells the guard `test ...; and ...`; bash and zsh both take `[ ] &&`.
+  return shell === "fish"
+    ? `test -f "${shipped}"; and source "${shipped}"`
+    : `[ -f "${shipped}" ] && source "${shipped}"`
+}
+
+/** What rove wrote before the scripts were pre-generated: regenerates, but spawns. */
+function legacyCompletionHook(shell: ShellKind, cli: ProductCliName): string {
+  return shell === "fish"
+    ? `${cli} completions fish | source`
+    : `command -v ${cli} >/dev/null && source <(${cli} completions ${shell})`
+}
+
+/** The pre-generated script for this shell; null when nothing is built. */
+function shippedScriptFor(shell: ShellKind, cli: ProductCliName): string | null {
+  const path = shippedCompletionsPath(shell, cli)
+  return existsSync(path) ? path : null
+}
+
+/**
+ * Hook completions into the shell, returning the file that was touched.
+ * zsh/bash get one `source "<shipped script>"` line in their rc file (the
+ * generated zsh script self-registers via compdef when sourced); fish gets a
+ * one-liner in its autoload directory, which fish reads with no rc edit.
+ *
+ * `shipped` defaults to the script generated beside the installed bundle, so
+ * completions track the binary that owns them and can never go stale.
+ */
+export function installCompletions(
+  shell: ShellKind,
+  home: string = homedir(),
+  cli: ProductCliName = activeCliName(),
+  shipped: string | null = shippedScriptFor(shell, cli),
+): string {
+  const hook = completionHook(shell, cli, shipped)
   if (shell === "fish") {
     const dir = join(home, ".config", "fish", "completions")
     const path = join(dir, `${cli}.fish`)
     mkdirSync(dir, { recursive: true })
-    writeFileSync(path, `${cli} completions fish | source\n`)
+    writeFileSync(path, `${hook}\n`)
     return path
   }
   const rc = join(home, shell === "zsh" ? ".zshrc" : ".bashrc")
   const existing = existsSync(rc) ? readFileSync(rc, "utf8") : ""
-  if (!existing.includes(rcMarker)) {
-    const line = `\n# ${cli} completions\ncommand -v ${cli} >/dev/null && source <(${cli} completions ${shell})\n`
-    appendFileSync(rc, line)
+  if (existing.includes(hook)) return rc
+  // An install from before the pre-generated files: upgrade that one line in
+  // place rather than deciding the user is already hooked.
+  const legacy = legacyCompletionHook(shell, cli)
+  if (existing.includes(legacy)) {
+    writeFileSync(rc, existing.replace(legacy, hook))
+    return rc
   }
+  // Anything else mentioning `<cli> completions` is the user's own block.
+  if (!existing.includes(`${cli} completions`)) appendFileSync(rc, `\n# ${cli} completions\n${hook}\n`)
   return rc
 }
 

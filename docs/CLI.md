@@ -180,10 +180,22 @@ host.
 ## completions
 
 ```bash
-source <(rove completions zsh)
-rove completions bash > ~/.bash_completion.d/rove
-rove completions fish > ~/.config/fish/completions/rove.fish
+source <(rove completions zsh)          # generate now (a process per shell)
+rove completions zsh --install          # hook the pre-generated file into ~/.zshrc
+rove completions bash --install         # …into ~/.bashrc
+rove completions fish --install         # ~/.config/fish/completions/rove.fish
+rove completions zsh --path             # print the shipped script's path
 ```
+
+The script is a build-time constant, so the package ships it:
+`dist/completions/<rove|kobe>.<shell>`. `--path` prints that file's path and
+`--install` writes `source "<path>"` into your shell config, which a new shell
+reads with no process at all — unlike `source <(rove completions zsh)`, which
+starts the CLI (node launcher → bun, ≈0.3s) on every new shell just to print
+1.8KB of static text. The first-run wizard writes the file form; the
+`source <(…)` form keeps working, and is the only one available in a source
+checkout, where no `dist/completions` exists (`--path` then fails instead of
+printing a path that is not there).
 
 Completes two levels: the subcommand, then its verb.
 
