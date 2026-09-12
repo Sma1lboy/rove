@@ -395,3 +395,15 @@ svg .dot{fill:var(--ink);stroke:none}
 
 /* title block: the sheet has been open this long. */
 .tb .v[data-elapsed]{font-variant-numeric:tabular-nums}
+
+/* ── the mark ──────────────────────────────────────────────────────────
+   The shipped icon is a launcher tile: it carries its own dark ground
+   because it lands on someone else's wallpaper. On our own paper there is
+   no background to fight, and a solid fill was the one un-drawn shape on a
+   sheet of line work — warm black against the cyanotype's cold blue. So the
+   tile is drawn rather than filled, in the frame's own rule weight, and the
+   mark takes the sheet's ink. The favicon keeps the filled tile; it still
+   lands on browser chrome. */
+.brand .mark rect{fill:none;stroke:var(--rule);stroke-width:2}
+.brand .mark path{fill:none;stroke:var(--accent);stroke-linecap:round;stroke-linejoin:round}
+.brand .mark .r{fill:var(--ink);stroke:none}

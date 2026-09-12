@@ -78,19 +78,23 @@
     /* The threshold above is tuned for a figure scrolling up into frame. A figure
        already on screen when the sheet opens never crosses it from a standing
        start, so the first one sat there as an unfinished outline until you
-       happened to scroll. Draw those at boot, one frame later so the primed
-       state paints first and the stroke still travels. */
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        figs.forEach(function (f) {
-          var r = f.getBoundingClientRect();
-          if (r.top < window.innerHeight && r.bottom > 0) {
-            drawFigure(f);
-            drawIO.unobserve(f);
-          }
-        });
+       happened to scroll. Sweep those in by hand. */
+    function drawWhatIsOnScreen() {
+      figs.forEach(function (f) {
+        var r = f.getBoundingClientRect();
+        if (r.height && r.top < window.innerHeight && r.bottom > 0) {
+          drawFigure(f);
+          drawIO.unobserve(f);
+        }
       });
-    });
+    }
+    /* Twice, because neither moment is reliable alone: two frames in, the primed
+       state has painted so the stroke still travels — but the sheet may not be
+       laid out yet and every figure measures zero. Load is late enough to be
+       certain and too late to look drawn. The zero-height guard above is what
+       keeps the early pass from counting an unlaid figure as handled. */
+    requestAnimationFrame(function () { requestAnimationFrame(drawWhatIsOnScreen); });
+    window.addEventListener('load', drawWhatIsOnScreen);
 
     /* a figure on screen keeps its centre lines marching */
     var liveIO = new IntersectionObserver(function (entries) {
