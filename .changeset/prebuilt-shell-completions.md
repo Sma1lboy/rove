@@ -1,0 +1,5 @@
+---
+"@sma1lboy/rove": patch
+---
+
+Shell completions no longer cost a process per shell. The script is a build-time constant — 1876 bytes of static text — but `source <(rove completions zsh)` started the CLI (node launcher → bun, ~0.3s) on every new shell just to print it, so anyone who minded had to write their own cache shim. The build now bakes the same generators' output into `dist/completions/<rove|kobe>.<bash|zsh|fish>` and ships it: `rove completions zsh --path` prints that file's path, `rove completions zsh --install` writes `source "<path>"` into your rc file (fish gets a guard one-liner in its autoload directory), and the first-run wizard writes that form too. Measured on the machine this came from: 0.33s → 0.05s of shell startup. The script lives beside the binary that owns it, so it cannot go stale across upgrades; `--install` rewrites in place the live `source <(…)` line an older rove left in the rc file, and a source checkout (no `dist`) keeps generating on the fly — `--path` there fails loudly instead of printing a path that does not exist.

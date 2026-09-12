@@ -156,6 +156,42 @@ describe("installCompletions", () => {
     expect(content).toContain("source <(kobe completions zsh)")
     expect(content).toContain("command -v kobe")
   })
+
+  it("sources the pre-generated script when one exists — no subprocess at shell start", () => {
+    const home = freshHome()
+    const shipped = join(freshHome(), "rove.zsh")
+    writeFileSync(shipped, "#compdef rove\n")
+    const rc = installCompletions("zsh", home, "rove", shipped)
+    installCompletions("zsh", home, "rove", shipped)
+    const content = readFileSync(rc, "utf8")
+    expect(content).toContain(`[ -f "${shipped}" ] && source "${shipped}"`)
+    // The whole point: nothing on this line spawns a process.
+    expect(content).not.toContain("source <(")
+    expect(content).not.toContain("command -v")
+    // …and the second run is a no-op, not a stacked duplicate.
+    expect(content.match(/source "/g)).toHaveLength(1)
+  })
+
+  it("upgrades an rc line written before the scripts were pre-generated", () => {
+    const home = freshHome()
+    const rc = join(home, ".zshrc")
+    writeFileSync(rc, "# mine\n\n# rove completions\ncommand -v rove >/dev/null && source <(rove completions zsh)\n")
+    const shipped = join(freshHome(), "rove.zsh")
+    writeFileSync(shipped, "#compdef rove\n")
+    installCompletions("zsh", home, "rove", shipped)
+    const content = readFileSync(rc, "utf8")
+    expect(content).toContain("# mine")
+    expect(content).toContain(`source "${shipped}"`)
+    expect(content).not.toContain("source <(")
+  })
+
+  it("fish autoloads a guard over the shipped script", () => {
+    const home = freshHome()
+    const shipped = join(freshHome(), "rove.fish")
+    writeFileSync(shipped, "# rove fish completions\n")
+    const path = installCompletions("fish", home, "rove", shipped)
+    expect(readFileSync(path, "utf8")).toBe(`test -f "${shipped}"; and source "${shipped}"\n`)
+  })
 })
 
 describe("applyOnboardingChoices", () => {

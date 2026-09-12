@@ -12,6 +12,9 @@
  * fail before the feature can rot.
  */
 
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { type MockInstance, afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { API_VERBS } from "../../src/cli/api/verbs.ts"
 import { runCompletionsSubcommand } from "../../src/cli/completions-cmd.ts"
@@ -49,6 +52,10 @@ let exitSpy: ReturnType<typeof vi.fn>
 
 function stdoutText(): string {
   return stdoutSpy.mock.calls.map((c) => String(c[0])).join("")
+}
+
+function stderrText(): string {
+  return stderrSpy.mock.calls.map((c) => String(c[0])).join("")
 }
 
 beforeEach(() => {
@@ -134,11 +141,73 @@ describe("runCompletionsSubcommand", () => {
   test("an unknown shell prints usage to stderr and exits 2", async () => {
     await expect(runCompletionsSubcommand(["powershell"])).rejects.toThrow("exit sentinel")
     expect(exitSpy).toHaveBeenCalledWith(2)
-    expect(stderrSpy.mock.calls.map((c) => String(c[0])).join("")).toContain('unknown shell "powershell"')
+    expect(stderrText()).toContain('unknown shell "powershell"')
   })
 
   test("a missing shell argument is the same usage error", async () => {
     await expect(runCompletionsSubcommand([])).rejects.toThrow("exit sentinel")
     expect(exitSpy).toHaveBeenCalledWith(2)
+  })
+})
+
+/**
+ * The pre-generated half: the build writes these files into the tarball, and
+ * they are what a shell sources instead of paying a process start.
+ */
+describe("runCompletionsSubcommand with a shipped script", () => {
+  let shippedDir: string
+  let scriptPath: string
+
+  beforeEach(() => {
+    shippedDir = mkdtempSync(join(tmpdir(), "kobe-completions-"))
+    scriptPath = join(shippedDir, "kobe.zsh")
+    writeFileSync(scriptPath, "#compdef kobe\n")
+  })
+
+  test("--path prints the shipped script's path", async () => {
+    await runCompletionsSubcommand(["zsh", "--path"], "kobe", { shippedDir })
+    expect(stdoutText()).toBe(`${scriptPath}\n`)
+  })
+
+  test("plain stdout serves the shipped file, so --path cannot disagree with it", async () => {
+    await runCompletionsSubcommand(["zsh"], "kobe", { shippedDir })
+    expect(stdoutText()).toBe("#compdef kobe\n")
+  })
+
+  test("--path without a built script fails loudly rather than printing a dead path", async () => {
+    const empty = mkdtempSync(join(tmpdir(), "kobe-completions-empty-"))
+    await expect(runCompletionsSubcommand(["zsh", "--path"], "kobe", { shippedDir: empty })).rejects.toThrow(
+      "exit sentinel",
+    )
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(stderrText()).toContain(`no pre-generated zsh script at ${join(empty, "kobe.zsh")}`)
+  })
+
+  test("--install writes the shipped path into the rc file", async () => {
+    const home = mkdtempSync(join(tmpdir(), "kobe-completions-home-"))
+    await runCompletionsSubcommand(["zsh", "--install"], "kobe", { shippedDir, home })
+    const rc = readFileSync(join(home, ".zshrc"), "utf8")
+    expect(rc).toContain(`source "${scriptPath}"`)
+    expect(rc).not.toContain("source <(")
+    expect(stdoutText()).toContain(join(home, ".zshrc"))
+  })
+
+  test("--install without a built script still hooks the live fallback", async () => {
+    const home = mkdtempSync(join(tmpdir(), "kobe-completions-home-"))
+    const empty = mkdtempSync(join(tmpdir(), "kobe-completions-empty-"))
+    await runCompletionsSubcommand(["zsh", "--install"], "kobe", { shippedDir: empty, home })
+    expect(readFileSync(join(home, ".zshrc"), "utf8")).toContain("source <(kobe completions zsh)")
+  })
+
+  test("--path together with --install is a usage error, not a silent pick", async () => {
+    await expect(runCompletionsSubcommand(["zsh", "--path", "--install"], "kobe", { shippedDir })).rejects.toThrow(
+      "exit sentinel",
+    )
+    expect(stderrText()).toContain("--path and --install are different things")
+  })
+
+  test("an unknown option is a usage error", async () => {
+    await expect(runCompletionsSubcommand(["zsh", "--json"], "kobe", { shippedDir })).rejects.toThrow("exit sentinel")
+    expect(stderrText()).toContain('unknown option "--json"')
   })
 })

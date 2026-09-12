@@ -1,11 +1,23 @@
 /**
- * `<cli> completions` — generate shell completion scripts.
+ * `<cli> completions` — generate shell completion scripts, or point at the
+ * pre-generated copy shipped in the package.
  *
  * Usage:
- *   source <(kobe completions zsh)                 # zsh, one-off or in ~/.zshrc
+ *   source <(kobe completions zsh)                 # zsh, generate now
+ *   kobe completions zsh --path                    # print the shipped file's path
+ *   kobe completions zsh --install                 # hook that path into your rc
  *   kobe completions zsh  > ~/.zsh/completions/_kobe   # zsh, fpath install
  *   kobe completions bash > ~/.bash_completion.d/kobe
  *   kobe completions fish > ~/.config/fish/completions/kobe.fish
+ *
+ * Why `--path` exists: the script is a constant, but the only way to GET it
+ * was a process start, so every new shell paid ~0.3s (node launcher → bun)
+ * just to print 1.8KB of static text, and anyone who cared had to write their
+ * own cache shim. The build now bakes the same generator's output into
+ * `dist/completions/<cli>.<shell>`, which `installCompletions` sources
+ * directly — see cli/completion-scripts.ts. A source checkout has no dist, so
+ * plain `completions <shell>` keeps generating on the fly and `--path` fails
+ * loudly rather than printing a path that does not exist.
  *
  * The zsh script works both ways: dropped into `$fpath` it is a normal
  * `#compdef` autoload file; sourced directly it registers itself via
@@ -15,155 +27,102 @@
  * for the commands that take one, its verb (`kobe daemon <TAB>` →
  * `start stop status restart`). Flags are omitted because most subcommands
  * define their own.
- *
- * Both levels are DERIVED, never transcribed: the top level from
- * {@link TOP_LEVEL_SUBCOMMANDS}, the verbs from {@link SUBCOMMAND_VERBS}
- * (which the command modules themselves validate against) and, for `api`,
- * from the same `VERBS` registry `kobe api schema` enumerates. That registry
- * is loaded lazily so `completions` stays the only command that pays for it.
  */
+import { existsSync, readFileSync } from "node:fs"
 import type { ProductCliName } from "../product.ts"
+import { generateCompletions, isShellKind, mergeSubVerbs, shippedCompletionsPath } from "./completion-scripts.ts"
 import { activeCliName } from "./rename-compat.ts"
-import { SUBCOMMAND_VERBS, TOP_LEVEL_SUBCOMMANDS } from "./subcommands.ts"
 
-/** command → its verbs, in the order each source declares them. */
-type SubVerbs = ReadonlyArray<readonly [command: string, verbs: readonly string[]]>
+/** `--help` is spelled as a flag or as a bare word, as it always was here. */
+const HELP_WORDS = ["--help", "-h", "help"]
 
-async function collectSubVerbs(): Promise<SubVerbs> {
-  const { API_VERBS } = await import("./api/verbs.ts")
-  const merged: Record<string, readonly string[]> = { ...SUBCOMMAND_VERBS, api: API_VERBS }
-  return Object.keys(merged)
-    .sort()
-    .map((command) => [command, merged[command] ?? []] as const)
+/** Seams for the tests: the real shipped directory, and the real home. */
+export interface CompletionsCommandDeps {
+  readonly shippedDir?: string
+  readonly home?: string
 }
 
 function completionUsage(cliName: ProductCliName): string {
   return [
-    `Usage: ${cliName} completions <bash|zsh|fish>`,
+    `Usage: ${cliName} completions <bash|zsh|fish> [--path|--install]`,
     "",
-    `Generate a shell completion script for ${cliName} and print it to stdout.`,
+    `Print a shell completion script for ${cliName}, or locate the copy shipped`,
+    "with this install.",
+    "",
+    `  ${cliName} completions zsh --path      print the shipped script's path`,
+    `  ${cliName} completions zsh --install   hook it into your shell config`,
     "",
     "Install:",
     `  zsh   source <(${cliName} completions zsh)     # one-off, or in ~/.zshrc after compinit`,
-    "        # or the fpath way:",
+    "        # with no process start per shell — what the first-run wizard writes:",
+    `        #   ${cliName} completions zsh --install`,
+    `  bash  ${cliName} completions bash --install    # appends to ~/.bashrc`,
+    `  fish  ${cliName} completions fish --install    # writes ~/.config/fish/completions/${cliName}.fish`,
+    "        # the manual way, any shell:",
     `        #   ${cliName} completions zsh > ~/.zsh/completions/_${cliName}`,
     "        #   fpath=(~/.zsh/completions $fpath)   # in ~/.zshrc, BEFORE compinit",
     "        #   rm -f ~/.zcompdump && exec zsh      # rebuild the completion cache",
-    `  bash  ${cliName} completions bash > ~/.bash_completion.d/${cliName}   # source it from ~/.bashrc`,
-    `  fish  ${cliName} completions fish > ~/.config/fish/completions/${cliName}.fish`,
     "",
   ].join("\n")
-}
-
-function generateBashCompletions(cliName: ProductCliName, subVerbs: SubVerbs): string {
-  const subcommands = TOP_LEVEL_SUBCOMMANDS.join(" ")
-  const fn = `_${cliName}`
-
-  return [
-    `# ${cliName} bash completions`,
-    `# Source: ${cliName} completions bash`,
-    "",
-    `${fn}() {`,
-    "    local cur prev",
-    "    COMPREPLY=()",
-    '    cur="${COMP_WORDS[COMP_CWORD]}"',
-    '    prev="${COMP_WORDS[COMP_CWORD-1]}"',
-    "    if [[ ${COMP_CWORD} -eq 1 ]]; then",
-    `        COMPREPLY=( $(compgen -W "${subcommands}" -- "\${cur}") )`,
-    "        return",
-    "    fi",
-    "    if [[ ${COMP_CWORD} -eq 2 ]]; then",
-    '        case "${prev}" in',
-    ...subVerbs.map(
-      ([command, verbs]) => `            ${command}) COMPREPLY=( $(compgen -W "${verbs.join(" ")}" -- "\${cur}") ) ;;`,
-    ),
-    "        esac",
-    "    fi",
-    "}",
-    `complete -F ${fn} ${cliName}`,
-    "",
-  ].join("\n")
-}
-
-function generateZshCompletions(cliName: ProductCliName, subVerbs: SubVerbs): string {
-  const subcommandsList = TOP_LEVEL_SUBCOMMANDS.map((s) => `"${s}"`).join(" ")
-  const fn = `_${cliName}`
-
-  return [
-    `#compdef ${cliName}`,
-    `# ${cliName} zsh completions`,
-    `# Source: ${cliName} completions zsh`,
-    "",
-    `${fn}() {`,
-    "    local -a subcommands verbs",
-    `    subcommands=(${subcommandsList})`,
-    "",
-    "    if (( CURRENT == 2 )); then",
-    "        _describe -t commands 'subcommand' subcommands",
-    "        return",
-    "    fi",
-    "",
-    "    verbs=()",
-    '    case "${words[2]}" in',
-    ...subVerbs.map(([command, verbs]) => `        ${command}) verbs=(${verbs.map((v) => `"${v}"`).join(" ")}) ;;`),
-    "    esac",
-    "    if (( CURRENT == 3 && ${#verbs} > 0 )); then",
-    "        _describe -t verbs 'verb' verbs",
-    "    fi",
-    "}",
-    "",
-    "# Autoloaded from $fpath -> run as the completion function;",
-    "# sourced directly -> register with compdef instead.",
-    `if [ "\${funcstack[1]}" = "${fn}" ]; then`,
-    `    ${fn} "$@"`,
-    "elif (( $+functions[compdef] )); then",
-    `    compdef ${fn} ${cliName}`,
-    "fi",
-    "",
-  ].join("\n")
-}
-
-function generateFishCompletions(cliName: ProductCliName, subVerbs: SubVerbs): string {
-  // `__fish_use_subcommand` keeps the top-level list from reappearing after a
-  // subcommand is already typed; `__fish_seen_subcommand_from` scopes each
-  // verb list to its own command.
-  const lines = [
-    ...TOP_LEVEL_SUBCOMMANDS.map((s) => `complete -c ${cliName} -f -n __fish_use_subcommand -a ${s}`),
-    ...subVerbs.map(
-      ([command, verbs]) =>
-        `complete -c ${cliName} -f -n "__fish_seen_subcommand_from ${command}" -a "${verbs.join(" ")}"`,
-    ),
-  ]
-  return `# ${cliName} fish completions\n# Source: ${cliName} completions fish\n\n${lines.join("\n")}\n`
 }
 
 export async function runCompletionsSubcommand(
   rest: readonly string[],
   cliName: ProductCliName = activeCliName(),
+  deps: CompletionsCommandDeps = {},
 ): Promise<void> {
-  const shell = rest[0]
   const usage = completionUsage(cliName)
+  const fail: (message: string) => never = (message) => {
+    process.stderr.write(`${cliName} completions: ${message}\n\n${usage}`)
+    process.exit(2)
+  }
 
-  if (shell === "--help" || shell === "-h" || shell === "help") {
+  if (rest.some((arg) => HELP_WORDS.includes(arg))) {
     process.stdout.write(usage)
     return
   }
 
-  if (!shell || (shell !== "bash" && shell !== "zsh" && shell !== "fish")) {
-    process.stderr.write(`${cliName} completions: unknown shell "${shell}"\n\n${usage}`)
-    process.exit(2)
+  const flags = rest.filter((arg) => arg.startsWith("-"))
+  const shells = rest.filter((arg) => !arg.startsWith("-"))
+  const unknownFlag = flags.find((flag) => flag !== "--path" && flag !== "--install")
+  if (unknownFlag) fail(`unknown option "${unknownFlag}"`)
+  if (new Set(flags).size > 1) fail("--path and --install are different things; pass one")
+  const shell = shells.length === 1 ? shells[0] : undefined
+  if (!isShellKind(shell)) fail(`unknown shell "${shells.join(" ")}"`)
+
+  const scriptPath = shippedCompletionsPath(shell, cliName, deps.shippedDir)
+  const shipped = existsSync(scriptPath) ? scriptPath : null
+
+  if (flags[0] === "--path") {
+    if (!shipped) {
+      fail(
+        `no pre-generated ${shell} script at ${scriptPath}\n` +
+          `${cliName} completions ${shell}    # print the script to stdout instead`,
+      )
+    }
+    process.stdout.write(`${shipped}\n`)
+    return
   }
 
-  const subVerbs = await collectSubVerbs()
-
-  let script: string
-  if (shell === "bash") {
-    script = generateBashCompletions(cliName, subVerbs)
-  } else if (shell === "zsh") {
-    script = generateZshCompletions(cliName, subVerbs)
-  } else {
-    script = generateFishCompletions(cliName, subVerbs)
+  if (flags[0] === "--install") {
+    // Both are lazy on purpose, the same way index-commands.ts keeps the heavy
+    // subcommands behind `import()`: writing to the user's rc is a rare branch,
+    // and a static import here would make every `completions <shell>` pay for
+    // the i18n store and the whole onboarding graph.
+    const [{ installCompletions }, { t }] = await Promise.all([import("./onboarding.ts"), import("../tui/i18n")])
+    const target = installCompletions(shell, deps.home, cliName, shipped)
+    process.stdout.write(`${t("onboarding.appliedCompletions", { path: target })}\n`)
+    return
   }
 
-  process.stdout.write(script)
+  // A built install answers from the file the build wrote, so `--path` and
+  // stdout can never disagree about what the script is. Unbuilt (a checkout)
+  // falls through to generating it here. `api/verbs.ts` is the lazy half of the
+  // completion tables — see cli/completion-scripts.ts.
+  if (shipped) {
+    process.stdout.write(readFileSync(shipped, "utf8"))
+    return
+  }
+  const { API_VERBS } = await import("./api/verbs.ts")
+  process.stdout.write(generateCompletions(shell, cliName, mergeSubVerbs(API_VERBS)))
 }
