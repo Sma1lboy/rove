@@ -81,10 +81,10 @@ it, so Rove assumes you meant it.
 ### Reasoning effort
 
 Codex accepts `none`, `low`, `medium`, `high`, `xhigh`, `max`, passed as
-`-c model_reasoning_effort=<level>`. Pi and OMP take the same levels (plus
-`off`) as `--thinking <level>`. The remaining engines have no effort flag
-Rove can drive; a selected effort is ignored there rather than passed
-through.
+`-c model_reasoning_effort=<level>`. Pi and OMP take `off`, `minimal`, `low`,
+`medium`, `high`, `xhigh`, `max` as `--thinking <level>` — `minimal` in place
+of Codex's `none`, plus `off`. The remaining engines have no effort flag Rove
+can drive; a selected effort is ignored there rather than passed through.
 
 Three places select one:
 

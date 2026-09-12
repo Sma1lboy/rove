@@ -418,3 +418,17 @@ export function vendorsWithTurnReader(): readonly VendorId[] {
     .filter((entry) => entry.readTurns)
     .map((entry) => entry.vendor)
 }
+
+/**
+ * Built-in vendors that declare reasoning-effort levels — the ones `set-effort`
+ * / `add --effort` can pin a level on. `assertEngineAcceptsEffort`'s error hint
+ * names these so a user who mis-targeted effort learns which engines would have
+ * taken one. Derived rather than written down for the same reason as the two
+ * helpers above: hard-coding "codex today" in the CLI layer named a single
+ * engine and went stale the moment pi and OMP shipped their own levels.
+ */
+export function vendorsWithEffortLevels(): readonly VendorId[] {
+  return Object.values(BUILTIN_ENGINES)
+    .filter((entry) => (entry.effortLevels?.length ?? 0) > 0)
+    .map((entry) => entry.vendor)
+}

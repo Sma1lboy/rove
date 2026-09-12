@@ -27,7 +27,7 @@ import {
   sessionProtocol,
 } from "../../engine/engine-presets.ts"
 import { ensurePluginEnginesLoaded } from "../../engine/plugin-engines.ts"
-import { engineEntry } from "../../engine/registry.ts"
+import { engineEntry, vendorsWithEffortLevels } from "../../engine/registry.ts"
 import { type VendorId, coerceVendorId } from "../../types/vendor.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
@@ -131,7 +131,7 @@ export function assertEngineAcceptsEffort(engine: VendorId, level: string, recov
   if (levels.length === 0) {
     throw new ApiError(`engine ${engine} declares no reasoning effort levels`, "BAD_EFFORT", {
       engine,
-      hint: `Only engines with declared levels accept one (codex today). Check the task's engine with \`get-task\`.`,
+      hint: `Only engines with declared reasoning levels accept one (${vendorsWithEffortLevels().join(", ")} today). Check the task's engine with \`get-task\`.`,
       nextCommandArgs: [...recover],
     })
   }
@@ -179,7 +179,7 @@ export const SET_EFFORT_VERB: VerbSpec = {
   name: "set-effort",
   group: "edit",
   summary:
-    "Set a task's reasoning effort level (takes effect on the next session rebuild). Rejected when the task's engine declares no levels, or does not declare THIS one — the error names the levels it does accept. Codex accepts none/low/medium/high/xhigh/max; claude has none.",
+    "Set a task's reasoning effort level (takes effect on the next session rebuild). Rejected when the task's engine declares no levels, or does not declare THIS one — the error names the levels it does accept. Codex accepts none/low/medium/high/xhigh/max; pi and OMP accept off/minimal/low/medium/high/xhigh/max; claude has none.",
   flags: [
     F.taskId(),
     // Deliberately not an enum: levels are declared PER ENGINE (registry
