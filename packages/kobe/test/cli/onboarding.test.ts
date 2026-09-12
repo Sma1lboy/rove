@@ -23,9 +23,20 @@ const mocks = vi.hoisted(() => ({
   runOnboardingWizard: vi.fn(),
   checkOnboardingEnv: vi.fn(),
   loadStateFile: vi.fn(() => ({}) as Record<string, unknown>),
+  /** The home `os.homedir()` reports; undefined = the real one. */
+  home: undefined as string | undefined,
 }))
 
 vi.mock("node:child_process", () => ({ spawnSync: mocks.spawnSync }))
+// The install path writes the completions hook into `os.homedir()`. Redirect it
+// at the source rather than through $HOME, which Windows ignores — otherwise
+// these tests write into the developer's (or CI runner's) real rc file, and one
+// test's leftover hook decides the next test's answer. `tmpdir()` stays real so
+// `freshHome()` still makes a temp directory.
+vi.mock("node:os", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:os")>()
+  return { ...actual, homedir: () => mocks.home ?? actual.homedir() }
+})
 vi.mock("../../src/state/store.ts", () => ({
   getPersistedBool: mocks.getPersistedBool,
   setPersistedBool: mocks.setPersistedBool,
@@ -202,27 +213,23 @@ describe("installCompletions", () => {
 
 describe("applyOnboardingChoices", () => {
   let stdoutSpy: MockInstance<typeof process.stdout.write>
-  let savedHome: string | undefined
 
   beforeEach(() => {
     stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
     // vi.clearAllMocks() wipes the hoisted default return too, so restore the
     // "npx is present" baseline every test starts from.
     mocks.isNpxMissing.mockReturnValue(false)
-    // The apply step writes the completions hook into `homedir()`. Give it a
-    // throwaway home so the result is about this code and not the developer's
-    // real rc — a machine with any `kobe completions` line already in it takes
-    // the "already there" branch and writes nothing.
-    savedHome = process.env.HOME
-    process.env.HOME = freshHome()
+    // The apply step writes the completions hook into `os.homedir()`. Give it a
+    // throwaway home so the result is about this code and not a real rc file
+    // that already has a completions line in it.
+    mocks.home = freshHome()
   })
 
   afterEach(() => {
     stdoutSpy.mockRestore()
     vi.clearAllMocks()
     process.env.ROVE_INVOKED_AS = undefined
-    if (savedHome !== undefined) process.env.HOME = savedHome
-    else Reflect.deleteProperty(process.env, "HOME")
+    mocks.home = undefined
   })
 
   it("declines everything when shell is unknown", async () => {
@@ -389,21 +396,19 @@ describe("maybeRunOnboarding", () => {
   it("marks onboarded, runs the wizard in full mode, applies choices, and returns true", async () => {
     setProduct("kobe")
     const savedShell = process.env.SHELL
-    const savedHome = process.env.HOME
     process.env.SHELL = "/bin/zsh"
-    // The apply step writes the completions hook into `homedir()`. Without this
-    // the test reads the developer's real rc: a machine that already has any
-    // `kobe completions` line would take the "already there" branch and get
-    // nothing written — a result about THEIR shell, not about this code.
-    process.env.HOME = freshHome()
+    // The apply step writes the completions hook into the home it is handed.
+    // Without a throwaway one this reads the developer's real rc: a machine
+    // that already carries a completions line takes the "already there" branch
+    // and gets nothing written — a result about THEIR shell, not this code.
+    mocks.home = freshHome()
     const { maybeRunOnboarding } = await import("../../src/cli/onboarding.ts")
     Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true })
     Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true })
     const result = await maybeRunOnboarding()
     if (savedShell !== undefined) process.env.SHELL = savedShell
     else process.env.SHELL = undefined
-    if (savedHome !== undefined) process.env.HOME = savedHome
-    else Reflect.deleteProperty(process.env, "HOME")
+    mocks.home = undefined
     expect(result).toBe(true)
     expect(mocks.setPersistedBool).toHaveBeenCalledWith("onboarded", true)
     // A resolved wizard delivered the keyboard page — the primer is done too.
