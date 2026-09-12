@@ -170,6 +170,10 @@ h1 .thin{font-weight:400;color:var(--ink-2)}
 
 /* note sections --------------------------------------------------------- */
 .note{display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,.98fr);border-top:1px solid var(--rule)}
+/* A class selector out-specifies the UA's [hidden] rule, so a note that grid-
+   displays itself stays visible when hidden. Any sheet that swaps a note out
+   for a detail view needs this. */
+.note[hidden]{display:none}
 .note>h2{
   grid-column:1/-1;margin:0;padding:20px 0 12px;
   font-family:var(--font-tech);font-weight:600;text-transform:uppercase;
