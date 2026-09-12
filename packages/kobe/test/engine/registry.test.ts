@@ -19,6 +19,7 @@ import {
   engineEntry,
   getCapabilities,
   supportsStructuredHistory,
+  vendorsWithEffortLevels,
   vendorsWithQuotaProbe,
   vendorsWithTurnReader,
 } from "../../src/engine/registry.ts"
@@ -149,6 +150,18 @@ describe("vendorsWithTurnReader", () => {
     const vendors = vendorsWithTurnReader()
     expect([...vendors].sort()).toEqual(["claude", "codex"])
     for (const vendor of vendors) expect(engineEntry(vendor).readTurns).toBeDefined()
+  })
+})
+
+describe("vendorsWithEffortLevels", () => {
+  it("lists every engine that declares reasoning levels, so the effort error can name them", () => {
+    const vendors = vendorsWithEffortLevels()
+    expect([...vendors].sort()).toEqual(["codex", "omp", "pi"])
+    for (const vendor of vendors) expect((engineEntry(vendor).effortLevels?.length ?? 0) > 0).toBe(true)
+  })
+
+  it("omits engines that declare none rather than implying they take a level", () => {
+    expect(vendorsWithEffortLevels()).not.toContain("claude")
   })
 })
 

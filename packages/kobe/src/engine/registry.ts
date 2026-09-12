@@ -288,3 +288,10 @@ export function vendorsWithTurnReader(): readonly VendorId[] {
     .filter((entry) => entry.readTurns)
     .map((entry) => entry.vendor)
 }
+
+/** Built-ins that declare effort levels; the effort error hint names them. */
+export function vendorsWithEffortLevels(): readonly VendorId[] {
+  return Object.values(BUILTIN_ENGINES)
+    .filter((entry) => (entry.effortLevels?.length ?? 0) > 0)
+    .map((entry) => entry.vendor)
+}
