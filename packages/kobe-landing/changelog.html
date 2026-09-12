@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rove: changelog</title>
+<title>Rove — Revision Block</title>
 <link rel="icon" href="/assets/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="/assets/favicon.png">
-<meta name="description" content="Release notes for Rove, the local-first TUI orchestrator for parallel AI coding agents. Every version, pulled live from GitHub, in English or Chinese.">
+<meta name="description" content="Every published release of Rove, drawn as a revision block: rev, date, description, by, zone — newest at the top, never edited after the fact.">
 <link rel="canonical" href="https://rove.run/changelog">
 <!-- Release notes feed: GitHub already publishes this for every release, so
      there is no feed to build or keep in sync. -->
 <link rel="alternate" type="application/atom+xml" title="Rove releases"
       href="https://github.com/Sma1lboy/rove/releases.atom">
-<meta property="og:title" content="Rove: changelog">
-<meta property="og:description" content="Release notes for Rove, pulled live from GitHub. English / 中文.">
+<meta property="og:title" content="Rove — Revision Block">
+<meta property="og:description" content="Every published release of Rove, drawn as a revision block. English / 中文.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://rove.run/changelog">
 <meta name="twitter:card" content="summary_large_image">
@@ -21,111 +21,523 @@
 <meta name="twitter:image" content="https://rove.run/assets/og-card.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=DM+Sans:opsz,wght@9..40,300..700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/chrome.css">
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/blueprint.css">
 <style>
-/* ============ PAGE HEAD ============ */
-.top{padding:clamp(112px,14vh,152px) 0 0}
-.kicker{font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;color:var(--muted)}
-h1{margin:14px 0 16px;font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(38px,5.6vw,70px);font-weight:380;letter-spacing:-.028em;line-height:1.02;color:var(--ink)}
-.lede{font-size:clamp(15px,1.5vw,17px);color:var(--ink-soft);max-width:60ch}
-.lede code{font-family:var(--font-mono);font-size:12.5px;background:var(--accent-wash);border:1px solid oklch(62% 0.13 45/.18);padding:1px 6px;color:oklch(46% 0.11 45)}
-.rule{height:1px;background:var(--line);margin:44px 0 0}
+/* ── Sheet 4 only ──────────────────────────────────────────────────────────
+   The revision block is wider than the two-column note grid and its triangles
+   carry three digits, so they are plotted larger. Nothing here is a colour;
+   every value resolves through the shared tokens. */
+.wide{grid-column:1/-1;min-width:0}
+.wide>p{max-width:76ch;margin:0 0 16px}
+.rb{min-width:716px;font-size:12.5px}
+.rb thead th{white-space:nowrap}
+.rb td,.rb th{padding-top:11px;padding-bottom:11px}
+.c-rev{width:92px;white-space:nowrap}
+.c-date{width:88px;white-space:nowrap;font-family:var(--font-mono);color:var(--ink-2)}
+.c-by{width:116px;font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.1em;font-size:10.5px;color:var(--ink-2);overflow-wrap:anywhere}
+.c-zone{width:54px;text-align:center;font-family:var(--font-mono);color:var(--ink-2)}
+.revtri{display:inline-block;width:32px;height:28px;vertical-align:-9px}
+.revtri path{fill:none;stroke:var(--accent-line);stroke-width:1.3}
+.revtri text{font-family:var(--font-mono);font-size:6.2px;fill:var(--accent-text)}
+.c-rev .tg{display:block;font-family:var(--font-mono);font-size:11px;color:var(--ink-3);margin-top:2px}
+.ent{display:flex;gap:9px;margin-bottom:7px;line-height:1.5;min-width:0}
+.ent:last-child{margin-bottom:0}
+.ent .pr{flex:0 0 auto;font-family:var(--font-mono);font-size:11px;color:var(--ink-3);border-bottom:1px solid var(--rule)}
+.ent .pr:hover{color:var(--accent-text)}
+/* release bodies arrive from GitHub, so one line can carry an arbitrarily long
+   path or command; without this it pushes the sheet past the viewport at 390 */
+.ent>span{min-width:0;overflow-wrap:anywhere}
+/* the conventional-commit type, when a revision's line still carries one.
+   Drawn as lettering, not a tint — this sheet has one ink. */
+.ent .tag{flex:0 0 auto;font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.14em;font-weight:600;font-size:9.5px;color:var(--ink-2);border:1px solid var(--rule);padding:1px 5px;line-height:1.5;white-space:nowrap}
+.sub{margin:6px 0 0 0;padding-left:14px;border-left:1px solid var(--rule);font-size:12px;color:var(--ink-2);line-height:1.5;overflow-wrap:anywhere}
+.sub div{margin-bottom:4px}
+.sub div:last-child{margin-bottom:0}
+.rule-head{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.18em;font-size:9.5px;color:var(--ink-3);margin:0 0 6px;display:block}
+.status{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;border:1px solid var(--rule);border-left:2px solid var(--ink);padding:8px 12px;margin:0 0 16px}
+.status .sv{font-family:var(--font-mono);font-size:11.5px;letter-spacing:0;text-transform:none;color:var(--ink-2);min-width:0;overflow-wrap:anywhere}
+.chan{border:1px solid var(--ink)}
+.chan .r{display:grid;grid-template-columns:96px minmax(0,1fr);border-bottom:1px solid var(--rule)}
+.chan .r:last-child{border-bottom:0}
+.chan .k{font-family:var(--font-mono);font-size:12.5px;padding:10px 12px;border-right:1px solid var(--rule)}
+.chan .d{font-size:12.5px;color:var(--ink-2);padding:10px 12px;line-height:1.5}
+.upd{max-width:600px}
+/* a line still waiting on its translation dims rather than jumping */
+.tr-loading{opacity:.42}
 
-/* ============ RELEASE TIMELINE ============ */
-.releases{display:flex;flex-direction:column;gap:40px;padding:44px 0 0;max-width:900px}
-.loading{font-family:var(--font-mono);font-size:13px;color:var(--faint);padding:20px 0}
-.loading a{color:var(--accent);border-bottom:1px solid var(--accent-line)}
-.rel-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:14px}
-.rel-tag{font-family:var(--font-mono);font-weight:700;font-size:21px;letter-spacing:-.01em;color:var(--ink);transition:color 140ms}
-.rel-tag:hover{color:var(--accent)}
-.rel-date{font-family:var(--font-mono);font-size:12px;color:var(--faint)}
-.rel-badge{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line-2);background:var(--surface);color:var(--muted);padding:3px 8px}
-.rel-badge.latest{border-color:var(--accent-line);background:var(--accent-wash);color:var(--accent)}
-.rel-body{border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:8px 26px}
-.rn-h{font-family:var(--font-mono);font-weight:600;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:20px 0 4px}
-.rn-ul{list-style:none}
-/* each bullet = one clear, scannable point: [type] summary */
-.rn-li{position:relative;display:flex;align-items:baseline;gap:11px;padding:12px 0 12px 24px;font-size:14px;line-height:1.55;color:var(--ink-soft);border-top:1px solid var(--line)}
-/* the rotated square is the same mark the home page uses between stages */
-.rn-li::before{content:"";position:absolute;left:3px;top:19px;width:6px;height:6px;background:var(--accent);opacity:.75;transform:rotate(45deg)}
-.rn-li:first-child{border-top:0}
-.rn-li.tr-loading .sum{opacity:.4}
-.rn-li .tag{flex:none;font-family:var(--font-mono);font-size:10.5px;font-weight:500;letter-spacing:.03em;padding:2px 8px;border:1px solid;white-space:nowrap}
-/* the long token here is usually a slash-separated field list in prose, not
-   inside <code> — the translation path strips markdown, so the wrap rule has
-   to sit on the summary itself */
-.rn-li .sum{flex:1;min-width:0;overflow-wrap:anywhere}
-/* release bodies come from GitHub, so a bullet can carry an arbitrarily long
-   path or command; without this it pushes the page past the viewport at 390 */
-.rn-li code{font-family:var(--font-mono);font-size:12.5px;background:var(--accent-wash);border:1px solid oklch(62% 0.13 45/.18);padding:1px 6px;color:oklch(46% 0.11 45);overflow-wrap:anywhere}
-.rn-li strong{color:var(--ink);font-weight:600}
-.rn-li a{color:var(--accent);border-bottom:1px solid var(--accent-line)}
-.rn-li a:hover{border-bottom-color:var(--accent)}
-html[data-lang="zh"] .rn-li .sum{font-family:var(--font-mono),'PingFang SC','Microsoft YaHei',sans-serif}
-@media(max-width:760px){.rel-body{padding:6px 18px}.rel-tag{font-size:19px}}
+/* header instruments: the language toggle and the live star count, lettered
+   like the rest of the header rather than styled as web buttons */
+.lang-btn{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.16em;font-size:11px;font-weight:600;color:var(--ink);background:transparent;border:1px solid var(--rule);padding:4px 9px;cursor:pointer;line-height:1.4}
+.lang-btn:hover{border-color:var(--accent-line);color:var(--accent-text)}
+.gh-link{display:inline-flex;align-items:center;gap:7px;font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.16em;font-size:11.5px;font-weight:600;border-bottom:1px solid transparent;padding-bottom:2px}
+.gh-link:hover{border-bottom-color:var(--accent-line)}
+.gh-stars{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;letter-spacing:0;color:var(--ink-2)}
+
+/* Chinese has no glyphs in Saira Condensed or Plex; the stack widens and the
+   uppercase tracking loosens back off when the sheet is lettered in Chinese. */
+html[data-lang="zh"]{
+  --font-tech:"Saira Condensed","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --font-prose:"IBM Plex Sans","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+}
+html[data-lang="zh"] h1{letter-spacing:.02em;line-height:1.04;max-width:18ch}
+html[data-lang="zh"] .micro,html[data-lang="zh"] .note>h2,html[data-lang="zh"] .tb .k{letter-spacing:.1em}
+html[data-lang="zh"] .tb .v{letter-spacing:.02em}
+html[data-lang="zh"] svg .tx,html[data-lang="zh"] svg .tx-s,html[data-lang="zh"] svg .dimtx{letter-spacing:.02em}
+
+@media (max-width:620px){
+  .rb{min-width:660px}
+  .chan .r{grid-template-columns:74px minmax(0,1fr)}
+}
 </style>
 </head>
 <body>
+<a class="skip" href="#main" data-s="skip">Skip to drawing</a>
 
-<!-- NAV · terminal command line (chrome.css) -->
-<header class="navbar">
-  <span class="ps" aria-hidden="true">$</span>
-  <a class="bin" href="/">Rove</a>
-  <nav aria-label="Main">
-  <a class="nl" data-s="nav.workflow" href="/#workflow">--primitives</a>
-  <a class="nl" data-s="nav.install" href="/#install">--install</a>
-  <a class="nl" data-s="nav.docs" href="https://docs.rove.run">--docs</a>
-  <a class="nl" data-s="nav.plugins" href="/plugins">--plugins</a>
-  <a class="nl" data-s="nav.themes" href="/themes">--themes</a>
-  <a class="nl" href="/changelog" aria-current="page" data-s="nav.changelog">--changelog</a>
-  </nav>
-  <span class="caret" aria-hidden="true"></span>
-  <button id="langToggle" class="lang-btn">中文</button>
-  <a class="gh-link" href="https://github.com/Sma1lboy/rove" target="_blank" rel="noopener">
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" style="flex:none;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-    <span>GitHub</span>
-    <span class="gh-stars">
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" style="flex:none;"><path d="M8 .25l2.06 4.18 4.61.67-3.34 3.25.79 4.6L8 10.97l-4.12 2.17.79-4.6L1.33 5.1l4.61-.67L8 .25z"/></svg>
-      <span id="starCount">–</span>
-    </span>
-  </a>
-</header>
+<!-- shared draughting symbols: arrowheads, hatch ------------------------- -->
+<svg width="0" height="0" aria-hidden="true" style="position:absolute">
+  <defs>
+    <marker id="arw" viewBox="0 0 10 8" refX="9.4" refY="4" markerWidth="9" markerHeight="7.2" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M0 0.4 L10 4 L0 7.6 Z" fill="var(--ink-3)"/>
+    </marker>
+    <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="7" stroke="var(--hatch)" stroke-width="1"/>
+    </pattern>
+  </defs>
+</svg>
 
-<div class="wrap">
+<div class="sheet">
+<div class="inner">
+  <div class="zone-side" aria-hidden="true"><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span></div>
+  <div class="zone-top" aria-hidden="true">
+    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span>
+  </div>
 
-  <section class="top">
-    <p class="kicker" data-s="kicker">// releases</p>
-    <h1 data-s="title">Changelog</h1>
-    <p class="lede" data-s="lede">Every Rove release, pulled live from GitHub. <code>bun install -g @sma1lboy/rove</code> to update.</p>
+  <!-- ══ HEADER ══════════════════════════════════════════════════════════ -->
+  <header class="head">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 64 64" width="28" height="28" aria-hidden="true" class="mark"><rect x="1" y="1" width="62" height="62" rx="13"/><path d="M19 13H12V51h7" stroke-width="7"/><path d="M12 13V51" stroke-width="4"/><g transform="translate(19.811 45) scale(.01745 -.01745)"><path class="r" d="M111 0H419V521H689C690 521 691 521 692 521L956 0H1286L987 579C1154 656 1253 804 1253 1001C1253 1301 1043 1490 707 1490H111ZM419 768V1234H688C851 1234 952 1143 952 1001C952 859 851 768 689 768Z"/></g><path d="M45 13h7V51h-7" stroke-width="7"/><path d="M52 13V51" stroke-width="4"/></svg>
+      <span class="wm">Rove</span>
+    </a>
+    <span class="stamp" data-s="stamp">Rev 0.9.192 · Sheet 4 of 4</span>
+    <span class="spacer"></span>
+    <nav aria-label="Primary">
+      <a href="https://docs.rove.run" data-s="nav.docs">Docs</a>
+      <a href="/" data-s="nav.assembly">Assembly</a>
+      <a href="/plugins" data-s="nav.plugins">Plugins</a>
+      <a href="/themes" data-s="nav.themes">Themes</a>
+      <a href="/changelog" aria-current="page" style="border-bottom-color:transparent;color:var(--accent-text)" data-s="nav.changelog">Changelog</a>
+    </nav>
+    <button id="langToggle" class="lang-btn">中文</button>
+    <a class="gh-link" href="https://github.com/Sma1lboy/rove" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      <span>GitHub</span>
+      <span class="gh-stars">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M8 .25l2.06 4.18 4.61.67-3.34 3.25.79 4.6L8 10.97l-4.12 2.17.79-4.6L1.33 5.1l4.61-.67L8 .25z"/></svg>
+        <span id="starCount">–</span>
+      </span>
+    </a>
+  </header>
+
+  <main id="main">
+
+  <!-- ══ HERO ════════════════════════════════════════════════════════════ -->
+  <section class="hero" data-zone="A">
+    <div class="hero-l">
+      <h1 data-s="h1">The revision block <span class="thin">of one program</span></h1>
+      <p class="lede" data-s="lede">Every published release of Rove, in the order a drawing records changes: <b>newest at the top, never edited after the fact</b>. Each revision is a version tag; each line inside it is one change that shipped under that tag.</p>
+
+      <div class="upd" data-measure="4 UPDATE FORMS">
+        <button class="copy" data-cmd="rove update" aria-label="Copy command: rove update">
+          <span class="tag" aria-hidden="true" data-s="upd.tag">Update</span>
+          <span class="cmd">rove update</span>
+          <span class="hint" data-hint data-s="upd.hint">Click to copy</span>
+        </button>
+        <div class="alts">
+          <button class="alt" data-cmd="rove update 0.7.90">rove update 0.7.90</button>
+          <button class="alt" data-cmd="rove update nightly">rove update nightly</button>
+          <button class="alt" data-cmd="rove update latest">rove update latest</button>
+        </div>
+      </div>
+      <p class="platform" data-s="platform">Takes the newest build on your channel · a bare version pins one · a channel name switches lines</p>
+    </div>
+
+    <div class="hero-r">
+      <div class="subject" data-measure="CURRENT REV 0.9.192" data-measure-axis="y">
+        <div class="cap micro" data-s="subj.cap">Current revision</div>
+        <div class="body">
+          <div class="eq">
+            <div class="row"><span class="op"></span><span class="lhs"><span class="reread"><span class="r">0.9.192</span><span class="r">tag v0.9.192</span><span class="r">rev 191</span></span></span></div>
+            <div class="row"><span class="op">·</span><span class="bl">1</span><span data-s="subj.r1">Channel latest</span></div>
+            <div class="row"><span class="op">·</span><span class="bl">2</span><span class="mono">2026-09-11</span></div>
+            <div class="row"><span class="op">·</span><span class="bl">3</span><span data-s="subj.r3">Patch changes</span></div>
+          </div>
+        </div>
+        <div class="foot micro"><span data-s="subj.f1">See block, zone C</span><span data-s="subj.f2">Rev 191</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <svg width="62" height="30" viewBox="0 0 62 30" aria-hidden="true">
+          <path d="M12 4 L22 22 H2 Z" class="acc"/>
+          <line x1="32" y1="15" x2="60" y2="15" class="dim" marker-end="url(#arw)"/>
+          <line x1="32" y1="8" x2="32" y2="22" class="dim"/>
+        </svg>
+        <span class="micro" data-s="subj.tri">Triangle keys a change to the table</span>
+      </div>
+    </div>
   </section>
 
-  <div class="rule"></div>
+  <!-- ══ NOTE 1 — HOW A REVISION IS PUBLISHED ════════════════════════════ -->
+  <section class="note" data-zone="B">
+    <h2><span class="num" data-s="n1.num">Note 1</span> <span data-s="n1.t">— How a change becomes a revision</span> <span class="dash"></span> <span class="micro" data-s="n1.f">Fig. 1</span></h2>
 
-  <main class="releases" id="releases">
-    <div class="loading" id="loading">Loading releases…</div>
+    <div class="fig-col">
+      <figure class="fig fig-wide" data-measure="4 STAGES">
+        <svg viewBox="0 0 600 236" role="img" data-sa="n1.alt" aria-label="Four stages in a line: a changeset file written with the pull request, a version bump on merge, a tag pushed to main, and an npm publish. A dashed gate line between the tag and the publish marks the test gates. The whole line is dimensioned as one revision, and a leader off the end reaches rove update on your machine.">
+          <!-- ① changeset file -->
+          <g>
+            <rect x="2" y="44" width="126" height="62" class="vf" data-draw/>
+            <path d="M110 44 L128 62" class="thin fade"/>
+            <text class="tx fade" x="14" y="72" data-s="f1.changeset">Changeset</text>
+            <text class="tx-m fade" x="14" y="92">.changeset/*.md</text>
+            <text class="tx-s fade" x="2" y="128" data-s="f1.s1">Written with the PR</text>
+          </g>
+          <line x1="132" y1="75" x2="152" y2="75" class="dim fade" marker-end="url(#arw)"/>
+
+          <!-- ② version bump -->
+          <g>
+            <rect x="156" y="44" width="126" height="62" class="vf" data-draw/>
+            <text class="tx fade" x="168" y="72" data-s="f1.bump">Bump</text>
+            <text class="tx-m fade" x="168" y="92">0.9.190 → .191</text>
+            <text class="tx-s fade" x="156" y="128" data-s="f1.s2">Consumed on merge</text>
+          </g>
+          <line x1="286" y1="75" x2="306" y2="75" class="dim fade" marker-end="url(#arw)"/>
+
+          <!-- ③ tag -->
+          <g>
+            <rect x="310" y="44" width="126" height="62" class="vf" data-draw/>
+            <text class="tx fade" x="322" y="72" data-s="f1.tag">Tag</text>
+            <text class="tx-m fade" x="322" y="92">v0.9.192</text>
+            <text class="tx-s fade" x="310" y="128" data-s="f1.s3">Pushed to main</text>
+          </g>
+
+          <!-- the gate: a dashed line that combs while the figure is on screen -->
+          <g class="fade">
+            <line x1="450" y1="24" x2="450" y2="150" class="hid hatchband"/>
+            <text class="tx-s" x="450" y="18" text-anchor="middle" data-s="f1.gates">Gates</text>
+          </g>
+          <line x1="440" y1="75" x2="466" y2="75" class="dim fade" marker-end="url(#arw)"/>
+
+          <!-- ④ npm -->
+          <g>
+            <rect x="470" y="44" width="128" height="62" class="acc" data-draw/>
+            <text class="tx fade" x="482" y="72" fill="var(--accent-text)" data-s="f1.publish">Publish</text>
+            <text class="tx-m fade" x="482" y="92">@sma1lboy/rove</text>
+            <text class="tx-s fade" x="470" y="128" data-s="f1.s4">Installable</text>
+          </g>
+
+          <!-- overall dimension: the whole line is one revision -->
+          <g class="fade">
+            <line x1="2" y1="136" x2="2" y2="168" class="dim"/>
+            <line x1="598" y1="136" x2="598" y2="168" class="dim"/>
+            <line x1="2" y1="162" x2="598" y2="162" class="dim" marker-start="url(#arw)" marker-end="url(#arw)"/>
+            <text class="dimtx" x="300" y="180" text-anchor="middle" data-s="f1.dim">1 revision — changeset to installable</text>
+          </g>
+
+          <!-- leader off the end -->
+          <g class="fade">
+            <path d="M534 106 L534 202 L360 202" class="ctr"/>
+            <circle cx="360" cy="202" r="3" class="dot"/>
+            <text class="tx-m" x="352" y="206" text-anchor="end">rove update</text>
+            <text class="tx-s" x="352" y="226" text-anchor="end" data-s="f1.machine">On your machine</text>
+          </g>
+        </svg>
+        <figcaption data-s="f1.cap">Fig. 1 — Release path · One line of parts, states called out below · Dashed gate = the checks every build passes</figcaption>
+      </figure>
+    </div>
+
+    <div class="txt-col">
+      <p data-s="n1.p1">A change carries its own release note into the repository. The pull request adds a Markdown file under <span class="mono">.changeset/</span> saying what changed and how far the version moves; merging consumes those files, writes the new version, and appends their text to <span class="mono">CHANGELOG.md</span>.</p>
+      <p data-s="n1.p2">The tag is pushed from <span class="mono">main</span>, the publish happens in CI, and the release body on GitHub is the changelog entry verbatim. <b>That is why this block can be fetched rather than written:</b> the text below is the same text that travelled in with the code.</p>
+      <p data-s="n1.p3">Pre-1.0, almost every revision is a <span class="mono">patch</span>. A release that also carries a minor bump keeps the two apart under separate headings, and this sheet keeps them apart too — see the sub-rules inside a revision in zone C.</p>
+      <ol class="gnotes">
+        <li data-s="n1.g1">Entries are appended, never edited. A mistake in a shipped revision is corrected by the next revision, not by rewriting this one.</li>
+        <li data-s="n1.g2">Every triangle drawn on this sheet appears as a row in one of its two tables.</li>
+        <li data-s="n1.g3">Product revisions are numbered (191, 190, …). Revisions to <em>this drawing</em> are lettered — see the title block, zone H.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ══ NOTE 2 — THE REVISION BLOCK ═════════════════════════════════════ -->
+  <section class="note" data-zone="C">
+    <h2><span class="num" data-s="n2.num">Note 2</span> <span data-s="n2.t">— Revision block</span> <span class="dash"></span> <span class="micro" data-s="n2.f">Newest at top</span></h2>
+
+    <div class="wide" id="releases" data-measure="3 REVISIONS PLOTTED">
+      <p data-s="n2.p1">Fetched live from the repository's releases. Column order is fixed and the rows are never reordered: <span class="mono">REV</span> carries the revision triangle and its tag, <span class="mono">ZONE</span> says where on this sheet the revision is plotted.</p>
+
+      <p class="status micro" id="loading" role="status">
+        <!-- label and message are both written by renderStatus(), in whichever
+             language is current — they name a runtime state, not page copy -->
+        <span class="sl">Plotting</span>
+        <span class="sv" id="revStatusMsg">Not plotted yet — fetching from api.github.com</span>
+      </p>
+
+      <div class="t-scroll">
+        <table class="rb">
+          <caption data-s="n2.caption">Revision block — published releases of @sma1lboy/rove</caption>
+          <thead>
+            <tr>
+              <th class="c-rev" data-s="n2.thRev">Rev</th>
+              <th class="c-date" data-s="n2.thDate">Date</th>
+              <th data-s="n2.thDesc">Description</th>
+              <th class="c-by" data-s="n2.thBy">By</th>
+              <th class="c-zone" data-s="n2.thZone">Zone</th>
+            </tr>
+          </thead>
+          <!-- Seeded from api.github.com/repos/Sma1lboy/rove/releases: the three
+               newest revisions, plotted by hand so a reader with no JavaScript —
+               or one whose address has spent its 60 unauthenticated requests —
+               still gets a block rather than a spinner. -->
+          <tbody id="revBody">
+            <tr class="rev">
+              <td class="c-rev">
+                <svg class="tri revtri newest" viewBox="0 0 26 23" aria-hidden="true"><path d="M13 2 L25 21 H1 Z"/><text x="13" y="18.2" text-anchor="middle">191</text></svg>
+                <span class="tg">v0.9.192</span>
+              </td>
+              <td class="c-date">2026-09-11</td>
+              <td>
+                <div class="ent"><a class="pr" href="https://github.com/Sma1lboy/rove/pull/989">#989</a><span data-src="Rove now drives pi and omp as first-class engines, with the same activity badges as the other built-ins." data-en="Rove now drives <span class=&quot;mono&quot;>pi</span> and <span class=&quot;mono&quot;>omp</span> as first-class engines, with the same activity badges as the other built-ins.">Rove now drives <span class="mono">pi</span> and <span class="mono">omp</span> as first-class engines, with the same activity badges as the other built-ins.</span></div>
+                <div class="ent"><a class="pr" href="https://github.com/Sma1lboy/rove/pull/990">#990</a><span data-src="Find out what Rove is forking." data-en="Find out what Rove is forking.">Find out what Rove is forking.</span></div>
+              </td>
+              <td class="c-by">Sma1lboy</td>
+              <td class="c-zone">C·H</td>
+            </tr>
+            <tr class="rev">
+              <td class="c-rev">
+                <svg class="tri revtri" viewBox="0 0 26 23" aria-hidden="true"><path d="M13 2 L25 21 H1 Z"/><text x="13" y="18.2" text-anchor="middle">190</text></svg>
+                <span class="tg">v0.9.190</span>
+              </td>
+              <td class="c-date">2026-09-11</td>
+              <td>
+                <div class="ent"><a class="pr" href="https://github.com/Sma1lboy/rove/pull/988">#988</a><span data-src="Typing in a Rove terminal no longer lags a frame behind the same shell outside Rove." data-en="Typing in a Rove terminal no longer lags a frame behind the same shell outside Rove.">Typing in a Rove terminal no longer lags a frame behind the same shell outside Rove.</span></div>
+              </td>
+              <td class="c-by">Sma1lboy</td>
+              <td class="c-zone">C</td>
+            </tr>
+            <tr class="rev">
+              <td class="c-rev">
+                <svg class="tri revtri" viewBox="0 0 26 23" aria-hidden="true"><path d="M13 2 L25 21 H1 Z"/><text x="13" y="18.2" text-anchor="middle">189</text></svg>
+                <span class="tg">v0.9.189</span>
+              </td>
+              <td class="c-date">2026-09-11</td>
+              <td>
+                <div class="ent"><a class="pr" href="https://github.com/Sma1lboy/rove/pull/987">#987</a><span data-src="A tab running a custom engine no longer reads as a bare shell." data-en="A tab running a custom engine no longer reads as a bare shell.">A tab running a custom engine no longer reads as a bare shell.</span></div>
+              </td>
+              <td class="c-by">Sma1lboy</td>
+              <td class="c-zone">C</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="t-note" id="revTotal"></p>
+    </div>
+  </section>
+
+  <!-- ══ NOTE 3 — READING ONE ENTRY ══════════════════════════════════════ -->
+  <section class="note" data-zone="D">
+    <h2><span class="num" data-s="n3.num">Note 3</span> <span data-s="n3.t">— Reading one entry</span> <span class="dash"></span> <span class="micro" data-s="n3.f">Fig. 2 · Detail, scale 4:1</span></h2>
+
+    <div class="fig-col">
+      <figure class="fig fig-wide" data-measure="5 COLUMNS PER ENTRY">
+        <svg viewBox="0 0 600 286" role="img" data-sa="n3.alt" aria-label="One revision row enlarged four times: column one carries the revision triangle and tag, column two the publication date, column three the change lines with their pull request numbers, column four who wrote it, column five the zone of this sheet where the revision is plotted.">
+          <!-- header strip -->
+          <g class="fade">
+            <line x1="2" y1="42" x2="562" y2="42" class="v"/>
+            <text class="tx-s" x="8" y="34" data-s="n2.thRev">Rev</text>
+            <text class="tx-s" x="104" y="34" data-s="n2.thDate">Date</text>
+            <text class="tx-s" x="218" y="34" data-s="n2.thDesc">Description</text>
+            <text class="tx-s" x="434" y="34" data-s="n2.thBy">By</text>
+            <text class="tx-s" x="510" y="34" data-s="n2.thZone">Zone</text>
+          </g>
+
+          <!-- the row -->
+          <rect x="2" y="42" width="560" height="96" class="v" data-draw/>
+          <g class="fade">
+            <line x1="98" y1="42" x2="98" y2="138" class="thin"/>
+            <line x1="212" y1="42" x2="212" y2="138" class="thin"/>
+            <line x1="428" y1="42" x2="428" y2="138" class="thin"/>
+            <line x1="504" y1="42" x2="504" y2="138" class="thin"/>
+          </g>
+
+          <!-- cell contents -->
+          <g class="fade">
+            <path d="M44 62 L68 100 H20 Z" class="acc"/>
+            <text class="tx-m" x="44" y="94" text-anchor="middle" fill="var(--accent-text)">191</text>
+            <text class="tx-m" x="24" y="122">v0.9.192</text>
+
+            <text class="tx-m" x="106" y="82">2026-09-11</text>
+
+            <text class="tx-m" x="220" y="76" fill="var(--ink-3)">#989</text>
+            <line x1="220" y1="80" x2="252" y2="80" class="thin"/>
+            <text class="tx-m" x="262" y="76" data-s="f2.line1">pi and omp become</text>
+            <text class="tx-m" x="262" y="94" data-s="f2.line2">first-class engines</text>
+            <text class="tx-s" x="220" y="122" data-s="f2.per">One line per change</text>
+
+            <text class="tx-m" x="436" y="82">Sma1lboy</text>
+
+            <text class="tx-m" x="534" y="82" text-anchor="middle">C·H</text>
+          </g>
+
+          <!-- balloons -->
+          <g class="fade">
+            <circle cx="46" cy="212" r="14" fill="var(--paper)" class="thin"/><text class="tx" x="46" y="217" text-anchor="middle">1</text>
+            <line x1="46" y1="198" x2="46" y2="146" class="dim"/><circle cx="46" cy="146" r="2.6" class="dot"/>
+            <circle cx="142" cy="212" r="14" fill="var(--paper)" class="thin"/><text class="tx" x="142" y="217" text-anchor="middle">2</text>
+            <line x1="142" y1="198" x2="142" y2="146" class="dim"/><circle cx="142" cy="146" r="2.6" class="dot"/>
+            <circle cx="300" cy="212" r="14" fill="var(--paper)" class="thin"/><text class="tx" x="300" y="217" text-anchor="middle">3</text>
+            <line x1="300" y1="198" x2="300" y2="146" class="dim"/><circle cx="300" cy="146" r="2.6" class="dot"/>
+            <circle cx="462" cy="212" r="14" fill="var(--paper)" class="thin"/><text class="tx" x="462" y="217" text-anchor="middle">4</text>
+            <line x1="462" y1="198" x2="462" y2="146" class="dim"/><circle cx="462" cy="146" r="2.6" class="dot"/>
+            <circle cx="534" cy="212" r="14" fill="var(--paper)" class="thin"/><text class="tx" x="534" y="217" text-anchor="middle">5</text>
+            <line x1="534" y1="198" x2="534" y2="146" class="dim"/><circle cx="534" cy="146" r="2.6" class="dot"/>
+          </g>
+
+          <!-- column dimension -->
+          <g class="fade">
+            <line x1="2" y1="240" x2="2" y2="266" class="dim"/>
+            <line x1="562" y1="240" x2="562" y2="266" class="dim"/>
+            <line x1="2" y1="260" x2="562" y2="260" class="dim" marker-start="url(#arw)" marker-end="url(#arw)"/>
+            <text class="dimtx" x="282" y="278" text-anchor="middle" data-s="f2.dim">5 columns, fixed order</text>
+          </g>
+        </svg>
+        <figcaption data-s="f2.cap">Fig. 2 — One entry at 4:1 · ① revision triangle + tag ② date ③ change lines ④ author ⑤ zone</figcaption>
+      </figure>
+    </div>
+
+    <div class="txt-col">
+      <p data-s="n3.p1"><b>The triangle is the key.</b> On a drawing it sits beside the thing that changed and carries the revision number; the table then says what that number means. Here the number is the patch level of the version — revision <span class="mono">191</span> is <span class="mono">v0.9.192</span> — so the key and the tag are the same fact written twice.</p>
+      <p data-s="n3.p2"><b>The description is not one line.</b> A tag can carry several changes, each arriving with its own pull request, so a revision's description is a short list. Where a release separated patch changes from minor ones, that split is kept as a sub-rule inside the revision rather than flattened into one run of bullets.</p>
+      <p data-s="n3.p3"><b>Zone is a coordinate, not a category.</b> It says where on this sheet the revision is drawn: every entry is plotted in the block, zone C, and the current revision is also stamped in the title block, zone H. It is the one column that is about the drawing rather than the program.</p>
+    </div>
+  </section>
+
+  <!-- ══ NOTE 4 — TWO CHANNELS ═══════════════════════════════════════════ -->
+  <section class="note" data-zone="E">
+    <h2><span class="num" data-s="n4.num">Note 4</span> <span data-s="n4.t">— Two channels</span> <span class="dash"></span> <span class="micro" data-s="n4.f">Fig. 3</span> <svg class="tri" viewBox="0 0 19 17" aria-hidden="true"><path d="M9.5 1.5 L18 15 H1 Z"/><text x="9.5" y="13.6" text-anchor="middle">B</text></svg></h2>
+
+    <div class="fig-col">
+      <figure class="fig fig-wide">
+        <svg viewBox="0 0 600 214" role="img" data-sa="n4.alt" aria-label="Commits land on main. The nightly channel cuts a build from main every day. The latest channel cuts a batched, reviewed build less often. Both pass the same test gates.">
+          <!-- main -->
+          <g>
+            <line x1="60" y1="34" x2="586" y2="34" class="v" data-draw/>
+            <g class="fade">
+              <text class="tx" x="0" y="39">main</text>
+              <circle cx="106" cy="34" r="4" class="dot"/><circle cx="164" cy="34" r="4" class="dot"/>
+              <circle cx="222" cy="34" r="4" class="dot"/><circle cx="280" cy="34" r="4" class="dot"/>
+              <circle cx="338" cy="34" r="4" class="dot"/><circle cx="396" cy="34" r="4" class="dot"/>
+              <circle cx="454" cy="34" r="4" class="dot"/><circle cx="512" cy="34" r="4" class="dot"/>
+              <circle cx="570" cy="34" r="4" class="dot"/>
+            </g>
+          </g>
+
+          <!-- nightly: a cut every day -->
+          <g>
+            <line x1="60" y1="112" x2="586" y2="112" class="thin" data-draw/>
+            <g class="fade">
+              <text class="tx" x="0" y="117">nightly</text>
+              <path d="M164 38 L164 108" class="dim" marker-end="url(#arw)"/>
+              <path d="M280 38 L280 108" class="dim" marker-end="url(#arw)"/>
+              <path d="M396 38 L396 108" class="dim" marker-end="url(#arw)"/>
+              <path d="M512 38 L512 108" class="dim" marker-end="url(#arw)"/>
+              <rect x="157" y="105" width="14" height="14" class="vf"/>
+              <rect x="273" y="105" width="14" height="14" class="vf"/>
+              <rect x="389" y="105" width="14" height="14" class="vf"/>
+              <rect x="505" y="105" width="14" height="14" class="vf"/>
+              <text class="tx-s" x="60" y="140" data-s="f3.nightly">Automated daily cut · same gates, unreviewed as a set</text>
+            </g>
+          </g>
+
+          <!-- latest: batched -->
+          <g>
+            <line x1="60" y1="180" x2="586" y2="180" class="v" data-draw/>
+            <g class="fade">
+              <text class="tx" x="0" y="185">latest</text>
+              <path d="M338 38 C338 110 330 106 330 172" class="ctr"/>
+              <path d="M570 38 C570 110 562 106 562 172" class="ctr"/>
+              <rect x="322" y="172" width="16" height="16" class="acc"/>
+              <rect x="554" y="172" width="16" height="16" class="acc"/>
+              <text class="tx-s" x="60" y="206" data-s="f3.latest">Batched and reviewed · what a plain install gives you</text>
+            </g>
+          </g>
+        </svg>
+        <figcaption data-s="f3.cap">Fig. 3 — The two channels off one trunk · Both cut from <span class="mono">main</span>, both through the same gates</figcaption>
+      </figure>
+    </div>
+
+    <div class="txt-col">
+      <div class="chan" data-measure="2 CHANNELS">
+        <div class="r"><div class="k">latest</div><div class="d" data-s="n4.latest">The stable line: batched, reviewed releases. This is what a plain install gives you, and what the block above plots.</div></div>
+        <div class="r"><div class="k">nightly</div><div class="d" data-s="n4.nightly">An automated daily cut from <span class="mono">main</span>. It passes the same test gates, but its contents have not been reviewed as a set — expect rough edges in exchange for changes landing days earlier.</div></div>
+      </div>
+      <p style="margin-top:16px" data-s="n4.p1">You do not configure a channel. <b>The build you are running <em>is</em> the channel</b> — update checks follow whichever one you installed from, and switching is just installing from the other. <span class="mono">rove update</span> with no arguments never moves you between them.</p>
+      <p data-s="n4.p2"><span class="mono">rove update list</span> browses recent versions and <span class="mono">rove update dry-run</span> prints the command without running it. Updates go through whichever package manager owns the <span class="mono">rove</span> on your <span class="mono">PATH</span>, so a new version cannot land in a shadowed prefix.</p>
+    </div>
+  </section>
+
   </main>
 
-</div>
+  <!-- ══ TITLE BLOCK ═════════════════════════════════════════════════════ -->
+  <section class="endmatter" data-zone="H" aria-label="Title block">
+    <div class="revtab">
+      <table>
+        <caption data-s="tb.revCaption">Revisions — this drawing</caption>
+        <thead><tr><th style="width:44px" data-s="n2.thRev">Rev</th><th style="width:76px" data-s="n2.thDate">Date</th><th data-s="n2.thDesc">Description</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><svg class="tri" viewBox="0 0 19 17" aria-hidden="true"><path d="M9.5 1.5 L18 15 H1 Z"/><text x="9.5" y="13.6" text-anchor="middle">B</text></svg></td>
+            <td class="mono">2026-09</td>
+            <td data-s="tb.revB">Channel drawing added in zone E; <span class="mono">nightly</span> called out as a daily cut from <span class="mono">main</span></td>
+          </tr>
+          <tr><td class="mono">A</td><td class="mono">2026-09</td><td data-s="tb.revA">Sheet first drawn — revision block fetched from the releases list</td></tr>
+        </tbody>
+      </table>
+    </div>
 
-<!-- FOOTER · dense colophon -->
-<footer class="foot-dense foot-spaced">
-  <div class="foot-inner">
-    <p class="foot-id">
-      <span class="mark">[Rove]</span> <span class="tagline" data-s="footer.tagline">a terminal multiplexer for coding agents.</span>
-      <span class="foot-colophon" data-s="footer.colophon">Release notes are pulled live from the GitHub Releases API; 中文 is machine-translated on demand.</span>
-    </p>
-    <nav class="foot-links" aria-label="Footer">
-      <a href="https://github.com/Sma1lboy/rove/releases" target="_blank" rel="noopener" data-s="footer.allReleases">all releases</a>
-      <a href="https://www.npmjs.com/package/@sma1lboy/rove" target="_blank" rel="noopener">npm</a>
-      <a href="/plugins" data-s="footer.plugins">plugins</a>
-      <a href="/themes" data-s="footer.themesLink">themes</a>
-      <a href="https://docs.rove.run" data-s="footer.docs">docs</a>
-      <a href="https://docs.rove.run/rove/keybindings" data-s="footer.keybindings">keybindings</a>
-    </nav>
-  </div>
-</footer>
+    <div class="tblock">
+      <div class="tb-grid">
+        <div class="tb span4"><span class="k" data-s="tb.title">Title</span><span class="v" data-s="tb.titleV">Rove — revision block, published releases</span></div>
+        <div class="tb span2"><span class="k" data-s="tb.part">Part no.</span><span class="v mono">@sma1lboy/rove</span></div>
+        <div class="tb"><span class="k" data-s="tb.rev">Rev</span><span class="v mono">0.9.192</span></div>
+        <div class="tb"><span class="k" data-s="tb.sheet">Sheet</span><span class="v" data-s="tb.sheetV">4 of 4</span></div>
+        <div class="tb"><span class="k" data-s="tb.drawn">Drawn by</span><span class="v">Sma1lboy</span></div>
+        <div class="tb"><span class="k" data-s="tb.checked">Checked</span><span class="v">CI</span></div>
+        <div class="tb"><span class="k" data-s="tb.date">Date</span><span class="v mono">2026-09-12</span></div>
+        <div class="tb"><span class="k" data-s="tb.scale">Scale</span><span class="v mono">4:1 detail</span></div>
+        <div class="tb"><span class="k" data-s="tb.onboard">On board</span><span class="v mono" data-elapsed>00:00</span></div>
+        <div class="tb span2"><span class="k" data-s="tb.material">Material</span><span class="v" data-s="tb.materialV">Changesets · GitHub Releases API</span></div>
+        <div class="tb"><span class="k" data-s="tb.finish">Finish</span><span class="v">MIT</span></div>
+        <div class="tb"><span class="k" data-s="tb.units">Units</span><span class="v" data-s="tb.unitsV">Revisions</span></div>
+        <div class="tb span4"><span class="k" data-s="tb.source">Source</span><span class="v mono" data-s="tb.sourceV">api.github.com/repos/Sma1lboy/rove/releases — unauthenticated, 60 requests per hour per address</span></div>
+      </div>
+    </div>
+  </section>
 
+  <footer>
+    <a href="https://github.com/Sma1lboy/rove/releases" target="_blank" rel="noopener" data-s="footer.allReleases">All releases</a>
+    <a href="https://www.npmjs.com/package/@sma1lboy/rove" target="_blank" rel="noopener">npm</a>
+    <a href="/plugins" data-s="footer.plugins">Plugins</a>
+    <a href="/themes" data-s="footer.themesLink">Themes</a>
+    <a href="https://docs.rove.run" data-s="footer.docs">docs.rove.run</a>
+    <a href="https://docs.rove.run/rove/keybindings" data-s="footer.keybindings">Keybindings</a>
+    <span class="sp"></span>
+    <span class="c" data-s="footer.colophon">© 2026 Sma1lboy · MIT · Sheet 4 of 4</span>
+  </footer>
+
+</div><!-- /inner -->
+</div><!-- /sheet -->
+
+<script src="/blueprint-idle.js" defer></script>
 <script>
   // live GitHub star count (shared with the home page; cache for instant paint)
   (function () {
@@ -138,216 +550,559 @@ html[data-lang="zh"] .rn-li .sum{font-family:var(--font-mono),'PingFang SC','Mic
       .then(function (d) { if (!d || typeof d.stargazers_count !== 'number') return; render(d.stargazers_count); try { localStorage.setItem('kobe_stars', JSON.stringify({ n: d.stargazers_count })); } catch (e) {} })
       .catch(function () { if (el.textContent === '–') el.textContent = '☆'; });
   })();
+</script>
+<script>
+/* ───────────────────────────────────────────────────────────────────────────
+   SHEET 4 — the revision block is fetched.
 
-  // ── Changelog: live GitHub releases, EN/中文 with a localStorage translation cache ──
-  (function () {
-    var host = document.getElementById('releases');
-    var loading = document.getElementById('loading');
-    if (!host) return;
+   The <tbody> above is already a real block: the three newest revisions,
+   seeded from the same API. A reader with no JavaScript, an address whose 60
+   unauthenticated requests are spent, or a browser that cannot reach GitHub
+   still gets a drawing rather than a spinner.
 
-    // same resolution order as index.js: ?lang= → stored pref → browser
-    var LANG = 'en';
-    try {
-      var fromUrl = new URLSearchParams(location.search).get('lang');
-      var stored = localStorage.getItem('kobe_lang');
-      var nav = (navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en';
-      LANG = fromUrl === 'zh' || fromUrl === 'en' ? fromUrl : stored === 'zh' || stored === 'en' ? stored : nav;
-    } catch (e) {}
+   Language: this sheet carries its own [data-s] dictionary for its own copy,
+   and machine-translates the release bodies on demand — a revision's text
+   arrives from GitHub in English, so it cannot be shipped as a key. Every
+   translatable body node carries data-src (plain source) and data-en (the
+   English render to restore); results are cached in localStorage.
+   ─────────────────────────────────────────────────────────────────────────── */
+(function () {
+  'use strict';
 
-    // the page's own copy. Release bodies come from GitHub and go through the
-    // translation path below; these six strings do not need a round trip.
-    var STATIC = {
-      'meta.title': { en: 'Rove: changelog', zh: 'Rove — 更新日志' },
-      'meta.desc': { en: 'Release notes for Rove, the local-first TUI orchestrator for parallel AI coding agents. Every version, pulled live from GitHub, in English or Chinese.', zh: 'Rove 的发布说明——本地优先的并行 AI 编码代理 TUI 编排器。每个版本都实时取自 GitHub，中英文皆可。' },
-      'kicker': { en: '// releases', zh: '// 发布' },
-      'title': { en: 'Changelog', zh: '更新日志' },
-      'lede': { en: 'Every Rove release, pulled live from GitHub. <code>bun install -g @sma1lboy/rove</code> to update.', zh: '每一个 Rove 版本，实时取自 GitHub。用 <code>bun install -g @sma1lboy/rove</code> 更新。' },
-      'footer.tagline': { en: 'a terminal multiplexer for coding agents.', zh: '终端里的编码代理多路复用器。' },
-      'footer.colophon': { en: 'Release notes are pulled live from the GitHub Releases API; 中文 is machine-translated on demand.', zh: '发布说明实时取自 GitHub Releases API；中文为按需机器翻译。' },
-      'footer.plugins': { en: 'plugins', zh: '插件' },
-      'footer.themesLink': { en: 'themes', zh: '主题' },
-      'footer.keybindings': { en: 'keybindings', zh: '快捷键' },
-      'footer.docs': { en: 'docs', zh: '文档' },
-      'footer.allReleases': { en: 'all releases', zh: '全部版本' },
-      'nav.workflow': { en: '--primitives', zh: '--原语' },
-      'nav.install': { en: '--install', zh: '--安装' },
-      'nav.docs': { en: '--docs', zh: '--文档' },
-      'nav.plugins': { en: '--plugins', zh: '--插件' },
-      'nav.themes': { en: '--themes', zh: '--主题' },
-      'nav.changelog': { en: '--changelog', zh: '--更新日志' },
-    };
-    function applyStatic() {
-      document.documentElement.lang = LANG === 'zh' ? 'zh-CN' : 'en';
-      document.title = STATIC['meta.title'][LANG];
-      var desc = document.querySelector('meta[name="description"]');
-      if (desc) desc.setAttribute('content', STATIC['meta.desc'][LANG]);
-      document.querySelectorAll('[data-s]').forEach(function (el) {
-        var v = STATIC[el.getAttribute('data-s')];
-        if (v) el.innerHTML = v[LANG];
+  var PER = 20;
+  var API = 'https://api.github.com/repos/Sma1lboy/rove/releases?per_page=' + PER;
+  var CURRENT = '0.9.192';
+  var RELEASES_URL = 'https://github.com/Sma1lboy/rove/releases';
+
+  var block = document.getElementById('releases');
+  var body = document.getElementById('revBody');
+  var statusRow = document.getElementById('loading');
+  var statusMsg = document.getElementById('revStatusMsg');
+  var totalLine = document.getElementById('revTotal');
+  var SEEDED = body.querySelectorAll('tr').length;
+
+  /* ── language ───────────────────────────────────────────────────────── */
+
+  // same resolution order as index.js: ?lang= → stored pref → browser
+  var LANG = 'en';
+  try {
+    var fromUrl = new URLSearchParams(location.search).get('lang');
+    var stored = localStorage.getItem('kobe_lang');
+    var nav = (navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en';
+    LANG = fromUrl === 'zh' || fromUrl === 'en' ? fromUrl : stored === 'zh' || stored === 'en' ? stored : nav;
+  } catch (e) {}
+
+  var STATIC = {
+    'meta.title': { en: 'Rove — Revision Block', zh: 'Rove — 修订栏' },
+    'meta.desc': {
+      en: 'Every published release of Rove, drawn as a revision block: rev, date, description, by, zone — newest at the top, never edited after the fact.',
+      zh: 'Rove 的每一个已发布版本，画成一张修订栏：修订号、日期、说明、作者、图区——最新在上，事后不再改写。'
+    },
+    'skip': { en: 'Skip to drawing', zh: '跳到图面' },
+    'stamp': { en: 'Rev 0.9.192 · Sheet 4 of 4', zh: '版本 0.9.192 · 第 4 张，共 4 张' },
+    'nav.docs': { en: 'Docs', zh: '文档' },
+    'nav.assembly': { en: 'Assembly', zh: '总装图' },
+    'nav.plugins': { en: 'Plugins', zh: '插件' },
+    'nav.themes': { en: 'Themes', zh: '主题' },
+    'nav.changelog': { en: 'Changelog', zh: '更新日志' },
+
+    'h1': { en: 'The revision block <span class="thin">of one program</span>', zh: '一个程序的<span class="thin">修订栏</span>' },
+    'lede': {
+      en: 'Every published release of Rove, in the order a drawing records changes: <b>newest at the top, never edited after the fact</b>. Each revision is a version tag; each line inside it is one change that shipped under that tag.',
+      zh: 'Rove 的每一个已发布版本，按制图记录变更的顺序排列：<b>最新在上，事后不再改写</b>。每条修订是一个版本 tag，其中每一行是这个 tag 下发出的一处改动。'
+    },
+    'upd.tag': { en: 'Update', zh: '更新' },
+    'upd.hint': { en: 'Click to copy', zh: '点击复制' },
+    'platform': {
+      en: 'Takes the newest build on your channel · a bare version pins one · a channel name switches lines',
+      zh: '取你所在通道的最新构建 · 直接写版本号则钉住某一版 · 写通道名则切换发布线'
+    },
+    'subj.cap': { en: 'Current revision', zh: '当前修订' },
+    'subj.r1': { en: 'Channel latest', zh: '通道 latest' },
+    'subj.r3': { en: 'Patch changes', zh: '补丁更新' },
+    'subj.f1': { en: 'See block, zone C', zh: '见修订栏，图区 C' },
+    'subj.f2': { en: 'Rev 191', zh: '修订 191' },
+    'subj.tri': { en: 'Triangle keys a change to the table', zh: '三角形把一处改动对应到表里' },
+
+    'n1.num': { en: 'Note 1', zh: '注 1' },
+    'n1.t': { en: '— How a change becomes a revision', zh: '— 一处改动怎么变成一条修订' },
+    'n1.f': { en: 'Fig. 1', zh: '图 1' },
+    'n1.alt': {
+      en: 'Four stages in a line: a changeset file written with the pull request, a version bump on merge, a tag pushed to main, and an npm publish. A dashed gate line between the tag and the publish marks the test gates. The whole line is dimensioned as one revision, and a leader off the end reaches rove update on your machine.',
+      zh: '一条线上的四个阶段：随 PR 写下的 changeset 文件、合并时的版本号提升、推到 main 的 tag、以及 npm 发布。tag 与发布之间的虚线闸门标出测试门禁。整条线被标注为一条修订，末端的引出线指向你机器上的 rove update。'
+    },
+    'f1.changeset': { en: 'Changeset', zh: 'Changeset' },
+    'f1.s1': { en: 'Written with the PR', zh: '随 PR 一起写' },
+    'f1.bump': { en: 'Bump', zh: '提升版本' },
+    'f1.s2': { en: 'Consumed on merge', zh: '合并时消费掉' },
+    'f1.tag': { en: 'Tag', zh: 'Tag' },
+    'f1.s3': { en: 'Pushed to main', zh: '推到 main' },
+    'f1.gates': { en: 'Gates', zh: '门禁' },
+    'f1.publish': { en: 'Publish', zh: '发布' },
+    'f1.s4': { en: 'Installable', zh: '可安装' },
+    'f1.dim': { en: '1 revision — changeset to installable', zh: '1 条修订 — 从 changeset 到可安装' },
+    'f1.machine': { en: 'On your machine', zh: '在你机器上' },
+    'f1.cap': {
+      en: 'Fig. 1 — Release path · One line of parts, states called out below · Dashed gate = the checks every build passes',
+      zh: '图 1 — 发布路径 · 一条线上的各个零件，状态标在下方 · 虚线闸门 = 每个构建都要过的检查'
+    },
+    'n1.p1': {
+      en: 'A change carries its own release note into the repository. The pull request adds a Markdown file under <span class="mono">.changeset/</span> saying what changed and how far the version moves; merging consumes those files, writes the new version, and appends their text to <span class="mono">CHANGELOG.md</span>.',
+      zh: '一处改动自己把发布说明带进仓库。PR 在 <span class="mono">.changeset/</span> 下加一个 Markdown 文件，写明改了什么、版本走多远；合并时这些文件被消费掉，新版本号被写入，文本被追加进 <span class="mono">CHANGELOG.md</span>。'
+    },
+    'n1.p2': {
+      en: 'The tag is pushed from <span class="mono">main</span>, the publish happens in CI, and the release body on GitHub is the changelog entry verbatim. <b>That is why this block can be fetched rather than written:</b> the text below is the same text that travelled in with the code.',
+      zh: 'tag 从 <span class="mono">main</span> 推出，发布在 CI 里完成，GitHub 上的 release 正文就是 changelog 条目的原文。<b>所以这张修订栏是取来的，不是另写的：</b>下面的文字就是当初随代码一起进来的那段。'
+    },
+    'n1.p3': {
+      en: 'Pre-1.0, almost every revision is a <span class="mono">patch</span>. A release that also carries a minor bump keeps the two apart under separate headings, and this sheet keeps them apart too — see the sub-rules inside a revision in zone C.',
+      zh: '1.0 之前，几乎每条修订都是 <span class="mono">patch</span>。同时带 minor 提升的版本会用两个小标题分开，这张图也照样分开——见图区 C 里一条修订内部的子分栏。'
+    },
+    'n1.g1': {
+      en: 'Entries are appended, never edited. A mistake in a shipped revision is corrected by the next revision, not by rewriting this one.',
+      zh: '条目只追加，不改写。已发出的修订里有错，由下一条修订纠正，而不是回头改这一条。'
+    },
+    'n1.g2': { en: 'Every triangle drawn on this sheet appears as a row in one of its two tables.', zh: '这张图上画出的每个三角形，都能在它两张表之一里找到对应的一行。' },
+    'n1.g3': {
+      en: 'Product revisions are numbered (191, 190, …). Revisions to <em>this drawing</em> are lettered — see the title block, zone H.',
+      zh: '产品修订用数字（191、190、…）。<em>这张图本身</em>的修订用字母——见标题栏，图区 H。'
+    },
+
+    'n2.num': { en: 'Note 2', zh: '注 2' },
+    'n2.t': { en: '— Revision block', zh: '— 修订栏' },
+    'n2.f': { en: 'Newest at top', zh: '最新在上' },
+    'n2.p1': {
+      en: "Fetched live from the repository's releases. Column order is fixed and the rows are never reordered: <span class=\"mono\">REV</span> carries the revision triangle and its tag, <span class=\"mono\">ZONE</span> says where on this sheet the revision is plotted.",
+      zh: '实时取自仓库的 releases。列序固定，行不重排：<span class="mono">REV</span> 放修订三角形和它的 tag，<span class="mono">ZONE</span> 说明这条修订画在本图的哪个区。'
+    },
+    'n2.caption': { en: 'Revision block — published releases of @sma1lboy/rove', zh: '修订栏 — @sma1lboy/rove 的已发布版本' },
+    'n2.thRev': { en: 'Rev', zh: '修订' },
+    'n2.thDate': { en: 'Date', zh: '日期' },
+    'n2.thDesc': { en: 'Description', zh: '说明' },
+    'n2.thBy': { en: 'By', zh: '作者' },
+    'n2.thZone': { en: 'Zone', zh: '图区' },
+
+    'n3.num': { en: 'Note 3', zh: '注 3' },
+    'n3.t': { en: '— Reading one entry', zh: '— 怎么读一条修订' },
+    'n3.f': { en: 'Fig. 2 · Detail, scale 4:1', zh: '图 2 · 详图，比例 4:1' },
+    'n3.alt': {
+      en: 'One revision row enlarged four times: column one carries the revision triangle and tag, column two the publication date, column three the change lines with their pull request numbers, column four who wrote it, column five the zone of this sheet where the revision is plotted.',
+      zh: '一条修订行放大四倍：第一列是修订三角形和 tag，第二列是发布日期，第三列是各条改动及其 PR 编号，第四列是作者，第五列是这条修订画在本图的哪个区。'
+    },
+    'f2.line1': { en: 'pi and omp become', zh: 'pi 与 omp 成为' },
+    'f2.line2': { en: 'first-class engines', zh: '一等引擎' },
+    'f2.per': { en: 'One line per change', zh: '一处改动一行' },
+    'f2.dim': { en: '5 columns, fixed order', zh: '5 列，顺序固定' },
+    'f2.cap': {
+      en: 'Fig. 2 — One entry at 4:1 · ① revision triangle + tag ② date ③ change lines ④ author ⑤ zone',
+      zh: '图 2 — 一条修订，4:1 · ① 修订三角形 + tag ② 日期 ③ 各条改动 ④ 作者 ⑤ 图区'
+    },
+    'n3.p1': {
+      en: '<b>The triangle is the key.</b> On a drawing it sits beside the thing that changed and carries the revision number; the table then says what that number means. Here the number is the patch level of the version — revision <span class="mono">191</span> is <span class="mono">v0.9.192</span> — so the key and the tag are the same fact written twice.',
+      zh: '<b>三角形就是索引。</b>在图纸上它挨着被改动的那处，里面写修订号；表格再说明这个号是什么意思。这里这个号就是版本的补丁位——修订 <span class="mono">191</span> 就是 <span class="mono">v0.9.192</span>——索引和 tag 是同一件事写了两遍。'
+    },
+    'n3.p2': {
+      en: '<b>The description is not one line.</b> A tag can carry several changes, each arriving with its own pull request, so a revision\'s description is a short list. Where a release separated patch changes from minor ones, that split is kept as a sub-rule inside the revision rather than flattened into one run of bullets.',
+      zh: '<b>说明不止一行。</b>一个 tag 可以带好几处改动，每处各有自己的 PR，所以一条修订的说明是一份短清单。原发布里把 patch 和 minor 分开写的，这里保留成修订内部的子分栏，而不是压成一串平铺的条目。'
+    },
+    'n3.p3': {
+      en: '<b>Zone is a coordinate, not a category.</b> It says where on this sheet the revision is drawn: every entry is plotted in the block, zone C, and the current revision is also stamped in the title block, zone H. It is the one column that is about the drawing rather than the program.',
+      zh: '<b>图区是坐标，不是分类。</b>它说明这条修订画在本图的哪里：每一条都画在修订栏（图区 C）里，当前修订另外还盖在标题栏（图区 H）上。这是唯一一列说的是图纸而不是程序。'
+    },
+
+    'n4.num': { en: 'Note 4', zh: '注 4' },
+    'n4.t': { en: '— Two channels', zh: '— 两条通道' },
+    'n4.f': { en: 'Fig. 3', zh: '图 3' },
+    'n4.alt': {
+      en: 'Commits land on main. The nightly channel cuts a build from main every day. The latest channel cuts a batched, reviewed build less often. Both pass the same test gates.',
+      zh: '提交落在 main 上。nightly 通道每天从 main 切一个构建。latest 通道切得更少，是成批、经过审阅的构建。两者过的是同一套测试门禁。'
+    },
+    'f3.nightly': { en: 'Automated daily cut · same gates, unreviewed as a set', zh: '每日自动切出 · 同一套门禁，整体未经审阅' },
+    'f3.latest': { en: 'Batched and reviewed · what a plain install gives you', zh: '成批并经过审阅 · 直接安装拿到的就是它' },
+    'f3.cap': {
+      en: 'Fig. 3 — The two channels off one trunk · Both cut from <span class="mono">main</span>, both through the same gates',
+      zh: '图 3 — 同一主干上的两条通道 · 都从 <span class="mono">main</span> 切出，都过同一套门禁'
+    },
+    'n4.latest': {
+      en: 'The stable line: batched, reviewed releases. This is what a plain install gives you, and what the block above plots.',
+      zh: '稳定线：成批、经过审阅的版本。直接安装拿到的是它，上面那张修订栏画的也是它。'
+    },
+    'n4.nightly': {
+      en: 'An automated daily cut from <span class="mono">main</span>. It passes the same test gates, but its contents have not been reviewed as a set — expect rough edges in exchange for changes landing days earlier.',
+      zh: '从 <span class="mono">main</span> 每日自动切出。它过的是同一套测试门禁，但内容没有作为整体被审阅过——用一些毛刺换改动早几天到手。'
+    },
+    'n4.p1': {
+      en: 'You do not configure a channel. <b>The build you are running <em>is</em> the channel</b> — update checks follow whichever one you installed from, and switching is just installing from the other. <span class="mono">rove update</span> with no arguments never moves you between them.',
+      zh: '通道不是配置出来的。<b>你正在跑的那个构建<em>就是</em>通道</b>——更新检查跟着你当初从哪条线装的走，切换无非是从另一条线装一次。不带参数的 <span class="mono">rove update</span> 永远不会把你在两条线之间搬来搬去。'
+    },
+    'n4.p2': {
+      en: '<span class="mono">rove update list</span> browses recent versions and <span class="mono">rove update dry-run</span> prints the command without running it. Updates go through whichever package manager owns the <span class="mono">rove</span> on your <span class="mono">PATH</span>, so a new version cannot land in a shadowed prefix.',
+      zh: '<span class="mono">rove update list</span> 翻最近的版本，<span class="mono">rove update dry-run</span> 只打印命令而不执行。更新走的是拥有你 <span class="mono">PATH</span> 上那个 <span class="mono">rove</span> 的包管理器，所以新版本不会装进一个被遮住的前缀里。'
+    },
+
+    'tb.revCaption': { en: 'Revisions — this drawing', zh: '修订 — 本图' },
+    'tb.revB': {
+      en: 'Channel drawing added in zone E; <span class="mono">nightly</span> called out as a daily cut from <span class="mono">main</span>',
+      zh: '图区 E 增补通道图；<span class="mono">nightly</span> 标注为从 <span class="mono">main</span> 每日切出'
+    },
+    'tb.revA': { en: 'Sheet first drawn — revision block fetched from the releases list', zh: '本图初绘——修订栏取自 releases 列表' },
+    'tb.title': { en: 'Title', zh: '图名' },
+    'tb.titleV': { en: 'Rove — revision block, published releases', zh: 'Rove — 修订栏，已发布版本' },
+    'tb.part': { en: 'Part no.', zh: '件号' },
+    'tb.rev': { en: 'Rev', zh: '版本' },
+    'tb.sheet': { en: 'Sheet', zh: '图号' },
+    'tb.sheetV': { en: '4 of 4', zh: '第 4 张，共 4 张' },
+    'tb.drawn': { en: 'Drawn by', zh: '制图' },
+    'tb.checked': { en: 'Checked', zh: '审核' },
+    'tb.date': { en: 'Date', zh: '日期' },
+    'tb.scale': { en: 'Scale', zh: '比例' },
+    'tb.onboard': { en: 'On board', zh: '在板时间' },
+    'tb.material': { en: 'Material', zh: '材料' },
+    'tb.materialV': { en: 'Changesets · GitHub Releases API', zh: 'Changesets · GitHub Releases API' },
+    'tb.finish': { en: 'Finish', zh: '表面处理' },
+    'tb.units': { en: 'Units', zh: '单位' },
+    'tb.unitsV': { en: 'Revisions', zh: '修订条' },
+    'tb.source': { en: 'Source', zh: '数据源' },
+    'tb.sourceV': {
+      en: 'api.github.com/repos/Sma1lboy/rove/releases — unauthenticated, 60 requests per hour per address',
+      zh: 'api.github.com/repos/Sma1lboy/rove/releases — 未认证，每个地址每小时 60 次请求'
+    },
+
+    'footer.allReleases': { en: 'All releases', zh: '全部版本' },
+    'footer.plugins': { en: 'Plugins', zh: '插件' },
+    'footer.themesLink': { en: 'Themes', zh: '主题' },
+    'footer.docs': { en: 'docs.rove.run', zh: 'docs.rove.run' },
+    'footer.keybindings': { en: 'Keybindings', zh: '快捷键' },
+    'footer.colophon': { en: '© 2026 Sma1lboy · MIT · Sheet 4 of 4', zh: '© 2026 Sma1lboy · MIT · 第 4 张，共 4 张' }
+  };
+
+  function applyStatic() {
+    document.documentElement.lang = LANG === 'zh' ? 'zh-CN' : 'en';
+    document.title = STATIC['meta.title'][LANG];
+    var desc = document.querySelector('meta[name="description"]');
+    if (desc) desc.setAttribute('content', STATIC['meta.desc'][LANG]);
+    document.querySelectorAll('[data-s]').forEach(function (el) {
+      var v = STATIC[el.getAttribute('data-s')];
+      if (!v) return;
+      // SVG <text> takes no innerHTML in every engine; its readings are plain
+      if (el.namespaceURI === 'http://www.w3.org/2000/svg') el.textContent = v[LANG].replace(/<[^>]+>/g, '');
+      else el.innerHTML = v[LANG];
+    });
+    document.querySelectorAll('[data-sa]').forEach(function (el) {
+      var v = STATIC[el.getAttribute('data-sa')];
+      if (v) el.setAttribute('aria-label', v[LANG]);
+    });
+  }
+
+  /* ── markdown, only as far as a changeset body actually goes ─────────── */
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function inline(s) {
+    return esc(s)
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/`([^`]+)`/g, '<span class="mono">$1</span>')
+      .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  }
+
+  // the translation source: the same text with the markdown taken off
+  function plain(s) {
+    return String(s)
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .trim();
+  }
+
+  /* a revision description is one line, not an essay: take the first
+     sentence, and cut anything still running long. */
+  function firstSentence(s) {
+    var t = s.trim();
+    var m = t.match(/^[\s\S]*?[.!?](?=\s|$)/);
+    if (m) t = m[0];
+    if (t.length > 230) t = t.slice(0, 210).replace(/\s+\S*$/, '') + '…';
+    return t;
+  }
+
+  function sections(bodyText) {
+    var out = [], cur = { title: '', raw: [] };
+    bodyText.replace(/\r/g, '').split('\n').forEach(function (line) {
+      var h = line.match(/^#{2,4}\s+(.*)$/);
+      if (h) { if (cur.raw.length) out.push(cur); cur = { title: h[1].trim(), raw: [] }; }
+      else cur.raw.push(line);
+    });
+    if (cur.raw.length) out.push(cur);
+    return out.filter(function (s) { return s.raw.join('').trim(); });
+  }
+
+  function bullets(raw) {
+    var out = [], b = null, mode = null;
+    raw.forEach(function (line) {
+      var m;
+      if ((m = line.match(/^[-*] (.*)$/))) { b = { lead: m[1], subs: [] }; out.push(b); mode = 'lead'; }
+      else if (b && (m = line.match(/^\s+[-*] (.*)$/))) { b.subs.push(m[1]); mode = 'sub'; }
+      else if (b && line.trim()) {
+        if (mode === 'sub') b.subs[b.subs.length - 1] += ' ' + line.trim();
+        else b.lead += ' ' + line.trim();
+      }
+    });
+    return out;
+  }
+
+  // conventional-commit type → Chinese label. Older tags (pre-0.8.139) carry a
+  // commit-style "fix: …" lead; the type prints as a lettered chip, not a tint.
+  var TYPE_ZH = {
+    feat: '新功能', fix: '修复', perf: '性能', refactor: '重构', chore: '杂项',
+    test: '测试', ci: 'CI', docs: '文档', style: '样式', build: '构建', revert: '回退'
+  };
+  function splitType(text) {
+    var t = text.replace(/^[0-9a-f]{7,40}:\s*/i, '');           // pre-0.8.139 sha prefix
+    var m = t.match(/^(\w+)(?:\([^)]*\))?!?:\s*([\s\S]+)$/);
+    if (m && TYPE_ZH[m[1].toLowerCase()]) return { type: m[1].toLowerCase(), text: m[2].trim() };
+    return { type: '', text: t };
+  }
+
+  function parse(bodyText) {
+    var authors = {}, groups = [];
+    sections(bodyText).forEach(function (sec) {
+      var entries = bullets(sec.raw).map(function (b) {
+        var pr = b.lead.match(/\[#(\d+)\]\(([^)]+)\)/);
+        // the changeset credit sits at the end of the whole entry, which for a
+        // multi-part entry is its last sub-line rather than the lead
+        var who = (b.lead + ' ' + b.subs.join(' ')).match(/\[@([\w.-]+)\]/g);
+        if (who) who.forEach(function (w) { authors[w.slice(2, -1)] = 1; });
+        var text = b.lead
+          .replace(/\[#\d+\]\([^)]*\)\s*/, '')
+          .replace(/\[`[^`]*`\]\([^)]*\)\s*/, '')
+          .replace(/\s*—\s*\[@[\w.-]+\]\([^)]*\)\s*$/, '');
+        var split = splitType(text);
+        return {
+          pr: pr ? { n: pr[1], url: pr[2] } : null,
+          type: split.type,
+          text: firstSentence(split.text),
+          subs: b.subs.map(firstSentence)
+        };
+      });
+      if (entries.length) groups.push({ title: sec.title, entries: entries });
+    });
+    return { groups: groups, authors: Object.keys(authors) };
+  }
+
+  /* ── drawing a row ───────────────────────────────────────────────────── */
+
+  // every body node the translator may rewrite carries both renders
+  function trNode(tag, cls, src) {
+    return '<' + tag + (cls ? ' class="' + cls + '"' : '') +
+      ' data-src="' + esc(plain(src)) + '" data-en="' + esc(inline(src)) + '">' +
+      inline(src) + '</' + tag + '>';
+  }
+
+  function tri(num, newest) {
+    return '<svg class="tri revtri' + (newest ? ' newest' : '') + '" viewBox="0 0 26 23" aria-hidden="true">' +
+      '<path d="M13 2 L25 21 H1 Z"/>' +
+      '<text x="13" y="18.2" text-anchor="middle">' + esc(num) + '</text></svg>';
+  }
+
+  function describe(parsed) {
+    var many = parsed.groups.length > 1;
+    return parsed.groups.map(function (g) {
+      var head = many && g.title ? trNode('span', 'rule-head', g.title) : '';
+      return head + g.entries.map(function (e) {
+        var pr = e.pr
+          ? '<a class="pr" href="' + esc(e.pr.url) + '">#' + esc(e.pr.n) + '</a>'
+          : '<span class="pr">—</span>';
+        var chip = e.type ? '<span class="tag" data-type="' + esc(e.type) + '">' + esc(e.type) + '</span>' : '';
+        var subs = e.subs.length
+          ? '<div class="sub">' + e.subs.map(function (s) { return trNode('div', '', s); }).join('') + '</div>'
+          : '';
+        return '<div class="ent">' + pr + chip + '<span>' + trNode('span', '', e.text) + subs + '</span></div>';
+      }).join('');
+    }).join('');
+  }
+
+  function row(rel, newest) {
+    var ver = (rel.tag_name || '').replace(/^v/, '');
+    var num = /^\d+\.\d+\.\d+/.test(ver) ? ver.split('.')[2] : (rel.tag_name || '?');
+    var parsed = parse(rel.body || '');
+    var by = parsed.authors.length ? parsed.authors.join(' · ')
+      : (rel.author && rel.author.login) || 'CI';
+    var zone = ver === CURRENT ? 'C·H' : 'C';
+    var desc = describe(parsed) ||
+      ('<div class="ent"><span class="pr">—</span>' +
+        trNode('span', '', 'No changeset text published under this tag.') + '</div>');
+    return '<tr class="rev">' +
+      '<td class="c-rev">' + tri(num, newest) + '<span class="tg">' + esc(rel.tag_name || '') + '</span></td>' +
+      '<td class="c-date">' + esc((rel.published_at || '').slice(0, 10)) + '</td>' +
+      '<td>' + desc + '</td>' +
+      '<td class="c-by">' + esc(by) + '</td>' +
+      '<td class="c-zone">' + zone + '</td>' +
+      '</tr>';
+  }
+
+  /* ── translation: gtx (primary) → MyMemory (fallback), localStorage-cached ─ */
+
+  var KNOWN = { 'patch changes': '补丁更新', 'minor changes': '次要更新', 'major changes': '重大更新' };
+  function hash(s) { var h = 5381, i = s.length; while (i) h = (h * 33) ^ s.charCodeAt(--i); return (h >>> 0).toString(36); }
+  function cacheGet(t) { try { return localStorage.getItem('trzh:' + hash(t)); } catch (e) { return null; } }
+  function cacheSet(t, v) { try { localStorage.setItem('trzh:' + hash(t), v); } catch (e) {} }
+  function translate(text) {
+    text = text.trim(); if (!text) return Promise.resolve('');
+    var known = KNOWN[text.toLowerCase()]; if (known) return Promise.resolve(known);
+    var hit = cacheGet(text); if (hit !== null) return Promise.resolve(hit);
+    var q = encodeURIComponent(text);
+    return fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=' + q)
+      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+      .then(function (d) { var t = (d[0] || []).map(function (s) { return s[0]; }).join(''); if (!t) throw 0; cacheSet(text, t); return t; })
+      .catch(function () {
+        return fetch('https://api.mymemory.translated.net/get?langpair=en|zh-CN&q=' + q)
+          .then(function (r) { return r.json(); })
+          .then(function (d) { var t = d && d.responseData && d.responseData.translatedText; if (t) cacheSet(text, t); return t || null; })
+          .catch(function () { return null; });
+      });
+  }
+
+  // translate the [data-src] nodes in one revision row (lazy, cache-first,
+  // two requests in flight — snappy without hammering the free endpoint)
+  function translateRow(tr) {
+    if (LANG !== 'zh' || tr.dataset.trDone === '1') return;
+    tr.dataset.trDone = '1';
+    var nodes = [].slice.call(tr.querySelectorAll('[data-src]'));
+    var idx = 0;
+    function next() {
+      if (LANG !== 'zh') return;
+      var node = nodes[idx++]; if (!node) return;
+      node.classList.add('tr-loading');
+      translate(node.getAttribute('data-src')).then(function (t) {
+        if (LANG === 'zh' && t) node.textContent = t;
+        node.classList.remove('tr-loading');
+        next();
       });
     }
+    next(); next();
+  }
 
-    // ---- tiny markdown (inline) for the EN render ----
-    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-    function inlineHtml(s) {
-      s = esc(s);
-      s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
-      s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-      s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-      return s;
-    }
-    // plain text (markdown stripped) — the translation source
-    function plain(s) {
-      return String(s).replace(/`([^`]+)`/g, '$1').replace(/\*\*([^*]+)\*\*/g, '$1')
-        .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '$1').trim();
-    }
+  // restore a row to English (instant, no network)
+  function enRow(tr) {
+    tr.dataset.trDone = '';
+    [].slice.call(tr.querySelectorAll('[data-src]')).forEach(function (n) {
+      n.classList.remove('tr-loading');
+      n.innerHTML = n.getAttribute('data-en');
+    });
+  }
 
-    // conventional-commit type → tint + Chinese label (the scannable tag on each bullet)
-    // Tints are darkened from the old dark-theme set: the page is paper now,
-    // and the pale versions were unreadable on it. The '55'/'14' suffixes below
-    // are hex alpha, so these stay hex rather than moving to the oklch tokens.
-    var TYPE_TINT = { feat: '#3f7a45', fix: '#a8482c', perf: '#2f6a8e', refactor: '#8a6212', chore: '#6b655c', test: '#6a4d9c', ci: '#6b655c', docs: '#2f6a8e', style: '#6b655c', build: '#6b655c', revert: '#a8482c' };
-    var TYPE_ZH = { feat: '新功能', fix: '修复', perf: '性能', refactor: '重构', chore: '杂项', test: '测试', ci: 'CI', docs: '文档', style: '样式', build: '构建', revert: '回退' };
-    function splitBullet(raw) {
-      raw = raw.replace(/^[0-9a-f]{7,40}:\s*/i, '');                 // drop the commit sha prefix (pre-0.8.139 entries)
-      // drop the changelog-github credit prefix: [#PR](…) [`sha`](…) Thanks [@user](…)! -
-      raw = raw.replace(/^(?:\[[^\]]*\]\([^)]*\)\s*)+(?:Thanks [^!]*!\s*)?-\s*/, '');
-      var m = raw.match(/^(\w+)(?:\([^)]*\))?!?:\s*([\s\S]+)$/);     // type: summary
-      if (m && TYPE_TINT[m[1].toLowerCase()] !== undefined) return { type: m[1].toLowerCase(), sum: m[2].trim() };
-      return { type: '', sum: raw.trim() };
-    }
+  var io = ('IntersectionObserver' in window) ? new IntersectionObserver(function (ents) {
+    ents.forEach(function (e) { if (e.isIntersecting) translateRow(e.target); });
+  }, { rootMargin: '200px 0px' }) : null;
 
-    // ---- parse a release body into ordered segments. Only headings + bullets:
-    //      the indented detail paragraphs under each bullet are intentionally dropped
-    //      so the changelog shows just the scannable points. ----
-    function parse(md) {
-      var lines = String(md || '').split(/\r?\n/), segs = [];
-      for (var i = 0; i < lines.length; i++) {
-        var ln = lines[i];
-        var h = ln.match(/^\s*(#{1,6})\s+(.*)$/); if (h) { segs.push({ t: 'h', raw: h[2] }); continue; }
-        var li = ln.match(/^\s*[-*]\s+(.*)$/); if (li) { segs.push({ t: 'li', raw: li[1] }); continue; }
+  /* ── what the block currently is, said honestly in both languages ────── */
+
+  var LINK = '<a href="' + RELEASES_URL + '">github.com/Sma1lboy/rove/releases</a>';
+  var REST = {
+    en: ' The rest of the block lives in the <a href="' + RELEASES_URL + '">releases list</a> and in <span class="mono">packages/kobe/CHANGELOG.md</span>.',
+    zh: ' 其余部分在 <a href="' + RELEASES_URL + '">releases 列表</a>和 <span class="mono">packages/kobe/CHANGELOG.md</span> 里。'
+  };
+  // view.kind: 'seed' before the fetch resolves · 'plotted' · 'rate' · 'offline'
+  var view = { kind: 'seed', n: SEEDED, floor: 0 };
+
+  function renderStatus() {
+    var v = view, label, msg, total;
+    if (v.kind === 'plotted') {
+      label = { en: 'Plotted', zh: '已绘制' };
+      msg = { en: 'Fetched from api.github.com · newest first', zh: '取自 api.github.com · 最新在上' };
+      total = {
+        en: v.n + ' revisions plotted' + (v.floor ? ' of more than ' + v.floor + ' on record' : '') + '.' + REST.en,
+        zh: '已绘制 ' + v.n + ' 条修订' + (v.floor ? '，存档中另有超过 ' + v.floor + ' 条' : '') + '。' + REST.zh
+      };
+    } else if (v.kind === 'seed') {
+      label = { en: 'Plotting', zh: '绘制中' };
+      msg = { en: 'Not plotted yet — fetching from api.github.com', zh: '尚未绘制——正在从 api.github.com 取数' };
+      total = {
+        en: v.n + " revisions plotted from the sheet's own markup." + REST.en,
+        zh: '已按本图自带的标记绘制 ' + v.n + ' 条修订。' + REST.zh
+      };
+    } else if (v.kind === 'rate') {
+      label = { en: 'Not plotted — rate limited', zh: '未绘制——已达速率上限' };
+      msg = {
+        en: 'The unauthenticated GitHub API allows 60 requests an hour from one address, and this one is spent. The ' + v.n + " revisions below are the sheet's own markup — the full block is at " + LINK + '.',
+        zh: '未认证的 GitHub API 每个地址每小时只允许 60 次请求，这个地址已经用完。下面这 ' + v.n + ' 条修订是本图自带的标记——完整修订栏在 ' + LINK + '。'
+      };
+      total = {
+        en: v.n + " revisions plotted from the sheet's own markup." + REST.en,
+        zh: '已按本图自带的标记绘制 ' + v.n + ' 条修订。' + REST.zh
+      };
+    } else {
+      label = { en: 'Not plotted — offline', zh: '未绘制——无法连接' };
+      msg = {
+        en: 'The releases API could not be reached from this browser. The ' + v.n + " revisions below are the sheet's own markup — the full block is at " + LINK + '.',
+        zh: '这个浏览器连不上 releases API。下面这 ' + v.n + ' 条修订是本图自带的标记——完整修订栏在 ' + LINK + '。'
+      };
+      total = {
+        en: v.n + " revisions plotted from the sheet's own markup." + REST.en,
+        zh: '已按本图自带的标记绘制 ' + v.n + ' 条修订。' + REST.zh
+      };
+    }
+    statusRow.querySelector('.sl').textContent = label[LANG];
+    statusMsg.innerHTML = msg[LANG];
+    totalLine.innerHTML = total[LANG];
+  }
+
+  function applyLang() {
+    document.documentElement.setAttribute('data-lang', LANG);
+    var toggle = document.getElementById('langToggle');
+    if (toggle) toggle.textContent = LANG === 'zh' ? 'EN' : '中文';
+    applyStatic();
+    renderStatus();
+    try { localStorage.setItem('kobe_lang', LANG); } catch (e) {}
+    // type chips swap label with no round trip: fix ⇄ 修复, feat ⇄ 新功能, …
+    [].slice.call(document.querySelectorAll('.ent .tag')).forEach(function (tg) {
+      var ty = tg.getAttribute('data-type');
+      tg.textContent = LANG === 'zh' ? (TYPE_ZH[ty] || ty) : ty;
+    });
+    var rows = [].slice.call(document.querySelectorAll('tr.rev'));
+    if (LANG === 'en') rows.forEach(enRow);
+    else rows.forEach(function (r) { if (io) io.observe(r); else translateRow(r); });
+  }
+
+  applyLang(); // first paint: header, sheet copy and the seeded block
+
+  var langBtn = document.getElementById('langToggle');
+  if (langBtn) langBtn.addEventListener('click', function () { LANG = LANG === 'zh' ? 'en' : 'zh'; applyLang(); });
+
+  /* ── fetch, and be honest about every way it can end ─────────────────── */
+
+  fetch(API, { headers: { Accept: 'application/vnd.github+json' } })
+    .then(function (res) {
+      if (res.status === 403 || res.status === 429) {
+        var left = res.headers.get('x-ratelimit-remaining');
+        var err = new Error('rate');
+        err.rate = left === '0' || left === null;
+        throw err;
       }
-      return segs;
-    }
+      if (!res.ok) throw new Error('http ' + res.status);
+      var link = res.headers.get('link') || '';
+      var last = link.match(/[?&]page=(\d+)>;\s*rel="last"/);
+      return res.json().then(function (data) { return { data: data, last: last ? +last[1] : 0 }; });
+    })
+    .then(function (out) {
+      var rels = (out.data || []).filter(function (r) { return !r.draft; });
+      if (!rels.length) throw new Error('empty');
 
-    function bodyHtml(segs) {
-      var out = [], inList = false;
-      function close() { if (inList) { out.push('</ul>'); inList = false; } }
-      for (var i = 0; i < segs.length; i++) {
-        var s = segs[i];
-        if (s.t === 'h') {
-          close();
-          out.push('<div class="rn-h" data-src="' + esc(plain(s.raw)) + '" data-en="' + esc(inlineHtml(s.raw)) + '">' + inlineHtml(s.raw) + '</div>');
-        } else {
-          if (!inList) { out.push('<ul class="rn-ul">'); inList = true; }
-          var b = splitBullet(s.raw);
-          var tag = b.type
-            ? '<span class="tag" data-type="' + b.type + '" style="color:' + TYPE_TINT[b.type] + ';border-color:' + TYPE_TINT[b.type] + '55;background:' + TYPE_TINT[b.type] + '14;">' + b.type + '</span>'
-            : '';
-          out.push('<li class="rn-li">' + tag + '<span class="sum" data-src="' + esc(plain(b.sum)) + '" data-en="' + esc(inlineHtml(b.sum)) + '">' + inlineHtml(b.sum) + '</span></li>');
-        }
-      }
-      close();
-      return out.join('') || '<ul class="rn-ul"><li class="rn-li"><span class="sum" style="color:var(--faint);">—</span></li></ul>';
-    }
+      body.innerHTML = rels.map(function (r, i) { return row(r, i === 0); }).join('');
 
-    function fmtDate(iso) { try { return new Date(iso).toLocaleDateString(LANG === 'zh' ? 'zh-CN' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' }); } catch (e) { return ''; } }
+      /* the pen's target must survive the re-render: the reading is re-applied
+         to the container, which is what carries data-measure. */
+      block.setAttribute('data-measure', rels.length + ' REVISIONS PLOTTED');
 
-    // ---- translation: gtx (primary) → MyMemory (fallback), localStorage-cached ----
-    var KNOWN = { 'patch changes': '补丁更新', 'minor changes': '次要更新', 'major changes': '重大更新' };
-    function hash(s) { var h = 5381, i = s.length; while (i) h = (h * 33) ^ s.charCodeAt(--i); return (h >>> 0).toString(36); }
-    function cacheGet(t) { try { return localStorage.getItem('trzh:' + hash(t)); } catch (e) { return null; } }
-    function cacheSet(t, v) { try { localStorage.setItem('trzh:' + hash(t), v); } catch (e) {} }
-    function translate(text) {
-      text = text.trim(); if (!text) return Promise.resolve('');
-      var known = KNOWN[text.toLowerCase()]; if (known) return Promise.resolve(known);
-      var hit = cacheGet(text); if (hit !== null) return Promise.resolve(hit);
-      var q = encodeURIComponent(text);
-      return fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=' + q)
-        .then(function (r) { if (!r.ok) throw 0; return r.json(); })
-        .then(function (d) { var t = (d[0] || []).map(function (s) { return s[0]; }).join(''); if (!t) throw 0; cacheSet(text, t); return t; })
-        .catch(function () {
-          return fetch('https://api.mymemory.translated.net/get?langpair=en|zh-CN&q=' + q)
-            .then(function (r) { return r.json(); })
-            .then(function (d) { var t = d && d.responseData && d.responseData.translatedText; if (t) cacheSet(text, t); return t || null; })
-            .catch(function () { return null; });
-        });
-    }
-
-    // translate the [data-src] nodes inside one card (lazy, cache-first, concurrency-bounded)
-    function translateCard(card) {
-      if (LANG !== 'zh' || card.dataset.trDone === '1') return;
-      card.dataset.trDone = '1';
-      var nodes = [].slice.call(card.querySelectorAll('[data-src]'));
-      var idx = 0;
-      function next() {
-        if (LANG !== 'zh') return;
-        var node = nodes[idx++]; if (!node) return;
-        var src = node.getAttribute('data-src');
-        node.classList.add('tr-loading');
-        translate(src).then(function (t) {
-          if (LANG === 'zh') node.textContent = t || node.textContent;
-          node.classList.remove('tr-loading');
-          next();
-        });
-      }
-      // two in flight keeps it snappy without hammering the free endpoint
-      next(); next();
-    }
-
-    // restore a card to English (instant, no network)
-    function enCard(card) {
-      card.dataset.trDone = '';
-      [].slice.call(card.querySelectorAll('[data-src]')).forEach(function (n) {
-        n.classList.remove('tr-loading');
-        n.innerHTML = n.getAttribute('data-en');
-      });
-    }
-
-    var io = ('IntersectionObserver' in window) ? new IntersectionObserver(function (ents) {
-      ents.forEach(function (e) { if (e.isIntersecting) translateCard(e.target); });
-    }, { rootMargin: '200px 0px' }) : null;
-
-    function applyLang() {
-      document.documentElement.setAttribute('data-lang', LANG);
-      var toggle = document.getElementById('langToggle');
-      if (toggle) toggle.textContent = LANG === 'zh' ? 'EN' : '中文';
-      applyStatic();
-      try { localStorage.setItem('kobe_lang', LANG); } catch (e) {}
-      // type tags swap label instantly (no API): fix ⇄ 修复, feat ⇄ 新功能, …
-      [].slice.call(document.querySelectorAll('.rn-li .tag')).forEach(function (tg) {
-        var ty = tg.getAttribute('data-type');
-        tg.textContent = LANG === 'zh' ? (TYPE_ZH[ty] || ty) : ty;
-      });
-      var cards = [].slice.call(document.querySelectorAll('.rel'));
-      if (LANG === 'en') { cards.forEach(enCard); }
-      else { cards.forEach(function (c) { if (io) io.observe(c); else translateCard(c); }); }
-    }
-
-    applyLang(); // first paint: nav toggle + page copy, before releases arrive
-
-    var langBtn = document.getElementById('langToggle');
-    if (langBtn) langBtn.addEventListener('click', function () { LANG = LANG === 'zh' ? 'en' : 'zh'; applyLang(); });
-
-    fetch('https://api.github.com/repos/Sma1lboy/rove/releases?per_page=100')
-      .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
-      .then(function (rels) {
-        if (!Array.isArray(rels) || !rels.length) { loading.innerHTML = 'No releases yet. See <a href="https://github.com/Sma1lboy/rove/releases" style="color:var(--accent);">GitHub</a>.'; return; }
-        host.innerHTML = rels.map(function (rel, idx) {
-          var tag = esc(rel.tag_name || rel.name || '');
-          var badge = idx === 0 ? '<span class="rel-badge latest">latest</span>' : (rel.prerelease ? '<span class="rel-badge">prerelease</span>' : '');
-          return '<article class="rel">' +
-            '<div class="rel-head">' +
-              '<a class="rel-tag" href="' + esc(rel.html_url || '#') + '" target="_blank" rel="noopener">' + tag + '</a>' +
-              badge + '<span class="rel-date">' + fmtDate(rel.published_at || rel.created_at) + '</span>' +
-            '</div>' +
-            '<div class="rel-body">' + bodyHtml(parse(rel.body)) + '</div>' +
-          '</article>';
-        }).join('');
-        applyLang();
-      })
-      .catch(function () { loading.innerHTML = 'Couldn’t load releases (GitHub API). See the full list on <a href="https://github.com/Sma1lboy/rove/releases" style="color:var(--accent);">GitHub ↗</a>.'; });
-  })();
+      view = { kind: 'plotted', n: rels.length, floor: out.last > 1 ? (out.last - 1) * PER : 0 };
+      applyLang();
+    })
+    .catch(function (e) {
+      view = { kind: e && e.rate ? 'rate' : 'offline', n: SEEDED, floor: 0 };
+      renderStatus();
+    });
+})();
 </script>
 </body>
 </html>

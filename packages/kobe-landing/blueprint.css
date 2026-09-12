@@ -1,0 +1,409 @@
+/* ───────────────────────────────────────────────────────────────────────────
+   DRAUGHTING SHEET — one ink on one ground.
+   Light  : modern CAD plot, near-black ink on cool drafting paper.
+   Dark   : the same sheet as a cyanotype, bone lines on Prussian ground.
+   Accent : terracotta, and ONLY where the drawing calls out a change —
+            a revision triangle, a revision cloud, and part ① itself.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root{
+  --paper:#E6E8E9;
+  --paper-2:#DCDFE1;
+  --ink:#15181B;
+  --ink-2:#464C52;
+  --ink-3:#8A9198;
+  --rule:#BCC1C4;
+  --hatch:#97A0A8;
+  --accent:#CC785C;
+  --accent-line:#B85B3A;
+  --accent-text:#9E4A2B;
+  --font-tech:"Saira Condensed","Arial Narrow",sans-serif;
+  --font-prose:"IBM Plex Sans",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --w-frame:2px;
+  color-scheme:light;
+}
+:root:not([data-theme="light"]){}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0A2340;
+    --paper-2:#0E2C4E;
+    --ink:#E7EDF5;
+    --ink-2:#A9BDD4;
+    --ink-3:#6E8AAA;
+    --rule:#274766;
+    --hatch:#3E5C7E;
+    --accent:#E08B66;
+    --accent-line:#E08B66;
+    --accent-text:#F1AC8C;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0A2340; --paper-2:#0E2C4E; --ink:#E7EDF5; --ink-2:#A9BDD4;
+  --ink-3:#6E8AAA; --rule:#274766; --hatch:#3E5C7E;
+  --accent:#E08B66; --accent-line:#E08B66; --accent-text:#F1AC8C;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html{overflow-x:clip}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--font-prose);
+  font-size:15px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  font-variant-numeric:tabular-nums;
+}
+img,svg{max-width:100%}
+
+/* lettering ------------------------------------------------------------- */
+.lt{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.14em;font-weight:600;line-height:1.2}
+.micro{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.2em;font-weight:600;font-size:10.5px;color:var(--ink-2)}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+a{color:inherit;text-decoration:none;border-bottom:1px solid var(--ink-3)}
+a:hover{border-bottom-color:var(--accent-line);color:var(--accent-text)}
+:focus-visible{outline:2px solid var(--accent-line);outline-offset:3px}
+
+.skip{position:absolute;left:0;top:-200px;z-index:99;background:var(--paper);border:1px solid var(--ink);padding:10px 16px}
+.skip:focus{top:12px;left:12px}
+
+/* sheet ----------------------------------------------------------------- */
+.sheet{
+  max-width:1392px;margin:16px auto;position:relative;
+  border:var(--w-frame) solid var(--ink);
+  padding:22px;
+  background:var(--paper);
+}
+.sheet::after{ /* inner rule of the double frame */
+  content:"";position:absolute;inset:6px;border:1px solid var(--rule);pointer-events:none;
+}
+.inner{position:relative;z-index:1;border:1px solid var(--rule);padding:0 26px}
+.zone-top{
+  position:absolute;top:-1px;left:0;right:0;height:0;display:flex;justify-content:space-between;
+  pointer-events:none;
+}
+.zone-top span{
+  font-family:var(--font-tech);font-size:9.5px;letter-spacing:.18em;color:var(--ink-3);
+  transform:translateY(-15px);
+}
+section{position:relative}
+section[data-zone]::before{
+  content:attr(data-zone);
+  position:absolute;left:-19px;top:26px;
+  font-family:var(--font-tech);font-size:10.5px;letter-spacing:.16em;color:var(--ink-3);
+}
+
+/* header ---------------------------------------------------------------- */
+.head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 0 16px;border-bottom:1px solid var(--rule)}
+.brand{display:flex;align-items:center;gap:10px;border:0}
+.brand .wm{font-family:var(--font-tech);font-weight:700;font-size:20px;letter-spacing:.24em;text-transform:uppercase}
+.head .spacer{flex:1 1 auto;min-width:12px}
+.head nav{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.head nav a{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.16em;font-size:11.5px;font-weight:600;border-bottom:1px solid transparent;padding-bottom:2px}
+.head nav a:hover{border-bottom-color:var(--accent-line)}
+.stamp{font-family:var(--font-tech);font-size:10.5px;letter-spacing:.18em;color:var(--ink-2);text-transform:uppercase;border:1px solid var(--rule);padding:4px 8px}
+
+/* hero ------------------------------------------------------------------ */
+.hero{display:grid;grid-template-columns:minmax(0,1.32fr) minmax(0,.68fr);gap:0;border-bottom:1px solid var(--rule)}
+.hero-l{padding:40px 34px 40px 0}
+.hero-r{padding:40px 0 40px 34px;border-left:1px solid var(--rule);display:flex;flex-direction:column;gap:18px;justify-content:center}
+h1{
+  font-family:var(--font-tech);font-weight:600;text-transform:uppercase;
+  font-size:clamp(2.5rem,6.1vw,5rem);line-height:.9;letter-spacing:.015em;
+  margin:0 0 22px;max-width:15ch;
+}
+h1 .thin{font-weight:400;color:var(--ink-2)}
+.lede{font-size:clamp(1rem,1.15vw,1.2rem);max-width:52ch;margin:0 0 30px;color:var(--ink)}
+.lede b{font-weight:500}
+
+/* install --------------------------------------------------------------- */
+.install-wrap{position:relative;max-width:600px}
+.copy{
+  display:flex;align-items:stretch;gap:0;width:100%;
+  background:transparent;border:1.6px solid var(--ink);color:var(--ink);
+  font:inherit;text-align:left;cursor:pointer;padding:0;
+}
+.copy .tag{
+  font-family:var(--font-tech);font-size:10px;letter-spacing:.18em;font-weight:600;
+  writing-mode:vertical-rl;text-orientation:mixed;
+  border-right:1px solid var(--rule);padding:8px 3px;color:var(--ink-2);
+  display:flex;align-items:center;justify-content:center;
+}
+.copy .cmd{font-family:var(--font-mono);font-size:clamp(12px,1.15vw,15px);padding:14px 12px;flex:1 1 auto;overflow:auto;white-space:nowrap;scrollbar-width:none}
+.copy .cmd::-webkit-scrollbar{display:none}
+.copy .hint{
+  font-family:var(--font-tech);font-size:10px;letter-spacing:.16em;font-weight:600;color:var(--ink-2);
+  border-left:1px solid var(--rule);padding:0 10px;display:flex;align-items:center;white-space:nowrap;
+}
+.copy:hover{border-color:var(--accent-line)}
+.copy.is-copied .hint{color:var(--accent-text)}
+.rev-cloud{position:absolute;max-width:none;top:-11px;left:-11px;width:calc(100% + 22px);height:calc(100% + 22px);pointer-events:none;opacity:0;transition:opacity .2s ease}
+.rev-cloud path{fill:none;stroke:var(--accent-line);stroke-width:1.4;vector-effect:non-scaling-stroke}
+.install-wrap.is-copied .rev-cloud{opacity:1}
+.alts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.alt{
+  background:transparent;border:1px solid var(--rule);color:var(--ink-2);cursor:pointer;
+  font-family:var(--font-mono);font-size:11.5px;padding:6px 9px;
+}
+.alt:hover{border-color:var(--ink-2);color:var(--ink)}
+.alt.is-copied{border-color:var(--accent-line);color:var(--accent-text)}
+.platform{margin-top:18px;font-size:12.5px;color:var(--ink-2);font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.12em}
+
+/* subject block --------------------------------------------------------- */
+.subject{border:1px solid var(--ink);padding:0}
+.subject .cap{border-bottom:1px solid var(--rule);padding:7px 12px}
+.subject .body{padding:16px 14px 14px}
+.eq{display:flex;flex-direction:column;gap:6px}
+.eq .row{display:flex;align-items:baseline;gap:10px;font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.1em;font-size:16px;font-weight:600}
+.eq .op{font-family:var(--font-mono);color:var(--ink-3);width:14px;flex:0 0 14px;font-size:15px}
+.eq .lhs{color:var(--accent-text)}
+.eq .bl{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:17px;height:17px;border-radius:50%;border:1px solid var(--ink-2);
+  font-size:10px;letter-spacing:0;color:var(--ink-2);flex:0 0 17px;
+}
+.subject .foot{border-top:1px solid var(--rule);padding:7px 12px;display:flex;justify-content:space-between;gap:8px}
+
+/* note sections --------------------------------------------------------- */
+.note{display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,.98fr);border-top:1px solid var(--rule)}
+/* A class selector out-specifies the UA's [hidden] rule, so a note that grid-
+   displays itself stays visible when hidden. Any sheet that swaps a note out
+   for a detail view needs this. */
+.note[hidden]{display:none}
+.note>h2{
+  grid-column:1/-1;margin:0;padding:20px 0 12px;
+  font-family:var(--font-tech);font-weight:600;text-transform:uppercase;
+  letter-spacing:.22em;font-size:13px;color:var(--ink);
+  display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+}
+.note>h2 .num{color:var(--ink-3)}
+.note>h2 .dash{flex:1 1 60px;height:1px;background:var(--rule);align-self:center;min-width:20px}
+.fig-col{padding:8px 30px 34px 0}
+.txt-col{padding:8px 0 34px 30px;border-left:1px solid var(--rule)}
+.txt-col p{margin:0 0 14px;max-width:56ch}
+.txt-col p:last-child{margin-bottom:0}
+figure{margin:0;min-width:0}
+figure svg{display:block;width:100%;height:auto}
+figcaption{margin-top:12px;font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.14em;font-size:10.5px;color:var(--ink-2);border-top:1px solid var(--rule);padding-top:7px}
+.fig-1{max-width:470px}
+.fig-wide{max-width:600px}
+
+/* tables ---------------------------------------------------------------- */
+table{width:100%;border-collapse:collapse;font-size:13px}
+caption{caption-side:top;text-align:left;font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.18em;font-size:10.5px;color:var(--ink-2);padding-bottom:7px}
+th,td{text-align:left;padding:7px 8px 7px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{
+  font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.08em;font-size:10px;
+  font-weight:600;color:var(--ink-2);border-bottom:1.6px solid var(--ink);
+}
+tbody th{font-weight:500}
+.t-item{width:34px;font-family:var(--font-mono);color:var(--ink-2)}
+.t-qty{width:40px;font-family:var(--font-mono)}
+.t-cmd{font-family:var(--font-mono);font-size:12px}
+.t-c{width:56px;text-align:center;padding-right:10px}
+.t-c[data-v="1"]::before{content:"●";color:var(--ink)}
+.t-c[data-v="0"]::before{content:"○";color:var(--ink-3)}
+.nb{white-space:nowrap}
+.t-class{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.1em;font-size:10.5px;color:var(--ink-2);white-space:nowrap}
+.t-scroll{overflow-x:auto}
+.t-note{margin-top:10px;font-size:11.5px;color:var(--ink-2);line-height:1.55}
+.gnotes{margin:22px 0 0;padding:12px 14px 12px 30px;border:1px solid var(--rule);border-left:2px solid var(--ink);list-style:decimal;font-size:12.5px;color:var(--ink-2);line-height:1.6}
+.gnotes li{margin:0 0 6px;padding-left:4px}
+.gnotes li:last-child{margin-bottom:0}
+.gnotes li::marker{font-family:var(--font-mono);color:var(--ink-3);font-size:11px}
+.tri{display:inline-block;width:19px;height:17px;vertical-align:-4px}
+.tri path{fill:none;stroke:var(--accent-line);stroke-width:1.2}
+.tri text{font-family:var(--font-mono);font-size:8px;fill:var(--accent-text)}
+
+
+
+/* legend ---------------------------------------------------------------- */
+.legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid var(--ink)}
+.legend div{display:flex;gap:11px;align-items:baseline;padding:9px 12px;border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);min-width:0}
+.legend div:nth-child(2n){border-right:0}
+.legend div:nth-last-child(-n+2){border-bottom:0}
+.legend .g{font-family:var(--font-mono);font-size:14px;flex:0 0 62px;color:var(--ink);white-space:nowrap}
+.legend .m{font-size:12.5px;color:var(--ink-2);line-height:1.45}
+.legend .m b{color:var(--ink);font-weight:500}
+
+/* code block ------------------------------------------------------------ */
+.code{
+  border:1px solid var(--rule);border-left:2px solid var(--ink);
+  font-family:var(--font-mono);font-size:12px;line-height:1.65;
+  padding:12px 14px;overflow-x:auto;margin:0 0 16px;color:var(--ink);
+  background:var(--paper-2);
+}
+.code .c{color:var(--ink-2)}
+.code .k{color:var(--accent-text)}
+
+/* title block ----------------------------------------------------------- */
+.endmatter{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);border-top:1.6px solid var(--ink);gap:0}
+.revtab{border-right:1px solid var(--rule);padding:16px 24px 20px 0}
+.tblock{padding:0;border-left:0}
+.tb-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1.6px solid var(--ink);border-bottom:0;border-right:0;margin-top:16px}
+.tb{border-right:1.6px solid var(--ink);border-bottom:1.6px solid var(--ink);padding:8px 10px;min-width:0}
+.tb .k{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.18em;font-size:9px;color:var(--ink-2);display:block;margin-bottom:3px}
+.tb .v{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.07em;font-size:13px;font-weight:600;overflow-wrap:anywhere}
+.tb.span2{grid-column:span 2}
+.tb.span4{grid-column:span 4}
+.tb .v.mono{font-family:var(--font-mono);font-size:12px;letter-spacing:0;text-transform:none;font-weight:400}
+
+footer{border-top:1px solid var(--rule);margin-top:0;padding:18px 0 22px;display:flex;flex-wrap:wrap;gap:10px 26px;align-items:baseline}
+footer a{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.14em;font-size:11.5px;font-weight:600;border-bottom:1px solid var(--rule)}
+footer .c{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.14em;font-size:10.5px;color:var(--ink-2)}
+footer .sp{flex:1 1 auto}
+
+/* svg ink weights ------------------------------------------------------- */
+svg text{fill:var(--ink)}
+svg .tx{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.11em;font-weight:600;font-size:14.5px}
+svg .tx-s{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.13em;font-weight:600;font-size:12.5px;fill:var(--ink-2)}
+svg .tx-m{font-family:var(--font-mono);font-size:12.5px;fill:var(--ink-2)}
+svg .dimtx{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.14em;font-weight:600;font-size:13.5px;fill:var(--ink-2)}
+svg .v{stroke:var(--ink);stroke-width:1.7;fill:none;stroke-linejoin:round;stroke-linecap:square}
+svg .vf{stroke:var(--ink);stroke-width:1.7;fill:var(--paper-2);stroke-linejoin:round}
+svg .hid{stroke:var(--ink-2);stroke-width:1;fill:none;stroke-dasharray:6 4.5}
+svg .ctr{stroke:var(--ink-3);stroke-width:.9;fill:none;stroke-dasharray:16 3.5 2.5 3.5}
+svg .dim{stroke:var(--ink-3);stroke-width:.8;fill:none}
+svg .acc{stroke:var(--accent-line);stroke-width:1.9;fill:none;stroke-linejoin:round}
+svg .accf{fill:var(--accent-line);stroke:none}
+svg .thin{stroke:var(--ink-3);stroke-width:.9;fill:none}
+svg .dot{fill:var(--ink);stroke:none}
+
+/* motion: the drawing constructs itself -------------------------------- */
+.fig [data-draw]{fill-opacity:0;transition:stroke-dashoffset .62s cubic-bezier(.22,.61,.36,1),fill-opacity .5s ease}
+.fig.drawn [data-draw]{fill-opacity:1}
+.fig .fade{opacity:0;transition:opacity .42s ease}
+.fig.drawn .fade{opacity:1}
+
+@media (prefers-reduced-motion:reduce){
+  .fig [data-draw]{transition:none!important;stroke-dashoffset:0!important;stroke-dasharray:none!important;fill-opacity:1!important}
+  .fig .fade{opacity:1!important;transition:none}
+  .rev-cloud{transition:none}
+}
+
+/* responsive ------------------------------------------------------------ */
+@media (max-width:1080px){
+  .hero{grid-template-columns:minmax(0,1fr)}
+  .hero-l{padding:32px 0 26px}
+  .hero-r{padding:26px 0 34px;border-left:0;border-top:1px solid var(--rule)}
+  .endmatter{grid-template-columns:minmax(0,1fr)}
+  .revtab{border-right:0;padding:16px 0 18px}
+}
+@media (max-width:900px){
+  .note{grid-template-columns:minmax(0,1fr)}
+  .fig-col{padding:8px 0 22px}
+  .txt-col{padding:0 0 30px;border-left:0;border-top:1px solid var(--rule);padding-top:20px}
+}
+@media (max-width:620px){
+  body{font-size:14.5px}
+  .sheet{margin:8px;padding:10px;border-width:1.6px}
+  .sheet::after{inset:4px}
+  .inner{padding:0 13px}
+  .zone-top{display:none}
+  section[data-zone]::before{display:none}
+  .hero-l{padding:26px 0 22px}
+  h1{letter-spacing:.01em;margin-bottom:18px}
+  .copy .tag{display:none}
+  .code{font-size:11px}
+  .code .c{display:block;padding-left:3ch}
+  .copy{flex-wrap:wrap}
+  .copy .cmd{flex:1 0 100%;font-size:11.5px;padding:12px 10px}
+  .copy .hint{flex:1 0 100%;border-left:0;border-top:1px solid var(--rule);padding:7px 10px;justify-content:space-between}
+  .legend{grid-template-columns:1fr}
+  .legend div{border-right:0}
+  .legend div:nth-last-child(2){border-bottom:1px solid var(--rule)}
+  .t-c{width:38px;padding-right:6px}
+  .tb-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tb.span4{grid-column:span 2}
+  footer{gap:8px 18px}
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   IDLE — the sheet is not finished; a draughtsman is still at the board.
+   Everything here is gated on .bp-idle-ok (set by the engine only when the
+   reader has prefers-reduced-motion off), so the whole layer is inert
+   otherwise rather than relying on a dozen separate media queries.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* the pen. Parks off-sheet; travels to whatever it is about to measure. */
+.pen{
+  position:fixed;left:0;top:0;z-index:40;width:34px;height:34px;
+  margin:-17px 0 0 -17px;pointer-events:none;opacity:0;
+  transform:translate3d(-100px,-100px,0);
+}
+.bp-idle-ok .pen{transition:transform 1.05s cubic-bezier(.33,.02,.24,1),opacity .3s ease}
+.pen.down{opacity:1}
+.pen svg{display:block;overflow:visible}
+.pen .nib{stroke:var(--accent-line);stroke-width:1.3;fill:none}
+.pen .hair{stroke:var(--accent-line);stroke-width:.8;fill:none;opacity:.62}
+/* the nib dips when it starts to draw */
+.pen .nibwrap{transform-origin:17px 17px}
+.bp-idle-ok .pen.inking .nibwrap{animation:nibdip .32s ease both}
+@keyframes nibdip{0%{transform:scale(1)}45%{transform:scale(.78)}100%{transform:scale(.9)}}
+
+/* the dimension the pen leaves behind. Erases itself when the pen lifts. */
+.measure{position:fixed;left:0;top:0;z-index:39;pointer-events:none;overflow:visible}
+.measure line,.measure path{stroke:var(--accent-line);stroke-width:.9;fill:none}
+.measure text{
+  font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.15em;
+  font-weight:600;font-size:10px;fill:var(--accent-text);
+}
+.measure .lead{stroke-dasharray:var(--len);stroke-dashoffset:var(--len)}
+.bp-idle-ok .measure.on .lead{
+  stroke-dashoffset:0;transition:stroke-dashoffset .5s cubic-bezier(.22,.61,.36,1);
+}
+.measure .val{opacity:0}
+.bp-idle-ok .measure.on .val{opacity:1;transition:opacity .26s ease .42s}
+.bp-idle-ok .measure.off{opacity:0;transition:opacity .34s ease}
+
+/* zone markers track what is on screen — a sheet's own coordinate system,
+   doing the job a scroll bar would do on a web page. */
+.zone-top span,.zone-side span{transition:color .3s ease}
+.zone-top span.lit,.zone-side span.lit{color:var(--accent-text)}
+.zone-side{
+  position:absolute;top:0;bottom:0;left:-1px;width:0;
+  display:flex;flex-direction:column;justify-content:space-between;pointer-events:none;
+}
+.zone-side span{
+  font-family:var(--font-tech);font-size:9.5px;letter-spacing:.18em;color:var(--ink-3);
+  transform:translateX(-16px);
+}
+@media (max-width:620px){.zone-side{display:none}}
+
+/* centre lines march, but only in the figure you are looking at —
+   a rotating centre mark, which is how a draughtsman shows an axis is live. */
+.bp-idle-ok .fig.drawn.in-view svg .ctr{animation:ctrmarch 9s linear infinite}
+@keyframes ctrmarch{to{stroke-dashoffset:-51}}
+
+/* section hatching combs along its own angle, very slowly. */
+.bp-idle-ok .fig.drawn.in-view svg .hatchband{animation:hatchdrift 22s linear infinite}
+@keyframes hatchdrift{to{stroke-dashoffset:-40}}
+
+/* the newest revision keeps announcing itself: one slow scallop pass. */
+.bp-idle-ok .tri.newest path{animation:revbreathe 6.5s ease-in-out infinite}
+@keyframes revbreathe{0%,72%,100%{opacity:1}84%{opacity:.34}}
+
+/* a dimension with more than one true reading cycles between them. */
+.reread{position:relative;display:inline-block;min-width:var(--w,auto)}
+.reread .r{display:inline-block}
+.bp-idle-ok .reread .r{transition:opacity .22s ease,transform .22s ease}
+.bp-idle-ok .reread .r[hidden]{display:inline-block;opacity:0;transform:translateY(-3px);position:absolute;left:0;top:0}
+
+/* title block: the sheet has been open this long. */
+.tb .v[data-elapsed]{font-variant-numeric:tabular-nums}
+
+/* ── the mark ──────────────────────────────────────────────────────────
+   The shipped icon is a launcher tile: it carries its own dark ground
+   because it lands on someone else's wallpaper. On our own paper there is
+   no background to fight, and a solid fill was the one un-drawn shape on a
+   sheet of line work — warm black against the cyanotype's cold blue. So the
+   tile is drawn rather than filled, in the frame's own rule weight, and the
+   mark takes the sheet's ink. The favicon keeps the filled tile; it still
+   lands on browser chrome. */
+.brand .mark rect{fill:none;stroke:var(--rule);stroke-width:2}
+.brand .mark path{fill:none;stroke:var(--accent);stroke-linecap:round;stroke-linejoin:round}
+.brand .mark .r{fill:var(--ink);stroke:none}
