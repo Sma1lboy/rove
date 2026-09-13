@@ -417,6 +417,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     this.snapshotWrapped = result.wrapped
     this.snapshotDirty = false
     if (result.changed) this.publishSnapshot()
+    if (result.cursorPending) this.queueRefresh()
   }
 
   private publishSnapshot(): void {
