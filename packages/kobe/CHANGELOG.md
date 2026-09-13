@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.195
+
+### Patch Changes
+
+- [#1002](https://github.com/Sma1lboy/rove/pull/1002) [`60d5112`](https://github.com/Sma1lboy/rove/commit/60d511243a9c10b2c08cc91dac13e020fe8bca38) On Windows, Ctrl+C copies a Rove terminal selection and clears its highlight without interrupting the embedded engine. With no selection, Ctrl+C still reaches the engine normally. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.194
 
 ### Patch Changes
