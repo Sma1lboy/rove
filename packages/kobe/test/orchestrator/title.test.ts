@@ -76,6 +76,16 @@ describe("sanitizeTaskTitle", () => {
     expect(sanitizeTaskTitle("a\u0000b")).toBe("a b")
   })
 
+  it("strips C1 controls too, which display-width scores as zero like C0", () => {
+    // A title arriving over the daemon RPC can carry an 8-bit control byte
+    // the TUI input edge would never emit. `\u009b` (CSI), `\u0085` (NEL) and
+    // the rest of U+0080-U+009F measure zero cells just like C0, so they must
+    // not slip past the truncator into an invisible sidebar cell.
+    expect(sanitizeTaskTitle("a\u009bb")).toBe("a b")
+    expect(sanitizeTaskTitle("a\u0085b")).toBe("a b")
+    expect(sanitizeTaskTitle("a\u0080\u009fb")).toBe("a b")
+  })
+
   it("collapses runs and trims the edges, so nothing becomes a wall of spaces", () => {
     expect(sanitizeTaskTitle("  \n\n a  \n b \n ")).toBe("a b")
   })
