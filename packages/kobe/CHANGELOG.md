@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.193
+
+### Patch Changes
+
+- [#999](https://github.com/Sma1lboy/rove/pull/999) [`1360aa1`](https://github.com/Sma1lboy/rove/commit/1360aa1dab6707bd20996d46d7aaa7946e192734) Send Codex prompts with Enter, including while it is working, instead of switching to Tab when its queue hint appears. API sends and routines use the live target engine's submission behavior so messages can steer the current turn without waiting in the queue. Keep terminal cursor updates inside synchronized frames so an unfinished cursor-only redraw cannot publish a cursor on the wrong row. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.192
 
 ### Patch Changes
