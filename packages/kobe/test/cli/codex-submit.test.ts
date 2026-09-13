@@ -3,18 +3,16 @@ import { deliverToExactTab } from "../../src/cli/api/exact-tab-delivery.ts"
 
 describe("Codex prompt submission", () => {
   it.each([
-    { busy: true, prompt: "continue the work", paste: "continue the work ", submit: "\t" },
-    { busy: false, prompt: "continue the work", paste: "continue the work ", submit: "\t" },
-    { busy: true, prompt: "check @nonexistent-file", paste: "check @nonexistent-file ", submit: "\t" },
-    { busy: false, prompt: "check @nonexistent-file", paste: "check @nonexistent-file ", submit: "\t" },
-    { busy: false, prompt: "/status", paste: "/status", submit: "\r" },
-    { busy: false, prompt: "!pwd", paste: "!pwd", submit: "\r" },
-  ])("submits $prompt with busy=$busy without a footer redraw", async ({ busy, prompt, paste, submit }) => {
+    { redraw: "none", prompt: "continue the work", paste: "continue the work " },
+    { redraw: "paste", prompt: "continue the work", paste: "continue the work " },
+    { redraw: "enter", prompt: "continue the work", paste: "continue the work " },
+    { redraw: "paste", prompt: "check @nonexistent-file", paste: "check @nonexistent-file " },
+    { redraw: "paste", prompt: "/status", paste: "/status" },
+    { redraw: "paste", prompt: "!pwd", paste: "!pwd" },
+  ])("uses Enter for $prompt with queue hint redraw=$redraw", async ({ redraw, prompt, paste }) => {
     const key = "task::tab-2"
     const sent: string[] = []
-    let output = `\x1b[?2004h${busy ? "tab to queue message" : "Ask Codex to do anything"}`
-    let composer = ""
-    let accepted = ""
+    let output = "\x1b[?2004htab to queue message"
     const request = vi
       .fn()
       .mockImplementation(async (name: string, payload?: { data?: string; sinceOffset?: number }) => {
@@ -36,11 +34,10 @@ describe("Codex prompt submission", () => {
           const data = payload?.data ?? ""
           sent.push(data)
           if (data.startsWith("\x1b[200~")) {
-            composer = data.slice(6, -6)
-            output += `\x1b[5;3H${composer}`
-          } else if ((data === "\t" && !/@\S*$/.test(composer)) || (!busy && data === "\r")) {
-            accepted = composer.trim()
-            composer = ""
+            output += `\x1b[5;3H${data.slice(6, -6)}`
+            if (redraw === "paste") output += "tab to queue message"
+          } else if (data === "\r" && redraw === "enter") {
+            output += "tab to queue message"
           }
         }
         return {}
@@ -51,9 +48,7 @@ describe("Codex prompt submission", () => {
       snapshot: async () => "123 1 bash\n456 123 codex\n",
     })
 
-    expect(accepted).toBe(prompt)
-    expect(composer).toBe("")
-    expect(sent).toEqual([`\x1b[200~${paste}\x1b[201~`, submit])
+    expect(sent).toEqual([`\x1b[200~${paste}\x1b[201~`, "\r"])
     expect(result.delivered).toBe(true)
     expect(result).not.toHaveProperty("queued")
     expect(

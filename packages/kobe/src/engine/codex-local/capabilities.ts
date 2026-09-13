@@ -3,9 +3,8 @@ import { codexTerminalPresentation } from "./terminal-presentation"
 
 export const codexCapabilities: EngineCapabilities = {
   preparePromptSubmission: (prompt) => {
-    if (/^[\/!]/.test(prompt.trimStart())) return null
-    // A trailing space closes mention completion before Tab. Codex trims it on submission.
-    return { text: `${prompt} `, key: "\t" }
+    // Close mention completion before Enter. Codex trims the submitted text.
+    return { text: /^[\/!]/.test(prompt.trimStart()) ? prompt : `${prompt} `, key: "\r" }
   },
   terminalPresentation: codexTerminalPresentation,
   // Esc, same as claude — and for the same reason it is written down per

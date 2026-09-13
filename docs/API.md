@@ -592,11 +592,11 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   - `reason` — why nothing was confirmed. Present only with
     `engineReady: false`.
 
-  Ordinary text sent to Codex uses its Tab submission key: Codex submits it
-  when idle and queues it while working. This does not depend on a footer
-  redraw, which Windows ConPTY can omit. Inputs beginning with `/` or `!`
-  retain the command submission path. The live target engine determines the
-  key, including when a tab runs a different engine from its task's default.
+  Codex receives Enter, including while working, so the message follows its
+  immediate submission path. Its "tab to queue message" hint never switches
+  delivery to Tab, including on a delayed redraw. The live target engine
+  determines the key, including when a tab runs a different engine from its
+  task's default.
 
   A FRESH spawn carries the prompt on the engine's own command line, so there
   is no write to observe; `engineReady` there reports the engine PROCESS being

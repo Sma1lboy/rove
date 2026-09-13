@@ -2,4 +2,4 @@
 "@sma1lboy/rove": patch
 ---
 
-Submit ordinary Codex prompts with its Tab key, which submits while idle and queues while working. On Windows, `rove api send` could paste text but miss the unchanged queue hint in ConPTY's incremental output, leaving the prompt in the composer until someone pressed Tab. Use the live target engine's submission capability for API sends and routines, without adding process probes. Keep terminal cursor updates inside synchronized frames so an unfinished cursor-only redraw cannot publish a cursor on the wrong row.
+Send Codex prompts with Enter, including while it is working, instead of switching to Tab when its queue hint appears. API sends and routines use the live target engine's submission behavior so messages can steer the current turn without waiting in the queue. Keep terminal cursor updates inside synchronized frames so an unfinished cursor-only redraw cannot publish a cursor on the wrong row.
