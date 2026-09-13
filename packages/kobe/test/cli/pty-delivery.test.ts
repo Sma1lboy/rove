@@ -181,25 +181,38 @@ describe("deliverHostedPrompt", () => {
   it("delivers once when another caller wins the create race", async () => {
     const calls: Array<{ name: string; payload: unknown }> = []
     const engine = echoingPeek()
+    let opened = false
     const rpc = {
       request: async <T>(name: string, payload?: unknown): Promise<T> => {
         calls.push({ name, payload })
-        if (name === "pty.list") return { sessions: [] } as T
-        if (name === "pty.open") return { replay: "", alive: true, created: false } as T
+        if (name === "pty.list") return { sessions: opened ? [session("t1::tab-1", ["claude"])] : [] } as T
+        if (name === "pty.open") {
+          opened = true
+          return { replay: "", alive: true, created: false } as T
+        }
         if (name === "pty.peek") return engine.peek() as T
         if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")
         return {} as T
       },
     }
 
-    const result = await deliverHostedPrompt(rpc, { id: "t1", engineBin: "claude" }, "/wt/t1", "fix it", {
-      key: "t1::tab-1",
-      command: ["/bin/zsh", "-ilc", "claude 'fix it'"],
-    })
+    const result = await deliverHostedPrompt(
+      rpc,
+      { id: "t1", engineBin: "claude" },
+      "/wt/t1",
+      "fix it",
+      {
+        key: "t1::tab-1",
+        command: ["/bin/zsh", "-ilc", "claude 'fix it'"],
+      },
+      { snapshot: psWith("claude") },
+    )
 
     expect(calls.map((call) => call.name)).toEqual([
       "pty.list",
       "pty.open",
+      "pty.list",
+      "pty.peek",
       "pty.peek",
       "pty.peek",
       "pty.peek",

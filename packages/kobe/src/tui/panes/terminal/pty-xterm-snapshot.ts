@@ -73,6 +73,7 @@ export class XtermSnapshotEngine {
     previousCursor: CursorPos | null,
     previousWindow: TerminalSnapshotWindow | null,
   ): XtermSnapshotRefreshResult | null {
+    if (xtermSynchronizedOutput(term)) return null
     const active = term.buffer.active
     const styleRewrites = active.type === "alternate" ? this.alternateScreenStyleRewrites : undefined
     const cursorHidden = xtermCursorHidden(term)
@@ -108,7 +109,6 @@ export class XtermSnapshotEngine {
         changed: nextCursor !== previousCursor,
       }
     }
-    if (xtermSynchronizedOutput(term)) return null
     const alt = active.type === "alternate"
     const canAnchor = !alt && active.baseY > 0
     if (canAnchor && (this.anchor === undefined || this.anchor.isDisposed)) {

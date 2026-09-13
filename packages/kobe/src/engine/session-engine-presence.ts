@@ -1,4 +1,5 @@
-import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from "./foreground.ts"
+import type { VendorId } from "../types/vendor.ts"
+import { type PsSnapshot, engineProcessIn, foregroundEngineIn, parsePsSnapshot, psSnapshot } from "./foreground.ts"
 
 /**
  * What the process walk found: an engine, nothing, or no answer at all.
@@ -9,7 +10,9 @@ import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from ".
  * which is how `send` came to tell users "its engine exited into a plain
  * shell" about a tab whose engine was running fine.
  */
-export type EnginePresence = "engine" | "none" | "unknown"
+export type EnginePresence =
+  | { readonly kind: "engine"; readonly vendor: VendorId | null }
+  | { readonly kind: "none" | "unknown" }
 
 /**
  * Is an engine process running inside this hosted session's tree right now?
@@ -29,30 +32,13 @@ export async function enginePresence(
   extraLaunch?: string | readonly string[],
   snapshot: PsSnapshot = psSnapshot,
 ): Promise<EnginePresence> {
-  if (!pid) return "none"
+  if (!pid) return { kind: "none" }
   try {
-    return engineProcessIn(parsePsSnapshot(await snapshot([pid])), pid, extraLaunch) ? "engine" : "none"
+    const rows = parsePsSnapshot(await snapshot([pid]))
+    const engine = foregroundEngineIn(rows, pid)
+    if (engine) return { kind: "engine", vendor: engine.vendor }
+    return engineProcessIn(rows, pid, extraLaunch) ? { kind: "engine", vendor: null } : { kind: "none" }
   } catch {
-    return "unknown"
+    return { kind: "unknown" }
   }
-}
-
-/**
- * {@link enginePresence} collapsed for a GATE: only a positive walk licenses a
- * write, so both "none" and "unknown" refuse. Deliberate — a prompt pasted
- * into a bare shell is executed, and that must not happen because a probe
- * hiccupped.
- *
- * Callers that REPORT the verdict to a human must use {@link enginePresence}
- * instead and say which of the two it was. Readers (liveness, cleanup) must
- * use neither: `false` from a failed look would tell them a live task stopped.
- * They walk one shared snapshot with {@link engineProcessIn} and publish the
- * failure as `null` (see `cli/api/runtime.ts`'s `taskTabs`).
- */
-export async function sessionHasEngine(
-  pid: number | null | undefined,
-  extraLaunch?: string | readonly string[],
-  snapshot: PsSnapshot = psSnapshot,
-): Promise<boolean> {
-  return (await enginePresence(pid, extraLaunch, snapshot)) === "engine"
 }
