@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest"
 /**
  * `psSnapshot` used to await `ps` with no deadline and no kill. Every caller
  * wraps the probe in try/catch, which catches a THROW and never a hang, so a
@@ -8,15 +9,24 @@
  * readers already publish as such and reporting gates must not restate as
  * "no engine".
  */
-import { PS_PROBE_TIMEOUT_MS, type PsProcess, PsProbeUnavailableError, psSnapshotWith } from "../../src/engine/foreground.ts"
-import { enginePresence, sessionHasEngine } from "../../src/engine/session-engine-presence.ts"
-import { describe, expect, it } from "vitest"
+import {
+  PS_PROBE_TIMEOUT_MS,
+  PsProbeUnavailableError,
+  type PsProcess,
+  psSnapshotWith,
+} from "../../src/engine/foreground.ts"
+import { enginePresence } from "../../src/engine/session-engine-presence.ts"
 
 /** A `ps` that never exits — the failure the deadline exists for. */
 function neverExits(): { spawn: () => PsProcess; killed: () => number } {
   let kills = 0
   return {
-    spawn: () => ({ text: new Promise<string>(() => {}), kill: () => { kills++ } }),
+    spawn: () => ({
+      text: new Promise<string>(() => {}),
+      kill: () => {
+        kills++
+      },
+    }),
     killed: () => kills,
   }
 }
@@ -53,21 +63,21 @@ describe("engine presence when the probe cannot answer", () => {
   const hang = () => psSnapshotWith(neverExits().spawn, 100)
 
   it("reports unknown rather than inventing an absence", async () => {
-    expect(await enginePresence(200, undefined, hang)).toBe("unknown")
+    expect(await enginePresence(200, undefined, hang)).toEqual({ kind: "unknown" })
   })
 
   it("still walks to a real verdict when ps answers", async () => {
     const ok = async () => PS_LINE
-    expect(await enginePresence(100, undefined, ok)).toBe("engine")
-    expect(await enginePresence(999, undefined, ok)).toBe("none")
+    expect(await enginePresence(100, undefined, ok)).toEqual({ kind: "engine", vendor: "claude" })
+    expect(await enginePresence(999, undefined, ok)).toEqual({ kind: "none" })
     // No pid is an answer, not a failed look.
-    expect(await enginePresence(null, undefined, ok)).toBe("none")
+    expect(await enginePresence(null, undefined, ok)).toEqual({ kind: "none" })
   })
 
   it("keeps the write GATE closed on unknown — refusing is not the same as reporting", async () => {
-    // sessionHasEngine must stay false: a prompt pasted into a bare shell is
+    // An unknown probe cannot authorize delivery: a prompt pasted into a bare shell is
     // executed. The distinction is for what callers SAY, not what they allow.
-    expect(await sessionHasEngine(200, undefined, hang)).toBe(false)
+    expect((await enginePresence(200, undefined, hang)).kind).not.toBe("engine")
   })
 })
 
@@ -91,7 +101,7 @@ describe("a snapshot with no rows in it is a failed probe, not an empty machine"
   })
 
   it("travels to the reporting caller as unknown, not as an absence", async () => {
-    expect(await enginePresence(100, undefined, () => psSnapshotWith(empty(""), 150))).toBe("unknown")
+    expect(await enginePresence(100, undefined, () => psSnapshotWith(empty(""), 150))).toEqual({ kind: "unknown" })
   })
 
   it("leaves a healthy ps untouched — one row is already an answer", async () => {

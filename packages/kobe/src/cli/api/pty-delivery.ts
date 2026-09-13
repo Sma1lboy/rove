@@ -31,7 +31,6 @@ import {
   openHostedSessionHost,
   pastePromptWhenEngineUp,
   writeHostedPrompt,
-  writeHostedPromptIfLive,
 } from "../../engine/hosted-session.ts"
 import { enginePresence } from "../../engine/session-engine-presence.ts"
 import { type EngineSessionLaunch, initMarkerSaysFinished } from "../../engine/session-launch.ts"
@@ -89,8 +88,6 @@ export const listSessionsOrNull = listHostedSessionsOrNull
  * receive it.
  */
 export const deliverToKey = deliverToHostedKey
-
-const writePrompt = writeHostedPromptIfLive
 
 /**
  * How long a fresh argv-delivery spawn gets to put an engine in the process
@@ -164,7 +161,7 @@ export async function deliverHostedPrompt(
     // executes the prompt as shell commands. See {@link enginePresence}.
     const pid = sessions.find((s) => s.key === existingKey)?.pid
     const presence = await enginePresence(pid, target.engineBin, opts?.snapshot)
-    if (presence === "unknown") {
+    if (presence.kind === "unknown") {
       // Refuse, but do not claim the engine exited — we never got to look.
       throw new ApiError(
         `could not read the process table, so task ${target.id}'s engine tab (${existingKey}) could not be checked for a live engine`,
@@ -175,7 +172,7 @@ export async function deliverHostedPrompt(
         },
       )
     }
-    if (presence !== "engine") {
+    if (presence.kind !== "engine") {
       throw new ApiError(
         `task ${target.id}'s engine tab (${existingKey}) has no live engine process — its engine exited into a plain shell`,
         "ENGINE_NOT_RUNNING",
@@ -188,7 +185,7 @@ export async function deliverHostedPrompt(
     // No pty.detach: delivery peeks + writes without ever attaching, and a
     // detach from a never-attached client would clear a parked TUI's
     // exact-delta restore state as a side effect.
-    const outcome = await deliverToKey(rpc, existingKey, prompt)
+    const outcome = await deliverToKey(rpc, existingKey, prompt, { vendor: presence.vendor })
     return { session: existingKey, pane: existingKey, started: false, ...outcomeFields(outcome) }
   }
 
@@ -266,7 +263,9 @@ export async function deliverHostedPrompt(
     // prompt rode its argv), so pasting here would deliver it twice.
     const started = open.created !== false || open.respawned === true
     if (open.created === false && open.respawned !== true) {
-      const outcome = await writePrompt(rpc, launch.key, prompt)
+      const outcome = await pastePromptWhenEngineUp(rpc, launch.key, target.engineBin, prompt, {
+        snapshot: opts?.snapshot,
+      })
       return { session: launch.key, pane: launch.key, started, ...outcomeFields(outcome), ...disclose }
     }
     // OUR launch carried the prompt in its argv, so no paste happened here.

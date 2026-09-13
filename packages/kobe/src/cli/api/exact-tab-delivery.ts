@@ -19,6 +19,7 @@ import { awaitEngineProcess, hostedSessionFailureLine } from "../../engine/hoste
 import { enginePresence } from "../../engine/session-engine-presence.ts"
 import type { EngineSessionLaunch } from "../../engine/session-launch.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
+import type { VendorId } from "../../types/vendor.ts"
 import {
   ENGINE_NOT_OBSERVED_REASON,
   ENGINE_START_POLL_MS,
@@ -100,7 +101,7 @@ export async function deliverToExactTab(
           reason: (await hostedSessionFailureLine(rpc, key)) ?? ENGINE_NOT_OBSERVED_REASON,
         }
       }
-      return await deliverRespawned(rpc, key, prompt)
+      return await deliverRespawned(rpc, key, prompt, enginePid.vendor)
     }
     throw new ApiError(
       `tab ${tabId} has no live session on task ${taskId} — see \`rove api pty-list\` for alive tabs`,
@@ -112,7 +113,7 @@ export async function deliverToExactTab(
   // pasted into its shell. ANY running engine passes — the addressed tab's
   // engine need not match the task's vendor (cross-vendor send).
   const presence = await enginePresence(session.pid, opts?.engineBin, opts?.snapshot)
-  if (presence === "unknown") {
+  if (presence.kind === "unknown") {
     // Refuse, but do not claim the tab is a shell — we never got to look.
     throw new ApiError(
       `could not read the process table, so tab ${tabId} on task ${taskId} could not be checked for a live engine`,
@@ -123,7 +124,7 @@ export async function deliverToExactTab(
       },
     )
   }
-  if (presence !== "engine") {
+  if (presence.kind !== "engine") {
     throw new ApiError(
       `tab ${tabId} on task ${taskId} has no live engine process — it is a plain shell right now`,
       "ENGINE_NOT_RUNNING",
@@ -134,7 +135,7 @@ export async function deliverToExactTab(
     )
   }
   // No pty.detach — see deliverHostedPrompt's existing-key path.
-  const outcome = await deliverToKey(rpc, key, prompt)
+  const outcome = await deliverToKey(rpc, key, prompt, { vendor: presence.vendor })
   return { session: key, pane: key, started: false, ...outcomeFields(outcome) }
 }
 
@@ -143,8 +144,13 @@ export async function deliverToExactTab(
  * tell "reopened your frozen conversation" from "delivered into a session
  * already running".
  */
-async function deliverRespawned(rpc: PtyHostRpc, key: string, prompt: string): Promise<DeliveredPrompt> {
-  const outcome = await deliverToKey(rpc, key, prompt)
+async function deliverRespawned(
+  rpc: PtyHostRpc,
+  key: string,
+  prompt: string,
+  vendor: VendorId | null,
+): Promise<DeliveredPrompt> {
+  const outcome = await deliverToKey(rpc, key, prompt, { vendor })
   return { session: key, pane: key, started: false, respawned: true, ...outcomeFields(outcome) }
 }
 

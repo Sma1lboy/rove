@@ -15,7 +15,7 @@ import {
   openHostedSessionHost,
   pastePromptWhenEngineUp,
 } from "../engine/hosted-session.ts"
-import { sessionHasEngine } from "../engine/session-engine-presence.ts"
+import { enginePresence } from "../engine/session-engine-presence.ts"
 import { buildEngineSessionLaunch } from "../engine/session-launch.ts"
 import { trustEngineWorktree } from "../engine/trust-worktree.ts"
 import { TaskDeletingError } from "../orchestrator/errors.ts"
@@ -171,7 +171,7 @@ function taskEngineLaunch(task: SerializedTask, worktreePath: string, promptInte
  * matches the session's spawn argv, which keeps matching long after the
  * engine exited: keepAlive `exec`s a login shell in its place, the session
  * stays alive, and a paste into it is EXECUTED as shell commands in the
- * task's worktree. `sessionHasEngine` is the same gate `send` applies before
+ * task's worktree. `enginePresence` is the same gate `send` applies before
  * writing a byte (`cli/api/pty-delivery.ts`), and every path that writes
  * needs it — this one delivers unattended, on a timer.
  */
@@ -194,8 +194,9 @@ export async function deliverPromptToLiveEngineAdapter(
     })
     const key = findHostedEngineKey(sessions, task.id, engineArgv[0])
     if (!key) return false
-    if (!(await sessionHasEngine(sessions.find((s) => s.key === key)?.pid, engineArgv))) return false
-    return (await deliverToHostedKey(host.rpc, key, prompt)) !== null
+    const presence = await enginePresence(sessions.find((s) => s.key === key)?.pid, engineArgv)
+    if (presence.kind !== "engine") return false
+    return (await deliverToHostedKey(host.rpc, key, prompt, { vendor: presence.vendor })) !== null
   } catch {
     return false
   } finally {
@@ -240,10 +241,11 @@ export async function deliverPromptToLiveEngineDetailedAdapter(
     })
     const key = findHostedEngineKey(sessions, task.id, engineArgv[0])
     if (!key) return { outcome: "no-session" }
-    if (!(await sessionHasEngine(sessions.find((s) => s.key === key)?.pid, engineArgv))) {
+    const presence = await enginePresence(sessions.find((s) => s.key === key)?.pid, engineArgv)
+    if (presence.kind !== "engine") {
       return { outcome: "no-engine", tabId: tabIdFromHostedKey(key) }
     }
-    const delivered = await deliverToHostedKey(host.rpc, key, prompt)
+    const delivered = await deliverToHostedKey(host.rpc, key, prompt, { vendor: presence.vendor })
     return delivered === null ? { outcome: "no-session" } : { outcome: "delivered", tabId: tabIdFromHostedKey(key) }
   } catch {
     // A host that went away mid-delivery is indistinguishable from one that
@@ -283,8 +285,9 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
       command: target.command,
       vendor: target.vendor,
     })
-    if (!(await sessionHasEngine(session.pid, engineArgv))) return { outcome: "no-engine", tabId: target.tabId }
-    const delivered = await deliverToHostedKey(host.rpc, key, prompt)
+    const presence = await enginePresence(session.pid, engineArgv)
+    if (presence.kind !== "engine") return { outcome: "no-engine", tabId: target.tabId }
+    const delivered = await deliverToHostedKey(host.rpc, key, prompt, { vendor: presence.vendor })
     return delivered === null ? { outcome: "no-session" } : { outcome: "delivered", tabId: target.tabId }
   } finally {
     host.close()
