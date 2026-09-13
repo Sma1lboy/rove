@@ -283,6 +283,12 @@ function TerminalSession(props: TerminalProps) {
     unfocusedAttachmentTarget,
     inputModes: () => pty?.inputModes() ?? { applicationCursorKeys: false, applicationKeypad: false },
     write: (data) => {
+      if (process.platform === "win32" && data === "\x03" && selection.selection) {
+        selection.copySelection()
+        selection.endDragging()
+        selection.clearSelection()
+        return
+      }
       if (!pty || pty.killed) return
       pty.write(data)
       // Engine tabs feed the optimistic sidebar-activity overlay: the

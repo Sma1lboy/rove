@@ -343,6 +343,11 @@ as they do in any terminal, and Rove paints nothing over them. Launching such
 an app clears a selection Rove was still showing. Hold `shift` while dragging
 to select out of a mouse-aware app anyway, the way iTerm2 and kitty do.
 
+On Windows, `ctrl+c` copies a Rove selection and clears its highlight without
+interrupting the embedded app. With no Rove selection, `ctrl+c` reaches the
+app normally. A selection owned by the embedded app still uses that app's
+copy behavior.
+
 The optional horizontal tab strip can be always visible, visible only for
 multiple tabs, or hidden. The sidebar tree still lists every tab in all three
 modes. Persistence and process-lifetime details live in
