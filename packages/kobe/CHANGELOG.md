@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.194
+
+### Patch Changes
+
+- [#1000](https://github.com/Sma1lboy/rove/pull/1000) [`f54b39f`](https://github.com/Sma1lboy/rove/commit/f54b39fa35240a33d88ee54053e4da84fc60f1d4) Keep the input cursor stable on Windows when ConPTY briefly reports the Working or transcript row at the end of a synchronized update. Preserve the previous cursor only while its row is unchanged, keep text painting immediately, and allow genuine cursor moves to settle even when output stops. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.193
 
 ### Patch Changes
