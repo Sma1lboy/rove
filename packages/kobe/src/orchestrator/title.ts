@@ -15,13 +15,13 @@ export const PLACEHOLDER_TASK_TITLE = "(new task)"
  * Flatten a title to one trimmed line. Called at both orchestrator entry
  * points (`createTask`, `setTitle`) so RPC titles are covered too.
  * `lib/display-width.ts` measures every codepoint below `0x20` as zero cells,
- * so a newline slips past the truncator and blows the sidebar row open; all C0
- * controls (incl. raw `\x1b`) share that problem. Runs collapse to one space
- * so `"line1\nline2"` stays two words.
+ * so a newline slips past the truncator and blows the sidebar row open; all C0,
+ * DEL and C1 controls (incl. raw `\x1b`, 8-bit `\x9b`) share that problem.
+ * Runs collapse to one space so `"line1\nline2"` stays two words.
  */
 export function sanitizeTaskTitle(title: string): string {
   // biome-ignore lint/suspicious/noControlCharactersInRegex: these bytes are exactly what the sidebar cannot render.
-  return title.replace(/[\u0000-\u0020\u007f]+/g, " ").trim()
+  return title.replace(/[\u0000-\u0020\u007f-\u009f]+/g, " ").trim()
 }
 
 /**

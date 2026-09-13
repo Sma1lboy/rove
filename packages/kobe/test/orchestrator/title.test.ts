@@ -70,6 +70,12 @@ describe("sanitizeTaskTitle", () => {
     expect(sanitizeTaskTitle("a\u0000b")).toBe("a b")
   })
 
+  it("strips C1 controls too, which display-width scores as zero like C0", () => {
+    expect(sanitizeTaskTitle("a\u009bb")).toBe("a b")
+    expect(sanitizeTaskTitle("a\u0085b")).toBe("a b")
+    expect(sanitizeTaskTitle("a\u0080\u009fb")).toBe("a b")
+  })
+
   it("leaves an ordinary title — including a non-Latin one — byte-for-byte alone", () => {
     expect(sanitizeTaskTitle("fix the login flow")).toBe("fix the login flow")
     expect(sanitizeTaskTitle("修复中文标题的分支推导")).toBe("修复中文标题的分支推导")
