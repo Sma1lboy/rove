@@ -6,7 +6,7 @@ import {
   parseTerminalDefaultColors,
 } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
 import type { Terminal as XtermHeadless } from "@xterm/headless"
-import type { TerminalRow } from "./pty-types"
+import type { CursorPos, TerminalRow } from "./pty-types"
 import { type XtermLineLike, xtermLineMatchesChunks } from "./xterm-chunks"
 
 /**
@@ -66,9 +66,18 @@ type ActiveBufferLike = {
 export class XtermRefreshTracker {
   private dirty: DirtyRows | null = null
   private readonly subscription: Disposable | null
+  private readonly synchronizedCursorSubscription: Disposable
+  private lastSynchronizedCursor: CursorPos | null = null
   readonly supported: boolean
 
   constructor(term: XtermHeadless) {
+    this.synchronizedCursorSubscription = term.parser.registerCsiHandler({ prefix: "?", final: "l" }, (params) => {
+      if (params.includes(2026)) {
+        const active = term.buffer.active
+        this.lastSynchronizedCursor = { x: active.cursorX, y: active.baseY + active.cursorY }
+      }
+      return false
+    })
     const event = (
       term as unknown as {
         _core?: {
@@ -101,6 +110,10 @@ export class XtermRefreshTracker {
     this.dirty = { kind: "all" }
   }
 
+  get synchronizedCursor(): CursorPos | null {
+    return this.lastSynchronizedCursor
+  }
+
   peek(): DirtyRows | null {
     return this.dirty
   }
@@ -111,6 +124,7 @@ export class XtermRefreshTracker {
 
   dispose(): void {
     this.subscription?.dispose()
+    this.synchronizedCursorSubscription.dispose()
   }
 }
 
