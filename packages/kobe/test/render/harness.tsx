@@ -56,6 +56,7 @@ export interface ProviderFlags {
 }
 
 export interface RenderOptions {
+  exitOnCtrlC?: boolean
   width?: number
   height?: number
   providers?: ProviderFlags
@@ -243,6 +244,7 @@ export async function renderComponent(ui: ReactNode, options: RenderOptions = {}
   const { renderer, mockInput, mockMouse, flush, captureCharFrame, captureSpans, resize } = await testRender(wrapped, {
     width,
     height,
+    exitOnCtrlC: options.exitOnCtrlC,
   })
   liveRenderers.add(renderer)
   await flush()
