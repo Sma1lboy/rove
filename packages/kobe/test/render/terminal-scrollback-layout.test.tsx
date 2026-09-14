@@ -47,6 +47,47 @@ test("entering scrollback does not resize the child PTY", async () => {
   }
 })
 
+test("scrollback buttons jump across a thousand lines and resume following without sending input", async () => {
+  const { handle, harness } = await mountTerminal()
+  try {
+    const pty = harness.last()
+    await act(async () => {
+      pty.feed(Array.from({ length: 1200 }, (_, index) => `line-${index + 1}`).join("\r\n"))
+      await handle.frame()
+    })
+    await act(async () => {
+      await handle.mockMouse.scroll(20, 8, "up")
+      await handle.frame()
+    })
+    const geometry = pty.geometry
+    const writes = [...pty.writeLog]
+    const clickLabel = async (label: string): Promise<void> => {
+      const rows = (await handle.frame()).split("\n")
+      const y = rows.findIndex((row) => row.includes(label))
+      expect(y).toBeGreaterThanOrEqual(0)
+      await act(async () => {
+        await handle.mockMouse.click(rows[y].indexOf(label) + 1, y)
+        await handle.frame()
+      })
+    }
+    await clickLabel("[first]")
+    expect(await handle.frame()).toContain("line-1 ")
+    expect(await handle.frame()).not.toContain("line-1200")
+    await clickLabel("[latest]")
+    expect(await handle.frame()).toContain("line-1200")
+    expect(await handle.frame()).not.toContain("scrolled")
+    await act(async () => {
+      pty.feed("\r\nline-1201")
+      await handle.frame()
+    })
+    expect(await handle.frame()).toContain("line-1201")
+    expect(pty.geometry).toEqual(geometry)
+    expect(pty.writeLog).toEqual(writes)
+  } finally {
+    handle.destroy()
+  }
+})
+
 test("scrolled-back hint keeps an opaque readable background in transparent mode", async () => {
   // The hint is an overlay you must READ ("scrolled N lines — ctrl+pgdn to
   // follow") sitting on top of live terminal output. `backgroundPanel` is
