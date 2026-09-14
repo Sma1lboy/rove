@@ -156,3 +156,14 @@ h1 .acc{font-weight:400;color:var(--ink-2)}
   .head nav{gap:12px}
   .lead-line{font-size:14px}
 }
+
+/* The command is the same for all ten; only the filename changes. Stating it
+   once above the grid lets each card carry just its own filename instead of
+   ten near-identical lines competing for the same attention. */
+.cmd-template{
+  display:flex;gap:7px;align-items:baseline;margin:0 0 14px;padding:8px 10px;
+  border:1px solid var(--rule);font-size:12.5px;color:var(--ink-2);
+  overflow-wrap:anywhere;
+}
+.cmd-template .ps{color:var(--ink-3);flex:none}
+.cmd-template b{color:var(--accent-text);font-weight:400}

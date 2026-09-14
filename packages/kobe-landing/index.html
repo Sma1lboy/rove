@@ -24,6 +24,34 @@
 <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/blueprint.css">
 <style>
+/* A figure that needs the whole sheet. The drawn TUI is authored at 1 unit =
+   1 CSS pixel so its lettering lands at true size — the rail is the one part of
+   a terminal sparse enough to stay legible at 1:2, and it is the part that
+   carries the state. */
+.fig-sheet{max-width:1200px}
+.fig-sheet svg{width:100%;height:auto}
+.tui text{fill:var(--ink-2)}
+.tui .real,.tui .rail-n{fill:var(--ink)}
+.tui .rail-repo,.tui .rail-s{fill:var(--ink-3)}
+.tui .pane-tag{fill:var(--ink-3);letter-spacing:.08em}
+/* Syntax colour is deleted, but its second job is not: state keeps an ink of
+   its own. On a monochrome sheet one terracotta line is louder than a whole
+   palette is inside a screenshot. */
+.tui .rail-a,.tui .det-a{fill:var(--accent-text)}
+.tui #tkMark{transition:y .28s cubic-bezier(.22,.61,.36,1)}
+.tui .detail-g{transition:transform .28s cubic-bezier(.22,.61,.36,1)}
+.tui .tk{cursor:pointer}
+.tui .tk:hover .rail-n{fill:var(--accent-text)}
+.tui .tk:focus-visible .hit{fill:var(--accent-line);fill-opacity:.12}
+.tui .det-n{font-size:26px;fill:var(--ink)}
+.tui .det-a,.tui .det-d{font-size:26px}
+.tui .det-g{font-size:26px;fill:var(--accent-text)}
+.tui .det-s{font-size:17px;fill:var(--ink-3)}
+@media (prefers-reduced-motion:reduce){
+  .tui #tkMark,.tui .detail-g{transition:none}
+}
+</style>
+<style>
 /* Page-local only. Three things the shared sheet CSS has no opinion on yet;
    all three are candidates for promotion into blueprint.css. */
 
@@ -172,6 +200,46 @@
 </script>
 <script src="/index.js" defer></script>
 <script src="/blueprint-idle.js" defer></script>
+<script>
+/* Picking a task moves one accent rectangle and slides Detail A to the row it
+   enlarges. Everything it swaps already lives on the row as data-*, so the
+   figure stays the single source for what it shows. */
+(function () {
+  function wire() {
+    var rows = [].slice.call(document.querySelectorAll('.tui .tk'));
+    if (!rows.length) return;
+    var mark = document.getElementById('tkMark');
+    var det  = document.getElementById('detG');
+    var base = null;
+    function pick(g) {
+      var r = g.querySelector('.hit');
+      var y = +r.getAttribute('y');
+      if (base === null) base = y;
+      mark.setAttribute('y', y);
+      det.setAttribute('transform', 'translate(0 ' + (y - base) + ')');
+      var d = g.dataset;
+      document.getElementById('tagA').textContent = d.eng;
+      document.getElementById('tagB').textContent = d.tab2;
+      document.getElementById('scopeTx').textContent = 'SCOPE: ' + d.scope.toUpperCase();
+      document.getElementById('dN').textContent = d.name;
+      document.getElementById('dA').textContent = d.add;
+      document.getElementById('dD').textContent = d.del;
+      document.getElementById('dG').textContent = d.glyph;
+      document.getElementById('dS').textContent = d.sub;
+      rows.forEach(function (o) { o.setAttribute('aria-pressed', String(o === g)); });
+    }
+    rows.forEach(function (g) {
+      g.addEventListener('click', function () { pick(g); });
+      g.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(g); }
+      });
+    });
+    pick(rows[0]);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+  else wire();
+})();
+</script>
 </head>
 <body>
 <a class="skip" href="#main" data-i18n="sheet.skip">Skip to drawing</a>
@@ -207,11 +275,10 @@
       <svg viewBox="0 0 64 64" width="28" height="28" aria-hidden="true" class="mark"><rect x="1" y="1" width="62" height="62" rx="13"/><path d="M19 13H12V51h7" stroke-width="7"/><path d="M12 13V51" stroke-width="4"/><g transform="translate(19.811 45) scale(.01745 -.01745)"><path class="r" d="M111 0H419V521H689C690 521 691 521 692 521L956 0H1286L987 579C1154 656 1253 804 1253 1001C1253 1301 1043 1490 707 1490H111ZM419 768V1234H688C851 1234 952 1143 952 1001C952 859 851 768 689 768Z"/></g><path d="M45 13h7V51h-7" stroke-width="7"/><path d="M52 13V51" stroke-width="4"/></svg>
       <span class="wm">Rove</span>
     </a>
-    <span class="stamp">Rev 0.9.192 · <span data-i18n="sheet.stamp">Sheet 1 of 4</span></span>
+    <span class="stamp">Rev 0.9.198 · <span data-i18n="sheet.stamp">Sheet 1 of 4</span></span>
     <span class="spacer"></span>
     <nav aria-label="Primary">
       <a href="https://docs.rove.run" data-i18n="sheet.nav.docs">Docs</a>
-      <a href="/" aria-current="page" style="border-bottom-color:transparent" data-i18n="sheet.nav.assembly">Assembly</a>
       <a href="/plugins" data-i18n="sheet.nav.plugins">Plugins</a>
       <a href="/themes" data-i18n="sheet.nav.themes">Themes</a>
       <a href="/changelog" data-i18n="sheet.nav.changelog">Changelog</a>
@@ -237,11 +304,12 @@
             <span class="hint" id="copyLabel" aria-live="polite">click to copy</span>
           </button>
         </div>
-        <div class="alts">
-          <button class="alt" type="button" data-cmd="npm install -g @sma1lboy/rove">npm install -g @sma1lboy/rove</button>
-          <button class="alt" type="button" data-cmd="bun install -g @sma1lboy/rove">bun install -g @sma1lboy/rove</button>
-          <button class="alt" type="button" data-cmd="npx @sma1lboy/rove">npx @sma1lboy/rove</button>
-        </div>
+        <p class="alts">
+          <span data-i18n="hero.alts">or with</span>
+          <button class="alt" type="button" data-cmd="npm install -g @sma1lboy/rove" title="npm install -g @sma1lboy/rove">npm</button>
+          <button class="alt" type="button" data-cmd="bun install -g @sma1lboy/rove" title="bun install -g @sma1lboy/rove">bun</button>
+          <button class="alt" type="button" data-cmd="npx @sma1lboy/rove" title="npx @sma1lboy/rove">npx</button>
+        </p>
         <p class="platform" data-i18n="hero.requirements">macOS · Linux · Windows — ships its own Bun runtime. Needs git and one engine CLI on PATH.</p>
       </div>
     </div>
@@ -272,8 +340,136 @@
   </section>
 
   <!-- ══ NOTE 1 — GENERAL ASSEMBLY ═══════════════════════════════════════ -->
-  <section class="note" data-zone="B" id="workflow">
-    <h2><span class="num" data-i18n="ga.note1">Note 1</span> — <span data-i18n="ga.n1.h">General assembly</span> <span class="dash"></span> <span class="micro" data-i18n="ga.fig1">Fig. 1</span></h2>
+  <section class="note wide" data-zone="B">
+    <h2><span class="num" data-i18n="ga.note1">Note 1</span> &mdash; <span data-i18n="ga.n5.h">Physical view</span> <span class="dash"></span> <span class="micro" data-i18n="ga.fig1">Fig. 1</span></h2>
+
+    <div class="fig-col">
+      <figure class="fig fig-sheet" data-draw>
+        <svg class="tui" viewBox="0 0 1200 842" role="img"
+        aria-label="Physical view: the Rove terminal drawn to scale, with detail A enlarged">
+
+        <!-- ── enclosure ─────────────────────────────────────────────── -->
+        <rect class="v" x="1" y="1" width="1198" height="598"/>
+        <line class="thin" x1="1" y1="41" x2="1199" y2="41"/>
+        <line class="thin" x1="1" y1="557" x2="1199" y2="557"/>
+        <text class="tx-s" x="18" y="28">ROVE</text>
+        <text class="tx-m" x="86" y="28">3 PROJECTS · 4 TASKS · NONE ATTACHED</text>
+
+        <!-- ── column divisions, centre lines, dimension chain ───────── -->
+        <line class="ctr" x1="280" y1="41" x2="280" y2="557"/>
+        <line class="ctr" x1="880" y1="41" x2="880" y2="557"/>
+        <line class="dim" x1="1" y1="620" x2="280" y2="620"/>
+        <line class="dim" x1="280" y1="620" x2="880" y2="620"/>
+        <line class="dim" x1="880" y1="620" x2="1199" y2="620"/>
+        <g class="dim">
+          <line x1="1" y1="612" x2="1" y2="628"/><line x1="280" y1="612" x2="280" y2="628"/>
+          <line x1="880" y1="612" x2="880" y2="628"/><line x1="1199" y1="612" x2="1199" y2="628"/>
+        </g>
+        <text class="dimtx" x="140" y="614" text-anchor="middle">28 COLS</text>
+        <text class="dimtx" x="580" y="614" text-anchor="middle">52 COLS</text>
+        <text class="dimtx" x="1040" y="614" text-anchor="middle">20 COLS</text>
+
+        <!-- ── task rail: drawn at true size, it is the low-density part ─ -->
+        <text class="tx-s" x="18" y="70">Tasks</text>
+        <line class="thin" x1="18" y1="80" x2="262" y2="80"/>
+        <text class="tx-m rail-repo" x="26" y="108">rove</text>
+        <text class="tx-m rail-repo" x="26" y="128" opacity=".55">ledger-api · storefront</text>
+        <g id="tkRows">
+        <g class="tk" data-i="0" data-eng="claude" data-tab2="bun dev" data-scope="vs main" data-name="streaming-diff" data-add="+142" data-del="−31" data-glyph="⋮" data-sub="Stream the diff pane" tabindex="0" role="button" aria-label="Task streaming-diff"><rect class="hit" x="14" y="137" width="252" height="40" fill="transparent"/><text class="tx-m rail-n" x="26" y="152">streaming-diff</text><text class="tx-m rail-a" x="196" y="152">+142</text><text class="tx-m rail-d" x="236" y="152">−31</text><text class="tx-m rail-s" x="26" y="169">⋮ Stream the diff pane</text></g>
+        <g class="tk" data-i="1" data-eng="codex" data-tab2="pytest" data-scope="working tree" data-name="oauth-refresh" data-add="+88" data-del="−54" data-glyph="●" data-sub="Refresh before 401" tabindex="0" role="button" aria-label="Task oauth-refresh"><rect class="hit" x="14" y="185" width="252" height="40" fill="transparent"/><text class="tx-m rail-n" x="26" y="200">oauth-refresh</text><text class="tx-m rail-a" x="196" y="200">+88</text><text class="tx-m rail-d" x="236" y="200">−54</text><text class="tx-m rail-s" x="26" y="217">● Refresh before 401</text></g>
+        <g class="tk" data-i="2" data-eng="copilot" data-tab2="psql" data-scope="vs main" data-name="ledger-migration" data-add="+34" data-del="−6" data-glyph="?" data-sub="Backfill the ledger" tabindex="0" role="button" aria-label="Task ledger-migration"><rect class="hit" x="14" y="233" width="252" height="40" fill="transparent"/><text class="tx-m rail-n" x="26" y="248">ledger-migration</text><text class="tx-m rail-a" x="196" y="248">+34</text><text class="tx-m rail-d" x="236" y="248">−6</text><text class="tx-m rail-s" x="26" y="265">? Backfill the ledger</text></g>
+        <g class="tk" data-i="3" data-eng="kimi" data-tab2="git" data-scope="vs release/24.8" data-name="flaky-e2e" data-add="+21" data-del="−34" data-glyph="○" data-sub="Why checkout flakes" tabindex="0" role="button" aria-label="Task flaky-e2e"><rect class="hit" x="14" y="281" width="252" height="40" fill="transparent"/><text class="tx-m rail-n" x="26" y="296">flaky-e2e</text><text class="tx-m rail-a" x="196" y="296">+21</text><text class="tx-m rail-d" x="236" y="296">−34</text><text class="tx-m rail-s" x="26" y="313">○ Why checkout flakes</text></g>
+        </g>
+        <rect id="tkMark" class="acc" x="14" y="137" width="252" height="40" fill="none"/>
+
+        <!-- ── engine pane: three real lines, then conventional ruling ── -->
+        <text class="tx-m pane-tag" id="tagA" x="864" y="70" text-anchor="end">claude</text>
+        <text class="tx-m" x="300" y="72">›</text>
+        <text class="tx-m real" x="322" y="72">stream the diff pane instead of buffering</text>
+        <text class="tx-m" x="300" y="106">●</text>
+        <text class="tx-m real" x="322" y="106">I’ll parse git diff as a line stream, push</text>
+        <text class="tx-m real" x="322" y="126">hunks to the pane as they land.</text>
+        <line class="thin" x1="322" y1="162" x2="800" y2="162"/>
+        <line class="thin" x1="322" y1="179" x2="639" y2="179"/>
+        <line class="thin" x1="322" y1="196" x2="727" y2="196"/>
+        <line class="thin" x1="322" y1="213" x2="556" y2="213"/>
+        <line class="thin" x1="322" y1="230" x2="769" y2="230"/>
+        <line class="thin" x1="322" y1="247" x2="608" y2="247"/>
+        <line class="thin" x1="322" y1="264" x2="686" y2="264"/>
+        <line class="thin" x1="322" y1="281" x2="519" y2="281"/>
+        <line class="thin" x1="322" y1="298" x2="743" y2="298"/>
+        <line class="thin" x1="322" y1="315" x2="582" y2="315"/>
+        <line class="thin" x1="322" y1="332" x2="665" y2="332"/>
+        <line class="thin" x1="322" y1="349" x2="545" y2="349"/>
+        <line class="thin" x1="322" y1="366" x2="800" y2="366"/>
+        <line class="thin" x1="322" y1="383" x2="639" y2="383"/>
+        <line class="thin" x1="322" y1="400" x2="727" y2="400"/>
+        <line class="thin" x1="322" y1="417" x2="556" y2="417"/>
+        <text class="tx-m" x="322" y="452">⋯</text>
+        <text class="dimtx" x="322" y="486">≈ 40 LINES — NOT SHOWN</text>
+        <line class="thin" x1="300" y1="516" x2="860" y2="516"/>
+        <text class="tx-m" x="300" y="540">›</text>
+        <rect class="accf" x="322" y="529" width="9" height="15"/>
+
+        <!-- ── second tab: same convention ────────────────────────────── -->
+        <text class="tx-m pane-tag" id="tagB" x="1182" y="70" text-anchor="end">bun dev</text>
+        <text class="tx-m real" x="900" y="106">$ bun run dev</text>
+        <text class="tx-m real" x="900" y="140">ready in 341 ms</text>
+        <line class="thin" x1="900" y1="176" x2="1048" y2="176"/>
+        <line class="thin" x1="900" y1="193" x2="1089" y2="193"/>
+        <line class="thin" x1="900" y1="210" x2="1002" y2="210"/>
+        <line class="thin" x1="900" y1="227" x2="1118" y2="227"/>
+        <line class="thin" x1="900" y1="244" x2="1035" y2="244"/>
+        <line class="thin" x1="900" y1="261" x2="1078" y2="261"/>
+        <line class="thin" x1="900" y1="278" x2="1016" y2="278"/>
+        <line class="thin" x1="900" y1="295" x2="1148" y2="295"/>
+        <line class="thin" x1="900" y1="312" x2="1064" y2="312"/>
+        <text class="tx-m" x="900" y="348">⋯</text>
+        <text class="dimtx" x="900" y="382">≈ 20 LINES</text>
+        <text class="dimtx" id="scopeTx" x="900" y="424">SCOPE: VS MAIN</text>
+
+        <!-- ── status bar ─────────────────────────────────────────────── -->
+        <text class="tx-m" x="18" y="583">CLAUDE 5h 42% → 14:00 · 7d 12%</text>
+        <text class="tx-m" x="1182" y="583" text-anchor="end">^A commands · F1 help</text>
+
+        <!-- ── DETAIL A — the same row at twice size ──────────────────── -->
+        <g id="detG" class="detail-g">
+          <circle class="thin" cx="140" cy="155" r="34" fill="none"
+                  stroke-dasharray="150 46" transform="rotate(-38 140 155)"/>
+        </g>
+
+        <line class="thin" x1="1" y1="668" x2="1199" y2="668"/>
+        <text class="tx-s" x="1" y="660">Detail A &#183; scale 2:1</text>
+        <g id="detRow">
+          <text class="tx-m det-g"  id="dG" x="10"  y="716">⋮</text>
+          <text class="tx-m det-n"  id="dN" x="52"  y="716">streaming-diff</text>
+          <text class="tx-m det-a"  id="dA" x="392" y="716">+142</text>
+          <text class="tx-m det-d"  id="dD" x="474" y="716">−31</text>
+          <text class="tx-m det-s"  id="dS" x="52"  y="752">Stream the diff pane</text>
+        </g>
+        <g class="balloons">
+          <path class="dim" d="M27 762 L27 792"/><circle class="thin" cx="27" cy="806" r="13" fill="none"/>
+          <text class="dimtx" x="27" y="811" text-anchor="middle">1</text>
+          <path class="dim" d="M130 762 L130 792"/><circle class="thin" cx="130" cy="806" r="13" fill="none"/>
+          <text class="dimtx" x="130" y="811" text-anchor="middle">2</text>
+          <path class="dim" d="M456 762 L456 792"/><circle class="thin" cx="456" cy="806" r="13" fill="none"/>
+          <text class="dimtx" x="456" y="811" text-anchor="middle">3</text>
+        </g>
+        <text class="dimtx" x="560" y="800">1 STATE GLYPH &#183; 2 BRANCH &#183; 3 FILES CHANGED / DELETED</text>
+        <text class="dimtx" x="560" y="822">EVERY GLYPH IS ONE THE SIDEBAR REALLY DRAWS &#8212; SEE NOTE 5</text>
+      </svg>
+        <figcaption data-i18n="ga.fig5cap">Fig. 1 — Physical view · scale 1:2 · Detail A 2:1</figcaption>
+      </figure>
+    </div>
+
+    <div class="txt-col">
+      <p data-i18n-html="ga.n5.p1">The whole product, running. The notes below take it apart.</p>
+      <p data-i18n-html="ga.n5.p3">Every glyph is one the sidebar really draws; every engine name ships. The full schedule is in the <a href="https://docs.rove.run">docs</a>.</p>
+    </div>
+  </section>
+
+    <section class="note" data-zone="C" id="workflow">
+    <h2><span class="num" data-i18n="ga.note2">Note 2</span> — <span data-i18n="ga.n1.h">General assembly</span> <span class="dash"></span> <span class="micro" data-i18n="ga.fig2">Fig. 2</span></h2>
 
     <div class="fig-col">
       <figure class="fig fig-1">
@@ -382,15 +578,13 @@
       <p class="t-note" data-i18n="ga.n1.tnote">Project-main tasks reuse a saved checkout and directory tasks reuse a directory you own; neither is supplied with items 1 and 2.</p>
       <ol class="gnotes">
         <li data-i18n="ga.n1.g1">All three parts are created when the task is made. Nothing is allocated later.</li>
-        <li data-i18n="ga.n1.g2">Losing branches are not deleted. They stay on disk after the winner is landed.</li>
-        <li data-i18n="ga.n1.g3">Quitting the TUI detaches; it does not stop the parts. See Note 4.</li>
       </ol>
     </div>
   </section>
 
   <!-- ══ NOTE 2 — ISOLATION ══════════════════════════════════════════════ -->
-  <section class="note" data-zone="C">
-    <h2><span class="num" data-i18n="ga.note2">Note 2</span> — <span data-i18n="ga.n2.h">Isolation</span> <span class="dash"></span> <span class="micro" data-i18n="ga.fig2">Fig. 2</span></h2>
+  <section class="note" data-zone="D">
+    <h2><span class="num" data-i18n="ga.note3">Note 3</span> — <span data-i18n="ga.n2.h">Isolation</span> <span class="dash"></span> <span class="micro" data-i18n="ga.fig3">Fig. 3</span></h2>
 
     <div class="fig-col">
       <figure class="fig fig-wide">
@@ -442,8 +636,8 @@
   </section>
 
   <!-- ══ NOTE 3 — FAN OUT ════════════════════════════════════════════════ -->
-  <section class="note" data-zone="D">
-    <h2><span class="num" data-i18n="ga.note3">Note 3</span> — <span data-i18n="ga.n3.h">Fan out, fan in</span> <span class="dash"></span> <span class="micro" data-i18n="ga.fig3">Fig. 3</span></h2>
+  <section class="note" data-zone="E">
+    <h2><span class="num" data-i18n="ga.note4">Note 4</span> — <span data-i18n="ga.n3.h">Fan out, fan in</span> <span class="dash"></span> <span class="micro" data-i18n="ga.fig4">Fig. 4</span></h2>
 
     <div class="fig-col">
       <figure class="fig fig-wide">
@@ -510,8 +704,8 @@
   </section>
 
   <!-- ══ NOTE 4 — CONTINUOUS OPERATION ═══════════════════════════════════ -->
-  <section class="note" data-zone="E">
-    <h2><span class="num" data-i18n="ga.note4">Note 4</span> — <span data-i18n="ga.n4.h">Continuous operation</span> <span class="dash"></span> <span class="micro" data-i18n="ga.fig4">Fig. 4</span></h2>
+  <section class="note" data-zone="F">
+    <h2><span class="num" data-i18n="ga.note5">Note 5</span> — <span data-i18n="ga.n4.h">Continuous operation</span> <span class="dash"></span> <span class="micro" data-i18n="ga.fig5">Fig. 5</span></h2>
 
     <div class="fig-col">
       <figure class="fig fig-wide">
@@ -568,77 +762,11 @@
     <div class="txt-col">
       <p data-i18n="ga.n4.p1">The engines run in PTYs hosted by the daemon, not by your terminal. Quitting the TUI only detaches. Drop the SSH connection, close the lid, reboot — the work keeps going, and the screens come back on attach with up to 64 MB of scrollback restored, newest first.</p>
       <p data-i18n-html="ga.n4.p2"><b>Machines.</b> <span class="mono">rove machine add narwhal</span> registers another computer. Its tasks appear in the same sidebar under a row of their own — no ports opened, no new auth, SSH just forwards the remote daemon's unix socket. Every machine is connected at once.</p>
-      <p data-i18n-html="ga.n4.p3"><b>Routines.</b> A cron rule, a prompt, and a repo, owned by the daemon. Every firing creates a real task in the sidebar with its own worktree and branch — work you can open, read, disagree with, and keep talking to. Not a hidden background job.</p>
-      <p data-i18n-html="ga.n4.p4"><b>Inbox.</b> One list answering <em>what needs me?</em> Blocked items first — permission prompt, rate limit, error, dead engine — then plain finished turns. <span class="mono">F7</span> jumps to the oldest blocked one across every project.</p>
     </div>
   </section>
 
   <!-- ══ NOTE 5 — SYMBOL LEGEND ══════════════════════════════════════════ -->
-  <section class="note" data-zone="F">
-    <h2><span class="num" data-i18n="ga.note5">Note 5</span> — <span data-i18n="ga.n5.h">Symbol legend</span> <span class="dash"></span> <span class="micro" data-i18n="ga.n5.sub">Sidebar status marks</span></h2>
-
-    <div class="fig-col">
-      <div class="legend" data-measure="8 SIDEBAR MARKS">
-        <div><span class="g">▴</span><span class="m" data-i18n-html="ga.lg1"><b>Pinned</b> — kept at the top of the list</span></div>
-        <div><span class="g">+4 −1</span><span class="m" data-i18n-html="ga.lg2"><b>Changed / deleted</b> files in the worktree</span></div>
-        <div><span class="g">↑2 ↓1</span><span class="m" data-i18n-html="ga.lg3"><b>Commits</b> ahead of / behind base</span></div>
-        <div><span class="g">✓ ✗ ≠</span><span class="m" data-i18n-html="ga.lg4"><b>PR checks</b> passing / failing / conflicted</span></div>
-        <div><span class="g">◷</span><span class="m" data-i18n-html="ga.lg5"><b>Rate limited</b> — the engine is waiting on quota</span></div>
-        <div><span class="g">†</span><span class="m" data-i18n-html="ga.lg6"><b>Engine exited</b> — the process is gone</span></div>
-        <div><span class="g">?</span><span class="m" data-i18n-html="ga.lg7"><b>Needs input</b> — it is asking you something</span></div>
-        <div><span class="g">●</span><span class="m" data-i18n-html="ga.lg8"><b>Running</b> — a turn is in flight</span></div>
-      </div>
-    </div>
-
-    <div class="txt-col">
-      <p data-i18n="ga.n5.p1">These are the real glyphs the sidebar draws. They are the reason the TUI stays one screen: the state of every task on every machine is legible at a glance, in a column about twelve characters wide.</p>
-      <p data-i18n-html="ga.n5.p2">Four of them — <span class="mono">?</span>, <span class="mono">◷</span>, <span class="mono">†</span>, and a failed check — are what the Inbox sorts to the top. Those are the ones that stop being work and start being <em>your</em> work.</p>
-    </div>
-  </section>
-
-  <!-- ══ NOTE 6 — SCHEDULE OF ENGINES ════════════════════════════════════ -->
-  <section class="note" data-zone="G">
-    <h2><span class="num" data-i18n="ga.note6">Note 6</span> — <span data-i18n="ga.n6.h">Schedule of engines</span> <span class="dash"></span> <span class="micro" data-i18n="ga.n6.sub">12 supported</span></h2>
-
-    <div class="fig-col">
-      <div class="t-scroll">
-        <table data-measure="12 ENGINES">
-          <caption data-i18n="ga.n6.tcap">Schedule — engines and supplied support</caption>
-          <thead>
-            <tr>
-              <th data-i18n="ga.n6.th1">Engine</th><th data-i18n="ga.n6.th2">Launch</th>
-              <th class="t-c" data-i18n="ga.n6.th3">Hist</th><th class="t-c" data-i18n="ga.n6.th4">Badge</th><th class="t-c" data-i18n="ga.n6.th5">Quota</th>
-              <th data-i18n="ga.n6.th6">Class</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><th scope="row">Claude Code<sup class="mono" style="color:var(--ink-3)">◆</sup></th><td class="t-cmd">claude</td><td class="t-c" data-v="1"></td><td class="t-c" data-v="1"></td><td class="t-c" data-v="1"></td><td class="t-class" data-i18n="ga.n6.builtin">Built-in</td></tr>
-            <tr><th scope="row">Codex</th><td class="t-cmd">codex</td><td class="t-c" data-v="1"></td><td class="t-c" data-v="1"></td><td class="t-c" data-v="1"></td><td class="t-class" data-i18n="ga.n6.builtin">Built-in</td></tr>
-            <tr><th scope="row">GitHub Copilot</th><td class="t-cmd">copilot</td><td class="t-c" data-v="1"></td><td class="t-c" data-v="1"></td><td class="t-c" data-v="0"></td><td class="t-class" data-i18n="ga.n6.builtin">Built-in</td></tr>
-            <tr><th scope="row">Kimi Code<sup class="mono" style="color:var(--ink-3)">※</sup></th><td class="t-cmd">kimi</td><td class="t-c" data-v="0"></td><td class="t-c" data-v="1"></td><td class="t-c" data-v="0"></td><td class="t-class" data-i18n="ga.n6.builtin">Built-in</td></tr>
-            <tr>
-              <th scope="row">gemini · opencode · cursor · grok · droid · amp · pi · <span class="nb">omp<svg class="tri" viewBox="0 0 19 17" aria-hidden="true"><path d="M9.5 1.5 L18 15 H1 Z"/><text x="9.5" y="13.6" text-anchor="middle">1</text></svg></span></th>
-              <td class="t-cmd">—</td><td class="t-c" data-v="0"></td><td class="t-c" data-v="1"></td><td class="t-c" data-v="0"></td><td class="t-class" data-i18n="ga.n6.contrib">Contrib</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="t-note" data-i18n-html="ga.n6.tnote">
-        ● supplied · ○ not supplied · <span class="mono">◆</span> default engine · <span class="mono">※</span> session handoff supplied ·
-        Contrib badge is screen-based · see revision table
-      </p>
-    </div>
-
-    <div class="txt-col">
-      <p data-i18n="ga.n6.p1">Claude Code is the default. There is no in-app model picker, deliberately: you pick the model the way that engine already does, on its own launch command. Rove's job is the worktree, the branch, the tabs, and the state marks — not a second settings screen for someone else's CLI.</p>
-      <p data-i18n-html="ga.n6.p2">A mixed fleet in one round is the point of the schedule. <span class="mono">--agents claude:2,codex:2,copilot:1</span> is five attempts at one prompt from three different vendors, each in its own checkout, compared side by side in one <span class="mono">collect</span> call.</p>
-    </div>
-  </section>
-
-  </main>
-
-  <!-- ══ TITLE BLOCK ═════════════════════════════════════════════════════ -->
-  <section class="endmatter" data-zone="H" aria-label="Title block">
+<section class="endmatter" data-zone="H" aria-label="Title block">
     <div class="revtab">
       <table>
         <caption data-i18n="tb.revisions">Revisions</caption>
@@ -649,7 +777,7 @@
             <td class="mono">2026-09</td>
             <td data-i18n-html="tb.r1">Engines <span class="mono">pi</span>, <span class="mono">omp</span> added to the contrib class</td>
           </tr>
-          <tr><td class="mono">—</td><td class="mono">2026-09</td><td data-i18n-html="tb.r2">Released as <span class="mono">0.9.192</span> on npm</td></tr>
+          <tr><td class="mono">—</td><td class="mono">2026-09</td><td data-i18n-html="tb.r2">Released as <span class="mono">0.9.198</span> on npm</td></tr>
         </tbody>
       </table>
     </div>
@@ -658,7 +786,7 @@
       <div class="tb-grid">
         <div class="tb span4"><span class="k" data-i18n="tb.title">Title</span><span class="v" data-i18n="tb.titleVal">Rove — managed task, general assembly</span></div>
         <div class="tb span2"><span class="k" data-i18n="tb.part">Part no.</span><span class="v mono">@sma1lboy/rove</span></div>
-        <div class="tb"><span class="k" data-i18n="tb.rev">Rev</span><span class="v mono">0.9.192</span></div>
+        <div class="tb"><span class="k" data-i18n="tb.rev">Rev</span><span class="v mono">0.9.198</span></div>
         <div class="tb"><span class="k" data-i18n="tb.sheet">Sheet</span><span class="v" data-i18n="tb.sheetVal">1 of 4</span></div>
         <div class="tb"><span class="k" data-i18n="tb.drawn">Drawn by</span><span class="v">Sma1lboy</span></div>
         <div class="tb"><span class="k" data-i18n="tb.checked">Checked</span><span class="v">CI</span></div>

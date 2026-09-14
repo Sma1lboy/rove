@@ -2,7 +2,6 @@
 // Terminal-mock content (branch names, TUI chrome) deliberately stays English.
 var KOBE_I18N = (function () {
   var zh = {
-    'nav.assembly': '总装图',
     'meta.title': 'Rove — 主题',
     'meta.desc': '每个内置 Rove 主题都由它真实的配色文件渲染，另附如何编写并发布你自己的主题。一个主题就是一个 JSON 文件，没有需要挤进去的注册表。', 'nav.docs': '文档', 'nav.plugins': '插件', 'nav.themes': '主题', 'nav.changelog': '更新日志',
     'head.kicker': '外观',
@@ -28,7 +27,7 @@ var KOBE_I18N = (function () {
     'dl.no': '2.0 · 可下载',
     'dl.title': '另外十套，一条命令的距离。',
     'dl.body': '这些不装在二进制里，而是作为纯 JSON 托管在这——主题本来就只是这个。复制命令、运行、重启 Rove。其中几套在早先版本里是内置的；除了存放位置，它们没有任何变化。',
-    'card.copy': '复制', 'card.copied': '已复制',
+    'card.copy': '复制', 'card.copied': '已复制', 'themes.slot': '主题名',
     'write.no': '3.0 · 动手写',
     'write.title': '一个主题就是一个 JSON 文件。',
     'write.body': '把任意 <code>*.json</code> 丢进 <code>~/.rove/themes/</code>，下次启动就出现在选择器里。取和内置主题同名，你的那份优先。也不必填满所有色槽——缺失的会向下回落（<code>borderActive</code> → <code>border</code> → <code>text</code>），所以十几行就已经是一套可用的主题。',
@@ -46,7 +45,6 @@ var KOBE_I18N = (function () {
     'footer.plugins': '插件', 'footer.changelog': '更新日志', 'footer.themedocs': '主题文档', 'footer.keybindings': '快捷键',
   };
   var en = {
-    'nav.assembly': 'Assembly',
     'meta.title': 'Rove: themes',
     'meta.desc': "Every bundled Rove theme, rendered from its real color file, plus how to write and publish your own. A theme is one JSON file; there is no registry to get into.", 'nav.docs': 'Docs', 'nav.plugins': 'Plugins', 'nav.themes': 'Themes', 'nav.changelog': 'Changelog',
     'head.kicker': 'Appearance',
@@ -72,7 +70,7 @@ var KOBE_I18N = (function () {
     'dl.no': '2.0 · Downloadable',
     'dl.title': 'Ten more, one command away.',
     'dl.body': "These live here as plain JSON instead of inside the binary, which is all a theme ever is. Copy the command, run it, restart Rove. Several of them shipped bundled in earlier versions; nothing changed about them except where they're stored.",
-    'card.copy': 'copy', 'card.copied': 'copied',
+    'card.copy': 'copy', 'card.copied': 'copied', 'themes.slot': '<name>',
     'write.no': '3.0 · Write one',
     'write.title': 'A theme is one JSON file.',
     'write.body': "Drop any <code>*.json</code> into <code>~/.rove/themes/</code> and it appears in the picker at next boot. Name it after a bundled theme and yours wins. You don't have to fill every slot. Missing ones fall through (<code>borderActive</code> → <code>border</code> → <code>text</code>), so a dozen lines is already a usable theme.",

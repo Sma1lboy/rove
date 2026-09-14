@@ -228,11 +228,10 @@
       <svg viewBox="0 0 64 64" width="28" height="28" aria-hidden="true" class="mark"><rect x="1" y="1" width="62" height="62" rx="13"/><path d="M19 13H12V51h7" stroke-width="7"/><path d="M12 13V51" stroke-width="4"/><g transform="translate(19.811 45) scale(.01745 -.01745)"><path class="r" d="M111 0H419V521H689C690 521 691 521 692 521L956 0H1286L987 579C1154 656 1253 804 1253 1001C1253 1301 1043 1490 707 1490H111ZM419 768V1234H688C851 1234 952 1143 952 1001C952 859 851 768 689 768Z"/></g><path d="M45 13h7V51h-7" stroke-width="7"/><path d="M52 13V51" stroke-width="4"/></svg>
       <span class="wm">Rove</span>
     </a>
-    <span class="stamp" data-i18n="sheet.stamp">Rev 0.9.192 · Sheet 2 of 4</span>
+    <span class="stamp" data-i18n="sheet.stamp">Rev 0.9.198 · Sheet 2 of 4</span>
     <span class="spacer"></span>
     <nav aria-label="Primary">
       <a href="https://docs.rove.run" data-i18n="nav.docs">Docs</a>
-      <a href="/" data-i18n="nav.assembly">Assembly</a>
       <a href="/plugins" aria-current="page" data-i18n="nav.plugins">Plugins</a>
       <a href="/themes" data-i18n="nav.themes">Themes</a>
       <a href="/changelog" data-i18n="nav.changelog">Changelog</a>
@@ -268,10 +267,11 @@
           <span class="hint" data-hint data-i18n="hero.hint">Click to copy</span>
         </button>
       </div>
-      <div class="alts">
-        <button class="alt" data-cmd="rove plugin install owner/repo/subdir">rove plugin install owner/repo/subdir</button>
-        <button class="alt" data-cmd="rove plugin list">rove plugin list</button>
-      </div>
+      <p class="alts">
+        <span data-i18n="hero.alts">also</span>
+        <button class="alt" data-cmd="rove plugin install owner/repo/subdir" title="rove plugin install owner/repo/subdir" data-i18n="hero.altSubdir">from a subdirectory</button>
+        <button class="alt" data-cmd="rove plugin list" title="rove plugin list" data-i18n="hero.altList">list installed</button>
+      </p>
       <p class="platform" data-i18n="hero.platform">Anything you can script against your fleet, you can ship to someone else.</p>
     </div>
 
@@ -395,7 +395,6 @@
     <div class="txt-col">
       <p data-i18n="note1.p1">A plugin bolts on through one face: the manifest. Rove reads it, and from then on the plugin is ordinary argv that Rove knows when to launch — on a daemon event, on demand, or as a pane tab in a task workspace.</p>
       <p data-i18n-html="note1.p2"><b>There is no required SDK.</b> Anything you can already script against your fleet — a <span class="mono">rove api</span> verb, a shell one-liner, a binary you wrote — is a plugin the moment you put a manifest beside it. A TypeScript SDK, <span class="mono">@sma1lboy/rove-plugin-sdk</span>, exists and is optional; it is drawn in hidden line for exactly that reason.</p>
-      <p data-i18n="note1.p3">That is why this sheet is short. There is no framework to learn on the way in, so the interface fits on one drawing and the specimen in Note 4 fits in nine lines.</p>
     </div>
   </section>
 
@@ -458,7 +457,6 @@
 
     <div class="txt-col">
       <p data-i18n="note2.p1">These six ship as examples, not as a curated shelf. Each one is a workflow that does not belong in every install: a notification channel, two starting points from an issue tracker, a file-copy rule, a browser, a git UI.</p>
-      <p data-i18n="note2.p2">Read them as reference drawings. Each is a manifest and a handful of commands, and every one of them was written against the same interface in Fig. 1 that you would use.</p>
       <p data-i18n-html="note2.p3">The <span class="mono">browser</span> and <span class="mono">lazygit</span> parts both arrive as <span class="mono">[[panes]]</span> — a terminal tab inside the task workspace, running in the task's own worktree. Nothing about a pane is special-cased for them.</p>
     </div>
   </section>
@@ -706,7 +704,7 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       <div class="tb-grid">
         <div class="tb span4"><span class="k" data-i18n="tb.title">Title</span><span class="v" data-i18n="tb.titleV">Rove — standard parts, plugin catalogue</span></div>
         <div class="tb span2"><span class="k" data-i18n="tb.partno">Part no.</span><span class="v mono">rove-plugin.toml</span></div>
-        <div class="tb"><span class="k" data-i18n="tb.rev">Rev</span><span class="v mono">0.9.192</span></div>
+        <div class="tb"><span class="k" data-i18n="tb.rev">Rev</span><span class="v mono">0.9.198</span></div>
         <div class="tb"><span class="k" data-i18n="tb.sheet">Sheet</span><span class="v" data-i18n="tb.sheetV">2 of 4</span></div>
         <div class="tb"><span class="k" data-i18n="tb.drawn">Drawn by</span><span class="v">Sma1lboy</span></div>
         <div class="tb"><span class="k" data-i18n="tb.checked">Checked</span><span class="v">CI</span></div>
@@ -742,12 +740,15 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'meta.title': 'Rove — 标准件 · 插件目录',
       'meta.desc': 'Rove 插件市场——基于 Rove CLI 的可分享工作流包。rove-plugin 与兼容的 kobe-plugin 仓库都会自动列出。',
       'a11y.skip': '跳到图纸',
-      'sheet.stamp': '版本 0.9.192 · 第 2 张 / 共 4 张',
-      'nav.docs': '文档', 'nav.assembly': '总装', 'nav.plugins': '插件', 'nav.themes': '主题', 'nav.changelog': '更新日志',
+      'sheet.stamp': '版本 0.9.198 · 第 2 张 / 共 4 张',
+      'nav.docs': '文档', 'nav.plugins': '插件', 'nav.themes': '主题', 'nav.changelog': '更新日志',
       'hero.h1': '外购<span class="thin">标准件</span>',
       'hero.lede': '第 1 张图画的是总装。这里是图上没人自制的那些件。Rove 插件就是<b>一个带 <span class="mono">rove-plugin.toml</span> 清单的目录</b>——要求仅此一条。没有必需的 SDK，因为整个 Rove CLI 就是插件 API。',
       'hero.tag': '安装',
       'hero.hint': '点击复制',
+      'hero.alts': '还可以',
+      'hero.altSubdir': '从子目录安装',
+      'hero.altList': '列出已装的',
       'hero.platform': '你能用脚本对机群做的事，就能打包给别人。',
       'hero.bought': '外购件',
       'subj.cap': '本图对象',
@@ -758,9 +759,8 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'subj.f2': '1 个配合面',
       'note1.num': '注 1', 'note1.h': '配合接口', 'note1.fig': '图 1',
       'note1.cap': '图 1 — 配合接口 · 清单是配合面，CLI 是与之啮合的螺纹 · 虚线 = 可以不存在的那部分',
-      'note1.p1': '插件靠一个面装上去：清单。Rove 读它，此后插件就是普通的 argv，只是 Rove 知道该在什么时候启动它——守护进程发出事件时、你按需触发时，或者作为任务工作区里的一个面板 tab。',
-      'note1.p2': '<b>没有必需的 SDK。</b>你已经能用脚本对机群做的任何事——一个 <span class="mono">rove api</span> 动词、一行 shell、你自己写的二进制——在旁边放上一份清单的那一刻就是插件了。TypeScript SDK <span class="mono">@sma1lboy/rove-plugin-sdk</span> 存在，但可选；图上用虚线画它正是因为这个。',
-      'note1.p3': '所以这张图很短。入门处没有框架要学，接口一张图就画得下，注 4 的样本九行就写完了。',
+      'note1.p1': '插件靠一个面装上去：清单。Rove 读它，此后插件就是普通的 argv，只是 Rove 知道什么时候启动它——守护进程发事件时、你按需触发时，或作为一个面板 tab。',
+      'note1.p2': '没有必需的 SDK。你已经能用脚本对机群做的任何事——一个 <span class="mono">rove api</span> 动词、一行 shell、你自己写的二进制——旁边放上一份清单就是插件。TypeScript SDK 是可选的，图上用虚线画它正是这个原因。',
       'f1.plugin': '你的插件', 'f1.anylang': '任何语言', 'f1.mates': '配合',
       'f1.cliapi': '插件 API', 'f1.optional': '可选',
       'f1.req1': '必填', 'f1.req2': '必填',
@@ -779,14 +779,13 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'parts.first': '第一方', 'parts.first2': '第一方', 'parts.first3': '第一方',
       'parts.first4': '第一方', 'parts.first5': '第一方', 'parts.first6': '第一方',
       'parts.note': '用 <span class="mono">rove plugin install &lt;件号&gt;</span> 装上一个件。六个都在同一个仓库里，所以末段用来选其中一个——<span class="mono">owner/repo/subdir</span> 就是干这个的。<span class="mono">rove plugin list</span> 报告装了哪些。',
-      'note2.p1': '这六个是示例，不是精选货架。每一个都是不该塞进每份安装里的工作流：一个通知通道、两个从 issue 起步的入口、一条文件复制规则、一个浏览器、一个 git 界面。',
-      'note2.p2': '把它们当参考图看。每个都只是一份清单加几条命令，而且它们写的都是图 1 里你要用的同一个接口。',
-      'note2.p3': '<span class="mono">browser</span> 和 <span class="mono">lazygit</span> 都以 <span class="mono">[[panes]]</span> 的形式到来——任务工作区里的一个终端 tab，跑在任务自己的 worktree 里。面板对它们没有任何特殊处理。',
+      'note2.p1': '这六个是示例，不是精选货架——每一个都是不该塞进每份安装里的工作流：一个通知通道、两个从 issue 起步的入口、一条文件复制规则、一个浏览器、一个 git 界面。',
+      'note2.p3': 'browser 和 lazygit 都以 <span class="mono">[[panes]]</span> 的形式到来——任务工作区里的一个终端 tab，跑在任务自己的 worktree 里。面板对它们没有任何特殊处理。',
       'note3.num': '注 3', 'note3.h': '引擎贡献', 'note3.sub': '图 2',
       'note3.cap': '图 2 — 插件贡献的引擎进入同一个插座 · 闸门符号 = 在 PATH 上查一次二进制',
-      'note3.p1': '插件可以贡献一个引擎。一条 <span class="mono">[[engines]]</span> 记录用显示名、启动命令、屏幕清单和身份注册它——和内置引擎提供的是同样四件事，进的是同一个插座。',
-      'note3.p2': '有一处不同，而且是刻意的。内置的 contrib 目录只有找到那个引擎的二进制才会提供它；插件引擎则不做这次查找就直接提供。<b>装插件本身就是那次同意</b>——你装上这个件的时候已经说过「要」了，没什么可再探测的。',
-      'note3.p3': '屏幕清单让 Rove 能从一个它从没见过的终端上读出状态：把屏幕上的行映射到<em>工作中</em>、<em>被挡住</em>等状态的规则。第 1 张图上的侧边栏标记就是这么来的。',
+      'note3.p1': '插件可以贡献一个引擎。一条 <span class="mono">[[engines]]</span> 用显示名、启动命令、屏幕清单和身份注册它——和内置引擎给的是同样四件事，进同一个插座。',
+      'note3.p2': '有一处刻意的不同：内置 contrib 目录只有找到引擎的二进制才提供它；插件引擎则不做这次查找就直接提供。装插件本身就是那次同意。',
+      'note3.p3': '屏幕清单让 Rove 能从没见过的终端上读出状态——把屏幕上的行映射到工作中、被挡住等状态的规则。第 1 张图的侧栏标记就是这么来的。',
       'f2.socket': '同一个插座',
       'f2.r1': '内置——始终提供',
       'f2.r2': 'Contrib——找到二进制才提供',
@@ -794,8 +793,8 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'f2.r3': '不做二进制检查就提供',
       'note4.num': '注 4', 'note4.h': '清单样本',
       'note4.note': '仅为样本——九行，其中前四行就是全部要求。空行之后的一切都是一项可选贡献。',
-      'note4.p1': '四个字段标识这个件：id、名称、版本，以及它能跑的最老的 Rove。只带这四个字段的清单是合法的，什么都不做的插件也是插件。',
-      'note4.p2': '空行以下全是贡献——插件给产品添的东西。panes、events、actions、engines 各自是一个表数组，所以一份清单可以一个都不带、带一个，或者四个都带。',
+      'note4.p1': '四个字段标识这个件：id、名称、版本，以及它能跑的最老的 Rove。只带这四个字段的清单是合法的。',
+      'note4.p2': '空行以下全是贡献。panes、events、actions、engines 各自是一个表数组，所以一份清单可以一个都不带、带一个，或者四个都带。',
       'note4.p3': '<span class="mono">command</span> 是 argv，不是 shell 字符串。Rove 直接启动它。',
       'note5.num': '注 5', 'note5.h': '在役目录',
       'note5.fig': '图 3',
@@ -816,9 +815,9 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'caut.p2': '插件没有沙箱，也没人检查。你自己的命令够得着的东西——你的文件、你的密钥、你的网络——它同样够得着。',
       'caut.p3': '清单被刻意做得很短，而且列出了 Rove 会启动的每一条命令。装之前读一遍。',
       'note5.note': '星标、语言和推送时间在页面加载时从 GitHub API 取。注 2 里那六个第一方件由本仓库播种，因为子目录没法带话题。',
-      'note5.p1': '<b>收录不经人工挑选。</b>每一个带 GitHub 话题 <span class="mono">rove-plugin</span> 的公开仓库都在这份列表上。没人批准，没人排名，也没人拦得住你——这份列表就是一次搜索。',
+      'note5.p1': '收录不经人工挑选。每一个带 GitHub 话题 <span class="mono">rove-plugin</span> 的公开仓库都在这份列表上——这份列表就是一次搜索。',
       'note5.p2': '兼容话题 <span class="mono">kobe-plugin</span> 同样在搜索范围内，所以用旧名发布的件不用改动就继续在列。',
-      'note5.p3': '前面没有闸门的目录，就把注意事项印在同一张图上。Rove 检查清单能不能解析，并把它带的命令给你看。它不评判这些命令，也没法评判：argv 数组就是全部接口。',
+      'note5.p3': '前面没有闸门的目录，就把注意事项印在同一张图上。Rove 检查清单能不能解析，并把它带的命令给你看。它没法评判：argv 数组就是全部接口。',
       'det.back': '← 返回全部零件',
       'det.pushed': '最近推送',
       'det.viewGithub': '在 GitHub 上查看',
@@ -850,12 +849,15 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'meta.title': 'Rove: plugins',
       'meta.desc': 'The Rove plugin marketplace: shareable workflow packages built on the Rove CLI. rove-plugin and legacy kobe-plugin repositories are listed automatically.',
       'a11y.skip': 'Skip to drawing',
-      'sheet.stamp': 'Rev 0.9.192 · Sheet 2 of 4',
-      'nav.docs': 'Docs', 'nav.assembly': 'Assembly', 'nav.plugins': 'Plugins', 'nav.themes': 'Themes', 'nav.changelog': 'Changelog',
+      'sheet.stamp': 'Rev 0.9.198 · Sheet 2 of 4',
+      'nav.docs': 'Docs', 'nav.plugins': 'Plugins', 'nav.themes': 'Themes', 'nav.changelog': 'Changelog',
       'hero.h1': 'Standard parts <span class="thin">bought in</span>',
       'hero.lede': 'Sheet 1 drew the assembly. These are the parts nobody on this drawing made. A Rove plugin is <b>a directory with a <span class="mono">rove-plugin.toml</span> manifest</b> — that is the whole requirement. There is no required SDK, because the entire Rove CLI is the plugin API.',
       'hero.tag': 'Install',
       'hero.hint': 'Click to copy',
+      'hero.alts': 'also',
+      'hero.altSubdir': 'from a subdirectory',
+      'hero.altList': 'list installed',
       'hero.platform': 'Anything you can script against your fleet, you can ship to someone else.',
       'hero.bought': 'Bought-in part',
       'subj.cap': 'Subject of drawing',
@@ -866,9 +868,8 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'subj.f2': '1 mating face',
       'note1.num': 'Note 1', 'note1.h': 'Mating interface', 'note1.fig': 'Fig. 1',
       'note1.cap': 'Fig. 1 — Mating interface · The manifest is the face, the CLI is the thread · Hidden line = the part that may be absent',
-      'note1.p1': 'A plugin bolts on through one face: the manifest. Rove reads it, and from then on the plugin is ordinary argv that Rove knows when to launch — on a daemon event, on demand, or as a pane tab in a task workspace.',
-      'note1.p2': '<b>There is no required SDK.</b> Anything you can already script against your fleet — a <span class="mono">rove api</span> verb, a shell one-liner, a binary you wrote — is a plugin the moment you put a manifest beside it. A TypeScript SDK, <span class="mono">@sma1lboy/rove-plugin-sdk</span>, exists and is optional; it is drawn in hidden line for exactly that reason.',
-      'note1.p3': 'That is why this sheet is short. There is no framework to learn on the way in, so the interface fits on one drawing and the specimen in Note 4 fits in nine lines.',
+      'note1.p1': 'A plugin bolts on through one face: the manifest. Rove reads it, and from then on the plugin is ordinary argv that Rove knows when to launch — on a daemon event, on demand, or as a pane tab.',
+      'note1.p2': 'No required SDK. Anything you can already script against your fleet — a <span class="mono">rove api</span> verb, a shell one-liner, a binary you wrote — is a plugin the moment a manifest sits beside it. The TypeScript SDK is optional, and drawn in hidden line for that reason.',
       'f1.plugin': 'Your plugin', 'f1.anylang': 'Any language', 'f1.mates': 'Mates',
       'f1.cliapi': 'The plugin API', 'f1.optional': 'Optional',
       'f1.req1': 'Required', 'f1.req2': 'Required',
@@ -887,14 +888,13 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'parts.first': 'First party', 'parts.first2': 'First party', 'parts.first3': 'First party',
       'parts.first4': 'First party', 'parts.first5': 'First party', 'parts.first6': 'First party',
       'parts.note': 'Fit a part with <span class="mono">rove plugin install &lt;part no.&gt;</span>. One repository holds all six, so the trailing segment selects one — that is what <span class="mono">owner/repo/subdir</span> is for. <span class="mono">rove plugin list</span> reports what is fitted.',
-      'note2.p1': 'These six ship as examples, not as a curated shelf. Each one is a workflow that does not belong in every install: a notification channel, two starting points from an issue tracker, a file-copy rule, a browser, a git UI.',
-      'note2.p2': 'Read them as reference drawings. Each is a manifest and a handful of commands, and every one of them was written against the same interface in Fig. 1 that you would use.',
-      'note2.p3': 'The <span class="mono">browser</span> and <span class="mono">lazygit</span> parts both arrive as <span class="mono">[[panes]]</span> — a terminal tab inside the task workspace, running in the task\'s own worktree. Nothing about a pane is special-cased for them.',
+      'note2.p1': 'These six ship as examples, not a curated shelf — each is a workflow that does not belong in every install: a notification channel, two starting points from an issue tracker, a file-copy rule, a browser, a git UI.',
+      'note2.p3': 'The browser and lazygit parts arrive as <span class="mono">[[panes]]</span> — a terminal tab in the task workspace, running in the task\'s own worktree. Nothing about a pane is special-cased for them.',
       'note3.num': 'Note 3', 'note3.h': 'Engine contribution', 'note3.sub': 'Fig. 2',
       'note3.cap': 'Fig. 2 — A plugin-contributed engine in the common socket · Gate symbol = a binary look-up on PATH',
-      'note3.p1': 'A plugin can contribute an engine. An <span class="mono">[[engines]]</span> entry registers one with a display name, a launch command, a screen manifest and an identity — the same four things the built-in engines supply, entering the same socket.',
-      'note3.p2': 'One difference, and it is deliberate. The built-in contrib catalogue only offers an engine once it finds that engine\'s binary; a plugin engine is offered without that look-up. <b>Installing the plugin is the opt-in</b> — you already said yes when you fitted the part, so there is nothing left to detect.',
-      'note3.p3': 'The screen manifest is what lets Rove read state off a terminal it has never seen: rules that map lines on screen to <em>working</em>, <em>blocked</em>, and the rest. Sheet 1\'s sidebar marks come from exactly that.',
+      'note3.p1': 'A plugin can contribute an engine. An <span class="mono">[[engines]]</span> entry registers one with a display name, a launch command, a screen manifest and an identity — the same four the built-ins supply, into the same socket.',
+      'note3.p2': 'One deliberate difference: the built-in contrib catalogue only offers an engine once it finds that engine\'s binary; a plugin engine is offered without the look-up. Installing the plugin is the opt-in.',
+      'note3.p3': 'The screen manifest is what lets Rove read state off a terminal it has never seen — rules mapping lines on screen to working, blocked, and the rest. Sheet 1\'s sidebar marks come from exactly that.',
       'f2.socket': 'One socket',
       'f2.r1': 'Built in — always offered',
       'f2.r2': 'Contrib — only if the binary is found',
@@ -902,8 +902,8 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'f2.r3': 'Offered without the binary check',
       'note4.num': 'Note 4', 'note4.h': 'Manifest specimen',
       'note4.note': 'Specimen only — nine lines, of which the first four are the whole requirement. Everything after the blank line is one optional contribution.',
-      'note4.p1': 'Four fields identify the part: an id, a name, a version, and the oldest Rove it works on. A manifest carrying only those four is valid, and a plugin that does nothing else is a plugin.',
-      'note4.p2': 'Everything below the blank line is a contribution — something the plugin adds to the product. Panes, events, actions and engines are each a table array, so a manifest may carry none of them, one of them, or all four.',
+      'note4.p1': 'Four fields identify the part: an id, a name, a version, and the oldest Rove it works on. A manifest carrying only those four is valid.',
+      'note4.p2': 'Everything below the blank line is a contribution. Panes, events, actions and engines are each a table array, so a manifest may carry none, one, or all four.',
       'note4.p3': '<span class="mono">command</span> is argv, not a shell string. Rove launches it directly.',
       'note5.num': 'Note 5', 'note5.h': 'Catalogue in service',
       'note5.fig': 'Fig. 3',
@@ -924,9 +924,9 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'caut.p2': 'A plugin is not sandboxed and it is not inspected. Whatever your own commands can reach — your files, your keys, your network — it can reach too.',
       'caut.p3': 'The manifest is short by design, and it lists every command Rove will ever launch. Read it before you install.',
       'note5.note': 'Stars, language and push date come from the GitHub API on page load. The six first-party parts in Note 2 are seeded from this repository, because a subdirectory cannot carry a topic.',
-      'note5.p1': '<b>Discovery is not curated.</b> Every public repository carrying the GitHub topic <span class="mono">rove-plugin</span> is on this list. Nobody approves it, nobody ranks it, and nobody can keep you out — the listing is a search.',
+      'note5.p1': 'Discovery is not curated. Every public repository carrying the GitHub topic <span class="mono">rove-plugin</span> is on this list — the listing is a search.',
       'note5.p2': 'The legacy topic <span class="mono">kobe-plugin</span> is searched too, so parts published under the old name stay listed without being touched.',
-      'note5.p3': 'A catalogue with no gate at the front prints its caution on the same sheet. Rove checks that a manifest parses and shows you the commands it holds. It does not judge them, and it cannot: an argv array is the whole interface.',
+      'note5.p3': 'A catalogue with no gate at the front prints its caution on the same sheet. Rove checks that a manifest parses and shows you the commands it holds. It cannot judge them: an argv array is the whole interface.',
       'det.back': '← all parts',
       'det.pushed': 'pushed',
       'det.viewGithub': 'view on GitHub',
@@ -939,9 +939,9 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'pub.s2': '<b>Add the GitHub topic <span class="mono">rove-plugin</span>.</b> Repo page → the gear next to About → Topics.',
       'pub.s3': '<b>Done.</b> It appears in Note 5 on the next load, and anyone can run <span class="mono">rove plugin install you/your-repo</span>.',
       'pub.note': 'There is no submission form, no review queue and no registry to get into. The topic is read straight off GitHub each time this sheet is opened.',
-      'note6.p1': 'Publishing is three steps because there is nothing to publish to. The catalogue in Note 5 is a search that runs in your browser, so the only thing that puts a part on it is the topic on your own repository.',
+      'note6.p1': 'Publishing is three steps because there is nothing to publish to. The catalogue in Note 5 is a search that runs in your browser, so the only thing that lists a part is the topic on your own repository.',
       'note6.p2': 'Full authoring reference: <a href="https://docs.rove.run/plugins/authoring">docs.rove.run</a> — the plugin authoring page carries the event catalogue, the environment contract, and the placement rules a pane can ask for.',
-      'note6.p3': 'A part you publish is read by strangers with your commands in their hands. Keep the manifest legible, and put the commands it launches in the README beside it.',
+      'note6.p3': 'A part you publish is read by strangers with your commands in their hands. Keep the manifest legible, and name the commands it launches in the README beside it.',
       'rev.cap': 'Revisions', 'rev.th1': 'Rev', 'rev.th2': 'Date', 'rev.th3': 'Description',
       'rev.r1': 'Canonical topic is <span class="mono">rove-plugin</span>; legacy <span class="mono">kobe-plugin</span> still included',
       'rev.r2': 'A manifest may contribute an engine through <span class="mono">[[engines]]</span>',
