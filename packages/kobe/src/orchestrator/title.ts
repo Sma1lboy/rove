@@ -36,14 +36,18 @@ export const PLACEHOLDER_TASK_TITLE = "(new task)"
  *
  * So the guard moves to the two orchestrator entry points every title passes
  * through — `createTask` and `setTitle` — where an agent-written title and a
- * hand-typed one meet. All C0 controls, not just `\n`: they share the
- * zero-width measurement, and a title carrying a raw `\x1b` is no better.
- * Whitespace runs collapse to ONE space rather than vanishing, so
+ * hand-typed one meet. Every non-printing control, not just `\n`: they share
+ * the zero-width measurement, and a title carrying a raw `\x1b` is no better.
+ * That is the whole control set `lib/display-width.ts#charWidth` scores as
+ * zero cells — C0 (U+0000–U+001F), DEL (U+007F) AND the C1 block
+ * (U+0080–U+009F), where a byte like `\x9b` (8-bit CSI) or `\x85` (NEL) lands
+ * once a title arrives over the daemon RPC rather than through the TUI input
+ * edge. Whitespace runs collapse to ONE space rather than vanishing, so
  * `"line1\nline2"` stays two readable words instead of becoming `line1line2`.
  */
 export function sanitizeTaskTitle(title: string): string {
   // biome-ignore lint/suspicious/noControlCharactersInRegex: these bytes are exactly what the sidebar cannot render.
-  return title.replace(/[\u0000-\u0020\u007f]+/g, " ").trim()
+  return title.replace(/[\u0000-\u0020\u007f-\u009f]+/g, " ").trim()
 }
 
 /**
