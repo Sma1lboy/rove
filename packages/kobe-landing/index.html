@@ -60,6 +60,24 @@
   font-family:var(--font-body);font-size:14px;line-height:1.62;color:var(--ink-2);
 }
 #fleet .fleet-note strong,#fleet .fleet-note b{color:var(--ink);font-weight:600}
+
+/* On the cyanotype the paper is already dark and cold, and the product's own
+   near-black sits a shade LIGHTER than it at an opposite hue — so the specimen
+   floated on the sheet as a warm smear instead of reading as a window cut into
+   it. Here the frame takes a ground deeper and colder than the paper, and the
+   panes that hard-code their own warm black in fleet.css layer on it with
+   translucent white instead, which keeps their depth order intact. The text
+   stays warm: warm type on cold black is what the product actually looks like.
+   The light sheet needs none of this — dark ink on pale paper already contrasts. */
+.fleet-dark-ground #fleet .fleet-frame{background:oklch(0.09 0.022 248)}
+.fleet-dark-ground #fleet .fl-pane,
+.fleet-dark-ground #fleet .fl-card,
+.fleet-dark-ground #fleet .fl-rt-row,
+.fleet-dark-ground #fleet .fl-dialog,
+.fleet-dark-ground #fleet .fl-newtask,
+.fleet-dark-ground #fleet .fl-zenchip{background:rgba(255,255,255,.045)}
+.fleet-dark-ground #fleet .rule{background:rgba(255,255,255,.10)}
+
 </style>
 <style>
 /* Page-local only. Three things the shared sheet CSS has no opinion on yet;
@@ -211,6 +229,23 @@
 <script src="/index.js" defer></script>
 <script src="/fleet.js" defer></script>
 <script src="/blueprint-idle.js" defer></script>
+<script>
+/* blueprint.css switches theme three ways — an explicit data-theme either
+   direction, and the system preference when neither is set. The specimen's
+   ground has to follow the same three, so it asks for the resolved answer
+   rather than re-deriving it. */
+(function () {
+  var r = document.documentElement;
+  function sync() {
+    var t = r.getAttribute('data-theme');
+    var dark = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme:dark)').matches);
+    r.classList.toggle('fleet-dark-ground', dark);
+  }
+  sync();
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change', sync);
+  new MutationObserver(sync).observe(r, { attributes: true, attributeFilter: ['data-theme'] });
+})();
+</script>
 </head>
 <body>
 <a class="skip" href="#main" data-i18n="sheet.skip">Skip to drawing</a>
