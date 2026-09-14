@@ -15,6 +15,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
+import { ApiError } from "../../src/cli/api/types.ts"
 import { FakeClient, expectApiError, stubRuntime } from "./api-handler-fixtures.ts"
 
 /**
@@ -105,6 +106,21 @@ describe("set-effort", () => {
       /declares no reasoning effort levels/,
     )
     expect(client.requests.map((r) => r.name)).toEqual(["task.get"])
+  })
+
+  it("names every effort-capable engine in the hint, not just codex", async () => {
+    // The hint used to hard-code "(codex today)". pi and OMP declare their own
+    // levels now, so a user who mis-targeted effort must learn they qualify.
+    const client = new FakeClient(taskOf({ vendor: "claude" }))
+    try {
+      await invokeVerb("set-effort", ["--task-id", "t1", "--level", "high"], { client, runtime: stubRuntime() })
+      expect.unreachable("should have thrown")
+    } catch (err) {
+      expect(err).toBeInstanceOf(ApiError)
+      const hint = String((err as ApiError).data?.hint ?? "")
+      expect(hint).toContain("pi")
+      expect(hint).toContain("omp")
+    }
   })
 
   // A preset declaring the codex protocol IS a codex launch, and the TUI
