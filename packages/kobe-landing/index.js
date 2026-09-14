@@ -19,7 +19,7 @@ var KOBE_I18N = (function () {
     // ── 标题栏 / 修订记录
     'tb.revisions': '修订记录', 'tb.revH': '版本', 'tb.dateH': '日期', 'tb.descH': '说明',
     'tb.r1': '引擎 <span class="mono">pi</span>、<span class="mono">omp</span> 归入 contrib 类',
-    'tb.r2': '以 <span class="mono">0.9.192</span> 发布到 npm',
+    'tb.r2': '以 <span class="mono">0.9.196</span> 发布到 npm',
     'tb.title': '图名', 'tb.titleVal': 'Rove —— 托管任务总装图',
     'tb.part': '件号', 'tb.rev': '版本', 'tb.sheet': '图号', 'tb.sheetVal': '第 1 张 / 共 4 张',
     'tb.drawn': '制图', 'tb.checked': '校核', 'tb.date': '日期', 'tb.scale': '比例',
@@ -33,7 +33,7 @@ var KOBE_I18N = (function () {
     'ga.subjSee': '见图 1', 'ga.subjParts': '3 个零件', 'ga.projection': '第一角投影',
 
     'ga.note1': '注 1', 'ga.note2': '注 2', 'ga.note3': '注 3',
-    'ga.note4': '注 4', 'ga.note5': '注 5', 'ga.note6': '注 6',
+    'ga.note4': '注 4', 'ga.note5': '注 5',
     'ga.fig1': '图 1', 'ga.fig2': '图 2', 'ga.fig3': '图 3', 'ga.fig4': '图 4',
 
     'ga.n1.h': '总装',
@@ -86,25 +86,7 @@ var KOBE_I18N = (function () {
     'ga.n4.p4': '<b>Inbox。</b>一份只回答<em>「哪些需要我」</em>的列表。卡住的排前面 —— 权限询问、限流、报错、引擎挂了 —— 然后才是普通的已完成轮次。<span class="mono">F7</span> 跳到所有项目里最早卡住的那一个。',
 
     'ga.n5.h': '符号图例', 'ga.n5.sub': '侧栏状态标记',
-    'ga.lg1': '<b>已置顶</b> —— 固定在列表最上面',
-    'ga.lg2': 'worktree 里<b>已改 / 已删</b>的文件数',
-    'ga.lg3': '相对 base <b>领先 / 落后</b>的提交数',
-    'ga.lg4': '<b>PR 检查</b>通过 / 失败 / 冲突',
-    'ga.lg5': '<b>被限流</b> —— 引擎在等配额',
-    'ga.lg6': '<b>引擎已退出</b> —— 进程没了',
-    'ga.lg7': '<b>等你输入</b> —— 它在问你话',
-    'ga.lg8': '<b>正在跑</b> —— 有一轮在飞',
-    'ga.n5.p1': '这些就是侧栏真正画出来的字形。TUI 能守住一屏靠的就是它们：每台机器上每个任务的状态，在大约十二个字符宽的一列里一眼可读。',
-    'ga.n5.p2': '其中四个 —— <span class="mono">?</span>、<span class="mono">◷</span>、<span class="mono">†</span>，以及一个失败的检查 —— 是 Inbox 排到最前面的。它们不再是活儿，而是<em>你的</em>活儿。',
 
-    'ga.n6.h': '引擎明细表', 'ga.n6.sub': '支持 12 个',
-    'ga.n6.tcap': '明细表 —— 引擎与随附的支持',
-    'ga.n6.th1': '引擎', 'ga.n6.th2': '启动命令', 'ga.n6.th3': '历史', 'ga.n6.th4': '徽章', 'ga.n6.th5': '配额', 'ga.n6.th6': '类别',
-    'ga.n6.builtin': '内置',
-    'ga.n6.contrib': '社区',
-    'ga.n6.tnote': '● 随附 · ○ 不随附 · <span class="mono">◆</span> 默认引擎 · <span class="mono">※</span> 随附会话交接 · contrib 的徽章基于屏幕内容判断 · 见修订记录',
-    'ga.n6.p1': 'Claude Code 是默认引擎。刻意不做应用内的模型选择器：模型就按那个引擎本来的方式选，写在它自己的启动命令里。Rove 管的是 worktree、分支、tab 和状态标记，不是给别人的 CLI 再做一个设置页。',
-    'ga.n6.p2': '一轮里混编舰队才是这张表的意义。<span class="mono">--agents claude:2,codex:2,copilot:1</span> 就是三个厂商对同一条 prompt 的五次尝试，各自在自己的 checkout 里，用一次 <span class="mono">collect</span> 并排比较。',
 
     'ga.copyright': '© 2026 Sma1lboy · MIT · 第 1 张 / 共 4 张',
 
@@ -112,6 +94,16 @@ var KOBE_I18N = (function () {
     'footer.colophon': '用 Bun、OpenTUI 和 React 构建。字体为 Saira Condensed、IBM Plex Sans 与 IBM Plex Mono。MIT 许可。',
     'footer.plugins': '插件', 'footer.themesLink': '主题', 'footer.changelog': '更新日志', 'footer.docs': '文档', 'footer.keybindings': '快捷键',
     'hero.alts': '或者用',
+    'ga.n5.h': '实物视图',
+    'ga.n5.sub': '不是截图 · 点一个任务',
+    'ga.n5.p1': '注 1 到注 4 画的是零件。<b>这是装好之后、正在跑的机器。</b>上面每一张图都是从它身上取下来的样本。',
+    'ga.n5.p3': '这里每一个字形都是侧栏真会画的，每一个引擎名都是真发布了的。字形和引擎的完整清单在<a href="https://docs.rove.run">文档</a>里；这张图纸让它们跑起来，而不是列出来。',
+    'ga.fig5cap': '图 5 —— 实物视图 · 三个仓库、四个任务、无人接管',
+    'fleet.eyebrow': '四个任务在跑，没人接管',
+    'fleet.cue': '点一个任务 →',
+    'fleet.note': '一个真实会话：三个仓库、四个任务，每个任务独占自己的 worktree、分支和终端 tab。<strong>此刻没有任何人接在上面</strong>——每个引擎都跑在 daemon 托管的 hosted PTY 里，关掉 TUI 活儿照样继续。',
+    'fleet.noteFull': '完整布局：左边 Tasks、中间分屏工作区、右边 Changes。点左边任意一个任务，或用 <b>[~] Zen</b> 收起 Files——这是活的布局，不是一张截图。',
+    'fleet.noteZen': '现在是 Zen 模式：Files 栏收起，工作区吃掉腾出来的宽度。点左下角 <b>☯ ZEN</b> 退出，或点左边任意一个任务——这是活的布局，不是一张截图。',
   };
   var en = {
     'meta.title': 'Rove: the agent multiplexer in your shell',
@@ -131,7 +123,7 @@ var KOBE_I18N = (function () {
     // ── title block / revision table
     'tb.revisions': 'Revisions', 'tb.revH': 'Rev', 'tb.dateH': 'Date', 'tb.descH': 'Description',
     'tb.r1': 'Engines <span class="mono">pi</span>, <span class="mono">omp</span> added to the contrib class',
-    'tb.r2': 'Released as <span class="mono">0.9.192</span> on npm',
+    'tb.r2': 'Released as <span class="mono">0.9.196</span> on npm',
     'tb.title': 'Title', 'tb.titleVal': 'Rove — managed task, general assembly',
     'tb.part': 'Part no.', 'tb.rev': 'Rev', 'tb.sheet': 'Sheet', 'tb.sheetVal': '1 of 4',
     'tb.drawn': 'Drawn by', 'tb.checked': 'Checked', 'tb.date': 'Date', 'tb.scale': 'Scale',
@@ -145,7 +137,7 @@ var KOBE_I18N = (function () {
     'ga.subjSee': 'See Fig. 1', 'ga.subjParts': '3 parts', 'ga.projection': 'First-angle projection',
 
     'ga.note1': 'Note 1', 'ga.note2': 'Note 2', 'ga.note3': 'Note 3',
-    'ga.note4': 'Note 4', 'ga.note5': 'Note 5', 'ga.note6': 'Note 6',
+    'ga.note4': 'Note 4', 'ga.note5': 'Note 5',
     'ga.fig1': 'Fig. 1', 'ga.fig2': 'Fig. 2', 'ga.fig3': 'Fig. 3', 'ga.fig4': 'Fig. 4',
 
     'ga.n1.h': 'General assembly',
@@ -198,25 +190,7 @@ var KOBE_I18N = (function () {
     'ga.n4.p4': '<b>Inbox.</b> One list answering <em>what needs me?</em> Blocked items first — permission prompt, rate limit, error, dead engine — then plain finished turns. <span class="mono">F7</span> jumps to the oldest blocked one across every project.',
 
     'ga.n5.h': 'Symbol legend', 'ga.n5.sub': 'Sidebar status marks',
-    'ga.lg1': '<b>Pinned</b> — kept at the top of the list',
-    'ga.lg2': '<b>Changed / deleted</b> files in the worktree',
-    'ga.lg3': '<b>Commits</b> ahead of / behind base',
-    'ga.lg4': '<b>PR checks</b> passing / failing / conflicted',
-    'ga.lg5': '<b>Rate limited</b> — the engine is waiting on quota',
-    'ga.lg6': '<b>Engine exited</b> — the process is gone',
-    'ga.lg7': '<b>Needs input</b> — it is asking you something',
-    'ga.lg8': '<b>Running</b> — a turn is in flight',
-    'ga.n5.p1': 'These are the real glyphs the sidebar draws. They are the reason the TUI stays one screen: the state of every task on every machine is legible at a glance, in a column about twelve characters wide.',
-    'ga.n5.p2': 'Four of them — <span class="mono">?</span>, <span class="mono">◷</span>, <span class="mono">†</span>, and a failed check — are what the Inbox sorts to the top. Those are the ones that stop being work and start being <em>your</em> work.',
 
-    'ga.n6.h': 'Schedule of engines', 'ga.n6.sub': '12 supported',
-    'ga.n6.tcap': 'Schedule — engines and supplied support',
-    'ga.n6.th1': 'Engine', 'ga.n6.th2': 'Launch', 'ga.n6.th3': 'Hist', 'ga.n6.th4': 'Badge', 'ga.n6.th5': 'Quota', 'ga.n6.th6': 'Class',
-    'ga.n6.builtin': 'Built-in',
-    'ga.n6.contrib': 'Contrib',
-    'ga.n6.tnote': '● supplied · ○ not supplied · <span class="mono">◆</span> default engine · <span class="mono">※</span> session handoff supplied · Contrib badge is screen-based · see revision table',
-    'ga.n6.p1': 'Claude Code is the default. There is no in-app model picker, deliberately: you pick the model the way that engine already does, on its own launch command. Rove’s job is the worktree, the branch, the tabs, and the state marks — not a second settings screen for someone else’s CLI.',
-    'ga.n6.p2': 'A mixed fleet in one round is the point of the schedule. <span class="mono">--agents claude:2,codex:2,copilot:1</span> is five attempts at one prompt from three different vendors, each in its own checkout, compared side by side in one <span class="mono">collect</span> call.',
 
     'ga.copyright': '© 2026 Sma1lboy · MIT · Sheet 1 of 4',
 
@@ -224,6 +198,16 @@ var KOBE_I18N = (function () {
     'footer.colophon': 'Built with Bun, OpenTUI and React. Set in Saira Condensed, IBM Plex Sans and IBM Plex Mono. MIT licensed.',
     'footer.plugins': 'plugins', 'footer.themesLink': 'themes', 'footer.changelog': 'changelog', 'footer.docs': 'docs', 'footer.keybindings': 'keybindings',
     'hero.alts': 'or with',
+    'ga.n5.h': 'Physical view',
+    'ga.n5.sub': 'Not a screenshot · pick a task',
+    'ga.n5.p1': 'Notes 1 to 4 drew the parts. <b>This is the assembled machine, running.</b> Everything above is a specimen taken from it.',
+    'ga.n5.p3': 'Every glyph here is one the sidebar really draws, and every engine name is one that ships. The full schedule of marks and engines is in the <a href="https://docs.rove.run">docs</a>; this sheet shows them working instead of listing them.',
+    'ga.fig5cap': 'Fig. 5 — Physical view · three repositories, four tasks, none attached',
+    'fleet.eyebrow': 'four tasks running, nobody attached',
+    'fleet.cue': 'pick a task →',
+    'fleet.note': 'A real session: three repositories, four tasks, each on its own worktree, branch and terminal tabs. <strong>Nothing is attached to any of them right now.</strong> Every engine runs in a hosted PTY behind the daemon, so the work continues with the TUI closed.',
+    'fleet.noteFull': 'The full layout: Tasks on the left, the split workspace, Changes on the right. Pick a task, or use <b>[~] Zen</b> to collapse Files. This is a live layout, not a screenshot.',
+    'fleet.noteZen': 'This is zen mode: Files is collapsed and the workspace takes the freed width. Hit <b>☯ ZEN</b> at the bottom of the rail to bring it back, or pick a task on the left. This is a live layout, not a screenshot.',
   };
   var dicts = { en: en, zh: zh };
   var lang = 'en';

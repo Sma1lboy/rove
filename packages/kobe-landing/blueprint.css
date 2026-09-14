@@ -190,6 +190,16 @@ h1 .thin{font-weight:400;color:var(--ink-2)}
 .txt-col{padding:8px 0 34px 30px;border-left:1px solid var(--rule)}
 .txt-col p{margin:0 0 14px;max-width:56ch}
 .txt-col p:last-child{margin-bottom:0}
+
+/* A note whose figure needs the whole sheet: the figure takes the full width
+   and the prose sits under it instead of beside it. Lived only in themes.css
+   until the home sheet needed it too — a drawing convention belongs to the
+   shared layer, not to whichever page happened to want it first. */
+.note.wide{grid-template-columns:minmax(0,1fr)}
+.note.wide .fig-col{padding:8px 0 18px}
+.note.wide .txt-col{padding:18px 0 34px;border-left:0;border-top:1px solid var(--rule);
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0 30px}
+.note.wide .txt-col>*{max-width:60ch}
 figure{margin:0;min-width:0}
 figure svg{display:block;width:100%;height:auto}
 figcaption{margin-top:12px;font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.14em;font-size:10.5px;color:var(--ink-2);border-top:1px solid var(--rule);padding-top:7px}
