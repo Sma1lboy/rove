@@ -2,13 +2,10 @@
 
 Marketing landing page for **Rove** — served at **https://rove.run**.
 
-Static HTML with no build step or framework. The homepage uses `index.html`,
-its own `home.css`, and `index.js` for language selection and installation
-commands. English content and the npm command remain readable without JavaScript.
-The product video uses the existing Rove recording in `assets/demo.mp4`.
-
-Plugins, themes, and changelog pages retain their shared `blueprint.css` styling.
-Homepage layout changes belong in `home.css` so they do not affect those pages.
+A single self-contained static `index.html` (no build step, no framework). The
+design started life as a Pretext `.dc.html` mockup; the dynamic bits (copy-to-clipboard
+install button, engine selector that drives the `rove api fan-out` snippet) were ported
+to a few lines of inline vanilla JS so the page deploys as plain static files.
 
 ## Local preview
 
