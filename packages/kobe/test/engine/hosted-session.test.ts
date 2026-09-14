@@ -152,10 +152,12 @@ describe("deliverToHostedKey", () => {
    *  so both readiness and the echo confirmation settle on the first poll.
    *  `screen` is whatever the composer already shows. */
   function echoingRpc(screen: string) {
+    const calls: string[] = []
     const writes: string[] = []
     let written = ""
     const rpc: HostedSessionRpc = {
       request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        calls.push(name)
         if (name === "pty.peek") {
           return {
             exists: true,
@@ -174,20 +176,20 @@ describe("deliverToHostedKey", () => {
         return {} as T
       },
     }
-    return { rpc, writes }
+    return { rpc, calls, writes }
   }
 
   it("delivers into a live session", async () => {
     const { rpc, writes } = echoingRpc("\u276f")
     const outcome = await deliverToHostedKey(rpc, "t1::tab-1", "go")
-    expect(outcome).toMatchObject({ ready: true, confirmed: true, queued: false })
+    expect(outcome).toMatchObject({ ready: true, confirmed: true })
     expect(writes).toEqual(["pty.write", "pty.write"])
   })
 
-  it("presses TAB, not Enter, when the engine is mid-turn and says 'tab to queue message'", async () => {
-    // Claude Code with a turn running: Enter leaves the text in the composer;
-    // the footer asks for Tab. A `send` that pressed Enter parked every
-    // dispatched report in the coordinator's input box.
+  it("submits with Enter even when the engine's footer asks for Tab", async () => {
+    // The submit key is NOT read off the engine's repaint: an engine drawing
+    // "tab to queue message" gets Enter like every other engine, so a footer
+    // drawn a frame late can no longer decide the key.
     const sent: string[] = []
     let written = ""
     const rpc: HostedSessionRpc = {
@@ -213,8 +215,19 @@ describe("deliverToHostedKey", () => {
       },
     }
     const outcome = await deliverToHostedKey(rpc, "t1::tab-1", "report: done")
-    expect(outcome).toMatchObject({ confirmed: true, queued: true })
-    expect(sent).toEqual(["\x1b[200~report: done\x1b[201~", "\t"])
+    expect(outcome).toMatchObject({ confirmed: true })
+    expect(sent).toEqual(["\x1b[200~report: done\x1b[201~", "\r"])
+  })
+
+  it("chooses the submit key without reading the ring: no peek between the paste and the key", async () => {
+    // The read that used to sit here had a 450ms budget against a repaint the
+    // engine controls, and once the peek offset rolled out of the 512KB ring a
+    // STALE hint from an earlier turn pressed Tab at an idle engine. Both
+    // failure modes are gone with the read: delivery peeks only for readiness
+    // and for the echo confirmation.
+    const { rpc, calls } = echoingRpc("\u276f")
+    await deliverToHostedKey(rpc, "t1::tab-1", "go")
+    expect(calls).toEqual(["pty.peek", "pty.peek", "pty.write", "pty.write", "pty.peek"])
   })
 
   it("delivers even when the composer already holds text", async () => {

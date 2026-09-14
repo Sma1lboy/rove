@@ -62,8 +62,11 @@ export interface EngineQuotaUsage {
  * here only together with the neutral-layer consumer that reads it.
  */
 export interface EngineCapabilities {
-  /** Prepare text and its submission key without depending on a footer redraw. */
-  readonly preparePromptSubmission?: (prompt: string) => { readonly text: string; readonly key: "\r" | "\t" } | null
+  /** Rewrite the prompt text before delivery submits it with Enter. Delivery
+   *  never reads the engine's screen to pick a key, so an engine that needs
+   *  something about its own composer closed first (a mention popup) says so
+   *  here, in the text. */
+  readonly preparePromptSubmission?: (prompt: string) => string | null
   /** Optional vendor-owned adjustments for its full-screen terminal UI. */
   readonly terminalPresentation?: EngineTerminalPresentation
   /**

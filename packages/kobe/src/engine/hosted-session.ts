@@ -9,13 +9,7 @@ import type { TerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/termina
 import { readPersistedTerminalDefaultColors } from "../tui/lib/terminal-colors.ts"
 import { BUILTIN_VENDORS, type VendorId } from "../types/vendor.ts"
 import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from "./foreground.ts"
-import {
-  PASTE_READY_POLL_MS,
-  PASTE_READY_TIMEOUT_MS,
-  bracketedPasteActive,
-  encodePaste,
-  submitKeyFor,
-} from "./paste-readiness.ts"
+import { PASTE_READY_POLL_MS, PASTE_READY_TIMEOUT_MS, bracketedPasteActive, encodePaste } from "./paste-readiness.ts"
 import { engineEntry } from "./registry.ts"
 import { ENGINE_EXIT_BANNER, type EngineSessionLaunch, REPO_INIT_TIMEOUT_SECONDS } from "./session-launch.ts"
 
@@ -204,8 +198,6 @@ export interface PromptWriteOutcome {
   /** The engine echoed the prompt's tail back — the only positive proof it
    *  landed. `false` means unconfirmed, NOT necessarily lost. */
   readonly confirmed: boolean
-  /** A queue hint was observed and Tab was pressed. False is inconclusive. */
-  readonly queued: boolean
 }
 
 /** Trailing slice of the prompt used as the echo marker. Long enough not to
@@ -264,9 +256,9 @@ async function writeAndConfirm(
   opts?: HostedPromptDeliveryOpts,
 ): Promise<PromptWriteOutcome> {
   const ready = await awaitPasteReady(rpc, key, { timeoutMs: opts?.pasteReadyTimeoutMs })
-  const { bytes, queued } = await writeHostedPrompt(rpc, key, prompt, { ready, vendor: opts?.vendor })
+  const { bytes } = await writeHostedPrompt(rpc, key, prompt, { ready, vendor: opts?.vendor })
   const confirmed = await confirmPromptLanded(rpc, key, prompt, sinceOffset)
-  return { bytes, ready, confirmed, queued }
+  return { bytes, ready, confirmed }
 }
 
 export async function writeHostedPromptIfLive(
@@ -305,12 +297,27 @@ export async function awaitPasteReady(
 }
 
 /**
- * Paste the prompt, wait, then submit — the pty twin of `pasteAndSubmit`.
+ * Paste the prompt, wait, then submit it with Enter — the pty twin of
+ * `pasteAndSubmit`.
  *
  * Waits for the engine to be READING before writing a single byte. Skipping
  * that wait is what silently truncated 8.6KB prompts to their first 1024
  * bytes: a pty in canonical mode discards past `MAX_INPUT` instead of
  * blocking, and `pty.write` returns void, so nothing downstream could tell.
+ *
+ * The submit key is Enter for every engine and is NOT read off the engine's
+ * own repaint. It used to be: delivery peeked at the ring after the paste
+ * looking for a "tab to queue message" footer and pressed Tab when it saw
+ * one, re-checking once 300ms after Enter. That read had a 450ms budget
+ * (SUBMIT_DELAY_MS + the re-check) against a repaint the engine controls, so
+ * a footer drawn a frame late left Enter going to an engine that had not yet
+ * been asked for Tab, and a burst of output that rolled the peek offset out
+ * of the 512KB ring let a STALE hint press Tab at an idle engine. Both
+ * failures park the text in the composer while delivery still reports
+ * `confirmed` — the composer's own echo of the paste counts as proof it
+ * landed. Enter is the one key every engine reads the same way; an engine
+ * that queues a mid-turn message on Enter queues it, and one that does not
+ * is no worse off than a read that missed its window.
  *
  * Returns the bytes written, so callers can report what they actually did
  * rather than assuming. Note this counts bytes HANDED TO the pty; whether
@@ -322,39 +329,14 @@ export async function writeHostedPrompt(
   key: string,
   prompt: string,
   opts?: { readonly ready?: boolean; readonly vendor?: VendorId | null },
-): Promise<{ readonly bytes: number; readonly queued: boolean }> {
+): Promise<{ readonly bytes: number }> {
   const bracketed = opts?.ready ?? (await awaitPasteReady(rpc, key))
   const prepared = opts?.vendor ? engineEntry(opts.vendor).capabilities?.preparePromptSubmission?.(prompt) : null
-  const data = encodePaste(prepared?.text ?? prompt, bracketed)
-  const before = await rpc.request<PtyPeekResult>("pty.peek", { key })
+  const data = encodePaste(prepared ?? prompt, bracketed)
   await rpc.request("pty.write", { key, data })
   await new Promise((resolve) => setTimeout(resolve, SUBMIT_DELAY_MS))
-  const hintedSubmit = await submitKeyAfter(rpc, key, before.offset)
-  const submit = prepared?.key ?? hintedSubmit
-  let queued = hintedSubmit === "\t" && submit === "\t"
-  await rpc.request("pty.write", { key, data: submit })
-  if (!prepared && submit === "\r") {
-    await new Promise((resolve) => setTimeout(resolve, QUEUE_HINT_RECHECK_MS))
-    const again = await submitKeyAfter(rpc, key, before.offset)
-    if (again === "\t") {
-      await rpc.request("pty.write", { key, data: again })
-      queued = true
-    }
-  }
-  return { bytes: Buffer.byteLength(data, "utf8"), queued }
-}
-
-/** How long Enter gets to take effect before the footer is read again. */
-const QUEUE_HINT_RECHECK_MS = 300
-
-/** Enter or Tab, per what the engine has drawn since `sinceOffset`. */
-async function submitKeyAfter(rpc: HostedSessionRpc, key: string, sinceOffset: number): Promise<"\r" | "\t"> {
-  try {
-    const peek = await rpc.request<PtyPeekResult>("pty.peek", { key, sinceOffset })
-    return submitKeyFor(Buffer.from(peek.data, "base64").toString("utf8"))
-  } catch {
-    return "\r"
-  }
+  await rpc.request("pty.write", { key, data: "\r" })
+  return { bytes: Buffer.byteLength(data, "utf8") }
 }
 
 /**
