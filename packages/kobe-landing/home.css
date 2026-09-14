@@ -1,0 +1,109 @@
+:root {
+  color-scheme: light;
+  --paper: #f4f4f1;
+  --ink: #202422;
+  --muted: #626961;
+  --line: #d8dbd4;
+  --accent: #a34324;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Noto Sans", "Noto Sans CJK SC", "Microsoft YaHei", "Droid Sans Fallback", sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 30px; }
+body { margin: 0; font-size: 16px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+a { color: inherit; text-decoration: none; }
+a:hover { color: var(--accent); }
+button { font: inherit; color: inherit; cursor: pointer; }
+button, a { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
+.wrap { width: min(1120px, calc(100% - 96px)); margin-inline: auto; }
+.skip { position: absolute; top: -100px; left: 24px; padding: 12px; background: var(--paper); z-index: 2; }
+.skip:focus { top: 12px; }
+.header { min-height: 100px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.brand { display: inline-flex; align-items: center; font-size: 29px; line-height: 1; font-weight: 750; letter-spacing: -1.5px; }
+.brand-mark { color: var(--accent); border-inline: 2px solid var(--accent); font: 600 19px/1 ui-monospace, monospace; padding: 4px; margin-right: 10px; letter-spacing: 0; }
+.brand-dot { color: var(--accent); }
+nav { display: flex; align-items: center; gap: 28px; font-size: 14px; }
+nav a, #langToggle { padding-block: 10px; }
+#langToggle { background: none; border: 0; padding-inline: 8px; }
+#langToggle:hover { color: var(--accent); }
+.hero { padding-block: 76px 52px; }
+.eyebrow { margin: 0 0 22px; font-size: 12px; font-weight: 650; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+h1 { margin: 0; font-size: clamp(40px, 5.6vw, 72px); line-height: 1.1; font-weight: 650; letter-spacing: -.052em; }
+h1 span { display: block; }
+.muted { color: var(--muted); }
+.intro { max-width: 610px; margin: 26px 0; font-size: 18px; line-height: 1.7; color: var(--muted); }
+.actions { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+.button { display: inline-flex; align-items: center; justify-content: center; padding: 12px 23px; min-height: 48px; font-size: 15px; font-weight: 600; border-radius: 5px; }
+.primary { color: #fff; background: var(--accent); }
+.primary:hover { background: #82371e; color: #fff; }
+.text-link { font-size: 14px; text-decoration: underline; text-underline-offset: 5px; }
+.availability { margin: 21px 0 0; font-size: 12px; color: var(--muted); }
+.demo { margin-block: 0; }
+.video-frame { padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #e7e9e3; }
+video { display: block; width: 100%; aspect-ratio: 8 / 5; background: #111; border-radius: 4px; }
+figcaption { display: flex; justify-content: space-between; gap: 16px; margin-top: 14px; font-size: 12px; color: var(--muted); }
+figcaption a { text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.benefits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 52px; padding-block: 84px; }
+.section-number { font-size: 12px; color: var(--accent); font-family: ui-monospace, monospace; }
+h2 { margin: 14px 0; font-size: 25px; line-height: 1.25; letter-spacing: -.025em; font-weight: 600; }
+.benefits p, .detail-list p { color: var(--muted); font-size: 15px; margin: 0; }
+.details { border-top: 1px solid var(--line); padding-block: 72px; display: grid; grid-template-columns: 1fr 1fr; gap: 100px; }
+.details-heading h2, .install h2 { font-size: clamp(30px, 3vw, 40px); max-width: 420px; line-height: 1.2; margin-bottom: 26px; }
+.detail-list { display: grid; gap: 32px; }
+h3 { font-size: 17px; margin: 0 0 8px; font-weight: 650; }
+.detail-links { display: flex; gap: 22px; margin-top: 12px; font-size: 14px; text-decoration: underline; text-underline-offset: 4px; }
+.install { border-top: 1px solid var(--line); padding-block: 72px 90px; display: grid; grid-template-columns: 1fr 1fr; gap: 70px; align-items: center; }
+.install p { color: var(--muted); font-size: 15px; }
+.install .eyebrow { color: var(--accent); font-size: 12px; }
+.install-options { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.install-options button { background: none; border: 1px solid transparent; border-radius: 4px; padding: 8px 12px; min-height: 42px; font-size: 13px; }
+.install-options button[aria-pressed="true"] { background: #e4e7df; border-color: var(--line); }
+.command { background: #fff; border: 1px solid var(--line); border-radius: 5px; padding: 16px; display: flex; align-items: center; gap: 14px; }
+.command code { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.7 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.command button { background: none; border: 0; font-size: 13px; padding: 8px; flex-shrink: 0; color: var(--accent); }
+.install .install-feedback { min-height: 22px; margin: 5px 0; font-size: 12px; }
+.install .requirements { font-size: 12px; margin: 0 0 16px; max-width: 440px; }
+.footer { border-top: 1px solid var(--line); display: flex; align-items: center; gap: 26px; padding-block: 26px 40px; }
+.footer .brand { font-size: 24px; }
+.footer p { font-size: 12px; color: var(--muted); flex: 1; }
+.footer nav { gap: 22px; font-size: 12px; }
+html[lang="zh-CN"] h1 { letter-spacing: -.035em; font-size: clamp(34px, 5.4vw, 68px); line-height: 1.3; }
+html[lang="zh-CN"] h2 { line-height: 1.45; }
+@media (max-width: 800px) {
+  .wrap { width: calc(100% - 48px); }
+  .header { min-height: 82px; }
+  .hero { padding-top: 50px; }
+  .benefits { gap: 28px; padding-block: 54px; }
+  .benefits h2 { font-size: 21px; }
+  .details, .install { gap: 40px; padding-block: 52px; }
+  .footer { flex-wrap: wrap; gap: 12px 24px; }
+  .footer nav { width: 100%; }
+}
+@media (max-width: 560px) {
+  .wrap { width: calc(100% - 40px); }
+  nav { gap: 16px; font-size: 13px; }
+  .brand { font-size: 25px; }
+  .brand-mark { font-size: 16px; margin-right: 7px; }
+  .header { gap: 12px; }
+  .hero { padding-block: 38px 36px; }
+  .eyebrow { font-size: 10px; margin-bottom: 18px; }
+  h1 { font-size: clamp(25px, 7.1vw, 39px); letter-spacing: -.05em; line-height: 1.18; }
+  .intro { font-size: 16px; line-height: 1.75; margin-block: 22px; }
+  .actions { gap: 24px; }
+  .availability { font-size: 11px; max-width: 280px; }
+  .video-frame { padding: 4px; }
+  figcaption { font-size: 11px; flex-wrap: wrap; gap: 6px; }
+  .benefits { grid-template-columns: 1fr; gap: 32px; padding-block: 44px; }
+  .benefits h2 { margin-top: 7px; font-size: 23px; }
+  .details, .install { grid-template-columns: 1fr; gap: 32px; padding-block: 44px; }
+  .details-heading h2, .install h2 { font-size: 30px; }
+  .command { padding: 12px; gap: 8px; }
+  .install-options { gap: 2px; }
+  .install-options button { padding-inline: 9px; }
+  html[lang="zh-CN"] h1 { font-size: clamp(28px, 7.8vw, 40px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
