@@ -23,73 +23,33 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/blueprint.css">
-<link rel="stylesheet" href="/fleet.css">
 <style>
-/* The simulator is a specimen of the real product, so it keeps the product's
-   own terminal palette instead of the sheet's paper-and-ink tokens. Those nine
-   names used to come from the old site's chrome.css; scoping them to #fleet
-   both revives it unmodified and keeps two of them — --ink and --accent, which
-   mean the opposite thing here — from leaking onto the drawing.
-   --font-mono is deliberately NOT redefined: it inherits the sheet's IBM Plex
-   Mono, so the specimen reads in the drawing's own hand and no extra font is
-   fetched. */
-/* The specimen keeps the product's terminal palette, but only inside the frame.
-   Scoping it to #fleet as a whole was wrong: the eyebrow and the caption sit
-   outside the terminal — they are the drawing talking — and two of these names,
-   --ink and --accent, mean the opposite thing on either side of that border, so
-   a caption written in terminal ink went nearly invisible on the cyanotype.
-   These nine used to come from the old site's chrome.css. --font-mono is
-   deliberately absent: the specimen inherits the sheet's IBM Plex Mono, so it
-   reads in the drawing's own hand and no extra font is fetched. */
-#fleet .fleet-frame{
-  --accent:oklch(56% 0.13 45);
-  --accent-2:oklch(70% 0.11 50);
-  --ease-out:cubic-bezier(0.16,1,0.3,1);
-  --faint:oklch(55% 0.018 65);
-  --ink:oklch(25% 0.02 60);
-  --muted:oklch(50% 0.02 60);
-  --well:oklch(22% 0.02 50);
-  --well-ink:oklch(88% 0.015 85);
-  border:1px solid var(--rule);
+/* A figure that needs the whole sheet. The drawn TUI is authored at 1 unit =
+   1 CSS pixel so its lettering lands at true size — the rail is the one part of
+   a terminal sparse enough to stay legible at 1:2, and it is the part that
+   carries the state. */
+.fig-sheet{max-width:1200px}
+.fig-sheet svg{width:100%;height:auto}
+.tui text{fill:var(--ink-2)}
+.tui .real,.tui .rail-n{fill:var(--ink)}
+.tui .rail-repo,.tui .rail-s{fill:var(--ink-3)}
+.tui .pane-tag{fill:var(--ink-3);letter-spacing:.08em}
+/* Syntax colour is deleted, but its second job is not: state keeps an ink of
+   its own. On a monochrome sheet one terracotta line is louder than a whole
+   palette is inside a screenshot. */
+.tui .rail-a,.tui .det-a{fill:var(--accent-text)}
+.tui #tkMark{transition:y .28s cubic-bezier(.22,.61,.36,1)}
+.tui .detail-g{transition:transform .28s cubic-bezier(.22,.61,.36,1)}
+.tui .tk{cursor:pointer}
+.tui .tk:hover .rail-n{fill:var(--accent-text)}
+.tui .tk:focus-visible .hit{fill:var(--accent-line);fill-opacity:.12}
+.tui .det-n{font-size:26px;fill:var(--ink)}
+.tui .det-a,.tui .det-d{font-size:26px}
+.tui .det-g{font-size:26px;fill:var(--accent-text)}
+.tui .det-s{font-size:17px;fill:var(--ink-3)}
+@media (prefers-reduced-motion:reduce){
+  .tui #tkMark,.tui .detail-g{transition:none}
 }
-#fleet{margin:0;max-width:100%}
-/* The sheet has no --muted, so the caption names its own ink rather than
-   inheriting a token that does not exist here. */
-#fleet .fleet-note{
-  margin:16px 0 0;max-width:72ch;text-align:left;
-  font-family:var(--font-body);font-size:14px;line-height:1.62;color:var(--ink-2);
-}
-#fleet .fleet-note strong,#fleet .fleet-note b{color:var(--ink);font-weight:600}
-
-/* On the cyanotype the paper is already dark and cold, and the product's own
-   near-black sits a shade LIGHTER than it at an opposite hue — so the specimen
-   floated on the sheet as a warm smear instead of reading as a window cut into
-   it. Here the frame takes a ground deeper and colder than the paper, and the
-   panes that hard-code their own warm black in fleet.css layer on it with
-   translucent white instead, which keeps their depth order intact. The text
-   stays warm: warm type on cold black is what the product actually looks like.
-   The light sheet needs none of this — dark ink on pale paper already contrasts. */
-.fleet-dark-ground #fleet .fleet-frame{background:oklch(0.09 0.022 248)}
-.fleet-dark-ground #fleet .fl-pane,
-.fleet-dark-ground #fleet .fl-card,
-.fleet-dark-ground #fleet .fl-rt-row,
-.fleet-dark-ground #fleet .fl-dialog,
-.fleet-dark-ground #fleet .fl-newtask,
-.fleet-dark-ground #fleet .fl-zenchip{background:rgba(255,255,255,.045)}
-.fleet-dark-ground #fleet .rule{background:rgba(255,255,255,.10)}
-
-/* A drawing does not paste a full-size photograph between its notes — it draws
-   the thing to scale. The specimen is 1290px wide at 1:1; the figure column is
-   about 600. Scaling it to fit puts it in the same column, at the same size, in
-   the same rhythm as Figs. 2-5, and the sheet states the reduction the way a
-   drawing states any other: SCALE 1:2. It stays live — scaling does not move
-   where a click lands. */
-#fleet{--fleet-scale:.46}
-#fleet .fleet-frame{transform:scale(var(--fleet-scale));transform-origin:top left;width:1290px}
-#fleet .fleet-shrink{overflow:hidden}
-@media (max-width:900px){ #fleet{--fleet-scale:.28} }
-
-
 </style>
 <style>
 /* Page-local only. Three things the shared sheet CSS has no opinion on yet;
@@ -239,38 +199,45 @@
 }
 </script>
 <script src="/index.js" defer></script>
-<script src="/fleet.js" defer></script>
 <script src="/blueprint-idle.js" defer></script>
 <script>
-/* blueprint.css switches theme three ways — an explicit data-theme either
-   direction, and the system preference when neither is set. The specimen's
-   ground has to follow the same three, so it asks for the resolved answer
-   rather than re-deriving it. */
+/* Picking a task moves one accent rectangle and slides Detail A to the row it
+   enlarges. Everything it swaps already lives on the row as data-*, so the
+   figure stays the single source for what it shows. */
 (function () {
-  var r = document.documentElement;
-  function sync() {
-    var t = r.getAttribute('data-theme');
-    var dark = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme:dark)').matches);
-    r.classList.toggle('fleet-dark-ground', dark);
+  function wire() {
+    var rows = [].slice.call(document.querySelectorAll('.tui .tk'));
+    if (!rows.length) return;
+    var mark = document.getElementById('tkMark');
+    var det  = document.getElementById('detG');
+    var base = null;
+    function pick(g) {
+      var r = g.querySelector('.hit');
+      var y = +r.getAttribute('y');
+      if (base === null) base = y;
+      mark.setAttribute('y', y);
+      det.setAttribute('transform', 'translate(0 ' + (y - base) + ')');
+      var d = g.dataset;
+      document.getElementById('tagA').textContent = d.eng;
+      document.getElementById('tagB').textContent = d.tab2;
+      document.getElementById('scopeTx').textContent = 'SCOPE: ' + d.scope.toUpperCase();
+      document.getElementById('dN').textContent = d.name;
+      document.getElementById('dA').textContent = d.add;
+      document.getElementById('dD').textContent = d.del;
+      document.getElementById('dG').textContent = d.glyph;
+      document.getElementById('dS').textContent = d.sub;
+      rows.forEach(function (o) { o.setAttribute('aria-pressed', String(o === g)); });
+    }
+    rows.forEach(function (g) {
+      g.addEventListener('click', function () { pick(g); });
+      g.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(g); }
+      });
+    });
+    pick(rows[0]);
   }
-  sync();
-  matchMedia('(prefers-color-scheme:dark)').addEventListener('change', sync);
-
-  /* A scaled element still reserves its unscaled box, so the frame left a band
-     of empty paper under it. Measure the natural height once and give the
-     wrapper the scaled one. */
-  function fit() {
-    var box = document.querySelector('#fleet .fleet-shrink');
-    var frame = box && box.firstElementChild;
-    if (!frame) return;
-    var k = parseFloat(getComputedStyle(document.getElementById('fleet'))
-                         .getPropertyValue('--fleet-scale')) || 1;
-    box.style.height = Math.round(frame.offsetHeight * k) + 'px';
-  }
-  addEventListener('load', fit);
-  addEventListener('resize', fit);
-  fit();
-  new MutationObserver(sync).observe(r, { attributes: true, attributeFilter: ['data-theme'] });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+  else wire();
 })();
 </script>
 </head>
@@ -373,119 +340,131 @@
   </section>
 
   <!-- ══ NOTE 1 — GENERAL ASSEMBLY ═══════════════════════════════════════ -->
-  <section class="note" data-zone="B">
+  <section class="note wide" data-zone="B">
     <h2><span class="num" data-i18n="ga.note1">Note 1</span> &mdash; <span data-i18n="ga.n5.h">Physical view</span> <span class="dash"></span> <span class="micro" data-i18n="ga.fig1">Fig. 1</span></h2>
 
     <div class="fig-col">
-      <div class="quicklook fleet" id="fleet">
-        <p class="fleet-eyebrow">
-            <span data-i18n="fleet.eyebrow">FOUR TASKS RUNNING, NOBODY ATTACHED</span>
-            <span class="cue" data-i18n="fleet.cue">PICK A TASK →</span>
-          </p>
-      
-          <div class="fleet-shrink"><div class="fleet-frame">
-            <div class="fleet-cols">
-      
-              <!-- Tasks rail -->
-              <div class="fl-rail" id="fleetRail">
-                <p class="fl-brand"><b>ROVE</b> <button type="button" class="fl-nav inbox" data-view="inbox" aria-pressed="false">INBOX 2</button></p>
-                <p class="fl-newtask"><span><span class="plus">+</span> New task</span><span class="k">n</span></p>
-                <button type="button" class="fl-nav fl-navrow" data-view="kanban" aria-pressed="false">Kanban</button>
-                <button type="button" class="fl-nav fl-navrow" data-view="routines" aria-pressed="false">Routines</button>
-                <div id="fleetTree" role="listbox" aria-label="Tasks"></div>
-                <button type="button" class="fl-zenchip" id="fleetZenOff" hidden>☯ ZEN</button>
-                <p class="fl-foot">J/K move · ⏎ open</p>
-              </div>
-      
-              <!-- Workspace: two split leaves, each with its corner name tag -->
-            <div class="fl-work">
-              <div class="fl-panes">
-                <div class="fl-pane" id="fleetWork"><span class="fl-tag" id="fleetTagA">claude</span><pre></pre></div>
-                <div class="fl-pane" id="fleetSide"><span class="fl-tag" id="fleetTagB">shell</span><pre></pre></div>
-              </div>
-            </div>
-      
-            <!-- Kanban — daemon-owned issues as Backlog / In progress / Done -->
-            <div class="fl-page" id="fleetKanban" hidden>
-              <p class="fl-page-head">Kanban<span class="legend">tab project · ←↓↑→ card · enter detail · n new · esc close</span></p>
-              <p class="fl-proj">rove<span class="ct">1/3</span><span class="path">~/i/rove</span></p>
-              <div class="fl-board">
-                <div class="fl-col">
-                  <p class="fl-col-head">Backlog <span class="n">(3)</span></p>
-                  <p class="fl-card"><span class="t">Stream the diff pane<b>#41</b></span><span class="meta">2026-08-19</span></p>
-                  <p class="fl-card"><span class="t">Adopt orphaned worktrees<b>#44</b></span><span class="meta">2026-08-17<b class="hold">hold</b></span></p>
-                  <p class="fl-card"><span class="t">Ledger backfill plan<b>#12</b></span><span class="meta">2026-08-14</span></p>
-                </div>
-                <div class="fl-col">
-                  <p class="fl-col-head">In progress <span class="n">(2)</span></p>
-                  <p class="fl-card"><span class="t">Refresh before 401<b>#38</b></span><span class="meta">2026-08-20</span></p>
-                  <p class="fl-card"><span class="t">Why checkout flakes<b>#9</b></span><span class="meta">2026-08-21<b class="turn">turn done</b></span></p>
-                </div>
-                <div class="fl-col">
-                  <p class="fl-col-head">Done <span class="n">(6)</span></p>
-                  <p class="fl-card"><span class="t">Pin the playwright image<b>#7</b></span><span class="meta">2026-08-12</span></p>
-                  <p class="fl-card"><span class="t">Name tabs by conversation<b>#31</b></span><span class="meta">2026-08-11</span></p>
-                  <p class="fl-more">+4 more</p>
-                </div>
-              </div>
-            </div>
-      
-            <!-- Routines — scheduled prompts that keep the daemon awake -->
-            <div class="fl-page" id="fleetRoutines" hidden>
-              <p class="fl-page-head rt">ROUTINES<span class="rule"></span><span class="hold">keeping the daemon awake</span></p>
-              <div class="fl-rt">
-                <p class="fl-rt-row on"><span class="nm">nightly flake sweep</span><span class="rule"></span><span class="meta">rove · <b>0 9 * * 1-5</b></span><span class="when">in 6h</span></p>
-                <p class="fl-rt-row"><span class="nm">dep audit</span><span class="rule"></span><span class="meta">ledger-api · <b>0 7 * * 1</b></span><span class="when">in 2d</span></p>
-                <p class="fl-rt-row paused"><span class="nm">weekly changelog</span><span class="rule"></span><span class="meta">storefront · <b>0 18 * * 5</b></span><span class="pz">paused ·</span><span class="when">in 3d</span></p>
-              </div>
-              <div class="fl-rt-detail">
-                <p class="fl-rt-prompt">Sweep flaky tests and report.<span class="run">[ run now ]</span></p>
-                <p class="fl-sec">RECENT RUNS</p>
-                <p class="fl-run"><b>#12</b><span class="st ok">dispatched</span><span class="ago">3h ago</span></p>
-                <p class="fl-run"><b>#11</b><span class="st wn">skipped_missed</span><span class="ago">1d ago</span></p>
-              </div>
-            </div>
-      
-            <!-- Files -->
-              <div class="fl-files" id="fleetFiles">
-                <p class="fl-files-head"><button type="button" class="fl-zen" id="fleetZenOn" aria-pressed="false"><span class="kb">[~]</span> Zen</button><span><span class="kb">[⌃ A P]</span> Create PR</span></p>
-                <p class="fl-views"><span>All</span><span class="on">Changes</span></p>
-                <p class="fl-scope" id="fleetScope">scope: vs main</p>
-                <div id="fleetFileRows"></div>
-              </div>
-      
-            </div>
-            <!-- Inbox — the one full-window overlay of the three (dialog, z-index) -->
-          <div class="fl-modal" id="fleetInbox" hidden>
-            <div class="fl-dialog" role="dialog" aria-modal="true" aria-label="Inbox">
-              <p class="fl-dlg-head"><span><b>INBOX</b> 2</span><button type="button" class="esc" id="fleetInboxEsc" aria-label="Close the Inbox">esc</button></p>
-              <p class="fl-sec">ATTENTION</p>
-              <p class="fl-item sel"><span class="cur">▌</span><span class="b"><span class="id">ledger-api › copilot 1<span class="bdg wn">? needs input</span><span class="age">9m</span></span><span class="sub">ledger-migration</span></span></p>
-              <p class="fl-item"><span class="cur">&nbsp;</span><span class="b"><span class="id">storefront › kimi 1<span class="bdg ok">✓ done</span><span class="age">12m</span></span><span class="sub">flaky-e2e</span></span></p>
-              <p class="fl-sec">RECENT</p>
-              <p class="fl-item"><span class="cur">&nbsp;</span><span class="b"><span class="id">rove › Stream the diff pane<span class="bdg">⠹ running</span><span class="age">2m</span></span><span class="sub">streaming-diff</span></span></p>
-              <p class="fl-item"><span class="cur">&nbsp;</span><span class="b"><span class="id">rove › pytest<span class="age">18m</span></span><span class="sub">oauth-refresh</span></span></p>
-              <p class="fl-dlg-foot">enter open&nbsp;&nbsp;d delete</p>
-            </div>
-          </div>
-          <p class="fleet-status">
-              <span class="quota"><b>CLAUDE</b> 5h <span class="ok">42%</span> → 14:00 · 7d <span class="ok">12%</span></span>
-              <span>⌃ A commands · F1 help · [settings]</span>
-            </p>
-          </div>
-      
-          <p class="fleet-note">
-          <span data-i18n-html="fleet.note">A real session: three repositories, four tasks, each with its own worktree, branch and terminal tabs. <strong>Nothing is attached to any of them right now.</strong> Every engine runs in a hosted PTY behind the daemon, so the work continues with the TUI closed.</span>
-          <span data-zen-only data-i18n-html="fleet.noteZen">This is zen mode: Files is collapsed and the workspace takes the freed width. Hit <b>☯ ZEN</b> at the bottom of the rail to bring it back, or pick a task on the left. This is a live layout, not a screenshot.</span>
-          <span data-full-only hidden data-i18n-html="fleet.noteFull">The full layout: Tasks on the left, the split workspace, Changes on the right. Pick a task, or use <b>[~] Zen</b> to collapse Files. This is a live layout, not a screenshot.</span>
-        </p>
-        </div></div>
-      <figcaption data-i18n="ga.fig5cap">Fig. 5 — Physical view · three repositories, four tasks, none attached</figcaption>
+      <figure class="fig fig-sheet" data-draw>
+        <svg class="tui" viewBox="0 0 1200 842" role="img"
+        aria-label="Physical view: the Rove terminal drawn to scale, with detail A enlarged">
+
+        <!-- ── enclosure ─────────────────────────────────────────────── -->
+        <rect class="v" x="1" y="1" width="1198" height="598"/>
+        <line class="thin" x1="1" y1="41" x2="1199" y2="41"/>
+        <line class="thin" x1="1" y1="557" x2="1199" y2="557"/>
+        <text class="tx-s" x="18" y="28">ROVE</text>
+        <text class="tx-m" x="86" y="28">3 PROJECTS · 4 TASKS · NONE ATTACHED</text>
+
+        <!-- ── column divisions, centre lines, dimension chain ───────── -->
+        <line class="ctr" x1="280" y1="41" x2="280" y2="557"/>
+        <line class="ctr" x1="880" y1="41" x2="880" y2="557"/>
+        <line class="dim" x1="1" y1="620" x2="280" y2="620"/>
+        <line class="dim" x1="280" y1="620" x2="880" y2="620"/>
+        <line class="dim" x1="880" y1="620" x2="1199" y2="620"/>
+        <g class="dim">
+          <line x1="1" y1="612" x2="1" y2="628"/><line x1="280" y1="612" x2="280" y2="628"/>
+          <line x1="880" y1="612" x2="880" y2="628"/><line x1="1199" y1="612" x2="1199" y2="628"/>
+        </g>
+        <text class="dimtx" x="140" y="614" text-anchor="middle">28 COLS</text>
+        <text class="dimtx" x="580" y="614" text-anchor="middle">52 COLS</text>
+        <text class="dimtx" x="1040" y="614" text-anchor="middle">20 COLS</text>
+
+        <!-- ── task rail: drawn at true size, it is the low-density part ─ -->
+        <text class="tx-s" x="18" y="70">Tasks</text>
+        <line class="thin" x1="18" y1="80" x2="262" y2="80"/>
+        <text class="tx-m rail-repo" x="26" y="108">rove</text>
+        <text class="tx-m rail-repo" x="26" y="128" opacity=".55">ledger-api · storefront</text>
+        <g id="tkRows">
+        <g class="tk" data-i="0" data-eng="claude" data-tab2="bun dev" data-scope="vs main" data-name="streaming-diff" data-add="+142" data-del="−31" data-glyph="⋮" data-sub="Stream the diff pane" tabindex="0" role="button" aria-label="Task streaming-diff"><rect class="hit" x="14" y="137" width="252" height="40" fill="transparent"/><text class="tx-m rail-n" x="26" y="152">streaming-diff</text><text class="tx-m rail-a" x="196" y="152">+142</text><text class="tx-m rail-d" x="236" y="152">−31</text><text class="tx-m rail-s" x="26" y="169">⋮ Stream the diff pane</text></g>
+        <g class="tk" data-i="1" data-eng="codex" data-tab2="pytest" data-scope="working tree" data-name="oauth-refresh" data-add="+88" data-del="−54" data-glyph="●" data-sub="Refresh before 401" tabindex="0" role="button" aria-label="Task oauth-refresh"><rect class="hit" x="14" y="185" width="252" height="40" fill="transparent"/><text class="tx-m rail-n" x="26" y="200">oauth-refresh</text><text class="tx-m rail-a" x="196" y="200">+88</text><text class="tx-m rail-d" x="236" y="200">−54</text><text class="tx-m rail-s" x="26" y="217">● Refresh before 401</text></g>
+        <g class="tk" data-i="2" data-eng="copilot" data-tab2="psql" data-scope="vs main" data-name="ledger-migration" data-add="+34" data-del="−6" data-glyph="?" data-sub="Backfill the ledger" tabindex="0" role="button" aria-label="Task ledger-migration"><rect class="hit" x="14" y="233" width="252" height="40" fill="transparent"/><text class="tx-m rail-n" x="26" y="248">ledger-migration</text><text class="tx-m rail-a" x="196" y="248">+34</text><text class="tx-m rail-d" x="236" y="248">−6</text><text class="tx-m rail-s" x="26" y="265">? Backfill the ledger</text></g>
+        <g class="tk" data-i="3" data-eng="kimi" data-tab2="git" data-scope="vs release/24.8" data-name="flaky-e2e" data-add="+21" data-del="−34" data-glyph="○" data-sub="Why checkout flakes" tabindex="0" role="button" aria-label="Task flaky-e2e"><rect class="hit" x="14" y="281" width="252" height="40" fill="transparent"/><text class="tx-m rail-n" x="26" y="296">flaky-e2e</text><text class="tx-m rail-a" x="196" y="296">+21</text><text class="tx-m rail-d" x="236" y="296">−34</text><text class="tx-m rail-s" x="26" y="313">○ Why checkout flakes</text></g>
+        </g>
+        <rect id="tkMark" class="acc" x="14" y="137" width="252" height="40" fill="none"/>
+
+        <!-- ── engine pane: three real lines, then conventional ruling ── -->
+        <text class="tx-m pane-tag" id="tagA" x="864" y="70" text-anchor="end">claude</text>
+        <text class="tx-m" x="300" y="72">›</text>
+        <text class="tx-m real" x="322" y="72">stream the diff pane instead of buffering</text>
+        <text class="tx-m" x="300" y="106">●</text>
+        <text class="tx-m real" x="322" y="106">I’ll parse git diff as a line stream, push</text>
+        <text class="tx-m real" x="322" y="126">hunks to the pane as they land.</text>
+        <line class="thin" x1="322" y1="162" x2="800" y2="162"/>
+        <line class="thin" x1="322" y1="179" x2="639" y2="179"/>
+        <line class="thin" x1="322" y1="196" x2="727" y2="196"/>
+        <line class="thin" x1="322" y1="213" x2="556" y2="213"/>
+        <line class="thin" x1="322" y1="230" x2="769" y2="230"/>
+        <line class="thin" x1="322" y1="247" x2="608" y2="247"/>
+        <line class="thin" x1="322" y1="264" x2="686" y2="264"/>
+        <line class="thin" x1="322" y1="281" x2="519" y2="281"/>
+        <line class="thin" x1="322" y1="298" x2="743" y2="298"/>
+        <line class="thin" x1="322" y1="315" x2="582" y2="315"/>
+        <line class="thin" x1="322" y1="332" x2="665" y2="332"/>
+        <line class="thin" x1="322" y1="349" x2="545" y2="349"/>
+        <line class="thin" x1="322" y1="366" x2="800" y2="366"/>
+        <line class="thin" x1="322" y1="383" x2="639" y2="383"/>
+        <line class="thin" x1="322" y1="400" x2="727" y2="400"/>
+        <line class="thin" x1="322" y1="417" x2="556" y2="417"/>
+        <text class="tx-m" x="322" y="452">⋯</text>
+        <text class="dimtx" x="322" y="486">≈ 40 LINES — NOT SHOWN</text>
+        <line class="thin" x1="300" y1="516" x2="860" y2="516"/>
+        <text class="tx-m" x="300" y="540">›</text>
+        <rect class="accf" x="322" y="529" width="9" height="15"/>
+
+        <!-- ── second tab: same convention ────────────────────────────── -->
+        <text class="tx-m pane-tag" id="tagB" x="1182" y="70" text-anchor="end">bun dev</text>
+        <text class="tx-m real" x="900" y="106">$ bun run dev</text>
+        <text class="tx-m real" x="900" y="140">ready in 341 ms</text>
+        <line class="thin" x1="900" y1="176" x2="1048" y2="176"/>
+        <line class="thin" x1="900" y1="193" x2="1089" y2="193"/>
+        <line class="thin" x1="900" y1="210" x2="1002" y2="210"/>
+        <line class="thin" x1="900" y1="227" x2="1118" y2="227"/>
+        <line class="thin" x1="900" y1="244" x2="1035" y2="244"/>
+        <line class="thin" x1="900" y1="261" x2="1078" y2="261"/>
+        <line class="thin" x1="900" y1="278" x2="1016" y2="278"/>
+        <line class="thin" x1="900" y1="295" x2="1148" y2="295"/>
+        <line class="thin" x1="900" y1="312" x2="1064" y2="312"/>
+        <text class="tx-m" x="900" y="348">⋯</text>
+        <text class="dimtx" x="900" y="382">≈ 20 LINES</text>
+        <text class="dimtx" id="scopeTx" x="900" y="424">SCOPE: VS MAIN</text>
+
+        <!-- ── status bar ─────────────────────────────────────────────── -->
+        <text class="tx-m" x="18" y="583">CLAUDE 5h 42% → 14:00 · 7d 12%</text>
+        <text class="tx-m" x="1182" y="583" text-anchor="end">^A commands · F1 help</text>
+
+        <!-- ── DETAIL A — the same row at twice size ──────────────────── -->
+        <g id="detG" class="detail-g">
+          <circle class="thin" cx="140" cy="155" r="34" fill="none"
+                  stroke-dasharray="150 46" transform="rotate(-38 140 155)"/>
+        </g>
+
+        <line class="thin" x1="1" y1="668" x2="1199" y2="668"/>
+        <text class="tx-s" x="1" y="660">Detail A &#183; scale 2:1</text>
+        <g id="detRow">
+          <text class="tx-m det-g"  id="dG" x="10"  y="716">⋮</text>
+          <text class="tx-m det-n"  id="dN" x="52"  y="716">streaming-diff</text>
+          <text class="tx-m det-a"  id="dA" x="392" y="716">+142</text>
+          <text class="tx-m det-d"  id="dD" x="474" y="716">−31</text>
+          <text class="tx-m det-s"  id="dS" x="52"  y="752">Stream the diff pane</text>
+        </g>
+        <g class="balloons">
+          <path class="dim" d="M27 762 L27 792"/><circle class="thin" cx="27" cy="806" r="13" fill="none"/>
+          <text class="dimtx" x="27" y="811" text-anchor="middle">1</text>
+          <path class="dim" d="M130 762 L130 792"/><circle class="thin" cx="130" cy="806" r="13" fill="none"/>
+          <text class="dimtx" x="130" y="811" text-anchor="middle">2</text>
+          <path class="dim" d="M456 762 L456 792"/><circle class="thin" cx="456" cy="806" r="13" fill="none"/>
+          <text class="dimtx" x="456" y="811" text-anchor="middle">3</text>
+        </g>
+        <text class="dimtx" x="560" y="800">1 STATE GLYPH &#183; 2 BRANCH &#183; 3 FILES CHANGED / DELETED</text>
+        <text class="dimtx" x="560" y="822">EVERY GLYPH IS ONE THE SIDEBAR REALLY DRAWS &#8212; SEE NOTE 5</text>
+      </svg>
+        <figcaption data-i18n="ga.fig5cap">Fig. 1 — Physical view · scale 1:2 · Detail A 2:1</figcaption>
+      </figure>
     </div>
 
     <div class="txt-col">
-      <p data-i18n-html="ga.n5.p1">Notes 1 to 4 drew the parts. <b>This is the assembled machine, running.</b> Everything above is a specimen taken from it.</p>
-      <p data-i18n-html="ga.n5.p3">Every glyph here is one the sidebar really draws, and every engine name is one that ships. The full schedule of marks and engines is in the <a href="https://docs.rove.run">docs</a>; this sheet shows them working instead of listing them.</p>
+      <p data-i18n-html="ga.n5.p1">The whole product, running. The notes below take it apart.</p>
+      <p data-i18n-html="ga.n5.p3">Every glyph is one the sidebar really draws; every engine name ships. The full schedule is in the <a href="https://docs.rove.run">docs</a>.</p>
     </div>
   </section>
 
