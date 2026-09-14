@@ -120,8 +120,10 @@ describe("golden: session events → sidebar running state", () => {
     const row = h.row("tab-1")
     expect(row.loading).toBe(true)
     expect(row.tone).toBe("primary")
-    const last = h.published.at(-1)
+    const last = h.published.filter((p) => p.tabId).at(-1)
     expect(last).toMatchObject({ taskId: TASK_ID, tabId: "tab-1", state: "running", sessionId: "s1" })
+    // …and the derived task rollup follows it, so the task row spins too.
+    expect(h.published.at(-1)).toMatchObject({ taskId: TASK_ID, state: "running", sessionId: "s1" })
   })
 
   it("a Stop after running lands the unseen ●, which digests once seen", () => {
@@ -190,9 +192,12 @@ describe("golden: session events → sidebar running state", () => {
     expect(perm.registry.debugSnapshot().tasks[TASK_ID]?.lapseArmed).toBe(false)
     expect(perm.registry.debugSnapshot().tabs[TASK_ID]?.["tab-1"]?.lapseArmed).toBe(false)
 
+    // Same `!`, amber tone: the quota wall is the one attention state that
+    // resolves without anyone doing anything, so it does not wear the colour
+    // the unrecoverable ones do.
     const limited = track(harness())
     limited.registry.report(TASK_ID, "turn-failed", { failure: "rate_limit" }, "tab-1")
-    expect(limited.row("tab-1")).toMatchObject({ loading: false, glyph: "!", tone: "error" })
+    expect(limited.row("tab-1")).toMatchObject({ loading: false, glyph: "!", tone: "warning" })
 
     const errored = track(harness())
     errored.registry.report(TASK_ID, "turn-failed", { failure: "other" }, "tab-1")
@@ -279,7 +284,7 @@ describe("golden: session events → sidebar running state", () => {
     h.registry.report(TASK_ID, "turn-start", undefined, "tab-1", { id: "s1" }, "claude")
     // A fresh client attaches: no live events, only the subscribe-time replay.
     const late = h.makeClient()
-    for (const payload of h.registry.currentNonIdle()) {
+    for (const payload of h.registry.replaySnapshot()) {
       handleOrchestratorEvent("engine-state", payload, late.signals)
     }
     expect(late.row("tab-1").loading).toBe(true)

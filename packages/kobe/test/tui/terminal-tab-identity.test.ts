@@ -9,12 +9,29 @@
  */
 
 import { describe, expect, it } from "vitest"
-import { demoteExitedEngine } from "../../src/tui/workspace/terminal-tab-identity"
+import { createTabIdentityObserver, demoteExitedEngine } from "../../src/tui/workspace/terminal-tab-identity"
 import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
 
 const SHELL = ["/bin/zsh"]
 const engineTab = (over: Partial<TerminalTab> = {}): TerminalTab =>
   ({ kind: "engine", id: "tab-1", title: null, ordinal: 1, sessionId: "s1", spawned: true, ...over }) as TerminalTab
+
+it("keeps a restored conversation through the shell startup window, then observes a real exit", () => {
+  const observe = createTabIdentityObserver()
+  const tab = engineTab({ liveVendor: "claude" })
+  expect(observe(tab, undefined, SHELL)).toBe(tab)
+  expect(observe(tab, null, SHELL)).toBe(tab)
+  expect(observe(tab, "claude", SHELL)).toBe(tab)
+  expect(observe(tab, null, SHELL).kind).toBe("command")
+})
+
+it("does not carry an observed engine exit across a detached or replaced PTY", () => {
+  const observe = createTabIdentityObserver()
+  const tab = engineTab({ liveVendor: "claude" })
+  observe(tab, "claude", SHELL)
+  expect(observe(tab, undefined, SHELL)).toBe(tab)
+  expect(observe(tab, null, SHELL)).toBe(tab)
+})
 
 describe("demoteExitedEngine", () => {
   it("resets an exited engine tab to a shell — kind, session pin and status title", () => {

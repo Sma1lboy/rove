@@ -65,7 +65,7 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
     name: "delete",
     group: "lifecycle",
     summary:
-      "Remove a task and its worktree; the git branch stays unless --delete-branch. Needs --force on a dirty worktree. Returns { queued } — removal itself runs in the background; add --wait for the resolved outcome. Pass --group instead of --task-id to close a whole fan-out round in one call: it returns { groupId, count, failures, results } with one entry per sibling, and a refusal on one (a dirty worktree) is recorded there rather than aborting the rest.",
+      "Remove a task and its worktree; the git branch stays unless --delete-branch. Needs --force on a dirty worktree. Returns { queued } — removal itself runs in the background; add --wait for the resolved outcome. With --delete-branch / --delete-remote the reply also carries `branch` — { branch, deleted, keptReason?, remote? } — so `the branch went with it` is a fact you read rather than an assumption. Pass --group instead of --task-id to close a whole fan-out round in one call: it returns { groupId, count, failures, results } with one entry per sibling, and a refusal on one (a dirty worktree) is recorded there rather than aborting the rest.",
     flags: [
       F.taskId(false),
       {
@@ -80,7 +80,18 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
         type: "bool",
         description: "Delete even with uncommitted changes (never implies --delete-branch).",
       },
-      { name: "delete-branch", type: "bool", description: "Also delete the task's git branch (default: keep it)." },
+      {
+        name: "delete-branch",
+        type: "bool",
+        description:
+          "Also delete the task's LOCAL git branch (default: keep it). The outcome is reported in the result's `branch` field — `{ deleted, keptReason? }` — because git legitimately refuses (unmerged work, a sibling worktree holding the branch) and that refusal used to reach daemon.log and nowhere a caller could read it. Implies --wait: a branch verdict read before the worktree is gone describes the worktree, not the branch.",
+      },
+      {
+        name: "delete-remote",
+        type: "bool",
+        description:
+          "Also `git push --delete` the branch on its remote (its own `branch.<name>.remote`, else origin). A SEPARATE opt-in that --delete-branch never implies: a local branch is recoverable from any clone that still has it, a remote one is recoverable by nobody and its deletion closes any open PR. Reported in `branch.remote` — `{ name, deleted, error? }`. Implies --wait.",
+      },
       {
         name: "wait",
         type: "bool",

@@ -16,7 +16,7 @@
  */
 
 import { kobeHookInvocation } from "../cli/invocation.ts"
-import { quoteShellArgv } from "../lib/shell-command.ts"
+import { type QuoteShellArgvOptions, quoteShellArgv } from "../lib/shell-command.ts"
 import type { EngineActivityKind } from "./hook-events.ts"
 
 /** Verbs installed only while a plugin subscribes to tool.* hooks (volume gate).
@@ -158,6 +158,23 @@ export interface ActivityHookOpts {
   readonly buildFilter?: (spec: HookEventSpec) => boolean
 }
 
+/**
+ * How a persisted hook command line is quoted.
+ *
+ * Bare tokens wherever the argv allows it — `kobe hook turn-complete --engine
+ * codex` is one command in POSIX sh, cmd.exe AND PowerShell. The engines run
+ * their hooks through whatever shell the platform hands them, and on Windows
+ * that is not sh: the single-quoted form the conservative quoter emits
+ * (`'kobe' 'hook' …`) is a program named `'kobe'` to cmd and a string literal
+ * to PowerShell, so every codex hook fire on Windows failed without a trace
+ * and no badge, turn state or attention item ever came from a codex tab. A
+ * token that still needs quoting (a dev entry path with spaces) gets the
+ * platform's own dialect.
+ */
+export function hookCommandQuoting(platform: NodeJS.Platform = process.platform): QuoteShellArgvOptions {
+  return { bareSafe: true, windows: platform === "win32" }
+}
+
 /** Build the activity hook groups kobe installs, pointing each event at
  *  `kobe hook <verb>` (cwd-based; no task id). `inv` is injectable for tests. */
 export function buildActivityHooks(
@@ -166,10 +183,11 @@ export function buildActivityHooks(
   opts: ActivityHookOpts = {},
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {}
+  const quoting = hookCommandQuoting()
   for (const spec of eventMap) {
     if (opts.buildFilter && !opts.buildFilter(spec)) continue
     const { event, matcher, verb } = spec
-    const command = quoteShellArgv([...inv, "hook", verb, ...(opts.extraArgs ?? [])])
+    const command = quoteShellArgv([...inv, "hook", verb, ...(opts.extraArgs ?? [])], quoting)
     const group: Record<string, unknown> = { hooks: [{ type: "command", command }] }
     if (matcher) group.matcher = matcher
     // Accumulate — one event may carry several matcher-scoped specs (e.g.

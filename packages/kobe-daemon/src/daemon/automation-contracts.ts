@@ -89,8 +89,8 @@ export interface Automation {
  * deliberately distinct: unattended automation is only trustworthy if the user
  * can tell "nothing to do" (`skipped_precheck`, healthy) from "it broke"
  * (`dispatch_failed`, needs a human) at a glance. The same rule is why a
- * standing session's degraded paths (`revived`, `deferred`) are not folded
- * into `dispatched`.
+ * standing session's degraded path (`revived`) is not folded into
+ * `dispatched`.
  */
 export type AutomationRunStatus =
   | "dispatched"
@@ -101,11 +101,6 @@ export type AutomationRunStatus =
    * context in front of it should not read as one that had it.
    */
   | "revived"
-  /**
-   * The standing session's composer was busy, so the daemon took ownership of
-   * the prompt and queued it for a human to release from the Inbox. Queue acceptance only; delivery is still pending and belongs to the deferred store.
-   */
-  | "deferred"
   | "skipped_cancelled"
   | "skipped_precheck"
   | "skipped_missed"
@@ -145,8 +140,6 @@ export interface AutomationRun {
   readonly trigger: "scheduled" | "manual"
   readonly taskId?: string
   readonly tabId?: string
-  /** Receipt for queue acceptance, not a delivery confirmation. */
-  readonly deferredId?: string
   readonly precheckResult?: AutomationPrecheckResult
   readonly error?: string
   /** ISO-8601 event time. */

@@ -11,6 +11,30 @@ import { parseLsofCwd, processCwd } from "../../src/engine/process-cwd"
 import { type ScratchOwnerTask, decideScratchAdopt } from "../../src/tui/workspace/scratch-adopt"
 
 describe("decideScratchAdopt", () => {
+  it.each(["C:\\worktrees\\demo\\src", "c:/worktrees/demo/..cache"])("folds Windows managed descendants: %s", (cwd) => {
+    expect(
+      decideScratchAdopt({
+        cwd,
+        repoRoot: "C:/Projects/demo",
+        harnessLive: true,
+        knownRepos: new Set(),
+        ownerTasks: [{ id: "owner", kind: "task", dir: "C:/worktrees/demo" }],
+      }),
+    ).toEqual({ kind: "fold", taskId: "owner" })
+  })
+
+  it("recognizes saved Windows projects across slash spellings without folding sibling prefixes", () => {
+    expect(
+      decideScratchAdopt({
+        cwd: "C:\\worktrees\\demo-other",
+        repoRoot: "C:\\Projects\\demo",
+        harnessLive: true,
+        knownRepos: new Set(["C:/Projects/demo"]),
+        ownerTasks: [{ id: "owner", kind: "task", dir: "C:/worktrees/demo" }],
+      }),
+    ).toEqual({ kind: "adopt", repo: "C:\\Projects\\demo", known: true })
+  })
+
   const known = new Set(["/repos/rove"])
   const none: ScratchOwnerTask[] = []
 

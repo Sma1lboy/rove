@@ -277,13 +277,23 @@ describe("trustCopilotWorktree", () => {
  * failure this catches is silence, not the absence itself.
  */
 describe("BUILTIN_ENGINES trust coverage", () => {
+  /**
+   * Engines with NO trust gate, each because it was driven and shown to start
+   * straight into the composer in a directory it had never seen. Listed by
+   * name so "has no gate" stays a claim someone verified, never a default.
+   */
+  const NO_TRUST_GATE: readonly string[] = [
+    "omp", // driven in a fresh dir on 2026-09-11: no dialog, straight to the composer
+  ]
+
   it("every builtin engine pre-trusts a Rove worktree", async () => {
     const { BUILTIN_ENGINES } = await import("../../src/engine/builtin-engines.ts")
     const missing = Object.entries(BUILTIN_ENGINES)
       .filter(([, entry]) => typeof entry.trustWorktree !== "function")
       .map(([vendor]) => vendor)
+      .filter((vendor) => !NO_TRUST_GATE.includes(vendor))
     expect(missing, `no trustWorktree hook: ${missing.join(", ")}`).toEqual([])
     // Guard the guard: an empty registry would satisfy the assertion above.
-    expect(Object.keys(BUILTIN_ENGINES).sort()).toEqual(["claude", "codex", "copilot", "kimi"])
+    expect(Object.keys(BUILTIN_ENGINES).sort()).toEqual(["claude", "codex", "copilot", "kimi", "omp", "pi"])
   })
 })

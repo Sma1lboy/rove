@@ -15,15 +15,16 @@
 import type { PtyPeekResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
 import { terminalRows } from "@sma1lboy/kobe-daemon/daemon/terminal-rows"
+import type { VendorId } from "../types/vendor.ts"
 import type { PsSnapshot } from "./foreground.ts"
 import {
   type HostedPromptDeliveryOpts,
   type HostedSessionRpc,
   type PromptWriteOutcome,
   awaitPasteReady,
-  writeHostedPromptIfClear,
+  writeHostedPromptIfLive,
 } from "./hosted-session.ts"
-import { sessionHasEngine } from "./session-engine-presence.ts"
+import { enginePresence } from "./session-engine-presence.ts"
 import { ENGINE_EXIT_BANNER, REPO_INIT_TIMEOUT_SECONDS, initMarkerSaysFinished } from "./session-launch.ts"
 
 /** Bounds for the first-message readiness wait (paste-delivery vendors). */
@@ -70,17 +71,17 @@ export interface PasteFirstMessageOptions extends HostedPromptDeliveryOpts {
  * found` and stayed". Anything that reports success for a spawn — and a
  * scheduled routine has nobody watching to catch it out — has to look here.
  *
- * Returns the session's pid once the engine is in its tree, or `null` when the
- * session died or the budget ran out.
+ * Returns the session pid and live vendor once the engine is in its tree,
+ * or `null` when the session died or the budget ran out.
  */
 export async function awaitEngineProcess(
   rpc: HostedSessionRpc,
   key: string,
   engineBin: string | undefined,
   opts: PasteFirstMessageOptions = {},
-): Promise<number | null> {
+): Promise<{ readonly pid: number; readonly vendor: VendorId | null } | null> {
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
-  // Undefined falls through to `sessionHasEngine`'s own default.
+  // Undefined uses the process probe's default.
   const snapshot = opts.snapshot
 
   // If the session was launched with a repo-init script, the engine child does
@@ -106,7 +107,10 @@ export async function awaitEngineProcess(
     // Same predicate the delivery gates use, in a loop: one implementation of
     // "is the engine actually there", and a ps hiccup reads as "not yet" and
     // keeps polling.
-    if (session.pid && (await sessionHasEngine(session.pid, engineBin, snapshot))) return session.pid
+    if (session.pid) {
+      const presence = await enginePresence(session.pid, engineBin, snapshot)
+      if (presence.kind === "engine") return { pid: session.pid, vendor: presence.vendor }
+    }
     await sleep(opts.intervalMs ?? FIRST_MESSAGE_POLL_INTERVAL_MS)
   }
   return null
@@ -157,14 +161,15 @@ export async function pastePromptWhenEngineUp(
   opts: PasteFirstMessageOptions = {},
 ): Promise<PromptWriteOutcome | null> {
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
-  if ((await awaitEngineProcess(rpc, key, engineBin, opts)) !== null) {
+  const engine = await awaitEngineProcess(rpc, key, engineBin, opts)
+  if (engine !== null) {
     // The engine process exists; now wait for it to actually be READING
     // (see `awaitPasteReady`). Only when it never announces bracketed
     // paste do we fall back to a blind settle.
     if (!(await awaitPasteReady(rpc, key, { timeoutMs: opts.pasteReadyTimeoutMs, sleep }))) {
       await sleep(opts.settleMs ?? FIRST_MESSAGE_SETTLE_MS)
     }
-    return await writeHostedPromptIfClear(rpc, key, prompt, opts)
+    return await writeHostedPromptIfLive(rpc, key, prompt, { ...opts, vendor: engine.vendor })
   }
   return null
 }

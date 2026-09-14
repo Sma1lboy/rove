@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from "vitest"
-import { engineProcessIn, foregroundEngineIn, parsePsSnapshot } from "../../src/engine/foreground.ts"
+import { engineProcessIn, foregroundEngineIn, hasAncestor, parsePsSnapshot } from "../../src/engine/foreground.ts"
 import { PsProbeUnavailableError } from "../../src/engine/process-rows.ts"
 import {
   WIN_PROBE_TIMEOUT_MS,
@@ -125,6 +125,84 @@ describe("repairConsoleParentage (the npm shim's cmd.exe took the chain with it)
       ]),
     )
     expect(fixed.find((r) => r.pid === 39384)?.ppid).toBe(39308)
+  })
+})
+
+/**
+ * The other end of the identity walk, transcribed from a machine where every
+ * `rove api add` made from an engine's Bash tool recorded no dispatcher.
+ * 12504's parent 32224 is the Git-Bash fork that exec'd the npm `sh` shim
+ * and exited on the spot; 30956's parent 26980 is the engine shim's `cmd.exe`.
+ * 7504 (the Bash tool's root bash) has no console; 20368 is the first process
+ * on the hidden console the rest of the chain shares. Rows are in creation
+ * order, as the CIM command emits them.
+ */
+const CIM_CLI = [
+  '5664 26696 "C:\\Program Files\\nodejs\\node.EXE" C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules\\@sma1lboy\\rove\\dist\\cli\\pty-host-node.mjs',
+  "31768 5664 \"C:\\Program Files\\Git\\bin\\bash.exe\" -ilc \"export ROVE_TASK_ID='01M1V8' ROVE_TAB_ID='tab-4' claude\"",
+  '30956 26980 "C:\\Program Files\\Git\\usr\\bin\\sh.exe" /c/Users/me/AppData/Roaming/npm/claude --dangerously-skip-permissions',
+  "31188 30956 C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\bin\\claude.exe --dangerously-skip-permissions",
+  '7504 31188 "C:\\Program Files\\Git\\bin\\bash.exe" -c "source /c/Users/me/.claude/shell-snapshots/snapshot-bash-1.sh"',
+  '20368 7504 "C:\\Program Files\\Git\\bin\\..\\usr\\bin\\bash.exe" -c "source /c/Users/me/.claude/shell-snapshots/snapshot-bash-1.sh"',
+  '24956 20368 "C:\\Program Files\\Git\\bin\\..\\usr\\bin\\bash.exe" -c "source /c/Users/me/.claude/shell-snapshots/snapshot-bash-1.sh"',
+  '12504 32224 "C:\\Program Files\\Git\\usr\\bin\\sh.exe" /c/Users/me/AppData/Roaming/npm/rove api add --repo . --title x',
+  '19248 12504 "C:\\Program Files\\nodejs\\node.exe" C:\\Users\\me\\AppData\\Roaming\\npm/node_modules/@sma1lboy/rove/dist/cli/rove.js api add --repo . --title x',
+  "29612 19248 C:\\Users\\me\\.bun\\bin\\bun.exe C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules\\@sma1lboy\\rove\\dist\\cli\\rove-run.js api add --repo . --title x",
+].join("\n")
+
+const TAB_31768 = [31188, 30956, 31768]
+/** `GetConsoleProcessList` order is not creation order — the repair must not lean on it. */
+const CLI_29612 = [29612, 12504, 24956, 19248, 20368]
+
+describe("repairConsoleParentage anchored on the CLI itself (Git-Bash's fork exec'd the npm sh shim and died)", () => {
+  const raw = parseWinProcessList(CIM_CLI)
+  const both = new Map([
+    [31768, TAB_31768],
+    [29612, CLI_29612],
+  ])
+
+  it("cannot reach the tab's shell from the CLI before the repair — the bug, reproduced", () => {
+    expect(hasAncestor(raw, 29612, 31768)).toBe(false)
+  })
+
+  it("the tab-shell repair alone is not enough: the break is on the CLI's side of the engine", () => {
+    const fixed = repairConsoleParentage(raw, new Map([[31768, TAB_31768]]))
+    expect(hasAncestor(fixed, 31188, 31768)).toBe(true)
+    expect(hasAncestor(fixed, 29612, 31768)).toBe(false)
+  })
+
+  it("re-attaches the orphaned sh.exe to the CLI console's root, and the walk reaches the shell", () => {
+    const fixed = repairConsoleParentage(raw, both)
+    expect(fixed.find((r) => r.pid === 12504)?.ppid).toBe(20368)
+    expect(hasAncestor(fixed, 29612, 31768)).toBe(true)
+  })
+
+  it("the root is the oldest member whose parent is alive and off the console, and it keeps that parent", () => {
+    const fixed = repairConsoleParentage(raw, both)
+    expect(fixed.find((r) => r.pid === 20368)?.ppid).toBe(7504)
+  })
+
+  it("never reparents onto a leaf anchor, so the CLI keeps its real parent and no cycle forms", () => {
+    const fixed = repairConsoleParentage(raw, both)
+    expect(fixed.find((r) => r.pid === 29612)?.ppid).toBe(19248)
+    expect(fixed.find((r) => r.pid === 19248)?.ppid).toBe(12504)
+  })
+
+  it("prefers the older of two members with alive off-console parents, by row order", () => {
+    // A younger cohort member the engine itself spawned onto this console.
+    const younger = '40000 31188 "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoProfile -Command x'
+    const rows = parseWinProcessList(`${CIM_CLI}\n${younger}`)
+    const fixed = repairConsoleParentage(rows, new Map([[29612, [...CLI_29612, 40000]]]))
+    expect(fixed.find((r) => r.pid === 12504)?.ppid).toBe(20368)
+    expect(fixed.find((r) => r.pid === 40000)?.ppid).toBe(20368)
+  })
+
+  it("falls back to the oldest orphan when no member's parent is alive", () => {
+    // The console's own first process lost its parent too.
+    const rows = raw.map((r) => (r.pid === 20368 ? { ...r, ppid: 777777 } : r))
+    const fixed = repairConsoleParentage(rows, new Map([[29612, CLI_29612]]))
+    expect(fixed.find((r) => r.pid === 12504)?.ppid).toBe(20368)
+    expect(fixed.find((r) => r.pid === 20368)?.ppid).toBe(777777)
   })
 })
 

@@ -2,9 +2,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { describe, expect, it, vi } from "vitest"
-import { CODEX_SCREEN_MANIFEST } from "../../src/engine/codex-local/screen.ts"
 import {
-  ComposerBusyError,
   type HostedSessionRpc,
   deliverToHostedKey,
   ensureHostedEngine,
@@ -149,154 +147,26 @@ describe("pastePromptWhenEngineUp (first-message paste delivery)", () => {
   })
 })
 
-describe("deliverToHostedKey A+C gates", () => {
-  function rpcWith(
-    peek: Partial<{ alive: boolean; data: string; lastHumanWriteMs: number; humanWriteQuietMs: number }>,
-  ) {
-    let written = ""
-    return {
-      request: async <T>(name: string, payload?: unknown): Promise<T> => {
-        if (name === "pty.write") {
-          written += (payload as { data?: string })?.data ?? ""
-          return {} as T
-        }
-        if (name === "pty.peek") {
-          return {
-            exists: true,
-            alive: peek.alive !== false,
-            pid: 42,
-            offset: 0,
-            // `pty.peek` returns BASE64, so the fake must encode too: the
-            // readiness check decodes before looking for DECSET 2004.
-            // Prefixed with 2004h so readiness passes and suffixed with the
-            // echo so the capture confirmation does — the gates under test
-            // here are the human-write and composer-empty ones.
-            data: Buffer.concat([
-              Buffer.from("\x1b[?2004h"),
-              Buffer.from(peek.data ?? "", "base64"),
-              Buffer.from(written),
-            ]).toString("base64"),
-            sinceValid: false,
-            exit: null,
-            ...(peek.lastHumanWriteMs !== undefined ? { lastHumanWriteMs: peek.lastHumanWriteMs } : {}),
-            ...(peek.humanWriteQuietMs !== undefined ? { humanWriteQuietMs: peek.humanWriteQuietMs } : {}),
-          } as T
-        }
-        return {} as T
-      },
-    }
-  }
-
-  const manifest = {
-    rules: [],
-    composerEmpty: [{ bottomLines: 2, all: ["❯"], lineRegex: ["^\\s*❯\\s*$"] }],
-  }
-
-  it("throws ComposerBusyError when a human write is recent", async () => {
-    const rpc = rpcWith({ alive: true, lastHumanWriteMs: 1_000, humanWriteQuietMs: 10_000 })
-    const err = await deliverToHostedKey(rpc as HostedSessionRpc, "t1::tab-1", "go", {
-      now: () => 5_000,
-    }).then(
-      () => null,
-      (e) => e,
-    )
-    expect(err).toBeInstanceOf(ComposerBusyError)
-    expect((err as ComposerBusyError).layer).toBe("recent-human-write")
-  })
-
-  it("throws ComposerBusyError when the composer is not empty", async () => {
-    const rpc = rpcWith({ alive: true, data: Buffer.from("❯ hello", "utf8").toString("base64") })
-    const err = await deliverToHostedKey(rpc as HostedSessionRpc, "t1::tab-1", "go", {
-      screenManifest: manifest,
-      // Pinned, not defaulted: the gate now falls back to the persisted
-      // setting, so leaving this out made the assertion depend on whether the
-      // machine running the suite had turned the switch off.
-      guard: "on",
-    }).then(
-      () => null,
-      (e) => e,
-    )
-    expect(err).toBeInstanceOf(ComposerBusyError)
-    expect((err as ComposerBusyError).layer).toBe("composer-not-empty")
-  })
-
-  it("skips the screen check when the composer gate is off, but keeps the timing one", async () => {
-    // The escape hatch (state/delivery-guard.ts) for a screen rule an engine
-    // redesign has outrun. It drops the LAYOUT read only: the A layer measures
-    // keystroke recency, so a composer someone is typing into right now stays
-    // protected however this is set — otherwise turning it off would trade a
-    // stuck queue for messages landing mid-sentence.
-    const busyScreen = { alive: true, data: Buffer.from("❯ hello", "utf8").toString("base64") }
-
-    const cOff = await deliverToHostedKey(rpcWith(busyScreen) as HostedSessionRpc, "t1::tab-1", "go", {
-      screenManifest: manifest,
-      guard: "screen-off",
-    }).then(
-      () => "delivered",
-      (e) => e,
-    )
-    expect(cOff).toBe("delivered")
-
-    const aStillOn = await deliverToHostedKey(
-      rpcWith({ ...busyScreen, lastHumanWriteMs: 1_000, humanWriteQuietMs: 10_000 }) as HostedSessionRpc,
-      "t1::tab-1",
-      "go",
-      { screenManifest: manifest, guard: "screen-off", now: () => 5_000 },
-    ).then(
-      () => null,
-      (e) => e,
-    )
-    expect(aStillOn).toBeInstanceOf(ComposerBusyError)
-    expect((aStillOn as ComposerBusyError).layer).toBe("recent-human-write")
-  })
-
-  it("delivers when both gates pass", async () => {
-    const writes: string[] = []
-    let written = ""
-    const rpc = {
-      request: async <T>(name: string, payload?: unknown): Promise<T> => {
-        if (name === "pty.peek") {
-          return {
-            exists: true,
-            alive: true,
-            pid: 42,
-            offset: 0,
-            // DECSET 2004 (engine is reading) + the empty-composer glyph +
-            // whatever it has been written, so readiness and the capture
-            // confirmation both settle on the first poll.
-            data: Buffer.from(`\x1b[?2004h❯${written}`, "utf8").toString("base64"),
-            sinceValid: false,
-            exit: null,
-          } as T
-        }
-        if (name === "pty.write") {
-          written += (payload as { data?: string })?.data ?? ""
-          writes.push(name)
-          return {} as T
-        }
-        return {} as T
-      },
-    }
-    const ok = await deliverToHostedKey(rpc as HostedSessionRpc, "t1::tab-1", "go", { screenManifest: manifest })
-    // An observed outcome now, not a bare boolean.
-    expect(ok).toMatchObject({ ready: true, confirmed: true })
-    expect(writes).toEqual(["pty.write", "pty.write"])
-  })
-
-  it("delivers over Codex's empty-composer placeholder", async () => {
+describe("deliverToHostedKey", () => {
+  /** A pty that is reading (DECSET 2004) and echoes back whatever it is sent,
+   *  so both readiness and the echo confirmation settle on the first poll.
+   *  `screen` is whatever the composer already shows. */
+  function echoingRpc(screen: string) {
+    const calls: string[] = []
     const writes: string[] = []
     let written = ""
     const rpc: HostedSessionRpc = {
       request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        calls.push(name)
         if (name === "pty.peek") {
           return {
             exists: true,
             alive: true,
+            pid: 42,
             offset: 0,
-            data: Buffer.from(
-              `\x1b[?2004h› \x1b[2mAsk Codex to do anything\x1b[22m\r\n  gpt-5.6-sol high fast${written}`,
-              "utf8",
-            ).toString("base64"),
+            data: Buffer.from(`\x1b[?2004h${screen}${written}`, "utf8").toString("base64"),
+            sinceValid: false,
+            exit: null,
           } as T
         }
         if (name === "pty.write") {
@@ -306,39 +176,79 @@ describe("deliverToHostedKey A+C gates", () => {
         return {} as T
       },
     }
+    return { rpc, calls, writes }
+  }
 
-    const outcome = await deliverToHostedKey(rpc, "t1::tab-1", "go", {
-      screenManifest: CODEX_SCREEN_MANIFEST,
-      guard: "on",
-    })
-
+  it("delivers into a live session", async () => {
+    const { rpc, writes } = echoingRpc("\u276f")
+    const outcome = await deliverToHostedKey(rpc, "t1::tab-1", "go")
     expect(outcome).toMatchObject({ ready: true, confirmed: true })
     expect(writes).toEqual(["pty.write", "pty.write"])
   })
 
-  it("does not submit a Codex draft that equals the placeholder text", async () => {
-    const writes: string[] = []
+  it("submits with Enter even when the engine's footer asks for Tab", async () => {
+    // The submit key is NOT read off the engine's repaint: an engine drawing
+    // "tab to queue message" gets Enter like every other engine, so a footer
+    // drawn a frame late can no longer decide the key.
+    const sent: string[] = []
+    let written = ""
     const rpc: HostedSessionRpc = {
-      request: async <T>(name: string): Promise<T> => {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
         if (name === "pty.peek") {
+          const footer = written.length > 0 ? "\n  tab to queue message" : ""
           return {
             exists: true,
             alive: true,
+            pid: 42,
             offset: 0,
-            data: Buffer.from("\x1b[?2004h› Ask Codex to do anything", "utf8").toString("base64"),
+            data: Buffer.from(`\x1b[?2004h\u276f ${written}${footer}`, "utf8").toString("base64"),
+            sinceValid: false,
+            exit: null,
           } as T
         }
+        if (name === "pty.write") {
+          const data = (payload as { data?: string })?.data ?? ""
+          written += data
+          sent.push(data)
+        }
+        return {} as T
+      },
+    }
+    const outcome = await deliverToHostedKey(rpc, "t1::tab-1", "report: done")
+    expect(outcome).toMatchObject({ confirmed: true })
+    expect(sent).toEqual(["\x1b[200~report: done\x1b[201~", "\r"])
+  })
+
+  it("chooses the submit key without reading the ring: no peek between the paste and the key", async () => {
+    // The read that used to sit here had a 450ms budget against a repaint the
+    // engine controls, and once the peek offset rolled out of the 512KB ring a
+    // STALE hint from an earlier turn pressed Tab at an idle engine. Both
+    // failure modes are gone with the read: delivery peeks only for readiness
+    // and for the echo confirmation.
+    const { rpc, calls } = echoingRpc("\u276f")
+    await deliverToHostedKey(rpc, "t1::tab-1", "go")
+    expect(calls).toEqual(["pty.peek", "pty.peek", "pty.write", "pty.write", "pty.peek"])
+  })
+
+  it("delivers even when the composer already holds text", async () => {
+    // The delivery gate that used to hold this back is gone: `send` pastes and
+    // submits, and the only refusal left is a session that cannot take bytes.
+    const { rpc, writes } = echoingRpc("\u276f hello")
+    const outcome = await deliverToHostedKey(rpc, "t1::tab-1", "go")
+    expect(outcome).toMatchObject({ ready: true, confirmed: true })
+    expect(writes).toEqual(["pty.write", "pty.write"])
+  })
+
+  it("reports null for a dead session instead of writing", async () => {
+    const writes: string[] = []
+    const rpc: HostedSessionRpc = {
+      request: async <T>(name: string): Promise<T> => {
+        if (name === "pty.peek") return { exists: true, alive: false, offset: 0, data: "" } as T
         if (name === "pty.write") writes.push(name)
         return {} as T
       },
     }
-
-    await expect(
-      deliverToHostedKey(rpc, "t1::tab-1", "go", {
-        screenManifest: CODEX_SCREEN_MANIFEST,
-        guard: "on",
-      }),
-    ).rejects.toBeInstanceOf(ComposerBusyError)
+    expect(await deliverToHostedKey(rpc, "t1::tab-1", "go")).toBeNull()
     expect(writes).toEqual([])
   })
 })

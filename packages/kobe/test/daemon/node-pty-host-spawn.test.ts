@@ -1,5 +1,5 @@
 import { delimiter } from "node:path"
-import { detachOptions } from "@sma1lboy/kobe-daemon/client/daemon-process"
+import { detachOptions } from "@sma1lboy/kobe-daemon/client/detached-spawn"
 import {
   type NodePtyHostResolution,
   bundleWithBun,
@@ -211,7 +211,7 @@ describe("defaultPtyHostSocketPath", () => {
 })
 
 describe("detachOptions", () => {
-  test("POSIX detaches; Windows only hides, so no stray console window appears", () => {
+  test("POSIX detaches; Windows only hides (the fallback shape — the real spawn goes through win-detached-launch.ts)", () => {
     expect(detachOptions("darwin")).toEqual({ detached: true })
     expect(detachOptions("linux")).toEqual({ detached: true })
     expect(detachOptions("win32")).toEqual({ windowsHide: true })

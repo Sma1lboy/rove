@@ -185,12 +185,11 @@ needed:
 |---|---|
 | `dispatched` | A new task started with the prompt, or the prompt was delivered into a live standing or bound conversation |
 | `revived` | Standing session only: its engine had died, so it was respawned in the same worktree. The files carried over, the **conversation did not** |
-| `deferred` | The composer was busy. The daemon accepted the prompt into your Inbox; it has **not been delivered**. `deferredId` links its queue receipt. Release it from the Inbox or `deferred-release` |
 | `skipped_cancelled` | The routine was disabled, edited, deleted, or its runner stopped before delivery |
 | `skipped_precheck` | The precheck said there was nothing to do. **Healthy** |
 | `skipped_missed` | The occurrence was older than the grace window, **or** the sweep never reached it. A busy sweep no longer drops occurrences silently: one row records how many were passed over and when the first was due |
 | `skipped_unavailable` | The dispatch threw before it produced an outcome — the repo or worktree could not be resolved, but a branch collision, a worktree-creation error or a full disk lands here too. The `error` field names which. **Needs you** |
-| `dispatch_failed` | The prompt did not reach an engine. Either the engine process never started, or a standing session's composer was busy and the deferral could not be filed (its Inbox slot is already taken). **Needs you** |
+| `dispatch_failed` | The prompt did not reach an engine — the engine process never started. **Needs you** |
 
 `skipped_precheck` and `dispatch_failed` are opposite signals; they never share
 a label.
@@ -252,16 +251,9 @@ task records `skipped_unavailable`. A missing tab or exited engine records
 `dispatch_failed`. None of these creates a replacement, selects another tab, or
 revives an engine. Repair the target or retarget the routine explicitly.
 
-A busy composer hands the prompt to the existing deferred store. A `deferred`
-run records queue acceptance, not engine delivery or work completion. Its
-`deferredId` identifies the item in `deferred-list`; release it from the Inbox or
-with `deferred-release --id ID`. An occupied slot fails the later firing and
-preserves the earlier prompt. Viewing or revisiting the target tab keeps queued
-text; only an explicit release, dismiss or expiry removes it. For plugin consumers, a deferred run emits `automation.skipped` with
-`status: "deferred"`, `tabId` and `deferredId`; it does not emit `automation.dispatched`. The queue
-survives daemon restarts and retains
-its normal 24-hour expiry. Disabling or deleting a routine stops future
-scheduling; it does not retract a prompt already accepted into the Inbox.
+Delivery is unconditional: the prompt is pasted into the target tab's engine
+and submitted, whatever its composer holds. Disabling or deleting a routine
+stops future scheduling; it does not retract a prompt already delivered.
 
 The runner persists an occurrence claim before delivery, so overlapping ticks
 and a daemon restart cannot deliver that scheduled occurrence twice. It checks

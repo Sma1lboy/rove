@@ -58,6 +58,11 @@ rove updates using whichever package manager owns the `rove` on your `PATH`,
 so the new version can't land in a shadowed prefix. Manual fallback:
 `npm install -g @sma1lboy/rove@latest` (or `@nightly`).
 
+The update script is POSIX shell. On Windows, Rove runs it through Git for
+Windows' bash — the same shell every engine and terminal tab launches through
+— so `rove update` needs Git for Windows installed, exactly like the rest of
+the app. Without it the command says so and points at the manual fallback.
+
 Some versions are marked breaking. Installing across one prints a heads-up
 (`dry-run` included, so the rehearsal shows it too), and the next launch asks
 you to run `rove reset` first. Worktrees are never touched.
@@ -175,10 +180,22 @@ host.
 ## completions
 
 ```bash
-source <(rove completions zsh)
-rove completions bash > ~/.bash_completion.d/rove
-rove completions fish > ~/.config/fish/completions/rove.fish
+source <(rove completions zsh)          # generate now (a process per shell)
+rove completions zsh --install          # hook the pre-generated file into ~/.zshrc
+rove completions bash --install         # …into ~/.bashrc
+rove completions fish --install         # ~/.config/fish/completions/rove.fish
+rove completions zsh --path             # print the shipped script's path
 ```
+
+The script is a build-time constant, so the package ships it:
+`dist/completions/<rove|kobe>.<shell>`. `--path` prints that file's path and
+`--install` writes `source "<path>"` into your shell config, which a new shell
+reads with no process at all — unlike `source <(rove completions zsh)`, which
+starts the CLI (node launcher → bun, ≈0.3s) on every new shell just to print
+1.8KB of static text. The first-run wizard writes the file form; the
+`source <(…)` form keeps working, and is the only one available in a source
+checkout, where no `dist/completions` exists (`--path` then fails instead of
+printing a path that is not there).
 
 Completes two levels: the subcommand, then its verb.
 

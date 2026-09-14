@@ -19,6 +19,7 @@ export const TOP_LEVEL_SUBCOMMANDS = [
   "repo",
   "api",
   "daemon",
+  "machine",
   "doctor",
   "config",
   "reset",
@@ -48,10 +49,11 @@ export const TOP_LEVEL_SUBCOMMANDS = [
  * Canonical spellings only. Aliases (`theme ls`/`rm`) stay in their command
  * module — completing both spellings is noise.
  */
-export type VerbedSubcommand = "daemon" | "plugin" | "repo" | "skill" | "theme"
+export type VerbedSubcommand = "daemon" | "machine" | "plugin" | "repo" | "skill" | "theme"
 
 export const SUBCOMMAND_VERBS: Readonly<Record<VerbedSubcommand, readonly string[]>> = {
   daemon: ["status", "start", "stop", "restart"],
+  machine: ["add", "remove", "list"],
   plugin: [
     "install",
     "link",

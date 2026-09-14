@@ -5,6 +5,7 @@ import type { ContentBlock } from "@/types/content"
 import type { EngineHistory, EngineUsageSnapshot, Message } from "@/types/engine"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
 import { createAppendParseCache } from "../history-cache"
+import { sameHistoryWorktree } from "../history-worktree"
 import { vendorConfigHome } from "../vendor-home"
 import { copilotUsageToSnapshot } from "./usage"
 
@@ -63,7 +64,7 @@ export async function listSessionIdsForWorktree(
   const matches: { id: string; updatedAt: string }[] = []
   for (const dir of await listSessionDirs(deps)) {
     const workspace = await readWorkspace(dir, deps)
-    if (workspace.cwd !== worktree) continue
+    if (!sameHistoryWorktree(workspace.cwd, worktree)) continue
     matches.push({ id: workspace.id ?? path.basename(dir), updatedAt: workspace.updatedAt ?? "" })
   }
   return matches.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt)).map((m) => m.id)
@@ -84,7 +85,7 @@ export async function latestTranscriptMtimeForWorktree(
   let newest = 0
   for (const dir of await listSessionDirs(deps)) {
     const workspace = await readWorkspace(dir, deps)
-    if (workspace.cwd !== worktree) continue
+    if (!sameHistoryWorktree(workspace.cwd, worktree)) continue
     try {
       const { mtimeMs } = await deps.stat(path.join(dir, "events.jsonl"))
       if (mtimeMs > newest) newest = mtimeMs

@@ -102,7 +102,7 @@ describe("large prompt delivery into a cold engine", () => {
     // Cold for 1.6s: past a 1500ms fixed settle, like kimi.
     spawnFakeEngine(host, "t1::tab-1", sink, 1_600)
 
-    const bytes = await writeHostedPrompt(deliveryRpc(host), "t1::tab-1", BIG_PROMPT)
+    const { bytes } = await writeHostedPrompt(deliveryRpc(host), "t1::tab-1", BIG_PROMPT)
     await settle(1_500)
 
     const got = received(sink)

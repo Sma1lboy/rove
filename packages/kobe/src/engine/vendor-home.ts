@@ -19,12 +19,31 @@ import path from "node:path"
 /** The vendors whose CLI keeps a relocatable config home. */
 export type ConfigHomeVendor = "claude" | "codex" | "copilot" | "kimi"
 
+/** The vendors whose CLI keeps a relocatable AGENT directory — the one that
+ *  holds `sessions/`, `settings.json` and `extensions/`. Their env override
+ *  names that directory directly, with no config home above it. */
+export type AgentDirVendor = "pi" | "omp"
+
 /** Env override + default directory name, per vendor. */
 const VENDOR_HOMES: Readonly<Record<ConfigHomeVendor, { readonly envVar: string; readonly dirName: string }>> = {
   claude: { envVar: "CLAUDE_CONFIG_DIR", dirName: ".claude" },
   codex: { envVar: "CODEX_HOME", dirName: ".codex" },
   copilot: { envVar: "COPILOT_HOME", dirName: ".copilot" },
   kimi: { envVar: "KIMI_CODE_HOME", dirName: ".kimi-code" },
+}
+
+/**
+ * The pi coding-agent family — `omp` is Stencil Labs' fork of
+ * `@earendil-works/pi-coding-agent`, and both keep the same layout and the
+ * same `PI_CODING_AGENT_DIR` override. Verified against the installed
+ * binaries on 2026-09-11: omp 18.1.17 carries the var nine times in its
+ * bundle and its `--help` documents it; pi 0.80.6 derives it as
+ * `${APP_NAME.toUpperCase()}_CODING_AGENT_DIR` with APP_NAME `pi`. The two
+ * differ only in their DEFAULT directory, which is why the map is keyed by
+ * vendor rather than by env var. */
+const AGENT_DIR_VENDORS: Readonly<Record<AgentDirVendor, { readonly envVar: string; readonly dirName: string }>> = {
+  pi: { envVar: "PI_CODING_AGENT_DIR", dirName: ".pi" },
+  omp: { envVar: "PI_CODING_AGENT_DIR", dirName: ".omp" },
 }
 
 /** Env/home injection. Defaults read the live process, which is what every
@@ -54,6 +73,22 @@ export function vendorConfigHome(vendor: ConfigHomeVendor, deps: VendorHomeDeps 
   const override = deps.env(envVar)?.trim()
   if (override) return override
   return path.join(deps.home(), dirName)
+}
+
+/**
+ * The pi/omp AGENT directory (`~/.pi/agent`, `~/.omp/agent` by default).
+ *
+ * NOT `vendorConfigHome`: those two are the only vendors whose override
+ * points at the agent directory itself instead of a config home with
+ * `agent/` beneath it. Feeding `PI_CODING_AGENT_DIR` through the config-home
+ * resolver would look for `<override>/agent/extensions` and write Rove's
+ * hook where the CLI never reads.
+ */
+export function vendorAgentDir(vendor: AgentDirVendor, deps: VendorHomeDeps = defaultVendorHomeDeps): string {
+  const { envVar, dirName } = AGENT_DIR_VENDORS[vendor]
+  const override = deps.env(envVar)?.trim()
+  if (override) return override
+  return path.join(deps.home(), dirName, "agent")
 }
 
 /** Adapter for the `(env, home)` parameter shape account-detect's callers use. */

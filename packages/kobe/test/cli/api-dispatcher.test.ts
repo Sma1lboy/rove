@@ -72,6 +72,23 @@ describe("verifiedSelfSession (env identity is inheritable, so it must be proven
     })
   })
 
+  it("anchors the snapshot on BOTH ends of the walk — the tab's shell and this CLI", async () => {
+    // Windows severs the chain at both: the engine shim's cmd.exe under the
+    // shell, and the forked bash that exec'd the npm sh shim above the CLI.
+    // Each console re-links its own side (win-process-snapshot.ts).
+    const base = probeFor("d1::tab-4", { shellPid: 100 })
+    let anchors: readonly number[] | undefined
+    const probe: SelfSessionProbe = {
+      ...base,
+      ps: async (a) => {
+        anchors = a
+        return base.ps()
+      },
+    }
+    await verifiedSelfSession({ KOBE_TASK_ID: "d1", KOBE_TAB_ID: "tab-4" }, probe)
+    expect(anchors).toEqual([100, 500])
+  })
+
   it("floors a missing tab id to the canonical tab-1 and verifies THAT", async () => {
     expect(await verifiedSelfSession({ KOBE_TASK_ID: "d1" }, probeFor("d1::tab-1"))).toEqual({
       taskId: "d1",

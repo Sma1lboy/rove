@@ -72,7 +72,7 @@ function harness(states: { taskId: string; tabId?: string; sessionId?: string }[
     contextWindowTokens: 100,
   }
   const collector = new ContextUsageCollector(
-    { currentNonIdle: () => live as never },
+    { liveSessions: () => live as never },
     { getTask: () => ({ vendor: "claude" }) as never },
     bus,
     { readEngineContextUsage: async () => value },

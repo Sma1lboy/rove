@@ -5,7 +5,7 @@ Task gets its own git worktree and branch, so parallel Tasks never step on
 each other. Extra tabs inside one Task share that Task's directory.
 
 You need git and at least one engine CLI on your `PATH`. Rove ships built-in
-support for `claude`, `codex`, `copilot` and `kimi`, and launches `gemini`,
+support for `claude`, `codex`, `copilot`, `kimi`, `pi` and `omp`, and launches `gemini`,
 `opencode`, `cursor-agent`, `grok`, `droid` and `amp` too — the full list, and
 how to add your own, is in [Engines](ENGINES.md).
 

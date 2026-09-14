@@ -30,14 +30,33 @@ class FakeTransportPty extends XtermTaskPty {
   pump(data: string): void {
     this.feed(data)
   }
+  /**
+   * Resolve once xterm has parsed every chunk fed so far. `term.write`
+   * queues, yielding between chunks, so its callbacks fire in feed order —
+   * an empty trailing write is therefore acknowledged only after all the
+   * real ones. This is the drain the tests below need before they read a
+   * snapshot.
+   */
+  drain(): Promise<void> {
+    return new Promise((resolve) => this.term.write("", () => resolve()))
+  }
 }
 
 function rowsText(rows: readonly TerminalRow[]): string {
   return rows.map((row) => row.map((chunk) => chunk.text).join("")).join("\n")
 }
 
-function settle(ms = 80): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+/**
+ * Wait for the emulator, not for the clock. This was a fixed 80ms sleep,
+ * which is not an upper bound on anything: feeding 250 wrapped lines takes
+ * ~100ms of parse time on an idle laptop and longer on a loaded CI runner,
+ * so a snapshot taken after the sleep could contain only the first third of
+ * what was written. That surfaced as `expected 'resize L1 …' to contain
+ * 'resize L250'` on the Windows job, where the tail of the feed had simply
+ * not been parsed yet.
+ */
+function settle(pty: FakeTransportPty): Promise<void> {
+  return pty.drain()
 }
 
 const COLS = 40
@@ -64,12 +83,12 @@ describe("XtermTaskPty scrollback cache", () => {
   it("publishes a stable absolute window origin across saturated scrollback shifts", async () => {
     const pty = makePty()
     for (let i = 1; i <= 300; i++) pty.pump(`origin L${i}\r\n`)
-    await settle()
+    await settle(pty)
     pty.capture()
     const before = pty.captureWindow()
 
     pty.pump("origin L301\r\n")
-    await settle()
+    await settle(pty)
     pty.capture()
     const shifted = pty.captureWindow()
 
@@ -90,21 +109,21 @@ describe("XtermTaskPty scrollback cache", () => {
   it("keeps the window origin stable across live-grid insert/delete redraws", async () => {
     const pty = makePty()
     for (let i = 1; i <= 30; i++) pty.pump(`redraw L${i}\r\n`)
-    await settle()
+    await settle(pty)
     pty.capture()
     const before = pty.captureWindow()
 
     // Codex redraws its live viewport with IL/DL while output streams. Those
     // edits must not move the absolute marker that names frozen scrollback.
     pty.pump("\x1b[1;1H\x1b[M")
-    await settle()
+    await settle(pty)
     pty.capture()
 
     expect(before).not.toBeNull()
     expect(pty.captureWindow()).toEqual(before)
 
     pty.pump("\x1b[1;1H\x1b[L")
-    await settle()
+    await settle(pty)
     pty.capture()
     expect(pty.captureWindow()).toEqual(before)
     pty.kill()
@@ -117,9 +136,9 @@ describe("XtermTaskPty scrollback cache", () => {
     for (let i = 1; i <= 600; i++) {
       const color = 31 + (i % 6)
       pty.pump(`\x1b[${color}mL${String(i).padStart(4, "0")}\x1b[0m plain tail\r\n`)
-      if (i % 150 === 0) await settle()
+      if (i % 150 === 0) await settle(pty)
     }
-    await settle()
+    await settle(pty)
     const text = rowsText(pty.capture())
     expect(text).toContain("L0600")
     expect(text).not.toContain("L0300") // long-trimmed
@@ -130,12 +149,12 @@ describe("XtermTaskPty scrollback cache", () => {
   it("converts ~live-grid rows per refresh once the margin is warm, not the whole window", async () => {
     const pty = makePty()
     for (let i = 1; i <= 400; i++) pty.pump(`warm L${i}\r\n`)
-    await settle()
+    await settle(pty)
     pty.capture() // warm the cache through the lazy path
 
     vi.mocked(xtermLineToChunks).mockClear()
     pty.pump("one more line\r\n")
-    await settle()
+    await settle(pty)
     pty.capture()
     const calls = vi.mocked(xtermLineToChunks).mock.calls.length
     // Window is ROWS+200 = 210 lines; without the cache this would be ~210.
@@ -148,11 +167,11 @@ describe("XtermTaskPty scrollback cache", () => {
   it("survives clear-scrollback (CSI 3J) without serving stale rows", async () => {
     const pty = makePty()
     for (let i = 1; i <= 300; i++) pty.pump(`old L${i}\r\n`)
-    await settle()
+    await settle(pty)
     pty.capture()
     pty.pump("\x1b[3J") // wipe scrollback; live grid keeps its content
     for (let i = 1; i <= 30; i++) pty.pump(`new L${i}\r\n`)
-    await settle()
+    await settle(pty)
     const text = rowsText(pty.capture())
     expect(text).toContain("new L30")
     expect(text).not.toContain("old L100")
@@ -163,15 +182,15 @@ describe("XtermTaskPty scrollback cache", () => {
   it("round-trips the alt screen (fullscreen app) with the normal buffer's cache intact", async () => {
     const pty = makePty()
     for (let i = 1; i <= 250; i++) pty.pump(`shell L${i}\r\n`)
-    await settle()
+    await settle(pty)
     pty.capture()
 
     pty.pump("\x1b[?1049h\x1b[2J\x1b[HFULLSCREEN APP")
-    await settle()
+    await settle(pty)
     expect(rowsText(pty.capture())).toContain("FULLSCREEN APP")
 
     pty.pump("\x1b[?1049l")
-    await settle()
+    await settle(pty)
     const text = rowsText(pty.capture())
     expect(text).toContain("shell L250")
     expect(text).not.toContain("FULLSCREEN APP")
@@ -183,14 +202,14 @@ describe("XtermTaskPty scrollback cache", () => {
     const pty = makePty()
     // Long lines so a width change actually rewraps scrollback.
     for (let i = 1; i <= 250; i++) pty.pump(`resize L${i} ${"x".repeat(30)}\r\n`)
-    await settle()
+    await settle(pty)
     pty.capture()
     pty.resize(COLS + 20, ROWS)
     const text = rowsText(pty.capture())
     expect(text).toContain("resize L250")
     // Post-resize snapshots keep matching full rebuilds at the new size.
     pty.pump("after resize\r\n")
-    await settle()
+    await settle(pty)
     const cached = pty.capture()
     pty.resize(COLS + 20, ROWS)
     expect(JSON.stringify(cached)).toBe(JSON.stringify(pty.capture()))

@@ -425,7 +425,7 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
  * stale or missing at the exact moment a worker asks whether its PR is green
  * — one mechanism behind "CI is green" being asserted from a local test run.
  *
- * `hasWorkingAgent` is the engine-activity registry (`currentNonIdle()`), fed
+ * `hasWorkingAgent` is the engine-activity registry (`workingTaskIds()`), fed
  * by the ungated `engine.reportEvent` hook path, so it is a free in-memory
  * read that needs no network and no pane. It keeps the gate's point intact —
  * a daemon with no GUI **and** no live engine still polls nobody, which is

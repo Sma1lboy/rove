@@ -55,6 +55,18 @@ export interface SidebarHostState {
   readonly onLocalMergeRequest: (id: string) => void
 }
 
+/**
+ * The order `t` walks. `default` (the orchestrator's own order) is first so
+ * one extra press from anywhere still lands back on the resting sort.
+ */
+const SORT_MODE_CYCLE: readonly TaskSortMode[] = ["default", "recent", "attention"]
+
+/** A persisted value this build doesn't know reads as the resting sort — the
+ *  stored string is shared with older/newer builds through `state.json`. */
+function readSortMode(stored: unknown): TaskSortMode {
+  return SORT_MODE_CYCLE.find((mode) => mode === stored) ?? "default"
+}
+
 export function useSidebarHostState(args: {
   readonly kv: KVContext
   readonly tasks: readonly Task[]
@@ -67,9 +79,9 @@ export function useSidebarHostState(args: {
   // channel. Seeding from the persisted value is what makes it global today —
   // a freshly-spawned host opens in the user's last sort. The live push is NOT
   // applied by any host; see the KNOWN GAP at the top of this file.
-  const [sortMode, setSortMode] = useState<TaskSortMode>(kv.get("activeSortMode") === "recent" ? "recent" : "default")
+  const [sortMode, setSortMode] = useState<TaskSortMode>(() => readSortMode(kv.get("activeSortMode")))
   const toggleSortMode = (): void => {
-    const next: TaskSortMode = sortMode === "default" ? "recent" : "default"
+    const next = SORT_MODE_CYCLE[(SORT_MODE_CYCLE.indexOf(sortMode) + 1) % SORT_MODE_CYCLE.length] ?? "default"
     setSortMode(next)
     kv.set("activeSortMode", next)
   }

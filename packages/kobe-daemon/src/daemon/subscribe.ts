@@ -72,13 +72,13 @@ export function handleSubscribe(
     if (client.channels && !client.channels.has(event.channel)) continue
     deps.writeEvent(client, event.channel as DaemonEventName, event.payload)
   }
-  // The bus only caches ONE last-value per channel, but `engine-state`
-  // is per-task — so additionally replay EVERY task's current non-idle
-  // activity to this late subscriber (otherwise it'd only learn the most
-  // recently changed task's state). Skip when the client filtered
-  // `engine-state` out.
+  // The bus only caches ONE last-value per channel, but `engine-state` is
+  // per-task — so additionally replay the whole activity snapshot to this
+  // late subscriber (otherwise it'd only learn the most recently changed
+  // task's state). Known-idle TAB entries ride along on purpose; see
+  // `replaySnapshot`. Skip when the client filtered `engine-state` out.
   if (!client.channels || client.channels.has("engine-state")) {
-    for (const payload of deps.activity.currentNonIdle()) {
+    for (const payload of deps.activity.replaySnapshot()) {
       deps.writeEvent(client, "engine-state", payload)
     }
   }

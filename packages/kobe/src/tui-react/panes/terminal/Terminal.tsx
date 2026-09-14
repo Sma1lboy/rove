@@ -283,6 +283,12 @@ function TerminalSession(props: TerminalProps) {
     unfocusedAttachmentTarget,
     inputModes: () => pty?.inputModes() ?? { applicationCursorKeys: false, applicationKeypad: false },
     write: (data) => {
+      if (process.platform === "win32" && data === "\x03" && selection.selection) {
+        selection.copySelection()
+        selection.endDragging()
+        selection.clearSelection()
+        return
+      }
       if (!pty || pty.killed) return
       pty.write(data)
       // Engine tabs feed the optimistic sidebar-activity overlay: the
@@ -402,6 +408,9 @@ function TerminalSession(props: TerminalProps) {
           flexDirection="row"
           paddingLeft={1}
           paddingRight={1}
+          gap={1}
+          onMouseDown={(event) => event.stopPropagation()}
+          onMouseUp={(event) => event.stopPropagation()}
           // `backgroundElement`, not `backgroundPanel`: the panel slot is
           // forced alpha-0 in transparent mode, and this is an overlay you
           // must read — the policy (theme-core) never lets readable overlays
@@ -410,6 +419,32 @@ function TerminalSession(props: TerminalProps) {
         >
           <text fg={theme.warning} wrapMode="none">
             {t("terminal.scrolledBack", { lines: scrollOffset })}
+          </text>
+          <text
+            fg={theme.info}
+            wrapMode="none"
+            onMouseUp={(event) => {
+              event.stopPropagation()
+              if (event.button !== 0) return
+              selection.clearSelection()
+              scrollBy(-snapshot.length)
+              props.onRequestFocus?.()
+            }}
+          >
+            {t("terminal.scrollFirst")}
+          </text>
+          <text
+            fg={theme.info}
+            wrapMode="none"
+            onMouseUp={(event) => {
+              event.stopPropagation()
+              if (event.button !== 0) return
+              selection.clearSelection()
+              setScrollState(FOLLOW_VIEWPORT)
+              props.onRequestFocus?.()
+            }}
+          >
+            {t("terminal.scrollLatest")}
           </text>
         </box>
       ) : null}

@@ -9,6 +9,7 @@
  * synchronously). See the TerminalTabs file header for why refs.
  */
 
+import { protocolEntry } from "@/engine/engine-presets"
 import { engineSessionIdFromTitle } from "@/engine/registry"
 import { discoverSessionId, engineSessionExists } from "@/engine/session-discovery"
 import { deriveTitleFromSessionId } from "@/monitor/auto-title"
@@ -69,33 +70,26 @@ export function useTabHydration(rehydrated: boolean, io: TabLifecycleIO): boolea
         // list. Two live engines then write one transcript, which is exactly
         // the collision `session-identity.ts` says claim-tracking prevents.
         for (const tab of engines) {
-          if (tab.sessionId) continue
+          const vendor = vendorOfTab(tab)
+          if (tab.sessionId) {
+            const exists = await engineSessionExists(vendor, worktree, tab.sessionId)
+            if (cancelled) return
+            io.update(setTabSpawned(io.stateRef.current, tab.id, exists))
+            // A caller-pinned id may belong to a fresh, still-empty tab.
+            // Engine-generated ids must name a recorded conversation.
+            if (exists || protocolEntry(vendor).sessionIdentity?.pinFlag) continue
+          }
           // No recorded id: this engine mints its own and reports it
           // nowhere (kimi), so ASK ITS STORE which session this worktree
           // has. It has to happen here rather than in the naming poll —
           // `hydrating` is what holds the spawn back, and a tab that
           // respawns before its id is known opens a blank conversation,
           // which is the whole bug.
-          const found = await discoverSessionId(vendorOfTab(tab), worktree, claimedIds(io))
+          const found = await discoverSessionId(vendor, worktree, claimedIds(io))
           if (cancelled) return
           if (!found) continue
           io.update(setTabSpawned(setTabSessionId(io.stateRef.current, tab.id, found), tab.id, true))
         }
-
-        // Re-verification stays concurrent: it claims nothing, it only asks
-        // whether an id a tab ALREADY holds is still on disk.
-        await Promise.all(
-          engines.map(async (tab) => {
-            if (!tab.sessionId) return
-            // Ask whether the session is RECORDED, not whether kobe can
-            // parse its messages: `readHistory` is empty for engines that
-            // ship no message parser (kimi), so a parse-based check reports
-            // every kimi session as absent and the tab respawns blank.
-            const exists = await engineSessionExists(vendorOfTab(tab), worktree, tab.sessionId)
-            if (cancelled) return
-            io.update(setTabSpawned(io.stateRef.current, tab.id, exists))
-          }),
-        )
       } finally {
         if (!cancelled) setHydrating(false)
       }

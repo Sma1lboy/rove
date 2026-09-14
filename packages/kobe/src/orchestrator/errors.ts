@@ -267,3 +267,44 @@ export class GitCommandFailedError extends Error {
     this.name = "GitCommandFailedError"
   }
 }
+
+export const WORKTREE_NAME_TAKEN_CODE = "WORKTREE_NAME_TAKEN"
+
+/**
+ * Thrown when `add --worktree-name` names a directory that is already in use
+ * in this repo — by a live task, by a directory still on disk, or by a
+ * concurrent create that has picked it but not yet persisted.
+ *
+ * It is an ERROR rather than a `-v2` suffix because the whole point of naming
+ * the directory is that the caller can predict the path afterwards: a script
+ * that asked for `probe-1` and silently got `probe-1-v2` looks in the wrong
+ * place, and finds out later and somewhere else. The random pool exists to
+ * make collisions somebody else's problem; an explicit name opts out of that.
+ */
+export class WorktreeNameTakenError extends Error {
+  constructor(public readonly worktreeName: string) {
+    super(
+      `${WORKTREE_NAME_TAKEN_CODE}: worktree name '${worktreeName}' is already in use in this repo — pick another, or omit --worktree-name for a generated one`,
+    )
+    this.name = "WorktreeNameTakenError"
+  }
+}
+
+export const INVALID_WORKTREE_NAME_CODE = "INVALID_WORKTREE_NAME"
+
+/**
+ * Thrown when `add --worktree-name` is not a single directory name.
+ *
+ * The value becomes one path segment under the repo's worktree root, so a
+ * separator or a `..` would place the checkout outside the root that every
+ * Rove cleanup path is scoped to — a `delete` would then decline to touch it,
+ * or worse, reach somewhere it should not.
+ */
+export class InvalidWorktreeNameError extends Error {
+  constructor(public readonly worktreeName: string) {
+    super(
+      `${INVALID_WORKTREE_NAME_CODE}: worktree name '${worktreeName}' must be a single path segment of letters, digits, '.', '_' or '-' (no '/', no '..', not starting with '.')`,
+    )
+    this.name = "InvalidWorktreeNameError"
+  }
+}

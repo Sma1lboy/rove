@@ -30,7 +30,7 @@ import {
   partitionAttentionInboxAvailability,
   windowInboxRows,
 } from "./attention-inbox-core"
-import { deferredPromptSubtitle, itemColor, itemGlyph, itemStateKey, quotaResumeNote } from "./inbox-item-view"
+import { itemColor, itemGlyph, itemStateKey, quotaResumeNote } from "./inbox-item-view"
 import { readInboxVisits } from "./inbox-visits"
 import { activeTabIdFor, knownTaskTab, taskTabExists } from "./terminal-tabs-shared"
 
@@ -96,13 +96,6 @@ function runningBadge(opts: {
     label: opts.t("workspace.inbox.state.running"),
     color: opts.theme.textMuted,
   }
-}
-
-/** A queued/expired message: `enter` releases it, `d` sets it aside. Both are
- *  existing chords; the footer just names them for the one row where "clear"
- *  would read as "delete this text". */
-function isDeferredRow(row: InboxRow | undefined): boolean {
-  return row?.kind === "attention" && (row.item.state === "prompt_deferred" || row.item.state === "prompt_expired")
 }
 
 const NOOP_SUBSCRIBE = () => () => {}
@@ -389,21 +382,8 @@ export function AttentionInboxPane(props: {
             // already scheduled" from "stuck, go do something". This card is
             // where it belongs: the rail's tree row is one cell
             // wide, and the Inbox's whole job is what-needs-me / when.
-            // A queued/expired message has no `quotaResume`; its own note
-            // carries the hard deadline (or the fact it was missed). One slot,
-            // two sources — a row never has both.
             const resumeNote = quotaResumeNote(item.state, task, t)
-            // A queued/expired message replaces the context line wholesale
-            // rather than appending a note: sender, blocking layer and
-            // deadline are all needed BEFORE `d`, and the task title (already
-            // implied by the identity line above) is the one of the four a
-            // reader can spare.
-            const contextLine =
-              item.state === "prompt_deferred" || item.state === "prompt_expired"
-                ? deferredPromptSubtitle(item, title, now, t)
-                : resumeNote
-                  ? `${title} · ${resumeNote}`
-                  : title
+            const contextLine = resumeNote ? `${title} · ${resumeNote}` : title
             const project = task ? sidebarProjectLabel(task.repo, repos) : ""
             // Identity line: `project › tab` — WHERE the episode happened is
             // the primary key a user scans for (which project, which tab),
@@ -441,10 +421,7 @@ export function AttentionInboxPane(props: {
       )}
       <box flexDirection="row" flexShrink={0} gap={2} paddingTop={1}>
         <text fg={theme.textMuted} wrapMode="none">
-          {/* On a queued message `enter` does not OPEN anything — it releases
-              the held text into the tab. Naming the other verb is the point:
-              this is the row where guessing wrong costs somebody's message. */}
-          {isDeferredRow(selected()) ? t("workspace.inbox.releaseHint") : t("workspace.inbox.openHint")}
+          {t("workspace.inbox.openHint")}
         </text>
         {/* Only attention rows are dismissible — dim the hint on any other
          row (a recent task has nothing to drop) so the footer doesn't
@@ -454,7 +431,7 @@ export function AttentionInboxPane(props: {
           attributes={selected()?.kind === "attention" ? undefined : TextAttributes.DIM}
           wrapMode="none"
         >
-          {isDeferredRow(selected()) ? t("workspace.inbox.ignoreHint") : t("workspace.inbox.clearHint")}
+          {t("workspace.inbox.clearHint")}
         </text>
       </box>
     </box>

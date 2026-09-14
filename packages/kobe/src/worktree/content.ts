@@ -11,6 +11,7 @@ import { errorMessage } from "@/lib/error-message"
 import type { ExecResult } from "../exec/exec-host.ts"
 import { execHostForWorktreePath } from "../exec/resolve.ts"
 import { READ_ONLY_GIT_ENV } from "../lib/git-env.ts"
+import { recordSpawn } from "../lib/spawn-profile.ts"
 
 export interface WorktreeGitResult {
   readonly stdout: string
@@ -63,6 +64,7 @@ export async function runWorktreeGit(
       : (controller?.signal ?? options.signal)
   let result: ExecResult
   try {
+    recordSpawn("worktree.content", ["git", ...args], worktreePath)
     result = await exec.run(["git", ...args], {
       cwd: worktreePath,
       env: READ_ONLY_GIT_ENV,

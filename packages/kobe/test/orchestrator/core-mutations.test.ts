@@ -203,6 +203,19 @@ describe("setQuotaResume", () => {
 })
 
 describe("moveTask", () => {
+  it("keeps Windows path aliases in the same reorder partition", async () => {
+    const a = await makeTask({ title: "a" })
+    const b = await makeTask({ title: "b" })
+    await store.update(a.id, { repo: "C:\\repo" })
+    await store.update(b.id, { repo: "C:/repo/" })
+    await orch.moveTask(b.id, -1)
+    expect(
+      orch
+        .listTasks()
+        .filter((task) => task.kind !== "main")
+        .map((task) => task.title),
+    ).toEqual(["b", "a"])
+  })
   it("moves a task within its partition and skips pinned siblings", async () => {
     const a = await makeTask({ title: "a" })
     const b = await makeTask({ title: "b" })

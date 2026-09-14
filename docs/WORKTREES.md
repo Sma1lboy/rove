@@ -1,5 +1,9 @@
 # Managing worktrees
 
+Windows worktree actions match native and Git path spellings consistently.
+Containment checks compare directory segments, including names such as
+`..cache`, and protect the caller's own worktree from removal.
+
 The Worktrees page is a cross-project audit and cleanup tool for local git
 worktrees. It helps you decide what has landed, what still carries local work,
 and which working directories are safe to remove.

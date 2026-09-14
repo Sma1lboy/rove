@@ -77,15 +77,37 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
     name: "set-status",
     group: "edit",
     summary:
-      "Set a task's lifecycle LABEL. Cosmetic — the task row, its worktree, its branch and its engine session all stay exactly as they are, so `--status canceled` does NOT close, stop, or clean up anything. To end a task use `delete` (which keeps the git branch).",
+      "Set a task's lifecycle LABEL, and optionally record what the worker DELIVERED. The status half is cosmetic — the task row, its worktree, its branch and its engine session all stay exactly as they are, so `--status canceled` does NOT close, stop, or clean up anything. To end a task use `delete` (which keeps the git branch). The --report-* half writes `.report` on the task ({ branch?, pr?, summary?, at }), readable from `get-task` and `collect`: it is what the WORKER CLAIMS, and is deliberately not the same field as `.prStatus`, which the daemon POLLED from the forge — a worker can report a PR number that does not exist, and a dispatcher deciding whether to land needs to know which of the two it is reading. Report fields merge onto any previous report and restamp `at`, so a follow-up naming only --report-pr keeps the branch reported earlier.",
     flags: [
       F.taskId(),
       { name: "status", type: "enum", required: true, values: TASK_STATUSES, description: "New status." },
+      {
+        name: "report-branch",
+        type: "string",
+        placeholder: "B",
+        description: "The branch the worker says holds the work (a CLAIM — `.branch` is the task's actual branch).",
+      },
+      {
+        name: "report-pr",
+        type: "int",
+        placeholder: "N",
+        description:
+          "The PR number the worker says it opened (a CLAIM — `.prStatus.number` is what the daemon read from the forge).",
+      },
+      {
+        name: "report-summary",
+        type: "string",
+        placeholder: "TEXT",
+        description: "One line of what was delivered.",
+      },
     ],
     handler: (ctx) =>
       simpleRpc(ctx, "task.status", {
         taskId: ctx.args.require("task-id"),
         status: ctx.args.requireEnum<TaskStatus>("status"),
+        reportBranch: ctx.args.str("report-branch"),
+        reportPr: ctx.args.int("report-pr"),
+        reportSummary: ctx.args.str("report-summary"),
       }),
   },
 ]

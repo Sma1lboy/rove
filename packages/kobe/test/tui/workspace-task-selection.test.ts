@@ -31,6 +31,42 @@ function task(id: string, worktreePath: string): Task {
 }
 
 describe("pure-TUI workspace task activation", () => {
+  test("selects a task on another machine without trying to materialize it here", async () => {
+    // The only daemon this process can reach is the local one, which has never
+    // heard of that id — so materializing answered "task not found" for a task
+    // the user was looking at.
+    const ensureWorktree = vi.fn(async () => "/should-not-happen")
+    const selectTask = vi.fn()
+    const reportError = vi.fn()
+    const remote: Task = { ...task("remote-1", ""), origin: { machineId: "narwhal", hostLabel: "narwhal" } }
+
+    const activated = await activateWorkspaceTask(
+      { getTask: () => remote, ensureWorktree, selectTask, focusWorkspace: vi.fn(), reportError },
+      "remote-1",
+    )
+
+    expect(activated).toBe(true)
+    expect(ensureWorktree).not.toHaveBeenCalled()
+    expect(reportError).not.toHaveBeenCalled()
+    expect(selectTask).toHaveBeenCalledWith("remote-1")
+  })
+
+  test("still materializes a LOCAL task that has no worktree yet", async () => {
+    const ensureWorktree = vi.fn(async () => "/worktrees/x")
+    const local: Task = { ...task("local-1", ""), origin: { machineId: "local", hostLabel: "local" } }
+    await activateWorkspaceTask(
+      {
+        getTask: () => local,
+        ensureWorktree,
+        selectTask: vi.fn(),
+        focusWorkspace: vi.fn(),
+        reportError: vi.fn(),
+      },
+      "local-1",
+    )
+    expect(ensureWorktree).toHaveBeenCalledWith("local-1")
+  })
+
   test("materializes and focuses a newly created task before its snapshot renders", async () => {
     const ensureWorktree = vi.fn(async () => "/worktrees/new-task")
     const selectTask = vi.fn()

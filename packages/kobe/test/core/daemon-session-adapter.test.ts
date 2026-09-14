@@ -1,15 +1,8 @@
 import type { DaemonRpcClient } from "@sma1lboy/kobe-daemon/client/rpc"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import type { EnginePresence } from "../../src/engine/session-engine-presence.ts"
 
 const mocks = vi.hoisted(() => ({
-  ComposerBusyError: class extends Error {
-    constructor(
-      readonly layer: "recent-human-write" | "composer-not-empty",
-      readonly key: string,
-    ) {
-      super(`composer busy on ${key}: ${layer}`)
-    }
-  },
   close: vi.fn(),
   ensureHost: vi.fn(),
   openHost: vi.fn(),
@@ -25,8 +18,10 @@ const mocks = vi.hoisted(() => ({
   taskKeys: vi.fn(() => ["task-3::tab-1"]),
   killSessions: vi.fn(async () => {}),
   deliver: vi.fn(async () => ({ bytes: 1 })),
-  sessionHasEngine: vi.fn(async () => true),
-  awaitEngineProcess: vi.fn(async (): Promise<number | null> => 4242),
+  enginePresence: vi.fn(async (): Promise<EnginePresence> => ({ kind: "engine", vendor: "claude" })),
+  awaitEngineProcess: vi.fn(
+    async (): Promise<{ pid: number; vendor: "claude" } | null> => ({ pid: 4242, vendor: "claude" }),
+  ),
   failureLine: vi.fn(async () => "⚠ Engine exited (code 127)."),
   buildLaunch: vi.fn((input: { task: { id: string } }): { key: string; command: string[]; firstMessage?: string } => ({
     key: `${input.task.id}::tab-1`,
@@ -35,7 +30,6 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock("../../src/engine/hosted-session.ts", () => ({
-  ComposerBusyError: mocks.ComposerBusyError,
   ensureHostedSessionHost: mocks.ensureHost,
   openHostedSessionHost: mocks.openHost,
   ensureHostedEngine: mocks.ensureEngine,
@@ -48,7 +42,7 @@ vi.mock("../../src/engine/hosted-session.ts", () => ({
   hostedSessionFailureLine: mocks.failureLine,
 }))
 vi.mock("../../src/engine/session-launch.ts", () => ({ buildEngineSessionLaunch: mocks.buildLaunch }))
-vi.mock("../../src/engine/session-engine-presence.ts", () => ({ sessionHasEngine: mocks.sessionHasEngine }))
+vi.mock("../../src/engine/session-engine-presence.ts", () => ({ enginePresence: mocks.enginePresence }))
 
 import {
   deliverPromptToLiveEngineAdapter,
@@ -182,7 +176,7 @@ describe("daemon session adapter", () => {
 
   it("does not paste into an alive PTY after its engine exited to the fallback shell", async () => {
     mocks.listSessions.mockResolvedValueOnce([{ key: "task-3::tab-1", alive: true, pid: 4242 } as never])
-    mocks.sessionHasEngine.mockResolvedValueOnce(false)
+    mocks.enginePresence.mockResolvedValueOnce({ kind: "none" })
 
     await expect(
       deliverPromptToLiveEngineTabDetailedAdapter(
@@ -190,7 +184,7 @@ describe("daemon session adapter", () => {
         "do not run this in zsh",
       ),
     ).resolves.toEqual({ outcome: "no-engine", tabId: "tab-1" })
-    expect(mocks.sessionHasEngine).toHaveBeenCalledWith(4242, expect.arrayContaining(["claude"]))
+    expect(mocks.enginePresence).toHaveBeenCalledWith(4242, expect.arrayContaining(["claude"]))
     expect(mocks.deliver).not.toHaveBeenCalled()
   })
 
@@ -201,7 +195,7 @@ describe("daemon session adapter", () => {
   // refuse for the same reason the exact-tab sibling already does.
   it("the routine runner refuses a tab whose engine exited to the fallback shell", async () => {
     mocks.listSessions.mockResolvedValueOnce([{ key: "task-3::tab-1", alive: true, pid: 4242 } as never])
-    mocks.sessionHasEngine.mockResolvedValueOnce(false)
+    mocks.enginePresence.mockResolvedValueOnce({ kind: "none" })
 
     await expect(
       deliverPromptToLiveEngineDetailedAdapter(
@@ -214,7 +208,7 @@ describe("daemon session adapter", () => {
 
   it("the quota-resume runner refuses the same tab", async () => {
     mocks.listSessions.mockResolvedValueOnce([{ key: "task-3::tab-1", alive: true, pid: 4242 } as never])
-    mocks.sessionHasEngine.mockResolvedValueOnce(false)
+    mocks.enginePresence.mockResolvedValueOnce({ kind: "none" })
 
     await expect(
       deliverPromptToLiveEngineAdapter(
@@ -250,7 +244,7 @@ describe("daemon session adapter", () => {
       "safe prompt",
     )
 
-    expect(mocks.sessionHasEngine).toHaveBeenCalledWith(4242, ["env", "MODEL=sonnet", "/opt/tools/aider", "--yes"])
+    expect(mocks.enginePresence).toHaveBeenCalledWith(4242, ["env", "MODEL=sonnet", "/opt/tools/aider", "--yes"])
   })
 
   it("propagates an ambiguous delivery error after entering the PTY write", async () => {

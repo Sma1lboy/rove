@@ -7,20 +7,15 @@
  * so the only questions are whether that tab can take a prompt and, when a
  * pty-host restart froze it, whether the caller asked for it to be revived.
  *
- * Shared reporting helpers (`outcomeFields`, the engine-start probe budget,
- * the composer-busy deferral) stay in `pty-delivery.ts` and are imported
- * here, so both paths keep spelling an outcome the same way.
+ * Shared reporting helpers (`outcomeFields`, the engine-start probe budget)
+ * stay in `pty-delivery.ts` and are imported here, so both paths keep
+ * spelling an outcome the same way.
  */
 
 import type { PtyOpenResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
 import type { PsSnapshot } from "../../engine/foreground.ts"
-import {
-  ComposerBusyError,
-  type PromptWriteOutcome,
-  awaitEngineProcess,
-  hostedSessionFailureLine,
-} from "../../engine/hosted-session.ts"
+import { awaitEngineProcess, hostedSessionFailureLine } from "../../engine/hosted-session.ts"
 import { enginePresence } from "../../engine/session-engine-presence.ts"
 import type { EngineSessionLaunch } from "../../engine/session-launch.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
@@ -30,12 +25,10 @@ import {
   ENGINE_START_POLL_MS,
   ENGINE_START_PROBE_MS,
   type PtyHostRpc,
-  deferOrThrow,
   deliverToKey,
   outcomeFields,
-  resolveComposerManifest,
 } from "./pty-delivery.ts"
-import { ApiError, type DeliveredPrompt, type PromptDeferralSink } from "./types.ts"
+import { ApiError, type DeliveredPrompt } from "./types.ts"
 
 /**
  * Deliver into ONE exact tab (`send --tab tab-N`) — no fallback, no search.
@@ -53,8 +46,6 @@ export async function deliverToExactTab(
   opts?: {
     readonly engineBin?: string
     readonly snapshot?: PsSnapshot
-    readonly vendor?: VendorId
-    readonly defer?: PromptDeferralSink
     /** Caller consent to revive a freeze-restored tab (`send --respawn`),
      *  plus the resume launch to bring it back with. `null` from the factory
      *  = the snapshot has no engine tab by this id, so the host replays the
@@ -110,7 +101,7 @@ export async function deliverToExactTab(
           reason: (await hostedSessionFailureLine(rpc, key)) ?? ENGINE_NOT_OBSERVED_REASON,
         }
       }
-      return await deliverRespawned(rpc, key, prompt, opts, taskId, tabId)
+      return await deliverRespawned(rpc, key, prompt, enginePid.vendor)
     }
     throw new ApiError(
       `tab ${tabId} has no live session on task ${taskId} — see \`rove api pty-list\` for alive tabs`,
@@ -122,7 +113,7 @@ export async function deliverToExactTab(
   // pasted into its shell. ANY running engine passes — the addressed tab's
   // engine need not match the task's vendor (cross-vendor send).
   const presence = await enginePresence(session.pid, opts?.engineBin, opts?.snapshot)
-  if (presence === "unknown") {
+  if (presence.kind === "unknown") {
     // Refuse, but do not claim the tab is a shell — we never got to look.
     throw new ApiError(
       `could not read the process table, so tab ${tabId} on task ${taskId} could not be checked for a live engine`,
@@ -133,7 +124,7 @@ export async function deliverToExactTab(
       },
     )
   }
-  if (presence !== "engine") {
+  if (presence.kind !== "engine") {
     throw new ApiError(
       `tab ${tabId} on task ${taskId} has no live engine process — it is a plain shell right now`,
       "ENGINE_NOT_RUNNING",
@@ -144,37 +135,22 @@ export async function deliverToExactTab(
     )
   }
   // No pty.detach — see deliverHostedPrompt's existing-key path.
-  const deliveryOpts = { screenManifest: resolveComposerManifest(opts?.vendor) }
-  let outcome: PromptWriteOutcome | null
-  try {
-    outcome = await deliverToKey(rpc, key, prompt, deliveryOpts)
-  } catch (err) {
-    if (err instanceof ComposerBusyError) return deferOrThrow(err, opts?.defer, taskId, tabId, prompt)
-    throw err
-  }
+  const outcome = await deliverToKey(rpc, key, prompt, { vendor: presence.vendor })
   return { session: key, pane: key, started: false, ...outcomeFields(outcome) }
 }
 
 /**
- * Write into a tab this call just respawned. Same gate/deferral contract as
- * the alive path, with `respawned: true` so the caller can tell "reopened
- * your frozen conversation" from "delivered into a session already running".
+ * Write into a tab this call just respawned. `respawned: true` lets the caller
+ * tell "reopened your frozen conversation" from "delivered into a session
+ * already running".
  */
 async function deliverRespawned(
   rpc: PtyHostRpc,
   key: string,
   prompt: string,
-  opts: { readonly vendor?: VendorId; readonly defer?: PromptDeferralSink },
-  taskId: string,
-  tabId: string,
+  vendor: VendorId | null,
 ): Promise<DeliveredPrompt> {
-  let outcome: PromptWriteOutcome | null
-  try {
-    outcome = await deliverToKey(rpc, key, prompt, { screenManifest: resolveComposerManifest(opts.vendor) })
-  } catch (err) {
-    if (err instanceof ComposerBusyError) return deferOrThrow(err, opts.defer, taskId, tabId, prompt)
-    throw err
-  }
+  const outcome = await deliverToKey(rpc, key, prompt, { vendor })
   return { session: key, pane: key, started: false, respawned: true, ...outcomeFields(outcome) }
 }
 

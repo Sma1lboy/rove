@@ -11,7 +11,6 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { runAutomationOnce, sweepAutomations } from "@sma1lboy/kobe-daemon/daemon/automation-runner"
 import { AutomationsStore } from "@sma1lboy/kobe-daemon/daemon/automations-store"
-import { DeferredPromptsStore } from "@sma1lboy/kobe-daemon/daemon/deferred-prompts-store"
 import type { DaemonRequestName } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { scheduleQuotaResume } from "@sma1lboy/kobe-daemon/daemon/quota-resume"
 import type { QuotaUsageCache } from "@sma1lboy/kobe-daemon/daemon/quota-usage-cache"
@@ -146,48 +145,6 @@ describe("automation runner emit sites", () => {
       taskId: "task-9",
       detail: { status: "dispatch_failed", error: "engine session did not start" },
     })
-  })
-
-  it("a queued run emits only automation.skipped with its receipt and target", async () => {
-    const f = await deps()
-    const target = { kind: "existing-tab", taskId: "task-9", tabId: "tab-2" } as const
-    const bound = await f.deps.store.update(f.automation.id, { target })
-    const deferred = new DeferredPromptsStore(join(f.directory, "deferred.json"))
-    await runAutomationOnce(
-      {
-        ...f.deps,
-        deferred,
-        orch: { getTask: () => ({ id: target.taskId, repo: bound!.repo, worktreePath: bound!.repo }) },
-        runtime: {
-          deliverPromptToLiveEngineTabDetailed: async () => ({
-            outcome: "busy",
-            tabId: target.tabId,
-            layer: "composer-not-empty",
-          }),
-        },
-        inbox: { recordPromptDeferred: async () => {} },
-      } as never,
-      bound!,
-      { scheduledFor: 60_000, trigger: "manual" },
-    )
-    const receipt = f.deps.store.runsFor(f.automation.id)[0]
-    expect(f.seen).toEqual([
-      {
-        kind: "automation.skipped",
-        taskId: target.taskId,
-        detail: {
-          automationId: bound!.id,
-          name: bound!.name,
-          repo: bound!.repo,
-          status: "deferred",
-          trigger: "manual",
-          scheduledFor: new Date(60_000).toISOString(),
-          tabId: target.tabId,
-          deferredId: receipt?.deferredId,
-        },
-      },
-    ])
-    expect((await deferred.list()).records[0]?.id).toBe(receipt?.deferredId)
   })
 
   it("a missed occurrence fires automation.skipped", async () => {

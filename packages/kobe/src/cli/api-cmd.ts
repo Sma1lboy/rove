@@ -242,6 +242,12 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
   }
 
   try {
+    // A `--task-id` naming a task on ANOTHER machine must be refused here, not
+    // forwarded: the local daemon has never heard of that id, so every verb
+    // would answer TASK_NOT_FOUND for a task the user can see in the sidebar.
+    // Costs nothing — and opens no socket — when no machine is registered.
+    const { assertLocalTask } = await import("../machines/api-merge.ts")
+    await assertLocalTask(parsed.flags.get("task-id"))
     const result = await verb.handler(makeContext(verb, parsed.flags, session?.client ?? null, defaultApiRuntime))
     emit(result, parsed.pretty)
   } catch (err) {

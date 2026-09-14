@@ -72,6 +72,7 @@ digest       --repo(REQ) --since-days(7)
 agent-turns  --task-id --repo --since-days(7) --limit(200)
 inspect      --task-id
 read-output  --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit(40)
+watch        --task-ids <a,b,c> --group --until(REQ) <STATE[,STATE]> --timeout
 ```
 <!-- generated:end -->
 
@@ -98,37 +99,30 @@ needs numbers, not when you want to know what a task is doing.
 
 <!-- generated:begin drive -->
 ```text
-send              --task-id --prompt|--prompt-file(REQ) --tab --command --respawn --plain
-                  --allow-empty
-dispatch          --task-id(REQ) --prompt|--prompt-file(REQ) --tab
-deferred-list     --task-id --include-dismissed
-deferred-release  --id(REQ)
-deferred-dismiss  --id(REQ)
-note              --task-id(REQ) --text(REQ)
-note-list         --repo(REQ)
-note-delete       --repo(REQ) --id(REQ)
-pane-open         --task-id --tab --command --direction{right|down}(right)
-                  --placement{split|tab}(split) --title
-pane-close        --task-id --title(REQ) --tab
-tab-close         --task-id(REQ) --tab(REQ)
-notify            --title(REQ) --body --kind(done) --task-id --source
-prompt            --title(REQ) --placeholder --initial --timeout
-engine-report     --task-id
-                  --kind{session-start|turn-start|turn-complete|turn-failed|turn-interrupted|awaiting-input|session-end|tool-pre|tool-post|tool-failed|pre-compact|post-compact|subagent-start|subagent-stop}(REQ)
-                  --engine --tab --detail
-set-active        --task-id --none
+send           --task-id --prompt|--prompt-file(REQ) --tab --command --respawn --plain
+               --allow-empty
+dispatch       --task-id(REQ) --prompt|--prompt-file(REQ) --tab
+interrupt      --task-id(REQ) --tab
+note           --task-id(REQ) --text(REQ)
+note-list      --repo(REQ)
+note-delete    --repo(REQ) --id(REQ)
+pane-open      --task-id --tab --command --direction{right|down}(right)
+               --placement{split|tab}(split) --title
+pane-close     --task-id --title(REQ) --tab
+tab-close      --task-id(REQ) --tab(REQ)
+notify         --title(REQ) --body --kind(done) --task-id --source
+prompt         --title(REQ) --placeholder --initial --timeout
+engine-report  --task-id
+               --kind{session-start|turn-start|turn-complete|turn-failed|turn-interrupted|awaiting-input|session-end|tool-pre|tool-post|tool-failed|pre-compact|post-compact|subagent-start|subagent-stop}(REQ)
+               --engine --tab --detail
+set-active     --task-id --none
 ```
 <!-- generated:end -->
 
-**The `deferred-*` trio is the Inbox, for a caller with no screen.** A `send`
-into a busy composer exits 0 with `deferred` in its JSON: the daemon owns the
-text now, and the TUI Inbox is where a human releases it. Headless there is no
-human, so the record sits until `deferred.expiresAt` (24h after filing) and is
-then swept UNDELIVERED — and every `send` to that tab fails
-`DEFERRED_PROMPT_PENDING` meanwhile. `deferred-list` shows what is held and
-until when, `deferred-release --id` delivers it (re-running the gate, so a
-still-busy composer answers `delivered:false` with a `reason` — retry, do not
-re-send), and `deferred-dismiss --id` drops it and frees the tab's slot.
+**`send` pastes and submits unconditionally.** It does not read the target
+composer or wait out a quiet keyboard: reaching a live engine tab means the
+text is written to it. The only refusals left are physical — no such tab, a
+dead PTY, no engine process — and each has its own code below.
 
 **`note` is the repo's durable field-note store.** One line, a verified
 conclusion another session could act on — it is appended to the repo's notes
@@ -166,8 +160,8 @@ clear the shared active task.
 
 <!-- generated:begin create,edit,lifecycle -->
 ```text
-add          --repo(REQ) --title --branch --base-branch --command --effort --count
-             --agents <claude:2,codex:1>
+add          --repo(REQ) --title --branch --base-branch --worktree-name --command --effort
+             --count --agents <claude:2,codex:1>
              --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
              --activate(false) --prompt|--prompt-file
 rename       --task-id(REQ) --title(REQ) --tab
@@ -176,10 +170,11 @@ set-command  --task-id(REQ) --command(REQ)
 set-effort   --task-id(REQ) --level(REQ)
 set-status   --task-id(REQ)
              --status{backlog|in_progress|in_review|done|canceled|error}(REQ)
+             --report-branch --report-pr --report-summary
 pin          --task-id(REQ) --pinned(true)
 land         --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
              --remove-worktree(true)
-delete       --task-id --group --force --delete-branch --wait
+delete       --task-id --group --force --delete-branch --delete-remote --wait
 ```
 <!-- generated:end -->
 
@@ -235,7 +230,7 @@ own store. These are the INBOUND user reports; Rove issues are the backlog.
 ```text
 workitem-list   --repo(REQ) --state{open|closed|all}(open) --limit(20) --search --assignee
                 --label
-workitem-start  --repo(REQ) --number(REQ) --vendor{claude|codex|copilot|kimi}
+workitem-start  --repo(REQ) --number(REQ) --vendor{claude|codex|copilot|kimi|pi|omp}
                 --base-branch
 ```
 <!-- generated:end -->
@@ -258,7 +253,7 @@ it fires with no TUI attached.
 ```text
 routine-list         (none)
 routine-create       --repo(REQ) --name(REQ) --prompt|--prompt-file(REQ) --schedule(REQ)
-                     --vendor{claude|codex|copilot|kimi} --base-branch --precheck
+                     --vendor{claude|codex|copilot|kimi|pi|omp} --base-branch --precheck
                      --precheck-timeout(120) --grace(60) --persistent-session
                      --target-task --target-tab --disabled
 routine-update       --id(REQ) --name --prompt|--prompt-file --schedule --vendor
@@ -300,8 +295,7 @@ and does not shift the schedule. `routine-delete` leaves already-created tasks
 alone.
 
 Run statuses from `routine-runs`: `dispatched`, `revived` (standing session
-respawned — files kept, conversation did not), `deferred` (composer busy; the
-prompt is queued in the Inbox, NOT lost), `skipped_precheck` (nothing to do),
+respawned — files kept, conversation did not), `skipped_precheck` (nothing to do),
 `skipped_missed`, `skipped_unavailable`, `dispatch_failed`.
 
 ## discover / feedback
@@ -333,8 +327,6 @@ Errors go to stderr as `{"error":{"message","code",...}}`. Most carry `hint`
 | `BAD_FLAG` | flag not on that verb | check the table above, then `schema --verb <v>` |
 | `TASK_NOT_FOUND` | id deleted or mistyped | `rove api list` |
 | `DIRTY_WORKTREE` | `delete` on a worktree with uncommitted files | send the worker back to commit, or `delete --force` to discard |
-| `DEFERRED_PROMPT_PENDING` | that tab already holds a deferred prompt | `deferred-release --id` (or `deferred-dismiss --id`), then re-send |
-| `DEFERRED_PROMPT_NOT_FOUND` | released, dismissed, or swept already | `rove api deferred-list` |
 | `ISSUE_NOT_FOUND` | no issue with that number in this repo | `rove api issue-list --repo <path>` |
 | `NO_ENGINE_TAB` | live tabs exist, none is an engine | `--tab tab-N` from `pty-list`, or `--tab new` |
 | `TAB_NOT_FOUND` | `--tab` names a closed/unknown tab | `get-task` for the live `.tabs[]` |
@@ -342,6 +334,11 @@ Errors go to stderr as `{"error":{"message","code",...}}`. Most carry `hint`
 | `EMPTY_SUCCESS_REPORT` | `succeeded:` from a branch with 0 commits | commit first, or say so with `--allow-empty` |
 | `SOURCE_CHANGED` | `read-output` cursor's target moved | re-read without the cursor |
 | `EMPTY_BRANCH` | `land` on zero commits ahead | the worker committed nothing |
+| `UNSUPPORTED` | `interrupt` on an engine that never declared how it is interrupted | stop it by hand in its tab, or `tab-close` |
+| `WATCH_TIMEOUT` | `watch` hit --timeout before any --until state | nothing happened yet, not "nothing will" — `collect --task-ids` |
+| `DAEMON_GONE` | the daemon died mid-`watch` | `rove daemon status`, then re-run the watch |
+| `WORKTREE_NAME_TAKEN` | `add --worktree-name` names a directory already in use | pick another name, or omit the flag for a generated one |
+| `INVALID_WORKTREE_NAME` | `--worktree-name` is not one plain path segment | letters/digits/`.`/`_`/`-`, not starting with `.` |
 
 Daemon-side refusals carry their OWN code (`DIRTY_WORKTREE`, `LAND_CONFLICT`,
 `MISSING_REF`, `GIT_COMMAND_FAILED`, …), not `RPC_ERROR`. Match on `code`; the

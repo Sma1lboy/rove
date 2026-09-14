@@ -103,10 +103,6 @@ export interface PtySessionState {
    *  gate spends a whole-ring rewrite only once this much has moved. Optional
    *  so a record thawed by an older host reads as "nothing frozen yet". */
   frozenTotalBytes?: number
-  /** Epoch ms of the most recent write that originated from an attached
-   *  client (a human typing). Zero means "never seen a human write". Used by
-   *  the delivery gate to refuse auto-pastes while the user is composing. */
-  lastHumanWriteMs: number
 }
 
 /** Durable-snapshot sink the host reports freezeable moments to. */
@@ -127,9 +123,6 @@ export interface PtyHostOptions {
   readonly scrollbackCap?: number
   /** How children spawn. Default Bun's; the Windows host injects node-pty's. */
   readonly driver?: PtyDriver
-  /** Grace after an attached-client write during which headless delivery is
-   *  blocked. Defaults to `KOBE_PTY_HUMAN_WRITE_QUIET_MS` or 10s. */
-  readonly humanWriteQuietMs?: number
   readonly log?: (event: string, message: string) => void
 }
 
@@ -160,6 +153,5 @@ export function freshSessionState(key: string, spec: PtySpawnSpec, argv: readonl
     restored: false,
     lastFreezeAtMs: 0,
     frozenTotalBytes: 0,
-    lastHumanWriteMs: 0,
   }
 }

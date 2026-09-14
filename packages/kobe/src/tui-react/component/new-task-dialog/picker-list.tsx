@@ -7,11 +7,12 @@
  * cursor arrow, bold, and overflow lines.
  */
 
-import { TextAttributes } from "@opentui/core"
+import { type BoxRenderable, TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
 import type { PickerWindow } from "../../../tui/component/new-task-dialog/state"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { useDialogFocus } from "../../ui/dialog-body"
 
 /** One visible picker row — body text plus an accent (selected) flag. */
 export type PickerRow = {
@@ -30,9 +31,19 @@ export type PickerRow = {
   readonly dim?: string
 }
 
+function PickerItem(props: { focused: boolean; children: ReactNode }) {
+  const focus = useDialogFocus<BoxRenderable>(props.focused)
+  return (
+    <box {...focus} flexShrink={0}>
+      {props.children}
+    </box>
+  )
+}
+
 export function PickerList(props: {
   window: PickerWindow
   cursor: number
+  focused?: boolean
   /** Pre-windowed rows; same length/order as `window.items`. */
   rows: readonly PickerRow[]
   onPick: (absoluteIndex: number) => void
@@ -42,9 +53,10 @@ export function PickerList(props: {
 }) {
   const { theme } = useTheme()
   const t = useT()
+  const focus = useDialogFocus<BoxRenderable>(props.focused !== false)
   const below = props.window.total - props.window.start - props.window.items.length
   return (
-    <box gap={0} paddingLeft={2} paddingBottom={props.paddingBottom}>
+    <box {...focus} gap={0} flexShrink={0} paddingLeft={2} paddingBottom={props.paddingBottom}>
       {props.window.start > 0 ? (
         <text fg={theme.textMuted} wrapMode="none">
           {t("newTask.picker.moreAbove", { count: props.window.start })}
@@ -60,39 +72,37 @@ export function PickerList(props: {
         // the layout of the three pickers that pass no tail.
         if (!row.dim) {
           return (
-            <text
-              key={row.key}
-              fg={fg}
-              attributes={attributes}
-              wrapMode="none"
-              onMouseUp={() => props.onPick(absoluteIndex)}
-            >
-              {isCursor ? "▸ " : "  "}
-              {row.body}
-            </text>
+            <PickerItem key={row.key} focused={isCursor && props.focused !== false}>
+              <text fg={fg} attributes={attributes} wrapMode="none" onMouseUp={() => props.onPick(absoluteIndex)}>
+                {isCursor ? "▸ " : "  "}
+                {row.body}
+              </text>
+            </PickerItem>
           )
         }
         return (
-          <box key={row.key} flexDirection="row" onMouseUp={() => props.onPick(absoluteIndex)}>
-            <text fg={fg} attributes={attributes} wrapMode="none" flexShrink={0}>
-              {isCursor ? "▸ " : "  "}
-              {row.body}
-            </text>
-            {/* Right-aligned by a growing spacer, not by padding the string:
+          <PickerItem key={row.key} focused={isCursor && props.focused !== false}>
+            <box flexDirection="row" onMouseUp={() => props.onPick(absoluteIndex)}>
+              <text fg={fg} attributes={attributes} wrapMode="none" flexShrink={0}>
+                {isCursor ? "▸ " : "  "}
+                {row.body}
+              </text>
+              {/* Right-aligned by a growing spacer, not by padding the string:
                 the gap is whatever the row has left over, so the tails share
                 one right edge however ragged the names are. */}
-            <box flexGrow={1} />
-            {/* The tail is the first thing to go on a narrow card: it is the
+              <box flexGrow={1} />
+              {/* The tail is the first thing to go on a narrow card: it is the
                 half the row can lose and still be identifiable.
                 The separating space is INSIDE the text, not `paddingLeft`:
                 padding is part of the box being shrunk, so on a row wide
                 enough to close the gap it went to zero and the body ran
                 straight into the directory (`…(current dir)/var/folders/…`).
                 A leading space in the string shrinks with the string. */}
-            <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
-              {` ${row.dim}`}
-            </text>
-          </box>
+              <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
+                {` ${row.dim}`}
+              </text>
+            </box>
+          </PickerItem>
         )
       })}
       {below > 0 ? (

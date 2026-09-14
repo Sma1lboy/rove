@@ -41,7 +41,9 @@ export const en = {
     renameTitle: "Rename split",
     renameField: "SPLIT NAME",
   },
-  scrolledBack: "↑ scrolled {lines}L (ctrl+pgdn to follow)",
+  scrolledBack: "↑ scrolled {lines}L",
+  scrollFirst: "[first]",
+  scrollLatest: "[latest]",
   search: {
     placeholder: "search scrollback — enter/↑ older, ↓ newer, esc close",
     position: "{index}/{total}",
@@ -100,7 +102,9 @@ export const zh: typeof en = {
     renameTitle: "重命名分屏",
     renameField: "分屏名称",
   },
-  scrolledBack: "↑ 已回滚 {lines} 行（ctrl+pgdn 回到底部）",
+  scrolledBack: "↑ 已回滚 {lines} 行",
+  scrollFirst: "[最早]",
+  scrollLatest: "[最新]",
   search: {
     placeholder: "搜索回滚缓冲区 —— enter/↑ 更早，↓ 更晚，esc 关闭",
     position: "{index}/{total}",

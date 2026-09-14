@@ -33,7 +33,13 @@ type DeepRequired<T> = {
 }
 
 /** Every field the wire shape can carry, each with a distinguishable value. */
-const FULL: DeepRequired<SerializedTask> = {
+/**
+ * `origin` is excluded on purpose. It is the ONE field on a task that no
+ * daemon ever produces and no store ever keeps: the client stamps it while
+ * merging several machines' task lists (`machines/hub.ts`), so a round-trip
+ * guard demanding it survive would be asserting the opposite of the design.
+ */
+const FULL: DeepRequired<Omit<SerializedTask, "origin">> = {
   id: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
   title: "wire fixture",
   repo: "/repo",
@@ -82,6 +88,13 @@ const FULL: DeepRequired<SerializedTask> = {
   dispatcher: { taskId: "01ARZ3NDEKTSV4RRFFQ69G5FAX", tabId: "tab-1" },
   prompt: "the full task brief — never truncated on the way to the wire",
   baseRef: "release/2.x",
+  worktreeName: "probe-1",
+  report: {
+    branch: "fix/wire",
+    pr: 921,
+    summary: "worker's own account of what it delivered",
+    at: "2026-08-27T00:00:00.000Z",
+  },
   createdAt: "2026-08-30T00:00:00.000Z",
   updatedAt: "2026-08-30T00:00:00.000Z",
 }

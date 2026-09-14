@@ -16,6 +16,7 @@
  */
 import { homedir as osHomedir } from "node:os"
 import { join } from "node:path"
+import { pathWithin } from "@sma1lboy/kobe-daemon/path-identity"
 import { homeDir } from "../env.ts"
 
 /**
@@ -25,11 +26,13 @@ import { homeDir } from "../env.ts"
  * shell would print, even under an isolated `KOBE_HOME_DIR`.
  */
 export function tildify(path: string, home = osHomedir()): string {
-  return home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path
+  const suffix = pathWithin(home, path)
+  return suffix === null ? path : suffix ? `~/${suffix}` : "~"
 }
 
 export function expandTilde(path: string): string {
   if (path === "~") return homeDir()
-  if (path.startsWith("~/")) return join(homeDir(), path.slice(2))
+  if (path.startsWith("~/") || (process.platform === "win32" && path.startsWith("~\\")))
+    return join(homeDir(), path.slice(2))
   return path
 }

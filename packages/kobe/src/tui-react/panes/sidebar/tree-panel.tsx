@@ -14,6 +14,7 @@
  */
 
 import type { ScrollBoxRenderable } from "@opentui/core"
+import { machineRowLabel } from "../../../tui/panes/sidebar/machine-layer"
 import { SCRATCH_SECTION_ID, type TreeRow } from "../../../tui/panes/sidebar/tree-core"
 import { sidebarEmptyStateKey } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
@@ -49,6 +50,24 @@ export function SidebarTreeBody(props: {
     >
       <box flexShrink={0} gap={0}>
         {props.rows.map((row, i) => {
+          if (row.kind === "machine") {
+            // A machine header is a SectionHeader like a project's, one rung
+            // up: its whole content is the label `machine-layer.ts` composed
+            // (`narwhal · v0.9.185` / `narwhal · offline`). Offline and
+            // protocol-mismatch rows grey out, and so do the rows beneath
+            // them — a stale snapshot must not read as live.
+            return (
+              <SectionHeader
+                key={row.id}
+                label={machineRowLabel(
+                  { alias: row.alias, hostLabel: row.label, state: row.state, version: row.version },
+                  t,
+                )}
+                topPad={i > 0}
+                muted={row.state !== "online"}
+              />
+            )
+          }
           if (row.kind === "project") {
             // The Scratch header reuses the project-row shape but
             // is a fixed section, not a repo: translated label, no context
@@ -60,6 +79,7 @@ export function SidebarTreeBody(props: {
                 label={isScratch ? t("tasks.header.scratch") : row.label}
                 suffix={props.movingProjectId === row.id ? t("tasks.moveChip") : undefined}
                 topPad={i > 0}
+                depth={row.depth}
                 onContextMenu={
                   props.onProjectContextMenu && !isScratch
                     ? (x, y) => props.onProjectContextMenu?.(row.id, x, y)
@@ -98,6 +118,7 @@ export function SidebarTreeBody(props: {
                 rowId={row.id}
                 flatIndex={props.flatIndexOf.get(row.id) ?? -1}
                 task={row.task}
+                depth={row.depth}
                 shared={props.shared}
               />
             )
@@ -109,6 +130,7 @@ export function SidebarTreeBody(props: {
               flatIndex={props.flatIndexOf.get(row.id) ?? -1}
               task={row.task}
               tab={row.tab}
+              depth={row.depth - 1}
               shared={props.shared}
             />
           )

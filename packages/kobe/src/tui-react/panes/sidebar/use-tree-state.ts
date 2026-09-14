@@ -22,11 +22,13 @@
  * you can see another worktree's tabs without switching to it first.
  */
 
+import type { TaskEngineState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { DEFAULT_TASK_VENDOR } from "@/types/task"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { currentBranch } from "../../../tui/panes/sidebar/git-head"
-import { sidebarProjectKey } from "../../../tui/panes/sidebar/groups"
+import { sidebarProjectKeyOfTask } from "../../../tui/panes/sidebar/groups"
+import { type MachineLayerEntry, applyMachineLayer } from "../../../tui/panes/sidebar/machine-layer"
 import {
   type TreeRow,
   type TreeTab,
@@ -67,11 +69,22 @@ export interface TreeStateOpts {
   readonly recentTask?: Task | null
   /** Global task sort applied before shaping the tree. */
   readonly sortMode?: import("../../../tui/panes/sidebar/groups").TaskSortMode
+  /** Daemon-pushed per-task activity — what `attention` sort ranks by. The
+   *  same map the rows render their state glyph from, so the order and the
+   *  glyphs can never disagree about which row is stopped. */
+  readonly engineState?: ReadonlyMap<string, TaskEngineState>
   /** The sidebar's ~2s poll tick. Re-runs the search over freshly resolved
    *  HEADs, so a `main` row becomes findable by its branch as soon as the
    *  poller answers rather than only on the next unrelated re-render. */
   readonly branchTick?: number
+  /** Registered machines. Absent/empty leaves the tree exactly as it was
+   *  before machines existed — no header row, no extra indent. */
+  readonly machines?: readonly MachineLayerEntry[]
 }
+
+/** One shared empty array, so an install with no machines never invalidates
+ *  the tree memo on a fresh literal. */
+const EMPTY_MACHINES: readonly MachineLayerEntry[] = []
 
 export interface TreeState {
   readonly rows: readonly TreeRow[]
@@ -259,14 +272,19 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
 
   const recentTask = opts.recentTask ?? null
   const sortMode = opts.sortMode ?? "default"
+  const machines = opts.machines ?? EMPTY_MACHINES
+  // Only `attention` reads activity, so the other two modes keep their memo
+  // free of a map that churns on every daemon push.
+  const sortEngineState = sortMode === "attention" ? opts.engineState : undefined
   const { rows, totalCount } = useMemo(() => {
+    const activityOf = (taskId: string) => sortEngineState?.get(taskId)?.state
     // A SEARCH builds the tree fully expanded: folding the routine
     // sessions away at rest must not make them unfindable, and search is how
     // you reach one without opening the fold first. `filterTreeRows` then
     // drops the (now empty) count row itself.
     const all = searching
-      ? buildTreeRows({ tasks, tabsByTask, sortMode, expandedRoutines: new Set(projectKeysOf(tasks)) })
-      : buildTreeRows({ tasks, tabsByTask, sortMode, expandedRoutines })
+      ? buildTreeRows({ tasks, tabsByTask, sortMode, activityOf, expandedRoutines: new Set(projectKeysOf(tasks)) })
+      : buildTreeRows({ tasks, tabsByTask, sortMode, activityOf, expandedRoutines })
     const total = treeFlatIds(all).length
     // Dependency-only invalidation key: re-run the search when the poll tick
     // moves, so a `main` row becomes findable by its branch as soon as the
@@ -283,10 +301,27 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
       return path ? currentBranch(path) : ""
     }
     return {
-      rows: searching ? filterTreeRows(all, query, liveBranch) : withRecentRow(all, recentTask),
+      // The machine layer runs LAST, over the finished tree: with no machine
+      // registered it returns the very array it was handed, so a zero-machine
+      // sidebar is byte-identical to what it was before machines existed.
+      rows: applyMachineLayer(
+        searching ? filterTreeRows(all, query, liveBranch) : withRecentRow(all, recentTask),
+        machines,
+      ),
       totalCount: total,
     }
-  }, [tasks, tabsByTask, searching, query, recentTask, sortMode, expandedRoutines, opts.branchTick])
+  }, [
+    tasks,
+    tabsByTask,
+    searching,
+    query,
+    recentTask,
+    sortMode,
+    sortEngineState,
+    expandedRoutines,
+    machines,
+    opts.branchTick,
+  ])
   const flatIds = useMemo(() => treeFlatIds(rows), [rows])
 
   // The active row is the selected task's ACTIVE TAB, else the worktree row
@@ -307,7 +342,7 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     (taskId: string): string | null => {
       const task = tasks.find((candidate) => candidate.id === taskId)
       if (!task || task.kind === "dir") return null
-      return sidebarProjectKey(task.repo)
+      return sidebarProjectKeyOfTask(task)
     },
     [tasks],
   )

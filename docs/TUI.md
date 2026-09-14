@@ -145,21 +145,17 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 `ctrl+a` `i` opens it. The Inbox answers two questions, *what needs me?* and
 *where was I?*, with one section for each:
 
-- **ATTENTION.** Pending items, oldest first. An item appears when a turn
+- **ATTENTION.** Pending items, blocked ones first. An item appears when a turn
   completes, a session asks for input, hits a rate limit, errors, or when the
-  engine process exits. Most items target one task-and-tab; events without a
-  tab identity target the whole task instead. A newer event for the same
-  target replaces the older one, and starting a new turn clears it.
-  A rate-limited item also names when its automatic resume is due
+  engine process exits. Everything that is *stopped until you act* — a
+  permission prompt, a rate limit, an error, a dead engine, a failing routine —
+  sorts ahead of plain finished turns, and within each of those two groups the
+  oldest is first. A completed turn is the only item nobody is waiting on, so
+  it never queues in front of an agent that cannot move. Most items target one
+  task-and-tab; events without a tab identity target the whole task instead. A
+  newer event for the same target replaces the older one, and starting a new
+  turn clears it. A rate-limited item also names when its automatic resume is due
   (`resumes 3:14 PM`), so you can tell a wait from a dead end.
-  A **queued message** — one the delivery guard held instead of pasting into a
-  composer that was busy — names its sender, which check held it, and how long
-  the daemon keeps the text: `from kobe · composer had text · expires in 23h`.
-  `enter` releases it (the guard runs again, so it stays queued if you are
-  still typing) and `d` sets it aside, after a confirm. Setting one aside is
-  recoverable for the rest of that 24h with
-  `rove api deferred-release --id`; `deferred-list --include-dismissed` finds
-  the id.
 - **RECENT.** The last handful of tabs you visited, most recent first. These
   aren't pending work, just jump targets; a spinner marks the ones still
   running.
@@ -167,12 +163,12 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 `enter` opens the task and, when the episode names one, its exact tab; a
 task-level episode leaves that task's current tab active. It also clears the
 item. `d` clears without navigating (ATTENTION rows only; RECENT rows have
-nothing to drop) — it asks first on a queued message, the one row where the
-keystroke would set aside work somebody sent. You rarely need `d`: **visiting
+nothing to drop). You rarely need `d`: **visiting
 a target clears its item anyway**, since visiting any tab resolves a task-level episode, and stale items
 whose tab or task is gone get cleaned up in the background.
 
-`F7` jumps straight to the oldest pending item across **all** projects,
+`F7` jumps straight to the first pending item across **all** projects — the
+oldest blocked one, or the oldest finished turn when nothing is blocked —
 without opening the Inbox, and cycles on repeated presses. It works even
 while you're typing inside an engine session. With nothing pending it just
 says so.
@@ -346,6 +342,11 @@ Inside an app that tracks the mouse itself (Claude Code, Codex, `vim`, `less`,
 as they do in any terminal, and Rove paints nothing over them. Launching such
 an app clears a selection Rove was still showing. Hold `shift` while dragging
 to select out of a mouse-aware app anyway, the way iTerm2 and kitty do.
+
+On Windows, `ctrl+c` copies a Rove selection and clears its highlight without
+interrupting the embedded app. With no Rove selection, `ctrl+c` reaches the
+app normally. A selection owned by the embedded app still uses that app's
+copy behavior.
 
 The optional horizontal tab strip can be always visible, visible only for
 multiple tabs, or hidden. The sidebar tree still lists every tab in all three

@@ -23,6 +23,7 @@ import { join } from "node:path"
 import {
   NPX_MISSING_EXIT,
   bundledSkillDir,
+  installedSkillDiffersFromBundled,
   kobeSkillPaths,
   kobeSkillState,
   npxSkillsCommand,
@@ -138,9 +139,20 @@ export async function runSkillSubcommand(argv: readonly string[]): Promise<void>
       : state.stale
         ? `⚠ out of date (installed ${state.installedVersion === null ? "unstamped" : `v${state.installedVersion}`}, this Rove wants v${state.currentVersion})`
         : `✓ installed (v${state.installedVersion})`
+    // Second opinion on a copy that LOOKS current: staleness only compares
+    // marker numbers, so a SKILL.md edited without a version bump installs
+    // as ✓ and keeps teaching the old flow. Diagnostic only — `stale` (which
+    // drives the startup prompt) deliberately stays version-based.
+    const contentDrift = state.installed && !state.stale && !!state.path && installedSkillDiffersFromBundled(state.path)
     process.stdout.write(
       [
         `${CLI_NAME} skill: ${head}`,
+        ...(contentDrift
+          ? [
+              "  ⚠ content differs from the copy bundled with this Rove at the same version —",
+              `    run \`${CLI_NAME} --skill > ${state.path}\` to refresh it`,
+            ]
+          : []),
         // A `kobe`-named copy beside the current one is not cosmetic: agents
         // load every skill dir they find, so it keeps handing them an old
         // `api` surface however green the line above is.

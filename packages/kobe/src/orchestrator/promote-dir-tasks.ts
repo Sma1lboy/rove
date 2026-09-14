@@ -1,3 +1,5 @@
+import { pathIdentity } from "@sma1lboy/kobe-daemon/path-identity"
+
 /**
  * Promote a `dir` task that is sitting on a repository root into that repo's
  * `main` row.
@@ -46,7 +48,7 @@ export interface PromotableDeps {
  *     create in the first place.
  */
 export function promotableDirTasks(deps: PromotableDeps): readonly Task[] {
-  const claimed = new Set(deps.tasks.filter((task) => task.kind === "main").map((task) => task.repo))
+  const claimed = new Set(deps.tasks.filter((task) => task.kind === "main").map((task) => pathIdentity(task.repo)))
   const seen = new Set<string>()
   const out: Task[] = []
   for (const task of deps.tasks) {
@@ -54,9 +56,10 @@ export function promotableDirTasks(deps: PromotableDeps): readonly Task[] {
     // A dir task's `repo` IS the directory it pins (openDirectoryTask), so
     // this asks "is the thing you opened a repo root", not "is it inside one".
     const path = task.repo
-    if (!path || claimed.has(path) || seen.has(path)) continue
+    const key = pathIdentity(path)
+    if (!path || claimed.has(key) || seen.has(key)) continue
     if (!deps.isRepoRoot(path)) continue
-    seen.add(path)
+    seen.add(key)
     out.push(task)
   }
   return out

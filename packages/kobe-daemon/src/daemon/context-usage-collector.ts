@@ -109,7 +109,7 @@ export class ContextUsageCollector {
   private stopped = false
 
   constructor(
-    private readonly registry: Pick<DaemonActivityRegistry, "currentNonIdle">,
+    private readonly registry: Pick<DaemonActivityRegistry, "liveSessions">,
     private readonly orch: Pick<DaemonOrchestrator, "getTask">,
     private readonly bus: DaemonEventBus,
     private readonly runtime: Pick<DaemonRuntimeAdapter, "readEngineContextUsage">,
@@ -120,7 +120,7 @@ export class ContextUsageCollector {
     if (this.stopped) return
     if (this.options.hasSubscribers && !this.options.hasSubscribers()) return
     try {
-      const targets = contextUsageTargets(this.registry.currentNonIdle(), (id) => this.orch.getTask(id)?.vendor)
+      const targets = contextUsageTargets(this.registry.liveSessions(), (id) => this.orch.getTask(id)?.vendor)
       const live = new Set(targets.map((t) => t.key))
       let pruned = false
       for (const key of [...this.entries.keys()]) {
@@ -200,7 +200,7 @@ export class ContextUsageCollector {
 
 /** Start the production collector on an interval; `tickMs <= 0` disables it. */
 export function startContextUsageCollector(
-  registry: Pick<DaemonActivityRegistry, "currentNonIdle">,
+  registry: Pick<DaemonActivityRegistry, "liveSessions">,
   orch: Pick<DaemonOrchestrator, "getTask">,
   bus: DaemonEventBus,
   runtime: Pick<DaemonRuntimeAdapter, "readEngineContextUsage">,

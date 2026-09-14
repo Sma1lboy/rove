@@ -49,6 +49,16 @@ export async function activateWorkspaceTask(opts: ActivateWorkspaceTaskOptions, 
     opts.reportError(new TaskDeletingError(id))
     return false
   }
+  // A task on ANOTHER machine has its worktree over there. Materializing is a
+  // write, and the only daemon this process can reach is the local one — which
+  // has never heard of that id, so the attempt fails as "task not found" for a
+  // task the user is looking at. Select it and stop: the row, the topbar and
+  // the files pane all still say what it is.
+  if (task?.origin && task.origin.machineId !== "local") {
+    opts.selectTask(id)
+    opts.focusWorkspace()
+    return true
+  }
   // A create RPC can resolve before the daemon's task snapshot causes the
   // workspace host to render. An unknown task is therefore not proof that the
   // id is invalid — materialize by the authoritative RPC id and let the daemon

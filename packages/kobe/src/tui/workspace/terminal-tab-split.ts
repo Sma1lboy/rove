@@ -255,7 +255,19 @@ export function tabTitleStable(
   const source = liveTitle?.trim() || tab.lastTitle
   const named = vendor ? stableRecordedTitle(source, vendor) : (source ?? null)
   if (!vendor || engineEntry(vendor).terminalTitle?.ownsStatus !== true) {
-    return tabTitle({ ...tab, lastTitle: named } as TerminalTab, taskVendor)
+    // The resolved vendor still NAMES the tab, exactly as in the
+    // status-owning branch below: a tab running an engine that writes no
+    // title of its own (a custom preset, a contrib CLI) must fall back to
+    // that engine's name, not to `shell N`. Reachable for a `kind:
+    // "command"` tab two ways — a shell the user typed the engine into, and
+    // an engine tab a PAST probe demoted (the walk answered "no engine"
+    // because it had never been asked about custom presets; see
+    // `foreground.ts#customEngineBinaries`) — and in both the live process
+    // is the name. Naming only: no session or resume story is implied.
+    return tabTitle(
+      { ...tab, ...(vendor ? { kind: "engine", vendor } : {}), lastTitle: named } as TerminalTab,
+      taskVendor,
+    )
   }
   // Re-run the normal precedence with the recorded title CLEANED rather than
   // dropped: `stripEngineStatusPrefix` is idempotent, so a title recorded

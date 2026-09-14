@@ -3,6 +3,10 @@
 Most settings are written for you by the Settings dialog. Press `ctrl+a`,
 then `,`. This page is for when you want to edit them by hand.
 
+Saved repository lookups and per-repository init overrides match equivalent
+Windows path spellings. A repository saved with backslashes can be selected or
+configured using Git-style forward slashes without creating a second entry.
+
 ## Where things live
 
 | Path | What | Written by |
@@ -181,6 +185,7 @@ All three default to on.
 |---|---|---|
 | `notifications.toast.enabled` | boolean | In-TUI completion toasts |
 | `notifications.sound.enabled` | boolean | Chime when a background tab finishes |
+| `notifications.sound.volume` | number | Chime level, 0-1 (default 0.4) |
 | `notifications.crossTask.enabled` | boolean | Toasts for tasks you aren't looking at |
 
 Error toasts always show, even with toasts off. See
@@ -222,33 +227,28 @@ discoverable. No restart needed.
 ### Sidebar
 
 The current tree sidebar follows persisted project/task order and supports
-manual project reordering with `shift+m`. The `t` key switches the task sort
-between that persisted order and most-recently-touched; the choice is saved
-as `activeSortMode` and read back on startup. Older state files may contain
+manual project reordering with `shift+m`. The `t` key cycles the task sort
+through three orders — the persisted one, most-recently-touched, and
+`attention` (tasks blocked on you first, then ones whose turn landed unread,
+most-recently-touched inside each group). The choice is saved as
+`activeSortMode` and read back on startup; a value this build does not
+recognise reads as the persisted order. Older state files may contain
 `tasksPane.projectFilter`; the daemon still mirrors that compatibility value
 for background consumers, but the current PureTUI tree does not consume it.
 
-### Delivery
+### Machines
 
-Two checks run before a peer or `rove api` prompt is written into a running
-engine, so a message never lands in the middle of a half-typed line:
+`machines` maps a local alias to another computer running Rove. Written by
+[`rove machine add`](./MACHINES.md); nothing here needs hand-editing.
 
-- **A, the keystroke window** — someone typed into that session less than
-  ~10s ago. It measures time, so it is right about every engine.
-- **B, the screen read** — the session is rendered and the prompt is held when
-  the composer already holds text. This one knows each engine's *current*
-  layout, so a vendor redesign can make it wrong.
-
-A held prompt is deferred to your Inbox (`rove api deferred-list` without a
-screen), and a deferred prompt nobody releases is destroyed 24h later.
-
-| Key | Type | Default | What it does |
-|---|---|---|---|
-| `delivery.guard` | `on` \| `screen-off` \| `off` | `on` | Which of the two checks run. `on` runs both. `screen-off` drops B — pick it when a vendor moves its composer and the screen rule starts holding deliveries into composers you can see are empty. `off` drops both, leaving only the refusal to paste into a bare shell — pick it for a machine nobody types at, where a held message costs more than a collided one. Read fresh at each delivery, so a change needs no restart. Settings → Dev has the same three-position control, and `ROVE_DELIVERY_GUARD` overrides both for one session |
-| `delivery.humanWriteQuietMs` | number | `10000` | How long check A holds after a keystroke, in milliseconds. Also read per delivery — the pty host's `KOBE_PTY_HUMAN_WRITE_QUIET_MS` remains as its spawn-time default, but this key changes the live window without restarting the host |
-
-`delivery.composerGate` (boolean) is the superseded spelling: an existing
-`false` is read as `screen-off`, and changing the setting replaces it.
+| Field | What |
+|---|---|
+| `host` | SSH host as typed — usually an `ssh_config` `Host` alias, not a DNS name |
+| `user` | Login user, or absent to let `ssh_config` decide |
+| `port` | SSH port, or absent for the `ssh_config` default |
+| `auth` | `{"kind":"key"}` (agent / default identities), `{"kind":"key","keyPath":"…"}`, or `{"kind":"password","keychainRef":{…}}` — a password is never stored here, only a pointer to it |
+| `identity` | `{hostname, homeDir, daemonPid}` learned from the machine's last handshake. Two aliases whose triples match are one machine |
+| `addedAt` | ISO timestamp of registration |
 
 ### Experimental
 
@@ -309,13 +309,20 @@ red outrank green when both fire for the same tab. Three delivery channels:
   `notifications.sound.enabled` toggle as the chime.
 - **Sound.** A short chime when a background tab finishes. Rove uses the
   first player it finds on `PATH` (`ffplay`, `mpv`, `mpg123`, … `afplay`,
-  `play`, `aplay`, …). With none installed it's silent and the terminal bell
-  is the fallback.
+  `play`, `aplay`, …), and on Windows falls back to PowerShell. With none
+  installed it's silent and the terminal bell is the fallback.
+
+  **Volume** is a property of the audio Rove hands the player, not a flag it
+  passes: several players (`afplay`, `aplay`, and the Windows fallback, whose
+  `Media.SoundPlayer` has no volume API) accept no volume argument at all, so
+  Rove scales the chime's samples itself and caches one copy per level. Cycle
+  it from **Settings → General → Chime volume**, or set
+  `notifications.sound.volume` directly; `0` is silent.
 
 ## Custom engines
 
-Built-in engines are `claude`, `codex`, `copilot`, and `kimi`. You can
-register any other CLI from **Settings → Engines**, or by hand:
+Built-in engines are `claude`, `codex`, `copilot`, `kimi`, `pi`, and `omp`.
+You can register any other CLI from **Settings → Engines**, or by hand:
 
 ```json
 {
@@ -344,8 +351,8 @@ A custom engine launches and runs like any other, but Rove deliberately
 doesn't guess at its internals — no history reader, no account detection, no
 activity hooks, no session resume — unless you declare
 `"engineProtocol.<id>"` (one of the built-in ids: `claude`, `codex`,
-`copilot`, `kimi`), which borrows that built-in's adapter for transcript
-reads and delivery. More in [Engines](./ENGINES.md).
+`copilot`, `kimi`, `pi`, `omp`), which borrows that built-in's adapter for
+transcript reads and delivery. More in [Engines](./ENGINES.md).
 
 Settings → Engines asks for it while adding the engine — a list of the
 built-ins plus **None**, so the generic adapter is something you choose rather

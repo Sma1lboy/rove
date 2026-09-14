@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { WorktreeNameTakenError } from "../../src/orchestrator/errors.ts"
 import { SlugAllocator } from "../../src/orchestrator/worktree/slug-allocator.ts"
 
 // A repo path with no managed worktree roots on disk → listWorktreeDirNames
@@ -53,5 +54,38 @@ describe("SlugAllocator", () => {
 
   it("rejects an empty animal pool", () => {
     expect(() => new SlugAllocator(() => [], { pool: [] })).toThrow(/pool cannot be empty/)
+  })
+
+  describe("claim (add --worktree-name)", () => {
+    it("takes a caller-chosen name that is free", async () => {
+      const alloc = new SlugAllocator(() => [], { pool: ["panda"], random: FIRST })
+      expect(await alloc.claim(REPO, "probe-1")).toBe("probe-1")
+    })
+
+    it("refuses a name an active task already holds, rather than suffixing it", async () => {
+      // A `-v2` fallback would defeat the flag's whole purpose: the caller
+      // named the directory so it could predict the path afterwards.
+      const alloc = new SlugAllocator(() => ["probe-1"], { pool: ["panda"], random: FIRST })
+      await expect(alloc.claim(REPO, "probe-1")).rejects.toBeInstanceOf(WorktreeNameTakenError)
+    })
+
+    it("refuses a name another in-flight create already picked", async () => {
+      const alloc = new SlugAllocator(() => [], { pool: ["panda"], random: FIRST })
+      await alloc.claim(REPO, "probe-1")
+      await expect(alloc.claim(REPO, "probe-1")).rejects.toBeInstanceOf(WorktreeNameTakenError)
+    })
+
+    it("blocks a random pick from taking a claimed name", async () => {
+      const alloc = new SlugAllocator(() => [], { pool: ["panda", "tiger"], random: FIRST })
+      await alloc.claim(REPO, "panda")
+      expect(await alloc.allocate(REPO)).toBe("tiger")
+    })
+
+    it("frees the name again on commit, like any other pick", async () => {
+      const alloc = new SlugAllocator(() => [], { pool: ["panda"], random: FIRST })
+      await alloc.claim(REPO, "probe-1")
+      alloc.commit(REPO, "probe-1")
+      expect(await alloc.claim(REPO, "probe-1")).toBe("probe-1")
+    })
   })
 })

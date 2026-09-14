@@ -15,7 +15,7 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
   {
     name: "add",
     group: "create",
-    summary: `Create a task (shows in the sidebar immediately). With --prompt it also starts the engine and delivers it. PARALLEL ATTEMPTS: --count N spawns N sibling tasks of the SAME prompt, each in its own worktree/branch (--agents claude:2,codex:1 for a mixed fleet); capped at ${FANOUT_CAP}, prefer 3-4. Does NOT steal focus — pass --activate to make it the active task. Alias: spawn-task.`,
+    summary: `Create a task (shows in the sidebar immediately). With --prompt it also starts the engine and delivers it. PARALLEL ATTEMPTS: --count N spawns N sibling tasks of the SAME prompt, each in its own worktree/branch (--agents claude:2,codex:1 for a mixed fleet); capped at ${FANOUT_CAP}, prefer 3-4. Does NOT steal focus — pass --activate to make it the active task. The sidebar shows .task.title and .task.branch — name a task by those (or its id), never by the directory in .task.worktreePath, which the UI never renders. Alias: spawn-task.`,
     flags: [
       F.repo(),
       F.title(),
@@ -26,6 +26,13 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
         description: "Explicit branch name (else derived from the title in the repo's own style). Single task only.",
       },
       { name: "base-branch", type: "string", placeholder: "B", description: "Base ref the worktree branches from." },
+      {
+        name: "worktree-name",
+        type: "string",
+        placeholder: "NAME",
+        description:
+          "Name the worktree DIRECTORY instead of taking one from the animal pool — so the caller can predict `.task.worktreePath` (`<worktrees root>/<NAME>`) rather than reading it back with get-task. One path segment of letters/digits/`.`/`_`/`-`, not starting with `.` (INVALID_WORKTREE_NAME otherwise). A name already in use in this repo — by a live task, a directory on disk, or a concurrent create — is REFUSED with WORKTREE_NAME_TAKEN, never silently suffixed `-v2`. Single task only.",
+      },
       F.command(),
       {
         name: "effort",

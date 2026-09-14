@@ -241,27 +241,6 @@ export type DaemonRequestName =
   // is that bare shell adopts it (already rc-initialized) instead of
   // paying shell startup. Best-effort; older hosts reject the verb.
   | "pty.warm"
-  // Deferred prompts: the delivery gate accepted a prompt
-  // it could not paste (composer busy) into daemon ownership. Clients file
-  // through `fileIfVacant`, whose distinct name makes old replace-on-file
-  // daemons fail loud. `release` and `flush` claim records before exact-tab
-  // delivery. `list`/`dismiss` are the read + drop half the TUI Inbox
-  // performs on a screen, so a headless caller can act on its own deferred
-  // prompt instead of waiting out the 24h TTL
-  // (`rove api deferred-list|-release|-dismiss`).
-  | "deferredPrompt.fileIfVacant"
-  | "deferredPrompt.list"
-  | "deferredPrompt.release"
-  | "deferredPrompt.dismiss"
-  | "deferredPrompt.discardTab"
-  | "deferredPrompt.flush"
-  // Tombstones. `file`, `get` and `resolve` no longer do anything, but they
-  // stay NAMED so the registry answers them with an explicit refusal instead
-  // of the generic `unknown daemon request` — see RETIRED_DEFERRED_PROMPT_RPCS
-  // in handlers-deferred.ts for why the generic error misroutes the recovery.
-  | "deferredPrompt.file"
-  | "deferredPrompt.get"
-  | "deferredPrompt.resolve"
 
 /**
  * Verbs whose CONTRACT is to block, so the client must not put a wedge
@@ -294,9 +273,6 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   "workitem.start",
   // Precheck subprocess, then a full session start.
   "automation.runNow",
-  // One PTY delivery per queued record, serially.
-  "deferredPrompt.flush",
-  "deferredPrompt.release",
   // Worktree work and forge lookups (ls-remote, gh PR states) — minute-scale.
   "task.ensureWorktree",
   "task.ensureMain",
@@ -411,6 +387,18 @@ export interface SerializedTask {
   readonly prompt?: DaemonTask["prompt"]
   /** The recorded fork point (`add --base-branch`) branch signals measure against. */
   readonly baseRef?: DaemonTask["baseRef"]
+  /** Caller-chosen worktree directory name (`add --worktree-name`). */
+  readonly worktreeName?: DaemonTask["worktreeName"]
+  /** The worker's own outcome claim (`set-status --report-*`) — a CLAIM,
+   *  where `prStatus` is the daemon's own observation of the forge. */
+  readonly report?: DaemonTask["report"]
+  /**
+   * Which machine served this task. NEVER set by a daemon — the merging
+   * client stamps it after deserializing, and `rove api list` passes it
+   * through. Declared here so the CLI's wire type and the client's `Task`
+   * agree on the field rather than each widening the other with a cast.
+   */
+  readonly origin?: { readonly machineId: string; readonly hostLabel: string }
   readonly createdAt: string
   readonly updatedAt: string
 }
@@ -452,6 +440,8 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     dispatcher: task.dispatcher,
     prompt: task.prompt,
     baseRef: task.baseRef,
+    worktreeName: task.worktreeName,
+    report: task.report,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
   }

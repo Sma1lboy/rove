@@ -67,12 +67,13 @@ function rowAfterClaudeHook(event: string, payload: Record<string, unknown>) {
     // wake (monitor stream ending), not a completion.
     if (verb !== "turn-start" && verb !== "session-start") registry.report("task-1", "turn-start")
     registry.report("task-1", verb, detail)
-    const published = registry.snapshotByTask()["task-1"]
-    expect(published).toBeDefined()
     // 5. Client side: RemoteOrchestrator accumulates non-idle states into
-    //    TaskEngineState (an `idle` publish deletes the entry → undefined).
-    const activity: TaskEngineState | undefined =
-      published.state === "idle" ? undefined : { state: published.state, detail: published.detail, at: published.at }
+    //    TaskEngineState — which is exactly what the registry's derived
+    //    rollup replays, so an idle task is simply absent here.
+    const published = registry.replaySnapshot().find((p) => p.taskId === "task-1" && !p.tabId)
+    const activity: TaskEngineState | undefined = published
+      ? { state: published.state, detail: published.detail, at: published.at }
+      : undefined
     // 6. Render: the sidebar badge.
     return buildSidebarRowView({
       task: task(),
@@ -102,11 +103,14 @@ describe("activity pipeline — vendor hook payload to sidebar badge", () => {
     expect(row.tone).toBe("primary")
   })
 
-  it("turn failed (rate limit): StopFailure error_type=rate_limit shows the attention badge", () => {
+  it("turn failed (rate limit): StopFailure error_type=rate_limit shows the attention badge, in AMBER", () => {
     const row = rowAfterClaudeHook("StopFailure", { error_type: "rate_limit" })
     expect(row.loading).toBe(false)
     expect(row.stateGlyph).toBe("!")
-    expect(row.tone).toBe("error")
+    // Amber, not red: a quota wall clears itself when the window rolls, while
+    // the other three attention states stay broken until a human acts. The
+    // tab strip and the Inbox have always drawn this one amber.
+    expect(row.tone).toBe("warning")
     // The subtitle shows the BRANCH, not a state word: the one-line tree row
     // has no subtitle at all, so the glyph above is the whole signal.
     expect(row.subtitleText).toBe("feature/sidebar")

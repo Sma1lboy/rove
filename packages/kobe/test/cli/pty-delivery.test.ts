@@ -69,7 +69,9 @@ describe("deliverToKey", () => {
     // pty.peek, NOT pty.open: an open would last-attach-wins resize the
     // live session away from its attached TUI — delivery must
     // be indistinguishable from keyboard input (pure pty.write).
-    // Peeks (gate, readiness, confirm) then two writes — still no open/resize.
+    // Peeks (gate, readiness) then the paste, the CR, and the echo confirm —
+    // still no open/resize, and NO peek between the paste and the key: the
+    // submit key is Enter for every engine, not a footer read.
     expect(calls.map((c) => c.name)).toEqual(["pty.peek", "pty.peek", "pty.write", "pty.write", "pty.peek"])
     expect(calls[0].payload).toEqual({ key: "t1::tab-1" })
     // Bracketed paste markers wrap the prompt; the CR is a SEPARATE write.
@@ -170,25 +172,38 @@ describe("deliverHostedPrompt", () => {
   it("delivers once when another caller wins the create race", async () => {
     const calls: Array<{ name: string; payload: unknown }> = []
     const engine = echoingPeek()
+    let opened = false
     const rpc = {
       request: async <T>(name: string, payload?: unknown): Promise<T> => {
         calls.push({ name, payload })
-        if (name === "pty.list") return { sessions: [] } as T
-        if (name === "pty.open") return { replay: "", alive: true, created: false } as T
+        if (name === "pty.list") return { sessions: opened ? [session("t1::tab-1", ["claude"])] : [] } as T
+        if (name === "pty.open") {
+          opened = true
+          return { replay: "", alive: true, created: false } as T
+        }
         if (name === "pty.peek") return engine.peek() as T
         if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")
         return {} as T
       },
     }
 
-    const result = await deliverHostedPrompt(rpc, { id: "t1", engineBin: "claude" }, "/wt/t1", "fix it", {
-      key: "t1::tab-1",
-      command: ["/bin/zsh", "-ilc", "claude 'fix it'"],
-    })
+    const result = await deliverHostedPrompt(
+      rpc,
+      { id: "t1", engineBin: "claude" },
+      "/wt/t1",
+      "fix it",
+      {
+        key: "t1::tab-1",
+        command: ["/bin/zsh", "-ilc", "claude 'fix it'"],
+      },
+      { snapshot: psWith("claude") },
+    )
 
     expect(calls.map((call) => call.name)).toEqual([
       "pty.list",
       "pty.open",
+      "pty.list",
+      "pty.peek",
       "pty.peek",
       "pty.peek",
       "pty.write",

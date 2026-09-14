@@ -1,6 +1,7 @@
 import { readdir, stat } from "node:fs/promises"
 import path from "node:path"
 import { isJsonlLineWithinBound, readFirstLineBounded, readTextFileBounded } from "../file-bounds"
+import { sameHistoryWorktree } from "../history-worktree"
 import { vendorConfigHome } from "../vendor-home"
 
 export interface HistoryDeps {
@@ -210,7 +211,7 @@ export async function listSessionIdsForWorktree(
 ): Promise<string[]> {
   if (!worktree) return []
   return (await catalog(deps).sessions())
-    .filter((file) => file.cwd === worktree)
+    .filter((file) => sameHistoryWorktree(file.cwd, worktree))
     .map((file) => file.sessionId)
     .reverse()
 }
@@ -222,7 +223,7 @@ export async function findLatestRolloutForWorktree(
   if (!worktree) return null
   let best: { path: string; mtimeMs: number } | null = null
   for (const file of await catalog(deps).sessions()) {
-    if (file.cwd === worktree && (!best || file.stamp.mtimeMs > best.mtimeMs))
+    if (sameHistoryWorktree(file.cwd, worktree) && (!best || file.stamp.mtimeMs > best.mtimeMs))
       best = { path: file.path, mtimeMs: file.stamp.mtimeMs }
   }
   return best

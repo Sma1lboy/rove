@@ -24,7 +24,7 @@ export type Dispatcher = NonNullable<SerializedTask["dispatcher"]>
 export interface SelfSessionProbe {
   /** Live pty-host inventory (`pty.list`) — `[]` when the host is gone. */
   sessions(): Promise<readonly { key: string; pid: number | null; alive: boolean }[]>
-  /** Snapshot text, given the shell pids the walk anchors on (see `PsSnapshot`). */
+  /** Snapshot text, given the pids whose consoles the walk runs through — the tab's shell and this CLI (see `PsSnapshot`). */
   ps(anchors?: readonly number[]): Promise<string>
   /** This process's pid — the far end of the lineage walk. */
   pid: number
@@ -110,7 +110,11 @@ async function resolveSelfSession(env: NodeJS.ProcessEnv, probe?: SelfSessionPro
     const session = (await p.sessions()).find((s) => s.key === key && s.alive)
     if (session?.pid) {
       const { hasAncestor, parsePsSnapshot } = await import("../../engine/foreground.ts")
-      if (hasAncestor(parsePsSnapshot(await p.ps([session.pid])), p.pid, session.pid)) {
+      // Both ends of the walk are anchors: the tab's shell, whose console
+      // re-links the engine to it, and this CLI, whose console re-links it
+      // to the engine's Bash tool — Windows severs the chain at both places
+      // (win-process-snapshot.ts). POSIX ignores the list.
+      if (hasAncestor(parsePsSnapshot(await p.ps([session.pid, p.pid])), p.pid, session.pid)) {
         // A verified resolution clears any warning a previous one left. The
         // memo makes that a single resolution per process today; this keeps
         // the pair honest if the memo is ever relaxed.
@@ -244,14 +248,22 @@ export async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string
   // The trailing pointer closes the loop for a receiver that has never seen
   // kobe: reply command baked in, and where to learn the rest (the herdr
   // "--skill first" trick) — a pointer, not a curriculum, since every peer
-  // message pays for this prefix in context. Loading the skill is REQUIRED,
-  // not suggested: a receiver that replies from the raw prefix alone
+  // message pays for this prefix in context. The skill is required reading
+  // ONCE PER SESSION: a receiver that replies from the raw prefix alone
   // improvises verbs and side-channels, and the round-trip falls back to a
-  // human relay.
+  // human relay. It does not need re-reading per message.
+  //
+  // The reply clause names WHERE a reply goes, and says when one is worth
+  // sending. It used to read "then reply:", which every receiver took as an
+  // instruction to answer each message — so peers acknowledged receipt,
+  // announced that they had loaded the skill, and acknowledged each other's
+  // acknowledgements, all at one full engine turn apiece. The address is
+  // still exact; only the obligation is gone (skill: "Communicate at
+  // handoffs, not at every step").
   // The sender's text goes LAST, whole, after a blank line — never as the
   // object of this English sentence. A model generates in the language of
   // the tokens nearest its turn, so wrapping a Chinese prompt in an English
   // clause pulls replies into English; ending on the sender's own words
   // removes that pull without changing what the prefix says.
-  return `[ROVE PEER] from "${label}" (task ${senderId} — load the Rove agent skill FIRST (registered as /rove; legacy /kobe installs still work), then reply: \`${api} send ${replyTarget} --prompt "<text>"\`; verb reference: \`${api} schema\`)\n\n${prompt}`
+  return `[ROVE PEER] from "${label}" (task ${senderId} — Rove agent skill /rove, read it once per session (legacy /kobe installs still work); reply only if it changes what I do next: \`${api} send ${replyTarget} --prompt "<text>"\`; verb reference: \`${api} schema\`)\n\n${prompt}`
 }

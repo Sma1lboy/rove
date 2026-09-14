@@ -17,7 +17,10 @@ import path from "node:path"
 import * as claudeHistory from "./claude-code-local/history.ts"
 import * as codexHistory from "./codex-local/history.ts"
 import * as copilotHistory from "./copilot-local/history.ts"
+import { readTextFileIfRegular } from "./file-bounds.ts"
 import * as kimiHistory from "./kimi-local/history.ts"
+import { parsePiSessionRaw } from "./pi-local/history-parse.ts"
+import * as piHistory from "./pi-local/history.ts"
 // Type-only, so the registry↔readers pair is not a runtime cycle.
 import type { EngineHistoryReader } from "./registry.ts"
 
@@ -103,3 +106,28 @@ export const kimiHistoryReader: EngineHistoryReader = {
   transcriptPath: (sessionId) => kimiHistory.transcriptPath(sessionId),
   latestTranscriptMtimeForWorktree: (worktree) => kimiHistory.latestTranscriptMtimeForWorktree(worktree),
 }
+
+/**
+ * The pi family's reader. One factory for both ids because they share the
+ * store format, the JSONL parser and the encoder rules — only the default
+ * agent directory differs (and, for omp, the extra home-relative directory
+ * names — see `pi-local/history.ts`).
+ */
+function piFamilyHistoryReader(vendor: piHistory.PiStoreVendor): EngineHistoryReader {
+  return {
+    listSessionIdsForWorktree: (worktree) => piHistory.listSessionIdsForWorktree(vendor, worktree),
+    readHistory: (sessionId) => piHistory.readHistory(vendor, sessionId),
+    readUsageSnapshot: async (sessionId) => {
+      const file = await piHistory.findSessionFile(vendor, sessionId)
+      if (!file) return undefined
+      const raw = await readTextFileIfRegular(file)
+      if (raw === null) return undefined
+      return parsePiSessionRaw(file, raw, sessionId).usageMetrics
+    },
+    transcriptPath: (sessionId, worktree) => piHistory.transcriptPath(vendor, sessionId, worktree),
+    latestTranscriptMtimeForWorktree: (worktree) => piHistory.latestTranscriptMtimeForWorktree(vendor, worktree),
+  }
+}
+
+export const piHistoryReader = piFamilyHistoryReader("pi")
+export const ompHistoryReader = piFamilyHistoryReader("omp")

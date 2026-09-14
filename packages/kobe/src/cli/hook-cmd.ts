@@ -99,6 +99,24 @@ export async function runHookSubcommand(argv: readonly string[]): Promise<void> 
     if (!verb || !isEngineActivityKind(verb)) return // unknown verb → drop silently
 
     const payload = await readStdinPayload()
+    // The `--payload <json>` half of the channel. Engines whose hook runner
+    // cannot pipe stdin need it: the pi family's `pi.exec` fixes stdio to
+    // `["ignore","pipe","pipe"]`, so the extension it loads hands its payload
+    // over argv instead (see `engine/pi-local/extension-source.ts`). Merged
+    // INTO the stdin payload rather than replacing it, so an engine that can
+    // do both keeps working. Malformed JSON is dropped, not raised: this
+    // subcommand is best-effort by contract (see the header).
+    const payloadFlag = flagValue(rest, "--payload")
+    if (payloadFlag) {
+      try {
+        const extra: unknown = JSON.parse(payloadFlag)
+        if (extra && typeof extra === "object" && !Array.isArray(extra)) {
+          Object.assign(payload, extra as Record<string, unknown>)
+        }
+      } catch {
+        /* a hook must never fail the engine over a malformed payload */
+      }
+    }
     // The global hook carries no task id — it reports the cwd it ran in, and
     // the daemon maps that to a task by worktree path. Claude pipes `cwd` in
     // the payload; fall back to the process cwd. `--task-id` is still honoured

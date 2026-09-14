@@ -16,7 +16,7 @@
  * subprocesses through the same {@link ExecHost} the worktree manager uses.
  */
 
-import path from "node:path"
+import { pathWithin, samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import type { ExecHost } from "../exec/exec-host.ts"
 import type { Task, TaskId } from "../types/task.ts"
 import { GitCommandFailedError, LandConflictError } from "./errors.ts"
@@ -166,10 +166,9 @@ async function removeLandedWorktree(
   // `realpathSync.native` agrees with it everywhere we run, and one
   // implementation beats a second syscall.
   const wt = canonicalize(worktreePath)
-  if (wt === canonicalize(task.repo)) return { removed: false, reason: "refusing to remove the base checkout" }
+  if (samePath(wt, canonicalize(task.repo))) return { removed: false, reason: "refusing to remove the base checkout" }
   if (callerCwd) {
-    const rel = path.relative(wt, canonicalize(callerCwd))
-    if (rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel))) {
+    if (pathWithin(wt, canonicalize(callerCwd)) !== null) {
       return {
         removed: false,
         reason: `refusing to remove the caller's own worktree (${worktreePath}) — re-run from outside it`,

@@ -44,7 +44,6 @@ writer). Types in [`contracts.ts`](../../packages/kobe-daemon/src/daemon/contrac
 |---|---|
 | `dispatched` | Task created (or delivered into the standing session), engine started with the prompt |
 | `revived` | Standing session whose engine had died, respawned in the same worktree — files kept, transcript not |
-| `deferred` | Standing session's composer was busy; the daemon owns the prompt and queued an Inbox episode |
 | `skipped_precheck` | The precheck said there was nothing to do — **healthy** |
 | `skipped_missed` | The occurrence was older than the grace window |
 | `skipped_unavailable` | The repo/worktree could not be resolved |
@@ -75,7 +74,6 @@ fire → persistentSession?
                 │        relink sessionTaskId                   → dispatched
                 └─ yes → deliverPromptToLiveEngineDetailed
                          ├─ delivered → dispatched
-                         ├─ busy      → defer + Inbox episode   → deferred
                          └─ no-session→ respawn same worktree   → revived
 ```
 
@@ -87,15 +85,6 @@ inherit the transcript: the daemon's spawn path (`buildEngineSessionLaunch`) has
 no resume verb wired into it — `engineResumeArgv` is the TUI's tab-restart path.
 Hence `revived` as its own status: a run that started over must not read like
 one that had context.
-
-**Why a busy composer cannot be dropped.** `quota-resume` drops a blocked prompt
-deliberately — it is a nudge, and the next rate-limit arms another. A routine's
-report has no second chance, and a dropped one is indistinguishable from a
-routine that never ran. So it files a deferral and an Inbox episode, the same
-accepted-but-deferred contract `rove api send` gives agents, and the run records
-`deferred` (a success). Because `ComposerBusyError` lives in the `rove` package,
-which depends on this one, the outcome crosses the runtime adapter as DATA
-(`deliverPromptToLiveEngineDetailed`) rather than as a catchable error type.
 
 **Self-healing.** A `sessionTaskId` whose task was deleted, is mid-deletion, or
 lost its worktree resolves to null, and the firing rebuilds and relinks. Without

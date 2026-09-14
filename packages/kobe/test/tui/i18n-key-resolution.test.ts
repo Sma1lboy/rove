@@ -125,7 +125,6 @@ const RUN_STATUS_KEYS: Record<AutomationRunStatus, true> = {
   dispatched: true,
   skipped_cancelled: true,
   revived: true,
-  deferred: true,
   skipped_precheck: true,
   skipped_missed: true,
   skipped_unavailable: true,

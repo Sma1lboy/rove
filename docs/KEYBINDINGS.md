@@ -169,7 +169,7 @@ is active.
 | `d` | Delete Task / forget project | | `x` | Worktrees page |
 | `gg` / `shift+g` | Top / bottom | | | |
 | `shift+p` | Pin / unpin managed Task | | `right` | Focus the current engine pane |
-| `shift+m` | Enter reorder mode (scope-aware: tab / task / project) | | `t` | Switch task sort (default ↔ recent) |
+| `shift+m` | Enter reorder mode (scope-aware: tab / task / project) | | `t` | Cycle task sort (default → recent → attention) |
 
 Sidebar row verbs (`b`, `v`, `o`, `d`, `r`, `shift+p`, `shift+m`) act on the
 row under the cursor — the highlight `j`/`k` moves, which may differ from the
@@ -239,6 +239,10 @@ engine or shell does not receive them.
 
 The mouse wheel uses the same scrollback. Buffer size is configured in
 Settings → General → Terminal and applies to newly opened terminals.
+
+While scrolled back, click **first** beside the line count to jump to the
+earliest retained line, or **latest** to return to the bottom and follow new
+output. These buttons do not send input to the engine or shell.
 
 ### Searching it
 

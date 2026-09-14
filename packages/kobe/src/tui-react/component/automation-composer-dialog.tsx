@@ -17,6 +17,7 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import { useState } from "react"
 import {
   type ComposerDraft,
@@ -66,7 +67,7 @@ function AutomationComposerView(props: {
   }))
   const [field, setField] = useState<ComposerField>("name")
   const [repoCursor, setRepoCursor] = useState(() => {
-    const at = props.repos.indexOf(props.defaultRepo ?? "")
+    const at = props.repos.findIndex((repo) => samePath(repo, props.defaultRepo))
     return at >= 0 ? at : 0
   })
   const [error, setError] = useState<string | null>(null)
@@ -125,7 +126,7 @@ function AutomationComposerView(props: {
     accent: repoWindow.start + index === repoCursor,
   }))
 
-  const targets = props.tasks.filter((task) => task.repo === draft.repo)
+  const targets = props.tasks.filter((task) => samePath(task.repo, draft.repo))
   const targetCursor = draft.target ? targets.findIndex((task) => task.id === draft.target?.taskId) + 1 : 0
   function pickTarget(delta: number): void {
     const index = (targetCursor + delta + targets.length + 1) % (targets.length + 1)

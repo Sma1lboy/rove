@@ -95,7 +95,7 @@ describe("installActivityHooks on a settings file it cannot parse", () => {
     // The user's own group survived and Rove's hooks landed beside it.
     const doc = JSON.parse(await readFile(file, "utf8")) as { hooks: Record<string, unknown[]> }
     expect(doc.hooks.PreToolUse).toContainEqual({ matcher: "Bash", hooks: [] })
-    expect(JSON.stringify(doc)).toContain("'rove' 'hook'")
+    expect(JSON.stringify(doc)).toContain('"rove hook ')
   })
 
   it("negative control: a missing file is a first launch, not a refusal", async () => {

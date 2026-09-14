@@ -24,11 +24,12 @@ describe("buildClaudeHooks", () => {
     }
   })
 
-  it("points each hook at `kobe hook <verb>` with NO task id (shell-quoted argv)", () => {
-    expect(hooks.Stop[0].hooks[0].command).toContain("'hook' 'turn-complete'")
+  it("points each hook at `kobe hook <verb>` with NO task id (bare argv — one command in sh, cmd and PowerShell)", () => {
+    expect(hooks.Stop[0].hooks[0].command).toContain("hook turn-complete")
+    expect(hooks.Stop[0].hooks[0].command).not.toContain("'")
     expect(hooks.Stop[0].hooks[0].command).not.toContain("--task-id")
-    expect(hooks.StopFailure[0].hooks[0].command).toContain("'hook' 'turn-failed'")
-    expect(hooks.SessionStart[0].hooks[0].command).toContain("'hook' 'session-start'")
+    expect(hooks.StopFailure[0].hooks[0].command).toContain("hook turn-failed")
+    expect(hooks.SessionStart[0].hooks[0].command).toContain("hook session-start")
   })
 
   it("scopes the Notification hook to permission prompts + question dialogs", () => {
@@ -38,7 +39,7 @@ describe("buildClaudeHooks", () => {
     // every idle session (turn_complete already covers "done, look at me").
     expect(hooks.Notification.map((g) => g.matcher)).toEqual(["permission_prompt", "elicitation_dialog"])
     for (const group of hooks.Notification) {
-      expect(group.hooks[0].command).toContain("'hook' 'awaiting-input'")
+      expect(group.hooks[0].command).toContain("hook awaiting-input")
     }
   })
 })
@@ -132,9 +133,12 @@ describe("mergeActivityHooks (global, cwd-based)", () => {
     const out = mergeActivityHooks(legacy, true, ["kobe"]) as SettingsShape
     expect(out.hooks?.Stop).toHaveLength(2) // fresh kobe entry + the user's, legacy dropped
     expect(JSON.stringify(out.hooks?.Stop)).toContain("user-old-stop")
-    expect(JSON.stringify(out.hooks?.Stop)).toContain("'hook' 'turn-complete'")
-    expect(JSON.stringify(out.hooks?.Stop)).not.toContain('"kobe hook turn-complete"')
-    expect(JSON.stringify(out.hooks)).not.toContain('"kobe hook awaiting-input"')
+    expect(JSON.stringify(out.hooks?.Stop)).toContain('"kobe hook turn-complete"')
+    // The legacy permission_prompt entry is REPLACED, not duplicated: exactly
+    // the two fresh matcher-scoped groups carry the command afterwards.
+    const notification = (out.hooks as Record<string, { matcher?: string }[] | undefined>).Notification
+    expect(notification?.map((g) => g.matcher)).toEqual(["permission_prompt", "elicitation_dialog"])
+    expect((JSON.stringify(out.hooks).match(/"kobe hook awaiting-input"/g) ?? []).length).toBe(2)
   })
 
   it("removes kobe's hooks while keeping the user's same-event hooks", () => {

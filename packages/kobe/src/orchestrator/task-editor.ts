@@ -10,6 +10,7 @@
  * unchanged. Moved verbatim from `core.ts` — no behaviour change.
  */
 
+import { samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import { detectLanguage } from "@sma1lboy/kobe-daemon/prompts/observed-language"
 import { samePrStatus } from "../monitor/pr-status.ts"
 import type {
@@ -19,6 +20,7 @@ import type {
   TaskPRStatus,
   TaskQuotaResumeState,
   TaskStatus,
+  TaskWorkerReport,
   VendorId,
 } from "../types/task.ts"
 import { deriveConventionBranch, inferBranchStyle, uniqueBranchName } from "./branch-style.ts"
@@ -203,7 +205,9 @@ export class TaskEditor {
       .filter((t) =>
         isMain
           ? (t.kind ?? "task") === "main"
-          : (t.kind ?? "task") !== "main" && t.repo === task.repo && (t.pinned ?? false) === (task.pinned ?? false),
+          : (t.kind ?? "task") !== "main" &&
+            samePath(t.repo, task.repo) &&
+            (t.pinned ?? false) === (task.pinned ?? false),
       )
       .map((t) => String(t.id))
     await this.store.move(task.id, delta, groupIds)
@@ -221,6 +225,25 @@ export class TaskEditor {
       throw new IllegalTransitionError(task.status, status, task.id)
     }
     await this.store.update(task.id, { status })
+  }
+
+  /**
+   * Record what the WORKER says it delivered (`set-status --report-*`).
+   *
+   * Its own method rather than a parameter on {@link setStatus}, because
+   * that one returns early when the status is unchanged — and re-reporting
+   * on an already-`done` task is the ordinary case (a worker corrects its PR
+   * number, or files a summary after the fact). Folded in there, exactly
+   * those reports would vanish without a word.
+   *
+   * Fields MERGE onto any previous report: a follow-up naming only `pr` must
+   * not erase the branch the worker named ten minutes earlier. `at` always
+   * restamps, so the timestamp means "last reported", not "first".
+   */
+  async setWorkerReport(id: TaskId | string, report: Omit<TaskWorkerReport, "at">): Promise<void> {
+    const task = this.requireTask(id)
+    const next: TaskWorkerReport = { ...task.report, ...report, at: new Date().toISOString() }
+    await this.store.update(task.id, { report: next })
   }
 
   /**

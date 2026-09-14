@@ -104,7 +104,8 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
       const row = tree.rows.find((candidate) => candidate.id === rowId)
       // Neither the "↩ recent" jump row nor the routine count row has a menu:
       // both are shortcuts, not task rows, so there is no task to act on.
-      if (!row || row.kind === "project" || row.kind === "recent" || row.kind === "routines") return
+      if (!row || row.kind === "project" || row.kind === "machine" || row.kind === "recent" || row.kind === "routines")
+        return
       // Move the cursor too: the menu and the highlight must agree about which
       // row the next action lands on.
       setCursorIndex(flatIndex)
@@ -169,7 +170,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
       }
       // A routine count row never opens a menu (see the guard above), so it
       // can only arrive here through a stale `menu` — nothing to act on.
-      if (row.kind === "routines") return
+      if (row.kind === "routines" || row.kind === "machine") return
       const taskId = row.task.id
       switch (action) {
         case "open":

@@ -8,15 +8,23 @@
  *   1. Probe the user's PATH for the first available audio player
  *      (afplay on macOS, ffplay/mpv/play/aplay/etc. elsewhere) and cache
  *      the choice.
- *   2. Copy the bundled `pulse.wav` to `$TMPDIR/kobe-sfx/` on first use
- *      so the asset has a stable filesystem path even when kobe runs
- *      from the bundled `dist/` (Bun's `with { type: "file" }` import
- *      already gives us a real path, but caching in tmp also keeps
- *      repeated spawns cheap and isolates the asset from `dist`
- *      reinstalls).
+ *   2. Write the bundled `pulse.wav` to `$TMPDIR/kobe-sfx/` on first use,
+ *      its samples already scaled to the user's volume
+ *      (`state/sound-volume.ts`) and cached per volume. The asset then has
+ *      a stable filesystem path even when kobe runs from the bundled
+ *      `dist/`, and repeated spawns stay cheap.
  *   3. Spawn the player detached with all stdio ignored. Failures are
  *      swallowed — the BEL in `notifications.tsx` is the always-on
  *      fallback; this just adds an audible chime on top.
+ *
+ * VOLUME LIVES IN THE FILE, never in the player's argv. Four of the players
+ * below take no volume flag at all — `afplay`, `aplay`, `omxplayer`, and the
+ * `powershell.exe` fallback, whose `Media.SoundPlayer` class has no volume
+ * API (Play, PlaySync, PlayLooping, Stop, and nothing else). Windows only
+ * ever reaches that last one, so a volume passed as an argument was silently
+ * discarded there: the chime rang at full system level and no setting could
+ * lower it. Scaling the samples (`wav-volume.ts`) is one mechanism every
+ * player honours, and it cannot double-apply.
  *
  * If no player is on PATH (rare on a Mac dev box, common in stripped CI
  * containers), `pulse()` is a no-op and we rely on the terminal bell.
@@ -24,8 +32,10 @@
 
 import { existsSync, mkdirSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { basename, delimiter, isAbsolute, join, resolve } from "node:path"
+import { basename, delimiter, extname, isAbsolute, join, resolve } from "node:path"
+import { persistedSoundVolume } from "../../state/sound-volume"
 import pulseAssetRaw from "../asset/pulse.wav" with { type: "file" }
+import { scaleWavVolume } from "./wav-volume"
 
 // Bun's `with { type: "file" }` import returns an absolute path in dev
 // and a path relative to the emitting chunk in `bun build` output.
@@ -53,23 +63,23 @@ const PLAYERS = [
 type Player = (typeof PLAYERS)[number]
 
 /**
- * Per-player argv. Volume is 0..1; players that take percent get
- * `round(volume * 100)`, ffmpeg-style filter-graphs use the raw float.
+ * Per-player argv to play `file` once and get out of the way (no window, no
+ * video, exit when done). No volume flag anywhere: `file` already carries
+ * the level — see the file header.
  */
-function args(player: Player, file: string, volume: number): string[] {
-  if (player === "ffplay") return [player, "-autoexit", "-nodisp", "-af", `volume=${volume}`, file]
-  if (player === "mpv")
-    return [player, "--no-video", "--audio-display=no", "--volume", String(Math.round(volume * 100)), file]
-  if (player === "mpg123" || player === "mpg321") return [player, "-g", String(Math.round(volume * 100)), file]
-  if (player === "mplayer") return [player, "-vo", "null", "-volume", String(Math.round(volume * 100)), file]
-  if (player === "afplay" || player === "omxplayer" || player === "aplay" || player === "cmdmp3") return [player, file]
-  if (player === "play") return [player, "-v", String(volume), file]
-  if (player === "cvlc") return [player, `--gain=${volume}`, "--play-and-exit", file]
-  return [player, "-c", `(New-Object Media.SoundPlayer '${file.replace(/'/g, "''")}').PlaySync()`]
+export function args(player: Player, file: string): string[] {
+  if (player === "ffplay") return [player, "-autoexit", "-nodisp", file]
+  if (player === "mpv") return [player, "--no-video", "--audio-display=no", file]
+  if (player === "mplayer") return [player, "-vo", "null", file]
+  if (player === "cvlc") return [player, "--play-and-exit", file]
+  if (player === "powershell.exe")
+    return [player, "-c", `(New-Object Media.SoundPlayer '${file.replace(/'/g, "''")}').PlaySync()`]
+  return [player, file]
 }
 
 let cachedPlayer: Player | null | undefined
-let cachedPath: Promise<string> | undefined
+/** One cached asset per volume — the level is baked into the bytes. */
+const cachedPaths = new Map<number, Promise<string>>()
 
 /**
  * Directories on a PATH string, split on the platform's list delimiter
@@ -91,28 +101,48 @@ function pickPlayer(): Player | null {
   return cachedPlayer
 }
 
-async function ensureAsset(): Promise<string> {
-  cachedPath ??= (async () => {
-    mkdirSync(DIR, { recursive: true })
-    const dest = join(DIR, basename(pulseAsset))
-    const out = Bun.file(dest)
-    if (await out.exists()) return dest
-    await Bun.write(out, Bun.file(pulseAsset))
-    return dest
-  })()
-  return cachedPath
+/** Cache filename for `volume`: the asset's name with a `@<pct>` tag. */
+export function assetNameFor(assetPath: string, volume: number): string {
+  const name = basename(assetPath)
+  const ext = extname(name)
+  return `${name.slice(0, name.length - ext.length)}@${Math.round(volume * 100)}${ext}`
 }
 
 /**
- * Fire one short ding. Best-effort, never throws.
+ * Path to the chime at `volume`, written into the tmp cache on first use.
+ * Falls back to the unscaled bytes when the asset is not the 16-bit PCM
+ * `scaleWavVolume` understands — a chime at the wrong level still beats no
+ * chime, and the bundled asset is the only input in practice.
  */
-export function pulse(volume = 0.4): void {
+async function ensureAsset(volume: number): Promise<string> {
+  const cached = cachedPaths.get(volume)
+  if (cached) return cached
+  const pending = (async () => {
+    mkdirSync(DIR, { recursive: true })
+    const dest = join(DIR, assetNameFor(pulseAsset, volume))
+    const out = Bun.file(dest)
+    if (await out.exists()) return dest
+    const source = Buffer.from(await Bun.file(pulseAsset).arrayBuffer())
+    await Bun.write(out, scaleWavVolume(source, volume) ?? source)
+    return dest
+  })()
+  cachedPaths.set(volume, pending)
+  return pending
+}
+
+/**
+ * Fire one short ding at the user's configured volume. Best-effort, never
+ * throws. Volume 0 is silence, and nothing is spawned for it — a muted chime
+ * costs no process.
+ */
+export function pulse(volume: number = persistedSoundVolume()): void {
+  if (!(volume > 0)) return
   const player = pickPlayer()
   if (!player) return
-  void ensureAsset()
+  void ensureAsset(volume)
     .then((path) => {
       try {
-        const proc = Bun.spawn(args(player, path, volume), {
+        const proc = Bun.spawn(args(player, path), {
           stdin: "ignore",
           stdout: "ignore",
           stderr: "ignore",

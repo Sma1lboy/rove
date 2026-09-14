@@ -29,11 +29,23 @@
 
 import { existsSync } from "node:fs"
 import { chmod, cp, mkdir, rm } from "node:fs/promises"
+import { API_VERBS } from "../src/cli/api/verbs.ts"
+import { SHELLS, generateCompletions, mergeSubVerbs } from "../src/cli/completion-scripts.ts"
 
 /** Both published bin names; each gets a launcher + the Bun bundle behind it. */
 const CLI_NAMES = ["kobe", "rove"] as const
 const OUT_FILES = CLI_NAMES.flatMap((name) => [`./dist/cli/${name}.js`, `./dist/cli/${name}-run.js`])
 const CLI_OUT_DIR = "./dist/cli"
+/**
+ * Pre-generated shell completions, one file per (bin name, shell).
+ *
+ * Shipped so a shell can `source` a file instead of spawning node → bun to
+ * print 1.8KB of static text on every new shell (`rove completions <shell>
+ * --path` prints the path; `installCompletions` writes it into the rc file).
+ * Generated from the same generators the CLI runs, so the shipped copy and
+ * `completions <shell>` cannot disagree.
+ */
+const COMPLETIONS_OUT_DIR = "./dist/completions"
 /** Canonical skill source (repo root) → its home in the tarball. */
 const SKILL_SRC_DIR = "../../.agents/skills/kobe"
 const SKILL_OUT_DIR = "./dist/skills/rove"
@@ -88,6 +100,22 @@ async function copySkill(): Promise<void> {
   await rm(SKILL_OUT_DIR, { recursive: true, force: true })
   await mkdir(SKILL_OUT_DIR, { recursive: true })
   await cp(SKILL_SRC_DIR, SKILL_OUT_DIR, { recursive: true, force: true })
+}
+
+/**
+ * Bake the shell completions into the tarball. Both `completions --path` and
+ * the rc line onboarding writes point at these files, so a build that emitted
+ * none would ship a path that does not exist.
+ */
+async function writeCompletionScripts(): Promise<void> {
+  const subVerbs = mergeSubVerbs(API_VERBS)
+  await rm(COMPLETIONS_OUT_DIR, { recursive: true, force: true })
+  await mkdir(COMPLETIONS_OUT_DIR, { recursive: true })
+  for (const cli of CLI_NAMES) {
+    for (const shell of SHELLS) {
+      await Bun.write(`${COMPLETIONS_OUT_DIR}/${cli}.${shell}`, generateCompletions(shell, cli, subVerbs))
+    }
+  }
 }
 
 await buildWebUi()
@@ -189,7 +217,10 @@ const launcherCode = await launcher.outputs[0].text()
 for (const name of CLI_NAMES) await writeExecutable(`./dist/cli/${name}.js`, "#!/usr/bin/env node", launcherCode)
 
 for (const file of OUT_FILES) await chmod(file, 0o755)
+await writeCompletionScripts()
 await copyWebUi()
 await copySkill()
 
-console.log(`built ${OUT_FILES.join(", ")}, ./dist/cli/pty-host-node.mjs, ${SKILL_OUT_DIR}`)
+console.log(
+  `built ${OUT_FILES.join(", ")}, ./dist/cli/pty-host-node.mjs, ${COMPLETIONS_OUT_DIR}/*.${SHELLS.join("|")}, ${SKILL_OUT_DIR}`,
+)

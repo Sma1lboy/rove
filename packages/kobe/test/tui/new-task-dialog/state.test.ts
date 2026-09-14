@@ -83,6 +83,11 @@ describe("prevDialogTab (←/→ reverse cycle on the mode-tab selector)", () =>
 })
 
 describe("pickerModeFor", () => {
+  it("recognizes a saved Windows path but keeps trailing separators as a browse gesture", () => {
+    expect(pickerModeFor("c:\\Projects\\demo", ["C:/Projects/demo"])).toBe("saved")
+    expect(pickerModeFor("C:\\Projects\\demo\\", ["C:/Projects/demo"])).toBe("browse")
+    expect(pickerModeFor("C:\\Projects\\other", [])).toBe("browse")
+  })
   it("stays in saved mode when the input exactly matches a saved repo", () => {
     const cwd = "/home/me/proj"
     expect(pickerModeFor(cwd, [cwd])).toBe("saved")
@@ -99,6 +104,12 @@ describe("pickerModeFor", () => {
 })
 
 describe("computeRepoOptions", () => {
+  it("dedupes Windows slash spellings while preserving the first path for display", () => {
+    expect(computeRepoOptions("C:\\Projects\\demo", ["c:/Projects/demo/", "C:/Projects/other"])).toEqual([
+      "C:\\Projects\\demo",
+      "C:/Projects/other",
+    ])
+  })
   it("surfaces the cwd even with no saved repos (first-run picker is never empty)", () => {
     const cwd = "/home/me/proj"
     expect(computeRepoOptions(cwd, [])).toEqual([cwd])
@@ -111,6 +122,10 @@ describe("computeRepoOptions", () => {
 })
 
 describe("splitRepoRow (repo rows lead with the basename)", () => {
+  it("splits Windows native paths without changing their display spelling", () => {
+    expect(splitRepoRow("C:\\Projects\\demo")).toEqual({ base: "demo", dir: "C:\\Projects\\" })
+    expect(splitRepoRow("/srv/demo\\part")).toEqual({ base: "demo\\part", dir: "/srv/" })
+  })
   it("splits an absolute path into basename + its directory, keeping the slash", () => {
     expect(splitRepoRow("/Users/me/i/kobe")).toEqual({ base: "kobe", dir: "/Users/me/i/" })
   })
@@ -138,6 +153,10 @@ describe("splitRepoRow (repo rows lead with the basename)", () => {
 })
 
 describe("offersProjectIntent", () => {
+  it("recognizes existing Windows projects across both caller key spellings", () => {
+    expect(offersProjectIntent("c:\\Projects\\demo\\", new Set(["C:/Projects/demo"]))).toBe(true)
+    expect(offersProjectIntent("C:/Projects/demo", new Set(["C:\\Projects\\demo"]))).toBe(true)
+  })
   it("offers only for a repo that already has a project checkout", () => {
     const mains = new Set(["/repos/codefox"])
     expect(offersProjectIntent("/repos/codefox", mains)).toBe(true)

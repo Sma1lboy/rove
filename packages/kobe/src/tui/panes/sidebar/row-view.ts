@@ -5,7 +5,7 @@ import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
 import { t } from "@/tui/i18n"
 import { DEFAULT_TASK_VENDOR, type Task } from "@/types/task"
 import { isBuiltinVendor } from "@/types/vendor"
-import { repoBasename } from "./groups"
+import { compareRecent, repoBasename } from "./groups"
 
 export type SidebarTone = "success" | "warning" | "primary" | "textMuted" | "error"
 
@@ -41,7 +41,13 @@ export interface SidebarRowView {
  * such row `primary`.
  */
 function activityToneFor(state: TaskActivityState | undefined): SidebarTone | null {
-  return ATTENTION_STATES.has(state) ? "error" : null
+  if (!ATTENTION_STATES.has(state)) return null
+  // A quota wall clears itself once the window rolls; a refused permission, a
+  // hard error and a dead process do not. Amber for the one that resolves on
+  // its own, red for the ones that stay broken until you act — the same split
+  // `tab-strip.tsx`'s `turnColor` and the Inbox's `itemColor` already draw, so
+  // one tab can no longer read red on the rail and amber two panes over.
+  return state === "rate_limited" ? "warning" : "error"
 }
 
 /** Neutral fallback frames — kept under the historical name for existing consumers/tests. */
@@ -57,6 +63,14 @@ export const SPINNER_FRAME_MS = 100
  * (8/10/12/15/20/24/25).
  */
 export const SPINNER_TICK_CYCLE = 600
+
+/**
+ * How long a row stays emphasized after its turn lands. Lives here with the
+ * other state-glyph timings because BOTH surfaces that flash use it — the
+ * workspace tab strip and the sidebar's tab rows — and two independently
+ * chosen durations would make one landing cue look like two events.
+ */
+export const DONE_PULSE_MS = 600
 
 /**
  * The rail speaks FOUR states, and the reader acts on exactly one of them:
@@ -86,6 +100,42 @@ const ATTENTION_STATES: ReadonlySet<TaskActivityState | undefined> = new Set([
   "error",
   "dead",
 ])
+
+/** Whether this activity is one the rail marks `!` — the row is stopped and
+ *  stays stopped until somebody acts. Exported so renderers can ask the
+ *  question without re-listing the states (the tab row's age chip does). */
+export function isAttentionActivity(state: TaskActivityState | undefined): boolean {
+  return ATTENTION_STATES.has(state)
+}
+
+/** Bands for the `attention` sort: 0 stopped, 1 a turn landed, 2 the rest. */
+function attentionSortBand(state: TaskActivityState | undefined): 0 | 1 | 2 {
+  if (isAttentionActivity(state)) return 0
+  if (state === "turn_complete") return 1
+  return 2
+}
+
+/**
+ * The `attention` sort mode's comparator: rows that are STOPPED first, then
+ * rows whose turn landed, then the quiet ones — most-recently-touched first
+ * inside each band.
+ *
+ * The tiebreak BORROWS `compareRecent` rather than restating it, so "recent"
+ * means the same thing here, in `recent` sort, and in the Inbox's RECENT
+ * section. This is a separate comparator on purpose: `compareRecent` is
+ * shared with the Inbox, which must not learn about engine activity.
+ *
+ * Takes a state READER, not the daemon's map: `buildTreeRows` is pure over
+ * `Task[]` and a reader is what keeps it that way.
+ */
+export function compareAttention(
+  activityOf: (taskId: string) => TaskActivityState | undefined,
+): (a: Task, b: Task) => number {
+  return (a, b) => {
+    const band = attentionSortBand(activityOf(a.id)) - attentionSortBand(activityOf(b.id))
+    return band !== 0 ? band : compareRecent(a, b)
+  }
+}
 
 /**
  * Muted subtitle shown when a custom-engine task has nothing else to say.
@@ -351,12 +401,19 @@ export function withSpinnerFrame(view: SidebarRowView, frame: () => number): Sid
  * for quiet. `completionSeen` is the herdr "seen" bit — and seen means
  * CONSUMED: a completion you have already looked at is simply over, so the
  * badge drops back to the quiet circle rather than lingering as a ✓ forever.
+ *
+ * The attention tone comes from {@link activityToneFor} rather than a second
+ * `ATTENTION_STATES` lookup: two copies of the same test drifted apart the
+ * moment one of them learned to tell a quota wall from a dead engine. The
+ * GLYPH stays one `!` for all of them — which kind it is is the tab's job to
+ * say, the rail only has to make you open it.
  */
 function activityBadgeFor(
   state: TaskActivityState | undefined,
   completionSeen: boolean,
-): { glyph: string; tone: "primary" | "error" } | null {
-  if (ATTENTION_STATES.has(state)) return { glyph: ATTENTION_GLYPH, tone: "error" }
+): { glyph: string; tone: SidebarTone } | null {
+  const attention = activityToneFor(state)
+  if (attention !== null) return { glyph: ATTENTION_GLYPH, tone: attention }
   if (state === "turn_complete" && !completionSeen) return { glyph: "●", tone: "primary" }
   return null
 }

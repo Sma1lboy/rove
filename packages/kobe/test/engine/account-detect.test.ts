@@ -18,6 +18,8 @@ function deps(over: Partial<DetectDeps> = {}): DetectDeps {
     findCodexBinary: async () => "/bin/codex",
     findCopilotBinary: async () => "/bin/copilot",
     findKimiBinary: async () => "/bin/kimi",
+    findPiBinary: async () => "/bin/pi",
+    findOmpBinary: async () => "/bin/omp",
     ...over,
   }
 }
@@ -81,12 +83,18 @@ describe("detectAvailableVendors", () => {
   }
 
   it("lists every vendor whose binary resolves, in cycle order", async () => {
-    expect(await detectAvailableVendors(deps())).toEqual(["claude", "codex", "copilot", "kimi"])
+    expect(await detectAvailableVendors(deps())).toEqual(["claude", "codex", "copilot", "kimi", "pi", "omp"])
   })
 
   it("excludes vendors whose binary is missing", async () => {
     const only = await detectAvailableVendors(
-      deps({ findClaudeBinary: notFound, findCopilotBinary: notFound, findKimiBinary: notFound }),
+      deps({
+        findClaudeBinary: notFound,
+        findCopilotBinary: notFound,
+        findKimiBinary: notFound,
+        findPiBinary: notFound,
+        findOmpBinary: notFound,
+      }),
     )
     expect(only).toEqual(["codex"])
   })
@@ -98,6 +106,8 @@ describe("detectAvailableVendors", () => {
         findCodexBinary: notFound,
         findCopilotBinary: notFound,
         findKimiBinary: notFound,
+        findPiBinary: notFound,
+        findOmpBinary: notFound,
       }),
     )
     expect(none).toEqual([])

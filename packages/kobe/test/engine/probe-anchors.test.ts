@@ -12,7 +12,7 @@
 
 import { describe, expect, it } from "vitest"
 import { foregroundEngine } from "../../src/engine/foreground.ts"
-import { enginePresence, sessionHasEngine } from "../../src/engine/session-engine-presence.ts"
+import { enginePresence } from "../../src/engine/session-engine-presence.ts"
 import type { TaskPtyLike } from "../../src/tui/panes/terminal/pty-types"
 import { createLiveEngines } from "../../src/tui/workspace/live-engine"
 
@@ -33,8 +33,8 @@ function recording(): { snapshot: (anchors?: readonly number[]) => Promise<strin
 describe("walk anchors reach the snapshot", () => {
   it("enginePresence anchors on the session pid it is asked about", async () => {
     const rec = recording()
-    expect(await enginePresence(100, undefined, rec.snapshot)).toBe("engine")
-    expect(await sessionHasEngine(200, undefined, rec.snapshot)).toBe(false)
+    expect(await enginePresence(100, undefined, rec.snapshot)).toEqual({ kind: "engine", vendor: "claude" })
+    expect(await enginePresence(200, undefined, rec.snapshot)).toEqual({ kind: "none" })
     expect(rec.seen).toEqual([[100], [200]])
   })
 

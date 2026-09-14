@@ -57,7 +57,7 @@ describe("startTicker", () => {
   })
 
   it("runs ungated when no gate is supplied", () => {
-    // `quota-resume`, the automation sweep and the deferred-prompt TTL are
+    // `quota-resume` and the automation sweep are
     // ungated ON PURPOSE — a schedule that requires an audience is not a
     // schedule — so the helper must never default one on.
     const run = vi.fn()

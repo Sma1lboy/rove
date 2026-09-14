@@ -83,18 +83,6 @@ describe("send handler", () => {
     expect(result).toMatchObject({ delivered: true, bytes: 42, promptEcho: "confirmed" })
   })
 
-  it("reports a deferred prompt as delivered:false, not as an error", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc" }) }) })
-    const { deliver } = recordingDelivery({ delivered: false, deferred: { id: "d1", layer: "composer-not-empty" } })
-    const result = (await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
-      client,
-      runtime: stubRuntime({ deliverPrompt: deliver }),
-    })) as { ok: boolean; delivered: boolean; deferred: unknown }
-    expect(result.ok).toBe(true)
-    expect(result.delivered).toBe(false)
-    expect(result.deferred).toBeDefined()
-  })
-
   it("requires an explicit or active target", async () => {
     await expectApiError(
       () => invokeVerb("send", ["--prompt", "hi"], { client: new FakeClient(), runtime: stubRuntime() }),
@@ -234,11 +222,22 @@ describe("send handler", () => {
         runtime: stubRuntime({ deliverPrompt: deliver }),
       })
       expect(calls[0].prompt).toContain('[ROVE PEER] from "Auth attempt" (task sender-1')
-      expect(calls[0].prompt).toContain("registered as /rove; legacy /kobe installs still work")
+      // Both skill ids, so a receiver on either install finds it.
+      expect(calls[0].prompt).toContain("/rove")
+      expect(calls[0].prompt).toContain("legacy /kobe installs still work")
       expect(calls[0].prompt).toContain("send --task-id sender-1")
       // The self-teach pointer: a receiver that has never seen kobe learns
       // where the rest of the coordination verbs live.
       expect(calls[0].prompt).toContain("Rove agent skill")
+      // …and reads it ONCE PER SESSION. "FIRST" had receivers re-loading it
+      // per message.
+      expect(calls[0].prompt).toContain("once per session")
+      // The prefix names where a reply GOES; it does not order one. The old
+      // "then reply:" was read as "answer every message", and peers spent a
+      // full engine turn each on receipts, started-work notices and
+      // acknowledgements of acknowledgements.
+      expect(calls[0].prompt).toContain("reply only if it changes what I do next")
+      expect(calls[0].prompt).not.toContain("then reply")
       // The sender's text is LAST and whole, after a blank line — not the
       // object of the provenance sentence. A model generates in the language
       // of the tokens nearest its turn, so a non-English prompt wrapped in an

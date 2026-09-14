@@ -43,7 +43,13 @@ type DeepRequired<T> = {
  * is untouched by the status heals — the round-trip must be lossless, so a
  * deliberately-healed fixture would hide a dropped field behind the heal.
  */
-const FULL_TASK: DeepRequired<Task> = {
+/**
+ * `origin` is excluded on purpose. It is the ONE field on a task that no
+ * daemon ever produces and no store ever keeps: the client stamps it while
+ * merging several machines' task lists (`machines/hub.ts`), so a round-trip
+ * guard demanding it survive would be asserting the opposite of the design.
+ */
+const FULL_TASK: DeepRequired<Omit<Task, "origin">> = {
   id: toTaskId("01ARZ3NDEKTSV4RRFFQ69G5FAV"),
   title: "round-trip fixture",
   repo: "/repo",
@@ -96,6 +102,13 @@ const FULL_TASK: DeepRequired<Task> = {
   },
   prompt: "the full task brief — never truncated on the way to disk",
   baseRef: "release/2.x",
+  worktreeName: "probe-1",
+  report: {
+    branch: "fix/round-trip",
+    pr: 921,
+    summary: "worker's own account of what it delivered",
+    at: "2026-08-27T00:00:00.000Z",
+  },
   createdAt: "2026-08-27T00:00:00.000Z",
   updatedAt: "2026-08-27T00:00:00.000Z",
 }

@@ -16,6 +16,7 @@
 
 import { TextAttributes } from "@opentui/core"
 import type { WorkItem } from "@sma1lboy/kobe-daemon/daemon/work-items"
+import { samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { errorMessage } from "../../lib/error-message"
@@ -35,14 +36,14 @@ function reposOf(orch: RemoteOrchestrator | null): string[] {
   if (!orch) return []
   const seen: string[] = []
   for (const task of orch.listTasks()) {
-    if (task.repo && !seen.includes(task.repo)) seen.push(task.repo)
+    if (task.repo && !seen.some((repo) => samePath(repo, task.repo))) seen.push(task.repo)
   }
   return seen
 }
 
 /** The task already started from `number` on `repo`, if any. */
 function linkedTaskFor(orch: RemoteOrchestrator | null, repo: string, number: number): Task | undefined {
-  return orch?.listTasks().find((task) => task.repo === repo && task.linkedWorkItem?.number === number)
+  return orch?.listTasks().find((task) => samePath(task.repo, repo) && task.linkedWorkItem?.number === number)
 }
 
 function errorHint(error: string, t: ReturnType<typeof useT>): string {
@@ -91,7 +92,7 @@ export function WorkItemsPage(props: {
 
   const repos = reposOf(props.orchestrator)
   const [repoIndex, setRepoIndex] = useState(() => {
-    const wanted = props.focusRepo ? repos.indexOf(props.focusRepo) : -1
+    const wanted = props.focusRepo ? repos.findIndex((repo) => samePath(repo, props.focusRepo)) : -1
     return wanted >= 0 ? wanted : 0
   })
   const repo = repos[repoIndex]

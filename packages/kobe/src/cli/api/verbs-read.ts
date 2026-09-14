@@ -19,6 +19,7 @@ import { DIGEST_VERB } from "./handlers-digest.ts"
 import { collect } from "./handlers-fanout.ts"
 import { INSPECT_VERB } from "./handlers-inspect.ts"
 import { getTask, list } from "./handlers-tasks.ts"
+import { WATCH_VERB } from "./handlers-watch.ts"
 import { READ_OUTPUT_VERB } from "./read-output.ts"
 import type { VerbSpec } from "./types.ts"
 
@@ -35,7 +36,7 @@ export const READ_VERBS: readonly VerbSpec[] = [
     name: "get-task",
     group: "read",
     summary:
-      "Read one task's metadata + terminal tabs. `.running` = any hosted engine tab is live; `.tabs[]` (id/kind/vendor/liveVendor/lastTitle/alive) is the discovery read for `send --tab tab-N`; `.task.dispatcher` = the Rove session (task+tab) that created it, when one did; `.task.prStatus.checkState` (none|pending|passing|failing|unknown) is Rove's OWN CI truth for the branch's PR — `passing` is what \"CI is green\" means, never a local test run.",
+      "Read one task's metadata + terminal tabs. `.running` = any hosted engine tab is live; `.tabs[]` (id/kind/vendor/liveVendor/lastTitle/alive) is the discovery read for `send --tab tab-N`; `.task.dispatcher` = the Rove session (task+tab) that created it, when one did; `.task.prStatus.checkState` (none|pending|passing|failing|unknown) is Rove's OWN CI truth for the branch's PR — `passing` is what \"CI is green\" means, never a local test run. `.task.worktreePath` is where the files live; the user only ever sees `.task.title` and `.task.branch`, so refer to the task by those.",
     flags: [F.taskId()],
     handler: getTask,
   },
@@ -74,4 +75,5 @@ export const READ_VERBS: readonly VerbSpec[] = [
   // handler in ./handlers-inspect.ts.
   INSPECT_VERB,
   READ_OUTPUT_VERB,
+  WATCH_VERB,
 ]

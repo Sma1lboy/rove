@@ -186,7 +186,7 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
   // The routine count row is a fold toggle, not a task — there is
   // no task for any verb here to act on, and an entry that does nothing is
   // worse than no entry (the same rule `closeTab` follows above).
-  if (row.kind === "routines") return []
+  if (row.kind === "routines" || row.kind === "machine") return []
   const tabItems: TreeMenuItem[] = [{ action: "open", labelKey: "tasks.menu.openTab", bindingId: "sidebar.select" }]
   if ((ctx.tabCount ?? 0) > 0)
     tabItems.push({ action: "closeTab", labelKey: "tasks.menu.closeTab", bindingId: "chat.tab.close" })

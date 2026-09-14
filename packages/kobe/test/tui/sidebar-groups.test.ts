@@ -4,12 +4,23 @@ import {
   buildRows,
   cursorIndexForProjectScope,
   reconcileSidebarRows,
+  repoBasename,
   resolveCursorTarget,
   sameSidebarRowTask,
+  sidebarProjectKey,
+  sidebarProjectLabel,
   splitSidebarRows,
 } from "../../src/tui/panes/sidebar/groups.ts"
 import type { Task } from "../../src/types/task.ts"
 import { toTaskId } from "../../src/types/task.ts"
+
+it("uses one sidebar identity and basename for Windows repo spellings", () => {
+  expect(sidebarProjectKey("c:\\Projects\\demo\\")).toBe(sidebarProjectKey("C:/Projects/demo"))
+  expect(repoBasename("C:\\Projects\\demo\\")).toBe("demo")
+  expect(sidebarProjectKey("ssh://host/srv/demo")).toBe("ssh://host/srv/demo")
+  expect(repoBasename("/srv/demo\\part")).toBe("demo\\part")
+  expect(sidebarProjectLabel("/srv/demo\\part", ["/other/demo\\part"])).toBe("srv/demo\\part")
+})
 
 function task(overrides: Omit<Partial<Task>, "id"> & { id: string; title: string }): Task {
   return {
@@ -358,5 +369,51 @@ describe("resolveCursorTarget", () => {
     expect(resolveCursorTarget(null, ids, -1)).toBe(0)
     expect(resolveCursorTarget(null, ids, 2)).toBe(2)
     expect(resolveCursorTarget(null, ids, 9)).toBe(2) // out of range → clamp to last
+  })
+})
+
+describe("project identity and labels across machines", () => {
+  it("keys the same path on two machines as two projects", () => {
+    // Without the machine in the key, `~/i/kobe` on the laptop and on the
+    // build box merged into ONE sidebar row carrying both machines' tasks.
+    expect(sidebarProjectKey("/i/kobe", "narwhal")).not.toBe(sidebarProjectKey("/i/kobe"))
+  })
+
+  it("leaves the local key byte-identical to the pre-machines one", () => {
+    expect(sidebarProjectKey("/i/kobe", "local")).toBe(sidebarProjectKey("/i/kobe"))
+  })
+
+  it("disambiguates a cross-machine basename collision by host", () => {
+    const repos = [
+      { repo: "/i/kobe", hostLabel: undefined },
+      { repo: "/i/kobe", hostLabel: "narwhal" },
+    ]
+    expect(sidebarProjectLabel("/i/kobe", repos)).toBe("kobe")
+    expect(sidebarProjectLabel("/i/kobe", repos, "narwhal")).toBe("narwhal:kobe")
+  })
+
+  it("still uses the path tail for a collision on ONE machine", () => {
+    expect(sidebarProjectLabel("/work/api", ["/work/api", "/oss/api"])).toBe("work/api")
+  })
+
+  it("uses the path tail when the collision is on the same REMOTE machine", () => {
+    // Both checkouts answered `narwhal:kobe` when the machine test came
+    // first — two headers reading as one project, on the very machine whose
+    // name was supposed to be doing the telling-apart.
+    const repos = [
+      { repo: "/Users/n/gihub/kobe", hostLabel: "narwhal" },
+      { repo: "/Users/n/i/kobe", hostLabel: "narwhal" },
+    ]
+    expect(sidebarProjectLabel("/Users/n/gihub/kobe", repos, "narwhal")).toBe("gihub/kobe")
+    expect(sidebarProjectLabel("/Users/n/i/kobe", repos, "narwhal")).toBe("i/kobe")
+  })
+
+  it("puts the host in front of a tail that also repeats across machines", () => {
+    const repos = [
+      { repo: "/a/i/kobe", hostLabel: "narwhal" },
+      { repo: "/b/i/kobe", hostLabel: "narwhal" },
+      { repo: "/c/i/kobe", hostLabel: "vps" },
+    ]
+    expect(sidebarProjectLabel("/a/i/kobe", repos, "narwhal")).toBe("narwhal:i/kobe")
   })
 })

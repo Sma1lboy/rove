@@ -23,6 +23,7 @@
 import { matchPathGlob } from "@/lib/path-glob"
 import type { VendorId } from "@/types/vendor"
 import type { AdoptableWorktree } from "@/types/worktree"
+import { pathIdentity, pathSyntax, samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import { DEFAULT_BASE_REF } from "../../lib/git-snapshot"
 
 /* --------------------------------------------------------------------- */
@@ -170,9 +171,19 @@ export type PickerMode = "saved" | "browse"
 export function pickerModeFor(value: string, repoOptions: readonly string[]): PickerMode {
   const trimmed = value.trim()
   if (repoOptions.includes(trimmed)) return "saved"
-  if (trimmed.startsWith("~")) return "browse"
-  if (trimmed.includes("/")) return "browse"
+  const trailingSeparator = trimmed.endsWith("/") || (pathSyntax(trimmed).sep === "\\" && trimmed.endsWith("\\"))
+  if (!trailingSeparator && repoOptions.some((repo) => samePath(repo, trimmed))) return "saved"
+  if (isRepoPathInput(trimmed)) return "browse"
   return "saved"
+}
+
+export function isRepoPathInput(value: string): boolean {
+  return (
+    value.startsWith("~") ||
+    value.includes("/") ||
+    pathSyntax(value).sep === "\\" ||
+    (process.platform === "win32" && value.includes("\\"))
+  )
 }
 
 /** Picker windowing cap on a terminal with room. Matches the slash
@@ -323,8 +334,9 @@ export function computeRepoOptions(defaultRepo: string, savedRepos: readonly str
   const out: string[] = []
   for (const p of [defaultRepo, ...savedRepos]) {
     const t = p.trim()
-    if (!t || seen.has(t)) continue
-    seen.add(t)
+    const key = pathIdentity(t)
+    if (!t || seen.has(key)) continue
+    seen.add(key)
     out.push(t)
   }
   return out
@@ -347,7 +359,8 @@ export function computeRepoOptions(defaultRepo: string, savedRepos: readonly str
  * so the row renders exactly as it did before.
  */
 export function splitRepoRow(path: string): { base: string; dir: string } {
-  const at = path.lastIndexOf("/")
+  const at =
+    pathSyntax(path).sep === "\\" ? Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) : path.lastIndexOf("/")
   if (at < 0 || at === path.length - 1) return { base: path, dir: "" }
   return { base: path.slice(at + 1), dir: path.slice(0, at + 1) }
 }
@@ -451,6 +464,6 @@ export type ExistingIntent = "task" | "project"
  * by the caller with the same key the sidebar groups on.
  */
 export function offersProjectIntent(repo: string, mainRepos: ReadonlySet<string>): boolean {
-  const trimmed = repo.trim().replace(/[\\/]+$/, "")
-  return trimmed.length > 0 && mainRepos.has(trimmed)
+  const key = pathIdentity(repo.trim())
+  return key.length > 0 && [...mainRepos].some((main) => pathIdentity(main) === key)
 }

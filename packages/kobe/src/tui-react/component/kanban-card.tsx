@@ -9,7 +9,7 @@
  * signal — it just never floats or counts toward "N need you").
  */
 
-import { type BoxRenderable, TextAttributes } from "@opentui/core"
+import { type BoxRenderable, MouseButton, TextAttributes } from "@opentui/core"
 import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import type { ReactNode } from "react"
 import type { TaskActivityState } from "../../engine/hook-events"
@@ -43,6 +43,9 @@ export function KanbanCard(props: {
    *  detail drawer (Enter's mouse twin). */
   onSelect: () => void
   onOpen: () => void
+  /** Right-click, with the click's screen cell — the board's one-step route
+   *  out of a column (the sidebar's task rows already offer the same). */
+  onContextMenu?: (x: number, y: number) => void
   /** Registers the card with the board's cursor-follow so the selected card
    *  can be scrolled into its lane's viewport. */
   boxRef?: (r: BoxRenderable | null) => (() => void) | undefined
@@ -91,7 +94,17 @@ export function KanbanCard(props: {
       // scroll region rather than a gap anyone sees, which is the cheaper
       // wrong than a per-card conditional that has to know its own index.
       marginBottom={1}
-      onMouseUp={() => (selected ? props.onOpen() : props.onSelect())}
+      // A right-click opens the menu on ANY card, selected or not, and never
+      // falls through to select/open — the same rule the sidebar's rows
+      // follow, so one gesture means one thing across both surfaces.
+      onMouseUp={(evt: { button: number; x: number; y: number }) => {
+        if (evt.button === MouseButton.RIGHT && props.onContextMenu) {
+          props.onContextMenu(evt.x, evt.y)
+          return
+        }
+        if (selected) props.onOpen()
+        else props.onSelect()
+      }}
     >
       <box flexDirection="row" justifyContent="space-between">
         <text fg={fg} attributes={TextAttributes.BOLD} wrapMode="word" flexShrink={1}>

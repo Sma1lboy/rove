@@ -17,6 +17,7 @@
  */
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
+import { pathWithin } from "@sma1lboy/kobe-daemon/path-identity"
 import { homeDir } from "../../env.ts"
 import { ulid } from "../../orchestrator/index/ulid.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
@@ -96,7 +97,7 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   // `/private/tmp/x` and a `!==` test would flag every correct path there.
   // A symlink rewrite is not a prefix of the path it rewrote; a climbed-out-of
   // subdirectory always is.
-  const resolvedFrom = requestedRepo.startsWith(`${repo}/`) ? { repoResolvedFrom: requestedRepo } : undefined
+  const resolvedFrom = pathWithin(repo, requestedRepo) ? { repoResolvedFrom: requestedRepo } : undefined
   const result = parallel ? await addParallel(ctx, repo, count, agentsSpec) : await addOne(ctx, repo)
   return resolvedFrom && result && typeof result === "object" ? { ...result, ...resolvedFrom } : result
 }
@@ -121,6 +122,8 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   if (branch) payload.branch = branch
   const baseRef = args.str("base-branch")
   if (baseRef) payload.baseRef = baseRef
+  const worktreeName = args.str("worktree-name")
+  if (worktreeName) payload.worktreeName = worktreeName
 
   const res = await daemon.request<{ taskId: string; task: SerializedTask }>("task.create", payload)
   const taskId = res.taskId
@@ -159,10 +162,9 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     },
     brief,
   )
-  // A prompt that never confirmed AND was not deferred is a failure — but the
+  // A prompt that never confirmed is a failure — but the
   // task IS created, so carry the taskId in the error so a script can find it.
-  // A deferred prompt is a SUCCESS: the daemon owns the message now.
-  if (!delivered.delivered && !delivered.deferred) {
+  if (!delivered.delivered) {
     throw new ApiError(
       `task ${taskId} created but the prompt was not delivered (paste did not land)`,
       "NOT_DELIVERED",
@@ -199,7 +201,6 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     // Only set when nothing confirmed the engine — say WHY rather than
     // leaving `engineReady: false` to be read as a bare failure.
     ...(delivered.reason ? { reason: delivered.reason } : {}),
-    ...(delivered.deferred ? { deferred: delivered.deferred } : {}),
     ...(promptPersisted ? {} : { promptPersisted: false }),
   }
 }
@@ -249,6 +250,15 @@ async function addParallel(
   if (args.str("branch")) {
     throw new ApiError(
       "--branch names ONE branch and cannot be shared by parallel siblings — drop it (each sibling gets its own auto branch) or spawn them one at a time",
+      "BAD_FLAG",
+      helpStep("add"),
+    )
+  }
+  // Same reason, one directory instead of one branch: the second sibling
+  // would collide on the name and the round would half-spawn.
+  if (args.str("worktree-name")) {
+    throw new ApiError(
+      "--worktree-name names ONE directory and cannot be shared by parallel siblings — drop it (each sibling gets its own generated name) or spawn them one at a time",
       "BAD_FLAG",
       helpStep("add"),
     )
@@ -357,23 +367,22 @@ async function addParallel(
   // delivered sibling into a failure row: the engine already has the prompt.
   const persistedPrompts: Promise<unknown>[] = []
   settled.forEach((r, i) => {
-    const { taskId, vendor } = created[i]
-    if (r.status === "fulfilled" && (r.value.delivered || r.value.deferred)) {
-      // A deferred prompt is a SUCCESS, exactly as `addOne`/`send`
-      // treat it: the daemon took ownership of the prompt and queued an inbox
-      // episode, so the caller must NOT retry (the tab stays occupied until
-      // that deferred prompt is released, dismissed, or expires). It
-      // resolves with `delivered:false`, so route it here — not to `failures` —
-      // and carry the marker through so a script can see it was queued.
+    const { taskId, vendor, task } = created[i]
+    if (r.status === "fulfilled" && r.value.delivered) {
+      // `title` and `branch` before the rest: they are what the sidebar shows,
+      // so they are the only handles the spawner can use to name a sibling to
+      // the user. A row of bare taskIds pushes the caller toward the worktree
+      // directory name (`marlin`), which appears nowhere in the UI.
       const row: Record<string, unknown> = {
         ok: true,
         taskId,
+        title: task.title,
+        branch: task.branch,
         vendor,
         started: r.value.started,
         engineReady: r.value.engineReady,
         session: r.value.session,
         ...(r.value.reason ? { reason: r.value.reason } : {}),
-        ...(r.value.deferred ? { deferred: r.value.deferred } : {}),
       }
       tasks.push(row)
       // Same contract as `addOne`: a refused persist keeps the sibling a
@@ -387,8 +396,8 @@ async function addParallel(
       )
       return
     }
-    // Either deliverPrompt threw, or it resolved un-delivered AND un-deferred
-    // (the paste never landed). The task IS created (engine already burning
+    // Either deliverPrompt threw, or it resolved un-delivered (the paste
+    // never landed). The task IS created (engine already burning
     // tokens) — always carry its taskId so a script can find/retry it instead
     // of orphaning it.
     const err =

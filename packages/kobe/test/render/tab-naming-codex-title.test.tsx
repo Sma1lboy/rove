@@ -23,7 +23,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import type { ReactNode } from "react"
-import { type TabLifecycleIO, useTabNaming } from "../../src/tui-react/workspace/use-tab-lifecycle"
+import { type TabLifecycleIO, useTabHydration, useTabNaming } from "../../src/tui-react/workspace/use-tab-lifecycle"
 import type { EngineTab, TabsState } from "../../src/tui/workspace/terminal-tabs-core"
 import { renderComponent } from "./harness"
 
@@ -43,12 +43,12 @@ afterEach(async () => {
 })
 
 /** A real `~/.codex` tree holding one rollout for THREAD_ID. */
-async function seedCodexRollout(): Promise<void> {
+async function seedCodexRollout(cwd = "/wt"): Promise<void> {
   codexHome = await mkdtemp(path.join(tmpdir(), "rove-codex-home-"))
   const day = path.join(codexHome, "sessions", "2026", "08", "18")
   await mkdir(day, { recursive: true })
   const lines = [
-    JSON.stringify({ type: "session_meta", payload: { id: THREAD_ID, cwd: "/wt" } }),
+    JSON.stringify({ type: "session_meta", payload: { id: THREAD_ID, cwd } }),
     JSON.stringify({
       type: "response_item",
       timestamp: "2026-08-18T00:00:01Z",
@@ -105,6 +105,19 @@ function Naming({ io }: { io: TabLifecycleIO }): ReactNode {
   useTabNaming(io)
   return <text>naming</text>
 }
+
+test("Windows restart recovers a Codex conversation when the tab still records another engine's id", async () => {
+  await seedCodexRollout("C:\\Users\\jackson\\repo")
+  const io = lifecycleIO(codexTabs({ sessionId: "stale-claude-id", spawned: true }), "codex", "C:/Users/jackson/repo")
+  let hydrating = true
+  function Hydrating(): ReactNode {
+    hydrating = useTabHydration(true, io)
+    return <text>hydrating</text>
+  }
+  await renderComponent(<Hydrating />)
+  await until(() => !hydrating)
+  expect(engineTab(io.state())).toMatchObject({ sessionId: THREAD_ID, spawned: true })
+})
 
 test("names a codex tab from the thread id in its own OSC title", async () => {
   await seedCodexRollout()

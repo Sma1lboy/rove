@@ -56,8 +56,9 @@ Windows needs three separate runtimes:
 - **Node.js** runs the Windows Hosted PTY process. A Bun-only global install
   does not install Node for you.
 - **Git for Windows**, including its Git Bash, supplies the POSIX shell used by
-  every engine and terminal launch. Rove deliberately does not use the WSL
-  `bash.exe`, because it cannot address the Windows worktree correctly.
+  every engine and terminal launch — and by `rove update`, whose install
+  script is POSIX shell. Rove deliberately does not use the WSL `bash.exe`,
+  because it cannot address the Windows worktree correctly.
 
 Start with:
 
@@ -153,6 +154,48 @@ The raw logs live under the active Rove home (normally your OS home):
 | `~/.rove/daemon.log` | daemon startup, crashes, RPC failures, task-deletion audit |
 | `~/.rove/pty.log` | Hosted PTY startup and session-host failures |
 | `~/.rove/client.log` | TUI/pane connection, disconnect, and reconnect diagnostics |
+
+## Rove is spawning more processes than it should
+
+A terminal tab title that flickers between your shell's name and `git`, a fan
+that will not settle, or an editor that feels a beat behind: all three can mean
+Rove is forking child processes far more often than its polls intend. Two
+things Rove does on a timer legitimately fork — the engine walk that answers
+"which engine is live in this tab" runs `ps` every 2 seconds, and the
+worktree-changes chip runs `git status` per worktree, though only when no
+daemon is connected (a connected daemon polls once, centrally, and pushes the
+counts). Anything beyond those two is a bug worth reporting.
+
+`ps` cannot tell you which is which: a `git` that lives a few milliseconds is
+caught mid-exec and macOS reports its arguments as `(git)`. `git`'s own
+`trace2` sees every invocation on the machine but records no parent, so on a
+machine running several agents it cannot say who asked.
+
+Set `ROVE_SPAWN_PROFILE` to a file path and Rove logs one JSON line per child
+it spawns, naming the code that wanted it:
+
+```bash
+ROVE_SPAWN_PROFILE=/tmp/rove-spawns.log rove
+```
+
+Leave it running for 30 seconds of the behaviour you are chasing, then count
+by site:
+
+```console
+$ jq -r .site /tmp/rove-spawns.log | sort | uniq -c | sort -rn
+    14 engine.foregroundWalk
+     6 sidebar.gitHead
+     2 sidebar.worktreeChanges
+```
+
+Divide by your window to get a rate. `engine.foregroundWalk` at roughly one
+every 2 seconds is the design; `sidebar.worktreeChanges` firing steadily while
+a daemon is connected is not, and neither is any site in the tens per second.
+Each line also carries `cwd`, which names the worktree being polled — useful
+when one repo is responsible for all of it. Include the counts in a bug
+report.
+
+Unset, the variable costs one boolean test per spawn and touches no disk.
 
 ## Processes keep running days after their task is gone
 
@@ -440,46 +483,6 @@ watching — so `send` fails loud instead.
 A bare `send` (no `--task-id`) targets the dispatcher's tab when run from a
 task another Rove session spawned, and otherwise the active task — it never
 silently spawns an engine on a guess.
-
-## `rove api send` reports `deferred` over a composer that is empty
-
-A `deferred` result is a success, not an error: the delivery gate found the
-target busy, so the daemon took ownership of the text and queued a
-`prompt_deferred` episode for you to release from the Inbox. Do not retry. The
-daemon keeps the first deferred prompt for each tab. A later send fails with
-`DEFERRED_PROMPT_PENDING` until you release or dismiss the existing Inbox item,
-or until it expires, so no accepted prompt is silently replaced.
-
-If the send instead fails with an unknown `deferredPrompt.fileIfVacant`
-request, the client found an older running daemon whose filing behavior is not
-safe for this retry. Restart Rove, then run the original send again.
-
-Two gates can defer, and the `layer` in the response says which:
-
-- **`recent-human-write`** — someone typed into that session within the last
-  10 seconds. Wait it out.
-- **`composer-not-empty`** — Rove rendered the session's screen and read text
-  in its composer.
-
-The second one reads the engine's CURRENT on-screen layout, so a vendor
-redesign can make it wrong: it holds every message while reporting a composer
-you can see is empty. If that happens, turn the check off in **Settings → Dev
-→ Check the composer before delivering**. Delivery then skips the screen read
-and immediately retries every queued prompt in its original order. A prompt
-that still cannot reach its exact live engine tab stays in the Inbox; an alive
-PTY whose engine exited into its fallback shell is never used. Later tabs are
-still attempted, so one dead or recently typed-in tab cannot strand the rest. The
-keystroke-recency guard remains active and can keep a prompt queued until the
-10-second quiet period passes. Explicitly closing that tab discards its queued
-prompt, clears the stale Inbox entry, and records the discard in the daemon log.
-
-Turning the check back on cancels the remaining flush after its current item;
-both setting transitions are persisted synchronously. If the attached daemon
-is too old to support queue flushing, Settings shows an error dialog. Restart
-Rove to load the matching daemon, then toggle the setting again.
-
-Leave it on otherwise. It is what stops an agent's message landing in the
-middle of a half-typed sentence.
 
 ## `rove api set-branch` fails, but the branch was renamed anyway
 

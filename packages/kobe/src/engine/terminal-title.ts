@@ -61,6 +61,16 @@ export interface EngineTerminalTitle {
    */
   readonly workingPrefixes?: readonly string[]
   /**
+   * The subset of {@link statusPrefixes} the engine writes ONLY while it is
+   * blocked on a human — an approval prompt or a question dialog. Such a
+   * title is neither working nor resting: the turn is still in flight, it
+   * just cannot proceed. {@link titleTurnHint} therefore refuses a `"rest"`
+   * verdict for these titles, which is what keeps the interrupt observer
+   * (`tui/workspace/interrupt-observer.ts`) from reading an approval pause as
+   * "the user pressed escape" and idling a live turn. omp writes `π !` here.
+   */
+  readonly attentionPrefixes?: readonly string[]
+  /**
    * The engine's SESSION id read back out of its own title, for engines
    * whose title IS an identifier until they have a name for it. Codex's
    * `thread-title` segment documents itself as "the thread title, or the
@@ -120,12 +130,18 @@ export function stripStatusPrefix(title: string, prefixes: readonly string[]): s
  * `workingPrefixes` AND wrote a non-empty title without one — an engine that
  * never decorates its title (copilot, custom wrappers) or a session that
  * never set a title answers `null`, never `"rest"`.
+ *
+ * An {@link EngineTerminalTitle.attentionPrefixes} title also answers `null`:
+ * the engine is waiting on the user mid-turn, so "not working" here does NOT
+ * mean "stopped". Reporting `"rest"` would let the interrupt observer idle a
+ * turn that is merely blocked on an approval prompt.
  */
 export function titleTurnHint(config: EngineTerminalTitle | undefined, title: string): "working" | "rest" | null {
   const working = config?.workingPrefixes
   if (config?.ownsStatus !== true || !working || working.length === 0) return null
   const trimmed = title.trim()
   if (trimmed.length === 0) return null
+  if (config.attentionPrefixes?.some((prefix) => trimmed.startsWith(prefix))) return null
   return working.some((prefix) => trimmed.startsWith(prefix)) ? "working" : "rest"
 }
 

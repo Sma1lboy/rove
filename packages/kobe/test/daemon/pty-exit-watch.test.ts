@@ -171,9 +171,12 @@ describe("startPtyExitWatch → activity registry", () => {
         path,
       )
       await waitFor(() => published.length > 0)
-      const payload = published.at(-1)
+      const payload = published.filter((p) => p.tabId).at(-1)
       expect(payload?.state).toBe("dead")
       expect(payload?.tabId).toBe("tab-1")
+      // The derived task rollup follows the death rather than being cleared
+      // to idle: the sidebar row shows the dead engine, not "nothing here".
+      expect(published.at(-1)).toMatchObject({ taskId: "task-1", state: "dead" })
       expect(payload?.detail?.exit?.code).toBe(143)
       // The error text was always on disk; this is the assertion that it now
       // travels with the state instead of dying in the file.

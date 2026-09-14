@@ -27,7 +27,8 @@ import type { ChatTabTurnState } from "../../engine/turn-detector"
 import { attentionEdges, chipAttentionKind } from "../../tui/lib/notify-state"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { InterruptObserver } from "../../tui/workspace/interrupt-observer"
-import { demoteExitedEngine } from "../../tui/workspace/terminal-tab-identity"
+import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"
+import { createTabIdentityObserver } from "../../tui/workspace/terminal-tab-identity"
 import {
   type TabsState,
   type TerminalTab,
@@ -35,6 +36,7 @@ import {
   setTabLiveVendor,
 } from "../../tui/workspace/terminal-tabs-core"
 import { type HookTabState, mergeTurnStates } from "../../tui/workspace/turn-state-merge"
+import { soloKey } from "../../tui/workspace/turn-target"
 import type { VendorId } from "../../types/vendor"
 import { useOptionalKV } from "../context/kv"
 import type { NotificationsContext } from "../context/notifications"
@@ -105,41 +107,37 @@ export function useTabTurnState(deps: {
   }, [deps.hookTabStates, rawTitles, turnVendors])
   useEffect(() => () => observerRef.current?.dispose(), [])
 
-  // Record the live titles AND live engine identity onto the tabs
-  // themselves. Only THIS component sees the OSC stream / turn targets, and
-  // only for the task it hosts — so a surface rendering someone else's tab
-  // (the Inbox, the sidebar tree) would otherwise fall back to `autoTitle`
-  // and, after a restart, demote a shell-turned-agent to a plain shell (the
-  // fresh process's registry has no PTY to probe until the tab mounts).
-  // Both setters return the same state when nothing changed, so repeated
-  // pushes never churn the persisted snapshot. Identity writes only cover
-  // tabs WITH a live title — that means an attached PTY, where a missing
-  // vendor genuinely means "no engine running" rather than "not probed yet".
+  // A restored title can arrive before the engine starts. Only process
+  // observations from this mount can establish an engine-exit edge.
   const updateRef = useLatest(deps.update)
   const titleStateRef = useLatest(deps.state)
+  const identityObserver = useRef<ReturnType<typeof createTabIdentityObserver> | null>(null)
+  if (!identityObserver.current) identityObserver.current = createTabIdentityObserver()
   useEffect(() => {
     const apply = updateRef.current
     if (!apply) return
-    const current = titleStateRef.current
-    let next = current
-    for (const [tabId, title] of liveTitles) {
-      const live = turnVendors.get(tabId) ?? null
-      // The engine this tab was running is gone (vendor → confirmed null):
-      // reset the tab to the shell it always was, BEFORE recording the new
-      // identity. `kind` describes what runs here now — leaving it at
-      // "engine" keeps a dot on the sidebar row and makes every keystroke
-      // mark an optimistic turn for a session that has exited.
-      const tab = next.tabs.find((t) => t.id === tabId)
-      const demoted = tab ? demoteExitedEngine(tab, tab.liveVendor, live, [defaultShell()]) : undefined
-      if (tab && demoted && demoted !== tab) {
-        next = { ...next, tabs: next.tabs.map((t) => (t.id === tabId ? demoted : t)) }
-        continue // the reset already cleared lastTitle/liveVendor
+    const engines = getDefaultLiveEngines()
+    const record = () => {
+      const current = titleStateRef.current
+      let next = current
+      for (const [tabId, title] of liveTitles) {
+        const tab = next.tabs.find((t) => t.id === tabId)
+        if (!tab) continue
+        const key = soloKey(deps.taskId, tab)
+        const live = key ? engines.resolve(key) : undefined
+        const demoted = identityObserver.current?.(tab, live, [defaultShell()])
+        if (demoted && demoted !== tab) {
+          next = { ...next, tabs: next.tabs.map((t) => (t.id === tabId ? demoted : t)) }
+          continue // the reset already cleared lastTitle/liveVendor
+        }
+        next = setTabLastTitle(next, tabId, title)
+        if (live !== undefined) next = setTabLiveVendor(next, tabId, live)
       }
-      next = setTabLastTitle(next, tabId, title)
-      next = setTabLiveVendor(next, tabId, live)
+      if (next !== current) apply(next)
     }
-    if (next !== current) apply(next)
-  }, [liveTitles, turnVendors])
+    record()
+    return engines.subscribe(record)
+  }, [liveTitles, deps.taskId])
 
   // Rising-edge notify for background tabs. `prev === null` until the first
   // observation lands (attentionEdges' seed rule). Refs for values the

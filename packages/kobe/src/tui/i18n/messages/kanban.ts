@@ -41,6 +41,11 @@ export const en = {
   /** In-progress card badge: the linked task's engine finished a turn
    *  (waiting on review/input) but the story isn't `done` yet. */
   turnComplete: "turn done",
+  menu: {
+    /** Right-click entry on a card. `{status}` = the status it moves TO —
+     *  the card's current one is never offered. */
+    setStatus: "status → {status}",
+  },
   detail: {
     status: {
       open: "open",
@@ -135,6 +140,9 @@ export const zh: typeof en = {
   more: "还有 {count} 条",
   attention: "{count} 张等你处理",
   turnComplete: "回合完成",
+  menu: {
+    setStatus: "状态 → {status}",
+  },
   detail: {
     status: {
       open: "待办",

@@ -38,14 +38,7 @@ import {
   readTabsSnapshot,
 } from "./tab-snapshot.ts"
 import { hasLiveEngineTab } from "./task-running.ts"
-import {
-  ApiError,
-  type ApiRuntime,
-  type DeliveredPrompt,
-  type PromptDeferralSink,
-  type PromptDeliveryOps,
-  type PromptTarget,
-} from "./types.ts"
+import { ApiError, type ApiRuntime, type DeliveredPrompt, type PromptDeliveryOps, type PromptTarget } from "./types.ts"
 
 /** Ensure and address the task's hosted engine session (`target.tab` routes:
  *  undefined = canonical, "new" = mint + spawn a fresh tab, "tab-N" = that
@@ -70,12 +63,7 @@ function sessionFailed(taskId: string, message: string, hint: string, extra?: Re
   })
 }
 
-async function deliverHosted(
-  target: PromptTarget,
-  worktree: string,
-  prompt: string,
-  defer?: PromptDeferralSink,
-): Promise<DeliveredPrompt> {
+async function deliverHosted(target: PromptTarget, worktree: string, prompt: string): Promise<DeliveredPrompt> {
   let host: Awaited<ReturnType<typeof ensurePtyHost>>
   try {
     host = await ensurePtyHost()
@@ -100,8 +88,6 @@ async function deliverHosted(
       const tabId = target.tab
       return await deliverToExactTab(host.rpc, target.id, tabId, worktree, prompt, {
         engineBin,
-        vendor: target.vendor,
-        defer,
         // Only with explicit consent (`send --respawn`). The factory is lazy
         // so the snapshot read happens only on the branch that needs it —
         // reviving a tab a pty-host restart froze.
@@ -146,11 +132,7 @@ async function deliverHosted(
       worktree,
       prompt,
       launch,
-      {
-        forceNew: newTab !== undefined,
-        vendor: launchVendor,
-        defer,
-      },
+      { forceNew: newTab !== undefined },
     )
     // `started && !delivered` is the real failure: the session was created but
     // the prompt never reached it. `engineReady` does NOT stand in for that —
@@ -161,7 +143,7 @@ async function deliverHosted(
     // an unattended fan-out that only reads the message would otherwise lose
     // the id of a task it just created, and every failed launch in the batch
     // would look identical. `reason` is the session's own last line.
-    if (result.started && !result.delivered && !result.deferred) {
+    if (result.started && !result.delivered) {
       throw sessionFailed(
         target.id,
         `failed to start hosted engine session for ${target.id}`,
@@ -206,9 +188,7 @@ async function deliverHosted(
   }
 }
 
-const realPromptDeliveryOps: PromptDeliveryOps = {
-  deliverHosted: (target, worktree, prompt, defer) => deliverHosted(target, worktree, prompt, defer),
-}
+const realPromptDeliveryOps: PromptDeliveryOps = { deliverHosted }
 
 /** Headless half of ctrl+w: remove the persisted tab, then end every hosted
  * PTY the tab owns. Attached TUIs run their existing close path instead. */
@@ -281,28 +261,7 @@ export async function deliverPrompt(
     await client.request("task.observeLanguage", { taskId: target.id, text: prompt }).catch(() => {})
   }
 
-  // The deferral sink hands a composer-busy prompt to daemon
-  // ownership: the daemon stores the text and queues an inbox episode, and
-  // this send reports accepted-but-deferred. The distinct verb is the
-  // rolling-upgrade guard: a replace-on-file daemon rejects it, so the caller
-  // fails instead of losing a prompt it has already accepted.
-  const defer: PromptDeferralSink = {
-    defer: async (info) => {
-      const result = await client.request<unknown>("deferredPrompt.fileIfVacant", info)
-      if (!result || typeof result !== "object" || Array.isArray(result) || !("kind" in result) || !("id" in result)) {
-        throw new Error("invalid deferredPrompt.fileIfVacant response")
-      }
-      const { kind, id } = result
-      if ((kind !== "filed" && kind !== "occupied") || typeof id !== "string" || id.length === 0) {
-        throw new Error("invalid deferredPrompt.fileIfVacant response")
-      }
-      // `expiresAt` is additive — a daemon predating it just omits the field,
-      // and the deferral is still a valid handoff without it.
-      const expiresAt = "expiresAt" in result ? result.expiresAt : undefined
-      return { kind, id, ...(typeof expiresAt === "string" ? { expiresAt } : {}) }
-    },
-  }
-  const hosted = await ops.deliverHosted(target, worktree, prompt, defer)
+  const hosted = await ops.deliverHosted(target, worktree, prompt)
   if (!hosted)
     throw sessionFailed(
       target.id,

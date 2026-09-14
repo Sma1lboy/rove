@@ -90,6 +90,21 @@ describe("add --count (parallel round)", () => {
     expect(calls.every((call) => call.target.newTask === true)).toBe(true)
   })
 
+  it("names each sibling the way the sidebar does — title and branch, ahead of the rest", async () => {
+    const client = fanClient()
+    const result = (await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "go", "--count", "2"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: recordingDelivery().deliver }),
+    })) as { tasks: Array<Record<string, unknown>> }
+    // Without these the spawner has only opaque ids and reaches for the
+    // worktree directory name, which appears nowhere in the UI.
+    expect(result.tasks.map((t) => [t.title, t.branch])).toEqual([
+      ["T", "kobe/t-t1"],
+      ["T", "kobe/t-t1"],
+    ])
+    expect(Object.keys(result.tasks[0]).slice(0, 4)).toEqual(["ok", "taskId", "title", "branch"])
+  })
+
   it("applies --status and --pin to every sibling, not just a single add", async () => {
     const client = new FakeClient({
       "task.create": (_payload, index) => ({ taskId: `t${index + 1}`, task: taskFixture({ id: `t${index + 1}` }) }),
@@ -253,34 +268,5 @@ describe("add --count (parallel round)", () => {
         failures: [{ taskId: "t2", error: { code: "SESSION_FAILED" } }],
       })
     }
-  })
-
-  it("counts a deferred sibling as a success, not a delivery failure", async () => {
-    // A sibling whose composer is briefly busy resolves accepted-but-deferred
-    // — `delivered:false` but `deferred` present. The daemon
-    // owns the message and queued an inbox episode — the caller must NOT retry.
-    // It must land in `tasks` (with the marker), never in `failures`, so the
-    // round does not throw PARTIAL_FANOUT and a script does not double-deliver.
-    const deliver: ApiRuntime["deliverPrompt"] = async (_client, target) => ({
-      session: `${target.id}::tab-1`,
-      pane: `${target.id}::tab-1`,
-      started: true,
-      engineReady: true,
-      delivered: target.id !== "t2",
-      ...(target.id === "t2" ? { deferred: { id: "d1", layer: "composer-not-empty" as const } } : {}),
-    })
-    const result = (await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "go", "--count", "3"], {
-      client: fanClient(),
-      runtime: stubRuntime({ deliverPrompt: deliver }),
-    })) as {
-      count: number
-      tasks: Array<{ taskId: string; deferred?: { id: string; layer: string } }>
-      failures: unknown[]
-    }
-    expect(result.count).toBe(3)
-    expect(result.failures).toEqual([])
-    expect(result.tasks.map((t) => t.taskId)).toEqual(["t1", "t2", "t3"])
-    const deferredRow = result.tasks.find((t) => t.taskId === "t2")
-    expect(deferredRow?.deferred).toEqual({ id: "d1", layer: "composer-not-empty" })
   })
 })

@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 42 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 45 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -43,16 +43,17 @@ lifecycle tracking, and an explicit outcome contract.
   channel: it reaches a process, not a task, so nothing it delivers is
   attributable, watchable, or replyable). Sent from
   inside a Rove task, the prompt arrives prefixed `[ROVE PEER] from
-  "<title>" (task <id> — load the Rove agent skill FIRST …)`, so the
-  receiver knows who is talking, that this skill is required reading, and
-  how to answer — the baked-in reply command is tab-precise
+  "<title>" (task <id> — Rove agent skill /rove, read it once per session …)`,
+  so the receiver knows who is talking, that this skill is required reading,
+  and how to answer — the baked-in reply command is tab-precise
   (`--task-id <sender> --tab <sender's tab>`), so peer conversations need
   no coordinator and no human relay. That prefix is the contract: do not
   strip it with `--plain` for
   coordination messages (`--plain` is only for a verbatim paste the
   receiver should treat as content, not conversation). Received a
-  `[ROVE PEER]` message yourself? Load this skill first — required, not
-  optional — then reply with the baked-in command, not by asking the user.
+  `[ROVE PEER]` message yourself? Read this skill once per session. The
+  baked-in command identifies where a necessary reply goes; it is not an
+  instruction to acknowledge every message. Act on FYIs without replying.
 - `send` carries text, but that text can carry FILES: peers share a
   filesystem, so put the absolute path of a screenshot, log, diff, or any
   artifact in the prompt and the receiver opens it with its own Read tool —
@@ -78,7 +79,7 @@ user asks for Rove by name.
 | Term | What it is | Isolation it gives | Users also say |
 |---|---|---|---|
 | **Task** | one tracked workspace record — managed worktree, saved-project main, or existing directory | managed Tasks own files + branch; main/directory Tasks reuse files | "a task", "a new one", "a separate attempt" |
-| **Worktree** | the isolated git working tree a managed Task owns (`.task.worktreePath`) | — | "workspace", "this checkout", "this branch", "here" |
+| **Worktree** | the isolated git working tree a managed Task owns (`.task.worktreePath`) — a filesystem address, never shown in the UI | — | "workspace", "this checkout", "this branch", "here" |
 | **Terminal Tab** | one engine, shell, command, or content surface inside a Task | an engine tab has its own conversation, but every tab uses the SAME Task files | "tab", "chattab", "another chat", "a second agent on this" |
 | **Split** | the tree that divides ONE Terminal Tab into several regions (the `pane-open` verb's unit; a leaf is not called a pane) | none — same session's screen, same files | "split it", "side by side", "put the logs next to it" |
 
@@ -144,7 +145,8 @@ a tab to, so `add` (single or `--count`) is the only routing available.
 
 ```bash
 echo "$ROVE_TASK_ID / $ROVE_TAB_ID"          # who you are (empty = not a Rove session)
-rove api get-task --task-id "$ROVE_TASK_ID"  # .task.worktreePath, .task.branch, .running, .tabs[]
+rove api get-task --task-id "$ROVE_TASK_ID"  # .task.title, .task.branch, .task.id, .running, .tabs[]
+                                             # .task.worktreePath too — only if you are about to read/write its files
 ```
 
 `get-task` is the per-task read that answers "what is my worktree, my
@@ -152,6 +154,24 @@ branch, and which sibling tabs exist" — `.tabs[]` carries each tab's `id`, `ki
 `vendor`, `liveVendor`, `lastTitle` and `alive`, which is exactly the target list for
 `send --tab`. A tab flagged `unregistered: true` is a live session the tab
 snapshot lost; it is addressable like any other.
+
+### Refer to a task the way the user sees it
+
+The sidebar row is the task's **title**; the line under it is its **branch**.
+Nothing in Rove's UI ever renders `worktreePath`, so the directory name in it
+(`~/.rove/worktrees/<repo>/marlin`) is a filesystem address the daemon picked
+from an animal pool — the user has never read that word and cannot find it on
+screen. **Never name a task by its directory** to a user or in a report.
+
+Use the **title** when a human reads it, the **task id** (or its last six
+characters) when you need it to be unique, and both when you need both:
+
+- ❌ `marlin opened a PR` · `landed in zorilla` · `see mammoth's branch`
+- ✅ `"Skill version guard…" (task …CWWA) opened PR #972`
+- ✅ `succeeded: guard now fails the build (branch fix/skill-version-bump)`
+
+`worktreePath` earns a mention only when the sentence is about files on disk —
+`cd`, a path in a command, a file you edited.
 
 ## Found a defect in ANOTHER project? File a request, don't work around
 
@@ -304,28 +324,6 @@ rove api get-task --task-id <id>
 rove api collect --group <groupId> --pretty
 rove api list --pretty
 ```
-
-**A `deferred` send was ACCEPTED, not delivered — and headless, nobody will
-release it for you.** When the target composer holds half-typed text, `send`
-exits 0 with `"deferred"` in the JSON instead of pasting over it: the daemon
-took ownership of the message and queued a `prompt_deferred` Inbox episode.
-Do NOT re-send the same text — the daemon has it, and a second send to that
-tab fails `DEFERRED_PROMPT_PENDING` anyway. But do not treat it as delivered
-either: with a human attached, they release it from the Inbox; with nobody
-attached, that never happens and the daemon sweeps the text at
-`deferred.expiresAt` (24h after filing), undelivered and silently. Finish the
-handoff yourself:
-
-```bash
-rove api deferred-list                     # what the daemon is holding, and until when
-rove api deferred-release --id <id>        # deliver it now → { delivered: true }
-rove api deferred-dismiss --id <id>        # drop it and free the tab's slot
-```
-
-`deferred-release` re-runs the gate rather than bypassing it, so a composer
-that is still busy answers `delivered: false` with the blocking `reason` —
-retry it, do not re-send. Read the `delivered` / `deferred` keys, not just
-the exit code.
 
 `.running` is `true` / `false` / `null`. It means an ENGINE PROCESS is alive
 in one of the task's engine tabs — a live shell, command, or content tab alone
@@ -489,6 +487,30 @@ Give each round a scoped prompt, report returned IDs, then use
 `collect` to compare. Do not recursively fan out from spawned tasks. Do not
 poll `send` in a tight loop or use it as casual chat; every call is a full
 engine turn.
+
+### Communicate at handoffs, not at every step
+
+Default to one complete task brief and one final outcome. Send an interim
+message only when it changes the recipient's next action: a blocking
+dependency, a file-ownership or interface conflict, a scope correction, or
+evidence that makes their current approach invalid. Resolve routine choices
+within the assigned scope without asking the dispatcher.
+
+Do not send receipt acknowledgements, skill-loaded notices, starting-work
+announcements, routine progress, or acknowledgements of acknowledgements.
+An incoming message does not by itself require a response. Answer explicit
+questions once; bundle related findings and review corrections into one
+message with artifact paths. Forward only the facts the recipient needs, not
+the research trail or messages already delivered.
+
+Before `send`, ask: does this unblock or change work now? If not, include it
+in the final report. If a handoff contract has already been agreed, do not
+reconfirm it. Avoid status pings; use a bounded read-only `get-task` or
+`collect` when an actual coordination decision needs current state.
+
+The dispatcher gives the user concise milestone updates; workers need not
+relay those updates back to the dispatcher. Do not create another task
+solely to coordinate or review a small, reversible change.
 
 ### Completion flows back through an engine tab (`send`)
 

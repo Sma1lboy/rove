@@ -1,3 +1,5 @@
+import { samePath } from "../path-identity.ts"
+
 /**
  * Handshake compatibility POLICY: whether two builds may talk to each other
  * at all. Split out of `protocol.ts`, which owns the wire VOCABULARY (frames,
@@ -104,6 +106,5 @@ export function isDaemonVersionStale(daemonVersion: string | undefined, clientVe
  */
 export function isForeignDaemonHome(daemonHome: string | undefined, clientHome: string): boolean {
   if (!daemonHome) return false
-  const strip = (value: string): string => value.replace(/[/\\]+$/, "")
-  return strip(daemonHome) !== strip(clientHome)
+  return !samePath(daemonHome, clientHome)
 }

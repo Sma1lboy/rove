@@ -29,6 +29,7 @@ import {
   managedWorktreeRootsFor as managedWorktreeRootsForBase,
   worktreeRootFor as worktreeRootForBase,
 } from "@sma1lboy/kobe-daemon/daemon/worktree-paths"
+import { pathWithin } from "@sma1lboy/kobe-daemon/path-identity"
 import { execHostForRepo } from "../../exec/resolve.ts"
 import { getRemoteRepoConfig, isRemoteRepoKey } from "../../state/repos.ts"
 import { getWorktreeBaseOverride } from "../../state/worktree-base.ts"
@@ -136,10 +137,9 @@ export function managedWorktreeRootForPath(repo: string, candidate: string): str
   const target = canonicalize(candidate)
   for (const rootPath of managedWorktreeRootsFor(repo)) {
     const root = canonicalize(rootPath)
-    const rel = path.relative(root, target)
-    // path.relative returns ".." prefix when outside; an absolute path
-    // when on a different drive (Windows). Either rules it out.
-    if (rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel)) {
+    const rel = pathWithin(root, target)
+    // The root itself is not a managed worktree; only descendants qualify.
+    if (rel !== null && rel !== "") {
       return rootPath
     }
   }
@@ -189,15 +189,14 @@ export function isUnderManagedWorktreesRoot(candidate: string, projectDir?: stri
   for (const rootPath of roots) {
     if (!rootPath) continue
     const root = canonicalize(rootPath)
-    const rel = path.relative(root, target)
-    // No ".." prefix (outside), not absolute (different drive on Windows), and
-    // EXACTLY the `<repo-key>/<slug>` shape this module creates (see
+    const rel = pathWithin(root, target)
+    // Require a descendant with EXACTLY the `<repo-key>/<slug>` shape this module creates (see
     // `worktreePathFor`). Accepting any depth meant a Settings worktree-location
     // override pointed at `~` or `~/code` let every unrelated sibling project
     // answer yes here — and this answer is what authorizes `rm -rf` in
     // `manager-remove.ts`.
-    if (rel.startsWith("..") || path.isAbsolute(rel)) continue
-    if (rel.split(path.sep).filter(Boolean).length === 2) return true
+    if (rel === null) continue
+    if (rel.split("/").filter(Boolean).length === 2) return true
   }
   return false
 }

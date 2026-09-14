@@ -25,6 +25,11 @@ function runtimeWhere(readable: readonly string[]) {
 }
 
 describe("repoFilter", () => {
+  it("matches native task paths to a Git-spelled Windows repo filter", async () => {
+    const filter = await repoFilter(runtimeWhere(["C:/repo"]), "C:/repo", ["C:\\repo\\"])
+    expect(filter.matches("C:\\repo\\")).toBe(true)
+    expect(filter.unresolvableRepos).toEqual([])
+  })
   it("refuses when the --repo target itself does not resolve", async () => {
     await expect(repoFilter(runtimeWhere([]), "/repos/gone", [])).rejects.toBeInstanceOf(ApiError)
     await expect(repoFilter(runtimeWhere([]), "/repos/gone", [])).rejects.toThrow("/repos/gone")

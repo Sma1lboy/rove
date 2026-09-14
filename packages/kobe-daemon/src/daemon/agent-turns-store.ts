@@ -17,6 +17,7 @@ import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
+import { samePath } from "../path-identity.ts"
 import type { AgentTurnRecord } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { serialized, writeJsonAtomic } from "./json-file.ts"
@@ -128,7 +129,7 @@ export class AgentTurnsStore {
     const out: AgentTurnRecord[] = []
     for (const turn of this.turns.values()) {
       if (filter.taskId && turn.taskId !== filter.taskId) continue
-      if (filter.repo && turn.repo !== filter.repo) continue
+      if (filter.repo && !samePath(turn.repo, filter.repo)) continue
       if (filter.since !== undefined && turn.endedAt < filter.since) continue
       out.push(turn)
     }

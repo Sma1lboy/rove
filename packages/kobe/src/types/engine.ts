@@ -62,8 +62,27 @@ export interface EngineQuotaUsage {
  * here only together with the neutral-layer consumer that reads it.
  */
 export interface EngineCapabilities {
+  /** Rewrite the prompt text before delivery submits it with Enter. Delivery
+   *  never reads the engine's screen to pick a key, so an engine that needs
+   *  something about its own composer closed first (a mention popup) says so
+   *  here, in the text. */
+  readonly preparePromptSubmission?: (prompt: string) => string | null
+  /** Non-text keys to finish composer preparation, outside the paste wrapper
+   *  and immediately before the shared Enter. */
+  readonly beforePromptSubmit?: string
   /** Optional vendor-owned adjustments for its full-screen terminal UI. */
   readonly terminalPresentation?: EngineTerminalPresentation
+  /**
+   * The bytes that stop this engine's current turn, written to its pty as
+   * if typed (`rove api interrupt`).
+   *
+   * Vendor-owned because there is no shared answer: an engine that reads Esc
+   * as "cancel the turn" reads ctrl-C as "quit the process", and the two are
+   * swapped in others. Absent = this engine has not told Rove how to
+   * interrupt it, and the verb refuses (`UNSUPPORTED`) rather than guessing —
+   * a wrong guess kills a session instead of pausing it.
+   */
+  readonly interruptSequence?: string
 }
 
 /**

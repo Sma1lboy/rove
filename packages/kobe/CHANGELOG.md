@@ -1,5 +1,259 @@
 # Changelog
 
+## 0.9.198
+
+### Patch Changes
+
+- [#1005](https://github.com/Sma1lboy/rove/pull/1005) [`0943eca`](https://github.com/Sma1lboy/rove/commit/0943eca31d432d46a3700f379911098856bdf825) Add clickable first and latest buttons beside the terminal scrollback line count. Jump to the earliest retained output or return to live output in one click, without paging through thousands of lines. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.197
+
+### Patch Changes
+
+- [#1004](https://github.com/Sma1lboy/rove/pull/1004) [`c3fc45a`](https://github.com/Sma1lboy/rove/commit/c3fc45a994394ff3fe618fbb97d0110c1dee93ce) Fix long `rove api send` messages staying in Codex's input box on Windows. A fixed 150ms pause could send Enter while Codex was still collecting the paste, so Enter became another newline instead of submitting the report. Codex delivery now sends End immediately before Enter, outside the pasted text. End flushes the pending paste without changing its contents, so Enter submits it during a running turn as well as at idle. No footer detection, longer fixed delay, or repeated paste is needed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.196
+
+### Patch Changes
+
+- [#1003](https://github.com/Sma1lboy/rove/pull/1003) [`da9bb1e`](https://github.com/Sma1lboy/rove/commit/da9bb1e2487100e0c029d90129d281fc4817f898) `rove api send` pastes the prompt and presses Enter for every engine, instead of reading the engine's own repaint for a "tab to queue message" footer to decide between Enter and Tab. That read had a 450ms budget against a redraw the engine controls: when the footer arrived late the text stayed in the engine's input box while the send still reported a confirmed delivery, and a burst of output that rolled the read offset out of the scrollback ring let a stale hint from an earlier turn press Tab at an idle engine. Peer messages no longer pile up in the input area. Delivery no longer reports `queued`, since nothing observes the engine's queue state any more; what an engine does with an Enter received mid-turn is its own behavior. — [@wisp-agent-ai](https://github.com/wisp-agent-ai)
+
+## 0.9.195
+
+### Patch Changes
+
+- [#1002](https://github.com/Sma1lboy/rove/pull/1002) [`60d5112`](https://github.com/Sma1lboy/rove/commit/60d511243a9c10b2c08cc91dac13e020fe8bca38) On Windows, Ctrl+C copies a Rove terminal selection and clears its highlight without interrupting the embedded engine. With no selection, Ctrl+C still reaches the engine normally. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.194
+
+### Patch Changes
+
+- [#1000](https://github.com/Sma1lboy/rove/pull/1000) [`f54b39f`](https://github.com/Sma1lboy/rove/commit/f54b39fa35240a33d88ee54053e4da84fc60f1d4) Keep the input cursor stable on Windows when ConPTY briefly reports the Working or transcript row at the end of a synchronized update. Preserve the previous cursor only while its row is unchanged, keep text painting immediately, and allow genuine cursor moves to settle even when output stops. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.193
+
+### Patch Changes
+
+- [#999](https://github.com/Sma1lboy/rove/pull/999) [`1360aa1`](https://github.com/Sma1lboy/rove/commit/1360aa1dab6707bd20996d46d7aaa7946e192734) Send Codex prompts with Enter, including while it is working, instead of switching to Tab when its queue hint appears. API sends and routines use the live target engine's submission behavior so messages can steer the current turn without waiting in the queue. Keep terminal cursor updates inside synchronized frames so an unfinished cursor-only redraw cannot publish a cursor on the wrong row. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.192
+
+### Patch Changes
+
+- [#995](https://github.com/Sma1lboy/rove/pull/995) [`7604cca`](https://github.com/Sma1lboy/rove/commit/7604cca7748686410317c79e57918125814d56bb) `rove completions <shell> --install` no longer reports a hook it did not write. When your shell config already carried a completions block — a cache shim of your own, or a hand-rolled `# rove completions` line — the command (and the first-run wizard) printed "✓ completions hooked into ~/.zshrc" while leaving the file alone, which is exactly the case a user replacing their own shim needs an honest answer for. It now says the file was left untouched. Your block is still never edited: the only line rove rewrites in place is the live `source <(…)` line an older rove wrote itself. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#994](https://github.com/Sma1lboy/rove/pull/994) [`d916a9a`](https://github.com/Sma1lboy/rove/commit/d916a9a748b420fdb70db17468850c0d67df207f) Shell completions no longer cost a process per shell. The script is a build-time constant — 1876 bytes of static text — but `source <(rove completions zsh)` started the CLI (node launcher → bun, ~0.3s) on every new shell just to print it, so anyone who minded had to write their own cache shim. The build now bakes the same generators' output into `dist/completions/<rove|kobe>.<bash|zsh|fish>` and ships it: `rove completions zsh --path` prints that file's path, `rove completions zsh --install` writes `source "<path>"` into your rc file (fish gets a guard one-liner in its autoload directory), and the first-run wizard writes that form too. Measured on the machine this came from: 0.33s → 0.05s of shell startup. The script lives beside the binary that owns it, so it cannot go stale across upgrades; `--install` rewrites in place the live `source <(…)` line an older rove left in the rc file, and a source checkout (no `dist`) keeps generating on the fly — `--path` there fails loudly instead of printing a path that does not exist. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.191
+
+### Patch Changes
+
+- [#989](https://github.com/Sma1lboy/rove/pull/989) [`f14a64d`](https://github.com/Sma1lboy/rove/commit/f14a64d96f6a2291bd48f4d5471a434d0c073122) Rove now drives `pi` and `omp` as first-class engines, with the same activity badges as the other built-ins. Per-task engine selection, the reasoning-effort picker (`off` through `max`, passed as `--thinking`), tab naming from the engine's own terminal title, session resume, `--fork`, transcript-backed history, and screen-state fallback all apply; and because pi gates a never-seen directory behind a "Trust project folder?" modal that a hosted session cannot answer, Rove pre-answers it in `~/.pi/agent/trust.json`.
+
+  The badge channel is a hook Rove writes itself: `rove-activity.ts` goes into `<agent dir>/extensions/`, and both CLIs load it (OMP is Stencil Labs' fork of the pi coding agent and dispatches the same `pi.on(...)` events). It reports session start/end, turn start/complete/failed/interrupted, compaction, and — on OMP — the native approval prompt and question tool as needs-input. It is the one hook install that calls an engine API rather than editing a settings file, and it hands its payload over argv (`kobe hook --payload <json>`) because that API cannot pipe stdin. Nothing is written when `~/.pi` or `~/.omp` does not exist.
+
+  Waiting is where the two differ, and the badge follows each CLI rather than the pair: OMP reports its approval prompt exactly, pi has no approval prompt to report and falls back to its screen rules. Pi and OMP also report a user interrupt from the aborted assistant message, which is the first native interrupt signal Rove has from any engine. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#990](https://github.com/Sma1lboy/rove/pull/990) [`bfaffc2`](https://github.com/Sma1lboy/rove/commit/bfaffc2dc9c2806579a0bd733b6c46ba33708b07) Find out what Rove is forking. A terminal tab title that flickers between your shell and `git`, a fan that will not settle, an editor a beat behind — all three can mean Rove is spawning child processes far more often than its polls intend, and until now there was no way to tell which poll. `ps` cannot say: a `git` that lives a few milliseconds is caught mid-exec and macOS reports its arguments as `(git)`, so sampling a whole burst yields names and no arguments. `git`'s own `trace2` sees every invocation on the machine but records no parent, so on a machine running several agents it cannot say who asked. Set `ROVE_SPAWN_PROFILE` to a file path and Rove logs one JSON line per child it spawns, naming the code that wanted it, its arguments and the directory it ran in — `jq -r .site` and `sort | uniq -c` then give you a rate per caller. Unset, it costs one boolean test per spawn and touches no disk. See TROUBLESHOOTING for what the normal rates look like. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.190
+
+### Patch Changes
+
+- [#988](https://github.com/Sma1lboy/rove/pull/988) [`6f2b257`](https://github.com/Sma1lboy/rove/commit/6f2b2573730afc6f0beb9d89f5794e569a668aa8) Typing in a Rove terminal no longer lags a frame behind the same shell outside Rove. Output from a PTY is coalesced so a streaming pane builds at most one snapshot per rendered frame — but the throttle was trailing-only, so it also charged that full frame to output arriving at an idle terminal, which is every keystroke you type at a prompt. The child echoed in a fraction of a millisecond and the pane then had nothing to draw for another 33ms. The window now fires on its leading edge: output arriving after a quiet frame is drawn at once, and only a second chunk inside the same window waits for the boundary. Measured end to end on macOS — `write()` to published snapshot, 60 samples at 120x40 — p50 drops from 35.8ms to 1.5ms against a raw PTY echo of 0.03ms. Bursts are unchanged: still one snapshot per frame, none of it discarded work. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.189
+
+### Patch Changes
+
+- [#987](https://github.com/Sma1lboy/rove/pull/987) [`8038133`](https://github.com/Sma1lboy/rove/commit/8038133b7a53dd6db8d619c1f157471bf90842c4) A tab running a custom engine no longer reads as a bare shell. The process-tree walk that answers "which engine is live in this tab" only ever asked about engines the registry can name without reading state — the built-ins, the shipped catalog, and plugin engines — so an engine you registered yourself in Settings → Engines was invisible to it. Every consumer reads that silence as a positive "no engine here", so a tab with your engine running in it lost its sidebar state dot, stopped reporting turns, and renamed itself `shell 37` mid-session. The walk now takes a second pass over the launch binaries of your registered presets, and a tab already demoted by an earlier probe is renamed by whatever engine is actually running in it. A built-in found under the same shell still wins: a preset is usually a wrapper (`claudecpa` ends up running claude), and the engine underneath is the one carrying history, status and turn knowledge. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.188
+
+### Patch Changes
+
+- [#943](https://github.com/Sma1lboy/rove/pull/943) [`c086268`](https://github.com/Sma1lboy/rove/commit/c086268c22d7322f9620c05636b4ada833bacafd) Six changes for watching several sessions at once.
+
+  - **The Inbox queues blocked sessions first.** A permission prompt, a rate
+    limit, an error, a dead engine and a failing routine all sort ahead of plain
+    finished turns; within each group the oldest is still first. `F7` therefore
+    lands on the agent that cannot move rather than walking four turns that
+    simply ended.
+  - **Sidebar tab rows say how long.** A row that is working or stopped now
+    carries its age (`22m`, `2h`) beside the label. Quiet rows show nothing.
+  - **`t` cycles a third sort: `attention`.** Blocked tasks first, then ones
+    whose turn landed unread, most-recently-touched inside each group. The chord
+    now walks default → recent → attention → default.
+  - **A landed turn flashes on the sidebar row**, not only on the tab strip —
+    which is hidden by default, so on a stock install nothing announced it. Both
+    surfaces share one pulse duration.
+  - **A rate limit reads amber on the rail, not red.** It is the one attention
+    state that clears itself; the tab strip and the Inbox already drew it amber,
+    so the three surfaces now agree. The `!` glyph is unchanged.
+  - **Right-click a Kanban card to change its status.** The board's only other
+    route out of a column was the detail drawer. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.187
+
+### Patch Changes
+
+- [#983](https://github.com/Sma1lboy/rove/pull/983) [`ac42dc9`](https://github.com/Sma1lboy/rove/commit/ac42dc96b78e1972847eb7e75c41be8e3080d0ab) A tab whose engine transcript stops being readable no longer keeps its running badge forever. The watchdog that catches an engine which never reported finishing works by re-reading the engine's transcript: a recent write means the turn is still going, so it waits again. When it could not read the file at all it also waited again — which is right for a momentary read error and wrong for a transcript that is never coming back, because a deleted worktree or a replaced session answers "could not read" every single time and the badge waits out the life of the daemon. It now gives an unreadable transcript three full waits — half an hour at the default — and then stops believing it, handing the tab back to the observer that watches its terminal directly. Any single successful read resets the count, so a long turn on a healthy transcript keeps its badge exactly as before. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.186
+
+### Patch Changes
+
+- [#976](https://github.com/Sma1lboy/rove/pull/976) [`608f6e1`](https://github.com/Sma1lboy/rove/commit/608f6e135218c1eb7d5a9d06a673109bea14ad75) Give the New task form two more rows by tightening the space before Create. Keep the parent-directory well complete at 34–35 rows and restore the full compact form at 30 rows. Show how many rows remain above or below the form in its footer separator. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#982](https://github.com/Sma1lboy/rove/pull/982) [`4c94d9e`](https://github.com/Sma1lboy/rove/commit/4c94d9ea81a8b1ddeeb6a8282f095dac1fd189f2) A tab whose engine has stopped no longer keeps re-lighting its activity badge. When an engine dies mid-turn it leaves its last spinner frame in the terminal title, and nothing will ever rewrite it — so the observer that watches PTY titles has to time how long that frame has sat still before it can call the tab idle. It kept that clock in memory alongside the session it was watching, and threw the whole thing away every time a `pty.list` call failed. The next call rebuilt it from scratch with the clock at zero, the frozen frame counted as fresh evidence all over again, and the dot came back on. In one report that happened roughly every ninety seconds for hours, so a stopped engine's badge read `running` essentially forever. The observer now keeps its clocks across a failed call: a session is written off on evidence — its process exited, or a list that actually answered no longer names it — never because the daemon briefly could not look. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#979](https://github.com/Sma1lboy/rove/pull/979) [`2c155ed`](https://github.com/Sma1lboy/rove/commit/2c155edeff5a05779a1fd7a1eb50c7a31cb92803) See every machine you code on in one sidebar. `rove machine add <ssh-target>` registers another computer running Rove; its tasks appear under a row of their own, and a repo you have on both machines reads `kobe` here and `narwhal:kobe` there. A machine that goes offline keeps its rows — greyed, not gone — and reconnects on its own.
+
+  Read-only in this release: opening a remote session, and `rove api` verbs aimed at a remote task, arrive next. Those verbs refuse with `NOT_YET_SUPPORTED_REMOTE` rather than quietly running against your local daemon. See `docs/MACHINES.md`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#975](https://github.com/Sma1lboy/rove/pull/975) [`a55d121`](https://github.com/Sma1lboy/rove/commit/a55d121d98996e95be04d5b49265decf52627ebe) The per-task PR badge no longer reports a branch's checks as passing when one of them is unreadable. The status rollup that condenses a PR's check runs into a single headline treated any entry it could not classify as if it were absent, so a mix of one green check and one unreadable entry surfaced as a clean "passing" — telling you CI was clear when a check's state was actually unknown. It now reports "passing" only when every check that is not failing or pending is genuinely green, and pulls the headline to "unknown" otherwise; a failing check still wins, a pending one still beats an unknown sibling, and a well-formed all-green PR is unaffected. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#980](https://github.com/Sma1lboy/rove/pull/980) [`6346ab2`](https://github.com/Sma1lboy/rove/commit/6346ab29ffb83a9c9b264a24e1d83ac828334b55) Idle worktrees stop being probed with `git` every two seconds. The daemon's
+  "which tasks have a working engine?" gate was reading the activity replay,
+  which carries known-idle tab entries on purpose — so every task that had ever
+  opened a terminal tab counted as busy and skipped the 60s quiet backoff for the
+  life of the daemon. The gate now reads the derived task rollup instead. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#964](https://github.com/Sma1lboy/rove/pull/964) [`6aa9951`](https://github.com/Sma1lboy/rove/commit/6aa9951dbd165a11bddf09ff97da3dc2c6da94b4) Clip oversized strings in `rove api read-output` on a character boundary instead of a UTF-16 one. A tool result long enough to be clipped could be cut through the middle of an emoji or other astral character, leaving an orphaned surrogate half that read back as a `�` replacement glyph in the JSON an agent consumes; the same cut now keeps whole characters, and the `[+N chars clipped]` tally counts characters rather than double-counting astral ones as two. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#976](https://github.com/Sma1lboy/rove/pull/976) [`608f6e1`](https://github.com/Sma1lboy/rove/commit/608f6e135218c1eb7d5a9d06a673109bea14ad75) Keep the New task dialog's engine chips, field borders, and footer separated when the form is taller than the terminal. All three tabs now scroll their fields and picker rows into view while the header, errors, and Create action remain visible. Long engine labels stay within the dialog width. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+## 0.9.185
+
+### Patch Changes
+
+- [#974](https://github.com/Sma1lboy/rove/pull/974) [`2634e42`](https://github.com/Sma1lboy/rove/commit/2634e42e0ceda343a327eedddf787747b2a7d04f) A task's activity state now follows what its tabs are actually doing. It was a
+  separate copy updated last-event-wins across every tab, so on a task with more
+  than one tab a completion in one tab dimmed a live turn in another, and a tab
+  whose engine died or went quiet without being the last to report left the task
+  spinning with nothing running under it. The task state is now derived from the
+  per-tab ledger: any working tab means the task is working, otherwise the newest
+  state that wants a human (turn complete, permission needed, rate limited,
+  error, dead) shows through.
+
+  Closing a tab now clears its activity too — the running tab of a task could be
+  closed and leave the task row spinning for the life of the daemon. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.184
+
+### Patch Changes
+
+- [#973](https://github.com/Sma1lboy/rove/pull/973) [`83543f9`](https://github.com/Sma1lboy/rove/commit/83543f9ac201e8cb76520fc82ec891b8df3de4d3) Agent skill v44: name a task by its title and branch, not its worktree directory.
+
+  The sidebar renders a task's title and, under it, its branch — `worktreePath`
+  appears nowhere in the UI. Agents reached for the directory name anyway
+  (`marlin`, `zorilla`), leaving the user with a word they cannot find on screen.
+  The skill now says which fields the user actually sees, `rove api schema` says
+  it on `add` and `get-task`, and each `--count` / `--agents` sibling's result row
+  carries its `title` and `branch` instead of only an id. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.183
+
+### Patch Changes
+
+- [#972](https://github.com/Sma1lboy/rove/pull/972) [`f2489ac`](https://github.com/Sma1lboy/rove/commit/f2489ac9ca76510346a4b7bf0775815bb83f7161) Bump the agent skill to v43, and make a missed bump a red build.
+
+  Staleness compares marker numbers only, never content, so four PRs in a row ([#868](https://github.com/Sma1lboy/rove/issues/868), [#869](https://github.com/Sma1lboy/rove/issues/869), [#959](https://github.com/Sma1lboy/rove/issues/959), [#970](https://github.com/Sma1lboy/rove/issues/970)) edited `SKILL.md` while it stayed stamped v42. Every machine that installed the skill kept the older text and `rove skill status` still reported `✓ v42` — Claude and Codex both read that copy, so both were following instructions for a `send` deferred-inbox flow that had already been deleted, and neither had the "Communicate at handoffs" guidance.
+
+  `test/architecture/skill-version-bump.test.ts` now records a sha256 of each skill file alongside the version it belongs to. Editing the skill without bumping fails the build and prints the exact edit to make, including the replacement fingerprint. `rove skill status` also gained a second opinion for copies already in the field: when the installed text differs from the bundled one at the same version it says so, instead of a bare `✓`.
+
+  If you installed the skill before this release, refresh it: `rove skill install`, or `rove --skill > ~/.agents/skills/rove/SKILL.md`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.182
+
+### Patch Changes
+
+- [#970](https://github.com/Sma1lboy/rove/pull/970) [`f6561b3`](https://github.com/Sma1lboy/rove/commit/f6561b3094a89ab4697aec266a28af0c86abccbb) Stop peer agents from talking past each other. Every `[ROVE PEER]` message ended with "load the Rove agent skill FIRST … then reply", which receivers read as an instruction to answer each message and re-read the skill each time — so tasks acknowledged receipt, announced they had started, announced they had loaded the skill, and acknowledged each other's acknowledgements, each at one full engine turn. The prefix now points at the skill as once-per-session reading and names the reply address without demanding a reply, and the agent skill gains a "Communicate at handoffs, not at every step" rule: one complete brief, one final outcome, and an interim message only when it changes what the recipient does next. The reply command is unchanged and still tab-precise. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.181
+
+### Patch Changes
+
+- [#969](https://github.com/Sma1lboy/rove/pull/969) [`e2d6b75`](https://github.com/Sma1lboy/rove/commit/e2d6b75901f34f1778d68b7767a141851daca764) Add a chime volume setting, and make volume work at all on Windows. The notification chime was mastered at full scale and Rove passed the volume to the audio player as a flag — but four of the players it can land on take no volume argument, including the PowerShell fallback that Windows always uses, whose `Media.SoundPlayer` has no volume API. So on Windows the chime rang at 100% and nothing could turn it down but muting it. Volume is now applied to the audio itself, cached one copy per level, which every player honours. Cycle it from Settings → General → Chime volume (10% through 100%, default 40%), or set `notifications.sound.volume`; `0` plays nothing and spawns no process.
+
+  The chime itself is replaced too. The old one ran for a full second and hit maximum amplitude on its first sample, which is a click, and on Windows that click was played at full system volume every time. The new one is a soft two-note bell: 0.42s, a 6ms ramp in, a smooth decay to silence, and it peaks at 62% so there is room to turn it up as well as down. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.180
+
+### Patch Changes
+
+- [#968](https://github.com/Sma1lboy/rove/pull/968) [`16b7117`](https://github.com/Sma1lboy/rove/commit/16b7117c93ea93feb8be4417b16e66af4de900c5) `rove api send` now gets through to an engine that is mid-turn. Claude Code, while a turn is running, no longer submits on Enter: its footer says "tab to queue message" and the text just sits in the composer — which is where every dispatched `succeeded:` report landed while the coordinator was busy. Delivery now reads that hint off the screen after pasting and presses Tab instead, so the prompt is queued and runs when the turn ends; a late footer redraw is caught by one re-check after Enter. The result reports `queued: true` when that happened, so a dispatcher knows the report is waiting behind a turn rather than being processed now. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#966](https://github.com/Sma1lboy/rove/pull/966) [`b71ae37`](https://github.com/Sma1lboy/rove/commit/b71ae3749a3a31510930fbf3e6152fd7aaad53dc) Render at 60fps on Windows and coalesce terminal output every 16ms instead of 33ms. An engine tab on Windows sits behind two ConPTYs — the pty host's and Windows Terminal's — and the inner one already paces its output in 16–60ms batches, so Rove's own 33ms snapshot window plus a 33ms frame on top made typing feel a beat behind a native `claude` in the same terminal. Halving both takes about 33ms off the worst case. macOS and Linux keep 30fps. The snapshot window and the renderer's frame rate now come from one place, so they cannot drift apart. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#967](https://github.com/Sma1lboy/rove/pull/967) [`a711cf8`](https://github.com/Sma1lboy/rove/commit/a711cf835ba1d03e70b8eb051516f4e84136ffaf) Make engine hooks fire on Windows. The hook commands Rove writes into `~/.codex/hooks.json`, Claude's settings and kimi's config were POSIX single-quoted (`'kobe' 'hook' 'turn-complete' '--engine' 'codex'`), which cmd.exe and PowerShell cannot run — cmd looks for a program named `'kobe'`, PowerShell reads a string literal — so on Windows a codex tab never reported a turn, a badge, or an attention item. Hook commands are now written as bare tokens (`kobe hook turn-complete --engine codex`), which every shell on every platform runs the same way; a token that does need quoting gets the platform's own dialect. Existing installs are rewritten on the next hook install; codex may ask you to trust the changed hooks once. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#965](https://github.com/Sma1lboy/rove/pull/965) [`c2324aa`](https://github.com/Sma1lboy/rove/commit/c2324aacf61ad8eb95cc40cca958956e4a3e8cea) Put the IME composition window where you are typing on Windows. Windows Terminal draws the pinyin (and any other input-method) preedit and candidate list at the console cursor, and Rove left that cursor at the last cell it painted — the top of the sidebar — so the composition appeared far from the engine's input line. The cursor anchor that already fixed this on macOS now runs on Windows too: after every frame the hidden host cursor is parked on the focused terminal's cursor cell, so the IME window follows your typing. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.179
+
+### Patch Changes
+
+- [#963](https://github.com/Sma1lboy/rove/pull/963) [`5918f71`](https://github.com/Sma1lboy/rove/commit/5918f719f939b1a052f2440a327e0e1741a7cf0b) Keep the daemon and the PTY host alive when Rove quits on Windows. Quitting the TUI, closing its terminal tab, or letting a `rove daemon restart` finish used to take every engine tab with it: on Windows, Bun puts each spawned child in a kill-on-close job, so the daemon and the PTY host died the moment the process that started them exited, and with a log file on their stdio they were also left sharing the terminal's console, so a Ctrl+C or a closed tab reached them too. Both are now spawned through a small PowerShell launcher that creates the child broken away from the job, on its own hidden console, with stdout/stderr still appended to `daemon.log` / `pty.log`. Engine tabs survive quitting and restarting Rove on Windows the way they always have on macOS and Linux. If the launcher cannot run, the old direct spawn is used and the log says so. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.178
+
+### Patch Changes
+
+- [#962](https://github.com/Sma1lboy/rove/pull/962) [`5b68829`](https://github.com/Sma1lboy/rove/commit/5b688294199f250d39342fb142f6679dcccb760b) Fix `rove api send` replying to the wrong tab on Windows. A `rove api` call made from an engine's Bash tool runs through the npm `sh` shim, and Git-Bash's fork exits the moment it execs `sh.exe`, so the CLI's parent chain reached a dead process before it reached the tab. Every task created that way recorded no dispatcher, and every bare `send` fell back to the active task — whatever tab you happened to be looking at. The console-membership repair that already re-links the engine to its tab shell now also runs on the CLI's own console, so the walk reaches the shell, `add` records the dispatcher, and `send` replies to the tab that dispatched the work. Process rows are now emitted in creation order so a console's root is chosen deterministically. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.177
+
+### Patch Changes
+
+- [#961](https://github.com/Sma1lboy/rove/pull/961) [`89c7c58`](https://github.com/Sma1lboy/rove/commit/89c7c58bbf3cd28ce203c9dcd722ff1d20a4927c) Use shared filesystem path comparisons across Windows session discovery, daemon home checks, task attribution, project pickers, saved repository settings, automations, and worktree actions. Native and Git path separators, drive-letter spelling, trailing separators, UNC paths, and long-path prefixes now identify the same location. Keep POSIX names and remote repository keys distinct, and preserve the current-worktree removal guard for directories named with a leading `..`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.176
+
+### Patch Changes
+
+- [#960](https://github.com/Sma1lboy/rove/pull/960) [`2862588`](https://github.com/Sma1lboy/rove/commit/28625888355619796d19bbeef5d83a149b87a593) Remove the PTY host's human-write sensor. `lastHumanWriteMs` and the
+  `KOBE_PTY_HUMAN_WRITE_QUIET_MS` quiet period only ever fed the delivery gate,
+  which is gone — `pty.peek` no longer reports them, and a freeze record written
+  by an older host thaws normally with the stale field ignored. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.175
+
+### Patch Changes
+
+- [#959](https://github.com/Sma1lboy/rove/pull/959) [`1b3af7a`](https://github.com/Sma1lboy/rove/commit/1b3af7ac6b30674a67d9e3e756a89af58cd85f27) Delete the deferred-prompt mechanism and the delivery gate it fed. `rove api send` now pastes and submits, always.
+
+  Rove used to read the target composer before delivering a peer/API prompt: layer A held the message when someone had typed into that pty in the last ~10s, layer B rendered the engine's screen and held it when the composer already showed text. A held prompt went into a daemon-owned queue and an Inbox row for a human to release, and was destroyed 24h later if nobody did. Headless — which is most of how `send` is used — nobody did. Messages that the sender's exit code called a success sat in a queue for hours, and a second send to the same tab was refused with `DEFERRED_PROMPT_PENDING` while it sat there.
+
+  What is gone: the daemon's `DeferredPromptsStore`, its expiry sweep and the whole `deferredPrompt.*` RPC family; the `deferred-list` / `deferred-release` / `deferred-dismiss` verbs; the `deferred` field and `composerPreview` on `send` / `dispatch` / `fanout` replies; the `COMPOSER_BUSY`, `DEFERRED_PROMPT_PENDING` and `DEFERRED_PROMPT_NOT_FOUND` error codes; the `prompt_deferred` / `prompt_expired` Inbox rows and their release/ignore actions; the `delivery.guard` setting (with its legacy `delivery.composerGate` spelling), `delivery.humanWriteQuietMs`, the `ROVE_DELIVERY_GUARD` env override and the Settings → Dev row that drove them; and the `deferred` routine-run status.
+
+  The new contract: a `send` that reaches a live engine tab is written to it. The only refusals left are physical — no such tab, a dead PTY, no engine process in it — and each keeps the error code it already had. Routines deliver the same way; a busy composer no longer diverts a firing into an Inbox queue.
+
+  An existing `<home>/.rove/deferred-prompts.json` is left on disk untouched and never read again. Nothing warns about it; delete it by hand if you want the space back. Anything still queued in it at upgrade time will not be delivered — check `rove api deferred-list` before updating if that matters. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.174
+
+### Patch Changes
+
+- [#958](https://github.com/Sma1lboy/rove/pull/958) [`50f62d0`](https://github.com/Sma1lboy/rove/commit/50f62d01de14d6444c12c795d90baeb9d21de902) Preserve engine conversations when restoring tabs after a reboot. A restored tab's saved engine identity no longer counts as a live process observation, so the shell startup window cannot erase its session ID and turn it into a plain shell. Codex, Copilot, and Kimi history lookup also matches Windows directories written with native backslashes or Git's forward slashes, keeping recorded conversations eligible for resume. Engines that generate their own session IDs rediscover their conversation when a saved ID is no longer valid, including an ID left over from another engine. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.173
+
+### Patch Changes
+
+- [#954](https://github.com/Sma1lboy/rove/pull/954) [`102e5fc`](https://github.com/Sma1lboy/rove/commit/102e5fc29b72b068dc5c69c7f1a14f975f1ce45f) `rove api`: six things a dispatcher could not do
+
+  Six gaps found by an agent supervising ten workers through `rove api` for a day.
+
+  - **`delete` now reports what happened to the branch.** With `--delete-branch` the reply carries `branch` — `{ branch, deleted, keptReason?, remote? }` — instead of only `status: "removed"`, which is the worktree's outcome and never the branch's. git's refusals (unmerged work, a sibling worktree holding the branch) reached `daemon.log` and nowhere a caller could read them. New `--delete-remote` pushes `git push --delete` to the branch's own remote; it is a separate opt-in that `--delete-branch` never implies, because a remote branch is recoverable by nobody and its deletion closes an open PR.
+  - **`interrupt`** stops the turn a task's engine is running, using the engine's own interrupt bytes. `send` cannot reach a runaway worker (delivery needs a quiet composer), so the only levers left destroyed something — `tab-close` the conversation, `delete` the worktree. Engines that have not declared an interrupt sequence are refused with `UNSUPPORTED` rather than guessed at.
+  - **`watch`** blocks until a task's engine reaches a state, streaming every transition as NDJSON — the push-driven replacement for a `collect` polling loop. `dead` is the state polling is worst at: a `SIGKILL`ed engine fires no hook, so the daemon writes it from the PTY exit record and pushes it immediately.
+  - **`COMPOSER_BUSY` and deferred sends now say what is in the composer.** `composerPreview` carries the blocking text (200 chars); before, a refused caller had to `read-output` the pane to learn whether a worker was mid-sentence or a stray keystroke was sitting there. Response-only — never `daemon.log`, never the Inbox episode.
+  - **`set-status --report-branch/--report-pr/--report-summary`** records what the worker says it delivered as `.report` on the task, readable from `get-task` and `collect`. Outcomes used to travel as prose a dispatcher parsed by convention. Deliberately not merged with `.prStatus`: one is a claim, the other is what the daemon observed from the forge.
+  - **`add --worktree-name`** names the worktree directory so a caller can predict `.task.worktreePath` instead of reading it back. A name already in use is refused (`WORKTREE_NAME_TAKEN`), never silently suffixed `-v2`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#956](https://github.com/Sma1lboy/rove/pull/956) [`ce31f8e`](https://github.com/Sma1lboy/rove/commit/ce31f8ea5c9ba03fb36a23e7dff2c3dc0f16f518) `rove update` works on Windows. The updater spawned bare `sh`, which a default Git for Windows install does not put on `PATH` — only `…\Git\cmd` is added, while `sh.exe` lives in `…\Git\bin` — so both the CLI and the TUI's update chip died with a raw `spawn sh ENOENT`, leaving `npm install -g` by hand as the only route. The updater now runs the install script through the same Git Bash every engine and terminal tab already launches through, and a missing one is reported as "install Git for Windows" with the manual command, instead of an ENOENT naming a shell. — [@ZHallen122](https://github.com/ZHallen122)
+
 ## 0.9.172
 
 ### Patch Changes

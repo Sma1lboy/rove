@@ -4,6 +4,7 @@
  * Interactive engine processes and Terminal Tab state have separate owners.
  */
 
+import { samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import { type ReadableState, type StateCell, createStateCell } from "../lib/external-store.ts"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
 import { getRemoteRepoConfig, getSavedRepos, removeSavedRepo } from "../state/repos.ts"
@@ -16,6 +17,7 @@ import type {
   TaskPRStatus,
   TaskRoutineLink,
   TaskStatus,
+  TaskWorkerReport,
   VendorId,
 } from "../types/task.ts"
 import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
@@ -153,7 +155,7 @@ export class Orchestrator {
     try {
       const promotable = promotableDirTasks({
         tasks: this.store.list(),
-        isRepoRoot: (path) => isGitRepo(path) && resolveRepoRoot(path) === path,
+        isRepoRoot: (path) => isGitRepo(path) && samePath(resolveRepoRoot(path), path),
       })
       for (const task of promotable) await this.mainTasks.ensureIfEligible(task.repo, "explicit")
     } catch {
@@ -235,7 +237,14 @@ export class Orchestrator {
    * this file splits; the class stays the thin delegator its doc claims.
    */
   createTask = (input: CreateTaskInput): Promise<Task> =>
-    createTaskRow({ store: this.store, mainTasks: this.mainTasks }, input)
+    createTaskRow(
+      {
+        store: this.store,
+        mainTasks: this.mainTasks,
+        claimWorktreeName: (repo, name) => this.worktreeCoordinator.claimWorktreeName(repo, name),
+      },
+      input,
+    )
 
   /** Open an existing directory as a standalone `kind:"dir"` task (`rove .`). */
   openDirectoryTask = (input: OpenDirectoryTaskInput): Promise<Task> =>
@@ -312,6 +321,11 @@ export class Orchestrator {
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => this.editor.setPinned(id, pinned)
   moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => this.editor.moveTask(id, delta)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => this.editor.setStatus(id, status)
+
+  /** Record the worker's own account of what it delivered — see
+   *  {@link TaskEditor.setWorkerReport}. */
+  setWorkerReport = (id: TaskId | string, report: Omit<TaskWorkerReport, "at">): Promise<void> =>
+    this.editor.setWorkerReport(id, report)
   setPRStatus = (id: TaskId | string, prStatus: TaskPRStatus | null): Promise<void> =>
     this.editor.setPRStatus(id, prStatus)
   setLinkedWorkItem = (id: TaskId | string, item: NonNullable<Task["linkedWorkItem"]> | null): Promise<void> =>

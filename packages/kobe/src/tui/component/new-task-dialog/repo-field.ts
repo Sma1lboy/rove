@@ -19,8 +19,9 @@
  * completion (it needs `nameOrPath` too) lands here rather than beside it.
  */
 
+import { samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import { joinDrill } from "../../lib/path-helpers"
-import { type PickerMode, splitRepoRow } from "./state"
+import { type PickerMode, isRepoPathInput, splitRepoRow } from "./state"
 
 /**
  * How the repo INPUT should render a value: the repo's name, and the
@@ -76,7 +77,7 @@ export function resolveRepoInput(value: string, repoOptions: readonly string[]):
   const trimmed = value.trim()
   // Anything path-shaped is already the answer — the same test `pickerModeFor`
   // uses to decide it is looking at a path rather than a query.
-  if (!trimmed || trimmed.includes("/") || trimmed.startsWith("~")) return { kind: "path", path: trimmed }
+  if (!trimmed || isRepoPathInput(trimmed)) return { kind: "path", path: trimmed }
   const matches = repoOptions.filter((p) => splitRepoRow(p).base === trimmed)
   if (matches.length === 1) return { kind: "path", path: matches[0] as string }
   if (matches.length > 1) return { kind: "ambiguous", name: trimmed, matches }
@@ -95,7 +96,7 @@ export function resolveRepoInput(value: string, repoOptions: readonly string[]):
 export function nameOrPath(path: string, repoOptions: readonly string[]): string {
   const name = splitRepoInput(path, true).name
   const back = resolveRepoInput(name, repoOptions)
-  return back.kind === "path" && back.path === path ? name : path
+  return back.kind === "path" && samePath(back.path, path) ? name : path
 }
 
 /**

@@ -6,6 +6,7 @@
 import type { TerminalStyleRewrite } from "@/types/terminal-presentation"
 import type { IMarker, Terminal as XtermHeadless } from "@xterm/headless"
 import type { CursorPos, TerminalRow, TerminalSnapshotWindow } from "./pty-types"
+import { TerminalCursorSettlement } from "./terminal-cursor-settlement"
 import { reconcileTerminalCursor, reconcileTerminalRow, reconcileTerminalRows } from "./terminal-snapshot"
 import type { RowWrapFlags } from "./terminal-wrap"
 import { xtermLineToChunks } from "./xterm-chunks"
@@ -25,6 +26,7 @@ export type XtermSnapshotRefreshResult = {
   /** Parallel to `snapshot`: row i is a soft-wrap continuation of row i-1. */
   wrapped: RowWrapFlags
   changed: boolean
+  cursorPending: boolean
 }
 
 /** Retain the previous flags array when the wrap layout did not move. */
@@ -49,7 +51,14 @@ export class XtermSnapshotEngine {
   private snapshotEpoch = 0
   private publishedMeta: SnapshotMeta | null = null
 
-  constructor(private readonly alternateScreenStyleRewrites?: readonly TerminalStyleRewrite[]) {}
+  private readonly cursorSettlement: TerminalCursorSettlement
+
+  constructor(
+    private readonly alternateScreenStyleRewrites?: readonly TerminalStyleRewrite[],
+    platform: NodeJS.Platform = process.platform,
+  ) {
+    this.cursorSettlement = new TerminalCursorSettlement(platform)
+  }
 
   /** Drop the cache and anchor; called on resize/reflow or teardown. */
   invalidate(): void {
@@ -60,6 +69,7 @@ export class XtermSnapshotEngine {
     this.anchor = undefined
     this.anchorId = 0
     this.publishedMeta = null
+    this.cursorSettlement.reset()
   }
 
   /** Rebuild the terminal snapshot, or return null when a synchronized-update
@@ -73,6 +83,7 @@ export class XtermSnapshotEngine {
     previousCursor: CursorPos | null,
     previousWindow: TerminalSnapshotWindow | null,
   ): XtermSnapshotRefreshResult | null {
+    if (xtermSynchronizedOutput(term)) return null
     const active = term.buffer.active
     const styleRewrites = active.type === "alternate" ? this.alternateScreenStyleRewrites : undefined
     const cursorHidden = xtermCursorHidden(term)
@@ -81,6 +92,9 @@ export class XtermSnapshotEngine {
       previousCursor,
       cursorHidden ? null : { x: active.cursorX, y: active.baseY + active.cursorY - currentMeta.start },
     )
+    const frameCursor = refreshTracker.synchronizedCursor
+    const atFrameEnd =
+      nextCursor !== null && frameCursor?.x === nextCursor.x && frameCursor.y === nextCursor.y + currentMeta.start
     const verifyAnchor = this.anchor
     const verifyFrozen =
       active.type !== "alternate" && verifyAnchor !== undefined && !verifyAnchor.isDisposed
@@ -100,15 +114,16 @@ export class XtermSnapshotEngine {
     ) {
       refreshTracker.clear()
       this.publishedMeta = currentMeta
+      const cursor = this.cursorSettlement.update(nextCursor, previousSnapshot, atFrameEnd, Date.now())
       return {
         snapshot: previousSnapshot,
-        cursor: nextCursor,
+        cursor,
         snapshotWindow: previousWindow,
         wrapped: this.wrapped,
-        changed: nextCursor !== previousCursor,
+        changed: cursor !== previousCursor,
+        cursorPending: this.cursorSettlement.pending,
       }
     }
-    if (xtermSynchronizedOutput(term)) return null
     const alt = active.type === "alternate"
     const canAnchor = !alt && active.baseY > 0
     if (canAnchor && (this.anchor === undefined || this.anchor.isDisposed)) {
@@ -168,6 +183,7 @@ export class XtermSnapshotEngine {
       }
     }
     const snapshot = reconcileTerminalRows(previousSnapshot, rowsOut)
+    const cursor = this.cursorSettlement.update(nextCursor, snapshot, atFrameEnd, Date.now())
     const nextStartLine = absBase + start
     const snapshotWindow = anchorAlive
       ? previousWindow?.epoch === this.snapshotEpoch && previousWindow.startLine === nextStartLine
@@ -179,10 +195,14 @@ export class XtermSnapshotEngine {
     const wrapLayoutMoved = !sameFlags(this.wrapped, wrappedOut)
     if (wrapLayoutMoved) this.wrapped = wrappedOut
     const changed =
-      snapshot !== previousSnapshot ||
-      nextCursor !== previousCursor ||
-      snapshotWindow !== previousWindow ||
-      wrapLayoutMoved
-    return { snapshot, cursor: nextCursor, snapshotWindow, wrapped: this.wrapped, changed }
+      snapshot !== previousSnapshot || cursor !== previousCursor || snapshotWindow !== previousWindow || wrapLayoutMoved
+    return {
+      snapshot,
+      cursor,
+      snapshotWindow,
+      wrapped: this.wrapped,
+      changed,
+      cursorPending: this.cursorSettlement.pending,
+    }
   }
 }

@@ -59,6 +59,11 @@ export const en = {
     moreBelow: "↓ {count} more",
   },
 
+  scroll: {
+    moreAbove: "↑ {count} more rows",
+    moreBelow: "↓ {count} more rows",
+  },
+
   /** "Open the project" failures. {error} is the daemon's message. */
   open: {
     failed: "Couldn't open the project: {error}",
@@ -152,6 +157,11 @@ export const zh: typeof en = {
   picker: {
     moreAbove: "↑ 还有 {count} 项",
     moreBelow: "↓ 还有 {count} 项",
+  },
+
+  scroll: {
+    moreAbove: "↑ 上方还有 {count} 行",
+    moreBelow: "↓ 下方还有 {count} 行",
   },
 
   /** "Open the project" failures. {error} is the daemon's message. */

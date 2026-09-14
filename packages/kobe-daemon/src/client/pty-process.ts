@@ -16,7 +16,8 @@ import { isProcessAlive, stopDaemonProcess } from "../daemon/lifecycle.ts"
 import { defaultPtyHostLogPath, defaultPtyHostPidPath, defaultPtyHostSocketPath } from "../daemon/paths.ts"
 import type { PtySessionInfo } from "../daemon/pty-observability.ts"
 import { readPidFile } from "../daemon/socket-guard.ts"
-import { resolveKobeSpawn, spawnDetachedDaemon, testDaemonResponds } from "./daemon-process.ts"
+import { resolveKobeSpawn, testDaemonResponds } from "./daemon-process.ts"
+import { spawnDetachedDaemon } from "./detached-spawn.ts"
 import { KobeDaemonClient } from "./index.ts"
 
 const PTY_HOST_START_ARGS = ["pty-host"] as const

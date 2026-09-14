@@ -30,7 +30,6 @@ describe("tab-close handler", () => {
   it("falls back to the headless snapshot and PTY close path", async () => {
     const client = new FakeClient({
       "terminalTab.close": () => ({ ok: true, handled: false }),
-      "deferredPrompt.discardTab": () => ({ dropped: ["deferred-1"] }),
     })
     const calls: string[][] = []
     const result = await invokeVerb("tab-close", ["--task-id", "t1", "--tab", "tab-2"], {
@@ -43,13 +42,7 @@ describe("tab-close handler", () => {
       }),
     })
     expect(calls).toEqual([["t1", "tab-2"]])
-    expect(client.requests).toEqual([
-      { name: "terminalTab.close", payload: { taskId: "t1", tabId: "tab-2" } },
-      {
-        name: "deferredPrompt.discardTab",
-        payload: { taskId: "t1", tabId: "tab-2" },
-      },
-    ])
+    expect(client.requests).toEqual([{ name: "terminalTab.close", payload: { taskId: "t1", tabId: "tab-2" } }])
     expect(result).toEqual({
       ok: true,
       taskId: "t1",

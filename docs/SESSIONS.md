@@ -1,10 +1,22 @@
 # Sessions: what survives what
 
+On Windows, session discovery and hook-to-task attribution accept both native
+backslashes and Git-style forward slashes. Trailing directory separators and
+drive-letter spelling do not change the matched task. Daemon home verification
+uses the same path comparison.
+
 Short answer: **quitting Rove only detaches.** A PTY-host restart or machine
 reboot ends the child processes, but restores their screens and relaunches
 their commands on attach. Closing a tab, deleting a managed/directory Task,
 resetting a terminal, or running `rove reset` is an intentional teardown
 instead.
+
+During recovery, an engine tab keeps its saved conversation while its shell
+starts. Rove converts it to a shell tab only after observing the engine run
+and then exit in the current TUI session. On Windows, engine history lookup
+accepts both native backslashes and Git's forward slashes for the same directory.
+For engines that generate their own session IDs, an invalid saved ID triggers
+discovery of an unclaimed conversation in that directory before relaunch.
 
 ## What survives
 

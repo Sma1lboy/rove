@@ -71,6 +71,13 @@ export const DYNAMIC_COMMANDS = new Map<string, CommandHandler>([
     },
   ],
   [
+    "machine",
+    async (args) => {
+      const { runMachineSubcommand } = await import("./machine-cmd.ts")
+      await runMachineSubcommand(args)
+    },
+  ],
+  [
     "doctor",
     async (args) => {
       const { runDoctorSubcommand } = await import("./doctor-cmd.ts")

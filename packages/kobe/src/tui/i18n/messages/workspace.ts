@@ -65,49 +65,12 @@ export const en = {
       running: "running",
       /** A dead engine PROCESS (pty exit record), not a failed turn. */
       dead: "engine exited",
-      /** A peer/API message accepted by the daemon but not yet pasted. */
-      promptDeferred: "message queued",
-      /** A queued message the daemon destroyed at its TTL, undelivered. */
-      promptExpired: "message expired",
       /** A routine whose latest firing needs a human. */
       routineFailed: "routine needs you",
     },
     /** Rate-limited card's context line: when the armed auto-resume fires.
      *  `{time}` is a locale-formatted clock time. */
     resumesAt: "resumes {time}",
-    /** Queued-message card's context line: how long before the daemon drops
-     *  the text undelivered. `{in}` is a compact duration ("47m", "23h"). */
-    expiresIn: "expires in {in}",
-    /** Same line once the deadline has passed — the hourly sweep has not run
-     *  yet, so the text is still there, and only just. */
-    expiringNow: "expiring now",
-    /** Expired-message card's context line. */
-    expiredNote: "never delivered",
-    /** Queued-message card, first segment: who sent it. `{sender}` is the
-     *  task title lifted from the prompt's `[ROVE PEER]` header. */
-    from: "from {sender}",
-    layer: {
-      /** Held by the keystroke window (layer A) — someone was typing here. */
-      keystroke: "you were typing",
-      /** Held by the composer screen read (layer B). */
-      screen: "composer had text",
-    },
-    /** Footer verbs for a queued-message row: enter delivers the held text
-     *  rather than opening anything, and d sets it aside. */
-    releaseHint: "enter release",
-    ignoreHint: "d ignore",
-    dismissConfirmTitle: "Ignore this message?",
-    dismissConfirmBody:
-      "It has not run yet, and its sender has already been told it was accepted. Ignoring takes it off the queue so the tab accepts new messages; the text is kept for 24h from when it arrived, and `rove api deferred-release --id` still delivers it.",
-    dismissConfirmAction: "ignore",
-    /** Toast title when a message is deferred because the composer was busy. */
-    deferredToast: "Message queued — composer busy",
-    /** Insert feedback: the A/C gate still blocked at release time. */
-    deferredStillQueued: "Still typing? The queued message stays in the Inbox — open it again to send.",
-    /** Insert feedback: the target tab has no live session to receive the paste. */
-    deferredUnavailable: "That tab isn't running — the queued message stays in the Inbox.",
-    /** Insert feedback: the release attempt errored (RPC/PTY hiccup). */
-    deferredInsertFailed: "Couldn't insert the queued message — it's still in the Inbox.",
   },
 }
 
@@ -156,38 +119,8 @@ export const zh: typeof en = {
       rateLimited: "限流",
       running: "进行中",
       dead: "引擎已退出",
-      /** peer/API 消息已被 daemon 受理但尚未插入。 */
-      promptDeferred: "消息已排队",
-      /** 排队的消息到期被 daemon 丢弃，从未送达。 */
-      promptExpired: "消息已过期",
       routineFailed: "例行任务需要处理",
     },
     resumesAt: "{time} 恢复",
-    expiresIn: "{in} 后过期",
-    expiringNow: "即将过期",
-    expiredNote: "从未送达",
-    /** 排队消息卡片的第一段:谁发的。{sender} 取自 prompt 的 [ROVE PEER] 头部。 */
-    from: "来自 {sender}",
-    layer: {
-      /** 被按键静默窗口(A 层)拦住——这里刚刚有人在打字。 */
-      keystroke: "刚才有人在打字",
-      /** 被输入框屏幕检查(B 层)拦住。 */
-      screen: "输入框里有字",
-    },
-    /** 排队消息那一行的底部动作:enter 是把扣住的文本发出去,不是「打开」;d 先放一边。 */
-    releaseHint: "enter 放行",
-    ignoreHint: "d 忽略",
-    dismissConfirmTitle: "忽略这条消息?",
-    dismissConfirmBody:
-      "它还没跑,发送方那边已经收到「已受理」的答复了。忽略只是把它移出队列、让这个 tab 能接收新消息;文本会从它到达那一刻起保留 24 小时,`rove api deferred-release --id` 仍然能把它送出去。",
-    dismissConfirmAction: "忽略",
-    /** composer 忙、消息被受理延后的 toast 标题。 */
-    deferredToast: "消息已排队——composer 正忙",
-    /** 插入反馈：放行那一刻 A/C 闸门仍拦住。 */
-    deferredStillQueued: "还在打字？排队的消息留在收件箱——再打开一次即可发送。",
-    /** 插入反馈：目标 tab 没有存活会话可接收。 */
-    deferredUnavailable: "该标签页未运行——排队的消息留在收件箱。",
-    /** 插入反馈：放行过程出错（RPC/PTY 故障）。 */
-    deferredInsertFailed: "无法插入排队的消息——它仍在收件箱中。",
   },
 }
