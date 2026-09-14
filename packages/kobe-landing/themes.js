@@ -2,7 +2,6 @@
 // Terminal-mock content (branch names, TUI chrome) deliberately stays English.
 var KOBE_I18N = (function () {
   var zh = {
-    'nav.assembly': '总装图',
     'meta.title': 'Rove — 主题',
     'meta.desc': '每个内置 Rove 主题都由它真实的配色文件渲染，另附如何编写并发布你自己的主题。一个主题就是一个 JSON 文件，没有需要挤进去的注册表。', 'nav.docs': '文档', 'nav.plugins': '插件', 'nav.themes': '主题', 'nav.changelog': '更新日志',
     'head.kicker': '外观',
@@ -46,7 +45,6 @@ var KOBE_I18N = (function () {
     'footer.plugins': '插件', 'footer.changelog': '更新日志', 'footer.themedocs': '主题文档', 'footer.keybindings': '快捷键',
   };
   var en = {
-    'nav.assembly': 'Assembly',
     'meta.title': 'Rove: themes',
     'meta.desc': "Every bundled Rove theme, rendered from its real color file, plus how to write and publish your own. A theme is one JSON file; there is no registry to get into.", 'nav.docs': 'Docs', 'nav.plugins': 'Plugins', 'nav.themes': 'Themes', 'nav.changelog': 'Changelog',
     'head.kicker': 'Appearance',

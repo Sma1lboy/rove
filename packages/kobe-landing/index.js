@@ -13,7 +13,7 @@ var KOBE_I18N = (function () {
     // ── 图纸公用（四张图共用）
     'sheet.skip': '跳到图纸',
     'sheet.stamp': '第 1 张 / 共 4 张',
-    'sheet.nav.docs': '文档', 'sheet.nav.assembly': '总装图', 'sheet.nav.plugins': '插件',
+    'sheet.nav.docs': '文档', 'sheet.nav.plugins': '插件',
     'sheet.nav.themes': '主题', 'sheet.nav.changelog': '更新日志', 'sheet.nav.github': 'GitHub',
 
     // ── 标题栏 / 修订记录
@@ -117,7 +117,7 @@ var KOBE_I18N = (function () {
     // ── sheet furniture (shared by all four sheets)
     'sheet.skip': 'Skip to drawing',
     'sheet.stamp': 'Sheet 1 of 4',
-    'sheet.nav.docs': 'Docs', 'sheet.nav.assembly': 'Assembly', 'sheet.nav.plugins': 'Plugins',
+    'sheet.nav.docs': 'Docs', 'sheet.nav.plugins': 'Plugins',
     'sheet.nav.themes': 'Themes', 'sheet.nav.changelog': 'Changelog', 'sheet.nav.github': 'GitHub',
 
     // ── title block / revision table
