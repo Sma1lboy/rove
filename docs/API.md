@@ -589,12 +589,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   - `reason` — why nothing was confirmed. Present only with
     `engineReady: false`.
 
-  Every engine receives Enter, including while it is mid-turn. Delivery does
-  not read the engine's screen to pick a submit key: an engine that queues a
-  mid-turn message on Enter queues it there, and a footer hint that arrives
-  after the read window can no longer leave the text sitting in the input
-  box. What an engine does with an Enter it received while working is the
-  engine's own behavior, not something this result reports.
+  Every engine receives Enter, including while it is mid-turn. Codex first receives End, which flushes its pending paste without changing the text. On Windows, Enter alone can join an unfinished paste burst as a newline and leave the message in the input box. Delivery does not read the engine's footer to choose a submit key. How an engine handles a mid-turn submission remains the engine's own behavior, not something this result reports.
 
   A FRESH spawn carries the prompt on the engine's own command line, so there
   is no write to observe; `engineReady` there reports the engine PROCESS being
