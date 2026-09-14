@@ -2,14 +2,17 @@ import { describe, expect, it, vi } from "vitest"
 import { deliverToExactTab } from "../../src/cli/api/exact-tab-delivery.ts"
 
 describe("Codex prompt submission", () => {
+  // The screen is painted with a "tab to queue message" footer and redrawn on
+  // every write — including right after the Enter — and delivery still presses
+  // Enter: the submit key is no longer read off the engine's repaint, so a
+  // hint, fresh or late, can neither switch the key to Tab nor append a
+  // delayed Tab.
   it.each([
-    { redraw: "none", prompt: "continue the work", paste: "continue the work " },
-    { redraw: "paste", prompt: "continue the work", paste: "continue the work " },
-    { redraw: "enter", prompt: "continue the work", paste: "continue the work " },
-    { redraw: "paste", prompt: "check @nonexistent-file", paste: "check @nonexistent-file " },
-    { redraw: "paste", prompt: "/status", paste: "/status" },
-    { redraw: "paste", prompt: "!pwd", paste: "!pwd" },
-  ])("uses Enter for $prompt with queue hint redraw=$redraw", async ({ redraw, prompt, paste }) => {
+    { prompt: "continue the work", paste: "continue the work " },
+    { prompt: "check @nonexistent-file", paste: "check @nonexistent-file " },
+    { prompt: "/status", paste: "/status" },
+    { prompt: "!pwd", paste: "!pwd" },
+  ])("uses Enter for $prompt even with a queue hint on screen", async ({ prompt, paste }) => {
     const key = "task::tab-2"
     const sent: string[] = []
     let output = "\x1b[?2004htab to queue message"
@@ -33,12 +36,8 @@ describe("Codex prompt submission", () => {
         if (name === "pty.write") {
           const data = payload?.data ?? ""
           sent.push(data)
-          if (data.startsWith("\x1b[200~")) {
-            output += `\x1b[5;3H${data.slice(6, -6)}`
-            if (redraw === "paste") output += "tab to queue message"
-          } else if (data === "\r" && redraw === "enter") {
-            output += "tab to queue message"
-          }
+          if (data.startsWith("\x1b[200~")) output += `\x1b[5;3H${data.slice(6, -6)}tab to queue message`
+          if (data === "\r") output += "tab to queue message"
         }
         return {}
       })

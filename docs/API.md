@@ -586,17 +586,15 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     engines that collapse a large paste into a `[Pasted text #1]` placeholder
     never echo the text, so a positive proves delivery while a negative
     merely fails to.
-  - `queued` — `true` when delivery observed the engine's "tab to queue
-    message" hint and pressed Tab. Absence means queueing was not observed;
-    it does not prove the engine started the prompt immediately.
   - `reason` — why nothing was confirmed. Present only with
     `engineReady: false`.
 
-  Codex receives Enter, including while working, so the message follows its
-  immediate submission path. Its "tab to queue message" hint never switches
-  delivery to Tab, including on a delayed redraw. The live target engine
-  determines the key, including when a tab runs a different engine from its
-  task's default.
+  Every engine receives Enter, including while it is mid-turn. Delivery does
+  not read the engine's screen to pick a submit key: an engine that queues a
+  mid-turn message on Enter queues it there, and a footer hint that arrives
+  after the read window can no longer leave the text sitting in the input
+  box. What an engine does with an Enter it received while working is the
+  engine's own behavior, not something this result reports.
 
   A FRESH spawn carries the prompt on the engine's own command line, so there
   is no write to observe; `engineReady` there reports the engine PROCESS being
