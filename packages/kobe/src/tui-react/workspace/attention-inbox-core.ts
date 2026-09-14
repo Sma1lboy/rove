@@ -207,7 +207,14 @@ export function inboxRows(
       tabId: visit.tabId,
       at: visit.at,
     }))
-  const seenTasks = new Set(visited.map((visit) => visit.taskId))
+  // Built from the SURVIVING visited rows, not the raw visit log: a task whose
+  // every visited tab has since closed produces no visited row (all dropped by
+  // `tabAlive`), so it must fall back to a task-level RECENT row like a
+  // never-visited task. Keying off the raw log instead marked it "seen" and
+  // excluded it from `unvisitedRows` too, so the live task vanished from the
+  // Inbox entirely. A task with any surviving visited row is still in the set,
+  // so it never doubles as both a tab row and a task-level row.
+  const seenTasks = new Set(visitedRows.map((row) => row.task.id))
   const unvisitedRows = tasks
     .filter(
       (task) =>
