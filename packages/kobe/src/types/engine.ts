@@ -67,6 +67,9 @@ export interface EngineCapabilities {
    *  something about its own composer closed first (a mention popup) says so
    *  here, in the text. */
   readonly preparePromptSubmission?: (prompt: string) => string | null
+  /** Non-text keys to finish composer preparation, outside the paste wrapper
+   *  and immediately before the shared Enter. */
+  readonly beforePromptSubmit?: string
   /** Optional vendor-owned adjustments for its full-screen terminal UI. */
   readonly terminalPresentation?: EngineTerminalPresentation
   /**

@@ -305,19 +305,9 @@ export async function awaitPasteReady(
  * bytes: a pty in canonical mode discards past `MAX_INPUT` instead of
  * blocking, and `pty.write` returns void, so nothing downstream could tell.
  *
- * The submit key is Enter for every engine and is NOT read off the engine's
- * own repaint. It used to be: delivery peeked at the ring after the paste
- * looking for a "tab to queue message" footer and pressed Tab when it saw
- * one, re-checking once 300ms after Enter. That read had a 450ms budget
- * (SUBMIT_DELAY_MS + the re-check) against a repaint the engine controls, so
- * a footer drawn a frame late left Enter going to an engine that had not yet
- * been asked for Tab, and a burst of output that rolled the peek offset out
- * of the 512KB ring let a STALE hint press Tab at an idle engine. Both
- * failures park the text in the composer while delivery still reports
- * `confirmed` — the composer's own echo of the paste counts as proof it
- * landed. Enter is the one key every engine reads the same way; an engine
- * that queues a mid-turn message on Enter queues it, and one that does not
- * is no worse off than a read that missed its window.
+ * The adapter's preparatory keys run outside the paste wrapper, immediately
+ * before Enter. They finish input processing in engines that buffer a paste
+ * burst; the submit key is never chosen from a footer redraw.
  *
  * Returns the bytes written, so callers can report what they actually did
  * rather than assuming. Note this counts bytes HANDED TO the pty; whether
@@ -331,11 +321,12 @@ export async function writeHostedPrompt(
   opts?: { readonly ready?: boolean; readonly vendor?: VendorId | null },
 ): Promise<{ readonly bytes: number }> {
   const bracketed = opts?.ready ?? (await awaitPasteReady(rpc, key))
-  const prepared = opts?.vendor ? engineEntry(opts.vendor).capabilities?.preparePromptSubmission?.(prompt) : null
+  const capabilities = opts?.vendor ? engineEntry(opts.vendor).capabilities : undefined
+  const prepared = capabilities?.preparePromptSubmission?.(prompt)
   const data = encodePaste(prepared ?? prompt, bracketed)
   await rpc.request("pty.write", { key, data })
   await new Promise((resolve) => setTimeout(resolve, SUBMIT_DELAY_MS))
-  await rpc.request("pty.write", { key, data: "\r" })
+  await rpc.request("pty.write", { key, data: `${capabilities?.beforePromptSubmit ?? ""}\r` })
   return { bytes: Buffer.byteLength(data, "utf8") }
 }
 
