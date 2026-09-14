@@ -33,7 +33,15 @@
    --font-mono is deliberately NOT redefined: it inherits the sheet's IBM Plex
    Mono, so the specimen reads in the drawing's own hand and no extra font is
    fetched. */
-#fleet{
+/* The specimen keeps the product's terminal palette, but only inside the frame.
+   Scoping it to #fleet as a whole was wrong: the eyebrow and the caption sit
+   outside the terminal — they are the drawing talking — and two of these names,
+   --ink and --accent, mean the opposite thing on either side of that border, so
+   a caption written in terminal ink went nearly invisible on the cyanotype.
+   These nine used to come from the old site's chrome.css. --font-mono is
+   deliberately absent: the specimen inherits the sheet's IBM Plex Mono, so it
+   reads in the drawing's own hand and no extra font is fetched. */
+#fleet .fleet-frame{
   --accent:oklch(56% 0.13 45);
   --accent-2:oklch(70% 0.11 50);
   --ease-out:cubic-bezier(0.16,1,0.3,1);
@@ -42,13 +50,11 @@
   --muted:oklch(50% 0.02 60);
   --well:oklch(22% 0.02 50);
   --well-ink:oklch(88% 0.015 85);
-  margin:0;max-width:100%;
+  border:1px solid var(--rule);
 }
-#fleet .fleet-frame{border:1px solid var(--rule)}
-/* The caption under the specimen is the drawing talking, not the terminal, so
-   it leaves the scoped palette behind and takes the sheet's own ink. It stays
-   because it is the one line that changes with zen — it reports which view you
-   are looking at. */
+#fleet{margin:0;max-width:100%}
+/* The sheet has no --muted, so the caption names its own ink rather than
+   inheriting a token that does not exist here. */
 #fleet .fleet-note{
   margin:16px 0 0;max-width:72ch;text-align:left;
   font-family:var(--font-body);font-size:14px;line-height:1.62;color:var(--ink-2);
