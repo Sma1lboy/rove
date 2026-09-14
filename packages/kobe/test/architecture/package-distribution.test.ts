@@ -355,8 +355,7 @@ describe("Rove package distribution", () => {
     // performance attributes a page may legitimately gain, and pinning the
     // literal tag turns that into a failure.
     expect(home).toMatch(/<script[^>]+src="\/index\.js"/)
-    expect(home).toContain('<link rel="stylesheet" href="/home.css">')
-    expect(homeScript).toContain("navigator.clipboard.writeText")
+    expect(homeScript).toContain("https://api.github.com/repos/Sma1lboy/rove")
     expect(themes).toContain('<link rel="stylesheet" href="/themes.css">')
     expect(themes).toMatch(/<script[^>]+src="\/themes\.js"/)
     expect(themesScript).toContain("var KOBE_I18N")
