@@ -262,7 +262,7 @@ html[data-lang="zh"] svg .tx,html[data-lang="zh"] svg .tx-s,html[data-lang="zh"]
       <ol class="gnotes">
         <li data-s="n1.g1">Entries are appended, never edited. A mistake in a shipped revision is corrected by the next revision, not by rewriting this one.</li>
         <li data-s="n1.g2">Every triangle drawn on this sheet appears as a row in one of its two tables.</li>
-        <li data-s="n1.g3">Product revisions are numbered (191, 190, …). Revisions to <em>this drawing</em> are lettered — see the title block, zone H.</li>
+        <li data-s="n1.g3">Product revisions are numbered (196, 195, …). Revisions to <em>this drawing</em> are lettered — see the title block, zone H.</li>
       </ol>
     </div>
   </section>
@@ -621,7 +621,7 @@ html[data-lang="zh"] svg .tx,html[data-lang="zh"] svg .tx-s,html[data-lang="zh"]
     'subj.r1': { en: 'Channel latest', zh: '通道 latest' },
     'subj.r3': { en: 'Patch changes', zh: '补丁更新' },
     'subj.f1': { en: 'See block, zone C', zh: '见修订栏，图区 C' },
-    'subj.f2': { en: 'Rev 191', zh: '修订 191' },
+    'subj.f2': { en: 'Rev 196', zh: '修订 196' },
     'subj.tri': { en: 'Triangle keys a change to the table', zh: '三角形把一处改动对应到表里' },
 
     'n1.num': { en: 'Note 1', zh: '注 1' },
@@ -647,25 +647,25 @@ html[data-lang="zh"] svg .tx,html[data-lang="zh"] svg .tx-s,html[data-lang="zh"]
       zh: '图 1 — 发布路径 · 一条线上的各个零件，状态标在下方 · 虚线闸门 = 每个构建都要过的检查'
     },
     'n1.p1': {
-      en: 'A change carries its own release note into the repository. The pull request adds a Markdown file under <span class="mono">.changeset/</span> saying what changed and how far the version moves; merging consumes those files, writes the new version, and appends their text to <span class="mono">CHANGELOG.md</span>.',
-      zh: '一处改动自己把发布说明带进仓库。PR 在 <span class="mono">.changeset/</span> 下加一个 Markdown 文件，写明改了什么、版本走多远；合并时这些文件被消费掉，新版本号被写入，文本被追加进 <span class="mono">CHANGELOG.md</span>。'
+      en: 'A change carries its own release note in. The pull request adds a Markdown file under <span class="mono">.changeset/</span>; merging consumes those files, writes the new version, and appends their text to <span class="mono">CHANGELOG.md</span>.',
+      zh: '改动自带发布说明。PR 在 <span class="mono">.changeset/</span> 下加一个 Markdown 文件；合并时消费掉这些文件，写出新版本号，并把它们的正文追加进 <span class="mono">CHANGELOG.md</span>。'
     },
     'n1.p2': {
-      en: 'The tag is pushed from <span class="mono">main</span>, the publish happens in CI, and the release body on GitHub is the changelog entry verbatim. <b>That is why this block can be fetched rather than written:</b> the text below is the same text that travelled in with the code.',
-      zh: 'tag 从 <span class="mono">main</span> 推出，发布在 CI 里完成，GitHub 上的 release 正文就是 changelog 条目的原文。<b>所以这张修订栏是取来的，不是另写的：</b>下面的文字就是当初随代码一起进来的那段。'
+      en: 'The tag is pushed from main, the publish happens in CI, and the GitHub release body is that changelog entry verbatim — so this block is fetched, not written.',
+      zh: 'tag 从 main 推出，发布在 CI 里完成，GitHub 上的 release 正文就是那条 changelog 原文——所以这一块是抓来的，不是写的。'
     },
     'n1.p3': {
-      en: 'Pre-1.0, almost every revision is a <span class="mono">patch</span>. A release that also carries a minor bump keeps the two apart under separate headings, and this sheet keeps them apart too — see the sub-rules inside a revision in zone C.',
-      zh: '1.0 之前，几乎每条修订都是 <span class="mono">patch</span>。同时带 minor 提升的版本会用两个小标题分开，这张图也照样分开——见图区 C 里一条修订内部的子分栏。'
+      en: 'Pre-1.0, almost every revision is a patch. A release that also carries a minor bump keeps the two under separate headings, and so does this sheet.',
+      zh: '1.0 之前几乎每条修订都是 patch。同时带 minor 的那次发布会把两者分在不同标题下，这张图纸也照分。'
     },
     'n1.g1': {
-      en: 'Entries are appended, never edited. A mistake in a shipped revision is corrected by the next revision, not by rewriting this one.',
-      zh: '条目只追加，不改写。已发出的修订里有错，由下一条修订纠正，而不是回头改这一条。'
+      en: 'Entries are appended, never edited. A mistake in a shipped revision is corrected by the next one.',
+      zh: '条目只追加，不修改。已发布修订里的错误由下一条修订更正。'
     },
     'n1.g2': { en: 'Every triangle drawn on this sheet appears as a row in one of its two tables.', zh: '这张图上画出的每个三角形，都能在它两张表之一里找到对应的一行。' },
     'n1.g3': {
-      en: 'Product revisions are numbered (191, 190, …). Revisions to <em>this drawing</em> are lettered — see the title block, zone H.',
-      zh: '产品修订用数字（191、190、…）。<em>这张图本身</em>的修订用字母——见标题栏，图区 H。'
+      en: 'Product revisions are numbered (196, 195, …). Revisions to <em>this drawing</em> are lettered — see the title block, zone H.',
+      zh: '产品修订用数字（196、195、…）。<em>这张图本身</em>的修订用字母——见标题栏，图区 H。'
     },
 
     'n2.num': { en: 'Note 2', zh: '注 2' },
@@ -698,16 +698,16 @@ html[data-lang="zh"] svg .tx,html[data-lang="zh"] svg .tx-s,html[data-lang="zh"]
       zh: '图 2 — 一条修订，4:1 · ① 修订三角形 + tag ② 日期 ③ 各条改动 ④ 作者 ⑤ 图区'
     },
     'n3.p1': {
-      en: '<b>The triangle is the key.</b> On a drawing it sits beside the thing that changed and carries the revision number; the table then says what that number means. Here the number is the patch level of the version — revision <span class="mono">191</span> is <span class="mono">v0.9.196</span> — so the key and the tag are the same fact written twice.',
-      zh: '<b>三角形就是索引。</b>在图纸上它挨着被改动的那处，里面写修订号；表格再说明这个号是什么意思。这里这个号就是版本的补丁位——修订 <span class="mono">191</span> 就是 <span class="mono">v0.9.196</span>——索引和 tag 是同一件事写了两遍。'
+      en: 'The triangle is the key: on a drawing it sits beside what changed and carries the revision number. Here that number is the patch level — revision 196 is v0.9.196.',
+      zh: '三角形就是索引：在图纸上它挨着被改动的那处，里面写修订号。这里这个号就是 patch 位——修订 196 就是 v0.9.196。'
     },
     'n3.p2': {
-      en: '<b>The description is not one line.</b> A tag can carry several changes, each arriving with its own pull request, so a revision\'s description is a short list. Where a release separated patch changes from minor ones, that split is kept as a sub-rule inside the revision rather than flattened into one run of bullets.',
-      zh: '<b>说明不止一行。</b>一个 tag 可以带好几处改动，每处各有自己的 PR，所以一条修订的说明是一份短清单。原发布里把 patch 和 minor 分开写的，这里保留成修订内部的子分栏，而不是压成一串平铺的条目。'
+      en: 'The description is not one line. A tag can carry several changes, each from its own pull request, so a revision\'s description is a short list.',
+      zh: '描述不是一行。一个 tag 可以带好几处改动，各自来自不同的 PR，所以一条修订的描述是一份短清单。'
     },
     'n3.p3': {
-      en: '<b>Zone is a coordinate, not a category.</b> It says where on this sheet the revision is drawn: every entry is plotted in the block, zone C, and the current revision is also stamped in the title block, zone H. It is the one column that is about the drawing rather than the program.',
-      zh: '<b>图区是坐标，不是分类。</b>它说明这条修订画在本图的哪里：每一条都画在修订栏（图区 C）里，当前修订另外还盖在标题栏（图区 H）上。这是唯一一列说的是图纸而不是程序。'
+      en: 'Zone is a coordinate, not a category: where on this sheet the revision is drawn. Every entry is plotted in zone C; the current one is also stamped in the title block, zone H.',
+      zh: '区是坐标，不是分类：它说这条修订画在图纸的哪里。每条都落在 C 区；当前这条同时盖在 H 区的标题栏里。'
     },
 
     'n4.num': { en: 'Note 4', zh: '注 4' },
@@ -728,12 +728,12 @@ html[data-lang="zh"] svg .tx,html[data-lang="zh"] svg .tx-s,html[data-lang="zh"]
       zh: '稳定线：成批、经过审阅的版本。直接安装拿到的是它，上面那张修订栏画的也是它。'
     },
     'n4.nightly': {
-      en: 'An automated daily cut from <span class="mono">main</span>. It passes the same test gates, but its contents have not been reviewed as a set — expect rough edges in exchange for changes landing days earlier.',
-      zh: '从 <span class="mono">main</span> 每日自动切出。它过的是同一套测试门禁，但内容没有作为整体被审阅过——用一些毛刺换改动早几天到手。'
+      en: 'An automated daily cut from main. Same test gates, but its contents have not been reviewed as a set.',
+      zh: '从 main 每天自动切一版。测试门禁相同，但内容没有作为一整组被审阅过。'
     },
     'n4.p1': {
-      en: 'You do not configure a channel. <b>The build you are running <em>is</em> the channel</b> — update checks follow whichever one you installed from, and switching is just installing from the other. <span class="mono">rove update</span> with no arguments never moves you between them.',
-      zh: '通道不是配置出来的。<b>你正在跑的那个构建<em>就是</em>通道</b>——更新检查跟着你当初从哪条线装的走，切换无非是从另一条线装一次。不带参数的 <span class="mono">rove update</span> 永远不会把你在两条线之间搬来搬去。'
+      en: 'You do not configure a channel — the build you are running is the channel. Update checks follow whichever one you installed from; <span class="mono">rove update</span> with no arguments never moves you between them.',
+      zh: '通道不用配置——你正在跑的那个构建就是通道。更新检查跟着你当初装的那一条走；不带参数的 <span class="mono">rove update</span> 永远不会把你换到另一条上。'
     },
     'n4.p2': {
       en: '<span class="mono">rove update list</span> browses recent versions and <span class="mono">rove update dry-run</span> prints the command without running it. Updates go through whichever package manager owns the <span class="mono">rove</span> on your <span class="mono">PATH</span>, so a new version cannot land in a shadowed prefix.',
