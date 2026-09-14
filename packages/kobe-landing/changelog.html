@@ -153,11 +153,12 @@ html[data-lang="zh"] svg .tx,html[data-lang="zh"] svg .tx-s,html[data-lang="zh"]
           <span class="cmd">rove update</span>
           <span class="hint" data-hint data-s="upd.hint">Click to copy</span>
         </button>
-        <div class="alts">
-          <button class="alt" data-cmd="rove update 0.7.90">rove update 0.7.90</button>
-          <button class="alt" data-cmd="rove update nightly">rove update nightly</button>
-          <button class="alt" data-cmd="rove update latest">rove update latest</button>
-        </div>
+        <p class="alts">
+          <span data-s="upd.alts">or pin one</span>
+          <button class="alt" data-cmd="rove update 0.7.90" title="rove update 0.7.90">0.7.90</button>
+          <button class="alt" data-cmd="rove update nightly" title="rove update nightly">nightly</button>
+          <button class="alt" data-cmd="rove update latest" title="rove update latest">latest</button>
+        </p>
       </div>
       <p class="platform" data-s="platform">Takes the newest build on your channel · a bare version pins one · a channel name switches lines</p>
     </div>
@@ -613,6 +614,7 @@ html[data-lang="zh"] svg .tx,html[data-lang="zh"] svg .tx-s,html[data-lang="zh"]
     },
     'upd.tag': { en: 'Update', zh: '更新' },
     'upd.hint': { en: 'Click to copy', zh: '点击复制' },
+    'upd.alts': { en: 'or pin one', zh: '或指定一个' },
     'platform': {
       en: 'Takes the newest build on your channel · a bare version pins one · a channel name switches lines',
       zh: '取你所在通道的最新构建 · 直接写版本号则钉住某一版 · 写通道名则切换发布线'

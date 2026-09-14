@@ -144,13 +144,17 @@ h1 .thin{font-weight:400;color:var(--ink-2)}
 .rev-cloud{position:absolute;max-width:none;top:-11px;left:-11px;width:calc(100% + 22px);height:calc(100% + 22px);pointer-events:none;opacity:0;transition:opacity .2s ease}
 .rev-cloud path{fill:none;stroke:var(--accent-line);stroke-width:1.4;vector-effect:non-scaling-stroke}
 .install-wrap.is-copied .rev-cloud{opacity:1}
-.alts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+/* The alternates are a footnote, not a second offer. One command is the
+   instruction; npm/bun/npx are for people who already know which they want,
+   and they still copy the full command on click. */
+.alts{margin-top:12px;font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3);
+  display:flex;flex-wrap:wrap;gap:7px;align-items:baseline}
 .alt{
-  background:transparent;border:1px solid var(--rule);color:var(--ink-2);cursor:pointer;
-  font-family:var(--font-mono);font-size:11.5px;padding:6px 9px;
+  background:none;border:0;border-bottom:1px solid var(--rule);color:var(--ink-2);
+  cursor:pointer;font:inherit;padding:0 0 1px;
 }
-.alt:hover{border-color:var(--ink-2);color:var(--ink)}
-.alt.is-copied{border-color:var(--accent-line);color:var(--accent-text)}
+.alt:hover{border-bottom-color:var(--ink-2);color:var(--ink)}
+.alt.is-copied{border-bottom-color:var(--accent-line);color:var(--accent-text)}
 .platform{margin-top:18px;font-size:12.5px;color:var(--ink-2);font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.12em}
 
 /* subject block --------------------------------------------------------- */

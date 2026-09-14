@@ -268,10 +268,11 @@
           <span class="hint" data-hint data-i18n="hero.hint">Click to copy</span>
         </button>
       </div>
-      <div class="alts">
-        <button class="alt" data-cmd="rove plugin install owner/repo/subdir">rove plugin install owner/repo/subdir</button>
-        <button class="alt" data-cmd="rove plugin list">rove plugin list</button>
-      </div>
+      <p class="alts">
+        <span data-i18n="hero.alts">also</span>
+        <button class="alt" data-cmd="rove plugin install owner/repo/subdir" title="rove plugin install owner/repo/subdir" data-i18n="hero.altSubdir">from a subdirectory</button>
+        <button class="alt" data-cmd="rove plugin list" title="rove plugin list" data-i18n="hero.altList">list installed</button>
+      </p>
       <p class="platform" data-i18n="hero.platform">Anything you can script against your fleet, you can ship to someone else.</p>
     </div>
 
@@ -748,6 +749,9 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'hero.lede': '第 1 张图画的是总装。这里是图上没人自制的那些件。Rove 插件就是<b>一个带 <span class="mono">rove-plugin.toml</span> 清单的目录</b>——要求仅此一条。没有必需的 SDK，因为整个 Rove CLI 就是插件 API。',
       'hero.tag': '安装',
       'hero.hint': '点击复制',
+      'hero.alts': '还可以',
+      'hero.altSubdir': '从子目录安装',
+      'hero.altList': '列出已装的',
       'hero.platform': '你能用脚本对机群做的事，就能打包给别人。',
       'hero.bought': '外购件',
       'subj.cap': '本图对象',
@@ -856,6 +860,9 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
       'hero.lede': 'Sheet 1 drew the assembly. These are the parts nobody on this drawing made. A Rove plugin is <b>a directory with a <span class="mono">rove-plugin.toml</span> manifest</b> — that is the whole requirement. There is no required SDK, because the entire Rove CLI is the plugin API.',
       'hero.tag': 'Install',
       'hero.hint': 'Click to copy',
+      'hero.alts': 'also',
+      'hero.altSubdir': 'from a subdirectory',
+      'hero.altList': 'list installed',
       'hero.platform': 'Anything you can script against your fleet, you can ship to someone else.',
       'hero.bought': 'Bought-in part',
       'subj.cap': 'Subject of drawing',

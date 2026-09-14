@@ -111,6 +111,7 @@ var KOBE_I18N = (function () {
     'footer.tagline': '终端里的编码代理多路复用器。',
     'footer.colophon': '用 Bun、OpenTUI 和 React 构建。字体为 Saira Condensed、IBM Plex Sans 与 IBM Plex Mono。MIT 许可。',
     'footer.plugins': '插件', 'footer.themesLink': '主题', 'footer.changelog': '更新日志', 'footer.docs': '文档', 'footer.keybindings': '快捷键',
+    'hero.alts': '或者用',
   };
   var en = {
     'meta.title': 'Rove: the agent multiplexer in your shell',
@@ -222,6 +223,7 @@ var KOBE_I18N = (function () {
     'footer.tagline': 'a terminal multiplexer for coding agents.',
     'footer.colophon': 'Built with Bun, OpenTUI and React. Set in Saira Condensed, IBM Plex Sans and IBM Plex Mono. MIT licensed.',
     'footer.plugins': 'plugins', 'footer.themesLink': 'themes', 'footer.changelog': 'changelog', 'footer.docs': 'docs', 'footer.keybindings': 'keybindings',
+    'hero.alts': 'or with',
   };
   var dicts = { en: en, zh: zh };
   var lang = 'en';
