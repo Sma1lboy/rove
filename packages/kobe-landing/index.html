@@ -78,6 +78,18 @@
 .fleet-dark-ground #fleet .fl-zenchip{background:rgba(255,255,255,.045)}
 .fleet-dark-ground #fleet .rule{background:rgba(255,255,255,.10)}
 
+/* A drawing does not paste a full-size photograph between its notes — it draws
+   the thing to scale. The specimen is 1290px wide at 1:1; the figure column is
+   about 600. Scaling it to fit puts it in the same column, at the same size, in
+   the same rhythm as Figs. 2-5, and the sheet states the reduction the way a
+   drawing states any other: SCALE 1:2. It stays live — scaling does not move
+   where a click lands. */
+#fleet{--fleet-scale:.46}
+#fleet .fleet-frame{transform:scale(var(--fleet-scale));transform-origin:top left;width:1290px}
+#fleet .fleet-shrink{overflow:hidden}
+@media (max-width:900px){ #fleet{--fleet-scale:.28} }
+
+
 </style>
 <style>
 /* Page-local only. Three things the shared sheet CSS has no opinion on yet;
@@ -243,6 +255,21 @@
   }
   sync();
   matchMedia('(prefers-color-scheme:dark)').addEventListener('change', sync);
+
+  /* A scaled element still reserves its unscaled box, so the frame left a band
+     of empty paper under it. Measure the natural height once and give the
+     wrapper the scaled one. */
+  function fit() {
+    var box = document.querySelector('#fleet .fleet-shrink');
+    var frame = box && box.firstElementChild;
+    if (!frame) return;
+    var k = parseFloat(getComputedStyle(document.getElementById('fleet'))
+                         .getPropertyValue('--fleet-scale')) || 1;
+    box.style.height = Math.round(frame.offsetHeight * k) + 'px';
+  }
+  addEventListener('load', fit);
+  addEventListener('resize', fit);
+  fit();
   new MutationObserver(sync).observe(r, { attributes: true, attributeFilter: ['data-theme'] });
 })();
 </script>
@@ -346,7 +373,7 @@
   </section>
 
   <!-- ══ NOTE 1 — GENERAL ASSEMBLY ═══════════════════════════════════════ -->
-  <section class="note wide" data-zone="B">
+  <section class="note" data-zone="B">
     <h2><span class="num" data-i18n="ga.note1">Note 1</span> &mdash; <span data-i18n="ga.n5.h">Physical view</span> <span class="dash"></span> <span class="micro" data-i18n="ga.fig1">Fig. 1</span></h2>
 
     <div class="fig-col">
@@ -356,7 +383,7 @@
             <span class="cue" data-i18n="fleet.cue">PICK A TASK →</span>
           </p>
       
-          <div class="fleet-frame">
+          <div class="fleet-shrink"><div class="fleet-frame">
             <div class="fleet-cols">
       
               <!-- Tasks rail -->
@@ -452,7 +479,7 @@
           <span data-zen-only data-i18n-html="fleet.noteZen">This is zen mode: Files is collapsed and the workspace takes the freed width. Hit <b>☯ ZEN</b> at the bottom of the rail to bring it back, or pick a task on the left. This is a live layout, not a screenshot.</span>
           <span data-full-only hidden data-i18n-html="fleet.noteFull">The full layout: Tasks on the left, the split workspace, Changes on the right. Pick a task, or use <b>[~] Zen</b> to collapse Files. This is a live layout, not a screenshot.</span>
         </p>
-        </div>
+        </div></div>
       <figcaption data-i18n="ga.fig5cap">Fig. 5 — Physical view · three repositories, four tasks, none attached</figcaption>
     </div>
 
