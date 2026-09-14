@@ -240,6 +240,10 @@ engine or shell does not receive them.
 The mouse wheel uses the same scrollback. Buffer size is configured in
 Settings → General → Terminal and applies to newly opened terminals.
 
+While scrolled back, click **first** beside the line count to jump to the
+earliest retained line, or **latest** to return to the bottom and follow new
+output. These buttons do not send input to the engine or shell.
+
 ### Searching it
 
 `ctrl+a` `/` opens a query row in the pane footer. Typing filters as you go,
