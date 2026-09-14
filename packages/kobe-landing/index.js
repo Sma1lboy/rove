@@ -42,8 +42,8 @@ var KOBE_I18N = (function () {
     'ga.f1.own': '自己的 checkout —— 不共享', 'ga.f1.wtSub': '并行的活儿撞不到一起',
     'ga.f1.dim': '1 个托管任务',
     'ga.f1.cap': '图 2 —— 托管任务分解图 · 比例 1:1 · A—A 剖切通过 checkout',
-    'ga.n1.p1': '一条 prompt 变成一个或多个 <b>任务</b>。任务是 Rove 隔离的单位：建一个 git worktree，切一条分支，在里面开终端 tab。什么都不横向共享，所以同一条 prompt 上的第二个代理，是在另一个目录、另一条分支上干活。',
-    'ga.n1.p2': '任务里还能再开 tab —— 第二个代理跑在<em>同一批</em>文件上，但有自己的对话 —— 以及分屏，那只是把屏幕切开。',
+    'ga.n1.p1': '一个 Task 就是 Rove 隔离的单位：一个 git worktree、一个分支，和开在里面的终端 tab。一条 prompt 可以生成好几个。',
+    'ga.n1.p2': 'Task 内部再开 tab，是另一个代理动<i>同一批</i>文件、各自一份对话。split 只是把屏幕切开。',
     'ga.n1.tcap': '零件表',
     'ga.n1.th1': '件号', 'ga.n1.th2': '数量', 'ga.n1.th3': '零件', 'ga.n1.th4': '说明',
     'ga.n1.r1d': '磁盘上自己的 checkout',
@@ -51,8 +51,6 @@ var KOBE_I18N = (function () {
     'ga.n1.r3n': '终端 tab', 'ga.n1.r3d': '同一批文件，各自的对话',
     'ga.n1.tnote': 'project-main 任务复用一份已保存的 checkout，directory 任务复用你自己的目录；这两种都不配 1 号和 2 号零件。',
     'ga.n1.g1': '三个零件在任务创建时一次装齐，之后不再分配。',
-    'ga.n1.g2': '落选的分支不删除。赢家合入之后，它们仍留在磁盘上。',
-    'ga.n1.g3': '退出 TUI 只是断开，零件不会停。见注 4。',
 
     'ga.n2.h': '隔离',
     'ga.f2.datum': '基准',
@@ -60,8 +58,8 @@ var KOBE_I18N = (function () {
     'ga.f2.r2': '新 tab', 'ga.f2.r2s': '各自的对话 · 同一批文件', 'ga.f2.r2d': '只隔离对话',
     'ga.f2.r3': '新分屏', 'ga.f2.r3d': '只是布局',
     'ga.f2.cap': '图 3 —— 从公共基准量隔离 · 剖面线面 = 磁盘上彼此独立的文件',
-    'ga.n2.p1': '每往下一层，隔离就降一档，产品自己用三行说清楚：',
-    'ga.n2.p2': '心智模型就这些。两个代理绝不能碰彼此的文件，就给两个任务；一个代理要读另一个刚写的东西，就给它一个 tab。',
+    'ga.n2.p1': '每往下一级，隔离就松一档：',
+    'ga.n2.p2': '两个代理不能碰对方的文件：给两个 Task。一个要读另一个刚写的东西：给一个 Tab。',
 
     'ga.n3.h': '扇出，扇入',
     'ga.f3.prompt': '1 条 prompt',
@@ -69,8 +67,8 @@ var KOBE_I18N = (function () {
     'ga.f3.cap': '图 4 —— 混合舰队上的扇出 · 尺寸链逐字对应舰队规格',
     'ga.n3.round': '这条命令跑一轮，量出来是',
     'ga.rr1': '5 个尝试', 'ga.rr2': '5 个 worktree', 'ga.rr3': '5 条分支',
-    'ga.n3.p2': '每个同胞任务都有自己的 worktree 和分支。一轮跑完，<span class="mono">rove api collect --group &lt;id&gt;</span> 一次调用就读出整轮的状况 —— 每个任务的分支、diff 大小、检查结果，还有 worker 自己的回报 —— 再用 <span class="mono">rove api land --task-id &lt;id&gt;</span> 合入赢家。落选的分支留在磁盘上。',
-    'ga.n3.p3': '<b>代理之间以对等身份互发消息。</b>从另一个任务派生出来的 worker，用一句朴素的 <span class="mono">rove api send --prompt "succeeded: … (branch fix/auth-flow)"</span> 回报。Rove 记下了谁派生了谁，所以回复会精确路由回那个 tab。没有协调器进程。',
+    'ga.n3.p2': '一轮跑完，<span class="mono">rove api collect --group &lt;id&gt;</span> 一次调用读完整轮——分支、diff 大小、检查、每个 worker 自己的回报；<span class="mono">rove api land --task-id &lt;id&gt;</span> 合入赢的那个。输的分支留在磁盘上。',
+    'ga.n3.p3': 'worker 用一句裸的 <span class="mono">rove api send</span> 回报。Rove 记着谁派生了谁，回复直接路由回那个 tab。没有协调进程。',
 
     'ga.n4.h': '持续运行',
     'ga.f4.tui': '你的 TUI', 'ga.f4.tuiSub': '可能已断开',
@@ -80,10 +78,8 @@ var KOBE_I18N = (function () {
     'ga.f4.back': '接回来时屏幕原样恢复',
     'ga.f4.dim': '最多恢复 64 MB 回滚，从最新开始',
     'ga.f4.cap': '图 5 —— 断开态运行 · 虚线 = 可能缺席的那个零件',
-    'ga.n4.p1': '引擎跑在 daemon 托管的 PTY 里，不归你的终端管。退出 TUI 只是断开。掐掉 SSH、合上盖子、重启 —— 活儿照样继续，接回来时屏幕原样恢复，最多带回 64 MB 回滚，从最新开始。',
-    'ga.n4.p2': '<b>机器。</b><span class="mono">rove machine add narwhal</span> 注册另一台电脑。它的任务出现在同一个侧栏、自己的一行下面 —— 不开端口，不加新认证，SSH 只是转发远端 daemon 的 unix socket。所有机器同时连着。',
-    'ga.n4.p3': '<b>Routines。</b>一条 cron 规则、一条 prompt、一个仓库，由 daemon 持有。每次触发都在侧栏里创建一个真实任务，带自己的 worktree 和分支 —— 你能打开、能读、能反驳、能接着聊。不是一个藏起来的后台作业。',
-    'ga.n4.p4': '<b>Inbox。</b>一份只回答<em>「哪些需要我」</em>的列表。卡住的排前面 —— 权限询问、限流、报错、引擎挂了 —— 然后才是普通的已完成轮次。<span class="mono">F7</span> 跳到所有项目里最早卡住的那一个。',
+    'ga.n4.p1': '引擎跑在 daemon 托管的 PTY 里，不在你的终端里。退出 TUI 只是脱离——断 SSH、合盖、重启，活儿照跑，重新接上时最多 64 MB 回滚缓冲还在。',
+    'ga.n4.p2': '<b>机器</b>——<span class="mono">rove machine add narwhal</span> 把另一台电脑的任务放进同一个侧栏；SSH 转发它的 daemon socket，不开端口也不加认证。<b>例程</b>——一条 cron 规则，生成的是你能打开、能反驳的真任务，不是隐藏的后台作业。<b>收件箱</b>——一份列表，卡住的排前面；F7 跳到所有项目里最早那条。',
 
     'ga.n5.h': '符号图例', 'ga.n5.sub': '侧栏状态标记',
 
@@ -101,9 +97,9 @@ var KOBE_I18N = (function () {
     'ga.fig5cap': '图 1 —— 实物视图 · 三个仓库、四个任务、无人接管',
     'fleet.eyebrow': '四个任务在跑，没人接管',
     'fleet.cue': '点一个任务 →',
-    'fleet.note': '一个真实会话：三个仓库、四个任务，每个任务独占自己的 worktree、分支和终端 tab。<strong>此刻没有任何人接在上面</strong>——每个引擎都跑在 daemon 托管的 hosted PTY 里，关掉 TUI 活儿照样继续。',
-    'fleet.noteFull': '完整布局：左边 Tasks、中间分屏工作区、右边 Changes。点左边任意一个任务，或用 <b>[~] Zen</b> 收起 Files——这是活的布局，不是一张截图。',
-    'fleet.noteZen': '现在是 Zen 模式：Files 栏收起，工作区吃掉腾出来的宽度。点左下角 <b>☯ ZEN</b> 退出，或点左边任意一个任务——这是活的布局，不是一张截图。',
+    'fleet.note': '三个仓库、四个任务，<strong>没有一个有人接管</strong>——每个引擎都在 daemon 背后的 hosted PTY 里。',
+    'fleet.noteFull': '左边 Tasks、中间分屏工作区、右边 Changes。点一个任务，或按 <b>[~] Zen</b> 收起 Files。',
+    'fleet.noteZen': 'Zen 模式：Files 收起，工作区吃掉腾出的宽度。按 <b>☯ ZEN</b> 收回来，或者点一个任务。',
   };
   var en = {
     'meta.title': 'Rove: the agent multiplexer in your shell',
@@ -146,8 +142,8 @@ var KOBE_I18N = (function () {
     'ga.f1.own': 'Own checkout — not shared', 'ga.f1.wtSub': 'Parallel work cannot collide',
     'ga.f1.dim': '1 managed task',
     'ga.f1.cap': 'Fig. 2 — Managed task, exploded view · Scale 1:1 · Section A—A through the checkout',
-    'ga.n1.p1': 'One prompt becomes one or more <b>Tasks</b>. A Task is the unit Rove isolates: it creates a git worktree, cuts a branch, and opens terminal tabs inside it. Nothing is shared sideways, so a second agent on the same prompt is working in a different directory on a different branch.',
-    'ga.n1.p2': 'Inside a Task you can open more tabs — a second agent on the <em>same</em> files with its own conversation — and splits, which only divide the screen.',
+    'ga.n1.p1': 'A Task is what Rove isolates: a git worktree, a branch, and terminal tabs inside it. One prompt can make several.',
+    'ga.n1.p2': 'More tabs inside a Task are another agent on the <i>same</i> files with its own conversation. Splits only divide the screen.',
     'ga.n1.tcap': 'Parts list',
     'ga.n1.th1': 'Item', 'ga.n1.th2': 'Qty', 'ga.n1.th3': 'Part', 'ga.n1.th4': 'Note',
     'ga.n1.r1d': 'Own checkout on disk',
@@ -155,8 +151,6 @@ var KOBE_I18N = (function () {
     'ga.n1.r3n': 'Terminal tab', 'ga.n1.r3d': 'Same files, separate conversation',
     'ga.n1.tnote': 'Project-main tasks reuse a saved checkout and directory tasks reuse a directory you own; neither is supplied with items 1 and 2.',
     'ga.n1.g1': 'All three parts are created when the task is made. Nothing is allocated later.',
-    'ga.n1.g2': 'Losing branches are not deleted. They stay on disk after the winner is landed.',
-    'ga.n1.g3': 'Quitting the TUI detaches; it does not stop the parts. See Note 4.',
 
     'ga.n2.h': 'Isolation',
     'ga.f2.datum': 'Datum',
@@ -164,8 +158,8 @@ var KOBE_I18N = (function () {
     'ga.f2.r2': 'New tab', 'ga.f2.r2s': 'Own conversation · same files', 'ga.f2.r2d': 'Conversation only',
     'ga.f2.r3': 'New split', 'ga.f2.r3d': 'Layout only',
     'ga.f2.cap': 'Fig. 3 — Isolation from a common datum · Hatched face = separate files on disk',
-    'ga.n2.p1': 'Isolation drops one notch at each level down, and the product says so in three lines:',
-    'ga.n2.p2': 'That is the whole mental model. If two agents must not touch each other’s files, give them two Tasks. If one agent should read what another just wrote, give it a Tab.',
+    'ga.n2.p1': 'Isolation drops one notch at each level down:',
+    'ga.n2.p2': 'Two agents that must not touch each other’s files: two Tasks. One that should read what another just wrote: a Tab.',
 
     'ga.n3.h': 'Fan out, fan in',
     'ga.f3.prompt': '1 prompt',
@@ -173,8 +167,8 @@ var KOBE_I18N = (function () {
     'ga.f3.cap': 'Fig. 4 — Fan-out on a mixed fleet · Dimension chain reads the fleet spec verbatim',
     'ga.n3.round': 'One round of that command measures as',
     'ga.rr1': '5 attempts', 'ga.rr2': '5 worktrees', 'ga.rr3': '5 branches',
-    'ga.n3.p2': 'Each sibling gets its own worktree and branch. When the round is done, <span class="mono">rove api collect --group &lt;id&gt;</span> reads the whole round’s health in one call — per-task branch, diff size, checks, and the worker’s own report — and <span class="mono">rove api land --task-id &lt;id&gt;</span> merges the winner. The losing branches stay on disk.',
-    'ga.n3.p3': '<b>Agents talk to each other as peers.</b> A worker spawned from another task reports home with a bare <span class="mono">rove api send --prompt "succeeded: … (branch fix/auth-flow)"</span>. Rove recorded who spawned whom, so the reply routes back to the exact tab. There is no coordinator process.',
+    'ga.n3.p2': 'When the round is done, <span class="mono">rove api collect --group &lt;id&gt;</span> reads it in one call — branch, diff size, checks, each worker’s own report — and <span class="mono">rove api land --task-id &lt;id&gt;</span> merges the winner. Losing branches stay on disk.',
+    'ga.n3.p3': 'Workers report home with a bare <span class="mono">rove api send</span>. Rove recorded who spawned whom, so the reply routes back to the exact tab. No coordinator process.',
 
     'ga.n4.h': 'Continuous operation',
     'ga.f4.tui': 'Your TUI', 'ga.f4.tuiSub': 'May detach',
@@ -184,10 +178,8 @@ var KOBE_I18N = (function () {
     'ga.f4.back': 'Screens come back on attach',
     'ga.f4.dim': '≤ 64 MB scrollback restored, newest first',
     'ga.f4.cap': 'Fig. 5 — Detached operation · Hidden line = the part that may be absent',
-    'ga.n4.p1': 'The engines run in PTYs hosted by the daemon, not by your terminal. Quitting the TUI only detaches. Drop the SSH connection, close the lid, reboot — the work keeps going, and the screens come back on attach with up to 64 MB of scrollback restored, newest first.',
-    'ga.n4.p2': '<b>Machines.</b> <span class="mono">rove machine add narwhal</span> registers another computer. Its tasks appear in the same sidebar under a row of their own — no ports opened, no new auth, SSH just forwards the remote daemon’s unix socket. Every machine is connected at once.',
-    'ga.n4.p3': '<b>Routines.</b> A cron rule, a prompt, and a repo, owned by the daemon. Every firing creates a real task in the sidebar with its own worktree and branch — work you can open, read, disagree with, and keep talking to. Not a hidden background job.',
-    'ga.n4.p4': '<b>Inbox.</b> One list answering <em>what needs me?</em> Blocked items first — permission prompt, rate limit, error, dead engine — then plain finished turns. <span class="mono">F7</span> jumps to the oldest blocked one across every project.',
+    'ga.n4.p1': 'Engines run in PTYs hosted by the daemon, not your terminal. Quitting the TUI only detaches — drop the SSH connection, close the lid, reboot; the work keeps going, and up to 64 MB of scrollback comes back on attach.',
+    'ga.n4.p2': '<b>Machines</b> — <span class="mono">rove machine add narwhal</span> puts another computer’s tasks in the same sidebar; SSH forwards its daemon socket, so no ports and no new auth. <b>Routines</b> — a cron rule that creates real tasks you can open and argue with, not a hidden job. <b>Inbox</b> — one list, blocked items first; F7 jumps to the oldest across every project.',
 
     'ga.n5.h': 'Symbol legend', 'ga.n5.sub': 'Sidebar status marks',
 
@@ -205,9 +197,9 @@ var KOBE_I18N = (function () {
     'ga.fig5cap': 'Fig. 1 — Physical view · three repositories, four tasks, none attached',
     'fleet.eyebrow': 'four tasks running, nobody attached',
     'fleet.cue': 'pick a task →',
-    'fleet.note': 'A real session: three repositories, four tasks, each on its own worktree, branch and terminal tabs. <strong>Nothing is attached to any of them right now.</strong> Every engine runs in a hosted PTY behind the daemon, so the work continues with the TUI closed.',
-    'fleet.noteFull': 'The full layout: Tasks on the left, the split workspace, Changes on the right. Pick a task, or use <b>[~] Zen</b> to collapse Files. This is a live layout, not a screenshot.',
-    'fleet.noteZen': 'This is zen mode: Files is collapsed and the workspace takes the freed width. Hit <b>☯ ZEN</b> at the bottom of the rail to bring it back, or pick a task on the left. This is a live layout, not a screenshot.',
+    'fleet.note': 'Three repositories, four tasks, <strong>nobody attached to any of them</strong> — every engine in a hosted PTY behind the daemon.',
+    'fleet.noteFull': 'Tasks left, split workspace, Changes right. Pick a task, or hit <b>[~] Zen</b> to collapse Files.',
+    'fleet.noteZen': 'Zen mode: Files is collapsed and the workspace takes the freed width. Hit <b>☯ ZEN</b> to bring it back, or pick a task.',
   };
   var dicts = { en: en, zh: zh };
   var lang = 'en';

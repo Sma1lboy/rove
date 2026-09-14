@@ -537,8 +537,6 @@
       <p class="t-note" data-i18n="ga.n1.tnote">Project-main tasks reuse a saved checkout and directory tasks reuse a directory you own; neither is supplied with items 1 and 2.</p>
       <ol class="gnotes">
         <li data-i18n="ga.n1.g1">All three parts are created when the task is made. Nothing is allocated later.</li>
-        <li data-i18n="ga.n1.g2">Losing branches are not deleted. They stay on disk after the winner is landed.</li>
-        <li data-i18n="ga.n1.g3">Quitting the TUI detaches; it does not stop the parts. See Note 4.</li>
       </ol>
     </div>
   </section>
@@ -723,8 +721,6 @@
     <div class="txt-col">
       <p data-i18n="ga.n4.p1">The engines run in PTYs hosted by the daemon, not by your terminal. Quitting the TUI only detaches. Drop the SSH connection, close the lid, reboot — the work keeps going, and the screens come back on attach with up to 64 MB of scrollback restored, newest first.</p>
       <p data-i18n-html="ga.n4.p2"><b>Machines.</b> <span class="mono">rove machine add narwhal</span> registers another computer. Its tasks appear in the same sidebar under a row of their own — no ports opened, no new auth, SSH just forwards the remote daemon's unix socket. Every machine is connected at once.</p>
-      <p data-i18n-html="ga.n4.p3"><b>Routines.</b> A cron rule, a prompt, and a repo, owned by the daemon. Every firing creates a real task in the sidebar with its own worktree and branch — work you can open, read, disagree with, and keep talking to. Not a hidden background job.</p>
-      <p data-i18n-html="ga.n4.p4"><b>Inbox.</b> One list answering <em>what needs me?</em> Blocked items first — permission prompt, rate limit, error, dead engine — then plain finished turns. <span class="mono">F7</span> jumps to the oldest blocked one across every project.</p>
     </div>
   </section>
 
