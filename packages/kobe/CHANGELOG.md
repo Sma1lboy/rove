@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.197
+
+### Patch Changes
+
+- [#1004](https://github.com/Sma1lboy/rove/pull/1004) [`c3fc45a`](https://github.com/Sma1lboy/rove/commit/c3fc45a994394ff3fe618fbb97d0110c1dee93ce) Fix long `rove api send` messages staying in Codex's input box on Windows. A fixed 150ms pause could send Enter while Codex was still collecting the paste, so Enter became another newline instead of submitting the report. Codex delivery now sends End immediately before Enter, outside the pasted text. End flushes the pending paste without changing its contents, so Enter submits it during a running turn as well as at idle. No footer detection, longer fixed delay, or repeated paste is needed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.196
 
 ### Patch Changes
