@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.198
+
+### Patch Changes
+
+- [#1005](https://github.com/Sma1lboy/rove/pull/1005) [`0943eca`](https://github.com/Sma1lboy/rove/commit/0943eca31d432d46a3700f379911098856bdf825) Add clickable first and latest buttons beside the terminal scrollback line count. Jump to the earliest retained output or return to live output in one click, without paging through thousands of lines. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.197
 
 ### Patch Changes
