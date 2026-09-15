@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.200
+
+### Patch Changes
+
+- [#1015](https://github.com/Sma1lboy/rove/pull/1015) [`0ec9e5b`](https://github.com/Sma1lboy/rove/commit/0ec9e5b8fcb2585e11741fbeac8b64ed76c28d6e) Make terminal typing and streaming smoother. Use a 60fps snapshot and render cadence on macOS and Linux as well as Windows, and retain each visible terminal row's text buffer so a changed input line does not rebuild the whole pane. Preserve terminal colors, wide characters, selection, search, and cursor placement. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.199
 
 ### Patch Changes
