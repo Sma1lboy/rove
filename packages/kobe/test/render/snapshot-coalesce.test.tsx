@@ -17,10 +17,11 @@ test("snapshot coalesce window matches the renderer's frame period", async () =>
     </box>,
     { ...hostRenderOptions(), width: 20, height: 5 },
   )
-  const liveFps = (t.renderer as unknown as { targetFps: number }).targetFps
-  expect(liveFps).toBeGreaterThan(0)
-  expect(liveFps).toBe(fps)
-  await (t as unknown as { destroy?: () => Promise<void> }).destroy?.()
+  try {
+    expect(t.renderer.targetFps).toBe(fps)
+  } finally {
+    t.renderer.destroy()
+  }
 })
 
 test("all platforms use a 60fps terminal cadence", () => {

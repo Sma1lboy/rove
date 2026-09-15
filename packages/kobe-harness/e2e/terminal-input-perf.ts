@@ -25,8 +25,9 @@ const root = process.argv[2]
 if (!root || !/^\/tmp\/rpaint-[a-zA-Z0-9-]+$/.test(root)) throw new Error("expected /tmp/rpaint-<run> output directory")
 await mkdir(root, { recursive: true })
 const headed = process.env.HEADED === "1"
-const browser = await chromium.launch({ headless: !headed })
-const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
+// Pin the GPU surface as well as CSS pixels on Retina displays.
+const browser = await chromium.launch({ headless: !headed, args: ["--force-device-scale-factor=1"] })
+const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 })
 await page.addInitScript(() => {
   const probe: Probe = { record: false, socket: null, observer: null, prompt: "", samples: [], sent: "", pending: [], sends: [], wire: [] }
   window.terminalProbe = probe
