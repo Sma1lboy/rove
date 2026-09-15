@@ -58,6 +58,12 @@ Rules:
   own `loading`), and a keypress proving a CALLBACK fired — a binding that was
   never registered renders identically to one that works.
 
+## Terminal input performance
+
+With an isolated `visual:serve` fixture running, run `HEADED=1 TEST_URL=http://localhost:5273 node e2e/terminal-input-perf.ts /tmp/rpaint-run` from `packages/kobe-harness`. It opens the fixture shell through the 1280×800 `/harness`, measures browser-input-to-buffer latency for idle typing and typing during real PTY output, and saves screenshots plus raw timing samples. The workload also checks Unicode output, backspace clearing, and returning from the alternate screen. Use a fresh output directory for each comparison. Headless Chromium's WebGL rendering can dominate latency; compare runs in the same browser mode and inspect the recorded incoming frame timestamps before attributing a delay to Rove.
+
+`bun scripts/terminal-paint-bench.ts` from `packages/kobe` compares whole-content replacement with retained row buffers using the real OpenTUI renderer. This measures conversion and rendering cost, and supplements the browser journey rather than replacing it.
+
 ## Behavioral self-test
 
 `test/behavior/harness.ts` runs the published `dist/cli/kobe.js` and
