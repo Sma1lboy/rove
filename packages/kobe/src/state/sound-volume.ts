@@ -33,10 +33,21 @@ export function normalizeSoundVolume(value: unknown): number {
   return Math.min(1, Math.max(0, n))
 }
 
-/** The step after `volume` — the nearest step at or below it, then one along, wrapping. */
+/**
+ * The step after `volume` — the nearest step at or BELOW it, then one along,
+ * wrapping.
+ *
+ * `findLastIndex(step <= current)`, not `findIndex(step >= current)`: a value
+ * that sits between steps (a hand-edited `0.5`, say) already makes the
+ * `>=` search land on the next step up, so the `+ 1` then advanced a second
+ * time and skipped a step — cycling from `0.5` jumped to `0.8`, and `0.6` was
+ * unreachable. Anchoring on the step at or below `current` advances by exactly
+ * one from every input. A `current` below the first step (or the silent `0`)
+ * finds nothing (`-1`) and the wrap lands on the quietest step.
+ */
 export function nextSoundVolume(volume: number): number {
   const current = normalizeSoundVolume(volume)
-  const at = SOUND_VOLUME_STEPS.findIndex((step) => step >= current - 1e-9)
+  const at = SOUND_VOLUME_STEPS.findLastIndex((step) => step <= current + 1e-9)
   return SOUND_VOLUME_STEPS[(at < 0 ? 0 : at + 1) % SOUND_VOLUME_STEPS.length] as number
 }
 
