@@ -75,7 +75,43 @@ describe("usageRows", () => {
       },
       NOW,
     )
-    expect(rows[0]?.label).toBe("Extremel")
+    // Capped to 8 cells with a trailing ellipsis, so the cut reads as truncation
+    // rather than a real (and misleading) label like "Extremel".
+    expect(rows[0]?.label).toBe("Extreme…")
+    expect(displayWidth(rows[0]?.label ?? "")).toBe(8)
+  })
+
+  it("aligns a wide-glyph label by display cells, not UTF-16 length", () => {
+    // A CJK model display name is half its cell width in code units, so a
+    // code-unit padEnd would under-pad it and drag the meters out of line.
+    const rows = usageRows(
+      {
+        windows: [
+          { kind: "session", label: "5h", percent: 20, resetsAt: null },
+          { kind: "weekly_scoped", label: "模型名称", percent: 40, resetsAt: null },
+        ],
+        capturedAt: NOW,
+      },
+      NOW,
+    )
+    // Both windows must occupy the same label column width in cells.
+    const widths = rows.map((r) => displayWidth(r.label))
+    expect(widths).toEqual([8, 8])
+    // The wide label is preserved verbatim (it fits the 8-cell cap exactly).
+    expect(rows[1]?.label).toBe("模型名称")
+  })
+
+  it("truncates an over-cap wide label on a glyph boundary without splitting", () => {
+    const rows = usageRows(
+      {
+        windows: [{ kind: "weekly_scoped", label: "超长中文模型名称", percent: 10, resetsAt: null }],
+        capturedAt: NOW,
+      },
+      NOW,
+    )
+    // 3 glyphs (6 cells) + ellipsis + one pad cell = 8 cells; no half glyph.
+    expect(rows[0]?.label).toBe("超长中… ")
+    expect(displayWidth(rows[0]?.label ?? "")).toBe(8)
   })
 })
 
