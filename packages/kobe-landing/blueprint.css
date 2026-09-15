@@ -22,9 +22,17 @@
   --w-frame:2px;
   color-scheme:light;
 }
-:root:not([data-theme="light"]){}
+/* The sheet prints light by default, whatever the reader's system says.
+   The cyanotype is still here and still correct — it is one attribute away:
+
+     <html data-theme="dark">    the cyanotype
+     <html data-theme="auto">    follow the reader's system, the old behaviour
+     <html>                      the light plot, the default
+
+   To go back to following the system, change the selector below to
+   :root:not([data-theme="light"]) — that one edit is the whole switch. */
 @media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
+  :root[data-theme="auto"]{
     --paper:#0A2340;
     --paper-2:#0E2C4E;
     --ink:#E7EDF5;
