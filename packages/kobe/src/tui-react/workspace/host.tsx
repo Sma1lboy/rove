@@ -79,7 +79,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     inboxItems,
     taskJobs,
     worktreeChanges,
-    transcriptActivity,
   } = useDaemonState(orch)
 
   // Sidebar-search gate: mutes the host's letter chords while typing. Move
@@ -372,7 +371,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
             engineLifecycle,
             taskJobs,
             worktreeChanges,
-            transcriptActivity,
           }}
           actions={taskActions}
           pages={pages}

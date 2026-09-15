@@ -50,18 +50,11 @@ export type TreeRowShared = {
   readonly onContextMenu?: (flatIndex: number, rowId: string, x: number, y: number) => void
   /** The sidebar's ~2s poll tick — drives the ±stats poller. */
   readonly branchTick: number
-  readonly engineState?: ReadonlyMap<string, TaskEngineState>
-  /** Per-tab activity (taskId → tabId → state) — the precise signal for a
-   *  tab row; `engineState` is the task-level rollup fallback. */
+  /** Per-tab activity (taskId → tabId → state), never the task rollup. */
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
   readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges | null> | null
-  /** Daemon-collected transcript facts keyed by WORKTREE path. A tab row
-   *  needs them to tell a finished turn from one whose engine is still
-   *  writing in hook silence (`stillWorkingAfterCompletion`) — without it
-   *  every `turn_complete` reads as done the moment the hook fires. */
-  readonly transcriptActivity?: ReadonlyMap<string, { readonly mtimeMs: number }> | null
 }
 
 /**

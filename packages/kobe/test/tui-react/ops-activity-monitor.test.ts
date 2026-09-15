@@ -1,166 +1,195 @@
-/**
- * The Ops pane's framework-free turn-status poll loop
- * (`tui/ops/activity-monitor.ts`). Kept out of the component (host.tsx pulls
- * @opentui render assets) so the teardown-race swallow and the ChatTab done
- * rule ("new completion id + quiescent pane") are checkable with fake IO and
- * fake timers — a regression here silently reports "done" for a sibling
- * window's turn.
- */
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { startTurnStatusPoll } from "../../src/tui/ops/activity-monitor.ts"
-import { TURN_STATUS_POLL_MS } from "../../src/tui/ops/activity-poll.ts"
+import type { TranscriptScan } from "../../src/engine/turn-detector"
+import { type TurnSession, startTurnStatusPoll } from "../../src/tui/ops/activity-monitor"
 
-beforeEach(() => {
-  vi.useFakeTimers()
-})
-afterEach(() => {
-  vi.useRealTimers()
-})
+beforeEach(() => vi.useFakeTimers())
+afterEach(() => vi.useRealTimers())
 
-describe("startTurnStatusPoll", () => {
-  function makeIo(pane: () => string) {
+function scan(id: string | null, mtimeMs = 1): TranscriptScan {
+  return { mtimeMs, marker: id ? { id, timestampMs: mtimeMs, source: "claude" } : null }
+}
+
+function fixture() {
+  const files = new Map<string, TranscriptScan | null>([
+    ["/shared/a.jsonl", scan("a0")],
+    ["/shared/b.jsonl", scan("b0")],
+  ])
+  const read = vi.fn(async (path: string) => files.get(path) ?? null)
+  function tab(id: string) {
+    let pane = "ready"
+    let session: TurnSession | null = { id, transcriptPath: `/shared/${id}.jsonl` }
     const published: string[] = []
-    return {
-      published,
-      io: {
+    const stop = startTurnStatusPoll(
+      {
+        detector: { supportsCompletionMarkers: () => true, latestActivityInFile: read },
+        session: () => session,
+      },
+      {
         sessionAttached: async () => true,
-        capturePane: async () => pane(),
-        setTurnState: async (state: string) => {
+        capturePane: async () => pane,
+        setTurnState: async (state) => {
           published.push(state)
         },
       },
+    )
+    return {
+      published,
+      stop,
+      setPane: (text: string) => {
+        pane = text
+      },
+      setSession: (next: TurnSession | null) => {
+        session = next
+      },
     }
   }
+  return { files, read, tab }
+}
 
-  it("fallback mode: idle on prime, running on pane change, done after quiescence + NEW completion", async () => {
-    let pane = "A"
-    let completion: string | null = "c0"
-    const latestCompletion = vi.fn(async () => (completion ? { id: completion } : null))
-    const { published, io } = makeIo(() => pane)
-    const stop = startTurnStatusPoll(
-      {
-        worktree: "/wt",
-        detector: { supportsCompletionMarkers: () => true, latestCompletion },
-        usingShared: () => false,
-        sharedEntry: () => null,
-      },
-      io,
-    )
-    await vi.advanceTimersByTimeAsync(0)
-    expect(published).toEqual(["idle"])
-    // The pane content changed → a turn is running.
-    pane = "B"
-    await vi.advanceTimersByTimeAsync(TURN_STATUS_POLL_MS)
-    expect(published).toEqual(["idle", "running"])
-    // A new completion id lands, pane goes quiescent: done only after the
-    // stable-poll threshold, not on the first unchanged read.
-    completion = "c1"
-    await vi.advanceTimersByTimeAsync(TURN_STATUS_POLL_MS)
-    expect(published).toEqual(["idle", "running"])
-    await vi.advanceTimersByTimeAsync(TURN_STATUS_POLL_MS)
-    expect(published).toEqual(["idle", "running", "done"])
-    stop()
+describe("per-session turn polling", () => {
+  it("does not complete A when B completes, even after A changed and became quiet", async () => {
+    const f = fixture()
+    const a = f.tab("a")
+    const b = f.tab("b")
+    try {
+      await vi.advanceTimersByTimeAsync(0)
+      a.setPane("A working")
+      b.setPane("B working")
+      await vi.advanceTimersByTimeAsync(1500)
+      f.files.set("/shared/b.jsonl", scan("b1", 2))
+      await vi.advanceTimersByTimeAsync(4500)
+      expect(a.published).toEqual(["idle", "running"])
+      expect(b.published).toEqual(["idle", "running", "done"])
+      f.files.set("/shared/a.jsonl", scan("a1", 3))
+      await vi.advanceTimersByTimeAsync(6000)
+      expect(a.published).toEqual(["idle", "running", "done"])
+      expect(b.published).toEqual(["idle", "running", "done"])
+    } finally {
+      a.stop()
+      b.stop()
+    }
   })
 
-  it("stays quiet when the pane never changed, even with a new completion id (sibling-window turn)", async () => {
-    let completion = "c0"
-    const { published, io } = makeIo(() => "A")
-    const stop = startTurnStatusPoll(
-      {
-        worktree: "/wt",
-        detector: { supportsCompletionMarkers: () => true, latestCompletion: async () => ({ id: completion }) },
-        usingShared: () => false,
-        sharedEntry: () => null,
-      },
-      io,
-    )
-    await vi.advanceTimersByTimeAsync(0)
-    completion = "c1"
-    await vi.advanceTimersByTimeAsync(TURN_STATUS_POLL_MS * 5)
-    expect(published).toEqual(["idle"])
-    stop()
+  it("does not report completion when only the transcript changes and the paired PTY never did", async () => {
+    const f = fixture()
+    const a = f.tab("a")
+    try {
+      await vi.advanceTimersByTimeAsync(0)
+      f.files.set("/shared/a.jsonl", scan("a1", 2))
+      await vi.advanceTimersByTimeAsync(15000)
+      expect(a.published).toEqual(["idle"])
+    } finally {
+      a.stop()
+    }
   })
 
-  it("shared mode: completion comes from the daemon push, never a local transcript read", async () => {
-    let pane = "A"
-    let entry = { mtimeMs: 1, completionId: "c0", completionAt: 0 }
-    const latestCompletion = vi.fn(async () => ({ id: "local-never-used" }))
-    const { published, io } = makeIo(() => pane)
-    const stop = startTurnStatusPoll(
-      {
-        worktree: "/wt",
-        detector: { supportsCompletionMarkers: () => true, latestCompletion },
-        usingShared: () => true,
-        sharedEntry: () => entry,
-      },
-      io,
-    )
-    await vi.advanceTimersByTimeAsync(0)
-    expect(published).toEqual(["idle"])
-    pane = "B"
-    await vi.advanceTimersByTimeAsync(TURN_STATUS_POLL_MS)
-    expect(published).toEqual(["idle", "running"])
-    entry = { mtimeMs: 2, completionId: "c1", completionAt: 1 }
-    await vi.advanceTimersByTimeAsync(TURN_STATUS_POLL_MS)
-    await vi.advanceTimersByTimeAsync(TURN_STATUS_POLL_MS)
-    expect(published).toEqual(["idle", "running", "done"])
-    expect(latestCompletion).not.toHaveBeenCalled()
-    stop()
+  it("resets the baseline across /clear and never reads the previous session again", async () => {
+    const f = fixture()
+    const a = f.tab("a")
+    try {
+      await vi.advanceTimersByTimeAsync(0)
+      a.setPane("old working")
+      await vi.advanceTimersByTimeAsync(1500)
+      f.files.set("/shared/new.jsonl", scan("new0"))
+      a.setSession({ id: "new", transcriptPath: "/shared/new.jsonl" })
+      await vi.advanceTimersByTimeAsync(1500)
+      f.read.mockClear()
+      f.files.set("/shared/a.jsonl", scan("old-late-completion", 500))
+      a.setPane("new working")
+      await vi.advanceTimersByTimeAsync(6000)
+      expect(a.published).toEqual(["idle", "running", "idle", "running"])
+      expect(f.read.mock.calls.every(([path]) => path === "/shared/new.jsonl")).toBe(true)
+      f.files.set("/shared/new.jsonl", scan("new1", 2))
+      await vi.advanceTimersByTimeAsync(1500)
+      expect(a.published.at(-1)).toBe("done")
+    } finally {
+      a.stop()
+    }
   })
 
-  it("unknown-marker engines publish unknown and never done", async () => {
-    let pane = "A"
-    const { published, io } = makeIo(() => pane)
-    const stop = startTurnStatusPoll(
-      {
-        worktree: "/wt",
-        detector: { supportsCompletionMarkers: () => false, latestCompletion: async () => ({ id: "x" }) },
-        usingShared: () => false,
-        sharedEntry: () => null,
-      },
-      io,
-    )
-    await vi.advanceTimersByTimeAsync(0)
-    pane = "B"
-    await vi.advanceTimersByTimeAsync(TURN_STATUS_POLL_MS * 4)
-    expect(published).toEqual(["unknown"])
-    stop()
+  it.each(["missing", "unreadable", "unknown"] as const)(
+    "does not borrow another session when its own is %s",
+    async (mode) => {
+      const f = fixture()
+      const a = f.tab("a")
+      try {
+        await vi.advanceTimersByTimeAsync(0)
+        a.setPane("working")
+        await vi.advanceTimersByTimeAsync(1500)
+        if (mode === "unknown") a.setSession(null)
+        else if (mode === "missing") f.files.set("/shared/a.jsonl", null)
+        else
+          f.read.mockImplementation(async () => {
+            throw new Error("unreadable")
+          })
+        f.files.set("/shared/b.jsonl", scan("b1", 900))
+        await vi.advanceTimersByTimeAsync(15000)
+        expect(a.published).not.toContain("done")
+        expect(f.read.mock.calls.every(([path]) => path === "/shared/a.jsonl")).toBe(true)
+      } finally {
+        a.stop()
+      }
+    },
+  )
+
+  it.each(["clear", "close"] as const)("ignores an in-flight completion after %s", async (event) => {
+    const f = fixture()
+    const a = f.tab("a")
+    try {
+      await vi.advanceTimersByTimeAsync(0)
+      a.setPane("working")
+      await vi.advanceTimersByTimeAsync(4500)
+      let finish: ((value: TranscriptScan) => void) | undefined
+      f.read.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve
+          }),
+      )
+      await vi.advanceTimersByTimeAsync(1500)
+      if (event === "clear") a.setSession({ id: "new", transcriptPath: "/shared/new.jsonl" })
+      else a.stop()
+      finish?.(scan("late", 100))
+      await vi.advanceTimersByTimeAsync(0)
+      expect(a.published).not.toContain("done")
+    } finally {
+      a.stop()
+    }
   })
 
-  it("marker-less engines WITH a screen manifest classify the capture", async () => {
-    let pane = "$ shell prompt"
-    const { published, io } = makeIo(() => pane)
+  it("uses only the paired screen when the engine has no transcript identity", async () => {
+    let pane = "ready"
+    const published: string[] = []
+    const read = vi.fn(async () => null)
     const stop = startTurnStatusPoll(
       {
-        worktree: "/wt",
-        detector: { supportsCompletionMarkers: () => false, latestCompletion: async () => null },
-        usingShared: () => false,
-        sharedEntry: () => null,
+        detector: { supportsCompletionMarkers: () => true, latestActivityInFile: read },
+        session: () => null,
         screenManifest: {
           rules: [
-            { state: "blocked", all: ["proceed?"] },
             { state: "working", any: ["esc to cancel"] },
+            { state: "blocked", all: ["proceed?"] },
           ],
         },
       },
-      io,
+      {
+        sessionAttached: async () => true,
+        capturePane: async () => pane,
+        setTurnState: async (state) => {
+          published.push(state)
+        },
+      },
     )
-    // prime: nothing matches → first read publishes unknown (never silence)
-    await vi.advanceTimersByTimeAsync(0)
-    expect(published).toEqual(["unknown"])
-    // a running turn shows the interrupt hint
-    pane = "output…\nEsc to cancel"
-    await vi.advanceTimersByTimeAsync(TURN_STATUS_POLL_MS)
-    expect(published).toEqual(["unknown", "running"])
-    // a dialog appears WITHOUT the pane hash logic mattering → needs_input
-    pane = "Do you want to proceed?\n❯ Yes"
-    await vi.advanceTimersByTimeAsync(TURN_STATUS_POLL_MS)
-    expect(published).toEqual(["unknown", "running", "needs_input"])
-    // an unrecognized screen keeps the previous reading (no flapping)
-    pane = "something unrecognizable"
-    await vi.advanceTimersByTimeAsync(TURN_STATUS_POLL_MS * 2)
-    expect(published).toEqual(["unknown", "running", "needs_input"])
-    stop()
+    try {
+      await vi.advanceTimersByTimeAsync(0)
+      pane = "Esc to cancel"
+      await vi.advanceTimersByTimeAsync(1500)
+      pane = "proceed?"
+      await vi.advanceTimersByTimeAsync(1500)
+      expect(published).toEqual(["unknown", "running", "needs_input"])
+      expect(read).not.toHaveBeenCalled()
+    } finally {
+      stop()
+    }
   })
 })

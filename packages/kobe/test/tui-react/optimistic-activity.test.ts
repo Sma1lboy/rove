@@ -124,7 +124,7 @@ describe("mergeAnsweredTabs", () => {
 
   // The whole point of the downgrade: the sidebar must still get an activity
   // entry for the answered tab. Deleting it made `tabRowActivity` return
-  // undefined (a reporting sibling blocks the task rollup fallback), and the
+  // undefined, and the
   // row of a working engine went dim `·` for the mark's full 30min life.
   it("leaves the answered tab with activity the sidebar can read", () => {
     const busy = tabs({
@@ -135,10 +135,8 @@ describe("mergeAnsweredTabs", () => {
     })
     const perTab = mergeAnsweredTabs(busy, new Map([["t1::tab-27", 2000]]), 2500).get("t1")
     const activity = tabRowActivity({
-      tabActivity: perTab?.get("tab-27"),
-      reportedTabCount: perTab?.size ?? 0,
-      taskActivity: undefined,
-      active: true,
+      tabId: "tab-27",
+      tabActivities: perTab,
     })
     expect(activity?.state).toBe("idle")
   })

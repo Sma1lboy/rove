@@ -150,7 +150,7 @@ function build(opts: {
     task: opts.task,
     activity: opts.activity,
     job: opts.job,
-    transcript: opts.transcript,
+    ...{ transcript: opts.transcript },
     lifecycle: opts.lifecycle,
     spinnerFrame: opts.spinnerFrame ?? 0,
     subtitleBudget: opts.subtitleBudget ?? SUBTITLE_BUDGET,
@@ -182,9 +182,7 @@ export function activityCrossProduct(): string[] {
                     ? undefined
                     : { phase: deletion, force: false, requestedAt: "2026-01-01T00:00:00.000Z" },
               })
-              // A transcript written well past the completion hook is the
-              // "still working" signal; the same fact is inert for every
-              // other activity state, which is itself worth locking.
+              // Directory transcript changes must not override a tab's activity.
               const view = build({
                 task: subject,
                 activity: activityOf(state),
@@ -310,10 +308,8 @@ export function statusVsActivityBlock(): string[] {
 }
 
 /**
- * The completion/transcript race: a `turn-complete` hook whose transcript kept
- * growing afterwards is not a completion. The grace window absorbs the
- * sub-second race between the last write and the hook, so the boundary itself
- * is behavior worth pinning.
+ * Directory transcript timestamps cannot override this tab's completion,
+ * including timestamps beyond the former two-second grace boundary.
  */
 export function completionGraceBlock(): string[] {
   const lines: string[] = []
@@ -404,10 +400,7 @@ export function subtitleBudgetBlock(): string[] {
 /**
  * Which activity entry a TAB row is allowed to read.
  *
- * The task-level entry is a last-event-wins rollup across every tab, so
- * lending it to whichever tab happens to be active lit the tab you switched TO
- * with its sibling's spinner. The rollup may stand in only for a task no tab
- * of which has ever reported.
+ * Neither selection nor a task rollup may supply missing tab identity.
  */
 export function tabActivityBlock(): string[] {
   const lines: string[] = []
@@ -415,10 +408,12 @@ export function tabActivityBlock(): string[] {
     for (const reportedTabCount of [0, 1, 2]) {
       for (const active of [false, true]) {
         const picked = tabRowActivity({
-          tabActivity,
-          reportedTabCount,
-          taskActivity: "ROLLUP",
-          active,
+          tabId: "own",
+          tabActivities: new Map([
+            ...Array.from({ length: reportedTabCount }, (_, i): [string, string] => [`sibling-${i}`, "SIBLING"]),
+            ...(tabActivity ? [["own", tabActivity] as [string, string]] : []),
+          ]),
+          ...{ taskActivity: "ROLLUP", active },
         })
         lines.push(
           `${pad(`tabActivity=${tabActivity ?? "-"}`, 20)} ${pad(`reported=${reportedTabCount}`, 12)} ${pad(
@@ -432,7 +427,7 @@ export function tabActivityBlock(): string[] {
   // With no rollup either there is nothing to fall back to — the tab row
   // rests at the shared no-state dot.
   for (const active of [false, true]) {
-    const picked = tabRowActivity({ tabActivity: undefined, reportedTabCount: 0, taskActivity: undefined, active })
+    const picked = tabRowActivity({ tabId: "own", tabActivities: undefined, ...{ taskActivity: undefined, active } })
     lines.push(
       `${pad("tabActivity=-", 20)} ${pad("reported=0", 12)} ${pad(`active=${active ? 1 : 0}`, 10)} taskActivity=- -> ${
         picked ?? "<none>"

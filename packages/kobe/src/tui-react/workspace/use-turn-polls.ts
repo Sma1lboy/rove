@@ -1,43 +1,16 @@
-/**
- * Per-tab turn-state polling for the workspace terminal tabs. The same
- * `startTurnStatusPoll` loop the Ops pane runs, reading PTY output; shared
- * mode when the host passes the daemon's transcript.activity slice, local
- * fixed-cadence fallback otherwise.
- *
- * Unified process-identity model: every tab is a shell;
- * an engine is just a process running in it. A tab gets a turn detector
- * attached whenever its foreground process IS an engine — kobe-launched
- * (an engine tab with a live engine leaf) OR user-typed (`claude` in a
- * plain shell, detected from the PTY's OSC window title via
- * `vendorFromTerminalTitle`), detaching again the moment the title stops
- * matching. `targetFor`/`soloKey` (identity resolution) live in the shared
- * framework-free `turn-target.ts`, so every surface resolves identity by one
- * rule. The same title stream feeds `liveTitles` — the tab strip's dynamic
- * "$process $ordinal" default names.
- *
- * Freshness rules: the reconcile pass is a STABLE callback reading its
- * changing inputs through latest-render refs; a `useEffect` keyed on
- * `[taskId, worktree, vendor, state]` re-runs it whenever the tabs snapshot
- * changes, and the 2s lazy-attach tick + title-store pushes call it
- * directly — no render-tick state, so a no-change tick re-renders nothing
- * (the inner setStates are identity-stable). Values only needed inside long-lived detector
- * closures (`sharedActivity`, the latest `state`) ride refs refreshed every render — the closures
- * are created once per attach and must not go stale between renders,
- * mirroring `ops/host.tsx`'s `sharedMapRef` convention. The `turnPolls` Map
- * lives in a ref so it persists across renders without becoming React state
- * churn; the per-tab live-title tracking is the shared framework-free
- * `TitleSubscriptions` store, whose instance-compared reconcile
- * `TerminalSplit.tsx` uses too.
+/** Per-tab PTY title subscriptions and session-scoped turn polling.
+ * Hook-confirmed session identities select exact transcripts; this hook never
+ * consumes worktree-wide activity. PTY identity changes dispose the old poll.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import type { TranscriptActivity } from "../../client/remote-orchestrator"
 import { engineEntry, stripEngineStatusPrefix } from "../../engine/registry"
 import type { ChatTabTurnState } from "../../engine/turn-detector"
 import { startTurnStatusPoll } from "../../tui/ops/activity-monitor"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"
 import type { TabsState } from "../../tui/workspace/terminal-tabs-core"
+import type { HookTabState } from "../../tui/workspace/turn-state-merge"
 import { soloKey, targetFor } from "../../tui/workspace/turn-target"
 import type { VendorId } from "../../types/vendor"
 import { useLatest } from "../lib/use-latest"
@@ -52,7 +25,7 @@ export function useTurnPolls(deps: {
   /** Task-level engine — the fallback for tabs without a pinned vendor. */
   vendor: VendorId
   state: TabsState
-  sharedActivity?: TranscriptActivity | null
+  hookTabStates?: ReadonlyMap<string, HookTabState>
 }): {
   turnStates: ReadonlyMap<string, ChatTabTurnState>
   /** tabId → live foreground-process display name (engine binary when the
@@ -82,10 +55,9 @@ export function useTurnPolls(deps: {
   // Latest-render mirrors for the long-lived detector closures (created
   // once per attach, must never go stale between renders) and for the
   // stable reconcile callback below.
-  const sharedActivityRef = useLatest(deps.sharedActivity)
+  const hookTabStatesRef = useLatest(deps.hookTabStates)
   const stateRef = useLatest(deps.state)
   const taskIdRef = useLatest(deps.taskId)
-  const worktreeRef = useLatest(deps.worktree)
   const vendorRef = useLatest(deps.vendor)
 
   // The reconcile pass — stable so the 2s tick and title-store pushes call
@@ -165,17 +137,16 @@ export function useTurnPolls(deps: {
       const detector = entry.createTurnDetector()
       const dispose = startTurnStatusPoll(
         {
-          worktree: worktreeRef.current,
           detector,
           // Marker-less engines (copilot/kimi-without-hooks) classify the
           // capture declaratively instead of publishing "unknown".
           ...(entry.screenManifest ? { screenManifest: entry.screenManifest } : {}),
-          // Shared mode: the daemon's transcript.activity push
-          // supplies completion reads + drives the adaptive capture
-          // cadence; null (no daemon data) falls back to fixed-cadence
-          // local polling — the Ops pane's exact contract.
-          usingShared: () => (sharedActivityRef.current ?? null) !== null,
-          sharedEntry: () => sharedActivityRef.current ?? null,
+          session: () => {
+            const state = hookTabStatesRef.current?.get(tabId)
+            return state?.sessionId && state.transcriptPath
+              ? { id: state.sessionId, transcriptPath: state.transcriptPath }
+              : null
+          },
         },
         {
           sessionAttached: async () => true,

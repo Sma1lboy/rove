@@ -1,5 +1,15 @@
 # Sessions: what survives what
 
+Each terminal tab's activity comes from that tab's engine events and PTY. A
+completed tab stays completed when another tab in the same directory writes
+output. File modification times do not override completion events. Completion
+polling and the activity watchdog read only the transcript identified for that
+session; missing or unreadable session identity never falls back to another
+session in the directory. Changing sessions, including `/clear`, invalidates
+the old completion baseline and pending reads.
+Events without a tab identity remain task-level information; selecting a tab
+does not assign those events to it.
+
 On Windows, session discovery and hook-to-task attribution accept both native
 backslashes and Git-style forward slashes. Trailing directory separators and
 drive-letter spelling do not change the matched task. Daemon home verification

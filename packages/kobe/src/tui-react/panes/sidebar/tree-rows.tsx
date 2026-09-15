@@ -220,13 +220,10 @@ export function useTabRowBaseView(args: {
   readonly activity: TaskEngineState | undefined
   readonly lifecycle: { readonly subagents: number } | undefined
   readonly job: TaskJobState | undefined
-  /** This worktree's transcript facts — what keeps a `turn_complete` whose
-   *  engine is still writing from settling to done (`row-view.ts`). */
-  readonly transcript: { readonly mtimeMs: number } | undefined
   readonly completionSeen: boolean
 }): ReturnType<typeof buildSidebarRowView> {
   const t = useT()
-  const { task, activity, lifecycle, job, transcript, completionSeen } = args
+  const { task, activity, lifecycle, job, completionSeen } = args
   return useMemo(() => {
     // Dependency-only invalidation key: rebuild when the language changes —
     // buildSidebarRowView reads the global `t` through the locale store.
@@ -236,13 +233,12 @@ export function useTabRowBaseView(args: {
       activity,
       lifecycle,
       job,
-      transcript,
       spinnerFrame: 0,
       subtitleBudget: 0,
       truncateBranch: truncateBranchLabel,
       completionSeen,
     })
-  }, [task, activity, lifecycle, job, transcript, completionSeen, t])
+  }, [task, activity, lifecycle, job, completionSeen, t])
 }
 
 export function TabTreeRow(props: {
@@ -262,23 +258,8 @@ export function TabTreeRow(props: {
   // reports activity for its session; a non-agent tab (shell/command/content)
   // or one with no signal rests at `○`.
   const isAgent = props.tab.engine === true
-  // Prefer THIS tab's own activity over the task rollup. The daemon reports
-  // both levels, but the task entry is last-event-wins across every tab — so
-  // a task whose live work is in tab-2 would read as whatever tab-N reported
-  // most recently, leaving a genuinely running row at `○` until you open it.
-  // Tab-level is the precise answer; the rollup stays the fallback for
-  // sessions kobe didn't spawn as a tab (a hand-typed `claude` in a shell
-  // reports task-level only — see the `engine-state` channel contract).
   const taskTabStates = isAgent ? shared.engineTabState?.get(props.task.id) : undefined
-  // Rule (and the reason the rollup is gated) lives in `tabRowActivity`.
-  const activity = isAgent
-    ? tabRowActivity({
-        tabActivity: taskTabStates?.get(props.tab.id),
-        reportedTabCount: taskTabStates?.size ?? 0,
-        taskActivity: shared.engineState?.get(props.task.id),
-        active: props.tab.active === true,
-      })
-    : undefined
+  const activity = isAgent ? tabRowActivity({ tabId: props.tab.id, tabActivities: taskTabStates }) : undefined
   // One predicate: "does this row have activity of its own". Also counting
   // "is the active tab" is what lets the task rollup leak in.
   const carriesState = activity !== undefined
@@ -308,11 +289,6 @@ export function TabTreeRow(props: {
     activity,
     lifecycle: carriesState ? shared.engineLifecycle?.get(props.task.id) : undefined,
     job: carriesState ? shared.taskJobs?.get(props.task.id) : undefined,
-    // Keyed by worktree path, which is all the daemon collects — so every tab
-    // of a task shares one transcript. That is the resolution available: the
-    // alternative is the pre-fix behaviour where a nine-minute tool call
-    // after `turn-complete` rendered as done.
-    transcript: shared.transcriptActivity?.get(props.task.worktreePath),
     completionSeen,
   })
   const frame = useSpinnerFrame(carriesState && baseView.loading)

@@ -84,10 +84,8 @@ function world(opts: { silenceMs?: number; correctAfterMs?: number; walk?: (pid:
   const row = (tabId: string) => {
     const tabs = engineTabState().get(TASK)
     return tabRowActivity({
-      tabActivity: tabs?.get(tabId),
-      reportedTabCount: tabs?.size ?? 0,
-      taskActivity: engineState().get(TASK),
-      active: true,
+      tabId,
+      tabActivities: tabs,
     })
   }
   return { registry, state, row, taskRollup: () => engineState().get(TASK) }

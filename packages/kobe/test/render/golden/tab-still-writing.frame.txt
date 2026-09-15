@@ -1,5 +1,5 @@
 # sidebar frame: tab-still-writing
-# same turn_complete as above, but the worktree's transcript kept growing after the hook — the row spins instead of settling to done
+# a sibling transcript cannot turn this completed tab back into a spinner
 # 30x22, spinner glyphs masked as ~
 # GENERATED — do not hand-edit. Regenerate: KOBE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
@@ -11,7 +11,7 @@
 |                              |
 | rove ─────────────────────── |
 |  feat/alpha              ? 2 |
-|  ~ build               22m 3 |
+|  ● build                   3 |
 |  ○ review                  4 |
 |  feat/bravo              ? 5 |
 |▌ ○ tests                   6 |

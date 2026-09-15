@@ -22,7 +22,6 @@
  */
 
 import { useEffect, useMemo, useRef } from "react"
-import type { TranscriptActivity } from "../../client/remote-orchestrator"
 import type { ChatTabTurnState } from "../../engine/turn-detector"
 import { attentionEdges, chipAttentionKind } from "../../tui/lib/notify-state"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
@@ -50,7 +49,6 @@ export function useTabTurnState(deps: {
   worktree: string
   vendor: VendorId
   state: TabsState
-  sharedActivity?: TranscriptActivity | null
   /** This task's slice of the daemon's per-tab engine-state push. */
   hookTabStates?: ReadonlyMap<string, HookTabState>
   /** Task title — the toast's context line under the tab label. */

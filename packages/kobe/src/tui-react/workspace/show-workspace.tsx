@@ -58,7 +58,6 @@ export function ShowWorkspace(props: {
   // re-render, leaving TerminalTabs mounted over an empty tab list it is not
   // built to survive.
   useAccessor(tabsRevision)
-  const transcriptActivity = useAccessor(props.orchestrator.transcriptActivityStore())
   const engineTabStates = useAccessor(props.orchestrator.engineTabStatesSignal())
   const tasks = useAccessor(props.orchestrator.tasksSignal())
   if (!props.worktree) {
@@ -152,9 +151,6 @@ export function ShowWorkspace(props: {
       onDiffTabReady={props.onDiffTabReady}
       onQuickFork={props.onQuickFork}
       initialPrompt={props.initialPrompt}
-      // This worktree's slice of the daemon transcript.activity push —
-      // flips the tab turn-status loops to shared mode.
-      sharedActivity={transcriptActivity?.get(path) ?? null}
       // This task's slice of the hook-driven per-tab engine state — the
       // sub-second chip/notification source (poll stays as fallback).
       hookTabStates={props.task ? engineTabStates.get(props.task.id) : undefined}

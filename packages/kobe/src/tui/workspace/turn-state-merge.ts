@@ -23,6 +23,8 @@ import type { ChatTabTurnState } from "../../engine/turn-detector.ts"
 /** The slice of the client's `TaskEngineState` this merge consumes. */
 export interface HookTabState {
   readonly state: TaskActivityState
+  readonly sessionId?: string
+  readonly transcriptPath?: string
   /** The state's stamp — the key the durable completion-seen mark is
    *  recorded under. Absent on the poll-only path. */
   readonly at?: number

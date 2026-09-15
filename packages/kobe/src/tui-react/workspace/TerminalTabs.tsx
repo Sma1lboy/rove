@@ -32,7 +32,6 @@
  * once per mount, re-fired on remount.
  */
 
-import type { TranscriptActivity } from "@/client/remote-orchestrator"
 import { availableEngineIds } from "@/engine/account-detect"
 import { engineLaunchArgv, withPinnedSessionId } from "@/engine/engine-presets"
 
@@ -136,8 +135,6 @@ export interface TerminalTabsProps {
    *  FIRST spawn (`engineTabSpawn`) — once the session has spawned or
    *  conversed it never re-applies. */
   initialPrompt?: string
-  /** This worktree's slice of the daemon's `transcript.activity` push. */
-  sharedActivity?: TranscriptActivity | null
   /** This task's slice of the daemon's per-tab `engine-state` push —
    *  hook-wins over the quiescence poll (see `use-tab-turn-state`). */
   hookTabStates?: ReadonlyMap<string, HookTabState>
@@ -286,7 +283,6 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     worktree: props.worktree,
     vendor: props.vendor,
     state,
-    sharedActivity: props.sharedActivity,
     hookTabStates: props.hookTabStates,
     taskTitle: props.taskTitle,
     notif,
