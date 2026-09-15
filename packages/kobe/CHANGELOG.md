@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.201
+
+### Patch Changes
+
+- [#1016](https://github.com/Sma1lboy/rove/pull/1016) [`be91fdd`](https://github.com/Sma1lboy/rove/commit/be91fdd467e706c7b2713c12c1236eda22d67351) Keep terminal input responsive during continuous output. Visible terminals now build their latest snapshot and commit changed rows in the same OpenTUI frame, instead of waiting for a separate snapshot timer and then another render deadline. Hidden or closed panes cancel queued work, and returning to a pane still captures its latest output. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.200
 
 ### Patch Changes
