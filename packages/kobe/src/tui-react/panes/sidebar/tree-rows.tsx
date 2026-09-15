@@ -258,23 +258,8 @@ export function TabTreeRow(props: {
   // reports activity for its session; a non-agent tab (shell/command/content)
   // or one with no signal rests at `○`.
   const isAgent = props.tab.engine === true
-  // Prefer THIS tab's own activity over the task rollup. The daemon reports
-  // both levels, but the task entry is last-event-wins across every tab — so
-  // a task whose live work is in tab-2 would read as whatever tab-N reported
-  // most recently, leaving a genuinely running row at `○` until you open it.
-  // Tab-level is the precise answer; the rollup stays the fallback for
-  // sessions kobe didn't spawn as a tab (a hand-typed `claude` in a shell
-  // reports task-level only — see the `engine-state` channel contract).
   const taskTabStates = isAgent ? shared.engineTabState?.get(props.task.id) : undefined
-  // Rule (and the reason the rollup is gated) lives in `tabRowActivity`.
-  const activity = isAgent
-    ? tabRowActivity({
-        tabActivity: taskTabStates?.get(props.tab.id),
-        reportedTabCount: taskTabStates?.size ?? 0,
-        taskActivity: shared.engineState?.get(props.task.id),
-        active: props.tab.active === true,
-      })
-    : undefined
+  const activity = isAgent ? tabRowActivity({ tabId: props.tab.id, tabActivities: taskTabStates }) : undefined
   // One predicate: "does this row have activity of its own". Also counting
   // "is the active tab" is what lets the task rollup leak in.
   const carriesState = activity !== undefined

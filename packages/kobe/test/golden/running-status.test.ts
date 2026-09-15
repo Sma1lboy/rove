@@ -73,10 +73,9 @@ function harness(opts: { staleMs?: number; probe?: ActivityLivenessProbe } = {})
     const row = (tabId: string, o: RowOpts = {}) => {
       const tabs = engineTabState().get(TASK_ID)
       const activity = tabRowActivity({
-        tabActivity: tabs?.get(tabId),
-        reportedTabCount: tabs?.size ?? 0,
-        taskActivity: engineState().get(TASK_ID),
-        active: o.active === true,
+        tabId,
+        tabActivities: tabs,
+        ...{ taskActivity: engineState().get(TASK_ID), active: o.active === true },
       })
       const view = buildSidebarRowView({
         task: TASK,
@@ -217,14 +216,13 @@ describe("golden: session events → sidebar running state", () => {
     expect(h.row("tab-1", { active: false }).loading).toBe(true)
   })
 
-  it("an untagged session (no tabId) reaches only the ACTIVE tab row", () => {
-    // A hand-typed `claude` in a shell inherits no KOBE_TAB_ID: its events
-    // are task-level only, and the rollup may stand in for the active tab
-    // of a task where NO tab has ever reported.
+  it("an untagged session cannot light either tab, even when selection changes", () => {
     const h = track(harness())
     h.registry.report(TASK_ID, "turn-start")
-    expect(h.row("tab-1", { active: true }).loading).toBe(true)
+    expect(h.row("tab-1", { active: true }).loading).toBe(false)
     expect(h.row("tab-2", { active: false }).loading).toBe(false)
+    expect(h.row("tab-2", { active: true }).loading).toBe(false)
+    expect(h.row("tab-1", { active: false }).loading).toBe(false)
   })
 
   it("the lapse watchdog probes THIS session's transcript, then idles (49dfec84)", async () => {

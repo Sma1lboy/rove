@@ -2107,7 +2107,7 @@ status=error                 chip=✓ (success)
 
 ## tabRowActivity — which entry a TAB row may read
 tabActivity=-        reported=0   active=0   -> <none>
-tabActivity=-        reported=0   active=1   -> ROLLUP
+tabActivity=-        reported=0   active=1   -> <none>
 tabActivity=-        reported=1   active=0   -> <none>
 tabActivity=-        reported=1   active=1   -> <none>
 tabActivity=-        reported=2   active=0   -> <none>

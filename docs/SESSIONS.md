@@ -7,6 +7,8 @@ polling and the activity watchdog read only the transcript identified for that
 session; missing or unreadable session identity never falls back to another
 session in the directory. Changing sessions, including `/clear`, invalidates
 the old completion baseline and pending reads.
+Events without a tab identity remain task-level information; selecting a tab
+does not assign those events to it.
 
 On Windows, session discovery and hook-to-task attribution accept both native
 backslashes and Git-style forward slashes. Trailing directory separators and
