@@ -4,7 +4,7 @@ import { testRender } from "@opentui/react/test-utils"
 import { hostRenderOptions, hostTargetFps } from "../../src/tui/lib/host-render-options"
 import { SNAPSHOT_COALESCE_MS } from "../../src/tui/panes/terminal/pty-xterm-base"
 
-test("snapshot coalesce window matches the renderer's frame period", async () => {
+test("non-visual snapshot fallback uses the host's frame period", async () => {
   const fps = hostTargetFps()
   expect(fps).toBeGreaterThan(0)
   expect(hostRenderOptions().targetFps).toBe(fps)

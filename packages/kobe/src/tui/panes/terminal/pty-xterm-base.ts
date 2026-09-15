@@ -15,6 +15,7 @@ import {
   type DataListener,
   type TaskPtyLike,
   type TaskPtyOpts,
+  type TerminalRefreshScheduler,
   type TerminalRow,
   type TerminalSnapshotWindow,
 } from "./pty-types"
@@ -29,24 +30,7 @@ import {
 } from "./xterm-input-modes"
 import { XtermRefreshTracker, wireXtermChannels, wireXtermDefaultColorQueries } from "./xterm-refresh"
 
-/**
- * How long a burst of PTY output is coalesced before one snapshot is built.
- *
- * This is the renderer's frame period, not a guess: it derives from the same
- * `hostTargetFps()` that `hostRenderOptions` hands `createCliRenderer` (30 —
- * 33ms — except Windows at 60 — 16ms; see host-render-options.ts for why). A
- * snapshot produced more often than once per frame is built, published,
- * committed through React and laid out by opentui for a frame that is then
- * never drawn.
- *
- * It used to be a flat 16ms — 62.5Hz against a 30Hz renderer. Measured on a
- * pane streaming 200 lines/s at 200x50: 49 refreshes/s where the renderer
- * drew 30, so ~40% of the whole snapshot→paint pass was discarded work.
- *
- * Matching the frame costs no visible latency: the extra snapshots were never
- * on screen. It must not exceed the frame period either, or output visibly
- * lags the renderer — hence the test that pins it to `targetFps`.
- */
+/** Coalesce non-visual consumers that have no renderer to schedule work. */
 export const SNAPSHOT_COALESCE_MS = Math.round(1000 / hostTargetFps())
 
 export abstract class XtermTaskPty implements TaskPtyLike {
@@ -80,7 +64,8 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   private muteReplies = false
   protected cols: number
   protected rows: number
-  private refreshQueued = false
+  private cancelRefresh: (() => void) | null = null
+  private readonly scheduleRefresh: TerminalRefreshScheduler | undefined
   /** When the last snapshot refresh was ATTEMPTED — the leading edge of the
    *  coalesce window (see `queueRefresh`). 0 = never, so the first output
    *  after a subscriber attaches draws immediately. */
@@ -93,6 +78,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   constructor(opts: TaskPtyOpts, options: { respondToDefaultColorQueries?: boolean } = {}) {
     this.taskId = opts.taskId
     this.cwd = opts.cwd
+    this.scheduleRefresh = opts.scheduleRefresh
     this.cols = opts.cols ?? DEFAULT_COLS
     this.rows = opts.rows ?? DEFAULT_ROWS
     // Restored (parked) screens bring their title — serialize streams don't
@@ -241,7 +227,11 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     }
     return () => {
       off()
-      if (this.listeners.dataCount === 0 && this._unwatchedSince === null) this._unwatchedSince = Date.now()
+      if (this.listeners.dataCount === 0) {
+        if (this.cancelRefresh) this.snapshotDirty = true
+        this.cancelQueuedRefresh()
+        if (this._unwatchedSince === null) this._unwatchedSince = Date.now()
+      }
     }
   }
 
@@ -359,35 +349,36 @@ export abstract class XtermTaskPty implements TaskPtyLike {
       this.snapshotDirty = true
       return
     }
-    if (this.refreshQueued) return
-    // LEADING edge: a frame period has already passed with nothing drawn, so
-    // this output is not part of a burst and waiting buys nothing. This is
-    // the keystroke-echo path — you type into an idle shell, the child echoes
-    // in ~0.03ms, and a trailing-only throttle then sat on it for a whole
-    // frame before the pane had anything to draw. Measured on macOS at 120x40
-    // (`cat`, 60 samples, 200ms idle between them, write → snapshot published):
-    // p50 35.8ms trailing-only vs 1.5ms here, against a raw PTY echo of
-    // 0.03ms. p90 stays ~23ms on purpose — those samples land inside a burst,
-    // which is the case the coalesce is for.
-    //
-    // The BURST behaviour is unchanged, which is the property the coalesce
-    // exists for: the next refresh inside the period still waits for the
-    // boundary, so a streaming pane still builds at most one snapshot per
-    // frame and none of them is discarded work.
+    if (this.cancelRefresh) return
+    if (this.scheduleRefresh) {
+      this.snapshotDirty = true
+      this.cancelRefresh = this.scheduleRefresh(() => {
+        this.cancelRefresh = null
+        this.refreshSnapshot()
+      })
+      return
+    }
+    // Non-visual subscribers still get immediate idle echoes and bounded bursts.
     const since = Date.now() - this.lastRefreshAt
     if (since >= SNAPSHOT_COALESCE_MS) {
       this.refreshSnapshot()
       return
     }
-    this.refreshQueued = true
-    setTimeout(() => {
-      this.refreshQueued = false
+    const timer = setTimeout(() => {
+      this.cancelRefresh = null
       this.refreshSnapshot()
     }, SNAPSHOT_COALESCE_MS - since)
+    this.cancelRefresh = () => clearTimeout(timer)
+  }
+
+  private cancelQueuedRefresh(): void {
+    this.cancelRefresh?.()
+    this.cancelRefresh = null
   }
 
   private refreshSnapshot(): void {
     if (this._killed) return
+    this.cancelQueuedRefresh()
     // Stamped on the ATTEMPT, not on success: the `result === null`
     // half-painted path below re-queues, and a leading edge that only moved
     // on success would find the period still elapsed and re-enter
@@ -440,6 +431,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   protected markDead(killProcess: boolean): void {
     if (this._killed) return
     this._killed = true
+    this.cancelQueuedRefresh()
     this.refreshTracker.dispose()
     this.disposeEmulator()
     if (killProcess) {
@@ -468,6 +460,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
    */
   protected silentDispose(): void {
     this._killed = true
+    this.cancelQueuedRefresh()
     this.refreshTracker.dispose()
     this.disposeEmulator()
     this.listeners.clearAll()
