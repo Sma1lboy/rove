@@ -57,11 +57,6 @@ export type TreeRowShared = {
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
   readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges | null> | null
-  /** Daemon-collected transcript facts keyed by WORKTREE path. A tab row
-   *  needs them to tell a finished turn from one whose engine is still
-   *  writing in hook silence (`stillWorkingAfterCompletion`) — without it
-   *  every `turn_complete` reads as done the moment the hook fires. */
-  readonly transcriptActivity?: ReadonlyMap<string, { readonly mtimeMs: number }> | null
 }
 
 /**

@@ -13,7 +13,6 @@ import type {
   EngineTabStateMap,
   TaskEngineState,
   TaskJobState,
-  TranscriptActivityMap,
   WorktreeChangesMap,
 } from "../../client/remote-orchestrator-payloads"
 import { useMergedTasks } from "../../machines/hub-singleton"
@@ -31,7 +30,6 @@ export interface UseDaemonStateResult {
   inboxItems: readonly AttentionInboxItem[]
   taskJobs: ReadonlyMap<string, TaskJobState>
   worktreeChanges: WorktreeChangesMap | null
-  transcriptActivity: TranscriptActivityMap | null
 }
 
 export function useDaemonState(orchestrator: RemoteOrchestrator): UseDaemonStateResult {
@@ -46,7 +44,6 @@ export function useDaemonState(orchestrator: RemoteOrchestrator): UseDaemonState
   const inboxItems = useAccessor(orchestrator.attentionInboxSignal())
   const taskJobs = useAccessor(orchestrator.taskJobsSignal())
   const worktreeChanges = useAccessor(orchestrator.worktreeChangesSignal())
-  const transcriptActivity = useAccessor(orchestrator.transcriptActivitySignal())
 
   return {
     tasks,
@@ -58,6 +55,5 @@ export function useDaemonState(orchestrator: RemoteOrchestrator): UseDaemonState
     inboxItems,
     taskJobs,
     worktreeChanges,
-    transcriptActivity,
   }
 }

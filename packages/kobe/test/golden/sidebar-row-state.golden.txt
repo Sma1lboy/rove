@@ -675,19 +675,19 @@ act=running            seen=1 job=1 del=error    vendor=omp        tx=after | ma
 act=running            seen=1 job=1 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=running            seen=1 job=1 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=turn_complete      seen=0 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-act=turn_complete      seen=0 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+act=turn_complete      seen=0 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 act=turn_complete      seen=0 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-act=turn_complete      seen=0 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+act=turn_complete      seen=0 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 act=turn_complete      seen=0 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-act=turn_complete      seen=0 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+act=turn_complete      seen=0 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 act=turn_complete      seen=0 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-act=turn_complete      seen=0 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+act=turn_complete      seen=0 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 act=turn_complete      seen=0 job=0 del=-        vendor=pi         tx=- | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-act=turn_complete      seen=0 job=0 del=-        vendor=pi         tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+act=turn_complete      seen=0 job=0 del=-        vendor=pi         tx=after | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 act=turn_complete      seen=0 job=0 del=-        vendor=omp        tx=- | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-act=turn_complete      seen=0 job=0 del=-        vendor=omp        tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+act=turn_complete      seen=0 job=0 del=-        vendor=omp        tx=after | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 act=turn_complete      seen=0 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-act=turn_complete      seen=0 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+act=turn_complete      seen=0 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 act=turn_complete      seen=0 job=0 del=queued   vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=turn_complete      seen=0 job=0 del=queued   vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=turn_complete      seen=0 job=0 del=queued   vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
@@ -717,19 +717,19 @@ act=turn_complete      seen=0 job=0 del=running  vendor=omp        tx=after | ma
 act=turn_complete      seen=0 job=0 del=running  vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=turn_complete      seen=0 job=0 del=running  vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=turn_complete      seen=0 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-act=turn_complete      seen=0 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
+act=turn_complete      seen=0 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=0 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-act=turn_complete      seen=0 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
+act=turn_complete      seen=0 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=0 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-act=turn_complete      seen=0 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
+act=turn_complete      seen=0 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=0 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-act=turn_complete      seen=0 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
+act=turn_complete      seen=0 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=0 job=0 del=error    vendor=pi         tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-act=turn_complete      seen=0 job=0 del=error    vendor=pi         tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
+act=turn_complete      seen=0 job=0 del=error    vendor=pi         tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=0 job=0 del=error    vendor=omp        tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-act=turn_complete      seen=0 job=0 del=error    vendor=omp        tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
+act=turn_complete      seen=0 job=0 del=error    vendor=omp        tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=0 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-act=turn_complete      seen=0 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
+act=turn_complete      seen=0 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=0 job=1 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=turn_complete      seen=0 job=1 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=turn_complete      seen=0 job=1 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
@@ -787,19 +787,19 @@ act=turn_complete      seen=0 job=1 del=error    vendor=omp        tx=after | ma
 act=turn_complete      seen=0 job=1 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=turn_complete      seen=0 job=1 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=1 sub=delete failed
 act=turn_complete      seen=1 job=0 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-act=turn_complete      seen=1 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+act=turn_complete      seen=1 job=0 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 act=turn_complete      seen=1 job=0 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-act=turn_complete      seen=1 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+act=turn_complete      seen=1 job=0 del=-        vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 act=turn_complete      seen=1 job=0 del=-        vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-act=turn_complete      seen=1 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+act=turn_complete      seen=1 job=0 del=-        vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 act=turn_complete      seen=1 job=0 del=-        vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-act=turn_complete      seen=1 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+act=turn_complete      seen=1 job=0 del=-        vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 act=turn_complete      seen=1 job=0 del=-        vendor=pi         tx=- | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-act=turn_complete      seen=1 job=0 del=-        vendor=pi         tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+act=turn_complete      seen=1 job=0 del=-        vendor=pi         tx=after | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 act=turn_complete      seen=1 job=0 del=-        vendor=omp        tx=- | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-act=turn_complete      seen=1 job=0 del=-        vendor=omp        tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+act=turn_complete      seen=1 job=0 del=-        vendor=omp        tx=after | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 act=turn_complete      seen=1 job=0 del=-        vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-act=turn_complete      seen=1 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+act=turn_complete      seen=1 job=0 del=-        vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 act=turn_complete      seen=1 job=0 del=queued   vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=turn_complete      seen=1 job=0 del=queued   vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=turn_complete      seen=1 job=0 del=queued   vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
@@ -829,19 +829,19 @@ act=turn_complete      seen=1 job=0 del=running  vendor=omp        tx=after | ma
 act=turn_complete      seen=1 job=0 del=running  vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=turn_complete      seen=1 job=0 del=running  vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
 act=turn_complete      seen=1 job=0 del=error    vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-act=turn_complete      seen=1 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
+act=turn_complete      seen=1 job=0 del=error    vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=1 job=0 del=error    vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-act=turn_complete      seen=1 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
+act=turn_complete      seen=1 job=0 del=error    vendor=codex      tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=1 job=0 del=error    vendor=copilot    tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-act=turn_complete      seen=1 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
+act=turn_complete      seen=1 job=0 del=error    vendor=copilot    tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=1 job=0 del=error    vendor=kimi       tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-act=turn_complete      seen=1 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
+act=turn_complete      seen=1 job=0 del=error    vendor=kimi       tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=1 job=0 del=error    vendor=pi         tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-act=turn_complete      seen=1 job=0 del=error    vendor=pi         tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
+act=turn_complete      seen=1 job=0 del=error    vendor=pi         tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=1 job=0 del=error    vendor=omp        tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-act=turn_complete      seen=1 job=0 del=error    vendor=omp        tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
+act=turn_complete      seen=1 job=0 del=error    vendor=omp        tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=1 job=0 del=error    vendor=my-engine  tx=- | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-act=turn_complete      seen=1 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=error       load=1 matz=0 sub=delete failed
+act=turn_complete      seen=1 job=0 del=error    vendor=my-engine  tx=after | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
 act=turn_complete      seen=1 job=1 del=-        vendor=claude     tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=turn_complete      seen=1 job=1 del=-        vendor=claude     tx=after | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
 act=turn_complete      seen=1 job=1 del=-        vendor=codex      tx=- | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
@@ -1863,7 +1863,7 @@ act=dead               frame=14   overlay: base=! after=! tone=error       sub=f
 act=dead               frame=99   overlay: base=! after=! tone=error       sub=feat/sidebar     frameReads=0 sameObject=1 sameAsDirect=1
 defaultFrames=⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏
 
-## turn-complete vs transcript growth — the still-working grace window
+## turn-complete ignores directory transcript timestamps
 mtime=at-5000ms        seen=0 | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 mtime=at-5000ms        seen=1 | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 mtime=at-1ms           seen=0 | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
@@ -1876,18 +1876,18 @@ mtime=at+1999ms        seen=0 | main=0 title=fix the sidebar  glyph=●   tone=p
 mtime=at+1999ms        seen=1 | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 mtime=at+2000ms        seen=0 | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 mtime=at+2000ms        seen=1 | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-mtime=at+2001ms        seen=0 | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-mtime=at+2001ms        seen=1 | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-mtime=at+60000ms       seen=0 | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-mtime=at+60000ms       seen=1 | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+mtime=at+2001ms        seen=0 | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
+mtime=at+2001ms        seen=1 | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+mtime=at+60000ms       seen=0 | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
+mtime=at+60000ms       seen=1 | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 mtime=<none>           seen=0 | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 mtime=<none>           seen=1 | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 mtime=0                seen=0 | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
 mtime=0                seen=1 | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
 mtime=at-5000ms        rowIsLoading=0 viewLoading=0
 mtime=at+1999ms        rowIsLoading=0 viewLoading=0
-mtime=at+2001ms        rowIsLoading=1 viewLoading=1
-mtime=at+60000ms       rowIsLoading=1 viewLoading=1
+mtime=at+2001ms        rowIsLoading=0 viewLoading=0
+mtime=at+60000ms       rowIsLoading=0 viewLoading=0
 
 ## subagent marks ride the animation only
 subagents=0    act=-                  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar

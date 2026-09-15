@@ -25,7 +25,7 @@ const ACTIVITY_IDLE_RAMP_POLLS = 3
 
 /** Fast floor for the turn-status capture-pane poll (mid-turn / fallback fixed cadence). */
 export const TURN_STATUS_POLL_MS = 1500
-/** Backed-off cap for the turn-status capture-pane poll when the shared transcript is quiescent. */
+/** Backed-off cap when this session's transcript and pane are quiescent. */
 export const TURN_STATUS_POLL_MAX_MS = 6000
 
 /**
@@ -39,27 +39,15 @@ export function nextActivityPollDelay(currentMs: number, idleStreak: number): nu
 }
 
 /**
- * Next turn-status (capture-pane) poll delay in SHARED mode (the daemon
- * publishes transcript activity, so completion does not come from a local
- * JSONL read — only the tmux pane-quiescence hash does). Sibling of
- * {@link nextActivityPollDelay}.
- *
- * The capture-pane hash is the one thing that MUST stay in-process (the
- * daemon never touches tmux), but while the shared transcript is quiescent
- * AND we're not mid-turn there's nothing for the pane to show — so ramp the
- * interval up toward {@link TURN_STATUS_POLL_MAX_MS} to stop hammering
- * `capture-pane`. Snap back to {@link TURN_STATUS_POLL_MS} the instant the
- * shared transcript mtime advances (the engine wrote output → a pane change
- * is imminent) or while a turn is actively running. Fallback (no daemon)
- * keeps the fixed {@link TURN_STATUS_POLL_MS} cadence — this helper isn't
- * consulted there. Pure — unit-tested.
+ * Back off an idle session's pane capture; resume fast polling when its own
+ * transcript advances or its turn is running.
  */
 export function nextTurnStatusPollDelay(
   currentMs: number,
-  sharedMtimeAdvanced: boolean,
+  sessionMtimeAdvanced: boolean,
   published: ChatTabTurnState | null,
 ): number {
-  if (sharedMtimeAdvanced) return TURN_STATUS_POLL_MS
+  if (sessionMtimeAdvanced) return TURN_STATUS_POLL_MS
   if (published === "running") return TURN_STATUS_POLL_MS
   return Math.min(currentMs * 2, TURN_STATUS_POLL_MAX_MS)
 }

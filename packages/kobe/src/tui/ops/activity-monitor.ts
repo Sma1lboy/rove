@@ -1,192 +1,121 @@
-/**
- * Framework-free poll loop for the Ops pane — the per-window turn-status
- * (capture-pane quiescence) poll, extracted from the Solid host so the React
- * port runs the SAME loop body verbatim. Only types are imported (erased at
- * runtime); all IO — PTY capture and the attach gate — is injected by the
- * React consumer (`tui-react/workspace/use-turn-polls.ts`), which is also
- * what makes the loop unit-testable under vitest with fakes. Cadence math
- * stays in `./activity-poll`.
- */
-
+/** Per-PTY turn polling. Completion evidence must name this session's file. */
 import { createHash } from "node:crypto"
 import { type EngineScreenManifest, classifyScreen } from "@/engine/screen-state"
-import type { ChatTabTurnState } from "@/engine/turn-detector"
-import type { TranscriptActivity } from "../../client/remote-orchestrator"
+import type { ChatTabTurnState, EngineTurnDetector } from "@/engine/turn-detector"
 import { TURN_STATUS_POLL_MS, nextTurnStatusPollDelay } from "./activity-poll"
 
-/** Consecutive unchanged capture-pane reads before a completion marker counts as "done". */
-const STABLE_POLLS_FOR_DONE = 2
-
-function fingerprint(text: string): string {
-  return createHash("sha1").update(text).digest("hex")
-}
-
-/* ─── per-window turn-status poll ────────────────────────────────────── */
-
-/** The slice of `EngineTurnDetector` this loop consumes (structural, fakeable). */
-interface TurnDetectorLike {
-  supportsCompletionMarkers(): boolean
-  latestCompletion(worktree: string): Promise<{ readonly id: string } | null>
+export interface TurnSession {
+  readonly id: string
+  readonly transcriptPath: string
 }
 
 export interface TurnStatusIo {
   readonly sessionAttached: () => Promise<boolean>
-  /** Capture the paired engine pane (quiescence source). */
   readonly capturePane: () => Promise<string>
-  /** Publish the current turn state for downstream consumers (toast, unread dot). */
   readonly setTurnState: (state: ChatTabTurnState) => Promise<void>
 }
 
 export interface TurnStatusOpts {
-  readonly worktree: string
-  readonly detector: TurnDetectorLike
-  /**
-   * Screen-state manifest for engines WITHOUT completion markers — the
-   * declarative working/blocked/idle rules `classifyScreen` evaluates
-   * against each pane capture, so a copilot/kimi tab reads a real state
-   * instead of "unknown". Ignored while the detector supports markers
-   * (the transcript is the better authority). `null` from the classifier
-   * keeps the previous published state (no flapping).
-   */
+  readonly detector: Pick<EngineTurnDetector, "supportsCompletionMarkers" | "latestActivityInFile">
+  /** Current hook-confirmed identity. Missing identity never permits a directory scan. */
+  readonly session: () => TurnSession | null
   readonly screenManifest?: EngineScreenManifest
-  /** Whether the daemon is publishing transcript activity for this worktree. */
-  readonly usingShared: () => boolean
-  /** This worktree's slice of the daemon push (`null` when absent). */
-  readonly sharedEntry: () => TranscriptActivity | null
 }
 
-/**
- * Per-window turn detector loop. The engine adapter owns completion markers;
- * this loop owns only the tmux-local quiescence check for its paired engine
- * pane, so sibling ChatTabs on the same worktree don't report done unless
- * THIS window actually changed. The capture-pane hash + turn-state write
- * stay strictly in-process (the daemon never touches tmux); in shared mode
- * the COMPLETION read comes from the daemon push and the capture cadence
- * ramps while quiescent, in fallback mode it's a local `latestCompletion`
- * read on a fixed cadence — verbatim the pre-daemon behavior. Returns the
- * dispose function.
- */
+function sameSession(a: TurnSession | null, b: TurnSession | null): boolean {
+  return a?.id === b?.id && a?.transcriptPath === b?.transcriptPath
+}
+
+/** Each loop owns one PTY. Session changes invalidate pending reads and completion baselines. */
 export function startTurnStatusPoll(opts: TurnStatusOpts, io: TurnStatusIo): () => void {
-  const { detector } = opts
   let disposed = false
-  let baselineCompletionId: string | null = null
-  let baselinePrimed = false
+  let primed = false
+  let session: TurnSession | null = null
+  let baseline: string | null = null
   let paneHash = ""
-  let observedPaneActivity = false
-  let stablePolls = 0
+  let changed = false
+  let stable = 0
   let published: ChatTabTurnState | null = null
-  // Adaptive capture-pane cadence (shared mode only): ramps up while the
-  // shared transcript is quiescent, snaps back when its mtime advances.
-  let delayMs = TURN_STATUS_POLL_MS
-  let lastSharedMtime = 0
+  let lastMtime = 0
+  let delay = TURN_STATUS_POLL_MS
   let timer: ReturnType<typeof setTimeout> | undefined
 
   async function publish(state: ChatTabTurnState): Promise<void> {
-    if (state === published) return
+    if (disposed || state === published) return
     published = state
     await io.setTurnState(state)
   }
 
-  /** Latest completion id — from the shared push when available, else a local read. */
-  async function latestCompletionId(): Promise<string | null> {
-    if (opts.usingShared()) return opts.sharedEntry()?.completionId ?? null
-    return (await detector.latestCompletion(opts.worktree))?.id ?? null
-  }
-
-  /** Marker-less fallback state: classify the capture when a manifest is
-   *  declared; keep the previous reading on a null answer. */
-  function screenState(captureText: string): ChatTabTurnState | null {
+  function screenState(text: string): ChatTabTurnState | null {
     if (!opts.screenManifest) return "unknown"
-    const state = classifyScreen(opts.screenManifest, captureText)
-    if (state === "working") return "running"
-    if (state === "blocked") return "needs_input"
-    if (state === "idle") return "idle"
-    return published === null ? "unknown" : null
-  }
-
-  async function prime(): Promise<void> {
-    try {
-      const capture = await io.capturePane()
-      paneHash = fingerprint(capture)
-      baselineCompletionId = await latestCompletionId()
-      baselinePrimed = true
-      if (detector.supportsCompletionMarkers()) {
-        await publish("idle")
-      } else {
-        const state = screenState(capture)
-        if (state !== null) await publish(state)
-      }
-    } catch {
-      // Transient failures during the delete→kill teardown window must not
-      // crash this crash-net-less pane process; the next poll() re-primes.
+    switch (classifyScreen(opts.screenManifest, text)) {
+      case "working":
+        return "running"
+      case "blocked":
+        return "needs_input"
+      case "idle":
+        return "idle"
+      default:
+        return published === null ? "unknown" : null
     }
   }
 
   async function poll(): Promise<void> {
-    // Detached session: no capture-pane spawn for an invisible status chip.
-    if (!(await io.sessionAttached())) {
-      if (!disposed) timer = setTimeout(() => void poll(), delayMs)
-      return
-    }
-    const shared = opts.usingShared()
     try {
-      const capture = await io.capturePane()
-      const nextPaneHash = fingerprint(capture)
-      if (disposed) return
-      // Lazily seed the baseline if shared activity arrived only after prime
-      // ran with no entry — so the first daemon-pushed completion isn't
-      // mistaken for a fresh "done".
-      if (shared && !baselinePrimed) {
-        baselineCompletionId = opts.sharedEntry()?.completionId ?? null
-        baselinePrimed = true
+      if (!(await io.sessionAttached()) || disposed) return
+      const current = opts.session()
+      const text = await io.capturePane()
+      if (disposed || !sameSession(current, opts.session())) return
+      const markerMode = opts.detector.supportsCompletionMarkers() && current !== null
+      const scan = markerMode ? await opts.detector.latestActivityInFile(current.transcriptPath) : null
+      if (disposed || !sameSession(current, opts.session())) return
+      const hash = createHash("sha1").update(text).digest("hex")
+      const reset = !primed || !sameSession(session, current)
+      if (reset) {
+        session = current
+        baseline = scan?.marker?.id ?? null
+        paneHash = hash
+        changed = false
+        stable = 0
+        lastMtime = scan?.mtimeMs ?? 0
+        primed = true
+        published = null
+        await publish(markerMode ? (scan ? "idle" : "unknown") : (screenState(text) ?? "unknown"))
+        delay = TURN_STATUS_POLL_MS
+        return
       }
-      // Track shared-transcript mtime advance for the adaptive cadence.
-      const sharedMtime = shared ? (opts.sharedEntry()?.mtimeMs ?? 0) : 0
-      const mtimeAdvanced = sharedMtime > lastSharedMtime
-      if (sharedMtime > lastSharedMtime) lastSharedMtime = sharedMtime
 
-      if (nextPaneHash !== paneHash) {
-        paneHash = nextPaneHash
-        observedPaneActivity = true
-        stablePolls = 0
-        if (detector.supportsCompletionMarkers()) await publish("running")
-      } else if (observedPaneActivity) {
-        stablePolls++
+      if (hash !== paneHash) {
+        paneHash = hash
+        changed = true
+        stable = 0
+        if (markerMode) await publish("running")
+      } else if (changed) {
+        stable++
       }
-      // Marker-less engines: the screen IS the state source — classify on
-      // every poll (a dialog can appear without the hash logic noticing a
-      // "turn"), not just on hash change.
-      if (!detector.supportsCompletionMarkers()) {
-        const state = screenState(capture)
+
+      if (!markerMode) {
+        const state = screenState(text)
         if (state !== null) await publish(state)
+      } else if (scan && changed && stable >= 2 && scan.marker && scan.marker.id !== baseline) {
+        baseline = scan.marker.id
+        changed = false
+        stable = 0
+        await publish("done")
       }
 
-      if (detector.supportsCompletionMarkers() && observedPaneActivity && stablePolls >= STABLE_POLLS_FOR_DONE) {
-        const completionId = await latestCompletionId()
-        // Done rule unchanged: a NEW completion id past the baseline, with
-        // the pane having gone quiescent, means the turn finished.
-        if (!disposed && completionId !== null && completionId !== baselineCompletionId) {
-          baselineCompletionId = completionId
-          observedPaneActivity = false
-          stablePolls = 0
-          await publish("done")
-        }
-      }
-      // Cadence: shared mode ramps the capture-pane interval while idle;
-      // fallback keeps the fixed 1.5s tick.
-      delayMs = shared ? nextTurnStatusPollDelay(delayMs, mtimeAdvanced, published) : TURN_STATUS_POLL_MS
+      const mtime = scan?.mtimeMs ?? 0
+      delay = nextTurnStatusPollDelay(delay, mtime > lastMtime, published)
+      lastMtime = mtime
     } catch {
-      // capture-pane / the turn-state write fire tmux against a pane that a
-      // task deletion tears down mid-flight — swallow so the race degrades
-      // to a quiet no-op instead of crashing the Ops pane to a shell.
-      delayMs = TURN_STATUS_POLL_MS
+      // A failed scoped read is unknown evidence, never a sibling's completion.
+      delay = TURN_STATUS_POLL_MS
     } finally {
-      if (!disposed) timer = setTimeout(() => void poll(), delayMs)
+      if (!disposed) timer = setTimeout(() => void poll(), delay)
     }
   }
 
-  void prime()
-  timer = setTimeout(() => void poll(), TURN_STATUS_POLL_MS)
+  void poll()
   return () => {
     disposed = true
     if (timer) clearTimeout(timer)

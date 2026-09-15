@@ -85,7 +85,7 @@ function harness(opts: { staleMs?: number; probe?: ActivityLivenessProbe } = {})
         subtitleBudget: 60,
         truncateBranch: (b) => b,
         completionSeen: o.completionSeen === true,
-        transcript: o.transcript,
+        ...{ transcript: o.transcript },
       })
       return { activity, loading: view.loading, glyph: view.stateGlyph, tone: view.tone }
     }
@@ -264,19 +264,23 @@ describe("golden: session events → sidebar running state", () => {
     expect(h.row("tab-1").loading).toBe(false)
   })
 
-  it("a 'complete' whose transcript kept growing is still working (grace)", () => {
+  it("a sibling's transcript and events cannot resurrect a completed tab", () => {
     const h = track(harness())
     h.registry.report(TASK_ID, "turn-start", undefined, "tab-1")
     h.registry.report(TASK_ID, "turn-complete", undefined, "tab-1")
     const at = h.published.at(-1)?.at ?? 0
-    // Transcript wrote on AFTER the completion hook + grace: not done yet.
+    h.registry.report(TASK_ID, "turn-start", undefined, "tab-2", { id: "sibling" }, "codex")
+    expect(h.row("tab-2").loading).toBe(true)
+    // Worktree-wide transcript growth belongs to no individual tab.
     const busy = h.row("tab-1", { transcript: { mtimeMs: at + 5000 } })
-    expect(busy.loading).toBe(true)
-    expect(busy.glyph).not.toBe("●")
-    // Settled: the completion outlives the last write.
+    expect(busy.loading).toBe(false)
+    expect(busy.glyph).toBe("●")
     const done = h.row("tab-1", { transcript: { mtimeMs: at + 500 } })
     expect(done.loading).toBe(false)
     expect(done.glyph).toBe("●")
+    h.registry.report(TASK_ID, "turn-complete", undefined, "tab-2", { id: "sibling" }, "codex")
+    expect(h.row("tab-1", { transcript: { mtimeMs: at + 60_000 } }).loading).toBe(false)
+    expect(h.row("tab-2").loading).toBe(false)
   })
 
   it("replay lights a late subscriber's rows (reattach without new events)", () => {

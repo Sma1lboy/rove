@@ -35,7 +35,7 @@ under `test:fast`; `test/render/golden/` runs under `test:render`.
 
 | Golden | Track | Locks |
 | --- | --- | --- |
-| `test/golden/sidebar-row-state.golden.txt` | fast | `buildSidebarRowView` over its full input space — activity state × seen bit × worktree job × deletion phase × vendor × transcript, plus spinner frame sets, the `withSpinnerFrame` overlay contract, the turn-complete/transcript grace boundary, subagent marks, subtitle truncation, the PR chip, and `tabRowActivity`. |
+| `test/golden/sidebar-row-state.golden.txt` | fast | `buildSidebarRowView` over activity state × seen bit × worktree job × deletion phase × vendor, plus invariance under unrelated transcript timestamps, spinner frame sets, the `withSpinnerFrame` overlay contract, subagent marks, subtitle truncation, the PR chip, and `tabRowActivity`. |
 | `test/render/golden/*.frame.txt` | render | Whole captured OpenTUI frames of the real `SidebarTree` — every state glyph, the per-level indent, the right-edge cluster, search pruning, view tabs, move mode, the recent-jump row, and the empty rail. |
 
 Rules:

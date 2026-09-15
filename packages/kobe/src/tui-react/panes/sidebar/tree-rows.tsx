@@ -220,13 +220,10 @@ export function useTabRowBaseView(args: {
   readonly activity: TaskEngineState | undefined
   readonly lifecycle: { readonly subagents: number } | undefined
   readonly job: TaskJobState | undefined
-  /** This worktree's transcript facts — what keeps a `turn_complete` whose
-   *  engine is still writing from settling to done (`row-view.ts`). */
-  readonly transcript: { readonly mtimeMs: number } | undefined
   readonly completionSeen: boolean
 }): ReturnType<typeof buildSidebarRowView> {
   const t = useT()
-  const { task, activity, lifecycle, job, transcript, completionSeen } = args
+  const { task, activity, lifecycle, job, completionSeen } = args
   return useMemo(() => {
     // Dependency-only invalidation key: rebuild when the language changes —
     // buildSidebarRowView reads the global `t` through the locale store.
@@ -236,13 +233,12 @@ export function useTabRowBaseView(args: {
       activity,
       lifecycle,
       job,
-      transcript,
       spinnerFrame: 0,
       subtitleBudget: 0,
       truncateBranch: truncateBranchLabel,
       completionSeen,
     })
-  }, [task, activity, lifecycle, job, transcript, completionSeen, t])
+  }, [task, activity, lifecycle, job, completionSeen, t])
 }
 
 export function TabTreeRow(props: {
@@ -308,11 +304,6 @@ export function TabTreeRow(props: {
     activity,
     lifecycle: carriesState ? shared.engineLifecycle?.get(props.task.id) : undefined,
     job: carriesState ? shared.taskJobs?.get(props.task.id) : undefined,
-    // Keyed by worktree path, which is all the daemon collects — so every tab
-    // of a task shares one transcript. That is the resolution available: the
-    // alternative is the pre-fix behaviour where a nine-minute tool call
-    // after `turn-complete` rendered as done.
-    transcript: shared.transcriptActivity?.get(props.task.worktreePath),
     completionSeen,
   })
   const frame = useSpinnerFrame(carriesState && baseView.loading)

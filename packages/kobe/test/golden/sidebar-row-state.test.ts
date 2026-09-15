@@ -62,7 +62,7 @@ test("sidebar row state matrix matches the committed golden", () => {
     },
     { title: "project (main) rows — branch resolved from the repo checkout", lines: mainRowBlock() },
     { title: "engine-owned spinner frame sets + withSpinnerFrame overlay", lines: spinnerBlock() },
-    { title: "turn-complete vs transcript growth — the still-working grace window", lines: completionGraceBlock() },
+    { title: "turn-complete ignores directory transcript timestamps", lines: completionGraceBlock() },
     { title: "subagent marks ride the animation only", lines: subagentBlock() },
     { title: "subtitle truncation budget", lines: subtitleBudgetBlock() },
     {

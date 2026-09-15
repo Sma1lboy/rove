@@ -448,13 +448,13 @@ describe("readActivityLiveness session scoping", () => {
     expect(wide).not.toHaveBeenCalled()
   })
 
-  it("scans the worktree when no transcript path was reported", async () => {
+  it("keeps missing session identity unknown without scanning the worktree", async () => {
     const latestActivityInFile = vi.fn()
     const runtime = runtimeWith({
-      latestActivity: async () => ({ marker: null, mtimeMs: 42 }),
+      latestActivity: vi.fn(async () => ({ marker: null, mtimeMs: 42 })),
       latestActivityInFile,
     })
-    await expect(readActivityLiveness(orch, runtime, "t", "claude")).resolves.toEqual({ mtimeMs: 42 })
+    await expect(readActivityLiveness(orch, runtime, "t", "claude")).resolves.toEqual({ unknown: true })
     expect(latestActivityInFile).not.toHaveBeenCalled()
   })
 
@@ -464,8 +464,10 @@ describe("readActivityLiveness session scoping", () => {
       const home = await mkdtemp(join(tmpdir(), "rove-scoped-mtime-"))
       const own = join(home, "own.jsonl")
       const wide = vi.fn(async () => 999)
-      const runtime = runtimeWith(present ? { supportsCompletionMarkers: () => false } : undefined)
-      runtime.latestTranscriptMtime = wide
+      const runtime = {
+        ...runtimeWith(present ? { supportsCompletionMarkers: () => false } : undefined),
+        latestTranscriptMtime: wide,
+      }
       try {
         expect(await readActivityLiveness(orch, runtime, "t", "generic", own)).toEqual({ unknown: true })
         expect(await readActivityLiveness(orch, runtime, "t", "generic", home)).toEqual({ unknown: true })
