@@ -15,6 +15,7 @@
  */
 
 import { errorMessage } from "@/lib/error-message"
+import { useRenderer } from "@opentui/react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type {
   CursorPos,
@@ -26,6 +27,7 @@ import type {
 import type { PtyRegistry } from "../../../tui/panes/terminal/registry"
 import type { RowWrapFlags } from "../../../tui/panes/terminal/terminal-wrap"
 import { useLatest } from "../../lib/use-latest"
+import { terminalFrameScheduler } from "./terminal-frame-scheduler"
 
 /** Shared empty flags — a stable reference for backends that report none. */
 const NO_WRAP: RowWrapFlags = []
@@ -71,6 +73,7 @@ export interface UseTerminalPtyResult {
 }
 
 export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
+  const scheduleRefreshRef = useLatest(terminalFrameScheduler(useRenderer()))
   const [pty, setPty] = useState<TaskPty | null>(null)
   // Surfaced when `registry.acquire()` throws — without this the pane
   // would render blank with no hint as to why.
@@ -130,6 +133,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
         engineBin: engineBinRef.current,
         defaultColors: defaultColorsRef.current,
         alternateScreenStyleRewrites: alternateScreenStyleRewritesRef.current,
+        scheduleRefresh: scheduleRefreshRef.current,
       })
     } catch (err) {
       const message = errorMessage(err)
@@ -209,6 +213,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
           engineBin: engineBinRef.current,
           defaultColors: defaultColorsRef.current,
           alternateScreenStyleRewrites: alternateScreenStyleRewritesRef.current,
+          scheduleRefresh: scheduleRefreshRef.current,
         }
         const fresh = expected
           ? registryRef.current.resetIfCurrent(nextTaskId, expected, nextCwd, opts)

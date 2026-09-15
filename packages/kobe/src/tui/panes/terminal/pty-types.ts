@@ -9,7 +9,12 @@ import type { RowWrapFlags } from "./terminal-wrap"
 /** One rendered row: a list of opentui-ready style runs. */
 export type TerminalRow = readonly Chunk[]
 
+/** Queue work before a future frame; return a cancellation function. */
+export type TerminalRefreshScheduler = (refresh: () => void) => () => void
+
 export type TaskPtyOpts = {
+  /** Visible panes share their renderer's clock instead of a second timer. */
+  scheduleRefresh?: TerminalRefreshScheduler
   /** Working directory the shell should start in. Required. */
   cwd: string
   /** Stable id used by the registry. Required. */

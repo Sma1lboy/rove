@@ -62,6 +62,8 @@ Rules:
 
 With an isolated `visual:serve` fixture running, run `HEADED=1 TEST_URL=http://localhost:5273 node e2e/terminal-input-perf.ts /tmp/rpaint-run` from `packages/kobe-harness`. It opens the fixture shell through the 1280×800 `/harness`, measures browser-input-to-buffer latency for idle typing and typing during real PTY output, and saves screenshots plus raw timing samples. The workload also checks Unicode output, backspace clearing, and returning from the alternate screen. Use a fresh output directory for each comparison. Headless Chromium's WebGL rendering can dominate latency; compare runs in the same browser mode and inspect the recorded incoming frame timestamps before attributing a delay to Rove.
 
+Visible terminal snapshots use the renderer's frame callback and commit React updates before that frame draws. `test/render/terminal-frame-scheduler.test.tsx` pins this with one explicit render pass; waiting for several passes would hide an extra-frame regression. `test/tui/terminal-refresh-scheduler.test.ts` covers burst coalescing, cancellation, reattach, and synchronized-output retries. Non-visual consumers retain the timer fallback.
+
 `bun scripts/terminal-paint-bench.ts` from `packages/kobe` compares whole-content replacement with retained row buffers using the real OpenTUI renderer. This measures conversion and rendering cost, and supplements the browser journey rather than replacing it.
 
 ## Behavioral self-test
