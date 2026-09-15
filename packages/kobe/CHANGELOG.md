@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.199
+
+### Patch Changes
+
+- [#1014](https://github.com/Sma1lboy/rove/pull/1014) [`568258a`](https://github.com/Sma1lboy/rove/commit/568258ad1202eb8d89929ef42c8ced2943852203) Keep each terminal tab's activity scoped to its own session. A completed tab no longer spins because another tab in the same directory writes a transcript. Tab completion polling and the activity watchdog never borrow another session's transcript when identity is missing, and session changes discard pending completion reads. Task-level events without tab identity no longer light whichever tab happens to be selected. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.198
 
 ### Patch Changes
