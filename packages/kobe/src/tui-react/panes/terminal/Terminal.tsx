@@ -18,12 +18,11 @@
  * effects live in `use-terminal-geometry.ts` and `use-terminal-host-cursor.ts`
  * — they receive the PTY handle and the computed viewport cursor after
  * `useTerminalPty` has produced them. Turning the visible rows plus their
- * overlays (selection, search hits, cursor) into the single rendered
- * `StyledText` is `use-terminal-paint.ts`; this file only feeds it.
+ * overlays (selection, search hits, cursor) into retained row buffers is `use-terminal-paint.ts`; this file only feeds it.
  */
 
 import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
-import type { BoxRenderable, TextRenderable } from "@opentui/core"
+import type { BoxRenderable } from "@opentui/core"
 import { useMemo, useState } from "react"
 import { ImeCursorRetention } from "../../../tui/panes/terminal/ime-cursor"
 import { type PtyRegistry, getDefaultPtyRegistry } from "../../../tui/panes/terminal/registry"
@@ -248,7 +247,7 @@ function TerminalSession(props: TerminalProps) {
     } as const
   }, [theme])
 
-  const setSnapshotTextEl = useTerminalPaint({
+  const setSnapshotGrid = useTerminalPaint({
     visibleRows,
     firstRow: visibleRange.start,
     cols: bodyGeometry?.cols ?? 80,
@@ -455,22 +454,7 @@ function TerminalSession(props: TerminalProps) {
       <box ref={(r: BoxRenderable | null) => setBodyEl(r)} onSizeChange={bumpGeomTick} flexGrow={1} overflow="hidden">
         {/* Body */}
         {pty ? (
-          // One multi-line `<text>` for the whole snapshot (rows flattened
-          // with `\n`) — one <text> per row inside a flex column shifts
-          // body.screenY, landing the cursor a row above the prompt.
-          //
-          // `selectable={false}`: this pane runs its OWN grid selection (see
-          // `use-terminal-selection`), and opentui's text-flow selection can't
-          // work over a snapshot that is replaced every frame. Left on, it also
-          // swallows the drag — the renderer routes a live text selection to
-          // whatever sits under the pointer instead of capturing it to this
-          // pane, so a drag past the edge would never reach us at all.
-          <text
-            fg={theme.text}
-            wrapMode="none"
-            selectable={false}
-            ref={(r: TextRenderable | null) => setSnapshotTextEl(r)}
-          />
+          <box flexGrow={1} overflow="hidden" ref={setSnapshotGrid} />
         ) : (
           <box paddingLeft={1} paddingTop={1} flexDirection="column" gap={0}>
             {acquireError ? (

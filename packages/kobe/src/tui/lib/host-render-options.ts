@@ -24,21 +24,9 @@
  */
 const KITTY_KEYBOARD = {} as const
 
-/**
- * The runtime TUI's render cadence — also the PTY snapshot coalesce period
- * (`SNAPSHOT_COALESCE_MS` derives from it, so the two cannot drift).
- *
- * 30 (opentui's default) everywhere except Windows, where it is 60. An engine
- * tab there sits behind TWO ConPTYs — the pty host's and Windows Terminal's —
- * and the inner one already paces output in ~16–60ms batches (measured echo
- * p90 ≈ 63ms against p50 ≈ 1ms). Stacking a 33ms coalesce plus a 33ms frame
- * on top is what made typing feel a beat behind a native `claude` in the same
- * terminal; halving both takes ~33ms off the worst path. The cost is idle CPU
- * on a platform where the frame is cheap, not extra work per keystroke — a
- * snapshot is still built at most once per frame.
- */
-export function hostTargetFps(platform: NodeJS.Platform = process.platform): number {
-  return platform === "win32" ? 60 : 30
+/** Keep continuous terminal snapshots and host rendering on a 60fps cadence. */
+export function hostTargetFps(): number {
+  return 60
 }
 
 export function hostRenderOptions(onDestroy?: () => void): Record<string, unknown> {

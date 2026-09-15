@@ -9,7 +9,7 @@ import type { CursorPos, TerminalRow, TerminalSnapshotWindow } from "./pty-types
 import { TerminalCursorSettlement } from "./terminal-cursor-settlement"
 import { reconcileTerminalCursor, reconcileTerminalRow, reconcileTerminalRows } from "./terminal-snapshot"
 import type { RowWrapFlags } from "./terminal-wrap"
-import { xtermLineToChunks } from "./xterm-chunks"
+import { xtermLineMatchesChunks, xtermLineToChunks } from "./xterm-chunks"
 import {
   type SnapshotMeta,
   type XtermRefreshTracker,
@@ -156,7 +156,15 @@ export class XtermSnapshotEngine {
       }
       const line = active.getLine(y)
       const minLast = !cursorHidden && y === cursorY ? active.cursorX - 1 : -1
-      const row: TerminalRow = line ? xtermLineToChunks(line, minLast, styleRewrites) : []
+      const previousRow = previousSnapshot[rowsOut.length]
+      // Verify cells before allocating chunks. This also handles scrolling
+      // when a saturated buffer keeps the same length and baseY.
+      const row: TerminalRow =
+        previousRow && xtermLineMatchesChunks(line, previousRow, minLast, styleRewrites)
+          ? previousRow
+          : line
+            ? xtermLineToChunks(line, minLast, styleRewrites)
+            : []
       // The first row of the window can be a continuation of a row the ring
       // already dropped; there is nothing left to join it to, so it starts a
       // logical line like any other orphan.
