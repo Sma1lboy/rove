@@ -234,6 +234,13 @@ export function DevSettingsSection(
           "settings.dev.dispatcher",
           prefs.toggleDispatcher,
         )}
+        {toggleRow(
+          "desktop-pet",
+          prefs.desktopPetOn(),
+          "settings.dev.desktopPetHint",
+          "settings.dev.desktopPet",
+          prefs.toggleDesktopPet,
+        )}
       </box>
     </box>
   )

@@ -50,6 +50,9 @@ export type TreeRowShared = {
   readonly onContextMenu?: (flatIndex: number, rowId: string, x: number, y: number) => void
   /** The sidebar's ~2s poll tick — drives the ±stats poller. */
   readonly branchTick: number
+  /** The opt-in `rove.desktop_pet` flag, resolved ONCE in the tree host so a
+   *  tab row budgets the pet's cells from the same read the pet renders with. */
+  readonly desktopPet?: boolean
   /** Per-tab activity (taskId → tabId → state), never the task rollup. */
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>

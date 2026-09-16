@@ -15,6 +15,7 @@ import { type BoxRenderable, MouseButton, TextAttributes } from "@opentui/core"
 import { type ReactNode, useEffect, useMemo } from "react"
 import { charWidth } from "../../../lib/display-width"
 import { relativeAge } from "../../../lib/relative-time"
+import { PET_CELLS } from "../../../tui/desktop-pet"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
@@ -43,6 +44,7 @@ import {
   useDurableCompletionSeen,
   useSpinnerFrame,
 } from "./row-cards"
+import { TabPet } from "./tab-pet"
 import { MoveChip, RowShell, type TreeRowShared, clusterCells, jumpDigitCells, treeLabelBudget } from "./tree-row-shell"
 
 /**
@@ -332,6 +334,7 @@ export function TabTreeRow(props: {
       >
         {`${glyph} `}
       </text>
+      <TabPet tabId={props.tab.id} activity={activity} />
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
         <text
           fg={pulsing ? theme.text : theme.textMuted}
@@ -347,6 +350,7 @@ export function TabTreeRow(props: {
             treeLabelBudget(
               shared,
               2 +
+                (shared.desktopPet ? PET_CELLS + 1 : 0) +
                 jumpDigitCells(props.flatIndex) +
                 (age ? clusterCells(age) : 0) +
                 (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
