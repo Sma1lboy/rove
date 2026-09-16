@@ -3,16 +3,16 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { deliveryLockPath, withDeliveryLock } from "../../src/engine/delivery-lock.ts"
-import { writeHostedPrompt } from "../../src/engine/hosted-session.ts"
+import { type HostedSessionRpc, writeHostedPrompt } from "../../src/engine/hosted-session.ts"
 import { acquire } from "../../src/orchestrator/index/lockfile.ts"
 
 /** Record every `pty.write` in arrival order — the only thing that decides
  *  whether the engine sees one composer or two. */
-function recordingRpc(log: string[]) {
+function recordingRpc(log: string[]): HostedSessionRpc {
   return {
-    request: async (name: string, payload?: unknown) => {
+    request: async <T>(name: string, payload?: unknown): Promise<T> => {
       if (name === "pty.write") log.push((payload as { data?: string })?.data ?? "")
-      return {}
+      return {} as T
     },
   }
 }
