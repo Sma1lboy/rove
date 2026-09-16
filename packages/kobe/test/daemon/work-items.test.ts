@@ -34,6 +34,17 @@ describe("workItemTaskTitle", () => {
     expect(title.length).toBeLessThanOrEqual(60)
     expect(title.endsWith("…")).toBe(true)
   })
+
+  it("clips on a code-point boundary so an emoji at the cut is not split into a lone surrogate", () => {
+    // room = 60 - "#362 ".length = 55; the cut falls where the emoji sits, so a
+    // UTF-16 `.slice` would strand half of it and render as U+FFFD (�).
+    const title = workItemTaskTitle(item({ title: `${"a".repeat(53)}😀${"b".repeat(20)}` }))
+    expect(title.startsWith("#362 ")).toBe(true)
+    expect(title.endsWith("…")).toBe(true)
+    // No lone surrogate survives (a stranded half round-trips to the replacement char).
+    expect(title).not.toContain("�")
+    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(title)).toBe(false)
+  })
 })
 
 describe("buildWorkItemPrompt", () => {
