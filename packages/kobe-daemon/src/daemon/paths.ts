@@ -305,3 +305,12 @@ export function defaultWebTokenPath(homeDir = readRoveHomeDirEnv() ?? homedir())
 export function defaultPtyFreezeDir(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return runtimeDataPath(homeDir, "pty-sessions")
 }
+
+/** Per-session delivery locks (`engine/delivery-lock.ts`) — one file per PTY
+ *  session key, held only for the length of one paste→submit sequence. They
+ *  live beside the other runtime data rather than in the OS temp dir so a
+ *  `rove reset` clears them with everything else, and so two senders under
+ *  different `TMPDIR`s still contend for the same file. */
+export function defaultDeliveryLockDir(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
+  return runtimeDataPath(homeDir, "delivery-locks")
+}
