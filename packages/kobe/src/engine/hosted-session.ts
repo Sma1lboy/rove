@@ -8,6 +8,7 @@ import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
 import type { TerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
 import { readPersistedTerminalDefaultColors } from "../tui/lib/terminal-colors.ts"
 import { BUILTIN_VENDORS, type VendorId } from "../types/vendor.ts"
+import { withDeliveryLock } from "./delivery-lock.ts"
 import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from "./foreground.ts"
 import { PASTE_READY_POLL_MS, PASTE_READY_TIMEOUT_MS, bracketedPasteActive, encodePaste } from "./paste-readiness.ts"
 import { engineEntry } from "./registry.ts"
@@ -324,9 +325,17 @@ export async function writeHostedPrompt(
   const capabilities = opts?.vendor ? engineEntry(opts.vendor).capabilities : undefined
   const prepared = capabilities?.preparePromptSubmission?.(prompt)
   const data = encodePaste(prepared ?? prompt, bracketed)
-  await rpc.request("pty.write", { key, data })
-  await new Promise((resolve) => setTimeout(resolve, SUBMIT_DELAY_MS))
-  await rpc.request("pty.write", { key, data: `${capabilities?.beforePromptSubmit ?? ""}\r` })
+  // The paste and the submit key are ONE act, and two `rove api send`
+  // processes aimed at the same tab would otherwise interleave their halves —
+  // see `delivery-lock.ts` for the interleaving and what the engine does with
+  // it. The lock spans both writes and nothing else: the echo confirmation
+  // that follows is a read, and holding the key through its poll would make
+  // every sender in a fan-out round wait out the one before it.
+  await withDeliveryLock(key, async () => {
+    await rpc.request("pty.write", { key, data })
+    await new Promise((resolve) => setTimeout(resolve, SUBMIT_DELAY_MS))
+    await rpc.request("pty.write", { key, data: `${capabilities?.beforePromptSubmit ?? ""}\r` })
+  })
   return { bytes: Buffer.byteLength(data, "utf8") }
 }
 

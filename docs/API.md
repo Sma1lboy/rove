@@ -591,6 +591,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 
   Every engine receives Enter, including while it is mid-turn. Codex first receives End, which flushes its pending paste without changing the text. On Windows, Enter alone can join an unfinished paste burst as a newline and leave the message in the input box. Delivery does not read the engine's footer to choose a submit key. How an engine handles a mid-turn submission remains the engine's own behavior, not something this result reports.
 
+  Deliveries into one tab are serialized against each other. The paste and the submit key are one act, and two sends racing on the same tab used to interleave their halves — both messages landing in one composer, submitted together as a single turn by the first Enter while the second Enter hit an empty composer. That is what made several workers reporting into one coordinator tab look like their replies were piling up unsent. A send now waits for any delivery already in flight on that tab; one that waits too long delivers anyway rather than refusing, so a contended tab can still merge in the worst case, but a report is never dropped to avoid it.
+
   A FRESH spawn carries the prompt on the engine's own command line, so there
   is no write to observe; `engineReady` there reports the engine PROCESS being
   found inside the session, and nothing else. A hosted session stays alive

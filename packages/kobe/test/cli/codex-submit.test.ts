@@ -57,37 +57,35 @@ describe("Codex prompt submission", () => {
   })
 })
 
+// Real timers, not a faked 150ms: delivery now takes its session's lock before
+// the paste (see `engine/delivery-lock.ts`), and that acquire is real
+// filesystem work. Under fake timers the advance ran BEFORE the settle timer
+// existed and the delivery never resolved. What this test pins is the key
+// ORDER, not the wait, so it pays the 150ms.
 it("finishes a pending native paste before Enter, preserving the complete report", async () => {
-  vi.useFakeTimers()
-  try {
-    const prompt = "报告😀\n".repeat(700)
-    let pending = ""
-    let composer = ""
-    let submitted: string | undefined
-    const request = vi.fn().mockImplementation(async (name: string, payload?: { data?: string }) => {
-      if (name !== "pty.write") return {}
-      const data = payload?.data ?? ""
-      if (data.startsWith("\x1b[200~")) {
-        pending += data.slice(6, -6)
-        return {}
-      }
-      if (data.startsWith("\x1b[F")) {
-        composer += pending
-        pending = ""
-      }
-      if (data.endsWith("\r")) {
-        if (pending) pending += "\n"
-        else submitted = composer
-      }
+  const prompt = "报告😀\n".repeat(700)
+  let pending = ""
+  let composer = ""
+  let submitted: string | undefined
+  const request = vi.fn().mockImplementation(async (name: string, payload?: { data?: string }) => {
+    if (name !== "pty.write") return {}
+    const data = payload?.data ?? ""
+    if (data.startsWith("\x1b[200~")) {
+      pending += data.slice(6, -6)
       return {}
-    })
-    const delivery = writeHostedPrompt({ request }, "task::tab-1", prompt, { ready: true, vendor: "codex" })
-    await vi.advanceTimersByTimeAsync(150)
-    await delivery
-    expect(submitted).toBe(`${prompt} `)
-    expect(pending).toBe("")
-    expect(request.mock.calls.filter(([name]) => name === "pty.write")).toHaveLength(2)
-  } finally {
-    vi.useRealTimers()
-  }
+    }
+    if (data.startsWith("\x1b[F")) {
+      composer += pending
+      pending = ""
+    }
+    if (data.endsWith("\r")) {
+      if (pending) pending += "\n"
+      else submitted = composer
+    }
+    return {}
+  })
+  await writeHostedPrompt({ request }, "task::tab-1", prompt, { ready: true, vendor: "codex" })
+  expect(submitted).toBe(`${prompt} `)
+  expect(pending).toBe("")
+  expect(request.mock.calls.filter(([name]) => name === "pty.write")).toHaveLength(2)
 })
