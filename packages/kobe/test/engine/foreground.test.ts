@@ -73,6 +73,19 @@ describe("foregroundEngineIn", () => {
     expect(foregroundEngineIn(rows, 99999)).toBeNull()
   })
 
+  it("terminates on a cyclic snapshot reachable from the root", () => {
+    // A racy `ps` (pid reuse) can hand us a ppid cycle reachable from the
+    // shell: 50 → 51 → 52 → 51 → …. No row names an engine, so a walk with no
+    // visited guard would loop forever instead of answering null.
+    const cyclic = parsePsSnapshot(`
+50 1 -zsh
+51 50 a
+52 51 b
+51 52 c
+`)
+    expect(foregroundEngineIn(cyclic, 50)).toBeNull()
+  })
+
   it("prefers the shallowest engine — a session, not its helper subprocesses", () => {
     const nested = parsePsSnapshot(`
 10 1 -zsh
@@ -86,6 +99,19 @@ describe("foregroundEngineIn", () => {
 describe("engineProcessIn (delivery foreground gate)", () => {
   it("sees a builtin engine through the wrapper chain", () => {
     expect(engineProcessIn(parsePsSnapshot(REAL_TREE), 56070)).toBe(true)
+  })
+
+  it("terminates on a cyclic snapshot instead of hanging the delivery gate", () => {
+    // Same reachable ppid cycle as above; the extraLaunch pass has its own BFS,
+    // so both walks must be cycle-guarded or the gate that awaits this freezes.
+    const cyclic = parsePsSnapshot(`
+50 1 -zsh
+51 50 a
+52 51 b
+51 52 c
+`)
+    expect(engineProcessIn(cyclic, 50)).toBe(false)
+    expect(engineProcessIn(cyclic, 50, ["nonexistent-engine"])).toBe(false)
   })
 
   it("a keepAlive fallback shell (engine exited) is NOT an engine", () => {
