@@ -1,3 +1,4 @@
+import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import {
   type DetectDeps,
@@ -199,7 +200,7 @@ describe("detectBobAccount", () => {
         },
       }),
     )
-    expect(seen).toEqual(["/home/u/.bob/settings/auth-secrets.json"])
+    expect(seen).toEqual([path.join("/home/u", ".bob", "settings", "auth-secrets.json")])
   })
 
   it("reports an API key from BOB_API_KEY (or the legacy BOBSHELL_API_KEY) ahead of the store", async () => {
