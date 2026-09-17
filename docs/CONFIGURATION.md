@@ -321,7 +321,7 @@ red outrank green when both fire for the same tab. Three delivery channels:
 
 ## Custom engines
 
-Built-in engines are `claude`, `codex`, `copilot`, `kimi`, `pi`, and `omp`.
+Built-in engines are `claude`, `codex`, `copilot`, `kimi`, `pi`, `omp`, and `bob`.
 You can register any other CLI from **Settings → Engines**, or by hand:
 
 ```json
@@ -351,7 +351,7 @@ A custom engine launches and runs like any other, but Rove deliberately
 doesn't guess at its internals — no history reader, no account detection, no
 activity hooks, no session resume — unless you declare
 `"engineProtocol.<id>"` (one of the built-in ids: `claude`, `codex`,
-`copilot`, `kimi`, `pi`, `omp`), which borrows that built-in's adapter for
+`copilot`, `kimi`, `pi`, `omp`, `bob`), which borrows that built-in's adapter for
 transcript reads and delivery. More in [Engines](./ENGINES.md).
 
 Settings → Engines asks for it while adding the engine — a list of the

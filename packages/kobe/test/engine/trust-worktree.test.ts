@@ -294,6 +294,6 @@ describe("BUILTIN_ENGINES trust coverage", () => {
       .filter((vendor) => !NO_TRUST_GATE.includes(vendor))
     expect(missing, `no trustWorktree hook: ${missing.join(", ")}`).toEqual([])
     // Guard the guard: an empty registry would satisfy the assertion above.
-    expect(Object.keys(BUILTIN_ENGINES).sort()).toEqual(["claude", "codex", "copilot", "kimi", "omp", "pi"])
+    expect(Object.keys(BUILTIN_ENGINES).sort()).toEqual(["bob", "claude", "codex", "copilot", "kimi", "omp", "pi"])
   })
 })

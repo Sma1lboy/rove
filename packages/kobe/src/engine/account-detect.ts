@@ -27,7 +27,7 @@
  *
  * The functions are pure — fs + env + binary discovery are injected
  * via {@link DetectDeps}, so tests pin every path and the production
- * paths only flow through `defaultDeps`. No subprocess for account
+ * paths only flow through `defaultDetectDeps`. No subprocess for account
  * detection: we don't shell out to `claude /status` or `codex auth
  * status` — both are slow and the on-disk shape is the source of
  * truth those subcommands print anyway.
@@ -45,6 +45,7 @@ import { errorMessage } from "@/lib/error-message"
 import { getCustomEngineIds, getDisabledEngineIds } from "@/state/repos"
 import type { VendorId } from "@/types/vendor"
 import { BinaryNotFoundError } from "./binary-discovery"
+import { findBobBinary } from "./bob-local/binary"
 import { findClaudeBinary } from "./claude-code-local/binary"
 import { findCodexBinary } from "./codex-local/binary"
 import { CONTRIB_ENGINES, CONTRIB_ENGINE_IDS, pluginEngineIds } from "./contrib-engines"
@@ -52,7 +53,13 @@ import { findCopilotBinary } from "./copilot-local/binary"
 import { readTextFileSyncBounded } from "./file-bounds"
 import { findKimiBinary } from "./kimi-local/binary"
 import { findOmpBinary, findPiBinary } from "./pi-local/binary"
-import { claudeGlobalConfigPath, codexAuthPath, copilotConfigPath, kimiCredentialsPath } from "./vendor-home"
+import {
+  bobAuthSecretsPath,
+  claudeGlobalConfigPath,
+  codexAuthPath,
+  copilotConfigPath,
+  kimiCredentialsPath,
+} from "./vendor-home"
 
 export type ClaudeAccount =
   | {
@@ -100,9 +107,10 @@ export interface DetectDeps {
   findKimiBinary(): Promise<string>
   findPiBinary(): Promise<string>
   findOmpBinary(): Promise<string>
+  findBobBinary(): Promise<string>
 }
 
-const defaultDeps: DetectDeps = {
+export const defaultDetectDeps: DetectDeps = {
   readFile(p: string): string | null {
     // statSync-then-read (cleaner ENOENT signal than readFile's mixed errors)
     // PLUS a size ceiling: an oversize/corrupt credential file degrades to the
@@ -134,6 +142,9 @@ const defaultDeps: DetectDeps = {
   findOmpBinary() {
     return findOmpBinary()
   },
+  findBobBinary() {
+    return findBobBinary()
+  },
 }
 
 /**
@@ -159,7 +170,7 @@ function decodeJwtPayload(jwt: string): Record<string, unknown> | null {
   }
 }
 
-async function probeBinary(probe: () => Promise<string>): Promise<BinaryStatus> {
+export async function probeBinary(probe: () => Promise<string>): Promise<BinaryStatus> {
   try {
     const p = await probe()
     return { found: true, path: p }
@@ -203,6 +214,7 @@ async function probeAvailableVendors(deps: DetectDeps): Promise<readonly VendorI
     ["kimi", () => deps.findKimiBinary()],
     ["pi", () => deps.findPiBinary()],
     ["omp", () => deps.findOmpBinary()],
+    ["bob", () => deps.findBobBinary()],
   ]
   const detected = await Promise.all(
     probes.map(async ([vendor, probe]) => ((await probeBinary(probe)).found ? vendor : null)),
@@ -213,10 +225,10 @@ async function probeAvailableVendors(deps: DetectDeps): Promise<readonly VendorI
 // NOT `async`: a plain function returns the cached promise VERBATIM, so the
 // memo is real (an `async` wrapper would mint a fresh outer promise per call
 // even when the inner value is cached).
-export function detectAvailableVendors(deps: DetectDeps = defaultDeps): Promise<readonly VendorId[]> {
+export function detectAvailableVendors(deps: DetectDeps = defaultDetectDeps): Promise<readonly VendorId[]> {
   // Only the production (default-deps) path is memoized — custom deps must
   // re-probe so tests and explicit re-checks stay honest.
-  if (deps !== defaultDeps) return probeAvailableVendors(deps)
+  if (deps !== defaultDetectDeps) return probeAvailableVendors(deps)
   if (cachedDefaultVendors) return cachedDefaultVendors
   // Cache the PROMISE (not the resolved value) so concurrent first calls share
   // one probe; on rejection, clear it so a later call can retry.
@@ -250,7 +262,7 @@ export function resetAvailableVendorsCache(): void {
  * call — state.json can change (Settings → Engines), and only the slow binary
  * `which` probes are worth caching.
  */
-export async function installedEngineIds(deps: DetectDeps = defaultDeps): Promise<readonly VendorId[]> {
+export async function installedEngineIds(deps: DetectDeps = defaultDetectDeps): Promise<readonly VendorId[]> {
   const builtins = await detectAvailableVendors(deps)
   const contrib = await detectContribEngines()
   // Custom ids win over a same-named contrib entry (dedup keeps the first).
@@ -262,7 +274,7 @@ export async function installedEngineIds(deps: DetectDeps = defaultDeps): Promis
  * Settings → Engines. This is the list to OFFER — Settings itself reads the
  * installed list, since a disabled engine still needs a row to switch back on.
  */
-export async function availableEngineIds(deps: DetectDeps = defaultDeps): Promise<readonly VendorId[]> {
+export async function availableEngineIds(deps: DetectDeps = defaultDetectDeps): Promise<readonly VendorId[]> {
   const disabled = new Set(getDisabledEngineIds())
   return (await installedEngineIds(deps)).filter((id) => !disabled.has(id))
 }
@@ -296,7 +308,9 @@ function detectContribEngines(): Promise<readonly VendorId[]> {
   return cachedContribEngines
 }
 
-export async function detectClaudeAccount(deps: DetectDeps = defaultDeps): Promise<EngineAccountStatus<ClaudeAccount>> {
+export async function detectClaudeAccount(
+  deps: DetectDeps = defaultDetectDeps,
+): Promise<EngineAccountStatus<ClaudeAccount>> {
   const binary = await probeBinary(() => deps.findClaudeBinary())
   const configPath = claudeGlobalConfigPath(deps.env, deps.home())
   let raw: string | null
@@ -337,7 +351,9 @@ export async function detectClaudeAccount(deps: DetectDeps = defaultDeps): Promi
   }
 }
 
-export async function detectCodexAccount(deps: DetectDeps = defaultDeps): Promise<EngineAccountStatus<CodexAccount>> {
+export async function detectCodexAccount(
+  deps: DetectDeps = defaultDetectDeps,
+): Promise<EngineAccountStatus<CodexAccount>> {
   const binary = await probeBinary(() => deps.findCodexBinary())
   const authPath = codexAuthPath(deps.env, deps.home())
   let raw: string | null
@@ -395,7 +411,7 @@ export async function detectCodexAccount(deps: DetectDeps = defaultDeps): Promis
 }
 
 export async function detectCopilotAccount(
-  deps: DetectDeps = defaultDeps,
+  deps: DetectDeps = defaultDetectDeps,
 ): Promise<EngineAccountStatus<CopilotAccount>> {
   const binary = await probeBinary(() => deps.findCopilotBinary())
   for (const source of ["COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"] as const) {
@@ -443,7 +459,9 @@ export async function detectCopilotAccount(
   return { binary, account: { kind: "none" } }
 }
 
-export async function detectKimiAccount(deps: DetectDeps = defaultDeps): Promise<EngineAccountStatus<KimiAccount>> {
+export async function detectKimiAccount(
+  deps: DetectDeps = defaultDetectDeps,
+): Promise<EngineAccountStatus<KimiAccount>> {
   const binary = await probeBinary(() => deps.findKimiBinary())
   const credPath = kimiCredentialsPath(deps.env, deps.home())
   let raw: string | null
@@ -465,11 +483,11 @@ export async function detectKimiAccount(deps: DetectDeps = defaultDeps): Promise
   return { binary, account: { kind: "none" } }
 }
 
-function isRecord(v: unknown): v is Record<string, unknown> {
+export function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v)
 }
 
-function hasStringDeep(value: unknown, interestingKeys: readonly string[], depth = 0): boolean {
+export function hasStringDeep(value: unknown, interestingKeys: readonly string[], depth = 0): boolean {
   if (depth > 4 || !isRecord(value)) return false
   for (const [key, entry] of Object.entries(value)) {
     if (interestingKeys.includes(key) && typeof entry === "string" && entry.length > 0) return true

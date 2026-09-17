@@ -37,6 +37,7 @@ function deps(over: Partial<DetectDeps> = {}): DetectDeps {
     findKimiBinary: async () => "/bin/kimi",
     findPiBinary: async () => "/bin/pi",
     findOmpBinary: async () => "/bin/omp",
+    findBobBinary: async () => "/bin/bob",
     ...over,
   }
 }
@@ -220,11 +221,11 @@ describe("availableEngineIds", () => {
     fs.mkdirSync(stateDir, { recursive: true })
     fs.writeFileSync(path.join(stateDir, "state.json"), JSON.stringify({ customEngineIds: ["my-custom-engine"] }))
     const ids = await availableEngineIds(deps({ findCopilotBinary: async () => "/bin/copilot" }))
-    expect(ids).toEqual(["claude", "codex", "copilot", "kimi", "pi", "omp", "my-custom-engine"])
+    expect(ids).toEqual(["claude", "codex", "copilot", "kimi", "pi", "omp", "bob", "my-custom-engine"])
   })
 
   it("returns just the built-ins when no custom engines are registered", async () => {
     const ids = await availableEngineIds(deps())
-    expect(ids).toEqual(["claude", "codex", "copilot", "kimi", "pi", "omp"])
+    expect(ids).toEqual(["claude", "codex", "copilot", "kimi", "pi", "omp", "bob"])
   })
 })
