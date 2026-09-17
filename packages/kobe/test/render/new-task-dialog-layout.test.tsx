@@ -60,6 +60,8 @@ for (const { width, height } of [
   test(`${width}x${height}: wrapped engines and inputs keep full borders above the footer`, async () => {
     const h = await mount(width, height)
     await press(h, "right")
+    // tabs → engine → model → git url
+    await press(h, "tab")
     await press(h, "tab")
     await press(h, "tab")
     await act(async () => h.mockInput.typeText("https://github.com/Sma1lboy/mc-rpg.git"))
@@ -67,14 +69,18 @@ for (const { width, height } of [
     const boxes = descendants(h.renderer.root).filter(
       (node): node is BoxRenderable => node instanceof BoxRenderable && !!node.border,
     )
-    expect(boxes.length).toBe(12)
+    // 3 mode chips + 6 engine chips + model well + 4 clone wells... minus the
+    // two wells the scroll box has not laid out yet at this height: 13.
+    expect(boxes.length).toBe(13)
     for (const box of boxes) expect(box.height).toBe(3)
     const firstEngine = boxes[3]!
     const wrappedEngine = boxes[6]!
     expect(wrappedEngine.y).toBe(firstEngine.y + firstEngine.height)
-    const urlField = boxes[8]!
+    const modelField = boxes[8]!
     // One label row and one blank row separate the next well from the chips.
-    expect(urlField.y).toBe(wrappedEngine.y + wrappedEngine.height + 2)
+    expect(modelField.y).toBe(wrappedEngine.y + wrappedEngine.height + 2)
+    const urlField = boxes[9]!
+    expect(urlField.y).toBe(modelField.y + modelField.height + 2)
     for (let i = 0; i < 3; i++) await press(h, "tab")
     const frame = await h.frame()
     const lines = frame.split("\n")
@@ -96,6 +102,8 @@ for (const mode of ["existing", "adopt"] as const) {
       await press(h, "right")
       await press(h, "right")
     }
+    // tabs → engine → model → first input of the tab
+    await press(h, "tab")
     await press(h, "tab")
     await press(h, "tab")
     if (mode === "adopt") {
@@ -122,7 +130,8 @@ for (const mode of ["existing", "adopt"] as const) {
 test("a focused last field remains visible after narrowing and shortening the terminal", async () => {
   const h = await mount(200, 60)
   await press(h, "right")
-  for (let i = 0; i < 5; i++) await press(h, "tab")
+  // tabs → engine → model → url → parent → folder → base branch
+  for (let i = 0; i < 6; i++) await press(h, "tab")
   await h.frame()
   act(() => h.resize(64, 40))
   await settle()
@@ -148,11 +157,13 @@ test("a focused last field remains visible after narrowing and shortening the te
 for (const { width, height } of [
   { width: 153, height: 35 },
   { width: 153, height: 34 },
-  { width: 200, height: 30 },
+  // The compact form grew a MODEL well (two rows) — 30 rows now scroll.
+  { width: 200, height: 32 },
 ]) {
   test(`${width}x${height}: footer spacing leaves the parent well or compact form intact`, async () => {
     const h = await mount(width, height)
     await press(h, "right")
+    await press(h, "tab")
     await press(h, "tab")
     await press(h, "tab")
     await act(async () => h.mockInput.typeText("https://github.com/Sma1lboy/mc-rpg.git"))
@@ -168,7 +179,7 @@ for (const { width, height } of [
       const wells = descendants(h.renderer.root).filter(
         (node): node is BoxRenderable => node instanceof BoxRenderable && !!node.border,
       )
-      const parent = wells[9]!
+      const parent = wells[10]!
       expect(parent.height).toBe(3)
       expect(parent.y + parent.height).toBeLessThanOrEqual(scroll.viewport.y + scroll.viewport.height)
       expect(frame).toMatch(/↓ \d+ more rows/)

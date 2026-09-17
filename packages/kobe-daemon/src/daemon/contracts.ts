@@ -142,6 +142,8 @@ export interface DaemonTask {
   readonly observedLanguage?: ObservedLanguage
   readonly prStatus?: TaskPRStatus
   readonly modelEffort?: string
+  /** Model pinned on the engine, in its own spelling. */
+  readonly model?: string
   readonly groupId?: string
   readonly deletion?: TaskDeletionState
   readonly quotaResume?: TaskQuotaResumeState
@@ -251,6 +253,7 @@ export interface DaemonOrchestrator {
     /** Raw engine launch command; `vendor` carries its resolved protocol. */
     command?: string
     modelEffort?: string
+    model?: string
     groupId?: string
     dispatcher?: TaskDispatcher
     /** Mark this the standing session task of a routine. */
@@ -270,7 +273,7 @@ export interface DaemonOrchestrator {
   /** Record the language a task's user writes in, from their own prompt text. */
   observeLanguage(id: string, text: string): Promise<void>
   /** `effort`: absent = keep the recorded level, `""` = clear it, else set it. */
-  setVendor(id: string, vendor: VendorId, effort?: string): Promise<void>
+  setVendor(id: string, vendor: VendorId, effort?: string, model?: string): Promise<void>
   /** Pin a raw launch command (and its caller-resolved protocol) on a task. */
   setCommand(id: string, command: string, vendor?: VendorId): Promise<void>
   setPinned(id: string, pinned?: boolean): Promise<void>

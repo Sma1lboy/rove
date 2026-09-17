@@ -70,6 +70,7 @@ export interface RespawnTaskContext {
   readonly vendor?: VendorId
   readonly command?: string
   readonly modelEffort?: string
+  readonly model?: string
 }
 
 /**
@@ -94,6 +95,7 @@ export function restoredTabLaunch(
     command: tab.engineCommand ?? (tab.vendor ? undefined : task.command),
     vendor: tab.vendor ?? task.vendor,
     effort: task.modelEffort,
+    model: task.model,
   })
   return buildEngineSessionLaunch({
     task: { id: task.id, kind: (task.kind as "task") ?? "task", vendor: tab.vendor ?? task.vendor, repo: task.repo },

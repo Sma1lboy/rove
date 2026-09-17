@@ -57,6 +57,10 @@ export type NewTaskInput =
       baseRef: string
       /** Engine the task runs on. Defaults to the user's last-selected vendor. */
       vendor: VendorId
+      /** Reasoning level, when the engine declares levels and one was picked. */
+      modelEffort?: string
+      /** Pinned model, when the engine declares a model flag and one was typed. */
+      model?: string
       cloned?: { parentDir: string }
     }
   | {
@@ -128,6 +132,10 @@ export function prevDialogTab(tab: DialogTab): DialogTab {
  *                ←/→ switches the active sub-tab while it's focused.
  *   - `engine` — the vendor selector. ←/→ (and ctrl+e from anywhere)
  *                cycles the engine while it's focused.
+ *   - `effort` — the reasoning-level chips; rendered only for an engine that
+ *                declares levels, so the walk is told whether it is on screen.
+ *   - `model`  — the model input; rendered only for an engine that declares
+ *                a model flag. Same visibility rule.
  * Below them each sub-tab has its own inputs: "existing" uses `repo` /
  * `baseRef`; "clone" uses `cloneUrl` / `cloneParent` / `cloneFolder` /
  * `cloneBaseRef`; "adopt" uses `adoptFilter`. `confirm` is the bottom-
@@ -137,6 +145,8 @@ export function prevDialogTab(tab: DialogTab): DialogTab {
 export type Field =
   | "tabs"
   | "engine"
+  | "effort"
+  | "model"
   | "repo"
   /** The Existing tab's task-vs-project selector. Reachable only
    *  while it renders — see `nextField`. */
@@ -267,20 +277,28 @@ export function isBlankText(v: string): boolean {
  * Advance the field-cycle state. Tab walks the full chain in visual
  * order, threading the two shared selectors (`tabs`, `engine`) and the
  * shared `confirm` button into every sub-tab:
- *   existing:   tabs → engine → repo → baseRef → confirm → tabs
- *   clone:      tabs → engine → cloneUrl → cloneParent → cloneFolder → cloneBaseRef → confirm → tabs
- *   adopt:      tabs → engine → adoptFilter → confirm → tabs
+ *   existing:   tabs → engine → [effort] → [model] → repo → baseRef → confirm → tabs
+ *   clone:      tabs → engine → [effort] → [model] → cloneUrl → cloneParent → cloneFolder → cloneBaseRef → confirm → tabs
+ *   adopt:      tabs → engine → [effort] → [model] → adoptFilter → confirm → tabs
  *
  * The `confirm → tabs → engine → <first input>` trailer is shared, so
  * tabbing past Create lands back on the selectors rather than stranding
  * the user. A stale cross-tab input field restarts the active tab's
- * cycle at its first input.
+ * cycle at its first input. The bracketed stops exist only while their row
+ * renders (`effortVisible` / `modelVisible`) — parking focus on an unrendered
+ * stop swallows every keystroke that follows.
  */
-export function nextField(field: Field, tab: DialogTab = "existing", opts: { intentVisible?: boolean } = {}): Field {
+export function nextField(
+  field: Field,
+  tab: DialogTab = "existing",
+  opts: { intentVisible?: boolean; effortVisible?: boolean; modelVisible?: boolean } = {},
+): Field {
   // Shared trailer — the selectors + Create button common to every tab.
   if (field === "confirm") return "tabs"
   if (field === "tabs") return "engine"
-  if (field === "engine") return firstFieldFor(tab)
+  if (field === "engine") return opts.effortVisible ? "effort" : opts.modelVisible ? "model" : firstFieldFor(tab)
+  if (field === "effort") return opts.modelVisible ? "model" : firstFieldFor(tab)
+  if (field === "model") return firstFieldFor(tab)
   if (tab === "clone") {
     if (field === "cloneUrl") return "cloneParent"
     if (field === "cloneParent") return "cloneFolder"

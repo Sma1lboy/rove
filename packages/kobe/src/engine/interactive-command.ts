@@ -132,7 +132,11 @@ export function parseEngineCommand(command: string): string[] {
   return out
 }
 
-export function interactiveEngineCommand(vendor: VendorId | undefined, effort?: string): readonly string[] {
+export function interactiveEngineCommand(
+  vendor: VendorId | undefined,
+  effort?: string,
+  model?: string,
+): readonly string[] {
   const v: VendorId = coerceVendorId(vendor)
   const override = getPersistedString(engineCommandKey(v))?.trim()
   const base = (() => {
@@ -142,7 +146,7 @@ export function interactiveEngineCommand(vendor: VendorId | undefined, effort?: 
     }
     return defaultEngineCommand(v)
   })()
-  return withEngineTerminalTitle(withEngineEffort(base, v, effort), v)
+  return withEngineTerminalTitle(withEngineModel(withEngineEffort(base, v, effort), v, model), v)
 }
 
 /**
@@ -183,6 +187,26 @@ export function withEngineEffort(
   const entry = engineEntry(coerceVendorId(vendor))
   if (!entry.effortLevels?.includes(trimmed)) return argv
   return entry.effortArgv?.(argv, trimmed) ?? argv
+}
+
+/**
+ * Apply the engine's own model argv when `model` is set — the model twin of
+ * {@link withEngineEffort}, minus the closed-set check: a model is a free
+ * string (pi takes a fuzzy pattern, claude a full id its alias list never
+ * spells), so the only thing to validate is that the engine declares a flag
+ * at all, and the gates (`assertEngineAcceptsModel`) do that before a record
+ * ever carries one. Here an engine without {@link EngineRegistryEntry.modelArgv}
+ * drops the model rather than guessing a flag — the same contract effort has.
+ * `vendor` must already be PROTOCOL-RESOLVED, as for effort.
+ */
+export function withEngineModel(
+  argv: readonly string[],
+  vendor: VendorId | undefined,
+  model: string | undefined,
+): readonly string[] {
+  const trimmed = model?.trim()
+  if (!trimmed) return argv
+  return engineEntry(coerceVendorId(vendor)).modelArgv?.(argv, trimmed) ?? argv
 }
 
 // `argvHasFlag` lives in `../cli/argv.ts` (neutral, no engine import) so the

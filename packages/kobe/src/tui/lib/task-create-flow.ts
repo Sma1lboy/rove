@@ -179,6 +179,8 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
         repo,
         baseRef: result.baseRef,
         vendor: result.vendor,
+        ...(result.modelEffort ? { modelEffort: result.modelEffort } : {}),
+        ...(result.model ? { model: result.model } : {}),
       })
       createdId = task.id
     } catch (err) {

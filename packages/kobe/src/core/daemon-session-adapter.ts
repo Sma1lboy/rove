@@ -53,6 +53,7 @@ export async function ensureTaskSessionAdapter(link: DaemonRpcClient, taskId: st
         command: task.command,
         vendor: task.vendor,
         effort: task.modelEffort,
+        model: task.model,
       })[0]
       await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage, {
         initMarkerPath: launch.initMarkerPath,
@@ -113,6 +114,7 @@ export async function startTaskSessionWithPromptAdapter(
       command: task.command,
       vendor: task.vendor,
       effort: task.modelEffort,
+      model: task.model,
     })[0]
     const wait = { initMarkerPath: launch.initMarkerPath, initTimeoutMs: launch.initTimeoutMs }
     // Paste-delivery vendor (kimi): the prompt rides OUTSIDE the
@@ -156,6 +158,7 @@ function taskEngineLaunch(task: SerializedTask, worktreePath: string, promptInte
       command: task.command,
       vendor: task.vendor,
       effort: task.modelEffort,
+      model: task.model,
     }),
     promptIntent,
   })

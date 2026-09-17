@@ -341,11 +341,13 @@ export async function applyVendorChange(
      *  task's alone (the engine declares none, or the caller has no opinion);
      *  `""` = clear it back to the engine's own default. */
     readonly effort?: string
+    /** Same tri-state for the pinned model. */
+    readonly model?: string
   } = {},
 ): Promise<boolean> {
   if (!ctx.orch) return false
   try {
-    await ctx.orch.setVendor(taskId, next, opts.effort)
+    await ctx.orch.setVendor(taskId, next, opts.effort, opts.model)
   } catch (err) {
     ctx.logger.error(`${ctx.logPrefix} task.setVendor failed:`, err)
     ctx.notifyError?.(t("tasks.toast.switchEngineFailed", { error: errorMessage(err) }))

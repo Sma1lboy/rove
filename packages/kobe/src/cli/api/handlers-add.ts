@@ -24,7 +24,7 @@ import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
 import type { TaskStatus } from "../../types/task.ts"
 import { DEFAULT_VENDOR, type VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
-import { type EngineChoice, effortFor, engineChoice, enginePayload } from "./add-engine-fields.ts"
+import { type EngineChoice, effortFor, engineChoice, enginePayload, modelFor } from "./add-engine-fields.ts"
 import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
 import { FANOUT_CAP, buildCountPlan, parseAgentsSpec } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
@@ -115,7 +115,12 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   // sub-task's bare `send` routes its outcome back to.
   const choice = await engineChoice(ctx, repo)
   const effort = effortFor(ctx, choice.vendor ? [choice.vendor] : [])
-  const payload: Record<string, string> = { repo, ...(await dispatcherEnvPayload()), ...enginePayload(choice, effort) }
+  const model = modelFor(ctx, choice.vendor ? [choice.vendor] : [])
+  const payload: Record<string, string> = {
+    repo,
+    ...(await dispatcherEnvPayload()),
+    ...enginePayload(choice, effort, model),
+  }
   const title = args.str("title") || (prompt ? deriveTitleFromPrompt(prompt) : "")
   if (title) payload.title = title
   const branch = args.str("branch")
@@ -157,6 +162,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
       vendor: task.vendor as VendorId | undefined,
       command: task.command,
       modelEffort: task.modelEffort,
+      model: task.model,
       repo: task.repo,
       newTask: true,
     },
@@ -304,6 +310,7 @@ async function addParallel(
     )
   }
   const effort = effortFor(ctx, plan)
+  const model = modelFor(ctx, plan)
   const groupId = ulid()
 
   // Create serially — task.create is a pure store write (worktrees are lazy,
@@ -322,7 +329,7 @@ async function addParallel(
     // `--agents` picks each sibling's engine BY ID, so its command is that
     // id; a `--count` round reuses the caller's own `--command` verbatim.
     const engine: EngineChoice = agentsSpec ? { command: vendor, vendor } : { ...choice, vendor }
-    const payload: Record<string, string> = { repo, groupId, ...dispatcher, ...enginePayload(engine, effort) }
+    const payload: Record<string, string> = { repo, groupId, ...dispatcher, ...enginePayload(engine, effort, model) }
     if (title) payload.title = plan.length > 1 ? `${title} #${i + 1}/${plan.length}` : title
     if (baseRef) payload.baseRef = baseRef
     try {
@@ -352,6 +359,7 @@ async function addParallel(
           vendor,
           command: task.command,
           modelEffort: task.modelEffort,
+          model: task.model,
           repo: task.repo,
           newTask: true,
         },

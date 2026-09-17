@@ -10,27 +10,32 @@
  * Engines that DECLARE reasoning levels (`EngineRegistryEntry.effortLevels` —
  * codex today) get a second row under the list, so the level is settable on a
  * task that already exists. Engines with no declared levels render no row at
- * all. The board's start-from-an-issue picker sets an engine but no level, so
- * this and `rove api set-effort` are the two ways to change one after the
- * fact; only `rove api add --effort` reaches the FIRST session.
+ * all. Engines that declare a model flag (`modelArgv`) get a third row, the
+ * shared free-text-plus-suggestions field from `model-field.tsx`; `tab`
+ * moves focus between the engine list and that input. The board's
+ * start-from-an-issue picker sets an engine but no level or model, so this
+ * and `rove api set-effort` / `set-model` are the ways to change one after
+ * the fact; only `rove api add --effort/--model` reaches the FIRST session.
  *
- * Picking persists the task's vendor (and level) and nothing else; like `v`,
- * it takes effect on the task's next enter (`applyVendorChange` says so in
- * its toast).
+ * Picking persists the task's vendor (and level, and model) and nothing else;
+ * like `v`, it takes effect on the task's next enter (`applyVendorChange`
+ * says so in its toast).
  */
 
 import { TextAttributes } from "@opentui/core"
+import { useTerminalDimensions } from "@opentui/react"
 import { useState } from "react"
 import { engineDisplayName } from "../../engine/interactive-command"
 import { engineEntry } from "../../engine/registry"
 import type { PickerWindow } from "../../tui/component/new-task-dialog/state"
-import { clampCursor } from "../../tui/component/new-task-dialog/state"
+import { clampCursor, pickerVisibleRows } from "../../tui/component/new-task-dialog/state"
 import type { VendorId } from "../../types/vendor"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
 import { ChipRow, DialogSection } from "../ui/dialog-parts"
+import { ModelSection, engineAcceptsModel, useModelField } from "./model-field"
 import { PickerList } from "./new-task-dialog/picker-list"
 
 /** What the dialog resolves to: the engine, plus the level when one applies. */
@@ -39,6 +44,8 @@ export type EnginePickResult = {
   /** Absent = the engine declares no levels, so leave the task's alone.
    *  `""` = the user chose the engine's own default, i.e. clear it. */
   readonly effort?: string
+  /** Same tri-state for the model: absent = the engine takes none. */
+  readonly model?: string
 }
 
 /** The sentinel choice meaning "no level — use the engine's own default". */
@@ -61,6 +68,8 @@ export function EnginePickerDialogView(props: {
   current: VendorId
   /** The task's current reasoning level, when it has one. */
   currentEffort?: string
+  /** The task's pinned model, when it has one. */
+  currentModel?: string
   onSubmit: (value: EnginePickResult) => void
   onCancel: () => void
 }) {
@@ -72,6 +81,8 @@ export function EnginePickerDialogView(props: {
 
   const [cursor, setCursor] = useState(() => Math.max(0, engines.indexOf(props.current)))
   const [effort, setEffort] = useState(() => seedEffort(props.current, props.currentEffort))
+  // Which control has the keys: the engine list, or the model input.
+  const [field, setField] = useState<"engine" | "model">("engine")
 
   // The available-engine list is a handful of rows; no window to slide.
   const window: PickerWindow = { items: [...engines], start: 0, total: engines.length }
@@ -79,6 +90,14 @@ export function EnginePickerDialogView(props: {
   const cursorEngine = engines[cursor] ?? props.current
   const levels = effortLevelsOf(cursorEngine)
   const effortChoices = levels.length > 0 ? [NO_EFFORT, ...levels] : []
+  const modelRow = engineAcceptsModel(cursorEngine)
+  const model = useModelField({
+    vendor: cursorEngine,
+    pickerRows: pickerVisibleRows(useTerminalDimensions().height),
+    initial: props.currentModel,
+    initialVendor: props.current,
+  })
+  const modelFocused = modelRow && field === "model"
 
   function move(delta: 1 | -1): void {
     setCursor((c) => {
@@ -99,7 +118,11 @@ export function EnginePickerDialogView(props: {
 
   function commit(engine: VendorId): void {
     const applicable = effortLevelsOf(engine)
-    props.onSubmit({ vendor: engine, ...(applicable.length > 0 ? { effort: seedEffort(engine, effort) } : {}) })
+    props.onSubmit({
+      vendor: engine,
+      ...(applicable.length > 0 ? { effort: seedEffort(engine, effort) } : {}),
+      ...(engineAcceptsModel(engine) ? { model: model.value.trim() } : {}),
+    })
     dialog.clear()
   }
 
@@ -112,13 +135,29 @@ export function EnginePickerDialogView(props: {
 
   useBindings(() => ({
     bindings: [
-      { key: "up", cmd: () => move(-1) },
-      { key: "down", cmd: () => move(1) },
-      { key: "left", cmd: () => stepEffort(-1) },
-      { key: "right", cmd: () => stepEffort(1) },
-      { key: "return", cmd: () => commit(engines[cursor] ?? props.current) },
+      { key: "up", cmd: () => (modelFocused ? model.moveCursor(-1) : move(-1)) },
+      { key: "down", cmd: () => (modelFocused ? model.moveCursor(1) : move(1)) },
+      // ←/→, Enter: the input owns them while it has focus (cursor moves;
+      // Enter reaches `commit` through the input's onSubmit instead).
+      ...(modelFocused
+        ? []
+        : [
+            { key: "left", cmd: () => stepEffort(-1) },
+            { key: "right", cmd: () => stepEffort(1) },
+            { key: "return", cmd: () => commit(engines[cursor] ?? props.current) },
+          ]),
+      // PROPOSED chord (owner sign-off pending): tab hops list ↔ model input.
+      ...(modelRow ? [{ key: "tab", cmd: () => setField((f) => (f === "engine" ? "model" : "engine")) }] : []),
     ],
   }))
+
+  const footer = [
+    t("tasks.changeEngine.footer.engine"),
+    ...(effortChoices.length > 0 ? [t("tasks.changeEngine.footer.effort")] : []),
+    ...(modelRow ? [t("tasks.changeEngine.footer.model")] : []),
+    t("tasks.changeEngine.footer.set"),
+    t("tasks.changeEngine.footer.cancel"),
+  ].join(" · ")
 
   return (
     <box paddingLeft={padX} paddingRight={padX} gap={1}>
@@ -135,7 +174,8 @@ export function EnginePickerDialogView(props: {
         cursor={cursor}
         rows={rows}
         onPick={(absoluteIndex) => commit(engines[absoluteIndex] ?? props.current)}
-        paddingBottom={effortChoices.length > 0 ? 0 : 1}
+        paddingBottom={effortChoices.length > 0 || modelRow ? 0 : 1}
+        focused={!modelFocused}
       />
       {effortChoices.length > 0 ? (
         <DialogSection label={t("tasks.changeEngine.effortLabel")} focused={false} hint="←/→">
@@ -147,10 +187,17 @@ export function EnginePickerDialogView(props: {
           />
         </DialogSection>
       ) : null}
+      {modelRow ? (
+        <ModelSection
+          field={model}
+          focused={modelFocused}
+          hint="tab"
+          onFocus={() => setField("model")}
+          onSubmit={() => commit(cursorEngine)}
+        />
+      ) : null}
       <box paddingBottom={1}>
-        <text fg={theme.textMuted}>
-          {effortChoices.length > 0 ? t("tasks.changeEngine.footerEffort") : t("tasks.changeEngine.footer")}
-        </text>
+        <text fg={theme.textMuted}>{footer}</text>
       </box>
     </box>
   )
@@ -159,13 +206,14 @@ export function EnginePickerDialogView(props: {
 /** Open the picker and resolve with the chosen engine — `undefined` on cancel. */
 function show(
   dialog: DialogContext,
-  opts: { engines: readonly VendorId[]; current: VendorId; currentEffort?: string },
+  opts: { engines: readonly VendorId[]; current: VendorId; currentEffort?: string; currentModel?: string },
 ): Promise<EnginePickResult | undefined> {
   return showDialog<EnginePickResult>(dialog, (resolve) => (
     <EnginePickerDialogView
       engines={opts.engines}
       current={opts.current}
       currentEffort={opts.currentEffort}
+      currentModel={opts.currentModel}
       onSubmit={(v) => resolve(v)}
       onCancel={() => resolve(undefined)}
     />

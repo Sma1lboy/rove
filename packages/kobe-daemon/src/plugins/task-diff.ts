@@ -30,6 +30,7 @@ const WATCHED_FIELDS = [
   "vendor",
   "command",
   "modelEffort",
+  "model",
   "linkedWorkItem",
   "scratch",
 ] as const

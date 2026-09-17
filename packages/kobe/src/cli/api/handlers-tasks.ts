@@ -212,6 +212,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
       vendor: res.task.vendor as VendorId | undefined,
       command: res.task.command,
       modelEffort: tabCommand ? undefined : res.task.modelEffort,
+      model: tabCommand ? undefined : res.task.model,
       repo: res.task.repo,
       tab,
       tabVendor,

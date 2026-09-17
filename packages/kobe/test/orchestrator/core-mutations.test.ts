@@ -125,6 +125,16 @@ describe("setVendor", () => {
     await orch.setVendor(t.id, "codex", "")
     expect(orch.getTask(t.id)?.updatedAt).toBe(before)
   })
+
+  it("model is the same tri-state: absent keeps, a string sets, empty clears", async () => {
+    const t = await makeTask()
+    await orch.setVendor(t.id, "claude", undefined, "opus")
+    expect(orch.getTask(t.id)?.model).toBe("opus")
+    await orch.setVendor(t.id, "claude")
+    expect(orch.getTask(t.id)?.model).toBe("opus")
+    await orch.setVendor(t.id, "claude", undefined, "")
+    expect(orch.getTask(t.id)?.model).toBeUndefined()
+  })
 })
 
 describe("setPinned", () => {

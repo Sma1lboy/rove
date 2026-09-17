@@ -95,6 +95,13 @@ export interface EngineHistoryReader {
   latestTranscriptMtimeForWorktree(worktree: string): Promise<number>
 }
 
+/** One entry of an engine's model list — the id its `--model` flag takes. */
+export interface EngineModel {
+  readonly id: string
+  /** Human label when the id is not one (omp's `name`); absent = show the id. */
+  readonly label?: string
+}
+
 /** Any built-in engine's account shape (each union already has a `none` arm). */
 type EngineAccount = ClaudeAccount | CodexAccount | CopilotAccount | KimiAccount
 
@@ -134,6 +141,26 @@ export interface EngineRegistryEntry {
    * level reach the UI and die at launch.
    */
   readonly effortArgv?: (base: readonly string[], level: string) => readonly string[]
+  /**
+   * The models this engine can NAME, for the pickers' suggestion list.
+   * Undefined = Rove knows no way to list them (copilot, kimi, custom).
+   * Engines with no list command (claude, codex) answer a short static list
+   * of the aliases their CLI documents; pi/omp run their own list verb
+   * (`engine/model-lists.ts`). Suggestions only, never a closed set: the
+   * gates validate against {@link modelArgv}, not against this list, because
+   * pi's `--model` is a fuzzy pattern and claude takes full ids its alias
+   * list does not spell. May reject (a missing binary, a list command that
+   * hangs) — callers degrade to free text, they never hide the field.
+   */
+  readonly listModels?: () => Promise<readonly EngineModel[]>
+  /**
+   * Argv that pins `model` on this engine. Absent = Rove knows no model flag
+   * for it, so a pinned model is REFUSED at the gate (`BAD_MODEL`) rather
+   * than dropped at launch — the same trap {@link effortArgv} documents:
+   * an engine that lists models it cannot pass would have the pick accepted
+   * everywhere and silently lost at spawn.
+   */
+  readonly modelArgv?: (base: readonly string[], model: string) => readonly string[]
   /** Transcript store reader. Empty (not claude's!) for custom engines. */
   readonly history: EngineHistoryReader
   /**

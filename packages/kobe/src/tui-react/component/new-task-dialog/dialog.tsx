@@ -14,6 +14,7 @@ import { useT } from "../../i18n"
 import { useDialogPaddingX } from "../../ui/dialog"
 import { DialogBody } from "../../ui/dialog-body"
 import { ChipRow, DialogActions, DialogFooter, DialogHeader, DialogSection } from "../../ui/dialog-parts"
+import { ModelSection } from "../model-field"
 import { AdoptTab } from "./tab-adopt"
 import { CloneTab } from "./tab-clone"
 import { ExistingTab } from "./tab-existing"
@@ -75,6 +76,36 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
             }}
           />
         </DialogSection>
+        {/* Reasoning level — only for an engine that declares levels; the
+            same chips the change-engine picker shows. */}
+        {vm.effortChoices.length > 0 ? (
+          <DialogSection
+            label={t("newTask.field.effort")}
+            focused={vm.field === "effort"}
+            hint="←/→"
+            onPress={() => vm.setField("effort")}
+          >
+            <ChipRow
+              choices={vm.effortChoices}
+              selected={vm.effort}
+              display={(choice) => (choice === "" ? t("tasks.changeEngine.noEffort") : choice)}
+              onPick={(choice) => {
+                vm.setEffort(choice)
+                vm.setField("effort")
+              }}
+            />
+          </DialogSection>
+        ) : null}
+        {/* Model — only for an engine that declares a model flag; the shared
+            input + suggestions row (`model-field.tsx`). */}
+        {vm.modelVisible ? (
+          <ModelSection
+            field={vm.modelField}
+            focused={vm.field === "model"}
+            onFocus={() => vm.setField("model")}
+            onSubmit={() => vm.advanceFrom("model")}
+          />
+        ) : null}
         {vm.tab === "existing" ? <ExistingTab vm={vm} /> : null}
         {vm.tab === "clone" ? <CloneTab vm={vm} /> : null}
         {vm.tab === "adopt" ? <AdoptTab vm={vm} /> : null}

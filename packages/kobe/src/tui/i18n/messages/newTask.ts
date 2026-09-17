@@ -22,6 +22,8 @@ export const en = {
   field: {
     mode: "MODE",
     engine: "ENGINE",
+    /** Reasoning-level row — only for engines that declare levels. */
+    effort: "EFFORT",
     repo: "REPO",
     fromBranch: "FROM BRANCH",
     gitUrl: "GIT URL",
@@ -122,6 +124,7 @@ export const zh: typeof en = {
   field: {
     mode: "模式",
     engine: "引擎",
+    effort: "推理强度",
     repo: "仓库",
     fromBranch: "基准分支",
     gitUrl: "git 地址",

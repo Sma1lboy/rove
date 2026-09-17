@@ -60,7 +60,7 @@ async function pressTab(handle: { mockInput: { pressTab: () => void } }, times =
 }
 
 /** Stops from the dialog's opening field (`tabs`) to the repo input. */
-const TO_REPO = 2
+const TO_REPO = 3
 
 /** Focus the repo field and empty it — ctrl+u, because 80 backspaces is 80
  *  renders and overruns the per-test budget. */
@@ -154,10 +154,10 @@ test("the Clone tab's parent dir walks the same way — one key, both path field
   const h = await mount(repo("origin"))
 
   // → on the mode selector switches to "For New Repo"; Tab then walks
-  // engine → git url → parent dir.
+  // engine → model → git url → parent dir.
   act(() => h.mockInput.pressArrow("right"))
   await settle()
-  await pressTab(h, 3)
+  await pressTab(h, 4)
   await act(async () => h.mockInput.typeText("\x15"))
   await settle()
   await act(async () => h.mockInput.typeText(`${parent}/`))

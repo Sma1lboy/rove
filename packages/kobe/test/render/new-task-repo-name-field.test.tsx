@@ -75,7 +75,8 @@ function locate(frameText: string, needle: string): { x: number; y: number } {
   throw new Error(`not on screen: ${needle}`)
 }
 
-/** Tab `times` stops along the field chain: tabs → engine → repo → baseRef. */
+/** Tab `times` stops along the field chain: tabs → engine → model → repo → baseRef
+ *  (claude, the default engine, declares a model flag, so its row renders). */
 async function pressTab(handle: { mockInput: { pressTab: () => void } }, times: number) {
   for (let i = 0; i < times; i++) {
     act(() => handle.mockInput.pressTab())
@@ -84,8 +85,8 @@ async function pressTab(handle: { mockInput: { pressTab: () => void } }, times: 
 }
 
 /** Stops from the dialog's opening field (`tabs`) to each input. */
-const TO_REPO = 2
-const TO_BASE_REF = 3
+const TO_REPO = 3
+const TO_BASE_REF = 4
 
 test("a resolved repo shows its NAME, not its path, and still submits the path", async () => {
   const dir = repo("quokka")

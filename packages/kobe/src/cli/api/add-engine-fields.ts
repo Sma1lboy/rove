@@ -1,18 +1,19 @@
 /**
- * The ENGINE half of an `add`: which engine a new task launches, and at what
- * reasoning level.
+ * The ENGINE half of an `add`: which engine a new task launches, at what
+ * reasoning level, and on which model.
  *
  * Split from `handlers-add.ts`, which owns the create ORCHESTRATION — flag
  * conflicts, the single-vs-parallel split, per-sibling failure rows, prompt
  * delivery. This file owns one question instead: given the caller's
- * `--command` / `--effort`, what engine fields does `task.create` carry? Both
+ * `--command` / `--effort` / `--model`, what engine fields does `task.create`
+ * carry? Both
  * `addOne` and `addParallel` route through it, so the two paths cannot drift
  * on the engine contract the way they once did on `--status`/`--pin`.
  */
 
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import type { VendorId } from "../../types/vendor.ts"
-import { assertEngineAcceptsEffort } from "./handlers-engines.ts"
+import { assertEngineAcceptsEffort, assertEngineAcceptsModel } from "./handlers-engines.ts"
 import type { VerbContext } from "./types.ts"
 
 /** The engine fields a create carries: the raw command + its resolved protocol. */
@@ -36,7 +37,7 @@ export async function engineChoice(ctx: VerbContext, repo: string): Promise<Engi
 }
 
 /** The engine fields as a flat `task.create` payload fragment. */
-export function enginePayload(choice: EngineChoice, effort?: string): Record<string, string> {
+export function enginePayload(choice: EngineChoice, effort?: string, model?: string): Record<string, string> {
   return {
     ...(choice.command ? { command: choice.command } : {}),
     ...(choice.vendor ? { vendor: choice.vendor } : {}),
@@ -44,7 +45,23 @@ export function enginePayload(choice: EngineChoice, effort?: string): Record<str
     // (`handlers-task.ts` task.create). Sending `modelEffort` here is silently
     // dropped — the create succeeds and the level simply never lands.
     ...(effort ? { effort } : {}),
+    // `model` is the wire key AND the record field — no remap to get wrong.
+    ...(model ? { model } : {}),
   }
+}
+
+/**
+ * `--model`, gated the way {@link effortFor} gates `--effort`: every engine in
+ * the plan must declare a model flag, or the pin is refused before any task
+ * exists. Free string otherwise — the engine's own spelling, verbatim.
+ */
+export function modelFor(ctx: VerbContext, engines: readonly VendorId[]): string | undefined {
+  const model = ctx.args.str("model")?.trim()
+  if (!model) return undefined
+  for (const engine of new Set(engines)) {
+    assertEngineAcceptsModel(engine, model, ["api", "engine-list"])
+  }
+  return model
 }
 
 /**

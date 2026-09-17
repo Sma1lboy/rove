@@ -135,7 +135,7 @@ async function recoverUnsupportedVersion(parsed: unknown, sourcePath: string): P
 /**
  * Normalize an arbitrary JSON value into a v3 cache. Migrates v1 / v2
  * manifests by stripping the dropped fields (`tabs`, `activeTabId`,
- * `sessionId`, `model`, `modelEffort`, `permissionMode`). The first
+ * `sessionId`, `permissionMode`). The first
  * save after load persists the v3 shape.
  *
  * The unsupported-version guard here is a last-resort net for callers that

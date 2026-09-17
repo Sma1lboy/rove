@@ -87,13 +87,25 @@ export const en = {
   changeEngine: {
     title: "Change engine",
     current: "current",
-    footer: "↑↓ choose · enter set · esc cancel",
     /** Leading label of the reasoning-level row (engines that declare levels). */
     effortLabel: "EFFORT",
     /** The level choice meaning "don't pin one — use the engine's own default". */
     noEffort: "engine default",
-    /** Footer for an engine that HAS levels: the row needs its own keys. */
-    footerEffort: "↑↓ engine · ←→ effort · enter set · esc cancel",
+    /** Footer segments, joined with " · " — only the rows on screen add theirs. */
+    footer: {
+      engine: "↑↓ engine",
+      effort: "←→ effort",
+      model: "tab model",
+      set: "enter set",
+      cancel: "esc cancel",
+    },
+  },
+  /** The model row shared by every engine-choosing dialog (`model-field.tsx`). */
+  engineModel: {
+    label: "MODEL",
+    /** Empty input = don't pin one — the engine's own default. */
+    placeholder: "engine default",
+    loading: "listing models…",
   },
   /** Run-again confirm dialog: the stored brief, verbatim and scrollable,
    *  before it is re-fired into a fresh task. */
@@ -304,10 +316,20 @@ export const zh: typeof en = {
   changeEngine: {
     title: "切换引擎",
     current: "当前",
-    footer: "↑↓ 选择 · enter 设置 · esc 取消",
     effortLabel: "推理强度",
     noEffort: "引擎默认",
-    footerEffort: "↑↓ 引擎 · ←→ 强度 · enter 设置 · esc 取消",
+    footer: {
+      engine: "↑↓ 引擎",
+      effort: "←→ 强度",
+      model: "tab 模型",
+      set: "enter 设置",
+      cancel: "esc 取消",
+    },
+  },
+  engineModel: {
+    label: "模型",
+    placeholder: "引擎默认",
+    loading: "正在列出模型…",
   },
   runAgain: {
     title: "重新运行",

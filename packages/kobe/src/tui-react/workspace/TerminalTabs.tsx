@@ -113,6 +113,7 @@ export interface TerminalTabsProps {
    *  pins its own vendor via `chooseEngine`. */
   vendor: VendorId
   modelEffort?: string
+  model?: string
   /** Best-effort: persist the picked vendor as the task's new default. */
   onChooseEngine?: (vendor: VendorId) => void
   /** Hands the parent an imperative "open this file in the editor tab"
@@ -165,7 +166,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
 
   /** Pin a fresh engine-session id on the just-created active engine tab. */
   const pinSession = (s: TabsState, vendor: VendorId | undefined): TabsState => {
-    const base = vendor ? engineLaunchArgv({ vendor, effort: props.modelEffort }) : props.command
+    const base = vendor ? engineLaunchArgv({ vendor, effort: props.modelEffort, model: props.model }) : props.command
     const { sessionId } = withPinnedSessionId(base, vendor ?? props.vendor)
     return setTabSessionId(s, s.activeId, sessionId)
   }
@@ -227,7 +228,12 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     // task's already-resolved launch argv (props.command).
     const base =
       tab.engineCommand || tab.vendor
-        ? engineLaunchArgv({ command: tab.engineCommand, vendor: tab.vendor, effort: props.modelEffort })
+        ? engineLaunchArgv({
+            command: tab.engineCommand,
+            vendor: tab.vendor,
+            effort: props.modelEffort,
+            model: props.model,
+          })
         : props.command
     const live = getDefaultPtyRegistry().has(tabPtyKeyFor(props.taskId, tab))
     return engineTabSpawnFor(stateRef.current, tab, base, {

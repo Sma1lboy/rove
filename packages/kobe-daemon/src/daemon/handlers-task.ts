@@ -85,6 +85,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         vendor: optionalVendor(payload, "vendor"),
         command: optionalString(payload, "command"),
         modelEffort: optionalString(payload, "effort"),
+        model: optionalString(payload, "model"),
         groupId: optionalString(payload, "groupId"),
         dispatcher,
       })
@@ -130,7 +131,9 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       // wire spelling of "clear the level". Absent stays absent.
       const rawEffort = payload.effort
       if (rawEffort !== undefined && typeof rawEffort !== "string") throw new Error("effort must be a string")
-      await ctx.orch.setVendor(taskId, vendor, rawEffort)
+      const rawModel = payload.model
+      if (rawModel !== undefined && typeof rawModel !== "string") throw new Error("model must be a string")
+      await ctx.orch.setVendor(taskId, vendor, rawEffort, rawModel)
       return {}
     },
   },

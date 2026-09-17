@@ -221,6 +221,14 @@ export interface Task {
    */
   readonly modelEffort?: string
   /**
+   * Model pinned on the task's engine — an id, alias or pattern in that
+   * engine's own spelling, carried to launch by the protocol's `modelArgv`
+   * (`interactive-command.ts`). Optional + additive like {@link modelEffort}:
+   * absent = the engine's own default. Only engines declaring `modelArgv`
+   * ever record one (`BAD_MODEL` otherwise), so it is never silently dropped.
+   */
+  readonly model?: string
+  /**
    * Fan-out round marker: every sibling created by one `kobe api fan-out`
    * call shares a ULID, so the round survives the CLI call that created it
    * (grouping, aggregate notifications, round-level operations). Optional +

@@ -182,13 +182,16 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
       engines: engines.length > 0 ? engines : [current],
       current,
       currentEffort: task.modelEffort,
+      currentModel: task.model,
     })
     if (!pick) return
     // Not `pick.vendor === current` — re-picking the same engine at a
-    // different reasoning level is a real change, which that comparison
-    // would swallow.
-    if (pick.vendor === current && (pick.effort === undefined || pick.effort === (task.modelEffort ?? ""))) return
-    await applyVendorChange(taskActions, id, pick.vendor, { effort: pick.effort })
+    // different reasoning level or model is a real change, which that
+    // comparison would swallow.
+    const sameEffort = pick.effort === undefined || pick.effort === (task.modelEffort ?? "")
+    const sameModel = pick.model === undefined || pick.model === (task.model ?? "")
+    if (pick.vendor === current && sameEffort && sameModel) return
+    await applyVendorChange(taskActions, id, pick.vendor, { effort: pick.effort, model: pick.model })
   }
 
   // Row menu "Land into base branch". The land itself is shared with the
