@@ -121,13 +121,3 @@ export function copilotConfigPath(env: (k: string) => string | undefined, home: 
 export function kimiCredentialsPath(env: (k: string) => string | undefined, home: string): string {
   return path.join(vendorConfigHome("kimi", depsOf(env, home)), "credentials", "kimi-code.json")
 }
-
-/**
- * IBM Bob Shell's token store (`~/.bob/settings/auth-secrets.json`). Bob
- * derives its directory from `os.homedir()` alone — the 2.0.4 bundle reads no
- * env override for it — so this takes `home` only; `env` is accepted for
- * signature parity with the other credential paths and ignored.
- */
-export function bobAuthSecretsPath(_env: (k: string) => string | undefined, home: string): string {
-  return path.join(home, ".bob", "settings", "auth-secrets.json")
-}

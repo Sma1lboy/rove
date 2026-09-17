@@ -169,7 +169,7 @@ export const LEGACY_PLUGIN_MANIFEST_FILENAME = "kobe-plugin.toml"
 export const PLUGIN_MANIFEST_FILENAMES = [PLUGIN_MANIFEST_FILENAME, LEGACY_PLUGIN_MANIFEST_FILENAME] as const
 
 /**
- * Engine ids a plugin's `[[engines]]` may not claim: the built-in
+ * Engine ids a plugin's `[[engines]]` may not claim: the four built-in
  * adapters plus the shipped contrib catalog (gemini/opencode/cursor/grok/
  * droid/amp). The daemon cannot import kobe's BUILTIN_VENDORS /
  * CONTRIB_ENGINES (kobe depends on the daemon, not vice versa), so this is
@@ -182,7 +182,6 @@ export const RESERVED_ENGINE_IDS: readonly string[] = [
   "kimi",
   "pi",
   "omp",
-  "bob",
   "gemini",
   "opencode",
   "cursor",
