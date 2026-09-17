@@ -27,7 +27,7 @@
  *
  * The functions are pure — fs + env + binary discovery are injected
  * via {@link DetectDeps}, so tests pin every path and the production
- * paths only flow through `defaultDeps`. No subprocess for account
+ * paths only flow through `defaultDetectDeps`. No subprocess for account
  * detection: we don't shell out to `claude /status` or `codex auth
  * status` — both are slow and the on-disk shape is the source of
  * truth those subcommands print anyway.
@@ -87,17 +87,6 @@ export type CopilotAccount =
  */
 export type KimiAccount = { kind: "oauth" } | { kind: "none" }
 
-/**
- * IBM Bob Shell logs in two ways. Interactive: the first `bob chat` opens
- * bob.ibm.com/login in a browser (IBMid or corporate SSO) and stores the
- * OAuth token bundle in `~/.bob/settings/auth-secrets.json` — a flat JSON map
- * whose values are the serialized token records. Headless: `BOB_API_KEY`
- * (legacy spelling `BOBSHELL_API_KEY`). There is no `bob login` verb and no
- * identity in the token store Rove can read, so a logged-in account is
- * reported without an email.
- */
-export type BobAccount = { kind: "oauth" } | { kind: "apikey" } | { kind: "none" }
-
 export type BinaryStatus = { found: true; path: string } | { found: false; error: string }
 
 export interface EngineAccountStatus<A> {
@@ -121,7 +110,7 @@ export interface DetectDeps {
   findBobBinary(): Promise<string>
 }
 
-const defaultDeps: DetectDeps = {
+export const defaultDetectDeps: DetectDeps = {
   readFile(p: string): string | null {
     // statSync-then-read (cleaner ENOENT signal than readFile's mixed errors)
     // PLUS a size ceiling: an oversize/corrupt credential file degrades to the
@@ -181,7 +170,7 @@ function decodeJwtPayload(jwt: string): Record<string, unknown> | null {
   }
 }
 
-async function probeBinary(probe: () => Promise<string>): Promise<BinaryStatus> {
+export async function probeBinary(probe: () => Promise<string>): Promise<BinaryStatus> {
   try {
     const p = await probe()
     return { found: true, path: p }
@@ -236,10 +225,10 @@ async function probeAvailableVendors(deps: DetectDeps): Promise<readonly VendorI
 // NOT `async`: a plain function returns the cached promise VERBATIM, so the
 // memo is real (an `async` wrapper would mint a fresh outer promise per call
 // even when the inner value is cached).
-export function detectAvailableVendors(deps: DetectDeps = defaultDeps): Promise<readonly VendorId[]> {
+export function detectAvailableVendors(deps: DetectDeps = defaultDetectDeps): Promise<readonly VendorId[]> {
   // Only the production (default-deps) path is memoized — custom deps must
   // re-probe so tests and explicit re-checks stay honest.
-  if (deps !== defaultDeps) return probeAvailableVendors(deps)
+  if (deps !== defaultDetectDeps) return probeAvailableVendors(deps)
   if (cachedDefaultVendors) return cachedDefaultVendors
   // Cache the PROMISE (not the resolved value) so concurrent first calls share
   // one probe; on rejection, clear it so a later call can retry.
@@ -273,7 +262,7 @@ export function resetAvailableVendorsCache(): void {
  * call — state.json can change (Settings → Engines), and only the slow binary
  * `which` probes are worth caching.
  */
-export async function installedEngineIds(deps: DetectDeps = defaultDeps): Promise<readonly VendorId[]> {
+export async function installedEngineIds(deps: DetectDeps = defaultDetectDeps): Promise<readonly VendorId[]> {
   const builtins = await detectAvailableVendors(deps)
   const contrib = await detectContribEngines()
   // Custom ids win over a same-named contrib entry (dedup keeps the first).
@@ -285,7 +274,7 @@ export async function installedEngineIds(deps: DetectDeps = defaultDeps): Promis
  * Settings → Engines. This is the list to OFFER — Settings itself reads the
  * installed list, since a disabled engine still needs a row to switch back on.
  */
-export async function availableEngineIds(deps: DetectDeps = defaultDeps): Promise<readonly VendorId[]> {
+export async function availableEngineIds(deps: DetectDeps = defaultDetectDeps): Promise<readonly VendorId[]> {
   const disabled = new Set(getDisabledEngineIds())
   return (await installedEngineIds(deps)).filter((id) => !disabled.has(id))
 }
@@ -319,7 +308,9 @@ function detectContribEngines(): Promise<readonly VendorId[]> {
   return cachedContribEngines
 }
 
-export async function detectClaudeAccount(deps: DetectDeps = defaultDeps): Promise<EngineAccountStatus<ClaudeAccount>> {
+export async function detectClaudeAccount(
+  deps: DetectDeps = defaultDetectDeps,
+): Promise<EngineAccountStatus<ClaudeAccount>> {
   const binary = await probeBinary(() => deps.findClaudeBinary())
   const configPath = claudeGlobalConfigPath(deps.env, deps.home())
   let raw: string | null
@@ -360,7 +351,9 @@ export async function detectClaudeAccount(deps: DetectDeps = defaultDeps): Promi
   }
 }
 
-export async function detectCodexAccount(deps: DetectDeps = defaultDeps): Promise<EngineAccountStatus<CodexAccount>> {
+export async function detectCodexAccount(
+  deps: DetectDeps = defaultDetectDeps,
+): Promise<EngineAccountStatus<CodexAccount>> {
   const binary = await probeBinary(() => deps.findCodexBinary())
   const authPath = codexAuthPath(deps.env, deps.home())
   let raw: string | null
@@ -418,7 +411,7 @@ export async function detectCodexAccount(deps: DetectDeps = defaultDeps): Promis
 }
 
 export async function detectCopilotAccount(
-  deps: DetectDeps = defaultDeps,
+  deps: DetectDeps = defaultDetectDeps,
 ): Promise<EngineAccountStatus<CopilotAccount>> {
   const binary = await probeBinary(() => deps.findCopilotBinary())
   for (const source of ["COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"] as const) {
@@ -466,7 +459,9 @@ export async function detectCopilotAccount(
   return { binary, account: { kind: "none" } }
 }
 
-export async function detectKimiAccount(deps: DetectDeps = defaultDeps): Promise<EngineAccountStatus<KimiAccount>> {
+export async function detectKimiAccount(
+  deps: DetectDeps = defaultDetectDeps,
+): Promise<EngineAccountStatus<KimiAccount>> {
   const binary = await probeBinary(() => deps.findKimiBinary())
   const credPath = kimiCredentialsPath(deps.env, deps.home())
   let raw: string | null
@@ -488,53 +483,11 @@ export async function detectKimiAccount(deps: DetectDeps = defaultDeps): Promise
   return { binary, account: { kind: "none" } }
 }
 
-/** Token-record keys that mean "a login happened", in either casing bob's
- *  bundle uses (`access_token` on the wire, `accessToken` in its session). */
-const BOB_TOKEN_KEYS = ["access_token", "refresh_token", "accessToken", "refreshToken", "id_token"] as const
-
-export async function detectBobAccount(deps: DetectDeps = defaultDeps): Promise<EngineAccountStatus<BobAccount>> {
-  const binary = await probeBinary(() => deps.findBobBinary())
-  // The key wins over the token store: a set `BOB_API_KEY` is what bob itself
-  // uses first, and it is the only login a headless machine has.
-  const key = deps.env("BOB_API_KEY") ?? deps.env("BOBSHELL_API_KEY")
-  if (typeof key === "string" && key.trim().length > 0) return { binary, account: { kind: "apikey" } }
-  const secretsPath = bobAuthSecretsPath(deps.env, deps.home())
-  let raw: string | null
-  try {
-    raw = deps.readFile(secretsPath)
-  } catch (err) {
-    return { binary, account: { kind: "none" }, accountError: `read ${secretsPath}: ${errorMessage(err)}` }
-  }
-  if (raw === null) return { binary, account: { kind: "none" } }
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch (err) {
-    return { binary, account: { kind: "none" }, accountError: `parse ${secretsPath}: ${errorMessage(err)}` }
-  }
-  if (!isRecord(parsed)) return { binary, account: { kind: "none" } }
-  // The store is `{ "<key>": <record or its JSON string> }`. A value that is
-  // itself JSON text is unwrapped one level so the token keys inside it count.
-  for (const value of Object.values(parsed)) {
-    const record = typeof value === "string" ? parseJsonRecord(value) : value
-    if (hasStringDeep(record, BOB_TOKEN_KEYS)) return { binary, account: { kind: "oauth" } }
-  }
-  return { binary, account: { kind: "none" } }
-}
-
-function parseJsonRecord(text: string): unknown {
-  try {
-    return JSON.parse(text)
-  } catch {
-    return null
-  }
-}
-
-function isRecord(v: unknown): v is Record<string, unknown> {
+export function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v)
 }
 
-function hasStringDeep(value: unknown, interestingKeys: readonly string[], depth = 0): boolean {
+export function hasStringDeep(value: unknown, interestingKeys: readonly string[], depth = 0): boolean {
   if (depth > 4 || !isRecord(value)) return false
   for (const [key, entry] of Object.entries(value)) {
     if (interestingKeys.includes(key) && typeof entry === "string" && entry.length > 0) return true

@@ -22,12 +22,12 @@ import {
   type DetectDeps,
   type EngineAccountStatus,
   type KimiAccount,
-  detectBobAccount,
   detectClaudeAccount,
   detectCodexAccount,
   detectCopilotAccount,
   detectKimiAccount,
 } from "./account-detect.ts"
+import { detectBobAccount } from "./bob-local/account.ts"
 import { BOB_SCREEN_MANIFEST } from "./bob-local/screen.ts"
 import { trustBobWorktree } from "./bob-local/trust.ts"
 import { claudeCapabilities, claudeIdentity } from "./claude-code-local/capabilities.ts"

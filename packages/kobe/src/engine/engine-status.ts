@@ -36,7 +36,8 @@ import type {
   DetectDeps,
   KimiAccount,
 } from "./account-detect"
-import { type BobAccount, installedEngineIds } from "./account-detect"
+import { installedEngineIds } from "./account-detect"
+import type { BobAccount } from "./bob-local/account"
 import { listPresetIds } from "./engine-presets"
 import { interactiveEngineCommand } from "./interactive-command"
 import { engineEntry } from "./registry"

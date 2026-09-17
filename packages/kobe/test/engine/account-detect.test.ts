@@ -2,12 +2,12 @@ import { afterEach, describe, expect, it } from "vitest"
 import {
   type DetectDeps,
   detectAvailableVendors,
-  detectBobAccount,
   detectClaudeAccount,
   detectCodexAccount,
   detectCopilotAccount,
   resetAvailableVendorsCache,
 } from "../../src/engine/account-detect.ts"
+import { detectBobAccount } from "../../src/engine/bob-local/account.ts"
 
 /** A DetectDeps with every binary found and no files/env, overridable per test. */
 function deps(over: Partial<DetectDeps> = {}): DetectDeps {
