@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.204
+
+### Patch Changes
+
+- Same source as 0.9.202, republished under a new version number.
+
 ## 0.9.202
 
 ### Patch Changes
