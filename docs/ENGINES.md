@@ -23,7 +23,6 @@ you need git-level isolation and a separate branch.
 | GitHub Copilot | `copilot` | ✓ | ✓ (screen-based) | ✓ | — |
 | Kimi Code | `kimi` | ✓ | ✓ | handoff only | — |
 | Pi | `pi` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` |
-| IBM Bob | `bob` | ✓ | ✓ (screen-based, blocked states only) | — | — |
 | OMP | `omp` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` |
 | Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid, Amp | contrib | binary only | ✓ (screen-based) | — | — |
 | Anything you register | custom | binary only | — | — | — |
@@ -58,20 +57,6 @@ entries register engines with a display name, launch command, screen
 manifest, and identity. Unlike the contrib catalog, plugin engines are
 offered without a binary check — installing the plugin is the opt-in. See
 [Plugin authoring](./PLUGIN-AUTHORING.md).
-
-**IBM Bob is partial too.** Rove finds the `bob` binary (Bob Shell, installed
-with `curl -fsSL https://bob.ibm.com/download/bobshell.sh | bash`) and reads its
-login state: a browser login writes `~/.bob/settings/auth-secrets.json`, a
-headless machine sets `BOB_API_KEY`. There is no `bob login` verb — the first
-`bob chat` opens bob.ibm.com/login in your browser, so log in once from any
-terminal, or from the first task's engine tab, and Settings → Engines shows the
-account from then on. The default launch is `bob chat --trust`; the flag is
-Bob's own "mark the current folder as trusted", which keeps a hosted session
-off the folder-trust dialog the same way the other engines pre-write a trust
-record. Rove pastes the first message rather than passing it on the command
-line, reads no history, and lights the activity badge only for blocked
-states (trust dialog, tool approval, resume picker) until the running-turn
-footer is captured.
 
 **Kimi is partial.** Rove finds the binary, reads its login state, and can
 locate each session's transcript, enough to watch it for activity and to

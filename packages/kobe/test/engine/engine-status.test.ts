@@ -17,7 +17,6 @@ function accountDeps(over: Partial<DetectDeps> = {}): DetectDeps {
     findKimiBinary: missing,
     findPiBinary: missing,
     findOmpBinary: missing,
-    findBobBinary: missing,
     ...over,
   }
 }

@@ -27,9 +27,6 @@ import {
   detectCopilotAccount,
   detectKimiAccount,
 } from "./account-detect.ts"
-import { detectBobAccount } from "./bob-local/account.ts"
-import { BOB_SCREEN_MANIFEST } from "./bob-local/screen.ts"
-import { trustBobWorktree } from "./bob-local/trust.ts"
 import { claudeCapabilities, claudeIdentity } from "./claude-code-local/capabilities.ts"
 import { ClaudeHookAdapter } from "./claude-code-local/hook-adapter.ts"
 import { fetchClaudeQuotaUsage } from "./claude-code-local/quota.ts"
@@ -192,35 +189,6 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     createTurnDetector: () => new UnknownTurnDetector("copilot"),
     trustWorktree: trustCopilotWorktree,
     screenManifest: COPILOT_SCREEN_MANIFEST,
-  },
-  bob: {
-    vendor: "bob",
-    builtin: true,
-    displayName: "IBM Bob",
-    // `bob chat` is the interactive session (`bob run` is headless and
-    // exits). `--trust` is bob's own "mark the current folder as trusted"
-    // switch (bob 2.0.4 `--help`): without it a never-seen worktree opens on
-    // the "Do you trust this folder?" dialog, which a hosted session has no
-    // one to answer. `trustWorktree` below writes the same record for a
-    // launch command that drops the flag.
-    defaultCommand: ["bob", "chat", "--trust"],
-    trustWorktree: trustBobWorktree,
-    // A first message rides `-p/--prompt`, not the positional slot, and the
-    // bundle's positional handling is unverified — paste it once the
-    // session is up, like kimi.
-    firstMessageDelivery: "paste",
-    history: EMPTY_HISTORY,
-    detectAccount: (deps) => detectBobAccount(deps),
-    createHookAdapter: () => new NoopHookAdapter("bob"),
-    createTurnDetector: () => new UnknownTurnDetector("bob"),
-    // Bob mints its own task ids (SQLite store under ~/.bob/db) and resumes
-    // one with `-r <task-id>`; Rove reads no history for it yet, so an id is
-    // only known when the user's command already names one.
-    sessionIdentity: {
-      sessionControlFlags: ["-r", "--resume"],
-      resumeArgv: (base, id) => [...base, "--resume", id],
-    },
-    screenManifest: BOB_SCREEN_MANIFEST,
   },
   kimi: {
     vendor: "kimi",

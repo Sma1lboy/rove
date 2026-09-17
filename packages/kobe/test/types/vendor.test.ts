@@ -34,8 +34,7 @@ describe("nextVendorWithin", () => {
     expect(nextVendorWithin(ALL_VENDORS, "copilot")).toBe("kimi")
     expect(nextVendorWithin(ALL_VENDORS, "kimi")).toBe("pi")
     expect(nextVendorWithin(ALL_VENDORS, "pi")).toBe("omp")
-    expect(nextVendorWithin(ALL_VENDORS, "omp")).toBe("bob")
-    expect(nextVendorWithin(ALL_VENDORS, "bob")).toBe("claude")
+    expect(nextVendorWithin(ALL_VENDORS, "omp")).toBe("claude")
   })
 })
 
