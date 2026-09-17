@@ -35,6 +35,7 @@ function deps(over: Partial<DetectDeps> = {}): DetectDeps {
     findKimiBinary: async () => "/bin/kimi",
     findPiBinary: async () => "/bin/pi",
     findOmpBinary: async () => "/bin/omp",
+    findBobBinary: async () => "/bin/bob",
     ...over,
   }
 }

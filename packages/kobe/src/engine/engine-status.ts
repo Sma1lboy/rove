@@ -36,13 +36,13 @@ import type {
   DetectDeps,
   KimiAccount,
 } from "./account-detect"
-import { installedEngineIds } from "./account-detect"
+import { type BobAccount, installedEngineIds } from "./account-detect"
 import { listPresetIds } from "./engine-presets"
 import { interactiveEngineCommand } from "./interactive-command"
 import { engineEntry } from "./registry"
 
 /** Any built-in engine's account shape (the union the Accounts view renders). */
-export type EngineAccount = ClaudeAccount | CodexAccount | CopilotAccount | KimiAccount
+export type EngineAccount = ClaudeAccount | CodexAccount | CopilotAccount | KimiAccount | BobAccount
 
 export interface EngineStatus {
   readonly vendor: VendorId

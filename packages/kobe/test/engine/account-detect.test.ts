@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest"
 import {
   type DetectDeps,
   detectAvailableVendors,
+  detectBobAccount,
   detectClaudeAccount,
   detectCodexAccount,
   detectCopilotAccount,
@@ -20,6 +21,7 @@ function deps(over: Partial<DetectDeps> = {}): DetectDeps {
     findKimiBinary: async () => "/bin/kimi",
     findPiBinary: async () => "/bin/pi",
     findOmpBinary: async () => "/bin/omp",
+    findBobBinary: async () => "/bin/bob",
     ...over,
   }
 }
@@ -83,7 +85,7 @@ describe("detectAvailableVendors", () => {
   }
 
   it("lists every vendor whose binary resolves, in cycle order", async () => {
-    expect(await detectAvailableVendors(deps())).toEqual(["claude", "codex", "copilot", "kimi", "pi", "omp"])
+    expect(await detectAvailableVendors(deps())).toEqual(["claude", "codex", "copilot", "kimi", "pi", "omp", "bob"])
   })
 
   it("excludes vendors whose binary is missing", async () => {
@@ -94,6 +96,7 @@ describe("detectAvailableVendors", () => {
         findKimiBinary: notFound,
         findPiBinary: notFound,
         findOmpBinary: notFound,
+        findBobBinary: notFound,
       }),
     )
     expect(only).toEqual(["codex"])
@@ -108,6 +111,7 @@ describe("detectAvailableVendors", () => {
         findKimiBinary: notFound,
         findPiBinary: notFound,
         findOmpBinary: notFound,
+        findBobBinary: notFound,
       }),
     )
     expect(none).toEqual([])
@@ -159,5 +163,76 @@ describe("detectCopilotAccount", () => {
 
   it("is 'none' with no token and no config", async () => {
     expect((await detectCopilotAccount(deps())).account).toEqual({ kind: "none" })
+  })
+})
+
+describe("detectBobAccount", () => {
+  // Bob's token store is a flat map whose VALUES are the serialized token
+  // records — the shape its bundle's secrets class persists (`Object.fromEntries`
+  // of a Map, values written by `JSON.stringify`). Both a string value and an
+  // already-parsed object are accepted so a future bob that stops
+  // double-encoding still reads as logged in.
+  const store = (value: unknown) => JSON.stringify({ user_session: value })
+
+  it("reads a browser login from ~/.bob/settings/auth-secrets.json", async () => {
+    const status = await detectBobAccount(
+      deps({ readFile: () => store(JSON.stringify({ access_token: "at", refresh_token: "rt", expires_at: 1 })) }),
+    )
+    expect(status.binary).toEqual({ found: true, path: "/bin/bob" })
+    expect(status.account).toEqual({ kind: "oauth" })
+  })
+
+  it("accepts a token record stored as an object, in either key casing", async () => {
+    expect((await detectBobAccount(deps({ readFile: () => store({ accessToken: "at" }) }))).account).toEqual({
+      kind: "oauth",
+    })
+  })
+
+  it("reads the file from the given home, never from an env override", async () => {
+    const seen: string[] = []
+    await detectBobAccount(
+      deps({
+        home: () => "/home/u",
+        readFile: (p) => {
+          seen.push(p)
+          return null
+        },
+      }),
+    )
+    expect(seen).toEqual(["/home/u/.bob/settings/auth-secrets.json"])
+  })
+
+  it("reports an API key from BOB_API_KEY (or the legacy BOBSHELL_API_KEY) ahead of the store", async () => {
+    const key = (name: string) => (n: string) => (n === name ? "k-123" : undefined)
+    expect((await detectBobAccount(deps({ env: key("BOB_API_KEY") }))).account).toEqual({ kind: "apikey" })
+    expect((await detectBobAccount(deps({ env: key("BOBSHELL_API_KEY") }))).account).toEqual({ kind: "apikey" })
+    // A blank key is no key.
+    expect((await detectBobAccount(deps({ env: () => "  " }))).account).toEqual({ kind: "none" })
+  })
+
+  it("is 'none' with no store, an empty store, or a store with no token", async () => {
+    expect((await detectBobAccount(deps())).account).toEqual({ kind: "none" })
+    expect((await detectBobAccount(deps({ readFile: () => "{}" }))).account).toEqual({ kind: "none" })
+    expect((await detectBobAccount(deps({ readFile: () => store({ access_token: "" }) }))).account).toEqual({
+      kind: "none",
+    })
+    expect((await detectBobAccount(deps({ readFile: () => store("not json") }))).account).toEqual({ kind: "none" })
+  })
+
+  it("surfaces a corrupt store as accountError, not as a throw", async () => {
+    const status = await detectBobAccount(deps({ readFile: () => "{nope" }))
+    expect(status.account).toEqual({ kind: "none" })
+    expect(status.accountError).toMatch(/parse .*auth-secrets\.json/)
+  })
+
+  it("still reports the account when the binary is missing", async () => {
+    const status = await detectBobAccount(
+      deps({
+        findBobBinary: async () => Promise.reject(new Error("nope")),
+        env: (n) => (n === "BOB_API_KEY" ? "k" : undefined),
+      }),
+    )
+    expect(status.binary.found).toBe(false)
+    expect(status.account).toEqual({ kind: "apikey" })
   })
 })
