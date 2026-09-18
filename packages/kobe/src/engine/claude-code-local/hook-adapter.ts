@@ -192,6 +192,24 @@ export class ClaudeHookAdapter extends JsonHookAdapter {
     }
   }
 
+  /**
+   * Claude stamps every subprocess it spawns with `CLAUDE_CODE_SESSION_ATTENDED`:
+   * `"1"` when a human is sitting in front of the session, `"0"` when it is
+   * headless (`claude -p`, the SDK). A hook is such a subprocess, so it reads
+   * the flag of the session that fired it.
+   *
+   * Only an explicit `"0"` counts as unattended. An older Claude that sets
+   * nothing must keep reporting — a missing variable meaning "drop" would
+   * take every badge dark on a version gap.
+   *
+   * NB `CLAUDE_CODE_CHILD_SESSION` is NOT the discriminator, though it reads
+   * like one: Claude sets it on every subprocess, so an attended session's own
+   * Bash tool calls carry it too.
+   */
+  isUnattendedSession(env: NodeJS.ProcessEnv): boolean {
+    return env.CLAUDE_CODE_SESSION_ATTENDED === "0"
+  }
+
   /** Claude is the only engine that ever wrote the legacy `WorktreeCreate`
    *  provider hook, so it's the only one that cleans it up. */
   override supportsWorktreeSync(): boolean {
