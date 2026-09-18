@@ -28,8 +28,10 @@ import type { RemoteOrchestrator, TaskEngineState } from "../../client/remote-or
 import { availableEngineIds } from "../../engine/account-detect"
 import { engineDisplayName } from "../../engine/interactive-command"
 import { errorMessage } from "../../lib/error-message"
+import type { TaskGroup } from "../../lib/task-group"
 import { applyBoardAttention, buildIssueBoard, moveBoardSelection } from "../../state/issue-board"
 import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
+import { taskGroupIn } from "../../tui/panes/sidebar/task-group-view"
 import type { VendorId } from "../../types/task"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
@@ -147,12 +149,21 @@ export function KanbanPage(props: {
   // page can render before the task list arrives, and demoting on that would
   // dump every In-progress card into Backlog for a frame. No tasks known ⇒
   // no predicate ⇒ the link alone decides, exactly as before.
-  const knownTaskIds = new Set<string>((props.orchestrator?.listTasks() ?? []).map((task) => task.id))
+  const knownTasks = props.orchestrator?.listTasks() ?? []
+  const knownTaskIds = new Set<string>(knownTasks.map((task) => task.id))
+  // The DERIVED group per linked task, resolved once for the whole board: the
+  // card badge, the attention float and the "N need you" count all read this,
+  // so they cannot disagree — and it is the same derivation the sidebar's
+  // `attention` sort ranks by.
+  const taskGroupOf = (taskId: string): TaskGroup | undefined => {
+    const task = knownTasks.find((candidate) => candidate.id === taskId)
+    return task ? taskGroupIn(task, props.engineStates?.get(taskId)) : undefined
+  }
   const { columns, attentionCount } = applyBoardAttention(
     activeBoard
       ? buildIssueBoard(activeBoard.issues, knownTaskIds.size === 0 ? undefined : (taskId) => knownTaskIds.has(taskId))
       : [],
-    (taskId) => props.engineStates?.get(taskId)?.state,
+    (taskId) => taskGroupOf(taskId) === "waiting-on-you",
   )
 
   // Cards are variable height and each lane scrolls on its own, so the
@@ -462,7 +473,7 @@ export function KanbanPage(props: {
               attentionCount={attentionCount}
               selectedId={selectedId}
               singleLane={singleLane}
-              {...(props.engineStates ? { engineStates: props.engineStates } : {})}
+              taskGroupOf={taskGroupOf}
               follow={follow}
               onSelect={setSelectedId}
               onOpen={openDetail}

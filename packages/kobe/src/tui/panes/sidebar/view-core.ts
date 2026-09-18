@@ -94,6 +94,29 @@ export function truncateBranchLabel(branch: string, max = BRANCH_LABEL_MAX): str
 }
 
 /** Map a row tone to its theme slot. */
+/**
+ * A PLUGIN's semantic tone (`row-tokens.ts`) mapped onto the rail's own tone
+ * vocabulary — the boundary that keeps the theme in charge. A plugin names a
+ * role, never a colour, so the one thing it can never do is clash with the
+ * palette the user chose. `info` lands on `primary` (the rail's neutral
+ * emphasis) rather than on an accent of its own: a plugin's ordinary label
+ * should read like the row, not louder than it.
+ */
+export function rowTokenTone(tone: "info" | "success" | "warning" | "error" | "muted"): SidebarTone {
+  switch (tone) {
+    case "info":
+      return "primary"
+    case "success":
+      return "success"
+    case "warning":
+      return "warning"
+    case "error":
+      return "error"
+    default:
+      return "textMuted"
+  }
+}
+
 export function toneColor<V>(theme: Record<SidebarTone, V>, tone: SidebarTone): V {
   switch (tone) {
     case "success":

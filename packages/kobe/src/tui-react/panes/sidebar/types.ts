@@ -4,7 +4,7 @@
  * (`WorktreeChanges`) come from the framework-free modules.
  */
 
-import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
+import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import type { TaskSortMode } from "../../../tui/panes/sidebar/groups"
 import type { SidebarNav } from "../../../tui/panes/sidebar/nav-core"
@@ -106,5 +106,7 @@ export type SidebarProps = SidebarTaskCallbacks & {
   /** Transient per-task lifecycle marks (subagent activity). */
   engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
   taskJobs?: ReadonlyMap<string, TaskJobState>
+  /** Plugin-written row labels, TTL-bounded (`task.tokens`). */
+  rowTokens?: RowTokenMap
   worktreeChanges?: ReadonlyMap<string, WorktreeChanges | null> | null
 }

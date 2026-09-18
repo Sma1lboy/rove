@@ -46,6 +46,7 @@ import {
   type OrchestratorSignals,
   type RecentTaskEvent,
   type RemoteOrchestratorOptions,
+  type RowTokenMap,
   type TaskEngineState,
   type TaskJobState,
   type TranscriptActivityMap,
@@ -63,6 +64,8 @@ export type {
   EngineTabStateMap,
   RecentTaskEvent,
   RemoteOrchestratorOptions,
+  RowToken,
+  RowTokenMap,
   TaskEngineState,
   TaskJobState,
   TranscriptActivity,
@@ -72,8 +75,11 @@ export type {
 } from "./remote-orchestrator-payloads.ts"
 export {
   decodeUiPrefsPayload,
+  liveRowTokens,
+  parseRowTokensPayload,
   parseTranscriptActivityPayload,
   parseWorktreeChangesPayload,
+  sameRowTokenMap,
   sameTranscriptActivityMap,
   sameWorktreeChangesMap,
 } from "./remote-orchestrator-payloads.ts"
@@ -95,6 +101,7 @@ export class RemoteOrchestrator {
   private readonly engineTabStateAcc = createStateCell<EngineTabStateMap>(new Map())
   private readonly attentionInboxAcc = createStateCell<readonly AttentionInboxItem[]>([])
   private readonly taskJobsAcc = createStateCell<ReadonlyMap<string, TaskJobState>>(new Map())
+  private readonly rowTokensAcc = createStateCell<RowTokenMap>(new Map())
   private readonly worktreeChangesAcc = createStateCell<WorktreeChangesMap | null>(null)
   private readonly usageSnapshotAcc = createStateCell<UsageSnapshotMap | null>(null)
   private readonly contextUsageAcc = createStateCell<ContextUsageMap | null>(null)
@@ -155,6 +162,8 @@ export class RemoteOrchestrator {
       setAttentionInboxSig: this.attentionInboxAcc.set,
       taskJobsAcc: this.taskJobsAcc,
       setTaskJobsSig: this.taskJobsAcc.set,
+      rowTokensAcc: this.rowTokensAcc,
+      setRowTokensSig: this.rowTokensAcc.set,
       worktreeChangesAcc: this.worktreeChangesAcc,
       setWorktreeChangesSig: this.worktreeChangesAcc.set,
       usageSnapshotAcc: this.usageSnapshotAcc,
@@ -313,6 +322,11 @@ export class RemoteOrchestrator {
   readonly attentionInboxSignal = (): ReadableState<readonly AttentionInboxItem[]> => this.attentionInboxAcc
 
   readonly taskJobsSignal = (): ReadableState<ReadonlyMap<string, TaskJobState>> => this.taskJobsAcc
+
+  /** Plugin-written row labels, TTL-bounded (`task.tokens`). An EMPTY map is
+   *  the resting state: no plugin has anything to say, which is not a thing a
+   *  reader polls for — so unlike `worktreeChanges` there is no null. */
+  readonly rowTokensSignal = (): ReadableState<RowTokenMap> => this.rowTokensAcc
 
   /** null means the daemon has not supplied this channel; readers may poll locally. */
   readonly worktreeChangesSignal = (): ReadableState<WorktreeChangesMap | null> => this.worktreeChangesAcc

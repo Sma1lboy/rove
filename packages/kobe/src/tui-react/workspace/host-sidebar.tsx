@@ -13,7 +13,7 @@
  * `onLandRequest`, which stays optional exactly as the shared type has it.
  */
 
-import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
+import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { type MutableRefObject, useCallback } from "react"
 import type { TaskSortMode } from "../../tui/panes/sidebar/groups"
@@ -55,6 +55,7 @@ export interface HostSidebarProps
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
+  readonly rowTokens?: RowTokenMap
   readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges | null> | null
   readonly onAddTask: () => void
   readonly onSearchActiveChange: (active: boolean) => void

@@ -28,6 +28,7 @@ import type {
   ContextUsageMap,
   EngineLifecycleMap,
   EngineTabStateMap,
+  RowTokenMap,
   TaskEngineState,
   TaskJobState,
   TranscriptActivityMap,
@@ -125,6 +126,8 @@ export interface OrchestratorSignals {
   readonly setAttentionInboxSig: (next: readonly AttentionInboxItem[]) => void
   readonly taskJobsAcc: ReadableState<ReadonlyMap<string, TaskJobState>>
   readonly setTaskJobsSig: (next: ReadonlyMap<string, TaskJobState>) => void
+  readonly rowTokensAcc: ReadableState<RowTokenMap>
+  readonly setRowTokensSig: (next: RowTokenMap) => void
   readonly worktreeChangesAcc: ReadableState<WorktreeChangesMap | null>
   readonly setWorktreeChangesSig: (next: WorktreeChangesMap | null) => void
   readonly usageSnapshotAcc: ReadableState<UsageSnapshotMap | null>

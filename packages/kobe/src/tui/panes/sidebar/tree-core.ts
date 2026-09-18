@@ -19,11 +19,11 @@
  * never disagree about what identifies a tab.
  */
 
-import type { TaskActivityState } from "@/engine/hook-events"
+import type { TaskEngineState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { fuzzyMatch } from "./fuzzy"
 import { type LabelledRepo, compareRecent, repoBasename, sidebarProjectKeyOfTask, sidebarProjectLabel } from "./groups"
-import { compareAttention } from "./row-view"
+import { compareTaskGroup } from "./task-group-view"
 import { RECENT_ROW_ID, SCRATCH_SECTION_ID, routinesRowId, tabRowId } from "./tree-ids"
 
 // Search lives in its own module — this file decides what rows EXIST, that one
@@ -142,11 +142,12 @@ export interface TreeInput {
   readonly sortMode?: import("./groups").TaskSortMode
   /**
    * Live engine activity per task id — read ONLY by `attention` sort, which
-   * needs to know which rows are stopped. A reader rather than the daemon's
-   * map so this module stays pure over `Task[]`; omitted, `attention` sorts
-   * every row into the same band and degrades to plain recency.
+   * ranks rows by their DERIVED group (`lib/task-group.ts`) and so needs the
+   * entry's timestamp as well as its state. A reader rather than the daemon's
+   * map so this module stays pure over `Task[]`; omitted, every row derives
+   * the same group and `attention` degrades to plain recency.
    */
-  readonly activityOf?: (taskId: string) => TaskActivityState | undefined
+  readonly activityOf?: (taskId: string) => TaskEngineState | undefined
   /** Project keys whose routine count row is open. Absent = all
    *  closed, which is the resting state a fresh session starts in. */
   readonly expandedRoutines?: ReadonlySet<string>
@@ -233,7 +234,7 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
     sortMode === "recent"
       ? compareRecent
       : sortMode === "attention"
-        ? compareAttention(input.activityOf ?? (() => undefined))
+        ? compareTaskGroup(input.activityOf ?? (() => undefined))
         : null
   if (compare) scratchTasks.sort(compare)
 

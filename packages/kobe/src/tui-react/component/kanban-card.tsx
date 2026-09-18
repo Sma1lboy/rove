@@ -4,7 +4,7 @@
  * renders ONE card from props and holds no board state: everything about which
  * cards exist, the cursor and the mutations stays in `kanban-page.tsx`.
  * Selection border > attention border > column
- * border; a live activity badge tracks the linked task's engine on both the
+ * border; a badge naming the linked task's DERIVED group shows on both the
  * In-progress and Parked columns (a parked card keeps its badge as passive
  * signal — it just never floats or counts toward "N need you").
  */
@@ -12,33 +12,34 @@
 import { type BoxRenderable, MouseButton, TextAttributes } from "@opentui/core"
 import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import type { ReactNode } from "react"
-import type { TaskActivityState } from "../../engine/hook-events"
-import { type BoardColumnKey, isBoardAttentionState } from "../../state/issue-board"
+import type { TaskGroup } from "../../lib/task-group"
+import type { BoardColumnKey } from "../../state/issue-board"
+import { taskGroupLabel, taskGroupTone } from "../../tui/panes/sidebar/task-group-view"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { FRAME } from "../ui/frame"
 
-/** Live activity badge on a linked card, keyed by the linked task's engine
- *  state — how the board tracks a background start without leaving the page.
- *  `idle` (and unknown) draw nothing: the card's presence in the column
- *  already says "started". */
-const ACTIVITY_BADGE: Partial<
-  Record<TaskActivityState, { labelKey: string; tone: "accent" | "warning" | "error" | "success" }>
-> = {
-  running: { labelKey: "tasks.activity.working", tone: "accent" },
-  turn_complete: { labelKey: "kanban.turnComplete", tone: "success" },
-  rate_limited: { labelKey: "tasks.activity.rateLimited", tone: "warning" },
-  permission_needed: { labelKey: "tasks.activity.permissionNeeded", tone: "warning" },
-  error: { labelKey: "tasks.activity.error", tone: "error" },
-  dead: { labelKey: "tasks.activity.dead", tone: "error" },
-}
+/**
+ * The card's badge is the linked task's DERIVED group (`lib/task-group.ts`),
+ * not its raw engine state.
+ *
+ * The board used to key this off activity alone, which made it answer the
+ * wrong question in two directions: a card whose worker had already filed a
+ * report and gone quiet read as ordinary work in progress, and so did one
+ * whose PR had been approved an hour ago. Both are cards the human should
+ * act on, and neither is visible in any tab's engine state.
+ *
+ * `idle` and `unknown` still draw nothing — the card's presence in the column
+ * already says "started", and a group with nothing for a person says so by
+ * being silent.
+ */
 
 export function KanbanCard(props: {
   issue: Issue
   column: BoardColumnKey
   selected: boolean
-  /** The linked task's live engine state (undefined = unlinked/vanished). */
-  activity: TaskActivityState | undefined
+  /** The linked task's derived group (undefined = unlinked/vanished). */
+  group: TaskGroup | undefined
   /** First click selects; a click on the already-selected card opens its
    *  detail drawer (Enter's mouse twin). */
   onSelect: () => void
@@ -56,16 +57,19 @@ export function KanbanCard(props: {
   const columnBorder = transparentBackground ? theme.border : theme.borderSubtle
   const fg = column === "done" ? theme.textMuted : theme.text
   const description = issue.body.trim()
-  const badge = props.activity ? ACTIVITY_BADGE[props.activity] : undefined
+  const badgeLabel = props.group ? taskGroupLabel(props.group) : null
+  const badgeTone = props.group ? taskGroupTone(props.group) : null
   // Attention cards (blocked on the user — floated to the In-progress head by
   // applyBoardAttention) carry a warning border so the group reads as one
   // block; the selection highlight still wins.
-  const needsAttention = isBoardAttentionState(props.activity)
-  const badgeTone = {
+  const needsAttention = props.group === "waiting-on-you"
+  const toneColors = {
     accent: theme.accent,
     warning: theme.warning,
     error: theme.error,
     success: theme.success,
+    primary: theme.primary,
+    textMuted: theme.textMuted,
   } as const
   // Transparent mode means transparent: the card drops its tinted surface and
   // lets the host terminal through, like every other pane. Keeping
@@ -132,9 +136,9 @@ export function KanbanCard(props: {
         <text fg={theme.textMuted} wrapMode="none">
           {issue.created}
         </text>
-        {badge ? (
-          <text fg={badgeTone[badge.tone]} wrapMode="none">
-            {t(badge.labelKey)}
+        {badgeLabel && badgeTone ? (
+          <text fg={toneColors[badgeTone]} wrapMode="none">
+            {badgeLabel}
           </text>
         ) : null}
       </box>

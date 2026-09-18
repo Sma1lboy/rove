@@ -108,34 +108,11 @@ export function isAttentionActivity(state: TaskActivityState | undefined): boole
   return ATTENTION_STATES.has(state)
 }
 
-/** Bands for the `attention` sort: 0 stopped, 1 a turn landed, 2 the rest. */
-function attentionSortBand(state: TaskActivityState | undefined): 0 | 1 | 2 {
-  if (isAttentionActivity(state)) return 0
-  if (state === "turn_complete") return 1
-  return 2
-}
-
-/**
- * The `attention` sort mode's comparator: rows that are STOPPED first, then
- * rows whose turn landed, then the quiet ones — most-recently-touched first
- * inside each band.
- *
- * The tiebreak BORROWS `compareRecent` rather than restating it, so "recent"
- * means the same thing here, in `recent` sort, and in the Inbox's RECENT
- * section. This is a separate comparator on purpose: `compareRecent` is
- * shared with the Inbox, which must not learn about engine activity.
- *
- * Takes a state READER, not the daemon's map: `buildTreeRows` is pure over
- * `Task[]` and a reader is what keeps it that way.
- */
-export function compareAttention(
-  activityOf: (taskId: string) => TaskActivityState | undefined,
-): (a: Task, b: Task) => number {
-  return (a, b) => {
-    const band = attentionSortBand(activityOf(a.id)) - attentionSortBand(activityOf(b.id))
-    return band !== 0 ? band : compareRecent(a, b)
-  }
-}
+// The `attention` sort mode's comparator lives in `task-group-view.ts`: it
+// ranks by the DERIVED task group, which reads the worker's report and the PR
+// observation as well as engine activity, and this module must not import the
+// group derivation (the group's glyph vocabulary is defined in terms of the
+// constants here, so the dependency runs the other way).
 
 /**
  * Muted subtitle shown when a custom-engine task has nothing else to say.

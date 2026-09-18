@@ -50,7 +50,7 @@ export interface HostSidebarMountProps {
   readonly activateTask: (id: string) => void | Promise<void>
   readonly daemon: Pick<
     UseDaemonStateResult,
-    "sidebarEngineState" | "engineTabState" | "engineLifecycle" | "taskJobs" | "worktreeChanges"
+    "sidebarEngineState" | "engineTabState" | "engineLifecycle" | "taskJobs" | "rowTokens" | "worktreeChanges"
   >
   readonly actions: WorkspaceTaskActions
   readonly pages: Pick<HostPagesState, "nav" | "setNav" | "goToNav" | "openUpdate">
@@ -140,6 +140,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       engineTabState={props.daemon.engineTabState}
       engineLifecycle={props.daemon.engineLifecycle}
       taskJobs={props.daemon.taskJobs}
+      rowTokens={props.daemon.rowTokens}
       worktreeChanges={props.daemon.worktreeChanges}
       focused={props.activePane === "sidebar"}
       // Task lifecycle: the Sidebar's d/r/p/m keys fire these.
