@@ -24,7 +24,8 @@ you need git-level isolation and a separate branch.
 | Kimi Code | `kimi` | ✓ | ✓ | handoff only | — |
 | Pi | `pi` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` |
 | OMP | `omp` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` |
-| Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid, Amp | contrib | binary only | ✓ (screen-based) | — | — |
+| Cursor Agent | `cursor` | binary only | ✓ (screen-based, plus a session hook) | — | — |
+| Gemini CLI, OpenCode, Grok CLI, Droid, Amp | contrib | binary only | ✓ (screen-based) | — | — |
 | Anything you register | custom | binary only | — | — | — |
 
 There is no in-app model picker for any engine — pick the model the way that
@@ -205,6 +206,16 @@ Pi and OMP hook installation writes `rove-activity.ts` into
 is `PI_CODING_AGENT_DIR` when set, else `~/.pi/agent` or `~/.omp/agent`. If
 that directory does not exist, nothing is written: there is no CLI to read it.
 
+Cursor installs one hook, `sessionStart`, into `hooks.json` under
+`CURSOR_CONFIG_DIR` (unset or blank uses `~/.cursor`). That hook reports which
+cursor session is live in a worktree; the badge itself keeps coming from the
+screen rules, because cursor's other hook events — `beforeSubmitPrompt`,
+`beforeShellExecution`, `beforeMCPExecution`, `stop`, `sessionEnd` — gate the
+agent's own actions, and Rove does not install an observer on a hook that gates
+approvals. If `~/.cursor` does not exist, nothing is written and no directory is
+created: there is no CLI there to read it. Your own entries in `hooks.json`, and
+every other event, are left alone.
+
 Claude and Codex hook installation and cleanup use `settings.json` under
 `CLAUDE_CONFIG_DIR` and `hooks.json` under `CODEX_HOME`. Unset or blank
 overrides use `~/.claude` and `~/.codex`. Invalid JSON or hook structure,
@@ -213,6 +224,22 @@ Other user settings and commands in a shared hook group survive cleanup.
 Cleanup recognizes literal `kobe`/`rove` invocations, including absolute
 executables and Bun/Node source or bundle entry paths. Commands behind shell
 wrappers or compound shell commands are left for manual review.
+
+### Adding a hook to another engine
+
+Hooks are no longer a built-in-only privilege. A shipped catalog entry in
+`packages/kobe/src/engine/contrib-engines.ts` may declare a `createHookAdapter`
+alongside its `screenManifest`, and cursor is the worked example
+(`engine/cursor-local/hook-adapter.ts`). Declaring one costs the other catalog
+entries nothing — an engine without it keeps the no-op adapter, installs
+nothing, and warns about nothing.
+
+Two things are worth getting right. A hook adapter does not REPLACE the screen
+rules: hooks, transcript markers and screen reading cover different gaps, so an
+engine that gains a hook keeps its manifest. And the set of hook-capable
+engines is derived in one place, `activityHookAdapters()` in
+`engine/hook-adapter.ts` — both the launch-time installer and `rove doctor`
+read it, so a new adapter reaches both without touching either.
 
 Mechanics: [design/engine-internals.md](./design/engine-internals.md).
 

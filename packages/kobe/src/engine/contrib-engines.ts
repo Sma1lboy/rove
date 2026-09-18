@@ -4,9 +4,12 @@
  * A contrib engine is everything kobe needs to launch a coding CLI and
  * badge its activity, without a dedicated adapter: an id, a display name,
  * a launch command, and a screen-state manifest (`./screen-state.ts`).
- * No account detector, no history reader, no hook adapter — those are what
- * make an engine a BUILT-IN, and each one is real per-vendor work. A
- * contrib entry is ~10 lines; a future plugin registers exactly this shape.
+ * No account detector and no history reader — those are what make an engine a
+ * BUILT-IN, and each one is real per-vendor work. A hook adapter is the one
+ * piece a contrib entry MAY declare (`createHookAdapter`, cursor being the
+ * worked example), because installing a hook needs nothing from the rest of
+ * the built-in surface. A contrib entry is ~10 lines; a future plugin
+ * registers exactly this shape.
  *
  * Selection gating: a contrib engine appears in the new-task selector only
  * when its binary is on PATH (`account-detect.ts` probes `defaultCommand[0]`
@@ -19,6 +22,8 @@
  */
 
 import type { EngineIdentity } from "@/types/engine"
+import { CursorHookAdapter } from "./cursor-local/hook-adapter.ts"
+import type { EngineHookAdapter } from "./hook-adapter.ts"
 import type { EngineRegistryEntry } from "./registry.ts"
 import type { EngineScreenManifest } from "./screen-state.ts"
 
@@ -37,6 +42,19 @@ export interface ContribEngineSpec {
    * dies on the prompt text.
    */
   readonly firstMessageDelivery?: "argv" | "paste"
+  /**
+   * This engine's activity-hook installer — the A layer, OPTIONAL because most
+   * of the long tail has no hook mechanism Rove has wired. Declaring one costs
+   * the rest of the catalog nothing: an entry without it keeps the base's
+   * `NoopHookAdapter` and stays screen-only, with no install, no warning and no
+   * new file on anyone's disk.
+   *
+   * Declaring one does NOT replace {@link screenManifest} — they are different
+   * rungs of the same ladder (`registry.ts`'s `screenManifest` doc). Cursor is
+   * the worked example: its hook reports session identity, its manifest keeps
+   * reporting state.
+   */
+  readonly createHookAdapter?: () => EngineHookAdapter
 }
 
 /**
@@ -156,7 +174,12 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     screenManifest: OPENCODE,
     firstMessageDelivery: "paste",
   },
-  cursor: { displayName: "Cursor Agent", defaultCommand: ["cursor-agent"], screenManifest: CURSOR },
+  cursor: {
+    displayName: "Cursor Agent",
+    defaultCommand: ["cursor-agent"],
+    screenManifest: CURSOR,
+    createHookAdapter: () => new CursorHookAdapter(),
+  },
   grok: { displayName: "Grok CLI", defaultCommand: ["grok"], screenManifest: GROK },
   droid: { displayName: "Droid", defaultCommand: ["droid"], screenManifest: DROID },
   amp: { displayName: "Amp", defaultCommand: ["amp"], screenManifest: AMP },
@@ -185,5 +208,6 @@ export function contribEngineEntry(id: string, base: EngineRegistryEntry): Engin
     screenManifest: spec.screenManifest,
     ...(spec.identity ? { identity: spec.identity } : {}),
     ...(spec.firstMessageDelivery ? { firstMessageDelivery: spec.firstMessageDelivery } : {}),
+    ...(spec.createHookAdapter ? { createHookAdapter: spec.createHookAdapter } : {}),
   }
 }

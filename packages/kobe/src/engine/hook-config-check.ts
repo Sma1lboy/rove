@@ -16,9 +16,7 @@
  */
 
 import { readFileSync } from "node:fs"
-import { ALL_VENDORS } from "../types/vendor.ts"
-import { createEngineHookAdapter } from "./hook-adapter.ts"
-import { parseHookSettings } from "./json-hooks.ts"
+import { activityHookAdapters } from "./hook-adapter.ts"
 
 /** A settings file the hook installer refused, and why. */
 export interface HookConfigIssue {
@@ -27,26 +25,30 @@ export interface HookConfigIssue {
 }
 
 /**
- * Only JSON-shaped settings are checked: `parseHookSettings` is that format's
- * validator, and the TOML adapter (Kimi) carries its own. A missing file is
- * the first-launch case, and one that cannot be read at all is a permissions
- * problem the install reports itself — neither is an issue here.
+ * Each adapter judges its OWN file: `hookConfigRefusal` is the read-only half
+ * of that adapter's install, so doctor and the installer never disagree about
+ * one file. An adapter that declares no such check (Kimi's TOML block, the pi
+ * family's extension module) is simply not checked — the alternative, running
+ * one JSON validator over every hook file whose name ends `.json`, reported
+ * Cursor's perfectly valid `hooks.json` as broken for having its own shape.
+ *
+ * A missing file is the first-launch case, and one that cannot be read at all
+ * is a permissions problem the install reports itself — neither is an issue.
  */
 export function hookConfigIssues(): HookConfigIssue[] {
   const issues: HookConfigIssue[] = []
-  for (const vendor of ALL_VENDORS) {
-    const adapter = createEngineHookAdapter(vendor)
-    if (!adapter.supportsHooks()) continue
+  for (const adapter of activityHookAdapters()) {
+    if (!adapter.hookConfigRefusal) continue
     const file = adapter.globalSettingsPath()
-    if (!file || !file.endsWith(".json")) continue
+    if (!file) continue
     let raw: string
     try {
       raw = readFileSync(file, "utf8")
     } catch {
       continue
     }
-    const parsed = parseHookSettings(raw)
-    if (!parsed.ok) issues.push({ file, reason: parsed.reason })
+    const reason = adapter.hookConfigRefusal(raw)
+    if (reason) issues.push({ file, reason })
   }
   return issues
 }

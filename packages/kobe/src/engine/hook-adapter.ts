@@ -14,15 +14,20 @@
  * task (`daemon/cwd-task.ts`). Adding a new engine = a new adapter file; no
  * neutral code changes.
  *
- * Claude + Codex are real implementations (both use the same settings.json hook
- * shape, shared in `./json-hooks`); Copilot is a stub until its hook format is
- * wired (the interface is what keeps that change local).
+ * Claude and Codex are real implementations sharing one settings.json shape
+ * (`./json-hooks`); Kimi writes TOML, the pi family writes an extension module,
+ * and Cursor writes its own flatter JSON. Being a BUILT-IN is not what earns an
+ * engine a hook — Cursor is a contrib catalog entry
+ * (`./contrib-engines.ts`) that declares an adapter, and
+ * {@link activityHookAdapters} is the one place that answers which engines have
+ * one. Everything else gets {@link NoopHookAdapter}, which is the interface
+ * doing its job: an unwired engine installs nothing and warns about nothing.
  */
 
 import type { VendorId } from "../types/vendor.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "./hook-events.ts"
 import type { HookEditOutcome } from "./json-hooks.ts"
-import { engineEntry } from "./registry.ts"
+import { engineEntry, identifiableEngineIds } from "./registry.ts"
 
 /** An engine session's own identity, as reported by its hook payload. */
 export interface EngineSessionRef {
@@ -129,6 +134,19 @@ export interface EngineHookAdapter {
    * (touches only Rove's own group). No-op when {@link supportsHooks} is false.
    */
   removeWorktreeWatchHook(settingsFilePath: string): Promise<void>
+
+  /**
+   * Why a merge into this settings file would be REFUSED right now, or
+   * undefined when the file is fine — `rove doctor`'s read-only counterpart to
+   * {@link installActivityHooks} (see `./hook-config-check.ts`).
+   *
+   * Optional, and the ANSWER is per-engine because the VALIDATOR is: Claude and
+   * Codex share one JSON shape, Cursor's `hooks.json` is a different one, and
+   * Kimi's file is TOML. A checker that ran one validator over every `.json`
+   * hook file reported Cursor's perfectly good file as broken. An adapter that
+   * omits this is simply not checked.
+   */
+  hookConfigRefusal?(raw: string): string | undefined
 }
 
 /**
@@ -142,6 +160,24 @@ export interface EngineHookAdapter {
  */
 export function createEngineHookAdapter(vendor: VendorId): EngineHookAdapter {
   return engineEntry(vendor).createHookAdapter()
+}
+
+/**
+ * Every engine whose hook mechanism is wired — the ONE answer to "which engines
+ * get global hooks", asked by both the installer (`cli/hook-cmd.ts`) and the
+ * doctor check (`./hook-config-check.ts`).
+ *
+ * Derived from {@link identifiableEngineIds} rather than the BUILT-IN vendor
+ * list: a hook adapter is now something a contrib or plugin engine may declare
+ * too (Cursor does), and a built-ins-only walk would install its hooks nowhere
+ * while the `--engine cursor` tag on the fired hook found no adapter to decode
+ * with. Engines that declare none answer `supportsHooks() === false` through
+ * {@link NoopHookAdapter} and drop out here.
+ */
+export function activityHookAdapters(): readonly EngineHookAdapter[] {
+  return identifiableEngineIds()
+    .map((vendor) => createEngineHookAdapter(vendor))
+    .filter((adapter) => adapter.supportsHooks())
 }
 
 /** Stub for engines whose hook mechanism isn't wired yet (Codex, Copilot). */

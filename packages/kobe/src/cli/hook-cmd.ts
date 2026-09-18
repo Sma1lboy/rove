@@ -27,11 +27,10 @@ import { connectIfRunning } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import { readPluginManifest } from "@sma1lboy/kobe-daemon/plugins/manifest"
 import { loadPluginRegistry } from "@sma1lboy/kobe-daemon/plugins/registry"
-import { type EngineSessionRef, createEngineHookAdapter } from "../engine/hook-adapter.ts"
+import { type EngineSessionRef, activityHookAdapters } from "../engine/hook-adapter.ts"
 import type { EngineActivityDetail } from "../engine/hook-events.ts"
 import { isEngineActivityKind } from "../engine/hook-events.ts"
 import { getPersistedString, setPersistedString } from "../state/repos.ts"
-import { ALL_VENDORS } from "../types/vendor.ts"
 import { flagValue } from "./argv.ts"
 import { activeCliName } from "./rename-compat.ts"
 
@@ -192,14 +191,11 @@ export async function runHookSubcommand(argv: readonly string[]): Promise<void> 
 const SYNC_SETTING_KEY = "externalWorktreeSync"
 
 /** Engines that once installed a WorktreeCreate hook (only Claude) — used now
- *  only to CLEAN UP that removed hook. */
+ *  only to CLEAN UP that removed hook. Narrowed from the same hook-capable list
+ *  the installer walks, so "which engines have hooks" is answered once
+ *  (`engine/hook-adapter.ts#activityHookAdapters`) rather than recomputed here. */
 function worktreeSyncAdapters() {
-  return ALL_VENDORS.map((v) => createEngineHookAdapter(v)).filter((a) => a.supportsWorktreeSync())
-}
-
-/** Engines whose hook mechanism is wired (get global activity hooks). */
-function activityHookAdapters() {
-  return ALL_VENDORS.map((v) => createEngineHookAdapter(v)).filter((a) => a.supportsHooks())
+  return activityHookAdapters().filter((a) => a.supportsWorktreeSync())
 }
 
 /** The engine that installed the legacy provider hook owns its active profile. */
