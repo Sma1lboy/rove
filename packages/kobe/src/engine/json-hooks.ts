@@ -96,8 +96,21 @@ export function parseHookSettings(raw: string | undefined): HookSettingsParse {
 const HOOK_WORD = String.raw`(?:'(?:[^']|'\\'')*'|"[^"$\x60\\]*"|[A-Za-z0-9_./:=+-]+)`
 const HOOK_ARGV = new RegExp(`^${HOOK_WORD}(?:[ \t]+${HOOK_WORD})*$`)
 
-function isRoveHook(hook: unknown, verbs: readonly string[]): boolean {
-  if (!isObject(hook) || hook.type !== "command" || typeof hook.command !== "string") return false
+/**
+ * Does this hook entry belong to Rove — i.e. is its command a recognized
+ * `rove hook <verb>` invocation? Ownership, not string equality: the same
+ * install run from a dev checkout spells the command
+ * `bun /…/src/cli/rove.ts hook …`, so matching literal text would leave a
+ * second entry behind on the next run instead of replacing the first.
+ *
+ * `type` is OPTIONAL because two engine hook-file shapes share this predicate:
+ * Claude/Codex write `{ "type": "command", "command": … }`, and Cursor's
+ * `~/.cursor/hooks.json` writes a bare `{ "command": … }`. Any other `type`
+ * is somebody else's entry.
+ */
+export function isRoveHook(hook: unknown, verbs: readonly string[]): boolean {
+  if (!isObject(hook) || typeof hook.command !== "string") return false
+  if (hook.type !== undefined && hook.type !== "command") return false
   const command = hook.command.replace(/^[ \t]+|[ \t]+$/g, "")
   if (HOOK_ARGV.exec(command)?.[0] !== command) return false
   const words = command.match(new RegExp(HOOK_WORD, "g")) ?? []

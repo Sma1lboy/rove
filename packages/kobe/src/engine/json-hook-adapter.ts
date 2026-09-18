@@ -19,6 +19,7 @@ import {
   GATED_TOOL_VERBS,
   type HookEditOutcome,
   type HookEventSpec,
+  type HookSettingsParse,
   removeWorktreeWatchHook as dropWorktreeWatchHook,
   mergeActivityHooks,
   parseHookSettings,
@@ -45,6 +46,11 @@ import { updateSharedJson } from "./shared-config-write.ts"
 export async function editJsonSettings(
   settingsFilePath: string,
   transform: (current: Record<string, unknown>) => Record<string, unknown>,
+  /** The shape validator for THIS engine's hook file. Defaults to the
+   *  Claude/Codex group shape; Cursor's `hooks.json` nests differently and
+   *  passes its own, so it reuses the lock + tmp+rename + skip-if-unchanged
+   *  mechanics below instead of copying them. */
+  parse: (raw: string | undefined) => HookSettingsParse = parseHookSettings,
 ): Promise<HookEditOutcome> {
   // Set by the loader when it refuses the document. The loader signals refusal
   // to `updateSharedJson` with `undefined` — the same value it returns for
@@ -57,7 +63,7 @@ export async function editJsonSettings(
         // A missing file starts empty; a document we cannot understand abandons
         // the write so a best-effort install never clobbers an existing engine
         // configuration.
-        const parsed = parseHookSettings(raw)
+        const parsed = parse(raw)
         if (parsed.ok) return parsed.doc
         rejected = parsed.reason
         return undefined
@@ -141,5 +147,12 @@ export abstract class JsonHookAdapter implements EngineHookAdapter {
 
   async removeWorktreeWatchHook(settingsFilePath: string): Promise<void> {
     await editJsonSettings(settingsFilePath, dropWorktreeWatchHook)
+  }
+
+  /** Doctor's read-only half of {@link installActivityHooks}: the same
+   *  validator the install abandons on, so both report one verdict. */
+  hookConfigRefusal(raw: string): string | undefined {
+    const parsed = parseHookSettings(raw)
+    return parsed.ok ? undefined : parsed.reason
   }
 }

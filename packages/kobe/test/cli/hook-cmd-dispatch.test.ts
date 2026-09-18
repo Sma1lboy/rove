@@ -43,7 +43,13 @@ vi.mock("../../src/engine/hook-adapter.ts", () => ({
   // Same shared method mocks for every vendor; `vendor` is stamped per call so
   // the plugin-mode gate can tell claude apart from the rest.
   createEngineHookAdapter: vi.fn((vendor: string) => ({ ...mocks.adapter, vendor })),
+  // The hook-capable set is no longer the BUILT-IN vendor list: `cursor` is a
+  // contrib catalog entry that declares an adapter, and it has to reach the
+  // installer exactly like a built-in does.
+  activityHookAdapters: vi.fn(() => HOOK_VENDORS.map((vendor) => ({ ...mocks.adapter, vendor }))),
 }))
+
+const HOOK_VENDORS = ["claude", "codex", "kimi", "pi", "omp", "cursor"]
 
 vi.mock("../../src/engine/claude-code-local/plugin-migration.ts", () => ({
   isRovePluginEnabled: mocks.rovePluginEnabled,
