@@ -100,7 +100,12 @@ describe("connectPaneOrchestrator", () => {
     expect(fake.closed()).toBe(false)
     // The narrow consumer's filter reached the subscribe call (so the daemon
     // sends this socket only ui-prefs + keybindings, not the task fan-out).
-    expect(fake.lastSubscribe()).toEqual({ role: "pane", channels: ["ui-prefs", "keybindings"] })
+    expect(fake.lastSubscribe()).toEqual({
+      role: "pane",
+      channels: ["ui-prefs", "keybindings"],
+      // A pane measures no terminal of its own, so it reports no cell size.
+      cellPixelSize: null,
+    })
     orch?.dispose()
   })
 })

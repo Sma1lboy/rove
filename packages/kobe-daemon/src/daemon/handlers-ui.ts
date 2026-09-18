@@ -133,7 +133,12 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       // the ledger is swept without a second hook on the close broker.
       if (kind === "tab.closed" && taskId) {
         const closedTabId = eventDetail?.tabId
-        if (typeof closedTabId === "string" && closedTabId) ctx.activity.clearTab(taskId, closedTabId)
+        if (typeof closedTabId === "string" && closedTabId) {
+          ctx.activity.clearTab(taskId, closedTabId)
+          // A closed tab's pictures go with its cells, so its image ids can
+          // never be written to again — same funnel, same reason.
+          ctx.graphics?.clearTab(taskId, closedTabId)
+        }
       }
       ctx.plugins?.handleUiReport({
         kind: kind as import("../plugins/manifest.ts").PluginEventName,

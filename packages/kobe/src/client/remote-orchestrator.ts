@@ -18,6 +18,7 @@ import { ensureDaemonReachable } from "@sma1lboy/kobe-daemon/client/daemon-proce
 import type { DaemonRpcClient } from "@sma1lboy/kobe-daemon/client/rpc"
 import type { RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import {
+  type CellPixelSize,
   type ChannelName,
   type NoticeEventPayload,
   type SubscribeRole,
@@ -35,7 +36,7 @@ import type { Task, TaskId, TaskStatus, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree, WorktreeProject } from "../types/worktree.ts"
 import { CURRENT_VERSION, type UpdateInfo } from "../version.ts"
 import { performInit, runReconnectLoop } from "./remote-orchestrator-connect.ts"
-import { handleOrchestratorEvent } from "./remote-orchestrator-events.ts"
+import { handleOrchestratorEvent, writeGraphicsToStdout } from "./remote-orchestrator-events.ts"
 import {
   type AttentionInboxItem,
   type ContextUsageMap,
@@ -111,6 +112,8 @@ export class RemoteOrchestrator {
   private readonly staleInstallAcc = createStateCell<string | null>(null)
   private readonly ensureReachable: () => Promise<unknown>
   private readonly role: SubscribeRole
+  /** This terminal's measured cell size, sent with every (re)subscribe. */
+  private readonly cellPixelSize: CellPixelSize | null
   /** Per-channel subscribe filter; `undefined` = subscribe to all channels. */
   private readonly channels?: readonly ChannelName[]
   /** True when the filter excludes `task.snapshot` — skip hello task hydration. */
@@ -130,11 +133,15 @@ export class RemoteOrchestrator {
   ) {
     this.ensureReachable = options.ensureReachable ?? ensureDaemonReachable
     this.role = options.role ?? "pane"
+    this.cellPixelSize = options.cellPixelSize ?? null
     this.channels = options.channels
     this.subscribesTasks = !options.channels || options.channels.includes("task.snapshot")
     this.expectForeignHome = options.expectForeignHome === true
     this.onPeerIdentity = options.onPeerIdentity
     this.signals = {
+      // A pane has no tty of its own worth drawing on, so the default sink is
+      // a gui's own fd 1 and nothing otherwise. Injectable for tests.
+      writeGraphics: options.graphicsOut ?? (this.role === "gui" ? writeGraphicsToStdout : () => {}),
       tasksAcc: this.tasksAcc,
       setTasks: this.tasksAcc.set,
       setActiveTaskSig: this.activeTaskAcc.set,
@@ -227,6 +234,7 @@ export class RemoteOrchestrator {
       this.client,
       {
         role: this.role,
+        cellPixelSize: this.cellPixelSize,
         channels: this.channels,
         subscribesTasks: this.subscribesTasks,
         expectForeignHome: this.expectForeignHome,

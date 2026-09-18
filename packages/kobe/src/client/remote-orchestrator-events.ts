@@ -12,6 +12,7 @@
 
 import { logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
 import {
+  type GraphicsWritePayload,
   type NoticeEventPayload,
   type SerializedTask,
   type TabClosePayload,
@@ -41,6 +42,26 @@ import {
   sameUsageSnapshotMap,
   sameWorktreeChangesMap,
 } from "./remote-orchestrator-payloads.ts"
+
+/**
+ * The default `graphics.write` sink: this process's own fd 1, verbatim.
+ *
+ * Every attached GUI writes the SAME payload to its OWN terminal — a task can
+ * be open in more than one, and each has to receive the picture separately
+ * because each terminal keeps its own image store. Rove parses none of it: the
+ * bytes are the caller's dialect with the daemon's id already inside them.
+ *
+ * Written straight through rather than queued for a frame boundary, which is
+ * the arrangement the feasibility probes measured against a real terminal: the
+ * renderer emits a frame in one `write`, so an opaque payload appended to the
+ * same stream lands between frames rather than inside one.
+ */
+export function writeGraphicsToStdout(data: Buffer): void {
+  // A redirected stdout is a file, not a terminal; writing binary into it
+  // corrupts whatever is capturing the session and draws nothing.
+  if (!process.stdout.isTTY) return
+  process.stdout.write(data)
+}
 
 /**
  * Drop engine-state entries for tasks that are gone (leak guard).
@@ -427,6 +448,17 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
     if (entry.subagents === 0) map.delete(p.taskId)
     else map.set(p.taskId, entry)
     signals.setEngineLifecycleSig(map)
+    return
+  }
+  if (name === "graphics.write") {
+    const p = payload as Partial<GraphicsWritePayload> | undefined
+    if (typeof p?.data !== "string" || typeof p.imageId !== "number" || typeof p.at !== "number") {
+      logClientError("orch", `dropped graphics.write event: malformed payload (${describePayload(payload)})`)
+      return
+    }
+    // Base64 is the wire encoding the daemon put on, not something the caller
+    // chose — decoding it is undoing our own transport, not parsing content.
+    signals.writeGraphics(Buffer.from(p.data, "base64"))
     return
   }
   if (name === "notice.event") {

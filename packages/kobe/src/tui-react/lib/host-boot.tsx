@@ -34,6 +34,7 @@ import { recentStateChangesForDiagnostics } from "../../lib/external-store"
 import { applyUserKeybindings, reloadUserKeybindings } from "../../tui/context/keybindings-user"
 import { loadUserThemes } from "../../tui/context/theme/loader"
 import { type UiPrefsTarget, applyUiPrefs } from "../../tui/lib/apply-ui-prefs"
+import { type CellPixelSize, queryCellPixelSize } from "../../tui/lib/cell-pixel-size"
 import { installEventLoopStallTelemetry } from "../../tui/lib/event-loop-stall"
 import {
   hostRenderOptions,
@@ -78,6 +79,16 @@ interface HostProviderFlags {
   readonly notifications?: boolean
 }
 
+/**
+ * Terminal facts measured before `setup` runs, for hosts that need them at
+ * connect time. Today that is the cell pixel size, which the workspace hands
+ * to the daemon with its `subscribe` so the graphics broadcast can answer a
+ * caller with it; `null` when the terminal declines to report one.
+ */
+export interface HostTerminalFacts {
+  readonly cellPixelSize: CellPixelSize | null
+}
+
 /** What a host's `setup` hands back once its own pre-render work is done. */
 interface HostScreen {
   /** The host's root view, rendered inside the provider stack. */
@@ -95,7 +106,7 @@ export interface BootPaneHostOpts {
    * — the shell's scrollback stays visible above the page.
    */
   readonly inlineRows?: number
-  readonly setup: (prefs: PersistedUiPrefs) => HostScreen | Promise<HostScreen>
+  readonly setup: (prefs: PersistedUiPrefs, terminal: HostTerminalFacts) => HostScreen | Promise<HostScreen>
 }
 
 /** The module-level theme store as a ui-prefs target (shared applyUiPrefs). */
@@ -240,7 +251,12 @@ export async function bootPaneHost(opts: BootPaneHostOpts): Promise<void> {
   const focus = opts.providers?.focus ?? true
   const notifications = opts.providers?.notifications ?? false
 
-  const screen = await opts.setup(prefs)
+  // BEFORE `setup`, and before the renderer: the query needs stdin in raw
+  // mode for a few milliseconds, and this is the last moment nothing else
+  // owns it. `setup` is also where the workspace opens its daemon connection,
+  // so measuring first is what lets the answer ride the very first subscribe.
+  const cellPixelSize = await queryCellPixelSize({ stdin: process.stdin, stdout: process.stdout })
+  const screen = await opts.setup(prefs, { cellPixelSize })
   const imeOutput = createHostImeOutput({
     platform: process.platform,
     fullscreen: opts.inlineRows === undefined,

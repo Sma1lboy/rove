@@ -131,6 +131,7 @@ export const DAEMON_CHANNELS = [
   "usage.snapshot",
   "usage.context",
   "ui.prompt",
+  "graphics.write",
 ] as const
 
 export type DaemonChannelName = (typeof DAEMON_CHANNELS)[number]

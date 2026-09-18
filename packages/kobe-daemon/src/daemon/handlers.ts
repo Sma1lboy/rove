@@ -43,6 +43,7 @@ import { AGENT_TURN_HANDLERS } from "./handlers-agent-turns.ts"
 import { ATTENTION_HANDLERS } from "./handlers-attention.ts"
 import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
 import { ENGINE_REPORT_HANDLER } from "./handlers-engine-report.ts"
+import { GRAPHICS_HANDLERS } from "./handlers-graphics.ts"
 import { ISSUE_HANDLERS } from "./handlers-issues.ts"
 import { PR_HANDLERS } from "./handlers-pr.ts"
 import { TASK_HANDLERS } from "./handlers-task.ts"
@@ -119,6 +120,8 @@ export interface DaemonHandlerContext {
   readonly engineEvents?: import("./engine-events-log.ts").EngineEventLog
   /** Pending host-dialog prompts (`ui.prompt` / `ui.promptReply`). */
   readonly prompts?: import("./prompt-broker.ts").PromptBroker
+  /** Image-id allocation for `graphics.write` (absent in older test doubles). */
+  readonly graphics?: import("./graphics-ids.ts").GraphicsImageIds
   /** Pending exact Terminal Tab closes awaiting a TUI acknowledgement. */
   readonly tabCloses?: TabCloseBroker
   /** Plugin sink for agent-lifecycle events — a direct feed, deliberately NOT a bus channel. */
@@ -141,6 +144,11 @@ export interface DaemonHandlerContext {
     readonly pid: number
     /** Attached-GUI refcount (reported as `attachedClients`). */
     guiCount(): number
+    /** Cell pixel size reported by each attached GUI that could measure its
+     *  own tty. A GUI in a terminal that declines `CSI 16 t` is simply absent
+     *  from the list — there is no placeholder, because a guessed cell size
+     *  places every picture wrong. Absent in older test doubles. */
+    guiCellSizes?(): readonly import("./channels-events.ts").CellPixelSize[]
     /** Every attached client, GUI or pane. `session.deliver` is performed by
      *  whichever client hosts the session, so this — not the GUI refcount —
      *  is what says a dispatch could reach anyone. */
@@ -342,6 +350,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...WORK_ITEM_HANDLERS,
     ...AGENT_TURN_HANDLERS,
     ...UI_HANDLERS,
+    ...GRAPHICS_HANDLERS,
     ...ISSUE_HANDLERS,
     ...PR_HANDLERS,
     {

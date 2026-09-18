@@ -120,3 +120,37 @@ export interface UiPromptPayload {
   /** Publish time (ms epoch) — the consumer-side dedupe key. */
   readonly at: number
 }
+
+/**
+ * A terminal cell's size in pixels, as the emulator itself reports it.
+ *
+ * A GUI measures its OWN tty at boot and hands the answer over with its
+ * `subscribe`; a terminal that declines to answer reports nothing rather than
+ * a guess. Used by `graphics.write` to tell a caller how many cells a picture
+ * of a given pixel size will cover.
+ */
+export interface CellPixelSize {
+  readonly width: number
+  readonly height: number
+}
+
+/**
+ * The `graphics.write` channel payload — one opaque graphics payload for every
+ * attached GUI to write to its own tty, verbatim.
+ *
+ * Deliberately product-neutral, and deliberately unparsed: Rove allocates the
+ * {@link imageId} (the one fact a caller cannot allocate for itself, because
+ * the id space belongs to the terminal and not to any one pane) and forwards
+ * the rest byte-for-byte. It never learns what the bytes draw.
+ */
+export interface GraphicsWritePayload {
+  readonly taskId: string
+  /** The Terminal Tab whose cells the picture is meant for. */
+  readonly tabId: string
+  /** Daemon-allocated id the payload's own bytes already reference. */
+  readonly imageId: number
+  /** The payload itself, base64 over the JSON wire. Never inspected. */
+  readonly data: string
+  /** Publish time (ms epoch) — the consumer-side dedupe key. */
+  readonly at: number
+}

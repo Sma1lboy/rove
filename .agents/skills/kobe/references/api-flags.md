@@ -109,6 +109,7 @@ note-delete    --repo(REQ) --id(REQ)
 pane-open      --task-id --tab --command --direction{right|down}(right)
                --placement{split|tab}(split) --title
 pane-close     --task-id --title(REQ) --tab
+pane-graphics  --task-id --tab(REQ) --image-id
 tab-close      --task-id(REQ) --tab(REQ)
 notify         --title(REQ) --body --kind(done) --task-id --source
 prompt         --title(REQ) --placeholder --initial --timeout

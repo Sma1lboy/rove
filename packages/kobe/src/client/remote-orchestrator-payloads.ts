@@ -19,6 +19,7 @@
  */
 
 import type {
+  CellPixelSize,
   ChannelName,
   ChannelPayloads,
   EngineQuotaUsage,
@@ -388,6 +389,20 @@ export interface RemoteOrchestratorOptions {
    * to ask, and correct.
    */
   readonly channels?: readonly ChannelName[]
+  /**
+   * This terminal's cell size in pixels, measured at boot (`queryCellPixelSize`),
+   * or `null` when the terminal declined to report one. Sent with `subscribe`
+   * so the daemon can answer a `graphics.write` caller with it. Only a `"gui"`
+   * attach owns a real tty, so only a gui should pass it.
+   */
+  readonly cellPixelSize?: CellPixelSize | null
+  /**
+   * Where a `graphics.write` payload is written. Defaults to this process's own
+   * fd 1 for a `"gui"` attach, and to nowhere otherwise — a pane has no tty of
+   * its own worth writing pictures to. Injectable so a test can observe the
+   * bytes without a terminal.
+   */
+  readonly graphicsOut?: (data: Buffer) => void
 }
 
 /**
@@ -397,6 +412,12 @@ export interface RemoteOrchestratorOptions {
  * read-signal methods return.
  */
 export interface OrchestratorSignals {
+  /**
+   * Write one `graphics.write` payload out, verbatim. Not a signal: a picture
+   * is an ACT on the terminal, not a value to hold — storing the last one and
+   * re-rendering it would replay it on every reconnect.
+   */
+  readonly writeGraphics: (data: Buffer) => void
   readonly tasksAcc: ReadableState<Task[]>
   readonly setTasks: (next: Task[]) => void
   readonly setActiveTaskSig: (next: string | null) => void

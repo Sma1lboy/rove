@@ -14,6 +14,7 @@ import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { logClient, logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
 import { isStaleInstallError } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import {
+  type CellPixelSize,
   type ChannelName,
   DAEMON_PROTOCOL_VERSION,
   MIN_COMPATIBLE_PROTOCOL_VERSION,
@@ -27,6 +28,8 @@ import { type OrchestratorSignals, deserializeTask } from "./remote-orchestrator
 
 export interface PerformInitOptions {
   readonly role: SubscribeRole
+  /** Measured cell size to report with `subscribe`; `null` when unmeasurable. */
+  readonly cellPixelSize?: CellPixelSize | null
   readonly channels?: readonly ChannelName[]
   /** `false` when a channel filter excludes `task.snapshot` — skip hello task hydration. */
   readonly subscribesTasks: boolean
@@ -206,7 +209,7 @@ export async function performInit(
   // for a narrow consumer (UiPrefsSync), or omit for everything. Pass our
   // role so the daemon's lazy-shutdown refcount counts only real
   // front-end attaches (`gui`), not in-tmux helper panes (`pane`).
-  await client.subscribe({ role: opts.role, channels: opts.channels })
+  await client.subscribe({ role: opts.role, channels: opts.channels, cellPixelSize: opts.cellPixelSize })
   // Daemon-collected worktree changes: gate on the hello
   // capability list — the honest "does this daemon run the collector?"
   // signal during a rolling upgrade. A capable daemon replays the

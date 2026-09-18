@@ -24,9 +24,12 @@ export async function startWorkspaceHost(): Promise<void> {
   await bootPaneHost({
     logContext: "workspace",
     providers: { kv: true, focus: true, notifications: true },
-    setup: async () => {
+    setup: async (_prefs, terminal) => {
       const client = await connectOrStartDaemon()
-      const orchestrator = new RemoteOrchestrator(client, { role: "gui" })
+      // The cell pixel size rides the subscribe: the daemon fans it back out
+      // as the answer to "how many cells will this picture cover", which no
+      // pane can measure for itself.
+      const orchestrator = new RemoteOrchestrator(client, { role: "gui", cellPixelSize: terminal.cellPixelSize })
       await orchestrator.init()
       process.env.KOBE_DAEMON_SOCKET_PATH = client.socketPath
       // Other computers running Rove. `attach()` is synchronous and a no-op

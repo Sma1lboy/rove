@@ -32,8 +32,10 @@ export type { EngineQuotaUsage, EngineQuotaWindow } from "./contracts.ts"
 
 export {
   CHANNEL_NAMES,
+  type CellPixelSize,
   type ChannelName,
   type ChannelPayloads,
+  type GraphicsWritePayload,
   type NoticeEventPayload,
   type EngineLifecyclePayload,
   type SessionDeliverPayload,
@@ -196,6 +198,11 @@ export type DaemonRequestName =
   // Broadcast one toast to every attached UI over the `notice.event`
   // channel (`kobe api notify`). The daemon only validates + publishes.
   | "notice.send"
+  // Hand OPAQUE graphics bytes to every attached GUI to write to its own tty
+  // (`kobe api pane-graphics`). The daemon allocates the image id — the one
+  // fact a pane cannot allocate for itself, the id space being the
+  // terminal's — and publishes on `graphics.write`; it parses nothing.
+  | "graphics.write"
   // Field note (docs/design/dispatcher.md): a worktree session files a
   // one-line resolved gotcha. The daemon APPENDS it to the durable per-repo
   // notes store, then forwards it to the repo's dispatcher seat (the main
