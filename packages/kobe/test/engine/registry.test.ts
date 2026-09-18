@@ -19,6 +19,7 @@ import {
   engineEntry,
   getCapabilities,
   supportsStructuredHistory,
+  vendorsWithEffortLevels,
   vendorsWithQuotaProbe,
   vendorsWithTurnReader,
 } from "../../src/engine/registry.ts"
@@ -168,6 +169,21 @@ describe("vendorsWithTurnReader", () => {
 
   it("omits engines with no reader rather than implying they report nothing", () => {
     expect(vendorsWithTurnReader()).not.toContain("kimi")
+  })
+})
+
+describe("vendorsWithEffortLevels", () => {
+  it("lists every engine that declares reasoning levels, so the effort error can name them", () => {
+    // `assertEngineAcceptsEffort`'s hint walks THIS list. Hard-coding "codex
+    // today" in the CLI layer named a single engine and went stale the moment
+    // pi and OMP shipped their own levels.
+    const vendors = vendorsWithEffortLevels()
+    expect([...vendors].sort()).toEqual(["codex", "omp", "pi"])
+    for (const vendor of vendors) expect((engineEntry(vendor).effortLevels?.length ?? 0) > 0).toBe(true)
+  })
+
+  it("omits engines that declare none rather than implying they take a level", () => {
+    expect(vendorsWithEffortLevels()).not.toContain("claude")
   })
 })
 

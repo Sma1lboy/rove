@@ -39,7 +39,7 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
         type: "string",
         placeholder: "LEVEL",
         description:
-          "Reasoning effort for the FIRST session, not just later ones. Validated against the engine's declared levels (codex: none/low/medium/high/xhigh/max; claude declares none) — free-form, since a plugin engine may declare its own. With --agents, every engine in the plan must declare it.",
+          "Reasoning effort for the FIRST session, not just later ones. Validated against the engine's declared levels (codex: none/low/medium/high/xhigh/max; pi and OMP: off/minimal/low/medium/high/xhigh/max; claude declares none) — free-form, since a plugin engine may declare its own. With --agents, every engine in the plan must declare it.",
       },
       {
         name: "count",
