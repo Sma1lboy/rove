@@ -82,6 +82,11 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
         const next = !collapsed
         setCollapsed(next)
         kv.set(SIDEBAR_COLLAPSED_KEY, next)
+        // Folding unmounts the tree, and the tree is what owns the sidebar's
+        // chords — leaving focus behind would strand the keyboard in a pane
+        // that answers nothing, with no chord to unfold it (the control is
+        // mouse-only for now). Zen hands focus off for the same reason.
+        if (next) focus.setFocused("workspace")
       }}
       nav={pages.nav}
       onNavChange={pages.goToNav}
