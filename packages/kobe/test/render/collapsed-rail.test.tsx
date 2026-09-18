@@ -10,8 +10,8 @@
  */
 
 import { expect, test } from "bun:test"
-import type { Task } from "../../src/types/task"
 import { CollapsedRail, railInitials } from "../../src/tui-react/panes/sidebar/collapsed-rail"
+import type { Task } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
 /**
@@ -99,7 +99,10 @@ test("the corner control is what expands, so a row click is never swallowed", as
   const lines = text.split("\n")
 
   // A row click must not reach the expand control.
-  await mockMouse.click(1, lines.findIndex((line) => line.includes("2")))
+  await mockMouse.click(
+    1,
+    lines.findIndex((line) => line.includes("2")),
+  )
   expect(expands).toBe(0)
   expect(picked).toEqual(["t1"])
 })
