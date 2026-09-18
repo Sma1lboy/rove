@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.208
+
+### Patch Changes
+
+- [#1039](https://github.com/Sma1lboy/rove/pull/1039) [`76eb2e6`](https://github.com/Sma1lboy/rove/commit/76eb2e6a891c47acd86c439a7c64889a8b68135a) Show what changed on the first launch after an upgrade
+
+  The first time Rove starts on a newly installed version it opens a What's New
+  page listing the release notes for every version between the one you were
+  running and the one you just started. `q` / `esc` dismisses it and it stays
+  gone until the next upgrade; a fresh install and a downgrade never see it.
+
+  The page follows your UI language. The release notes themselves are whatever
+  was published to the GitHub release, which today is English only. An
+  unreachable GitHub is stated on the page with the release URL — it never
+  blocks startup, and the page is dismissible before the notes load. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.207
 
 ### Patch Changes
