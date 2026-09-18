@@ -8,7 +8,8 @@
  * a released build spell the same hook differently and must not stack up.
  */
 
-import { describe, expect, it } from "vitest"
+import { join } from "node:path"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   CURSOR_HOOK_EVENT_MAP,
   cursorHooksPath,
@@ -96,7 +97,18 @@ describe("parseCursorHooks", () => {
 })
 
 describe("cursorHooksPath", () => {
+  // `join`, not a literal — the separator is the platform's, and a
+  // "/home/x/.cursor/hooks.json" spelling passes everywhere except the
+  // Windows CI job.
+  afterEach(() => vi.unstubAllEnvs())
+
   it("defaults under the home directory", () => {
-    expect(cursorHooksPath("/home/x")).toBe("/home/x/.cursor/hooks.json")
+    vi.stubEnv("CURSOR_CONFIG_DIR", "")
+    expect(cursorHooksPath("/home/x")).toBe(join("/home/x", ".cursor", "hooks.json"))
+  })
+
+  it("honours cursor's own CURSOR_CONFIG_DIR override", () => {
+    vi.stubEnv("CURSOR_CONFIG_DIR", join("/elsewhere", "cursor"))
+    expect(cursorHooksPath("/home/x")).toBe(join("/elsewhere", "cursor", "hooks.json"))
   })
 })
