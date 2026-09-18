@@ -103,6 +103,8 @@ function closedPages(): HostPagesState {
     workItemsOpen: false,
     openWorkItems: noop,
     closeWorkItems: noop,
+    whatsNewFrom: null,
+    closeWhatsNew: noop,
   }
 }
 

@@ -53,6 +53,8 @@ const CLOSED_PAGES: HostPagesState = {
   workItemsOpen: false,
   openWorkItems: NOOP,
   closeWorkItems: NOOP,
+  whatsNewFrom: null,
+  closeWhatsNew: NOOP,
 }
 
 /** Minimal orchestrator stand-in — the frame only reads the usage signal. */

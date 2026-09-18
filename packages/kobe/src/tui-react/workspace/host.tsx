@@ -53,7 +53,7 @@ import { useZenMode } from "./use-zen-mode"
 /** Exported for the render track: the banner wiring can only be proven by
  *  mounting the REAL host — a test against the banner component alone stays
  *  green even when the mount is deleted. */
-export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
+export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator; whatsNewFrom?: string | null }) {
   const { theme } = useTheme()
   const inactiveBorder = theme.borderActive
   const dialog = useDialog()
@@ -213,7 +213,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
 
   // Which surface the workspace shows — settings/worktrees/update full swaps
   // plus the rail's one-at-a-time nav. State + rationale in host-pages.tsx.
-  const pages = useHostPagesState(focus)
+  const pages = useHostPagesState(focus, { whatsNewFrom: props.whatsNewFrom ?? null })
   // The selected task's active tab — the tree marks that exact row as live.
   // Read from the module map rather than threaded through TerminalTabs: the
   // sidebar renders tabs for tasks whose TerminalTabs is not mounted, so the

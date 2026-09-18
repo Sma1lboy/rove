@@ -9,7 +9,13 @@ const spies = vi.hoisted(() => ({
 }))
 
 vi.mock("../../src/cli/hook-cmd.ts", () => ({ ensureGlobalKobeHooks: spies.installHooks }))
-vi.mock("../../src/cli/reset-gate.ts", () => ({ enforceResetGate: spies.enforceResetGate }))
+// Spread the real module: `whats-new.ts` imports its `app.lastRunVersion` key
+// from here, and a factory listing only the function it stubs turns any new
+// export into a hard "No X export is defined on the mock" at import time.
+vi.mock("../../src/cli/reset-gate.ts", async (importActual) => ({
+  ...(await importActual<typeof import("../../src/cli/reset-gate.ts")>()),
+  enforceResetGate: spies.enforceResetGate,
+}))
 vi.mock("../../src/lib/skill-install.ts", () => ({ maybeHintSkillInstall: spies.hintSkillInstall }))
 vi.mock("../../src/tui/lib/outer-terminal-title.ts", () => ({ publishKobeTerminalTitle: spies.publishTitle }))
 vi.mock("../../src/tui-react/workspace/start-workspace", () => ({ startWorkspaceHost: spies.startWorkspaceHost }))

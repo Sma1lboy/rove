@@ -57,6 +57,8 @@ describe("workspace open-worktree bindings", () => {
       workItemsOpen: false,
       openWorkItems: vi.fn(),
       closeWorkItems: vi.fn(),
+      whatsNewFrom: null,
+      closeWhatsNew: vi.fn(),
     }
     useWorkspaceKeybindings({
       focus: { focused: "sidebar", setFocused: vi.fn() } as never,
@@ -141,6 +143,8 @@ describe("workspace open-worktree bindings", () => {
       workItemsOpen: false,
       openWorkItems: vi.fn(),
       closeWorkItems: vi.fn(),
+      whatsNewFrom: null,
+      closeWhatsNew: vi.fn(),
     }
     useWorkspaceKeybindings({
       focus: { focused: "workspace", setFocused: vi.fn() } as never,
@@ -197,6 +201,8 @@ describe("workspace open-worktree bindings", () => {
       workItemsOpen: false,
       openWorkItems: vi.fn(),
       closeWorkItems: vi.fn(),
+      whatsNewFrom: null,
+      closeWhatsNew: vi.fn(),
     }
     return {
       focus: { focused: "sidebar", setFocused: vi.fn() } as never,

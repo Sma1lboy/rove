@@ -55,6 +55,8 @@ function deps(overrides: Partial<HostPageDeps>): HostPageDeps {
     closeWorktrees: () => {},
     closeAutomations: () => {},
     closeWorkItems: () => {},
+    whatsNewFrom: null,
+    closeWhatsNew: () => {},
     closeKanban: () => {},
     closeUpdate: () => {},
     activateTask: () => {},

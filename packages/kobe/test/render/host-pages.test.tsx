@@ -13,9 +13,10 @@
  */
 
 import { expect, test } from "bun:test"
-import { useEffect, useRef } from "react"
+import { isValidElement, useEffect, useRef } from "react"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { createStateCell } from "../../src/lib/external-store"
+import { WhatsNewPage } from "../../src/tui-react/component/whats-new-page"
 import type { FocusContextValue } from "../../src/tui-react/context/focus"
 import type { KVContext } from "../../src/tui-react/context/kv"
 import type { DialogContext } from "../../src/tui-react/ui/dialog"
@@ -80,6 +81,8 @@ function deps(overrides: Partial<HostPageDeps>): HostPageDeps {
     closeWorktrees: () => {},
     closeAutomations: () => {},
     closeWorkItems: () => {},
+    whatsNewFrom: null,
+    closeWhatsNew: () => {},
     closeKanban: () => {},
     closeUpdate: () => {},
     activateTask: () => {},
@@ -118,6 +121,30 @@ test("renderFullWindowPage renders UpdatePage", async () => {
   })
   await settle()
   expect(await frame()).toContain("ROVE UPDATE")
+})
+
+/**
+ * Asserted on the ELEMENT, not a mounted frame: WhatsNewPage fetches release
+ * notes on mount, and the render track must not reach api.github.com. Both
+ * other full-window pages are opened here so "first in the precedence order"
+ * is a claim about this call, not about the fixture happening to be empty.
+ */
+test("renderFullWindowPage puts What's New ahead of every chord-opened page", () => {
+  const node = renderFullWindowPage(deps({ whatsNewFrom: "0.9.100", worktreesOpen: true, updateOpen: true }))
+  expect(isValidElement(node) && node.type).toBe(WhatsNewPage)
+})
+
+test("useHostPagesState clears What's New once, and it cannot be reopened", async () => {
+  let pagesRef: HostPagesState | null = null
+  function Harness() {
+    pagesRef = useHostPagesState(mockFocus(), { whatsNewFrom: "0.9.100" })
+    return <text>{pagesRef.whatsNewFrom ?? "dismissed"}</text>
+  }
+  const { frame } = await renderComponent(<Harness />)
+  expect(await frame()).toContain("0.9.100")
+  act(() => pagesRef?.closeWhatsNew())
+  await settle()
+  expect(await frame()).toContain("dismissed")
 })
 
 test("renderContentPage returns null when no content page is open", async () => {
