@@ -121,8 +121,9 @@ themselves, so re-shoot from a fresh fixture rather than a used one.
 Publish: push a public GitHub repo (one plugin per subdirectory is fine),
 add the topic **`rove-plugin`** → it appears in the marketplace
 ([rove.run/plugins](https://rove.run/plugins) and
-`rove plugin search`) automatically. Users install with
-`rove plugin install owner/repo[/subdir]` and stay fresh with
+`rove plugin search`, and Settings → Marketplace inside the TUI)
+automatically. Users install with `rove plugin install owner/repo[/subdir]`
+or from that Settings section, and stay fresh with
 `rove plugin outdated` / `rove plugin update --all` (an update is a clean
 reinstall of the managed checkout; config/state survive).
 
@@ -417,6 +418,8 @@ SDK wraps it as `RoveSocket.hello()`) and read back:
   hand-rolling in-pane prompts.
 - **Settings → Plugins**: enable/disable, declared surfaces, last run,
   and your `[[settings]]` editors.
+- **Settings → Marketplace**: your repo's `rove-plugin` topic listing, its
+  description, and the install preview built from your manifest's commands.
 - **CLI**: `rove plugin action invoke`, `rove plugin pane open`, `rove
   plugin log`, `rove plugin config-dir` (prints the plugin's config
   directory).
@@ -436,7 +439,8 @@ SDK wraps it as `RoveSocket.hello()`) and read back:
   tweaks (deny a tool call) belong in engine-native hooks the user installs
   directly.
 - **Trust model**: plugins run as the user with their environment; installs
-  preview every command and build step first, but nothing is sandboxed.
+  preview every command and build step first — on the CLI and in Settings →
+  Marketplace alike — but nothing is sandboxed.
   Keep your repo auditable. That's what gets you installed.
 - Reference implementations: the first-party plugins in
   [Sma1lboy/kobe-plugins](https://github.com/Sma1lboy/kobe-plugins)

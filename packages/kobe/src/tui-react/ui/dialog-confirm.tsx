@@ -11,7 +11,7 @@ import { useState } from "react"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
-import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "./dialog"
+import { type DialogContext, type DialogSize, showDialog, useDialog, useDialogPaddingX } from "./dialog"
 
 function titlecase(s: string): string {
   if (!s) return s
@@ -41,6 +41,12 @@ export type DialogConfirmResult = boolean | undefined
 type DialogConfirmOptions = {
   danger?: boolean
   initialActive?: "confirm" | "cancel"
+  /**
+   * Card width, when `small` is the wrong shape. A yes/no question fits in
+   * 50 cells; a prompt that has to SHOW what it is about to run (the plugin
+   * install preview) wraps its command lines into noise at that width.
+   */
+  size?: DialogSize
 }
 
 export function DialogConfirm(props: DialogConfirmProps) {
@@ -119,8 +125,9 @@ DialogConfirm.show = (
   confirmLabel?: string,
   options?: DialogConfirmOptions,
 ): Promise<DialogConfirmResult> => {
-  // Confirms are tight yes/no prompts; the narrow `small` width reads
-  // at a glance instead of swallowing half the viewport.
+  // Confirms are tight yes/no prompts; the narrow `small` width reads at a
+  // glance instead of swallowing half the viewport. A caller whose question
+  // carries content (a preview of what it is about to do) widens it.
   return showDialog<boolean>(
     dialog,
     (resolve) => (
@@ -135,6 +142,6 @@ DialogConfirm.show = (
         initialActive={options?.initialActive}
       />
     ),
-    { size: "small" },
+    { size: options?.size ?? "small" },
   )
 }

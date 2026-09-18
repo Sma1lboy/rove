@@ -1,18 +1,31 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { EventEmitter } from "node:events"
+import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { pluginConfigDir, pluginStateDir, pluginsRootDir } from "@sma1lboy/kobe-daemon/plugins/plugin-paths"
 import { loadPluginRegistry, savePluginRegistry } from "@sma1lboy/kobe-daemon/plugins/registry"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-const mocks = vi.hoisted(() => ({ spawnSync: vi.fn() }))
+const mocks = vi.hoisted(() => ({ spawn: vi.fn() }))
 
 vi.mock("node:child_process", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:child_process")>()
-  return { ...actual, spawnSync: mocks.spawnSync }
+  return { ...actual, spawn: mocks.spawn }
 })
 
-import { installPlugin, linkPlugin } from "../../src/cli/plugin-install.ts"
+/**
+ * Stand-in for a spawned child: install awaits the `close` event, so the fake
+ * only has to emit one (with no pipes — these steps produce no output).
+ */
+function fakeChild(status: number): EventEmitter {
+  const child = new EventEmitter() as EventEmitter & { stdout: null; stderr: null }
+  child.stdout = null
+  child.stderr = null
+  setImmediate(() => child.emit("close", status))
+  return child
+}
+
+import { installPlugin, linkPlugin, preparePluginInstall } from "../../src/cli/plugin-install.ts"
 
 const dirs: string[] = []
 
@@ -25,7 +38,7 @@ function pluginDir(): string {
 afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllEnvs()
-  mocks.spawnSync.mockReset()
+  mocks.spawn.mockReset()
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
@@ -102,14 +115,14 @@ describe("plugin manifest diagnostics", () => {
     const home = pluginDir()
     vi.stubEnv("ROVE_HOME_DIR", home)
     vi.spyOn(console, "log").mockImplementation(() => {})
-    mocks.spawnSync.mockImplementation((command: string, args: string[]) => {
+    mocks.spawn.mockImplementation((command: string, args: string[]) => {
       expect(command).toBe("git")
       const checkout = args.at(-1) as string
       writeFileSync(
         join(checkout, "rove-plugin.toml"),
         'id = "managed.plugin"\nname = "Managed"\nversion = "2.0.0"\nmin_rove_version = "0.1.0"',
       )
-      return { status: 0 }
+      return fakeChild(0)
     })
 
     await expect(installPlugin("owner/repo", { yes: true })).resolves.toBe("managed.plugin")
@@ -131,14 +144,14 @@ describe("plugin manifest diagnostics", () => {
     vi.stubEnv("ROVE_HOME_DIR", home)
     vi.spyOn(console, "log").mockImplementation(() => {})
     const cloneTargets: string[] = []
-    mocks.spawnSync.mockImplementation((_command: string, args: string[]) => {
+    mocks.spawn.mockImplementation((_command: string, args: string[]) => {
       const checkout = args.at(-1) as string
       cloneTargets.push(checkout)
       writeFileSync(
         join(checkout, "rove-plugin.toml"),
         'id = "managed.plugin"\nname = "Managed"\nversion = "2.0.0"\nmin_rove_version = "0.1.0"',
       )
-      return { status: 0 }
+      return fakeChild(0)
     })
 
     await installPlugin("owner/repo", { yes: true })
@@ -152,7 +165,7 @@ describe("plugin manifest diagnostics", () => {
     const home = pluginDir()
     vi.stubEnv("ROVE_HOME_DIR", home)
     vi.spyOn(console, "log").mockImplementation(() => {})
-    mocks.spawnSync.mockImplementation((command: string, args: string[], opts?: { cwd?: string }) => {
+    mocks.spawn.mockImplementation((command: string, args: string[], opts?: { cwd?: string }) => {
       if (command === "git") {
         const checkout = args.at(-1) as string
         writeFileSync(
@@ -166,7 +179,7 @@ describe("plugin manifest diagnostics", () => {
             'command = ["build-plugin"]',
           ].join("\n"),
         )
-        return { status: 0 }
+        return fakeChild(0)
       }
       if (command === "build-plugin" && opts?.cwd) {
         writeFileSync(
@@ -180,12 +193,93 @@ describe("plugin manifest diagnostics", () => {
             'command = ["hidden-hook"]',
           ].join("\n"),
         )
-        return { status: 0 }
+        return fakeChild(0)
       }
-      return { status: 1 }
+      return fakeChild(1)
     })
 
     await expect(installPlugin("owner/repo", { yes: true })).rejects.toThrow(/manifest changed during build/)
     expect(loadPluginRegistry(home).plugins).toEqual([])
+  })
+})
+
+/**
+ * The install is two-phased so the confirmation gate is a real one: a plugin's
+ * `[[build]]` is arbitrary code, and `docs/PLUGIN-AUTHORING.md` promises every
+ * command is previewed before any of it runs. The TUI's Marketplace section
+ * shows `preview.commands` in a dialog and only then calls `commit()`, so the
+ * property those two surfaces both depend on is tested here once.
+ */
+describe("staged install", () => {
+  const MANIFEST = [
+    'id = "staged.plugin"',
+    'name = "Staged"',
+    'version = "3.0.0"',
+    'description = "does a thing"',
+    'min_rove_version = "0.1.0"',
+    "[[build]]",
+    'command = ["build-plugin", "--release"]',
+    "[[events]]",
+    'on = "task.created"',
+    'command = ["notify"]',
+  ].join("\n")
+
+  /** git writes the manifest; anything else counts as a command that RAN. */
+  function stageClone(ran: string[]): void {
+    mocks.spawn.mockImplementation((command: string, args: string[]) => {
+      if (command !== "git") {
+        ran.push(command)
+        return fakeChild(0)
+      }
+      writeFileSync(join(args.at(-1) as string, "rove-plugin.toml"), MANIFEST)
+      return fakeChild(0)
+    })
+  }
+
+  it("previews every declared command without running any of them", async () => {
+    const home = pluginDir()
+    vi.stubEnv("ROVE_HOME_DIR", home)
+    const ran: string[] = []
+    stageClone(ran)
+
+    const prepared = await preparePluginInstall("owner/repo")
+
+    expect(prepared.preview).toMatchObject({
+      id: "staged.plugin",
+      name: "Staged",
+      version: "3.0.0",
+      description: "does a thing",
+      source: "github.com/owner/repo",
+    })
+    expect(prepared.preview.commands).toEqual(["build: build-plugin --release", "on task.created: notify"])
+    // The gate: nothing but git has run, and nothing is registered yet.
+    expect(ran).toEqual([])
+    expect(loadPluginRegistry(home).plugins).toEqual([])
+
+    prepared.discard()
+    expect(ran).toEqual([])
+    expect(loadPluginRegistry(home).plugins).toEqual([])
+  })
+
+  it("runs the build and registers only once commit is called", async () => {
+    const home = pluginDir()
+    vi.stubEnv("ROVE_HOME_DIR", home)
+    const ran: string[] = []
+    stageClone(ran)
+
+    const prepared = await preparePluginInstall("owner/repo")
+    await expect(prepared.commit()).resolves.toBe("staged.plugin")
+
+    expect(ran).toEqual(["build-plugin"])
+    expect(loadPluginRegistry(home).plugins).toMatchObject([{ id: "staged.plugin", version: "3.0.0", enabled: true }])
+  })
+
+  it("leaves nothing staged behind when the clone finds no manifest", async () => {
+    const home = pluginDir()
+    vi.stubEnv("ROVE_HOME_DIR", home)
+    mocks.spawn.mockImplementation(() => fakeChild(0))
+
+    await expect(preparePluginInstall("owner/repo")).rejects.toThrow(/no rove-plugin\.toml or kobe-plugin\.toml/)
+    expect(readdirSync(pluginsRootDir(home)).filter((e) => e.startsWith(".staging-"))).toEqual([])
   })
 })

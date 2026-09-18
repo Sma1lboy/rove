@@ -42,10 +42,11 @@ import { type DialogContext, useDialog, useDialogPaddingX } from "../../ui/dialo
 import { confirmResetState, confirmRestartDaemon, hasRestartableDaemon, installEngineHooks } from "./actions"
 import { EngineSettingsSection } from "./sections-engines"
 import { GeneralSettingsSection, SettingsSectionSidebar } from "./sections-general"
+import { MarketplaceSettingsSection } from "./sections-marketplace"
 import { DevSettingsSection, FeedbackSettingsSection, KeybindingsSettingsSection } from "./sections-misc"
 import { PluginSettingsSection } from "./sections-plugins"
 import { useEngineSettings } from "./use-engine-settings"
-import { useAccountProbes, useEngineIntegrations, usePluginSettings } from "./use-section-data"
+import { useAccountProbes, useEngineIntegrations, useMarketplace, usePluginSettings } from "./use-section-data"
 import { useSettingsPrefs } from "./use-settings-prefs"
 
 export type SettingsDialogProps = {
@@ -104,6 +105,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     setKeysFileExists(userKeybindingsReport().exists)
   }
   const plugins = usePluginSettings(section, dialog)
+  const marketplace = useMarketplace(section, dialog, plugins)
 
   /**
    * The active section's ordered navigable rows (the row registry).
@@ -116,6 +118,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
       focusAccentSlots: FOCUS_ACCENT_SLOTS,
       engineList: engines.engineList(),
       plugins: plugins.rows.map((p) => ({ id: p.id, settingKeys: p.settings.map((s) => s.key) })),
+      marketplace: marketplace.rows.map((r) => r.ref),
       hasDaemon,
       keybindingsFileExists: keysFileExists,
     })
@@ -246,6 +249,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     keysCreate: () => createKeysFile(),
     pluginToggle: (row) => plugins.toggle(row.pluginId),
     pluginSetting: (row) => void plugins.editSetting(row.pluginId, row.key),
+    pluginInstall: (row) => void marketplace.install(row.ref),
     feedbackTitle: () => setBodyRow(0),
     feedbackBody: () => setBodyRow(1),
     feedbackSend: () => void sendFeedback(),
@@ -402,6 +406,16 @@ export function SettingsDialog(props: SettingsDialogProps) {
               plugins={plugins.rows}
               toggle={plugins.toggle}
               editSetting={(id, key) => void plugins.editSetting(id, key)}
+            />
+          ) : null}
+          {section === "marketplace" ? (
+            <MarketplaceSettingsSection
+              {...cursorProps}
+              rows={marketplace.rows}
+              loading={marketplace.loading}
+              offline={marketplace.offline}
+              status={marketplace.status}
+              install={(ref) => void marketplace.install(ref)}
             />
           ) : null}
           {section === "keys" ? (

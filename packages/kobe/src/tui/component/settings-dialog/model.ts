@@ -26,12 +26,13 @@ import { PREFIX_TAP_PRESENTATIONS, type PrefixTapPresentation } from "../../lib/
 
 export type NavLevel = "sidebar" | "body"
 
-export type SectionId = "general" | "engines" | "plugins" | "keys" | "feedback" | "dev"
+export type SectionId = "general" | "engines" | "plugins" | "marketplace" | "keys" | "feedback" | "dev"
 
 export const SECTIONS: ReadonlyArray<{ id: SectionId; label: string }> = [
   { id: "general", label: "General" },
   { id: "engines", label: "Engines" },
   { id: "plugins", label: "Plugins" },
+  { id: "marketplace", label: "Marketplace" },
   { id: "keys", label: "Keybindings" },
   { id: "feedback", label: "Feedback" },
   { id: "dev", label: "Dev" },
@@ -70,6 +71,7 @@ export type SettingsRow =
   | { id: "keys-create"; kind: "keysCreate" }
   | { id: string; kind: "pluginToggle"; pluginId: string }
   | { id: string; kind: "pluginSetting"; pluginId: string; key: string }
+  | { id: string; kind: "pluginInstall"; ref: string }
   | { id: "feedback-title"; kind: "feedbackTitle" }
   | { id: "feedback-body"; kind: "feedbackBody" }
   | { id: "feedback-send"; kind: "feedbackSend" }
@@ -112,6 +114,10 @@ export function pluginSettingRowId(pluginId: string, key: string): string {
   return `plugin:${pluginId}:${key}`
 }
 
+export function marketplaceRowId(ref: string): string {
+  return `market:${ref}`
+}
+
 /** Everything the registry needs to lay out every section's rows. */
 export type SettingsRowsInput = {
   themeNames: readonly string[]
@@ -120,6 +126,8 @@ export type SettingsRowsInput = {
   engineList: readonly VendorId[]
   /** Registered plugins (`~/.rove/plugins.json`), in registry order. */
   plugins: readonly PluginRowsEntry[]
+  /** Marketplace `owner/repo[/subdir]` refs, in the order they are listed; [] while loading. */
+  marketplace: readonly string[]
   hasDaemon: boolean
   /** False while `keybindings.yaml` is absent — the section then offers to write it. */
   keybindingsFileExists: boolean
@@ -192,6 +200,15 @@ export function pluginRows(plugins: readonly PluginRowsEntry[]): SettingsRow[] {
   ])
 }
 
+/**
+ * Marketplace section: one navigable row per listed plugin. Empty while the
+ * GitHub query is in flight (the view shows a loading line instead), so the
+ * cursor never lands on a row that is about to be replaced.
+ */
+export function marketplaceRows(refs: readonly string[]): SettingsRow[] {
+  return refs.map((ref): SettingsRow => ({ id: marketplaceRowId(ref), kind: "pluginInstall", ref }))
+}
+
 export function feedbackRows(): SettingsRow[] {
   return [
     { id: "feedback-title", kind: "feedbackTitle" },
@@ -242,6 +259,8 @@ export function sectionRows(section: SectionId, input: SettingsRowsInput): Setti
       return keybindingRows(input.keybindingsFileExists)
     case "plugins":
       return pluginRows(input.plugins)
+    case "marketplace":
+      return marketplaceRows(input.marketplace)
     case "feedback":
       return feedbackRows()
     case "dev":
