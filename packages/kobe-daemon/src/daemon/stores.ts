@@ -20,6 +20,7 @@ import type { DaemonEventBus } from "./event-bus.ts"
 import { IssuesStore, defaultIssuesStorePath } from "./issues-store.ts"
 import { NotesStore, defaultNotesStorePath } from "./notes-store.ts"
 import { QuotaUsageCache } from "./quota-usage-cache.ts"
+import { RowTokenStore } from "./row-tokens.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { TaskDeletionRunner } from "./task-deletion-runner.ts"
 import { WorkItemCache } from "./work-items.ts"
@@ -36,6 +37,7 @@ export interface DaemonStores {
   readonly workItems: WorkItemCache
   readonly quotaUsage: QuotaUsageCache
   readonly engineEvents: EngineEventLog
+  readonly rowTokens: RowTokenStore
 }
 
 /**
@@ -67,11 +69,18 @@ export async function initDaemonStores(
   // other daemon-owned stores so a sandbox home never writes to the real one.
   const agentTurns = new AgentTurnsStore(defaultAgentTurnsPath(homeDir))
   await agentTurns.init().catch((err) => logDaemonError("agent-turns-init", err))
+  // Plugin-written row tokens. In memory on purpose: a token is a claim with
+  // a deadline, and restoring one whose author is gone is exactly the stale
+  // state the TTL exists to prevent (see row-tokens.ts).
+  const rowTokens = new RowTokenStore(bus)
   const clearTaskState = (taskId: string) =>
     inbox
       .deleteTaskBestEffort(taskId)
       .finally(() => agentTurns.deleteTask(taskId).catch((err) => logDaemonError("agent-turns-delete", err)))
       .finally(() => activity.clearTask(taskId))
+      // A deleted task's row is gone; its labels must go with it, or the map
+      // keeps republishing tokens for a row nothing can render.
+      .finally(() => rowTokens.clearTask(taskId))
   const deletions = new TaskDeletionRunner(orch, runtime, clearTaskState)
   // Daemon-owned issue tracker (web Issues panel) — a single store keyed by
   // git common-dir, sharing the server's homeDir so sandbox/test homes
@@ -103,5 +112,6 @@ export async function initDaemonStores(
     workItems,
     quotaUsage,
     engineEvents,
+    rowTokens,
   }
 }

@@ -108,9 +108,9 @@ Re-record with:
 ```bash
 cd packages/kobe-harness
 bun e2e/hero-fixture.ts --fresh   # throwaway home + a real repo
-bun e2e/hero-plugins.ts           # link all five examples (BEFORE the TUI boots)
+bun e2e/hero-plugins.ts           # link every example (BEFORE the TUI boots)
 bun e2e/hero-serve.ts             # warm capture stack (keep running)
-bun e2e/hero-plugin-demos.ts      # all five, or name one
+bun e2e/hero-plugin-demos.ts      # every recorded take, or name one
 ```
 
 Linking has to happen before the harness starts: the TUI reads the plugin
@@ -412,6 +412,8 @@ SDK wraps it as `RoveSocket.hello()`) and read back:
   plus the plugin-only `tool-*`/`*-compact`/`subagent-*` family). Account
   detection, history readers, and model catalogs still require a built-in
   adapter in Rove itself; render those surfaces yourself via `[[panes]]`.
+- **Task-row tokens**: put one short label on a task's sidebar/board row —
+  see [below](#task-row-tokens).
 - **Host input dialog**: `rove api prompt --title "…"` (SDK: `promptUser()`)
   pops the TUI's standard input dialog and blocks for the answer: `{value}`
   on submit, `{cancelled, reason}` on esc/timeout. Use it instead of
@@ -423,6 +425,74 @@ SDK wraps it as `RoveSocket.hello()`) and read back:
 - **CLI**: `rove plugin action invoke`, `rove plugin pane open`, `rove
   plugin log`, `rove plugin config-dir` (prints the plugin's config
   directory).
+
+## Task-row tokens
+
+The row is where the human already looks, and until now nothing a plugin knew
+could reach it. That is the single reason a coordination plugin could not be
+built on Rove: the point of one is to say, **on the row**, who claimed this,
+what queue it is in, what your own system thinks of it.
+
+```bash
+"$ROVE_BIN_PATH" api row-token --task-id ID --text "@ana" --tone info --ttl 600
+"$ROVE_BIN_PATH" api row-token --task-id ID --clear
+```
+
+```ts
+import { setRowToken, clearRowToken } from "@sma1lboy/rove-plugin-sdk"
+
+await setRowToken(taskId, "@ana", { key: "claim", ttlSeconds: 600, tone: "info" })
+```
+
+### Every token expires
+
+**This is not optional and it is the point.** A token carries a TTL (default
+60s, max 1h); readers drop it when it lapses, and the host republishes at each
+expiry so a label **fades on its own**. Keep a label by re-writing it — the
+same `--key` replaces the token and renews its deadline.
+
+So the label on screen is evidence that your plugin is alive and still
+believes what it says, not a record that something once wrote it. Disable your
+plugin, kill it, let it crash: every label it painted is gone within its TTL,
+with nothing to clean up. Tokens are in memory only — a daemon restart clears
+them, deliberately, because restoring a claim whose author is gone is exactly
+the stale state the TTL prevents.
+
+`clearRowToken()` exists for the moment you *know* a label is wrong. Waiting
+out the TTL is the normal removal.
+
+### Yours vs host-owned
+
+| You own | The host owns |
+|---|---|
+| your label text, in your own slot | the derived task group (`waiting-on-you` / `landing` / …) |
+| which of your two slots per task it lands in (`--key`) | the activity badge, the PR chip, the spinner |
+| its semantic `tone` | what that tone actually looks like, per theme |
+| when to refresh it, and when to drop it | the title, the branch, the row layout and its budget |
+
+A plugin cannot address anything in the right-hand column. A plugin able to
+overwrite "waiting on you" could make the row lie about whether a human is
+blocked, and no third party should be able to do that. `tone` names a **role**
+(`info` / `success` / `warning` / `error` / `muted`), never a colour, so the
+user's active theme still decides how your label is drawn — and no vendor or
+engine name belongs in one: the engine adapter owns that vocabulary
+(see AGENTS.md).
+
+### Limits
+
+- **24 characters**, whitespace collapsed. A row shares ~2 lines with its
+  title and branch; past that a token stops being a label and becomes the row.
+- **2 slots per plugin per task.** How many plugins are installed is the
+  user's own decision; one plugin filling the row is not.
+- **TTL 1s…1h**, clamped. "Forever" is not expressible.
+- `source` is your `ROVE_PLUGIN_ID`, carried for attribution and the quota
+  above. It is not authenticated — a plugin already runs arbitrary code as the
+  user — so treat it as a label, not a permission.
+- The write returns `{ ok: false, reason: "UNSUPPORTED" }` on a host with no
+  row-token surface; the SDK helpers answer `false` rather than throwing, so
+  you never have to version-gate the call.
+
+Runnable example: [`examples/row-tokens/`](../packages/kobe-plugin-sdk/examples/row-tokens).
 
 ## Ground rules
 

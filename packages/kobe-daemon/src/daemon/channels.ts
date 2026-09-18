@@ -40,6 +40,7 @@ export type {
 } from "./channels-events.ts"
 import type { RepoIssues } from "./issues-store.ts"
 import type { SerializedTask } from "./protocol.ts"
+import type { RowTokenMap } from "./row-tokens.ts"
 
 /**
  * Channel registry — the SINGLE source of truth for daemon→client push
@@ -183,6 +184,14 @@ export interface ChannelPayloads {
    * Last-value caveat: with two jobs overlapping, a late subscriber only
    * replays the most recent publish — live subscribers see both.
    */
+  /**
+   * Plugin-written row tokens for every task that currently has one —
+   * the FULL map, republished on every write and again as each token's TTL
+   * expires (see `row-tokens.ts`). Full snapshots make reconnect stateless,
+   * and the expiry republish is what makes an abandoned label FADE instead
+   * of sitting on the row forever.
+   */
+  "task.tokens": { tokens: RowTokenMap }
   "task.jobs": {
     taskId: string
     kind: "ensureWorktree"

@@ -8,6 +8,7 @@ Small, runnable plugins that demonstrate the surfaces in `docs/PLUGIN-AUTHORING.
 | `turn-notify/` | `[[events]]` | Toast a summary on `turn.complete` / `agent.permission-needed` via `notify()`; read turn usage from `detail.turn`. |
 | `settings-demo/` | `[[settings]]`, `[[actions]]` | Declare string/enum/boolean settings; an action reads the config `.env` with `readSettings()` / `setting()`. |
 | `task-board/` | `[[panes]]`, `[[actions]]` | Live task board drawn from `task.snapshot` + `engine-state`; headless `snapshot` action prints one frame. |
+| `row-tokens/` | `[[actions]]`, `[[events]]` | Claim a task and paint the claim on its row with `setRowToken()`; the label fades when the plugin stops refreshing it. |
 | `contrib-engine/` | `[[engines]]` | Manifest-only fake engine with identity and screen-state rules. |
 
 Link any example into a named dev sandbox to try it:
@@ -31,5 +32,5 @@ TUI reads the plugin registry once at start.
 cd packages/kobe-harness
 bun e2e/hero-fixture.ts --fresh && bun e2e/hero-plugins.ts
 bun e2e/hero-serve.ts             # keep running
-bun e2e/hero-plugin-demos.ts      # all five, or name one
+bun e2e/hero-plugin-demos.ts      # every recorded take, or name one
 ```

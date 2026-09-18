@@ -8,6 +8,7 @@ import type { IssuesStore } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import type { FieldNote, NotesStore } from "@sma1lboy/kobe-daemon/daemon/notes-store"
 import type { CellPixelSize } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { QuotaUsageCache } from "@sma1lboy/kobe-daemon/daemon/quota-usage-cache"
+import { RowTokenStore } from "@sma1lboy/kobe-daemon/daemon/row-tokens"
 import {
   type DaemonHandlerContext,
   createDaemonHandlerRegistry,
@@ -164,6 +165,13 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     selfLink: { request: async () => ({}) } as unknown as DaemonRpcClient,
     tabCloses: new TabCloseBroker(),
     graphics: new GraphicsImageIds(),
+    // The REAL store: it is in-memory and its only dependency is a bus with
+    // `publish`, which the fake above already is — a double would just be a
+    // second copy of the TTL arithmetic to keep in sync.
+    rowTokens: new RowTokenStore({
+      publish: (channel: string, payload: unknown) => rec.published.push({ channel, payload }),
+      // biome-ignore lint/suspicious/noExplicitAny: one narrow test-double seam.
+    } as any),
     daemon: {
       startedAt: new Date("2026-06-01T00:00:00.000Z"),
       socketPath: "/tmp/fake/daemon.sock",

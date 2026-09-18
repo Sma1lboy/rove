@@ -99,6 +99,8 @@ export interface DaemonHandlerContext {
   readonly activity: DaemonActivityRegistry
   /** Durable attention episodes; independent from transient activity cleanup. */
   readonly inbox: AttentionInboxStore
+  /** In-memory, TTL-bounded plugin row tokens (absent in older test doubles). */
+  readonly rowTokens?: import("./row-tokens.ts").RowTokenStore
   /** Starts deduplicated durable background deletion after RPC acceptance. */
   readonly deletions: TaskDeletionScheduler
   /** Daemon-owned issue tracker store, keyed by git common-dir. */

@@ -98,6 +98,7 @@ describe("daemon handler registry", () => {
       "note.file",
       "note.list",
       "note.delete",
+      "task.rowToken",
     ]
     const registry = createDaemonHandlerRegistry()
     for (const name of rpcNames) expect(registry.get(name), name).toBeDefined()

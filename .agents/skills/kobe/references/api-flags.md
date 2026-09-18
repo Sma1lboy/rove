@@ -117,6 +117,8 @@ prompt         --title(REQ) --placeholder --initial --timeout
 engine-report  --task-id
                --kind{session-start|turn-start|turn-complete|turn-failed|turn-interrupted|awaiting-input|session-end|tool-pre|tool-post|tool-failed|pre-compact|post-compact|subagent-start|subagent-stop}(REQ)
                --engine --tab --detail
+row-token      --task-id(REQ) --text --ttl(60) --key(default)
+               --tone{info|success|warning|error|muted} --clear
 set-active     --task-id --none
 ```
 <!-- generated:end -->

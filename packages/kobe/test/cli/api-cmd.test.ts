@@ -217,6 +217,7 @@ describe("API surface (full CRUD)", () => {
       "notify",
       "prompt",
       "engine-report",
+      "row-token",
       "set-active",
       "feedback",
       "issue-list",
