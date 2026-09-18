@@ -66,6 +66,7 @@ export type SettingsRow =
   | { id: "tab-strip-hide-single"; kind: "tabStripHideSingle" }
   | { id: string; kind: "engine"; vendor: VendorId }
   | { id: "add-engine"; kind: "engineAdd" }
+  | { id: "install-hooks"; kind: "engineHooksInstall" }
   | { id: "keys-create"; kind: "keysCreate" }
   | { id: string; kind: "pluginToggle"; pluginId: string }
   | { id: string; kind: "pluginSetting"; pluginId: string; key: string }
@@ -161,14 +162,19 @@ export function generalRows(input: Pick<SettingsRowsInput, "themeNames" | "focus
 }
 
 /**
- * Engines section: one row per engine (built-ins + custom), plus the
- * trailing "+ Add engine" row. Engine row index === position in
- * `engineList`, matching the section view's <For> order.
+ * Engines section: one row per engine (built-ins + custom), then the
+ * trailing "+ Add engine" and "install integrations" rows. Engine row index
+ * === position in `engineList`, matching the section view's order.
  */
 export function engineRows(engineList: readonly VendorId[]): SettingsRow[] {
   return [
     ...engineList.map((vendor): SettingsRow => ({ id: engineRowId(vendor), kind: "engine", vendor })),
     { id: "add-engine", kind: "engineAdd" },
+    // One action for every engine that needs one, like the rest of the
+    // install surface: per-engine checkboxes would be a second switch next to
+    // the one the card already carries, answering a question ("should Rove
+    // watch this engine") the user never asked differently per engine.
+    { id: "install-hooks", kind: "engineHooksInstall" },
   ]
 }
 

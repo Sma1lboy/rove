@@ -36,6 +36,7 @@ import {
   hookCommandQuoting,
   isObject,
   isRoveHook,
+  roveHookArgs,
 } from "../json-hooks.ts"
 
 /**
@@ -97,7 +98,9 @@ export function mergeCursorHooks(
     const prior = Array.isArray(hooks[event]) ? (hooks[event] as unknown[]) : []
     const kept = prior.filter((entry) => !isRoveHook(entry, CURSOR_VERBS))
     if (install) {
-      kept.push({ command: quoteShellArgv([...inv, "hook", verb, "--engine", "cursor"], hookCommandQuoting()) })
+      kept.push({
+        command: quoteShellArgv([...inv, "hook", verb, ...roveHookArgs("cursor")], hookCommandQuoting()),
+      })
     }
     if (kept.length > 0) hooks[event] = kept
     else delete hooks[event]
@@ -134,14 +137,16 @@ export class CursorHookAdapter implements EngineHookAdapter {
     return { sessionId, ...(transcriptPath ? { transcriptPath } : {}) }
   }
 
-  async installActivityHooks(settingsFilePath: string): Promise<HookEditOutcome> {
+  async installActivityHooks(settingsFilePath: string, opts: { quiet?: boolean } = {}): Promise<HookEditOutcome> {
     // No `~/.cursor` means cursor-agent was never installed here. Creating the
     // directory would leave a config tree for a CLI that will never read it, and
     // reporting a refusal would print on every launch of every machine without
     // cursor. Same call as the Kimi and pi adapters make: nothing is missing.
     if (!existsSync(dirname(settingsFilePath))) return { ok: true }
     const outcome = await editJsonSettings(settingsFilePath, (cur) => mergeCursorHooks(cur, true), parseCursorHooks)
-    if (!outcome.ok) process.stderr.write(`[rove hooks] cursor: skipped ${outcome.file}: ${outcome.reason}\n`)
+    if (!outcome.ok && !opts.quiet) {
+      process.stderr.write(`[rove hooks] cursor: skipped ${outcome.file}: ${outcome.reason}\n`)
+    }
     return outcome
   }
 

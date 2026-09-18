@@ -386,7 +386,14 @@ left arrow to return to the section list, and `enter` to activate a row.
   you added yourself also shows the protocol it borrows — the built-in adapter
   that gives it a transcript reader, account detection and resume, or `generic`
   for none. You pick it when adding the engine; to change it later, `x` the
-  engine and add it again.
+  engine and add it again. A third line under each engine says how it reports
+  to Rove: the hooks Rove installs into that engine's own config (and whether
+  what is on disk is the current shape), whether the engine leaves completion
+  markers Rove can read back, and whether it declares screen rules. A missing
+  layer is not a fault — an engine whose hooks report every state needs no
+  screen rules. The row at the bottom of the section installs the missing or
+  outdated hooks for every engine at once; Rove also runs that install on
+  every launch, so the row is for engines that arrived after Rove started.
 - **Plugins** enables or disables registered plugins live and edits settings
   declared by their manifests. Install, update, link and remove plugins from
   the shell.

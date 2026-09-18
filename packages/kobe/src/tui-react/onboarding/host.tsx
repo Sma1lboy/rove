@@ -35,7 +35,9 @@ import { pageCloseBindings, useBindings } from "../lib/keymap"
  *
  * Everything but that block is fixed: header(2) + blank + answered(2) + env
  * title/explain + blank + git + blank + verdict + blank + legend = 13, plus 2
- * rows of slack. The engine block is not: it is one row per registered engine
+ * rows of slack, plus 2 more for the two lines that can each take a second
+ * row on a narrow terminal — the worktree subtitle and the closing
+ * `keysNext` pointer. The engine block is not: it is one row per registered engine
  * (plus an `⚠` row for any account error), and once the contrib catalog joined
  * the probe a normal machine reached seven. The old flat 20 budgeted "~5
  * engine rows", and one row over it the terminal scrolls and the inline
@@ -43,7 +45,7 @@ import { pageCloseBindings, useBindings } from "../lib/keymap"
  * `env.engines.lines` IS the rendered array, so this cannot drift from it.
  */
 function inlineRowsFor(env: OnboardingEnvReport): number {
-  return 15 + env.engines.lines.length + envActionKeys(env).length
+  return 17 + env.engines.lines.length + envActionKeys(env).length
 }
 
 /**
@@ -202,6 +204,13 @@ export function WizardPage(props: {
                 {t(`onboarding.${line.msg}`, line.params)}
               </text>
             ))}
+            {/* The wizard's exit door. Every engine's activity hooks are
+                installed on launch, but nothing told the user WHERE that
+                lives — so a machine whose engine arrived later had no way
+                back to it short of reading the docs. */}
+            <text fg={theme.textMuted} wrapMode="word">
+              {t("onboarding.keysNext")}
+            </text>
           </box>
         ) : null}
         {page === "questions" ? (

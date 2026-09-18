@@ -33,6 +33,7 @@
  */
 
 import type { VendorId } from "../../types/vendor.ts"
+import { ROVE_HOOK_VERSION } from "../json-hooks.ts"
 
 export interface ExtensionSourceOptions {
   readonly vendor: VendorId
@@ -54,8 +55,14 @@ export function renderPiExtensionSource(opts: ExtensionSourceOptions): string {
  * launch (${vendor}). Local edits are overwritten; to stop reporting, delete
  * this file or turn Rove's global hooks off.
  *
+ * ROVE_HOOK_VERSION=${ROVE_HOOK_VERSION}
+ *
  * It subscribes to ${vendor}'s session/agent lifecycle and shells out to
- * \`${invocation.join(" ")} hook <verb> --engine ${vendor}\`. Best-effort by
+ * \`${invocation.join(" ")} hook <verb> --engine ${vendor}\`. The version line
+ * above is how Rove reads back which shape installed this file: unlike the
+ * settings-file engines, whose version rides the persisted hook command, this
+ * module builds its argv at runtime, so nothing else in the bytes would say.
+ * Best-effort by
  * construction: every report is fire-and-forget (except the final one, which
  * is awaited so it survives process exit) and every failure is swallowed —
  * a badge must never break a turn.
@@ -63,6 +70,7 @@ export function renderPiExtensionSource(opts: ExtensionSourceOptions): string {
 
 const ENGINE = ${JSON.stringify(vendor)}
 const INVOCATION = ${JSON.stringify(invocation)}
+const HOOK_VERSION = ${JSON.stringify(String(ROVE_HOOK_VERSION))}
 
 /** Normalize an untrusted field: the CLI's payload types are wider than ours. */
 function text(value) {
@@ -99,6 +107,8 @@ function emit(pi, verb, ctx, extra, wait) {
       verb,
       "--engine",
       ENGINE,
+      "--hook-version",
+      HOOK_VERSION,
       "--payload",
       JSON.stringify(payload),
     ])

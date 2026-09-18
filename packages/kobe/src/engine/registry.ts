@@ -233,12 +233,23 @@ export interface EngineRegistryEntry {
    * instead of publishing "unknown".
    *
    * It is the BOTTOM of a three-layer ladder — hooks > transcript markers >
-   * screen — not an alternative to the top two. Marker-carrying engines
-   * declare one too (claude and codex both do, `builtin-engines.ts`), because
-   * the layers cover different gaps: hooks need the user to trust them once,
-   * markers land only after a turn ends, and neither can see a modal the
-   * engine is currently blocked on. `turn-state-merge.ts` owns the precedence;
-   * `use-turn-polls.ts` passes this through when the entry has one.
+   * screen. Declare one for an engine whose own reporting cannot cover its
+   * states: no hook adapter at all (the contrib catalog), or a hook set that
+   * leaves a state unreported (copilot's adapter is a `NoopHookAdapter`).
+   *
+   * Claude and codex declare NONE, and that is correct twice over. Their
+   * hooks already report every state — including the one that looks like it
+   * needs a screen, the permission prompt: Claude fires
+   * `Notification/permission_prompt` while the dialog is up, which
+   * `CLAUDE_HOOK_EVENT_MAP` maps to `awaiting-input` → `permission_needed`
+   * (verified live 2026-09-18: the hook lands ~10s after the turn starts,
+   * while the engine sits on the dialog). And a manifest would be dead code
+   * even if it were right, because `mergeTurnStates` is unconditionally
+   * hook-wins per tab — any live hook claim covers the poll's reading, so a
+   * screen rule for an engine whose hooks are live can never be consulted.
+   *
+   * `turn-state-merge.ts` owns the precedence; `use-turn-polls.ts` passes
+   * this through when the entry has one.
    */
   readonly screenManifest?: EngineScreenManifest
 }

@@ -13,6 +13,7 @@
  * exist?" for a file that plainly does.
  */
 
+import { ROVE_HOOK_VERSION } from "@/engine/json-hooks"
 import { describe, expect, it } from "vitest"
 import { renderPiExtensionSource } from "../../src/engine/pi-local/extension-source.ts"
 
@@ -91,7 +92,15 @@ describe("the generated pi-family extension", () => {
 
     expect(pi.execs.map((c) => c.args[1])).toEqual(["turn-start", "turn-complete"])
     expect(pi.execs[0]?.command).toBe("kobe")
-    expect(pi.execs[0]?.args.slice(2, 5)).toEqual(["--engine", "omp", "--payload"])
+    // Every report names the engine that decodes it AND the installed shape,
+    // so a stale extension left behind by an older Rove is readable as such.
+    expect(pi.execs[0]?.args.slice(2, 7)).toEqual([
+      "--engine",
+      "omp",
+      "--hook-version",
+      String(ROVE_HOOK_VERSION),
+      "--payload",
+    ])
   })
 
   it("carries the session identity and cwd the daemon needs", async () => {

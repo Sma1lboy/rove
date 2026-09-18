@@ -242,7 +242,7 @@ function persistedSyncPath(stored: string | undefined): string | undefined {
  * Writing the user's global settings.json is intentionally invasive but
  * acceptable for now (current users are developers).
  */
-export async function ensureGlobalKobeHooks(): Promise<void> {
+export async function ensureGlobalKobeHooks(opts: { quiet?: boolean } = {}): Promise<void> {
   try {
     // 0. Plugin takeover: when the Rove Claude Code PLUGIN is
     //    enabled, its own hooks.json already carries the Claude activity +
@@ -273,7 +273,7 @@ export async function ensureGlobalKobeHooks(): Promise<void> {
       if (pluginMode && a.vendor === "claude") continue
       const enginePath = a.globalSettingsPath()
       if (!enginePath) continue
-      await a.installActivityHooks(enginePath, { toolEvents })
+      await a.installActivityHooks(enginePath, { toolEvents, quiet: opts.quiet })
       // Uninstall the PostToolUse(Bash) watch hook. It spawns `kobe hook
       // worktree-created` after EVERY Bash call for a ~170ms process spawn
       // per Bash call, machine-wide, and nothing in return. Running the

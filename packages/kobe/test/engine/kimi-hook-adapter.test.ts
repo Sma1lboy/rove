@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { ROVE_HOOK_VERSION } from "@/engine/json-hooks"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   KIMI_HOOK_EVENT_MAP,
@@ -65,7 +66,7 @@ describe("mergeKimiHooks (pure TOML block merge)", () => {
     expect(out).toContain("# >>> rove hooks")
     expect(out).toContain("# <<< rove hooks")
     expect(out).toContain('event = "Interrupt"')
-    expect(out).toContain(`command = "kobe hook turn-interrupted --engine kimi"`)
+    expect(out).toContain(`command = "kobe hook turn-interrupted --engine kimi --hook-version ${ROVE_HOOK_VERSION}"`)
     // Gated tool family is absent by default…
     expect(out).not.toContain('event = "PreToolUse"')
     // …and present when a plugin subscribes tool.* events.

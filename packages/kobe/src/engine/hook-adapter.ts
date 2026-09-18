@@ -108,7 +108,20 @@ export interface EngineHookAdapter {
    * launch may fail on, but it is not nothing either: hooks stay uninstalled
    * for good and every badge falls back to the daemon's ~10s poll.
    */
-  installActivityHooks(settingsFilePath: string, opts?: { toolEvents?: boolean }): Promise<HookEditOutcome>
+  installActivityHooks(
+    settingsFilePath: string,
+    opts?: {
+      toolEvents?: boolean
+      /**
+       * Suppress the stderr line a refusal normally prints. For the ONE
+       * caller that owns the terminal: the Settings pane runs this install on
+       * a keypress, and a raw write from under a live OpenTUI render paints
+       * over the frame. That caller shows the same refusal on the engine's own
+       * row, so the line is redundant there rather than merely inconvenient.
+       */
+      quiet?: boolean
+    },
+  ): Promise<HookEditOutcome>
   /** Remove the activity hooks this adapter installed. Idempotent. */
   removeActivityHooks(settingsFilePath: string): Promise<void>
 

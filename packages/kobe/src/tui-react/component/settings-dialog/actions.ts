@@ -77,3 +77,33 @@ export async function confirmRestartDaemon(
   await orchestrator.restartDaemon()
   relaunchSelf({ renderer, notice: t("settings.restart.done") })
 }
+
+/**
+ * Install (or refresh) Rove's activity hooks in every engine's own config —
+ * the Engines section's one install action.
+ *
+ * It calls the SAME `ensureGlobalKobeHooks` the TUI already runs once per
+ * launch, rather than a settings-only reimplementation: that function owns
+ * the plugin-takeover skip, the volume gate on the tool-event family and the
+ * retired-hook cleanups, and a second installer would have drifted from it
+ * the first time any of those changed.
+ *
+ * Imported dynamically for the reason `engine/hook-config-check.ts` gives:
+ * a static edge from a render path to a CLI verb's module lands as a
+ * bundle-only TDZ crash in a neighbouring verb. Best-effort — the callee
+ * swallows its own failures and the panel's re-probe is what reports the
+ * result, by showing the states that did not change.
+ */
+export async function installEngineHooks(): Promise<void> {
+  try {
+    const { ensureGlobalKobeHooks } = await import("../../../cli/hook-cmd")
+    // `quiet`: at launch a refusal prints to stderr, which is where `rove
+    // doctor` sends a reader whose hook channel is dead. Fired from here it
+    // would be a raw write underneath a live OpenTUI render — it paints over
+    // the frame — and the panel puts the same refusal on the engine's own row
+    // anyway, which is the whole reason that row exists.
+    await ensureGlobalKobeHooks({ quiet: true })
+  } catch {
+    /* never let a settings keypress throw through the render path */
+  }
+}

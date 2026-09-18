@@ -216,6 +216,14 @@ approvals. If `~/.cursor` does not exist, nothing is written and no directory is
 created: there is no CLI there to read it. Your own entries in `hooks.json`, and
 every other event, are left alone.
 
+Every hook Rove installs carries the version of the shape that wrote it, so
+Rove can tell its own current entry from one an older version left behind.
+Settings → Engines reads that back per engine as installed, outdated or not
+installed; an entry written before versions existed reads as outdated. The
+install runs on every launch and replaces its own entries rather than
+stacking a second copy, and the row at the bottom of that section runs the
+same install on demand.
+
 Claude and Codex hook installation and cleanup use `settings.json` under
 `CLAUDE_CONFIG_DIR` and `hooks.json` under `CODEX_HOME`. Unset or blank
 overrides use `~/.claude` and `~/.codex`. Invalid JSON or hook structure,

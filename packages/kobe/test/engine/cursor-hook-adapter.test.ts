@@ -9,6 +9,7 @@
  */
 
 import { join } from "node:path"
+import { ROVE_HOOK_VERSION } from "@/engine/json-hooks"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   CURSOR_HOOK_EVENT_MAP,
@@ -30,7 +31,12 @@ describe("mergeCursorHooks", () => {
   it("installs one sessionStart entry into an empty document, stamped with the version", () => {
     const doc = mergeCursorHooks({}, true, PROD)
     expect(doc.version).toBe(1)
-    expect(sessionStart(doc)).toEqual([{ command: "rove hook session-start --engine cursor" }])
+    // Two versions on this row, and they are different things: `doc.version`
+    // is cursor's own file-schema marker, `--hook-version` is which shape of
+    // Rove wrote the entry (`engine/integration-status.ts` reads it back).
+    expect(sessionStart(doc)).toEqual([
+      { command: `rove hook session-start --engine cursor --hook-version ${ROVE_HOOK_VERSION}` },
+    ])
   })
 
   it("is idempotent — a second install replaces rather than appends", () => {
@@ -43,10 +49,12 @@ describe("mergeCursorHooks", () => {
   it("replaces a dev-checkout install with the released one instead of stacking", () => {
     const dev = mergeCursorHooks({}, true, DEV)
     expect(sessionStart(dev)).toEqual([
-      { command: "bun /repo/packages/kobe/src/cli/rove.ts hook session-start --engine cursor" },
+      {
+        command: `bun /repo/packages/kobe/src/cli/rove.ts hook session-start --engine cursor --hook-version ${ROVE_HOOK_VERSION}`,
+      },
     ])
     expect(sessionStart(mergeCursorHooks(dev, true, PROD))).toEqual([
-      { command: "rove hook session-start --engine cursor" },
+      { command: `rove hook session-start --engine cursor --hook-version ${ROVE_HOOK_VERSION}` },
     ])
   })
 
@@ -57,7 +65,10 @@ describe("mergeCursorHooks", () => {
       hooks: { sessionStart: [FOREIGN], beforeShellExecution: [{ command: "audit.sh" }] },
     }
     const after = mergeCursorHooks(before, true, PROD)
-    expect(sessionStart(after)).toEqual([FOREIGN, { command: "rove hook session-start --engine cursor" }])
+    expect(sessionStart(after)).toEqual([
+      FOREIGN,
+      { command: `rove hook session-start --engine cursor --hook-version ${ROVE_HOOK_VERSION}` },
+    ])
     expect((after.hooks as Record<string, unknown>).beforeShellExecution).toEqual([{ command: "audit.sh" }])
     expect(after.permissions).toEqual({ allow: ["*"] })
   })
