@@ -187,7 +187,7 @@ the shape your target Rove version actually emits. The channel names are the
 `attention.inbox`, `ui-prefs`, `keybindings`, `task.jobs`, `worktree.changes`,
 `transcript.activity`, `session.deliver`, `tab.open`, `tab.close`,
 `engine.lifecycle`, `notice.event`, `usage.snapshot`, `usage.context`,
-`ui.prompt`.
+`ui.prompt`, `graphics.write`.
 
 A name the daemon does not know is dropped from the filter, not rejected: the
 subscribe succeeds and that channel simply never arrives. So a channel can be

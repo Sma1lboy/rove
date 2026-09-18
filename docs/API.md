@@ -684,6 +684,30 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `tab.close` channel; an attached TUI performs the close (headless, nothing
   happens). The result's `clients` is the reach signal: `0` = no attached TUI
   performed the close (same semantics as `dispatch`'s).
+- `pane-graphics [--task-id ID] --tab TAB [--image-id N]`: hand opaque
+  graphics bytes, read from stdin, to every TUI attached to this task, for it
+  to write to its own terminal. This is a transport, not a picture format —
+  Rove parses nothing, and the bytes are whatever protocol your terminal
+  speaks. It exists because a pane cannot do either half for itself: its
+  `tty(1)` is its own PTY slave, and the outer emulator's identity is scrubbed
+  from its environment, so it can neither reach the real terminal nor ask it
+  anything.
+
+  Call it once with **nothing on stdin** to be given `imageId` (allocated per
+  tab, so two panes never overwrite each other's picture) and
+  `cellWidth`/`cellHeight` in pixels — the numbers that turn a pixel size into
+  a count of cells. Build your payload around those, then pipe each frame in
+  with `--image-id`, which replaces that picture in place instead of leaking a
+  fresh id per frame. `wrote` reports whether anything was broadcast, and
+  `clients` is the usual reach signal.
+
+  `ok: false` with `unsupported` is a real answer, not an error:
+  `no-cell-size` means no attached terminal could measure a cell (it declined
+  `CSI 16 t`), and `mixed-cell-size` means two attached terminals reported
+  different ones — a task can be open in two GUIs at different font sizes, and
+  there is no single honest answer then. Fall back to whatever you draw
+  without graphics.
+
 - `tab-close --task-id ID --tab TAB`: close one exact Terminal Tab using the
   id returned by `get-task` in `.tabs[].id`. Engine, interactive-shell,
   command, and content tabs are all valid. With an attached TUI, the command

@@ -211,6 +211,7 @@ describe("API surface (full CRUD)", () => {
       "note-delete",
       "pane-open",
       "pane-close",
+      "pane-graphics",
       "tab-close",
       "notify",
       "prompt",

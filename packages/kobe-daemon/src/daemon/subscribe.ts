@@ -9,6 +9,7 @@
  */
 
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
+import type { CellPixelSize } from "./channels-events.ts"
 import { type ChannelName, normalizeChannelFilter } from "./channels.ts"
 import { logDaemonInfo } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
@@ -21,6 +22,24 @@ export interface SubscribingClient {
   subscribed: boolean
   holdsLifetime: boolean
   channels: ReadonlySet<ChannelName> | null
+  cellPixelSize: CellPixelSize | null
+}
+
+/**
+ * The cell pixel size a GUI measured on its OWN tty, or `null`.
+ *
+ * `null` is the honest answer for every terminal that declines `CSI 16 t`:
+ * such a terminal answers `0`, or nothing at all, and the query reports that
+ * as absent rather than substituting a plausible number. Downstream,
+ * `graphics.write` refuses instead of placing a picture at a guessed size.
+ */
+function readCellPixelSize(payload: Record<string, unknown>): CellPixelSize | null {
+  const width = payload.cellPixelWidth
+  const height = payload.cellPixelHeight
+  if (typeof width !== "number" || typeof height !== "number") return null
+  if (!Number.isInteger(width) || !Number.isInteger(height)) return null
+  if (width <= 0 || height <= 0) return null
+  return { width, height }
 }
 
 export interface SubscribeDeps {
@@ -51,6 +70,8 @@ export function handleSubscribe(
   // (UiPrefsSync wants only ui-prefs + keybindings) stops receiving —
   // and deserializing — the full task.snapshot fan-out it never reads.
   client.channels = normalizeChannelFilter(payload.channels)
+  // Only a GUI owns a real tty, so only a GUI's measurement means anything.
+  client.cellPixelSize = client.holdsLifetime ? readCellPixelSize(payload) : null
   // A collector paused while gui-less normally repopulates on its next tick.
   // Latency-sensitive collectors may also be kicked by server.ts after this
   // handler makes the zero-subscriber → one-subscriber transition visible.

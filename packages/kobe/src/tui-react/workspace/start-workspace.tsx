@@ -16,6 +16,7 @@
 
 import { connectOrStartDaemon } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { queryCellPixelSize } from "../../tui/lib/cell-pixel-size"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { bootPaneHost } from "../lib/host-boot"
 import { WorkspaceRoot } from "./host"
@@ -25,8 +26,15 @@ export async function startWorkspaceHost(): Promise<void> {
     logContext: "workspace",
     providers: { kv: true, focus: true, notifications: true },
     setup: async () => {
+      // Measure this terminal BEFORE the renderer takes stdin — `setup` runs
+      // ahead of `createCliRenderer`, and the query needs stdin in raw mode
+      // for a few milliseconds. It lives here rather than in the shared boot
+      // helper because this is its only consumer: the size rides the `gui`
+      // subscribe, and the daemon ignores a pane's (a pane has no terminal of
+      // its own to measure).
+      const cellPixelSize = await queryCellPixelSize({ stdin: process.stdin, stdout: process.stdout })
       const client = await connectOrStartDaemon()
-      const orchestrator = new RemoteOrchestrator(client, { role: "gui" })
+      const orchestrator = new RemoteOrchestrator(client, { role: "gui", cellPixelSize })
       await orchestrator.init()
       process.env.KOBE_DAEMON_SOCKET_PATH = client.socketPath
       // Other computers running Rove. `attach()` is synchronous and a no-op

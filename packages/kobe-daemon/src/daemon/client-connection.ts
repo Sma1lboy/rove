@@ -7,6 +7,7 @@
  */
 
 import type { Socket } from "node:net"
+import type { CellPixelSize } from "./channels-events.ts"
 import type { ClientWriter } from "./client-writer.ts"
 import { type ChannelName, type DaemonFrame, frameToLine } from "./protocol.ts"
 
@@ -46,6 +47,13 @@ export type ClientState = DaemonClientConnection & {
    * filter (every subscriber must learn the daemon is going down).
    */
   channels: ReadonlySet<ChannelName> | null
+  /**
+   * The cell pixel size this GUI measured on its own tty at boot, or `null`
+   * when it is a pane, or when its terminal declined to answer. Read by
+   * `graphics.write`, which needs it to tell a caller how many cells a picture
+   * will cover — and refuses rather than guess when nobody reported one.
+   */
+  cellPixelSize: CellPixelSize | null
 }
 
 /** Only full-channel snapshots are replaceable. Per-task/repo updates and

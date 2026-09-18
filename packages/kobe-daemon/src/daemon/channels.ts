@@ -9,6 +9,7 @@
 import { DAEMON_CHANNELS } from "@sma1lboy/rove-plugin-sdk/contract"
 import type {
   EngineLifecyclePayload,
+  GraphicsWritePayload,
   NoticeEventPayload,
   SessionDeliverPayload,
   TabClosePayload,
@@ -25,7 +26,9 @@ import type {
   UpdateInfo,
 } from "./contracts.ts"
 export type {
+  CellPixelSize,
   EngineLifecyclePayload,
+  GraphicsWritePayload,
   NoticeEventPayload,
   PaneClosePayload,
   SessionDeliverPayload,
@@ -331,6 +334,17 @@ export interface ChannelPayloads {
    * replays, and answer via the `ui.promptReply` RPC.
    */
   "ui.prompt": UiPromptPayload
+  /**
+   * One opaque graphics payload for every attached GUI to write to its own
+   * tty (`rove api pane-graphics` → `graphics.write` RPC → here). EVENT
+   * channel like `tab.open`: consumers dedupe on `at` and drop stale replays.
+   *
+   * The broadcast is deliberately unfiltered by task: a picture is addressed
+   * to a tab's CELLS, and a terminal not currently showing those cells simply
+   * stores the image until they appear. One task may also be attached by more
+   * than one GUI, so "the terminal" is never a single thing.
+   */
+  "graphics.write": GraphicsWritePayload
   // Add a channel ↓ then `bus.publish(name, payload)` in the daemon and
   // `client.onChannel(name, …)` in a consumer — that's the whole recipe:
   // "cost": { taskId: string; usd: number; tokens: number }

@@ -10,6 +10,7 @@ import { dirname } from "node:path"
 import { ptyHostHasLiveSessions, sweepPtyHostSessions } from "../client/pty-process.ts"
 import { tightenInstalledPluginPermissions } from "../plugins/permissions.ts"
 import { maybeStartPluginHost } from "../plugins/runtime.ts"
+import type { CellPixelSize } from "./channels-events.ts"
 import { type ClientState, broadcast, handleClientLine, writeFrame } from "./client-connection.ts"
 import { ClientWriter } from "./client-writer.ts"
 import { startDaemonCollectors } from "./collectors.ts"
@@ -18,6 +19,7 @@ import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { createDirectLink } from "./direct-link.ts"
 import { DaemonEventBus } from "./event-bus.ts"
+import { GraphicsImageIds } from "./graphics-ids.ts"
 import {
   type DaemonHandlerContext,
   createDaemonHandlerRegistry,
@@ -154,6 +156,10 @@ async function startOwnedServer(
   // bus also caches the last value per channel so a late subscriber gets
   // the current value on connect. `task.snapshot` is channel #1; new
   // channels just call `bus.publish` (see protocol.ts ChannelPayloads).
+  // Image-id allocation for `graphics.write`. Process-lifetime, in-memory:
+  // the ids name pictures in a live terminal's store, which does not survive a
+  // daemon restart any better than this map does.
+  const graphics = new GraphicsImageIds()
   const bus = new DaemonEventBus()
   bus.onPublish((event) => {
     broadcast(clients, { type: "event", name: event.channel, payload: event.payload })
@@ -196,6 +202,7 @@ async function startOwnedServer(
       subscribed: false,
       holdsLifetime: false,
       channels: null,
+      cellPixelSize: null,
     }
     clients.add(client)
 
@@ -392,12 +399,18 @@ async function startOwnedServer(
       ...(pluginHost ? { plugins: pluginHost } : {}),
       prompts,
       tabCloses,
+      graphics,
       daemon: {
         startedAt,
         socketPath,
         homeDir,
         pid: process.pid,
         guiCount: () => lifetime.guiCount(),
+        guiCellSizes: () => {
+          const sizes: CellPixelSize[] = []
+          for (const c of clients) if (c.holdsLifetime && c.cellPixelSize) sizes.push(c.cellPixelSize)
+          return sizes
+        },
         clientCount: () => clients.size,
         hasSubscribersFor: (channel) => lifetime.hasSubscribersFor(channel),
         stopSoon,

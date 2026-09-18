@@ -3,8 +3,10 @@ import type { DaemonActivityRegistry } from "@sma1lboy/kobe-daemon/daemon/activi
 import type { AttentionInboxStore } from "@sma1lboy/kobe-daemon/daemon/attention-inbox"
 import type { AutomationsStore } from "@sma1lboy/kobe-daemon/daemon/automations-store"
 import type { DaemonEventBus } from "@sma1lboy/kobe-daemon/daemon/event-bus"
+import { GraphicsImageIds } from "@sma1lboy/kobe-daemon/daemon/graphics-ids"
 import type { IssuesStore } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import type { FieldNote, NotesStore } from "@sma1lboy/kobe-daemon/daemon/notes-store"
+import type { CellPixelSize } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { QuotaUsageCache } from "@sma1lboy/kobe-daemon/daemon/quota-usage-cache"
 import {
   type DaemonHandlerContext,
@@ -23,6 +25,8 @@ export interface RecordedHandlerEffects {
   readonly issueCalls: Array<{ method: string; repo: unknown; op?: unknown }>
   readonly noteCalls: Array<{ method: string; repo: unknown; note?: unknown }>
   readonly cleared: string[]
+  /** `(taskId, tabId)` pairs the `tab.closed` sweep cleared. */
+  readonly clearedTabs: Array<{ taskId: string; tabId: string }>
   readonly inboxRecords: Array<{ taskId: string; kind: string; detail?: unknown; tabId?: string }>
   readonly inboxDeleted: Array<{ taskId: string; tabId: string | null; at?: number }>
   readonly inboxRead: Array<{ taskId: string; tabId: string | null; at: number }>
@@ -50,6 +54,7 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     issueCalls: [],
     noteCalls: [],
     cleared: [],
+    clearedTabs: [],
     inboxRecords: [],
     inboxDeleted: [],
     inboxRead: [],
@@ -75,6 +80,7 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     activity: {
       report: (taskId: string, kind: string, detail?: unknown) => rec.reported.push({ taskId, kind, detail }),
       clearTask: (taskId: string) => rec.cleared.push(taskId),
+      clearTab: (taskId: string, tabId: string) => rec.clearedTabs.push({ taskId, tabId }),
     } as unknown as DaemonActivityRegistry,
     inbox: {
       snapshot: () => (orch.inboxItems as unknown[] | undefined) ?? [],
@@ -157,11 +163,16 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     workItems: { list: async () => [], clear: () => {} } as unknown as WorkItemCache,
     selfLink: { request: async () => ({}) } as unknown as DaemonRpcClient,
     tabCloses: new TabCloseBroker(),
+    graphics: new GraphicsImageIds(),
     daemon: {
       startedAt: new Date("2026-06-01T00:00:00.000Z"),
       socketPath: "/tmp/fake/daemon.sock",
       pid: 4242,
       guiCount: () => 1,
+      // One attached GUI in a terminal that reports 16x34 cells — the size
+      // Ghostty answered in the feasibility probes. A test that wants the
+      // no-capability or disagreement branch overrides `guiCellSizes`.
+      guiCellSizes: () => (orch.guiCellSizes as CellPixelSize[] | undefined) ?? [{ width: 16, height: 34 }],
       clientCount: () => 1,
       stopSoon: async (reason?: string) => {
         rec.stopped++

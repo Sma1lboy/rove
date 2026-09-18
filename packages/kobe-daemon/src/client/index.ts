@@ -3,6 +3,7 @@ import { StringDecoder } from "node:string_decoder"
 import { readRoveEnv } from "../compat-env.ts"
 import {
   BLOCKING_RPCS,
+  type CellPixelSize,
   type ChannelName,
   type ChannelPayloads,
   type DaemonEventName,
@@ -194,10 +195,24 @@ export class KobeDaemonClient implements DaemonRpcClient {
    * helper pane that receives channels but must not keep the daemon running
    * after the user quits. See {@link SubscribeRole}.
    */
-  subscribe(opts: { channels?: readonly ChannelName[]; role?: SubscribeRole } = {}): Promise<unknown> {
-    const payload: { channels?: readonly ChannelName[]; role?: SubscribeRole } = {}
+  subscribe(
+    opts: { channels?: readonly ChannelName[]; role?: SubscribeRole; cellPixelSize?: CellPixelSize | null } = {},
+  ): Promise<unknown> {
+    const payload: {
+      channels?: readonly ChannelName[]
+      role?: SubscribeRole
+      cellPixelWidth?: number
+      cellPixelHeight?: number
+    } = {}
     if (opts.channels) payload.channels = opts.channels
     if (opts.role) payload.role = opts.role
+    // Sent as two flat numbers rather than a nested object: the daemon reads
+    // them as optional fields, so a client that measured nothing sends
+    // nothing and an older daemon ignores what it does not know.
+    if (opts.cellPixelSize) {
+      payload.cellPixelWidth = opts.cellPixelSize.width
+      payload.cellPixelHeight = opts.cellPixelSize.height
+    }
     return this.request("subscribe", payload)
   }
 

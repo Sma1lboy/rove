@@ -93,6 +93,7 @@ describe("daemon handler registry", () => {
       "terminalTab.closeReply",
       "terminalTab.rename",
       "notice.send",
+      "graphics.write",
       "note.file",
       "note.list",
       "note.delete",
