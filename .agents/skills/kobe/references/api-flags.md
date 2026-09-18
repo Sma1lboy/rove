@@ -68,6 +68,7 @@ list         (none)
 get-task     --task-id(REQ)
 pty-list     (none)
 collect      --task-ids <a,b,c> --group --repo
+context      --repo(REQ) --limit(20) --text
 digest       --repo(REQ) --since-days(7)
 agent-turns  --task-id --repo --since-days(7) --limit(200)
 inspect      --task-id

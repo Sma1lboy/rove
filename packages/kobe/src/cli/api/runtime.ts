@@ -18,6 +18,7 @@ import { type DaemonRpc, resolveActiveTaskId } from "../daemon-session.ts"
 // daemon-session.ts directly to keep the daemon/session boundary clean.
 export { resolveActiveTaskId }
 import { deliverToExactTab } from "./exact-tab-delivery.ts"
+import { handlePtyList } from "./handler-helpers.ts"
 import {
   deliverHostedPrompt,
   ensurePtyHost,
@@ -277,7 +278,26 @@ export async function deliverPrompt(
   return hosted
 }
 
+/**
+ * Task ids owning a live hosted session. One `pty.list` for the whole fleet:
+ * the session key is `<taskId>::<tabId>` (docs/ARCHITECTURE.md §4), so the
+ * task half is all a caller asking "is anything of this task alive" needs.
+ * `null` when there is no host to ask — see the {@link ApiRuntime} contract.
+ */
+async function readLiveTaskIds(): Promise<ReadonlySet<string> | null> {
+  const listed = (await handlePtyList()) as { sessions?: readonly { key?: string; alive?: boolean }[] | null }
+  if (!listed?.sessions) return null
+  const live = new Set<string>()
+  for (const row of listed.sessions) {
+    if (row.alive === false || typeof row.key !== "string") continue
+    const taskId = row.key.split("::")[0]
+    if (taskId) live.add(taskId)
+  }
+  return live
+}
+
 export const defaultApiRuntime: ApiRuntime = {
+  liveTaskIds: readLiveTaskIds,
   isTaskRunning: async (taskId, engineArgv) => (await defaultApiRuntime.taskTabs(taskId, engineArgv)).running,
   taskTabs: async (taskId, engineArgv) => {
     // No host is "couldn't ask", NOT "nothing alive" — the host idle-exits and

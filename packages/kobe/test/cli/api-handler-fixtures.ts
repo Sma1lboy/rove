@@ -66,6 +66,7 @@ export function taskFixture(overrides: Record<string, unknown> = {}): Record<str
 export function stubRuntime(overrides: Partial<ApiRuntime> = {}): ApiRuntime {
   return {
     isTaskRunning: async () => false,
+    liveTaskIds: async () => null,
     taskTabs: async () => ({ tabs: [], running: false }),
     closeTerminalTab: async () => ({ kind: "engine", wasAlive: false }),
     deliverPrompt: async () => {

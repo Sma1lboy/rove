@@ -15,6 +15,7 @@
 import { F } from "./flags.ts"
 import { handlePtyList } from "./handler-helpers.ts"
 import { AGENT_TURNS_VERB } from "./handlers-agent-turns.ts"
+import { CONTEXT_VERB } from "./handlers-context.ts"
 import { DIGEST_VERB } from "./handlers-digest.ts"
 import { collect } from "./handlers-fanout.ts"
 import { INSPECT_VERB } from "./handlers-inspect.ts"
@@ -66,6 +67,9 @@ export const READ_VERBS: readonly VerbSpec[] = [
     ],
     handler: collect,
   },
+  // The coordinator's start-of-turn read: every task's DERIVED group plus the
+  // inbox and the repo's field notes. Spec + handler in ./handlers-context.ts.
+  CONTEXT_VERB,
   // The ruler: an aggregate read over recent tasks + routine runs. Spec +
   // handler in ./handlers-digest.ts.
   DIGEST_VERB,

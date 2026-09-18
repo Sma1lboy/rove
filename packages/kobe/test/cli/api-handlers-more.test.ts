@@ -46,6 +46,7 @@ class FakeClient implements DaemonRpc {
 function stubRuntime(): ApiRuntime {
   return {
     isTaskRunning: async () => false,
+    liveTaskIds: async () => null,
     taskTabs: async () => ({ tabs: [], running: false }),
     closeTerminalTab: async () => ({ kind: "engine", wasAlive: false }),
     deliverPrompt: async () => {
@@ -157,6 +158,7 @@ describe("schema drill-ins", () => {
       "get-task",
       "pty-list",
       "collect",
+      "context",
       "digest",
       "agent-turns",
       "inspect",

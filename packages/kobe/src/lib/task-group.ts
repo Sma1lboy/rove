@@ -27,7 +27,7 @@
  */
 
 import type { TaskActivityState } from "@/engine/hook-events"
-import type { Task } from "@/types/task"
+import type { TaskPRStatus, TaskStatus, TaskWorkerReport } from "@/types/task"
 
 /**
  * One group, in RANK order — the human's queue, most-needs-you first. The
@@ -94,8 +94,22 @@ export interface TaskActivitySignal {
   readonly at: number
 }
 
+/**
+ * The stored half of the input — structural, not `Task`, so the CLI's
+ * `SerializedTask` and the TUI's `Task` both satisfy it without a cast.
+ * Exactly the fields the rules below read; adding one here is the honest
+ * signal that a rule grew a new dependency.
+ */
+export interface TaskGroupTask {
+  readonly status: TaskStatus
+  readonly report?: TaskWorkerReport
+  readonly prStatus?: TaskPRStatus
+  readonly deletion?: { readonly phase: "queued" | "running" | "error" }
+  readonly quotaResume?: { readonly resumeAt: string }
+}
+
 export interface TaskGroupInput {
-  readonly task: Task
+  readonly task: TaskGroupTask
   /**
    * The task's effective engine activity. `null`/absent means the signal
    * could NOT be read (daemon restarted, no entry) — it never means idle.
@@ -112,14 +126,14 @@ export interface TaskGroupInput {
 }
 
 /** Has somebody already acted on what this task handed back? */
-function actedOn(task: Task): boolean {
+function actedOn(task: TaskGroupTask): boolean {
   if (task.status === "done" || task.status === "canceled") return true
   const lifecycle = task.prStatus?.lifecycle
   return lifecycle === "merged" || lifecycle === "closed"
 }
 
 /** The daemon will resume this task itself once the quota window rolls. */
-function autoResumes(task: Task, now: number): boolean {
+function autoResumes(task: TaskGroupTask, now: number): boolean {
   const at = task.quotaResume?.resumeAt
   if (!at) return false
   const ms = Date.parse(at)

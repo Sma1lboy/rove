@@ -32,6 +32,12 @@ export const ATTENTION_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    name: "attention.list",
+    handle(_payload, ctx) {
+      return { items: ctx.inbox.snapshot() }
+    },
+  },
+  {
     name: "attention.read",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
