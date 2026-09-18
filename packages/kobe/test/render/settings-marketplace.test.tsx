@@ -76,7 +76,8 @@ test("Marketplace marks installed plugins and reports an install it refused", as
       return await frame()
     }
 
-    for (let i = 0; i < 3; i++) await press("j") // General → Engines → Plugins → Marketplace
+    // General → Engines → Auto effort → Plugins → Marketplace
+    for (let i = 0; i < 4; i++) await press("j")
     await settle(120)
     const listing = await frame()
     expect(listing).toContain("you/rove-thing")

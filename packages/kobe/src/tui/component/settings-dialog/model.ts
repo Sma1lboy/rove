@@ -27,15 +27,7 @@ import { PREFIX_TAP_PRESENTATIONS, type PrefixTapPresentation } from "../../lib/
 
 export type NavLevel = "sidebar" | "body"
 
-export type SectionId =
-  | "general"
-  | "engines"
-  | "autoEffort"
-  | "plugins"
-  | "marketplace"
-  | "keys"
-  | "feedback"
-  | "dev"
+export type SectionId = "general" | "engines" | "autoEffort" | "plugins" | "marketplace" | "keys" | "feedback" | "dev"
 
 export const SECTIONS: ReadonlyArray<{ id: SectionId; label: string }> = [
   { id: "general", label: "General" },
