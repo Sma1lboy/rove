@@ -23,7 +23,9 @@
  *     chain in theme.tsx, so a sparse user theme that overrides only a
  *     couple of slots is a feature, not an error.
  *   - Hex format on bare strings. A bare string that doesn't match
- *     `^#…$` is treated as a def-name reference. Names that don't
+ *     `^#…$` is treated as a def-name reference — EXCEPT one shaped like
+ *     `rgb(…)` / `rgba(…)`, which is a literal that failed to parse and is
+ *     rejected by name (see `badRgbLiteral`). Names that don't
  *     resolve get collapsed to black at render time (theme.tsx's
  *     `resolve()` returns `RGBA.fromInts(0,0,0)` for unresolvable
  *     refs). Refusing them here would force users to predeclare every
@@ -33,9 +35,21 @@
  */
 
 import type { ThemeJson } from "../theme-core"
+import { isRgbLiteral, parseRgbLiteral } from "./color-literal"
 
 /** Hex strings: 3, 6, or 8 hex digits after `#`. */
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
+
+/**
+ * A value that LOOKS like `rgb(…)` but does not parse is a typo, not a
+ * def-name. Naming it here is the difference between the author reading
+ * "rgb(300, 0, 0) is not a valid rgb()/rgba() literal" and watching the slot
+ * silently render black, which is where an unresolvable ref ends up.
+ */
+function badRgbLiteral(value: string): string | null {
+  if (!isRgbLiteral(value) || parseRgbLiteral(value)) return null
+  return `\`${value}\` is not a valid rgb()/rgba() literal (channels 0-255, alpha 0-1, comma-separated)`
+}
 
 export type ValidateResult = { ok: true; theme: ThemeJson } | { ok: false; reason: string }
 
@@ -78,12 +92,18 @@ export function validateTheme(value: unknown): ValidateResult {
       if (typeof v !== "string") {
         return { ok: false, reason: `defs.${k} must be a string (hex like \"#abc\" or a ref name)` }
       }
+      const bad = badRgbLiteral(v)
+      if (bad) return { ok: false, reason: `defs.${k}: ${bad}` }
     }
   }
 
   // Every theme entry value: string (hex / ref) OR { dark, light } variant.
   for (const [slot, raw] of Object.entries(theme)) {
-    if (typeof raw === "string") continue
+    if (typeof raw === "string") {
+      const bad = badRgbLiteral(raw)
+      if (bad) return { ok: false, reason: `theme.${slot}: ${bad}` }
+      continue
+    }
     if (!isPlainObject(raw)) {
       return {
         ok: false,
@@ -96,6 +116,10 @@ export function validateTheme(value: unknown): ValidateResult {
     }
     if (typeof variant.light !== "string") {
       return { ok: false, reason: `theme.${slot}.light must be a string` }
+    }
+    for (const mode of ["dark", "light"] as const) {
+      const bad = badRgbLiteral(variant[mode] as string)
+      if (bad) return { ok: false, reason: `theme.${slot}.${mode}: ${bad}` }
     }
     // Reject extra keys silently? No — accept them so future kobe
     // versions can introduce optional variants (e.g. `highContrast`)

@@ -15,6 +15,7 @@
  */
 
 import type { ThemeJson } from "../theme-core"
+import { type ColorLiteral, parseRgbLiteral } from "./color-literal"
 
 type Variant = { dark: string; light: string }
 type ColorValue = string | Variant
@@ -36,6 +37,19 @@ export function normalizeHex(value: string): string | null {
 }
 
 /**
+ * Format a parsed `rgb()` / `rgba()` literal as `#rrggbb`.
+ *
+ * The alpha byte is dropped, exactly as `normalizeHex` drops it off
+ * `#rrggbbaa`: this module's whole output contract is a 6-digit string for
+ * callers that paint external surfaces. Alpha survives on the opentui path
+ * (`resolveTheme`), which is the one the TUI itself renders from.
+ */
+function rgbToHex({ r, g, b }: ColorLiteral): string {
+  const hex = (n: number) => n.toString(16).padStart(2, "0")
+  return `#${hex(r)}${hex(g)}${hex(b)}`
+}
+
+/**
  * Resolve one theme slot to a `#rrggbb` hex string, following defs refs
  * and slot refs exactly like `resolveTheme()`. Returns `null` when the
  * slot is missing, transparent, circular, or malformed.
@@ -47,6 +61,8 @@ export function resolveThemeSlotHex(theme: ThemeJson, slot: string, mode: "dark"
     if (typeof c === "string") {
       if (c === "transparent" || c === "none") return null
       if (c.startsWith("#")) return normalizeHex(c)
+      const rgb = parseRgbLiteral(c)
+      if (rgb) return rgbToHex(rgb)
       if (chain.includes(c)) return null
       const next = (defs[c] ?? theme.theme[c]) as ColorValue | undefined
       if (next === undefined) return null
