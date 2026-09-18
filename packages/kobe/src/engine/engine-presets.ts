@@ -42,6 +42,7 @@ import {
   interactiveEngineCommand,
   parseEngineCommand,
   withEngineEffort,
+  withEngineModel,
   withEngineTerminalTitle,
 } from "./interactive-command.ts"
 import {
@@ -159,6 +160,8 @@ export interface EngineLaunchSpec {
   /** Resolved protocol (or a preset id, on records that predate `command`). */
   readonly vendor?: VendorId
   readonly effort?: string
+  /** Pinned model id/alias/pattern; the protocol's `modelArgv` carries it. */
+  readonly model?: string
 }
 
 /**
@@ -180,7 +183,7 @@ export interface EngineLaunchSpec {
  */
 export function engineLaunchArgv(spec: EngineLaunchSpec): readonly string[] {
   const command = spec.command?.trim()
-  if (!command) return interactiveEngineCommand(spec.vendor, spec.effort)
+  if (!command) return interactiveEngineCommand(spec.vendor, spec.effort, spec.model)
   const vendor = (isPresetId(command) ? getEngineProtocol(command) : undefined) ?? resolveCommandProtocol(command)
   const base = isPresetId(command)
     ? presetBaseArgv(command)
@@ -188,8 +191,11 @@ export function engineLaunchArgv(spec: EngineLaunchSpec): readonly string[] {
         const argv = parseEngineCommand(command)
         return argv.length > 0 ? argv : null
       })()
-  if (!base) return interactiveEngineCommand(spec.vendor, spec.effort)
-  return withEngineTerminalTitle(withEngineEffort(base, vendor, spec.effort), vendor)
+  if (!base) return interactiveEngineCommand(spec.vendor, spec.effort, spec.model)
+  return withEngineTerminalTitle(
+    withEngineModel(withEngineEffort(base, vendor, spec.effort), vendor, spec.model),
+    vendor,
+  )
 }
 
 /** A preset's UNDECORATED launch argv: its command override, else its default. */

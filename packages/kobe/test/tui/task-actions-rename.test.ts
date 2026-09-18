@@ -211,7 +211,8 @@ describe("cycleVendorFlow", () => {
     // lands on codex.
     // `undefined` effort = the cycle chord has no opinion on the reasoning
     // level, so the task keeps the one it has.
-    expect(orch.setVendor).toHaveBeenCalledWith("t1", "codex", undefined)
+    // `undefined` model, likewise: the cycle chord never touches the pinned model.
+    expect(orch.setVendor).toHaveBeenCalledWith("t1", "codex", undefined, undefined)
     expect(notifyInfo).toHaveBeenCalledWith(expect.stringContaining("applies on reopen"))
     expect(reload).toHaveBeenCalledTimes(1)
   })

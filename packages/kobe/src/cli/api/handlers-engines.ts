@@ -1,7 +1,7 @@
 /**
  * The engine face of `kobe api`: `engine-list` (what can I launch, and with
- * what command?), `set-command` (pin a task's launch command), and
- * `set-effort` (pin its reasoning level).
+ * what command?), `set-command` (pin a task's launch command), `set-effort`
+ * (pin its reasoning level) and `set-model` (pin its model).
  *
  * These are the two halves of the dispatch contract. `engine-list` is
  * WYSIWYG on purpose — it prints each entry's raw command line so an agent
@@ -27,7 +27,7 @@ import {
   sessionProtocol,
 } from "../../engine/engine-presets.ts"
 import { ensurePluginEnginesLoaded } from "../../engine/plugin-engines.ts"
-import { engineEntry } from "../../engine/registry.ts"
+import { type EngineModel, engineEntry } from "../../engine/registry.ts"
 import { type VendorId, coerceVendorId } from "../../types/vendor.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
@@ -43,6 +43,26 @@ import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
  * activity badges.
  */
 async function listAllEnginePresets() {
+  const presets = await enginePresetsInList()
+  // `models` is keyed by PROTOCOL — a `claudecpa` preset lists claude's
+  // aliases — and listed once per protocol, since pi/omp answer by running a
+  // process. `null` = this engine has no list verb (or it failed); `[]` would
+  // claim "listed, found none", which is a different fact.
+  const byProtocol = new Map<string, Promise<readonly EngineModel[] | null>>()
+  const modelsOf = (protocol: string) => {
+    let pending = byProtocol.get(protocol)
+    if (!pending) {
+      const list = engineEntry(protocol).listModels
+      pending = list ? list().catch(() => null) : Promise.resolve(null)
+      byProtocol.set(protocol, pending)
+    }
+    return pending
+  }
+  return Promise.all(presets.map(async (preset) => ({ ...preset, models: await modelsOf(preset.protocol) })))
+}
+
+/** The presets `engine-list` prints, before their model lists are attached. */
+async function enginePresetsInList() {
   // Plugin-contributed engines are loaded from enabled plugin manifests at
   // process start in the TUI, but the CLI path must load them explicitly.
   ensurePluginEnginesLoaded()
@@ -54,11 +74,16 @@ async function listAllEnginePresets() {
   return presets
 }
 
+/** Every id `engine-list` names — the membership half of the auto-effort gate. */
+export async function engineListIds(): Promise<readonly string[]> {
+  return (await enginePresetsInList()).map((p) => p.id)
+}
+
 export const ENGINE_LIST_VERB: VerbSpec = {
   name: "engine-list",
   group: "discover",
   summary:
-    "List every engine Rove can launch — built-ins, registered presets, the shipped contrib engines whose CLI is on PATH (gemini, opencode, cursor, grok, droid, amp), and engines contributed by enabled plugins — each with its RAW launch command, exactly as it runs. Copy one into `add --command` / `send --tab new --command` verbatim, or edit its flags first. `protocol` is the adapter Rove speaks to it (history, trust, delivery); `generic` = none, which still runs fine but loses transcript reads. Returns { engines }.",
+    "List every engine Rove can launch — built-ins, registered presets, the shipped contrib engines whose CLI is on PATH (gemini, opencode, cursor, grok, droid, amp), and engines contributed by enabled plugins — each with its RAW launch command, exactly as it runs. Copy one into `add --command` / `send --tab new --command` verbatim, or edit its flags first. `protocol` is the adapter Rove speaks to it (history, trust, delivery); `generic` = none, which still runs fine but loses transcript reads. `models` is what the engine can name for `--model` (suggestions, not a closed set); null = Rove cannot list them for this engine. Returns { engines }.",
   flags: [],
   // Presets live in state.json + plugin manifests, not the daemon — no RPC, no daemon needed.
   offline: true,
@@ -149,6 +174,57 @@ export function assertEngineAcceptsEffort(engine: VendorId, level: string, recov
   }
 }
 
+/**
+ * Reject a model unless `engine` declares a flag to carry it. No closed-set
+ * check on purpose: pi's `--model` is a fuzzy pattern and claude takes full
+ * ids its alias list does not spell, so `listModels` is a suggestion source,
+ * not a validator. Shared by `add --model` and `set-model` for the same
+ * reason {@link assertEngineAcceptsEffort} is.
+ */
+export function assertEngineAcceptsModel(engine: VendorId, model: string, recover: readonly string[]): void {
+  if (engineEntry(engine).modelArgv) return
+  throw new ApiError(`engine ${engine} declares no model flag — it does not accept a model`, "BAD_MODEL", {
+    engine,
+    hint: "Only engines that declare a model flag accept one (claude, codex, kimi, pi, omp today); `engine-list` shows `models` per engine.",
+    nextCommandArgs: [...recover],
+  })
+}
+
+/** The vendor `set-effort`/`set-model` write back — see the comment in {@link setEffort}. */
+function vendorToRecord(task: SerializedTask, engine: VendorId): VendorId {
+  const recorded = coerceVendorId(task.vendor)
+  return sessionProtocol(recorded) === engine ? recorded : engine
+}
+
+async function setModel(ctx: VerbContext): Promise<unknown> {
+  const taskId = ctx.args.require("task-id")
+  const model = ctx.args.require("model").trim()
+  const daemon = daemonOf(ctx)
+  const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+  const engine = taskEngine(task)
+  assertEngineAcceptsModel(engine, model, ["api", "get-task", "--task-id", taskId])
+  await simpleRpc(ctx, "task.setVendor", { taskId, vendor: vendorToRecord(task, engine), model })
+  return { ok: true, taskId, engine, model }
+}
+
+export const SET_MODEL_VERB: VerbSpec = {
+  name: "set-model",
+  group: "edit",
+  summary:
+    "Pin a task's model (takes effect on the next session rebuild). Passed to the engine VERBATIM in its own spelling — claude alias or full id, codex slug, pi/omp pattern or `provider/id` — so `engine-list`'s `models` are suggestions, not a closed list. Rejected (BAD_MODEL) when the task's engine declares no model flag.",
+  flags: [
+    F.taskId(),
+    {
+      name: "model",
+      type: "string",
+      required: true,
+      placeholder: "MODEL",
+      description: "Model id/alias/pattern in the engine's own spelling; `engine-list` shows what each can name.",
+    },
+  ],
+  handler: setModel,
+}
+
 async function setEffort(ctx: VerbContext): Promise<unknown> {
   const taskId = ctx.args.require("task-id")
   const level = ctx.args.require("level").trim()
@@ -169,9 +245,7 @@ async function setEffort(ctx: VerbContext): Promise<unknown> {
   // naming it is a genuine upgrade (the same one `resolveProtocolUpgrade`
   // performs). So: keep the id when it already means this engine, correct it
   // when it does not.
-  const recorded = coerceVendorId(task.vendor)
-  const vendor = sessionProtocol(recorded) === engine ? recorded : engine
-  await simpleRpc(ctx, "task.setVendor", { taskId, vendor, effort: level })
+  await simpleRpc(ctx, "task.setVendor", { taskId, vendor: vendorToRecord(task, engine), effort: level })
   return { ok: true, taskId, engine, effort: level }
 }
 

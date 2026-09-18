@@ -42,7 +42,8 @@ async function withBranchPickerOpen(repo: string, height: number): Promise<strin
     <NewTaskDialogView defaultRepo={repo} savedRepos={[]} onSubmit={() => {}} onCancel={() => {}} />,
     { width: 100, height, providers: { kv: true, dialog: true } },
   )
-  for (let i = 0; i < 3; i++) {
+  // tabs → depth → engine → model → repo → baseRef
+  for (let i = 0; i < 5; i++) {
     act(() => mockInput.pressTab())
     await settle()
   }

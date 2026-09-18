@@ -10,7 +10,7 @@
 import type { TaskStatus } from "../../types/task.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
-import { SET_COMMAND_VERB, SET_EFFORT_VERB } from "./handlers-engines.ts"
+import { SET_COMMAND_VERB, SET_EFFORT_VERB, SET_MODEL_VERB } from "./handlers-engines.ts"
 import { renameTabsSnapshot } from "./tab-snapshot.ts"
 import { TASK_STATUSES } from "./task-statuses.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
@@ -73,6 +73,7 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
   },
   SET_COMMAND_VERB,
   SET_EFFORT_VERB,
+  SET_MODEL_VERB,
   {
     name: "set-status",
     group: "edit",

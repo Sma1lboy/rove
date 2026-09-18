@@ -236,6 +236,7 @@ describe("API surface (full CRUD)", () => {
       "set-branch",
       "set-command",
       "set-effort",
+      "set-model",
       "set-status",
       "pin",
       "land",

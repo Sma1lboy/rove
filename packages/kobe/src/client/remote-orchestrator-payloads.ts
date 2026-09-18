@@ -370,6 +370,8 @@ export function deserializeTask(s: SerializedTask): Task {
     command: s.command,
     prStatus: s.prStatus,
     modelEffort: s.modelEffort,
+    model: s.model,
+    tier: s.tier,
     groupId: s.groupId,
     observedLanguage: s.observedLanguage,
     deletion: s.deletion,

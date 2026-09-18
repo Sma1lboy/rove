@@ -379,6 +379,10 @@ export interface SerializedTask {
   readonly prStatus?: DaemonTask["prStatus"]
   /** Engine reasoning/effort level, when the vendor supports one. */
   readonly modelEffort?: string
+  /** Model pinned on the engine, in its own spelling. */
+  readonly model?: string
+  /** Auto-effort tier the engine fields were filled from, when one was. */
+  readonly tier?: string
   /** Fan-out round marker shared by the siblings of one fan-out call. */
   readonly groupId?: string
   /** Language this task's user writes in, observed from their own prompts. */
@@ -439,6 +443,8 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     command: task.command,
     prStatus: task.prStatus,
     modelEffort: task.modelEffort,
+    model: task.model,
+    tier: task.tier,
     groupId: task.groupId,
     observedLanguage: task.observedLanguage,
     deletion: task.deletion,

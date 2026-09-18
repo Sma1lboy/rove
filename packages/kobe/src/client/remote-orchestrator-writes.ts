@@ -34,6 +34,9 @@ export async function createTaskOp(
     worktreeName?: string
     vendor?: VendorId
     modelEffort?: string
+    /** Wire key and field are both `model` — no remap, unlike effort. */
+    model?: string
+    tier?: string
     groupId?: string
   },
 ): Promise<Task> {
@@ -101,10 +104,16 @@ export async function setVendorOp(
   id: TaskId | string,
   vendor: VendorId,
   effort?: string,
+  model?: string,
 ): Promise<void> {
-  // `effort` is omitted from the payload when the caller has no opinion, so
-  // the daemon can tell "leave the level alone" from `""` = clear it.
-  await client.request("task.setVendor", { taskId: String(id), vendor, ...(effort !== undefined ? { effort } : {}) })
+  // `effort`/`model` are omitted from the payload when the caller has no
+  // opinion, so the daemon can tell "leave it alone" from `""` = clear it.
+  await client.request("task.setVendor", {
+    taskId: String(id),
+    vendor,
+    ...(effort !== undefined ? { effort } : {}),
+    ...(model !== undefined ? { model } : {}),
+  })
 }
 
 export async function setCommandOp(

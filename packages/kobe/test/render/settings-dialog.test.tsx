@@ -61,6 +61,12 @@ describe("SettingsDialog", () => {
     text = await press("j") // → Engines
     expect(text).toContain("Every engine Rove can launch")
     expect(text).toMatch(/\[x\]/) // the on/off switch column
+    text = await press("j") // → Auto effort
+    expect(text).toContain("Three depths a new task can be started at")
+    // The rows, not the verdict: whether claude is logged in is a fact about
+    // the machine running the suite (CI is not), so the gate line is pinned
+    // by settings-auto-effort-section.test.tsx with a stubbed verdict.
+    expect(text).toContain("swift      Claude · sonnet · engine default")
     text = await press("j") // → Plugins
     expect(text).toContain("No plugins registered")
     text = await press("j") // → Marketplace
@@ -92,8 +98,8 @@ describe("SettingsDialog", () => {
       providers: { kv: true, dialog: true },
     })
 
-    // General → Engines → Plugins → Marketplace → Keybindings.
-    for (let i = 0; i < 4; i++) {
+    // General → Engines → Auto effort → Plugins → Marketplace → Keybindings.
+    for (let i = 0; i < 5; i++) {
       act(() => mockInput.pressKey("j"))
       await settle()
     }

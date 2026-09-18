@@ -77,6 +77,8 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin">> = {
     lastError: "transient fetch error",
   },
   modelEffort: "high",
+  model: "opus",
+  tier: "standard",
   groupId: "01ARZ3NDEKTSV4RRFFQ69G5FB0",
   deletion: {
     phase: "error",

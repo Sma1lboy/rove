@@ -53,6 +53,7 @@ import { type EngineHookAdapter, NoopHookAdapter } from "./hook-adapter.ts"
 import { KimiHookAdapter } from "./kimi-local/hook-adapter.ts"
 import { KIMI_SCREEN_MANIFEST } from "./kimi-local/screen.ts"
 import { trustKimiWorktree } from "./kimi-local/trust.ts"
+import { CLAUDE_MODELS, CODEX_MODELS, listOmpModels, listPiModels } from "./model-lists.ts"
 import { ompCapabilities, ompIdentity, piCapabilities, piIdentity } from "./pi-local/capabilities.ts"
 import { PiFamilyHookAdapter } from "./pi-local/hook-adapter.ts"
 import { OMP_SCREEN_MANIFEST, PI_SCREEN_MANIFEST } from "./pi-local/screen.ts"
@@ -78,6 +79,10 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     // every neutral layer reads via engineDisplayName().
     displayName: claudeIdentity.shortName,
     defaultCommand: ["claude"],
+    // `--model <alias|full name>`; no list verb, so the suggestions are the
+    // documented aliases (`model-lists.ts`).
+    listModels: async () => CLAUDE_MODELS,
+    modelArgv: (base, model) => [...base, "--model", model],
     history: claudeHistoryReader,
     detectAccount: (deps) => detectClaudeAccount(deps),
     createHookAdapter: () => new ClaudeHookAdapter(),
@@ -128,6 +133,9 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     // accepting it; don't offer a level nothing has answered 200 to.
     effortLevels: ["none", "low", "medium", "high", "xhigh", "max"],
     effortArgv: (base, level) => [...base, "-c", `model_reasoning_effort=${level}`],
+    // `-m, --model <MODEL>`; no list verb (`model-lists.ts` for the slugs).
+    listModels: async () => CODEX_MODELS,
+    modelArgv: (base, model) => [...base, "--model", model],
     history: codexHistoryReader,
 
     detectAccount: (deps) => detectCodexAccount(deps),
@@ -201,6 +209,9 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     // The installed Mach-O binary rewrites its process title to `kimi-co`
     // after launch, so a live kimi session's argv[0] never reads `kimi`.
     processNames: ["kimi-co"],
+    // `-m, --model <alias>` — an alias from the user's own config.toml, which
+    // Rove cannot list; no `listModels`, so the picker is free text.
+    modelArgv: (base, model) => [...base, "--model", model],
     trustWorktree: trustKimiWorktree,
     history: kimiHistoryReader,
     detectAccount: (deps) => detectKimiAccount(deps),
@@ -228,6 +239,10 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     // minimal, low, medium, high, xhigh, max`).
     effortLevels: ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
     effortArgv: (base, level) => [...base, "--thinking", level],
+    // `--model <pattern>` (fuzzy, or exact `provider/id`); `pi --list-models`
+    // is the catalog (`model-lists.ts`).
+    listModels: listPiModels,
+    modelArgv: (base, model) => [...base, "--model", model],
     history: piHistoryReader,
     // No account detector: pi authenticates from `~/.pi/agent/auth.json` OR a
     // provider env var / `--api-key`, so a missing auth file is not "not
@@ -268,6 +283,11 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     // Same flag and level set as pi (omp is the fork that kept both).
     effortLevels: ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
     effortArgv: (base, level) => [...base, "--thinking", level],
+    // `--model=<value>` (fuzzy, or exact `provider/id`); `omp models --json`
+    // is the catalog (`model-lists.ts`). `--list-models` is pi-only — omp
+    // rejects it as an unknown flag.
+    listModels: listOmpModels,
+    modelArgv: (base, model) => [...base, `--model=${model}`],
     history: ompHistoryReader,
     createHookAdapter: () => new PiFamilyHookAdapter("omp"),
     createTurnDetector: () => new UnknownTurnDetector("omp"),

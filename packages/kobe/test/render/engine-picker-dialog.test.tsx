@@ -10,19 +10,23 @@
  * The effort row is the second axis: it exists only for engines that DECLARE
  * levels (codex), and a level must never ride along with an engine that
  * declares none — that is the silent drop `withEngineEffort` performs at
- * launch, and the dialog must not manufacture it.
+ * launch, and the dialog must not manufacture it. The model row is the
+ * third: every engine here declares a model flag, so `model` always rides
+ * (`""` = clear), and a pinned model never follows the cursor to another
+ * engine — a claude alias on codex kills the launch.
  */
 
 import { describe, expect, test } from "bun:test"
 import { type EnginePickResult, EnginePickerDialogView } from "../../src/tui-react/component/engine-picker-dialog"
 import type { VendorId } from "../../src/types/task"
-import { type RenderHandle, act, renderComponent } from "./harness"
+import { type RenderHandle, act, renderComponent, settle } from "./harness"
 
 const ENGINES: readonly VendorId[] = ["claude", "codex", "kimi"]
 
 function mount(
   current: VendorId = "claude",
   currentEffort?: string,
+  currentModel?: string,
 ): Promise<RenderHandle> & { picked: EnginePickResult[] } {
   const picked: EnginePickResult[] = []
   const p = renderComponent(
@@ -30,6 +34,7 @@ function mount(
       engines={ENGINES}
       current={current}
       currentEffort={currentEffort}
+      currentModel={currentModel}
       onSubmit={(v) => picked.push(v)}
       onCancel={() => {}}
     />,
@@ -55,7 +60,7 @@ describe("EnginePickerDialogView", () => {
     await frame()
     act(() => mockInput.pressEnter())
     await frame()
-    expect(p.picked).toEqual([{ vendor: "kimi" }])
+    expect(p.picked).toEqual([{ vendor: "kimi", model: "" }])
   })
 
   test("down then enter commits the NEXT engine in list order", async () => {
@@ -65,7 +70,7 @@ describe("EnginePickerDialogView", () => {
     act(() => mockInput.pressArrow("down"))
     act(() => mockInput.pressEnter())
     await frame()
-    expect(p.picked).toEqual([{ vendor: "codex", effort: "" }])
+    expect(p.picked).toEqual([{ vendor: "codex", effort: "", model: "" }])
   })
 
   test("the cursor clamps at both ends instead of wrapping", async () => {
@@ -76,14 +81,17 @@ describe("EnginePickerDialogView", () => {
     act(() => mockInput.pressArrow("down"))
     act(() => mockInput.pressEnter())
     await frame()
-    expect(p.picked).toEqual([{ vendor: "kimi" }])
+    expect(p.picked).toEqual([{ vendor: "kimi", model: "" }])
     act(() => mockInput.pressArrow("up"))
     act(() => mockInput.pressArrow("up"))
     act(() => mockInput.pressArrow("up"))
     act(() => mockInput.pressArrow("up"))
     act(() => mockInput.pressEnter())
     await frame()
-    expect(p.picked).toEqual([{ vendor: "kimi" }, { vendor: "claude" }])
+    expect(p.picked).toEqual([
+      { vendor: "kimi", model: "" },
+      { vendor: "claude", model: "" },
+    ])
   })
 
   test("an engine with no declared levels renders no effort row at all", async () => {
@@ -93,7 +101,8 @@ describe("EnginePickerDialogView", () => {
     const { frame } = await p
     const first = await frame()
     expect(first).not.toContain("EFFORT")
-    expect(first).toContain("↑↓ choose")
+    expect(first).toContain("↑↓ engine")
+    expect(first).not.toContain("←→ effort")
   })
 
   test("codex shows its declared levels, and the footer names the new keys", async () => {
@@ -114,7 +123,7 @@ describe("EnginePickerDialogView", () => {
     for (let i = 0; i < 5; i++) act(() => mockInput.pressArrow("right"))
     act(() => mockInput.pressEnter())
     await frame()
-    expect(p.picked).toEqual([{ vendor: "codex", effort: "xhigh" }])
+    expect(p.picked).toEqual([{ vendor: "codex", effort: "xhigh", model: "" }])
   })
 
   test("opens ON the task's recorded level, so enter alone never rewrites it", async () => {
@@ -123,7 +132,7 @@ describe("EnginePickerDialogView", () => {
     await frame()
     act(() => mockInput.pressEnter())
     await frame()
-    expect(p.picked).toEqual([{ vendor: "codex", effort: "high" }])
+    expect(p.picked).toEqual([{ vendor: "codex", effort: "high", model: "" }])
   })
 
   test("a level never rides along to an engine that declares none", async () => {
@@ -135,7 +144,7 @@ describe("EnginePickerDialogView", () => {
     act(() => mockInput.pressArrow("down"))
     act(() => mockInput.pressEnter())
     await frame()
-    expect(p.picked).toEqual([{ vendor: "kimi" }])
+    expect(p.picked).toEqual([{ vendor: "kimi", model: "" }])
   })
 
   test("stepping left off the first level lands on the engine default, which clears it", async () => {
@@ -147,6 +156,43 @@ describe("EnginePickerDialogView", () => {
     act(() => mockInput.pressEnter())
     await frame()
     // `""` is the wire spelling of "clear the level", distinct from absent.
-    expect(p.picked).toEqual([{ vendor: "codex", effort: "" }])
+    expect(p.picked).toEqual([{ vendor: "codex", effort: "", model: "" }])
+  })
+
+  test("tab reaches the model input; typed text is pinned verbatim on enter", async () => {
+    const p = mount("claude")
+    const { frame, mockInput } = await p
+    await settle()
+    act(() => mockInput.pressTab())
+    await settle()
+    await act(async () => mockInput.typeText("opus"))
+    await settle()
+    act(() => mockInput.pressEnter())
+    await settle()
+    expect(p.picked).toEqual([{ vendor: "claude", model: "opus" }])
+  })
+
+  test("opens ON the task's pinned model, so enter alone keeps it", async () => {
+    const p = mount("claude", undefined, "sonnet")
+    const { frame, mockInput } = await p
+    await settle()
+    const first = await frame()
+    expect(first).toContain("MODEL")
+    expect(first).toContain("sonnet")
+    act(() => mockInput.pressEnter())
+    await settle()
+    expect(p.picked).toEqual([{ vendor: "claude", model: "sonnet" }])
+  })
+
+  test("a pinned model never follows the cursor to another engine", async () => {
+    // claude/sonnet → codex must submit an EMPTY model (clear), not `sonnet`.
+    const p = mount("claude", undefined, "sonnet")
+    const { mockInput } = await p
+    await settle()
+    act(() => mockInput.pressArrow("down"))
+    await settle()
+    act(() => mockInput.pressEnter())
+    await settle()
+    expect(p.picked).toEqual([{ vendor: "codex", effort: "", model: "" }])
   })
 })

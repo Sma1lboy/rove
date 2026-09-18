@@ -11,7 +11,12 @@
  */
 
 import { describe, expect, test, vi } from "vitest"
-import { applyVendorChange } from "../../src/tui/lib/task-actions"
+import {
+  type EnginePick,
+  type TaskActionContext,
+  applyVendorChange,
+  pickVendorFlow,
+} from "../../src/tui/lib/task-actions"
 
 function ctx(setVendor: () => Promise<void>) {
   return {
@@ -68,5 +73,44 @@ describe("applyVendorChange", () => {
     expect(said).toContain("daemon refused")
     // A failure must NOT also claim success.
     expect(c.notifyInfo).not.toHaveBeenCalled()
+  })
+})
+
+describe("pickVendorFlow", () => {
+  const task = { id: "t1", vendor: "claude", modelEffort: undefined, model: "sonnet" }
+  function flowCtx(pick: EnginePick | undefined) {
+    const setVendor = vi.fn(async () => {})
+    const c: TaskActionContext & { setVendor: typeof setVendor; pickEngine: ReturnType<typeof vi.fn> } = {
+      orch: { setVendor } as never,
+      setVendor,
+      tasks: () => [task] as never,
+      confirm: async () => true,
+      promptText: async () => undefined,
+      pickEngine: vi.fn(async () => pick),
+      logger: { error: vi.fn() },
+      logPrefix: "[test]",
+    }
+    return c
+  }
+
+  test("opens on the task's engine, level and model", async () => {
+    const c = flowCtx(undefined)
+    await pickVendorFlow(c, "t1")
+    expect(c.pickEngine).toHaveBeenCalledWith(
+      expect.objectContaining({ current: "claude", currentEffort: undefined, currentModel: "sonnet" }),
+    )
+    expect(c.setVendor).not.toHaveBeenCalled()
+  })
+
+  test("re-picking the same engine with the same model writes nothing", async () => {
+    const c = flowCtx({ vendor: "claude", model: "sonnet" })
+    await pickVendorFlow(c, "t1")
+    expect(c.setVendor).not.toHaveBeenCalled()
+  })
+
+  test("a model-only change is a real change and persists with its tri-state", async () => {
+    const c = flowCtx({ vendor: "claude", model: "" })
+    await pickVendorFlow(c, "t1")
+    expect(c.setVendor).toHaveBeenCalledWith("t1", "claude", undefined, "")
   })
 })

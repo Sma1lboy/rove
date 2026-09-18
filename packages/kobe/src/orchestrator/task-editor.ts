@@ -154,13 +154,21 @@ export class TaskEditor {
    * The same-vendor early return must not swallow an effort-only change — a
    * user re-picking codex to move it from `medium` to `high` is changing
    * something, even though the vendor is identical.
+   *
+   * `model` is the same tri-state, for the same reason.
    */
-  async setVendor(id: TaskId | string, vendor: VendorId, effort?: string): Promise<void> {
+  async setVendor(id: TaskId | string, vendor: VendorId, effort?: string, model?: string): Promise<void> {
     const task = this.requireTask(id)
     const nextEffort = effort?.trim() ? effort.trim() : undefined
     const effortChanges = effort !== undefined && task.modelEffort !== nextEffort
-    if (task.vendor === vendor && !effortChanges) return
-    await this.store.update(task.id, { vendor, ...(effort !== undefined ? { modelEffort: nextEffort } : {}) })
+    const nextModel = model?.trim() ? model.trim() : undefined
+    const modelChanges = model !== undefined && task.model !== nextModel
+    if (task.vendor === vendor && !effortChanges && !modelChanges) return
+    await this.store.update(task.id, {
+      vendor,
+      ...(effort !== undefined ? { modelEffort: nextEffort } : {}),
+      ...(model !== undefined ? { model: nextModel } : {}),
+    })
   }
 
   /**

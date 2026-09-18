@@ -155,6 +155,7 @@ export interface PromptTarget {
   /** Raw launch command pinned on the task; wins over {@link vendor} at spawn. */
   readonly command?: string
   readonly modelEffort?: string
+  readonly model?: string
   readonly repo?: string
   /**
    * Tab addressing (`send --tab`): `"new"` mints the next tab-N and spawns

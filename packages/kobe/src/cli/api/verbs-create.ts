@@ -42,6 +42,20 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
           "Reasoning effort for the FIRST session, not just later ones. Validated against the engine's declared levels (codex: none/low/medium/high/xhigh/max; claude declares none) — free-form, since a plugin engine may declare its own. With --agents, every engine in the plan must declare it.",
       },
       {
+        name: "tier",
+        type: "enum",
+        values: ["swift", "standard", "deep"],
+        description:
+          "Auto-effort tier: fills the engine, model and effort from the table in Settings → Auto effort (autoEffort.<tier>.* in state.json) and records the tier on the task (.task.tier). Exclusive with --command/--model/--effort/--agents (CONFLICTING_FLAGS). A tier whose target cannot start — engine not in engine-list, not logged in, model or effort its engine cannot carry — is refused up front (TIER_UNAVAILABLE) with the reason.",
+      },
+      {
+        name: "model",
+        type: "string",
+        placeholder: "MODEL",
+        description:
+          "Model for the FIRST session and every rebuild, in the engine's own spelling (claude alias/full id, codex slug, pi/omp pattern or provider/id) — passed verbatim, so `engine-list`'s `models` are suggestions, not a closed list. Rejected (BAD_MODEL) on an engine that declares no model flag; with --agents, every engine in the plan must.",
+      },
+      {
         name: "count",
         type: "int",
         placeholder: "N",

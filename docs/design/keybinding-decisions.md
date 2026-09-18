@@ -689,6 +689,30 @@ not spend the chord, deleting it from `COPY_CHORDS`
 (`tui/panes/terminal/keys-pure.ts`) removes it and nothing else regresses:
 selection-aware `ctrl+c` and `cmd+c` both keep working.
 
+## PROPOSED — `tab` in the change-engine picker (owner sign-off pending)
+
+**What:** the change-engine picker (`engine-picker-dialog.tsx`) gained a
+MODEL row — a free-text input with the engine's model list as suggestions.
+`tab` hops focus between the engine list and that input; `↑↓` walk whichever
+has focus, `←→` still step effort while the list has focus, and `enter`
+commits from either (the input's own Enter routes to the same commit).
+
+**Why `tab`:** it is the dialog-local field-walk key every other dialog in
+this codebase already uses (the new-task dialog walks tabs → depth → engine
+→ effort → model → … on `tab`), so it adds no new vocabulary — the picker
+simply became a two-field dialog. No chord row in the keymap: the dialog is
+modal and prints its own legend (`tab model`).
+
+**What it shadows:** nothing — `tab` was unbound in this dialog. Registered
+only while the engine under the cursor declares a model flag; for copilot
+(and any engine without one) the row and the binding are both absent.
+
+**Also new, but no new keys:** the new-task dialog's DEPTH (auto-effort
+tier), EFFORT and MODEL rows ride the existing `tab` walk and `←→` chip
+stepping; Settings → Auto effort rows open the picker on the existing
+`enter`. The owner's call is only whether `tab` is the right hop inside the
+picker, or whether the model input should instead sit behind a letter.
+
 ## Adding or moving a chord
 
 Get owner sign-off on direct versus prefix placement, the selected key, and

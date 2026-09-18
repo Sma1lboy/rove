@@ -94,15 +94,20 @@ describe("engine-list", () => {
       command: "my-pi --interactive",
       protocol: "claude",
       builtin: false,
+      // Keyed by PROTOCOL: a claude-protocol wrapper lists claude's aliases.
+      models: [{ id: "fable" }, { id: "opus" }, { id: "sonnet" }],
     })
   })
 
   it("a preset registered without a protocol reads as generic, not as claude", async () => {
     writeState({ customEngineIds: ["aider"], "engineCommand.aider": "aider" })
     const { engines } = (await invokeVerb("engine-list", [], { client: null, runtime })) as {
-      engines: Array<{ id: string; protocol: string }>
+      engines: Array<{ id: string; protocol: string; models: unknown }>
     }
     expect(engines.find((e) => e.id === "aider")?.protocol).toBe(GENERIC_PROTOCOL)
+    // null = "cannot list", never `[]` = "listed, found none".
+    expect(engines.find((e) => e.id === "aider")?.models).toBeNull()
+    expect(engines.find((e) => e.id === "copilot")?.models).toBeNull()
   })
 })
 

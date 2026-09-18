@@ -35,6 +35,9 @@ import { useDerivedDir } from "./use-derived-dir"
 export function useCloneState(args: {
   defaultCloneParent: string | undefined
   vendor: VendorId
+  modelEffort?: string
+  model?: string
+  tier?: string
   onSubmit: (v: NewTaskInput) => void
   clearDialog: () => void
   setField: (f: Field) => void
@@ -164,6 +167,9 @@ export function useCloneState(args: {
       repo: result.path,
       baseRef: b,
       vendor: args.vendor,
+      ...(args.modelEffort ? { modelEffort: args.modelEffort } : {}),
+      ...(args.model ? { model: args.model } : {}),
+      ...(args.tier ? { tier: args.tier } : {}),
       cloned: { parentDir: expandHome(cloneParent.trim()) },
     })
     args.clearDialog()

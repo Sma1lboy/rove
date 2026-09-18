@@ -60,21 +60,25 @@ for (const { width, height } of [
   test(`${width}x${height}: wrapped engines and inputs keep full borders above the footer`, async () => {
     const h = await mount(width, height)
     await press(h, "right")
-    await press(h, "tab")
-    await press(h, "tab")
+    // tabs → depth → engine → model → git url
+    for (let i = 0; i < 4; i++) await press(h, "tab")
     await act(async () => h.mockInput.typeText("https://github.com/Sma1lboy/mc-rpg.git"))
     await h.frame()
     const boxes = descendants(h.renderer.root).filter(
       (node): node is BoxRenderable => node instanceof BoxRenderable && !!node.border,
     )
-    expect(boxes.length).toBe(12)
+    // 3 mode chips + 4 depth chips + 6 engine chips + the model well + the
+    // clone wells the scroll box has laid out at this height: 17.
+    expect(boxes.length).toBe(17)
     for (const box of boxes) expect(box.height).toBe(3)
-    const firstEngine = boxes[3]!
-    const wrappedEngine = boxes[6]!
+    const firstEngine = boxes[7]!
+    const wrappedEngine = boxes[10]!
     expect(wrappedEngine.y).toBe(firstEngine.y + firstEngine.height)
-    const urlField = boxes[8]!
+    const modelField = boxes[12]!
     // One label row and one blank row separate the next well from the chips.
-    expect(urlField.y).toBe(wrappedEngine.y + wrappedEngine.height + 2)
+    expect(modelField.y).toBe(wrappedEngine.y + wrappedEngine.height + 2)
+    const urlField = boxes[13]!
+    expect(urlField.y).toBe(modelField.y + modelField.height + 2)
     for (let i = 0; i < 3; i++) await press(h, "tab")
     const frame = await h.frame()
     const lines = frame.split("\n")
@@ -91,13 +95,15 @@ for (const { width, height } of [
 
 for (const mode of ["existing", "adopt"] as const) {
   test(`${mode}: wrapped chips and picker rows stay inside the modal`, async () => {
-    const h = await mount(120, 40)
+    // 48 rows, not 40: the depth and model rows pushed FROM BRANCH below a
+    // 40-row fold at open, and this test is about wrapping, not scrolling.
+    const h = await mount(120, 48)
     if (mode === "adopt") {
       await press(h, "right")
       await press(h, "right")
     }
-    await press(h, "tab")
-    await press(h, "tab")
+    // tabs → depth → engine → model → first input of the tab
+    for (let i = 0; i < 4; i++) await press(h, "tab")
     if (mode === "adopt") {
       for (let i = 0; i < 14; i++) await press(h, "down")
     }
@@ -122,7 +128,8 @@ for (const mode of ["existing", "adopt"] as const) {
 test("a focused last field remains visible after narrowing and shortening the terminal", async () => {
   const h = await mount(200, 60)
   await press(h, "right")
-  for (let i = 0; i < 5; i++) await press(h, "tab")
+  // tabs → depth → engine → model → url → parent → folder → base branch
+  for (let i = 0; i < 7; i++) await press(h, "tab")
   await h.frame()
   act(() => h.resize(64, 40))
   await settle()
@@ -148,13 +155,14 @@ test("a focused last field remains visible after narrowing and shortening the te
 for (const { width, height } of [
   { width: 153, height: 35 },
   { width: 153, height: 34 },
-  { width: 200, height: 30 },
+  // The compact form grew a depth row and a MODEL well, so it scrolls even
+  // on 33 rows; what it must still keep is the footer glued above Create.
+  { width: 200, height: 33 },
 ]) {
   test(`${width}x${height}: footer spacing leaves the parent well or compact form intact`, async () => {
     const h = await mount(width, height)
     await press(h, "right")
-    await press(h, "tab")
-    await press(h, "tab")
+    for (let i = 0; i < 4; i++) await press(h, "tab")
     await act(async () => h.mockInput.typeText("https://github.com/Sma1lboy/mc-rpg.git"))
     const frame = await h.frame()
     const scroll = descendants(h.renderer.root).find(
@@ -168,7 +176,7 @@ for (const { width, height } of [
       const wells = descendants(h.renderer.root).filter(
         (node): node is BoxRenderable => node instanceof BoxRenderable && !!node.border,
       )
-      const parent = wells[9]!
+      const parent = wells[14]!
       expect(parent.height).toBe(3)
       expect(parent.y + parent.height).toBeLessThanOrEqual(scroll.viewport.y + scroll.viewport.height)
       expect(frame).toMatch(/↓ \d+ more rows/)
@@ -177,10 +185,8 @@ for (const { width, height } of [
       expect(bottom).toMatch(/↑ \d+ more rows/)
       expect(bottom).not.toMatch(/↓ \d+ more rows/)
     } else {
-      expect(scroll.scrollHeight).toBeLessThanOrEqual(scroll.viewport.height)
-      const base = lines.findIndex((line) => line.includes("BASE BRANCH"))
-      expect(lines[base + 1]).toContain("main")
-      expect(frame).not.toContain("more rows")
+      expect(scroll.scrollHeight).toBeGreaterThan(scroll.viewport.height)
+      expect(frame).toMatch(/↓ \d+ more rows/)
     }
     act(() => h.destroy())
   })

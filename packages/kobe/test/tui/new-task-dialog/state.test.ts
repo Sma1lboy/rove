@@ -190,6 +190,16 @@ describe("nextField / firstFieldFor (per-tab field cycling)", () => {
     expect(nextField("confirm", "existing")).toBe("tabs")
     expect(nextField("tabs", "existing")).toBe("engine")
     expect(nextField("engine", "existing")).toBe("repo")
+    // The tier stop sits between the mode row and the engine row while the
+    // auto-effort table is configured.
+    expect(nextField("tabs", "existing", { tierVisible: true })).toBe("tier")
+    expect(nextField("tier", "existing")).toBe("engine")
+    // The effort/model stops exist only while their rows render.
+    expect(nextField("engine", "existing", { effortVisible: true, modelVisible: true })).toBe("effort")
+    expect(nextField("engine", "existing", { modelVisible: true })).toBe("model")
+    expect(nextField("effort", "existing", { modelVisible: true })).toBe("model")
+    expect(nextField("effort", "existing")).toBe("repo")
+    expect(nextField("model", "clone")).toBe("cloneUrl")
   })
 
   it("inserts the intent stop only when that row renders", () => {

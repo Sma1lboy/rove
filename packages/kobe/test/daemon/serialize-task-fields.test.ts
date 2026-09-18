@@ -54,6 +54,8 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin">> = {
   command: "claude --continue",
   observedLanguage: "zh",
   modelEffort: "high",
+  model: "opus",
+  tier: "standard",
   groupId: "01ARZ3NDEKTSV4RRFFQ69G5FAW",
   prStatus: {
     provider: "github",

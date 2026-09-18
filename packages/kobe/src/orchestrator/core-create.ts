@@ -98,6 +98,8 @@ export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): P
     vendor: input.vendor ?? DEFAULT_TASK_VENDOR,
     ...(input.command?.trim() ? { command: input.command.trim() } : {}),
     ...(input.modelEffort ? { modelEffort: input.modelEffort } : {}),
+    ...(input.model?.trim() ? { model: input.model.trim() } : {}),
+    ...(input.tier?.trim() ? { tier: input.tier.trim() } : {}),
     ...(input.groupId ? { groupId: input.groupId } : {}),
     ...(input.dispatcher ? { dispatcher: input.dispatcher } : {}),
     ...(input.routine ? { routine: input.routine } : {}),

@@ -24,7 +24,15 @@ import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
 import type { TaskStatus } from "../../types/task.ts"
 import { DEFAULT_VENDOR, type VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
-import { type EngineChoice, effortFor, engineChoice, enginePayload } from "./add-engine-fields.ts"
+import {
+  type EngineChoice,
+  type EngineFields,
+  effortFor,
+  engineChoice,
+  enginePayload,
+  modelFor,
+  tierFields,
+} from "./add-engine-fields.ts"
 import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
 import { FANOUT_CAP, buildCountPlan, parseAgentsSpec } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
@@ -102,6 +110,13 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   return resolvedFrom && result && typeof result === "object" ? { ...result, ...resolvedFrom } : result
 }
 
+/** The typed-out engine fields: `--command` / `--effort` / `--model`, each gated. */
+async function typedEngineFields(ctx: VerbContext, repo: string): Promise<EngineFields> {
+  const choice = await engineChoice(ctx, repo)
+  const engines = choice.vendor ? [choice.vendor] : []
+  return { choice, effort: effortFor(ctx, engines), model: modelFor(ctx, engines) }
+}
+
 async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const { args } = ctx
@@ -113,9 +128,12 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   const prompt = args.promptText()
   // Record who dispatched this create — the reply address a
   // sub-task's bare `send` routes its outcome back to.
-  const choice = await engineChoice(ctx, repo)
-  const effort = effortFor(ctx, choice.vendor ? [choice.vendor] : [])
-  const payload: Record<string, string> = { repo, ...(await dispatcherEnvPayload()), ...enginePayload(choice, effort) }
+  const fields = (await tierFields(ctx)) ?? (await typedEngineFields(ctx, repo))
+  const payload: Record<string, string> = {
+    repo,
+    ...(await dispatcherEnvPayload()),
+    ...enginePayload(fields.choice, fields.effort, fields.model, fields.tier),
+  }
   const title = args.str("title") || (prompt ? deriveTitleFromPrompt(prompt) : "")
   if (title) payload.title = title
   const branch = args.str("branch")
@@ -157,6 +175,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
       vendor: task.vendor as VendorId | undefined,
       command: task.command,
       modelEffort: task.modelEffort,
+      model: task.model,
       repo: task.repo,
       newTask: true,
     },
@@ -293,7 +312,10 @@ async function addParallel(
   // `--agents` names engines per sibling; `--count` repeats ONE engine, which
   // is `--command`'s when given (a full command line included — the plan just
   // carries its protocol, and every sibling launches the same command).
-  const choice = await engineChoice(ctx, repo)
+  // A tier fills every sibling the same way `--command` would (it refuses
+  // `--agents`, which names engines itself).
+  const tier = await tierFields(ctx)
+  const choice = tier?.choice ?? (await engineChoice(ctx, repo))
   const plan: VendorId[] = agentsSpec
     ? parseAgentsSpec(agentsSpec)
     : buildCountPlan(count ?? 1, choice.vendor ?? DEFAULT_VENDOR)
@@ -303,7 +325,8 @@ async function addParallel(
       "BAD_FLAG",
     )
   }
-  const effort = effortFor(ctx, plan)
+  const effort = tier ? tier.effort : effortFor(ctx, plan)
+  const model = tier ? tier.model : modelFor(ctx, plan)
   const groupId = ulid()
 
   // Create serially — task.create is a pure store write (worktrees are lazy,
@@ -322,7 +345,12 @@ async function addParallel(
     // `--agents` picks each sibling's engine BY ID, so its command is that
     // id; a `--count` round reuses the caller's own `--command` verbatim.
     const engine: EngineChoice = agentsSpec ? { command: vendor, vendor } : { ...choice, vendor }
-    const payload: Record<string, string> = { repo, groupId, ...dispatcher, ...enginePayload(engine, effort) }
+    const payload: Record<string, string> = {
+      repo,
+      groupId,
+      ...dispatcher,
+      ...enginePayload(engine, effort, model, tier?.tier),
+    }
     if (title) payload.title = plan.length > 1 ? `${title} #${i + 1}/${plan.length}` : title
     if (baseRef) payload.baseRef = baseRef
     try {
@@ -352,6 +380,7 @@ async function addParallel(
           vendor,
           command: task.command,
           modelEffort: task.modelEffort,
+          model: task.model,
           repo: task.repo,
           newTask: true,
         },

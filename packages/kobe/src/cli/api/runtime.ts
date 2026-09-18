@@ -84,6 +84,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
         command: target.command,
         vendor: target.vendor,
         effort: target.modelEffort,
+        model: target.model,
       })[0]
       const tabId = target.tab
       return await deliverToExactTab(host.rpc, target.id, tabId, worktree, prompt, {
@@ -111,7 +112,12 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
     // instead. The id lands in the persisted tab snapshot below once the
     // session actually started.
     const { argv, sessionId } = withPinnedSessionId(
-      engineLaunchArgv({ command: launchCommand, vendor: launchVendor, effort: target.modelEffort }),
+      engineLaunchArgv({
+        command: launchCommand,
+        vendor: launchVendor,
+        effort: target.modelEffort,
+        model: target.model,
+      }),
       launchVendor,
     )
     // Pre-trust the worktree in the protocol's first-run store —

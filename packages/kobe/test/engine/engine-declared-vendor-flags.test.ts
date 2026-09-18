@@ -30,6 +30,7 @@ vi.mock("../../src/engine/registry.ts", async (importOriginal) => {
           ...entry,
           effortLevels: ["low", "high"],
           effortArgv: (base: readonly string[], level: string) => [...base, "--reasoning", level],
+          modelArgv: (base: readonly string[], model: string) => [...base, "--llm", model],
         }
       }
       // Claude's real trustWorktree writes the user's ~/.claude.json (it
@@ -42,7 +43,7 @@ vi.mock("../../src/engine/registry.ts", async (importOriginal) => {
   }
 })
 
-const { withEngineEffort } = await import("../../src/engine/interactive-command.ts")
+const { withEngineEffort, withEngineModel } = await import("../../src/engine/interactive-command.ts")
 const { engineLaunchArgv } = await import("../../src/engine/engine-presets.ts")
 const { withDispatcherProtocol, withWorktreeProtocol } = await import("../../src/engine/worktree-protocol.ts")
 const { trustEngineWorktree } = await import("../../src/engine/trust-worktree.ts")
@@ -119,6 +120,26 @@ describe("declared effort reaches the launch argv", () => {
       "engineProtocol.mycodex": "codex",
     })
     expect(engineLaunchArgv({ command: "mycodex", effort: "high" })).toContain("model_reasoning_effort=high")
+  })
+})
+
+describe("declared model reaches the launch argv", () => {
+  it("applies a NON-BUILT-IN engine's own modelArgv, verbatim", () => {
+    expect(withEngineModel(["fake-cli"], "fakeengine", "x/y-2")).toEqual(["fake-cli", "--llm", "x/y-2"])
+  })
+
+  it("drops a model for an engine that declares no flag (the gate refuses it earlier)", () => {
+    expect(withEngineModel(["copilot"], "copilot", "gpt-5")).toEqual(["copilot"])
+  })
+
+  it("carries a model through a WRAPPER preset that declares the claude protocol", () => {
+    registerClaudeWrapper()
+    expect(engineLaunchArgv({ command: "claudecpa", model: "sonnet" })).toEqual([
+      "claudecpa",
+      "--dangerously-skip-permissions",
+      "--model",
+      "sonnet",
+    ])
   })
 })
 

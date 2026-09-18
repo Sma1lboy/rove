@@ -266,7 +266,8 @@ describe("realPromptDeliveryOps (deliverPrompt with the default ops)", () => {
       "go",
     )
     expect(mocks.ensurePtyHost).toHaveBeenCalledOnce()
-    expect(mocks.interactiveEngineCommand).toHaveBeenCalledWith("claude", "high")
+    // (vendor, effort, model) — the task pins no model, so the third slot is empty.
+    expect(mocks.interactiveEngineCommand).toHaveBeenCalledWith("claude", "high", undefined)
     expect(mocks.buildEngineSessionLaunch).toHaveBeenCalledWith(
       expect.objectContaining({
         task: { id: "t1", kind: "task", vendor: "claude", repo: "/repo/x" },
