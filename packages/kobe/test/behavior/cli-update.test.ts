@@ -10,7 +10,8 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { chmod, mkdir, readFile, realpath, symlink, writeFile } from "node:fs/promises"
+import { existsSync } from "node:fs"
+import { chmod, mkdir, readFile, readdir, realpath, symlink, writeFile } from "node:fs/promises"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
@@ -272,5 +273,136 @@ describe("scripts/update.sh manager detection", () => {
     })
     expect(r.status).toBe(1)
     expect(r.stderr).toContain("shadowing")
+  })
+})
+
+/**
+ * Windows leaves npm's retire dir behind. npm moves the old package dir to
+ * a sibling `.rove-<hash>` before unpacking the new one and deletes it after;
+ * a DLL a running Rove has mapped cannot be deleted on Windows, so the dir
+ * survives — and the hash is path-derived, so the NEXT update finds the same
+ * dir already there, falls back to a file-by-file copy, and dies with EBUSY
+ * on the mapped DLL. The script sweeps those leftovers before npm runs.
+ */
+describe("scripts/update.sh stale npm retire dirs", () => {
+  let env: BehaviorEnv
+  beforeAll(async () => {
+    env = await makeBehaviorEnv()
+  })
+  afterAll(async () => {
+    await env.dispose()
+  })
+
+  /** A Windows-style npm global: shims at the prefix root, node_modules beside them. */
+  async function windowsLayout(base: string): Promise<{ binDir: string; scope: string; entry: string }> {
+    const binDir = join(base, "npm-global")
+    const scope = join(binDir, "node_modules", "@sma1lboy")
+    const pkgDir = join(scope, "rove", "dist", "cli")
+    await mkdir(pkgDir, { recursive: true })
+    const entry = join(pkgDir, "rove.js")
+    await writeFile(entry, "// bundle\n")
+    return { binDir, scope, entry }
+  }
+
+  async function plantRetireDir(scope: string, name: string): Promise<string> {
+    const dll = join(scope, name, "node_modules", "@opentui", "core-win32-x64")
+    await mkdir(dll, { recursive: true })
+    await writeFile(join(dll, "opentui.dll"), "MZ")
+    return join(scope, name)
+  }
+
+  it("deletes a leftover retire dir before installing (Windows layout, no lib/)", async () => {
+    const base = join(env.home, "case-retire-win")
+    const { binDir, scope } = await windowsLayout(base)
+    const retired = await plantRetireDir(scope, ".rove-xsdjqHxL")
+    const legacy = await plantRetireDir(scope, ".kobe-gcMdoyQi")
+
+    const r = await runUpdateScript(base, binDir)
+    expect(r.code).toBe(0)
+    expect(existsSync(retired)).toBe(false)
+    expect(existsSync(legacy)).toBe(false)
+    // The live package is untouched and the install still goes through npm.
+    expect(existsSync(join(scope, "rove", "dist", "cli", "rove.js"))).toBe(true)
+    expect(r.log).toContain("npm install -g @sma1lboy/rove@latest")
+  })
+
+  it("deletes a leftover retire dir under a lib/node_modules prefix too", async () => {
+    const base = join(env.home, "case-retire-unix")
+    const prefix = join(base, "owning-prefix")
+    const scope = join(prefix, "lib", "node_modules", "@sma1lboy")
+    const pkgDir = join(scope, "rove", "dist", "cli")
+    await mkdir(pkgDir, { recursive: true })
+    const entry = join(pkgDir, "rove.js")
+    await writeFile(entry, `#!/bin/sh\necho "rove 9.9.9"\n`)
+    await chmod(entry, 0o755)
+    const retired = await plantRetireDir(scope, ".rove-abc12345")
+
+    const r = await runUpdateScript(base, join(prefix, "bin"), entry)
+    expect(r.code).toBe(0)
+    expect(existsSync(retired)).toBe(false)
+    expect(existsSync(entry)).toBe(true)
+  })
+
+  // The mapped-DLL case: the delete fails (Windows refuses to unlink a file
+  // a process has loaded), so the dir must be moved out of npm's way
+  // instead — a rename of a mapped file is allowed, and npm's deterministic
+  // retire path is free again.
+  it("moves a retire dir aside when it cannot be deleted", async () => {
+    const base = join(env.home, "case-retire-mapped")
+    const { binDir, scope } = await windowsLayout(base)
+    const retired = await plantRetireDir(scope, ".rove-xsdjqHxL")
+    // `rm` refuses anything under a retire dir; everything else (the
+    // script's own log cleanup) goes to the real rm.
+    const shims = join(base, "rm-shim")
+    await mkdir(shims, { recursive: true })
+    await writeFile(
+      join(shims, "rm"),
+      `#!/bin/sh\nfor a in "$@"; do case "$a" in *.rove-*) exit 1 ;; esac; done\nexec /bin/rm "$@"\n`,
+    )
+    await chmod(join(shims, "rm"), 0o755)
+
+    const r = await runUpdateScript(base, binDir, undefined, undefined, [shims])
+    expect(r.code).toBe(0)
+    expect(existsSync(retired)).toBe(false)
+    const aside = (await readdir(scope)).filter((name) => name.startsWith(".rove-xsdjqHxL.stale-"))
+    expect(aside).toHaveLength(1)
+    expect(existsSync(join(scope, aside[0] as string, "node_modules/@opentui/core-win32-x64/opentui.dll"))).toBe(true)
+    expect(r.log).toContain("npm install -g @sma1lboy/rove@latest")
+  })
+
+  it("a dir already moved aside is left alone when it still cannot be deleted", async () => {
+    const base = join(env.home, "case-retire-aside")
+    const { binDir, scope } = await windowsLayout(base)
+    const aside = await plantRetireDir(scope, ".rove-xsdjqHxL.stale-4242")
+    const shims = join(base, "rm-shim")
+    await mkdir(shims, { recursive: true })
+    await writeFile(
+      join(shims, "rm"),
+      `#!/bin/sh\nfor a in "$@"; do case "$a" in *.rove-*) exit 1 ;; esac; done\nexec /bin/rm "$@"\n`,
+    )
+    await chmod(join(shims, "rm"), 0o755)
+
+    const r = await runUpdateScript(base, binDir, undefined, undefined, [shims])
+    expect(r.code).toBe(0)
+    expect(existsSync(aside)).toBe(true)
+    expect((await readdir(scope)).filter((name) => name.startsWith(".rove-"))).toEqual([".rove-xsdjqHxL.stale-4242"])
+  })
+
+  it("names the running-Rove remedy when npm still dies with EBUSY", async () => {
+    const base = join(env.home, "case-ebusy")
+    const { binDir } = await windowsLayout(base)
+    const shims = join(base, "npm-shim")
+    await mkdir(shims, { recursive: true })
+    await writeFile(
+      join(shims, "npm"),
+      `#!/bin/sh\nif [ "$1" = "view" ]; then echo "9.9.9"; exit 0; fi\necho "npm error code EBUSY" >&2\necho "npm error EBUSY: resource busy or locked, copyfile 'opentui.dll'" >&2\nexit 1\n`,
+    )
+    await chmod(join(shims, "npm"), 0o755)
+
+    const r = await runUpdateScript(base, binDir, undefined, undefined, [shims])
+    expect(r.code).toBe(1)
+    expect(r.out).toContain("npm install failed")
+    expect(r.out).toContain("A running Rove is holding files in the old install")
+    expect(r.out).toContain("rove daemon stop")
   })
 })
