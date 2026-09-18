@@ -181,7 +181,8 @@ paths against `$PWD` (`~` expanded). `spawn-task` is an alias of `add`.
 Engines are chosen by COMMAND, not by a vendor enum: `--command` takes an
 engine id from `engine-list` (`claude`, `codex`, `copilot`, `kimi`, `pi`, `omp`, the shipped
 contrib engines whose CLI is installed — `gemini`, `opencode`, `cursor`,
-`grok`, `droid`, `amp` — plus any engine you registered) **or** a full command
+`grok`, `droid`, `amp`, `cline`, `kiro`, `maki`, `antigravity` — plus any
+engine you registered) **or** a full command
 line Rove runs verbatim
 (`--command "codex --search"`). Nothing validates an engine's flags, so probe
 an unfamiliar one with `<cmd> --help` before dispatching. See

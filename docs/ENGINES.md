@@ -44,7 +44,7 @@ all rather than a stale number.
 
 **Contrib engines are launch + badge only.** Rove ships a catalog of
 well-known coding CLIs (`gemini`, `opencode`, `cursor`, `grok`, `droid`,
-`amp`) so they appear in the engine selector whenever the binary is on your
+`amp`, `cline`, `kiro`, `maki`, `antigravity`) so they appear in the engine selector whenever the binary is on your
 PATH, with a proper name, a launch command, and screen-based activity
 badges. A catalog entry also declares how its CLI takes a first message:
 OpenCode's positional argument is a project directory, so Rove pastes the
