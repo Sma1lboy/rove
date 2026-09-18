@@ -19,10 +19,13 @@
  */
 
 import type { Task } from "@/types/task"
+import { useState } from "react"
 import type { MutableRefObject } from "react"
+import { SIDEBAR_COLLAPSED_KEY } from "../../state/sidebar-collapsed.ts"
 import type { TaskSortMode } from "../../tui/panes/sidebar/groups"
 import { sidebarWidthFor } from "../../tui/panes/sidebar/view-core"
 import type { FocusContextValue } from "../context/focus"
+import { useKV } from "../context/kv"
 import type { HostPagesState } from "./host-pages"
 import { HostSidebar } from "./host-sidebar"
 import type { WorkspaceTaskActions } from "./host-task-actions"
@@ -68,9 +71,23 @@ export interface HostSidebarMountProps {
 
 export function HostSidebarMount(props: HostSidebarMountProps) {
   const { actions, pages, focus, inbox, t } = props
+  const kv = useKV()
+  // Folded/unfolded is an intent, so it survives a restart the way zen does.
+  const [collapsed, setCollapsed] = useState(() => kv.get(SIDEBAR_COLLAPSED_KEY, false) === true)
   return (
     <HostSidebar
       width={props.showContent ? sidebarWidthFor(props.terminalWidth) : props.terminalWidth}
+      collapsed={collapsed}
+      onToggleCollapsed={() => {
+        const next = !collapsed
+        setCollapsed(next)
+        kv.set(SIDEBAR_COLLAPSED_KEY, next)
+        // Folding unmounts the tree, and the tree is what owns the sidebar's
+        // chords — leaving focus behind would strand the keyboard in a pane
+        // that answers nothing, with no chord to unfold it (the control is
+        // mouse-only for now). Zen hands focus off for the same reason.
+        if (next) focus.setFocused("workspace")
+      }}
       nav={pages.nav}
       onNavChange={pages.goToNav}
       tasks={props.tasks}

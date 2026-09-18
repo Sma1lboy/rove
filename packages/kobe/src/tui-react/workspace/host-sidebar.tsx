@@ -25,6 +25,7 @@ import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { SidebarTree } from "../panes/sidebar/SidebarTree"
+import { CollapsedRail, type CollapsedRailStyle, DEFAULT_COLLAPSED_RAIL_STYLE } from "../panes/sidebar/collapsed-rail"
 import type { SidebarTaskCallbacks } from "../panes/sidebar/types"
 import { closeTaskTab } from "./terminal-tabs-close"
 import { moveTaskTab } from "./terminal-tabs-move"
@@ -34,6 +35,12 @@ export interface HostSidebarProps
   extends Readonly<Required<Omit<SidebarTaskCallbacks, "onLandRequest">>>,
     Readonly<Pick<SidebarTaskCallbacks, "onLandRequest">> {
   readonly width: number
+  /** Is the rail folded to its strip? */
+  readonly collapsed?: boolean
+  /** Fold / unfold. Absent = the rail renders without the control. */
+  readonly onToggleCollapsed?: () => void
+  /** Which fold the strip renders; defaults to the jump digits. */
+  readonly collapsedStyle?: CollapsedRailStyle
   readonly nav: SidebarNav
   readonly onNavChange: (nav: SidebarNav) => void
   readonly tasks: readonly Task[]
@@ -109,6 +116,19 @@ export function HostSidebar(props: HostSidebarProps) {
     },
     [props.onActivate],
   )
+  if (props.collapsed) {
+    return (
+      <CollapsedRail
+        style={props.collapsedStyle ?? DEFAULT_COLLAPSED_RAIL_STYLE}
+        tasks={props.tasks}
+        selectedId={props.selectedId}
+        engineState={props.engineState}
+        taskJobs={props.taskJobs}
+        onSelect={props.onSelect}
+        onExpand={() => props.onToggleCollapsed?.()}
+      />
+    )
+  }
   return (
     <box
       width={props.width}
