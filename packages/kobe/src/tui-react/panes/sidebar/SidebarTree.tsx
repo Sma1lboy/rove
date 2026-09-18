@@ -28,6 +28,7 @@ import { useBindings } from "../../lib/keymap"
 import { useLatest } from "../../lib/use-latest"
 import { ContextMenu } from "../../ui/context-menu"
 import { SidebarBrandHeader, SidebarCreateAction, SidebarNavRail, SidebarSearchInput, SidebarZenChip } from "./chrome"
+import { CollapseButton } from "./collapse-button"
 import { SidebarTreeBody } from "./tree-panel"
 import type { TreeRowShared } from "./tree-row-shell"
 import type { SidebarProps } from "./types"
@@ -54,6 +55,8 @@ export type SidebarTreeProps = SidebarProps & {
   /** Filled with a reader of the task under the cursor, so the host's
    *  sidebar-scope chords (`b`/`v`/`o`) can target the highlighted row. */
   cursorTaskIdRef?: MutableRefObject<() => string | null>
+  /** Fold the rail away. Absent = the rail renders without the control. */
+  onToggleCollapsed?: () => void
 }
 
 export function SidebarTree(props: SidebarTreeProps) {
@@ -386,6 +389,7 @@ export function SidebarTree(props: SidebarTreeProps) {
         }}
       />
       {props.zenActive ? <SidebarZenChip onZenClick={props.onZenClick} /> : null}
+      {props.onToggleCollapsed ? <CollapseButton collapsed={false} onToggle={props.onToggleCollapsed} /> : null}
       {menu.open ? (
         <ContextMenu
           entries={menu.entries}
