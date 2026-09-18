@@ -22,6 +22,7 @@ import { AutomationsPage } from "../component/automations-page"
 import { KanbanPage } from "../component/kanban-page"
 import { SettingsDialog } from "../component/settings-dialog"
 import { UpdatePage } from "../component/update-page"
+import { WhatsNewPage } from "../component/whats-new-page"
 import { WorkItemsPage } from "../component/work-items-page"
 import { WorktreesPage } from "../component/worktrees-page"
 import type { FocusContextValue, PaneId } from "../context/focus"
@@ -35,6 +36,12 @@ interface HostPageState {
   readonly workItemsOpen: boolean
   readonly kanbanOpen: boolean
   readonly updateOpen: boolean
+  /**
+   * Version the user upgraded FROM when this launch owes them a What's New,
+   * else null. Not a boolean: the page needs the range to fetch, and "which
+   * range" and "is it open" are the same fact.
+   */
+  readonly whatsNewFrom: string | null
 }
 
 export interface HostPagesState extends HostPageState {
@@ -55,6 +62,7 @@ export interface HostPagesState extends HostPageState {
   readonly closeAutomations: () => void
   readonly openWorkItems: () => void
   readonly closeWorkItems: () => void
+  readonly closeWhatsNew: () => void
 }
 
 /**
@@ -72,7 +80,16 @@ export interface HostPagesState extends HostPageState {
  * through to the sidebar's new-task chord while the Automations page sat
  * there telling the user to press `n`.
  */
-export function useHostPagesState(focus: FocusContextValue): HostPagesState {
+export function useHostPagesState(
+  focus: FocusContextValue,
+  /**
+   * Resolved by the process entry point (`tui/index.tsx`), not read here:
+   * the decision touches `state.json`, and this hook mounts in the render
+   * track, where a stray write lands in the operator's real home.
+   */
+  opts: { whatsNewFrom?: string | null } = {},
+): HostPagesState {
+  const [whatsNewFrom, setWhatsNewFrom] = useState<string | null>(opts.whatsNewFrom ?? null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [worktreesOpen, setWorktreesOpen] = useState(false)
   const [updateOpen, setUpdateOpen] = useState(false)
@@ -100,6 +117,8 @@ export function useHostPagesState(focus: FocusContextValue): HostPagesState {
     automationsOpen: nav === "automations",
     openAutomations: () => goToNav("automations"),
     closeAutomations: () => goToNav("terminal"),
+    whatsNewFrom,
+    closeWhatsNew: () => setWhatsNewFrom(null),
     workItemsOpen: nav === "issues",
     openWorkItems: () => goToNav("issues"),
     closeWorkItems: () => goToNav("terminal"),
@@ -114,6 +133,7 @@ export interface HostPageDeps extends HostPageState {
   readonly closeWorkItems: () => void
   readonly closeKanban: () => void
   readonly closeUpdate: () => void
+  readonly closeWhatsNew: () => void
   readonly activateTask: (taskId: string) => void
   /** True while the content pane holds focus — rail pages share the window
    *  with the sidebar, so their bare keys are gated on it. */
@@ -128,6 +148,12 @@ export interface HostPageDeps extends HostPageState {
  * no task list to stay beside.
  */
 export function renderFullWindowPage(deps: HostPageDeps): ReactNode | null {
+  // First in the precedence order because it opens on boot, before any chord
+  // could have opened one of the others — and it is a single dismissal, not
+  // a surface the user navigates back to.
+  if (deps.whatsNewFrom !== null) {
+    return <WhatsNewPage from={deps.whatsNewFrom} onClose={deps.closeWhatsNew} />
+  }
   if (deps.worktreesOpen) {
     return <WorktreesPage orchestrator={deps.orchestrator} onClose={deps.closeWorktrees} />
   }
@@ -264,6 +290,8 @@ export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRe
       workItemsOpen: pages.workItemsOpen,
       kanbanOpen: pages.kanbanOpen,
       updateOpen: pages.updateOpen,
+      whatsNewFrom: pages.whatsNewFrom,
+      closeWhatsNew: pages.closeWhatsNew,
       closeWorktrees: pages.closeWorktrees,
       closeAutomations: pages.closeAutomations,
       closeWorkItems: pages.closeWorkItems,

@@ -71,6 +71,8 @@ const CLOSED_PAGES: HostPagesState = {
   workItemsOpen: false,
   openWorkItems: NOOP,
   closeWorkItems: NOOP,
+  whatsNewFrom: null,
+  closeWhatsNew: NOOP,
 }
 
 function WorkspaceHelpDriver(props: { showDialogTarget?: boolean; showFocusTarget?: boolean } = {}) {

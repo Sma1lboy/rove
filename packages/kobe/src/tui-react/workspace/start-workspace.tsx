@@ -21,7 +21,7 @@ import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { bootPaneHost } from "../lib/host-boot"
 import { WorkspaceRoot } from "./host"
 
-export async function startWorkspaceHost(): Promise<void> {
+export async function startWorkspaceHost(opts: { whatsNewFrom?: string | null } = {}): Promise<void> {
   await bootPaneHost({
     logContext: "workspace",
     providers: { kv: true, focus: true, notifications: true },
@@ -47,7 +47,7 @@ export async function startWorkspaceHost(): Promise<void> {
       machines.attach()
       setMachineHub(machines)
       return {
-        root: () => <WorkspaceRoot orchestrator={orchestrator} />,
+        root: () => <WorkspaceRoot orchestrator={orchestrator} whatsNewFrom={opts.whatsNewFrom ?? null} />,
         onDestroy: () => {
           setMachineHub(null)
           machines.dispose()

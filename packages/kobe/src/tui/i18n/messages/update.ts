@@ -36,6 +36,19 @@ export const en = {
     close: "Close",
     closeDetail: "return to the workspace",
   },
+  /**
+   * The once-per-upgrade first screen (`cli/whats-new.ts`). Only the chrome
+   * is translated — the note bodies come from the GitHub release and are
+   * published in English.
+   */
+  whatsNew: {
+    pageTitle: "WHAT'S NEW",
+    closeHint: "q / esc continue",
+    upgraded: "You're now on Rove v{to}, up from v{from}. Here's what changed.",
+    /** Offline, rate-limited, or a release with no published notes. */
+    notesUnavailable: "Could not load the release notes — check your connection, or read them on GitHub.",
+    sourceHint: "release notes: {url}",
+  },
   skew: {
     title: "⚠ DAEMON OUT OF DATE",
     olderBuild: "an older build",
@@ -103,6 +116,13 @@ export const zh: typeof en = {
     openRelease: "打开发布页",
     close: "关闭",
     closeDetail: "返回工作区",
+  },
+  whatsNew: {
+    pageTitle: "更新内容",
+    closeHint: "q / esc 继续",
+    upgraded: "Rove 已从 v{from} 更新到 v{to}，本次变更如下。",
+    notesUnavailable: "无法加载发布说明 —— 请检查网络连接，或到 GitHub 上查看。",
+    sourceHint: "发布说明：{url}",
   },
   skew: {
     title: "⚠ DAEMON 版本不一致",

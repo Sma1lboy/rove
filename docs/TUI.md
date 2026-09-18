@@ -548,6 +548,27 @@ shows that task's title on its detail line, and `enter` opens the task instead
 of creating a second one. Nothing is imported into the local issue store and
 nothing is written back to GitHub.
 
+## What's new after an upgrade
+
+The first launch on a newly installed version opens a **What's New** page
+listing the release notes for every version between the one you were running
+and the one you just started. `q`, `esc` or `ctrl+c` dismisses it, and it does
+not come back until the next upgrade — a relaunch on the same build goes
+straight to the workspace.
+
+A fresh install never sees it; there is no earlier version to have changed
+from. Neither does a downgrade.
+
+The page chrome follows your UI language (Settings → Appearance → Language).
+The release notes themselves are whatever was published to the
+[GitHub release](https://github.com/Sma1lboy/rove/releases), which today is
+English only. If GitHub is unreachable the page says so and shows the release
+URL instead — it never blocks startup, and it is dismissible before the notes
+finish loading.
+
+Rove remembers what it has shown in `app.whatsNewSeenVersion` in
+`~/.rove/state.json`. Deleting that key replays the page once.
+
 ## Updates and version warnings
 
 When a newer release is available, the sidebar shows an update affordance and

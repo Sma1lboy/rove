@@ -41,6 +41,8 @@ function pages(open?: OpenPage): HostPagesState {
     workItemsOpen: open === "workItemsOpen",
     openWorkItems: NOOP,
     closeWorkItems: NOOP,
+    whatsNewFrom: null,
+    closeWhatsNew: NOOP,
   }
 }
 
