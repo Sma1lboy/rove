@@ -147,13 +147,15 @@ export function keyEventToShellBytes(
     (seq != null && KITTY_CSI_U_RE.test(seq))
   if (seq != null && !kittyInput) return seq
   // Kitty wire, but the parser already extracted the typed TEXT into
-  // `sequence` (shift+z → "Z", shift+1 → "!"). With no ctrl/alt/meta a
+  // `sequence` (shift+z → "Z", shift+1 → "!"). With no ctrl/alt/meta/super a
   // printable single char IS the byte to type — synthesis would drop the
   // shift and forward lowercase (measured: Shift+Z typed "z" on kitty
   // terminals). ctrl chords keep synthesizing (ctrl+c carries sequence
   // "c", which lies), and control chars like "\t" (shift+tab) fall
-  // through so the back-tab CSI still wins.
-  if (seq != null && !containsControlCharacter(seq) && !evt.ctrl && !e.option && !e.meta) return seq
+  // through so the back-tab CSI still wins. `super` (the macOS Command key)
+  // lies the same way ctrl does — Cmd+C also carries sequence "c" — so it
+  // must fall through to synthesis, which drops it rather than typing it.
+  if (seq != null && !containsControlCharacter(seq) && !evt.ctrl && !e.option && !e.meta && !evt.super) return seq
   return synthesizeShellBytes(evt, modes)
 }
 
@@ -231,6 +233,11 @@ function synthesizeShellBytes(evt: KeyEvent, modes: TerminalInputModes): string 
           // Unknown ctrl chord: dropping beats typing a stray literal.
           return null
         }
+        // Command/Win held (kitty `super`): no terminal encodes cmd+<char>
+        // as a byte, and the emulator normally keeps the chord for itself.
+        // Dropping is the only correct answer — falling through typed the
+        // bare letter, which is what made Cmd+C insert a literal "c".
+        if (evt.super) return null
         // Synthetic shifted letter (no sequence to forward): type the
         // uppercase form, not the lowercase key name.
         if (evt.shift && name >= "a" && name <= "z") return name.toUpperCase()
@@ -239,6 +246,25 @@ function synthesizeShellBytes(evt: KeyEvent, modes: TerminalInputModes): string 
       return null
   }
 }
+
+/**
+ * Chords that copy the terminal selection to the system clipboard.
+ *
+ * `cmd+c` is the macOS platform copy chord — RESTORING it is a fix, not a new
+ * binding: before this existed the Command key (kitty modifier `super`) was
+ * invisible to `matchKey`, so Cmd+C fell through to the passthrough table as
+ * the bare chord `c` and typed a literal "c" into the session.
+ *
+ * `ctrl+shift+c` is the unconditional copy chord — the terminal-emulator
+ * convention on Linux/Windows, where plain ctrl+c has to stay available as
+ * SIGINT. It is only expressible on kitty-protocol terminals (a legacy
+ * terminal sends ctrl+shift+c and ctrl+c as the same C0 byte and reports no
+ * shift), so `matchKey` mints it there alone.
+ *
+ * PROPOSED, pending owner sign-off per AGENTS.md — `ctrl+shift+c` is a NEW
+ * chord. `cmd+c` is the platform's own behavior being handed back.
+ */
+export const COPY_CHORDS: readonly string[] = ["cmd+c", "ctrl+shift+c"]
 
 /**
  * Lines per page for `ctrl+pgup` / `ctrl+pgdown` when the consumer

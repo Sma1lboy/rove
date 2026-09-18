@@ -52,6 +52,7 @@ function TerminalInput(props: { writes: string[] }) {
     paste: NOOP,
     scroll: NOOP,
     reset: NOOP,
+    copySelection: () => false,
     searchActive: false,
     openSearch: NOOP,
     stepSearch: NOOP,

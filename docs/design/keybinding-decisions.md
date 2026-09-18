@@ -659,6 +659,36 @@ the answer: Settings → Dev → **Restart backend** performs the identical acti
 so dropping the chord costs the banner its one-keypress affordance and nothing
 else.
 
+## Terminal copy: `ctrl+c`, `cmd+c`, `ctrl+shift+c`
+
+**`cmd+c` is a fix, not a new chord.** macOS Command arrives over the kitty
+keyboard protocol as `super` (modifier bit 8), never as `meta` (bit 32).
+`matchKey` read only `meta`, so `super` was invisible to every layer: `cmd+c`
+degraded to the bare chord `c`, matched the terminal passthrough table, and
+typed a literal `c` into the session. The same hole made every other `cmd+…`
+chord dead on macOS and made `cmd+v` type a literal `v`. Reading `super` as
+`cmd+` restores the platform's own behaviour; the encoder now drops a
+`super`-modified character instead of typing it, which is what closes the
+whole class rather than the one key that was reported.
+
+**`ctrl+c` selection-awareness is a fix too.** Copy-when-selected already
+existed but was gated on `process.platform === "win32"`. The condition that
+actually matters is "a selection exists": Rove draws the selection itself, so
+no emulator on any OS knows to claim the chord first. Dropping the platform
+gate is what fixes macOS and Linux interrupting the engine with text
+highlighted. SIGINT stays reachable because copying clears the selection.
+
+**`ctrl+shift+c` is PROPOSED and needs the owner's sign-off.** It is the
+terminal-emulator convention for unconditional copy, and it is the only one of
+the three that is genuinely new. It is only expressible on kitty-protocol
+terminals — a legacy terminal reports no shift and sends the same C0 byte as
+`ctrl+c` — so `matchKey` mints `ctrl+shift+<char>` as a higher-precedence
+candidate ahead of the unshifted form for kitty-sourced events only, and every
+legacy terminal keeps matching `ctrl+c` unchanged. If the owner would rather
+not spend the chord, deleting it from `COPY_CHORDS`
+(`tui/panes/terminal/keys-pure.ts`) removes it and nothing else regresses:
+selection-aware `ctrl+c` and `cmd+c` both keep working.
+
 ## Adding or moving a chord
 
 Get owner sign-off on direct versus prefix placement, the selected key, and

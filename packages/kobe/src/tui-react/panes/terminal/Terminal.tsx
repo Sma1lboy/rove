@@ -275,19 +275,37 @@ function TerminalSession(props: TerminalProps) {
     dialog,
   })
 
+  /**
+   * Copy the live selection, then drop it. Returns false when there was no
+   * selection — the signal that ctrl+c must go through as SIGINT.
+   *
+   * The rule is "a selection exists", NOT "which platform": Rove draws the
+   * selection itself, so no terminal emulator on any OS knows it is there to
+   * claim the chord first. This used to be gated on win32, which left macOS
+   * and Linux interrupting the engine while text sat highlighted.
+   */
+  const copySelectionIfAny = (): boolean => {
+    if (!selection.selection) return false
+    selection.copySelection()
+    selection.endDragging()
+    selection.clearSelection()
+    return true
+  }
+
   useTerminalBindings({
     focused,
     // TerminalSplit explicitly assigns IME ownership to its active leaf.
     // Require that explicit signal here so standalone/future mounts fail closed.
     unfocusedAttachmentTarget,
     inputModes: () => pty?.inputModes() ?? { applicationCursorKeys: false, applicationKeypad: false },
+    copySelection: copySelectionIfAny,
     write: (data) => {
-      if (process.platform === "win32" && data === "\x03" && selection.selection) {
-        selection.copySelection()
-        selection.endDragging()
-        selection.clearSelection()
-        return
-      }
+      // Selection-aware ctrl+c: copy when something is highlighted, interrupt
+      // when nothing is. Intercepted here rather than as a binding because
+      // BOTH input paths (the passthrough table and the raw catch-all
+      // forwarder) funnel through `write`, so this is the one choke point the
+      // interrupt byte cannot get past.
+      if (data === "\x03" && copySelectionIfAny()) return
       if (!pty || pty.killed) return
       pty.write(data)
       // Engine tabs feed the optimistic sidebar-activity overlay: the

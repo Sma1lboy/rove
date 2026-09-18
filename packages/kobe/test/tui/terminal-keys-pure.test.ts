@@ -16,6 +16,20 @@ function evt(partial: Partial<KeyEvent> & { name: string }): KeyEvent {
 }
 
 describe("keyEventToShellBytes", () => {
+  // macOS Command is the kitty `super` modifier (bit 8), NOT `meta` (bit 32).
+  // It produces no terminal byte on any platform, so it must be DROPPED —
+  // returning the bare letter is what typed a literal "c" on Cmd+C. The
+  // binding layer only claims `cmd+c`, so every other cmd chord (Cmd+V,
+  // Cmd+A) reaches this encoder and relies on it alone.
+  it.each(["c", "v", "a", "k"])("drops cmd+%s instead of typing the bare letter", (name) => {
+    const kitty = { name, sequence: name, raw: `\x1b[${name.codePointAt(0)};9u`, super: true, source: "kitty" }
+    expect(keyEventToShellBytes(evt(kitty as never))).toBeNull()
+  })
+
+  it("still types the plain letter when Command is not held", () => {
+    expect(keyEventToShellBytes(evt({ name: "c", sequence: "c" } as never))).toBe("c")
+  })
+
   it.each([
     "leftshift",
     "leftctrl",
