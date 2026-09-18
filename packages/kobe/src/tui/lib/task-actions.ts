@@ -56,6 +56,20 @@ export interface TextPromptOpts {
  * host divergence — modeled here as an option/hook so neither host keeps
  * its own copy of a flow.
  */
+/** What {@link TaskActionContext.pickEngine} is asked, and what it answers. */
+export interface EnginePickOpts {
+  readonly engines: readonly VendorId[]
+  readonly current: VendorId
+  readonly currentEffort?: string
+  readonly currentModel?: string
+}
+export interface EnginePick {
+  readonly vendor: VendorId
+  /** Absent = the engine declares none; `""` = clear it. Same for `model`. */
+  readonly effort?: string
+  readonly model?: string
+}
+
 export interface TaskActionContext {
   /**
    * Daemon-backed mutation surface. `null` only in the Tasks pane's
@@ -77,6 +91,12 @@ export interface TaskActionContext {
    * dialog it never opens. Resolves `undefined` on cancel, like `promptText`.
    */
   readonly pickStatus?: (current: TaskStatus) => Promise<TaskStatus | undefined>
+  /**
+   * DIVERGENCE — the change-engine picker behind {@link pickVendorFlow}
+   * (engine list + effort chips + model input). Optional for the same reason
+   * as `pickStatus`; host implements with `EnginePickerDialog.show(dialog, …)`.
+   */
+  readonly pickEngine?: (opts: EnginePickOpts) => Promise<EnginePick | undefined>
   /**
    * DIVERGENCE — system-clipboard writer behind {@link copyTaskFieldFlow}.
    * Optional for the same reason as `pickStatus`: only the workspace host has
@@ -359,6 +379,30 @@ export async function applyVendorChange(
   // like a no-op.
   if (!opts.silentSuccess) ctx.notifyInfo?.(t("tasks.toast.engineSwitched", { engine: engineDisplayName(next) }))
   return true
+}
+
+/**
+ * The row menu's "Change engine": open the picker on the task's current
+ * engine, level and model, and persist what comes back. Not `pick.vendor ===
+ * current` alone — re-picking the same engine at a different level or model
+ * is a real change, which that comparison would swallow.
+ */
+export async function pickVendorFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
+  const task = ctx.tasks().find((t) => t.id === taskId)
+  if (!task || !ctx.pickEngine) return
+  const current = task.vendor ?? DEFAULT_TASK_VENDOR
+  const engines = await availableEngineIds()
+  const pick = await ctx.pickEngine({
+    engines: engines.length > 0 ? engines : [current],
+    current,
+    currentEffort: task.modelEffort,
+    currentModel: task.model,
+  })
+  if (!pick) return
+  const sameEffort = pick.effort === undefined || pick.effort === (task.modelEffort ?? "")
+  const sameModel = pick.model === undefined || pick.model === (task.model ?? "")
+  if (pick.vendor === current && sameEffort && sameModel) return
+  await applyVendorChange(ctx, taskId, pick.vendor, { effort: pick.effort, model: pick.model })
 }
 
 export async function cycleVendorFlow(ctx: TaskActionContext, taskId: string): Promise<void> {

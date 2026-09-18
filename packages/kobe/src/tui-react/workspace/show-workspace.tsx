@@ -131,7 +131,6 @@ export function ShowWorkspace(props: {
       })}
       vendor={props.task?.vendor ?? DEFAULT_TASK_VENDOR}
       modelEffort={props.task?.modelEffort}
-      model={props.task?.model}
       onChooseEngine={
         props.task
           ? (vendor) => {

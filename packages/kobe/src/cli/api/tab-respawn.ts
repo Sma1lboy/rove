@@ -95,7 +95,10 @@ export function restoredTabLaunch(
     command: tab.engineCommand ?? (tab.vendor ? undefined : task.command),
     vendor: tab.vendor ?? task.vendor,
     effort: task.modelEffort,
-    model: task.model,
+    // A tab pinned to its own engine never inherits the task's model — the
+    // same rule `send --tab new --command` applies: a claude alias handed to
+    // a codex tab kills its launch, and an undeclared effort merely drops.
+    model: tab.engineCommand || tab.vendor ? undefined : task.model,
   })
   return buildEngineSessionLaunch({
     task: { id: task.id, kind: (task.kind as "task") ?? "task", vendor: tab.vendor ?? task.vendor, repo: task.repo },

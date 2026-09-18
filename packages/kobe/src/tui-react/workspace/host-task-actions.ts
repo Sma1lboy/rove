@@ -17,7 +17,6 @@
 import { userFacingErrorMessage } from "@/lib/error-message"
 import { useRenderer } from "@opentui/react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
-import { availableEngineIds } from "../../engine/account-detect"
 import { t } from "../../tui/i18n"
 import { copyTextToSystemClipboard } from "../../tui/lib/clipboard-copy"
 import {
@@ -25,11 +24,12 @@ import {
   copyTaskFieldFlow,
   cycleVendorFlow,
   deleteTaskFlow,
+  pickVendorFlow,
   renameTaskFlow,
   setStatusFlow,
 } from "../../tui/lib/task-actions"
 import { type CreateTaskContext, createTaskFlow } from "../../tui/lib/task-create-flow"
-import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "../../types/task.ts"
+import type { Task, VendorId } from "../../types/task.ts"
 import { BranchPickerDialog } from "../component/branch-picker-dialog"
 import { EnginePickerDialog } from "../component/engine-picker-dialog"
 import { FieldNotesDialog } from "../component/field-notes-dialog"
@@ -114,6 +114,8 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     // The set-status picker, supplied as an adapter so `setStatusFlow` stays
     // opentui-free like every other flow (task-actions.ts's testability rule).
     pickStatus: (current) => StatusPickerDialog.show(dialog, { current }),
+    // The change-engine picker, supplied the same way for `pickVendorFlow`.
+    pickEngine: (opts) => EnginePickerDialog.show(dialog, opts),
     // The clipboard writer, supplied the same way: both channels the terminal
     // pane's copy-on-select uses (local pbcopy-style pipe + OSC52 through the
     // renderer, which is the half that reaches the user's machine over SSH).
@@ -173,27 +175,6 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     return ok === true ? task : undefined
   }
 
-  async function pickVendor(id: string): Promise<void> {
-    const task = tasks().find((t) => t.id === id)
-    if (!task) return
-    const current = task.vendor ?? DEFAULT_TASK_VENDOR
-    const engines = await availableEngineIds()
-    const pick = await EnginePickerDialog.show(dialog, {
-      engines: engines.length > 0 ? engines : [current],
-      current,
-      currentEffort: task.modelEffort,
-      currentModel: task.model,
-    })
-    if (!pick) return
-    // Not `pick.vendor === current` — re-picking the same engine at a
-    // different reasoning level or model is a real change, which that
-    // comparison would swallow.
-    const sameEffort = pick.effort === undefined || pick.effort === (task.modelEffort ?? "")
-    const sameModel = pick.model === undefined || pick.model === (task.model ?? "")
-    if (pick.vendor === current && sameEffort && sameModel) return
-    await applyVendorChange(taskActions, id, pick.vendor, { effort: pick.effort, model: pick.model })
-  }
-
   // Row menu "Land into base branch". The land itself is shared with the
   // Worktrees page (`land-task-action.ts`); this is only the host's dialog,
   // toasts and row lookup — the same division `pickVendor` follows.
@@ -239,7 +220,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     renameTask: (id) => renameTaskFlow(taskActions, id),
     renameBranch,
     cycleVendor: (id) => cycleVendorFlow(taskActions, id),
-    pickVendor,
+    pickVendor: (id) => pickVendorFlow(taskActions, id),
     // The ctrl+e picker's engine pick. Silent on success: the tab it just
     // opened IS the new engine, so a toast saying the change "applies on
     // reopen" would contradict what the user is looking at. Failures
