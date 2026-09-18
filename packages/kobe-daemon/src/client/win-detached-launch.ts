@@ -112,11 +112,17 @@ function quoteWindowsArg(arg: string): string {
   return `${out}${"\\".repeat(backslashes * 2)}"`
 }
 
-/** `powershell.exe` by absolute path — PATH is not guaranteed under a PTY. */
-export function windowsPowershellPath(env: NodeJS.ProcessEnv = process.env): string {
+/** `powershell.exe` by absolute path — PATH is not guaranteed under a PTY.
+ *  `exists` is injectable for the same reason {@link resolveNodePtyHostSpawn}'s
+ *  is: these branches only ever execute on Windows, so a test has to be able
+ *  to answer the disk question without a Windows runner. */
+export function windowsPowershellPath(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+  exists: (path: string) => boolean = existsSync,
+): string {
   const root = env.SystemRoot || env.windir || "C:\\Windows"
   const absolute = join(root, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
-  return existsSync(absolute) ? absolute : "powershell.exe"
+  return exists(absolute) ? absolute : "powershell.exe"
 }
 
 /** PowerShell's `-EncodedCommand` wants the script as base64 UTF-16LE. */

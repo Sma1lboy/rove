@@ -6,6 +6,7 @@
  * not this module, so unit tests never open PTY Host or git processes.
  */
 
+import { resolveLoginShell } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 import type { PtySessionExit } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets.ts"
 
@@ -93,7 +94,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
         // reviving a tab a pty-host restart froze.
         ...(target.respawn
           ? {
-              respawn: () => restoredTabLaunch(target, tabId, worktree, process.env.SHELL?.trim() || "/bin/zsh"),
+              respawn: () => restoredTabLaunch(target, tabId, worktree, resolveLoginShell({ fallback: "/bin/zsh" })),
             }
           : {}),
       })
@@ -121,7 +122,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
     const launch = buildEngineSessionLaunch({
       task: { id: target.id, kind: target.kind, vendor: launchVendor, repo: target.repo },
       worktreePath: worktree,
-      shell: process.env.SHELL?.trim() || "/bin/zsh",
+      shell: resolveLoginShell({ fallback: "/bin/zsh" }),
       argv,
       promptIntent: target.newTask ? { kind: "new-task", prompt } : { kind: "explicit", prompt },
       tabId: newTab,
