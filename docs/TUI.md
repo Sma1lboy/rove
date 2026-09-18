@@ -395,8 +395,15 @@ left arrow to return to the section list, and `enter` to activate a row.
   outdated hooks for every engine at once; Rove also runs that install on
   every launch, so the row is for engines that arrived after Rove started.
 - **Plugins** enables or disables registered plugins live and edits settings
-  declared by their manifests. Install, update, link and remove plugins from
-  the shell.
+  declared by their manifests. Update, link and remove plugins from the shell.
+- **Marketplace** lists plugins published under the `rove-plugin` topic on
+  GitHub, most-starred first, and installs one without leaving the TUI.
+  `enter` on a row clones the repo and shows what it declares — every build
+  command, startup hook, action and event handler — and installs only after
+  you confirm; nothing the plugin authored runs before that. A row already in
+  the registry is tagged `installed` and refuses a second copy. The listing is
+  re-queried each time you open the section, which is also how you retry after
+  GitHub was unreachable (it falls back to the first-party plugins).
 - **Keybindings** shows the active prefix, loaded YAML overrides and warnings.
   Edit the displayed YAML path; changes reload live.
 - **Feedback** submits a GitHub Discussion through an authenticated `gh` CLI.

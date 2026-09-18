@@ -6,7 +6,7 @@
  * with its live prefix/timeout values.
  */
 
-import { describe, expect, it } from "bun:test"
+import { afterAll, beforeAll, describe, expect, it } from "bun:test"
 import { mkdtempSync, readFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -23,6 +23,19 @@ function Driver() {
 }
 
 describe("SettingsDialog", () => {
+  // Marketplace queries GitHub the moment it is opened, and every test here
+  // that walks past that section would otherwise make a real request.
+  const realFetch = globalThis.fetch
+  beforeAll(() => {
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({ items: [{ full_name: "you/rove-demo", description: "a demo", stargazers_count: 7 }] }),
+    })) as unknown as typeof fetch
+  })
+  afterAll(() => {
+    globalThis.fetch = realFetch
+  })
+
   it("walks every section with the real j chord and renders each body", async () => {
     process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-settings-"))
     const { frame, mockInput } = await renderComponent(<Driver />, {
@@ -50,6 +63,11 @@ describe("SettingsDialog", () => {
     expect(text).toMatch(/\[x\]/) // the on/off switch column
     text = await press("j") // → Plugins
     expect(text).toContain("No plugins registered")
+    text = await press("j") // → Marketplace
+    await settle(120)
+    text = await frame()
+    expect(text).toContain("you/rove-demo")
+    expect(text).toContain("★7")
     text = await press("j") // → Keybindings
     expect(text).toContain("Command layer (ctrl+a)")
     expect(text).toContain("5000ms second-stroke window")
@@ -74,7 +92,8 @@ describe("SettingsDialog", () => {
       providers: { kv: true, dialog: true },
     })
 
-    for (let i = 0; i < 3; i++) {
+    // General → Engines → Plugins → Marketplace → Keybindings.
+    for (let i = 0; i < 4; i++) {
       act(() => mockInput.pressKey("j"))
       await settle()
     }

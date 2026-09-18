@@ -52,6 +52,7 @@ function input(overrides: Partial<SettingsRowsInput> = {}): SettingsRowsInput {
       { id: "example.notify", settingKeys: ["KOBE_NOTIFY_SOUND"] },
       { id: "acme.layout", settingKeys: [] },
     ],
+    marketplace: ["Sma1lboy/kobe-plugins/notify", "you/rove-thing"],
     hasDaemon: true,
     keybindingsFileExists: true,
     ...overrides,
@@ -203,6 +204,8 @@ describe("sectionRows / bodyRowCount", () => {
     expect(bodyRowCount("general", inp)).toBe(12 + LANG + 1 + 3 + 15) // themes + langs + transparent + accents + retained general rows
     expect(bodyRowCount("engines", inp)).toBe(ALL_VENDORS.length + 2 + 2) // 6 built-ins + 2 custom + add + install
     expect(bodyRowCount("keys", inp)).toBe(2)
+    expect(bodyRowCount("marketplace", inp)).toBe(2)
+    expect(bodyRowCount("marketplace", { ...inp, marketplace: [] })).toBe(0)
     expect(bodyRowCount("feedback", inp)).toBe(3)
     // reset + restart + 3 experimental toggles; one fewer without a daemon.
     expect(bodyRowCount("dev", inp)).toBe(5)

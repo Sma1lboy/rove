@@ -14,6 +14,7 @@
  */
 
 import { en as engineCard, zh as engineCardZh } from "./settings-engines"
+import { en as pluginsEn, zh as pluginsZh } from "./settings-plugins"
 
 export const en = {
   title: "Settings",
@@ -26,6 +27,7 @@ export const en = {
     general: "General",
     engines: "Engines",
     plugins: "Plugins",
+    marketplace: "Marketplace",
     keys: "Keybindings",
     feedback: "Feedback",
     dev: "Dev",
@@ -155,29 +157,7 @@ export const en = {
     failedBody: "{file} could not be written ({keys}) — the change applies to this session only.",
   },
   ...engineCard,
-  plugins: {
-    title: "Plugins",
-    hint: "Plugins registered in ~/.rove/plugins.json. enter (or click) toggles one on or off — the daemon watches the file, so the change applies live. Rows indented under a plugin are the settings it declares; enter edits one, and the value reaches the plugin on its next run. Install and remove them from the shell: `rove plugin install <owner/repo>`, `rove plugin link <dir>`.",
-    empty:
-      "No plugins registered. Install one with `rove plugin install <owner/repo>` — browse the `rove-plugin` topic on GitHub.",
-    sourceLink: "linked {path}",
-    sourceGithub: "{spec}",
-    updateAvailable: "update available — rove plugin update",
-    declares: "{actions} actions · {events} events · {panes} panes",
-    declaresWithEngines: "{actions} actions · {events} events · {panes} panes · {engines} engines",
-    manifestUnreadable: "manifest unreadable",
-    unsupportedPlatform: "· not supported on this platform",
-    noHooks: "· no hooks declared",
-    lastRun: "· last run {label} {status} {ago} ago",
-    neverRun: "· never run",
-    runOk: "ok",
-    runRunning: "still running",
-    runFailed: "failed to start",
-    runExit: "exit {code}",
-    settingUnset: "(unset — enter to edit)",
-    settingInvalidTitle: "Not a number",
-    settingInvalidBody: "{label} only accepts a number. Keeping the previous value.",
-  },
+  ...pluginsEn,
   keybindings: {
     title: "Keybindings",
     hint: "Rebind direct and prefix chords in your own YAML file; changes reload live. Press F1 anywhere for the live keymap with every binding id.",
@@ -249,6 +229,7 @@ export const zh: typeof en = {
     general: "通用",
     engines: "引擎",
     plugins: "插件",
+    marketplace: "插件市场",
     keys: "快捷键",
     feedback: "反馈",
     dev: "开发",
@@ -361,29 +342,7 @@ export const zh: typeof en = {
     failedBody: "{file} 写入失败（{keys}）—— 改动只在本次会话生效。",
   },
   ...engineCardZh,
-  plugins: {
-    title: "插件",
-    hint: "在 ~/.rove/plugins.json 里注册的插件。enter（或点击）切换启用/禁用——daemon 监听该文件，改动实时生效。插件下方缩进的行是它声明的设置项，enter 编辑，新值在插件下次运行时生效。安装与移除在 shell 里做：`rove plugin install <owner/repo>`、`rove plugin link <dir>`。",
-    empty:
-      "尚未注册任何插件。用 `rove plugin install <owner/repo>` 安装一个——可在 GitHub 的 `rove-plugin` 话题下浏览。",
-    sourceLink: "本地链接 {path}",
-    sourceGithub: "{spec}",
-    updateAvailable: "有新版本 — rove plugin update",
-    declares: "{actions} 个动作 · {events} 个事件 · {panes} 个面板",
-    declaresWithEngines: "{actions} 个动作 · {events} 个事件 · {panes} 个面板 · {engines} 个引擎",
-    manifestUnreadable: "manifest 无法解析",
-    unsupportedPlatform: "· 不支持当前平台",
-    noHooks: "· 未声明钩子",
-    lastRun: "· 上次运行 {label} {status} {ago}前",
-    neverRun: "· 尚未运行过",
-    runOk: "成功",
-    runRunning: "仍在运行",
-    runFailed: "启动失败",
-    runExit: "退出码 {code}",
-    settingUnset: "(未设置 — enter 编辑)",
-    settingInvalidTitle: "不是数字",
-    settingInvalidBody: "{label} 只接受数字，保留原值。",
-  },
+  ...pluginsZh,
   keybindings: {
     title: "快捷键",
     hint: "在你自己的 YAML 文件里重绑定直接按键和 prefix 组合；修改会实时加载。任意位置按 F1 查看带每个绑定 id 的实时键位表。",

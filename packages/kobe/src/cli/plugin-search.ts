@@ -1,8 +1,11 @@
 /**
- * `kobe plugin search [query]` — browse the marketplace from the CLI.
+ * The plugin marketplace: the canonical GitHub topic `rove-plugin`, unioned
+ * with the legacy `kobe-plugin` topic so existing publishers stay
+ * discoverable, plus a hard-coded first-party list that doubles as the
+ * offline fallback.
  *
- * The marketplace is the canonical GitHub topic `rove-plugin`, unioned with
- * the legacy `kobe-plugin` topic so existing publishers remain discoverable.
+ * `fetchMarketplace` is the data layer (also used by Settings → Marketplace);
+ * `searchMarketplace` is `rove plugin search`'s printer on top of it.
  */
 
 import { activeCliName } from "./rename-compat.ts"
@@ -20,11 +23,17 @@ const FIRST_PARTY: readonly { ref: string; desc: string }[] = [
   { ref: "Sma1lboy/kobe-plugins/browser", desc: "Chromium rendered as terminal cells (carbonyl) in a pane tab" },
 ]
 
-interface MarketEntry {
+export interface MarketEntry {
   readonly ref: string
   readonly desc: string
   readonly stars?: number
   readonly firstParty?: boolean
+}
+
+export interface MarketplaceResult {
+  readonly entries: readonly MarketEntry[]
+  /** Both topic searches failed — `entries` is the first-party list only. */
+  readonly offline: boolean
 }
 
 async function fetchTopic(topic: string, query: string | undefined): Promise<MarketEntry[] | null> {
@@ -51,15 +60,28 @@ async function fetchTopic(topic: string, query: string | undefined): Promise<Mar
   }
 }
 
-export async function searchMarketplace(query: string | undefined): Promise<void> {
+/**
+ * Both topics plus the first-party seeds, de-duplicated by repo ref. Never
+ * rejects: an unreachable GitHub returns the seeds with `offline: true`, so
+ * a caller with no error surface (the TUI section) still has something to
+ * render.
+ */
+export async function fetchMarketplace(query?: string): Promise<MarketplaceResult> {
   const topicResults = await Promise.all([fetchTopic("rove-plugin", query), fetchTopic("kobe-plugin", query)])
   const lower = query?.toLowerCase()
   const seeds = FIRST_PARTY.filter((s) => !lower || `${s.ref} ${s.desc}`.toLowerCase().includes(lower)).map((s) => ({
     ...s,
     firstParty: true,
   }))
-  const entries = dedupeEntries([...seeds, ...topicResults.flatMap((result) => result ?? [])])
-  if (topicResults.every((result) => result === null)) {
+  return {
+    entries: dedupeEntries([...seeds, ...topicResults.flatMap((result) => result ?? [])]),
+    offline: topicResults.every((result) => result === null),
+  }
+}
+
+export async function searchMarketplace(query: string | undefined): Promise<void> {
+  const { entries, offline } = await fetchMarketplace(query)
+  if (offline) {
     console.error("(GitHub search unreachable — showing first-party plugins only)")
   }
   if (entries.length === 0) {

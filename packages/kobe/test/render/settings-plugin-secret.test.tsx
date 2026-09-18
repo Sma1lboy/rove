@@ -9,7 +9,7 @@
  * value — otherwise "masked" could just mean "this section renders nothing".
  */
 
-import { afterEach, expect, test } from "bun:test"
+import { afterAll, afterEach, beforeAll, expect, test } from "bun:test"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -28,6 +28,17 @@ const NOOP = (): void => {}
 // one bun process), so restore it rather than leaking a plugin fixture into
 // suites that expect the real home.
 const REAL_HOME_DIR = process.env.KOBE_HOME_DIR
+
+// Walking up to Plugins passes THROUGH Marketplace, which queries GitHub the
+// moment it mounts. Stubbed so this file never reaches the network for a
+// section it only transits.
+const REAL_FETCH = globalThis.fetch
+beforeAll(() => {
+  globalThis.fetch = (async () => ({ ok: true, json: async () => ({ items: [] }) })) as unknown as typeof fetch
+})
+afterAll(() => {
+  globalThis.fetch = REAL_FETCH
+})
 afterEach(() => {
   if (REAL_HOME_DIR !== undefined) {
     process.env.KOBE_HOME_DIR = REAL_HOME_DIR
@@ -96,9 +107,10 @@ test("the secret's value never reaches the frame, while a plain row still shows 
     height: 40,
     providers: { kv: true, dialog: true },
   })
-  // Walk UP to Plugins (general → dev → feedback → keys → plugins): stepping
-  // DOWN crosses Engines, which renders real engine accounts.
-  for (const key of ["k", "k", "k", "k"]) {
+  // Walk UP to Plugins (general → dev → feedback → keys → marketplace →
+  // plugins): stepping DOWN crosses Engines, which renders real engine
+  // accounts.
+  for (const key of ["k", "k", "k", "k", "k"]) {
     act(() => mockInput.pressKey(key))
     await settle()
   }
@@ -159,7 +171,7 @@ async function activateSecretRow(
   mockMouse: { click: (x: number, y: number) => Promise<void> },
   frame: () => Promise<string>,
 ): Promise<void> {
-  for (const key of ["k", "k", "k", "k", "l"]) {
+  for (const key of ["k", "k", "k", "k", "k", "l"]) {
     act(() => mockInput.pressKey(key))
     await settle()
   }
