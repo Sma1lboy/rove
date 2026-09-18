@@ -167,19 +167,11 @@ async function startOwnedServer(
 
   // Daemon-owned durable stores + the per-task teardown runner — CREATED in
   // stores.ts, wired together here; see initDaemonStores.
-  const {
-    activity,
-    inbox,
-    agentTurns,
-    deletions,
-    issues,
-    notes,
-    automations,
-    workItems,
-    quotaUsage,
-    engineEvents,
-    rowTokens,
-  } = await initDaemonStores(orch, runtime, bus, options.homeDir)
+  // Spread wholesale into the handler context below: `DaemonStores` IS the
+  // store half of `DaemonHandlerContext`, so naming each one twice only
+  // created a third place to forget a new store.
+  const stores = await initDaemonStores(orch, runtime, bus, options.homeDir)
+  const { activity, deletions, rowTokens, automations, quotaUsage, inbox } = stores
   resources.defer(() => activity.close())
   resources.defer(() => rowTokens.close())
   resources.defer(() => deletions.drain())
@@ -397,18 +389,8 @@ async function startOwnedServer(
       orch,
       runtime,
       bus,
-      activity,
-      inbox,
-      agentTurns,
-      deletions,
-      issues,
-      notes,
-      automations,
-      workItems,
+      ...stores,
       selfLink,
-      quotaUsage,
-      engineEvents,
-      rowTokens,
       ...(pluginHost ? { plugins: pluginHost } : {}),
       prompts,
       tabCloses,
