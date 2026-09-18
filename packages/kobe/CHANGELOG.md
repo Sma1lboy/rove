@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.9.205
+
+### Patch Changes
+
+- [#1032](https://github.com/Sma1lboy/rove/pull/1032) [`0b99a4c`](https://github.com/Sma1lboy/rove/commit/0b99a4c89a76430c8da53bdf98155614d4e46f7f) Engines outside the built-in six can now install activity hooks, and Cursor Agent is the first to do it.
+
+  A shipped catalog engine may declare a `createHookAdapter` next to its screen rules. Cursor uses it to install one `sessionStart` hook into `~/.cursor/hooks.json` (or `CURSOR_CONFIG_DIR`), which reports the live cursor session for a worktree. Its screen rules keep owning the working / needs-input badge, and cursor's remaining hook events gate the agent's own actions, so Rove installs no observer on them.
+
+  The merge preserves entries you or another tool wrote, adds nothing on a second launch, and creates no `~/.cursor` for a machine without the CLI. Engines that declare no adapter — Gemini CLI, OpenCode, Grok CLI, Droid, Amp — behave exactly as before.
+
+  `rove doctor` now asks each adapter to judge its own hook file instead of running one JSON validator over every file named `.json`, which had reported Cursor's valid `hooks.json` as broken. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1037](https://github.com/Sma1lboy/rove/pull/1037) [`97ef393`](https://github.com/Sma1lboy/rove/commit/97ef3939ca0b67097a95fbf84011ef9f50c06f37) Cursor's session hook now reaches the right task, and every engine's hook payload survives the released CLI.
+
+  Cursor runs its hooks from its own config directory and never sends a `cwd` — the workspace is only in `workspace_roots`. So the hook Rove installs reported `~/.cursor`, matched no task, and was dropped while the install looked perfect. An adapter can now say where a payload's working directory really is, and cursor's does.
+
+  Separately, the payload itself was being thrown away in every released build: the published CLI runs under node, and the only stdin reader was `Bun.stdin.text()`, which throws there. Hooks fired, exited cleanly, and carried no session id, no failure class and no cwd. Sessions started inside a Rove tab were unaffected — they identify themselves through the environment — which is why nothing looked wrong. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1031](https://github.com/Sma1lboy/rove/pull/1031) [`724aa50`](https://github.com/Sma1lboy/rove/commit/724aa509ea0800505a1c695e6d3527895249ef26) Fold the task rail to a strip
+
+  The rail now folds away from a control in its bottom-right corner, leaving a three-column strip that keeps each task's `ctrl+<digit>` jump key tinted with that row's own state colour. The same control brings it back, and the fold survives a restart the way zen mode does.
+
+  The corner is the placement because the top-right corner is where the update chip lands, and a control parked there would compete with it exactly when an update is pending. The control is absolute, so the fold costs the rail no line.
+
+  Mouse only for now. A chord that does the same job is a separate decision. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1034](https://github.com/Sma1lboy/rove/pull/1034) [`3e60ebb`](https://github.com/Sma1lboy/rove/commit/3e60ebbfd8d4195d3506bd521f5a5e53a3dc594a) Say which engines report to Rove, and whether what is installed is still the current shape
+
+  Rove learns what an engine is doing through three layers — the hooks it installs into the engine's own config, the completion markers it reads back from a transcript, and the screen rules it falls back to — and nothing on screen said which of them an engine actually uses. Settings → Engines now carries that on a third line under each engine, and one row installs the missing hooks for every engine at once. A missing layer is not a fault there: an engine whose hooks already report every state, including its permission prompt, needs no screen rules.
+
+  Installed hooks now carry the shape version that wrote them, so an entry left behind by an older Rove reads as outdated rather than as healthy. A settings file the merge is refusing now names itself on the engine's own row too — until now its only symptom was that every badge for that engine fell back to the daemon's ten-second poll. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1028](https://github.com/Sma1lboy/rove/pull/1028) [`57752bd`](https://github.com/Sma1lboy/rove/commit/57752bd879f4f2f890be9f17fa0c67e5cc5333f9) Stop a nested headless engine from reporting its turns as the tab it was launched inside
+
+  A tab's identity reaches an engine hook through environment inheritance, so a script running inside a tab that shells out to a headless engine passed that tab's identity down to it. Every one of those subprocesses reported its own finished turn as the tab's own: the completion prompt re-fired once per subprocess long after the user's real turn had ended, and each foreign session's tokens were billed to the tab.
+
+  A hook now asks its engine whether the session it fired for is unattended, and drops the event when it is. An explicit `--task-id` is deliberate wiring rather than inheritance, so a wrapper that asked to be counted still is. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1035](https://github.com/Sma1lboy/rove/pull/1035) [`02bf3a2`](https://github.com/Sma1lboy/rove/commit/02bf3a2d8a99c647d13fee7337be7b29644dd2e8) Choose what the folded task rail shows
+
+  Settings → General now carries a "Folded task rail" row that cycles the four folds: the jump keys (the default), the status glyphs alone, a glyph plus two letters of the title, and a bare colour band. Until now only the default was reachable, so the other three were shipped but unselectable.
+
+  The choice is persisted, so the rail comes back folded the way it was left. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1029](https://github.com/Sma1lboy/rove/pull/1029) [`00881d9`](https://github.com/Sma1lboy/rove/commit/00881d91a5bacb260f11411f3036f7d1209fa758) Accept `rgb()` and `rgba()` colours in theme files
+
+  A theme slot or `defs` entry can now be written `rgb(134, 225, 252)` or `rgba(134, 225, 252, 0.5)` anywhere a `#hex` was accepted, on both the colours the TUI renders and the ones exported for external styling. Alpha follows CSS as a 0-1 fraction.
+
+  Components outside 0-255 (or an alpha outside 0-1) are refused by name rather than clamped, so `rgb(300, 0, 0)` reports itself as a bad literal instead of falling through to the def-name lookup and rendering black. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1029](https://github.com/Sma1lboy/rove/pull/1029) [`00881d9`](https://github.com/Sma1lboy/rove/commit/00881d91a5bacb260f11411f3036f7d1209fa758) Give the Tokyo Night theme an accent colour that is not also its warning colour
+
+  `accent` and `warning` both resolved to the same orange, so a kanban card's "working" badge was the same colour as a warning badge — the two states the card's own tone vocabulary puts side by side. Accent now uses the palette's cyan, which sits 177° away from that orange and raises contrast against the dark background from 8.0 to 11.6. The other bundled themes already kept the two apart; only Tokyo Night collided.
+
+  Orange keeps the roles it should have: `warning`, plus the `syntaxNumber` and `markdownStrong` syntax slots. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.204
 
 ### Patch Changes
