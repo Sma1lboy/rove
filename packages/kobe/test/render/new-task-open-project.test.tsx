@@ -63,7 +63,7 @@ async function mount(dir: string, mainRepos?: ReadonlySet<string>, saved?: reado
     <Harness repo={dir} saved={saved} mainRepos={mainRepos} onSubmit={(v) => submitted.push(v)} />,
     {
       width: 100,
-      height: 40,
+      height: 50,
       providers: { kv: true, dialog: true },
     },
   )
@@ -94,9 +94,9 @@ test("omitting mainRepos entirely leaves the tab as it was", async () => {
   expect(text).toContain("FROM BRANCH")
 })
 
-/** Tab from the opening focus (`tabs`) to the intent row: engine, model, repo, intent. */
+/** Tab from the opening focus (`tabs`) to the intent row: depth, engine, model, repo, intent. */
 async function tabToIntent(mockInput: { pressTab: () => void }): Promise<void> {
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     await act(async () => {
       mockInput.pressTab()
     })
@@ -168,9 +168,9 @@ test("picking a different repo resets the intent back to a task worktree", async
   // project intent forks from nothing, so it hides the branch field.
   expect(await frame()).not.toContain("FROM BRANCH")
 
-  // Back to the repo field (intent → confirm → tabs → engine → model → repo),
-  // then pick the other saved repo out of the dropdown.
-  for (let i = 0; i < 5; i++) {
+  // Back to the repo field (intent → confirm → tabs → depth → engine → model
+  // → repo), then pick the other saved repo out of the dropdown.
+  for (let i = 0; i < 6; i++) {
     await act(async () => {
       mockInput.pressTab()
     })

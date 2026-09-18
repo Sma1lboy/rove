@@ -40,11 +40,13 @@ import { useAccessor } from "../../lib/use-accessor"
 import { useCursorFollow } from "../../lib/use-cursor-follow"
 import { type DialogContext, useDialog, useDialogPaddingX } from "../../ui/dialog"
 import { confirmResetState, confirmRestartDaemon, hasRestartableDaemon, installEngineHooks } from "./actions"
+import { AutoEffortSettingsSection } from "./sections-auto-effort"
 import { EngineSettingsSection } from "./sections-engines"
 import { GeneralSettingsSection, SettingsSectionSidebar } from "./sections-general"
 import { MarketplaceSettingsSection } from "./sections-marketplace"
 import { DevSettingsSection, FeedbackSettingsSection, KeybindingsSettingsSection } from "./sections-misc"
 import { PluginSettingsSection } from "./sections-plugins"
+import { useAutoEffortSettings } from "./use-auto-effort-settings"
 import { useEngineSettings } from "./use-engine-settings"
 import { useAccountProbes, useEngineIntegrations, useMarketplace, usePluginSettings } from "./use-section-data"
 import { useSettingsPrefs } from "./use-settings-prefs"
@@ -91,6 +93,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
     await installEngineHooks()
     integrations.reprobe()
   }
+  // The tier targets, gated against the same account probe the cards read.
+  const autoEffort = useAutoEffortSettings(props.kv, dialog, engines.engineList, engineStatuses)
   // Writing the starter YAML flips the Keybindings section from "here is an
   // example" to a real file — and re-applying it is what re-renders the
   // section (and drops its create row) without a restart.
@@ -246,6 +250,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     engine: (row) => void engines.editEngine(row.vendor),
     engineAdd: () => void engines.addEngineFlow(),
     engineHooksInstall: () => void runHookInstall(),
+    autoEffortTier: (row) => void autoEffort.edit(row.tier),
     keysCreate: () => createKeysFile(),
     pluginToggle: (row) => plugins.toggle(row.pluginId),
     pluginSetting: (row) => void plugins.editSetting(row.pluginId, row.key),
@@ -400,6 +405,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
               onInstallHooks={() => void runHookInstall()}
             />
           ) : null}
+          {section === "autoEffort" ? <AutoEffortSettingsSection {...cursorProps} autoEffort={autoEffort} /> : null}
           {section === "plugins" ? (
             <PluginSettingsSection
               {...cursorProps}

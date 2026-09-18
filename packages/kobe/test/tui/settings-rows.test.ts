@@ -203,6 +203,7 @@ describe("sectionRows / bodyRowCount", () => {
     const inp = input({ themeNames: themes, engineList: [...ALL_VENDORS, "aider", "goose"], hasDaemon: true })
     expect(bodyRowCount("general", inp)).toBe(12 + LANG + 1 + 3 + 15) // themes + langs + transparent + accents + retained general rows
     expect(bodyRowCount("engines", inp)).toBe(ALL_VENDORS.length + 2 + 2) // 6 built-ins + 2 custom + add + install
+    expect(bodyRowCount("autoEffort", inp)).toBe(3) // swift / standard / deep
     expect(bodyRowCount("keys", inp)).toBe(2)
     expect(bodyRowCount("marketplace", inp)).toBe(2)
     expect(bodyRowCount("marketplace", { ...inp, marketplace: [] })).toBe(0)

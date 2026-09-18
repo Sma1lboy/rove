@@ -78,6 +78,7 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin">> = {
   },
   modelEffort: "high",
   model: "opus",
+  tier: "standard",
   groupId: "01ARZ3NDEKTSV4RRFFQ69G5FB0",
   deletion: {
     phase: "error",

@@ -36,6 +36,7 @@ export async function createTaskOp(
     modelEffort?: string
     /** Wire key and field are both `model` — no remap, unlike effort. */
     model?: string
+    tier?: string
     groupId?: string
   },
 ): Promise<Task> {

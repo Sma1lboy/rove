@@ -86,6 +86,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         command: optionalString(payload, "command"),
         modelEffort: optionalString(payload, "effort"),
         model: optionalString(payload, "model"),
+        tier: optionalString(payload, "tier"),
         groupId: optionalString(payload, "groupId"),
         dispatcher,
       })

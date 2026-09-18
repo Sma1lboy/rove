@@ -26,6 +26,7 @@ export const en = {
   sections: {
     general: "General",
     engines: "Engines",
+    autoEffort: "Auto effort",
     plugins: "Plugins",
     marketplace: "Marketplace",
     keys: "Keybindings",
@@ -158,6 +159,16 @@ export const en = {
   },
   ...engineCard,
   ...pluginsEn,
+  /** Settings → Auto effort: the depth-tier → (engine, model, effort) table. */
+  autoEffort: {
+    title: "Auto effort",
+    hint: "Three depths a new task can be started at — swift, standard, deep — each mapped to an engine, a model and a reasoning effort. Pick a depth in the new-task dialog (or `rove api add --tier`) and Rove fills those three fields from this table; you still see and can change them. enter (or click) a row to retarget it with the same picker a task uses. A row whose target cannot start says why here, not at launch.",
+    unconfigured:
+      "Auto effort is off: a tier has no engine. Retarget it below, or remove the blank autoEffort.<tier>.engine from state.json.",
+    engineDefault: "engine default",
+    ready: "● ready",
+    unavailable: "! unavailable — {reason}",
+  },
   keybindings: {
     title: "Keybindings",
     hint: "Rebind direct and prefix chords in your own YAML file; changes reload live. Press F1 anywhere for the live keymap with every binding id.",
@@ -227,6 +238,7 @@ export const zh: typeof en = {
   },
   sections: {
     general: "通用",
+    autoEffort: "自动强度",
     engines: "引擎",
     plugins: "插件",
     marketplace: "插件市场",
@@ -343,6 +355,15 @@ export const zh: typeof en = {
   },
   ...engineCardZh,
   ...pluginsZh,
+  autoEffort: {
+    title: "自动强度",
+    hint: "新任务可以按三档深度启动——轻快、标准、深入——每一档对应一个引擎、一个模型和一个推理强度。在新建任务对话框里选一档（或 `rove api add --tier`），Rove 就从这张表填进那三个字段；你仍然看得见、改得了。enter（或点击）某一行，用和任务一样的选择器重新指定。目标起不来的行会在这里说明原因，而不是等到启动时才炸。",
+    unconfigured:
+      "自动强度已关闭：有一档没有引擎。在下面重新指定，或从 state.json 里删掉空的 autoEffort.<tier>.engine。",
+    engineDefault: "引擎默认",
+    ready: "● 可用",
+    unavailable: "! 不可用——{reason}",
+  },
   keybindings: {
     title: "快捷键",
     hint: "在你自己的 YAML 文件里重绑定直接按键和 prefix 组合；修改会实时加载。任意位置按 F1 查看带每个绑定 id 的实时键位表。",

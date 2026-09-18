@@ -159,6 +159,9 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `EMPTY_SUCCESS_REPORT` | A `succeeded:` report from a branch with 0 commits; commit, or pass `--allow-empty`. |
 | `SESSION_FAILED` | A hosted engine session could not be started or written to. |
 | `BAD_EFFORT` | The task's engine declares no effort levels, or not that one. |
+| `BAD_MODEL` | The task's engine declares no model flag, so a model cannot be passed to it. |
+| `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. |
+| `TIER_UNAVAILABLE` | Auto effort is not configured, or the tier's target cannot start (engine not listed, not logged in, model/effort its engine cannot carry). |
 | `PARTIAL_FANOUT` | A parallel round with at least one failure (exit 3). |
 | `UNSUPPORTED` | `interrupt` on an engine that never declared how it is interrupted. |
 | `WATCH_TIMEOUT` | `watch` reached `--timeout` before any `--until` state; nothing has happened YET. |
@@ -201,8 +204,10 @@ replacement in `nextCommandArgs`.
   contrib engines whose CLI is on `PATH`, and engines contributed by enabled
   plugins — each with
   the RAW command it runs, its display
-  name, and its `protocol` (the adapter Rove speaks to it: history reads,
-  trust pre-answer, first-message delivery; `generic` = none). A plugin engine
+  name, its `protocol` (the adapter Rove speaks to it: history reads,
+  trust pre-answer, first-message delivery; `generic` = none), and its
+  `models` — what the engine can name for `--model` (suggestions, not a
+  closed set; `null` = Rove cannot list them for this engine). A plugin engine
   reports its own id as its `protocol` — the plugin's manifest carries the
   screen rules and identity Rove drives it with, so it is not `generic`. What
   it prints is what a launch runs, so an entry can be copied into `--command`
@@ -472,6 +477,14 @@ replacement in `nextCommandArgs`.
   `--command` picks the engine (an id from `engine-list`, or a full command
   line). Omitted, the repo's default engine is used — skipping any engine
   switched off in Settings → Engines, the same as the TUI's picker.
+  `--effort LEVEL` and `--model MODEL` pin the engine's reasoning level and
+  model for the first session onward; both are gated per engine
+  (`BAD_EFFORT` / `BAD_MODEL`), and `--model` is passed verbatim in the
+  engine's own spelling. `--tier swift|standard|deep` fills all three from
+  the auto-effort table (Settings → Auto effort) and records `.task.tier`;
+  it is exclusive with `--command`/`--model`/`--effort`/`--agents`
+  (`CONFLICTING_FLAGS`) and refuses a tier that cannot start
+  (`TIER_UNAVAILABLE`).
 
   `--repo` accepts paths `rove add` refuses — a checkout under `.scratch/`,
   `.dev-sandbox/` or `$TMPDIR` gets a task here and gets
@@ -762,6 +775,10 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   claude declares none. A level the engine does not declare is rejected
   (`BAD_EFFORT`, naming the levels it does accept) rather than passed through,
   because the launch path drops an unknown level silently.
+- `set-model --task-id ID --model MODEL`: pin a task's model (takes effect
+  on the next session rebuild). Passed to the engine verbatim in its own
+  spelling; `engine-list`'s `models` are suggestions. Rejected (`BAD_MODEL`)
+  when the task's engine declares no model flag.
 - `set-status --task-id ID --status S [--report-branch B] [--report-pr N]
   [--report-summary TEXT]`: set lifecycle status:
   `backlog`, `in_progress`, `in_review`, `done`, `canceled`, `error`.

@@ -181,6 +181,7 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
         vendor: result.vendor,
         ...(result.modelEffort ? { modelEffort: result.modelEffort } : {}),
         ...(result.model ? { model: result.model } : {}),
+        ...(result.tier ? { tier: result.tier } : {}),
       })
       createdId = task.id
     } catch (err) {

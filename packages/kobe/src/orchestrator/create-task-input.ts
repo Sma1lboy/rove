@@ -36,6 +36,8 @@ export interface CreateTaskInput {
   readonly modelEffort?: string
   /** Model pinned on the engine, in its own spelling (`Task.model`). */
   readonly model?: string
+  /** The auto-effort tier the engine fields were filled from (`Task.tier`). */
+  readonly tier?: string
   /** Fan-out round marker shared by all siblings of one fan-out call. */
   readonly groupId?: string
   /** The kobe session (task + tab) dispatching this create, when one is. */

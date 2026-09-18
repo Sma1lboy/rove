@@ -16,20 +16,21 @@ you need git-level isolation and a separate branch.
 
 ## Which engines are supported
 
-| Engine | Id | Account detect | Activity badge | History | Effort levels |
-|---|---|---|---|---|---|
-| Claude Code | `claude` | ✓ | ✓ | ✓ | — |
-| Codex | `codex` | ✓ | ✓ (after you trust hooks) | ✓ | `none`/`low`/`medium`/`high`/`xhigh`/`max` |
-| GitHub Copilot | `copilot` | ✓ | ✓ (screen-based) | ✓ | — |
-| Kimi Code | `kimi` | ✓ | ✓ | handoff only | — |
-| Pi | `pi` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` |
-| OMP | `omp` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` |
-| Cursor Agent | `cursor` | binary only | ✓ (screen-based, plus a session hook) | — | — |
-| Gemini CLI, OpenCode, Grok CLI, Droid, Amp | contrib | binary only | ✓ (screen-based) | — | — |
-| Anything you register | custom | binary only | — | — | — |
+| Engine | Id | Account detect | Activity badge | History | Effort levels | Model flag |
+|---|---|---|---|---|---|---|
+| Claude Code | `claude` | ✓ | ✓ | ✓ | — | `--model` (aliases `fable`/`opus`/`sonnet`, or a full id) |
+| Codex | `codex` | ✓ | ✓ (after you trust hooks) | ✓ | `none`/`low`/`medium`/`high`/`xhigh`/`max` | `--model` (a slug) |
+| GitHub Copilot | `copilot` | ✓ | ✓ (screen-based) | ✓ | — | — |
+| Kimi Code | `kimi` | ✓ | ✓ | handoff only | — | `--model` (an alias from its config) |
+| Pi | `pi` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` | `--model` (pattern or `provider/id`; listed by `pi --list-models`) |
+| OMP | `omp` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` | `--model=` (pattern or `provider/id`; listed by `omp models --json`) |
+| Cursor Agent | `cursor` | binary only | ✓ (screen-based, plus a session hook) | — | — | — |
+| Gemini CLI, OpenCode, Grok CLI, Droid, Amp | contrib | binary only | ✓ (screen-based) | — | — | — |
+| Anything you register | custom | binary only | — | — | — | — |
 
-There is no in-app model picker for any engine — pick the model the way that
-engine does, on its own launch command.
+A model is pinned per task in the engine's own spelling (see
+[Model](#model) below); an engine with no model flag refuses one rather
+than dropping it.
 
 **Claude Code is the default** and the most complete: its quota probe drives
 rate-limit auto-resume and the Settings usage dashboard.
@@ -99,6 +100,40 @@ Three places select one:
 The board's start-a-task-from-an-issue picker chooses an engine but not a
 level, so a task started that way runs its first session on the engine's
 default until you set one.
+
+### Model
+
+A task can pin a model the same way it pins an effort. The value is passed
+to the engine **verbatim**, in that engine's own spelling — a claude alias
+or full id, a codex slug, a pi/omp fuzzy pattern or `provider/id` — so the
+list an engine can print is a set of suggestions, never a closed list.
+`rove api engine-list` shows each engine's `models`: what `pi --list-models`
+or `omp models --json` answered, a short alias list for claude and codex,
+and `null` for an engine Rove cannot list (kimi's aliases live in its own
+config; copilot has no model flag).
+
+The same three places select one:
+
+- `rove api add --command pi --model cliproxy/claude-fable-5`, which reaches
+  the task's **first** session;
+- **Change engine** and the new-task dialog, whose model row is a free-text
+  input with the engine's list as suggestions underneath (`tab` reaches the
+  row in the change-engine picker; empty = the engine's default);
+- `rove api set-model --task-id ID --model MODEL` from a shell.
+
+An engine that declares no model flag (copilot, contrib, custom) refuses a
+model up front (`BAD_MODEL`) instead of dropping it at launch.
+
+### Auto effort
+
+Rather than picking the three fields by hand, a new task can be started at a
+**depth** — `swift`, `standard` or `deep` — and Rove fills the engine, model
+and effort from the table in Settings → Auto effort (`autoEffort.<tier>.*`
+in `state.json`, see [CONFIGURATION.md](./CONFIGURATION.md#engines)). The
+three fields stay on screen and editable; the tier is recorded on the task
+(`.task.tier`). A tier whose target cannot start — engine not listed, not
+logged in, a model or effort its engine cannot carry — says so in Settings
+and is refused by `rove api add --tier` (`TIER_UNAVAILABLE`), not at launch.
 
 ### Workspace trust
 

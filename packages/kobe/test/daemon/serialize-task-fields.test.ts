@@ -55,6 +55,7 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin">> = {
   observedLanguage: "zh",
   modelEffort: "high",
   model: "opus",
+  tier: "standard",
   groupId: "01ARZ3NDEKTSV4RRFFQ69G5FAW",
   prStatus: {
     provider: "github",

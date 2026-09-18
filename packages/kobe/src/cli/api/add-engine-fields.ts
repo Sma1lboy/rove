@@ -1,6 +1,7 @@
 /**
  * The ENGINE half of an `add`: which engine a new task launches, at what
- * reasoning level, and on which model.
+ * reasoning level, and on which model — typed out, or filled from an
+ * auto-effort tier.
  *
  * Split from `handlers-add.ts`, which owns the create ORCHESTRATION — flag
  * conflicts, the single-vs-parallel split, per-sibling failure rows, prompt
@@ -11,10 +12,18 @@
  * on the engine contract the way they once did on `--status`/`--pin`.
  */
 
+import {
+  type TierTarget,
+  describeTierBlock,
+  isAutoEffortTier,
+  readAutoEffortTable,
+  tierBlock,
+} from "../../engine/auto-effort.ts"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
+import { detectEngineStatus } from "../../engine/engine-status.ts"
 import type { VendorId } from "../../types/vendor.ts"
-import { assertEngineAcceptsEffort, assertEngineAcceptsModel } from "./handlers-engines.ts"
-import type { VerbContext } from "./types.ts"
+import { assertEngineAcceptsEffort, assertEngineAcceptsModel, engineListIds } from "./handlers-engines.ts"
+import { ApiError, type VerbContext, helpStep } from "./types.ts"
 
 /** The engine fields a create carries: the raw command + its resolved protocol. */
 export interface EngineChoice {
@@ -37,7 +46,12 @@ export async function engineChoice(ctx: VerbContext, repo: string): Promise<Engi
 }
 
 /** The engine fields as a flat `task.create` payload fragment. */
-export function enginePayload(choice: EngineChoice, effort?: string, model?: string): Record<string, string> {
+export function enginePayload(
+  choice: EngineChoice,
+  effort?: string,
+  model?: string,
+  tier?: string,
+): Record<string, string> {
   return {
     ...(choice.command ? { command: choice.command } : {}),
     ...(choice.vendor ? { vendor: choice.vendor } : {}),
@@ -45,9 +59,73 @@ export function enginePayload(choice: EngineChoice, effort?: string, model?: str
     // (`handlers-task.ts` task.create). Sending `modelEffort` here is silently
     // dropped — the create succeeds and the level simply never lands.
     ...(effort ? { effort } : {}),
-    // `model` is the wire key AND the record field — no remap to get wrong.
+    // `model` / `tier` are the wire key AND the record field — no remap.
     ...(model ? { model } : {}),
+    ...(tier ? { tier } : {}),
   }
+}
+
+/** The three engine fields, and which of `--command/--model/--effort` a tier replaces. */
+export interface EngineFields {
+  readonly choice: EngineChoice
+  readonly effort?: string
+  readonly model?: string
+  readonly tier?: string
+}
+
+/**
+ * `--tier`: fill (engine, model, effort) from the auto-effort table and
+ * record the tier on the task. Exclusive with the three explicit flags —
+ * a caller who wrote both believes both applied. The target then passes the
+ * same gates a hand-picked engine does (`engine-list` membership, login,
+ * `assertEngineAcceptsModel`, `assertEngineAcceptsEffort`), so a tier that
+ * cannot start fails HERE with the reason, not minutes later at launch.
+ */
+export async function tierFields(ctx: VerbContext): Promise<EngineFields | undefined> {
+  const tier = ctx.args.str("tier")?.trim()
+  if (!tier) return undefined
+  if (!isAutoEffortTier(tier)) {
+    throw new ApiError(
+      `--tier must be one of swift, standard, deep (got ${JSON.stringify(tier)})`,
+      "BAD_FLAG",
+      helpStep("add"),
+    )
+  }
+  for (const flag of ["command", "model", "effort", "agents"] as const) {
+    if (ctx.args.str(flag)) {
+      throw new ApiError(
+        `--${flag} conflicts with --tier, which already fills the engine, model and effort from the auto-effort table — pass one or the other`,
+        "CONFLICTING_FLAGS",
+        helpStep("add"),
+      )
+    }
+  }
+  const table = readAutoEffortTable()
+  if (!table) {
+    throw new ApiError(
+      "auto effort is not configured — a tier has no engine (autoEffort.<tier>.engine in state.json); set it in Settings → Auto effort",
+      "TIER_UNAVAILABLE",
+      helpStep("add"),
+    )
+  }
+  const target: TierTarget = table[tier]
+  const status = await detectEngineStatus(target.engine)
+  const block = tierBlock(target, {
+    engineIds: new Set(await engineListIds()),
+    accountKind: () => status.account?.kind ?? null,
+  })
+  if (block) {
+    throw new ApiError(`tier ${tier} cannot start: ${describeTierBlock(block)}`, "TIER_UNAVAILABLE", {
+      tier,
+      block,
+      hint: "Retarget the tier in Settings → Auto effort, or pass --command/--model/--effort by hand.",
+      nextCommandArgs: ["api", "engine-list"],
+    })
+  }
+  const vendor = resolveCommandProtocol(target.engine)
+  if (target.model) assertEngineAcceptsModel(vendor, target.model, ["api", "engine-list"])
+  if (target.effort) assertEngineAcceptsEffort(vendor, target.effort, ["api", "engine-list"])
+  return { choice: { command: target.engine, vendor }, effort: target.effort, model: target.model, tier }
 }
 
 /**

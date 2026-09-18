@@ -61,6 +61,8 @@ export type NewTaskInput =
       modelEffort?: string
       /** Pinned model, when the engine declares a model flag and one was typed. */
       model?: string
+      /** The auto-effort tier the three fields above were filled from, when one was. */
+      tier?: string
       cloned?: { parentDir: string }
     }
   | {
@@ -130,6 +132,8 @@ export function prevDialogTab(tab: DialogTab): DialogTab {
  * sit at the top of the visual order:
  *   - `tabs`   — the mode-tab selector (For Existing / New Repo / Adopt).
  *                ←/→ switches the active sub-tab while it's focused.
+ *   - `tier`   — the auto-effort chips (swift / standard / deep / manual);
+ *                rendered only while auto effort is configured.
  *   - `engine` — the vendor selector. ←/→ (and ctrl+e from anywhere)
  *                cycles the engine while it's focused.
  *   - `effort` — the reasoning-level chips; rendered only for an engine that
@@ -144,6 +148,7 @@ export function prevDialogTab(tab: DialogTab): DialogTab {
  */
 export type Field =
   | "tabs"
+  | "tier"
   | "engine"
   | "effort"
   | "model"
@@ -277,9 +282,9 @@ export function isBlankText(v: string): boolean {
  * Advance the field-cycle state. Tab walks the full chain in visual
  * order, threading the two shared selectors (`tabs`, `engine`) and the
  * shared `confirm` button into every sub-tab:
- *   existing:   tabs → engine → [effort] → [model] → repo → baseRef → confirm → tabs
- *   clone:      tabs → engine → [effort] → [model] → cloneUrl → cloneParent → cloneFolder → cloneBaseRef → confirm → tabs
- *   adopt:      tabs → engine → [effort] → [model] → adoptFilter → confirm → tabs
+ *   existing:   tabs → [tier] → engine → [effort] → [model] → repo → baseRef → confirm → tabs
+ *   clone:      tabs → [tier] → engine → [effort] → [model] → cloneUrl → cloneParent → cloneFolder → cloneBaseRef → confirm → tabs
+ *   adopt:      tabs → [tier] → engine → [effort] → [model] → adoptFilter → confirm → tabs
  *
  * The `confirm → tabs → engine → <first input>` trailer is shared, so
  * tabbing past Create lands back on the selectors rather than stranding
@@ -291,11 +296,12 @@ export function isBlankText(v: string): boolean {
 export function nextField(
   field: Field,
   tab: DialogTab = "existing",
-  opts: { intentVisible?: boolean; effortVisible?: boolean; modelVisible?: boolean } = {},
+  opts: { intentVisible?: boolean; effortVisible?: boolean; modelVisible?: boolean; tierVisible?: boolean } = {},
 ): Field {
   // Shared trailer — the selectors + Create button common to every tab.
   if (field === "confirm") return "tabs"
-  if (field === "tabs") return "engine"
+  if (field === "tabs") return opts.tierVisible ? "tier" : "engine"
+  if (field === "tier") return "engine"
   if (field === "engine") return opts.effortVisible ? "effort" : opts.modelVisible ? "model" : firstFieldFor(tab)
   if (field === "effort") return opts.modelVisible ? "model" : firstFieldFor(tab)
   if (field === "model") return firstFieldFor(tab)

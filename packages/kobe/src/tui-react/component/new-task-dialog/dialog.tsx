@@ -18,7 +18,7 @@ import { ModelSection } from "../model-field"
 import { AdoptTab } from "./tab-adopt"
 import { CloneTab } from "./tab-clone"
 import { ExistingTab } from "./tab-existing"
-import { type NewTaskDialogProps, useNewTaskViewModel } from "./view-model"
+import { type NewTaskDialogProps, TIER_CHOICES, useNewTaskViewModel } from "./view-model"
 
 export type { NewTaskDialogProps } from "./view-model"
 
@@ -59,6 +59,33 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
             onPick={(tabId) => vm.switchToTab(tabId)}
           />
         </DialogSection>
+        {/* Auto-effort tier — only while the table is configured. A pick
+            fills the engine/effort/model rows below; editing any of them
+            reads as "manual" again. The muted line says what the selected
+            depth means, in words that name no engine. */}
+        {vm.tierVisible ? (
+          <DialogSection
+            label={t("newTask.field.tier")}
+            focused={vm.field === "tier"}
+            hint="←/→"
+            onPress={() => vm.setField("tier")}
+          >
+            <ChipRow
+              choices={TIER_CHOICES}
+              selected={vm.tier}
+              display={(choice) => t(`tasks.tier.${choice}`)}
+              onPick={(choice) => {
+                vm.pickTier(choice)
+                vm.setField("tier")
+              }}
+            />
+            {vm.tier !== "manual" ? (
+              <text fg={theme.textMuted} wrapMode="word">
+                {t(`tasks.tierDesc.${vm.tier}`)}
+              </text>
+            ) : null}
+          </DialogSection>
+        ) : null}
         {/* Engine selector — Tab reaches it; ←/→ cycles while focused,
             ctrl+e from anywhere, click picks. Detected vendors only. */}
         <DialogSection

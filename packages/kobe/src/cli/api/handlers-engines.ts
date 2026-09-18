@@ -43,14 +43,7 @@ import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
  * activity badges.
  */
 async function listAllEnginePresets() {
-  // Plugin-contributed engines are loaded from enabled plugin manifests at
-  // process start in the TUI, but the CLI path must load them explicitly.
-  ensurePluginEnginesLoaded()
-  const presets = [...listEnginePresets()]
-  const seen = new Set(presets.map((p) => p.id))
-  for (const id of await installedEngineIds()) {
-    if (!seen.has(id)) presets.push(describePreset(id))
-  }
+  const presets = await enginePresetsInList()
   // `models` is keyed by PROTOCOL — a `claudecpa` preset lists claude's
   // aliases — and listed once per protocol, since pi/omp answer by running a
   // process. `null` = this engine has no list verb (or it failed); `[]` would
@@ -66,6 +59,24 @@ async function listAllEnginePresets() {
     return pending
   }
   return Promise.all(presets.map(async (preset) => ({ ...preset, models: await modelsOf(preset.protocol) })))
+}
+
+/** The presets `engine-list` prints, before their model lists are attached. */
+async function enginePresetsInList() {
+  // Plugin-contributed engines are loaded from enabled plugin manifests at
+  // process start in the TUI, but the CLI path must load them explicitly.
+  ensurePluginEnginesLoaded()
+  const presets = [...listEnginePresets()]
+  const seen = new Set(presets.map((p) => p.id))
+  for (const id of await installedEngineIds()) {
+    if (!seen.has(id)) presets.push(describePreset(id))
+  }
+  return presets
+}
+
+/** Every id `engine-list` names — the membership half of the auto-effort gate. */
+export async function engineListIds(): Promise<readonly string[]> {
+  return (await enginePresetsInList()).map((p) => p.id)
 }
 
 export const ENGINE_LIST_VERB: VerbSpec = {

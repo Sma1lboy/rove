@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 46 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 47 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -471,8 +471,12 @@ your guess, and model ids you have never heard of are routinely valid.
 
 ```bash
 rove api add --repo "$PWD" --command claude --prompt "…"                    # user's default model
-rove api add --repo "$PWD" --command "claude --model claude-fable-5" \
+rove api add --repo "$PWD" --command claude --model claude-fable-5 \
   --prompt "…"                                     # user said "use Fable 5" this turn
+# `--model` is gated per engine (BAD_MODEL when the engine has no model flag);
+# `engine-list` prints each engine's `models` as suggestions, never a closed set.
+# `--tier swift|standard|deep` fills engine+model+effort from Settings → Auto
+# effort instead — exclusive with --command/--model/--effort.
 ```
 
 Omit `--command` to use the repo's default engine. `engine-list`'s `protocol`

@@ -12,11 +12,12 @@
  * Error strings resolved at submit time use the module-level `t`.
  */
 
+import { AUTO_EFFORT_TIERS, type AutoEffortTier, readAutoEffortTable } from "@/engine/auto-effort"
 import { engineEntry } from "@/engine/registry"
 import { type VendorId, nextVendorWithin, prevVendorWithin } from "@/types/vendor"
 import type { AdoptableWorktree } from "@/types/worktree"
 import { useTerminalDimensions } from "@opentui/react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   type DialogTab,
   type ExistingIntent,
@@ -63,6 +64,10 @@ export type NewTaskDialogProps = {
  *  new identity every time and defeat any memo keyed on it. */
 const EMPTY_MAIN_REPOS: ReadonlySet<string> = new Set()
 
+/** The tier chips: the three depths, then "manual" = pick the fields by hand. */
+export const TIER_CHOICES = [...AUTO_EFFORT_TIERS, "manual"] as const
+export type TierChoice = (typeof TIER_CHOICES)[number]
+
 export function useNewTaskViewModel(props: NewTaskDialogProps) {
   const dialog = useDialog()
 
@@ -83,6 +88,15 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   const effort = effortLevels.includes(effortPick) ? effortPick : ""
   const effortChoices = effortLevels.length > 0 ? ["", ...effortLevels] : []
   const modelVisible = engineAcceptsModel(vendor)
+  // Auto-effort tier. The table is read once per open (state.json); the row
+  // renders only while it is configured. What the pick FILLED is remembered,
+  // and the tier reads as "manual" again the moment any of the three fields
+  // differs from it — the label recorded on the task must describe the fields
+  // that actually launch, or it is noise as training data.
+  const tierTable = useMemo(() => readAutoEffortTable(), [])
+  const [tierPick, setTierPick] = useState<TierChoice>("manual")
+  const tierApplied = useRef<{ vendor: VendorId; effort: string; model: string } | null>(null)
+  const [modelSeed, setModelSeed] = useState<{ vendor: VendorId; model: string; key: number } | null>(null)
   // Existing-tab intent. Defaults to "task"; the choice only RENDERS when the
   // picked repo already has a project checkout to open.
   const [intent, setIntent] = useState<ExistingIntent>("task")
@@ -99,7 +113,22 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   // chip row), so the picker gives those rows back while they render.
   const extraChromeRows = (effortChoices.length > 0 ? 4 : 0) + (modelVisible ? 4 : 0)
   const pickerRows = pickerVisibleRows(useTerminalDimensions().height - extraChromeRows)
-  const modelField = useModelField({ vendor, pickerRows })
+  const modelField = useModelField({
+    vendor,
+    pickerRows,
+    initial: modelSeed?.model,
+    initialVendor: modelSeed?.vendor,
+    seedKey: modelSeed?.key,
+  })
+  const applied = tierApplied.current
+  const tier: TierChoice =
+    tierPick !== "manual" &&
+    applied &&
+    applied.vendor === vendor &&
+    applied.effort === effort &&
+    applied.model === modelField.value.trim()
+      ? tierPick
+      : "manual"
   const repoField = useRepoField({
     defaultRepo: props.defaultRepo,
     savedRepos: props.savedRepos,
@@ -129,6 +158,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     vendor,
     modelEffort: effort || undefined,
     model: modelVisible ? modelField.value.trim() || undefined : undefined,
+    tier: tier !== "manual" ? tier : undefined,
     onSubmit: props.onSubmit,
     clearDialog: () => dialog.clear(),
     setField,
@@ -195,8 +225,40 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       vendor,
       ...(effort ? { modelEffort: effort } : {}),
       ...(modelVisible && modelField.value.trim() ? { model: modelField.value.trim() } : {}),
+      ...(tier !== "manual" ? { tier } : {}),
     })
     dialog.clear()
+  }
+
+  /**
+   * Fill the three engine fields from a tier. A tier whose engine this
+   * machine cannot offer is refused with the inline error rather than half
+   * applied — the user sees why, and the fields they had stay put.
+   */
+  function pickTier(choice: TierChoice): void {
+    if (choice === "manual") {
+      setTierPick("manual")
+      return
+    }
+    const target = tierTable?.[choice]
+    if (!target) return
+    if (!vendors.includes(target.engine)) {
+      setSubmitError(t("newTask.error.tierUnavailable", { tier: t(`tasks.tier.${choice}`), engine: target.engine }))
+      return
+    }
+    const nextEffort = target.effort ?? ""
+    const nextModel = target.model ?? ""
+    setVendor(target.engine)
+    setEffortPick(nextEffort)
+    setModelSeed((s) => ({ vendor: target.engine, model: nextModel, key: (s?.key ?? 0) + 1 }))
+    tierApplied.current = { vendor: target.engine, effort: nextEffort, model: nextModel }
+    setTierPick(choice)
+    setSubmitError(null)
+  }
+
+  function cycleTier(dir: 1 | -1): void {
+    const i = TIER_CHOICES.indexOf(tier)
+    pickTier(TIER_CHOICES[(i + dir + TIER_CHOICES.length) % TIER_CHOICES.length] ?? "manual")
   }
 
   function commit(): void {
@@ -222,6 +284,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       intentVisible: tab === "existing" && canOpenProject,
       effortVisible: effortChoices.length > 0,
       modelVisible,
+      tierVisible: tierTable !== null,
     })
     // The branch field is gone under the "project" intent, so skip its stop
     // too — same reason, one field further along.
@@ -316,12 +379,13 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       { key: "down", cmd: () => moveCursor(1) },
       // ←/→/Enter ONLY while a selector is focused — an always-on binding
       // would preventDefault the keys away from focused text inputs.
-      ...(field === "tabs" || field === "engine" || field === "effort" || field === "intent"
+      ...(field === "tabs" || field === "tier" || field === "engine" || field === "effort" || field === "intent"
         ? [
             {
               key: "left",
               cmd: () => {
                 if (field === "tabs") cycleTab(-1)
+                else if (field === "tier") cycleTier(-1)
                 else if (field === "engine") cycleEngine(-1)
                 else if (field === "effort") stepEffort(-1)
                 else setIntent("task")
@@ -331,6 +395,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
               key: "right",
               cmd: () => {
                 if (field === "tabs") cycleTab(1)
+                else if (field === "tier") cycleTier(1)
                 else if (field === "engine") cycleEngine(1)
                 else if (field === "effort") stepEffort(1)
                 else setIntent("project")
@@ -367,6 +432,10 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     setEffort: setEffortPick,
     modelVisible,
     modelField,
+    /** The tier row renders only while auto effort is configured. */
+    tierVisible: tierTable !== null,
+    tier,
+    pickTier,
     field,
     setField,
     /** Enter inside an input that is not the tab's last stop: walk on. */

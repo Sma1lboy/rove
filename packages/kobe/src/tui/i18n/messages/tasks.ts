@@ -107,6 +107,20 @@ export const en = {
     placeholder: "engine default",
     loading: "listing models…",
   },
+  /** Auto-effort tier names — the user-facing vocabulary; never an engine. */
+  tier: {
+    swift: "swift",
+    standard: "standard",
+    deep: "deep",
+    manual: "manual",
+  },
+  /** What each depth is FOR. Names no vendor, model or flag — the mapping
+   *  table (Settings → Auto effort) is the only place those appear. */
+  tierDesc: {
+    swift: "small, well-specified edits — the fastest, cheapest setting",
+    standard: "everyday feature work and bug fixes",
+    deep: "hard problems: unclear root causes, large refactors, design decisions",
+  },
   /** Run-again confirm dialog: the stored brief, verbatim and scrollable,
    *  before it is re-fired into a fresh task. */
   runAgain: {
@@ -330,6 +344,17 @@ export const zh: typeof en = {
     label: "模型",
     placeholder: "引擎默认",
     loading: "正在列出模型…",
+  },
+  tier: {
+    swift: "轻快",
+    standard: "标准",
+    deep: "深入",
+    manual: "手动",
+  },
+  tierDesc: {
+    swift: "小而明确的改动——最快、最省的一档",
+    standard: "日常的功能开发和修 bug",
+    deep: "难题：根因不明、大重构、设计决策",
   },
   runAgain: {
     title: "重新运行",

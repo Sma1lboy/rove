@@ -144,6 +144,8 @@ export interface DaemonTask {
   readonly modelEffort?: string
   /** Model pinned on the engine, in its own spelling. */
   readonly model?: string
+  /** Auto-effort tier the engine fields were filled from, when one was. */
+  readonly tier?: string
   readonly groupId?: string
   readonly deletion?: TaskDeletionState
   readonly quotaResume?: TaskQuotaResumeState
@@ -254,6 +256,7 @@ export interface DaemonOrchestrator {
     command?: string
     modelEffort?: string
     model?: string
+    tier?: string
     groupId?: string
     dispatcher?: TaskDispatcher
     /** Mark this the standing session task of a routine. */

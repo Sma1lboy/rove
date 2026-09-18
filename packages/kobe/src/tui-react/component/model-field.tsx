@@ -64,13 +64,15 @@ export function useModelField(opts: {
    *  starts empty (a claude alias pinned on codex would kill its launch). */
   initial?: string
   initialVendor?: VendorId
+  /** Bump to re-apply `initial` without a vendor change (a tier pick). */
+  seedKey?: number
 }) {
   const [query, setQuery] = useState(() => (opts.vendor === opts.initialVendor ? (opts.initial ?? "") : ""))
   const [cursor, setCursor] = useState(-1)
   const [models, setModels] = useState<readonly EngineModel[]>([])
   const [status, setStatus] = useState<ModelListStatus>("none")
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the engine is the invalidation key — its list and its seed both change with it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the engine (and an explicit re-seed) are the invalidation keys — the list and the seed both follow them.
   useEffect(() => {
     setQuery(opts.vendor === opts.initialVendor ? (opts.initial ?? "") : "")
     setCursor(-1)
@@ -97,7 +99,7 @@ export function useModelField(opts: {
     return () => {
       live = false
     }
-  }, [opts.vendor])
+  }, [opts.vendor, opts.seedKey])
 
   const suggestions = useMemo(() => filterModels(models, query), [models, query])
   const value = cursor >= 0 ? (suggestions[cursor]?.id ?? query) : query
