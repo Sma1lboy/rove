@@ -224,6 +224,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     prefixTapPresentation: (row) => prefs.selectPrefixTapPresentation(row.presentation),
     splitStyle: (row) => prefs.selectSplitStyle(row.style),
     zenDefaultOn: () => prefs.toggleZenDefaultOn(),
+    railFoldStyle: () => prefs.cycleRailFoldStyle(),
     editorKind: () => prefs.cycleEditorKind(),
     editorCustom: () => void prefs.editEditorCustom(),
     worktreeBase: () => prefs.cycleWorktreeBase(),

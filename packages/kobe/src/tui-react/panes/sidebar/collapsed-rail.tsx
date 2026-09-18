@@ -31,6 +31,10 @@ export type CollapsedRailStyle = "hairline" | "digits" | "glyphs" | "initials"
 /** What a user who has never opened the setting gets. */
 export const DEFAULT_COLLAPSED_RAIL_STYLE: CollapsedRailStyle = "digits"
 
+/** Cycle order for the setting — widest-keeping last, so repeated presses walk
+ *  from "only a colour" toward "still readable". */
+export const COLLAPSED_RAIL_STYLES: readonly CollapsedRailStyle[] = ["digits", "glyphs", "initials", "hairline"]
+
 /** Rail width in cells per style — the whole point of the fold, so it lives
  *  beside the styles rather than at a call site that would drift from them. */
 export const COLLAPSED_RAIL_WIDTH: Record<CollapsedRailStyle, number> = {

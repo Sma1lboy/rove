@@ -10,3 +10,6 @@
 
 /** KV key for the fold. Absent = expanded. */
 export const SIDEBAR_COLLAPSED_KEY = "sidebar.collapsed"
+
+/** KV key for WHICH fold the strip renders. Absent = the jump digits. */
+export const RAIL_FOLD_STYLE_KEY = "sidebar.foldStyle"

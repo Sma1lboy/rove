@@ -32,6 +32,7 @@ import { keyHintsToggleOn, toggleKeyHints } from "../../../tui/lib/keyboard-hint
 import { useKV } from "../../context/kv"
 import { FOCUS_ACCENT_SLOTS, type FocusAccentSlot, useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import type { CollapsedRailStyle } from "../../panes/sidebar/collapsed-rail"
 import { useDialogPaddingX } from "../../ui/dialog"
 import { Row, type SectionCursorProps, SubSection } from "./rows"
 import { usageRows } from "./usage-core"
@@ -109,6 +110,16 @@ function UsageDashboard(props: { usage: UsageSnapshotMap }) {
   )
 }
 
+/** Fold → its label key. A map rather than a key built by string surgery: a
+ *  new fold that forgets its label fails the i18n check instead of printing a
+ *  raw key at runtime. */
+const RAIL_FOLD_LABEL_KEYS: Record<CollapsedRailStyle, string> = {
+  digits: "settings.general.railFoldDigits",
+  glyphs: "settings.general.railFoldGlyphs",
+  initials: "settings.general.railFoldInitials",
+  hairline: "settings.general.railFoldHairline",
+}
+
 export function GeneralSettingsSection(
   props: SectionCursorProps & {
     prefs: SettingsPrefs
@@ -167,6 +178,7 @@ export function GeneralSettingsSection(
   const crossTaskRow = rowIdx("cross-task")
   const keyHintsRow = rowIdx("key-hints")
   const zenDefaultOnRow = rowIdx("zen-default-on")
+  const railFoldStyleRow = rowIdx("rail-fold-style")
   const editorKindRow = rowIdx("editor-kind")
   const editorCustomRow = rowIdx("editor-custom")
   const worktreeBaseRow = rowIdx("worktree-base")
@@ -328,6 +340,18 @@ export function GeneralSettingsSection(
             bold={true}
           >
             {`${check(prefs.zenDefaultOn())} ${t("settings.general.zenDefaultOn")}`}
+          </Row>
+        </SubSection>
+        <SubSection title={t("settings.general.railFold")} hint={t("settings.general.railFoldHint")}>
+          <Row
+            cursor={isBodyCursor(railFoldStyleRow)}
+            rowRef={props.rowRef(railFoldStyleRow)}
+            onMouseUp={activate(railFoldStyleRow, prefs.cycleRailFoldStyle)}
+            fg={theme.accent}
+            bold={true}
+            hint={hint("settings.general.railFoldRowHint")}
+          >
+            {pad(t("settings.general.railFoldRow", { style: t(RAIL_FOLD_LABEL_KEYS[prefs.railFoldStyle()]) }))}
           </Row>
         </SubSection>
         <SubSection title={t("settings.general.editor")} hint={t("settings.general.editorHint")}>
