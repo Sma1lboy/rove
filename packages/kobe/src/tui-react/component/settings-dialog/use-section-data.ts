@@ -8,8 +8,9 @@
  * are all on one side of the line and easy to keep lazy.
  */
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { type EngineStatus, detectEngineStatuses } from "../../../engine/engine-status"
+import { type EngineIntegration, engineIntegrations } from "../../../engine/integration-status"
 import type { SectionId } from "../../../tui/component/settings-dialog/model"
 import type { VendorId } from "../../../types/task"
 import { useT } from "../../i18n"
@@ -44,6 +45,39 @@ export function useAccountProbes(section: SectionId, vendors: readonly VendorId[
     }
   }, [section, key])
   return statuses
+}
+
+/**
+ * Which reporting layers each listed engine has, and whether the one Rove
+ * INSTALLS is current on this machine (`engine/integration-status.ts`).
+ *
+ * Separate from {@link useAccountProbes} because the two answer different
+ * questions about the same row and fail independently: that one probes the
+ * engine's own install and login, this one reads what Rove wrote into the
+ * engine. `reprobe` is what makes the install action visible — the whole
+ * point of the row is that pressing it changes these states, and a panel
+ * that still showed the pre-install reading would be the same blind spot in
+ * a new place.
+ */
+export function useEngineIntegrations(
+  section: SectionId,
+  vendors: readonly VendorId[],
+): { rows: readonly EngineIntegration[] | null; reprobe: () => void } {
+  const [rows, setRows] = useState<readonly EngineIntegration[] | null>(null)
+  // Same content key as useAccountProbes: `vendors` is a fresh array every
+  // render, so depending on it would re-read every engine config on each
+  // keystroke in the dialog.
+  const key = vendors.join(",")
+  // One reader, used by both the section-open effect and `reprobe`, so the
+  // install row's re-read runs exactly the code the first read ran.
+  const read = useCallback((): void => {
+    setRows(engineIntegrations(key ? (key.split(",") as VendorId[]) : []))
+  }, [key])
+  useEffect(() => {
+    if (section !== "engines") return
+    read()
+  }, [section, read])
+  return { rows, reprobe: read }
 }
 
 export interface PluginSettings {

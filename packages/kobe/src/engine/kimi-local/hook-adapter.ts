@@ -36,7 +36,13 @@ import { kobeHookInvocation } from "../../cli/invocation.ts"
 import { quoteShellArgv } from "../../lib/shell-command.ts"
 import type { EngineHookAdapter, EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
-import { GATED_TOOL_VERBS, type HookEditOutcome, type HookEventSpec, hookCommandQuoting } from "../json-hooks.ts"
+import {
+  GATED_TOOL_VERBS,
+  type HookEditOutcome,
+  type HookEventSpec,
+  hookCommandQuoting,
+  roveHookArgs,
+} from "../json-hooks.ts"
 import { vendorConfigHome } from "../vendor-home.ts"
 
 /** Kimi hook event → normalized kobe verb. The ONE place Kimi event names live. */
@@ -85,7 +91,7 @@ export function renderKimiHookBlock(
     if (!opts.toolEvents && GATED_TOOL_VERBS.has(spec.verb)) continue
     // JSON.stringify doubles as a TOML basic-string quoter (same trick as
     // codex-local/trust.ts).
-    const command = quoteShellArgv([...inv, "hook", spec.verb, "--engine", "kimi"], hookCommandQuoting())
+    const command = quoteShellArgv([...inv, "hook", spec.verb, ...roveHookArgs("kimi")], hookCommandQuoting())
     lines.push("[[hooks]]")
     lines.push(`event = ${JSON.stringify(spec.event)}`)
     if (spec.matcher) lines.push(`matcher = ${JSON.stringify(spec.matcher)}`)

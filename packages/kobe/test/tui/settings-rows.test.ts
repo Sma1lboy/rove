@@ -105,26 +105,28 @@ describe("generalRows", () => {
 })
 
 describe("engineRows", () => {
-  it("is one row per engine plus the trailing add row (old engineRowCount = vendors + custom + 1)", () => {
+  it("is one row per engine, then the add row, then the integration install row", () => {
     const customs = ["aider", "goose"]
     const list = [...ALL_VENDORS, ...customs]
     const rows = engineRows(list)
-    expect(rows.length).toBe(ALL_VENDORS.length + customs.length + 1)
+    expect(rows.length).toBe(ALL_VENDORS.length + customs.length + 2)
     // Engine row index === its position in the engine list (the section's <For> order).
     list.forEach((vendor, i) => {
       expect(rowIndex(rows, engineRowId(vendor))).toBe(i)
       const row = rowAt(rows, i)
       expect(row?.kind === "engine" && row.vendor).toBe(vendor)
     })
-    // The add row sits last, at index === engine count (old addRowIndex).
-    const last = rowAt(rows, list.length)
-    expect(last?.kind).toBe("engineAdd")
+    // The add row sits at index === engine count (the section's addRowIndex),
+    // and the one-shot integration install closes the section.
+    expect(rowAt(rows, list.length)?.kind).toBe("engineAdd")
+    expect(rows.at(-1)?.kind).toBe("engineHooksInstall")
   })
 
   it("with zero custom engines still ends with the add row", () => {
     const rows = engineRows(ALL_VENDORS)
-    expect(rows.length).toBe(ALL_VENDORS.length + 1)
-    expect(rows.at(-1)?.kind).toBe("engineAdd")
+    expect(rows.length).toBe(ALL_VENDORS.length + 2)
+    expect(rows.at(-2)?.kind).toBe("engineAdd")
+    expect(rows.at(-1)?.kind).toBe("engineHooksInstall")
   })
 })
 
@@ -199,7 +201,7 @@ describe("sectionRows / bodyRowCount", () => {
     const themes = Array.from({ length: 12 }, (_, i) => `t${i}`)
     const inp = input({ themeNames: themes, engineList: [...ALL_VENDORS, "aider", "goose"], hasDaemon: true })
     expect(bodyRowCount("general", inp)).toBe(12 + LANG + 1 + 3 + 15) // themes + langs + transparent + accents + retained general rows
-    expect(bodyRowCount("engines", inp)).toBe(ALL_VENDORS.length + 2 + 1) // 6
+    expect(bodyRowCount("engines", inp)).toBe(ALL_VENDORS.length + 2 + 2) // 6 built-ins + 2 custom + add + install
     expect(bodyRowCount("keys", inp)).toBe(2)
     expect(bodyRowCount("feedback", inp)).toBe(3)
     // reset + restart + 3 experimental toggles; one fewer without a daemon.

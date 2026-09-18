@@ -12,12 +12,14 @@
 import { type BoxRenderable, TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
 import type { EngineAccount, EngineStatus } from "../../../engine/engine-status"
+import type { EngineIntegration } from "../../../engine/integration-status"
 import { displayWidth } from "../../../lib/display-width"
 import { tildify } from "../../../lib/path-home"
 import type { VendorId } from "../../../types/task"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import type { SectionCursorProps } from "./rows"
+import { EngineIntegrationLine } from "./sections-engines-integration"
 
 export function EngineSettingsSection(
   props: SectionCursorProps & {
@@ -46,6 +48,12 @@ export function EngineSettingsSection(
     chooseDefault: (vendor: VendorId) => void
     /** Register a new custom engine — the trailing "+ Add engine" row. */
     onAddEngine: () => void
+    /** Which reporting layers each engine has; `null` while the probe runs. */
+    integrations: readonly EngineIntegration[] | null
+    /** Engines whose hooks a single install would change (drives the label). */
+    needsHookInstall: readonly VendorId[]
+    /** Install the missing/outdated hooks for every engine at once. */
+    onInstallHooks: () => void
   },
 ) {
   const { theme } = useTheme()
@@ -54,6 +62,7 @@ export function EngineSettingsSection(
   const addRowIndex = props.vendors.length
   const isBodyCursor = (row: number) => props.level === "body" && props.bodyRow === row
   const byVendor = new Map((props.statuses ?? []).map((s) => [s.vendor, s]))
+  const integrationByVendor = new Map((props.integrations ?? []).map((row) => [row.vendor, row]))
   // Names get a shared column so the commands line up under each other —
   // "Claude claude" is two words the eye has to separate on every row. Capped,
   // because one long custom name must not push every command off to the right.
@@ -170,6 +179,7 @@ export function EngineSettingsSection(
                 probing={props.statuses === null}
                 protocol={protocolChip(vendor)}
               />
+              <EngineIntegrationLine integration={integrationByVendor.get(vendor) ?? null} />
             </box>
           )
         })}
@@ -188,6 +198,37 @@ export function EngineSettingsSection(
         >
           <text fg={isBodyCursor(addRowIndex) ? theme.selectedListItemText : theme.primary} wrapMode="none">
             {t("settings.engines.addEngine")}
+          </text>
+        </box>
+        {/* One install for every engine that needs one. Always present, even
+            with nothing to do: a row that appears only when something is
+            broken is a row nobody knows exists, and re-running the install is
+            idempotent by contract. */}
+        <box
+          ref={props.rowRef(addRowIndex + 1)}
+          flexDirection="row"
+          paddingLeft={1}
+          paddingRight={1}
+          backgroundColor={isBodyCursor(addRowIndex + 1) ? theme.primary : undefined}
+          onMouseUp={() => {
+            props.setLevel("body")
+            props.setBodyRow(addRowIndex + 1)
+            props.onInstallHooks()
+          }}
+        >
+          <text
+            fg={
+              isBodyCursor(addRowIndex + 1)
+                ? theme.selectedListItemText
+                : props.needsHookInstall.length > 0
+                  ? theme.primary
+                  : theme.textMuted
+            }
+            wrapMode="none"
+          >
+            {props.needsHookInstall.length > 0
+              ? t("settings.engines.installHooks", { count: String(props.needsHookInstall.length) })
+              : t("settings.engines.installHooksDone")}
           </text>
         </box>
       </box>

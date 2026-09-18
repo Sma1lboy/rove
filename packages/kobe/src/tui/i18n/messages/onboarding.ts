@@ -7,8 +7,8 @@
 export const en = {
   /** Wizard header */
   title: "Welcome to Rove",
-  /** One-liner under the header */
-  subtitle: "Two quick questions and a quick environment check before your first launch.",
+  /** One-liner under the header: what Rove actually does, before any question. */
+  subtitle: "Every task gets its own git worktree and branch, so parallel sessions never collide.",
   /** Step 1 question; {shell} is the detected shell name (zsh/bash/fish) */
   completionsQuestion: "Install shell completions for {shell}?",
   /** Step 1 explanation */
@@ -33,6 +33,8 @@ export const en = {
   keysPrefix: "{prefix} opens the command map — hold it a beat and a guide appears.",
   /** {help} the help chord */
   keysHelp: "{help} shows the full live reference anytime.",
+  /** Last line of the wizard: where the engine-integration panel lives afterwards. */
+  keysNext: "Next: Settings → Engines lists every engine and installs its activity hooks.",
   /** Legend on the keys page */
   keysLegend: "enter finish",
   /** Environment page: heading */
@@ -70,7 +72,7 @@ export const en = {
 
 export const zh: typeof en = {
   title: "欢迎使用 Rove",
-  subtitle: "首次启动前，先回答两个小问题，再做一次环境检查。",
+  subtitle: "每个任务都有自己的 git worktree 和分支，所以并行的会话不会互相干扰。",
   completionsQuestion: "为 {shell} 安装 shell 补全吗？",
   completionsExplain: "让 rove 子命令支持 Tab 补全，会在你的 shell 配置里加一行。",
   skillQuestion: "安装 Rove agent skill 吗？",
@@ -83,6 +85,7 @@ export const zh: typeof en = {
   keysOnePress: "少量单次快捷键属于 Rove 自己 — {newTab} 新标签页，{focusNext} 切换面板。",
   keysPrefix: "{prefix} 打开命令层 — 按住稍等会出现命令指南。",
   keysHelp: "随时按 {help} 查看完整的实时键位表。",
+  keysNext: "接下来：设置 → 引擎 里列出每个引擎，并可在那里安装它们的活动钩子。",
   keysLegend: "enter 完成",
   envTitle: "环境检查",
   envExplain: "只读检查 — Rove 在这台机器上发现了什么：",

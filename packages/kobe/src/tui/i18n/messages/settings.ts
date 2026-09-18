@@ -3,7 +3,17 @@
  * section). English is the source of truth; `zh` mirrors its shape exactly
  * (`zh: typeof en`). One namespace per surface keeps parallel translation
  * work conflict-free — see `../catalog.ts` for how the namespaces compose.
+ *
+ * The namespace is still one surface; it is assembled from two files. The
+ * engine card's copy lives in `./settings-engines.ts` and is spread back in
+ * below, so every call site still spells its key `settings.engines.*` and never has to
+ * know which file a key came from. That card is the part of this dialog that
+ * grows — it gained a whole line per engine when Rove learned to say which
+ * reporting layers an engine uses — and growing it should not push the other
+ * five sections' copy around.
  */
+
+import { en as engineCard, zh as engineCardZh } from "./settings-engines"
 
 export const en = {
   title: "Settings",
@@ -144,32 +154,7 @@ export const en = {
     failedTitle: "Settings were not saved",
     failedBody: "{file} could not be written ({keys}) — the change applies to this session only.",
   },
-  engines: {
-    title: "Engines",
-    hint: "Every engine Rove can launch, with what detection found under each one: where its binary is, and for the engines with an account detector whether you are logged in. [x] = offered when picking an engine for a task; (●) = the global default (per-project picks, e.g. Ctrl+Shift+T, override it) — click either, or use the keys below. Override a launch command when the binary isn't on PATH or to pass default flags. space on/off · enter edit command · r rename · x reset/remove · d set default.",
-    customTag: "  (custom)",
-    addEngine: "+ Add engine",
-    launchCommandTitle: "{name} launch command",
-    displayNameTitle: "{name} display name (blank = default)",
-    addTitle: "Add engine",
-    addStepTitle: "Add engine · {id}",
-    protocolTitle: "Add engine · {id} — protocol",
-    protocolNone: "None — generic adapter",
-    protocolFooter: "↑↓ choose · enter pick · esc cancel",
-    protocolRow: "protocol {protocol}",
-    protocolGeneric: "generic",
-    idPlaceholder: "lowercase slug, e.g. aider",
-    commandPlaceholder: "e.g. aider --model sonnet",
-  },
-  accounts: {
-    checking: "Checking…",
-    notLoggedIn: "○ Not logged in",
-    loggedIn: "● Logged in: {email}",
-    apiKeyConfigured: "● API key configured",
-    chatgptLogin: "● ChatGPT login: {email}",
-    tokenConfigured: "● Token configured ({source})",
-    detected: "● Login detected",
-  },
+  ...engineCard,
   plugins: {
     title: "Plugins",
     hint: "Plugins registered in ~/.rove/plugins.json. enter (or click) toggles one on or off — the daemon watches the file, so the change applies live. Rows indented under a plugin are the settings it declares; enter edits one, and the value reaches the plugin on its next run. Install and remove them from the shell: `rove plugin install <owner/repo>`, `rove plugin link <dir>`.",
@@ -375,32 +360,7 @@ export const zh: typeof en = {
     failedTitle: "设置未能保存",
     failedBody: "{file} 写入失败（{keys}）—— 改动只在本次会话生效。",
   },
-  engines: {
-    title: "引擎",
-    hint: "Rove 能启动的所有引擎，每个下面跟着本地探测到的情况：二进制在哪，以及对有账户探测器的引擎是否已登录。[x] = 为任务选引擎时会列出它；(●) = 全局默认引擎（各项目自己的选择会覆盖它，如 Ctrl+Shift+T）——两者都可直接点，也可用下面的按键。二进制不在 PATH 上、或要传默认参数时，覆盖它的启动命令。space 开/关 · enter 编辑命令 · r 重命名 · x 重置/移除 · d 设为默认。",
-    customTag: "  (自定义)",
-    addEngine: "+ 添加引擎",
-    launchCommandTitle: "{name} 的启动命令",
-    displayNameTitle: "{name} 的显示名称（留空 = 默认）",
-    addTitle: "添加引擎",
-    addStepTitle: "添加引擎 · {id}",
-    protocolTitle: "添加引擎 · {id} —— 协议",
-    protocolNone: "无 —— 通用适配器",
-    protocolFooter: "↑↓ 选择 · enter 确认 · esc 取消",
-    protocolRow: "协议 {protocol}",
-    protocolGeneric: "通用",
-    idPlaceholder: "小写短名，如 aider",
-    commandPlaceholder: "如 aider --model sonnet",
-  },
-  accounts: {
-    checking: "检查中…",
-    notLoggedIn: "○ 未登录",
-    loggedIn: "● 已登录: {email}",
-    apiKeyConfigured: "● 已配置 API key",
-    chatgptLogin: "● ChatGPT 登录: {email}",
-    tokenConfigured: "● 已配置 Token ({source})",
-    detected: "● 检测到登录",
-  },
+  ...engineCardZh,
   plugins: {
     title: "插件",
     hint: "在 ~/.rove/plugins.json 里注册的插件。enter（或点击）切换启用/禁用——daemon 监听该文件，改动实时生效。插件下方缩进的行是它声明的设置项，enter 编辑，新值在插件下次运行时生效。安装与移除在 shell 里做：`rove plugin install <owner/repo>`、`rove plugin link <dir>`。",

@@ -23,6 +23,7 @@ import {
   removeWorktreeWatchHook as dropWorktreeWatchHook,
   mergeActivityHooks,
   parseHookSettings,
+  roveHookArgs,
 } from "./json-hooks.ts"
 import { updateSharedJson } from "./shared-config-write.ts"
 
@@ -124,20 +125,27 @@ export abstract class JsonHookAdapter implements EngineHookAdapter {
     return GATED_TOOL_VERBS
   }
 
-  async installActivityHooks(settingsFilePath: string, opts: { toolEvents?: boolean } = {}): Promise<HookEditOutcome> {
+  async installActivityHooks(
+    settingsFilePath: string,
+    opts: { toolEvents?: boolean; quiet?: boolean } = {},
+  ): Promise<HookEditOutcome> {
     const gated = this.gatedVerbs()
     const outcome = await editJsonSettings(settingsFilePath, (cur) =>
       mergeActivityHooks(cur, true, this.eventMap, undefined, {
         // Phase 0 (docs/design/plugin-events.md): tag the report with the
-        // vendor so `kobe hook` decodes with the right adapter, not a guess.
-        extraArgs: ["--engine", this.vendor],
+        // vendor so `kobe hook` decodes with the right adapter, not a guess,
+        // and with the shape version so a later Rove can tell its own old
+        // entry from a current one.
+        extraArgs: roveHookArgs(this.vendor),
         buildFilter: (spec) => opts.toolEvents === true || !gated.has(spec.verb),
       }),
     )
     // stderr, not a throw: under `rove daemon` this lands in daemon.log, which
     // is where `rove doctor` sends a reader whose hook channel is dead. The
     // removals stay silent — this is the write whose absence costs the badges.
-    if (!outcome.ok) process.stderr.write(`[rove hooks] ${this.vendor}: skipped ${outcome.file}: ${outcome.reason}\n`)
+    if (!outcome.ok && !opts.quiet) {
+      process.stderr.write(`[rove hooks] ${this.vendor}: skipped ${outcome.file}: ${outcome.reason}\n`)
+    }
     return outcome
   }
 

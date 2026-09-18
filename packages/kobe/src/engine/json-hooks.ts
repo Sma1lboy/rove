@@ -19,6 +19,32 @@ import { kobeHookInvocation } from "../cli/invocation.ts"
 import { type QuoteShellArgvOptions, quoteShellArgv } from "../lib/shell-command.ts"
 import type { EngineActivityKind } from "./hook-events.ts"
 
+/**
+ * Shape version of the hooks Rove writes into an engine's config, stamped
+ * onto every installed command as `--hook-version <n>`.
+ *
+ * Without it "installed" was the only readable state: an entry written by an
+ * older Rove — a different event table, a different verb spelling, a command
+ * that no longer decodes — is indistinguishable from a current one, so a
+ * machine that upgraded Rove kept reporting through whatever shape happened
+ * to be on disk and nothing could say so. An install written before this
+ * existed carries no flag at all, which reads as `outdated`, not as a
+ * parse failure (see `integration-status.ts`).
+ *
+ * BUMP THIS when the installed shape changes in a way an old entry gets
+ * wrong: a verb renamed or retired, an event remapped, the argv contract
+ * changed. Do NOT bump for a change the old entry still satisfies — every
+ * bump rewrites every user's engine config on their next launch.
+ */
+export const ROVE_HOOK_VERSION = 1
+
+/** The argv every adapter appends after the verb: which engine decodes the
+ *  payload, and which shape wrote the entry. One helper so the four adapters
+ *  cannot drift into three spellings of the same two flags. */
+export function roveHookArgs(vendor: string): readonly string[] {
+  return ["--engine", vendor, "--hook-version", String(ROVE_HOOK_VERSION)]
+}
+
 /** Verbs installed only while a plugin subscribes to tool.* hooks (volume gate).
  *  Defined once here so JSON-shaped and TOML-shaped adapters share the same
  *  gated set and a future change cannot drift between them. */
@@ -96,6 +122,12 @@ export function parseHookSettings(raw: string | undefined): HookSettingsParse {
 const HOOK_WORD = String.raw`(?:'(?:[^']|'\\'')*'|"[^"$\x60\\]*"|[A-Za-z0-9_./:=+-]+)`
 const HOOK_ARGV = new RegExp(`^${HOOK_WORD}(?:[ \t]+${HOOK_WORD})*$`)
 
+/** Flags Rove appends after the verb, and what each accepts as a value. */
+const ROVE_HOOK_FLAGS: Readonly<Record<string, RegExp>> = {
+  "--engine": /^[a-z][a-z0-9-]*$/,
+  "--hook-version": /^\d+$/,
+}
+
 /**
  * Does this hook entry belong to Rove — i.e. is its command a recognized
  * `rove hook <verb>` invocation? Ownership, not string equality: the same
@@ -130,8 +162,17 @@ export function isRoveHook(hook: unknown, verbs: readonly string[]): boolean {
     return false
   }
   if (argv[offset] !== "hook" || !verbs.includes(argv[offset + 1])) return false
+  // Trailing flags are OURS to recognize, and every known one is a pair. An
+  // empty tail and a bare `--engine <id>` are what older Rove versions wrote:
+  // still ours, so they stay removable and replaceable (that is what makes a
+  // version upgrade a clean rewrite rather than a duplicate install).
   const rest = argv.slice(offset + 2)
-  return rest.length === 0 || (rest.length === 2 && rest[0] === "--engine" && /^[a-z][a-z0-9-]*$/.test(rest[1]))
+  for (let i = 0; i < rest.length; i += 2) {
+    const value = rest[i + 1]
+    const pattern = ROVE_HOOK_FLAGS[rest[i] ?? ""]
+    if (!pattern || value === undefined || !pattern.test(value)) return false
+  }
+  return true
 }
 
 /** A shared group can contain both Rove and user hooks; ownership is per hook. */

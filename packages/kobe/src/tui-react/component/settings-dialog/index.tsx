@@ -16,6 +16,7 @@ import { TextAttributes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
 import { useMemo, useState } from "react"
 import { type KobeOrchestrator, RemoteOrchestrator, type UsageSnapshotMap } from "../../../client/remote-orchestrator"
+import { enginesNeedingHookInstall } from "../../../engine/integration-status"
 import { createStateCell } from "../../../lib/external-store"
 import { submitFeedback } from "../../../lib/feedback"
 import {
@@ -38,13 +39,13 @@ import { useBindings } from "../../lib/keymap"
 import { useAccessor } from "../../lib/use-accessor"
 import { useCursorFollow } from "../../lib/use-cursor-follow"
 import { type DialogContext, useDialog, useDialogPaddingX } from "../../ui/dialog"
-import { confirmResetState, confirmRestartDaemon, hasRestartableDaemon } from "./actions"
+import { confirmResetState, confirmRestartDaemon, hasRestartableDaemon, installEngineHooks } from "./actions"
 import { EngineSettingsSection } from "./sections-engines"
 import { GeneralSettingsSection, SettingsSectionSidebar } from "./sections-general"
 import { DevSettingsSection, FeedbackSettingsSection, KeybindingsSettingsSection } from "./sections-misc"
 import { PluginSettingsSection } from "./sections-plugins"
 import { useEngineSettings } from "./use-engine-settings"
-import { useAccountProbes, usePluginSettings } from "./use-section-data"
+import { useAccountProbes, useEngineIntegrations, usePluginSettings } from "./use-section-data"
 import { useSettingsPrefs } from "./use-settings-prefs"
 
 export type SettingsDialogProps = {
@@ -81,6 +82,14 @@ export function SettingsDialog(props: SettingsDialogProps) {
 
   // Lazily-probed section data (accounts / plugins) — see ./use-section-data.
   const engineStatuses = useAccountProbes(section, engines.engineList())
+  // What Rove installed INTO each engine (hooks) — read separately from the
+  // account probe above, and re-read after the install row runs.
+  const integrations = useEngineIntegrations(section, engines.engineList())
+  const needsHookInstall = enginesNeedingHookInstall(integrations.rows ?? [])
+  async function runHookInstall(): Promise<void> {
+    await installEngineHooks()
+    integrations.reprobe()
+  }
   // Writing the starter YAML flips the Keybindings section from "here is an
   // example" to a real file — and re-applying it is what re-renders the
   // section (and drops its create row) without a restart.
@@ -233,6 +242,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     tabStripHideSingle: () => prefs.cycleTabStripMode(),
     engine: (row) => void engines.editEngine(row.vendor),
     engineAdd: () => void engines.addEngineFlow(),
+    engineHooksInstall: () => void runHookInstall(),
     keysCreate: () => createKeysFile(),
     pluginToggle: (row) => plugins.toggle(row.pluginId),
     pluginSetting: (row) => void plugins.editSetting(row.pluginId, row.key),
@@ -381,6 +391,9 @@ export function SettingsDialog(props: SettingsDialogProps) {
               isDefaultEngine={(v) => engines.defaultEngine === v}
               editEngine={(v) => void engines.editEngine(v)}
               onAddEngine={() => void engines.addEngineFlow()}
+              integrations={integrations.rows}
+              needsHookInstall={needsHookInstall}
+              onInstallHooks={() => void runHookInstall()}
             />
           ) : null}
           {section === "plugins" ? (
