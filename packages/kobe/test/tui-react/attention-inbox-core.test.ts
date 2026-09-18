@@ -125,6 +125,27 @@ describe("inbox rows", () => {
     ).toHaveLength(3)
   })
 
+  // When EVERY visited tab of a live task has closed, its per-tab rows all drop,
+  // and the task must fall back to a single task-level RECENT row — exactly as a
+  // never-visited task does. Keying `seenTasks` off the raw visit log instead
+  // marked the task "seen" and excluded it from the task-level fallback too, so
+  // a live task you visited and then closed the tab on disappeared from the
+  // Inbox altogether.
+  test("falls back to a task-level row when all of a task's visited tabs have closed", () => {
+    const tasks = [task("a", "2026-07-04T00:00:00.000Z"), task("b", "2026-07-03T00:00:00.000Z")]
+    const rows = inboxRows([], tasks, {
+      visits: [
+        { taskId: "a", tabId: "tab-1", at: 300 },
+        { taskId: "a", tabId: "tab-2", at: 200 },
+      ],
+      // Both of task "a"'s visited tabs are confirmed gone; "b" was never visited.
+      tabExists: () => false,
+    })
+    // "a" appears once, as a task-level row — not as its closed tab rows, and
+    // not missing entirely.
+    expect(rows.filter((row) => row.kind === "recent").map((row) => row.id)).toEqual(["r:a", "r:b"])
+  })
+
   // A tab-scoped episode only shadows ITS tab; a task-level one shadows all.
   test("drops only the tabs an episode already covers", () => {
     const tabScoped = inboxRows([item("a", "tab-1", "error", 1)], [task("a", "2026-07-04T00:00:00.000Z")], {
