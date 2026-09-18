@@ -63,7 +63,10 @@ describe("SettingsDialog", () => {
     expect(text).toMatch(/\[x\]/) // the on/off switch column
     text = await press("j") // → Auto effort
     expect(text).toContain("Three depths a new task can be started at")
-    expect(text).toContain("● ready")
+    // The rows, not the verdict: whether claude is logged in is a fact about
+    // the machine running the suite (CI is not), so the gate line is pinned
+    // by settings-auto-effort-section.test.tsx with a stubbed verdict.
+    expect(text).toContain("swift      Claude · sonnet · engine default")
     text = await press("j") // → Plugins
     expect(text).toContain("No plugins registered")
     text = await press("j") // → Marketplace
