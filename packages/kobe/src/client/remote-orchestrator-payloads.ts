@@ -74,6 +74,14 @@ export {
   parseWorktreeChangesPayload,
   sameWorktreeChangesMap,
 } from "./remote-orchestrator-worktree-changes.ts"
+// Plugin-written row labels (`task.tokens`) — same arrangement, same reason.
+export {
+  type RowToken,
+  type RowTokenMap,
+  liveRowTokens,
+  parseRowTokensPayload,
+  sameRowTokenMap,
+} from "./remote-orchestrator-row-tokens.ts"
 
 /**
  * A long daemon operation currently IN FLIGHT for a task, accumulated from

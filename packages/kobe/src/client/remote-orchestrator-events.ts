@@ -24,6 +24,7 @@ import {
 } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { EngineActivityDetail, TaskActivityState } from "../engine/hook-events.ts"
 import type { UpdateInfo } from "../version.ts"
+import { handleMapChannel } from "./remote-orchestrator-map-events.ts"
 import {
   type AttentionInboxItem,
   type EngineLifecycleState,
@@ -34,10 +35,12 @@ import {
   describePayload,
   deserializeTask,
   parseContextUsagePayload,
+  parseRowTokensPayload,
   parseTranscriptActivityPayload,
   parseUsageSnapshotPayload,
   parseWorktreeChangesPayload,
   sameContextUsageMap,
+  sameRowTokenMap,
   sameTranscriptActivityMap,
   sameUsageSnapshotMap,
   sameWorktreeChangesMap,
@@ -315,62 +318,10 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
     }
     return
   }
-  if (name === "usage.snapshot") {
-    const next = parseUsageSnapshotPayload(payload)
-    if (!next) {
-      // malformed → never clobber a good map, but log the drop.
-      logClientError("orch", `dropped usage.snapshot event: malformed usage payload (${describePayload(payload)})`)
-      return
-    }
-    const current = signals.usageSnapshotAcc()
-    if (current && sameUsageSnapshotMap(current, next)) return
-    signals.setUsageSnapshotSig(next)
-    return
-  }
-  if (name === "usage.context") {
-    const next = parseContextUsagePayload(payload)
-    if (!next) {
-      logClientError("orch", `dropped usage.context event: malformed context payload (${describePayload(payload)})`)
-      return
-    }
-    const current = signals.contextUsageAcc()
-    if (current && sameContextUsageMap(current, next)) return
-    signals.setContextUsageSig(next)
-    return
-  }
-  if (name === "worktree.changes") {
-    const next = parseWorktreeChangesPayload(payload)
-    if (!next) {
-      // malformed → never clobber a good map, but log the drop.
-      logClientError("orch", `dropped worktree.changes event: malformed changes payload (${describePayload(payload)})`)
-      return
-    }
-    // Value-equality gate: an unchanged republish (bus replay across a
-    // reconnect, or a daemon publish that round-trips to the same counts)
-    // must not swap the map reference and re-render every sidebar row.
-    const current = signals.worktreeChangesAcc()
-    if (current && sameWorktreeChangesMap(current, next)) return
-    signals.setWorktreeChangesSig(next)
-    return
-  }
-  if (name === "transcript.activity") {
-    const next = parseTranscriptActivityPayload(payload)
-    if (!next) {
-      // malformed → never clobber a good map, but log the drop.
-      logClientError(
-        "orch",
-        `dropped transcript.activity event: malformed activity payload (${describePayload(payload)})`,
-      )
-      return
-    }
-    // Value-equality gate: an unchanged republish (bus replay across a
-    // reconnect, or a daemon publish that round-trips to the same facts)
-    // must not swap the map reference and re-run every Ops pane effect.
-    const current = signals.transcriptActivityAcc()
-    if (current && sameTranscriptActivityMap(current, next)) return
-    signals.setTranscriptActivitySig(next)
-    return
-  }
+  // The five MAP channels (usage × 2, worktree changes, transcript activity,
+  // plugin row tokens) share one parse/compare/write shape — see
+  // `remote-orchestrator-map-events.ts`.
+  if (handleMapChannel(name, payload, signals)) return
   if (name === "tab.open") {
     const p = payload as Partial<TabOpenPayload> | undefined
     if (

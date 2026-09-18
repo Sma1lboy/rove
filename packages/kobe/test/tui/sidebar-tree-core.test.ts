@@ -180,12 +180,17 @@ describe("buildTreeRows", () => {
   })
 
   test("attention sort floats blocked worktrees, then unread completions", () => {
-    // All three touched at the SAME instant, so only the activity band can
+    // All three touched at the SAME instant, so only the derived group can
     // order them — an age-only sort would leave the input order.
     const at = "2026-08-01T00:00:00.000Z"
     const result = rows({
       sortMode: "attention",
-      activityOf: (id) => ({ quiet: "running", landed: "turn_complete", stuck: "permission_needed" })[id] as never,
+      activityOf: (id) => {
+        const state = ({ quiet: "running", landed: "turn_complete", stuck: "permission_needed" } as const)[
+          id as "quiet" | "landed" | "stuck"
+        ]
+        return state ? { state, at: Date.now() } : undefined
+      },
       tasks: [task("quiet", { updatedAt: at }), task("landed", { updatedAt: at }), task("stuck", { updatedAt: at })],
     })
     expect(result.filter((r) => r.kind === "worktree").map((r) => r.id)).toEqual(["stuck", "landed", "quiet"])
@@ -194,7 +199,9 @@ describe("buildTreeRows", () => {
   test("attention sort keeps the main checkout first, like recent does", () => {
     const result = rows({
       sortMode: "attention",
-      activityOf: (id) => (id === "stuck" ? "error" : undefined),
+      // An `error` must be 20s old to count as waiting on a person (the
+      // derived group's debounce), so the fixture dates it past that.
+      activityOf: (id) => (id === "stuck" ? { state: "error", at: Date.now() - 30_000 } : undefined),
       tasks: [
         task("quiet", { repo: "/repos/rove" }),
         task("m", { kind: "main", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),

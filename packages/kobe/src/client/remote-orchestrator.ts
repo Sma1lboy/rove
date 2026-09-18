@@ -46,6 +46,7 @@ import {
   type OrchestratorSignals,
   type RecentTaskEvent,
   type RemoteOrchestratorOptions,
+  type RowTokenMap,
   type TaskEngineState,
   type TaskJobState,
   type TranscriptActivityMap,
@@ -63,6 +64,8 @@ export type {
   EngineTabStateMap,
   RecentTaskEvent,
   RemoteOrchestratorOptions,
+  RowToken,
+  RowTokenMap,
   TaskEngineState,
   TaskJobState,
   TranscriptActivity,
@@ -72,8 +75,11 @@ export type {
 } from "./remote-orchestrator-payloads.ts"
 export {
   decodeUiPrefsPayload,
+  liveRowTokens,
+  parseRowTokensPayload,
   parseTranscriptActivityPayload,
   parseWorktreeChangesPayload,
+  sameRowTokenMap,
   sameTranscriptActivityMap,
   sameWorktreeChangesMap,
 } from "./remote-orchestrator-payloads.ts"
@@ -95,6 +101,7 @@ export class RemoteOrchestrator {
   private readonly engineTabStateAcc = createStateCell<EngineTabStateMap>(new Map())
   private readonly attentionInboxAcc = createStateCell<readonly AttentionInboxItem[]>([])
   private readonly taskJobsAcc = createStateCell<ReadonlyMap<string, TaskJobState>>(new Map())
+  private readonly rowTokensAcc = createStateCell<RowTokenMap>(new Map())
   private readonly worktreeChangesAcc = createStateCell<WorktreeChangesMap | null>(null)
   private readonly usageSnapshotAcc = createStateCell<UsageSnapshotMap | null>(null)
   private readonly contextUsageAcc = createStateCell<ContextUsageMap | null>(null)
@@ -155,6 +162,8 @@ export class RemoteOrchestrator {
       setAttentionInboxSig: this.attentionInboxAcc.set,
       taskJobsAcc: this.taskJobsAcc,
       setTaskJobsSig: this.taskJobsAcc.set,
+      rowTokensAcc: this.rowTokensAcc,
+      setRowTokensSig: this.rowTokensAcc.set,
       worktreeChangesAcc: this.worktreeChangesAcc,
       setWorktreeChangesSig: this.worktreeChangesAcc.set,
       usageSnapshotAcc: this.usageSnapshotAcc,
@@ -314,6 +323,10 @@ export class RemoteOrchestrator {
 
   readonly taskJobsSignal = (): ReadableState<ReadonlyMap<string, TaskJobState>> => this.taskJobsAcc
 
+  /** Plugin-written row labels, TTL-bounded (`task.tokens`). An EMPTY map —
+   *  no plugin has anything to say — is the resting state, so there is no null. */
+  readonly rowTokensSignal = (): ReadableState<RowTokenMap> => this.rowTokensAcc
+
   /** null means the daemon has not supplied this channel; readers may poll locally. */
   readonly worktreeChangesSignal = (): ReadableState<WorktreeChangesMap | null> => this.worktreeChangesAcc
 
@@ -358,22 +371,19 @@ export class RemoteOrchestrator {
   readonly uiPromptStore = (): ExternalStore<UiPromptPayload | null> => this.uiPromptAcc
 
   /** Answer a `ui.prompt` request; omit `value` to report a cancel. */
-  readonly replyPrompt = (promptId: string, value?: string): void =>
-    void this.client.request("ui.promptReply", { promptId, ...(value !== undefined ? { value } : {}) }).catch(() => {})
+  readonly replyPrompt = (promptId: string, value?: string): void => writes.replyPromptOp(this.client, promptId, value)
 
   /** Transient per-task lifecycle marks (subagent activity). */
   readonly engineLifecycleSignal = (): ReadableState<EngineLifecycleMap> => this.engineLifecycleAcc
 
   /** One task's recent engine events (the event feed; newest last). */
   recentTaskEvents(id: TaskId | string): Promise<{ events: readonly RecentTaskEvent[] }> {
-    return this.client.request("task.recentEvents", { taskId: String(id) })
+    return writes.recentTaskEventsOp(this.client, id)
   }
 
   /** Fire-and-forget UI moment → plugin event hooks (`ui.reportEvent`). */
   readonly reportUiEvent = (kind: string, taskId?: string, detail?: Record<string, unknown>): void =>
-    void this.client
-      .request("ui.reportEvent", { kind, ...(taskId ? { taskId } : {}), ...(detail ? { detail } : {}) })
-      .catch(() => {})
+    writes.reportUiEventOp(this.client, kind, taskId, detail)
 
   /** Confirmed ESC interrupt on a hook-running tab — see
    *  {@link reportEngineInterruptOp}. */

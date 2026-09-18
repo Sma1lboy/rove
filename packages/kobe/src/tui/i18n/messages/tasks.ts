@@ -201,6 +201,27 @@ export const en = {
     /** The engine PROCESS is gone (pty exit record), not a failed turn. */
     dead: "engine exited",
   },
+  /**
+   * The DERIVED task group — whose turn it is, computed from the worker's
+   * report, the PR observation, engine activity and tab liveness
+   * (`lib/task-group.ts`). Distinct from `activity` above, which names what
+   * ONE engine is doing: these name what the TASK needs from a person, which
+   * is what the board badge and the row ordering are about. `idle` and
+   * `unknown` are deliberately unlabelled — a row with nothing to do says so
+   * by drawing nothing.
+   */
+  group: {
+    /** Blocked on a human: permission, a quota wall, a settled error, a dead
+     *  tab that delivered nothing, a failed deletion. */
+    waitingOnYou: "needs you",
+    /** PR open and approved — the merge is yours to do. */
+    landing: "ready to land",
+    /** A report landed (or a turn finished) and nobody has acted on it. */
+    readyForReview: "needs review",
+    /** An engine is producing output, or the daemon will resume it on a
+     *  timer. Nothing here for a person. */
+    working: "working",
+  },
   /** Row-view special subtitle words */
   subtitle: {
     noTracking: "no activity tracking",
@@ -413,6 +434,12 @@ export const zh: typeof en = {
     permissionNeeded: "等待授权",
     error: "错误",
     dead: "引擎已退出",
+  },
+  group: {
+    waitingOnYou: "等你处理",
+    landing: "可以合了",
+    readyForReview: "待你验收",
+    working: "运行中",
   },
   subtitle: {
     noTracking: "不跟踪活动",

@@ -277,7 +277,9 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   // free of a map that churns on every daemon push.
   const sortEngineState = sortMode === "attention" ? opts.engineState : undefined
   const { rows, totalCount } = useMemo(() => {
-    const activityOf = (taskId: string) => sortEngineState?.get(taskId)?.state
+    // The whole entry, not just its state: `attention` sort ranks by the
+    // derived task group, whose debounces read the transition timestamp.
+    const activityOf = (taskId: string) => sortEngineState?.get(taskId)
     // A SEARCH builds the tree fully expanded: folding the routine
     // sessions away at rest must not make them unfindable, and search is how
     // you reach one without opening the fold first. `filterTreeRows` then

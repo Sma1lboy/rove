@@ -76,6 +76,44 @@ from the row's right-click menu (**Set status**) or with `rove api set-status`;
 it is a label, and changing it leaves the worktree, the branch, and every
 running session alone.
 
+### Whose turn is it
+
+A worktree row carries one more mark, at its left edge, and it is the only one
+that answers *does this task need me*:
+
+| Mark | Group | Your move |
+|---|---|---|
+| `!` | **needs you** — a permission prompt, a quota wall nothing will clear on its own, a settled error, an engine that died having delivered nothing, a failed worktree deletion | answer it |
+| `»` | **ready to land** — the pull request is open and approved | merge it |
+| `●` | **needs review** — a worker filed a report, or a turn finished, and nobody has acted on it | read the diff |
+| spinner | **working** — an engine is producing output, or Rove will resume it when its quota window rolls | nothing |
+| (nothing) | quiet, or nothing has reported | nothing |
+
+This group is **derived**, not declared. A task's board status is something a
+person or a worker typed; a worker that crashed leaves it reading
+`in_progress` forever. The mark instead comes from what has owners: the
+worker's report, the pull request as Rove last polled it, the engine's
+arbitrated activity, and whether its session is still alive. Which is why two
+of these could not be shown at all before — a task whose worker reported and
+went quiet, and one whose PR was approved an hour ago, are both waiting on
+*you*, and neither is visible in any tab's engine state.
+
+Two debounces keep the top group honest: an errored turn must stand 20 seconds
+(an engine that fails and retries itself would otherwise summon you into the
+gap), and a dead session 60 seconds (one sweep of the check that can see an
+engine die inside a live terminal). A permission prompt and a quota wall are
+marked at once — nothing but you clears either.
+
+Sort the task list by this ordering with the sidebar's **attention** sort
+(`rove api context --repo . --text` prints the same ranking in a shell): the
+top of the list is what needs you next. `rove api context` also reports the
+group for scripts and agents — see the [API reference](API.md#read).
+
+A **plugin** may add its own short label to the right-hand cluster, with a
+deadline: it fades when the plugin stops refreshing it, so a plugin that dies
+cannot leave stale words on your rows. See
+[Plugin authoring](PLUGIN-AUTHORING.md#task-row-tokens).
+
 Session state belongs to the engine tab that runs it, so the state glyph sits
 on the **tab rows** underneath. There are four states, and only one asks
 anything of you:
@@ -475,9 +513,13 @@ its stories on the board. Four columns:
 
 - **Backlog.** Status `open`, not linked to a task.
 - **In progress.** Status `doing`, or linked to a task. Either route works:
-  agents move cards with `rove api issue-update --task`, a session started
-  from the drawer sets `doing`, and in-progress cards show the linked task's
-  live engine activity when there is a task to read it from.
+  agents move cards with `rove api issue-update --task`, and a session started
+  from the drawer sets `doing`. A linked card wears its task's derived group as
+  a badge — **needs you**, **ready to land**, **needs review**, **working**
+  (the same reading as the sidebar mark, above) — and the cards that need a
+  person float to the head of the column, counted in the header as
+  `N need you`. A parked card keeps its badge but never floats: its engine
+  being blocked is often *why* somebody parked it.
 - **Parked.** Status `hold`, linked or not; sits between In progress and
   Done.
 - **Done.** Status `done`.

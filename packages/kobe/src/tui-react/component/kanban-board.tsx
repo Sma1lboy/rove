@@ -15,7 +15,7 @@
 import { TextAttributes } from "@opentui/core"
 import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import type { ReactNode } from "react"
-import type { TaskEngineState } from "../../client/remote-orchestrator"
+import type { TaskGroup } from "../../lib/task-group"
 import type { BoardColumnKey, IssueBoardColumn } from "../../state/issue-board"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
@@ -63,7 +63,9 @@ export interface KanbanBoardProps {
   /** True when four lanes would leave the cards unreadable. */
   readonly singleLane: boolean
   /** Per-task engine activity — the live badge on a linked card. */
-  readonly engineStates?: ReadonlyMap<string, TaskEngineState>
+  /** The linked task's derived group, per task id — the card badge and the
+   *  attention float read the same reader the sidebar's sort does. */
+  readonly taskGroupOf?: (taskId: string) => TaskGroup | undefined
   /** Registers each card and each lane so the selection stays in view. */
   readonly follow: CursorFollow<number>
   readonly onSelect: (issueId: number) => void
@@ -91,14 +93,14 @@ export function KanbanBoard(props: KanbanBoardProps): ReactNode {
     // stay-on-the-board half of the background-start trigger); only In
     // progress floats/counts the badge, Parked keeps it as passive signal.
     const live = column === "in_progress" || column === "parked"
-    const activity = live && issue.taskId ? props.engineStates?.get(issue.taskId)?.state : undefined
+    const group = live && issue.taskId ? props.taskGroupOf?.(issue.taskId) : undefined
     return (
       <KanbanCard
         key={issue.id}
         issue={issue}
         column={column}
         selected={issue.id === selectedId}
-        activity={activity}
+        group={group}
         onSelect={() => props.onSelect(issue.id)}
         onOpen={() => props.onOpen(issue)}
         onContextMenu={props.onCardContextMenu ? (x, y) => props.onCardContextMenu?.(issue, x, y) : undefined}

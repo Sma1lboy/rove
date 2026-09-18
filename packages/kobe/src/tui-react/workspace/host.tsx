@@ -78,6 +78,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator; whatsNe
     sidebarEngineState,
     inboxItems,
     taskJobs,
+    rowTokens,
     worktreeChanges,
   } = useDaemonState(orch)
 
@@ -370,6 +371,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator; whatsNe
             engineTabState,
             engineLifecycle,
             taskJobs,
+            rowTokens,
             worktreeChanges,
           }}
           actions={taskActions}

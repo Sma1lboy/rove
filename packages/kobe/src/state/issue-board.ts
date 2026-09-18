@@ -103,29 +103,23 @@ export function issueColumnKey(issue: Issue, taskExists?: (taskId: string) => bo
   return "backlog"
 }
 
-/** Activity states where the linked engine is BLOCKED and won't progress on
- *  its own — a permission prompt, a dead turn, a quota wall, or a process
- *  that is simply gone. These float to the head of In progress as the "needs
- *  you" group. `turn_complete` is deliberately excluded: a finished turn is
- *  the normal end state, and floating every finished card would drown the
- *  actually-blocked ones. `dead` belongs here for the reason it belongs in
- *  `attentionKindFor` and `itemGlyph`: a SIGKILLed / OOMed / 403'd engine
- *  will never move again, and the board was the last attention surface still
- *  reading such a card as ordinary work in progress.
- *  String-typed (like notify-state's `attentionKindFor`) so this module
- *  stays free of the engine import. */
-const BOARD_ATTENTION_STATES: readonly string[] = ["permission_needed", "rate_limited", "error", "dead"]
-
-export function isBoardAttentionState(state: string | undefined): boolean {
-  return state !== undefined && BOARD_ATTENTION_STATES.includes(state)
-}
+// WHICH linked tasks need a person used to be a state list right here
+// (`BOARD_ATTENTION_STATES`), which is how the board ended up the last
+// attention surface that had never heard of `dead`. It is the derived task
+// group's job now (`lib/task-group.ts`), and `applyBoardAttention` takes the
+// answer as a predicate — so this module keeps its freedom from the engine
+// import AND stops holding a second, drifting copy of the rule.
 
 /**
  * Rendering-only attention partition: float In-progress cards whose linked
- * task is blocked on the user to the head of their column (order stable
+ * task needs a PERSON to the head of their column (order stable
  * within both groups) and report the group size. Nothing persisted changes —
  * the card stays In progress semantically; only the view order does.
- * Unlinked issues and vanished tasks (`stateOf` → undefined) stay in place.
+ * Unlinked issues and tasks the predicate cannot answer for stay in place.
+ * `needsYou` is a PREDICATE rather than a state reader because the caller now
+ * asks the derived task group (`lib/task-group.ts`), which folds the worker's
+ * report and the PR observation as well as engine activity — facts this
+ * module must not learn in order to stay free of those imports.
  * Only In progress is partitioned — deliberately NOT Parked: a parked card's
  * engine being blocked is often WHY it was parked (the human already saw it
  * and shelved the story), so floating it there would re-raise a handled
@@ -134,7 +128,7 @@ export function isBoardAttentionState(state: string | undefined): boolean {
  */
 export function applyBoardAttention(
   columns: readonly IssueBoardColumn[],
-  stateOf: (taskId: string) => string | undefined,
+  needsYou: (taskId: string) => boolean,
 ): { columns: readonly IssueBoardColumn[]; attentionCount: number } {
   let attentionCount = 0
   const next = columns.map((col) => {
@@ -143,7 +137,7 @@ export function applyBoardAttention(
     const rest: Issue[] = []
     for (const issue of col.issues) {
       const linked = issue.taskId !== undefined && issue.taskId !== ""
-      if (linked && isBoardAttentionState(stateOf(issue.taskId as string))) attention.push(issue)
+      if (linked && needsYou(issue.taskId as string)) attention.push(issue)
       else rest.push(issue)
     }
     attentionCount = attention.length

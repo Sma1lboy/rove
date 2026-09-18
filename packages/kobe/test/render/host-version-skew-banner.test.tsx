@@ -80,6 +80,7 @@ function fakeOrchestrator() {
     engineTabStatesSignal: () => EMPTY_MAP,
     attentionInboxSignal: () => EMPTY_ARR,
     taskJobsSignal: () => EMPTY_MAP,
+    rowTokensSignal: () => EMPTY_MAP,
     worktreeChangesSignal: () => NULL_CELL,
     transcriptActivitySignal: () => NULL_CELL,
     transcriptActivityStore: () => NULL_CELL,

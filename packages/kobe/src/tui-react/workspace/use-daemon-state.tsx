@@ -6,6 +6,7 @@
  * Sidebar and attention hooks. Grouping them keeps the orchestration layer
  * from being buried under ten signal reads before it wires any behavior. */
 
+import type { RowTokenMap } from "@/client/remote-orchestrator"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type {
   AttentionInboxItem,
@@ -29,6 +30,7 @@ export interface UseDaemonStateResult {
   sidebarEngineState: ReturnType<typeof useOptimisticEngineState>
   inboxItems: readonly AttentionInboxItem[]
   taskJobs: ReadonlyMap<string, TaskJobState>
+  rowTokens: RowTokenMap
   worktreeChanges: WorktreeChangesMap | null
 }
 
@@ -43,6 +45,7 @@ export function useDaemonState(orchestrator: RemoteOrchestrator): UseDaemonState
   const sidebarEngineState = useOptimisticEngineState(engineState)
   const inboxItems = useAccessor(orchestrator.attentionInboxSignal())
   const taskJobs = useAccessor(orchestrator.taskJobsSignal())
+  const rowTokens = useAccessor(orchestrator.rowTokensSignal())
   const worktreeChanges = useAccessor(orchestrator.worktreeChangesSignal())
 
   return {
@@ -54,6 +57,7 @@ export function useDaemonState(orchestrator: RemoteOrchestrator): UseDaemonState
     sidebarEngineState,
     inboxItems,
     taskJobs,
+    rowTokens,
     worktreeChanges,
   }
 }

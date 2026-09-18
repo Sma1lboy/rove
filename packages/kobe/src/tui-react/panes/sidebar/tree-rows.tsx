@@ -9,7 +9,7 @@
  * (pin / PR chip / ±stats / jump digit).
  */
 
-import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
+import { type TaskEngineState, type TaskJobState, liveRowTokens } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { type BoxRenderable, MouseButton, TextAttributes } from "@opentui/core"
 import { type ReactNode, useEffect, useMemo } from "react"
@@ -27,8 +27,9 @@ import {
   isAttentionActivity,
   withSpinnerFrame,
 } from "../../../tui/panes/sidebar/row-view"
+import { taskGroupGlyph } from "../../../tui/panes/sidebar/task-group-view"
 import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
-import { SIDEBAR_WIDTH, toneColor, truncateBranchLabel } from "../../../tui/panes/sidebar/view-core"
+import { SIDEBAR_WIDTH, rowTokenTone, toneColor, truncateBranchLabel } from "../../../tui/panes/sidebar/view-core"
 import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
@@ -144,10 +145,30 @@ export function WorktreeTreeRow(props: {
   // and nothing else would be unusable.
   const deletionWord =
     deleting || deleteFailed ? t(deleteFailed ? "tasks.subtitle.deleteFailed" : "tasks.subtitle.deleting") : null
+  // The DERIVED group (lib/task-group.ts) — a task-level fact, like the job
+  // and the deletion above it, and unlike the per-tab engine state the tab
+  // row owns. It is what closes the gap the `carriesState` split left open:
+  // a worker whose engine died at a permission prompt, and a task whose PR
+  // was approved an hour ago, both had nothing on this row to say so.
+  //
+  // Three of its four markers are the rail's existing vocabulary, so nothing
+  // new has to be learned: `!` needs you, `●` a turn landed you have not
+  // looked at, the spinner for work in flight. Only `»` (ready to land) is
+  // new. A spinning row keeps the spinner: a job in flight is the most
+  // worktree-level fact there is, and it already means "wait".
+  const group = shared.taskGroupOf?.(task.id)
+  const groupMark = spinning || !group ? null : taskGroupGlyph(group)
+  // Plugin-written labels. Expired tokens are dropped at RENDER time as well
+  // as by the daemon's republish: a frame between a token's deadline and that
+  // push must not paint a label that has already lapsed.
+  const tokens = liveRowTokens(shared.rowTokens, task.id, Date.now())
   const reserved =
-    // The glyph column exists only while a job runs or a deletion is in
-    // flight, so a quiet row spends none of its label budget on it.
-    (spinning || deleteFailed ? 2 : 0) +
+    // The glyph column exists only while a job runs or the derived group has
+    // something to say, so a quiet row spends none of its label budget on it.
+    (spinning || groupMark ? 2 : 0) +
+    // Plugin labels take from the SAME budget as everything else, so a
+    // plugin can crowd the branch name but never overflow the row.
+    tokens.reduce((cells, token) => cells + clusterCells(token.text), 0) +
     (deletionWord ? clusterCells(deletionWord) : 0) +
     jumpDigitCells(props.flatIndex) +
     (task.pinned === true ? 2 : 0) +
@@ -166,9 +187,9 @@ export function WorktreeTreeRow(props: {
         <text fg={theme.primary} wrapMode="none" width={2} flexShrink={0}>
           {`${IN_PROGRESS_SPINNER[frame % IN_PROGRESS_SPINNER.length] ?? IN_PROGRESS_SPINNER[0]} `}
         </text>
-      ) : deleteFailed ? (
-        <text fg={theme.error} wrapMode="none" width={2} flexShrink={0}>
-          {`${ATTENTION_GLYPH} `}
+      ) : groupMark ? (
+        <text fg={toneColor(theme, groupMark.tone)} wrapMode="none" width={2} flexShrink={0}>
+          {`${groupMark.glyph} `}
         </text>
       ) : null}
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
@@ -195,6 +216,16 @@ export function WorktreeTreeRow(props: {
             {chip.glyph}
           </text>
         ) : null}
+        {tokens.map((token) => (
+          <text
+            key={`${token.source}\u0000${token.key}`}
+            fg={token.tone ? toneColor(theme, rowTokenTone(token.tone)) : theme.textMuted}
+            wrapMode="none"
+            flexShrink={0}
+          >
+            {token.text}
+          </text>
+        ))}
         <ChangeStats changes={changes} />
         {deletionWord ? (
           <text fg={deleteFailed ? theme.error : theme.textMuted} wrapMode="none" flexShrink={0}>

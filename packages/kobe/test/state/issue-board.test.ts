@@ -143,69 +143,47 @@ describe("applyBoardAttention", () => {
     cols.find((c) => c.key === "in_progress")?.issues.map((i) => i.id)
 
   test("floats blocked cards to the column head, stable within both groups", () => {
-    const states = new Map([
-      ["T1", "permission_needed"],
-      ["T2", "running"],
-    ])
-    const { columns, attentionCount } = applyBoardAttention(base, (id) => states.get(id))
+    const { columns, attentionCount } = applyBoardAttention(base, (id) => id === "T1")
     expect(inProgress(columns)).toEqual([1, 3, 2])
     expect(attentionCount).toBe(1)
   })
 
-  test("all attention states float; running/turn_complete/idle do not", () => {
-    const states = new Map([
-      ["T1", "error"],
-      ["T2", "rate_limited"],
-      ["T3", "turn_complete"],
-    ])
-    const { columns, attentionCount } = applyBoardAttention(base, (id) => states.get(id))
+  // WHICH tasks need a person is the derived group's job now
+  // (`lib/task-group.ts`, tested there): this module only partitions on the
+  // predicate it is handed. That split is what let `dead` be missing from the
+  // board's own state list while every other surface already knew about it.
+  test("cards whose predicate answers true float to the head of In progress", () => {
+    const needsYou = new Set(["T1", "T2"])
+    const { columns, attentionCount } = applyBoardAttention(base, (id) => needsYou.has(id))
     expect(inProgress(columns)).toEqual([2, 1, 3])
     expect(attentionCount).toBe(2)
   })
 
   test("no attention → columns unchanged (same references), count 0", () => {
-    const { columns, attentionCount } = applyBoardAttention(base, () => "running")
+    const { columns, attentionCount } = applyBoardAttention(base, () => false)
     expect(columns).toEqual(base)
     expect(columns.find((c) => c.key === "in_progress")).toBe(base.find((c) => c.key === "in_progress"))
     expect(attentionCount).toBe(0)
   })
 
-  test("a vanished task (undefined state) stays in place", () => {
-    const { columns, attentionCount } = applyBoardAttention(base, () => undefined)
+  test("a vanished task — one the predicate cannot answer for — stays in place", () => {
+    const { columns, attentionCount } = applyBoardAttention(base, () => false)
     expect(inProgress(columns)).toEqual([3, 2, 1])
     expect(attentionCount).toBe(0)
   })
 
   test("parked/done/backlog are never partitioned nor counted, even with blocked links", () => {
-    // Issue 30 is parked AND its engine is permission_needed — that state is
-    // often WHY it was parked, so it neither floats nor counts as attention.
-    const { columns, attentionCount } = applyBoardAttention(base, () => "permission_needed")
+    // Issue 30 is parked AND its task needs a person — that is often WHY it
+    // was parked, so it neither floats nor counts as attention.
+    const { columns, attentionCount } = applyBoardAttention(base, () => true)
     expect(columns.find((c) => c.key === "parked")?.issues.map((i) => i.id)).toEqual([30])
     expect(columns.find((c) => c.key === "done")?.issues.map((i) => i.id)).toEqual([20])
     expect(columns.find((c) => c.key === "backlog")?.issues.map((i) => i.id)).toEqual([10])
     expect(attentionCount).toBe(3)
   })
 
-  test("a dead engine is an attention state — the board was the last surface that missed it", () => {
-    // `dead` = the engine PROCESS is gone (SIGKILL / OOM / a quota 403). It
-    // will never move again, so a card linked to one is blocked in exactly the
-    // sense this group exists for. `BOARD_ATTENTION_STATES` predates the state
-    // and was never extended, so the column read "1 needs input" while TWO
-    // tasks were stuck — and the killed one sat below the fold looking like
-    // ordinary work in progress. Every other surface already knew:
-    // `attentionKindFor` → error, `itemGlyph` → `†`, the sidebar rail and the
-    // tab strip both render it.
-    const states = new Map([
-      ["T1", "permission_needed"],
-      ["T2", "dead"],
-    ])
-    const { columns, attentionCount } = applyBoardAttention(base, (id) => states.get(id))
-    expect(inProgress(columns)).toEqual([2, 1, 3])
-    expect(attentionCount).toBe(2)
-  })
-
   test("empty board is a no-op", () => {
-    const { columns, attentionCount } = applyBoardAttention(buildIssueBoard([]), () => "error")
+    const { columns, attentionCount } = applyBoardAttention(buildIssueBoard([]), () => true)
     expect(columns.every((c) => c.issues.length === 0)).toBe(true)
     expect(attentionCount).toBe(0)
   })
