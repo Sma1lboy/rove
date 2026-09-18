@@ -239,7 +239,7 @@ Three pieces, in the layer each already belongs to:
    ([`tui-react/lib/host-boot.tsx:255`](../../packages/kobe/src/tui-react/lib/host-boot.tsx)),
    reported to the daemon with the `role: "gui"` subscribe
    ([`daemon/subscribe.ts`](../../packages/kobe-daemon/src/daemon/subscribe.ts)).
-   This is the prerequisite `docs/design/terminal-graphics.md` recorded as
+   This is the prerequisite the removed `terminal-graphics.md` recorded as
    unsolved; the measurement above shows it is one query, and terminals that
    answer `0` or nothing simply report no capability.
 2. **A verb + channel**, alongside
@@ -272,12 +272,12 @@ has to be built underneath it.
 
 ---
 
-## What this changes in `docs/design/terminal-graphics.md`
+## Why `docs/design/terminal-graphics.md` was removed
 
-That note's decision (2026-07-29, character cells, no kitty path) stands for
-what it was about: capturing a *child's* APC. Two of its stated mechanisms are
-now measured wrong for the *virtual placement* path, and should not be quoted
-against this one:
+That note's decision (2026-07-29, character cells, no kitty path) stood for
+what it was about: capturing a *child's* APC. Two of its stated mechanisms
+measured wrong for the *virtual placement* path, which is the one this note
+describes, so it was deleted rather than left to be quoted against this one:
 
 - "the terminal composites from its own placement store, **not** from our
   cells, so a sidebar drawn 'over' a pane does not occlude an image". True of
@@ -315,8 +315,8 @@ capture picks up whatever app is in front of that rectangle.
 
 The gate this builds on — whether opentui emits placeholders at all, whether a
 rectangle has to be reserved, and why `@xterm/headless` destroys a child's APC
-— is `docs/design/kitty-graphics-feasibility.md` on the `aardvark` worktree
-branch, with its probes in `.scratch/kitty-spike/`. Facts carried forward
+— is [`kitty-graphics-feasibility.md`](./kitty-graphics-feasibility.md),
+landed alongside this note. Facts carried forward
 unverified from it: the alternate-screen scoping of Kitty image storage,
 Ghostty scaling to the declared column count, and
 `registerApcHandler === undefined` on `@xterm/headless` 6.0.
