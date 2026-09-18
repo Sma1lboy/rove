@@ -31,8 +31,20 @@ const MAX_TITLE_CHARS = 60
 export function workItemTaskTitle(item: WorkItem): string {
   const title = item.title.trim()
   const room = MAX_TITLE_CHARS - `#${item.number} `.length
-  const clipped = title.length > room ? `${title.slice(0, room - 1).trimEnd()}…` : title
-  return `#${item.number} ${clipped}`
+  // Clip on code-POINT boundaries, not UTF-16 code units: a bare
+  // `title.slice(0, room - 1)` can bisect a surrogate pair (an emoji or a
+  // CJK-supplementary char straddling the cut) and strand a lone half that
+  // renders as U+FFFD (�) in the stored task title and its sidebar row.
+  // `orchestrator/title.ts` and `cli/api/read-output-page.ts` guard the same
+  // hazard the same way. `sanitizeTaskTitle` does not save us here — it only
+  // collapses C0 controls, so a stray surrogate would survive into `tasks.json`.
+  const points = [...title]
+  if (points.length <= room) return `#${item.number} ${title}`
+  const clipped = points
+    .slice(0, room - 1)
+    .join("")
+    .trimEnd()
+  return `#${item.number} ${clipped}…`
 }
 
 /** Pick a fence that cannot be closed early by backticks inside the body. */
