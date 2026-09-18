@@ -604,7 +604,10 @@ from. Neither does a downgrade.
 The page chrome follows your UI language (Settings → Appearance → Language).
 The release notes themselves are whatever was published to the
 [GitHub release](https://github.com/Sma1lboy/rove/releases), which today is
-English only. If GitHub is unreachable the page says so and shows the release
+English only. They render as markdown — headings, nested bullets, `code` and
+emphasis all come through, and a link shows its label without its address, so
+the sentence starts at the left edge instead of behind two GitHub URLs. The
+Update page and `rove update list` render them the same way. If GitHub is unreachable the page says so and shows the release
 URL instead — it never blocks startup, and it is dismissible before the notes
 finish loading.
 

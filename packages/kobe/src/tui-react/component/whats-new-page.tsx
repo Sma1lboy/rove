@@ -24,7 +24,7 @@ import { CURRENT_VERSION, type ReleaseNotesRangeItem, fetchReleaseNotesRange, re
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
-import { releaseBodyLines } from "./update-page"
+import { ReleaseNotesBody } from "./release-notes"
 
 export function WhatsNewPage(props: {
   from: string
@@ -99,11 +99,7 @@ export function WhatsNewPage(props: {
               <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="none">
                 v{release.version}
               </text>
-              {releaseBodyLines(release.body).map((line, i) => (
-                <text key={`${i}:${line}`} fg={theme.textMuted} wrapMode="word">
-                  {line}
-                </text>
-              ))}
+              <ReleaseNotesBody body={release.body} />
             </box>
           ))}
         </box>

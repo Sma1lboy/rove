@@ -13,7 +13,6 @@
  */
 
 import { afterEach, expect, test } from "bun:test"
-import { releaseBodyLines } from "../../src/tui-react/component/update-page"
 import { WhatsNewPage } from "../../src/tui-react/component/whats-new-page"
 import { currentLang, setLocaleLang } from "../../src/tui/i18n"
 import type { ReleaseNotesRangeItem } from "../../src/version.ts"
@@ -93,11 +92,35 @@ test("q closes without waiting for the fetch", async () => {
   expect(closed).toBe(true)
 })
 
-test("release bodies drop the URLs so the sentence starts at the left edge", () => {
-  const body =
-    "### Patch Changes\n\n- [#1032](https://x/pull/1032) [`0b99a4c`](https://x/commit/0b99a4c) Engines can now install hooks. — [@Sma1lboy](https://github.com/Sma1lboy)\n"
-  expect(releaseBodyLines(body)).toEqual([
-    "Patch Changes",
-    "- #1032 `0b99a4c` Engines can now install hooks. — @Sma1lboy",
-  ])
+test("the note body renders as markdown, not as its source text", async () => {
+  setLocaleLang("en")
+  const { frame, spans } = await renderComponent(
+    <WhatsNewPage
+      from="0.9.200"
+      onClose={() => {}}
+      fetchNotes={async () => [
+        {
+          version: "0.9.208",
+          url: "https://github.com/Sma1lboy/rove/releases/tag/v0.9.208",
+          body: "### Patch Changes\n\n- [#1032](https://x/pull/1032) [`0b99a4c`](https://x/commit/0b99a4c) Engines can now install **hooks**. — [@Sma1lboy](https://github.com/Sma1lboy)",
+        },
+      ]}
+    />,
+    { width: 80, height: 24 },
+  )
+  await settle()
+  const text = await frame()
+  // Syntax markers are concealed and the link addresses are gone, so the
+  // sentence starts at the left edge instead of behind two GitHub URLs.
+  expect(text).toContain("Patch Changes")
+  expect(text).toContain("#1032 0b99a4c Engines can now install hooks.")
+  expect(text).not.toContain("###")
+  expect(text).not.toContain("**")
+  expect(text).not.toContain("https://x/pull/1032")
+  // Rendered, not just stripped: the emphasis survives as an attribute.
+  const bold = (await spans()).lines
+    .flatMap((line) => line.spans)
+    .filter((span) => span.attributes !== 0)
+    .map((span) => span.text.trim())
+  expect(bold).toContain("hooks")
 })

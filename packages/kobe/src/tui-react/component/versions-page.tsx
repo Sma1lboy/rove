@@ -26,14 +26,19 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { bootPaneHost } from "../lib/host-boot"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { ReleaseNotesBody } from "./release-notes.tsx"
 import { runShellUpdater } from "./run-updater.ts"
-import { releaseBodyLines } from "./update-page.tsx"
 
 const RELEASE_LIMIT = 20
 
 type NotesCache = Record<string, ReleaseNotes | "loading" | "missing">
 
-function VersionsPage(props: { onClose: () => void }) {
+export function VersionsPage(props: {
+  onClose: () => void
+  /** Seams for the render track, which must not reach api.github.com. */
+  fetchSummaries?: typeof fetchReleaseSummaries
+  fetchNotes?: typeof fetchReleaseNotes
+}) {
   const { theme } = useTheme()
   const t = useT()
   const renderer = useRenderer()
@@ -45,9 +50,11 @@ function VersionsPage(props: { onClose: () => void }) {
   const selected = releases?.[cursor]
   const crossings = selected ? breakingVersionsCrossed(CURRENT_VERSION, selected.version) : []
 
+  const loadSummaries = props.fetchSummaries ?? fetchReleaseSummaries
+  const loadNotes = props.fetchNotes ?? fetchReleaseNotes
   useEffect(() => {
-    void fetchReleaseSummaries(RELEASE_LIMIT).then((fetched) => setReleases(fetched))
-  }, [])
+    void loadSummaries(RELEASE_LIMIT).then((fetched) => setReleases(fetched))
+  }, [loadSummaries])
 
   // Lazily fetch the selected row's notes (one release body per selection,
   // cached — the list fetch deliberately omits bodies to save API budget).
@@ -55,10 +62,10 @@ function VersionsPage(props: { onClose: () => void }) {
   useEffect(() => {
     if (selectedVersion === undefined || notes[selectedVersion] !== undefined) return
     setNotes((cache) => ({ ...cache, [selectedVersion]: "loading" }))
-    void fetchReleaseNotes(selectedVersion).then((fetched) => {
+    void loadNotes(selectedVersion).then((fetched) => {
       setNotes((cache) => ({ ...cache, [selectedVersion]: fetched ?? "missing" }))
     })
-  }, [selectedVersion, notes])
+  }, [selectedVersion, notes, loadNotes])
 
   function move(delta: number): void {
     const count = releases?.length ?? 0
@@ -163,13 +170,9 @@ function VersionsPage(props: { onClose: () => void }) {
                   {t("update.notesUnavailable")}
                 </text>
               ) : null}
-              {selectedNotes !== undefined && selectedNotes !== "loading" && selectedNotes !== "missing"
-                ? releaseBodyLines(selectedNotes.body).map((line, i) => (
-                    <text key={`${i}:${line}`} fg={theme.textMuted} wrapMode="word">
-                      {line}
-                    </text>
-                  ))
-                : null}
+              {selectedNotes !== undefined && selectedNotes !== "loading" && selectedNotes !== "missing" ? (
+                <ReleaseNotesBody body={selectedNotes.body} />
+              ) : null}
             </box>
           </scrollbox>
           {crossings.length > 0 ? (
