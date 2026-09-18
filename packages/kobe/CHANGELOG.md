@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.9.206
+
+### Patch Changes
+
+- [#1036](https://github.com/Sma1lboy/rove/pull/1036) [`6e54398`](https://github.com/Sma1lboy/rove/commit/6e5439875cf2dcb71a5fffef84331ed496370277) Command+C no longer types a literal `c` in the terminal, and Ctrl+C copies a selection on every platform
+
+  macOS Command arrives over the kitty keyboard protocol as `super`, not `meta`. The keymap read only `meta`, so Command was invisible: `cmd+c` degraded to the bare chord `c`, matched the terminal passthrough, and typed a literal `c` into the session. The same hole left every `cmd+…` chord dead on macOS — `cmd+v` typed a `v`. Command is now read as `cmd+`, and a Command-modified character is dropped rather than typed.
+
+  Ctrl+C with an active selection now copies on macOS and Linux too. That behaviour already existed but was gated on Windows, while the condition that matters is whether a selection exists — Rove draws the selection itself, so no terminal emulator knows to claim the chord first. Copying clears the selection, so the next Ctrl+C interrupts as before, and Ctrl+C with nothing selected is always an interrupt.
+
+  `ctrl+shift+c` also copies the selection, on terminals that speak the kitty keyboard protocol. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1038](https://github.com/Sma1lboy/rove/pull/1038) [`de0a71c`](https://github.com/Sma1lboy/rove/commit/de0a71c3547b36264dc7257d49c0838d4efd155d) `rove api pane-graphics`: hand opaque graphics bytes to every attached TUI to write to its own terminal, and learn the cell pixel size. A pane's `tty(1)` is its own PTY slave and the outer emulator is scrubbed from its environment, so it can neither reach the real terminal nor measure it; the TUI now asks its terminal for the cell size at boot (`CSI 16 t`) and reports it with its subscribe, and the daemon allocates the per-tab image id — the one number a pane cannot pick for itself. Rove parses none of the payload. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1033](https://github.com/Sma1lboy/rove/pull/1033) [`ad87892`](https://github.com/Sma1lboy/rove/commit/ad878925e84f4854ac18bef2a4c7cd27b5352c2c) Browse and install plugins from Settings, without dropping to a shell
+
+  The marketplace was already there — `rove plugin search` queries the `rove-plugin` topic on GitHub — but the only way to act on it was to leave the TUI and type `rove plugin install`. Settings → Plugins said as much: its empty state offered a shell command.
+
+  Settings now has a Marketplace section next to Plugins. It lists the topic most-starred first, tags what is already in the registry, and installs on `enter`. The confirmation gate is unchanged in substance: the clone is staged, the manifest's build commands, startup hooks, actions and event handlers are all shown, and nothing the plugin authored runs until you confirm — `rove plugin install` and this section now share one two-phase installer rather than each having their own.
+
+  Cloning and building no longer block the process they run in, so the install reports its phase instead of freezing the UI behind a `git clone`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.205
 
 ### Patch Changes
