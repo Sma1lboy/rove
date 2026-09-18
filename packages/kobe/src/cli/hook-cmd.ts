@@ -137,6 +137,17 @@ export async function runHookSubcommand(argv: readonly string[]): Promise<void> 
     // adapter and taking the first answer (fine for the pre-tool verb set).
     const engine = flagValue(rest, "--engine")
     const adapters = activityHookAdapters().filter((a) => !engine || a.vendor === engine)
+    // Ambient identity must not cross into an UNATTENDED session. A tab's
+    // identity reaches this process by ENV INHERITANCE, so a nested headless
+    // engine — a script inside a Rove tab shelling out to one, a batch of
+    // them — inherits the tab and reports ITS turns as the tab's own,
+    // re-minting the tab's completion episode on every subprocess long after
+    // the user's real turn ended. Neither cwd nor the daemon can tell the two
+    // apart (same worktree; a tab's live session id is not authoritative), so
+    // the decision belongs here, where the environment still exists.
+    // An explicit `--task-id` is deliberate wiring rather than inheritance —
+    // a wrapper that asked to be counted still is.
+    if (!taskId && adapters.some((a) => a.isUnattendedSession?.(process.env) === true)) return
     let detail: EngineActivityDetail | undefined
     for (const adapter of adapters) {
       detail = adapter.activityDetailFromPayload(verb, payload)

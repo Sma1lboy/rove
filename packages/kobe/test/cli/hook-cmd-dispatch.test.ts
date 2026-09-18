@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
     supportsWorktreeSync: vi.fn(() => true),
     activityDetailFromPayload: vi.fn(() => undefined as unknown),
     sessionFromPayload: vi.fn(() => undefined as unknown),
+    isUnattendedSession: vi.fn(() => false),
     globalSettingsPath: vi.fn((): string | null => "/fake/.claude/settings.json"),
     installActivityHooks: vi.fn(),
     removeActivityHooks: vi.fn(),
@@ -82,6 +83,7 @@ beforeEach(() => {
   mocks.adapter.supportsWorktreeSync.mockClear().mockReturnValue(true)
   mocks.adapter.activityDetailFromPayload.mockClear().mockReturnValue(undefined)
   mocks.adapter.sessionFromPayload.mockClear().mockReturnValue(undefined)
+  mocks.adapter.isUnattendedSession.mockClear().mockReturnValue(false)
   mocks.adapter.globalSettingsPath.mockClear().mockReturnValue("/fake/.claude/settings.json")
   mocks.adapter.installActivityHooks.mockClear()
   mocks.adapter.removeActivityHooks.mockClear()
@@ -147,6 +149,55 @@ describe("runHookSubcommand — activity verbs", () => {
       kind: "turn-start",
     })
     vi.unstubAllEnvs()
+  })
+
+  // Why: a tab's identity reaches the hook by ENV INHERITANCE, so a nested
+  // headless engine — a script inside a tab shelling out to one — inherits
+  // the tab and reports its own turns as that tab's. A batch of them re-mints
+  // the tab's completion episode once per subprocess, so the attention prompt
+  // fires continuously while the user's real turn ended long ago.
+  it("drops an unattended session's event instead of billing it to the inherited tab", async () => {
+    mocks.adapter.isUnattendedSession.mockReturnValue(true)
+    vi.stubEnv("KOBE_TASK_ID", "t7")
+    vi.stubEnv("KOBE_TAB_ID", "tab-2")
+    stubStdin({ cwd: "/some/task/worktree" })
+    await runHookSubcommand(["turn-complete"])
+    expect(mocks.connectIfRunning).not.toHaveBeenCalled()
+  })
+
+  // The cwd is no escape hatch: a nested engine runs in the SAME worktree as
+  // the tab that launched it, so falling through to the cwd map would land the
+  // event on the very task the env identity was dropped to protect.
+  it("drops it on the cwd path too, not just the inherited env identity", async () => {
+    mocks.adapter.isUnattendedSession.mockReturnValue(true)
+    stubStdin({ cwd: "/some/task/worktree" })
+    await runHookSubcommand(["turn-complete"])
+    expect(mocks.connectIfRunning).not.toHaveBeenCalled()
+  })
+
+  // An explicit --task-id is deliberate wiring rather than inheritance — a
+  // wrapper that asked to be counted still is, attended or not.
+  it("still reports an unattended session that was explicitly wired with --task-id", async () => {
+    mocks.adapter.isUnattendedSession.mockReturnValue(true)
+    stubStdin({ cwd: "/ignored" })
+    await runHookSubcommand(["turn-complete", "--task-id", "wired"])
+    expect(mocks.request).toHaveBeenCalledWith("engine.reportEvent", { taskId: "wired", kind: "turn-complete" })
+  })
+
+  // An engine that exposes no attendance signal at all (the optional method is
+  // absent) must keep reporting — the guard may never silence a whole vendor.
+  it("keeps reporting for an engine whose adapter has no attendance signal", async () => {
+    Reflect.deleteProperty(mocks.adapter, "isUnattendedSession")
+    try {
+      stubStdin({ cwd: "/some/task/worktree" })
+      await runHookSubcommand(["turn-complete"])
+      expect(mocks.request).toHaveBeenCalledWith("engine.reportEvent", {
+        cwd: "/some/task/worktree",
+        kind: "turn-complete",
+      })
+    } finally {
+      mocks.adapter.isUnattendedSession = vi.fn(() => false)
+    }
   })
 
   it("attaches the adapter's normalized detail when one is produced", async () => {

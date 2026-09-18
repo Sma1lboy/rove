@@ -292,3 +292,37 @@ describe("removeWorktreeWatchHook (PostToolUse observer)", () => {
     expect(out.hooks?.PostToolUse).toBeUndefined()
   })
 })
+
+/**
+ * A hook is a subprocess of the session that fired it, so it inherits that
+ * session's `CLAUDE_CODE_SESSION_ATTENDED` stamp. That flag is the only signal
+ * anywhere that separates a nested headless engine from the tab it was
+ * launched inside: both run in the same worktree, and both inherit the tab's
+ * `KOBE_TAB_ID`.
+ */
+describe("ClaudeHookAdapter.isUnattendedSession", () => {
+  const adapter = new ClaudeHookAdapter()
+
+  it("calls a headless session unattended", () => {
+    expect(adapter.isUnattendedSession({ CLAUDE_CODE_SESSION_ATTENDED: "0" })).toBe(true)
+  })
+
+  it("leaves a session with a human in front of it reporting", () => {
+    expect(adapter.isUnattendedSession({ CLAUDE_CODE_SESSION_ATTENDED: "1" })).toBe(false)
+  })
+
+  // An older Claude sets nothing. Reading that as "unattended" would take
+  // every badge dark on a version gap, so only an explicit "0" counts.
+  it("keeps reporting when the engine stamps nothing", () => {
+    expect(adapter.isUnattendedSession({})).toBe(false)
+  })
+
+  // CLAUDE_CODE_CHILD_SESSION reads like the discriminator and is not one:
+  // Claude sets it on EVERY subprocess, so an attended session's own Bash tool
+  // calls carry it. Gating on it would silence the tab the user is sitting in.
+  it("does not mistake a child-process marker for an unattended session", () => {
+    expect(adapter.isUnattendedSession({ CLAUDE_CODE_CHILD_SESSION: "1", CLAUDE_CODE_SESSION_ATTENDED: "1" })).toBe(
+      false,
+    )
+  })
+})

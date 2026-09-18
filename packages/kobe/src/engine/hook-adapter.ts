@@ -67,6 +67,30 @@ export interface EngineHookAdapter {
    */
   sessionFromPayload(payload: Record<string, unknown>): EngineSessionRef | undefined
   /**
+   * Does this hook's OWN process environment say it belongs to an unattended
+   * engine session — no human at a terminal, e.g. a nested headless engine a
+   * script shelled out to from inside a Rove tab?
+   *
+   * Optional: an engine that exposes no such signal omits it, and its hooks
+   * keep reporting exactly as before.
+   *
+   * Why anyone has to ask. Rove's tab identity (`KOBE_TASK_ID` /
+   * `KOBE_TAB_ID`) travels by ENV INHERITANCE, so a nested engine inherits it
+   * along with the rest of the environment and its every turn reports as the
+   * PARENT TAB's own. One script fanning out headless subprocesses therefore
+   * re-mints that tab's `turn_complete` attention episode once per
+   * subprocess — the completion prompt fires over and over while the user's
+   * real turn finished long ago — and bills each foreign session's tokens to
+   * that tab. cwd cannot see this (the nested engine runs in the same
+   * worktree) and neither can the daemon (a tab's live session id is not
+   * authoritative — the user may restart the engine in place). The hook's own
+   * environment is the only place the answer exists.
+   *
+   * Pure; must never throw. `env` is a parameter rather than a read of
+   * `process.env` so the rule is testable as a plain value.
+   */
+  isUnattendedSession?(env: NodeJS.ProcessEnv): boolean
+  /**
    * Install kobe's activity hooks into a SHARED settings file (the user's
    * global `~/.claude/settings.json`) so the engine, in ANY session, reports
    * normalized events via `kobe hook <verb>` (cwd-based; the daemon maps cwd to
