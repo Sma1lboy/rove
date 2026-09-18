@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
     sessionFromPayload: vi.fn(() => undefined as unknown),
     isUnattendedSession: vi.fn(() => false),
     globalSettingsPath: vi.fn((): string | null => "/fake/.claude/settings.json"),
+    cwdFromPayload: vi.fn((): string | undefined => undefined),
     installActivityHooks: vi.fn(),
     removeActivityHooks: vi.fn(),
     removeWorktreeWatchHook: vi.fn(),
@@ -92,6 +93,7 @@ beforeEach(() => {
   mocks.adapter.isUnattendedSession.mockClear().mockReturnValue(false)
   mocks.adapter.globalSettingsPath.mockClear().mockReturnValue("/fake/.claude/settings.json")
   mocks.adapter.installActivityHooks.mockClear()
+  mocks.adapter.cwdFromPayload.mockReset().mockReturnValue(undefined)
   mocks.adapter.removeActivityHooks.mockClear()
   mocks.adapter.removeWorktreeWatchHook.mockReset()
   mocks.adapter.removeWorktreeSyncHook.mockClear()
@@ -250,6 +252,30 @@ describe("runHookSubcommand — activity verbs", () => {
       "engine.reportEvent",
       expect.objectContaining({ cwd: "/from/flag", kind: "turn-failed", engine: "omp" }),
     )
+  })
+
+  // Cursor spawns its hooks from ~/.cursor and names the workspace
+  // `workspace_roots`, so neither `payload.cwd` nor `process.cwd()` is the
+  // directory the event is about. The adapter owns that field name; without
+  // this rung every cursor hook reported cursor's own config dir, mapped to no
+  // task, and was dropped while the install looked perfect.
+  it("asks the adapter for the cwd when the payload does not spell one", async () => {
+    mocks.adapter.cwdFromPayload.mockReturnValue("/repo/worktrees/lion")
+    stubStdin({ session_id: "s1", workspace_roots: ["/repo/worktrees/lion"] })
+    await runHookSubcommand(["session-start", "--engine", "cursor"])
+    expect(mocks.request).toHaveBeenCalledWith(
+      "engine.reportEvent",
+      expect.objectContaining({ cwd: "/repo/worktrees/lion", kind: "session-start", engine: "cursor" }),
+    )
+  })
+
+  // ...but a payload that DOES carry a cwd outranks it: that is the engine
+  // telling us directly, and the adapter rung exists only to fill the gap.
+  it("prefers the payload's own cwd over the adapter's answer", async () => {
+    mocks.adapter.cwdFromPayload.mockReturnValue("/from/adapter")
+    stubStdin({ cwd: "/from/payload" })
+    await runHookSubcommand(["turn-start", "--engine", "cursor"])
+    expect(mocks.request).toHaveBeenCalledWith("engine.reportEvent", expect.objectContaining({ cwd: "/from/payload" }))
   })
 
   it("drops a malformed --payload rather than failing the engine", async () => {
