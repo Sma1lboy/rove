@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.209
+
+### Patch Changes
+
+- [#1041](https://github.com/Sma1lboy/rove/pull/1041) [`43f2124`](https://github.com/Sma1lboy/rove/commit/43f2124aab1278ae16031332c7a596bf40c9f0d9) `rove api context --repo PATH` — the coordinator's start-of-turn read: one composed snapshot of a project with every worktree task's derived group (waiting-on-you / landing / ready-for-review / working / idle / unknown), sorted so the first row is what needs a person next, plus the unhandled attention inbox and the repo's newest field notes. `--text` renders it compactly for an agent to read. `attention.list` is a new daemon RPC so a headless coordinator can see the inbox at all. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1040](https://github.com/Sma1lboy/rove/pull/1040) [`292a996`](https://github.com/Sma1lboy/rove/commit/292a9960e4eaa276637adcfab7c441b2997da566) Derive which group a task is in — waiting-on-you, landing, ready-for-review, working, idle — from signals Rove already stores, instead of trusting the declared `status` a crashed worker leaves behind. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1043](https://github.com/Sma1lboy/rove/pull/1043) [`8a05690`](https://github.com/Sma1lboy/rove/commit/8a05690a4c6f145af41f934e3e751f41a7d7042a) Plugins can put a label on a task row. `rove api row-token` (SDK: `setRowToken()` / `clearRowToken()`) writes one short token into the plugin's own slot on a task's sidebar/board row, and every token carries a TTL — default 60s, max 1h — so a plugin that dies has its labels fade instead of leaving stale state on screen. A plugin owns its text, its slot and a semantic `tone`; the derived group, the activity badge, the PR chip, the title and the branch stay host-owned. Closes the last plugin-SDK gap from the herdr audit (item 8), with a runnable `examples/row-tokens/` and the contract in docs/PLUGIN-AUTHORING.md. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1044](https://github.com/Sma1lboy/rove/pull/1044) [`8be96a0`](https://github.com/Sma1lboy/rove/commit/8be96a0d3523552d22cb1e78cd1642d0e026e7b1) Sidebar rows and the Kanban board now show **whose turn it is**, derived rather than declared: `!` needs you, `»` ready to land (an approved PR — a state the rail could not express before), `●` needs review (a worker's report nobody has acted on), and the spinner for working. The sidebar's `attention` sort ranks by that group, so the top of the list is what needs a person next; a linked Kanban card wears the group as a badge and the ones that need you float to the head of In progress. Plugin-written row tokens render beside the branch and disappear when their TTL lapses, with no writer involved. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.208
 
 ### Patch Changes
