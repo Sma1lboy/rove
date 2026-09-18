@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 47 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 48 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -154,6 +154,40 @@ branch, and which sibling tabs exist" — `.tabs[]` carries each tab's `id`, `ki
 `vendor`, `liveVendor`, `lastTitle` and `alive`, which is exactly the target list for
 `send --tab`. A tab flagged `unregistered: true` is a live session the tab
 snapshot lost; it is addressable like any other.
+
+### Coordinating others? Start every turn with `context`
+
+If you spawned tasks, begin each turn with one read instead of your memory —
+between two of your turns a worker can finish, crash, stall on a permission
+prompt or get its PR approved, and you witnessed none of it:
+
+```bash
+rove api context --repo "$PWD" --text
+```
+
+One line per task, **sorted so the first line is what needs a person next**.
+The `group` on each row is DERIVED from that task's report, PR observation,
+engine activity and tab liveness — it is NOT the `status` field, which a
+crashed worker leaves reading `in_progress` forever:
+
+| group | your move |
+|---|---|
+| `waiting-on-you` | answer it — permission prompt, quota wall, settled error, dead tab that delivered nothing |
+| `landing` | merge it — PR open and approved |
+| `ready-for-review` | read the diff — a report landed, nobody acted |
+| `working` | nothing. An engine is producing output |
+| `idle` | nothing. We looked; it is quiet |
+| `unknown` | look (`get-task`, `read-output`). We could NOT look — this is not "idle" |
+
+Never read `unknown` as `idle`, and never act on a `group` as if it were a
+verification: `ready-for-review` means a worker CLAIMED something, so
+`collect` and the actual diff still decide whether it lands. Drop `--text`
+for structured rows (`group`, `rank`, `checkState`, `report`) when you are
+going to branch on the fields rather than read them.
+
+`context` also carries the unhandled attention inbox and the repo's newest
+field notes — the same notes a fresh session here is handed, so brief your
+workers from those and don't re-derive what is already written down.
 
 ### Refer to a task the way the user sees it
 

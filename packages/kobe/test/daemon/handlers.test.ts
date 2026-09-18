@@ -71,6 +71,7 @@ describe("daemon handler registry", () => {
       "engine.reportEvent",
       "attention.dismiss",
       "attention.dismissRoutine",
+      "attention.list",
       "attention.read",
       "automation.list",
       "automation.create",

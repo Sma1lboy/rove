@@ -197,6 +197,7 @@ describe("API surface (full CRUD)", () => {
       "get-task",
       "pty-list",
       "collect",
+      "context",
       "digest",
       "agent-turns",
       "inspect",

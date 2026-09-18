@@ -139,6 +139,11 @@ export type DaemonRequestName =
   // removal, opening, and visiting the target all use this guarded operation.
   | "attention.dismiss"
   | "attention.dismissRoutine"
+  // Read the pending episodes. The Inbox otherwise only reaches an ATTACHED
+  // GUI, over the `attention.inbox` channel — so a headless coordinator (an
+  // agent fleet has no attached TUI, by definition) had no way to see what
+  // was waiting for a person.
+  | "attention.list"
   // Legacy alias for resolving the exact item; `at` guards stale clients.
   | "attention.read"
   // Scheduled Automations (docs/design/automations.md): CRUD over the

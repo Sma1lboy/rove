@@ -317,6 +317,15 @@ export interface ApiRuntime {
     taskId: string,
     engineArgv?: readonly string[],
   ): Promise<{ tabs: readonly TaskTabRowWithSession[]; running: boolean | null }>
+  /**
+   * Task ids with at least one LIVE hosted session, from a single `pty.list`
+   * over the whole fleet — the cheap fleet-wide cousin of {@link taskTabs},
+   * for a read that must not cost one host round-trip per task.
+   *
+   * `null` when there is no pty host to ask: "couldn't look", never "nothing
+   * is running", the same tri-state `pty-list` publishes as `sessions: null`.
+   */
+  liveTaskIds(): Promise<ReadonlySet<string> | null>
   /** Close one exact Terminal Tab without a mounted TUI. */
   closeTerminalTab(taskId: string, tabId: string): Promise<{ kind: TaskTabRow["kind"]; wasAlive: boolean }>
   /** Deliver a prompt into a task's engine pane (building the session if needed). */

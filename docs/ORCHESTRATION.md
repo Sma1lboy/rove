@@ -71,6 +71,43 @@ Ground rules that make rounds worth running:
 - **Don't fan out for a fix you'd accept from anyone.** One task is fine.
   Parallel rounds pay off when approaches genuinely differ.
 
+## Start every turn with `context`
+
+A coordinator that remembers is a coordinator that is wrong. Between two of
+its turns a worker can finish, crash, hit a permission prompt or have its PR
+approved — none of which the coordinator witnessed. So begin each turn with
+one read:
+
+```bash
+rove api context --repo "$PWD" --text
+```
+
+```text
+repo /Users/j/rove · 4 tasks · 1 in the inbox
+  waiting-on-you   4KN2SM  simplify auth [fix/auth] — permission_needed 6m
+  landing          9QT1XZ  cache the index [perf/index] — idle 12m · ci:passing · PR#1041
+  ready-for-review 2FF0LA  flaky sync test [fix/sync] — turn_complete 2m · “root cause was a shared clock”
+  working          7BBQ3M  docs pass [docs/api] — running 1m
+inbox (1 unhandled):
+  permission_needed  4KN2SM
+field notes (2, newest first):
+  #7 test/daemon needs KOBE_INCLUDE_SOCKET=1 or it silently skips
+```
+
+The rows are sorted so the **first line is what needs you next**, and the
+`group` is **derived** — from the worker's report, the daemon's PR
+observation, arbitrated engine activity and tab liveness — not from the
+`status` field a crashed worker left behind. `unknown` is its own group: when
+the activity registry cannot answer, `context` says so instead of calling the
+task idle. Full field list and the debounce rules: [API reference](API.md#read).
+
+Drop `--text` for the structured rows when you are going to act on the
+fields (`group`, `rank`, `checkState`, `report`) rather than read them.
+
+`context` is the orientation read; `collect` is still the one you open before
+landing anything, because it is the one that shows the branch's real
+ahead-count and diffstat.
+
 ## The report-back loop
 
 Rove's completion contract is a *message*, not stored state. When a task is

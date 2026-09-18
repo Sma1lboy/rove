@@ -332,6 +332,64 @@ replacement in `nextCommandArgs`.
 
   Read-only by contract: it starts no engines, writes nothing, and changes
   no task state.
+- `context --repo PATH [--limit N] [--text]`: **the coordinator's
+  start-of-turn read.** One composed snapshot of a project, meant to be run
+  at the beginning of every turn so a coordinating agent works from what the
+  command printed instead of from what it remembers. Composition only — five
+  reads the daemon already answers, joined server-side.
+
+  The point is the **derived group**. A task's `status` is a claim somebody
+  wrote (`set-status`), so a worker that crashed stays `in_progress` forever.
+  `context` reports instead which group a task is in, derived from its report,
+  its PR observation, its arbitrated engine activity and its tab liveness:
+
+  | `group` | means | your move |
+  |---|---|---|
+  | `waiting-on-you` | permission prompt, a quota wall with no scheduled resume, a settled error, a dead tab that delivered nothing, a failed deletion | answer it |
+  | `landing` | PR open and approved | merge it |
+  | `ready-for-review` | a `report` exists, or a turn finished, and nobody acted | read the diff |
+  | `working` | an engine is producing output, or the daemon will resume it on a timer | nothing |
+  | `idle` | we looked; nothing is happening | nothing |
+  | `unknown` | we could not look | look (`get-task`, `read-output`) |
+
+  `rank` is the sort key (0 = `waiting-on-you`), and `tasks` comes back
+  sorted by it, so the first row is what needs a person next. Ties break on
+  the freshest activity. `unknown` is a sixth group on purpose: absence of a
+  signal is never a verdict, so a task the activity registry cannot answer
+  for is NOT reported idle — the same `null` ≠ `false` rule the rest of this
+  page keeps.
+
+  Two debounces keep the top group honest, both derived from the activity
+  observer's own cadences: an `error` must stand 20s (an engine that fails a
+  turn and retries by itself fires `turn-failed` then `turn-start` seconds
+  apart), and a dead/not-alive tab 60s (one foreground-walk sample — the only
+  thing that can see an engine die inside a live PTY). `permission_needed`
+  and `rate_limited` are debounced by zero: they are engine hook events, not
+  screen reads, and a human is the only thing that clears them.
+
+  Per task: `taskId`, `title`, `branch`, `group`, `rank`, `activity`
+  (`{state, forMs}`, `null` when unreadable), `checkState` (Rove's own CI
+  truth, when there is a PR), `pr`, and the worker's `report` claim. Nothing
+  else — the verb is paid for on every coordinator turn, and `worktreePath`,
+  `vendor`, `groupId` and the declared `status` are one `get-task` or
+  `collect` hop away.
+
+  Beside the tasks: `attention` — the unhandled attention-inbox episodes
+  (routine episodes included; their subject is a schedule, so no repo filter
+  can scope them) — and `notes`, the repo's newest 15 field notes, which are
+  exactly the ones injected into a fresh session here, so a coordinator
+  briefs its workers from what those workers will read.
+
+  Only worktree tasks are listed: the repo's `main` seat and `dir` entries
+  are not anybody's turn, and a worktree already being removed is spent (a
+  deletion that *failed* is listed, as `waiting-on-you`). `--limit` defaults
+  to 20 and drops the quiet tail, reporting `omittedTasks`. Repo resolution
+  follows `collect`. A side read that fails degrades to an empty section
+  rather than failing the verb.
+
+  `--text` returns `{ text }` — one compact line per task in rank order,
+  for an agent that would rather read it than parse it. It replaces the
+  structured rows; ask for one or the other, not both.
 - `digest --repo PATH [--since-days N]`: the repo's recent agent work,
   tasks touched in the window plus routine outcomes by status. Default
   window 7 days. Repo resolution follows `collect`: an unresolvable `--repo`
