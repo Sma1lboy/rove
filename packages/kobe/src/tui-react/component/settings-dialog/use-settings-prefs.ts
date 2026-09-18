@@ -40,6 +40,7 @@ import {
   worktreeBaseKindOf,
 } from "../../../state/worktree-base"
 import { ZEN_ACTIVE_KEY } from "../../../state/zen"
+import { DESKTOP_PET_KEY } from "../../../tui/desktop-pet"
 import {
   DEFAULT_EDITOR_KIND,
   EDITOR_CUSTOM_KEY,
@@ -147,6 +148,15 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   }
   function toggleDispatcher(): void {
     kv.set(DISPATCHER_KEY, !dispatcherOn())
+  }
+  // Desktop pet (Dev section): the opt-in flag for the per-tab ASCII pet.
+  // Default OFF — the rail renders exactly as it did for anyone who leaves
+  // it alone.
+  function desktopPetOn(): boolean {
+    return kv.get(DESKTOP_PET_KEY, false) === true
+  }
+  function toggleDesktopPet(): void {
+    kv.set(DESKTOP_PET_KEY, !desktopPetOn())
   }
   // Editor preference: which editor the file tree's `e` key launches.
   function editorKind(): EditorKind {
@@ -299,6 +309,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     toggleAutoStatus,
     dispatcherOn,
     toggleDispatcher,
+    desktopPetOn,
+    toggleDesktopPet,
     editorKind,
     cycleEditorKind,
     editorCustomCommand,

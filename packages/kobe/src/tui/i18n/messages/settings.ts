@@ -242,6 +242,9 @@ export const en = {
     dispatcherHint:
       "Field-notes dispatcher: task sessions file one-line gotchas (`rove api note`), the daemon forwards each to the repo's main session, and that session relays them to the in-flight tasks that benefit (`rove api dispatch`). Web-hosted sessions receive the relays today.",
     dispatcher: "Field-notes dispatcher",
+    desktopPetHint:
+      "Desktop pet: a little ASCII creature on each tab row, one per tab, that changes face with the session's activity (working / waiting on you / done / idle). Purely decorative — off by default so the rail stays unchanged.",
+    desktopPet: "Desktop pet",
   },
 }
 
@@ -460,5 +463,8 @@ export const zh: typeof en = {
     dispatcherHint:
       "现场笔记调度器：任务会话提交一行经验（`rove api note`），daemon 将每条转发给仓库的主会话，主会话再把它们转达给能受益的进行中任务（`rove api dispatch`）。目前由 Web 托管的会话会收到转达。",
     dispatcher: "现场笔记调度器",
+    desktopPetHint:
+      "桌宠：每个标签页行上一只 ASCII 小生物，随会话活动切换表情（工作中 / 等你输入 / 完成 / 空闲）。纯装饰——默认关闭，侧栏保持原样。",
+    desktopPet: "桌宠",
   },
 }

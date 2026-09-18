@@ -28,6 +28,7 @@ import { useBindings } from "../../lib/keymap"
 import { useLatest } from "../../lib/use-latest"
 import { ContextMenu } from "../../ui/context-menu"
 import { SidebarBrandHeader, SidebarCreateAction, SidebarNavRail, SidebarSearchInput, SidebarZenChip } from "./chrome"
+import { desktopPetEnabled } from "./tab-pet"
 import { SidebarTreeBody } from "./tree-panel"
 import type { TreeRowShared } from "./tree-row-shell"
 import type { SidebarProps } from "./types"
@@ -342,6 +343,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     },
     onContextMenu: menu.openForRow,
     branchTick,
+    desktopPet: desktopPetEnabled(kv),
     engineTabState: props.engineTabState,
     engineLifecycle: props.engineLifecycle,
     taskJobs: props.taskJobs,
