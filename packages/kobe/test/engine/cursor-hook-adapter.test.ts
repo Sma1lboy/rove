@@ -13,6 +13,7 @@ import { ROVE_HOOK_VERSION } from "@/engine/json-hooks"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   CURSOR_HOOK_EVENT_MAP,
+  CursorHookAdapter,
   cursorHooksPath,
   mergeCursorHooks,
   parseCursorHooks,
@@ -121,5 +122,52 @@ describe("cursorHooksPath", () => {
   it("honours cursor's own CURSOR_CONFIG_DIR override", () => {
     vi.stubEnv("CURSOR_CONFIG_DIR", join("/elsewhere", "cursor"))
     expect(cursorHooksPath("/home/x")).toBe(join("/elsewhere", "cursor", "hooks.json"))
+  })
+})
+
+/**
+ * A real `sessionStart` payload, traced out of cursor-agent 2026.09.15-d2fe57e
+ * by registering a hook that dumps its stdin. Two things in it are why this
+ * adapter needs its own readers: the hook process's cwd was `~/.cursor` and
+ * there is NO `cwd` key, so the workspace only exists in `workspace_roots`;
+ * and `transcript_path` is null even though the field is present.
+ */
+const REAL_SESSION_START = {
+  conversation_id: "98187bc5-36d5-405c-8374-a9dbcc08ca67",
+  generation_id: "98187bc5-36d5-405c-8374-a9dbcc08ca67",
+  model: "default",
+  is_background_agent: false,
+  session_id: "98187bc5-36d5-405c-8374-a9dbcc08ca67",
+  hook_event_name: "sessionStart",
+  cursor_version: "2026.09.15-d2fe57e",
+  workspace_roots: ["/repo/worktrees/lion"],
+  user_email: "someone@example.com",
+  transcript_path: null,
+} satisfies Record<string, unknown>
+
+describe("CursorHookAdapter payload readers", () => {
+  const adapter = new CursorHookAdapter()
+
+  it("reads the workspace out of workspace_roots, since cursor sends no cwd", () => {
+    expect(REAL_SESSION_START).not.toHaveProperty("cwd")
+    expect(adapter.cwdFromPayload(REAL_SESSION_START)).toBe("/repo/worktrees/lion")
+  })
+
+  it("answers nothing rather than guessing when there is no usable root", () => {
+    expect(adapter.cwdFromPayload({})).toBeUndefined()
+    expect(adapter.cwdFromPayload({ workspace_roots: [] })).toBeUndefined()
+    expect(adapter.cwdFromPayload({ workspace_roots: [null, ""] })).toBeUndefined()
+    expect(adapter.cwdFromPayload({ workspace_roots: "/not/an/array" })).toBeUndefined()
+  })
+
+  it("takes the session id and omits a null transcript_path", () => {
+    expect(adapter.sessionFromPayload(REAL_SESSION_START)).toEqual({
+      sessionId: "98187bc5-36d5-405c-8374-a9dbcc08ca67",
+    })
+  })
+
+  it("falls back to conversation_id on a payload that predates session_id", () => {
+    expect(adapter.sessionFromPayload({ conversation_id: "c1" })).toEqual({ sessionId: "c1" })
+    expect(adapter.sessionFromPayload({})).toBeUndefined()
   })
 })

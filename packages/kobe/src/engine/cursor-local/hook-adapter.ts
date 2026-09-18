@@ -127,6 +127,18 @@ export class CursorHookAdapter implements EngineHookAdapter {
     return undefined
   }
 
+  /**
+   * Cursor runs its hooks from its OWN config directory, not the workspace —
+   * verified by tracing a real `cursor-agent` run (2026.09.15-d2fe57e): the
+   * hook process's cwd was `~/.cursor`, and the payload carries no `cwd` at
+   * all, only `workspace_roots`. The first root is the directory the session
+   * is actually about, and it is what has to reach the daemon's cwd→task map.
+   */
+  cwdFromPayload(payload: Record<string, unknown>): string | undefined {
+    const roots = payload.workspace_roots
+    return Array.isArray(roots) ? firstString(...roots) : undefined
+  }
+
   /** Cursor's payload spells the id `session_id`, falling back to
    *  `conversation_id` on the events that predate it, and pipes
    *  `transcript_path` alongside (cursor-agent 2026.04.17). */

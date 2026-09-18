@@ -149,6 +149,23 @@ export interface EngineHookAdapter {
   removeWorktreeWatchHook(settingsFilePath: string): Promise<void>
 
   /**
+   * The working directory this hook's payload is ABOUT, when the engine does
+   * not spell it `cwd`.
+   *
+   * `kobe hook` maps a hook fire to a task by the directory it reports, and it
+   * reads `payload.cwd` first, then the hook process's own `process.cwd()`.
+   * Both are wrong for an engine that runs its hooks from its own config
+   * directory: cursor-agent spawns them in `~/.cursor` and puts the workspace
+   * in `workspace_roots[0]`, so without this every cursor hook reported
+   * `~/.cursor`, mapped to no task, and was dropped — the install looked
+   * perfect and no badge ever moved.
+   *
+   * Optional; the field name is the vendor's, so the answer belongs to the
+   * adapter and never to `cli/hook-cmd.ts`. Pure; must never throw.
+   */
+  cwdFromPayload?(payload: Record<string, unknown>): string | undefined
+
+  /**
    * Why a merge into this settings file would be REFUSED right now, or
    * undefined when the file is fine — `rove doctor`'s read-only counterpart to
    * {@link installActivityHooks} (see `./hook-config-check.ts`).

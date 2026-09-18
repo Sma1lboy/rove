@@ -65,11 +65,45 @@ export async function readTextWithTimeout(
   }
 }
 
+/**
+ * Read this process's stdin to EOF, under whichever runtime is hosting us.
+ *
+ * `Bun.stdin.text()` alone is not enough, and the way it failed is the reason
+ * this function exists: the PUBLISHED CLI runs under node (`#!/usr/bin/env
+ * node` on the npm bin, a plain esbuild bundle), where `Bun` is not defined, so
+ * the reference threw, {@link readStdinPayload}'s catch swallowed it, and every
+ * hook in every released build saw an empty payload. Nothing looked broken —
+ * hooks fired, exited 0, and quietly carried no session id, no failure class
+ * and no cwd. Sessions inside a Rove tab survived on `KOBE_TASK_ID` from the
+ * environment, which is exactly why this went unnoticed.
+ *
+ * The rest of the codebase already spells the guard `globalThis.Bun?.…`; this
+ * one call site did not.
+ *
+ * A TTY returns "" immediately rather than waiting for a human to type: a hook
+ * is always spawned with a pipe, and a person running `rove hook` by hand
+ * should get the usage path, not a hang.
+ */
+export async function readStdinText(): Promise<string> {
+  const bun = (globalThis as { Bun?: { stdin: { text(): Promise<string> } } }).Bun
+  if (bun) return bun.stdin.text()
+  if (process.stdin.isTTY) return ""
+  const chunks: Buffer[] = []
+  try {
+    for await (const chunk of process.stdin) chunks.push(chunk as Buffer)
+  } finally {
+    // The read refs the event loop; without this a hook whose writer never
+    // closes the pipe keeps the process alive past the timeout below.
+    process.stdin.destroy()
+  }
+  return Buffer.concat(chunks).toString("utf8")
+}
+
 /** Read the hook's stdin JSON payload (Claude Code pipes it), bounded so a
  *  manual invocation without stdin can't hang. Returns {} on anything odd. */
 async function readStdinPayload(): Promise<Record<string, unknown>> {
   try {
-    const text = await readTextWithTimeout(() => Bun.stdin.text())
+    const text = await readTextWithTimeout(readStdinText)
     if (!text.trim()) return {}
     const parsed = JSON.parse(text) as unknown
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {}
@@ -121,7 +155,6 @@ export async function runHookSubcommand(argv: readonly string[]): Promise<void> 
     // the payload; fall back to the process cwd. `--task-id` is still honoured
     // for back-compat / direct invocation.
     const taskId = flagValue(rest, "--task-id")
-    const cwd = typeof payload.cwd === "string" && payload.cwd ? payload.cwd : process.cwd()
     // Tab identity: engine tabs launch as `env KOBE_TASK_ID=… KOBE_TAB_ID=… <engine>`
     // (terminal-tab-spawn.ts), and hooks are the engine's subprocesses, so the
     // vars arrive here by inheritance. cwd alone can't tell tabs apart — every
@@ -147,6 +180,18 @@ export async function runHookSubcommand(argv: readonly string[]): Promise<void> 
     // An explicit `--task-id` is deliberate wiring rather than inheritance —
     // a wrapper that asked to be counted still is.
     if (!taskId && adapters.some((a) => a.isUnattendedSession?.(process.env) === true)) return
+    // Where the hook ran, in falling order of authority: the payload's own
+    // `cwd`, then whatever THIS engine calls that field (cursor spawns hooks in
+    // `~/.cursor` and names the workspace `workspace_roots`), then the hook
+    // process's cwd. The middle rung is the adapter's because the field name is
+    // the vendor's; without it a cursor hook reports cursor's config directory,
+    // maps to no task, and is dropped with the install looking perfect.
+    let cwd = typeof payload.cwd === "string" && payload.cwd ? payload.cwd : undefined
+    for (const adapter of adapters) {
+      if (cwd) break
+      cwd = adapter.cwdFromPayload?.(payload)
+    }
+    cwd ||= process.cwd()
     let detail: EngineActivityDetail | undefined
     for (const adapter of adapters) {
       detail = adapter.activityDetailFromPayload(verb, payload)
