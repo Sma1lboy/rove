@@ -21,11 +21,16 @@
 import type { Task } from "@/types/task"
 import { useState } from "react"
 import type { MutableRefObject } from "react"
-import { SIDEBAR_COLLAPSED_KEY } from "../../state/sidebar-collapsed.ts"
+import { RAIL_FOLD_STYLE_KEY, SIDEBAR_COLLAPSED_KEY } from "../../state/sidebar-collapsed.ts"
 import type { TaskSortMode } from "../../tui/panes/sidebar/groups"
 import { sidebarWidthFor } from "../../tui/panes/sidebar/view-core"
 import type { FocusContextValue } from "../context/focus"
 import { useKV } from "../context/kv"
+import {
+  COLLAPSED_RAIL_STYLES,
+  type CollapsedRailStyle,
+  DEFAULT_COLLAPSED_RAIL_STYLE,
+} from "../panes/sidebar/collapsed-rail"
 import type { HostPagesState } from "./host-pages"
 import { HostSidebar } from "./host-sidebar"
 import type { WorkspaceTaskActions } from "./host-task-actions"
@@ -69,6 +74,14 @@ export interface HostSidebarMountProps {
   readonly t: (key: string, params?: Record<string, string | number>) => string
 }
 
+/** A stored fold that is no longer a real one (an older build's value, a
+ *  hand-edited state.json) falls back rather than rendering nothing. */
+function railFoldStyle(raw: unknown): CollapsedRailStyle {
+  return COLLAPSED_RAIL_STYLES.includes(raw as CollapsedRailStyle)
+    ? (raw as CollapsedRailStyle)
+    : DEFAULT_COLLAPSED_RAIL_STYLE
+}
+
 export function HostSidebarMount(props: HostSidebarMountProps) {
   const { actions, pages, focus, inbox, t } = props
   const kv = useKV()
@@ -78,6 +91,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
     <HostSidebar
       width={props.showContent ? sidebarWidthFor(props.terminalWidth) : props.terminalWidth}
       collapsed={collapsed}
+      collapsedStyle={railFoldStyle(kv.get(RAIL_FOLD_STYLE_KEY, DEFAULT_COLLAPSED_RAIL_STYLE))}
       onToggleCollapsed={() => {
         const next = !collapsed
         setCollapsed(next)

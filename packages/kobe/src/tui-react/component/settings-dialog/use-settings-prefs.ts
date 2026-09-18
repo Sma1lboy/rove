@@ -15,6 +15,7 @@ import { logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
 import { AUTO_STATUS_KEY } from "../../../state/auto-status"
 import { DISPATCHER_KEY } from "../../../state/dispatcher"
 import { DEFAULT_SCROLLBACK_ROWS, SCROLLBACK_ROWS_KEY, normalizeScrollbackRows } from "../../../state/scrollback"
+import { RAIL_FOLD_STYLE_KEY } from "../../../state/sidebar-collapsed.ts"
 import {
   DEFAULT_SOUND_VOLUME,
   SOUND_VOLUME_KEY,
@@ -55,6 +56,11 @@ import {
 } from "../../../tui/lib/prefix-tap-presentation"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"
+import {
+  COLLAPSED_RAIL_STYLES,
+  type CollapsedRailStyle,
+  DEFAULT_COLLAPSED_RAIL_STYLE,
+} from "../../panes/sidebar/collapsed-rail"
 import type { DialogContext } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 import { RenameTaskDialog } from "../rename-task-dialog"
@@ -147,6 +153,19 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   }
   function toggleDispatcher(): void {
     kv.set(DISPATCHER_KEY, !dispatcherOn())
+  }
+  // Which fold the collapsed task rail renders. Cycles rather than offering a
+  // sub-menu: four values, and the rail is right there to show the answer.
+  function railFoldStyle(): CollapsedRailStyle {
+    const raw = kv.get(RAIL_FOLD_STYLE_KEY, DEFAULT_COLLAPSED_RAIL_STYLE)
+    return COLLAPSED_RAIL_STYLES.includes(raw as CollapsedRailStyle)
+      ? (raw as CollapsedRailStyle)
+      : DEFAULT_COLLAPSED_RAIL_STYLE
+  }
+  function cycleRailFoldStyle(): void {
+    const i = COLLAPSED_RAIL_STYLES.indexOf(railFoldStyle())
+    const next = COLLAPSED_RAIL_STYLES[(i + 1) % COLLAPSED_RAIL_STYLES.length]
+    if (next) kv.set(RAIL_FOLD_STYLE_KEY, next)
   }
   // Editor preference: which editor the file tree's `e` key launches.
   function editorKind(): EditorKind {
@@ -293,6 +312,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     selectSplitStyle,
     zenDefaultOn,
     toggleZenDefaultOn,
+    railFoldStyle,
+    cycleRailFoldStyle,
     remoteProjectsEnabled,
     toggleRemoteProjects,
     autoStatusOn,
