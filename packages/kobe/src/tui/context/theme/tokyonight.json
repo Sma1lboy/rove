@@ -48,8 +48,8 @@
       "light": "lightPurple"
     },
     "accent": {
-      "dark": "darkOrange",
-      "light": "lightOrange"
+      "dark": "darkCyan",
+      "light": "lightCyan"
     },
     "error": {
       "dark": "darkRed",

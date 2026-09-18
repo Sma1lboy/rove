@@ -11,6 +11,7 @@ import { RGBA } from "@opentui/core"
 
 import { ensureContrast } from "./contrast-guard"
 import { BUNDLED_THEME_JSONS } from "./theme/bundled"
+import { parseRgbLiteral } from "./theme/color-literal"
 
 type HexColor = `#${string}`
 type RefName = string
@@ -119,6 +120,8 @@ export function resolveTheme(theme: ThemeJson, mode: "dark" | "light" = "dark"):
     if (typeof c === "string") {
       if (c === "transparent" || c === "none") return RGBA.fromInts(0, 0, 0, 0)
       if (c.startsWith("#")) return RGBA.fromHex(c)
+      const rgb = parseRgbLiteral(c)
+      if (rgb) return RGBA.fromInts(rgb.r, rgb.g, rgb.b, rgb.a)
       if (chain.includes(c)) {
         // circular ref — collapse to black rather than throw to keep the TUI alive
         return RGBA.fromInts(0, 0, 0)
