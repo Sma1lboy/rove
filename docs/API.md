@@ -137,6 +137,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `BAD_DAEMON` | The daemon could not be reached or started. |
 | `DAEMON_VERSION_SKEW` | The daemon is a different build and does not serve this verb. |
 | `MISSING_TARGET` | No `--task-id`, no `$ROVE_TASK_ID`, no active task — nothing was named. |
+| `MISSING_TEXT` | `row-token` was given neither `--text` to write nor `--clear` to remove. |
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |
 | `TAB_NOT_FOUND` | A `--tab tab-N` the task has no live (or restorable) tab for. |
 | `NO_ENGINE_TAB` | The task has live tabs but none of them is an engine, so there is nothing to deliver to or interrupt. |

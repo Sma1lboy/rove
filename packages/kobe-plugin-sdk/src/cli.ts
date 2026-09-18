@@ -136,3 +136,62 @@ export async function promptUser(
     return null
   }
 }
+
+/** Semantic role for a row token — the active theme picks the colour. */
+export type RowTokenTone = "info" | "success" | "warning" | "error" | "muted"
+
+export interface RowTokenOptions extends RoveRunOptions {
+  /** Which of your two slots on this row. Writing the same key replaces the
+   *  token, which is how you refresh a label's TTL. Default `"default"`. */
+  readonly key?: string
+  /** Seconds the label survives without a refresh (1…3600). Default 60. */
+  readonly ttlSeconds?: number
+  readonly tone?: RowTokenTone
+}
+
+/**
+ * Put one short label on a task's sidebar/board row (`rove api row-token`).
+ *
+ * **Every token expires.** Refresh it to keep it; stop, and it fades — which
+ * is what stops a plugin that died from leaving stale state on the user's
+ * screen. You write into your own slot and can say nothing else: the derived
+ * group, the activity badge, the PR chip, the title and the branch are
+ * host-owned.
+ *
+ * Resolves `true` when the host accepted the write, `false` on an older host
+ * that has no row-token surface (the label is simply not shown — never an
+ * exception, so a plugin does not have to version-gate this call).
+ */
+export async function setRowToken(taskId: string, text: string, opts: RowTokenOptions = {}): Promise<boolean> {
+  const { key, ttlSeconds, tone, ...run } = opts
+  const args = [
+    "api",
+    "row-token",
+    "--task-id",
+    taskId,
+    "--text",
+    text,
+    ...(key ? ["--key", key] : []),
+    ...(ttlSeconds !== undefined ? ["--ttl", String(ttlSeconds)] : []),
+    ...(tone ? ["--tone", tone] : []),
+  ]
+  try {
+    const result = await roveJson<{ ok?: boolean }>(args, run)
+    return result.ok === true
+  } catch {
+    return false
+  }
+}
+
+/** Remove a row token now. `key` omitted clears every token you own on that
+ *  row. Waiting for the TTL is usually enough; this is for the moment you
+ *  KNOW the label is wrong. */
+export async function clearRowToken(taskId: string, key?: string, opts: RoveRunOptions = {}): Promise<boolean> {
+  const args = ["api", "row-token", "--task-id", taskId, "--clear", ...(key ? ["--key", key] : [])]
+  try {
+    const result = await roveJson<{ ok?: boolean }>(args, opts)
+    return result.ok === true
+  } catch {
+    return false
+  }
+}

@@ -144,6 +144,9 @@ export type DaemonRequestName =
   // agent fleet has no attached TUI, by definition) had no way to see what
   // was waiting for a person.
   | "attention.list"
+  // Plugin-written task-row tokens (docs/PLUGIN-AUTHORING.md § Task-row
+  // tokens). In-memory, TTL-bounded, broadcast on `task.tokens`.
+  | "task.rowToken"
   // Legacy alias for resolving the exact item; `at` guards stale clients.
   | "attention.read"
   // Scheduled Automations (docs/design/automations.md): CRUD over the

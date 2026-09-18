@@ -1,0 +1,33 @@
+# A review-queue plugin: claim a task, and your name rides on its row until
+# you stop refreshing it. This is the coordination surface gap #8 blocked —
+# a plugin's own state, on the row, where the human already looks.
+#
+# Shows: setRowToken() / clearRowToken(), the TTL contract (a label FADES when
+# its writer stops refreshing), plugin-owned state in ROVE_PLUGIN_STATE_DIR.
+id = "examples.row-tokens"
+name = "Review Queue"
+version = "0.1.0"
+min_rove_version = "0.9.0"
+description = "Claim a task and paint the claim on its row, with a TTL that outlives nothing"
+
+# Claim / release the task the user has open.
+[[actions]]
+id = "claim"
+title = "Claim this task for review"
+command = ["bun", "claim.ts"]
+
+[[actions]]
+id = "release"
+title = "Release my claim"
+command = ["bun", "claim.ts", "--release"]
+
+# Every turn boundary is a chance to refresh the label. Stop the plugin (or
+# let it crash) and every claim it painted is gone within the TTL — which is
+# the whole point: nothing here can leave stale state on someone's screen.
+[[events]]
+on = "agent.turn-complete"
+command = ["bun", "refresh.ts"]
+
+[[events]]
+on = "agent.running"
+command = ["bun", "refresh.ts"]

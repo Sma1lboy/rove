@@ -14,6 +14,7 @@ import { simpleRpc } from "./handler-helpers.ts"
 import { PANE_GRAPHICS_VERB } from "./handlers-graphics.ts"
 import { INTERRUPT_VERB } from "./handlers-interrupt.ts"
 import { PANE_CLOSE_VERB, PANE_VERB, TAB_CLOSE_VERB } from "./handlers-pane.ts"
+import { ROW_TOKEN_VERB } from "./handlers-row-token.ts"
 import { DISPATCH_VERB, note, send, setActive } from "./handlers-tasks.ts"
 import { ApiError, helpStep } from "./types.ts"
 import type { VerbSpec } from "./types.ts"
@@ -243,6 +244,9 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
       })
     },
   },
+  // Plugin-written row label, TTL-bounded. Spec + handler in
+  // ./handlers-row-token.ts.
+  ROW_TOKEN_VERB,
   {
     name: "set-active",
     group: "drive",

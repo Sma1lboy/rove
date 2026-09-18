@@ -31,6 +31,7 @@ export const EXAMPLE_PLUGINS: readonly { readonly dir: string; readonly id: stri
   { dir: "turn-notify", id: "examples.turn-notify" },
   { dir: "settings-demo", id: "examples.settings-demo" },
   { dir: "task-board", id: "examples.task-board" },
+  { dir: "row-tokens", id: "examples.row-tokens" },
   { dir: "contrib-engine", id: "examples.contrib-engine" },
 ]
 
