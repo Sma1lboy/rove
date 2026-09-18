@@ -22,6 +22,7 @@ import type { StoredFieldNote } from "../state/field-notes.ts"
 import type { CIFailingCheck, CIFailingChecksRead } from "../tui/ops/ci-prompt.ts"
 import type { Task, TaskId, TaskStatus, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree, WorktreeProject } from "../types/worktree.ts"
+import type { RecentTaskEvent } from "./remote-orchestrator-payloads.ts"
 import { deserializeTask } from "./remote-orchestrator-payloads.ts"
 
 export async function createTaskOp(
@@ -445,4 +446,33 @@ export async function setActiveTaskOp(client: KobeDaemonClient, id: TaskId | str
  */
 export function replyTabCloseOp(client: KobeDaemonClient, requestId: string, closed: boolean): void {
   void client.request("terminalTab.closeReply", { requestId, closed }).catch(() => {})
+}
+
+/**
+ * Answer a `ui.prompt` request (the host input dialog); omitting `value`
+ * reports a cancel. Fire-and-forget, like the tab-close reply above: the
+ * broker times out on the daemon's side if nothing arrives.
+ */
+export function replyPromptOp(client: KobeDaemonClient, promptId: string, value?: string): void {
+  void client.request("ui.promptReply", { promptId, ...(value !== undefined ? { value } : {}) }).catch(() => {})
+}
+
+/** Fire-and-forget UI moment → plugin event hooks (`ui.reportEvent`). */
+export function reportUiEventOp(
+  client: KobeDaemonClient,
+  kind: string,
+  taskId?: string,
+  detail?: Record<string, unknown>,
+): void {
+  void client
+    .request("ui.reportEvent", { kind, ...(taskId ? { taskId } : {}), ...(detail ? { detail } : {}) })
+    .catch(() => {})
+}
+
+/** One task's recent engine events (the event feed; newest last). */
+export function recentTaskEventsOp(
+  client: KobeDaemonClient,
+  id: TaskId | string,
+): Promise<{ events: readonly RecentTaskEvent[] }> {
+  return client.request("task.recentEvents", { taskId: String(id) })
 }
