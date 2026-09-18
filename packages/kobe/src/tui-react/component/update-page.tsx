@@ -29,35 +29,10 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { resolveRowSelectionChrome } from "../ui/row-selection-chrome"
+import { ReleaseNotesBody } from "./release-notes"
 import { runShellUpdater } from "./run-updater.ts"
 
 type ActionId = "update" | "release" | "close"
-
-/**
- * A GitHub release body as terminal lines. Shared by every page that shows
- * release notes (update, versions, what's new).
- *
- * The bodies are Changesets output: a `### Patch Changes` heading over
- * bullets that each open with a PR link and a commit link before the
- * sentence — `- [#1032](https://…/pull/1032) [`0b99a4c`](https://…) Engines
- * outside the built-in six…`. Left raw, the two URLs are most of the line
- * width and the sentence someone actually came to read starts well off the
- * right edge. Markdown links collapse to their label, which keeps the PR
- * number and the sha and drops the addresses; heading markers go too, since
- * the version already sits above them as its own row.
- */
-export function releaseBodyLines(body: string): string[] {
-  return body
-    .replace(/\r\n/g, "\n")
-    .split("\n")
-    .map((line) =>
-      line
-        .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-        .replace(/^\s*#{1,6}\s+/, "")
-        .trim(),
-    )
-    .filter(Boolean)
-}
 
 export function UpdatePage(props: { onClose: () => void }) {
   const { theme } = useTheme()
@@ -299,11 +274,7 @@ export function UpdatePage(props: { onClose: () => void }) {
               <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="none">
                 v{release.version}
               </text>
-              {releaseBodyLines(release.body).map((line, i) => (
-                <text key={`${i}:${line}`} fg={theme.textMuted} wrapMode="word">
-                  {line}
-                </text>
-              ))}
+              <ReleaseNotesBody body={release.body} />
             </box>
           ))}
         </box>

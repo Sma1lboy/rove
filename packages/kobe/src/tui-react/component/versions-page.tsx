@@ -26,8 +26,8 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { bootPaneHost } from "../lib/host-boot"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { ReleaseNotesBody } from "./release-notes.tsx"
 import { runShellUpdater } from "./run-updater.ts"
-import { releaseBodyLines } from "./update-page.tsx"
 
 const RELEASE_LIMIT = 20
 
@@ -163,13 +163,9 @@ function VersionsPage(props: { onClose: () => void }) {
                   {t("update.notesUnavailable")}
                 </text>
               ) : null}
-              {selectedNotes !== undefined && selectedNotes !== "loading" && selectedNotes !== "missing"
-                ? releaseBodyLines(selectedNotes.body).map((line, i) => (
-                    <text key={`${i}:${line}`} fg={theme.textMuted} wrapMode="word">
-                      {line}
-                    </text>
-                  ))
-                : null}
+              {selectedNotes !== undefined && selectedNotes !== "loading" && selectedNotes !== "missing" ? (
+                <ReleaseNotesBody body={selectedNotes.body} />
+              ) : null}
             </box>
           </scrollbox>
           {crossings.length > 0 ? (
