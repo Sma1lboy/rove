@@ -25,8 +25,9 @@
  *     `trustWorktree`, so this gap is real, just not universal. (Not observed
  *     live: the cursor-agent on the probe machine stops at its login wall,
  *     which the CURSOR screen manifest already reports as `blocked`.)
- *   - gemini / grok / droid / amp: UNVERIFIED — not installed on the machine
- *     this was measured on. Do not assume either way.
+ *   - gemini / grok / droid / amp / cline / kiro / maki / antigravity:
+ *     UNVERIFIED — not installed on the machine this was measured on. Do not
+ *     assume either way.
  *
  * A note for whoever closes the cursor gap: the obvious shape — a declarative
  * `trustRecord: { file, jsonPath, value }` a manifest could express — does not
