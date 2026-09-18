@@ -35,19 +35,32 @@ export function matchKey(evt: KeyEvent): string[] {
 
   // Modifier mapping rules (the *only* place chord prefixes are minted):
   //   - `evt.ctrl`   → `ctrl+`. Universal across terminals.
-  //   - `evt.meta`   → `cmd+`. The Command key on macOS / Win key on Windows.
-  //                    Most terminals do NOT forward this — Cmd+C is normally
-  //                    eaten by the terminal emulator itself for native copy.
-  //                    Kitty / Ghostty / iTerm2 *can* be configured to forward
-  //                    it; when they do, kobe sees `meta=true`. We keep `cmd+`
-  //                    as a separate prefix from `alt+` so a Cmd+X chord that
-  //                    leaks into the app doesn't accidentally fire an
-  //                    Option+X binding (the previous code aliased both to
-  //                    `alt+`, which made `cmd+p`/`cmd+k` bindings in
-  //                    KobeKeymap silently dead — KOB key-routing fix).
-  //   - `evt.option` → `alt+`. Option on macOS / Alt elsewhere. macOS Option+K
-  //                    arrives as `ESC k` which opentui surfaces as
-  //                    `option=true`, name=`k` → `alt+k`.
+  //   - `evt.meta` OR `evt.super` → `cmd+`. Most terminals do NOT forward the
+  //                    Command key — Cmd+C is normally eaten by the emulator
+  //                    for native copy. Kitty / Ghostty / iTerm2 *can* be
+  //                    configured to forward it, and when they do it arrives
+  //                    over the kitty protocol as `super` (modifier bit 8),
+  //                    NOT `meta` (bit 32) — measured against
+  //                    `parseKeypress("\x1b[99;9u", { useKittyKeyboard: true })`,
+  //                    which yields `{ name: "c", super: true, meta: false }`.
+  //                    Reading only `meta` here left `super` invisible to every
+  //                    layer, so Cmd+C degraded to the bare chord `c`, matched
+  //                    the terminal passthrough, and TYPED A LITERAL "c" into
+  //                    the session. We keep `cmd+` as a prefix distinct from
+  //                    `alt+` so a Cmd+X chord that leaks into the app doesn't
+  //                    accidentally fire an Option+X binding.
+  //   - `evt.option` → `alt+`. Option on macOS / Alt elsewhere.
+  //                    KNOWN BUG, pre-dating the `super` fix above and left
+  //                    alone deliberately: opentui also sets `meta` for Alt on
+  //                    both wire formats — measured, `ESC k` yields
+  //                    `{ meta: true, option: false }` and kitty mask 2 yields
+  //                    `{ meta: true, option: true }` — so an Option chord
+  //                    mints `cmd+k` / `cmd+alt+k`, never the plain `alt+k`
+  //                    this once claimed. Every `alt+…` row in KobeKeymap is
+  //                    therefore dead. The embedded terminal is unaffected:
+  //                    no `cmd+alt+` chord is in the passthrough table, so
+  //                    Option falls through to the encoder and still sends
+  //                    the correct `ESC`-prefixed bytes.
   //   - shift+letter arrives as `{name:"z", shift:true}` (both the legacy
   //     and kitty parser paths). With NO other modifier we mint `shift+z`
   //     FIRST and plain `z` as a FALLBACK candidate, so `Z` can be bound
@@ -55,12 +68,14 @@ export function matchKey(evt: KeyEvent): string[] {
   //     evt.shift-discriminating handlers) keeps catching uppercase.
   //     Candidate ORDER is the precedence contract — dispatch tries
   //     `shift+z` against a whole bindings entry before falling back.
-  //     With ctrl/cmd/alt also held, shift on a single char stays DROPPED:
-  //     legacy terminals send ctrl+shift+z and ctrl+z as the same C0 byte,
-  //     so such chords would only fire on kitty-protocol terminals.
+  //     With ctrl/cmd/alt also held, shift on a single char is minted ONLY
+  //     for kitty-sourced events, as a higher-precedence candidate ahead of
+  //     the unshifted form (`ctrl+shift+c` then `ctrl+c`). Legacy terminals
+  //     send ctrl+shift+z and ctrl+z as the same C0 byte and report no shift,
+  //     so they keep matching the unshifted chord and nothing regresses.
   const mods: string[] = []
   if (evt.ctrl) mods.push("ctrl")
-  if (evt.meta) mods.push("cmd")
+  if (evt.meta || evt.super) mods.push("cmd")
   if (evt.option) mods.push("alt")
   const bareShiftChar = evt.shift && name !== undefined && name.length === 1 && mods.length === 0
   if (evt.shift && name && name.length > 1) mods.push("shift")
@@ -74,5 +89,13 @@ export function matchKey(evt: KeyEvent): string[] {
   // `{ key: "k" }` binding must NOT catch `ctrl+k` — otherwise pane-local
   // bindings (sidebar j/k) shadow global chords (`ctrl+k` palette).
   // Bindings that want both behaviors must register both keys explicitly.
-  return base.map((n) => prefix + n)
+  const prefixed = base.map((n) => prefix + n)
+  // Modified shift on a single char is only DISTINGUISHABLE on the kitty
+  // wire, so it is minted there alone — ahead of the unshifted candidate, so
+  // a `ctrl+shift+c` binding wins where the terminal can express it while
+  // every legacy terminal still falls back to `ctrl+c`.
+  if (evt.shift && name !== undefined && name.length === 1 && evt.source === "kitty") {
+    return [...base.map((n) => `${mods.join("+")}+shift+${n}`), ...prefixed]
+  }
+  return prefixed
 }

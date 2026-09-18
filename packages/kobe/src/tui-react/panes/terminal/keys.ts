@@ -17,6 +17,7 @@ import { useRenderer } from "@opentui/react"
 import { useEffect, useMemo, useRef } from "react"
 import { asAttachmentPaths } from "../../../tui/lib/attachments"
 import {
+  COPY_CHORDS,
   DEFAULT_PAGE_SIZE,
   NORMAL_TERMINAL_INPUT_MODES,
   PASSTHROUGH_CHORDS,
@@ -48,6 +49,12 @@ export type TerminalBindingsOpts = {
   pageSize?: number
   /** Tear down the current PTY and spawn a fresh shell at the same worktree (F5, confirm-gated). */
   reset: () => void
+  /**
+   * Copy the live selection to the system clipboard and clear it. Returns
+   * false when there was no selection, which is what lets ctrl+c stay an
+   * interrupt whenever nothing is highlighted.
+   */
+  copySelection: () => boolean
   /**
    * The scrollback search row is open. Every passthrough entry AND the raw
    * catch-all below switch off while it is: the query is captured by a raw
@@ -89,6 +96,18 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
         "terminal.search": () => optsRef.current.openSearch(),
       }),
     )
+    // Copy chords, registered BEFORE the passthrough table so they beat its
+    // `ctrl+shift+c` variant (`cmd+c` has no passthrough entry — the table
+    // expands no `cmd+` prefix — but the raw catch-all below would still
+    // encode it, so this binding is what stops Cmd+C reaching the PTY at all).
+    for (const chord of COPY_CHORDS) {
+      table.push({
+        key: chord,
+        cmd: () => {
+          optsRef.current.copySelection()
+        },
+      })
+    }
     const forward = (evt: KeyEvent): void => {
       const bytes = keyEventToShellBytes(evt, optsRef.current.inputModes?.() ?? NORMAL_TERMINAL_INPUT_MODES)
       if (bytes != null) optsRef.current.write(bytes)

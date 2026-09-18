@@ -244,6 +244,30 @@ While scrolled back, click **first** beside the line count to jump to the
 earliest retained line, or **latest** to return to the bottom and follow new
 output. These buttons do not send input to the engine or shell.
 
+### Copying from it
+
+Drag with the mouse to select, and the selection is copied when you release.
+The chords below copy the same selection without the mouse.
+
+| Key | Action |
+|---|---|
+| `ctrl+c` | Copy when text is selected; interrupt the engine or shell when nothing is |
+| `cmd+c` | Copy the selection (macOS) |
+| `ctrl+shift+c` | Copy the selection |
+
+`ctrl+c` is selection-aware on every platform. Rove draws the selection
+itself, so no terminal emulator knows it is there to claim the chord first —
+without this, `ctrl+c` interrupted the engine while text sat highlighted.
+Copying clears the selection, so the next `ctrl+c` is an interrupt again, and
+`ctrl+c` with nothing selected is always an interrupt.
+
+`cmd+c` and `ctrl+shift+c` only reach Rove on terminals that forward them.
+Most emulators keep `cmd+c` for their own copy, which is equivalent; kitty,
+Ghostty and iTerm2 can be configured to pass it through. `ctrl+shift+c`
+requires a terminal that speaks the kitty keyboard protocol — without it a
+terminal sends `ctrl+shift+c` and `ctrl+c` as the same byte, and the
+selection-aware `ctrl+c` above is what answers.
+
 ### Searching it
 
 `ctrl+a` `/` opens a query row in the pane footer. Typing filters as you go,
