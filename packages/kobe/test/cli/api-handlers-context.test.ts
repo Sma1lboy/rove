@@ -7,6 +7,7 @@
  * section instead of failing the whole verb.
  */
 
+import { resolve } from "node:path"
 import type { AttentionInboxItem } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { describe, expect, it } from "vitest"
@@ -15,6 +16,11 @@ import { type ContextPayload, buildContext, renderContext } from "../../src/cli/
 import { FakeClient, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const NOW = 1_800_000_000_000
+// `requireRepo` resolves its flag against the platform's own root, so a bare
+// "/repo/x" becomes `D:\repo\x` on Windows and stops matching a fixture that
+// spelled it POSIX-style. Resolve once and use the same string on both sides.
+const REPO = resolve("/repo/x")
+const OTHER = resolve("/repo/y")
 
 function serialized(over: Record<string, unknown> = {}): SerializedTask {
   return taskFixture({ kind: "task", ...over }) as unknown as SerializedTask
@@ -157,16 +163,16 @@ describe("context handler", () => {
     return new FakeClient({
       "task.list": () => ({
         tasks: [
-          serialized({ id: "work", repo: "/repo/x" }),
+          serialized({ id: "work", repo: REPO }),
           // Not units of work: the repo's seat and a directory somebody opened.
-          serialized({ id: "seat", kind: "main", repo: "/repo/x" }),
-          serialized({ id: "dir", kind: "dir", repo: "/repo/x" }),
+          serialized({ id: "seat", kind: "main", repo: REPO }),
+          serialized({ id: "dir", kind: "dir", repo: REPO }),
           // Another project.
-          serialized({ id: "other", repo: "/repo/y" }),
+          serialized({ id: "other", repo: OTHER }),
           // Already being removed — spent.
           serialized({
             id: "going",
-            repo: "/repo/x",
+            repo: REPO,
             deletion: { phase: "running", force: false, requestedAt: new Date(NOW).toISOString() },
           }),
         ],
@@ -179,9 +185,9 @@ describe("context handler", () => {
   }
 
   it("includes only this repo's live worktree tasks", async () => {
-    const result = (await invokeVerb("context", ["--repo", "/repo/x"], { client: client(), runtime })) as ContextPayload
+    const result = (await invokeVerb("context", ["--repo", REPO], { client: client(), runtime })) as ContextPayload
     expect(result.tasks.map((t) => t.taskId)).toEqual(["work"])
-    expect(result.repo).toBe("/repo/x")
+    expect(result.repo).toBe(REPO)
   })
 
   it("scopes the inbox to this repo but keeps routine episodes, which have no repo", async () => {
@@ -190,7 +196,7 @@ describe("context handler", () => {
       { taskId: "other", tabId: "tab-1", state: "error", unread: true, at: NOW },
       { taskId: null, tabId: null, state: "routine_failed", unread: true, at: NOW },
     ] as AttentionInboxItem[]
-    const result = (await invokeVerb("context", ["--repo", "/repo/x"], {
+    const result = (await invokeVerb("context", ["--repo", REPO], {
       client: client({ "attention.list": () => ({ items }) }),
       runtime,
     })) as ContextPayload
@@ -199,7 +205,7 @@ describe("context handler", () => {
 
   it("keeps an inbox episode about the repo's own seat, which the task list filters out", async () => {
     const items = [{ taskId: "seat", tabId: "tab-1", state: "error", unread: true, at: NOW }] as AttentionInboxItem[]
-    const result = (await invokeVerb("context", ["--repo", "/repo/x"], {
+    const result = (await invokeVerb("context", ["--repo", REPO], {
       client: client({ "attention.list": () => ({ items }) }),
       runtime,
     })) as ContextPayload
@@ -207,7 +213,7 @@ describe("context handler", () => {
   })
 
   it("degrades a failed side read to an empty section instead of failing the verb", async () => {
-    const result = (await invokeVerb("context", ["--repo", "/repo/x"], {
+    const result = (await invokeVerb("context", ["--repo", REPO], {
       client: client({
         "attention.list": () => {
           throw new Error("no such handler")
@@ -224,16 +230,16 @@ describe("context handler", () => {
   })
 
   it("returns { text } and nothing else under --text", async () => {
-    const result = (await invokeVerb("context", ["--repo", "/repo/x", "--text"], {
+    const result = (await invokeVerb("context", ["--repo", REPO, "--text"], {
       client: client(),
       runtime,
     })) as { text: string }
     expect(Object.keys(result)).toEqual(["text"])
-    expect(result.text).toContain("repo /repo/x")
+    expect(result.text).toContain(`repo ${REPO}`)
   })
 
   it("disbelieves a running claim when the pty host says the task owns nothing live", async () => {
-    const result = (await invokeVerb("context", ["--repo", "/repo/x"], {
+    const result = (await invokeVerb("context", ["--repo", REPO], {
       client: client(),
       runtime: stubRuntime({ liveTaskIds: async () => new Set<string>() }),
     })) as ContextPayload
@@ -241,7 +247,7 @@ describe("context handler", () => {
   })
 
   it("keeps believing it when the pty host could not be asked", async () => {
-    const result = (await invokeVerb("context", ["--repo", "/repo/x"], {
+    const result = (await invokeVerb("context", ["--repo", REPO], {
       client: client(),
       runtime: stubRuntime({ liveTaskIds: async () => null }),
     })) as ContextPayload
