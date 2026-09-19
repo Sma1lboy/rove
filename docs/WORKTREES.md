@@ -282,8 +282,12 @@ never pushed. Delete one you no longer need with
   `git stash`: the stash stack lives in the repo's common dir
   (`.git/refs/stash`) and is shared by every linked worktree, so a stash
   here can entangle — or be popped by — parallel tasks' work.
-- **Land reports conflicts.** Rove has already aborted the merge. Resolve the
-  branch relationship manually before retrying.
+- **Land reports conflicts.** Rove has already aborted the merge. Bring the
+  base into the task branch first: the sidebar row's **Resolve conflicts with
+  agent** merges the base into the worktree and hands the conflicted files to
+  the task's engine ([TUI](TUI.md#managing-tasks-in-the-sidebar)); once that
+  merge is committed, Land goes through clean. Or resolve the branch
+  relationship by hand before retrying.
 - **A removed row comes back.** The daemon operation failed or git still lists
   the worktree. Read the daemon log, correct locks or permissions, and retry.
 - **Remote state says unknown.** Check `git remote -v`, network access and

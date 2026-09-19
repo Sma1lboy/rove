@@ -438,3 +438,10 @@ The PR action also reads `.rove/pr-instructions.md` as its prompt template;
 `{{upstreamSentence}}` are substituted (unknown `{{…}}` passes through).
 It falls back to `.kobe/pr-instructions.md`; when both files are present, the
 non-empty `.rove` file wins.
+
+Two more prompt templates follow the same rules. **Fix failing checks** reads
+`.rove/ci-instructions.md` (`{{branch}}`, `{{prSentence}}`, `{{jobsSentence}}`,
+`{{logs}}`), and **Resolve conflicts with agent** reads
+`.rove/conflict-instructions.md` (`{{branch}}`, `{{baseRef}}`,
+`{{filesSentence}}`, `{{files}}` — the last one a Markdown list of the paths
+git reported as unmerged).
