@@ -219,6 +219,9 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
             // re-mounts, and demoting the row to a plain dot for that gap
             // reads as a lie.
             engine: tab.kind === "engine" || (live ?? null) !== null,
+            // The row's caption comes from this: what the process IS, probed
+            // from the pty child's tree, not what someone configured.
+            liveVendor: live ?? null,
             restored: restoredKeys.has(ptyKey),
           }
         }),

@@ -24,6 +24,13 @@ import { act, renderComponent } from "./harness"
 // snapshot's IDENTITY changes — a `get: () => ({})` stub returns a fresh
 // value every call and loops forever. Every snapshot here is a frozen constant.
 const EMPTY = Object.freeze({})
+// `engineTabStatesSignal` hands back a MAP, and show-workspace calls `.get()`
+// on it. Stubbing it with EMPTY ({}) threw `engineTabStates.get is not a
+// function` on every render here — swallowed by the error boundary, so the
+// text assertions below still passed while the branch that mounts the tabs
+// never rendered at all. Same frozen-identity rule as EMPTY: one constant,
+// so useSyncExternalStore sees a stable snapshot.
+const EMPTY_TAB_STATES: ReadonlyMap<string, never> = Object.freeze(new Map<string, never>())
 const NO_TASKS = Object.freeze([]) as readonly Task[]
 const ONE_TASK = Object.freeze([{ id: "t1" }]) as unknown as readonly Task[]
 
@@ -32,7 +39,7 @@ const store = <T,>(value: T) => ({ subscribe: () => () => {}, get: () => value }
 const orchestratorWith = (tasks: readonly Task[]): RemoteOrchestrator =>
   ({
     transcriptActivityStore: () => store(EMPTY),
-    engineTabStatesSignal: () => store(EMPTY),
+    engineTabStatesSignal: () => store(EMPTY_TAB_STATES),
     tasksSignal: () => store(tasks),
   }) as unknown as RemoteOrchestrator
 

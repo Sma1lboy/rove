@@ -21,6 +21,7 @@
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
+import type { VendorId } from "../../../types/vendor"
 import { fuzzyMatch } from "./fuzzy"
 import { type LabelledRepo, compareRecent, repoBasename, sidebarProjectKeyOfTask, sidebarProjectLabel } from "./groups"
 import { compareTaskGroup } from "./task-group-view"
@@ -57,6 +58,13 @@ export interface TreeTab {
   /** A coding-agent tab. Shell/command/content tabs are outside the state
    *  vocabulary entirely — they always wear the plain dot. */
   readonly engine?: boolean
+  /** Which engine is running in this tab RIGHT NOW, walked from the pty
+   *  child's process tree (`liveEngines.resolve`), falling back to the tab's
+   *  recorded identity when the probe cannot answer. This is an observation,
+   *  not configuration: it says what the process IS, which is why the row can
+   *  show it for every agent tab instead of only the ones someone pinned a
+   *  model on. `null`/absent = not an engine, or nothing answered. */
+  readonly liveVendor?: VendorId | null
   /** The pty host holds this tab as a FREEZE-RESTORED corpse: scrollback
    *  kept, process gone, and the next open respawns its recorded launch
    *  command. Distinct from a quiet tab, which is what it otherwise looks
