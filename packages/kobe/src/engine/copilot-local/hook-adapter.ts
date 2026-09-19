@@ -5,11 +5,8 @@
  * What it wires, and what it deliberately doesn't: `SessionStart` only, which
  * reports WHICH copilot session is live in a worktree. Copilot's remaining hook
  * events (`userPromptSubmitted`, `preToolUse`, `postToolUse`, `agentStop`, …)
- * are available, but Rove does not claim state from them here — copilot is
- * absent from refs/herdr's `full_lifecycle_hook_authority()` set, and herdr
- * itself retreated from the nine lifecycle events it once installed to this one
- * (`COPILOT_REMOVED_LIFECYCLE_HOOK_EVENTS` in `src/integration/mod.rs` is the
- * list it now deletes on sight). So {@link COPILOT_SCREEN_MANIFEST} keeps
+ * are available, but Rove does not claim state from them here: they are not a
+ * verified authority for turn state. So {@link COPILOT_SCREEN_MANIFEST} keeps
  * owning working/blocked/idle, exactly as before; the hook adds session
  * identity on top. Same split cursor landed on.
  *
@@ -43,8 +40,7 @@ import { vendorConfigHome } from "../vendor-home.ts"
  * PascalCase `SessionStart`, not the camelCase `sessionStart` the reference
  * lists first: copilot accepts both (PascalCase "for VS Code compatibility"),
  * and the camelCase spelling has a standing report of not firing
- * (github/copilot-cli#1730). refs/herdr installs the PascalCase one and deletes
- * the camelCase one, which is the same conclusion reached from the field.
+ * (github/copilot-cli#1730).
  */
 export const COPILOT_HOOK_EVENT_MAP: readonly HookEventSpec[] = [{ event: "SessionStart", verb: "session-start" }]
 
@@ -84,8 +80,8 @@ export class CopilotHookAdapter implements EngineHookAdapter {
   }
 
   /** Copilot spells the id `session_id`, with a `sessionId` camelCase variant
-   *  on some events — refs/herdr's copilot hook reads both, in that order, and
-   *  gives up rather than guessing when neither is a non-empty string. */
+   *  on some events — both are read, in that order, and the adapter gives up
+   *  rather than guessing when neither is a non-empty string. */
   sessionFromPayload(payload: Record<string, unknown>): EngineSessionRef | undefined {
     const sessionId = firstString(payload.session_id, payload.sessionId)
     if (!sessionId) return undefined

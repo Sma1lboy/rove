@@ -10,8 +10,8 @@
  * running daemon without a restart — polling, not `fs.watch`: on macOS the
  * FSEvents stream behind `fs.watch` starts asynchronously, and a write landing
  * before it is live is dropped forever, with no signal. Startup
- * hooks run only at daemon start (herdr semantics): a reload swaps hook
- * registrations, nothing more.
+ * hooks run only at daemon start: a reload swaps hook registrations,
+ * nothing more.
  *
  * Registry membership, not load success, drives `plugin.enabled` /
  * `plugin.disabled`: a manifest that stops parsing is a health problem, and

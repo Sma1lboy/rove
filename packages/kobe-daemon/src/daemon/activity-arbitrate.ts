@@ -1,7 +1,5 @@
 /**
- * Multi-source activity arbitration — the herdr model
- * (`refs/herdr/src/terminal/state.rs` `recompute_effective_state`) applied to
- * one tab's activity state.
+ * Multi-source activity arbitration for one tab's activity state.
  *
  * Every status SOURCE writes its own slot; nobody edits anybody else's:
  *
@@ -32,8 +30,8 @@
  *      never emits the session-start that would otherwise displace the slot,
  *      leaving its badge `dead` for the life of the daemon.
  *   2. a hook `running` wins UNLESS an observed `rest` fact is fresher than
- *      the claim (herdr's `fallback_not_older_than_hook` — a stale
- *      observation must never idle a fresh turn) AND the claim is at least
+ *      the claim (a stale observation must never idle a fresh turn)
+ *      AND the claim is at least
  *      `correctHookRunningAfterMs` old (at a turn boundary the PTY evidence
  *      trails the hook by one poll) — then observation corrects it (the
  *      ESC-interrupt / dead-engine gap).

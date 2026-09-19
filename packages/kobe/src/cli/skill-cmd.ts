@@ -11,7 +11,7 @@
  *   install [--global|-g | --project|-p] [--agent NAME]…  run the npx skills flow
  *   status                                                report whether the skill is installed
  *   command [--global|-g | --project|-p] [--agent NAME]…  print the npx command (don't run it)
- *   print                                                 print the bundled SKILL.md (herdr-style `kobe --skill`)
+ *   print                                                 print the bundled SKILL.md (also `kobe --skill`)
  *
  * Installs are GLOBAL (user-level) by default — the skill drives a
  * machine-wide daemon, so one copy per machine is the right shape;

@@ -4,9 +4,7 @@
  * Droid reads `~/.factory/settings.json`, and its hook document nests exactly
  * the way Claude's and Codex's do —
  * `{ "hooks": { "<Event>": [ { hooks: [ { type: "command", command } ] } ] } }`
- * (refs/herdr `src/integration/targets.rs#install_droid`, which builds entries
- * through the same `ensure_command_hook` it uses for the Claude-shaped
- * engines). Everything but the id, the table and the path comes from
+ * Everything but the id, the table and the path comes from
  * {@link SessionStartHookAdapter} — read its module doc for why the table has
  * one entry and why the missing-directory guard is load-bearing.
  */
@@ -18,8 +16,8 @@ import { SessionStartHookAdapter, sessionStartOnly } from "../session-hook-adapt
 /** Droid hook event → normalized Rove verb. Droid's entries carry no matcher. */
 export const DROID_HOOK_EVENT_MAP = sessionStartOnly()
 
-/** Droid's config directory is `~/.factory`, with no env override — herdr's
- *  `droid_dir()` joins it to the home directory and reads no variable. */
+/** Droid's config directory is `~/.factory`, with no env override: it is
+ *  joined to the home directory and no variable is read. */
 export function droidSettingsPath(home: string = homedir()): string {
   return join(home, ".factory", "settings.json")
 }

@@ -21,8 +21,8 @@ import {
 
 const PROD = ["rove"]
 const DEV = ["bun", "/repo/packages/kobe/src/cli/rove.ts"]
-/** What herdr's integration leaves in the same file — a third party's entry. */
-const FOREIGN = { command: "bash '/Users/x/.cursor/herdr-agent-state.sh' session" }
+/** A third party's entry in the same file. */
+const FOREIGN = { command: "bash '/Users/x/.cursor/peer-agent-state.sh' session" }
 
 function sessionStart(doc: Record<string, unknown>): unknown[] {
   return ((doc.hooks as Record<string, unknown>).sessionStart ?? []) as unknown[]

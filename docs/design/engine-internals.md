@@ -215,8 +215,7 @@ The poll loop runs every ~2 s against the daemon's shared transcript-activity
 slice, and it also spots a hand-launched `claude` in a plain shell tab (via
 the OSC window title) so even unmanaged sessions get a badge.
 
-**Daemon-side arbitration** (2026-08, adopted from herdr's
-`TerminalState::recompute_effective_state`): each tab's activity record keeps
+**Daemon-side arbitration** (2026-08): each tab's activity record keeps
 **one slot per source** — a `hook` slot written by `report()` and an
 `observed` slot written by the PTY/foreground observer's `observeTab()` — and
 ONE pure function arbitrates them
@@ -226,7 +225,7 @@ ONE pure function arbitrates them
    `error` / `rate_limited`) always wins — observation never dims an
    attention state;
 2. a hook `running` wins unless an observed `rest` fact is **fresher than the
-   claim** (herdr's `fallback_not_older_than_hook`) and the claim is older
+   claim** and the claim is older
    than `correctHookRunningAfterMs` — the one correction, covering ESC
    interrupts and dead engines;
 3. any other hook entry wins;

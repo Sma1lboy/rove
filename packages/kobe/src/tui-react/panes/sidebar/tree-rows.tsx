@@ -294,7 +294,7 @@ export function TabTreeRow(props: {
   // One predicate: "does this row have activity of its own". Also counting
   // "is the active tab" is what lets the task rollup leak in.
   const carriesState = activity !== undefined
-  // The unread lamp (herdr ● on turn_complete) is for sessions you are NOT
+  // The unread lamp (● on turn_complete) is for sessions you are NOT
   // looking at — sitting in the tab digests it to ✓ on the same render.
   // "Viewing" = this row's TASK is selected and this tab is the task's
   // active one. ONLY the row that carries the task's activity may run the

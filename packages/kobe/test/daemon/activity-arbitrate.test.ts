@@ -1,5 +1,5 @@
 /**
- * The arbitration core (activity-arbitrate.ts) — herdr's multi-source model
+ * The arbitration core (activity-arbitrate.ts) — the multi-source model
  * pinned branch by branch. Every status source writes its own slot; this
  * pure function is the ONE place the priority order lives:
  *
@@ -75,9 +75,8 @@ describe("recomputeTabActivity", () => {
   })
 
   it("freshness guard: an observation OLDER than the hook claim never corrects it", () => {
-    // herdr's fallback_not_older_than_hook — a stale observer pass must not
-    // idle a turn that started after the evidence was gathered, no matter
-    // how old the claim is.
+    // A stale observer pass must not idle a turn that started after the
+    // evidence was gathered, no matter how old the claim is.
     const eff = recomputeTabActivity(
       { hook: { state: "running", at: T - 60_000 }, observed: { state: "idle", at: T - 120_000 } },
       T,

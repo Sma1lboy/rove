@@ -37,7 +37,7 @@ interface EngineCase {
   readonly pathFor: (home: string) => string
   /** The engine's own config-dir override, if it has one. */
   readonly envOverride?: { readonly name: string; readonly dirFor: (dir: string) => string }
-  /** herdr's entry in the same file — a third party's, which must survive. */
+  /** A third party's entry in the same file, which must survive. */
   readonly foreignCommand: string
 }
 
@@ -49,7 +49,7 @@ const CASES: readonly EngineCase[] = [
     relPath: [".qoder", "settings.json"],
     pathFor: qodercliSettingsPath,
     envOverride: { name: "QODERCLI_CONFIG_DIR", dirFor: (dir) => dir },
-    foreignCommand: "'/Users/x/.qoder/hooks/herdr-agent-state.sh' session",
+    foreignCommand: "'/Users/x/.qoder/hooks/peer-agent-state.sh' session",
   },
   {
     vendor: "devin",
@@ -60,7 +60,7 @@ const CASES: readonly EngineCase[] = [
     // XDG_CONFIG_HOME names the directory ABOVE `devin/`, unlike the vendor
     // overrides that name the config dir itself.
     envOverride: { name: "XDG_CONFIG_HOME", dirFor: (dir) => join(dir, "devin") },
-    foreignCommand: "'/Users/x/.config/devin/herdr-agent-state.sh' session",
+    foreignCommand: "'/Users/x/.config/devin/peer-agent-state.sh' session",
   },
 ]
 

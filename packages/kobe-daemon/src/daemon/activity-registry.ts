@@ -71,7 +71,7 @@ interface TabHookEntry extends HookSlot {
 }
 
 /**
- * One tab's activity record, herdr-style: ONE SLOT PER SOURCE, arbitrated by
+ * One tab's activity record: ONE SLOT PER SOURCE, arbitrated by
  * {@link recomputeTabActivity} (see activity-arbitrate.ts for the priority
  * rules). Writers never edit each other's slot — `report()` writes `hook`,
  * `observeTab()` writes `observed` — and `effective` caches the last

@@ -1,7 +1,6 @@
 /**
  * Copilot CLI screen-state manifest — hint strings observed in the Copilot
- * CLI's bottom bar (cross-checked against refs/herdr
- * src/detect/manifests/github-copilot.toml). Copilot persists no
+ * CLI's bottom bar. Copilot persists no
  * completion marker and has no wired hooks, so this is its ONLY
  * working/blocked signal; without it every copilot tab reads "unknown".
  */

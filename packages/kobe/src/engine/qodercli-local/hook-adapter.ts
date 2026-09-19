@@ -5,8 +5,7 @@
  * override), and its hook schema mirrors Claude's settings.json — a top-level
  * `hooks` object keyed by event name, each entry a matcher plus a list of
  * `{type: "command", command, timeout?}` invocations, per its own docs
- * (docs.qoder.com/cli/hooks) and refs/herdr
- * `src/integration/targets.rs#install_qodercli`. Everything but the id, the
+ * (docs.qoder.com/cli/hooks). Everything but the id, the
  * table and the path comes from {@link SessionStartHookAdapter} — read its
  * module doc for why the table has one entry.
  */
@@ -15,9 +14,8 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { SessionStartHookAdapter, sessionStartOnly } from "../session-hook-adapter.ts"
 
-/** Qodercli hook event → normalized Rove verb. The `"*"` matcher is what herdr
- *  writes into this engine's entries; qodercli's schema takes one the way
- *  Claude's does, and a wildcard is the no-op value. */
+/** Qodercli hook event → normalized Rove verb. Qodercli's schema takes a
+ *  matcher the way Claude's does, and `"*"` is the no-op value. */
 export const QODERCLI_HOOK_EVENT_MAP = sessionStartOnly("*")
 
 /** Qodercli's config directory: its own `QODERCLI_CONFIG_DIR` override, else

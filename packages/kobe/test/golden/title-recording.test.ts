@@ -117,11 +117,11 @@ describe("golden: title stream → recording → display", () => {
   it("typing an engine into a shell tab names the tab after that engine (e9405e07)", () => {
     const shellTab: TerminalTab = { kind: "command", command: SHELL, id: "tab-2", title: null, ordinal: 2 }
     let state: TabsState = { tabs: [shellTab], activeId: "tab-2", nextOrdinal: 3 }
-    state = recordTitle(state, "tab-2", "✳ Herdr多Agent协作技巧分享", "claude")
+    state = recordTitle(state, "tab-2", "✳ 多Agent协作技巧分享", "claude")
     const tab = tabOf(state, "tab-2")
     expect(tab.liveVendor).toBe("claude")
     // The recorded conversation name wins …
-    expect(tabTitleStable(tab, "claude", "claude")).toBe("Herdr多Agent协作技巧分享 2")
+    expect(tabTitleStable(tab, "claude", "claude")).toBe("多Agent协作技巧分享 2")
     // … and even title-less (decoration only), the row reads as the engine,
     // never "shell N" — including after a restart when only the RECORDED
     // identity is available (liveVendor probe not yet answered).

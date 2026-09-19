@@ -1,5 +1,5 @@
 /**
- * The herdr "seen" bit behind the sidebar's unread lamp (● → ✓).
+ * The "seen" bit behind the sidebar's unread lamp (● → ✓).
  *
  * Lives on the render track because `row-cards.tsx` pulls in opentui, which
  * vitest's node environment can't load.

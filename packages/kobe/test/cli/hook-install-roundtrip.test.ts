@@ -86,9 +86,9 @@ function stubStdin(payload: unknown): void {
  * The payloads below are SHAPES, not captures: none of the four CLIs was
  * installed on the machine this was written on. `hook_event_name` /
  * `session_id` / `cwd` come from GitHub's copilot hooks reference
- * (docs.github.com/copilot/reference/hooks-reference) and from refs/herdr's
- * own hook script for each engine, every one of which reads `session_id` and
- * exits when it is not a non-empty string.
+ * (docs.github.com/copilot/reference/hooks-reference) and from each engine's
+ * own hook documentation. Every adapter reads `session_id` and gives up when
+ * it is not a non-empty string.
  */
 interface Roundtrip {
   readonly vendor: string

@@ -2,8 +2,8 @@
  * `<home>/.kobe/plugins.json` — the installed/linked plugin registry.
  *
  * Written by the `kobe plugin` CLI; read (and stat-polled) by the daemon's
- * plugin runtime. Registration is global to the user, like herdr's: one list
- * for every session. The file is small and rewritten whole on every mutation.
+ * plugin runtime. Registration is global to the user: one list for every
+ * session. The file is small and rewritten whole on every mutation.
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"

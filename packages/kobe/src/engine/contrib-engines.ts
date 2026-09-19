@@ -16,9 +16,8 @@
  * with the same generic `which` the custom-engine launch would hit anyway),
  * so shipping the catalog costs users without these CLIs nothing.
  *
- * Screen manifests are adapted from refs/herdr's agent-detection rules
- * (src/detect/manifests/*.toml, studied with attribution), reduced to the
- * classifier's vocabulary. Blocked rules go before working rules.
+ * Screen manifests are reduced to the classifier's vocabulary. Blocked rules
+ * go before working rules.
  */
 
 import type { EngineIdentity } from "@/types/engine"
@@ -162,18 +161,17 @@ const AMP: EngineScreenManifest = {
 }
 
 // ── Screen-only engines (no hook, no history) ──────────────────────────────
-// The four below are detection-only in herdr too: each has a manifest under
-// src/detect/manifests/ but no entry in src/integration/registry.rs, so
-// reading the pane is the ONLY way either tool learns their state.
+// The four below have no hook integration at all, so reading the pane is the
+// ONLY way Rove learns their state.
 //
-// herdr's rule model is richer than the classifier's, and two of its features
-// have no equivalent here:
+// The classifier's rule model is deliberately small, and two shapes these
+// screens want have no equivalent here:
 //   - OR-of-ANDs (`any = [{ contains = [a, b] }, …]`). A rule here takes at
 //     most one `any`, so each conjunctive disjunct becomes its own rule with
 //     the same state — first match wins, so N same-state rules ARE an OR.
 //   - `not` gates. No negation at all; a rule that needs one is dropped, and
 //     said so below.
-// `region = "whole_recent"` collapses to the classifier's default bottom
+// A whole-screen region collapses to the classifier's default bottom
 // region (12 non-empty lines), the same reduction the six entries above made:
 // a dialog taller than that is missed. Missing is the safe direction — a
 // false `blocked` lights the attention inbox and keeps it lit.
@@ -181,27 +179,23 @@ const AMP: EngineScreenManifest = {
 // compiles patterns without the `u` flag, so a non-Latin word after a spinner
 // glyph no longer matches.
 
-// refs/herdr src/detect/manifests/cline.toml (2026.06.10.1).
-// Only the permission rule survives. herdr's other rule is
-// `regex = ['(?s).+']` at priority -10 — "any non-empty cline screen is
-// working" — which it can afford because that rule is a `visible_working`
-// hint its state machine weighs against hook and OSC evidence. Here
-// classifyScreen's answer IS the badge, so a catch-all would pin cline to
-// running for the tab's whole life with nothing able to bring it down.
+// Only the permission rule survives. A catch-all "any non-empty cline screen
+// is working" rule was considered and dropped: classifyScreen's answer IS the
+// badge, so it would pin cline to running for the tab's whole life with
+// nothing able to bring it down.
 // `null` (keep the previous reading) is the honest answer for a cline screen
 // with no dialog on it, so cline ships blocked-only until someone with the
 // CLI installed captures its real working/resting footer.
 const CLINE: EngineScreenManifest = {
   rules: [
     { state: "blocked", any: ["let cline use this tool"] },
-    // herdr's remaining four disjuncts are the [act mode]/[plan mode] ×
+    // The remaining four disjuncts are the [act mode]/[plan mode] ×
     // execute-a-command/use-a-tool cross product; two rules cover it exactly.
     { state: "blocked", all: ["execute command?", "yes"], any: ["[act mode]", "[plan mode]"] },
     { state: "blocked", all: ["use this tool?", "yes"], any: ["[act mode]", "[plan mode]"] },
   ],
 }
 
-// refs/herdr src/detect/manifests/kiro.toml (2026.06.10.1). Translated whole.
 const KIRO: EngineScreenManifest = {
   rules: [
     {
@@ -209,7 +203,7 @@ const KIRO: EngineScreenManifest = {
       all: ["requires approval"],
       any: ["yes, single permission", "trust, always allow", "no (tab to edit)", "esc to close"],
     },
-    // herdr also requires one of "tool approval"/"tool approvals"; the
+    // The screen carries one of "tool approval"/"tool approvals"; the
     // singular is a prefix of the plural, so one substring covers both and
     // the rule's single `any` slot stays free for the action list.
     {
@@ -222,16 +216,16 @@ const KIRO: EngineScreenManifest = {
   ],
 }
 
-// refs/herdr src/detect/manifests/maki.toml (2026.07.09.2). Maki keeps a
+// Maki keeps a
 // one-line status bar on the bottom row — `[BUILD]`/`[PLAN]`/`[BASH]` at rest,
 // with a leading braille cell while it streams — hence the `bottomLines: 1`.
-// DROPPED: herdr's `prompt_box_idle` fallback (a bare `❯ ` on a pane narrow
+// DROPPED: a `prompt_box_idle` fallback (a bare `❯ ` on a pane narrow
 // enough that the status bar's right half has overwritten the mode label). It
 // is only correct behind two `not` gates; ungated it reads a streaming maki as
 // idle, so on a narrow pane maki reports `null` instead of `idle`.
 const MAKI: EngineScreenManifest = {
   rules: [
-    // herdr's one permission rule ORs four alternatives, two of them
+    // Maki's permission screen has four alternatives, two of them
     // conjunctions — one rule each.
     { state: "blocked", all: ["permission required", "y allow", "n deny"] },
     { state: "blocked", all: ["permission required"], any: ["confirm allow", "confirm deny"] },
@@ -242,9 +236,9 @@ const MAKI: EngineScreenManifest = {
   ],
 }
 
-// refs/herdr src/detect/manifests/antigravity.toml (2026.06.24.1, manifest id
-// "agy"). Translated whole. herdr's OSC-title and OSC-progress regions have no
-// counterpart here, but this manifest declares none.
+// Antigravity's manifest id is "agy", not its command name. OSC-title and
+// OSC-progress regions have no counterpart in the classifier, but this
+// manifest declares none.
 const ANTIGRAVITY: EngineScreenManifest = {
   rules: [
     { state: "blocked", all: ["requesting permission for:", "do you want to proceed?"] },
@@ -254,10 +248,10 @@ const ANTIGRAVITY: EngineScreenManifest = {
   ],
 }
 
-// refs/herdr src/detect/manifests/devin.toml (2026.06.15.1). Rove's rule
-// vocabulary has no `not` gate; herdr's `not` clauses on the working and idle
-// rules only exclude the blocked/working conditions that already sit ABOVE
-// them here, and first match wins, so the ordering does that job.
+// Rove's rule vocabulary has no `not` gate; the negations the working and
+// idle rules would need only exclude the blocked/working conditions that
+// already sit ABOVE them here, and first match wins, so the ordering does
+// that job.
 const DEVIN: EngineScreenManifest = {
   rules: [
     { state: "blocked", bottomLines: 8, all: ["do you trust the authors of this directory?", "yes, trust "] },
@@ -275,10 +269,9 @@ const DEVIN: EngineScreenManifest = {
   ],
 }
 
-// refs/herdr src/detect/manifests/qodercli.toml (2026.06.10.1). herdr's single
-// blocked rule ORs eight alternatives, two of them conjunctions — one rule
-// each here, since a Rove rule's `any` slot is already spoken for by the
-// conjunction's second half. herdr's `whole_recent` region is this
+// Qodercli's blocked screen has eight alternatives, two of them conjunctions
+// — one rule each here, since a Rove rule's `any` slot is already spoken for
+// by the conjunction's second half. Its whole-screen region is this
 // classifier's default window.
 const QODERCLI: EngineScreenManifest = {
   rules: [
@@ -333,8 +326,8 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
   // devin and qodercli, like droid and cursor, are catalog entries that ALSO
   // declare a hook adapter: their `SessionStart` reports which session is live
   // and the manifest above keeps owning working/blocked/idle. Command names
-  // and `processNames` are herdr's `interactive_agent_executable` plus the
-  // aliases its `lookup_agent` accepts; neither CLI was on the machine this
+  // and `processNames` are each CLI's own executable plus its known
+  // aliases; neither CLI was on the machine this
   // was written on, so both keep the "argv" first-message default (positional
   // semantics UNVERIFIED) and every screen string comes from the manifest
   // rather than a fresh capture.
@@ -352,11 +345,10 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     screenManifest: QODERCLI,
     createHookAdapter: () => new QodercliHookAdapter(),
   },
-  // Command names are herdr's `interactive_agent_executable` (refs/herdr
-  // src/detect/mod.rs), NOT the manifest ids: antigravity's manifest is "agy"
-  // and kiro's binary is `kiro-cli`. `processNames` carries the other
-  // spellings herdr's `lookup_agent` accepts, so a running process still maps
-  // back to the engine (`foreground.ts`). None of these four CLIs was on the
+  // Command names are each CLI's own executable, NOT the manifest ids:
+  // antigravity's manifest is "agy" and kiro's binary is `kiro-cli`.
+  // `processNames` carries the other spellings a running process may wear, so
+  // it still maps back to the engine (`foreground.ts`). None of these four CLIs was on the
   // machine this was written on, so every screen string below comes from the
   // manifest rather than a fresh capture; each keeps the "argv" first-message
   // default because their positional semantics are likewise UNVERIFIED.

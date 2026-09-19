@@ -3,10 +3,9 @@
  *
  * A plugin is a directory with this manifest plus argv commands Rove can
  * launch; the whole `rove` CLI (and the daemon
- * socket) is the plugin API. The manifest shape is deliberately isomorphic
- * to herdr's `herdr-plugin.toml` ([[build]] / [[startup]] / [[actions]] /
- * [[events]]) so porting a plugin between the two ecosystems is a rename
- * plus swapping the callback CLI. Design doc: docs/design/plugins.md.
+ * socket) is the plugin API. The manifest is four table arrays — [[build]] /
+ * [[startup]] / [[actions]] / [[events]] — and this file is their parser and
+ * validator. Design doc: docs/design/plugins.md.
  */
 
 import { existsSync, readFileSync } from "node:fs"
@@ -214,7 +213,7 @@ export function readPluginManifest(root: string): ParsedPluginManifest {
   return parsePluginManifest(readFileSync(path, "utf8"), basename(path))
 }
 
-/** ASCII letters, digits, dot, colon, underscore, hyphen — same as herdr. */
+/** ASCII letters, digits, dot, colon, underscore, hyphen. */
 const PLUGIN_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/
 /** Local ids (actions): same alphabet minus dots, so qualified names split cleanly. */
 const LOCAL_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_:-]*$/
@@ -323,8 +322,8 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
   }
 
   // Panes join the focused chattab's split group by default (`split`), or
-  // open a separate command tab (`tab`); herdr-style overlay/popup are
-  // tolerated with a warning and treated as split.
+  // open a separate command tab (`tab`); `overlay`/`popup` are tolerated
+  // with a warning and treated as split.
   const panes = asTableArray(raw.panes, "panes").map((t, i) => {
     const paneId = asString(t.id, `panes[${i}].id`)
     if (!LOCAL_ID_RE.test(paneId)) fail(`pane id \`${paneId}\` may not contain dots`)

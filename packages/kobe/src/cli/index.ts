@@ -398,7 +398,7 @@ async function main(): Promise<void> {
   }
   if (subcommand === "--skill") {
     // Agent-facing: print the bundled SKILL.md so a coding agent can learn
-    // the `kobe api` surface with one command (same shape as `herdr --skill`).
+    // the `kobe api` surface with one command.
     const { runSkillSubcommand } = await import("./skill-cmd.ts")
     await runSkillSubcommand(["print"])
     return
