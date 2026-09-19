@@ -142,14 +142,14 @@ code{font:12.5px var(--mono);background:var(--sunk);padding:.1rem .35rem;border-
 「没有要做的事」和「目标要模型自己找」是两回事，判据只认后者。
 短和开放也不改变这一点：<code>看看还有什么可以优化的</code> 又短又开放，是实打实的 deep。</p>
 <p>判定的模型零训练，请求时现读那份标注规范，94 条真人标注上 73.0%；
-<code>conf ≥ 0.7</code> 时覆盖 44%、那部分 85% 对。档位对应的
+门限默认 <code>0.5</code>：覆盖 53%，那部分 84% 对；被放回人工的 44 条里有 19 条本来就会判错。档位对应的
 engine/model 取自 <code>DEFAULT_AUTO_EFFORT</code>，Settings 里可改。</p>
 
 <script>
 const API = "__API__", TABLE = __TABLE__, EX = __EX__;
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-let last = null, thresh = 0.7;
+let last = null, thresh = 0.5;
 
 $("chips").innerHTML = EX.map(t => `<button data-t="${esc(t)}">${esc(t)}</button>`).join("");
 $("chips").onclick = e => { const b = e.target.closest("button"); if (!b) return;
