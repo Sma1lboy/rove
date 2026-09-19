@@ -13,7 +13,7 @@ import { expect, test } from "bun:test"
 import { VersionsPage } from "../../src/tui-react/component/versions-page"
 import { currentLang, setLocaleLang } from "../../src/tui/i18n"
 import type { ReleaseNotes, ReleaseSummary } from "../../src/version.ts"
-import { act, renderComponent } from "./harness"
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 const SUMMARIES: ReleaseSummary[] = [
   { version: "0.9.208", url: "https://github.com/Sma1lboy/rove/releases/tag/v0.9.208" },
@@ -41,17 +41,18 @@ function mount() {
   )
 }
 
-const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 150))
+/** Well under bun's 5000ms per-test kill, so a real regression still prints
+ *  `waitForFrameText`'s frame dump rather than a bare bun timeout. */
+const BODY_TIMEOUT = { timeoutMs: 3_000 }
 
 test("the selected release's notes render as markdown, not as their source", async () => {
   const restore = currentLang()
   try {
     const { frame, spans } = await mount()
-    await act(async () => settle())
-    const text = await frame()
+    // The wait IS the assertion that the selected release's body rendered.
+    const text = await waitForFrameText(frame, "#1039 76eb2e6 Show what changed", BODY_TIMEOUT)
     expect(text).toContain("ROVE VERSIONS")
     expect(text).toContain("v0.9.208")
-    expect(text).toContain("#1039 76eb2e6 Show what changed")
     // Concealed, not printed: the source markers and the link addresses.
     expect(text).not.toContain("###")
     expect(text).not.toContain("**")
@@ -70,11 +71,11 @@ test("j moves the cursor and swaps which body is shown", async () => {
   const restore = currentLang()
   try {
     const { frame, mockInput } = await mount()
-    await act(async () => settle())
+    // Wait for the first body before moving, so the assertion below can tell
+    // "the cursor swapped it" from "the first one had not rendered yet".
+    await waitForFrameText(frame, "Show what changed", BODY_TIMEOUT)
     await act(async () => mockInput.typeText("j"))
-    await act(async () => settle())
-    const text = await frame()
-    expect(text).toContain("A task can now pin a --model")
+    const text = await waitForFrameText(frame, "A task can now pin a --model", BODY_TIMEOUT)
     expect(text).not.toContain("Show what changed")
   } finally {
     setLocaleLang(restore)
