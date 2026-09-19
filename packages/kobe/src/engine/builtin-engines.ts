@@ -38,6 +38,7 @@ import { fetchCodexQuotaUsage } from "./codex-local/quota.ts"
 import { codexSessionIdFromTitle } from "./codex-local/terminal-title.ts"
 import { trustCodexWorktree } from "./codex-local/trust.ts"
 import { readCodexTurns } from "./codex-local/turns.ts"
+import { CopilotHookAdapter } from "./copilot-local/hook-adapter.ts"
 import { COPILOT_SCREEN_MANIFEST } from "./copilot-local/screen.ts"
 import { trustCopilotWorktree } from "./copilot-local/trust.ts"
 import {
@@ -192,7 +193,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     defaultCommand: ["copilot"],
     history: copilotHistoryReader,
     detectAccount: (deps) => detectCopilotAccount(deps),
-    createHookAdapter: () => new NoopHookAdapter("copilot"),
+    createHookAdapter: () => new CopilotHookAdapter(),
     // Copilot persists no turn-completion marker kobe can read yet.
     createTurnDetector: () => new UnknownTurnDetector("copilot"),
     trustWorktree: trustCopilotWorktree,

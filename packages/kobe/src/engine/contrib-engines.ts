@@ -23,6 +23,7 @@
 
 import type { EngineIdentity } from "@/types/engine"
 import { CursorHookAdapter } from "./cursor-local/hook-adapter.ts"
+import { DroidHookAdapter } from "./droid-local/hook-adapter.ts"
 import type { EngineHookAdapter } from "./hook-adapter.ts"
 import type { EngineRegistryEntry } from "./registry.ts"
 import type { EngineScreenManifest } from "./screen-state.ts"
@@ -274,7 +275,12 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     createHookAdapter: () => new CursorHookAdapter(),
   },
   grok: { displayName: "Grok CLI", defaultCommand: ["grok"], screenManifest: GROK },
-  droid: { displayName: "Droid", defaultCommand: ["droid"], screenManifest: DROID },
+  droid: {
+    displayName: "Droid",
+    defaultCommand: ["droid"],
+    screenManifest: DROID,
+    createHookAdapter: () => new DroidHookAdapter(),
+  },
   amp: { displayName: "Amp", defaultCommand: ["amp"], screenManifest: AMP },
   // Command names are herdr's `interactive_agent_executable` (refs/herdr
   // src/detect/mod.rs), NOT the manifest ids: antigravity's manifest is "agy"

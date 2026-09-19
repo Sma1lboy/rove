@@ -17,7 +17,8 @@
  * is `{ "version": 1, "hooks": { "<event>": [ { "command": "…" } ] } }` — the
  * entries are FLAT, where Claude and Codex nest a `hooks` array inside each
  * group. That one difference is why this adapter can't extend
- * {@link JsonHookAdapter}; everything else (the lock, tmp+rename, and the
+ * {@link JsonHookAdapter}; the merge lives in `../flat-hooks.ts`, shared with
+ * Copilot CLI (same shape), and everything else (the lock, tmp+rename, and the
  * skip-the-write-when-unchanged rule) is reused from `../json-hook-adapter.ts`.
  */
 
@@ -25,19 +26,11 @@ import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { kobeHookInvocation } from "../../cli/invocation.ts"
-import { quoteShellArgv } from "../../lib/shell-command.ts"
+import { type FlatHookFormat, mergeFlatHooks, parseFlatHooks } from "../flat-hooks.ts"
 import type { EngineHookAdapter, EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail } from "../hook-events.ts"
 import { editJsonSettings } from "../json-hook-adapter.ts"
-import {
-  type HookEditOutcome,
-  type HookEventSpec,
-  type HookSettingsParse,
-  hookCommandQuoting,
-  isObject,
-  isRoveHook,
-  roveHookArgs,
-} from "../json-hooks.ts"
+import type { HookEditOutcome, HookEventSpec, HookSettingsParse } from "../json-hooks.ts"
 
 /**
  * Cursor hook event → normalized Rove verb. One entry, deliberately: see the
@@ -45,7 +38,8 @@ import {
  */
 export const CURSOR_HOOK_EVENT_MAP: readonly HookEventSpec[] = [{ event: "sessionStart", verb: "session-start" }]
 
-const CURSOR_VERBS: readonly string[] = CURSOR_HOOK_EVENT_MAP.map((spec) => spec.verb)
+/** Cursor's entries carry no `type` field — the entry is bare `{ command }`. */
+const CURSOR_FORMAT: FlatHookFormat = { vendor: "cursor", eventMap: CURSOR_HOOK_EVENT_MAP }
 
 /** Cursor's own override, honored by the CLI itself (verified in the 2026.04.17
  *  bundle). Not in `../vendor-home.ts` because cursor's config dir has no other
@@ -56,58 +50,25 @@ export function cursorHooksPath(home: string = homedir()): string {
 }
 
 /**
- * Validate `~/.cursor/hooks.json` for the merge — cursor's shape, not the
- * Claude/Codex one. Same contract as `json-hooks.ts#parseHookSettings`: a
- * missing file is an EMPTY document (the first-install case), and anything we
- * cannot understand is refused with a reason rather than overwritten.
+ * Cursor's document validator — the shared flat-shape one, re-exported under
+ * cursor's name so the adapter and its tests keep one spelling.
  */
 export function parseCursorHooks(raw: string | undefined): HookSettingsParse {
-  if (raw === undefined) return { ok: true, doc: {} }
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch (err) {
-    return { ok: false, reason: `not valid JSON (${err instanceof Error ? err.message : String(err)})` }
-  }
-  if (!isObject(parsed)) return { ok: false, reason: "top level is not a JSON object" }
-  if (parsed.hooks === undefined) return { ok: true, doc: parsed }
-  if (!isObject(parsed.hooks)) return { ok: false, reason: '"hooks" is not an object' }
-  for (const [event, entries] of Object.entries(parsed.hooks)) {
-    if (!Array.isArray(entries)) return { ok: false, reason: `"hooks.${event}" is not an array` }
-  }
-  return { ok: true, doc: parsed }
+  return parseFlatHooks(raw)
 }
 
 /**
  * Pure merge: add or remove Rove's entries in a cursor hooks document,
  * preserving the user's own entries, every other event, and every other key.
- *
- * Ownership is decided by {@link isRoveHook}, never by string equality — a dev
- * checkout installs `bun /…/src/cli/rove.ts hook …` and a released build
- * installs `rove hook …`, so matching literal text would append a second entry
- * on the next launch instead of replacing the first.
+ * The mechanics — and the ownership rule that makes a dev-checkout install
+ * replaceable by a released one — live in `../flat-hooks.ts`.
  */
 export function mergeCursorHooks(
   current: Record<string, unknown>,
   install: boolean,
   inv: readonly string[] = kobeHookInvocation(),
 ): Record<string, unknown> {
-  const { hooks: rawHooks, ...rest } = current
-  const hooks: Record<string, unknown> = isObject(rawHooks) ? { ...rawHooks } : {}
-  for (const { event, verb } of CURSOR_HOOK_EVENT_MAP) {
-    const prior = Array.isArray(hooks[event]) ? (hooks[event] as unknown[]) : []
-    const kept = prior.filter((entry) => !isRoveHook(entry, CURSOR_VERBS))
-    if (install) {
-      kept.push({
-        command: quoteShellArgv([...inv, "hook", verb, ...roveHookArgs("cursor")], hookCommandQuoting()),
-      })
-    }
-    if (kept.length > 0) hooks[event] = kept
-    else delete hooks[event]
-  }
-  // Cursor reads `version` as the file's schema marker; a document that lost it
-  // (or never had one) is not ours to leave unlabelled.
-  return { version: 1, ...rest, hooks }
+  return mergeFlatHooks(CURSOR_FORMAT, current, install, inv)
 }
 
 export class CursorHookAdapter implements EngineHookAdapter {
