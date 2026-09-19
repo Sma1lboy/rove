@@ -266,12 +266,28 @@ export async function encode(opts: {
   const palette = join(opts.workDir, `${opts.name}-palette.png`)
   const gifScale = `scale=${opts.gifWidth ?? 800}:-1:flags=lanczos`
   const gif = join(opts.outDir, `${opts.name}.gif`)
+  /**
+   * 48 colours, no dither.
+   *
+   * Measured on the shipped `demo` / `kanban` / `routines` clips: a TUI
+   * quantises LOSSLESSLY at 96, so re-paletting a committed gif at 96 with
+   * `dither=none` reproduces it byte-for-byte — meaning `bayer` had a zero
+   * quantisation error to diffuse and bought nothing but render time. Colour
+   * count is the lever that actually moves size: 96 → 48 is −15…−23% at
+   * SSIM 0.996, and the antialiased glyph edges are unchanged at 3× zoom,
+   * while 32 and below start fringing them.
+   *
+   * `dither=none` is also the right default for a text surface even when
+   * quantisation IS lossy: dithering a glyph edge trades crispness for noise
+   * that GIF cannot compress.
+   */
+  const gifColors = 48
   // No `trim` on this pass: palettegen emits a SINGLE frame, and an
   // output-side `-ss` discards it ("Output file is empty, nothing was
   // encoded") — the palette lands nowhere and the paletteuse pass below then
   // fails on a missing input. Sampling the whole take costs nothing: the
   // trimmed head is the same UI in the same colors.
-  ffmpeg(["-y", ...cut, "-i", source, "-vf", `${gifScale},palettegen=max_colors=96`, "-update", "1", palette])
+  ffmpeg(["-y", ...cut, "-i", source, "-vf", `${gifScale},palettegen=max_colors=${gifColors}`, "-update", "1", palette])
   ffmpeg([
     "-y",
     ...cut,
@@ -281,7 +297,7 @@ export async function encode(opts: {
     palette,
     ...trim,
     "-lavfi",
-    `[0:v]${gifScale}[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=5`,
+    `[0:v]${gifScale}[x];[x][1:v]paletteuse=dither=none`,
     "-r",
     "10",
     "-loop",
