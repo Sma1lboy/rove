@@ -175,6 +175,7 @@ describe("HostFilesPane", () => {
     const { frame, mockInput } = await renderComponent(
       inFrameRow(
         <HostFilesPane
+          sidebarWidth={24}
           worktree={repo}
           prBaseRef={undefined}
           focused={true}
