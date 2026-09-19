@@ -23,12 +23,11 @@
 
 import { readFileSync } from "node:fs"
 import { mkdir, unlink } from "node:fs/promises"
-import { type Server, type Socket, createServer } from "node:net"
+import { type Server, createServer } from "node:net"
 import { dirname } from "node:path"
 import { ClientWriter } from "./client-writer.ts"
 import { linkLegacyRuntimePath } from "./compat-link.ts"
 import { logDaemonError } from "./crash-log.ts"
-import { objectPayload, requireString } from "./handler-validators.ts"
 import { writeTextAtomic } from "./json-file.ts"
 import { LineReceiver } from "./line-receiver.ts"
 import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
@@ -41,7 +40,7 @@ import {
   legacyPtyHostSocketPath,
   resolveDaemonHomeDir,
 } from "./paths.ts"
-import { DAEMON_PROTOCOL_VERSION, type DaemonFrame, frameToLine } from "./protocol.ts"
+import { type DaemonFrame, frameToLine } from "./protocol.ts"
 import { migrateLegacyPtyHostData } from "./pty-data-migration.ts"
 import type { PtyDriver } from "./pty-driver.ts"
 import { recordPtyExit } from "./pty-exit-store.ts"
@@ -53,8 +52,8 @@ import {
   loadFrozenSessions,
 } from "./pty-freeze-store.ts"
 import { PtyHost } from "./pty-host.ts"
+import { type PtyClientState, type PtyVerbDeps, dispatchPtyRequest } from "./pty-server-verbs.ts"
 import { listenOnUnixSocket } from "./socket-guard.ts"
-import { parseTerminalDefaultColors } from "./terminal-colors.ts"
 
 /**
  * Grace before a host with ZERO live sessions exits (persistent terminal
@@ -119,11 +118,6 @@ export interface PtyHostServer {
   readonly socketPath: string
   readonly pidPath: string
   close(): Promise<void>
-}
-
-interface PtyClientState {
-  socket: Socket
-  writer: ClientWriter
 }
 
 export async function startPtyHostServer(options: PtyHostServerOptions = {}): Promise<PtyHostServer> {
@@ -323,109 +317,14 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
     options.onStop?.()
   }
 
-  function dispatch(req: Extract<DaemonFrame, { type: "request" }>, client: PtyClientState): unknown {
-    switch (req.name) {
-      case "hello":
-        return { protocolVersion: DAEMON_PROTOCOL_VERSION, ptyHost: true, pid: process.pid }
-      case "pty.open": {
-        const payload = objectPayload(req.payload)
-        return ptys.open(
-          requireString(payload, "key"),
-          {
-            cwd: requireString(payload, "cwd"),
-            command: Array.isArray(payload.command)
-              ? payload.command.filter((c): c is string => typeof c === "string")
-              : undefined,
-            shell: typeof payload.shell === "string" ? payload.shell : undefined,
-            // undefined, not 80×24: a size-less open must stay size-agnostic
-            // (spawn defaults live in the host; reattach must not resize).
-            cols: typeof payload.cols === "number" ? payload.cols : undefined,
-            rows: typeof payload.rows === "number" ? payload.rows : undefined,
-            defaultColors: parseTerminalDefaultColors(payload.defaultColors) ?? undefined,
-          },
-          client,
-          (frame) => writeFrame(client, frame),
-          typeof payload.sinceOffset === "number" ? payload.sinceOffset : undefined,
-          typeof payload.sincePid === "number" ? payload.sincePid : undefined,
-        )
-      }
-      case "pty.write": {
-        const payload = objectPayload(req.payload)
-        ptys.write(requireString(payload, "key"), typeof payload.data === "string" ? payload.data : "")
-        return {}
-      }
-      case "pty.resize": {
-        const payload = objectPayload(req.payload)
-        ptys.resize(
-          requireString(payload, "key"),
-          typeof payload.cols === "number" ? payload.cols : 80,
-          typeof payload.rows === "number" ? payload.rows : 24,
-        )
-        return {}
-      }
-      case "pty.kill": {
-        const payload = objectPayload(req.payload)
-        const key = requireString(payload, "key")
-        if ("expectedGeneration" in payload)
-          return ptys.killIfGeneration(key, requireString(payload, "expectedGeneration"))
-        // Same as `killIfGeneration`: the session is dropped synchronously,
-        // the child's teardown is not. `accepted` says the request was taken,
-        // which is all this reply can honestly claim — and the rejection now
-        // reaches `daemon.log` under a tag instead of an anonymous
-        // unhandledRejection (see crash-log.ts).
-        void ptys.kill(key).catch((err) => logDaemonError("pty-kill", err))
-        return { accepted: true }
-      }
-      case "pty.rename": {
-        const payload = objectPayload(req.payload)
-        return { renamed: ptys.rename(requireString(payload, "from"), requireString(payload, "to")) }
-      }
-      case "pty.detach":
-        {
-          const payload = objectPayload(req.payload)
-          ptys.detach(
-            requireString(payload, "key"),
-            client,
-            payload.parked === true,
-            typeof payload.parkedScreenBytes === "number" ? payload.parkedScreenBytes : 0,
-          )
-        }
-        return {}
-      case "pty.list":
-        return {
-          pid: process.pid,
-          rssBytes: process.memoryUsage().rss,
-          sessions: ptys.list(),
-          stats: ptys.stats(),
-          ...(options.version ? { version: options.version } : {}),
-        }
-      case "pty.peek": {
-        const payload = objectPayload(req.payload)
-        return ptys.peek(
-          requireString(payload, "key"),
-          typeof payload.sinceOffset === "number" ? payload.sinceOffset : undefined,
-        )
-      }
-      case "pty.warm": {
-        const payload = objectPayload(req.payload)
-        ptys.warm(
-          requireString(payload, "cwd"),
-          typeof payload.shell === "string" ? payload.shell : undefined,
-          typeof payload.cols === "number" ? payload.cols : undefined,
-          typeof payload.rows === "number" ? payload.rows : undefined,
-        )
-        return {}
-      }
-      case "daemon.stop":
-        // Shared graceful-stop verb so `stopDaemonProcess` (kobe reset)
-        // works against this socket unchanged. Reset's "starts fresh"
-        // contract includes NOT resurrecting frozen sessions next boot.
-        wipeFreezeOnStop = true
-        setTimeout(() => void stop(), 0).unref()
-        return {}
-      default:
-        throw new Error(`unknown pty-host request: ${req.name}`)
-    }
+  const verbDeps: PtyVerbDeps = {
+    ptys,
+    writeFrame,
+    requestStop: () => {
+      wipeFreezeOnStop = true
+      setTimeout(() => void stop(), 0).unref()
+    },
+    ...(options.version ? { version: options.version } : {}),
   }
 
   function handleLine(client: PtyClientState, line: string): void {
@@ -440,15 +339,25 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
         if (frame.type !== "request") {
           writeFrame(client, { type: "response", id: "parse-error", error: { message: "requests only" } })
         } else {
-          try {
-            writeFrame(client, { type: "response", id: frame.id, name: frame.name, payload: dispatch(frame, client) })
-          } catch (err) {
+          const req = frame
+          const reply = (payload: unknown): void =>
+            writeFrame(client, { type: "response", id: req.id, name: req.name, payload })
+          const fail = (err: unknown): void =>
             writeFrame(client, {
               type: "response",
-              id: frame.id,
-              name: frame.name,
+              id: req.id,
+              name: req.name,
               error: { message: err instanceof Error ? err.message : String(err) },
             })
+          try {
+            const payload = dispatchPtyRequest(req, client, verbDeps)
+            // Every verb answers synchronously except a `pty.kill` that was
+            // asked to wait for the exit; its reply goes out when the child
+            // has ended. A promise written as-is would serialise to `{}`.
+            if (payload instanceof Promise) payload.then(reply, fail)
+            else reply(payload)
+          } catch (err) {
+            fail(err)
           }
         }
       }

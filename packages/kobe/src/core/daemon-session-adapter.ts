@@ -301,7 +301,12 @@ export async function tearDownTaskSessionAdapter(taskId: string): Promise<void> 
   const host = await openHostedSessionHost()
   if (!host) return
   try {
-    await killHostedSessions(host.rpc, hostedTaskKeys(await listHostedSessions(host.rpc), taskId))
+    // `wait`: every caller of this adapter is about to remove the task's
+    // worktree (the deletion runner, `worktree.remove`, land) — and until
+    // the host held its reply, they all ran `git worktree remove` while the
+    // child was still exiting, which on Windows left the directory behind:
+    // a process whose cwd is inside it makes it undeletable.
+    await killHostedSessions(host.rpc, hostedTaskKeys(await listHostedSessions(host.rpc), taskId), { wait: true })
   } catch {
     // Task mutation already committed; teardown remains best-effort.
   } finally {

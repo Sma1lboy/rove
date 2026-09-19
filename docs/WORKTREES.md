@@ -155,6 +155,15 @@ deleted, not parked in an error state, and the same line goes to
 Rove never deletes that directory for you: whatever made it undeletable may be
 something you want. Remove it by hand if you want the disk space.
 
+On Windows the usual cause was Rove's own engine session: a process whose
+working directory is inside the worktree keeps that directory undeletable,
+and the removal used to start while the session was still exiting — and
+ending it reached only the shell, not the engine it had launched. A deletion
+now ends the whole process tree and waits for it to exit before
+`git worktree remove` runs. A `Permission denied` residue after that means
+something outside Rove holds a path in the tree (an editor, a running dev
+server you started elsewhere).
+
 ## Force-remove a dirty worktree
 
 Dirty removal is deliberately two-stage:
