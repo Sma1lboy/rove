@@ -20,7 +20,7 @@
 // would replace real coverage with the thinner one).
 
 import { spawnSync } from "node:child_process"
-import { readdirSync } from "node:fs"
+import { readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
 
 const ROOT = "test/render"
@@ -90,11 +90,55 @@ if (halfArg && halfArg !== "main" && halfArg !== "pty") {
 }
 const runMain = halfArg !== "pty"
 const runPty = halfArg !== "main"
+
+/**
+ * `--platform=linux|macos` — run only the files that platform gates.
+ *
+ * The render suite is split across two runners because the hosted macOS
+ * concurrency limit is 5: no matter how the matrix is sliced, only five
+ * shards ever run at once. Linux has a much higher limit, so it takes the
+ * bulk, and macOS takes only the files Linux cannot pass.
+ *
+ * `linux`  = everything EXCEPT the ratchet list.
+ * `macos`  = exactly the ratchet list.
+ * no flag  = everything, which is what a local run still does.
+ *
+ * The list may only shrink; its header says so, and this reads it rather
+ * than hard-coding names so the two jobs can never disagree about the split.
+ */
+const platformArg = process.argv
+  .slice(2)
+  .find((a) => a.startsWith("--platform="))
+  ?.slice("--platform=".length)
+if (platformArg && platformArg !== "linux" && platformArg !== "macos") {
+  console.error(`render-track: --platform wants linux or macos, got ${JSON.stringify(platformArg)}`)
+  process.exit(2)
+}
+const ratchet = new Set(
+  readFileSync(join("test", "render-linux-known-failing.txt"), "utf8")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#")),
+)
 // Basename, not path: the marker is the file's own name, so a `pty-*` file
 // added under a subdirectory later lands in the bounded half automatically.
 const isPty = (path) => /(^|\/)pty-[^/]*\.test\.tsx?$/.test(path)
 const pty = all.filter(isPty)
-const mainAll = all.filter((path) => !isPty(path))
+const mainAllUnfiltered = all.filter((path) => !isPty(path))
+const mainAll =
+  platformArg === "linux"
+    ? mainAllUnfiltered.filter((path) => !ratchet.has(path))
+    : platformArg === "macos"
+      ? mainAllUnfiltered.filter((path) => ratchet.has(path))
+      : mainAllUnfiltered
+// A ratchet entry that no longer names a real file is a silent hole: the
+// macOS job would run nothing and Linux would skip nothing.
+for (const entry of ratchet) {
+  if (!mainAllUnfiltered.includes(entry)) {
+    console.error(`render-track: ratchet lists ${entry}, which is not a render test file`)
+    process.exit(2)
+  }
+}
 const main = shard ? mainAll.filter((_, i) => i % shard.total === shard.index - 1) : mainAll
 
 if (pty.length === 0 || mainAll.length === 0) {
