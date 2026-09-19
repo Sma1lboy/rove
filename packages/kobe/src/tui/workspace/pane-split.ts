@@ -1,8 +1,8 @@
 /**
  * Plugin-pane placement (`tab.open` consumption): the DEFAULT is a split of
  * the currently-focused chattab — the pane joins the tab's split group
- * beside the engine, exactly herdr's
- * `placement = "split"`. `"tab"` opens a separate self-closing command tab
+ * beside the engine: `placement = "split"`.
+ * `"tab"` opens a separate self-closing command tab
  * instead. An explicit `tabId` (`pane-open --tab`) hosts the split in THAT
  * tab instead of the focused one. Falls back to a tab when the host tab
  * can't host a split (content tab, or the size gate — min-pane cells from

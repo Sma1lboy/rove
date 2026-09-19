@@ -20,9 +20,9 @@ const OPTS = { extraArgs: roveHookArgs("droid") }
 const INSTALLED = {
   hooks: [{ type: "command", command: `rove hook session-start --engine droid --hook-version ${ROVE_HOOK_VERSION}` }],
 }
-/** What herdr's own integration leaves in the same file. */
+/** A third party's entry in the same file. */
 const FOREIGN = {
-  hooks: [{ type: "command", command: "'/Users/x/.factory/hooks/herdr-agent-state.sh' session", timeout: 10 }],
+  hooks: [{ type: "command", command: "'/Users/x/.factory/hooks/peer-agent-state.sh' session", timeout: 10 }],
 }
 
 function merge(doc: Record<string, unknown>, install: boolean, inv = PROD): Record<string, unknown> {
@@ -80,8 +80,8 @@ describe("droid hook merge", () => {
 
   // Droid's other events (UserPromptSubmit, PreToolUse, Notification, Stop,
   // SessionEnd, …) stay unhooked: the screen manifest keeps owning droid's
-  // working/blocked state, and herdr — which once installed all nine — now
-  // deletes them on sight.
+  // working/blocked state, and none of the others is a verified authority
+  // for turn state.
   it("wires SessionStart and nothing else", () => {
     expect(DROID_HOOK_EVENT_MAP).toEqual([{ event: "SessionStart", verb: "session-start" }])
   })

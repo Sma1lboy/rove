@@ -2,8 +2,7 @@
 
 Status: v1 shipped (manifest + CLI + daemon runtime + marketplace page).
 Developer-facing contract/reference: [../PLUGIN-AUTHORING.md](../PLUGIN-AUTHORING.md).
-Model: deliberately isomorphic to herdr's plugin system
-(https://herdr.dev/docs/plugins/) — same philosophy, Rove's domain.
+Model: a manifest plus argv commands, with the host CLI as the plugin API.
 
 ## Philosophy
 
@@ -17,10 +16,10 @@ Plugins exist so the core stays lean: workflows that don't belong in every
 install (notifications, issue-tracker bridges, layout bootstrap) become
 shareable packages instead of feature requests.
 
-The manifest shape mirrors herdr's on purpose. Their ecosystem (396 repos on
-the `herdr-plugin` GitHub topic as of 2026-07) proves the shape works, and an
-author porting a plugin between the two only renames the manifest and swaps
-`HERDR_*`/`herdr` for `ROVE_*`/`rove api`.
+The manifest shape follows the convention the wider terminal-agent plugin
+ecosystem already uses (~400 public repos as of 2026-07), which keeps porting
+an existing plugin to a manifest rename plus swapping the callback CLI for
+`ROVE_*`/`rove api`.
 
 ## Manifest — `rove-plugin.toml`
 
@@ -113,8 +112,8 @@ a restart. Run log:
 `~/.kobe/plugins/<id>/log.jsonl` (`rove plugin log <id>`), stdout/stderr
 capped at 8 KB per run.
 
-Trust model is herdr's: plugins are ordinary code running as you; Rove
-validates the manifest and previews commands but does not sandbox or review.
+Trust model: plugins are ordinary code running as you; Rove validates the
+manifest and previews commands but does not sandbox or review.
 
 ## Marketplace
 
@@ -124,7 +123,7 @@ The landing page (`packages/kobe-landing/plugins.html`, rove.run)
 queries GitHub's repo search client-side and lists tagged public repos;
 first-party examples live in [Sma1lboy/kobe-plugins](https://github.com/Sma1lboy/kobe-plugins) (topic-tagged, so the repo auto-lists) and also seed the list per-plugin. No
 submission, no review queue. If the unauthenticated search rate limit ever
-bites, the upgrade path is herdr's ~400-line Cloudflare worker index.
+bites, the upgrade path is a small Cloudflare worker index (~400 lines).
 
 ## Panes
 
@@ -132,7 +131,7 @@ bites, the upgrade path is herdr's ~400-line Cloudflare worker index.
 → `tab.open` RPC → the daemon validates and broadcasts → the TUI hosting the
 task places the pane. Default placement is **`split`** (owner semantics
 2026-07-29): the pane joins the focused chattab's split group beside the
-engine — herdr's `placement = "split"`. `placement = "tab"` opens a separate
+engine. `placement = "tab"` opens a separate
 self-closing command tab instead; overlay/popup are tolerated with a warning
 and treated as split. Falls back to a tab when the active tab can't host a
 split (content tab / min-pane-size gate). The pane's cwd is the task
@@ -161,11 +160,12 @@ Mechanics + resolution record: docs/KEYBINDINGS.md §Plugin chords.
   pane support (the v1 wrap is `sh -lc`).
 - **Link handlers** — needs the terminal URL-click plumbing.
 - **Richer context JSON** (active task, selection) on action invokes.
-- **`plugin update`** — reinstall replaces the checkout, same as herdr v1.
+- **`plugin update`** — reinstall replaces the checkout.
 
-## What the herdr ecosystem says people actually build
+## What the ecosystem says people actually build
 
-Survey of the 396 `herdr-plugin` repos (2026-07-28), by demand signal:
+Survey of ~400 public terminal-agent plugin repos (2026-07-28), by demand
+signal:
 
 1. **Notifications / remote monitoring** — the biggest cluster by far
    (ntfy/Telegram bridges, macOS toasts, phone PWAs, mobile relays; top repos

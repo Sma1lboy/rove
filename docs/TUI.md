@@ -87,25 +87,29 @@ running session alone.
 
 ### Whose turn is it
 
-A worktree row carries one more mark, at its left edge, and it is the only one
-that answers *does this task need me*:
+Rove derives one more fact per Task — *does this need me* — and groups every
+Task by it:
 
-| Mark | Group | Your move |
-|---|---|---|
-| `!` | **needs you** — a permission prompt, a quota wall nothing will clear on its own, a settled error, an engine that died having delivered nothing, a failed worktree deletion | answer it |
-| `»` | **ready to land** — the pull request is open and approved | merge it |
-| `●` | **needs review** — a worker filed a report, or a turn finished, and nobody has acted on it | read the diff |
-| spinner | **working** — an engine is producing output, or Rove will resume it when its quota window rolls | nothing |
-| (nothing) | quiet, or nothing has reported | nothing |
+| Group | Your move |
+|---|---|
+| **needs you** — a permission prompt, a quota wall nothing will clear on its own, a settled error, an engine that died having delivered nothing, a failed worktree deletion | answer it |
+| **ready to land** — the pull request is open and approved | merge it |
+| **needs review** — a worker filed a report, or a turn finished, and nobody has acted on it | read the diff |
+| **working** — an engine is producing output, or Rove will resume it when its quota window rolls | nothing |
+| quiet, or nothing has reported | nothing |
 
 This group is **derived**, not declared. A task's board status is something a
 person or a worker typed; a worker that crashed leaves it reading
-`in_progress` forever. The mark instead comes from what has owners: the
+`in_progress` forever. The group instead comes from what has owners: the
 worker's report, the pull request as Rove last polled it, the engine's
 arbitrated activity, and whether its session is still alive. Which is why two
-of these could not be shown at all before — a task whose worker reported and
-went quiet, and one whose PR was approved an hour ago, are both waiting on
-*you*, and neither is visible in any tab's engine state.
+of these are invisible to any tab's engine state — a task whose worker
+reported and went quiet, and one whose PR was approved an hour ago.
+
+It reaches you through the **attention** sort and the Kanban card badge, not
+as a glyph on the sidebar row: the rail's glyph column already carries
+per-tab engine state, and a second vocabulary in the same column turns the
+rail into a legend.
 
 Two debounces keep the top group honest: an errored turn must stand 20 seconds
 (an engine that fails and retries itself would otherwise summon you into the

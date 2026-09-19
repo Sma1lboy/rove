@@ -53,7 +53,7 @@ describe("stripEngineStatusPrefix", () => {
   // registers as a CUSTOM engine and carries no `terminalTitle`, so a
   // per-vendor-only lookup left exactly those tabs wearing `⠂ …`.
   it("falls back to every built-in's glyphs for a vendor that declares none", () => {
-    expect(stripEngineStatusPrefix("⠂ Herdr多Agent协作技巧分享", "claudecpa" as never)).toBe("Herdr多Agent协作技巧分享")
+    expect(stripEngineStatusPrefix("⠂ 多Agent协作技巧分享", "claudecpa" as never)).toBe("多Agent协作技巧分享")
     expect(stripEngineStatusPrefix("✳ whatever", "copilot")).toBe("whatever")
     // Still conservative: decoration-only stays a name.
     expect(stripEngineStatusPrefix("⠂", "claudecpa" as never)).toBe("⠂")

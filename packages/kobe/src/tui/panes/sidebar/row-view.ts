@@ -227,7 +227,7 @@ export function buildSidebarRowView(opts: {
    */
   readonly mainBranch?: string
   /**
-   * herdr "seen" bit: the user has selected this task since its current
+   * The "seen" bit: the user has selected this task since its current
    * `turn_complete` fired, so the badge digests ● → ✓. Callers track it;
    * absent means unseen.
    */
@@ -332,8 +332,8 @@ export function withSpinnerFrame(view: SidebarRowView, frame: () => number): Sid
 }
 
 /**
- * herdr-style badge: `!` needs a human, `●` turn done (not yet viewed), null
- * for quiet. `completionSeen` is the herdr "seen" bit — and seen means
+ * Attention badge: `!` needs a human, `●` turn done (not yet viewed), null
+ * for quiet. `completionSeen` is the "seen" bit — and seen means
  * CONSUMED: a completion you have already looked at is simply over, so the
  * badge drops back to the quiet circle rather than lingering as a ✓ forever.
  *

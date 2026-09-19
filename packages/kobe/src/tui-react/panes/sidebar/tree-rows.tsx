@@ -1,12 +1,18 @@
 /** @jsxImportSource @opentui/react */
 /**
- * One-line tree rows: every row inside the tree is ONE cell tall — project
- * header flush, worktrees one cell in, and tab rows at the SAME column as
- * their worktree (the state-circle glyph carries the hierarchy, so extra
- * indent only costs the narrow rail width). Density is the point (a dozen
- * worktrees × tabs must fit the rail), so a worktree row is
- * `twisty · state glyph · title` plus the right-edge cluster
- * (pin / PR chip / ±stats / jump digit).
+ * Tree rows: project header flush, worktrees one cell in, and tab rows at the
+ * SAME column as their worktree (the state-circle glyph carries the
+ * hierarchy, so extra indent only costs the narrow rail width). A worktree
+ * row is `twisty · state glyph · title` plus the right-edge cluster
+ * (pin / PR chip / ±stats / jump digit), and stays ONE cell tall — density is
+ * the point for them (a dozen worktrees must fit the rail).
+ *
+ * The exception is an AGENT tab row, which is two cells: the second carries
+ * the model and reasoning level the task will launch with (owner 2026-09-18).
+ * That is the one fact you otherwise have to open a dialog to read, and it
+ * decides what the session costs and how well it does. Shell/command/content
+ * tabs have no model, so they stay one cell and the rail only pays for the
+ * rows where the answer exists.
  */
 
 import { type TaskEngineState, type TaskJobState, liveRowTokens } from "@/client/remote-orchestrator"
@@ -27,7 +33,6 @@ import {
   isAttentionActivity,
   withSpinnerFrame,
 } from "../../../tui/panes/sidebar/row-view"
-import { taskGroupGlyph } from "../../../tui/panes/sidebar/task-group-view"
 import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
 import { SIDEBAR_WIDTH, rowTokenTone, toneColor, truncateBranchLabel } from "../../../tui/panes/sidebar/view-core"
 import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
@@ -145,27 +150,14 @@ export function WorktreeTreeRow(props: {
   // and nothing else would be unusable.
   const deletionWord =
     deleting || deleteFailed ? t(deleteFailed ? "tasks.subtitle.deleteFailed" : "tasks.subtitle.deleting") : null
-  // The DERIVED group (lib/task-group.ts) — a task-level fact, like the job
-  // and the deletion above it, and unlike the per-tab engine state the tab
-  // row owns. It is what closes the gap the `carriesState` split left open:
-  // a worker whose engine died at a permission prompt, and a task whose PR
-  // was approved an hour ago, both had nothing on this row to say so.
-  //
-  // Three of its four markers are the rail's existing vocabulary, so nothing
-  // new has to be learned: `!` needs you, `●` a turn landed you have not
-  // looked at, the spinner for work in flight. Only `»` (ready to land) is
-  // new. A spinning row keeps the spinner: a job in flight is the most
-  // worktree-level fact there is, and it already means "wait".
-  const group = shared.taskGroupOf?.(task.id)
-  const groupMark = spinning || !group ? null : taskGroupGlyph(group)
   // Plugin-written labels. Expired tokens are dropped at RENDER time as well
   // as by the daemon's republish: a frame between a token's deadline and that
   // push must not paint a label that has already lapsed.
   const tokens = liveRowTokens(shared.rowTokens, task.id, Date.now())
   const reserved =
-    // The glyph column exists only while a job runs or the derived group has
-    // something to say, so a quiet row spends none of its label budget on it.
-    (spinning || groupMark ? 2 : 0) +
+    // The glyph column exists only while a job runs, so a resting row spends
+    // none of its label budget on it.
+    (spinning ? 2 : 0) +
     // Plugin labels take from the SAME budget as everything else, so a
     // plugin can crowd the branch name but never overflow the row.
     tokens.reduce((cells, token) => cells + clusterCells(token.text), 0) +
@@ -186,10 +178,6 @@ export function WorktreeTreeRow(props: {
       {spinning ? (
         <text fg={theme.primary} wrapMode="none" width={2} flexShrink={0}>
           {`${IN_PROGRESS_SPINNER[frame % IN_PROGRESS_SPINNER.length] ?? IN_PROGRESS_SPINNER[0]} `}
-        </text>
-      ) : groupMark ? (
-        <text fg={toneColor(theme, groupMark.tone)} wrapMode="none" width={2} flexShrink={0}>
-          {`${groupMark.glyph} `}
         </text>
       ) : null}
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
@@ -294,7 +282,7 @@ export function TabTreeRow(props: {
   // One predicate: "does this row have activity of its own". Also counting
   // "is the active tab" is what lets the task rollup leak in.
   const carriesState = activity !== undefined
-  // The unread lamp (herdr ● on turn_complete) is for sessions you are NOT
+  // The unread lamp (● on turn_complete) is for sessions you are NOT
   // looking at — sitting in the tab digests it to ✓ on the same render.
   // "Viewing" = this row's TASK is selected and this tab is the task's
   // active one. ONLY the row that carries the task's activity may run the
@@ -341,6 +329,14 @@ export function TabTreeRow(props: {
   // bit is: a sibling row passing the task rollup would flash for a turn that
   // finished in another tab.
   const pulsing = useDonePulse(carriesState ? completionStampOf(activity) : undefined)
+  // Second line, agent tabs only: what this session runs with. Both fields
+  // are task-level and optional, and absent means the engine's own default —
+  // the same words the change-engine dialog uses for the same emptiness, so
+  // the row and the dialog never disagree about what "unset" looks like.
+  const modelLine = isAgent
+    ? [props.task.model?.trim(), props.task.modelEffort?.trim()].filter(Boolean).join(" · ") ||
+      t("tasks.changeEngine.noEffort")
+    : null
   // depth 1, not 2: a tab row starts at the same column as its
   // worktree row — the circle status glyph carries the hierarchy, and the
   // extra indent cell wasted width the narrow rail doesn't have.
@@ -363,35 +359,45 @@ export function TabTreeRow(props: {
       >
         {`${glyph} `}
       </text>
-      <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
-        <text
-          fg={pulsing ? theme.text : theme.textMuted}
-          attributes={pulsing ? TextAttributes.BOLD : undefined}
-          wrapMode="none"
-          flexBasis={0}
-          flexGrow={1}
-          flexShrink={1}
-        >
-          {truncateEndCells(
-            props.tab.label,
-            // The 2-cell state-glyph column is this row's extra fixed spend.
-            treeLabelBudget(
-              shared,
-              2 +
-                jumpDigitCells(props.flatIndex) +
-                (age ? clusterCells(age) : 0) +
-                (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
-            ),
-            charWidth,
-          )}
-        </text>
-        {age ? (
-          <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" flexShrink={0}>
-            {age}
+      <box flexDirection="column" flexGrow={1}>
+        <box flexDirection="row" paddingRight={1} gap={1}>
+          <text
+            fg={pulsing ? theme.text : theme.textMuted}
+            attributes={pulsing ? TextAttributes.BOLD : undefined}
+            wrapMode="none"
+            flexBasis={0}
+            flexGrow={1}
+            flexShrink={1}
+          >
+            {truncateEndCells(
+              props.tab.label,
+              // The 2-cell state-glyph column is this row's extra fixed spend.
+              treeLabelBudget(
+                shared,
+                2 +
+                  jumpDigitCells(props.flatIndex) +
+                  (age ? clusterCells(age) : 0) +
+                  (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
+              ),
+              charWidth,
+            )}
+          </text>
+          {age ? (
+            <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" flexShrink={0}>
+              {age}
+            </text>
+          ) : null}
+          <MoveChip rowId={props.rowId} shared={shared} />
+          <JumpDigit flatIndex={props.flatIndex} dim={!isCursor} />
+        </box>
+        {modelLine ? (
+          <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" paddingRight={1}>
+            {/* Indented past the label's own column so the pair reads as one
+                row with a caption, not as two siblings. The glyph column is
+                the parent's, so this only pays for its own inset. */}
+            {`  ${truncateEndCells(modelLine, treeLabelBudget(shared, 4), charWidth)}`}
           </text>
         ) : null}
-        <MoveChip rowId={props.rowId} shared={shared} />
-        <JumpDigit flatIndex={props.flatIndex} dim={!isCursor} />
       </box>
     </RowShell>
   )

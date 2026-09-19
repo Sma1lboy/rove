@@ -63,8 +63,10 @@ describe("generalRows", () => {
   it("carries each variable-length group's payload in the order it was given", () => {
     const themes = ["a", "b", "c"]
     const rows = generalRows({ themeNames: themes, focusAccentSlots: SLOTS })
-    expect(rows.slice(0, 3).map((r) => (r.kind === "theme" ? r.name : "?"))).toEqual(themes)
-    expect(rows.filter((r) => r.kind === "language").map((r) => r.locale)).toEqual(LOCALES.map((l) => l.id))
+    // Language leads the section; the theme list opens the Appearance group
+    // directly after it.
+    expect(rows.slice(0, LANG).map((r) => (r.kind === "language" ? r.locale : "?"))).toEqual(LOCALES.map((l) => l.id))
+    expect(rows.slice(LANG, LANG + 3).map((r) => (r.kind === "theme" ? r.name : "?"))).toEqual(themes)
     expect(
       rows.slice(3 + LANG + 1, 3 + LANG + 1 + SLOTS.length).map((r) => (r.kind === "focusAccent" ? r.slot : "?")),
     ).toEqual([...SLOTS])
@@ -75,22 +77,22 @@ describe("generalRows", () => {
       const themes = Array.from({ length: themeCount }, (_, i) => `theme-${i}`)
       const rows = generalRows({ themeNames: themes, focusAccentSlots: SLOTS })
       expect(rows.length).toBe(themeCount + LANG + 1 + SLOTS.length + 15)
-      // transparent sits after the theme list + the language picker.
+      // The Appearance group is contiguous — theme list, transparency,
+      // accents, split style, rail fold — so walking it with j/k never
+      // leaves the group. Everything after it keeps its old relative order.
       expect(rowIndex(rows, "transparent")).toBe(themeCount + LANG)
-      // The split-style pair follows the accents directly, then
-      // toast/sound/cross-task, the zen toggle, then editors.
       expect(rowIndex(rows, splitStyleRowId("box"))).toBe(themeCount + LANG + 1 + SLOTS.length)
       expect(rowIndex(rows, splitStyleRowId("line"))).toBe(themeCount + LANG + 1 + SLOTS.length + 1)
-      expect(rowIndex(rows, "toast")).toBe(themeCount + LANG + 1 + SLOTS.length + 2)
-      expect(rowIndex(rows, "sound")).toBe(themeCount + LANG + 1 + SLOTS.length + 3)
+      // The folded-rail picker closes the group: it is an appearance choice
+      // the preview shows, not a companion to the zen toggle.
+      expect(rowIndex(rows, "rail-fold-style")).toBe(themeCount + LANG + 1 + SLOTS.length + 2)
+      expect(rowIndex(rows, "toast")).toBe(themeCount + LANG + 1 + SLOTS.length + 3)
+      expect(rowIndex(rows, "sound")).toBe(themeCount + LANG + 1 + SLOTS.length + 4)
       // The volume row sits directly under its on/off toggle.
-      expect(rowIndex(rows, "sound-volume")).toBe(themeCount + LANG + 1 + SLOTS.length + 4)
-      expect(rowIndex(rows, "cross-task")).toBe(themeCount + LANG + 1 + SLOTS.length + 5)
-      expect(rowIndex(rows, "key-hints")).toBe(themeCount + LANG + 1 + SLOTS.length + 6)
-      expect(rowIndex(rows, "zen-default-on")).toBe(themeCount + LANG + 1 + SLOTS.length + 7)
-      // The folded-rail picker sits with zen: both answer "what layout do I
-      // work in", and both are read by the rail rather than by a pane.
-      expect(rowIndex(rows, "rail-fold-style")).toBe(themeCount + LANG + 1 + SLOTS.length + 8)
+      expect(rowIndex(rows, "sound-volume")).toBe(themeCount + LANG + 1 + SLOTS.length + 5)
+      expect(rowIndex(rows, "cross-task")).toBe(themeCount + LANG + 1 + SLOTS.length + 6)
+      expect(rowIndex(rows, "key-hints")).toBe(themeCount + LANG + 1 + SLOTS.length + 7)
+      expect(rowIndex(rows, "zen-default-on")).toBe(themeCount + LANG + 1 + SLOTS.length + 8)
       expect(rowIndex(rows, "editor-kind")).toBe(themeCount + LANG + 1 + SLOTS.length + 9)
       expect(rowIndex(rows, "editor-custom")).toBe(themeCount + LANG + 1 + SLOTS.length + 10)
     }
@@ -106,11 +108,11 @@ describe("generalRows", () => {
 })
 
 describe("engineRows", () => {
-  it("is one row per engine, then the add row, then the integration install row", () => {
+  it("is one row per engine, then the add row, then the two integration buttons", () => {
     const customs = ["aider", "goose"]
     const list = [...ALL_VENDORS, ...customs]
     const rows = engineRows(list)
-    expect(rows.length).toBe(ALL_VENDORS.length + customs.length + 2)
+    expect(rows.length).toBe(ALL_VENDORS.length + customs.length + 3)
     // Engine row index === its position in the engine list (the section's <For> order).
     list.forEach((vendor, i) => {
       expect(rowIndex(rows, engineRowId(vendor))).toBe(i)
@@ -118,16 +120,20 @@ describe("engineRows", () => {
       expect(row?.kind === "engine" && row.vendor).toBe(vendor)
     })
     // The add row sits at index === engine count (the section's addRowIndex),
-    // and the one-shot integration install closes the section.
+    // and the two integration buttons close the section in the order they
+    // render: install first, remove beside it. The view keys off
+    // `addRowIndex + 1` / `+ 2`, so the pair must stay adjacent and in order.
     expect(rowAt(rows, list.length)?.kind).toBe("engineAdd")
-    expect(rows.at(-1)?.kind).toBe("engineHooksInstall")
+    expect(rowAt(rows, list.length + 1)?.kind).toBe("engineHooksInstall")
+    expect(rows.at(-1)?.kind).toBe("engineHooksUninstall")
   })
 
   it("with zero custom engines still ends with the add row", () => {
     const rows = engineRows(ALL_VENDORS)
-    expect(rows.length).toBe(ALL_VENDORS.length + 2)
-    expect(rows.at(-2)?.kind).toBe("engineAdd")
-    expect(rows.at(-1)?.kind).toBe("engineHooksInstall")
+    expect(rows.length).toBe(ALL_VENDORS.length + 3)
+    expect(rows.at(-3)?.kind).toBe("engineAdd")
+    expect(rows.at(-2)?.kind).toBe("engineHooksInstall")
+    expect(rows.at(-1)?.kind).toBe("engineHooksUninstall")
   })
 })
 
@@ -202,7 +208,7 @@ describe("sectionRows / bodyRowCount", () => {
     const themes = Array.from({ length: 12 }, (_, i) => `t${i}`)
     const inp = input({ themeNames: themes, engineList: [...ALL_VENDORS, "aider", "goose"], hasDaemon: true })
     expect(bodyRowCount("general", inp)).toBe(12 + LANG + 1 + 3 + 15) // themes + langs + transparent + accents + retained general rows
-    expect(bodyRowCount("engines", inp)).toBe(ALL_VENDORS.length + 2 + 2) // 6 built-ins + 2 custom + add + install
+    expect(bodyRowCount("engines", inp)).toBe(ALL_VENDORS.length + 2 + 3) // built-ins + 2 custom + add + install + remove
     expect(bodyRowCount("autoEffort", inp)).toBe(3) // swift / standard / deep
     expect(bodyRowCount("keys", inp)).toBe(2)
     expect(bodyRowCount("marketplace", inp)).toBe(2)
@@ -232,7 +238,8 @@ describe("rowIndex / rowAt", () => {
 
   it("looks a theme row up by id", () => {
     const rows = generalRows({ themeNames: ["claude", "gruvbox"], focusAccentSlots: SLOTS })
-    expect(rowIndex(rows, themeRowId("gruvbox"))).toBe(1)
+    // The theme list opens the Appearance group, which follows the languages.
+    expect(rowIndex(rows, themeRowId("gruvbox"))).toBe(LANG + 1)
   })
 })
 

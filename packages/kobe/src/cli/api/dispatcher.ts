@@ -246,8 +246,8 @@ export async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string
   // engine tab alongside $KOBE_TASK_ID (session-launch.ts).
   const replyTarget = `--task-id ${senderId} --tab ${self.tabId}`
   // The trailing pointer closes the loop for a receiver that has never seen
-  // kobe: reply command baked in, and where to learn the rest (the herdr
-  // "--skill first" trick) — a pointer, not a curriculum, since every peer
+  // kobe: reply command baked in, and where to learn the rest — a pointer,
+  // not a curriculum, since every peer
   // message pays for this prefix in context. The skill is required reading
   // ONCE PER SESSION: a receiver that replies from the raw prefix alone
   // improvises verbs and side-channels, and the round-trip falls back to a

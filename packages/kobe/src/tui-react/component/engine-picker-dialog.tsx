@@ -153,8 +153,8 @@ export function EnginePickerDialogView(props: {
 
   const footer = [
     t("tasks.changeEngine.footer.engine"),
-    ...(effortChoices.length > 0 ? [t("tasks.changeEngine.footer.effort")] : []),
     ...(modelRow ? [t("tasks.changeEngine.footer.model")] : []),
+    ...(effortChoices.length > 0 ? [t("tasks.changeEngine.footer.effort")] : []),
     t("tasks.changeEngine.footer.set"),
     t("tasks.changeEngine.footer.cancel"),
   ].join(" · ")
@@ -177,6 +177,15 @@ export function EnginePickerDialogView(props: {
         paddingBottom={effortChoices.length > 0 || modelRow ? 0 : 1}
         focused={!modelFocused}
       />
+      {modelRow ? (
+        <ModelSection
+          field={model}
+          focused={modelFocused}
+          hint="tab"
+          onFocus={() => setField("model")}
+          onSubmit={() => commit(cursorEngine)}
+        />
+      ) : null}
       {effortChoices.length > 0 ? (
         <DialogSection label={t("tasks.changeEngine.effortLabel")} focused={false} hint="←/→">
           <ChipRow
@@ -186,15 +195,6 @@ export function EnginePickerDialogView(props: {
             onPick={(choice) => setEffort(choice)}
           />
         </DialogSection>
-      ) : null}
-      {modelRow ? (
-        <ModelSection
-          field={model}
-          focused={modelFocused}
-          hint="tab"
-          onFocus={() => setField("model")}
-          onSubmit={() => commit(cursorEngine)}
-        />
       ) : null}
       <box paddingBottom={1}>
         <text fg={theme.textMuted}>{footer}</text>

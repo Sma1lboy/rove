@@ -6,11 +6,8 @@
  * The quiescence poll already captures each engine pane's text; for
  * marker-less engines it could only ever say "unknown". This module turns
  * that capture into working / blocked / idle by evaluating an engine-owned
- * rule list against the visible bottom of the screen — the same shape
- * herdr's agent-detection manifests use (refs/herdr
- * src/detect/manifests/*.toml, studied with attribution), reduced to the
- * three checks kobe actually needs: substring conjunction, substring
- * alternation, and per-line regex.
+ * rule list against the visible bottom of the screen, with three checks:
+ * substring conjunction, substring alternation, and per-line regex.
  *
  * DATA, not code, on purpose: an engine (or later a plugin) declares a
  * manifest; no neutral layer names a vendor. First matching rule wins, so

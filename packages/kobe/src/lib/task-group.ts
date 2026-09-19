@@ -74,17 +74,16 @@ export const ERROR_SETTLE_MS = 20_000
  * observable on the foreground WALK, one sample per ~60s
  * (`DEFAULT_WALK_EVERY_TICKS` × `DEFAULT_OBSERVER_POLL_MS`). Below one walk
  * cadence the death has been seen once at most, and a respawn inside the
- * window is invisible to us — this is our version of herdr's 60s
- * "launch stuck".
+ * window is invisible to us.
  */
 export const DEAD_SETTLE_MS = 60_000
 
 /**
  * `permission_needed` and `rate_limited` get NO debounce: both are engine
  * HOOK events with turn-boundary precision, and neither is ever retracted by
- * observation. herdr waits 30s because its blocked states are read off the
- * screen and flicker; ours do not, and delaying them would slow down the one
- * group the feature exists to surface.
+ * observation. A screen-read blocked state would need a debounce because it
+ * flickers; these do not, and delaying them would slow down the one group the
+ * feature exists to surface.
  */
 
 /** Arbitrated engine activity for a task, or `null`/`undefined` = not read. */

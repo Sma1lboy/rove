@@ -272,7 +272,7 @@ export function tabTitleStable(
   // Re-run the normal precedence with the recorded title CLEANED rather than
   // dropped: `stripEngineStatusPrefix` is idempotent, so a title recorded
   // after the entry-point fix passes through untouched while an older
-  // snapshot (`⠂ Herdr…`) heals on display. An empty result means the
+  // snapshot (`⠂ Refactor…`) heals on display. An empty result means the
   // recording was nothing but decoration — fall through to the next rung
   // (first-prompt summary, then the vendor default) by clearing it.
   //

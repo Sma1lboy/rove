@@ -80,10 +80,12 @@ test("an engine config written by an older Rove reads outdated, and the install 
   expect(before).toContain("hooks outdated")
   expect(home.length).toBeGreaterThan(0)
 
-  // `k` from the first row wraps to the LAST one — the install row — without
-  // this test knowing how many engines this machine detected. Counting `j`
-  // presses would be a hard-coded index that a newly installed contrib CLI
-  // silently shifts.
+  // `k` from the first row wraps to the LAST one, then one more lands on the
+  // install button — the section ends with the install/remove pair, install
+  // first. Counted from the END so this test never learns how many engines
+  // the machine detected; counting `j` from the top would be a hard-coded
+  // index that a newly installed contrib CLI silently shifts.
+  await press("k")
   await press("k")
   // `pressEnter()`, not `pressKey("return")` — the mock types key NAMES, so
   // the latter would send the six letters "return" into the dialog.

@@ -3,8 +3,7 @@
  * `SessionStart` observer, and nothing else.
  *
  * Droid, qodercli and devin all read the nested hook document Claude and Codex
- * read (refs/herdr builds all three through the same `ensure_command_hook`), so
- * {@link JsonHookAdapter} already owns their merge. What each of them ALSO
+ * read, so {@link JsonHookAdapter} already owns their merge. What each of them ALSO
  * needs, and what Claude and Codex do not, is on this class:
  *
  *  - **The missing-directory guard.** Claude and Codex are only ever installed
@@ -12,17 +11,15 @@
  *    default-on launch installer like every other engine, so without the guard
  *    every machine in the world would grow a `~/.factory`, a `~/.qoder` and a
  *    `~/.config/devin` for CLIs that will never read them.
- *  - **`session_id` / `transcript_path`.** herdr's hook script for each reads
- *    `session_id` and gives up rather than guessing when it is not a non-empty
- *    string; the transcript field is unverified for all three, so it is read
+ *  - **`session_id` / `transcript_path`.** `session_id` is taken only when it
+ *    is a non-empty string, and the adapter gives up rather than guessing when
+ *    it is not; the transcript field is unverified for all three, so it is read
  *    only when present and never invented.
  *
- * Why one event each. None of the three is in herdr's
- * `full_lifecycle_hook_authority()` set, and herdr itself retreated from the
- * lifecycle events it once installed on each of them — its
- * `*_REMOVED_LIFECYCLE_HOOK_EVENTS` lists are what it now deletes on sight. So
- * each engine's screen manifest keeps owning working/blocked/idle and the hook
- * adds session identity on top, the split cursor landed on first.
+ * Why one event each. The lifecycle events these three expose are not a
+ * verified authority for turn state, so each engine's screen manifest keeps
+ * owning working/blocked/idle and the hook adds session identity on top, the
+ * split cursor landed on first.
  *
  * Subclasses supply an id, a table and a path; nothing here is Rove's merge
  * logic, which stays in `./json-hooks.ts` behind {@link JsonHookAdapter}.
@@ -37,8 +34,7 @@ import type { HookEditOutcome, HookEventSpec } from "./json-hooks.ts"
 
 /** The one-entry table each of these engines declares. `matcher` is the
  *  vendor's own convention — qodercli's settings mirror Claude's closely
- *  enough that herdr writes the `"*"` wildcard there, and droid/devin take
- *  none. */
+ *  enough to take the `"*"` wildcard, and droid/devin take none. */
 export function sessionStartOnly(matcher?: string): readonly HookEventSpec[] {
   return [{ event: "SessionStart", verb: "session-start", ...(matcher ? { matcher } : {}) }]
 }

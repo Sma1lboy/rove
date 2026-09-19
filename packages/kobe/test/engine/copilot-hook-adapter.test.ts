@@ -26,9 +26,9 @@ const INSTALLED = {
   type: "command",
   command: `rove hook session-start --engine copilot --hook-version ${ROVE_HOOK_VERSION}`,
 }
-/** What herdr's own integration leaves in the same file — a third party's
- *  entry, and one whose command lives in `bash` rather than `command`. */
-const FOREIGN = { type: "command", bash: "'/Users/x/.copilot/hooks/herdr-agent-state.sh'", timeoutSec: 10 }
+/** A third party's entry in the same file, whose command lives in `bash`
+ *  rather than `command`. */
+const FOREIGN = { type: "command", bash: "'/Users/x/.copilot/hooks/peer-agent-state.sh'", timeoutSec: 10 }
 
 function sessionStart(doc: Record<string, unknown>): unknown[] {
   return ((doc.hooks as Record<string, unknown>).SessionStart ?? []) as unknown[]
@@ -83,8 +83,8 @@ describe("mergeCopilotHooks", () => {
 
   // Copilot's remaining events (userPromptSubmitted, preToolUse, postToolUse,
   // agentStop, …) stay unhooked: the screen manifest keeps owning copilot's
-  // working/blocked state, and herdr — which once installed all nine — now
-  // deletes them on sight.
+  // working/blocked state, and none of the nine is a verified authority for
+  // turn state.
   it("wires SessionStart and nothing else", () => {
     expect(COPILOT_HOOK_EVENT_MAP).toEqual([{ event: "SessionStart", verb: "session-start" }])
   })

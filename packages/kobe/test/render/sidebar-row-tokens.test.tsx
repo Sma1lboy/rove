@@ -1,17 +1,11 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The derived task group, in the cells.
+ * What a worktree row does and does NOT put in its cells.
  *
  * A real mount rather than a pure assertion for the reason
- * `sidebar-tree-materializing.test.tsx` gives: the claim is "the marker
- * reaches the frame", and the failure mode of a task-level signal on a row
- * built to refuse task-level signals is a value that arrives everywhere
- * except the terminal.
- *
- * Two of these could not be rendered on a worktree row at all before: a
- * task whose worker filed a report and went quiet, and one whose PR was
- * approved. Both are rows the human should act on, and neither is visible in
- * any tab's engine state — which is all the row could read.
+ * `sidebar-tree-materializing.test.tsx` gives: the claim is "this reaches the
+ * frame", and the failure mode of a row-level label is a value that arrives
+ * everywhere except the terminal.
  */
 import { expect, test } from "bun:test"
 import type { RowToken } from "../../src/client/remote-orchestrator"
@@ -67,33 +61,17 @@ async function render(
   return await frame()
 }
 
-test("a blocked task wears the needs-you marker on its worktree row", async () => {
-  const text = await render([task("blocked")], new Map([["blocked", { state: "permission_needed", at: NOW }]]))
-  expect(text).toContain("! fix/blocked")
-})
-
-test("an approved PR wears the ready-to-land marker — the state the rail could not express", async () => {
-  const text = await render(
-    [task("shipping", { prStatus: APPROVED })],
-    new Map([["shipping", { state: "idle", at: NOW }]]),
-  )
-  expect(text).toContain("» fix/shipping")
-})
-
-test("a worker's report with nobody acting on it wears the review marker", async () => {
+test("a task-level group draws no marker on the worktree row", async () => {
+  // The rail carries engine state on TAB rows only. A task rollup here would
+  // put a second vocabulary in the same column — `●` meaning "needs review"
+  // one line above a `○` meaning "engine quiet" (owner 2026-09-19).
   const reported = task("reported", {
     report: { branch: "fix/reported", summary: "done", at: new Date(NOW - 60_000).toISOString() },
+    prStatus: APPROVED,
   })
-  const text = await render([reported], new Map([["reported", { state: "idle", at: NOW }]]))
-  expect(text).toContain("● fix/reported")
-})
-
-test("a quiet row draws no marker and spends none of its label budget on one", async () => {
-  const text = await render([task("quiet")], new Map([["quiet", { state: "idle", at: NOW }]]))
-  expect(text).toContain("fix/quiet")
-  expect(text).not.toContain("! fix/quiet")
-  expect(text).not.toContain("● fix/quiet")
-  expect(text).not.toContain("» fix/quiet")
+  const text = await render([reported], new Map([["reported", { state: "permission_needed", at: NOW }]]))
+  expect(text).toContain("fix/reported")
+  for (const marker of ["! fix/reported", "● fix/reported", "» fix/reported"]) expect(text).not.toContain(marker)
 })
 
 test("a plugin's row token reaches the cells beside the branch", async () => {

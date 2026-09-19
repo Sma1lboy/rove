@@ -1,13 +1,12 @@
 /**
  * Translation fidelity for the four screen-only contrib engines — cline,
- * kiro, maki, antigravity — whose rules come from refs/herdr's
- * src/detect/manifests/*.toml rather than a capture (none of the four CLIs
- * was installed where they were written).
+ * kiro, maki, antigravity — whose rules were written from each CLI's
+ * documented interface rather than a capture (none of the four CLIs was
+ * installed where they were written).
  *
- * The negative cases carry the weight. herdr's blocked judgement is
- * deliberately strict — it only claims `blocked` when a known approval or
- * question UI is on screen and falls back to idle otherwise — and this keeps
- * that: a false `blocked` lights Rove's attention inbox and keeps it lit,
+ * The negative cases carry the weight. The blocked judgement is deliberately
+ * strict — it only claims `blocked` when a known approval or question UI is
+ * on screen — because: a false `blocked` lights Rove's attention inbox and keeps it lit,
  * which is worse than reading nothing at all (`null` = keep the previous
  * reading).
  */
@@ -39,10 +38,10 @@ describe("cline screen manifest", () => {
     expect(classifyScreen(cline, "Execute command?\n  npm run build")).toBeNull()
   })
 
-  // Documented gap: herdr's `default_cline_working` is a catch-all
-  // (`regex = '(?s).+'`) it can afford because that rule is only a hint its
-  // state machine weighs. Here the classifier's answer IS the badge, so the
-  // catch-all was dropped and cline has no working/idle rule at all.
+  // Documented gap: a catch-all working rule (`regex = '(?s).+'`) would only
+  // be safe as a hint weighed against other evidence. Here the classifier's
+  // answer IS the badge, so the catch-all was dropped and cline has no
+  // working/idle rule at all.
   it("answers null on working and resting screens (no rule, by design)", () => {
     expect(classifyScreen(cline, "Cline is editing src/app.ts…\nesc to cancel")).toBeNull()
     expect(classifyScreen(cline, "Cline v3.2.1\n❯ Type a message")).toBeNull()
@@ -78,9 +77,9 @@ describe("kiro screen manifest", () => {
     expect(classifyScreen(kiro, "◑ Searching the workspace\n  esc to cancel")).toBe("working")
   })
 
-  // Both blocked rules are conjunctions in herdr too: the approval banner
-  // without its option list, and the subagent banner without its actions,
-  // classify as nothing.
+  // Both blocked rules are conjunctions: the approval banner without its
+  // option list, and the subagent banner without its actions, classify as
+  // nothing.
   it("does not claim blocked on an approval banner with no options", () => {
     expect(classifyScreen(kiro, "Using tool: executeBash (requires approval)\n   ⋮ npm test")).toBeNull()
     expect(classifyScreen(kiro, "2 tool approvals pending from subagents")).toBeNull()
@@ -119,9 +118,9 @@ describe("maki screen manifest", () => {
     expect(classifyScreen(maki, streaming)).toBe("working")
   })
 
-  // Documented gap: herdr's `prompt_box_idle` narrow-pane fallback needs two
-  // `not` gates the classifier cannot express, so it was dropped — a bare
-  // chevron reports nothing rather than a possibly-wrong idle.
+  // Documented gap: the narrow-pane idle fallback needs two `not` gates the
+  // classifier cannot express, so it was dropped — a bare chevron reports
+  // nothing rather than a possibly-wrong idle.
   it("answers null on the prompt chevron alone (dropped narrow-pane rule)", () => {
     expect(classifyScreen(maki, "assistant output\n❯ ")).toBeNull()
     expect(classifyScreen(maki, "Permission required")).toBeNull()
@@ -179,8 +178,8 @@ describe("devin screen manifest", () => {
     expect(classifyScreen(devin, "❭ \n  context: 12%")).toBe("idle")
   })
 
-  // Order stands in for herdr's `not` gates: an approval on screen must win
-  // over the prompt footer that is still drawn underneath it.
+  // Order stands in for the `not` gates the classifier lacks: an approval on
+  // screen must win over the prompt footer still drawn underneath it.
   it("keeps blocked and working ahead of the idle footers", () => {
     expect(classifyScreen(devin, "Approve once   Select   Confirm   esc cancel\n❭ \n  context: 12%")).toBe("blocked")
     expect(classifyScreen(devin, "Running tools…\n  esc to interrupt\n❭ \n  context: 12%")).toBe("working")

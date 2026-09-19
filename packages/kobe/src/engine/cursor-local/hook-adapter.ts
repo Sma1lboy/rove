@@ -9,9 +9,7 @@
  * working/blocked/idle: cursor's remaining hook events (`beforeSubmitPrompt`,
  * `beforeShellExecution`, `beforeMCPExecution`, `stop`, `sessionEnd`) are
  * DECISION hooks whose answer gates the agent, not observations, so Rove does
- * not install an observer into them. Studied from refs/herdr
- * (`src/integration/targets.rs#install_cursor`), which reaches the same split:
- * cursor is absent from its `full_lifecycle_hook_authority()` set.
+ * not install an observer into them.
  *
  * File shape (verified against cursor-agent 2026.04.17): `~/.cursor/hooks.json`
  * is `{ "version": 1, "hooks": { "<event>": [ { "command": "…" } ] } }` — the

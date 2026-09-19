@@ -15,7 +15,7 @@
 | rove ─────────────────────── |
 |  feat/alpha              ? 3 |
 |▌ ○ build                   4 |
-|                              |
+|      engine default          |
 |                              |
 |                              |
 |                              |

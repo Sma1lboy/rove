@@ -18,7 +18,6 @@ import { useTerminalDimensions } from "@opentui/react"
 import { type MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useMachineRows } from "../../../machines/hub-singleton"
 import { createSidebarController } from "../../../tui/panes/sidebar/controller"
-import { taskGroupIn } from "../../../tui/panes/sidebar/task-group-view"
 import { RECENT_ROW_ID, type TreeRow, parseRowId } from "../../../tui/panes/sidebar/tree-core"
 import { MAIN_BRANCH_POLL_MS, SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
 import { usePaneHintMark } from "../../component/keyboard-hints"
@@ -347,13 +346,6 @@ export function SidebarTree(props: SidebarTreeProps) {
     onContextMenu: menu.openForRow,
     branchTick,
     engineTabState: props.engineTabState,
-    // Derived once per read, here rather than in the row: the task rollup
-    // stays off the row shell (see `TreeRowShared.taskGroupOf`), and the
-    // group is the same derivation the `attention` sort ranks by.
-    taskGroupOf: (taskId) => {
-      const task = props.tasks.find((candidate) => candidate.id === taskId)
-      return task ? taskGroupIn(task, props.engineState?.get(taskId)) : undefined
-    },
     engineLifecycle: props.engineLifecycle,
     taskJobs: props.taskJobs,
     rowTokens: props.rowTokens,
@@ -397,8 +389,24 @@ export function SidebarTree(props: SidebarTreeProps) {
           scrollRef.current = r
         }}
       />
-      {props.zenActive ? <SidebarZenChip onZenClick={props.onZenClick} /> : null}
-      {props.onToggleCollapsed ? <CollapseButton collapsed={false} onToggle={props.onToggleCollapsed} /> : null}
+      {/* Zen chip and fold chevron share the rail's last row: two controls
+          over one line of a panel whose vertical space is the scarce thing.
+          The empty left slot keeps the chevron on the right when zen is off. */}
+      {props.zenActive || props.onToggleCollapsed ? (
+        <box
+          flexShrink={0}
+          flexDirection="row"
+          justifyContent="space-between"
+          paddingLeft={1}
+          paddingRight={1}
+          paddingTop={1}
+        >
+          {props.zenActive ? <SidebarZenChip onZenClick={props.onZenClick} /> : <box flexShrink={0} />}
+          {props.onToggleCollapsed ? (
+            <CollapseButton collapsed={false} inline onToggle={props.onToggleCollapsed} />
+          ) : null}
+        </box>
+      ) : null}
       {menu.open ? (
         <ContextMenu
           entries={menu.entries}

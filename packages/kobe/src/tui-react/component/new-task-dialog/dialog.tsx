@@ -103,6 +103,16 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
             }}
           />
         </DialogSection>
+        {/* Model — only for an engine that declares a model flag; the shared
+            input + suggestions row (`model-field.tsx`). */}
+        {vm.modelVisible ? (
+          <ModelSection
+            field={vm.modelField}
+            focused={vm.field === "model"}
+            onFocus={() => vm.setField("model")}
+            onSubmit={() => vm.advanceFrom("model")}
+          />
+        ) : null}
         {/* Reasoning level — only for an engine that declares levels; the
             same chips the change-engine picker shows. */}
         {vm.effortChoices.length > 0 ? (
@@ -122,16 +132,6 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
               }}
             />
           </DialogSection>
-        ) : null}
-        {/* Model — only for an engine that declares a model flag; the shared
-            input + suggestions row (`model-field.tsx`). */}
-        {vm.modelVisible ? (
-          <ModelSection
-            field={vm.modelField}
-            focused={vm.field === "model"}
-            onFocus={() => vm.setField("model")}
-            onSubmit={() => vm.advanceFrom("model")}
-          />
         ) : null}
         {vm.tab === "existing" ? <ExistingTab vm={vm} /> : null}
         {vm.tab === "clone" ? <CloneTab vm={vm} /> : null}

@@ -1,6 +1,6 @@
 /**
  * Plugin-written task-row tokens — the one place a third party can put
- * characters on a task row (docs/design/herdr-gap-analysis.md item 8).
+ * characters on a task row.
  *
  * Rove gave plugins ~40 events, panes, settings, actions and engines, and no
  * way to label a row. That is why nobody could build a coordination plugin on

@@ -31,8 +31,8 @@ describe("tabTitleStable", () => {
   // Recorded before the entry-point strip shipped: heal it on display rather
   // than migrating the snapshot.
   it("strips a status prefix left in an older recording", () => {
-    const tab = engineTab({ lastTitle: "⠂ Herdr多Agent协作技巧分享", liveVendor: "claude" })
-    expect(tabTitleStable(tab, "claude", "claude")).toBe("Herdr多Agent协作技巧分享 1")
+    const tab = engineTab({ lastTitle: "⠂ 多Agent协作技巧分享", liveVendor: "claude" })
+    expect(tabTitleStable(tab, "claude", "claude")).toBe("多Agent协作技巧分享 1")
   })
 
   it("also heals codex's spinner frame", () => {
@@ -53,10 +53,10 @@ describe("tabTitleStable", () => {
   // custom vendor and declares no glyph vocabulary, so its rows kept the
   // prefix. Cleaning is not gated on `ownsStatus` for exactly this reason.
   it("heals a wrapper vendor's title too", () => {
-    const tab = engineTab({ id: "tab-2", ordinal: 2, vendor: "claudecpa", lastTitle: "⠂ Herdr多Agent协作技巧分享" })
-    expect(tabTitleStable(tab, "claudecpa" as never, "claudecpa" as never)).toBe("Herdr多Agent协作技巧分享 2")
+    const tab = engineTab({ id: "tab-2", ordinal: 2, vendor: "claudecpa", lastTitle: "⠂ 多Agent协作技巧分享" })
+    expect(tabTitleStable(tab, "claudecpa" as never, "claudecpa" as never)).toBe("多Agent协作技巧分享 2")
     // ...and when the process walk resolves the REAL engine underneath.
-    expect(tabTitleStable(tab, "claude", "claude")).toBe("Herdr多Agent协作技巧分享 2")
+    expect(tabTitleStable(tab, "claude", "claude")).toBe("多Agent协作技巧分享 2")
   })
 
   it("keeps a manual rename — that is the user's name, not the engine's", () => {

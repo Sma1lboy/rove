@@ -302,9 +302,9 @@ export function nextField(
   if (field === "confirm") return "tabs"
   if (field === "tabs") return opts.tierVisible ? "tier" : "engine"
   if (field === "tier") return "engine"
-  if (field === "engine") return opts.effortVisible ? "effort" : opts.modelVisible ? "model" : firstFieldFor(tab)
-  if (field === "effort") return opts.modelVisible ? "model" : firstFieldFor(tab)
-  if (field === "model") return firstFieldFor(tab)
+  if (field === "engine") return opts.modelVisible ? "model" : opts.effortVisible ? "effort" : firstFieldFor(tab)
+  if (field === "model") return opts.effortVisible ? "effort" : firstFieldFor(tab)
+  if (field === "effort") return firstFieldFor(tab)
   if (tab === "clone") {
     if (field === "cloneUrl") return "cloneParent"
     if (field === "cloneParent") return "cloneFolder"

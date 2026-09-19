@@ -141,7 +141,7 @@ export function ChangeStats(props: { readonly changes: WorktreeChanges | null })
 
 /**
  * Rows whose CURRENT `turn_complete` the user has already looked at
- * (selected while complete) — the herdr "seen" bit driving ● → ✓. Cleared the
+ * (selected while complete) — the "seen" bit driving ● → ✓. Cleared the
  * moment that row's activity state moves off `turn_complete`.
  *
  * Process-scoped, so it is only half the record: the daemon's activity
@@ -159,7 +159,7 @@ export function ChangeStats(props: { readonly changes: WorktreeChanges | null })
 const completionSeenIds = new Set<string>()
 
 /**
- * Deterministic render-time seen bookkeeping (herdr ● → ✓), shared with the
+ * Deterministic render-time seen bookkeeping (● → ✓), shared with the
  * tree's tab rows: the same render that shows a viewed+complete row must
  * already draw the digested ✓ — an unread lamp on the session you are
  * sitting IN is noise. `viewing` is "this row is what the right pane

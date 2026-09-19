@@ -2,7 +2,7 @@
  * `rove api pane-open` — open a terminal pane in a task's workspace over the
  * daemon's `tab.open` channel (the same wire `rove plugin pane open` rides).
  * The attached TUI hosting the task performs the actual split/tab; the
- * daemon only validates + broadcasts. Herdr-style `pane split` for agents:
+ * daemon only validates + broadcasts. `pane split` for agents:
  * split the focused tab right/down running any command, or open a separate
  * command tab.
  */

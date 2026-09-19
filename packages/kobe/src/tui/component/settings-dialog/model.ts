@@ -70,6 +70,7 @@ export type SettingsRow =
   | { id: string; kind: "engine"; vendor: VendorId }
   | { id: "add-engine"; kind: "engineAdd" }
   | { id: "install-hooks"; kind: "engineHooksInstall" }
+  | { id: "uninstall-hooks"; kind: "engineHooksUninstall" }
   | { id: string; kind: "autoEffortTier"; tier: AutoEffortTier }
   | { id: "keys-create"; kind: "keysCreate" }
   | { id: string; kind: "pluginToggle"; pluginId: string }
@@ -154,19 +155,25 @@ export type PluginRowsEntry = {
  * the same sequence.
  */
 export function generalRows(input: Pick<SettingsRowsInput, "themeNames" | "focusAccentSlots">): SettingsRow[] {
+  // Cursor order IS render order (a row's body index is its position here), so
+  // this list mirrors the section's JSX: language, then the Appearance group —
+  // theme, transparency, accent, split style, rail fold — then the rest. The
+  // five appearance rows were scattered through the section before; walking
+  // them with j/k now stays inside the group instead of crossing it four
+  // times.
   return [
-    ...input.themeNames.map((name): SettingsRow => ({ id: themeRowId(name), kind: "theme", name })),
     ...LOCALES.map((l): SettingsRow => ({ id: languageRowId(l.id), kind: "language", locale: l.id })),
+    ...input.themeNames.map((name): SettingsRow => ({ id: themeRowId(name), kind: "theme", name })),
     { id: "transparent", kind: "transparent" },
     ...input.focusAccentSlots.map((slot): SettingsRow => ({ id: focusAccentRowId(slot), kind: "focusAccent", slot })),
     ...SPLIT_STYLES.map((style): SettingsRow => ({ id: splitStyleRowId(style), kind: "splitStyle", style })),
+    { id: "rail-fold-style", kind: "railFoldStyle" },
     { id: "toast", kind: "toast" },
     { id: "sound", kind: "sound" },
     { id: "sound-volume", kind: "soundVolume" },
     { id: "cross-task", kind: "crossTask" },
     { id: "key-hints", kind: "keyHints" },
     { id: "zen-default-on", kind: "zenDefaultOn" },
-    { id: "rail-fold-style", kind: "railFoldStyle" },
     { id: "editor-kind", kind: "editorKind" },
     { id: "editor-custom", kind: "editorCustom" },
     { id: "worktree-base", kind: "worktreeBase" },
@@ -190,6 +197,10 @@ export function engineRows(engineList: readonly VendorId[]): SettingsRow[] {
     // the one the card already carries, answering a question ("should Rove
     // watch this engine") the user never asked differently per engine.
     { id: "install-hooks", kind: "engineHooksInstall" },
+    // Its mirror, and a cursor stop of its own: the two render as one row of
+    // buttons, so j/k walks between them and enter fires the one under the
+    // cursor — no chord to learn for an action taken once a year.
+    { id: "uninstall-hooks", kind: "engineHooksUninstall" },
   ]
 }
 

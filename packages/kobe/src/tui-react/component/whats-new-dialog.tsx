@@ -20,15 +20,15 @@
  *
  * ## The shape, decided against OUR dialog grammar
  *
- * herdr's release-notes modal (its `src/ui/release_notes.rs`) is the
- * reference for the PRESENTATION: a fixed-size centered modal, dimmed
- * behind, a header carrying a title and a subtitle, a scrollbar down the
- * body, an action in the footer. What we take and what we leave is decided
- * against `docs/design/dialogs.md`, because a What's New modal that wore
- * herdr's chrome would be the only dialog in Rove that looked like that:
+ * The release-notes modal is a well-trodden PRESENTATION: a fixed-size
+ * centered modal, dimmed behind, a header carrying a title and a subtitle, a
+ * scrollbar down the body, an action in the footer. What we take and what we
+ * leave is decided against `docs/design/dialogs.md`, because a What's New
+ * modal wearing borrowed chrome would be the only dialog in Rove that looked
+ * like that:
  *
  *   - SIZE — `medium` (80 cells) is already our default card and is already
- *     herdr's width. Their fixed 24-row height we do NOT take: our card is
+ *     the conventional width. A fixed 24-row height we do NOT take: our card is
  *     content-sized under a `maxHeight`, so a two-line note draws a small
  *     card and a six-version range grows to the cap and scrolls. A fixed
  *     height would pad the first and clip the second.

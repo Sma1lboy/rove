@@ -29,6 +29,8 @@ test("the nav hint stays visible on a short standalone page", async () => {
     providers: { kv: true, dialog: true },
   })
   const text = await frame()
-  expect(text).toContain("Theme") // the section itself is taller than 20 rows
+  // Any heading from the section body proves the content rendered; the
+  // section is taller than 20 rows, so this is the one nearest the top.
+  expect(text).toContain("Appearance")
   expect(text).toContain("j/k pick")
 })

@@ -12,10 +12,10 @@
 | rove ─────────────────────── |
 |  refactor/tab-strip… ▴ ✓ ? 2 |
 |  ○ persist scrollback acr… 3 |
+|      engine default          |
 |  feat/alpha              ? 4 |
 |▌ ○ build                   5 |
-|                              |
-|                              |
+|      engine default          |
 |                              |
 |                              |
 |                              |

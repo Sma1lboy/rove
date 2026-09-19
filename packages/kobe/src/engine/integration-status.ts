@@ -160,3 +160,11 @@ export function engineIntegrations(vendors: readonly VendorId[]): EngineIntegrat
 export function enginesNeedingHookInstall(rows: readonly EngineIntegration[]): readonly VendorId[] {
   return rows.filter((row) => row.hooksSupported && row.hookState !== "installed").map((row) => row.vendor)
 }
+
+/** Engines a single uninstall would actually change — anything with hooks on
+ *  disk, current or stale. The mirror of {@link enginesNeedingHookInstall},
+ *  so the two buttons never both read "nothing to do" while a file has
+ *  Rove's entries in it. */
+export function enginesWithHooksInstalled(rows: readonly EngineIntegration[]): readonly VendorId[] {
+  return rows.filter((row) => row.hooksSupported && row.hookState !== "not-installed").map((row) => row.vendor)
+}

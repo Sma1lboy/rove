@@ -38,6 +38,9 @@ export const en = {
     hookMissing: "hooks not installed",
     /** The engine reports nothing itself — normal for contrib and custom engines. */
     hookNone: "no hooks",
+    /** Hooks are supported and absent, and the CLI is not on this machine —
+     *  nothing to fix, so it reads muted rather than as a warning. */
+    hookUnavailable: "engine not installed",
     /** The engine persists a turn-completion marker Rove reads back. */
     markersYes: "markers",
     markersNo: "no markers",
@@ -50,6 +53,10 @@ export const en = {
     installHooks: "→ Install engine integrations ({count})",
     /** Install row, with nothing to do. */
     installHooksDone: "· Engine integrations up to date",
+    /** Uninstall button, with something to remove. {count} = engines hooked. */
+    uninstallHooks: "← Remove engine integrations ({count})",
+    /** Uninstall button, with nothing on disk to remove. */
+    uninstallHooksDone: "· No engine integrations installed",
   },
   accounts: {
     checking: "Checking…",
@@ -83,6 +90,7 @@ export const zh: typeof en = {
     hookOutdated: "钩子已过期",
     hookMissing: "未装钩子",
     hookNone: "无钩子",
+    hookUnavailable: "引擎未安装",
     markersYes: "有完成标记",
     markersNo: "无完成标记",
     screenYes: "有读屏规则",
@@ -90,6 +98,8 @@ export const zh: typeof en = {
     hookRefused: "! {file} 被拒绝：{reason}",
     installHooks: "→ 安装引擎接入（{count}）",
     installHooksDone: "· 引擎接入已是最新",
+    uninstallHooks: "← 移除引擎接入（{count}）",
+    uninstallHooksDone: "· 未安装任何引擎接入",
   },
   accounts: {
     checking: "检查中…",
