@@ -14,12 +14,12 @@
 | rove ─────────────────────── |
 |  feat/alpha              ? 3 |
 |▌ ○ build                   4 |
+|      engine default          |
 |  ○ review                  5 |
+|      engine default          |
 |  feat/bravo              ? 6 |
 |  ○ tests                   7 |
-|                              |
-|                              |
-|                              |
+|      engine default          |
 |                              |
 |                              |
 |                              |

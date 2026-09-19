@@ -1,12 +1,18 @@
 /** @jsxImportSource @opentui/react */
 /**
- * One-line tree rows: every row inside the tree is ONE cell tall — project
- * header flush, worktrees one cell in, and tab rows at the SAME column as
- * their worktree (the state-circle glyph carries the hierarchy, so extra
- * indent only costs the narrow rail width). Density is the point (a dozen
- * worktrees × tabs must fit the rail), so a worktree row is
- * `twisty · state glyph · title` plus the right-edge cluster
- * (pin / PR chip / ±stats / jump digit).
+ * Tree rows: project header flush, worktrees one cell in, and tab rows at the
+ * SAME column as their worktree (the state-circle glyph carries the
+ * hierarchy, so extra indent only costs the narrow rail width). A worktree
+ * row is `twisty · state glyph · title` plus the right-edge cluster
+ * (pin / PR chip / ±stats / jump digit), and stays ONE cell tall — density is
+ * the point for them (a dozen worktrees must fit the rail).
+ *
+ * The exception is an AGENT tab row, which is two cells: the second carries
+ * the model and reasoning level the task will launch with (owner 2026-09-18).
+ * That is the one fact you otherwise have to open a dialog to read, and it
+ * decides what the session costs and how well it does. Shell/command/content
+ * tabs have no model, so they stay one cell and the rail only pays for the
+ * rows where the answer exists.
  */
 
 import { type TaskEngineState, type TaskJobState, liveRowTokens } from "@/client/remote-orchestrator"
@@ -341,6 +347,14 @@ export function TabTreeRow(props: {
   // bit is: a sibling row passing the task rollup would flash for a turn that
   // finished in another tab.
   const pulsing = useDonePulse(carriesState ? completionStampOf(activity) : undefined)
+  // Second line, agent tabs only: what this session runs with. Both fields
+  // are task-level and optional, and absent means the engine's own default —
+  // the same words the change-engine dialog uses for the same emptiness, so
+  // the row and the dialog never disagree about what "unset" looks like.
+  const modelLine = isAgent
+    ? [props.task.model?.trim(), props.task.modelEffort?.trim()].filter(Boolean).join(" · ") ||
+      t("tasks.changeEngine.noEffort")
+    : null
   // depth 1, not 2: a tab row starts at the same column as its
   // worktree row — the circle status glyph carries the hierarchy, and the
   // extra indent cell wasted width the narrow rail doesn't have.
@@ -363,35 +377,45 @@ export function TabTreeRow(props: {
       >
         {`${glyph} `}
       </text>
-      <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
-        <text
-          fg={pulsing ? theme.text : theme.textMuted}
-          attributes={pulsing ? TextAttributes.BOLD : undefined}
-          wrapMode="none"
-          flexBasis={0}
-          flexGrow={1}
-          flexShrink={1}
-        >
-          {truncateEndCells(
-            props.tab.label,
-            // The 2-cell state-glyph column is this row's extra fixed spend.
-            treeLabelBudget(
-              shared,
-              2 +
-                jumpDigitCells(props.flatIndex) +
-                (age ? clusterCells(age) : 0) +
-                (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
-            ),
-            charWidth,
-          )}
-        </text>
-        {age ? (
-          <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" flexShrink={0}>
-            {age}
+      <box flexDirection="column" flexGrow={1}>
+        <box flexDirection="row" paddingRight={1} gap={1}>
+          <text
+            fg={pulsing ? theme.text : theme.textMuted}
+            attributes={pulsing ? TextAttributes.BOLD : undefined}
+            wrapMode="none"
+            flexBasis={0}
+            flexGrow={1}
+            flexShrink={1}
+          >
+            {truncateEndCells(
+              props.tab.label,
+              // The 2-cell state-glyph column is this row's extra fixed spend.
+              treeLabelBudget(
+                shared,
+                2 +
+                  jumpDigitCells(props.flatIndex) +
+                  (age ? clusterCells(age) : 0) +
+                  (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
+              ),
+              charWidth,
+            )}
+          </text>
+          {age ? (
+            <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" flexShrink={0}>
+              {age}
+            </text>
+          ) : null}
+          <MoveChip rowId={props.rowId} shared={shared} />
+          <JumpDigit flatIndex={props.flatIndex} dim={!isCursor} />
+        </box>
+        {modelLine ? (
+          <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" paddingRight={1}>
+            {/* Indented past the label's own column so the pair reads as one
+                row with a caption, not as two siblings. The glyph column is
+                the parent's, so this only pays for its own inset. */}
+            {`  ${truncateEndCells(modelLine, treeLabelBudget(shared, 4), charWidth)}`}
           </text>
         ) : null}
-        <MoveChip rowId={props.rowId} shared={shared} />
-        <JumpDigit flatIndex={props.flatIndex} dim={!isCursor} />
       </box>
     </RowShell>
   )

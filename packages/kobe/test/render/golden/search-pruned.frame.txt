@@ -14,7 +14,7 @@
 | rove ─────────────────────── |
 |▌ feat/bravo              ? 2 |
 |  ○ tests                   3 |
-|                              |
+|      engine default          |
 |                              |
 |                              |
 |                              |

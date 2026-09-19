@@ -397,8 +397,24 @@ export function SidebarTree(props: SidebarTreeProps) {
           scrollRef.current = r
         }}
       />
-      {props.zenActive ? <SidebarZenChip onZenClick={props.onZenClick} /> : null}
-      {props.onToggleCollapsed ? <CollapseButton collapsed={false} onToggle={props.onToggleCollapsed} /> : null}
+      {/* Zen chip and fold chevron share the rail's last row: two controls
+          over one line of a panel whose vertical space is the scarce thing.
+          The empty left slot keeps the chevron on the right when zen is off. */}
+      {props.zenActive || props.onToggleCollapsed ? (
+        <box
+          flexShrink={0}
+          flexDirection="row"
+          justifyContent="space-between"
+          paddingLeft={1}
+          paddingRight={1}
+          paddingTop={1}
+        >
+          {props.zenActive ? <SidebarZenChip onZenClick={props.onZenClick} /> : <box flexShrink={0} />}
+          {props.onToggleCollapsed ? (
+            <CollapseButton collapsed={false} inline onToggle={props.onToggleCollapsed} />
+          ) : null}
+        </box>
+      ) : null}
       {menu.open ? (
         <ContextMenu
           entries={menu.entries}

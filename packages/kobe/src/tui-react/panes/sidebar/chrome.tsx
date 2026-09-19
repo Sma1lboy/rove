@@ -257,7 +257,7 @@ export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNa
 export function SidebarZenChip(props: { onZenClick?: () => void }) {
   const { theme } = useTheme()
   return (
-    <box position="relative" flexShrink={0} paddingLeft={1} paddingRight={1} paddingTop={1}>
+    <box position="relative" flexShrink={0}>
       <text
         fg={theme.accent}
         attributes={TextAttributes.BOLD}

@@ -19,6 +19,10 @@ import { useTheme } from "../../context/theme"
 export interface CollapseButtonProps {
   readonly collapsed: boolean
   readonly onToggle: () => void
+  /** Sit in the flow instead of pinning to the rail's bottom-right corner.
+   *  The expanded rail shares a row with the zen chip; the collapsed rail has
+   *  no such row and keeps the corner. */
+  readonly inline?: boolean
 }
 
 /**
@@ -28,23 +32,28 @@ export interface CollapseButtonProps {
  */
 export function CollapseButton(props: CollapseButtonProps) {
   const { theme } = useTheme()
+  // Folding is not a request to move focus into the rail; without stopping
+  // propagation the pane shell's focus-grab fires on the same press and the
+  // sidebar takes focus on its way out.
+  const onMouseUp = (evt: { stopPropagation(): void }) => {
+    evt.stopPropagation()
+    props.onToggle()
+  }
+  const glyph = (
+    <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none">
+      {props.collapsed ? "››" : "‹‹"}
+    </text>
+  )
+  if (props.inline) {
+    return (
+      <box flexShrink={0} onMouseUp={onMouseUp}>
+        {glyph}
+      </box>
+    )
+  }
   return (
-    <box
-      position="absolute"
-      bottom={0}
-      right={1}
-      flexShrink={0}
-      onMouseUp={(evt: { stopPropagation(): void }) => {
-        // Folding is not a request to move focus into the rail; without this
-        // the pane shell's focus-grab fires on the same press and the sidebar
-        // takes focus on its way out.
-        evt.stopPropagation()
-        props.onToggle()
-      }}
-    >
-      <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none">
-        {props.collapsed ? "››" : "‹‹"}
-      </text>
+    <box position="absolute" bottom={0} right={1} flexShrink={0} onMouseUp={onMouseUp}>
+      {glyph}
     </box>
   )
 }
