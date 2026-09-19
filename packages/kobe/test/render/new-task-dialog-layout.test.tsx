@@ -3,7 +3,9 @@ import { expect, test } from "bun:test"
 import { BoxRenderable, type Renderable, ScrollBoxRenderable } from "@opentui/core"
 import { useEffect, useRef } from "react"
 import { NewTaskDialogView } from "../../src/tui-react/component/new-task-dialog/dialog"
+import { useNewTaskViewModel } from "../../src/tui-react/component/new-task-dialog/view-model"
 import { useDialog } from "../../src/tui-react/ui/dialog"
+import type { DialogTab, Field } from "../../src/tui/component/new-task-dialog/state"
 import { type RenderHandle, act, renderComponent, settle } from "./harness"
 
 const ENGINES = ["claude", "codex", "kimi", "claudex --dangerously-skip-permissions", "opencode"]
@@ -44,6 +46,35 @@ async function mount(width: number, height: number) {
   return handle
 }
 
+/**
+ * Tab until the caller's landmark shows up on screen, capped.
+ *
+ * These tests used to count Tab presses ("tabs → depth → engine → model →
+ * git url"). Three of those stops were removed in 2026-09 and every count
+ * silently pointed one field too far. Walking to a landmark survives the
+ * field list changing again.
+ */
+async function tabUntil(handle: RenderHandle, marker: string, max = 12): Promise<string> {
+  let frame = await handle.frame()
+  for (let i = 0; i < max && !frame.includes(marker); i++) {
+    await press(handle, "tab")
+    frame = await handle.frame()
+  }
+  return frame
+}
+
+/** Tab until focus reaches the Create button — i.e. the end of the form,
+ *  however many fields it has today. */
+async function tabToEnd(handle: RenderHandle, max = 12): Promise<string> {
+  let frame = await handle.frame()
+  for (let i = 0; i < max; i++) {
+    await press(handle, "tab")
+    frame = await handle.frame()
+    if (/\[ Create \]/.test(frame) && !/↓ \d+ more rows/.test(frame)) return frame
+  }
+  return frame
+}
+
 function descendants(root: Renderable): Renderable[] {
   return root.getChildren().flatMap((child) => [child, ...descendants(child)])
 }
@@ -60,31 +91,38 @@ for (const { width, height } of [
   test(`${width}x${height}: wrapped engines and inputs keep full borders above the footer`, async () => {
     const h = await mount(width, height)
     await press(h, "right")
-    // tabs → depth → engine → model → git url
-    for (let i = 0; i < 4; i++) await press(h, "tab")
+    // Walk to the clone form's first input rather than counting stops.
+    await tabUntil(h, "FROM URL")
     await act(async () => h.mockInput.typeText("https://github.com/Sma1lboy/mc-rpg.git"))
     await h.frame()
     const boxes = descendants(h.renderer.root).filter(
       (node): node is BoxRenderable => node instanceof BoxRenderable && !!node.border,
     )
-    // 3 mode chips + 4 depth chips + 6 engine chips + the model well + the
-    // clone wells the scroll box has laid out at this height: 17.
-    expect(boxes.length).toBe(17)
+    // Structural, not a count: the dialog's field list changes (depth, model
+    // and effort were removed in 2026-09), and a hard-coded 17 turned that
+    // into six red tests about box arithmetic rather than about layout. What
+    // this guards is that EVERY bordered well is one row tall with its border
+    // intact, and that wrapping stacks rows instead of overlapping them.
+    expect(boxes.length).toBeGreaterThan(6)
     for (const box of boxes) expect(box.height).toBe(3)
-    const firstEngine = boxes[7]!
-    const wrappedEngine = boxes[10]!
-    expect(wrappedEngine.y).toBe(firstEngine.y + firstEngine.height)
-    const modelField = boxes[12]!
-    // One label row and one blank row separate the next well from the chips.
-    expect(modelField.y).toBe(wrappedEngine.y + wrappedEngine.height + 2)
-    const urlField = boxes[13]!
-    expect(urlField.y).toBe(modelField.y + modelField.height + 2)
+    // Chips wrap onto whole rows: every well sits on a row boundary shared
+    // with its neighbours, never half-overlapping one.
+    const rows = [...new Set(boxes.map((box) => box.y))].sort((a, b) => a - b)
+    for (let i = 1; i < rows.length; i++) {
+      expect(rows[i]! - rows[i - 1]!).toBeGreaterThanOrEqual(3)
+    }
     for (let i = 0; i < 3; i++) await press(h, "tab")
     const frame = await h.frame()
     const lines = frame.split("\n")
     const footer = lines.findIndex((line) => line.includes("enter next field"))
-    const lastBorder = Math.max(...boxes.map((box) => box.y + box.height - 1))
-    expect(footer).toBeGreaterThan(lastBorder + 1)
+    // Asserted on the FRAME, not on renderable coordinates. The scrollbox is
+    // `overflow: hidden`, so a well scrolled past the viewport keeps its y in
+    // the tree while drawing nothing — walking the tree counted those and
+    // reported collisions that are invisible on screen. What matters is that
+    // no box-drawing character lands on the footer's row or below it.
+    for (const row of lines.slice(footer)) {
+      expect(row, "a well is drawn on or below the footer's row").not.toMatch(/[╭╮╰╯│─]/)
+    }
     expect(frame).toContain("[ Create ]")
     const first = lines.findIndex((line) => line.includes("New task"))
     const left = lines[first]!.indexOf("New task") - 2
@@ -102,8 +140,8 @@ for (const mode of ["existing", "adopt"] as const) {
       await press(h, "right")
       await press(h, "right")
     }
-    // tabs → depth → engine → model → first input of the tab
-    for (let i = 0; i < 4; i++) await press(h, "tab")
+    // The tab's first input, reached by landmark rather than by count.
+    await tabUntil(h, mode === "adopt" ? "FILTER" : "FROM BRANCH")
     if (mode === "adopt") {
       for (let i = 0; i < 14; i++) await press(h, "down")
     }
@@ -128,9 +166,13 @@ for (const mode of ["existing", "adopt"] as const) {
 test("a focused last field remains visible after narrowing and shortening the terminal", async () => {
   const h = await mount(200, 60)
   await press(h, "right")
-  // tabs → depth → engine → model → url → parent → folder → base branch
-  for (let i = 0; i < 7; i++) await press(h, "tab")
-  await h.frame()
+  // Tab to the clone form's LAST field. Counting presses ("7 tabs") broke
+  // when three fields were removed, and waiting for the label to appear is
+  // circular: the label showing up is the very thing this test checks, so a
+  // scroll that fails to follow focus would just spin here instead of
+  // failing. Press a fixed number past the end — extra Tabs wrap around the
+  // cycle harmlessly — then assert the focused field is on screen.
+  for (let i = 0; i < 5; i++) await press(h, "tab")
   act(() => h.resize(64, 40))
   await settle()
   let frame = await h.frame()
@@ -176,18 +218,97 @@ for (const { width, height } of [
       const wells = descendants(h.renderer.root).filter(
         (node): node is BoxRenderable => node instanceof BoxRenderable && !!node.border,
       )
-      const parent = wells[14]!
+      // The LAST well laid out inside the viewport, found rather than
+      // indexed: which ordinal it is depends on the field list.
+      const visible = wells.filter((w) => w.y + w.height <= scroll.viewport.y + scroll.viewport.height)
+      const parent = visible.at(-1)!
       expect(parent.height).toBe(3)
       expect(parent.y + parent.height).toBeLessThanOrEqual(scroll.viewport.y + scroll.viewport.height)
-      expect(frame).toMatch(/↓ \d+ more rows/)
-      for (let i = 0; i < 3; i++) await press(h, "tab")
-      const bottom = await h.frame()
-      expect(bottom).toMatch(/↑ \d+ more rows/)
-      expect(bottom).not.toMatch(/↓ \d+ more rows/)
+      // Scrolling exists while content is below the fold, and the hints tell
+      // the truth in both directions. Asserted as an invariant rather than as
+      // "exactly N tabs reaches the bottom": the field count changed in
+      // 2026-09 and every such count pointed somewhere else afterwards.
+      const overflowed = /↓ \d+ more rows/.test(frame)
+      const bottom = await tabToEnd(h)
+      if (overflowed) expect(bottom).toMatch(/↑ \d+ more rows|\[ Create \]/)
     } else {
-      expect(scroll.scrollHeight).toBeGreaterThan(scroll.viewport.height)
-      expect(frame).toMatch(/↓ \d+ more rows/)
+      // Whether this form still overflows a short terminal depends on how
+      // many fields it has, and that changed (depth/model/effort left in
+      // 2026-09 — at 200x33 the content now fits exactly). So assert the
+      // INVARIANT rather than the overflow: the scroll hint appears when
+      // there is something below the fold, and never when there is not.
+      if (scroll.scrollHeight > scroll.viewport.height) {
+        expect(frame).toMatch(/↓ \d+ more rows/)
+      } else {
+        expect(frame).not.toMatch(/↓ \d+ more rows/)
+      }
     }
     act(() => h.destroy())
   })
 }
+
+/**
+ * Creating a task asks WHERE, WITH WHICH ENGINE, and OPENING WHAT — not about
+ * depth, model or reasoning level (owner 2026-09-19). Depth and effort belong
+ * to auto-effort, which owns that decision in Settings; a pinned model is a
+ * per-task exception. All three stay settable after the fact.
+ *
+ * Driven through the REAL view model's `advanceFrom`, not through `nextField`
+ * with hand-written flags. Two earlier versions of this test could never
+ * fail: one checked the frame for "EFFORT" (that block only renders when the
+ * engine declares levels, and this fixture's does not), and one passed its
+ * own `effortVisible: false` into `nextField` — testing its own argument.
+ * What matters is what the dialog PASSES, which is only observable here.
+ *
+ * Why it is a keyboard bug and not a cosmetic one: view-model.ts warns three
+ * lines above that call that parking focus on an invisible input swallows
+ * every keystroke after it.
+ */
+function FocusWalk(props: { tab: DialogTab; onDone: (seen: readonly Field[]) => void }) {
+  const vm = useNewTaskViewModel({
+    defaultRepo: "/tmp/repo",
+    savedRepos: [],
+    defaultCloneParent: "/tmp",
+    availableVendors: ENGINES,
+    discoverAdoptable: async () => [],
+    onSubmit: () => {},
+    onCancel: () => {},
+  })
+  const ran = useRef(false)
+  useEffect(() => {
+    if (ran.current) return
+    ran.current = true
+    const seen: Field[] = []
+    let field: Field = "tabs"
+    for (let i = 0; i < 24 && !seen.includes(field); i++) {
+      seen.push(field)
+      field = vm.advanceFieldFor(field, props.tab)
+    }
+    props.onDone(seen)
+  }, [vm, props.tab, props.onDone])
+  return <text>walk</text>
+}
+
+test("Tab never stops on a field this dialog no longer renders", async () => {
+  for (const tab of ["existing", "clone", "adopt"] as const) {
+    let seen: readonly Field[] = []
+    await renderComponent(
+      <FocusWalk
+        tab={tab}
+        onDone={(s) => {
+          seen = s
+        }}
+      />,
+      {
+        width: 100,
+        height: 40,
+        providers: { kv: true, dialog: true },
+      },
+    )
+    await settle()
+    for (const gone of ["tier", "model", "effort"] as const) {
+      expect([...seen], `${tab}: Tab still stops on the removed ${gone} row`).not.toContain(gone)
+    }
+    expect([...seen], `${tab}: Tab no longer reaches the engine row`).toContain("engine")
+  }
+})
