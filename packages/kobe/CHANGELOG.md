@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.218
+
+### Patch Changes
+
+- [#1071](https://github.com/Sma1lboy/rove/pull/1071) [`8cb382d`](https://github.com/Sma1lboy/rove/commit/8cb382d9d2d419d443ba20f49c6a93c7ffc8fae1) Settings Appearance now shows a full workspace preview and uses a selection list for every appearance setting. Preview themes, transparency, focus colors, split borders, folded task rails, and tab row height before saving with Enter; Escape cancels without changing settings. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.217
 
 ### Patch Changes
