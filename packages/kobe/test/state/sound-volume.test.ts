@@ -42,4 +42,21 @@ describe("nextSoundVolume", () => {
     expect(SOUND_VOLUME_STEPS).toContain(off)
     expect(off).not.toBe(0.33)
   })
+
+  it("advances a between-step value by exactly one level, never skipping", () => {
+    // A hand-edited state.json (or a legacy float that never sat on a step)
+    // must cycle to the next louder step — not the one after it.
+    expect(nextSoundVolume(0.33)).toBe(0.4)
+    expect(nextSoundVolume(0.5)).toBe(0.6)
+    expect(nextSoundVolume(0.7)).toBe(0.8)
+    // Below the quietest step, the next louder step is the quietest.
+    expect(nextSoundVolume(0.05)).toBe(0.1)
+  })
+
+  it("reaches the loudest step before wrapping, from a between-step value", () => {
+    // 0.9 is louder than 0.8, so cycling up must reach 1, not wrap to 0.1.
+    expect(nextSoundVolume(0.9)).toBe(1)
+    // Only at or past the top does the cycle wrap to the quietest.
+    expect(nextSoundVolume(1)).toBe(0.1)
+  })
 })
