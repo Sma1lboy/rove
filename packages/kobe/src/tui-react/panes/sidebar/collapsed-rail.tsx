@@ -19,7 +19,8 @@ import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator
 import type { Task } from "@/types/task"
 import { type RGBA, TextAttributes } from "@opentui/core"
 import { Fragment } from "react"
-import { sidebarProjectKeyOfTask } from "../../../tui/panes/sidebar/groups"
+import { displayWidth } from "../../../lib/display-width"
+import { repoBasename, sidebarProjectKeyOfTask } from "../../../tui/panes/sidebar/groups"
 import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
 import { buildSidebarRowView, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
 import { toneColor } from "../../../tui/panes/sidebar/view-core"
@@ -121,6 +122,15 @@ export interface CollapsedRailProps {
   readonly onExpand: () => void
 }
 
+function projectHeading(task: Task, width: number): string {
+  const name = task.kind === "dir" && task.scratch === true ? "scratch" : repoBasename(task.repo)
+  const first = new Intl.Segmenter().segment(name.trim()).containing(0)?.segment ?? "·"
+  const initial = first.toLowerCase()
+  const cells = displayWidth(initial)
+  const label = cells > 0 && cells <= width ? initial : "·"
+  return label + "─".repeat(width - displayWidth(label))
+}
+
 export function CollapsedRail(props: CollapsedRailProps) {
   const { theme } = useTheme()
   const rows = useRailRows(props)
@@ -129,14 +139,9 @@ export function CollapsedRail(props: CollapsedRailProps) {
     <box width={width} flexShrink={0} flexDirection="column" backgroundColor={theme.backgroundPanel}>
       {rows.map((row, i) => (
         <Fragment key={row.task.id}>
-          {/* The project boundary, kept across the fold. Without it the strip
-              is one undifferentiated column of digits and the reader loses
-              which repo a row belongs to — the grouping is most of what makes
-              a dozen rows legible at a glance, and it costs one cell per
-              boundary rather than a header per section. */}
-          {i > 0 && rows[i - 1]?.groupKey !== row.groupKey ? (
-            <text fg={theme.border} wrapMode="none" flexShrink={0}>
-              {"─".repeat(width)}
+          {i === 0 || rows[i - 1]?.groupKey !== row.groupKey ? (
+            <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
+              {projectHeading(row.task, width)}
             </text>
           ) : null}
           <RailRowView row={row} style={props.style} onSelect={props.onSelect} />
