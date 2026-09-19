@@ -253,7 +253,14 @@ jobs:
     # Black-box behavior suite: the BUILT CLI in a temp KOBE_HOME with an
     # isolated daemon + hosted PTY engine. Catches packaged-path and session
     # lifecycle regressions unit mocks cannot see.
+    #
+    # Two shards: these were 49s of the 87s that made this job the wall
+    # clock's long pole once the render track was sharded (run 35456145607).
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -280,8 +287,17 @@ jobs:
       - name: Build (kobe package)
         run: bun run build
 
-      - name: Behavior tests (Rove package)
-        run: bun run --filter @sma1lboy/rove test:behavior
+      - name: Behavior tests (Rove package, shard ${{ matrix.shard }}/2)
+        # Same flags as `test:behavior`, plus vitest's --shard. The serial
+        # pool and the retry stay INSIDE each shard: these drive the built
+        # CLI black-box and are not safe to run concurrently with each
+        # other, but separate runners are separate machines, so slicing
+        # across jobs is. Verified locally: 6 + 5 = 11 files, the whole set.
+        working-directory: packages/kobe
+        run: |
+          KOBE_INCLUDE_BEHAVIOR=1 bun x vitest run test/behavior \
+            --pool forks --minWorkers=1 --maxWorkers=1 --retry=2 \
+            --passWithNoTests --shard=${{ matrix.shard }}/2
 
   render-track:
     # OpenTUI's native renderer runs under Bun, not Vitest's Node worker.
@@ -338,7 +354,39 @@ jobs:
 
       - name: Render tests (kobe package, shard ${{ matrix.shard }}/5)
         working-directory: packages/kobe
-        run: bun scripts/render-track.mjs --shard=${{ matrix.shard }}/5
+        run: bun scripts/render-track.mjs --half=main --shard=${{ matrix.shard }}/5
+
+  render-pty:
+    # The 7 PTY files, ~13s, as their own job. They used to ride on render
+    # shard 1, which made it the long pole (77s vs 50s for its siblings, run
+    # 35456145607). They keep their own process and their own deadlock
+    # ceiling — see PTY_TIMEOUT_MS in render-track.mjs — and are deliberately
+    # NOT sharded: this is the one part of the suite that has wedged CI, and
+    # splitting it would multiply that.
+    runs-on: macos-14
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Cache bun packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Render PTY tests (kobe package)
+        working-directory: packages/kobe
+        run: bun scripts/render-track.mjs --half=pty
 
   visual-ground-truth:
     # The hosted macOS images reject node-pty's POSIX PTY spawn before the
