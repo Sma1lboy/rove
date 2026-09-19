@@ -219,7 +219,24 @@ function isClosedDownProject(tasks: readonly Task[], tabsByTask: TreeInput["tabs
  * them loose after the last project would read as that project's rows.
  */
 export function buildTreeRows(input: TreeInput): TreeRow[] {
-  const { tasks, tabsByTask } = input
+  // A task whose deletion is in flight leaves the tree before anything is
+  // destroyed. The daemon writes `deletion.phase = "queued"` and publishes the
+  // resulting `task.snapshot` INSIDE the `task.delete` RPC, strictly before it
+  // enqueues the worktree teardown — so dropping the row here is what turns
+  // that accepted-request push into the thing the user asked for: the row goes
+  // first, the minutes-long teardown runs behind it. Refusals (dirty worktree,
+  // gitignored work, a main checkout) throw out of `prepare()` before that
+  // write, so nothing is ever hidden for a delete that did not happen.
+  //
+  // `error` is deliberately kept. A failed deletion left the worktree AND the
+  // task entry in place, so the row coming back — with the `delete failed`
+  // caption the row builders already render, beside the daemon's toast — is
+  // the only thing that corrects the row having vanished.
+  const tasks = input.tasks.filter((task) => {
+    const phase = task.deletion?.phase
+    return phase !== "queued" && phase !== "running"
+  })
+  const { tabsByTask } = input
   const sortMode = input.sortMode ?? "default"
   const byProject = new Map<string, { repo: string; tasks: Task[] }>()
 
