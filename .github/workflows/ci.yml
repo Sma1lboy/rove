@@ -9,10 +9,11 @@
 # PTY-host state (no real engine binary needed — the harness shims a fake
 # `claude`). See docs/HARNESS.md "Behavioral self-test".
 #
-# `render-track` is the hard macOS gate for React/OpenTUI components: it runs
-# bun-test rendering plus a touched-file line-coverage floor against render
-# lcov (scripts/coverage-gate.mjs; `coverage-exemption: <path> — <reason>` in
-# the PR body opts out per file with a paper trail). `visual-ground-truth` independently
+# `render-track` is the hard macOS gate for React/OpenTUI components: it
+# mounts them and asserts on real frames, sharded 8 ways. It no longer
+# enforces a line-coverage floor — line coverage says a line RAN, not that
+# anything checked it, and the exemption list it needed was doing more work
+# than the gate (owner call 2026-09-19). `visual-ground-truth` independently
 # gates the browser → PTY → real OpenTUI journey on Linux, where the hosted
 # runner grants node-pty a working pseudoterminal.
 #
@@ -216,22 +217,31 @@ jobs:
 
   render-track:
     # OpenTUI's native renderer runs under Bun, not Vitest's Node worker.
-    # Ubuntu, not macOS: the hosted macOS runner took ~235s for the same suite
-    # that takes ~13s locally, and it alone set CI's wall clock. This job sat
-    # on macOS because Bun 1.3.13's coverage SIGILLed on Ubuntu — retried on
-    # 1.3.14. If the SIGILL is back, that is what this job fails with, and the
-    # fix is to pin this one job back to macos-14 rather than the whole file.
-    # This remains a required check: no continue-on-error and a per-touched-
-    # file render coverage gate.
-    runs-on: ubuntu-latest
+    #
+    # Sharded 8 ways because the suite is genuinely expensive, not because the
+    # runner is slow: 230s locally against 235s here (measured 2026-09-19).
+    # Ubuntu was tried and is SLOWER (291s, run 35453490576), so the platform
+    # is not the lever. Coverage instrumentation is not the lever either: the
+    # same shard costs 49.2s with `--coverage` and 49.4s without.
+    #
+    # `--shard=i/8` slices the main half ROUND-ROBIN — neighbouring files are
+    # the same feature area and cost alike, so contiguous blocks would make
+    # one shard the long pole. The PTY half is not sharded: 7 files, ~13s, and
+    # it is the one part of this suite that has deadlocked CI, so it runs
+    # once, on shard 1.
+    runs-on: macos-14
+    strategy:
+      # One slice failing must not cancel the others, or a rerun tells you
+      # about one file at a time.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     # Hung runners, not failing tests, were eating 40min waits (2026-08-02
     # twice): the gate should fail fast so a rerun is cheap.
     timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -241,17 +251,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Render tests and coverage (kobe package)
+      - name: Render tests (kobe package, shard ${{ matrix.shard }}/8)
         working-directory: packages/kobe
-        run: bun run test:render
-
-      - name: Touched render files must meet the coverage floor
-        if: github.event_name == 'pull_request'
-        env:
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
-          PR_BODY: ${{ github.event.pull_request.body }}
-          KOBE_RENDER_COVERAGE: "1"
-        run: bun scripts/coverage-gate.mjs
+        run: bun scripts/render-track.mjs --shard=${{ matrix.shard }}/8
 
   visual-ground-truth:
     # The hosted macOS images reject node-pty's POSIX PTY spawn before the
