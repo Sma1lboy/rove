@@ -392,7 +392,7 @@ export const defaultApiRuntime: ApiRuntime = {
     const host = await openPtyHost()
     if (host) {
       try {
-        await killTaskSessions(host.rpc, taskKeys(await listSessions(host.rpc), taskId), { wait: true })
+        await killTaskSessions(host.rpc, taskKeys(await listSessions(host.rpc), taskId))
       } catch {
         /* pty-host hiccup must not fail the already-committed RPC */
       } finally {

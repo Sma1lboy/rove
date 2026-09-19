@@ -157,11 +157,12 @@ something you want. Remove it by hand if you want the disk space.
 
 On Windows the usual cause was Rove's own engine session: a process whose
 working directory is inside the worktree keeps that directory undeletable,
-and the session used to be killed *after* the removal had started. A deletion
-now ends the task's session first — the whole process tree, not only the
-shell — and waits for it to exit before `git worktree remove` runs. A
-`Permission denied` residue after that means something outside Rove holds a
-path in the tree (an editor, a running dev server you started elsewhere).
+and the removal used to start while the session was still exiting — and
+ending it reached only the shell, not the engine it had launched. A deletion
+now ends the whole process tree and waits for it to exit before
+`git worktree remove` runs. A `Permission denied` residue after that means
+something outside Rove holds a path in the tree (an editor, a running dev
+server you started elsewhere).
 
 ## Force-remove a dirty worktree
 

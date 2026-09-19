@@ -118,12 +118,11 @@ async function deleteOne(
   } catch (err) {
     throw deleteRecoveryError(err, taskId)
   }
-  // The deletion runner ends the session itself before it removes a
-  // worktree, but a `dir` task has no worktree to remove and a task whose
-  // worktree is already gone skips that step — and a session that outlives
-  // its task row is invisible to every Rove UI. Mirror the TUI's
-  // finishDeletedTaskFlow and kill it here too; a second kill of an ended
-  // session is a no-op on the host.
+  // The daemon's task.delete removes the worktree + index entry but never the
+  // hosted session. Without this, a scripted delete
+  // orphans the `kobe-<id>` session + its engine — invisible to every kobe UI
+  // since the task is gone from tasks.json. Mirror the TUI's finishDeletedTaskFlow
+  // and kill it here, after the delete RPC succeeds.
   await ctx.runtime.tearDownSession(taskId)
   if (!res.queued) return { ...res, status: "not_found" as const }
   // Removal runs in the background, so the default reply can only say the work
