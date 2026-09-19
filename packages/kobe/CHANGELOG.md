@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.9.213
+
+### Patch Changes
+
+- [#1058](https://github.com/Sma1lboy/rove/pull/1058) [`59559ca`](https://github.com/Sma1lboy/rove/commit/59559ca3c0af31509d1a7be374153c3190e7afcb) Settings groups everything that changes how Rove looks, and engine integrations can be removed as well as installed. Theme, transparency, focus accent, split style and rail fold were scattered through General as five unrelated toggles; they are now one Appearance group with a sample above it that redraws as you pick, so "what does this one do" no longer means closing Settings to look at the rail. Cursor order follows the new layout, so walking the group with j/k stays inside it.
+
+  The Engines section's install action gains a Remove beside it — two buttons on one row, enter fires whichever the cursor is on, no chord to learn. An engine whose CLI is not on this machine now reads "engine not installed" in muted text instead of wearing the same warning as an install that genuinely failed, which used to make the section look broken on every machine that had not installed all six engines. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1058](https://github.com/Sma1lboy/rove/pull/1058) [`59559ca`](https://github.com/Sma1lboy/rove/commit/59559ca3c0af31509d1a7be374153c3190e7afcb) The sidebar rail no longer draws a task-group marker on worktree rows. Engine
+  state on a tab row and a task rollup on the worktree row above it were two
+  vocabularies sharing one glyph column — `●` meaning "needs review" one line
+  above a `○` meaning "engine quiet" reads as a legend, not a signal. The derived
+  group still reaches you through the **attention** sort and the Kanban card
+  badge. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1058](https://github.com/Sma1lboy/rove/pull/1058) [`59559ca`](https://github.com/Sma1lboy/rove/commit/59559ca3c0af31509d1a7be374153c3190e7afcb) Four rail and dialog corrections from a round of use. An agent tab row in the sidebar is now two cells tall, the second naming the model and reasoning level that session launches with (`engine default` when neither is pinned) — the one fact that previously took opening a dialog to read. Shell, command and content tabs have no model, so they stay one cell and the rail only pays where the answer exists. The zen chip and the fold chevron now share the rail's last row instead of taking one each. In both the new-task dialog and the change-engine picker the model row moves above the reasoning level, and Tab walks them in that order. The rail's drag grip no longer tints under the cursor: it is a hit area, not a control, and it was repainting on every pointer motion across the rail's edge. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.212
 
 ### Patch Changes
