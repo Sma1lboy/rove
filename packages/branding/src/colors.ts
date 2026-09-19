@@ -44,7 +44,9 @@ const light: typeof dark = {
 
 export const palettes = { dark, light } as const
 
-export const colors = process.env.KOBE_BRAND_THEME === "dark" ? dark : light
+export const isDark = process.env.KOBE_BRAND_THEME === "dark"
+
+export const colors = isDark ? dark : light
 
 export const monoStack =
   '"JetBrains Mono", "IBM Plex Mono", "SF Mono", "Menlo", "Consolas", ui-monospace, monospace'
