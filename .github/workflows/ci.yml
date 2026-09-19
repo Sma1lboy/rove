@@ -302,22 +302,27 @@ jobs:
   render-track:
     # OpenTUI's native renderer runs under Bun, not Vitest's Node worker.
     #
-    # Sharded 4 ways because the suite is genuinely expensive, not because the
+    # Sharded 5 ways because the suite is genuinely expensive, not because the
     # runner is slow: 230s locally against 235s here (measured 2026-09-19).
     # Ubuntu was tried and is SLOWER (291s, run 35453490576), so the platform
     # is not the lever. Coverage instrumentation is not the lever either: the
     # same shard costs 49.2s with `--coverage` and 49.4s without.
     #
-    # FOUR shards. The budget is the hosted macOS concurrency limit of 5, and
-    # `render-pty` spends one of those slots, so this matrix gets the other
-    # four. Both numbers were measured, not guessed: eight shards queued 5 + 3
-    # (run 35455966003, 60s idle), and five shards PLUS render-pty queued 5 + 1
-    # (run 35456474132, 40s idle — splitting pty out saved 13s of test time
-    # and cost 40s of queue). Past the limit another slice does not run in
-    # parallel, it waits. Raise this only alongside a raised runner limit, and
-    # only together with render-pty's slot.
+    # FIVE shards, and the PTY half rides on shard 1. The hosted macOS
+    # concurrency limit is 5, and that budget — not the per-shard time — is
+    # what sets the wall clock here. Three measurements, all on this repo:
     #
-    # `--shard=i/4` slices the main half ROUND-ROBIN — neighbouring files are
+    #   8 shards, pty on shard 1   → queued 5+3, 60s idle   → 142s
+    #   5 shards + a pty job (6)   → queued 5+1, 40s idle   → 109s
+    #   4 shards + a pty job (5)   → no queue, 88s slowest  →  98s
+    #   5 shards, pty on shard 1   → no queue, 79s slowest  →  92s  ← best
+    #
+    # Giving the PTY half its own job looks free (it removes 13s from shard 1)
+    # but it spends one of the five slots, which costs the main matrix a fifth
+    # of its parallelism — a worse trade at every size tried. Do not re-split
+    # it without raising the runner limit first.
+    #
+    # `--shard=i/5` slices the main half ROUND-ROBIN — neighbouring files are
     # the same feature area and cost alike, so contiguous blocks would make
     # one shard the long pole. The PTY half is not sharded: 7 files, ~13s, and
     # it is the one part of this suite that has deadlocked CI, so it runs
@@ -328,7 +333,7 @@ jobs:
       # about one file at a time.
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5]
     # Hung runners, not failing tests, were eating 40min waits (2026-08-02
     # twice): the gate should fail fast so a rerun is cheap.
     timeout-minutes: 15
@@ -355,41 +360,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Render tests (kobe package, shard ${{ matrix.shard }}/4)
+      - name: Render tests (kobe package, shard ${{ matrix.shard }}/5)
         working-directory: packages/kobe
-        run: bun scripts/render-track.mjs --half=main --shard=${{ matrix.shard }}/4
-
-  render-pty:
-    # The 7 PTY files, ~13s, as their own job. They used to ride on render
-    # shard 1, which made it the long pole (77s vs 50s for its siblings, run
-    # 35456145607). They keep their own process and their own deadlock
-    # ceiling — see PTY_TIMEOUT_MS in render-track.mjs — and are deliberately
-    # NOT sharded: this is the one part of the suite that has wedged CI, and
-    # splitting it would multiply that.
-    runs-on: macos-14
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.14
-
-      - name: Cache bun packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
-          restore-keys: ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Render PTY tests (kobe package)
-        working-directory: packages/kobe
-        run: bun scripts/render-track.mjs --half=pty
+        run: bun scripts/render-track.mjs --shard=${{ matrix.shard }}/5
 
   visual-ground-truth:
     # The hosted macOS images reject node-pty's POSIX PTY spawn before the
