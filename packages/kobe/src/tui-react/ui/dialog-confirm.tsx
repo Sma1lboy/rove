@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Confirm dialog — yes/no prompt with focused buttons. Left/right switch
- * focus, enter commits, esc cancels via the dialog stack;
+ * Confirm dialog — yes/no prompt with focused buttons. Left/right (or h/l)
+ * switch focus, enter commits, esc cancels via the dialog stack;
  * `DialogConfirm.show(dialog, title, message, label?)` resolves
  * `boolean | undefined` (`undefined` = dismissed without an answer).
  */
@@ -68,8 +68,14 @@ export function DialogConfirm(props: DialogConfirmProps) {
           dialog.clear()
         },
       },
-      { key: "left", cmd: () => setActive((a) => (a === "confirm" ? "cancel" : "confirm")) },
-      { key: "right", cmd: () => setActive((a) => (a === "confirm" ? "cancel" : "confirm")) },
+      // h/l alongside the arrows, the same pair `new-chat-dialog` and the
+      // Settings level switch already take. A two-button row is the one place
+      // a hand on the home row should not have to leave it, and this dialog
+      // has no text field for the letters to belong to instead.
+      ...(["left", "h", "right", "l"] as const).map((key) => ({
+        key,
+        cmd: () => setActive((a) => (a === "confirm" ? "cancel" : "confirm")),
+      })),
     ],
   }))
 
