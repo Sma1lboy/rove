@@ -59,33 +59,13 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
             onPick={(tabId) => vm.switchToTab(tabId)}
           />
         </DialogSection>
-        {/* Auto-effort tier — only while the table is configured. A pick
-            fills the engine/effort/model rows below; editing any of them
-            reads as "manual" again. The muted line says what the selected
-            depth means, in words that name no engine. */}
-        {vm.tierVisible ? (
-          <DialogSection
-            label={t("newTask.field.tier")}
-            focused={vm.field === "tier"}
-            hint="←/→"
-            onPress={() => vm.setField("tier")}
-          >
-            <ChipRow
-              choices={TIER_CHOICES}
-              selected={vm.tier}
-              display={(choice) => t(`tasks.tier.${choice}`)}
-              onPick={(choice) => {
-                vm.pickTier(choice)
-                vm.setField("tier")
-              }}
-            />
-            {vm.tier !== "manual" ? (
-              <text fg={theme.textMuted} wrapMode="word">
-                {t(`tasks.tierDesc.${vm.tier}`)}
-              </text>
-            ) : null}
-          </DialogSection>
-        ) : null}
+        {/* No depth / model / effort rows here (owner 2026-09-19). Depth and
+            reasoning level belong to auto-effort, which owns that decision in
+            Settings; a pinned model is a per-task exception, not something
+            every new task should be asked about. Both are still settable
+            after the fact — `rove api set-model` / `set-effort`, or the
+            change-engine picker (`v`). What is left is what creating a task
+            actually needs: where, with which engine, opening what. */}
         {/* Engine selector — Tab reaches it; ←/→ cycles while focused,
             ctrl+e from anywhere, click picks. Detected vendors only. */}
         <DialogSection
@@ -103,36 +83,6 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
             }}
           />
         </DialogSection>
-        {/* Model — only for an engine that declares a model flag; the shared
-            input + suggestions row (`model-field.tsx`). */}
-        {vm.modelVisible ? (
-          <ModelSection
-            field={vm.modelField}
-            focused={vm.field === "model"}
-            onFocus={() => vm.setField("model")}
-            onSubmit={() => vm.advanceFrom("model")}
-          />
-        ) : null}
-        {/* Reasoning level — only for an engine that declares levels; the
-            same chips the change-engine picker shows. */}
-        {vm.effortChoices.length > 0 ? (
-          <DialogSection
-            label={t("newTask.field.effort")}
-            focused={vm.field === "effort"}
-            hint="←/→"
-            onPress={() => vm.setField("effort")}
-          >
-            <ChipRow
-              choices={vm.effortChoices}
-              selected={vm.effort}
-              display={(choice) => (choice === "" ? t("tasks.changeEngine.noEffort") : choice)}
-              onPick={(choice) => {
-                vm.setEffort(choice)
-                vm.setField("effort")
-              }}
-            />
-          </DialogSection>
-        ) : null}
         {vm.tab === "existing" ? <ExistingTab vm={vm} /> : null}
         {vm.tab === "clone" ? <CloneTab vm={vm} /> : null}
         {vm.tab === "adopt" ? <AdoptTab vm={vm} /> : null}

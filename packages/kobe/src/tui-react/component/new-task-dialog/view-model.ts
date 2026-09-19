@@ -108,11 +108,12 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
 
   // Live per render — opentui re-renders on resize, so a terminal dragged
   // short re-windows the pickers instead of clipping the Create button.
-  // The effort and model rows are conditional chrome the fixed budget in
-  // `pickerVisibleRows` cannot see: each is a label plus a 3-row well (or a
-  // chip row), so the picker gives those rows back while they render.
-  const extraChromeRows = (effortChoices.length > 0 ? 4 : 0) + (modelVisible ? 4 : 0)
-  const pickerRows = pickerVisibleRows(useTerminalDimensions().height - extraChromeRows)
+  //
+  // No `extraChromeRows` any more: it reserved 4 rows each for the effort and
+  // model rows, and neither renders here since 2026-09. Leaving the budget in
+  // place handed the picker 8 rows it no longer needed, and at 120x40 that
+  // was exactly enough to draw one more well — on top of the footer.
+  const pickerRows = pickerVisibleRows(useTerminalDimensions().height)
   const modelField = useModelField({
     vendor,
     pickerRows,
@@ -279,13 +280,31 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
    * nothing about that — walking into a field that isn't rendered would park
    * focus on an invisible input and swallow every keystroke.
    */
+  /**
+   * Which stops the Tab cycle offers.
+   *
+   * Depth, model and effort no longer RENDER here (they belong to
+   * auto-effort, and a pinned model is a per-task exception), so they must
+   * not be focus stops either — the rule stated just above `advanceField`:
+   * parking focus on an invisible input swallows every keystroke after it.
+   * The `*Visible` flags stay in `nextField`'s signature because the
+   * change-engine picker still shows those rows.
+   *
+   * ONE definition, read by both `advanceField` and the `advanceFieldFor`
+   * this hook returns — otherwise a test walking the cycle would be checking
+   * its own copy of these flags rather than the dialog's.
+   */
+  function focusStopsFor(forTab: DialogTab) {
+    return {
+      intentVisible: forTab === "existing" && canOpenProject,
+      effortVisible: false,
+      modelVisible: false,
+      tierVisible: false,
+    }
+  }
+
   function advanceField(from: Field): Field {
-    const next = nextField(from, tab, {
-      intentVisible: tab === "existing" && canOpenProject,
-      effortVisible: effortChoices.length > 0,
-      modelVisible,
-      tierVisible: tierTable !== null,
-    })
+    const next = nextField(from, tab, focusStopsFor(tab))
     // The branch field is gone under the "project" intent, so skip its stop
     // too — same reason, one field further along.
     if (next === "baseRef" && tab === "existing" && intent === "project" && canOpenProject) {
@@ -440,6 +459,11 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     setField,
     /** Enter inside an input that is not the tab's last stop: walk on. */
     advanceFrom: (from: Field) => setField(advanceField(from)),
+    /** The focus walk without moving focus — the only way to observe which
+     *  stops THIS dialog offers, as opposed to which ones `nextField` can
+     *  produce. Shares `focusStopsFor` with `advanceField`, so it cannot
+     *  drift from the real thing. */
+    advanceFieldFor: (from: Field, forTab: DialogTab = tab) => nextField(from, forTab, focusStopsFor(forTab)),
     intent,
     setIntent,
     canOpenProject,

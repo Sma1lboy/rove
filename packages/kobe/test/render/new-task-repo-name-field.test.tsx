@@ -24,7 +24,7 @@ import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { NewTaskDialogView } from "../../src/tui-react/component/new-task-dialog/dialog"
-import type { NewTaskInput } from "../../src/tui/component/new-task-dialog/state"
+import { type Field, type NewTaskInput, nextField } from "../../src/tui/component/new-task-dialog/state"
 import { act, renderComponent, settle } from "./harness"
 
 /** A repo whose PARENT path is long enough to crowd the row. */
@@ -85,9 +85,30 @@ async function pressTab(handle: { mockInput: { pressTab: () => void } }, times: 
   }
 }
 
-/** Stops from the dialog's opening field (`tabs`) to each input. */
-const TO_REPO = 4
-const TO_BASE_REF = 5
+/**
+ * Stops from the dialog's opening field (`tabs`) to each input — COUNTED from
+ * the focus chain, not hard-coded.
+ *
+ * They were 4 and 5, which silently meant the wrong field the moment the
+ * depth/model/effort rows were removed (2026-09): Enter landed somewhere that
+ * does not submit, and six tests failed complaining about repo names. Deriving
+ * them keeps this file honest the next time a field comes or goes.
+ */
+function stopsTo(target: Field): number {
+  let field: Field = "tabs"
+  for (let i = 1; i <= 24; i++) {
+    field = nextField(field, "existing", {
+      intentVisible: false,
+      effortVisible: false,
+      modelVisible: false,
+      tierVisible: false,
+    })
+    if (field === target) return i
+  }
+  throw new Error(`the focus chain never reaches ${target}`)
+}
+const TO_REPO = stopsTo("repo")
+const TO_BASE_REF = stopsTo("baseRef")
 
 test("a resolved repo shows its NAME, not its path, and still submits the path", async () => {
   const dir = repo("quokka")

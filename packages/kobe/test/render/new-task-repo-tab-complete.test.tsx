@@ -26,7 +26,7 @@ import { mkdirSync, mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { NewTaskDialogView } from "../../src/tui-react/component/new-task-dialog/dialog"
-import type { NewTaskInput } from "../../src/tui/component/new-task-dialog/state"
+import { type Field, type NewTaskInput, nextField } from "../../src/tui/component/new-task-dialog/state"
 import { act, renderComponent, settle } from "./harness"
 
 function repo(name: string): string {
@@ -60,7 +60,23 @@ async function pressTab(handle: { mockInput: { pressTab: () => void } }, times =
 }
 
 /** Stops from the dialog's opening field (`tabs`) to the repo input. */
-const TO_REPO = 4
+/** Counted from the focus chain, not hard-coded: this was 4 until the
+ *  depth/model/effort rows left the dialog in 2026-09, after which it pointed
+ *  at the wrong field and every test here failed about repo completion. */
+function stopsTo(target: Field): number {
+  let field: Field = "tabs"
+  for (let i = 1; i <= 24; i++) {
+    field = nextField(field, "existing", {
+      intentVisible: false,
+      effortVisible: false,
+      modelVisible: false,
+      tierVisible: false,
+    })
+    if (field === target) return i
+  }
+  throw new Error(`the focus chain never reaches ${target}`)
+}
+const TO_REPO = stopsTo("repo")
 
 /** Focus the repo field and empty it — ctrl+u, because 80 backspaces is 80
  *  renders and overruns the per-test budget. */
