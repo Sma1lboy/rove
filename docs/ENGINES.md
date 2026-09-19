@@ -27,7 +27,10 @@ you need git-level isolation and a separate branch.
 | IBM Bob | `bob` | signed in / out | ✓ (screen-based) | ✓ | — | — |
 | Cursor Agent | `cursor` | binary only | ✓ (screen-based, plus a session hook) | — | — | — |
 | Droid, Devin, Qoder CLI | contrib | binary only | ✓ (screen-based, plus a session hook) | — | — | — |
-| Gemini CLI, OpenCode, Grok CLI, Amp, Cline, Kiro CLI, Maki, Antigravity | contrib | binary only | ✓ (screen-based) | — | — | — |
+| Grok CLI, Hermes Agent | contrib | binary only | ✓ (screen-based, plus a session hook) | — | — | — |
+| OpenCode, Kilo | contrib | binary only | ✓ (screen-based, plus a lifecycle plugin) | — | — | — |
+| MastraCode | contrib | binary only | ✓ (hook-based) | — | — | — |
+| Gemini CLI, Amp, Cline, Kiro CLI, Maki, Antigravity | contrib | binary only | ✓ (screen-based) | — | — | — |
 | Anything you register | custom | binary only | — | — | — | — |
 
 A model is pinned per task in the engine's own spelling (see
@@ -46,12 +49,13 @@ all rather than a stale number.
 
 **Contrib engines are launch + badge only.** Rove ships a catalog of
 well-known coding CLIs (`gemini`, `opencode`, `cursor`, `grok`, `droid`,
-`amp`, `devin`, `qodercli`, `cline`, `kiro`, `maki`, `antigravity`) so they
+`amp`, `devin`, `qodercli`, `cline`, `kiro`, `maki`, `antigravity`, `hermes`, `kilo`, `mastracode`) so they
 appear in the engine selector whenever the binary is on your
 PATH, with a proper name, a launch command, and screen-based activity
 badges. A catalog entry also declares how its CLI takes a first message:
 OpenCode's positional argument is a project directory, so Rove pastes the
-prompt after launch instead of appending it to the command line.
+prompt after launch instead of appending it to the command line; Kilo takes
+its first message the same way.
 
 Settings → Engines lists them (and your own registered engines) with their
 binary discovery, and that is all detection can answer for them. No
