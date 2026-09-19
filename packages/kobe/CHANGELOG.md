@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.215
+
+### Patch Changes
+
+- [#1063](https://github.com/Sma1lboy/rove/pull/1063) [`8f9d461`](https://github.com/Sma1lboy/rove/commit/8f9d4612744768b7d086d907ca5f3273e9f678d6) **The README banner shows the engines as a credentials row instead of a swarm** — the old banner tiled a hundred Claude, Codex, Copilot and Kimi marks across the frame, each one rotating and shrinking as a velocity field pulled it into a vortex, and each one carrying the vendor's own colour. It read as noise, and Kimi's blue was the only foreign hue in an otherwise terracotta-and-porcelain image. Four marks now sit in one row at a uniform size and a single ink, with a caret stepping under one engine at a time and lifting it to full strength. Nothing rotates, nothing scales, and no SVG was recoloured to get there. The GIF also drops from 1.4 MB to 200 KB, the retired banner stays renderable as `bracket-chip-vortex`, and `packages/branding/README.md` now records that `bracket-chip` is the README-hero slot rather than a fixed concept. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.214
 
 ### Patch Changes
