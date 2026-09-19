@@ -302,19 +302,22 @@ jobs:
   render-track:
     # OpenTUI's native renderer runs under Bun, not Vitest's Node worker.
     #
-    # Sharded 5 ways because the suite is genuinely expensive, not because the
+    # Sharded 4 ways because the suite is genuinely expensive, not because the
     # runner is slow: 230s locally against 235s here (measured 2026-09-19).
     # Ubuntu was tried and is SLOWER (291s, run 35453490576), so the platform
     # is not the lever. Coverage instrumentation is not the lever either: the
     # same shard costs 49.2s with `--coverage` and 49.4s without.
     #
-    # FIVE shards, not more: the hosted macOS concurrency limit is 5, measured
-    # on run 35455966003 where eight shards started as 5 + 3 and the second
-    # batch idled 60s in the queue. Past that limit another slice does not run
-    # in parallel, it waits, so the wall clock gets WORSE. Raise this only
-    # alongside a raised runner limit.
+    # FOUR shards. The budget is the hosted macOS concurrency limit of 5, and
+    # `render-pty` spends one of those slots, so this matrix gets the other
+    # four. Both numbers were measured, not guessed: eight shards queued 5 + 3
+    # (run 35455966003, 60s idle), and five shards PLUS render-pty queued 5 + 1
+    # (run 35456474132, 40s idle — splitting pty out saved 13s of test time
+    # and cost 40s of queue). Past the limit another slice does not run in
+    # parallel, it waits. Raise this only alongside a raised runner limit, and
+    # only together with render-pty's slot.
     #
-    # `--shard=i/5` slices the main half ROUND-ROBIN — neighbouring files are
+    # `--shard=i/4` slices the main half ROUND-ROBIN — neighbouring files are
     # the same feature area and cost alike, so contiguous blocks would make
     # one shard the long pole. The PTY half is not sharded: 7 files, ~13s, and
     # it is the one part of this suite that has deadlocked CI, so it runs
@@ -325,7 +328,7 @@ jobs:
       # about one file at a time.
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5]
+        shard: [1, 2, 3, 4]
     # Hung runners, not failing tests, were eating 40min waits (2026-08-02
     # twice): the gate should fail fast so a rerun is cheap.
     timeout-minutes: 15
@@ -352,9 +355,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Render tests (kobe package, shard ${{ matrix.shard }}/5)
+      - name: Render tests (kobe package, shard ${{ matrix.shard }}/4)
         working-directory: packages/kobe
-        run: bun scripts/render-track.mjs --half=main --shard=${{ matrix.shard }}/5
+        run: bun scripts/render-track.mjs --half=main --shard=${{ matrix.shard }}/4
 
   render-pty:
     # The 7 PTY files, ~13s, as their own job. They used to ride on render
@@ -433,6 +436,17 @@ jobs:
             throw new Error(`node-pty smoke failed: exit=${exitCode}, output=${JSON.stringify(output)}`)
           })
           EOF
+
+      # Playwright re-downloaded Chromium every run (~10s). The browser build
+      # is pinned by the playwright version in the lockfile, so that is the
+      # cache key: a playwright bump misses the cache and re-downloads, which
+      # is exactly when it should.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-playwright-
 
       - name: Install Chromium for the visual ground-truth harness
         working-directory: packages/kobe-harness
