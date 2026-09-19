@@ -33,6 +33,15 @@ and `d` retires the one under the cursor, which is how a note whose fact has
 stopped being true stops being injected into new sessions) and **Remove
 project**. Clicking anywhere else dismisses that menu.
 
+The Tasks rail sizes itself from the terminal — wider terminals get a wider
+rail, so branch names stop truncating. Drag its right edge to set the width
+yourself; the edge lights up when the cursor is on it, and double-clicking it
+goes back to the width Rove picks. A width you drag to is remembered across
+restarts, and it is an override rather than a replacement: a terminal too
+narrow to honour it squeezes the rail down to what fits and pays the full
+width back when the window grows again. The fold has no draggable edge — its
+fixed width is the point of folding.
+
 Zen mode (`ctrl+a` `z`) hides Files and lets the workspace use the freed width.
 The Tasks rail remains visible. Below 70 columns, the separate
 [narrow-terminal layout](#narrow-terminals-phone-ssh) takes over instead.

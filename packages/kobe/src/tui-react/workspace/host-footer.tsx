@@ -162,6 +162,13 @@ export function WorkspaceFrame(props: {
    *  row. The host owns it because the surfaces that BYPASS this frame
    *  (settings, worktrees, update) need the same strip. */
   banner?: ReactNode
+  /** Mouse handlers for the row that HOLDS the panes. A pane-edge gesture has
+   *  to finish on an ancestor of every pane: opentui gives pointer capture to
+   *  whatever the cursor is over on the first motion, so the element that was
+   *  pressed stops hearing about its own drag the moment the cursor leaves it
+   *  (`sidebar-resize-gesture.ts`). Bubbling up to this row always works. */
+  onPaneDrag?: (event: { readonly x: number }) => void
+  onPaneRelease?: () => void
   children: ReactNode
 }) {
   const { theme } = useTheme()
@@ -203,7 +210,7 @@ export function WorkspaceFrame(props: {
     <ShortcutRevealProvider>
       <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
         {props.banner}
-        <box flexDirection="row" flexGrow={1}>
+        <box flexDirection="row" flexGrow={1} onMouseDrag={props.onPaneDrag} onMouseUp={props.onPaneRelease}>
           {props.children}
         </box>
         {footerVisible ? (

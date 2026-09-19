@@ -25,6 +25,31 @@ export function sidebarWidthFor(terminalWidth: number): number {
   return Math.max(SIDEBAR_WIDTH, Math.min(40, Math.floor(terminalWidth / 6)))
 }
 
+/**
+ * Cells the workspace keeps no matter how wide the rail is pinned. The files
+ * pane alone claims 22, and a terminal narrower than a short command line is
+ * not a terminal — so a pin that would starve the right half is clamped here
+ * rather than honoured.
+ */
+export const MIN_WORKSPACE_WIDTH = 40
+
+/**
+ * The rail's width: the user's pin when there is one, the derived width
+ * otherwise. `null` means "follow the terminal" — the pin is an OVERRIDE, not
+ * a replacement, so clearing it returns to {@link sidebarWidthFor}.
+ *
+ * The clamp runs on every read rather than at write time, which is what makes
+ * a pin survive a narrow terminal: shrinking the window squeezes the rail down
+ * to what fits, widening it again pays the pinned width back. Storing the
+ * clamped value instead would lose the pin the first time someone split their
+ * screen.
+ */
+export function resolveSidebarWidth(terminalWidth: number, override: number | null): number {
+  if (override == null) return sidebarWidthFor(terminalWidth)
+  const max = Math.max(SIDEBAR_WIDTH, terminalWidth - MIN_WORKSPACE_WIDTH)
+  return Math.max(SIDEBAR_WIDTH, Math.min(max, Math.round(override)))
+}
+
 /** Polling interval for the per-main-row git branch refresh. */
 export const MAIN_BRANCH_POLL_MS = 2_000
 

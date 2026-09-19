@@ -34,6 +34,7 @@ function mounted(worktree: string, initial: "workspace" | "files") {
   return (
     <FocusProvider initial={initial}>
       <HostFilesPane
+        sidebarWidth={24}
         worktree={worktree}
         prBaseRef={undefined}
         focused={false}

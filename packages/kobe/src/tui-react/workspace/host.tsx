@@ -10,7 +10,6 @@ import { useRenderer, useTerminalDimensions } from "@opentui/react"
 import { connectOrStartDaemon } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
-import { sidebarWidthFor } from "../../tui/panes/sidebar/view-core"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { PrefixHud } from "../component/prefix-hud"
 import { ToastOverlay } from "../component/toast-overlay"
@@ -37,6 +36,8 @@ import { openTaskWorktreeFor } from "./open-task-worktree"
 import { useQuickFork } from "./quick-fork"
 import { selfRefreshAction } from "./self-refresh-action"
 import { ShowWorkspace } from "./show-workspace"
+import { useSidebarResizeGesture } from "./sidebar-resize-gesture"
+import { SidebarResizeGrip } from "./sidebar-resize-grip"
 import { activeTabIdFor, forgetTaskTabs, requestTabActivation, setUiEventReporter } from "./terminal-tabs-shared"
 import { useAttention } from "./use-attention"
 import { requestCreatePR } from "./use-create-pr"
@@ -47,6 +48,7 @@ import { useInboxHost } from "./use-inbox-host"
 import { useIssueChat } from "./use-issue-chat"
 import { usePrCheckNotifier } from "./use-pr-check-notifier"
 import { useScratchShell } from "./use-scratch-shell"
+import { useSidebarCollapsed, useSidebarWidth } from "./use-sidebar-layout"
 import { useWorkspaceSelection } from "./use-workspace-selection"
 import { useZenMode } from "./use-zen-mode"
 
@@ -60,6 +62,13 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator; whatsNe
   const kv = useKV()
   const focus = useFocus()
   const dims = useTerminalDimensions()
+  const sidebarWidth = useSidebarWidth()
+  const [sidebarCollapsed] = useSidebarCollapsed()
+  const sidebarResize = useSidebarResizeGesture({
+    width: sidebarWidth.width,
+    onResize: sidebarWidth.pin,
+    onReset: sidebarWidth.reset,
+  })
   // Held for the self-refresh, which has to hand the terminal back (mouse
   // tracking, kitty keyboard) before its successor inherits it.
   const renderer = useRenderer()
@@ -349,6 +358,8 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator; whatsNe
       banner={banner.element}
       activeTaskId={selectedId}
       activeTabId={selectedTabId}
+      onPaneDrag={sidebarResize.onPaneDrag}
+      onPaneRelease={sidebarResize.onPaneRelease}
     >
       {/* Tasks sidebar stays visible in zen (tmux parity) — its
           ☯ ZEN chip is also the exit affordance. */}
@@ -434,6 +445,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator; whatsNe
           (and always in narrow — three panes don't fit 46 cols). */}
       {!zen && pageRender.contentPage == null && pageRender.showSidebar && pageRender.showContent ? (
         <HostFilesPane
+          sidebarWidth={sidebarWidth.width}
           worktree={worktree}
           prBaseRef={selectedTask?.prStatus?.baseRef}
           focused={activePane === "files"}
@@ -461,7 +473,15 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator; whatsNe
           terminal column is off-limits: it collided with the engine's own
           status line). Width-capped to the rail so lines never spill into
           the terminal. */}
-      <PrefixHud left={1} width={sidebarWidthFor(dims.width) - 2} />
+      <PrefixHud left={1} width={sidebarWidth.width - 2} />
+      {/* Drag the rail's right edge. At the FRAME because the gesture has to
+          outlive the rail — see sidebar-resize-grip.tsx. Only where there is
+          an edge to drag: a fold has a fixed width that is the point of
+          folding, and the narrow layout gives the rail the whole terminal,
+          with no workspace on the other side to trade cells with. */}
+      {pageRender.showSidebar && pageRender.showContent && !sidebarCollapsed ? (
+        <SidebarResizeGrip width={sidebarWidth.width} onGripDown={sidebarResize.onGripDown} />
+      ) : null}
     </WorkspaceFrame>
   )
 }

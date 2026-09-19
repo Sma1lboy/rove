@@ -19,11 +19,9 @@
  */
 
 import type { Task } from "@/types/task"
-import { useState } from "react"
 import type { MutableRefObject } from "react"
-import { RAIL_FOLD_STYLE_KEY, SIDEBAR_COLLAPSED_KEY } from "../../state/sidebar-collapsed.ts"
+import { RAIL_FOLD_STYLE_KEY } from "../../state/sidebar-collapsed.ts"
 import type { TaskSortMode } from "../../tui/panes/sidebar/groups"
-import { sidebarWidthFor } from "../../tui/panes/sidebar/view-core"
 import type { FocusContextValue } from "../context/focus"
 import { useKV } from "../context/kv"
 import {
@@ -36,6 +34,7 @@ import { HostSidebar } from "./host-sidebar"
 import type { WorkspaceTaskActions } from "./host-task-actions"
 import { requestTabActivation } from "./terminal-tabs-shared"
 import type { UseDaemonStateResult } from "./use-daemon-state"
+import { useSidebarCollapsed, useSidebarWidth } from "./use-sidebar-layout"
 
 /** The host bundles this mount reads, kept structural so a hook can grow a
  *  field without this file learning about it. */
@@ -85,17 +84,20 @@ function railFoldStyle(raw: unknown): CollapsedRailStyle {
 export function HostSidebarMount(props: HostSidebarMountProps) {
   const { actions, pages, focus, inbox, t } = props
   const kv = useKV()
+  const sidebarWidth = useSidebarWidth()
   // Folded/unfolded is an intent, so it survives a restart the way zen does.
-  const [collapsed, setCollapsed] = useState(() => kv.get(SIDEBAR_COLLAPSED_KEY, false) === true)
+  // Straight from the store, not mirrored into state: the frame-level resize
+  // grip reads the same fold to decide whether it exists at all, and two
+  // copies of one intent can disagree for a frame.
+  const [collapsed, setCollapsed] = useSidebarCollapsed()
   return (
     <HostSidebar
-      width={props.showContent ? sidebarWidthFor(props.terminalWidth) : props.terminalWidth}
+      width={props.showContent ? sidebarWidth.width : props.terminalWidth}
       collapsed={collapsed}
       collapsedStyle={railFoldStyle(kv.get(RAIL_FOLD_STYLE_KEY, DEFAULT_COLLAPSED_RAIL_STYLE))}
       onToggleCollapsed={() => {
         const next = !collapsed
         setCollapsed(next)
-        kv.set(SIDEBAR_COLLAPSED_KEY, next)
         // Folding unmounts the tree, and the tree is what owns the sidebar's
         // chords — leaving focus behind would strand the keyboard in a pane
         // that answers nothing, with no chord to unfold it (the control is

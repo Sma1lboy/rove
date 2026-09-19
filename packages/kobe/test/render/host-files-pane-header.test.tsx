@@ -51,6 +51,7 @@ async function headerLines(taskKind: Task["kind"]): Promise<string[]> {
   const { frame } = await renderComponent(
     <FocusProvider initial="files">
       <HostFilesPane
+        sidebarWidth={24}
         worktree={repoWithFile()}
         prBaseRef={undefined}
         focused={false}

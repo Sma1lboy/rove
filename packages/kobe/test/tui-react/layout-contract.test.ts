@@ -30,16 +30,36 @@ describe("divider rules never hardcode a repeat count", () => {
 })
 
 describe("sidebar width is responsive, not a fixed rail", () => {
-  it("the workspace host sizes the rail and prefix HUD from sidebarWidthFor", () => {
+  /**
+   * Every surface that sizes off the rail reads `useSidebarWidth`, because the
+   * width is no longer a function of the terminal alone — a dragged pin lives
+   * in the KV store, and a call site that computes from `dims.width` would
+   * silently ignore it. The visible failure is a torn layout: the rail moves
+   * under the drag and the pane beside it stays where it was.
+   */
+  it("the workspace host sizes the rail and prefix HUD from the shared hook", () => {
     const host = src("tui-react/workspace/host.tsx")
-    expect(host).toContain("sidebarWidthFor(dims.width)")
+    expect(host).toContain("useSidebarWidth()")
+    expect(host).toContain("<SidebarResizeGrip")
+    expect(host).toContain("width={sidebarWidth.width - 2}")
+    expect(host).not.toContain("sidebarWidthFor(")
     expect(host).not.toContain("width={pageRender.showContent ? SIDEBAR_WIDTH")
     expect(host).not.toContain("width={SIDEBAR_WIDTH - 2}")
   })
 
-  it("the files pane subtracts the responsive rail width", () => {
+  it("the files pane subtracts the rail width it was HANDED, not one it derives", () => {
     const files = src("tui-react/workspace/host-files-pane.tsx")
-    expect(files).toContain("sidebarWidthFor(dims.width)")
+    expect(files).toContain("dims.width - props.sidebarWidth")
+    expect(files).not.toContain("sidebarWidthFor(")
     expect(files).not.toContain("dims.width - SIDEBAR_WIDTH")
+    const host = src("tui-react/workspace/host.tsx")
+    expect(host).toContain("sidebarWidth={sidebarWidth.width}")
+  })
+
+  it("the rail itself renders at the hook's width", () => {
+    const mount = src("tui-react/workspace/host-sidebar-mount.tsx")
+    expect(mount).toContain("useSidebarWidth()")
+    expect(mount).toContain("sidebarWidth.width")
+    expect(mount).not.toContain("sidebarWidthFor(")
   })
 })

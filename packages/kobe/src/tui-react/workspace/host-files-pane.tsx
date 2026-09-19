@@ -9,7 +9,6 @@
  */
 
 import { useTerminalDimensions } from "@opentui/react"
-import { sidebarWidthFor } from "../../tui/panes/sidebar/view-core"
 import { useFocus } from "../context/focus"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
@@ -19,6 +18,13 @@ const WORKTREE_TOOLS_MIN_WIDTH = 22
 const WORKTREE_TOOLS_MAX_WIDTH = 34
 
 export function HostFilesPane(props: {
+  /** The rail's width RIGHT NOW, handed down rather than derived here. This
+   *  pane takes what is left beside the rail, so the two numbers have to be
+   *  the same one — and the rail's width is no longer a function of the
+   *  terminal alone (a dragged pin lives in the KV store). Deriving it here
+   *  again would tear the layout mid-drag, and would give a leaf pane a
+   *  dependency on the store it has no other reason to read. */
+  readonly sidebarWidth: number
   readonly worktree: string | null
   readonly prBaseRef: string | undefined
   /** Dialog-gated pane focus (`activePane`), not the raw focus context. */
@@ -47,7 +53,7 @@ export function HostFilesPane(props: {
   const focus = useFocus()
   const dims = useTerminalDimensions()
   const inactiveBorder = theme.borderActive
-  const available = Math.max(WORKTREE_TOOLS_MIN_WIDTH, dims.width - sidebarWidthFor(dims.width))
+  const available = Math.max(WORKTREE_TOOLS_MIN_WIDTH, dims.width - props.sidebarWidth)
   const width = Math.max(WORKTREE_TOOLS_MIN_WIDTH, Math.min(WORKTREE_TOOLS_MAX_WIDTH, Math.floor(available / 3)))
   return (
     <box

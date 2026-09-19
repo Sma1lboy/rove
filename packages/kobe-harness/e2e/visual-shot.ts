@@ -16,6 +16,7 @@
  *   bun run visual:shot -- --wallpaper=/wallpaper.svg ctrl+pageup  # transparent
  *   bun run visual:shot -- click:29,56         # a row the keyboard can't reach
  *   bun run visual:shot -- rclick:29,140       # that row's context menu
+ *   bun run visual:shot -- drag:236,300,420,300  # pull a pane edge rightwards
  */
 
 import { resolve } from "node:path"
@@ -143,6 +144,23 @@ try {
       if (!Number.isFinite(x) || !Number.isFinite(y))
         throw new Error(`${right ? "rclick" : "click"}: needs X,Y, got ${JSON.stringify(token)}`)
       await page.mouse.click(x, y, right ? { button: "right" } : undefined)
+    } else if (token.startsWith("drag:")) {
+      // `drag:X1,Y1,X2,Y2` — press, travel, release. A splitter is the case
+      // `click:` cannot photograph: what it does is a FUNCTION of the travel,
+      // so a press and a release at the same point prove nothing. The
+      // intermediate moves are what xterm.js turns into the motion reports
+      // OpenTUI reads as `drag`; jumping straight to the far point sends one
+      // move and the TUI sees a flick rather than a pull.
+      const [x1, y1, x2, y2] = token.slice(5).split(",").map(Number)
+      if (![x1, y1, x2, y2].every(Number.isFinite))
+        throw new Error(`drag: needs X1,Y1,X2,Y2, got ${JSON.stringify(token)}`)
+      await page.mouse.move(x1, y1)
+      await page.mouse.down()
+      for (let step = 1; step <= 8; step++) {
+        await page.mouse.move(x1 + ((x2 - x1) * step) / 8, y1 + ((y2 - y1) * step) / 8)
+        await page.waitForTimeout(30)
+      }
+      await page.mouse.up()
     } else await page.keyboard.press(chord(token))
     await page.waitForTimeout(250)
   }
