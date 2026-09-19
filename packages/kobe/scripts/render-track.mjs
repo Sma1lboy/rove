@@ -76,10 +76,7 @@ const isPty = (path) => /(^|\/)pty-[^/]*\.test\.tsx?$/.test(path)
 const pty = all.filter(isPty)
 const mainAll = all.filter((path) => !isPty(path))
 const main = shard ? mainAll.filter((_, i) => i % shard.total === shard.index - 1) : mainAll
-// Suffix the coverage dirs per shard so a later job can union every slice's
-// lcov. `coverage-gate.mjs` globs `coverage-render*`, so nothing has to learn
-// the shard count.
-const suffix = shard ? `-shard-${shard.index}` : ""
+
 
 if (pty.length === 0 || mainAll.length === 0) {
   console.error(`render-track: expected both halves to be non-empty (main=${mainAll.length}, pty=${pty.length})`)
@@ -111,21 +108,23 @@ if (shard && main.length === 0) {
  */
 const PTY_TIMEOUT_MS = 3 * 60_000
 
-/** One `bun test` process over `files`, coverage into its own directory. */
-function run(label, files, coverageDir, timeoutMs) {
-  console.log(`\n=== render track: ${label} (${files.length} files) → ${coverageDir} ===\n`)
-  const result = spawnSync(
-    "bun",
-    [
-      "test",
-      ...files,
-      "--coverage",
-      "--coverage-reporter=text",
-      "--coverage-reporter=lcov",
-      `--coverage-dir=${coverageDir}`,
-    ],
-    { stdio: "inherit", timeout: timeoutMs, killSignal: "SIGKILL" },
-  )
+/**
+ * One `bun test` process over `files`.
+ *
+ * No `--coverage`. Nothing consumes it any more — the touched-file coverage
+ * floor was removed on 2026-09-19 — and producing it was actively harmful:
+ * bun died with `An internal error occurred (WriteFailed)` writing the report
+ * AFTER every test had passed, turning two green shards red (run
+ * 35455080972). It also bought nothing in speed: the same shard measured
+ * 49.2s with coverage and 49.4s without.
+ */
+function run(label, files, timeoutMs) {
+  console.log(`\n=== render track: ${label} (${files.length} files) ===\n`)
+  const result = spawnSync("bun", ["test", ...files], {
+    stdio: "inherit",
+    timeout: timeoutMs,
+    killSignal: "SIGKILL",
+  })
   if (result.error?.code === "ETIMEDOUT") {
     console.error(
       `
@@ -146,10 +145,10 @@ forever. Whatever the other half reported above still stands.
 // The main half is deliberately unbounded: it has never wedged, and a ceiling
 // there would be a guess. Only the half that has actually hung gets a clock.
 const label = shard ? `main ${shard.index}/${shard.total}` : "main"
-const mainOk = run(label, main, `coverage-render${suffix}`, undefined)
+const mainOk = run(label, main, undefined)
 // Shard 1 carries the PTY half; the others skip it rather than re-running the
 // one part of this suite that has deadlocked CI before.
-const ptyOk = !shard || shard.index === 1 ? run("pty", pty, "coverage-render-pty", PTY_TIMEOUT_MS) : true
+const ptyOk = !shard || shard.index === 1 ? run("pty", pty, PTY_TIMEOUT_MS) : true
 
 if (!mainOk || !ptyOk) {
   console.error(`\nrender track failed (main=${mainOk ? "pass" : "FAIL"}, pty=${ptyOk ? "pass" : "FAIL"})`)
