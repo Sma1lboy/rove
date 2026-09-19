@@ -20,7 +20,7 @@
 // would replace real coverage with the thinner one).
 
 import { spawnSync } from "node:child_process"
-import { readdirSync } from "node:fs"
+import { readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
 
 const ROOT = "test/render"
@@ -70,11 +70,75 @@ function parseShard(argv) {
   return { index, total }
 }
 const shard = parseShard(process.argv.slice(2))
+/**
+ * `--half=main|pty` — run only one half.
+ *
+ * The PTY half is 7 files and ~13s, but it used to ride along on shard 1,
+ * which made that shard the long pole (77s against 50s for its siblings on
+ * run 35456145607). As its own job it runs beside the main shards instead of
+ * inside one of them, and the shards come out even.
+ *
+ * No flag = both halves, which is what a local `test:render` still does.
+ */
+const halfArg = process.argv
+  .slice(2)
+  .find((a) => a.startsWith("--half="))
+  ?.slice("--half=".length)
+if (halfArg && halfArg !== "main" && halfArg !== "pty") {
+  console.error(`render-track: --half wants main or pty, got ${JSON.stringify(halfArg)}`)
+  process.exit(2)
+}
+const runMain = halfArg !== "pty"
+const runPty = halfArg !== "main"
+
+/**
+ * `--platform=linux|macos` — run only the files that platform gates.
+ *
+ * The render suite is split across two runners because the hosted macOS
+ * concurrency limit is 5: no matter how the matrix is sliced, only five
+ * shards ever run at once. Linux has a much higher limit, so it takes the
+ * bulk, and macOS takes only the files Linux cannot pass.
+ *
+ * `linux`  = everything EXCEPT the ratchet list.
+ * `macos`  = exactly the ratchet list.
+ * no flag  = everything, which is what a local run still does.
+ *
+ * The list may only shrink; its header says so, and this reads it rather
+ * than hard-coding names so the two jobs can never disagree about the split.
+ */
+const platformArg = process.argv
+  .slice(2)
+  .find((a) => a.startsWith("--platform="))
+  ?.slice("--platform=".length)
+if (platformArg && platformArg !== "linux" && platformArg !== "macos") {
+  console.error(`render-track: --platform wants linux or macos, got ${JSON.stringify(platformArg)}`)
+  process.exit(2)
+}
+const ratchet = new Set(
+  readFileSync(join("test", "render-linux-known-failing.txt"), "utf8")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#")),
+)
 // Basename, not path: the marker is the file's own name, so a `pty-*` file
 // added under a subdirectory later lands in the bounded half automatically.
 const isPty = (path) => /(^|\/)pty-[^/]*\.test\.tsx?$/.test(path)
 const pty = all.filter(isPty)
-const mainAll = all.filter((path) => !isPty(path))
+const mainAllUnfiltered = all.filter((path) => !isPty(path))
+const mainAll =
+  platformArg === "linux"
+    ? mainAllUnfiltered.filter((path) => !ratchet.has(path))
+    : platformArg === "macos"
+      ? mainAllUnfiltered.filter((path) => ratchet.has(path))
+      : mainAllUnfiltered
+// A ratchet entry that no longer names a real file is a silent hole: the
+// macOS job would run nothing and Linux would skip nothing.
+for (const entry of ratchet) {
+  if (!mainAllUnfiltered.includes(entry)) {
+    console.error(`render-track: ratchet lists ${entry}, which is not a render test file`)
+    process.exit(2)
+  }
+}
 const main = shard ? mainAll.filter((_, i) => i % shard.total === shard.index - 1) : mainAll
 
 if (pty.length === 0 || mainAll.length === 0) {
@@ -144,10 +208,11 @@ forever. Whatever the other half reported above still stands.
 // The main half is deliberately unbounded: it has never wedged, and a ceiling
 // there would be a guess. Only the half that has actually hung gets a clock.
 const label = shard ? `main ${shard.index}/${shard.total}` : "main"
-const mainOk = run(label, main, undefined)
-// Shard 1 carries the PTY half; the others skip it rather than re-running the
-// one part of this suite that has deadlocked CI before.
-const ptyOk = !shard || shard.index === 1 ? run("pty", pty, PTY_TIMEOUT_MS) : true
+const mainOk = runMain ? run(label, main, undefined) : true
+// With `--half`, CI gives the PTY files their own job. Without it (a local
+// run, or `--shard` alone) shard 1 still carries them, so no invocation
+// silently skips the half that has actually deadlocked CI.
+const ptyOk = runPty && (!shard || shard.index === 1) ? run("pty", pty, PTY_TIMEOUT_MS) : true
 
 if (!mainOk || !ptyOk) {
   console.error(`\nrender track failed (main=${mainOk ? "pass" : "FAIL"}, pty=${ptyOk ? "pass" : "FAIL"})`)

@@ -9,6 +9,10 @@
 # PTY-host state (no real engine binary needed — the harness shims a fake
 # `claude`). See docs/HARNESS.md "Behavioral self-test".
 #
+# `typecheck-and-test` keeps lint, the silent-catch gate, tsc and the build;
+# its unit tests moved to the sharded `unit-tests` job when that single step
+# became the long pole (91s) after the render track was sharded.
+#
 # `render-track` is the hard macOS gate for React/OpenTUI components: it
 # mounts them and asserts on real frames, sharded 8 ways. It no longer
 # enforces a line-coverage floor — line coverage says a line RAN, not that
@@ -17,10 +21,9 @@
 # gates the browser → PTY → real OpenTUI journey on Linux, where the hosted
 # runner grants node-pty a working pseudoterminal.
 #
-# docs-site builds packages/kobe-docs (the public Fumadocs site at
-# docs.rove.sma1lboy.me). Its content is synced from docs/, so this job is
-# what keeps a Markdown edit from silently breaking the site — deployment is
-# automatic on main via deploy-docs.yml.
+# The docs site moved to its own workflow (docs-site.yml) so it can carry a
+# `paths` filter — it ran on every PR and cost ~60s on changes that could not
+# affect it. GitHub only supports that filter at the workflow level.
 #
 # changeset-cap (PR only, KOB-10) is the changeset sibling of file-size-cap:
 # a PR that touches published-package source (packages/kobe/src or
@@ -136,6 +139,17 @@ jobs:
         with:
           bun-version: 1.3.14
 
+      # Bun's global package cache, keyed by the lockfile. Every job installs
+      # the same closure, and each was re-downloading it: ~180s of machine
+      # time per run across the matrix. The key is per-OS because the render
+      # shards are macOS and everything else is Linux.
+      - name: Cache bun packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -155,28 +169,22 @@ jobs:
         # Workspaces hoist deps; per-package commands run via `bun --filter`.
         run: bun run typecheck
 
-      - name: Unit tests (kobe package)
-        # All non-daemon/-behavior/-render tests. The coverage job runs the
-        # daemon socket suite and uploads its sibling-package coverage.
-        working-directory: packages/kobe
-        run: bun run test:fast
-
       - name: Build (kobe package)
         run: bun run build
 
-  docs-site:
-    # The public docs site (packages/kobe-docs) had no CI coverage at all:
-    # root `lint` and `typecheck` skip the package, and its only path to
-    # production is a hand-run `bun run deploy` from a laptop — so a docs/
-    # edit that breaks the site stayed green until someone deployed.
-    # `build` = sync-docs.mjs + Fumadocs MDX + `next build` (which also runs
-    # tsc); the sync script has no try/catch, so it fails the job when a
-    # SECTIONS entry points at a renamed/missing docs/ file, a synced page
-    # loses the H1 its title comes from, or a referenced docs/assets/ image
-    # is gone. It does NOT catch a new docs/ page that was never added to
-    # SECTIONS (silently unsynced) or a dead cross-link (rewritten to a
-    # GitHub blob URL) — those still need review. ~11s locally.
+  unit-tests:
+    # What `typecheck-and-test` used to run inline as a single 91s step — the
+    # long pole once the render track was sharded. vitest shards natively, and
+    # these tests are pure (no PTY, no renderer), so slicing them has none of
+    # the risk the render track's PTY half has.
+    #
+    # Four ways, not eight: at ~23s a shard the fixed cost (checkout + install,
+    # ~10s warm) starts to dominate, so more slices buy less each time.
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -186,17 +194,33 @@ jobs:
         with:
           bun-version: 1.3.14
 
+      - name: Cache bun packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build docs site (sync + next build)
-        run: bun run --filter @sma1lboy/kobe-docs build
+      - name: Unit tests (kobe package, shard ${{ matrix.shard }}/4)
+        # Same flags as `test:fast`, plus vitest's own --shard.
+        working-directory: packages/kobe
+        run: bun x vitest run --passWithNoTests --minWorkers=1 --maxWorkers=8 --shard=${{ matrix.shard }}/4
 
   behavior:
     # Black-box behavior suite: the BUILT CLI in a temp KOBE_HOME with an
     # isolated daemon + hosted PTY engine. Catches packaged-path and session
     # lifecycle regressions unit mocks cannot see.
+    #
+    # Two shards: these were 49s of the 87s that made this job the wall
+    # clock's long pole once the render track was sharded (run 35456145607).
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -206,38 +230,86 @@ jobs:
         with:
           bun-version: 1.3.14
 
+      # Bun's global package cache, keyed by the lockfile. Every job installs
+      # the same closure, and each was re-downloading it: ~180s of machine
+      # time per run across the matrix. The key is per-OS because the render
+      # shards are macOS and everything else is Linux.
+      - name: Cache bun packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
       - name: Build (kobe package)
         run: bun run build
 
-      - name: Behavior tests (Rove package)
-        run: bun run --filter @sma1lboy/rove test:behavior
+      - name: Behavior tests (Rove package, shard ${{ matrix.shard }}/2)
+        # Same flags as `test:behavior`, plus vitest's --shard. The serial
+        # pool and the retry stay INSIDE each shard: these drive the built
+        # CLI black-box and are not safe to run concurrently with each
+        # other, but separate runners are separate machines, so slicing
+        # across jobs is. Verified locally: 6 + 5 = 11 files, the whole set.
+        working-directory: packages/kobe
+        run: |
+          KOBE_INCLUDE_BEHAVIOR=1 bun x vitest run test/behavior \
+            --pool forks --minWorkers=1 --maxWorkers=1 --retry=2 \
+            --passWithNoTests --shard=${{ matrix.shard }}/2
 
   render-track:
     # OpenTUI's native renderer runs under Bun, not Vitest's Node worker.
     #
-    # Sharded 8 ways because the suite is genuinely expensive, not because the
-    # runner is slow: 230s locally against 235s here (measured 2026-09-19).
-    # Ubuntu was tried and is SLOWER (291s, run 35453490576), so the platform
-    # is not the lever. Coverage instrumentation is not the lever either: the
-    # same shard costs 49.2s with `--coverage` and 49.4s without.
+    # Split across two platforms, because the hosted macOS concurrency limit
+    # is 5 and that — not per-shard time — was setting the wall clock. Four
+    # measurements, all on this repo, all with the whole suite on macOS:
     #
-    # `--shard=i/8` slices the main half ROUND-ROBIN — neighbouring files are
-    # the same feature area and cost alike, so contiguous blocks would make
-    # one shard the long pole. The PTY half is not sharded: 7 files, ~13s, and
-    # it is the one part of this suite that has deadlocked CI, so it runs
-    # once, on shard 1.
-    runs-on: macos-14
+    #   8 shards, pty on shard 1   → queued 5+3, 60s idle  → 142s
+    #   5 shards + a pty job (6)   → queued 5+1, 40s idle  → 109s
+    #   4 shards + a pty job (5)   → no queue, 88s slowest →  98s
+    #   5 shards, pty on shard 1   → no queue, 79s slowest →  92s
+    #
+    # Five was the ceiling. Linux's limit is far higher, and a full Linux run
+    # (run 35453490576) passed 545 of 546 tests — so Linux takes the bulk at
+    # eight shards, and `render-track-macos` runs only what Linux cannot pass
+    # (test/render-linux-known-failing.txt) plus the PTY half.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
-      # One slice failing must not cancel the others, or a rerun tells you
-      # about one file at a time.
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4, 5, 6, 7, 8]
-    # Hung runners, not failing tests, were eating 40min waits (2026-08-02
-    # twice): the gate should fail fast so a rerun is cheap.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Cache bun packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Render tests (Linux, shard ${{ matrix.shard }}/8)
+        working-directory: packages/kobe
+        run: bun scripts/render-track.mjs --platform=linux --half=main --shard=${{ matrix.shard }}/8
+
+  render-track-macos:
+    # The remainder: the files Linux cannot pass, plus the PTY half. One job,
+    # one macOS slot. The PTY files are deliberately never sharded — they are
+    # the one part of this suite that has deadlocked CI, and they keep their
+    # own process and deadlock ceiling (PTY_TIMEOUT_MS in render-track.mjs).
+    runs-on: macos-14
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -248,12 +320,19 @@ jobs:
         with:
           bun-version: 1.3.14
 
+      - name: Cache bun packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Render tests (kobe package, shard ${{ matrix.shard }}/8)
+      - name: Render tests macOS holds (ratchet list + PTY half)
         working-directory: packages/kobe
-        run: bun scripts/render-track.mjs --shard=${{ matrix.shard }}/8
+        run: bun scripts/render-track.mjs --platform=macos
 
   visual-ground-truth:
     # The hosted macOS images reject node-pty's POSIX PTY spawn before the
@@ -268,6 +347,17 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
+
+      # Bun's global package cache, keyed by the lockfile. Every job installs
+      # the same closure, and each was re-downloading it: ~180s of machine
+      # time per run across the matrix. The key is per-OS because the render
+      # shards are macOS and everything else is Linux.
+      - name: Cache bun packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -289,6 +379,17 @@ jobs:
             throw new Error(`node-pty smoke failed: exit=${exitCode}, output=${JSON.stringify(output)}`)
           })
           EOF
+
+      # Playwright re-downloaded Chromium every run (~10s). The browser build
+      # is pinned by the playwright version in the lockfile, so that is the
+      # cache key: a playwright bump misses the cache and re-downloads, which
+      # is exactly when it should.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-playwright-
 
       - name: Install Chromium for the visual ground-truth harness
         working-directory: packages/kobe-harness
