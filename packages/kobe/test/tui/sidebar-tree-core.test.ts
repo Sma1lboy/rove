@@ -411,6 +411,43 @@ describe("a project closed down to nothing", () => {
     expect(treeFlatIds(back).length).toBeGreaterThan(0)
   })
 
+  /**
+   * The optimistic half of `rove api delete`: the daemon accepts the request,
+   * writes `deletion.phase = "queued"` and publishes that snapshot BEFORE it
+   * enqueues the worktree teardown, so the row has to be gone from the tree by
+   * the time the destroying starts. `error` is the correction — the worktree
+   * survived, so the row has to come back to say so.
+   */
+  describe("in-flight deletions", () => {
+    const deleting = (phase: "queued" | "running" | "error") => ({
+      deletion: { phase, force: false, requestedAt: "2026-08-01T00:00:00.000Z" } as const,
+    })
+
+    test("drops a queued or running deletion, and its tabs with it", () => {
+      const out = rows({
+        tasks: [task("keep"), task("q", deleting("queued")), task("r", deleting("running"))],
+        tabsByTask: new Map([
+          ["keep", [tab("t1")]],
+          ["q", [tab("t1")]],
+          ["r", [tab("t1")]],
+        ]),
+      })
+      expect(out.map((r) => r.id)).toEqual(["/repos/rove", "keep", tabRowId("keep", "t1")])
+    })
+
+    test("keeps a failed deletion — the worktree is still there", () => {
+      const out = rows({ tasks: [task("boom", deleting("error"))] })
+      expect(out.map((r) => [r.kind, r.id])).toEqual([
+        ["project", "/repos/rove"],
+        ["worktree", "boom"],
+      ])
+    })
+
+    test("a project whose only task is deleting goes with it", () => {
+      expect(rows({ tasks: [task("only", deleting("running"))] })).toEqual([])
+    })
+  })
+
   test("opening the project does not mint a second row for the same repo", () => {
     // `ensureMainTask` is idempotent, so the revived project must be the
     // SAME main task. If a second main row appeared, the repo would render

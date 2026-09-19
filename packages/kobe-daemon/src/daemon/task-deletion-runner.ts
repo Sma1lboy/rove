@@ -1,5 +1,6 @@
 import type { DaemonOrchestrator, DaemonTask } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
+import type { DaemonEventBus } from "./event-bus.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { auditDeletionFailed, auditDeletionRemoved } from "./task-deletion-audit.ts"
 
@@ -19,6 +20,16 @@ export class TaskDeletionRunner implements TaskDeletionScheduler {
     private readonly orch: Pick<DaemonOrchestrator, "beginTaskDeletion" | "finishTaskDeletion" | "getTask">,
     private readonly runtime: Pick<DaemonRuntimeAdapter, "tearDownTaskSession">,
     private readonly clearTaskState: (taskId: string) => void | Promise<void>,
+    /**
+     * Where a FAILED deletion is announced. Attached UIs drop the row the
+     * moment the `queued` snapshot lands — before anything is destroyed — so
+     * the row reappearing (with `deletion.phase === "error"`) is the only
+     * thing that contradicts "it's gone". On its own that reads as the list
+     * glitching; without the toast the reason lived in `daemon.log` alone,
+     * which is not telling anyone. Optional so the local/test wiring can skip
+     * it — a missing bus costs the toast, never the deletion.
+     */
+    private readonly bus?: Pick<DaemonEventBus, "publish">,
   ) {}
 
   enqueue(taskId: string): void {
@@ -53,8 +64,24 @@ export class TaskDeletionRunner implements TaskDeletionScheduler {
       await this.orch.finishTaskDeletion(taskId)
     } catch (err) {
       auditDeletionFailed(taskId, task, err)
+      this.announceFailure(taskId, task, err)
       throw err
     }
     auditDeletionRemoved(taskId, task)
+  }
+
+  /** One toast per failed deletion, naming the task and git's own reason. */
+  private announceFailure(taskId: string, task: DaemonTask | undefined, err: unknown): void {
+    const reason = err instanceof Error ? err.message : String(err)
+    this.bus?.publish("notice.event", {
+      title: `Delete failed: ${task?.title || taskId}`,
+      // The worktree surviving is the half the user has to act on: the row is
+      // back, and deleting it again (or with `--force`) is still on them.
+      body: `${reason} — the worktree and the task are still there.`,
+      kind: "error",
+      taskId,
+      at: Date.now(),
+      source: "task-deletion",
+    })
   }
 }

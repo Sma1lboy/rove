@@ -81,7 +81,7 @@ export async function initDaemonStores(
       // A deleted task's row is gone; its labels must go with it, or the map
       // keeps republishing tokens for a row nothing can render.
       .finally(() => rowTokens.clearTask(taskId))
-  const deletions = new TaskDeletionRunner(orch, runtime, clearTaskState)
+  const deletions = new TaskDeletionRunner(orch, runtime, clearTaskState, bus)
   // Daemon-owned issue tracker (web Issues panel) — a single store keyed by
   // git common-dir, sharing the server's homeDir so sandbox/test homes
   // isolate. Handlers reach it through DaemonHandlerContext.issues.
