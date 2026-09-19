@@ -20,6 +20,26 @@ runs the committed browser journey on Linux, which compiles node-pty and can
 create a real PTY in the hosted environment. The Ubuntu V8 coverage job remains
 the fast/unit track; it does not pretend Node can execute OpenTUI components.
 
+## PR screenshot evidence
+
+Every PR changing Rove TUI or harness source keeps the template's `## UI evidence`
+section, including bug fixes, behavior-only fixes and refactors. Capture the
+before state before editing and the after state with the same 1280×800 viewport,
+fixture and theme through `/harness` → xterm.js → PTY sidecar → real OpenTUI.
+For a new surface, capture the previous entry point as Before.
+
+Embed distinct `![Before](https://...)` and `![After](https://...)` images and
+fill in `Capture:`, `Viewport:`, `Fixture:` and `Theme:`. Use durable image URLs
+in the PR, not local paths or an expiring review-board URL. For remote review,
+publish both states on one share-server series board as well.
+
+The CI evidence check covers `packages/kobe/src/tui/`,
+`packages/kobe/src/tui-react/` and `packages/kobe-harness/src/`, including deleted
+or renamed files. It reads the current PR description and reruns on body edits.
+It checks image references and capture metadata, not image authenticity or
+whether the changed behavior is visible. Review the actual images before merge;
+a passing render test or generic visual journey does not replace these captures.
+
 ## Golden ground truth
 
 Some behavior is a table, not a sentence. Where a surface has a state

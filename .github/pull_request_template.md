@@ -1,5 +1,6 @@
 <!--
-Pick the ONE section below that matches this change and delete the rest.
+Keep UI evidence whenever UI source changes, including bug fixes and refactors.
+Then pick the change-type section that fits and omit unused sections.
 Everything outside your section can go too — a short PR is a good PR.
 
 The evidence line in each section is not paperwork: it is what lets a
@@ -15,13 +16,18 @@ evidence missing will be sent back.
 ---
 
 <!-- ─────────────  UI / UX change  ───────────── -->
-## UI / UX
+## UI evidence
 
 **Before / after screenshots — required.**
 
 | Before | After |
 | --- | --- |
-| <!-- paste --> | <!-- paste --> |
+| ![Before](https://...) | ![After](https://...) |
+
+Capture: <!-- /harness → xterm.js → PTY sidecar → OpenTUI; exact command/steps -->
+Viewport: <!-- e.g. 1280×800, same for both -->
+Fixture: <!-- isolated fixture and state shown -->
+Theme: <!-- same theme for both -->
 
 - Both shots must come from the harness: browser `/harness` → xterm.js → PTY
   sidecar → real OpenTUI (see `docs/HARNESS.md`). Local terminal screenshots
@@ -67,7 +73,7 @@ the owner's call (`docs/KEYBINDINGS.md`, `docs/design/keybinding-decisions.md`).
 <!-- ─────────────  Feature  ───────────── -->
 ## Feature
 
-**Screenshots of the new surface — required** (same harness rules as UI / UX
+**Screenshots of the new surface — required** (same harness rules as UI evidence
 above). One per state that behaves differently — empty, populated, failing.
 
 - What is the smallest thing that would have to break for this to be wrong, and
@@ -79,7 +85,8 @@ above). One per state that behaves differently — empty, populated, failing.
 <!-- ─────────────  Refactor / internal / docs  ───────────── -->
 ## Refactor, internal or docs-only
 
-No screenshots needed. Instead:
+UI source changes still require the UI evidence section above, even for refactors.
+For changes without UI source:
 
 - **Behaviour is unchanged** — say how you know (tests that already covered it,
   a mutation check, a before/after of the same command).
@@ -90,7 +97,7 @@ No screenshots needed. Instead:
 
 ## Checks
 
-- [ ] `bun run typecheck && bun run lint && bun run test:fast` from the repo root
+- [ ] `bun run typecheck && bun run lint` from the repo root; `bun run test:fast` from `packages/kobe`
 - [ ] A changeset (`patch` unless told otherwise — pre-1.0 ships features as patches)
 - [ ] Docs updated in the same PR if this changed config keys, CLI verbs,
       `rove api` verbs, engine support, worktree safety, or session behaviour

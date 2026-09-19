@@ -41,6 +41,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
 
 # Cancel in-flight CI for older pushes on the same branch — saves
 # minutes when several commits land back-to-back.
@@ -50,6 +51,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   file-size-cap:
@@ -133,6 +135,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Test UI evidence gate
+        run: node --test scripts/ui-evidence.test.mjs
+
+      - name: Require PR screenshots for UI changes
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { checkPullRequest } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/ui-evidence.mjs`);
+            await checkPullRequest({ github, context, core });
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
