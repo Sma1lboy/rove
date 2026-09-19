@@ -40,7 +40,9 @@ export function taskGroupIn(task: Task, activity: TaskEngineState | undefined, n
  * the group adds no glyph a reader has to learn. `landing` is the one state
  * the rail could not express before: `»` (U+00BB, Latin-1 Supplement — one
  * cell in every monospace font, the same coverage rule `row-view.ts`
- * records) reads as "ready to go through".
+ * records) reads as "ready to go through". REVIEWED AND KEPT by the owner
+ * (2026-09-18) — the rail's only new glyph in a long while, so it got a
+ * second look and stays; settled, do not re-litigate it.
  */
 export function taskGroupGlyph(group: TaskGroup): { glyph: string; tone: SidebarTone } | null {
   switch (group) {

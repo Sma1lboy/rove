@@ -13,6 +13,7 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { PrefixHud } from "../component/prefix-hud"
 import { ToastOverlay } from "../component/toast-overlay"
+import { useWhatsNewDialog } from "../component/whats-new-dialog"
 import { useFocus } from "../context/focus"
 import { useKV } from "../context/kv"
 import { useNotifications } from "../context/notifications"
@@ -224,6 +225,10 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator; whatsNe
   // Which surface the workspace shows — settings/worktrees/update full swaps
   // plus the rail's one-at-a-time nav. State + rationale in host-pages.tsx.
   const pages = useHostPagesState(focus, { whatsNewFrom: props.whatsNewFrom ?? null })
+  // The once-per-upgrade notes, as a modal over the workspace rather than a
+  // page that replaces it (see `whats-new-dialog.tsx`). Opened here because
+  // the dialog stack lives here; the page router never sees it.
+  useWhatsNewDialog(pages.whatsNewFrom, pages.closeWhatsNew)
   // The selected task's active tab — the tree marks that exact row as live.
   // Read from the module map rather than threaded through TerminalTabs: the
   // sidebar renders tabs for tasks whose TerminalTabs is not mounted, so the
