@@ -42,7 +42,10 @@ export const en = {
    * published in English.
    */
   whatsNew: {
-    pageTitle: "WHAT'S NEW",
+    /** Dialog header. CAPS like every other dialog title. */
+    title: "WHAT'S NEW",
+    /** Corner affordance: the keys that dismiss it. `escape` and `ctrl+c`
+     *  come from the dialog provider, `q` from the dialog itself. */
     closeHint: "q / esc continue",
     upgraded: "You're now on Rove v{to}, up from v{from}. Here's what changed.",
     /** Offline, rate-limited, or a release with no published notes. */
@@ -118,7 +121,7 @@ export const zh: typeof en = {
     closeDetail: "返回工作区",
   },
   whatsNew: {
-    pageTitle: "更新内容",
+    title: "更新内容",
     closeHint: "q / esc 继续",
     upgraded: "Rove 已从 v{from} 更新到 v{to}，本次变更如下。",
     notesUnavailable: "无法加载发布说明 —— 请检查网络连接，或到 GitHub 上查看。",

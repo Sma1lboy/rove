@@ -13,7 +13,7 @@
  * but keeping it explicit means a future page can't silently shadow one.
  */
 
-import { type ReactNode, useEffect, useMemo, useState } from "react"
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { TaskEngineState } from "../../client/remote-orchestrator-payloads"
 import { type SidebarNav, focusPaneForNav } from "../../tui/panes/sidebar/nav-core"
@@ -22,7 +22,6 @@ import { AutomationsPage } from "../component/automations-page"
 import { KanbanPage } from "../component/kanban-page"
 import { SettingsDialog } from "../component/settings-dialog"
 import { UpdatePage } from "../component/update-page"
-import { WhatsNewPage } from "../component/whats-new-page"
 import { WorkItemsPage } from "../component/work-items-page"
 import { WorktreesPage } from "../component/worktrees-page"
 import type { FocusContextValue, PaneId } from "../context/focus"
@@ -36,15 +35,20 @@ interface HostPageState {
   readonly workItemsOpen: boolean
   readonly kanbanOpen: boolean
   readonly updateOpen: boolean
-  /**
-   * Version the user upgraded FROM when this launch owes them a What's New,
-   * else null. Not a boolean: the page needs the range to fetch, and "which
-   * range" and "is it open" are the same fact.
-   */
-  readonly whatsNewFrom: string | null
 }
 
 export interface HostPagesState extends HostPageState {
+  /**
+   * Version the user upgraded FROM when this launch owes them a What's New,
+   * else null. Not a boolean: the dialog needs the range to fetch, and
+   * "which range" and "is it open" are the same fact.
+   *
+   * Lives on the PAGES state rather than the page-router state because
+   * What's New is a modal now, not a page: the host hands it to the dialog
+   * stack (`useWhatsNewDialog`) and the router never sees it.
+   */
+  readonly whatsNewFrom: string | null
+  readonly closeWhatsNew: () => void
   readonly nav: SidebarNav
   /** Point the rail without moving focus — task selection uses this. */
   readonly setNav: (next: SidebarNav) => void
@@ -62,7 +66,6 @@ export interface HostPagesState extends HostPageState {
   readonly closeAutomations: () => void
   readonly openWorkItems: () => void
   readonly closeWorkItems: () => void
-  readonly closeWhatsNew: () => void
 }
 
 /**
@@ -90,6 +93,9 @@ export function useHostPagesState(
   opts: { whatsNewFrom?: string | null } = {},
 ): HostPagesState {
   const [whatsNewFrom, setWhatsNewFrom] = useState<string | null>(opts.whatsNewFrom ?? null)
+  // Stable identity: the dialog opener takes this as an effect dependency,
+  // and a fresh closure every render would re-run it on every host render.
+  const closeWhatsNew = useCallback(() => setWhatsNewFrom(null), [])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [worktreesOpen, setWorktreesOpen] = useState(false)
   const [updateOpen, setUpdateOpen] = useState(false)
@@ -118,7 +124,7 @@ export function useHostPagesState(
     openAutomations: () => goToNav("automations"),
     closeAutomations: () => goToNav("terminal"),
     whatsNewFrom,
-    closeWhatsNew: () => setWhatsNewFrom(null),
+    closeWhatsNew,
     workItemsOpen: nav === "issues",
     openWorkItems: () => goToNav("issues"),
     closeWorkItems: () => goToNav("terminal"),
@@ -133,7 +139,6 @@ export interface HostPageDeps extends HostPageState {
   readonly closeWorkItems: () => void
   readonly closeKanban: () => void
   readonly closeUpdate: () => void
-  readonly closeWhatsNew: () => void
   readonly activateTask: (taskId: string) => void
   /** True while the content pane holds focus — rail pages share the window
    *  with the sidebar, so their bare keys are gated on it. */
@@ -148,12 +153,6 @@ export interface HostPageDeps extends HostPageState {
  * no task list to stay beside.
  */
 export function renderFullWindowPage(deps: HostPageDeps): ReactNode | null {
-  // First in the precedence order because it opens on boot, before any chord
-  // could have opened one of the others — and it is a single dismissal, not
-  // a surface the user navigates back to.
-  if (deps.whatsNewFrom !== null) {
-    return <WhatsNewPage from={deps.whatsNewFrom} onClose={deps.closeWhatsNew} />
-  }
   if (deps.worktreesOpen) {
     return <WorktreesPage orchestrator={deps.orchestrator} onClose={deps.closeWorktrees} />
   }
@@ -290,8 +289,6 @@ export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRe
       workItemsOpen: pages.workItemsOpen,
       kanbanOpen: pages.kanbanOpen,
       updateOpen: pages.updateOpen,
-      whatsNewFrom: pages.whatsNewFrom,
-      closeWhatsNew: pages.closeWhatsNew,
       closeWorktrees: pages.closeWorktrees,
       closeAutomations: pages.closeAutomations,
       closeWorkItems: pages.closeWorkItems,

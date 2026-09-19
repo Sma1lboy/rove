@@ -601,27 +601,32 @@ nothing is written back to GitHub.
 
 ## What's new after an upgrade
 
-The first launch on a newly installed version opens a **What's New** page
+The first launch on a newly installed version opens a **What's New** dialog
 listing the release notes for every version between the one you were running
 and the one you just started. `q`, `esc` or `ctrl+c` dismisses it, and it does
 not come back until the next upgrade — a relaunch on the same build goes
 straight to the workspace.
 
+It is a modal over your workspace, not a screen instead of it: the task list
+you were coming back to stays visible behind it, which is the point. Long
+ranges scroll — `↑↓` a line, `⇞⇟` a screen, `home`/`end` to either end — so an
+upgrade that crossed six releases is readable all the way down.
+
 A fresh install never sees it; there is no earlier version to have changed
 from. Neither does a downgrade.
 
-The page chrome follows your UI language (Settings → Appearance → Language).
+The dialog chrome follows your UI language (Settings → Appearance → Language).
 The release notes themselves are whatever was published to the
 [GitHub release](https://github.com/Sma1lboy/rove/releases), which today is
 English only. They render as markdown — headings, nested bullets, `code` and
 emphasis all come through, and a link shows its label without its address, so
 the sentence starts at the left edge instead of behind two GitHub URLs. The
-Update page and `rove update list` render them the same way. If GitHub is unreachable the page says so and shows the release
+Update page and `rove update list` render them the same way. If GitHub is unreachable the dialog says so and shows the release
 URL instead — it never blocks startup, and it is dismissible before the notes
 finish loading.
 
 Rove remembers what it has shown in `app.whatsNewSeenVersion` in
-`~/.rove/state.json`. Deleting that key replays the page once.
+`~/.rove/state.json`. Deleting that key replays the dialog once.
 
 ## Updates and version warnings
 

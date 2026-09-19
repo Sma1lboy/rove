@@ -13,10 +13,9 @@
  */
 
 import { expect, test } from "bun:test"
-import { isValidElement, useEffect, useRef } from "react"
+import { useEffect, useRef } from "react"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { createStateCell } from "../../src/lib/external-store"
-import { WhatsNewPage } from "../../src/tui-react/component/whats-new-page"
 import type { FocusContextValue } from "../../src/tui-react/context/focus"
 import type { KVContext } from "../../src/tui-react/context/kv"
 import type { DialogContext } from "../../src/tui-react/ui/dialog"
@@ -81,8 +80,6 @@ function deps(overrides: Partial<HostPageDeps>): HostPageDeps {
     closeWorktrees: () => {},
     closeAutomations: () => {},
     closeWorkItems: () => {},
-    whatsNewFrom: null,
-    closeWhatsNew: () => {},
     closeKanban: () => {},
     closeUpdate: () => {},
     activateTask: () => {},
@@ -124,14 +121,19 @@ test("renderFullWindowPage renders UpdatePage", async () => {
 })
 
 /**
- * Asserted on the ELEMENT, not a mounted frame: WhatsNewPage fetches release
- * notes on mount, and the render track must not reach api.github.com. Both
- * other full-window pages are opened here so "first in the precedence order"
- * is a claim about this call, not about the fixture happening to be empty.
+ * What's New is a MODAL now, not a page (`whats-new-dialog.tsx`), so the page
+ * router must not know about it at all: it outranks the chord-opened pages by
+ * being a dialog, not by winning a precedence check here. The old version of
+ * this test asserted the opposite.
  */
-test("renderFullWindowPage puts What's New ahead of every chord-opened page", () => {
-  const node = renderFullWindowPage(deps({ whatsNewFrom: "0.9.100", worktreesOpen: true, updateOpen: true }))
-  expect(isValidElement(node) && node.type).toBe(WhatsNewPage)
+test("the page router has no What's New branch left", async () => {
+  const { frame } = await renderComponent(<box>{renderFullWindowPage(deps({ updateOpen: true }))}</box>, {
+    width: 80,
+    height: 24,
+  })
+  await settle()
+  expect(await frame()).toContain("ROVE UPDATE")
+  expect(await frame()).not.toContain("WHAT'S NEW")
 })
 
 test("useHostPagesState clears What's New once, and it cannot be reopened", async () => {
