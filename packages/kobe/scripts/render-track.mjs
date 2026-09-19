@@ -37,14 +37,55 @@ function testFiles(dir) {
 }
 
 const all = testFiles(ROOT).sort()
+
+/**
+ * `--shard i/n` — run only the i-th of n slices of the MAIN half.
+ *
+ * The slice is round-robin over the sorted file list, not contiguous blocks:
+ * neighbouring files are the same feature area and cost about the same, so
+ * contiguous blocks make one shard much slower than the rest. Round-robin
+ * spreads the expensive ones.
+ *
+ * The PTY half is NOT sharded. It is 7 files and ~13s, it already runs in its
+ * own process with its own deadlock ceiling, and splitting it would multiply
+ * the one thing here that has actually wedged CI. It runs on shard 1 only, so
+ * the other shards do not pay for it and it still runs exactly once.
+ *
+ * No flag = every file, one process, exactly as before.
+ */
+function parseShard(argv) {
+  const raw = argv.find((a) => a.startsWith("--shard="))?.slice("--shard=".length)
+  if (!raw) return null
+  const m = /^(\d+)\/(\d+)$/.exec(raw)
+  if (!m) {
+    console.error(`render-track: --shard wants i/n, got ${JSON.stringify(raw)}`)
+    process.exit(2)
+  }
+  const index = Number(m[1])
+  const total = Number(m[2])
+  if (index < 1 || total < 1 || index > total) {
+    console.error(`render-track: --shard ${index}/${total} is out of range`)
+    process.exit(2)
+  }
+  return { index, total }
+}
+const shard = parseShard(process.argv.slice(2))
 // Basename, not path: the marker is the file's own name, so a `pty-*` file
 // added under a subdirectory later lands in the bounded half automatically.
 const isPty = (path) => /(^|\/)pty-[^/]*\.test\.tsx?$/.test(path)
 const pty = all.filter(isPty)
-const main = all.filter((path) => !isPty(path))
+const mainAll = all.filter((path) => !isPty(path))
+const main = shard ? mainAll.filter((_, i) => i % shard.total === shard.index - 1) : mainAll
 
-if (pty.length === 0 || main.length === 0) {
-  console.error(`render-track: expected both halves to be non-empty (main=${main.length}, pty=${pty.length})`)
+if (pty.length === 0 || mainAll.length === 0) {
+  console.error(`render-track: expected both halves to be non-empty (main=${mainAll.length}, pty=${pty.length})`)
+  process.exit(2)
+}
+// A shard that selected nothing is a MISCONFIGURED run, not an empty pass:
+// more shards than files means some slice would silently report success
+// having tested nothing.
+if (shard && main.length === 0) {
+  console.error(`render-track: shard ${shard.index}/${shard.total} selected 0 of ${mainAll.length} files`)
   process.exit(2)
 }
 
@@ -66,21 +107,23 @@ if (pty.length === 0 || main.length === 0) {
  */
 const PTY_TIMEOUT_MS = 3 * 60_000
 
-/** One `bun test` process over `files`, coverage into its own directory. */
-function run(label, files, coverageDir, timeoutMs) {
-  console.log(`\n=== render track: ${label} (${files.length} files) → ${coverageDir} ===\n`)
-  const result = spawnSync(
-    "bun",
-    [
-      "test",
-      ...files,
-      "--coverage",
-      "--coverage-reporter=text",
-      "--coverage-reporter=lcov",
-      `--coverage-dir=${coverageDir}`,
-    ],
-    { stdio: "inherit", timeout: timeoutMs, killSignal: "SIGKILL" },
-  )
+/**
+ * One `bun test` process over `files`.
+ *
+ * No `--coverage`. Nothing consumes it any more — the touched-file coverage
+ * floor was removed on 2026-09-19 — and producing it was actively harmful:
+ * bun died with `An internal error occurred (WriteFailed)` writing the report
+ * AFTER every test had passed, turning two green shards red (run
+ * 35455080972). It also bought nothing in speed: the same shard measured
+ * 49.2s with coverage and 49.4s without.
+ */
+function run(label, files, timeoutMs) {
+  console.log(`\n=== render track: ${label} (${files.length} files) ===\n`)
+  const result = spawnSync("bun", ["test", ...files], {
+    stdio: "inherit",
+    timeout: timeoutMs,
+    killSignal: "SIGKILL",
+  })
   if (result.error?.code === "ETIMEDOUT") {
     console.error(
       `
@@ -100,8 +143,11 @@ forever. Whatever the other half reported above still stands.
 // reported by the time it starts.
 // The main half is deliberately unbounded: it has never wedged, and a ceiling
 // there would be a guess. Only the half that has actually hung gets a clock.
-const mainOk = run("main", main, "coverage-render", undefined)
-const ptyOk = run("pty", pty, "coverage-render-pty", PTY_TIMEOUT_MS)
+const label = shard ? `main ${shard.index}/${shard.total}` : "main"
+const mainOk = run(label, main, undefined)
+// Shard 1 carries the PTY half; the others skip it rather than re-running the
+// one part of this suite that has deadlocked CI before.
+const ptyOk = !shard || shard.index === 1 ? run("pty", pty, PTY_TIMEOUT_MS) : true
 
 if (!mainOk || !ptyOk) {
   console.error(`\nrender track failed (main=${mainOk ? "pass" : "FAIL"}, pty=${ptyOk ? "pass" : "FAIL"})`)
