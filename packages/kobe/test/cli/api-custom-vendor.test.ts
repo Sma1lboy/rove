@@ -23,7 +23,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { verbHelp, verbSchema } from "../../src/cli/api/schema.ts"
 import { findVerb } from "../../src/cli/api/verbs.ts"
@@ -31,6 +31,18 @@ import { CONTRIB_ENGINE_IDS } from "../../src/engine/contrib-engines.ts"
 import { GENERIC_PROTOCOL, listEnginePresets, resolveCommandProtocol } from "../../src/engine/engine-presets.ts"
 import { ALL_VENDORS } from "../../src/types/vendor.ts"
 import { FakeClient, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
+
+// `engine-list` attaches each engine's model list, and pi/omp answer that by
+// RUNNING their CLI (`model-lists.ts`: `pi --list-models`, `omp models --json`).
+// Two real spawns per call, uncached between calls, cost these tests ~1.4s
+// each against a 5s timeout — and only on a machine that has pi/omp installed,
+// so it read as a flake. Stubbed to the shape the verb consumes; the product
+// fix (memoize the per-protocol lookup) is issue #112.
+vi.mock("../../src/engine/model-lists.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../src/engine/model-lists.ts")>()),
+  listPiModels: async () => [{ id: "openai/gpt-5.1" }],
+  listOmpModels: async () => [{ id: "anthropic/claude-opus-5" }],
+}))
 
 let home: string
 let originalHome: string | undefined
