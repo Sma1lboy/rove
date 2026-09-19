@@ -65,6 +65,7 @@ describe("treeMenuItems", () => {
       "renameBranch",
       "changeEngine",
       "syncBase",
+      "resolveConflicts",
       "land",
       "delete",
     ])
@@ -181,6 +182,7 @@ describe("treeMenuItems", () => {
       "renameBranch",
       "changeEngine",
       "syncBase",
+      "resolveConflicts",
       "land",
       "delete",
     ])
@@ -220,6 +222,7 @@ describe("treeMenuItems", () => {
       "renameBranch",
       "changeEngine",
       "syncBase",
+      "resolveConflicts",
       "land",
       "delete",
     ])
@@ -278,6 +281,23 @@ describe("the Fix-failing-checks entry", () => {
     expect(rowActions.indexOf("fixChecks")).toBe(rowActions.indexOf("syncBase") - 1)
     const tabActions = treeMenuItems({ ...tabRow, task: task({ prStatus: failing }) }).map((item) => item.action)
     expect(tabActions).toContain("fixChecks")
+  })
+})
+
+describe("the Resolve-conflicts-with-agent entry", () => {
+  // It IS a sync that keeps going, so it takes sync's gate: a task-kind row
+  // with a branch of its own. A `main`/`dir` row has no branch to merge into.
+  test("sits right after Sync with base, and only where Sync is offered", () => {
+    const rowActions = actions(worktreeRow())
+    expect(rowActions.indexOf("resolveConflicts")).toBe(rowActions.indexOf("syncBase") + 1)
+    expect(actions(worktreeRow({ kind: "main", branch: "" }))).not.toContain("resolveConflicts")
+    expect(actions(worktreeRow({ kind: "dir", branch: "" }))).not.toContain("resolveConflicts")
+    expect(actions(worktreeRow({ branch: "" }))).not.toContain("resolveConflicts")
+  })
+
+  test("is menu-only: no chord is advertised until the owner picks one", () => {
+    const entry = treeMenuItems(worktreeRow()).find((item) => item.action === "resolveConflicts")
+    expect(entry?.bindingId).toBeUndefined()
   })
 })
 

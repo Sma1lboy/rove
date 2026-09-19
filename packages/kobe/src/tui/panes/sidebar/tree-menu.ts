@@ -53,6 +53,7 @@ export type TreeMenuAction =
   | "changeEngine"
   | "fixChecks"
   | "syncBase"
+  | "resolveConflicts"
   | "land"
   | "delete"
 
@@ -148,6 +149,11 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   // (docs/design/keybinding-decisions.md).
   if (task.kind === "task" && task.branch !== "") {
     verbs.push({ action: "syncBase", labelKey: "tasks.menu.syncBase", bindingId: "files.syncBase" })
+    // The same merge, but one that keeps going: when it stops on conflicts,
+    // the conflicted files go to this task's engine as a prompt instead of a
+    // toast. Same gate as `syncBase` — it IS a sync — and menu-only, like
+    // `land`: a chord is the owner's call (AGENTS.md, "Keybindings").
+    verbs.push({ action: "resolveConflicts", labelKey: "tasks.menu.resolveConflicts" })
   }
   // Menu-only, like `setStatus`: landing is the Worktrees page's `l`, and a
   // second chord for it is the owner's call

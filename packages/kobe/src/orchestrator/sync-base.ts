@@ -68,6 +68,19 @@ export async function syncWorktreeWithBase(
   baseRef: string,
   signal: AbortSignal,
 ): Promise<SyncBaseResult> {
+  // A merge this function already started and left in place (see the module
+  // note) is still there on the next call, and its unmerged paths show up in
+  // `git status` as `UU` — which the dirty guard below would report as
+  // "commit the worktree's changes first", the one instruction that cannot be
+  // followed mid-conflict. So ask git for unmerged paths FIRST, and answer the
+  // conflict again: the files are the same ones, and the action that hands
+  // them to the engine depends on getting them back on a retry.
+  const unmerged = await git(worktreePath, ["diff", "--name-only", "--diff-filter=U"], signal)
+  if (unmerged.status === 0) {
+    const paths = parseConflictedPaths(unmerged.stdout)
+    if (paths.length > 0) throw new Error(`${SYNC_CONFLICT}: ${paths.join(", ")}`)
+  }
+
   // Refuse on a dirty worktree BEFORE touching anything: `git merge` would
   // either refuse itself with a wall of text, or (for untracked files the base
   // also adds) refuse with a DIFFERENT wall of text that has no conflicted-file

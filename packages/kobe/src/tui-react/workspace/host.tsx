@@ -183,7 +183,16 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator; whatsNe
   })
 
   // Imperative tab handles: refs handed by TerminalTabs + FileTree/PR actions.
-  const editor = useEditorHandles({ orchestrator: orch, worktree, selectedId, focus, notifyError, activateTask })
+  const editor = useEditorHandles({
+    orchestrator: orch,
+    worktree,
+    selectedId,
+    focus,
+    notifyError,
+    notifyInfo,
+    notifyNeedsInput,
+    activateTask,
+  })
 
   // Quick-fork (ctrl+f): composer → create+enter → hand the
   // prompt to the new task's TerminalTabs mount (phase 2). Wiring lives in
@@ -396,6 +405,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator; whatsNe
           inbox={inbox}
           update={banner.update}
           onFixChecks={editor.onFixChecks}
+          onResolveConflicts={editor.onResolveConflicts}
           runAgain={quickFork.runAgain}
           activePane={activePane}
           zen={zen}

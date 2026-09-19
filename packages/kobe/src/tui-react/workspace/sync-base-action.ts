@@ -19,6 +19,25 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 const CONFLICT_RE = /SYNC_CONFLICT(?:: )?(.*)/
 const DIRTY_RE = /SYNC_WORKTREE_DIRTY(?:: )?(.*)/
 
+/**
+ * Which of the daemon's refusals a failed `task.syncBase` was. The two named
+ * outcomes carry the file list the daemon put after the marker (`"?"` when it
+ * put nothing); anything else is a genuine failure with git's own message.
+ */
+export type SyncBaseOutcome =
+  | { readonly kind: "conflict"; readonly files: string }
+  | { readonly kind: "dirty"; readonly files: string }
+  | { readonly kind: "error"; readonly message: string }
+
+export function classifySyncError(err: unknown): SyncBaseOutcome {
+  const message = err instanceof Error ? err.message : String(err)
+  const conflict = CONFLICT_RE.exec(message)
+  if (conflict) return { kind: "conflict", files: conflict[1]?.trim() || "?" }
+  const dirty = DIRTY_RE.exec(message)
+  if (dirty) return { kind: "dirty", files: dirty[1]?.trim() || "?" }
+  return { kind: "error", message }
+}
+
 export interface SyncBaseDeps {
   readonly orchestrator: Pick<RemoteOrchestrator, "syncBase">
   readonly notifyInfo: (message: string) => void
@@ -44,14 +63,13 @@ export async function syncBaseAction(deps: SyncBaseDeps, taskId: string): Promis
     )
     return true
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    const conflict = CONFLICT_RE.exec(msg)
+    const outcome = classifySyncError(err)
     // The merge is left IN PLACE on a conflict — the conflicted files are what
-    // the user (or their engine) is about to resolve, so name them.
-    const dirty = DIRTY_RE.exec(msg)
-    if (conflict) deps.notifyNeedsInput(t("tasks.sync.conflict", { files: conflict[1]?.trim() || "?" }))
-    else if (dirty) deps.notifyNeedsInput(t("tasks.sync.dirty", { files: dirty[1]?.trim() || "?" }))
-    else deps.notifyError(t("tasks.sync.failed", { error: msg }))
+    // the user (or their engine, via "Resolve conflicts with agent") is about
+    // to resolve, so name them.
+    if (outcome.kind === "conflict") deps.notifyNeedsInput(t("tasks.sync.conflict", { files: outcome.files }))
+    else if (outcome.kind === "dirty") deps.notifyNeedsInput(t("tasks.sync.dirty", { files: outcome.files }))
+    else deps.notifyError(t("tasks.sync.failed", { error: outcome.message }))
     return false
   }
 }

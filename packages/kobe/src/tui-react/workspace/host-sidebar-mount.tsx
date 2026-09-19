@@ -59,6 +59,8 @@ export interface HostSidebarMountProps {
   /** `onFixChecks` from `useEditorHandles` — the one row verb that has to run
    *  where the engine is, so it lives with the imperative tab handles. */
   readonly onFixChecks: (taskId: string) => void
+  /** `onResolveConflicts` from `useEditorHandles` — same rule as `onFixChecks`. */
+  readonly onResolveConflicts: (taskId: string) => void
   readonly runAgain: (task: Task) => void
   readonly activePane: string | null
   readonly zen: boolean
@@ -159,6 +161,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onChangeEngineRequest={(id) => void actions.pickVendor(id)}
       onFieldNotesRequest={actions.showFieldNotes}
       onFixChecksRequest={props.onFixChecks}
+      onResolveConflictsRequest={props.onResolveConflicts}
       // Confirm here, create in quick-fork: it owns the pending-prompt slot
       // that delivers the brief on the NEW task's mount.
       onRunAgainRequest={(id) => void actions.confirmRunAgain(id).then((task) => task && props.runAgain(task))}

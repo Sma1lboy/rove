@@ -53,6 +53,9 @@ export const en = {
     fixChecks: "Fix failing checks",
     /** Merge the base INTO this worktree — the `↓N` drift chip's action. */
     syncBase: "Sync with base",
+    /** The same merge, and when it stops on conflicts, the conflicted files
+     *  go to this task's engine as a prompt. */
+    resolveConflicts: "Resolve conflicts with agent",
     land: "Land into base branch",
     delete: "Delete",
   },
@@ -82,6 +85,10 @@ export const en = {
     conflict: "Merge conflict — resolve then commit: {files}",
     dirty: "Commit the worktree's changes first, then sync: {files}",
     failed: "Sync failed: {error}",
+  },
+  /** "Resolve conflicts with agent" — its own outcome; the rest are `sync.*`. */
+  conflicts: {
+    handedOff: "Asked the agent to resolve {count} conflicted file(s)",
   },
   /** Change-engine picker dialog (the menu route of `v`). */
   changeEngine: {
@@ -325,6 +332,7 @@ export const zh: typeof en = {
     changeEngine: "切换引擎",
     fixChecks: "修复失败的检查",
     syncBase: "同步基础分支",
+    resolveConflicts: "让 agent 解决冲突",
     land: "合入基础分支",
     delete: "删除",
   },
@@ -347,6 +355,9 @@ export const zh: typeof en = {
     conflict: "合并冲突——解决后提交：{files}",
     dirty: "请先提交工作树里的改动，再同步：{files}",
     failed: "同步失败：{error}",
+  },
+  conflicts: {
+    handedOff: "已让 agent 解决 {count} 个冲突文件",
   },
   changeEngine: {
     title: "切换引擎",
