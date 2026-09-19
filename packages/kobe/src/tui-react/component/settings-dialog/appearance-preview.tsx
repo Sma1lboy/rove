@@ -13,12 +13,11 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
   const narrow = useTerminalDimensions().width < 75
   const short = useTerminalDimensions().height < 30
   const fold = current.railFoldStyle
-  const folded = {
-    digits: ["▌2", " 3", " 4"],
-    glyphs: ["▌●", " ✓", " ○"],
-    initials: ["▌● UI", " ✓ API", " ○ QA"],
-    hairline: ["█", "▎", "▎"],
-  }[fold]
+  const folded = [
+    { id: "ui", label: { digits: "▌2", glyphs: "▌●", initials: "▌● UI", hairline: "█" }[fold] },
+    { id: "api", label: { digits: " 3", glyphs: " ✓", initials: " ✓ API", hairline: "▎" }[fold] },
+    { id: "review", label: { digits: " 4", glyphs: " ○", initials: " ○ QA", hairline: "▎" }[fold] },
+  ]
   const box = current.splitStyle === "box"
   const railActive = props.active === "tabRowHeight"
   return (
@@ -46,13 +45,13 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
           backgroundColor={theme.backgroundPanel}
         >
           <text fg={props.active === "railFold" ? theme.focusAccent : theme.textMuted}>‹</text>
-          {folded.map((label, i) => (
+          {folded.map((row, i) => (
             <text
-              key={i}
+              key={row.id}
               fg={i === 0 ? theme.focusAccent : i === 1 ? theme.success : theme.textMuted}
               wrapMode="none"
             >
-              {label}
+              {row.label}
             </text>
           ))}
         </box>
