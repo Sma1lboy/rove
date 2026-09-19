@@ -156,14 +156,15 @@ test("a project boundary draws a divider, and rows inside one project do not", a
     width: 8,
     height: 10,
   })
-  expect(await sameFrame()).not.toContain("─")
+  expect((await sameFrame()).match(/a──/g)).toHaveLength(1)
 
   const twoProjects = [repoTask("a1", "one", "/work/api"), repoTask("b1", "three", "/work/web")]
   const { frame: splitFrame } = await renderComponent(<Rail {...railProps({ tasks: twoProjects })} />, {
     width: 8,
     height: 10,
   })
-  expect(await splitFrame()).toContain("─")
+  expect(await splitFrame()).toContain("a──")
+  expect(await splitFrame()).toContain("w──")
 })
 
 test("scratch tasks are one section of their own, above the projects", async () => {
@@ -175,7 +176,8 @@ test("scratch tasks are one section of their own, above the projects", async () 
   })
   // A scratch row and a project row are different sections even though the
   // scratch task carries a repo path of its own.
-  expect(await frame()).toContain("─")
+  expect(await frame()).toContain("s──")
+  expect(await frame()).toContain("a──")
 })
 
 test("the selected row carries the same marker the expanded rows use", async () => {
@@ -183,4 +185,15 @@ test("the selected row carries the same marker the expanded rows use", async () 
   // `▌` is what `resolveRowSelectionChrome` hands every other row surface; a
   // background alone disappears entirely under a transparent theme.
   expect(await frame()).toContain("▌")
+})
+
+test("project headings fit every fold, including wide project initials", async () => {
+  for (const style of ["hairline", "digits", "glyphs", "initials"] as const) {
+    const tasks = [repoTask("a", "one", "/work/rove"), repoTask("b", "two", "/work/中文")]
+    const { frame } = await renderComponent(<Rail {...railProps({ style, tasks })} />, { width: 12, height: 10 })
+    const lines = (await frame()).split("\n")
+    expect(lines[0]).toContain("r─")
+    expect(lines[2]).toContain("中")
+    expect(lines[3]?.trim().length).toBeGreaterThan(0)
+  }
 })
