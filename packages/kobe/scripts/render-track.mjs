@@ -77,7 +77,6 @@ const pty = all.filter(isPty)
 const mainAll = all.filter((path) => !isPty(path))
 const main = shard ? mainAll.filter((_, i) => i % shard.total === shard.index - 1) : mainAll
 
-
 if (pty.length === 0 || mainAll.length === 0) {
   console.error(`render-track: expected both halves to be non-empty (main=${mainAll.length}, pty=${pty.length})`)
   process.exit(2)
