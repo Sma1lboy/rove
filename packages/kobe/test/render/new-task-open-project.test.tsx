@@ -23,7 +23,7 @@ import { join } from "node:path"
 import { useEffect, useRef } from "react"
 import { NewTaskDialog } from "../../src/tui-react/component/new-task-dialog"
 import { useDialog } from "../../src/tui-react/ui/dialog"
-import type { NewTaskInput } from "../../src/tui/component/new-task-dialog/state"
+import { type Field, type NewTaskInput, nextField } from "../../src/tui/component/new-task-dialog/state"
 import { act, renderComponent, settle } from "./harness"
 
 function repo(): string {
@@ -94,9 +94,53 @@ test("omitting mainRepos entirely leaves the tab as it was", async () => {
   expect(text).toContain("FROM BRANCH")
 })
 
-/** Tab from the opening focus (`tabs`) to the intent row: depth, engine, model, repo, intent. */
+/**
+ * Stops from the dialog's opening field (`tabs`) to `target`, counted from
+ * the focus chain rather than written down. The literal counts here were
+ * built for a field list that included depth, model and effort; when those
+ * left in 2026-09 every count pointed one field past where it meant.
+ */
+function stopsTo(target: Field, opts: { intentVisible?: boolean } = {}): number {
+  let field: Field = "tabs"
+  for (let i = 1; i <= 24; i++) {
+    field = nextField(field, "existing", {
+      intentVisible: opts.intentVisible ?? false,
+      effortVisible: false,
+      modelVisible: false,
+      tierVisible: false,
+    })
+    if (field === target) return i
+  }
+  throw new Error(`the focus chain never reaches ${target}`)
+}
+
+/** Stops from `from` to `target`, wrapping around the cycle if need be. */
+function stopsFromTo(
+  from: Field,
+  target: Field,
+  opts: { intentVisible?: boolean; skipBaseRef?: boolean } = {},
+): number {
+  const step = (f: Field): Field =>
+    nextField(f, "existing", {
+      intentVisible: opts.intentVisible ?? false,
+      effortVisible: false,
+      modelVisible: false,
+      tierVisible: false,
+    })
+  let field: Field = from
+  for (let i = 1; i <= 24; i++) {
+    field = step(field)
+    // `advanceField` skips the branch field under the project intent, because
+    // it is not on screen there; mirror that or the count runs one long.
+    if (opts.skipBaseRef && field === "baseRef") field = step(field)
+    if (field === target) return i
+  }
+  throw new Error(`the focus chain never reaches ${target} from ${from}`)
+}
+
+/** Tab from the opening focus (`tabs`) to the intent row. */
 async function tabToIntent(mockInput: { pressTab: () => void }): Promise<void> {
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < stopsTo("intent", { intentVisible: true }); i++) {
     await act(async () => {
       mockInput.pressTab()
     })
@@ -168,9 +212,12 @@ test("picking a different repo resets the intent back to a task worktree", async
   // project intent forks from nothing, so it hides the branch field.
   expect(await frame()).not.toContain("FROM BRANCH")
 
-  // Back to the repo field (intent → confirm → tabs → depth → engine → model
-  // → repo), then pick the other saved repo out of the dropdown.
-  for (let i = 0; i < 6; i++) {
+  // Back around the cycle to the repo field. Counted from the chain, with the
+  // project intent's skip applied: under that intent the branch field is
+  // hidden, and `advanceField` skips its stop, so a plain `nextField` walk
+  // counts one stop too many. The literal 6 this used to carry was written
+  // for a dialog that still had depth, model and effort.
+  for (let i = 0; i < stopsFromTo("intent", "repo", { intentVisible: true, skipBaseRef: true }); i++) {
     await act(async () => {
       mockInput.pressTab()
     })

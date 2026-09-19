@@ -25,6 +25,7 @@ import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { NewTaskDialogView } from "../../src/tui-react/component/new-task-dialog/dialog"
+import { type Field, nextField } from "../../src/tui/component/new-task-dialog/state"
 import { act, renderComponent, settle } from "./harness"
 
 /** A repo with more branches than any window will show. */
@@ -37,13 +38,33 @@ function repoWithBranches(count: number): string {
 
 /** Mount at `height`, tab to the branch field and clear its filter so the
  *  picker opens at full length — the tallest the Existing tab ever gets. */
+/**
+ * Stops from the dialog's opening field (`tabs`) to `target`, counted from
+ * the focus chain rather than written down. The literal counts here were
+ * built for a field list that included depth, model and effort; when those
+ * left in 2026-09 every count pointed one field past where it meant.
+ */
+function stopsTo(target: Field, opts: { intentVisible?: boolean } = {}): number {
+  let field: Field = "tabs"
+  for (let i = 1; i <= 24; i++) {
+    field = nextField(field, "existing", {
+      intentVisible: opts.intentVisible ?? false,
+      effortVisible: false,
+      modelVisible: false,
+      tierVisible: false,
+    })
+    if (field === target) return i
+  }
+  throw new Error(`the focus chain never reaches ${target}`)
+}
+
 async function withBranchPickerOpen(repo: string, height: number): Promise<string> {
   const { frame, mockInput } = await renderComponent(
     <NewTaskDialogView defaultRepo={repo} savedRepos={[]} onSubmit={() => {}} onCancel={() => {}} />,
     { width: 100, height, providers: { kv: true, dialog: true } },
   )
-  // tabs → depth → engine → model → repo → baseRef
-  for (let i = 0; i < 5; i++) {
+  // Walk to the base-branch field, counted from the focus chain.
+  for (let i = 0; i < stopsTo("baseRef"); i++) {
     act(() => mockInput.pressTab())
     await settle()
   }
