@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.216
+
+### Patch Changes
+
+- [#1064](https://github.com/Sma1lboy/rove/pull/1064) [`5e97d57`](https://github.com/Sma1lboy/rove/commit/5e97d575e3e6275680542196c46b2c0eb44bc9be) The collapsed task rail keeps its project sections and says where you are. Folded, the rail was one undifferentiated column of jump digits: the project boundaries the expanded tree draws were gone, so nothing said which repo a row belonged to. It now draws a divider wherever the section changes, grouped by the same key the expanded tree uses (scratch tasks share one bench, exactly as they do unfolded), which costs one cell per boundary instead of a header per section. Selection also carries the same `▌` marker every other row surface uses, resolved through the same function — a background tint was the whole signal before, and under a transparent theme there is no background at all, which is precisely when you need to see where the cursor is. The marker spends a cell the fold already had, so no style got wider. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1068](https://github.com/Sma1lboy/rove/pull/1068) [`5a8b83c`](https://github.com/Sma1lboy/rove/commit/5a8b83cb1d474493757d020caa072475e5171125) The folded sidebar labels each project section with its first letter and a short rule, so rows remain grouped and recognizable after the sidebar is collapsed. Scratch tasks share their own section, and jump digits and selection markers keep their existing positions within task rows. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1064](https://github.com/Sma1lboy/rove/pull/1064) [`5e97d57`](https://github.com/Sma1lboy/rove/commit/5e97d575e3e6275680542196c46b2c0eb44bc9be) The sidebar's two-cell agent tab row is now a setting, off by default. It shipped on in 0.9.213, which halved how many rows fit the rail for everyone — the caption is worth that to a reader with a handful of tasks open and not to one with twenty, so Settings → General → Appearance carries the choice (`1`/`2`, enter cycles) and one cell is what you get until you ask. When it is on, the caption now starts at the same column as the tab title instead of indented under it, so the pair reads as one block. Shell, command and content tabs have no model and stay one cell either way. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.215
 
 ### Patch Changes
