@@ -14,29 +14,26 @@ import { useMemo } from "react"
 import type { UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { engineDisplayName } from "../../../engine/interactive-command"
 import { displayWidth } from "../../../lib/display-width"
-import { SPLIT_STYLES } from "../../../state/split-style"
 import {
   type NavLevel,
   SECTIONS,
   SECTIONS_SIDEBAR_WIDTH,
   type SectionId,
-  focusAccentRowId,
   generalLabelLayout,
   generalRows,
   languageRowId,
   rowIndex,
-  splitStyleRowId,
 } from "../../../tui/component/settings-dialog/model"
 import { LOCALES, type LocaleId } from "../../../tui/i18n/catalog"
 import { keyHintsToggleOn, toggleKeyHints } from "../../../tui/lib/keyboard-hints"
 import { useKV } from "../../context/kv"
-import { FOCUS_ACCENT_SLOTS, type FocusAccentSlot, useTheme } from "../../context/theme"
+import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import type { CollapsedRailStyle } from "../../panes/sidebar/collapsed-rail"
 import { useDialogPaddingX } from "../../ui/dialog"
-import { AppearancePreview } from "./appearance-preview"
 import { Row, type SectionCursorProps, SubSection } from "./rows"
+import { AppearanceSettingsSection } from "./sections-appearance"
 import { usageRows } from "./usage-core"
+import type { AppearanceSettings } from "./use-appearance-settings"
 import type { SettingsPrefs } from "./use-settings-prefs"
 
 export function SettingsSectionSidebar(props: {
@@ -111,25 +108,12 @@ function UsageDashboard(props: { usage: UsageSnapshotMap }) {
   )
 }
 
-/** Fold → its label key. A map rather than a key built by string surgery: a
- *  new fold that forgets its label fails the i18n check instead of printing a
- *  raw key at runtime. */
-const RAIL_FOLD_LABEL_KEYS: Record<CollapsedRailStyle, string> = {
-  digits: "settings.general.railFoldDigits",
-  glyphs: "settings.general.railFoldGlyphs",
-  initials: "settings.general.railFoldInitials",
-  hairline: "settings.general.railFoldHairline",
-}
-
 export function GeneralSettingsSection(
   props: SectionCursorProps & {
     prefs: SettingsPrefs
-    themeNames: readonly string[]
-    selectTheme: (name: string) => void
+    appearance: AppearanceSettings
     currentLocale: LocaleId
     selectLanguage: (locale: LocaleId) => void
-    toggleTransparent: () => void
-    selectFocusAccent: (slot: FocusAccentSlot) => void
     usage?: UsageSnapshotMap | null
   },
 ) {
@@ -142,10 +126,7 @@ export function GeneralSettingsSection(
   const kv = useKV()
   // Row registry for this section — a row's body index is its position in
   // the list, so every index below is an id lookup, not arithmetic.
-  const rows = useMemo(
-    () => generalRows({ themeNames: props.themeNames, focusAccentSlots: FOCUS_ACCENT_SLOTS }),
-    [props.themeNames],
-  )
+  const rows = useMemo(() => generalRows(), [])
   const rowIdx = (id: string) => rowIndex(rows, id)
   const isBodyCursor = (row: number) => props.level === "body" && props.bodyRow === row
   const activate = (row: number, action: () => void) => () => {
@@ -153,7 +134,6 @@ export function GeneralSettingsSection(
     props.setBodyRow(row)
     action()
   }
-  const onOff = (on: boolean) => (on ? t("settings.general.on") : t("settings.general.off"))
   // Live per render — opentui re-renders on resize, so a terminal dragged
   // narrow re-lays the column out instead of keeping a stale desktop budget.
   const { labelColumn, showHint } = generalLabelLayout(useTerminalDimensions().width, useDialogPaddingX())
@@ -172,15 +152,12 @@ export function GeneralSettingsSection(
   /** Exclusive pick — the same radio the Engines section uses for its default. */
   const radio = (on: boolean) => (on ? "(●)" : "( )")
 
-  const transparentRow = rowIdx("transparent")
   const toastRow = rowIdx("toast")
   const soundRow = rowIdx("sound")
   const soundVolumeRow = rowIdx("sound-volume")
   const crossTaskRow = rowIdx("cross-task")
   const keyHintsRow = rowIdx("key-hints")
   const zenDefaultOnRow = rowIdx("zen-default-on")
-  const railFoldStyleRow = rowIdx("rail-fold-style")
-  const tabRowHeightRow = rowIdx("tab-row-height")
   const editorKindRow = rowIdx("editor-kind")
   const editorCustomRow = rowIdx("editor-custom")
   const worktreeBaseRow = rowIdx("worktree-base")
@@ -209,104 +186,7 @@ export function GeneralSettingsSection(
             )
           })}
         </SubSection>
-        {/* Everything that changes how Rove LOOKS, in one group with one
-            sample above it. Each of these is applied the moment it is picked,
-            so the preview is the answer to "what does this one do" — the
-            question that previously meant closing Settings and looking at the
-            rail. Scattered across the section they also read as five
-            unrelated toggles; together they read as one decision. */}
-        <text fg={theme.text} attributes={TextAttributes.BOLD}>
-          {t("settings.general.appearance")}
-        </text>
-        <AppearancePreview splitStyle={prefs.splitStyle()} />
-        <SubSection title={t("settings.general.theme")} hint={t("settings.general.themeHint")}>
-          {props.themeNames.map((name, i) => {
-            const isSelected = name === themeCtx.selected
-            return (
-              <Row
-                key={name}
-                cursor={isBodyCursor(i)}
-                rowRef={props.rowRef(i)}
-                onMouseUp={activate(i, () => props.selectTheme(name))}
-                fg={isSelected ? theme.accent : theme.text}
-                bold={isBodyCursor(i) || isSelected}
-              >
-                {`${radio(isSelected)} ${name}`}
-              </Row>
-            )
-          })}
-        </SubSection>
-        <SubSection title={t("settings.general.transparent")} hint={t("settings.general.transparentHint")}>
-          <Row
-            cursor={isBodyCursor(transparentRow)}
-            rowRef={props.rowRef(transparentRow)}
-            onMouseUp={activate(transparentRow, props.toggleTransparent)}
-            fg={themeCtx.transparentBackground ? theme.accent : theme.textMuted}
-            bold={true}
-          >
-            {onOff(themeCtx.transparentBackground)}
-          </Row>
-        </SubSection>
-        <SubSection title={t("settings.general.focusAccent")} hint={t("settings.general.focusAccentHint")}>
-          {FOCUS_ACCENT_SLOTS.map((slot) => {
-            const accentRow = rowIdx(focusAccentRowId(slot))
-            const isSelected = themeCtx.focusAccent === slot
-            return (
-              <Row
-                key={slot}
-                cursor={isBodyCursor(accentRow)}
-                rowRef={props.rowRef(accentRow)}
-                onMouseUp={activate(accentRow, () => props.selectFocusAccent(slot))}
-                fg={isSelected ? theme.focusAccent : theme.text}
-                bold={isBodyCursor(accentRow) || isSelected}
-              >
-                {`${radio(isSelected)} ${t(`settings.general.accent${slot.charAt(0).toUpperCase()}${slot.slice(1)}`)}`}
-              </Row>
-            )
-          })}
-        </SubSection>
-        <SubSection title={t("settings.general.splitStyle")} hint={t("settings.general.appearanceHint")}>
-          {SPLIT_STYLES.map((style) => {
-            const styleRow = rowIdx(splitStyleRowId(style))
-            const isSelected = prefs.splitStyle() === style
-            return (
-              <Row
-                key={style}
-                cursor={isBodyCursor(styleRow)}
-                rowRef={props.rowRef(styleRow)}
-                onMouseUp={activate(styleRow, () => prefs.selectSplitStyle(style))}
-                fg={isSelected ? theme.accent : theme.text}
-                bold={isBodyCursor(styleRow) || isSelected}
-              >
-                {`${radio(isSelected)} ${t(style === "box" ? "settings.general.splitBox" : "settings.general.splitLine")}`}
-              </Row>
-            )
-          })}
-        </SubSection>
-        <SubSection title={t("settings.general.railFold")} hint={t("settings.general.railFoldHint")}>
-          <Row
-            cursor={isBodyCursor(railFoldStyleRow)}
-            rowRef={props.rowRef(railFoldStyleRow)}
-            onMouseUp={activate(railFoldStyleRow, prefs.cycleRailFoldStyle)}
-            fg={theme.accent}
-            bold={true}
-            hint={hint("settings.general.railFoldRowHint")}
-          >
-            {pad(t("settings.general.railFoldRow", { style: t(RAIL_FOLD_LABEL_KEYS[prefs.railFoldStyle()]) }))}
-          </Row>
-        </SubSection>
-        <SubSection title={t("settings.general.tabRowHeight")} hint={t("settings.general.tabRowHeightHint")}>
-          <Row
-            cursor={isBodyCursor(tabRowHeightRow)}
-            rowRef={props.rowRef(tabRowHeightRow)}
-            onMouseUp={activate(tabRowHeightRow, prefs.cycleTabRowHeight)}
-            fg={theme.accent}
-            bold={true}
-            hint={hint("settings.general.tabRowHeightRowHint")}
-          >
-            {pad(t("settings.general.tabRowHeightRow", { cells: String(prefs.tabRowHeight()) }))}
-          </Row>
-        </SubSection>
+        <AppearanceSettingsSection {...props} rows={rows} appearance={props.appearance} />
         <SubSection title={t("settings.general.notifications")} hint={t("settings.general.notificationsHint")}>
           <Row
             cursor={isBodyCursor(toastRow)}

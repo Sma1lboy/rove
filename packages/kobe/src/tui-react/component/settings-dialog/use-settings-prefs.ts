@@ -25,7 +25,6 @@ import {
 import { SPLIT_STYLE_KEY, type SplitStyle, normalizeSplitStyle } from "../../../state/split-style"
 import {
   DEFAULT_TAB_ROW_HEIGHT,
-  TAB_ROW_HEIGHTS,
   TAB_ROW_HEIGHT_KEY,
   type TabRowHeight,
   normalizeTabRowHeight,
@@ -161,29 +160,20 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   function toggleDispatcher(): void {
     kv.set(DISPATCHER_KEY, !dispatcherOn())
   }
-  // Which fold the collapsed task rail renders. Cycles rather than offering a
-  // sub-menu: four values, and the rail is right there to show the answer.
   function railFoldStyle(): CollapsedRailStyle {
     const raw = kv.get(RAIL_FOLD_STYLE_KEY, DEFAULT_COLLAPSED_RAIL_STYLE)
     return COLLAPSED_RAIL_STYLES.includes(raw as CollapsedRailStyle)
       ? (raw as CollapsedRailStyle)
       : DEFAULT_COLLAPSED_RAIL_STYLE
   }
-  function cycleRailFoldStyle(): void {
-    const i = COLLAPSED_RAIL_STYLES.indexOf(railFoldStyle())
-    const next = COLLAPSED_RAIL_STYLES[(i + 1) % COLLAPSED_RAIL_STYLES.length]
-    if (next) kv.set(RAIL_FOLD_STYLE_KEY, next)
+  function selectRailFoldStyle(style: CollapsedRailStyle): void {
+    kv.set(RAIL_FOLD_STYLE_KEY, style)
   }
-  // How tall an agent tab row is. Two values, and the rail is right there to
-  // show the answer, so it cycles like the fold style rather than opening a
-  // sub-menu.
   function tabRowHeight(): TabRowHeight {
     return normalizeTabRowHeight(kv.get(TAB_ROW_HEIGHT_KEY, DEFAULT_TAB_ROW_HEIGHT))
   }
-  function cycleTabRowHeight(): void {
-    const i = TAB_ROW_HEIGHTS.indexOf(tabRowHeight())
-    const next = TAB_ROW_HEIGHTS[(i + 1) % TAB_ROW_HEIGHTS.length]
-    if (next !== undefined) kv.set(TAB_ROW_HEIGHT_KEY, next)
+  function selectTabRowHeight(height: TabRowHeight): void {
+    kv.set(TAB_ROW_HEIGHT_KEY, height)
   }
   // Editor preference: which editor the file tree's `e` key launches.
   function editorKind(): EditorKind {
@@ -331,9 +321,9 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     zenDefaultOn,
     toggleZenDefaultOn,
     railFoldStyle,
-    cycleRailFoldStyle,
+    selectRailFoldStyle,
     tabRowHeight,
-    cycleTabRowHeight,
+    selectTabRowHeight,
     remoteProjectsEnabled,
     toggleRemoteProjects,
     autoStatusOn,
