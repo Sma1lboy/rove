@@ -1,0 +1,31 @@
+name: zz-probe
+on:
+  push:
+    branches: [dryrun/release-pr-probe]
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with: { ref: main, fetch-depth: 1 }
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -x
+          BR="dryrun/probe-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BR"
+          git commit --allow-empty -m "chore: release — 0.0.0-probe"
+          echo "== can the token push a non-main branch? =="
+          git push origin "$BR" && echo "PUSH_BRANCH=ok" || echo "PUSH_BRANCH=FAILED"
+          echo "== can the token open a PR? =="
+          gh pr create --base main --head "$BR" \
+            --title "chore: release — 0.0.0-probe (dry run, do not merge)" \
+            --body "Probe for the changesets release-PR redesign. Closed automatically." \
+            && echo "PR_CREATE=ok" || echo "PR_CREATE=FAILED"
+          gh pr close "$BR" --comment "probe done" || true
+          git push origin --delete "$BR" || true
