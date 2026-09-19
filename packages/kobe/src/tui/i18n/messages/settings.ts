@@ -17,6 +17,22 @@ import { en as engineCard, zh as engineCardZh } from "./settings-engines"
 import { en as pluginsEn, zh as pluginsZh } from "./settings-plugins"
 
 export const en = {
+  appearance: {
+    enabled: "On",
+    disabled: "Off",
+    singleRow: "Single row",
+    doubleRow: "Two rows",
+    preview: "Workspace preview",
+    tasks: "Tasks",
+    terminal: "Terminal",
+    files: "Files",
+    testsPassed: "Tests passed",
+    modelDetail: "model · effort",
+    transparent: "Transparent background",
+    opaque: "Opaque background",
+    openHint: "Enter to choose an option and preview it.",
+    chooseHint: "↑/↓ or j/k preview · enter apply · esc cancel",
+  },
   title: "Settings",
   esc: "esc",
   nav: {
@@ -239,6 +255,22 @@ export const en = {
 }
 
 export const zh: typeof en = {
+  appearance: {
+    enabled: "开启",
+    disabled: "关闭",
+    singleRow: "单行",
+    doubleRow: "双行",
+    preview: "工作区预览",
+    tasks: "任务",
+    terminal: "终端",
+    files: "文件",
+    testsPassed: "测试通过",
+    modelDetail: "模型 · 推理强度",
+    transparent: "透明背景",
+    opaque: "不透明背景",
+    openHint: "按 Enter 打开选项和预览。",
+    chooseHint: "↑/↓ 或 j/k 预览 · enter 应用 · esc 取消",
+  },
   title: "设置",
   esc: "esc",
   nav: {

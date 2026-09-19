@@ -17,13 +17,12 @@
  */
 
 import { AUTO_EFFORT_TIERS, type AutoEffortTier } from "../../../engine/auto-effort"
-import { SPLIT_STYLES, type SplitStyle } from "../../../state/split-style"
 import type { VendorId } from "../../../types/vendor"
 // theme-core (not ../../context/theme): this module is shared with the
 // React port, which must not reference the Solid .tsx even type-only.
-import type { FocusAccentSlot } from "../../context/theme-core"
 import { LOCALES, type LocaleId } from "../../i18n/catalog"
 import { PREFIX_TAP_PRESENTATIONS, type PrefixTapPresentation } from "../../lib/prefix-tap-presentation"
+import { APPEARANCE_SETTINGS, type AppearanceSetting } from "./appearance"
 
 export type NavLevel = "sidebar" | "body"
 
@@ -48,11 +47,8 @@ export const SECTIONS: ReadonlyArray<{ id: SectionId; label: string }> = [
  * activation never has to reverse-engineer it from an index.
  */
 export type SettingsRow =
-  | { id: string; kind: "theme"; name: string }
+  | { id: string; kind: "appearance"; setting: AppearanceSetting }
   | { id: string; kind: "language"; locale: LocaleId }
-  | { id: "transparent"; kind: "transparent" }
-  | { id: string; kind: "focusAccent"; slot: FocusAccentSlot }
-  | { id: string; kind: "splitStyle"; style: SplitStyle }
   | { id: "toast"; kind: "toast" }
   | { id: "sound"; kind: "sound" }
   | { id: "sound-volume"; kind: "soundVolume" }
@@ -60,8 +56,6 @@ export type SettingsRow =
   | { id: "key-hints"; kind: "keyHints" }
   | { id: string; kind: "prefixTapPresentation"; presentation: PrefixTapPresentation }
   | { id: "zen-default-on"; kind: "zenDefaultOn" }
-  | { id: "rail-fold-style"; kind: "railFoldStyle" }
-  | { id: "tab-row-height"; kind: "tabRowHeight" }
   | { id: "editor-kind"; kind: "editorKind" }
   | { id: "editor-custom"; kind: "editorCustom" }
   | { id: "worktree-base"; kind: "worktreeBase" }
@@ -87,16 +81,9 @@ export type SettingsRow =
   | { id: "dispatcher"; kind: "devDispatcher" }
 
 /** Stable row ids for payload-bearing rows (shared by builders + views). */
-export function themeRowId(name: string): string {
-  return `theme:${name}`
-}
 
 export function languageRowId(locale: LocaleId): string {
   return `language:${locale}`
-}
-
-export function focusAccentRowId(slot: FocusAccentSlot): string {
-  return `accent:${slot}`
 }
 
 export function engineRowId(vendor: VendorId): string {
@@ -105,10 +92,6 @@ export function engineRowId(vendor: VendorId): string {
 
 export function autoEffortRowId(tier: AutoEffortTier): string {
   return `auto-effort:${tier}`
-}
-
-export function splitStyleRowId(style: SplitStyle): string {
-  return `split-style:${style}`
 }
 
 export function prefixTapPresentationRowId(presentation: PrefixTapPresentation): string {
@@ -129,8 +112,6 @@ export function marketplaceRowId(ref: string): string {
 
 /** Everything the registry needs to lay out every section's rows. */
 export type SettingsRowsInput = {
-  themeNames: readonly string[]
-  focusAccentSlots: readonly FocusAccentSlot[]
   /** Built-ins + user-registered custom engines, in display order. */
   engineList: readonly VendorId[]
   /** Registered plugins (`~/.rove/plugins.json`), in registry order. */
@@ -149,27 +130,13 @@ export type PluginRowsEntry = {
   settingKeys: readonly string[]
 }
 
-/**
- * General section: themes, transparent toggle, focus accents, toast,
- * sound, the zen-mode toggle, then the editor pair. Order here IS the
- * on-screen order — sections.tsx renders
- * the same sequence.
- */
-export function generalRows(input: Pick<SettingsRowsInput, "themeNames" | "focusAccentSlots">): SettingsRow[] {
-  // Cursor order IS render order (a row's body index is its position here), so
-  // this list mirrors the section's JSX: language, then the Appearance group —
-  // theme, transparency, accent, split style, rail fold — then the rest. The
-  // five appearance rows were scattered through the section before; walking
-  // them with j/k now stays inside the group instead of crossing it four
-  // times.
+/** Summary rows stay in display order regardless of the number of available themes. */
+export function generalRows(): SettingsRow[] {
   return [
     ...LOCALES.map((l): SettingsRow => ({ id: languageRowId(l.id), kind: "language", locale: l.id })),
-    ...input.themeNames.map((name): SettingsRow => ({ id: themeRowId(name), kind: "theme", name })),
-    { id: "transparent", kind: "transparent" },
-    ...input.focusAccentSlots.map((slot): SettingsRow => ({ id: focusAccentRowId(slot), kind: "focusAccent", slot })),
-    ...SPLIT_STYLES.map((style): SettingsRow => ({ id: splitStyleRowId(style), kind: "splitStyle", style })),
-    { id: "rail-fold-style", kind: "railFoldStyle" },
-    { id: "tab-row-height", kind: "tabRowHeight" },
+    ...APPEARANCE_SETTINGS.map(
+      (setting): SettingsRow => ({ id: `appearance:${setting}`, kind: "appearance", setting }),
+    ),
     { id: "toast", kind: "toast" },
     { id: "sound", kind: "sound" },
     { id: "sound-volume", kind: "soundVolume" },
@@ -277,7 +244,7 @@ export function devRows(hasDaemon: boolean): SettingsRow[] {
 export function sectionRows(section: SectionId, input: SettingsRowsInput): SettingsRow[] {
   switch (section) {
     case "general":
-      return generalRows(input)
+      return generalRows()
     case "engines":
       return engineRows(input.engineList)
     case "autoEffort":

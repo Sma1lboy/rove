@@ -1,71 +1,177 @@
 /** @jsxImportSource @opentui/react */
-/**
- * The Appearance group's sample.
- *
- * Every setting in that group is applied the moment it is picked, so this is
- * not a what-if: it draws the CURRENT combination, and picking a row redraws
- * it on the same frame. That is the whole point of the group existing — theme,
- * accent, transparency and split style each answered a question you could only
- * check by closing Settings and looking at the rail.
- *
- * What it shows is a miniature of the rail, because that is the surface all
- * four settings land on at once: a selected row (accent fill), a resting row
- * with its caption line, and the split glyph between panes. The strings are
- * fixed and meaningless on purpose — this is a colour sample, and a preview
- * carrying real task names would read as a second, wrong task list.
- */
-
 import { TextAttributes } from "@opentui/core"
-import type { SplitStyle } from "../../../state/split-style"
+import { useTerminalDimensions } from "@opentui/react"
+import type { AppearanceSetting, AppearanceSnapshot } from "../../../tui/component/settings-dialog/appearance"
 import { useTheme } from "../../context/theme"
+import { useT } from "../../i18n"
+import { COLLAPSED_RAIL_WIDTH } from "../../panes/sidebar/collapsed-rail"
 
-export function AppearancePreview(props: { splitStyle: SplitStyle }) {
-  const { theme, transparentBackground } = useTheme()
-  // Transparent mode has no colour of its own to show: what it does is let
-  // the terminal's own background through. Leaving the box unpainted IS the
-  // sample — the panel colour behind it is what the opaque setting adds.
-  const ground = transparentBackground ? undefined : theme.backgroundPanel
-  const divider = props.splitStyle === "box" ? "├────────────" : " ────────────"
+export function AppearancePreview(props: { current: AppearanceSnapshot; active?: AppearanceSetting }) {
+  const { current } = props
+  const theme = useTheme().preview(current)
+  const t = useT()
+  const narrow = useTerminalDimensions().width < 75
+  const short = useTerminalDimensions().height < 30
+  const fold = current.railFoldStyle
+  const folded = {
+    digits: ["▌2", " 3", " 4"],
+    glyphs: ["▌●", " ✓", " ○"],
+    initials: ["▌● UI", " ✓ API", " ○ QA"],
+    hairline: ["█", "▎", "▎"],
+  }[fold]
+  const box = current.splitStyle === "box"
+  const railActive = props.active === "tabRowHeight"
   return (
-    <box
-      flexDirection="column"
-      flexShrink={0}
-      // A fixed 30 cells, not a share of the panel: this is a miniature of
-      // the RAIL, and a sample stretched to the settings width stops looking
-      // like the thing it samples. Close to the rail's own default width.
-      width={30}
-      alignSelf="flex-start"
-      paddingLeft={1}
-      paddingRight={1}
-      border
-      borderColor={theme.border}
-      {...(ground ? { backgroundColor: ground } : {})}
-    >
-      {/* The selected row — the one place focusAccent is visible. */}
-      <box flexDirection="row" backgroundColor={theme.focusAccent}>
-        <text fg={theme.selectedListItemText} attributes={TextAttributes.BOLD} wrapMode="none">
-          {"▸ task one          ●"}
+    <box flexDirection="column" flexShrink={0} border borderColor={theme.border} backgroundColor={theme.background}>
+      <box
+        flexDirection="row"
+        justifyContent="space-between"
+        paddingLeft={1}
+        paddingRight={1}
+        backgroundColor={theme.backgroundPanel}
+      >
+        <text fg={theme.text} attributes={TextAttributes.BOLD}>
+          {t("settings.appearance.preview")}
+        </text>
+        <text fg={theme.textMuted} wrapMode="none">
+          {current.themeName}
         </text>
       </box>
-      <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none">
-        {"    opus · high"}
-      </text>
-      <box flexDirection="row">
-        <text fg={theme.text} wrapMode="none">
-          {"  task two          "}
-        </text>
-        <text fg={theme.success} wrapMode="none">
-          {"✓"}
-        </text>
+      <box flexDirection="row" flexGrow={1}>
+        {/* The collapsed rail uses the real style's cell-width convention. */}
+        <box
+          width={COLLAPSED_RAIL_WIDTH[fold]}
+          flexShrink={0}
+          flexDirection="column"
+          backgroundColor={theme.backgroundPanel}
+        >
+          <text fg={props.active === "railFold" ? theme.focusAccent : theme.textMuted}>‹</text>
+          {folded.map((label, i) => (
+            <text
+              key={label}
+              fg={i === 0 ? theme.focusAccent : i === 1 ? theme.success : theme.textMuted}
+              wrapMode="none"
+            >
+              {label}
+            </text>
+          ))}
+        </box>
+        {
+          <box
+            flexGrow={2}
+            flexBasis={0}
+            flexShrink={1}
+            flexDirection="column"
+            border={box ? true : ["right"]}
+            borderColor={railActive ? theme.focusAccent : theme.border}
+            paddingLeft={1}
+            paddingRight={1}
+            backgroundColor={theme.backgroundPanel}
+          >
+            <text fg={railActive ? theme.focusAccent : theme.textMuted}>{t("settings.appearance.tasks")}</text>
+            <text fg={theme.textMuted} wrapMode="none">
+              demo / workspace
+            </text>
+            <text fg={theme.focusAccent} attributes={TextAttributes.BOLD} wrapMode="none">
+              ▌ UI polish ●
+            </text>
+            {current.tabRowHeight === 2 && (
+              <text fg={theme.textMuted} wrapMode="none">
+                {" "}
+                {t("settings.appearance.modelDetail")}
+              </text>
+            )}
+            <text fg={theme.text} wrapMode="none">
+              {" "}
+              API tests ✓
+            </text>
+            {current.tabRowHeight === 2 && (
+              <text fg={theme.textMuted} wrapMode="none">
+                {" "}
+                {t("settings.appearance.modelDetail")}
+              </text>
+            )}
+            {!short && (
+              <text fg={theme.textMuted} wrapMode="none">
+                {" "}
+                Review ○
+              </text>
+            )}
+          </box>
+        }
+        <box
+          flexGrow={5}
+          flexBasis={0}
+          flexShrink={1}
+          flexDirection="column"
+          border={box ? true : ["right"]}
+          borderColor={theme.focusAccent}
+          paddingLeft={1}
+          paddingRight={1}
+        >
+          <text fg={theme.focusAccent} attributes={TextAttributes.BOLD} wrapMode="none">
+            ▌ {t("settings.appearance.terminal")}
+          </text>
+          <text fg={theme.textMuted} wrapMode="none">
+            UI polish / main
+          </text>
+          {!short && (
+            <text fg={theme.text} wrapMode="none">
+              $ bun test
+            </text>
+          )}
+          <text fg={theme.success} wrapMode="none">
+            ✓ {t("settings.appearance.testsPassed")}
+          </text>
+          {!short && (
+            <text fg={theme.textMuted} wrapMode="none">
+              2 pass · 0 fail
+            </text>
+          )}
+          <text fg={theme.text} wrapMode="none">
+            $ ▌
+          </text>
+          {current.tabRowHeight === 2 && !narrow && <text> </text>}
+        </box>
+        {!narrow && (
+          <box
+            flexGrow={2}
+            flexBasis={0}
+            flexShrink={1}
+            flexDirection="column"
+            border={box}
+            borderColor={theme.border}
+            paddingLeft={1}
+            paddingRight={1}
+          >
+            <text fg={theme.textMuted} wrapMode="none">
+              {t("settings.appearance.files")}
+            </text>
+            <text fg={theme.text} wrapMode="none">
+              ▾ src
+            </text>
+            <text fg={theme.success} wrapMode="none">
+              {" "}
+              app.ts +8
+            </text>
+            <text fg={theme.text} wrapMode="none">
+              {" "}
+              ui.tsx
+            </text>
+            {!short && (
+              <text fg={theme.textMuted} wrapMode="none">
+                {" "}
+                README.md
+              </text>
+            )}
+          </box>
+        )}
       </box>
-      <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none">
-        {"    engine default"}
-      </text>
-      {/* The split glyph, the one setting that is about the gap between panes
-          rather than about a colour. */}
-      <text fg={theme.border} wrapMode="none">
-        {divider}
-      </text>
+      <text
+        fg={theme.textMuted}
+        bg={theme.backgroundPanel}
+        wrapMode="none"
+      >{` ● main   ${t(current.transparentBackground ? "settings.appearance.transparent" : "settings.appearance.opaque")}`}</text>
     </box>
   )
 }

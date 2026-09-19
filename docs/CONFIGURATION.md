@@ -107,6 +107,13 @@ retired worktree-sync hook was once installed so the next launch (or
 
 ### Appearance
 
+Settings → General groups theme, transparency, focus accent, split style, folded
+rail, and tab row height below a workspace preview. Each row opens a selection
+list with the same preview above it. Use `j`/`k` or arrows to preview a choice,
+`enter` to save it, or `esc` to cancel. Previewing never changes saved settings.
+Clicking an option saves it immediately. The preview uses sample tasks and
+files; it does not show your sessions.
+
 | Key | Type | Default | What it does |
 |---|---|---|---|
 | `activeTheme` | theme name | `"claude"` | See [Themes](#themes) |

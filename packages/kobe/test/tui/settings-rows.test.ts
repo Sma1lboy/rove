@@ -24,7 +24,6 @@ import {
   engineRowId,
   engineRows,
   feedbackRows,
-  focusAccentRowId,
   generalRows,
   pluginRowId,
   pluginRows,
@@ -32,21 +31,15 @@ import {
   rowAt,
   rowIndex,
   sectionRows,
-  splitStyleRowId,
-  themeRowId,
 } from "../../src/tui/component/settings-dialog/model.ts"
-import type { FocusAccentSlot } from "../../src/tui/context/theme-core.ts"
 import { LOCALES } from "../../src/tui/i18n/catalog.ts"
 import { ALL_VENDORS } from "../../src/types/vendor.ts"
 
-const SLOTS: readonly FocusAccentSlot[] = ["primary", "success", "info"]
 /** Language picker rows sit right after the theme list — count them in the offsets. */
 const LANG = LOCALES.length
 
 function input(overrides: Partial<SettingsRowsInput> = {}): SettingsRowsInput {
   return {
-    themeNames: ["claude", "gruvbox", "tokyonight"],
-    focusAccentSlots: SLOTS,
     engineList: [...ALL_VENDORS],
     plugins: [
       { id: "example.notify", settingKeys: ["KOBE_NOTIFY_SOUND"] },
@@ -60,52 +53,18 @@ function input(overrides: Partial<SettingsRowsInput> = {}): SettingsRowsInput {
 }
 
 describe("generalRows", () => {
-  it("carries each variable-length group's payload in the order it was given", () => {
-    const themes = ["a", "b", "c"]
-    const rows = generalRows({ themeNames: themes, focusAccentSlots: SLOTS })
-    // Language leads the section; the theme list opens the Appearance group
-    // directly after it.
+  it("keeps language first and each appearance setting reachable exactly once", () => {
+    const rows = generalRows()
     expect(rows.slice(0, LANG).map((r) => (r.kind === "language" ? r.locale : "?"))).toEqual(LOCALES.map((l) => l.id))
-    expect(rows.slice(LANG, LANG + 3).map((r) => (r.kind === "theme" ? r.name : "?"))).toEqual(themes)
-    expect(
-      rows.slice(3 + LANG + 1, 3 + LANG + 1 + SLOTS.length).map((r) => (r.kind === "focusAccent" ? r.slot : "?")),
-    ).toEqual([...SLOTS])
-  })
-
-  it("matches the offset formula for representative sizes", () => {
-    for (const themeCount of [0, 1, 12, 30]) {
-      const themes = Array.from({ length: themeCount }, (_, i) => `theme-${i}`)
-      const rows = generalRows({ themeNames: themes, focusAccentSlots: SLOTS })
-      expect(rows.length).toBe(themeCount + LANG + 1 + SLOTS.length + 16)
-      // The Appearance group is contiguous — theme list, transparency,
-      // accents, split style, rail fold — so walking it with j/k never
-      // leaves the group. Everything after it keeps its old relative order.
-      expect(rowIndex(rows, "transparent")).toBe(themeCount + LANG)
-      expect(rowIndex(rows, splitStyleRowId("box"))).toBe(themeCount + LANG + 1 + SLOTS.length)
-      expect(rowIndex(rows, splitStyleRowId("line"))).toBe(themeCount + LANG + 1 + SLOTS.length + 1)
-      // The folded-rail picker and the tab-row height close the group: both
-      // are appearance choices the preview shows, not companions to the zen
-      // toggle.
-      expect(rowIndex(rows, "rail-fold-style")).toBe(themeCount + LANG + 1 + SLOTS.length + 2)
-      expect(rowIndex(rows, "tab-row-height")).toBe(themeCount + LANG + 1 + SLOTS.length + 3)
-      expect(rowIndex(rows, "toast")).toBe(themeCount + LANG + 1 + SLOTS.length + 4)
-      expect(rowIndex(rows, "sound")).toBe(themeCount + LANG + 1 + SLOTS.length + 5)
-      // The volume row sits directly under its on/off toggle.
-      expect(rowIndex(rows, "sound-volume")).toBe(themeCount + LANG + 1 + SLOTS.length + 6)
-      expect(rowIndex(rows, "cross-task")).toBe(themeCount + LANG + 1 + SLOTS.length + 7)
-      expect(rowIndex(rows, "key-hints")).toBe(themeCount + LANG + 1 + SLOTS.length + 8)
-      expect(rowIndex(rows, "zen-default-on")).toBe(themeCount + LANG + 1 + SLOTS.length + 9)
-      expect(rowIndex(rows, "editor-kind")).toBe(themeCount + LANG + 1 + SLOTS.length + 10)
-      expect(rowIndex(rows, "editor-custom")).toBe(themeCount + LANG + 1 + SLOTS.length + 11)
-    }
-  })
-
-  it("indexes a focus-accent slot by id (focusAccentRowIndex = themeCount + langCount + 1 + slot position)", () => {
-    const themes = ["a", "b"]
-    const rows = generalRows({ themeNames: themes, focusAccentSlots: SLOTS })
-    SLOTS.forEach((slot, i) => {
-      expect(rowIndex(rows, focusAccentRowId(slot))).toBe(themes.length + LANG + 1 + i)
-    })
+    expect(rows.slice(LANG, LANG + 6)).toEqual(
+      ["theme", "transparent", "focusAccent", "splitStyle", "railFold", "tabRowHeight"].map((setting) => ({
+        id: `appearance:${setting}`,
+        kind: "appearance",
+        setting,
+      })),
+    )
+    expect(rowIndex(rows, "toast")).toBe(LANG + 6)
+    expect(new Set(rows.map((row) => row.id)).size).toBe(rows.length)
   })
 })
 
@@ -206,10 +165,8 @@ describe("sectionRows / bodyRowCount", () => {
   })
 
   it("matches the old per-section count formulas for a representative input", () => {
-    // 12 themes, 3 accents, 2 custom engines, daemon attached.
-    const themes = Array.from({ length: 12 }, (_, i) => `t${i}`)
-    const inp = input({ themeNames: themes, engineList: [...ALL_VENDORS, "aider", "goose"], hasDaemon: true })
-    expect(bodyRowCount("general", inp)).toBe(12 + LANG + 1 + 3 + 16) // themes + langs + transparent + accents + retained general rows
+    const inp = input({ engineList: [...ALL_VENDORS, "aider", "goose"], hasDaemon: true })
+    expect(bodyRowCount("general", inp)).toBe(LANG + 6 + 12) // language + appearance summaries + remaining preferences
     expect(bodyRowCount("engines", inp)).toBe(ALL_VENDORS.length + 2 + 3) // built-ins + 2 custom + add + install + remove
     expect(bodyRowCount("autoEffort", inp)).toBe(3) // swift / standard / deep
     expect(bodyRowCount("keys", inp)).toBe(2)
@@ -232,16 +189,16 @@ describe("sectionRows / bodyRowCount", () => {
 
 describe("rowIndex / rowAt", () => {
   it("returns -1 / undefined for unknown id or out-of-range index", () => {
-    const rows = generalRows({ themeNames: ["a"], focusAccentSlots: SLOTS })
+    const rows = generalRows()
     expect(rowIndex(rows, "no-such-row")).toBe(-1)
     expect(rowAt(rows, -1)).toBeUndefined()
     expect(rowAt(rows, rows.length)).toBeUndefined()
   })
 
   it("looks a theme row up by id", () => {
-    const rows = generalRows({ themeNames: ["claude", "gruvbox"], focusAccentSlots: SLOTS })
+    const rows = generalRows()
     // The theme list opens the Appearance group, which follows the languages.
-    expect(rowIndex(rows, themeRowId("gruvbox"))).toBe(LANG + 1)
+    expect(rowIndex(rows, "appearance:theme")).toBe(LANG)
   })
 })
 

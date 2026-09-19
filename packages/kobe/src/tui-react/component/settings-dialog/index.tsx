@@ -14,7 +14,7 @@
 import { errorMessage } from "@/lib/error-message"
 import { TextAttributes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { type KobeOrchestrator, RemoteOrchestrator, type UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { enginesNeedingHookInstall, enginesWithHooksInstalled } from "../../../engine/integration-status"
 import { createStateCell } from "../../../lib/external-store"
@@ -33,7 +33,7 @@ import { toggleKeyHints } from "../../../tui/lib/keyboard-hints"
 import { LOCALE_KEY } from "../../../tui/lib/persisted-ui-prefs"
 import type { VendorId } from "../../../types/task"
 import type { KVContext } from "../../context/kv"
-import { FOCUS_ACCENT_SLOTS, type FocusAccentSlot, useTheme } from "../../context/theme"
+import { useTheme } from "../../context/theme"
 import { type LocaleId, currentLang, setLocaleLang, useT } from "../../i18n"
 import { useBindings } from "../../lib/keymap"
 import { useAccessor } from "../../lib/use-accessor"
@@ -52,6 +52,7 @@ import { GeneralSettingsSection, SettingsSectionSidebar } from "./sections-gener
 import { MarketplaceSettingsSection } from "./sections-marketplace"
 import { DevSettingsSection, FeedbackSettingsSection, KeybindingsSettingsSection } from "./sections-misc"
 import { PluginSettingsSection } from "./sections-plugins"
+import { useAppearanceSettings } from "./use-appearance-settings"
 import { useAutoEffortSettings } from "./use-auto-effort-settings"
 import { useEngineSettings } from "./use-engine-settings"
 import { useAccountProbes, useEngineIntegrations, useMarketplace, usePluginSettings } from "./use-section-data"
@@ -81,10 +82,10 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const [feedbackTitle, setFeedbackTitle] = useState("")
   const [feedbackBody, setFeedbackBody] = useState("")
   const [feedbackStatus, setFeedbackStatus] = useState("")
-  const themeNames = useMemo<readonly string[]>(() => themeCtx.all().slice().sort(), [themeCtx])
   const hasDaemon = hasRestartableDaemon(props.orchestrator)
   const remote = props.orchestrator instanceof RemoteOrchestrator ? props.orchestrator : null
   const prefs = useSettingsPrefs(props.kv, dialog)
+  const appearance = useAppearanceSettings(props.kv, dialog, prefs)
   const engines = useEngineSettings(props.kv, dialog, (max) => setBodyRow((r) => Math.max(0, Math.min(r, max))))
   // A local orchestrator has no daemon quota channel and uses the empty cell.
   const usage = useAccessor(remote ? remote.usageSnapshotSignal() : EMPTY_USAGE_SIGNAL)
@@ -129,8 +130,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
    */
   function bodyRows(): SettingsRow[] {
     return sectionRows(section, {
-      themeNames,
-      focusAccentSlots: FOCUS_ACCENT_SLOTS,
       engineList: engines.engineList(),
       plugins: plugins.rows.map((p) => ({ id: p.id, settingKeys: p.settings.map((s) => s.key) })),
       marketplace: marketplace.rows.map((r) => r.ref),
@@ -143,12 +142,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
     return bodyRows().length
   }
 
-  function selectTheme(name: string): void {
-    if (themeCtx.selected === name) return
-    if (!themeCtx.set(name)) return
-    props.kv.set("activeTheme", name)
-  }
-
   // UI language. Live within this process (setLocaleLang updates the module
   // store → useT() consumers re-render) and persisted so other panes pick it
   // up on their next boot, mirroring how the theme is applied + persisted.
@@ -156,18 +149,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
     if (currentLang() === locale) return
     setLocaleLang(locale)
     props.kv.set(LOCALE_KEY, locale)
-  }
-
-  function toggleTransparent(): void {
-    const next = !themeCtx.transparentBackground
-    themeCtx.setTransparentBackground(next)
-    props.kv.set("transparentBackground", next)
-  }
-
-  function selectFocusAccent(slot: FocusAccentSlot): void {
-    if (themeCtx.focusAccent === slot) return
-    themeCtx.setFocusAccent(slot)
-    props.kv.set("focusAccent", slot)
   }
 
   /** The engine row under the body cursor, or null on the "+ Add engine" row / off-section. */
@@ -239,26 +220,21 @@ export function SettingsDialog(props: SettingsDialogProps) {
    * index.
    */
   const rowActivators: { [K in SettingsRow["kind"]]: (row: Extract<SettingsRow, { kind: K }>) => void } = {
-    theme: (row) => selectTheme(row.name),
+    appearance: (row) => appearance.open(row.setting),
     language: (row) => selectLanguage(row.locale),
-    transparent: () => toggleTransparent(),
-    focusAccent: (row) => selectFocusAccent(row.slot),
     toast: () => prefs.toggleToast(),
     sound: () => prefs.toggleSound(),
     soundVolume: () => prefs.cycleSoundVolume(),
     crossTask: () => prefs.toggleCrossTask(),
     keyHints: () => toggleKeyHints(props.kv),
     prefixTapPresentation: (row) => prefs.selectPrefixTapPresentation(row.presentation),
-    splitStyle: (row) => prefs.selectSplitStyle(row.style),
     zenDefaultOn: () => prefs.toggleZenDefaultOn(),
-    railFoldStyle: () => prefs.cycleRailFoldStyle(),
     editorKind: () => prefs.cycleEditorKind(),
     editorCustom: () => void prefs.editEditorCustom(),
     worktreeBase: () => prefs.cycleWorktreeBase(),
     worktreeCustom: () => void prefs.editWorktreeCustom(),
     scrollbackRows: () => void prefs.editScrollbackRows(),
     tabStripHideSingle: () => prefs.cycleTabStripMode(),
-    tabRowHeight: () => prefs.cycleTabRowHeight(),
     engine: (row) => void engines.editEngine(row.vendor),
     engineAdd: () => void engines.addEngineFlow(),
     engineHooksInstall: () => void runHookInstall(),
@@ -388,12 +364,9 @@ export function SettingsDialog(props: SettingsDialogProps) {
             <GeneralSettingsSection
               {...cursorProps}
               prefs={prefs}
-              themeNames={themeNames}
-              selectTheme={selectTheme}
+              appearance={appearance}
               currentLocale={currentLang()}
               selectLanguage={selectLanguage}
-              toggleTransparent={toggleTransparent}
-              selectFocusAccent={selectFocusAccent}
               usage={usage}
             />
           ) : null}

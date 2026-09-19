@@ -114,6 +114,7 @@ export type ThemeContextValue = {
   setMode(mode: "dark" | "light"): void
   setTransparentBackground(v: boolean): void
   setFocusAccent(v: FocusAccentSlot): void
+  preview(options: { themeName: string; focusAccent: FocusAccentSlot; transparentBackground: boolean }): Theme
   all(): string[]
   has(name: string): boolean
 }
@@ -222,10 +223,17 @@ export function ThemeProvider(props: { children?: ReactNode; mode?: "dark" | "li
       setFocusAccent(v: FocusAccentSlot): void {
         store.update((s) => ({ ...s, focusAccent: v }))
       },
+      preview: (options) =>
+        applyDisplayOverlay(
+          resolveActive({ ...state, active: options.themeName }),
+          options.focusAccent,
+          options.transparentBackground,
+          hostBackground ?? undefined,
+        ),
       all: listThemes,
       has: hasTheme,
     }),
-    [theme, state],
+    [theme, state, hostBackground],
   )
 
   return <ThemeContext.Provider value={value}>{props.children}</ThemeContext.Provider>
