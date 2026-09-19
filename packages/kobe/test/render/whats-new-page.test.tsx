@@ -10,13 +10,23 @@
  *
  * `fetchNotes` is always stubbed here — the render track must never reach
  * api.github.com.
+ *
+ * WAIT ON THE BODY, NEVER SLEEP FOR IT. The notes render through opentui's
+ * `MarkdownRenderable`, whose tree-sitter parse is asynchronous and whose
+ * grammar loads once per PROCESS: measured here, the first markdown mount
+ * takes ~190ms and every later one ~90ms. A fixed `settle()` therefore
+ * passes or fails on whether some earlier file in the render track happened
+ * to warm the grammar first — which is exactly how a 120ms sleep went green
+ * on every PR and red on main, reporting an EMPTY body rather than a wrong
+ * one. `waitForFrameText` polls for the phrase the test is about, so the
+ * wait proves the body rendered instead of racing it.
  */
 
 import { afterEach, expect, test } from "bun:test"
 import { WhatsNewPage } from "../../src/tui-react/component/whats-new-page"
 import { currentLang, setLocaleLang } from "../../src/tui/i18n"
 import type { ReleaseNotesRangeItem } from "../../src/version.ts"
-import { act, renderComponent } from "./harness"
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 const restore = currentLang()
 afterEach(() => setLocaleLang(restore))
@@ -29,7 +39,9 @@ const NOTES: ReleaseNotesRangeItem[] = [
   },
 ]
 
-const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 120))
+/** Well under bun's 5000ms per-test kill, so a real regression still gets to
+ *  print `waitForFrameText`'s frame dump instead of a bare bun timeout. */
+const BODY_TIMEOUT = { timeoutMs: 3_000 }
 
 test("English chrome lists the notes for the range just crossed", async () => {
   setLocaleLang("en")
@@ -37,11 +49,10 @@ test("English chrome lists the notes for the range just crossed", async () => {
     <WhatsNewPage from="0.9.200" onClose={() => {}} fetchNotes={async () => NOTES} />,
     { width: 80, height: 24 },
   )
-  await settle()
-  const text = await frame()
+  // The wait IS the assertion that the note body reached the screen.
+  const text = await waitForFrameText(frame, "renamed repo root", BODY_TIMEOUT)
   expect(text).toContain("WHAT'S NEW")
   expect(text).toContain("up from v0.9.200")
-  expect(text).toContain("renamed repo root")
 })
 
 test("Chinese chrome translates the page, not the published note body", async () => {
@@ -50,14 +61,13 @@ test("Chinese chrome translates the page, not the published note body", async ()
     <WhatsNewPage from="0.9.200" onClose={() => {}} fetchNotes={async () => NOTES} />,
     { width: 80, height: 24 },
   )
-  await settle()
-  const text = await frame()
+  // The body is GitHub's, published in English — translating the chrome must
+  // not be mistaken for translating the release itself. Waiting on the English
+  // phrase is what pins that: it has to be on screen under a Chinese chrome.
+  const text = await waitForFrameText(frame, "renamed repo root", BODY_TIMEOUT)
   expect(text).toContain("更新内容")
   expect(text).toContain("v0.9.200")
   expect(text).toContain("继续")
-  // The body is GitHub's, published in English — translating the chrome must
-  // not be mistaken for translating the release itself.
-  expect(text).toContain("renamed repo root")
 })
 
 test("an unreachable GitHub states the failure and still offers the URL", async () => {
@@ -66,9 +76,7 @@ test("an unreachable GitHub states the failure and still offers the URL", async 
     <WhatsNewPage from="0.9.200" onClose={() => {}} fetchNotes={async () => []} />,
     { width: 80, height: 24 },
   )
-  await settle()
-  const text = await frame()
-  expect(text).toContain("Could not load the release notes")
+  const text = await waitForFrameText(frame, "Could not load the release notes", BODY_TIMEOUT)
   expect(text).toContain("releases/tag/v")
 })
 
@@ -85,8 +93,8 @@ test("q closes without waiting for the fetch", async () => {
     />,
     { width: 80, height: 24 },
   )
-  // Still loading — the page must not hold the user hostage to a fetch that
-  // may never answer.
+  // Deliberately NOT polled: this asserts the FIRST frame, before any fetch
+  // could have answered — the page must not hold the user hostage to one.
   expect(await frame()).toContain("Loading release notes")
   await act(async () => mockInput.typeText("q"))
   expect(closed).toBe(true)
@@ -108,12 +116,10 @@ test("the note body renders as markdown, not as its source text", async () => {
     />,
     { width: 80, height: 24 },
   )
-  await settle()
-  const text = await frame()
   // Syntax markers are concealed and the link addresses are gone, so the
   // sentence starts at the left edge instead of behind two GitHub URLs.
+  const text = await waitForFrameText(frame, "#1032 0b99a4c Engines can now install hooks.", BODY_TIMEOUT)
   expect(text).toContain("Patch Changes")
-  expect(text).toContain("#1032 0b99a4c Engines can now install hooks.")
   expect(text).not.toContain("###")
   expect(text).not.toContain("**")
   expect(text).not.toContain("https://x/pull/1032")
