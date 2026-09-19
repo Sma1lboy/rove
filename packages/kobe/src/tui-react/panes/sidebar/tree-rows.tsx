@@ -20,6 +20,7 @@ import { type TaskEngineState, type TaskJobState, liveRowTokens } from "@/client
 import type { Task } from "@/types/task"
 import { type BoxRenderable, MouseButton, TextAttributes } from "@opentui/core"
 import { type ReactNode, useEffect, useMemo } from "react"
+import { engineDisplayName } from "../../../engine/interactive-command"
 import { charWidth } from "../../../lib/display-width"
 import { relativeAge } from "../../../lib/relative-time"
 import { TAB_ROW_HEIGHT_KEY, normalizeTabRowHeight } from "../../../state/tab-row-height"
@@ -332,19 +333,22 @@ export function TabTreeRow(props: {
   // bit is: a sibling row passing the task rollup would flash for a turn that
   // finished in another tab.
   const pulsing = useDonePulse(carriesState ? completionStampOf(activity) : undefined)
-  // Second line, agent tabs only: what this session runs with. Both fields
-  // are task-level and optional, and absent means the engine's own default —
-  // the same words the change-engine dialog uses for the same emptiness, so
-  // the row and the dialog never disagree about what "unset" looks like.
+  // Second line, agent tabs only: WHICH ENGINE IS RUNNING, probed from the
+  // pty child's process tree (`TreeTab.liveVendor`) rather than read off the
+  // task's config. The first version of this line showed `task.model` /
+  // `task.modelEffort` and fell back to "engine default" — which is what
+  // almost every task has, so the rail filled up with four words that said
+  // nothing. A process name is an observation and is always available for a
+  // live tab; a pinned model is configuration and usually absent.
+  //
+  // No fallback text: a tab with no answer renders no second line at all,
+  // which keeps the rail from spending a cell to say "unknown".
   // `useOptionalKV`: the tree renders in harnesses with no KV provider, and a
   // missing store means "nobody has changed this", i.e. the default height.
   const kv = useOptionalKV()
   const twoCell = normalizeTabRowHeight(kv?.get(TAB_ROW_HEIGHT_KEY, 1)) === 2
-  const modelLine =
-    isAgent && twoCell
-      ? [props.task.model?.trim(), props.task.modelEffort?.trim()].filter(Boolean).join(" · ") ||
-        t("tasks.changeEngine.noEffort")
-      : null
+  const liveVendor = props.tab.liveVendor ?? null
+  const modelLine = isAgent && twoCell && liveVendor ? engineDisplayName(liveVendor) : null
   // depth 1, not 2: a tab row starts at the same column as its
   // worktree row — the circle status glyph carries the hierarchy, and the
   // extra indent cell wasted width the narrow rail doesn't have.
