@@ -180,6 +180,7 @@ export function GeneralSettingsSection(
   const keyHintsRow = rowIdx("key-hints")
   const zenDefaultOnRow = rowIdx("zen-default-on")
   const railFoldStyleRow = rowIdx("rail-fold-style")
+  const tabRowHeightRow = rowIdx("tab-row-height")
   const editorKindRow = rowIdx("editor-kind")
   const editorCustomRow = rowIdx("editor-custom")
   const worktreeBaseRow = rowIdx("worktree-base")
@@ -292,6 +293,18 @@ export function GeneralSettingsSection(
             hint={hint("settings.general.railFoldRowHint")}
           >
             {pad(t("settings.general.railFoldRow", { style: t(RAIL_FOLD_LABEL_KEYS[prefs.railFoldStyle()]) }))}
+          </Row>
+        </SubSection>
+        <SubSection title={t("settings.general.tabRowHeight")} hint={t("settings.general.tabRowHeightHint")}>
+          <Row
+            cursor={isBodyCursor(tabRowHeightRow)}
+            rowRef={props.rowRef(tabRowHeightRow)}
+            onMouseUp={activate(tabRowHeightRow, prefs.cycleTabRowHeight)}
+            fg={theme.accent}
+            bold={true}
+            hint={hint("settings.general.tabRowHeightRowHint")}
+          >
+            {pad(t("settings.general.tabRowHeightRow", { cells: String(prefs.tabRowHeight()) }))}
           </Row>
         </SubSection>
         <SubSection title={t("settings.general.notifications")} hint={t("settings.general.notificationsHint")}>

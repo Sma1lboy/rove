@@ -7,12 +7,13 @@
  * (pin / PR chip / ±stats / jump digit), and stays ONE cell tall — density is
  * the point for them (a dozen worktrees must fit the rail).
  *
- * The exception is an AGENT tab row, which is two cells: the second carries
- * the model and reasoning level the task will launch with (owner 2026-09-18).
- * That is the one fact you otherwise have to open a dialog to read, and it
- * decides what the session costs and how well it does. Shell/command/content
- * tabs have no model, so they stay one cell and the rail only pays for the
- * rows where the answer exists.
+ * An AGENT tab row can OPT IN to a second cell carrying the model and
+ * reasoning level the task launches with — the one fact you otherwise have to
+ * open a dialog to read. It is off by default (`state/tab-row-height.ts`,
+ * Settings → General → Appearance): the caption roughly halves how many rows
+ * fit, and whether that trade is worth it depends on how many tasks the
+ * reader keeps open. Shell/command/content tabs have no model, so they stay
+ * one cell at either setting.
  */
 
 import { type TaskEngineState, type TaskJobState, liveRowTokens } from "@/client/remote-orchestrator"
@@ -21,6 +22,7 @@ import { type BoxRenderable, MouseButton, TextAttributes } from "@opentui/core"
 import { type ReactNode, useEffect, useMemo } from "react"
 import { charWidth } from "../../../lib/display-width"
 import { relativeAge } from "../../../lib/relative-time"
+import { TAB_ROW_HEIGHT_KEY, normalizeTabRowHeight } from "../../../state/tab-row-height"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
@@ -36,6 +38,7 @@ import {
 import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
 import { SIDEBAR_WIDTH, rowTokenTone, toneColor, truncateBranchLabel } from "../../../tui/panes/sidebar/view-core"
 import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
+import { useOptionalKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import {
@@ -333,10 +336,15 @@ export function TabTreeRow(props: {
   // are task-level and optional, and absent means the engine's own default —
   // the same words the change-engine dialog uses for the same emptiness, so
   // the row and the dialog never disagree about what "unset" looks like.
-  const modelLine = isAgent
-    ? [props.task.model?.trim(), props.task.modelEffort?.trim()].filter(Boolean).join(" · ") ||
-      t("tasks.changeEngine.noEffort")
-    : null
+  // `useOptionalKV`: the tree renders in harnesses with no KV provider, and a
+  // missing store means "nobody has changed this", i.e. the default height.
+  const kv = useOptionalKV()
+  const twoCell = normalizeTabRowHeight(kv?.get(TAB_ROW_HEIGHT_KEY, 1)) === 2
+  const modelLine =
+    isAgent && twoCell
+      ? [props.task.model?.trim(), props.task.modelEffort?.trim()].filter(Boolean).join(" · ") ||
+        t("tasks.changeEngine.noEffort")
+      : null
   // depth 1, not 2: a tab row starts at the same column as its
   // worktree row — the circle status glyph carries the hierarchy, and the
   // extra indent cell wasted width the narrow rail doesn't have.
@@ -391,11 +399,11 @@ export function TabTreeRow(props: {
           <JumpDigit flatIndex={props.flatIndex} dim={!isCursor} />
         </box>
         {modelLine ? (
+          // Flush with the title above it (owner 2026-09-19): the caption
+          // starts at the same column, so the pair reads as one block rather
+          // than as a title with something nested under it.
           <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" paddingRight={1}>
-            {/* Indented past the label's own column so the pair reads as one
-                row with a caption, not as two siblings. The glyph column is
-                the parent's, so this only pays for its own inset. */}
-            {`  ${truncateEndCells(modelLine, treeLabelBudget(shared, 4), charWidth)}`}
+            {truncateEndCells(modelLine, treeLabelBudget(shared, 2), charWidth)}
           </text>
         ) : null}
       </box>

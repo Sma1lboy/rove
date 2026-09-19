@@ -14,7 +14,7 @@
 | rove ─────────────────────── |
 |▌ feat/alpha              ? 2 |
 |  ○ review                  3 |
-|      engine default          |
+|                              |
 |                              |
 |                              |
 |                              |

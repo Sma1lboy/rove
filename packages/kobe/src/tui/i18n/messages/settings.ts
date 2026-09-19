@@ -54,6 +54,11 @@ export const en = {
     appearanceHint: "How split panes draw.",
     /** The split-style rows inside that group. */
     splitStyle: "Split panes",
+    /** How tall an agent tab row is in the sidebar tree. */
+    tabRowHeight: "Tab row height",
+    tabRowHeightHint: "Two cells adds the model and reasoning level under an agent tab, and halves how many rows fit.",
+    tabRowHeightRow: "{cells}-cell agent tab rows",
+    tabRowHeightRowHint: "enter cycles",
     splitBox: "Box frames",
     splitLine: "Divider line",
     notifications: "Notifications",
@@ -268,6 +273,10 @@ export const zh: typeof en = {
     appearance: "外观",
     appearanceHint: "分屏面板怎么画边。",
     splitStyle: "分屏面板",
+    tabRowHeight: "Tab 行高",
+    tabRowHeightHint: "两格会在引擎 tab 下面加一行模型和推理档位，可见行数减半。",
+    tabRowHeightRow: "引擎 tab 行占 {cells} 格",
+    tabRowHeightRowHint: "enter 切换",
     splitBox: "方框边框",
     splitLine: "单线分隔",
     notifications: "通知",

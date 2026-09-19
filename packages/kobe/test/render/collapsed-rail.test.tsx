@@ -137,3 +137,50 @@ test("railInitials falls back rather than printing an empty cell", () => {
   // Separators count as word breaks: a branch-shaped title has no spaces.
   expect(railInitials("fix/rail-width")).toBe("fr")
 })
+
+/**
+ * The fold keeps PROJECT boundaries. Without them the strip is one column of
+ * digits with no way to tell which repo a row belongs to — and the grouping is
+ * most of what makes a dozen rows legible at a glance.
+ *
+ * Asserted on frames, not on props, because the divider is a rendered row: a
+ * props-level check would pass on a boundary the reader cannot see.
+ */
+function repoTask(id: string, title: string, repo: string): Task {
+  return { ...task(id, title), repo } as Task
+}
+
+test("a project boundary draws a divider, and rows inside one project do not", async () => {
+  const sameProject = [repoTask("a1", "one", "/work/api"), repoTask("a2", "two", "/work/api")]
+  const { frame: sameFrame } = await renderComponent(<Rail {...railProps({ tasks: sameProject })} />, {
+    width: 8,
+    height: 10,
+  })
+  expect(await sameFrame()).not.toContain("─")
+
+  const twoProjects = [repoTask("a1", "one", "/work/api"), repoTask("b1", "three", "/work/web")]
+  const { frame: splitFrame } = await renderComponent(<Rail {...railProps({ tasks: twoProjects })} />, {
+    width: 8,
+    height: 10,
+  })
+  expect(await splitFrame()).toContain("─")
+})
+
+test("scratch tasks are one section of their own, above the projects", async () => {
+  const scratch = { ...repoTask("s1", "scratch", "/tmp/x"), kind: "dir", scratch: true } as Task
+  const tasks = [scratch, repoTask("a1", "one", "/work/api")]
+  const { frame } = await renderComponent(<Rail {...railProps({ tasks, selectedId: "s1" })} />, {
+    width: 8,
+    height: 10,
+  })
+  // A scratch row and a project row are different sections even though the
+  // scratch task carries a repo path of its own.
+  expect(await frame()).toContain("─")
+})
+
+test("the selected row carries the same marker the expanded rows use", async () => {
+  const { frame } = await renderComponent(<Rail {...railProps()} />, { width: 8, height: 10 })
+  // `▌` is what `resolveRowSelectionChrome` hands every other row surface; a
+  // background alone disappears entirely under a transparent theme.
+  expect(await frame()).toContain("▌")
+})

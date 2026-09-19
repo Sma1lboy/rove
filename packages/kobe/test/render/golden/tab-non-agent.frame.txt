@@ -12,11 +12,11 @@
 | rove ─────────────────────── |
 |  feat/alpha              ? 2 |
 |▌ ○ build                   3 |
-|      engine default          |
 |  ○ shell                   4 |
 |  feat/bravo              ? 5 |
 |  ○ tests                   6 |
-|      engine default          |
+|                              |
+|                              |
 |                              |
 |                              |
 |                              |

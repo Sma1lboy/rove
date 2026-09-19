@@ -18,10 +18,13 @@
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { type RGBA, TextAttributes } from "@opentui/core"
+import { Fragment } from "react"
+import { sidebarProjectKeyOfTask } from "../../../tui/panes/sidebar/groups"
 import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
 import { buildSidebarRowView, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
 import { toneColor } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
+import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 import { CollapseButton } from "./collapse-button"
 import { useSpinnerFrame } from "./row-cards"
 
@@ -62,6 +65,18 @@ interface RailRow {
   readonly tone: Parameters<typeof toneColor>[1]
   readonly digit: string | null
   readonly selected: boolean
+  /** Which project section this row belongs to — the SAME key the expanded
+   *  tree groups by, so the two can never draw different boundaries. Scratch
+   *  tasks have no project of their own and share one section, exactly as
+   *  `buildTreeRows` files them. */
+  readonly groupKey: string
+}
+
+/** The section a row sits in. Mirrors `buildTreeRows`: scratch first, as one
+ *  bench, then one section per project. */
+function railGroupKey(task: Task): string {
+  if (task.kind === "dir" && task.scratch === true) return "\u0000scratch"
+  return sidebarProjectKeyOfTask(task)
 }
 
 function useRailRows(props: {
@@ -90,6 +105,7 @@ function useRailRows(props: {
       tone: view.tone,
       digit: taskJumpDigit(index),
       selected: task.id === props.selectedId,
+      groupKey: railGroupKey(task),
     }
   })
 }
@@ -111,8 +127,20 @@ export function CollapsedRail(props: CollapsedRailProps) {
   const width = COLLAPSED_RAIL_WIDTH[props.style]
   return (
     <box width={width} flexShrink={0} flexDirection="column" backgroundColor={theme.backgroundPanel}>
-      {rows.map((row) => (
-        <RailRowView key={row.task.id} row={row} style={props.style} onSelect={props.onSelect} />
+      {rows.map((row, i) => (
+        <Fragment key={row.task.id}>
+          {/* The project boundary, kept across the fold. Without it the strip
+              is one undifferentiated column of digits and the reader loses
+              which repo a row belongs to — the grouping is most of what makes
+              a dozen rows legible at a glance, and it costs one cell per
+              boundary rather than a header per section. */}
+          {i > 0 && rows[i - 1]?.groupKey !== row.groupKey ? (
+            <text fg={theme.border} wrapMode="none" flexShrink={0}>
+              {"─".repeat(width)}
+            </text>
+          ) : null}
+          <RailRowView row={row} style={props.style} onSelect={props.onSelect} />
+        </Fragment>
       ))}
       <CollapseButton collapsed onToggle={props.onExpand} />
     </box>
@@ -123,12 +151,26 @@ function RailRowView(props: { row: RailRow; style: CollapsedRailStyle; onSelect:
   const { theme } = useTheme()
   const { row } = props
   const fg = toneColor(theme, row.tone)
-  // Selection is a BACKGROUND, not a marker glyph: at two to seven cells there
-  // is no column to spare for one, and the fold must not cost the reader the
-  // ability to see where they are.
-  const background = row.selected ? theme.backgroundElement : undefined
+  // Selection carries the SAME `▌` the expanded rows use, resolved by the same
+  // function, so the two surfaces agree about what "you are here" looks like.
+  // A background alone was the whole signal before, and under a transparent
+  // theme `resolveRowSelectionChrome` returns no background at all — which is
+  // exactly when the marker is the only thing left saying where you are. The
+  // marker spends a cell the fold already had: it replaces one of the trailing
+  // spaces, so no style gets wider.
+  const chrome = resolveRowSelectionChrome(theme, { cursor: row.selected })
   return (
-    <box flexShrink={0} flexDirection="row" backgroundColor={background} onMouseUp={() => props.onSelect(row.task.id)}>
+    <box
+      flexShrink={0}
+      flexDirection="row"
+      backgroundColor={chrome.backgroundColor}
+      onMouseUp={() => props.onSelect(row.task.id)}
+    >
+      {props.style === "hairline" ? null : (
+        <text fg={chrome.markerColor ?? fg} wrapMode="none" flexShrink={0}>
+          {row.selected ? chrome.marker : " "}
+        </text>
+      )}
       <RailCell row={row} style={props.style} fg={fg} />
     </box>
   )
@@ -151,14 +193,14 @@ function RailCell(props: { row: RailRow; style: CollapsedRailStyle; fg: string |
     case "digits":
       return (
         <text fg={fg} attributes={row.selected ? TextAttributes.BOLD : undefined} wrapMode="none">
-          {`${row.digit ?? "·"}  `}
+          {`${row.digit ?? "·"} `}
         </text>
       )
     // C: the status glyph itself, the same one the expanded card shows.
     case "glyphs":
       return (
         <text fg={fg} attributes={row.selected ? TextAttributes.BOLD : undefined} wrapMode="none">
-          {` ${row.glyph}  `}
+          {`${row.glyph}  `}
         </text>
       )
     // D: glyph plus two letters of the title — the widest fold, and the only
@@ -167,7 +209,7 @@ function RailCell(props: { row: RailRow; style: CollapsedRailStyle; fg: string |
       return (
         <box flexDirection="row" flexShrink={0}>
           <text fg={fg} wrapMode="none" flexShrink={0}>
-            {` ${row.glyph} `}
+            {`${row.glyph} `}
           </text>
           <text
             fg={row.selected ? theme.text : theme.textMuted}

@@ -61,6 +61,7 @@ export type SettingsRow =
   | { id: string; kind: "prefixTapPresentation"; presentation: PrefixTapPresentation }
   | { id: "zen-default-on"; kind: "zenDefaultOn" }
   | { id: "rail-fold-style"; kind: "railFoldStyle" }
+  | { id: "tab-row-height"; kind: "tabRowHeight" }
   | { id: "editor-kind"; kind: "editorKind" }
   | { id: "editor-custom"; kind: "editorCustom" }
   | { id: "worktree-base"; kind: "worktreeBase" }
@@ -168,6 +169,7 @@ export function generalRows(input: Pick<SettingsRowsInput, "themeNames" | "focus
     ...input.focusAccentSlots.map((slot): SettingsRow => ({ id: focusAccentRowId(slot), kind: "focusAccent", slot })),
     ...SPLIT_STYLES.map((style): SettingsRow => ({ id: splitStyleRowId(style), kind: "splitStyle", style })),
     { id: "rail-fold-style", kind: "railFoldStyle" },
+    { id: "tab-row-height", kind: "tabRowHeight" },
     { id: "toast", kind: "toast" },
     { id: "sound", kind: "sound" },
     { id: "sound-volume", kind: "soundVolume" },
