@@ -148,6 +148,24 @@ describe("nodePtyDriver", () => {
     expect(() => proc.close()).not.toThrow()
     expect(pty.calls).toEqual([])
   })
+
+  test("supplies endTree, aimed at the child's own pid — the subtree kill() cannot reach", async () => {
+    // node-pty's kill() is TerminateProcess on the shell alone; the engine
+    // and everything it spawned survive it with their cwd in the worktree,
+    // which is what made a deleted worktree's directory undeletable.
+    const pty = fakeNodePty()
+    const asked: number[] = []
+    const driver = await nodePtyDriver(pty.spawn, async (pid) => {
+      asked.push(pid)
+      return `taskkill /T /F /PID ${pid}: SUCCESS`
+    })
+    const proc = driver(request())
+
+    await expect(proc.endTree?.()).resolves.toBe("taskkill /T /F /PID 31337: SUCCESS")
+    expect(asked).toEqual([31337])
+    // Asking is not killing: the handle release stays a separate `kill()`.
+    expect(pty.calls).toEqual([])
+  })
 })
 
 /** The driver every macOS and Linux user runs — `Bun` is not a global here. */

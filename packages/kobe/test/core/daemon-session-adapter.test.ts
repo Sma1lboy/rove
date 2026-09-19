@@ -124,7 +124,8 @@ describe("daemon session adapter", () => {
 
   it("tears down a task session best-effort", async () => {
     await tearDownTaskSessionAdapter("task-3")
-    expect(mocks.killSessions).toHaveBeenCalledWith(expect.anything(), ["task-3::tab-1"])
+    // `wait: true` — the callers are about to unlink the session's cwd.
+    expect(mocks.killSessions).toHaveBeenCalledWith(expect.anything(), ["task-3::tab-1"], { wait: true })
     expect(mocks.close).toHaveBeenCalledOnce()
   })
 

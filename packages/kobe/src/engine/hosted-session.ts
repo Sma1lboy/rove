@@ -86,8 +86,24 @@ export function hostedTaskKeys(sessions: readonly PtySessionInfo[], taskId: stri
   return sessions.filter((session) => isHostedTaskKey(session.key, taskId)).map((session) => session.key)
 }
 
-export async function killHostedSessions(rpc: HostedSessionRpc, keys: readonly string[]): Promise<void> {
-  for (const key of keys) await rpc.request("pty.kill", { key }).catch(() => {})
+export interface KillHostedSessionsOpts {
+  /**
+   * Hold the reply until the child has actually ended (bounded by the host's
+   * own SIGTERM → SIGKILL grace), instead of the default "request taken".
+   * A caller about to unlink the session's working directory needs this: a
+   * kill that is still in flight leaves a process holding that directory as
+   * its cwd, which Windows refuses to delete.
+   */
+  readonly wait?: boolean
+}
+
+export async function killHostedSessions(
+  rpc: HostedSessionRpc,
+  keys: readonly string[],
+  opts?: KillHostedSessionsOpts,
+): Promise<void> {
+  const payload = opts?.wait === true ? { wait: true } : {}
+  for (const key of keys) await rpc.request("pty.kill", { key, ...payload }).catch(() => {})
 }
 
 /**

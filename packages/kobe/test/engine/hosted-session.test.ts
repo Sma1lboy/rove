@@ -48,6 +48,17 @@ describe("hosted session helpers", () => {
     ])
   })
 
+  it("asks the host to hold the reply until the child ended when the caller waits", async () => {
+    const request = vi.fn().mockResolvedValue({ accepted: true, ended: true })
+    const rpc: HostedSessionRpc = { request }
+
+    await killHostedSessions(rpc, ["task-a::tab-1"], { wait: true })
+    // The flag rides on the same verb: an older host ignores it and answers
+    // as before, so the caller degrades to the pre-existing race, never to
+    // a refused kill.
+    expect(request.mock.calls).toEqual([["pty.kill", { key: "task-a::tab-1", wait: true }]])
+  })
+
   it("opens the canonical engine PTY, detaches the short-lived client, and returns the host result", async () => {
     const opened = { replay: "", alive: true, pid: 42, created: true }
     const request = vi.fn().mockResolvedValueOnce(opened).mockRejectedValueOnce(new Error("detached concurrently"))

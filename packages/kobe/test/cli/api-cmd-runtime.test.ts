@@ -233,7 +233,7 @@ describe("defaultApiRuntime", () => {
   it("tearDownSession kills every hosted task key and closes the probe client", async () => {
     await defaultApiRuntime.tearDownSession("t1")
     expect(mocks.taskKeys).toHaveBeenCalledWith(expect.any(Array), "t1")
-    expect(mocks.killTaskSessions).toHaveBeenCalledWith(expect.anything(), ["t1::tab-1", "t1::tab-2"])
+    expect(mocks.killTaskSessions).toHaveBeenCalledWith(expect.anything(), ["t1::tab-1", "t1::tab-2"], { wait: true })
     expect(mocks.closePtyHost).toHaveBeenCalledOnce()
   })
 

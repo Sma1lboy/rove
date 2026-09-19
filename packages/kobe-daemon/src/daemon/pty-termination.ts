@@ -41,9 +41,9 @@ export async function settledWithin(exited: Promise<unknown>, ms: number): Promi
  *
  * Windows has neither process groups to signal nor signals at all — the
  * fallback there lands in node-pty's `kill()`, which ignores the signal and
- * calls `TerminateProcess`. That makes even the SIGTERM step a hard kill on
- * Windows, so an engine never gets to flush; tracked separately rather than
- * papered over here.
+ * calls `TerminateProcess` on the shell alone. The subtree is reached
+ * separately, through the driver's `endTree` in {@link terminatePtyChild};
+ * this function is only ever the handle-release step there.
  *
  * Every signal Rove sends a PTY subtree goes through here, so `onSignal` is
  * the complete record of Rove's own killing. A receiver cannot learn its
@@ -86,12 +86,30 @@ const TERMINATION_GRACE_MS = 500
  * wedged one would hang the host's shutdown — and with it `kobe reset`.
  * A child that outlives SIGKILL is already beyond this process's reach;
  * reporting the session dead is strictly better than never returning.
+ *
+ * A child whose driver supplies `endTree` (node-pty on Windows, where there
+ * is no group to signal) has its whole subtree ended FIRST, and only then is
+ * `kill()` called to release the pseudo console — the other order closes the
+ * console the tree is attached to while the tree is still there to walk.
+ * The ordering is keyed on the driver, not on `process.platform`: a fake
+ * child in a test carries a made-up pid, and `taskkill /F` on a made-up pid
+ * is a kill of whatever real process holds it today.
  */
 export async function terminatePtyChild(
   proc: PtyChild,
   onSettled: () => void,
   onSignal?: (line: string) => void,
 ): Promise<void> {
+  if (proc.endTree) {
+    onSignal?.(await proc.endTree())
+    // node-pty throws here once the child has exited, which after a
+    // successful tree kill it has — swallowed by the fallback path, same as
+    // a dead child on POSIX.
+    signalProcessGroup(proc.pid, "SIGKILL", () => proc.kill("SIGKILL"), process.platform, onSignal)
+    await settledWithin(proc.exited, TERMINATION_GRACE_MS)
+    onSettled()
+    return
+  }
   signalProcessGroup(proc.pid, "SIGTERM", () => proc.kill("SIGTERM"), process.platform, onSignal)
   if (!(await settledWithin(proc.exited, TERMINATION_GRACE_MS))) {
     signalProcessGroup(proc.pid, "SIGKILL", () => proc.kill("SIGKILL"), process.platform, onSignal)

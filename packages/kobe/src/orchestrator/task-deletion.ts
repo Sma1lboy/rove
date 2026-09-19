@@ -45,6 +45,17 @@ export class TaskDeletionCoordinator {
      * that had not happened.
      */
     private readonly onBranchKept?: (taskId: TaskId, kept: { branch: string; reason: string }) => void,
+    /**
+     * Ends the task's engine session, and returns once it has. Runs in
+     * `finish()` BEFORE the worktree is removed. Until it did, the session was
+     * killed by the client after the delete RPC had returned — racing the
+     * daemon's background removal — and on Windows the loser of that race
+     * was the removal: a process whose cwd is inside the worktree makes the
+     * directory undeletable, so git deregistered it and left an empty
+     * directory behind with `Permission denied`, every time. Best-effort:
+     * an unreachable host must not park a deletion the user confirmed.
+     */
+    private readonly tearDownSession?: (taskId: TaskId) => Promise<void>,
   ) {}
 
   /** Persist acceptance after the destructive dirty-worktree safety check. */
@@ -119,6 +130,15 @@ export class TaskDeletionCoordinator {
       // directory (`kobe .`), not a kobe-managed worktree. Deleting the
       // task must only drop the index entry.
       if (task.worktreePath && task.kind !== "dir") {
+        // Session first, directory second — see the constructor's
+        // `tearDownSession`. A `dir` task's session is left to the client:
+        // nothing on disk is about to go, so nothing is waiting on it.
+        try {
+          await this.tearDownSession?.(task.id)
+        } catch {
+          // The removal is what the user confirmed; a session host that could
+          // not be asked is at worst the pre-existing race, never a refusal.
+        }
         await this.worktrees.remove(task.worktreePath, {
           force: task.deletion.force,
           deleteBranch: task.deletion.deleteBranch === true,

@@ -301,7 +301,10 @@ export async function tearDownTaskSessionAdapter(taskId: string): Promise<void> 
   const host = await openHostedSessionHost()
   if (!host) return
   try {
-    await killHostedSessions(host.rpc, hostedTaskKeys(await listHostedSessions(host.rpc), taskId))
+    // `wait`: every caller of this adapter is about to remove the task's
+    // worktree (deletion runner, land), and a directory a still-exiting
+    // engine has as its cwd cannot be unlinked on Windows.
+    await killHostedSessions(host.rpc, hostedTaskKeys(await listHostedSessions(host.rpc), taskId), { wait: true })
   } catch {
     // Task mutation already committed; teardown remains best-effort.
   } finally {

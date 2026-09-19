@@ -21,6 +21,8 @@
  * and identically tested on every platform.
  */
 
+import { taskkillProcessTree } from "./process-tree.ts"
+
 /** How a PTY child ended. `code` XOR `signal` for a normal wait; both
  *  null when the runtime could not tell. */
 export interface PtyExit {
@@ -39,6 +41,15 @@ export interface PtyChild {
   /** Release the pty handle once exited. Must tolerate being called twice. */
   close(): void
   kill(signal: NodeJS.Signals): void
+  /**
+   * End the child AND every process descended from it, resolving with one
+   * line for the signal log once that has been asked. Present only where a
+   * signal cannot do the job — node-pty on Windows, which has no process
+   * group to signal — and absent on the drivers whose `kill()` already
+   * reaches the group. `terminatePtyChild` runs it BEFORE `kill()`, so the
+   * tree is still there to walk when it runs.
+   */
+  readonly endTree?: () => Promise<string>
 }
 
 export interface PtySpawnRequest {
@@ -150,7 +161,10 @@ export type NodePtySpawn = (
  * promise, env narrowing — is unit-testable on a runner where the native
  * binding was never built.
  */
-export async function nodePtyDriver(spawn?: NodePtySpawn): Promise<PtyDriver> {
+export async function nodePtyDriver(
+  spawn?: NodePtySpawn,
+  endTree: (pid: number) => Promise<string> = taskkillProcessTree,
+): Promise<PtyDriver> {
   const spawnPty = spawn ?? ((await import("node-pty")).spawn as unknown as NodePtySpawn)
   return (request) => {
     const [file, ...args] = request.argv
@@ -179,8 +193,11 @@ export async function nodePtyDriver(spawn?: NodePtySpawn): Promise<PtyDriver> {
       // to release, and `kill()` after exit throws.
       close: () => {},
       // ConPTY has no signals — node-pty maps every kill to TerminateProcess,
-      // so SIGTERM and SIGKILL collapse into the same call here.
+      // so SIGTERM and SIGKILL collapse into the same call here — and that
+      // call reaches the shell alone: nothing it spawned, nothing holding
+      // the worktree as its cwd. `endTree` is what reaches the rest.
       kill: () => child.kill(),
+      endTree: () => endTree(child.pid),
     }
   }
 }

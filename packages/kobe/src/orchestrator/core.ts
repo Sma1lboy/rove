@@ -67,9 +67,11 @@ export interface OrchestratorDeps {
   readonly onBranchKept?: (taskId: TaskId, kept: { readonly branch: string; readonly reason: string }) => void
   /**
    * Kill a task's engine session. Bound by the composition root to the hosted
-   * session host; a TUI-local orchestrator leaves it unset. `landTask` calls
-   * it before removing a landed worktree — an engine still writing into a
-   * directory that is about to be unlinked loses everything it writes next.
+   * session host; a TUI-local orchestrator leaves it unset. `landTask` and
+   * the deletion runner call it before removing a worktree, and it returns
+   * only once the session has ended — an engine still writing into a
+   * directory that is about to be unlinked loses everything it writes next,
+   * and one still exiting holds that directory open on Windows.
    */
   readonly tearDownSession?: (taskId: TaskId | string) => Promise<void>
 }
@@ -120,6 +122,7 @@ export class Orchestrator {
       deps.onSalvage,
       deps.onWorktreeResidue,
       deps.onBranchKept,
+      deps.tearDownSession,
     )
     this.tasksAcc = createStateCell<Task[]>(this.store.list())
     // Seed focus from the persisted `lastActive` record (state/last-active
