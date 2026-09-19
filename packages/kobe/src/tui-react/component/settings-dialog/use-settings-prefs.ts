@@ -24,6 +24,13 @@ import {
 } from "../../../state/sound-volume"
 import { SPLIT_STYLE_KEY, type SplitStyle, normalizeSplitStyle } from "../../../state/split-style"
 import {
+  DEFAULT_TAB_ROW_HEIGHT,
+  TAB_ROW_HEIGHTS,
+  TAB_ROW_HEIGHT_KEY,
+  type TabRowHeight,
+  normalizeTabRowHeight,
+} from "../../../state/tab-row-height"
+import {
   TAB_STRIP_HIDE_SINGLE_KEY,
   TAB_STRIP_MODES,
   TAB_STRIP_MODE_KEY,
@@ -166,6 +173,17 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     const i = COLLAPSED_RAIL_STYLES.indexOf(railFoldStyle())
     const next = COLLAPSED_RAIL_STYLES[(i + 1) % COLLAPSED_RAIL_STYLES.length]
     if (next) kv.set(RAIL_FOLD_STYLE_KEY, next)
+  }
+  // How tall an agent tab row is. Two values, and the rail is right there to
+  // show the answer, so it cycles like the fold style rather than opening a
+  // sub-menu.
+  function tabRowHeight(): TabRowHeight {
+    return normalizeTabRowHeight(kv.get(TAB_ROW_HEIGHT_KEY, DEFAULT_TAB_ROW_HEIGHT))
+  }
+  function cycleTabRowHeight(): void {
+    const i = TAB_ROW_HEIGHTS.indexOf(tabRowHeight())
+    const next = TAB_ROW_HEIGHTS[(i + 1) % TAB_ROW_HEIGHTS.length]
+    if (next !== undefined) kv.set(TAB_ROW_HEIGHT_KEY, next)
   }
   // Editor preference: which editor the file tree's `e` key launches.
   function editorKind(): EditorKind {
@@ -314,6 +332,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     toggleZenDefaultOn,
     railFoldStyle,
     cycleRailFoldStyle,
+    tabRowHeight,
+    cycleTabRowHeight,
     remoteProjectsEnabled,
     toggleRemoteProjects,
     autoStatusOn,

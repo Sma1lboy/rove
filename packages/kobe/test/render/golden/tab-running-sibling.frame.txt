@@ -12,12 +12,12 @@
 | rove ─────────────────────── |
 |  feat/alpha              ? 2 |
 |▌ ○ build                   3 |
-|      engine default          |
 |  ~ review              22m 4 |
-|      engine default          |
 |  feat/bravo              ? 5 |
 |  ○ tests                   6 |
-|      engine default          |
+|                              |
+|                              |
+|                              |
 |                              |
 |                              |
 |                              |
