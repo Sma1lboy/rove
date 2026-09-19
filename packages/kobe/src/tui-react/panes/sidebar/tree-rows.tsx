@@ -33,7 +33,6 @@ import {
   isAttentionActivity,
   withSpinnerFrame,
 } from "../../../tui/panes/sidebar/row-view"
-import { taskGroupGlyph } from "../../../tui/panes/sidebar/task-group-view"
 import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
 import { SIDEBAR_WIDTH, rowTokenTone, toneColor, truncateBranchLabel } from "../../../tui/panes/sidebar/view-core"
 import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
@@ -151,27 +150,14 @@ export function WorktreeTreeRow(props: {
   // and nothing else would be unusable.
   const deletionWord =
     deleting || deleteFailed ? t(deleteFailed ? "tasks.subtitle.deleteFailed" : "tasks.subtitle.deleting") : null
-  // The DERIVED group (lib/task-group.ts) — a task-level fact, like the job
-  // and the deletion above it, and unlike the per-tab engine state the tab
-  // row owns. It is what closes the gap the `carriesState` split left open:
-  // a worker whose engine died at a permission prompt, and a task whose PR
-  // was approved an hour ago, both had nothing on this row to say so.
-  //
-  // Three of its four markers are the rail's existing vocabulary, so nothing
-  // new has to be learned: `!` needs you, `●` a turn landed you have not
-  // looked at, the spinner for work in flight. Only `»` (ready to land) is
-  // new. A spinning row keeps the spinner: a job in flight is the most
-  // worktree-level fact there is, and it already means "wait".
-  const group = shared.taskGroupOf?.(task.id)
-  const groupMark = spinning || !group ? null : taskGroupGlyph(group)
   // Plugin-written labels. Expired tokens are dropped at RENDER time as well
   // as by the daemon's republish: a frame between a token's deadline and that
   // push must not paint a label that has already lapsed.
   const tokens = liveRowTokens(shared.rowTokens, task.id, Date.now())
   const reserved =
-    // The glyph column exists only while a job runs or the derived group has
-    // something to say, so a quiet row spends none of its label budget on it.
-    (spinning || groupMark ? 2 : 0) +
+    // The glyph column exists only while a job runs, so a resting row spends
+    // none of its label budget on it.
+    (spinning ? 2 : 0) +
     // Plugin labels take from the SAME budget as everything else, so a
     // plugin can crowd the branch name but never overflow the row.
     tokens.reduce((cells, token) => cells + clusterCells(token.text), 0) +
@@ -192,10 +178,6 @@ export function WorktreeTreeRow(props: {
       {spinning ? (
         <text fg={theme.primary} wrapMode="none" width={2} flexShrink={0}>
           {`${IN_PROGRESS_SPINNER[frame % IN_PROGRESS_SPINNER.length] ?? IN_PROGRESS_SPINNER[0]} `}
-        </text>
-      ) : groupMark ? (
-        <text fg={toneColor(theme, groupMark.tone)} wrapMode="none" width={2} flexShrink={0}>
-          {`${groupMark.glyph} `}
         </text>
       ) : null}
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>

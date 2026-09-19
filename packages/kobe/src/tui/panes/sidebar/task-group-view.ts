@@ -1,8 +1,13 @@
 /**
  * Presentation of the DERIVED task group (`lib/task-group.ts`) — the one
- * place the TUI turns "whose turn is it" into a glyph, a tone, a label and a
- * sort key. One module so the sidebar rail and the kanban board cannot
- * disagree about what `waiting-on-you` looks like.
+ * place the TUI turns "whose turn is it" into a tone, a label and a sort key.
+ * One module so the board badge and the rail's `attention` sort cannot
+ * disagree about what `waiting-on-you` means.
+ *
+ * Deliberately NOT a row glyph: the sidebar rail draws no task-level marker
+ * (owner 2026-09-19). Engine state on a tab row and a task rollup on the
+ * worktree row above it are two different vocabularies sharing one column,
+ * and the rail reads as a legend when both are lit.
  *
  * Why the group and not raw engine activity: activity describes what ONE tab's
  * engine is doing. The group describes what the TASK needs from a person, and
@@ -17,7 +22,7 @@ import { type TaskGroup, deriveTaskGroup, taskGroupRank } from "@/lib/task-group
 import { t } from "@/tui/i18n"
 import type { Task } from "@/types/task"
 import { compareRecent } from "./groups"
-import { ATTENTION_GLYPH, type SidebarTone } from "./row-view"
+import type { SidebarTone } from "./row-view"
 
 /**
  * Derive one task's group from what a TUI pane has in hand.
@@ -29,32 +34,6 @@ import { ATTENTION_GLYPH, type SidebarTone } from "./row-view"
  */
 export function taskGroupIn(task: Task, activity: TaskEngineState | undefined, now: number = Date.now()): TaskGroup {
   return deriveTaskGroup({ task, activity, tabAlive: null, now })
-}
-
-/**
- * The row marker for a group, or `null` for the two groups that mean "nothing
- * to do here" — a quiet row says so by drawing nothing.
- *
- * Three of the four reuse the rail's existing vocabulary unchanged (`!` needs
- * you, `●` a turn landed you have not looked at, the spinner for working), so
- * the group adds no glyph a reader has to learn. `landing` is the one state
- * the rail could not express before: `»` (U+00BB, Latin-1 Supplement — one
- * cell in every monospace font, the same coverage rule `row-view.ts`
- * records) reads as "ready to go through". REVIEWED AND KEPT by the owner
- * (2026-09-18) — the rail's only new glyph in a long while, so it got a
- * second look and stays; settled, do not re-litigate it.
- */
-export function taskGroupGlyph(group: TaskGroup): { glyph: string; tone: SidebarTone } | null {
-  switch (group) {
-    case "waiting-on-you":
-      return { glyph: ATTENTION_GLYPH, tone: "error" }
-    case "landing":
-      return { glyph: "»", tone: "success" }
-    case "ready-for-review":
-      return { glyph: "●", tone: "primary" }
-    default:
-      return null
-  }
 }
 
 /**

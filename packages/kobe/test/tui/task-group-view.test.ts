@@ -1,18 +1,16 @@
 /**
- * Presentation of the derived task group: which marker a row draws, which
- * word a board badge shows, and the `attention` sort's ranking.
+ * Presentation of the derived task group: which word a board badge shows,
+ * and the `attention` sort's ranking.
  *
  * The derivation itself is tested in `test/lib/task-group.test.ts`; this pins
- * the half the two surfaces share, so the rail and the board cannot disagree
- * about what `waiting-on-you` looks like.
+ * the half the board and the sort share, so they cannot disagree about what
+ * `waiting-on-you` means.
  */
 
 import { describe, expect, it } from "vitest"
 import { TASK_GROUPS } from "../../src/lib/task-group.ts"
-import { ATTENTION_GLYPH } from "../../src/tui/panes/sidebar/row-view.ts"
 import {
   compareTaskGroup,
-  taskGroupGlyph,
   taskGroupIn,
   taskGroupLabel,
   taskGroupTone,
@@ -44,30 +42,6 @@ describe("taskGroupIn", () => {
     // A pane holds the daemon's activity map, not the pty host's inventory,
     // so it cannot prove a task is resting.
     expect(taskGroupIn(task("t"), undefined, NOW)).toBe("unknown")
-  })
-})
-
-describe("taskGroupGlyph", () => {
-  it("reuses the rail's existing needs-you and turn-landed glyphs", () => {
-    expect(taskGroupGlyph("waiting-on-you")).toEqual({ glyph: ATTENTION_GLYPH, tone: "error" })
-    expect(taskGroupGlyph("ready-for-review")).toEqual({ glyph: "●", tone: "primary" })
-  })
-
-  it("gives `landing` the one marker the rail could not express", () => {
-    expect(taskGroupGlyph("landing")).toEqual({ glyph: "»", tone: "success" })
-  })
-
-  it("draws nothing for the groups with nothing to do — `working` included, since the spinner owns it", () => {
-    expect(taskGroupGlyph("working")).toBeNull()
-    expect(taskGroupGlyph("idle")).toBeNull()
-    expect(taskGroupGlyph("unknown")).toBeNull()
-  })
-
-  it("keeps every marker one cell wide, so a row's budget arithmetic holds", () => {
-    for (const group of TASK_GROUPS) {
-      const mark = taskGroupGlyph(group)
-      if (mark) expect([...mark.glyph]).toHaveLength(1)
-    }
   })
 })
 

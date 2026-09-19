@@ -12,7 +12,6 @@
  */
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
-import type { TaskGroup } from "@/lib/task-group"
 import { type BoxRenderable, MouseButton } from "@opentui/core"
 import type { ReactNode } from "react"
 import { charWidth } from "../../../lib/display-width"
@@ -53,18 +52,6 @@ export type TreeRowShared = {
   readonly branchTick: number
   /** Per-tab activity (taskId → tabId → state), never the task rollup. */
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
-  /**
-   * The DERIVED task group per task id (`lib/task-group.ts`), as a READER
-   * rather than the rollup map the rule above keeps off this shell.
-   *
-   * The distinction is the point: the rollup is engine ACTIVITY, which is the
-   * tab's fact to render and would be duplicated here. The group is what the
-   * TASK needs from a person — it folds the worker's report and the PR
-   * observation, neither of which any tab knows — and the worktree row is the
-   * only task-level row there is. Omitted = no group marker, which is what
-   * every pane mounted without a daemon already renders.
-   */
-  readonly taskGroupOf?: (taskId: string) => TaskGroup | undefined
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
   readonly rowTokens?: RowTokenMap
