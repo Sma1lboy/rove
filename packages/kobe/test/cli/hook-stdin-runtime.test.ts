@@ -64,3 +64,66 @@ describe("readStdinText", () => {
     expect(text).toHaveBeenCalledOnce()
   })
 })
+
+/**
+ * Some engines write their one JSON object and then WAIT for the hook to exit
+ * without closing the pipe. Reading to EOF never returns for those, the
+ * caller's 500 ms race wins, and the payload that was already in the buffer is
+ * discarded — the hook fires carrying no session id and no cwd, which looks
+ * exactly like no hook at all.
+ */
+describe("readStdinText with a completeness predicate", () => {
+  /** A pipe that delivers `text` and is never closed by its writer. */
+  function unclosedStdin(text: string): PassThrough {
+    const stream = new PassThrough()
+    stream.write(text)
+    return stream
+  }
+
+  const completeJson = (text: string): boolean => {
+    try {
+      JSON.parse(text)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  it("returns the payload from a writer that never closes the pipe", async () => {
+    useStdin(unclosedStdin('{"sessionId":"s1","cwd":"/repo"}'))
+    expect(await readStdinText(completeJson)).toBe('{"sessionId":"s1","cwd":"/repo"}')
+  })
+
+  it("keeps reading while the document is still arriving in pieces", async () => {
+    const stream = new PassThrough()
+    stream.write('{"sessionId":')
+    setTimeout(() => stream.write('"s1"}'), 5)
+    useStdin(stream)
+    expect(await readStdinText(completeJson)).toBe('{"sessionId":"s1"}')
+  })
+
+  // Without the predicate the same stream is what it always was: a read that
+  // only ends at EOF. This is the behaviour every closing writer still gets.
+  it("still reads a closing writer to EOF, predicate or not", async () => {
+    useStdin(pipedStdin('{"session_id":"s1"}'))
+    expect(await readStdinText(completeJson)).toBe('{"session_id":"s1"}')
+    useStdin(pipedStdin('{"session_id":"s1"}'))
+    expect(await readStdinText()).toBe('{"session_id":"s1"}')
+  })
+
+  it("does not stop early on text that is not yet a document", async () => {
+    useStdin(pipedStdin("not json at all"))
+    expect(await readStdinText(completeJson)).toBe("not json at all")
+  })
+
+  // An empty buffer is not a document either — a writer that has sent nothing
+  // yet must not end the read on its first empty chunk.
+  it("does not treat an empty or blank buffer as complete", async () => {
+    const stream = new PassThrough()
+    stream.write("")
+    stream.write("   ")
+    setTimeout(() => stream.end('{"sessionId":"s1"}'), 5)
+    useStdin(stream)
+    expect(await readStdinText(completeJson)).toBe('   {"sessionId":"s1"}')
+  })
+})

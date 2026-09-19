@@ -30,12 +30,14 @@ describe("contrib engine catalog", () => {
   // opencode's positional argument is a project DIRECTORY, so an argv-delivered
   // first message becomes a path and the launch dies before the engine is up
   // ("Failed to change directory to <cwd>/<the prompt>"). Same class as kimi,
-  // same fix: the spawner pastes it instead.
-  it("opencode declares paste delivery; the rest keep the argv default", () => {
-    expect(engineEntry("opencode").firstMessageDelivery).toBe("paste")
+  // same fix: the spawner pastes it instead. kilo is an opencode fork and
+  // inherits the positional, so it inherits the fix.
+  const PASTE_DELIVERY = ["opencode", "kilo"]
+  it("the opencode family declares paste delivery; the rest keep the argv default", () => {
     for (const id of CONTRIB_ENGINE_IDS) {
-      if (id === "opencode") continue
-      expect(engineEntry(id).firstMessageDelivery, id).toBeUndefined()
+      const delivery = engineEntry(id).firstMessageDelivery
+      if (PASTE_DELIVERY.includes(id)) expect(delivery, id).toBe("paste")
+      else expect(delivery, id).toBeUndefined()
     }
   })
 
