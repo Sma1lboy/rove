@@ -19,9 +19,9 @@ describe("createEngineHookAdapter", () => {
     expect(createEngineHookAdapter("codex").supportsHooks()).toBe(true)
   })
 
-  it("resolves copilot (unwired hooks) to a noop adapter carrying the vendor id", () => {
+  it("resolves copilot to its own wired adapter, not the noop one", () => {
     const adapter = createEngineHookAdapter("copilot")
-    expect(adapter.supportsHooks()).toBe(false)
+    expect(adapter.supportsHooks()).toBe(true)
     expect(adapter.vendor).toBe("copilot")
   })
 })

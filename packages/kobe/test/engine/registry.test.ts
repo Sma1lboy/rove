@@ -81,8 +81,9 @@ describe("engineEntry — built-in vendors", () => {
       expect(entry.defaultCommand).toEqual([vendor])
       const hooks = entry.createHookAdapter()
       expect(hooks.vendor).toBe(vendor)
-      // Codex has a wired hook mechanism (~/.codex/hooks.json); copilot doesn't yet.
-      expect(hooks.supportsHooks()).toBe(vendor === "codex")
+      // Both have a wired hook mechanism: codex's ~/.codex/hooks.json and
+      // copilot's ~/.copilot/settings.json.
+      expect(hooks.supportsHooks()).toBe(true)
       // Real history readers — not the custom-engine empty one.
       expect(entry.history).not.toBe(EMPTY_HISTORY)
       // Codex reads `turn.completed` rollout markers; copilot has none yet.
