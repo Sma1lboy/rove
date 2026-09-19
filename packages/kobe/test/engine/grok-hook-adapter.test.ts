@@ -176,8 +176,9 @@ describe("GrokHookAdapter payload readers", () => {
     })
   })
 
-  // Grok also carries GROK_SESSION_ID in the hook process's environment, which
-  // this payload-only seam cannot see. Unidentified beats invented.
+  // The id also rides the environment as GROK_SESSION_ID, which this seam
+  // cannot see — it does not need to, since the payload carries it. A payload
+  // with no id at all stays unidentified rather than invented.
   it("answers nothing rather than guessing when the payload carries no id", () => {
     expect(adapter.sessionFromPayload({})).toBeUndefined()
     expect(adapter.sessionFromPayload({ session_id: "" })).toBeUndefined()

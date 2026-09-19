@@ -59,11 +59,12 @@ export class GrokHookAdapter extends SessionStartHookAdapter {
   }
 
   /**
-   * Grok spells the session id `session_id`, and `sessionId` on the events
-   * that predate it. Its hook processes also carry `GROK_SESSION_ID` in the
-   * environment, which is the more reliable source — but this seam sees only
-   * the payload, so a session that reports through the env alone stays
-   * unidentified rather than guessed at.
+   * Grok's stdin payload spells the session id `sessionId`, alongside
+   * `hookEventName`, `cwd` and `workspaceRoot`; `session_id` is read too for
+   * the events that use the snake-case spelling. The same id is ALSO exported
+   * to the hook process as `GROK_SESSION_ID`, which this payload-only seam
+   * cannot see — it needs no widening for it, because the payload carries the
+   * id on its own.
    */
   override sessionFromPayload(payload: Record<string, unknown>): EngineSessionRef | undefined {
     const sessionId = firstString(payload.session_id, payload.sessionId)
