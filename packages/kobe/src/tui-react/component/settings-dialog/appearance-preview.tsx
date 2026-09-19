@@ -48,7 +48,7 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
           <text fg={props.active === "railFold" ? theme.focusAccent : theme.textMuted}>‹</text>
           {folded.map((label, i) => (
             <text
-              key={label}
+              key={i}
               fg={i === 0 ? theme.focusAccent : i === 1 ? theme.success : theme.textMuted}
               wrapMode="none"
             >
