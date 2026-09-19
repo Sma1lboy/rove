@@ -103,7 +103,10 @@ export async function killHostedSessions(
   opts?: KillHostedSessionsOpts,
 ): Promise<void> {
   const payload = opts?.wait === true ? { wait: true } : {}
-  for (const key of keys) await rpc.request("pty.kill", { key, ...payload }).catch(() => {})
+  // Concurrent, so a waited teardown costs one child's grace (≤1s), not one
+  // per tab. Every request is still issued, in key order, whatever any one
+  // of them answers.
+  await Promise.all(keys.map((key) => rpc.request("pty.kill", { key, ...payload }).catch(() => {})))
 }
 
 /**
