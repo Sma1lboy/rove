@@ -1,5 +1,5 @@
 /**
- * The whole A-layer channel for copilot and droid, end to end, with nothing
+ * The whole A-layer channel for all four engines, end to end, with nothing
  * about it hand-written: install into a throwaway config dir, read the command
  * string BACK OUT of the file the engine would read, split it into argv, and
  * feed that argv plus a hook payload to the real `runHookSubcommand`. What the
@@ -32,7 +32,10 @@ vi.mock("@sma1lboy/kobe-daemon/client/daemon-process", () => ({
 
 import { runHookSubcommand } from "@/cli/hook-cmd"
 import { CopilotHookAdapter } from "@/engine/copilot-local/hook-adapter"
+import { DevinHookAdapter } from "@/engine/devin-local/hook-adapter"
 import { DroidHookAdapter } from "@/engine/droid-local/hook-adapter"
+import type { EngineHookAdapter } from "@/engine/hook-adapter"
+import { QodercliHookAdapter } from "@/engine/qodercli-local/hook-adapter"
 
 /** Pull every `kobe hook …` command out of an installed config file, whatever
  *  container shape the engine uses, and return each as the argv
@@ -80,78 +83,77 @@ function stubStdin(payload: unknown): void {
 }
 
 /**
- * A copilot `SessionStart` payload in the shape GitHub's hooks reference
- * documents (docs.github.com/copilot/reference/hooks-reference): the event
- * name, the session id, and the workspace as `cwd`. NB: this is a SHAPE, not a
- * capture — copilot CLI was not installed on the machine this was written on,
- * so the field names come from the reference and from refs/herdr's copilot
- * hook, which reads `session_id` then `sessionId`.
+ * The payloads below are SHAPES, not captures: none of the four CLIs was
+ * installed on the machine this was written on. `hook_event_name` /
+ * `session_id` / `cwd` come from GitHub's copilot hooks reference
+ * (docs.github.com/copilot/reference/hooks-reference) and from refs/herdr's
+ * own hook script for each engine, every one of which reads `session_id` and
+ * exits when it is not a non-empty string.
  */
-const COPILOT_SESSION_START = {
-  hook_event_name: "SessionStart",
-  session_id: "3d1b5f9a-0c4e-4a77-9a1f-8d2c6b0e5f11",
-  cwd: "/repo/worktrees/otter",
-} satisfies Record<string, unknown>
+interface Roundtrip {
+  readonly vendor: string
+  readonly adapter: () => EngineHookAdapter
+  /** Config path relative to a fake home, as segments. */
+  readonly relPath: readonly string[]
+  /** The session id the payload carries, and the cwd it names. */
+  readonly sessionId: string
+  readonly cwd: string
+}
 
-/** A droid `SessionStart` payload; same caveat, from refs/herdr's droid hook
- *  (`session_id`) plus the `cwd` every Claude-shaped hook payload carries. */
-const DROID_SESSION_START = {
-  hook_event_name: "SessionStart",
-  session_id: "droid-7f3c",
-  cwd: "/repo/worktrees/badger",
-} satisfies Record<string, unknown>
+const ENGINES: readonly Roundtrip[] = [
+  {
+    vendor: "copilot",
+    adapter: () => new CopilotHookAdapter(),
+    relPath: [".copilot", "settings.json"],
+    sessionId: "3d1b5f9a-0c4e-4a77-9a1f-8d2c6b0e5f11",
+    cwd: "/repo/worktrees/otter",
+  },
+  {
+    vendor: "droid",
+    adapter: () => new DroidHookAdapter(),
+    relPath: [".factory", "settings.json"],
+    sessionId: "droid-7f3c",
+    cwd: "/repo/worktrees/badger",
+  },
+  {
+    vendor: "qodercli",
+    adapter: () => new QodercliHookAdapter(),
+    relPath: [".qoder", "settings.json"],
+    sessionId: "qoder-91ab",
+    cwd: "/repo/worktrees/heron",
+  },
+  {
+    vendor: "devin",
+    adapter: () => new DevinHookAdapter(),
+    relPath: [".config", "devin", "config.json"],
+    sessionId: "devin-44de",
+    cwd: "/repo/worktrees/stoat",
+  },
+]
 
-describe("copilot: installed command → dispatcher → daemon", () => {
-  it("reports session-start for the copilot task at the payload's cwd", async () => {
-    const dir = join(home, ".copilot")
-    mkdirSync(dir)
-    const file = join(dir, "settings.json")
-    await new CopilotHookAdapter().installActivityHooks(file, { quiet: true })
+describe.each(ENGINES)("$vendor: installed command → dispatcher → daemon", (e) => {
+  it("reports session-start for the right task, tagged with the right vendor", async () => {
+    const file = join(home, ...e.relPath)
+    mkdirSync(join(home, ...e.relPath.slice(0, -1)), { recursive: true })
+    await e.adapter().installActivityHooks(file, { quiet: true })
 
     const argvs = installedHookArgv(file)
     expect(argvs).toHaveLength(1)
-    stubStdin(COPILOT_SESSION_START)
+    // The `--engine <id>` tag is what picks the DECODING adapter. Without it
+    // the dispatcher asks every adapter in turn and takes the first answer,
+    // so one engine's session id gets attributed through another's reader —
+    // harmless while all four read `session_id`, and not harmless the moment
+    // any of them grows a detail decoder.
+    expect((argvs[0] as string[]).join(" ")).toContain(`--engine ${e.vendor}`)
+
+    stubStdin({ hook_event_name: "SessionStart", session_id: e.sessionId, cwd: e.cwd })
     await runHookSubcommand(argvs[0] as string[])
 
     expect(mocks.request).toHaveBeenCalledWith("engine.reportEvent", {
-      cwd: "/repo/worktrees/otter",
+      cwd: e.cwd,
       kind: "session-start",
-      engine: "copilot",
-      sessionId: COPILOT_SESSION_START.session_id,
+      engine: e.vendor,
+      sessionId: e.sessionId,
     })
-  })
-})
-
-describe("droid: installed command → dispatcher → daemon", () => {
-  it("reports session-start for the droid task at the payload's cwd", async () => {
-    const dir = join(home, ".factory")
-    mkdirSync(dir)
-    const file = join(dir, "settings.json")
-    await new DroidHookAdapter().installActivityHooks(file, { quiet: true })
-
-    const argvs = installedHookArgv(file)
-    expect(argvs).toHaveLength(1)
-    stubStdin(DROID_SESSION_START)
-    await runHookSubcommand(argvs[0] as string[])
-
-    expect(mocks.request).toHaveBeenCalledWith("engine.reportEvent", {
-      cwd: "/repo/worktrees/badger",
-      kind: "session-start",
-      engine: "droid",
-      sessionId: DROID_SESSION_START.session_id,
-    })
-  })
-
-  // The `--engine <id>` tag is what picks the decoding adapter. Without it the
-  // dispatcher asks every adapter in turn and takes the first answer, so a
-  // droid session id could be attributed through copilot's reader — harmless
-  // here (both read `session_id`) and not harmless the moment either engine
-  // grows a detail decoder.
-  it("tags the vendor so only that adapter decodes the payload", async () => {
-    const dir = join(home, ".factory")
-    mkdirSync(dir)
-    const file = join(dir, "settings.json")
-    await new DroidHookAdapter().installActivityHooks(file, { quiet: true })
-    expect((installedHookArgv(file)[0] as string[]).join(" ")).toContain("--engine droid")
   })
 })

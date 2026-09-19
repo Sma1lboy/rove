@@ -157,3 +157,63 @@ describe("antigravity screen manifest", () => {
     expect(classifyScreen(agy, "❯ \n · 0 tasks running")).toBeNull()
   })
 })
+
+describe("devin screen manifest", () => {
+  const devin = manifest("devin")
+
+  it("reads the trust prompt and a permission dialog as blocked", () => {
+    expect(classifyScreen(devin, "Do you trust the authors of this directory?\n  Yes, trust this folder\n  No")).toBe(
+      "blocked",
+    )
+    expect(classifyScreen(devin, "Run `rm -rf build`?\n  Approve once   Select   Confirm   esc cancel")).toBe("blocked")
+  })
+
+  it("reads all three working signals", () => {
+    expect(classifyScreen(devin, "Running tools…\n  esc to interrupt")).toBe("working")
+    expect(classifyScreen(devin, "❭ Guide Devin while it works")).toBe("working")
+    expect(classifyScreen(devin, "Reading shell output\n  timeout: 30s")).toBe("working")
+  })
+
+  it("reads the welcome and live prompt footers as idle", () => {
+    expect(classifyScreen(devin, "❭ Ask Devin to build features, fix bugs, or explain your code")).toBe("idle")
+    expect(classifyScreen(devin, "❭ \n  context: 12%")).toBe("idle")
+  })
+
+  // Order stands in for herdr's `not` gates: an approval on screen must win
+  // over the prompt footer that is still drawn underneath it.
+  it("keeps blocked and working ahead of the idle footers", () => {
+    expect(classifyScreen(devin, "Approve once   Select   Confirm   esc cancel\n❭ \n  context: 12%")).toBe("blocked")
+    expect(classifyScreen(devin, "Running tools…\n  esc to interrupt\n❭ \n  context: 12%")).toBe("working")
+  })
+
+  it("does not claim blocked on a trust banner with no answer row", () => {
+    expect(classifyScreen(devin, "Do you trust the authors of this directory?")).toBeNull()
+    expect(classifyScreen(devin, "Devin CLI v2.1")).toBeNull()
+  })
+})
+
+describe("qodercli screen manifest", () => {
+  const qodercli = manifest("qodercli")
+
+  it("reads each approval shape as blocked", () => {
+    expect(classifyScreen(qodercli, "Waiting for user confirmation\n  [y] Yes  [n] No")).toBe("blocked")
+    expect(classifyScreen(qodercli, "Awaiting approval\n  Allow / Reject")).toBe("blocked")
+    expect(classifyScreen(qodercli, "Permission required")).toBe("blocked")
+    expect(classifyScreen(qodercli, "Allow once or always?")).toBe("blocked")
+    expect(classifyScreen(qodercli, "Shell awaiting input")).toBe("blocked")
+  })
+
+  it("reads the cancel hint and the spinner as working", () => {
+    expect(classifyScreen(qodercli, "Thinking… (esc to cancel, 12s)")).toBe("working")
+    expect(classifyScreen(qodercli, "⠸ Editing src/app.ts")).toBe("working")
+  })
+
+  // A confirmation banner with no answer row is not an approval UI, and a
+  // bare braille cell with no text beside it is not a spinner.
+  it("does not claim blocked or working on a half-drawn screen", () => {
+    expect(classifyScreen(qodercli, "Waiting for user confirmation")).toBeNull()
+    expect(classifyScreen(qodercli, "Awaiting approval")).toBeNull()
+    expect(classifyScreen(qodercli, "⠸")).toBeNull()
+    expect(classifyScreen(qodercli, "> ")).toBeNull()
+  })
+})
