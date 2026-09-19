@@ -52,8 +52,12 @@ export function EngineSettingsSection(
     integrations: readonly EngineIntegration[] | null
     /** Engines whose hooks a single install would change (drives the label). */
     needsHookInstall: readonly VendorId[]
+    /** Engines with Rove hooks on disk — what a single remove would change. */
+    hooksInstalled: readonly VendorId[]
     /** Install the missing/outdated hooks for every engine at once. */
     onInstallHooks: () => void
+    /** Remove Rove's hooks from every engine config that has them. */
+    onUninstallHooks: () => void
   },
 ) {
   const { theme } = useTheme()
@@ -179,7 +183,10 @@ export function EngineSettingsSection(
                 probing={props.statuses === null}
                 protocol={protocolChip(vendor)}
               />
-              <EngineIntegrationLine integration={integrationByVendor.get(vendor) ?? null} />
+              <EngineIntegrationLine
+                integration={integrationByVendor.get(vendor) ?? null}
+                binaryFound={byVendor.get(vendor)?.binary.found}
+              />
             </box>
           )
         })}
@@ -200,36 +207,62 @@ export function EngineSettingsSection(
             {t("settings.engines.addEngine")}
           </text>
         </box>
-        {/* One install for every engine that needs one. Always present, even
-            with nothing to do: a row that appears only when something is
-            broken is a row nobody knows exists, and re-running the install is
-            idempotent by contract. */}
-        <box
-          ref={props.rowRef(addRowIndex + 1)}
-          flexDirection="row"
-          paddingLeft={1}
-          paddingRight={1}
-          backgroundColor={isBodyCursor(addRowIndex + 1) ? theme.primary : undefined}
-          onMouseUp={() => {
-            props.setLevel("body")
-            props.setBodyRow(addRowIndex + 1)
-            props.onInstallHooks()
-          }}
-        >
-          <text
-            fg={
-              isBodyCursor(addRowIndex + 1)
-                ? theme.selectedListItemText
-                : props.needsHookInstall.length > 0
-                  ? theme.primary
-                  : theme.textMuted
-            }
-            wrapMode="none"
+        {/* Install and remove, side by side. Always both present, even with
+            nothing to do: a button that appears only when something is broken
+            is a button nobody knows exists, and both actions are idempotent by
+            contract. Two cursor stops on one line — j/k walks them, enter
+            fires the one under the cursor, so neither needs a chord. */}
+        <box flexDirection="row" gap={2} paddingLeft={1} paddingRight={1}>
+          <box
+            ref={props.rowRef(addRowIndex + 1)}
+            flexDirection="row"
+            backgroundColor={isBodyCursor(addRowIndex + 1) ? theme.primary : undefined}
+            onMouseUp={() => {
+              props.setLevel("body")
+              props.setBodyRow(addRowIndex + 1)
+              props.onInstallHooks()
+            }}
           >
-            {props.needsHookInstall.length > 0
-              ? t("settings.engines.installHooks", { count: String(props.needsHookInstall.length) })
-              : t("settings.engines.installHooksDone")}
-          </text>
+            <text
+              fg={
+                isBodyCursor(addRowIndex + 1)
+                  ? theme.selectedListItemText
+                  : props.needsHookInstall.length > 0
+                    ? theme.primary
+                    : theme.textMuted
+              }
+              wrapMode="none"
+            >
+              {props.needsHookInstall.length > 0
+                ? t("settings.engines.installHooks", { count: String(props.needsHookInstall.length) })
+                : t("settings.engines.installHooksDone")}
+            </text>
+          </box>
+          <box
+            ref={props.rowRef(addRowIndex + 2)}
+            flexDirection="row"
+            backgroundColor={isBodyCursor(addRowIndex + 2) ? theme.primary : undefined}
+            onMouseUp={() => {
+              props.setLevel("body")
+              props.setBodyRow(addRowIndex + 2)
+              props.onUninstallHooks()
+            }}
+          >
+            <text
+              fg={
+                isBodyCursor(addRowIndex + 2)
+                  ? theme.selectedListItemText
+                  : props.hooksInstalled.length > 0
+                    ? theme.text
+                    : theme.textMuted
+              }
+              wrapMode="none"
+            >
+              {props.hooksInstalled.length > 0
+                ? t("settings.engines.uninstallHooks", { count: String(props.hooksInstalled.length) })
+                : t("settings.engines.uninstallHooksDone")}
+            </text>
+          </box>
         </box>
       </box>
     </box>

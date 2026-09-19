@@ -21,14 +21,28 @@ import { tildify } from "../../../lib/path-home"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 
-/** i18n key for each hook state, plus whether it needs the user's attention. */
+/**
+ * i18n key and tone for each hook state.
+ *
+ * FOUR readings, not three: "supported but absent" splits on whether the CLI
+ * is even on this machine. Without that split every engine the user has not
+ * installed wore the same warning as one whose install genuinely failed, so
+ * the section always looked broken and the colour stopped meaning anything.
+ * `tone` is what the row paints: `warn` is the only one asking for a person.
+ */
 const HOOK_STATES: Readonly<Record<HookInstallState, { key: string; warn: boolean }>> = {
   installed: { key: "settings.engines.hookInstalled", warn: false },
   outdated: { key: "settings.engines.hookOutdated", warn: true },
   "not-installed": { key: "settings.engines.hookMissing", warn: true },
 }
 
-export function EngineIntegrationLine(props: { integration: EngineIntegration | null }): ReactNode {
+export function EngineIntegrationLine(props: {
+  integration: EngineIntegration | null
+  /** Whether the engine's own binary was found. `undefined` = the probe has
+   *  not landed, which reads as "assume present" so a card does not flicker
+   *  through "not installed" on its way to the truth. */
+  binaryFound?: boolean
+}): ReactNode {
   const { theme } = useTheme()
   const t = useT()
   const row = props.integration
@@ -36,11 +50,15 @@ export function EngineIntegrationLine(props: { integration: EngineIntegration | 
   // card when it lands: a card that gets taller mid-render pushes every row
   // below it, and the cursor is somewhere down there.
   if (!row) return <box paddingLeft={6} />
-  const hook = row.hooksSupported ? HOOK_STATES[row.hookState] : null
+  // An engine with no CLI here has nothing to install INTO: the missing hook
+  // is a consequence, not a fault, so it drops to the muted reading.
+  const absent = row.hooksSupported && row.hookState === "not-installed" && props.binaryFound === false
+  const hook = row.hooksSupported && !absent ? HOOK_STATES[row.hookState] : null
+  const hookLabel = hook ? t(hook.key) : absent ? t("settings.engines.hookUnavailable") : t("settings.engines.hookNone")
   return (
     <box flexDirection="row" gap={2} paddingLeft={6} overflow="hidden">
       <text fg={hook === null ? theme.textMuted : hook.warn ? theme.warning : theme.success} wrapMode="none">
-        {hook === null ? t("settings.engines.hookNone") : t(hook.key)}
+        {hookLabel}
       </text>
       <text fg={row.markers ? theme.text : theme.textMuted} wrapMode="none">
         {row.markers ? t("settings.engines.markersYes") : t("settings.engines.markersNo")}

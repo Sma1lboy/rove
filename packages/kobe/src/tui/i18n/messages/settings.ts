@@ -48,8 +48,12 @@ export const en = {
     accentPrimary: "Primary (brand accent)",
     accentSuccess: "Success (legacy green)",
     accentInfo: "Info (cool blue)",
+    /** Heading of the group that holds theme, transparency, accent, split
+     *  style and rail fold — everything the sample above them shows. */
     appearance: "Appearance",
     appearanceHint: "How split panes draw.",
+    /** The split-style rows inside that group. */
+    splitStyle: "Split panes",
     splitBox: "Box frames",
     splitLine: "Divider line",
     notifications: "Notifications",
@@ -263,6 +267,7 @@ export const zh: typeof en = {
     accentInfo: "信息色（冷蓝）",
     appearance: "外观",
     appearanceHint: "分屏面板怎么画边。",
+    splitStyle: "分屏面板",
     splitBox: "方框边框",
     splitLine: "单线分隔",
     notifications: "通知",

@@ -16,7 +16,7 @@ import { TextAttributes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
 import { useMemo, useState } from "react"
 import { type KobeOrchestrator, RemoteOrchestrator, type UsageSnapshotMap } from "../../../client/remote-orchestrator"
-import { enginesNeedingHookInstall } from "../../../engine/integration-status"
+import { enginesNeedingHookInstall, enginesWithHooksInstalled } from "../../../engine/integration-status"
 import { createStateCell } from "../../../lib/external-store"
 import { submitFeedback } from "../../../lib/feedback"
 import {
@@ -39,7 +39,13 @@ import { useBindings } from "../../lib/keymap"
 import { useAccessor } from "../../lib/use-accessor"
 import { useCursorFollow } from "../../lib/use-cursor-follow"
 import { type DialogContext, useDialog, useDialogPaddingX } from "../../ui/dialog"
-import { confirmResetState, confirmRestartDaemon, hasRestartableDaemon, installEngineHooks } from "./actions"
+import {
+  confirmResetState,
+  confirmRestartDaemon,
+  hasRestartableDaemon,
+  installEngineHooks,
+  uninstallEngineHooks,
+} from "./actions"
 import { AutoEffortSettingsSection } from "./sections-auto-effort"
 import { EngineSettingsSection } from "./sections-engines"
 import { GeneralSettingsSection, SettingsSectionSidebar } from "./sections-general"
@@ -89,8 +95,13 @@ export function SettingsDialog(props: SettingsDialogProps) {
   // account probe above, and re-read after the install row runs.
   const integrations = useEngineIntegrations(section, engines.engineList())
   const needsHookInstall = enginesNeedingHookInstall(integrations.rows ?? [])
+  const hooksInstalled = enginesWithHooksInstalled(integrations.rows ?? [])
   async function runHookInstall(): Promise<void> {
     await installEngineHooks()
+    integrations.reprobe()
+  }
+  async function runHookUninstall(): Promise<void> {
+    await uninstallEngineHooks()
     integrations.reprobe()
   }
   // The tier targets, gated against the same account probe the cards read.
@@ -250,6 +261,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     engine: (row) => void engines.editEngine(row.vendor),
     engineAdd: () => void engines.addEngineFlow(),
     engineHooksInstall: () => void runHookInstall(),
+    engineHooksUninstall: () => void runHookUninstall(),
     autoEffortTier: (row) => void autoEffort.edit(row.tier),
     keysCreate: () => createKeysFile(),
     pluginToggle: (row) => plugins.toggle(row.pluginId),
@@ -402,7 +414,9 @@ export function SettingsDialog(props: SettingsDialogProps) {
               onAddEngine={() => void engines.addEngineFlow()}
               integrations={integrations.rows}
               needsHookInstall={needsHookInstall}
+              hooksInstalled={hooksInstalled}
               onInstallHooks={() => void runHookInstall()}
+              onUninstallHooks={() => void runHookUninstall()}
             />
           ) : null}
           {section === "autoEffort" ? <AutoEffortSettingsSection {...cursorProps} autoEffort={autoEffort} /> : null}

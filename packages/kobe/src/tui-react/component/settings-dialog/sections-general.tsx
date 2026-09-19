@@ -34,6 +34,7 @@ import { FOCUS_ACCENT_SLOTS, type FocusAccentSlot, useTheme } from "../../contex
 import { useT } from "../../i18n"
 import type { CollapsedRailStyle } from "../../panes/sidebar/collapsed-rail"
 import { useDialogPaddingX } from "../../ui/dialog"
+import { AppearancePreview } from "./appearance-preview"
 import { Row, type SectionCursorProps, SubSection } from "./rows"
 import { usageRows } from "./usage-core"
 import type { SettingsPrefs } from "./use-settings-prefs"
@@ -189,29 +190,6 @@ export function GeneralSettingsSection(
   return (
     <box flexDirection="row" gap={2}>
       <box flexDirection="column" gap={1} flexGrow={1} flexShrink={1}>
-        {/* First block: title/hint/rows are direct children of the outer
-          gap-1 box (one blank line between each). */}
-        <text fg={theme.text} attributes={TextAttributes.BOLD}>
-          {t("settings.general.theme")}
-        </text>
-        <text fg={theme.textMuted}>{t("settings.general.themeHint")}</text>
-        <box flexDirection="column" gap={0}>
-          {props.themeNames.map((name, i) => {
-            const isSelected = name === themeCtx.selected
-            return (
-              <Row
-                key={name}
-                cursor={isBodyCursor(i)}
-                rowRef={props.rowRef(i)}
-                onMouseUp={activate(i, () => props.selectTheme(name))}
-                fg={isSelected ? theme.accent : theme.text}
-                bold={isBodyCursor(i) || isSelected}
-              >
-                {`${radio(isSelected)} ${name}`}
-              </Row>
-            )
-          })}
-        </box>
         <SubSection title={t("settings.general.language")} hint={t("settings.general.languageHint")}>
           {LOCALES.map((loc) => {
             const langRow = rowIdx(languageRowId(loc.id))
@@ -226,6 +204,33 @@ export function GeneralSettingsSection(
                 bold={isBodyCursor(langRow) || isSelected}
               >
                 {`${radio(isSelected)} ${loc.label}`}
+              </Row>
+            )
+          })}
+        </SubSection>
+        {/* Everything that changes how Rove LOOKS, in one group with one
+            sample above it. Each of these is applied the moment it is picked,
+            so the preview is the answer to "what does this one do" — the
+            question that previously meant closing Settings and looking at the
+            rail. Scattered across the section they also read as five
+            unrelated toggles; together they read as one decision. */}
+        <text fg={theme.text} attributes={TextAttributes.BOLD}>
+          {t("settings.general.appearance")}
+        </text>
+        <AppearancePreview splitStyle={prefs.splitStyle()} />
+        <SubSection title={t("settings.general.theme")} hint={t("settings.general.themeHint")}>
+          {props.themeNames.map((name, i) => {
+            const isSelected = name === themeCtx.selected
+            return (
+              <Row
+                key={name}
+                cursor={isBodyCursor(i)}
+                rowRef={props.rowRef(i)}
+                onMouseUp={activate(i, () => props.selectTheme(name))}
+                fg={isSelected ? theme.accent : theme.text}
+                bold={isBodyCursor(i) || isSelected}
+              >
+                {`${radio(isSelected)} ${name}`}
               </Row>
             )
           })}
@@ -259,7 +264,7 @@ export function GeneralSettingsSection(
             )
           })}
         </SubSection>
-        <SubSection title={t("settings.general.appearance")} hint={t("settings.general.appearanceHint")}>
+        <SubSection title={t("settings.general.splitStyle")} hint={t("settings.general.appearanceHint")}>
           {SPLIT_STYLES.map((style) => {
             const styleRow = rowIdx(splitStyleRowId(style))
             const isSelected = prefs.splitStyle() === style
@@ -276,6 +281,18 @@ export function GeneralSettingsSection(
               </Row>
             )
           })}
+        </SubSection>
+        <SubSection title={t("settings.general.railFold")} hint={t("settings.general.railFoldHint")}>
+          <Row
+            cursor={isBodyCursor(railFoldStyleRow)}
+            rowRef={props.rowRef(railFoldStyleRow)}
+            onMouseUp={activate(railFoldStyleRow, prefs.cycleRailFoldStyle)}
+            fg={theme.accent}
+            bold={true}
+            hint={hint("settings.general.railFoldRowHint")}
+          >
+            {pad(t("settings.general.railFoldRow", { style: t(RAIL_FOLD_LABEL_KEYS[prefs.railFoldStyle()]) }))}
+          </Row>
         </SubSection>
         <SubSection title={t("settings.general.notifications")} hint={t("settings.general.notificationsHint")}>
           <Row
@@ -340,18 +357,6 @@ export function GeneralSettingsSection(
             bold={true}
           >
             {`${check(prefs.zenDefaultOn())} ${t("settings.general.zenDefaultOn")}`}
-          </Row>
-        </SubSection>
-        <SubSection title={t("settings.general.railFold")} hint={t("settings.general.railFoldHint")}>
-          <Row
-            cursor={isBodyCursor(railFoldStyleRow)}
-            rowRef={props.rowRef(railFoldStyleRow)}
-            onMouseUp={activate(railFoldStyleRow, prefs.cycleRailFoldStyle)}
-            fg={theme.accent}
-            bold={true}
-            hint={hint("settings.general.railFoldRowHint")}
-          >
-            {pad(t("settings.general.railFoldRow", { style: t(RAIL_FOLD_LABEL_KEYS[prefs.railFoldStyle()]) }))}
           </Row>
         </SubSection>
         <SubSection title={t("settings.general.editor")} hint={t("settings.general.editorHint")}>

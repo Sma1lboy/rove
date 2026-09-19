@@ -107,3 +107,33 @@ export async function installEngineHooks(): Promise<void> {
     /* never let a settings keypress throw through the render path */
   }
 }
+
+/**
+ * Remove Rove's activity hooks from every engine config that has them — the
+ * other half of the install action.
+ *
+ * Per-adapter rather than one sweep: each adapter knows its own file shape
+ * and leaves a third party's entries in the same document alone, which a
+ * delete-the-file approach would not. `removeActivityHooks` is idempotent by
+ * contract, so an engine that was never hooked costs a stat.
+ *
+ * Each engine is caught on its own: one unwritable config must not abandon
+ * the engines after it in the list. The panel's re-probe is what reports the
+ * result, by showing the states that did not change.
+ */
+export async function uninstallEngineHooks(): Promise<void> {
+  try {
+    const { activityHookAdapters } = await import("../../../engine/hook-adapter")
+    await Promise.all(
+      activityHookAdapters().map(async (adapter) => {
+        try {
+          await adapter.removeActivityHooks(adapter.globalSettingsPath())
+        } catch {
+          /* unwritable or absent config — the panel re-probe shows it stayed */
+        }
+      }),
+    )
+  } catch {
+    /* never let a settings keypress throw through the render path */
+  }
+}
