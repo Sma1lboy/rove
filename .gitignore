@@ -73,6 +73,12 @@ packages/*/coverage-daemon/
 packages/*/coverage-render/
 packages/*/coverage-render-pty/
 
+# packages/auto-effort — the auto-effort tier classifier (golden annotations,
+# rubrics, synthetic data, trained weights). Its own git repo, kept here
+# because it is a Rove product, ignored because rove/ is public and the
+# annotations are hand-made ground truth. See its GOAL.md.
+packages/auto-effort/
+
 # Session handoff — local working state / scratchpad for the next agent in
 # THIS environment. Not shared history (the durable record lives in git
 # commits, CHANGELOG.md, docs/, and the daemon issue store). Keep it local.
