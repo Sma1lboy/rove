@@ -104,11 +104,8 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator; whatsNe
   // Every toast this host raises. It sits above the hooks that take one
   // because `selectedId` reaches it as a getter, so nothing here has to be
   // ordered against the selection hook below — see use-host-notifiers.ts.
-  const { notifyError, notifyInfo, notifyNeedsInput, notifyWorktreeGone } = useHostNotifiers({
-    notif,
-    t,
-    selectedId: () => selectedId,
-  })
+  const notifiers = useHostNotifiers({ notif, t, selectedId: () => selectedId })
+  const { notifyError, notifyInfo, notifyNeedsInput, notifyWorktreeGone } = notifiers
 
   const { selectedId, setSelectedId, selectedTask, selectTask, activateTask } = useWorkspaceSelection({
     orch,
@@ -183,16 +180,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator; whatsNe
   })
 
   // Imperative tab handles: refs handed by TerminalTabs + FileTree/PR actions.
-  const editor = useEditorHandles({
-    orchestrator: orch,
-    worktree,
-    selectedId,
-    focus,
-    notifyError,
-    notifyInfo,
-    notifyNeedsInput,
-    activateTask,
-  })
+  const editor = useEditorHandles({ orchestrator: orch, worktree, selectedId, focus, notifiers, activateTask })
 
   // Quick-fork (ctrl+f): composer → create+enter → hand the
   // prompt to the new task's TerminalTabs mount (phase 2). Wiring lives in

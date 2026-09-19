@@ -13,6 +13,7 @@ import { useLatest } from "../lib/use-latest"
 import { takeCreatePR, useCreatePR } from "./use-create-pr"
 import { useFileOpenActions } from "./use-file-open-actions"
 import { requestFixCI, takeFixCI, useFixCI } from "./use-fix-ci"
+import type { HostNotifiers } from "./use-host-notifiers"
 import { requestResolveConflicts, takeResolveConflicts, useResolveConflicts } from "./use-resolve-conflicts"
 
 export interface UseEditorHandlesOpts {
@@ -20,10 +21,9 @@ export interface UseEditorHandlesOpts {
   worktree: string | null
   selectedId: string | null
   focus: FocusContextValue
-  notifyError: (msg: string) => void
-  notifyInfo: (msg: string) => void
-  /** Attention tone (yellow): it worked, but something needs a human next. */
-  notifyNeedsInput: (msg: string) => void
+  /** The host's toasts: errors for every action, info + attention for the
+   *  conflict hand-off (which reports the merge's outcome like Sync does). */
+  notifiers: Pick<HostNotifiers, "notifyError" | "notifyInfo" | "notifyNeedsInput">
   /** Enter a task — the row-aimed actions below need its engine mounted. */
   activateTask: (taskId: string) => void
 }
@@ -76,7 +76,8 @@ export function mentionAction(
 }
 
 export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesResult {
-  const { orchestrator, worktree, selectedId, focus, notifyError, notifyInfo, notifyNeedsInput, activateTask } = opts
+  const { orchestrator, worktree, selectedId, focus, activateTask } = opts
+  const { notifyError, notifyInfo, notifyNeedsInput } = opts.notifiers
   const t = useT()
 
   // Imperative handle from the currently-mounted TerminalTabs: a ref, since

@@ -3,6 +3,8 @@
  * the shapes locked together. Filled during the TUI i18n migration.
  */
 
+import { conflictsEn, conflictsZh, syncEn, syncZh } from "./tasks-sync"
+
 export const en = {
   /** Top-level navigation rail — one row per destination */
   nav: {
@@ -77,19 +79,9 @@ export const en = {
     current: "current",
     footer: "↑↓ choose · enter set · esc cancel",
   },
-  /** "Sync with base" outcomes. The conflict and dirty cases are attention,
-   *  not error: nothing broke, a human is needed next. */
-  sync: {
-    done: "Merged {base} into this worktree",
-    alreadyCurrent: "Already up to date with {base}",
-    conflict: "Merge conflict — resolve then commit: {files}",
-    dirty: "Commit the worktree's changes first, then sync: {files}",
-    failed: "Sync failed: {error}",
-  },
-  /** "Resolve conflicts with agent" — its own outcome; the rest are `sync.*`. */
-  conflicts: {
-    handedOff: "Asked the agent to resolve {count} conflicted file(s)",
-  },
+  /** The base-branch merges' outcomes — `tasks-sync.ts`. */
+  sync: syncEn,
+  conflicts: conflictsEn,
   /** Change-engine picker dialog (the menu route of `v`). */
   changeEngine: {
     title: "Change engine",
@@ -349,16 +341,8 @@ export const zh: typeof en = {
     current: "当前",
     footer: "↑↓ 选择 · enter 设置 · esc 取消",
   },
-  sync: {
-    done: "已把 {base} 合并进该工作树",
-    alreadyCurrent: "已经和 {base} 同步",
-    conflict: "合并冲突——解决后提交：{files}",
-    dirty: "请先提交工作树里的改动，再同步：{files}",
-    failed: "同步失败：{error}",
-  },
-  conflicts: {
-    handedOff: "已让 agent 解决 {count} 个冲突文件",
-  },
+  sync: syncZh,
+  conflicts: conflictsZh,
   changeEngine: {
     title: "切换引擎",
     current: "当前",
