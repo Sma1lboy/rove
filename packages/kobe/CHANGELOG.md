@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.217
+
+### Patch Changes
+
+- [#1070](https://github.com/Sma1lboy/rove/pull/1070) [`c36da51`](https://github.com/Sma1lboy/rove/commit/c36da51ae8a036e63d2f543705fdc79f6b139461) The New task dialog stops asking about depth, model and reasoning level. Those three rows made creating a task a six-field form, and two of them were answering a question the dialog is the wrong place for: depth and effort belong to auto-effort, which owns that decision in Settings, and a pinned model is a per-task exception rather than something every new task should be prompted for. Both remain settable after the fact — `rove api set-model` / `set-effort`, or the change-engine picker. Creating a task now asks what creating a task needs: where, with which engine, opening what. Removing the rows also removed them as Tab stops, which matters more than the visual change: focus parked on an unrendered field swallows every keystroke after it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1069](https://github.com/Sma1lboy/rove/pull/1069) [`7f22aa3`](https://github.com/Sma1lboy/rove/commit/7f22aa355031ff7673bf83c5fd75baf364ec9dfa) The sidebar's second tab-row line names the engine that is actually running, probed from the pty child's process tree, instead of reading a config field. It shipped reading `task.model` / `task.modelEffort` and falling back to the words "engine default" — which is what nearly every task has, so the rail filled with a phrase that carried no information. A process name is an observation and is there for every live agent tab; a pinned model is configuration and usually absent. A tab with nothing to report now renders no second line at all rather than spending a cell to say "unknown", and the caption sits flush with the tab title instead of indented under it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.216
 
 ### Patch Changes
