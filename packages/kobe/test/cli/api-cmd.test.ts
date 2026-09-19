@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import {
   API_VERBS,
   ApiError,
@@ -15,6 +15,18 @@ import {
   verbHelp,
   verbSchema,
 } from "../../src/cli/api-cmd.ts"
+
+// `engine-list` attaches each engine's model list, and pi/omp answer that by
+// RUNNING their CLI (`model-lists.ts`: `pi --list-models`, `omp models --json`).
+// Two real spawns per call, uncached between calls, cost these tests ~1.4s
+// each against a 5s timeout — and only on a machine that has pi/omp installed,
+// so it read as a flake. Stubbed to the shape the verb consumes; the product
+// fix (memoize the per-protocol lookup) is issue #112.
+vi.mock("../../src/engine/model-lists.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../src/engine/model-lists.ts")>()),
+  listPiModels: async () => [{ id: "openai/gpt-5.1" }],
+  listOmpModels: async () => [{ id: "anthropic/claude-opus-5" }],
+}))
 
 function withEnv(name: string, value: string | undefined, fn: () => void): void {
   const before = process.env[name]
