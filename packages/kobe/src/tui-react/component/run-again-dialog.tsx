@@ -66,6 +66,8 @@ export function RunAgainDialogView(props: {
       { key: "down", cmd: () => scrollBy(1) },
       { key: "pageup", cmd: () => scrollBy(-(scrollRef.current?.viewport.height ?? 10)) },
       { key: "pagedown", cmd: () => scrollBy(scrollRef.current?.viewport.height ?? 10) },
+      { key: "h", cmd: () => setActive((a) => (a === "confirm" ? "cancel" : "confirm")) },
+      { key: "l", cmd: () => setActive((a) => (a === "confirm" ? "cancel" : "confirm")) },
       { key: "left", cmd: () => setActive((a) => (a === "confirm" ? "cancel" : "confirm")) },
       { key: "right", cmd: () => setActive((a) => (a === "confirm" ? "cancel" : "confirm")) },
       { key: "return", cmd: () => (active === "confirm" ? commit() : cancel()) },
