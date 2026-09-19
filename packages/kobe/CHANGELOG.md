@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.211
+
+### Patch Changes
+
+- [#1045](https://github.com/Sma1lboy/rove/pull/1045) [`c137c30`](https://github.com/Sma1lboy/rove/commit/c137c30621b774b7556a84127ae4bde90896e17b) Recognize four more coding CLIs: Cline, Kiro CLI, Maki and Antigravity. Each ships as a contrib engine with screen-reading activity rules, so a task running one badges working / needs-input / idle instead of staying unknown. They appear in the new-task selector only when their binary is on PATH. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1046](https://github.com/Sma1lboy/rove/pull/1046) [`4979e44`](https://github.com/Sma1lboy/rove/commit/4979e44183534b200398afa41576230fc7ea47b8) Drag the task rail's right edge to set its width. The edge lights up under the cursor, double-clicking it returns to the width Rove picks from your terminal, and a width you drag to is remembered across restarts. It is an override rather than a replacement: a terminal too narrow to honour it squeezes the rail down to what fits and pays the full width back when the window grows again. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.210
 
 ### Patch Changes
