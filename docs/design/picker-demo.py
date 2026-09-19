@@ -24,7 +24,8 @@ TABLE = {"swift": {"engine": "claude", "model": "sonnet"},
          "standard": {"engine": "claude", "model": "opus"},
          "deep": {"engine": "claude", "model": "fable"}}
 
-EX = ["深色模式下代码块的背景和正文一个色，改一下",
+EX = ["你是什么模型",
+      "深色模式下代码块的背景和正文一个色，改一下",
       "有时候窗口会跑到屏幕外面去，多屏的情况下",
       "参考 vuetify 的同名 prop，给 Button 加一个 loading",
       "看看还有什么可以优化的",
@@ -99,6 +100,7 @@ button.go:hover:not(:disabled){background:var(--accent-soft)}
 .tier{font:600 13px var(--mono);padding:.2rem .6rem;border-radius:var(--r-sm);color:#fff}
 .tier.swift{background:var(--t0)} .tier.standard{background:var(--t1)} .tier.deep{background:var(--t2)}
 .tier.none{background:transparent;color:var(--muted);border:1px dashed var(--rule)}
+.tier.notask{background:transparent;color:var(--accent);border:1px solid var(--accent)}
 .slot .note{color:var(--muted);font-size:13px}
 .fields{display:grid;grid-template-columns:auto 1fr;gap:.35rem .9rem;padding:.8rem .95rem;
   font:13px var(--mono)}
@@ -135,7 +137,11 @@ code{font:12.5px var(--mono);background:var(--sunk);padding:.1rem .35rem;border-
 所以真正要试的不是它准不准，是<b>它猜错的时候有多碍事</b>。</p>
 <p>拖上面那根<b>置信度门</b>。同一句话会在「Rove 帮你填了」和「Rove 没插手」之间翻。
 这就是那个决定：<b>填错一档比不填更贵</b>，因为你得先发现它错了，才能去改。</p>
-<p>判定走 Jev（零训练，请求时现读那份标注规范），94 条真人标注上 72.7%；
+<p><b>用户写的任何一句话都是任务</b>，包括 <code>你是什么模型</code> 这种。
+它该是 <b>swift</b>——话已经完整，答它不需要先想清楚做成什么样，没有流程要推。
+「没有要做的事」和「目标要模型自己找」是两回事，判据只认后者。
+短和开放也不改变这一点：<code>看看还有什么可以优化的</code> 又短又开放，是实打实的 deep。</p>
+<p>判定的模型零训练，请求时现读那份标注规范，94 条真人标注上 73.0%；
 <code>conf ≥ 0.7</code> 时覆盖 44%、那部分 85% 对。档位对应的
 engine/model 取自 <code>DEFAULT_AUTO_EFFORT</code>，Settings 里可改。</p>
 
@@ -189,11 +195,13 @@ async function go(){
     st.textContent = frames[++i % 4] + " 判定中 " + s + "s" + (s > 12 ? " · 冷启动" : "");
   }, 90);
   try {
-    const r = await fetch(API + "/classify", {method:"POST",
+    // /tier answers with the one model this page uses. /classify would also
+    // spin up the three checkpoints this page never shows, and their latency
+    // would land in the number the reader is here to judge.
+    const r = await fetch(API + "/tier", {method:"POST",
       headers:{"content-type":"application/json"}, body: JSON.stringify({text})});
-    const d = await r.json();
-    const j = d["rove-routing-jev"];
-    if (!j || j.error) throw new Error(j ? j.error : "no jev entry");
+    const j = await r.json();
+    if (!j || j.error) throw new Error(j.error || "no answer");
     last = j; st.textContent = ""; paint();
   } catch (e) { st.textContent = "失败：" + e.message; }
   clearInterval(timer); b.disabled = false;
