@@ -23,8 +23,10 @@
 
 import type { EngineIdentity } from "@/types/engine"
 import { CursorHookAdapter } from "./cursor-local/hook-adapter.ts"
+import { DevinHookAdapter } from "./devin-local/hook-adapter.ts"
 import { DroidHookAdapter } from "./droid-local/hook-adapter.ts"
 import type { EngineHookAdapter } from "./hook-adapter.ts"
+import { QodercliHookAdapter } from "./qodercli-local/hook-adapter.ts"
 import type { EngineRegistryEntry } from "./registry.ts"
 import type { EngineScreenManifest } from "./screen-state.ts"
 
@@ -252,6 +254,52 @@ const ANTIGRAVITY: EngineScreenManifest = {
   ],
 }
 
+// refs/herdr src/detect/manifests/devin.toml (2026.06.15.1). Rove's rule
+// vocabulary has no `not` gate; herdr's `not` clauses on the working and idle
+// rules only exclude the blocked/working conditions that already sit ABOVE
+// them here, and first match wins, so the ordering does that job.
+const DEVIN: EngineScreenManifest = {
+  rules: [
+    { state: "blocked", bottomLines: 8, all: ["do you trust the authors of this directory?", "yes, trust "] },
+    { state: "blocked", bottomLines: 8, all: ["approve once", "select", "confirm", "esc cancel"] },
+    { state: "working", bottomLines: 8, all: ["running tools", "esc to interrupt"] },
+    { state: "working", bottomLines: 6, all: ["guide devin while it works"] },
+    { state: "working", bottomLines: 8, all: ["reading shell ", "timeout:"] },
+    {
+      state: "idle",
+      bottomLines: 8,
+      all: ["ask devin to build", "features, fix bugs", "your code"],
+      lineRegex: ["^\\s*\u276d Ask Devin to build"],
+    },
+    { state: "idle", bottomLines: 6, all: ["context:"], lineRegex: ["^\\s*\u276d"] },
+  ],
+}
+
+// refs/herdr src/detect/manifests/qodercli.toml (2026.06.10.1). herdr's single
+// blocked rule ORs eight alternatives, two of them conjunctions — one rule
+// each here, since a Rove rule's `any` slot is already spoken for by the
+// conjunction's second half. herdr's `whole_recent` region is this
+// classifier's default window.
+const QODERCLI: EngineScreenManifest = {
+  rules: [
+    { state: "blocked", all: ["waiting for user confirmation"], any: ["yes", "no", "allow", "reject"] },
+    { state: "blocked", all: ["awaiting approval"], any: ["allow", "reject"] },
+    {
+      state: "blocked",
+      any: [
+        "permission required",
+        "allow once or always?",
+        "asking user",
+        "enter your response",
+        "review your answers:",
+        "shell awaiting input",
+      ],
+    },
+    { state: "working", any: ["(esc to cancel,"] },
+    { state: "working", lineRegex: ["^\\s*[\\u2800-\\u28FF]\\s+.*[A-Za-z]"] },
+  ],
+}
+
 /** The shipped catalog. Key = the engine's VendorId. */
 export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
   gemini: { displayName: "Gemini CLI", defaultCommand: ["gemini"], screenManifest: GEMINI },
@@ -282,6 +330,28 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     createHookAdapter: () => new DroidHookAdapter(),
   },
   amp: { displayName: "Amp", defaultCommand: ["amp"], screenManifest: AMP },
+  // devin and qodercli, like droid and cursor, are catalog entries that ALSO
+  // declare a hook adapter: their `SessionStart` reports which session is live
+  // and the manifest above keeps owning working/blocked/idle. Command names
+  // and `processNames` are herdr's `interactive_agent_executable` plus the
+  // aliases its `lookup_agent` accepts; neither CLI was on the machine this
+  // was written on, so both keep the "argv" first-message default (positional
+  // semantics UNVERIFIED) and every screen string comes from the manifest
+  // rather than a fresh capture.
+  devin: {
+    displayName: "Devin",
+    defaultCommand: ["devin"],
+    processNames: ["devin-cli"],
+    screenManifest: DEVIN,
+    createHookAdapter: () => new DevinHookAdapter(),
+  },
+  qodercli: {
+    displayName: "Qoder CLI",
+    defaultCommand: ["qodercli"],
+    processNames: ["qoder", "qoderclicn", "qodercn"],
+    screenManifest: QODERCLI,
+    createHookAdapter: () => new QodercliHookAdapter(),
+  },
   // Command names are herdr's `interactive_agent_executable` (refs/herdr
   // src/detect/mod.rs), NOT the manifest ids: antigravity's manifest is "agy"
   // and kiro's binary is `kiro-cli`. `processNames` carries the other

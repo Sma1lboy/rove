@@ -171,7 +171,7 @@ export const PLUGIN_MANIFEST_FILENAMES = [PLUGIN_MANIFEST_FILENAME, LEGACY_PLUGI
 /**
  * Engine ids a plugin's `[[engines]]` may not claim: the four built-in
  * adapters plus the shipped contrib catalog (gemini/opencode/cursor/grok/
- * droid/amp/cline/kiro/maki/antigravity). The daemon cannot import kobe's
+ * droid/amp/devin/qodercli/cline/kiro/maki/antigravity). The daemon cannot import kobe's
  * BUILTIN_VENDORS / CONTRIB_ENGINES (kobe depends on the daemon, not vice
  * versa), so this is the daemon-side source of truth; a kobe-side test locks
  * the lists together.
@@ -189,6 +189,8 @@ export const RESERVED_ENGINE_IDS: readonly string[] = [
   "grok",
   "droid",
   "amp",
+  "devin",
+  "qodercli",
   "cline",
   "kiro",
   "maki",
