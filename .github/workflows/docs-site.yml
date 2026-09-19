@@ -1,0 +1,66 @@
+# The public docs site (packages/kobe-docs), gated only when it can break.
+#
+# This lived in ci.yml and ran on every PR, costing ~60s on changes that
+# could not possibly affect it. GitHub's `paths` filter only exists at the
+# workflow level, so giving it one means giving it its own file: a PR that
+# touches neither docs/ nor the site package now starts no runner at all.
+#
+# What it catches: `build` = sync-docs.mjs + Fumadocs MDX + `next build`
+# (which also runs tsc). The sync script has no try/catch, so it fails the
+# job when a SECTIONS entry points at a renamed/missing docs/ file, a synced
+# page loses the H1 its title comes from, or a referenced docs/assets/ image
+# is gone. It does NOT catch a new docs/ page that was never added to
+# SECTIONS (silently unsynced) or a dead cross-link — those still need
+# review. ~11s locally.
+#
+# Why it is gated at all: the site's only path to production is a hand-run
+# `bun run deploy`, so without this a broken docs/ edit stays green until
+# someone deploys.
+
+name: Docs site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "packages/kobe-docs/**"
+      - ".github/workflows/docs-site.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "packages/kobe-docs/**"
+      - ".github/workflows/docs-site.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs-site:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Cache bun packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build docs site (sync + next build)
+        run: bun run --filter @sma1lboy/kobe-docs build

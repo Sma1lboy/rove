@@ -1,0 +1,16 @@
+# Render-track files known to fail on ubuntu-latest — the Linux render ratchet.
+#
+# ci.yml's `render-track` matrix runs on Linux and excludes these; the
+# `render-track-macos` job runs exactly these, plus the PTY half, on macOS.
+# The split exists for one reason: the hosted macOS concurrency limit is 5, so
+# the macOS matrix could never exceed five shards no matter how expensive the
+# suite got. Linux has a far higher limit, which is what buys the parallelism.
+#
+# Harvested from a real ubuntu-latest run of the whole main half (ci.yml run
+# 35453490576, base 73077b0ec): 546 tests across 129 files, exactly one file
+# failing. This list may only SHRINK: fix a file on Linux, delete its line.
+# Never add a line to get a PR green — fix it, or skipIf the specific case
+# with a reason, so the macOS side does not quietly become the real suite.
+#
+# Lines are paths relative to packages/kobe. `#` comments and blanks ignored.
+test/render/terminal-paste-newlines.test.tsx
