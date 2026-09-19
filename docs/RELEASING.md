@@ -37,10 +37,8 @@ Worth the two seconds: a bad package name is only caught downstream, by `package
 **Merging a PR banks its changeset; it does not release.** A release happens when someone runs [`changesets.yml`](../.github/workflows/changesets.yml) (Actions → Changesets → Run workflow), and it consumes every changeset banked since the last one. The workflow:
 
 1. Waits for main's HEAD `ci.yml` run to go green (a red or cancelled run releases nothing — land the fix and run the workflow again).
-2. Runs the same regeneration `release.sh` does (`changeset version` + lockfile refresh + lint:fix), verifies with `bun install --frozen-lockfile` + the lint gate, and commits `chore: release — X.Y.Z` on a `release/vX.Y.Z` branch.
-3. Opens a PR for that branch and squash-merges it. `main`'s ruleset refuses a direct push, so the bookkeeping commit travels the same road as every other change. The merge needs this workflow's actor listed in the ruleset's bypass actors with bypass mode **`pull_request`** — still a PR, no human approval — because a bot's PR has nobody to review it. Without that the merge step fails loudly and nothing is tagged.
-4. Tags the **squashed** commit read back from the merged PR (the squash rewrites the sha, so the branch commit is not what lands).
-5. Dispatches `release.yml` on the tag (a GITHUB_TOKEN tag push never fires tag triggers — the dispatch is explicit), which re-runs every publish gate from the tag checkout before `npm publish`.
+2. Runs the same regeneration `release.sh` does (`changeset version` + lockfile refresh + lint:fix), verifies with `bun install --frozen-lockfile` + the lint gate, commits `chore: release — X.Y.Z`, pushes it, and tags `vX.Y.Z`.
+3. Dispatches `release.yml` on the tag (a GITHUB_TOKEN tag push never fires tag triggers — the dispatch is explicit), which re-runs every publish gate from the tag checkout before `npm publish`.
 
 This used to fire on every push to `main`, which meant ~10 published versions on a busy day: no two users were on the same build, and no released combination of changes had been exercised as a whole before shipping. Batching is the point — the accumulated set is what you decide to release.
 
