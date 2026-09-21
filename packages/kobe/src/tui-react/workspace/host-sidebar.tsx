@@ -20,13 +20,14 @@ import type { TaskSortMode } from "../../tui/panes/sidebar/groups"
 import type { SidebarNav } from "../../tui/panes/sidebar/nav-core"
 import type { WorktreeChanges } from "../../tui/panes/sidebar/worktree-changes"
 import { PaneKeyHint } from "../component/keyboard-hints"
-import { useKV } from "../context/kv"
+import { useKV, useOptionalKV } from "../context/kv"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { SidebarTree } from "../panes/sidebar/SidebarTree"
 import { CollapsedRail, type CollapsedRailStyle, DEFAULT_COLLAPSED_RAIL_STYLE } from "../panes/sidebar/collapsed-rail"
 import type { SidebarTaskCallbacks } from "../panes/sidebar/types"
+import { useSidebarGroups } from "../panes/sidebar/use-sidebar-groups"
 import { closeTaskTab } from "./terminal-tabs-close"
 import { moveTaskTab } from "./terminal-tabs-move"
 import { requestNewTab } from "./terminal-tabs-shared"
@@ -119,9 +120,10 @@ export function HostSidebar(props: HostSidebarProps) {
   )
   if (props.collapsed) {
     return (
-      <CollapsedRail
+      <CollapsedSidebar
         style={props.collapsedStyle ?? DEFAULT_COLLAPSED_RAIL_STYLE}
         tasks={props.tasks}
+        sortMode={props.sortMode}
         selectedId={props.selectedId}
         engineState={props.engineState}
         taskJobs={props.taskJobs}
@@ -154,5 +156,49 @@ export function HostSidebar(props: HostSidebarProps) {
         <PaneKeyHint pane="sidebar" />
       </box>
     </box>
+  )
+}
+
+/**
+ * The folded rail, wired to the sidebar's shared grouping.
+ *
+ * Its own component for one reason: `useSidebarGroups` is a hook and the fold
+ * is an early return, so the shared answer cannot be computed above the branch
+ * without also computing it for the expanded tree that does not need it here.
+ * Putting the hook on THIS side of the fork is what lets the rail hide the same
+ * projects the tree hides instead of re-deriving its own list from `tasks` —
+ * which is what it used to do, and why a project closed down to nothing still
+ * had a divider in the fold.
+ */
+function CollapsedSidebar(props: {
+  readonly style: CollapsedRailStyle
+  readonly tasks: readonly Task[]
+  readonly sortMode?: TaskSortMode
+  readonly selectedId: string | null
+  readonly engineState?: ReadonlyMap<string, TaskEngineState>
+  readonly taskJobs?: ReadonlyMap<string, TaskJobState>
+  readonly onSelect: (taskId: string) => void
+  readonly onExpand: () => void
+}) {
+  // Optional for the same reason the tree reads it optionally: with no KV
+  // provider the tabs are simply unknown, which the hide rules already treat as
+  // "never mounted" rather than "has no tabs".
+  const kv = useOptionalKV()
+  const { groups } = useSidebarGroups({
+    tasks: props.tasks,
+    kv,
+    sortMode: props.sortMode,
+    engineState: props.engineState,
+  })
+  return (
+    <CollapsedRail
+      style={props.style}
+      groups={groups}
+      selectedId={props.selectedId}
+      engineState={props.engineState}
+      taskJobs={props.taskJobs}
+      onSelect={props.onSelect}
+      onExpand={props.onExpand}
+    />
   )
 }

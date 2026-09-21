@@ -10,6 +10,11 @@
  * from. What varies between styles is only how much of that vocabulary
  * survives the fold.
  *
+ * WHICH tasks are here, and which section each sits in, is not this file's
+ * question: the rail renders the `SidebarGroup[]` the expanded tree renders,
+ * so a project the tree hides cannot be a divider in the fold. See
+ * `tui/panes/sidebar/project-groups.ts`.
+ *
  * `digits` is the default (owner call): the jump key is the one thing a folded
  * row can still be acted on, and tinting it with the row's own state colour
  * makes the same character carry both. The rest stay as a preference.
@@ -18,10 +23,10 @@
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { type RGBA, TextAttributes } from "@opentui/core"
-import { Fragment } from "react"
+import { Fragment, useMemo } from "react"
 import { displayWidth } from "../../../lib/display-width"
-import { repoBasename, sidebarProjectKeyOfTask } from "../../../tui/panes/sidebar/groups"
 import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
+import type { SidebarGroup } from "../../../tui/panes/sidebar/project-groups"
 import { buildSidebarRowView, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
 import { toneColor } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
@@ -66,54 +71,58 @@ interface RailRow {
   readonly tone: Parameters<typeof toneColor>[1]
   readonly digit: string | null
   readonly selected: boolean
-  /** Which project section this row belongs to — the SAME key the expanded
-   *  tree groups by, so the two can never draw different boundaries. Scratch
-   *  tasks have no project of their own and share one section, exactly as
-   *  `buildTreeRows` files them. */
-  readonly groupKey: string
 }
 
-/** The section a row sits in. Mirrors `buildTreeRows`: scratch first, as one
- *  bench, then one section per project. */
-function railGroupKey(task: Task): string {
-  if (task.kind === "dir" && task.scratch === true) return "\u0000scratch"
-  return sidebarProjectKeyOfTask(task)
+/** One divider plus the rows under it — a project, or the scratch bench. */
+interface RailSection {
+  readonly key: string
+  readonly label: string
+  readonly rows: readonly RailRow[]
 }
 
-function useRailRows(props: {
-  tasks: readonly Task[]
+function useRailSections(props: {
+  groups: readonly SidebarGroup[]
   selectedId: string | null
   engineState?: ReadonlyMap<string, TaskEngineState>
   taskJobs?: ReadonlyMap<string, TaskJobState>
-}): readonly RailRow[] {
+}): readonly RailSection[] {
+  const tasks = useMemo(() => props.groups.flatMap((group) => group.tasks), [props.groups])
   // One spinner clock for the whole rail: a per-row hook would give each row
   // its own phase and the strip would shimmer instead of pulse together.
-  const spinning = props.tasks.some((task) => props.taskJobs?.get(task.id) !== undefined)
+  const spinning = tasks.some((task) => props.taskJobs?.get(task.id) !== undefined)
   const frame = useSpinnerFrame(spinning)
-  return props.tasks.map((task, index) => {
-    const base = buildSidebarRowView({
-      task,
-      activity: props.engineState?.get(task.id),
-      job: props.taskJobs?.get(task.id),
-      spinnerFrame: frame,
-      subtitleBudget: 0,
-      truncateBranch: (branch) => branch,
-    })
-    const view = withSpinnerFrame(base, () => frame)
-    return {
-      task,
-      glyph: view.stateGlyph,
-      tone: view.tone,
-      digit: taskJumpDigit(index),
-      selected: task.id === props.selectedId,
-      groupKey: railGroupKey(task),
-    }
-  })
+  // The jump digit is a position in the WHOLE strip, not within a section, so
+  // it runs across the dividers — the same way the expanded tree numbers rows
+  // down the pane rather than restarting under each project header.
+  let slot = 0
+  return props.groups.map((group) => ({
+    key: group.key,
+    label: group.label,
+    rows: group.tasks.map((task) => {
+      const base = buildSidebarRowView({
+        task,
+        activity: props.engineState?.get(task.id),
+        job: props.taskJobs?.get(task.id),
+        spinnerFrame: frame,
+        subtitleBudget: 0,
+        truncateBranch: (branch) => branch,
+      })
+      const view = withSpinnerFrame(base, () => frame)
+      return {
+        task,
+        glyph: view.stateGlyph,
+        tone: view.tone,
+        digit: taskJumpDigit(slot++),
+        selected: task.id === props.selectedId,
+      }
+    }),
+  }))
 }
 
 export interface CollapsedRailProps {
   readonly style: CollapsedRailStyle
-  readonly tasks: readonly Task[]
+  /** The sections to fold — the very ones the expanded tree renders. */
+  readonly groups: readonly SidebarGroup[]
   readonly selectedId: string | null
   readonly engineState?: ReadonlyMap<string, TaskEngineState>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
@@ -122,29 +131,32 @@ export interface CollapsedRailProps {
   readonly onExpand: () => void
 }
 
-function projectHeading(task: Task, width: number): string {
-  const name = task.kind === "dir" && task.scratch === true ? "scratch" : repoBasename(task.repo)
-  const first = new Intl.Segmenter().segment(name.trim()).containing(0)?.segment ?? "·"
+/** A section divider: one character of the header the expanded tree prints,
+ *  then a rule. Taking it from the group's LABEL rather than the repo basename
+ *  is what makes two same-named repos fold to different letters — the label is
+ *  already disambiguated (`work/api` vs `oss/api`), the basename is not. */
+function projectHeading(label: string, width: number): string {
+  const first = new Intl.Segmenter().segment(label.trim()).containing(0)?.segment ?? "·"
   const initial = first.toLowerCase()
   const cells = displayWidth(initial)
-  const label = cells > 0 && cells <= width ? initial : "·"
-  return label + "─".repeat(width - displayWidth(label))
+  const head = cells > 0 && cells <= width ? initial : "·"
+  return head + "─".repeat(width - displayWidth(head))
 }
 
 export function CollapsedRail(props: CollapsedRailProps) {
   const { theme } = useTheme()
-  const rows = useRailRows(props)
+  const sections = useRailSections(props)
   const width = COLLAPSED_RAIL_WIDTH[props.style]
   return (
     <box width={width} flexShrink={0} flexDirection="column" backgroundColor={theme.backgroundPanel}>
-      {rows.map((row, i) => (
-        <Fragment key={row.task.id}>
-          {i === 0 || rows[i - 1]?.groupKey !== row.groupKey ? (
-            <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
-              {projectHeading(row.task, width)}
-            </text>
-          ) : null}
-          <RailRowView row={row} style={props.style} onSelect={props.onSelect} />
+      {sections.map((section) => (
+        <Fragment key={section.key}>
+          <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
+            {projectHeading(section.label, width)}
+          </text>
+          {section.rows.map((row) => (
+            <RailRowView key={row.task.id} row={row} style={props.style} onSelect={props.onSelect} />
+          ))}
         </Fragment>
       ))}
       <CollapseButton collapsed onToggle={props.onExpand} />

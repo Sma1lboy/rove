@@ -11,6 +11,7 @@
 
 import { expect, test } from "bun:test"
 import { CollapsedRail, railInitials } from "../../src/tui-react/panes/sidebar/collapsed-rail"
+import { buildSidebarGroups } from "../../src/tui/panes/sidebar/project-groups"
 import type { Task } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
@@ -44,10 +45,21 @@ function task(id: string, title: string): Task {
 
 const TASKS = [task("t1", "Visual Fixture"), task("t2", "fix completions"), task("t3", "sidebar collapse")]
 
+/**
+ * The rail renders the sections the EXPANDED tree renders — it is handed
+ * `SidebarGroup[]`, never a task list of its own. Going through the shared
+ * builder here is the point: a divider asserted below is a divider the tree
+ * would draw too. An empty tab map means "never mounted", which is what keeps
+ * these fixtures out of the closed-down-project hide rule.
+ */
+function groupsOf(tasks: readonly Task[]) {
+  return buildSidebarGroups({ tasks, tabsByTask: new Map() })
+}
+
 function railProps(over: Partial<Parameters<typeof CollapsedRail>[0]> = {}) {
   return {
     style: "digits" as const,
-    tasks: TASKS,
+    groups: groupsOf(TASKS),
     selectedId: "t1",
     onSelect: () => {},
     onExpand: () => {},
@@ -152,14 +164,14 @@ function repoTask(id: string, title: string, repo: string): Task {
 
 test("a project boundary draws a divider, and rows inside one project do not", async () => {
   const sameProject = [repoTask("a1", "one", "/work/api"), repoTask("a2", "two", "/work/api")]
-  const { frame: sameFrame } = await renderComponent(<Rail {...railProps({ tasks: sameProject })} />, {
+  const { frame: sameFrame } = await renderComponent(<Rail {...railProps({ groups: groupsOf(sameProject) })} />, {
     width: 8,
     height: 10,
   })
   expect((await sameFrame()).match(/a──/g)).toHaveLength(1)
 
   const twoProjects = [repoTask("a1", "one", "/work/api"), repoTask("b1", "three", "/work/web")]
-  const { frame: splitFrame } = await renderComponent(<Rail {...railProps({ tasks: twoProjects })} />, {
+  const { frame: splitFrame } = await renderComponent(<Rail {...railProps({ groups: groupsOf(twoProjects) })} />, {
     width: 8,
     height: 10,
   })
@@ -170,7 +182,7 @@ test("a project boundary draws a divider, and rows inside one project do not", a
 test("scratch tasks are one section of their own, above the projects", async () => {
   const scratch = { ...repoTask("s1", "scratch", "/tmp/x"), kind: "dir", scratch: true } as Task
   const tasks = [scratch, repoTask("a1", "one", "/work/api")]
-  const { frame } = await renderComponent(<Rail {...railProps({ tasks, selectedId: "s1" })} />, {
+  const { frame } = await renderComponent(<Rail {...railProps({ groups: groupsOf(tasks), selectedId: "s1" })} />, {
     width: 8,
     height: 10,
   })
@@ -190,7 +202,10 @@ test("the selected row carries the same marker the expanded rows use", async () 
 test("project headings fit every fold, including wide project initials", async () => {
   for (const style of ["hairline", "digits", "glyphs", "initials"] as const) {
     const tasks = [repoTask("a", "one", "/work/rove"), repoTask("b", "two", "/work/中文")]
-    const { frame } = await renderComponent(<Rail {...railProps({ style, tasks })} />, { width: 12, height: 10 })
+    const { frame } = await renderComponent(<Rail {...railProps({ style, groups: groupsOf(tasks) })} />, {
+      width: 12,
+      height: 10,
+    })
     const lines = (await frame()).split("\n")
     expect(lines[0]).toContain("r─")
     expect(lines[2]).toContain("中")

@@ -42,7 +42,12 @@ narrow to honour it squeezes the rail down to what fits and pays the full
 width back when the window grows again. The fold has no draggable edge — its
 fixed width is the point of folding. Each folded project section starts with
 its first letter and a rule, such as `r──` or `w──`; scratch tasks share an
-`s──` section. These headers do not consume jump digits.
+`s──` section. These headers do not consume jump digits. The fold shows the
+same projects the expanded rail shows and hides the same ones — a project you
+have closed down to nothing is absent from both — and a section's letter comes
+from the header the expanded rail prints, so two repos whose folders share a
+name (`work/api`, `oss/api`) fold to `w──` and `o──` rather than to `a──`
+twice.
 
 Zen mode (`ctrl+a` `z`) hides Files and lets the workspace use the freed width.
 The Tasks rail remains visible. Below 70 columns, the separate
