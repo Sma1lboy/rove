@@ -26,7 +26,6 @@ import { relativeAge } from "../../../lib/relative-time"
 import { TAB_ROW_HEIGHT_KEY, normalizeTabRowHeight } from "../../../state/tab-row-height"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
-import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
 import { prChip } from "../../../tui/panes/sidebar/row-chips"
 import {
   ATTENTION_GLYPH,
@@ -166,7 +165,7 @@ export function WorktreeTreeRow(props: {
     // plugin can crowd the branch name but never overflow the row.
     tokens.reduce((cells, token) => cells + clusterCells(token.text), 0) +
     (deletionWord ? clusterCells(deletionWord) : 0) +
-    jumpDigitCells(props.flatIndex) +
+    jumpDigitCells(shared.jumpDigitOf(props.rowId)) +
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
     // `changes === null` is the unknown mark, one cell like any chip glyph —
@@ -225,7 +224,7 @@ export function WorktreeTreeRow(props: {
           </text>
         ) : null}
         <MoveChip rowId={props.rowId} shared={shared} />
-        <JumpDigit flatIndex={props.flatIndex} dim={!isCursor} />
+        <JumpDigit digit={shared.jumpDigitOf(props.rowId)} dim={!isCursor} />
       </box>
     </RowShell>
   )
@@ -387,7 +386,7 @@ export function TabTreeRow(props: {
               treeLabelBudget(
                 shared,
                 2 +
-                  jumpDigitCells(props.flatIndex) +
+                  jumpDigitCells(shared.jumpDigitOf(props.rowId)) +
                   (age ? clusterCells(age) : 0) +
                   (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
               ),
@@ -400,7 +399,7 @@ export function TabTreeRow(props: {
             </text>
           ) : null}
           <MoveChip rowId={props.rowId} shared={shared} />
-          <JumpDigit flatIndex={props.flatIndex} dim={!isCursor} />
+          <JumpDigit digit={shared.jumpDigitOf(props.rowId)} dim={!isCursor} />
         </box>
         {modelLine ? (
           // Flush with the title above it (owner 2026-09-19): the caption

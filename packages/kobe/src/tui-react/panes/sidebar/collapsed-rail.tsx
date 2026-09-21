@@ -26,7 +26,7 @@ import { type RGBA, TextAttributes } from "@opentui/core"
 import { Fragment, useMemo } from "react"
 import { displayWidth } from "../../../lib/display-width"
 import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
-import type { SidebarGroup } from "../../../tui/panes/sidebar/project-groups"
+import { type SidebarGroup, jumpTaskIds, ownTasks } from "../../../tui/panes/sidebar/project-groups"
 import { buildSidebarRowView, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
 import { toneColor } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
@@ -81,26 +81,17 @@ interface RailSection {
   readonly rows: readonly RailRow[]
 }
 
-/**
- * The rows the fold prints a jump digit on, in order.
- *
- * One entry per task, because one cell per task is every row a fold has — the
- * expanded tree also numbers each task's TAB rows, which the fold does not
- * draw. Exported so the chord resolves against exactly the list the strip
- * printed; `useRailSections` numbers in this same `groups → tasks` order, and
- * `test/render/sidebar-fold-parity.test.tsx` pins that they agree.
- */
-export function railJumpIds(groups: readonly SidebarGroup[]): string[] {
-  return groups.flatMap((group) => group.tasks.map((task) => String(task.id)))
-}
-
 function useRailSections(props: {
   groups: readonly SidebarGroup[]
   selectedId: string | null
   engineState?: ReadonlyMap<string, TaskEngineState>
   taskJobs?: ReadonlyMap<string, TaskJobState>
 }): readonly RailSection[] {
-  const tasks = useMemo(() => props.groups.flatMap((group) => group.tasks), [props.groups])
+  // A routine session takes no cell. The expanded tree folds them behind its
+  // count row; the fold has no room for a control that could open one, so it
+  // simply does not draw them — a schedule that fires daily would otherwise
+  // make the FOLDED rail the longer of the two surfaces, which is backwards.
+  const tasks = useMemo(() => props.groups.flatMap(ownTasks), [props.groups])
   // One spinner clock for the whole rail: a per-row hook would give each row
   // its own phase and the strip would shimmer instead of pulse together.
   const spinning = tasks.some((task) => props.taskJobs?.get(task.id) !== undefined)
@@ -109,28 +100,32 @@ function useRailSections(props: {
   // it runs across the dividers — the same way the expanded tree numbers rows
   // down the pane rather than restarting under each project header.
   let slot = 0
-  return props.groups.map((group) => ({
-    key: group.key,
-    label: group.label,
-    rows: group.tasks.map((task) => {
-      const base = buildSidebarRowView({
-        task,
-        activity: props.engineState?.get(task.id),
-        job: props.taskJobs?.get(task.id),
-        spinnerFrame: frame,
-        subtitleBudget: 0,
-        truncateBranch: (branch) => branch,
-      })
-      const view = withSpinnerFrame(base, () => frame)
-      return {
-        task,
-        glyph: view.stateGlyph,
-        tone: view.tone,
-        digit: taskJumpDigit(slot++),
-        selected: task.id === props.selectedId,
-      }
-    }),
-  }))
+  // A project whose every task is a routine has nothing left to draw; its
+  // divider would rule off an empty stretch of strip.
+  return props.groups
+    .filter((group) => ownTasks(group).length > 0)
+    .map((group) => ({
+      key: group.key,
+      label: group.label,
+      rows: ownTasks(group).map((task) => {
+        const base = buildSidebarRowView({
+          task,
+          activity: props.engineState?.get(task.id),
+          job: props.taskJobs?.get(task.id),
+          spinnerFrame: frame,
+          subtitleBudget: 0,
+          truncateBranch: (branch) => branch,
+        })
+        const view = withSpinnerFrame(base, () => frame)
+        return {
+          task,
+          glyph: view.stateGlyph,
+          tone: view.tone,
+          digit: taskJumpDigit(slot++),
+          selected: task.id === props.selectedId,
+        }
+      }),
+    }))
 }
 
 export interface CollapsedRailProps {
@@ -169,7 +164,7 @@ export function CollapsedRail(props: CollapsedRailProps) {
   // the fold had its own registration the chord lived in the expanded tree
   // alone, which folding unmounts — so every number on screen did nothing.
   useTaskJump({
-    ids: railJumpIds(props.groups),
+    ids: jumpTaskIds(props.groups),
     onJump: (taskId) => {
       props.onSelect(taskId)
       props.onActivate?.(taskId)

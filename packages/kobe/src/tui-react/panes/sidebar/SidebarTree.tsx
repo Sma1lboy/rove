@@ -289,17 +289,17 @@ export function SidebarTree(props: SidebarTreeProps) {
     markKeysUsed,
   })
 
-  // ctrl+<digit> jump: slot N is the Nth VISIBLE row, so it follows expansion
-  // state — `flatIds` is exactly the list every row reads its printed digit
-  // from (`taskJumpDigit(flatIndex)`), which is what makes the number on a row
-  // the number that reaches it. Registered through the shared hook, which the
-  // folded rail calls with ITS list: the rule belongs beside the renderer that
-  // prints the digit, and the fold prints digits too.
+  // ctrl+<digit> jump: slot N is the Nth TASK, counted over the groups both
+  // sidebar surfaces share (`jumpTaskIds`) rather than over this one's rendered
+  // rows. Counting rows is what used to make a digit name a different session
+  // once you folded the rail — the tree draws a row per tab, the fold draws one
+  // cell per task. `jumpRowIds` is those same tasks mapped to the row that
+  // WEARS each digit here, so the cursor still lands on something real.
   useTaskJump({
-    ids: tree.flatIds,
-    onJump: (id, slot) => {
-      setCursorIndex(slot)
-      activateRowRef.current(id)
+    ids: tree.jumpRowIds,
+    onJump: (rowId) => {
+      setCursorIndex(flatIndexOf.get(rowId) ?? -1)
+      activateRowRef.current(rowId)
     },
   })
 
@@ -328,6 +328,7 @@ export function SidebarTree(props: SidebarTreeProps) {
   }, [effectiveWidth])
 
   const shared: TreeRowShared = {
+    jumpDigitOf: tree.jumpDigitOf,
     width: effectiveWidth,
     cursorIndex,
     activeRowId: tree.activeRowId,

@@ -22,7 +22,7 @@
 import type { Task } from "@/types/task"
 import type { VendorId } from "../../../types/vendor"
 import { sidebarProjectKeyOfTask } from "./groups"
-import { type SidebarGroup, type SidebarGroupInput, buildSidebarGroups } from "./project-groups"
+import { type SidebarGroup, type SidebarGroupInput, buildSidebarGroups, ownTasks } from "./project-groups"
 import { RECENT_ROW_ID, SCRATCH_SECTION_ID, routinesRowId, tabRowId } from "./tree-ids"
 
 // Search lives in its own module — this file decides what rows EXIST, that one
@@ -209,7 +209,7 @@ export function buildRowsFromGroups(input: TreeRowsInput): TreeRow[] {
     // Routine sessions are already the TAIL of `group.tasks`; the count row is
     // the seam between the two halves.
     const ownCount = group.tasks.length - group.routineCount
-    for (const task of group.tasks.slice(0, ownCount)) pushWorktree(rows, task, tabsByTask)
+    for (const task of ownTasks(group)) pushWorktree(rows, task, tabsByTask)
     if (group.routineCount > 0) {
       const expanded = input.expandedRoutines?.has(group.key) === true
       rows.push({
@@ -288,6 +288,42 @@ export function mainTaskIdOfProject(tasks: readonly Task[], projectKey: string):
     if (sidebarProjectKeyOfTask(task) === projectKey) return String(task.id)
   }
   return null
+}
+
+/**
+ * The row that WEARS each jump digit, in slot order.
+ *
+ * The digit numbers TASKS — `jumpTaskIds` over the groups both sidebar
+ * surfaces share — so that a slot means the same session folded or unfolded.
+ * This maps those tasks onto the row the tree prints the number on, which is
+ * not always the obvious one: a scratch session hangs its tabs straight under
+ * the section header and has no worktree row, so its FIRST TAB row stands for
+ * it. First row per task wins, so no task prints two digits.
+ *
+ * Walking `rows` rather than `eligible` is what keeps SEARCH working. A query
+ * prunes the tree, and the digits have to renumber down the rows that
+ * survived — you read the number off the row, you do not remember it. The
+ * fold has no search, so there is no second surface to disagree with while a
+ * query is open; at rest the two lists are identical again.
+ *
+ * `eligible` is the task set that may carry a digit at all — routine sessions
+ * are left out of it, because there are as many of them as their schedule has
+ * fired and they would push the tasks a person opened past the ninth slot, the
+ * last one with a digit. The "↩ recent" row is skipped for a related reason:
+ * it is a second appearance of a task that already has a row, and letting it
+ * take slot one shifted every other digit in narrow mode.
+ */
+export function jumpRowsOf(rows: readonly TreeRow[], eligible: ReadonlySet<string>): string[] {
+  const out: string[] = []
+  const claimed = new Set<string>()
+  for (const row of rows) {
+    if (row.kind !== "worktree" && row.kind !== "tab") continue
+    const taskId = String(row.task.id)
+    if (!eligible.has(taskId) || claimed.has(taskId)) continue
+    claimed.add(taskId)
+    out.push(row.id)
+  }
+  return out
 }
 
 // Tab-row activity resolution lives in its own module: it answers which of the

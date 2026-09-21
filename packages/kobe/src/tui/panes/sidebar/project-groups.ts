@@ -321,3 +321,32 @@ export function ownerProjectKey(task: Task): string | null {
   if (isScratchTask(task)) return SCRATCH_SECTION_ID
   return sidebarProjectKeyOfTask(task)
 }
+
+/**
+ * A group's OWN tasks — everything but the routine tail.
+ *
+ * Both surfaces fold that tail away at rest: the tree behind its count row,
+ * the fold by not drawing it at all (it has no room for a control that would
+ * open one). So this, not `group.tasks`, is what "the tasks on screen" means.
+ */
+export function ownTasks(group: SidebarGroup): readonly Task[] {
+  return group.tasks.slice(0, group.tasks.length - group.routineCount)
+}
+
+/**
+ * The tasks a `ctrl+<digit>` jump can reach, in order.
+ *
+ * Anchored on the GROUPS — the answer both surfaces share — rather than on
+ * either one's rendered rows. That is the whole point: the expanded tree draws
+ * a row per tab as well as per task and the fold draws one cell per task, so a
+ * digit counted over ROWS named a different task in each state. Counted over
+ * tasks it cannot, and `ctrl+3` means the same session folded or not.
+ *
+ * Routine sessions are excluded rather than merely folded. They are a
+ * schedule's output, and there are as many of them as the schedule has fired;
+ * letting them take slots would push the tasks a person opened themselves past
+ * the ninth, which is the last one that has a digit at all.
+ */
+export function jumpTaskIds(groups: readonly SidebarGroup[]): string[] {
+  return groups.flatMap((group) => ownTasks(group).map((task) => String(task.id)))
+}

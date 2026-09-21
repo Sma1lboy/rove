@@ -15,7 +15,6 @@ import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote
 import { type BoxRenderable, MouseButton } from "@opentui/core"
 import type { ReactNode } from "react"
 import { charWidth } from "../../../lib/display-width"
-import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
 import { SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
 import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
 import { useTheme } from "../../context/theme"
@@ -50,6 +49,9 @@ export type TreeRowShared = {
   readonly onContextMenu?: (flatIndex: number, rowId: string, x: number, y: number) => void
   /** The sidebar's ~2s poll tick — drives the ±stats poller. */
   readonly branchTick: number
+  /** The digit a row prints, from the shared task numbering — null for a row
+   *  that carries none. Resolved once per tree build, not per row. */
+  readonly jumpDigitOf: (rowId: string) => string | null
   /** Per-tab activity (taskId → tabId → state), never the task rollup. */
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
@@ -81,9 +83,11 @@ export function clusterCells(text: string): number {
 }
 
 /** Budget the row's own jump digit costs — it is the last cluster item, and
- *  a label that ate its cells would push the number off the rail. */
-export function jumpDigitCells(flatIndex: number): number {
-  const digit = taskJumpDigit(flatIndex)
+ *  a label that ate its cells would push the number off the rail. Null for a
+ *  row that carries no digit, which now includes every tab row: the digit
+ *  counts TASKS (see `jumpTaskIds`), so only the row standing for a task
+ *  spends cells on one. */
+export function jumpDigitCells(digit: string | null): number {
   return digit === null ? 0 : clusterCells(digit)
 }
 

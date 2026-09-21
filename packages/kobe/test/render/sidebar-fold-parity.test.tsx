@@ -17,12 +17,20 @@
  */
 
 import { expect, test } from "bun:test"
-import { CollapsedRail, railJumpIds } from "../../src/tui-react/panes/sidebar/collapsed-rail"
+import { CollapsedRail } from "../../src/tui-react/panes/sidebar/collapsed-rail"
 import { useSidebarGroups } from "../../src/tui-react/panes/sidebar/use-sidebar-groups"
 import { tabsByTask as tabStore } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { jumpSlotTarget, taskJumpDigit } from "../../src/tui/panes/sidebar/jump-digits"
-import { buildSidebarGroups } from "../../src/tui/panes/sidebar/project-groups"
-import { type TreeTab, buildTreeRows, treeFlatIds } from "../../src/tui/panes/sidebar/tree-core"
+import { buildSidebarGroups, jumpTaskIds } from "../../src/tui/panes/sidebar/project-groups"
+import {
+  type TreeTab,
+  buildTreeRows,
+  filterTreeRows,
+  jumpRowsOf,
+  parseRowId,
+  treeFlatIds,
+  withRecentRow,
+} from "../../src/tui/panes/sidebar/tree-core"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 import { renderComponent } from "./harness"
@@ -242,7 +250,7 @@ test("every digit the fold prints reaches the row it is printed on", async () =>
   ]
   seed({ a1: ["tab-1"], b1: ["tab-1"], a2: ["tab-1"] })
   const rail = await foldedRail(tasks)
-  const ids = railJumpIds(rail.groups)
+  const ids: readonly string[] = jumpTaskIds(rail.groups)
 
   // Read the digits off the FRAME rather than trusting the list: a strip that
   // printed them in another order would still satisfy a data-only check.
@@ -270,51 +278,90 @@ test("a digit past the ninth row reaches nothing rather than the wrong row", () 
 
 /* ── what a slot means in each state ───────────────────────────────────────
  *
- * The expanded tree numbers `treeFlatIds` — every navigable row. The fold
- * numbers `railJumpIds` — one per visible task. They agree exactly when the
- * tree has nothing but task rows, and the four cases below are every way they
- * come apart. None of these is fixable by the fold: they follow from the two
- * states drawing different rows, and closing them would mean changing what
- * `ctrl+2` already means in the expanded tree.
+ * The digit is anchored on the GROUPS — `jumpTaskIds`, the answer both
+ * surfaces already share — not on either one's rendered rows. Anchoring it on
+ * rows is what used to make `ctrl+3` name a different session once you folded
+ * the rail: the tree draws a row per tab as well as per task, the fold draws
+ * one cell per task, so the same slot counted past different things.
+ *
+ * Every case below is one that used to diverge. What varies now is only which
+ * ROW wears the number, which is presentation and is allowed to differ.
  */
-const slots = (ids: readonly string[]) => ids.map((_, i) => jumpSlotTarget(ids, i))
-const bothLists = (tasks: readonly Task[], tabs: Record<string, readonly string[]> = {}) => {
-  const map = seed(tabs)
-  return {
-    tree: treeFlatIds(buildTreeRows({ tasks, tabsByTask: map })),
-    fold: railJumpIds(buildSidebarGroups({ tasks, tabsByTask: map })),
-  }
+const treeJumpTasks = (
+  tasks: readonly Task[],
+  tabs: ReadonlyMap<string, readonly TreeTab[]>,
+  groups: ReturnType<typeof buildSidebarGroups>,
+) =>
+  jumpRowsOf(buildTreeRows({ tasks, tabsByTask: tabs }), new Set(jumpTaskIds(groups))).map(
+    (rowId) => parseRowId(rowId).taskId,
+  )
+
+function bothStates(tasks: readonly Task[], tabSpec: Record<string, readonly string[]> = {}) {
+  const tabs = seed(tabSpec)
+  const groups = buildSidebarGroups({ tasks, tabsByTask: tabs })
+  return { fold: jumpTaskIds(groups), tree: treeJumpTasks(tasks, tabs, groups), groups, tabs }
 }
 
-test("with nothing but task rows, a digit means the same task in both states", () => {
-  const { tree, fold } = bothLists([task("a", { repo: "/work/api" }), task("b", { repo: "/work/web" })])
-  expect(slots(fold)).toEqual(slots(tree))
+test("a digit names the same task folded and unfolded — plain rows", () => {
+  const { tree, fold } = bothStates([task("a", { repo: "/work/api" }), task("b", { repo: "/work/web" })])
+  expect(tree).toEqual(fold)
+  expect(fold).toEqual(["a", "b"])
 })
 
-test("tab rows take digits of their own, so the fold's slots run ahead", () => {
-  const { tree, fold } = bothLists([task("a"), task("b")], { a: ["t1", "t2"] })
-  expect(tree).toEqual(["a", "a::t1", "a::t2", "b"])
-  expect(fold).toEqual(["a", "b"])
-  // Same first row, and from there the numbers name different things — the
-  // tree's `ctrl+3` opens a TAB of `a`, the fold's opens task `b`.
-  expect(jumpSlotTarget(tree, 0)).toBe(jumpSlotTarget(fold, 0))
-  expect(jumpSlotTarget(tree, 1)).toBe("a::t1")
+test("a task's tab rows no longer take digits of their own", () => {
+  // The tree still DRAWS them; they just carry no number, so the second digit
+  // is the second task in both states rather than the first task's first tab.
+  const { tree, fold } = bothStates([task("a"), task("b")], { a: ["t1", "t2"] })
+  expect(tree).toEqual(fold)
   expect(jumpSlotTarget(fold, 1)).toBe("b")
 })
 
-test("a scratch session with tabs is a row the fold has and the tree does not", () => {
-  // The tree hangs a scratch task's tabs straight under the section header and
-  // emits no row for the task itself, so the fold's cell has no counterpart.
+test("a scratch session with tabs is reached by the same digit, on a different row", () => {
+  // It has no worktree row — its tabs hang straight under the section header —
+  // so the tree prints the digit on its first TAB row. Same task either way.
   const scratch = task("s", { kind: "dir", repo: "/tmp/s", scratch: true, worktreePath: "/tmp/s", branch: "" })
-  const { tree, fold } = bothLists([scratch, task("a")], { s: ["t1"] })
-  expect(tree).toEqual(["s::t1", "a"])
-  expect(fold).toEqual(["s", "a"])
+  const { tree, fold, groups, tabs } = bothStates([scratch, task("a")], { s: ["t1"] })
+  expect(tree).toEqual(fold)
+  expect(
+    jumpRowsOf(buildTreeRows({ tasks: [scratch, task("a")], tabsByTask: tabs }), new Set(jumpTaskIds(groups))),
+  ).toEqual(["s::t1", "a"])
 })
 
-test("at rest a project's routines are one count row in the tree and real rows in the fold", () => {
+test("routine sessions take no digit in either state", () => {
+  // As many of them as their schedule has fired; letting them take slots would
+  // push the tasks a person opened past the ninth, the last one with a digit.
   const routine = task("r1", { routine: { automationId: "nightly" } })
-  const { tree, fold } = bothLists([task("own"), routine])
-  // The tree's second slot is the fold toggle, which names no task at all.
-  expect(jumpSlotTarget(tree, 1)).toBe("~routines:/work/api")
-  expect(jumpSlotTarget(fold, 1)).toBe("r1")
+  const { tree, fold } = bothStates([task("own"), routine])
+  expect(tree).toEqual(fold)
+  expect(fold).toEqual(["own"])
+})
+
+test("the recent-jump row does not shift every digit behind it", () => {
+  // Narrow mode prepends a second appearance of a task that already has a row.
+  // While digits counted rows, it took slot one and moved everything down.
+  const tasks = [task("a"), task("b")]
+  const tabs = seed({})
+  const groups = buildSidebarGroups({ tasks, tabsByTask: tabs })
+  const withRecent = withRecentRow(buildTreeRows({ tasks, tabsByTask: tabs }), tasks[0] as Task)
+  expect(jumpRowsOf(withRecent, new Set(jumpTaskIds(groups)))).toEqual(["a", "b"])
+})
+
+test("a query renumbers the tree's digits down the rows that survived it", () => {
+  // Search is the one mode with no folded counterpart to disagree with, and
+  // renumbering is the point: you read the number off the row.
+  const tasks = [task("alpha"), task("beta"), task("gamma")]
+  const tabs = seed({})
+  const groups = buildSidebarGroups({ tasks, tabsByTask: tabs })
+  const pruned = filterTreeRows(buildTreeRows({ tasks, tabsByTask: tabs }), "gamma", () => "")
+  expect(jumpRowsOf(pruned, new Set(jumpTaskIds(groups)))).toEqual(["gamma"])
+})
+
+test("the fold draws no cell for a routine session", async () => {
+  const routine = task("r1", { repo: "/work/api", routine: { automationId: "nightly" } })
+  seed({})
+  const rail = await foldedRail([task("own", { repo: "/work/api" }), routine])
+  const frame = await rail.frame()
+  // One project, one drawn row: the divider plus a single digit.
+  expect(dividersOf(frame)).toEqual(["a"])
+  expect(frame.split("\n").filter((line) => /[0-9]/.test(line))).toHaveLength(1)
 })
