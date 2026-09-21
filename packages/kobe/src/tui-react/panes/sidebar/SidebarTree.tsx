@@ -21,10 +21,8 @@ import { createSidebarController } from "../../../tui/panes/sidebar/controller"
 import { RECENT_ROW_ID, type TreeRow, parseRowId } from "../../../tui/panes/sidebar/tree-core"
 import { MAIN_BRANCH_POLL_MS, SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
 import { usePaneHintMark } from "../../component/keyboard-hints"
-import { bindByIds } from "../../context/keybindings"
 import { useOptionalKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
-import { useBindings } from "../../lib/keymap"
 import { useLatest } from "../../lib/use-latest"
 import { ContextMenu } from "../../ui/context-menu"
 import { SidebarBrandHeader, SidebarCreateAction, SidebarNavRail, SidebarSearchInput, SidebarZenChip } from "./chrome"
@@ -32,6 +30,7 @@ import { CollapseButton } from "./collapse-button"
 import { SidebarTreeBody } from "./tree-panel"
 import type { TreeRowShared } from "./tree-row-shell"
 import type { SidebarProps } from "./types"
+import { useTaskJump } from "./use-task-jump"
 import { cursorTaskIdOf, useTreeBindings } from "./use-tree-bindings"
 import { useTreeMenu } from "./use-tree-menu"
 import { useTreeSearch } from "./use-tree-search"
@@ -290,20 +289,19 @@ export function SidebarTree(props: SidebarTreeProps) {
     markKeysUsed,
   })
 
-  // ctrl+<digit> jump: slot N is the Nth VISIBLE row, so it follows expansion
-  // state. Not gated on focus: the chord
-  // exists to switch from inside the engine pane.
-  useBindings(() => ({
-    enabled: true,
-    bindings: bindByIds({
-      "tasks.jump": (_evt, slot) => {
-        const id = flatIdsRef.current[slot ?? 0]
-        if (id === undefined) return
-        setCursorIndex(slot ?? 0)
-        activateRowRef.current(id)
-      },
-    }),
-  }))
+  // ctrl+<digit> jump: slot N is the Nth TASK, counted over the groups both
+  // sidebar surfaces share (`jumpTaskIds`) rather than over this one's rendered
+  // rows. Counting rows is what used to make a digit name a different session
+  // once you folded the rail — the tree draws a row per tab, the fold draws one
+  // cell per task. `jumpRowIds` is those same tasks mapped to the row that
+  // WEARS each digit here, so the cursor still lands on something real.
+  useTaskJump({
+    ids: tree.jumpRowIds,
+    onJump: (rowId) => {
+      setCursorIndex(flatIndexOf.get(rowId) ?? -1)
+      activateRowRef.current(rowId)
+    },
+  })
 
   // Viewport follow — rowEls is keyed by flat index, the registration
   // convention every row type shares.
@@ -330,6 +328,7 @@ export function SidebarTree(props: SidebarTreeProps) {
   }, [effectiveWidth])
 
   const shared: TreeRowShared = {
+    jumpDigitOf: tree.jumpDigitOf,
     width: effectiveWidth,
     cursorIndex,
     activeRowId: tree.activeRowId,

@@ -203,11 +203,15 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     // self-evident rather than confusing. ctrl+1 is deliberately not in
     // the set — the legacy terminal protocol has no encoding for it, so
     // row 1 shows (and answers to) `2`.
+    //
+    // The count is over TASKS, taken from the grouping both sidebar surfaces
+    // share, so a digit reaches the same session folded or unfolded — tab
+    // rows and routine sessions carry none (docs/design/keybinding-decisions.md).
     id: "tasks.jump",
     scope: "global",
     keys: [...TASK_JUMP_CHORDS],
     category: "Tasks pane",
-    description: "Jump to the task showing that digit (ctrl+2 = first row)",
+    description: "Jump to the task showing that digit (ctrl+2 = first task)",
     hint: { keys: "ctrl+2-0" },
     presentation: "onePress",
   },

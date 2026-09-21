@@ -11,10 +11,10 @@
 |                              |
 | rove ─────────────────────── |
 |  feat/alpha              ? 2 |
-|▌ ○ build              move 3 |
-|  ○ review                  4 |
-|  feat/bravo              ? 5 |
-|  ○ tests                   6 |
+|▌ ○ build                move |
+|  ○ review                    |
+|  feat/bravo              ? 3 |
+|  ○ tests                     |
 |                              |
 |                              |
 |                              |

@@ -16,7 +16,6 @@ import type { TaskEngineState } from "@/client/remote-orchestrator"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { spinnerFrameSnapshot, subscribeSpinnerFrame } from "../../../tui/lib/spinner-frame-store"
 import type { SidebarRow } from "../../../tui/panes/sidebar/groups"
-import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
 import { DONE_PULSE_MS } from "../../../tui/panes/sidebar/row-view"
 import { type WorktreeChanges, pickPushedChanges } from "../../../tui/panes/sidebar/worktree-changes"
 import { pollWorktreeChanges, worktreeChanges } from "../../../tui/panes/sidebar/worktree-changes-poller"
@@ -261,9 +260,9 @@ export function useDurableCompletionSeen(
  * nothing rather than a digit that jumps somewhere else. Keyed on the flat
  * index directly so the tree's rows (no SidebarRow wrapper) share it.
  */
-export function JumpDigit(props: { flatIndex: number; dim: boolean }) {
+export function JumpDigit(props: { digit: string | null; dim: boolean }) {
   const { theme } = useTheme()
-  const digit = taskJumpDigit(props.flatIndex)
+  const digit = props.digit
   if (digit === null) return null
   return (
     <text fg={props.dim ? theme.textMuted : theme.accent} wrapMode="none" flexShrink={0}>

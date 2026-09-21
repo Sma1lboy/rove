@@ -99,9 +99,12 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
         const next = !collapsed
         setCollapsed(next)
         // Folding unmounts the tree, and the tree is what owns the sidebar's
-        // chords — leaving focus behind would strand the keyboard in a pane
-        // that answers nothing, with no chord to unfold it (the control is
-        // mouse-only for now). Zen hands focus off for the same reason.
+        // FOCUSED chords (j/k/enter, the row letters) — leaving focus behind
+        // would strand the keyboard in a pane that answers nothing, with no
+        // chord to unfold it (the control is mouse-only for now). Zen hands
+        // focus off for the same reason. The global `ctrl+<digit>` jump is the
+        // exception and survives the fold: the strip prints those digits, so
+        // it registers them itself (`use-task-jump.ts`).
         if (next) focus.setFocused("workspace")
       }}
       nav={pages.nav}

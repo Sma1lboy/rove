@@ -11,9 +11,9 @@
 |                              |
 | rove ─────────────────────── |
 |  refactor/tab-strip… ▴ ✓ ? 2 |
-|  ○ persist scrollback acr… 3 |
-|  feat/alpha              ? 4 |
-|▌ ○ build                   5 |
+|  ○ persist scrollback acros… |
+|  feat/alpha              ? 3 |
+|▌ ○ build                     |
 |                              |
 |                              |
 |                              |

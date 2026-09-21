@@ -12,11 +12,11 @@
 |  ↩ Recent: bravo             |
 |                              |
 | rove ─────────────────────── |
-|  feat/alpha              ? 3 |
-|▌ ○ build                   4 |
-|  ○ review                  5 |
-|  feat/bravo              ? 6 |
-|  ○ tests                   7 |
+|  feat/alpha              ? 2 |
+|▌ ○ build                     |
+|  ○ review                    |
+|  feat/bravo              ? 3 |
+|  ○ tests                     |
 |                              |
 |                              |
 |                              |

@@ -8,6 +8,73 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## `ctrl+<digit>` numbers TASKS, not rows
+
+**2026-09-21 — the jump digit is anchored on the sidebar's shared group
+structure, so slot N is the same session whether the rail is folded or not.
+Tab rows stop carrying a digit; routine sessions never carry one.** Owner call.
+No new or moved key: the same `ctrl+2`…`ctrl+0`, now addressing a different
+thing.
+
+**What was wrong, in two layers.** The chord was registered inside
+`SidebarTree`, and folding the rail unmounts that component — so the folded
+rail printed a digit on every row while `ctrl+2` did nothing at all. That was
+the bug. Underneath it was the design fault that made it possible: the digit
+was a position in each surface's RENDERED ROWS. The expanded tree draws a row
+per tab as well as per task; the fold draws one cell per task. Counted over
+rows, the same slot named a different session in each state, and no amount of
+registering the chord in both places would have fixed that.
+
+**The resolution.** The two surfaces already share one answer for which
+projects and tasks exist and in what order (`project-groups.ts`, the shared
+structure the folded rail was fixed to read in the same change). The digit now
+counts THAT: `jumpTaskIds` numbers the groups' own tasks, both surfaces resolve
+against it, and each prints the number on whichever row stands for the task.
+Presentation stays free to differ; the address does not.
+
+`use-task-jump.ts` registers the chord, called by both surfaces. The rejected
+alternative was hoisting registration to `HostSidebar`, above the
+collapsed/expanded fork, with the mounted surface publishing a resolver through
+a ref the way `cursorTaskIdRef` serves the host's `b`/`v`/`o` chords. That
+guarantees the chord EXISTS whenever the sidebar does — the failure that
+happened — but not that it AGREES with the digits on screen, because the host
+has no list to check against. Anchoring on the shared structure gets the
+agreement; putting the hook beside the renderer that prints the number keeps a
+bare `SidebarTree` (the `dev:mock` bench, the render tests) working.
+
+**What it costs, and what was weighed.** A digit no longer reaches a specific
+TAB. Before this, `ctrl+3` on a task with two tabs opened its first tab; now it
+opens the second task. Tabs are reached with `ctrl+[` / `ctrl+]` and with
+`j`/`k`/`enter` down the tree, both of which a folded rail cannot offer either
+— so the capability that was lost is one that only ever existed in one of the
+two states, which is what made it the wrong thing to address by number. The
+binding's own id has always been `tasks.jump`, and its description in
+`keybindings-sidebar.ts` has always read "jump to the TASK showing that digit";
+the implementation was the odd one out.
+
+**Three consequences worth knowing:**
+
+- **Routine sessions take no digit in either state.** There are as many of them
+  as their schedule has fired, and they would push the tasks a person opened
+  themselves past the ninth slot — the last one with a digit at all. The
+  expanded tree already folded them behind a count row; the folded rail now
+  omits them too (same owner call), so neither surface spends a number on one.
+- **The "↩ recent" row stopped eating a slot.** It printed no digit but sat in
+  the list the digits were counted over, so in narrow mode every row below it
+  answered to a number one higher than it showed. Nothing about that was
+  intended; it fell out of counting rows.
+- **A `/` query still renumbers.** Search prunes the tree and the digits follow
+  the rows that survived, which is the point — you read the number off the row,
+  you do not remember it (`jump-digits.ts`). There is no folded counterpart to
+  disagree with while a query is open, and at rest the two lists are identical
+  again.
+
+Pinned in `test/render/sidebar-fold-parity.test.tsx`: a digit names the same
+task in both states across plain rows, tabs, a scratch session with tabs (whose
+number the tree prints on its first tab row, having no worktree row of its
+own), and routines; plus the recent row and the search cases above. The
+committed sidebar frame goldens carry the visible half of the change.
+
 ## Tab in the New task dialog's repo field
 
 **2026-09-03 — `tab` completes the highlighted suggestion in place; a second
