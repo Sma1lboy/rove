@@ -166,9 +166,61 @@ it off, `r` is the only thing that repopulates the list.
 | `autoEffort.<tier>.engine` | engine id | `claude` for all three | What the `swift` / `standard` / `deep` depth launches. Set from Settings → Auto effort; an empty string switches auto effort off (no tier is guessed) |
 | `autoEffort.<tier>.model` | string | `sonnet` / `opus` / `fable` | Model for that depth, in the engine's own spelling; empty = the engine's default |
 | `autoEffort.<tier>.effort` | string | unset | Reasoning level for that depth, one the engine declares; empty = the engine's default |
+| `autoEffort.classifier` | `off` \| `jev` \| an `https://` URL | `off` | Who picks the tier for `rove api add --tier auto`. See below — anything else, a typo included, reads as `off` |
+| `autoEffort.classifierThreshold` | number | `0.5` | Confidence below which no tier is picked. Clamped 0–1 |
+| `autoEffort.classifierTimeoutMs` | number | `4000` | How long to wait before giving up on the classifier. Clamped 200–60,000 |
+| `autoEffort.classifierModel` | string | `jev-latest` | Model id for `jev`. Pin a version (e.g. `jev-1.13.0`) to stop a silent upgrade |
+| `autoEffort.classifierKeyEnv` | string | `TYPESAFE_API_KEY` | Environment variable the bearer token is read from. The token itself never goes in `state.json` |
 
 Launch commands are parsed shell-ish, so quotes group arguments. Clear both
 `engineName.<id>` and `engineCommand.<id>` to reset an engine to its default.
+
+#### The tier classifier
+
+`autoEffort.classifier` is **off**, and while it is off nothing leaves your
+machine. Switching it on means one thing you should decide deliberately:
+
+> **Your prompt is sent to a third party that is not your engine vendor.**
+> With `jev`, the first message of the task — trimmed to 1,200 characters —
+> is POSTed to TypeSafe System One (`https://api.typesafe.ai/v1/systemone`).
+> That is a different company from whoever runs the engine you picked, and it
+> sees the text before the engine does.
+
+It answers one question — how much of the PROCEDURE the prompt leaves for the
+model to work out — and maps the answer onto `swift` / `standard` / `deep`:
+procedure given is `swift`, goal given but not the procedure is `standard`,
+and a goal that still has to be found is `deep`.
+
+```jsonc
+{
+  "autoEffort.classifier": "jev",          // off by default
+  "autoEffort.classifierThreshold": 0.5,   // below this, no tier is picked
+  "autoEffort.classifierModel": "jev-1.13.0"
+}
+```
+
+```bash
+export TYPESAFE_API_KEY=...   # keys: https://console.typesafe.ai/keys
+rove api add --repo ~/code/app --tier auto --prompt "there's a memory leak somewhere"
+```
+
+Set it to your own `https://` endpoint instead and Rove POSTs
+`{"text": "…"}` and expects `{"tier": "swift|standard|deep", "confidence":
+0.0–1.0}` back — that is the whole contract, so an endpoint you host (a local
+model, a rule, a lookup) is a ten-line program. Rove sends your bearer token
+to a custom endpoint only when `autoEffort.classifierKeyEnv` names a variable
+that is set.
+
+Nothing here can fail a create. Off, no key, no network, a timeout, a
+malformed answer, or a confidence under the threshold all mean the same
+thing: the task is created with the engine fields it would have had anyway,
+and `rove api add` reports what happened in `.tierAuto`. A pick below the
+threshold is dropped on purpose — a wrong pre-fill costs more than no
+pre-fill, because someone has to notice it before they can undo it.
+
+The judgement text Rove ships has **not been evaluated against a labelled
+set** — see [`docs/design/auto-effort-classifier.md`](./design/auto-effort-classifier.md)
+for the measurements that shaped the design and what they were measured on.
 
 ### Terminal and tabs
 

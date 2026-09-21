@@ -128,7 +128,11 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   const prompt = args.promptText()
   // Record who dispatched this create — the reply address a
   // sub-task's bare `send` routes its outcome back to.
-  const fields = (await tierFields(ctx)) ?? (await typedEngineFields(ctx, repo))
+  // `--tier auto` reads the prompt, so it has to be resolved after it — and a
+  // classifier that declined leaves `fields` empty, which is the typed path.
+  const picked = await tierFields(ctx, prompt)
+  const fields = picked.fields ?? (await typedEngineFields(ctx, repo))
+  const tierNote = picked.note ? { tierAuto: picked.note } : {}
   const payload: Record<string, string> = {
     repo,
     ...(await dispatcherEnvPayload()),
@@ -157,7 +161,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
   }
 
-  if (!prompt) return { taskId, task, home: homeDir(), started: false }
+  if (!prompt) return { taskId, task, home: homeDir(), started: false, ...tierNote }
   // Same provenance prefix `send` carries: a task created from inside another
   // kobe session is agent-to-agent, and its opening brief is where the reply
   // address matters most — every report this task ever sends goes back through
@@ -221,6 +225,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     // leaving `engineReady: false` to be read as a bare failure.
     ...(delivered.reason ? { reason: delivered.reason } : {}),
     ...(promptPersisted ? {} : { promptPersisted: false }),
+    ...tierNote,
   }
 }
 
@@ -314,7 +319,8 @@ async function addParallel(
   // carries its protocol, and every sibling launches the same command).
   // A tier fills every sibling the same way `--command` would (it refuses
   // `--agents`, which names engines itself).
-  const tier = await tierFields(ctx)
+  const picked = await tierFields(ctx, prompt)
+  const tier = picked.fields
   const choice = tier?.choice ?? (await engineChoice(ctx, repo))
   const plan: VendorId[] = agentsSpec
     ? parseAgentsSpec(agentsSpec)
@@ -444,7 +450,15 @@ async function addParallel(
   if (createFailure) failures.push({ ok: false, vendor: createFailure.vendor, error: createFailure.error })
   await Promise.all(persistedPrompts)
 
-  const result = { count: created.length, requested: plan.length, groupId, home: homeDir(), tasks, failures }
+  const result = {
+    count: created.length,
+    requested: plan.length,
+    groupId,
+    home: homeDir(),
+    tasks,
+    failures,
+    ...(picked.note ? { tierAuto: picked.note } : {}),
+  }
   // Partial (or total) create/delivery failure must not exit 0 — carry the
   // whole result (created taskIds included) up so the dispatcher emits it to
   // stdout + exits 3.
