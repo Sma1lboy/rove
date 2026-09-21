@@ -41,13 +41,14 @@ const config = (over: Partial<ClassifierConfig> = {}): ClassifierConfig => ({
 const env = { TYPESAFE_API_KEY: "apikey_test" } as NodeJS.ProcessEnv
 
 /** A `fetch` that answers once with `body`, and records what it was asked. */
-function stubFetch(body: unknown, init: { status?: number } = {}) {
+function stubFetch(body: unknown, init: { status?: number; headers?: Record<string, string> } = {}) {
   const calls: { url: string; init: RequestInit }[] = []
   const fn = (async (url: string | URL | Request, reqInit: RequestInit = {}) => {
     calls.push({ url: String(url), init: reqInit })
     return {
       ok: (init.status ?? 200) < 400,
       status: init.status ?? 200,
+      headers: new Headers(init.headers ?? {}),
       json: async () => body,
     } as Response
   }) as unknown as typeof globalThis.fetch
@@ -129,6 +130,18 @@ describe("classifyTier — every failure is a decline", () => {
 
     const { fn: garbage } = stubFetch({ answers: { verdict: { choice: "urgent" } } })
     expect(await classifyTier("x", config(), { fetch: garbage, env })).toMatchObject({ reason: "failed" })
+  })
+
+  it("names a 429 as the shared pool rather than your quota, and reports retry-after without sleeping on it", async () => {
+    // The doc's own warning: a run of blank tiers after a 429 must not send
+    // someone off to buy credit they already have.
+    const { fn } = stubFetch({}, { status: 429, headers: { "retry-after": "12" } })
+    const started = Date.now()
+    const out = await classifyTier("x", config(), { fetch: fn, env })
+    expect(out).toMatchObject({ reason: "failed" })
+    expect(out.kind === "declined" && out.detail).toMatch(/pool rate limit, not necessarily your quota, retry-after 12/)
+    // Reported, not honoured — a create is not held for twelve seconds.
+    expect(Date.now() - started).toBeLessThan(1000)
   })
 
   it("declines — and aborts — when the endpoint outlasts the timeout", async () => {

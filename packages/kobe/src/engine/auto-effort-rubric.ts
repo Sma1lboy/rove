@@ -21,9 +21,18 @@
  * rubric (`rubric-annotator-v5.md`) and its 24 golden examples live in an
  * unpublished local repo with no remote; this file is written from the
  * criterion the design doc states, and has NOT been evaluated. Treat the
- * accuracy as unknown until someone runs it against a labelled set. Replacing
- * it is the point of `autoEffort.classifierRubric` — a caller passes its own
- * {@link TierRubric} and none of this text is consulted.
+ * accuracy as unknown until someone runs it against a labelled set.
+ *
+ * It lives in CODE, which settles half of an open question the design doc
+ * leaves open ("改它要走发版，得想清楚它属于代码还是属于配置"). The
+ * classifier upstream reads the rubric from a file per request, so changing
+ * it changes behaviour without a deploy; compiled in here, changing it is a
+ * release. That is the trade taken for now — a product whose judgement can
+ * shift under it between two runs of the same version is worse than one
+ * whose judgement is pinned to a version. There is no `state.json` key that
+ * swaps this text: a caller with its own {@link TierRubric} passes it
+ * through `ClassifyDeps.rubric`, which is a code seam for tests and for the
+ * next caller, not a user-facing setting.
  */
 
 import { AUTO_EFFORT_TIERS, type AutoEffortTier } from "./auto-effort.ts"

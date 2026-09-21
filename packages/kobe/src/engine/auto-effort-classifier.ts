@@ -175,7 +175,7 @@ export async function classifyTier(
       body: JSON.stringify(request.body),
       signal: controller.signal,
     })
-    if (!res.ok) return declined("failed", `HTTP ${res.status}`)
+    if (!res.ok) return declined("failed", describeHttpFailure(res))
     const payload: unknown = await res.json()
     const verdict = config.mode.kind === "jev" ? readJevAnswer(payload) : readPlainAnswer(payload)
     if (!verdict.ok) return declined("failed", verdict.why)
@@ -190,6 +190,28 @@ export async function classifyTier(
   } finally {
     clearTimeout(timer)
   }
+}
+
+/**
+ * Why a non-2xx response is not a pick, in words someone can act on.
+ *
+ * 429 gets its own sentence because the obvious reading of it is wrong:
+ * upstream shares one rate-limit pool, so a 429 usually means *someone else*
+ * is busy, not that this key is out of quota. Whoever reads this line after
+ * a run of blank tiers must not go buy more credit over it.
+ *
+ * `retry-after` is REPORTED, not slept on. Backing off means holding a task
+ * create for seconds to maybe fill in one field, and this picker is not
+ * allowed to be that expensive — a caller that can afford to wait (a request
+ * fired while the user is still typing) is the one that should honour it,
+ * and it now has the number to honour.
+ */
+function describeHttpFailure(res: { status: number; headers?: Headers }): string {
+  const status = `HTTP ${res.status}`
+  if (res.status !== 429) return status
+  const after = res.headers?.get?.("retry-after")
+  const when = after ? `, retry-after ${after}` : ""
+  return `${status} — upstream pool rate limit, not necessarily your quota${when}`
 }
 
 /* --------------------------------------------------------------------- */
