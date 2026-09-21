@@ -5,6 +5,14 @@
  * Enter opens the change-engine picker on that row. The prose above names
  * what the tiers are FOR; the rows name what they RUN — the two never quote
  * each other (see `engine/auto-effort.ts`).
+ *
+ * Under them, the CLASSIFIER — who picks a tier, as opposed to what a tier
+ * runs. Its data-flow sentence is rendered ABOVE its switch rather than
+ * under them, and is not folded into the section hint: the design decision
+ * this implements
+ * (`docs/design/auto-effort-classifier.md`, hard requirement 4) is that
+ * sending a task's first message to someone who is not the user's engine
+ * vendor must be stated where the switch is, never behind it.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -13,10 +21,13 @@ import { engineDisplayName } from "../../../engine/interactive-command"
 import { autoEffortRows, rowIndex } from "../../../tui/component/settings-dialog/model"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import { Row, type SectionCursorProps } from "./rows"
+import { Row, type SectionCursorProps, SubSection } from "./rows"
 import type { AutoEffortSettings } from "./use-auto-effort-settings"
+import type { ClassifierSettings } from "./use-classifier-settings"
 
-export function AutoEffortSettingsSection(props: SectionCursorProps & { autoEffort: AutoEffortSettings }) {
+export function AutoEffortSettingsSection(
+  props: SectionCursorProps & { autoEffort: AutoEffortSettings; classifier: ClassifierSettings },
+) {
   const { theme } = useTheme()
   const t = useT()
   const rows = autoEffortRows()
@@ -86,6 +97,100 @@ export function AutoEffortSettingsSection(props: SectionCursorProps & { autoEffo
           )
         })}
       </box>
+      <ClassifierRows {...props} />
     </box>
+  )
+}
+
+/**
+ * The classifier: a mode switch, the endpoint it uses in `custom`, and the
+ * confidence floor under which nothing is pre-filled.
+ *
+ * The key line is deliberately loud when the classifier is ON and the
+ * variable is absent. That combination looks exactly like a working setup
+ * from the outside — tiers simply never fill in — so the one place that can
+ * tell the difference says so.
+ */
+function ClassifierRows(
+  props: SectionCursorProps & { autoEffort: AutoEffortSettings; classifier: ClassifierSettings },
+) {
+  const { theme } = useTheme()
+  const t = useT()
+  const rows = autoEffortRows()
+  const c = props.classifier
+  const isBodyCursor = (row: number) => props.level === "body" && props.bodyRow === row
+  const on = c.mode !== "off"
+
+  const modeLabel =
+    c.mode === "off"
+      ? t("settings.autoEffort.classifierOff")
+      : c.mode === "jev"
+        ? "jev"
+        : t("settings.autoEffort.classifierCustomLabel")
+  const modeHint =
+    c.mode === "off"
+      ? t("settings.autoEffort.classifierOffHint")
+      : c.mode === "jev"
+        ? t("settings.autoEffort.classifierJevHint")
+        : t("settings.autoEffort.classifierCustomHint")
+
+  function open(id: string, run: () => void) {
+    const i = rowIndex(rows, id)
+    return {
+      i,
+      onMouseUp: () => {
+        props.setLevel("body")
+        props.setBodyRow(i)
+        run()
+      },
+    }
+  }
+  const mode = open("auto-effort-classifier", () => c.cycle())
+  const endpoint = open("auto-effort-endpoint", () => void c.editEndpoint())
+  const threshold = open("auto-effort-threshold", () => void c.editThreshold())
+
+  return (
+    <SubSection title={t("settings.autoEffort.classifierTitle")} hint={t("settings.autoEffort.classifierHint")}>
+      <box paddingTop={1} paddingBottom={1}>
+        <text fg={on ? theme.warning : theme.textMuted} wrapMode="word">
+          {t("settings.autoEffort.classifierDataFlow")}
+        </text>
+      </box>
+      <Row
+        cursor={isBodyCursor(mode.i)}
+        rowRef={props.rowRef(mode.i)}
+        onMouseUp={mode.onMouseUp}
+        fg={theme.text}
+        hint={modeHint}
+      >
+        {`${t("settings.autoEffort.classifierLabel").padEnd(20)}${modeLabel}`}
+      </Row>
+      <Row
+        cursor={isBodyCursor(endpoint.i)}
+        rowRef={props.rowRef(endpoint.i)}
+        onMouseUp={endpoint.onMouseUp}
+        fg={c.mode === "custom" ? theme.text : theme.textMuted}
+      >
+        {`${t("settings.autoEffort.endpointLabel").padEnd(20)}${c.endpoint || t("settings.autoEffort.endpointUnset")}`}
+      </Row>
+      <Row
+        cursor={isBodyCursor(threshold.i)}
+        rowRef={props.rowRef(threshold.i)}
+        onMouseUp={threshold.onMouseUp}
+        fg={theme.text}
+        hint={t("settings.autoEffort.thresholdHint")}
+      >
+        {`${t("settings.autoEffort.thresholdLabel").padEnd(20)}${c.threshold.toFixed(2)}`}
+      </Row>
+      {on ? (
+        <box paddingTop={1}>
+          <text fg={c.keyPresent ? theme.success : theme.warning} wrapMode="word">
+            {c.keyPresent
+              ? t("settings.autoEffort.keyPresent", { env: c.keyEnv })
+              : t("settings.autoEffort.keyMissing", { env: c.keyEnv })}
+          </text>
+        </box>
+      ) : null}
+    </SubSection>
   )
 }

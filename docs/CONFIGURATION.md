@@ -170,12 +170,19 @@ it off, `r` is the only thing that repopulates the list.
 | `autoEffort.classifierThreshold` | number | `0.5` | Confidence below which no tier is picked. Clamped 0–1 |
 | `autoEffort.classifierTimeoutMs` | number | `4000` | How long to wait before giving up on the classifier. Clamped 200–60,000 |
 | `autoEffort.classifierModel` | string | `jev-latest` | Model id for `jev`. Pin a version (e.g. `jev-1.13.0`) to stop a silent upgrade |
+| `autoEffort.classifierEndpoint` | string | unset | The custom endpoint Settings remembers while the classifier points elsewhere. Not read by the classifier — `autoEffort.classifier` is |
 | `autoEffort.classifierKeyEnv` | string | `TYPESAFE_API_KEY` | Environment variable the bearer token is read from. The token itself never goes in `state.json` |
 
 Launch commands are parsed shell-ish, so quotes group arguments. Clear both
 `engineName.<id>` and `engineCommand.<id>` to reset an engine to its default.
 
 #### The tier classifier
+
+Settings → Auto effort carries these as rows — **Classifier** (`off` / `jev` /
+`custom`), **Endpoint**, **Confidence floor** — with the data-flow sentence
+above them and a line saying whether the key's variable is actually set,
+which is the usual reason a switched-on classifier appears to do nothing.
+Everything below is the same settings by hand.
 
 `autoEffort.classifier` is **off**, and while it is off nothing leaves your
 machine. Switching it on means one thing you should decide deliberately:
