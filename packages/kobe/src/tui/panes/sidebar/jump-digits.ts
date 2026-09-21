@@ -21,3 +21,20 @@ export const TASK_JUMP_CHORDS: readonly string[] = TASK_JUMP_DIGITS.map((d) => `
 export function taskJumpDigit(rowIndex: number): string | null {
   return TASK_JUMP_DIGITS[rowIndex] ?? null
 }
+
+/**
+ * The row a jump slot reaches, in a surface's OWN ordered list of
+ * digit-bearing rows.
+ *
+ * Which rows are in that list is the surface's business — the expanded tree
+ * numbers every navigable row, so a task's tab rows take digits of their own;
+ * the folded rail numbers its tasks, because one cell per task is every row a
+ * fold draws. What is NOT the surface's business is the arithmetic, which is
+ * why it lives beside the digit table: a slot past the table names a row that
+ * printed no digit, and must reach nothing rather than the row that happens to
+ * sit at that index.
+ */
+export function jumpSlotTarget(ids: readonly string[], slot: number): string | undefined {
+  if (!Number.isInteger(slot) || slot < 0 || slot >= TASK_JUMP_DIGITS.length) return undefined
+  return ids[slot]
+}

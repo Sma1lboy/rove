@@ -119,7 +119,7 @@ for terminal support.
 | `ctrl+[` / `ctrl+]` | Previous / next tab (`ctrl+[` needs kitty — see below) |
 | `ctrl+\` | Split right |
 | `ctrl+=` | Split down |
-| `ctrl+2` … `ctrl+9`, `ctrl+0` | Jump to the Nth visible sidebar row (`ctrl+2` = first row) |
+| `ctrl+2` … `ctrl+9`, `ctrl+0` | Jump to the Nth visible sidebar row (`ctrl+2` = first row). Each row prints the digit that reaches it, so you read the number rather than count. Works folded too, where the rows are the tasks — the fold draws no tab rows, so a digit reaches a different row there than it does unfolded |
 | `F2` | Rename the active split, otherwise the tab |
 | `F3` | Focus the next split |
 | `F4` | Cycle focus forward |

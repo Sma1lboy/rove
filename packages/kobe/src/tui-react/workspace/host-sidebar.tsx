@@ -128,6 +128,7 @@ export function HostSidebar(props: HostSidebarProps) {
         engineState={props.engineState}
         taskJobs={props.taskJobs}
         onSelect={props.onSelect}
+        onActivate={props.onActivate}
         onExpand={() => props.onToggleCollapsed?.()}
       />
     )
@@ -178,6 +179,7 @@ function CollapsedSidebar(props: {
   readonly engineState?: ReadonlyMap<string, TaskEngineState>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
   readonly onSelect: (taskId: string) => void
+  readonly onActivate: (taskId: string) => void
   readonly onExpand: () => void
 }) {
   // Optional for the same reason the tree reads it optionally: with no KV
@@ -198,6 +200,7 @@ function CollapsedSidebar(props: {
       engineState={props.engineState}
       taskJobs={props.taskJobs}
       onSelect={props.onSelect}
+      onActivate={props.onActivate}
       onExpand={props.onExpand}
     />
   )

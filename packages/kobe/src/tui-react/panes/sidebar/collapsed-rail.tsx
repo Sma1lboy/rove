@@ -33,6 +33,7 @@ import { useTheme } from "../../context/theme"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 import { CollapseButton } from "./collapse-button"
 import { useSpinnerFrame } from "./row-cards"
+import { useTaskJump } from "./use-task-jump"
 
 /** The styles on offer. `digits` is the default; the others are a preference. */
 export type CollapsedRailStyle = "hairline" | "digits" | "glyphs" | "initials"
@@ -78,6 +79,19 @@ interface RailSection {
   readonly key: string
   readonly label: string
   readonly rows: readonly RailRow[]
+}
+
+/**
+ * The rows the fold prints a jump digit on, in order.
+ *
+ * One entry per task, because one cell per task is every row a fold has — the
+ * expanded tree also numbers each task's TAB rows, which the fold does not
+ * draw. Exported so the chord resolves against exactly the list the strip
+ * printed; `useRailSections` numbers in this same `groups → tasks` order, and
+ * `test/render/sidebar-fold-parity.test.tsx` pins that they agree.
+ */
+export function railJumpIds(groups: readonly SidebarGroup[]): string[] {
+  return groups.flatMap((group) => group.tasks.map((task) => String(task.id)))
 }
 
 function useRailSections(props: {
@@ -127,6 +141,10 @@ export interface CollapsedRailProps {
   readonly engineState?: ReadonlyMap<string, TaskEngineState>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
   readonly onSelect: (taskId: string) => void
+  /** Enter the task, not just highlight it — what `ctrl+<digit>` means on the
+   *  expanded side, so the fold's digits have to mean it too. Absent (a bare
+   *  mount) leaves the jump a selection. */
+  readonly onActivate?: (taskId: string) => void
   /** Put the full rail back. */
   readonly onExpand: () => void
 }
@@ -147,6 +165,16 @@ export function CollapsedRail(props: CollapsedRailProps) {
   const { theme } = useTheme()
   const sections = useRailSections(props)
   const width = COLLAPSED_RAIL_WIDTH[props.style]
+  // The strip prints a digit on every row; this is what answers for it. Before
+  // the fold had its own registration the chord lived in the expanded tree
+  // alone, which folding unmounts — so every number on screen did nothing.
+  useTaskJump({
+    ids: railJumpIds(props.groups),
+    onJump: (taskId) => {
+      props.onSelect(taskId)
+      props.onActivate?.(taskId)
+    },
+  })
   return (
     <box width={width} flexShrink={0} flexDirection="column" backgroundColor={theme.backgroundPanel}>
       {sections.map((section) => (

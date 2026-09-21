@@ -21,10 +21,8 @@ import { createSidebarController } from "../../../tui/panes/sidebar/controller"
 import { RECENT_ROW_ID, type TreeRow, parseRowId } from "../../../tui/panes/sidebar/tree-core"
 import { MAIN_BRANCH_POLL_MS, SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
 import { usePaneHintMark } from "../../component/keyboard-hints"
-import { bindByIds } from "../../context/keybindings"
 import { useOptionalKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
-import { useBindings } from "../../lib/keymap"
 import { useLatest } from "../../lib/use-latest"
 import { ContextMenu } from "../../ui/context-menu"
 import { SidebarBrandHeader, SidebarCreateAction, SidebarNavRail, SidebarSearchInput, SidebarZenChip } from "./chrome"
@@ -32,6 +30,7 @@ import { CollapseButton } from "./collapse-button"
 import { SidebarTreeBody } from "./tree-panel"
 import type { TreeRowShared } from "./tree-row-shell"
 import type { SidebarProps } from "./types"
+import { useTaskJump } from "./use-task-jump"
 import { cursorTaskIdOf, useTreeBindings } from "./use-tree-bindings"
 import { useTreeMenu } from "./use-tree-menu"
 import { useTreeSearch } from "./use-tree-search"
@@ -291,19 +290,18 @@ export function SidebarTree(props: SidebarTreeProps) {
   })
 
   // ctrl+<digit> jump: slot N is the Nth VISIBLE row, so it follows expansion
-  // state. Not gated on focus: the chord
-  // exists to switch from inside the engine pane.
-  useBindings(() => ({
-    enabled: true,
-    bindings: bindByIds({
-      "tasks.jump": (_evt, slot) => {
-        const id = flatIdsRef.current[slot ?? 0]
-        if (id === undefined) return
-        setCursorIndex(slot ?? 0)
-        activateRowRef.current(id)
-      },
-    }),
-  }))
+  // state — `flatIds` is exactly the list every row reads its printed digit
+  // from (`taskJumpDigit(flatIndex)`), which is what makes the number on a row
+  // the number that reaches it. Registered through the shared hook, which the
+  // folded rail calls with ITS list: the rule belongs beside the renderer that
+  // prints the digit, and the fold prints digits too.
+  useTaskJump({
+    ids: tree.flatIds,
+    onJump: (id, slot) => {
+      setCursorIndex(slot)
+      activateRowRef.current(id)
+    },
+  })
 
   // Viewport follow — rowEls is keyed by flat index, the registration
   // convention every row type shares.

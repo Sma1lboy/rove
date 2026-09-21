@@ -8,6 +8,61 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## `ctrl+<digit>` while the task rail is folded
+
+**2026-09-21 — the jump chord works folded as well as expanded. No new key,
+no moved key: the same `ctrl+2`…`ctrl+0`, present in a state where it had
+been silently absent.** Not an owner placement call, because nothing about
+the placement changes — it is recorded here because the next agent will ask
+why one chord is registered from a hook instead of from the surface that uses
+it, and because the resolution decides what a slot MEANS in each state.
+
+**What was wrong.** The chord was registered inside `SidebarTree`, and
+folding the rail unmounts that component. The folded rail printed a jump digit
+on every row — `digits` is the default fold, whose whole claim is that the
+number is the one thing a folded row can still be acted on — while `ctrl+2`
+did nothing at all. `jump-digits.ts` opens by promising "ONE definition shared
+by the chord table, the key handler, and the row renderer"; the fold had the
+renderer without the handler.
+
+**Where it lives now.** `tui-react/panes/sidebar/use-task-jump.ts`, called by
+both surfaces. The rejected alternative was hoisting the registration to
+`HostSidebar`, above the collapsed/expanded fork, with the mounted surface
+publishing a resolver through a ref the way `cursorTaskIdRef` already serves
+the host's `b`/`v`/`o` chords. That would guarantee the chord EXISTS whenever
+the sidebar does, which is the failure that happened. It would not guarantee
+the thing that actually matters — that the chord agrees with the digits on
+screen — because the host has no list to check against; it would still be
+taking whatever the mounted surface handed it. Putting the rule beside the
+lists keeps the resolver next to the renderer that prints the number, and
+leaves a bare `SidebarTree` (the `dev:mock` bench, the render tests) with a
+working chord instead of an inert one. A surface that prints digits calls the
+hook; one that does not, does not.
+
+**What a slot means, and why the two states differ.** Per surface, the
+invariant is exact: the number a row prints is the number that reaches it.
+Across surfaces it cannot be, and this is deliberate rather than unfinished.
+The expanded tree numbers every navigable row, so a task's TAB rows take
+digits of their own; the fold draws one cell per task and numbers those. Four
+consequences, each pinned in `test/render/sidebar-fold-parity.test.tsx`:
+
+- with nothing but task rows, a digit names the same task in both states;
+- a task with tabs pushes the fold's slots ahead of the tree's — the tree's
+  `ctrl+3` opens a tab of the first task, the fold's opens the second task;
+- a scratch session with tabs is a row the fold has and the tree does not (the
+  tree hangs its tabs straight under the section header and emits no row for
+  the task);
+- at rest a project's routines are one count row in the tree and real rows in
+  the fold.
+
+Closing that gap would mean changing what `ctrl+2` already means in the
+expanded tree — a user-visible change to a shipped chord, which is an owner
+call and was not made here. The honest reading of the chord is therefore "the
+Nth row you can see", not "task number N", and that is what
+[`../KEYBINDINGS.md`](../KEYBINDINGS.md) now says. If it should instead be
+stable across a fold, the question to settle is whether the fold should print
+the TREE's digits (leaving gaps where tab rows fall) rather than its own.
+
 ## Tab in the New task dialog's repo field
 
 **2026-09-03 — `tab` completes the highlighted suggestion in place; a second
