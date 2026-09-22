@@ -105,6 +105,8 @@ function closedPages(): HostPagesState {
     closeWorkItems: noop,
     whatsNewFrom: null,
     closeWhatsNew: noop,
+    welcome: null,
+    closeWelcome: noop,
   }
 }
 

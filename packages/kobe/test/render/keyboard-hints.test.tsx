@@ -18,7 +18,7 @@ import { PrefixHud } from "../../src/tui-react/component/prefix-hud"
 import { useFocus } from "../../src/tui-react/context/focus"
 import { useKV } from "../../src/tui-react/context/kv"
 import { useBindings } from "../../src/tui-react/lib/keymap"
-import { WizardPage } from "../../src/tui-react/onboarding/host"
+import { type OnboardingChoices, WelcomeDialogView } from "../../src/tui-react/onboarding/host"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { WorkspaceFrame } from "../../src/tui-react/workspace/host-footer"
 import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keybindings"
@@ -55,6 +55,8 @@ const CLOSED_PAGES: HostPagesState = {
   closeWorkItems: NOOP,
   whatsNewFrom: null,
   closeWhatsNew: NOOP,
+  welcome: null,
+  closeWelcome: NOOP,
 }
 
 /** Minimal orchestrator stand-in — the frame only reads the usage signal. */
@@ -354,34 +356,16 @@ describe("PaneKeyHint", () => {
   })
 })
 
-describe("onboarding wizard — environment page and keyboard basics", () => {
-  const readyEnv = {
-    git: { line: "git:      ✓ git version 2.39.5", found: true },
-    engines: {
-      lines: ["engines:", "  claude  ✓ /bin/claude — logged in (a@b.c)", "  kimi    ✗ not found on PATH"],
-      anyUsable: true,
-      signedOut: [],
-    },
-  }
-  const emptyEnv = {
-    git: { line: "git:      ✓ git version 2.39.5", found: true },
-    engines: { lines: ["engines:", "  claude  ✗ not found on PATH"], anyUsable: false, signedOut: [] },
-  }
-
-  it("shows the environment page after the questions, then the keyboard page", async () => {
-    const { frame, mockInput } = await renderComponent(<WizardPage shell={null} env={readyEnv} onDone={NOOP} />, {
+describe("welcome dialog — questions then keyboard basics", () => {
+  it("asks the skill question alone when no shell is detected, then shows the keyboard page", async () => {
+    const { frame, mockInput } = await renderComponent(<WelcomeDialogView shell={null} onDone={NOOP} />, {
       width: 100,
       height: 24,
     })
-    expect(await frame()).toContain("Rove agent skill")
-    act(() => mockInput.pressEnter())
-    await settle()
-    const envText = await frame()
-    expect(envText).toContain("Environment check")
-    expect(envText).toContain("git:      ✓ git version 2.39.5")
-    expect(envText).toContain("claude  ✓ /bin/claude")
-    expect(envText).toContain("✓ You're set")
-    expect(envText).toContain("enter continue")
+    const first = await frame()
+    expect(first).toContain("Rove agent skill")
+    // No shell → nothing to hook completions into, so that question never renders.
+    expect(first).not.toContain("shell completions")
     act(() => mockInput.pressEnter())
     await settle()
     const text = await frame()
@@ -392,27 +376,34 @@ describe("onboarding wizard — environment page and keyboard basics", () => {
     expect(text).toContain("enter finish")
   })
 
-  it("shows the not-ready verdict when no engine is usable", async () => {
-    const { frame, mockInput } = await renderComponent(<WizardPage shell={null} env={emptyEnv} onDone={NOOP} />, {
-      width: 100,
-      height: 24,
-    })
+  it("asks completions first when a shell is detected, and records both answers", async () => {
+    const answers: OnboardingChoices[] = []
+    const { frame, mockInput } = await renderComponent(
+      <WelcomeDialogView shell="zsh" onDone={(c) => answers.push(c)} />,
+      { width: 100, height: 24 },
+    )
+    expect(await frame()).toContain("shell completions for zsh")
     act(() => mockInput.pressEnter())
     await settle()
-    const text = await frame()
-    expect(text).toContain("Environment check")
-    expect(text).toContain("✗ No usable engine yet")
-    expect(text).not.toContain("✓ You're set")
+    // The answered question stays on screen as a transcript line.
+    const second = await frame()
+    expect(second).toContain("Rove agent skill")
+    expect(second).toContain("shell completions for zsh")
+    act(() => mockInput.pressEnter())
+    await settle()
+    expect(await frame()).toContain("Keyboard basics")
+    act(() => mockInput.pressEnter())
+    await settle()
+    expect(answers).toEqual([{ completions: true, skill: true }])
   })
 
-  it("primer mode opens on the environment page — no questions re-asked", async () => {
-    const { frame } = await renderComponent(<WizardPage shell="zsh" env={readyEnv} mode="primer" onDone={NOOP} />, {
+  it("the environment report is NOT repeated here — the welcome pane behind it owns that", async () => {
+    const { frame } = await renderComponent(<WelcomeDialogView shell={null} onDone={NOOP} />, {
       width: 100,
       height: 24,
     })
     const text = await frame()
-    expect(text).toContain("Environment check")
-    expect(text).not.toContain("shell completions")
-    expect(text).not.toContain("agent skill?")
+    expect(text).not.toContain("Environment check")
+    expect(text).not.toContain("engines:")
   })
 })

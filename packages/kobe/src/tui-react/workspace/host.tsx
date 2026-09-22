@@ -23,6 +23,7 @@ import { bootPaneHost } from "../lib/host-boot"
 import { useAccessor } from "../lib/use-accessor"
 import { useDaemonNotices } from "../lib/use-daemon-notices"
 import { useLatest } from "../lib/use-latest"
+import { useWelcomeDialog } from "../onboarding/host"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
@@ -30,7 +31,7 @@ import { FullWindowPage, useHostBanner } from "./host-banner"
 import { HostFilesPane } from "./host-files-pane"
 import { WorkspaceFrame } from "./host-footer"
 import { useWorkspaceKeybindings } from "./host-keybindings"
-import { useHostPagesRender, useHostPagesState } from "./host-pages"
+import { type BootDialogs, useHostPagesRender, useHostPagesState } from "./host-pages"
 import { HostSidebarMount } from "./host-sidebar-mount"
 import { useWorkspaceTaskActions } from "./host-task-actions"
 import { openTaskWorktreeFor } from "./open-task-worktree"
@@ -56,7 +57,7 @@ import { useZenMode } from "./use-zen-mode"
 /** Exported for the render track: the banner wiring can only be proven by
  *  mounting the REAL host — a test against the banner component alone stays
  *  green even when the mount is deleted. */
-export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator; whatsNewFrom?: string | null }) {
+export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & BootDialogs) {
   const { theme } = useTheme()
   const inactiveBorder = theme.borderActive
   const dialog = useDialog()
@@ -224,11 +225,13 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator; whatsNe
 
   // Which surface the workspace shows — settings/worktrees/update full swaps
   // plus the rail's one-at-a-time nav. State + rationale in host-pages.tsx.
-  const pages = useHostPagesState(focus, { whatsNewFrom: props.whatsNewFrom ?? null })
+  const pages = useHostPagesState(focus, { whatsNewFrom: props.whatsNewFrom ?? null, welcome: props.welcome ?? null })
   // The once-per-upgrade notes, as a modal over the workspace rather than a
   // page that replaces it (see `whats-new-dialog.tsx`). Opened here because
   // the dialog stack lives here; the page router never sees it.
   useWhatsNewDialog(pages.whatsNewFrom, pages.closeWhatsNew)
+  // The once-ever first-run greeting, same stack, same reasoning.
+  useWelcomeDialog(pages.welcome, pages.closeWelcome)
   // The selected task's active tab — the tree marks that exact row as live.
   // Read from the module map rather than threaded through TerminalTabs: the
   // sidebar renders tabs for tasks whose TerminalTabs is not mounted, so the

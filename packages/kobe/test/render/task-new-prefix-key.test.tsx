@@ -43,6 +43,8 @@ function pages(open?: OpenPage): HostPagesState {
     closeWorkItems: NOOP,
     whatsNewFrom: null,
     closeWhatsNew: NOOP,
+    welcome: null,
+    closeWelcome: NOOP,
   }
 }
 

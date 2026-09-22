@@ -7,6 +7,7 @@
 
 import { ensureGlobalKobeHooks } from "../cli/hook-cmd.ts"
 import { enforceResetGate } from "../cli/reset-gate.ts"
+import { takeWelcome } from "../cli/welcome.ts"
 import { takeWhatsNew } from "../cli/whats-new.ts"
 import { maybeHintSkillInstall } from "../lib/skill-install.ts"
 import { publishKobeTerminalTitle } from "./lib/outer-terminal-title.ts"
@@ -15,6 +16,9 @@ export async function startTui(): Promise<void> {
   // Before the reset gate, which overwrites the `app.lastRunVersion` stamp
   // this falls back to for installs predating its own key.
   const whatsNewFrom = takeWhatsNew()
+  // Same ordering rule, same reason: this reads `app.lastRunVersion` to tell a
+  // first-ever run from an existing user, and the reset gate overwrites it.
+  const welcome = takeWelcome()
 
   // Breaking-version gate first: refuse to touch daemon/session state that
   // a version in BREAKING_VERSIONS made incompatible (run `kobe reset`).
@@ -41,5 +45,5 @@ export async function startTui(): Promise<void> {
   loadPluginEngines()
 
   const { startWorkspaceHost } = await import("../tui-react/workspace/start-workspace.tsx")
-  await startWorkspaceHost({ whatsNewFrom })
+  await startWorkspaceHost({ whatsNewFrom, welcome })
 }

@@ -431,15 +431,20 @@ async function main(): Promise<void> {
   const { publishKobeTerminalTitle } = await import("../tui/lib/outer-terminal-title.ts")
   publishKobeTerminalTitle()
 
-  // First interactive launch → the inline onboarding wizard instead of the
-  // TUI (it ends with "run `kobe`"; the next launch lands in the app).
-  const { maybeRunOnboarding } = await import("./onboarding.ts")
-  if (await maybeRunOnboarding()) return
-
   // Default: launch the TUI. Dynamic import so non-TUI subcommands
   // (like `kobe add`) don't pull in opentui/solid at startup.
+  //
+  // A first launch no longer diverts here into a wizard that ran INSTEAD of
+  // the product: the greeting is a dialog over the real workspace now
+  // (`cli/welcome.ts`), so `rove` always starts Rove.
   const { startTui } = await import("../tui/index.tsx")
   await startTui()
+
+  // The renderer is gone and the terminal is plain again — the only moment
+  // the welcome dialog's installs can own stdout and npx can inherit a real
+  // terminal. A no-op unless this run just answered the dialog.
+  const { runPendingWelcomeInstalls } = await import("./onboarding.ts")
+  runPendingWelcomeInstalls()
 }
 
 main().catch((err) => {
