@@ -12,7 +12,7 @@
  * Error strings resolved at submit time use the module-level `t`.
  */
 
-import { AUTO_ROUTING_TIERS, type AutoRoutingTier, readAutoRoutingTable } from "@/engine/auto-routing"
+import { AUTO_ROUTING_TIERS, readAutoRoutingTable } from "@/engine/auto-routing"
 import { engineEntry } from "@/engine/registry"
 import { type VendorId, nextVendorWithin, prevVendorWithin } from "@/types/vendor"
 import type { AdoptableWorktree } from "@/types/worktree"
