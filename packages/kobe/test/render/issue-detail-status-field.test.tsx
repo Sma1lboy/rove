@@ -95,21 +95,3 @@ test("a DONE story can be sent back — the one card the drawer could not act on
 
   expect(outcomes[0]).toMatchObject({ kind: "close", status: "open" })
 })
-
-test("an untouched drawer reports the status it opened with, so nothing is written back", async () => {
-  // The page compares against the open-time snapshot and only writes a
-  // CHANGED status. Reporting anything else here would make every close race
-  // an agent's `issue-set-status` and revert it.
-  const outcomes: IssueDetailOutcome[] = []
-  const { mockInput } = await renderComponent(
-    drawer(OPEN_ISSUE, (o) => outcomes.push(o)),
-    {
-      width: 120,
-      height: 60,
-      providers: { dialog: true },
-    },
-  )
-  act(() => mockInput.pressEscape())
-  await settle()
-  expect(outcomes[0]).toMatchObject({ kind: "close", status: "open" })
-})

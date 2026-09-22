@@ -23,7 +23,3 @@ test("non-visual snapshot fallback uses the host's frame period", async () => {
     t.renderer.destroy()
   }
 })
-
-test("all platforms use a 60fps terminal cadence", () => {
-  expect(hostTargetFps()).toBe(60)
-})

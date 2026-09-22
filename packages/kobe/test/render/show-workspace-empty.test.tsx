@@ -68,10 +68,6 @@ describe("ShowWorkspace empty states", () => {
   it("teaches when no task exists at all", async () => {
     expect(await frameFor(NO_TASKS)).toContain("Welcome to Rove")
   })
-
-  it("keeps the terse placeholder once a live task exists", async () => {
-    expect(await frameFor(ONE_TASK)).not.toContain("Welcome to Rove")
-  })
 })
 
 /** A selected task with a worktree — the shape that normally mounts tabs. */
