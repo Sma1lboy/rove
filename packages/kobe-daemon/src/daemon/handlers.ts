@@ -1,31 +1,19 @@
 /**
- * Daemon RPC handler registry.
+ * Daemon RPC handler registry: look up entry → validate → handle → shape
+ * errors via {@link shapeDaemonError}, the ONE place a thrown error becomes a
+ * {@link DaemonError}.
  *
- * Every {@link DaemonRequestName} is a self-contained entry —
- * `{ name, handle(payload, ctx) }` — keyed in a registry map, so the dispatch
- * seam is: look up entry → validate (the shared `requireString`-family
- * helpers) → handle → uniform error shaping
- * ({@link shapeDaemonError}, the ONE place a thrown error becomes a
- * {@link DaemonError}).
- *
- * Hard constraint: WIRE COMPATIBILITY. Socket clients and the daemon web
- * transport parse these payload shapes, so an entry may never reshape one.
- * Success payload KEY ORDER is load-bearing for byte equality
- * (`JSON.stringify` preserves insertion order), so handlers return exact
- * literal shapes, `{}` returns included. Error message wording is part of the contract too
+ * WIRE COMPATIBILITY: socket clients and the web transport parse these
+ * payloads. Success KEY ORDER is load-bearing for byte equality, so handlers
+ * return exact literal shapes (`{}` included). Error wording is contract too
  * (`"${key} is required"`, `"unknown daemon request: …"`).
  *
- * One request is deliberately NOT here: `subscribe`. It is connection
- * lifecycle, not RPC — it mutates per-socket state (`subscribed`,
- * `holdsLifetime`), drives the gui-refcount idle-grace timer, and writes
- * event frames directly to the socket out-of-band (channel replay). The
- * registry's payload→result shape cannot express any of that, so it stays
- * special-cased in `server.ts` next to the machinery it manipulates.
+ * `subscribe` is deliberately NOT here: it mutates per-socket state, drives
+ * the gui-refcount idle-grace timer, and writes replay frames out-of-band —
+ * none of which fits payload→result — so it stays in `server.ts`.
  *
- * Everything a handler needs from the daemon process arrives via
- * {@link DaemonHandlerContext}, so a test can build the registry and dispatch
- * a request against a fake Orchestrator with NO socket involved (see
- * `packages/kobe/test/daemon/handlers.test.ts`).
+ * All daemon state arrives via {@link DaemonHandlerContext}, so tests dispatch
+ * against fakes with no socket.
  */
 
 import { hostname } from "node:os"
@@ -69,8 +57,7 @@ import type { TabCloseBroker } from "./tab-close-broker.ts"
 import type { TaskDeletionScheduler } from "./task-deletion-runner.ts"
 import type { WorkItemCache } from "./work-items.ts"
 
-// Re-exported for backward compatibility — `server.ts` and (transitively)
-// `packages/kobe/test/daemon/handlers.test.ts` import these from here.
+// `server.ts` and handlers.test.ts import these from here.
 export {
   objectPayload,
   optionalActivityDetail,
@@ -81,12 +68,7 @@ export {
   requireString,
 } from "./handler-validators.ts"
 
-/**
- * Everything a request handler may touch, threaded in by the caller per
- * dispatch. `server.ts` builds it from its closure; a test builds it from
- * fakes. Handlers themselves are stateless — ALL daemon state reaches them
- * through this context.
- */
+/** Everything a handler may touch, per dispatch. Handlers are stateless — ALL daemon state arrives here. */
 export interface DaemonHandlerContext {
   /** Task-lifecycle owner — the single writer for the task index. */
   readonly orch: DaemonOrchestrator
@@ -110,8 +92,7 @@ export interface DaemonHandlerContext {
   readonly workItems: WorkItemCache
   /** Daemon-owned scheduled automations + their run history. */
   readonly automations: AutomationsStore
-  /** In-process RPC client for handlers that must drive the daemon's own
-   *  request surface (the automation runner's engine launch). */
+  /** In-process RPC client into the daemon's own requests (automation engine launch). */
   readonly selfLink: DaemonRpcClient
   /** Rate-limited cache in front of the engine quota probes. */
   readonly quotaUsage: QuotaUsageCache
@@ -131,39 +112,28 @@ export interface DaemonHandlerContext {
   readonly daemon: {
     readonly startedAt: Date
     readonly socketPath: string
-    /** The state root this daemon serves (`<homeDir>/.kobe`). Reported by
-     *  `hello` so a client can detect a daemon from a DIFFERENT home sitting
-     *  on its socket — a sandbox/dev daemon that inherited the production
-     *  socket path serves an EMPTY task index, which the TUI would otherwise
-     *  render as a legitimate "you have no tasks". */
+    /** State root served (`<homeDir>/.kobe`). `hello` reports it so a client
+     *  detects a daemon from a DIFFERENT home on its socket, whose empty task
+     *  index would otherwise render as "you have no tasks". */
     readonly homeDir?: string
-    /** Loopback web transport port, when this daemon is exposing browser routes. */
-    /** Why the web transport isn't listening (port taken / bind failed), or
-     *  null when it's up or was never requested. Reported by `daemon.status`
-     *  so a socket-only degrade shows the real reason, not a generic error. */
-    /** The daemon process pid (reported by `hello` / `daemon.status`). */
+    /** Reported by `hello` / `daemon.status`. */
     readonly pid: number
     /** Attached-GUI refcount (reported as `attachedClients`). */
     guiCount(): number
-    /** Cell pixel size reported by each attached GUI that could measure its
-     *  own tty. A GUI in a terminal that declines `CSI 16 t` is simply absent
-     *  from the list — there is no placeholder, because a guessed cell size
-     *  places every picture wrong. Absent in older test doubles. */
+    /** Cell pixel size per attached GUI that measured its tty. A GUI whose
+     *  terminal declines `CSI 16 t` is absent — no placeholder, a guessed cell
+     *  size places every picture wrong. Absent in older test doubles. */
     guiCellSizes?(): readonly import("./channels-events.ts").CellPixelSize[]
-    /** Every attached client, GUI or pane. `session.deliver` is performed by
-     *  whichever client hosts the session, so this — not the GUI refcount —
-     *  is what says a dispatch could reach anyone. */
+    /** Every attached client, GUI or pane. `session.deliver` runs in whichever
+     *  client hosts the session, so this (not the GUI refcount) says a
+     *  dispatch could reach anyone. */
     clientCount(): number
-    /** Is anyone subscribed who would actually RECEIVE a publish on this
-     *  channel? The same per-channel gate the background collectors use, so a
-     *  handler can skip building a payload nobody is listening for. Absent in
-     *  older test doubles — treat `undefined` as "publish anyway". */
+    /** Would any subscriber RECEIVE a publish on this channel? Lets a handler
+     *  skip building an unheard payload. `undefined` → publish anyway. */
     hasSubscribersFor?(channel: ChannelName): boolean
-    /** Graceful self-stop (`daemon.stop`). The reason rides out on the
-     *  `daemon.stopping` broadcast — see {@link DaemonStopReason}. */
+    /** Graceful self-stop; the reason rides the `daemon.stopping` broadcast ({@link DaemonStopReason}). */
     stopSoon(reason?: DaemonStopReason): Promise<void>
-    /** Re-check idle shutdown after a keep-alive hold may have been released
-     *  (the last automation was disabled or deleted with no gui attached). */
+    /** Re-check idle shutdown after a keep-alive hold may be gone (last automation disabled, no gui). */
     reevaluateIdle(): void
   }
   /** The requesting connection's id (`hello` echoes it back as `clientId`). */
@@ -171,21 +141,16 @@ export interface DaemonHandlerContext {
 }
 
 /**
- * One registry entry — a self-contained RPC: payload validation (via the
- * shared `requireString`-family helpers) + the Orchestrator/daemon call.
- * Throwing is the error path; the caller shapes the thrown value with
- * {@link shapeDaemonError}. The returned value is the response frame's
- * `payload`, byte-for-byte.
+ * One RPC. Throwing is the error path (shaped by {@link shapeDaemonError});
+ * the return value is the response `payload`, byte-for-byte.
  */
 export interface DaemonRequestHandler {
   readonly name: DaemonRequestName
   /**
-   * Can this verb legitimately outlive the client's 20s wedge deadline?
-   * Declared on the entry itself, so the question is in front of whoever
-   * writes the handler — the socket client cannot import this registry
-   * (that would pull every daemon module into the CLI), so it reads the
-   * mirror in `protocol.ts`. `test/daemon/rpc-deadline.test.ts` fails when
-   * the two drift.
+   * May this verb outlive the client's 20s wedge deadline? The socket client
+   * can't import this registry (it would pull every daemon module into the
+   * CLI), so it reads a mirror in `protocol.ts`; rpc-deadline.test.ts fails
+   * when they drift.
    */
   readonly blocking?: boolean
   handle(payload: Record<string, unknown>, ctx: DaemonHandlerContext): Promise<unknown> | unknown
@@ -201,15 +166,12 @@ export function blockingRpcNames(
 }
 
 /**
- * The ONE place a thrown error becomes an on-the-wire {@link DaemonError}.
- * Matches the pre-registry shaping exactly: `Error` instances carry their
- * `message` + `name` (a plain `Error` serializes as `name: "Error"`);
- * anything else is `String(…)`-coerced with `name` omitted (`undefined`
- * is dropped by `JSON.stringify`, so the key never hits the wire).
+ * The ONE place a thrown error becomes a wire {@link DaemonError}. `Error`s
+ * carry `message` + `name` (plain `Error` → `name: "Error"`); anything else is
+ * `String(…)`-coerced and `name` is `undefined`, so the key never hits the wire.
  *
- * NOT used by `server.ts`'s parse-error path, which historically sends a
- * bare `{ message }` with no `name` key even for `Error`s — shaping it here
- * would add `"name":"SyntaxError"` bytes to the wire.
+ * NOT used by `server.ts`'s parse-error path, which sends a bare `{ message }`
+ * — shaping it here would add `"name":"SyntaxError"` bytes to the wire.
  */
 export function shapeDaemonError(err: unknown): DaemonError {
   return {
@@ -218,12 +180,7 @@ export function shapeDaemonError(err: unknown): DaemonError {
   }
 }
 
-/**
- * Look up + run the handler for `name`. The unknown-request error keeps the
- * switch's `default` wording exactly — a v2 client's removed `daemon.web.*`
- * requests (and any future-client request) must keep getting the same
- * `unknown daemon request: …` message.
- */
+/** Run the handler for `name`. Unknown names (a v2 client's removed `daemon.web.*`, future verbs) must get exactly `unknown daemon request: …`. */
 export async function dispatchDaemonRequest(
   registry: ReadonlyMap<DaemonRequestName, DaemonRequestHandler>,
   name: string,
@@ -235,19 +192,14 @@ export async function dispatchDaemonRequest(
   return entry.handle(objectPayload(payload), ctx)
 }
 
-/**
- * Build the registry. Handlers are stateless (state arrives via ctx), so the
- * map is safe to share across every connection of a server instance.
- */
+/** Handlers are stateless, so one map is shared across every connection. */
 export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, DaemonRequestHandler> {
   const entries: DaemonRequestHandler[] = [
     {
       name: "hello",
       handle(payload, ctx) {
-        // Negotiate a compatibility RANGE (see protocol.ts isProtocolCompatible).
-        // A client that omits a field is tolerated: a missing version means
-        // "current", a missing min means "same as its version". Only a true
-        // range mismatch is rejected, with a clear upgrade message.
+        // Negotiate a RANGE (isProtocolCompatible). Missing version = current;
+        // missing min = its version. Only a true range mismatch is rejected.
         const clientVersion =
           typeof payload.protocolVersion === "number" ? payload.protocolVersion : DAEMON_PROTOCOL_VERSION
         const clientMin = typeof payload.minProtocolVersion === "number" ? payload.minProtocolVersion : clientVersion
@@ -266,25 +218,17 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
         return {
           protocolVersion: DAEMON_PROTOCOL_VERSION,
           minProtocolVersion: MIN_COMPATIBLE_PROTOCOL_VERSION,
-          // The daemon's BUILD version (package.json). The protocol range above
-          // only catches a breaking wire change; this lets the client detect a
-          // stale-build daemon after a patch upgrade (same protocol, still
-          // running the code it booted with) and surface a non-fatal "restart
-          // the daemon" banner (KOB).
+          // BUILD version (package.json): catches a stale-build daemon after a
+          // patch upgrade (same protocol) → non-fatal "restart the daemon" banner.
           kobeVersion: ctx.runtime.currentVersion,
           capabilities: [...CHANNEL_NAMES],
           daemonPid: ctx.daemon.pid,
           clientId: ctx.clientId,
-          // The state root behind `tasks` below. A client whose own home
-          // differs is talking to a foreign daemon (a sandbox one that
-          // inherited the production socket path) and must reject the list
-          // instead of rendering an empty sidebar — protocol.isForeignDaemonHome.
+          // A client whose home differs must reject `tasks` rather than render
+          // an empty sidebar (protocol.isForeignDaemonHome).
           homeDir: ctx.daemon.homeDir,
-          // The host this daemon runs on. A client reaching it through an SSH
-          // tunnel sees only a local socket path, so this is the only thing
-          // that says WHICH machine answered — and, with `homeDir` +
-          // `daemonPid` above, the triple that recognizes two machine aliases
-          // as one machine (`machines/registry.ts` duplicateAliasOf).
+          // Over an SSH tunnel only this says WHICH machine answered; with
+          // `homeDir` + `daemonPid` it dedupes machine aliases (duplicateAliasOf).
           hostname: hostname(),
           tasks: ctx.orch.listTasks().map(serializeTask),
         }
@@ -295,31 +239,22 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
       handle(_payload, ctx) {
         return {
           daemonPid: ctx.daemon.pid,
-          // Build version of the running daemon (package.json) — surfaced in
-          // `daemon status` / `kobe doctor` so a stale-build daemon is visible
-          // even without a TUI attached (KOB).
+          // Makes a stale-build daemon visible in `daemon status` / doctor without a TUI.
           kobeVersion: ctx.runtime.currentVersion,
           uptimeMs: Date.now() - ctx.daemon.startedAt.getTime(),
           startedAt: ctx.daemon.startedAt.toISOString(),
-          // Attached GUIs (role "gui" front-ends) — the refcount that keeps
-          // the daemon alive. Excludes helper panes (role "pane") and
-          // transient CLI pokes, so this reflects "humans looking at kobe".
+          // GUI refcount that keeps the daemon alive; excludes panes and CLI pokes.
           attachedClients: ctx.daemon.guiCount(),
-          // Why this daemon may be up with zero attached clients. Without it,
-          // a daemon staying alive for a schedule looks like a leak.
+          // Why a daemon with zero clients is up; otherwise a schedule looks like a leak.
           automationHold: ctx.automations.hasEnabled(),
           taskCount: ctx.orch.listTasks().length,
-          // The state root this daemon serves — `hello` already reports it for
-          // the TUI's foreign-daemon guard; status carries it so `rove doctor`
-          // can name a daemon squatting the socket from a DIFFERENT home,
-          // which otherwise reads as "my tasks vanished".
+          // Lets `rove doctor` name a daemon from a DIFFERENT home squatting the
+          // socket, which otherwise reads as "my tasks vanished".
           homeDir: ctx.daemon.homeDir,
           socketPath: ctx.daemon.socketPath,
-          // The PTY host's socket, and this daemon's host. `rove machine add`
-          // reads both over SSH (`rove daemon status --json`) so the local side
-          // never has to GUESS a remote socket path — the remote home may be a
-          // different user, and `fitSocketPath` can shorten either path to fit
-          // the platform's sun_path limit, so neither is derivable from here.
+          // `rove machine add` reads these over SSH instead of guessing: the
+          // remote home may be another user, and `fitSocketPath` may shorten
+          // either path for sun_path, so neither is derivable locally.
           ptySocketPath: defaultPtyHostSocketPath(ctx.daemon.homeDir),
           hostname: hostname(),
         }
@@ -328,22 +263,15 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     {
       name: "daemon.stop",
       async handle(payload, ctx) {
-        // `restart` is the only reason a caller may claim, and only
-        // `daemon restart` (plus the TUI's refresh) claims it: it tells every
-        // attached client the code is being swapped, not that the daemon is
-        // done. Anything else — including an unset or unrecognized field —
-        // reads as a plain `stop`, so a stale or hostile caller can never
-        // make an ordinary shutdown look like an upgrade.
+        // Only `restart` may be claimed (by `daemon restart` / TUI refresh): it
+        // tells clients the code is being swapped. Anything else, unset or
+        // unknown, is `stop`, so no caller can dress a shutdown as an upgrade.
         const reason = parseDaemonStopReason(payload.reason) === "restart" ? "restart" : "stop"
         await ctx.daemon.stopSoon(reason)
         return {}
       },
     },
-    // `task.*` (+ `project.forget`) and `worktree.*` live in their own files
-    // (handlers-task.ts / handlers-worktree.ts), grouped by RPC-name prefix —
-    // a file boundary, not a responsibility one. Entry ORDER here doesn't
-    // affect any individual response's byte shape (only within-object key
-    // order is wire-load-bearing), so grouping them via spread is safe.
+    // Entry ORDER is not wire-load-bearing (only key order within a payload is).
     ...TASK_HANDLERS,
     ...WORKTREE_HANDLERS,
     ...ATTENTION_HANDLERS,
@@ -355,11 +283,8 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...ISSUE_HANDLERS,
     ...PR_HANDLERS,
     {
-      // Production diagnostics (`kobe api inspect`): what the daemon's
-      // transient state ACTUALLY holds right now. Bug reports about badges,
-      // idle-lapse, or identity need this raw view — the wire payloads are
-      // projections that hide the fields (probe vendor, armed watchdogs)
-      // those bugs usually hinge on. Read-only, no side effects.
+      // `kobe api inspect`: raw transient state, read-only. Wire payloads hide
+      // the fields (probe vendor, armed watchdogs) badge/idle bugs hinge on.
       name: "debug.inspect",
       handle(_payload, ctx) {
         return {
@@ -368,18 +293,12 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           startedAt: ctx.daemon.startedAt.toISOString(),
           activity: ctx.activity.debugSnapshot(),
           attachedClients: ctx.daemon.guiCount(),
-          // Total connections, GUI and pane. `session.deliver` (what `api
-          // dispatch` publishes) is only ever PERFORMED by an attached
-          // client, so 0 here proves a dispatch reached nobody while still
-          // answering `ok: true` — the shape that makes "I answered it and
-          // the badge never cleared" unreadable from every other field.
-          // Non-zero is not proof of the converse: a calling CLI counts.
+          // GUI + pane connections. `session.deliver` is only PERFORMED by an
+          // attached client, so 0 proves an `ok: true` dispatch reached nobody.
+          // Non-zero proves nothing: the calling CLI counts.
           connectedClients: ctx.daemon.clientCount(),
-          // The context collector's current reading per live engine session
-          // (`taskId::tabId`), token totals included. Same last-value the bus
-          // replays to a late subscriber, so this answers "is the footer's
-          // number stale, wrong, or absent" without opening a browser — and
-          // it is the only read that shows the token counts at all.
+          // Context reading per engine session (`taskId::tabId`) — the bus's
+          // replayed last value; the only read that shows token counts.
           contextUsage:
             (
               ctx.bus.snapshot().find((event) => event.channel === "usage.context")?.payload as

@@ -1,11 +1,8 @@
 /**
- * Spawning a background child that must OUTLIVE this process — the daemon
- * (`rove daemon start`) and the PTY host (`rove pty-host`). Owns the
- * platform split: POSIX detaches with setsid and hands the log fd down;
- * Windows goes through the PowerShell launcher in win-detached-launch.ts,
- * falling back to a plain spawn (that dies with us) only when the launcher
- * itself cannot run. Reachability, probing and the spawn+poll loops stay in
- * daemon-process.ts / pty-process.ts.
+ * Spawn a background child that must OUTLIVE this process (the daemon, the
+ * PTY host). POSIX detaches with setsid and hands the log fd down; Windows
+ * uses the PowerShell launcher in win-detached-launch.ts, falling back to a
+ * plain spawn (that dies with us) only when the launcher can't run.
  */
 
 import { type StdioOptions, spawn } from "node:child_process"
@@ -14,16 +11,10 @@ import { dirname } from "node:path"
 import { spawnWindowsDetached } from "./win-detached-launch.ts"
 
 /**
- * How a background child is cut loose from this process by a plain
- * `child_process.spawn`.
- *
- * POSIX: `detached` (setsid) is the whole answer. Windows: this is only the
- * FALLBACK shape, used when the real launcher (win-detached-launch.ts)
- * could not run. `detached: true` there means DETACHED_PROCESS — no console
- * at all, so every console child the daemon spawns (git, gh, PowerShell
- * probes) pops a visible window — and it would not save the child anyway:
- * Bun's job object kills it when this process exits. `windowsHide` keeps
- * the windows away; the child then shares this console and dies with it.
+ * Plain-`spawn` detach options. POSIX: `detached` (setsid). Windows (fallback
+ * only): `detached: true` would mean DETACHED_PROCESS, so every console child
+ * (git, gh, PowerShell) pops a visible window, and Bun's job object kills it
+ * on exit anyway; `windowsHide` shares this console and dies with it.
  */
 export function detachOptions(
   platform: NodeJS.Platform = process.platform,
@@ -32,19 +23,14 @@ export function detachOptions(
 }
 
 /**
- * Spawn the detached daemon child with stdout/stderr appended to
- * `logPath`, so a crash leaves a trace.
+ * Spawn the detached daemon with stdout/stderr appended to `logPath`.
  *
- * Windows goes through the PowerShell launcher in win-detached-launch.ts —
- * the only way the child survives this process's exit (Bun's kill-on-close
- * job) and this terminal's close (its own hidden console); see that file.
- * Should the launcher itself fail, the child is spawned directly instead,
- * with a line in the log saying it will not outlive this process: a daemon
- * that dies with its TUI beats no daemon.
+ * Windows: the launcher is the only way the child survives this process's
+ * exit (Bun's kill-on-close job) and the terminal's close. If it fails, spawn
+ * directly and log that the child won't outlive us: better than no daemon.
  *
- * POSIX: the parent opens the log and hands the fd down, closing its own
- * copy after the fork; falls back to `"ignore"` if the log file can't be
- * opened (never block the daemon from starting over a log file).
+ * POSIX: hand the log fd down and close the parent's copy; `"ignore"` if the
+ * log can't be opened (a log file never blocks startup).
  */
 export function spawnDetachedDaemon(
   command: string,

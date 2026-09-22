@@ -1,13 +1,7 @@
 /**
- * UI-facing daemon RPC handlers — the broadcast/report family the TUI and
- * plugin CLI drive (`session.deliver`, `ui.reportEvent`, `tab.open`,
- * `notice.send`, `note.file`) plus the host-dialog prompt pair
- * (`ui.prompt` / `ui.promptReply`). Like `handlers-task.ts`, this is the slice
- * of the one registry that shares an RPC-name prefix — grouped by wire
- * namespace, not by a responsibility boundary — spread back in by
- * `handlers.ts`. See its doc comment for the registry's wire-compatibility
- * contract (byte-equivalent payloads, key order load-bearing), which moving a
- * handler between files must never change.
+ * UI broadcast/report RPC handlers, spread into the registry by `handlers.ts`,
+ * whose wire contract (byte-equivalent payloads, key order load-bearing) moving
+ * a handler between files must never change.
  */
 
 import { randomUUID } from "node:crypto"
@@ -19,25 +13,16 @@ import { displayTaskTitle } from "./protocol.ts"
 /** `ui.prompt` timeout bounds — a plugin must not hang the CLI forever. */
 const PROMPT_DEFAULT_TIMEOUT_MS = 120_000
 const PROMPT_MAX_TIMEOUT_MS = 600_000
-/** A live TUI normally acknowledges in one render turn. Bound the wait so a
- * stale GUI connection cannot turn a headless close into a hung CLI. */
+/** A live TUI acks in one render turn; bounded so a stale GUI can't hang a headless close. */
 const TAB_CLOSE_TUI_TIMEOUT_MS = 750
 
 export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "session.deliver",
     async handle(payload, ctx) {
-      // Dispatcher messenger (docs/design/dispatcher.md): `kobe api dispatch`
-      // routes text to a task's live engine session.
-      //
-      // The daemon DELIVERS it, then falls back to the broadcast. It used to
-      // only broadcast, on the assumption that "the front-end hosting that
-      // session (the SPA via /pty/send) owns the actual paste" — true when the
-      // SPA was the product surface, and false since: an engine tab opened in
-      // the TUI lives in the shared PTY host, which the daemon reaches through
-      // the same adapter `send` uses. Nothing subscribed to the channel on the
-      // TUI side, so `dispatch` against a TUI-hosted task answered `ok: true`
-      // and pasted nowhere.
+      // `api dispatch` (docs/design/dispatcher.md). The daemon DELIVERS via the
+      // PTY host, then falls back to the broadcast: no TUI subscribes to the
+      // channel, so broadcast alone pastes nowhere for a TUI-hosted task.
       const taskId = requireString(payload, "taskId")
       const text = requireString(payload, "text")
       const tabId = optionalString(payload, "tabId")
@@ -47,10 +32,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       }
       const task = ctx.orch.getTask(taskId)
       if (!task) throw new Error(`task not found: ${taskId}`)
-      // Delivery is engine-owned, and NEITHER adapter spawns — they paste into
-      // an already-live hosted session or report `no-session`. `dispatch`'s own
-      // contract ("requires an already-hosted session") is exactly that, so a
-      // miss here is honest rather than a reason to start something.
+      // Neither adapter spawns: `dispatch` requires an already-hosted session.
       const outcome = task.worktreePath
         ? await (tabId === undefined
             ? ctx.runtime.deliverPromptToLiveEngineDetailed(
@@ -63,11 +45,9 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
               )
           ).catch(() => ({ outcome: "no-session" }) as const)
         : ({ outcome: "no-session" } as const)
-      // Broadcast ONLY when we did not deliver, and only for `no-session`. A
-      // browser-hosted session is invisible to the PTY host (the SPA mints its
-      // own tab ids), so the channel is still the only way to reach one — but
-      // publishing after a successful paste would make a listening browser
-      // paste the same text a second time.
+      // Only on `no-session`: the channel is the only way to reach a
+      // browser-hosted session (SPA tab ids are invisible to the PTY host),
+      // but after a successful paste it would make a browser paste twice.
       const broadcast = outcome.outcome === "no-session"
       if (broadcast) {
         ctx.bus.publish("session.deliver", {
@@ -88,20 +68,15 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
           clients: ctx.daemon.clientCount(),
         },
       })
-      // `delivered` is OBSERVED, not claimed: true only when a paste actually
-      // landed in a live engine session. `false` with
-      // `reason: "no-engine"` means the tab is alive but its engine died into
-      // a login shell, which would EXECUTE the text rather than read it; false
-      // with `reason: "broadcast"` means no hosted session answered and the
-      // event went out for a browser to pick up, which nothing can confirm —
-      // `clients` (raw CONNECTION count, the calling CLI included) is the only
-      // reach signal there, and 0 proves the text reached nobody.
+      // `delivered` is OBSERVED: true only when a paste landed in a live
+      // engine. `reason: "broadcast"` is unconfirmable; `clients` (CONNECTION
+      // count, calling CLI included) is the only reach signal, and 0 proves
+      // the text reached nobody.
       if (outcome.outcome === "delivered") {
         return { ok: true, delivered: true, tabId: outcome.tabId, clients: ctx.daemon.clientCount() }
       }
-      // The tab is alive with no engine in it: keepAlive `exec`ed a login
-      // shell where the engine exited, so the text would not be READ, it
-      // would be RUN. Nothing was written and nothing was broadcast.
+      // keepAlive `exec`ed a login shell where the engine exited: the text
+      // would be RUN, not read. Nothing was written or broadcast.
       if (outcome.outcome === "no-engine") {
         return {
           ok: true,
@@ -127,16 +102,13 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       const detail = payload.detail
       const eventDetail =
         detail && typeof detail === "object" && !Array.isArray(detail) ? (detail as Record<string, unknown>) : undefined
-      // A closed tab has no activity to arbitrate. This is the ONE place every
-      // close funnels through — the TUI's own close path and the daemon's
-      // `terminalTab.close` (which drives that same path) both land here — so
-      // the ledger is swept without a second hook on the close broker.
+      // Every close (TUI's own and `terminalTab.close`) funnels through here,
+      // so sweep the activity ledger without a second hook on the close broker.
       if (kind === "tab.closed" && taskId) {
         const closedTabId = eventDetail?.tabId
         if (typeof closedTabId === "string" && closedTabId) {
           ctx.activity.clearTab(taskId, closedTabId)
-          // A closed tab's pictures go with its cells, so its image ids can
-          // never be written to again — same funnel, same reason.
+          // Its image ids can never be written to again.
           ctx.graphics?.clearTab(taskId, closedTabId)
         }
       }
@@ -152,9 +124,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "ui.prompt",
     blocking: true,
     async handle(payload, ctx) {
-      // Host-provided input dialog (plugins → `kobe api prompt`): publish
-      // the request to every attached TUI and block until one answers via
-      // `ui.promptReply` or the broker times out. First answer wins.
+      // Blocks until an attached TUI answers via `ui.promptReply` (first wins) or timeout.
       const broker = ctx.prompts
       if (!broker) throw new Error("prompt broker unavailable")
       const title = requireString(payload, "title")
@@ -194,10 +164,8 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "tab.open",
     async handle(payload, ctx) {
-      // Plugin panes: `kobe plugin pane open` asks the TUI hosting the
-      // task to open a terminal tab running argv. Same trust boundary as
-      // `pty.open` (the socket already grants argv execution); the daemon
-      // only validates + broadcasts, the TUI owns the actual tab.
+      // Same trust boundary as `pty.open` (the socket already grants argv
+      // execution). The daemon validates + broadcasts; the TUI opens the tab.
       const taskId = requireString(payload, "taskId")
       const title = requireString(payload, "title")
       const argv = (payload as { argv?: unknown }).argv
@@ -217,20 +185,15 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(direction === "right" || direction === "down" ? { direction } : {}),
         at: Date.now(),
       })
-      // Same reach report as `session.deliver`: the split is performed
-      // by an attached TUI, so with nothing listening the pane goes nowhere
-      // while a bare `ok` would read as "opened". `clients` counts CONNECTIONS
-      // — the calling CLI is one, so 1 does not prove a host is listening; 0
-      // is the unambiguous "nobody performed it".
+      // Reach report: `clients` counts CONNECTIONS including the caller, so
+      // only 0 is unambiguous ("nobody opened it").
       return { ok: true, clients: ctx.daemon.clientCount() }
     },
   },
   {
     name: "tab.close",
     async handle(payload, ctx) {
-      // Inverse of tab.open: ask the TUI hosting the task to close every
-      // pane (split leaf / command tab) opened under `title`. Deliver-only
-      // broadcast — the daemon validates, the TUI owns the actual close.
+      // Closes every pane opened under `title`; the TUI performs it.
       const taskId = requireString(payload, "taskId")
       const title = requireString(payload, "title")
       const tabId = optionalString(payload, "tabId")
@@ -241,8 +204,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(tabId !== undefined ? { tabId } : {}),
         at: Date.now(),
       })
-      // A close with no attached TUI silently matched nothing — without this
-      // the caller cannot tell "pane closed" from "nobody was listening".
+      // Lets the caller tell "pane closed" from "nobody was listening".
       return { ok: true, clients: ctx.daemon.clientCount() }
     },
   },
@@ -280,84 +242,63 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
     handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const tabId = requireString(payload, "tabId")
-      // Empty is legal and means "clear back to the default name", matching
-      // f2's dialog — so this reads the raw field rather than requiring one.
+      // Empty is legal: "clear back to the default name", as in f2's dialog.
       const title = optionalString(payload, "title") ?? ""
       if (!ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
       ctx.bus.publish("tab.rename", { taskId, tabId, title, at: Date.now() })
-      // No broker, unlike `terminalTab.close`: the CLI has already written
-      // the persisted snapshot, so this is the repaint half and there is
-      // nothing to wait for. `clients` reports reach the same way
-      // `notice.send` does — with no attached UI the broadcast lands nowhere,
-      // and the snapshot write is the whole of the rename.
+      // No broker: the CLI already wrote the snapshot; this is only the repaint.
       return { ok: true, clients: ctx.daemon.clientCount() }
     },
   },
   {
     name: "notice.send",
     async handle(payload, ctx) {
-      // `kobe api notify`: one toast for every attached UI. The daemon
-      // only validates + broadcasts; NotificationsProvider in each
-      // subscribed host renders it (and dedupes replays on `at`).
+      // One toast per attached UI; each host dedupes replays on `at`.
       const title = requireString(payload, "title")
-      // Optional second line: context under the title, same slot the TUI's
-      // toast already renders for engine-side notifications.
       const body = optionalString(payload, "body")
-      // Free-form kind: known severities get styled by the TUI, anything
-      // else renders neutrally — agents may invent their own vocabulary.
+      // Free-form: known severities get styled, anything else renders neutrally.
       const kind = optionalString(payload, "kind") ?? "done"
       if (kind.trim() === "") throw new Error("kind must be a non-empty string")
       const taskId = optionalString(payload, "taskId")
       if (taskId !== undefined && !ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
       const source = optionalString(payload, "source")
       ctx.bus.publish("notice.event", { title, body, kind, taskId, at: Date.now(), source })
-      // Headless honesty: with no attached UI the toast reaches nobody, and
-      // `clients` is the only signal (same reach report as session.deliver).
+      // Headless, the toast reaches nobody; `clients` is the only signal.
       return { ok: true, clients: ctx.daemon.clientCount() }
     },
   },
   {
     name: "note.file",
     async handle(payload, ctx) {
-      // Field note (docs/design/dispatcher.md): a worktree session files a
-      // one-line resolved gotcha. The daemon's only intelligence is
-      // ADDRESSING — find the author's repo's dispatcher seat (the main
-      // session) and forward over session.deliver with provenance. WHO
-      // benefits from the note is the dispatcher agent's judgment, not
-      // daemon code.
+      // Field note (docs/design/dispatcher.md). The daemon only ADDRESSES it
+      // to the repo's main task; who benefits is the dispatcher's judgment.
       const taskId = requireString(payload, "taskId")
       const text = requireString(payload, "text")
       const author = ctx.orch.getTask(taskId)
       if (!author) throw new Error(`task not found: ${taskId}`)
       const label = displayTaskTitle(author) || taskId
-      // Persist BEFORE routing: relaying is best-effort and needs a live
-      // dispatcher seat, but the durable record is the point — a note filed
-      // with no dispatcher running must still reach the NEXT session
-      // (repo-init injection reads this store). A store failure must never
-      // error a working agent, so it degrades to routing-only.
+      // Persist BEFORE routing: with no dispatcher running the note must still
+      // reach the NEXT session (repo-init reads this store). A store failure
+      // must never error a working agent; it degrades to routing-only.
       const persisted = await ctx.notes
         ?.append(author.repo, { at: new Date().toISOString(), text, taskId, author: label })
         .then(() => true)
         .catch(() => false)
       const main = ctx.orch.listTasks().find((t) => (t.kind ?? "task") === "main" && samePath(t.repo, author.repo))
-      // No dispatcher seat, or the dispatcher noting to itself: accepted
-      // but unrouted — filing must never error a working agent. It is
-      // persisted above, so an unrouted note is not a loss.
+      // No main task, or main noting to itself: accepted but unrouted (persisted above).
       const routed = !!main && main.id !== author.id
       if (routed && main) {
         ctx.bus.publish("session.deliver", {
           taskId: main.id,
-          // Note text last and whole, same rule as the [ROVE PEER] prefix
-          // in `cli/api/handlers-tasks.ts`: the dispatcher reads a note in
-          // the filer's own language, not as the tail of an English clause.
+          // Note text last and whole (as with [ROVE PEER]), so it reads in the
+          // filer's language, not as the tail of an English clause.
           text: `[ROVE FIELD NOTE] from "${label}" (task ${taskId})\n\n${text}`,
           at: Date.now(),
           source: "note",
         })
       }
-      // Text is capped: the envelope rides ROVE_PLUGIN_EVENT_JSON into every
-      // subscriber's spawn env — an unbounded note risks E2BIG. The durable
-      // store holds the full body; plugins read it back via note-list.
+      // Capped: the envelope rides ROVE_PLUGIN_EVENT_JSON into spawn env
+      // (E2BIG risk). Plugins read the full body via note-list.
       ctx.plugins?.handleUiReport({
         kind: "note.filed",
         taskId,
@@ -376,8 +317,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "note.list",
     async handle(payload, ctx) {
-      // Newest-first field notes for a repo. Read by `kobe api note-list` and
-      // by the worktree launch path that seeds a fresh session with them.
+      // Newest first; also seeds fresh worktree sessions.
       const repo = requireString(payload, "repo")
       return { notes: (await ctx.notes?.list(repo)) ?? [] }
     },
@@ -385,10 +325,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "note.delete",
     async handle(payload, ctx) {
-      // Retire one note by the id `note.list` reports. `deleted: false` is a
-      // real answer, not an error: the id may name a note the retention ring
-      // already evicted, and a caller sweeping stale facts must be able to
-      // tell "gone now" from "was never there" without a thrown error.
+      // `deleted: false` is an answer, not an error: the ring may have evicted it.
       const repo = requireString(payload, "repo")
       const id = requireNumber(payload, "id")
       return { deleted: (await ctx.notes?.remove(repo, id)) ?? false }

@@ -1,36 +1,20 @@
 /**
- * Size-capped rotation for kobe's append-only diagnostic logs
- * (`daemon.log`, `client.log`). Uncapped, a daemon with dozens of orphan
- * panes spamming reconnect-failure lines grows `client.log` into the
- * hundreds of MB.
- *
- * One generation is kept (`<path>.old`), overwritten each rotation — this
- * is a debug trail, not an archive, so more generations just cost disk for
- * no benefit anyone has asked for.
+ * Size-capped rotation for `daemon.log` / `client.log`: orphan panes spamming
+ * reconnect failures grew `client.log` to hundreds of MB. One generation kept
+ * (`<path>.old`); it is a debug trail, not an archive.
  */
 
 import { existsSync, renameSync, statSync } from "node:fs"
 
-/** Default cap per log file. Generous enough that rotation is rare in
- *  normal use, tight enough that a runaway spam loop can't eat the disk. */
 export const DEFAULT_LOG_ROTATE_CAP_BYTES = 10 * 1024 * 1024 // 10MB
 
-/** Pure decision: should `sizeBytes` trigger a rotation? Extracted so the
- *  threshold logic is unit-testable without touching the filesystem. */
 export function shouldRotateLog(sizeBytes: number, capBytes: number = DEFAULT_LOG_ROTATE_CAP_BYTES): boolean {
   return sizeBytes > capBytes
 }
 
 /**
- * If `path` exists and is over `capBytes`, rename it to `${path}.old`
- * (clobbering any previous `.old`) so the next write starts a fresh file.
- * Synchronous: callers use this at process-boot time, before any log
- * writer (or an inherited fd) opens the path, so there's no async window
- * where a write could land on the file mid-rename.
- *
- * Best-effort — a rotation failure (e.g. permission error) must never
- * block the caller from starting; swallow and continue on the un-rotated
- * file rather than throwing.
+ * Synchronous, at process boot before any writer (or inherited fd) opens the
+ * path, so no write lands mid-rename. Best-effort: a failure never blocks startup.
  */
 export function rotateLogIfNeeded(path: string, capBytes: number = DEFAULT_LOG_ROTATE_CAP_BYTES): void {
   try {

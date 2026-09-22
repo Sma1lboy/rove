@@ -5,18 +5,11 @@ import { join } from "node:path"
 import { COMPAT_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveEnv, readRoveHomeDirEnv } from "../compat-env.ts"
 
 /**
- * Runtime files (sockets, pidfiles, logs) live under the product's own state
- * dir — `.rove`. `.kobe` is the legacy location, and a socket path is not a
- * preference: it is the ADDRESS of a process that is already running. An
- * upgrade that simply changed the constant would make the live daemon and the
- * live PTY host invisible to the new client, which would then start a second
- * pair and orphan every engine tab the running host owns.
- *
- * So the rule for an address is: canonical if it exists, else the legacy path
- * IF the process it belongs to is still alive, else canonical. A stale `.kobe`
- * socket left by a crash fails the liveness test and is stepped over. Once the
- * daemon and host are restarted on the canonical paths, the legacy branch
- * never fires again.
+ * Runtime files live under `.rove`; `.kobe` is legacy. A socket path is the
+ * ADDRESS of a running process: switching blindly would hide the live daemon
+ * and PTY host from a new client, which would start a second pair and orphan
+ * every engine tab. Rule: canonical if it exists, else legacy IF its process
+ * is alive, else canonical. A crash-stale `.kobe` socket fails liveness.
  */
 function stateDirs(homeDir: string): { canonical: string; legacy: string } {
   return { canonical: join(homeDir, ROVE_STATE_DIR_BASENAME), legacy: join(homeDir, COMPAT_STATE_DIR_BASENAME) }
@@ -34,11 +27,7 @@ function pidIsLive(pidPath: string): boolean {
   }
 }
 
-/**
- * Pick the path for one runtime file: the canonical one, unless only the
- * legacy layout holds a LIVE process (judged by `pidName`, the pidfile that
- * belongs to the same process).
- */
+/** Canonical path, unless only the legacy layout holds a LIVE process (per its `pidName` pidfile). */
 function runtimePath(homeDir: string, name: string, pidName: string): string {
   const { canonical, legacy } = stateDirs(homeDir)
   const canonicalPath = join(canonical, name)
@@ -49,10 +38,9 @@ function runtimePath(homeDir: string, name: string, pidName: string): string {
 }
 
 /**
- * The pre-rename location of one runtime file. Only the BINDING side needs
- * these: after a successful bind it points the legacy path at the canonical
- * one so a binary predating the rename still finds a live daemon/host
- * (`compat-link.ts`). Resolution never calls this — that is `runtimePath`.
+ * Pre-rename location of a runtime file. Binding side only: after bind it
+ * links legacy → canonical so an older binary still finds the daemon/host
+ * (`compat-link.ts`). Resolution uses `runtimePath`, never this.
  */
 export function legacyRuntimePath(homeDir: string, name: string): string {
   return join(homeDir, COMPAT_STATE_DIR_BASENAME, name)
@@ -75,55 +63,32 @@ export function legacyPtyHostPidPath(homeDir: string): string {
 }
 
 /**
- * Data a host reads back across restarts. Canonical, unconditionally: the PTY
- * host moves the legacy entries onto these paths at boot
- * (`pty-data-migration.ts`), which is the single-writer moment for them. The
- * old "whichever layout has it" rule made the legacy location permanent — a
- * home that had `pty-sessions/` before the rename kept it under `.kobe`
- * forever, so deleting `~/.kobe` (which the docs call safe) lost every frozen
- * session.
+ * Data read back across restarts: always canonical. The PTY host migrates
+ * legacy entries at boot (`pty-data-migration.ts`, the single-writer moment);
+ * a "whichever layout has it" rule would pin data under `.kobe`, and deleting
+ * `~/.kobe` (documented as safe) would lose frozen sessions.
  */
 function runtimeDataPath(homeDir: string, name: string): string {
   return join(stateDirs(homeDir).canonical, name)
 }
 
 /**
- * Unix domain socket paths are stored in a fixed-size `sun_path` field
- * inside `struct sockaddr_un`. The cap differs per OS:
- *
- *   macOS / BSD : 104 bytes
- *   Linux       : 108 bytes
- *
- * We use a conservative 100-byte ceiling so even the longest reasonable
- * `bridge-<pid>.sock` suffix has room. Hitting this matters for
- * `bun run dev:sandbox` inside a deeply-nested worktree
- * (`/Users/.../.kobe/worktrees/<ULID>/packages/kobe/.dev-sandbox/...`)
- * where the natural `~/.kobe/.../daemon.sock` form blows past 104 chars
- * and `listen()` rejects silently.
+ * `sun_path` caps: macOS/BSD 104 bytes, Linux 108; 100 leaves room for a
+ * `bridge-<pid>.sock` suffix. Deep worktree homes (`dev:sandbox`) overrun 104,
+ * and `listen()` then rejects silently.
  */
 const SOCKET_PATH_SAFETY_LIMIT = 100
 
-/**
- * Stable per-home short tag used as a fallback socket-name prefix when
- * the natural path overruns the kernel's `sun_path` size. Different
- * `KOBE_HOME_DIR`s map to different tags, so multiple sandbox daemons
- * (or sandbox+prod) won't collide in `$TMPDIR`.
- */
+/** Stable per-home tag for fallback socket names, so different homes never collide in `$TMPDIR`. */
 export function shortHomeTag(homeDir: string): string {
   return createHash("sha1").update(homeDir).digest("hex").slice(0, 8)
 }
 
 /**
- * Return `naturalPath` if it's within the socket-path size limit;
- * otherwise return a short `$TMPDIR/kobe-<homeTag>-<role>.sock` form
- * that's stable per (homeDir, role). The fallback name MUST be the
- * same string every time the same homeDir + role is asked — otherwise
- * the client wouldn't be able to find the daemon's socket.
- *
- * `pidTag` is used only for ephemeral sockets (the bridge spawns one
- * per daemon PID, so a stale parent's socket file is replaced on
- * restart). For the daemon socket itself the pidTag is omitted so the
- * path stays stable across daemon restarts.
+ * `naturalPath` if within the limit, else `$TMPDIR/kobe-<homeTag>-<role>.sock`.
+ * The fallback MUST be deterministic per (homeDir, role) or clients can't find
+ * the socket. `pidTag` is only for ephemeral per-PID sockets (the bridge); omit
+ * it for paths that must stay stable across restarts.
  */
 export function fitSocketPath(naturalPath: string, homeDir: string, role: string, pidTag?: number): string {
   if (Buffer.byteLength(naturalPath, "utf8") <= SOCKET_PATH_SAFETY_LIMIT) return naturalPath
@@ -135,34 +100,21 @@ export function fitSocketPath(naturalPath: string, homeDir: string, role: string
 }
 
 /**
- * Resolve the unix-socket path for the Rove daemon.
- *
- * Resolution order:
- *   1. Caller-supplied `homeDir` argument → `<homeDir>/.rove/daemon.sock`.
- *   2. Explicit `ROVE_HOME_DIR`/`KOBE_HOME_DIR` → `$ROVE_HOME_DIR/.rove/daemon.sock`.
+ * Resolution order (after the `DAEMON_SOCKET_PATH` override):
+ *   1. `homeDir` argument → `<homeDir>/.rove/daemon.sock`.
+ *   2. `ROVE_HOME_DIR`/`KOBE_HOME_DIR` → `$ROVE_HOME_DIR/.rove/daemon.sock`.
  *   3. `XDG_RUNTIME_DIR` → `$XDG_RUNTIME_DIR/kobe.sock`.
- *   4. Default `~/.rove/daemon.sock`.
+ *   4. `~/.rove/daemon.sock`.
+ * Steps 1, 2 and 4 yield the legacy `.kobe` twin only while a pre-rename
+ * process holds it ({@link stateDirs}). Every result goes through
+ * {@link fitSocketPath}.
  *
- * Each step yields the legacy `.kobe` twin instead only while a process
- * started before the rename still holds it (see {@link stateDirs}).
+ * XDG sits below the env step: Linux desktops always set it, which would
+ * collapse test and production daemons onto one socket.
  *
- * Every result is run through {@link fitSocketPath} so deeply-nested
- * homes (e.g. `dev:sandbox` under a worktree) fall back to a short
- * `$TMPDIR/kobe-<homeTag>-daemon.sock` instead of failing to listen.
- *
- * The XDG fallback is intentionally below the env-var step. Linux
- * desktop sessions set `XDG_RUNTIME_DIR` (e.g. `/run/user/1000`), so placing
- * the socket there unconditionally collapses the test-daemon and
- * production-daemon sockets onto the same path, defeating
- * `KOBE_HOME_DIR=...` isolation.
- *
- * NOTE — this stays a filesystem socket on Windows, unlike the PTY host's
- * (see {@link defaultPtyHostSocketPath}). The two differ for one reason: the
- * runtime that binds them. The daemon runs under Bun, which binds AF_UNIX on
- * Windows 10+ fine; the PTY host runs under node, which cannot (`listen`
- * fails EACCES) and needs a named pipe. So the split is NOT about the
- * platform — moving either process to the other runtime means moving its
- * path form with it.
+ * Stays a filesystem socket on Windows, unlike {@link defaultPtyHostSocketPath}:
+ * Bun (the daemon) binds AF_UNIX on Windows 10+, node (the PTY host) gets
+ * EACCES. The split follows the RUNTIME, not the platform.
  */
 export function defaultDaemonSocketPath(homeDir?: string): string {
   const override = readRoveEnv("DAEMON_SOCKET_PATH")
@@ -180,10 +132,9 @@ export function defaultDaemonSocketPath(homeDir?: string): string {
 }
 
 /**
- * The state root a daemon serves: an explicit option, else the ambient home
- * (`resolveProductHomeDir` in `product-paths.ts`, which the client's
- * `homeDir()` also wraps). `hello` reports this value and the client compares
- * it against its own before trusting the task list.
+ * State root the daemon serves: explicit option, else the ambient home (as
+ * `resolveProductHomeDir` in `product-paths.ts`). `hello` reports it; the
+ * client compares it to its own before trusting the task list.
  */
 export function resolveDaemonHomeDir(homeDir?: string): string {
   const explicit = homeDir ?? readRoveHomeDirEnv()
@@ -196,69 +147,44 @@ export function defaultDaemonPidPath(homeDir = readRoveHomeDirEnv() ?? homedir()
   return runtimePath(homeDir, "daemon.pid", "daemon.pid")
 }
 
-/**
- * Log file the daemon's stdout/stderr is redirected into when it is
- * spawned as a detached background child. Without this the daemon ran
- * with `stdio: "ignore"`, so a crash (uncaught exception / unhandled
- * rejection) left no trace at all — the daemon just vanished. Keep the
- * file next to the socket + pidfile under `<home>/.rove/`.
- */
+/** Detached daemon's stdout/stderr, so an uncaught crash leaves a trace. */
 export function defaultDaemonLogPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "daemon.log")
 }
 
 /**
- * Log file for Rove's CLIENT-side processes (the OpenTUI Tasks/Ops panes
- * and the front-end attach). Unlike the daemon, these run inside an
- * opentui alternate-screen pane, so their `console.*` output is swallowed
- * by the TUI and a stray "[rove tasks] daemon subscribe unavailable" never
- * reaches a human. Routing connection-lifecycle diagnostics to a real file
- * — next to `daemon.log` under `<home>/.rove/` — is the only way a pane's
- * disconnect / reconnect churn is observable after the fact (the reason the
- * Tasks-pane sync drift was invisible for so long). Honours ROVE_HOME_DIR
- * like every other state path so sandbox runs stay isolated.
+ * CLIENT-side log (OpenTUI panes, front-end attach). The TUI swallows their
+ * `console.*`, so this file is the only record of connection churn.
  */
 export function defaultClientLogPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "client.log")
 }
 
 /**
- * Unix-socket path for the standalone PTY HOST process (`kobe pty-host`)
- * — the persistent terminal host that owns embedded-terminal children so they
- * survive both TUI exits AND `kobe daemon restart`. Deliberately a
- * separate process + socket from the daemon: the daemon restarts
- * routinely (it holds all the fast-moving code), while the pty host is
- * tiny and stable and must keep running. Same resolution/fitting rules
- * as {@link defaultDaemonSocketPath}.
- */
-/**
- * True for a Windows named pipe pathname. Callers that treat a socket path as
- * a filesystem entry (mkdir the parent, unlink on shutdown) must skip those
- * steps for a pipe — `\\.\pipe` is a namespace, not a directory, and the pipe
- * itself dies with the process that created it.
+ * True for a Windows named pipe. Skip filesystem steps (mkdir parent, unlink)
+ * for it: `\\.\pipe` is a namespace, and the pipe dies with its creator.
  */
 export function isWindowsPipePath(path: string): boolean {
   return path.startsWith("\\\\.\\pipe\\") || path.startsWith("//./pipe/")
 }
 
 /**
- * Windows named pipe for a host role.
- *
- * The Windows PTY host runs under node rather than Bun (Bun rejects its
- * `terminal` spawn option there — see pty-driver.ts), and node cannot bind a
- * filesystem AF_UNIX socket on Windows: `listen()` fails with EACCES. Named
- * pipes are the platform's equivalent, Bun's client connects to one without
- * changes, and the wire protocol is untouched — only the pathname differs.
- * Tagged per home so sandbox and production hosts never collide.
- *
- * The trigger is the RUNTIME, not the platform: the daemon stays on a unix
- * socket on Windows because Bun can bind one there (see
- * {@link defaultDaemonSocketPath}).
+ * Windows named pipe for a host role, tagged per home. The Windows PTY host
+ * runs under node (Bun rejects its `terminal` spawn option there, see
+ * pty-driver.ts), and node can't bind AF_UNIX on Windows (EACCES). Bun's
+ * client and the wire protocol are unchanged. The trigger is the RUNTIME: the
+ * Bun daemon keeps a unix socket ({@link defaultDaemonSocketPath}).
  */
 export function windowsPipePath(homeDir: string, role: string): string {
   return `\\\\.\\pipe\\kobe-${shortHomeTag(homeDir)}-${role}`
 }
 
+/**
+ * Socket for the standalone PTY HOST (`kobe pty-host`), which owns terminal
+ * children so they survive TUI exits AND `kobe daemon restart`. Separate from
+ * the daemon, which restarts routinely; the host is small and must keep
+ * running. Same resolution/fitting as {@link defaultDaemonSocketPath}.
+ */
 export function defaultPtyHostSocketPath(homeDir?: string, platform: NodeJS.Platform = process.platform): string {
   const override = readRoveEnv("PTY_SOCKET_PATH")
   if (override) return override
@@ -291,26 +217,22 @@ export function defaultPtyExitsPath(homeDir = readRoveHomeDirEnv() ?? homedir())
   return runtimeDataPath(homeDir, "pty-exits.json")
 }
 
-/** Bearer token the PTY sidecar authenticates with (`web-token.ts`) — its
- *  own 0600 file rather than a field in `state.json`, because state.json is
- *  user-editable preferences that get pasted into bug reports, and a
- *  single-purpose file can be chmod'd whole and rotated with one `rm`. */
+/** PTY sidecar bearer token (`web-token.ts`). Its own 0600 file, not a
+ *  `state.json` field: state.json gets pasted into bug reports, and this file
+ *  can be chmod'd whole and rotated with one `rm`. */
 export function defaultWebTokenPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return runtimeDataPath(homeDir, "web-token")
 }
 
-/** Frozen live-session snapshots (`pty-freeze-store.ts`) — one JSON file per
- *  session key, so a host restart (crash, reboot) can hand every session's
- *  metadata + scrollback back to the next host incarnation. */
+/** Frozen session snapshots (`pty-freeze-store.ts`), one JSON per session
+ *  key: metadata + scrollback handed to the next host after a restart. */
 export function defaultPtyFreezeDir(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return runtimeDataPath(homeDir, "pty-sessions")
 }
 
-/** Per-session delivery locks (`engine/delivery-lock.ts`) — one file per PTY
- *  session key, held only for the length of one paste→submit sequence. They
- *  live beside the other runtime data rather than in the OS temp dir so a
- *  `rove reset` clears them with everything else, and so two senders under
- *  different `TMPDIR`s still contend for the same file. */
+/** Per-session delivery locks (`engine/delivery-lock.ts`), held for one
+ *  paste→submit. Not in the OS temp dir, so `rove reset` clears them and
+ *  senders with different `TMPDIR`s contend for the same file. */
 export function defaultDeliveryLockDir(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return runtimeDataPath(homeDir, "delivery-locks")
 }

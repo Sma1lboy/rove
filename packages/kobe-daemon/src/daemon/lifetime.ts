@@ -1,63 +1,48 @@
 /**
- * DaemonLifetime — the daemon's "should I still be running, and should my
- * collectors?" policy, extracted from `server.ts` into one testable seam.
- * (Distinct from `lifecycle.ts`, which kills an EXTERNAL daemon process.)
+ * DaemonLifetime — "should the daemon, and its collectors, still run?" One
+ * policy keyed on which front-ends are attached. (`lifecycle.ts` is different:
+ * it kills an EXTERNAL daemon process.)
  *
- * Three interdependent rules live here instead of as loose functions + a
- * shared `stopping` flag scattered across the server closure (`guiCount`,
- * `hasSubscribers`, `cancelIdleTimer`, `maybeArmIdleShutdown`, and the timer
- * callback). They are really ONE policy keyed on which front-ends are attached:
- *
- *  1. **Lazy shutdown** — the daemon's lifetime is bound to attached GUIs
- *     (`role: "gui"` subscribers — the `holdsLifetime` flag). When the LAST gui
- *     disconnects we wait a short grace, then self-stop. We arm only on a
- *     >0 → 0 gui transition (never on boot), so a deliberately gui-less
- *     `kobe daemon start` / freshly-respawned `daemon restart` stays up. A gui
- *     (re)attach cancels a pending grace; a pane subscribing during the grace
- *     must NOT.
- *  2. **Collector gate** — the background collectors (worktree-changes,
- *     auto-title) exist to feed an attached pane, so they pause while there are
- *     zero subscribers (gui OR pane) and resume once one subscribes.
+ *  1. **Lazy shutdown** — lifetime is bound to `role: "gui"` subscribers
+ *     (`holdsLifetime`). The LAST gui leaving arms a short grace, then
+ *     self-stop. Armed only on a >0 → 0 gui transition (never on boot), so a
+ *     gui-less `kobe daemon start` / respawned `daemon restart` stays up. A gui
+ *     (re)attach cancels the grace; a pane subscribing during it must NOT.
+ *  2. **Collector gate** — background collectors (worktree-changes,
+ *     auto-title) pause while nobody (gui OR pane) is subscribed.
  *  3. **Stopping** — once teardown begins, neither rule may re-fire.
  *
- * The source of truth stays the server's live `clients` set (passed as a
- * provider), so there is NO counter to drift out of sync with re-subscribes,
- * role changes, or unsubscribed socket closes — the policy just scans it. What
- * this module owns is the timer, the `stopping` flag, and the arm/cancel rules,
- * with an injectable clock so the policy is unit-testable without a real socket
- * or a wall-clock grace.
+ * Truth is the server's live `clients` set, scanned on demand, so no counter
+ * can drift with re-subscribes, role changes, or unsubscribed closes. This
+ * module owns only the timer, the `stopping` flag, and the arm/cancel rules,
+ * with an injectable clock.
  */
 
 import { readRoveEnv } from "../compat-env.ts"
 import type { ChannelName } from "./channels.ts"
 import { logDaemonInfo } from "./crash-log.ts"
 
-/** The slice of a client the lifetime policy reads. The server's full
- *  `ClientState` satisfies this structurally. */
+/** The slice of a client this policy reads; `ClientState` satisfies it structurally. */
 export interface LifetimeClient {
   readonly subscribed: boolean
   readonly holdsLifetime: boolean
   /**
-   * The client's per-channel subscribe filter, as `ClientState` carries it:
-   * `null` (or absent, for the web clients that have no filter) = "every
-   * channel". Read by {@link DaemonLifetime.hasSubscribersFor} so a narrow
-   * consumer only starts the collectors that feed the channels it asked for.
+   * Per-channel subscribe filter; `null` or absent (web clients) = every
+   * channel. Read by {@link DaemonLifetime.hasSubscribersFor}.
    */
   readonly channels?: ReadonlySet<ChannelName> | null
 }
 
 /**
- * Grace before a subscriber-less daemon self-stops (refcounted lazy
- * shutdown). The window absorbs reconnect races — `manualReconnect()`
- * force-disconnects then re-subscribes, briefly dropping to zero — so a
- * blip doesn't tear the daemon down. Override via `ROVE_DAEMON_IDLE_GRACE_MS`.
+ * Grace before a gui-less daemon self-stops. Absorbs reconnect races
+ * (`manualReconnect()` force-disconnects then re-subscribes, briefly dropping
+ * to zero). Override via `ROVE_DAEMON_IDLE_GRACE_MS`.
  */
 const DEFAULT_IDLE_GRACE_MS = 3000
 
-/** First-gui window for AUTOSPAWNED daemons (`ROVE_DAEMON_AUTOSPAWNED`) —
- *  generous enough for a slow TUI boot to attach, short enough that a
- *  daemon born from a stray helper (an agent's `kobe api` inside an
- *  engine tab) never becomes a week-old zombie holding the socket. */
+/** First-gui window for AUTOSPAWNED daemons (`KOBE_DAEMON_AUTOSPAWNED`): long
+ *  enough for a slow TUI boot, short enough that a daemon born from a stray
+ *  `kobe api` in an engine tab never lingers as a zombie holding the socket. */
 export const FIRST_GUI_GRACE_MS = 60_000
 
 export function resolveIdleGraceMs(): number {
@@ -67,9 +52,8 @@ export function resolveIdleGraceMs(): number {
   return Number.isFinite(n) && n >= 0 ? n : DEFAULT_IDLE_GRACE_MS
 }
 
-/** Schedule `fn` after `ms`; returns a cancel function. The default uses an
- *  unref'd `setTimeout` (so a pending grace never keeps the process alive);
- *  tests inject a manual clock. */
+/** Schedule `fn` after `ms`; returns a cancel. The default is an unref'd
+ *  `setTimeout`, so a pending grace never keeps the process alive. */
 export type ScheduleFn = (fn: () => void, ms: number) => () => void
 
 const defaultSchedule: ScheduleFn = (fn, ms) => {
@@ -86,24 +70,17 @@ export interface DaemonLifetimeOptions {
   /** Invoked once when the grace elapses with still-zero guis. */
   readonly onIdleStop: () => void
   /**
-   * When set, arm a BOOT-time grace too: a daemon that never sees a single
-   * gui within this window self-stops. For AUTOSPAWNED daemons only
-   * (`KOBE_DAEMON_AUTOSPAWNED`, set by `connectOrStartDaemon`'s spawn) —
-   * they exist to serve the client that spawned them, and one whose client
-   * never attached as a gui otherwise lives FOREVER — the arm-on-transition
-   * rule above never fires without a >0 → 0 gui drop, leaving a zombie daemon
-   * holding the socket. A deliberate `kobe daemon start` never sets the env
-   * flag and keeps the documented stays-up behavior.
+   * Also arm a BOOT-time grace: no gui within this window → self-stop. For
+   * AUTOSPAWNED daemons only (`KOBE_DAEMON_AUTOSPAWNED`, set by
+   * `connectOrStartDaemon`'s spawn): without a >0 → 0 gui drop the normal rule
+   * never fires, so one whose client never attached as a gui would live
+   * forever. A deliberate `kobe daemon start` doesn't set the flag and stays up.
    */
   readonly firstGuiGraceMs?: number
   /**
-   * Non-gui reason to stay alive. When this returns true the daemon does not
-   * self-stop even with zero guis attached.
-   *
-   * Exists for scheduled Automations: a schedule that only fires while someone
-   * happens to be looking at kobe is not a schedule. The hold is opt-in by
-   * construction — the user created the automation — and releases the moment
-   * the last one is deleted or disabled, restoring the ordinary idle shutdown.
+   * Non-gui reason to stay alive, even with zero guis. For scheduled
+   * Automations (a schedule that only fires while someone watches isn't one);
+   * releases when the last one is deleted or disabled.
    */
   readonly keepAlive?: () => boolean
   /** Timer factory (default: unref'd setTimeout); injected by tests. */
@@ -129,9 +106,8 @@ export class DaemonLifetime {
     this.schedule = options.schedule ?? defaultSchedule
     this.log = options.log ?? logDaemonInfo
     this.keepAlive = options.keepAlive ?? (() => false)
-    // Autospawned daemons must not outlive a client that never became a
-    // gui (see firstGuiGraceMs). The first guiAttached() cancels this;
-    // afterwards only the normal >0 → 0 transition arms shutdown.
+    // The first guiAttached() cancels this; afterwards only the normal
+    // >0 → 0 transition arms shutdown.
     const bootGrace = options.firstGuiGraceMs
     if (bootGrace !== undefined) {
       this.log("idle", `autospawned — arming ${bootGrace}ms first-gui grace`)
@@ -144,38 +120,27 @@ export class DaemonLifetime {
     }
   }
 
-  /** Attached GUIs — the refcount that gates lazy shutdown. Counts only
-   *  `holdsLifetime` (role "gui") clients, not every subscribed pane. */
+  /** The lazy-shutdown refcount: `holdsLifetime` (gui) clients only, not panes. */
   guiCount(): number {
     let n = 0
     for (const c of this.clients()) if (c.holdsLifetime) n++
     return n
   }
 
-  /** Any subscribed consumer (gui OR pane), whatever they asked for. Used
-   *  for the "collectors resume" log line and the subscribe-time quota wake,
-   *  neither of which is per-channel. Collectors use
-   *  {@link hasSubscribersFor} instead. */
+  /** Any subscribed consumer (gui OR pane), whatever the filter. Collectors
+   *  use {@link hasSubscribersFor} instead. */
   hasSubscribers(): boolean {
     for (const c of this.clients()) if (c.subscribed) return true
     return false
   }
 
   /**
-   * The background-collector gate, per channel: is anyone subscribed who
-   * would actually RECEIVE what this collector publishes?
+   * Collector gate, per channel: would any subscriber actually RECEIVE this?
    *
-   * `hasSubscribers()` alone is the wrong granularity. `client.channels` is
-   * the filter the publish path already honours (client-connection.ts's
-   * `broadcast`), so a pane subscribing to `["ui-prefs", "keybindings"]` —
-   * what the TUI's UiPrefsSync does — used to start every collector and get
-   * every frame dropped at the socket: 194 `git` spawns in 8 seconds to
-   * deliver two frames it did not ask for. A `null`/absent filter still
-   * means "all channels", so a real gui opens everything exactly as before.
-   *
-   * One walk of the client set per call, same cost as `hasSubscribers()`;
-   * each collector calls it once per tick, so there is no per-tick
-   * clients × channels scan.
+   * Mirrors the filter `broadcast` honours: a pane subscribed to only
+   * `["ui-prefs", "keybindings"]` must not start every collector (measured: 194
+   * `git` spawns in 8s to deliver frames it never receives). One walk of the
+   * client set per call, once per collector tick.
    */
   hasSubscribersFor(channel: ChannelName): boolean {
     for (const c of this.clients()) {
@@ -196,27 +161,21 @@ export class DaemonLifetime {
     this.clearIdle()
   }
 
-  /** A gui (re)attached → cancel any pending lazy-shutdown grace. A pane must
-   *  NOT call this: panes alone never keep the daemon up, so a pane connecting
-   *  during the grace window leaves the countdown running. */
+  /** Cancel any pending grace. A pane must NOT call this: a pane connecting
+   *  during the grace leaves the countdown running. */
   guiAttached(): void {
     this.clearIdle()
   }
 
-  /** A client disconnected. Only a `holdsLifetime` (gui) drop can arm the
-   *  grace — a helper pane or a transient CLI poke leaves the gui count
-   *  unchanged, so neither trips shutdown. */
+  /** Only a gui drop can arm the grace; panes and CLI pokes never trip shutdown. */
   clientDisconnected(wasGui: boolean): void {
     if (wasGui) this.maybeArm()
   }
 
   /**
-   * Re-check idle shutdown after a KEEP-ALIVE hold may have gone away.
-   *
-   * Arming is otherwise driven purely by gui disconnects, which leaves a hole
-   * once holds exist: detach the last gui (daemon stays up for a schedule),
-   * then delete that schedule, and nothing is left to notice. Callers that
-   * mutate a keep-alive source call this.
+   * Re-check after a KEEP-ALIVE hold may have gone away. Arming is otherwise
+   * driven only by gui disconnects, so deleting the last schedule after the
+   * last gui left would go unnoticed. Call when mutating a keep-alive source.
    */
   reevaluateIdle(): void {
     this.maybeArm()
@@ -229,12 +188,8 @@ export class DaemonLifetime {
     }
   }
 
-  /**
-   * Every reason NOT to self-stop, in one place: already stopping, a gui is
-   * attached, or a non-gui holder (scheduled automations) wants the process
-   * alive. Checked at each arm point AND again when the timer fires, since a
-   * hold can appear or vanish during the grace window.
-   */
+  /** Every reason NOT to self-stop. Checked at arm time AND when the timer
+   *  fires, since a hold can appear or vanish during the grace. */
   private shouldStayUp(): boolean {
     if (this.stopping || this.guiCount() > 0) return true
     if (!this.keepAlive()) return false

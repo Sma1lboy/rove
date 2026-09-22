@@ -1,21 +1,12 @@
 /**
- * The READ half of the activity ledger: pure projections of the two maps the
- * registry writes into the wire payloads consumers read.
+ * Pure READ projections of the activity ledger into wire payloads.
  *
- * Split out because "what is in the ledger" and "what is working" are not the
- * same question, and one reader answering both got them confused. The ledger
- * deliberately keeps known-idle TAB entries — the client holds them as
- * tombstones, because the sidebar draws ABSENCE as unknown (a dotted ◌), so
- * "the daemon says this tab is idle" has to stay distinguishable from "the
- * daemon has never heard of it". A gate that read that replay counted every
- * task which had ever opened a tab as busy, which pinned the worktree-changes
- * collector's 2s cadence on worktrees nothing was writing to.
- *
- * So each consumer names its own question: {@link workingTaskIds} for a gate,
- * {@link liveSessions} for per-session telemetry, {@link replaySnapshot} for a
- * late subscriber's hydration.
- *
- * Pure: no timers, no bus, no I/O — the registry owns those.
+ * "What is in the ledger" ≠ "what is working". The ledger keeps known-idle TAB
+ * entries on purpose: the sidebar draws ABSENCE as unknown (◌), so "idle" must
+ * stay distinct from "never heard of it". A gate reading the replay would
+ * count every task that ever opened a tab as busy. So: {@link workingTaskIds}
+ * for a gate, {@link liveSessions} for per-session telemetry,
+ * {@link replaySnapshot} for late-subscriber hydration.
  */
 
 import type { EffectiveActivity } from "./activity-arbitrate.ts"
@@ -67,12 +58,8 @@ export function taskRollup(taskId: string, tabless: TablessLedger, tabs: TabLedg
 }
 
 /**
- * Tasks whose engine is doing something — the derived rollup, filtered to
- * non-idle. The rollup already folds every tab (activity-rollup.ts), so one
- * working tab puts its task here however quiet the siblings are.
- *
- * This is what a GATE wants ("is an agent working in there?"), and it is
- * deliberately NOT {@link replaySnapshot} — see this file's header.
+ * Tasks whose derived rollup is non-idle; one working tab suffices. What a
+ * GATE wants — deliberately NOT {@link replaySnapshot} (see header).
  */
 export function workingTaskIds(tabless: TablessLedger, tabs: TabLedger): string[] {
   const out: string[] = []
@@ -84,9 +71,8 @@ export function workingTaskIds(tabless: TablessLedger, tabs: TabLedger): string[
 }
 
 /**
- * Every tab holding a live engine SESSION, whatever its state — the
- * context-usage collector's targets. Idle belongs here: a tab between turns
- * still has a transcript, and the footer's `ctx N%` must keep rendering.
+ * Every tab with a live engine SESSION, idle included (a tab between turns
+ * still has a transcript for the footer's `ctx N%`).
  */
 export function liveSessions(tabs: TabLedger): EngineStatePayload[] {
   const out: EngineStatePayload[] = []
@@ -99,10 +85,8 @@ export function liveSessions(tabs: TabLedger): EngineStatePayload[] {
 }
 
 /**
- * The whole `engine-state` replay for a late subscriber: each task's derived
- * rollup, non-idle only (an idle task has no badge to draw), plus EVERY tab
- * entry so the client rebuilds its per-tab map too — known-idle ones included,
- * which is the point and not a missing filter (see this file's header).
+ * `engine-state` replay: non-idle task rollups, plus EVERY tab entry —
+ * known-idle included on purpose (see header).
  */
 export function replaySnapshot(tabless: TablessLedger, tabs: TabLedger): EngineStatePayload[] {
   const out: EngineStatePayload[] = []

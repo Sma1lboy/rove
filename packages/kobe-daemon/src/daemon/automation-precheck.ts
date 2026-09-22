@@ -1,29 +1,18 @@
 /**
- * Automation precheck: a shell command run BEFORE the engine starts, whose
- * exit code decides whether the run is worth doing at all.
+ * Automation precheck: a cheap shell command run BEFORE the engine starts,
+ * whose exit code decides whether a scheduled run is worth an engine turn.
  *
- * Why this exists: the dominant waste in scheduled agent work is firing on
- * time when nothing changed — the engine still boots, reads the repo, and
- * burns a turn to conclude "nothing to do". A precheck lets a cheap shell
- * command (`gh pr list ...`, `git log --since ...`) make that call for
- * roughly zero cost, so the expensive path only runs when there is work.
+ * Contract: exit 0 ⇒ proceed; non-zero, timeout or spawn failure ⇒ SKIP.
+ * Fails closed so a broken precheck can't degrade into "run every time". The
+ * skip is recorded with its output so a broken command is distinguishable
+ * from a healthy "nothing to do".
  *
- * Contract: exit 0 ⇒ proceed. Anything else — non-zero, timeout, spawn
- * failure — means SKIP. Failing closed is deliberate: a broken precheck must
- * not silently degrade into "run every time", which is the exact cost the
- * feature exists to avoid. The skip is recorded with its output so the user
- * can tell a healthy "nothing to do" from a broken command.
- *
- * Runs through the user's login shell so the command reads the same as it
- * would typed into a terminal (pipes, `&&`, PATH/exports from their rc
- * files). It uses the same `-ilc` form `session-launch.ts` spawns engine
- * tabs with: the interactive bit is what sources `.zshrc`/`.bashrc`,
- * so a precheck sees the same environment as the engine it gates. Interactive
- * rc output (e.g. a prompt framework's banner) rides along in the captured
- * streams; the exit code stays the only decision signal, and the timeout
- * bounds a slow rc.
- * `resolveLoginShell` resolves to a bash even on Windows (Git Bash — see its
- * WSL caveat), so the `-ilc` form is portable.
+ * Runs via the login shell with `-ilc`, as `session-launch.ts` spawns engine
+ * tabs: the interactive bit sources `.zshrc`/`.bashrc`, so the precheck sees
+ * the engine's environment. Rc output rides along in the streams; the exit
+ * code is the only signal and the timeout bounds a slow rc.
+ * `resolveLoginShell` yields a bash even on Windows (Git Bash — see its WSL
+ * caveat), so `-ilc` is portable.
  */
 
 import { spawn } from "node:child_process"
@@ -38,13 +27,9 @@ const MAX_OUTPUT_CHARS = 4000
 const MAX_TIMEOUT_SECONDS = 600
 
 /**
- * SIGKILL the shell's whole process group, falling back to the shell alone.
- *
- * A precheck is a shell command, so the processes that matter are usually the
- * shell's children (`gh pr list | grep …`). Signalling only the shell's pid
- * leaves those running, so kill the group the `detached` spawn made it leader
- * of. Windows has no process groups; there the child itself is all we can
- * reach.
+ * SIGKILL the shell's process group (its children, e.g. `gh pr list | grep …`,
+ * would survive a pid-only kill), falling back to the shell alone — all
+ * Windows, which has no groups, can reach.
  */
 function killGroup(child: ReturnType<typeof spawn>): void {
   const pid = child.pid
@@ -61,29 +46,19 @@ function killGroup(child: ReturnType<typeof spawn>): void {
 }
 
 /**
- * Wrap the command so the SHELL enforces the timeout on itself, instead of
- * trusting us to still be alive when it expires.
+ * Make the SHELL enforce the timeout on itself. The Node timer dies with a
+ * SIGKILLed daemon, leaving the shell running: `while [ ! -f release ]; do
+ * sleep 0.01; done` spins at ~100 forks/s until reboot — 33 such orphans held
+ * a Mac at load 170 with 86% CPU in the kernel.
  *
- * The Node-side timer only fires while this process lives. A daemon that is
- * SIGKILLed — or any crash that skips cleanup — takes the timer with it and
- * leaves the shell running forever. A precheck shaped like
- * `while [ ! -f release ]; do sleep 0.01; done` then spins at ~100 forks a
- * second with nothing left that will ever create `release`: 33 such orphans
- * held a Mac at load 170 with 86% of the CPU in the kernel, and they survive
- * until the machine reboots. The watchdog keeps the same bound the user asked
- * for without depending on the daemon.
+ * `set +m` disables job control so the watchdog neither prints `[1] 12345`
+ * into stderr nor gets its own process group (escaping the group kill). The
+ * EXIT trap reaps it when the command finishes first; POSIX keeps a trap from
+ * changing the exit status.
  *
- * `set +m` turns off job control so the background watchdog neither prints
- * `[1] 12345` into the captured stderr nor gets its own process group, which
- * would put it out of reach of the group kill. The EXIT trap reaps the
- * watchdog when the command finishes first, and POSIX keeps a trap from
- * changing the exit status the caller decides on.
- *
- * The watchdog gets its own stdio (`>/dev/null 2>&1 </dev/null`) because a
- * background job inherits the captured pipes otherwise, and Node reports
- * `close` only once every writer has let go of them. A precheck that exits in
- * milliseconds would then sit in the sweep until the watchdog's `sleep`
- * expired — the timeout turned into a floor instead of a ceiling.
+ * The watchdog gets its own stdio: otherwise it holds the captured pipes, Node
+ * fires `close` only when every writer lets go, and a fast precheck would wait
+ * out the whole `sleep` — the timeout a floor instead of a ceiling.
  */
 export function withWatchdog(command: string, timeoutSeconds: number): string {
   return [
@@ -96,16 +71,11 @@ export function withWatchdog(command: string, timeoutSeconds: number): string {
 }
 
 /**
- * Decode captured stream chunks to text, keeping only the last
- * `MAX_OUTPUT_CHARS`.
- *
- * Node splits a pipe's `data` events at arbitrary byte offsets, so a
- * multi-byte UTF-8 sequence can straddle two Buffers; decoding each chunk on
- * its own turned that seam into a `�`, so a `gh pr list` full of CJK/emoji
- * titles came back mojibake. Concatenate the raw bytes and decode once
- * instead (the odd pre-decoded error string we push ourselves round-trips
- * through UTF-8 unchanged). Cap by whole code points, not UTF-16 units, so
- * the tail slice can't halve a surrogate pair and strand a lone surrogate.
+ * Decode chunks, keeping the last `MAX_OUTPUT_CHARS`. Concatenate bytes and
+ * decode once: `data` events split at arbitrary byte offsets, and per-chunk
+ * decoding turns a straddling multi-byte sequence into `�` (our own pushed
+ * strings round-trip unchanged). Cap by code points so the slice can't strand
+ * a lone surrogate.
  */
 export function tail(chunks: readonly (Buffer | string)[]): string {
   const text = Buffer.concat(chunks.map((c) => (typeof c === "string" ? Buffer.from(c) : c))).toString("utf8")
@@ -116,11 +86,7 @@ export function tail(chunks: readonly (Buffer | string)[]): string {
   return points.length <= MAX_OUTPUT_CHARS ? text : points.slice(-MAX_OUTPUT_CHARS).join("")
 }
 
-/**
- * Run `precheck.command` in `cwd`. Never throws — a spawn failure resolves as
- * a non-zero result, because the caller's only question is "may I proceed",
- * and any answer other than a clean exit 0 is "no".
- */
+/** Run `precheck.command` in `cwd`. Never throws: a spawn failure resolves as a non-passing result. */
 export function runAutomationPrecheck(
   precheck: AutomationPrecheck,
   cwd: string,
@@ -129,10 +95,7 @@ export function runAutomationPrecheck(
   const startedAt = Date.now()
   const timeoutMs = Math.min(Math.max(precheck.timeoutSeconds, 1), MAX_TIMEOUT_SECONDS) * 1000
 
-  // A missing cwd makes Node report `spawn <shell> ENOENT`, which reads as
-  // "your shell is broken" and sends the user hunting in the wrong place. A
-  // repo that moved or was deleted is the likelier story for a schedule that
-  // has been running for weeks, so say that instead.
+  // A missing cwd surfaces as `spawn <shell> ENOENT`, which misreads as a broken shell.
   if (!existsSync(cwd)) {
     return Promise.resolve({
       exitCode: null,
@@ -147,9 +110,7 @@ export function runAutomationPrecheck(
     const out: (Buffer | string)[] = []
     const err: (Buffer | string)[] = []
     let settled = false
-    // Distinguishes the two ways a run ends without an exit code, because
-    // "your precheck hangs" and "your precheck is broken" send the user to
-    // different places.
+    // Tells "hangs" from "broken" when there is no exit code.
     let timedOut = false
 
     const finish = (exitCode: number | null, timedOut: boolean): void => {
@@ -168,23 +129,18 @@ export function runAutomationPrecheck(
     const timer = setTimeout(() => {
       timedOut = true
       if (child) killGroup(child)
-      // The group kill should close the child, but a shell that is already
-      // unreachable would otherwise leave the sweep waiting on a promise that
-      // never settles.
+      // Settle now: an unreachable shell might never emit `close`.
       finish(null, true)
     }, timeoutMs)
     timer.unref?.()
 
     let child: ReturnType<typeof spawn> | undefined
     try {
-      // A second of slack so that whenever the daemon IS alive its own timer
-      // wins the race and reports a timeout, rather than the watchdog killing
-      // the shell first and surfacing as a bare signal death.
+      // +1s so a live daemon's timer wins and reports a timeout, not a bare signal death.
       child = spawn(shell, ["-ilc", withWatchdog(precheck.command, timeoutMs / 1000 + 1)], {
         cwd,
         stdio: ["ignore", "pipe", "pipe"],
-        // Leader of its own process group, so a timeout can take the command's
-        // children down with the shell rather than orphaning them.
+        // Own process group, so a timeout kills the command's children too.
         detached: process.platform !== "win32",
       })
     } catch (spawnError) {

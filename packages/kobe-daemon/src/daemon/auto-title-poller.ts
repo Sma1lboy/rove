@@ -1,26 +1,13 @@
 /**
- * Daemon-side live auto-title poller (KOB — auto-name live).
+ * Daemon-side auto-title: renames a placeholder-titled task (`(new task)`)
+ * from its first usable user prompt in the engine's own on-disk transcript,
+ * with no UI attached. The rename goes `orch.setTitle` → `store.update` →
+ * `task.snapshot`, so attached Tasks panes update live.
  *
- * A freshly-created task keeps its placeholder title `(new task)` until a
- * transcript contains its first usable user prompt. This daemon poller
- * derives the title without requiring any UI to stay attached.
- *
- * The engine still writes the conversation to its OWN on-disk transcript
- * (the same JSONL the Ops activity badge in `monitor/activity.ts` watches).
- * This poller reads that store on an interval for every still-placeholder
- * task and renames as soon as the first user message lands — no detach
- * required. The rename flows through `orch.setTitle` → `store.update` →
- * the `task.snapshot` broadcast, so every attached Tasks pane updates live.
- *
- * Self-limiting: only placeholder tasks touch disk (`deriveTitleFromSession`
- * returns `""` and the task keeps its placeholder when no usable user
- * message exists yet); once a task is named it's skipped on every later
- * tick. Best-effort: a per-task failure is logged, never fatal, and never
- * blocks the other tasks in the same tick.
- *
- * The detach-time rename in `tui/direct.ts` stays as a
- * belt-and-suspenders path for the case where the daemon isn't running
- * (e.g. a `kobe` started without a live daemon).
+ * Only placeholder tasks touch disk (`deriveTitleFromSession` returns `""`
+ * until a usable message exists). A per-task failure is logged and never
+ * blocks the rest of the tick. The detach-time rename in `tui/direct.ts`
+ * covers a `kobe` running without a live daemon.
  */
 
 import type { DaemonOrchestrator, VendorId } from "./contracts.ts"
@@ -31,11 +18,7 @@ import { startTicker } from "./ticker.ts"
 /** Default re-scan cadence; responsive without hammering disk. */
 export const DEFAULT_AUTO_TITLE_POLL_MS = 4000
 
-/**
- * Resolve a task's first-user-prompt title from its on-disk transcript.
- * Injectable so the pass logic (placeholder filter, re-check guard, error
- * isolation) can be tested without a real worktree + transcript on disk.
- */
+/** A task's first-user-prompt title from its on-disk transcript; `""` when none yet. */
 export type TitleDeriver = (worktree: string, vendor: VendorId) => Promise<string>
 
 /** A task that this pass renamed, plus the title it was given. */
@@ -45,22 +28,17 @@ export interface AutoTitled {
 }
 
 /**
- * Run one pass: rename every still-placeholder task that now has a
- * usable first-user-prompt title. Sequential (gentle on disk) and
- * best-effort per task. Returns the tasks it renamed (id + new title) —
- * the live poller uses that to also rename each task's origin Terminal Tab;
- * tests assert on the list. Pure orchestrator work with no terminal IO.
+ * Rename every placeholder task that now has a usable title. Sequential
+ * (gentle on disk), best-effort per task, no terminal IO. Returns the renamed
+ * tasks.
  */
 export async function runAutoTitlePass(
   orch: DaemonOrchestrator,
   derive: TitleDeriver,
-  /** Also required, and dead for the same reason: the runtime adapter passes
-   *  kobe's `PLACEHOLDER_TASK_TITLE`. */
+  /** kobe's `PLACEHOLDER_TASK_TITLE`, via the runtime adapter. */
   placeholderTitle: string,
-  /** Required. The literal `"claude"` that used to sit here was a dead
-   *  fallback — every caller injects kobe's `DEFAULT_TASK_VENDOR` through the
-   *  runtime adapter — and it would not have followed that constant if it
-   *  ever changed. */
+  /** kobe's `DEFAULT_TASK_VENDOR`, via the runtime adapter; required so no
+   *  local literal can drift from it. */
   defaultVendor: VendorId,
 ): Promise<AutoTitled[]> {
   const renamed: AutoTitled[] = []
@@ -71,9 +49,8 @@ export async function runAutoTitlePass(
       const derived = await derive(task.worktreePath, task.vendor ?? defaultVendor)
       if (!derived) continue
       const title = withGroupOrdinal(derived, task.id, task.groupId, snapshot)
-      // Re-check under the live store: the user may have manually renamed
-      // (or the detach-time path may have named it) between the snapshot
-      // above and this await. `setTitle` is also a no-op if unchanged.
+      // Re-check the live store: a manual or detach-time rename may have
+      // landed during the await.
       const current = orch.getTask(task.id)
       if (!current || current.title !== placeholderTitle) continue
       await orch.setTitle(task.id, title)
@@ -85,12 +62,8 @@ export async function runAutoTitlePass(
   return renamed
 }
 
-/**
- * Fan-out siblings share their first prompt, so their derived titles would
- * converge onto the SAME name — disambiguate with the task's `#i/N` ordinal
- * inside its group (creation order = tasks.json array order). Tasks without
- * a groupId (every non-fan-out task) pass through untouched.
- */
+/** Fan-out siblings share a first prompt, so suffix `#i/N` (creation order =
+ *  tasks.json array order). Tasks without a groupId pass through. */
 function withGroupOrdinal(
   title: string,
   taskId: string,
@@ -106,16 +79,11 @@ function withGroupOrdinal(
 }
 
 /**
- * Start the poller. Returns a `stop()` that clears the interval. Pass
- * `intervalMs <= 0` to disable (returns a no-op stop) — tests that don't
- * want a live timer use this.
+ * Start the poller; `intervalMs <= 0` disables it (no-op stop).
  *
- * `hasSubscribers` is the consumer gate (KOB — idle-daemon collector
- * pause): each tick is a no-op while it returns `false`, so a gui-less
- * daemon with zero subscribed panes stops transcript reads that publish
- * to nobody. The
- * interval keeps running; a pass runs again on the first tick after a pane
- * subscribes. Omit to scan unconditionally (tests).
+ * `hasSubscribers` gates each tick: while false the tick is a no-op, so no
+ * transcript reads publish to nobody; the interval keeps running. Omit to
+ * scan unconditionally (tests).
  */
 export function startAutoTitlePoller(
   orch: DaemonOrchestrator,
@@ -126,8 +94,6 @@ export function startAutoTitlePoller(
   return startTicker({
     name: "auto-title-poller",
     tickMs: intervalMs,
-    // Consumer gate: no subscribed pane means no Tasks pane is rendering a
-    // live rename, so skip the disk work entirely.
     ...(hasSubscribers ? { gate: hasSubscribers } : {}),
     run: () =>
       runAutoTitlePass(orch, runtime.deriveTitleFromSession, runtime.placeholderTaskTitle, runtime.defaultTaskVendor),

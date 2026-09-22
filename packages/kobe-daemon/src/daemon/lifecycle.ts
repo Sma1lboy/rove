@@ -1,18 +1,9 @@
 /**
- * Shared daemon-stop primitive.
- *
- * `kobe daemon restart` and `kobe reset` both need to make a daemon
- * actually GO AWAY — not just ask it to — before they continue (restart
- * respawns onto the same socket; reset leaves it stopped). The escalation
- * dance below lived inline in `daemon restart`; it's extracted here so the
- * two callers share one battle-tested kill path instead of drifting.
- *
- * Why an escalation at all: a `daemon.stop` RPC is the happy path, but a
- * wedged daemon (stuck in its own shutdown, or not servicing the socket)
- * would otherwise outlive the caller. A fresh daemon spawned onto the same
- * socket then races EADDRINUSE (or worse, two daemons end up writing one
- * `tasks.json`). So we poll the target pid with `kill -0` and escalate
- * graceful → SIGTERM → SIGKILL until it's confirmed gone.
+ * Daemon-stop primitive shared by `kobe daemon restart` and `kobe reset`: the
+ * daemon must actually be gone before they continue. A wedged daemon would
+ * outlive a `daemon.stop` RPC, and a respawn onto its socket races EADDRINUSE
+ * (or two daemons write one `tasks.json`), so we poll the pid with `kill -0`
+ * and escalate graceful → SIGTERM → SIGKILL.
  */
 
 import { unlink } from "node:fs/promises"
@@ -21,12 +12,9 @@ import type { DaemonStopReason } from "./protocol.ts"
 import { isProcessAlive, readPidFile } from "./socket-guard.ts"
 
 /**
- * How {@link stopDaemonProcess} stopped the daemon — the strongest signal
- * it actually NEEDED. `"absent"` means there was no live daemon to begin
- * with (no pidfile, or a stale pidfile pointing at an already-dead
- * process), so nothing was killed — only stale socket/pidfile were
- * cleared. `"graceful"` means the `daemon.stop` RPC was enough; `"sigterm"`
- * / `"sigkill"` mean a wedged daemon had to be signalled.
+ * The strongest signal {@link stopDaemonProcess} needed. `"absent"`: no live
+ * daemon (no pidfile, or a stale one), only stale files cleared. `"graceful"`:
+ * the RPC sufficed.
  */
 export type DaemonStopMethod = "absent" | "graceful" | "sigterm" | "sigkill"
 
@@ -37,24 +25,15 @@ export interface StopDaemonResult {
   method: DaemonStopMethod
 }
 
-/** Re-exported because it is the ONLY honest liveness answer we have: a
- *  socket probe reports whether the daemon ANSWERED, which a busy daemon can
- *  fail while being perfectly healthy. Callers deciding whether to kill
- *  anything must ask the OS, not the socket. */
+/** The only honest liveness answer: a busy healthy daemon can fail a socket
+ *  probe. Kill decisions must ask the OS, not the socket. */
 export { isProcessAlive }
 
 /**
- * Stop the daemon listening on `socketPath`, wait until its process is
- * confirmed gone, then remove its socket + pidfile. Best-effort and
- * idempotent — calling it when no daemon is running just cleans up any
- * stale socket/pidfile and returns `{ method: "absent" }`.
- *
- * Does NOT respawn — that's the caller's job (restart respawns, reset
- * doesn't). `reason` is what the outgoing daemon tells its attached clients
- * on the way out (`daemon.stopping`); a caller that WILL respawn passes
- * `"restart"`, so an attached TUI knows its code is being replaced rather
- * than that the daemon is done for the day. Only the graceful RPC can carry
- * it — a daemon we had to signal says nothing.
+ * Stop the daemon on `socketPath`, wait until its process is gone, then remove
+ * socket + pidfile. Idempotent; never respawns. `reason` rides
+ * `daemon.stopping` to attached clients (`"restart"` tells a TUI its code is
+ * being replaced); only the graceful RPC carries it.
  */
 export async function stopDaemonProcess(
   socketPath: string,
@@ -62,25 +41,19 @@ export async function stopDaemonProcess(
   opts: { readonly reason?: DaemonStopReason } = {},
 ): Promise<StopDaemonResult> {
   const oldPid = await readPidFile(pidPath)
-  // Was a real daemon running? Decide BEFORE the graceful RPC so a stale
-  // pidfile (pid points at a dead process) reports "absent" rather than
-  // "graceful" — otherwise the daemon dying gracefully and the daemon
-  // having been dead all along would be indistinguishable.
+  // Decide before the RPC, so a stale pidfile reports "absent", not "graceful".
   const targetPid = oldPid !== null && oldPid !== process.pid ? oldPid : null
   const wasAlive = targetPid !== null && isProcessAlive(targetPid)
   let method: DaemonStopMethod = wasAlive ? "graceful" : "absent"
 
-  // Ask the daemon to stop itself. Don't wait forever on a wedged one: if
-  // `daemon.stop` doesn't round-trip in 2s we fall through to signals.
-  // Harmless when nothing is listening (the connect just fails fast).
+  // 2s for the RPC, then signals. Nothing listening → connect fails fast.
   const client = new KobeDaemonClient(socketPath)
   const stopRequest = client.request("daemon.stop", { reason: opts.reason ?? "stop" }).catch(() => undefined)
   const stopTimeout = new Promise<void>((resolve) => setTimeout(resolve, 2000))
   await Promise.race([stopRequest, stopTimeout])
   client.close()
 
-  // Poll the outgoing daemon's pid until it's actually gone. `kill -0 pid`
-  // throws ESRCH once the process exits — that's our signal to proceed.
+  // `kill -0` throws ESRCH once the process exits.
   if (wasAlive && targetPid !== null) {
     const deadline = Date.now() + 5000
     let escalated = false
@@ -90,8 +63,7 @@ export async function stopDaemonProcess(
       } catch {
         break
       }
-      // Halfway through the budget, escalate from graceful stop to
-      // SIGTERM — covers a daemon wedged in its own shutdown path.
+      // After 2s, SIGTERM: covers a daemon wedged in its own shutdown.
       if (!escalated && Date.now() - (deadline - 5000) > 2000) {
         try {
           process.kill(targetPid, "SIGTERM")
@@ -103,8 +75,7 @@ export async function stopDaemonProcess(
       }
       await new Promise((resolve) => setTimeout(resolve, 50))
     }
-    // Last resort: still alive after the budget → SIGKILL, else a respawn
-    // onto the same socket path races EADDRINUSE.
+    // Still alive after the budget → SIGKILL.
     try {
       process.kill(targetPid, 0)
       process.kill(targetPid, "SIGKILL")
@@ -115,17 +86,10 @@ export async function stopDaemonProcess(
     }
   }
 
-  // The daemon's own `serverApi.close` unlinks both files on its way out,
-  // but if we had to SIGKILL it they linger and a respawn would hit
-  // EADDRINUSE on the socket. Best-effort cleanup of both.
-  //
-  // EXCEPT when the pid we were given is still alive. `wasAlive` is false
-  // for a pidfile naming a dead process — and also for a pidfile written by
-  // a process that outran our read, which is how a still-running PTY host
-  // lost its address: unlinking here left it with no socket to be reached
-  // on and no pidfile to be recognized by, so nothing could ever stop it
-  // again (25 stranded hosts, up to two days old). Re-read before deleting;
-  // a live owner keeps its own files.
+  // A SIGKILLed daemon leaves both files behind (EADDRINUSE on respawn).
+  // Re-read first: a pidfile written after our read may name a live owner,
+  // and unlinking its files strands it unreachable and unstoppable (seen: 25
+  // stranded PTY hosts, up to two days old). A live owner keeps its files.
   const survivor = await readPidFile(pidPath)
   if (survivor !== null && survivor !== process.pid && isProcessAlive(survivor)) {
     return { pid: oldPid, method }

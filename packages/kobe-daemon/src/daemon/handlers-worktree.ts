@@ -1,21 +1,13 @@
 /**
  * `worktree.*` daemon RPC handlers.
  *
- * The `worktree.` slice of the one registry, grouped by RPC-name prefix like
- * `handlers-task.ts` / `handlers-ui.ts` and spread back in by `handlers.ts`.
+ * Deliberately no adopt-on-`git worktree add`: creating a worktree is not
+ * intent, so adoption needs an engine session-start in a managed root or an
+ * explicit `rove add .`/adopt.
  *
- * There is deliberately no adopt-on-`git worktree add`: creating a worktree
- * is mechanical, not intent, so adoption needs an engine session-start in a
- * managed root or an explicit `rove add .`/adopt.
- *
- * `list`/`remove` back the standalone worktree-management TUI page
- * (`tui/component/worktrees-page.tsx`). Unlike the other four, they don't
- * need `ctx.orch`: `GitWorktreeManager` and `getSavedRepos()` are already
- * public, orchestrator-independent primitives, so these compose them
- * directly instead of routing through the Orchestrator. Local projects
- * only for v1 — a remote (`ssh://…`) project's worktrees would need
- * `git ls-remote`/`fs.stat` run over its `ExecHost` instead of directly, a
- * real follow-up rather than bundled here.
+ * `list`/`remove` back the worktrees TUI page and compose orchestrator-free
+ * runtime primitives, so they don't need `ctx.orch`. Local projects only: a
+ * remote (`ssh://…`) project would need the git/fs calls over its `ExecHost`.
  */
 
 import { logDaemonError } from "./crash-log.ts"
@@ -25,11 +17,9 @@ import type { DaemonRequestHandler } from "./handlers.ts"
 import { serializeTask } from "./protocol.ts"
 
 /**
- * Stable sentinel embedded in `worktree.remove`'s kind refusal.
- *
- * The RPC layer rebuilds a thrown error as `new Error(message)` — `name` does
- * not survive the wire — so callers can only discriminate on the MESSAGE.
- * The `CODE: rest` shape is what `splitDaemonCode` in the CLI already parses.
+ * Sentinel in `worktree.remove`'s kind refusal. Callers discriminate on the
+ * MESSAGE (the RPC layer rebuilds `new Error(message)`); `splitDaemonCode`
+ * in the CLI parses the `CODE: rest` shape.
  */
 export const NOT_A_ROVE_WORKTREE_CODE = "NOT_A_ROVE_WORKTREE"
 
@@ -39,12 +29,9 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
     blocking: true,
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
-      // `git worktree list --porcelain` drops an entry whose admin dir it
-      // cannot read and exits 0 anyway, so `worktrees: []` alone could mean
-      // either "nothing to adopt" or "your worktree is unreadable and its
-      // uncommitted work is unreachable from here". `unreadable` separates
-      // the two. Composed from `ctx.runtime` like `list`/`remove` below —
-      // it is a git-layout fact, not an orchestrator one.
+      // `git worktree list --porcelain` silently drops an entry whose admin
+      // dir it cannot read (exit 0), so `unreadable` tells "nothing to adopt"
+      // from "your worktree's uncommitted work is unreachable".
       const [worktrees, unreadable] = await Promise.all([
         ctx.orch.discoverAdoptableWorktrees(repo),
         ctx.runtime.listUnreadableWorktrees(repo).catch((err) => {
@@ -83,30 +70,19 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const path = requireString(payload, "path")
       const force = payload.force === true
-      // Tear the engine down BEFORE unlinking its directory. `git worktree
-      // remove` succeeds against a live process — POSIX unlink does not care
-      // that something holds the directory as its cwd — and every write that
-      // engine makes afterwards lands in an unlinked inode: not on disk, not
-      // in the branch, and not in the salvage snapshot (which ran before
-      // them). The task-deletion path already orders it this way
-      // (`task-deletion-runner.ts`); this one did not.
+      // Tear the engine down BEFORE unlinking: `git worktree remove` succeeds
+      // under a live cwd, and the engine's later writes land in an unlinked
+      // inode (not on disk, branch, or salvage snapshot). Same order as
+      // `task-deletion-runner.ts`.
       //
-      // Ordering, not gating: teardown failure must not block a removal the
-      // user confirmed (the worktrees page's delete is optimistic — the row
-      // is already gone from their screen), and a dead/absent session throws
-      // the same way a stuck one does, which would strand every already-dead
-      // task's worktree. Logged, then the removal proceeds.
+      // Ordering, not gating: the page's delete is optimistic, and a dead
+      // session throws like a stuck one. Logged, then the removal proceeds.
       const tasks = ctx.orch ? ctx.orch.listTasks() : []
       const taskId = matchTaskByWorktreePath(tasks, path)
-      // `kind` gates the DESTRUCTION, not the bookkeeping. A `dir` task's
-      // path IS the user's own directory and a `main` task's is the project
-      // checkout — neither is a Rove-created worktree, so removing one
-      // `rm -rf`s files Rove never made. Every sibling destructive path
-      // refuses these two by kind (`deleteTask`, `ensureWorktree`, `land`);
-      // this one addresses worktrees by PATH, so it never asked — and
-      // `clearWorktreePath` below early-returns for exactly these kinds, so
-      // the destructive half ran while the repair half was skipped, leaving
-      // the task pointed at a directory that no longer exists.
+      // A `dir` task's path is the user's own directory and a `main` task's
+      // the project checkout; removing either deletes files Rove never made.
+      // Sibling destructive paths refuse these kinds too (`deleteTask`,
+      // `ensureWorktree`, `land`), and `clearWorktreePath` skips them.
       const kind = taskId ? tasks.find((t) => t.id === taskId)?.kind : undefined
       if (kind === "dir" || kind === "main") {
         throw new Error(
@@ -121,15 +97,9 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
           .catch((err) => logDaemonError("worktree-remove-session-teardown", err))
       }
       const residue = await ctx.runtime.removeWorktree(path, force)
-      // Self-heal the task index: a worktree removed here (worktrees page /
-      // web) otherwise leaves the owning task pointing at a dead dir, so the
-      // next enter would spawn the engine into a nonexistent cwd. Drop the
-      // pointer (keep the branch) so ensureWorktree re-materialises instead.
-      // Exact-path match; unmatched (untracked worktree) is a harmless no-op.
-      // Guarded on `ctx.orch` — this handler historically composes runtime
-      // primitives directly, so a caller may not wire an orchestrator.
-      // Runs on the residue path too: git has deregistered the worktree, so
-      // the task's pointer is just as dead as after a clean removal.
+      // Drop the task's dead pointer (keep the branch) so the next enter
+      // re-materialises instead of spawning into a missing cwd. Also on the
+      // residue path: git already deregistered it. `ctx.orch` may be unwired.
       if (taskId && ctx.orch) await ctx.orch.clearWorktreePath(taskId)
       return { removed: true, ...(residue ? { residue } : {}) }
     },

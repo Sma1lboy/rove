@@ -1,13 +1,5 @@
-/**
- * Engine ACTIVITY and the attention Inbox — what an engine is doing, and what
- * is waiting for a person.
- *
- * Their own module for the reason `automation-contracts.ts` has one: this is a
- * self-contained group with its own store (`attention-inbox.ts`), its own RPC
- * family and its own channel, and nothing else in `contracts.ts` refers to it.
- * Re-exported from `contracts.ts` so every existing importer keeps naming them
- * there.
- */
+/** Engine ACTIVITY and the attention Inbox: what an engine is doing, and what
+ *  is waiting for a person. Re-exported from `contracts.ts`. */
 
 export type EngineActivityKind =
   | "session-start"
@@ -34,11 +26,9 @@ export interface EngineActivityDetail {
   readonly subagent?: { readonly type?: string; readonly id?: string }
   readonly note?: string
   /**
-   * For the `dead` state: how the engine process died, straight off the
-   * pty-host's exit record. `code`/`signal` answer "who killed it" (143 =
-   * 128+SIGTERM, an outside signal, not a self-exit) and `lastLine` is the
-   * last non-blank line of the recorded tail — the 403 / auth / quota text
-   * that sits on disk with nothing else surfacing it.
+   * For `dead`: the pty-host's exit record. `code`/`signal` say who killed it
+   * (143 = 128+SIGTERM, an outside signal); `lastLine` is the tail's last
+   * non-blank line (the 403 / auth / quota text nothing else surfaces).
    */
   readonly exit?: {
     readonly code?: number | null
@@ -46,12 +36,10 @@ export interface EngineActivityDetail {
     readonly lastLine?: string
   }
   /**
-   * The routine behind a `routine_failed` episode. A schedule is the one thing
-   * in Rove that acts with nobody watching, so when its firing needs a human
-   * the Inbox is where that has to land — and the episode's subject is the
-   * ROUTINE, which is why it is named here rather than inferred from a task.
-   * `status` is an {@link AutomationRunStatus}; `error` is the run record's own
-   * reason, copied because the Inbox row has to be readable on its own.
+   * The routine behind a `routine_failed` episode, named here because the
+   * subject is the ROUTINE, not a task. `status` is an
+   * {@link AutomationRunStatus}; `error` is copied from the run record so the
+   * Inbox row reads on its own.
    */
   readonly routine?: {
     readonly automationId: string
@@ -69,11 +57,9 @@ export type TaskActivityState =
   | "permission_needed"
   | "error"
   /**
-   * The engine PROCESS died — an exit record exists for the tab's session
-   * (`pty-exits.json`). Distinct from `error`: `error` is an engine that ran
-   * and reported a failed turn, `dead` is an engine that is gone.
-   * A killed engine fires no hook at all, so this state can only ever be
-   * written from the exit record, never from `reduceActivity`.
+   * The engine PROCESS died (`pty-exits.json` has a record); `error` is a
+   * failed turn from a live engine. A killed engine fires no hook, so this is
+   * written only from the exit record, never from `reduceActivity`.
    */
   | "dead"
 
@@ -86,14 +72,11 @@ export const ATTENTION_INBOX_STATES = [
   "permission_needed",
   "error",
   "rate_limited",
-  /** The engine PROCESS died (pty-host exit record). An episode a user must
-   *  see: nothing else in the queue tells them the agent is simply gone. */
+  /** The engine PROCESS died; nothing else tells the user the agent is gone. */
   "dead",
-  /** A routine's latest firing needs a human (see
-   *  {@link automationRunNeedsAttention}). The only episode whose subject is
-   *  not a task: a routine pointed at a repo that moved never creates one, so
-   *  requiring a task would mean the failure that repeats every minute
-   *  forever is the one failure the Inbox cannot show. */
+  /** A routine's latest firing needs a human ({@link automationRunNeedsAttention}).
+   *  The only episode whose subject isn't a task: a routine on a moved repo
+   *  never creates one. */
   "routine_failed",
 ] as const
 
@@ -109,31 +92,21 @@ export function attentionInboxItemKey(item: {
   state?: AttentionInboxState
   detail?: EngineActivityDetail
 }): string {
-  // A routine episode is keyed on its ROUTINE, which is what makes the dedupe
-  // right: a fresh-task routine mints a new task every firing, so keying on
-  // the task would file 1,440 episodes a day for one broken schedule.
+  // Keyed on the ROUTINE: a fresh-task routine mints a task per firing, so a
+  // task key would file 1,440 episodes a day for one broken per-minute schedule.
   if (item.state === "routine_failed" && item.detail?.routine)
     return `\u0000routine\u0000${item.detail.routine.automationId}`
-  // Every other episode DESCRIBES the engine, so one-per-tab is right: a
-  // fresh turn-complete should replace the stale one.
+  // Engine episodes: one per tab, the fresh one replacing the stale.
   return `${item.taskId}\0${item.tabId ?? ""}`
 }
 
 /** One daemon-owned, durable attention episode for a task's engine tab. */
 export interface AttentionInboxItem {
   /**
-   * `null` only for a `routine_failed` episode, whose subject is a schedule
-   * and which may have produced no task at all.
-   *
-   * A routine episode MAY still name a task: a firing that created one and
-   * then failed to start its engine carries that id, because
-   * `automation-dispatch.ts` keeps it as the only handle a human has on the
-   * half-built task. Its SUBJECT is the routine either way — which is why
-   * every reader keys, filters, opens and reaches a routine episode by the
-   * routine (`attentionInboxItemKey`, `isAttentionInboxItemAvailable`,
-   * `nextAttentionInboxTarget`, the Inbox pane's open action) and never by
-   * the task. A reader that demands `null` here rejects the episode the
-   * daemon actually produces.
+   * `null` only for a `routine_failed` episode that produced no task. A
+   * routine episode MAY name a half-built task (created, engine failed to
+   * start), but its SUBJECT is the routine: readers key, filter and open it
+   * by routine, and must not demand `null` here.
    */
   readonly taskId: string | null
   /** `null` for hook events that predate or lack a tab identity. */

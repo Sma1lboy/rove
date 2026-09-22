@@ -1,23 +1,12 @@
 /**
- * Client-side diagnostic log (the mirror of `daemon/crash-log.ts`).
+ * Client-side diagnostic log (mirror of `daemon/crash-log.ts`). Panes run in an
+ * opentui alternate screen that paints over stdout/stderr, so lifecycle events
+ * go to `<home>/.rove/client.log` instead.
  *
- * kobe's in-tmux panes (`kobe tasks`, `kobe ops`) and the front-end attach
- * run inside an opentui alternate-screen, so anything written to
- * stdout/stderr is painted over by the TUI and lost. That is exactly why
- * the Tasks-pane sync drift went undiagnosed: the pane logged
- * "daemon subscribe unavailable" / silently froze on a socket close, but no
- * human ever saw it. This module appends tagged, timestamped lines to a
- * real file (`<home>/.kobe/client.log`) so connection-lifecycle events —
- * subscribe, disconnect, reconnect attempts, fallbacks — leave a trace.
- *
- * Append-only + best-effort + NON-BLOCKING: a logging failure must NEVER
- * take down a pane, AND a log write must never stall the pane's event loop.
- * Some call sites are on the socket data handler (a guarded JSON-parse
- * failure) and the reconnect backoff loop, so the write is fire-and-forget
- * async `appendFile` (O_APPEND keeps each line atomic even with several pane
- * processes writing the same file) — never `appendFileSync`. Every error
- * path is swallowed so a stray rejection can't escape into a pane that has
- * no unhandled-rejection net.
+ * Best-effort and NON-BLOCKING: callers include the socket data handler and the
+ * reconnect loop, so writes are fire-and-forget async `appendFile` (O_APPEND
+ * keeps each line atomic across processes), never `appendFileSync`, and every
+ * error is swallowed.
  */
 
 import { appendFile, mkdir, rename, stat } from "node:fs/promises"
@@ -25,12 +14,7 @@ import { dirname } from "node:path"
 import { DEFAULT_LOG_ROTATE_CAP_BYTES, shouldRotateLog } from "../daemon/log-rotate.ts"
 import { defaultClientLogPath } from "../daemon/paths.ts"
 
-/**
- * A short label identifying WHICH client process a line came from — set
- * once per process at boot (`tasks`, `ops`, `settings`, `new-task`, `gui`).
- * Many panes append to the same file concurrently; the context + pid make
- * each line attributable.
- */
+/** Process role (`tasks`, `gui`, …); with the pid it attributes each line in the shared file. */
 let context = "client"
 
 /** Stamp every subsequent line with this process role. Call once at host boot. */
@@ -66,19 +50,12 @@ function warnOnce(): void {
   }
 }
 
-// Serial write chain: each append links onto the previous one so a single
-// process's lines stay in order (cross-process interleaving is still possible
-// but O_APPEND keeps each LINE atomic). The caller never awaits it — the chain
-// is fire-and-forget — but tests can flush it via {@link flushClientLog}.
+// Keeps one process's lines in order; tests flush it via {@link flushClientLog}.
 let writeChain: Promise<void> = Promise.resolve()
 
 /**
- * Many `kobe <pane>` processes append to the same `client.log` concurrently
- * (that's the whole reason it's O_APPEND). Each process independently
- * checks size on its own writes and rotates when over cap — best-effort,
- * no cross-process coordination: if two processes race the rename, one
- * `stat`/`rename` simply loses the race silently (caught below) and the
- * file is still under cap either way. One generation kept (`.old`).
+ * Each process rotates on its own writes with no cross-process coordination;
+ * a lost rename race is harmless. One generation kept (`.old`).
  */
 async function rotateClientLogIfNeeded(path: string): Promise<void> {
   try {
@@ -90,12 +67,7 @@ async function rotateClientLogIfNeeded(path: string): Promise<void> {
   }
 }
 
-/**
- * Queue a non-blocking append. Returns immediately; the write runs on the
- * chain and every failure is swallowed so nothing escapes into the caller.
- * On the first write of a fresh home the `.kobe/` dir may not exist yet — an
- * ENOENT triggers one mkdir + retry; any other failure warns once.
- */
+/** Queue a non-blocking append. ENOENT (fresh home) gets one mkdir + retry; other failures warn once. */
 function append(line: string, logPath?: string): void {
   const path = logPath ?? defaultClientLogPath()
   writeChain = writeChain
@@ -121,12 +93,8 @@ export function flushClientLog(): Promise<void> {
 }
 
 /**
- * Record a tagged client info line (connect, subscribe, reconnect, fallback…).
- *
- * `logPath` overrides the ambient `<home>/.rove/client.log`. Callers that
- * already know which home they are operating on (a store constructed with an
- * explicit `homeDir`) MUST pass it: resolving the ambient default there would
- * write one home's diagnostics into another's log.
+ * Record a tagged client info line. Callers with an explicit `homeDir` MUST
+ * pass `logPath`, or one home's diagnostics land in the ambient home's log.
  */
 export function logClient(subsystem: string, message: string, logPath?: string): void {
   append(formatClientEntry(subsystem, message), logPath)
@@ -142,22 +110,10 @@ let onRejection: ((reason: unknown) => void) | undefined
 let onException: ((err: Error) => void) | undefined
 
 /**
- * Install the pane host's `unhandledRejection` / `uncaughtException` net —
- * the client-side mirror of `daemon/crash-log.ts`'s
- * {@link installDaemonCrashHandlers}.
- *
- * Each `kobe <pane>` subcommand is its own opentui process with ~69
- * fire-and-forget `void someAsync()` call sites across `src/tui/`. With NO
- * handler registered, Bun/Node's default for a single stray rejected promise
- * (a poll tick reading a worktree that vanished, a daemon socket dropping
- * mid-handler) is to terminate the process — dropping the whole pane to a raw
- * shell. Registering these flips the default: the incident is *logged* to
- * `client.log` (the alternate-screen-safe sink) tagged `crash-net`, and the
- * pane keeps running. A single rejected fire-and-forget must degrade
- * gracefully, not kill the pane.
- *
- * Idempotent: a second call is a no-op so a misbehaving caller can't stack
- * duplicate handlers.
+ * Pane-host crash net (mirror of {@link installDaemonCrashHandlers}). By
+ * default one stray rejected fire-and-forget terminates the process and drops
+ * the pane to a raw shell; with these it is logged as `crash-net` and the pane
+ * keeps running. Idempotent.
  */
 export function installClientCrashHandlers(): void {
   if (onRejection || onException) return
@@ -167,11 +123,7 @@ export function installClientCrashHandlers(): void {
   process.on("uncaughtException", onException)
 }
 
-/**
- * Test-only: remove exactly the handlers this module installed (never
- * `removeAllListeners`, which would also strip the test runner's own
- * handlers) and clear the idempotency latch.
- */
+/** Test-only: remove exactly our handlers (not `removeAllListeners`, which strips the runner's). */
 export function resetClientCrashHandlersForTest(): void {
   if (onRejection) process.off("unhandledRejection", onRejection)
   if (onException) process.off("uncaughtException", onException)

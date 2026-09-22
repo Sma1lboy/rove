@@ -1,29 +1,18 @@
 /**
- * Automation sweep: fire due schedules.
+ * Automation sweep: WHEN due schedules fire, and recording what happened.
+ * WHERE the prompt lands is `automation-dispatch.ts`.
  *
- * WHERE a firing's prompt lands is `automation-dispatch.ts` (fresh task per
- * run, or one standing session re-delivered into). This module
- * owns only WHEN, and recording what happened.
+ * Same shape as {@link startQuotaResumeRunner} (stateless tick, re-entrancy
+ * latch, unref'd timer) and deliberately exempt from the `hasSubscribers`
+ * gate: running with nobody attached is the point of a schedule.
  *
- * Shape copied wholesale from {@link startQuotaResumeRunner} — same stateless
- * tick, same re-entrancy latch, same unref'd timer, and the same deliberate
- * exemption from the `hasSubscribers` gate that every other collector honours:
+ * `Automation.nextRunAt` is an absolute on-disk timestamp, so a restarted
+ * daemon re-discovers every armed schedule on its first tick; no re-arm pass.
  *
- *   Running with nobody attached is the entire point of a schedule.
- *
- * Restart behaviour falls out of the data model rather than any code here.
- * `Automation.nextRunAt` is an absolute timestamp on disk, so a daemon that
- * restarts (or was down for a day) re-discovers every armed schedule on its
- * first tick — there is no re-arm pass, and deliberately so.
- *
- * What the daemon being DOWN costs is a different question, and the one this
- * module actually has to answer: an occurrence that came and went unobserved.
- * That is `missedRunGraceMinutes` — run it late if it is still recent enough
- * to be useful, otherwise record `skipped_missed` and move on. Only the most
- * recent missed occurrence is ever RUN; a week offline must not stampede
- * seven runs at boot. The ones passed over are still COUNTED and recorded
- * ({@link droppedOccurrences}), because "did not run it" and "did not mention
- * it" are different promises, and only the second one is a lie.
+ * Downtime: an occurrence within `missedRunGraceMinutes` runs late, else it
+ * records `skipped_missed`. Only the most recent missed occurrence is ever
+ * RUN (a week offline must not stampede seven runs at boot); the ones passed
+ * over are still COUNTED and recorded ({@link droppedOccurrences}).
  */
 
 import type { DaemonRpcClient } from "../client/rpc.ts"
@@ -55,21 +44,14 @@ export function dueAutomations(automations: readonly Automation[], nowMs: number
 }
 
 /**
- * Which occurrence this firing is for, and whether it is still worth running.
+ * Which occurrence this firing is for, and whether it is still worth running
+ * (the whole missed-run policy, pure). `notBefore` is the creation time, so a
+ * new schedule can't claim occurrences that predate it.
  *
- * Split out as a pure function because it is the whole missed-run policy and
- * deserves to be tested without a clock or a filesystem. `notBefore` is the
- * automation's creation time so a brand-new schedule cannot claim occurrences
- * that predate it.
- *
- * The grace window has a FLOOR of one tick, because the sweep is a poller:
- * `scheduledFor` is the occurrence at or before now, and the earliest the
- * sweep can possibly see it is the tick that follows it, so `now -
- * scheduledFor` is somewhere in 0..tickMs on a perfectly healthy run. Without
- * the floor, `missedRunGraceMinutes: 0` made `missed` true on EVERY firing:
- * the automation recorded `skipped_missed` forever and never dispatched, and
- * zero looks like a reasonable setting. So a grace of N means "up to and
- * including N minutes late, plus the tick that discovered it".
+ * The grace has a FLOOR of one tick: the sweep polls, so `now - scheduledFor`
+ * is 0..tickMs on a healthy run, and `missedRunGraceMinutes: 0` would
+ * otherwise mark every firing missed. Grace N = up to N minutes late, plus
+ * the tick that discovered it.
  */
 export function resolveDueOccurrence(
   automation: Automation,
@@ -78,9 +60,8 @@ export function resolveDueOccurrence(
 ): { scheduledFor: number; missed: boolean } | null {
   const notBefore = Date.parse(automation.createdAt)
   const scheduledFor = latestCronAtOrBefore(automation.schedule, nowMs, Number.isFinite(notBefore) ? notBefore : 0)
-  // No occurrence at or before now means `nextRunAt` is stale relative to the
-  // current expression (a hand-edited file, or an edit that lost a race). The
-  // caller just re-anchors the schedule.
+  // `nextRunAt` is stale for the current expression (hand edit, or an edit
+  // that lost a race); the caller re-anchors.
   if (scheduledFor === null) return null
   const graceMs = automation.missedRunGraceMinutes * 60_000 + Math.max(tickMs, 0)
   return { scheduledFor, missed: nowMs - scheduledFor > graceMs }
@@ -99,26 +80,19 @@ interface RunnerDeps {
   readonly store: AutomationsStore
   readonly orch: AutomationOrchestrator
   readonly runtime: AutomationRuntime
-  /** The daemon's in-process RPC client, or a getter for it — the server's
-   *  self-link is constructed after the collectors start, and the sweep only
-   *  needs it on a tick. */
+  /** In-process RPC client, or a getter: the server's self-link is built after
+   *  the collectors start. */
   readonly link: DaemonRpcClient | (() => DaemonRpcClient)
-  /** Plugin event sink (getter for the same construction-order reason as
-   *  `link`). Every recorded run fires one automation.* plugin event. */
+  /** Plugin event sink (getter, same reason as `link`); one automation.* event
+   *  per recorded run. */
   readonly plugins?: () => { handleUiReport(report: PluginRunReport): void } | null
   readonly inbox?: RunnerInbox
   readonly now?: () => number
   readonly stopped?: () => boolean
 }
 
-/**
- * The Inbox slice the RUNNER needs.
- *
- * A schedule is the only thing here that acts unattended, so a firing that
- * needs a human has nowhere else to surface: the run history records it, but
- * reading the run history is exactly the going-and-looking a schedule exists
- * to avoid.
- */
+/** The Inbox slice the runner needs: an unattended firing that needs a human
+ *  has nowhere else to surface. */
 export interface RunnerInbox {
   recordRoutineFailure(
     routine: { automationId: string; name: string; status: string; error?: string },
@@ -153,8 +127,7 @@ function emitRunEvent(
   args: { scheduledFor: number; trigger: "scheduled" | "manual" },
   extra: { taskId?: string; tabId?: string; error?: string },
 ): void {
-  // handleUiReport guards its own dispatch — a throw can only come from the
-  // getter, which is a plain closure over the server's pluginHost.
+  // handleUiReport guards its own dispatch; the getter is a plain closure.
   deps.plugins?.()?.handleUiReport({
     kind: runEventFor(status),
     ...(extra.taskId ? { taskId: extra.taskId } : {}),
@@ -172,15 +145,10 @@ function emitRunEvent(
 }
 
 /**
- * Keep the Inbox agreeing with the latest run.
- *
- * Only the outcomes that need a person raise an episode
- * ({@link automationRunNeedsAttention}) — `skipped_precheck` is a healthy
- * routine finding nothing to do, and filing that would train the user to
- * ignore the queue. A run that goes back to working clears the episode, so a
- * routine that was broken and is fixed does not leave a permanent scar.
- * Best-effort throughout: the Inbox is a notification, and failing to write
- * one must never fail the run that was already recorded.
+ * Keep the Inbox agreeing with the latest run. Only outcomes that need a
+ * person raise an episode ({@link automationRunNeedsAttention}; not
+ * `skipped_precheck`, a healthy "nothing to do"); a working run clears it.
+ * Best-effort: an Inbox write must never fail the already-recorded run.
  */
 async function raiseOrClearInboxEpisode(
   deps: RunnerDeps,
@@ -206,8 +174,7 @@ async function raiseOrClearInboxEpisode(
   await write?.catch((err: unknown) => logDaemonError("automation-inbox", err))
 }
 
-/** Record a run the sweep decided NOT to make. Shared by both skip paths so
- *  the record + plugin event never drift apart between them. */
+/** Record a run the sweep decided NOT to make (both skip paths). */
 async function recordSkip(
   deps: RunnerDeps,
   automation: Automation,
@@ -228,15 +195,10 @@ async function recordSkip(
 }
 
 /**
- * Occurrences this automation was armed for that the sweep never reached.
- *
- * A sweep pass is serial and its ticker drops re-entrant ticks, so one slow
- * precheck stalls every routine behind it. The stall itself is bounded and
- * survivable; the LIE is not. `latestCronAtOrBefore` returns only the newest
- * occurrence, so the ones passed over used to vanish with no record of any
- * kind — a per-minute routine that fired five times out of nine showed five
- * `dispatched` runs and nothing else. This is the gap between what the
- * automation was armed for and what the sweep actually found.
+ * Occurrences between the armed time and the one the sweep found. A serial
+ * pass with dropped re-entrant ticks lets one slow precheck stall every
+ * routine behind it, and `latestCronAtOrBefore` returns only the newest
+ * occurrence, so without this the skipped ones leave no record.
  */
 function droppedOccurrences(automation: Automation, scheduledFor: number): { count: number; firstMs: number } | null {
   const armedAt = Date.parse(automation.nextRunAt)
@@ -245,11 +207,8 @@ function droppedOccurrences(automation: Automation, scheduledFor: number): { cou
   return count > 0 ? { count, firstMs: armedAt } : null
 }
 
-/**
- * Execute one automation now, recording exactly one run. Exported for
- * `automation.runNow` (manual trigger), which skips the precheck: the user
- * asking for it IS the answer to "is this worth running".
- */
+/** Execute one automation now, recording exactly one run. A manual trigger
+ *  (`automation.runNow`) skips the precheck. */
 export async function runAutomationOnce(
   deps: RunnerDeps,
   automation: Automation,
@@ -313,8 +272,7 @@ export async function runAutomationOnce(
       automation,
     )
   } catch (err) {
-    // A repo that moved or was forgotten lands here — the schedule is fine,
-    // its target is not, so this is `unavailable` rather than a failure.
+    // A moved or forgotten repo: the target is gone, not the schedule.
     const error = err instanceof Error ? err.message : String(err)
     logDaemonError("automation-dispatch", err)
     return await record("skipped_unavailable", { error })
@@ -343,9 +301,7 @@ export async function runAutomationOnce(
   })
 }
 
-/** One sweep pass. Exported so tests can drive it without a timer.
- *  `tickMs` is the runner's own cadence, which sets the grace floor — see
- *  {@link resolveDueOccurrence}. */
+/** One sweep pass. `tickMs` sets the grace floor ({@link resolveDueOccurrence}). */
 export async function sweepAutomations(deps: RunnerDeps, tickMs: number = DEFAULT_AUTOMATION_TICK_MS): Promise<void> {
   const now = deps.now ?? Date.now
   for (const automation of dueAutomations(deps.store.list(), now())) {
@@ -366,9 +322,7 @@ export async function sweepAutomations(deps: RunnerDeps, tickMs: number = DEFAUL
     const claimed = await deps.store.advanceNextRun(automation.id, occurrence.scheduledFor, automation.nextRunAt)
     if (!claimed) continue
 
-    // One row for every occurrence between the armed time and the one being
-    // run — recorded whatever happens next, because a routine that quietly
-    // became four-hourly and one that ran every minute must not read the same.
+    // One row for the skipped occurrences, recorded whatever happens next.
     if (dropped) {
       const first = new Date(dropped.firstMs).toISOString()
       await recordSkip(
@@ -398,16 +352,12 @@ export async function sweepAutomations(deps: RunnerDeps, tickMs: number = DEFAUL
   }
 }
 
-/**
- * Start the sweep. `tickMs: 0` disables it entirely — the test harness boots a
- * daemon with every collector zeroed, and this must honour that too.
- */
+/** Start the sweep. `tickMs: 0` disables it (the test harness zeroes every collector). */
 export function startAutomationRunner(
   deps: RunnerDeps,
   tickMs: number = DEFAULT_AUTOMATION_TICK_MS,
 ): ReturnType<typeof startTicker> {
-  // Ungated for the same reason as quota-resume, only more so: a schedule
-  // that requires an audience is not a schedule.
+  // Ungated: a schedule must not require an audience.
   let stopped = false
   return startTicker({
     name: "automation-sweep",

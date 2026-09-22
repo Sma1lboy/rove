@@ -1,23 +1,13 @@
 /**
- * Move the PTY host's own data out of the legacy `.kobe` layout.
+ * Move `pty-exits.json` and `pty-sessions/` from `.kobe` to `.rove`. They're
+ * absent from the daemon-start copy list (`state/layout-migration.ts`), since a
+ * daemon copying them would race the owning host; and the docs call a leftover
+ * `~/.kobe` safe to delete. Host boot is the single-writer moment (freeze store
+ * not yet open), so `runtimeDataPath` in `paths.ts` can stay plain canonical.
  *
- * `pty-exits.json` and `pty-sessions/` are the two state files the `.kobe` →
- * `.rove` move never carried across: they are deliberately absent from the
- * daemon-start copy list (`state/layout-migration.ts`) because a daemon
- * copying them would race the host that owns them. So they stayed put — and
- * the docs tell users a `~/.kobe` left behind after the rename is safe to
- * delete, which on such a home throws away every frozen session and every
- * engine-exit record.
- *
- * The PTY host's own boot is the single-writer moment for these paths: the
- * host is starting, no other process reads or writes them, and the freeze
- * store has not been opened yet. So the move happens here, once, and
- * `runtimeDataPath` in `paths.ts` can stay plain canonical afterwards.
- *
- * MOVED, not copied — a copy would leave two exit stores and let the stale one
- * answer a later query. A symlink is left behind for the same reason the
- * plugin tree leaves one: a binary predating the rename reads only `.kobe` and
- * would read an empty store as "this session never existed".
+ * MOVED, not copied: two exit stores would let the stale one answer. A symlink
+ * stays behind because a pre-rename binary reads only `.kobe` and would take an
+ * empty store as "this session never existed".
  */
 
 import { existsSync, lstatSync, mkdirSync, renameSync, symlinkSync } from "node:fs"
@@ -49,13 +39,11 @@ export function migrateLegacyPtyHostData(homeDir = readRoveHomeDirEnv() ?? homed
     const canonical = join(canonicalDir, name)
     const legacy = join(legacyDir, name)
     try {
-      // `existsSync` follows links, so a canonical entry we already moved to
-      // (and linked back from) short-circuits here — the move is idempotent.
+      // Idempotent: an already-moved canonical entry short-circuits here.
       if (existsSync(canonical)) continue
       const stat = lstatIfExists(legacy)
-      // A symlink at the legacy path is our own leftover pointing at a
-      // canonical entry that has since been deleted; renaming it would install
-      // a self-referential link.
+      // A legacy symlink is our leftover to a since-deleted canonical entry;
+      // renaming it would install a self-referential link.
       if (!stat || stat.isSymbolicLink()) continue
       mkdirSync(canonicalDir, { recursive: true })
       renameSync(legacy, canonical)

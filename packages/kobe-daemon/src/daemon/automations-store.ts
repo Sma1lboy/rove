@@ -1,16 +1,11 @@
 /**
- * Durable, daemon-owned Automations store.
+ * Durable, daemon-owned Automations store. Same shape as
+ * {@link AttentionInboxStore}: in-memory map over one JSON document, mutations
+ * serialized through a promise tail, tmp+rename writes. The daemon is the only
+ * writer, so no cross-process lockfile. In-memory because the runner sweeps it
+ * every 60s.
  *
- * Shape copied from {@link AttentionInboxStore}: an in-memory map fronting one
- * whole-file JSON document, mutations serialized through a promise tail, writes
- * via tmp+rename. The daemon is the only writer, so no cross-process lockfile
- * (that is `tasks.json`'s problem, where the CLI and TUI write too).
- *
- * In-memory rather than `IssuesStore`'s read-on-every-call because the runner
- * sweeps this every 60s; re-reading the file each tick would be pure waste.
- *
- * Corruption policy follows the inbox, not the issue store: log and start empty.
- * A malformed automations file must never keep the daemon from booting.
+ * Corruption: log and start empty; a malformed file must never block boot.
  */
 
 import { randomUUID } from "node:crypto"
@@ -28,8 +23,7 @@ import { logDaemonError } from "./crash-log.ts"
 import { nextCronAfter } from "./cron.ts"
 import { serialized, writeJsonAtomic } from "./json-file.ts"
 
-/** Per-automation run history cap. The whole document is re-serialized on every
- *  write, so an unbounded log makes each save permanently slower. */
+/** Per-automation run history cap; every write re-serializes the whole document. */
 export const MAX_RUNS_PER_AUTOMATION = 100
 
 interface AutomationsFile {
@@ -66,9 +60,7 @@ function normalizeAutomation(value: unknown): Automation | null {
     return null
   }
   const precheckCommand = str(raw.precheck?.command)
-  // `lastRunAt` is the pre-rename spelling on disk (the field claimed a run
-  // had happened for occurrences that only ever skipped). Read it so an
-  // existing automations.json carries its value across the rename.
+  // `lastRunAt` is the legacy on-disk spelling; read it so existing files keep the value.
   const lastOccurrenceAt = str(raw.lastOccurrenceAt ?? (value as { lastRunAt?: unknown }).lastRunAt)
   const grace = raw.missedRunGraceMinutes
   const now = new Date().toISOString()
@@ -160,16 +152,11 @@ async function writeStore(path: string, automations: readonly Automation[], runs
 }
 
 /**
- * Keep the newest {@link MAX_RUNS_PER_AUTOMATION} runs per automation.
+ * Keep the newest {@link MAX_RUNS_PER_AUTOMATION} runs per automation (by
+ * `at`, ties by `runNumber`).
  *
- * `deletedAutomationIds` drops the history of automations the user explicitly
- * removed. It is an opt-IN list rather than "keep only what's live" on purpose:
- * a run is written by the runner while the store may be mid-mutation, and
- * treating every unrecognized id as garbage would silently eat legitimate
- * records. Retention should never be the reason a run disappears.
- *
- * Newest-first by `at`, ties broken by `runNumber` so the order is
- * deterministic within a millisecond.
+ * `deletedAutomationIds` is opt-IN, not "keep only live ids": the runner writes
+ * runs while the store may be mid-mutation, so an unknown id is not garbage.
  */
 export function pruneRuns(
   runs: readonly AutomationRun[],
@@ -241,8 +228,7 @@ export class AutomationsStore {
         ...input,
         id: randomUUID(),
         enabled: input.enabled !== false,
-        // Throws on an expression that parses but never fires — better to fail
-        // the create than to persist a schedule that silently never runs.
+        // Throws on an expression that parses but never fires.
         nextRunAt: new Date(nextCronAfter(input.schedule, nowMs)).toISOString(),
         createdAt: iso,
         updatedAt: iso,
@@ -270,15 +256,13 @@ export class AutomationsStore {
         ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
         ...(patch.missedRunGraceMinutes !== undefined ? { missedRunGraceMinutes: patch.missedRunGraceMinutes } : {}),
         schedule,
-        // A cleared precheck/baseRef must actually disappear from the record,
-        // so `null` deletes rather than storing a null.
+        // `null` deletes the field rather than storing a null.
         ...(patch.precheck === null
           ? { precheck: undefined }
           : patch.precheck !== undefined
             ? { precheck: patch.precheck }
             : {}),
-        // Re-anchor the schedule whenever the expression changes, else a stale
-        // nextRunAt fires on a rule the user just replaced.
+        // Re-anchor, else a stale nextRunAt fires on the replaced rule.
         ...(patch.schedule !== undefined ? { nextRunAt: new Date(nextCronAfter(schedule, nowMs)).toISOString() } : {}),
         updatedAt: new Date(nowMs).toISOString(),
       }
@@ -292,19 +276,15 @@ export class AutomationsStore {
     return await this.enqueue(async () => {
       if (!this.automations.some((a) => a.id === id)) return false
       this.automations = this.automations.filter((a) => a.id !== id)
-      // Deleting an automation takes its run history with it — named
-      // explicitly, since retention alone never drops an unknown id.
+      // Drops its run history too, named explicitly: retention never drops an unknown id.
       await this.commit(new Set([id]))
       return true
     })
   }
 
-  /**
-   * Move the schedule past `afterMs` and stamp `lastOccurrenceAt`. Called
-   * BEFORE the run is dispatched so an overlapping sweep can never fire the
-   * same occurrence twice — which is also why the stamp is the occurrence's
-   * SCHEDULED time and says nothing about whether the run then succeeded.
-   */
+  /** Move the schedule past `afterMs` and stamp `lastOccurrenceAt` (the
+   *  SCHEDULED time). Called BEFORE dispatch so an overlapping sweep can't
+   *  fire the same occurrence twice. */
   async advanceNextRun(id: string, afterMs: number, expectedNextRunAt?: string): Promise<Automation | null> {
     return await this.enqueue(async () => {
       const index = this.automations.findIndex((a) => a.id === id)
@@ -316,9 +296,8 @@ export class AutomationsStore {
       try {
         nextRunAt = new Date(nextCronAfter(current.schedule, afterMs)).toISOString()
       } catch (err) {
-        // A stored schedule that fails to resolve (hand-edited file, or a
-        // once-only date now in the past) must not wedge the sweep on a
-        // permanently-due row: disable it and surface it in `automation-list`.
+        // An unresolvable schedule (hand edit, past once-only date) must not
+        // wedge the sweep on a permanently-due row: disable it, surfaced in `automation-list`.
         logDaemonError("automations-advance", err)
         const disabled: Automation = { ...current, enabled: false, lastOccurrenceAt: iso, updatedAt: iso }
         this.automations = this.automations.map((a, i) => (i === index ? disabled : a))
@@ -334,8 +313,7 @@ export class AutomationsStore {
 
   async recordRun(input: Omit<AutomationRun, "id" | "runNumber">): Promise<AutomationRun> {
     return await this.enqueue(async () => {
-      // Continue from the highest number this automation carries, NOT from the
-      // retained count — pruning would otherwise reissue numbers.
+      // From the highest number, NOT the retained count, or pruning reissues numbers.
       const runNumber =
         this.runs.reduce((n, run) => (run.automationId === input.automationId ? Math.max(n, run.runNumber) : n), 0) + 1
       const run: AutomationRun = { ...input, id: randomUUID(), runNumber }

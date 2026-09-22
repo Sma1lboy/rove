@@ -1,13 +1,9 @@
 /**
- * Daemon wire protocol (v0.6).
+ * Daemon wire protocol (v0.6): task-CRUD + subscribe, since engine sessions
+ * live in hosted PTYs and the daemon is the task index's single writer.
  *
- * Engine sessions live in hosted PTYs, so the daemon's only job is to be
- * a single writer for the task index: the protocol is a task-CRUD +
- * subscribe shape.
- *
- * Two questions live under this name: the compatibility POLICY (can these two
- * builds talk — `protocol-compat.ts`, re-exported below) and the wire
- * VOCABULARY (frames, request names, task serialization — this file).
+ * Compatibility POLICY lives in `protocol-compat.ts` (re-exported below); this
+ * file is the wire VOCABULARY (frames, request names, task serialization).
  */
 
 import type { ChannelName } from "./channels.ts"
@@ -43,9 +39,8 @@ export {
   normalizeChannelFilter,
 } from "./channels.ts"
 
-// Handshake compatibility policy — version range, build skew, home ownership.
-// Lives in protocol-compat.ts (it changes on a different clock than the wire
-// vocabulary below); re-exported so `daemon/protocol` stays the one import.
+// Handshake policy (version range, build skew, home ownership); re-exported so
+// `daemon/protocol` stays the one import.
 export {
   DAEMON_PROTOCOL_VERSION,
   MIN_COMPATIBLE_PROTOCOL_VERSION,
@@ -77,30 +72,24 @@ export type DaemonRequestName =
   | "task.setBranch"
   | "task.observeLanguage"
   | "task.setVendor"
-  // Set a task's RAW engine launch command (the dispatch face's
-  // `set-command`). The caller resolves the command's protocol — engine
-  // presets live in kobe's state.json, which the daemon cannot read — and
-  // sends both, so the record stays self-consistent.
+  // RAW engine launch command (`set-command`). The caller resolves its protocol
+  // (presets live in kobe's state.json, unreadable here) and sends both.
   | "task.setCommand"
   | "task.delete"
-  // Land a task's branch back into its base repo (merge/squash). The last step
-  // of the worktree→engine→branch lifecycle that had no product path; refuses a
-  // dirty base checkout and aborts on conflict, returning the conflicted files.
+  // Merge/squash a task's branch into its base repo. Refuses a dirty base
+  // checkout; aborts on conflict, returning the conflicted files.
   | "task.land"
-  // The read-only half of a land: which branch the base checkout is on, how
-  // many commits ahead the task branch is, whether either refuses the merge.
-  // Four git reads — deliberately NOT in BLOCKING_RPCS.
+  // Read-only land preflight (base branch, commits ahead, refusals). Four git
+  // reads — deliberately NOT in BLOCKING_RPCS.
   | "task.landPreflight"
-  // Merge a task's base branch INTO its worktree — the answer to the sidebar's
-  // behind-base drift chip. Merge, never rebase: the worktree may have a live
-  // engine holding files open.
+  // Merge base INTO the worktree (behind-base chip). Never rebase: a live
+  // engine may hold files open.
   | "task.syncBase"
   | "task.pin"
   | "task.move"
   | "task.status"
-  // Record the task brief on the task row AFTER the prompt was confirmed
-  // delivered into the engine — the engine's own transcript is not durable,
-  // and this field is the copy that survives a dead engine/context loss.
+  // Record the brief only AFTER confirmed delivery; the engine transcript isn't
+  // durable, so this copy is what survives engine/context loss.
   | "task.setPrompt"
   | "task.ensureMain"
   // Open an existing directory as a standalone `kind:"dir"` task (`kobe .`).
@@ -117,159 +106,119 @@ export type DaemonRequestName =
   | "issue.mutate"
   | "worktree.discoverAdoptable"
   | "worktree.adopt"
-  // Cross-project worktree audit (the standalone worktree-management TUI
-  // page): list every worktree of every local saved project (kobe-managed
-  // or not, linked to a task or not) with dirty/age/remote-branch status,
-  // and remove one (refuses a dirty worktree unless `force: true`, same
-  // safety property `GitWorktreeManager.remove` always had).
+  // Cross-project worktree audit: every worktree of every local saved project
+  // (managed or not, linked or not) with dirty/age/remote-branch status.
+  // Remove refuses a dirty worktree unless `force: true`.
   | "worktree.list"
   | "worktree.remove"
-  // Engine HOOK ingest (KOB): a `kobe hook <verb>` process reports a
-  // normalized engine activity event for a task; the daemon folds it into
-  // the task's transient activity state and broadcasts `engine-state`.
+  // `kobe hook <verb>` reports a normalized activity event; folded into the
+  // task's transient activity state and broadcast as `engine-state`.
   | "engine.reportEvent"
-  // Remove the durable Inbox item at the supplied event timestamp. Explicit
-  // removal, opening, and visiting the target all use this guarded operation.
+  // Guarded removal of the Inbox item at an event timestamp (dismiss/open/visit).
   | "attention.dismiss"
   | "attention.dismissRoutine"
-  // Read the pending episodes. The Inbox otherwise only reaches an ATTACHED
-  // GUI, over the `attention.inbox` channel — so a headless coordinator (an
-  // agent fleet has no attached TUI, by definition) had no way to see what
-  // was waiting for a person.
+  // Pending episodes for headless coordinators: the `attention.inbox` channel
+  // only reaches an ATTACHED GUI.
   | "attention.list"
   // Plugin-written task-row tokens (docs/PLUGIN-AUTHORING.md § Task-row
   // tokens). In-memory, TTL-bounded, broadcast on `task.tokens`.
   | "task.rowToken"
   // Legacy alias for resolving the exact item; `at` guards stale clients.
   | "attention.read"
-  // Scheduled Automations (docs/design/automations.md): CRUD over the
-  // daemon-owned schedule store, plus a manual trigger. The sweep itself is
-  // internal — these only shape what it will find on its next tick.
+  // Scheduled Automations (docs/design/automations.md): CRUD + manual trigger;
+  // the sweep itself is internal.
   | "automation.list"
   | "automation.create"
   | "automation.update"
   | "automation.delete"
   | "automation.runs"
   | "automation.runNow"
-  // External tracker work items (docs/design/work-items.md): a READ-ONLY view
-  // of GitHub issues via the `gh` CLI, plus one action — start a task on one.
-  // Never mirrored into the local issue store.
+  // GitHub issues via `gh` (docs/design/work-items.md): READ-ONLY, plus start a
+  // task on one. Never mirrored into the local issue store.
   | "workitem.list"
   | "workitem.start"
-  // Dispatcher messenger (docs/design/dispatcher.md): publish a
-  // `session.deliver` channel event addressed to a task's live session.
-  // The daemon only routes; the front-end hosting that session delivers.
+  // Dispatcher messenger (docs/design/dispatcher.md): publish `session.deliver`
+  // for a task's live session; the hosting front-end delivers.
   | "session.deliver"
-  // On-demand read of a PR's FAILING check logs (the sidebar's "Fix failing
-  // checks"). Never polled: it downloads whole job logs, so it runs once per
-  // human click and leaves the pr-status poller's cadence alone.
+  // A PR's FAILING check logs, once per human click. Never polled: it
+  // downloads whole job logs.
   | "pr.failingChecks"
   // Read one task's recent engine lifecycle events (the TUI event feed).
   | "task.recentEvents"
-  // Per-turn agent telemetry: the durable turn store's read side.
-  // Written only by the hook-driven ingest on `turn-complete`.
+  // Turn store read side; written only by hook ingest on `turn-complete`.
   | "agentTurn.list"
-  // Production diagnostics (`kobe api inspect`): the activity registry's RAW
-  // task/tab entries — probe vendor, armed watchdogs — beyond what the
-  // engine-state wire payload carries. Read-only.
+  // `kobe api inspect`: RAW activity-registry entries (probe vendor, armed
+  // watchdogs) beyond the engine-state payload. Read-only.
   | "debug.inspect"
   // TUI-originated product events (file/task/project opens) → plugin hooks.
   | "ui.reportEvent"
-  // Host-provided input dialog (plugins → `kobe api prompt`): `ui.prompt`
-  // blocks until an attached TUI answers via `ui.promptReply` or the
-  // broker times the request out.
+  // Plugin input dialog (`kobe api prompt`): blocks until an attached TUI
+  // answers via `ui.promptReply` or the broker times out.
   | "ui.prompt"
   | "ui.promptReply"
-  // Plugin panes: publish a `tab.open` channel event asking the TUI hosting
-  // the task to open a terminal tab running argv. Same trust boundary as
-  // `pty.open`; the daemon only validates + publishes.
+  // Plugin panes: publish `tab.open` so the hosting TUI runs argv in a tab.
+  // Same trust boundary as `pty.open`; the daemon only validates + publishes.
   | "tab.open"
-  // The inverse: publish a `tab.close` channel event asking the TUI hosting
-  // the task to close the panes it opened under a title.
+  // Publish `tab.close`: the hosting TUI closes the panes it opened under a title.
   | "tab.close"
-  // Exact Terminal Tab lifecycle: ask an attached TUI to run its normal
-  // ctrl+w close path, then acknowledge whether it owned the tab. The CLI
-  // falls back to the standalone PTY Host when nobody confirms.
+  // Ask an attached TUI to run its ctrl+w close path and ack ownership; the
+  // CLI falls back to the standalone PTY Host when nobody confirms.
   | "terminalTab.close"
   | "terminalTab.closeReply"
-  // Broadcast "name this Terminal Tab" on the `tab.rename` channel
-  // (`kobe api rename --tab`). No reply half: a rename is idempotent, so the
-  // CLI also writes the persisted snapshot and the two converge.
+  // Broadcast on `tab.rename` (`kobe api rename --tab`). No reply: rename is
+  // idempotent and the CLI also writes the persisted snapshot.
   | "terminalTab.rename"
-  // Broadcast one toast to every attached UI over the `notice.event`
-  // channel (`kobe api notify`). The daemon only validates + publishes.
+  // Toast to every attached UI on `notice.event` (`kobe api notify`).
   | "notice.send"
-  // Hand OPAQUE graphics bytes to every attached GUI to write to its own tty
-  // (`kobe api pane-graphics`). The daemon allocates the image id — the one
-  // fact a pane cannot allocate for itself, the id space being the
-  // terminal's — and publishes on `graphics.write`; it parses nothing.
+  // OPAQUE graphics bytes for each attached GUI's tty (`kobe api pane-graphics`),
+  // on `graphics.write`. The daemon allocates the image id (a pane can't: the id
+  // space is the terminal's) and parses nothing.
   | "graphics.write"
-  // Field note (docs/design/dispatcher.md): a worktree session files a
-  // one-line resolved gotcha. The daemon APPENDS it to the durable per-repo
-  // notes store, then forwards it to the repo's dispatcher seat (the main
-  // session) over `session.deliver`. `note.list` reads the store back —
-  // the launch path seeds each fresh worktree session with it.
+  // Field note (docs/design/dispatcher.md): APPEND a one-line gotcha to the
+  // per-repo notes store, then forward it to the repo's main session over
+  // `session.deliver`. `note.list` seeds each fresh worktree session.
   | "note.file"
   | "note.list"
-  // Drop one stored note by id. The store is not an archive: its newest
-  // entries are injected into every fresh session on the repo, so a note
-  // whose fact stopped being true has to be removable.
+  // The newest notes are injected into every fresh session, so a stale one
+  // must be removable.
   | "note.delete"
-  // Hosted PTYs (v4) — persistent out-of-process terminals for embedded
-  // engine sessions. Served by the standalone PTY HOST process
-  // (`kobe pty-host`, its own socket — see `pty-server.ts`), NOT by the
-  // daemon: the daemon restarts routinely, so the pty host must outlive it.
-  // Same frame grammar, so the same client class speaks both. The
-  // host owns the raw PTY child + a byte ring buffer per session key; the
-  // TUI keeps VT emulation (xterm-headless) local. The host answers only
-  // OSC 10/11 default-color queries so headless children see a terminal
-  // palette even while no emulator is attached. `pty.open` attaches
-  // the calling CONNECTION (spawning on first open, replaying the ring
-  // buffer on reattach); output streams back as targeted `pty.data` event
-  // frames written only to attached connections.
+  // Hosted PTYs (v4), served by the standalone PTY HOST (`kobe pty-host`, own
+  // socket, `pty-server.ts`), NOT the daemon: the daemon restarts routinely.
+  // Same frame grammar and client class. The host owns the PTY child + a byte
+  // ring buffer per session key and answers only OSC 10/11 color queries (so
+  // headless children see a palette); the TUI keeps VT emulation. `pty.open`
+  // attaches the CONNECTION (spawn on first open, ring replay on reattach);
+  // `pty.data` frames go only to attached connections.
   | "pty.open"
   | "pty.write"
   | "pty.resize"
   | "pty.kill"
   | "pty.detach"
   | "pty.list"
-  // Re-key a running session (`{from, to}` → `{renamed: boolean}`) — the
-  // scratch-fold move: the child keeps running, only its ownership label
-  // changes so sweeps and future attaches see it under the adopting task's
-  // tab key. Older hosts reject the verb; callers treat that as "fold the
-  // tab record only, session stays under its original key until the scratch
-  // task's teardown" — hence they must check `renamed`.
+  // Re-key a running session (`{from, to}` → `{renamed: boolean}`) for the
+  // scratch fold; the child keeps running. Older hosts reject it, so callers
+  // must check `renamed`: if false, fold only the tab record and the session
+  // stays under its old key until scratch teardown.
   | "pty.rename"
-  // Read-only ring-buffer peek for one session key: no attach, no spawn,
-  // no resize — the observation primitive `kobe api read-output` uses for
-  // its bounded terminal fallback. Older hosts reject the verb; callers
-  // treat that as "no terminal data".
+  // Ring-buffer peek (no attach/spawn/resize) for `kobe api read-output`'s
+  // terminal fallback. Older hosts reject it; callers treat that as no data.
   | "pty.peek"
-  // Pre-spawn one idle shell for a cwd so the next `pty.open` whose spec
-  // is that bare shell adopts it (already rc-initialized) instead of
-  // paying shell startup. Best-effort; older hosts reject the verb.
+  // Pre-spawn an idle, rc-initialized shell for a cwd; the next bare-shell
+  // `pty.open` there adopts it. Best-effort; older hosts reject the verb.
   | "pty.warm"
 
 /**
- * Verbs whose CONTRACT is to block, so the client must not put a wedge
- * deadline on them.
+ * Verbs whose CONTRACT is to block, so the client puts no wedge deadline on them.
  *
- * The socket client gives every request a 20s deadline, and blowing it is not
- * a plain failure: it rejects with `RpcTimeoutError("… daemon wedged?")`, then
- * force-disconnects and emits a lifecycle `close`, dropping every channel
- * subscription on the TUI's long-lived connection. That is the right move for
- * a genuinely wedged daemon and the wrong one for a verb that is simply still
- * working — a `task.land` on a large repo would put the whole workspace into
- * the reconnect path while the daemon is perfectly healthy.
+ * Blowing the client's 20s deadline rejects with `RpcTimeoutError`,
+ * force-disconnects and drops every channel subscription on the TUI's
+ * connection — right for a wedged daemon, wrong for a slow `task.land` on a
+ * large repo. These verbs wait on a human, shell out on a user-sized repo or
+ * `gh`, or deliver serially into PTYs; the DAEMON owns settlement.
  *
- * Each name here either waits on a human (`ui.prompt`), shells out on a
- * user-sized repo or through `gh`, or delivers serially into PTYs. For all of
- * them the DAEMON owns settlement, so the client's timer buys nothing.
- *
- * This set lives in the wire contract, next to {@link DaemonRequestName},
- * because both the client (which must not import the handler registry — that
- * would drag every daemon module into the CLI) and the registry need it. The
- * registry entry is where a verb DECLARES it (`blocking: true`), and
+ * Lives here, next to {@link DaemonRequestName}, because the client must not
+ * import the handler registry (it would drag every daemon module into the
+ * CLI). Registry entries declare `blocking: true`;
  * `test/daemon/rpc-deadline.test.ts` fails if the two drift.
  */
 export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonRequestName>([
@@ -291,48 +240,31 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
 ])
 
 /**
- * Subscribe role (KOB) — distinguishes WHO is subscribing, so the daemon's
- * refcounted lazy-shutdown counts only real front-end attaches.
+ * WHO is subscribing, so the refcounted lazy shutdown counts only real attaches.
  *
- * - `gui`  — a user-facing front-end attach (the `kobe` TUI process, or the
- *   deprecated outer monitor). Its lifetime equals "a human is looking at
- *   kobe", so it HOLDS the daemon alive.
- * - `pane` — a kobe-spawned helper pane (Tasks pane, Ops, settings/new-task
- *   windows, transient `kobe api` pokes). It subscribes to RECEIVE push
- *   channels but must NOT keep the daemon alive: these panes outlive the
- *   attach (the front-end session persists after the user quits), so counting
- *   them wedges the daemon open forever — N Terminal Tabs means N Tasks panes,
- *   and the count never reaches 0 on quit.
+ * - `gui` — a user-facing front-end (the `kobe` TUI, or the deprecated outer
+ *   monitor); HOLDS the daemon alive.
+ * - `pane` — a helper pane (Tasks pane, Ops, settings/new-task windows,
+ *   transient `kobe api` pokes) that only RECEIVES channels. Panes outlive the
+ *   attach, so counting them would pin the daemon open forever.
  *
- * Default is `pane`: a subscriber that forgets to declare a role is the safe
- * non-holding kind, so a future client can never accidentally pin the daemon.
+ * Default is `pane`, so a client that forgets to declare can't pin the daemon.
  */
 export type SubscribeRole = "gui" | "pane"
 
 /**
- * Event-frame names: every {@link ChannelName}, plus `daemon.stopping` — a
- * lifecycle signal that is deliberately NOT a channel (it has no last-value
- * and must never be replayed to a late subscriber as if current) — plus the
- * targeted PTY stream frames (`pty.data` / `pty.exit`, v4). PTY frames are
- * also NOT channels: they are written only to connections attached to that
- * PTY session, carry an ordered byte stream (dropping or replaying one
- * corrupts the client's VT state), and never pass through the event bus.
+ * Every {@link ChannelName}, plus `daemon.stopping` (NOT a channel: no
+ * last-value, never replayed to a late subscriber) and `pty.data`/`pty.exit`
+ * (v4) — also not channels: written only to attached connections, an ordered
+ * byte stream (drop/replay corrupts VT state), never via the event bus.
  */
 export type DaemonEventName = ChannelName | "daemon.stopping" | "pty.data" | "pty.exit"
 
 /**
- * WHY a daemon is going away, carried on the `daemon.stopping` frame (v5).
- *
- * Without it every shutdown looks identical from a client socket: the peer
- * closed. That is fine for the three reasons a client can only wait out
- * (`idle`, `socket-lost`, `stop`), and wrong for the fourth — a `restart` is
- * an operator replacing this daemon's CODE, which is the moment an attached
- * TUI learns it is about to be a build behind. Inferring that from the close
- * alone costs a reconnect plus a `hello` round trip under backoff, and the
- * TUI would rather say "a refresh is available" the instant it is true.
- *
- * `stop` is the default so a daemon that stops for a reason nobody labelled
- * never claims to be restarting.
+ * WHY a daemon is going away, on the `daemon.stopping` frame (v5). Clients only
+ * wait out `idle`/`socket-lost`/`stop`; `restart` replaces the CODE, so an
+ * attached TUI can offer a refresh at once instead of after reconnect + `hello`.
+ * `stop` is the default, so an unlabelled stop never claims to be a restart.
  */
 export type DaemonStopReason = "restart" | "stop" | "idle" | "socket-lost"
 
@@ -343,14 +275,11 @@ export type DaemonStopReason = "restart" | "stop" | "idle" | "socket-lost"
  */
 export interface DaemonStoppingPayload {
   readonly reason?: DaemonStopReason
-  /** The outgoing daemon's build version, so a client can compare without
-   *  waiting for the next `hello`. */
+  /** Outgoing build version, comparable without waiting for the next `hello`. */
   readonly kobeVersion?: string
 }
 
-/** Narrow an unknown `daemon.stopping` payload field to a known reason.
- *  Unknown/absent → `undefined` (a daemon that predates the field, or a
- *  newer one naming a reason this build has never heard of). Pure. */
+/** Unknown/absent → `undefined` (an older daemon, or a reason this build doesn't know). */
 export function parseDaemonStopReason(value: unknown): DaemonStopReason | undefined {
   return value === "restart" || value === "stop" || value === "idle" || value === "socket-lost" ? value : undefined
 }
@@ -369,8 +298,7 @@ export interface SerializedTask {
   readonly kind: "main" | "task" | "dir"
   /** Scratch shell task — Scratch-section row, cleared on adopt/rename. */
   readonly scratch?: boolean
-  /** Standing session of a routine — folded behind the sidebar's
-   *  routine count row instead of rendering as a loose task. */
+  /** A routine's standing session — folded behind the sidebar's routine count row. */
   readonly routine?: DaemonTask["routine"]
   readonly status: DaemonTask["status"]
   readonly pinned: boolean
@@ -405,10 +333,9 @@ export interface SerializedTask {
    *  where `prStatus` is the daemon's own observation of the forge. */
   readonly report?: DaemonTask["report"]
   /**
-   * Which machine served this task. NEVER set by a daemon — the merging
-   * client stamps it after deserializing, and `rove api list` passes it
-   * through. Declared here so the CLI's wire type and the client's `Task`
-   * agree on the field rather than each widening the other with a cast.
+   * Which machine served this task. NEVER set by a daemon: the merging client
+   * stamps it after deserializing. Declared here so CLI and client types agree
+   * without casts.
    */
   readonly origin?: { readonly machineId: string; readonly hostLabel: string }
   readonly createdAt: string
@@ -416,13 +343,9 @@ export interface SerializedTask {
 }
 
 /**
- * Display fallback for an empty task title: a scratch task mints
- * no auto-name, so the wire fills branch → directory → "scratch" HERE — one
- * spot upstream of every consumer (TUI task channel, web board/kanban,
- * `api list`/`get-task`, notification copy), so none can render a blank row.
- * The STORED title stays empty; only the serialized view is filled. No
- * truncation: consumers clip visually, and agents reading the JSON want the
- * full path.
+ * Empty-title fallback (scratch tasks mint no auto-name), filled on the wire
+ * upstream of every consumer so none renders a blank row. The STORED title
+ * stays empty. No truncation: consumers clip, agents want the full path.
  */
 export function displayTaskTitle(task: Pick<DaemonTask, "title" | "branch" | "worktreePath" | "repo">): string {
   return task.title || task.branch || task.worktreePath || task.repo || "scratch"

@@ -1,16 +1,9 @@
 /**
- * Durable per-turn telemetry store — the daemon side of the
- * engine-owned {@link AgentTurnRecord} contract.
+ * Durable per-turn telemetry ({@link AgentTurnRecord}): joins engine turns to
+ * task/tab/vendor and keeps them across restarts for `rove api agent-turns`.
  *
- * The engine adapter produces turns from its own transcript; this store does
- * the ONE thing the engine can't: join them to Rove identity (task, tab,
- * vendor) and keep them across daemon restarts, so `rove api agent-turns`
- * can answer "what did this repo's agents actually do" later.
- *
- * Dedupe is by the engine's own turn id: a Stop hook re-reads the whole
- * transcript, so the same finished turn arrives on every subsequent turn's
- * ingest. Last write wins on the fields (a turn re-read after more assistant
- * records landed is the more complete one).
+ * Every Stop re-reads the whole transcript, so turns dedupe by engine turn id;
+ * last write wins (a later re-read is more complete).
  */
 
 import { readFile } from "node:fs/promises"
@@ -29,9 +22,7 @@ interface AgentTurnsFile {
 }
 
 /**
- * Cap on retained turns, newest kept. Per-turn records are ~200 bytes, so
- * this is a few MB worst case — enough for weeks of a busy machine, and the
- * store is telemetry, not an audit log.
+ * Newest kept. ~200 bytes/record → a few MB worst case, weeks of a busy machine.
  * ponytail: one flat cap, not per-task; revisit if a digest needs deeper history.
  */
 const MAX_TURNS = 10_000
@@ -61,17 +52,13 @@ function normalize(value: unknown): AgentTurnRecord | null {
   }
 }
 
-/** Turn key: the engine's id is unique per session, not globally (a resumed
- *  session could in principle repeat one), so scope it by task. */
+/** Engine turn ids are unique per session, not globally, so scope by task. */
 function keyOf(turn: Pick<AgentTurnRecord, "taskId" | "id">): string {
   return `${turn.taskId}\0${turn.id}`
 }
 
-/** Whether a re-read of the same turn carries the same fields. Both sides are
- *  {@link normalize} output, so their top-level key order is fixed and a stable
- *  serialization is a sound equality check — it never misses a real field
- *  change; at worst a differently-ordered `usage` triggers one redundant, and
- *  harmless, write. */
+/** Both sides are {@link normalize} output (fixed key order), so this never
+ *  misses a change; a reordered `usage` costs at most one harmless write. */
 function sameRecord(a: AgentTurnRecord, b: AgentTurnRecord): boolean {
   return JSON.stringify(a) === JSON.stringify(b)
 }
@@ -88,11 +75,7 @@ export class AgentTurnsStore {
     })
   }
 
-  /**
-   * Merge a batch of turns for one task. Returns how many were NEW — the
-   * ingest path uses that to skip the write when a re-read produced nothing
-   * (the common case: every Stop re-reads the whole transcript).
-   */
+  /** Returns how many were NEW; writes only if something was added or changed. */
   async record(turns: readonly AgentTurnRecord[]): Promise<number> {
     return await this.enqueue(async () => {
       let added = 0
@@ -103,10 +86,7 @@ export class AgentTurnsStore {
         const key = keyOf(turn)
         const prev = this.turns.get(key)
         if (prev === undefined) added++
-        // Last write wins on the fields: a turn re-read after more assistant
-        // records landed is the more complete one, and that update has to reach
-        // disk. Keying the write only on NEW turns kept it in memory and lost it
-        // on the next restart.
+        // A changed re-read must reach disk too, not only new turns.
         else if (!sameRecord(prev, turn)) changed = true
         // Re-insert so Map order tracks recency; the cap evicts from the head.
         this.turns.delete(key)
@@ -164,16 +144,14 @@ export class AgentTurnsStore {
   private async write(): Promise<void> {
     const body: AgentTurnsFile = { version: 1, turns: [...this.turns.values()] }
     try {
-      // 0600: no credentials here, but the records do name every repo you work
-      // in and when — defense in depth, and free.
+      // 0600: no credentials, but records name every repo you work in and when.
       await writeJsonAtomic(this.path, body, { mode: OWNER_ONLY_FILE_MODE, compact: true })
     } catch (err) {
       logDaemonError("agent-turns-write", err)
     }
   }
 
-  /** Serialize mutations so two concurrent hook ingests can't interleave a
-   *  read-modify-write and lose turns. */
+  /** Concurrent hook ingests must not interleave read-modify-write and lose turns. */
   private enqueue<T>(work: () => Promise<T>): Promise<T> {
     return serialized(this.path, work)
   }

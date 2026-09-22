@@ -1,12 +1,8 @@
 /**
- * Durable, daemon-owned attention Inbox.
- *
- * Live engine activity and Inbox retention are deliberately different state:
- * activity may idle on session close or task deletion, while the durable queue survives
- * daemon restarts. An item leaves when its target is visited/opened, the user
- * removes it, that Task and Terminal Tab start another turn, or the containing
- * Task is hard-deleted. A newer attention event for the same target replaces
- * the older item at the end of the queue.
+ * Durable, daemon-owned attention Inbox; survives daemon restarts, unlike live
+ * activity. An item leaves when its target is opened, the user removes it,
+ * that Task+Tab starts another turn, or the Task is hard-deleted. A newer event
+ * for the same target replaces the older item at the queue tail.
  */
 
 import { readFile } from "node:fs/promises"
@@ -31,13 +27,8 @@ interface AttentionInboxFile {
 }
 
 /**
- * Retention cap (prune-oldest, shape of `pty-exit-store.ts`'s MAX_RECORDS):
- * an episode leaves only on visit / dismiss / a newer turn on the same
- * task+tab / task hard-delete — a task you never revisit keeps its episode
- * forever, and every recorded episode rewrites the whole file. Without a
- * cap the queue grows without bound; the size of a real install's task list
- * is the natural ceiling on live episodes, but forgotten tasks must not
- * accumulate tax forever.
+ * Retention cap, prune-oldest: a never-revisited task keeps its episode
+ * forever, and every record rewrites the whole file.
  */
 export const MAX_EPISODES = 500
 
@@ -68,8 +59,7 @@ function normalizeItem(value: unknown): AttentionInboxItem | null {
     tabId: item.tabId,
     state: item.state,
     ...(item.detail ? { detail: item.detail } : {}),
-    // All retained episodes are pending. The field is written for snapshot
-    // compatibility; the queue model does not read it.
+    // Written for snapshot compatibility only; the queue model never reads it.
     unread: item.unread !== false,
     at: item.at,
   }
@@ -82,15 +72,11 @@ async function readStore(path: string): Promise<AttentionInboxItem[]> {
     return parsed.items.map(normalizeItem).filter((item): item is AttentionInboxItem => item !== null)
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code
-    // Nothing CAN be there: no file (ENOENT), or a path component that is not
-    // a directory (ENOTDIR — broken config, and the write will fail too).
+    // Nothing CAN be there (ENOTDIR: broken config; the write will fail too).
     if (code === "ENOENT" || code === "ENOTDIR") return []
-    // An I/O failure is not an empty queue. Returning `[]` published an
-    // authoritative "nothing needs you" AND made memory the source of truth,
-    // so the next `commit()` rewrote the whole file from an empty map — one
-    // transient EACCES/EMFILE/EIO permanently destroyed the queue. Re-throw,
-    // only errors that carry an errno are I/O. A `SyntaxError` from genuinely malformed JSON
-    // has none and still reads as empty, which is the recorded decision.
+    // An I/O failure is not an empty queue: `[]` would let the next commit()
+    // rewrite the file empty, so one transient EACCES/EIO destroys the queue.
+    // Malformed JSON (no errno) still reads as empty, by decision.
     if (code !== undefined) throw err
     logDaemonError("attention-inbox-load", err)
     return []
@@ -104,9 +90,7 @@ async function writeStore(path: string, items: readonly AttentionInboxItem[]): P
 
 export class AttentionInboxStore {
   private readonly items = new Map<string, AttentionInboxItem>()
-  /** False until one read of the file SUCCEEDED. Every write rewrites the
-   *  document whole, so committing before that would publish an empty map as
-   *  the new truth — see the guard in {@link commit}. */
+  /** False until one read SUCCEEDED; {@link commit} refuses to write before that. */
   private loaded = false
 
   constructor(
@@ -130,12 +114,9 @@ export class AttentionInboxStore {
   }
 
   /**
-   * `tabId` is nullable: an engine the user typed into a shell that kobe did
-   * not spawn — including the shell an exited engine leaves behind in place —
-   * inherits no `KOBE_TAB_ID`, so its hooks report task-only. Dropping those
-   * events would keep such a session out of the Inbox entirely. A task-level
-   * episode still navigates (the task's active tab); the tab-level one is
-   * simply more precise when the identity is there.
+   * `tabId` is nullable: an engine started by hand in a shell (including the
+   * one an exited engine leaves behind) has no `KOBE_TAB_ID`, so its hooks
+   * report task-only. A task-level episode still navigates to the active tab.
    */
   async record(
     taskId: string,
@@ -143,8 +124,7 @@ export class AttentionInboxStore {
     detail: EngineActivityDetail | undefined,
     tabIdInput: string | null,
   ): Promise<void> {
-    // An empty string is not a tab — normalize it to the task level rather
-    // than minting an episode keyed on `""`.
+    // "" is not a tab; don't key an episode on it.
     const tabId = tabIdInput === null || tabIdInput.length === 0 ? null : tabIdInput
     await this.enqueue(async () => {
       const key = attentionInboxItemKey({ taskId, tabId })
@@ -154,17 +134,14 @@ export class AttentionInboxStore {
       } else {
         const state = stateFor(kind, detail)
         if (!state) return
-        // Dedupe rule: one pending episode per task+tab —
-        // a fresh event REPLACES the stale one and takes the latest position
-        // (delete-then-set so the fresh `at` re-sorts it to the queue tail).
+        // One episode per task+tab; the fresh one takes the queue tail.
         next.delete(key)
         next.set(key, {
           taskId,
           tabId,
           state,
           ...(detail ? { detail } : {}),
-          // Every stored episode is pending by definition (opening removes
-          // it). Kept on the wire for old-client compatibility only.
+          // Old-client wire compat only: stored episodes are always pending.
           unread: true,
           at: this.now(),
         })
@@ -174,18 +151,9 @@ export class AttentionInboxStore {
   }
 
   /**
-   * Record a `dead` episode: the tab's engine PROCESS is gone, from the
-   * pty-host's exit record (pty-exit-watch.ts). Its own path rather than a
-   * `record()` kind: there is no hook event behind it, so it has no
-   * {@link EngineActivityKind}.
-   *
-   * Every OTHER episode is something the engine reported about itself, so a
-   * KILLED engine (no Stop, no SessionEnd, no hook at all) has nothing to
-   * report — without this path the one surface whose job is "what needs me"
-   * stays silent about every dead agent.
-   *
-   * Deduped per task+tab like every other episode: a fresh death replaces the
-   * previous episode for that tab and takes the queue tail.
+   * A `dead` episode from the pty-host's exit record (pty-exit-watch.ts). Not
+   * a `record()` kind: a KILLED engine fires no hook, so it has no
+   * {@link EngineActivityKind}. Deduped per task+tab like the rest.
    */
   async recordEngineDeath(taskId: string, tabId: string, detail: EngineActivityDetail, at: number): Promise<void> {
     await this.enqueue(async () => {
@@ -197,11 +165,7 @@ export class AttentionInboxStore {
     })
   }
 
-  /**
-   * Legacy RPC (pre queue-drain model): opening now DELETES the episode
-   * (`deleteEpisode` via attention.dismiss). Kept for old clients whose
-   * open still calls attention.markRead — treat it as the same resolve.
-   */
+  /** Old clients' `attention.markRead`; resolves exactly like {@link deleteEpisode}. */
   async markRead(taskId: string, tabId: string | null, at: number): Promise<boolean> {
     return await this.deleteEpisode(taskId, tabId, at)
   }
@@ -238,17 +202,10 @@ export class AttentionInboxStore {
   }
 
   /**
-   * Record (or refresh) the `routine_failed` episode for one routine.
-   *
-   * Its own path for the same reason `recordEngineDeath` has one: no engine
-   * reported anything. A schedule fired with nobody watching and could not do
-   * its work, and every other surface that would have shown it — the sidebar
-   * badge, the tab strip, a toast — is keyed on a task this firing may never
-   * have created.
-   *
-   * Deduped on the ROUTINE, not the task: a fresh-task routine mints a task
-   * per firing, so a schedule failing every minute produces ONE episode that
-   * keeps being replaced with the latest reason, not 1,440 a day.
+   * Record (or refresh) a routine's `routine_failed` episode. No engine
+   * reported it, and other surfaces are keyed on a task the firing may never
+   * have created. Deduped on the ROUTINE: a fresh-task routine failing every
+   * minute yields ONE episode, not 1,440 a day.
    */
   async recordRoutineFailure(
     routine: { automationId: string; name: string; status: string; error?: string },
@@ -265,8 +222,7 @@ export class AttentionInboxStore {
     })
   }
 
-  /** Drop a deleted routine's episode — nothing else would ever clear it, and
-   *  the queue is supposed to describe things that still exist. */
+  /** Drop a deleted routine's episode; nothing else would ever clear it. */
   async deleteRoutineEpisode(automationId: string): Promise<void> {
     await this.enqueue(async () => {
       const next = new Map(this.items)
@@ -285,12 +241,10 @@ export class AttentionInboxStore {
     return serialized(this.path, operation)
   }
 
-  /** Serialize mutations so concurrent hook/RPC writes cannot clobber the file. */
+  /** Rewrite the whole file, then publish. */
   private async commit(next: ReadonlyMap<string, AttentionInboxItem>): Promise<void> {
-    // Never write a file we could not read. `init()` leaves this false when
-    // the load threw (its caller logs and carries on), and every commit
-    // rewrites the document whole — so writing here would turn a recoverable
-    // read blip into the permanent deletion of every pending episode.
+    // Never write a file we could not read: a failed load plus a whole-file
+    // rewrite would permanently delete every pending episode.
     if (!this.loaded) throw new Error(`attention inbox never loaded (${this.path}) — refusing to overwrite it`)
     // Sorted ascending by `at`, so the tail is the newest — prune-oldest.
     const items = [...next.values()].sort(compareItems).slice(-MAX_EPISODES)

@@ -1,17 +1,8 @@
 /**
- * Payloads for the daemon's EVENT channels — the ones that carry a request
- * or a happening rather than a state snapshot.
- *
- * The seam against `channels.ts`: that file is the channel REGISTRY (which
- * channels exist, and the state each one's last-value replay caches). These
- * are the request bodies the event channels carry — `tab.open` asks a TUI to
- * open a pane, `ui.prompt` asks a human for a line of text, `notice.event`
- * asks every attached UI for a toast. A consumer dedupes each on its `at`
- * rather than rendering it as current state, which is exactly why they do
- * not belong in the registry's state-channel narrative.
- *
- * Re-exported through `protocol.ts` like everything else here — the public
- * import path is unchanged.
+ * Payloads for the daemon's EVENT channels (a request or a happening, not a
+ * state snapshot); `channels.ts` is the registry and state replay. Consumers
+ * dedupe each on its `at` rather than render it as current state.
+ * Re-exported through `protocol.ts`.
  */
 
 /** The `notice.event` channel payload — one toast for every attached UI. */
@@ -19,11 +10,7 @@ export interface NoticeEventPayload {
   readonly title: string
   /** Optional second line under the title — context, not a second message. */
   readonly body?: string
-  /**
-   * Free-form kind tag. The TUI styles the known severities
-   * ("done" / "needs_input" / "error" — its NotificationKind vocabulary)
-   * and renders anything else neutrally, so agents may invent their own.
-   */
+  /** Free-form tag. The TUI styles "done" / "needs_input" / "error" and renders anything else neutrally. */
   readonly kind: string
   /** Optional task the notice concerns (drives the sidebar unread mark). */
   readonly taskId?: string
@@ -122,12 +109,9 @@ export interface UiPromptPayload {
 }
 
 /**
- * A terminal cell's size in pixels, as the emulator itself reports it.
- *
- * A GUI measures its OWN tty at boot and hands the answer over with its
- * `subscribe`; a terminal that declines to answer reports nothing rather than
- * a guess. Used by `graphics.write` to tell a caller how many cells a picture
- * of a given pixel size will cover.
+ * A cell's pixel size as the emulator reports it, sent by a GUI with its
+ * `subscribe` (nothing, never a guess, if the terminal won't answer). Lets
+ * `graphics.write` tell a caller how many cells a picture covers.
  */
 export interface CellPixelSize {
   readonly width: number
@@ -135,13 +119,9 @@ export interface CellPixelSize {
 }
 
 /**
- * The `graphics.write` channel payload — one opaque graphics payload for every
- * attached GUI to write to its own tty, verbatim.
- *
- * Deliberately product-neutral, and deliberately unparsed: Rove allocates the
- * {@link imageId} (the one fact a caller cannot allocate for itself, because
- * the id space belongs to the terminal and not to any one pane) and forwards
- * the rest byte-for-byte. It never learns what the bytes draw.
+ * The `graphics.write` channel payload — opaque bytes every attached GUI writes
+ * to its own tty verbatim. Rove allocates only the {@link imageId} (the id
+ * space belongs to the terminal, not any one pane) and never parses the rest.
  */
 export interface GraphicsWritePayload {
   readonly taskId: string

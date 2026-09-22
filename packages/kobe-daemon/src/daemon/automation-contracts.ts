@@ -1,39 +1,26 @@
-/**
- * Scheduled automations ("routines") — the schedule record, its run history,
- * and the patch shape edits take.
- *
- * Their own module along a real seam: nothing else in the daemon's contracts
- * refers to these, and they are the one group with their own store, runner,
- * and RPC family.
- */
+/** Scheduled automations ("routines"): the schedule record, its run history, and the edit patch. */
 
 import type { VendorId } from "./contracts.ts"
 
-/** Back-pointer from a routine's standing session task to its schedule.
- *  Lives here rather than beside the task types because the id it carries is
- *  an {@link Automation}'s. */
+/** Back-pointer from a routine's standing session task to its {@link Automation}. */
 export interface TaskRoutineLink {
   readonly automationId: string
 }
 
-/** A shell command run BEFORE an automation's engine starts. A non-zero exit
- *  means "nothing to do" and the run is skipped without spawning an engine —
- *  the cheap way to stop a schedule burning a turn when nothing changed. */
+/** Shell command run BEFORE the engine starts; a non-zero exit means "nothing
+ *  to do" and skips the run without spawning an engine. */
 export interface AutomationPrecheck {
   readonly command: string
   readonly timeoutSeconds: number
 }
 
 /**
- * One scheduled agent task: a cron rule + a prompt + a repo. By default every
- * firing creates a FRESH task (worktree + branch + engine session), so an
- * automation run is an ordinary task you can open and keep talking to.
- * {@link persistentSession} swaps that for one standing task the schedule
- * re-delivers into, which is what lets a daily routine build on yesterday.
+ * A cron rule + a prompt + a repo. By default every firing creates a FRESH
+ * task (worktree + branch + engine session); {@link persistentSession}
+ * re-delivers into one standing task instead.
  *
- * `nextRunAt` is the whole scheduling story: an absolute timestamp on disk,
- * never an in-memory timer. A daemon restart needs no re-arm pass — the first
- * sweep after boot re-reads it (same shape as `Task.quotaResume`).
+ * `nextRunAt` is an absolute on-disk timestamp, never an in-memory timer, so
+ * a restart needs no re-arm pass (same shape as `Task.quotaResume`).
  */
 export interface Automation {
   readonly id: string
@@ -48,20 +35,16 @@ export interface Automation {
   readonly precheck?: AutomationPrecheck
   readonly baseRef?: string
   /**
-   * Re-deliver into ONE standing task instead of creating a fresh worktree
-   * per firing. Off by default, and deliberately per-routine:
-   * an inspection routine wants yesterday's context, while a routine that
-   * EDITS code wants a clean branch it can land — piling a week of runs onto
-   * one branch makes it unlandable.
+   * Re-deliver into ONE standing task instead of a fresh worktree per firing.
+   * Off by default and per-routine: a routine that EDITS code needs a clean,
+   * landable branch, not a week of runs piled onto one.
    */
   readonly persistentSession?: boolean
   /** Exact user-owned conversation. Never creates or revives a task or tab. */
   readonly target?: { readonly kind: "existing-tab"; readonly taskId: string; readonly tabId: string }
-  /**
-   * The standing task {@link persistentSession} delivers into. Set on the
-   * first firing, cleared when that task is gone (deleted, or its worktree
-   * removed) so the next firing rebuilds rather than failing forever.
-   */
+  /** The standing task {@link persistentSession} delivers into. Set on the
+   *  first firing; cleared when that task or its worktree is gone, so the next
+   *  firing rebuilds. */
   readonly sessionTaskId?: string
   readonly enabled: boolean
   /** ISO-8601. The single source of truth for when this fires next. */
@@ -69,15 +52,9 @@ export interface Automation {
   /** How late a missed occurrence may still run. Older ones are skipped. */
   readonly missedRunGraceMinutes: number
   /**
-   * The scheduled time of the most recent occurrence the sweep CONSUMED —
-   * stamped by `advanceNextRun` before the dispatch is even attempted, so it
-   * is set for skips and failures exactly as it is for successes.
-   *
-   * Named for what it is. As `lastRunAt` it was in the `automation.list`
-   * payload claiming a run had happened for routines that had only ever
-   * recorded `skipped_unavailable`, which is the one conclusion that makes a
-   * reader stop looking. "When did it last actually run, and what happened" is
-   * `automation.runs`, which answers with a status attached.
+   * Scheduled time of the latest occurrence the sweep CONSUMED, stamped by
+   * `advanceNextRun` before dispatch, so skips and failures set it too. Not
+   * evidence of a run: `automation.runs` has the statuses.
    */
   readonly lastOccurrenceAt?: string
   readonly createdAt: string
@@ -85,21 +62,14 @@ export interface Automation {
 }
 
 /**
- * Why a run did or did not produce work. The "didn't run" reasons are
- * deliberately distinct: unattended automation is only trustworthy if the user
- * can tell "nothing to do" (`skipped_precheck`, healthy) from "it broke"
- * (`dispatch_failed`, needs a human) at a glance. The same rule is why a
- * standing session's degraded path (`revived`) is not folded into
- * `dispatched`.
+ * Why a run did or did not produce work. Kept distinct so "nothing to do"
+ * (`skipped_precheck`) reads apart from "it broke" (`dispatch_failed`), and
+ * `revived` apart from `dispatched`.
  */
 export type AutomationRunStatus =
   | "dispatched"
-  /**
-   * A standing session whose engine had died was respawned in the
-   * same worktree. Distinct from `dispatched` because the files carried over
-   * but the CONVERSATION did not — a run that answered without yesterday's
-   * context in front of it should not read as one that had it.
-   */
+  /** Dead standing-session engine respawned in the same worktree: files
+   *  carried over, the CONVERSATION did not. */
   | "revived"
   | "skipped_cancelled"
   | "skipped_precheck"
@@ -108,14 +78,9 @@ export type AutomationRunStatus =
   | "dispatch_failed"
 
 /**
- * Run outcomes that mean a human has to do something.
- *
- * The whole point of splitting the "didn't run" reasons was so this line could
- * be drawn: `skipped_precheck` is a healthy routine finding nothing to do and
- * must never raise an alarm, while an engine that would not start and a repo
- * that is no longer there will repeat every firing until someone intervenes.
- * One definition, because the Inbox and the Routines list have to agree about
- * which routines are broken — two thresholds would be two answers.
+ * Outcomes that repeat every firing until a human intervenes
+ * (`skipped_precheck` must never alarm). The one definition the Inbox and the
+ * Routines list share, so they agree on which routines are broken.
  */
 export function automationRunNeedsAttention(status: AutomationRunStatus): boolean {
   return status === "dispatch_failed" || status === "skipped_unavailable"

@@ -1,24 +1,13 @@
 /**
- * How a PTY child gets spawned — the one runtime-specific seam in the PTY
- * host.
+ * How a PTY child gets spawned — the PTY host's one runtime-specific seam,
+ * kept narrow so ring buffer, OSC titles, park/replay and sweep stay
+ * single-implementation on every platform.
  *
- * `PtyHost` owns sessions, scrollback, replay, and lifetime; none of that
- * cares which API produced the pseudo-terminal. Two drivers exist because no
- * single API covers every platform kobe runs on:
- *
- *   - `bunTerminalDriver` — `Bun.spawn(..., { terminal })`. The default, and
- *     the only one used on macOS and Linux.
- *   - `nodePtyDriver` — `node-pty` (ConPTY). Windows only, and it must run
- *     under NODE: Bun can import node-pty and read from it, but writing to
- *     the ConPTY input pipe fails with `ERR_SOCKET_CLOSED`, so a Bun-hosted
- *     node-pty session is one you cannot type into. Bun's own `terminal`
- *     option is rejected outright on Windows ("terminal option is not
- *     supported on this platform"), which is why the Windows PTY host is a
- *     separate node process rather than the usual Bun one.
- *
- * Keeping the seam this narrow is deliberate: everything above it — the ring
- * buffer, OSC title scanning, park/replay, sweep — stays single-implementation
- * and identically tested on every platform.
+ *   - `bunTerminalDriver` — `Bun.spawn(..., { terminal })`; macOS and Linux.
+ *   - `nodePtyDriver` — `node-pty` (ConPTY); Windows only, and under NODE:
+ *     from Bun, writes to the ConPTY input pipe fail with `ERR_SOCKET_CLOSED`,
+ *     and Bun's `terminal` option is rejected on Windows. Hence a separate
+ *     node PTY host there.
  */
 
 import { taskkillProcessTree } from "./process-tree.ts"
@@ -33,8 +22,7 @@ export interface PtyExit {
 /** The slice of a spawned PTY child that `PtyHost` actually drives. */
 export interface PtyChild {
   readonly pid: number
-  /** Settles with the child's exit status. Never rejects meaningfully —
-   *  exit is exit; an unknowable status resolves `{code:null,signal:null}`. */
+  /** Never rejects meaningfully; an unknowable status resolves `{code:null,signal:null}`. */
   readonly exited: Promise<PtyExit>
   write(data: string): void
   resize(cols: number, rows: number): void
@@ -42,12 +30,9 @@ export interface PtyChild {
   close(): void
   kill(signal: NodeJS.Signals): void
   /**
-   * End the child AND every process descended from it, resolving with one
-   * line for the signal log once that has been asked. Present only where a
-   * signal cannot do the job — node-pty on Windows, which has no process
-   * group to signal — and absent on the drivers whose `kill()` already
-   * reaches the group. `terminatePtyChild` runs it BEFORE `kill()`, so the
-   * tree is still there to walk when it runs.
+   * End the child AND its descendants; resolves with one signal-log line.
+   * Only where no process group exists to signal (node-pty on Windows).
+   * `terminatePtyChild` runs it BEFORE `kill()`, while the tree is walkable.
    */
   readonly endTree?: () => Promise<string>
 }
@@ -93,13 +78,7 @@ export interface BunTerminalOptions {
 
 export type BunTerminalSpawn = (argv: string[], options: BunTerminalOptions) => BunTerminalProc
 
-/**
- * `Bun.spawn(..., { terminal })` — the default on macOS and Linux.
- *
- * `spawn` is injectable for the same reason node-pty's is: `Bun` is not a
- * global under the test runner, so the translation below could not otherwise
- * be asserted anywhere — and this is the driver almost every kobe user runs.
- */
+/** `spawn` is injectable because `Bun` isn't a global under the test runner. */
 export function bunTerminalDriver(spawn?: BunTerminalSpawn): PtyDriver {
   const spawnTerminal =
     spawn ??
@@ -118,15 +97,12 @@ export function bunTerminalDriver(spawn?: BunTerminalSpawn): PtyDriver {
     })
     return {
       pid: proc.pid,
-      // Bun's `exited` resolves with the exit code, but the properties carry
-      // the signal too — read both AFTER settle so a SIGKILLed child reports
-      // its signal instead of a bare null code.
+      // Read the properties AFTER settle: only they carry the signal.
       exited: proc.exited.then(
         () => ({ code: proc.exitCode ?? null, signal: proc.signalCode ?? null }),
         () => ({ code: null, signal: null }),
       ),
-      // The handle disappears when the child exits, so every use is optional —
-      // a late write from a detaching client must not throw past the host.
+      // The handle vanishes on exit; a late write must not throw past the host.
       write: (data) => proc.terminal?.write(data),
       resize: (cols, rows) => proc.terminal?.resize(cols, rows),
       close: () => proc.terminal?.close(),
@@ -153,13 +129,8 @@ export type NodePtySpawn = (
 ) => NodePtyChild
 
 /**
- * `node-pty` (ConPTY on Windows). Async because node-pty is a native module
- * loaded only by the host that actually needs it — importing it eagerly would
- * drag a napi binding into every Bun-hosted daemon on every platform.
- *
- * `spawn` is injectable so the translation below — event wiring, the exit
- * promise, env narrowing — is unit-testable on a runner where the native
- * binding was never built.
+ * Async: node-pty is a napi module loaded only where needed, not in every
+ * Bun daemon. `spawn` is injectable to test without the native binding.
  */
 export async function nodePtyDriver(
   spawn?: NodePtySpawn,
@@ -189,14 +160,11 @@ export async function nodePtyDriver(
       exited,
       write: (data) => child.write(data),
       resize: (cols, rows) => child.resize(cols, rows),
-      // node-pty ties the handle's life to the child; there is nothing extra
-      // to release, and `kill()` after exit throws.
+      // Handle lives with the child; `kill()` after exit throws.
       close: () => {},
-      // ConPTY has no signals — node-pty maps every kill to TerminateProcess,
-      // so SIGTERM and SIGKILL collapse into the same call here — and that
-      // call reaches the shell alone: nothing it spawned, nothing holding
-      // the worktree as its cwd. `endTree` is what reaches the rest; it gets
-      // the shell's path so a Git Bash tree can be read from MSYS's own table.
+      // Every kill is TerminateProcess on the shell alone (SIGTERM = SIGKILL).
+      // `endTree` reaches descendants; the shell path lets a Git Bash tree be
+      // read from MSYS's own table.
       kill: () => child.kill(),
       endTree: () => endTree(child.pid, file),
     }

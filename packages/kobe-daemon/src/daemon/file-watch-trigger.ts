@@ -1,19 +1,11 @@
 /**
- * Shared stat-poll trigger for daemon channels backed by files.
- *
- * State-like files in kobe are commonly written with tmp+rename, and every
- * fs-event watcher on macOS (fs.watch, chokidar) rides FSEvents, whose
- * stream starts ASYNCHRONOUSLY: a write landing after the watcher is
- * created but before the stream is live is dropped forever, with no signal
- * — the same failure the plugin registry hits, closed the same way. A
- * chokidar `ready` reconciliation narrows that window without closing it:
- * writes landing between the ready check and stream-live still lose ~3% of
- * single writes under load. Stat-polling closes it constructively — the
- * baseline stamp is taken synchronously before the call returns, so a caller
- * that does its first load AFTER starting the trigger can never miss a
- * write: earlier writes are seen by that load, later ones flip a stamp. The
- * watched files are single small
- * JSON/YAML files, so the poll is a few statSync calls every 200ms.
+ * Stat-poll trigger for file-backed daemon channels. Not fs.watch/chokidar:
+ * on macOS they ride FSEvents, whose stream starts ASYNCHRONOUSLY, silently
+ * dropping writes that land before it is live; even a chokidar `ready`
+ * reconciliation still loses ~3% of single writes under load. Polling with a
+ * baseline stamped synchronously means a caller that loads AFTER starting the
+ * trigger can't miss a write. The files are small JSON/YAML, so this is a few
+ * statSync calls every 200ms.
  */
 
 import { statSync } from "node:fs"
@@ -35,11 +27,7 @@ export interface FileWatchTriggerOptions {
   readonly onError: (err: unknown) => void
 }
 
-/**
- * Start the poller. The baseline stamps are taken synchronously, so callers
- * that load AFTER this returns cannot lose a concurrent write. The returned
- * stop function clears the poll interval and any pending debounce timer.
- */
+/** Start the poller (baseline stamped synchronously). Returns stop(), which also clears a pending debounce. */
 export function startFileWatchTrigger(opts: FileWatchTriggerOptions): () => void {
   if (opts.debounceMs <= 0) return () => {}
 

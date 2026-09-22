@@ -1,10 +1,4 @@
-/**
- * Per-client wire layer of the daemon's Unix-socket transport — the
- * connection state each socket carries, newline-framed request parsing, and
- * the backpressure-aware write/broadcast paths. server.ts owns WHAT happens
- * to a request (dispatch, subscribe semantics); this module owns getting
- * frames on and off the wire safely.
- */
+/** Per-client wire layer: connection state, request-line parsing, backpressure-aware writes. server.ts owns dispatch. */
 
 import type { Socket } from "node:net"
 import type { CellPixelSize } from "./channels-events.ts"
@@ -19,40 +13,28 @@ export interface DaemonClientConnection {
 export type ClientState = DaemonClientConnection & {
   socket: Socket
   /**
-   * Backpressure-aware writer for this socket (fix E). Every server→client
-   * frame goes through it so a slow/stalled client buffers in a bounded
-   * per-client queue (full snapshots replaced only by newer snapshots)
-   * instead of letting Node queue unbounded heap on the long-lived daemon.
-   * Lifecycle/response frames are never dropped. See {@link ClientWriter}.
+   * Every server→client frame goes through this bounded per-client queue
+   * (snapshots replaced only by newer snapshots) so a stalled client can't
+   * grow daemon heap unbounded. Lifecycle/response frames are never dropped.
+   * See {@link ClientWriter}.
    */
   writer: ClientWriter
   /** True once the client has called `subscribe` (broadcast target). */
   subscribed: boolean
   /**
-   * True only when the client subscribed with `role: "gui"` — a real
-   * front-end attach. This is the refcount that gates lazy shutdown; a
-   * helper pane (`role: "pane"`) is `subscribed` (gets channels) but NOT
-   * `holdsLifetime`, so closing it never stops the daemon.
+   * True only for `role: "gui"` subscribers — the refcount gating lazy
+   * shutdown. A `role: "pane"` helper is `subscribed` but never holds lifetime.
    */
   holdsLifetime: boolean
   /**
-   * Per-channel subscribe filter (KOB — per-channel subscribe). `null` =
-   * "no filter, deliver every channel" — what a subscriber that omits
-   * `channels` gets. A non-null set restricts both the connect-time replay
-   * AND every later `broadcast` to the named channels, so a narrow consumer
-   * (e.g. host-boot's UiPrefsSync, which only wants `ui-prefs` +
-   * `keybindings`) never receives — or deserializes — the full
-   * `task.snapshot` fan-out it does not read. The
-   * `daemon.stopping` lifecycle frame is NOT a channel and bypasses this
-   * filter (every subscriber must learn the daemon is going down).
+   * Channel filter; `null` (no `channels` in subscribe) = every channel. A set
+   * restricts both connect-time replay AND later broadcasts, sparing narrow
+   * consumers the `task.snapshot` fan-out. `daemon.stopping` is not a channel
+   * and bypasses it: every subscriber must learn the daemon is going down.
    */
   channels: ReadonlySet<ChannelName> | null
-  /**
-   * The cell pixel size this GUI measured on its own tty at boot, or `null`
-   * when it is a pane, or when its terminal declined to answer. Read by
-   * `graphics.write`, which needs it to tell a caller how many cells a picture
-   * will cover — and refuses rather than guess when nobody reported one.
-   */
+  /** Cell pixel size the GUI measured at boot; `null` for a pane or a terminal
+   *  that declined. `graphics.write` refuses rather than guess without one. */
   cellPixelSize: CellPixelSize | null
 }
 
@@ -81,21 +63,10 @@ export function writeFrame(client: Pick<ClientState, "writer">, frame: DaemonFra
 }
 
 export function broadcast(clients: ReadonlySet<ClientState>, frame: DaemonFrame): void {
-  // Serialize ONCE per publish, not once per subscriber: a task.snapshot
-  // frame is ~8.5KB at 20 tasks, so N subscribers would otherwise cost N
-  // identical JSON.stringify passes per task mutation. The wire bytes are
-  // unchanged — every subscriber receives the exact same line.
-  //
-  // Per-channel filter (KOB — per-channel subscribe): a channel event is
-  // skipped for a client whose `channels` filter excludes it, so a narrow
-  // consumer never receives (or parses) fan-out it does not read. The
-  // `daemon.stopping` lifecycle frame is NOT a channel — it bypasses the
-  // filter so every subscriber learns the daemon is going down.
+  // Serialize once per publish: a task.snapshot is ~8.5KB at 20 tasks.
+  // `daemon.stopping` is not a channel, so it bypasses `channels` filters.
   const channel = frame.type === "event" && frame.name !== "daemon.stopping" ? (frame.name as ChannelName) : null
-  // Backpressure (fix E): each client's writer obeys its own socket's drain
-  // signal and buffers in a bounded per-client queue, so one slow client can
-  // neither stall the fan-out for healthy clients nor grow the daemon heap
-  // unbounded. Replacement policy is identical for all clients, so compute it once.
+  // Per-client writers drain independently, so one slow client can't stall the rest.
   const replaceKey = replacementKey(frame)
   let line: string | null = null
   for (const client of clients) {
@@ -107,10 +78,8 @@ export function broadcast(clients: ReadonlySet<ClientState>, frame: DaemonFrame)
 }
 
 /**
- * Parse one complete request line from LineReceiver and hand it to `onRequest`. A malformed line (bad JSON / non-request
- * frame) answers with a bare `{ message }` parse-error response — it never
- * carried an Error `name` on the wire, and keeping that here preserves the
- * exact bytes.
+ * Parse one request line and hand it to `onRequest`. A malformed line answers
+ * a bare `{ message }` parse error — no Error `name`, preserving wire bytes.
  */
 export function handleClientLine(
   client: ClientState,

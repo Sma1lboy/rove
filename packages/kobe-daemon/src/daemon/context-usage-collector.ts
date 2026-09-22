@@ -1,27 +1,17 @@
 /**
- * Daemon-side context-window collector.
+ * Context-window collector: one guarded engine-owned read per LIVE ENGINE
+ * SESSION, published on `usage.context` keyed `taskId::tabId`, so the footer
+ * shows `ctx 62%` without a pane touching a vendor transcript. Tabs without a
+ * session id (shells, unopened tasks, engines with no transcript store) render
+ * nothing.
  *
- * The engine already knows how full its context window is — every adapter's
- * history reader computes it (`readUsageSnapshot`), the browser renders it,
- * and the TUI threw it away. This is the missing fan-out: one guarded read per
- * LIVE ENGINE SESSION, published on `usage.context` keyed `taskId::tabId`, so
- * the workspace footer can say `ctx 62%` without any pane touching a vendor
- * transcript.
+ * Cadence is deliberately SLOW: the number moves once per turn and each read
+ * parses a transcript. Same guards as the other collectors (in-flight dedupe,
+ * timeout, backoff, adaptive cadence).
  *
- * Scope is the activity registry's live per-tab entries that carry a session
- * id — a shell tab, a task nobody has opened, and a custom engine with no
- * transcript store all contribute nothing, and therefore render nothing.
- *
- * Cadence is deliberately SLOW ({@link DEFAULT_CONTEXT_USAGE_TICK_MS}): the
- * number moves once per agent turn, not once per frame, and each read parses a
- * session transcript. It rides the same guards as the other collectors
- * (in-flight dedupe, timeout, backoff, adaptive cadence) through
- * `@/lib/poll-scheduling`'s shared shape.
- *
- * Publish contract, same as `worktree.changes`: the FULL map, republished only
- * when membership or a value actually changed, so the bus's last-value replay
- * hands a late subscriber the whole picture and quiet ticks cost nothing.
- * Reads are best-effort — a throw keeps the entry's last value.
+ * Publishes the FULL map, only when membership or a value changed, so
+ * last-value replay gives a late subscriber the whole picture. A throw keeps
+ * the entry's last value.
  */
 
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
@@ -30,7 +20,7 @@ import { logDaemonError } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import type { DaemonRuntimeAdapter, PollCadenceConfig, PollScheduleState } from "./runtime.ts"
 
-/** Once per ~10s: a context reading changes per TURN, not per frame. */
+/** A context reading changes per TURN, not per frame. */
 export const DEFAULT_CONTEXT_USAGE_TICK_MS = 10_000
 /** Kill a transcript parse that runs longer than this. */
 export const CONTEXT_USAGE_TIMEOUT_MS = 4_000
@@ -39,7 +29,7 @@ export const CONTEXT_USAGE_SLOW_RETRY_MS = 60_000
 /** Floor between successful reads per session. */
 export const CONTEXT_USAGE_MIN_INTERVAL_MS = 5_000
 
-/** One live engine session the collector reads. Pure — unit-tested. */
+/** One live engine session the collector reads. */
 export interface ContextUsageTarget {
   /** `taskId::tabId` — the published map's key. */
   readonly key: string
@@ -47,9 +37,8 @@ export interface ContextUsageTarget {
   readonly sessionId: string
 }
 
-/** Every field, or the publisher suppresses a change the reader can see: a
- *  turn that only grew the token totals leaves `contextTokens` alone often
- *  enough (a compacted session, a cached prompt) to matter. */
+/** Every field: a turn can grow the totals yet leave `contextTokens` unchanged
+ *  (compaction, cached prompt), and that change must still publish. */
 export function sameContextUsage(a: EngineContextUsage, b: EngineContextUsage): boolean {
   return (
     a.contextTokens === b.contextTokens &&
@@ -63,13 +52,9 @@ export function sameContextUsage(a: EngineContextUsage, b: EngineContextUsage): 
 }
 
 /**
- * The live engine sessions worth reading: registry entries that name BOTH a
- * tab and a session id, joined to their task's vendor.
- *
- * A task-level entry with no `tabId` is skipped on purpose — the footer meter
- * is about the tab you are looking at, and a task rollup cannot say which of
- * its tabs the number belongs to. A session whose task is gone is skipped too:
- * the registry outlives a delete by one tick. Pure — unit-tested.
+ * Registry entries naming BOTH a tab and a session id, joined to their task's
+ * vendor. Task-level entries are skipped (the meter is per tab), as are
+ * sessions whose task is gone (the registry outlives a delete by one tick).
  */
 export function contextUsageTargets(
   states: readonly { taskId: string; tabId?: string; sessionId?: string }[],
@@ -91,8 +76,7 @@ export function contextUsageTargets(
 
 interface Entry extends PollScheduleState {
   value?: EngineContextUsage
-  /** The session this entry's value belongs to — a tab that started a NEW
-   *  session must not keep showing the old one's occupancy. */
+  /** Owner of `value`; a tab's NEW session must not show the old one's occupancy. */
   sessionId?: string
 }
 
@@ -145,10 +129,8 @@ export class ContextUsageCollector {
       entry = { inFlight: false, nextAllowedAt: 0 }
       this.entries.set(target.key, entry)
     }
-    // A tab that started a new session drops the old reading immediately
-    // rather than showing it until the next successful read lands — and the
-    // drop is PUBLISHED, or the footer keeps drawing the previous
-    // conversation's occupancy at exactly the moment it is most wrong.
+    // New session: drop the old reading now, and PUBLISH the drop, or the
+    // footer keeps the previous conversation's occupancy.
     if (entry.sessionId !== undefined && entry.sessionId !== target.sessionId) {
       const had = entry.value !== undefined
       entry.value = undefined

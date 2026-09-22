@@ -1,17 +1,10 @@
 /**
- * Pure scheduling core for subprocess-backed background polling.
+ * Pure scheduling core for subprocess-backed background polling. Lives in
+ * `kobe-daemon` because both sides need it and `kobe` depends on
+ * `kobe-daemon`, never the reverse; `kobe/src/lib/poll-scheduling.ts`
+ * re-exports it.
  *
- * It lives in `kobe-daemon` because BOTH sides need it and the dependency
- * arrow only runs one way: `kobe` depends on `kobe-daemon`, never the
- * reverse. When this module sat in `kobe/src/lib`, the daemon's two
- * collectors physically could not import it, so each carried its own
- * byte-identical copy of {@link maybeStartScheduledRun} — and the module doc
- * here still claimed they "reuse the EXACT guards", which had quietly stopped
- * being true. `kobe/src/lib/poll-scheduling.ts` is now a re-export, so every
- * TUI-side import path is unchanged.
- *
- * The three guards live here; the bindings differ only in where a finished
- * value goes:
+ * The three guards (bindings differ only in where a finished value goes):
  *
  *   - **in-flight dedupe** — one run per key at a time
  *     ({@link shouldPoll}); ticks landing mid-run are dropped.
@@ -44,11 +37,8 @@ export interface PollScheduleState {
   nextAllowedAt: number
 }
 
-/**
- * When the next run may start. Pure — exported for unit tests.
- * Timed-out runs back off hard; completed runs scale with their own
- * duration so slow repos self-thin without a special case.
- */
+/** When the next run may start: timed-out runs back off hard; completed runs
+ *  scale with their own duration. */
 export function computeNextAllowedAt(
   startedAt: number,
   finishedAt: number,
@@ -59,18 +49,16 @@ export function computeNextAllowedAt(
   return finishedAt + Math.max(cfg.minIntervalMs, (finishedAt - startedAt) * 5)
 }
 
-/** Whether a run may start now. Pure — exported for unit tests. */
+/** Whether a run may start now. */
 export function shouldPoll(state: { inFlight: boolean; nextAllowedAt: number }, now: number): boolean {
   return !state.inFlight && now >= state.nextAllowedAt
 }
 
 /**
- * Spread a delay by ± `ratio` so many keys coming due together (e.g. after a
- * network reconnect re-arms every poller at once) don't fire in lockstep.
- * `ratio` is clamped to `[0, 1]`; the result lands in
- * `[delayMs·(1−ratio), delayMs·(1+ratio))` and is never negative. `rand`
- * defaults to `Math.random` and is injectable so tests are deterministic
- * (`() => 0.5` yields exactly `delayMs`, the no-jitter midpoint). Pure.
+ * Spread a delay by ± `ratio` so keys due together (e.g. after a reconnect)
+ * don't fire in lockstep. `ratio` clamps to `[0, 1]`; result is in
+ * `[delayMs·(1−ratio), delayMs·(1+ratio))`, never negative. `rand: () => 0.5`
+ * yields exactly `delayMs`.
  */
 export function applyJitter(delayMs: number, ratio: number, rand: () => number = Math.random): number {
   const r = Math.max(0, Math.min(1, ratio))
@@ -78,29 +66,20 @@ export function applyJitter(delayMs: number, ratio: number, rand: () => number =
   return Math.max(0, delayMs + offset)
 }
 
-/**
- * Exponential backoff capped at `capMs`: `baseMs · 2^attempt`, with `attempt`
- * the zero-based retry index (0 → `baseMs`, 1 → `2·baseMs`, …). Negative
- * attempts clamp to `baseMs`; the result never exceeds `capMs`. Pure —
- * exported for unit tests.
- */
+/** `baseMs · 2^attempt` capped at `capMs`; `attempt` is the zero-based retry
+ *  index, negatives clamp to `baseMs`. */
 export function exponentialBackoff(baseMs: number, attempt: number, capMs: number): number {
   if (attempt <= 0) return Math.min(baseMs, capMs)
   return Math.min(baseMs * 2 ** attempt, capMs)
 }
 
 /**
- * Maybe start one guarded background run for a key's schedule state.
- * Returns `false` (no run) when the guards say no — in flight, or inside
- * the cadence/backoff window. Otherwise marks the state in-flight, runs
- * `run` with an AbortSignal that fires at `timeoutMs` (pass it to
- * {@link spawnCapture} so a runaway child is SIGKILLed), and on settle
- * updates `nextAllowedAt` + clears the in-flight flag.
+ * Start one guarded run, or return `false` when in flight / inside the
+ * cadence or backoff window. `run` gets an AbortSignal firing at `timeoutMs`
+ * (pass it to {@link spawnCapture} so a runaway child is SIGKILLed).
  *
- * Failure contract (same as the TUI poller it was extracted from): a run
- * that throws, is aborted, or resolves after the timeout never calls
- * `onValue` — the consumer keeps its last good value, so UIs go stale or
- * stay hidden rather than erroring.
+ * A run that throws, aborts, or resolves after the timeout never calls
+ * `onValue`: the consumer keeps its last good value (stale, never erroring).
  */
 export function maybeStartScheduledRun<T>(
   state: PollScheduleState,
@@ -135,33 +114,23 @@ export interface SpawnCaptureResult {
   /** Exit code, or null when the child errored / was killed (timeout). */
   readonly status: number | null
   readonly stdout: string
-  /**
-   * Captured stderr. Kept because on a non-zero status it is usually the ONLY
-   * thing that says why — `sync-base.ts` used to report a refused merge as a
-   * bare "git merge <ref> failed" because this was thrown away at the pipe.
-   */
+  /** On a non-zero status, usually the ONLY thing that says why. */
   readonly stderr: string
 }
 
 /**
- * Decode captured stdout chunks to one UTF-8 string. Chunks MUST be joined as
- * bytes before decoding: a stdout pipe splits on an arbitrary byte boundary
- * (~64 KB), so a multi-byte UTF-8 sequence (a non-ASCII path with
- * `core.quotepath=false`, or any commit message / diff body git never quotes)
- * can straddle two chunks. Decoding each chunk on its own — `String(chunk)` —
- * turns the split character into replacement bytes (`�`); concatenating
- * the raw bytes first decodes it intact. Pure — exported for unit tests.
+ * Decode captured chunks to one UTF-8 string. Join as bytes FIRST: a pipe
+ * splits on an arbitrary byte boundary (~64 KB), so a multi-byte sequence can
+ * straddle chunks and per-chunk decoding would emit `�`.
  */
 export function decodeCapturedChunks(chunks: readonly (Buffer | string)[]): string {
   return Buffer.concat(chunks.map((c) => (typeof c === "string" ? Buffer.from(c) : c))).toString("utf8")
 }
 
 /**
- * Async spawn that collects stdout AND stderr and resolves on close. Never rejects —
- * a spawn error (missing cwd, binary not on PATH) or an abort resolves
- * with `status: null` so callers branch on status, mirroring the
- * never-throw contract of the pane-side sync git helpers it replaces.
- * The AbortSignal kills the child with SIGKILL.
+ * Async spawn collecting stdout AND stderr, resolving on close. Never rejects:
+ * a spawn error (missing cwd, binary not on PATH) or abort resolves
+ * `status: null`. The AbortSignal kills the child with SIGKILL.
  */
 export function spawnCapture(
   cmd: string,

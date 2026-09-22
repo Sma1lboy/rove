@@ -1,60 +1,36 @@
 /**
- * Daemon-side PR-status poller.
+ * Daemon-side PR-status poller: per eligible task, `gh pr list --head <branch>
+ * --state all --json …` → neutral {@link TaskPRStatus} → `orch.setPRStatus`.
+ * Persisting on the Task lets the `task.snapshot` broadcast carry the chip to
+ * every pane and the web board, and survives a daemon restart. The poller only
+ * persists; the TUI fires the checks-resolved toast/bell.
  *
- * For every task with a real branch + local worktree, shell
- * `gh pr list --head <branch> --state all --json …` on an interval, map the
- * result to a neutral {@link TaskPRStatus}, and write it through
- * `orch.setPRStatus` → `store.update` → the `task.snapshot` broadcast.
- * Persisting on the Task (rather than a bespoke channel like the
- * worktree-changes collector) means the existing push fans the chip to every
- * Tasks pane + the web board for free, and the status survives a daemon
- * restart. The TUI sidebar renders the check-state chip and — mirroring
- * `useCompletionNotifications` — fires a toast/bell when a task's checks
- * resolve (pending → passing/failing); the poller itself only persists.
+ * `pr list --head`, not `pr view`, so "no PR" is a success (exit 0, empty
+ * array), never a guessed stderr pattern. Multiple PRs per branch: see
+ * {@link pickPr}.
  *
- * `gh pr list --head` (not `gh pr view`) so "no PR for this branch" is a
- * SUCCESS result (exit 0, empty JSON array) instead of a guessed-at exit-1
- * stderr pattern. A branch can carry more than one PR (an old closed one plus
- * a fresh open one); the strongest wins: open > merged/closed by
- * most-recently-updated (see {@link pickPr}).
+ * The failure classifier and `--json` field set live in kobe's
+ * `monitor/pr-status.ts` and arrive via `runtime.prStatus.classify` /
+ * `viewFields`: kobe-daemon must not depend on the `kobe` package.
  *
- * The failure classifier (`gh` missing/unauthed/network/etc — the "gh broke"
- * case, as opposed to the structural "no PR" case above) and the `--json`
- * field set are OWNED by `@sma1lboy/kobe`'s `monitor/pr-status.ts` (that's
- * where the full pattern tables + unit tests live) and reached through
- * `runtime.prStatus.classify` / `runtime.prStatus.viewFields` — the same
- * consumer-owned-runtime seam `mapView`/`sameStatus`/`nextPoll` already use.
- * kobe-daemon has no dependency on the `kobe` package, so this indirection
- * (not a direct import) is how the daemon reuses kobe's tested logic without
- * inverting the package graph.
+ * GitHub only: `ssh://` projects and non-GitHub remotes yield no PR.
  *
- * GitHub only: the runner is `gh`, so remote (`ssh://`) projects and
- * non-GitHub remotes simply yield no PR and are cheap no-ops.
+ * Per-task schedule by outcome:
+ *   - open PR → tick cadence (checks move).
+ *   - merged / closed → {@link SETTLED_BACKOFF_MS}.
+ *   - no PR → {@link NO_PR_BACKOFF_MS}.
+ *   - `gh`/transport error (missing, unauthed, timeout, network, bad JSON, or
+ *     ANY unrecognized non-zero exit) → exponential backoff capped at
+ *     {@link PR_FAILURE_CAP_MS}; the kind is logged.
+ *   - no GitHub remote → {@link NO_REMOTE_BACKOFF_MS}.
+ * Every delay is jittered ({@link PR_POLL_JITTER_RATIO}) so tasks re-armed
+ * together (a reconnect) don't poll in lockstep.
  *
- * Cost control — a per-task schedule keyed off the outcome:
- *   - has an open PR  → re-poll at tick cadence (checks move).
- *   - merged / closed → {@link SETTLED_BACKOFF_MS} (the PR is done).
- *   - no PR (gh ran, empty array) → {@link NO_PR_BACKOFF_MS} (a branch rarely
- *                       sprouts a PR between ticks).
- *   - `gh`/transport ERROR (missing, unauthed, timeout, network, bad JSON, or
- *                       ANY unrecognized non-zero exit) → EXPONENTIAL backoff
- *                       capped at {@link PR_FAILURE_CAP_MS}, so a persistent
- *                       failure (gh missing) stops re-spawning at full rate,
- *                       and the failure kind is logged so it's diagnosable.
- *   - no GitHub remote (deterministic) → {@link NO_REMOTE_BACKOFF_MS} long idle
- *                       cadence (it will never have a GitHub PR — no retry storm).
- * Every scheduled delay is JITTERED ({@link PR_POLL_JITTER_RATIO}) so N tasks
- * coming due together (a network reconnect re-arming every task) don't poll in
- * lockstep.
- *
- * A status is only ever WRITTEN from a successful `gh pr list` (exit 0, a
- * non-empty array); an error or empty keeps the last value, so a transient
- * auth/network blip never clobbers a known chip. A non-zero exit is ALWAYS an
- * `error` — "no PR" only comes from the structural empty-array success path,
- * never from a guessed stderr pattern, so a `gh` failure cannot silently
- * masquerade as "no PR". Best-effort, at most
- * {@link PR_POLL_CONCURRENCY} `gh` calls in flight; a per-task failure is
- * logged, never fatal, never blocks the other tasks in the pass.
+ * A status is WRITTEN only from exit 0 + non-empty array; error or empty keeps
+ * the last value, so a transient blip never clobbers a known chip. A non-zero
+ * exit is ALWAYS `error`, never "no PR". At most {@link PR_POLL_CONCURRENCY}
+ * `gh` calls in flight; a per-task failure is logged, never fatal, never blocks
+ * other tasks.
  */
 
 import { spawn } from "node:child_process"
@@ -75,10 +51,8 @@ export interface GhPrView {
 const PR_STATE_RANK: Record<string, number> = { OPEN: 2, MERGED: 1, CLOSED: 1 }
 
 /**
- * Pick the PR that best represents a branch's status from `gh pr list`'s
- * (possibly multi-PR) result: an open PR wins over merged/closed; ties (incl.
- * merged vs closed) keep the first entry, which `gh pr list` already returns
- * most-recently-updated-first. Empty input → undefined ("no PR").
+ * Open beats merged/closed; ties (incl. merged vs closed) keep the first entry,
+ * which `gh pr list` returns most-recently-updated-first. Empty → undefined.
  */
 export function pickPr(views: readonly GhPrView[]): GhPrView | undefined {
   let best: GhPrView | undefined
@@ -95,20 +69,13 @@ export function pickPr(views: readonly GhPrView[]): GhPrView | undefined {
 
 export type PrViewErrorKind = "missing-binary" | "auth" | "timeout" | "network" | "parse" | "no-remote" | "unknown"
 
-/** Default re-scan cadence. PR checks move on the order of seconds-to-minutes;
- * 30s is responsive without hammering `gh` (which hits the network). */
+/** `gh` hits the network; 30s tracks checks without hammering it. */
 export const DEFAULT_PR_STATUS_POLL_MS = 30_000
-/** Re-poll backoff for a branch with no PR yet. */
 export const NO_PR_BACKOFF_MS = 5 * 60_000
-/** Re-poll backoff once a PR is merged/closed — effectively done. */
 export const SETTLED_BACKOFF_MS = 10 * 60_000
-/** First transient-failure backoff (doubles per consecutive failure). */
+/** First failure backoff; doubles per consecutive failure. */
 export const PR_FAILURE_BASE_MS = DEFAULT_PR_STATUS_POLL_MS
-/** Cap on the exponential failure backoff — a persistently broken `gh`
- * (missing/unauthed) settles here instead of spawning every tick. */
 export const PR_FAILURE_CAP_MS = 15 * 60_000
-/** Deterministic "no GitHub remote" idle cadence — this repo will never have a
- * GitHub PR, so re-checking it more than rarely is pure waste. */
 export const NO_REMOTE_BACKOFF_MS = 30 * 60_000
 /** ± jitter ratio on every scheduled delay (de-syncs N tasks after a reconnect). */
 export const PR_POLL_JITTER_RATIO = 0.2
@@ -116,32 +83,20 @@ export const PR_POLL_JITTER_RATIO = 0.2
 export const PR_VIEW_TIMEOUT_MS = 10_000
 
 /**
- * How many `gh pr list` calls one pass may have in flight.
- *
- * A pass used to await each task in turn, and `startTicker` drops any tick
- * arriving while one is still running — so the real per-task refresh was
- * `max(tickMs, N × gh_latency)`, not the {@link DEFAULT_PR_STATUS_POLL_MS}
- * this module documents. Measured at 800ms per call, one pass took 42s at 50
- * tasks and 170s at 200, all of it one child at a time.
- *
- * 8 keeps 200 tasks inside a single tick while staying far below any
- * fd/process ceiling. `gh` waits on the network rather than the CPU, so
- * serialising it was never buying back a real constraint; the per-task
- * backoffs in `nextPoll` are what actually bound how often it runs, and they
- * are untouched.
+ * `gh pr list` calls in flight per pass. `startTicker` drops ticks while a pass
+ * runs, so a serial pass makes the refresh `max(tickMs, N × gh_latency)`:
+ * measured at 800ms/call, 42s at 50 tasks, 170s at 200. 8 keeps 200 tasks in
+ * one tick, far below fd/process ceilings; `gh` is network-bound, and the
+ * `nextPoll` backoffs are what bound how often it runs.
  */
 export const PR_POLL_CONCURRENCY = 8
 
 /**
- * The outcome of one `gh pr list --head <branch>`:
+ * One `gh pr list --head <branch>`:
  *   - `pr`    — {@link pickPr} chose a payload (the only case that WRITES a status).
- *   - `empty` — gh ran (exit 0) and the branch genuinely has no PR.
- *   - `error` — a `gh`/transport failure (typed by {@link PrViewErrorKind}):
- *               gh missing/unauthed, a timeout, a network blip, bad JSON, no
- *               GitHub remote, or ANY OTHER non-zero exit. Distinguishing this
- *               from `empty` is the whole point — an error keeps the last
- *               status + logs *why* it's stale, instead of masquerading as
- *               "no PR".
+ *   - `empty` — exit 0, the branch has no PR.
+ *   - `error` — any `gh`/transport failure or non-zero exit; keeps the last
+ *               status and logs why, rather than reading as "no PR".
  */
 export type PrViewResult =
   | { kind: "pr"; view: GhPrView }
@@ -159,9 +114,8 @@ export interface GhSpawnResult {
   readonly spawnError: boolean
 }
 
-/** Spawn `gh` capturing stdout AND stderr (needed to classify the failure).
- * Never rejects: a spawn error or abort resolves with `status: null` so the
- * caller branches on the captured signals rather than a thrown error. */
+/** Captures stderr too (the classifier needs it). Never rejects: spawn error or
+ * abort resolves with `status: null`. */
 export function spawnGh(args: readonly string[], cwd: string, signal: AbortSignal): Promise<GhSpawnResult> {
   return new Promise((resolve) => {
     const outChunks: (Buffer | string)[] = []
@@ -191,16 +145,12 @@ export function spawnGh(args: readonly string[], cwd: string, signal: AbortSigna
   })
 }
 
-/** The `runtime.prStatus.classify` shape this module consumes — structurally
- * the same as `monitor/pr-status.ts`'s `classifyGhFailure` (see the file
- * header for why this is an injected function, not an import). */
+/** Structurally kobe's `classifyGhFailure`; injected, not imported (see header). */
 type GhFailureClassifier = DaemonRuntimeAdapter["prStatus"]["classify"]
 
 /**
- * Build the real `gh` runner. Exit 0 with a parseable JSON array → {@link pickPr}
- * (empty array → structural `empty`, a genuine success — never inferred from a
- * failure); any non-zero exit or unparseable JSON → `classify` (typed
- * `error`, no "empty" fallback — see the file header). Never throws.
+ * Exit 0 + parseable JSON → {@link pickPr} (empty array → `empty`); non-zero
+ * exit or bad JSON → `classify`, never `empty`. Never throws.
  */
 export function makeGhPrViewRunner(classify: GhFailureClassifier, viewFields: string): PrViewRunner {
   return async (worktreePath, branch) => {
@@ -237,8 +187,7 @@ export function makeGhPrViewRunner(classify: GhFailureClassifier, viewFields: st
   }
 }
 
-/** A task eligible for PR polling: a real branch on a LOCAL worktree. `main`
- * rows (no branch) and remote projects are skipped. Pure — unit-tested. */
+/** A real branch on a LOCAL worktree; `main` rows and remote projects are skipped. */
 export function isPrPollable(task: Task): boolean {
   if (task.kind === "main") return false
   if (!task.branch || !task.worktreePath) return false
@@ -246,45 +195,34 @@ export function isPrPollable(task: Task): boolean {
   return true
 }
 
-/** Per-task scheduling state: next-allowed-at + the consecutive-failure streak
- * that drives exponential backoff. Reset to `failures: 0` on any success / empty
- * / no-remote. */
+/** `failures` is the consecutive-failure streak driving backoff; reset to 0 on
+ * success / empty / no-remote. */
 export interface PrPollEntry {
   readonly nextAllowedAt: number
   readonly failures: number
 }
 
-/** Per-task schedule, keyed by task id. Carried across passes by the live poller. */
+/** Keyed by task id; carried across passes by the live poller. */
 export type PrPollSchedule = Map<string, PrPollEntry>
 
 export interface PrStatusPassOptions {
   readonly runtime: Pick<DaemonRuntimeAdapter, "prStatus">
   readonly run: PrViewRunner
-  /** `Date.now()`-style clock (ms). Injected so tests are deterministic. */
+  /** Epoch ms. */
   readonly now: number
-  /** ISO timestamp stamped onto each status. Injected for the same reason. */
+  /** ISO timestamp stamped onto each status. */
   readonly at: string
-  /** Per-task backoff state, carried across passes by the live poller. */
   readonly schedule: PrPollSchedule
   readonly tickMs?: number
-  /** `Math.random`-style source for jitter. Injected so tests are deterministic
-   * (`() => 0.5` cancels the jitter to the exact base delay). */
+  /** Jitter source; `() => 0.5` yields the exact base delay. */
   readonly rand?: () => number
 }
 
 /**
- * Write (or clear) the reason the last poll failed on the task's LAST GOOD
- * status. The chip keeps its value — a transient `gh` blip must not clobber a
- * good reading — and gains a marker saying the value is no longer being
- * refreshed. Returns whether anything was persisted.
- *
- * Nothing to mark when the task has no PR status: a staleness marker on a chip
- * that is not drawn tells nobody anything.
- *
- * `samePrStatus` deliberately ignores `lastError`, so the poller's own diff can
- * neither carry this write nor suppress it — the change check lives here, and
- * it is what keeps a long outage from re-persisting and re-broadcasting on
- * every backoff tick.
+ * Set or clear `lastError` on the last good status, keeping its value. Returns
+ * whether anything was persisted; no-op without a PR status (no chip drawn).
+ * `samePrStatus` ignores `lastError`, so this change check is what stops a long
+ * outage re-persisting and re-broadcasting every backoff tick.
  */
 async function setPrStaleMarker(orch: DaemonOrchestrator, taskId: string, error: string | undefined): Promise<boolean> {
   const prev = orch.getTask(taskId)?.prStatus
@@ -294,11 +232,7 @@ async function setPrStaleMarker(orch: DaemonOrchestrator, taskId: string, error:
   return true
 }
 
-/**
- * Run one polling pass over every eligible task whose backoff has elapsed.
- * Returns the ids whose persisted status actually changed (for tests). Pure
- * orchestrator work — no timers, no `Date.now()`.
- */
+/** One pass over eligible, due tasks. Returns ids whose persisted status changed. */
 export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPassOptions): Promise<string[]> {
   const tickMs = opts.tickMs ?? DEFAULT_PR_STATUS_POLL_MS
   const rand = opts.rand
@@ -312,16 +246,14 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
     jitterRatio: PR_POLL_JITTER_RATIO,
   }
   const tasks = orch.listTasks()
-  // Drop entries for tasks that are GONE, not merely ineligible. The delete
-  // below only fires for ids still in `listTasks()`, so a deleted task's entry
-  // had no exit at all — unbounded over a long-lived daemon.
+  // Drop entries for deleted tasks; the ineligible-delete below never sees
+  // them, so they'd grow unbounded.
   const live = new Set(tasks.map((task) => task.id))
   for (const id of opts.schedule.keys()) {
     if (!live.has(id)) opts.schedule.delete(id)
   }
-  // Selection is synchronous and happens against ONE `opts.now`, before any
-  // `gh` runs — so which tasks are due does not depend on how long the pass
-  // takes, the way it would if the filter were interleaved with the awaits.
+  // Select due tasks against one `opts.now` before any `gh` runs, so the set
+  // doesn't depend on how long the pass takes.
   const due: Array<{ task: Task; prevFailures: number }> = []
   for (const task of tasks) {
     if (!isPrPollable(task)) {
@@ -338,15 +270,11 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
     try {
       const result = await opts.run(task.worktreePath, task.branch)
       if (result.kind === "error") {
-        // A real gh/transport failure — NOT "no PR". Keep the last value (don't
-        // clobber a good chip with a transient blip), log why it's stale so it's
-        // diagnosable, and back off (exponential for transients; a long idle
-        // cadence for the deterministic no-remote case).
+        // Not "no PR": keep the last value, log, mark stale, back off.
         logDaemonInfo(
           "pr-status-poller",
           `gh pr list failed (${result.error}) for task ${task.id} [${task.branch}] — keeping last PR status, backing off`,
         )
-        // The log alone left the chip claiming a fact nobody was refreshing.
         const marked = await setPrStaleMarker(orch, task.id, result.error)
         opts.schedule.set(
           task.id,
@@ -355,31 +283,27 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
         return marked ? task.id : undefined
       }
       if (result.kind === "empty") {
-        // gh ran and there is genuinely no PR yet. Keep the last value; back off
-        // (a branch rarely sprouts a PR between ticks). `gh` reaching the
-        // provider is what clears the stale marker, not the answer it gave.
+        // Keep the last value. `gh` reaching the provider clears the stale
+        // marker, whatever it answered.
         const marked = await setPrStaleMarker(orch, task.id, undefined)
         opts.schedule.set(task.id, opts.runtime.prStatus.nextPoll({ kind: "empty" }, prevFailures, opts.now, cfg, rand))
         return marked ? task.id : undefined
       }
       const next = opts.runtime.prStatus.mapView(result.view, opts.at)
-      // Re-read under the live store (the task may have been deleted
-      // during the await) and diff before writing.
+      // Re-read: the task may have been deleted during the await.
       const current = orch.getTask(task.id)
       if (!current) {
         opts.schedule.delete(task.id)
         return undefined
       }
-      // `sameStatus` ignores `lastError`, so an otherwise-identical status
-      // would leave a stale marker on a chip that just polled cleanly. `next`
-      // never carries one, so writing it IS the clear.
+      // `sameStatus` ignores `lastError`; `next` never carries one, so writing
+      // it is what clears the stale marker.
       const wasStale = current.prStatus?.lastError !== undefined
       let changedId: string | undefined
       if (wasStale || !opts.runtime.prStatus.sameStatus(current.prStatus, next ?? undefined)) {
         await orch.setPRStatus(task.id, next)
         changedId = task.id
       }
-      // A merged/closed PR is done — poll it rarely; an open one tracks checks.
       const settled = next?.lifecycle === "merged" || next?.lifecycle === "closed"
       opts.schedule.set(
         task.id,
@@ -387,8 +311,7 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
       )
       return changedId
     } catch (err) {
-      // The injected runner threw (the real one never does). Treat as a
-      // transient error so it backs off rather than hammering.
+      // Only an injected runner throws; back off as a transient error.
       logDaemonError("pr-status-poller", err)
       const marked = await setPrStaleMarker(orch, task.id, "network").catch(() => false)
       opts.schedule.set(
@@ -399,8 +322,7 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
     }
   }
 
-  // Fixed-size worker pool over `due`. Results land in their task's own slot,
-  // so the returned ids stay in task order however the polls interleave.
+  // Per-task slots keep returned ids in task order however polls interleave.
   const slots = new Array<string | undefined>(due.length)
   let cursor = 0
   const worker = async (): Promise<void> => {
@@ -414,22 +336,13 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
 }
 
 /**
- * Start the live poller. Returns a `stop()` clearing the interval. Pass
- * `intervalMs <= 0` to disable (no-op stop).
+ * Start the live poller; `intervalMs <= 0` disables it (no-op stop).
  *
- * The consumer gate is `hasSubscribers() || hasWorkingAgent()`. `prStatus` is
- * the ONLY CI truth Rove holds, and a gate of "no GUI ⇒ nobody wants this"
- * assumes every consumer is a human at a pane. An agent working unattended is
- * a consumer too, and it is the one whose need is sharpest: an unattended run
- * is precisely when there is no GUI, so a GUI-only gate leaves `checkState`
- * stale or missing at the exact moment a worker asks whether its PR is green
- * — one mechanism behind "CI is green" being asserted from a local test run.
- *
- * `hasWorkingAgent` is the engine-activity registry (`workingTaskIds()`), fed
- * by the ungated `engine.reportEvent` hook path, so it is a free in-memory
- * read that needs no network and no pane. It keeps the gate's point intact —
- * a daemon with no GUI **and** no live engine still polls nobody, which is
- * the parked-daemon case the gate exists for.
+ * Gate: `hasSubscribers() || hasWorkingAgent()`. `prStatus` is Rove's only CI
+ * truth, and an unattended agent has no GUI yet needs `checkState` fresh when
+ * it asks whether its PR is green. `hasWorkingAgent` reads the in-memory
+ * engine-activity registry (fed by the ungated `engine.reportEvent` path), so
+ * it costs nothing; a parked daemon (no GUI, no live engine) still polls nobody.
  */
 export function startPrStatusPoller(
   orch: DaemonOrchestrator,
@@ -443,8 +356,6 @@ export function startPrStatusPoller(
   return startTicker({
     name: "pr-status-poller",
     tickMs: intervalMs,
-    // Two-term gate: an unattended agent is the consumer that needs CI truth
-    // most, so a live engine opens it even with no pane attached.
     ...(hasSubscribers ? { gate: () => hasSubscribers() || (hasWorkingAgent?.() ?? false) } : {}),
     run: () =>
       runPrStatusPass(orch, {
