@@ -1,15 +1,10 @@
 /**
- * View-model hook for the new-task dialog — the dialog's state, with the JSX
- * in `./dialog.tsx`. Every pure helper (field cycling, filters, windowing)
- * comes from the SHARED `src/tui/component/new-task-dialog/state.ts` /
- * `clone.ts` / `src/tui/lib/git-snapshot.ts` / `path-helpers.ts` modules.
- * The clone and adopt clusters live in `./use-clone-state.ts` /
- * `./use-adopt-state.ts`; this hook owns the shared selectors, the existing
- * tab, the key bindings, and the commit dispatch.
+ * New-task dialog state (JSX in `./dialog.tsx`): shared selectors, the
+ * existing tab, key bindings and commit dispatch.
  *
- * Cursor resets live inside the input handlers rather than in an effect on
- * the filtered lists: typing is the only thing that changes those lists.
- * Error strings resolved at submit time use the module-level `t`.
+ * Cursor resets live in the input handlers, not an effect on the filtered
+ * lists: typing is the only thing that changes them. Submit-time error
+ * strings use the module-level `t`.
  */
 
 import { AUTO_ROUTING_TIERS, readAutoRoutingTable } from "@/engine/auto-routing"
@@ -60,8 +55,7 @@ export type NewTaskDialogProps = {
   mainRepos?: ReadonlySet<string>
 }
 
-/** Shared default for `mainRepos` — a fresh `new Set()` per render would be a
- *  new identity every time and defeat any memo keyed on it. */
+/** Stable default for `mainRepos` — a per-render `new Set()` defeats memos. */
 const EMPTY_MAIN_REPOS: ReadonlySet<string> = new Set()
 
 /** The tier chips: the three depths, then "manual" = pick the fields by hand. */
@@ -79,20 +73,17 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   // Open focused on the mode selector — ←/→ switches tabs immediately;
   // Tab then walks engine → [effort] → [model] → repo → branch → Create.
   const [field, setField] = useState<Field>("tabs")
-  // Reasoning level. Held as the raw pick and READ through the engine under
-  // the cursor: a level the current engine never declared reads as "engine
-  // default" rather than riding along to a launch that would drop it —
-  // the same rule the change-engine picker's `seedEffort` applies.
+  // Raw pick, READ through the current engine: an undeclared level reads as
+  // "engine default" (same rule as change-engine's `seedEffort`).
   const effortLevels = engineEntry(vendor).effortLevels ?? []
   const [effortPick, setEffortPick] = useState("")
   const effort = effortLevels.includes(effortPick) ? effortPick : ""
   const effortChoices = effortLevels.length > 0 ? ["", ...effortLevels] : []
   const modelVisible = engineAcceptsModel(vendor)
-  // Auto-routing tier. The table is read once per open (state.json); the row
-  // renders only while it is configured. What the pick FILLED is remembered,
-  // and the tier reads as "manual" again the moment any of the three fields
-  // differs from it — the label recorded on the task must describe the fields
-  // that actually launch, or it is noise as training data.
+  // Auto-routing tier; table read once per open (state.json), row shown only
+  // while configured. The tier reads "manual" once any filled field differs —
+  // the label recorded on the task must describe what actually launches, or
+  // it is noise as training data.
   const tierTable = useMemo(() => readAutoRoutingTable(), [])
   const [tierPick, setTierPick] = useState<TierChoice>("manual")
   const tierApplied = useRef<{ vendor: VendorId; effort: string; model: string } | null>(null)
@@ -106,13 +97,9 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
 
   /* ── Field clusters (each owns one question the dialog asks) ── */
 
-  // Live per render — opentui re-renders on resize, so a terminal dragged
-  // short re-windows the pickers instead of clipping the Create button.
-  //
-  // No `extraChromeRows` any more: it reserved 4 rows each for the effort and
-  // model rows, and neither renders here since 2026-09. Leaving the budget in
-  // place handed the picker 8 rows it no longer needed, and at 120x40 that
-  // was exactly enough to draw one more well — on top of the footer.
+  // Live per render so a shrunk terminal re-windows the pickers instead of
+  // clipping Create. No chrome reserve for effort/model rows: they don't
+  // render here, and reserving for them drew over the footer at 120x40.
   const pickerRows = pickerVisibleRows(useTerminalDimensions().height)
   const modelField = useModelField({
     vendor,
@@ -134,11 +121,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     defaultRepo: props.defaultRepo,
     savedRepos: props.savedRepos,
     pickerRows,
-    // A different repo may have no project checkout at all, and the choice is
-    // per-repo, so carrying "project" across a change leaves the row
-    // asserting something about the previous path. `commitExisting` is
-    // separately guarded on `canOpenProject`, so this is about the row
-    // telling the truth, not about safety.
+    // Intent is per-repo; reset so the row doesn't describe the previous path.
+    // Safety is `commitExisting`'s own `canOpenProject` guard.
     onChanged: () => setIntent("task"),
     onAnswered: () => setField(advanceField("repo")),
   })
@@ -185,10 +169,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   /* ── Commit paths ── */
 
   function commitExisting(): void {
-    // Two saved repos can share a basename (a hundred flat repos under one
-    // parent makes this ordinary), and the name alone cannot say which. Send
-    // the user back to the picker — where the directories that separate them
-    // are on screen — rather than opening the alphabetically-first one.
+    // Two saved repos can share a basename; reopen the picker (directories
+    // visible) rather than opening the alphabetically-first one.
     if (repoField.repoResolution.kind === "ambiguous") {
       setSubmitError(t("newTask.error.repoAmbiguous", { name: repoField.repoResolution.name }))
       setField("repo")
@@ -203,17 +185,10 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       setField("repo")
       return
     }
-    // "Open the project" is a different verb, not a create with a flag: it
-    // resolves to the repo's EXISTING main row, so it carries no baseRef —
-    // there is no branch to fork from when you are opening the checkout
-    // itself.
-    //
-    // `canOpenProject` is re-read here rather than trusted from when the
-    // choice was made: it derives from the CURRENT repo, so this cannot
-    // submit `open` for a path that has no main row to resolve. `changeRepo`
-    // already resets the intent on every repo change, which makes the two
-    // agree in practice — this is the half that does not depend on every
-    // future caller remembering to go through it.
+    // "Open the project" resolves to the repo's EXISTING main row, so no
+    // baseRef. `canOpenProject` is re-read from the CURRENT repo so `open` is
+    // never sent for a path with no main row, even if a caller skips the
+    // intent reset in `changeRepo`.
     if (intent === "project" && canOpenProject) {
       props.onSubmit({ mode: "open", repo: r, vendor })
       dialog.clear()
@@ -231,11 +206,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     dialog.clear()
   }
 
-  /**
-   * Fill the three engine fields from a tier. A tier whose engine this
-   * machine cannot offer is refused with the inline error rather than half
-   * applied — the user sees why, and the fields they had stay put.
-   */
+  /** Fill the three engine fields from a tier. A tier whose engine isn't
+   *  available is refused with the inline error, never half-applied. */
   function pickTier(choice: TierChoice): void {
     if (choice === "manual") {
       setTierPick("manual")
@@ -275,24 +247,11 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   }
 
   /**
-   * Tab/Enter's next stop, honouring the intent. Opening a project hides the
-   * branch field (`tab-existing.tsx`), and the pure `nextField` chain knows
-   * nothing about that — walking into a field that isn't rendered would park
-   * focus on an invisible input and swallow every keystroke.
-   */
-  /**
-   * Which stops the Tab cycle offers.
-   *
-   * Depth, model and effort no longer RENDER here (they belong to
-   * auto-routing, and a pinned model is a per-task exception), so they must
-   * not be focus stops either — the rule stated just above `advanceField`:
-   * parking focus on an invisible input swallows every keystroke after it.
-   * The `*Visible` flags stay in `nextField`'s signature because the
-   * change-engine picker still shows those rows.
-   *
-   * ONE definition, read by both `advanceField` and the `advanceFieldFor`
-   * this hook returns — otherwise a test walking the cycle would be checking
-   * its own copy of these flags rather than the dialog's.
+   * Which stops the Tab cycle offers. A stop on an unrendered field parks
+   * focus on an invisible input and swallows every keystroke, so depth,
+   * model and effort (auto-routing's; a pinned model is a per-task exception;
+   * change-engine still shows them) are off. Shared by `advanceField` and
+   * `advanceFieldFor` so tests walk the dialog's real cycle.
    */
   function focusStopsFor(forTab: DialogTab) {
     return {
@@ -305,8 +264,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
 
   function advanceField(from: Field): Field {
     const next = nextField(from, tab, focusStopsFor(tab))
-    // The branch field is gone under the "project" intent, so skip its stop
-    // too — same reason, one field further along.
+    // The "project" intent hides the branch field (`tab-existing.tsx`); skip it.
     if (next === "baseRef" && tab === "existing" && intent === "project" && canOpenProject) {
       return nextField(next, tab)
     }
@@ -342,13 +300,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     setEffortPick(effortChoices[Math.max(0, Math.min(effortChoices.length - 1, i + dir))] ?? "")
   }
 
-  /**
-   * Tab, wherever it lands on a field that has a suggestion open: complete
-   * first, advance only when there is nothing to complete. Both path fields
-   * in this dialog answer to it — the Existing tab's repo and the Clone tab's
-   * parent dir are the same drill-down picker, and a key that walked one but
-   * not the other would be worse than a key that walked neither.
-   */
+  /** Tab on a field with a suggestion open: complete first, advance only
+   *  when nothing is left. Both path fields (repo, clone parent dir) obey it. */
   function completeFocusedField(): boolean {
     if (tab === "existing" && field === "repo") return repoField.completeRepo()
     if (tab === "clone" && field === "cloneParent") return clone.completeCloneParent()
@@ -387,10 +340,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
           if (!completeFocusedField()) setField(advanceField)
         },
       },
-      // The dialog prints its own `MODE  ctrl+[ ]` label above the chips, so
-      // this chord has no KobeKeymap row: the dialog is modal, F1 cannot open
-      // over it, and the row it used to have could only ever render in panes
-      // where no New Task dialog was open.
+      // No KobeKeymap row: the dialog labels `MODE  ctrl+[ ]` itself, and F1
+      // can't open over a modal.
       { key: "ctrl+]", cmd: () => switchToTab(nextDialogTab(tab)) },
       { key: "ctrl+[", cmd: () => switchToTab(prevDialogTab(tab)) },
       { key: "ctrl+e", cmd: () => cycleEngine(1) },
@@ -459,10 +410,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     setField,
     /** Enter inside an input that is not the tab's last stop: walk on. */
     advanceFrom: (from: Field) => setField(advanceField(from)),
-    /** The focus walk without moving focus — the only way to observe which
-     *  stops THIS dialog offers, as opposed to which ones `nextField` can
-     *  produce. Shares `focusStopsFor` with `advanceField`, so it cannot
-     *  drift from the real thing. */
+    /** The focus walk without moving focus — observes THIS dialog's stops
+     *  (shares `focusStopsFor` with `advanceField`). */
     advanceFieldFor: (from: Field, forTab: DialogTab = tab) => nextField(from, forTab, focusStopsFor(forTab)),
     intent,
     setIntent,

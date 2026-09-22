@@ -1,31 +1,12 @@
 /**
- * Minimal Crockford-base32 ULID implementation.
- *
- * A ULID is a 26-character, lexicographically sortable identifier:
- *   - 10 chars of 48-bit timestamp (ms since epoch), high-order first.
- *   - 16 chars of 80-bit randomness.
- *
- * Two properties matter for kobe's task index:
- *
- *   1. **Lex-sortable by creation time** — `Task.id` doubles as a
- *      "created at" tiebreaker. Sidebar grouping/ordering can rely on
- *      string compare instead of parsing `createdAt`.
- *
- *   2. **Monotonic across calls** — when two tasks are created
- *      back-to-back, the second must sort *after* the first. We remember
- *      the last (timestamp, randomness) we emitted: if the incoming
- *      timestamp does not advance past it — same millisecond, or a wall
- *      clock that stepped *backward* (NTP correction, VM resume, manual
- *      clock change) — we hold the last timestamp and increment the
- *      previous random tail instead of generating fresh randomness.
- *      Holding the timestamp keeps a backward clock step from minting an
- *      id whose prefix sorts before its predecessor and silently
- *      reordering the task index.
- *      (Spec: github.com/ulid/spec — "Monotonicity".)
- *
- * Inlined intentionally (~80 LoC, no deps). If we ever need a battle-
- * tested impl, swap to the `ulid` npm package — the public surface
- * here is just `ulid()` so the swap is trivial.
+ * Crockford-base32 ULID: 10 chars of 48-bit ms timestamp (MSB first) + 16
+ * chars of 80-bit randomness. The task index relies on two properties:
+ *   1. Lex-sortable by creation time — `Task.id` is a string-compare
+ *      "created at" tiebreaker.
+ *   2. Monotonic — if the clock doesn't advance (same ms, or stepped backward:
+ *      NTP, VM resume), hold the last timestamp and increment the last random
+ *      tail, so an id never sorts before its predecessor
+ *      (github.com/ulid/spec "Monotonicity").
  */
 
 /** Crockford base32 alphabet — no I, L, O, U to avoid ambiguity. */
@@ -37,10 +18,7 @@ const RAND_LEN = 16
 let lastTime = -1
 let lastRand: number[] = new Array(RAND_LEN).fill(0)
 
-/**
- * Encode an integer into `len` chars of the Crockford alphabet, MSB first.
- * Used only for the timestamp half (≤ 48 bits, fits in a JS number).
- */
+/** Timestamp half only: ≤ 48 bits fits in a JS number. */
 function encodeTime(now: number, len: number): string {
   let out = ""
   let n = now
@@ -52,13 +30,10 @@ function encodeTime(now: number, len: number): string {
   return out
 }
 
-/** Generate `len` cryptographically random Crockford-alphabet indices. */
 function randomIndices(len: number): number[] {
   const buf = new Uint8Array(len)
   crypto.getRandomValues(buf)
-  // Map each byte into [0, 32) by masking the top three bits. The spec
-  // doesn't require uniform sampling and the bias is negligible (the
-  // alphabet is exactly 32 = 2^5, so masking is uniform anyway).
+  // Low 5 bits: uniform because the alphabet is exactly 32.
   const out: number[] = new Array(len)
   for (let i = 0; i < len; i++) {
     out[i] = (buf[i] ?? 0) & 0x1f
@@ -76,7 +51,7 @@ function incrementIndices(indices: number[]): boolean {
     }
     indices[i] = 0
   }
-  // Pathological: all 16 chars were "Z". Caller will regenerate randomness.
+  // All 16 chars were "Z"; caller regenerates.
   return false
 }
 
@@ -88,28 +63,18 @@ function indicesToString(indices: number[]): string {
   return out
 }
 
-/**
- * Generate a fresh ULID.
- *
- * @param now Optional timestamp override (ms). Tests inject this to make
- *   monotonicity assertions deterministic. Defaults to `Date.now()`.
- */
+/** @param now ms override so tests can assert monotonicity deterministically. */
 export function ulid(now: number = Date.now()): string {
   let randIndices: number[]
   let time: number
   if (now > lastTime) {
-    // The clock advanced: a fresh millisecond gets fresh randomness.
     time = now
     randIndices = randomIndices(RAND_LEN)
   } else {
-    // The clock did NOT advance — same millisecond, or it stepped
-    // backward. Hold the last timestamp (never regress the sortable
-    // prefix) and increment the previous tail to preserve strict
-    // monotonic ordering.
+    // Clock didn't advance: never regress the prefix; increment the tail.
     time = lastTime
     const next = lastRand.slice()
     if (!incrementIndices(next)) {
-      // Astronomically unlikely (16 Z's). Fall back to fresh randomness.
       randIndices = randomIndices(RAND_LEN)
     } else {
       randIndices = next
@@ -120,11 +85,9 @@ export function ulid(now: number = Date.now()): string {
   return encodeTime(time, TIME_LEN) + indicesToString(randIndices)
 }
 
-/** Reset the monotonic state — exported for tests only. */
 export function _resetUlidStateForTests(): void {
   lastTime = -1
   lastRand = new Array(RAND_LEN).fill(0)
 }
 
-/** The Crockford base32 alphabet — exported for test assertions. */
 export const ULID_ALPHABET = ALPHABET

@@ -1,15 +1,10 @@
 /** @jsxImportSource @opentui/react */
 /**
- * In-workspace update details page.
- *
- * `onClose` seam: `UpdatePage` takes an `{ onClose }` prop — same shape as
- * `WorktreesPage` — so the pure-tui workspace host mounts it as an in-place
- * swap. The close ("q"/esc/Ctrl+C/[Close] action) path calls `onClose()`
- * instead of `process.exit(0)`. The post-update
- * self-replace exit is UNCHANGED: `runUpdater()` still destroys the
- * renderer and `process.exit(code)`s after the shell updater completes —
- * an embedded swap can't survive that, so it stays, with a status line
- * surfaced first so the workspace doesn't vanish without explanation.
+ * In-workspace update details page, mounted as an in-place swap: close
+ * (q/esc/Ctrl+C/[Close]) calls `onClose()`. After a successful update
+ * `runUpdater()` still destroys the renderer and exits, since the process is
+ * replaced; a status line is shown first so the workspace doesn't vanish
+ * unexplained.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -40,22 +35,17 @@ export function UpdatePage(props: { onClose: () => void }) {
   const renderer = useRenderer()
   const [info, setInfo] = useState<UpdateInfo | null>(null)
   /**
-   * Whether the registry check ANSWERED — distinct from what it answered.
-   * `checkLatestVersion` returns null both when the fetch fails (offline, npm
-   * down, timeout) and when it is suppressed, so `info === null` alone could
-   * not tell "we could not look" from "you are up to date". It rendered the
-   * failure as a GREEN latest = CURRENT_VERSION: an affirmative claim built
-   * out of a network error.
+   * Whether the registry check ANSWERED. `checkLatestVersion` returns null on
+   * fetch failure and when suppressed, so `info === null` alone can't tell
+   * "could not look" from "up to date".
    */
   const [checked, setChecked] = useState(false)
   const [releaseNotes, setReleaseNotes] = useState<ReleaseNotesRangeItem[]>([])
   const [loadingNotes, setLoadingNotes] = useState(true)
   /**
-   * Starts on "close", NOT "update": until the registry answers there is no
-   * known newer release, and `enter` on a pre-selected "Update now" ran the
-   * installer regardless — a DOWNGRADE whenever `latest < current` (a stale
-   * npm dist-tag, a locally built newer install). `load()` promotes the
-   * selection to "update" only once `hasUpdate` is true.
+   * Starts on "close", NOT "update": `enter` on "Update now" before the
+   * registry answers could DOWNGRADE when `latest < current` (stale dist-tag,
+   * local build). `load()` promotes it only once `hasUpdate` is true.
    */
   const [selected, setSelected] = useState<ActionId>("close")
   const [status, setStatus] = useState<string | null>(null)
@@ -67,8 +57,7 @@ export function UpdatePage(props: { onClose: () => void }) {
   const upToDate = checked && info !== null && !hasUpdate
   const releaseUrl = releaseNotes[0]?.url ?? releasePageUrl(latest)
   const actions: ReadonlyArray<{ id: ActionId; key: string; label: string; detail: string }> = [
-    // Offered only when there IS one. `hasUpdate` used to pick a text colour
-    // and nothing else, so the action stayed on screen either way.
+    // Offered only when there IS a newer release.
     ...(hasUpdate
       ? [{ id: "update" as const, key: "U", label: t("update.actions.updateNow"), detail: UPDATE_COMMAND }]
       : []),
@@ -87,19 +76,14 @@ export function UpdatePage(props: { onClose: () => void }) {
   }, [])
 
   async function load(): Promise<void> {
-    // `checkLatestVersion` swallows its own fetch errors and answers null, so
-    // there is nothing to catch here — `checked` is what turns that null into
-    // a stated "could not reach the registry" instead of a silent fallback to
-    // the current version. `fetchReleaseNotesRange` is equally total (it
-    // answers []), and the notes section already says so.
+    // Nothing to catch: `checkLatestVersion` answers null on fetch errors
+    // (`checked` turns that into "could not reach the registry"), and
+    // `fetchReleaseNotesRange` answers [].
     const next = await checkLatestVersion({ force: true })
     setInfo(next)
     setChecked(true)
     if (next?.hasUpdate) setSelected("update")
-    // Only a FORWARD range has notes. Asking for current→latest when latest
-    // is older answered [] and the page printed "Release notes are
-    // unavailable" under a backwards "changes from v0.9.138 to v0.9.110"
-    // header — an empty range dressed as a failed fetch.
+    // Only a FORWARD range has notes; a backwards one would read as a failed fetch.
     const fetched = next?.hasUpdate
       ? await fetchReleaseNotesRange({ current: CURRENT_VERSION, latest: next.latest })
       : []
@@ -119,8 +103,7 @@ export function UpdatePage(props: { onClose: () => void }) {
       props.onClose()
       return
     }
-    // `u` stays bound so the key is never a silent no-op mystery, but with no
-    // newer release there is nothing to run.
+    // `u` stays bound, but with no newer release there is nothing to run.
     if (id === "update" && !hasUpdate) return
     if (id === "release") {
       setStatus(openWithSystemViewer(releaseUrl) ? t("update.statusReleaseOpened") : t("update.statusReleaseError"))
@@ -202,10 +185,8 @@ export function UpdatePage(props: { onClose: () => void }) {
 
       <box flexDirection="column" flexShrink={0} paddingTop={1} gap={0}>
         {actions.map((action) => {
-          // Same cursor vocabulary as every other navigable list (▌ marker +
-          // row tint, no fill under transparency) — this page is a full-window
-          // page, so a `primary` bar here painted an opaque patch straight
-          // onto the host wallpaper.
+          // Shared cursor chrome (▌ + tint, no fill under transparency): a
+          // `primary` bar on this full-window page paints over the wallpaper.
           const cursor = selected === action.id
           const chrome = resolveRowSelectionChrome(theme, { cursor })
           return (

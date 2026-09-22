@@ -46,11 +46,9 @@ export function FeedbackSettingsSection(
   const labelFg = (focused: boolean) => (focused ? theme.primary : theme.textMuted)
   const labelAttrs = (focused: boolean) => (focused ? TextAttributes.BOLD | TextAttributes.UNDERLINE : undefined)
 
-  // The body is an uncontrolled <textarea>, so an external reset (the
-  // parent clears `feedbackBody` after a successful send) won't empty the
-  // widget on its own. Clear the edit buffer when the value goes blank
-  // while the widget still holds text; the resulting onContentChange sets
-  // the value to "" too, so the guard makes this a one-shot (no loop).
+  // Uncontrolled textarea: an external reset (parent clears `feedbackBody`
+  // after send) must clear the buffer here. The resulting onContentChange also
+  // sets "", so the guard makes this one-shot.
   const bodyEl = useRef<TextareaRenderable | null>(null)
   useEffect(() => {
     if (props.body === "" && bodyEl.current && bodyEl.current.plainText !== "") {
@@ -146,15 +144,12 @@ export function DevSettingsSection(
     props.setBodyRow(row)
     action()
   }
-  // `[x] Label` — the checkbox column is the state, so the label doesn't
-  // repeat it, and a column of switches stays scannable down the block. The
-  // top padding is what separates one experiment from the previous one's prose.
+  // `[x] Label`: the checkbox is the state, so the label doesn't repeat it.
   const toggleRow = (id: string, enabled: boolean, hintKey: string, labelKey: string, act: () => void) => {
     const row = rowIndex(rows, id)
     return (
-      // Wrapped (not a fragment) so the gap lands BETWEEN experiments — each
-      // one is prose + its switch, and without the gap they run together into
-      // a wall where the switches are invisible.
+      // A box, not a fragment, so paddingTop separates experiments; without it
+      // prose and switches run into one wall.
       <box flexDirection="column" gap={0} paddingTop={1}>
         <text fg={theme.textMuted} wrapMode="word">
           {t(hintKey)}
@@ -239,11 +234,9 @@ export function DevSettingsSection(
 }
 
 /**
- * Keybindings section — read-only view of the user keybinding overrides
- * loaded at boot from `~/.rove/settings/keybindings.yaml`. Editing happens
- * in the YAML file, not here; the section's job is to make the config
- * discoverable, show which overrides actually landed, and surface every
- * load warning that otherwise only reaches the pane's console log.
+ * Keybindings: read-only view of the overrides loaded from
+ * `~/.rove/settings/keybindings.yaml` (edit the YAML). Shows which overrides
+ * landed and every load warning, which otherwise only reach the console log.
  */
 export function KeybindingsSettingsSection(
   props: SectionCursorProps & {
@@ -254,9 +247,7 @@ export function KeybindingsSettingsSection(
 ) {
   const { theme } = useTheme()
   const t = useT()
-  // Re-read the cached report when the daemon's keybindings channel triggers
-  // the host's live keymap reload, so an already-open Settings page stays
-  // truthful after a YAML edit.
+  // Re-read on live keymap reload so an open page stays truthful after a YAML edit.
   useKeymapVersion()
   const report = userKeybindingsReport()
   const rows = keybindingRows(report.exists)

@@ -1,11 +1,7 @@
 /**
- * Worktree staleness rubric — the pure judgment core behind the
- * worktree-management page's verdict badges (`worktree.list` handler
- * collects the signals; this module only ranks them).
- *
- * Signal cascade, strongest first — each weaker signal is a FALLBACK for
- * when the stronger ones are unavailable (no GitHub remote, `gh` missing
- * or unauthenticated, offline):
+ * Ranks the signals `worktree.list` collects into verdict badges. Strongest
+ * first; weaker ones are FALLBACKS when stronger are unavailable (no GitHub
+ * remote, no/unauthenticated `gh`, offline):
  *
  *   1. dirty working tree        → active  (uncommitted work, never stale)
  *   2. open PR on the branch     → active  (in review)
@@ -58,12 +54,8 @@ export function judgeWorktree(signals: WorktreeStaleSignals, nowMs: number): Wor
   return { verdict: "fresh", reason: "fresh" }
 }
 
-/**
- * Parse `gh pr list --state all --json headRefName,state` output into a
- * branch → PR-state map. A branch can have several PRs (an old closed one
- * plus a fresh open one) — the strongest wins: open > merged > closed.
- * Returns null on malformed output (treated as "no PR data").
- */
+/** `gh pr list --state all --json headRefName,state` → branch → state. Several
+ *  PRs per branch: open > merged > closed. Null on malformed output. */
 export function parseGhPrList(stdout: string): ReadonlyMap<string, PrState> | null {
   let entries: unknown
   try {

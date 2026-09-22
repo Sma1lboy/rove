@@ -1,20 +1,12 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Run-again confirm — the row menu's "Run again" entry.
+ * Run-again confirm: shows a task's verbatim brief (`task.prompt`) before
+ * re-firing it into a FRESH task.
  *
- * Rove records a task's brief verbatim on delivery (`task.prompt`), and until
- * this dialog the only reader was `rove api get-task | jq -r .task.prompt`
- * piped back into `rove api add`. The entry re-fires that text into a FRESH
- * task, so the dialog's whole job is to show what will be re-run before it is.
- *
- * The brief is scrollable rather than truncated, for the same reason the field
- * is stored untruncated: the constraints that decide whether a re-run is the
- * right move usually sit at the END of a long brief. A one-line `DialogConfirm`
- * message would clip exactly the part worth reading.
- *
- * Not destructive: confirming creates a task and touches nothing that exists,
- * so initial focus is on the confirm button (the `danger` convention is for
- * the ones that remove something).
+ * Scrollable, not truncated: the constraints that decide a re-run usually sit
+ * at the END of a long brief, which a one-line `DialogConfirm` would clip.
+ * Not destructive (creates a task, touches nothing existing), so initial focus
+ * is on confirm.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -39,10 +31,9 @@ export function RunAgainDialogView(props: {
   const padX = useDialogPaddingX()
   const [active, setActive] = useState<"confirm" | "cancel">("confirm")
 
-  // Resolving the promise does not pop the stack — the view closes itself, the
-  // same contract the status/engine pickers follow. `refocus: false` on the
-  // commit path: confirming ENTERS the new task, and the provider's deferred
-  // restore would otherwise yank focus back to the sidebar a tick later.
+  // Resolving does not pop the stack; the view closes itself. `refocus: false`
+  // on commit: confirming ENTERS the new task, and the provider's deferred
+  // restore would yank focus back to the sidebar a tick later.
   const commit = (): void => {
     props.onConfirm()
     dialog.clear({ refocus: false })
@@ -52,8 +43,7 @@ export function RunAgainDialogView(props: {
     dialog.clear()
   }
 
-  // Up/down scroll the brief (same shape as the field-notes reader); left/right
-  // move between the two buttons, so neither gesture shadows the other.
+  // Up/down scroll the brief; left/right move between buttons, so neither shadows the other.
   const scrollRef = useRef<ScrollBoxRenderable | null>(null)
   const scrollBy = (lines: number): void => {
     const scroll = scrollRef.current

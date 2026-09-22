@@ -1,10 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Shared windowed picker list + field-label styling for the new-task dialog.
- * All four pickers (repo, branch, clone parent, adopt) render their
- * "↑ N more / rows / ↓ N more" block through this one component — callers
- * supply the pre-windowed row bodies and pick handler, the list owns the
- * cursor arrow, bold, and overflow lines.
+ * Windowed picker list + field-label styling for all four new-task pickers.
+ * Callers supply pre-windowed rows and a pick handler; the list owns the
+ * cursor arrow, bold and "↑/↓ N more" lines.
  */
 
 import { type BoxRenderable, TextAttributes } from "@opentui/core"
@@ -21,12 +19,9 @@ export type PickerRow = {
   /** Non-cursor rows render accent (selected) instead of muted. */
   readonly accent?: boolean
   /**
-   * Trailing text always painted muted and pushed to the row's RIGHT edge,
-   * whatever the row's own state. For a row whose body is the part that
-   * IDENTIFIES the item and whose tail merely LOCATES it (the repo picker's
-   * basename + directory), so the cursor's bold/primary lands on the name
-   * alone instead of dragging a shared path prefix into the emphasis with it,
-   * and the names line up in one column with the directories in another.
+   * Trailing text, always muted, pushed to the RIGHT edge. For rows whose body
+   * IDENTIFIES and tail LOCATES (repo basename + directory): cursor emphasis
+   * lands on the name alone, and names and directories form two columns.
    */
   readonly dim?: string
 }
@@ -67,9 +62,8 @@ export function PickerList(props: {
         const isCursor = absoluteIndex === props.cursor
         const fg = isCursor ? theme.primary : row.accent ? theme.accent : theme.textMuted
         const attributes = isCursor ? TextAttributes.BOLD : undefined
-        // A row with no `dim` stays ONE text node: two nodes in a flex row
-        // measure and clip differently, so splitting every row would change
-        // the layout of the three pickers that pass no tail.
+        // No `dim` = ONE text node: two nodes in a flex row measure and clip
+        // differently.
         if (!row.dim) {
           return (
             <PickerItem key={row.key} focused={isCursor && props.focused !== false}>

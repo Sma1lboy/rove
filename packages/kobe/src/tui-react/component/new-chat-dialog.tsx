@@ -1,21 +1,17 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Unified new-conversation dialog — ONE entry for every "start a new chat"
- * shape. The default state is the `chat.tab.chooseEngine` (ctrl+e) picker:
- * engine list (+ shell + plugin panes), ←/→ cycles, enter opens a fresh tab
- * in this worktree. Two in-dialog toggles bend the outcome, each its own
- * chip row so the live state is the selected chip:
+ * The one "start a new chat" dialog. Default: the `chat.tab.chooseEngine`
+ * (ctrl+e) picker — engines (+ shell + plugin panes), ←/→ cycles, enter opens
+ * a fresh tab here. Two toggles, each its own chip row:
  *
  *   - `tab`    — destination: new tab here ⇄ fork a child task worktree
  *   - `ctrl+f` — context: fresh conversation ⇄ continue the current one
  *
- * Shell and plugin panes only make sense for the default combo (a pane
- * can't continue a conversation and doesn't live in a forked task), so
- * flipping either toggle narrows the choices to engines and clamps the
- * highlight onto one.
+ * Shell/plugin panes can't continue a conversation or live in a fork, so
+ * flipping either toggle narrows to engines and clamps the highlight.
  *
- * `ctrl+a c` / `ctrl+a f` open this same dialog with a toggle pre-flipped
- * (see `use-tab-dialogs.ts`); the dispatch on submit lives there too.
+ * `ctrl+a c` / `ctrl+a f` preset a toggle; submit dispatch lives in
+ * `use-tab-dialogs.ts`.
  */
 
 import { DEFAULT_TASK_VENDOR } from "@/types/task"
@@ -47,9 +43,8 @@ export function NewChatDialogView(props: {
   defaultVendor: VendorId
   /** Offer a trailing "shell" choice (a plain terminal tab). */
   allowShell?: boolean
-  /** Offer the LAST-position "scratch" choice (a Scratch shell task). Tail
-   *  placement keeps the default highlight and every other choice's position
-   *  where they are, so ctrl+e→enter muscle memory holds. */
+  /** Offer a LAST-position "scratch" choice (a Scratch shell task); last so
+   *  no other choice moves and ctrl+e→enter muscle memory holds. */
   allowScratch?: boolean
   /** Trailing extra choices (plugin panes): `key` is returned, `label` shown. */
   extraChoices?: readonly { key: string; label: string }[]

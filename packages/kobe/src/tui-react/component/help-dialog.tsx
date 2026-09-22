@@ -1,15 +1,11 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Help dialog — kobe's global keybindings, grouped by category via the
- * shared framework-free `src/tui/lib/help-groups.ts`. Each row prints the
- * canonical chord (macOS glyphs via `formatChord`) plus the description;
- * alternate chords in a lighter color. Pane-local bindings are intentionally
- * not listed — this is the global-bindings registry only.
+ * Help dialog — global keybindings only (pane-local ones are intentionally
+ * omitted), grouped by `src/tui/lib/help-groups.ts`.
  *
- * The keymap table is mutated in place on keybindings.yaml reloads, which is
- * invisible to React — `useKeymapVersion()` subscribes this component and
- * invalidates the grouped rows; `useT()` subscribes it to language changes so
- * the non-reactive `tKeys` lookups re-run.
+ * keybindings.yaml reloads mutate the keymap in place, invisible to React:
+ * `useKeymapVersion()` invalidates the rows, and `useT()` re-runs the
+ * non-reactive `tKeys` lookups on language change.
  */
 
 import { type ScrollBoxRenderable, TextAttributes } from "@opentui/core"
@@ -63,9 +59,7 @@ export function HelpDialog(props: {
   // the in-pane overlay closes by clearing the dialog stack.
   const close = () => (props.onClose ? props.onClose() : dialog.clear())
 
-  // Keyboard scrolling for the shortcut reference — native navigation keys
-  // only (arrows/page/home/end), no new Kobe-owned chords, so keyboard-only
-  // users can read below the fold (docs/KEYBINDINGS.md pane-scope rules).
+  // Scrolling uses native navigation keys only — no new Rove-owned chords.
   const scrollRef = useRef<ScrollBoxRenderable | null>(null)
   const scrollBy = (lines: number): void => {
     const scroll = scrollRef.current
@@ -78,8 +72,7 @@ export function HelpDialog(props: {
     scroll.scrollTo({ x: 0, y: edge === "top" ? 0 : Number.MAX_SAFE_INTEGER })
   }
 
-  // Press `?` again to dismiss. esc
-  // is handled by the DialogProvider's own binding stack — don't re-bind.
+  // `?` again dismisses; esc belongs to DialogProvider — don't re-bind.
   useBindings(() => ({
     bindings: [
       { key: "?", cmd: close },
@@ -168,10 +161,7 @@ export function HelpDialog(props: {
   )
 }
 
-/**
- * Convenience opener — pushes the help dialog onto the dialog stack.
- * Used by the global `?` binding.
- */
+/** Push the help dialog (the global `?` binding). */
 HelpDialog.show = (dialog: DialogContext, currentScope?: HelpSurface): void => {
   const reachability = currentBindingReachability()
   const inputScope = reachability.inputPassthrough ? "terminal" : currentScope

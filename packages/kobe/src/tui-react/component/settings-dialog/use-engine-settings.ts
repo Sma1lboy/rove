@@ -1,13 +1,8 @@
 /**
- * Engines-section state for the React settings dialog — one section's state
- * in its own file, like `use-settings-prefs` / `use-section-data`, so
- * `./index.tsx` owns only the dialog's structure. This is the section with
- * real logic behind it: a custom-engine registry and the global default.
- * Per-vendor launch command + display-name overrides
- * (engineCommand.<id> / engineName.<id>),
- * the customEngineIds registry, and the GLOBAL default engine (the ●
- * marker — only this dialog writes it; per-project picks live in
- * state/vendor-prefs.ts).
+ * Engines-section state: per-vendor launch command + display-name overrides
+ * (engineCommand.<id> / engineName.<id>), the customEngineIds registry, and
+ * the GLOBAL default engine (the ● marker; only this dialog writes it,
+ * per-project picks live in state/vendor-prefs.ts).
  */
 
 import { useEffect, useState } from "react"
@@ -35,10 +30,8 @@ export function useEngineSettings(
   /** Clamp the body cursor after a custom engine is removed (max = list length incl. the +Add row). */
   onEngineListShrunk: (maxIndex: number) => void,
 ) {
-  // Engines Rove can launch beyond the built-ins + this user's own: the
-  // shipped contrib catalog (offered only when its binary is on PATH) and
-  // plugin-registered engines. The INSTALLED list, not the offered one — a
-  // switched-off engine still needs its row here to switch back on.
+  // Contrib (binary on PATH) and plugin engines. The INSTALLED list, not the
+  // offered one: a switched-off engine still needs its row to switch back on.
   const [detected, setDetected] = useState<readonly VendorId[]>([])
   useEffect(() => {
     void installedEngineIds().then(setDetected)
@@ -49,8 +42,7 @@ export function useEngineSettings(
     return Array.isArray(raw) ? raw.filter((s): s is string => typeof s === "string" && s.trim().length > 0) : []
   }
   function engineList(): VendorId[] {
-    // Built-ins are ALWAYS listed, detected or not — this row is where you
-    // point an engine at an off-PATH binary in the first place.
+    // Built-ins ALWAYS listed: this row is where you point one at an off-PATH binary.
     return [...new Set([...ALL_VENDORS, ...customEngines(), ...detected])]
   }
   /** True only for an engine this user added — the one `x` can unregister. */
@@ -66,11 +58,9 @@ export function useEngineSettings(
     return !disabledEngines().includes(vendor)
   }
   /**
-   * Switch an engine off (it keeps its overrides, it just stops being offered
-   * when picking one for a task) or back on. Switching off the GLOBAL default
-   * hands the ● to the first engine still enabled — a default nobody can pick
-   * would silently strand every new task; when nothing else is enabled the
-   * toggle is refused instead.
+   * Off keeps overrides but stops offering the engine for tasks. Switching off
+   * the GLOBAL default hands the ● to the first enabled engine (an unpickable
+   * default strands new tasks); with none left, the toggle is refused.
    */
   function toggleEngineEnabled(vendor: VendorId): void {
     const off = disabledEngines()
@@ -108,11 +98,9 @@ export function useEngineSettings(
     return engineNameOverride(vendor).length > 0
   }
   /**
-   * The built-in adapter a custom preset borrows, or `undefined` for the
-   * generic one. Read through the kv context rather than
-   * `engine-presets.getEngineProtocol` (which reads state.json directly), so
-   * a protocol written in this dialog is visible on the row without a
-   * reload — the same reason the zen keys are read here and not there.
+   * Built-in adapter a custom preset borrows, `undefined` = generic. Read via
+   * kv, not `engine-presets.getEngineProtocol` (reads state.json), so a
+   * protocol written here shows without a reload.
    */
   function engineProtocol(vendor: VendorId): VendorId | undefined {
     const raw = kv.get(engineProtocolKey(vendor), "")
@@ -135,9 +123,8 @@ export function useEngineSettings(
   }
 
   /**
-   * `d` and the `(●)` radio both land here. Making a switched-off engine the
-   * default is a contradiction — the pick would never be offered — so choosing
-   * it switches it back on first, which is plainly what the gesture meant.
+   * `d` and the `(●)` radio. A switched-off engine is switched back on first:
+   * a disabled default would never be offered.
    */
   function chooseDefaultEngine(vendor: VendorId): void {
     const off = disabledEngines()
@@ -175,8 +162,7 @@ export function useEngineSettings(
     kv.set(engineCommandKey(vendor), "")
     kv.set(engineNameKey(vendor), "")
     if (isCustomEngine(vendor)) {
-      // A removed preset must not leave its protocol behind: re-adding the
-      // same id later would silently inherit the removed one's declaration.
+      // Clear the protocol, or re-adding the same id would inherit it.
       kv.set(engineProtocolKey(vendor), "")
       kv.set(
         "customEngineIds",
@@ -205,12 +191,10 @@ export function useEngineSettings(
       placeholder: t("settings.engines.commandPlaceholder"),
     })
     if (command === undefined) return
-    // Declared ONCE, here: a custom engine is a named PRESET, and its
-    // protocol is what makes every later `--command <id>` dispatch
-    // deterministic instead of sniffed. The generic choice is a ROW in the
-    // picker, not a blank field — the engine still launches, it just gets no
-    // transcript reader, trust pre-answer, or engine-specific delivery, and
-    // that has to be something you picked rather than something you mistyped.
+    // Declared ONCE: the protocol makes every later `--command <id>` dispatch
+    // deterministic, not sniffed. Generic (no transcript reader, trust
+    // pre-answer, or engine-specific delivery) is an explicit picker row, so
+    // it is chosen, never mistyped.
     const protocol = await EngineProtocolPickerDialog.show(dialog, { engineId: id })
     if (protocol === undefined) return
     const name = await RenameTaskDialog.show(dialog, id, {
@@ -221,8 +205,7 @@ export function useEngineSettings(
     })
     kv.set("customEngineIds", [...customEngines(), id])
     if (command.trim()) kv.set(engineCommandKey(id), command.trim())
-    // Still validated on the way in: the picker cannot offer a bogus value,
-    // but the key it writes is the one every later dispatch trusts.
+    // Validated anyway: every later dispatch trusts this key.
     if (protocol && ENGINE_PROTOCOLS.includes(protocol)) kv.set(engineProtocolKey(id), protocol)
     // A typed name wins; otherwise seed a humanized form so the chip reads
     // "My Local Agent", not "my-local-agent".

@@ -1,14 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Rename dialog — view + `show` entry in one file. Single pre-filled input,
- * Enter commits, esc cancels via the dialog stack; `dialogTitle` /
- * `fieldLabel` / `submitLabel` overrides let it double for chat-tab renames,
- * branch names, launch commands, etc.
- *
- * `stripNewlines` / `isBlankText` come from the shared framework-free
- * `state.ts` — same sanitiser as the new-task dialog (opentui `<input>`
- * inserts a literal `\n` on Enter; `isBlankText` rejects full-width
- * space-only titles that `.trim()` misses).
+ * Single pre-filled input: Enter commits, esc cancels. Label overrides let
+ * it double for chat-tab renames, branch names, launch commands, etc.
+ * `stripNewlines` because opentui `<input>` inserts a literal `\n` on Enter.
  */
 
 import { useState } from "react"
@@ -38,8 +32,7 @@ export function RenameTaskDialogView(props: {
 
   function commit(): void {
     const v = value.trim()
-    // `isBlankText` (not `!v`) so a title made only of full-width spaces
-    // `　` counts as empty — `.trim()` does not strip `U+3000`.
+    // Full-width spaces `　` count as blank (`.trim()` strips U+3000 too).
     if (isBlankText(v) && !props.allowEmpty) return
     props.onSubmit(v)
     dialog.clear()
@@ -66,10 +59,7 @@ export function RenameTaskDialogView(props: {
   )
 }
 
-/**
- * Open the rename dialog and resolve with the new title (trimmed) —
- * `undefined` on cancel, matching the other dialogs' convention.
- */
+/** Resolve with the new title (trimmed); `undefined` on cancel. */
 function show(
   dialog: DialogContext,
   currentTitle: string,

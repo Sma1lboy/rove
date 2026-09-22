@@ -1,21 +1,11 @@
-/**
- * Framework-free helpers for the new-task dialog.
- *
- * The bulk of the dialog's pure logic (field cycling, filters, windowing)
- * lives in the shared `src/tui/component/new-task-dialog/state.ts`. This file
- * holds the rest, kept out of the component so it is unit-testable without
- * mounting the dialog (`test/tui-react/new-task-pure.test.ts`). No React,
- * no fs.
- */
+/** Framework-free new-task dialog helpers, testable without mounting
+ *  (`test/tui-react/new-task-pure.test.ts`). No React, no fs. */
 
 import { DEFAULT_TASK_VENDOR } from "@/types/task"
 import { ALL_VENDORS, type VendorId } from "@/types/vendor"
 
-/**
- * Engine selector source: detected vendors only, falling back to the full
- * list when the caller passed nothing/empty — the selector is never empty
- * and task creation is never blocked.
- */
+/** Detected vendors, or the full list when none — the selector is never
+ *  empty, so task creation is never blocked. */
 export function resolveVendorSet(available: readonly VendorId[] | undefined): readonly VendorId[] {
   return available && available.length > 0 ? available : ALL_VENDORS
 }

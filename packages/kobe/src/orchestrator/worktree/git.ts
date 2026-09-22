@@ -1,41 +1,28 @@
 /**
- * Thin wrapper around `git` invocations for the worktree manager.
- *
- * Invariants this module enforces (so callers can't break them):
- *   - Args are always passed as an array. Never a shell string. We do
- *     not invoke any spawn variant with `shell: true`; we never let
- *     user input reach a shell parser.
- *   - `cwd` is set explicitly on every call. The manager never relies
- *     on `process.cwd()` because it is reentrant — callers might be
- *     running concurrent operations in different repos.
- *   - Non-zero exit codes throw by default. The two callers that need
- *     "soft failure" (e.g. `is this a worktree?` probes) opt in via
- *     `allowFail: true` and inspect the returned `exitCode`.
- *
- * Implementation note: we use Node's `child_process.spawnSync`, not
- * `Bun.spawnSync`, because the test runner (vitest) hosts under Node
- * and `Bun` is undefined there. Node's API is available in both
- * runtimes, so this stays portable when Bun runs the production code
- * path. Every git call here is short-lived (subseconds), so synchronous
- * spawn is the right primitive.
+ * `git` runner for the worktree manager. Invariants:
+ *   - Args are an array, never a shell string: user input never reaches a
+ *     shell parser.
+ *   - `cwd` is explicit on every call; never `process.cwd()` (concurrent
+ *     operations run in different repos).
+ *   - Non-zero exit throws unless `allowFail`.
+ * Node's `spawnSync`, not `Bun.spawnSync`: vitest hosts under Node where `Bun`
+ * is undefined. Calls are subsecond, so sync spawn is fine.
  */
 
 import { spawnSync } from "node:child_process"
 import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
 
 export interface GitRunOpts {
-  /** Working directory for git. Required — we never default. */
+  /** Required — never defaulted. */
   readonly cwd: string
-  /** When true, non-zero exit codes return a result instead of throwing. */
+  /** Non-zero exit returns a result instead of throwing. */
   readonly allowFail?: boolean
-  /** Extra environment to merge with `process.env`. */
+  /** Merged over `process.env`. */
   readonly env?: Readonly<Record<string, string>>
   /**
-   * Read-only probe: merge {@link READ_ONLY_GIT_ENV} (GIT_OPTIONAL_LOCKS=0)
-   * into the child env so `git status` / diff / ref probes never take
-   * `.git/index.lock` from an engine mid-commit (see lib/git-env.ts).
-   * ONLY for commands that never write the repo — marking a writer
-   * read-only would strip a lock it genuinely needs and corrupt the index.
+   * Adds {@link READ_ONLY_GIT_ENV} (GIT_OPTIONAL_LOCKS=0) so probes never take
+   * `.git/index.lock` from an engine mid-commit. ONLY for non-writing commands:
+   * a writer without its lock can corrupt the index.
    */
   readonly readOnly?: boolean
 }
@@ -66,13 +53,7 @@ export class GitCommandError extends Error {
   }
 }
 
-/**
- * Run `git <args>` synchronously in `opts.cwd`.
- *
- * Throws {@link GitCommandError} on non-zero exit unless
- * `opts.allowFail` is set, in which case the caller is responsible for
- * inspecting `result.exitCode`.
- */
+/** Throws {@link GitCommandError} on non-zero exit unless `opts.allowFail`. */
 export function git(args: readonly string[], opts: GitRunOpts): GitRunResult {
   if (!opts.cwd) {
     throw new Error("git(): cwd is required; refusing to inherit from process.cwd()")
@@ -83,9 +64,7 @@ export function git(args: readonly string[], opts: GitRunOpts): GitRunResult {
     cwd: opts.cwd,
     env,
     encoding: "utf8",
-    // Refuse to fall back to a shell parser. `args` is already an
-    // array; if the host adds `shell: true` somewhere upstream, this
-    // setting is overridden, so the array form is the real defense.
+    // Belt only; the array form is the real defense against a shell parser.
     shell: false,
   })
 

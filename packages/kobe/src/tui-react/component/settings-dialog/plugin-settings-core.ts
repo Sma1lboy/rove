@@ -1,10 +1,8 @@
 /**
- * Per-plugin settings: the pure half. A plugin's `[[settings]]` manifest
- * block is the SCHEMA and its config `.env` is the STORE
- * (`@sma1lboy/kobe-daemon/plugins/settings-env`); this module joins the two
- * into displayable child rows and owns the three edit rules — cycle an
- * enum, flip a boolean, validate a number. No fs, no React, so vitest can
- * pin the behaviour without a terminal.
+ * Per-plugin settings, pure half: joins the `[[settings]]` manifest SCHEMA with
+ * the config `.env` STORE (`@sma1lboy/kobe-daemon/plugins/settings-env`) into
+ * child rows, and owns the edit rules (cycle enum, flip boolean, validate
+ * number). No fs, no React.
  */
 
 import type { PluginSetting } from "@sma1lboy/kobe-daemon/plugins/manifest"
@@ -46,14 +44,9 @@ export function pluginSettingRows(
 }
 
 /**
- * What a row shows in place of its value. A `secret` holds an API key the
- * user pasted, and the settings dialog is on screen during screen shares,
- * screenshots, and recordings — so the stored value never reaches the
- * renderer. Length is hidden too (a fixed run of dots, not one per
- * character), since the length of a token is itself a hint.
- *
- * A secret that is unset must stay visibly unset: masking "" into dots would
- * claim a key is configured when none is.
+ * A `secret`'s stored value never reaches the renderer (screen shares,
+ * recordings); a fixed run of dots hides its length too. An unset secret stays
+ * visibly unset: dots would claim a key is configured.
  */
 export function displaySettingValue(row: Pick<PluginSettingRowView, "type" | "value">): string {
   if (row.type !== "secret" || row.value === "") return row.value

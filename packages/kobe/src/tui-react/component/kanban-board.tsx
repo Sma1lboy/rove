@@ -1,15 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The Kanban board's LANE GEOMETRY — how many lanes fit, how one is framed and
- * scrolled, and the narrow single-lane strip. Split out of `kanban-page.tsx`,
- * which keeps the other job: fetching boards, owning the selection, and running
- * the dialogs and mutations behind `enter` / `n` / `d`.
- *
- * The seam is "does a card fit" versus "what is on the card". Everything here
- * reads its inputs from props and writes nothing back except the two selection
- * callbacks, so the page can change what a board IS without touching how it is
- * laid out, and this file can change the breakpoint without knowing what a
- * story is.
+ * Kanban lane geometry: how many lanes fit, lane frame/scroll, and the narrow
+ * single-lane strip. Props in, only the selection callbacks out — what a board
+ * IS lives in `kanban-page.tsx`.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -31,17 +24,13 @@ const COLUMN_LABEL_KEY: Record<BoardColumnKey, string> = {
 }
 
 /**
- * Width floor for the four-lane layout, in cells of the BOARD — deliberately
- * not `lib/narrow-mode.ts`. That module's 70 columns is a whole-terminal
- * predicate (does the three-pane desktop layout fit at all); this one asks a
- * narrower question the sidebar's width also answers to: does a lane still hold
- * a readable card. At 100 terminal columns the desktop layout is fine and the
- * board still had 9 cells of card content.
+ * Four-lane width floor in BOARD cells, not `lib/narrow-mode.ts` (a
+ * whole-terminal predicate): the sidebar also eats board width — at 100
+ * terminal columns the board had 9 cells of card content.
  *
- * A card's own content needs 12: `issue.created` is `YYYY-MM-DD` at 10 cells
- * and the activity badge shares that row. LANE_CHROME is what stands between
- * the board's width and that content, per lane — lane border 2 + lane padding
- * 2 + the scrollbar gutter 1 + card border 2 + card padding 2.
+ * Card content needs 12: `YYYY-MM-DD` (10) shares a row with the activity
+ * badge. LANE_CHROME per lane = lane border 2 + padding 2 + scrollbar gutter 1
+ * + card border 2 + card padding 2.
  */
 const MIN_CARD_CELLS = 12
 const LANE_CHROME = 9
@@ -62,7 +51,6 @@ export interface KanbanBoardProps {
   readonly selectedId: number | null
   /** True when four lanes would leave the cards unreadable. */
   readonly singleLane: boolean
-  /** Per-task engine activity — the live badge on a linked card. */
   /** The linked task's derived group, per task id — the card badge and the
    *  attention float read the same reader the sidebar's sort does. */
   readonly taskGroupOf?: (taskId: string) => TaskGroup | undefined
@@ -89,9 +77,7 @@ export function KanbanBoard(props: KanbanBoardProps): ReactNode {
   } satisfies Record<BoardColumnKey, unknown>
 
   function card(issue: Issue, column: BoardColumnKey): ReactNode {
-    // Linked cards in the live lanes track their task's engine activity (the
-    // stay-on-the-board half of the background-start trigger); only In
-    // progress floats/counts the badge, Parked keeps it as passive signal.
+    // Only In progress floats/counts the badge; Parked shows it passively.
     const live = column === "in_progress" || column === "parked"
     const group = live && issue.taskId ? props.taskGroupOf?.(issue.taskId) : undefined
     return (
@@ -115,8 +101,7 @@ export function KanbanBoard(props: KanbanBoardProps): ReactNode {
         key={col.key}
         flexGrow={1}
         flexBasis={0}
-        // Rounded like every other framed surface — see ui/frame.ts for why
-        // this is spread rather than written out.
+        // See ui/frame.ts for why this is spread.
         {...FRAME}
         borderColor={columnBorder}
         paddingLeft={1}
@@ -161,9 +146,9 @@ export function KanbanBoard(props: KanbanBoardProps): ReactNode {
     )
   }
 
-  /** Narrow: one full-width lane (the selection's column) under a strip of
-   *  the other lanes' counts; ←/→ moves selection across lanes, and the
-   *  visible column follows it. Clicking a lane jumps to its first card. */
+  /** Narrow: the selection's lane full-width under a strip of lane counts;
+   *  the visible lane follows the selection. Clicking a lane selects its
+   *  first card. */
   function singleLaneBoard(): ReactNode {
     const active =
       columns.find((col) => col.issues.some((issue) => issue.id === selectedId)) ??

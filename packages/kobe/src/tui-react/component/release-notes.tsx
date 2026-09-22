@@ -1,19 +1,13 @@
 /** @jsxImportSource @opentui/react */
 /**
- * A GitHub release body, rendered as markdown. The one entry point for
- * every page that shows release notes (update, versions, what's new) —
- * they all mount this, so the three stay in step.
+ * A GitHub release body as markdown — the one renderer for every
+ * release-notes page (update, versions, what's new).
  *
- * opentui ships a `MarkdownRenderable` (tree-sitter markdown + inline
- * grammars, `conceal` on) — the headings, nested bullets, `code`, fences
- * and emphasis a Changesets body uses are all its job, so there is no
- * parser here. What this file owns is the theme mapping: the grammar
- * emits `markup.*` capture groups and renders them plain unless each one
- * has a registered style, the same contract `tui/ops/preview-syntax.ts`
- * fills in for code previews.
+ * Parsing is opentui's `MarkdownRenderable`; this owns the theme mapping:
+ * `markup.*` captures render plain unless each has a registered style (same
+ * contract as `tui/ops/preview-syntax.ts`).
  *
- * `SyntaxStyle` holds a native handle, so it is built once per theme and
- * not per render.
+ * `SyntaxStyle` holds a native handle — built once per theme, not per render.
  */
 
 import { SyntaxStyle } from "@opentui/core"

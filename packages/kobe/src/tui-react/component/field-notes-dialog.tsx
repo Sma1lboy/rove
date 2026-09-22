@@ -1,27 +1,19 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Field-notes reader — the project row menu's "Field notes" entry. Agents file
- * durable repo-level gotchas with `rove api note`; every fresh worktree
- * session is seeded with the newest of them (`state/field-notes.ts`), but
- * until this dialog a human could only read the store from a shell
- * (`rove api note-list`).
+ * Field-notes reader (project row menu). Agents file repo gotchas with
+ * `rove api note`; the newest 15 seed every fresh worktree session
+ * (`state/field-notes.ts`), so a stale note misleads later agents.
  *
- * Read plus RETIRE. The daemon is still the store's only writer and a note is
- * still a conclusion some session paid for — but a conclusion can stop being
- * true, and the newest 15 ride into every fresh session on the repo, so a
- * stale note is not inert: later agents act on it. `d` (see below) is the
- * correction; there is no edit, because a fact that changed is a new note.
- * Each row carries the note's author and time because provenance is the
- * point — the reader's next move is usually opening the session that filed it.
+ * Read plus RETIRE (`d`); no edit — a changed fact is a new note. Rows show
+ * author and time because the next move is usually opening that session.
+ * The daemon stays the store's only writer.
  *
  * PROPOSED CHORD, pending owner sign-off (docs/KEYBINDINGS.md): `d` deletes
- * the selected note, matching the kanban board's `d` and the tasks pane's `d`.
- * It shadows nothing here — this dialog binds only navigation keys, has no
- * text input, and `d` reached the terminal underneath before this.
+ * the selected note, matching the kanban board's and tasks pane's `d`. It
+ * shadows nothing: this dialog binds only navigation keys and has no input.
  *
- * Reads through the daemon's `note.list` RPC rather than the launch-path
- * reader so the dialog shows what the store holds (50) instead of the
- * 15-note injection cap.
+ * Reads the `note.list` RPC, not the launch-path reader, to show the whole
+ * store (50) rather than the 15-note injection cap.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -35,8 +27,7 @@ import { useCursorFollow } from "../lib/use-cursor-follow"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 
-/** The two store calls {@link show} binds — named as a pair so the dialog
- *  depends on what it uses, not on the whole orchestrator. */
+/** The two store calls {@link show} binds, instead of the whole orchestrator. */
 interface FieldNotesIO {
   listFieldNotes(repo: string): Promise<readonly StoredFieldNote[]>
   deleteFieldNote(repo: string, id: number): Promise<boolean>
@@ -47,8 +38,7 @@ type LoadState =
   | { readonly kind: "ready"; readonly notes: readonly StoredFieldNote[] }
   | { readonly kind: "error"; readonly message: string }
 
-/** `at` is an ISO stamp; show it to the minute in local time, and fall back
- *  to the raw string for anything that does not parse rather than "Invalid Date". */
+/** ISO `at` → local time to the minute; unparseable → the raw string, not "Invalid Date". */
 function formatAt(at: string): string {
   const d = new Date(at)
   if (Number.isNaN(d.getTime())) return at
@@ -88,14 +78,12 @@ export function FieldNotesDialogView(props: {
   }, [props.load])
 
   const notes = state.kind === "ready" ? state.notes : []
-  // Re-clamp whenever the row count changes — a delete at the tail would
-  // otherwise leave the cursor past the end.
+  // Re-clamp on row-count change so a tail delete can't strand the cursor.
   useEffect(() => {
     setCursor((c) => Math.max(0, Math.min(c, notes.length - 1)))
   }, [notes.length])
 
-  // Rows are variable height (a long note wraps), so the selection walks out
-  // of the viewport without this — the same helper the rail pages use.
+  // Rows wrap to variable height, so keep the selection in view.
   const follow = useCursorFollow(cursor)
   const scrollRef = useRef<ScrollBoxRenderable | null>(null)
   const moveCursor = (delta: number): void => {
@@ -106,8 +94,7 @@ export function FieldNotesDialogView(props: {
   function requestDelete(): void {
     const note = notes[cursor]
     const remove = props.remove
-    // A note with no id predates the id field and no write has stamped it
-    // yet; deleting by nothing would delete the wrong row.
+    // An id-less (legacy, unstamped) note can't be deleted safely.
     if (!note || !remove || note.id === undefined) return
     const id = note.id
     void DialogConfirm.show(
@@ -119,15 +106,12 @@ export function FieldNotesDialogView(props: {
       { danger: true },
     ).then(async (confirmed) => {
       if (confirmed !== true) return
-      // No repaint here. The provider renders ONE dialog, so opening the
-      // confirm replaced this reader and by now it is unmounted — whatever
-      // shows the result has to be arranged by whoever opened it (`show`).
+      // No repaint: the confirm replaced (unmounted) this reader; `show` reopens it.
       await remove(id).catch(() => false)
     })
   }
 
-  // Same keyboard shape as before plus a cursor: navigation keys only, no
-  // Rove-owned chord; esc is the DialogProvider's.
+  // Navigation keys only; esc is the DialogProvider's.
   useBindings(() => ({
     bindings: [
       { key: "up", cmd: () => moveCursor(-1) },
@@ -193,13 +177,9 @@ export function FieldNotesDialogView(props: {
 }
 
 /**
- * Open the reader; resolves when it closes (no value — the delete writes
- * through `remove` as it happens).
- *
- * Takes the ORCHESTRATOR and binds the two store calls here, rather than
- * making every caller pass a matching pair of closures — the same shape
- * `IssueDetailDialog` uses. The VIEW still takes plain callbacks, so it
- * mounts in the render track with no daemon.
+ * Open the reader; resolves on close (deletes write through `remove` live).
+ * Binds the store calls from the orchestrator here; the VIEW takes plain
+ * callbacks so it mounts in the render track with no daemon.
  */
 function show(dialog: DialogContext, opts: { repo: string; orchestrator: FieldNotesIO }): void {
   const { repo, orchestrator } = opts
@@ -209,11 +189,8 @@ function show(dialog: DialogContext, opts: { repo: string; orchestrator: FieldNo
       load={() => orchestrator.listFieldNotes(repo)}
       remove={async (id) => {
         const deleted = await orchestrator.deleteFieldNote(repo, id)
-        // Reopen rather than repaint. The confirm REPLACED this reader on the
-        // way in (one dialog at a time), so pressing Confirm otherwise
-        // retired the note and left nothing on screen to show it gone.
-        // Reopening here — after the store call resolved, not racing it —
-        // reloads from the store, so the list cannot draw the note back.
+        // Reopen: the confirm REPLACED the reader. Doing it after the store
+        // call resolves reloads fresh, so the note can't be drawn back.
         if (deleted) show(dialog, opts)
         return deleted
       }}

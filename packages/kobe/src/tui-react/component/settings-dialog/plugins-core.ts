@@ -1,12 +1,9 @@
 /**
  * Framework-free view model for the Settings → Plugins section: turns a
  * `~/.rove/plugins.json` entry plus its `rove-plugin.toml` and the tail of
- * its `log.jsonl` into one displayable row. Both canonical and legacy
- * manifest spellings are accepted. Pure except for
- * `readPluginRows`, the thin disk wrapper the React section calls.
- *
- * Registry/manifest/log layout is owned by the daemon
- * (`@sma1lboy/kobe-daemon/plugins/*`); this module only reads it.
+ * its `log.jsonl` into one row. Accepts canonical and legacy manifest
+ * spellings. Pure except the disk wrappers; the daemon
+ * (`@sma1lboy/kobe-daemon/plugins/*`) owns the layout.
  */
 
 import { closeSync, openSync, readFileSync, readSync, statSync } from "node:fs"
@@ -34,8 +31,7 @@ export interface PluginLastRun {
   readonly label: string
   readonly exitCode: number | null
   readonly ok: boolean
-  /** The hook has not exited yet — the runtime logs a `running` record once a
-   *  hook outlives its slow threshold, so a hang is visible instead of silent. */
+  /** Hook not exited: logged once it outlives its slow threshold, so a hang is visible. */
   readonly running: boolean
   readonly spawnError?: string
 }
@@ -59,11 +55,7 @@ export interface PluginRowView {
   readonly declares: PluginDeclares | null
   /** False when the manifest excludes this platform (the daemon skips it). */
   readonly platformOk: boolean
-  /**
-   * True when the manifest declares at least one command the runtime would
-   * run (actions + events + startup) — "never run" is only meaningful then.
-   * A panes/settings/engines-only plugin is quiet by design, not broken.
-   */
+  /** Declares a runnable command (actions/events/startup); "never run" means nothing otherwise. */
   readonly hooksDeclared: boolean
   readonly lastRun: PluginLastRun | null
   /** Declared `[[settings]]` joined with their stored values; [] when none. */
@@ -73,9 +65,8 @@ export interface PluginRowView {
 }
 
 /**
- * Last record of a run log. Tolerant on purpose: a half-written trailing
- * line (the runtime appends while we read) must not blank the whole row,
- * so we walk backwards to the newest line that parses.
+ * Newest parsable record: a half-written trailing line (appended while we
+ * read) must not blank the row.
  */
 export function parseLastRun(logText: string | null): PluginLastRun | null {
   if (!logText) return null
@@ -97,8 +88,7 @@ export function parseLastRun(logText: string | null): PluginLastRun | null {
       at: record.at,
       label: typeof record.label === "string" ? record.label : typeof record.kind === "string" ? record.kind : "run",
       exitCode,
-      // A hook still running is neither ok nor failed; `running` carries that
-      // third state so the row doesn't paint an in-flight hook as an error.
+      // In-flight is neither ok nor failed; `running` carries that state.
       ok: !running && spawnError === undefined && exitCode === 0,
       running,
       ...(spawnError ? { spawnError } : {}),
@@ -195,21 +185,17 @@ export function readPluginRows(homeDir?: string): PluginRowView[] {
 }
 
 /**
- * Store one setting value in the plugin's config .env. "" removes the key,
- * so the plugin falls back to its manifest default. Values apply to the
- * next plugin command run — nothing to poke.
+ * "" removes the key (manifest default applies). Takes effect on the next
+ * plugin command run.
  */
 export function setPluginSetting(pluginId: string, key: string, value: string, homeDir?: string): void {
   writePluginSettings(pluginId, { [key]: value }, homeDir)
 }
 
 /**
- * Flip one plugin's `enabled` flag. The daemon file-watches plugins.json, so
- * the change applies to the running daemon without a restart. Engine
- * contributions are kobe-process state (not daemon state), so the running
- * TUI's engine table is re-read here too — otherwise a newly enabled engine
- * plugin stays absent from the selector (and a disabled one stays offered)
- * until the next restart.
+ * The daemon file-watches plugins.json, so no restart there. Engine
+ * contributions are kobe-process state, so this TUI's engine table is re-read
+ * too, or the selector stays stale until restart.
  */
 export function setPluginEnabled(id: string, enabled: boolean, homeDir?: string): void {
   const registry = loadPluginRegistry(homeDir)

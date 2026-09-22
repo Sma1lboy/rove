@@ -1,14 +1,5 @@
-/**
- * The worktree LISTING operations of `manager.ts` — the read-only half, which
- * is why they are safe to hold apart from create/remove: nothing here can
- * change the repo, and a bug is a wrong answer rather than a lost worktree.
- *
- * `listManaged` / `listAllAdoptable` / `adoptablePaths` are the porcelain-parse
- * + filter + concurrent-probe logic behind `GitWorktreeManager.list` /
- * `.listAll` / `.listAdoptablePaths`. They're free functions taking a small
- * {@link ListDeps} (the ctx + the git/probe primitives the manager already
- * owns) so the class methods stay thin delegators — no behaviour change.
- */
+/** `manager.ts`'s read-only LISTING half: nothing here can change the repo;
+ *  a bug is a wrong answer, not a lost worktree. */
 
 import fs from "node:fs"
 import path from "node:path"
@@ -24,21 +15,16 @@ import {
 } from "./paths.ts"
 import { parseWorktreeListPorcelain } from "./worktree-list.ts"
 
-/** The manager primitives the listing functions borrow. */
 export interface ListDeps {
   ctxFor(repoKey: string): ExecCtx
   runGitStdout(ctx: ExecCtx, args: readonly string[]): Promise<string>
-  /** Read-only git at an arbitrary (worktree) cwd — the last-activity probe. */
+  /** Read-only git at a worktree cwd (last-activity probe). */
   runGitStdoutAt(ctx: ExecCtx, cwd: string, args: readonly string[]): Promise<string>
   isDirty(worktreePath: string): Promise<boolean>
 }
 
-/**
- * Last-activity time of a worktree in epoch ms — the HEAD commit's
- * committer time, falling back to the directory's mtime when the log
- * read fails (e.g. an unborn branch). Best-effort: returns 0 on total
- * failure so sorting still works. Used to order the adopt list.
- */
+/** Epoch ms: HEAD committer time, else directory mtime (unborn branch), else 0
+ *  so the adopt list still sorts. */
 async function lastActivityMs(deps: ListDeps, ctx: ExecCtx, worktreePath: string): Promise<number> {
   try {
     const stdout = await deps.runGitStdoutAt(ctx, worktreePath, ["log", "-1", "--format=%ct"])
@@ -47,8 +33,7 @@ async function lastActivityMs(deps: ListDeps, ctx: ExecCtx, worktreePath: string
   } catch {
     // no commits yet / not readable — fall through to mtime
   }
-  // mtime fallback is a local-only convenience; on a remote the git-log
-  // path above is the source of truth and a miss simply sorts as 0.
+  // Local only; a remote miss sorts as 0.
   if (!ctx.exec.isRemote) {
     try {
       return fs.statSync(worktreePath).mtimeMs
@@ -59,13 +44,8 @@ async function lastActivityMs(deps: ListDeps, ctx: ExecCtx, worktreePath: string
   return 0
 }
 
-/**
- * Branch names of `repo` — local plus `origin`, with the `origin/` prefix
- * stripped and `HEAD` dropped. The raw material for repo-convention branch
- * naming (`branch-style.ts`): both the style inference and the taken-set
- * for uniqueness. Best-effort — an unborn/broken repo yields `[]`, which
- * the naming layer reads as "no convention".
- */
+/** Local + `origin` (prefix stripped, `HEAD` dropped): style inference and
+ *  taken-set for `branch-style.ts`. Broken/unborn repo → `[]` ("no convention"). */
 export async function listBranchNames(deps: ListDeps, repo: string): Promise<readonly string[]> {
   const ctx = deps.ctxFor(repo)
   requireAbsolute("repo", ctx.dir)
@@ -94,9 +74,8 @@ export async function listManaged(deps: ListDeps, repo: string): Promise<readonl
   requireAbsolute("repo", ctx.dir)
   const all = parseWorktreeListPorcelain(await deps.runGitStdout(ctx, ["worktree", "list", "--porcelain"]))
 
-  // Filter + re-root synchronously first, then probe every survivor's dirty
-  // state concurrently (bounded) — the probes are the slow part (a git status /
-  // ssh round-trip each), so they must not run one-at-a-time.
+  // Filter first, then probe dirty concurrently (bounded): each probe is a git
+  // status / ssh round-trip.
   const kept: {
     readonly callerPath: string
     readonly probePath: string
@@ -113,11 +92,9 @@ export async function listManaged(deps: ListDeps, repo: string): Promise<readonl
     if (!callerRoot) continue
     // Detached / bare entries don't have a branch we care about.
     if (!entry.branch || entry.detached) continue
-    // Re-root paths into the caller's form. Git on macOS reports
-    // `/private/var/...` but the caller passed in `/var/...`; we hand back paths
-    // that satisfy `path.startsWith(callerRoot)` so callers can use string ops
-    // without surprise. Legacy paths stay under the legacy root instead of being
-    // rewritten to the primary root.
+    // Re-root into the caller's form (git reports `/private/var/...` for
+    // `/var/...`) so `path.startsWith(callerRoot)` holds. Legacy paths stay
+    // under the legacy root.
     const rel = path.relative(canonicalize(callerRoot), canonicalize(entry.path))
     kept.push({
       callerPath: path.join(callerRoot, rel),
@@ -130,25 +107,20 @@ export async function listManaged(deps: ListDeps, repo: string): Promise<readonl
     path: e.callerPath,
     branch: e.branch,
     head: e.head,
-    // A worktree can vanish between the porcelain snapshot and this probe, and
-    // an unguarded throw here fails the WHOLE list — the entire sidebar goes
-    // dark over one stale row. So the catch stays; what changed is its VALUE:
-    // `null` (unknown), never `false`. A worktree whose `git status` answers
-    // "Permission denied" holds whatever it held, and listing it as clean is
-    // the one answer that reads as safe to delete.
+    // Catch: one vanished worktree must not fail the whole list (sidebar goes
+    // dark). But `null` (unknown), never `false`: "clean" reads as safe to
+    // delete for a tree `git status` couldn't read.
     dirty: await deps.isDirty(e.probePath).catch(() => null),
   }))
 }
 
-/** ALL adoptable worktrees under `repo` (probed) — see `GitWorktreeManager.listAll`. */
 export async function listAllAdoptable(deps: ListDeps, repo: string): Promise<readonly AdoptableWorktree[]> {
   const ctx = deps.ctxFor(repo)
   const adoptable = await adoptablePaths(deps, ctx)
-  // Probe dirty + last-activity for every survivor concurrently (bounded) — two
-  // git spawns / ssh round-trips each, the slow part of this call.
+  // Two git spawns / ssh round-trips each: bounded concurrency.
   const infos = await mapWithLimit(adoptable, PROBE_CONCURRENCY, async (entry) => {
     const [dirty, activityMs] = await Promise.all([
-      // Same as the sibling probe above: unknown is `null`, not clean.
+      // Unknown is `null`, not clean.
       deps
         .isDirty(entry.path)
         .catch(() => null),
@@ -170,13 +142,8 @@ export async function listAllAdoptable(deps: ListDeps, repo: string): Promise<re
   return infos
 }
 
-/**
- * The bare/detached/main-checkout filter shared by {@link listAllAdoptable} and
- * `GitWorktreeManager.listAdoptablePaths`: keep only entries that are adoption
- * candidates (a real, non-bare, branch-checked-out worktree that isn't the
- * repo's own main checkout). No per-worktree probes — the cheap part callers
- * layer probes onto (or, for a path match, skip entirely).
- */
+/** Non-bare, on a branch, not the primary checkout nor the caller's own. No
+ *  per-worktree probes (callers add them or skip them). */
 export async function adoptablePaths(
   deps: ListDeps,
   ctx: ExecCtx,
@@ -185,13 +152,9 @@ export async function adoptablePaths(
   const all = parseWorktreeListPorcelain(await deps.runGitStdout(ctx, ["worktree", "list", "--porcelain"]))
   const canon = (p: string): string => (ctx.remote ? p : canonicalize(p))
   const canonRepo = canon(ctx.dir)
-  // The repository's PRIMARY checkout, which git always lists first — not
-  // `ctx.dir`. Called with a linked worktree, `ctx.dir` is that worktree, so
-  // comparing against it alone excluded the caller and left the user's own
-  // primary checkout in the adoptable list: `discover-adoptable` offered it
-  // and `adopt` (which validates through this same function) recorded it as a
-  // disposable managed task on the default branch, which `rove add <linked
-  // worktree>` then did unprompted.
+  // The PRIMARY checkout is git's first entry, not `ctx.dir` (which may be a
+  // linked worktree). Otherwise `adopt` would record the user's primary
+  // checkout as a disposable managed task.
   const canonMain = all.find((entry) => entry.path)?.path
   const canonMainPath = canonMain ? canon(canonMain) : null
   const kept: { readonly path: string; readonly branch: string; readonly head: string }[] = []
@@ -203,8 +166,7 @@ export async function adoptablePaths(
     const canonEntry = canon(entry.path)
     // Skip the repo's main checkout — it is the project row, never a task.
     if (canonMainPath !== null && canonEntry === canonMainPath) continue
-    // Skip the caller's own worktree: adopting the worktree you are asking
-    // from is never the answer.
+    // Never the caller's own worktree.
     if (canonEntry === canonRepo) continue
     kept.push({ path: entry.path, branch: entry.branch, head: entry.head ?? "" })
   }
@@ -212,22 +174,12 @@ export async function adoptablePaths(
 }
 
 /**
- * Worktree admin-dir names under `<git-common-dir>/worktrees/` that
- * `git worktree list --porcelain` did NOT report.
- *
- * Git omits an entry whose admin dir it cannot read AND still exits 0, so
- * without this cross-check {@link adoptablePaths} answers `[]` for a repo
- * whose worktree is merely unreadable — a result indistinguishable from
- * "nothing to adopt", while the directory and its uncommitted work sit
- * untouched on disk and the user has no path to adopt it.
- *
- * NAMES ONLY, on purpose: with the admin dir unreadable its `gitdir` file —
- * the one record of where that worktree lives — is unreadable too, so there
- * is no path, branch, or head to report. Inventing one would be a second lie,
- * and a fabricated path is a path `adopt` would try to use.
- *
- * Diagnostic augmentation, never a gate: any failure to enumerate returns
- * `[]`, which leaves the caller exactly where it stood before this existed.
+ * Admin-dir names under `<git-common-dir>/worktrees/` that `worktree list
+ * --porcelain` omitted: git skips an unreadable admin dir and still exits 0,
+ * so {@link adoptablePaths} alone reads it as "nothing to adopt" while work
+ * sits on disk. NAMES ONLY: the unreadable `gitdir` is the only record of the
+ * path, and a fabricated path is one `adopt` would use. Diagnostic, never a
+ * gate: any enumeration failure returns `[]`.
  */
 export async function unreadableWorktreeNames(deps: ListDeps, ctx: ExecCtx): Promise<readonly string[]> {
   // A remote repo's admin dirs are not on this filesystem.
@@ -235,8 +187,7 @@ export async function unreadableWorktreeNames(deps: ListDeps, ctx: ExecCtx): Pro
   requireAbsolute("repo", ctx.dir)
   let adminRoot: string
   try {
-    // `--git-common-dir` is relative to the cwd git ran in (usually `.git`),
-    // so resolve it against that cwd rather than assuming an absolute answer.
+    // Relative to git's cwd (usually `.git`).
     const common = (await deps.runGitStdout(ctx, ["rev-parse", "--git-common-dir"])).trim()
     if (!common) return []
     adminRoot = path.join(path.resolve(ctx.dir, common), "worktrees")
@@ -275,9 +226,8 @@ export async function unreadableWorktreeNames(deps: ListDeps, ctx: ExecCtx): Pro
       missing.push(name)
       continue
     }
-    // Matching on the RESOLVED path, not the admin name: git de-duplicates
-    // colliding basenames (`foo`, `foo1`), so a name comparison would flag a
-    // perfectly healthy second `foo` as missing.
+    // Match the RESOLVED path: git dedupes colliding admin names (`foo`,
+    // `foo1`), so names would flag a healthy second `foo`.
     if (gitdir && !reported.has(canonicalize(path.dirname(gitdir)))) missing.push(name)
   }
   return missing

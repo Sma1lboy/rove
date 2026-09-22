@@ -1,31 +1,23 @@
 /** @jsxImportSource @opentui/react */
 /**
  * Issue-detail dialog — the kanban page's Enter surface onto one story.
- * EDITABLE: the title rides a controlled <input>, the description an
- * UNCONTROLLED <textarea> (the settings feedback-form pattern — pasted
- * newlines survive; edits mirror out through onContentChange). `tab`
- * cycles the focused field (title → description → status → engine →
- * workspace); arrow keys only steer the selector fields so they never fight
- * the inputs' cursors. `esc` SAVES dirty edits and closes (ctrl+c discards).
+ * Title is a controlled <input>; description an UNCONTROLLED <textarea> so
+ * pasted newlines survive. `tab` cycles title → description → status →
+ * engine → workspace; arrows steer only selector fields, never the inputs'
+ * cursors. `esc` SAVES dirty edits and closes (ctrl+c discards).
  *
- * STATUS is in that cycle because this drawer is the only place a human can
- * move a card out of Backlog/In progress: the board's own keys steer the
- * cursor, and `d` deletes. Without it "I finished this" and "this never
- * existed" were the same gesture. It is deliberately a field here rather than
- * a new board chord — the cycle already existed, a chord would be new.
+ * STATUS is a field here because this drawer is the only place a human can
+ * move a card out of Backlog/In progress (board keys only steer and delete);
+ * a field reuses the existing cycle where a board chord would be new.
  *
- * Images paste INLINE: a pasted image/PDF path — or a ctrl+v clipboard
- * screenshot, saved via the composer's `captureClipboardAttachment` — is
- * appended to the description as an `images[N]: /path` placeholder line.
- * The description IS the carrier: the line persists in the issue body and
- * rides the first prompt, where the engine reads the file itself. No
- * separate attachments rail.
+ * Pasted image/PDF paths and ctrl+v screenshots (`captureClipboardAttachment`)
+ * append an `images[N]: /path` line to the description, which persists in the
+ * body and rides the first prompt — no separate attachments rail.
  *
- * Resolves through the shared `showDialog` promise with the (possibly
- * edited) title/body on EVERY outcome: `{kind:"start"|"open"|"close"}`,
- * plus `{kind:"create"}` from `mode: "create"` — the same drawer doubling
- * as the board's `n` new-story intake (ctrl+s = save only, enter = save &
- * start immediately, esc = cancel). The kanban page owns the store writes.
+ * Resolves via `showDialog` with the edited draft on every outcome
+ * (see `issue-detail-contract.ts`); `mode: "create"` is the board's `n` intake
+ * (ctrl+s = save only, enter = save & start, esc = cancel). The kanban page
+ * owns the store writes.
  */
 
 import { TextAttributes, type TextareaRenderable } from "@opentui/core"
@@ -44,8 +36,7 @@ import { ChipButton, ChipRow, DialogField, DialogFooter, DialogHeader, DialogSec
 import type { IssueDetailOptions, IssueDetailOutcome, IssueDraft } from "./issue-detail-contract"
 import { IssueEventsSection } from "./issue-detail-parts"
 
-// The contract lives next door; re-exported here so the page and the render
-// tests keep one import site for "the drawer and what it answers with".
+// Re-exported so the page and render tests keep one import site.
 export type { IssueDetailOptions, IssueDetailOutcome } from "./issue-detail-contract"
 
 type Field = "title" | "description" | "status" | "engine" | "workspace" | "jump" | "open" | "unlink"
@@ -84,14 +75,11 @@ export function IssueDetailDialogView(
     create ? "title" : startable ? "workspace" : linkedTaskId ? "open" : "title",
   )
 
-  // The description is an uncontrolled <textarea> (pasted newlines survive);
-  // placeholder inserts write through the ref, edits mirror into draftBody.
+  // Placeholder inserts write through the ref; edits mirror into draftBody.
   const bodyEl = useRef<TextareaRenderable | null>(null)
 
-  // `status` joins every DETAIL cycle and no create cycle: a story that does
-  // not exist yet is `open` by construction, and offering to file it as
-  // `done` would be a trap. It sits right after the text fields so the move
-  // that closes a card is two tabs away in all three shapes.
+  // No `status` in create (a new story is `open` by construction); in detail
+  // it follows the text fields so closing a card is two tabs away.
   const fields: readonly Field[] = create
     ? ["title", "description", "engine", "workspace", "jump"]
     : startable
@@ -197,8 +185,7 @@ export function IssueDetailDialogView(
   }
 
   function close(): void {
-    // Detail esc saves (there's a record to patch); create esc cancels —
-    // nothing exists yet, and esc-created empty stories would be litter.
+    // Detail esc saves; create esc cancels (no esc-created empty stories).
     if (create) props.onCancel()
     else props.onSubmit({ kind: "close", ...draft() })
     dialog.clear()
@@ -214,10 +201,9 @@ export function IssueDetailDialogView(
       { key: "ctrl+return", cmd: () => commit() },
       ...(create ? [{ key: "ctrl+s", cmd: () => saveOnly() }] : []),
       { key: "ctrl+v", cmd: () => pasteClipboardImage() },
-      // Arrows steer ONLY the selector fields — in title/description they
-      // must reach the input's own cursor, so they stay unregistered there.
-      // Status has no `return` of its own: enter on a done/parked story would
-      // otherwise fall through to `commit()`, which starts a session.
+      // Arrows are unregistered on text fields so they reach the cursor.
+      // Status binds no `return`: routing enter on a done/parked story to
+      // `commit()` would start a session.
       ...(field === "status"
         ? [
             { key: "left", cmd: () => stepStatus(-1) },

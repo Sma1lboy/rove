@@ -1,9 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Tiny presentational helpers shared by the settings sections: `Row` (one
- * navigable/clickable line) and `SubSection` (BOLD title + muted hint +
- * rows), so each section file stays well under the size cap instead of
- * repeating the same row/box markup per setting.
+ * Presentational helpers shared by the settings sections: `Row` and `SubSection`.
  */
 
 import { type BoxRenderable, type RGBA, TextAttributes } from "@opentui/core"
@@ -26,10 +23,8 @@ export function Row(props: {
   bold?: boolean
   idleBackground?: RGBA
   /**
-   * What this option means, muted, on the SAME line as the control. A
-   * paragraph above a block of switches has to be re-read to find which
-   * sentence belongs to which switch; a phrase beside one does not. Pad the
-   * label (the caller owns its column width) to line the phrases up.
+   * What this option means, muted, on the SAME line as the control. The
+   * caller pads the label to line the phrases up.
    */
   hint?: string
   children?: ReactNode
@@ -85,10 +80,8 @@ export type SectionCursorProps = {
   setLevel: (level: "sidebar" | "body") => void
   setBodyRow: (row: number) => void
   /**
-   * Cursor-follow registration for ONE navigable row, keyed by its body
-   * index — `useCursorFollow`'s `rowRef` (see `tui-react/lib/use-cursor-follow`),
-   * threaded through here rather than a settings-only context so a section
-   * built from bare boxes (Engines, Plugins) registers the same way `Row` does.
+   * `useCursorFollow`'s `rowRef` for one row, keyed by body index. A prop,
+   * not a context, so bare-box sections (Engines, Plugins) register like `Row`.
    */
   rowRef: (row: number) => (r: BoxRenderable | null) => (() => void) | undefined
 }

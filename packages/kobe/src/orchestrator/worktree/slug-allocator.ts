@@ -1,77 +1,36 @@
 /**
- * Allocate animal-name slugs for worktree directories.
- *
- * A directory is named for a slug, not the task's ULID — a 26-char dir name
- * overflows the terminal pane. The shape is:
+ * Animal-name worktree dirs (a 26-char ULID overflows the terminal pane):
  *
  *   ~/.rove/worktrees/<repo-key>/panda/
  *   ~/.rove/worktrees/<repo-key>/panda-v2/   # if `panda` was recycled
  *
- * Mechanism (mirrors Conductor's city-name scheme):
- *   1. Build the "occupied" set: every slug currently held by an
- *      active task in the store, PLUS every directory name already
- *      present on disk under kobe-managed worktree roots, PLUS any
- *      slugs picked for the same repo by an earlier `allocate()` call
- *      that haven't yet been committed (race window between picking
- *      and persisting to the store).
- *   2. Filter {@link ANIMAL_NAMES} to candidates not in `occupied`.
- *   3. Pick one randomly. If the candidate set is empty (pool
- *      exhausted by ~410 simultaneous active worktrees in one repo —
- *      not realistic for kobe's use case), pick any base name and
- *      append `-v2`/`-v3`/... until one is free.
+ * Occupied = slugs of active tasks ∪ dirs on disk under managed roots ∪ picks
+ * not yet committed. Pick randomly from {@link ANIMAL_NAMES} minus occupied;
+ * if exhausted (~410 active worktrees in one repo), suffix `-v2`, `-v3`…
  *
- * Concurrency:
- *   - `allocate()` is async-serialized via a chain promise so two
- *     concurrent calls cannot pick the same slug. Inside the chain we
- *     refresh the occupied set on every iteration so the second caller
- *     sees the first caller's pick (via the per-repo pending set).
- *   - Callers commit / cancel the pick via {@link commit} /
- *     {@link cancel}. Commit clears the pending entry; cancel does
- *     the same (the difference is purely intent — both free the slot).
- *
- * Daemon mode: in-process serialization is enough because a single
- * daemon owns the task store. Two daemons against the same repo would
- * race, but that's already broken on the store's tasks.json writes.
+ * `allocate()`/`claim()` serialize on one chain promise and re-read occupied
+ * inside it, so concurrent calls see each other's pending picks. In-process
+ * serialization suffices: one daemon owns the task store.
  */
 
 import { WorktreeNameTakenError } from "../errors.ts"
 import { ANIMAL_NAMES } from "./animal-names.ts"
 import { listWorktreeDirNames } from "./paths.ts"
 
-/**
- * Source of "currently active slugs known to the application" — i.e.
- * the slugs the store reports as belonging to active tasks. Passed in
- * rather than reaching for a TaskIndexStore so the allocator stays
- * testable without spinning up the full store.
- */
+/** Slugs of active tasks; injected so tests needn't build a TaskIndexStore. */
 export type ActiveSlugSource = (repo: string) => readonly string[]
 
 export interface SlugAllocatorOptions {
-  /**
-   * Override `Math.random` for deterministic tests. Defaults to
-   * `Math.random`.
-   */
   readonly random?: () => number
-  /**
-   * Override the bundled animal list. Tests use a tiny pool (e.g.
-   * `["panda", "tiger"]`) to exercise the version-suffix fallback in
-   * a single allocate cycle.
-   */
+  /** Tests use a tiny pool to reach the `-v2` fallback in one cycle. */
   readonly pool?: readonly string[]
 }
 
 export class SlugAllocator {
   private readonly random: () => number
   private readonly pool: readonly string[]
-  /**
-   * Slugs picked but not yet committed, scoped by repo. Added on
-   * allocate(), removed on commit/cancel. Treated as occupied for the
-   * next allocate() in the same repo so a back-to-back race can't
-   * return the same name twice, while different repos can still share
-   * the same short slug.
-   */
+  /** Per repo, so different repos can share a short slug. */
   private readonly pendingByRepo = new Map<string, Set<string>>()
-  /** Serialise allocate() calls — see class-level concurrency note. */
   private chain: Promise<void> = Promise.resolve()
 
   constructor(
@@ -85,15 +44,8 @@ export class SlugAllocator {
     }
   }
 
-  /**
-   * Pick an unused slug for a new worktree in `repo`. The caller must
-   * subsequently call {@link commit} (once the slug has been persisted
-   * to the task store) or {@link cancel} (on error before persist).
-   * Forgetting to commit/cancel leaks the slug — it stays in the
-   * pending set for the lifetime of the process and is never picked
-   * again. Not catastrophic (the pool is large) but worth being tidy
-   * about.
-   */
+  /** Must be followed by {@link commit} (persisted) or {@link cancel};
+   *  otherwise the slug stays pending, unpickable, for the process lifetime. */
   async allocate(repo: string): Promise<string> {
     const previous = this.chain
     let release!: () => void
@@ -109,17 +61,9 @@ export class SlugAllocator {
   }
 
   /**
-   * Take a CALLER-CHOSEN slug (`add --worktree-name`), or refuse it.
-   *
-   * Same occupied set `allocate()` picks against — active tasks, directories
-   * already on disk, and picks not yet committed — so a name a random pick
-   * would have skipped is a name this rejects. It never falls back to a
-   * `-v2` suffix: the caller named this directory so a script could predict
-   * the path, and silently handing back `probe-1-v2` would break exactly the
-   * caller the flag exists for.
-   *
-   * Serialized on the same chain as {@link allocate}, so a claim and a
-   * concurrent random pick cannot both take one name.
+   * CALLER-CHOSEN slug (`add --worktree-name`), checked against the same
+   * occupied set. Never falls back to `-v2`: the caller named it so a script
+   * can predict the path. Same chain as {@link allocate}.
    */
   async claim(repo: string, slug: string): Promise<string> {
     const previous = this.chain
@@ -138,16 +82,12 @@ export class SlugAllocator {
     }
   }
 
-  /** Caller successfully persisted `slug`; release its pending slot. */
+  /** Persisted: the task store now marks it occupied. */
   commit(repo: string, slug: string): void {
     this.deletePending(repo, slug)
   }
 
-  /**
-   * Caller aborted before persisting (e.g. `git worktree add` failed).
-   * Symmetric with commit; both free the slot so the next allocate can
-   * reuse the name.
-   */
+  /** Aborted before persist; same effect as commit, different intent. */
   cancel(repo: string, slug: string): void {
     this.deletePending(repo, slug)
   }
@@ -162,9 +102,7 @@ export class SlugAllocator {
       this.addPending(repo, pick)
       return pick
     }
-    // Pool exhausted within this repo. Pick any base and version-suffix
-    // it until we find a slot. The while-loop is bounded only by disk
-    // free space; in practice we won't get past v2.
+    // Pool exhausted; unbounded loop, in practice never past v2.
     const base = this.pool[Math.floor(this.random() * this.pool.length)]!
     for (let v = 2; ; v++) {
       const candidate = `${base}-v${v}`
@@ -180,9 +118,7 @@ export class SlugAllocator {
     for (const slug of this.activeSlugs(repo)) {
       if (slug) set.add(slug)
     }
-    // Async: a remote repo's dir listing is an ssh round-trip — awaited so
-    // the daemon's event loop stays free during slug allocation. Safe inside
-    // pickLocked because allocate() serializes via the chain promise.
+    // Remote listing is an ssh round-trip; awaiting is safe under the chain.
     for (const dir of await listWorktreeDirNames(repo)) {
       set.add(dir)
     }

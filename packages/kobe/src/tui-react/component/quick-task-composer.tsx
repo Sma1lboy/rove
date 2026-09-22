@@ -1,25 +1,16 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Prompt-first quick-task composer (`<prefix> f`).
+ * Prompt-first quick-task composer (`<prefix> f`). PROMPT is focused and
+ * `enter` creates immediately; `tab` cycles prompt → attempts → engine →
+ * branch, `ctrl+e` (or ←/→ on engine) switches engine. All default from the
+ * firing task.
  *
- * The quick path is prompt-first: the PROMPT field is focused on open and
- * `enter` from it creates the task immediately. Attempts, engine and branch
- * are right there too — `tab` cycles prompt → attempts → engine → branch,
- * `ctrl+e` (or ←/→ on the engine field) switches engine — but they default
- * from the firing task, so the common path is just "type a prompt, hit
- * enter".
+ * ATTEMPTS N > 1 fans the SAME prompt to N siblings of one round. Capped at
+ * 5 while `rove api add --count` allows 10: `docs/ORCHESTRATION.md` calls 3-4
+ * the sweet spot, and a ten-chip row is worse than the shell command.
  *
- * ATTEMPTS is what makes this the product's headline gesture rather than a
- * one-task shortcut: picking N > 1 fans the SAME prompt out to N siblings of
- * one round. It stops at 5 while `rove api add --count` allows 10 —
- * `docs/ORCHESTRATION.md` calls 3-4 the sweet spot, and a chip row of ten
- * choices is a worse dialog than the shell command you would reach for to
- * exceed five.
- *
- * This is deliberately NOT the full `NewTaskDialog` (repo picker, clone/adopt
- * tabs) and NOT `RenameTaskDialog` (whose field is literally labelled
- * "title" / "rename" — wrong for a prompt). It's the small, create-focused
- * surface the quick chord wants.
+ * Deliberately not `NewTaskDialog` nor `RenameTaskDialog` (labelled
+ * "title"/"rename" — wrong for a prompt).
  */
 
 import { usePaste } from "@opentui/react"
@@ -81,10 +72,9 @@ function QuickTaskComposerView(
   const [baseRef, setBaseRef] = useState(props.defaultBaseRef)
   const [attachments, setAttachments] = useState<readonly string[]>([])
 
-  // Pasted text that is entirely image/PDF path(s) (Finder copy, drag-drop)
-  // becomes attachments instead of prompt text. This global paste hook runs
-  // BEFORE the focused input's own paste handler, so preventDefault() stops
-  // the path from also being inserted as text. Ordinary text falls through.
+  // Paste that is entirely image/PDF path(s) becomes attachments. This hook
+  // runs BEFORE the input's own paste handler, so preventDefault() keeps the
+  // path out of the text. Ordinary text falls through.
   usePaste((event: { bytes: Uint8Array; preventDefault: () => void }) => {
     const paths = asAttachmentPaths(new TextDecoder().decode(event.bytes))
     if (!paths) return
@@ -107,9 +97,7 @@ function QuickTaskComposerView(
     })
   }
   function stepAttempts(dir: 1 | -1): void {
-    // Clamped, not wrapped: ←  from 1 stays on 1. The engine row cycles because
-    // every engine is equivalent; here 1 and 5 are opposite ends of a scale, and
-    // one keypress past the end must not fan out five attempts.
+    // Clamped, not wrapped: one keypress past 1 must not fan out five attempts.
     setAttempts((n) => Math.min(ATTEMPT_CHOICES.length, Math.max(1, n + dir)))
   }
   function stepEngine(dir: 1 | -1): void {
@@ -126,9 +114,8 @@ function QuickTaskComposerView(
   }
   function commit(): void {
     if (isBlankText(prompt)) {
-      // A prompt is required — bounce focus back to it. `isBlankText`
-      // (not `.trim()`) so a prompt of only full-width spaces `　`
-      // (common when typing Chinese) is rejected, not silently submitted.
+      // Required: bounce focus back. Only-full-width-spaces `　` (common when
+      // typing Chinese) is blank too.
       setField("prompt")
       return
     }
@@ -142,15 +129,9 @@ function QuickTaskComposerView(
     dialog.clear()
   }
 
-  // The engine-only chords (←/→ cycle, enter commit) are gated at
-  // REGISTRATION, not inside the handler: a matched binding consumes the
-  // keypress (dispatchKeyEvent calls preventDefault on every hit), so a
-  // handler-side `if (field === "engine")` still STOLE the key from the
-  // focused input — Enter in the prompt field never reached the input's
-  // onSubmit (the "type a prompt, hit enter" path was dead) and ←/→
-  // couldn't move the cursor in the prompt/branch inputs. The list comes
-  // from the pure `quickTaskBindings` (vitest pins the gating); the
-  // config thunk re-runs per keypress, so it tracks `field` live.
+  // Gating is at registration (see `quickTaskBindings`); a handler-side field
+  // check would still steal the key. The thunk re-runs per keypress, so it
+  // tracks `field` live.
   useBindings(() => ({
     enabled: true,
     bindings: quickTaskBindings(field, {

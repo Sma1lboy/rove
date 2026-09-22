@@ -1,9 +1,8 @@
 /**
  * Framework-free view model for Settings → Marketplace: joins the GitHub
  * topic listing (`cli/plugin-search`) with the local registry so a row can
- * say "already installed" instead of offering a second copy. Pure — the
- * React section maps these rows to boxes, and `use-section-data` owns the
- * fetch and the install flow.
+ * say "already installed" instead of offering a second copy. Fetch and install
+ * live in `use-section-data`.
  */
 
 import type { MarketEntry } from "../../../cli/plugin-search"

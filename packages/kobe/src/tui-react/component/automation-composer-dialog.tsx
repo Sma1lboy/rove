@@ -1,18 +1,12 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The automation composer — one card, Tab between fields.
+ * The automation composer — one card, Tab between fields, editable in any
+ * order since the right cron depends on what the prompt does.
  *
- * Replaces four chained single-field prompts. Those worked, but a schedule is
- * a set of decisions you make together: the cron you want depends on what the
- * prompt does, and you cannot go back a step to reconsider. One card lets the
- * whole thing be read and edited in any order.
+ * The schedule shows a live preview (`previewSchedule`): a cron expression is
+ * the one input a user cannot verify by re-reading it.
  *
- * The schedule field carries a live preview (`previewSchedule`) because a cron
- * expression is the one input a user cannot verify by re-reading it. Showing
- * "weekdays 09:00 · in 23h · Mon 09:00" turns a silent typo into an obviously
- * wrong line before it is ever saved.
- *
- * Field order, validation and the preview are the framework-free
+ * Field order, validation and the preview live in the framework-free
  * `tui/component/automation-composer.ts`; this file is rendering + keys.
  */
 
@@ -109,8 +103,7 @@ function AutomationComposerView(props: {
       dialog.clear()
       return
     }
-    // Refusing silently would leave the user pressing Enter at a Create
-    // button that never fires — jump to the field that is actually missing.
+    // Don't refuse silently — jump to the missing field.
     const gap = firstIncompleteField(draft)
     if (gap) {
       setField(gap)
@@ -139,13 +132,12 @@ function AutomationComposerView(props: {
 
   useBindings(() => ({
     bindings: [
-      // No escape binding: the dialog stack's ModalBarrier owns esc and both
-      // resolves the promise (showDialog's onClose) and pops the card. A
-      // member registration here would outrank it and only do the former.
+      // No escape binding: ModalBarrier's esc both resolves the promise and
+      // pops the card; a binding here would outrank it and only resolve.
       { key: "tab", cmd: () => setField((f) => nextComposerField(f, 1, Boolean(draft.target))) },
       { key: "shift+tab", cmd: () => setField((f) => nextComposerField(f, -1, Boolean(draft.target))) },
-      // Repo is a list, so up/down drives it while it has focus. The other
-      // fields are inputs — opentui owns their arrows.
+      // Target and repo are lists: up/down drives them while focused. Input
+      // fields' arrows belong to opentui.
       ...(field === "target"
         ? [
             { key: "up", cmd: () => pickTarget(-1) },
@@ -158,8 +150,6 @@ function AutomationComposerView(props: {
             { key: "down", cmd: () => pickRepoAt(repoCursor + 1) },
           ]
         : []),
-      // Presets are a starting point, not a constraint: ←/→ steps through
-      // them and the field stays typeable.
       // ←/→ walks the cells, ↑/↓ changes the one under the cursor.
       ...(field === "schedule"
         ? [

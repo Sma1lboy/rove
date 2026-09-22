@@ -1,18 +1,14 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The third line of an engine card: which of Rove's three reporting layers
- * this engine uses, and — for the one layer that has to be INSTALLED — what
- * is on disk right now (`engine/integration-status.ts` owns the reading).
+ * Third line of an engine card: which of Rove's three reporting layers this
+ * engine uses, and what is on disk for the one that must be INSTALLED
+ * (`engine/integration-status.ts` owns the reading). This is what ROVE
+ * installed into the engine; `sections-engines.tsx` renders what the user
+ * configures.
  *
- * Its own file, not `sections-engines.tsx`: that one renders what the user
- * CONFIGURES (the switch, the default marker, the launch command) plus what
- * detection found about the engine's own install; this renders what ROVE
- * installed into the engine. The two halves change for different reasons.
- *
- * Three cells, never a score. A missing layer is normal — claude's hooks
- * report its permission prompt, so screen rules would be dead code there —
- * so an absent layer is a muted dash, and only a layer that is meant to be
- * installed and is not gets a warning colour.
+ * Three cells, never a score. A missing layer is normal (claude's hooks report
+ * its permission prompt, so screen rules would be dead code), so it is muted;
+ * only a layer meant to be installed and missing gets a warning colour.
  */
 
 import type { ReactNode } from "react"
@@ -22,13 +18,10 @@ import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 
 /**
- * i18n key and tone for each hook state.
- *
- * FOUR readings, not three: "supported but absent" splits on whether the CLI
- * is even on this machine. Without that split every engine the user has not
- * installed wore the same warning as one whose install genuinely failed, so
- * the section always looked broken and the colour stopped meaning anything.
- * `tone` is what the row paints: `warn` is the only one asking for a person.
+ * i18n key and warn flag per hook state; `warn` is the only reading asking for
+ * a person. A fourth reading, "unavailable", is derived below: a missing hook
+ * on an engine whose CLI isn't on this machine is muted, not a warning, or the
+ * section always looks broken.
  */
 const HOOK_STATES: Readonly<Record<HookInstallState, { key: string; warn: boolean }>> = {
   installed: { key: "settings.engines.hookInstalled", warn: false },
@@ -46,12 +39,9 @@ export function EngineIntegrationLine(props: {
   const { theme } = useTheme()
   const t = useT()
   const row = props.integration
-  // Reserve the line while the probe is in flight rather than growing the
-  // card when it lands: a card that gets taller mid-render pushes every row
-  // below it, and the cursor is somewhere down there.
+  // Reserve the line while probing: a card growing mid-render pushes the rows
+  // (and the cursor) below it.
   if (!row) return <box paddingLeft={6} />
-  // An engine with no CLI here has nothing to install INTO: the missing hook
-  // is a consequence, not a fault, so it drops to the muted reading.
   const absent = row.hooksSupported && row.hookState === "not-installed" && props.binaryFound === false
   const hook = row.hooksSupported && !absent ? HOOK_STATES[row.hookState] : null
   const hookLabel = hook ? t(hook.key) : absent ? t("settings.engines.hookUnavailable") : t("settings.engines.hookNone")

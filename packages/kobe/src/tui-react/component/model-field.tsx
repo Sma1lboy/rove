@@ -1,18 +1,14 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The MODEL row every engine-choosing dialog shares (new-task, change-engine):
- * a free-text input — a model is the engine's own spelling, an alias, a full
- * id or a fuzzy pattern, so no closed list can validate it — with the
- * engine's `listModels` as a filtered suggestion list underneath while the
- * row has focus. ↑↓ walk the suggestions and COPY the highlighted id into the
- * input, so what the input shows is exactly what gets pinned; typing filters
- * again from the typed text.
+ * The MODEL row shared by engine-choosing dialogs (new-task, change-engine).
+ * Free text — an alias, full id or fuzzy pattern, so no closed list can
+ * validate it — with `listModels` as filtered suggestions while focused.
+ * ↑↓ COPY the highlighted id into the input, so the input is exactly what
+ * gets pinned; typing filters again.
  *
- * One hook + one JSX shell, so the two dialogs cannot drift the way five
- * dialogs once grew three selector grammars. The row renders only for engines
- * that declare `modelArgv` (the caller checks {@link engineAcceptsModel});
- * a list that fails or is absent degrades to the bare input, never hides it —
- * claude lists three aliases and takes any full id.
+ * Renders only for engines with `modelArgv` (caller checks
+ * {@link engineAcceptsModel}); a failed/absent list degrades to the bare
+ * input, never hides it — claude lists three aliases and takes any full id.
  */
 
 import { useEffect, useMemo, useState } from "react"
@@ -29,9 +25,8 @@ export function engineAcceptsModel(vendor: VendorId): boolean {
   return engineEntry(vendor).modelArgv !== undefined
 }
 
-// One list per vendor per process: pi/omp answer by running a binary, and a
-// dialog reopened ten times should not spawn it ten times. A failed list is
-// evicted so the next open retries instead of remembering a cold start.
+// One list per vendor per process: pi/omp spawn a binary to answer. A failed
+// list is evicted so the next open retries.
 const lists = new Map<VendorId, Promise<readonly EngineModel[]>>()
 
 function modelsFor(vendor: VendorId): Promise<readonly EngineModel[]> | null {

@@ -1,16 +1,10 @@
 /**
- * Pure binding builder for the quick-task composer — extracted from
- * `quick-task-composer.tsx` so the field-gating contract is
- * vitest-testable (the component file drags in `@opentui`).
+ * Quick-task composer bindings, pure so vitest can pin the gating.
  *
- * THE contract, and what "type a prompt, hit enter" depends on: a
- * matched binding consumes its keypress — `dispatchKeyEvent` calls
- * `preventDefault()` on every hit, so the focused input never sees the
- * key. Field-dependent chords therefore must be gated at REGISTRATION:
- * `return` / `left` / `right` exist in the returned list ONLY while the
- * engine chip row is focused. On the prompt/branch fields they're
- * absent, so Enter falls through to the input's own `onSubmit` (commit)
- * and ←/→ move the input cursor.
+ * A matched binding consumes its keypress (`dispatchKeyEvent` calls
+ * `preventDefault()`), so field-dependent chords are gated at REGISTRATION:
+ * `return` / `left` / `right` exist ONLY while a chip row is focused. On the
+ * text fields Enter reaches the input's `onSubmit` and ←/→ move its cursor.
  */
 
 import type { Binding } from "../lib/keymap"
@@ -33,15 +27,11 @@ export function quickTaskBindings(field: QuickTaskField, h: QuickTaskBindingHand
     { key: "tab", cmd: () => h.cycleField(1) },
     { key: "shift+tab", cmd: () => h.cycleField(-1) },
     { key: "ctrl+e", cmd: () => h.stepEngine(1) },
-    // Attachment chords are field-independent: text paste arrives as a
-    // bracketed PasteEvent (never as ctrl+v), so claiming the raw ctrl+v
-    // keypress steals nothing from the inputs — it's the only way to
-    // reach a clipboard IMAGE, which the terminal can't deliver as text.
+    // Field-independent: text paste arrives as a bracketed PasteEvent, so
+    // raw ctrl+v steals nothing — and it's the only route to a clipboard IMAGE.
     { key: "ctrl+v", cmd: () => h.pasteAttachment() },
     { key: "ctrl+x", cmd: () => h.removeLastAttachment() },
-    // Both chip rows claim ←/→ and enter for the same reason: a chip row has
-    // no input to move a cursor in or to fire onSubmit. The gating stays at
-    // REGISTRATION (see the header) so the text fields keep both.
+    // Chip rows have no input cursor or onSubmit, so they claim ←/→ and enter.
     ...(field === "attempts"
       ? [
           { key: "left", cmd: () => h.stepAttempts(-1) },

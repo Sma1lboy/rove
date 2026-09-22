@@ -2,7 +2,7 @@
  * Vendor preference layers, as flat keys in the shared `state.json`:
  * `lastActiveVendor.<repo>` (per-project, written by Ctrl+Shift+T and
  * dialog picks) → `defaultVendor` (global, Settings-only) →
- * `lastSelectedVendor` (legacy pre-split key, read-only) → `claude`.
+ * `lastSelectedVendor` (legacy key, read-only) → first enabled engine.
  * Per-TASK vendor lives on the task record, not here.
  */
 
@@ -14,14 +14,8 @@ const REPO_KEY_PREFIX = "lastActiveVendor."
 
 /**
  * Validate one persisted value; undefined lets the chain fall through.
- *
- * A DISABLED engine falls through too. Switching an engine off in Settings →
- * Engines is documented as "it stops being offered when you pick an engine
- * for a task", and the disabled set was read in exactly one place —
- * `availableEngineIds()`, which only feeds the TUI's picker. Every headless
- * path (`rove api add`, quick-fork, main-task) resolved its engine through
- * these preference layers instead and happily launched the engine the user
- * had turned off. The filter belongs on the layer both sides share.
+ * A DISABLED engine falls through too: headless paths (`rove api add`,
+ * quick-fork, main-task) resolve through these layers, not the TUI picker.
  */
 function validVendor(value: string | undefined, customIds: readonly string[]): VendorId | undefined {
   const v = value?.trim()
@@ -62,11 +56,9 @@ export function setGlobalDefaultVendor(vendor: VendorId): void {
 }
 
 /**
- * The vendor a new task / relaunch should default to: the repo's last-active
- * engine, else the Settings global default, else the first engine that is
- * still switched on. Each level is validated independently, so a corrupt (or
- * disabled) repo entry falls through to the global default rather than
- * straight to the built-in fallback.
+ * Default vendor for a new task / relaunch. Each layer is validated
+ * independently, so a corrupt or disabled repo entry falls through to the
+ * global default, not straight to the fallback.
  */
 export function resolvePreferredVendor(repo?: string): VendorId {
   const repoPick = repo ? getRepoLastActiveVendor(repo) : undefined

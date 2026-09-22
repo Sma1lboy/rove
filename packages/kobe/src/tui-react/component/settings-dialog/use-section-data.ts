@@ -1,11 +1,7 @@
 /**
- * Section data the Settings dialog reads from OUTSIDE its own kv state —
- * engine detection probes (fs/env) and the plugin registry (`~/.kobe/
- * plugins.json`). Both are lazy: nothing is read until the owning section
- * is first opened, so a settings open that never visits them pays nothing.
- * The seam is where the data COMES FROM: `use-settings-prefs` reads kv, this
- * reads the filesystem and environment, so the probes that can be slow or fail
- * are all on one side of the line and easy to keep lazy.
+ * Settings data from OUTSIDE kv (fs/env probes, `~/.rove/plugins.json`),
+ * where the slow or failing reads live; `use-settings-prefs` reads kv. All
+ * lazy: nothing is read until the owning section is first opened.
  */
 
 import { errorMessage } from "@/lib/error-message"
@@ -26,20 +22,15 @@ import { nextEnumValue, normalizeNumberInput, toggledBooleanValue } from "./plug
 import { type PluginRowView, readPluginRows, setPluginEnabled, setPluginSetting } from "./plugins-core"
 
 /**
- * Read-only "installed + logged in" detection for EVERY engine in the
- * Engines section's list — the built-ins with a real account detector and the
- * contrib / plugin / custom engines that only have a binary to probe.
- * `null` while the probe is in flight. Re-probes each time the section is
- * opened (and when the engine list grows), so a CLI installed from another
- * terminal shows up without restarting Rove. The Auto routing section reads
- * the same probe — its gate asks "is this tier's engine logged in", which is
- * this question for a subset of the same list.
+ * "Installed + logged in" detection for EVERY listed engine (binary-only for
+ * contrib/plugin/custom). `null` while probing. Re-probes on section open and
+ * when the list grows, so a CLI installed elsewhere shows without a restart.
+ * Auto routing's tier gate reads the same probe.
  */
 export function useAccountProbes(section: SectionId, vendors: readonly VendorId[]): readonly EngineStatus[] | null {
   const [statuses, setStatuses] = useState<readonly EngineStatus[] | null>(null)
-  // `vendors` is rebuilt every render, so the effect keys on its CONTENT
-  // (engine ids are slugs — no commas) and re-splits it: depending on the
-  // array itself would re-probe on every keystroke in the dialog.
+  // `vendors` is rebuilt every render: key on its CONTENT (slugs, no commas)
+  // or every keystroke re-probes.
   const key = vendors.join(",")
   useEffect(() => {
     if (section !== "engines" && section !== "autoRouting") return
@@ -55,28 +46,19 @@ export function useAccountProbes(section: SectionId, vendors: readonly VendorId[
 }
 
 /**
- * Which reporting layers each listed engine has, and whether the one Rove
- * INSTALLS is current on this machine (`engine/integration-status.ts`).
- *
- * Separate from {@link useAccountProbes} because the two answer different
- * questions about the same row and fail independently: that one probes the
- * engine's own install and login, this one reads what Rove wrote into the
- * engine. `reprobe` is what makes the install action visible — the whole
- * point of the row is that pressing it changes these states, and a panel
- * that still showed the pre-install reading would be the same blind spot in
- * a new place.
+ * Which reporting layers each engine has, and whether the one Rove INSTALLS is
+ * current (`engine/integration-status.ts`). Separate from
+ * {@link useAccountProbes}: this reads what Rove wrote into the engine, and
+ * fails independently. `reprobe` shows the install action's effect.
  */
 export function useEngineIntegrations(
   section: SectionId,
   vendors: readonly VendorId[],
 ): { rows: readonly EngineIntegration[] | null; reprobe: () => void } {
   const [rows, setRows] = useState<readonly EngineIntegration[] | null>(null)
-  // Same content key as useAccountProbes: `vendors` is a fresh array every
-  // render, so depending on it would re-read every engine config on each
-  // keystroke in the dialog.
+  // Content key, as in useAccountProbes.
   const key = vendors.join(",")
-  // One reader, used by both the section-open effect and `reprobe`, so the
-  // install row's re-read runs exactly the code the first read ran.
+  // One reader for both the open effect and `reprobe`.
   const read = useCallback((): void => {
     setRows(engineIntegrations(key ? (key.split(",") as VendorId[]) : []))
   }, [key])
@@ -97,10 +79,7 @@ export interface PluginSettings {
   readonly editSetting: (pluginId: string, key: string) => Promise<void>
 }
 
-/**
- * Registered plugins, re-read every time the section is opened so an
- * install from another terminal shows up without restarting kobe.
- */
+/** Registered plugins, re-read on every section open. */
 export function usePluginSettings(section: SectionId, dialog: DialogContext): PluginSettings {
   const [rows, setRows] = useState<readonly PluginRowView[]>([])
   const t = useT()
@@ -126,8 +105,6 @@ export function usePluginSettings(section: SectionId, dialog: DialogContext): Pl
       const row = rows.find((p) => p.id === id)
       if (!row) return
       try {
-        // setPluginEnabled also re-reads the TUI's plugin-engine table, so
-        // the flip reaches the selector without a restart.
         setPluginEnabled(id, !row.enabled)
       } catch {
         // Registry unwritable — the re-read below leaves the row as disk has it.
@@ -145,10 +122,8 @@ export function usePluginSettings(section: SectionId, dialog: DialogContext): Pl
         store(pluginId, key, toggledBooleanValue(setting))
         return
       }
-      // A secret opens EMPTY rather than pre-filled: the dialog would
-      // otherwise print the stored key in full, which is exactly what the
-      // masked row exists to prevent. Cancelling still leaves it stored;
-      // submitting empty clears it, like any other string row.
+      // A secret opens EMPTY, never printing the stored key. Cancel keeps it;
+      // submitting empty clears it.
       const initial = setting.type === "secret" ? "" : setting.value
       const next = await RenameTaskDialog.show(dialog, initial, {
         // The label is plugin-owned copy, like an action title — shown raw.
@@ -191,23 +166,19 @@ export interface MarketplaceSection {
 }
 
 /**
- * Settings → Marketplace: the GitHub topic listing, re-queried each time the
- * section is opened (which is also how a user retries after an offline
- * result), joined with the registry so an installed plugin is marked rather
- * than offered twice.
+ * Settings → Marketplace: the GitHub topic listing, re-queried on every open
+ * (the offline retry path), joined with the registry.
  *
- * The install runs in this process because it has to: the preview the user
- * approves and the commands that then run must be the same staged checkout,
- * and handing the spec to a detached `rove plugin install --yes` would move
- * the approval out of the dialog the trust model puts it in.
+ * Installs in-process: the approved preview and the commands that run must be
+ * the same staged checkout, and a detached `rove plugin install --yes` would
+ * move approval out of this dialog.
  */
 export function useMarketplace(section: SectionId, dialog: DialogContext, plugins: PluginSettings): MarketplaceSection {
   const t = useT()
   const [entries, setEntries] = useState<readonly MarketEntry[] | null>(null)
   const [offline, setOffline] = useState(false)
   const [status, setStatus] = useState("")
-  // An install owns a staging directory and a confirm dialog; a second one
-  // started from the same row would race both.
+  // One install at a time: it owns a staging dir and a confirm dialog.
   const busy = useRef(false)
 
   useEffect(() => {
@@ -225,10 +196,9 @@ export function useMarketplace(section: SectionId, dialog: DialogContext, plugin
   }, [section])
 
   /**
-   * What the install is about to do, in full: identity, origin, every command
-   * the manifest declares, the parser's warnings, and the trust note. This is
-   * the gate `docs/PLUGIN-AUTHORING.md` requires — nothing is sandboxed, so
-   * the commands are shown before any of them runs.
+   * Identity, origin, every declared command, parser warnings, trust note.
+   * Nothing is sandboxed, so `docs/PLUGIN-AUTHORING.md` requires showing the
+   * commands before any runs.
    */
   function previewMessage(preview: PluginInstallPreview): string {
     const lines = [`${preview.name} (${preview.id}) v${preview.version}`]
@@ -268,8 +238,7 @@ export function useMarketplace(section: SectionId, dialog: DialogContext, plugin
           previewMessage(prepared.preview),
           undefined,
           t("settings.marketplace.confirmInstall"),
-          // `danger`: initial focus lands on Cancel. A stray Enter must never
-          // be what runs a stranger's build commands.
+          // `danger`: focus starts on Cancel so a stray Enter never runs a stranger's commands.
           { danger: true, size: "medium" },
         )
         if (approved !== true) {
@@ -279,12 +248,10 @@ export function useMarketplace(section: SectionId, dialog: DialogContext, plugin
         }
         setStatus(t("settings.marketplace.installing", { name: prepared.preview.name }))
         const id = await prepared.commit()
-        // Engine contributions are kobe-process state, so a plugin that adds
-        // an engine reaches the selector without a restart — same reason
-        // `setPluginEnabled` re-reads the table.
+        // Engine contributions are kobe-process state: reload so a new engine
+        // reaches the selector without a restart.
         reloadPluginEngines()
-        // Re-read the registry so the row this install came from flips to
-        // `installed` now, rather than the next time Plugins is opened.
+        // Flip this row to `installed` now, not on next Plugins open.
         plugins.refresh()
         setStatus(t("settings.marketplace.installed", { id, version: prepared.preview.version }))
       } catch (err) {

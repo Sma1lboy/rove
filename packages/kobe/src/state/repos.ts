@@ -1,24 +1,11 @@
 /**
- * Saved-repos persistence.
+ * Saved-repos persistence: the non-reactive accessor (for CLI verbs like
+ * `kobe add`) to the same `~/.config/rove/state.json` the TUI's React `KV`
+ * wraps. `savedRepos` is a `string[]` of repo paths the user added.
  *
- * The TUI's `KV` store (src/tui-react/context/kv.tsx) is a React-context
- * wrapper
- * around `~/.config/rove/state.json`. Outside that context — e.g. from the
- * `kobe add` CLI subcommand — we can't use it. This module is the
- * non-reactive direct accessor for the same on-disk blob: load, mutate,
- * atomic-rename save.
- *
- * The file format is shared with the TUI KV: a flat JSON object whose
- * `savedRepos` key is a `string[]` of repo paths the user has explicitly
- * added. The TUI reads it via `kv.get("savedRepos", [])`; this module
- * reads/writes the same key directly.
- *
- * Concurrency note: all writes go through `src/state/store.ts`, whose
- * read-merge-write transactions keep concurrent writers (the TUI's
- * debounced flush, other panes' `setPersisted*` calls, a `kobe add` from
- * another shell) from erasing each other's keys. A running TUI's
- * in-memory cache still won't reflect an external addition until restart
- * — acceptable; there's deliberately no file watching.
+ * All writes go through `store.ts` read-merge-write transactions, so
+ * concurrent writers never erase each other's keys. A running TUI won't see
+ * an external addition until restart — deliberately no file watching.
  */
 
 import { spawnSync } from "node:child_process"
@@ -30,8 +17,7 @@ import { type ProjectIntent, type ProjectRejection, projectRejection } from "./p
 import { isRemoteRepoKey, readRemoteRepos } from "./remote-repos.ts"
 import { type StateSnapshot, loadStateFile, patchStateFile, readSavedRepos, updateStateFile } from "./store.ts"
 
-// The remote-project surface moved to `remote-repos.ts` (see the note there);
-// re-exported so existing importers of this module keep working.
+// Re-exported so importers of this module keep working.
 export {
   addRemoteRepo,
   getRemoteRepoConfig,
@@ -43,23 +29,15 @@ export {
 export type { RemoteAuthConfig, RemoteRepoConfig } from "./remote-repos.ts"
 
 /**
- * Resolve `absPath` to the git toplevel that owns it. A "main" task's
- * worktreePath must equal the git repo root because FileTree's
- * `git ls-files --full-name` emits paths relative to the toplevel, not
- * the cwd — saving a subdirectory (e.g. `packages/kobe`) makes the
- * tree render rooted at the monorepo root (`packages/...`) while the
- * task label still claims the subdir, confusing the user.
+ * Resolve `absPath` to its git toplevel. A "main" task's worktreePath must be
+ * the repo root: FileTree's `git ls-files --full-name` emits toplevel-relative
+ * paths, so a saved subdirectory would render rooted at the monorepo root.
  *
- * Falls back to `absPath` itself when:
- *   - the directory isn't inside a git repo (rev-parse exits non-zero), or
- *   - the input already points at the toplevel (compared by realpath, so
- *     `/var/folders/...` is treated as equal to `/private/var/folders/...`
- *     on macOS rather than being rewritten to the canonical form).
+ * Returns `absPath` itself when it isn't in a git repo, or already is the
+ * toplevel by realpath (macOS `/var/...` is kept, not rewritten to `/private/var/...`).
  */
 export function resolveRepoRoot(absPath: string): string {
-  // A remote project's key is a synthetic `ssh://…` URL, not a local path —
-  // there is nothing to canonicalize (and no local git repo to ask). Pass it
-  // through untouched so it round-trips as the stable savedRepos key.
+  // Remote keys are synthetic URLs; pass through as the stable savedRepos key.
   if (isRemoteRepoKey(absPath)) return absPath
   recordSpawn("repos.resolveRepoRoot", ["git", "rev-parse", "--show-toplevel"], absPath)
   const r = spawnSync("git", ["rev-parse", "--show-toplevel"], {
@@ -73,20 +51,15 @@ export function resolveRepoRoot(absPath: string): string {
   try {
     if (realpathSync(absPath) === realpathSync(top)) return absPath
   } catch {
-    // realpath can fail on broken symlinks / vanished dirs — fall
-    // through and use the toplevel string as-is.
+    // broken symlink / vanished dir — use the toplevel string as-is
   }
   return top
 }
 
 /**
- * Whether `absPath` points inside a local git work tree. `kobe add` uses this
- * to reject a non-repo argument before it pollutes the saved-projects picker:
- * `kobe add ,` resolves `,` to a directory that doesn't exist (or isn't a
- * repo), and without this guard the garbage path was stored verbatim and then
- * couldn't be deleted from the TUI (it surfaced as a synthetic main row that
- * `deleteTask` refuses). A missing/!-repo `cwd` makes `git` exit non-zero (or
- * `spawnSync` error with a null status), so both cases return false. Remote
+ * Whether `absPath` is inside a local git work tree. Rejects garbage like
+ * `kobe add ,` before it becomes a saved project the TUI cannot delete. A
+ * missing or non-repo `cwd` gives a non-zero or null status → false. Remote
  * (`ssh://…`) keys are validated by the remote-add flow, not here.
  */
 export function isGitRepo(absPath: string): boolean {
@@ -101,16 +74,11 @@ export function isGitRepo(absPath: string): boolean {
 }
 
 /**
- * Whether git would accept `branch` as a branch name — asked of git itself
- * (`check-ref-format --branch`) rather than reimplemented, because the rules
- * are a long tail (`..`, `@{`, a trailing `.lock`, a leading `-`, control
- * bytes) and the authority has to be the same program that later runs
- * `git worktree add -b`.
- *
- * No repo needed: this is a pure string check, so it runs from wherever the
- * caller is and cannot be confused by the surrounding checkout. `-rf`-style
- * names are safe to pass — the arg vector is fixed (`shell: false`) and git
- * reads `--branch`'s value positionally.
+ * Whether git accepts `branch` as a branch name. Asked of git itself: the
+ * rules are a long tail (`..`, `@{`, `.lock`, leading `-`, control bytes) and
+ * the authority must be the program that later runs `git worktree add -b`.
+ * Pure string check, no repo needed. `-rf`-style names are safe: fixed argv
+ * (`shell: false`) and git reads `--branch`'s value positionally.
  */
 export function isValidBranchName(branch: string): boolean {
   const r = spawnSync("git", ["check-ref-format", "--branch", branch], { encoding: "utf8", shell: false })
@@ -153,10 +121,8 @@ export function getSavedRepos(): readonly string[] {
 }
 
 /**
- * Read a string value from the shared kv state.json. For standalone
- * processes (the `kobe tasks` pane) that need a kv value but don't host
- * the TUI's reactive `useKV` — e.g. `lastSelectedVendor`. Returns
- * `undefined` when absent or non-string. Atomic read.
+ * Read a string from the shared state.json, for processes without the TUI's
+ * `useKV`. `undefined` when absent or non-string.
  */
 export function getPersistedString(key: string): string | undefined {
   const value = loadStateFile()[key]
@@ -164,40 +130,26 @@ export function getPersistedString(key: string): string | undefined {
 }
 
 /**
- * Read a kv value WITHOUT narrowing it to a string — for settings whose
- * natural type is not one.
- *
- * {@link getPersistedString} drops anything that is not a string, which is
- * right for the keys it was written for and silently wrong for a number: a
- * threshold hand-edited (or written by Settings) as a JSON number reads as
- * absent, the caller falls back to the shipped default, and two surfaces then
- * disagree about the same setting with nothing anywhere looking broken.
+ * Unnarrowed read. {@link getPersistedString} drops non-strings, so a numeric
+ * threshold would read as absent and fall back to the default while another
+ * surface honours it.
  */
 export function getPersistedValue(key: string): unknown {
   return loadStateFile()[key]
 }
 
 /**
- * Persist a string value into the shared kv state.json: a single-key
- * read-merge-write + atomic rename via {@link patchStateFile}. Pairs with
- * {@link getPersistedString} for standalone processes. Concurrent with the
- * TUI's `useKV` writes, but both merge only the keys they changed, so a
- * write here can't be clobbered by (or clobber) a sibling key from another
- * process — last write wins only on the SAME key.
+ * Persist one key via {@link patchStateFile}. Writers merge only the keys they
+ * changed, so last write wins only on the SAME key, never a sibling.
  */
 export function setPersistedString(key: string, value: string): void {
   patchStateFile({ [key]: value })
 }
 
 /**
- * The ids of user-registered custom engines (KOB — user-addable engines).
- * Stored under the shared state.json `customEngineIds` key as a `string[]`;
- * each id's display name + launch command live in the SAME flat keys the
- * built-ins use (`engineName.<id>` / `engineCommand.<id>`), so Settings →
- * Engines manages built-in and custom engines through one mechanism. Read
- * cross-process (the new-task selector, the ctrl+T prompt) via this atomic
- * loader; written by the Settings dialog through its reactive kv. Built-in
- * ids are never present here.
+ * Ids of user-registered custom engines (state.json `customEngineIds`; never
+ * built-in ids). Name + command live in the same flat keys as built-ins
+ * (`engineName.<id>` / `engineCommand.<id>`). Written by Settings via its kv.
  */
 export function getCustomEngineIds(): readonly string[] {
   const raw = loadStateFile().customEngineIds
@@ -206,11 +158,8 @@ export function getCustomEngineIds(): readonly string[] {
 }
 
 /**
- * Engine ids the user switched OFF in Settings → Engines, stored under the
- * shared state.json `disabledEngineIds` key. A disabled engine keeps its
- * command and name overrides — it is simply not offered when picking an
- * engine for a task. Read cross-process the same way as
- * {@link getCustomEngineIds}; the Settings dialog writes it through its kv.
+ * Engine ids switched OFF in Settings → Engines (`disabledEngineIds`). A
+ * disabled engine keeps its overrides; it is just not offered for new tasks.
  */
 export function getDisabledEngineIds(): readonly string[] {
   const raw = loadStateFile().disabledEngineIds
@@ -233,14 +182,9 @@ export interface AddSavedRepoOpts {
    *  the repo (`rove add`, the new-task dialog, a quick-fork). */
   readonly intent?: ProjectIntent
   /**
-   * Write the entry without consulting the admission gate.
-   *
-   * ONLY for exercising the persistence mechanics themselves — atomic
-   * rename, sibling-key preservation, list ordering — where the path is an
-   * arbitrary stand-in (`/repos/alpha`) and its eligibility is beside the
-   * point. Production code must never pass this: the whole reason the gate
-   * moved inside this function is that callers cannot be trusted to
-   * remember it.
+   * Skip the admission gate. ONLY for tests of the persistence mechanics
+   * with stand-in paths; production must never pass it — the gate lives
+   * inside because callers cannot be trusted to remember it.
    */
   readonly skipGate?: boolean
 }
@@ -249,39 +193,25 @@ export interface AddSavedRepoOpts {
  * Append `absPath` to `savedRepos` if it is eligible and not already present.
  * Returns whether the entry was newly added and the resulting list size.
  *
- * The input is resolved to the repository's PRIMARY checkout before storage
- * (see {@link resolveMainRepoRoot}) — so `kobe add` from a monorepo
- * subdirectory stores the repo root, not the subdir, and `kobe add <linked
- * worktree>` stores the repository instead of minting a SECOND project row
- * for a repo that is already saved. The returned `path` is the normalized
- * form so callers report what was actually saved.
+ * The input is stored as the repository's PRIMARY checkout
+ * ({@link resolveMainRepoRoot}): a subdirectory or linked worktree never mints
+ * a second project row. The returned `path` is that normalized form.
  *
- * `resolveMainRepoRoot`, not `resolveRepoRoot`: the scripted entry point
- * (`rove api add --repo`) already normalizes that way, so using the git
- * toplevel here made the two entry points disagree about what a repo IS.
- * One repository ended up saved under two paths AND two symlink forms
- * (`/tmp/x` beside `/private/tmp/x`), and `note.file` routing compares
- * `t.repo === author.repo` as an exact string — so a note filed under one row
- * silently never reached the other row's dispatcher. Git's porcelain path is
- * fully resolved, which also collapses the symlink and case-variant spellings
- * that gave one repository two `~/.rove/worktrees/<key>` roots.
+ * `resolveMainRepoRoot`, not `resolveRepoRoot`, to match `rove api add --repo`:
+ * `note.file` routing compares `t.repo === author.repo` as exact strings, and
+ * git's porcelain path also collapses symlink/case variants that would give
+ * one repo two `~/.rove/worktrees/<key>` roots.
  *
- * VALIDATES here rather than leaving it to the caller: of the eight call
- * sites exactly one would do it, and the other
- * seven would put test fixtures and sandbox paths into the user's project
- * list — where nothing could remove them again. The gate lives HERE, applied to
- * the normalized path, so no caller can skip it by forgetting; a refusal
- * comes back as `rejected` rather than an exception, because most callers
- * are opportunistic ("remember this repo while doing something else") and
- * must not fail their real work over it.
+ * The admission gate runs HERE on the normalized path so no caller can skip it
+ * (unvalidated fixtures/sandbox paths become unremovable projects). Refusal is
+ * returned as `rejected`, not thrown: most callers are opportunistic and must
+ * not fail their real work over it.
  */
 export function addSavedRepo(absPath: string, opts: AddSavedRepoOpts = {}): AddResult {
-  // Resolve BEFORE the transaction — `git rev-parse` (a subprocess) inside
-  // the read-merge-write window would widen the race we're trying to keep
-  // narrow.
+  // Resolve BEFORE the transaction: a git subprocess inside the
+  // read-merge-write window would widen the race.
   const normalized = resolveMainRepoRoot(absPath)
-  // Gate the RESOLVED path: a subdirectory of a rejected repo must not slip
-  // through by having an innocent-looking name of its own.
+  // Gate the RESOLVED path so a subdirectory of a rejected repo can't slip through.
   const rejected = opts.skipGate ? null : projectRejection(normalized, isGitRepo, opts.intent ?? "explicit")
   if (rejected) return { added: false, path: normalized, total: getSavedRepos().length, rejected }
   let result: AddResult = { added: false, path: normalized, total: 0 }
@@ -299,17 +229,13 @@ export function addSavedRepo(absPath: string, opts: AddSavedRepoOpts = {}): AddR
 }
 
 /**
- * Backfill `savedRepos` from the project rows that already exist.
+ * Backfill `savedRepos` from existing project rows, so sidebar projects and
+ * new-task picker repos stay the same set (a row missing from `savedRepos` is
+ * unpickable and, once hidden, unrecoverable).
  *
- * The sidebar's projects and the new-task picker's repos are meant to be the
- * same set, but a row minted by an older kobe could reach the sidebar
- * without ever reaching `savedRepos` — leaving it visible, unpickable, and
- * (once closing the last tab hides a project) not recoverable.
- *
- * `mainRepos` is the caller's list of `kind:"main"` task repos; this module
- * cannot read the task index (the daemon owns it). Entries that fail the
- * admission gate are skipped rather than healed — a leaked fixture row is not
- * something to make MORE permanent. Returns the paths actually added.
+ * `mainRepos` are the caller's `kind:"main"` task repos (the daemon owns the
+ * index). Gate failures are skipped, not healed — a leaked fixture row must
+ * not become MORE permanent. Returns the paths actually added.
  */
 export function backfillSavedReposFromProjects(mainRepos: readonly string[]): readonly string[] {
   const added: string[] = []
@@ -322,17 +248,12 @@ export function backfillSavedReposFromProjects(mainRepos: readonly string[]): re
 }
 
 /**
- * One-shot migration: rewrite the on-disk `savedRepos` list so each entry is
- * its repository's primary checkout. Heals state files written before
- * {@link addSavedRepo} normalized at write time — including the second row a
- * pre-fix `rove add <linked worktree>` left behind. Duplicates that collapse
- * to the same root are de-duped. No-op when every entry is already
- * canonical.
+ * Migration: rewrite `savedRepos` so each entry is its repository's primary
+ * checkout, de-duping entries that collapse to one root (state written before
+ * {@link addSavedRepo} normalized). No-op when already canonical.
  */
 export function normalizeSavedRepos(): void {
-  // Resolve toplevels first (subprocess per entry), THEN merge the result
-  // in one short read-merge-write so the git calls don't sit inside the
-  // transaction window.
+  // Resolve (a subprocess per entry) outside the read-merge-write window.
   const cur = getSavedRepos()
   const seen = new Set<string>()
   const next: string[] = []
@@ -352,11 +273,9 @@ export function normalizeSavedRepos(): void {
 }
 
 /**
- * Per-user, per-repo init override stored under the `repoConfigs` key of
- * the shared state.json. This is the FALLBACK default for a repo that does
- * not ship its own `.rove/init.sh` / `.rove/init-prompt.md` — the in-repo
- * files win (see {@link ../state/repo-init.ts resolveRepoInit}). Keyed by
- * git toplevel so every worktree of the repo resolves the same entry.
+ * Per-user init override (state.json `repoConfigs`), keyed by git toplevel.
+ * FALLBACK only — in-repo `.rove/` files win (see
+ * {@link ../state/repo-init.ts resolveRepoInit}).
  */
 export interface RepoInitOverride {
   readonly initScript?: string
@@ -419,15 +338,8 @@ export function setRepoInitOverride(repoRoot: string, patch: RepoInitOverride): 
 export type RemoveResult = { removed: boolean; path: string; total: number }
 
 /**
- * Remove `absPath` from `savedRepos`. Wired from the
- * sidebar's `d` keypress on a main-task row: the confirm copy is
- * "this will remove '<repo>' from your saved repos. The directory and
- * its files stay on disk." The directory itself is never touched —
- * only the saved-repos list is mutated. Sibling KV keys (themes,
- * lastSelectedTaskId, etc.) are preserved.
- *
- * Idempotent: removing a path that isn't in the list returns
- * `removed: false` and leaves the file untouched.
+ * Remove `absPath` from `savedRepos`; the directory on disk is never touched.
+ * Idempotent: an absent path returns `removed: false` without writing.
  */
 export function removeSavedRepo(absPath: string): RemoveResult {
   let result: RemoveResult = { removed: false, path: absPath, total: 0 }
@@ -439,10 +351,8 @@ export function removeSavedRepo(absPath: string): RemoveResult {
     }
     const remaining = cur.filter((p) => !samePath(p, absPath))
     state.savedRepos = remaining
-    // For a remote project (`ssh://…` key) also drop its connection config so
-    // we don't leave an orphan `remoteRepos` entry pointing at a project the
-    // user just forgot. The OS-keychain password (a separate, destructive side
-    // effect) is intentionally left untouched.
+    // Drop a remote project's orphaned config; its keychain password is
+    // intentionally left untouched (a separate, destructive side effect).
     if (isRemoteRepoKey(absPath)) {
       const remotes = readRemoteRepos(state)
       if (absPath in remotes) {

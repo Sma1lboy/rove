@@ -1,18 +1,11 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Set-status dialog — the tree menu's "Set status" entry. A plain pick over
- * the six `TaskStatus` values, no free text: unlike the branch picker (whose
- * input doubles as "create this name"), the status union is closed, so typing
- * could only ever produce an invalid value.
+ * Set-status dialog: a plain pick over the closed `TaskStatus` union, no free
+ * text.
  *
- * COSMETIC by contract. Picking `canceled` labels the task and nothing else —
- * its worktree, branch and sessions stay exactly where they are (the framing
- * `cli/api/verbs-edit.ts` and `setStatusFlow` both carry). That is why this
- * dialog has no confirm step and no danger tone: there is nothing here to
- * undo but another pick.
- *
- * Reuses the shared `PickerList` so the rows, cursor arrow and mouse picking
- * match every other picker in the dialog layer.
+ * COSMETIC by contract (as in `cli/api/verbs-edit.ts` and `setStatusFlow`):
+ * `canceled` labels the task; worktree, branch and sessions stay put. Hence no
+ * confirm step and no danger tone.
  */
 
 import { useState } from "react"
@@ -26,10 +19,8 @@ import { DialogFooter, DialogHeader } from "../ui/dialog-parts"
 import { PickerList } from "./new-task-dialog/picker-list"
 
 /**
- * `TaskStatus` → its `tasks.status.*` i18n key. Written out rather than
- * derived from the union member so a snake_case wire value never has to agree
- * with a camelCase message key by string surgery; the `Record` makes the
- * compiler demand an entry the day a seventh status lands.
+ * Written out, not derived: snake_case wire values don't map to camelCase keys
+ * by string surgery, and the `Record` forces an entry for any new status.
  */
 const STATUS_LABEL_KEY: Record<TaskStatus, string> = {
   backlog: "tasks.status.backlog",

@@ -1,12 +1,5 @@
-/**
- * Shared reader for `~/.rove/settings/keybindings.yaml`.
- *
- * The framework-free reader lives here so config IO remains separate from
- * the keymap mutation performed by `tui/context/keybindings-user.ts`.
- *
- * Read once per process and cached: the TUI applies keybindings at boot
- * and the daemon watcher explicitly clears this cache for live reloads.
- */
+/** Reader for `~/.rove/settings/keybindings.yaml`, cached per process; the
+ *  daemon watcher's live reload clears the cache. */
 
 import { existsSync, readFileSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
@@ -25,12 +18,7 @@ export type KeybindingsFile = {
 
 let cached: KeybindingsFile | null = null
 
-/**
- * Drop the cached read so the next {@link readKeybindingsFile} hits disk
- * again. Used by the live-reload path (`reloadUserKeybindings`) when the
- * daemon's keybindings watcher reports the file changed; the boot read is
- * otherwise "once per process".
- */
+/** For `reloadUserKeybindings` when the daemon watcher reports a change. */
 export function resetKeybindingsFileCache(): void {
   cached = null
 }

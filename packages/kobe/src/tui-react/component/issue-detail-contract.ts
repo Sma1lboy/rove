@@ -1,14 +1,7 @@
 /**
- * What the story drawer PROMISES the kanban page — its input options and the
- * shape of every way it can be left. Split out of `issue-detail-dialog.tsx`
- * when the STATUS field pushed that file past the size cap: the seam is that
- * this half is the page's contract (stable, read by the page and by tests to
- * assert what a keypress produced) while the other half is how the drawer
- * DRAWS itself (fields, focus cycle, paste handling, chip rows).
- *
- * Nothing here renders, so the page can depend on the contract without
- * pulling in the view, and a change to the drawer's layout cannot silently
- * change what the page receives.
+ * What the story drawer PROMISES the kanban page: its input options and every
+ * way it can be left. Nothing here renders, so the page and tests depend on the
+ * contract without the view, and a layout change can't silently change it.
  */
 
 import type { Issue, IssueStatus } from "@sma1lboy/kobe-daemon/daemon/issues-store"
@@ -39,16 +32,12 @@ export interface IssueDraft {
   readonly status: IssueStatus
 }
 
-/** Every outcome carries the drafted title/body/status — the page saves a
- *  dirty patch regardless of how the drawer was left. `jump` is the drawer's
- *  follow-or-stay toggle, orthogonal to placement. */
+/** `jump` is the drawer's follow-or-stay toggle, orthogonal to placement. */
 export type IssueDetailOutcome =
   | ({ kind: "start"; vendor: VendorId; placement: IssueChatPlacement; jump: boolean } & IssueDraft)
   | ({ kind: "open"; taskId: string } & IssueDraft)
-  /** Drop the story's task link — the only way back out of In progress when
-   *  the linked task is gone (deleted before the daemon unlinked, or a store
-   *  restored from an older home). The page clears `taskId`; the task, its
-   *  branch and its worktree are untouched. */
+  /** Drop the task link — the only way out of In progress when the linked
+   *  task is gone. Clears `taskId`; task, branch and worktree are untouched. */
   | ({ kind: "unlink" } & IssueDraft)
   | ({ kind: "close" } & IssueDraft)
   /** Create-mode result — `start` null = save only ("New story" Save). */

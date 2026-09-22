@@ -1,25 +1,14 @@
 /**
- * Worktree lifecycle side-effects for the {@link Orchestrator}.
- *
- * The Orchestrator owns the task index + reactive snapshot; this collaborator
- * owns everything that actually touches git worktrees on disk — slug
- * allocation, the lazy materialise-on-first-enter dance, adoption of
- * pre-existing worktrees, and the per-task / per-path locks that keep those
- * operations race- and delete-safe. The Orchestrator holds one of these and
- * delegates; its public methods stay thin so the class interface is unchanged.
- *
- * All the load-bearing invariants live here verbatim (moved out of
- * `core.ts`, no behaviour change):
- *
+ * The {@link Orchestrator}'s on-disk worktree side: slug allocation, lazy
+ * materialise, adoption, and the locks that keep them race- and delete-safe.
  *   - **Lazy allocation.** `createTask` records intent (empty `worktreePath`);
- *     the directory only materialises when {@link ensure} runs on first enter.
- *   - **Dedupe + delete-safety.** {@link ensure} / {@link adopt} return the
- *     shared in-flight promise so a concurrent caller reads the created path
- *     rather than re-reading the store (which would throw if a delete landed
- *     in that window).
+ *     {@link ensure} materialises on first enter.
+ *   - **Dedupe + delete-safety.** {@link ensure} / {@link adopt} share the
+ *     in-flight promise, so a concurrent caller reads the created path instead
+ *     of re-reading the store (which throws if a delete landed meanwhile).
  *   - **Self-cleaning rollback.** {@link createWorktree} commits the slug ONLY
- *     after the store write succeeds; any partial failure removes the
- *     just-created worktree and frees the slug so nothing is orphaned.
+ *     after the store write; any partial failure removes the worktree and
+ *     frees the slug.
  */
 
 import { basename } from "node:path"
@@ -34,21 +23,14 @@ import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 import { SlugAllocator } from "./worktree/slug-allocator.ts"
 
-/**
- * A legal worktree directory name: one path segment, no `..`, no leading dot.
- * The value becomes a single segment under the repo's worktree root, and
- * everything that later cleans up a worktree is scoped to that root.
- */
+/** One path segment, no `..`, no leading dot: all worktree cleanup is scoped
+ *  to the repo's worktree root. */
 const WORKTREE_NAME_RE = /^[A-Za-z0-9_][A-Za-z0-9._-]*$/
 
-/** Resolve a canonical path — injected by the Orchestrator so both sides dedupe identically. */
+/** Injected so the Orchestrator and this dedupe identically. */
 type CanonPath = (p: string) => string
 
-/**
- * Ensure the repo's `kind:"main"` project row exists before an adopted task is
- * created — injected so the main-task logic stays in the Orchestrator while the
- * call keeps firing at its original point INSIDE the adopt lock.
- */
+/** Ensures the repo's main row; called INSIDE the adopt lock. */
 type EnsureProject = (repo: string) => Promise<unknown>
 
 export interface AdoptWorktreeInput {
@@ -60,32 +42,22 @@ export interface AdoptWorktreeInput {
   readonly ifExists?: "error" | "return"
 }
 
-/**
- * Owns the git-worktree side of the task lifecycle. One per {@link Orchestrator}.
- */
 export class WorktreeCoordinator {
   private readonly store: TaskIndexStore
   private readonly worktrees: GitWorktreeManager
   private readonly canonPath: CanonPath
   private readonly ensureProject: EnsureProject
   private readonly slugs: SlugAllocator
-  /**
-   * Per-task lock so concurrent `ensure` calls don't race. The resolved value
-   * is the created worktree path, so a waiter reads the result from the shared
-   * promise instead of re-fetching the task after the lock — which would throw
-   * {@link TaskNotFoundError} if a concurrent delete landed in that window even
-   * though the worktree was created fine.
-   */
+  /** Resolves to the created path so waiters needn't re-fetch the task (which
+   *  throws {@link TaskNotFoundError} if a delete landed meanwhile). */
   private readonly worktreeLocks = new Map<TaskId, Promise<string>>()
-  /** In-flight `adopt` per canonical worktree path — dedupes concurrent adopts. */
+  /** Keyed by canonical worktree path. */
   private readonly adoptLocks = new Map<string, Promise<Task>>()
   /**
-   * Auto branch names currently being materialised. Convention names carry no
-   * random suffix, so two same-titled siblings materialising concurrently (a
-   * parallel round) would both derive the same name and the second
-   * `git worktree add -b` would fail — the git-side taken-set can't see a
-   * branch that doesn't exist yet. Reserved before the git call, released
-   * after (success or failure: on success the branch itself is the guard).
+   * Auto branch names being materialised. Convention names have no random
+   * suffix, so same-titled siblings in a parallel round would both derive one
+   * name and git's taken-set can't see it yet. Released after the git call
+   * either way (on success the branch itself guards).
    */
   private readonly reservedBranches = new Set<string>()
 
@@ -112,34 +84,22 @@ export class WorktreeCoordinator {
   }
 
   /**
-   * Take a caller-chosen worktree directory name for `repo`, or refuse it.
-   *
-   * Called at CREATE time, not at materialise time, so `add --worktree-name`
-   * fails while the caller is still looking at it — a collision surfacing on
-   * first enter would strand a task row nobody asked for. The name is held in
-   * the allocator's pending set from here until the worktree is committed,
-   * which is what stops two concurrent creates taking it.
+   * At CREATE time, so `add --worktree-name` fails while the caller is looking
+   * (a collision on first enter would strand a task row). Held pending until
+   * the worktree commits, so two concurrent creates can't both take it.
    */
   async claimWorktreeName(repo: string, name: string): Promise<string> {
     if (!WORKTREE_NAME_RE.test(name)) throw new InvalidWorktreeNameError(name)
     return await this.slugs.claim(repo, name)
   }
 
-  /** Drop a task's in-flight worktree lock (on delete / forget). */
   forget(id: TaskId): void {
     this.worktreeLocks.delete(id)
   }
 
-  /**
-   * Materialise the worktree on disk for `task` (already known to be a
-   * lazily-allocated `kind:"task"` with an empty `worktreePath` — the
-   * `main` / already-materialised short-circuits stay in the Orchestrator).
-   * Idempotent + delete-safe via the per-task lock. Returns the created path.
-   */
+  /** `task` is already known unmaterialised (the Orchestrator short-circuits
+   *  the rest). Idempotent + delete-safe via {@link worktreeLocks}. */
   async ensure(task: Task): Promise<string> {
-    // A concurrent caller already in flight: await ITS result (the created
-    // path) rather than re-reading the store afterwards. Returning the shared
-    // promise both dedupes the work and is delete-safe — see worktreeLocks.
     const inflight = this.worktreeLocks.get(task.id)
     if (inflight) return inflight
     const work = this.createWorktree(task)
@@ -152,46 +112,31 @@ export class WorktreeCoordinator {
   }
 
   /**
-   * Allocate a slug, create the worktree, persist the path/branch. Self-cleaning
-   * and safe to retry: every partial-failure path rolls back so we never leave
-   * an orphan (a worktree on disk + a committed slug + a task whose
-   * `worktreePath` stayed empty, which would force a manual `rm` on the next
-   * attempt).
-   *
-   * Ordering is load-bearing: the slug is committed ONLY after `store.update`
-   * succeeds. Until then any failure — git error, or the task being deleted out
-   * from under us so the write throws — removes the just-created worktree and
-   * frees the slug. Returns the created path directly (not a store re-read) so
-   * a delete that lands the instant after creation can't turn a success into a
-   * spurious {@link TaskNotFoundError}.
+   * Slug → worktree → persist, retry-safe: every partial failure rolls back so
+   * no orphan (worktree + committed slug + empty `worktreePath`, needing a
+   * manual `rm`) is left. The slug commits ONLY after `store.update` succeeds.
+   * Returns the path directly so a delete right after creation can't turn
+   * success into a spurious {@link TaskNotFoundError}.
    */
   private async createWorktree(task: Task): Promise<string> {
-    // A caller-chosen name was already claimed (and validated) at create
-    // time, so this reuses it rather than re-claiming: the pending slot is
-    // still held, and `claim` would now refuse its own reservation.
+    // Already claimed at create time; re-claiming would refuse its own
+    // pending reservation.
     const slug = task.worktreeName || (await this.slugs.allocate(task.repo))
     const branch = task.branch || (await this.deriveAutoBranch(task))
-    // The recorded fork point (`add --base-branch`), persisted on the task at
-    // create time — durable across daemon restarts between create and this
-    // lazy materialise. Absent on records that predate the field: cut from
-    // the git default (the manager's own resolution).
+    // `add --base-branch`, persisted at create so it survives a daemon restart
+    // before materialise. Absent on older records → git default.
     const baseRef = task.baseRef
     let info: WorktreeInfo
     try {
       info = await this.worktrees.createForTask({ repo: task.repo, slug, branch, baseRef })
     } catch (err) {
-      // Nothing persisted yet — just free the slug for the next attempt.
       this.slugs.cancel(task.repo, slug)
       throw err
     } finally {
-      // Release the name either way: on success the branch itself now exists
-      // in git (the durable guard); on failure the next attempt re-derives.
       this.reservedBranches.delete(branch)
     }
-    // The worktree now exists on disk. Persist its path BEFORE committing the
-    // slug; if the write fails (or the task was deleted concurrently, so the
-    // delete flow saw an empty `worktreePath` and skipped cleanup) we must roll
-    // the worktree back ourselves, or it becomes invisible on-disk debris.
+    // If this write fails (or a concurrent delete saw an empty `worktreePath`
+    // and skipped cleanup), roll back ourselves or it's invisible debris.
     try {
       await this.store.update(task.id, { worktreePath: info.path, branch })
     } catch (err) {
@@ -204,13 +149,9 @@ export class WorktreeCoordinator {
   }
 
   /**
-   * Derive the auto branch name for a task with no explicit branch: infer
-   * the repo's naming convention from its existing branch names (local +
-   * origin), apply it to the title's slug, and de-collide with a short
-   * `-2` / `-3` suffix against both existing branches and names other
-   * in-flight materialisations just reserved. Never contains
-   * a rove/kobe brand token; an unreadable/empty repo falls back to a bare
-   * kebab slug.
+   * Apply the repo's inferred naming convention (local + origin branches) to
+   * the title; `-2`/`-3` against existing and in-flight reserved names. Never a
+   * rove/kobe brand token; unreadable/empty repo → bare kebab slug.
    */
   private async deriveAutoBranch(task: Task): Promise<string> {
     const names = await this.worktrees.listBranchNames(task.repo)
@@ -221,13 +162,8 @@ export class WorktreeCoordinator {
     return branch
   }
 
-  /**
-   * Best-effort removal of a worktree we just created but couldn't persist.
-   * `force` because it's a brand-new checkout with no user work to protect, and
-   * a clean rollback matters more than the dirty-guard here. A failure is
-   * logged, not thrown — the caller already has the real (persist) error and we
-   * don't want to mask it.
-   */
+  /** `force`: brand-new checkout, no user work. Logged, not thrown, so the
+   *  caller's real persist error isn't masked. */
   private async rollbackWorktree(worktreePath: string): Promise<void> {
     try {
       await this.worktrees.remove(worktreePath, { force: true })
@@ -236,13 +172,8 @@ export class WorktreeCoordinator {
     }
   }
 
-  /**
-   * Discover git worktrees on `repo` that exist on disk but aren't yet
-   * linked to any task — candidates for adoption. Includes
-   * worktrees outside the kobe convention root (the user's own
-   * `git worktree add`). De-dupes against the task store by canonical
-   * path so an already-adopted worktree never reappears.
-   */
+  /** Worktrees not linked to any task (by canonical path), including ones
+   *  outside the convention root (the user's own `git worktree add`). */
   async discoverAdoptable(repo: string): Promise<readonly AdoptableWorktree[]> {
     const all = await this.worktrees.listAll(repo)
     const linked = new Set(
@@ -254,14 +185,9 @@ export class WorktreeCoordinator {
     return all.filter((wt) => !linked.has(this.canonPath(wt.path)))
   }
 
-  /**
-   * Adopt an existing git worktree as a new task. Serializes concurrent adopts
-   * of the SAME path via {@link adoptLocks} so two WorktreeCreate hooks firing
-   * for one path can't both pass the "already a task?" check and create
-   * duplicate tasks — the second caller awaits the first's result. The caller
-   * (Orchestrator.adoptWorktree) has already validated the required inputs; the
-   * project's main task is ensured here (inside the lock) via `ensureProject`.
-   */
+  /** Serialized per path ({@link adoptLocks}) so two WorktreeCreate hooks for
+   *  one path can't both pass the "already a task?" check. Inputs are
+   *  validated by the caller. */
   async adopt(input: AdoptWorktreeInput): Promise<Task> {
     const target = this.canonPath(input.worktreePath)
     const inflight = this.adoptLocks.get(target)
@@ -281,9 +207,7 @@ export class WorktreeCoordinator {
       if (input.ifExists === "return") return existing
       throw new Error(`adoptWorktree: ${input.worktreePath} is already adopted as a task`)
     }
-    // Only a path→branch match is needed here, so use the lightweight
-    // adoptable-paths list — NOT `listAll`, which would run a git status + git
-    // log per worktree (dirty / last-activity) only to discard all of it.
+    // Not `listAll`: it runs git status + log per worktree we'd discard.
     const candidates = await this.worktrees.listAdoptablePaths(input.repo)
     const match = candidates.find((wt) => this.canonPath(wt.path) === target)
     if (!match) {
@@ -293,8 +217,7 @@ export class WorktreeCoordinator {
     }
     const branch = input.branch?.trim() || match.branch
     const title = (input.title ?? basename(match.path)).trim() || PLACEHOLDER_TASK_TITLE
-    // Same guarantee as createTask: an adopted task brings its project's
-    // main task (= the sidebar PROJECTS row) into existence with it.
+    // Like createTask: brings the project's main row into existence.
     await this.ensureProject(input.repo)
     return this.store.create({
       repo: input.repo,
