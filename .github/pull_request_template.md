@@ -85,7 +85,9 @@ above). One per state that behaves differently — empty, populated, failing.
 <!-- ─────────────  Refactor / internal / docs  ───────────── -->
 ## Refactor, internal or docs-only
 
-UI source changes still require the UI evidence section above, even for refactors.
+UI source changes still require the UI evidence section above, even for refactors —
+unless no frame can change (a dropped import, a moved type): then replace it
+with one line, `ui-evidence: none — <reason>`.
 For changes without UI source:
 
 - **Behaviour is unchanged** — say how you know (tests that already covered it,

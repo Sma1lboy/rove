@@ -1,0 +1,57 @@
+# The PR gates that read the description. Split out of ci.yml so an edit to
+# the description re-runs only these — checkout-only jobs, done in seconds —
+# instead of cancelling and restarting the whole test run. Both read the
+# CURRENT body through the API, so a plain `gh run rerun` works too.
+
+name: PR gates
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+concurrency:
+  group: pr-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  file-size-cap:
+    # Hard rule (AGENTS.md "File size cap"): a PR may not grow a code file
+    # past ~500 lines. Only growth is gated — a legacy oversized file stays
+    # green when an edit leaves it the same length or shorter.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Touched code files must not grow past ~500 lines
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+        # Exemptions are PER FILE: each `file-size-exemption: <path> — <reason>`
+        # line in the PR body exempts only the exact path it names.
+        run: bash scripts/file-size-check.sh
+
+  ui-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Test UI evidence gate
+        run: node --test scripts/ui-evidence.test.mjs
+
+      - name: Require PR screenshots for UI changes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { checkPullRequest } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/ui-evidence.mjs`);
+            await checkPullRequest({ github, context, core });
