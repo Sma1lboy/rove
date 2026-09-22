@@ -15,6 +15,8 @@
  * this file only wires them to the hero-specific paths and `HOME` policy.
  */
 
+import { readFileSync } from "node:fs"
+import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 import {
   assertFixtureIsolation,
@@ -53,6 +55,35 @@ export const HERO_REPO: string = PATHS.repo
 /** Re-exported for callers that already used the hero-specific tripwire name. */
 export const assertHeroIsolation = (): void => assertFixtureIsolation(HERO_HOME, HERO_ROOT)
 
+/**
+ * The tier classifier's key, for a capture that exercises auto routing.
+ *
+ * Same bargain `HOME` already strikes above, for the same reason. Rove's own
+ * state is isolated, so `secretsPath()` resolves inside the throwaway home and
+ * the operator's stored key is invisible to the fixture — which would make a
+ * routing capture film `no key` instead of a routed fanout. The environment
+ * is the other place the product reads a key from (`docs/CONFIGURATION.md`:
+ * the variable wins over the stored file), so that is the channel used here.
+ *
+ * Read at run time from the operator's own `~/.rove/secrets.json` and passed
+ * through the env only. It is never written to the fixture, never put on a
+ * command line where `ps` would show it, and `hero-capture.ts`'s
+ * `forbidLiteral` guard aborts any take that renders it. Absent is fine:
+ * captures that do not touch the classifier neither need nor see it.
+ */
+function classifierKeyEnv(parent: NodeJS.ProcessEnv): Record<string, string> {
+  const name = "TYPESAFE_API_KEY"
+  const exported = parent[name]?.trim()
+  if (exported) return { [name]: exported }
+  try {
+    const stored = JSON.parse(readFileSync(join(homedir(), ".rove", "secrets.json"), "utf8")) as Record<string, unknown>
+    const value = stored[name]
+    return typeof value === "string" && value.trim() ? { [name]: value.trim() } : {}
+  } catch {
+    return {}
+  }
+}
+
 export function heroEnv(parent: NodeJS.ProcessEnv = process.env): Record<string, string> {
   assertHeroIsolation()
   return buildFixtureEnv({
@@ -61,6 +92,7 @@ export function heroEnv(parent: NodeJS.ProcessEnv = process.env): Record<string,
     ports: PORTS,
     homePolicy: "keep",
     parentEnv: parent,
+    extra: classifierKeyEnv(parent),
   })
 }
 

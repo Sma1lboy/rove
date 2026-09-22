@@ -134,12 +134,45 @@ export async function gone(page: Page, needle: string, timeout = 180_000): Promi
 const FORBIDDEN = [/[\w.+-]+@[\w-]+\.[\w.]+/] as const
 
 /**
+ * Exact strings a take must never render, registered at RUN time.
+ *
+ * {@link FORBIDDEN} is for shapes that can be written down; this is for values
+ * that cannot. A capture that exercises the tier classifier needs a real API
+ * key in the environment, and the one thing that must not happen is that key
+ * reaching a published mp4 — but the literal cannot live in this file, which
+ * is committed. So the storyboard reads it at run time and hands it here, and
+ * the same guard that watches for an e-mail address watches for it too.
+ *
+ * Values are never logged: a breach reports the surrounding text with the
+ * secret masked, which is enough to find the beat without republishing it.
+ */
+const forbiddenLiterals: string[] = []
+
+/** Register a value the take must never show. Short strings are ignored — a
+ *  two-character "secret" would match half the screen. */
+export function forbidLiteral(value: string): void {
+  const v = value.trim()
+  if (v.length >= 12) forbiddenLiterals.push(v)
+}
+
+/**
  * Read the terminal buffer and fail the take if it is showing something that
  * must not be published. Called on a beat cadence during `record`, because a
  * check that only runs at the end cannot say WHICH beat exposed it.
  */
 async function assertNothingSensitive(page: Page): Promise<void> {
   const text = (await page.getByTestId("opentui-buffer").textContent()) ?? ""
+  for (const literal of forbiddenLiterals) {
+    const at = text.indexOf(literal)
+    if (at === -1) continue
+    // The value itself never reaches this message — reporting a leaked secret
+    // in the error that reports it is the same leak with extra steps.
+    const around = text.slice(Math.max(0, at - 120), at + literal.length + 120).replace(literal, "<redacted>")
+    throw new Error(
+      `capture aborted: the TUI is displaying a value registered with forbidLiteral() (…${around.replace(/\s+/g, " ")}…). ` +
+        `Re-route the beat that put it on screen; the value is not reproduced here on purpose.`,
+    )
+  }
   for (const pattern of FORBIDDEN) {
     const hit = text.match(pattern)
     if (hit) {
