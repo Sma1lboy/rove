@@ -205,7 +205,7 @@ export const en = {
     classifierJevHint: "— TypeSafe System One, billed to your own key",
     classifierCustomHint: "— your endpoint: POST the text, answer with a tier and a confidence",
     endpointLabel: "Endpoint",
-    endpointUnset: "(none — enter one to switch to custom)",
+    endpointUnset: "(none — enter one, then set Classifier to custom)",
     endpointTitle: "Custom classifier endpoint",
     endpointField: "URL",
     endpointInvalidTitle: "Not a URL",
@@ -224,7 +224,10 @@ export const en = {
     keyPlaceholder: "paste the key; leave empty to clear the stored one",
     keySaved: "● key stored in ~/.rove/secrets.json (owner-only, never in state.json)",
     keyCustomUnused:
-      "● no Authorization header is sent to a custom endpoint — set autoEffort.classifierKeyEnv to the variable holding its key if it needs one",
+      "● no Authorization header is sent to a custom endpoint — set autoEffort.classifierCustomKeyEnv to the variable holding its key if it needs one",
+    keyNoVariableTitle: "No key variable for this endpoint",
+    keyNoVariableBody:
+      "A custom endpoint is sent no Authorization header until autoEffort.classifierCustomKeyEnv names the variable its key lives in. Set that first — a key stored under a name nothing reads is a key at rest for no purpose.",
     keyWriteFailedTitle: "Key not saved",
     keyWriteFailedBody: "~/.rove/secrets.json could not be written: {reason}",
     keyMissing: "! no key — the classifier stays silent and tasks keep their usual depth",
@@ -457,7 +460,7 @@ export const zh: typeof en = {
     classifierJevHint: "——TypeSafe System One，走你自己的 key 计费",
     classifierCustomHint: "——你自己的接口：POST 那段文本，返回一个档位加一个置信度",
     endpointLabel: "接口地址",
-    endpointUnset: "（未填——填一个即切到自定义）",
+    endpointUnset: "（未填——先填一个，再把「分类器」切到自定义）",
     endpointTitle: "自定义分类器接口",
     endpointField: "URL",
     endpointInvalidTitle: "不是一个 URL",
@@ -476,7 +479,10 @@ export const zh: typeof en = {
     keyPlaceholder: "粘贴 key；留空则清除已存的那个",
     keySaved: "● key 存在 ~/.rove/secrets.json（仅本人可读，不会进 state.json）",
     keyCustomUnused:
-      "● 自定义接口不会收到 Authorization 头——它若需要凭据，把 autoEffort.classifierKeyEnv 指向存它的变量",
+      "● 自定义接口不会收到 Authorization 头——它若需要凭据，把 autoEffort.classifierCustomKeyEnv 指向存它的变量",
+    keyNoVariableTitle: "这个接口还没有 key 变量",
+    keyNoVariableBody:
+      "在 autoEffort.classifierCustomKeyEnv 指定存 key 的变量之前，自定义接口不会收到任何 Authorization 头。先设那个——存在一个没人读的名字下面的 key，只是白白落在盘上。",
     keyWriteFailedTitle: "key 没存下",
     keyWriteFailedBody: "写不了 ~/.rove/secrets.json：{reason}",
     keyMissing: "! 没有 key——分类器不会出声，任务保持原来的档位",

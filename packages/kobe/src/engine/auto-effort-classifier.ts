@@ -66,17 +66,16 @@ export interface ClassifierConfig {
   /** Model id for `jev` — pin a version here to stop a silent upgrade. */
   readonly model: string
   /**
-   * Name of the bearer token — an environment variable first, then the entry
-   * under that name in `~/.rove/secrets.json`. Never `state.json`: that file
-   * is opened by `rove config` and pasted whole into bug reports.
+   * Name of the bearer token for THIS mode — an environment variable first,
+   * then the entry under that name in `~/.rove/secrets.json`. Never
+   * `state.json`: that file is opened by `rove config` and pasted whole into
+   * bug reports.
+   *
+   * Undefined = this mode has no key, and no `Authorization` header is sent.
+   * That is the normal state for a custom endpoint — see the note on the two
+   * key settings in {@link readClassifierConfig}.
    */
-  readonly keyEnv: string
-  /**
-   * Whether the user NAMED that variable themselves, as opposed to getting
-   * the shipped default. It decides one thing: whether a custom endpoint is
-   * sent the token at all — see {@link classifyTier}.
-   */
-  readonly keyEnvNamed: boolean
+  readonly keyEnv?: string
 }
 
 export type Getter = (key: string) => unknown
@@ -103,20 +102,33 @@ function numberAt(get: Getter, key: string, fallback: number, min: number, max: 
  * Read the setting. Anything that is not `jev` or an `http(s)` URL reads as
  * `off` — including a typo. A misspelled endpoint must not become "send the
  * prompt somewhere", and off is the shape that sends nothing.
+ *
+ * **The two modes read DIFFERENT key settings, and that is the whole point.**
+ * One shared variable name leaks in both directions across a mode switch: a
+ * name chosen for a self-hosted endpoint would send that credential to
+ * TypeSafe the moment someone cycled the row to `jev`, and TypeSafe's own
+ * token would go to a custom endpoint the moment they cycled the other way.
+ * Neither is a mistake the user could watch themselves make. So `jev` reads
+ * `autoEffort.classifierKeyEnv` (shipped default `TYPESAFE_API_KEY`) and a
+ * custom endpoint reads `autoEffort.classifierCustomKeyEnv`, which has NO
+ * default — unset means no header, which is the right thing to send a host
+ * that never asked for one.
  */
 export function readClassifierConfig(get: Getter = getPersistedValue): ClassifierConfig {
   const raw = stringAt(get, "autoEffort.classifier") ?? "off"
-  const named = stringAt(get, "autoEffort.classifierKeyEnv")
   let mode: ClassifierMode = { kind: "off" }
   if (raw === "jev") mode = { kind: "jev" }
   else if (/^https?:\/\/\S+$/.test(raw)) mode = { kind: "url", url: raw }
+  const keyEnv =
+    mode.kind === "url"
+      ? stringAt(get, "autoEffort.classifierCustomKeyEnv")
+      : (stringAt(get, "autoEffort.classifierKeyEnv") ?? DEFAULT_KEY_ENV)
   return {
     mode,
     threshold: numberAt(get, "autoEffort.classifierThreshold", DEFAULT_THRESHOLD, 0, 1),
     timeoutMs: numberAt(get, "autoEffort.classifierTimeoutMs", DEFAULT_TIMEOUT_MS, 200, 60_000),
     model: stringAt(get, "autoEffort.classifierModel") ?? DEFAULT_MODEL,
-    keyEnv: named ?? DEFAULT_KEY_ENV,
-    keyEnvNamed: named !== undefined,
+    ...(keyEnv ? { keyEnv } : {}),
   }
 }
 
@@ -176,17 +188,11 @@ export async function classifyTier(
   // cannot be handed an env var after it started, and the stored key is the
   // only way that process ever gets one. `resolveSecret` owns the order.
   const env = deps.env ?? process.env
-  const key = (deps.readSecret ?? resolveSecret)(config.keyEnv, env)
+  const key = config.keyEnv ? (deps.readSecret ?? resolveSecret)(config.keyEnv, env) : undefined
   if (config.mode.kind === "jev" && !key) {
     return declined("no-key", `no ${config.keyEnv} in the environment or ~/.rove/secrets.json`)
   }
 
-  // The default token is TypeSafe's, and a custom endpoint is some other
-  // host — often one whose address came from a colleague. Sending it there
-  // hands your credential to whoever wrote that URL, so a custom endpoint is
-  // given the header ONLY when the user pointed `autoEffort.classifierKeyEnv`
-  // at a variable deliberately. `jev` always sends it: that is whose key it is.
-  const sendKey = config.mode.kind === "jev" || config.keyEnvNamed
   const doFetch = deps.fetch ?? globalThis.fetch
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), config.timeoutMs)
@@ -199,7 +205,9 @@ export async function classifyTier(
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...(key && sendKey ? { authorization: `Bearer ${key}` } : {}),
+        // `config.keyEnv` is already this mode's own variable, so there is no
+        // cross-provider decision left to make here.
+        ...(key ? { authorization: `Bearer ${key}` } : {}),
       },
       body: JSON.stringify(request.body),
       signal: controller.signal,

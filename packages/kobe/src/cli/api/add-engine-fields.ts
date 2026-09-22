@@ -147,6 +147,12 @@ export async function tierFields(ctx: VerbContext, prompt?: string): Promise<Tie
   }
   const table = readAutoEffortTable()
   if (!table) {
+    // A tier the CALLER named is a refusal: they asked for a table that does
+    // not exist. `auto` is not — "never fails a create" has no exceptions,
+    // and an unconfigured table is the most ordinary reason of all for the
+    // classifier to have nothing to say. It also costs nothing to notice
+    // here, BEFORE the prompt is sent anywhere.
+    if (requested === "auto") return { note: "auto → no tier (auto effort is not configured)" }
     throw new ApiError(
       "auto effort is not configured — a tier has no engine (autoEffort.<tier>.engine in state.json); set it in Settings → Auto effort",
       "TIER_UNAVAILABLE",

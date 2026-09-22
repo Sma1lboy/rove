@@ -108,7 +108,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   }
   // The tier targets, gated against the same account probe the cards read.
   const autoEffort = useAutoEffortSettings(props.kv, dialog, engines.engineList, engineStatuses)
-  const classifier = useClassifierSettings(props.kv, dialog)
+  const classifier = useClassifierSettings(props.kv, dialog, section === "autoEffort")
   // Writing the starter YAML flips the Keybindings section from "here is an
   // example" to a real file — and re-applying it is what re-renders the
   // section (and drops its create row) without a restart.

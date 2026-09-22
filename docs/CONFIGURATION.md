@@ -172,7 +172,8 @@ it off, `r` is the only thing that repopulates the list.
 | `autoEffort.classifierTimeoutMs` | number | `4000` | How long to wait before giving up on the classifier. Clamped 200–60,000 |
 | `autoEffort.classifierModel` | string | `jev-latest` | Model id for `jev`. Pin a version (e.g. `jev-1.13.0`) to stop a silent upgrade |
 | `autoEffort.classifierEndpoint` | string | unset | The custom endpoint Settings remembers while the classifier points elsewhere. Not read by the classifier — `autoEffort.classifier` is |
-| `autoEffort.classifierKeyEnv` | string | `TYPESAFE_API_KEY` | Environment variable the bearer token is read from. The token itself never goes in `state.json` |
+| `autoEffort.classifierKeyEnv` | string | `TYPESAFE_API_KEY` | Variable holding **jev's** key. The token itself never goes in `state.json` |
+| `autoEffort.classifierCustomKeyEnv` | string | unset | Variable holding a **custom endpoint's** key. Unset = no `Authorization` header is sent |
 
 Launch commands are parsed shell-ish, so quotes group arguments. Clear both
 `engineName.<id>` and `engineCommand.<id>` to reset an engine to its default.
@@ -214,9 +215,10 @@ rove api add --repo ~/code/app --tier auto --prompt "there's a memory leak somew
 
 ##### Where the key lives
 
-Two places, in this order:
+Two places, in this order (and `$TYPESAFE_API_KEY` below means whichever
+variable the current mode reads):
 
-1. **`$TYPESAFE_API_KEY` in the environment** — wins whenever it is set, so a
+1. **The variable in the environment** — wins whenever it is set, so a
    one-off `TYPESAFE_API_KEY=… rove …` and a CI secret behave the way you
    would expect. An empty value counts as unset, not as "deliberately blank".
 2. **`~/.rove/secrets.json`** — what Settings → Auto effort → API key writes.
@@ -240,12 +242,15 @@ on `http://127.0.0.1:…` is the whole point of the custom option. Over a
 network it is not: a plain-`http` endpoint carries the task's first 1,200
 characters — and your bearer token, once you name one — in cleartext.
 
-A custom endpoint gets **no `Authorization` header** unless you set
-`autoEffort.classifierKeyEnv` yourself. The default variable holds a TypeSafe
-key, and a custom endpoint is a different host — often one whose address came
-from someone else — so shipping the credential there by default would hand it
-to whoever wrote the URL. Point `classifierKeyEnv` at your own variable and
-Rove sends that instead.
+**The two modes read different key settings, and that is deliberate.** `jev`
+reads `autoEffort.classifierKeyEnv`; a custom endpoint reads
+`autoEffort.classifierCustomKeyEnv`, which has no default, so a custom
+endpoint gets **no `Authorization` header** until you name one. A single
+shared variable would leak in both directions across a mode switch: a name
+chosen for your own endpoint would send that credential to TypeSafe the
+moment the Classifier row cycled to `jev`, and TypeSafe's token would go to
+your endpoint the moment it cycled back. Neither is a mistake you could watch
+yourself make.
 
 Nothing here can fail a create. Off, no key, no network, a timeout, a
 malformed answer, or a confidence under the threshold all mean the same

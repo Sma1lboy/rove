@@ -11,6 +11,9 @@
  * task anyway.
  */
 
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const probe = vi.hoisted(() => ({ kind: "oauth" as string }))
@@ -223,6 +226,35 @@ describe("add --tier auto", () => {
     })) as { tierAuto?: string }
     expect(client.requests[0]?.name).toBe("task.create")
     expect(result.tierAuto).toBeDefined()
+  })
+
+  it("creates the task when auto effort is not configured at all", async () => {
+    // A tier the CALLER named is a refusal (TIER_UNAVAILABLE). `auto` is not:
+    // "never fails a create" has no exceptions, and an unconfigured table is
+    // the most ordinary reason of all for the classifier to have nothing to
+    // say. A blanked engine is how docs/CONFIGURATION.md says to switch auto
+    // effort off, so this is a state a real machine can be in.
+    const home = mkdtempSync(join(tmpdir(), "rove-tier-"))
+    mkdirSync(join(home, ".config", "rove"), { recursive: true })
+    writeFileSync(join(home, ".config", "rove", "state.json"), JSON.stringify({ "autoEffort.standard.engine": "" }))
+    const savedHome = process.env.ROVE_HOME_DIR
+    process.env.ROVE_HOME_DIR = home
+    try {
+      const client = promptClient()
+      const { deliver } = recordingDelivery()
+      const result = (await invokeVerb("add", withPrompt(), {
+        client,
+        runtime: stubRuntime({ deliverPrompt: deliver }),
+      })) as { tierAuto?: string }
+      expect(client.requests[0]?.name).toBe("task.create")
+      expect(client.requests[0]?.payload).not.toHaveProperty("tier")
+      expect(result.tierAuto).toContain("not configured")
+      // And it never reached the network to find that out.
+      expect(classifier.calls).toEqual([])
+    } finally {
+      if (savedHome === undefined) delete process.env.ROVE_HOME_DIR
+      else process.env.ROVE_HOME_DIR = savedHome
+    }
   })
 
   it("refuses --tier auto with nothing to classify, before anything is created", async () => {

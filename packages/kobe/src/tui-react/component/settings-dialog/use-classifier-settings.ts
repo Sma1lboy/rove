@@ -15,7 +15,7 @@
  */
 
 import { readClassifierConfig } from "../../../engine/auto-effort-classifier"
-import { secretStatus, writeSecret } from "../../../state/secrets"
+import { type SecretSource, secretStatus, writeSecret } from "../../../state/secrets"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"
@@ -45,13 +45,14 @@ export interface ClassifierSettings {
    */
   readonly keyPresent: boolean
   /** Where the key came from — the environment outranks the stored one. */
-  readonly keySource: "env" | "file" | "none"
+  readonly keySource: SecretSource
   /**
-   * Whether the user NAMED the key's variable. A custom endpoint is sent an
-   * Authorization header only then, so the section cannot describe the key
-   * situation without it.
+   * Whether THIS mode has a key variable at all. A custom endpoint has none
+   * until `autoEffort.classifierCustomKeyEnv` names one, and then no
+   * Authorization header is sent — so the section cannot describe the key
+   * situation without knowing this.
    */
-  readonly keyEnvNamed: boolean
+  readonly keyConfigured: boolean
   /** The last few characters of a STORED key. Never the key. */
   readonly keyHint: string
   /** Paste, replace, or clear the stored key. */
@@ -70,6 +71,13 @@ function stringAt(kv: KVContext, key: string): string {
 export function useClassifierSettings(
   kv: KVContext,
   dialog: DialogContext,
+  /**
+   * Whether the Auto effort section is the one on screen. The hook is called
+   * from the dialog body unconditionally, and reading the secrets file costs
+   * a blocking `readFileSync` — so holding `j` in Engines or General paid one
+   * disk read per keystroke for a row nobody was looking at.
+   */
+  visible: boolean,
   env: NodeJS.ProcessEnv = process.env,
 ): ClassifierSettings {
   const t = useT()
@@ -126,9 +134,16 @@ export function useClassifierSettings(
       return
     }
     kv.set(ENDPOINT_KEY, url)
-    // An endpoint typed here should take effect — the same rule the custom
-    // editor command follows.
-    kv.set(MODE_KEY, url)
+    // Remembered, NOT switched to — unless custom is already the mode, where
+    // editing the address means editing the live one.
+    //
+    // The custom-editor command row does switch on save, and copying that
+    // here was wrong: this row renders muted while the mode is something
+    // else, so it reads as inactive, and a user on `jev` correcting a typo in
+    // a remembered URL would have silently repointed where their task
+    // prompts get sent. The Classifier row owns the mode; this row owns the
+    // address.
+    if (mode === "custom") kv.set(MODE_KEY, url)
   }
 
   async function editThreshold(): Promise<void> {
@@ -162,6 +177,19 @@ export function useClassifierSettings(
    * stored one, which is the only other thing you would come here to do.
    */
   async function editKey(): Promise<void> {
+    // No variable for this mode means nowhere to put a key — a custom
+    // endpoint that was never given `classifierCustomKeyEnv` is sent no
+    // header at all, and storing one under a name nothing reads would be a
+    // key at rest for no purpose.
+    if (!config.keyEnv) {
+      await DialogConfirm.show(
+        dialog,
+        t("settings.autoEffort.keyNoVariableTitle"),
+        t("settings.autoEffort.keyNoVariableBody"),
+        "cancel",
+      )
+      return
+    }
     const next = await RenameTaskDialog.show(dialog, "", {
       dialogTitle: t("settings.autoEffort.keyTitle", { env: config.keyEnv }),
       fieldLabel: config.keyEnv,
@@ -186,16 +214,16 @@ export function useClassifierSettings(
     }
   }
 
-  const key = secretStatus(config.keyEnv, env)
+  const key = visible && config.keyEnv ? secretStatus(config.keyEnv, env) : { source: "none" as const, hint: "" }
   return {
     mode,
     endpoint,
     threshold: config.threshold,
-    keyEnv: config.keyEnv,
+    keyEnv: config.keyEnv ?? "",
     keyPresent: key.source !== "none",
     keySource: key.source,
     keyHint: key.hint,
-    keyEnvNamed: config.keyEnvNamed,
+    keyConfigured: config.keyEnv !== undefined,
     cycle,
     editEndpoint,
     editThreshold,

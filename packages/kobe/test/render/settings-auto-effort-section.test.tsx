@@ -27,7 +27,7 @@ const OFF: ClassifierSettings = {
   keyPresent: false,
   keySource: "none",
   keyHint: "",
-  keyEnvNamed: false,
+  keyConfigured: true,
   cycle: () => {},
   editEndpoint: async () => {},
   editThreshold: async () => {},
@@ -122,10 +122,14 @@ describe("AutoEffortSettingsSection — the classifier", () => {
   })
 
   test("custom mode does NOT borrow jev's key semantics", async () => {
-    // A custom endpoint gets no Authorization header unless the user named
-    // the variable, so "no key" there is normal operation — warning about it
-    // would report a working setup as silent.
-    const text = flat(await (await mount(ready, { ...OFF, mode: "custom", endpoint: "https://t.internal/p" })).frame())
+    // A custom endpoint gets no Authorization header until a variable names
+    // its key, so "no key" there is normal operation — warning about it would
+    // report a working setup as silent.
+    const text = flat(
+      await (
+        await mount(ready, { ...OFF, mode: "custom", endpoint: "https://t.internal/p", keyConfigured: false })
+      ).frame(),
+    )
     expect(text).not.toContain("no key — the classifier stays silent")
     expect(text).toContain("no Authorization header is sent to a custom endpoint")
   })
@@ -142,6 +146,8 @@ describe("AutoEffortSettingsSection — the classifier", () => {
           keyPresent: true,
           keySource: "file",
           keyHint: "…4938",
+          // No variable names a key for this endpoint, so nothing carries one.
+          keyConfigured: false,
         })
       ).frame(),
     )
@@ -159,7 +165,7 @@ describe("AutoEffortSettingsSection — the classifier", () => {
           keyPresent: true,
           keySource: "file",
           keyHint: "…4938",
-          keyEnvNamed: true,
+          keyConfigured: true,
         })
       ).frame(),
     )
@@ -182,6 +188,6 @@ describe("AutoEffortSettingsSection — the classifier", () => {
 
   test("custom with nothing typed yet says how to get there, not a blank", async () => {
     const text = flat(await (await mount(ready)).frame())
-    expect(text).toContain("enter one to switch to custom")
+    expect(text).toContain("enter one, then set Classifier to custom")
   })
 })

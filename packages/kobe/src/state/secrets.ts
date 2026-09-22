@@ -18,10 +18,10 @@
  *   2. **Never beside the settings.** `state.json` is opened by `rove
  *      config`, hand-edited, and pasted whole into bug reports. A key that
  *      lived there would leak by ordinary helpfulness, not by mistake.
- *   3. **Never rendered.** Nothing returns a stored secret to a UI; callers
- *      get {@link secretHint}, which is enough to answer "is the right key in
- *      there" and useless to anyone reading over a shoulder or a screen
- *      share.
+ *   3. **Never rendered.** No UI caller is handed a stored secret. They ask
+ *      {@link secretStatus}, whose `hint` is a {@link secretHint} tail —
+ *      enough to answer "is the right key in there", useless to anyone
+ *      reading over a shoulder or a screen share.
  */
 
 import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs"

@@ -103,13 +103,12 @@ export function AutoEffortSettingsSection(
 }
 
 /**
- * The classifier: a mode switch, the endpoint it uses in `custom`, and the
- * confidence floor under which nothing is pre-filled.
+ * The classifier: a mode switch, the endpoint it uses in `custom`, the
+ * confidence floor under which nothing is pre-filled, and the key.
  *
- * The key line is deliberately loud when the classifier is ON and the
- * variable is absent. That combination looks exactly like a working setup
- * from the outside — tiers simply never fill in — so the one place that can
- * tell the difference says so.
+ * The status line under them is per-MODE, not per-"is it on" — see `status`
+ * below for why treating those as the same thing told users the opposite of
+ * the truth in `custom`.
  */
 function ClassifierRows(
   props: SectionCursorProps & { autoEffort: AutoEffortSettings; classifier: ClassifierSettings },
@@ -159,7 +158,7 @@ function ClassifierRows(
    */
   const status: { ok: boolean; text: string } | null = (() => {
     if (c.mode === "off") return null
-    if (c.mode === "custom" && !c.keyEnvNamed) {
+    if (!c.keyConfigured) {
       return { ok: true, text: t("settings.autoEffort.keyCustomUnused") }
     }
     if (c.keySource === "env") return { ok: true, text: t("settings.autoEffort.keyPresentEnv", { env: c.keyEnv }) }

@@ -35,7 +35,6 @@ const config = (over: Partial<ClassifierConfig> = {}): ClassifierConfig => ({
   timeoutMs: 1000,
   model: "jev-latest",
   keyEnv: "TYPESAFE_API_KEY",
-  keyEnvNamed: false,
   ...over,
 })
 
@@ -92,11 +91,17 @@ describe("readClassifierConfig", () => {
     })
   })
 
-  it("records whether the key variable was NAMED, which decides if a custom endpoint gets it", () => {
-    expect(readClassifierConfig(from({})).keyEnvNamed).toBe(false)
-    expect(readClassifierConfig(from({})).keyEnv).toBe("TYPESAFE_API_KEY")
-    const named = readClassifierConfig(from({ "autoEffort.classifierKeyEnv": "MY_TIER_KEY" }))
-    expect(named).toMatchObject({ keyEnv: "MY_TIER_KEY", keyEnvNamed: true })
+  it("gives each mode its OWN key variable, so a mode switch cannot move a credential", () => {
+    // jev: the shipped default, renameable.
+    expect(readClassifierConfig(from({ "autoEffort.classifier": "jev" })).keyEnv).toBe("TYPESAFE_API_KEY")
+    expect(
+      readClassifierConfig(from({ "autoEffort.classifier": "jev", "autoEffort.classifierKeyEnv": "TS_PROD" })).keyEnv,
+    ).toBe("TS_PROD")
+    // custom: no default, and it does NOT inherit jev's name — that
+    // inheritance is exactly what would carry a credential across a switch.
+    const custom = { "autoEffort.classifier": "https://t.internal/p", "autoEffort.classifierKeyEnv": "TS_PROD" }
+    expect(readClassifierConfig(from(custom)).keyEnv).toBeUndefined()
+    expect(readClassifierConfig(from({ ...custom, "autoEffort.classifierCustomKeyEnv": "MINE" })).keyEnv).toBe("MINE")
   })
 
   it("reads anything else as off — a typo must not become 'send it somewhere'", () => {
@@ -276,26 +281,25 @@ describe("classifyTier — the request", () => {
     expect(JSON.parse(String(calls[0]?.init.body)).state.task_text).toHaveLength(PROMPT_LIMIT)
   })
 
-  it("does NOT hand a custom endpoint the default TypeSafe key", async () => {
-    // The default token belongs to TypeSafe, and a custom endpoint is some
-    // other host — often one whose address came from a colleague. Sending it
-    // there hands them the credential.
+  it("sends no Authorization header when this mode has no key variable", async () => {
+    // A custom endpoint is a host that never asked for a credential — and a
+    // key stored for the OTHER mode must not follow the user across.
     const { fn, calls } = stubFetch({ tier: "swift", confidence: 0.9 })
-    await classifyTier("x", config({ mode: { kind: "url", url: "https://t.internal/p" } }), {
+    await classifyTier("x", config({ mode: { kind: "url", url: "https://t.internal/p" }, keyEnv: undefined }), {
       fetch: fn,
       env,
-      readSecret: secrets(),
+      readSecret: secrets("stored"),
     })
     expect(calls[0]?.init.headers as Record<string, string>).not.toHaveProperty("authorization")
   })
 
-  it("does hand it one when the user NAMED the variable deliberately", async () => {
+  it("sends the header once this mode names its own variable", async () => {
     const { fn, calls } = stubFetch({ tier: "swift", confidence: 0.9 })
-    await classifyTier(
-      "x",
-      config({ mode: { kind: "url", url: "https://t.internal/p" }, keyEnv: "MY_TIER_KEY", keyEnvNamed: true }),
-      { fetch: fn, env: { MY_TIER_KEY: "mine" }, readSecret: secrets() },
-    )
+    await classifyTier("x", config({ mode: { kind: "url", url: "https://t.internal/p" }, keyEnv: "MY_TIER_KEY" }), {
+      fetch: fn,
+      env: { MY_TIER_KEY: "mine" },
+      readSecret: secrets(),
+    })
     expect((calls[0]?.init.headers as Record<string, string>).authorization).toBe("Bearer mine")
   })
 
