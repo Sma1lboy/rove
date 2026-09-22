@@ -1,18 +1,11 @@
 /**
  * `context` — the ONE read a coordinating agent runs at the start of every
- * turn, so it works from what the command printed rather than from what it
- * remembers.
+ * turn. Composition only: five existing daemon reads folded into one payload;
+ * no new state or writer.
  *
- * Composition only: five reads the daemon already answers, folded into one
- * payload. No new state, no new writer, nothing polled that wasn't already
- * being polled. The composition matters because the alternative — `list`,
- * then `get-task` per task, then `inspect`, then `note-list` — is a dozen
- * round trips and a dozen results an agent has to join by hand, every turn.
- *
- * Cost discipline: this is paid for on EVERY coordinator turn, in tokens, so
- * the per-task row carries five facts and a group (see `context-view.ts`) and
- * liveness comes from ONE `pty.list` for the whole fleet instead of
- * `collect`'s per-task `taskTabs` hop.
+ * Paid in tokens on EVERY coordinator turn, so a task row carries five facts
+ * and a group (`context-view.ts`), and liveness is ONE fleet-wide `pty.list`
+ * rather than `collect`'s per-task `taskTabs` hop.
  */
 
 import type { AttentionInboxItem } from "@sma1lboy/kobe-daemon/daemon/contracts"
@@ -44,28 +37,22 @@ async function context(ctx: VerbContext): Promise<unknown> {
   const limit = args.int("limit") ?? CONTEXT_TASK_LIMIT
 
   const { tasks: allTasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
-  // Throws when `--repo` itself does not resolve, and names the task repos it
-  // could not: an empty task list beside a non-empty `unresolvableRepos` is a
-  // failed lookup, not a quiet project.
+  // Throws on an unresolvable `--repo`; unresolvable task repos are named.
   const filter = await repoFilter(
     runtime,
     repoFlag,
     allTasks.map((t) => t.repo),
   )
 
-  // Every task of this repo, before the unit-of-work filter below: an inbox
-  // episode about the repo's `main` seat is still this repo's business.
+  // Before the unit-of-work filter: inbox items about `main` still count.
   const repoTaskIds = new Set(allTasks.filter((task) => filter.matches(task.repo)).map((task) => task.id))
 
   const tasks = allTasks.filter(
     (task) =>
-      // Only worktree tasks are units of work. The repo's `main` seat is
-      // where the coordinator itself usually sits, and a `dir` entry is a
-      // directory somebody opened — neither is anybody's turn.
+      // Only worktree tasks are units of work (not `main`, not `dir`).
       (task.kind ?? "task") === "task" &&
       filter.matches(task.repo) &&
-      // A worktree already being removed is spent. A deletion that FAILED
-      // is not — that one is waiting on a person, and the group says so.
+      // Being removed = spent; a FAILED deletion is waiting on a person.
       task.deletion?.phase !== "queued" &&
       task.deletion?.phase !== "running",
   )
@@ -81,13 +68,10 @@ async function context(ctx: VerbContext): Promise<unknown> {
     repo: filter.target,
     tasks,
     activity: inspect?.activity?.tasks ?? null,
-    // `null` = the pty host could not be asked. It must stay distinct from
-    // an empty set (a live host owning nothing), which DOES refute a stale
-    // `running` claim.
+    // `null` = host unreachable; an empty set DOES refute a stale `running`.
     liveTaskIds: liveTaskIds ?? null,
-    // A routine episode (`taskId: null`) has no repo to scope it by — its
-    // subject is a schedule, and one firing every minute forever is exactly
-    // the failure a repo filter must not hide. Everything else is scoped.
+    // Routine episodes (`taskId: null`) have no repo and are never filtered
+    // out — a routine misfiring forever must not hide.
     attention: (inbox?.items ?? []).filter((item) => item.taskId === null || repoTaskIds.has(item.taskId)),
     notes: notes?.notes ?? [],
     now: Date.now(),

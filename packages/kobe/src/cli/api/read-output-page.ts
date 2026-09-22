@@ -1,13 +1,8 @@
 /**
  * Pure paging/shaping half of `kobe api read-output`: the envelope + cursor
  * types, the deterministic page builders, and the terminal-text shaping.
- *
- * The seam is I/O. Nothing here talks to a daemon, a PTY host, or a vendor —
- * it is messages in, page out — which is what makes the cursor round-trip and
- * every byte/line boundary checkable against plain arrays, with no live
- * session to stand up. Fetching those messages, and the verb itself, live in
- * `read-output.ts`, which re-exports this module so `@/cli/api/read-output`
- * stays the one import site.
+ * No I/O: messages in, page out. Fetching and the verb live in
+ * `read-output.ts`, which re-exports this module as the one import site.
  */
 
 import type { PtySessionExit } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -35,9 +30,8 @@ export type FallbackReason =
   | "engine_unsupported"
   | "history_missing"
   | "history_unreadable"
-  /** The pty host could not be asked — "couldn't look", not "no session".
-   *  Same distinction `pty-list`'s `sessions: null` publishes; without it an
-   *  unreachable host and a task that never started read identically. */
+  /** The pty host could not be asked — "couldn't look", not "no session"
+   *  (like `pty-list`'s `sessions: null`). */
   | "pty_host_unreachable"
 
 export interface ReadOutputEnvelope {
@@ -120,17 +114,11 @@ export function decodeCursor(raw: string, taskId: string): Cursor {
  *  when a single tool result is huge). Messages are plain parsed JSON. */
 export function clipStrings(value: unknown): unknown {
   if (typeof value === "string") {
-    // Fast path by UTF-16 length: a string within the cap in code UNITS is
-    // also within it in code POINTS (points ≤ units always), so nothing needs
-    // clipping and we skip the spread below.
+    // Fast path: code points ≤ UTF-16 units, so within the cap in units is
+    // within it in points.
     if (value.length <= STRING_CLIP_CHARS) return value
-    // Clip on a code-POINT boundary, not a UTF-16 code unit: a bare
-    // `value.slice(0, N)` can bisect a surrogate pair (emoji / astral char)
-    // straddling the boundary and leave an orphaned half that renders as
-    // U+FFFD in the JSON an agent reads back. `orchestrator/title.ts` guards
-    // the identical hazard the same way. Counting points also makes the
-    // `[+N chars clipped]` tally honest — one astral char is one char, not
-    // the two UTF-16 units a `.length` subtraction would report.
+    // Clip on a code-POINT boundary: slicing units can bisect a surrogate pair
+    // into U+FFFD, and the clipped tally counts one astral char as one.
     const points = [...value]
     if (points.length <= STRING_CLIP_CHARS) return value
     const kept = points.slice(0, STRING_CLIP_CHARS).join("")
@@ -173,10 +161,8 @@ export function buildHistoryPage(messages: readonly Message[], startIdx: number,
 
 // ── Terminal text shaping (pure) ─────────────────────────────────────────────
 
-/** Raw PTY bytes → readable lines. Thin alias over the shared row recovery
- *  (`kobe-daemon/daemon/terminal-rows`), which the death record's tail uses
- *  too — an engine's alt-screen paint writes no newlines, so the escapes have
- *  to become rows before anything counts lines. */
+/** Raw PTY bytes → readable lines. An alt-screen paint writes no newlines, so
+ *  escapes must become rows before anything counts lines. */
 function terminalLines(text: string): string[] {
   return terminalRows(text)
 }
@@ -193,11 +179,8 @@ export function boundedTail(text: string): TerminalTail {
   let bytes = 0
   for (let i = lines.length - 1; i >= start; i--) {
     bytes += (lines[i]?.length ?? 0) + 1
-    // Always keep the last line, even when it alone busts the byte budget —
-    // otherwise a single over-budget final line (a minified dump, a long
-    // base64 blob) sets `start` past the end and blanks the whole tail, so
-    // the read returns nothing at all. Mirrors buildHistoryPage's
-    // "never fewer than one" floor.
+    // Always keep the last line even if it alone busts the budget, else the
+    // tail comes back empty (same floor as buildHistoryPage).
     if (bytes > TERMINAL_TAIL_BYTES && i < lines.length - 1) {
       start = i + 1
       break

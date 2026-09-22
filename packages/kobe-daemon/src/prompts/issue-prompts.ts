@@ -1,17 +1,7 @@
 /**
  * First/follow-up prompts for a session started from a story in the
- * daemon-owned issue store.
- *
- * ONE implementation, in the package every caller can reach. The TUI
- * (`kobe/src/state/issue-chat.ts`) is the only caller left; it and the
- * since-removed web board each carried a hand-kept copy of this wording and
- * had already drifted — the web copy interpolated the product name while the
- * TUI copy hard-coded "Rove", so the same action sent different text
- * depending on which surface you started it from.
- *
- * `product` stays a parameter because that drift is what collapsing the two
- * copies had to fix: the callers derived the display name differently, so the
- * name had to come in from outside rather than be baked in here.
+ * daemon-owned issue store. `product` is a parameter so the display name is
+ * never hard-coded here.
  */
 
 import type { Issue } from "../daemon/issues-store.ts"

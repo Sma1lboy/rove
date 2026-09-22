@@ -25,10 +25,10 @@ export interface RoveRunResult {
   readonly stderr: string
 }
 
-/** Run the Rove CLI with `<args…>`; resolves with the exit code (never rejects on non-zero). */
 /** @deprecated Use RoveRunResult. */
 export type KobeRunResult = RoveRunResult
 
+/** Run the Rove CLI with `<args…>`; resolves with the exit code (never rejects on non-zero). */
 export function rove(args: readonly string[], opts: RoveRunOptions = {}): Promise<RoveRunResult> {
   const bin = opts.binPath ?? process.env.ROVE_BIN_PATH ?? process.env.KOBE_BIN_PATH
   if (!bin) return Promise.reject(new Error("ROVE_BIN_PATH is not set and no binPath was given"))
@@ -43,8 +43,7 @@ export function rove(args: readonly string[], opts: RoveRunOptions = {}): Promis
         maxBuffer: 8 * 1024 * 1024,
       },
       (err, stdout, stderr) => {
-        // Missing binary is a caller bug → reject; a non-zero exit is a
-        // result → resolve with the code so callers can branch on it.
+        // Missing binary is a caller bug → reject; non-zero exit is a result → resolve.
         if (err && (err as NodeJS.ErrnoException).code === "ENOENT") return reject(err)
         const rawCode = err ? (err as { code?: unknown }).code : 0
         const code = typeof rawCode === "number" ? rawCode : err ? 1 : 0
@@ -84,12 +83,8 @@ export function listTasks<T = unknown>(opts?: RoveRunOptions): Promise<T> {
 
 /**
  * Open one of this plugin's own `[[panes]]` (qualified id: `you.plugin.pane`).
- * Pass `taskId` from an event hook's `ctx.taskId`; without it the host falls
- * back to the active task and fails when there is none.
- *
- * Resolves the `{ ok, clients, title, taskId }` JSON the verb prints — check
- * `clients`, not the exit code: 0 means the open was broadcast but no
- * attached UI performed the split.
+ * Without `taskId` the host uses the active task and fails when there is none.
+ * Check `clients`, not the exit code: 0 means no attached UI did the split.
  */
 export async function openPane(
   qualifiedPaneId: string,
@@ -107,10 +102,8 @@ export async function openPane(
 }
 
 /**
- * Ask the human for a line of text via the host's input dialog
- * (`rove api prompt`). Resolves the entered string, or null when the user
- * cancelled / the prompt timed out / no TUI is attached. Blocks up to
- * `timeoutMs` (host default 120s), so pass a run timeout to match.
+ * Ask the human for a line of text (`rove api prompt`). Null when cancelled,
+ * timed out, or no TUI is attached. Blocks up to `timeoutMs` (host default 120s).
  */
 export async function promptUser(
   title: string,
@@ -141,8 +134,7 @@ export async function promptUser(
 export type RowTokenTone = "info" | "success" | "warning" | "error" | "muted"
 
 export interface RowTokenOptions extends RoveRunOptions {
-  /** Which of your two slots on this row. Writing the same key replaces the
-   *  token, which is how you refresh a label's TTL. Default `"default"`. */
+  /** Which of your two slots on this row; rewriting a key refreshes its TTL. Default `"default"`. */
   readonly key?: string
   /** Seconds the label survives without a refresh (1…3600). Default 60. */
   readonly ttlSeconds?: number
@@ -151,16 +143,9 @@ export interface RowTokenOptions extends RoveRunOptions {
 
 /**
  * Put one short label on a task's sidebar/board row (`rove api row-token`).
- *
- * **Every token expires.** Refresh it to keep it; stop, and it fades — which
- * is what stops a plugin that died from leaving stale state on the user's
- * screen. You write into your own slot and can say nothing else: the derived
- * group, the activity badge, the PR chip, the title and the branch are
- * host-owned.
- *
- * Resolves `true` when the host accepted the write, `false` on an older host
- * that has no row-token surface (the label is simply not shown — never an
- * exception, so a plugin does not have to version-gate this call).
+ * **Every token expires** unless refreshed, so a dead plugin leaves no stale
+ * state. Everything else on the row is host-owned. Resolves `false` (never
+ * throws) on an older host without row tokens — no version gate needed.
  */
 export async function setRowToken(taskId: string, text: string, opts: RowTokenOptions = {}): Promise<boolean> {
   const { key, ttlSeconds, tone, ...run } = opts
@@ -183,9 +168,7 @@ export async function setRowToken(taskId: string, text: string, opts: RowTokenOp
   }
 }
 
-/** Remove a row token now. `key` omitted clears every token you own on that
- *  row. Waiting for the TTL is usually enough; this is for the moment you
- *  KNOW the label is wrong. */
+/** Remove a row token now; `key` omitted clears every token you own on that row. */
 export async function clearRowToken(taskId: string, key?: string, opts: RoveRunOptions = {}): Promise<boolean> {
   const args = ["api", "row-token", "--task-id", taskId, "--clear", ...(key ? ["--key", key] : [])]
   try {

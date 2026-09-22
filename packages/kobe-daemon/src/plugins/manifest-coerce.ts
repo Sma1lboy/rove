@@ -1,11 +1,7 @@
 /**
- * TOML value coercion for the plugin manifest — the primitives, not the shape.
- *
- * The split from `manifest.ts`: THIS half turns an `unknown` parsed out of TOML
- * into a typed value or throws a `rove-plugin.toml:`-prefixed diagnostic naming
- * the offending field; `manifest.ts` owns what the manifest's fields ARE and in
- * what combinations. Nothing here knows a single manifest key, which is what
- * lets both halves grow without dragging the other along.
+ * TOML value coercion primitives for the plugin manifest: `unknown` → typed
+ * value, or a `rove-plugin.toml:`-prefixed error naming the field. Knows no
+ * manifest keys; `manifest.ts` owns the shape.
  */
 
 export const PLUGIN_PLATFORMS = ["macos", "linux", "windows"] as const
@@ -23,11 +19,8 @@ export function asString(value: unknown, field: string): string {
 }
 
 /**
- * A setting's `default`, coerced to the string every value is stored as.
- * TOML has real booleans and numbers and `type = "boolean"` invites writing
- * `default = true`, which used to fail the whole manifest with "must be a
- * non-empty string". `false` means "no default", matching the storage
- * convention where a boolean is on iff its .env value is `"1"`.
+ * A setting's `default` as the stored string; accepts TOML booleans/numbers.
+ * `true` → `"1"`, `false` → no default (a boolean is on iff its .env value is `"1"`).
  */
 export function asSettingDefault(value: unknown, field: string): string | undefined {
   if (value === undefined || value === false) return undefined
@@ -36,9 +29,7 @@ export function asSettingDefault(value: unknown, field: string): string | undefi
   return asString(value, field)
 }
 
-/** Bounds for a hook's `timeout_ms`. The floor keeps a typo like `timeout_ms
- *  = 5` from killing every run before it can exec; the ceiling keeps a hook
- *  from pinning a process for an hour. */
+/** `timeout_ms` bounds: the floor stops `= 5` killing every run pre-exec; the ceiling stops hour-long pins. */
 export const TIMEOUT_MIN_MS = 100
 export const TIMEOUT_MAX_MS = 600_000
 

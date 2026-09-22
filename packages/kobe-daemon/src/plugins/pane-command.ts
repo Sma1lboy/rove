@@ -2,8 +2,8 @@
  * Pane launch composition — shared by `kobe plugin pane open` (CLI) and the
  * TUI's ctrl+e picker, so both build the IDENTICAL argv: one login-shell
  * `-ilc` script carrying the plugin env contract, with `$ROVE_PLUGIN_ROOT`
- * (or its legacy Kobe alias) expanded in the
- * manifest command. The pane's PTY runs in the task worktree; no tab/PTY
+ * (or `$KOBE_PLUGIN_ROOT`) expanded in the manifest command. The PTY runs in
+ * the task worktree; no tab/PTY
  * schema knows about plugins (docs/design/plugins.md §Panes).
  */
 
@@ -24,10 +24,8 @@ export interface PaneLaunchOpts {
   readonly homeDir?: string
   readonly socketPath: string
   readonly binPath: string
-  /** The task the pane opens in, injected as `ROVE_PLUGIN_TASK_ID`. Without
-   *  it a pane can only guess its task by matching its cwd against
-   *  `worktreePath`, which is ambiguous for the two task kinds that reuse an
-   *  existing checkout (project-main, directory) and share one cwd. */
+  /** Injected as `ROVE_PLUGIN_TASK_ID`: matching cwd against `worktreePath`
+   *  is ambiguous for project-main and directory tasks, which share a cwd. */
   readonly taskId?: string
 }
 
@@ -60,9 +58,7 @@ export function buildPaneArgv(
   ][]
   const command = pane.command.map((a) => a.replace(/\$\{?(?:ROVE|KOBE)_PLUGIN_ROOT\}?/g, pluginRoot))
   const script = `exec env ${pairs.map(([k, v]) => shq(`${k}=${v}`)).join(" ")} ${command.map(shq).join(" ")}`
-  // Same integration path as the engine tab (session-launch.ts): the user's
-  // login shell with the interactive bit, so a plugin pane reads the same
-  // PATH/exports as the engine tab does.
+  // Interactive login shell, as the engine tab (session-launch.ts), for the same PATH/exports.
   return [resolveLoginShell(), "-ilc", script]
 }
 

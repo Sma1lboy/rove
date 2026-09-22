@@ -32,9 +32,8 @@ export interface DaemonInfo {
    *  wire field is `kobeVersion`. */
   readonly roveVersion: string
   readonly kobeVersion: string
-  /** The channel names THIS daemon broadcasts — the answer to "does the host
-   *  I'm talking to know this channel", which `DAEMON_CHANNELS` (what YOUR
-   *  SDK was built against) cannot give. */
+  /** Channels THIS daemon broadcasts; `DAEMON_CHANNELS` is only what your SDK
+   *  was built against. */
   readonly capabilities: readonly string[]
   readonly daemonPid?: number
   /** The daemon's state root; a plugin whose own home differs is talking to a
@@ -88,10 +87,9 @@ export class RoveSocket {
   }
 
   /**
-   * Ask the running daemon what it is: build version and the channel list it
-   * actually broadcasts. This is the only runtime compatibility check —
-   * your own SDK version cannot tell you what the HOST knows, and an
-   * unknown channel name is dropped from a `subscribe` filter silently.
+   * Build version and broadcast channel list of the running daemon — the only
+   * runtime compatibility check. An unknown channel name is silently dropped
+   * from a `subscribe` filter.
    */
   async hello(): Promise<DaemonInfo> {
     const raw = await this.request<Record<string, unknown>>("hello", {})
@@ -108,12 +106,11 @@ export class RoveSocket {
   }
 
   /**
-   * Called once when the connection dies — a daemon restart, a crash, a
-   * socket error. Without it a subscriber goes silently blind: the daemon's
-   * `daemon.stopping` only covers a GRACEFUL stop, and a hosted pane's PTY
-   * outlives the daemon, so the pane keeps drawing its last frame and looks
-   * live. Reconnect from here (`new RoveSocket()` + connect + subscribe) or
-   * tell the user the host is gone. Not called for your own `close()`.
+   * Called once when the connection dies (restart, crash, socket error).
+   * `daemon.stopping` covers only a graceful stop, and a hosted pane's PTY
+   * outlives the daemon, so without this a pane looks live while blind.
+   * Reconnect here (`new RoveSocket()` + connect + subscribe) or tell the
+   * user. Not called for your own `close()`.
    */
   onClose(handler: (err: Error) => void): void {
     this.closeHandler = handler

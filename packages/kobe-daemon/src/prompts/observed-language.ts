@@ -1,23 +1,16 @@
 /**
  * What language the user of a task writes in, observed from their own text.
  *
- * NOT a setting. Rove already handles every prompt it delivers, so it can
- * see which language the person is writing in and keep injecting text in
- * that language — instead of asking them to find a switch and flip it. A
- * task whose user writes Chinese gets Chinese back with nothing configured.
+ * NOT a setting: a task whose user writes Chinese gets Chinese injected text
+ * with nothing configured.
  *
- * The detection is deliberately coarse: CJK or not. That is the whole
- * question we have to answer, and a detection library would add a dependency
- * and a class of wrong answers (short strings, code, mixed text) to decide
- * something we do not ask. Distinguishing Chinese from Japanese is not
- * needed — we ship two locales.
+ * Deliberately coarse — CJK or not, since we ship two locales; a detection
+ * library would add wrong answers on short strings, code and mixed text.
  *
- * The signal is CJK share, not presence: an English prompt quoting one
- * Chinese identifier is still an English prompt, and a Chinese prompt full
- * of code, paths, and CLI flags is still a Chinese one. So we compare CJK
- * characters against the letters that compete with them, and ignore
- * everything neither (digits, punctuation, whitespace, emoji), which is
- * what makes a fenced code block in a Chinese prompt harmless.
+ * The signal is CJK share, not presence: CJK characters vs competing letters,
+ * ignoring digits, punctuation, whitespace and emoji, so one quoted Chinese
+ * identifier doesn't flip an English prompt and a code block doesn't flip a
+ * Chinese one.
  */
 
 /** Languages the injected-prompt text can be written in. */

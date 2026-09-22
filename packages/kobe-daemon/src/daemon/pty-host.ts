@@ -1,38 +1,29 @@
 /**
  * PtyHost — daemon-hosted PTY sessions (protocol v4).
  *
- * Persistent out-of-process terminals for embedded engine sessions: the
- * daemon owns the raw PTY child (spawned through a `PtyDriver`) plus a
- * capped byte ring buffer per session key, so an engine session keeps
- * running when the TUI exits and replays its screen when a TUI reattaches.
- * VT emulation stays in the TUI (xterm-headless). The host recognizes only
- * the narrow OSC 10/11 capability query so detached/headless engines can
- * learn the same default colors; all output bytes still enter the ring and
- * cross the socket unchanged.
+ * Owns the raw PTY child (via a `PtyDriver`) plus a capped byte ring per
+ * session key, so an engine session outlives the TUI and replays on
+ * reattach. VT emulation stays in the TUI; the host only answers the OSC
+ * 10/11 color query so headless engines learn default colors. All output
+ * bytes enter the ring and cross the socket unchanged.
  *
- * Delivery model: TARGETED, not pub/sub. Each session tracks the
- * connections attached to it; output goes only to those sinks as
- * `pty.data` event frames. PTY frames must never be dropped or reordered
- * (a lost chunk corrupts the client's VT state) — server.ts marks them
+ * Delivery is TARGETED, not pub/sub: output goes only to a session's
+ * attached sinks as `pty.data` frames, which must never be dropped or
+ * reordered (a lost chunk corrupts client VT state) — server.ts marks them
  * critical for the ClientWriter.
  *
- * Lifecycle: hosted by the standalone `kobe pty-host` process
- * (`pty-server.ts`), NOT the daemon — so `kobe daemon restart` (routine
- * after code changes) never touches running sessions, exactly like a
- * persistent terminal server outliving the TUI. An exited session is kept,
- * scrollback intact, so a reattach can still show how the child died; it is
- * removed by an explicit `kill` or the daemon's task-deletion sweep
- * (`sweepPtyHostSessions` in `client/pty-process.ts`).
+ * Runs in the standalone `kobe pty-host` process (`pty-server.ts`), not the
+ * daemon, so `kobe daemon restart` never touches running sessions. An
+ * exited session keeps its scrollback until an explicit `kill` or the
+ * task-deletion sweep (`sweepPtyHostSessions` in `client/pty-process.ts`).
  *
- * Freeze/restore (`pty-freeze-store.ts`): every session's metadata and
- * ring persist to disk (throttled while streaming, immediately on exit,
- * fully at shutdown), so the host PROCESS ending — idle-exit, crash, a
- * machine reboot — does not take the work scene with it. The next host
- * thaws each session as a dead "restored" corpse with its scrollback, and
- * the first `open` respawns the child in place using the caller's launch
- * spec (the TUI's dead-reattach passes its engine `--resume` argv). Only
- * an explicit `kill`, task deletion, or `rove reset` (which wipes the
- * store) forgets a session for good.
+ * Freeze/restore (`pty-freeze-store.ts`): metadata and ring persist to disk
+ * (throttled while streaming, immediately on exit, fully at shutdown), so
+ * host idle-exit, crash, or reboot loses nothing. The next host thaws each
+ * session as a dead "restored" corpse; the first `open` respawns it in
+ * place from the caller's spec (the TUI passes its engine `--resume` argv).
+ * Only `kill`, task deletion, or `rove reset` (wipes the store) forget a
+ * session for good.
  */
 
 import { logDaemonError } from "./crash-log.ts"
@@ -58,17 +49,15 @@ export type { PtyHostStats, PtySessionInfo } from "./pty-observability.ts"
 export { foldOscTitle } from "./pty-observability.ts"
 export type { PtyAttachResult, PtyHostOptions, PtySessionState, PtySink, PtySpawnSpec } from "./pty-host-types.ts"
 
-/** Writes at or above this size get a `daemon.log` line. Above the tty's
- *  1024-byte canonical buffer, so anything big enough to be silently
- *  truncated by a delivery path is recorded. */
+/** Writes at or above the tty's 1024-byte canonical buffer (the size a
+ *  delivery path can silently truncate) get a `daemon.log` line. */
 const LOGGED_WRITE_BYTES = 1024
 
 /** Per-session scrollback cap — same order as the web PTY sidecar's 256KB. */
 export const DEFAULT_SCROLLBACK_CAP = 512 * 1024
 /** Raw ring tail captured into a session's death record. */
 const EXIT_TAIL_BYTES = 16 * 1024
-/** Freeze cadence policy (`pty-freeze-policy.ts`) — re-exported because the
- *  host is where callers look for it. */
+/** Freeze cadence policy, re-exported from `pty-freeze-policy.ts`. */
 export { FREEZE_INTERVAL_MS, FREEZE_MIN_APPENDED_BYTES, FREEZE_STALE_MS } from "./pty-freeze-policy.ts"
 
 export class PtyHost {
@@ -77,8 +66,7 @@ export class PtyHost {
   private readonly scrollbackCap: number
   private parkRestoreDeltas = 0
   private parkRestoreFallbacks = 0
-  /** One session's child-process lifecycle — `pty-child-controller.ts` owns a
-   *  SINGLE child; this class owns the set of them. */
+  /** Per-child lifecycle; this class owns the set of sessions. */
   private readonly childController: PtyChildController
   /** The one warm-spare shell slot (see `pty-warm.ts`). */
   private readonly warmSpare: WarmSpare
@@ -116,12 +104,9 @@ export class PtyHost {
         // Final freeze: the exit record AND the scrollback as it stood at death
         // must both survive this host's own end (idle-exit, crash).
         this.maybeFreeze(session, true)
-        // A session someone CLOSED did not die. The child still exits under a
-        // signal, so the death record's clean-exit noise rule cannot tell the
-        // two apart, and a requested close was reaching the UI as an engine
-        // death: deleting a task killed its engine, `pty-exit-watch` replayed
-        // that as `dead`, and `attentionKindFor` turned it into a red toast on
-        // every single successful delete.
+        // A CLOSED session did not die. Its child still exits under a signal,
+        // which the death record's clean-exit rule can't tell apart, so without
+        // this every task delete surfaced as a red engine-death toast.
         if (!session.closedByRequest) {
           try {
             this.opts.onSessionExit?.({
@@ -150,10 +135,8 @@ export class PtyHost {
   /**
    * Attach `token`'s connection to the session for `key`, spawning the
    * child on first open (adopting the warm spare when it matches). On
-   * reattach the spawn spec is IGNORED (the session already runs); the
-   * caller gets the ring-buffer replay either way. A fresh TUI can
-   * therefore always pass its would-be spawn command — an existing
-   * background session simply wins.
+   * reattach the spec is IGNORED — an existing session wins — and the
+   * caller gets the ring replay either way.
    */
   open(
     key: string,
@@ -172,9 +155,7 @@ export class PtyHost {
       this.sessions.set(key, session)
     } else if (!session.alive && session.restored) {
       // A freeze-restored corpse is a host-death casualty, not a death the
-      // user saw: respawn it in place (scrollback kept) instead of handing
-      // back a post-mortem. The caller's spec wins when it carries a
-      // command — the TUI's dead-reattach passes its engine-resume launch.
+      // user saw: respawn in place, scrollback kept.
       this.respawn(session, spec)
       respawned = session.alive
     } else if (
@@ -183,11 +164,9 @@ export class PtyHost {
       spec.rows !== undefined &&
       (session.cols !== spec.cols || session.rows !== spec.rows)
     ) {
-      // Reattach from a differently-sized client: last-attach-wins — the
-      // SIGWINCH makes a full-screen app repaint at the new size, fixing
-      // what the stale-size replay painted. Size-less opens
-      // (headless delivery/ensure clients) never resize: shrinking a live
-      // session out from under its attached TUI garbles the pane.
+      // Last-attach-wins: the SIGWINCH repaints over the stale-size replay.
+      // Size-less (headless) opens never resize — shrinking a live session
+      // under its attached TUI garbles the pane.
       this.resize(key, spec.cols, spec.rows)
     }
     const defaultColors = parseTerminalDefaultColors(spec.defaultColors)
@@ -195,14 +174,11 @@ export class PtyHost {
     session.sinks.set(token, sink)
     session.parked = false
     session.parkedScreenBytes = 0
-    // Delta replay: a parking client recorded the monotonic offset it had
-    // consumed; when that offset is still inside the ring window AND the
-    // child is the same incarnation it parked against (`sincePid`), replay
-    // ONLY the bytes written since — its serialized screen + this delta is
-    // bit-identical to never detaching. The pid check lives HERE because
-    // the client can't validate before the slice: a stale restore must get
-    // the full ring, not a delta it will discard. Trimmed-away offsets and
-    // respawned keys fall back the same way.
+    // Delta replay: when the parked client's offset is still in the ring
+    // window AND the child is the incarnation it parked against (`sincePid`),
+    // replay only bytes since — serialized screen + delta is bit-identical to
+    // never detaching. The pid check lives here because a stale restore must
+    // get the full ring, not a delta the client would discard.
     const windowStart = session.totalBytes - session.bytes
     let replay = Buffer.concat(session.chunks)
     let sinceValid = false
@@ -241,23 +217,16 @@ export class PtyHost {
   write(key: string, data: string): void {
     const session = this.sessions.get(key)
     if (!session?.alive || data.length === 0) return
-    // Audit trail for prompt delivery. `daemon.log` recorded activity only
-    // once the daemon OBSERVED engine output, so there was no record of a
-    // prompt having been written at all — which made a delivered prompt and
-    // a lost one indistinguishable after the fact. Only large writes are
-    // logged: keystrokes would drown the log, and size is what the
-    // truncation bug turned on.
+    // Audit trail so a delivered prompt and a lost one are distinguishable
+    // after the fact. Large writes only: keystrokes would drown the log.
     if (data.length >= LOGGED_WRITE_BYTES) {
       this.opts.log?.("pty", `wrote ${data.length} bytes to ${key}`)
     }
     try {
       session.proc?.write(data)
     } catch (error) {
-      // Still not fatal — a terminal stream error is not proof the subprocess
-      // exited, and `proc.exited` remains the single source of truth for that.
-      // But swallowing it SILENTLY made a failed write indistinguishable from
-      // a successful one all the way up to the API's `delivered: true`, so it
-      // gets a log line even though it does not change control flow.
+      // Not fatal: `proc.exited` is the single source of truth for exit. Logged
+      // because the API still reports `delivered: true` for a failed write.
       this.opts.log?.("pty", `write failed on ${key} (${data.length} bytes): ${String(error)}`)
     }
   }
@@ -276,11 +245,9 @@ export class PtyHost {
 
   /**
    * Compare and remove synchronously, so a reopened key cannot inherit an old
-   * kill. The CHILD's teardown is asynchronous (SIGTERM, up to 500ms grace,
-   * then SIGKILL), so the answer is `accepted`, not `killed`: the compare-and-
-   * remove is what this call actually completed. It said `killed: true` before
-   * the signal had been sent, which is how `rove api tab-close` reported a
-   * successful close over a PTY that was still running.
+   * kill. The child's teardown is async (SIGTERM, up to 500ms grace, then
+   * SIGKILL), so the answer is `accepted`, not `killed` — the PTY may still
+   * be running when this returns.
    */
   killIfGeneration(
     key: string,
@@ -298,22 +265,18 @@ export class PtyHost {
     const session = this.sessions.get(key)
     if (!session) return Promise.resolve()
     this.sessions.delete(key)
-    // An explicit close is not a restart casualty — drop the freeze record
-    // so the next host incarnation does not resurrect what was closed. Nor is
-    // it a death: `onExit` reads this flag to skip the death record.
+    // Drop the freeze record so the next host doesn't resurrect a closed tab;
+    // `onExit` reads the flag to skip the death record.
     session.closedByRequest = true
     this.opts.freeze?.drop(key)
     return this.childController.endChild(session)
   }
 
   /**
-   * Re-key a running session (`pty.rename`) — the scratch-fold move: the
-   * shell keeps running untouched, only its ownership label changes, so
-   * task-deletion sweeps and every future attach see it under the adopting
-   * task. No-ops (false) when the source is missing or the target key is
-   * taken — the caller must pick a free tab id first. The source key's
-   * freeze record moves with it; attached sinks keep streaming (frames
-   * carry `session.key`, which is the new one from here on).
+   * Re-key a running session (`pty.rename`, the scratch-fold move); the
+   * child is untouched. False when the source is missing or the target is
+   * taken. The freeze record moves with it; attached sinks keep streaming
+   * under the new `session.key`.
    */
   rename(from: string, to: string): boolean {
     const session = this.sessions.get(from)
@@ -340,14 +303,11 @@ export class PtyHost {
   /** Detach one connection from EVERY session (socket closed). */
   detachClient(token: object): void {
     for (const session of this.sessions.values()) {
-      // Only sessions this token actually held. `applyParkedOnDetach` passes
-      // its `sinks.size !== 0` guard for any ALREADY-parked session (a parked
-      // TUI is no longer a sink), so running it unconditionally let one
-      // unrelated socket close — `ptyHostHasLiveSessions` polls every 15s —
-      // wipe the parked bookkeeping of every tab in the host.
+      // Only sessions this token held: an already-parked session has no sinks,
+      // so an unrelated socket close (`ptyHostHasLiveSessions` polls every
+      // 15s) would otherwise wipe every tab's parked bookkeeping.
       if (!session.sinks.delete(token)) continue
-      // A socket vanished without an explicit park detach, so no local
-      // registry is guaranteed to retain a restorable screen.
+      // No explicit park detach, so no client is guaranteed a restorable screen.
       this.applyParkedOnDetach(session)
     }
   }
@@ -383,11 +343,8 @@ export class PtyHost {
   }
 
   /**
-   * Host-process teardown (the server's close()): freeze every session
-   * FIRST so the next host incarnation can restore it, then end the live
-   * children. Unlike killAll this never DROPS freeze records — a host
-   * restart is exactly what the freeze store exists for. Explicit kills
-   * (tab close, task-deletion sweep, `rove reset`'s store wipe) stay gone.
+   * Host-process teardown: freeze every session FIRST, then end the
+   * children. Unlike killAll this never drops freeze records.
    */
   async shutdown(): Promise<void> {
     this.flushFrozen()
@@ -402,11 +359,9 @@ export class PtyHost {
   }
 
   /**
-   * Rebuild sessions from freeze records at host boot — each comes back as
-   * a dead "restored" corpse with its ring intact; the first `open`
-   * respawns the child in place. Records for keys this host already has
-   * (never in practice — restore runs before listen) lose. Returns how
-   * many sessions thawed.
+   * Thaw freeze records at host boot as dead "restored" corpses. Records
+   * for keys already present lose (never in practice — restore runs before
+   * listen). Returns how many thawed.
    */
   restoreFrozen(records: readonly FrozenPtySession[]): number {
     let restoredCount = 0
@@ -422,12 +377,9 @@ export class PtyHost {
   }
 
   /**
-   * Bring a freeze-restored corpse back to life IN PLACE: the thawed ring
-   * stays (the reattaching client replays where the session left off and
-   * live output appends after it), the child restarts from the caller's
-   * spec when it carries a command, else the frozen one. `restored` clears
-   * either way — a failed respawn becomes an ordinary view-only corpse,
-   * not a restore candidate retried on every attach.
+   * Respawn a restored corpse in place, keeping the thawed ring. The
+   * caller's command wins, else the frozen one. `restored` clears either
+   * way so a failed respawn isn't retried on every attach.
    */
   private respawn(session: PtySessionState, spec: PtySpawnSpec): void {
     session.restored = false
@@ -443,22 +395,17 @@ export class PtyHost {
   }
 
   /**
-   * Throttled freeze writer. A periodic write happens only when
-   * `shouldFreeze` says the whole-ring rewrite has earned itself (see
-   * `pty-freeze-policy.ts` for the numbers). `force` (exit, rename,
-   * shutdown) writes regardless: an exit record is a change no byte counter
-   * can see. Internal keys (the warm spare) never freeze.
+   * Throttled freeze writer (thresholds in `pty-freeze-policy.ts`). `force`
+   * writes regardless: an exit record is a change no byte counter sees.
+   * Internal `::` keys (the warm spare) never freeze.
    */
   private maybeFreeze(session: PtySessionState, force = false): void {
     const freeze = this.opts.freeze
     if (!freeze || session.key.startsWith("::")) return
-    // A session someone CLOSED must not be written back. `kill()` drops the
-    // record synchronously and then awaits `endChild`, so the `onExit` freeze
-    // lands a tick LATER and recreates exactly the file the drop removed —
-    // with a fresh `updatedAt` that survives the TTL prune, so the next host
-    // incarnation resurrects a closed tab and replays its old scrollback. The
-    // guard belongs here rather than at the call site: every writer through
-    // this function owes the same promise.
+    // `kill()` drops the record then awaits `endChild`, so the `onExit` freeze
+    // lands a tick later and would recreate it with a fresh `updatedAt` that
+    // survives the TTL prune — resurrecting a closed tab. Guarded here so
+    // every writer honors it.
     if (session.closedByRequest) return
     const now = Date.now()
     if (!force && !shouldFreeze(session, now)) return
@@ -467,8 +414,7 @@ export class PtyHost {
     freeze.save(freezeSession(session))
   }
 
-  /** Sessions whose child is still running — the host process's reason
-   *  to stay alive (`pty-server.ts` idle-exits at zero sessions). */
+  /** Running children; `pty-server.ts` idle-exits at zero. */
   liveCount(): number {
     let n = 0
     for (const session of this.sessions.values()) if (session.alive) n++

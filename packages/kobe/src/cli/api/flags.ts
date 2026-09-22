@@ -1,10 +1,4 @@
-/**
- * Flag parsing, spec-driven validation, and the spec-typed accessor
- * (`VerbArgs`) handlers read flags through. Split out of `api-cmd.ts` (see
- * that file's header) — this module is the "how a verb reads its own
- * flags" half of the contract; `types.ts` owns the shapes, `verbs.ts` owns
- * the table of specs.
- */
+/** Flag parsing, spec-driven validation, and the spec-typed `VerbArgs` accessor. */
 
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
@@ -18,15 +12,9 @@ import { ApiError, type FlagSpec, type Flags, type ParsedArgs, type VerbSpec, he
 export const FANOUT_CAP = 10
 
 /**
- * Parse a strict positive-integer flag value; `undefined` when the whole
- * value isn't one.
- *
- * `Number.parseInt` alone stops at the first non-digit, so it silently
- * coerces a typo into a confident, wrong number: `--id 5abc` → 5 (flips a
- * real, wrong issue), `--count 1e3` → 1 (spawns one task without ever
- * tripping the fan-out cap). Requiring the entire (trimmed) value to be
- * digits — and a safe integer above zero — makes a malformed flag fail
- * loudly with BAD_FLAG, like every other validator in this module.
+ * Strict positive integer, else `undefined`. Bare `parseInt` would turn
+ * `--id 5abc` into 5 (a real, wrong issue) and `--count 1e3` into 1 (dodging
+ * the fan-out cap), so the whole trimmed value must be digits.
  */
 function parsePositiveInt(raw: string): number | undefined {
   if (!/^\d+$/.test(raw.trim())) return undefined
@@ -34,8 +22,7 @@ function parsePositiveInt(raw: string): number | undefined {
   return Number.isSafeInteger(n) && n > 0 ? n : undefined
 }
 
-/** Same shape as {@link parsePositiveInt}, admitting zero. The regex already
- *  excludes a leading `-`, so this rejects negatives the same way. */
+/** {@link parsePositiveInt} admitting zero; the regex already rejects `-`. */
 function parseNonNegativeInt(raw: string): number | undefined {
   if (!/^\d+$/.test(raw.trim())) return undefined
   const n = Number.parseInt(raw, 10)
@@ -43,10 +30,8 @@ function parseNonNegativeInt(raw: string): number | undefined {
 }
 
 /**
- * A boolean flag's value, or `undefined` when the string isn't one. Shared by
- * the parser (deciding whether `--pinned false` is a value or a presence flag)
- * and {@link VerbArgs.bool} (coercing it), so the two can never disagree about
- * what counts as a boolean.
+ * Shared by the parser (is `--pinned false` a value?) and {@link VerbArgs.bool}
+ * so the two can never disagree about what counts as a boolean.
  */
 function parseBoolLiteral(raw: string): boolean | undefined {
   if (["true", "1", "yes"].includes(raw)) return true
@@ -81,12 +66,9 @@ export const F = {
     description: "Engine vendor for the task.",
   }),
   /**
-   * The dispatch face's single engine flag: a RAW launch command. Either a
-   * registered engine id (`engine-list`, whose `engineCommand.<id>` override
-   * applies) or a full command line kobe runs verbatim. The protocol kobe
-   * speaks is derived from it, so there is nothing else to declare — and no
-   * validation layer: an unfamiliar engine's flags are the caller's job to
-   * probe (`<cmd> --help`) before dispatching.
+   * A registered engine id (its `engineCommand.<id>` override applies) or a
+   * full command line run verbatim. The protocol is derived from it; flags
+   * are deliberately unvalidated.
    */
   command: (): FlagSpec => ({
     name: "command",
@@ -103,12 +85,7 @@ export const F = {
     placeholder: "TEXT",
     description: required ? `${desc} Required unless --prompt-file is given.` : desc,
   }),
-  /**
-   * The escape hatch for a prompt the shell would mangle: backticks inside
-   * double quotes are command substitution, so a `--prompt "reply via
-   * `rove api send …`"` RUNS that command and ships its output instead.
-   * Read the text from a file (or stdin as `-`) and no quoting rule applies.
-   */
+  /** Backticks in a double-quoted `--prompt` RUN as command substitution; a file/stdin avoids shell quoting. */
   promptFile: (): FlagSpec => ({
     name: "prompt-file",
     type: "string",
@@ -155,12 +132,8 @@ export function parseFlags(argv: readonly string[], booleanFlags: ReadonlySet<st
       help = true
       continue
     }
-    // A boolean verb flag takes the space form (`--pinned false`) only when the
-    // next argv element IS a boolean literal. Anything else — another flag, a
-    // string flag's value, end of argv — leaves it a presence flag (`--force`),
-    // so both halves of the contract work: `bool()` has always accepted
-    // `false`/`0`/`no`, and before this the parser made that value unreachable
-    // except through `--pinned=false`.
+    // A boolean verb flag consumes the next arg only if it IS a boolean
+    // literal (`--pinned false`); otherwise it's a presence flag (`--force`).
     if (booleanFlags.has(key)) {
       const next = argv[i + 1]
       if (next !== undefined && parseBoolLiteral(next) !== undefined) {
@@ -197,12 +170,8 @@ export function validateAgainstSpec(verb: VerbSpec, flags: Flags): void {
     if (f.type === "enum" && f.values) {
       const raw = flags.get(f.name)
       if (raw !== undefined && !f.values.includes(raw)) {
-        // `--vendor` is the one OPEN enum: its `values` lists the built-ins
-        // for `--help`, but a registered engine id — a custom preset or one a
-        // plugin contributes — is equally valid (the daemon accepts any
-        // non-empty string — `optionalVendor`). Without this the spec gate
-        // rejected every registered engine before a handler could ever see it,
-        // while the TUI and `engine-list` happily offered them.
+        // `--vendor` is the one OPEN enum: `values` lists built-ins for `--help`,
+        // but any registered engine id (custom preset, plugin) is valid too.
         if (f.name === "vendor" && registeredEngineIds().includes(raw)) continue
         throw new ApiError(`--${f.name} must be one of ${f.values.join(", ")}`, "BAD_FLAG", helpStep(verb.name))
       }
@@ -221,11 +190,8 @@ export function validateAgainstSpec(verb: VerbSpec, flags: Flags): void {
 }
 
 /**
- * Spec-typed flag access, built ONCE per invocation after
- * {@link validateAgainstSpec}. Each accessor derives its coercion from the
- * verb's own {@link FlagSpec} (enum values, bool/int shapes), so handlers
- * never re-declare what the spec already knows — and a handler reading a
- * flag its spec never declared is a programming error, caught loudly.
+ * Built once per invocation after {@link validateAgainstSpec}; coercion comes
+ * from the verb's {@link FlagSpec}. Reading an undeclared flag throws.
  */
 export class VerbArgs {
   constructor(
@@ -247,11 +213,9 @@ export class VerbArgs {
   }
 
   /**
-   * Whether the flag was PRESENT on the command line at all — including as an
-   * empty string (`--flag ''` / `--flag=`). Unlike {@link str}, which folds
-   * `""` into "absent", this is how a flag whose empty value MEANS something
-   * — the clear-by-empty convention on `routine-update`'s `--precheck` /
-   * `--base-branch` — tells "clear it" apart from "leave it alone".
+   * Present at all, even as `--flag ''` (which {@link str} folds to absent).
+   * Lets clear-by-empty flags (`routine-update --precheck`) tell "clear" from
+   * "leave alone".
    */
   present(name: string): boolean {
     this.spec(name)
@@ -259,15 +223,8 @@ export class VerbArgs {
   }
 
   /**
-   * The prompt text from `--prompt` or `--prompt-file` (`-` = stdin), never
-   * both. `undefined` when neither was given — callers that need one wrap
-   * this in their own MISSING_FLAG.
-   *
-   * Memoized, because it is the one accessor with a SIDE EFFECT: `-` drains
-   * stdin. Every sibling here is pure, so callers naturally write
-   * `promptText() !== undefined ? { prompt: promptText() } : {}` — which used
-   * to consume stdin on the guard and then read EOF on the branch, failing
-   * "--prompt-file - is empty" for a pipe that was never empty.
+   * `--prompt` or `--prompt-file` (`-` = stdin), never both; `undefined` when
+   * neither. Memoized because `-` drains stdin: a second call would read EOF.
    */
   promptText(): string | undefined {
     if (this.promptMemo !== undefined) return this.promptMemo.value
@@ -315,15 +272,9 @@ export class VerbArgs {
   }
 
   /**
-   * The shared `--vendor` flag, typed.
-   *
-   * NOT `enumOf`: engines are an OPEN set. The spec's `values` lists the
-   * built-ins (that's what `--help` should show), but a user-registered
-   * custom engine — a slug in `customEngineIds`, its launch command in
-   * `engineCommand.<id>` — is equally valid, and the daemon already accepts
-   * any non-empty string for exactly this reason (`optionalVendor`). Reading
-   * the static list here made every custom engine unsettable through the
-   * CLI while the TUI selector offered it.
+   * NOT `enumOf`: engines are an OPEN set. `values` lists built-ins for
+   * `--help`; a registered custom engine id is equally valid, matching the
+   * daemon's `optionalVendor`.
    */
   vendor(): VendorId | undefined {
     const value = this.str("vendor")
@@ -359,11 +310,7 @@ export class VerbArgs {
     return n
   }
 
-  /** A `uint` flag: like {@link int}, but zero is a legal value rather than a
-   *  floor error. For a flag whose zero MEANS something — `--grace 0` is "no
-   *  slack beyond the tick that discovers the occurrence", not "unset".
-   *  Rejecting it would leave a setting the daemon honours but the CLI cannot
-   *  express. */
+  /** `uint`: {@link int} admitting zero, for flags where 0 means something (`--grace 0` = no slack). */
   nonNegativeInt(name: string): number | undefined {
     this.spec(name)
     const raw = this.str(name)
@@ -385,14 +332,8 @@ export class VerbArgs {
   }
 
   /**
-   * Required REPO flag: a local path, or a remote project's `ssh://…` key
-   * verbatim.
-   *
-   * Separate from {@link requirePath} because `resolve()` treats the key as a
-   * relative path and collapses it to `$PWD/ssh:/me@host` — a directory that
-   * does not exist, so `--repo ssh://…` failed with a path nobody typed.
-   * `savedRepos` stores that key as-is and `resolveRepoRoot` already passes it
-   * through, so the mangling was the only thing in the way.
+   * Local path, or a remote `ssh://…` key verbatim — {@link requirePath}'s
+   * `resolve()` would mangle the key into `$PWD/ssh:/me@host`.
    */
   requireRepo(name: string): string {
     const raw = this.require(name)
@@ -401,14 +342,9 @@ export class VerbArgs {
 }
 
 /**
- * Parse a multi-engine spec like `claude:2,codex:1` into a flat list with
- * one PRESET ID per task to spawn (`[claude, claude, codex]`).
- *
- * Preset ids, not raw commands: an id is a slug, so it survives the
- * `,`/`:` separators a full command line would collide with. Registered
- * custom presets count — a named preset IS an engine here, the same way it
- * is everywhere else. Mixing raw command lines in one call is not
- * expressible; issue N `add --command …` calls instead.
+ * `claude:2,codex:1` → one PRESET ID per task (`[claude, claude, codex]`).
+ * Preset ids (incl. registered custom ones), not raw commands: a command line
+ * would collide with the `,`/`:` separators.
  */
 export function parseAgentsSpec(spec: string): VendorId[] {
   const out: VendorId[] = []
@@ -429,9 +365,7 @@ export function parseAgentsSpec(spec: string): VendorId[] {
     if (count === undefined) {
       throw new ApiError(`--agents count for "${vendor}" must be a positive integer`, "BAD_FLAG", FANOUT_STEP)
     }
-    // Reject against the fanout cap BEFORE materializing the array — otherwise
-    // `--agents claude:1000000000` allocates a billion-element array (OOM) only
-    // to be rejected by the post-build `plan.length > FANOUT_CAP` check.
+    // Cap check BEFORE materializing: `claude:1000000000` would OOM first.
     if (out.length + count > FANOUT_CAP) {
       throw new ApiError(
         `--agents requests ${out.length + count} agents, exceeds the cap of ${FANOUT_CAP}`,
@@ -446,13 +380,7 @@ export function parseAgentsSpec(spec: string): VendorId[] {
   return out
 }
 
-/**
- * Build the parallel plan for the `--count` form (`--count N`, all one
- * engine): N copies of `vendor`. Rejects against the cap BEFORE allocating —
- * symmetric to {@link parseAgentsSpec}, so `--count 1000000000` fails fast
- * instead of materializing a billion-element array (OOM) only to be caught by
- * the post-build `plan.length > FANOUT_CAP` check.
- */
+/** N copies of `vendor`; cap checked BEFORE allocating so a huge `--count` can't OOM. */
 export function buildCountPlan(count: number, vendor: VendorId): VendorId[] {
   if (count > FANOUT_CAP) {
     throw new ApiError(

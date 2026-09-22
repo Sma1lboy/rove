@@ -1,15 +1,8 @@
 /**
  * The ENGINE half of an `add`: which engine a new task launches, at what
  * reasoning level, and on which model — typed out, or filled from an
- * auto-effort tier.
- *
- * Split from `handlers-add.ts`, which owns the create ORCHESTRATION — flag
- * conflicts, the single-vs-parallel split, per-sibling failure rows, prompt
- * delivery. This file owns one question instead: given the caller's
- * `--command` / `--effort` / `--model`, what engine fields does `task.create`
- * carry? Both
- * `addOne` and `addParallel` route through it, so the two paths cannot drift
- * on the engine contract the way they once did on `--status`/`--pin`.
+ * auto-effort tier. Both `addOne` and `addParallel` route through it so the
+ * two paths cannot drift on the engine contract.
  */
 
 import {
@@ -55,9 +48,8 @@ export function enginePayload(
   return {
     ...(choice.command ? { command: choice.command } : {}),
     ...(choice.vendor ? { vendor: choice.vendor } : {}),
-    // Wire key is `effort`; the daemon maps it to the record's `modelEffort`
-    // (`handlers-task.ts` task.create). Sending `modelEffort` here is silently
-    // dropped — the create succeeds and the level simply never lands.
+    // Wire key is `effort` (the daemon maps it to `modelEffort`); sending
+    // `modelEffort` is silently dropped.
     ...(effort ? { effort } : {}),
     // `model` / `tier` are the wire key AND the record field — no remap.
     ...(model ? { model } : {}),
@@ -146,15 +138,11 @@ export function modelFor(ctx: VerbContext, engines: readonly VendorId[]): string
  * `--effort`, validated against the engine(s) this create will actually
  * launch — before anything is created, so a bad level costs no orphan task.
  *
- * Deliberately not an `enum` flag: levels are per-engine and a plugin engine
- * may declare its own, so the closed list lives on the registry entry, not on
- * the flag spec (the same reason `set-effort` takes a free string). It shares
- * that verb's gate, so a level `add` accepts is one `set-effort` would accept
- * too.
+ * Not an `enum` flag: levels are per-engine (plugins may declare their own),
+ * so the list lives on the registry entry; shares `set-effort`'s gate.
  *
- * A fan-out validates EVERY engine in the plan: `--agents claude:1,codex:1
- * --effort xhigh` is rejected outright rather than applied to the codex
- * sibling and silently dropped on the claude one.
+ * A fan-out validates EVERY engine: `--agents claude:1,codex:1 --effort
+ * xhigh` is rejected rather than silently dropped on the claude sibling.
  */
 export function effortFor(ctx: VerbContext, engines: readonly VendorId[]): string | undefined {
   const level = ctx.args.str("effort")?.trim()

@@ -1,14 +1,10 @@
 /**
  * Start work on an external issue: one task, one engine session, one prompt
  * that already knows what the issue says.
+ * The ONLY action the read-only work-item surface offers.
  *
- * This is the ONLY action the read-only work-item surface offers, and it is
- * the reason the surface exists. Without it, acting on a tracker issue means
- * copy the title, invent a branch name, create a task, then paste the issue
- * body back in by hand — four steps that are pure transcription.
- *
- * Reuses the automation runner's launch path (`startTaskSessionWithPrompt`):
- * the prompt rides the engine's argv rather than being typed into a cold PTY.
+ * Reuses the automation runner's `startTaskSessionWithPrompt`: the prompt
+ * rides the engine's argv rather than being typed into a cold PTY.
  */
 
 import type { DaemonRpcClient } from "../client/rpc.ts"
@@ -24,9 +20,8 @@ const MAX_BODY_CHARS = 8000
 const MAX_TITLE_CHARS = 60
 
 /**
- * Seed a task title from an issue. `#123 short title` keeps the number (how
- * you refer to it out loud) at the front, where a truncated sidebar row still
- * shows it.
+ * Seed a task title from an issue: `#123 short title`, number first so a
+ * truncated sidebar row still shows it.
  */
 export function workItemTaskTitle(item: WorkItem): string {
   const title = item.title.trim()
@@ -45,9 +40,8 @@ function fenceFor(text: string): string {
 /**
  * The first message the engine session receives.
  *
- * The issue body is UNTRUSTED — anyone can file an issue, and its text lands
- * verbatim in an agent's context. The prompt says so explicitly, the same way
- * `agent-session-continuation` marks a prior transcript as reference data.
+ * The issue body is UNTRUSTED (anyone can file one) and the prompt says so,
+ * as `agent-session-continuation` marks a prior transcript as reference data.
  */
 export function buildWorkItemPrompt(item: WorkItem): string {
   const body = (item.body ?? "").trim()
@@ -91,9 +85,8 @@ export interface StartWorkItemResult {
 /**
  * Create a task for `item` and start its engine on it.
  *
- * `started: false` means the task exists but its engine did not come up — the
- * task id is still returned so the caller can open and retry it by hand rather
- * than being left with an orphan it cannot name.
+ * `started: false`: the task exists but its engine did not come up; the task
+ * is still returned so the caller can retry it rather than orphan it.
  */
 export async function startWorkItem(
   deps: StartWorkItemDeps,
@@ -113,8 +106,7 @@ export async function startWorkItem(
     title: args.item.title,
     url: args.item.url,
   }
-  // Best-effort: the link is display metadata, and losing it must not strand a
-  // task whose session is about to start.
+  // Best-effort: display metadata must not strand the task.
   await deps.orch.setLinkedWorkItem(task.id, linked).catch(() => {})
 
   const outcome = await deps.runtime.startTaskSessionWithPrompt(deps.link, task.id, buildWorkItemPrompt(args.item))

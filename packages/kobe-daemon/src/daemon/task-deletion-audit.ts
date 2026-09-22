@@ -1,17 +1,11 @@
 /**
- * Task-deletion audit trail.
+ * Task-deletion audit trail: every delete (the most destructive thing an
+ * `rove api` caller can do to someone else's session) is recorded with WHO
+ * asked, whether or not it succeeds.
  *
- * A task delete destroys a worktree and every tab under it. Without a record
- * of every delete and WHO asked for it, "a tab I was working in vanished and
- * it wasn't me" is only traceable when the removal happens to fail. Deletes
- * are the most destructive thing an `rove api` caller can do to somebody
- * else's session; they get a record whether or not they succeed.
- *
- * The record goes to `daemon.log` via {@link logDaemonInfo}/{@link
- * logDaemonError}, not a separate file: it is already the place a user is
- * told to look (docs/TROUBLESHOOTING.md), `rove doctor --report` already
- * bundles its tail, and it is already size-capped + rotated. A second audit
- * file would be one more thing to find, rotate, and forget.
+ * Goes to `daemon.log` via {@link logDaemonInfo}/{@link logDaemonError}, not
+ * a separate file: it's where TROUBLESHOOTING points users, `rove doctor
+ * --report` bundles its tail, and it's already size-capped + rotated.
  *
  * One line per phase so a partial deletion is legible as such:
  *   requested → the RPC was accepted (carries the origin)
@@ -26,20 +20,16 @@ import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 const SUBSYSTEM = "task-deletion-audit"
 
 /**
- * Who asked for the delete. `dispatcher` is the deleted task's own recorded
- * spawner (`{taskId, tabId}`), which is the closest thing to provenance the
- * daemon holds: the daemon process has no caller env, and the RPC frame
- * carries only a connection id. `clientId` distinguishes concurrent callers
- * on the socket; the web transport passes its own.
+ * Who asked for the delete. The daemon has no caller env and the RPC frame
+ * carries only a connection id; `clientId` distinguishes concurrent callers
+ * (the web transport passes its own).
  */
 export interface DeletionOrigin {
   readonly clientId: number
   /**
-   * The CLI caller's own VERIFIED Rove session (`rove api delete` from inside
-   * an engine tab). Verified the way `send` verifies it — the bare
-   * `$ROVE_TASK_ID` env inherits down the whole process tree and would name a
-   * stranger's tab — so an unverifiable caller is absent here
-   * rather than misattributed.
+   * The CLI caller's VERIFIED Rove session, verified like `send` does: bare
+   * `$ROVE_TASK_ID` inherits down the process tree and could name a
+   * stranger's tab, so an unverifiable caller is absent, not misattributed.
    */
   readonly requestedBy?: { readonly taskId: string; readonly tabId: string }
 }
@@ -50,10 +40,8 @@ function originText(origin: DeletionOrigin | undefined, task: DaemonTask | undef
   if (origin) parts.push(`client=${origin.clientId}`)
   if (origin?.requestedBy) parts.push(`by=${origin.requestedBy.taskId}::${origin.requestedBy.tabId}`)
   const dispatcher = task?.dispatcher
-  // The dispatcher is the task's SPAWNER, not necessarily the deleter — but
-  // when an agent deletes a task it created, it is the same session, and it is
-  // the only durable identity the daemon can attribute. Labelled so a reader
-  // never mistakes it for a verified deleter.
+  // The SPAWNER, not necessarily the deleter, but the only durable identity
+  // the daemon holds. Labelled so nobody reads it as a verified deleter.
   if (dispatcher) parts.push(`spawnedBy=${dispatcher.taskId}::${dispatcher.tabId}`)
   return parts.length > 0 ? ` (${parts.join(" ")})` : ""
 }
@@ -86,12 +74,9 @@ export function auditDeletionRemoved(taskId: string, task: DaemonTask | undefine
 }
 
 /**
- * `--delete-branch` was asked for and git refused. Logged BEFORE the `removed`
- * line, which names the branch and would otherwise be the only record — and
- * reads as confirmation that the branch went with the worktree.
- *
- * Not an error: the branch surviving is the recoverable half, and refusing to
- * delete an unmerged one is git protecting work. It just has to be SAID.
+ * `--delete-branch` was asked for and git refused. Logged BEFORE `removed`,
+ * which names the branch and would otherwise read as confirmation it went.
+ * Info, not error: git refusing an unmerged branch is protecting work.
  */
 export function auditDeletionBranchKept(taskId: string, branch: string, reason: string): void {
   logDaemonInfo(
@@ -101,16 +86,13 @@ export function auditDeletionBranchKept(taskId: string, branch: string, reason: 
 }
 
 /**
- * The worktree removal threw. The task stays in `deletion.phase === "error"`,
- * but its session was already torn down and its Inbox/activity state cleared —
- * so this line also names what has ALREADY been undone, which is the half a
- * bare stack trace never told anyone.
+ * The worktree removal threw. The task stays in `deletion.phase === "error"`;
+ * the line also names what was ALREADY undone (session, Inbox/activity).
  */
 export function auditDeletionFailed(taskId: string, task: DaemonTask | undefined, err: unknown): void {
-  // A real Error carrying the ORIGINAL error's stack. `logDaemonError` prints
-  // `err.stack` and JSON-stringifies anything that is not an Error, so neither
-  // a fresh `new Error(...)` (which stack-traces this helper and loses the
-  // failing git call) nor a plain object (an unreadable blob) works here.
+  // A real Error carrying the ORIGINAL stack: `logDaemonError` prints
+  // `err.stack` and JSON-stringifies non-Errors, so a fresh Error would trace
+  // this helper and a plain object would be an unreadable blob.
   const cause = err instanceof Error ? err : new Error(String(err))
   const context = `failed ${subjectText(task, taskId)} — session teardown and activity/inbox cleanup ALREADY ran; the worktree directory and task entry remain. Reason: `
   const line = new Error(`${context}${cause.message}`)
@@ -121,18 +103,13 @@ export function auditDeletionFailed(taskId: string, task: DaemonTask | undefined
 }
 
 /**
- * The recovery half of a salvage line: where the snapshot is and what to type.
- * A bare SHA leaves the last step as an exercise for somebody who has just
- * lost work, so the commands ship with it. `repo` scopes them with `-C` when
- * known (a task carries its repo; a bare worktree path does not).
+ * The recovery half of a salvage line: where the snapshot is and the commands
+ * to get it back. `repo` scopes them with `-C` when known.
  */
 function recoveryText(ref: string, commit: string, repo?: string, uncaptured: readonly string[] = []): string {
   const at = repo ? ` -C ${repo}` : ""
-  // A submodule or nested worktree is in the tree as a `160000` gitlink — a
-  // commit SHA, never the files — so `git restore --source` cannot produce
-  // anything under it. Naming those paths is the difference between advice
-  // that works and advice that fails silently on the one path the user cares
-  // about most.
+  // Submodules / nested worktrees are `160000` gitlinks (a SHA, not files), so
+  // `git restore --source` silently produces nothing there — name them.
   const gap =
     uncaptured.length > 0
       ? ` NOT captured (submodule / nested worktree — the snapshot holds only a commit pointer): ${uncaptured.join(", ")}.`
@@ -146,12 +123,8 @@ function recoveryText(ref: string, commit: string, repo?: string, uncaptured: re
 
 /**
  * A forced task deletion snapshotted the uncommitted work it was about to
- * destroy.
- *
- * Logged next to the `requested`/`removed` pair on purpose: someone who has
- * just noticed that work is gone knows the task title and roughly when, which
- * is exactly how this log reads. Finding the snapshot from a bare git ref
- * listing would instead require already knowing that it exists.
+ * destroy. Logged beside `requested`/`removed` so someone who knows only the
+ * task title and rough time can find it.
  */
 export function auditDeletionSalvaged(
   taskId: string,
@@ -165,9 +138,8 @@ export function auditDeletionSalvaged(
 
 /**
  * A forced worktree removal outside the task lifecycle (worktrees page / web
- * DELETE) salvaged uncommitted work. Same subsystem as the task-deletion
- * lines: this is the same class of loss, and a user searching `daemon.log`
- * for their vanished work should not have to know which UI destroyed it.
+ * DELETE) salvaged uncommitted work. Same subsystem so a user searching
+ * `daemon.log` needn't know which UI destroyed it.
  */
 export function auditWorktreeSalvaged(
   worktreePath: string,
@@ -180,14 +152,9 @@ export function auditWorktreeSalvaged(
 
 /**
  * A deletion's `git worktree remove` deregistered the worktree but could not
- * delete its directory (an unwritable path inside it, most often).
- *
- * Info, not error: the deletion itself completed — the task entry is gone and
- * git has deregistered the worktree. What is left is an ordinary directory
- * that Rove will never list again, so this line is the only place its path is
- * recorded. Rove does not delete it: whatever made it undeletable may be
- * something the user wants, and removing it would be a destructive act nobody
- * asked for.
+ * delete its directory (usually an unwritable path inside it). Info, not
+ * error: the deletion completed. This line is the only record of the leftover
+ * path; Rove won't remove it, since whatever blocked deletion may be wanted.
  */
 export function auditDeletionResidue(taskId: string, worktreePath: string, reason: string): void {
   const advice = "Nothing further is needed in Rove; remove the directory by hand if you want the disk space."
@@ -199,10 +166,8 @@ export function auditDeletionResidue(taskId: string, worktreePath: string, reaso
 
 /**
  * A worktree removal outside the task lifecycle (worktrees page / web DELETE)
- * deregistered the worktree but could not delete its directory. Same subsystem
- * as the deletion lines for the same reason {@link auditWorktreeSalvaged} is:
- * a user hunting for a directory Rove has stopped showing should not have to know
- * which UI removed it.
+ * deregistered the worktree but could not delete its directory. Same
+ * subsystem, same reason as {@link auditWorktreeSalvaged}.
  */
 export function auditWorktreeResidue(worktreePath: string, reason: string): void {
   logDaemonInfo(SUBSYSTEM, `deregistered ${worktreePath} but could NOT delete the directory (${reason})`)

@@ -1,19 +1,12 @@
 /**
- * The warm-spare shell — a latency optimization, in its own file because it is
- * an optional one: nothing in the host's correctness depends on the spare
- * existing, and deleting this class would only make `open` slower. Isolating
- * it keeps that true, and keeps a purely-for-speed policy from tangling into
- * the session bookkeeping it must stay invisible to.
+ * Warm-spare shell: a pure latency optimization — host correctness never
+ * depends on it; removing it only makes `open` slower.
  *
- * One pre-initialized spare shell (`pty.warm`) is kept OUTSIDE the host's
- * session map — invisible to `list`/`liveCount` (it must not
- * pin the host open or be swept as an orphan). A matching `open` adopts it
- * under the opener's key and a replacement is warmed right away.
+ * One spare (`pty.warm`) lives OUTSIDE the session map, invisible to
+ * `list`/`liveCount` (must not pin the host open or be swept as an orphan).
+ * A matching `open` adopts it and a replacement is warmed at once.
  * ponytail: single global slot keyed by cwd; per-worktree pools if
  * multi-repo warm hits matter.
- *
- * The host's own concerns (spawn/teardown/exit) arrive as deps, so this
- * class holds only the spare-slot policy.
  */
 
 import { resolveLoginShell } from "./platform-shell.js"
@@ -34,9 +27,7 @@ export class WarmSpare {
   constructor(private readonly deps: WarmSpareDeps) {}
 
   /**
-   * Keep one idle shell pre-spawned for `cwd`. A live spare for the same
-   * cwd+shell is kept; anything else is replaced (single slot — the most
-   * recently warmed worktree wins). The spare deliberately skips
+   * Keep one idle shell for `cwd` (most recent cwd wins the slot). Skips
    * `onSessionStart` so it never cancels the host's idle-exit.
    */
   warm(cwd: string, shell?: string, cols = 80, rows = 24): void {
@@ -50,10 +41,8 @@ export class WarmSpare {
   }
 
   /**
-   * Hand the spare over to `open(key)` when it matches the spec: same
-   * cwd, and the spec resolves to the spare's bare shell. The adopted
-   * session becomes a REAL one (it now pins the host open) and a
-   * replacement spare is warmed immediately.
+   * Adopt the spare for `open(key)` when cwd matches and the spec is its bare
+   * shell. It becomes a REAL session (pins the host open).
    */
   adopt(key: string, spec: PtySpawnSpec): PtySessionState | null {
     const spare = this.spare

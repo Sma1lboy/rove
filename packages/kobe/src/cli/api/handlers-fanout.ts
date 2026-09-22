@@ -1,8 +1,6 @@
 /**
- * Verb handlers for `collect` and `feedback` — grouped separately from
- * `handlers-tasks.ts` since they don't touch single-task CRUD. The parallel
- * create path this file is named for lives in `handlers-add.ts`, behind
- * `add --count`.
+ * Verb handlers for `collect` and `feedback`. The parallel create path lives
+ * in `handlers-add.ts` (`add --count`).
  */
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -30,9 +28,8 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
       .filter(Boolean)
   } else if (repoFlag || groupFlag) {
     const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
-    // Throws when `--repo` itself does not resolve, and carries the task
-    // repos it could not resolve into the response — an empty `tasks` list
-    // beside a non-empty `unresolvableRepos` is NOT "nothing is running".
+    // Throws when `--repo` doesn't resolve; empty `tasks` beside non-empty
+    // `unresolvableRepos` is NOT "nothing is running".
     const filter = repoFlag
       ? await repoFilter(
           runtime,
@@ -51,12 +48,9 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
     throw new ApiError("collect needs --task-ids id1,id2, --group GROUPID, or --repo PATH", "MISSING_TARGET")
   }
 
-  // The daemon's activity registry (one debug.inspect for the whole round) is
-  // the "how long has it been in this state" source: per-task engine state +
-  // the ms timestamp of its last transition. `null` = couldn't ask / no entry
-  // (daemon restarted, task never observed) — an honest unknown, never a
-  // fabricated "idle". Distinct from `running` (pty-host process truth):
-  // the two diverging IS the diagnostic signal.
+  // Per-task engine state + last-transition ms, one debug.inspect per round.
+  // `null` = couldn't ask / no entry — an honest unknown, never a fabricated
+  // "idle". Diverging from `running` (pty-host truth) IS the signal.
   let registry: Record<string, ActivityEntry> | null = null
   try {
     const dbg = await daemon.request<{ activity?: { tasks?: Record<string, ActivityEntry> } }>("debug.inspect")
@@ -68,20 +62,13 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
   const out: unknown[] = []
   for (const taskId of taskIds) {
     const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
-    // One liveness read serves both `running` and the per-tab list a
-    // coordinator needs to pick a `send --tab tab-N` target without a
-    // second get-task hop (same join as get-task).
+    // Tabs included so a coordinator can pick a `send --tab` target without
+    // a get-task hop.
     const { tabs, running } = await runtime.taskTabs(taskId, taskEngineArgv(task))
-    // `changes` is the UNCOMMITTED view; `base` is the committed one (ahead
-    // and behind counts + diffstat vs the merge-base). Both matter when
-    // picking a parallel-round winner: an attempt that commits its work reads
-    // +0/−0 here, and `base.behind` says whether it was building against a
-    // base that has since moved.
-    //
-    // `null` when there is nothing to read (no worktree) or the read failed —
-    // the same honest-unknown `base` has always emitted beside it. Never
-    // `{0,0}`: this verb's summary tells the caller non-zero means the attempt
-    // cannot land, so a fabricated zero is a claim the caller acts on.
+    // `changes` is UNCOMMITTED; `base` is committed (ahead/behind + diffstat
+    // vs merge-base). An attempt that commits reads +0/−0 in `changes`.
+    // `null` when there's no worktree or the read failed — never `{0,0}`,
+    // since callers treat non-zero as "cannot land" and act on a zero.
     const changes = task.worktreePath ? await runtime.readWorktreeChanges(task.worktreePath) : null
     const base = task.worktreePath
       ? await runtime.readBranchSignals(task.worktreePath, task.baseRef)
@@ -100,13 +87,9 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
       vendor: task.vendor,
       status: task.status,
       ...(task.groupId ? { groupId: task.groupId } : {}),
-      // The worker's own claim (`set-status --report-*`). Beside `base.ahead`
-      // and `tabs` on purpose: this is the one line where "what it says it
-      // did" sits next to what the repo actually shows, which is the whole
-      // reason a dispatcher opens `collect` before landing anything.
+      // The worker's own claim (`set-status --report-*`), beside what the repo
+      // actually shows.
       ...(task.report ? { report: task.report } : {}),
-      // Lineage read: who dispatched this task, so a parallel
-      // round's parent is programmatically discoverable.
       ...(task.dispatcher ? { dispatcher: task.dispatcher } : {}),
       running,
       activity,

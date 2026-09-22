@@ -1,23 +1,12 @@
 /**
  * One plugin hook command: spawn it, capture its output, bound it by a
- * deadline, and append the run to the plugin's `log.jsonl`. The host
- * (`runtime.ts`) decides WHICH hooks fire; this file owns HOW one of them
- * runs.
+ * deadline, and append the run to the plugin's `log.jsonl`.
  *
- * Two properties the host depends on:
- *
- * - **A hook that hangs is killed at its deadline, process group and all.**
- *   `spawn` is `detached`, so the hook gets its own group and SIGKILL reaches
- *   the children it left behind: `sh -c "curl … </dev/null"` does not exec,
- *   so signalling only the shell leaves the curl alive. Before this bound
- *   existed, four fires of a hanging hook left four shells and four
- *   grandchildren running, and they outlived the daemon — which could not
- *   exit either, because they still held its stdout/stderr pipes.
- * - **A hook still running after {@link HOOK_SLOW_MS} is logged before it
- *   finishes**, as a `phase: "running"` record. The close record alone is why
- *   a hang used to leave `rove plugin log` saying `(no runs logged yet)`: the
- *   one surface an author checks was silent for exactly the failure that
- *   leaks.
+ * - **A hung hook is killed at its deadline, process group and all.** `sh -c
+ *   "curl … </dev/null"` does not exec, so signalling only the shell leaves
+ *   curl alive — holding the daemon's stdout/stderr pipes so it can't exit.
+ * - **A hook still running after {@link HOOK_SLOW_MS} gets a `phase:
+ *   "running"` record**, so `rove plugin log` isn't silent about a hang.
  */
 
 import { spawn } from "node:child_process"
@@ -30,20 +19,16 @@ import { pluginConfigDir, pluginLogPath, pluginStateDir } from "./plugin-paths.t
 
 const OUTPUT_CAP = 8 * 1024
 
-/** Cap for a single plugin's log.jsonl. Smaller than daemon.log's 10MB
- *  because this is per plugin and every enabled one keeps its own: a plugin
- *  hooked to `tool.pre`/`tool.post` appends a record per tool call, forever.
- *  One `.old` generation is kept. */
+/** Per-plugin log.jsonl cap, below daemon.log's 10MB since every plugin keeps
+ *  one and `tool.*` hooks append per tool call. One `.old` generation kept. */
 const PLUGIN_LOG_CAP_BYTES = 4 * 1024 * 1024
 
-/** How long a `[[shutdown]]` hook may run. Tighter than the others because
- *  this one is spent inside `rove daemon stop`, where the user is waiting. */
+/** `[[shutdown]]` hook budget — tight because `rove daemon stop` waits on it. */
 export const SHUTDOWN_GRACE_MS = 3_000
 
-/** Deadline for `[[startup]]` and `[[events]]` hooks — long enough for the
- *  webhook POST the Ground Rules assume, short enough that a hook wedged on a
- *  dead network cannot accumulate one process per tool call. A hook that
- *  genuinely needs longer says so with `timeout_ms`. */
+/** `[[startup]]`/`[[events]]` deadline: room for a webhook POST, short enough
+ *  that a hook wedged on a dead network can't pile up processes. Override
+ *  with `timeout_ms`. */
 export const HOOK_TIMEOUT_MS = 30_000
 
 /** A hook still alive this long gets a `running` log record. */
@@ -78,9 +63,7 @@ export function hookTimeoutMs(spec: PluginCommandSpec, kind: HookKind): number {
 function appendRecord(pluginId: string, homeDir: string | undefined, record: Record<string, unknown>): void {
   try {
     const logPath = pluginLogPath(pluginId, homeDir)
-    // The record carries the plugin's captured stdout/stderr, so a plugin
-    // that prints its own token on failure writes it here — 0600, and
-    // capped like daemon.log so a per-tool-call hook can't fill the disk.
+    // 0600: captured stdout/stderr may contain the plugin's own token.
     rotateLogIfNeeded(logPath, PLUGIN_LOG_CAP_BYTES)
     appendFileSync(logPath, `${JSON.stringify(record)}\n`, { mode: OWNER_ONLY_FILE_MODE })
   } catch {
@@ -92,17 +75,10 @@ export async function runPluginHook(opts: HookRunOptions): Promise<void> {
   const { pluginId, spec, kind, label, homeDir } = opts
   const timeoutMs = hookTimeoutMs(spec, kind)
   const startedAt = Date.now()
-  // 0700: config holds the settings .env (documented home for API keys) and
-  // state is plugin-owned durable data; neither is anyone else's business.
-  //
-  // Guarded because this is the one place the "never rejects" contract used to
-  // break: a config/state path occupied by a same-named FILE (EEXIST), or an
-  // unwritable/full disk (EACCES, ENOSPC), threw out of this function and out
-  // of every caller. In `PluginHost.stop` that abandoned the OTHER plugins'
-  // shutdown hooks — unawaited and unreaped, which is the orphan the doc
-  // comment there warns about. A plugin that has no config/state dir cannot
-  // honour the ROVE_PLUGIN_*_DIR contract, so record the failure and skip the
-  // spawn rather than launching a hook into a broken environment.
+  // 0700: config holds the settings .env (API keys); state is plugin-owned.
+  // Guarded to keep "never rejects" (EEXIST from a same-named file, EACCES,
+  // ENOSPC). Without these dirs the ROVE_PLUGIN_*_DIR contract can't hold, so
+  // record the failure and skip the spawn.
   try {
     mkdirSync(pluginConfigDir(pluginId, homeDir), { recursive: true, mode: OWNER_ONLY_DIR_MODE })
     mkdirSync(pluginStateDir(pluginId, homeDir), { recursive: true, mode: OWNER_ONLY_DIR_MODE })
@@ -137,9 +113,7 @@ export async function runPluginHook(opts: HookRunOptions): Promise<void> {
         extra: opts.extraEnv,
       }),
       stdio: ["ignore", "pipe", "pipe"],
-      // Own process group, so the deadline below can take the hook's
-      // children with it. A hook is not interactive; it has no business
-      // sharing the daemon's group.
+      // Own process group, so the deadline kill takes the hook's children too.
       detached: true,
     })
     const kill = (): void => {
@@ -168,8 +142,7 @@ export async function runPluginHook(opts: HookRunOptions): Promise<void> {
           runningMs: Date.now() - startedAt,
           timeoutMs,
         })
-        // Half the budget for a hook with a short one, so the "still running"
-        // record always lands strictly before the kill rather than racing it.
+        // Capped at half the budget so this lands strictly before the kill.
       },
       Math.min(HOOK_SLOW_MS, Math.floor(timeoutMs / 2)),
     )

@@ -1,17 +1,12 @@
 /**
- * Rate-limit auto-resume: when an engine reports `failure: "rate_limit"`, ask
- * the engine's quota probe when the exhausted window resets, persist that on
- * the task (`Task.quotaResume` — survives daemon restarts like
- * `Task.deletion`), and once the reset passes deliver a continue prompt into
- * the task's still-alive engine session.
+ * Rate-limit auto-resume: on `failure: "rate_limit"`, find when the exhausted
+ * quota window resets, persist it as `Task.quotaResume` (survives restarts),
+ * then deliver a continue prompt into the still-alive engine session.
  *
- * Boundaries:
- *  - Vendor knowledge (how to read the quota API) is engine-owned — this
- *    module only calls the runtime adapter's `quotaResetAtMs(vendor)`.
- *  - Delivery targets a LIVE session only. A dead engine is never respawned
- *    here: a fresh session has no context and would burn quota redoing work.
- *  - The runner must NOT be gated on `hasSubscribers` — resuming with nobody
- *    watching is the whole point.
+ *  - Quota reading is engine-owned, reached via the `QuotaUsageCache`.
+ *  - LIVE sessions only: a respawned engine has no context and would burn
+ *    quota redoing work.
+ *  - Never gated on `hasSubscribers` — resuming unwatched is the point.
  */
 
 import type { PluginHost } from "../plugins/runtime.ts"
@@ -23,17 +18,9 @@ import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { startTicker } from "./ticker.ts"
 
 /**
- * Engine-neutral continuation instruction typed into the resumed session,
- * in the language this task's user writes in.
- *
- * This is the case the observation exists for: the resume fires from a timer
- * minutes-to-hours after any human turn, so there is no user message in hand
- * to take the language from — only what was observed when the task started.
- * A task with no observation (or one created before the field) reads English,
- * which is what it always did.
- *
- * A FUNCTION, not a constant: the daemon outlives any one task, so a
- * module-level string would bake in whichever language happened to load first.
+ * Continue prompt in the task's observed language (a timer fires with no user
+ * message in hand); no observation → English. A function, not a constant: the
+ * daemon outlives any one task's language.
  */
 export function quotaResumeContinuePrompt(language: ObservedLanguage | undefined): string {
   return language === "zh"
@@ -55,10 +42,8 @@ export function dueQuotaResumes(tasks: readonly DaemonTask[], nowMs: number): Da
 }
 
 /**
- * The earliest future reset among EXHAUSTED windows, or null when nothing is
- * exhausted / no window carries a usable timestamp. Only exhausted windows
- * count: an allowed window's `resetsAt` is just rolling-window metadata, and
- * scheduling on it would resume long before the actual limit clears.
+ * Earliest future reset among EXHAUSTED windows, or null. An allowed window's
+ * `resetsAt` is rolling metadata and would resume before the limit clears.
  */
 export function exhaustedResetAtMs(usage: EngineQuotaUsage, nowMs: number): number | null {
   const candidates = usage.windows
@@ -68,11 +53,9 @@ export function exhaustedResetAtMs(usage: EngineQuotaUsage, nowMs: number): numb
 }
 
 /**
- * Read the vendor's usage (through the rate-limited cache — a rate-limit
- * event storm collapses onto one upstream fetch) and arm the task's resume
- * schedule. Called fire-and-forget from `engine.reportEvent` on a rate-limit
- * failure. No usable reset time arms nothing — the sticky `rate_limited`
- * badge is then the only thing keeping the task visible to the user.
+ * Arm the resume from vendor usage (via the cache, so an event storm is one
+ * upstream fetch). No usable reset arms nothing; the sticky `rate_limited`
+ * badge is then the only signal.
  */
 export async function scheduleQuotaResume(
   orch: DaemonOrchestrator,
@@ -91,9 +74,7 @@ export async function scheduleQuotaResume(
   const resetAtMs = usage ? exhaustedResetAtMs(usage, now()) : null
   if (resetAtMs == null) return
 
-  // A reset already in the past still gets a schedule (the next sweep tick
-  // delivers) — the engine said "limited", so an immediate manual retry would
-  // just fail again a bit earlier than ours.
+  // A past reset still arms; the next sweep tick delivers.
   const resumeAt = new Date(resetAtMs).toISOString()
   await orch.setQuotaResume(taskId, {
     resumeAt,
@@ -108,10 +89,8 @@ export async function scheduleQuotaResume(
 }
 
 /**
- * Deliver one due resume. The schedule is cleared BEFORE delivery so an
- * overlapping tick can never double-type the prompt; a failed delivery (no
- * alive engine session) is logged and dropped — if the engine later comes
- * back and hits the limit again, a fresh schedule is armed by the hook path.
+ * Cleared BEFORE delivery so an overlapping tick can't double-type. A failed
+ * delivery is logged and dropped; a later limit hit re-arms.
  */
 async function resumeDueTask(
   orch: DaemonOrchestrator,
@@ -128,11 +107,7 @@ async function resumeDueTask(
   plugins?.()?.handleUiReport({ kind: "quota.resumed", taskId: task.id, detail: { delivered } })
 }
 
-/**
- * Start the due-resume sweep. Stateless per tick (reads the task index each
- * time), so daemon restarts need no re-arm pass — persisted schedules are
- * picked up by the first tick.
- */
+/** Stateless per tick, so persisted schedules need no re-arm after restart. */
 export function startQuotaResumeRunner(
   orch: DaemonOrchestrator,
   runtime: DaemonRuntimeAdapter,
@@ -140,11 +115,8 @@ export function startQuotaResumeRunner(
   now: () => number = Date.now,
   plugins?: () => Pick<PluginHost, "handleUiReport"> | null,
 ): ReturnType<typeof startTicker> {
-  // Ungated on purpose: resuming a rate-limited engine while nobody is
-  // attached is the entire job. `tickMs <= 0` disabling the sweep is
-  // `startTicker`'s job now — `collectors.ts` reads the tick with `??`, which
-  // does NOT replace a 0, so without that guard the documented "0 disables it"
-  // gives setInterval(fn, 0): a ~1000 Hz sweep of the whole task index.
+  // Ungated on purpose. `startTicker` must treat `tickMs <= 0` as disabled:
+  // `collectors.ts` passes 0 through `??`, which would be a ~1000 Hz sweep.
   return startTicker({
     name: "quota-resume",
     tickMs,

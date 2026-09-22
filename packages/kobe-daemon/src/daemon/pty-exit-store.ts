@@ -1,26 +1,17 @@
 /**
- * Durable death records for hosted PTY sessions.
+ * Durable death records for hosted PTY sessions (`pty-exits.json` per home).
+ * The host idle-exits ~60s after its last live session dies, taking its
+ * in-memory ring with it, so `get-task`/`inspect` read the cause from here.
  *
- * The host keeps an exited session's ring in memory, but the host itself
- * idle-exits ~60s after its last live session dies — exactly the window in
- * which a crashed engine's cause evaporates. This store writes a
- * small JSON file per KOBE home (`pty-exits.json`) at exit time so
- * `get-task`/`inspect` can answer "how did it die" long after the host is
- * gone.
+ * Two layers: `pty` records come from the host's exit hook; `engine` records
+ * from the daemon's activity observer seeing the AI process gone from a STILL
+ * ALIVE session (the wrapper reaps it and `exec`s a fallback shell, invisible
+ * to the hook). Keys `<key>` vs `<key>#engine` let both coexist.
  *
- * TWO layers land here. `pty` records come from the host's exit hook — the
- * session's own child died. `engine` records come from the daemon's activity
- * observer noticing the AI process gone from a session that is STILL ALIVE:
- * a tab's shell wrapper reaps its engine and `exec`s a fallback shell, so
- * that death is invisible to the hook above. Store keys differ (`<key>` vs
- * `<key>#engine`) so both coexist.
- *
- * Noise rules: clean PTY exits (code 0, no signal) and internal keys (the
- * warm `::spare`) are never recorded — engine deaths always are, since an
- * unexplained one is exactly what we came for. The file is capped to the newest
- * {@link MAX_RECORDS} records; a corrupt/missing file reads as empty.
- * Everything here is best-effort by contract — the host wraps the write in
- * its own fail-safe guard too.
+ * Clean PTY exits (code 0, no signal) and internal keys (the warm `::spare`)
+ * are never recorded; engine deaths always are. Capped to the newest
+ * {@link MAX_RECORDS}; a corrupt/missing file reads as empty. Best-effort by
+ * contract — the host wraps the write in its own fail-safe guard too.
  */
 
 import { randomUUID } from "node:crypto"
@@ -132,14 +123,10 @@ export interface PtyExitStoreRead {
 }
 
 /**
- * Strip control bytes from tails ALREADY ON DISK.
- *
- * `plainTail` only ever stripped the escape grammar it knew, so every store
- * written before {@link stripTerminalControls} covered bare C0 holds raw BELs
- * and backspaces — and a record survives up to {@link MAX_RECORDS} newer
- * deaths. Fixing the writer alone leaves those shipping out of `get-task` for
- * as long as they live, so heal on the way out too; the prune-and-rewrite in
- * {@link writeRecord} then persists the clean form.
+ * Strip control bytes from tails ALREADY ON DISK: older stores can hold raw
+ * BELs/backspaces {@link stripTerminalControls} now removes, and a record
+ * survives up to {@link MAX_RECORDS} newer deaths. {@link writeRecord}'s
+ * rewrite then persists the clean form.
  */
 function healTails(records: Record<string, PtyExitRecord>): Record<string, PtyExitRecord> {
   const out: Record<string, PtyExitRecord> = {}
@@ -204,11 +191,8 @@ export function recordPtyExit(info: PtySessionEndInfo, path = defaultPtyExitsPat
     {
       key: info.key,
       pid: info.pid,
-      // A signalled session has no wait-status code, so `code` used to be
-      // null while the very tail in the same record spelled the number out
-      // (`Engine exited (code 143)`). The banner is the only code that
-      // exists then — publish it rather than making every caller re-parse
-      // prose the store already knows how to read.
+      // A signalled session has no wait-status code; the tail's banner is
+      // then the only code that exists.
       code: info.exit.code ?? engineExitCodeFromTail(tail),
       signal: info.exit.signal,
       at: info.exit.at,
@@ -270,23 +254,19 @@ export function recordEngineExit(info: EngineExitInfo, path = defaultPtyExitsPat
  * Read-modify-write one record under the cap.
  *
  * ponytail: last-writer-wins across the two writer processes (PTY host for
- * `pty` records, daemon for `engine` ones). An interleave loses a record;
- * add a lockfile if that is ever observed, not before — the writes are
- * seconds apart in practice and a lost record is what we had before.
+ * `pty`, daemon for `engine`); an interleave loses a record. Add a lockfile
+ * if that is ever observed — the writes are seconds apart in practice.
  *
- * The write itself is tmp+rename, the sync twin of `json-file.ts`'s
- * `writeJsonAtomic` (which is async, and this runs in the PTY host's node
- * entry as well as the daemon). A plain `writeFileSync` truncates first, and
- * with TWO writer processes the daemon's own watcher reads inside that window
- * and sees an unparseable file — which used to resurrect every death on disk.
+ * tmp+rename, the sync twin of `writeJsonAtomic` (async; this also runs in
+ * the PTY host's node entry): a plain `writeFileSync` truncates first, and the
+ * daemon's watcher reading in that window sees an unparseable file and
+ * re-fires every death on disk.
  */
 function writeRecord(storeKey: string, record: PtyExitRecord, path: string): void {
   const store = readPtyExitStore(path)
-  // Refuse rather than rewrite the whole file from what we failed to read:
-  // that would silently drop up to MAX_RECORDS other deaths. Both callers
-  // wrap this in a fail-safe guard, so the cost is one lost record.
-  // `unparsable` is NOT refused: those bytes are already not a store, and
-  // overwriting is the only way back — refusing would wedge it forever.
+  // Refuse rather than drop up to MAX_RECORDS deaths we failed to read; the
+  // callers' fail-safe guard makes the cost one lost record. `unparsable` is
+  // NOT refused: overwriting is the only way back from it.
   if (store.status === "unreadable")
     throw new Error(`pty-exits store is unreadable (${path}) — refusing to overwrite it`)
   const records = store.records

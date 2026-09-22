@@ -3,20 +3,15 @@
  * the socket is ready, and fires `[[events]]` hooks off the channel bus (via
  * PluginEventReducer). Every run is appended to the plugin's `log.jsonl`.
  *
- * Plugins are ordinary argv commands — no shell, cwd = plugin root, env
- * carries the ROVE_PLUGIN_* contract plus Kobe compatibility aliases. The host
- * stat-polls `plugins.json` AND each enabled plugin's `rove-plugin.toml`, so
- * both a CLI install/link/enable and an author's manifest edit apply to the
- * running daemon without a restart — polling, not `fs.watch`: on macOS the
- * FSEvents stream behind `fs.watch` starts asynchronously, and a write landing
- * before it is live is dropped forever, with no signal. Startup
- * hooks run only at daemon start: a reload swaps hook registrations,
- * nothing more.
+ * Plugins are argv commands — no shell, cwd = plugin root, env carries the
+ * ROVE_PLUGIN_* contract plus Kobe aliases. The host stat-polls
+ * `plugins.json` and each enabled `rove-plugin.toml` so edits apply without
+ * a restart. Polling, not `fs.watch`: macOS FSEvents starts asynchronously
+ * and silently drops writes that land before it is live. A reload swaps hook
+ * registrations only; startup hooks run once at daemon start.
  *
  * Registry membership, not load success, drives `plugin.enabled` /
- * `plugin.disabled`: a manifest that stops parsing is a health problem, and
- * firing teardown on a TOML typo makes a plugin unregister its webhook because
- * the author fat-fingered a bracket.
+ * `plugin.disabled`, so a TOML typo never fires teardown.
  */
 
 import { statSync } from "node:fs"
@@ -52,8 +47,7 @@ const RELOAD_DEBOUNCE_MS = 150
 /** Registry/manifest stat-poll cadence; reload latency is this + the debounce. */
 const REGISTRY_POLL_MS = 200
 
-/** mtime(ns) + size + inode of a file, or "absent" — the change detector for
- *  both the registry and the manifests. */
+/** mtime(ns) + size + inode, or "absent" — the change detector. */
 function fileStamp(path: string | null): string {
   if (!path) return "absent"
   try {
@@ -74,13 +68,10 @@ interface PluginHostBus {
 export function startPluginHost(bus: PluginHostBus, opts: PluginHostOptions): PluginHost {
   const host = new PluginHost(opts)
   bus.onPublish((event) => host.handleChannel(event))
-  // Seed the reducer from the bus's last-value cache. The daemon publishes
-  // the baseline `task.snapshot` while wiring the orchestrator, well before
-  // this host exists, so without the replay the first snapshot the reducer
-  // sees is the first MUTATION — and its "first snapshot after daemon start
-  // is baseline" rule swallows it, losing the first task.created /
-  // worktree.created / task.changed of every daemon lifetime. The replay
-  // itself emits nothing: it IS the reducer's baseline.
+  // Seed the reducer's baseline from the last-value cache: the baseline
+  // `task.snapshot` was published before this host existed, so otherwise the
+  // first MUTATION becomes the baseline and its events are lost. The replay
+  // emits nothing.
   for (const event of bus.snapshot()) host.handleChannel(event)
   host.start()
   return host
@@ -104,8 +95,7 @@ export class PluginHost {
   /** Ids the registry lists as enabled, whether or not their manifest parsed.
    *  This — not `plugins` — is what lifecycle events diff against. */
   private enabledIds = new Set<string>()
-  /** Plugin root → stamp of its manifest at load, so an author's TOML edit
-   *  triggers the same reload a registry write does. */
+  /** Plugin root → manifest stamp at load, so a TOML edit triggers a reload. */
   private manifestStamps = new Map<string, string>()
   private pollTimer: ReturnType<typeof setInterval> | undefined
   private registryStamp = ""
@@ -119,10 +109,7 @@ export class PluginHost {
 
   /** Load the registry, run startup hooks, and begin watching for changes. */
   start(): void {
-    // Watch BEFORE the first load: the baseline stamp is taken synchronously,
-    // so a write landing before it is seen by the load below, and one landing
-    // after it flips the stamp and triggers a reload. No write can fall
-    // between the two.
+    // Stamp BEFORE the first load so no write can fall between the two.
     this.watchRegistry()
     this.plugins = this.loadPlugins()
     for (const plugin of this.plugins) {
@@ -134,22 +121,18 @@ export class PluginHost {
   }
 
   /**
-   * Stop the host and run every `[[shutdown]]` hook. Resolves once each hook
-   * has exited or been SIGKILLed at the grace deadline — the caller (daemon
-   * close) MUST await it, or `process.exit` destroys the grace timers and the
-   * hook children become unbounded orphans. Total wait is bounded by
-   * {@link SHUTDOWN_GRACE_MS}; a host with no shutdown hooks resolves
-   * immediately.
+   * Stop the host and run every `[[shutdown]]` hook; resolves once each has
+   * exited or been SIGKILLed. The caller MUST await it, or `process.exit`
+   * destroys the grace timers and orphans the hooks. Bounded by
+   * {@link SHUTDOWN_GRACE_MS}.
    */
   async stop(): Promise<void> {
     if (this.stopped) return
     this.stopped = true
     if (this.reloadTimer) clearTimeout(this.reloadTimer)
     if (this.pollTimer) clearInterval(this.pollTimer)
-    // Reap event/startup hooks that are still running FIRST. They hold this
-    // process's stdout/stderr pipes, so leaving them to time out on their own
-    // keeps the daemon alive past `rove daemon stop` — and a hook wedged on a
-    // 30s deadline would make every stop take 30s.
+    // Reap running hooks FIRST: they hold our stdout/stderr pipes, so a hook
+    // wedged on its 30s deadline would make every stop take 30s.
     for (const kill of [...this.inFlight]) kill()
     const runs: Promise<void>[] = []
     for (const plugin of this.plugins) {
@@ -158,22 +141,17 @@ export class PluginHost {
         runs.push(this.run(plugin, hook, "shutdown", { ROVE_PLUGIN_EVENT: "shutdown" }, `shutdown[${i}]`))
       }
     }
-    // allSettled, not all: `run` below makes the "never rejects" contract
-    // true, but a short-circuit here would return while the OTHER plugins'
-    // hooks are still running — unawaited, so the caller's `process.exit`
-    // destroys their grace timers and leaves exactly the orphans the doc
-    // comment above is about. One plugin must not cost the rest their reap.
+    // allSettled: a short-circuit would leave other plugins' hooks unawaited,
+    // orphaned by the caller's `process.exit`.
     await Promise.allSettled(runs)
   }
 
   /** Feed every bus publish through here (server wires `bus.onPublish`). */
   handleChannel(event: ChannelEvent): void {
     if (this.stopped) return
-    // Guarded: the bus sink loop and the orch.subscribeTasks callback have no
-    // catch of their own, so a throw here (a pathological task field breaking
-    // the diff's deep-compare) would kill the whole snapshot pipeline — the
-    // PTY sweep included — on every subsequent publish. One bad diff must
-    // cost one event batch, never the channel.
+    // The bus sink and subscribeTasks callback have no catch, so a throw here
+    // would kill the snapshot pipeline (PTY sweep included). One bad diff
+    // costs one batch, never the channel.
     try {
       for (const derived of this.reducer.reduce(event)) this.dispatch(derived)
     } catch (err) {
@@ -189,9 +167,8 @@ export class PluginHost {
     readonly detail?: Record<string, unknown>
   }): void {
     if (this.stopped) return
-    // Guarded here, once, so no reporting call site (RPC handlers, runners)
-    // needs its own try/catch — a pathological detail payload breaking
-    // JSON.stringify must never fail the operation that reported it.
+    // Guarded once here: a detail payload breaking JSON.stringify must never
+    // fail the operation that reported it.
     try {
       this.dispatch({
         event: report.kind,
@@ -205,10 +182,8 @@ export class PluginHost {
   }
 
   /**
-   * Direct feed from `engine.reportEvent` (NOT a bus channel — lifecycle
-   * kinds like tool.* would spam every attached client; plugins are the only
-   * consumer, and dispatch already fans out only to hooks that declared the
-   * event). One engine hook report → one plugin event.
+   * Direct feed from `engine.reportEvent` — not a bus channel, since tool.*
+   * kinds would spam every client and plugins are the only consumer.
    */
   handleEngineReport(report: {
     readonly kind: string
@@ -241,9 +216,8 @@ export class PluginHost {
   /** Fire one event at ONE plugin's matching hooks (registry transitions). */
   private dispatchTo(plugin: LoadedPlugin, event: PluginEvent): void {
     const platform = currentPluginPlatform()
-    // One plugin's data must not cost another plugin its event — and this
-    // path runs from the reload timer, where a throw is an uncaughtException
-    // rather than a caught batch. Same reason as the entry-point guards.
+    // Per plugin, so one plugin's data can't cost another its event; also runs
+    // from the reload timer, where a throw is an uncaughtException.
     try {
       for (const hook of plugin.manifest.events) {
         if (hook.on !== event.event) continue
@@ -264,10 +238,8 @@ export class PluginHost {
   private dispatch(event: PluginEvent): void {
     const platform = currentPluginPlatform()
     for (const plugin of this.plugins) {
-      // Per PLUGIN, not per batch: the callers' guards already keep a throw
-      // off the channel, but they catch at the batch, so one plugin's data
-      // would silently cost every plugin after it in this loop the event —
-      // and, from `handleChannel`, the rest of the batch as well.
+      // Per plugin: the callers catch per batch, so one plugin's throw would
+      // cost every later plugin the event.
       try {
         for (const hook of plugin.manifest.events) {
           if (hook.on !== event.event) continue
@@ -302,8 +274,7 @@ export class PluginHost {
     for (const entry of registry.plugins) {
       if (!entry.enabled) continue
       enabled.add(entry.id)
-      // Stamped even when it fails to parse below: an author FIXING a typo
-      // has to trigger the same reload as an author adding a hook.
+      // Stamped even if unparseable, so fixing a typo triggers a reload.
       stamps.set(entry.root, fileStamp(pluginManifestPath(entry.root)))
       let manifest: PluginManifest
       try {
@@ -320,9 +291,8 @@ export class PluginHost {
     return out
   }
 
-  /** True once any watched file changed. The registry stamp is consumed here
-   *  (it is the authoritative one); manifest stamps are rebuilt by the reload
-   *  itself, so a manifest still mid-write keeps re-arming the debounce. */
+  /** Consumes the registry stamp; manifest stamps are rebuilt by the reload,
+   *  so a manifest mid-write keeps re-arming the debounce. */
   private sourcesChanged(): boolean {
     const stamp = fileStamp(pluginRegistryPath(this.opts.homeDir))
     if (stamp !== this.registryStamp) {
@@ -339,25 +309,19 @@ export class PluginHost {
     this.registryStamp = fileStamp(pluginRegistryPath(this.opts.homeDir))
     this.pollTimer = setInterval(() => {
       if (!this.sourcesChanged()) return
-      // Debounce past the poll: a burst of CLI mutations (or a write still in
-      // flight) collapses into one reload after the file settles.
+      // A burst of writes collapses into one reload after the file settles.
       if (this.reloadTimer) clearTimeout(this.reloadTimer)
       this.reloadTimer = setTimeout(() => {
         if (this.stopped) return
-        // The reload is the last dispatch path with no guard above it: it runs
-        // from a timer, so a throw here is an uncaughtException in the daemon
-        // rather than one lost event batch — and nothing restarts the poll
-        // timer afterwards, so the host would stop seeing registry edits for
-        // the rest of the daemon's life.
+        // The last dispatch path with no guard above it: a throw from this
+        // timer is an uncaughtException in the daemon, not one lost batch.
         try {
           const loadedBefore = new Map(this.plugins.map((p) => [p.manifest.id, p]))
           const enabledBefore = this.enabledIds
           this.plugins = this.loadPlugins()
           this.opts.log?.(`plugin registry reloaded (${this.plugins.length} enabled)`)
-          // Registry transitions, delivered ONLY to the affected plugin, and
-          // diffed against REGISTRY membership: a manifest that started or
-          // stopped parsing has not been enabled or disabled by anyone, and
-          // teardown must not fire on a syntax error.
+          // Delivered only to the affected plugin, diffed against registry
+          // membership so a syntax error never fires teardown.
           const at = Date.now()
           for (const plugin of this.plugins) {
             if (!enabledBefore.has(plugin.manifest.id)) {
@@ -378,14 +342,9 @@ export class PluginHost {
   }
 
   /**
-   * Fire one hook. Bounded and logged by `hook-run.ts`; never rejects — and
-   * that is enforced HERE rather than assumed, because a manifest can still
-   * make `spawn` throw synchronously: TOML accepts `\u0000`, so
-   * `command = ["ec\u0000ho"]` parses fine and reaches `spawn` as argv with a
-   * NUL byte, which throws `ERR_INVALID_ARG_VALUE` inside the hook's promise
-   * executor. Every event/startup call site `void`s the result, so an
-   * escaping rejection is an unhandledRejection in a long-lived daemon; only
-   * `stop()` awaits, and there it would abandon the other plugins' hooks.
+   * Fire one hook; never rejects, enforced here: TOML accepts `\u0000`, so a
+   * NUL in argv makes `spawn` throw `ERR_INVALID_ARG_VALUE`, and every
+   * event/startup call site `void`s the result.
    */
   private run(
     plugin: LoadedPlugin,

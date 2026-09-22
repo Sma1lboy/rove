@@ -1,34 +1,13 @@
 /**
- * `kobe api <verb>` — the scriptable control surface for agents driving
- * kobe from a shell (Bash tool / cron / arbitrary scripts).
+ * `kobe api <verb>` — the scriptable control surface for agents. Each
+ * invocation connects to (or auto-starts) the daemon, prints one JSON object,
+ * and exits; read-only verbs like `schema` skip the daemon entirely.
  *
- * Each invocation is a short-lived process: connect to (or auto-start) the
- * daemon, do the work, print a JSON object to stdout, exit. Designed for
- * fan-out AND full task lifecycle control — it exposes (almost) everything
- * the daemon can do, so an agent never has to drop into the TUI for a
- * scripted operation.
- *
- * ## Self-describing (so an agent can EXPLORE the surface)
- *
- * The verb table {@link VERBS} (`./api/verbs.ts`) is the single source of
- * truth: each entry binds one verb's spec (name, summary, flags) to its
- * handler, and the spec half drives the `schema` verb (machine-readable
- * JSON of every verb + flag, `./api/schema.ts`), per-verb `--help`, and
- * flag validation (required / enum / unknown-flag rejection, `./api/flags.ts`).
- * An agent runs `kobe api schema` once and knows the whole API — names,
- * types, which flags are required, allowed enum values — without parsing
- * prose. Add a verb to {@link VERBS} and its help, schema entry, and
- * validation all come for free.
- *
- * ## Handler seam (so verbs are unit-testable)
- *
- * Handlers (`./api/handlers-tasks.ts`, `./api/handlers-fanout.ts`) receive
- * a {@link VerbContext}: spec-typed flag access ({@link VerbArgs}, derived
- * from the verb's own FlagSpecs — no ad hoc re-validation inside handlers),
- * the narrow daemon RPC surface ({@link DaemonRpc} — a fake that records
- * requests stands in for the socket in tests), and the side-effect seam
- * ({@link ApiRuntime}, `./api/runtime.ts` — hosted PTY / git / repo-init). Daemon
- * connect/close lives in `./daemon-session.ts`.
+ * {@link VERBS} is the single source of truth: each entry's spec drives the
+ * `schema` verb, per-verb `--help`, and flag validation. Handlers receive a
+ * {@link VerbContext}: spec-typed flags ({@link VerbArgs} — no re-validation
+ * inside handlers), the narrow {@link DaemonRpc} (faked in tests), and the
+ * {@link ApiRuntime} side-effect seam.
  *
  * ## Output contract
  *   - success → one JSON object to stdout, `\n` terminated, exit 0
@@ -38,20 +17,6 @@
  *     verbatim) so an agent caller can self-heal without parsing prose.
  *   - `--pretty` → indent stdout JSON (humans only)
  *   - `--help`   → render that verb's usage to stdout, exit 0
- *
- * The daemon is auto-started if it is not already running, so an agent
- * script does not have to babysit it (read-only verbs like `schema` skip
- * the daemon entirely).
- *
- * ## Module map (one concern each; this file is the dispatcher + barrel)
- *   - `./api/types.ts`            — shared types (FlagSpec, VerbContext, ApiRuntime, ...) + ApiError
- *   - `./api/flags.ts`            — flag parsing/validation + VerbArgs + fan-out plan helpers
- *   - `./api/schema.ts`           — `schema` verb + `--help` rendering
- *   - `./api/runtime.ts`          — prompt delivery + the default ApiRuntime
- *   - `./api/handler-helpers.ts`  — daemonOf / simpleRpc
- *   - `./api/handlers-tasks.ts`   — task CRUD + prompt-delivery handlers
- *   - `./api/handlers-fanout.ts`  — fan-out / collect / feedback handlers
- *   - `./api/verbs.ts`            — the VERBS table binding specs to handlers
  */
 
 import { errorMessage } from "@/lib/error-message"
@@ -76,11 +41,9 @@ import { type DaemonSession, openDaemonSession } from "./daemon-session.ts"
 import type { DaemonRpc } from "./daemon-session.ts"
 
 function emit(value: unknown, pretty: boolean): void {
-  // A verb that refuses an UNVERIFIED $ROVE_TASK_ID degrades quietly — the
-  // create/send succeeds, it just records no dispatcher. Ride the notice on
-  // the result object so an agent sees it: stderr is reserved for the one
-  // JSON error envelope (docs/API.md), and a silent degrade makes a wrong
-  // reply address invisible.
+  // An UNVERIFIED $ROVE_TASK_ID still succeeds, minus the dispatcher; the
+  // notice rides the result because stderr is reserved for the one JSON
+  // error envelope (docs/API.md).
   const warning = takeIdentityWarning()
   // Objects only — spreading an array would flatten it into numeric keys.
   const mergeable = warning && value && typeof value === "object" && !Array.isArray(value)
@@ -101,12 +64,9 @@ function makeContext(verb: VerbSpec, flags: Flags, client: DaemonRpc | null, run
 }
 
 /**
- * Codes the exit-code contract (docs/API.md) calls a USAGE error: the caller's
- * argv is wrong, nothing was attempted. The pre-dispatch validators already
- * exit 2 for these; a HANDLER that rejects its own arguments — `schema
- * --verb nope`, `engine-report --detail 'not json'` — must not report a
- * different number for the same class of mistake, or a script that branches on
- * the exit code sees one typo as two different failures.
+ * Codes the exit-code contract (docs/API.md) calls a USAGE error (exit 2):
+ * argv is wrong, nothing was attempted. A HANDLER rejecting its own arguments
+ * (`schema --verb nope`) must exit 2 like the pre-dispatch validators do.
  */
 const USAGE_ERROR_CODES: ReadonlySet<string> = new Set([
   "BAD_VERB",
@@ -118,19 +78,13 @@ const USAGE_ERROR_CODES: ReadonlySet<string> = new Set([
 ])
 
 /**
- * Normalize any handler/RPC failure into an {@link ApiError} so the emitted
- * envelope is always `{error:{message,code,...}}`. The daemon reports an
- * unknown task id as a prose `task not found: <id>` RPC error — map it to a
- * typed `TASK_NOT_FOUND` with the recovery command, since a stale task id is
- * the single most common scripted-caller failure.
+ * Normalize any handler/RPC failure into an {@link ApiError}. The daemon's
+ * prose `task not found: <id>` becomes typed `TASK_NOT_FOUND` with the
+ * recovery command (the most common scripted-caller failure).
  *
- * Everything else that arrives already CODED gets that code lifted into the
- * envelope rather than flattened to `RPC_ERROR`. The alternative — a
- * pattern-per-code allowlist — is what let `delete`'s `DIRTY_WORKTREE`
- * refusal, the one an unattended cleanup loop hits most, reach a caller as an
- * untyped `RPC_ERROR` whose only discriminator was the prose. The prefix is
- * stripped because the code now IS the `code` field; a caller that still
- * string-matches reads `code`, which is the point.
+ * Any other already-CODED error has its code lifted into `code` (prefix
+ * stripped) rather than flattened to `RPC_ERROR` — a per-code allowlist would
+ * let new codes like `delete`'s `DIRTY_WORKTREE` reach callers untyped.
  */
 export function toApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err
@@ -155,11 +109,9 @@ export function toApiError(err: unknown): ApiError {
  *   - new CLI × old daemon — the daemon predates the verb.
  *   - old CLI × new daemon — the daemon dropped a verb this CLI still ships.
  *
- * Untyped, the failure looks like this: an agent asks `schema --verb archive`,
- * gets a full spec and exit 0, runs `archive`, and gets a bare `RPC_ERROR`
- * 200ms later. Schema is how an agent discovers a
- * capability, so a `RPC_ERROR` there reads as "this call failed, retry" rather
- * than "this binary and that daemon disagree about what exists".
+ * Typed because `schema` (served by this CLI) can advertise a verb the daemon
+ * rejects; a bare `RPC_ERROR` would read as "retry" rather than "these builds
+ * disagree about what exists".
  */
 function versionSkewError(message: string): ApiError {
   return new ApiError(message, "DAEMON_VERSION_SKEW", {
@@ -241,10 +193,9 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
   }
 
   try {
-    // A `--task-id` naming a task on ANOTHER machine must be refused here, not
-    // forwarded: the local daemon has never heard of that id, so every verb
-    // would answer TASK_NOT_FOUND for a task the user can see in the sidebar.
-    // Costs nothing — and opens no socket — when no machine is registered.
+    // Refuse a `--task-id` on ANOTHER machine here: the local daemon would
+    // answer TASK_NOT_FOUND for a task the user can see in the sidebar.
+    // Opens no socket when no machine is registered.
     const { assertLocalTask } = await import("../machines/api-merge.ts")
     await assertLocalTask(parsed.flags.get("task-id"))
     const result = await verb.handler(makeContext(verb, parsed.flags, session?.client ?? null, defaultApiRuntime))
@@ -265,8 +216,7 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
   }
 }
 
-// Re-exported for tests + embedders — the historical single-file import
-// path (`./api-cmd.ts`) stays the stable entry point across the split.
+// `./api-cmd.ts` is the stable import path for tests + embedders.
 export {
   API_SCHEMA_VERSION,
   API_VERBS,

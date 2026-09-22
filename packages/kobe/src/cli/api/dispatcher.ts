@@ -1,14 +1,9 @@
 /**
- * Dispatcher provenance — the collaboration loop's reply address.
- *
- * A task created from inside another kobe engine tab records WHO dispatched
- * it (`dispatcher: {taskId, tabId}`), and a bare `send` from that task
- * replies to exactly that tab. Completion flows back through `send` into the
- * dispatching chat tab; this module is the address that makes that route
- * computable instead of hand-relayed.
- *
- * Both halves live here rather than in `handler-helpers.ts` so the stamping
- * (create-side) and the routing (send-side) stay one readable concern.
+ * Dispatcher provenance — the collaboration loop's reply address. A task
+ * created from inside another kobe engine tab records WHO dispatched it
+ * (`dispatcher: {taskId, tabId}`), and a bare `send` from that task replies
+ * to exactly that tab. Holds both the create-side stamping and the send-side
+ * routing.
  */
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -60,27 +55,20 @@ async function realProbe(): Promise<SelfSessionProbe> {
  * The caller's OWN kobe session identity — `$KOBE_TASK_ID`/`$KOBE_TAB_ID`
  * cross-checked against the pty host, or `null` when it doesn't hold up.
  *
- * The env alone is NOT identity. It is an ordinary variable and inherits
- * down the entire process tree, so a Claude Code background daemon forked
- * out of an engine tab carries that tab's ids for as long as it lives — and
- * every task IT creates would record a dispatcher pointing at a stranger's
- * session, which is where finished workers would report. Two things have to
- * be true for the env to be believed:
+ * The env alone is NOT identity: it inherits down the process tree, so a
+ * background daemon forked out of an engine tab carries that tab's ids and
+ * every task IT creates would name a stranger's session as dispatcher. The
+ * env is believed only when:
  *
  *   1. `<taskId>::<tabId>` is a session the pty host lists as ALIVE, and
  *   2. that session's shell pid is an ANCESTOR of this process.
  *
- * (2) is what the inherited env can't fake: a detached background process
- * reparents to init and stops reaching the tab's shell. A real `kobe api`
- * call from inside the tab — engine → its Bash tool → this CLI — always
- * does.
+ * (2) is what inherited env can't fake: a detached process reparents to init.
  *
- * Unverifiable is UNVERIFIED: no host, no ps, a killed tab. Recording a
- * wrong reply address is strictly worse than recording none, because the
- * wrong one delivers (to someone else) instead of failing.
+ * Unverifiable is UNVERIFIED (no host, no ps, a killed tab): a wrong reply
+ * address delivers to someone else instead of failing.
  *
- * Memoized: one `pty.list` + one `ps` per CLI process, however many verbs
- * ask (`send` asks twice — routing and peer provenance).
+ * Memoized: one `pty.list` + one `ps` per CLI process (`send` asks twice).
  */
 export async function verifiedSelfSession(
   env: NodeJS.ProcessEnv = process.env,
@@ -115,9 +103,8 @@ async function resolveSelfSession(env: NodeJS.ProcessEnv, probe?: SelfSessionPro
       // to the engine's Bash tool — Windows severs the chain at both places
       // (win-process-snapshot.ts). POSIX ignores the list.
       if (hasAncestor(parsePsSnapshot(await p.ps([session.pid, p.pid])), p.pid, session.pid)) {
-        // A verified resolution clears any warning a previous one left. The
-        // memo makes that a single resolution per process today; this keeps
-        // the pair honest if the memo is ever relaxed.
+        // Clears a previous resolution's warning (only reachable if the memo
+        // is ever relaxed).
         identityWarning = null
         return { taskId, tabId }
       }
@@ -125,10 +112,9 @@ async function resolveSelfSession(env: NodeJS.ProcessEnv, probe?: SelfSessionPro
   } catch {
     /* unreadable host/ps — fall through to the refusal below */
   }
-  // Never a SILENT degrade: the caller believes
-  // it is a kobe session and its dispatcher/peer fields just vanished. stderr
-  // carries exactly one JSON error envelope by contract (docs/API.md), so the
-  // notice rides the verb's own stdout result instead — see `takeIdentityWarning`.
+  // Never a SILENT degrade. stderr carries exactly one JSON error envelope by
+  // contract (docs/API.md), so the notice rides the verb's stdout result —
+  // see `takeIdentityWarning`.
   identityWarning = `$ROVE_TASK_ID/$KOBE_TASK_ID names task ${taskId} ${tabId}, but this process is not running inside that tab (an inherited env, not an identity) — dispatcher/peer provenance omitted`
   return null
 }
@@ -176,26 +162,19 @@ export async function readOwnDispatcher(daemon: DaemonRpc): Promise<Dispatcher |
 }
 
 /**
- * Pick the tab a dispatcher-defaulted `send` lands on: the exact tab the
- * work was dispatched from first, the dispatcher task's canonical live
- * engine tab when that tab has died, and NEVER a silent spawn — with
- * nothing alive the send fails loud with a typed error: a fallback must not
- * impersonate success. `undefined` means "the canonical tab", the delivery layer's own
- * spelling for it.
+ * Pick the tab a dispatcher-defaulted `send` lands on: the dispatched-from
+ * tab, else the dispatcher task's canonical live engine tab, NEVER a silent
+ * spawn — with nothing alive it throws a typed error. `undefined` means "the
+ * canonical tab" in the delivery layer's spelling.
  */
 export async function resolveDispatcherTab(runtime: ApiRuntime, dispatcher: Dispatcher): Promise<string | undefined> {
   const { tabs, running } = await runtime.taskTabs(dispatcher.taskId)
-  // The dispatched-from tab first, addressed only when it reads ALIVE: the
-  // tab join also lists live sessions the persisted snapshot never
-  // registered, so "present and alive" is the honest liveness
-  // test and a tab that is merely gone from the snapshot still gets the
-  // canonical fallback below instead of a TAB_NOT_FOUND at delivery.
+  // Only when ALIVE: the tab join also lists live sessions the snapshot never
+  // registered, and a tab merely gone from the snapshot gets the canonical
+  // fallback instead of a TAB_NOT_FOUND at delivery.
   if (tabs.some((t) => t.id === dispatcher.tabId && t.alive)) return dispatcher.tabId
-  // Dead dispatcher tab → the task's canonical live engine, gated on a live
-  // engine tab existing. The canonical path legitimately COLD-STARTS an
-  // engine for a task with no alive session at all — correct for
-  // a first prompt, wrong for a reply: it would boot an engine nobody asked
-  // for and address it as if it were the agent that dispatched the work.
+  // Gated on a live engine tab: the canonical path COLD-STARTS an engine for
+  // a task with none — right for a first prompt, wrong for a reply.
   if (running) return undefined
   throw new ApiError(
     `dispatcher tab ${dispatcher.tabId} on task ${dispatcher.taskId} is dead and the task has no live engine tab — the reply has nowhere to land`,
@@ -209,23 +188,16 @@ export async function resolveDispatcherTab(runtime: ApiRuntime, dispatcher: Disp
 }
 
 /**
- * Peer provenance: a prompt issued from INSIDE another kobe task is one agent
- * messaging another, and the receiver needs what a bare paste never carries —
- * who is talking and how to answer.
+ * Peer provenance: a prompt issued from INSIDE another kobe task tells the
+ * receiver who is talking and how to answer.
  *
- * Both delivery verbs wear it, `add --prompt` included. Without it on the
- * opening brief the sender is recorded only as `dispatcher` on the task ROW,
- * which a receiver would have to think to go read (`rove api get-task`) and
- * has no reason to suspect exists — so a dispatched task finishes its work
- * and then sits waiting. A task's opening brief is exactly the moment the
- * reply address matters, since every report it will ever send flows back
- * through it. Same convention as field
- * notes (`[ROVE FIELD NOTE] from "<label>" (task <id>)`), plus the reply
- * command so a peer conversation is symmetric without any coordinator.
- * Sender identity is the VERIFIED $KOBE_TASK_ID/$KOBE_TAB_ID pair, not the
- * raw env: an unverified one names a stranger's session as the sender and
- * bakes their tab into the reply command. A send from a plain
- * shell, an unverified process, or to yourself stays untouched.
+ * Both delivery verbs wear it, `add --prompt` included: otherwise the sender
+ * is only the task ROW's `dispatcher`, which a receiver has no reason to go
+ * read, so a dispatched task finishes and then sits waiting. Same convention
+ * as field notes (`[ROVE FIELD NOTE] from "<label>" (task <id>)`), plus the
+ * reply command. Sender is the VERIFIED $KOBE_TASK_ID/$KOBE_TAB_ID pair — an
+ * unverified one would bake a stranger's tab into the reply command. A send
+ * from a plain shell, an unverified process, or to yourself stays untouched.
  */
 export async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string, prompt: string): Promise<string> {
   const self = await verifiedSelfSession()
@@ -239,31 +211,19 @@ export async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string
     /* stale env id — keep id-only provenance rather than dropping it */
   }
   const api = kobeApiInvocation()
-  // The baked-in reply command carries the sender's TAB, not just its task
-  // task-granular replies land on canonical-tab resolution, which is exactly
-  // the link that breaks — tab-precise addressing is
-  // the loop's durable route home. $KOBE_TAB_ID is exported into every
-  // engine tab alongside $KOBE_TASK_ID (session-launch.ts).
+  // The sender's TAB, not just its task: task-granular replies go through
+  // canonical-tab resolution, the link that breaks. $KOBE_TAB_ID is exported
+  // into every engine tab (session-launch.ts).
   const replyTarget = `--task-id ${senderId} --tab ${self.tabId}`
-  // The trailing pointer closes the loop for a receiver that has never seen
-  // kobe: reply command baked in, and where to learn the rest — a pointer,
-  // not a curriculum, since every peer
-  // message pays for this prefix in context. The skill is required reading
-  // ONCE PER SESSION: a receiver that replies from the raw prefix alone
-  // improvises verbs and side-channels, and the round-trip falls back to a
-  // human relay. It does not need re-reading per message.
+  // A pointer, not a curriculum: every peer message pays for this prefix in
+  // context. The skill is required ONCE PER SESSION — a receiver replying
+  // from the raw prefix alone improvises verbs and side-channels.
   //
-  // The reply clause names WHERE a reply goes, and says when one is worth
-  // sending. It used to read "then reply:", which every receiver took as an
-  // instruction to answer each message — so peers acknowledged receipt,
-  // announced that they had loaded the skill, and acknowledged each other's
-  // acknowledgements, all at one full engine turn apiece. The address is
-  // still exact; only the obligation is gone (skill: "Communicate at
-  // handoffs, not at every step").
-  // The sender's text goes LAST, whole, after a blank line — never as the
-  // object of this English sentence. A model generates in the language of
-  // the tokens nearest its turn, so wrapping a Chinese prompt in an English
-  // clause pulls replies into English; ending on the sender's own words
-  // removes that pull without changing what the prefix says.
+  // "reply only if it changes what I do next": an unconditional "reply" made
+  // peers acknowledge every message (and each other's acknowledgements), one
+  // full engine turn apiece.
+  // The sender's text goes LAST, whole, after a blank line: a model replies
+  // in the language of the tokens nearest its turn, so wrapping a Chinese
+  // prompt in an English clause pulls replies into English.
   return `[ROVE PEER] from "${label}" (task ${senderId} — Rove agent skill /rove, read it once per session (legacy /kobe installs still work); reply only if it changes what I do next: \`${api} send ${replyTarget} --prompt "<text>"\`; verb reference: \`${api} schema\`)\n\n${prompt}`
 }

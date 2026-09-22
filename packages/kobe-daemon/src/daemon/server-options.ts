@@ -1,11 +1,4 @@
-/**
- * Construction options + the handle `startDaemonServer` returns.
- *
- * Their own module so a caller can describe the server it wants without
- * importing the server — these are the options `startDaemonServer` accepts and
- * the handle it returns, no behavior. Both interfaces are re-exported from
- * `daemon/server`, so every existing import path keeps working.
- */
+/** `startDaemonServer`'s options and handle, importable without the server; re-exported from `daemon/server`. */
 
 import type { DaemonClientConnection } from "./client-connection.ts"
 import type { UpdateInfo } from "./contracts.ts"

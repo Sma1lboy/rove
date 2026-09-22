@@ -1,17 +1,9 @@
 /**
- * The shared skeleton behind every daemon background loop.
- *
- * Each `start*` collector re-implemented the same parts by hand: a
- * `tickMs <= 0` no-op guard, a reentrancy flag, an optional subscriber gate, a
- * `setInterval`, `timer.unref?.()`, a `logDaemonError(<scope>, err)` catch, and
- * a `clearInterval` teardown. The guard line alone appeared verbatim in five
- * files — and its ABSENCE from `quota-resume` and `quota-usage-cache` meant a
- * zero there armed a hot loop instead of disabling the poll.
- *
- * The seam: this module owns WHEN a pass may run; each collector owns what a
- * pass does. The per-key adaptive backoff in `poll-scheduling.ts` is the inner
- * loop and stays there. `activity-observer.ts` stays hand-rolled — it counts
- * ticks and walks every Nth, which needs options nobody else uses.
+ * The shared skeleton behind every daemon background loop: this owns WHEN a
+ * pass may run (disable guard, reentrancy, gate, unref, error log, teardown);
+ * each collector owns what a pass does. Per-key backoff stays in
+ * `poll-scheduling.ts`; `activity-observer.ts` stays hand-rolled (it walks
+ * every Nth tick).
  */
 
 import { logDaemonError } from "./crash-log.ts"
@@ -25,9 +17,8 @@ export interface TickerOptions {
   readonly name: string
   /** `<= 0` disables the ticker entirely: no interval, and no immediate pass. */
   readonly tickMs: number
-  /** Checked before EVERY pass, the immediate one included. Omitted means
-   *  ungated — the deliberate setting for the sweeps whose whole job is
-   *  running while nobody is attached. Never default one on. */
+  /** Checked before EVERY pass, the immediate one included. Omitted = ungated,
+   *  deliberate for sweeps that must run while nobody is attached. */
   readonly gate?: () => boolean
   /** Run one pass before arming the interval (restart seeding). */
   readonly immediate?: boolean
@@ -51,11 +42,8 @@ export function startTicker(opts: TickerOptions): () => Promise<void> {
       logDaemonError(opts.name, err)
       return
     }
-    // A SYNCHRONOUS pass is already finished here, so it must not arm the
-    // reentrancy flag — `quota-usage-cache` and the two collectors never had
-    // one, and giving them one would drop a tick whenever the flag outlived
-    // the pass. Only a pass that returns a promise gets guarded, which is
-    // exactly the shape the other five hand-rolled.
+    // A synchronous pass is already finished, so only a promise-returning
+    // pass arms the reentrancy flag.
     if (!isThenable(result)) return
     running = Promise.resolve(result)
       .then(() => undefined)

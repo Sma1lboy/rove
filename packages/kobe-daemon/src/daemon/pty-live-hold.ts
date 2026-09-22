@@ -1,31 +1,18 @@
 /**
- * PtyLiveHold — a keep-alive source for `DaemonLifetime`: "the standalone
- * PTY host still owns at least one live session".
+ * Keep-alive for `DaemonLifetime` while the PTY host owns a live session.
+ * The daemon is the only collector of hook activity events and hooks never
+ * spawn one, so an idle-stopped daemon would drop every event from engines
+ * still running and lose the (unpersisted) activity registry.
  *
- * Why it exists: the daemon is the only collector of `kobe hook` activity
- * events, and hooks deliberately never spawn a daemon (`hook-cmd.ts`). Before
- * this hold, the last gui detaching idle-stopped the daemon while hosted
- * engines kept running in the pty host — every event they fired during the
- * gap was dropped, and the in-memory activity registry (never persisted)
- * came back empty, blanking the running/attention dots until the next turn
- * boundary. Holding the daemon open while sessions live keeps the event
- * stream unbroken, which is the whole accuracy story for the dots.
- *
- * Shape mirrors the automations keep-alive: `DaemonLifetime` reads a sync
- * `isHeld()` at its arm/fire points, and the true→false transition calls
- * `onRelease` (wired to `lifetime.reevaluateIdle()`) — the same hole-plug
- * automations need when their last schedule is deleted. Because the pty host
- * is a separate process, the cached flag is refreshed by polling its socket:
- * a slow interval for the steady state, plus `probeSoon()` on gui disconnect
- * so the idle-grace recheck reads a fresh value instead of a poll-stale one.
+ * `isHeld()` is a sync cached flag, refreshed by polling the host socket
+ * plus `probeSoon()` on gui disconnect so the idle-grace recheck isn't
+ * poll-stale. held→released calls `onRelease` (`lifetime.reevaluateIdle()`).
  * The probe never spawns a host; an unreadable host keeps the hold until absence is confirmed.
  */
 
 import { logDaemonInfo } from "./crash-log.ts"
 
-/** Steady-state poll cadence. Freshness at the moments that matter comes from
- *  `probeSoon()`, so this only bounds how long a gui-less daemon outlives its
- *  last engine session. */
+/** Only bounds how long a gui-less daemon outlives its last session; `probeSoon()` gives freshness. */
 const DEFAULT_POLL_MS = 15_000
 
 export interface PtyLiveHoldOptions {
@@ -67,8 +54,7 @@ export class PtyLiveHold {
     return this.held
   }
 
-  /** Refresh the cache now (deduped against an in-flight probe). Called on
-   *  gui disconnect so the idle-grace decision doesn't read a stale poll. */
+  /** Refresh now, deduped against an in-flight probe. */
   probeSoon(): Promise<void> {
     this.inFlight ??= this.refresh().finally(() => {
       this.inFlight = null

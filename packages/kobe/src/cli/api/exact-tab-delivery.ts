@@ -1,15 +1,9 @@
 /**
- * `send --tab tab-N`: delivery into ONE addressed terminal tab.
- *
- * Split from `pty-delivery.ts`, which owns the CANONICAL path — find the
- * task's engine session, or create it when the task has none. This side
- * never searches and never spawns a second engine: the caller named a tab,
- * so the only questions are whether that tab can take a prompt and, when a
- * pty-host restart froze it, whether the caller asked for it to be revived.
- *
- * Shared reporting helpers (`outcomeFields`, the engine-start probe budget)
- * stay in `pty-delivery.ts` and are imported here, so both paths keep
- * spelling an outcome the same way.
+ * `send --tab tab-N`: delivery into ONE addressed terminal tab. Never
+ * searches and never spawns a second engine (that's the canonical path in
+ * `pty-delivery.ts`); the only questions are whether the tab can take a
+ * prompt and, if a pty-host restart froze it, whether the caller asked to
+ * revive it.
  */
 
 import type { PtyOpenResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -57,11 +51,8 @@ export async function deliverToExactTab(
   const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
   const session = sessions.find((s) => s.key === key)
   if (!session?.alive) {
-    // A FREEZE-RESTORED tab is not an absent one: the host is listing it, its
-    // command/cwd/scrollback survived, and `pty.open` respawns it in place.
-    // Saying TAB_NOT_FOUND here sent the caller to `pty-list`, which lists
-    // the very tab it just refused — and left every task's real conversation
-    // headlessly unreachable after a reboot.
+    // A FREEZE-RESTORED tab is not an absent one: the host lists it and
+    // `pty.open` respawns it in place, so it must not read as TAB_NOT_FOUND.
     if (session?.restored === true) {
       if (!opts?.respawn) throw restoredTabError(taskId, tabId, prompt)
       const launch = opts.respawn()
@@ -81,10 +72,8 @@ export async function deliverToExactTab(
           nextCommandArgs: ["api", "read-output", "--task-id", taskId, "--tab", tabId, "--source", "terminal"],
         })
       }
-      // The prompt is PASTED, never woven into the respawn argv — an engine
-      // resumed by id must not replay the task's first prompt. So the engine
-      // has to be up before the write; `engineReady: false` below is the
-      // honest answer when it never appeared.
+      // PASTED, never woven into the respawn argv (a resumed engine must not
+      // replay the first prompt), so the engine has to be up before the write.
       const enginePid = await awaitEngineProcess(rpc, key, opts.engineBin, {
         timeoutMs: ENGINE_START_PROBE_MS,
         intervalMs: ENGINE_START_POLL_MS,
@@ -108,10 +97,8 @@ export async function deliverToExactTab(
       "TAB_NOT_FOUND",
     )
   }
-  // Same foreground gate as the canonical path: an addressed tab whose
-  // engine exited (or that always was a shell tab) must not have the prompt
-  // pasted into its shell. ANY running engine passes — the addressed tab's
-  // engine need not match the task's vendor (cross-vendor send).
+  // Never paste into a shell. ANY running engine passes — it need not match
+  // the task's vendor (cross-vendor send).
   const presence = await enginePresence(session.pid, opts?.engineBin, opts?.snapshot)
   if (presence.kind === "unknown") {
     // Refuse, but do not claim the tab is a shell — we never got to look.
@@ -155,10 +142,9 @@ async function deliverRespawned(
 }
 
 /**
- * The refusal a restored tab gets without `--respawn`. Distinct code, and it
- * names the missing STEP rather than pointing back at the listing that shows
- * the tab: reviving re-runs the tab's recorded launch, which for a tab with
- * no pinned conversation id replays the task's original first prompt.
+ * The refusal a restored tab gets without `--respawn` — opt-in because
+ * reviving a tab with no pinned conversation id replays the task's original
+ * first prompt.
  */
 function restoredTabError(taskId: string, tabId: string, prompt: string): ApiError {
   return new ApiError(

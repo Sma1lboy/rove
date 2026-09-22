@@ -1,10 +1,7 @@
 /**
- * The wire contract, typed — the SINGLE source of the plugin-facing
- * catalogs. The daemon imports these very constants (via the package's
- * `./contract` subpath, which resolves to this source file in-repo), so
- * in-repo code and external SDK consumers can never disagree. Channel
- * PAYLOAD types stay host-side (kobe-daemon channels.ts) — they reach
- * plugins as versioned `unknown`.
+ * The SINGLE source of the plugin-facing catalogs: the daemon imports these
+ * constants via the `./contract` subpath, so it and SDK consumers can't
+ * disagree. Channel PAYLOAD types stay host-side (reach plugins as `unknown`).
  */
 
 /** Every event a plugin can subscribe to via `[[events]]`. */

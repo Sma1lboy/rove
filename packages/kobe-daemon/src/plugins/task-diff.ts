@@ -1,19 +1,12 @@
 /**
- * Field-level task-snapshot diff → product plugin events.
+ * Task-snapshot diff → plugin events. Every mutation republishes
+ * `task.snapshot`, so diffing snapshots is the ONE place that sees every
+ * change (RPC handlers miss e.g. `land --then-archive` and adopt).
  *
- * Every task mutation — whatever RPC, collector, or orchestrator path made it
- * — funnels through the store and republishes `task.snapshot`, so diffing
- * consecutive snapshots is the ONE place that observes every change. Emitting
- * from the RPC handlers instead drops every path that bypasses them:
- * archive-via-worktree-removal, archive from `land --then-archive`, and
- * worktree materialization via adopt.
- *
- * Emitted per changed task:
- *   - `task.changed`     — any watched field changed (`detail.fields/from/to`)
- *   - `task.pr-changed`  — prStatus changed (its own event, not in `fields`)
- *   - `worktree.created` — a `task`-kind row gained a worktree path (lazy
- *     ensure, adopt, and scratch-adopt all land here; main/dir tasks reuse
- *     user-owned directories and never "materialize" one)
+ *   - `task.changed`     — a watched field changed (`detail.fields/from/to`)
+ *   - `task.pr-changed`  — prStatus changed (not in `fields`)
+ *   - `worktree.created` — a `task`-kind row gained a worktree path (main/dir
+ *     tasks reuse user-owned directories and never fire it)
  */
 
 import type { SerializedTask } from "../daemon/protocol.ts"
@@ -54,10 +47,8 @@ function same(a: unknown, b: unknown): boolean {
 }
 
 /**
- * PR-status compare with the poller's own semantics (`samePrStatus` in
- * kobe/monitor/pr-status.ts, which this package cannot import): the
- * per-poll bookkeeping fields must not read as change, or a second writer
- * would fire `task.pr-changed` on every tick.
+ * Mirrors kobe's `samePrStatus` (not importable here): per-poll bookkeeping
+ * must not read as change, or `task.pr-changed` fires every tick.
  */
 function samePr(a: unknown, b: unknown): boolean {
   const strip = (v: unknown): unknown => {

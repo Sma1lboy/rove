@@ -1,10 +1,7 @@
 /**
  * `rove api pane-open` — open a terminal pane in a task's workspace over the
- * daemon's `tab.open` channel (the same wire `rove plugin pane open` rides).
- * The attached TUI hosting the task performs the actual split/tab; the
- * daemon only validates + broadcasts. `pane split` for agents:
- * split the focused tab right/down running any command, or open a separate
- * command tab.
+ * daemon's `tab.open` channel (same wire as `rove plugin pane open`). The
+ * attached TUI performs the split/tab; the daemon only validates + broadcasts.
  */
 
 import { resolveLoginShell } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
@@ -56,21 +53,17 @@ export const PANE_VERB: VerbSpec = {
   ],
   handler: async (ctx) => {
     const client = daemonOf(ctx)
-    // The CLI boundary mirrors ROVE_* onto KOBE_* before any subsystem
-    // starts (`rename-compat.ts`), so this legacy read resolves the canonical
-    // $ROVE_TASK_ID the help text advertises as well as the alias.
+    // `rename-compat.ts` mirrors ROVE_* onto KOBE_* at the CLI boundary, so
+    // this also honours $ROVE_TASK_ID.
     const taskId = ctx.args.str("task-id") ?? process.env.KOBE_TASK_ID ?? (await resolveActiveTaskId(client))
     if (!taskId) {
-      // MISSING_TARGET: no id was GIVEN. Reporting "that task does not exist"
-      // for a call that named no task sends the caller to `api list`, where it
-      // finds plenty of live tasks and concludes the code is lying. Same
-      // condition, same code as read-output / send / collect.
+      // MISSING_TARGET, not TASK_NOT_FOUND: no id was GIVEN (same as
+      // read-output / send / collect).
       throw new ApiError("no target task: pass --task-id (no $ROVE_TASK_ID, no active task)", "MISSING_TARGET")
     }
     const command = ctx.args.str("command")
-    // Same integration path as the engine tab (session-launch.ts): the user's
-    // login shell with the interactive bit, so a pane command reads the same
-    // PATH/exports as one typed into the engine tab's shell (#26).
+    // Interactive login shell, as the engine tab (session-launch.ts), so the
+    // pane sees the same PATH/exports.
     const shell = resolveLoginShell({ fallback: "/bin/sh" })
     const argv = command ? [shell, "-ilc", command] : [shell, "-il"]
     const title = ctx.args.str("title") ?? (command ? (command.trim().split(/\s+/)[0] ?? "shell") : "shell")
@@ -83,9 +76,7 @@ export const PANE_VERB: VerbSpec = {
       placement: ctx.args.str("placement") ?? "split",
       direction: ctx.args.str("direction") ?? "right",
     })) as Record<string, unknown> | undefined
-    // Echo the resolved title back: it is the label `pane-close --title`
-    // must match, and without this in the result a derived title (the
-    // command's first word) is unguessable.
+    // Echo the resolved title: `pane-close --title` must match it.
     return { ...reply, title }
   },
 }
@@ -115,10 +106,7 @@ export const PANE_CLOSE_VERB: VerbSpec = {
     const client = daemonOf(ctx)
     const taskId = ctx.args.str("task-id") ?? process.env.KOBE_TASK_ID ?? (await resolveActiveTaskId(client))
     if (!taskId) {
-      // MISSING_TARGET: no id was GIVEN. Reporting "that task does not exist"
-      // for a call that named no task sends the caller to `api list`, where it
-      // finds plenty of live tasks and concludes the code is lying. Same
-      // condition, same code as read-output / send / collect.
+      // MISSING_TARGET, not TASK_NOT_FOUND: no id was GIVEN.
       throw new ApiError("no target task: pass --task-id (no $ROVE_TASK_ID, no active task)", "MISSING_TARGET")
     }
     const tabId = ctx.args.str("tab")

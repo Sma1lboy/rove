@@ -1,15 +1,9 @@
 /**
- * PTY Host prompt delivery for `kobe api`. The standalone `kobe pty-host`
- * process is the only owner of interactive engine sessions; API automation
- * reuses the canonical engine key or creates it from the shared launch spec.
- *
- * pty.* frames are served by the pty-host on its OWN socket (NOT proxied
- * through the daemon — see `kobe-daemon/daemon/pty-server.ts`), so this
- * module opens its own short-lived client to `defaultPtyHostSocketPath()`,
- * exactly like the `pty-list` verb does. Nothing here is engine-specific:
- * the engine key is found by the DETERMINISTIC `<taskId>::tab-1` the TUI
- * always assigns its first (engine) tab, refined by an argv match against
- * the vendor's own launch binary — never a hard-coded "claude"/"codex".
+ * PTY Host prompt delivery for `kobe api`. The standalone pty-host owns
+ * interactive engine sessions and serves pty.* on its OWN socket (not
+ * proxied through the daemon), so this opens a short-lived client to it.
+ * The engine key is `<taskId>::tab-1` refined by an argv match on the
+ * vendor's launch binary — never a hard-coded vendor name.
  */
 
 import type { PtyOpenResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -37,33 +31,17 @@ import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-color
 import { restoredTabsOf } from "./tab-respawn.ts"
 import { ApiError, type DeliveredPrompt } from "./types.ts"
 
-// `enginePresence` is the foreground gate for delivery into an existing
-// hosted session: an alive PTY may now be a fallback shell after the engine
-// exits, and pasting there would execute the prompt as shell commands. Its
-// third answer, "unknown", refuses without claiming the engine is gone.
-/**
- * The narrow pty-host surface this module needs: request/response RPC plus
- * cleanup. `KobeDaemonClient` satisfies it; tests inject a fake that
- * records requests instead of opening a socket.
- */
+/** Narrow pty-host RPC surface; `KobeDaemonClient` satisfies it, tests fake it. */
 export type PtyHostRpc = HostedSessionRpc
 
-/**
- * A key belongs to `taskId` when its segment before the first `::` matches
- * — the same split the daemon's task-deletion sweep uses. `tab-1` is the
- * engine tab the TUI's `initialTabs()` always mints first.
- */
+/** A key belongs to `taskId` when its segment before the first `::` matches. */
 export const isTaskKey = isHostedTaskKey
 
 /**
- * Pick the ALIVE engine session key for `taskId`, or `null` when none —
- * the single source of truth both delivery and liveness route through, so
- * "no engine" NEVER falls through to spawning a second one.
- *
- * `engineBin` is vendor-neutral: the caller passes
- * `interactiveEngineCommand(vendor)[0]` (or `undefined` when the vendor is
- * unknown, e.g. teardown/liveness — then only the `tab-1` rule applies).
- * Shared with the daemon's quota-resume path — see `hosted-session.ts`.
+ * The ALIVE engine key for `taskId`, or `null` — the single source of truth
+ * for delivery and liveness, so "no engine" never falls through to spawning
+ * a second one. `engineBin` = `interactiveEngineCommand(vendor)[0]`, or
+ * `undefined` when unknown (then only the `tab-1` rule applies).
  */
 export const findEngineKey = findHostedEngineKey
 
@@ -80,32 +58,19 @@ export const ensurePtyHost = ensureHostedSessionHost
 export const listSessions = listHostedSessions
 export const listSessionsOrNull = listHostedSessionsOrNull
 
-/**
- * Deliver `prompt` into an existing hosted engine session and submit it —
- * the pty twin of `pasteAndSubmit`, shared with the daemon's quota-resume
- * path (see `hosted-session.ts`). Returns whether the session was alive to
- * receive it.
- */
+/** Paste `prompt` into an existing hosted engine session and submit it. */
 export const deliverToKey = deliverToHostedKey
 
 /**
- * How long a fresh argv-delivery spawn gets to put an engine in the process
- * table before this call reports it unobserved. Short on purpose: a caller
- * is blocked on the answer, a failed launch (`command not found`) never
- * produces one, and an engine that is merely slow reports
- * `engineReady: false` with the session's own output as the reason rather
- * than a claim nobody checked.
+ * How long a fresh argv-delivery spawn gets to show an engine process. Short
+ * on purpose: the caller is blocked, a failed launch never produces one, and
+ * a merely slow engine reports `engineReady: false` with its own output.
  */
 export const ENGINE_START_PROBE_MS = 3_000
 export const ENGINE_START_POLL_MS = 150
 export const ENGINE_NOT_OBSERVED_REASON = `no engine process appeared in the session within ${ENGINE_START_PROBE_MS}ms`
 
-/**
- * Turn an observed write into the API's outcome fields. One place so every
- * delivery path reports the same measured facts instead of each inventing
- * its own optimistic defaults — which is how `delivered: true` came to mean
- * "we called write()" on one path and "we checked" on another.
- */
+/** Observed write → outcome fields; the one place so every path reports measured facts. */
 export function outcomeFields(outcome: PromptWriteOutcome | null): {
   engineReady: boolean
   delivered: boolean
@@ -123,17 +88,13 @@ export function outcomeFields(outcome: PromptWriteOutcome | null): {
 
 /**
  * Deliver to an existing hosted engine tab, or — ONLY when the task has no
- * alive session at all — create the canonical one with the explicit prompt
- * already embedded in its launch argv (avoids racing a paste against a cold
- * engine's startup screen). `started: true` in the result means "a NEW
- * session was created", never "delivered into an existing one".
+ * alive session — create the canonical one with the prompt in its launch
+ * argv (no paste racing a cold startup screen). `started: true` means a NEW
+ * session was created.
  *
- * When alive tabs exist but none resolves as an engine, this THROWS
- * (NO_ENGINE_TAB) instead of spawning. Issue #19: the silent-spawn fallback
- * booted an unsandboxed `--dangerously-skip-permissions` engine (in the
- * incident, cwd'd at the MAIN repo) while both sender and receiver believed
- * the message was delivered. A well-meaning fallback here is
- * indistinguishable from success on both sides — it must stay loud.
+ * Alive tabs with no resolvable engine THROW (NO_ENGINE_TAB): a silent spawn
+ * fallback once booted an unsandboxed `--dangerously-skip-permissions`
+ * engine at the MAIN repo while both sides believed the message delivered.
  */
 export async function deliverHostedPrompt(
   rpc: PtyHostRpc,
@@ -147,14 +108,11 @@ export async function deliverHostedPrompt(
   },
 ): Promise<DeliveredPrompt> {
   const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
-  // `forceNew` (send --tab new): the caller minted a fresh tab key and wants
-  // a NEW engine spawned there — never reroute into the existing canonical
-  // engine, which is exactly what the lookup below would do.
+  // `forceNew` (--tab new) must never reroute into the existing engine.
   const existingKey = opts?.forceNew ? null : findEngineKey(sessions, target.id, target.engineBin)
   if (existingKey) {
-    // Foreground gate: the session's SPAWN argv matched an engine, but the
-    // engine may have exited into the keepAlive shell since — pasting there
-    // executes the prompt as shell commands. See {@link enginePresence}.
+    // Foreground gate: the engine may have exited into the keepAlive shell,
+    // where a paste runs as shell commands. See {@link enginePresence}.
     const pid = sessions.find((s) => s.key === existingKey)?.pid
     const presence = await enginePresence(pid, target.engineBin, opts?.snapshot)
     if (presence.kind === "unknown") {
@@ -178,17 +136,14 @@ export async function deliverHostedPrompt(
         },
       )
     }
-    // No pty.detach: delivery peeks + writes without ever attaching, and a
-    // detach from a never-attached client would clear a parked TUI's
-    // exact-delta restore state as a side effect.
+    // No pty.detach: we never attached, and a detach would clear a parked
+    // TUI's exact-delta restore state.
     const outcome = await deliverToKey(rpc, existingKey, prompt, { vendor: presence.vendor })
     return { session: existingKey, pane: existingKey, started: false, ...outcomeFields(outcome) }
   }
 
-  // No engine resolved. Spawning is legitimate ONLY when the task has no
-  // alive session whatsoever (first start / all-dead resume) — an alive tab
-  // we merely failed to identify means the prompt would land in a duplicate
-  // engine the receiver never sees. Fail loud; the caller picks a tab.
+  // Spawn only when no session is alive; an unidentified alive tab means a
+  // duplicate engine the receiver never sees. Fail loud.
   if (!opts?.forceNew) {
     const aliveTabs = sessions.filter((s) => s.alive && isTaskKey(s.key, target.id)).map((s) => s.key)
     if (aliveTabs.length > 0) {
@@ -203,22 +158,17 @@ export async function deliverHostedPrompt(
     }
   }
 
-  // Everything below SPAWNS. Name the conversations a pty-host restart froze
-  // and this call is about to pass over: without it "started a blank session
-  // while your real work sits frozen" is byte-identical to a healthy first
-  // start. See {@link DeliveredPrompt.frozenTabs}.
+  // Everything below SPAWNS. Disclose tabs a pty-host restart froze, or this
+  // is indistinguishable from a healthy first start. See {@link DeliveredPrompt.frozenTabs}.
   const frozen = restoredTabsOf(sessions, target.id, launch.key)
   const disclose = frozen.length > 0 ? { frozenTabs: frozen } : {}
   const staleCanonical = sessions.find((session) => session.key === launch.key && !session.alive)
-  // A FREEZE-RESTORED corpse is not killed: `pty.open` respawns it in place
-  // (pre-restart scrollback kept), so the launch below both revives the tab
-  // and carries this prompt. An ordinary corpse (died while the host lived)
-  // is view-only — open would ignore our spec, so it must be killed first.
+  // A FREEZE-RESTORED corpse is respawned in place by `pty.open` (scrollback
+  // kept). An ordinary corpse is view-only — open ignores our spec — so kill it.
   if (staleCanonical && staleCanonical.restored !== true) await rpc.request("pty.kill", { key: launch.key })
 
-  // No cols/rows: the host sizes the fresh spawn itself (80×24 default);
-  // on the lost-create-race reattach below, a size-less open never resizes
-  // the winner's session away from whatever client is attached to it.
+  // No cols/rows: host defaults to 80×24, and a lost create race must not
+  // resize the winner's session.
   const open = await rpc.request<PtyOpenResult>("pty.open", {
     key: launch.key,
     cwd,
@@ -236,10 +186,8 @@ export async function deliverHostedPrompt(
         ...disclose,
       }
     }
-    // Paste-delivery vendor (kimi — issue #25): the launch spawned the bare
-    // engine and carried the first message OUTSIDE its argv; paste it once
-    // the engine process is up. A paste that never lands is a failed start,
-    // not a delivered prompt.
+    // Paste-delivery vendor: first message rides outside argv; a paste that
+    // never lands is a failed start.
     if (launch.firstMessage) {
       const outcome = await pastePromptWhenEngineUp(rpc, launch.key, target.engineBin, launch.firstMessage, {
         initMarkerPath: launch.initMarkerPath,
@@ -253,10 +201,8 @@ export async function deliverHostedPrompt(
         ...disclose,
       }
     }
-    // Another API process may win the create race after our pty.list. Its
-    // launch spec wins, so ours did not carry this prompt; deliver it now.
-    // A RESPAWNED restored corpse is the opposite: our launch DID run (the
-    // prompt rode its argv), so pasting here would deliver it twice.
+    // Lost create race: the winner's launch didn't carry our prompt, so paste.
+    // A RESPAWNED corpse ran OUR launch; pasting would deliver twice.
     const started = open.created !== false || open.respawned === true
     if (open.created === false && open.respawned !== true) {
       const outcome = await pastePromptWhenEngineUp(rpc, launch.key, target.engineBin, prompt, {
@@ -264,19 +210,13 @@ export async function deliverHostedPrompt(
       })
       return { session: launch.key, pane: launch.key, started, ...outcomeFields(outcome), ...disclose }
     }
-    // OUR launch carried the prompt in its argv, so no paste happened here.
-    // The engine reads the prompt from its own command line — a delivery this
-    // code never observed, and the only thing that can confirm it is the
-    // engine PROCESS existing. `open.alive` is not that: keepAlive `exec`s a
-    // login shell where the engine exits, so a session whose launch command
-    // does not exist reports `alive` exactly like a healthy one, and
-    // `engineReady: true, delivered: true` came back for a binary that had
-    // already printed `no such file or directory`.
+    // Our argv carried the prompt; only the engine PROCESS existing confirms
+    // it. `open.alive` doesn't: keepAlive execs a shell when the engine exits,
+    // so a missing binary still reads `alive`.
     //
-    // An init marker with no recorded exit code means the launch has not
-    // reached the engine yet — `initMarkerSaysFinished` is the same predicate
-    // the launch script's own re-run guard uses, so the two cannot disagree.
-    // Keep that result unconfirmed without waiting through dependency install.
+    // An init marker with no exit code means the engine hasn't started;
+    // `initMarkerSaysFinished` is the launch script's own re-run predicate.
+    // Report unconfirmed without waiting through dependency install.
     const pendingInit: DeliveredPrompt = {
       session: launch.key,
       pane: launch.key,
@@ -287,17 +227,13 @@ export async function deliverHostedPrompt(
       ...disclose,
     }
     if (launch.initMarkerPath && !initMarkerSaysFinished(launch.initMarkerPath)) return pendingInit
-    // Otherwise walk for the process — the same presence walk the
-    // existing-session gate above uses, in the loop `awaitEngineProcess`
-    // already owns, not a third implementation of the same question.
     const enginePid = await awaitEngineProcess(rpc, launch.key, target.engineBin, {
       timeoutMs: ENGINE_START_PROBE_MS,
       intervalMs: ENGINE_START_POLL_MS,
       snapshot: opts?.snapshot,
     })
     if (enginePid === null) {
-      // Init may restart during the probe, then finish while inventory is
-      // loading. Check the marker after that await as well as session liveness.
+      // Init may restart mid-probe and finish during the list await: re-check after it.
       if (
         launch.initMarkerPath &&
         !initMarkerSaysFinished(launch.initMarkerPath) &&

@@ -1,11 +1,4 @@
-/**
- * Daemon-owned durable store wiring, split from `server.ts` by responsibility:
- * this module owns CONSTRUCTING every daemon-owned store plus the per-task
- * teardown chain, and `server.ts` owns wiring them to the socket and its
- * lifecycle. That keeps the composition root a place you can read the daemon's
- * shape from, instead of a page of paths and constructor arguments — and it
- * means adding a store is one edit here plus one name in the destructure.
- */
+/** Constructs every daemon-owned store plus the per-task teardown chain. */
 
 import { readActivityLiveness } from "./activity-liveness.ts"
 import { type ActivityLivenessProbe, DaemonActivityRegistry } from "./activity-registry.ts"
@@ -51,8 +44,7 @@ export async function initDaemonStores(
   bus: DaemonEventBus,
   homeDir: string | undefined,
 ): Promise<DaemonStores> {
-  // Liveness probe for the activity lapse watchdog — see activity-liveness.ts
-  // for why it reads a completion marker and not just the transcript mtime.
+  // Lapse-watchdog probe; see activity-liveness.ts for why not just mtime.
   const livenessAt: ActivityLivenessProbe = (taskId, vendor, transcriptPath) =>
     readActivityLiveness(orch, runtime, taskId, vendor, transcriptPath)
   const activity = new DaemonActivityRegistry(
@@ -64,42 +56,28 @@ export async function initDaemonStores(
   )
   const inbox = new AttentionInboxStore(defaultAttentionInboxPath(homeDir), bus)
   await inbox.init().catch((err) => logDaemonError("attention-inbox-init", err))
-  // Durable per-turn telemetry — written by the `turn-complete`
-  // hook ingest, read by `agentTurn.list`. Same homeDir isolation as the
-  // other daemon-owned stores so a sandbox home never writes to the real one.
   const agentTurns = new AgentTurnsStore(defaultAgentTurnsPath(homeDir))
   await agentTurns.init().catch((err) => logDaemonError("agent-turns-init", err))
-  // Plugin-written row tokens. In memory on purpose: a token is a claim with
-  // a deadline, and restoring one whose author is gone is exactly the stale
-  // state the TTL exists to prevent (see row-tokens.ts).
+  // In memory on purpose: restoring a token whose author is gone is the stale
+  // state its TTL exists to prevent.
   const rowTokens = new RowTokenStore(bus)
   const clearTaskState = (taskId: string) =>
     inbox
       .deleteTaskBestEffort(taskId)
       .finally(() => agentTurns.deleteTask(taskId).catch((err) => logDaemonError("agent-turns-delete", err)))
       .finally(() => activity.clearTask(taskId))
-      // A deleted task's row is gone; its labels must go with it, or the map
-      // keeps republishing tokens for a row nothing can render.
+      // Else the map keeps republishing tokens for a row nothing renders.
       .finally(() => rowTokens.clearTask(taskId))
   const deletions = new TaskDeletionRunner(orch, runtime, clearTaskState, bus)
-  // Daemon-owned issue tracker (web Issues panel) — a single store keyed by
-  // git common-dir, sharing the server's homeDir so sandbox/test homes
-  // isolate. Handlers reach it through DaemonHandlerContext.issues.
+  // Keyed by git common-dir.
   const issues = new IssuesStore(defaultIssuesStorePath(homeDir))
-  // Durable field notes (docs/design/dispatcher.md) — same key convention and
-  // homeDir isolation as the issue store. Written by `note.file`, read back at
-  // worktree launch so a fresh session starts with the repo's known gotchas.
+  // Read back at worktree launch so a fresh session gets the repo's gotchas.
   const notes = new NotesStore(defaultNotesStorePath(homeDir))
-  // Daemon-owned scheduled automations. The sweep that fires them is started
-  // with the other collectors; this only loads the persisted schedules.
+  // Loads persisted schedules only; the firing sweep starts with the collectors.
   const automations = await initAutomationsStore(homeDir)
-  // Read-only external tracker view; in-memory only (see work-items.ts).
   const workItems = new WorkItemCache()
-  // Sole caller of the engine quota probes — owns the fetch cadence (the
-  // vendor usage APIs are themselves rate-limited). Shared by the usage
-  // poller (collectors) and the rate-limit resume scheduler (handlers).
+  // Sole caller of the (rate-limited) vendor quota probes.
   const quotaUsage = new QuotaUsageCache(runtime, bus)
-  // Per-task recent engine events (the TUI event feed / task.recentEvents).
   const engineEvents = new EngineEventLog()
   return {
     activity,

@@ -1,11 +1,7 @@
 /**
- * The `subscribe` request — the ONE request that is not a registry handler.
- *
- * It is connection lifecycle, not RPC: it mutates per-socket state
- * (`subscribed`, `holdsLifetime`, `channels`), drives the gui-refcount
- * idle-grace timer, and writes event frames out-of-band during channel replay.
- * None of that fits the registry's payload→result shape, so it lives here
- * beside its own machinery instead of pretending to be a handler.
+ * `subscribe` — the ONE request that isn't a registry handler: it is
+ * connection lifecycle (mutates per-socket state, drives the gui-refcount
+ * idle grace, writes replay frames out-of-band), not payload→result RPC.
  */
 
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
@@ -26,12 +22,8 @@ export interface SubscribingClient {
 }
 
 /**
- * The cell pixel size a GUI measured on its OWN tty, or `null`.
- *
- * `null` is the honest answer for every terminal that declines `CSI 16 t`:
- * such a terminal answers `0`, or nothing at all, and the query reports that
- * as absent rather than substituting a plausible number. Downstream,
- * `graphics.write` refuses instead of placing a picture at a guessed size.
+ * Cell pixel size the GUI measured on its OWN tty, or `null` for terminals
+ * declining `CSI 16 t` — never a guess; `graphics.write` then refuses.
  */
 function readCellPixelSize(payload: Record<string, unknown>): CellPixelSize | null {
   const width = payload.cellPixelWidth
@@ -58,46 +50,28 @@ export function handleSubscribe(
 ): Record<string, never> {
   const wasSubscribed = client.subscribed
   client.subscribed = true
-  // role defaults to "pane": a subscriber that omits it is the safe
-  // non-lifetime kind, so a future client can't accidentally pin the
-  // daemon open. Only a "gui" attach holds the daemon alive.
+  // Omitted role = "pane", so no client can accidentally pin the daemon open.
   const role = payload.role === "gui" ? "gui" : "pane"
   client.holdsLifetime = role === "gui"
-  // Per-channel filter (KOB — per-channel subscribe). `null` = no filter
-  // → every channel (back-compat: an omitted/garbage `channels` behaves
-  // exactly as before). A non-null set restricts both this replay and
-  // every later `broadcast` to the named channels, so a narrow consumer
-  // (UiPrefsSync wants only ui-prefs + keybindings) stops receiving —
-  // and deserializing — the full task.snapshot fan-out it never reads.
+  // `null` = every channel (omitted/garbage `channels` included). A set
+  // restricts this replay and every later `broadcast`.
   client.channels = normalizeChannelFilter(payload.channels)
   // Only a GUI owns a real tty, so only a GUI's measurement means anything.
   client.cellPixelSize = client.holdsLifetime ? readCellPixelSize(payload) : null
-  // A collector paused while gui-less normally repopulates on its next tick.
-  // Latency-sensitive collectors may also be kicked by server.ts after this
-  // handler makes the zero-subscriber → one-subscriber transition visible.
   const firstSubscriber = !wasSubscribed
-  // A GUI (re)attached → cancel any pending lazy-shutdown grace. A
-  // pane subscribing must NOT cancel it: panes alone never keep the
-  // daemon up, so a pane connecting during the grace window leaves the
-  // countdown running.
+  // Only a GUI cancels the lazy-shutdown grace; panes never keep the daemon up.
   if (client.holdsLifetime) deps.lifetime.guiAttached()
   logDaemonInfo(
     "conn",
     `client #${client.id} subscribed as ${role}${client.channels ? ` [${[...client.channels].join(",")}]` : ""} — ${deps.clientCount()} client(s), ${deps.lifetime.guiCount()} gui${firstSubscriber ? " (collectors resume)" : ""}`,
   )
-  // Replay the current value of every populated channel so a late
-  // subscriber hydrates without a separate round trip. Filtered to the
-  // client's requested channels (null = all). The bus cache is warm
-  // (subscribeTasks' eager fire).
+  // Replay each populated channel's last value so a late subscriber hydrates.
   for (const event of deps.bus.snapshot()) {
     if (client.channels && !client.channels.has(event.channel)) continue
     deps.writeEvent(client, event.channel as DaemonEventName, event.payload)
   }
-  // The bus only caches ONE last-value per channel, but `engine-state` is
-  // per-task — so additionally replay the whole activity snapshot to this
-  // late subscriber (otherwise it'd only learn the most recently changed
-  // task's state). Known-idle TAB entries ride along on purpose; see
-  // `replaySnapshot`. Skip when the client filtered `engine-state` out.
+  // The bus caches ONE value per channel but `engine-state` is per-task, so
+  // replay the full activity snapshot (known-idle tab entries on purpose).
   if (!client.channels || client.channels.has("engine-state")) {
     for (const payload of deps.activity.replaySnapshot()) {
       deps.writeEvent(client, "engine-state", payload)

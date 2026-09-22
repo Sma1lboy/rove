@@ -1,13 +1,8 @@
 /**
- * `kobe add --remote …` — register an SSH-backed project.
- *
- * Stores the connection config under `remoteRepos[ssh://user@host:port]` and
- * adds that synthetic key to `savedRepos`. For password auth the secret is
- * prompted interactively (never on argv) and written to the OS keychain — only
- * a `keychainRef` lands in `state.json`. A best-effort connectivity probe runs
- * after registration so a typo surfaces immediately, but a failed probe does
- * NOT unregister the project (the host may just be down right now).
- *
+ * `kobe add --remote …` — register an SSH-backed project under
+ * `remoteRepos[ssh://user@host:port]` + `savedRepos`. Passwords are prompted
+ * (never argv) into the OS keychain; only a `keychainRef` hits `state.json`.
+ * A failed post-registration probe does NOT unregister (host may be down).
  * See `docs/design/remote-projects.md`.
  */
 
