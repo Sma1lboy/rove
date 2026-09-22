@@ -8,6 +8,7 @@
     "types": ["bun", "node"],
     "strict": true,
     "noUncheckedIndexedAccess": false,
+    "noUnusedLocals": true,
     "customConditions": ["browser"],
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
