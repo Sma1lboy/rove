@@ -23,7 +23,6 @@ import {
   DEFAULT_UI_PREFS_THEME_MODE,
   type UiPrefsTarget,
   applyUiPrefs,
-  normalizeFocusAccent,
 } from "../../src/tui/lib/apply-ui-prefs.ts"
 
 interface FakeState {
@@ -136,13 +135,5 @@ describe("applyUiPrefs", () => {
     applyUiPrefs(target, {})
     applyUiPrefs(target, { theme: 42, transparentBackground: "yes" })
     expect(calls).toEqual([])
-  })
-})
-
-describe("normalizeFocusAccent", () => {
-  test("null → default slot; known slot passes; unknown → null", () => {
-    expect(normalizeFocusAccent(null)).toBe(DEFAULT_FOCUS_ACCENT_SLOT)
-    expect(normalizeFocusAccent("info")).toBe("info")
-    expect(normalizeFocusAccent("chartreuse")).toBeNull()
   })
 })

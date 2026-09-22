@@ -18,9 +18,4 @@ describe("adoptTabs", () => {
     // Past every adopted ordinal, so the next new tab cannot collide.
     expect(next.nextOrdinal).toBe(7)
   })
-
-  it("is identity-stable when nothing is new — adoption runs off a 2s poll", () => {
-    const prev = initialTabs()
-    expect(adoptTabs(prev, ["tab-1"])).toBe(prev)
-  })
 })

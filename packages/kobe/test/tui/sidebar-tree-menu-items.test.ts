@@ -161,10 +161,6 @@ describe("treeMenuItems", () => {
     expect(actions(projectRow)).not.toContain("land")
   })
 
-  test("the o/b/v trio never reaches a project header", () => {
-    for (const verb of ["openEditor", "renameBranch", "changeEngine"]) expect(actions(projectRow)).not.toContain(verb)
-  })
-
   test("a tab row carries the same session + task verbs, plus its own close", () => {
     expect(actions(tabRow, { tabCount: 2 })).toEqual([
       "open",

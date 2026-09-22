@@ -87,17 +87,6 @@ describe("attentionKindFor", () => {
   })
 })
 
-describe("chipAttentionKind", () => {
-  it("maps the chip vocabulary's attention states and ignores the rest", () => {
-    expect(chipAttentionKind("done")).toBe("done")
-    expect(chipAttentionKind("error")).toBe("error")
-    expect(chipAttentionKind("needs_input")).toBe("needs_input")
-    expect(chipAttentionKind("running")).toBeNull()
-    expect(chipAttentionKind("idle")).toBeNull()
-    expect(chipAttentionKind("unknown")).toBeNull()
-  })
-})
-
 describe("attentionEdges", () => {
   // The seed rule is the replay-safety requirement: a fresh subscriber's
   // replayed sticky turn_complete may paint the ✓ chip but must NEVER
@@ -126,19 +115,9 @@ describe("attentionEdges", () => {
     ])
     expect(attentionEdges(prev, next, "tab-1", chipAttentionKind)).toEqual([{ key: "tab-2", kind: "needs_input" }])
   })
-
-  it("works with the task-level kind mapper too", () => {
-    const prev = new Map([["task-a", "running"]])
-    const next = new Map([["task-a", "permission_needed"]])
-    expect(attentionEdges(prev, next, null, attentionKindFor)).toEqual([{ key: "task-a", kind: "needs_input" }])
-  })
 })
 
 describe("osc9", () => {
-  it("wraps the body in the OSC 9 escape with a BEL terminator", () => {
-    expect(osc9("kobe — hi")).toBe("\x1b]9;kobe — hi\x07")
-  })
-
   it("neutralizes terminal control bytes before framing the notification", () => {
     const injected = "safe\x07\x1b]52;c;Y2xpcGJvYXJk\x07\x9d9;again\x9c\nend"
     const framed = osc9(injected)

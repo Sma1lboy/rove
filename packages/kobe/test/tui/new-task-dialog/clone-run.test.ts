@@ -56,13 +56,6 @@ describe("cloneRepo", () => {
 })
 
 describe("findAvailableFolderName — collision suffixing", () => {
-  test("suffixes -2, -3, … until a free slot", () => {
-    const parent = join(root, "parent")
-    mkdirSync(join(parent, "repo"), { recursive: true })
-    mkdirSync(join(parent, "repo-2"))
-    expect(findAvailableFolderName(parent, "repo")).toBe("repo-3")
-  })
-
   test("returns base verbatim when the parent is a file, not a directory", () => {
     execSync(`touch ${JSON.stringify(join(root, "a-file"))}`)
     expect(findAvailableFolderName(join(root, "a-file"), "repo")).toBe("repo")

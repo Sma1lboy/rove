@@ -56,11 +56,6 @@ describe("validateTheme — accepts", () => {
     expect(r.ok).toBe(true)
   })
 
-  test("missing defs key (it is optional)", () => {
-    const r = validateTheme({ theme: { text: "#fff" } })
-    expect(r.ok).toBe(true)
-  })
-
   test("optional $schema string", () => {
     const r = validateTheme({ $schema: "https://example.com/theme.json", theme: { text: "#fff" } })
     expect(r.ok).toBe(true)

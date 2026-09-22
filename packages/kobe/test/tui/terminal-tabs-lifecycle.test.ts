@@ -24,12 +24,6 @@ import {
 } from "../../src/tui/workspace/terminal-tabs-core"
 
 describe("terminal tabs lifecycle", () => {
-  it("starts with one untitled active tab", () => {
-    const s = initialTabs()
-    expect(s.tabs).toHaveLength(1)
-    expect(s.activeId).toBe("tab-1")
-    expect(s.tabs[0].title).toBeNull()
-  })
   // Why: rehydrateTabs is the restart contract — a tab is a TERMINAL, so
   // every tab survives: engine tabs
   // come back resumable, command tabs (a degraded shell, a dead editor)

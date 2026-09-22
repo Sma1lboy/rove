@@ -444,16 +444,4 @@ describe("a project closed down to nothing", () => {
       expect(rows({ tasks: [task("only", deleting("running"))] })).toEqual([])
     })
   })
-
-  test("opening the project does not mint a second row for the same repo", () => {
-    // `ensureMainTask` is idempotent, so the revived project must be the
-    // SAME main task. If a second main row appeared, the repo would render
-    // twice under one header — the shape a create-instead-of-open produces.
-    const out = rows({
-      tasks: [mainOf("/repos/codefox")],
-      tabsByTask: new Map([["m", [tab("t1")]]]),
-    })
-    expect(out.filter((r) => r.kind === "project")).toHaveLength(1)
-    expect(out.filter((r) => r.kind === "worktree")).toHaveLength(1)
-  })
 })

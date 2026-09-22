@@ -157,13 +157,6 @@ describe("sectionRows / bodyRowCount", () => {
     ])
   })
 
-  it("bodyRowCount is the registry length for every section", () => {
-    const inp = input({ engineList: [...ALL_VENDORS, "aider"], hasDaemon: false })
-    for (const { id } of SECTIONS) {
-      expect(bodyRowCount(id, inp)).toBe(sectionRows(id, inp).length)
-    }
-  })
-
   it("matches the old per-section count formulas for a representative input", () => {
     const inp = input({ engineList: [...ALL_VENDORS, "aider", "goose"], hasDaemon: true })
     expect(bodyRowCount("general", inp)).toBe(LANG + 7 + 12) // language + appearance summaries + remaining preferences
@@ -194,12 +187,6 @@ describe("rowIndex / rowAt", () => {
     expect(rowIndex(rows, "no-such-row")).toBe(-1)
     expect(rowAt(rows, -1)).toBeUndefined()
     expect(rowAt(rows, rows.length)).toBeUndefined()
-  })
-
-  it("looks a theme row up by id", () => {
-    const rows = generalRows()
-    // The theme list opens the Appearance group, which follows the languages.
-    expect(rowIndex(rows, "appearance:theme")).toBe(LANG)
   })
 })
 

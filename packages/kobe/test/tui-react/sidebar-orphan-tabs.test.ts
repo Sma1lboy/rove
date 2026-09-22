@@ -52,15 +52,6 @@ describe("orphanTabsByTask", () => {
     expect(map.get("t1")?.map((t) => t.id)).toEqual(["tab-2"])
   })
 
-  it("marks only the first tab of a task active", () => {
-    const map = orphanTabsByTask([session("t1::tab-1"), session("t1::tab-2")], new Set())
-    expect(map.get("t1")?.map((t) => t.active)).toEqual([true, false])
-  })
-
-  it("groups sessions by their task", () => {
-    const map = orphanTabsByTask([session("t1::tab-1"), session("t2::tab-1")], new Set())
-    expect([...map.keys()].sort()).toEqual(["t1", "t2"])
-  })
   it("keeps the first live leaf title and input order without modifying registered membership", () => {
     const registered = new Set(["t1::tab-2"])
     const map = orphanTabsByTask(

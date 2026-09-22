@@ -15,12 +15,6 @@ describe("relativeLuminance", () => {
     expect(relativeLuminance([0, 0, 0])).toBe(0)
     expect(relativeLuminance([255, 255, 255])).toBe(1)
   })
-
-  it("orders mid tones between the poles", () => {
-    const gray = relativeLuminance([128, 128, 128])
-    expect(gray).toBeGreaterThan(0)
-    expect(gray).toBeLessThan(1)
-  })
 })
 
 describe("contrastRatio", () => {

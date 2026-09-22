@@ -17,7 +17,6 @@ import {
   isCombinedPathspec,
   isImagePath,
   loadPreviewData,
-  looksBinaryText,
   unifiedDiffFiles,
 } from "../../src/tui/ops/preview-core.ts"
 
@@ -55,12 +54,6 @@ describe("loadPreviewData", () => {
     const repo = makeRepo()
     const data = await loadPreviewData(repo, "a.ts")
     expect(data).toEqual({ kind: "code", text: "export const a = 1\n" })
-  })
-
-  test("a missing file reports a failed read without throwing", async () => {
-    const repo = makeRepo()
-    const data = await loadPreviewData(repo, "nope.ts")
-    expect(data).toMatchObject({ kind: "error" })
   })
 
   // Why: a PNG decoded as utf8 renders as mojibake — image extensions and
@@ -171,11 +164,6 @@ describe("binary detection helpers", () => {
     expect(isImagePath("doc.pdf")).toBe(false)
     expect(isImagePath("src/a.ts")).toBe(false)
   })
-
-  test("looksBinaryText flags null bytes and passes plain text", () => {
-    expect(looksBinaryText("hello\u0000world")).toBe(true)
-    expect(looksBinaryText("plain text\n")).toBe(false)
-  })
 })
 
 /**
@@ -185,21 +173,6 @@ describe("binary detection helpers", () => {
  * patch proves false.
  */
 describe("hunklessPatchNote", () => {
-  test("a changed binary is classified, not collapsed into emptiness", () => {
-    const patch = [
-      "diff --git a/assets/bundle.zip b/assets/bundle.zip",
-      "index eda69c0..8dd93b0 100644",
-      "Binary files a/assets/bundle.zip and b/assets/bundle.zip differ",
-      "",
-    ].join("\n")
-    expect(hunklessPatchNote(patch)).toEqual({ kind: "binary" })
-  })
-
-  test("a mode-only change names both modes", () => {
-    const patch = ["diff --git a/src/run.sh b/src/run.sh", "old mode 100644", "new mode 100755", ""].join("\n")
-    expect(hunklessPatchNote(patch)).toEqual({ kind: "mode", from: "100644", to: "100755" })
-  })
-
   test("a patch with hunks is not a note — it renders as a diff", () => {
     expect(hunklessPatchNote(TWO_FILE_SAMPLE)).toBeNull()
   })

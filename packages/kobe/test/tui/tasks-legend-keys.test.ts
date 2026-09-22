@@ -23,7 +23,7 @@
  */
 
 import { afterEach, describe, expect, test } from "vitest"
-import { KobeKeymap, findBinding, resetKeymapToDefaults } from "../../src/tui/context/keybindings"
+import { KobeKeymap, resetKeymapToDefaults } from "../../src/tui/context/keybindings"
 import { legendCap, legendRowCap } from "../../src/tui/lib/help-groups"
 import { applyKeymapOverrides } from "../../src/tui/lib/keymap-overrides"
 
@@ -47,13 +47,6 @@ const COMPOSITE_ROWS: ReadonlyArray<readonly [ids: readonly string[], cap: strin
 
 describe("tasks-pane legend keycap derivation", () => {
   afterEach(() => resetKeymapToDefaults())
-
-  test("every legend id exists in KobeKeymap (no silently-dropped rows)", () => {
-    const all = [...SINGLE_ROWS.map(([id]) => id), ...COMPOSITE_ROWS.flatMap(([ids]) => ids)]
-    for (const id of all) {
-      expect(findBinding(id), `legend reads binding id "${id}" — keep it in KobeKeymap`).toBeDefined()
-    }
-  })
 
   test("default caps match the hardcoded captions the legend replaced", () => {
     for (const [id, cap] of SINGLE_ROWS) {

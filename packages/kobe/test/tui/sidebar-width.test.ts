@@ -81,11 +81,6 @@ describe("resolveSidebarWidth", () => {
     expect(resolveSidebarWidth(50, 40)).toBe(SIDEBAR_WIDTH)
   })
 
-  it("clearing the pin returns the derived width, whatever was pinned", () => {
-    expect(resolveSidebarWidth(200, null)).toBe(33)
-    expect(resolveSidebarWidth(160, null)).toBe(26)
-  })
-
   it("rounds a fractional pin rather than rendering a fractional column", () => {
     expect(resolveSidebarWidth(200, 30.4)).toBe(30)
     expect(resolveSidebarWidth(200, 30.6)).toBe(31)

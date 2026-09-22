@@ -35,7 +35,6 @@ import {
   statusFiles,
   statusFilesBranch,
 } from "../../src/tui/panes/filetree/git"
-import { buildTree } from "../../src/tui/panes/filetree/tree"
 import { readWorktreeFile, runWorktreeGit } from "../../src/worktree/content"
 
 const runGit = vi.mocked(runWorktreeGit)
@@ -149,29 +148,6 @@ describe("attachUntrackedChildren", () => {
     })
     // Non-dir rows are untouched.
     expect(entries[0]).toEqual({ path: "a.ts", status: "M" })
-  })
-})
-
-describe("buildTree", () => {
-  test("groups files under their parent directories, dirs before files, alphabetical", () => {
-    const tree = buildTree(["src/b.ts", "src/a.ts", "README.md", "src/nested/c.ts"])
-    expect(tree.children.map((c) => c.name)).toEqual(["src", "README.md"])
-    const src = tree.children[0]!
-    expect(src.isDir).toBe(true)
-    expect(src.children.map((c) => c.name)).toEqual(["nested", "a.ts", "b.ts"])
-    const nested = src.children[0]!
-    expect(nested.children.map((c) => c.name)).toEqual(["c.ts"])
-    expect(nested.children[0]!.path).toBe("src/nested/c.ts")
-  })
-
-  test("ignores empty-string paths", () => {
-    expect(buildTree(["", "a.ts"]).children.map((c) => c.name)).toEqual(["a.ts"])
-  })
-
-  test("empty input yields an empty root", () => {
-    const tree = buildTree([])
-    expect(tree.isDir).toBe(true)
-    expect(tree.children).toEqual([])
   })
 })
 

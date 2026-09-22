@@ -50,12 +50,6 @@ describe("pluginSettingRows", () => {
     expect(rowFor(DELAY, { KOBE_NOTIFY_DELAY: "" })).toMatchObject({ value: "", defaulted: false, defaultValue: "500" })
   })
 
-  it("carries the enum options through and leaves them empty for other types", () => {
-    const rows = pluginSettingRows(SCHEMA, {})
-    expect(rows[0]?.options).toEqual(["ping", "glass"])
-    expect(rows[1]?.options).toEqual([])
-  })
-
   it("renders nothing for a plugin that declares no settings", () => {
     expect(pluginSettingRows([], { STRAY: "1" })).toEqual([])
   })

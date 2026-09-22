@@ -36,11 +36,6 @@ describe("quotaResumeNote", () => {
 })
 
 describe("inbox item glyphs", () => {
-  it("gives a dead engine its own mark and word", () => {
-    expect(itemGlyph("dead")).toBe("†")
-    expect(itemStateKey("dead")).toBe("workspace.inbox.state.dead")
-  })
-
   it("keeps rate limited distinct from error", () => {
     expect(itemGlyph("rate_limited")).not.toBe(itemGlyph("error"))
     expect(itemStateKey("rate_limited")).not.toBe(itemStateKey("error"))

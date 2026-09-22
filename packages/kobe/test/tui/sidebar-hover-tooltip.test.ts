@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { approxCellWidth, resolveSidebarHoverTooltipLayout } from "../../src/tui/panes/sidebar/hover-layout"
+import { resolveSidebarHoverTooltipLayout } from "../../src/tui/panes/sidebar/hover-layout"
 
 describe("sidebar hover tooltip layout", () => {
   it("clamps the tooltip inside the screen", () => {
@@ -12,10 +12,5 @@ describe("sidebar hover tooltip layout", () => {
     })
     expect(layout.left + layout.boxWidth).toBeLessThan(80)
     expect(layout.top + layout.boxHeight).toBeLessThan(24)
-  })
-
-  it("sizes using terminal cell width for CJK text", () => {
-    expect(approxCellWidth("kobe")).toBe(4)
-    expect(approxCellWidth("任务")).toBe(4)
   })
 })

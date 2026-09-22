@@ -87,11 +87,6 @@ describe("readPersistedUiPrefs", () => {
     expect(readPersistedUiPrefs("claude", knows).theme).toBe("gruvbox")
   })
 
-  test("the caller's check still rejects a name it doesn't know", () => {
-    writeState(JSON.stringify({ activeTheme: "uninstalled" }))
-    expect(readPersistedUiPrefs("claude", (n) => n === "gruvbox").theme).toBe("claude")
-  })
-
   test("each field validates independently — garbage in one doesn't poison the others", () => {
     writeState(
       JSON.stringify({

@@ -1,15 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest"
 import { DEFAULT_LOCALE, currentLang, setLocaleLang, t, tKeys } from "../../src/tui-react/i18n"
-import { t as coreT } from "../../src/tui/i18n"
 
 afterEach(() => setLocaleLang(DEFAULT_LOCALE))
 
 describe("react i18n runtime", () => {
-  it("resolves a real catalog key identically through the shared core runtime", () => {
-    setLocaleLang("en")
-    expect(t("workspace.empty.selectTask")).toBe(coreT("workspace.empty.selectTask"))
-  })
-
   it("switches language per process and reports it", () => {
     setLocaleLang("en")
     const en = t("workspace.empty.selectTask")

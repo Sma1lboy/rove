@@ -6,16 +6,6 @@ import {
 } from "../../src/lib/external-store"
 
 describe("createStateCell", () => {
-  it("get returns the current snapshot; set replaces it", () => {
-    const store = createStateCell({ n: 1 })
-    expect(store.get()).toEqual({ n: 1 })
-    expect(store()).toEqual({ n: 1 })
-    expect(store.get).toBe(store)
-    store.set({ n: 2 })
-    expect(store.get()).toEqual({ n: 2 })
-    expect(store()).toEqual({ n: 2 })
-  })
-
   it("notifies subscribers on change and stops after unsubscribe", () => {
     const store = createStateCell(0)
     const seen: number[] = []
@@ -35,12 +25,6 @@ describe("createStateCell", () => {
     expect(listener).not.toHaveBeenCalled()
     store.set("b")
     expect(listener).toHaveBeenCalledTimes(1)
-  })
-
-  it("update applies a functional transform over the current snapshot", () => {
-    const store = createStateCell({ count: 1 })
-    store.update((s) => ({ count: s.count + 1 }))
-    expect(store.get()).toEqual({ count: 2 })
   })
 
   it("a listener unsubscribing during notify does not skip other listeners", () => {

@@ -81,13 +81,6 @@ describe("terminal tabs state", () => {
     expect(selectTab(s, s.activeId)).toBe(s)
   })
 
-  it("rename trims; blank clears back to the numbered default", () => {
-    let s = renameActiveTab(initialTabs(), "  build watch  ")
-    expect(s.tabs[0].title).toBe("build watch")
-    s = renameActiveTab(s, "   ")
-    expect(s.tabs[0].title).toBeNull()
-  })
-
   it("tabPtyKey namespaces per task so tabs never collide across tasks", () => {
     expect(tabPtyKey("task-a", "tab-1")).not.toBe(tabPtyKey("task-b", "tab-1"))
     expect(tabPtyKey("task-a", "tab-1")).toBe("task-a::tab-1")

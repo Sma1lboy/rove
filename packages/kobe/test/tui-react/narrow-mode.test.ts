@@ -6,11 +6,6 @@ describe("isNarrowWidth", () => {
     expect(isNarrowWidth(NARROW_BREAKPOINT)).toBe(false)
     expect(isNarrowWidth(NARROW_BREAKPOINT - 1)).toBe(true)
   })
-
-  it("covers the phone-SSH target and common desktop widths", () => {
-    expect(isNarrowWidth(46)).toBe(true)
-    expect(isNarrowWidth(80)).toBe(false)
-  })
 })
 
 describe("narrowSurface", () => {

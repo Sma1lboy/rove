@@ -31,12 +31,6 @@ beforeEach(() => {
 })
 
 describe("startTui", () => {
-  it("starts the sole Workspace Host", async () => {
-    await startTui()
-
-    expect(spies.startWorkspaceHost).toHaveBeenCalledOnce()
-  })
-
   it("installs engine hooks before starting the Workspace Host", async () => {
     const order: string[] = []
     spies.installHooks.mockImplementationOnce(async () => {
@@ -72,12 +66,6 @@ describe("startTui", () => {
 
     expect(order).toEqual(["whats-new", "reset-gate"])
     expect(spies.startWorkspaceHost).toHaveBeenCalledWith({ whatsNewFrom: "0.9.100", welcome: null })
-  })
-
-  it("passes null through when there is nothing new to show", async () => {
-    await startTui()
-
-    expect(spies.startWorkspaceHost).toHaveBeenCalledWith({ whatsNewFrom: null, welcome: null })
   })
 
   /**

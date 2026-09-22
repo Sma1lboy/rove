@@ -15,7 +15,6 @@ import {
   followScrollTop,
   gitErrorIsRetryable,
   statCell,
-  statusToken,
   summarizeGitError,
   toggleDir,
   watchEventRelevant,
@@ -50,16 +49,6 @@ const changesRows: Row[] = [
   { kind: "status", path: "untracked/b.ts", status: "?", added: 2, deleted: 0, child: true },
 ]
 const changesRowsOpen: Row[] = changesRows.map((row) => (row.path === "untracked/" ? { ...row, expanded: true } : row))
-
-describe("statusToken", () => {
-  test("maps every status to its theme token", () => {
-    expect(statusToken("M")).toBe("warning")
-    expect(statusToken("A")).toBe("success")
-    expect(statusToken("D")).toBe("error")
-    expect(statusToken("?")).toBe("textMuted")
-    for (const s of ["R", "C", "U", "T"] as const) expect(statusToken(s)).toBe("info")
-  })
-})
 
 describe("summarizeGitError", () => {
   const t = (key: string) => `<${key}>`

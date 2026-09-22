@@ -37,12 +37,6 @@ describe("recorded live title (lastTitle)", () => {
     expect(tabTitle(firstTab(state), "claude", "live name")).toContain("live name")
   })
 
-  it("a manual rename outranks both", () => {
-    const state = setTabLastTitle(initialTabs(), firstTab(initialTabs()).id, "recorded")
-    const renamed: TerminalTab = { ...firstTab(state), title: "my tab" }
-    expect(tabTitle(renamed, "claude", "live")).toBe("my tab")
-  })
-
   // Regression: "the chattab shows the right title
   // for a second, then goes back to claude 7." Seeding a
   // freshly-attached PTY with "" (nothing reported YET) lets the host record

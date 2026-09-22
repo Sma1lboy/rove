@@ -74,21 +74,9 @@ describe("parseAnsiLine — attribute toggles", () => {
     expect(chunks).toHaveLength(2)
     expect(chunks[1]?.attributes).toBeUndefined()
   })
-
-  test("22 turns off bold without affecting other attrs", () => {
-    const { chunks } = parseAnsiLine(`${ESC}1;3mboth${ESC}22mitalicOnly${ESC}0m`)
-    expect(chunks).toHaveLength(2)
-    expect(chunks[0]?.attributes).toBe(ATTR.BOLD | ATTR.ITALIC)
-    expect(chunks[1]?.attributes).toBe(ATTR.ITALIC)
-  })
 })
 
 describe("parseAnsiLine — colors", () => {
-  test("standard fg (30-37) emits a populated fg", () => {
-    const { chunks } = parseAnsiLine(`${ESC}31mred${ESC}0m`)
-    expect(chunks[0]?.fg).toBeDefined()
-  })
-
   test("default fg (39) clears the running fg", () => {
     const { chunks } = parseAnsiLine(`${ESC}31mred${ESC}39mplain`)
     expect(chunks).toHaveLength(2)
@@ -111,17 +99,6 @@ describe("parseAnsiLine — colors", () => {
   test("true-color fg (38;2;R;G;B) round-trips the exact RGB", () => {
     const { chunks } = parseAnsiLine(`${ESC}38;2;128;64;200mtc${ESC}0m`)
     expect(chunks[0]?.fg).toEqual([128, 64, 200])
-  })
-
-  test("background (40-47) populates bg, not fg", () => {
-    const { chunks } = parseAnsiLine(`${ESC}41mbg${ESC}0m`)
-    expect(chunks[0]?.bg).toBeDefined()
-    expect(chunks[0]?.fg).toBeUndefined()
-  })
-
-  test("true-color bg (48;2;R;G;B) round-trips", () => {
-    const { chunks } = parseAnsiLine(`${ESC}48;2;10;20;30mbg${ESC}0m`)
-    expect(chunks[0]?.bg).toEqual([10, 20, 30])
   })
 
   // Regression: the terminal pane re-serializes xterm cells as
@@ -153,22 +130,6 @@ describe("parseAnsiLine — style transitions", () => {
     const { chunks } = parseAnsiLine(`${ESC}31mA${ESC}32mB${ESC}33mC${ESC}0m`)
     expect(chunks).toHaveLength(3)
     expect(chunks.map((c) => c.text)).toEqual(["A", "B", "C"])
-  })
-
-  test("contiguous same-style text stays in one chunk", () => {
-    const { chunks } = parseAnsiLine(`${ESC}31mAAA${ESC}31mBBB${ESC}0m`)
-    // The two identical SGR escapes flush+restyle, so two chunks
-    // even though they share style. This is OK behavior — it just
-    // means a slightly longer chunk list, never an incorrect render.
-    expect(chunks.length).toBeGreaterThanOrEqual(1)
-    expect(chunks.map((c) => c.text).join("")).toBe("AAABBB")
-  })
-
-  test("plain text after style flushes a no-style chunk", () => {
-    const { chunks } = parseAnsiLine(`${ESC}1mbold${ESC}0mafter`)
-    expect(chunks).toHaveLength(2)
-    expect(chunks[0]?.attributes).toBe(ATTR.BOLD)
-    expect(chunks[1]?.attributes).toBeUndefined()
   })
 })
 

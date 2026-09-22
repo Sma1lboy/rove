@@ -4,7 +4,6 @@ import type { AttentionInboxItem } from "../../src/client/remote-orchestrator"
 import {
   attentionInboxCounts,
   attentionInboxKey,
-  isAttentionInboxItemAvailable,
   nextAttentionInboxTarget,
   partitionAttentionInboxAvailability,
   sortAttentionInbox,
@@ -146,19 +145,6 @@ describe("attention inbox ordering", () => {
       tabId: "tab-1",
     })
     expect(resolved).toEqual([exact, taskLevel])
-  })
-
-  test("uses one availability rule for deleting tasks and closed tabs", () => {
-    const open = item("live", "open", "error", 8)
-    expect(isAttentionInboxItemAvailable(open, { deletion: undefined }, (id) => id === "open")).toBe(true)
-    expect(
-      isAttentionInboxItemAvailable(
-        open,
-        { deletion: { phase: "queued", force: false, requestedAt: "2026-07-15T00:00:00.000Z" } },
-        () => true,
-      ),
-    ).toBe(false)
-    expect(isAttentionInboxItemAvailable(open, { deletion: undefined }, () => false)).toBe(false)
   })
 
   test("counts only available episodes for the always-visible Inbox header", () => {

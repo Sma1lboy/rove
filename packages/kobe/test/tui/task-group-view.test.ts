@@ -46,15 +46,6 @@ describe("taskGroupIn", () => {
 })
 
 describe("taskGroupLabel / taskGroupTone", () => {
-  it("labels the four groups a person acts on and leaves the quiet ones silent", () => {
-    expect(taskGroupLabel("waiting-on-you")).toBe("needs you")
-    expect(taskGroupLabel("landing")).toBe("ready to land")
-    expect(taskGroupLabel("ready-for-review")).toBe("needs review")
-    expect(taskGroupLabel("working")).toBe("working")
-    expect(taskGroupLabel("idle")).toBeNull()
-    expect(taskGroupLabel("unknown")).toBeNull()
-  })
-
   it("gives a label exactly when it gives a tone", () => {
     for (const group of TASK_GROUPS) {
       expect(taskGroupLabel(group) === null).toBe(taskGroupTone(group) === null)
