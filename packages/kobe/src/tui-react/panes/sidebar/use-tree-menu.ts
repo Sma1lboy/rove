@@ -228,6 +228,9 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         case "syncBase":
           actions.onSyncBaseRequest?.(taskId)
           break
+        case "resolveConflicts":
+          actions.onResolveConflictsRequest?.(taskId)
+          break
         case "land":
           actions.onLandRequest?.(taskId)
           break

@@ -196,6 +196,22 @@ worktree, leaving the original untouched. The confirm shows the brief in full
 before anything is created. A Task created without a prompt has no brief to
 re-run, and the entry does not appear for it.
 
+The menu is also where a managed Task meets its base branch. **Sync with
+base** merges the base into the worktree (the action behind the `↓N` drift
+chip); when the merge stops on conflicts, the merge is left in place and a
+toast names the conflicted files. **Resolve conflicts with agent** runs the
+same merge and keeps going: the conflicted files go to the Task's engine as a
+prompt asking it to resolve them, remove the markers, run the tests, and
+complete the merge with a commit. It is the same hand-off as **Fix failing
+checks** — Rove pastes a prompt, the engine does the work, and the row's
+"whose turn" mark tells you when it has finished or is stuck. A worktree
+that is already current, or that merges cleanly, says so instead of sending
+anything; a worktree with uncommitted changes is refused before the merge is
+attempted, exactly as Sync is. A repo can replace the prompt with
+`.rove/conflict-instructions.md`; see
+[Per-repo init](CONFIGURATION.md#per-repo-init). Both entries are menu-only:
+no chord is bound until one is agreed.
+
 The confirmation dialogs state the exact deletion boundary before anything is
 changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 [Sessions](SESSIONS.md#what-actually-ends-a-session) for session teardown.

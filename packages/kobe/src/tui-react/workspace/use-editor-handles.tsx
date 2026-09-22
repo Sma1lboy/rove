@@ -13,13 +13,17 @@ import { useLatest } from "../lib/use-latest"
 import { takeCreatePR, useCreatePR } from "./use-create-pr"
 import { useFileOpenActions } from "./use-file-open-actions"
 import { requestFixCI, takeFixCI, useFixCI } from "./use-fix-ci"
+import type { HostNotifiers } from "./use-host-notifiers"
+import { requestResolveConflicts, takeResolveConflicts, useResolveConflicts } from "./use-resolve-conflicts"
 
 export interface UseEditorHandlesOpts {
   orchestrator: RemoteOrchestrator
   worktree: string | null
   selectedId: string | null
   focus: FocusContextValue
-  notifyError: (msg: string) => void
+  /** The host's toasts: errors for every action, info + attention for the
+   *  conflict hand-off (which reports the merge's outcome like Sync does). */
+  notifiers: Pick<HostNotifiers, "notifyError" | "notifyInfo" | "notifyNeedsInput">
   /** Enter a task — the row-aimed actions below need its engine mounted. */
   activateTask: (taskId: string) => void
 }
@@ -36,6 +40,10 @@ export interface UseEditorHandlesResult {
    *  enters the row when it is not already active, then pastes the failing
    *  job's log into its engine. */
   onFixChecks: (taskId: string) => void
+  /** Sidebar row menu "Resolve conflicts with agent" — enters the row when it
+   *  is not already active, merges the base in, and pastes the conflicted
+   *  files into its engine when the merge stops on them. */
+  onResolveConflicts: (taskId: string) => void
   /** FileTree `a` — paste `@<path>` into the engine's composer WITHOUT
    *  submitting (docs/TUI.md); the user keeps typing around it. */
   onMention: (relPath: string) => void
@@ -68,7 +76,8 @@ export function mentionAction(
 }
 
 export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesResult {
-  const { orchestrator, worktree, selectedId, focus, notifyError, activateTask } = opts
+  const { orchestrator, worktree, selectedId, focus, activateTask } = opts
+  const { notifyError, notifyInfo, notifyNeedsInput } = opts.notifiers
   const t = useT()
 
   // Imperative handle from the currently-mounted TerminalTabs: a ref, since
@@ -111,6 +120,22 @@ export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesRe
     fetchChecks: (taskId) => orchestrator.failingChecks(taskId),
   })
 
+  // Sidebar row menu "Resolve conflicts with agent" — the third action of
+  // this shape. The await here is the daemon-side merge.
+  const resolveConflicts = useResolveConflicts({
+    worktree,
+    sendToEngineFn,
+    selectedWorktreeRef,
+    notifyInfo,
+    notifyNeedsInput,
+    notifyError,
+    getTask: (taskId) => {
+      const task = orchestrator.getTask(taskId)
+      return task ? { branch: task.branch, ...(task.baseRef === undefined ? {} : { baseRef: task.baseRef }) } : null
+    },
+    syncBase: (taskId) => orchestrator.syncBase(taskId),
+  })
+
   // FileTree's Enter (editor/plugin/OS) and `d` (read-only diff tab).
   const { openFileInEditor, openDiff } = useFileOpenActions({
     orch: orchestrator,
@@ -134,6 +159,8 @@ export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesRe
       if (takeCreatePR(selectedId)) void createPR()
       const parked = takeFixCI(selectedId)
       if (parked) void fixCI(parked)
+      const parkedConflicts = takeResolveConflicts(selectedId)
+      if (parkedConflicts) void resolveConflicts(parkedConflicts)
     },
     onEnginePasteReady: (paste) => {
       pasteToEngineFn.current = paste
@@ -150,6 +177,12 @@ export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesRe
       // parked request once that task's TerminalTabs has mounted.
       if (taskId === selectedId) return void fixCI(taskId)
       requestFixCI(taskId)
+      activateTask(taskId)
+    },
+    onResolveConflicts: (taskId) => {
+      // Same park-then-enter dance as `onFixChecks`, for the same reason.
+      if (taskId === selectedId) return void resolveConflicts(taskId)
+      requestResolveConflicts(taskId)
       activateTask(taskId)
     },
     onMention: mentionAction(pasteToEngineFn, () => notifyError(t("files.mentionNoEngine"))),

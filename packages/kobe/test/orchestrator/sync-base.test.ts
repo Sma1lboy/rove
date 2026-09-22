@@ -116,6 +116,32 @@ describe("syncWorktreeWithBase dirty guard", () => {
     expect(err?.message).toContain("f.txt")
   })
 
+  test("a retry while that merge is still conflicted answers SYNC_CONFLICT again, not dirty", async () => {
+    // The conflicted merge is left in place on purpose (module note), and its
+    // `UU` entries used to trip the dirty guard on the next call — telling the
+    // user to commit first, which is exactly what a conflict prevents. The
+    // agent hand-off runs a sync to LEARN the file list, so a retry has to
+    // keep reporting it.
+    gitOk(["checkout", "feat"])
+    write("f.txt", "theirs\n")
+    gitOk(["add", "-A"])
+    gitOk(["commit", "-m", "feat edits f"])
+    gitOk(["checkout", "main"])
+    write("f.txt", "ours\n")
+    gitOk(["add", "-A"])
+    gitOk(["commit", "-m", "main edits f"])
+    gitOk(["checkout", "feat"])
+    expect((await sync())?.message).toContain(SYNC_CONFLICT)
+
+    const again = await sync()
+
+    expect(again?.message).toContain(SYNC_CONFLICT)
+    expect(again?.message).toContain("f.txt")
+    expect(again?.message).not.toContain(SYNC_DIRTY)
+    // Still mid-merge: nothing was aborted or committed under the user.
+    expect(fs.existsSync(path.join(repo, ".git", "MERGE_HEAD"))).toBe(true)
+  })
+
   test("the residual failure branch quotes git instead of saying only that it failed", async () => {
     gitOk(["checkout", "feat"])
 

@@ -68,6 +68,12 @@ export type SidebarTaskCallbacks = {
    * `↓N` drift chip. Menu-only.
    */
   onSyncBaseRequest?: (taskId: string) => void
+  /**
+   * Merge the base in, and hand any conflicts to the row's engine as a
+   * prompt. Menu-only, and — like `onFixChecksRequest` — it has to run where
+   * the engine is, so the host parks it until the row's workspace mounts.
+   */
+  onResolveConflictsRequest?: (taskId: string) => void
   /** Project row's "Field notes": read the repo's durable notes. Menu-only. */
   onFieldNotesRequest?: (repo: string) => void
 }
