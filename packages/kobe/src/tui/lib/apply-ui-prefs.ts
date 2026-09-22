@@ -34,7 +34,7 @@ export type UiPrefsFocusAccentSlot = (typeof UI_PREFS_FOCUS_ACCENT_SLOTS)[number
 export const DEFAULT_FOCUS_ACCENT_SLOT: UiPrefsFocusAccentSlot = "primary"
 
 /** Mirror of `THEME_MODE_PREFERENCES` in `tui/context/theme-core.ts`, local for the same reason. */
-export const UI_PREFS_THEME_MODES = ["dark", "light", "auto"] as const
+const UI_PREFS_THEME_MODES = ["dark", "light", "auto"] as const
 export type UiPrefsThemeMode = (typeof UI_PREFS_THEME_MODES)[number]
 /** `DEFAULT_THEME_MODE` in `tui/context/theme-core.ts`. */
 export const DEFAULT_UI_PREFS_THEME_MODE: UiPrefsThemeMode = "dark"
@@ -124,7 +124,7 @@ export function normalizeFocusAccent(value: string | null): UiPrefsFocusAccentSl
 }
 
 /** `null` → the default mode (persisted "unset"); a known mode passes through; anything else → `null` (skip). */
-export function normalizeThemeMode(value: string | null): UiPrefsThemeMode | null {
+function normalizeThemeMode(value: string | null): UiPrefsThemeMode | null {
   if (value === null) return DEFAULT_UI_PREFS_THEME_MODE
   return (UI_PREFS_THEME_MODES as readonly string[]).includes(value) ? (value as UiPrefsThemeMode) : null
 }
