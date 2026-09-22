@@ -1,17 +1,9 @@
 /**
- * The "auto status flow" opt-in (docs/design/web-kanban.md M5):
- * one switch gates BOTH halves of the flow —
- *
- *   - daemon rule: `turn-start` on a backlog task → `in_progress`
- *     (monitor/status-rules.ts), and
- *   - spawn-time system-prompt injection telling the agent to self-report
- *     `in_review` when its work is done (engine/interactive-command.ts
- *     `withStatusProtocol`).
- *
- * Lives in the shared state.json (the Settings dialog's KV writes the same
- * file), read fresh at each decision point so toggling needs no daemon
- * restart. Off by default — the `experimental.` prefix follows the
- * remote-projects precedent.
+ * "Auto status flow" opt-in (docs/design/web-kanban.md M5), gating both the
+ * daemon rule (`turn-start` on backlog → `in_progress`, monitor/status-rules.ts)
+ * and the spawn-time prompt telling the agent to self-report `in_review`
+ * (`withStatusProtocol`). Read fresh from state.json at each decision, so
+ * toggling needs no daemon restart. Off by default.
  */
 
 import { getPersistedBool } from "./store.ts"

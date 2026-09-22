@@ -1,11 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Settings sections — sidebar + General. Row indices come
- * from the shared framework-free row registry (`../../../tui/component/
- * settings-dialog/model`), so keyboard navigation and click targets stay
- * in lockstep with the dialog's key handlers. kv-backed prefs arrive as
- * one `prefs: SettingsPrefs` bundle (getters are plain kv reads — the
- * KVProvider re-renders the tree on every kv/theme change).
+ * Settings sidebar + General. Row indices come from the shared row registry
+ * (`../../../tui/component/settings-dialog/model`) so clicks and key handlers
+ * agree. `prefs` getters are plain kv reads; KVProvider re-renders on every
+ * kv/theme change.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -121,11 +119,9 @@ export function GeneralSettingsSection(
   const themeCtx = useTheme()
   const { theme } = themeCtx
   const t = useT()
-  // Keyboard-hints toggle state lives in the framework-free lib (not the
-  // prefs bundle) so its logic stays vitest-testable — see keyboard-hints.ts.
+  // Keyboard-hints state lives in keyboard-hints.ts, not prefs, to stay vitest-testable.
   const kv = useKV()
-  // Row registry for this section — a row's body index is its position in
-  // the list, so every index below is an id lookup, not arithmetic.
+  // A row's body index is its position in the registry: look up by id, never compute.
   const rows = useMemo(() => generalRows(), [])
   const rowIdx = (id: string) => rowIndex(rows, id)
   const isBodyCursor = (row: number) => props.level === "body" && props.bodyRow === row
@@ -134,19 +130,13 @@ export function GeneralSettingsSection(
     props.setBodyRow(row)
     action()
   }
-  // Live per render — opentui re-renders on resize, so a terminal dragged
-  // narrow re-lays the column out instead of keeping a stale desktop budget.
+  // Computed per render: opentui re-renders on resize.
   const { labelColumn, showHint } = generalLabelLayout(useTerminalDimensions().width, useDialogPaddingX())
-  /** The inline hint, dropped entirely when the row is too narrow to hold
-   *  both. A clipped half-sentence beside a clipped label is worse than the
-   *  label alone; the SubSection paragraph above still explains the group. */
+  /** Inline hint, dropped entirely when the row can't hold both: a clipped
+   *  half-sentence is worse than none; the SubSection paragraph still explains. */
   const hint = (key: string): string | undefined => (showHint ? t(key) : undefined)
-  /** Label column: the inline hints beside each control read as a column too.
-   *  The 30-cell column is a MAXIMUM, not a floor — a narrow terminal has to
-   *  spend fewer. Padding past what the row actually owns pushes the hint out
-   *  entirely and then clips the label itself (`Row` is `overflow="hidden"`
-   *  with `wrapMode="none"`, so it cuts without an ellipsis), which is how a
-   *  46-column phone SSH session lost the label AND the hint at once. */
+  /** The 30-cell label column is a MAXIMUM: over-padding pushes the hint out and
+   *  then clips the label with no ellipsis (a 46-column SSH session lost both). */
   const pad = (label: string) => label + " ".repeat(Math.max(0, labelColumn - displayWidth(label)))
   const check = (on: boolean) => (on ? "[x]" : "[ ]")
   /** Exclusive pick — the same radio the Engines section uses for its default. */

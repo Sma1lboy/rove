@@ -40,11 +40,7 @@ export function formatReset(resetsAt: number | null, nowMs: number): string {
   return `→ ${d.getMonth() + 1}/${d.getDate()} ${clock}`
 }
 
-/**
- * One window rendered as a compact chip (the workspace footer line), split
- * into segments so the footer can color the percent by tone — mirroring the
- * Settings dashboard — while label/reset stay muted.
- */
+/** One window as a footer chip; segmented so only the percent takes the tone color. */
 export interface UsageChipView {
   readonly label: string
   readonly percentText: string
@@ -53,9 +49,8 @@ export interface UsageChipView {
 }
 
 /**
- * Bar-less one-line form of {@link usageRows} for the workspace footer:
- * `5h 42% → 14:00`. Same tone thresholds, no padding — the footer packs
- * several vendors onto one row, so every cell has to earn its width.
+ * Bar-less footer form of {@link usageRows}: `5h 42% → 14:00`. Same tones, no
+ * padding: several vendors share one row.
  */
 function usageChips(usage: EngineQuotaUsage, nowMs: number): UsageChipView[] {
   return usage.windows.map((w) => ({
@@ -67,11 +62,8 @@ function usageChips(usage: EngineQuotaUsage, nowMs: number): UsageChipView[] {
 }
 
 /**
- * Narrow-footer form: ONE chip per vendor, pinned to the
- * session window — the "5h" rolling window every vendor reports as its
- * tightest budget — falling back to the vendor's first window when no
- * session window exists. Reset time is dropped; at 46 cols only the
- * tone-colored percent earns its cells.
+ * Narrow-footer form: ONE chip per vendor, the session ("5h", tightest)
+ * window, else the first window. Callers drop the reset time at 46 cols.
  */
 export function narrowUsageChip(usage: EngineQuotaUsage, nowMs: number): UsageChipView | null {
   const w = usage.windows.find((win) => win.kind === "session") ?? usage.windows[0]
@@ -128,11 +120,9 @@ export function usageChipsBudget(opts: { terminalWidth: number; hintCells: numbe
 }
 
 /**
- * Fit the quota chips into `budget` cells, degrading instead of overflowing:
- * full label/reset form when it fits, the compact vendor+percent form when
- * it doesn't, truncating the LAST kept vendor's name to soak up the
- * remainder and dropping vendors past it. The percent is the payload — it
- * survives every squeeze; the vendor name is what yields.
+ * Fit the quota chips into `budget` cells: full form if it fits, else compact
+ * vendor+percent, truncating the last kept vendor's name and dropping the
+ * rest. The percent always survives; the name yields.
  */
 export function buildFooterChips(opts: {
   usage: ReadonlyMap<string, EngineQuotaUsage>
@@ -182,24 +172,12 @@ export function buildFooterChips(opts: {
 }
 
 /**
- * The context-window chip — `ctx 62%`, or `ctx 62%~` when the figure is the
- * engine's own estimate rather than a number it reports.
+ * Context-window chip: `ctx 62%`, or `ctx 62%~` when the engine estimated it.
+ * Room left in THIS conversation, before it compacts.
  *
- * Answers a different question from the quota chips beside it: those say how
- * much budget is left this week, this says how much room is left in THIS
- * conversation. The moment it runs out the session compacts and the agent
- * quietly loses the context you spent an hour building; the first symptom is
- * a worse answer.
- *
- * `null` — render nothing — in three cases, and all three are the same honest
- * refusal: no snapshot, no `contextWindowTokens` (only some vendors report the
- * model's window, and a percentage of an unknown denominator is a made-up
- * number), or a window of zero. The neutral layer must NOT guess the
- * denominator from a model name: what a vendor counts toward its context is
- * the ADAPTER's arithmetic (CLAUDE.md, "Engine-owned UI data").
- *
- * Same three tones as the quota chips, so one glance reads both halves of the
- * footer the same way. Pure — unit-tested.
+ * `null` with no snapshot, no `contextWindowTokens`, or a zero window. Never
+ * guess the denominator from a model name: that is the ADAPTER's arithmetic
+ * (CLAUDE.md, "Engine-owned UI data"). Same tones as the quota chips.
  */
 export function contextChip(
   usage: { contextTokens: number; contextWindowTokens?: number; approximate?: boolean } | null | undefined,
@@ -219,29 +197,15 @@ export function contextChip(
 }
 
 /**
- * The session token chip — `Σ 45k`, right of the context meter.
+ * Session token chip: `Σ 45k`, what the conversation has cost so far.
  *
- * Answers the third question the footer's other two do not: the quota chips
- * say how much budget is left this week, `ctx` says how much room is left in
- * this conversation, and this says what the conversation has COST so far.
- * That number was already being read — the same `readUsageSnapshot` call the
- * context collector makes every ten seconds parses it out of the transcript —
- * and every layer between there and here dropped it.
+ * `Σ` is prompt + completion. Cache reads/writes (`cacheReadTokens` /
+ * `cacheCreationTokens`) are deliberately excluded: a cached prompt can be an
+ * order of magnitude larger than the turn that used it.
  *
- * `Σ` is prompt + completion, the two counts that are billed as new work.
- * Cache reads and cache writes ride the same wire (`cacheReadTokens` /
- * `cacheCreationTokens`) and deliberately do NOT land in this figure: a cached
- * prompt can be an order of magnitude larger than the turn that used it, so
- * folding it in would make the chip read as effort where it is mostly reuse.
- *
- * `null` — render nothing — when the vendor reported neither count. Absence is
- * the honest answer for an adapter that does not report tokens; a `0` there
- * would claim a free session. One count present and the other missing renders
- * the one that exists rather than treating the gap as zero.
- *
- * Muted tone throughout, unlike the chips beside it: a token total is a fact
- * about the past, not a budget running out, so it has no threshold to colour.
- * Pure — unit-tested.
+ * `null` when neither count was reported (a `0` would claim a free session);
+ * one missing count is omitted, not treated as a gap. Always muted: a past
+ * total has no threshold.
  */
 export function tokenTotalChip(
   usage: { inputTokens?: number; outputTokens?: number } | null | undefined,
@@ -251,9 +215,7 @@ export function tokenTotalChip(
   return { label: "Σ", text: humanTokens((usage.inputTokens ?? 0) + (usage.outputTokens ?? 0)) }
 }
 
-/** Token counts run to seven digits; the footer has cells for four. Truncate
- *  rather than round up, so the chip never claims a milestone the session has
- *  not reached (`999_999` reads `999k`, never `1.0M`). */
+/** Four cells. Truncate, never round up: `999_999` reads `999k`, not `1.0M`. */
 function humanTokens(total: number): string {
   if (total < 1_000) return String(total)
   if (total < 1_000_000) return `${Math.floor(total / 1_000)}k`
@@ -261,10 +223,8 @@ function humanTokens(total: number): string {
 }
 
 /**
- * One aligned meter row per quota window, in the vendor's own order (the
- * usage API lists session before weekly). Label column width tracks the
- * longest label (scoped windows carry model display names) with a hard cap
- * so one long name can't push the meters off the dialog.
+ * One aligned meter row per window, in the vendor's order. Label column tracks
+ * the longest label, capped so one long model name can't push meters off.
  */
 export function usageRows(usage: EngineQuotaUsage, nowMs: number): UsageRowView[] {
   const labelWidth = Math.min(

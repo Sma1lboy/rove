@@ -4,11 +4,6 @@
  * `workspace/host-pages.tsx`. The pure row registry owns order and payloads;
  * preference hooks own KV reads/writes. j/k navigate, h/l switch levels,
  * Enter activates, and the surrounding dialog stack owns Escape.
- *
- * It used to carry a second, overlay shape behind a `standalone` prop that was
- * only ever passed `true`. The overlay branches were unreachable and would not
- * have worked: cursor-follow registers the page branch's scrollbox, so overlay
- * mode had none at all.
  */
 
 import { errorMessage } from "@/lib/error-message"
@@ -109,8 +104,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   // The tier targets, gated against the same account probe the cards read.
   const autoRouting = useAutoRoutingSettings(props.kv, dialog, engines.engineList, engineStatuses)
   const classifier = useClassifierSettings(props.kv, dialog, section === "autoRouting")
-  // Writing the starter YAML flips the Keybindings section from "here is an
-  // example" to a real file — and re-applying it is what re-renders the
+  // Re-applying after writing the starter YAML re-renders the Keybindings
   // section (and drops its create row) without a restart.
   const [keysFileExists, setKeysFileExists] = useState(() => userKeybindingsReport().exists)
   function createKeysFile(): void {
@@ -144,9 +138,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
     return bodyRows().length
   }
 
-  // UI language. Live within this process (setLocaleLang updates the module
-  // store → useT() consumers re-render) and persisted so other panes pick it
-  // up on their next boot, mirroring how the theme is applied + persisted.
+  // Live in-process via setLocaleLang (useT() consumers re-render); persisted
+  // so other panes pick it up on their next boot.
   function selectLanguage(locale: LocaleId): void {
     if (currentLang() === locale) return
     setLocaleLang(locale)
@@ -341,10 +334,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
     bindings: [{ key: "return", cmd: () => void sendFeedback() }],
   }))
 
-  // Cursor-follow: the page scrollbox registers here and every navigable row
-  // registers by its body index, so keyboard navigation never lands on a row
-  // clipped below the fold in a short terminal. `-1` while the sidebar holds
-  // the cursor: no body row is selected, so nothing is scrolled to.
+  // Cursor-follow: rows register by body index so navigation never lands below
+  // the fold. `-1` while the sidebar holds the cursor: nothing to scroll to.
   const follow = useCursorFollow(level === "body" ? bodyRow : -1)
 
   const cursorProps = { level, bodyRow, setLevel, setBodyRow, rowRef: follow.rowRef }

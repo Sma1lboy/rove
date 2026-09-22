@@ -1,12 +1,7 @@
 /**
- * kv-backed preference helpers for the settings dialog —
- * the General/Dev getter+toggle closures, kept apart from `./index.tsx` so the
- * dialog's structure (which sections, which is open) never mixes with the
- * per-preference kv keys and their normalizers. Adding a preference edits only
- * this file. All reads are plain `kv.get` — the
- * KVProvider re-renders the tree on every `kv.set`, so the values are
- * recomputed per render. Sections receive the whole bundle as a single
- * `prefs: SettingsPrefs` prop and call the getters directly.
+ * kv-backed General/Dev preference getters + toggles, passed to sections as one
+ * `prefs: SettingsPrefs` prop. Reads are plain `kv.get`: KVProvider re-renders
+ * on every `kv.set`.
  */
 
 import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
@@ -85,19 +80,17 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   function toggleSound(): void {
     kv.set("notifications.sound.enabled", !soundEnabled())
   }
-  // Chime level, applied to the WAV's samples at play time (see
-  // tui/lib/sound.ts). Cycles rather than prompting: it is one number with a
-  // handful of useful values, and hearing the next one is how you pick. The
-  // toggle above stays the mute.
+  // Chime level, applied to the WAV samples at play time (tui/lib/sound.ts).
+  // Cycles, not prompts: hearing the next value is how you pick. The toggle
+  // above stays the mute.
   function soundVolume(): number {
     return normalizeSoundVolume(kv.get(SOUND_VOLUME_KEY, DEFAULT_SOUND_VOLUME))
   }
   function cycleSoundVolume(): void {
     kv.set(SOUND_VOLUME_KEY, nextSoundVolume(soundVolume()))
   }
-  // Cross-task attention: notify (bell/toast/OSC 9) when a NON-selected task
-  // pauses on an approval / errors / finishes a turn. Default on — this is the
-  // "call me back when I've switched away" promise that makes parallel useful.
+  // Notify (bell/toast/OSC 9) when a NON-selected task pauses on an approval,
+  // errors, or finishes a turn. Default on.
   function crossTaskEnabled(): boolean {
     return (kv.get("notifications.crossTask.enabled", true) as boolean) !== false
   }
@@ -119,9 +112,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     kv.set(SPLIT_STYLE_KEY, style)
   }
 
-  // Zen mode: whether the workspace starts collapsed to the engine pane.
-  // Same key the runtime toggle writes (`state/zen.ts`), so this row is both
-  // the startup default and a mirror of the current session's zen state.
+  // Zen: start collapsed to the engine pane. Same key the runtime toggle writes
+  // (`state/zen.ts`), so this row also mirrors the current session.
   function zenDefaultOn(): boolean {
     return kv.get(ZEN_ACTIVE_KEY, false) === true
   }
@@ -129,9 +121,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     kv.set(ZEN_ACTIVE_KEY, !zenDefaultOn())
   }
 
-  // Chat tab strip: never / only with 2+ tabs / always. Cycles rather than
-  // toggles — "off" is the default now that the sidebar tree lists tabs, so
-  // the setting has three states rather than a boolean (state/tab-strip.ts).
+  // Chat tab strip: never / 2+ tabs / always (state/tab-strip.ts); "off" is
+  // the default since the sidebar tree lists tabs.
   function tabStripMode(): TabStripMode {
     return resolveTabStripMode(kv.get(TAB_STRIP_MODE_KEY, undefined), kv.get(TAB_STRIP_HIDE_SINGLE_KEY, undefined))
   }
@@ -189,9 +180,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   }
   async function editEditorCustom(): Promise<void> {
     const next = await RenameTaskDialog.show(dialog, editorCustomCommand(), {
-      // No params on purpose: the `{file}` in this title is a command
-      // placeholder the user types, not an i18n slot. `interpolate` leaves
-      // the template untouched when no params are passed.
+      // No params: `{file}` here is a command placeholder, not an i18n slot,
+      // and `interpolate` leaves the template untouched without params.
       dialogTitle: t("settings.general.editorCustomTitle"),
       fieldLabel: t("settings.field.command"),
       submitLabel: t("settings.action.save"),
@@ -204,9 +194,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     if (cmd) kv.set(EDITOR_KIND_KEY, "custom")
   }
 
-  // Terminal scrollback: rows of history each embedded terminal keeps.
-  // Applies to terminals spawned after the change (PTYs resolve it at
-  // construction — see state/scrollback.ts).
+  // Scrollback rows per embedded terminal; applies only to terminals spawned
+  // after the change (state/scrollback.ts).
   function scrollbackRows(): number {
     return normalizeScrollbackRows(kv.get(SCROLLBACK_ROWS_KEY, DEFAULT_SCROLLBACK_ROWS))
   }
@@ -247,8 +236,7 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   function worktreeCustomPath(): string {
     const v = kv.get(WORKTREE_BASE_CUSTOM_KEY, "")
     const remembered = typeof v === "string" ? v.trim() : ""
-    // A custom path saved before the preset cycle existed lives only in
-    // the base key — surface it so the row isn't misleadingly "(unset)".
+    // Legacy custom paths live only in the base key; surface them, not "(unset)".
     return remembered || (worktreeKind() === "custom" ? worktreeBasePath().trim() : "")
   }
   function cycleWorktreeBase(): void {

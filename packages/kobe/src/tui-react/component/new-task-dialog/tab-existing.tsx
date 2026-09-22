@@ -1,10 +1,6 @@
 /** @jsxImportSource @opentui/react */
-/**
- * Existing tab of the new-task dialog — pick an existing local repo path +
- * base branch: a unified free-text repo input with the saved/browse smart
- * dropdown, and a branch picker that augments the input. All behavior lives
- * in the view-model; this file is JSX only.
- */
+/** Existing tab: repo input with saved/browse dropdown + base-branch picker.
+ *  JSX only; behavior lives in the view-model. */
 
 import { type ExistingIntent, splitRepoRow } from "../../../tui/component/new-task-dialog/state"
 import { DEFAULT_BASE_REF } from "../../../tui/lib/git-snapshot"
@@ -14,11 +10,8 @@ import { ChipRow, DialogField, DialogSection } from "../../ui/dialog-parts"
 import { PickerList } from "./picker-list"
 import type { NewTaskVm } from "./view-model"
 
-/**
- * Cells the repo input claims. Wide enough for a long repo name plus room to
- * type a path by hand; the muted directory takes whatever is left and shrinks
- * first, because it is the half the row can lose and stay identifiable.
- */
+/** Cells the repo input claims (a long name plus room to type); the muted
+ *  directory takes the rest and shrinks first. */
 const REPO_INPUT_CELLS = 28
 
 export function ExistingTab({ vm }: { vm: NewTaskVm }) {
@@ -33,9 +26,8 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
     if (vm.mode === "browse") {
       return { key: `${vm.activeWindow.start + i}:${name}`, body: `${name}/${tag}`, accent: false }
     }
-    // Saved mode lists absolute paths that mostly share a prefix, so the one
-    // word telling them apart is the basename — it leads, and the directory
-    // trails muted (`splitRepoRow`).
+    // Saved paths mostly share a prefix, so the basename leads and the
+    // directory trails muted (`splitRepoRow`).
     const { base, dir } = splitRepoRow(name)
     return {
       key: `${vm.activeWindow.start + i}:${name}`,
@@ -75,20 +67,10 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
               // Every Enter routes through onRepoSubmit — it handles the
               // empty-input pick-first case too.
               onSubmit={() => vm.onRepoSubmit()}
-              // Two shapes, because the field holds two kinds of value.
-              //
-              // Holding a NAME, there is a directory beside it and the row has
-              // to divide: the input takes a fixed column and the directory is
-              // what gives way. NOT `flexGrow` — the input would grow to the
-              // row, the directory would then compress it below the name's
-              // length, and an input narrower than its content scrolls to the
-              // cursor, so `fixture-repo` renders as `ture-repo` with nothing
-              // to admit the cut.
-              //
-              // Holding a PATH (typed by hand, or a name too ambiguous to show)
-              // nothing sits beside it and it takes the whole row: a path needs
-              // every cell it can get, and capping it at the name's column would
-              // clip what the user is typing.
+              // NAME: fixed column, the directory beside it gives way. NOT
+              // `flexGrow` — the directory would squeeze the input below its
+              // content, which scrolls to the cursor (`fixture-repo` shows as
+              // `ture-repo`). PATH: nothing beside it, takes the whole row.
               flexGrow={vm.repoDir ? 0 : 1}
               flexShrink={0}
               {...(vm.repoDir ? { flexBasis: REPO_INPUT_CELLS } : {})}

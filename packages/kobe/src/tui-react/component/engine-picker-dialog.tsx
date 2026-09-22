@@ -1,25 +1,15 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Change-engine dialog — the tree menu's "Change engine" entry. The `v` chord
- * cycles blindly to the next available engine; a menu entry that did the same
- * would hide which engine the user is about to land on, so the menu offers a
- * pick instead. Same shape as `status-picker-dialog`:
- * a plain pick over a closed list, no free text — the list IS what
- * `availableEngineIds()` returned, and a name outside it cannot launch.
+ * Change-engine dialog (tree menu). Unlike the blind `v` cycle, it shows
+ * where you land: a pick over exactly `availableEngineIds()`, no free text.
  *
- * Engines that DECLARE reasoning levels (`EngineRegistryEntry.effortLevels` —
- * codex today) get a second row under the list, so the level is settable on a
- * task that already exists. Engines with no declared levels render no row at
- * all. Engines that declare a model flag (`modelArgv`) get a third row, the
- * shared free-text-plus-suggestions field from `model-field.tsx`; `tab`
- * moves focus between the engine list and that input. The board's
- * start-from-an-issue picker sets an engine but no level or model, so this
- * and `rove api set-effort` / `set-model` are the ways to change one after
- * the fact; only `rove api add --effort/--model` reaches the FIRST session.
+ * Engines declaring `effortLevels` get a level row; engines declaring
+ * `modelArgv` get the shared `model-field.tsx` input (`tab` moves focus).
+ * This and `rove api set-effort` / `set-model` change them after creation;
+ * only `rove api add --effort/--model` reaches the FIRST session.
  *
- * Picking persists the task's vendor (and level, and model) and nothing else;
- * like `v`, it takes effect on the task's next enter (`applyVendorChange`
- * says so in its toast).
+ * Picking persists vendor, level and model only; like `v`, it takes effect on
+ * the task's next enter.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -102,9 +92,7 @@ export function EnginePickerDialogView(props: {
   function move(delta: 1 | -1): void {
     setCursor((c) => {
       const next = clampCursor(c + delta, engines.length)
-      // The level belongs to the engine under the cursor: carry it across
-      // engines that share it, otherwise fall back to that engine's default
-      // rather than submitting a level it never declared.
+      // Never submit a level the engine under the cursor didn't declare.
       setEffort((e) => seedEffort(engines[next] ?? props.current, e))
       return next
     })

@@ -1,15 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The RUN HISTORY half of the Routines page: what a routine actually DID.
- *
- * Split from `automations-page.tsx` along the boundary the page already has.
- * Everything left there answers "what is scheduled and what can I do to it" —
- * the list, the cursor, create/pause/delete/run-now, the keymap. This answers
- * "did it run, and what happened": a read-only projection of the daemon's run
- * records, with no actions and no state of its own.
- *
- * Both halves render into the same detail box, so this exports the block
- * rather than the box — the page owns the frame and the order.
+ * The RUN HISTORY half of the Routines page: a read-only projection of the
+ * daemon's run records, with no actions and no state of its own. Exports the
+ * block, not the box — the page owns the shared detail frame and the order.
  */
 
 import { type RGBA, TextAttributes } from "@opentui/core"
@@ -19,9 +12,8 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { formatRunStatus, formatWhen } from "./automations-format"
 
-/** Run-status → how it should read at a glance. The four "didn't run" reasons
- *  are deliberately distinct: `skipped_precheck` is healthy (nothing to do),
- *  `dispatch_failed` wants a human. Collapsing them would hide that. */
+/** Run-status → glance tone. The "didn't run" reasons stay distinct:
+ *  `skipped_precheck` is healthy, `dispatch_failed` wants a human. */
 const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
   dispatched: "success",
   // Delivered, so not grey: `revived` reached a respawned session (the status
@@ -34,8 +26,7 @@ const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
   dispatch_failed: "error",
 }
 
-/** A run's tone as a colour. Shared with the LIST, so a row's health glyph and
- *  the detail box's history line can never disagree about what a status means. */
+/** A run's tone as a colour; shared with the list so glyph and history line agree. */
 export function runToneColor(
   status: string,
   theme: { success: RGBA; warning: RGBA; error: RGBA; textMuted: RGBA },
@@ -48,11 +39,8 @@ export function runToneColor(
 }
 
 /**
- * One cell saying how the latest run went, in the vocabulary the sidebar rail
- * and the Inbox already use (`inbox-item-view.ts`): `✓` done, `†` the engine
- * process is gone, `!` wants a look, `·` nothing to do. Three surfaces
- * describing one failure in three vocabularies is what makes a broken routine
- * and a quiet one look alike.
+ * Latest run in one cell, in the rail/Inbox vocabulary (`inbox-item-view.ts`):
+ * `✓` done, `†` engine process gone, `!` wants a look, `·` nothing to do.
  */
 export function runGlyph(status: string): string {
   const tone = RUN_TONE[status] ?? "muted"
@@ -62,41 +50,25 @@ export function runGlyph(status: string): string {
   return "·"
 }
 
-/** `·` cron fired it, `▸` a human did. One cell, and it answers "did I run
- *  this or did the schedule" without opening anything. Both glyphs are
- *  already in the sidebar's vocabulary, so no new font coverage is at stake. */
+/** `·` cron fired it, `▸` a human did (both glyphs already in the sidebar's font coverage). */
 function triggerGlyph(trigger: AutomationRun["trigger"]): string {
   return trigger === "manual" ? "▸" : "·"
 }
 
-/** The last ~10 lines of a captured stream, trimmed of trailing blanks.
- *  Truncation happens HERE and not at capture time: the runner already stores
- *  what it stores, and a detail view that shrank the record would make the
- *  next reader's question unanswerable. */
+/** Last ~10 lines of a captured stream, trailing blanks trimmed. Truncated at
+ *  display, never in the stored record. */
 function outputTail(text: string, limit = 10): string[] {
   const lines = text.replace(/\s+$/, "").split("\n")
   return lines.length > limit ? lines.slice(-limit) : lines
 }
 
 /**
- * Why the latest run did not run: the precheck's exit code, how long it took,
- * and the output it actually produced.
+ * Why the latest run did not run: the precheck's exit code, duration, and
+ * captured stdout/stderr from the `skipped_precheck` record.
  *
- * The runner has always captured `stdout`, `stderr`, `exitCode` and
- * `durationMs` on a `skipped_precheck` run and stored them on the record; the
- * page collapsed all four to `precheck exited 1`, which leaves reconstructing
- * the command by hand as the only way to find out what it said — the exact
- * debugging step Rove already did and then discarded.
- *
- * Scoped to the MOST RECENT run on purpose. That is the one that explains the
- * state the page is showing; an older skip is history, and reading it here
- * would answer a question about a routine that has since run fine. Showing it
- * unconditionally is also what keeps this off the keymap: a per-run cursor
- * needs a chord, and a chord needs the owner.
- *
- * An empty stream is omitted rather than printed as a blank label — a
- * precheck that wrote nothing to stderr should not look like one whose stderr
- * failed to load.
+ * MOST RECENT run only: it explains the state on screen, and showing it
+ * unconditionally avoids a per-run cursor (which would need a new chord).
+ * An empty stream is omitted so it can't look like one that failed to load.
  */
 function PrecheckDetail(props: { run: AutomationRun | undefined }): ReactNode {
   const { theme } = useTheme()
@@ -134,9 +106,7 @@ function PrecheckDetail(props: { run: AutomationRun | undefined }): ReactNode {
 }
 
 /**
- * The recent-run list plus the latest run's precheck detail — the whole
- * "what happened" block, in the order it reads: newest runs first, then why
- * the top one did not run, when it did not.
+ * Recent runs newest-first, then why the top one did not run (when it didn't).
  */
 export function RunHistory(props: { runs: readonly AutomationRun[]; now: number }): ReactNode {
   const { theme } = useTheme()

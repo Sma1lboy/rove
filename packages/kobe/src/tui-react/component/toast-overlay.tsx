@@ -1,11 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Toast overlay — bottom-right transient cards, newest at the bottom, up
- * to three visible, click to dismiss early. Each toast is a framed card:
- * a semantic-colored left accent bar (the Inbox selection-bar language,
- * not a full border frame), a title row with the status glyph, and an
- * optional muted body line for context (task title, project). Auto-dismiss
- * timers stay owned by the notifications context.
+ * Toast overlay: bottom-right cards, newest at the bottom, up to three, click
+ * to dismiss. Each card: semantic-colored left accent bar, title row with
+ * glyph, optional muted body line. Auto-dismiss timers belong to the
+ * notifications context.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -33,12 +31,9 @@ export function ToastOverlay() {
   if (notif.toasts.length === 0) return null
   const visibleToasts = notif.toasts.slice(-MAX_VISIBLE)
 
-  // Anchor the stack to the bottom-right corner. Position is absolute so
-  // the overlay sits on top of the layout without taking flow space;
-  // `zIndex` keeps it above the panes but below the dialog backdrop (3000).
+  // Absolute, bottom-right; `zIndex` above panes, below the dialog backdrop (3000).
   const stackRows = visibleToasts.reduce((rows, toast) => rows + cardRows(toast), 0)
-  // On a terminal narrower than the card the stack would poke left across
-  // the neighbouring pane — clamp to what actually fits.
+  // Clamp so a narrow terminal doesn't push the card across the neighbour pane.
   const cardWidth = Math.min(CARD_WIDTH, Math.max(12, dims.width - RIGHT_MARGIN * 2))
   const left = Math.max(0, dims.width - cardWidth - RIGHT_MARGIN)
   const top = Math.max(0, dims.height - BOTTOM_MARGIN - stackRows)

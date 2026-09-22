@@ -1,17 +1,13 @@
 /** @jsxImportSource @opentui/react */
 /**
  * AutomationsPage — the daemon's scheduled automations as a full-page list.
+ * Same shape as {@link WorktreesPage}: stale `reloadTick` effect completions
+ * are dropped by an effect-local `disposed` flag.
  *
- * Same shape as {@link WorktreesPage}: a standalone full-window surface, the
- * shared close-key contract, `useState` + a `reloadTick`-keyed `useEffect`
- * whose stale completions are dropped by an effect-local `disposed` flag.
- *
- * The page owns the whole routine loop: `n` composes a new one through
- * {@link AutomationComposer} (a repo, a prompt and a cron expression are a
- * form, not a list row), and the cursor row is what `e` pauses/resumes, `s`
- * runs now, `d` deletes and `enter` follows to the latest run's task. What
- * stays on the CLI is the long tail — `rove api routine-update` owns
- * prechecks, grace windows and standing-session mode.
+ * `n` composes via {@link AutomationComposer}; on the cursor row `e`
+ * pauses/resumes, `s` runs now, `d` deletes, `enter` opens the latest run's
+ * task. Prechecks, grace windows and standing-session mode stay CLI-only
+ * (`rove api routine-update`).
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -51,8 +47,7 @@ function repoLabel(repo: string): string {
 export function AutomationsPage(props: {
   orchestrator: RemoteOrchestrator | null
   onClose: () => void
-  /** False while another pane holds focus — the page shares the window now,
-   *  so its bare j/k/d must not fire while the sidebar is focused. */
+  /** False while another pane holds focus, so bare j/k/d don't fire there. */
   focused?: boolean
   onOpenTask?: (taskId: string) => void
   /** Repo the create flow defaults to (the selected task's project). */
@@ -63,11 +58,9 @@ export function AutomationsPage(props: {
   const t = useT()
   const dims = useTerminalDimensions()
   /**
-   * Failures go to the toast queue, not the inline notice line — a muted
-   * `textMuted` line reads as a hint, not a failure, and error toasts show
-   * even when toasts are disabled (shared notify-state invariant). Same
-   * empty taskId/tabId pattern as `WorktreesPage`: only the toast queue is
-   * consumed here.
+   * Failures go to the toast queue, not the muted notice line (which reads as
+   * a hint); error toasts show even with toasts disabled. Empty taskId/tabId:
+   * only the toast queue is consumed.
    */
   const notif = useNotifications()
   function notifyError(message: string): void {
@@ -99,16 +92,11 @@ export function AutomationsPage(props: {
           if (disposed) return
           setAutomations(result.automations)
           setKeepsDaemonAlive(result.keepsDaemonAlive)
-          // Absent from a daemon older than this field; an empty map renders
-          // every row as "never run", which is the honest reading.
+          // Older daemons omit it; empty renders every row as "never run".
           setLastRunStatus(result.lastRunStatus ?? {})
         })
         .catch(() => {
-          // A failed read leaves the previous rows rather than crashing the
-          // page. Keeping them IS not calling setState, so there is nothing to
-          // do here — the empty array only covers the very first load, which
-          // has no rows to keep. The rows go stale rather than wrong: the poll
-          // refreshes them the moment the daemon answers again.
+          // Keep the previous rows (stale, not wrong) until the next poll succeeds.
           if (!disposed) setAutomations((prev) => prev ?? [])
         })
     }
@@ -131,13 +119,10 @@ export function AutomationsPage(props: {
   }, [rows.length])
 
   const selected = rows[cursor]
-  // Strips are three cells tall, so a dozen of them fill the viewport and
-  // every routine past that is unreachable without this.
+  // Three-cell strips: past a dozen, routines are unreachable without this.
   const follow = useCursorFollow(cursor)
 
-  // Run history follows the cursor: the list answers "what is scheduled", the
-  // history answers "did it actually do anything", and the second question is
-  // only ever asked about one automation at a time.
+  // Run history follows the cursor.
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick is a TRIGGER (the body doesn't read it).
   useEffect(() => {
     let disposed = false
@@ -159,10 +144,9 @@ export function AutomationsPage(props: {
     }
   }, [props.orchestrator, selected, reloadTick])
 
-  // A notice names ONE routine ("Ran <name>: dispatched"); left standing it
-  // reads as the next routine's result. Keyed on the selected ID, not on
-  // `selected` (a new object every poll) and not on `reloadTick` (which
-  // `runNow` bumps immediately after writing the notice).
+  // A notice names ONE routine; clear it on selection change. Keyed on the id,
+  // not `selected` (new object every poll) or `reloadTick` (`runNow` bumps it
+  // right after writing the notice).
   // biome-ignore lint/correctness/useExhaustiveDependencies: the id is a TRIGGER — the body clears state rather than reading it.
   useEffect(() => {
     setNotice(null)
@@ -177,8 +161,7 @@ export function AutomationsPage(props: {
       refetch()
     } catch (err) {
       console.error("[rove automations] toggle failed:", err)
-      // The routine is unchanged, so the surviving state is the one it had
-      // BEFORE the click — name that, not the state the user asked for.
+      // Unchanged routine: name the state it had BEFORE, not the one requested.
       notifyError(
         t(selected.enabled ? "automations.disableFailed" : "automations.enableFailed", {
           name: selected.name,
@@ -211,11 +194,8 @@ export function AutomationsPage(props: {
   async function createAutomation(): Promise<void> {
     const orch = props.orchestrator
     if (!orch || busyId) return
-    // Saved projects UNION the repos tasks happen to sit in — the same set the
-    // New-task dialog offers (`use-repo-field.ts`) and the "scrolling picker
-    // over your projects" `docs/ROUTINES.md` promises. Task repos alone hid a
-    // project you had saved but never opened a task in, so the one repo you
-    // could not schedule was the one you had just added.
+    // Saved projects UNION task repos — the New-task dialog's set
+    // (`use-repo-field.ts`); task repos alone hide a just-saved project.
     const repos = [...new Set([...getSavedRepos(), ...orch.listTasks().map((task) => task.repo)])].filter(Boolean)
     if (repos.length === 0) {
       setNotice(t("automations.needRepo"))
@@ -233,8 +213,7 @@ export function AutomationsPage(props: {
       await orch.createAutomation(draft)
       refetch()
     } catch (err) {
-      // The daemon re-validates the cron and its message names the fix, so it
-      // is carried verbatim after the action this toast failed at.
+      // The daemon's cron error names the fix; carry it verbatim.
       console.error("[rove automations] create failed:", err)
       notifyError(t("automations.createFailed", { error: errorMessage(err) }))
     } finally {
@@ -280,9 +259,8 @@ export function AutomationsPage(props: {
       { key: "s", cmd: () => void runNow() },
       { key: "d", cmd: () => void requestDelete() },
       {
-        // `runsFor` is newest-first, so runs[0] IS the latest run. Falling
-        // through to an older run's task when the latest made none (a healthy
-        // `skipped_precheck`) opens a DIFFERENT run than the one on screen.
+        // `runsFor` is newest-first. Never fall through to an older run's task
+        // when the latest made none — that opens a different run than shown.
         key: "return",
         cmd: () => {
           const taskId = runs[0]?.taskId
@@ -324,8 +302,7 @@ export function AutomationsPage(props: {
           <text fg={theme.textMuted}>{t("common.loading")}</text>
         </box>
       ) : rows.length === 0 ? (
-        // Empty state points at the key that fixes it, not at a CLI command:
-        // `n` is right there, and the command line is a fallback.
+        // Empty state points at `n`, not a CLI command.
         <box flexDirection="column" paddingTop={1} gap={1}>
           <text fg={theme.textMuted}>{t("automations.empty")}</text>
           <text fg={theme.text}>{t("automations.emptyHint")}</text>
@@ -340,11 +317,8 @@ export function AutomationsPage(props: {
           verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
         >
           {rows.map((automation, index) => {
-            // One boxed strip per automation, three cells tall: border, one
-            // content line, border. Everything about a schedule fits on that
-            // line — name, where it runs, when it next fires — so a second
-            // line would be padding, and the frame is what separates rows
-            // instead of a marker column.
+            // One boxed strip per automation (border, one content line,
+            // border); the frame separates rows instead of a marker column.
             const isCursor = index === cursor
             const lastRun = lastRunStatus[automation.id]
             return (

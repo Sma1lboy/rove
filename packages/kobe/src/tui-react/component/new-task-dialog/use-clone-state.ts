@@ -1,9 +1,7 @@
 /**
- * Clone-tab state hook for the new-task dialog — the "For New Repo" cluster
- * split out of `./view-model.ts`: git URL,
- * parent-dir drill-down picker, auto-derived folder name, base branch,
- * and the async `git clone` commit path. All fs/spawn plumbing comes from
- * the shared `src/tui/component/new-task-dialog/clone.ts`.
+ * "For New Repo" tab state: git URL, parent-dir drill-down, auto-derived
+ * folder name, base branch, and the async `git clone`. fs/spawn plumbing is
+ * in `src/tui/component/new-task-dialog/clone.ts`.
  */
 
 import type { VendorId } from "@/types/vendor"
@@ -96,13 +94,9 @@ export function useCloneState(args: {
   }
 
   /**
-   * Tab in the parent-dir field — the clone tab's half of the repo field's
-   * shell completion, and the same bargain: finish the highlighted row in
-   * place, and let the key mean "next field" only once there is nothing left
-   * to finish. Always a browse walk, because a parent directory is only ever
-   * a path — there is no saved-name mode on this side, so no `repoOptions`.
-   *
-   * The caller owns the focus check; this owns "is there anything to say".
+   * Tab in the parent-dir field: shell-style completion of the highlighted
+   * row; "next field" only once nothing is left to finish. Always a browse
+   * walk (a parent dir is only ever a path). The caller owns the focus check.
    */
   function completeCloneParent(): boolean {
     if (cloneParentPicked) return false
@@ -144,8 +138,7 @@ export function useCloneState(args: {
     const targetReason = validateCloneTarget(cloneParent, cloneFolder)
     if (targetReason) {
       args.setSubmitError(targetReason)
-      // Blame the field actually at fault: probe which input is wrong rather
-      // than reporting the failure against the whole form.
+      // Probe which input is at fault instead of blaming the whole form.
       const folder = cloneFolder.trim()
       const folderStructurallyBad = !folder || folder.includes("/") || folder.includes("\\")
       const parentAtFault = !folderStructurallyBad && validateCloneTarget(cloneParent, "__kobe_probe__") != null

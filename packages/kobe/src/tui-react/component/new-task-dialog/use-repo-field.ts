@@ -1,21 +1,12 @@
 /**
- * The Existing tab's repo cluster — the question "WHICH repository", start to
- * finish. Sibling of `./use-branch-field.ts` (which ref it forks from) and of
- * `./use-clone-state.ts` / `./use-adopt-state.ts`.
+ * The Existing tab's "WHICH repository" field: text, resolution, both
+ * suggestion lists, cursor, and every route that changes the answer.
  *
- * The seam: everything about identifying a repo lives here — the field's
- * text, what that text resolves to, both suggestion lists behind it, the
- * cursor over them, and every route that changes the answer (typing, Tab
- * completion, Enter, a click). `./view-model.ts` keeps what is ABOUT the
- * dialog rather than about the repo: tabs, engine, intent, commit dispatch
- * and key bindings.
- *
- * The field holds exactly what it shows — a NAME once one is chosen, free
- * text while it is being typed — and never a display derived from some other
- * value: an opentui `<input>` adopts its `value` prop as its edit buffer, so
- * a field showing one string while state holds another writes the shown one
- * back on the next keystroke and the two oscillate. One representation,
- * translated to a path at the boundaries (`repo-field.ts`) instead.
+ * The field holds exactly what it shows (a NAME once chosen, free text while
+ * typing), never a derived display: an opentui `<input>` adopts `value` as
+ * its edit buffer, so showing one string while state holds another writes the
+ * shown one back and they oscillate. Paths are derived at the boundaries
+ * (`repo-field.ts`).
  */
 
 import { useMemo, useState } from "react"
@@ -52,11 +43,9 @@ export type RepoFieldOpts = {
 }
 
 export function useRepoField(opts: RepoFieldOpts) {
-  // Seeded from the caller's PATH, shown as a name — the field's own grammar
-  // from the first frame rather than a path that turns into a name on first
-  // touch. `repoDir` puts the directory back beside it. Same round-trip guard
-  // as `pickRepo`: a basename shared with another saved repo would open the
-  // dialog on an ambiguous value, so that case keeps the path.
+  // Seeded from the caller's PATH, shown as a name from the first frame. A
+  // basename shared with another saved repo would be ambiguous, so that case
+  // keeps the path.
   const [repo, setRepo] = useState(() =>
     nameOrPath(opts.defaultRepo, computeRepoOptions(opts.defaultRepo, opts.savedRepos)),
   )
@@ -71,10 +60,8 @@ export function useRepoField(opts: RepoFieldOpts) {
   )
   const mode = pickerModeFor(repo, repoOptions)
   const repoResolution: RepoResolution = resolveRepoInput(repo, repoOptions)
-  // The directory the chosen NAME resolves to — muted, at the row's right
-  // edge, so a bare name still says where it is. Empty whenever the field
-  // already holds a path: the directory is then in the field itself, and
-  // repeating it beside it would print the same string twice.
+  // The chosen NAME's directory, shown beside it. Empty when the field holds
+  // a path — it'd print the same string twice.
   const repoDir =
     repoResolution.kind === "path" && repoResolution.path !== repo.trim()
       ? splitRepoInput(repoResolution.path, true).dir
@@ -84,31 +71,20 @@ export function useRepoField(opts: RepoFieldOpts) {
   const activeList = mode === "browse" ? subdirFiltered : savedFiltered
   const activeWindow: PickerWindow = windowAround(activeList, repoCursor, opts.pickerRows)
 
-  // Everything downstream (branch list, validation, adopt scan, the submitted
-  // `repo`) needs a PATH, and the field holds a name — so resolve first, then
-  // expand. An ambiguous name resolves to nothing until the user disambiguates.
-  // …and normalized: Tab-completing a directory leaves the walking slash in
-  // the FIELD on purpose (it is what keeps the picker pointed at the
-  // children), so this is where that slash stops travelling.
+  // Downstream needs a PATH: resolve, expand, and strip the trailing slash
+  // Tab-completion leaves in the FIELD on purpose (it keeps the picker on the
+  // children). An ambiguous name resolves to "".
   const expandedRepo = repoResolution.kind === "path" ? stripTrailingSlash(expandHome(repoResolution.path)) : ""
 
-  /**
-   * The repo changed — by ANY route (typing, Tab, Enter on the picker, a
-   * click). Every write to the field goes through here, because the caller
-   * hangs per-repo state off `onChanged` (the intent row) and a call site
-   * setting `repo` directly would leave that state asserting the previous
-   * repo.
-   */
+  /** Every write to the field goes through here: the caller hangs per-repo
+   *  state off `onChanged`, which a direct `setRepo` would leave stale. */
   function changeRepo(next: string): void {
     setRepo(next)
     opts.onChanged()
   }
 
-  /**
-   * A repo was PICKED (dropdown Enter, click, browse-mode select) — the
-   * picker deals in paths, the field holds names, and this is the one funnel
-   * every selection route already goes through, so the conversion lives here.
-   */
+  /** Every pick route funnels here: the picker deals in paths, the field in
+   *  names. */
   function pickRepo(path: string): void {
     changeRepo(nameOrPath(path, repoOptions))
   }
@@ -120,15 +96,10 @@ export function useRepoField(opts: RepoFieldOpts) {
   }
 
   /**
-   * Tab — shell completion, not field advance. Returns whether it consumed
-   * the key.
-   *
-   * The guard is the picker's own render condition (`tab-existing.tsx`): Tab
-   * only completes toward something the user can SEE, so a collapsed or empty
-   * dropdown leaves the key its old meaning and focus moves on. That is also
-   * what makes the SECOND Tab advance — the first collapses a saved pick, and
-   * a browse walk ends when the typed path names a directory with nothing
-   * left to offer.
+   * Tab = shell completion; returns whether it consumed the key. Guarded by
+   * the picker's render condition (`tab-existing.tsx`): it only completes
+   * toward something VISIBLE, so a collapsed/empty dropdown lets focus move
+   * on — which is what makes the second Tab advance.
    */
   function completeRepo(): boolean {
     if (repoPicked) return false
@@ -159,8 +130,7 @@ export function useRepoField(opts: RepoFieldOpts) {
     if (mode === "browse") {
       const picked = subdirFiltered[repoCursor]
       if (picked) {
-        // Enter = SELECT this dir as the repo and advance (no drill — that is
-        // Tab's job, and the two keys stay different on purpose).
+        // Enter selects and advances; drilling is Tab's job.
         pickRepo(joinPicked(repo, subdirSplit.base, picked))
         setRepoCursor(0)
         setRepoPicked(true)

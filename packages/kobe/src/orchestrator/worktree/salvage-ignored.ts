@@ -1,35 +1,17 @@
 /**
- * Which `.gitignore`d paths a salvage snapshot should rescue anyway.
- *
- * `git add -A` honours `.gitignore`, which keeps `node_modules/` and build
- * output out of the snapshot — and also throws away real work. In this repo
- * alone, `.gitignore` covers `HANDOFF.md` and `.scratch/**`, the two places
- * AGENTS.md tells agents to keep cross-session reasoning, plus `.env*` and
- * `.rove/*`. Force-deleting a worktree destroyed all of them while the salvage
- * ref reported success.
- *
- * "Ignored" answers "should git track this", not "is this the user's work".
- * The distinction that actually matters is SIZE: a hand-written note is
- * kilobytes, a dependency tree or build output is hundreds of megabytes, and
- * a snapshot that swallows `node_modules/` is one nobody can use. So the rule
- * is a byte budget rather than a filename list — no allowlist to maintain, and
- * an ignored path this repo has never heard of is rescued on the same terms.
- *
- * `git status --porcelain --ignored` reports ignored DIRECTORIES collapsed to
- * one entry (`node_modules/`) and ignored FILES individually (`HANDOFF.md`),
- * so one `du -sk` per entry measures whole trees without walking them here.
+ * Which `.gitignore`d paths a salvage snapshot rescues anyway. `git add -A`
+ * skips them, yet they hold real work (`HANDOFF.md`, `.scratch/**`, `.env*`,
+ * `.rove/*` here). "Ignored" isn't "not the user's work"; SIZE is what
+ * separates a note (KB) from `node_modules/` (hundreds of MB), so the rule is a
+ * byte budget, not a filename allowlist. `status --ignored` collapses ignored
+ * DIRECTORIES to one entry, so one `du -sk` per entry measures whole trees.
  */
 
 import type { ExecHost } from "../../exec/exec-host.ts"
 import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
 
-/**
- * Per-entry size ceiling, in kilobytes. 64 MB: comfortably above any plausible
- * hand-authored file or notes directory (`.scratch/` with a year of markdown
- * is single-digit MB), comfortably below a dependency tree or build output
- * (`node_modules/` in this repo is ~1.4 GB). Applied per top-level entry, so
- * one oversized tree is skipped without costing the others.
- */
+/** KB, per top-level entry. 64 MB: a year of `.scratch/` markdown is
+ *  single-digit MB; this repo's `node_modules/` is ~1.4 GB. */
 const MAX_IGNORED_ENTRY_KB = 64 * 1024
 
 /** Parse `git status --porcelain -z --ignored` into the `!!` (ignored) paths. */
@@ -41,11 +23,8 @@ export function parseIgnoredPaths(stdoutZ: string): string[] {
     .filter((p) => p.length > 0)
 }
 
-/**
- * Argv byte budget for one `du`. ARG_MAX is 1 MB on macOS and ~2 MB on Linux;
- * 96 KB per batch is far under both (and under the per-argument limits) while
- * keeping the call count at one for any ordinary worktree.
- */
+/** ARG_MAX is 1 MB (macOS) / ~2 MB (Linux); 96 KB is far under both and still
+ *  one call for an ordinary worktree. */
 const DU_ARGV_BUDGET_BYTES = 96 * 1024
 
 /** Parse `du -sk <paths…>` output into path → kilobytes. */
@@ -59,22 +38,13 @@ export function parseDuKb(stdout: string): Map<string, number> {
 }
 
 /**
- * `du -sk` over `paths`, as path → kilobytes.
- *
- * Each ignored directory is reported collapsed by `git status`, so this is a
- * handful of arguments rather than a walk of the whole tree. Three things a
- * single naked `du -sk ...paths` got wrong, each of which silently emptied the
- * result for the WHOLE worktree — and with it every protection built on it
- * (the non-force delete gate in `manager-remove.ts` and salvage's `add -f`
- * pass), because a path whose size cannot be read is skipped:
- *
- *   - no `--`: ONE ignored file whose name begins with `-` is read as an
- *     option (`du: invalid option -- w`, exit 64, empty stdout), so a single
- *     `-weird.log` disarmed the gate for every other file beside it;
- *   - no chunking: past ARG_MAX the spawn fails with E2BIG;
- *   - a newline in a filename: `du`'s output is line-oriented, so such a path
- *     can never be matched back to its line. Those are measured one at a time,
- *     where the leading number is unambiguous without matching the name.
+ * path → KB. Each of these would empty the result for the WHOLE worktree —
+ * disarming the non-force delete gate (`manager-remove.ts`) and salvage's
+ * `add -f`, since an unmeasured path is skipped:
+ *   - `--`: a file named `-weird.log` is otherwise an option (exit 64);
+ *   - chunking: past ARG_MAX the spawn fails with E2BIG;
+ *   - newline in a name: `du` output is line-oriented, so those are measured
+ *     one at a time, reading only the leading number.
  */
 async function duKb(exec: ExecHost, worktreePath: string, paths: readonly string[]): Promise<Map<string, number>> {
   const sizes = new Map<string, number>()
@@ -103,33 +73,22 @@ async function duKb(exec: ExecHost, worktreePath: string, paths: readonly string
 }
 
 /**
- * What a caller learns about a worktree's ignored work: the small entries, or
- * `"unknown"` when the listing itself did not run.
- *
- * The two are NOT the same answer and had been encoded as one. Salvage reads
- * this to decide what to add to a snapshot, where "nothing found" and "could
- * not look" both correctly degrade to a smaller snapshot. The non-force delete
- * GATE reads it too, and there an empty list is the permission to destroy the
- * directory — so a `git status --ignored` that never ran was authorising the
- * exact deletion it exists to refuse.
+ * The small entries, or `"unknown"` when the listing didn't run. Salvage may
+ * treat both as "less to snapshot", but for the non-force delete GATE an empty
+ * list is permission to destroy the directory, so "could not look" must stay
+ * distinct.
  */
 export type IgnoredWorkProbe = readonly string[] | "unknown"
 
 /**
- * The ignored paths in `worktreePath` small enough to be worth snapshotting,
- * or `"unknown"` when `git status --ignored` failed or threw.
- *
- * An entry whose SIZE cannot be read is still SKIPPED, not guessed at: an
- * unmeasurable path is more likely a huge tree than a note, and a snapshot
- * that swallows one is worse than one that misses it. That is a per-entry
- * verdict on a listing that succeeded; `"unknown"` is the absence of a
- * listing, which no caller can read as "there is nothing here".
+ * `"unknown"` when `git status --ignored` failed. An entry whose size can't be
+ * read is SKIPPED (more likely a huge tree than a note) — a per-entry verdict
+ * on a successful listing, unlike `"unknown"`.
  */
 export async function smallIgnoredPaths(exec: ExecHost, worktreePath: string): Promise<IgnoredWorkProbe> {
   try {
-    // Lock-free, like every other status probe (`lib/git-env.ts`): this now
-    // runs on the ORDINARY delete path, not just the force one, so it must not
-    // compete with an engine's `git commit` for `.git/index.lock`.
+    // Lock-free: runs on the ordinary delete path, so it must not compete
+    // with an engine's commit for `.git/index.lock`.
     const status = await exec.run(["git", "status", "--porcelain", "-z", "--ignored"], {
       cwd: worktreePath,
       env: READ_ONLY_GIT_ENV,

@@ -1,19 +1,12 @@
 /**
- * Issue-chat grammar — framework-free placement + first-prompt builders for
- * starting an engine session from a kanban story: the prompt frames the
- * story, and the agent reports completion through the daemon-owned issue API
- * (`issue-set-status`), never by editing repo files.
- *
- * Placements say WHERE the session runs — jump-or-stay is the drawer's
- * separate toggle (`IssueChatStart.jump`), supported by all three:
+ * Starting an engine session from a kanban story. The agent reports completion
+ * via `issue-set-status`, never by editing repo files. Placement is WHERE it
+ * runs (jump-or-stay is the separate `IssueChatStart.jump` toggle):
  *   - `worktree`        — a new worktree task with its own workspace.
- *   - `projectWorktree` — same task creation (worktree + branch + link),
- *                         but the session ALSO appears as a chattab in the
- *                         PROJECT workspace (a viewport tab —
- *                         `EngineTab.ptyTask`): isolated work, presented
- *                         where the project lives.
- *   - `project`         — no worktree: a new chattab on the repo's
- *                         main-task checkout (`task.ensureMain`).
+ *   - `projectWorktree` — same task, but also a chattab in the PROJECT
+ *                         workspace (`EngineTab.ptyTask` viewport tab).
+ *   - `project`         — no worktree: a chattab on the main-task checkout
+ *                         (`task.ensureMain`).
  */
 
 import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
@@ -37,11 +30,8 @@ export function nextPlaceholderIndex(body: string): number {
   return matches ? matches.length : 0
 }
 
-/**
- * Append `images[N]: /path` placeholder lines for pasted files to a body
- * draft — the description IS the carrier: the lines persist in the issue
- * body and ride the first prompt, where the engine reads the files itself.
- */
+/** The body IS the carrier: the lines persist and ride the first prompt,
+ *  where the engine reads the files itself. */
 export function withImagePlaceholders(body: string, paths: readonly string[]): string {
   let next = body.replace(/\s+$/, "")
   let index = nextPlaceholderIndex(body)
@@ -53,20 +43,15 @@ export function withImagePlaceholders(body: string, paths: readonly string[]): s
   return next
 }
 
-/** Drawer order — the isolated task workspace first (kobe's product unit),
- *  then the project-presented variants. Jump/stay is a separate toggle. */
+/** Drawer order: the isolated task workspace (the product unit) first. */
 export const ISSUE_CHAT_PLACEMENTS: readonly IssueChatPlacement[] = ["worktree", "projectWorktree", "project"]
 
-/** Task title for a story-spawned task — same `#id title` shape the web uses. */
+/** Same `#id title` shape the web uses. */
 export function issueChatTaskTitle(issue: Issue): string {
   return `#${issue.id} ${issue.title}`
 }
 
-/**
- * Re-exports of the shared builders in `kobe-daemon/prompts/issue-prompts` —
- * the exact text the web board sends, built once. Thin wrappers so the TUI's
- * call sites keep their `api`-defaulted signature.
- */
+/** Shared with the web board (`kobe-daemon/prompts/issue-prompts`). */
 export function issueWorktreePrompt(issue: Issue, api = "rove api"): string {
   return buildIssueWorktreePrompt(issue, api, displayProductName())
 }

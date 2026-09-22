@@ -1,32 +1,20 @@
 /**
- * Startup hygiene for the task index directory.
- *
- * Two things a `kill -9` leaves behind, both invisible to every later run:
- *
- *   - **The lockfile.** 20 of 20 measured crash trials during a save left
- *     `tasks.json.lock` on disk. Nothing clears it at boot; it is removed
- *     only opportunistically, by whichever acquirer next trips over it —
- *     so the first save of the day is the thing that discovers it, through
- *     the takeover path in `lockfile.ts`.
- *   - **The staging file.** `doSave` stages to `tasks.json.<pid>.<ulid>.tmp`
- *     (unique per save on purpose, so a second writer cannot clobber the
- *     first's), and its unlink lives in a `catch` that a SIGKILL never runs.
- *     1 of 20 trials left one: a full 11.8 MB copy of a 30k-task manifest,
- *     under a name no later run will ever reuse or notice. The leak is
- *     unbounded because the names never repeat.
- *
- * Deliberately NOT in the save path: this is a directory scan, and `doSave`
- * runs inside the cross-process critical section. It belongs at daemon boot,
- * which is also the moment a crashed predecessor's mess is newest.
+ * Daemon-boot cleanup of what a `kill -9` mid-save leaves in the index dir:
+ *   - `tasks.json.lock`: left in 20/20 measured crash trials; otherwise only
+ *     the next acquirer's takeover (`lockfile.ts`) clears it.
+ *   - `tasks.json.<pid>.<ulid>.tmp`: its unlink is in a `catch` SIGKILL never
+ *     runs. 1/20 trials left one (11.8 MB for a 30k-task manifest); names never
+ *     repeat, so the leak is unbounded.
+ * Not in the save path: a directory scan doesn't belong inside the
+ * cross-process critical section.
  */
 
 import { existsSync, readFileSync, readdirSync, statSync, unlinkSync } from "node:fs"
 import { join } from "node:path"
 import { isProcessAlive, releaseSync } from "./lockfile.ts"
 
-/** Staging files younger than this may belong to a save running RIGHT NOW in
- *  another process — a real save writes and renames in well under a second,
- *  so anything this old is a corpse. */
+/** Younger files may be another process's in-flight save; a real save
+ *  renames in well under a second. */
 const TMP_MAX_AGE_MS = 5 * 60_000
 
 export interface IndexSweepResult {
@@ -39,14 +27,10 @@ export interface IndexSweepResult {
 }
 
 /**
- * Remove a crashed writer's leftovers from `stateDir`. Best-effort by
- * contract: every removal is independently guarded, and an unreadable
- * directory reports nothing swept rather than throwing into daemon boot.
- *
- * The lockfile is removed only when its recorded pid is gone AND the file
- * still holds exactly what we judged — the same verified takeover `acquire`
- * performs, so a lock a live Rove took between our read and our unlink
- * survives.
+ * Best-effort: each removal is guarded; an unreadable dir reports nothing
+ * rather than throwing into daemon boot. The lock goes only when its pid is
+ * dead AND the file still holds what we read (same verified takeover as
+ * `acquire`), so a lock a live Rove just took survives.
  */
 export function sweepIndexLeftovers(stateDir: string, now = Date.now()): IndexSweepResult {
   const tmp: string[] = []
@@ -86,7 +70,6 @@ function clearStaleLock(lockPath: string): boolean {
   const pid = Number.parseInt(holder, 10)
   if (Number.isFinite(pid) && pid > 0 && isProcessAlive(pid)) return false
   releaseSync(lockPath, holder)
-  // `releaseSync` is a no-op when the lock changed hands under us, so ask the
-  // filesystem rather than reporting the removal we merely attempted.
+  // `releaseSync` no-ops if the lock changed hands; ask the filesystem.
   return !existsSync(lockPath)
 }

@@ -33,10 +33,9 @@ import {
 const CLIENT_MIGRATION_MARKER = ".layout-client-migration-v1"
 const PLUGIN_MIGRATION_MARKER = ".layout-plugins-migration-v1"
 /**
- * Written under `.rove/` once daemon-owned state has been copied across.
- * Its presence is what makes the legacy `.kobe` copies STALE rather than a
- * fallback, so readers outside this module import it instead of re-spelling
- * the filename (`orchestrator/index/store-codec.ts`).
+ * Written under `.rove/` once daemon-owned state is copied; its presence makes
+ * the legacy `.kobe` copies STALE rather than a fallback. Exported so other
+ * readers never re-spell the filename.
  */
 export const DAEMON_MIGRATION_MARKER = ".layout-daemon-migration-v1"
 
@@ -83,15 +82,10 @@ function removeTemp(path: string): void {
 }
 
 /**
- * Flush a just-published temp file to disk.
- *
- * The handle must be WRITABLE: Windows backs fsync with FlushFileBuffers,
- * which requires write access and returns EPERM on a read-only handle, while
- * POSIX flushes an O_RDONLY descriptor happily. `copyFileSync` carries the
- * source's mode onto the temp on both platforms, so a legacy file with no
- * write bit yields a temp we cannot open "r+" either. The temp is exclusively
- * ours (pid + uuid in the name), so widen it for the flush and restore the
- * mode we intend to publish.
+ * Flush a temp file to disk. The handle must be WRITABLE: Windows fsync
+ * (FlushFileBuffers) returns EPERM on a read-only handle. `copyFileSync` copies
+ * the source mode, so a no-write-bit legacy file yields an unopenable temp; the
+ * temp is ours alone (pid + uuid), so widen it for the flush and restore after.
  */
 function syncFile(path: string): void {
   const mode = statSync(path).mode
@@ -174,11 +168,9 @@ function copyMissing(source: string, destination: string): number {
 }
 
 /**
- * Copy legacy product data into the canonical layout exactly once.
- *
- * The migration is deliberately non-destructive: sources remain in place,
- * existing Rove files always win, and worktrees/plugins/runtime files are not
- * copied. A failed item leaves the marker absent so the next launch retries.
+ * Copy legacy data into the canonical layout exactly once. Non-destructive:
+ * sources stay, existing Rove files win, worktrees/plugins/runtime files are
+ * not copied. A failed item leaves the marker absent so the next launch retries.
  */
 function migrateStateEntries(
   entries: readonly string[],
@@ -233,13 +225,10 @@ function migrateStateEntries(
 }
 
 /**
- * Plugin trees are MOVED, not copied: a managed checkout is hundreds of
- * megabytes, and a copy would leave two registries where the whole point is
- * that exactly one writer owns `plugins.json`. Runs at daemon start, the same
- * single-writer moment the daemon-owned copy uses, and only while the
- * canonical registry is absent — so it happens once and never races an
- * install. A failure leaves the legacy tree in place; the plugin path resolver
- * still finds it there.
+ * Plugin trees are MOVED, not copied: checkouts are hundreds of MB, and exactly
+ * one writer must own `plugins.json`. Runs at daemon start (single-writer) and
+ * only while the canonical registry is absent, so it never races an install.
+ * On failure the legacy tree stays and the plugin path resolver still finds it.
  */
 const PLUGIN_ENTRIES = ["plugins.json", "plugins", "plugins-outdated.json"] as const
 
@@ -266,9 +255,7 @@ function migrateLegacyPluginTree(env: NodeJS.ProcessEnv): StateLayoutMigrationRe
       if (!lstatIfExists(source) || lstatIfExists(destination)) continue
       renameSync(source, destination)
       moved += 1
-      // Leave the former path pointing at the new one: a `rove`/`kobe` binary
-      // predating the rename reads only `.kobe/plugins.json`, and finding it
-      // empty reads as "you have no plugins", not as "look elsewhere".
+      // Older binaries read only `.kobe/plugins.json`; a missing file reads as "no plugins".
       try {
         symlinkSync(destination, source)
       } catch {

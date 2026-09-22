@@ -1,18 +1,11 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The protocol step of the add-engine flow: which built-in adapter this
- * preset talks like.
+ * Add-engine protocol step: which built-in adapter this preset talks like,
+ * written to `engineProtocol.<id>` (decides transcript reader, account
+ * detection and delivery vs the generic adapter).
  *
- * A pick, not a text field. The set is closed — the built-in vendors, plus a
- * "none" row — and what it writes is `engineProtocol.<id>`, the value that
- * decides whether the preset gets a transcript reader, account detection and
- * engine-specific delivery, or falls back to the generic adapter. Free text
- * could only ever reach that fallback by ACCIDENT: a misspelt `cluade` fails
- * validation, writes nothing, and leaves an engine that reads as generic with
- * nothing on screen saying why. Here "generic" is a row you choose.
- *
- * Same `PickerList` as the status / branch / engine pickers, so the cursor,
- * the arrow and mouse picking behave the way they do in every other picker.
+ * A pick over a closed set, not free text: a misspelt `cluade` would silently
+ * fall back to generic. Here "generic" is a row you choose.
  */
 
 import { useState } from "react"
@@ -43,8 +36,7 @@ export function EngineProtocolPickerDialogView(props: {
   const padX = useDialogPaddingX()
   const [cursor, setCursor] = useState(0)
 
-  // Five fixed rows always fit, so there is no window to slide — the shape is
-  // only what `PickerList` takes.
+  // Five fixed rows always fit; no window to slide, just `PickerList`'s shape.
   const window: PickerWindow = { items: [...CHOICES], start: 0, total: CHOICES.length }
 
   function commit(protocol: string | undefined): void {
@@ -86,9 +78,8 @@ export function EngineProtocolPickerDialogView(props: {
 }
 
 /**
- * Open the picker and resolve with the chosen protocol — the empty string for
- * the generic adapter, `undefined` on cancel (which aborts the add, like the
- * id and command steps before it).
+ * Resolve with the chosen protocol: `""` for generic, `undefined` on cancel
+ * (which aborts the add).
  */
 function show(dialog: DialogContext, opts: { engineId: string }): Promise<string | undefined> {
   return showDialog<string>(dialog, (resolve) => (

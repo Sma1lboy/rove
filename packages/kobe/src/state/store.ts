@@ -15,12 +15,8 @@ let corruptWarned = false
 export type StateSnapshot = Record<string, unknown>
 
 /**
- * `savedRepos` as stored in an already-loaded snapshot (type-filtered).
- *
- * Lives beside {@link StateSnapshot} rather than in `repos.ts` so the
- * remote-project module can read the same key without importing `repos.ts`,
- * which imports IT — a cycle whose value imports bundle into a TDZ crash in
- * an unrelated verb.
+ * `savedRepos` from a loaded snapshot (type-filtered). Lives here, not in
+ * `repos.ts`, so `remote-repos.ts` avoids an import cycle (a TDZ crash when bundled).
  */
 export function readSavedRepos(state: StateSnapshot): readonly string[] {
   const raw = state.savedRepos
@@ -30,8 +26,8 @@ export function readSavedRepos(state: StateSnapshot): readonly string[] {
 
 /**
  * Read + parse the state file. Returns `{}` for a missing file, malformed
- * JSON, or a non-object root (array/string/number) — see the corrupt-file
- * policy in the module doc. Never throws.
+ * JSON, or a non-object root; a corrupt file is backed up under the lock
+ * (see `readStateFile`). Never throws.
  */
 export function loadStateFile(): StateSnapshot {
   return readStateFile(false)
@@ -70,10 +66,8 @@ function readStateFile(ownsLock: boolean): StateSnapshot {
       releaseSync(lockPath, token)
     }
   }
-  // The file exists but didn't parse as a JSON object: back it up instead of
-  // silently discarding it, then start fresh. Best-effort — if the backup
-  // rename itself fails (e.g. file vanished between read and rename), we
-  // still must not throw or block the caller.
+  // Back up a non-object file rather than discard it. Best-effort: a failed
+  // rename must still not throw or block the caller.
   try {
     renameSync(path, `${path}.corrupt-${Date.now()}`)
     if (!corruptWarned) {
@@ -87,41 +81,27 @@ function readStateFile(ownsLock: boolean): StateSnapshot {
 }
 
 /**
- * Atomic whole-file write: serialize to a process-unique
- * `state.json.<pid>.<nonce>.tmp`, then rename over `state.json` so a crash
- * mid-write can never leave a half-written file. The tmp name is unique per
- * call (not just per process) so two writes racing in the same process via
- * concurrent callers can't collide either. `undefined` values vanish at
- * JSON.stringify time, which is how key deletion serializes. Throws on I/O
- * failure — callers decide whether that's fatal (CLI) or logged-and-retried
- * (KVProvider's next flush).
+ * Atomic write via a per-call-unique `state.json.<pid>.<nonce>.tmp` + rename,
+ * so a crash never leaves a half-written file. `undefined` values vanish at
+ * stringify time (that is how deletion serializes). Throws on I/O failure;
+ * callers decide fatal (CLI) vs retry (KVProvider's next flush).
  */
 function writeStateFile(state: StateSnapshot): void {
   const path = kvStatePath()
   mkdirSync(dirname(path), { recursive: true })
   const nonce = Math.random().toString(36).slice(2)
   const tmp = `${path}.${process.pid}.${nonce}.tmp`
-  // Compact (no `null, 2`): the file is written on EVERY kv flush and read
-  // only by machines — pretty-printing tripled the bytes for no reader.
-  // 0600: `engineCommand.*` holds a user-authored shell line, which is exactly
-  // where someone pastes `--api-key=…`. Owner-only costs nothing here — the file
-  // already lives under a single user's ~/.config.
+  // Compact: written on every kv flush, read only by machines (pretty-printing
+  // tripled the bytes). 0600: `engineCommand.*` is where users paste `--api-key=…`.
   writeFileSync(tmp, JSON.stringify(state), { encoding: "utf8", mode: 0o600 })
   renameSync(tmp, path)
 }
 
 /**
- * Single read-merge-write transaction: re-read the file FRESH, hand the
- * snapshot to `mutate`, write the result atomically. The fresh read is the
- * whole point — basing the write on the on-disk state of *now* (not a
- * snapshot this process took earlier) is what stops one writer from
- * resurrecting/erasing keys another process changed in the meantime.
- *
- * `mutate` may return `false` to skip the write entirely (e.g. "repo
- * already saved, nothing to do" — the file is left byte-identical, not
- * rewritten). Any other return value writes.
- *
- * Returns the snapshot that is now on disk (or would be, when skipped).
+ * Locked read-merge-write. The FRESH read is the point: writing from an
+ * earlier snapshot would resurrect/erase keys another process changed.
+ * `mutate` returning `false` skips the write (file stays byte-identical).
+ * Returns the snapshot now on disk.
  */
 export function updateStateFile(mutate: (state: StateSnapshot) => boolean | undefined): StateSnapshot {
   const lockPath = `${kvStatePath()}.lock`
@@ -137,12 +117,8 @@ export function updateStateFile(mutate: (state: StateSnapshot) => boolean | unde
 }
 
 /**
- * Merge a set of key changes into the file: fresh read, apply ONLY the
- * keys present in `patch` (an explicit `undefined` value DELETES the key,
- * matching JSON stringify, which drops undefined
- * entries), atomic write. This is the multi-process-safe flush
- * primitive: KVProvider passes just its dirty keys; `setPersisted*` passes
- * a single key. Keys this writer never touched pass through untouched.
+ * Multi-process-safe flush: apply ONLY the keys in `patch` (an explicit
+ * `undefined` DELETES the key); untouched keys pass through.
  */
 export function patchStateFile(patch: StateSnapshot): StateSnapshot {
   return updateStateFile((state) => {
@@ -155,12 +131,9 @@ export function patchStateFile(patch: StateSnapshot): StateSnapshot {
 }
 
 /**
- * Read a boolean flag from state.json with an explicit default — the single
- * owner of the "stored bool with a default" rule. Only a real stored boolean
- * overrides `defaultValue`; a missing key OR any non-boolean value falls back.
- * This subsumes the `x === true` (default false) / `x !== false` (default true)
- * idioms flag modules would otherwise inline, where the idiom silently
- * encodes the default and is easy to get backwards.
+ * Read a boolean flag with an explicit default: only a stored boolean
+ * overrides it; missing or non-boolean falls back. Use this instead of
+ * `x === true` / `x !== false`, which encode the default silently.
  */
 export function getPersistedBool(key: string, defaultValue: boolean): boolean {
   const value = loadStateFile()[key]
@@ -173,13 +146,9 @@ export function setPersistedBool(key: string, value: boolean): void {
 }
 
 /**
- * Replace the WHOLE file with `snapshot`, discarding keys other processes
- * may have written. Deliberately destructive — the only legitimate caller
- * is KVProvider's `clear()` ("reset UI state" in Settings → Dev), whose
- * contract is "wipe every persisted key, including ones this process never
- * loaded". Everything else must go through {@link patchStateFile} /
- * {@link updateStateFile}; reaching for this in a normal write path
- * reintroduces the lost-update bug this module exists to fix.
+ * Replace the WHOLE file, discarding other processes' keys. Only caller:
+ * KVProvider's `clear()` (Settings → Dev "reset UI state"). Anything else must
+ * use {@link patchStateFile} / {@link updateStateFile} or reintroduces lost updates.
  */
 export function replaceStateFile(snapshot: StateSnapshot): void {
   updateStateFile((state) => {

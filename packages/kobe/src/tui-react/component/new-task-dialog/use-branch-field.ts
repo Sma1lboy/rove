@@ -1,17 +1,10 @@
 /**
- * The existing tab's "from branch" cluster — the dialog's OTHER picker,
- * sibling to `./use-clone-state.ts` and `./use-adopt-state.ts`.
+ * The existing tab's "from branch" field. `./view-model.ts` owns which repo;
+ * this owns which ref it forks from. One-way: the branch list is a function
+ * of the resolved repo path, and nothing here feeds back into the repo.
  *
- * The seam: `./view-model.ts` owns which repo you are talking about; this
- * hook owns which ref that repo forks from. The dependency runs one way —
- * the branch list is a function of the resolved repo path, and nothing here
- * is read back to decide the repo — so the whole cluster (the ref text, its
- * "touched" latch, the filtered branch list, its cursor and window, and the
- * Enter-commits behavior of the tab's last field) travels together and
- * leaves the view-model with tabs, engine, repo and commit dispatch.
- *
- * `listLocalBranches` / `getCurrentBranch` are the sync git snapshots from
- * `src/tui/lib/git-snapshot.ts`, memoized on the expanded repo path.
+ * `listLocalBranches` / `getCurrentBranch` are sync git snapshots, memoized
+ * on the expanded repo path.
  */
 
 import { useEffect, useMemo, useState } from "react"
@@ -45,8 +38,7 @@ export function useBranchField(opts: BranchFieldOpts) {
   const [baseRef, setBaseRef] = useState(
     () => getCurrentBranch(expandHome(opts.defaultRepo.trim())) ?? DEFAULT_BASE_REF,
   )
-  // Once the user has typed here we stop auto-syncing from the repo's current
-  // branch — the manual override wins.
+  // Once typed in, stop auto-syncing from the repo's current branch.
   const [baseRefTouched, setBaseRefTouched] = useState(false)
   const [branchCursor, setBranchCursor] = useState(0)
 

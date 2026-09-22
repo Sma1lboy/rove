@@ -1,17 +1,10 @@
 /**
- * Notification chime volume (Settings → General → Sound).
+ * Notification chime volume (Settings → General → Sound), separate from the
+ * on/off toggle. Read at play time, so a change applies to the next chime.
  *
- * Its own preference because the on/off toggle
- * (`notifications.sound.enabled`) is the wrong knob for "this is too loud":
- * the chime was audible or silent, nothing between. kv-persisted and read
- * framework-free at play time (`tui/lib/sound.ts`), so a change applies to
- * the next chime with no restart.
- *
- * The value is a linear amplitude scale, 0..1 — it is applied to the WAV's
- * samples rather than passed to the player, because four of the players the
- * chime can land on (`afplay`, `aplay`, `omxplayer`, and Windows'
- * `Media.SoundPlayer`) accept no volume argument at all. See
- * `tui/lib/wav-volume.ts`.
+ * Linear amplitude 0..1, applied to the WAV samples (`tui/lib/wav-volume.ts`)
+ * because `afplay`, `aplay`, `omxplayer` and Windows' `Media.SoundPlayer`
+ * accept no volume argument.
  */
 
 import { loadStateFile } from "./store"

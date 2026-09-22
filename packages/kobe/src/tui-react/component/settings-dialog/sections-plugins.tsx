@@ -1,10 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Settings → Plugins. One dense two-line block per registered plugin: a
- * navigable toggle row (`[x] id v0.1.0 owner/repo`) plus a muted detail
- * line (what it declares + its last hook run), then one indented row per
- * `[[settings]]` the manifest declares. Data comes from `./plugins-core` —
- * this file only maps rows to boxes.
+ * Settings → Plugins. Per plugin: a toggle row (`[x] id v0.1.0 owner/repo`),
+ * a muted detail line (declares + last hook run), then one indented row per
+ * `[[settings]]`. Data comes from `./plugins-core`.
  */
 
 import { type BoxRenderable, TextAttributes } from "@opentui/core"
@@ -17,8 +15,7 @@ import type { SectionCursorProps } from "./rows"
 
 /**
  * Body-row index of each plugin's toggle row. A plugin owns
- * `1 + settings.length` consecutive rows, matching `pluginRows()` in the
- * shared model — the section's cursor math is that same layout.
+ * `1 + settings.length` rows, matching `pluginRows()` in the shared model.
  */
 function toggleRowOffsets(plugins: readonly PluginRowView[]): number[] {
   const offsets: number[] = []

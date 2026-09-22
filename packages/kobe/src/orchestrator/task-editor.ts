@@ -1,14 +1,5 @@
-/**
- * In-place task-field edits for the {@link Orchestrator}.
- *
- * The metadata setters — title, branch, vendor, pinned, status,
- * PR-status, plus sidebar `move` / web-board `reorder` — are each a small
- * guard around one `store` mutation (a few also touch git, for a branch
- * rename). They're cohesive and independent of task creation / worktree
- * allocation, so they live here as a collaborator the Orchestrator holds and
- * delegates to; the Orchestrator keeps thin public methods so its interface is
- * unchanged. Moved verbatim from `core.ts` — no behaviour change.
- */
+/** In-place task-field setters for the {@link Orchestrator}: each a small
+ *  guard around one `store` mutation (branch renames also touch git). */
 
 import { samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import { detectLanguage } from "@sma1lboy/kobe-daemon/prompts/observed-language"
@@ -29,9 +20,6 @@ import type { TaskIndexStore } from "./index/store.ts"
 import { isPlaceholderDerivedBranch, sanitizeTaskTitle } from "./title.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 
-/**
- * Owns the Orchestrator's in-place task-field mutations. One per Orchestrator.
- */
 export class TaskEditor {
   private readonly store: TaskIndexStore
   private readonly worktrees: GitWorktreeManager
@@ -47,9 +35,8 @@ export class TaskEditor {
     return task
   }
 
-  /** Rename a task. Empty / whitespace-only titles are rejected. Naming a
-   *  SCRATCH task is the "keep this" gesture — it clears the
-   *  flag, so the row survives its shell exiting. */
+  /** Naming a SCRATCH task is the "keep this" gesture: clears the flag so the
+   *  row survives its shell exiting. */
   async setTitle(id: TaskId | string, title: string): Promise<void> {
     const trimmed = sanitizeTaskTitle(title)
     if (!trimmed) throw new Error("setTitle: title is required (empty or whitespace-only rejected)")
@@ -60,24 +47,18 @@ export class TaskEditor {
   }
 
   /**
-   * Keep a materialised task's branch in lockstep with its title WHILE the
-   * branch is still the placeholder-derived default (`new-task`, or a legacy
-   * `rove/`/`kobe/` spelling). This is what lets a task auto-named from its
-   * first prompt also pick up a meaningful branch. It fires at most
-   * once: after the first rename the branch stops matching the placeholder
-   * derivation, so a later title change (or a manual `setBranch`) is never
-   * clobbered. Skipped for `main` (no branch) and for not-yet-materialised
-   * tasks (their branch is derived fresh from the title in `ensureWorktree`,
-   * so no rename is needed).
+   * Rename the branch to follow the title while it's still the
+   * placeholder-derived default (`new-task`, or legacy `rove/`/`kobe/`), so a
+   * prompt-auto-named task gets a real branch. Fires at most once: after that
+   * the branch no longer matches, so later titles / manual `setBranch` are
+   * never clobbered. Skipped for `main` and unmaterialised tasks
+   * (`ensureWorktree` derives theirs from the title).
    *
-   * Safety rails (best-effort — a rail bailing or a git failure is logged /
-   * swallowed, never thrown; the title update already committed and must
-   * stand, and the placeholder branch simply stays):
-   *   - never rename a branch that has an upstream (`branch -m` would orphan
-   *     the remote branch / any open PR); an unreadable probe counts as
-   *     ambiguity and also keeps the existing name;
-   *   - a collision with an existing local branch resolves to a `-2`, `-3`…
-   *     suffixed unique name instead of failing.
+   * Best-effort — failures are logged, never thrown (the title already
+   * committed; the placeholder stays):
+   *   - never rename a branch with an upstream (would orphan the remote / PR);
+   *     an unreadable probe also keeps the name;
+   *   - a local collision gets a `-2`, `-3`… suffix.
    */
   private async followBranchToTitle(taskBefore: Task, newTitle: string): Promise<void> {
     if (taskBefore.kind === "main" || !taskBefore.worktreePath) return
@@ -87,8 +68,7 @@ export class TaskEditor {
       const base = deriveConventionBranch(newTitle, inferBranchStyle(names), taskBefore.id)
       if (base === taskBefore.branch) return
       if (await this.worktrees.branchHasUpstream(taskBefore.worktreePath, taskBefore.branch)) return
-      // Exclude the branch we're renaming FROM so a placeholder like
-      // `new-task` can never block its own successor's `-2` scan.
+      // Exclude the source so it can't force its own successor to `-2`.
       const taken = new Set(names.filter((n) => n !== taskBefore.branch))
       const nextBranch = uniqueBranchName(base, taken, taskBefore.id)
       await this.setBranch(taskBefore.id, nextBranch)
@@ -98,13 +78,9 @@ export class TaskEditor {
   }
 
   /**
-   * Rename a task's branch. For a materialised worktree this renames
-   * the real git branch (`git branch -m`, which also moves HEAD on the
-   * checked-out worktree so a running session keeps streaming); for a
-   * not-yet-materialised task it just records the name, which
-   * `ensureWorktree` then uses instead of the title-derived
-   * default. Rejected for `kind: "main"` (it tracks the repo's own
-   * branch — rename that with git directly, not through kobe).
+   * Materialised: `git branch -m` (moves HEAD too, so a running session keeps
+   * streaming). Unmaterialised: records the name for `ensureWorktree`.
+   * Rejected for `main`/`dir`, which track their checkout's own branch.
    */
   async setBranch(id: TaskId | string, branch: string): Promise<void> {
     const trimmed = branch.trim()
@@ -124,17 +100,9 @@ export class TaskEditor {
   }
 
   /**
-   * Change a task's engine vendor. Pure metadata with no git or process side
-   * effects; the next fresh engine session uses the new vendor.
-   */
-  /**
-   * Record the language this task's user writes in, learned from one of
-   * their own prompts. Called on the delivery path, so it costs a store
-   * write only when the answer actually changes.
-   *
-   * Text with no opinion in it (`detectLanguage` → null: empty, digits,
-   * punctuation) is ignored rather than written: a one-word "ok" must not
-   * erase what a paragraph established.
+   * On the prompt delivery path: writes only when the answer changes. No-opinion
+   * text (`detectLanguage` → null) is ignored so an "ok" can't erase what a
+   * paragraph established.
    */
   async observeLanguage(id: TaskId | string, text: string): Promise<void> {
     const observed = detectLanguage(text)
@@ -145,17 +113,10 @@ export class TaskEditor {
   }
 
   /**
-   * `effort` is a THREE-state field, because "leave it alone" and "clear it"
-   * are different asks: `undefined` keeps the task's recorded level (the
-   * caller had no opinion), `""` clears it (back to the engine's own
-   * default), any other string records that level. Without the tri-state the
-   * engine picker could never take a codex task back off `xhigh`.
-   *
-   * The same-vendor early return must not swallow an effort-only change — a
-   * user re-picking codex to move it from `medium` to `high` is changing
-   * something, even though the vendor is identical.
-   *
-   * `model` is the same tri-state, for the same reason.
+   * Pure metadata; the next fresh engine session uses it. `effort` and `model`
+   * are tri-state: `undefined` keeps, `""` clears (engine default), else sets —
+   * otherwise a codex task could never go back off `xhigh`. The same-vendor
+   * early return must not swallow an effort/model-only change.
    */
   async setVendor(id: TaskId | string, vendor: VendorId, effort?: string, model?: string): Promise<void> {
     const task = this.requireTask(id)
@@ -172,11 +133,9 @@ export class TaskEditor {
   }
 
   /**
-   * Pin a RAW launch command on a task (the dispatch face's `set-command`).
-   * Same pure-metadata contract as {@link setVendor}: the next fresh engine
-   * session launches it. `vendor` is the command's protocol as resolved by
-   * the caller (the CLI, which can read the preset registry); omitting it
-   * leaves the recorded protocol alone rather than guessing.
+   * Pin a RAW launch command (`set-command`); metadata like {@link setVendor}.
+   * `vendor` is the protocol the caller resolved from the preset registry;
+   * omitted leaves the recorded one rather than guessing.
    */
   async setCommand(id: TaskId | string, command: string, vendor?: VendorId): Promise<void> {
     const trimmed = command.trim()
@@ -186,7 +145,7 @@ export class TaskEditor {
     await this.store.update(task.id, { command: trimmed, ...(vendor ? { vendor } : {}) })
   }
 
-  /** Toggle / set the `pinned` flag. No-op for `kind: "main"` (always pinned). */
+  /** No-op for `main` (always pinned). */
   async setPinned(id: TaskId | string, pinned?: boolean): Promise<void> {
     const task = this.requireTask(id)
     if (task.kind === "main") return
@@ -196,14 +155,9 @@ export class TaskEditor {
   }
 
   /**
-   * Move a task up/down within its visible ordering partition. Main
-   * (project) rows move among each other — the sidebar renders projects in
-   * the mains' stored order, so reordering the store IS reordering the
-   * project list. Regular tasks move within their REPO's partition (the
-   * sidebar tree groups tasks under their repo, so a cross-repo swap would be
-   * invisible or jump groups), still split by the
-   * pinned flag. Edge-stop: `store.move` past the partition's first/last is
-   * a no-op, never a wrap.
+   * Within the visible partition: mains among mains (store order IS project
+   * order); tasks within their repo (a cross-repo swap would be invisible or
+   * jump groups) and pinned flag. Edge-stop, never wrap.
    */
   async moveTask(id: TaskId | string, delta: -1 | 1): Promise<void> {
     const task = this.requireTask(id)
@@ -221,11 +175,8 @@ export class TaskEditor {
     await this.store.move(task.id, delta, groupIds)
   }
 
-  /**
-   * Move a task between status states. The transitions are not
-   * machine-enforced in v0.6 (the user does it from the sidebar) but
-   * we still refuse `done` ↔ `error` flip-flops to surface bad code.
-   */
+  /** Transitions are user-driven, not enforced, except `done` ↔ `error`
+   *  flip-flops are refused to surface bad code. */
   async setStatus(id: TaskId | string, status: TaskStatus): Promise<void> {
     const task = this.requireTask(id)
     if (task.status === status) return
@@ -236,17 +187,10 @@ export class TaskEditor {
   }
 
   /**
-   * Record what the WORKER says it delivered (`set-status --report-*`).
-   *
-   * Its own method rather than a parameter on {@link setStatus}, because
-   * that one returns early when the status is unchanged — and re-reporting
-   * on an already-`done` task is the ordinary case (a worker corrects its PR
-   * number, or files a summary after the fact). Folded in there, exactly
-   * those reports would vanish without a word.
-   *
-   * Fields MERGE onto any previous report: a follow-up naming only `pr` must
-   * not erase the branch the worker named ten minutes earlier. `at` always
-   * restamps, so the timestamp means "last reported", not "first".
+   * What the WORKER says it delivered (`set-status --report-*`). Separate from
+   * {@link setStatus}, whose unchanged-status early return would drop the
+   * common re-report on an already-`done` task. Fields MERGE onto the previous
+   * report; `at` always restamps ("last reported").
    */
   async setWorkerReport(id: TaskId | string, report: Omit<TaskWorkerReport, "at">): Promise<void> {
     const task = this.requireTask(id)
@@ -255,19 +199,11 @@ export class TaskEditor {
   }
 
   /**
-   * Set (or clear, with `null`) a task's PR status — driven by the daemon's
-   * `pr-status-collector`. Persisting it on the Task means the snapshot push
-   * already fans the change to every pane + the web board (no new channel),
-   * and it survives a daemon restart. No-op when nothing the UI renders
-   * changed (the collector also pre-diffs, but guard here too so a redundant
-   * call never churns a write + broadcast).
-   *
-   * `lastError` is checked separately because `samePrStatus` deliberately
-   * omits it — the collector needs that omission so a healthy PR does not
-   * churn a write every tick. But the sidebar chip renders the field (it
-   * mutes while a poll cannot reach the provider), so leaving it out of THIS
-   * guard makes the marker unwritable: every attempt to set or clear it looks
-   * like a redundant call and is dropped.
+   * From `pr-status-collector`; `null` clears. On the Task so the snapshot push
+   * fans it out and it survives restarts. No-op when nothing rendered changed.
+   * `lastError` is compared separately: `samePrStatus` omits it (so a healthy
+   * PR doesn't write every tick), but the chip renders it, and without this
+   * check it could never be set or cleared.
    */
   async setPRStatus(id: TaskId | string, prStatus: TaskPRStatus | null): Promise<void> {
     const task = this.requireTask(id)
@@ -276,12 +212,8 @@ export class TaskEditor {
     await this.store.update(task.id, { prStatus: prStatus ?? undefined })
   }
 
-  /**
-   * Arm (or clear, with `null`) the daemon's rate-limit auto-resume schedule.
-   * No-op when the stored schedule already matches — the sweep and the hook
-   * path may both try to write, and a redundant call must not churn a
-   * write + broadcast.
-   */
+  /** Rate-limit auto-resume schedule; `null` clears. No-op when unchanged: the
+   *  sweep and the hook path may both write. */
   async setQuotaResume(id: TaskId | string, state: TaskQuotaResumeState | null): Promise<void> {
     const task = this.requireTask(id)
     if ((task.quotaResume?.resumeAt ?? null) === (state?.resumeAt ?? null)) return
@@ -296,15 +228,8 @@ export class TaskEditor {
     await this.store.update(task.id, { linkedWorkItem: item ?? undefined })
   }
 
-  /**
-   * Record the task brief: the full text of the prompt `add --prompt`
-   * delivered into this task's engine. Written on the delivery path so the
-   * brief survives the engine's own transcript — a dead engine would
-   * otherwise take the only copy down with it. Stored verbatim (never
-   * truncated); a
-   * whitespace-only prompt is rejected. No-op when the stored text already
-   * matches, so a redundant call never churns a write + broadcast.
-   */
+  /** The `add --prompt` brief, verbatim, so it outlives a dead engine's
+   *  transcript. No-op when unchanged. */
   async setPrompt(id: TaskId | string, prompt: string): Promise<void> {
     if (prompt.trim().length === 0) throw new Error("setPrompt: prompt is required (empty or whitespace-only rejected)")
     const task = this.requireTask(id)

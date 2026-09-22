@@ -1,27 +1,17 @@
 /**
- * Remote (`ssh://…`) projects: the synthetic savedRepos key and the stored
- * connection config behind it.
+ * Remote (`ssh://…`) projects: the synthetic savedRepos key and its stored
+ * connection config. `repos.ts` owns local paths; the two share only the state file.
  *
- * Split out of `repos.ts`, which owns LOCAL repo paths. A remote project has
- * no local path to canonicalize, no git toplevel to resolve and no project
- * eligibility to check; the two halves share only the state file.
- *
- * Imports `store.ts` only, never `repos.ts` — `repos.ts` imports THIS module,
- * and a value-import cycle between them bundles into a TDZ crash in whichever
- * verb happens to load first.
+ * Imports `store.ts` only, never `repos.ts` — `repos.ts` imports this module,
+ * and a value-import cycle bundles into a TDZ crash in whichever verb loads first.
  */
 
 import { type StateSnapshot, getPersistedBool, loadStateFile, readSavedRepos, updateStateFile } from "./store.ts"
 
-// ── Remote projects (SSH-backed) ─────────────────────────────────────────────
-//
-// A remote project is a saved repo whose worktrees live on another host over
-// SSH. Hosted PTY engine launch over SSH is still pending. Its `savedRepos`
-// key is a synthetic `ssh://user@host:port`
-// URL (it has no local path), and its connection details live under the
-// separate `remoteRepos` map. The PASSWORD is never stored here — only a
-// `keychainRef` pointing at the OS keychain (see `exec/keychain.ts`). See
-// `docs/design/remote-projects.md`.
+// A remote project's worktrees live on another host over SSH (hosted PTY
+// engine launch over SSH is still pending). Connection details live in the
+// `remoteRepos` map; the PASSWORD is never stored — only a `keychainRef` into
+// the OS keychain (`exec/keychain.ts`). See `docs/design/remote-projects.md`.
 
 /** Persisted auth: a key path, or a pointer to a keychain-stored password. */
 export type RemoteAuthConfig =
@@ -43,30 +33,20 @@ export function isRemoteRepoKey(key: string): boolean {
 }
 
 /**
- * Whether the experimental SSH-backed remote-projects feature is enabled
- * (Settings → Dev → Experimental). Off by default. Stored as a boolean under
- * the shared state.json `experimental.remoteProjects` key (written by the
- * Settings dialog's reactive kv); read here cross-process so `kobe add
- * --remote` can refuse when the feature is off. See `docs/design/remote-projects.md`.
+ * Settings → Dev → Experimental toggle, off by default. Read from state.json
+ * cross-process so `kobe add --remote` can refuse when it is off.
  */
 export function isRemoteProjectsEnabled(): boolean {
   return getPersistedBool("experimental.remoteProjects", false)
 }
 
 /**
- * The stable savedRepos key for a remote project:
- * `ssh://user@host[:port][/basePath]`.
+ * Stable savedRepos key: `ssh://user@host[:port][/basePath]`.
  *
- * `basePath` is part of the identity because it is the only thing that tells
- * two projects on one host+user apart. Without it, a second `rove add
- * --remote --host h --user u --path /srv/repoB` overwrote the first's config
- * under the same key and reported it as "updated remote project" — an
- * identity collision presented as a deliberate edit. Every task already
- * recorded against repoA then resolved its worktree root through repoB's
- * `basePath`.
- *
- * Omitted when there is no base path, which is also the LEGACY key shape —
- * see {@link addRemoteRepo} for how already-registered projects keep theirs.
+ * `basePath` is identity — the only thing telling two projects on one
+ * host+user apart; without it a second add overwrites the first's config and
+ * the first's tasks resolve worktrees through the second's `basePath`.
+ * No base path is also the LEGACY key shape — see {@link addRemoteRepo}.
  */
 export function remoteRepoKey(host: string, user: string, port?: number, basePath?: string): string {
   const authority = port ? `${user}@${host}:${port}` : `${user}@${host}`
@@ -101,11 +81,9 @@ export function addRemoteRepo(config: RemoteRepoConfig): { key: string; added: b
   let added = false
   updateStateFile((state) => {
     const repos = { ...readRemoteRepos(state) }
-    // A project registered before the key carried its base path is keyed
-    // `ssh://user@host[:port]`, and its tasks store THAT string as
-    // `task.repo`. Re-registering the same project must update that row in
-    // place; minting the path-bearing key instead would leave a second
-    // sidebar row whose config those tasks never reach.
+    // A legacy-keyed project's tasks store `ssh://user@host[:port]` as
+    // `task.repo`; re-registering must update that row in place, not mint a
+    // second row whose config those tasks never reach.
     const legacyKey = remoteRepoKey(config.host, config.user, config.port)
     if (key !== legacyKey && repos[legacyKey]?.basePath === config.basePath) key = legacyKey
     repos[key] = config

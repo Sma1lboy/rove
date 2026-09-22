@@ -1,13 +1,5 @@
-/**
- * The BRANCH operations of `manager.ts`.
- *
- * Existence probes, upstream lookup, delete and rename — the git-branch verbs
- * the manager exposes. A branch and a worktree are two different git objects;
- * these verbs are orthogonal to worktree lifecycle (create / remove / list)
- * and share only the run-git primitive, so they live here as
- * free functions over a small {@link BranchDeps}, and the class methods stay
- * thin delegators. Same shape as `manager-list.ts`; no behaviour change.
- */
+/** `manager.ts`'s branch verbs (exists, upstream, delete, rename): orthogonal
+ *  to worktree lifecycle, sharing only run-git via {@link BranchDeps}. */
 
 import type { ExecHost } from "../../exec/exec-host.ts"
 import { anchorBranchTip } from "./branch-anchor.ts"
@@ -15,7 +7,6 @@ import type { ExecCtx } from "./exec-deps.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
 import type { SalvageRecord } from "./salvage.ts"
 
-/** The manager primitives the branch functions borrow. */
 export interface BranchDeps {
   runGit(exec: ExecHost, args: readonly string[], opts: GitRunOpts): Promise<GitRunResult>
   /** ExecHost for a worktree path, absolute-path check bound in. */
@@ -24,10 +15,7 @@ export interface BranchDeps {
   findRepoFor(exec: ExecHost, worktreePath: string): Promise<string | null>
 }
 
-/**
- * Whether `branch` exists in the repo at `ctx`. `show-ref --verify --quiet`
- * exits 0/1 cleanly without touching working tree state.
- */
+/** `show-ref --verify --quiet` exits 0/1 without touching the working tree. */
 export async function branchExists(deps: BranchDeps, ctx: ExecCtx, branch: string): Promise<boolean> {
   const out = await deps.runGit(ctx.exec, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], {
     cwd: ctx.dir,
@@ -38,26 +26,13 @@ export async function branchExists(deps: BranchDeps, ctx: ExecCtx, branch: strin
 }
 
 /**
- * What happened to the branch a caller asked to delete.
- *
- * `deleted: false` is the whole point of this type. The delete is
- * best-effort by design — it must never fail a removal the caller already
- * committed to — but "best-effort" had been implemented as `allowFail` with
- * the exit code dropped on the floor, so a branch git REFUSED to delete was
- * indistinguishable from one that went away. `git branch -d` refuses an
- * unmerged branch (the ordinary case for `delete --delete-branch` on work
- * that never landed) and both spellings refuse a branch some worktree still
- * has checked out. `land.ts` already had to invent its own `branchKept` to
- * work around this; the answer now comes from the delete itself.
+ * Best-effort (never fails a committed removal) but not silent: `deleted:
+ * false` reports a refusal. `-d` refuses an unmerged branch (the usual
+ * `delete --delete-branch` case); both spellings refuse a checked-out branch.
  */
 export type BranchDeleteOutcome = { readonly deleted: true } | { readonly deleted: false; readonly reason: string }
 
-/**
- * Delete a branch in `repo`. `git branch -d` (safe: refuses an unmerged
- * branch) unless `force`, which uses `-D`. Never throws — a branch that's
- * checked out elsewhere, unmerged (without force), or already gone comes back
- * as an outcome the caller reports rather than an error it has to handle.
- */
+/** `-d` unless `force` (`-D`). Never throws; refusals come back as outcomes. */
 async function deleteBranchIn(
   deps: BranchDeps,
   exec: ExecHost,
@@ -68,10 +43,8 @@ async function deleteBranchIn(
   if (!branch || branch === "HEAD") return { deleted: false, reason: "no branch to delete" }
   const out = await deps.runGit(exec, ["branch", force ? "-D" : "-d", branch], { cwd: repo, allowFail: true })
   if (out.exitCode === 0) return { deleted: true }
-  // Re-probe rather than trust the exit code, the same way `removeWorktree`
-  // classifies a failed `git worktree remove`: a branch that is already gone
-  // IS the end state the caller asked for, and git spells that refusal
-  // ("branch 'x' not found") in whatever language it is running in.
+  // Re-probe instead of parsing stderr (localized): already gone IS the
+  // requested end state.
   if (!(await branchExists(deps, { exec, dir: repo, remote: exec.isRemote }, branch))) return { deleted: true }
   return {
     deleted: false,
@@ -79,22 +52,8 @@ async function deleteBranchIn(
   }
 }
 
-/**
- * Delete a branch, anchoring its tip first when `force` would otherwise strand
- * it.
- *
- * `git branch -D` drops the branch ref AND its reflog, so a tip no other ref
- * reaches becomes a dangling object — findable only by `git fsck` and
- * collected by `gc` after `gc.pruneExpire`. `land --strategy squash
- * --delete-branch` produces exactly that: the squash writes an unrelated
- * commit onto the base, and the worktree (holding the only other reflog) is
- * already removed by the time this runs.
- *
- * {@link anchorBranchTip} no-ops when another ref already contains the tip,
- * which is the ordinary `--no-ff` merge case, so this only writes a ref when
- * one is genuinely load-bearing. A failed anchor never fails the deletion the
- * caller asked for.
- */
+/** With `force` (`-D`), anchor the tip first ({@link anchorBranchTip}; no-op
+ *  when another ref reaches it). A failed anchor never fails the deletion. */
 export async function deleteBranchAnchored(
   deps: BranchDeps,
   exec: ExecHost,
@@ -106,12 +65,8 @@ export async function deleteBranchAnchored(
   return await deleteBranchIn(deps, exec, repo, branch, opts.force)
 }
 
-/**
- * Whether `branch` has a configured upstream (i.e. it tracks / was pushed to a
- * remote). Auto branch-follow refuses to touch such a branch — `branch -m`
- * would orphan the remote branch and break any open PR. Throws on git failure:
- * an unreadable probe is ambiguity, not "no".
- */
+/** Auto branch-follow won't rename a branch with an upstream (would orphan the
+ *  remote / PR). Throws on git failure: unreadable is ambiguity, not "no". */
 export async function branchHasUpstream(deps: BranchDeps, worktreePath: string, branch: string): Promise<boolean> {
   const out = await deps.runGit(
     deps.execAt(worktreePath),
@@ -139,17 +94,10 @@ export async function hasLocalBranch(deps: BranchDeps, worktreePath: string, bra
 }
 
 /**
- * Rename a branch in-place. Used by `setBranch` and the follow-branch-to-title
- * flow when a placeholder-named task gets its first real title.
- *
- * git's `branch -m <old> <new>` updates HEAD on every worktree that was
- * checked out on `<old>` — the engine's session keeps streaming without
- * noticing. Idempotent: returns silently when `from === to`, and also when
- * `from` is already gone while `to` exists — the recorded `from` can be
- * stale (a retried call whose first attempt renamed but whose response was
- * lost, a concurrent rename, an out-of-band `git branch -m`), and
- * branch refs are shared across worktrees, so old-gone + new-present IS the
- * requested end state. If `to` already exists alongside `from`, throws.
+ * `branch -m` updates HEAD on every worktree on `from`, so a running session
+ * keeps streaming. Idempotent: returns when `from === to`, or when `from` is
+ * gone and `to` exists (a stale `from` after a lost retry response, concurrent
+ * or out-of-band rename — that IS the end state). Throws if both exist.
  */
 export async function renameBranch(deps: BranchDeps, worktreePath: string, from: string, to: string): Promise<void> {
   const exec = deps.execAt(worktreePath)

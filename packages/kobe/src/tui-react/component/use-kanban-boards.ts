@@ -1,19 +1,12 @@
 /**
- * Kanban board loading — the data half of `kanban-page.tsx`: fetch the issue
- * file of every repo that can have a backlog, poll it while the page is open,
- * and land the initial project/card cursor. Rendering, key handling, and
- * mutations stay in the page.
+ * Data half of `kanban-page.tsx` (the only part that talks to the
+ * orchestrator): fetch every repo's issue file, poll while open, and land the
+ * initial project/card cursor.
  *
- * "Can have a backlog" is three sources unioned, because no one of them is the
- * whole set: the STORE's own repo keys (`issue.repos` — a story filed with
- * `issue-create --repo <path>` reaches a repo that may have no task and no
- * saved-project entry), the user's SAVED projects (an empty board you can file
- * into), and the repos of LIVE tasks. Deriving the set from tasks alone was
- * the bug: landing the work and deleting the task — the ordinary end of the
- * loop — dropped every card, and the page then said "No projects yet".
- *
- * The seam is IO: this is the only part that talks to the orchestrator, so the
- * page's own logic never has to reason about a poll landing mid-interaction.
+ * Repos are the union of three sources, none complete alone: the store's own
+ * keys (`issue.repos`; `issue-create --repo` can reach a repo with no task or
+ * saved entry), SAVED projects (empty boards to file into), and LIVE task
+ * repos. Tasks alone would drop every card once the task is deleted.
  */
 
 import type { RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
@@ -28,11 +21,9 @@ import { getSavedRepos } from "../../state/repos"
 const POLL_MS = 5_000
 
 /**
- * A project's board, plus the one thing {@link RepoIssues} cannot express:
- * this repo's issue read REJECTED. A rejection used to drop the repo from the
- * result, which took the project out of the selector entirely — a user with
- * two repos saw one, with no error, no glyph, and no reason to think the
- * other existed. The section stays; the failure rides with it.
+ * A project's board plus what {@link RepoIssues} can't express: the read
+ * REJECTED. The section stays (so the project isn't silently missing from the
+ * selector) and carries the failure.
  */
 export interface KanbanBoardEntry extends RepoIssues {
   /** The read's error message. Absent = the read succeeded (`issues` may
@@ -61,8 +52,7 @@ export function useKanbanBoards(args: {
   const [reloadTick, setReloadTick] = useState(0)
   // Keyed by repoRoot (not index) so the poll refetch keeps the selection.
   const [activeRepo, setActiveRepo] = useState<string | null>(null)
-  // Card cursor — an issue id (not an index) so a poll refetch that reorders
-  // a column keeps the selection on the same story.
+  // Card cursor by issue id, so a reordering poll keeps the same story.
   const [selectedId, setSelectedId] = useState<number | null>(null)
 
   const { orchestrator, focusTask } = args
@@ -76,8 +66,7 @@ export function useKanbanBoards(args: {
     const local = [...getSavedRepos(), ...orchestrator.listTasks().map((task) => task.repo)]
     void orchestrator
       .listIssueRepos()
-      // A daemon too old to know `issue.repos` leaves the board on the sources
-      // this process can see for itself, rather than rendering nothing.
+      // A daemon without `issue.repos` falls back to the local sources.
       .catch((): readonly string[] => [])
       .then((stored) => {
         // `ssh://` saved keys are remote projects; the issue store is keyed by
@@ -87,9 +76,7 @@ export function useKanbanBoards(args: {
           repos.map((repo) =>
             orchestrator.listIssues(repo).catch(
               (err: unknown): KanbanBoardEntry => ({
-                // A rejected read still owns its section. `exists: false` here
-                // is NOT the empty-board case below — `readError` is what
-                // separates "no issue file yet" from "could not read it".
+                // `readError` separates "could not read" from "no file yet".
                 repoRoot: repo,
                 exists: false,
                 nextId: 1,
@@ -103,14 +90,12 @@ export function useKanbanBoards(args: {
       })
       .then((results) => {
         if (disposed) return
-        // A repo whose issue file doesn't exist yet still gets a section —
-        // `exists: false` just means an empty board, not an error.
+        // Without `readError`, `exists: false` is just an empty board.
         const next = [...results]
         next.sort((a, b) => a.repoRoot.localeCompare(b.repoRoot))
         setBoards(next)
-        // First load lands on the focus task's project (opened via `c` on a
-        // task row) or, without one, the project you opened kobe in — the
-        // active task's repo (loose realpath tolerance, like WorktreesPage).
+        // First load: the focus task's project, else the active task's repo
+        // (loose realpath match).
         const norm = (p: string): string => p.replace(/^\/private\//, "/").replace(/\/+$/, "")
         const activeId = orchestrator.activeTaskSignal().get()
         const targetRepo = focusTask?.repo ?? orchestrator.listTasks().find((task) => task.id === activeId)?.repo

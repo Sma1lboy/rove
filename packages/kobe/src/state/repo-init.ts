@@ -1,23 +1,19 @@
 /**
  * Resolve a repo's per-worktree init script + first prompt.
  *
- * Two sources, resolved PER FIELD with the in-repo files taking priority:
+ * Two sources, resolved PER FIELD, in-repo files winning:
  *
- *   1. In-repo convention files, checked out in the worktree:
+ *   1. Version-controlled files in the worktree (legacy `.kobe/` spellings
+ *      are field-by-field fallbacks):
  *        <worktree>/.rove/init.sh         → runs before the engine starts
  *        <worktree>/.rove/init-prompt.md  → pasted as the engine's first prompt
- *      The legacy `.kobe/` spellings remain field-by-field fallbacks.
- *      These are version-controlled, so they're the project's authoritative
- *      setup and WIN when present.
- *   2. Per-user state.json override (`rove repo set …`) — a fallback default
- *      for a repo that doesn't ship its own convention files. Keyed by git
- *      toplevel, so it applies to every worktree of the repo.
+ *   2. Per-user state.json override (`rove repo set …`), keyed by git
+ *      toplevel so it covers every worktree of the repo.
  *
- * The init script runs in the worktree cwd, in the SAME shell that execs
- * the engine, so `export`s reach the engine. It runs once per worktree
- * (a marker under `<home>/.rove/` gates re-runs — see env.ts). The init
- * prompt is delivered only when a session is freshly created, never on
- * re-attach.
+ * The script runs in the worktree cwd, in the SAME shell that execs the
+ * engine, so `export`s reach it; once per worktree (a marker under
+ * `<home>/.rove/` gates re-runs — see env.ts). The prompt is delivered only
+ * on fresh session create, never on re-attach.
  */
 
 import { existsSync } from "node:fs"
@@ -53,25 +49,19 @@ export type PromptDeliveryIntent =
   | { readonly kind: "repo-init" }
   | { readonly kind: "explicit"; readonly prompt: string }
   /**
-   * The FIRST prompt of a freshly created worktree task (`add --prompt`,
-   * `fan-out`, quick-fork, work-item/automation starts). Delivered like
-   * `explicit`, plus the codas that describe THIS worktree's state — today
-   * the missing-dependencies warning. Prompts into EXISTING sessions (`send`,
-   * `send --tab new`, dispatch, cross-engine handoff) stay `explicit` so they
-   * never re-append them.
-   *
-   * Standing instructions for a worker (name your branch, report your outcome
-   * home) are NOT here: they live in the Rove agent skill, which the agent
-   * reads once instead of being told again in every prompt.
+   * FIRST prompt of a freshly created worktree task (`add --prompt`,
+   * `fan-out`, quick-fork, work-item/automation starts): `explicit` plus
+   * codas about THIS worktree's state (the missing-dependencies warning).
+   * Prompts into EXISTING sessions (`send`, dispatch, handoff) stay `explicit`
+   * so they never re-append them. Standing worker instructions live in the
+   * Rove agent skill, not here.
    */
   | { readonly kind: "new-task"; readonly prompt: string }
   | { readonly kind: "none" }
 
 /**
- * Lockfile → the directory its install step produces. A committed lockfile
- * with no install output means the worktree was never installed, so builds,
- * type-checks and tests there fail for reasons unrelated to the task — the
- * failure mode where agents report install breakage as a product regression.
+ * Lockfile → the directory its install step produces. Lockfile without that
+ * directory = never installed, so agents misreport install breakage as a regression.
  *
  * ponytail: a flat table, not a package-manager abstraction. Add a row when a
  * real repo needs one.
@@ -101,9 +91,7 @@ export function missingDependenciesCoda(worktreePath: string, language?: Observe
   }
   if (missing.size === 0) return undefined
   const dirs = [...missing].join(", ")
-  // The language comes from the user's OWN first prompt, one line above the
-  // call site — no stored state needed here, unlike the async injection
-  // points that fire with no user message in hand.
+  // Language comes from the caller's first prompt, so no stored state is needed.
   if (language === "zh") {
     return `补充：这个 worktree 没有装依赖（仓库里有 lockfile，但 ${dirs} 不存在）。在相信任何构建 / 测试结果之前，先跑一遍本仓库的安装步骤——这里的失败多半是因为没装依赖，而不是代码回归。如果这个仓库每次都需要装，可以考虑加一个 \`.rove/init.sh\`。`
   }
@@ -114,14 +102,10 @@ const INIT_SCRIPT_FILENAME = "init.sh"
 const INIT_PROMPT_FILENAME = "init-prompt.md"
 
 function repoFileScript(worktreePath: string): string | undefined {
-  // Run the committed file by relative path: cwd is the worktree, so
-  // `sh .rove/init.sh` works even when the file isn't chmod +x.
-  //
-  // Native `join` paths are only for probing. The shell command stays a POSIX
-  // literal because Git Bash treats a backslash as an escape.
-  //
-  // A script is picked on EXISTENCE, not content: an empty `init.sh` is a
-  // deliberate "run nothing" that must still beat the state.json override.
+  // `sh <relative path>` (cwd is the worktree) works without chmod +x. `join`
+  // is only for probing: the command stays POSIX because Git Bash treats `\`
+  // as an escape. Picked on EXISTENCE: an empty `init.sh` is a deliberate
+  // "run nothing" that must still beat the state.json override.
   for (const dir of REPO_CONFIG_DIRS) {
     if (existsSync(join(worktreePath, dir, INIT_SCRIPT_FILENAME))) return `sh ${dir}/${INIT_SCRIPT_FILENAME}`
   }
@@ -144,12 +128,8 @@ export interface RepoInitSource {
 
 /**
  * Which repo-init candidates exist and which one WINS, by the same rules
- * {@link resolveRepoInit} applies.
- *
- * `rove repo show` used to answer this with a bare `existsSync` per file, so
- * an EMPTY `.rove/init-prompt.md` printed "present (wins)" while the runtime
- * silently fell through to `.kobe/` or the state.json override. That is the
- * one question the command exists to answer, so it has to come from here.
+ * {@link resolveRepoInit} applies — a bare `existsSync` would report an EMPTY
+ * `init-prompt.md` as winning while the runtime falls through past it.
  */
 export function describeRepoInitSources(repoRoot: string): {
   script: readonly RepoInitSource[]
@@ -192,9 +172,7 @@ function firstMessageFor(
   if (intent.kind === "none") return undefined
   if (intent.kind === "explicit") return { source: "explicit", text: intent.prompt }
   if (intent.kind === "new-task") {
-    // Only when the repo has no init script: with one, the install already ran
-    // (or the repo chose not to), and the warning would be noise. Scoped to
-    // new-task so `send`/handoff prompts into existing sessions never see it.
+    // With an init script the install already ran (or was declined), so the warning is noise.
     const deps = init.initScript
       ? undefined
       : missingDependenciesCoda(worktreePath, detectLanguage(intent.prompt) ?? undefined)

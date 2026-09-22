@@ -1,22 +1,16 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Keyboard-discoverability hints — the React half of
- * `src/tui/lib/keyboard-hints.ts`:
+ * React half of `src/tui/lib/keyboard-hints.ts`:
  *
- *   - `StatusKeyHintBar` / `useStatusKeyHintItems`: the permanent status-bar
- *     micro-hint (`⌃ A commands · F1 help · [settings]`), terminal-
- *     passthrough aware. Every segment is mouse-activatable (clicks don't
- *     pass through to the PTY, so the [settings] button works even inside
- *     the terminal, where the keyboard path is longest).
- *   - `PaneKeyHint`: one muted line per vim-style pane (sidebar/files);
- *     the fuller first-use variant extinguishes permanently once the pane's
- *     own keys are used (`usePaneHintMark`).
+ *   - `StatusKeyHintBar` / `useStatusKeyHintItems`: the status-bar micro-hint
+ *     (`⌃ A commands · F1 help · [settings]`). Every segment is clickable —
+ *     clicks don't pass through to the PTY, so they work inside the terminal.
+ *   - `PaneKeyHint`: one muted line per vim-style pane; the first-use variant
+ *     goes away for good once the pane's keys are used (`usePaneHintMark`).
  *
- * Both are plain muted text on the ambient background — deliberately no
- * backgroundColor of their own, so they stay readable over normal AND
- * transparent themes (pinned by test/tui-react/keyboard-overlay-theme.test).
- * Every chord resolves through the live keymap; `useKeymapVersion()` keeps
- * an on-screen hint truthful across live YAML rebinds.
+ * No backgroundColor of their own, so they read over transparent themes too
+ * (pinned by test/tui-react/keyboard-overlay-theme.test). Chords resolve
+ * through the live keymap; `useKeymapVersion()` tracks YAML rebinds.
  */
 
 import { useCallback, useEffect, useState } from "react"
@@ -55,56 +49,41 @@ export type StatusKeyHintItem = {
 }
 
 /**
- * The status-bar hint segments, empty when there is nothing truthful to say
- * (hints toggled off, prefix disabled AND help unbound, …). Reads the live
- * binding stack, so an open modal or a context with no reachable prefix
- * commands reshapes it automatically.
+ * Status-bar hint segments from the live binding stack; empty when nothing
+ * truthful is left (hints off, prefix disabled AND help unbound, …).
  */
 export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; compact?: boolean }): StatusKeyHintItem[] {
   const t = useT()
   const kv = useOptionalKV()
-  // Reachability is a function of the focused pane, the live keymap, and
-  // which bindings are registered (registration happens in mount effects,
-  // AFTER the first render) — subscribe to all three so a change in any of
-  // them re-renders this consumer and re-runs the effect below.
+  // Reachability depends on focus, keymap and registrations (made in mount
+  // effects, AFTER first render) — subscribe to all three.
   const focus = useOptionalFocus()
   const dialog = useOptionalDialog()
   const keymapVersion = useKeymapVersion()
   const stackVersion = useBindingStackVersion()
-  // The ONE thing the effect needs from kv, read during render as a plain
-  // boolean. `kv` itself must not be a dependency: KVProvider rebuilds its
-  // context value on every snapshot, so any `kv.set` anywhere in the app
-  // hands this hook a new identity — see the effect's note below.
+  // Read as a plain boolean: `kv` itself must not be an effect dependency
+  // (see the note below).
   const hintsEnabled = keyHintsEnabled(kv?.get(KEY_HINTS_ENABLED_KEY, true))
   const [snapshot, setSnapshot] = useState<{ tokens: readonly StatusHintToken[]; modal: boolean }>({
     tokens: [],
     modal: false,
   })
-  // Snapshot AFTER every commit, never during render: `enabled` gates like
-  // the terminal passthrough table read render-refreshed refs in CHILD
-  // components, and this hook renders in a parent (the workspace footer) —
-  // a render-time read sees the PREVIOUS cycle's focus and command set.
-  // Effects run children-first, so by the time this one
-  // fires the whole tree's refs and registrations are current. The
-  // compare-and-set keeps the no-change case from looping.
+  // Snapshot AFTER commit, never during render: `enabled` gates read refs
+  // refreshed in CHILD renders, and this hook lives in a parent (the footer),
+  // so a render-time read sees the previous cycle. Effects run children-first.
+  // The compare-and-set keeps the no-change case from looping.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the version/focus deps are INVALIDATION KEYS, not values this body reads — it reads live module state (currentBindingReachability, modalActive, currentPrefixConfiguration) whose changes are observable ONLY through them. Dropping them restores the no-dependency-array loop described below.
   useEffect(() => {
     const enabled = hintsEnabled
-    // Two independent signals, both meaning "an overlay owns input": the
-    // registered modal barrier, and a non-empty dialog stack. The stack
-    // fills a render EARLIER (the workspace bindings gate themselves off
-    // it), so checking only the barrier catches one frame where
-    // reachability is already empty but nothing looks modal yet — and the
-    // footer blanks out for good.
+    // Modal = barrier OR non-empty dialog stack. The stack fills a render
+    // EARLIER; checking only the barrier leaves one frame with empty
+    // reachability and no modal, and the footer blanks out for good.
     const nextModal = modalActive() || (dialog?.stack.length ?? 0) > 0
     const fresh =
       enabled && !nextModal ? statusHintTokens(currentBindingReachability(), currentPrefixConfiguration().key) : null
     setSnapshot((prev) => {
-      // A modal barrier cuts the reachability walk short, so recomputing
-      // under one yields an empty set and the footer row would vanish the
-      // moment F1/any dialog opens. Freeze the last non-modal tokens
-      // instead — the row stays put as a visual anchor; its segments go
-      // inert below, so nothing advertised there fires under the dialog.
+      // Under a modal the reachability walk is empty, so freeze the last
+      // non-modal tokens; the segments go inert below.
       const nextTokens = fresh ?? (enabled ? prev.tokens : [])
       return prev.modal === nextModal &&
         prev.tokens.length === nextTokens.length &&
@@ -112,38 +91,21 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
         ? prev
         : { tokens: nextTokens, modal: nextModal }
     })
-    // Dependencies, NOT a bare effect (React #185): this hook
-    // renders in the workspace FOOTER, which wraps the whole pane tree, so its
-    // setState re-renders every sidebar row — and each row's `useBindings`
-    // bumps `stackVersion` on unmount/remount, which re-renders the footer.
-    // With no dependency array the effect ran on every one of those renders,
-    // leaving only the compare-and-set between that cycle and an infinite
-    // loop. Deleting tasks in a burst (rows unmounting while focus and the
-    // prefix state churn) got past the compare and the workspace crashed with
-    // "Maximum update depth exceeded".
+    // A dependency array is required (React #185): the footer wraps the pane
+    // tree, so setSnapshot re-renders every sidebar row, whose `useBindings`
+    // bumps `stackVersion`, which re-renders the footer. Without deps only the
+    // compare-and-set stood between that and "Maximum update depth exceeded"
+    // (burst task deletes got past it).
     //
-    // These ARE the effect's inputs: the two version counters cover every
-    // keymap/registration change, and focus + the dialog stack cover the rest
-    // of what reachability reads. The after-commit timing the comment above
-    // relies on is unchanged — an effect with dependencies still runs after
-    // the commit that changed them.
+    // The version counters cover keymap/registration changes; focus + dialog
+    // stack cover the rest of what reachability reads.
     //
-    // `kv` is deliberately NOT among them. `KVProvider` rebuilds its context
-    // value from a `useMemo` keyed on the kv snapshot, so EVERY `kv.set`
-    // anywhere in the app — tab adoption writing a task's tab list, a pane
-    // marking a hint used — hands this hook a brand-new `kv` object. As a
-    // dependency it re-runs the effect on all of them, which is the same
-    // "runs on every render" the array exists to stop (React #185):
-    // setSnapshot -> footer re-render -> sidebar rows
-    // remount -> stackVersion bumps -> kv writes -> round again, 50 deep.
-    // Only the enabled FLAG is read here, so depend on that boolean instead:
-    // it changes when the user toggles hints, not when unrelated state lands.
+    // NOT `kv`: KVProvider rebuilds its value on every `kv.set` anywhere, so
+    // it would re-run on every render again. Depend on the boolean instead.
   }, [keymapVersion, stackVersion, focus?.focused, dialog?.stack.length, hintsEnabled])
-  // Click = the action the advertised key would run. Arming the prefix goes
-  // through the REAL dispatcher state, so the which-key guide that appears
-  // accepts a keyboard second stroke exactly like a pressed ctrl+a.
-  // Inert under a modal: the row stays legible, but clicking a segment must
-  // not arm the prefix / open a second dialog under the open one.
+  // Click = the advertised key's action; arming goes through the REAL
+  // dispatcher, so the which-key guide accepts a keyboard second stroke.
+  // Inert under a modal: no prefix / second dialog under the open one.
   const actions: Record<StatusHintToken["msg"], (() => void) | undefined> = snapshot.modal
     ? { commands: undefined, sidebar: undefined, help: undefined }
     : {
@@ -151,17 +113,13 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
         sidebar: focus ? () => focus.setFocused("sidebar") : undefined,
         help: dialog ? () => HelpDialog.show(dialog, focus?.focused ?? "sidebar") : undefined,
       }
-  // Compact (narrow footer): the chord caps alone — `⌃ A · F1` —
-  // still clickable, no verbs, and no [settings] segment below.
+  // Compact: chord caps only (`⌃ A · F1`), no [settings] segment.
   const items: StatusKeyHintItem[] = snapshot.tokens.map((tok) => ({
     text: opts?.compact ? formatChord(tok.chord) : t(`hints.status.${tok.msg}`, { key: formatChord(tok.chord) }),
     onPress: actions[tok.msg],
   }))
-  // Bracketed like the other clickable chips ([~] Zen, [enter] Send) — and
-  // deliberately NO glyph: U+2699 ⚙ is East-Asian-Ambiguous width, so
-  // terminals disagree on whether it takes 1 or 2 cells and the row
-  // misaligns per OS/font. Stays on screen while a modal owns input, but
-  // inert — Settings must not open under a dialog.
+  // No glyph: U+2699 ⚙ is East-Asian-Ambiguous width and misaligns per
+  // OS/font. Inert under a modal — Settings must not open under a dialog.
   if (opts?.onOpenSettings && !opts.compact && hintsEnabled) {
     items.push({
       text: `[${t("hints.status.settings")}]`,
@@ -196,11 +154,8 @@ export function StatusKeyHintBar(props: { onOpenSettings?: () => void; compact?:
   )
 }
 
-/**
- * Extinguish a pane's first-use hint: call from the pane's own key handlers
- * (nav/select) — using the keys IS the proof the hint has done its job.
- * Writes once; safe to call per keypress.
- */
+/** Retire a pane's first-use hint; call from its key handlers. Writes once,
+ *  safe per keypress. */
 export function usePaneHintMark(pane: HintPane): () => void {
   const kv = useOptionalKV()
   return useCallback(() => {

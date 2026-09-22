@@ -1,28 +1,15 @@
 /**
- * `GitWorktreeManager` — Stream B's deliverable.
- *
- * Implements `WorktreeManager` from `src/types/worktree.ts`. Wraps
- * `git worktree add/remove/list` plus the few status probes (dirty,
- * current branch) that the orchestrator and the sidebar need.
- *
- * Invariants preserved here (matching the interface contract):
- *   - `create()` is idempotent. If a worktree already lives at `path`
- *     and is checked out on `branch`, we return its info. If the path
- *     exists with a *different* branch, we throw — never hijack.
- *   - `create()` makes the branch when it doesn't yet exist (rooted at
- *     the repo's current HEAD), and reuses the existing branch when it
- *     does. We never silently fast-forward a branch that already has
- *     work on it.
- *   - `remove()` refuses to delete a dirty worktree unless `force` is
- *     true. The single most important safety property of this module:
- *     "I lost my changes because Rove deleted the worktree" must be
- *     impossible without explicit consent.
- *   - `list()` only returns worktrees inside Rove-managed roots
- *     (`~/.rove/worktrees/<repo-key>/` plus legacy global/repo-local roots).
- *     Worktrees the user created outside these roots are invisible to Rove.
- *
- * Reference (read, not ported): `refs/vibe-kanban/crates/worktree-manager/`
- * for cleanup invariants and dirty-state semantics.
+ * `WorktreeManager` over `git worktree add/remove/list` plus dirty/branch
+ * probes. Invariants:
+ *   - `create()` is idempotent on the same branch and throws on a different
+ *     one — never hijack.
+ *   - `create()` makes a missing branch (at `baseRef` or HEAD) and reuses an
+ *     existing one, never fast-forwarding it.
+ *   - `remove()` refuses a dirty worktree unless `force`. The most important
+ *     safety property here: no lost changes without explicit consent.
+ *   - `list()` returns only Rove-managed roots (`~/.rove/worktrees/<repo-key>/`
+ *     plus legacy global/repo-local roots).
+ * Reference (read, not ported): `refs/vibe-kanban/crates/worktree-manager/`.
  */
 
 import path from "node:path"
@@ -58,7 +45,6 @@ import { parseWorktreeListPorcelain } from "./worktree-list.ts"
 export class GitWorktreeManager implements WorktreeManager {
   constructor(private readonly execDeps: WorktreeExecDeps = defaultExecDeps) {}
 
-  /** Resolve the ExecHost + git working dir for a project key. */
   private ctxFor(repoKey: string): ExecCtx {
     const basePath = this.execDeps.remoteBasePath(repoKey)
     return basePath
@@ -67,23 +53,16 @@ export class GitWorktreeManager implements WorktreeManager {
   }
 
   /**
-   * Run `git <args>` through `exec`, preserving git.ts's throw-on-nonzero /
-   * `allowFail` contract so callers behave identically local or remote.
-   *
-   * ASYNC: this is the daemon's worktree hot path — a `git worktree add` on
-   * a big repo is a minutes-long checkout, and a remote call is an ssh
-   * round-trip. Awaiting the host's async `run` keeps the daemon's event
-   * loop serving RPCs/pushes while git works.
+   * git.ts's throw-on-nonzero / `allowFail` contract, local or remote. ASYNC:
+   * a big-repo `worktree add` takes minutes and a remote call is an ssh
+   * round-trip; the daemon's event loop keeps serving meanwhile.
    */
   private async runGit(exec: ExecHost, args: readonly string[], opts: GitRunOpts): Promise<GitRunResult> {
     if (!opts.cwd) {
       throw new Error("runGit(): cwd is required; refusing to inherit from process.cwd()")
     }
-    // Read-only probes (status/log/rev-parse/show-ref/for-each-ref/worktree
-    // list) must not compete with an engine's `git commit` for
-    // `.git/index.lock` — see lib/git-env.ts and GitRunOpts.readOnly. The
-    // policy flag merges over any caller env; ExecHost layers it over
-    // process.env locally and prefixes it onto the remote command.
+    // Read-only probes must not compete with an engine's commit for
+    // `.git/index.lock`; the flag wins over caller env.
     const env = opts.readOnly ? { ...opts.env, ...READ_ONLY_GIT_ENV } : opts.env
     const r = await exec.run(["git", ...args], { cwd: opts.cwd, env })
     const result: GitRunResult = { stdout: r.stdout, stderr: r.stderr, exitCode: r.exitCode }
@@ -93,25 +72,9 @@ export class GitWorktreeManager implements WorktreeManager {
     return result
   }
   /**
-   * Create a worktree at `path` for `branch` rooted in `repo`.
-   *
-   * Idempotent: if a worktree already exists at `path` on the requested
-   * branch, returns its info without touching the filesystem. If a
-   * worktree exists on the *wrong* branch, throws — we never hijack.
-   *
-   * `baseRef` (optional): when the branch is being created fresh, this
-   * is the ref the new branch is rooted at — a branch name, tag, or
-   * commit SHA, anything `git worktree add -b <new> <path> <baseRef>`
-   * accepts. Defaults to the repo's current HEAD. When the requested
-   * branch already exists, `baseRef` is ignored: we never silently
-   * fast-forward an existing branch onto a new base.
-   *
-   * Note: the public `WorktreeManager` interface is `(repo, branch,
-   * path, baseRef?)` (positional). The brief from the orchestrator
-   * described an options-object form. We satisfy the canonical
-   * interface and expose a small helper {@link createForTask} for the
-   * options-object call style; that helper composes
-   * {@link worktreePathFor} so callers don't have to.
+   * `baseRef` (anything `worktree add -b <new> <path> <baseRef>` accepts,
+   * default HEAD) applies only to a fresh branch; an existing branch ignores
+   * it rather than being moved onto a new base. See {@link createForTask}.
    */
   async create(repo: string, branch: string, worktreePath: string, baseRef?: string): Promise<WorktreeInfo> {
     const ctx = this.ctxFor(repo)
@@ -119,7 +82,6 @@ export class GitWorktreeManager implements WorktreeManager {
     requireAbsolute("path", worktreePath)
     if (!branch) throw new Error("create(): branch must be a non-empty string")
 
-    // Idempotent fast-path: already a worktree here, on the right branch.
     if (await ctx.exec.exists(worktreePath)) {
       const existing = await this.tryDescribe(ctx, worktreePath)
       if (existing) {
@@ -130,26 +92,13 @@ export class GitWorktreeManager implements WorktreeManager {
         }
         return existing
       }
-      // Path exists but isn't a worktree — almost certainly a stale
-      // directory from a prior failed run. Don't silently nuke; the
-      // user might have files in there. Surface the conflict.
+      // Likely stale debris from a failed run, but it may hold user files:
+      // surface, never nuke.
       throw new Error(`create(): ${worktreePath} exists but is not a registered git worktree`)
     }
 
-    // Make sure the parent dir exists (`~/.rove/worktrees/...` may be the
-    // first time we write into the repo).
     await ctx.exec.mkdirp(path.dirname(worktreePath))
 
-    // Decide whether to create the branch. `git worktree add -b <new>`
-    // creates a fresh branch from HEAD (or `baseRef` when given);
-    // `git worktree add <path> <existing>` reuses one. We probe with
-    // `rev-parse` and pick.
-    //
-    // Note: `baseRef` only applies on the create-branch path. If the
-    // branch already exists, the user's choice of baseRef has no
-    // sensible meaning here (we'd either be lying or silently rebasing
-    // their branch); the orchestrator surfaces the resulting state via
-    // the existing branch, not via the now-ignored baseRef.
     const exists = await branchExists(this.branchDeps(), ctx, branch)
     const args = exists
       ? ["worktree", "add", worktreePath, branch]
@@ -159,8 +108,7 @@ export class GitWorktreeManager implements WorktreeManager {
 
     await this.runGit(ctx.exec, args, { cwd: ctx.dir })
 
-    // Sanity-check the result so any failure surfaces here, not at the
-    // first downstream `currentBranch()` call.
+    // Fail here, not at the first downstream `currentBranch()`.
     const info = await this.tryDescribe(ctx, worktreePath)
     if (!info) {
       throw new Error(`create(): git reported success but ${worktreePath} is not a worktree`)
@@ -173,39 +121,22 @@ export class GitWorktreeManager implements WorktreeManager {
     return info
   }
 
-  /**
-   * Convenience wrapper for the orchestrator: create a worktree for a
-   * task. Computes the canonical path via {@link worktreePathFor} so
-   * the caller doesn't have to (and so two callers can't disagree on
-   * the layout).
-   *
-   * `slug` is the directory basename — allocated by the orchestrator's
-   * {@link SlugAllocator}. Under the slug scheme this is an animal name (e.g.
-   * `panda`) or version-suffixed (`panda-v2`); before it, this was the
-   * task's ULID. The manager doesn't care which — it just joins.
-   *
-   * `baseRef` (optional): forwarded to {@link create} so the new branch
-   * can be rooted at an explicit ref instead of the repo's current HEAD.
-   * The new-task dialog passes this through when the user chose a
-   * non-default base branch.
-   */
+  /** Computes the path here so callers can't disagree on the layout. `slug` is
+   *  the directory basename from {@link SlugAllocator}; opaque to the manager. */
   async createForTask(args: {
     repo: string
     slug: string
     branch: string
     baseRef?: string
   }): Promise<WorktreeInfo> {
-    // A remote project's worktree lives on the remote under its basePath, not
-    // under the local `~/.rove/worktrees` root.
+    // Remote: under its basePath, not the local `~/.rove/worktrees`.
     const basePath = this.execDeps.remoteBasePath(args.repo)
     const target = basePath ? remoteWorktreePathFor(basePath, args.slug) : worktreePathFor(args.repo, args.slug)
     return this.create(args.repo, args.branch, target, args.baseRef)
   }
 
-  /** Remove a worktree — body in `manager-remove.ts`, the destructive verb kept
-   *  in its own file. Refuses a dirty worktree unless `opts.force`; a forced
-   *  removal salvages first and can also clear a worktree whose upstream repo
-   *  is gone. */
+  /** Refuses a dirty worktree unless `opts.force`; a forced removal salvages
+   *  first and can clear a worktree whose repo is gone. */
   async remove(worktreePath: string, opts?: RemoveOpts): Promise<void> {
     await removeWorktree(
       {
@@ -222,16 +153,14 @@ export class GitWorktreeManager implements WorktreeManager {
     )
   }
 
-  /** Delete a branch in `repo` — body in `manager-branch.ts`. A forced delete
-   *  anchors the tip first when nothing else would keep it reachable (see
-   *  {@link deleteBranchAnchored}); `onAnchor` reports the ref it wrote. */
+  /** A forced delete anchors an otherwise-unreachable tip first
+   *  ({@link deleteBranchAnchored}). */
   async deleteBranch(
     repo: string,
     branch: string,
     opts?: {
       readonly force?: boolean
-      /** Notified with the anchor a forced delete took (null = not needed,
-       *  or the anchor could not be written). */
+      /** null = not needed, or couldn't be written. */
       readonly onAnchor?: (record: SalvageRecord | null) => void
     },
   ): Promise<BranchDeleteOutcome> {
@@ -243,15 +172,12 @@ export class GitWorktreeManager implements WorktreeManager {
     })
   }
 
-  /** ExecHost for a worktree path, with the absolute-path check bound in — the
-   *  pair every path-addressed probe needs, in that order. Binding them makes a
-   *  forgotten `requireAbsolute` (a silent bug) unrepresentable. */
+  /** Binds `requireAbsolute` in so forgetting it is unrepresentable. */
   private execAt(worktreePath: string): ExecHost {
     requireAbsolute("path", worktreePath)
     return this.execDeps.execForPath(worktreePath)
   }
 
-  /** The primitives `manager-branch.ts`'s free functions borrow. */
   private branchDeps(): BranchDeps {
     return {
       runGit: (exec, args, opts) => this.runGit(exec, args, opts),
@@ -260,7 +186,6 @@ export class GitWorktreeManager implements WorktreeManager {
     }
   }
 
-  /** The listing primitives, exposed to `manager-list.ts`'s free functions. */
   private listDeps(): ListDeps {
     return {
       ctxFor: (repoKey) => this.ctxFor(repoKey),
@@ -270,58 +195,40 @@ export class GitWorktreeManager implements WorktreeManager {
     }
   }
 
-  /**
-   * List kobe-managed worktrees under `repo` (parses `git worktree list
-   * --porcelain`, filters to kobe-managed roots; other worktrees are invisible
-   * to kobe). Body in `manager-list.ts`.
-   */
+  /** Only Rove-managed roots; other worktrees are invisible. */
   list(repo: string): Promise<readonly WorktreeInfo[]> {
     return listManaged(this.listDeps(), repo)
   }
 
-  /**
-   * List ALL git worktrees registered on `repo` — the discovery source for
-   * "adopt an existing worktree as a task". Excludes the main checkout and
-   * detached/bare entries. Body in `manager-list.ts`.
-   */
+  /** Every adoption candidate (not main checkout, detached or bare), probed. */
   listAll(repo: string): Promise<readonly AdoptableWorktree[]> {
     return listAllAdoptable(this.listDeps(), repo)
   }
 
-  /**
-   * Adoptable worktree paths + branches for `repo`, WITHOUT the dirty /
-   * last-activity probes {@link listAll} runs. `adoptWorktree` only needs a
-   * path→branch match to validate one candidate, so it uses this instead of
-   * `listAll` — turning a many-worktree adopt from O(N) git-status/log spawns
-   * (all discarded) into a single porcelain list.
-   */
+  /** {@link listAll} without the per-worktree dirty/log probes: validating one
+   *  adopt candidate is one porcelain list instead of O(N) spawns. */
   listAdoptablePaths(repo: string): Promise<readonly { readonly path: string; readonly branch: string }[]> {
     return adoptablePaths(this.listDeps(), this.ctxFor(repo))
   }
 
-  /** Worktree admin-dir names `git worktree list` silently omitted — the ones
-   *  {@link listAll} cannot see. Body in `manager-list.ts`. */
+  /** Admin-dir names `git worktree list` silently omitted. */
   listUnreadableWorktrees(repo: string): Promise<readonly string[]> {
     return unreadableWorktreeNames(this.listDeps(), this.ctxFor(repo))
   }
 
-  /** Branch names of `repo` (local + origin, prefix-stripped) — the input
-   *  to repo-convention branch naming. Body in `manager-list.ts`. */
   listBranchNames(repo: string): Promise<readonly string[]> {
     return listBranchNames(this.listDeps(), repo)
   }
 
-  /** Whether `worktreePath` still exists on disk (local fs / remote `test -e`). */
+  /** Local fs, or remote `test -e`. */
   async pathExists(worktreePath: string): Promise<boolean> {
     return this.execAt(worktreePath).exists(worktreePath)
   }
 
   /**
-   * `git worktree prune` in `repo` — drop stale `.git/worktrees/<name>/`
-   * registrations left behind when a worktree dir was deleted out-of-band (a
-   * manual `rm -rf`, a half-finished delete). Best-effort. Needed before
-   * re-materialising a task whose recorded dir vanished: without it, `git
-   * worktree add` on the still-registered path errors.
+   * Drops `.git/worktrees/<name>/` registrations whose dir was deleted
+   * out-of-band. Best-effort. Needed before re-materialising a task whose dir
+   * vanished: `worktree add` on a still-registered path errors.
    */
   async pruneWorktrees(repo: string): Promise<void> {
     const ctx = this.ctxFor(repo)
@@ -329,13 +236,8 @@ export class GitWorktreeManager implements WorktreeManager {
     await this.runGit(ctx.exec, ["worktree", "prune"], { cwd: ctx.dir, allowFail: true })
   }
 
-  /**
-   * `git -C <path> status --porcelain` non-empty.
-   *
-   * Untracked files count as dirty (matches `--porcelain` default) —
-   * this matters because a fresh worktree with new files we haven't
-   * yet committed should not be silently nuked by `remove()`.
-   */
+  /** `status --porcelain` non-empty. Untracked counts, so `remove()` never
+   *  nukes a fresh worktree's uncommitted new files. */
   async isDirty(worktreePath: string): Promise<boolean> {
     const out = await this.runGit(this.execAt(worktreePath), ["status", "--porcelain"], {
       cwd: worktreePath,
@@ -345,37 +247,20 @@ export class GitWorktreeManager implements WorktreeManager {
   }
 
   /**
-   * The gitignored paths in `worktreePath` that a delete would destroy — the
-   * work {@link isDirty} cannot see.
-   *
-   * A SEPARATE question from `isDirty`, deliberately, because the two have
-   * different answers and different consequences. `.gitignore`d files survive
-   * a land and a sync; they do not survive a worktree removal, and
-   * `HANDOFF.md` / `.scratch/**` / `.env*` are gitignored in this very repo.
-   * Folding this into `isDirty` would make every worktree holding a `.env`
-   * read dirty to the sidebar and to `land`'s preflight, which is a different
-   * (and wrong) claim.
-   *
-   * Same rule as the salvage snapshot ({@link smallIgnoredPaths}), so the gate
-   * refuses for exactly what the `--force` retry would then rescue: a
-   * multi-gigabyte `node_modules/` is over the size ceiling, so it neither
-   * blocks the delete nor bloats the snapshot.
-   *
-   * `"unknown"` — the listing did not run — is passed through, never flattened
-   * to `[]`: for a gate, "I could not look" is not "there is nothing here".
+   * Gitignored paths a delete would destroy (`HANDOFF.md`, `.scratch/**`,
+   * `.env*`). Separate from `isDirty`: they survive land and sync, so folding
+   * them in would make any `.env` worktree read dirty to the sidebar and land
+   * preflight. Same rule as the salvage snapshot ({@link smallIgnoredPaths}):
+   * the gate refuses for exactly what `--force` would rescue; a huge
+   * `node_modules/` is over the ceiling and does neither. `"unknown"` passes
+   * through — "could not look" is not "nothing here".
    */
   async ignoredWork(worktreePath: string): Promise<IgnoredWorkProbe> {
     return smallIgnoredPaths(this.execAt(worktreePath), worktreePath)
   }
 
-  /**
-   * Short branch name at HEAD of `worktreePath`.
-   *
-   * Throws when the worktree is in detached-HEAD state (rev-parse
-   * returns the literal string `HEAD`). Detached-HEAD worktrees can
-   * exist after a hard reset; surfacing rather than returning a
-   * meaningless string is safer for the orchestrator.
-   */
+  /** Throws on detached HEAD (rev-parse prints `HEAD`) rather than returning a
+   *  meaningless name. */
   async currentBranch(worktreePath: string): Promise<string> {
     const out = await this.runGit(this.execAt(worktreePath), ["rev-parse", "--abbrev-ref", "HEAD"], {
       cwd: worktreePath,
@@ -388,29 +273,22 @@ export class GitWorktreeManager implements WorktreeManager {
     return name
   }
 
-  /** Whether `branch` tracks a remote — body in `manager-branch.ts`. */
   branchHasUpstream(worktreePath: string, branch: string): Promise<boolean> {
     return branchHasUpstream(this.branchDeps(), worktreePath, branch)
   }
 
-  /** Whether a local `refs/heads/<branch>` exists — body in `manager-branch.ts`. */
   hasLocalBranch(worktreePath: string, branch: string): Promise<boolean> {
     return hasLocalBranch(this.branchDeps(), worktreePath, branch)
   }
 
-  /** Rename a branch in-place — body in `manager-branch.ts`. */
   renameBranch(worktreePath: string, from: string, to: string): Promise<void> {
     return renameBranch(this.branchDeps(), worktreePath, from, to)
   }
 
   // ---------- internals ----------
 
-  /**
-   * Read a single worktree's info if it's actually registered with the
-   * repo at `repo`. Returns null if `path` exists on disk but isn't a
-   * git worktree. This is how `create()`'s idempotency check
-   * distinguishes "already done" from "stale debris".
-   */
+  /** Null when not a registered worktree: `create()`'s "already done" vs
+   *  "stale debris" test. */
   private async tryDescribe(ctx: ExecCtx, worktreePath: string): Promise<WorktreeInfo | null> {
     const out = await this.runGit(ctx.exec, ["worktree", "list", "--porcelain"], { cwd: ctx.dir, readOnly: true })
     const entries = parseWorktreeListPorcelain(out.stdout)
@@ -420,10 +298,8 @@ export class GitWorktreeManager implements WorktreeManager {
     const match = entries.find((e) => e.path && norm(e.path) === target)
     if (!match || !match.path || !match.branch || match.detached) return null
     return {
-      // Return the caller's requested path verbatim — they passed in
-      // `~/.rove/worktrees/<repo-key>/<id>` (or a persisted legacy path) and may compare against that
-      // exact string later. Returning git's macOS-resolved
-      // `/private/...` form would surprise them.
+      // The caller's path verbatim, not git's `/private/...` form: callers
+      // compare against the exact string later.
       path: worktreePath,
       branch: match.branch,
       head: match.head ?? "",
@@ -431,15 +307,8 @@ export class GitWorktreeManager implements WorktreeManager {
     }
   }
 
-  /**
-   * Resolve the repo (the directory containing the `.git` directory)
-   * that owns the worktree at `worktreePath`. Returns null when
-   * `worktreePath` isn't a worktree.
-   *
-   * `git rev-parse --git-common-dir` returns the path to the *shared*
-   * git dir (i.e. the main repo's `.git`); its parent is the repo
-   * working tree.
-   */
+  /** The owning repo's working tree (parent of `--git-common-dir`, the shared
+   *  `.git`), or null when not a worktree. */
   private async findRepoFor(exec: ExecHost, worktreePath: string): Promise<string | null> {
     try {
       const out = await this.runGit(exec, ["rev-parse", "--git-common-dir"], {
@@ -451,8 +320,6 @@ export class GitWorktreeManager implements WorktreeManager {
       const gitDir = out.stdout.trim()
       if (!gitDir) return null
       const absolute = path.isAbsolute(gitDir) ? gitDir : path.resolve(worktreePath, gitDir)
-      // git-common-dir points at `<repo>/.git`. Parent is the working
-      // tree we want to invoke further git calls from.
       const base = path.basename(absolute)
       return base === ".git" ? path.dirname(absolute) : absolute
     } catch (err) {

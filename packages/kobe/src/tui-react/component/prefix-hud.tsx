@@ -1,13 +1,11 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Bottom-left shortcut HUD (over the Tasks sidebar — NOT the terminal column,
- * where it collided with the engine's own status line): while the PureTUI
- * prefix is armed it shows a live `ctrl+a ⋯` line, a held Ctrl key shows the
- * direct-shortcut guide, and each resolved
- * sequence lands a `ctrl+a + t → tab.new` line (or `∅` on a miss). The last
- * three lines stream like a mini log and flush PREFIX_HUD_TTL_MS after they
- * land — flush timers live HERE; the framework-free feed only timestamps
- * (src/tui/lib/prefix-hud.ts), so headless dispatch stays timer-free.
+ * Bottom-left shortcut HUD, over the sidebar (over the terminal it collided
+ * with the engine's status line). Armed prefix → live `ctrl+a ⋯`; held Ctrl →
+ * direct-shortcut guide; each resolved sequence → `ctrl+a + t → tab.new` (or
+ * `∅`). The last three lines flush PREFIX_HUD_TTL_MS after landing. Timers
+ * live HERE so the feed (src/tui/lib/prefix-hud.ts) and headless dispatch
+ * stay timer-free.
  */
 
 import { useTerminalDimensions } from "@opentui/react"
@@ -82,9 +80,8 @@ export function PrefixHud(props: { left: number; width: number }) {
   const showCommandGuide = guide?.kind === "direct" || showPrefixGuide
   const [, setFlushTick] = useState(0)
 
-  // Every read of "now" and every expiry timer below goes through the HUD
-  // clock, never the globals: that is the seam render tests advance so the
-  // delayed reveal is deterministic instead of a race (src/tui/lib/prefix-hud).
+  // All "now" reads and timers go through the HUD clock, never globals —
+  // render tests advance it to make the delayed reveal deterministic.
   const clock = prefixHudClock()
   const now = clock.now()
   const fresh = hud.entries.filter((entry) => now - entry.at < PREFIX_HUD_TTL_MS)
@@ -136,10 +133,8 @@ export function PrefixHud(props: { left: number; width: number }) {
     }
     const groupHeight = (group: GuideGroup): number =>
       1 + group.actions.reduce((sum, action) => sum + actionHeight(group, action), 0)
-    // Order-preserving balanced columns: split the ordered group list into
-    // `columns` CONTIGUOUS chunks minimizing the tallest column, then stack
-    // each chunk vertically. Short groups pack under each other instead of
-    // leaving the row-aligned holes the old rows-of-columns layout had.
+    // Split the ordered groups into `columns` CONTIGUOUS chunks minimizing the
+    // tallest column, then stack each chunk; short groups pack under each other.
     const heights = groups.map(groupHeight)
     const chunkHeight = (from: number, to: number): number =>
       heights.slice(from, to).reduce((sum, h) => sum + h, 0) + Math.max(0, to - from - 1)
@@ -250,11 +245,9 @@ export function PrefixHud(props: { left: number; width: number }) {
     )
   }
 
-  // Narrow mode: no sidebar column to sit over — go full width just
-  // above the footer, where the bottom-most covered row is the workspace
-  // frame's own border, not terminal content. NOT over the footer row
-  // itself: the footer paints after the pane children, so an "overlay"
-  // there loses the paint order and the two texts interleave per cell.
+  // Narrow: full width just above the footer (covering the frame border, not
+  // terminal content). Not ON the footer: it paints after the panes, so the
+  // two texts would interleave per cell.
   const narrow = isNarrowWidth(dims.width)
   const left = narrow ? 0 : props.left
   const width = narrow ? dims.width : props.width

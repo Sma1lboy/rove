@@ -1,17 +1,9 @@
 /**
- * Read side of the durable field-note store (docs/design/dispatcher.md).
- * The DAEMON is the only writer (`kobe-daemon/src/daemon/notes-store.ts`);
- * this module is the launch path's reader, so a fresh worktree session can be
- * born knowing what previous sessions on the repo already paid to learn.
- *
- * Sync on purpose: `buildEngineSessionLaunch` is synchronous, and this is the
- * same shape as `repo-init.ts` reading `.rove/init-prompt.md` off disk at
- * launch. A missing/corrupt store is simply "no notes" — a knowledge feature
- * must never be able to block a session from starting.
- *
- * Matching is by `repoRoot`, not by re-deriving the store's git-common-dir
- * key: the daemon writes each record's `repoRoot` as the repo's main
- * worktree, and a task's `repo` field is already that same source root.
+ * Launch-path reader of the field-note store (docs/design/dispatcher.md); the
+ * daemon is the only writer. Sync because `buildEngineSessionLaunch` is. A
+ * missing/corrupt store is "no notes": this must never block a session start.
+ * Matches on `repoRoot` (the daemon writes the main worktree there, same as a
+ * task's `repo`) rather than re-deriving the git-common-dir key.
  */
 
 import { readFileSync, realpathSync } from "node:fs"
@@ -22,10 +14,8 @@ import { roveStateDir } from "../env.ts"
 export const NOTE_INJECTION_CAP = 15
 
 export interface StoredFieldNote {
-  /** Present on every note the daemon hands back (`note.list` backfills legacy
-   *  records). OPTIONAL here because this reader parses the raw file at launch,
-   *  where a store written before ids existed has none yet — and injection must
-   *  not drop those notes waiting for the first write to stamp them. */
+  /** Optional: the raw file may predate ids (`note.list` backfills them), and
+   *  injection must not drop those notes. */
   readonly id?: number
   readonly at: string
   readonly text: string

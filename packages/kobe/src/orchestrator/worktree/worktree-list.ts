@@ -1,9 +1,4 @@
-/**
- * Parser for `git worktree list --porcelain` output. Pure. Named to stay
- * unambiguous next to the two OTHER porcelain parsers in the tree (the
- * `git status --porcelain` ones in `tui/panes/filetree/git.ts` and
- * `tui/panes/sidebar/worktree-changes.ts`), which read a different format.
- */
+/** `git worktree list --porcelain` parser (not the `git status --porcelain` format). */
 
 export interface RawWorktree {
   path?: string
@@ -14,8 +9,7 @@ export interface RawWorktree {
 }
 
 /**
- * Parse `git worktree list --porcelain` output into structured
- * entries. Format reference (`man git-worktree`, "PORCELAIN FORMAT"):
+ * `man git-worktree`, "PORCELAIN FORMAT":
  *   worktree <path>
  *   HEAD <sha>
  *   branch refs/heads/<name>     # OR

@@ -1,14 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * New-task dialog entry point — every call site opens
- * the dialog through the `show(dialog, defaultRepo, savedRepos, options)`
- * contract. NewTaskDialog is THE canonical task-creation surface — this
- * is the full dialog (Existing / New Repo / Adopt tabs, engine selector,
- * smart pickers), never a simplified stand-in.
- *
- * Pure helpers (`state.ts`) and clone plumbing (`clone.ts`) are consumed
- * from the shared framework-free modules in
- * `src/tui/component/new-task-dialog/`.
+ * New-task dialog entry point: every call site goes through
+ * `show(dialog, defaultRepo, savedRepos, options)`. THE canonical
+ * task-creation surface — never a simplified stand-in.
  */
 
 import type { NewTaskDialogOptions, NewTaskInput } from "../../../tui/component/new-task-dialog/state"
@@ -31,8 +25,7 @@ function show(
   savedRepos: readonly string[],
   options?: NewTaskDialogOptions,
 ): Promise<NewTaskInput | undefined> {
-  // medium (80 cols) — small clipped repo paths mid-row; the card sizes
-  // to content height.
+  // medium (80 cols): small clipped repo paths mid-row.
   return showDialog<NewTaskInput>(
     dialog,
     (resolve) => (

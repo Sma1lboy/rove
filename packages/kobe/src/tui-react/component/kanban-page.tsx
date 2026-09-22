@@ -1,23 +1,15 @@
 /** @jsxImportSource @opentui/react */
 /**
- * KanbanPage — the daemon-owned issue store as a Backlog / In progress /
- * Parked / Done board. One PROJECT at a time (tab/←/→ or click cycles the
- * rolling selector), four full-height bordered columns matching the workspace
- * host's border grammar. Full-page swap like WorktreesPage: esc/ctrl+c
- * closes, `r` refetches, plus a light poll so
- * agent-driven moves (`kobe api issue-update --task`) show up while open.
+ * The daemon-owned issue store as a Backlog / In progress / Parked / Done
+ * board, one PROJECT at a time. Full-page swap: esc/ctrl+c closes, `r`
+ * refetches, and a light poll shows agent moves (`kobe api issue-*`) live.
  *
- * The BOARD stays read-only (agents move cards via `kobe api issue-*`); the
- * human surface is selection + the detail drawer (←↓↑→ moves the cursor,
- * Enter opens {@link IssueDetailDialog}, whose Start hands an
- * {@link IssueChatStart} to the host). Column math is framework-free
- * (`state/issue-board.ts`): done > parked > linked-task > backlog.
+ * Human surface: cursor + {@link IssueDetailDialog} (Start hands an
+ * {@link IssueChatStart} to the host). Column math lives in
+ * `state/issue-board.ts`: done > parked > linked-task > backlog.
  *
- * This file owns the DATA and the ACTIONS — which boards exist, what is
- * selected, and every dialog/mutation behind `enter` / `n` / `d`. How many
- * lanes fit and how one is drawn is {@link KanbanBoard}'s job
- * (`component/kanban-board.tsx`); the only thing crossing that seam is the
- * measured board width.
+ * Owns data and actions (`enter` / `n` / `d`); lane layout is
+ * {@link KanbanBoard}'s, and only the measured width crosses that seam.
  */
 
 import { type BoxRenderable, TextAttributes } from "@opentui/core"
@@ -61,41 +53,31 @@ export function KanbanPage(props: {
   onStartChat: (request: IssueChatStart) => Promise<void>
   /** Open a linked story's existing session (closes the kanban page). */
   onOpenTask: (taskId: string) => void
-  /** Per-task engine activity (host's `engineStateSignal`) — feeds the
-   *  In-progress cards' live badges. */
+  /** Per-task engine activity (host's `engineStateSignal`) for card badges. */
   engineStates?: ReadonlyMap<string, TaskEngineState>
-  /** Opened from a task (`c` on the sidebar row): land on THAT task's
-   *  project and put the card cursor on its linked story, so the board
-   *  opens already pointing at the work the task belongs to. */
+  /** Opened from a task (`c` on the sidebar row): land on its project with
+   *  the cursor on its linked story. */
   focusTask?: { readonly id: string; readonly repo: string }
 }): ReactNode {
   const { theme } = useTheme()
   const t = useT()
   const dialog = useDialog()
-  // Surface mutation failures as on-screen toasts: under an alternate screen
-  // a bare console.error is invisible (it only reaches the daemon log), so a
-  // failed create/delete would look like a silent no-op. taskId/tabId match
-  // WorktreesPage — this page is not scoped to a single chat tab.
+  // Toast mutation failures: console.error is invisible under the alternate
+  // screen. Empty taskId/tabId — the page isn't scoped to a chat tab.
   const notif = useNotifications()
   function notifyError(message: string): void {
     notif.notify({ kind: "error", taskId: "", tabId: "", title: message })
   }
-  // Below the narrow breakpoint four side-by-side columns degrade to
-  // one-word-per-line strips, so the board shows ONE full-width lane there.
-  // The full screen, not the page box: the card menu is clamped against it,
-  // and the page is inset two cells on both sides.
+  // Full screen, not the page box: the card menu is clamped against it.
   const dims = useTerminalDimensions()
   const narrow = isNarrowWidth(dims.width)
-  // …and the terminal is not the board: the sidebar takes its share first.
-  // Measure the page root (which is mounted in BOTH layouts — measuring the
-  // four-lane box instead would unmount the thing being measured and
-  // oscillate). `onSizeChange` + a ref is the tab-strip's pattern.
+  // The sidebar takes width first, so measure the page root — mounted in both
+  // layouts; measuring the four-lane box would unmount it and oscillate.
   const pageRef = useRef<BoxRenderable | null>(null)
   const [pageCells, setPageCells] = useState<number | null>(null)
   const singleLane = needsSingleLane(pageCells === null ? null : pageCells - PAGE_PADDING_CELLS) ?? narrow
 
-  // Detected engines for the detail drawer's picker — one probe per page
-  // open (account files on disk; cheap and refreshed enough).
+  // Engines for the drawer's picker: one account-file probe per page open.
   const [engines, setEngines] = useState<readonly VendorId[]>([])
   useEffect(() => {
     let disposed = false
@@ -118,10 +100,8 @@ export function KanbanPage(props: {
   )
   const activeBoard: KanbanBoardEntry | undefined = boardList[activeIndex]
   const repoRoots = boardList.map((board) => board.repoRoot)
-  // One toast per DISTINCT set of read failures, not per render: the poll
-  // refetches every POLL_MS and a still-broken repo must not re-toast. The key
-  // is the errors themselves, so a NEW repo failing (or a different error on
-  // the same repo) fires again while a persisting one stays quiet.
+  // Toast once per DISTINCT error set: the poll must not re-toast a
+  // still-broken repo, but a new repo or new error fires again.
   const readErrorKey = boardList
     .filter((board) => board.readError)
     .map((board) => `${board.repoRoot}\u0000${board.readError}`)
@@ -139,22 +119,14 @@ export function KanbanPage(props: {
     }
   }, [readErrorKey])
   // Rendering-only attention float: blocked-on-you cards lead In progress.
-  // The task index decides In progress, not the link alone: the daemon
-  // unlinks an issue when its task is deleted, but a store carried over from
-  // a build that predates that can still hold a link to a task nobody has —
-  // and such a card would sit In progress with no way back. Unresolvable =
-  // Backlog, where the drawer offers Start again.
-  //
-  // An EMPTY index means "not loaded yet", never "every task is gone": the
-  // page can render before the task list arrives, and demoting on that would
-  // dump every In-progress card into Backlog for a frame. No tasks known ⇒
-  // no predicate ⇒ the link alone decides, exactly as before.
+  // The task index, not the link alone, decides In progress: an old store can
+  // link a task that no longer exists. Unresolvable = Backlog (Start again).
+  // An EMPTY index means "not loaded yet": no predicate, the link decides —
+  // else every In-progress card flashes into Backlog for a frame.
   const knownTasks = props.orchestrator?.listTasks() ?? []
   const knownTaskIds = new Set<string>(knownTasks.map((task) => task.id))
-  // The DERIVED group per linked task, resolved once for the whole board: the
-  // card badge, the attention float and the "N need you" count all read this,
-  // so they cannot disagree — and it is the same derivation the sidebar's
-  // `attention` sort ranks by.
+  // One derivation for badge, attention float and "N need you", so they can't
+  // disagree; the sidebar's `attention` sort uses the same one.
   const taskGroupOf = (taskId: string): TaskGroup | undefined => {
     const task = knownTasks.find((candidate) => candidate.id === taskId)
     return task ? taskGroupIn(task, props.engineStates?.get(taskId)) : undefined
@@ -166,15 +138,11 @@ export function KanbanPage(props: {
     (taskId) => taskGroupOf(taskId) === "waiting-on-you",
   )
 
-  // Cards are variable height and each lane scrolls on its own, so the
-  // selection walks out of the viewport without this. One instance covers all
-  // four lanes: `scrollChildIntoView` resolves the card through the lane's own
-  // descendants and no-ops on the three that do not hold it.
+  // One instance covers all lanes: `scrollChildIntoView` no-ops on lanes that
+  // don't hold the card.
   const follow = useCursorFollow(selectedId)
 
-  // The board's only one-step move between columns. It routes to the SAME
-  // `setStatus` op the detail drawer's status chips use, error toast
-  // included — the menu adds a route, not a capability.
+  // Same `setStatus` op as the drawer's status chips.
   const cardMenu = useKanbanCardMenu({
     onSelect: setSelectedId,
     setStatus: (issue: Issue, status: IssueStatus) => {
@@ -202,17 +170,14 @@ export function KanbanPage(props: {
     if (next != null) setSelectedId(next)
   }
 
-  // ←/→ select cards when any exist; tab still cycles projects. On an empty
-  // board they fall through to project cycling, the same thing tab does.
+  // ←/→ move cards; on an empty board they cycle projects like tab.
   function moveOrCycle(dir: "left" | "right"): void {
     if (columns.some((column) => column.issues.length > 0)) moveCursor(dir)
     else cycleProject(dir === "left" ? -1 : 1)
   }
 
-  /** Enter (or clicking the selected card): the story's detail drawer. Every
-   *  outcome carries the drafted title/body — a dirty patch persists through
-   *  `issue.mutate update` (best-effort: an edit must not block the start/open
-   *  the user asked for). undefined = discarded (ctrl+c / backdrop). */
+  /** Enter / click on the selected card. A dirty title/body persists
+   *  best-effort — it must not block the start/open. undefined = discarded. */
   function openDetail(issue: Issue): void {
     const board = activeBoard
     if (!board) return
@@ -225,13 +190,9 @@ export function KanbanPage(props: {
       orchestrator: props.orchestrator,
     }).then(async (outcome) => {
       if (!outcome) return
-      // ONLY the fields the drawer actually changed. `issue` is the open-time
-      // snapshot the drawer seeded its drafts from, so a field still equal to
-      // it is one the user never touched — and writing it back would revert
-      // whatever another client (an agent on `rove api issue-update`) put
-      // there while the drawer sat open, silently, on a field the person
-      // saving never saw. The store leaves an absent field alone, so fixing a
-      // typo in the title now keeps a body rewritten underneath it.
+      // ONLY fields changed vs the open-time snapshot: writing an untouched
+      // field back would silently revert an agent's edit made meanwhile. The
+      // store leaves absent fields alone.
       const patch: { title?: string; body?: string } = {}
       if (outcome.title !== issue.title) patch.title = outcome.title
       if (outcome.body !== issue.body) patch.body = outcome.body
@@ -239,20 +200,14 @@ export function KanbanPage(props: {
         await props.orchestrator
           ?.mutateIssue(board.repoRoot, { type: "update", id: issue.id, ...patch })
           .catch((err: unknown) => {
-            // The reload below repaints from the store, so a rejected edit
-            // leaves the card showing its OLD title — indistinguishable from
-            // the edit never having been made.
+            // The reload repaints the OLD title; without a toast a failure is invisible.
             console.error("[rove kanban] issue update failed:", err)
             notifyError(t("kanban.updateFailed", { id: String(issue.id), error: errorMessage(err) }))
           })
         reload()
       }
-      // Status is its OWN op — the `update` op above carries title/body/taskId
-      // and nothing else, so a status move has to go through `setStatus`.
-      // Same open-time comparison as the patch: an untouched field is never
-      // written back over whatever an agent moved the card to meanwhile.
-      // `create` never reaches detail mode, but it shares the outcome union —
-      // the narrow is what lets the status read compile.
+      // Status needs `setStatus` (`update` carries title/body/taskId only);
+      // same open-time comparison. The `create` narrow is for the type only.
       if (outcome.kind !== "create" && outcome.status !== issue.status) {
         await props.orchestrator
           ?.mutateIssue(board.repoRoot, { type: "setStatus", id: issue.id, status: outcome.status })
@@ -288,9 +243,8 @@ export function KanbanPage(props: {
     })
   }
 
-  /** `n` — the new-story intake: the detail drawer in create mode. ctrl+s
-   *  files the story; enter/ctrl+enter files it AND starts it immediately
-   *  at the chosen engine/placement (the web intake's Execute button). */
+  /** `n`: drawer in create mode. ctrl+s files; enter/ctrl+enter files AND
+   *  starts at the chosen engine/placement. */
   function openIntake(): void {
     const board = activeBoard
     if (!board) return
@@ -339,8 +293,8 @@ export function KanbanPage(props: {
     })
   }
 
-  /** `d` — delete the selected story after a confirm. Deletes ONLY the
-   *  issue record; a linked task/branch/worktree is left untouched. */
+  /** `d`: delete after confirm — ONLY the issue record; a linked
+   *  task/branch/worktree is untouched. */
   function requestDelete(): void {
     const board = activeBoard
     const issue = board?.issues.find((entry) => entry.id === selectedId)
@@ -368,11 +322,8 @@ export function KanbanPage(props: {
   }
 
   useBindings(() => ({
-    // Dormant while the detail drawer is up (the dialog owns the keyboard),
-    // and while another pane has focus — the board shares the window with the
-    // sidebar now, so its bare letters must not fire from over there.
-    // The card menu owns the keyboard while it is up, for the same reason the
-    // drawer does — its own bindings are registered separately below.
+    // Dormant while a dialog or the card menu owns the keyboard, and while
+    // another pane (the sidebar) has focus — bare letters must not leak.
     enabled: dialog.stack.length === 0 && props.focused !== false && !cardMenu.open,
     bindings: [
       ...pageCloseBindings(props.onClose),
@@ -394,9 +345,8 @@ export function KanbanPage(props: {
     ],
   }))
 
-  /** One-line rolling project selector — tab/←/→ (or click) cycles, no tab
-   *  row. Label stays flush with the page's left edge. The full path is a
-   *  wide-layout nicety; narrow keeps only the label that identifies. */
+  /** One-line rolling project selector (click cycles); the full path is
+   *  dropped in single-lane layout. */
   function projectSelector(active: KanbanBoardEntry): ReactNode {
     return (
       <box flexDirection="row" justifyContent="space-between" paddingTop={1}>
@@ -428,9 +378,7 @@ export function KanbanPage(props: {
 
   const loading = boards === null
 
-  // One shared left baseline across rail pages: the root pads x=2 (the same
-  // inset Routines / Issues / Versions / Worktrees use), so the Kanban title,
-  // project selector, and board all start at x=2 — no per-child inset.
+  // x=2 root inset shared with the other rail pages; no per-child inset.
   return (
     <box
       ref={(r: BoxRenderable | null) => {

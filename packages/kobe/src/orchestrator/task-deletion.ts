@@ -7,8 +7,7 @@ import type { GitWorktreeManager } from "./worktree/manager.ts"
 import type { IgnoredWorkProbe } from "./worktree/salvage-ignored.ts"
 import type { SalvageRecord } from "./worktree/salvage.ts"
 
-/** Caller options for a task deletion. `deleteBranch` is a separate opt-in,
- *  never implied by `force`. */
+/** `deleteBranch` is never implied by `force`. */
 export interface TaskDeletionOpts {
   readonly force?: boolean
   readonly deleteBranch?: boolean
@@ -23,27 +22,14 @@ export class TaskDeletionCoordinator {
     private readonly store: TaskIndexStore,
     private readonly worktrees: GitWorktreeManager,
     private readonly forgetTask: (id: TaskId) => void,
-    /**
-     * Notified when a forced removal salvaged uncommitted work. The daemon
-     * wires this to the deletion audit log so the recovery ref lands beside
-     * the `removed` line — a user who just lost a tab has the task title and
-     * roughly the time, and that is what the audit trail is indexed by.
-     */
+    // The three hooks below feed the deletion audit log: `finish()` removes the
+    // task row, so the log (indexed by title + time) is the only record left.
+    /** A forced removal salvaged uncommitted work; the recovery ref. */
     private readonly onSalvage?: (taskId: TaskId, record: SalvageRecord) => void,
-    /**
-     * Notified when git deregistered the worktree but could not delete its
-     * directory. Wired to the deletion audit log for the same reason
-     * `onSalvage` is: the deletion itself SUCCEEDS (see `finish`), so this is
-     * the only record that a directory is still on disk.
-     */
+    /** Deregistered but the directory is still on disk (the deletion succeeds). */
     private readonly onResidue?: (taskId: TaskId, residue: WorktreeResidue) => void,
-    /**
-     * Notified when `deleteBranch` was asked for and git refused. Wired to the
-     * same audit log for the same reason as the two above: `finish()` removes
-     * the task row, so by the time anyone could ask, there is nothing left to
-     * ask. Without it the `removed … branch=<name>` line confirmed a deletion
-     * that had not happened.
-     */
+    /** `deleteBranch` was asked for and git refused; otherwise the log would
+     *  confirm a branch deletion that never happened. */
     private readonly onBranchKept?: (taskId: TaskId, kept: { branch: string; reason: string }) => void,
   ) {}
 
@@ -55,33 +41,25 @@ export class TaskDeletionCoordinator {
     if (task.deletion?.phase === "queued" || task.deletion?.phase === "running") return true
 
     const force = opts?.force === true
-    // A `dir` task pins a user-owned directory that deletion never touches,
-    // so the dirty-worktree gate (a prompt about work that would be lost)
-    // doesn't apply — only the index entry goes away.
+    // A `dir` task's directory is user-owned and never touched; only the index
+    // entry goes, so no dirty gate.
     if (task.worktreePath && !force && task.kind !== "dir") {
       let dirty = false
-      // Work `status --porcelain` cannot see. `.gitignore`d files survive a
-      // land and a sync, so they are not "dirty" — but they do NOT survive a
-      // worktree removal, and `HANDOFF.md` / `.scratch/**` / `.env*` are
-      // gitignored in this very repo. Gating on the porcelain alone let a
-      // worktree whose only work was a session's notes delete with no force,
-      // no confirm, and no salvage ref.
+      // Gitignored files aren't porcelain-dirty but don't survive removal
+      // (`HANDOFF.md`, `.scratch/**`, `.env*` here). Porcelain alone let a
+      // notes-only worktree delete with no force, confirm or salvage ref.
       let ignored: IgnoredWorkProbe = []
       let probed = true
       try {
         dirty = await this.worktrees.isDirty(task.worktreePath)
       } catch {
-        // A missing/unreadable path is resolved by remove(), as before — and
-        // the ignored probe is skipped with it: `git status --ignored` in a
-        // directory that is already gone answers "unknown", and refusing on
-        // that would break deleting a task whose worktree someone removed by
-        // hand.
+        // Missing/unreadable path: remove() resolves it. Skip the ignored
+        // probe too — it would answer "unknown" for a hand-removed worktree
+        // and block its deletion.
         probed = false
       }
-      // NOT inside that catch. The two probes used to share one `try` with an
-      // empty body, so an ignored listing that failed left `ignored = []` and
-      // the gate below read it as permission — "could not look" and "there is
-      // nothing here" were the same value.
+      // Outside that catch, so a failed ignored listing stays "unknown" and
+      // never reads as "nothing here".
       if (probed && !dirty) ignored = await this.worktrees.ignoredWork(task.worktreePath)
       if (dirty || ignored === "unknown" || ignored.length > 0) throw new DirtyWorktreeError(task.id, ignored)
     }
@@ -90,9 +68,7 @@ export class TaskDeletionCoordinator {
       deletion: {
         phase: "queued",
         force,
-        // Branch deletion is a separate opt-in, never implied by `force`:
-        // deleting a task drops the worktree + index entry; the branch is
-        // git's durable record and survives unless explicitly requested.
+        // Never implied by `force`: the branch is git's durable record.
         deleteBranch: opts?.deleteBranch === true,
         requestedAt: new Date().toISOString(),
       },
@@ -115,44 +91,28 @@ export class TaskDeletionCoordinator {
     const task = this.store.get(id)
     if (!task?.deletion || task.deletion.phase !== "running") return
     try {
-      // NEVER remove a `dir` task's directory: it is the user's own
-      // directory (`kobe .`), not a kobe-managed worktree. Deleting the
-      // task must only drop the index entry.
+      // NEVER remove a `dir` task's directory (`kobe .`): it's the user's own.
       if (task.worktreePath && task.kind !== "dir") {
         await this.worktrees.remove(task.worktreePath, {
           force: task.deletion.force,
           deleteBranch: task.deletion.deleteBranch === true,
-          // The owning repo, for the case where the worktree DIRECTORY is
-          // already gone: its stale admin record can only be pruned from
-          // here, and with the directory missing nothing on disk still points
-          // back at the repo. A task has always known this; it just never
-          // passed it down, so the prune silently never ran.
+          // For an already-gone directory: nothing on disk points back at the
+          // repo, so its stale admin record can only be pruned via this.
           repo: task.repo,
-          // The branch to drop, for the same missing-directory case: it is
-          // normally read out of the worktree, which by then does not exist,
-          // so `deleteBranch` deleted nothing and said it had.
+          // Likewise: normally read from the (now missing) worktree.
           branch: task.branch,
-          // `force` was frozen at prepare() time and this runs on a later
-          // tick — possibly in a later daemon process (`resume()` replays a
-          // queued deletion after a restart), so the worktree may have gone
-          // dirty since the check that authorised the force. Re-evaluating
-          // the gate here would be a behavior change (a delete the user
-          // already confirmed would start failing); salvaging instead keeps
-          // the delete as asked and makes the loss recoverable.
+          // `force` was frozen at prepare(); this may run in a later daemon
+          // (`resume()` replays after restart) after the tree went dirty.
+          // Re-gating would fail a confirmed delete; salvage keeps it
+          // recoverable.
           onSalvage: (record) => {
             if (record) this.onSalvage?.(task.id, record)
           },
-          // A removal git half-completed (metadata deregistered, directory
-          // undeletable) is NOT an error here. Parking the task in `error`
-          // would be a lie the user cannot act on: git has forgotten this
-          // worktree, so every retry is `fatal: is not a working tree` and the
-          // task is stuck forever. The deletion finishes; the
-          // leftover directory is reported instead of being made the task's
-          // problem — and never deleted from under the user, since whatever
-          // made it undeletable may be something they want.
+          // Half-completed removal (deregistered, directory undeletable) is not
+          // an error: git forgot the worktree, so retries would fail forever.
+          // Finish, report the leftover, never delete it from under the user.
           onResidue: (residue) => this.onResidue?.(task.id, residue),
-          // The delete stays best-effort — a refused branch never fails the
-          // removal — but it is no longer SILENT.
+          // Best-effort (a refused branch never fails the removal), not silent.
           onBranchKept: (kept) => this.onBranchKept?.(task.id, kept),
         })
       }

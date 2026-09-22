@@ -1,12 +1,10 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Settings → Engines (React): the one place an engine is configured AND
- * inspected. Each engine is a two-line card — the navigable line carries its
- * on/off switch, the ● default marker, its display name and launch command;
- * the muted line under it carries what detection found (the binary, and for
- * the built-ins whether an account is logged in). Accounts are NOT a section
- * of their own: splitting "which engines exist" from "do they work" only makes
- * you hop between two lists of the same names.
+ * Settings → Engines: configure AND inspect each engine in one two-line card.
+ * The navigable line has the switch, ● default marker, name and launch
+ * command; the muted line has detection results (binary, and login for
+ * built-ins). Accounts deliberately share this section rather than a second
+ * list of the same names.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -67,20 +65,17 @@ export function EngineSettingsSection(
   const isBodyCursor = (row: number) => props.level === "body" && props.bodyRow === row
   const byVendor = new Map((props.statuses ?? []).map((s) => [s.vendor, s]))
   const integrationByVendor = new Map((props.integrations ?? []).map((row) => [row.vendor, row]))
-  // Names get a shared column so the commands line up under each other —
-  // "Claude claude" is two words the eye has to separate on every row. Capped,
-  // because one long custom name must not push every command off to the right.
+  // Shared name column so commands line up; capped so one long custom name
+  // doesn't push every command right.
   const nameWidth = Math.min(
     16,
     props.vendors.reduce((max, v) => Math.max(max, displayWidth(props.displayName(v))), 0),
   )
   const padName = (name: string): string => name + " ".repeat(Math.max(0, nameWidth - displayWidth(name)))
   /**
-   * The protocol chip, for CUSTOM engines only. A built-in or contrib engine
-   * IS its own protocol, so printing one there would be noise; a custom engine
-   * without a declaration silently gets the generic adapter — no transcript
-   * reader, no account detection, no resume — and that was the one fact about
-   * the row nothing on screen stated.
+   * Protocol chip, CUSTOM engines only (built-in/contrib engines ARE their
+   * protocol). An undeclared custom engine silently gets the generic adapter:
+   * no transcript reader, account detection or resume.
    */
   const protocolChip = (vendor: VendorId): { label: string; declared: boolean } | undefined => {
     if (!props.isCustom(vendor)) return undefined
@@ -111,9 +106,8 @@ export function EngineSettingsSection(
               ? theme.textMuted
               : theme.accent
           return (
-            // The whole two-line card is this row's footprint, so cursor-follow
-            // registers the outer box: the detection line comes into view with
-            // the line that carries the cursor, not one scroll step later.
+            // Cursor-follow registers the whole two-line card, so the detection
+            // line scrolls into view with the cursor line.
             <box key={vendor} flexDirection="column" gap={0} ref={props.rowRef(i)}>
               <box
                 flexDirection="row"
@@ -270,10 +264,8 @@ export function EngineSettingsSection(
 }
 
 /**
- * The muted second line of an engine card: where its binary was found and —
- * only for the engines that have an account detector — whether it is logged
- * in. An engine without one shows the binary alone; claiming "not logged in"
- * for it would be a guess.
+ * Muted second line of an engine card: binary path, plus login state only for
+ * engines with an account detector ("not logged in" elsewhere would be a guess).
  */
 function EngineStatusLine(props: {
   status: EngineStatus | null
@@ -284,9 +276,7 @@ function EngineStatusLine(props: {
   const { theme } = useTheme()
   const t = useT()
   const s = props.status
-  // Rendered in BOTH branches, and before the detection results: the protocol
-  // is known without probing anything, so it must not blink in when the probe
-  // lands.
+  // In BOTH branches: the protocol needs no probe, so it must not blink in later.
   const protocol = props.protocol ? (
     <text fg={props.protocol.declared ? theme.accent : theme.textMuted} wrapMode="none">
       {props.protocol.label}
@@ -300,9 +290,8 @@ function EngineStatusLine(props: {
       </box>
     )
   return (
-    // Login state first, path second: when the line doesn't fit, the PATH is
-    // the part worth losing, so it is the one that shrinks. `overflow="hidden"`
-    // + `wrapMode="none"` clips at the pane edge instead of overdrawing.
+    // Login first: when the line doesn't fit, the path is what shrinks.
+    // `overflow="hidden"` + `wrapMode="none"` clip instead of overdrawing.
     <box flexDirection="row" gap={1} paddingLeft={6} overflow="hidden">
       {protocol}
       {s.account === null ? null : <AccountLine account={s.account} />}
@@ -331,9 +320,8 @@ function AccountLine({ account }: { account: EngineAccount }): ReactNode {
           {t("settings.accounts.detected")}
         </text>
       )
-    // Billing type only: a personal Anthropic account's org name is generated
-    // from the very email printed two words earlier, and this line now shares
-    // its row with the binary path.
+    // Billing type only: a personal account's org name is derived from the
+    // email already shown, and the row is shared with the binary path.
     const tail = account.billingType
     return (
       <text fg={theme.success} wrapMode="none" flexShrink={1}>

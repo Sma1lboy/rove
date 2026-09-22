@@ -1,17 +1,12 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Set-branch (re-branch) dialog — the sidebar `b` flow. Lists the task
- * repo's local branches with filter-as-you-type, matching the new-task
- * dialog's `fromBranch` picker: reuses the same pure helpers
- * (`filterBranches` / `windowAround` / `clampCursor` / `resolveBaseRef`)
- * and the shared `PickerList`, so the two branch surfaces stay in lockstep.
+ * Set-branch dialog (sidebar `b`): the task repo's local branches with
+ * filter-as-you-type, sharing the new-task `fromBranch` picker's helpers and
+ * `PickerList` so the two stay in lockstep.
  *
- * The input doubles as free text — typing a name not in the list renames
- * the task's branch to it (`orchestrator.setBranch` → `git branch -m`);
- * Enter resolves via `resolveBaseRef` (exact match → highlighted row →
- * typed text). Esc cancels through the dialog stack (DialogProvider owns
- * escape/ctrl+c). Branch enumeration is the one-shot sync `listLocalBranches`
- * — same whitelisted git-snapshot call the new-task view-model uses.
+ * A typed name not in the list renames the branch (`git branch -m`); Enter
+ * resolves via `resolveBaseRef` (exact match → highlighted row → typed text).
+ * Esc/ctrl+c belong to DialogProvider.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -73,8 +68,7 @@ export function BranchPickerDialogView(props: {
     accent: value.trim() === name,
   }))
 
-  // up/down drive the picker; always registered so they preventDefault away
-  // from the single-line input (same rationale as the new-task view-model).
+  // Always registered so up/down preventDefault away from the single-line input.
   useBindings(() => ({
     bindings: [
       { key: "up", cmd: () => move(-1) },
@@ -128,10 +122,7 @@ export function BranchPickerDialogView(props: {
   )
 }
 
-/**
- * Open the set-branch dialog and resolve with the chosen/typed branch —
- * `undefined` on cancel, matching the other dialogs' convention.
- */
+/** Resolve with the chosen/typed branch, `undefined` on cancel. */
 function show(dialog: DialogContext, opts: { currentBranch: string; repo: string }): Promise<string | undefined> {
   return showDialog<string>(dialog, (resolve) => (
     <BranchPickerDialogView
