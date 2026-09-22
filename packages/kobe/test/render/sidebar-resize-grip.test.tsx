@@ -123,14 +123,16 @@ function edgeCell(frame: string, row: number): string {
   return [...(frame.split("\n")[row] ?? "")][EDGE_X] ?? ""
 }
 
+const OSC22 = "\x1b]22;"
+const BEL = "\x07"
+
 /** Every pointer shape (OSC 22) the component wrote to the terminal, in order. */
 function recordPointer(renderer: object): string[] {
   const shapes: string[] = []
   const raw = renderer as { writeOut: (chunk: string) => unknown }
   const passThrough = raw.writeOut.bind(renderer)
   raw.writeOut = (chunk) => {
-    const osc = /^\x1b\]22;([^\x07]*)\x07$/.exec(chunk)
-    if (osc) shapes.push(osc[1] as string)
+    if (chunk.startsWith(OSC22) && chunk.endsWith(BEL)) shapes.push(chunk.slice(OSC22.length, -BEL.length))
     else return passThrough(chunk)
   }
   return shapes
