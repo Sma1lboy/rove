@@ -317,7 +317,7 @@ export interface Task {
 
 /** Where a merged task came from. `machineId` is the local alias; `hostLabel`
  *  is what a row displays (the remote hostname, falling back to the alias). */
-export interface TaskOrigin {
+interface TaskOrigin {
   readonly machineId: string
   readonly hostLabel: string
   /**

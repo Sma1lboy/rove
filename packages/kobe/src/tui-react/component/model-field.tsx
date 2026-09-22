@@ -48,7 +48,7 @@ function modelsFor(vendor: VendorId): Promise<readonly EngineModel[]> | null {
   return pending
 }
 
-export function filterModels(models: readonly EngineModel[], query: string): readonly EngineModel[] {
+function filterModels(models: readonly EngineModel[], query: string): readonly EngineModel[] {
   const q = query.trim().toLowerCase()
   if (!q) return models
   return models.filter((m) => m.id.toLowerCase().includes(q) || m.label?.toLowerCase().includes(q))

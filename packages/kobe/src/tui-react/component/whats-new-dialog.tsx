@@ -213,7 +213,7 @@ function show(
   dialog.setSize("medium")
 }
 
-export const WhatsNewDialog = { show }
+const WhatsNewDialog = { show }
 
 /**
  * Hand the boot-time "you just upgraded" signal to the dialog stack, once.

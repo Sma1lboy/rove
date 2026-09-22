@@ -22,7 +22,7 @@
 import { type SelfRefreshInputs, planSelfRefresh, relaunchSelf } from "../../cli/self-relaunch"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 
-export type { SelfRefreshInputs, SelfRefreshPlan } from "../../cli/self-relaunch"
+export type { SelfRefreshInputs } from "../../cli/self-relaunch"
 
 export interface SelfRefreshDeps {
   readonly orchestrator: Pick<RemoteOrchestrator, "restartDaemon">

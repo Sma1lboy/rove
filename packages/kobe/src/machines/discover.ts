@@ -34,7 +34,7 @@ export interface DiscoverFailure {
 }
 
 /** Run one command on the machine. Never throws; a spawn failure is exit -1. */
-export async function runOnMachine(
+async function runOnMachine(
   alias: string,
   config: MachineConfig,
   command: string,

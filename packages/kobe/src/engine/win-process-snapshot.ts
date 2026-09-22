@@ -68,7 +68,7 @@ import { type ProcRow, PsProbeUnavailableError, serializeProcRows } from "./proc
  * {@link repairConsoleParentage} takes the OLDEST as that console's root, and
  * row order is how it knows which one that is.
  */
-export const WIN_PROCESS_LIST_COMMAND =
+const WIN_PROCESS_LIST_COMMAND =
   "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; " +
   "Get-CimInstance -ClassName Win32_Process -Property ProcessId,ParentProcessId,CommandLine,Name,CreationDate | " +
   "Sort-Object CreationDate | " +

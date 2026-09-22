@@ -27,7 +27,7 @@ import { DialogFooter, DialogHeader } from "../ui/dialog-parts"
 import { PickerList } from "./new-task-dialog/picker-list"
 
 /** The "no adapter" choice — the empty string `engineProtocol.<id>` holds. */
-export const NO_ENGINE_PROTOCOL = ""
+const NO_ENGINE_PROTOCOL = ""
 
 /** The built-in protocols, with the generic choice last. */
 const CHOICES: readonly string[] = [...ENGINE_PROTOCOLS, NO_ENGINE_PROTOCOL]

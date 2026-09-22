@@ -41,7 +41,7 @@
  * consumers import the one parser; this re-export keeps kobe's callers (and
  * `test/lib/git-parsers.test.ts`) addressing it here.
  */
-export { type PorcelainRow, parsePorcelainRows, unquoteGitPath } from "@sma1lboy/kobe-daemon/daemon/git-porcelain"
+export { parsePorcelainRows, unquoteGitPath } from "@sma1lboy/kobe-daemon/daemon/git-porcelain"
 import { unquoteGitPath } from "@sma1lboy/kobe-daemon/daemon/git-porcelain"
 
 /** One parsed row of `git diff --numstat`. */

@@ -90,7 +90,7 @@ export function engineRowId(vendor: VendorId): string {
   return `engine:${vendor}`
 }
 
-export function autoEffortRowId(tier: AutoEffortTier): string {
+function autoEffortRowId(tier: AutoEffortTier): string {
   return `auto-effort:${tier}`
 }
 
@@ -106,7 +106,7 @@ export function pluginSettingRowId(pluginId: string, key: string): string {
   return `plugin:${pluginId}:${key}`
 }
 
-export function marketplaceRowId(ref: string): string {
+function marketplaceRowId(ref: string): string {
   return `market:${ref}`
 }
 
@@ -192,7 +192,7 @@ export function pluginRows(plugins: readonly PluginRowsEntry[]): SettingsRow[] {
  * GitHub query is in flight (the view shows a loading line instead), so the
  * cursor never lands on a row that is about to be replaced.
  */
-export function marketplaceRows(refs: readonly string[]): SettingsRow[] {
+function marketplaceRows(refs: readonly string[]): SettingsRow[] {
   return refs.map((ref): SettingsRow => ({ id: marketplaceRowId(ref), kind: "pluginInstall", ref }))
 }
 

@@ -99,7 +99,7 @@ export interface TaskActivitySignal {
  * Exactly the fields the rules below read; adding one here is the honest
  * signal that a rule grew a new dependency.
  */
-export interface TaskGroupTask {
+interface TaskGroupTask {
   readonly status: TaskStatus
   readonly report?: TaskWorkerReport
   readonly prStatus?: TaskPRStatus

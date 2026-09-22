@@ -38,7 +38,7 @@ import { LockfileError, acquire, release } from "../orchestrator/index/lockfile.
  *  (`SUBMIT_DELAY_MS` plus two RPC round-trips) so ordinary back-to-back sends
  *  queue rather than collide, and short enough that a stale holder cannot stall
  *  a report for long. */
-export const DELIVERY_LOCK_TIMEOUT_MS = 5_000
+const DELIVERY_LOCK_TIMEOUT_MS = 5_000
 /** Retry interval while another sender holds the key. */
 const DELIVERY_LOCK_RETRY_MS = 20
 

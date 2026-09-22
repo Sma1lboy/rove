@@ -68,7 +68,6 @@ export type {
   RowTokenMap,
   TaskEngineState,
   TaskJobState,
-  TranscriptActivity,
   TranscriptActivityMap,
   UsageSnapshotMap,
   WorktreeChangesMap,

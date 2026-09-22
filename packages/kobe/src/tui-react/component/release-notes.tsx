@@ -22,9 +22,7 @@ import type { Theme } from "../../tui/context/theme-core"
 import { useTheme } from "../context/theme"
 import { releaseNotesMarkdown } from "./release-notes-markdown"
 
-export { releaseNotesMarkdown }
-
-export function buildReleaseNotesStyle(theme: Theme): SyntaxStyle {
+function buildReleaseNotesStyle(theme: Theme): SyntaxStyle {
   const heading = { fg: theme.accent, bold: true }
   const code = { fg: theme.info }
   return SyntaxStyle.fromStyles({

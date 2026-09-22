@@ -21,7 +21,7 @@ import type { RemoteAuthConfig } from "../state/remote-repos.ts"
 import { type StateSnapshot, loadStateFile, updateStateFile } from "../state/store.ts"
 
 /** The local machine's reserved id. Never registered, never removable. */
-export const LOCAL_MACHINE_ID = "local"
+const LOCAL_MACHINE_ID = "local"
 
 export interface MachineConfig {
   /** The SSH host as typed — an ssh_config `Host` alias is the common case,

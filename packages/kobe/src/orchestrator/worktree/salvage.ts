@@ -83,7 +83,7 @@ async function gitlinkPaths(git: (args: readonly string[]) => Promise<GitRunResu
  * A `.lock` suffix needs no handling: git forbids it only at the END of a
  * component, and the slug is always followed by `-<stamp>` in the finished ref.
  */
-export function branchRefSlug(branch: string | null): string {
+function branchRefSlug(branch: string | null): string {
   return (
     (branch ?? "")
       // biome-ignore lint/suspicious/noControlCharactersInRegex: git defines its refname rules over exactly these bytes.

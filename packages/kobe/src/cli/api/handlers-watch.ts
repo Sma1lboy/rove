@@ -92,7 +92,7 @@ function parseUntil(raw: string): string[] {
   return states
 }
 
-export async function watch(ctx: VerbContext): Promise<unknown> {
+async function watch(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const taskIds = new Set(await resolveTaskIds(ctx))
   const until = new Set(parseUntil(ctx.args.require("until")))

@@ -298,6 +298,6 @@ export function classifyHandshakeFailure(message: string): MachineStatus["state"
   return /protocol v\d/i.test(message) ? "mismatch" : "offline"
 }
 
-export function stampOrigin(task: Task, machineId: string, hostLabel: string, stale = false): Task {
+function stampOrigin(task: Task, machineId: string, hostLabel: string, stale = false): Task {
   return { ...task, origin: { machineId, hostLabel, ...(stale ? { stale: true } : {}) } }
 }

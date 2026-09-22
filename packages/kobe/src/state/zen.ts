@@ -13,10 +13,6 @@
 
 export const ZEN_ACTIVE_KEY = "zen.active"
 
-/**
- * Legacy. Nothing reads or writes it: the rail is unconditional, so the
- * checkbox that wrote this key was removed rather than left promising a
- * layout change it never made. Named here so the value someone finds in an
- * old hand-edited state.json has an explanation; unknown keys are ignored.
- */
-export const ZEN_KEEP_TASKS_KEY = "zen.keepTasks"
+// Legacy `zen.keepTasks`: nothing reads or writes it. The rail is unconditional,
+// so the checkbox that wrote it was removed; an old state.json may still carry
+// the key, and unknown keys are ignored.

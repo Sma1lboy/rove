@@ -69,7 +69,7 @@ export const VERB_ALIASES: Readonly<Record<string, string>> = { "spawn-task": "a
  * `UNKNOWN_VERB` plus the `nextCommandArgs` an agent can run verbatim, which
  * is the same self-healing contract every other high-traffic rejection uses.
  */
-export const RETIRED_VERBS: Readonly<Record<string, { hint: string; nextCommandArgs: readonly string[] }>> = {
+const RETIRED_VERBS: Readonly<Record<string, { hint: string; nextCommandArgs: readonly string[] }>> = {
   "fan-out": {
     hint: "fan-out was folded into `add`: pass --count N (or --agents claude:2,codex:1) to spawn N parallel tasks of one prompt",
     nextCommandArgs: ["api", "add", "--help"],
