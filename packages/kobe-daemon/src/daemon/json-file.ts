@@ -1,17 +1,9 @@
 /**
- * The atomic JSON write and the mutation serializer shared by the daemon's
- * file-backed stores.
- *
- * tmp+rename so a reader never sees a half-written file, and the tmp name
- * carries pid+uuid because a fixed `${path}.tmp` is shared state: during a
- * `rove daemon restart` handoff the outgoing daemon can still be mid-write
- * while the incoming one opens the same name, truncates it, and renames
- * partial JSON over the real file. Reads stay per-store — corruption policy
- * legitimately differs between them.
- *
- * {@link serialized} is the read half's other bookend: every store that does a
- * read-modify-write on one of these files funnels through it so two concurrent
- * mutations cannot both read the old document and race their renames.
+ * Atomic JSON write + mutation serializer for the daemon's file-backed stores.
+ * The tmp name carries pid+uuid because a fixed `${path}.tmp` is shared across
+ * a `rove daemon restart` handoff: the incoming daemon can truncate it and
+ * rename partial JSON over the real file while the outgoing one still writes.
+ * Reads stay per-store — corruption policy differs.
  */
 import { randomUUID } from "node:crypto"
 import { mkdir, rename, writeFile } from "node:fs/promises"
@@ -25,14 +17,9 @@ export interface WriteJsonAtomicOptions {
 }
 
 /**
- * The tmp+rename on its own, for the runtime files that are not JSON: the
- * daemon and PTY-host pidfiles.
- *
- * `writeFile` truncates before it writes, so an interrupted write leaves an
- * EMPTY file — and an empty pidfile is not merely unreadable, it parses as
- * pid `0`, which `kill` reads as the caller's own process group. Every other
- * file-backed store here already renames into place; the pidfile was the
- * exception, and the one whose torn state is dangerous rather than annoying.
+ * tmp+rename for non-JSON runtime files (daemon and PTY-host pidfiles). A torn
+ * `writeFile` leaves an empty pidfile, which parses as pid `0` — `kill` reads
+ * that as the caller's own process group.
  */
 export async function writeTextAtomic(path: string, text: string, mode?: number): Promise<void> {
   await mkdir(dirname(path), { recursive: true })
@@ -53,25 +40,16 @@ export async function writeJsonAtomic(
 const locks = new Map<string, Promise<unknown>>()
 
 /**
- * Serialize async sections that share a resource named by `key`.
+ * Serialize async sections keyed by `key`. Key on the FILE PATH, not the
+ * store's internal key: documents are written whole, so a per-repo lock lets
+ * two read-modify-writes interleave and the second rename drops the first.
  *
- * The unit of contention is the FILE PATH, not whatever the file is keyed by
- * internally: these stores read and write their document whole, so locking per
- * repo (or per task) lets two read-modify-write cycles interleave and the
- * second `rename` silently drops the first one's mutation. Callers pass their
- * store path.
+ * The tail settles to `undefined` either way so a rejection can't wedge the
+ * queue; the entry is dropped when idle so the map doesn't grow per file.
  *
- * The tail is settled to `undefined` on both outcomes — a rejected mutation
- * must not wedge the queue for every later caller — and the map entry is
- * dropped once nobody is behind it, so a long-lived daemon does not accumulate
- * an entry per file it has ever touched.
- *
- * `fn` must NOT return a promise as its value. `tail.then(fn)` adopts whatever
- * `fn` resolves to, so a returned promise extends the slot until that promise
- * settles and every later caller queues behind it. TypeScript cannot catch
- * this — `async () => somePromise` is typed `Promise<T>`, not `Promise<
- * Promise<T>>`. To hand a promise back to the caller, wrap it (`[done]`,
- * `{ done }`) and await it OUTSIDE the queue.
+ * `fn` must NOT resolve to a promise: `tail.then(fn)` adopts it and holds the
+ * slot until it settles. TypeScript can't catch this (`async () => p` is
+ * `Promise<T>`). Wrap it (`[done]`, `{ done }`) and await outside the queue.
  */
 export function serialized<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const tail = locks.get(key) ?? Promise.resolve()
