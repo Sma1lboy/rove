@@ -1,20 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The one dialog grammar, as components — see `docs/design/dialogs.md`.
- *
- * `ui/dialog.tsx` owns the CARD (size, placement, dimmer, esc barrier); this
- * file owns what goes inside it. The card admits two looks — a "form sheet"
- * (the branch picker, run-again, field notes — lowercase labels, bare
- * inputs) and a "story editor" (New task, New chat, the engine picker, the
- * kanban drawer — caps labels, rounded field wells, chips, a key legend) — and
- * which one a dialog wears must not depend on what its author happened to
- * have open.
- *
- * The pieces here are the story-editor half, so a dialog gets the grammar by
- * composing rather than by remembering. In particular
- * {@link DialogField} spreads {@link FRAME}: a well is rounded because the
- * author used the shared component, not because they recalled that opentui
- * defaults `borderStyle` to square (`ui/frame.ts`).
+ * The "story editor" dialog grammar as components (caps labels, rounded field
+ * wells, chips, a key legend); see `docs/design/dialogs.md`. `ui/dialog.tsx`
+ * owns the card itself. Compose these rather than re-deriving the look.
  */
 
 import type { BoxRenderable, RGBA } from "@opentui/core"
@@ -34,20 +22,13 @@ function useDialogCompact(): boolean {
   return useTerminalDimensions().height < FRAMED_DIALOG_MIN_ROWS
 }
 
-/**
- * Fill for a field well. Transparent mode means transparent here too — the
- * dialog wells were the last solid tiles left on screen with the setting on.
- */
+/** Field-well fill; transparent in transparent mode too. */
 function useFieldFill(): RGBA | "transparent" {
   const { theme, transparentBackground } = useTheme()
   return transparentBackground ? "transparent" : theme.backgroundElement
 }
 
-/**
- * Top row: what the dialog IS on the left, the `esc` affordance on the
- * right. `title` covers the common case; `children` replaces it for a header
- * that carries more than a name (the story drawer's id + status + created).
- */
+/** Top row: title (or `children` for a richer header) left, `esc` right. */
 export function DialogHeader(props: { title?: string; children?: ReactNode; onClose: () => void }) {
   const { theme } = useTheme()
   return (
@@ -64,11 +45,7 @@ export function DialogHeader(props: { title?: string; children?: ReactNode; onCl
   )
 }
 
-/**
- * Field label: BOLD, muted until its field takes focus, then primary +
- * underlined. `hint` trails it in muted text — the arrow keys a selector
- * answers to (`←/→`), or a note about what the field accepts.
- */
+/** Field label: BOLD, muted until focused, then primary + underlined; `hint` trails it muted. */
 export function DialogLabel(props: { label: string; focused: boolean; hint?: string; onPress?: () => void }) {
   const { theme } = useTheme()
   return (
@@ -90,15 +67,11 @@ export function DialogLabel(props: { label: string; focused: boolean; hint?: str
   )
 }
 
-/**
- * The well a field's input sits in: rounded border, subtle until focused.
- * One cell of horizontal padding so the caret never touches the border line.
- */
+/** A field's well: rounded border; one cell of padding keeps the caret off the border. */
 export function DialogField(props: { focused: boolean; children?: ReactNode; paddingBottom?: number }) {
   const { theme } = useTheme()
   const fill = useFieldFill()
-  // Compact: the well's one row of content, indented to where the border
-  // would have put it, so the field still lines up under its label.
+  // Compact: indented to where the border would be, to line up under the label.
   if (useDialogCompact()) {
     return (
       <box paddingLeft={2} paddingBottom={props.paddingBottom} flexShrink={0}>
@@ -140,12 +113,9 @@ export function DialogSection(props: {
 }
 
 /**
- * The dialog's one button shape: a bordered box that lights up PRIMARY +
- * BOLD when it is the selected/focused choice.
- *
- * No fill on purpose: border cells share the parent box's background, so a
- * `backgroundElement` fill halos AROUND the border line. The primary border
- * plus bold text alone mark selection.
+ * The dialog's one button shape: bordered, PRIMARY + BOLD when selected. No
+ * fill: border cells share the parent's background, so a fill halos around
+ * the border line.
  */
 export function ChipButton(props: {
   label: string
@@ -195,12 +165,7 @@ export function ChipButton(props: {
   )
 }
 
-/**
- * The choose-one control: every option as a {@link ChipButton}, side by
- * side, wrapping by whole chips. This is the ONLY way a dialog renders a
- * pick-one-value field (engine, mode, destination, effort…); a bespoke row
- * of `<text>` choices is a grammar violation, not a variant.
- */
+/** The ONLY pick-one-value control: {@link ChipButton}s side by side, wrapping by whole chips. */
 export function ChipRow<T extends string>(props: {
   choices: readonly T[]
   selected: T
@@ -209,8 +174,7 @@ export function ChipRow<T extends string>(props: {
   display?: (choice: T) => string
   paddingBottom?: number
 }) {
-  // columnGap, not gap: Yoga's `gap` sets both gutters, and a wrapped second
-  // line would then sit a blank row below the first.
+  // columnGap, not gap: `gap` would also add a blank row between wrapped lines.
   return (
     <box flexDirection="row" flexWrap="wrap" alignItems="flex-start" columnGap={1} rowGap={0} flexShrink={0}>
       {props.choices.map((choice) => (
@@ -226,11 +190,8 @@ export function ChipRow<T extends string>(props: {
   )
 }
 
-/**
- * The key legend every dialog closes with — one muted line naming the keys
- * that dialog answers to. The card owns only `paddingTop`, so the last row
- * has to carry its own bottom cell or it sits flush against the card's edge.
- */
+/** The muted key legend every dialog ends with; carries its own bottom cell
+ *  since the card owns only `paddingTop`. */
 export function DialogFooter(props: { children?: ReactNode; paddingBottom?: number }) {
   const { theme } = useTheme()
   return (
@@ -243,11 +204,9 @@ export function DialogFooter(props: { children?: ReactNode; paddingBottom?: numb
 }
 
 /**
- * Bottom-right `[ action ]`, for a dialog whose commit has a focusable
- * confirm field. Focus adds a `▸ ` caret as well as the primary accent —
- * a terminal with colour turned off still has to show where enter goes. A dialog that commits with Enter from any field (the story
- * drawer) has no such field and states the verb in its legend instead — a
- * button nothing can focus would be a fourth thing to explain.
+ * Bottom-right `[ action ]` for a dialog with a focusable confirm field.
+ * Focus adds a `▸ ` caret too, for terminals with colour off. A dialog that
+ * commits from any field states the verb in its legend instead.
  */
 export function DialogActions(props: { label: string; focused: boolean; onPress: () => void; paddingTop?: number }) {
   const { theme } = useTheme()

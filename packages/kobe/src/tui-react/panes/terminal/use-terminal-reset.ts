@@ -1,16 +1,10 @@
 /**
- * The terminal pane's F5 reset. Its own hook because the two paths below are
- * one policy that must be decided together — the pre-split code got this wrong
- * (see the second bullet), which is exactly the failure a scattered gate
- * invites. Owns the confirm gate and the two ways a reset can be reached:
+ * The terminal pane's F5 reset, one policy for both paths:
  *
- *  - a LIVE pty: confirm first (a running shell and its in-flight vim/htop
- *    are about to die), then reacquire, guarding against a task switch that
- *    happened while the confirm was open;
- *  - a FAILED acquire (`acquireError`, pty already null): retry immediately.
- *    There is nothing to destroy, the confirm's copy would be a lie, and this
- *    is the one state where the pane has no other way out — the pre-split
- *    guard returned early here, so F5 did nothing at all.
+ *  - a LIVE pty: confirm first (in-flight vim/htop will die), then reacquire,
+ *    guarding against a task switch while the confirm was open;
+ *  - a FAILED acquire (pty null): retry immediately. Nothing to destroy, and
+ *    this is the one state with no other way out.
  */
 
 import { useLayoutEffect, useRef } from "react"
@@ -54,9 +48,7 @@ export function useTerminalReset(args: {
     const taskIdAtClick = args.taskId
     const geometryAtClick = args.bodyGeometry
     if (!cwdAtClick || !taskIdAtClick || !geometryAtClick) return
-    // No live PTY means nothing to destroy, and the confirm's copy ("the
-    // running shell will be killed") would be a lie. Retry straight away —
-    // a confirm here is a second obstacle in a state the user is stuck in.
+    // No live PTY: the confirm's "shell will be killed" would be a lie.
     if (!ptyAtClick) {
       args.forceReacquire(cwdAtClick, taskIdAtClick, geometryAtClick)
       return

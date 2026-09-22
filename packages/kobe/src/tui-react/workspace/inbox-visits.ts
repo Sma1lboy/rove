@@ -1,23 +1,10 @@
 /**
- * The Inbox's RECENT order — a real visit log, not `task.updatedAt`.
- *
- * `updatedAt` moves on ANY mutation (vendor change, status flip, PR-status
- * backfill), so sorting by it answers "what changed lately", while RECENT
- * has to answer "where was I lately". This records the visits themselves:
- * one entry per (task, TAB), newest first, capped.
- *
- * Per-tab, not per-task: switching among a task's chat tabs is the most
- * common way to move around, and a task-keyed log collapses all of it into
- * one entry — the tabs you just left never show up, and RECENT lists
- * unrelated tasks instead.
- *
- * Framework-free so the pane, the host, and unit tests share one rule; the
- * KV layer just persists the array.
+ * The Inbox's RECENT order: a visit log, not `task.updatedAt` (which moves on
+ * any mutation). One entry per (task, TAB), newest first, capped; per-tab
+ * because switching a task's tabs is the most common move.
  */
 
 const VISITS_KEY = "inboxVisits"
-// Entries are per-tab now, so the same span of history costs more rows than
-// it did when the log was task-keyed.
 const VISIT_LIMIT = 60
 
 export type InboxVisit = {
@@ -77,10 +64,8 @@ export function readInboxVisits(kv: VisitKV): InboxVisit[] {
 export function writeInboxVisit(kv: VisitKV, visit: InboxVisit): void {
   const visits = readInboxVisits(kv)
   const [previous] = visits
-  // Already on top with the same tab: you never left, so there's nothing new
-  // to record. Tab activation re-fires on every remount and this array is
-  // persisted state — skipping keeps the arrival time honest AND the writes
-  // rare. `at` therefore reads as "when you last came here".
+  // Already on top: skip. Activation re-fires on remount, so this keeps `at`
+  // meaning "when you last came here" and persisted writes rare.
   if (previous?.taskId === visit.taskId && previous.tabId === visit.tabId) return
   kv.set(VISITS_KEY, recordInboxVisit(visits, visit))
 }

@@ -1,34 +1,13 @@
 /** @jsxImportSource @opentui/react */
 /**
- * TERMINAL adapter over the content-agnostic split tree
- * (`tui/workspace/split-core.ts`). The body of one workspace terminal tab.
- * Leaf content is `readonly string[] | null`: null
- * means "the tab's own command" (only ever `leaf-1`, whose PTY key IS the
- * tab key — `splitLeafPtyKey`), an argv means a split-created shell.
+ * One workspace terminal tab's body: a TERMINAL adapter over the split tree
+ * (`tui/workspace/split-core.ts`). Leaf content null = the tab's own command
+ * (only `leaf-1`, whose PTY key IS the tab key); an argv = a split shell.
  *
- * `ctrl+\` splits right, `ctrl+=` splits down (new leaves run the user's
- * shell in the same worktree), `f3` cycles leaf focus, and a leaf whose
- * process exits removes itself tmux-style (its group collapses). When the
- * LAST leaf exits, the tab-level `onExit` fires — the caller keeps owning
- * the engine-degrade / close-tab decision.
- *
- * Split state lives ON the tab (`TerminalTab.splitTree`, owned by
- * `TerminalTabs.tsx` and persisted to state.json), passed down as the
- * `splitTree` prop and mutated back through `onSplitChange`.
- *
- * `activeLeaf` (local ephemeral focus) is `useState`, kept OUT of the
- * persisted tree so moving focus never reflows it, and re-seeded via a
- * `useEffect` keyed on `props.splitTree` identity. The corner name-tag's
- * live-title tracking is the shared framework-free `useTitleSubscriptions`
- * store — keyed on each leaf's globally-unique `splitLeafPtyKey`, so an
- * instance shared across tabs (this component mounts without a key) can't
- * bleed one tab's `leaf-1` title onto the next, and a respawned leaf
- * re-subscribes instead of freezing on the dead PTY's title.
- *
- * The opentui borderColor structural-absence rule holds throughout:
- * divider-less boxes must omit `borderColor` ENTIRELY, not pass `undefined` —
- * opentui's Box coerces `border: false` to a full frame whenever any border
- * styling lands.
+ * A leaf whose process exits removes itself tmux-style; the LAST leaf's exit
+ * fires the tab-level `onExit` (the caller owns degrade/close). Split state
+ * lives ON the tab (`TerminalTab.splitTree`, persisted), mutated back through
+ * `onSplitChange`.
  */
 
 import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
@@ -70,16 +49,11 @@ import { useTitleSubscriptions } from "./title-subscriptions"
 /** What a terminal leaf shows: null = the tab's own command (`leaf-1`). */
 type LeafCommand = readonly string[] | null
 
-/** The unsplit sentinel — a stable single-leaf tree so a `null` splitTree
- *  renders the fast path without minting a fresh object per read. */
+/** Stable single-leaf tree, so a `null` splitTree mints no object per read. */
 const UNSPLIT: PersistedSplit = initialSplit(null)
 
-/**
- * Release every split-created leaf PTY of `tabKey` — the tab-close
- * counterpart of `TerminalTabs.tsx`'s own `release(tabPtyKey(...))` (which
- * only covers `leaf-1`). Takes the tree explicitly (it lives on the
- * persisted tab, not a module map); null/unsplit trees release nothing.
- */
+/** Release every split-created leaf PTY of `tabKey` on tab close (`leaf-1` is
+ *  released by TerminalTabs). Null/unsplit trees release nothing. */
 export function releaseSplitLeaves(tabKey: string, tree: PersistedSplit | null): void {
   if (!tree) return
   for (const leaf of leaves(tree.root)) {
@@ -93,33 +67,27 @@ export function TerminalSplit(props: {
   cwd: string
   /** What the tab's ORIGINAL leaf (`leaf-1`) runs — engine or command. */
   command: readonly string[]
-  /** Typed into leaf-1's FRESH spawn — the shell-wrapped engine line
-   *  (`TaskPtyOpts.initialInput`). Split-created shell leaves never get it. */
+  /** Typed into leaf-1's FRESH spawn (`TaskPtyOpts.initialInput`); never split leaves. */
   initialInput?: string
-  /** Paste-delivery vendor's first message for leaf-1's fresh spawn
-   *  (`TaskPtyOpts.firstMessage`). Split leaves never get it. */
+  /** leaf-1's fresh-spawn first message (`TaskPtyOpts.firstMessage`); never split leaves. */
   firstMessage?: string
   /** Engine binary name for the first-message engine-up probe. */
   engineBin?: string
-  /** The active tab's frozen split layout (null = unsplit). Owned by the
-   *  parent, persisted to state.json; switching tabs swaps this prop. */
+  /** The active tab's split layout (null = unsplit); parent-owned and persisted. */
   splitTree: PersistedSplit | null
   /** Persist a changed layout (null clears back to the unsplit fast path). */
   onSplitChange: (next: PersistedSplit | null) => void
-  /** Tab-level exit behavior; fires only when the LAST leaf exits.
-   *  `info.deadOnAttach` rides through from the unsplit fast path only —
-   *  a split tab's last-leaf exit is always treated as a live exit. */
+  /** Fires only when the LAST leaf exits. `info.deadOnAttach` only from the
+   *  unsplit fast path; a split tab's last exit is always live. */
   onExit?: (info?: { deadOnAttach?: boolean }) => void
   /** Forwarded to `leaf-1`'s Terminal — the shell-degrade reacquire nudge. */
   resetToken?: number
   focused: boolean
   /** Ask the host to focus the workspace pane (terminal click). */
   onRequestFocus?: () => void
-  /** Raw input feed for the ORIGINAL (engine) leaf only — split-created
-   *  shell leaves never report (their keys aren't turn triggers). */
+  /** Raw input feed, ORIGINAL (engine) leaf only: shell keys aren't turn triggers. */
   onUserInput?: (data: string) => void
-  /** The tab's first-prompt title (title ?? autoTitle) — the engine leaf's
-   *  name, matching the group/tab label. Null before the first prompt. */
+  /** The engine leaf's name (title ?? autoTitle); null before the first prompt. */
   engineTitle?: string | null
   /** Vendor presentation applies to leaf-1 only; split-created shells stay native. */
   terminalPresentation?: EngineTerminalPresentation
@@ -130,47 +98,32 @@ export function TerminalSplit(props: {
   const kv = useKV()
   const state = props.splitTree ?? UNSPLIT
 
-  // FOCUS (local, ephemeral): which leaf has focus. Kept OUT of the
-  // persisted tree on purpose — moving focus must not reflow the whole
-  // tree. Seeded from the persisted `activeLeafId` and
-  // re-seeded whenever the persisted tree changes identity (tab switch
-  // or a structural edit).
+  // Focus is local, OUT of the persisted tree, so moving it never reflows the
+  // tree. Re-seeded from `activeLeafId` when the tree changes identity.
   const [activeLeaf, setActiveLeaf] = useState<string>(state.activeLeafId)
   useEffect(() => {
     setActiveLeaf((props.splitTree ?? UNSPLIT).activeLeafId)
-    // Re-seed only on a genuine tree-identity change (tab switch / structural
-    // edit), not on every render.
   }, [props.splitTree])
 
   /** Full SplitState for the structural transitions that read the active
    *  leaf (split / remove / cycle operate relative to it). */
   const fullState = (): PersistedSplit => ({ ...state, activeLeafId: activeLeaf })
 
-  // Persist a STRUCTURAL change through the parent; the collapse-to-null
-  // rule (sole survivor is leaf-1 → back to the unsplit fast path, a sole
-  // surviving SHELL leaf keeps the tree) is pure — `collapseSplit`. Focus
-  // changes do NOT come here — they use `setActiveLeaf` (local).
+  // STRUCTURAL changes only; `collapseSplit` folds a sole leaf-1 back to null.
   const update = (next: SplitState<LeafCommand>): void => {
     if (next === state) return
     props.onSplitChange(collapseSplit(next))
   }
 
   const isSplit = isTabSplit(state)
-  // Split appearance (Settings → General → Appearance): `box` frames every
-  // leaf, `line` draws only shared-edge dividers. Frames apply only while
-  // ACTUALLY split — a lone surviving leaf inside the already-bordered
-  // workspace column must not double-frame.
+  // `box` frames every leaf, `line` draws dividers; only while ACTUALLY split,
+  // or a lone leaf double-frames inside the bordered column.
   const useBoxFrames = normalizeSplitStyle(kv.get(SPLIT_STYLE_KEY)) === "box" && isSplit
-  // Render via the split tree (not the single-engine fast path) whenever
-  // there are multiple leaves OR a single NON-leaf-1 leaf survives (engine
-  // closed, shell kept). Only the pristine leaf-1 engine uses the fast
-  // path — exactly the trees `collapseSplit` would fold to null.
+  // Only a pristine leaf-1 (what `collapseSplit` folds to null) takes the fast path.
   const renderViaTree = collapseSplit(state) !== null
 
-  /** Remove `id` from the tree and kill its PTY. False when `id` is the
-   *  last leaf (nothing removed). State first (the re-render detaches the
-   *  leaf's subscribers), then release — same ordering as TerminalTabs'
-   *  degrade path. */
+  /** Remove `id` and kill its PTY; false for the last leaf. State first (the
+   *  re-render detaches subscribers), then release. */
   function removeAndRelease(id: string): boolean {
     const cur = fullState()
     const next = removeLeaf(cur, id)
@@ -184,18 +137,13 @@ export function TerminalSplit(props: {
 
   function onLeafExit(id: string): void {
     if (removeAndRelease(id)) return
-    // Last leaf — release any dead non-leaf-1 registry entry the tree
-    // still names, clear the layout (back to the unsplit fast path), and
-    // hand the exit to the tab's own behavior (engine → degrade to shell,
-    // command tab → close).
+    // Last leaf: release any dead non-leaf-1 entry, clear the layout, hand off the exit.
     releaseSplitLeaves(props.tabKey, state)
     props.onSplitChange(null)
     props.onExit?.()
   }
 
-  /** The focused leaf's live emulator cells — feeds split-core's size gate
-   *  (split allowed while the resulting panes stay ≥ MIN_PANE_*; null for
-   *  a not-yet-spawned PTY falls back to the depth cap). */
+  /** Focused leaf's cells for split-core's ≥ MIN_PANE_* gate; null (unspawned) → depth cap. */
   const activeLeafSize = (): { cols: number; rows: number } | null =>
     getDefaultPtyRegistry().get(splitLeafPtyKey(props.tabKey, activeLeaf))?.size ?? null
 
@@ -204,16 +152,12 @@ export function TerminalSplit(props: {
     bindings: bindByIds({
       "workspace.split.right": () => update(splitActive(fullState(), "row", [defaultShell()], activeLeafSize())),
       "workspace.split.down": () => update(splitActive(fullState(), "column", [defaultShell()], activeLeafSize())),
-      // Focus cycle is LOCAL — no persist, no whole-tree re-render.
       "workspace.split.focus-next": () => setActiveLeaf(cycleLeaf(fullState(), 1).activeLeafId),
     }),
   }))
 
-  // ctrl+w closes / F2 renames the ACTIVE LEAF while split — the
-  // innermost thing, same convention as VS Code/iTerm/Warp (and tmux
-  // `prefix x`). Gated on isSplit: when the tab is unsplit these entries
-  // are disabled and the chords fall through the LIFO stack to
-  // TerminalTabs' close-tab / rename-tab bindings.
+  // While split, ctrl+w / F2 act on the ACTIVE LEAF (as VS Code/iTerm/tmux);
+  // unsplit, they fall through to TerminalTabs' tab bindings.
   const dialog = useDialog()
   useBindings(() => ({
     enabled: props.focused && isSplit,
@@ -236,16 +180,9 @@ export function TerminalSplit(props: {
 
   const leafFocused = (id: string) => props.focused && activeLeaf === id
 
-  // Live foreground-process titles for EVERY leaf (real terminals track
-  // this via the OSC 0/2 window-title escape: "zsh" idle, "vim"/"htop"
-  // once you run one — see `TaskPtyLike.onTitleChange`). leaf-1 is
-  // included: a SHELL tab's own leaf runs zsh and can enter claude/vim,
-  // and its static command basename would freeze on "zsh". Engine leaves
-  // still prefer their conversation title (`engineTitle` wins in
-  // `splitLeafNames`). Keyed by the globally-unique `splitLeafPtyKey` in the
-  // shared store, mapped back to the LEAF id here — the leaf id is only
-  // unique within one tab, so subscribing by ptyKey is what keeps two tabs'
-  // `leaf-1`s from sharing a title through this keyless-mounted instance.
+  // Live OSC titles for EVERY leaf, leaf-1 included (a shell tab can enter
+  // vim). Subscribed by the globally-unique `splitLeafPtyKey`: leaf ids are
+  // per-tab, and this instance mounts without a key across tabs.
   const leafPtyKeys = useMemo(() => {
     const map = new Map<string, string>()
     for (const leaf of leaves(state.root)) map.set(leaf.id, splitLeafPtyKey(props.tabKey, leaf.id))
@@ -253,10 +190,7 @@ export function TerminalSplit(props: {
   }, [props.tabKey, state])
   const liveTitles = useTitleSubscriptions(leafPtyKeys)
 
-  /** id → display name. The TAB is the "group" (its default title says
-   *  so) — each leaf carries its OWN
-   *  name: F2 rename wins, default = basename of what it runs
-   *  ("claude", "zsh", "zsh 2"…). Derivation is pure (`splitLeafNames`). */
+  /** id → display name: F2 rename wins, else basename of what it runs ("zsh 2"). */
   const leafNames = splitLeafNames(leaves(state.root), props.command, props.engineTitle, liveTitles)
 
   /* Dividers, not frames: a node draws ONLY the single edge it shares with
@@ -264,13 +198,9 @@ export function TerminalSplit(props: {
    * separator-line look, zero padding, no outer wrapping. The divider a
    * focused LEAF owns lights up in the focus accent. */
 
-  // NOTE: `borderColor` must be ABSENT (not undefined) on divider-less
-  // boxes — opentui's Box coerces `border: false` to `true` (a full
-  // frame) whenever any border styling lands, both in the constructor
-  // and in the `borderColor` setter, and the setter fires even for
-  // undefined because parseColor mints a fresh RGBA every call. Hence the
-  // conditional spread — without it, phantom frames appear around the first
-  // leaf and the group.
+  // `borderColor` must be ABSENT (not undefined) on divider-less boxes:
+  // opentui coerces `border: false` to a full frame whenever any border
+  // styling lands, and the setter fires even for undefined. Hence the spread.
   const dividerProps = (divider: "left" | "top" | undefined, color: RGBA) =>
     divider ? { border: [divider] as ("left" | "top")[], borderColor: color } : { border: false as const }
 
@@ -315,8 +245,7 @@ export function TerminalSplit(props: {
       </>
     )
     if (useBoxFrames) {
-      // Box style: every leaf is its own frame (the workspace-column card
-      // look); the shared-edge divider logic doesn't apply.
+      // Box style: every leaf is its own frame; no shared-edge dividers.
       return (
         <box
           key={leaf.id}
@@ -350,12 +279,8 @@ export function TerminalSplit(props: {
     )
   }
 
-  // `groupKey` is this node's key AT ITS PARENT (siblings only need
-  // uniqueness among themselves — React keys are not global). Leaves key
-  // off their stable id; a nested group has none, so its sibling INDEX
-  // stands in (stable unless the structure itself changes, which already
-  // remounts the subtree by design — split-core transitions return whole
-  // new trees, never reorder in place).
+  // Key AT THE PARENT: leaves by id, nested groups by sibling INDEX (stable:
+  // split-core returns whole new trees, never reorders in place).
   const renderNode = (node: SplitNode<LeafCommand>, groupKey: string, divider?: "left" | "top"): ReactNode =>
     node.kind === "leaf" ? (
       renderLeaf(node, divider)
@@ -385,9 +310,7 @@ export function TerminalSplit(props: {
       </box>
     )
   }
-  // Unsplit fast path: one long-lived borderless Terminal, props swapped
-  // in place on tab switch (never remounted while tabs stay unsplit) —
-  // leaf-1's key IS the tab key.
+  // Unsplit fast path: one Terminal, props swapped on tab switch, never remounted.
   return (
     <Terminal
       cwd={props.cwd}

@@ -1,16 +1,8 @@
 /**
  * The Kanban board's right-click menu: which card was clicked, the statuses it
- * can move to, and the highlight.
- *
- * The board is otherwise read-only — the ONLY human route out of a column was
- * `enter` into the detail drawer, `tab` across its fields, a status change and
- * `esc` back out. The sidebar's task rows have offered a one-step "Set status"
- * from their own right-click menu since it shipped; this is that same gesture
- * on the surface where columns actually mean something.
- *
- * Same three-way seam as `use-tree-menu.ts`: what the menu OFFERS is here,
- * what an entry DOES is the page's mutation callback, and `ContextMenu` only
- * draws. No new chord — a menu-only verb, on purpose.
+ * can move to, and the highlight. What the menu offers lives here; what an
+ * entry does is the page's mutation callback; `ContextMenu` only draws.
+ * Menu-only verb, no chord, on purpose.
  */
 
 import { ISSUE_STATUSES, type Issue, type IssueStatus } from "@sma1lboy/kobe-daemon/daemon/issues-store"
@@ -20,12 +12,7 @@ import { useBindings } from "../lib/keymap"
 import { useGlobalMouseDown } from "../lib/use-global-mouse-down"
 import type { ContextMenuEntry } from "../ui/context-menu"
 
-/**
- * `IssueStatus` → its `kanban.detail.status.*` key. Written out rather than
- * built by string surgery for the reason `status-picker-dialog.tsx` gives:
- * the `Record` makes the compiler demand an entry the day a fifth status
- * lands, instead of rendering a raw wire value.
- */
+/** Written out so the `Record` makes the compiler demand a key for a new status. */
 const STATUS_LABEL_KEY: Record<IssueStatus, string> = {
   open: "kanban.detail.status.open",
   doing: "kanban.detail.status.doing",
@@ -58,11 +45,9 @@ interface OpenMenu {
 }
 
 export function useKanbanCardMenu(deps: {
-  /** Move the card. The page owns the mutation, its reload and its error
-   *  toast — exactly as the drawer's own status change does. */
+  /** The page owns the mutation, its reload and its error toast. */
   readonly setStatus: (issue: Issue, status: IssueStatus) => void
-  /** Move the board cursor onto the card the menu belongs to, so the
-   *  highlight and the menu cannot disagree about which card acts next. */
+  /** Moves the board cursor onto the menu's card so highlight and menu agree. */
   readonly onSelect: (issueId: number) => void
 }): KanbanCardMenu {
   const t = useT()
@@ -71,9 +56,8 @@ export function useKanbanCardMenu(deps: {
 
   const openForCard = useCallback(
     (issue: Issue, x: number, y: number): void => {
-      // The card's CURRENT status is not offered: picking it would be a
-      // write that moves nothing, and its absence is also what tells you
-      // which one you are on without a marker column.
+      // The current status is omitted: it would be a no-op write, and its
+      // absence marks which one the card is on.
       const statuses = ISSUE_STATUSES.filter((status) => status !== issue.status)
       deps.onSelect(issue.id)
       setMenu({ issue, statuses, x, y })
@@ -84,9 +68,8 @@ export function useKanbanCardMenu(deps: {
 
   const close = useCallback((): void => setMenu(null), [])
 
-  // A press anywhere else dismisses it. Presses INSIDE the menu never reach
-  // the root (`ContextMenu` stops the down phase), so picking still gets its
-  // mouse-up. Same rule as the sidebar's menu.
+  // A press elsewhere dismisses it; presses inside never reach the root
+  // (`ContextMenu` stops the down phase), so picking still gets its mouse-up.
   useGlobalMouseDown(menu !== null, close)
 
   const moveCursor = useCallback(
@@ -101,8 +84,7 @@ export function useKanbanCardMenu(deps: {
   const fire = useCallback(
     (status: IssueStatus | undefined): void => {
       if (!menu || status === undefined) return
-      // Close BEFORE dispatching: the mutation reloads the board underneath,
-      // and a menu still painted over re-shuffled cards points at nothing.
+      // Close before dispatching: the mutation reloads the board underneath.
       const issue = menu.issue
       setMenu(null)
       deps.setStatus(issue, status)
@@ -110,10 +92,8 @@ export function useKanbanCardMenu(deps: {
     [menu, deps.setStatus],
   )
 
-  // Menu-scope keys, owned HERE rather than by the page: the menu's state and
-  // its keyboard are the same thing, and the page's own bindings only need to
-  // know that they stand down while it is up. NO new chord — up/down/enter/
-  // escape are what every open popup in the product already answers to.
+  // Menu keys live with the menu state; the page's bindings just stand down
+  // while it is open.
   useBindings(() => ({
     enabled: menu !== null,
     bindings: [

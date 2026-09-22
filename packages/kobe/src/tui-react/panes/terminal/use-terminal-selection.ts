@@ -1,48 +1,23 @@
 /**
- * Copy-on-select, GRID-based selection for the embedded terminal pane (see
- * `terminal-selection.ts` for why opentui's text-flow selection can't work
- * over this pane). Its own hook because selection is
- * self-contained mouse state that the rest of the pane never reads — and,
- * per the two notes below, it is the part with the most non-obvious
- * re-render rules, which are easier to hold correct in one file.
+ * Copy-on-select GRID selection for the terminal pane (`terminal-selection.ts`
+ * says why opentui's text-flow selection can't work here).
  *
- * Anchor and head live in ABSOLUTE snapshot coordinates so the highlight
- * survives every frame refresh and scrollback move. A ZERO-WIDTH selection
- * (a plain click, before any drag) resolves to `null` — rendering no
- * highlight and, more importantly, keeping `selection` reference-stable
- * across a click so the snapshot content isn't re-pushed for nothing — a
- * re-push twitches the whole pane.
+ * Anchor/head are ABSOLUTE snapshot coordinates. A ZERO-WIDTH selection (a
+ * plain click) resolves to `null`, keeping `selection` reference-stable so
+ * the snapshot isn't re-pushed (a re-push twitches the pane). `isDragging` is
+ * a ref: as state it would re-render on every pixel of drag.
  *
- * `isDragging` is a plain ref, not state: it flips on every mouse-move
- * during a drag, and mirroring that into React state would re-render the
- * pane on every pixel of drag motion for no visible benefit.
+ * A drag at (or past) the top/bottom EDGE ROW auto-scrolls. The pull starts
+ * at the boundary row because the pane sits flush under a one-row tab strip,
+ * and only in the direction the selection grows. Ticks only scroll; the head
+ * is re-derived from the last pointer position whenever the viewport moves.
  *
- * A drag held at (or past) the pane's top or bottom EDGE ROW auto-scrolls the
- * viewport, the way every terminal emulator does — without it the selection
- * can never reach a row that is already above the first visible one. The pull
- * starts at the boundary row itself because the pane sits flush under a
- * one-row tab strip: "past the edge" is a target the pointer rarely hits. It
- * only pulls in the direction the selection is actually growing, so dragging
- * sideways along the first row (anchor on that row) never scrolls. Each tick
- * only scrolls; the head is re-derived from the last pointer position
- * whenever the viewport moves, so it follows the scroll exactly and a wheel
- * tick mid-drag extends the selection too.
- *
- * When the scroll was FORWARDED to an app that owns its own scrollback (an
- * engine on the alternate screen), the viewport never moves — the app redraws
- * and the content shifts under snapshot row numbers that stay put. While a
- * SELECTION EXISTS — during the drag and after the release, until the next
- * click clears it — every snapshot change is measured with `snapshotShift` and
- * the endpoints move with the content (`followContentShift`); the rows that
- * scrolled off screen are banked in a bounded shadow so the copy contains
- * exactly what the highlight covered. During the drag only the anchor follows,
- * because the head belongs to the pointer.
- *
- * On the NORMAL screen the displacement is known rather than measured: kobe's
- * own scrollback is bounded, so a saturated buffer drops one row off the front
- * per new line and `snapshotWindow.startLine` — the absolute line id the
- * viewport is already anchored to — gives the exact offset to translate the
- * endpoints by.
+ * FORWARDED scrolls (alt-screen engines) never move the viewport: while a
+ * selection EXISTS, each snapshot change is measured (`snapshotShift`) and the
+ * endpoints follow the content (`followContentShift`), with scrolled-off rows
+ * banked in a bounded shadow so the copy matches the highlight. Mid-drag only
+ * the anchor follows; the head belongs to the pointer. On the NORMAL screen
+ * the shift is known: `snapshotWindow.startLine` gives the exact offset.
  */
 
 import type { BoxRenderable } from "@opentui/core"
@@ -78,32 +53,20 @@ export interface UseTerminalSelectionOpts {
   /** Absolute snapshot row index of the first VISIBLE row (viewport start). */
   visibleRangeStart: number
   snapshot: readonly TerminalRow[]
-  /**
-   * Absolute line id of `snapshot[0]`, or null when the backend can't number
-   * lines (alternate screen, or no scrollback yet). A bounded scrollback trims
-   * from the front, so this is what keeps the selection on its content.
-   */
+  /** Absolute line id of `snapshot[0]`; null when lines can't be numbered
+   *  (alternate screen, no scrollback yet). Keeps a trimmed selection on its content. */
   snapshotWindow: TerminalSnapshotWindow | null
   /** Soft-wrap flags parallel to `snapshot`: a copied logical line must not
    *  grow the newlines the emulator's column limit put on screen. */
   wrapped: RowWrapFlags
-  /**
-   * Scroll for a drag hanging past an edge: negative goes up into history,
-   * positive toward live. The pointer's absolute coords come along because the
-   * pane may have to forward wheel ticks to an app that owns its own
-   * scrollback (an engine on the alternate screen has no local scrollback).
-   * Returns true when the scroll was forwarded to the app that way — the cue
-   * to start measuring content shifts against the snapshot.
-   */
+  /** Edge-drag scroll (negative = history). Coords come along for forwarding to
+   *  an app that owns its scrollback; true = forwarded, start measuring shifts. */
   scrollBy: (lines: number, screenX: number, screenY: number) => boolean
   /**
-   * The app inside the PTY has mouse tracking on right now — see
-   * {@link appTookMouse} for why the pane's own selection yields to it.
-   * Re-read on every render, so the flip is noticed on the frame the app
-   * repaints with.
-   * ponytail: an app that enabled tracking and drew NOTHING would go
-   * unnoticed until its next output; entering vim/claude/less always
-   * repaints, so that frame is the flip.
+   * The PTY app has mouse tracking on (see {@link appTookMouse}). Re-read
+   * every render.
+   * ponytail: an app that enabled tracking and drew NOTHING goes unnoticed
+   * until its next output; vim/claude/less always repaint on entry.
    */
   appOwnsMouse: boolean
 }
@@ -153,14 +116,10 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
   const cellFromEvent = (evt: { x?: number; y?: number }): CellPoint | null => resolvePointer(evt)?.cell ?? null
 
   /**
-   * opentui only starts capturing a drag on the FIRST drag event, routed by hit
-   * test — a gesture whose first move already lands outside the pane (a fast
-   * drag, or a press on the top row moving up into the tab strip) hands the
-   * whole drag to whatever sits under the pointer, and this pane never hears
-   * about it again. So claim the capture on PRESS. `setCapturedRenderable` is
-   * TS-private, not runtime-private.
-   * ponytail: reaching into it beats re-implementing opentui's dispatch; if it
-   * ever goes away, the fallback is a root-level drag listener.
+   * Claim the drag capture on PRESS: opentui captures on the first drag
+   * event by hit test, so a fast first move outside the pane loses the drag.
+   * `setCapturedRenderable` is TS-private, not runtime-private.
+   * ponytail: if it ever goes away, fall back to a root-level drag listener.
    */
   const captureDrag = (el: BoxRenderable | null): void => {
     ;(renderer as unknown as { setCapturedRenderable?: (r: unknown) => void })?.setCapturedRenderable?.(el ?? undefined)
@@ -173,9 +132,7 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     shadowRef.current = EMPTY_SHADOW
     lastSnapshotRef.current = opts.snapshot
     lastWindowRef.current = opts.snapshotWindow
-    // Mirrored into a ref as well: the drag events of a fast gesture land
-    // before React has re-rendered with the new anchor, and the auto-scroll
-    // direction check must not read a stale (null) one.
+    // Also a ref: a fast gesture's drag events land before the re-render.
     anchorRef.current = cell
     setSelAnchor(cell)
     setSelHead(cell)
@@ -183,19 +140,15 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
 
   /* --------- drag + edge auto-scroll ---------- */
 
-  // The last pointer position of the live drag, in absolute screen coords —
-  // the auto-scroll tick and the post-scroll head refresh both re-read it.
+  // Last pointer position (absolute screen coords) of the live drag.
   const dragPointRef = useRef<{ x: number; y: number } | null>(null)
-  // App-owned scrolling (alt-screen engines): set once a wheel was forwarded
-  // during this drag; from then on snapshot changes are measured and the
-  // anchor + shadow follow the content. All reset by the next beginSelection.
+  // Set once a wheel is forwarded; reset by the next beginSelection.
   const appScrolledRef = useRef(false)
   const shadowRef = useRef<SelectionShadow>(EMPTY_SHADOW)
   const lastSnapshotRef = useRef(opts.snapshot)
   const lastWindowRef = useRef(opts.snapshotWindow)
   const autoScrollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  // The tick closes over render-derived geometry, so it's refreshed after
-  // every render rather than captured once when the interval starts.
+  // Refreshed every render: the tick reads render-derived geometry.
   const tickRef = useRef<() => void>(() => {})
 
   const clearSelectionState = (): void => {
@@ -219,13 +172,8 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     stopAutoScroll()
   }
 
-  /**
-   * The pull only counts when the selection is GROWING that way: at the
-   * boundary row the pointer is still inside the pane, so a sideways drag
-   * along the first row (anchor on that row) must not drag the viewport with
-   * it. Once the pointer is genuinely past the edge, the head is already
-   * beyond the anchor and this is satisfied by construction.
-   */
+  /** The pull counts only when the selection GROWS that way, so a sideways
+   *  drag along the boundary row doesn't scroll. */
   const pullFor = (at: { cell: CellPoint; edgePull: number }, anchor: CellPoint | null): number => {
     if (at.edgePull === 0 || !anchor) return 0
     if (at.edgePull < 0) return at.cell.row < anchor.row ? at.edgePull : 0
@@ -251,16 +199,13 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
         stopAutoScroll()
         return
       }
-      // Speed follows how far past the edge the pointer is, capped so a drag
-      // to the edge of the screen doesn't fly through the whole scrollback.
+      // Speed scales with distance past the edge, capped.
       const capped = Math.max(-AUTO_SCROLL_MAX_LINES, Math.min(AUTO_SCROLL_MAX_LINES, pull))
       if (opts.scrollBy(capped, point.x, point.y)) appScrolledRef.current = true
     }
   })
 
-  // Whenever the viewport moves under a live drag, the pointer is over a
-  // different absolute row — re-derive the head so the highlight keeps up
-  // with the scroll instead of trailing it by a tick.
+  // Viewport moved under a live drag: re-derive the head so it doesn't trail a tick.
   // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on viewport moves; the pointer is a ref and the resolver is re-made per render.
   useEffect(() => {
     if (!draggingRef.current) return
@@ -276,24 +221,11 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     setSelHead(rolled.head)
   }
 
-  // Two ways the content can move out from under a selection, and they are
-  // mutually exclusive by which layer owns the scrollback:
-  //
-  //  - NORMAL screen: kobe owns a BOUNDED scrollback, so once it saturates
-  //    every new line drops one row off the front and each array index means
-  //    content one line newer. `snapshotWindow.startLine` states that
-  //    displacement exactly (`followWindowShift`) — no matching needed.
-  //  - ALTERNATE screen: the app owns its scrollback, the viewport never moves
-  //    and there is no window to number lines with, so the shift has to be read
-  //    back off the content (`followContentShift`) and the rows that scrolled
-  //    off banked in the shadow so the copy still has them.
-  //
-  // The content measurement only runs when the window did NOT move: a trim
-  // already fully explains the array-coordinate displacement, and re-deriving
-  // it would apply the same shift twice. It stays gated on a wheel having been
-  // forwarded, because it is an O(rows^2) text comparison that must not run on
-  // every PTY frame for nothing — and on a selection EXISTING rather than on a
-  // live drag, because a released selection still belongs to its content.
+  // NORMAL screen: a saturated bounded scrollback shifts by exactly the
+  // `startLine` delta (`followWindowShift`). ALTERNATE screen: the shift is
+  // read off the content (`followContentShift`), only when the window did NOT
+  // move (else the shift applies twice), only after a forwarded wheel (it is
+  // O(rows^2)), and while a selection EXISTS (a released one still follows).
   // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on snapshot pushes; `selHead` is read from the render that pushed them.
   useEffect(() => {
     const prevSnapshot = lastSnapshotRef.current
@@ -309,8 +241,7 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
       opts.snapshot.length,
       draggingRef.current,
     )
-    // Line numbering was reset (a resize reflows history): the selection
-    // addresses content that is gone from under those ids.
+    // Numbering reset (resize reflow): the selection's content is gone.
     if (!windowed) {
       clearSelectionState()
       return
@@ -323,13 +254,9 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     applyShift(followContentShift(state, prevSnapshot, opts.snapshot, draggingRef.current))
   }, [opts.snapshot, opts.snapshotWindow])
 
-  // The app TAKING the mouse ends the pane's claim on the selection: `vim`
-  // typed at a prompt where text is still highlighted, or launched mid-drag,
-  // would otherwise leave a second highlight stacked on the app's own — and a
-  // live drag would keep extending it INSIDE the app, since the press that
-  // started it was never forwarded. Edge-triggered on purpose (see
-  // `appTookMouse`): a shift-drag begun while the app already owned the mouse
-  // sees no edge and keeps its highlight.
+  // The app TAKING the mouse ends the pane's selection (else two stacked
+  // highlights, and a live drag extending inside the app). Edge-triggered: a
+  // shift-drag begun while the app already owned the mouse keeps its highlight.
   const appOwnedMouseRef = useRef(opts.appOwnsMouse)
   // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the ownership flip alone; the two teardown helpers are re-made every render and listing them would re-run this on every frame.
   useEffect(() => {
@@ -340,7 +267,7 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     clearSelectionState()
   }, [opts.appOwnsMouse])
 
-  // Unmount mid-drag (tab closed, pane swapped) must not leave a timer behind.
+  // Unmount mid-drag must not leave a timer behind.
   useEffect(
     () => () => {
       if (autoScrollRef.current) clearInterval(autoScrollRef.current)
@@ -349,27 +276,17 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
   )
 
   /**
-   * Copy-on-release. Success stays SILENT — a toast on every drag would be
-   * noise on the pane's most frequent gesture — but a failure has to speak,
-   * or the highlight is the only thing that ever acknowledged the drag and it
-   * acknowledged something that did not happen.
-   *
-   * A selection with nothing but whitespace in it is skipped rather than
-   * failed: a stray click is a zero-width selection, and clobbering the
-   * clipboard with a run of spaces every time the pointer twitches is worse
-   * than doing nothing. There is nothing to report because nothing was tried.
-   *
-   * ponytail: on a box where NEITHER channel exists this fires once per drag.
-   * That is a machine-wide configuration the user fixes once, not a transient
-   * error, so it is left un-deduped rather than growing a suppression cache.
+   * Copy-on-release: success is SILENT, failure toasts. Whitespace-only
+   * selections are skipped, not copied over the clipboard.
+   * ponytail: with NEITHER clipboard channel this toasts once per drag; it's
+   * a one-time machine fix, so no suppression cache.
    */
   const copySelection = (): void => {
     if (!selection) return
     const text = extractShadowedSelection(opts.snapshot, shadowRef.current, selection, opts.wrapped)
     if (text.trim().length === 0) return
     void copyTextToSystemClipboard(text, (payload) => renderer?.copyToClipboardOSC52(payload)).then((copied) => {
-      // Empty task/tab ids: the toast queue is what this needs, not the tab's
-      // unread badge — same pattern as the standalone pages' `notifyError`.
+      // Empty task/tab ids: toast only, no unread badge.
       if (!copied) notifications?.notify({ kind: "error", taskId: "", tabId: "", title: t("tasks.toast.copyFailed") })
     })
   }
@@ -384,8 +301,7 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     clearSelection: clearSelectionState,
     copySelection,
     noteAppScroll: () => {
-      // Armed by a selection, not by a drag — a wheel AFTER the release has to
-      // start the measuring too, or the highlight stops following its content.
+      // Armed by a selection, not a drag: a wheel after release must measure too.
       if (anchorRef.current) appScrolledRef.current = true
     },
   }

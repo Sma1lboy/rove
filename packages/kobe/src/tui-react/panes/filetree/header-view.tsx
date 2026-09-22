@@ -1,10 +1,5 @@
 /** @jsxImportSource @opentui/react */
-/**
- * View for the file tree pane's header chrome: the optional
- * Zen / Create-PR action row, the All / Changes tab chips, and the
- * Changes-tab status legend. Pure render — tab state and actions stay in
- * the pane component.
- */
+/** File tree header: Zen / Create-PR chips, All / Changes tabs, Changes legend. Pure render. */
 
 import { TextAttributes } from "@opentui/core"
 import { findBinding } from "../../../tui/context/keybindings"
@@ -17,35 +12,28 @@ import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 
 export type FileTreeHeaderProps = {
-  /** The active tab. */
   tab: FileTreeTab
   /** Changes-tab scope (working ↔ branch vs base). */
   scope: GitScope
   /** Resolved Branch-scope base ref, or null when none resolved (Branch
    *  scope + `b` toggle are unavailable then). */
   base: string | null
-  /** Mouse tab switch. */
   onSelectTab: (tab: FileTreeTab) => void
   /** Optional Ops-pane chips (see FileTreeProps). */
   onZenToggle?: () => void
   onCreatePR?: () => void
-  /** Open the whole worktree's combined diff in one tab. Rendered as a chip on
-   *  the Changes tab so the feature is reachable with no chord at all — its
-   *  `D` binding is still PROPOSED (docs/design/keybinding-decisions.md). */
+  /** Whole-worktree combined diff, as a chip: its `D` binding is still
+   *  PROPOSED (docs/design/keybinding-decisions.md). */
   onDiffAll?: () => void
 }
 
 export function FileTreeHeaderView(props: FileTreeHeaderProps) {
   const { theme } = useTheme()
   const t = useT()
-  // Create PR is a global prefix chord (prefix+p) — render the live prefix
-  // key so the hint follows a user-remapped prefix. Null when the prefix is
-  // disabled: the chip stays clickable, just without a chord label.
+  // Live prefix key so the cap follows a remap; null (prefix disabled) → no cap.
   const prefixKey = currentPrefixConfiguration().key
   const createPRChord = prefixKey ? `[${formatChord(prefixKey)} P]` : null
-  // Zen is prefix-only too, so its cap comes from the same live pair. It used
-  // to be the string literal `[~]`, and `~` is bound to nothing anywhere in
-  // Rove — the chip taught a dead key while `prefix+z` was the real one.
+  // Zen is prefix-only too; its cap comes from the live binding, never a literal.
   const zenStroke = findBinding("workspace.zenToggle")?.prefixKeys?.[0]
   const zenChord = prefixKey && zenStroke ? `[${formatChord(prefixKey)} ${zenStroke.toUpperCase()}]` : null
   return (
@@ -53,16 +41,10 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
       {/* Action row — sits above the All / Changes tabs so it's reachable
          from both tabs. Zen toggle sits left of Create PR (prefix+p). */}
       {props.onZenToggle || props.onCreatePR ? (
-        // wrap, and chips flexShrink={0}: on a narrow pane Yoga squeezes the
-        // chips' inner gaps first ("[~]Zen"), and with shrink forbidden the
-        // row would overflow the pane border instead — wrapping stacks the
-        // chips right-aligned, both still whole.
-        //
-        // columnGap, NOT gap: Yoga's `gap` sets BOTH gutters, so the wrap this
-        // row is designed around also inherited a 2-row vertical gutter — and
-        // the chips ALWAYS wrap (8 + 2 + 30 cells against the pane's 22-34
-        // cell clamp), so the header permanently opened with Zen, two blank
-        // rows, Create PR. Only the horizontal gutter is wanted here.
+        // wrap + chips flexShrink={0}: a narrow pane stacks whole chips
+        // instead of squeezing their inner gaps or overflowing the border.
+        // columnGap, NOT gap: `gap` also sets the vertical gutter, and the
+        // chips always wrap (8 + 2 + 30 cells vs the pane's 22-34 clamp).
         <box
           flexDirection="row"
           flexWrap="wrap"
@@ -72,18 +54,13 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
           flexShrink={0}
         >
           {props.onZenToggle ? (
-            // stopPropagation: the chip click must NOT bubble to the host
-            // pane box's own onMouseUp (workspace host focuses the files
-            // pane there) — zen would toggle on and instantly exit via
-            // the focus-leaves-workspace guard. A chip click is an
-            // action, never a background pane click.
+            // stopPropagation: bubbling to the host's focus-the-pane onMouseUp
+            // would toggle zen on and exit it via the focus-leaves-workspace guard.
             <box
               position="relative"
               flexDirection="row"
               gap={1}
-              // Never squeeze the chip below its content: on a narrow pane the
-              // shrink ate the inner gap first ("[~]Zen"), which reads as one
-              // garbled token instead of a keycap + label.
+              // Never squeeze: shrink eats the keycap/label gap first.
               flexShrink={0}
               onMouseUp={(e: { stopPropagation(): void }) => {
                 e.stopPropagation()
@@ -165,8 +142,7 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
             {t("files.legend.changes")}
           </text>
           {props.onDiffAll ? (
-            // stopPropagation for the same reason the Zen chip does it: a chip
-            // click is an action, never a background click on the pane.
+            // stopPropagation: same reason as the Zen chip.
             <text
               fg={theme.accent}
               wrapMode="none"

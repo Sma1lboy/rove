@@ -1,16 +1,9 @@
 /**
- * Quick-fork — resolve the composer's seed defaults from the active task,
- * and drive `orch.createTask` with the same side effects
- * `quick-task/host.tsx` and the shared `createTaskFlow`
- * (`tui/lib/task-actions.ts`) both perform: `addSavedRepo` + `setRepoLastActiveVendor`
- * before create, `selectTask`/`enterTask` after. Also owns the phase-2
- * first-prompt handoff (`useQuickFork`): the composer resolves on the
- * SOURCE task's TerminalTabs mount, but the prompt has to reach the
- * NEW task's mount, so the pending prompt is held here, keyed by task id.
- *
- * Its own module because BOTH `TerminalTabs.tsx` and `host.tsx` drive this
- * gesture: the create/enter/pending-prompt shape must not exist twice, or the
- * two entry points diverge on the side effects above.
+ * Quick-fork: seed the composer from the active task and create with the same
+ * side effects as `createTaskFlow` (`addSavedRepo` + `setRepoLastActiveVendor`
+ * before, select/enter after). Holds the pending first prompt: the composer
+ * resolves on the SOURCE task's mount, the prompt must reach the NEW one's.
+ * Shared by `TerminalTabs.tsx` and `host.tsx` so they can't diverge.
  */
 
 import { userFacingErrorMessage } from "@/lib/error-message"
@@ -27,13 +20,9 @@ import type { QuickTaskComposerOptions, QuickTaskResult } from "../component/qui
 import { type RoundOrchestrator, runQuickForkRound } from "./quick-fork-round"
 
 /**
- * Seed the composer from the task a quick-fork chord fired in.
- *
- * `branchFrom` is the SOURCE TASK'S WORKTREE, not the main checkout: a fork
- * is "carry on from where I am", so the child branches off the parent task's
- * branch (with its commits), not off whatever the main checkout happens to
- * have checked out. Falls back to `repo` for callers without a worktree.
- * Uncommitted work in the parent does NOT come along — commit it first.
+ * `branchFrom` is the SOURCE TASK'S WORKTREE, not the main checkout: the child
+ * branches off the parent's commits. Falls back to `repo`. Uncommitted work
+ * does NOT come along.
  */
 export function quickForkComposerOptions(
   repo: string,
@@ -63,11 +52,7 @@ export interface QuickForkOrchestrator extends RoundOrchestrator {
   setPrompt(id: string, prompt: string): Promise<void>
 }
 
-/**
- * Create the forked task and apply the same side effects
- * `createTaskFlow`/`quick-task/host.tsx` apply on submit: remember the
- * picked vendor as the repo's new default and auto-save the repo.
- */
+/** Create, plus `createTaskFlow`'s side effects: vendor becomes the repo default, repo auto-saved. */
 async function createQuickForkTask(
   orch: QuickForkOrchestrator,
   repo: string,
@@ -79,14 +64,8 @@ async function createQuickForkTask(
   return orch.createTask({ repo, baseRef, vendor })
 }
 
-/**
- * Full quick-fork submit flow: create the task, then land the host's
- * selection/entry on it — the same "select then enter" order
- * `createTaskFlow` ends on. Errors are reported via `notifyError`, never
- * thrown. Returns the created task's id (undefined on failure) so the
- * caller can hand its first-prompt delivery to the new task's TerminalTabs
- * mount (phase 2).
- */
+/** Create, then select + enter (`createTaskFlow`'s order). Errors go to
+ *  `notifyError`, never thrown. Returns the new id, or undefined. */
 async function runQuickFork(
   orch: QuickForkOrchestrator,
   repo: string,
@@ -110,21 +89,10 @@ async function runQuickFork(
 }
 
 /**
- * Re-fire a task's stored brief as a NEW task ("Run again", row menu).
- *
- * Rove records the delivered `add --prompt` text on the task (`task.prompt`)
- * precisely so an attempt that went wrong can be re-run clean. The child is a
- * quick-fork with the SOURCE's own inputs — same repo, same engine,
- * cut from the base ref the source was cut from — so the only difference
- * between the two runs is the worktree.
- *
- * The brief rides the create path VERBATIM. It must not be routed through the
- * quick-task composer: that field is a single-line input running
- * `stripNewlines`, which would silently flatten a multi-line brief and re-run
- * something the user never wrote.
- *
- * Returns the new task's id, or undefined when the source has no stored brief
- * or the create failed (`runQuickFork` already reported it).
+ * "Run again": re-fire `task.prompt` as a NEW task with the source's repo,
+ * engine and base ref, so only the worktree differs. The brief rides VERBATIM,
+ * never through the composer, whose `stripNewlines` would flatten it.
+ * Undefined when there is no brief or the create failed (already reported).
  */
 export async function runAgainTask(
   orch: QuickForkOrchestrator,
@@ -137,17 +105,12 @@ export async function runAgainTask(
 ): Promise<string | undefined> {
   const prompt = task.prompt
   if (prompt === undefined) return undefined
-  // Same fork point as the source, so a re-run compares against the same base.
-  // `baseRef` is only absent on records predating the field (types/task.ts) —
-  // fall back to the live branch the way `quickForkComposerOptions` does.
+  // Same fork point as the source. `baseRef` is absent only on old records.
   const baseRef = task.baseRef ?? getCurrentBranch(task.worktreePath || task.repo) ?? DEFAULT_BASE_REF
   const vendor = task.vendor ?? DEFAULT_TASK_VENDOR
   const taskId = await runQuickFork(orch, task.repo, { baseRef, vendor }, hooks)
   if (taskId === undefined) return undefined
-  // Copy the brief onto the child so it is re-runnable in turn, and so
-  // `rove api get-task` reports the text its engine is being handed.
-  // Best-effort: the prompt is already on its way to the tab, and a failed
-  // persist must not turn a created task into an error.
+  // Child is re-runnable in turn. Best-effort: the prompt is already on its way.
   await orch.setPrompt(taskId, prompt).catch(() => undefined)
   return taskId
 }
@@ -160,21 +123,14 @@ interface PendingInitialPrompt {
 export interface UseQuickForkResult {
   /** Pass to `ShowWorkspace`'s `onQuickFork` prop. */
   readonly onQuickFork: (repo: string, result: QuickTaskResult) => void
-  /** Pass to `ShowWorkspace`'s `initialPrompt` prop, gated on the currently
-   *  selected task — undefined for every task except the one just forked. */
+  /** Pass to `initialPrompt`; undefined except for the task just forked. */
   readonly initialPromptFor: (taskId: string | undefined) => string | undefined
-  /** Row menu "Run again": create the child and hand it the source's brief
-   *  through the same pending slot the composer's forks use. */
+  /** Row menu "Run again", via the same pending slot. */
   readonly runAgain: (task: Task) => void
 }
 
-/**
- * Host-level quick-fork wiring: runs the create+enter flow, then holds the
- * prompt for the ONE render cycle it takes `ShowWorkspace` to remount
- * `TerminalTabs` on the new task (a plain `{ taskId, prompt } | null`, not
- * a Map — `runQuickFork`'s `enterTask` lands `selectedTask` on the new task
- * first, so at most one prompt is ever pending).
- */
+/** Holds the prompt until `TerminalTabs` remounts on the new task. A single
+ *  slot, not a Map: `enterTask` lands first, so at most one is pending. */
 export function useQuickFork(
   orch: QuickForkOrchestrator,
   hooks: {
@@ -189,9 +145,7 @@ export function useQuickFork(
 
   async function onQuickFork(repo: string, result: QuickTaskResult): Promise<void> {
     const prompt = appendAttachmentRefs(result.prompt, result.attachments)
-    // A round (attempts > 1) is a different gesture, not a loop over this one:
-    // it does not steal focus and it cannot ride the single pending slot. See
-    // `quick-fork-round.ts`. One attempt keeps today's behaviour exactly.
+    // A round is a different gesture (`quick-fork-round.ts`), not a loop over this one.
     if (result.attempts > 1) {
       const outcome = await runQuickForkRound(orch, repo, { ...result, prompt, attempts: result.attempts })
       if (outcome.failures.length > 0) {

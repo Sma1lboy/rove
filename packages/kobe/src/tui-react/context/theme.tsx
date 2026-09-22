@@ -1,16 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Theme provider for kobe. All theme SEMANTICS (bundled registry,
- * resolution, focus-accent + transparent overlay) come from the shared
- * framework-free `src/tui/context/theme-core.ts`; this file owns only the
- * React reactivity.
- *
- *   - `useTheme().theme` is a PLAIN resolved object, not a Proxy: React
- *     components re-render via context when the theme changes, so there is
- *     nothing for per-property reactive reads to do.
- *   - Module-level registry state lives in an external store (subscribed
- *     via useSyncExternalStore), so `addTheme`/`listThemes` work before or
- *     outside any provider.
+ * React side of theming; semantics live in `src/tui/context/theme-core.ts`.
+ * `useTheme().theme` is a plain resolved object (re-renders come via
+ * context). Registry state is a module-level external store, so
+ * `addTheme`/`listThemes` work outside any provider.
  */
 
 import { RGBA } from "@opentui/core"
@@ -48,11 +41,8 @@ const store = createStateCell<State>({
   themes: { ...BUNDLED_THEMES },
   active: DEFAULT_THEME,
   mode: DEFAULT_THEME_MODE,
-  // Transparent by default — kobe sits on the terminal's own
-  // background unless the user explicitly turns transparency off. Every
-  // host reseeds this before its first render from
-  // `readPersistedUiPrefs`, whose unset default is platform-aware
-  // (`defaultTransparentBackground` — opaque on Windows, see there).
+  // Hosts reseed this before first render from `readPersistedUiPrefs`, whose
+  // unset default is platform-aware (`defaultTransparentBackground`).
   transparentBackground: true,
   focusAccent: "primary",
 })
@@ -72,10 +62,8 @@ export function addTheme(name: string, theme: ThemeJson): boolean {
   return true
 }
 
-// Module-level accessors/setters, usable outside the provider. The host-boot
-// path seeds persisted prefs through these BEFORE the first render (no
-// flash) and applies live daemon ui-prefs pushes without a hook scope; the
-// provider's context methods delegate to the same store.
+// Usable outside the provider: host-boot seeds prefs before first render (no
+// flash) and applies daemon ui-prefs pushes without a hook scope.
 
 export function selectedTheme(): string {
   return store.get().active
@@ -137,11 +125,7 @@ export type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
-/**
- * How long the transparent-mode host-background query waits for the
- * terminal's OSC 11 reply before falling back to the unguarded palette.
- * Terminals that never answer must not stall the theme.
- */
+/** OSC 11 reply wait before falling back to the unguarded palette; silent terminals must not stall. */
 const HOST_PALETTE_QUERY_TIMEOUT_MS = 2_000
 
 function resolveActive(state: State, mode: ThemeMode): Theme {
@@ -177,9 +161,7 @@ function useHostThemeMode(renderer: ReturnType<typeof useRenderer> | null): Them
 }
 
 export function ThemeProvider(props: { children?: ReactNode; mode?: ThemeModePreference; theme?: string }) {
-  // Seed once from props, during the first render (not an effect) so the very
-  // first paint already uses the requested theme; the store dedupes identical
-  // snapshots.
+  // Seed during the first render, not an effect, so the first paint is right.
   // biome-ignore lint/correctness/useExhaustiveDependencies: seed-once semantics.
   useMemo(() => {
     store.update((s) => ({
@@ -194,14 +176,10 @@ export function ThemeProvider(props: { children?: ReactNode; mode?: ThemeModePre
   const hostMode = useHostThemeMode(renderer)
   const mode = resolveThemeMode(state.mode, hostMode)
 
-  // Host-background detection for the transparent-mode contrast guard
-  // (contrast-guard.ts). The theme's muted ink renders directly on the
-  // host terminal's background, which the palette author never saw; the
-  // renderer's palette query (OSC 11) is the only honest source of that
-  // color. One-shot per transparent toggle is enough — a terminal
-  // background rarely mid-session changes, and a missed detection just
-  // means the status quo (unguarded) palette. Inline hosts (split-footer)
-  // skip: their stdin is not an interactive terminal worth querying.
+  // Host background for the transparent-mode contrast guard: muted ink draws
+  // on a background the palette author never saw, and OSC 11 is the only
+  // source. One-shot per toggle; a miss leaves the unguarded palette. Inline
+  // hosts skip: their stdin is not an interactive terminal.
   const [hostBackground, setHostBackground] = useState<RGBA | null>(null)
   useEffect(() => {
     if (!state.transparentBackground) return
@@ -231,10 +209,8 @@ export function ThemeProvider(props: { children?: ReactNode; mode?: ThemeModePre
     [state, mode, hostBackground],
   )
 
-  // Push background to the renderer so the terminal background matches
-  // (or shows through, when transparentBackground is on). Inline hosts
-  // (split-footer: update list, onboarding) never paint one — a CLI
-  // command should sit on the shell's own background, prompt-style.
+  // Inline (split-footer) hosts never paint a background: a CLI command sits
+  // on the shell's own.
   useEffect(() => {
     if (renderer?.screenMode === "split-footer") return
     renderer?.setBackgroundColor(theme.background ?? RGBA.fromInts(0, 0, 0))

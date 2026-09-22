@@ -1,17 +1,12 @@
 /** @jsxImportSource @opentui/react */
 /**
- * WorkItemsPage — a repo's GitHub issues, and one key to start work on one.
+ * WorkItemsPage — a repo's GitHub issues, read-only; `r` forces past the
+ * daemon's 60s cache.
  *
- * Same page shape as {@link WorktreesPage} / {@link AutomationsPage}. What is
- * specific here is that the list is a view of someone else's data: nothing on
- * this page edits the tracker, and `r` forces past the daemon's 60s cache
- * because "is this list current" is a question only the user can answer.
- *
- * Enter is the whole point of the page — it creates a task whose branch derives
- * from the issue title and whose engine opens with the issue already in hand,
- * replacing copy-title → invent-branch → create-task → paste-body. An issue
- * that already has a task (`task.linkedWorkItem`) shows that task on its
- * detail line, and enter opens it instead of minting a duplicate.
+ * Enter creates a task whose branch derives from the issue title and whose
+ * engine opens with the issue in hand. An issue that already has a task
+ * (`task.linkedWorkItem`) shows it on its detail line, and enter opens it
+ * instead of minting a duplicate.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -61,9 +56,7 @@ function errorHint(error: string, t: ReturnType<typeof useT>): string {
   }
 }
 
-/** ISO shell over the product's one relative clock. The local copy this
- *  replaces ROUNDED where every other age on screen floors, so the same
- *  instant read `2h` here and `1h` two panes over. */
+/** ISO shell over the shared relative clock, so ages floor like every other pane. */
 function relativeAge(iso: string, now: number): string {
   const at = Date.parse(iso)
   if (!Number.isFinite(at)) return ""
@@ -73,8 +66,7 @@ function relativeAge(iso: string, now: number): string {
 export function WorkItemsPage(props: {
   orchestrator: RemoteOrchestrator | null
   onClose: () => void
-  /** False while another pane holds focus — the page shares the window now,
-   *  so its bare j/k/d must not fire while the sidebar is focused. */
+  /** False while another pane holds focus, so bare j/k/d don't fire there. */
   focused?: boolean
   /** Land on the started task's workspace. */
   onOpenTask?: (taskId: string) => void
@@ -83,8 +75,7 @@ export function WorkItemsPage(props: {
 }): ReactNode {
   const { theme } = useTheme()
   const t = useT()
-  // Failure toasts, not the muted inline notice — same contract as the
-  // Worktrees/Automations pages (see AutomationsPage for the rationale).
+  // Failures toast rather than use the muted inline notice (see AutomationsPage).
   const notif = useNotifications()
   function notifyError(message: string): void {
     notif.notify({ kind: "error", taskId: "", tabId: "", title: message })
@@ -117,8 +108,7 @@ export function WorkItemsPage(props: {
         repo,
         limit: 30,
         ...(assignedToMe ? { assignee: "@me" } : {}),
-        // Only a deliberate `r` bypasses the daemon cache — a repo switch or a
-        // filter toggle should feel instant.
+        // Only `r` bypasses the cache; repo switches and filters stay instant.
         ...(reloadTick > 0 ? { refresh: true } : {}),
       })
       .then((result) => {
@@ -126,8 +116,7 @@ export function WorkItemsPage(props: {
       })
       .catch((err: unknown) => {
         if (disposed) return
-        // `gh` errors name the fix (not installed / not logged in / no remote);
-        // surface them verbatim instead of a generic failure.
+        // `gh` errors name the fix (not installed / not logged in / no remote).
         setError(err instanceof Error ? err.message : String(err))
         setItems([])
       })
@@ -145,8 +134,7 @@ export function WorkItemsPage(props: {
   // list is off-frame from the first keypress.
   const follow = useCursorFollow(cursor)
 
-  // The notice names one action on one issue; a repo switch or a filter
-  // toggle makes it stale, and it has no other way to clear.
+  // A repo switch or filter toggle stales the notice; nothing else clears it.
   // biome-ignore lint/correctness/useExhaustiveDependencies: repo/filter are TRIGGERS — the body clears state rather than reading them.
   useEffect(() => {
     setNotice(null)
@@ -156,8 +144,7 @@ export function WorkItemsPage(props: {
     const orch = props.orchestrator
     const item = rows[cursor]
     if (!orch || !item || !repo || starting) return
-    // Already started: land on that task. The daemon creates unconditionally
-    // by contract; this page is the surface that knows what the user sees.
+    // Dedup lives here: the daemon creates unconditionally by contract.
     const linked = linkedTaskFor(orch, repo, item.number)
     if (linked) {
       setNotice(t("workItems.openingLinked", { title: linked.title }))
@@ -169,8 +156,7 @@ export function WorkItemsPage(props: {
     try {
       const result = await orch.startWorkItem({ repo, number: item.number })
       if (result.started) props.onOpenTask?.(result.taskId)
-      // The task exists even when its engine did not come up — say so rather
-      // than leaving the user wondering whether anything happened.
+      // The task exists even when its engine did not come up; say so.
       else setNotice(t("workItems.startedNoEngine", { title: result.title }))
     } catch (err) {
       console.error("[rove work-items] start failed:", err)
@@ -230,9 +216,7 @@ export function WorkItemsPage(props: {
           verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
         >
           {rows.map((item, index) => {
-            // Sidebar row grammar: ▌ marker column, title line, muted detail
-            // line. The number leads the title because that is how an issue is
-            // referred to out loud, and it survives truncation there.
+            // The number leads the title so it survives truncation.
             const chrome = resolveRowSelectionChrome(theme, { cursor: index === cursor, selected: false })
             const linked = linkedTaskFor(props.orchestrator, repo, item.number)
             return (

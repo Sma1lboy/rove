@@ -1,13 +1,8 @@
-// src/tui-react/lib/use-daemon-notices.ts
 /**
- * Bridge the daemon's `notice.event` broadcast (`kobe api notify`) into the
- * host's NotificationsProvider toast queue.
- *
- * The channel is an EVENT channel with last-value replay: a late subscriber
- * receives the most recent notice on connect. Consumers therefore dedupe on
- * `at` (each publish is uniquely stamped) and drop replays older than
- * {@link STALE_NOTICE_MS} so re-attaching a host doesn't re-toast an old
- * message.
+ * Bridge daemon broadcasts (`kobe api notify`, tab open/close/rename,
+ * prompts) into the host. Channels replay their last value on connect, so
+ * every bridge dedupes on `at` (unique per publish) and drops replays older
+ * than {@link STALE_NOTICE_MS}.
  */
 
 import type {
@@ -40,12 +35,7 @@ const NO_TAB_CLOSES = createStateCell<TabClosePayload | null>(null)
 const NO_TAB_RENAMES = createStateCell<TabRenamePayload | null>(null)
 const NO_PROMPTS = createStateCell<UiPromptPayload | null>(null)
 
-/**
- * Bridge `tab.open` broadcasts (plugin panes) into the shared pending
- * tab-open request TerminalTabs consumes. Lives here (not host.tsx) so the
- * host wires ONE daemon-event bridge hook; same `at` dedupe + stale drop
- * as notices.
- */
+/** `tab.open` (plugin panes) → the pending tab-open request TerminalTabs consumes. */
 function useDaemonTabOpens(orch: RemoteOrchestrator | null): void {
   const request = useAccessor(orch ? orch.tabOpenStore() : NO_TAB_OPENS)
   const seenAt = useRef<number | null>(null)
@@ -75,10 +65,8 @@ function useDaemonTabCloses(orch: RemoteOrchestrator | null): void {
   }, [request, kv, orch])
 }
 
-/** Bridge `tab.rename` broadcasts (`rove api rename --tab`) into the tab
- *  state — mounted or not, `renameTaskTab` picks the route. Fire-and-forget:
- *  the CLI already wrote the persisted snapshot, so this is the repaint half
- *  and there is no reply to send. */
+/** `tab.rename` (`rove api rename --tab`): the CLI already persisted it, so
+ *  this is the repaint half, with no reply. */
 function useDaemonTabRenames(orch: RemoteOrchestrator | null): void {
   const kv = useKV()
   const request = useAccessor(orch ? orch.tabRenameStore() : NO_TAB_RENAMES)
@@ -92,10 +80,8 @@ function useDaemonTabRenames(orch: RemoteOrchestrator | null): void {
 }
 
 /**
- * Bridge `ui.prompt` broadcasts (host-provided plugin input dialog) into
- * the dialog stack: show the reusable input dialog, answer via
- * `ui.promptReply` (undefined = cancel). First attached TUI to answer
- * wins; the daemon drops later replies.
+ * `ui.prompt` → input dialog, answered via `ui.promptReply` (undefined =
+ * cancel). First attached TUI to answer wins; the daemon drops the rest.
  */
 function useDaemonPrompts(orch: RemoteOrchestrator | null, dialog: DialogContext): void {
   const request = useAccessor(orch ? orch.uiPromptStore() : NO_PROMPTS)
@@ -133,8 +119,7 @@ export function useDaemonNotices(
     if (!notice || notice.at === seenAt.current) return
     seenAt.current = notice.at
     if (Date.now() - notice.at > STALE_NOTICE_MS) return
-    // Arbitrary kinds are allowed on the wire; only the known severities
-    // carry styling/unread semantics — everything else renders as "done".
+    // Any kind is allowed on the wire; unknown ones render as "done".
     const kind = notice.kind === "needs_input" || notice.kind === "error" ? notice.kind : "done"
     notifyRef.current({
       kind,

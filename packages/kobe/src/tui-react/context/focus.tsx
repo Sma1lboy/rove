@@ -16,37 +16,27 @@ export type PaneId = "sidebar" | "workspace" | "files" | "terminal"
 const PANE_ORDER = ["sidebar", "workspace", "files", "terminal"] as const satisfies readonly PaneId[]
 
 export type FocusContextValue = {
-  /** The currently focused pane. */
   focused: PaneId
-  /** True when `pane` is the focused one. */
   is: (pane: PaneId) => boolean
-  /** Set the focused pane. */
   setFocused: (pane: PaneId) => void
-  /** Cycle by ±1 through PANE_ORDER. Used by `tab` / `shift+tab`. */
+  /** Cycle by ±1 through PANE_ORDER. */
   cycle: (delta: 1 | -1) => void
 }
 
 const FocusContext = createContext<FocusContextValue | null>(null)
 
 /**
- * Mount the focus state at the top of the tree. Default focused pane is
- * `sidebar`: on cold boot there's no task selected, so the sidebar's task
- * list is the natural starting point and single-letter global shortcuts
- * work because the composer isn't claiming keys.
+ * Defaults to `sidebar`: cold boot has no task selected, and single-letter
+ * global shortcuts work because no composer is claiming keys.
  */
 export function FocusProvider(props: { children?: ReactNode; initial?: PaneId }) {
   const [focused, setFocusedState] = useState<PaneId>(props.initial ?? "sidebar")
   const renderer = useRenderer()
-  // Latest focused value for the stable callbacks below (React state reads
-  // in callbacks go stale; the ref always holds the current pane).
   const focusedRef = useLatest(focused)
 
   /**
-   * Unified focus-change entry point: on a real transition, blur whatever
-   * opentui renderable holds native
-   * focus BEFORE flipping the pane state — removing the one-tick window
-   * where a composer textarea keeps eating keystrokes after the user
-   * chorded away from the workspace.
+   * Blur the natively focused renderable BEFORE flipping pane state, or a
+   * composer textarea eats keystrokes for one tick after chording away.
    */
   const setFocused = useCallback(
     (pane: PaneId): void => {
@@ -56,8 +46,7 @@ export function FocusProvider(props: { children?: ReactNode; initial?: PaneId })
         try {
           current.blur()
         } catch {
-          // best-effort; if blur throws (renderable in a bad state)
-          // we still want the pane focus state to flip.
+          // Best-effort: pane focus must flip even if blur throws.
         }
       }
       setFocusedState(pane)
@@ -87,11 +76,7 @@ export function FocusProvider(props: { children?: ReactNode; initial?: PaneId })
   return <FocusContext.Provider value={value}>{props.children}</FocusContext.Provider>
 }
 
-/**
- * Read the focus context. Throws if called outside `<FocusProvider>` —
- * that's almost always a bug, so we fail loud rather than fall back to
- * a no-op default.
- */
+/** Throws outside `<FocusProvider>` — that's a bug, so fail loud. */
 export function useFocus(): FocusContextValue {
   const ctx = useContext(FocusContext)
   if (!ctx) {
@@ -100,11 +85,7 @@ export function useFocus(): FocusContextValue {
   return ctx
 }
 
-/**
- * Read the focus context when present — null outside a provider. For
- * consumers that only SUBSCRIBE to focus changes (the keyboard hints) and
- * degrade gracefully in focus-less mounts such as render-test frames.
- */
+/** Null outside a provider, for subscribers that degrade in focus-less mounts (render tests). */
 export function useOptionalFocus(): FocusContextValue | null {
   return useContext(FocusContext)
 }

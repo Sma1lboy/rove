@@ -1,9 +1,5 @@
 /** @jsxImportSource @opentui/react */
-/**
- * Shared sidebar chrome — the brand header, nav rail, view tabs, section
- * header, and zen chip. One set of components, so every sidebar surface
- * renders the same thing rather than a lookalike.
- */
+/** Shared sidebar chrome (brand header, create row, search, nav rail, section header, zen chip), so every sidebar surface renders the same thing. */
 
 import { MouseButton, TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
@@ -85,9 +81,7 @@ export function SectionHeader(props: {
   )
 }
 
-/** The `/` query row — one search affordance for every list surface. The
- *  count suffix reads `matches/total` over whatever list the host is
- *  filtering. */
+/** The `/` query row for every list surface; suffix reads `matches/total`. */
 export function SidebarSearchInput(props: { query: string; matchCount: number; totalCount: number }) {
   const { theme } = useTheme()
   const t = useT()
@@ -117,10 +111,8 @@ export function SidebarSearchInput(props: { query: string; matchCount: number; t
   )
 }
 
-/** KOBE brand text + inbox status — the rail's first row. The brand text IS
- *  the sidebar's focus signal (accent when focused) — there is no pane frame
- *  to carry it. Task creation gets its own labelled row below: a tiny header
- *  glyph read as decoration to first-time users. */
+/** Brand text + inbox status. The brand text IS the sidebar's focus signal:
+ *  there is no pane frame to carry it. */
 export function SidebarBrandHeader(props: {
   focused: boolean
   status: { label: string; emphasize: boolean } | null
@@ -161,12 +153,9 @@ export function SidebarBrandHeader(props: {
   )
 }
 
-/** Persistent primary action for the sidebar. The full row is clickable and
- *  the keycap comes from the live keymap, so a rebound or disabled `task.new`
- *  binding never leaves stale instructions behind. The `+` trails the label
- *  next to the keycap so the row reads label-first and the
- *  affordance pair sits in the conventional right-hand shortcut column; the
- *  gap between them keeps `+ n` from reading as a literal `+n` chord. */
+/** New-task row. The keycap comes from the live keymap, so a rebound or
+ *  disabled `task.new` never shows stale instructions; the gap keeps `+ n`
+ *  from reading as a literal `+n` chord. */
 export function SidebarCreateAction(props: { onAddTask?: () => void }) {
   const { theme, transparentBackground } = useTheme()
   const t = useT()
@@ -174,14 +163,9 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
   if (!props.onAddTask) return null
 
   return (
-    // One content row, no vertical padding: this is the tallest-pressure
-    // panel in the product, so the action must cost exactly one line.
-    //
-    // The left inset lives HERE and nowhere else. The inner box carries the
-    // filled background, so it needs its own horizontal padding to keep the
-    // label off the fill's edge. An inset on this wrapper too would put the
-    // label at column 2 while every other sidebar element (the ROVE header,
-    // the nav rail, the tree rows, the ZEN chip) starts at column 1.
+    // Exactly one line: vertical space is this panel's scarcest resource.
+    // The left inset lives only on the inner (filled) box; one here too would
+    // put the label at column 2 while every other sidebar element starts at 1.
     <box flexShrink={0} paddingRight={1}>
       <box
         position="relative"
@@ -210,8 +194,7 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
   )
 }
 
-/** Top-level rail: one destination per line. The
- *  24-cell rail cannot fit three chips side by side — vertical scales. */
+/** One destination per line: the 24-cell rail can't fit three chips side by side. */
 export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNav) => void }) {
   const { theme } = useTheme()
   const t = useT()
@@ -228,17 +211,14 @@ export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNa
             paddingLeft={1}
             paddingRight={1}
             onMouseUp={(e: { stopPropagation(): void }) => {
-              // goToNav hands focus to the page; a bubbled sidebar
-              // focus-grab (the pane shell's onMouseUp) would take it right
-              // back, so keys typed "into the page" fire sidebar chords (d!).
+              // A bubbled sidebar focus-grab would take focus back from the
+              // page, so keys typed into it would fire sidebar chords.
               e.stopPropagation()
               props.setNav(item.nav)
             }}
           >
             <text
-              // Active destination: bold + normal text color. We intentionally
-              // do NOT use the focus-accent fill here, because that same orange
-              // already signals (a) focused pane borders and (b) selected cards.
+              // Not the focus accent: it already marks focused borders and selected cards.
               fg={active ? theme.text : theme.textMuted}
               attributes={active ? TextAttributes.BOLD : undefined}
               wrapMode="none"
@@ -263,9 +243,7 @@ export function SidebarZenChip(props: { onZenClick?: () => void }) {
         attributes={TextAttributes.BOLD}
         wrapMode="none"
         onMouseUp={(e: { stopPropagation(): void }) => {
-          // Don't bubble to the pane box's focus-grab (workspace host):
-          // zen entry moves focus to the terminal; a bubbled sidebar
-          // focus would instantly exit zen via the focus guard.
+          // A bubbled sidebar focus-grab would exit zen via the focus guard.
           e.stopPropagation()
           props.onZenClick?.()
         }}

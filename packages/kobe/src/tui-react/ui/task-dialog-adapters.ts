@@ -1,12 +1,7 @@
 /**
- * Shared adapters both task-action hosts (the workspace host's
- * `useWorkspaceTaskActions` and the Tasks pane's `buildTaskActionsContext`)
- * wire into the framework-free `CreateTaskContext` — the dialog surfacing
- * trio, the post-delete selection move, the repo-scoped vendor preference
- * pair, and the {@link buildBaseCreateTaskContext} base both hosts spread
- * before adding their divergences — one copy, so the two hosts cannot drift.
- * The flows' behavior is defined in `tui/lib/task-actions` +
- * `tui/lib/task-create-flow`, so these adapters are pure wiring.
+ * `CreateTaskContext` wiring shared by both task-action hosts (workspace and
+ * Tasks pane), one copy so they can't drift. Pure wiring: behavior lives in
+ * `tui/lib/task-actions` + `tui/lib/task-create-flow`.
  */
 
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
@@ -43,11 +38,7 @@ const vendorPrefAdapters = {
   rememberVendor: (repo: string, vendor: VendorId): void => setRepoLastActiveVendor(repo, vendor),
 } as const
 
-/**
- * `onTaskDeleted` — move the host's cursor off a deleted task: prefer the
- * flow-computed next task, else the first remaining task, else clear. No-op
- * when the deleted task wasn't the cursor.
- */
+/** Move the cursor off a deleted task: flow's next, else first remaining, else clear. */
 export function selectNextAfterDelete(args: {
   readonly tasks: () => readonly Task[]
   readonly selectedId: () => string | null
@@ -75,14 +66,7 @@ export interface BaseCreateTaskContextDeps {
   readonly enterTask: (id: string) => Promise<void>
 }
 
-/**
- * The `CreateTaskContext` base both hosts share verbatim: adapters above,
- * console logging, toast wiring, shared active-task publish, post-delete
- * cursor move, cursor-row sibling-repo default, and selection/enter hooks.
- * Hosts spread this and add (or override) only their genuine divergences —
- * the Tasks pane's `reload`/`openCreateSurface`, the
- * workspace's tab-snapshot-reclaiming `onTaskDeleted` wrapper.
- */
+/** The `CreateTaskContext` base both hosts spread, overriding only real divergences. */
 export function buildBaseCreateTaskContext(deps: BaseCreateTaskContextDeps): CreateTaskContext {
   return {
     orch: deps.orch,
@@ -96,16 +80,14 @@ export function buildBaseCreateTaskContext(deps: BaseCreateTaskContextDeps): Cre
     // Publish the shared active-task focus so every surface follows.
     updateActiveTask: true,
     onTaskDeleted: selectNextAfterDelete(deps),
-    // "Spawn a sibling" default: the cursor task's repo (fallback: the
-    // first listed task's).
+    // Default repo: the cursor task's, else the first listed task's.
     cursorRepo: () => {
       const list = deps.tasks()
       return (list.find((t) => t.id === deps.selectedId()) ?? list[0])?.repo
     },
     // Land the cursor on the new task so Enter / click enters it next.
     selectTask: (id) => deps.setSelectedId(id),
-    // Then enter it: `n` drops the user straight into the new task's engine
-    // pane, ready to type the first prompt — not just a moved cursor.
+    // Then enter it: `n` lands in the new task's engine pane.
     enterTask: (id) => deps.enterTask(id),
   }
 }

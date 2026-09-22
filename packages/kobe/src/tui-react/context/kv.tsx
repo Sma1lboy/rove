@@ -1,14 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * KV store provider. Persistence semantics (snapshot hydration, dirty-key
- * merge flush, whole-file clear) live in the framework-free `./kv-core`;
- * this file owns only the React reactivity: the provider subscribes to the
- * core via `useSyncExternalStore` and rebuilds the context value per
- * snapshot, so every consumer under the provider re-renders on any `kv.set`.
- *
- * API: `ready` / `store` / `signal` / `get` / `set` / `flush` / `clear`.
- * `signal` returns a plain `[read, write]` tuple, and `store` is the
- * immutable snapshot rather than a fine-grained proxy.
+ * React side of the KV store; persistence lives in `./kv-core`. The context
+ * value is rebuilt per snapshot, so every consumer re-renders on any `kv.set`.
+ * `store` is the immutable snapshot, not a fine-grained proxy.
  */
 
 import { type ReactNode, createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react"
@@ -25,12 +19,9 @@ export type KVContext = {
   /** Wipe every persisted key; false leaves state and pending edits intact. */
   clear(): boolean
   /**
-   * Subscribe to writes that did not reach disk; returns the unsubscribe.
-   *
-   * Exposed as a subscription rather than a constructor callback because the
-   * sink is BELOW this provider: the fixed nesting order is Theme > KV >
-   * Focus > Dialog > Notifications (see `lib/host-boot.tsx`), so the toast
-   * context does not exist yet when the core is created.
+   * A subscription, not a constructor callback: the toast sink sits below
+   * this provider (Theme > KV > Focus > Dialog > Notifications, see
+   * `lib/host-boot.tsx`).
    */
   onWriteError(listener: KvWriteErrorListener): () => void
 }
@@ -38,21 +29,12 @@ export type KVContext = {
 const Ctx = createContext<KVContext | null>(null)
 
 export function KVProvider(props: { children?: ReactNode }) {
-  // One core per provider instance, hydrated synchronously at first render.
   const [core] = useState<KvCore>(createKvCore)
   const snapshot = useSyncExternalStore(core.subscribe, core.snapshot, core.snapshot)
 
-  // Exit flush: writes are 250ms-debounced, and every quit path — the confirm
-  // chord, ctrl+c, the signal backstop, a page's bare `process.exit(0)` —
-  // ends the process synchronously, so without this a state change made
-  // inside that window never reaches disk. Reading a completion and quitting
-  // straight after would relight the lamp on the next launch, which is what
-  // the durable seen mark exists to prevent.
-  //
-  // Registered here rather than at the quit call sites: "exit" is the one
-  // hook every path passes through (it fires on process.exit, unlike
-  // "beforeExit"), and `flush()` is synchronous + a no-op when nothing is
-  // dirty. Removed on unmount so a render test's providers don't pile up.
+  // Every quit path ends synchronously inside the 250ms debounce, so flush on
+  // "exit" (fires on process.exit, unlike "beforeExit") or e.g. a just-set
+  // seen mark is lost. Removed on unmount so render-test providers don't pile up.
   useEffect(() => {
     const flush = (): void => {
       core.flush()
@@ -90,11 +72,8 @@ export function useKV(): KVContext {
 }
 
 /**
- * The KV context when one exists, else null — for components that PREFER
- * persisted state but have a live fallback, so they can also mount in a
- * render test or a pane hosted before the provider. `useKV` stays the
- * throwing default: a component that genuinely needs kv should fail loudly
- * rather than silently lose the user's settings.
+ * Null without a provider, for components with a live fallback. `useKV`
+ * stays the throwing default so real kv users fail loud, not lose settings.
  */
 export function useOptionalKV(): KVContext | null {
   return useContext(Ctx) ?? null

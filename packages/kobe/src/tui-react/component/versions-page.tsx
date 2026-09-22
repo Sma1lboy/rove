@@ -1,12 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * `kobe update --list` (TTY) — the versions browser. Same page framework
- * as the update page (bootPaneHost + pageCloseBindings): a j/k list of
- * recent GitHub releases with current/latest/breaking tags, the selected
- * release's notes in a scrollbox (fetched lazily per row, cached), and
- * Enter handing off to the shell updater pinned to the selected version.
- * Installing across a BREAKING_VERSIONS entry shows the `kobe reset`
- * warning in the detail footer before the user commits.
+ * `kobe update --list` (TTY) — the versions browser: recent releases, the
+ * selected one's notes, Enter runs the shell updater pinned to it. Crossing a
+ * BREAKING_VERSIONS entry shows the `kobe reset` warning before committing.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -56,8 +52,7 @@ export function VersionsPage(props: {
     void loadSummaries(RELEASE_LIMIT).then((fetched) => setReleases(fetched))
   }, [loadSummaries])
 
-  // Lazily fetch the selected row's notes (one release body per selection,
-  // cached — the list fetch deliberately omits bodies to save API budget).
+  // Notes load per selection, cached; the list fetch omits bodies to save API budget.
   const selectedVersion = selected?.version
   useEffect(() => {
     if (selectedVersion === undefined || notes[selectedVersion] !== undefined) return
@@ -202,10 +197,7 @@ export function VersionsPage(props: {
 const INLINE_ROWS = 24
 
 export async function startVersionsHost(): Promise<void> {
-  // Same contract as startUpdateHost: no daemon, npm/GitHub only; closing
-  // exits the process (the launching terminal gets its prompt back).
-  // Inline (main-screen footer) — a CLI subcommand should feel like a
-  // prompt, not a fullscreen app; the shell scrollback stays visible.
+  // No daemon; closing exits the process. Inline so the shell scrollback stays visible.
   await bootPaneHost({
     inlineRows: INLINE_ROWS,
     setup: () => ({ root: () => <VersionsPage onClose={() => process.exit(0)} /> }),

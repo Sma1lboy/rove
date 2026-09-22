@@ -1,13 +1,7 @@
 /**
- * Host-side terminal output effects: push geometry changes to the PTY and
- * anchor the native host cursor to the visible terminal cell for the IME
- * (macOS input methods and Windows Terminal place the composition there).
- *
- * Its own hook because everything here is IMPERATIVE: renderer and PTY side
- * effects plus the retention objects that survive across output frames, none
- * of which belongs in a render path. The caller still supplies the computed
- * viewport cursor (`visibleImeCursor`) — deciding where the cursor is stays
- * declarative in the component; only telling the host about it lives here.
+ * Imperative host-side effects: push geometry to the PTY, and anchor the
+ * native host cursor to the visible terminal cell for the IME (macOS input
+ * methods and Windows Terminal place the composition there).
  */
 
 import type { BoxRenderable } from "@opentui/core"
@@ -29,7 +23,7 @@ export interface UseTerminalHostCursorOpts {
   visibleImeCursor: CursorPos | null
   /** Whether this terminal owns the shared host cursor anchor. */
   imeAnchorActive: boolean
-  /** Host-terminal dims — invalidation key for non-reactive screen geometry. */
+  /** Invalidation key for non-reactive screen geometry. */
   dims: { width: number; height: number }
   /** Layout tick from the body box's onSizeChange — ditto. */
   geomTick: number
@@ -41,8 +35,7 @@ export function useTerminalHostCursor(opts: UseTerminalHostCursorOpts): void {
   const imeAnchorOwner = useRef(Symbol("terminal-ime-anchor")).current
   const [imeScreenAnchorRetention] = useState(() => new ImeScreenAnchorRetention())
 
-  // Push geometry changes to the backend, deduped against the last push —
-  // real PTY backends may emit SIGWINCH even when geometry is unchanged.
+  // Deduped: real PTY backends may SIGWINCH even when geometry is unchanged.
   const lastResizeRef = useRef<{ pty: typeof pty; cols: number; rows: number } | null>(null)
   useEffect(() => {
     if (!pty || !bodyGeometry) return
@@ -57,14 +50,11 @@ export function useTerminalHostCursor(opts: UseTerminalHostCursorOpts): void {
     }
   }, [pty, bodyGeometry])
 
-  // Keep the native host cursor INVISIBLE (the visible cursor is the inline
-  // inverse cell in the rendered rows) but ANCHORED to the visible chat
-  // terminal's screen cell — even while Sidebar or Files owns keyboard focus.
-  // A transient PTY cursor-hide retains the last position; the renderer-output
-  // adapter restores it at the end of every diff frame.
+  // Native cursor INVISIBLE (the inverse cell is the visible one) but ANCHORED
+  // to the chat terminal's cell, even while Sidebar or Files has focus. The
+  // renderer-output adapter restores it at the end of every diff frame.
   useEffect(() => {
-    // Dependency-only invalidation keys — screenX/screenY are read
-    // imperatively, non-reactive geometry.
+    // Invalidation keys only.
     void dims
     void geomTick
     if (!renderer) return
@@ -80,9 +70,7 @@ export function useTerminalHostCursor(opts: UseTerminalHostCursorOpts): void {
         y: bodyEl.screenY + visibleImeCursor.y,
       }
     }
-    // Historical scrollback has no live viewport cursor. Keep the prior
-    // screen-cell anchor for this PTY instead of sending the IME to the outer
-    // origin. A replacement PTY starts at origin until it reports a cursor.
+    // Scrolled back: no live cursor, so keep this PTY's prior anchor, not the origin.
     const retainedAnchor = imeScreenAnchorRetention.update(pty, currentScreenAnchor)
     if (retainedAnchor) {
       imeAnchorController.claim(imeAnchorOwner, retainedAnchor)
@@ -103,8 +91,7 @@ export function useTerminalHostCursor(opts: UseTerminalHostCursorOpts): void {
     pty,
   ])
 
-  // On unmount, hide the cursor so it doesn't leak into whichever pane
-  // gains focus next.
+  // Hide on unmount so it doesn't leak into the next pane.
   useEffect(() => {
     return () => {
       try {

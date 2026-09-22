@@ -1,17 +1,14 @@
 /**
  * PTY acquire/subscribe lifecycle for the embedded terminal pane:
  *
- *   - When `cwd`/`taskId` resolve (and the body has measured), acquire a
- *     `TaskPty` from the registry; `acquire` reuses a live PTY for the
- *     same key — the "kept alive while in_progress" rule.
- *   - On a key change we DON'T kill the outgoing PTY (the orchestrator owns
- *     release); we just resubscribe to the new one's data.
- *   - On unmount we drop our subscription and reference only.
+ *   - Once `cwd`/`taskId` resolve and the body has measured, acquire a
+ *     `TaskPty`; `acquire` reuses a live PTY for the same key.
+ *   - A key change NEVER kills the outgoing PTY (the orchestrator owns
+ *     release); unmount drops only our subscription and reference.
  *
- * The acquire effect depends ONLY on `[cwd, taskId, geometryReady]`.
- * `command` and the live geometry value are kept in refs and read at acquire
- * time, so a caller's prop swap alone does not force a re-acquire — that is
- * what `resetToken` is for.
+ * The acquire effect depends ONLY on `[cwd, taskId, geometryReady]`;
+ * `command` and live geometry are read from refs, so a prop swap alone
+ * doesn't re-acquire (that is `resetToken`'s job).
  */
 
 import { errorMessage } from "@/lib/error-message"
@@ -29,7 +26,7 @@ import type { RowWrapFlags } from "../../../tui/panes/terminal/terminal-wrap"
 import { useLatest } from "../../lib/use-latest"
 import { terminalFrameScheduler } from "./terminal-frame-scheduler"
 
-/** Shared empty flags — a stable reference for backends that report none. */
+/** Stable empty flags for backends that report none. */
 const NO_WRAP: RowWrapFlags = []
 
 export interface UseTerminalPtyOpts {
@@ -37,12 +34,9 @@ export interface UseTerminalPtyOpts {
   taskId: string | null
   /** Read at acquire/reset time via a ref — see file header. */
   command: readonly string[] | undefined
-  /** Typed into a FRESH spawn (`TaskPtyOpts.initialInput`) — the shell-
-   *  wrapped engine line. Read via a ref like `command`. */
+  /** Typed into a FRESH spawn (`TaskPtyOpts.initialInput`). Read via a ref. */
   initialInput?: string
-  /** Paste-delivery vendor's first message (`TaskPtyOpts.firstMessage`) —
-   *  the hosted backend pastes it once the fresh-spawned engine is up.
-   *  Read via a ref like `command`. */
+  /** Pasted once a fresh spawn's engine is up (`TaskPtyOpts.firstMessage`). Read via a ref. */
   firstMessage?: string
   /** Engine binary name for the first-message engine-up probe. */
   engineBin?: string
@@ -51,8 +45,7 @@ export interface UseTerminalPtyOpts {
   /** Engine-owned cell substitutions for the alternate screen only. */
   alternateScreenStyleRewrites?: TaskPtyOpts["alternateScreenStyleRewrites"]
   resetToken?: number
-  /** `deadOnAttach`: the exit was discovered on reattach (engine died
-   *  while the TUI was away), not observed live — see `TaskPtyLike`. */
+  /** `deadOnAttach`: found dead on reattach, not observed live (see `TaskPtyLike`). */
   onExit?: (info?: { deadOnAttach?: boolean }) => void
   registry: PtyRegistry
   bodyGeometry: { cols: number; rows: number } | null
@@ -75,22 +68,16 @@ export interface UseTerminalPtyResult {
 export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
   const scheduleRefreshRef = useLatest(terminalFrameScheduler(useRenderer()))
   const [pty, setPty] = useState<TaskPty | null>(null)
-  // Surfaced when `registry.acquire()` throws — without this the pane
-  // would render blank with no hint as to why.
+  // Surfaced when `registry.acquire()` throws, or the pane renders blank.
   const [acquireError, setAcquireError] = useState<string | null>(null)
   const [snapshot, setSnapshot] = useState<readonly TerminalRow[]>([])
   const snapshotWindowRef = useRef<TerminalSnapshotWindow | null>(null)
-  // A ref for the same reason `snapshotWindow` is one: it is written in the
-  // same `onData` callback that calls `setSnapshot`, so the render triggered
-  // by that state change already sees the flags belonging to those rows.
+  // A ref written in the `onData` that calls `setSnapshot`, so that render sees matching flags.
   const wrappedRef = useRef<RowWrapFlags>(NO_WRAP)
   const [cursor, setCursor] = useState<CursorPos | null>(null)
-  // Dead-shell flag (revival checklist #5): flips when the PTY reports
-  // exit for any reason. The last snapshot stays visible; the banner +
-  // F5 reset are the recovery path.
+  // Flips on PTY exit; the last snapshot stays, banner + F5 reset recover.
   const [exited, setExited] = useState(false)
 
-  // Latest-render mirrors read by effect bodies that must NOT depend on them.
   const commandRef = useLatest(opts.command)
   const initialInputRef = useLatest(opts.initialInput)
   const firstMessageRef = useLatest(opts.firstMessage)
@@ -101,9 +88,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
   const registryRef = useLatest(opts.registry)
   const onExitRef = useLatest(opts.onExit)
   const onFreshPtyRef = useLatest(opts.onFreshPty)
-  // Read untracked by the resetToken effect below (see file header); the
-  // acquire effect intentionally reads the plain `cwd`/`taskId` values
-  // instead, since THAT effect is meant to depend on them.
+  // For the resetToken effect; the acquire effect reads plain `cwd`/`taskId` on purpose.
   const cwdRef = useLatest(opts.cwd)
   const taskIdRef = useLatest(opts.taskId)
 
@@ -156,17 +141,13 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
     onFreshPtyRef.current()
   }, [cwd, taskId, geometryReady])
 
-  // Subscribe to whichever PTY is currently active. Own effect (keyed on
-  // `pty`) instead of folded into the acquire effect so it reattaches
-  // whenever the active PTY changes for any reason — task switch, reset,
-  // or recovery after an external kill.
+  // Own effect keyed on `pty`, so it reattaches on ANY PTY change (switch, reset, recovery).
   useEffect(() => {
     const killed = pty ? pty.killed : false
     setExited(killed)
     if (!pty) return
     if (killed) {
-      // Already dead by the time we mounted — fire onExit now, there's no
-      // live handle to attach a listener to.
+      // Dead at mount: no handle to listen on, so fire onExit now.
       onExitRef.current?.({ deadOnAttach: pty.deadOnAttach === true })
       return
     }
@@ -180,9 +161,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
       setSnapshot(snap)
       setCursor(c)
     })
-    // Prime the renderer with whatever the backend has cached so a
-    // freshly-mounted (or freshly-reset) pane doesn't blink empty for one
-    // tick.
+    // Prime from the backend cache so a fresh pane doesn't blink empty.
     try {
       const initial = pty.capture()
       snapshotWindowRef.current = pty.captureWindow()
@@ -198,10 +177,8 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
     }
   }, [pty])
 
-  // Kill + fresh-acquire under the same `cwd`/`taskId` (shared by the F5
-  // confirm and the external `resetToken` bump) — reset the render
-  // signals together so a stale snapshot/cursor never survives onto the
-  // new PTY.
+  // Kill + fresh-acquire (F5 and `resetToken`); render signals reset together so
+  // no stale snapshot/cursor survives onto the new PTY.
   const forceReacquire = useCallback(
     (nextCwd: string, nextTaskId: string, geometry: { cols: number; rows: number }, expected?: TaskPty): void => {
       try {
@@ -227,10 +204,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
         onFreshPtyRef.current()
       } catch (err) {
         const message = errorMessage(err)
-        // `registry.reset()` kills the outgoing PTY BEFORE the acquire half runs,
-        // so on failure there is no live handle left — clear the pane to the
-        // error state (same shape as the acquire effect's failure path)
-        // instead of leaving a dead snapshot up with the error invisible.
+        // `registry.reset()` killed the old PTY first, so show the error, not a dead snapshot.
         setAcquireError(message)
         setPty(null)
         setSnapshot([])
@@ -242,13 +216,10 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
     [],
   )
 
-  // External forced-reacquire (see `resetToken` on TerminalProps) — skipped
-  // on the initial mount so a fresh pane doesn't reset itself the instant it
-  // acquires its first PTY.
+  // External forced-reacquire; skipped on mount.
   const resetMountedRef = useRef(false)
   useEffect(() => {
-    // Dependency-only invalidation key — this effect fires ONLY when
-    // resetToken bumps, it doesn't read the value itself.
+    // Trigger only.
     void opts.resetToken
     if (!resetMountedRef.current) {
       resetMountedRef.current = true
@@ -258,8 +229,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
     const nextTaskId = taskIdRef.current
     const geometry = bodyGeometryRef.current
     if (nextCwd && nextTaskId && geometry) forceReacquire(nextCwd, nextTaskId, geometry)
-    // `forceReacquire` is stable (empty-dep useCallback below) — listing it
-    // satisfies the linter without changing when this effect re-fires.
+    // `forceReacquire` is stable; listed for the linter.
   }, [opts.resetToken, forceReacquire])
 
   return {

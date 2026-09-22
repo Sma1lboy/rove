@@ -1,19 +1,13 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Tree rows: project header flush, worktrees one cell in, and tab rows at the
- * SAME column as their worktree (the state-circle glyph carries the
- * hierarchy, so extra indent only costs the narrow rail width). A worktree
- * row is `twisty · state glyph · title` plus the right-edge cluster
- * (pin / PR chip / ±stats / jump digit), and stays ONE cell tall — density is
- * the point for them (a dozen worktrees must fit the rail).
+ * Tree rows: project header flush, worktrees one cell in, tab rows at the
+ * SAME column as their worktree (the state glyph carries the hierarchy). A
+ * worktree row is `[job spinner] · label` plus the right-edge cluster and
+ * stays ONE cell tall: a dozen worktrees must fit the rail.
  *
- * An AGENT tab row can OPT IN to a second cell carrying the model and
- * reasoning level the task launches with — the one fact you otherwise have to
- * open a dialog to read. It is off by default (`state/tab-row-height.ts`,
- * Settings → General → Appearance): the caption roughly halves how many rows
- * fit, and whether that trade is worth it depends on how many tasks the
- * reader keeps open. Shell/command/content tabs have no model, so they stay
- * one cell at either setting.
+ * An AGENT tab row can opt in to a second cell naming the live engine
+ * (`state/tab-row-height.ts`, off by default: it roughly halves how many rows
+ * fit). Non-agent tabs stay one cell.
  */
 
 import { type TaskEngineState, type TaskJobState, liveRowTokens } from "@/client/remote-orchestrator"
@@ -54,57 +48,30 @@ import {
 import { MoveChip, RowShell, type TreeRowShared, clusterCells, jumpDigitCells, treeLabelBudget } from "./tree-row-shell"
 
 /**
- * How long this tab has been in its current state — `12m`, `2h` — or null
- * when the state is one nobody is waiting on.
- *
- * Shown for exactly two readings: a row that is WORKING (how long has it been
- * at it) and a row that is STOPPED (how long has it been stuck). A quiet row
- * gets nothing: `○` already means there is nothing to wait for, and dating it
- * would put a number on every idle tab in the rail.
- *
- * No timer of its own. The tree re-renders on the sidebar's ~2s branch tick
- * (`shared.branchTick`), so the age walks by itself, and this stays outside
- * `useTabRowBaseView`'s memo so an idle row still rebuilds nothing.
+ * Age in the current state (`12m`) for WORKING or STOPPED rows only; null
+ * otherwise, or every idle tab would wear a number. No timer: the ~2s branch
+ * tick re-renders the tree, and this sits outside `useTabRowBaseView`'s memo.
  */
 function activityAgeLabel(activity: TaskEngineState | undefined, loading: boolean): string | null {
   if (activity === undefined) return null
   if (!loading && !isAttentionActivity(activity.state)) return null
-  // A clock skewed ahead of the daemon would otherwise print a huge age; the
-  // clamp inside `relativeAge` turns that into `0s`, which reads as "just
-  // now" rather than as a wrong number.
+  // `relativeAge` clamps a clock skewed ahead of the daemon to `0s`.
   return relativeAge(activity.at)
 }
 
 /**
- * A worktree row carries NO ENGINE state glyph: the session state belongs to
- * the chat tab that runs it, so that glyph lives on the tab row below. What
- * stays here is worktree-level fact — branch, pin, PR chip, ±change stats —
- * and a worktree being MATERIALIZED or DELETED is the most worktree-level
- * fact there is.
+ * A worktree row carries NO engine state glyph (that lives on the tab row);
+ * only worktree-level facts: branch, pin, PR chip, ±stats, and
+ * materializing/deleting.
  *
- * Deletion has to be read here for the same reason materialization is, only
- * more sharply: `TaskDeletionCoordinator` sweeps the task's PTYs before it
- * touches the worktree, so by the time a deletion fails the task has no
- * activity entry and no live tab — the tab row that would carry a `!` is
- * gated on activity it can never have again. A failed deletion left the row
- * indistinguishable from a healthy one, discoverable only through
- * `rove api list`.
+ * Both jobs must show HERE: a materializing task has no tab rows yet (a tab
+ * is recorded only once delivery succeeds), and `TaskDeletionCoordinator`
+ * sweeps PTYs before touching the worktree, so a failed deletion has no tab
+ * or activity to carry a `!`.
  *
- * Why the job spinner has to live here rather than on the tab row: during
- * `git worktree add` a freshly created task has no engine activity (the engine
- * has not started) and no tab rows at all (a tab is only recorded once
- * delivery succeeds). The tab row that would render the job is therefore the
- * one row that does not yet exist — without this, `rove api add --count 5` on
- * a big repo leaves frozen `(new task)` rows for the whole minutes-long
- * materialization while the daemon publishes `task.jobs {phase:"running"}`.
- *
- * It reads `taskJobs` DIRECTLY and nothing else — deliberately not through
- * `buildSidebarRowView`, whose `loading` also folds in engine activity. Taking
- * the derived flag would put the task-level activity rollup back on the
- * worktree row, which is the leak the tab row's `carriesState` gate exists to
- * stop. A job is genuinely task-scoped (the daemon publishes one entry per
- * taskId, and a task has exactly one worktree), so it is the one signal a
- * worktree row may read without a tab to attribute it to.
+ * Reads `taskJobs` DIRECTLY, not `buildSidebarRowView`'s `loading`, which
+ * folds in engine activity and would leak the task rollup onto this row. A
+ * job is task-scoped (one per taskId, one worktree per task).
  */
 export function WorktreeTreeRow(props: {
   readonly rowId: string
@@ -121,14 +88,11 @@ export function WorktreeTreeRow(props: {
   const isCursor = shared.cursorIndex === props.flatIndex
   const changes = useChanges(shared, task)
   const chip = prChip(task)
-  // A worktree row is named by its BRANCH; branchless rows fall back to
-  // their tail-truncated path (the one derivation rule —
-  // `worktreeRowLabel`). Which rows have to LOOK UP that branch is
-  // `rowLiveBranchPath`: main checkouts and directory/scratch tasks store
-  // none and move freely, so they poll their own HEAD.
+  // Named by BRANCH (`worktreeRowLabel`). Main checkouts and directory/scratch
+  // tasks store none and move freely, so they poll their own HEAD.
   const livePath = rowLiveBranchPath(task)
   useEffect(() => {
-    // Dependency-only invalidation key: re-poll on the sidebar's ~2s tick.
+    // Re-poll on the sidebar's ~2s tick.
     void shared.branchTick
     if (livePath) pollCurrentBranch(livePath)
   }, [livePath, shared.branchTick])
@@ -137,38 +101,28 @@ export function WorktreeTreeRow(props: {
   // Presence in the map IS "running" — the daemon removes the entry on both
   // terminal phases (see `TaskJobState`).
   const materializing = shared.taskJobs?.get(task.id) !== undefined
-  // Read `task.deletion` directly, the same way `taskJobs` is read and for
-  // the same reason: it is genuinely task-scoped (one deletion per task, one
-  // worktree per task), so it needs no tab to attribute it to.
+  // Task-scoped like `taskJobs`, so read directly.
   const deletionPhase = task.deletion?.phase
   const deleting = deletionPhase === "queued" || deletionPhase === "running"
   const deleteFailed = deletionPhase === "error"
   const spinning = materializing || deleting
   const frame = useSpinnerFrame(spinning)
-  // The word the deletion states caption themselves with. A failed deletion
-  // leaves the worktree and the branch untouched, so the branch label stays
-  // and the word rides beside it rather than replacing it — with seven
-  // stalled deletions in one project, rows that all read "delete failed"
-  // and nothing else would be unusable.
+  // Rides beside the branch label, not in place of it: a failed deletion
+  // leaves the branch, and rows all reading "delete failed" are unusable.
   const deletionWord =
     deleting || deleteFailed ? t(deleteFailed ? "tasks.subtitle.deleteFailed" : "tasks.subtitle.deleting") : null
-  // Plugin-written labels. Expired tokens are dropped at RENDER time as well
-  // as by the daemon's republish: a frame between a token's deadline and that
-  // push must not paint a label that has already lapsed.
+  // Expired plugin tokens drop at RENDER time too, before the daemon's republish.
   const tokens = liveRowTokens(shared.rowTokens, task.id, Date.now())
   const reserved =
-    // The glyph column exists only while a job runs, so a resting row spends
-    // none of its label budget on it.
+    // The glyph column exists only while a job runs.
     (spinning ? 2 : 0) +
-    // Plugin labels take from the SAME budget as everything else, so a
-    // plugin can crowd the branch name but never overflow the row.
+    // A plugin can crowd the branch name but never overflow the row.
     tokens.reduce((cells, token) => cells + clusterCells(token.text), 0) +
     (deletionWord ? clusterCells(deletionWord) : 0) +
     jumpDigitCells(shared.jumpDigitOf(props.rowId)) +
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
-    // `changes === null` is the unknown mark, one cell like any chip glyph —
-    // it replaces the whole ↑/+/−/↓ cluster rather than sitting beside it.
+    // The unknown mark replaces the whole ↑/+/−/↓ cluster.
     (changes === null ? clusterCells(UNKNOWN_CHANGES_MARK) : 0) +
     ((changes?.ahead ?? 0) > 0 ? clusterCells(`↑${changes?.ahead}`) : 0) +
     ((changes?.added ?? 0) > 0 ? clusterCells(`+${changes?.added}`) : 0) +
@@ -231,10 +185,7 @@ export function WorktreeTreeRow(props: {
 
 /**
  * The tab row's `buildSidebarRowView`, memoized on the real inputs so the
- * ~10Hz spinner tick (a fresh `shared` object every render) doesn't
- * re-derive idle tab rows: non-loading rows come back as the same object and
- * never subscribe to the tick. Exported so the memo contract has a direct
- * test; TabTreeRow is the only caller.
+ * ~10Hz spinner tick doesn't re-derive idle rows. Exported for its memo test.
  */
 export function useTabRowBaseView(args: {
   readonly task: Task
@@ -246,8 +197,7 @@ export function useTabRowBaseView(args: {
   const t = useT()
   const { task, activity, lifecycle, job, completionSeen } = args
   return useMemo(() => {
-    // Dependency-only invalidation key: rebuild when the language changes —
-    // buildSidebarRowView reads the global `t` through the locale store.
+    // Rebuild on language change: buildSidebarRowView reads the global `t`.
     void t
     return buildSidebarRowView({
       task,
@@ -275,27 +225,17 @@ export function TabTreeRow(props: {
   const t = useT()
   const shared = props.shared
   const isCursor = shared.cursorIndex === props.flatIndex
-  // Glyph rule: an AGENT tab wears the live state glyph when the daemon
-  // reports activity for its session; a non-agent tab (shell/command/content)
-  // or one with no signal rests at `○`.
+  // Only an AGENT tab with daemon-reported activity wears a live state glyph.
   const isAgent = props.tab.engine === true
   const taskTabStates = isAgent ? shared.engineTabState?.get(props.task.id) : undefined
   const activity = isAgent ? tabRowActivity({ tabId: props.tab.id, tabActivities: taskTabStates }) : undefined
-  // One predicate: "does this row have activity of its own". Also counting
-  // "is the active tab" is what lets the task rollup leak in.
+  // Own activity only; counting "is the active tab" would leak the task rollup.
   const carriesState = activity !== undefined
-  // The unread lamp (● on turn_complete) is for sessions you are NOT
-  // looking at — sitting in the tab digests it to ✓ on the same render.
-  // "Viewing" = this row's TASK is selected and this tab is the task's
-  // active one. ONLY the row that carries the task's activity may run the
-  // bookkeeping: a sibling tab passes state=undefined, and letting it call
-  // would fire the delete branch and wipe the seen bit the active row just
-  // recorded — the ✓ → ● → ✓ flip on every task switch.
+  // Sitting in the tab digests ● to ✓ on the same render. ONLY a row carrying
+  // activity may run the bookkeeping: a sibling's state=undefined would wipe
+  // the bit the active row just recorded (✓ → ● flip on task switch).
   const viewing = shared.selectedTaskId === props.task.id && props.tab.active === true
-  // Per-TAB seen bit: sibling tab rows of the same task render in this very
-  // pass and would otherwise share (and clear) one task-wide mark. The
-  // durable half survives a kobe restart, which the daemon's activity entry
-  // does too — without it every already-read completion comes back ●.
+  // The durable half survives a restart, as the daemon's activity entry does.
   const durableSeen = useDurableCompletionSeen(
     props.task.id,
     props.tab.id,
@@ -314,42 +254,22 @@ export function TabTreeRow(props: {
   })
   const frame = useSpinnerFrame(carriesState && baseView.loading)
   const rowView = withSpinnerFrame(baseView, () => frame)
-  // A freeze-restored tab is a corpse the pty host kept the scrollback for:
-  // its process died with the host, and OPENING it silently re-runs the
-  // recorded launch command — first prompt and all. Headless delivery refuses
-  // that without `--respawn` (TAB_RESTORED); the TUI just does it. Until the
-  // banner lands, the row at least has to stop reading `○`, which is the one
-  // glyph that means "nothing to do here". It is a dead engine process, so it
-  // takes the `!` the rail already spends on exactly that.
+  // A freeze-restored tab's process is dead and OPENING it re-runs the launch
+  // command, first prompt and all. It must not read `○` ("nothing to do");
+  // it takes the dead-engine `!`.
   const restored = props.tab.restored === true
-  // With NO daemon signal at all (fresh daemon before its first observer pass,
-  // dead daemon lineage) the row rests at the same `○` a known-idle one does —
-  // both readings send you into the tab to find out. See NO_STATE_GLYPH.
+  // No daemon signal rests at the same `○` as known-idle. See NO_STATE_GLYPH.
   const glyph = restored ? ATTENTION_GLYPH : isAgent && carriesState ? rowView.stateGlyph : NO_STATE_GLYPH
   const age = carriesState ? activityAgeLabel(activity, rowView.loading) : null
-  // The landing flash. Gated on `carriesState` for the same reason the seen
-  // bit is: a sibling row passing the task rollup would flash for a turn that
-  // finished in another tab.
+  // Gated on `carriesState`, or a sibling would flash for another tab's turn.
   const pulsing = useDonePulse(carriesState ? completionStampOf(activity) : undefined)
-  // Second line, agent tabs only: WHICH ENGINE IS RUNNING, probed from the
-  // pty child's process tree (`TreeTab.liveVendor`) rather than read off the
-  // task's config. The first version of this line showed `task.model` /
-  // `task.modelEffort` and fell back to "engine default" — which is what
-  // almost every task has, so the rail filled up with four words that said
-  // nothing. A process name is an observation and is always available for a
-  // live tab; a pinned model is configuration and usually absent.
-  //
-  // No fallback text: a tab with no answer renders no second line at all,
-  // which keeps the rail from spending a cell to say "unknown".
-  // `useOptionalKV`: the tree renders in harnesses with no KV provider, and a
-  // missing store means "nobody has changed this", i.e. the default height.
+  // Second line, agent tabs only: the engine RUNNING, probed from the pty's
+  // process tree (`TreeTab.liveVendor`), not task config (usually unset).
+  // No answer → no second line. No KV provider → default height.
   const kv = useOptionalKV()
   const twoCell = normalizeTabRowHeight(kv?.get(TAB_ROW_HEIGHT_KEY, 1)) === 2
   const liveVendor = props.tab.liveVendor ?? null
   const modelLine = isAgent && twoCell && liveVendor ? engineDisplayName(liveVendor) : null
-  // depth 1, not 2: a tab row starts at the same column as its
-  // worktree row — the circle status glyph carries the hierarchy, and the
-  // extra indent cell wasted width the narrow rail doesn't have.
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={props.shared}>
       <text
@@ -381,7 +301,7 @@ export function TabTreeRow(props: {
           >
             {truncateEndCells(
               props.tab.label,
-              // The 2-cell state-glyph column is this row's extra fixed spend.
+              // + the 2-cell state-glyph column.
               treeLabelBudget(
                 shared,
                 2 +
@@ -401,9 +321,7 @@ export function TabTreeRow(props: {
           <JumpDigit digit={shared.jumpDigitOf(props.rowId)} dim={!isCursor} />
         </box>
         {modelLine ? (
-          // Flush with the title above it (owner 2026-09-19): the caption
-          // starts at the same column, so the pair reads as one block rather
-          // than as a title with something nested under it.
+          // Flush with the title (owner call): the pair reads as one block.
           <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" paddingRight={1}>
             {truncateEndCells(modelLine, treeLabelBudget(shared, 2), charWidth)}
           </text>
@@ -414,14 +332,9 @@ export function TabTreeRow(props: {
 }
 
 /**
- * A project's routine count row — the one fold in this tree.
- *
- * Standing routine sessions rest behind it because a schedule's output is
- * background noise beside the tasks the user opened themselves. ⏎ (or a
- * click) toggles it open, and the tasks then render as ordinary worktree
- * rows: the fold hides them, it never turns them into a different kind of
- * thing. They stay selectable from the Inbox and the Routines page while
- * closed, so this hides a ROW, not a task.
+ * A project's routine count row, the tree's one fold: schedule output is
+ * noise beside tasks a human opened. Open, they render as ordinary worktree
+ * rows; closed, they stay reachable from the Inbox and Routines page.
  */
 export function RoutinesTreeRow(props: {
   readonly rowId: string
@@ -446,11 +359,7 @@ export function RoutinesTreeRow(props: {
   )
 }
 
-/**
- * Narrow mode's "↩ Recent: <task>" jump row — the first
- * navigable row of the narrow sidebar. ⏎ re-enters the named task's
- * workspace; it answers to nothing else (no menu, no per-task verbs).
- */
+/** Narrow mode's "↩ Recent: <task>" row: ⏎ re-enters that task; no menu, no verbs. */
 export function RecentJumpRow(props: {
   readonly rowId: string
   readonly flatIndex: number

@@ -1,13 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * `dev:mock` — THE general mock scene: one bench, everything in it.
- * Composes the real app shape without a
- * daemon/orchestrator: the real Sidebar against the shared synthetic
- * fixtures (many projects + mixed-status tasks) next to real TerminalTabs
- * running throwaway shells, on the full provider stack (theme → focus →
- * kv → notifications → dialog). New UI surfaces that need a visual bench
- * get ADDED HERE, not a new dev:mock-* entry — per-pane hosts remain only
- * where a pane needs bespoke seams (history's injectable reader, etc.).
+ * `dev:mock` — the one general mock scene, no daemon: the real Sidebar on
+ * synthetic fixtures next to real TerminalTabs running throwaway shells, on
+ * the full provider stack. New surfaces needing a bench go HERE, not in a new
+ * dev:mock-* entry; per-pane hosts exist only for bespoke seams.
  *
  * Keys: q / ctrl+c quit · tab cycles pane focus · sidebar j/k/enter live ·
  * terminal tabs ctrl+t/w/]/[ + ctrl+\ / ctrl+= splits live.
@@ -80,8 +76,6 @@ function MockScene() {
   )
 }
 
-// Boot through the real React pane host: shared boot steps, persisted prefs
-// seeding, live ui-prefs subscription, crash boundary, exit backstop.
 await bootPaneHost({
   logContext: "mock-scene",
   providers: { kv: true, focus: true, notifications: true },

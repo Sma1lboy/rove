@@ -1,14 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The chrome every tree row sits in, and the cell arithmetic each row budgets
- * its label against.
- *
- * Split out of `tree-rows.tsx` because the two halves answer different
- * questions: this one is "what does ANY row look like, and how much width is
- * left for a label", while the row kinds next door are "what does a worktree
- * / tab / routines / recent-jump row put in that space". `RowShell` owns the
- * marker column, the indent, and the whole mouse contract; the budget helpers
- * own the reserved cells the right-edge cluster spends.
+ * The chrome every tree row sits in (`RowShell`: marker, indent, mouse
+ * contract) and the cell arithmetic each row budgets its label against.
  */
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
@@ -21,26 +14,21 @@ import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 
-/** Cells of indent per depth level — one: the rail is narrow, and the glyph
- *  column already separates the levels visually. */
+/** One cell per depth level: the rail is narrow and the glyph column already separates levels. */
 const INDENT_CELLS = 1
 
 export type TreeRowShared = {
-  /** Rail width in cells — the label truncation budget derives from it. */
+  /** Rail width in cells; the label budget derives from it. */
   readonly width?: number
   /** Cursor position in the tree's flat id list. */
   readonly cursorIndex: number
   /** The row id the right pane is showing (`taskId::tabId` when a tab). */
   readonly activeRowId: string | null
-  /** The task whose session the right pane shows. The unread-lamp digest
-   *  keys on THIS (selected task + the tab's own active bit) rather than on
-   *  `activeRowId`: that id needs the live tab map, which is cold right
-   *  after a restart — and a lamp that ignores the session you are sitting
-   *  in is wrong. */
+  /** The unread-lamp digest keys on THIS, not `activeRowId`: that id needs
+   *  the live tab map, which is cold right after a restart. */
   readonly selectedTaskId: string | null
-  /** The row being dragged in move mode — wears the move chip.
-   *  Null outside move mode, and while a `main` row drags its whole project
-   *  (the group HEADER wears the chip then — `movingProjectId`). */
+  /** Row wearing the move chip. Null outside move mode, and while a `main`
+   *  row drags its project (the header wears it then). */
   readonly movingRowId?: string | null
   /** Keyed by FLAT INDEX so one scroll-follow lookup covers every row. */
   readonly rowEls: Map<number, BoxRenderable>
@@ -49,8 +37,7 @@ export type TreeRowShared = {
   readonly onContextMenu?: (flatIndex: number, rowId: string, x: number, y: number) => void
   /** The sidebar's ~2s poll tick — drives the ±stats poller. */
   readonly branchTick: number
-  /** The digit a row prints, from the shared task numbering — null for a row
-   *  that carries none. Resolved once per tree build, not per row. */
+  /** The row's jump digit, or null. Resolved once per tree build. */
   readonly jumpDigitOf: (rowId: string) => string | null
   /** Per-tab activity (taskId → tabId → state), never the task rollup. */
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
@@ -61,13 +48,10 @@ export type TreeRowShared = {
 }
 
 /**
- * Cell budget for a tree row's flexible label, so a clipped label ends in a
- * visible `…` instead of the bare hard cut Yoga produces (a chopped branch
- * name reads as the full name to anyone who doesn't know it's longer). The
- * caller passes the LIVE right-edge cluster width — same per-row subtraction
- * the flat cards do — and each cluster item costs its width plus its 1-cell
- * flex gap. Slight over-budget is safe (flex still clips); the floor keeps a
- * crowded row from erasing its label entirely.
+ * Cell budget for a row's label, so a clip ends in a visible `…` rather than
+ * Yoga's bare cut (a chopped branch reads as the full name). `reserved` is
+ * the LIVE right-cluster width. Slight over-budget is safe (flex still
+ * clips); the floor keeps a crowded row's label from vanishing.
  */
 export function treeLabelBudget(shared: TreeRowShared, reserved: number): number {
   const width = shared.width ?? SIDEBAR_WIDTH
@@ -82,17 +66,12 @@ export function clusterCells(text: string): number {
   return cells
 }
 
-/** Budget the row's own jump digit costs — it is the last cluster item, and
- *  a label that ate its cells would push the number off the rail. Null for a
- *  row that carries no digit, which now includes every tab row: the digit
- *  counts TASKS (see `jumpTaskIds`), so only the row standing for a task
- *  spends cells on one. */
+/** Cells the row's jump digit costs, or 0 with no digit (tab rows: digits count TASKS). */
 export function jumpDigitCells(digit: string | null): number {
   return digit === null ? 0 : clusterCells(digit)
 }
 
-/** The move-mode chip a dragged ROW wears — same vocabulary as
- *  the project header's chip, so all three levels read identically. */
+/** The move chip a dragged ROW wears; same vocabulary as the project header's. */
 export function MoveChip(props: { readonly rowId: string; readonly shared: TreeRowShared }) {
   const { theme } = useTheme()
   const t = useT()
@@ -131,15 +110,9 @@ export function RowShell(props: {
       gap={0}
       backgroundColor={selection.backgroundColor}
       onMouseUp={(evt: { button: number; x: number; y: number; stopPropagation(): void }) => {
-        // Don't bubble to the pane box's focus-grab (the workspace host's
-        // sidebar shell): activating a row hands focus to the CONTENT pane,
-        // a bubbled sidebar re-grab would overwrite it, leaving the sidebar's
-        // letter chords (d!) live over what looks like the terminal. Same
-        // guard the ZEN chip carries.
+        // Activating hands focus to the content pane; a bubbled sidebar
+        // re-grab would leave sidebar letter chords live over the terminal.
         evt.stopPropagation()
-        // Right-click opens the row's menu instead of activating it — the
-        // terminal only forwards button 2 while mouse reporting is on, which
-        // is the same mode the left-click activate already depends on.
         if (evt.button === MouseButton.RIGHT && shared.onContextMenu) {
           shared.onContextMenu(props.flatIndex, props.rowId, evt.x, evt.y)
           return

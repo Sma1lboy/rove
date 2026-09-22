@@ -1,18 +1,10 @@
 /** @jsxImportSource @opentui/react */
 /**
- * View for a single file tree row. Pure render: all row math (stat widths,
- * path budget, status→token mapping) comes from the shared framework-free
- * `pane-core.ts`.
+ * One file tree row. The cursor row uses the Sidebar's neutral marker +
+ * `backgroundElement` tint, not a solid fill, so semantic colours survive.
  *
- * Cursor row treatment — shares the Sidebar's neutral left marker +
- * `backgroundElement` tint, NOT the pane-level focus accent or a solid
- * terracotta fill, so the semantic colours survive instead of being
- * flattened to inverted text. A bare space holds the 1-cell gutter on
- * non-cursor rows so content stays aligned.
- *
- * Memoized: every prop is identity-stable across a j/k cursor move
- * (`reconcileRows` rows, memoized stat widths, ONE shared `onActivate`),
- * so a keystroke re-renders only the two rows whose `cursor` flag flipped.
+ * Memoized: every prop is identity-stable across a j/k move, so a keystroke
+ * re-renders only the two rows whose `cursor` flag flipped.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -27,14 +19,12 @@ export type FileTreeRowProps = {
   row: Row
   /** Row index in the flattened list — echoed back through `onActivate`. */
   index: number
-  /** Whether the cursor sits on this row. */
   cursor: boolean
   /** Shared stat column widths (Changes tab). */
   statWidths: StatWidths
   /** Path cell budget (Changes tab). */
   pathBudget: number
-  /** Mouse activation: sets the cursor here and opens/toggles the row.
-   *  ONE stable callback shared by all rows (memo-friendly). */
+  /** ONE stable callback shared by all rows (memo-friendly). */
   onActivate: (row: Row, index: number) => void
 }
 
@@ -86,18 +76,14 @@ export const FileTreeRowView = memo(function FileTreeRowView(props: FileTreeRowP
       </box>
     )
   }
-  // Changes row: status char + path + +N -N stats. An untracked-directory
-  // row (fileCount set) renders collapsed with a ▸/▾ marker and a file
-  // count, in muted text — an asset dump shouldn't shout over tracked
-  // changes; its children indent two cells when expanded.
+  // Changes row. An untracked dir (fileCount set) is muted so an asset dump
+  // doesn't shout over tracked changes.
   const isUntrackedDir = row.fileCount !== undefined
   const marker = isUntrackedDir ? (row.expanded ? "▾ " : "▸ ") : ""
   const countSuffix = isUntrackedDir ? ` (${row.fileCount})` : ""
   const indent = row.child ? "  " : ""
-  // Everything sharing the row's line spends the same CELL budget the path
-  // does — `.length` would under-charge a wide glyph and reopen the overflow
-  // `truncatePathTail` closes (`▾ ` and `(12)` are ASCII today, but the
-  // budget is the row's one arithmetic and must stay in one unit).
+  // Everything on the line spends the path's CELL budget: `.length` would
+  // under-charge a wide glyph and reopen the overflow `truncatePathTail` closes.
   const pathBudget = props.pathBudget - displayWidth(marker) - displayWidth(countSuffix) - displayWidth(indent)
   const tone = statusToken(row.status)
   const statusColor =

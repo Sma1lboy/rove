@@ -1,15 +1,8 @@
 /**
- * Terminal pane key bindings — the React hook layer.
- *
- * Passthrough contract: when focused, every keystroke the shell would expect
- * (ctrl+c, ctrl+d, arrows, …) is forwarded verbatim. The dynamically
- * configured command prefix, `RESERVED_GLOBAL_CHORDS`, and ctrl+pgup/pgdown
- * scrollback chords stay kobe-owned — see `keys-pure.ts` for the full
- * rationale.
- *
- * Pure/runtime split: `keys-pure.ts` holds the constants + the
- * side-effect-free byte encoder; this file owns only the React registration
- * (`useBindings` + the raw keypress/paste listeners on the renderer).
+ * Terminal pane key bindings (React registration). When focused, every key
+ * the shell expects is forwarded verbatim; the command prefix,
+ * `RESERVED_GLOBAL_CHORDS`, and ctrl+pgup/pgdown stay kobe-owned (rationale
+ * in `keys-pure.ts`).
  */
 
 import { type KeyEvent, decodePasteBytes } from "@opentui/core"
@@ -28,15 +21,10 @@ import { bindByIds } from "../../context/keybindings"
 import { type Binding, modalActive, useBindings } from "../../lib/keymap"
 import { useLatest } from "../../lib/use-latest"
 
-// Re-export pure helpers so callers can import everything from one path.
-
-/** Argument bag for {@link useTerminalBindings} — plain values, not Accessors (React re-renders on prop change). */
 export type TerminalBindingsOpts = {
-  /** Whether the terminal pane currently has focus. */
   focused: boolean
   /** Whether this caller explicitly owns image/PDF path pastes while unfocused. */
   unfocusedAttachmentTarget: boolean
-  /** Forward a byte sequence to the underlying PTY. */
   write: (data: string) => void
   /** Read the child PTY's current cursor/keypad application modes. */
   inputModes?: () => TerminalInputModes
@@ -48,18 +36,10 @@ export type TerminalBindingsOpts = {
   pageSize?: number
   /** Tear down the current PTY and spawn a fresh shell at the same worktree (F5, confirm-gated). */
   reset: () => void
-  /**
-   * Copy the live selection to the system clipboard and clear it. Returns
-   * false when there was no selection, which is what lets ctrl+c stay an
-   * interrupt whenever nothing is highlighted.
-   */
+  /** Copy + clear the selection; false (none) lets ctrl+c stay an interrupt. */
   copySelection: () => boolean
-  /**
-   * The scrollback search row is open. Every passthrough entry AND the raw
-   * catch-all below switch off while it is: the query is captured by a raw
-   * listener that runs after them, so anything still forwarding would eat the
-   * keystroke (and type it into the shell) before the query ever saw it.
-   */
+  /** Search row open: all passthrough AND the raw catch-all switch off, since
+   *  the query's raw listener runs after them and would lose the keystroke. */
   searchActive: boolean
   /** Open the scrollback search row (prefix `/`). */
   openSearch: () => void
@@ -69,24 +49,17 @@ export type TerminalBindingsOpts = {
   closeSearch: () => void
 }
 
-/**
- * Register the terminal pane's pane-local bindings. `useBindings` re-reads
- * its config through a render-refreshed ref on every keypress, so this
- * hook can be called fresh every render (same pattern as `FileTree`'s
- * `useBindings` call) without going stale.
- */
+/** Register the terminal pane's pane-local bindings. */
 export function useTerminalBindings(opts: TerminalBindingsOpts): void {
   const pageSize = opts.pageSize ?? DEFAULT_PAGE_SIZE
   const optsRef = useLatest(opts)
   const pageSizeRef = useLatest(pageSize)
 
-  // Built once per mount: the pane re-renders per PTY output frame, and the
-  // ~850-entry passthrough table is identical every time. Handlers read the
-  // live opts through the render-refreshed ref, so nothing here goes stale.
+  // Built once per mount: the pane re-renders per output frame and the
+  // ~850-entry table never changes. Handlers read live opts via ref.
   const bindings = useMemo(() => {
     const table: Binding[] = []
-    // Scrollback exceptions FIRST so they take precedence over any
-    // passthrough variants of `pageup`/`pagedown` registered later.
+    // FIRST, to beat the passthrough `pageup`/`pagedown` variants.
     table.push(
       ...bindByIds({
         "terminal.scroll-up": () => optsRef.current.scroll(-pageSizeRef.current),
@@ -95,10 +68,8 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
         "terminal.search": () => optsRef.current.openSearch(),
       }),
     )
-    // Copy chords, registered BEFORE the passthrough table so they beat its
-    // `ctrl+shift+c` variant (`cmd+c` has no passthrough entry — the table
-    // expands no `cmd+` prefix — but the raw catch-all below would still
-    // encode it, so this binding is what stops Cmd+C reaching the PTY at all).
+    // BEFORE the table, to beat its `ctrl+shift+c`. `cmd+c` has no table
+    // entry, but the raw catch-all would encode it; this stops it.
     for (const chord of COPY_CHORDS) {
       table.push({
         key: chord,
@@ -120,9 +91,7 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
     bindings,
   }))
 
-  // Registered separately so it survives the gate above: while the query row
-  // owns the pane these are the only chords it offers. `up`/`down` reach it
-  // because the passthrough that normally forwards them to the shell is off.
+  // Separate so it survives the gate above; `up`/`down` reach it because passthrough is off.
   const searchBindings = useMemo(
     () =>
       bindByIds({
@@ -137,18 +106,13 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
     bindings: searchBindings,
   }))
 
-  // Catch-all input forwarder for IME/pinyin composition commits and any
-  // input whose `name` isn't in `PASSTHROUGH_NAMES`. Registered ONCE (empty
-  // deps) and reads the latest `opts` through a render-refreshed ref, so it
-  // doesn't re-subscribe to the renderer's emitter every render.
+  // Catch-all forwarder for IME commits and names outside `PASSTHROUGH_NAMES`.
+  // Registered ONCE; reads `opts` via ref.
   const renderer = useRenderer()
   useEffect(() => {
     if (!renderer) return
-    // `modalActive()`: pane focus does NOT change when a dialog opens, so
-    // without it this forwarder eats the keystroke (preventDefault) before
-    // the dialog's focused <input> can — typing into a rename dialog lands
-    // in the PTY instead. The useBindings entries above are already cut off
-    // by the modal barrier; raw listeners must gate themselves.
+    // Pane focus doesn't change when a dialog opens; raw listeners must gate
+    // themselves or dialog typing lands in the PTY.
     const forwardUnhandled = (evt: KeyEvent) => {
       if (!optsRef.current.focused || optsRef.current.searchActive) return
       if (evt.defaultPrevented || modalActive()) return

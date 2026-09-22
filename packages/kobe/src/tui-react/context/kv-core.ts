@@ -1,22 +1,14 @@
 /**
- * Framework-free KV core — the data + persistence half of the KV store,
- * consumed by the React `KVProvider` and unit-testable under vitest
- * (no @opentui).
+ * Framework-free KV core (data + persistence) behind the React `KVProvider`.
  *
- * Semantics:
- *   - Synchronous snapshot hydration from `state.json` at creation, so the
- *     first render already sees persisted values (no default flash).
- *     Snapshot-only reads — a key another process writes later is not
- *     picked up until restart.
- *   - Writes are debounced (250ms) and DIRTY-KEY MERGED via
- *     `patchStateFile`: only keys THIS process changed since its last
- *     successful flush reach disk, so a concurrent kobe process's writes
- *     are never clobbered by a whole-snapshot write-back (the classic
- *     lost-update bug). Dirty keys survive a failed flush and retry on the
- *     next one.
- *   - `clear()` is the one legitimate whole-file write
- *     (`replaceStateFile({})`): "reset UI state" means wipe EVERYTHING,
- *     including keys other processes wrote after we loaded.
+ *   - Hydrates synchronously from `state.json` at creation, so the first
+ *     render has persisted values. Snapshot-only: another process's later
+ *     writes are not seen until restart.
+ *   - Writes are debounced (250ms) and dirty-key merged via `patchStateFile`:
+ *     only keys this process changed reach disk, so a concurrent process's
+ *     writes are never clobbered. Dirty keys survive a failed flush.
+ *   - `clear()` is the one whole-file write: reset wipes everything,
+ *     including other processes' keys.
  */
 
 import { kvStatePath } from "../../env.ts"
@@ -55,14 +47,10 @@ export interface KvCore {
   /** Wipe every persisted key; false preserves the snapshot and pending edits. */
   clear(): boolean
   /**
-   * Subscribe to flushes that did not reach disk; returns the unsubscribe.
-   *
-   * The debounced write is fire-and-forget — nothing awaits it and `set()`
-   * has already updated the snapshot, so a rejected write used to be
-   * invisible: the UI showed the new theme/toggle/width all session and
-   * silently reverted at the next launch. `console.error` alone does not
-   * count as surfacing under an alternate screen (see
-   * `workspace/use-host-notifiers.ts`), so the on-screen half needs a sink.
+   * Subscribe to flushes that did not reach disk. The debounced write is
+   * fire-and-forget and `set()` already updated the snapshot, so without this
+   * a failed write shows fine all session and reverts next launch
+   * (`console.error` is invisible under the alternate screen).
    */
   onWriteError(listener: KvWriteErrorListener): () => void
 }
@@ -75,10 +63,8 @@ export function createKvCore(): KvCore {
   let writeTimer: ReturnType<typeof setTimeout> | null = null
   const errorListeners = new Set<KvWriteErrorListener>()
   /**
-   * Keys already reported as unwritten. A read-only state dir fails EVERY
-   * 250ms flush, and dirty keys survive a failed write, so without this the
-   * same key raises a toast on every keystroke that touches it. Cleared on
-   * the next write that lands, so a failure that comes back is reported again.
+   * Keys already reported unwritten: a read-only state dir fails every flush,
+   * and would toast per keystroke. Cleared when a write lands.
    */
   const reportedKeys = new Set<string>()
 
@@ -93,9 +79,7 @@ export function createKvCore(): KvCore {
   function writeNow(label: string): boolean {
     if (dirtyKeys.size === 0) return true // nothing of ours to merge
     try {
-      // Read-merge-write: only OUR dirty keys are applied onto a fresh
-      // read of the file. A key set to `undefined` locally serializes as
-      // a deletion (patchStateFile deletes explicit-undefined entries).
+      // A key set to `undefined` locally becomes a deletion on disk.
       const patch: Record<string, unknown> = {}
       const snap = store.get()
       for (const key of dirtyKeys) patch[key] = snap[key]
@@ -133,13 +117,9 @@ export function createKvCore(): KvCore {
       return store.get()[key] ?? defaultValue
     },
     set(key, value) {
-      // `undefined` DELETES: the key must leave the snapshot, not sit in it
-      // as an enumerable `undefined` — `sweepOrphanTabsSnapshots` walks
-      // `Object.keys` and re-deletes anything still present, and its effect
-      // re-runs on every kv identity change, so a spread-back key turns one
-      // sweep into an infinite setState loop (React #185). Disk already has
-      // delete semantics (patchStateFile drops explicit-undefined entries);
-      // this aligns the in-memory snapshot with it.
+      // `undefined` DELETES the key, matching disk. An enumerable `undefined`
+      // makes `sweepOrphanTabsSnapshots` (walks `Object.keys`, re-runs on
+      // every kv identity change) loop setState forever (React #185).
       store.update((s) => {
         if (value !== undefined) return { ...s, [key]: value }
         if (!(key in s)) return s // already absent — no snapshot churn

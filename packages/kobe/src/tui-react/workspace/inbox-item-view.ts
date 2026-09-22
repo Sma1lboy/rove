@@ -1,13 +1,7 @@
 /**
- * Attention-Inbox item → its presentation (glyph, tone, state word, and the
- * rate-limit resume note). Pure and framework-free, kept out of
- * `AttentionInboxPane.tsx` so the mapping is unit-testable without mounting
- * the pane — which matters more here than usual, because of the rule below.
- *
- * One rule holds the four together: the Inbox's vocabulary must MATCH the
- * sidebar rail's (`row-view.ts`) and the tab strip's (`tab-strip.tsx`). Three
- * surfaces describing one tab in three vocabularies is what makes a rate
- * limit and a crash look identical.
+ * Attention-Inbox item → presentation (glyph, tone, state word, resume note).
+ * The vocabulary must MATCH the sidebar rail (`row-view.ts`) and tab strip
+ * (`tab-strip.tsx`), or a rate limit and a crash look alike.
  */
 
 import { intlLocale } from "@/tui/i18n"
@@ -27,12 +21,9 @@ export function itemColor(state: AttentionInboxItem["state"], theme: ThemeColors
 export function itemGlyph(state: AttentionInboxItem["state"]): string {
   if (state === "permission_needed") return "?"
   if (state === "turn_complete") return "✓"
-  // `◷`, the sidebar's rate-limited glyph, deliberately not `⌛`: U+231B
-  // carries the Unicode Emoji property, so macOS resolves it to
-  // AppleColorEmoji — a 2.13-cell colour glyph in a 1-cell column, which both
-  // overflows and breaks the pane's monochrome ink.
+  // Not `⌛`: U+231B resolves to AppleColorEmoji on macOS, a 2.13-cell glyph in a 1-cell column.
   if (state === "rate_limited") return "◷"
-  // `†` — the engine PROCESS is gone, the sidebar rail's DEAD_GLYPH.
+  // The engine PROCESS is gone (DEAD_GLYPH).
   if (state === "dead") return "†"
   // A schedule that could not do its work — `↻`, a cycle that keeps failing.
   if (state === "routine_failed") return "↻"
@@ -50,17 +41,9 @@ export function itemStateKey(state: AttentionInboxItem["state"]): string {
 }
 
 /**
- * "resumes 3:14 PM" for a rate-limited task whose auto-resume is armed, in the
- * viewer's locale clock. The daemon persists `Task.quotaResume.resumeAt` when
- * the engine's quota probe answers when the window clears (quota-resume.ts).
- * Showing it is what lets a user tell "back at 3:14, already scheduled" from
- * "stuck, go do something else".
- *
- * Null unless the state is `rate_limited` (the only state the schedule
- * describes), the task carries a schedule, and its stamp parses — a garbage
- * timestamp shows nothing rather than "Invalid Date". A time already past is
- * still shown: the resume runner ticks on an interval, so "due, waiting for
- * the next sweep" is the honest reading, not "never".
+ * "resumes 3:14 PM" from `Task.quotaResume.resumeAt`. Null unless
+ * `rate_limited` with a parseable stamp (never "Invalid Date"). A past time
+ * still shows: the resume runner ticks on an interval, so it's "due".
  */
 export function quotaResumeNote(
   state: AttentionInboxItem["state"],
@@ -73,8 +56,7 @@ export function quotaResumeNote(
   const at = Date.parse(raw)
   if (!Number.isFinite(at)) return null
   return t("workspace.inbox.resumesAt", {
-    // The UI locale, not the machine's: the sentence around this clock is
-    // translated, so an OS-locale clock inside it is a seam the user sees.
+    // UI locale, not the OS's: the sentence around it is translated.
     time: new Date(at).toLocaleTimeString(intlLocale(), { hour: "numeric", minute: "2-digit" }),
   })
 }

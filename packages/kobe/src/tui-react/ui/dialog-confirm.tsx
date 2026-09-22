@@ -27,11 +27,8 @@ export type DialogConfirmProps = {
   label?: string
   /** Custom label for the confirm button (default: `confirm`). Titlecased on render. */
   confirmLabel?: string
-  /**
-   * Destructive action: initial focus lands on Cancel (a stray Enter must not
-   * commit it) and the confirm button is drawn in the error color — the same
-   * `danger` → `theme.error` convention `ContextMenuEntry` uses.
-   */
+  /** Destructive: initial focus on Cancel (a stray Enter must not commit) and
+   *  confirm drawn in `theme.error`. */
   danger?: boolean
   /** Which button receives initial keyboard focus (default: `confirm`, or `cancel` when `danger`). */
   initialActive?: "confirm" | "cancel"
@@ -41,11 +38,7 @@ export type DialogConfirmResult = boolean | undefined
 type DialogConfirmOptions = {
   danger?: boolean
   initialActive?: "confirm" | "cancel"
-  /**
-   * Card width, when `small` is the wrong shape. A yes/no question fits in
-   * 50 cells; a prompt that has to SHOW what it is about to run (the plugin
-   * install preview) wraps its command lines into noise at that width.
-   */
+  /** Card width when `small` (50 cells) is too narrow to show what will run. */
   size?: DialogSize
 }
 
@@ -68,10 +61,7 @@ export function DialogConfirm(props: DialogConfirmProps) {
           dialog.clear()
         },
       },
-      // h/l alongside the arrows, the same pair `new-chat-dialog` and the
-      // Settings level switch already take. A two-button row is the one place
-      // a hand on the home row should not have to leave it, and this dialog
-      // has no text field for the letters to belong to instead.
+      // h/l too: there is no text field for the letters to belong to.
       ...(["left", "h", "right", "l"] as const).map((key) => ({
         key,
         cmd: () => setActive((a) => (a === "confirm" ? "cancel" : "confirm")),
@@ -79,8 +69,6 @@ export function DialogConfirm(props: DialogConfirmProps) {
     ],
   }))
 
-  // Tight vertical layout: title row, message right under it, buttons row
-  // right under that.
   return (
     <box paddingLeft={padX} paddingRight={padX} paddingBottom={1} gap={0}>
       <box flexDirection="row" justifyContent="space-between">
@@ -94,9 +82,7 @@ export function DialogConfirm(props: DialogConfirmProps) {
       <text fg={theme.textMuted}>{props.message}</text>
       <box flexDirection="row" justifyContent="flex-end" paddingTop={1}>
         {(["cancel", "confirm"] as const).map((key) => {
-          // A danger confirm commits something destructive: the active fill
-          // and the idle label both carry the error color (context-menu
-          // `danger` convention) so the risky button reads as risky.
+          // Danger: active fill and idle label both use the error color.
           const dangerConfirm = key === "confirm" && props.danger
           return (
             <box
@@ -131,9 +117,6 @@ DialogConfirm.show = (
   confirmLabel?: string,
   options?: DialogConfirmOptions,
 ): Promise<DialogConfirmResult> => {
-  // Confirms are tight yes/no prompts; the narrow `small` width reads at a
-  // glance instead of swallowing half the viewport. A caller whose question
-  // carries content (a preview of what it is about to do) widens it.
   return showDialog<boolean>(
     dialog,
     (resolve) => (

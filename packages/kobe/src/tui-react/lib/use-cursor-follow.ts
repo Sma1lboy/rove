@@ -1,16 +1,8 @@
 /**
- * Keep a list page's cursor row inside its scroll viewport.
- *
- * The mechanism is the one `panes/sidebar/SidebarTree.tsx` already uses — a
- * Map of row renderables plus `scrollChildIntoView` on the owning scrollbox —
- * lifted out because four rail pages need it and rows there are NOT uniform
- * height (worktree rows are 2 lines, routine strips 3, kanban cards vary), so
- * `filetree/pane-core.ts`'s `followScrollTop` arithmetic does not apply.
- *
- * `scrollRef` may be attached to more than one scrollbox: `scrollChildIntoView`
- * resolves the row through `findDescendantById` and silently no-ops on a
- * container that does not hold it, so the kanban board can register all four
- * lanes and only the lane owning the selected card scrolls.
+ * Keep a list page's cursor row in view via `scrollChildIntoView`; rows are
+ * not uniform height, so offset arithmetic doesn't apply. `scrollRef` may be
+ * attached to several scrollboxes: one that doesn't hold the row no-ops, so
+ * only the kanban lane owning the card scrolls.
  */
 
 import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"

@@ -1,17 +1,11 @@
 /**
- * Shared row-selection semantics for navigation panes.
+ * Shared row-selection semantics. Pane focus belongs to the frame
+ * (`focusAccent`); rows stay neutral: the cursor gets the strongest marker +
+ * tint, a persistent selection stays visible after the cursor moves.
  *
- * Pane focus belongs to the pane frame (`focusAccent`). Rows deliberately
- * stay neutral: the movable keyboard cursor gets the strongest local marker
- * and tint, while a persistent selection remains visible after the cursor
- * moves without pretending the pane owns global focus.
- *
- * Transparent mode: NO background fill at all — an
- * opaque tint block on top of the host wallpaper reads as a mismatched
- * patch, so the cursor signal moves entirely into the ▌ marker, which takes
- * the focus accent to stay visible against any wallpaper. Detected off the
- * resolved theme itself (`applyDisplayOverlay` zeroes `background`'s alpha),
- * so no caller has to thread the toggle through.
+ * Transparent mode: NO fill (a tint over the wallpaper reads as a patch); the
+ * ▌ marker takes the focus accent instead. Detected from the theme
+ * (`background` alpha is zero), so callers thread nothing.
  */
 
 import type { Theme } from "../context/theme"

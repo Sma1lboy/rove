@@ -1,21 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The workspace host's sidebar MOUNT: the ~40 props `HostSidebar` needs, and
- * the small closures that adapt the host's hooks to them.
- *
- * The seam is ownership, not line count. `host.tsx` composes the workspace —
- * which hooks exist, which region renders — and every one of those decisions
- * is a line the sidebar's wiring was crowding out. `host-sidebar.tsx` already
- * declares the boundary ("a new sidebar concern lands here instead of
- * accreting on the host"); it just had no place to put the CALLER's half. This
- * is that place: the host now hands over the hook bundles it already has, and
- * every "what does clicking a row mean" decision lives next to the component
- * that answers it.
- *
- * Props are the BUNDLES the host's hooks return, not their fields spread out.
- * Threading twenty individual values would move the wiring without reducing
- * it, and re-introduce the drift the shared `SidebarTaskCallbacks` type exists
- * to prevent.
+ * The host's sidebar MOUNT: adapts the host's hook bundles to `HostSidebar`'s
+ * props; every "what does clicking a row mean" decision lives here. Props are
+ * the BUNDLES, not spread fields, which would re-introduce the drift
+ * `SidebarTaskCallbacks` prevents.
  */
 
 import type { Task } from "@/types/task"
@@ -36,8 +24,7 @@ import { requestTabActivation } from "./terminal-tabs-shared"
 import type { UseDaemonStateResult } from "./use-daemon-state"
 import { useSidebarCollapsed, useSidebarWidth } from "./use-sidebar-layout"
 
-/** The host bundles this mount reads, kept structural so a hook can grow a
- *  field without this file learning about it. */
+/** Structural, so a hook can grow a field without this file changing. */
 export interface HostSidebarMountProps {
   readonly terminalWidth: number
   readonly showContent: boolean
@@ -56,8 +43,7 @@ export interface HostSidebarMountProps {
   readonly focus: FocusContextValue
   readonly inbox: { readonly counts: { readonly total: number }; readonly show: () => void }
   readonly update: { readonly hasUpdate: boolean; readonly latest: string } | null | undefined
-  /** `onFixChecks` from `useEditorHandles` — the one row verb that has to run
-   *  where the engine is, so it lives with the imperative tab handles. */
+  /** The one row verb that must run where the engine is (`useEditorHandles`). */
   readonly onFixChecks: (taskId: string) => void
   readonly runAgain: (task: Task) => void
   readonly activePane: string | null
@@ -73,8 +59,7 @@ export interface HostSidebarMountProps {
   readonly t: (key: string, params?: Record<string, string | number>) => string
 }
 
-/** A stored fold that is no longer a real one (an older build's value, a
- *  hand-edited state.json) falls back rather than rendering nothing. */
+/** An unknown stored fold style falls back rather than rendering nothing. */
 function railFoldStyle(raw: unknown): CollapsedRailStyle {
   return COLLAPSED_RAIL_STYLES.includes(raw as CollapsedRailStyle)
     ? (raw as CollapsedRailStyle)
@@ -85,10 +70,8 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
   const { actions, pages, focus, inbox, t } = props
   const kv = useKV()
   const sidebarWidth = useSidebarWidth()
-  // Folded/unfolded is an intent, so it survives a restart the way zen does.
-  // Straight from the store, not mirrored into state: the frame-level resize
-  // grip reads the same fold to decide whether it exists at all, and two
-  // copies of one intent can disagree for a frame.
+  // Persisted intent, read straight from the store: the resize grip reads it
+  // too, and two copies could disagree for a frame.
   const [collapsed, setCollapsed] = useSidebarCollapsed()
   return (
     <HostSidebar
@@ -98,13 +81,9 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onToggleCollapsed={() => {
         const next = !collapsed
         setCollapsed(next)
-        // Folding unmounts the tree, and the tree is what owns the sidebar's
-        // FOCUSED chords (j/k/enter, the row letters) — leaving focus behind
-        // would strand the keyboard in a pane that answers nothing, with no
-        // chord to unfold it (the control is mouse-only for now). Zen hands
-        // focus off for the same reason. The global `ctrl+<digit>` jump is the
-        // exception and survives the fold: the strip prints those digits, so
-        // it registers them itself (`use-task-jump.ts`).
+        // Folding unmounts the tree and its focused chords, with no chord to
+        // unfold, so focus moves off. `ctrl+<digit>` survives (the strip
+        // registers it, `use-task-jump.ts`).
         if (next) focus.setFocused("workspace")
       }}
       nav={pages.nav}
@@ -112,9 +91,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       tasks={props.tasks}
       selectedId={props.selectedId}
       selectedTabId={props.selectedTabId}
-      // Picking a task means "show me that task" — so it returns the content
-      // pane to its terminal. Without this the rail page stayed up and
-      // selecting a row did nothing visible.
+      // Picking a task returns the content pane to its terminal.
       onSelect={(id) => {
         props.selectTask(id)
         pages.setNav("terminal")
@@ -123,14 +100,10 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
         pages.setNav("terminal")
         void props.activateTask(id)
       }}
-      // Picking a TAB is entering that session: focus moves to the terminal,
-      // same as activate — a click that leaves the sidebar's letter chords
-      // (d!) live under your typing is how a task gets deleted by accident.
-      // Re-clicking the tab you are ALREADY in flips focus back to the
-      // sidebar: the first click entered the session, so a second click on the
-      // same row means "give me the sidebar". Keyboard enter is exempt
-      // (sidebar already focused — enter always means enter the session), as
-      // is a click that brings the terminal back from a rail page.
+      // Picking a TAB enters the session: focus to the terminal, or sidebar
+      // letter chords (d!) stay live under your typing. Re-clicking the tab
+      // you're ALREADY in flips focus back to the sidebar; keyboard enter and
+      // a click returning from a rail page are exempt.
       onSelectTab={(taskId, tabId) => {
         const reClick =
           pages.nav === "terminal" &&
@@ -162,8 +135,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onChangeEngineRequest={(id) => void actions.pickVendor(id)}
       onFieldNotesRequest={actions.showFieldNotes}
       onFixChecksRequest={props.onFixChecks}
-      // Confirm here, create in quick-fork: it owns the pending-prompt slot
-      // that delivers the brief on the NEW task's mount.
+      // Created in quick-fork, which owns the pending-prompt slot for the new task.
       onRunAgainRequest={(id) => void actions.confirmRunAgain(id).then((task) => task && props.runAgain(task))}
       moveMode={props.moveMode}
       onMoveRequest={(id, delta) => void actions.moveTask(id, delta)}

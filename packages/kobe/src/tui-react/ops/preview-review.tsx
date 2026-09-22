@@ -1,18 +1,13 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Diff review overlay for the read-only preview tab (`PreviewScreen`) — a
- * line cursor over the unified `<diff>`, range select, a note dialog (the
- * shared RenameTaskDialog text prompt, per the reuse-original-dialogs rule),
- * and the send-all action. All pure logic (row mapping, paint set, range
- * math, the kv-backed store) is `src/tui/ops/diff-comments.ts`; this file
- * owns only React state, key bindings, and imperative paint/scroll on the
- * DiffRenderable.
+ * Diff review overlay for the preview tab: line cursor over the unified
+ * `<diff>`, range select, note dialog, send-all. Pure logic lives in
+ * `src/tui/ops/diff-comments.ts`; this file owns React state, bindings, and
+ * imperative paint/scroll on the DiffRenderable.
  *
- * PROPOSED chords (owner sign-off pending, see docs/KEYBINDINGS.md rules):
- * j/k/down/up line cursor · v range anchor · c note · s send-all · x drop the
- * note under the cursor. Plain letters, active only while the diff content tab
- * has workspace focus — same raw-binding precedent as this screen's existing
- * `o` (system open). `x` is the NEW one in this set.
+ * PROPOSED chords (owner sign-off pending): j/k/down/up cursor · v range ·
+ * c note · s send-all · x drop note. Active only while the diff tab has
+ * workspace focus.
  */
 
 import type { DiffRenderable, RGBA } from "@opentui/core"
@@ -37,8 +32,7 @@ import { useBindings } from "../lib/keymap"
 import { useLatest } from "../lib/use-latest"
 import { useDialog } from "../ui/dialog"
 
-/** The scrollable code child inside the DiffRenderable's unified side —
- * reached via the public child tree (the direct handle is TS-private). */
+/** The DiffRenderable's scrollable code child, found via the child tree (the direct handle is TS-private). */
 function findCodeRenderable(diff: DiffRenderable): CodeRenderable | null {
   const stack = [...diff.getChildren()]
   while (stack.length > 0) {
@@ -56,8 +50,7 @@ function paintColor(kind: ReviewPaintKind, theme: Theme): { gutter: RGBA; conten
   return { gutter: theme.warning }
 }
 
-/** Restore a vacated row to the built-in diff coloring (the same config
- * `buildUnifiedView` computes) — `clearLineColor` would strip it instead. */
+/** Restore built-in diff coloring (as `buildUnifiedView` computes it); `clearLineColor` would strip it. */
 function restoreRowColor(diff: DiffRenderable, row: DiffRow | undefined, index: number): void {
   if (!row) {
     diff.clearLineColor(index)
@@ -72,16 +65,11 @@ function restoreRowColor(diff: DiffRenderable, row: DiffRow | undefined, index: 
   diff.setLineColor(index, config)
 }
 
-/**
- * Wire the review overlay into a mounted `<diff>`. Inert (no bindings, no
- * footer) when `review` is absent (standalone `kobe ops --preview`) or the
- * preview isn't showing a diff.
- */
+/** Inert when `review` is absent (standalone `kobe ops --preview`) or no diff is showing. */
 export function useDiffReview(args: {
   review: DiffReviewApi | undefined
   relPath: string
-  /** Worktree root — passed to `send` so the prompt can mark a note whose
-   *  path the branch no longer has. */
+  /** Lets `send` mark a note whose path the branch no longer has. */
   worktree: string
   diffText: string | null
   focused: boolean
@@ -90,10 +78,7 @@ export function useDiffReview(args: {
   const dialog = useDialog()
   const { theme } = useTheme()
   const t = useT()
-  // A refused send has to say so out loud: under an alternate screen there is
-  // no console to read, and the footer count staying put is exactly what the
-  // silent-drop bug looked like. Same empty taskId/tabId pattern as the rail
-  // pages — only the toast queue is consumed here.
+  // A refused send must toast: the alternate screen hides the console.
   const notif = useNotifications()
 
   const rows = useMemo(() => (args.diffText ? unifiedDiffRows(args.diffText) : []), [args.diffText])
@@ -129,9 +114,8 @@ export function useDiffReview(args: {
   useEffect(() => {
     if (!enabled) return
     paintRef.current()
-    // ponytail: the DiffRenderable rebuilds its view once the async syntax
-    // highlight lands, wiping custom line colors — one delayed repaint
-    // covers it; any later keystroke repaints anyway.
+    // ponytail: the async syntax highlight rebuilds the view and wipes line
+    // colors; one delayed repaint covers it, later keystrokes repaint anyway.
     const timer = setTimeout(() => paintRef.current(), 250)
     return () => clearTimeout(timer)
   }, [enabled, rows, cursor, anchor, comments, args.relPath, theme])
@@ -175,10 +159,8 @@ export function useDiffReview(args: {
   useBindings(() => ({
     enabled: enabled && args.focused,
     bindings: [
-      // The `id`s mirror the doc-only `diff.review.*` rows in KobeKeymap. The
-      // chords stay literal here (FIXED_BINDING_IDS rejects overrides for
-      // them) — the id is what puts the rows in the reachability scan, so F1
-      // lists them only while a diff with rows is actually focused.
+      // `id`s mirror KobeKeymap's doc-only `diff.review.*` rows (chords are
+      // fixed via FIXED_BINDING_IDS); they put the rows in F1's reachability scan.
       { key: "j", id: "diff.review.cursor", cmd: () => moveCursor(1) },
       { key: "down", id: "diff.review.cursor", cmd: () => moveCursor(1) },
       { key: "k", id: "diff.review.cursor", cmd: () => moveCursor(-1) },
@@ -192,12 +174,9 @@ export function useDiffReview(args: {
 
   /* --------- footer --------- */
   const unsent = unsentComments(comments).length
-  // Per-file, because the paint is per-file: a footer counting the whole
-  // task claimed notes on a file that has none and shows none.
+  // Per-file, matching the per-file paint.
   const here = comments.filter((c) => c.filePath === args.relPath).length
-  // Opaque background: the row is mostly spaces, and a diff drawn behind it
-  // showed through them — `0 notes · 0 unsent` arrived as `06notesn· 06unsent`
-  // with the diff's next line bleeding through every gap.
+  // Opaque background: the diff behind showed through the row's spaces.
   const footer = enabled ? (
     <box
       flexDirection="row"

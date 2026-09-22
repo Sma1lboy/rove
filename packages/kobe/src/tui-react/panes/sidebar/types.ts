@@ -1,8 +1,4 @@
-/**
- * React sidebar prop types. Values are plain `T`, never accessors — the host
- * re-renders the Sidebar when one changes. Shared data shapes
- * (`WorktreeChanges`) come from the framework-free modules.
- */
+/** Sidebar prop types. Values are plain `T`, never accessors: the host re-renders on change. */
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
@@ -10,79 +6,49 @@ import type { TaskSortMode } from "../../../tui/panes/sidebar/groups"
 import type { SidebarNav } from "../../../tui/panes/sidebar/nav-core"
 import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
 
-/**
- * Task-lifecycle callbacks shared VERBATIM by {@link SidebarProps} (host
- * wiring) and `SidebarBindingsOpts` (the key controller in keys.ts) — one
- * definition so the two surfaces can't drift.
- */
+/** Task-lifecycle callbacks shared VERBATIM by {@link SidebarProps}, the tree's
+ *  bindings and menu, and the host, so the surfaces can't drift. */
 export type SidebarTaskCallbacks = {
   onDeleteRequest?: (taskId: string) => void
-  /** Row menu only — merge this task's branch into its base repo's current
-   *  branch, the same flow as the Worktrees page's `l`. */
+  /** Row menu only: the Worktrees page's `l` land flow. */
   onLandRequest?: (taskId: string) => void
   /** Shift+M — lowercase `m` is captured but ignored (shift dropped on letters). */
   onLocalMergeRequest?: (taskId: string) => void
-  /** Scope-aware reorder mode: j/k move the cursor row's LEVEL
-   *  — a tab within its task, a task within its repo group, a main row's
-   *  whole project — instead of walking the cursor. */
+  /** Reorder mode: j/k move the cursor row at its LEVEL (tab, task, or a main row's project). */
   moveMode?: boolean
   onMoveRequest?: (taskId: string, delta: -1 | 1) => void
   onMoveModeExit?: () => void
   onRenameRequest?: (taskId: string) => void
-  /**
-   * Shift+P only. A bare `p` binds nothing — the registry row is an explicit
-   * `shift+p` chord — so a mistyped press matches no binding and silently
-   * does nothing rather than churning the pin flag (see the sidebar.pin row
-   * in context/keybindings-sidebar.ts).
-   */
+  /** Shift+P only; a bare `p` binds nothing, so a mistype can't churn the pin flag. */
   onPinRequest?: (taskId: string) => void
-  /**
-   * Set the task's board status. Menu-only for now — there is no chord, so
-   * unlike its siblings this one never arrives from `use-tree-bindings`.
-   */
+  /** Set the task's board status. Menu-only, no chord. */
   onSetStatusRequest?: (taskId: string) => void
-  /**
-   * Copy the task's branch name or worktree path to the system clipboard.
-   * Menu-only, like `onSetStatusRequest` — no chord yet.
-   */
+  /** Copy branch name or worktree path to the clipboard. Menu-only. */
   onCopyRequest?: (taskId: string, field: "branch" | "path") => void
-  /**
-   * Re-fire the task's stored brief (`task.prompt`) as a new task. Menu-only,
-   * and the entry is withheld from a task with no stored brief.
-   */
+  /** Re-fire `task.prompt` as a new task. Menu-only; hidden with no stored brief. */
   onRunAgainRequest?: (taskId: string) => void
   /** Menu route of `o`: open the task's worktree in the detected editor. */
   onOpenEditorRequest?: (taskId: string) => void
   /** Menu route of `b`: the branch picker/rename for the row's task. */
   onRenameBranchRequest?: (taskId: string) => void
-  /** Menu route of `v`, as a picker over the available engines rather than
-   *  the chord's blind cycle. */
+  /** Menu route of `v`, as a picker rather than the chord's blind cycle. */
   onChangeEngineRequest?: (taskId: string) => void
-  /**
-   * Pull the row's failing CI job logs into its engine. Menu-only, and the
-   * entry only exists while the row's PR checks are red.
-   */
+  /** Pull failing CI job logs into the engine. Menu-only, while PR checks are red. */
   onFixChecksRequest?: (taskId: string) => void
-  /**
-   * Merge the row's base branch into its worktree — the action behind the
-   * `↓N` drift chip. Menu-only.
-   */
+  /** Merge the base branch into the worktree (the `↓N` chip's action). Menu-only. */
   onSyncBaseRequest?: (taskId: string) => void
   /** Project row's "Field notes": read the repo's durable notes. Menu-only. */
   onFieldNotesRequest?: (repo: string) => void
 }
 
 export type SidebarProps = SidebarTaskCallbacks & {
-  /** Which top-level destination the rail highlights. Owned by the workspace
-   *  host — it is the thing that actually swaps surfaces. */
+  /** Highlighted destination; owned by the workspace host, which swaps surfaces. */
   nav?: SidebarNav
   onNavChange?: (nav: SidebarNav) => void
   tasks: readonly Task[]
   selectedId: string | null
   onSelect: (id: string) => void
-  /** Entering the row's task. Fires on keyboard enter AND on row click —
-   *  both routes run the tree's one `activateRow`, with no opt-in flag
-   *  between them. */
+  /** Enter the row's task; fires on enter AND click (one `activateRow`). */
   onActivate?: (taskId: string) => void
   focused?: boolean
   /** Presence (non-undefined) turns on the sort toggle. */
