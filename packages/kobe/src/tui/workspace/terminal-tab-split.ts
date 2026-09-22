@@ -1,20 +1,9 @@
 /**
- * Split-tree + naming policy for a terminal tab — the terminal-flavored
- * layer over the content-agnostic `split-core.ts` tree.
- *
- * Its own module because it answers a different question than
- * `terminal-tabs-core.ts`: core owns WHICH tabs exist and which one is
- * active; this owns what is INSIDE one tab and what that tab is called.
- * The import graph enforces the direction — nothing here ever reads
- * `TabsState`, so no naming or split rule can start depending on the tab
- * list, and the one tab-shape reference ({@link TerminalTab}) is type-only
- * and erased at build time.
- *
- * Owns the persisted leaf payload shape
- * ({@link PersistedSplit}), the collapse/is-split/has-engine predicates,
- * leaf PTY keying, leaf display naming, and the tab-level display naming
- * ({@link tabTitle} — framework-free so both the strip and non-render
- * callers share one rule).
+ * Split tree + naming for one terminal tab, over the content-agnostic
+ * `split-core.ts`. Core owns WHICH tabs exist; this owns what's inside one and
+ * what it's called. Never reads `TabsState` (the {@link TerminalTab} import is
+ * type-only), so no naming/split rule can depend on the tab list.
+ * {@link tabTitle} is framework-free so the strip and non-render callers share it.
  */
 
 import type { VendorId } from "@/types/vendor"
@@ -30,43 +19,33 @@ import { type SplitState, leaves } from "./split-core"
 import type { TerminalTab } from "./terminal-tabs-core"
 
 /**
- * A tab's frozen split layout — the content-agnostic tree (`split-core`)
- * with terminal-flavored leaf payloads: `null` = the tab's own engine
- * command (only `leaf-1`), an argv = a split-created shell. JSON-safe, so
- * it rides the persisted tab straight into state.json.
+ * Persisted split layout. Leaf payload `null` = the tab's own engine command
+ * (only `leaf-1`), an argv = a split-created shell. JSON-safe for state.json.
  */
 export type PersistedSplit = SplitState<readonly string[] | null>
 
 /**
- * Whether a tab still runs its own engine leaf (`leaf-1`) — false once
- * you've closed it inside a split and only split-created shells survive
- * (57e3a20a). Unsplit (no tree) always counts as having it. Callers that
- * treat an engine tab as having live turn activity (the turn-poll loop,
- * the tab-strip's turn chip) must gate on this too, or a closed engine
- * leaf leaves a stale poll flapping against its released PTY.
+ * Whether the tab still runs its engine leaf (`leaf-1`); unsplit counts as yes.
+ * Turn-activity callers (turn-poll loop, strip turn chip) must gate on this, or
+ * a closed engine leaf leaves a stale poll against its released PTY.
  */
 export function hasEngineLeaf(tree: PersistedSplit | null | undefined): boolean {
   return !tree || leaves(tree.root).some((l) => l.id === "leaf-1")
 }
 
 /**
- * Whether a tab's frozen layout is ACTUALLY split (>1 leaf). Gates the
- * ctrl+w / F2 chord fall-through between `TerminalTabs` and
- * `TerminalSplit`: while split, the tab-level close/rename bindings
- * disable so the chords reach the leaf-level ones, and vice versa. A
- * single surviving non-leaf-1 shell is NOT split — tab-level chords apply.
+ * >1 leaf. Gates ctrl+w / F2 fall-through between `TerminalTabs` and
+ * `TerminalSplit`: while split, tab-level close/rename disable so chords reach
+ * the leaf ones. A single surviving shell is NOT split.
  */
 export function isTabSplit(tree: PersistedSplit | null | undefined): boolean {
   return tree ? leaves(tree.root).length > 1 : false
 }
 
 /**
- * Collapse rule for a structural split edit: a tree whose SOLE survivor
- * is `leaf-1` (the tab's own engine at the tab key) folds back to `null`
- * — the unsplit fast path. A sole surviving SHELL leaf must KEEP the
- * tree: the fast path would respawn the engine (`props.command` at the
- * tab key) over it. Doubles as the render predicate — a non-null result
- * means the tab renders via the tree, not the single-engine fast path.
+ * A tree whose sole survivor is `leaf-1` folds to `null` (unsplit fast path). A
+ * sole SHELL leaf keeps the tree — the fast path would respawn the engine over
+ * it. Non-null also means "render via the tree".
  */
 export function collapseSplit(next: PersistedSplit): PersistedSplit | null {
   const ls = leaves(next.root)
@@ -74,37 +53,23 @@ export function collapseSplit(next: PersistedSplit): PersistedSplit | null {
 }
 
 /**
- * Registry key for one split leaf's PTY inside a tab (`TerminalSplit.tsx`
- * over the content-agnostic `split-core.ts`). `leaf-1` maps to the TAB
- * key itself so the PTY that existed before the first split is reused,
- * not respawned; later leaves namespace under it.
+ * Registry key for a leaf's PTY. `leaf-1` IS the tab key, so the pre-split PTY
+ * is reused, not respawned; later leaves namespace under it.
  */
 export function splitLeafPtyKey(tabKey: string, leafId: string): string {
   return leafId === "leaf-1" ? tabKey : `${tabKey}::${leafId}`
 }
 
-/**
- * Display names for a split tab's leaves, id → name (the TAB is the
- * "group"; each leaf carries its OWN name).
- * Naming flow mirrors tabs: a manual rename (`leaf.title`) always wins.
- *
- * The ENGINE leaf (`null` content = the tab's own command) reads the
- * conversation's first-prompt title (`engineTitle` — the tab's own
- * title/autoTitle, the same string the group/tab label shows), falling back
- * to the command basename ("claude"/"codex") before the first prompt lands.
- * Split SHELL leaves read their live foreground-process title (`liveTitles`
- * — the OSC 0/2 window-title escape the shell/program sets, same mechanism
- * a real terminal tab uses: "zsh" idle, "vim"/"htop" once you run one),
- * falling back to the generic "shell" before any title has landed yet.
- * Same-named defaults get a reading-order occurrence suffix ("shell",
- * "shell 2") so two untitled shells stay tellable apart. Manual titles (F2
- * rename) always win and are never suffixed.
- */
-/** Generic default name for a split-created shell leaf (a bare shell has no
- *  meaningful program name). Shared so the corner tag and a collapsed tab's
- *  label agree. */
+/** Default name for a split-created shell leaf; shared so the corner tag and a collapsed tab's label agree. */
 const SHELL_LEAF_NAME = "shell"
 
+/**
+ * Leaf id → display name. Manual `leaf.title` wins and is never suffixed.
+ * Engine leaf (`null` content): `engineTitle` (the tab's title/autoTitle), else
+ * its live title, else the command basename. Shell leaf: its live OSC 0/2 title
+ * ("zsh", "vim"), else "shell". Duplicate defaults get a reading-order suffix
+ * ("shell", "shell 2").
+ */
 export function splitLeafNames(
   leafList: readonly { id: string; title?: string | null; content: readonly string[] | null }[],
   tabCommand: readonly string[],
@@ -123,11 +88,8 @@ export function splitLeafNames(
       out.set(leaf.id, leaf.title)
       continue
     }
-    // Engine leaf → first-prompt title, else its live foreground-process
-    // title (a shell tab's leaf-1 runs zsh and can enter claude/vim — the
-    // static command basename would freeze on "zsh"), else vendor basename;
-    // split shell leaf → live title, else generic "shell". Both dedupe by
-    // reading order.
+    // Live title before basename: a shell tab's leaf-1 runs zsh and can enter
+    // claude/vim, so the static basename would freeze on "zsh".
     const name =
       leaf.content === null
         ? engineTitle || liveTitles?.get(leaf.id) || basename(leaf.content)
@@ -140,22 +102,8 @@ export function splitLeafNames(
 }
 
 /**
- * Default tab names are "$process $ordinal":
- * a tab IS a terminal, so its name says what runs in it — "claude 3",
- * "shell 5", "vim 2" — never an opaque "tab N". `liveName` is the tab's
- * live foreground-process display name from `useTurnPolls().liveTitles`;
- * engine tabs don't need it (their process is known by construction),
- * callers without it (notifications) fall back to the static shell default.
- *
- * Plain (non-hook) helper — used by the strip render AND outside render
- * (rename dialog prefill, notification titles) — so it reads the
- * module-level `t()` rather than `useT()`.
- */
-/**
- * First-prompt junk guard: a conversation whose opening prompt was a menu
- * answer ("1", "y", "ok") or bare punctuation must not name the tab — treat
- * it as absent so the vendor default ("claude 2") applies. Display-side on
- * purpose: already-persisted junk autoTitles heal without a migration.
+ * A first prompt that was a menu answer ("1", "y", "ok") or bare punctuation
+ * doesn't name the tab. Display-side so persisted junk heals without migration.
  */
 export function meaningfulAutoTitle(autoTitle: string | null | undefined): string | null {
   const trimmed = (autoTitle ?? "").trim()
@@ -165,14 +113,10 @@ export function meaningfulAutoTitle(autoTitle: string | null | undefined): strin
 }
 
 /**
- * The recorded title as a stable NAME, or null when it is not one.
- *
- * Strips the engine's status decoration (idempotent — a title recorded after
- * the entry-point fix passes through, an older snapshot heals on display),
- * then rejects a recording that was ONLY decoration. `stripEngineStatusPrefix`
- * keeps such a title on purpose — a session genuinely named "✳" owns that
- * name — but in the tree a lone glyph is not a label, so the caller falls
- * through to the first-prompt summary or the vendor default instead.
+ * The recorded title as a stable name, or null. Strips status decoration
+ * (idempotent; old snapshots heal on display), then rejects decoration-only
+ * titles: `stripEngineStatusPrefix` keeps a lone "✳" as a real session name,
+ * but in the tree a lone glyph isn't a label.
  */
 function stableRecordedTitle(raw: string | null | undefined, vendor: VendorId): string | null {
   const recorded = raw?.trim()
@@ -180,10 +124,8 @@ function stableRecordedTitle(raw: string | null | undefined, vendor: VendorId): 
   const cleaned = stripEngineStatusPrefix(recorded, vendor)
   // Unchanged AND made only of this engine's glyphs = decoration, not a name.
   if (cleaned === recorded && isEngineDecoration(recorded, vendor)) return null
-  // The engine wrote a PLACEHOLDER, not a name (codex's thread UUID until the
-  // thread is named). Same judgement as the decoration case one line up, and
-  // display-side for the same reason: recordings already on disk heal without
-  // a migration, and the moment codex names the thread its real title wins.
+  // A placeholder (codex's thread UUID until named) isn't a name either; the
+  // real title wins once codex names the thread.
   if (isEnginePlaceholderTitle(cleaned, vendor)) return null
   return cleaned || null
 }
@@ -195,29 +137,14 @@ function isEngineDecoration(text: string, vendor: VendorId): boolean {
 }
 
 /**
- * A tab's name for a surface that shows kobe's OWN state glyph beside it —
- * the sidebar tree.
+ * Tab name for the sidebar tree, which draws kobe's own state glyph beside it:
+ * strip the decoration, keep the name. Old snapshots still carry the prefix,
+ * so it's stripped again here (display-side). A manual rename still wins.
  *
- * The rule: strip the decoration, keep the name. The status prefix is
- * stripped where the title enters the app (`stripEngineStatusPrefix`), so
- * what `lastTitle` records is the NAME — discarding it for a status-owning
- * engine would leave every tree row reading "claude 1" while the tab strip
- * showed the real conversation title.
- *
- * Snapshots written by an older kobe still carry their prefix, so it is
- * stripped again here — display-side, so they heal without a migration
- * (same approach as `meaningfulAutoTitle`). A manual rename still wins:
- * that is the user's name, not the engine's.
- *
- * `liveTitle` is the pty host's CURRENT OSC title for this tab's session,
- * when the caller has one. `lastTitle` is a recording written only by the
- * mounted `TerminalTabs`, i.e. only for the selected task — so on every
- * other row it froze at whatever it said when you last clicked in, beside a
- * state glyph the daemon keeps live. Passing the live title in here (rather
- * than painting it directly) is what keeps it subject to the whole rule
- * below: the same status-prefix strip, the same decoration-only rejection,
- * and the same manual-rename precedence. Absent → the recorded title, which
- * is also the flash guard the live probe's ~2s gap needs.
+ * `liveTitle` is the pty host's current OSC title. `lastTitle` is only written
+ * by the mounted `TerminalTabs` (selected task), so other rows would freeze.
+ * Passing it in here keeps it under the same strip/reject/rename rules; absent
+ * → the recorded title, which also covers the live probe's ~2s gap.
  */
 export function tabTitleStable(
   tab: TerminalTab,
@@ -225,112 +152,75 @@ export function tabTitleStable(
   liveVendor?: VendorId | null,
   liveTitle?: string | null,
 ): string {
-  // `liveVendor` is tri-state: a vendor = that engine runs in the tab NOW;
-  // null = the probe CONFIRMED no engine (a ctrl+C'd tab sitting at its
-  // shell prompt); undefined = the probe can't answer, fall back to the pin.
-  // A confirmed-dead engine tab is a shell: neither its frozen status line
-  // nor its creation pin ("codex N") may keep naming it.
+  // `liveVendor` is tri-state: vendor = runs NOW; null = probe CONFIRMED no
+  // engine (ctrl+C'd to the prompt); undefined = probe can't answer. A
+  // confirmed-dead engine tab is a shell: neither its frozen status line nor
+  // its creation pin may name it.
   if (liveVendor === null && tab.kind === "engine") {
     return tabTitle({ ...tab, kind: "command", lastTitle: null } as TerminalTab, taskVendor)
   }
-  // Resolution order for "whose title is this": the live probe, then the
-  // tab's own RECORDED identity, then an engine tab's creation pin. The
-  // recorded step matters for the flash: clicking a tab writes `lastTitle`
-  // immediately, but the live probe is a ~2s ps walk, so for one render
-  // there is no live vendor — and without the recorded fallback this drops
-  // to the raw-title branch below and flashes the engine's own status line
-  // ("⠐ Refactoring the parser") before settling back to "claude 1".
+  // Live probe, then recorded identity, then the creation pin. The recorded
+  // step prevents a flash: clicking writes `lastTitle` at once but the probe is
+  // a ~2s ps walk, and without it the raw engine status line ("⠐ Refactoring…")
+  // shows for one render.
   const vendor =
     liveVendor ?? tab.liveVendor ?? (tab.kind === "engine" ? (tab.vendor ?? taskVendor) : undefined) ?? undefined
-  // Cleaning the recorded title is NOT gated on `ownsStatus`: a status glyph
-  // is not part of a name whoever wrote it, and the vendor kobe resolves is
-  // often a user wrapper (`claudecpa` — a zsh function that ends up running
-  // real claude) that declares nothing. Gating here left exactly those tabs
-  // wearing `⠂ …`. What `ownsStatus` still decides is the fallback identity
-  // below.
-  // Live beats recorded — the recording is a snapshot of this same stream,
-  // taken whenever the tab was last mounted. Falling back rather than
-  // replacing keeps the flash guard above intact: a session the host has no
-  // title for yet still shows what it was called.
+  // Cleaning is NOT gated on `ownsStatus`: the resolved vendor is often a user
+  // wrapper (`claudecpa`, a zsh function running real claude) that declares
+  // nothing, and gating left those tabs wearing `⠂ …`. `ownsStatus` only picks
+  // the fallback below. Live beats recorded; falling back keeps the flash guard.
   const source = liveTitle?.trim() || tab.lastTitle
   const named = vendor ? stableRecordedTitle(source, vendor) : (source ?? null)
   if (!vendor || engineEntry(vendor).terminalTitle?.ownsStatus !== true) {
-    // The resolved vendor still NAMES the tab, exactly as in the
-    // status-owning branch below: a tab running an engine that writes no
-    // title of its own (a custom preset, a contrib CLI) must fall back to
-    // that engine's name, not to `shell N`. Reachable for a `kind:
-    // "command"` tab two ways — a shell the user typed the engine into, and
-    // an engine tab a PAST probe demoted (the walk answered "no engine"
-    // because it had never been asked about custom presets; see
-    // `foreground.ts#customEngineBinaries`) — and in both the live process
-    // is the name. Naming only: no session or resume story is implied.
+    // The resolved vendor still names the tab: an engine writing no title (a
+    // custom preset, contrib CLI) falls back to its name, not `shell N`. Hit by
+    // command tabs — a shell the user typed the engine into, or an engine tab a
+    // past probe demoted (`foreground.ts#customEngineBinaries`). Naming only;
+    // no session/resume implied.
     return tabTitle(
       { ...tab, ...(vendor ? { kind: "engine", vendor } : {}), lastTitle: named } as TerminalTab,
       taskVendor,
     )
   }
-  // Re-run the normal precedence with the recorded title CLEANED rather than
-  // dropped: `stripEngineStatusPrefix` is idempotent, so a title recorded
-  // after the entry-point fix passes through untouched while an older
-  // snapshot (`⠂ Refactor…`) heals on display. An empty result means the
-  // recording was nothing but decoration — fall through to the next rung
-  // (first-prompt summary, then the vendor default) by clearing it.
-  //
-  // The RESOLVED vendor also replaces an engine tab's creation pin in that
-  // fallback: a tab spawned as codex whose shell now runs claude must not
-  // keep wearing "codex N" — the pin is history, the live process is the name.
-  //
-  // The vendor rides along for a COMMAND tab too (mirroring the demotion
-  // branch above): a shell the user typed `claude` into is named by that
-  // engine, not "shell N". `kind` only steers `tabTitle`'s final
-  // vendor-default branch, so re-shaping it here is naming-only — no session
-  // or resume story is implied (see terminal-tab-identity.ts).
-  // `stripEngineStatusPrefix` deliberately returns a decoration-ONLY title
-  // untouched (a session genuinely named "✳" keeps its name — see there).
-  // In the tree that is not a name at all, so drop it and let the next rung
-  // answer: `meaningfulAutoTitle` already applies the same "this is not a
-  // label" judgement to first-prompt summaries.
+  // Normal precedence with the recorded title cleaned (empty → next rung:
+  // first-prompt summary, then vendor default). The resolved vendor replaces
+  // the creation pin — a codex-spawned tab now running claude isn't "codex N" —
+  // and rides along for command tabs too. `kind` only steers `tabTitle`'s
+  // vendor-default branch, so this is naming-only (see terminal-tab-identity.ts).
   return tabTitle({ ...tab, kind: "engine", vendor, lastTitle: named } as TerminalTab, taskVendor)
 }
 
 /**
- * The engine whose title rules judge this tab's live/recorded name: what runs
- * in it NOW, else what it was launched as, else the task's engine. Naming
- * only — a confirmed-dead engine (`liveVendor === null`) still falls back to
- * the pin here, because "is this string a name" is a question about the
- * SHAPE the engine writes, not about what is running this second.
+ * Whose title rules judge this tab's name: running now, else launched as, else
+ * the task's engine. A confirmed-dead engine still falls back to the pin —
+ * "is this a name" is about the SHAPE the engine writes.
  */
 function titleVendor(tab: TerminalTab, taskVendor: VendorId): VendorId {
   return tab.liveVendor ?? (tab.kind === "engine" ? tab.vendor : undefined) ?? taskVendor
 }
 
+/**
+ * "$process $ordinal" ("claude 3", "vim 2"), never "tab N". `liveName` comes
+ * from `useTurnPolls().liveTitles`; callers without it (notifications) fall
+ * back. Also used outside render (rename prefill, notifications), so it uses
+ * module-level `t()`, not `useT()`.
+ */
 export function tabTitle(tab: TerminalTab, taskVendor: VendorId, liveName?: string | null): string {
-  // Manual rename always wins; a conversation's first-prompt title beats
-  // the numbered default; a multi-leaf SPLIT tab is a "group N" (its
-  // leaves carry the individual names — see splitLeafNames).
+  // Order: rename > split group > live process > last recorded > first-prompt
+  // > vendor default. A multi-leaf split is "group N" (leaves carry names).
   if (tab.title) return tab.title
   const ls = tab.splitTree ? leaves(tab.splitTree.root) : []
   if (ls.length > 1) return t("terminal.tab.groupTitle", { n: tab.ordinal })
-  // Collapsed to a single NON-engine leaf (you closed the engine leaf and
-  // a shell survives) → that leaf's rename, else its live process name.
+  // Collapsed to a single shell leaf → its rename, else its live process name.
   const sole = ls.length === 1 ? ls[0] : undefined
   if (sole && sole.id !== "leaf-1") return sole.title ?? `${liveName ?? SHELL_LEAF_NAME} ${tab.ordinal}`
-  // The RUNNING process names the tab first (liveName — the OSC title
-  // stream; order is rename > live process > first-prompt > vendor default).
-  // The first-prompt autoTitle and vendor derivation are
-  // only the pre-title fallback. Deriving from the task's CURRENT vendor
-  // instead would relabel every inherit-mode tab the moment a new tab
-  // switches the task engine, while their PTYs keep running the previous one.
-  // A live title only names the tab when it IS a name: an engine that puts a
-  // placeholder there (codex's thread id) must fall through to the rungs
-  // below, which is where the conversation's first prompt lives.
+  // Vendor comes from the tab, not the task's CURRENT engine: that would
+  // relabel every inherit-mode tab when a new tab switches the task engine. A
+  // placeholder live title (codex's thread id) falls through.
   const vendor = titleVendor(tab, taskVendor)
   if (liveName && !isEnginePlaceholderTitle(liveName, vendor)) return `${liveName} ${tab.ordinal}`
-  // No LIVE title here (a surface rendering a tab it doesn't host — the
-  // Inbox), so fall back to the last live title this tab recorded. Without
-  // it those surfaces drop straight to `autoTitle`, the FIRST prompt's
-  // summary, and a tab that has long moved on still reads as its opening
-  // question.
+  // No live title (a surface not hosting the tab, e.g. the Inbox): use the last
+  // recorded one, else a long-moved-on tab reads as its opening question.
   if (tab.lastTitle && !isEnginePlaceholderTitle(tab.lastTitle, vendor)) return `${tab.lastTitle} ${tab.ordinal}`
   const auto = meaningfulAutoTitle(tab.autoTitle)
   if (auto) return auto
@@ -342,13 +232,10 @@ export function tabTitle(tab: TerminalTab, taskVendor: VendorId, liveName?: stri
 }
 
 /**
- * True only when `tabTitle` is visibly rendering an engine-owned title.
- * Launch-path agnostic: `vendor` is the tab's resolved live process identity
- * (`useTurnPolls().turnVendors` — the same `turn-target.ts` rule that
- * attaches detectors), so a user-typed `claude` in a shell and a
- * kobe-launched engine tab get the exact same treatment. The label
- * comparison replaces structural kind/leaf checks: native status is visible
- * iff the rendered label IS the live title.
+ * True only when `tabTitle` renders an engine-owned live title. `vendor` is the
+ * resolved live identity (`useTurnPolls().turnVendors`, same `turn-target.ts`
+ * rule as detectors), so a typed `claude` and a kobe-launched tab behave the
+ * same. Native status is visible iff the label IS the live title.
  */
 export function visibleNativeStatus(
   tab: TerminalTab,

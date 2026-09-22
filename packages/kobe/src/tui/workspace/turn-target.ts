@@ -1,26 +1,15 @@
 /**
- * Pure "what should this tab's turn detector track" resolution, kept apart
- * from `turn-polls.ts` so every consumer — including the
- * `use-turn-polls.ts` hook — shares ONE identity rule instead of
- * hand-kept copies. Framework-free: no signals, no React state, just
- * `TabsState` + a title lookup.
- *
- * Unified process-identity model: every tab is a shell;
- * an engine is just a process running in it. A tab's turn detector target
- * is either the tab's OWN kobe-launched engine (by construction) or, for
- * any other tab, whatever its solo live PTY's OSC title says is running —
- * see `turn-polls.ts`'s header for the full rationale.
+ * What a tab's turn detector tracks — one framework-free rule shared by
+ * `turn-polls.ts` and `use-turn-polls.ts`. Every tab is a shell; the target is
+ * its own kobe-launched engine or whatever its solo PTY is running (rationale
+ * in `turn-polls.ts`'s header).
  */
 
 import type { VendorId } from "@/types/vendor"
 import { leaves } from "./split-core"
 import { type TerminalTab, hasEngineLeaf, splitLeafPtyKey, tabPtyKey } from "./terminal-tabs-core"
 
-/**
- * The tab's single live PTY surface: unsplit tabs (and tabs collapsed to
- * one leaf) have exactly one process to identify; a multi-leaf tab has no
- * single "the tab's process", so title identity is undefined (null).
- */
+/** The tab's single PTY key; null for a multi-leaf split, which has no single process. */
 export function soloKey(taskId: string, tab: TerminalTab): string | null {
   const tabKey = tabPtyKey(taskId, tab.id)
   if (!tab.splitTree) return tabKey
@@ -29,18 +18,12 @@ export function soloKey(taskId: string, tab: TerminalTab): string | null {
 }
 
 /**
- * What (if anything) to run a turn detector against for this tab: whatever
- * engine the live probe sees under the tab's PTY; for a kobe-launched engine
- * tab, the creation pin covers only the window the probe CANNOT answer
- * (PTY not spawned/attached yet — `vendorOf` returns undefined there).
- *
- * `vendorOf` is the tri-state live process identity (`live-engine.ts`, a
- * process-tree walk): a vendor / null ("shell walked, no engine") /
- * undefined ("couldn't look"). The pin must NOT win unconditionally for
- * engine tabs: that keeps a ctrl+C'd codex tab identified as codex forever —
- * wrong detector, wrong persisted identity, wrong sidebar label. A confirmed
- * engine-free shell is a shell, whatever the tab was born as; and an engine
- * tab where the user then typed a DIFFERENT engine tracks that one.
+ * Whatever engine the live probe sees; the creation pin covers only the window
+ * the probe can't answer (`vendorOf` → undefined, PTY not attached yet).
+ * `vendorOf` is tri-state (`live-engine.ts`): vendor / null (no engine) /
+ * undefined (couldn't look). The pin must not win unconditionally, or a
+ * ctrl+C'd codex tab stays codex forever (wrong detector, identity, label); a
+ * different engine typed into an engine tab is tracked instead.
  */
 export function targetFor(
   taskId: string,
@@ -51,8 +34,7 @@ export function targetFor(
   const key = soloKey(taskId, tab)
   const pinned = tab.kind === "engine" && hasEngineLeaf(tab.splitTree) ? (tab.vendor ?? taskVendor) : null
   if (!key) {
-    // Multi-leaf split: no single process to identify — the engine leaf's
-    // pin (if any) still runs the tab-key detector, as before.
+    // Multi-leaf split: the engine leaf's pin still runs the tab-key detector.
     return pinned ? { vendor: pinned, key: tabPtyKey(taskId, tab.id) } : null
   }
   const live = vendorOf(key)

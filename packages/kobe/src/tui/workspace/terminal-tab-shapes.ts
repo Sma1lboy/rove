@@ -1,16 +1,8 @@
 /**
- * The tab SHAPES — `TabBase` and the three `kind`-discriminated variants
- * that make up {@link TerminalTab}.
- *
- * The seam is data vs. behavior: this file declares what a tab IS,
- * `terminal-tabs-core.ts` declares what happens TO the list of them. That
- * makes it the file everything else can depend on without depending on the
- * transitions — the split tree, argv composition and the component all need
- * the shapes, and none of them should be pulling in tab-list logic to get
- * them. Core re-exports these so importers still have one entry point.
- *
- * Types only — no runtime code, so the core↔shapes pair is erased at build
- * time and can never become an import cycle.
+ * What a tab IS ({@link TerminalTab}); `terminal-tabs-core.ts` owns what
+ * happens to the list and re-exports these. Kept apart so the split tree, argv
+ * composition and components get the shapes without tab-list logic.
+ * Types only, so the core↔shapes pair erases at build time and can't cycle.
  */
 
 import type { VendorId } from "@/types/vendor"
@@ -24,122 +16,78 @@ interface TabBase {
   /** 1-based creation ordinal — drives the "Tab {n}" default title. */
   readonly ordinal: number
   /**
-   * Auto-derived title (the tab's own engine session's first prompt — the
-   * PTY-world `runChatTabNamingPass`). Display precedence is
-   * `title ?? autoTitle ?? numbered default`: a manual F2 rename always
-   * wins, and clearing one falls back here — tmux's automatic-rename
-   * semantics.
+   * From the tab's own session's first prompt (`runChatTabNamingPass`). A
+   * manual F2 `title` always wins; clearing it falls back here.
    */
   readonly autoTitle?: string | null
   /**
-   * Last live process title this tab reported (the OSC stream an engine
-   * rewrites as the conversation moves on). RECORDED so surfaces that
-   * render a tab they aren't hosting — the Inbox above all — show what the
-   * tab is doing NOW instead of freezing on `autoTitle`, which is the
-   * FIRST prompt's summary and never changes again.
-   *
-   * Display precedence puts the genuinely live title first and this right
-   * behind it: `title ?? liveName ?? lastTitle ?? autoTitle ?? default`.
+   * Last live OSC title, recorded so surfaces not hosting the tab (the Inbox)
+   * show current activity instead of the frozen first-prompt `autoTitle`.
+   * Precedence: `title ?? liveName ?? lastTitle ?? autoTitle ?? default`.
    */
   readonly lastTitle?: string | null
   /**
-   * Live engine identity recorded off the process-tree probe (`lastTitle`'s
-   * twin): a shell the user ran `claude` in IS an agent, and hosted PTYs
-   * keep that process alive across TUI restarts — but the fresh process's
-   * registry only knows attached PTYs, so without this record the sidebar
-   * tree demoted such tabs to non-agents on every restart. Recorded for
-   * tabs with a live title (= attached PTY, so absence of a vendor is
-   * authoritative there); an unattached tab keeps its last known value
-   * until the probe can answer again.
+   * Engine identity from the process-tree probe. Hosted PTYs outlive a TUI
+   * restart but the fresh registry only knows attached PTYs, so without this a
+   * shell running `claude` loses its agent status in the sidebar. Written only
+   * for tabs with a live title (attached, so a missing vendor is
+   * authoritative); an unattached tab keeps its last value.
    */
   readonly liveVendor?: VendorId | null
   /**
-   * Frozen split layout for this tab (the "group"). Absent/null = unsplit
-   * (the tab's own engine fills the whole body). Persisted WITH the tab so
-   * the layout survives restart: `leaf-1` is the
-   * tab's engine and resumes via the tab's sessionId exactly like an
-   * unsplit tab; the other leaves are shells that respawn fresh. We freeze
-   * the LAYOUT only — a shell the user ran `claude` inside comes back as a
-   * shell, not a tracked/resumed session. Owned by `TerminalSplit`, mutated
-   * through `setTabSplit`.
+   * Persisted split layout; absent/null = unsplit. `leaf-1` is the tab's
+   * engine and resumes via `sessionId`; other leaves respawn as fresh shells
+   * (layout only — a `claude` run inside one comes back as a shell). Owned by
+   * `TerminalSplit`, mutated through `setTabSplit`.
    */
   readonly splitTree?: PersistedSplit | null
 }
 
 /**
- * Runs an interactive engine CLI inside the user's shell: the tab's PTY
- * spawns `$SHELL` and the engine command is TYPED into it as initial
- * input ({@link shellSpawn}), so exiting the vendor lands on a normal
- * shell prompt with the user's full rc context — no degrade transition.
- * The tab closes only when the wrapping shell itself exits.
+ * Engine CLI typed into `$SHELL` as initial input ({@link shellSpawn}), so
+ * exiting the vendor lands on a shell prompt with full rc context. Closes only
+ * when that shell exits.
  */
 export interface EngineTab extends TabBase {
   readonly kind: "engine"
-  /**
-   * Engine PROTOCOL override for THIS tab only (chosen via
-   * `chat.tab.chooseEngine`, or resolved from {@link command}). Undefined =
-   * inherit the task's current engine, like every plain `chat.tab.new` tab.
-   */
+  /** Per-tab protocol override (`chat.tab.chooseEngine`, or resolved from {@link command}); undefined = the task's engine. */
   readonly vendor?: VendorId
   /**
-   * Raw launch command pinned on THIS tab (`send --tab new --command …`).
-   * Wins over {@link vendor} at spawn; `vendor` then carries the protocol
-   * kobe resolved for it. Named `engineCommand`, not `command`, because
-   * {@link CommandTab} already owns `command` as a fixed argv — the tab
-   * union would stop discriminating if both spelled it the same way.
+   * Raw launch command (`send --tab new --command …`); wins over {@link vendor}
+   * at spawn, `vendor` then holds the resolved protocol. Not `command`:
+   * {@link CommandTab} owns that name, and sharing it breaks discrimination.
    */
   readonly engineCommand?: string
   /**
-   * Engine session id pinned at spawn (`withClaudeSessionId` — the same
-   * `--session-id` mapping the tmux chattab stashed as
-   * `@kobe_session_id`), so the tab is auto-named from ITS OWN first
-   * prompt and can later be resumed. Null for vendors that can't take a
-   * caller-set id (codex/custom — their origin tab is named from the
-   * worktree instead, matching the tmux fallback).
+   * Session id pinned at spawn (`withClaudeSessionId`), so the tab is named
+   * from its own first prompt and can resume. Null for vendors that can't take
+   * a caller-set id (codex/custom — named from the worktree instead).
    */
   readonly sessionId?: string | null
-  /**
-   * True once this tab's PTY has actually spawned. Drives the restart
-   * story: a persisted engine tab that already ran resumes
-   * its conversation (`--resume <sessionId>`) instead of opening a
-   * blank session under the same id.
-   */
+  /** Set once the PTY spawned; after a restart the tab resumes (`--resume <sessionId>`) instead of opening blank under the same id. */
   readonly spawned?: boolean
   /**
-   * Session id this tab FORKED from ("continue this chat in a new tab",
-   * same worktree): the first spawn opens on that conversation's history
-   * and immediately branches into this tab's own session, so parent and
-   * child diverge instead of two processes fighting over one transcript.
-   * Only the first spawn uses it — see `engineTabArgv`. Absent on an
-   * ordinary tab, which starts blank.
+   * Session this tab forked from: the first spawn opens on its history and
+   * branches into this tab's own session, so two processes never share one
+   * transcript. First spawn only (`engineTabArgv`).
    */
   readonly forkFrom?: string | null
   /**
-   * Prompt typed into this tab on its FIRST spawn only — the cross-engine
-   * handoff's context brief (`session-handoff.ts`). Distinct from the
-   * task-level `initialPrompt` prop, which only ever reaches a task's
-   * FIRST engine tab; a handoff opens a later tab, so the prompt has to
-   * ride the tab itself.
+   * Typed on first spawn only — the handoff brief (`session-handoff.ts`). The
+   * task-level `initialPrompt` only reaches a task's first engine tab, so a
+   * later handoff tab carries its own.
    */
   readonly initialPrompt?: string | null
   /**
-   * This tab is a VIEWPORT onto another task's first engine session — the
-   * kanban "project chattab with its own worktree" placement: the story's
-   * task owns the worktree/branch/session, and this tab in the PROJECT
-   * workspace attaches to that session (`<ptyTask.id>::tab-1` key, the
-   * task's worktree as cwd, engine activity attributed to the task).
-   * Workspaces render one at a time, so the two views never attach
-   * simultaneously. Absent on every ordinary tab.
+   * Viewport onto another task's first engine session (kanban project chattab
+   * with its own worktree): attaches `<ptyTask.id>::tab-1`, cwd = that
+   * worktree, activity attributed to that task. Workspaces render one at a
+   * time, so both views never attach at once.
    */
   readonly ptyTask?: { readonly id: string; readonly worktree: string }
 }
 
-/**
- * Runs a fixed one-off argv: an editor tab (the FileTree "open in
- * editor" flow, see `openEditorTab`) or the ctrl+e "shell" pick. Closes
- * itself (and releases its PTY) when its process exits — the PTY-world
- * equivalent of tmux closing an editor's transient window on quit.
- */
+/** Fixed argv (`openEditorTab`, the ctrl+e shell pick); closes and releases its PTY when the process exits. */
 export interface CommandTab extends TabBase {
   readonly kind: "command"
   readonly command: readonly string[]
@@ -148,13 +96,8 @@ export interface CommandTab extends TabBase {
 }
 
 /**
- * A read-only file view — the FileTree `d` action: the preview
- * `<diff>`/`<code>` renderable, hosted as a tab.
- * No PTY: it renders from a one-shot git read
- * (`loadPreviewData`), so it never spawns, resumes, or auto-closes on an
- * exit. Like the editor tab it's a FileTree-owned SINGLETON slot ({@link
- * openContentTab} replaces it in place), so repeatedly hitting `d` swaps the
- * one preview tab rather than piling up.
+ * Read-only preview (FileTree `d`) from a one-shot git read (`loadPreviewData`)
+ * — no PTY. A singleton slot: {@link openContentTab} replaces it in place.
  */
 export interface ContentTab extends TabBase {
   readonly kind: "content"
@@ -164,32 +107,19 @@ export interface ContentTab extends TabBase {
   readonly base?: string
 }
 
-/**
- * Discriminated on `kind` so the illegal shapes (vendor+command on one
- * tab, close-on-exit without a command) cannot be represented.
- */
+/** Discriminated on `kind` so vendor+command on one tab, or close-on-exit without a command, can't be represented. */
 export type TerminalTab = EngineTab | CommandTab | ContentTab
 
-/**
- * A task's whole tab list, as persisted. The SHAPE of the list lives beside
- * the shape of a tab; who is allowed to produce one from what is
- * `terminal-tabs-lifecycle.ts` (start / restart / revive / recycle) and
- * `terminal-tabs-core.ts` (a user action on an existing list).
- */
+/** A task's persisted tab list; produced by `terminal-tabs-lifecycle.ts` and `terminal-tabs-core.ts`. */
 export interface TabsState {
   readonly tabs: readonly TerminalTab[]
   readonly activeId: string
   /** Next ordinal to hand out (monotonic — close does not recycle). */
   readonly nextOrdinal: number
   /**
-   * What the LAST tab was, recorded as it closed, so re-entering an emptied
-   * task reopens the same kind of session instead of always an engine
-   * ({@link reopenTabs}). Only set when `tabs` is empty — a task with tabs
-   * doesn't need it, and a stale value would outlive its meaning.
-   *
-   * An older snapshot simply lacks the field, so {@link reopenTabs} treats
-   * absence as "use the default" rather than as an error: upgrading in place
-   * has to stay silent.
+   * Kind of the last tab closed, so re-entering an emptied task reopens the
+   * same kind ({@link reopenTabs}). Set only while `tabs` is empty. Absent
+   * means "default", not an error — older snapshots lack it.
    */
   readonly reopenAs?: { readonly kind: "engine"; readonly vendor?: VendorId } | { readonly kind: "command" }
 }

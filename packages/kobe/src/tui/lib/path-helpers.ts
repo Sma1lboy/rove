@@ -1,17 +1,8 @@
 /**
- * Path / directory helpers shared by the task-creation surfaces.
- *
- * Originally grew inside `component/new-task-dialog/state.ts`; split out
- * because they aren't dialog state — they're general "turn a partially
- * typed path into suggestions" plumbing used by the new-task dialog's
- * browse-mode picker AND by `quick-task` (which needs `expandHome`
- * without dragging in the dialog state machine).
- *
- * Everything here is synchronous *filesystem* work (readdir/stat on one
- * directory), never a subprocess — cheap O(direntries) calls driven by
- * explicit user keystrokes in a dialog. Keep it that way: anything that
- * shells out belongs in `./git-snapshot.ts` (sync, whitelisted) or an
- * async spawn helper.
+ * Partial-path → suggestion helpers for the new-task dialog's browse picker
+ * and `quick-task`. Synchronous fs only (readdir/stat on one directory, per
+ * keystroke), never a subprocess — shelling out belongs in `./git-snapshot.ts`
+ * (sync, whitelisted) or an async spawn helper.
  */
 
 import * as fs from "node:fs"
@@ -20,10 +11,9 @@ import { pathSyntax } from "@sma1lboy/kobe-daemon/path-identity"
 import { tildify } from "../../lib/path-home"
 
 /**
- * Last `/`-separated segment of a path — the shared owner of leaf-name
- * extraction (history header, Ops preview window name, diff-tab labels,
- * split-leaf naming). Pure string work, the one non-filesystem helper
- * here. Semantics: trailing slash → `""`, no slash → the whole string.
+ * Last path segment — the shared leaf-name extractor (history header, Ops
+ * preview, diff-tab labels, split leaves). Trailing slash → `""`, no slash →
+ * the whole string.
  */
 export function pathLeaf(p: string): string {
   return p.slice(lastSeparator(p) + 1)
@@ -36,11 +26,8 @@ function lastSeparator(p: string): number {
 }
 
 /**
- * Expand a leading `~` to the user's home directory. Supports `~` alone
- * and `~/...`-prefixed paths only (no `~user/` lookups — rare; not
- * worth the parsing complexity here). The fs / git helpers don't expand
- * `~` themselves, so callers must resolve before validating or
- * spawning git.
+ * Expand `~` and `~/...` (no `~user/`). The fs/git helpers don't expand `~`,
+ * so resolve before validating or spawning git.
  */
 export function expandHome(p: string): string {
   if (p === "~") return os.homedir()
@@ -49,14 +36,9 @@ export function expandHome(p: string): string {
 }
 
 /**
- * Drop a path's trailing slash. `/i/rove/` and `/i/rove` name the same
- * directory, but only one of them is a stable KEY — a task is filed under the
- * repo path it was created with, so the two spellings would file two repos.
- *
- * The slash is load-bearing while the path is being TYPED (it is what points
- * the suggestion picker at a directory's children rather than its siblings),
- * so it is stripped where the text stops being an edit buffer and becomes an
- * answer, never in the field itself. Root stays `/`.
+ * Tasks are filed under their repo path, so `/i/rove/` and `/i/rove` would
+ * file two repos. Strip where text becomes an answer, never in the field —
+ * while typing, the slash points the picker at children. Root stays `/`.
  */
 export function stripTrailingSlash(p: string): string {
   const root = pathSyntax(p).parse(p).root
@@ -68,12 +50,8 @@ export function stripTrailingSlash(p: string): string {
 export type PathSplit = { base: string; filter: string }
 
 /**
- * Split a partially-typed path into:
- *   - `base`: the directory we should readdir for suggestions (always
- *     ends with `/`, or is empty if the input has no directory portion
- *     yet).
- *   - `filter`: the partial leaf the user is currently typing (used as
- *     a case-insensitive prefix match against the directory listing).
+ * `base` = directory to readdir (ends with `/`, or empty); `filter` = the
+ * partial leaf (case-insensitive prefix match):
  *
  *   `/Users/`           → { base: "/Users/", filter: "" }
  *   `/Users/me/proj`    → { base: "/Users/me/", filter: "proj" }
@@ -82,9 +60,7 @@ export type PathSplit = { base: string; filter: string }
  *   `relative/path`     → { base: "relative/", filter: "path" }
  *   `foo`               → { base: "", filter: "foo" }
  *
- * `~`-relative inputs are expanded so the base is a real filesystem
- * path that readdir can use; preserving the `~/` prefix in the
- * rendered input is the caller's job — see `joinDrill`.
+ * `~` is expanded for readdir; restoring `~/` in the input is `joinDrill`'s job.
  */
 export function splitPathForDirSuggest(value: string): PathSplit {
   if (!value) return { base: "", filter: "" }
@@ -97,13 +73,8 @@ export function splitPathForDirSuggest(value: string): PathSplit {
 }
 
 /**
- * Synchronously list direct subdirectories of `base`. Returns [] on any
- * fs error (path doesn't exist, permission denied, etc.) so the picker
- * silently degrades to free-text typing. Sorted alphabetically — the
- * filter (`filterSubdirs`) decides what survives.
- *
- * Hidden entries (leading `.`) are kept; `filterSubdirs` is responsible
- * for hiding them unless the user explicitly types a `.`.
+ * Direct subdirectories of `base`, sorted; [] on any fs error so the picker
+ * degrades to free text. Hidden entries are kept — `filterSubdirs` hides them.
  */
 export function listSubdirs(base: string): readonly string[] {
   if (!base) return []
@@ -120,14 +91,9 @@ export function listSubdirs(base: string): readonly string[] {
 }
 
 /**
- * Filter the subdirectory list for the picker. Two rules:
- *
- *   1. Case-insensitive **prefix** match (not substring) — typing
- *      `proj` finds `projects/` but not `my-projects/`. Prefix matches
- *      what users expect from shell tab-completion and keeps the list
- *      tight as the user types deeper.
- *   2. Entries starting with `.` are hidden unless the filter itself
- *      starts with `.` — same convention as `ls`.
+ * Case-insensitive PREFIX match (`proj` finds `projects/`, not `my-projects/`,
+ * like shell completion); `.` entries hidden unless the filter starts with `.`,
+ * like `ls`.
  */
 export function filterSubdirs(all: readonly string[], filter: string): readonly string[] {
   const f = filter.toLowerCase()
@@ -137,13 +103,7 @@ export function filterSubdirs(all: readonly string[], filter: string): readonly 
   return visible.filter((n) => n.toLowerCase().startsWith(f))
 }
 
-/**
- * Compose the new input value when the user drills into a highlighted
- * subdirectory suggestion. The `~/` prefix is preserved if the user
- * typed one (so the display stays readable) — `baseExpanded` is the
- * fs-real path readdir used, and we rewrap it in `~/` form when
- * applicable.
- */
+/** Input value after drilling into `name`; keeps a typed `~/` prefix (`baseExpanded` is the real path). */
 export function joinDrill(typedValue: string, baseExpanded: string, name: string): string {
   const out = `${baseExpanded + name}/`
   if (typedValue.startsWith("~")) {
@@ -154,12 +114,8 @@ export function joinDrill(typedValue: string, baseExpanded: string, name: string
 }
 
 /**
- * Compose the input value when the user SELECTS a highlighted
- * subdirectory (Enter / click) rather than drilling into it: the
- * concrete path with NO trailing slash, so the suggestion dropdown
- * collapses instead of listing the dir's children. Preserves a typed
- * `~/` prefix the same way {@link joinDrill} does. Drilling deeper is
- * still possible by typing (append `/`).
+ * Input value after SELECTING `name` (Enter/click): no trailing slash, so the
+ * dropdown collapses instead of listing children. Keeps `~/` like {@link joinDrill}.
  */
 export function joinPicked(typedValue: string, baseExpanded: string, name: string): string {
   const out = baseExpanded + name

@@ -1,27 +1,14 @@
 /**
- * Live tab identity — the ONE transition that turns an engine tab back into
- * a shell tab when its engine exits.
+ * The one transition that turns an engine tab back into a shell tab when its
+ * engine exits. Every tab IS a shell (`shellSpawn` types the CLI into it), so
+ * `kind` means what runs NOW, not what the tab was born as. Resetting it once
+ * at exit keeps the state dot, optimistic activity marks and `tabTitleStable`
+ * in agreement without per-consumer guards.
  *
- * The model: every tab IS a shell. An engine is just a
- * process running inside it — `shellSpawn` types the CLI into the user's
- * shell, so exiting claude lands on a normal prompt with the PTY still very
- * much alive. `kind` therefore describes what the tab is running NOW, not
- * what it was born as.
- *
- * Before this, `kind` froze at birth and every consumer had to re-derive
- * "…but is it still an engine?" from the live probe — the sidebar's state
- * dot and the optimistic activity marks simply never did, so a tab you
- * exited claude in kept its dot and lit up `running` on any keystroke while
- * its own label already read `shell N`. `tabTitleStable` shows the shape of
- * the workaround: it builds `{...tab, kind: "command"}` to compute a label
- * for a tab the type system still calls an engine. Resetting the state once,
- * at the exit, is what makes all of those agree without a per-consumer
- * guard.
- *
- * Deliberately NOT the inverse: a shell the user types `claude` into is an
- * agent for glyph/detector purposes (the live probe answers that, and
- * `targetFor` already routes on it), but it has no kobe-pinned session, so
- * promoting its `kind` would claim a resume story that doesn't exist.
+ * Deliberately not the inverse: a shell the user types `claude` into is an
+ * agent for glyph/detector purposes (the live probe and `targetFor` handle
+ * that), but it has no kobe-pinned session, so promoting `kind` would claim a
+ * resume story that doesn't exist.
  */
 
 import type { VendorId } from "../../types/vendor"
@@ -38,25 +25,17 @@ export function createTabIdentityObserver() {
 }
 
 /**
- * The engine in this tab exited: reset it to the shell it always was.
+ * Reset an exited engine tab to a shell; returns the same tab when nothing
+ * changes, so callers can assign unconditionally.
  *
- * Returns the same tab when nothing should change, so callers can assign
- * unconditionally (the identity-stable contract `setTabLiveVendor` and
- * friends follow).
+ * Fires only on a real vendor → confirmed-null EDGE across one probe
+ * (`live-engine.ts` tri-state): `live === null` alone would demote during the
+ * spawn window, before the engine appears in the process tree.
  *
- * `prev`/`live` are the tri-state process identity (`live-engine.ts`) across
- * one probe: demotion fires only on a real vendor → confirmed-null EDGE.
- * Keying on `live === null` alone would demote during the spawn window —
- * the PTY is attached and the shell is up, but the engine it's about to run
- * hasn't appeared in the process tree yet.
- *
- * What's dropped is exactly the engine's own state: the session pin (that
- * conversation is over — a later re-acquire spawns a plain shell, the same
- * thing `rehydrateTabs` does for command tabs), and `lastTitle`, which for a
- * status-owning engine is its self-reported spinner phrase and must not go
- * on naming a shell. The user's manual `title`, the tab's ordinal, split
- * layout, and first-prompt `autoTitle` survive — so the rendered label is
- * byte-identical to what `tabTitleStable` was already computing for this tab.
+ * Drops only engine state: the session pin (a re-acquire spawns a plain
+ * shell, as `rehydrateTabs` does) and `lastTitle` (a status-owning engine's
+ * spinner phrase). Manual `title`, ordinal, split layout and `autoTitle`
+ * survive, so the label is byte-identical to what `tabTitleStable` computed.
  */
 export function demoteExitedEngine(
   tab: TerminalTab,
@@ -65,8 +44,8 @@ export function demoteExitedEngine(
   shell: readonly string[],
 ): TerminalTab {
   if (tab.kind !== "engine" || live !== null || !prev) return tab
-  // A viewport tab (`ptyTask`) only VIEWS another task's session — its key
-  // and cwd point at that task, and this workspace doesn't own its lifecycle.
+  // A viewport tab (`ptyTask`) only views another task's session; this
+  // workspace doesn't own its lifecycle.
   if (tab.ptyTask) return tab
   return {
     kind: "command",

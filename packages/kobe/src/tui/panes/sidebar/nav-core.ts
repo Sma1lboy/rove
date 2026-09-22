@@ -1,21 +1,13 @@
 /**
- * The sidebar's top-level navigation rail — one row per destination.
- *
- * Deliberately NOT the same axis as the task list view. The task list
- * filters WHICH TASKS the sidebar shows and stays inside Workspace; this
- * rail chooses WHICH SURFACE is open. Folding them into one enum would put
- * unrelated view toggles and "open the automations page" in the same list,
- * which is how you end up with an Archives tab sitting next to a Kanban tab
- * as if they were the same kind of thing.
- *
- * Vertical, one per line: the rail is 24 cells wide,
- * so three horizontal chips would truncate the moment a fourth arrives.
+ * The sidebar's navigation rail: which SURFACE is open. A separate axis from
+ * the task list view (which filters tasks inside Workspace) — one enum would
+ * mix view toggles with page destinations. Vertical because the rail is 24
+ * cells wide and horizontal chips would truncate.
  */
 
 /**
- * What the CONTENT pane shows. `terminal` is the default — the engine session
- * the sidebar's task list selects — and has no rail row of its own: you are
- * already there, and selecting a task is how you get back.
+ * What the content pane shows. `terminal` (default) is the selected task's
+ * session and has no rail row — selecting a task gets you back.
  */
 export type SidebarNav = "terminal" | "kanban" | "automations" | "issues"
 
@@ -27,21 +19,14 @@ export interface SidebarNavItem {
   readonly bindingId: string
 }
 
-/**
- * The rail, top to bottom. Deliberately does NOT list `terminal`: the task
- * list below IS that destination, so a row for it would be a second control
- * for the same thing — and clicking a task already returns there.
- */
+/** Top to bottom; no `terminal` row — the task list below is that destination. */
 export const SIDEBAR_NAV_ITEMS: readonly SidebarNavItem[] = [
   { nav: "kanban", labelKey: "tasks.nav.kanban", bindingId: "kanban.open" },
   { nav: "automations", labelKey: "tasks.nav.automations", bindingId: "automations.open" },
   { nav: "issues", labelKey: "tasks.nav.issues", bindingId: "workItems.open" },
 ]
 
-/**
- * Cycle the rail by `delta` (-1 = up, +1 = down), wrapping. Returns null for
- * `terminal`, which is not on the rail — cycling has to start somewhere on it.
- */
+/** Cycle the rail by `delta`, wrapping. Null for `terminal`, which isn't on it. */
 export function cycleNavTarget(cur: SidebarNav, delta: -1 | 1): SidebarNav | null {
   const idx = SIDEBAR_NAV_ITEMS.findIndex((item) => item.nav === cur)
   if (idx < 0) return null
@@ -49,13 +34,9 @@ export function cycleNavTarget(cur: SidebarNav, delta: -1 | 1): SidebarNav | nul
 }
 
 /**
- * Which pane should hold focus after moving to `nav`.
- *
- * Opening a rail page has to carry focus into the content pane: the pages
- * gate their own keys on being focused, so without this the Automations page
- * rendered "Press n to create one" while `n` was still going to the sidebar's
- * new-task chord. Leaving hands focus back, since the task list is what you
- * returned to.
+ * Focus after moving to `nav`. Rail pages gate their keys on focus, so without
+ * this Automations showed "Press n to create one" while `n` hit the sidebar's
+ * new-task chord. Leaving returns focus to the sidebar.
  */
 export function focusPaneForNav(nav: SidebarNav): "sidebar" | "workspace" {
   return nav === "terminal" ? "sidebar" : "workspace"

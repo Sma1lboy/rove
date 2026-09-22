@@ -1,38 +1,20 @@
 /**
- * Windows a flat list of ONE-CELL rows down to the scrollbox viewport plus a
- * small overscan.
+ * Windows a flat list of ONE-CELL rows to the scrollbox viewport plus overscan.
  *
- * Its own file rather than more of `FileTree.tsx` because it is a different
- * job from the tree: everything here reads the scrollbox's imperative layout
- * state and turns it into a row range, and nothing here knows what a row is.
+ * opentui lays out every renderable under a scrollbox each frame;
+ * `viewportCulling` only skips PAINT, and only for direct children (a wrapper
+ * box hides rows from it). Measured on one 5000-file directory with every row
+ * mounted: a `j` keystroke cost 24ms wall, 19.6ms of it opentui frame time.
+ * The caller's two spacer boxes keep total height = `rowCount`, so the thumb,
+ * `scrollTop` and cursor-follow math still see the whole list.
  *
- * Why it exists at all: opentui lays out every renderable under the scrollbox
- * on every frame, whether or not the viewport can show it. `viewportCulling`
- * (on by default) only skips the PAINT of off-screen children, and only for
- * DIRECT children of the scrollbox content — a wrapper box holding the rows
- * hides them from it entirely. Memoizing the rows removes the React half and
- * leaves the layout: measured on this pane against one 5000-file directory,
- * a `j` keystroke cost 24ms of wall time, 19.6ms of it opentui frame time,
- * with every row mounted.
+ * ROW HEIGHT IS ASSUMED TO BE 1 (true for FileTree rows). Taller/variable rows
+ * can't use this — e.g. the sidebar tree, whose project headers carry a pad row.
  *
- * The two spacer boxes the caller pads with keep the content's total height
- * equal to `rowCount`, so the scrollbar thumb, `scrollTop`, and the pane's own
- * cursor-follow arithmetic all still see the whole list.
- *
- * ROW HEIGHT IS ASSUMED TO BE 1. That holds for every FileTree row (each is a
- * single `flexDirection="row"` box of `wrapMode="none"` text). A list with
- * taller or variable rows cannot use this hook — the sidebar tree, whose
- * project headers carry a pad row, is exactly that case.
- *
- * Measurement rides the renderer's frame event rather than a callback on the
- * scrollbox, because the two events that would announce a change are both
- * unavailable: the scrollbox installs its own `onSizeChange` on the viewport
- * (passing one through `viewportOptions` REPLACES the bar recalculation), and
- * the scrollbar's own change event fires only once a position actually moves,
- * never for the first layout. Reading two numbers per drawn frame is cheaper
- * than either workaround, and it means a scroll from any source — wheel, drag,
- * keys, `scrollTo` — lands the same way. State is only set when a number
- * really changed, so an idle pane re-renders nothing.
+ * Sampled on the renderer's frame event because neither scrollbox event works:
+ * passing `onSizeChange` via `viewportOptions` REPLACES the scrollbox's own bar
+ * recalculation, and the scrollbar's change event skips the first layout.
+ * Catches every scroll source; state updates only on real change.
  */
 
 import type { ScrollBoxRenderable } from "@opentui/core"
@@ -46,11 +28,10 @@ export interface RowWindow {
   /** One past the last row index to render. */
   readonly end: number
   /**
-   * Re-read the scroll position now. The caller MUST call this straight after
-   * moving the scroll itself: a jump of more than one viewport leaves the old
-   * window entirely off screen, and waiting for the next drawn frame to notice
-   * shows a blank pane — or leaves it blank for good, when that scroll was the
-   * last thing asking for a redraw.
+   * Re-read the scroll position. Call straight after scrolling yourself: a
+   * jump of more than one viewport leaves the old window off screen, and
+   * waiting for the next frame shows a blank pane — for good, if that scroll
+   * was the last thing asking for a redraw.
    */
   readonly sample: () => void
 }
@@ -68,8 +49,8 @@ export function useRowWindow(opts: {
     if (!scrollEl || scrollEl.isDestroyed) return
     const top = scrollEl.scrollTop
     const height = scrollEl.viewport.height
-    // Set-on-change only: this runs once per drawn frame and once per render of
-    // the owning pane, and an unconditional update from either would loop.
+    // Set-on-change only: runs every frame and every owner render; an
+    // unconditional update would loop.
     setView((cur) => (cur.top === top && cur.height === height ? cur : { top, height }))
   }, [scrollEl])
 
