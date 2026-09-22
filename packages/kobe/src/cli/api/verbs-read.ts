@@ -1,15 +1,8 @@
 /**
- * The `read` verb group — non-mutating queries over tasks, PTYs, and
- * diagnostics.
- *
- * File layout mirrors the `VerbGroup` taxonomy, but only each spec's own
- * `group` field decides what `rove api schema --group read` prints — a verb
- * put in the wrong file still lists under the group it declares.
- *
- * "Non-mutating" is the group's actual invariant, not just its label: a verb
- * that writes anything belongs in `drive`/`edit`/`lifecycle`, because agents
- * are told this group is safe to call for orientation. Specs spread back into
- * {@link VERBS}, so schema/help/validation see one canonical list.
+ * The `read` verb group. Non-mutating is an invariant: agents are told this
+ * group is safe for orientation, so any verb that writes belongs in
+ * `drive`/`edit`/`lifecycle`. Each spec's own `group` field (not this file)
+ * decides its schema group.
  */
 
 import { F } from "./flags.ts"
@@ -67,16 +60,9 @@ export const READ_VERBS: readonly VerbSpec[] = [
     ],
     handler: collect,
   },
-  // The coordinator's start-of-turn read: every task's DERIVED group plus the
-  // inbox and the repo's field notes. Spec + handler in ./handlers-context.ts.
   CONTEXT_VERB,
-  // The ruler: an aggregate read over recent tasks + routine runs. Spec +
-  // handler in ./handlers-digest.ts.
   DIGEST_VERB,
   AGENT_TURNS_VERB,
-  // Production diagnostics aggregate (daemon activity registry + pty
-  // sessions with live foreground walk + persisted tab snapshots). Spec +
-  // handler in ./handlers-inspect.ts.
   INSPECT_VERB,
   READ_OUTPUT_VERB,
   WATCH_VERB,

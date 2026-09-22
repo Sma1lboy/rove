@@ -1,16 +1,10 @@
 /**
- * The `routine` verb group — daemon-owned schedules that create tasks or
- * deliver prompts into an existing conversation.
- * One file per `VerbGroup`, mirroring the taxonomy
- * `rove api schema --group routine` prints — though it is each spec's own
- * `group` field, not this file, that decides where a verb lists. Specs spread back into the {@link VERBS} table, so
- * schema/help/validation see one canonical list.
+ * The `routine` verb group — daemon-owned schedules. Each spec's own `group`
+ * field decides where it lists; specs spread into {@link VERBS}.
  *
- * By default every firing creates a FRESH task (worktree + branch + engine
- * session) with the automation's prompt as its first message.
- * `--persistent-session` swaps that for ONE standing task the schedule
- * re-delivers into, so a daily routine can build on yesterday. Mechanics live
- * in `docs/design/automations.md`.
+ * Every firing creates a FRESH task with the prompt as its first message;
+ * `--persistent-session` instead re-delivers into ONE standing task. See
+ * `docs/design/automations.md`.
  */
 
 import { F } from "./flags.ts"
@@ -87,18 +81,12 @@ function targetPayload(ctx: Parameters<VerbSpec["handler"]>[0]): Record<string, 
 }
 
 /**
- * Shared `--precheck` → payload shape. `--precheck ''` sends `precheck: null`,
- * which the daemon reads as "clear it" on update (a no-op on create, which has
- * nothing to clear). The flag must be read with {@link VerbArgs.present}, not
- * `str`: `str` folds an empty value into "absent", so `--precheck ''` would
- * otherwise omit the field and silently leave the existing precheck in place.
+ * Shared `--precheck` → payload. `--precheck ''` sends `null` ("clear" on
+ * update); read via {@link VerbArgs.present}, since `str` folds empty into
+ * absent and would silently keep the old precheck.
  *
- * `--precheck-timeout` on its own is REFUSED rather than dropped. The daemon
- * stores the precheck as one record, so a timeout with no command has nothing
- * to attach to — and silently omitting it made `routine-update
- * --precheck-timeout 5` return the routine with its OLD timeout and no error,
- * i.e. report a change it had not made. Retyping the command is the price of
- * the call meaning what it says.
+ * `--precheck-timeout` alone is REFUSED, not dropped: the precheck is one
+ * record, and dropping it would report success while keeping the OLD timeout.
  */
 function precheckPayload(ctx: Parameters<VerbSpec["handler"]>[0]): Record<string, unknown> {
   if (!ctx.args.present("precheck")) {
@@ -200,11 +188,8 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         ...(ctx.args.nonNegativeInt("grace") !== undefined
           ? { missedRunGraceMinutes: ctx.args.nonNegativeInt("grace") }
           : {}),
-        // `present` + `bool`, not a bare `bool` ternary: an explicit
-        // `--persistent-session false` is falsy, so the ternary dropped the key
-        // and left the routine standing — there was no CLI path back to
-        // fresh-worktree-per-run. (On `routine-create` above, absent and false
-        // mean the same thing, so the ternary is harmless there.)
+        // `present` + `bool`: an explicit `--persistent-session false` must be
+        // sent, or there's no way back to fresh-worktree-per-run.
         ...(ctx.args.present("persistent-session")
           ? { persistentSession: ctx.args.bool("persistent-session") ?? true }
           : {}),

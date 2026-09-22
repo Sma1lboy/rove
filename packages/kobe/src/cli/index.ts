@@ -46,11 +46,8 @@ async function runAddSubcommand(rest: readonly string[]): Promise<void> {
   }
   const target = resolve(process.cwd(), expandTilde(arg && arg.length > 0 ? arg : "."))
   const { addSavedRepo } = await import("../state/repos.ts")
-  // The admission gate lives inside `addSavedRepo` (state/project-eligibility
-  // .ts) — a real git repo, at a path durable enough to be someone's project.
-  // Reporting the refusal is this command's own job: `added: false` also means
-  // "already saved", and printing that for a rejected path claims we stored
-  // something we refused.
+  // `added: false` also means "already saved", so a rejection must be
+  // reported here or we'd claim to have stored what we refused.
   const result = addSavedRepo(target)
   if (result.rejected) {
     process.stderr.write(
@@ -63,20 +60,13 @@ async function runAddSubcommand(rest: readonly string[]): Promise<void> {
   } else {
     console.log(`already saved: ${result.path}`)
   }
-  // The sidebar's PROJECTS row IS the repo's `kind:"main"` task — create
-  // it now (idempotent), via the daemon when one runs so a live TUI shows
-  // the project immediately instead of only after a restart.
+  // The sidebar's PROJECTS row IS the repo's `kind:"main"` task (idempotent).
   await ensureProjectMainTask(result.path)
-  // Fold in the repo's existing git worktrees: scan + adopt the ones not
-  // yet linked to a task, most-recently-active first. A plain
-  // repo with no extra worktrees imports nothing.
   await adoptAllWorktrees(result.path)
 }
 
-/** Ensure `repo`'s main task exists — over daemon RPC when running (the
- *  broadcast updates a live TUI's PROJECTS list), else through the
- *  one-shot local orchestrator. Best-effort: a failure must not block the
- *  add (worktree adoption below still runs). */
+/** Via a running daemon so a live TUI updates, else locally. Best-effort:
+ *  must not block the add. */
 async function ensureProjectMainTask(repo: string): Promise<void> {
   try {
     await withDaemonOrLocal({
@@ -108,19 +98,11 @@ const REMOVE_USAGE = [
 ].join("\n")
 
 /**
- * `kobe remove [path]` — the inverse of `kobe add`: forget a saved project.
- *
- * Matching is forgiving because the stored entries are git-toplevel absolute
- * paths (or synthetic `ssh://` keys for remote projects), while the user may
- * type a relative path, a subdirectory, or the exact stored string. We try, in
- * order: an exact match against the saved list (so a literal/garbage entry like
- * `","` or a remote URL is removable verbatim), then the git-toplevel of the
- * resolved path, then the plain resolved absolute path. On no match we print the
- * saved list so the user can copy the exact entry to remove.
+ * `kobe remove [path]`. Match order: exact saved entry (so garbage like `","`
+ * or an `ssh://` key is removable verbatim), then the resolved path's git
+ * toplevel, then the resolved absolute path. No match prints the saved list.
  */
 async function runRemoveSubcommand(rest: readonly string[]): Promise<void> {
-  // Deleting a stored secret is opt-in, so it rides a flag rather than the
-  // default path; strip it before positional parsing.
   const purgeCredentials = argvHasFlag(rest, PURGE_FLAG)
   const positional = rest.filter((a) => a !== PURGE_FLAG && !a.startsWith(`${PURGE_FLAG}=`))
   const arg = positional[0]
@@ -139,8 +121,7 @@ async function runRemoveSubcommand(rest: readonly string[]): Promise<void> {
     return
   }
   const raw = arg && arg.length > 0 ? arg : "."
-  // Candidate targets, most-specific first; the first one present in the saved
-  // list wins. resolveRepoRoot shells git, so only compute it when needed.
+  // resolveRepoRoot shells git, so only compute it when needed.
   const target = saved.includes(raw)
     ? raw
     : (() => {
@@ -159,10 +140,8 @@ async function runRemoveSubcommand(rest: readonly string[]): Promise<void> {
   // project's `remoteRepos` entry, and the ref only lives there.
   const auth = getRemoteRepoConfig(target)?.auth
   const keychainRef = auth?.kind === "password" ? auth.keychainRef : null
-  // forgetProject un-saves the repo AND drops the synthetic main task that
-  // projects it into the sidebar — removeSavedRepo alone left an orphan main
-  // row behind (it lives in the daemon-owned task index, not state.json).
-  // Prefer a RUNNING daemon so a live TUI updates; fall back to in-process.
+  // forgetProject also drops the main task (in the daemon task index, not
+  // state.json); removeSavedRepo alone would orphan the sidebar row.
   await withDaemonOrLocal({
     daemon: (client) => client.request("project.forget", { repo: target }),
     local: (orch) => orch.forgetProject(target),
@@ -173,11 +152,9 @@ async function runRemoveSubcommand(rest: readonly string[]): Promise<void> {
 }
 
 /**
- * The stored SSH password outlives the project on purpose — `remove` is
- * documented as non-destructive, and a secret is not ours to destroy on a
- * "forget this from my picker" action. But leaving NO exit meant the item was
- * unreachable once its `remoteRepos` entry (which held the ref) was gone. So:
- * purge on request, and otherwise name the flag that does it.
+ * The SSH password outlives the project on purpose (`remove` is
+ * non-destructive), but its ref is gone after forget, so purge on request or
+ * name the flag — otherwise the item is unreachable.
  */
 async function reportCredentialExit(
   ref: { readonly service: string; readonly account: string },
@@ -198,18 +175,9 @@ async function reportCredentialExit(
 }
 
 /**
- * Discover every unlinked git worktree of `repo` and adopt each as a
- * task (discovery sorts most-recently-active first). Used by `kobe add`
- * to fold a repo's worktrees in on the way.
- *
- * Discovery runs IN-PROCESS — `git worktree list` + a `tasks.json` read,
- * no daemon — so a plain repo with no extra worktrees stays instant and
- * never boots a daemon as a side effect of `kobe add`. Only when there's
- * something to import do we touch the daemon: a running one gets the
- * writes over RPC (so a live TUI updates and the on-disk index isn't
- * split-brained); with no daemon running we write in-process and a later
- * `kobe` launch reads the result. Best-effort throughout — a scan/adopt
- * failure is reported, not fatal to `kobe add`.
+ * Adopt every unlinked worktree of `repo`, most-recently-active first.
+ * Discovery is in-process (git + tasks.json) so a plain repo never boots a
+ * daemon. A scan failure is reported, not fatal to `kobe add`.
  */
 async function adoptAllWorktrees(repo: string): Promise<void> {
   const orch = await openLocalOrchestrator()
@@ -225,14 +193,9 @@ async function adoptAllWorktrees(repo: string): Promise<void> {
   await adoptWorktreesInto(orch, repo, candidates, coerceVendorId(undefined))
 }
 
-/** Build a short-lived in-process orchestrator (store + git manager) for
- * a one-shot CLI command. No daemon, no socket — just reads `tasks.json`
- * and shells git. */
 /**
- * Adopt `list` as tasks, printing one line each. Prefers a RUNNING
- * daemon (writes over RPC so a live TUI updates + the on-disk index
- * isn't split-brained); falls back to the in-process orchestrator when
- * no daemon is up. Never boots a daemon.
+ * Prefers a RUNNING daemon (a live TUI updates, no split-brain index); else
+ * in-process. Never boots a daemon.
  */
 async function adoptWorktreesInto(
   orch: Awaited<ReturnType<typeof openLocalOrchestrator>>,
@@ -257,14 +220,7 @@ async function adoptWorktreesInto(
   }
 }
 
-/**
- * `kobe adopt [glob] [--repo <path>] [--vendor <v>] [--yes]` — scan a
- * repo's existing git worktrees (including ones outside kobe-managed
- * roots) and import the ones not yet linked to a task
- *. No glob → dry-run listing. With a path glob → list matches;
- * `--yes` actually adopts them. Goes through the daemon so a running TUI
- * sees the new tasks live.
- */
+/** Scans worktrees outside kobe-managed roots too. */
 const ADOPT_USAGE = [
   `Usage: ${CLI_NAME} adopt [glob] [--repo <path>] [--vendor <v>] [--yes]`,
   "",
@@ -314,12 +270,9 @@ async function runAdoptSubcommand(args: readonly string[]): Promise<void> {
   const { getCustomEngineIds, resolveRepoRoot } = await import("../state/repos.ts")
   const repo = resolveRepoRoot(resolve(process.cwd(), expandTilde(repoArg && repoArg.length > 0 ? repoArg : ".")))
 
-  // Reject an unknown engine BEFORE anything is created. `coerceVendorId`
-  // only rejects the empty string, so a typo used to be written verbatim onto
-  // every task the glob matched, and only surfaced when each of them first
-  // tried to launch a binary that does not exist — one batch adopt poisoning
-  // every worktree it touched. Same accept-set `resolvePersistedVendor`
-  // already uses: the built-ins plus the user's registered custom engines.
+  // Reject an unknown engine BEFORE anything is created: `coerceVendorId`
+  // only rejects "", so a typo would land on every matched task and fail at
+  // launch. Accept-set matches `resolvePersistedVendor`.
   const typed = vendorArg?.trim()
   if (typed && !isBuiltinVendor(typed) && !getCustomEngineIds().includes(typed)) {
     const known = [...BUILTIN_VENDORS, ...getCustomEngineIds()].join(", ")
@@ -327,8 +280,7 @@ async function runAdoptSubcommand(args: readonly string[]): Promise<void> {
   }
   const vendor = coerceVendorId(vendorArg)
 
-  // Discovery is a local read (git + tasks.json) — no daemon needed, so
-  // listing never boots one.
+  // Local read: listing never boots a daemon.
   const orch = await openLocalOrchestrator()
   const worktrees = await orch.discoverAdoptableWorktrees(repo)
   if (worktrees.length === 0) {
@@ -370,12 +322,7 @@ function printTopLevelUsage(out: Pick<typeof process.stderr, "write">): void {
   out.write(`${topLevelUsage()}\n`)
 }
 
-/**
- * Command dispatch table. Inline handlers (add/remove/adopt) are referenced
- * directly; heavy or rarely-used commands come from `index-commands.ts` as
- * dynamic imports so a bare `kobe add` does not pull in the TUI, opentui, or
- * plugin machinery.
- */
+/** Heavy commands are dynamic imports so `kobe add` doesn't load the TUI. */
 const COMMANDS = new Map<string, CommandHandler>([
   ["add", runAddSubcommand],
   ["remove", runRemoveSubcommand],
@@ -410,16 +357,12 @@ async function main(): Promise<void> {
     return
   }
 
-  // `kobe .` / `kobe <path>` — the `code .` gesture: open the directory as
-  // a standalone dir task. Path syntax only (checked by the predicate), so
-  // typos still hit the unknown-command error below with no import cost.
+  // `kobe <path>` opens a dir task. Path syntax only, so typos still error.
   if (subcommand !== undefined && isPathLikeArg(subcommand)) {
     await runOpenDirectory(subcommand)
     return
   }
-  // An unrecognized subcommand is a CLI error, not a TUI launch — a typo
-  // like `kobe statsu` should print usage and exit non-zero, not silently
-  // open the project. Only a bare `kobe` (no subcommand) launches the TUI.
+  // Only a bare `kobe` launches the TUI; a typo exits non-zero.
   if (subcommand !== undefined) {
     console.error(`${CLI_NAME}: unknown command '${subcommand}'`)
     printTopLevelUsage(process.stderr)
@@ -431,18 +374,12 @@ async function main(): Promise<void> {
   const { publishKobeTerminalTitle } = await import("../tui/lib/outer-terminal-title.ts")
   publishKobeTerminalTitle()
 
-  // Default: launch the TUI. Dynamic import so non-TUI subcommands
-  // (like `kobe add`) don't pull in opentui/solid at startup.
-  //
-  // A first launch no longer diverts here into a wizard that ran INSTEAD of
-  // the product: the greeting is a dialog over the real workspace now
-  // (`cli/welcome.ts`), so `rove` always starts Rove.
+  // First launch greets via a dialog over the workspace (`cli/welcome.ts`).
   const { startTui } = await import("../tui/index.tsx")
   await startTui()
 
-  // The renderer is gone and the terminal is plain again — the only moment
-  // the welcome dialog's installs can own stdout and npx can inherit a real
-  // terminal. A no-op unless this run just answered the dialog.
+  // Renderer gone: the only moment welcome installs can own stdout and npx
+  // can inherit a real terminal. No-op unless the dialog was answered.
   const { runPendingWelcomeInstalls } = await import("./onboarding.ts")
   runPendingWelcomeInstalls()
 }

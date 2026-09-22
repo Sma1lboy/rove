@@ -1,10 +1,6 @@
 /**
- * The `.running` rule — is ANY of a task's engine tabs actually working.
- *
- * The seam against `tab-snapshot.ts`: that file joins a persisted tab snapshot
- * against live sessions to produce ROWS. This is the single boolean built on
- * top of the same inputs, and it is the one `get-task`/`collect` publish and
- * that unattended loops act on, so it gets to be read on its own.
+ * The `.running` rule published by `get-task`/`collect` and acted on by
+ * unattended loops. `tab-snapshot.ts` builds rows from the same inputs.
  */
 
 import { isHostedTaskKey, sessionArgvNamesEngine } from "../../engine/hosted-session.ts"
@@ -12,29 +8,20 @@ import type { TabsState } from "../../tui/workspace/terminal-tabs-core.ts"
 import type { TaskSessionRow } from "./tab-snapshot.ts"
 
 /**
- * A task is RUNNING when ANY of its engine tabs has a live hosted session
- * WITH AN ENGINE IN IT — not just the canonical first one, and not merely a
- * live PTY. The old `tab-1`-only rule reported `running:false` while later
- * engine tabs (`send --tab new`, a TUI tab opened after tab-1 closed) were
- * happily alive. The `tab-1` key stays as a snapshot-free floor: it is
- * always an engine tab by construction (`initialTabs`), so it counts even
- * when the snapshot write failed. Non-engine tabs (command/content) never
- * count — same rule delivery uses.
+ * RUNNING = ANY engine tab (not just tab-1) has a live hosted session with an
+ * engine in it, not merely a live PTY. `tab-1` is a snapshot-free floor: always
+ * an engine tab (`initialTabs`), so it counts even if the snapshot write
+ * failed. Non-engine tabs never count — same rule delivery uses.
  *
- * Which tabs those ARE is decided from the LIVE sessions, not from the
- * snapshot alone. `kind: "engine"` is a persisted display label, and a live
- * session the snapshot lost (the `unregistered` rows `joinTaskTabs` renders
- * right beside this) carries no label at all — so a task whose only engine
- * was unregistered read `running: false` while `send` delivered to it
- * happily. {@link sessionArgvNamesEngine} is the other half, and it is the
- * SAME judgement `findHostedEngineKey` uses to pick that delivery target.
- * The label stays in the union because it is the only thing that recognises
- * a custom engine whose wrapper script names no known binary.
+ * Engine-ness is the persisted `kind: "engine"` label OR
+ * {@link sessionArgvNamesEngine} on the live session (the same judgement
+ * `findHostedEngineKey` uses for delivery) — a session the snapshot lost has no
+ * label, while only the label recognises a custom engine whose wrapper names
+ * no known binary.
  *
- * `engineAlive` is the process half. Session liveness alone answered `true`
- * for a task whose engine had been reaped hours earlier, because keepAlive
- * keeps the PTY. A tab nothing could walk (`null`) still counts as running:
- * "couldn't look" must never read as stopped.
+ * `engineAlive` is the process half: keepAlive keeps the PTY after the engine
+ * is reaped. Only an explicit `false` excludes; unknown counts as running — "couldn't look" never reads
+ * as stopped.
  */
 export function hasLiveEngineTab(
   snapshot: TabsState | undefined,

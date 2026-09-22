@@ -1,15 +1,8 @@
 /**
- * The `task.tokens` channel's wire contract: plugin-written row labels, keyed
- * by task id (see `kobe-daemon/daemon/row-tokens.ts`).
- *
- * Its own module for the reason `remote-orchestrator-worktree-changes.ts` has
- * one: the payload needs parsing and a value-equality gate, and neither
- * belongs in the events dispatcher.
- *
- * Validated field by field rather than cast. These rows are written by THIRD
- * PARTY code — a plugin is the one publisher in the system Rove does not
- * ship — so a malformed token must be dropped here, not rendered as
- * `undefined` on somebody's sidebar.
+ * `task.tokens` channel: plugin-written row labels keyed by task id (see
+ * `kobe-daemon/daemon/row-tokens.ts`). Validated field by field, not cast:
+ * plugins are THIRD-PARTY publishers, so a malformed token is dropped here
+ * rather than rendered as `undefined`.
  */
 
 import { type RowToken, isRowTokenTone } from "@sma1lboy/kobe-daemon/daemon/row-tokens"

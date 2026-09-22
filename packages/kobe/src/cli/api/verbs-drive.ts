@@ -1,11 +1,7 @@
 /**
- * The `drive` verb group — sending prompts, notes, panes, and UI notices to
- * tasks: everything that acts on a RUNNING task without changing what the task
- * is (that's `edit`) or whether it exists (`lifecycle`). One file per
- * `VerbGroup`, mirroring the taxonomy `rove api schema --group drive` prints —
- * though it is each spec's own `group` field, not this file, that decides
- * where a verb lists. Specs spread back into the
- * {@link VERBS} table, so schema/help/validation see one canonical list.
+ * `drive` verbs — prompts, notes, panes, UI notices: acting on a RUNNING task
+ * without changing what it is (`edit`) or whether it exists (`lifecycle`).
+ * Each spec's own `group` field decides where it lists in {@link VERBS}.
  */
 
 import { ENGINE_ACTIVITY_KINDS } from "../../engine/hook-events.ts"
@@ -194,10 +190,8 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
       F.taskId(false),
       {
         name: "kind",
-        // Enum, not a free string: the daemon rejects an unknown kind anyway,
-        // but across the RPC that arrived as an untyped `RPC_ERROR` — a typo
-        // read as "the daemon is broken". Declared here it is a local flag
-        // rejection AND `schema --verb engine-report` lists the 14 legal kinds.
+        // Enum: the daemon's own rejection arrives as an untyped `RPC_ERROR`;
+        // here it's a local flag error and `schema` lists the legal kinds.
         type: "enum",
         values: ENGINE_ACTIVITY_KINDS,
         required: true,

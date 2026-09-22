@@ -1,19 +1,11 @@
 /**
- * `kobe doctor --report`: bundle the diagnosis + recent logs + relevant env
- * into one attachable text file, so a bug report carries the context the
- * maintainer needs instead of a screenshot of the summary.
+ * `kobe doctor --report`: diagnosis + recent logs + relevant env in one
+ * attachable text file.
  *
- * Env discipline: this file gets pasted into public bug reports, so a value is
- * printed ONLY for a key on {@link REPORT_ENV_KEYS}. Every other ROVE_/KOBE_
- * var is listed as `KEY=(set)` — the maintainer still learns the knob is on,
- * which is the diagnostic part, while a credential someone parked in that
- * namespace (`ROVE_GH_PAT=ghp_…`; the plugin env contract lives there too)
- * never leaves the machine. Allowlisting VALUES rather than filtering by key
- * name or entropy is deliberate: a name filter misses what it hasn't seen and
- * entropy misreads a long path as a secret, whereas an unknown key here fails
- * closed — the cost is a missing value in one report, not a leaked token.
- * `buildReportBundle` is pure (logs + env injected) so the format is
- * unit-testable without touching disk.
+ * Env discipline: this gets pasted into public bug reports, so a value prints
+ * ONLY for a key on {@link REPORT_ENV_KEYS}; other ROVE_/KOBE_ vars show as
+ * `KEY=(set)` (a `ROVE_GH_PAT=ghp_…` never leaves the machine). Allowlisting
+ * values, not filtering by name or entropy, fails closed on unknown keys.
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
@@ -21,13 +13,9 @@ import { dirname, join } from "node:path"
 import { defaultDaemonLogPath, defaultPtyHostLogPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 
 /**
- * Rove's own knobs, by SUFFIX — expanded to both prefixes below. Spelled once
- * because a key listed under one prefix only prints its value there and
- * redacts the other spelling of the SAME knob to `(set)`, which is how a
- * `KOBE_WEB_HOST=0.0.0.0` bug report used to arrive with the value hidden.
- * (`WEB_HOST` is read only by the harness PTY sidecar, and only under the
- * `KOBE_` spelling — it is the LAN escape hatch for the one web listener Rove
- * still runs, so its value is exactly what a report needs.)
+ * Rove's own knobs by SUFFIX, expanded to both prefixes so neither spelling of
+ * a knob gets redacted. (`WEB_HOST` is read only by the harness PTY sidecar,
+ * as `KOBE_WEB_HOST` — the LAN escape hatch, so its value matters.)
  */
 const REPORT_ENV_SUFFIXES = [
   "HOME_DIR",
@@ -44,11 +32,8 @@ const REPORT_ENV_SUFFIXES = [
   "TAB_ID",
 ] as const
 
-/**
- * Keys whose VALUE is printed verbatim. Everything else is reported as `(set)`.
- * Add one here when its value is what you'd ask a reporter for anyway — a
- * path, a port, a mode flag. Never add one that could hold a credential.
- */
+/** Keys whose VALUE prints verbatim (paths, ports, mode flags). Never add one
+ *  that could hold a credential. */
 const REPORT_ENV_KEYS: readonly string[] = [
   "SHELL",
   "TERM",
@@ -78,10 +63,7 @@ function logTail(path: string, count: number): string {
   }
 }
 
-/**
- * `KEY=value` lines for the report's env section. Allowlisted keys carry their
- * value; any other ROVE_/KOBE_ var is reported present-but-redacted.
- */
+/** Env section lines; non-allowlisted ROVE_/KOBE_ vars are redacted. */
 export function reportEnvLines(env: NodeJS.ProcessEnv): string[] {
   const shown = new Set<string>(REPORT_ENV_KEYS)
   const keys = new Set<string>(shown)
@@ -120,18 +102,9 @@ export function buildReportBundle(
 }
 
 /**
- * Write the bundle next to the logs it quotes — `<home>/.rove/`, the
- * directory `defaultDaemonLogPath()` already resolves, so the report cannot
- * drift away from the `daemon.log` / `pty.log` it tails and it inherits the
- * same `ROVE_HOME_DIR` override for free. Returns its path.
- *
- * It used to land in `process.cwd()`. The instruction we give users is "run
- * `rove doctor --report` and attach the file", and they run it where the
- * trouble is — inside their repo, which is where it landed, untracked and
- * matched by no `.gitignore`. That is a bug bundle full of daemon logs and
- * env one reflexive `git add -A` away from a commit. A fixed home-rooted
- * path is also the same path every time, which is what makes the printed
- * location worth reading out over chat.
+ * Write the bundle to `<home>/.rove/`, next to the logs it tails (honours
+ * `ROVE_HOME_DIR`). Returns its path. Never cwd: users run it inside their
+ * repo, where logs + env would sit one `git add -A` from a commit.
  */
 export function writeReportBundle(doctorLines: readonly string[]): string {
   const dir = dirname(defaultDaemonLogPath())

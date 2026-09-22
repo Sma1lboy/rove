@@ -2,12 +2,9 @@
  * `kobe repo <show|set|unset> [path]` — manage a repo's per-user init
  * override (the `initScript` / `initPrompt` stored in state.json).
  *
- * This override is the FALLBACK default for a repo that doesn't ship its
- * own `.rove/init.sh` / `.rove/init-prompt.md`; legacy `.kobe/` files remain
- * fallbacks and in-repo files win when
- * present (see `state/repo-init.ts`). The path defaults to the current
- * directory and is normalized to its git toplevel, so every worktree of
- * the repo resolves the same entry.
+ * A FALLBACK: in-repo `.rove/init.sh` / `.rove/init-prompt.md` (then legacy
+ * `.kobe/`) win (see `state/repo-init.ts`). The path defaults to cwd and is
+ * normalized to its git toplevel, so every worktree resolves the same entry.
  */
 
 import { readFileSync } from "node:fs"
@@ -107,8 +104,7 @@ export async function runRepoSubcommand(args: readonly string[]): Promise<void> 
     return
   }
 
-  // Accept-set from `subcommands.ts` so `kobe completions` and this dispatch
-  // cannot drift apart — see the comment there.
+  // Accept-set shared with `kobe completions` (`subcommands.ts`).
   if (!SUBCOMMAND_VERBS.repo.includes(verb)) usageError(`unknown verb "${verb}"`)
 
   const { getRepoInitOverride, setRepoInitOverride, resolveRepoRoot } = await import("../state/repos.ts")
@@ -159,17 +155,12 @@ export async function runRepoSubcommand(args: readonly string[]): Promise<void> 
     return
   }
 
-  // Unreachable via the gate above; kept so a verb added to SUBCOMMAND_VERBS
-  // without a branch here fails loud instead of silently doing nothing.
+  // Unreachable; fails loud if SUBCOMMAND_VERBS gains a verb with no branch.
   usageError(`unknown verb "${verb}"`)
 }
 
-/**
- * How `repo show` labels one repo-init candidate. "wins" comes from
- * `describeRepoInitSources`, which applies the SAME rules as the runtime — a
- * file present but empty is reported as ignored rather than winning, which is
- * exactly the confusion this command is run to resolve.
- */
+/** `repo show`'s label for one candidate. `effective` uses the runtime's own
+ *  rules, so a present-but-empty file reads as ignored, not winning. */
 function describeSource(group: readonly { present: boolean; effective: boolean }[], index: number): string {
   const source = group[index]
   if (!source) return "absent"

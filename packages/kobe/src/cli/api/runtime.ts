@@ -1,9 +1,7 @@
 /**
- * The real side-effect implementations `kobe api` verbs run against
- * outside tests: hosted prompt delivery and the
- * default {@link ApiRuntime}. Split out of `api-cmd.ts` (see that file's
- * header) — handlers depend on the `ApiRuntime` TYPE from `./types.ts`,
- * not this module, so unit tests never open PTY Host or git processes.
+ * Real side effects behind `api` verbs: hosted prompt delivery and the
+ * default {@link ApiRuntime}. Handlers depend only on the `ApiRuntime` TYPE,
+ * so unit tests never open a PTY host or git.
  */
 
 import type { PtySessionExit } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -14,8 +12,7 @@ import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
 import { type TerminalTab, tabPtyKeyFor } from "../../tui/workspace/terminal-tabs-core.ts"
 import { type DaemonRpc, resolveActiveTaskId } from "../daemon-session.ts"
 
-// Kept for existing callers in this directory; new callers should import from
-// daemon-session.ts directly to keep the daemon/session boundary clean.
+// New callers: import from daemon-session.ts directly.
 export { resolveActiveTaskId }
 import { deliverToExactTab } from "./exact-tab-delivery.ts"
 import { handlePtyList } from "./handler-helpers.ts"
@@ -41,18 +38,9 @@ import {
 import { hasLiveEngineTab } from "./task-running.ts"
 import { ApiError, type ApiRuntime, type DeliveredPrompt, type PromptDeliveryOps, type PromptTarget } from "./types.ts"
 
-/** Ensure and address the task's hosted engine session (`target.tab` routes:
- *  undefined = canonical, "new" = mint + spawn a fresh tab, "tab-N" = that
- *  exact alive tab only). */
 /**
- * Every SESSION_FAILED refusal, one shape.
- *
- * The task and its worktree EXIST by the time any of these fire, so the refusal
- * has to name the task: an unattended fan-out that only reads the message would
- * otherwise lose the id of a task it just created, and every failed launch in
- * the batch would look identical. Three of the four sites used to travel bare —
- * same code, same failure, no id and no recovery — which is why this is a
- * constructor rather than a shape copied per throw site.
+ * Every SESSION_FAILED refusal. The task already EXISTS when these fire, so
+ * the error must carry its id, or a fan-out loses the task it just created.
  */
 function sessionFailed(taskId: string, message: string, hint: string, extra?: Record<string, unknown>): ApiError {
   return new ApiError(message, "SESSION_FAILED", {
@@ -64,6 +52,9 @@ function sessionFailed(taskId: string, message: string, hint: string, extra?: Re
   })
 }
 
+/** Ensure and address the task's hosted engine session (`target.tab` routes:
+ *  undefined = canonical, "new" = mint + spawn a fresh tab, "tab-N" = that
+ *  exact alive tab only). */
 async function deliverHosted(target: PromptTarget, worktree: string, prompt: string): Promise<DeliveredPrompt> {
   let host: Awaited<ReturnType<typeof ensurePtyHost>>
   try {
@@ -76,10 +67,9 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
     )
   }
   try {
-    // Exact-tab addressing: deliver-only, never spawn — a dead/absent tab is
-    // the caller's error (TAB_NOT_FOUND), not a cue to boot a new engine.
-    // engineBin covers the task's CUSTOM engine binary; builtins the
-    // foreground gate recognizes on its own (cross-vendor send stays open).
+    // Exact tab: deliver-only, never spawn — a dead/absent tab is
+    // TAB_NOT_FOUND. engineBin covers a CUSTOM engine; builtins the foreground
+    // gate recognizes on its own (cross-vendor send stays open).
     if (target.tab && target.tab !== "new") {
       const engineBin = engineLaunchArgv({
         command: target.command,
@@ -90,9 +80,8 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
       const tabId = target.tab
       return await deliverToExactTab(host.rpc, target.id, tabId, worktree, prompt, {
         engineBin,
-        // Only with explicit consent (`send --respawn`). The factory is lazy
-        // so the snapshot read happens only on the branch that needs it —
-        // reviving a tab a pty-host restart froze.
+        // Only with explicit `send --respawn`; lazy so the snapshot is read
+        // only when reviving a tab a pty-host restart froze.
         ...(target.respawn
           ? {
               respawn: () => restoredTabLaunch(target, tabId, worktree, process.env.SHELL?.trim() || "/bin/zsh"),
@@ -105,13 +94,9 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
     // only; the task's own engine is left alone.
     const launchVendor = target.tabVendor ?? target.vendor
     const launchCommand = target.tabCommand ?? (target.tabVendor ? undefined : target.command)
-    // Pin the conversation's session id up front when the engine accepts
-    // one (the same `withPinnedSessionId` contract the TUI launches with),
-    // so a LATER reattach after a pty-host restart can resume THIS
-    // conversation instead of opening a blank one. Engines that mint their
-    // own id (kimi/codex) answer null here and are discovered post-spawn
-    // instead. The id lands in the persisted tab snapshot below once the
-    // session actually started.
+    // Pin the session id up front (same contract as the TUI) so a reattach
+    // after a pty-host restart resumes THIS conversation. Engines that mint
+    // their own id (kimi/codex) return null and are discovered post-spawn.
     const { argv, sessionId } = withPinnedSessionId(
       engineLaunchArgv({
         command: launchCommand,
@@ -121,9 +106,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
       }),
       launchVendor,
     )
-    // Pre-trust the worktree in the protocol's first-run store —
-    // a hosted session can't answer a trust dialog. A generic protocol has
-    // no store kobe knows how to pre-answer, and trustEngineWorktree no-ops.
+    // A hosted session can't answer a trust dialog; no-op for generic protocols.
     trustEngineWorktree(launchVendor, worktree)
     const launch = buildEngineSessionLaunch({
       task: { id: target.id, kind: target.kind, vendor: launchVendor, repo: target.repo },
@@ -141,15 +124,9 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
       launch,
       { forceNew: newTab !== undefined },
     )
-    // `started && !delivered` is the real failure: the session was created but
-    // the prompt never reached it. `engineReady` does NOT stand in for that —
-    // it is an independent readiness observation, and an engine that never
-    // announced bracketed paste can still have been written to.
-    //
-    // The task and its worktree EXIST by now, so the refusal has to name them:
-    // an unattended fan-out that only reads the message would otherwise lose
-    // the id of a task it just created, and every failed launch in the batch
-    // would look identical. `reason` is the session's own last line.
+    // `started && !delivered` is the real failure. `engineReady` is NOT a
+    // stand-in: an engine that never announced bracketed paste can still have
+    // been written to. `reason` is the session's own last line.
     if (result.started && !result.delivered) {
       throw sessionFailed(
         target.id,
@@ -162,23 +139,14 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
         },
       )
     }
-    // Make the session visible to the sidebar tree, which lists a worktree's
-    // tabs from the task's persisted snapshot. Without this a CLI-started
-    // session runs live with no snapshot, so the tree shows the worktree with
-    // no tabs under it at all. Write-once (a --tab new spawn already appended its tab
-    // in mintCliTab); see `tab-snapshot.ts`. When THIS delivery started the
-    // session, record the pinned session id + spawned flag too, so a later
-    // dead-reattach resumes the conversation (see engineTabArgv).
+    // Make the session visible in the sidebar (`--tab new` already appended
+    // its tab in mintCliTab). Write-once; see `tab-snapshot.ts`.
     if (!newTab) publishCliTabSnapshot(target.id, result.started ? sessionId : undefined)
     if (result.started && sessionId) {
-      // publishCliTabSnapshot is write-ONCE by contract (a mounted TUI owns
-      // tab state), so on a task that already has a snapshot it no-ops and
-      // the id never lands. That is not a missing field but a WRONG one: a
-      // canonical send after a host restart respawns tab-1 under a fresh
-      // pinned id while the snapshot still names the previous conversation,
-      // so `--resume` would reopen the wrong one. Recording the id of a
-      // session THIS process just started is not fighting the TUI — it is
-      // the same write `--tab new` already does.
+      // publishCliTabSnapshot no-ops on an existing snapshot, which would
+      // leave the PREVIOUS conversation's id after a host-restart respawn of
+      // tab-1, and `--resume` would reopen the wrong one. Recording the id of
+      // a session this process just started doesn't fight the TUI.
       const startedTab = newTab ?? result.session.split("::")[1]
       if (startedTab) markCliTabSession(target.id, startedTab, sessionId)
     }
@@ -257,13 +225,9 @@ export async function deliverPrompt(
   }
   if (!worktree) throw new ApiError(`task ${target.id} has no worktree`, "NO_WORKTREE")
 
-  // Learn the user's language from the first prompt of a NEW task, so text
-  // Rove injects later — when no user message is in hand (a quota resume
-  // fired by a timer) — comes out in the language they actually write.
-  // Scoped to task creation: a follow-up `send` is a different question
-  // (which of several tabs, whose text) and is not answered here.
-  //
-  // Best-effort: an observation must never block the prompt it came from.
+  // Learn the user's language from a NEW task's first prompt, for text Rove
+  // injects later with no user message in hand (e.g. a timed quota resume).
+  // Follow-up sends are out of scope. Best-effort: never blocks the prompt.
   if (target.newTask) {
     await client.request("task.observeLanguage", { taskId: target.id, text: prompt }).catch(() => {})
   }
@@ -279,10 +243,8 @@ export async function deliverPrompt(
 }
 
 /**
- * Task ids owning a live hosted session. One `pty.list` for the whole fleet:
- * the session key is `<taskId>::<tabId>` (docs/ARCHITECTURE.md §4), so the
- * task half is all a caller asking "is anything of this task alive" needs.
- * `null` when there is no host to ask — see the {@link ApiRuntime} contract.
+ * Task ids owning a live session, from one fleet-wide `pty.list` (keys are
+ * `<taskId>::<tabId>`). `null` when there is no host to ask.
  */
 async function readLiveTaskIds(): Promise<ReadonlySet<string> | null> {
   const listed = (await handlePtyList()) as { sessions?: readonly { key?: string; alive?: boolean }[] | null }
@@ -300,19 +262,15 @@ export const defaultApiRuntime: ApiRuntime = {
   liveTaskIds: readLiveTaskIds,
   isTaskRunning: async (taskId, engineArgv) => (await defaultApiRuntime.taskTabs(taskId, engineArgv)).running,
   taskTabs: async (taskId, engineArgv) => {
-    // No host is "couldn't ask", NOT "nothing alive" — the host idle-exits and
-    // it can be merely unreachable while every engine it hosts keeps running.
-    // Publishing that as `false` is what would have an unattended cleanup loop
-    // delete worktrees holding live work, so it travels as `null` all the way
-    // out, the same tri-state `pty-list` already publishes. The persisted tabs
-    // still return so a stopped task's layout stays inspectable.
+    // No host = "couldn't ask" (`null`), NOT "nothing alive": reporting
+    // `false` would let a cleanup loop delete worktrees holding live work.
+    // Persisted tabs still return so the layout stays inspectable.
     let listed: readonly (TaskSessionRow & { pid?: number | null })[] | null = null
     const host = await openPtyHost()
     if (host) {
       try {
-        // The tri-state listing, NOT `listSessions`: connecting to a stopped
-        // host succeeds and only the request fails, so `host !== null` is not
-        // evidence anybody answered.
+        // Tri-state listing: connecting to a stopped host succeeds and only
+        // the request fails, so `host !== null` proves nothing.
         listed = await listSessionsOrNull(host.rpc)
       } finally {
         host.close()
@@ -320,14 +278,10 @@ export const defaultApiRuntime: ApiRuntime = {
     }
     const sessions = listed ?? []
     const hostReachable = listed !== null
-    // Live per-session walk verdicts: ONE ps snapshot answering two
-    // questions — which vendor is in the foreground (`liveVendor`, the same
-    // shallowest-engine walk inspect/live-engine run) and whether ANY engine
-    // is in the tree at all (`engineAlive`, the predicate delivery gates on).
-    // The second is what separates a working engine from the login shell
-    // keepAlive leaves in its place, which `alive` cannot see.
-    // Best-effort: a failed ps keeps the recorded liveVendor and leaves
-    // `engineAlive` unknown rather than guessing it false.
+    // ONE ps snapshot answers: which vendor is in the foreground
+    // (`liveVendor`) and whether ANY engine is in the tree (`engineAlive`,
+    // what delivery gates on — `alive` can't tell an engine from keepAlive's
+    // login shell). A failed ps leaves `engineAlive` unknown, not false.
     let liveVendors: Map<string, string | null> | undefined
     let engineAlive: Map<string, boolean> | undefined
     try {
@@ -338,9 +292,7 @@ export const defaultApiRuntime: ApiRuntime = {
       if (walkable.length > 0) {
         const rows = parsePsSnapshot(await psSnapshot(walkable.map((s) => s.pid as number)))
         liveVendors = new Map(walkable.map((s) => [s.key, foregroundEngineIn(rows, s.pid as number)?.vendor ?? null]))
-        // `engineArgv` is the task's own launch command: without it a custom
-        // engine (a wrapper script no vendor table names) walks as "no
-        // engine" and the task reads stopped while it works.
+        // Without `engineArgv` a custom engine walks as "no engine".
         engineAlive = new Map(walkable.map((s) => [s.key, engineProcessIn(rows, s.pid as number, engineArgv)]))
       } else {
         engineAlive = new Map()
@@ -357,10 +309,8 @@ export const defaultApiRuntime: ApiRuntime = {
       /* keep tabs readable without the records */
     }
     const snapshot = readTabsSnapshot(taskId)
-    // The pinned conversation id per tab — persisted since engine tabs
-    // existed, readable nowhere. It is the whole recovery for a dead engine
-    // tab (`claude --resume <id>`), and `send --tab N --respawn` names it in
-    // its refusal, so a caller must be able to read it back.
+    // Pinned conversation id per tab: the recovery for a dead engine tab
+    // (`claude --resume <id>`), which `send --respawn`'s refusal names.
     const sessionIds = new Map(
       (snapshot?.tabs ?? []).map((t) => [t.id, (t as { sessionId?: string | null }).sessionId ?? undefined]),
     )

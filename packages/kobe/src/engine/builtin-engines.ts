@@ -1,19 +1,13 @@
 /**
- * The BUILT-IN engine table — the four first-party adapters' wiring, as
- * data — the DATA half of `registry.ts`, which owns the entry type and the
- * lookup. That is what makes adding an engine a data edit rather than a code
- * one. The module doc there explains what an entry means and why neutral
- * layers must go through `engineEntry` instead of reaching in here.
- *
- * Adding a built-in engine = one entry here plus its `*-local/` modules.
- * The entry TYPE stays in `registry.ts` (imported type-only, so the pair is
- * not a runtime cycle) — same shape as `history-readers.ts` and
- * `contrib-engines.ts`.
+ * The built-in engine table — the DATA half of `registry.ts`, which owns the
+ * entry type and lookup (and explains why neutral layers go through
+ * `engineEntry`). Adding a built-in = one entry here plus its `*-local/`
+ * modules. `EngineRegistryEntry` is imported type-only, so the pair is not a
+ * runtime cycle.
  *
  * Must stay importable from vitest and MUST NOT import from `src/tui/`.
  */
 
-// Type-only, so the registry↔table pair is not a runtime cycle.
 import type { BuiltinVendorId } from "@/types/vendor"
 import { detectClaudeAccount, detectCodexAccount, detectCopilotAccount, detectKimiAccount } from "./account-detect.ts"
 import { claudeCapabilities, claudeIdentity } from "./claude-code-local/capabilities.ts"
@@ -55,16 +49,13 @@ import { trustPiWorktree } from "./pi-local/trust.ts"
 import type { EngineRegistryEntry } from "./registry.ts"
 import { ClaudeTurnDetector, CodexTurnDetector, UnknownTurnDetector } from "./turn-detector.ts"
 
-/** The first-party entries — registered here and nowhere else. Keyed by the
- *  vendor union rather than a hand-written list, so adding an id to
- *  `BUILTIN_VENDORS` fails to compile until its entry lands here. */
+/** Keyed by the vendor union: a new id in `BUILTIN_VENDORS` fails to compile
+ *  until its entry lands here. */
 export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
   claude: {
     vendor: "claude",
     builtin: true,
-    // The adapter's EngineIdentity is the source of truth for name copy
-    // (AGENTS.md: engine-owned UI data); displayName is the resolved view
-    // every neutral layer reads via engineDisplayName().
+    // EngineIdentity owns name copy; neutral layers read engineDisplayName().
     displayName: claudeIdentity.shortName,
     defaultCommand: ["claude"],
     // `--model <alias|full name>`; no list verb, so the suggestions are the
@@ -85,19 +76,14 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
       statusPrefixes: ["✳", "⠂", "⠐", "◐", "◑"],
       workingPrefixes: ["⠂", "⠐", "◐", "◑"],
     },
-    // Claude is the one engine that lets the CALLER name a new session, so
-    // Rove pins a fresh uuid at launch and the tab is trackable from its
-    // first frame. `--session-id <uuid>` is documented; the control flags
-    // are every documented way a command can already own its session —
-    // appending a second one makes claude refuse to launch.
+    // Rove pins a fresh uuid via `--session-id` so the tab is trackable from
+    // its first frame. Control flags = every way a command already owns its
+    // session; appending a second makes claude refuse to launch.
     sessionIdentity: {
       pinFlag: "--session-id",
       sessionControlFlags: ["--session-id", "--resume", "-r", "--continue", "-c", "--from-pr"],
       resumeArgv: (base, id) => [...base, "--resume", id],
-      // Fork = resume + branch, and claude lets the caller name the branch,
-      // so the forked tab is trackable from its first frame like any other
-      // claude tab. The three flags combine, and the fork lands in the id
-      // we pass.
+      // The three flags combine; the fork lands in the id we pass.
       forkArgv: (base, sourceId, newId) => {
         const forked = [...base, "--resume", sourceId, "--fork-session"]
         return newId ? [...forked, "--session-id", newId] : forked
@@ -111,14 +97,10 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     builtin: true,
     displayName: codexIdentity.shortName,
     defaultCommand: ["codex"],
-    // Effort levels the API accepts, per its own error on an invalid value:
-    // "Supported values are: 'none', 'minimal', 'low', 'medium', 'high',
-    // 'xhigh', and 'max'." `minimal` is excluded because it is MODEL-scoped,
-    // not globally broken — codex rejects it with "'minimal' is not supported
-    // with the 'gpt-5.6-luna' model", so offering it would hand the picker a
-    // level that fails on the default model. codex 0.149.1 also carries an
-    // `ultra` variant in its own enum, but the API has never been observed
-    // accepting it; don't offer a level nothing has answered 200 to.
+    // Per the API's own error: 'none', 'minimal', 'low', 'medium', 'high',
+    // 'xhigh', 'max'. `minimal` is excluded — rejected on the default model
+    // ("not supported with the 'gpt-5.6-luna' model"). codex 0.149.1's enum
+    // also has `ultra`, never observed accepted by the API.
     effortLevels: ["none", "low", "medium", "high", "xhigh", "max"],
     effortArgv: (base, level) => [...base, "-c", `model_reasoning_effort=${level}`],
     // `-m, --model <MODEL>`; no list verb (`model-lists.ts` for the slugs).
@@ -133,39 +115,29 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     identity: codexIdentity,
     trustWorktree: trustCodexWorktree,
     readTurns: readCodexTurns,
-    // Codex's default is activity + project-name, which makes every tab in
-    // one repo say "rove". Keep its native activity state, but ask Codex to
-    // pair it with the thread title it already owns in its local store.
+    // Codex's default title is activity + project-name, so every tab in a repo
+    // says "rove"; pair activity with the thread title instead.
     terminalTitle: {
       ownsStatus: true,
       launchArgs: ["-c", 'tui.terminal_title=["activity","thread-title"]'],
-      // The `activity` segment is a braille spinner frame joined to the next
-      // segment by a space (codex `TERMINAL_TITLE_SPINNER_FRAMES` +
-      // `separator_from_previous`). It only appears while a turn runs, so a
-      // resting title has no prefix to strip — every status prefix is a
-      // working prefix.
+      // `activity` is a braille spinner frame + space, present only mid-turn,
+      // so every status prefix is a working prefix.
       statusPrefixes: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
       workingPrefixes: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
-      // `thread-title` falls back to the thread ID until codex names the
-      // thread, so that title is usually a bare UUID. The id names the
-      // rollout the tab's first prompt lives in, which is what Rove shows
-      // instead — see `codex-local/terminal-title.ts`.
+      // `thread-title` is a bare thread UUID until codex names the thread; see
+      // `codex-local/terminal-title.ts`.
       sessionIdFromTitle: codexSessionIdFromTitle,
     },
-    // No pin flag — codex mints its own thread id and reports it in the OSC
-    // title (see `terminalTitle.sessionIdFromTitle`), which is origin (2) in
-    // `session-identity.ts`. Resume is a SUBCOMMAND with the id positional
-    // (`codex resume [OPTIONS] [SESSION_ID]`), so the
-    // launch flags stay between the verb and the id.
+    // No pin flag: codex mints its id and reports it in the OSC title (origin
+    // (2) in `session-identity.ts`). Resume/fork are SUBCOMMANDS with a
+    // positional id (`codex resume [OPTIONS] [SESSION_ID]`), so launch flags go
+    // between verb and id.
     sessionIdentity: {
       resumeArgv: (base, id) => {
         const [bin, ...rest] = base
         return bin ? [bin, "resume", ...rest, id] : base
       },
-      // `codex fork [OPTIONS] [SESSION_ID]` — same
-      // subcommand shape as resume, so the launch flags stay between the
-      // verb and the positional id. Codex mints the forked thread's own id,
-      // so a caller-set one has nowhere to go.
+      // Codex mints the forked thread's id; a caller-set one has nowhere to go.
       forkArgv: (base, sourceId) => {
         const [bin, ...rest] = base
         return bin ? [bin, "fork", ...rest, sourceId] : null
@@ -205,12 +177,9 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     detectAccount: (deps) => detectKimiAccount(deps),
     createHookAdapter: () => new KimiHookAdapter(),
     createTurnDetector: () => new UnknownTurnDetector("kimi"),
-    // Kimi cannot be TOLD what to call a new session — `-S [id]` only
-    // resumes an existing one ("Resume a session. With ID: resume that
-    // session. Without ID: interactively pick."). So its id
-    // is origin (3): discovered after the fact from the session store this
-    // entry's `history` reader already indexes by worktree. `-c/--continue`
-    // and `-S` both mean the user's command owns the session already.
+    // Kimi can't be told a new session's id (`-S [id]` only resumes), so its
+    // id is origin (3): discovered from the session store `history` indexes by
+    // worktree.
     sessionIdentity: {
       sessionControlFlags: ["-S", "--session", "-c", "--continue"],
       resumeArgv: (base, id) => [...base, "-S", id],
@@ -222,9 +191,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     builtin: true,
     displayName: piIdentity.shortName,
     defaultCommand: ["pi"],
-    // Both pi-family CLIs take the same reasoning flag with their own level
-    // set, read off `--thinking`'s own help line on 2026-09-11 (`off,
-    // minimal, low, medium, high, xhigh, max`).
+    // From `--thinking`'s help line.
     effortLevels: ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
     effortArgv: (base, level) => [...base, "--thinking", level],
     // `--model <pattern>` (fuzzy, or exact `provider/id`); `pi --list-models`
@@ -232,29 +199,22 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     listModels: listPiModels,
     modelArgv: (base, model) => [...base, "--model", model],
     history: piHistoryReader,
-    // No account detector: pi authenticates from `~/.pi/agent/auth.json` OR a
-    // provider env var / `--api-key`, so a missing auth file is not "not
-    // logged in" — and the registry's rule is that an absent detector reads
-    // as "not detectable" rather than vetoing the engine.
+    // No account detector: pi also authenticates via env var / `--api-key`,
+    // so a missing auth file isn't "logged out". Absent = "not detectable".
     createHookAdapter: () => new PiFamilyHookAdapter("pi"),
-    // pi persists no turn-completion marker of its own that Rove reads; the
-    // hook channel is the authority and the screen manifest is the fallback.
+    // No readable turn marker; hooks are the authority, screen the fallback.
     createTurnDetector: () => new UnknownTurnDetector("pi"),
     capabilities: piCapabilities,
     identity: piIdentity,
     trustWorktree: trustPiWorktree,
     terminalTitle: {
-      // pi writes `π - <session name> - <cwd>` and nothing else: no spinner,
-      // no run-state separator. So it OWNS no status, and Rove's own turn
-      // glyph stays the state indicator; only the brand prefix is noise, and
-      // stripping it leaves the name pi chose for the conversation.
+      // pi writes `π - <session name> - <cwd>` with no run state, so Rove's
+      // own turn glyph shows status; only the brand prefix is stripped.
       ownsStatus: false,
       statusPrefixes: PI_STATUS_PREFIXES,
     },
-    // `--session-id <id>` pins the id of a new project session ("Use exact
-    // project session ID, creating it if missing"), and `--session <id>` is
-    // the documented way to open one. `-c/--continue` and `-r/--resume` mean
-    // the command already controls its own session.
+    // `--session-id <id>` pins a new session's id (creating it if missing);
+    // `--session <id>` opens one.
     sessionIdentity: {
       pinFlag: "--session-id",
       sessionControlFlags: ["--session-id", "--session", "-c", "--continue", "-r", "--resume", "--fork"],
@@ -271,9 +231,8 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     // Same flag and level set as pi (omp is the fork that kept both).
     effortLevels: ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
     effortArgv: (base, level) => [...base, "--thinking", level],
-    // `--model=<value>` (fuzzy, or exact `provider/id`); `omp models --json`
-    // is the catalog (`model-lists.ts`). `--list-models` is pi-only — omp
-    // rejects it as an unknown flag.
+    // `--model=<value>`; catalog is `omp models --json` (omp rejects pi's
+    // `--list-models`).
     listModels: listOmpModels,
     modelArgv: (base, model) => [...base, `--model=${model}`],
     history: ompHistoryReader,
@@ -282,19 +241,16 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     capabilities: ompCapabilities,
     identity: ompIdentity,
     terminalTitle: {
-      // `π <separator> <label>`, where the separator IS the run state
-      // (spinner frames working, `>` at rest, `!` blocked on a human) — so
-      // omp owns the status and Rove must not draw a second one.
+      // `π <separator> <label>`; the separator IS the run state (spinner,
+      // `>` at rest, `!` blocked on a human), so Rove draws no second one.
       ownsStatus: true,
       statusPrefixes: OMP_STATUS_PREFIXES,
       workingPrefixes: OMP_WORKING_PREFIXES,
       attentionPrefixes: OMP_ATTENTION_PREFIXES,
     },
-    // omp mints its own session ids and exposes no pin flag: `-r/--resume
-    // [id prefix]` is the only way to reach an existing session, and
-    // `-c/--continue` means the command already owns one. Its id is therefore
-    // discovered after the fact — from the hook payload (`session_id`) or the
-    // session store this entry's `history` reader indexes by worktree.
+    // No pin flag (`-r/--resume [id prefix]` only reaches existing sessions);
+    // the id is discovered from the hook payload's `session_id` or the
+    // `history` store.
     sessionIdentity: {
       sessionControlFlags: ["-c", "--continue", "-r", "--resume"],
       resumeArgv: (base, id) => [...base, "-r", id],

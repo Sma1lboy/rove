@@ -14,16 +14,10 @@
  *     { "type": "turn_context", ... }
  *     (more)
  *
- * We extract `response_item` records of type `message` with a known role,
- * plus persisted Codex tool call/result items, and surface them via
- * {@link Message}; other record types are dropped. Record parsing (and the
- * shared append-aware parse cache) lives in `./history-parse.ts`.
- *
- * Session-lookup-by-UUID requires scanning the date-organized tree
- * because the UUID alone doesn't carry the rollout date — newest-first
- * to bias toward recent sessions. ENOENT / unreadable files are
- * tolerated per-entry so a single corrupt rollout doesn't blank the
- * whole result.
+ * Messages and tool call/result `response_item`s become {@link Message}s
+ * (`./history-parse.ts`); other records are dropped. Lookup by UUID scans the
+ * date tree newest-first (the UUID carries no date); unreadable files are
+ * skipped per entry so one corrupt rollout doesn't blank the result.
  */
 
 import { unlink } from "node:fs/promises"
@@ -42,12 +36,7 @@ export {
   rolloutCwd,
 } from "./session-files"
 
-/**
- * Newest rollout mtime (epoch ms) for `worktree`, or 0 when none match.
- * The Ops pane polls this to detect new Codex conversation output
- * without parsing the PTY screen. Thin wrapper over
- * {@link findLatestRolloutForWorktree}.
- */
+/** Newest rollout mtime (epoch ms) for `worktree`, or 0; polled by the Ops pane. */
 export async function latestTranscriptMtimeForWorktree(
   worktree: string,
   deps: HistoryDeps = defaultHistoryDeps,

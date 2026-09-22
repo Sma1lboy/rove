@@ -1,27 +1,16 @@
 /**
- * Codex's {@link EngineTurnReader} — per-turn telemetry lifted out of a
- * rollout JSONL.
+ * Codex's {@link EngineTurnReader}: per-turn telemetry from a rollout JSONL.
  *
- * Codex records turn boundaries EXPLICITLY, so this needs none of the
- * inference Claude's reader does: `event_msg/task_started` opens a turn and
- * carries the `turn_id` codex assigns it, `event_msg/task_complete` closes the
- * same id, and `turn_context` names the model that ran it. That `turn_id` is
- * the vendor-stable dedupe key {@link AgentTurn.id} asks for — the same turn
- * yields the same id on every re-read, with no "last assistant message"
- * heuristic. A turn with no `task_complete` is still running (or was
- * interrupted) and is not emitted: the verb promises COMPLETED turns.
+ * Turn boundaries are explicit: `task_started`/`task_complete` share a
+ * codex-assigned `turn_id` (the stable dedupe key {@link AgentTurn.id} needs),
+ * and `turn_context` names the model. Turns without `task_complete` aren't
+ * emitted: the verb promises COMPLETED turns.
  *
- * Usage is summed from `token_count.last_token_usage`, which is the delta for
- * ONE model request — a turn holding a tool loop writes several. The sibling
- * `total_token_usage` is session-cumulative, so summing THAT would charge every
- * turn for the whole session up to it. Summing the per-request deltas inside a
- * turn reproduces the cumulative delta exactly (verified against a 5-turn
- * rollout from codex-cli 0.149.1: turn 1's seven deltas sum to 217178, the
- * cumulative total standing at its `task_complete`). `token_count` carries no
- * `turn_id`, so it attributes to the turn that is currently open.
- *
- * Pure (string in, records out) so it unit-tests without a filesystem; the
- * bounded file read lives in the reader wrapper below.
+ * Usage sums `token_count.last_token_usage` (one request's delta; a tool loop
+ * writes several). `total_token_usage` is session-cumulative — summing it
+ * overcharges. Verified on codex-cli 0.149.1: turn 1's seven deltas sum to
+ * 217178, the cumulative total at its `task_complete`. `token_count` has no
+ * `turn_id`, so it goes to the open turn.
  */
 
 import type { AgentTurn } from "../agent-turn.ts"
@@ -49,10 +38,8 @@ interface Draft {
 }
 
 /**
- * Parse a Codex rollout into completed turns, oldest-first.
- * `fallbackSessionId` names the session when the rollout has no `session_meta`
- * header (a file opened mid-stream). Exported for unit tests; production
- * callers use {@link readCodexTurns}.
+ * Completed turns, oldest-first. `fallbackSessionId` applies when the rollout
+ * has no `session_meta` (opened mid-stream).
  */
 export function parseCodexTurns(raw: string, fallbackSessionId = ""): AgentTurn[] {
   const out: AgentTurn[] = []
@@ -97,11 +84,9 @@ export function parseCodexTurns(raw: string, fallbackSessionId = ""): AgentTurn[
     if (payload.type === "task_started") {
       const turnId = typeof payload.turn_id === "string" ? payload.turn_id : ""
       if (!turnId) continue
-      // A `turn_context` that landed first carries the only model name there
-      // is — keep it rather than resetting the draft over it.
+      // Keep a model from an earlier `turn_context`.
       const model = drafts.get(turnId)?.model
-      // `started_at` is epoch SECONDS; the record's own ISO timestamp is the
-      // millisecond-precision answer `AgentTurn` asks for, so prefer it.
+      // `started_at` is epoch SECONDS; prefer the ms ISO timestamp.
       const startedAt = Number.isFinite(at) ? at : num(payload.started_at) * 1000
       drafts.set(turnId, {
         ...emptyDraft(turnId, startedAt),
@@ -131,9 +116,7 @@ export function parseCodexTurns(raw: string, fallbackSessionId = ""): AgentTurn[
     if (payload.type !== "task_complete") continue
     const turnId = typeof payload.turn_id === "string" ? payload.turn_id : ""
     const draft = turnId ? drafts.get(turnId) : undefined
-    // A `task_complete` with no opener is a rollout we started reading
-    // mid-turn — there is no start time to attribute, so skip it rather than
-    // emit a turn stamped with a guess.
+    // No opener (read mid-turn): no start time, so skip rather than guess.
     if (!draft || !Number.isFinite(draft.startedAt)) continue
     drafts.delete(turnId)
     if (openTurnId === turnId) openTurnId = ""
@@ -160,9 +143,7 @@ function emptyDraft(turnId: string, startedAt: number): Draft {
   return { turnId, startedAt, input: 0, cachedInput: 0, output: 0, sawUsage: false }
 }
 
-/** Codex's {@link import("../agent-turn.ts").EngineTurnReader}: bounded file
- *  read + {@link parseCodexTurns}. Never throws — an unreadable rollout
- *  yields no turns. */
+/** Never throws — an unreadable rollout yields no turns. */
 export async function readCodexTurns(transcriptPath: string): Promise<readonly AgentTurn[]> {
   try {
     const raw = await readTextFileBounded(transcriptPath)

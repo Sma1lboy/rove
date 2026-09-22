@@ -47,15 +47,10 @@ function isTagEnvelope(text: string): boolean {
  * Codex's AGENTS.md preamble: a markdown heading followed by an
  * `<INSTRUCTIONS>` block.
  *
- * Deliberately loose about everything after the heading word. The previous
- * spelling demanded a trailing `for ` (Codex also emits the heading bare),
- * exact `\n` padding around the tag, and that the message END at
- * `</INSTRUCTIONS>` (real rollouts append more). Each of those made the filter
- * miss, and a missed filter is not silent: the auto-titler takes the
- * transcript's first `role: "user"` record, so the repo's contributor rules
- * became the task's name in the sidebar and in `tasks.json`. The heading plus
- * the tag is specific enough — a genuine prompt has to open with that exact
- * heading and contain an `<INSTRUCTIONS>` block to be dropped.
+ * Deliberately loose after the heading word: Codex emits it with or without
+ * `for `, with varying padding, and appends text after `</INSTRUCTIONS>`. A
+ * miss makes the auto-titler name the task after the repo's contributor rules.
+ * Heading + tag is specific enough.
  */
 function isInstructionsEnvelope(text: string): boolean {
   return text.startsWith("# AGENTS.md instructions") && text.includes("<INSTRUCTIONS>")

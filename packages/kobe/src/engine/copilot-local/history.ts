@@ -45,16 +45,9 @@ export async function listSessionDirs(deps: CopilotHistoryDeps = defaultDeps): P
 }
 
 /**
- * Session ids of Copilot conversations rooted at `worktree`, oldest-first.
- *
- * The monitor's auto-title dispatch (and any future per-vendor history
- * walk) calls this the same way it calls Claude's
- * `listSessionFilesForWorktree` / Codex's `listSessionIdsForWorktree`.
- * Copilot stores each session as a directory under
- * `~/.copilot/session-state/<id>/` with a `workspace.yaml` recording the
- * `cwd`; we match that against the worktree and order by `updatedAt`
- * (newest workspace timestamp last so the origin conversation comes
- * first, matching the other readers' oldest-first contract).
+ * Session ids of Copilot conversations rooted at `worktree`, oldest-first
+ * (by `updatedAt`, like the other vendors' readers). Each session is
+ * `~/.copilot/session-state/<id>/` with a `workspace.yaml` recording `cwd`.
  */
 export async function listSessionIdsForWorktree(
   worktree: string,
@@ -70,11 +63,8 @@ export async function listSessionIdsForWorktree(
 }
 
 /**
- * Newest `events.jsonl` mtime (epoch ms) across the Copilot sessions
- * rooted at `worktree`, or 0 when none match. The Ops pane polls this to
- * detect new Copilot conversation output without parsing the PTY screen.
- * Each session is a dir with a `workspace.yaml` (for the cwd
- * match) and a growing `events.jsonl` (the transcript we stat).
+ * Newest `events.jsonl` mtime (epoch ms) across sessions rooted at
+ * `worktree`, 0 when none — polled to detect new output without parsing the PTY.
  */
 export async function latestTranscriptMtimeForWorktree(
   worktree: string,
@@ -151,11 +141,8 @@ export async function readWorkspace(
 export function parseWorkspaceYaml(raw: string): CopilotWorkspaceMeta {
   const out: Record<string, string> = {}
   for (const rawLine of raw.split("\n")) {
-    // Strip a trailing CR so a CRLF workspace.yaml (what the Copilot CLI
-    // writes on Windows) doesn't leave `\r` on every value — the greedy
-    // `.*$` below would otherwise keep it, breaking the `cwd` worktree match
-    // and the quote-strip. Mirrors the sibling porcelain parsers
-    // (git-parsers.ts, worktree-list.ts) and this file's own foldEvents.
+    // Strip CR: Copilot writes CRLF on Windows, and the greedy `.*$` below
+    // would keep `\r`, breaking the `cwd` match and the quote-strip.
     const line = rawLine.replace(/\r$/, "")
     const match = line.match(/^([A-Za-z_]+):\s*(.*)$/)
     if (!match) continue
@@ -182,12 +169,10 @@ export function parseEvents(
 }
 
 /**
- * Fold state for `events.jsonl` parsing. Unlike claude/codex, the copilot
- * event stream is NOT line-local: `session.start` sets the sessionId for
- * everything after it, firstUserMessage/usage are first/last-wins.
- * The append-aware cache therefore snapshots this whole fold state at the
- * cached prefix boundary, so folding an appended slice onto it reproduces
- * a full parse exactly.
+ * Fold state for `events.jsonl`. The stream is NOT line-local (`session.start`
+ * sets the sessionId for what follows; firstUserMessage/usage are
+ * first/last-wins), so the append-aware cache snapshots this whole state at
+ * the prefix boundary and folding an appended slice reproduces a full parse.
  */
 interface CopilotParseState {
   readonly messages: readonly Message[]
@@ -244,9 +229,8 @@ function foldEvents(raw: string, prev: CopilotParseState): CopilotParseState {
     if (record.type === "user.message") {
       const text = typeof data.content === "string" ? data.content : ""
       if (!text) continue
-      // Force-copy: in JSC (Bun) `.slice` shares the parent string's backing
-      // buffer, so a 200-char preview would otherwise pin the full message
-      // text for as long as a caller retains the preview.
+      // Force-copy: JSC `.slice` shares the parent's buffer, so the preview
+      // would pin the full message text.
       if (!firstUserMessage) firstUserMessage = Buffer.from(text.slice(0, PREVIEW_CHAR_CAP), "utf8").toString("utf8")
       appendMessage({ role: "user", blocks: [{ type: "text", text }], timestamp, sessionId })
       continue

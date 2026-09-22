@@ -1,12 +1,7 @@
 /**
- * Schema + `--help` rendering — everything derived from the {@link VERBS}
- * table. Split out of `api-cmd.ts` (see that file's header). The `schema`
- * verb's HANDLER (`handleSchema`) lives in `verbs.ts` instead of here: it's
- * referenced inside the `VERBS` array literal, which is evaluated at
- * module-load time, so a handler defined in a module that imports `VERBS`
- * back from `verbs.ts` would be `undefined` at that point (load-order
- * circular-import hazard). The render functions below have no such
- * constraint — they're only called from inside other function bodies.
+ * Schema + `--help` rendering from the {@link VERBS} table. The `schema`
+ * handler lives in `verbs.ts` (load-order cycle); these renderers are only
+ * called from function bodies, so importing `VERBS` here is safe.
  */
 
 import { registeredEngineIds } from "../../engine/plugin-engines.ts"
@@ -24,13 +19,9 @@ const GLOBAL_FLAGS = [
 ]
 
 /**
- * The values a flag's schema/help should SHOW. `--vendor` is the one open
- * enum: its spec `values` lists the built-ins, but registered engines — custom
- * presets and plugin-contributed ones alike — are equally valid at runtime
- * (`validateAgainstSpec` / `VerbArgs.vendor` both accept them). Listing only
- * built-ins here hid them from every agent that discovers the surface through
- * `schema` / `--help`. Read at render time, not in the static VERBS table, so
- * a newly registered engine shows up in the very next invocation.
+ * Values a flag's schema/help should SHOW. `--vendor` is an open enum: spec
+ * `values` lists built-ins, but registered engines (presets, plugins) are
+ * valid at runtime too. Read at render time so new engines show immediately.
  */
 function displayValues(f: FlagSpec): readonly string[] | undefined {
   if (!f.values) return undefined
@@ -78,11 +69,7 @@ export function schemaIndex(): unknown {
   }
 }
 
-/**
- * The verbs in ONE group (compact). Every group here has verbs and every verb
- * is in a group — both sides come from the same `VerbSpec.group` field, so the
- * listing cannot disagree with the `group` an agent read off the index.
- */
+/** The verbs in ONE group (compact), from the same `VerbSpec.group` as the index. */
 export function groupSchema(group: string): unknown {
   const verbs = VERBS.filter((v) => v.group === group)
   if (verbs.length === 0) {

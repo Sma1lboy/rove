@@ -1,33 +1,24 @@
 import type { ContentBlock } from "@/types/engine"
 
 /**
- * Synthetic / injected transcript records that Claude Code itself excludes from
- * the human-turn view (its `isHumanTurn` predicate + first-prompt/title paths
- * all skip these). kobe must skip them too — otherwise a session whose first
- * action is a slash command (`/clear`, `/model`, `!cmd`) auto-titles the task
- * from the injected local-command caveat or the `<command-name>` breadcrumb
- * Claude writes BEFORE the real prompt, instead of from the user's prompt.
- *
- * Conservative, mirroring the Codex synthetic filter: only clearly-injected
- * rows are dropped. Tool-result user rows are intentionally NOT filtered here
- * so the transcript view is unchanged.
+ * Injected transcript records Claude Code excludes from human turns (its
+ * `isHumanTurn`). Skipping them keeps a session opened with a slash command
+ * from auto-titling off the caveat/breadcrumb written BEFORE the real prompt.
+ * Conservative: tool-result user rows are NOT filtered.
  */
 
 /**
- * True when the OUTER transcript record is a Claude-injected meta row. The
- * `isMeta` / `isCompactSummary` flags live on the record (not `record.message`)
- * and survive to disk; `isMeta` covers the local-command caveat and most
- * injected envelopes, `isCompactSummary` the post-compaction summary.
+ * OUTER record is an injected meta row. The flags live on the record, not
+ * `record.message`: `isMeta` (local-command caveat, most envelopes),
+ * `isCompactSummary` (post-compaction summary).
  */
 export function isSyntheticClaudeRecord(record: Record<string, unknown>): boolean {
   return record.isMeta === true || record.isCompactSummary === true
 }
 
 /**
- * True when a `user` record's text is ONLY a slash-command breadcrumb — the
- * `<command-name>…</command-name>` envelope Claude persists as a plain
- * (un-flagged) user record when a slash/bash command runs. Conservative: any
- * real prose mixed in preserves the row.
+ * A `user` record that is ONLY a slash/bash-command breadcrumb (un-flagged
+ * `<command-name>…` envelope). Any real prose mixed in keeps the row.
  */
 export function isClaudeCommandBreadcrumb(blocks: readonly ContentBlock[]): boolean {
   if (blocks.length === 0) return false

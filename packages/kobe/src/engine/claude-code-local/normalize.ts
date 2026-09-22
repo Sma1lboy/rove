@@ -1,9 +1,5 @@
 /**
- * Claude Code → neutral content normalization.
- *
- * One direction only: Claude Code's on-disk / stream-json content-block
- * shape → kobe's {@link ContentBlock} union. Lives inside the Claude
- * adapter directory because the input shape is vendor-specific.
+ * Claude Code on-disk / stream-json content blocks → neutral {@link ContentBlock}.
  *
  * Drop-list (silently elided from output):
  *   - `image` blocks (kobe doesn't render images yet)
@@ -14,9 +10,7 @@
 import type { ContentBlock } from "@/types/content"
 
 /**
- * Coerce a Claude `content` field into a flat list of neutral blocks.
- *
- * Accepts the three shapes Claude Code persists on disk:
+ * Coerce a Claude `content` field into neutral blocks. Shapes on disk:
  *   - `string`                                → single text block
  *   - `Array<string | { type, ... }>`         → element-wise normalization
  *   - anything else (null, object, number)    → empty list

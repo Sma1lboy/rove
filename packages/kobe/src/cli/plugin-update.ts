@@ -1,14 +1,8 @@
 /**
- * `kobe plugin outdated` / `kobe plugin update` — keeping GitHub-installed
- * plugins fresh. The staleness check is one `git ls-remote HEAD` per plugin
- * against the managed checkout's local HEAD (the install keeps its clone's
- * `.git`); an update is a plain reinstall through `installPlugin` — the
- * checkout is replaceable by design, config/state live outside it. Linked
- * plugins are the author's working tree and are never touched.
- *
- * Every check/update rewrites the outdated CACHE file the Settings →
- * Plugins section reads for its "update available" mark — the TUI itself
- * never talks to the network.
+ * `kobe plugin outdated|update` for GitHub installs: `git ls-remote HEAD` vs
+ * the checkout's HEAD; update = reinstall (config/state live outside the
+ * checkout). Linked plugins are never touched. Every check rewrites the
+ * outdated cache Settings reads — the TUI never hits the network.
  */
 
 import { execFileSync } from "node:child_process"
@@ -94,12 +88,9 @@ export function printOutdated(): void {
 }
 
 /**
- * An update whose manifest declares a NEW id (the author renamed the
- * plugin) installs under that id, leaving the previous registry entry
- * enabled and pointing at its own checkout — two copies of the same plugin
- * firing every hook. Carry the user's data across and unregister the
- * previous id. Nothing is deleted: the stale checkout directory is left in place
- * and reported, so a rename can never lose configuration.
+ * A renamed plugin installs under its new id, leaving the old entry firing
+ * every hook too. Carry data over and unregister the old id; the stale
+ * checkout is left and reported, so a rename never loses configuration.
  */
 function migrateRenamedPlugin(oldId: string, newId: string): void {
   for (const dirOf of [pluginConfigDir, pluginStateDir]) {
@@ -107,8 +98,7 @@ function migrateRenamedPlugin(oldId: string, newId: string): void {
     const to = dirOf(newId)
     if (!existsSync(from)) continue
     mkdirSync(to, { recursive: true })
-    // Only carry entries the fresh install didn't already create, so a
-    // re-run can't clobber a newer value with a stale one.
+    // Never clobber what the fresh install already created.
     for (const entry of readdirSync(from)) {
       if (existsSync(join(to, entry))) continue
       renameSync(join(from, entry), join(to, entry))

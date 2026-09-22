@@ -1,39 +1,17 @@
 /**
- * Read historical messages from Claude Code's on-disk JSONL.
- *
- * Algorithm ported from `refs/opcode/src-tauri/src/commands/claude.rs`
- * lines 147–230 (cwd-from-first-10-lines fallback) and lines 183–191
- * (lossy slash↔dash decoding).
- *
- * Where Claude Code keeps sessions on disk:
+ * Read historical messages from Claude Code's on-disk JSONL. Algorithm
+ * ported from `refs/opcode/src-tauri/src/commands/claude.rs` lines 147–230.
  *
  *     ~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl
  *
- * `<encoded-cwd>` is the *absolute* cwd with every non-alphanumeric
- * character replaced by `-` (see {@link encodeCwd}), e.g.
- * `/Users/jackson/i/kobe` → `-Users-jackson-i-kobe`. The encoding is
- * **lossy**: a path containing literal `-` collapses to the same
- * directory as a `/`-delimited one (so `foo/bar-baz` and `foo-bar/baz`
- * collide). For session reads we don't need to reverse the encoding —
- * we just iterate every project dir and look for the matching
- * `<sessionId>.jsonl`. That's what opcode does too (the
- * `decode_project_path` helper is documented as deprecated).
+ * `<encoded-cwd>` is lossy ({@link encodeCwd}: `foo/bar-baz` and
+ * `foo-bar/baz` collide), so reads never decode it — they scan every
+ * project dir for `<sessionId>.jsonl`, as opcode does.
  *
- * Each JSONL line is a record like:
- *
- *     { "type": "user", "message": { "role": "user", "content": "..." },
- *       "timestamp": "<iso-8601>",
- *       "sessionId": "<uuid>", "cwd": "/Users/...", ... }
- *
- * The shapes vary — Claude Code persists not just messages but also
- * permission-mode events, file-history snapshots, etc. We filter to
- * records that carry a recognisable role+content pair, so the
- * orchestrator's chat pane only sees actual conversation.
- *
- * On-disk `content` is sometimes a bare string and sometimes a Claude
- * content-block array. We normalize both shapes through
- * {@link normalizeClaudeContent} and surface the vendor-neutral
- * `Message.blocks` union (see src/types/content.ts).
+ * Records also include permission-mode events, file-history snapshots, etc.;
+ * only role+content records surface. `content` is a bare string or a
+ * content-block array, both normalized via {@link normalizeClaudeContent}
+ * into `Message.blocks`.
  */
 
 import { randomUUID } from "node:crypto"
@@ -45,8 +23,6 @@ import { isObject } from "../json-hooks.ts"
 import { vendorConfigHome } from "../vendor-home"
 import { parseSessionRaw } from "./history-parse"
 
-// Parsing (JSONL → Message[], sorting, and the append-aware per-file cache)
-// lives in ./history-parse; re-exported here for existing consumers/tests.
 export { parseJsonl } from "./history-parse"
 
 /** Optional FS injection for tests. */
@@ -71,8 +47,7 @@ const defaultDeps: HistoryDeps = {
     }
   },
   async readFile(p) {
-    // Size-bounded: an oversize/corrupt transcript degrades to "" (an empty
-    // session) rather than slurping a multi-GB file into memory.
+    // Oversize/corrupt transcript degrades to "" rather than loading GBs.
     return await readTextFileBounded(p)
   },
   async pathExists(p) {
@@ -86,23 +61,11 @@ const defaultDeps: HistoryDeps = {
 }
 
 /**
- * Encode a cwd to Claude Code's on-disk project directory name.
- *
- * Claude Code replaces **every** non-alphanumeric character with `-` —
- * its own encoder is `cwd.replace(/[^a-zA-Z0-9]/g, "-")` (verified in the
- * shipped CLI bundle), so `/`, `.`, `_`, spaces, and non-ASCII letters
- * all fold. Matching only `/` and `.` points every encoding-dependent
- * consumer at a directory Claude never created whenever the worktree path
- * contains e.g. an underscore, which silently disables session-file
- * discovery, activity mtime detection, and interrupted-prompt rescue for
- * that task.
- *
- * No legacy fallback on purpose: the dirs under `~/.claude/projects` are
- * created by Claude with this encoding, so this is the only encoding that
- * names a real one.
- *
- * The encoding is lossy (see file-level docstring) and reversal is
- * unreliable — we never decode, only iterate/derive.
+ * Encode a cwd to Claude Code's project directory name. Must match Claude's
+ * own encoder exactly (`/[^a-zA-Z0-9]/g` → `-`, verified in the shipped CLI
+ * bundle): folding only `/` and `.` misses any path with e.g. `_`, silently
+ * breaking session discovery, activity mtime, and interrupted-prompt rescue.
+ * No fallback encoding — Claude creates no other. Lossy; never decoded.
  */
 export function encodeCwd(cwd: string): string {
   return cwd.replace(/[^a-zA-Z0-9]/g, "-")
@@ -119,13 +82,8 @@ export interface WorktreeSessionFile {
 }
 
 /**
- * List every Claude session transcript persisted for `worktree`.
- *
- * Owns the `~/.claude/projects/<encoded-cwd>/*.jsonl` directory layout
- * knowledge so callers (the monitor's cost dashboard, future recap)
- * don't re-derive it. Sorted newest-first by mtime. Returns `[]` when
- * the worktree has no project dir yet (a task never entered). Never
- * throws — best-effort scan.
+ * Every Claude transcript for `worktree`, newest-first by mtime. `[]` when
+ * the project dir doesn't exist yet (task never entered). Never throws.
  */
 export async function listSessionFilesForWorktree(worktree: string): Promise<WorktreeSessionFile[]> {
   if (!worktree) return []
@@ -153,11 +111,8 @@ export async function listSessionFilesForWorktree(worktree: string): Promise<Wor
 }
 
 /**
- * Newest transcript mtime (epoch ms) for `worktree`, or 0 when the task
- * was never entered / has no session files. The Ops pane polls this to
- * detect "the agent produced new conversation output" without parsing
- * the PTY screen. `listSessionFilesForWorktree` already sorts
- * newest-first, so `[0]` is the most recent activity.
+ * Newest transcript mtime (epoch ms) for `worktree`, or 0 with no session
+ * files. The Ops pane polls it to detect new output without parsing the PTY.
  */
 export async function latestTranscriptMtimeForWorktree(worktree: string): Promise<number> {
   const files = await listSessionFilesForWorktree(worktree)
@@ -165,22 +120,11 @@ export async function latestTranscriptMtimeForWorktree(worktree: string): Promis
 }
 
 /**
- * Read all conversation messages persisted for the given session id.
- *
- * Algorithm:
- *   1. List every directory in `~/.claude/projects/`.
- *   2. For each, check if `<dir>/<sessionId>.jsonl` exists.
- *   3. Parse it line by line, keep the lines that look like
- *      conversation records, return them as {@link Message}s.
- *
- * Returns `[]` if the session file isn't found or contains no messages.
- * Never throws on parse failure — bad lines are skipped (Claude Code's
- * JSONL evolves over time and old sessions may have unfamiliar shapes).
- *
- * Consecutive calls for the same file are append-aware: the unchanged
- * prefix is served from a per-file parse cache with stable Message object
- * identities (see ./history-parse), so the polling chat pane doesn't churn
- * row identity — a rewrite/truncation falls back to a full re-parse.
+ * Conversation messages for `sessionId`, found by scanning every project dir.
+ * `[]` if not found; bad lines are skipped (old sessions have unfamiliar
+ * shapes). Append-aware: the unchanged prefix keeps stable Message
+ * identities so the polling chat pane doesn't churn rows; a
+ * rewrite/truncation forces a full re-parse.
  */
 export async function readHistory(sessionId: string, deps: HistoryDeps = defaultDeps): Promise<readonly Message[]> {
   const root = deps.projectsDir()
@@ -200,15 +144,11 @@ export async function readHistory(sessionId: string, deps: HistoryDeps = default
 }
 
 /**
- * Session-aggregate usage for `sessionId`, folded from the per-turn usage
- * Claude Code persists inline on assistant records. This is the ONE place
- * the vendor's context arithmetic lives: "context" = the LAST turn's full
- * prompt (fresh input + cache read + cache creation), derived — not an
- * engine-reported figure — hence `context_tokens_approximate`. Neutral
- * layers (web transcript header, cost dashboards) render the snapshot and
- * must not re-derive the math from per-message fields.
- * `undefined` when the session has no usage records (nothing reported,
- * which is different from a reported zero).
+ * Session-aggregate usage folded from per-turn usage on assistant records.
+ * The ONE place Claude's context arithmetic lives: context = the LAST turn's
+ * input + cache read + cache creation, derived (hence
+ * `context_tokens_approximate`); neutral layers must not re-derive it.
+ * `undefined` = nothing reported, distinct from a reported zero.
  */
 export async function readUsageSnapshot(
   sessionId: string,
@@ -242,14 +182,9 @@ export async function readUsageSnapshot(
 }
 
 /**
- * Permanently delete the JSONL session file for `sessionId`.
- *
- * The file lives at `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl`
- * but the encoded-cwd isn't known at delete time (we don't track which
- * cwd each session was opened in). Same algorithm as {@link readHistory}:
- * scan every project dir, remove the matching file. Tolerates ENOENT
- * (already gone). Returns silently on any other error; the orchestrator
- * logs and proceeds — the user's intent is "discard," not "babysit FS."
+ * Permanently delete `sessionId`'s JSONL. The session's cwd isn't tracked,
+ * so scan every project dir like {@link readHistory}. ENOENT is tolerated;
+ * any other error is thrown for the orchestrator to log.
  */
 export async function deleteHistory(sessionId: string, deps: HistoryDeps = defaultDeps): Promise<void> {
   const root = deps.projectsDir()
@@ -260,61 +195,34 @@ export async function deleteHistory(sessionId: string, deps: HistoryDeps = defau
       await unlink(candidate)
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") continue
-      // Anything else: surface to the caller. Permission denied / I/O
-      // error / etc. — let the orchestrator decide whether to log.
       throw err
     }
   }
 }
 
 /**
- * Append (or merge into) the session JSONL a synthetic user record so
- * an interrupted `claude -p` turn isn't lost to the model on the next
- * `--resume`.
+ * Rescue an interrupted `claude -p` prompt into the session JSONL so the
+ * next `--resume` sees it. claude persists only at turn boundaries, so a
+ * steer/ESC kill mid-turn drops the prompt it was processing.
  *
- * Background — `claude -p` writes records to disk only at well-defined
- * turn boundaries; if we SIGTERM/SIGKILL the subprocess before it
- * reaches one (which is exactly what a steer or ESC interrupt does),
- * the user message it was processing is never persisted. The next
- * `--resume <sid>` then reads a JSONL that's missing the abandoned
- * prompt, so the model is blind to whatever the user had been saying.
- * The fix is to rescue the prompt into the JSONL ourselves on stop.
+ * Chaining, from the most recent user/assistant record:
+ *   - assistant (or empty file): append a user record with `parentUuid` = its `uuid`.
+ *   - user (an earlier rescue, no reply since): coalesce — carry its text
+ *     forward and chain to its PARENT as a same-parent sibling. `--resume`
+ *     follows the newest leaf, so the model sees ONE user turn (the API
+ *     rejects back-to-back user records); the older sibling stays on disk.
  *
- * Append-only — this never rewrites the file. Scan backwards for the
- * most recent conversational (user/assistant) record to decide how to
- * chain the new record:
- *   - assistant record (or empty file): append a fresh user record
- *     chained to it (`parentUuid` = that record's `uuid`).
- *   - user record (an earlier kill that already rescued a prompt, with
- *     no assistant reply since): coalesce — carry that turn's text
- *     forward into the new record and chain to its PARENT, superseding
- *     it as a same-parent sibling. claude's `--resume` walker follows
- *     the newest leaf, so the model sees ONE coalesced user turn (never
- *     two back-to-back user records — a shape the API rejects), and the
- *     older sibling is left on disk untouched.
+ * Append-only: claude may still be flushing to this JSONL mid-stop, and a
+ * whole-file rewrite would drop records flushed after our read. O_APPEND
+ * writes at live EOF; a stale snapshot can only mis-chain `parentUuid`.
  *
- * Why append-only: the engine is mid-stop when this runs and claude may
- * still be flushing buffered records to the same JSONL. The previous
- * read-all-then-`writeFile`-the-whole-file merge clobbered any record
- * flushed after our read snapshot. `appendFile` (O_APPEND) writes at the
- * live EOF, so concurrent flushes survive; a stale snapshot can only
- * mis-chain `parentUuid`, never lose data.
- *
- * File-not-exists is tolerated: claude may have died before its very
- * first record landed; we create the parent directory and write the
- * record as the first line. Any other I/O error surfaces to the
- * caller (engine.stop logs + swallows so the steer flow doesn't
- * hard-fail on a permissions hiccup).
- *
- * Schema — minimum keys needed for {@link readHistory}'s parser AND
- * for claude's own `--resume` reader to recognise it:
+ * Missing file → create dir, write as first line. Other I/O errors throw
+ * (engine.stop logs + swallows). Minimum keys for both {@link readHistory}
+ * and claude's `--resume` reader:
  *
  *     { type: "user", message: { role: "user", content: <text> },
  *       uuid, parentUuid, sessionId, cwd, timestamp,
  *       isSidechain: false, userType: "external", version: "1.0.0" }
- *
- * `parentUuid` chains the record to the prior turn so claude's resume
- * walker doesn't see it as an orphan. `uuid` is a fresh v4.
  */
 export async function appendInterruptedUserPrompt(
   sessionId: string,
@@ -329,9 +237,7 @@ export async function appendInterruptedUserPrompt(
 
   let lines: string[] = []
   try {
-    // Size-bounded: an oversize/corrupt transcript degrades to "" (we then
-    // append a fresh rescue record instead of trying to merge) rather than
-    // loading a giant file just to scan its tail.
+    // Oversize transcript degrades to "" → append a fresh record, no merge.
     const raw = await readTextFileBounded(filePath)
     lines = raw.split("\n").filter((l) => l.length > 0)
   } catch (err) {
@@ -339,9 +245,7 @@ export async function appendInterruptedUserPrompt(
     await mkdir(projectDir, { recursive: true })
   }
 
-  // Scan backwards for the most recent user/assistant record. Skip
-  // non-conversational records (tool results, summaries, etc.) so the
-  // coalesce check looks at semantic turns, not file-tail noise.
+  // Skip non-conversational records so coalescing sees turns, not tail noise.
   let lastConvRecord: Record<string, unknown> | null = null
   let lastConvRole: "user" | "assistant" | null = null
   for (let i = lines.length - 1; i >= 0; i--) {
@@ -365,15 +269,7 @@ export async function appendInterruptedUserPrompt(
 
   const now = new Date().toISOString()
 
-  // Append-only — NEVER rewrite the file. The previous implementation
-  // edited the prior user record in place and `writeFile`-rewrote the
-  // WHOLE file from this in-memory snapshot. That snapshot is taken while
-  // the engine is mid-stop and claude may still be flushing buffered
-  // records (an assistant reply, tool results) to the same JSONL; a
-  // full-file rewrite would truncate anything flushed after our read →
-  // silent data loss. `appendFile` writes at the current EOF (O_APPEND),
-  // so a concurrent flush is preserved no matter when it lands; a stale
-  // snapshot can now only mis-chain `parentUuid`, never destroy records.
+  // Append-only, NEVER rewrite: see the doc comment (concurrent flushes).
   let content = prompt
   let parentUuid = lastConvRecord && typeof lastConvRecord.uuid === "string" ? (lastConvRecord.uuid as string) : null
 
@@ -382,19 +278,11 @@ export async function appendInterruptedUserPrompt(
       ? (lastConvRecord.message as Record<string, unknown>)
       : lastConvRecord
     const existing = typeof inner.content === "string" ? inner.content : ""
-    // Idempotency / race-safety: claude may have flushed the user record
-    // just before our SIGTERM landed (or a prior rescue already coalesced
-    // this same prompt). Skip if the last user record already ends with
-    // our prompt — re-injecting would double it in the model's context.
+    // claude may have flushed this prompt before SIGTERM, or a prior rescue
+    // already coalesced it; re-injecting would double it in context.
     if (existing === prompt || existing.endsWith(`\n\n${prompt}`)) return
-    // Coalesce: carry the prior user turn's text forward (blank-line
-    // separated) and chain the new record to the prior turn's PARENT, so
-    // it supersedes the un-replied user turn as a same-parent sibling
-    // rather than following it. claude's `--resume` walker follows the
-    // newest leaf for a given parent (the standard rewind/branch model,
-    // see the DAG note on `sortByTimestamp`), so the model sees ONE
-    // coalesced user turn — never two back-to-back user records — while
-    // the older sibling stays on disk untouched (no clobber).
+    // Same-parent sibling supersedes the un-replied turn (see DAG note on
+    // `sortByTimestamp`).
     content = existing.length > 0 ? `${existing}\n\n${prompt}` : prompt
     parentUuid = typeof lastConvRecord.parentUuid === "string" ? (lastConvRecord.parentUuid as string) : null
   }

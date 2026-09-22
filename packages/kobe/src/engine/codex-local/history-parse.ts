@@ -1,16 +1,11 @@
 /**
- * Rollout JSONL → Message[] parsing for Codex transcripts, on top of the
- * shared append-aware per-file cache (`../history-cache.ts`) so repeated
- * `readHistory` polls don't re-parse the whole rollout every ~2.5s tick.
+ * Codex rollout JSONL → Message[], on the append-aware per-file cache
+ * (`../history-cache.ts`) so ~2.5s `readHistory` polls don't re-parse the file.
  *
- * One fold pass extracts BOTH the conversation messages (`response_item`
- * records) and the latest usage snapshot (real rollout `event_msg token_count`,
- * or legacy `codex exec --json` `turn.completed`) instead of two separate
- * full scans of the raw text per poll. The fold is line-local
- * apart from the usage carry-over (latest snapshot + its timestamp), which
- * threads through the cached state, so folding the appended slice onto the
- * cached prefix reproduces a full parse exactly, with stable message
- * object identities.
+ * One fold pass extracts both messages and the latest usage snapshot. The fold
+ * is line-local apart from the usage carry-over, which threads through the
+ * cached state, so folding an appended slice onto the cached prefix equals a
+ * full parse, with stable message identities.
  */
 
 import type { ContentBlock } from "@/types/content"
@@ -37,24 +32,19 @@ const cache = createAppendParseCache<CodexParseState, string>({
   parseChunk: foldRolloutChunk,
 })
 
-/**
- * Parse `raw` (the full current contents of rollout `filePath`) into
- * sorted messages + the latest usage snapshot, reusing the cached fold of
- * the unchanged prefix when the file only appended since the last call.
- */
+/** Parse the full rollout `raw`, reusing the cached fold when the file only appended. */
 export function parseRolloutRaw(filePath: string, raw: string, sessionId: string): EngineHistory {
   const state = cache(filePath, raw, sessionId)
   const messages = sortByTimestamp(state.messages)
   return { messages, ...(state.latestUsage ? { usageMetrics: state.latestUsage } : {}) }
 }
 
-/** Uncached message-only parse. Exported for unit testing. */
+/** Uncached message-only parse. */
 export function parseJsonl(raw: string, sessionId: string): readonly Message[] {
   return foldRolloutChunk(raw, emptyState, sessionId).messages
 }
 
-/** Latest usage snapshot in `raw` (token_count / turn.completed), uncached.
- *  Exported for unit testing. */
+/** Latest usage snapshot in `raw` (token_count / turn.completed), uncached. */
 export function deriveCodexUsageMetrics(raw: string): EngineUsageSnapshot | undefined {
   return foldRolloutChunk(raw, emptyState, "").latestUsage
 }
@@ -94,19 +84,15 @@ function foldRolloutChunk(chunk: string, prev: CodexParseState, sessionId: strin
     if (!usageFields) continue
     const base = codexUsageToSnapshot(usageFields.usage, { contextWindowTokens: usageFields.contextWindow })
     if (!base) continue
-    // The last turn's total input (cached included) IS its full prompt — the
-    // context figure the transcript header shows. Engine-reported, so no
-    // approximate flag; absent on records with no per-turn split.
+    // Last turn's total input (cached included) IS the context size. Engine-reported,
+    // so not approximate; absent when the record has no per-turn split.
     const lastPrompt = usageFields.lastUsage ? numberOr(usageFields.lastUsage.input_tokens) : 0
     const snapshot: EngineUsageSnapshot = {
       ...base,
       ...(lastPrompt > 0 ? { context_tokens: lastPrompt } : {}),
     }
-    // Attach THIS turn's usage to its assistant message so the History panel's
-    // per-message token sum is non-zero for codex. token_count is a standalone
-    // record that follows the turn's response_items, so the nearest preceding
-    // assistant message in file order owns it. Replace (not mutate) the entry to
-    // honor the append cache's immutable-object contract.
+    // token_count follows its turn's response_items, so the nearest preceding
+    // assistant message owns this turn's usage. Replace, never mutate (cache contract).
     const lastUsage = usageFields.lastUsage && codexLastUsageToMessageUsage(usageFields.lastUsage)
     if (lastUsage) {
       const messages = updatedMessages ?? prev.messages
@@ -119,11 +105,8 @@ function foldRolloutChunk(chunk: string, prev: CodexParseState, sessionId: strin
       latestUsageTimestampMs = timestampMs
       latestUsage = snapshot
     } else if (latestUsageTimestampMs === null) {
-      // No timestamped record has won yet — keep advancing to the latest in
-      // FILE order. Gating on `latestUsage === undefined` instead freezes on
-      // the FIRST snapshot when turn.completed lines carry no timestamp, so
-      // every later turn's usage is silently discarded and the session
-      // reports stale first-turn tokens.
+      // No timestamped winner yet: keep advancing in FILE order. Gating on
+      // `latestUsage === undefined` would freeze on untimestamped turn 1.
       latestUsage = snapshot
     }
   }
@@ -141,18 +124,15 @@ interface CodexUsageFields {
 }
 
 /**
- * Pull the token usage + context window out of a rollout usage record, or
- * `undefined` when `parsed` isn't one. Two shapes:
+ * Token usage + context window from a rollout usage record, or `undefined`.
+ * Two shapes:
  *
- *   - REAL rollout: `{ type: "event_msg", payload: { type: "token_count",
- *     info: { total_token_usage: {…}, last_token_usage: {…},
- *     model_context_window } } }`. This is what codex-cli actually writes to
- *     `~/.codex/sessions/**.jsonl`. A parser that misses it shows 0 tok and
- *     0 context% with `model_context_window` sitting right there in the
- *     file. `total_token_usage` is
- *     the session aggregate; `last_token_usage` is this turn's delta.
- *   - LEGACY stream: top-level `{ type: "turn.completed", usage: {…} }`, the
- *     `codex exec --json` event shape (no context window, no per-turn split).
+ *   - REAL rollout (what codex-cli writes to `~/.codex/sessions/**.jsonl`):
+ *     `{ type: "event_msg", payload: { type: "token_count", info: {
+ *     total_token_usage, last_token_usage, model_context_window } } }` —
+ *     session aggregate and this turn's delta.
+ *   - LEGACY `codex exec --json`: `{ type: "turn.completed", usage: {…} }`
+ *     (no context window, no per-turn split).
  */
 function codexUsageFields(parsed: Record<string, unknown>): CodexUsageFields | undefined {
   if (parsed.type === "event_msg") {
@@ -200,11 +180,8 @@ function normalizeCodexResponseItem(
     const role = payload.role
     if (role !== "user" && role !== "assistant" && role !== "system") return undefined
     const blocks = normalizeCodexContent(payload.content)
-    // Drop Codex's synthetic user rows. Codex persists both repository
-    // instructions and the environment envelope in rollout JSONL as
-    // role=user messages, but the live `codex exec --json` stream does
-    // not replay them. Reloading history should therefore hide them so
-    // the visible transcript matches what the user actually typed.
+    // Codex persists repo instructions and the environment envelope as
+    // role=user rows the live stream never shows; hide them.
     if (role === "user" && isSyntheticCodexUserRow(blocks)) return undefined
     return { role, blocks, timestamp, sessionId }
   }
@@ -293,12 +270,9 @@ function normalizeCodexToolResult(
 }
 
 /**
- * Statuses a rollout's single-record tool is NOT reporting a failure with.
- * `completed` is what a successful record carries; `in_progress` is the
- * Responses-API "still running", which is not a failure either. Anything
- * else — `failed` in the wild, `incomplete` in the API's own enum — is.
- * Written as an allow-list so a spelling nobody here has seen reads as an
- * error rather than silently as a success.
+ * Non-failure statuses for a single-record tool (`in_progress` = still
+ * running). Anything else (`failed`, `incomplete`) is an error; an allow-list
+ * so an unseen spelling reads as an error, not a silent success.
  */
 const CODEX_OK_STATUSES: ReadonlySet<string> = new Set(["completed", "in_progress"])
 
@@ -313,17 +287,9 @@ function normalizeSingleRecordTool(
   const name = stringOr(payload.name, type)
   const input = stripPayload(payload, ["type", "call_id", "status"])
   const output = stripPayload(payload, ["type", "call_id"])
-  // This record carries its own verdict — the same `status` the line above
-  // strips out of the tool ARGUMENTS, because it is metadata about the call
-  // rather than an argument to it. It used to be dropped on both sides and
-  // the result was hard-coded `isError: false`, so a failed web search or
-  // local shell call rendered in the transcript as a success.
-  //
-  // The `*_output` paths (`normalizeCodexToolResult`) genuinely cannot do
-  // this: `custom_tool_call_output` / `function_call_output` records are
-  // `{type, id, call_id, output}` and carry no verdict at all. Codex records
-  // theirs on `item_completed.item.status`, a record type this parser does
-  // not read.
+  // `status` is the call's verdict (metadata, so stripped from `input`). The
+  // `*_output` records carry none — `{type, id, call_id, output}`; Codex puts it
+  // on `item_completed.item.status`, which this parser doesn't read.
   const status = payload.status
   const isError = typeof status === "string" && !CODEX_OK_STATUSES.has(status)
   return {

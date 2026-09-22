@@ -1,13 +1,4 @@
-/**
- * How to re-invoke the active public CLI as a subprocess.
- *
- * Some features spawn a CLI subcommand in a child process. In a packaged
- * install that is the active `rove` or `kobe` name on PATH; in dev there is
- * no installed bin, so we reconstruct the
- * exact runtime the dev script uses.
- *
- * Lives in `cli/` because it is about locating the public wrapper.
- */
+/** How to re-invoke the active public CLI as a subprocess (packaged bin, or the dev runtime). */
 
 import { fileURLToPath } from "node:url"
 import { LEGACY_KOBE_PRODUCT_NAME, ROVE_PRODUCT_NAME } from "../product.ts"
@@ -21,12 +12,9 @@ import { activeCliName } from "./rename-compat.ts"
  * Packaged build → `[<active-name>]` (npm bin shim on PATH). Dev → `[<bun>,
  * "--conditions=browser", <cli entry>]`.
  *
- * The `browser` export condition is required — opentui resolves a
- * browser-conditioned entry, and the build (`scripts/build.ts`) passes the
- * same. The per-file JSX source pragmas are honoured by Bun's default
- * transpiler, so no preload is needed. (Spelling the pragma out here would
- * make knip read this comment as a real import and report the package as an
- * unlisted dependency.)
+ * `browser` condition is required: opentui resolves a browser-conditioned
+ * entry (the build passes it too). JSX pragmas need no preload. (Spelling the
+ * pragma out here makes knip report an unlisted dependency.)
  */
 export function roveCliInvocation(): string[] {
   const cliName = activeCliName()
@@ -38,17 +26,12 @@ export function roveCliInvocation(): string[] {
 }
 
 /**
- * argv prefix for commands PERSISTED into global config (engine hook files in
- * `~/.claude` / `~/.codex`). Unlike {@link roveCliInvocation}, a persisted
- * command outlives this process — a dev-run absolute entry path (often inside
- * a task worktree) goes stale the moment that worktree is removed, and every
- * hook fire then fails with "Module not found". So prefer the packaged `kobe`
- * on PATH even in dev; fall back to the dev invocation only when no packaged
- * bin exists.
+ * argv prefix for commands PERSISTED into engine hook files. A dev entry path
+ * (often in a worktree) goes stale when the worktree is removed ("Module not
+ * found" on every fire), so prefer the packaged `kobe` on PATH even in dev.
  */
 export function kobeHookInvocation(): string[] {
-  // Persist the compatibility alias: hook files outlive the wrapper that
-  // installed them, and `kobe` remains guaranteed throughout rename phase 1.
+  // `kobe`, not `rove`: guaranteed on PATH throughout rename phase 1.
   if (import.meta.url.endsWith(".js")) return [LEGACY_KOBE_PRODUCT_NAME]
   if (Bun.which(LEGACY_KOBE_PRODUCT_NAME)) return [LEGACY_KOBE_PRODUCT_NAME]
   return roveCliInvocation()

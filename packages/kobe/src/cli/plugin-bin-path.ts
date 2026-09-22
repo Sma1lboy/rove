@@ -1,15 +1,9 @@
 /**
- * `ROVE_BIN_PATH` — the one thing a plugin execs to call back into Rove.
- *
- * It is a single exec token (the SDK spawns it directly), so it has to be
- * something runnable on its own. A bare name is the wrong answer whenever the
- * machine has more than one install: the daemon used to hand out the literal
- * `kobe`, so a hook fired by a 0.9.108 daemon reached whichever 0.9.105 sat
- * first on PATH — and a plugin's `listTasks()` could autospawn that other
- * version's daemon into this daemon's home.
- *
- * So: prefer an absolute path to the entry point this process is running,
- * and fall back to the name only when that entry cannot be exec'd on its own.
+ * `ROVE_BIN_PATH`: the single exec token a plugin spawns to call back into
+ * Rove. A bare name resolves to whichever install is first on PATH, which can
+ * autospawn another version's daemon into this home — so prefer the absolute
+ * entry point of this process; fall back to the name only when it can't exec
+ * on its own.
  */
 
 import { constants, accessSync, statSync } from "node:fs"
@@ -27,16 +21,10 @@ function isRunnableFile(path: string): boolean {
 }
 
 /**
- * Absolute when resolvable, else the invoked CLI name resolved on PATH.
- *
- * Three shapes:
- *  - **npm install** — `argv[1]` is `…/dist/cli/rove.js`: shebang + mode 755,
- *    so it runs on its own. This is the case the bug bit.
- *  - **compiled standalone** (`bun build --compile`) — the script lives in
- *    the embedded filesystem and `process.execPath` IS Rove.
- *  - **dev checkout** — `argv[1]` is `src/cli/rove.ts`, which needs `bun` in
- *    front and has no exec bit, so there is no single token for it: fall back
- *    to the name and accept that a dev daemon's hooks reach the installed CLI.
+ *  - npm install: `argv[1]` is `…/dist/cli/rove.js` (shebang, mode 755).
+ *  - compiled standalone: embedded fs; `process.execPath` IS Rove.
+ *  - dev checkout: `src/cli/rove.ts` needs `bun` and has no exec bit, so fall
+ *    back to the name — a dev daemon's hooks reach the installed CLI.
  */
 export function resolvePluginBinPath(argv = process.argv, moduleUrl = import.meta.url): string {
   if (moduleUrl.includes("/$bunfs/") || moduleUrl.includes("B:\\~BUN")) return process.execPath

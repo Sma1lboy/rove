@@ -1,47 +1,26 @@
 /**
  * Async, cached base-ref resolution for the daemon's per-worktree polls.
  *
- * `cli/api/branch-signals.ts` owns the ladder itself (`origin/HEAD` →
- * `origin/main` → `origin/master` → `main` → `master`, then the base
- * checkout's own branch) but resolves it with `spawnSync`, which is correct
- * for a one-shot CLI read and wrong on the daemon's 2-second tick: several
- * synchronous `git` calls per worktree per tick would block the daemon's
- * event loop for every other client. So this is the same ladder, spawned
- * asynchronously and MEMOISED — a worktree's base ref does not move between
- * ticks.
+ * Same ladder as `cli/api/branch-signals.ts` (`origin/HEAD` → `origin/main`
+ * → `origin/master` → `main` → `master`, then the base checkout's branch),
+ * but that one uses `spawnSync`, which would block the daemon's event loop
+ * on its 2-second tick. This one is async and MEMOISED.
  *
- * The cache has a TTL rather than being permanent: a repo that gains an
- * `origin` remote, or whose base branch is renamed, has to be able to start
- * reporting drift without a daemon restart. A negative answer (no base
- * resolves at all) is cached too, for the same TTL — otherwise a repo with no
- * remote pays the full ladder every tick forever.
+ * TTL, not permanent: a repo that gains `origin` or renames its base must
+ * start reporting drift without a restart. "None resolves" is cached too, or
+ * a remote-less repo pays the ladder every tick.
  *
- * Even once per TTL, the ladder is not free: 19 worktrees paid 75 `git`
- * processes (one `symbolic-ref` + three `rev-parse` each) every five
- * minutes. The candidates it probes are all plain branch names, so it reads
- * the ref FILES instead — loose refs, then `packed-refs` — and only falls
- * back to spawning when the worktree's git dirs are unreadable. A RECORDED
- * base ref keeps its `rev-parse` fallback: the user may have passed a tag or
- * a sha, which a ref-file read cannot disprove.
+ * Candidates are read from ref FILES (loose, then `packed-refs`); spawning
+ * only when git dirs are unreadable (measured: 19 worktrees cost 75 `git`
+ * processes per TTL otherwise). A RECORDED base ref keeps its `rev-parse`
+ * fallback: it may be a tag or sha, which a ref-file miss can't disprove.
  *
- * ## Why a candidate that resolves is not yet a base
- *
- * Two branches can both exist and share no history at all — an abandoned
- * orphan `main` beside a live `develop` is the shape that produced this
- * check. Taking the first candidate that merely RESOLVES makes the sidebar's
- * drift chip count against a branch that never touched the work. So each
- * candidate must survive `git merge-base <ref> HEAD`, and that answer cannot
- * be read out of a ref file.
- *
- * The spawn is paid for by the memo instead of by the tick. A verdict can
- * only change when HEAD or one of the candidate refs moves, so the entry
- * carries the FINGERPRINT it was reached on (HEAD's sha plus every resolving
- * candidate's name and sha, all read from files). On TTL expiry the
- * fingerprint is re-read for free; when it matches and the cached answer came
- * off the ladder, the entry is simply renewed. Steady state at 19 idle
- * worktrees is therefore the same zero spawns as before — one `merge-base`
- * is paid per worktree per HEAD-or-base movement, which is the same moment
- * `behind-cache.ts` re-spawns the drift count anyway.
+ * A candidate that resolves is not yet a base: two branches can share no
+ * history (an orphan `main` beside a live `develop`), so each must pass
+ * `git merge-base <ref> HEAD`. That spawn is amortised by FINGERPRINT (HEAD
+ * sha + each resolving candidate's name and sha, read from files): on TTL
+ * expiry a matching fingerprint renews the entry, so idle worktrees spawn
+ * nothing and `merge-base` runs once per HEAD-or-base movement.
  */
 
 import { readFileSync } from "node:fs"
@@ -56,27 +35,20 @@ import {
 import { readOnlyGitProcessEnv } from "../lib/git-env.ts"
 import { spawnCapture } from "../lib/poll-scheduling.ts"
 
-/** How long a resolution (including "none") is trusted.
- *  Test seam — `test/core/base-ref-cache.test.ts` steps time across it to
- *  prove an idle renewal spawns nothing. Keep exported. */
+/** How long a resolution (including "none") is trusted. Exported as a test seam. */
 export const BASE_REF_TTL_MS = 5 * 60_000
 
 interface Entry {
   readonly ref: string | null
   readonly at: number
-  /**
-   * HEAD + resolving candidates, as read from ref files, at the moment the
-   * `merge-base` verdicts behind `ref` were taken. `null` when the git dirs
-   * were unreadable, which never matches and so never skips re-resolution.
-   */
+  /** Fingerprint the `merge-base` verdicts were taken on; `null` (unreadable
+   *  git dirs) never matches. */
   readonly fingerprint: string | null
 }
 
 const cache = new Map<string, Entry>()
 
-/** Test seam — the daemon keeps one process-wide cache, so
- *  `test/core/base-ref-cache.test.ts` has to clear it between fixtures.
- *  Keep exported: knip cannot see the test's use of it. */
+/** Test seam for the process-wide cache. Keep exported (knip can't see the test). */
 export function resetBaseRefCache(): void {
   cache.clear()
 }
@@ -95,10 +67,8 @@ async function sharesHistory(worktreePath: string, ref: string, signal: AbortSig
 }
 
 /**
- * The branch the BASE CHECKOUT is on, for a worktree whose git dirs will not
- * read — the same question `land` asks before it merges. `git worktree list
- * --porcelain` names the main working tree in its first record. Null when
- * that record has no branch (a detached base checkout) or the read fails.
+ * The BASE CHECKOUT's branch (first `worktree list --porcelain` record), for
+ * unreadable git dirs. Null when detached or the read fails.
  */
 async function baseCheckoutBranchFromGit(worktreePath: string, signal: AbortSignal): Promise<string | null> {
   const out = await git(worktreePath, ["worktree", "list", "--porcelain"], signal)
@@ -128,25 +98,17 @@ function readRefSymbolic(dirs: GitDirs, ref: string): string | null {
 
 /** Everything the ladder's verdict depends on, when it can be read from disk. */
 interface Ladder {
-  /** Resolving ladder candidates, in ladder order, then the base checkout's
-   *  branch — the whole ordered list `merge-base` is asked about. */
+  /** Resolving candidates in ladder order — the list `merge-base` is asked about. */
   readonly names: string[]
-  /** HEAD + every name's sha. `null` when any of them would not read, which
-   *  never matches a stored fingerprint and so never skips re-resolution. */
+  /** HEAD + every name's sha; `null` when HEAD won't read (never matches). */
   readonly fingerprint: string | null
 }
 
 /**
- * The ladder read from ref files. Returns `undefined` — distinct from an
- * empty list, which means "nothing to measure against" — when the worktree's
- * git dirs cannot be resolved, which is the caller's signal to spawn `git`.
- *
- * `refs/remotes/origin/HEAD` is a symref file (`ref: refs/remotes/origin/x`)
- * or a `packed-refs` entry; both are read here rather than through
- * `git symbolic-ref`. The base checkout's branch is `commonDir/HEAD` — a
- * linked worktree's common dir IS the main working tree's git dir, so that
- * file holds the same branch `git worktree list --porcelain` reports in its
- * first record.
+ * The ladder from ref files. `undefined` (unlike an empty list, "nothing to
+ * measure against") = git dirs unresolvable; the caller then spawns `git`.
+ * The base checkout's branch is `commonDir/HEAD`: a linked worktree's common
+ * dir IS the main working tree's git dir.
  */
 function ladderFromFiles(worktreePath: string): Ladder | undefined {
   const dirs = resolveGitDirs(worktreePath)
@@ -192,13 +154,10 @@ async function ladderFromGit(worktreePath: string, signal: AbortSignal): Promise
 }
 
 /**
- * The base to measure this worktree against: the task's RECORDED fork point
- * when it still resolves, else the cached ladder. `null` when nothing
- * resolves — callers then report no drift rather than a fabricated zero.
- *
- * A recorded ref is verified but NOT cached: it is per-task, cheap (one
- * `rev-parse`), and caching it under the worktree path would be wrong for a
- * path two tasks share.
+ * The task's RECORDED fork point when it resolves, else the cached ladder.
+ * `null` = nothing resolves; callers report no drift, not a fabricated zero.
+ * A recorded ref is NOT cached: keyed by worktree path it would be wrong for
+ * a path two tasks share.
  */
 export async function resolveBaseRefCached(
   worktreePath: string,
@@ -216,12 +175,8 @@ export async function resolveBaseRefCached(
   const hit = cache.get(worktreePath)
   if (hit && now - hit.at < BASE_REF_TTL_MS) return hit.ref
   const ladder = ladderFromFiles(worktreePath) ?? (await ladderFromGit(worktreePath, signal))
-  // Renewal without spawning: the same HEAD against the same refs gives the
-  // same `merge-base` verdicts, so an answer taken on this exact fingerprint
-  // still holds — including "none resolved", which a repo with no remote
-  // would otherwise re-probe every TTL forever. A repo that GAINS a candidate
-  // (a new `origin` remote, a renamed base) changes the fingerprint, which is
-  // what the TTL was there to catch.
+  // Same fingerprint = same `merge-base` verdicts (including "none"); renew
+  // without spawning. A new candidate changes the fingerprint.
   if (hit && ladder.fingerprint !== null && hit.fingerprint === ladder.fingerprint) {
     cache.set(worktreePath, { ...hit, at: now })
     return hit.ref

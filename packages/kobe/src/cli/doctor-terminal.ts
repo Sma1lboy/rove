@@ -1,23 +1,12 @@
 /**
- * Terminal diagnostics for `rove doctor` — issue-triage context for
- * keyboard-protocol-class bugs. Keyboard behavior differs by terminal:
- * without the kitty keyboard protocol, ctrl+h / ctrl+j arrive as ambiguous
- * C0 bytes (0x08 backspace / 0x0a linefeed), and the two split chords
- * (`ctrl+\`, `ctrl+=`, see docs/KEYBINDINGS.md) cannot be encoded at all.
- * So when a report says "split doesn't work", the protocol answer is the
- * first thing triage needs — and only the terminal can give it.
- *
- * Read-only, like the rest of doctor, and its own process: `rove doctor`
- * has no opentui renderer to read `renderer.capabilities` from, so it asks
- * the terminal directly with the same escape query opentui would.
+ * Terminal diagnostics for `rove doctor`. Without the kitty keyboard protocol,
+ * ctrl+h / ctrl+j arrive as C0 bytes (0x08 / 0x0a) and the split chords
+ * (`ctrl+\`, `ctrl+=`) can't be encoded, so keyboard triage needs the protocol
+ * answer first. Doctor has no opentui renderer, so it queries the terminal
+ * with the same escape opentui would.
  */
 
-/**
- * The multiplexer a session is nested inside, from env alone. Rove dropped
- * its own tmux runtime, but a user running Rove INSIDE one is unaffected by
- * that and still gets their keys rewritten on the way in — which is exactly
- * the confound a keyboard report has to rule out. All three set a marker.
- */
+/** Multiplexer nesting from env: one rewrites keys on the way in, a keyboard-report confound. */
 export function multiplexerLabel(env: Record<string, string | undefined>): string {
   if (env.TMUX) return "tmux"
   if (env.ZELLIJ) return "zellij"
@@ -25,8 +14,7 @@ export function multiplexerLabel(env: Record<string, string | undefined>): strin
   return "no"
 }
 
-/** `TERM=… TERM_PROGRAM=… COLORTERM=…` plus multiplexer nesting, from an
- *  injected env so tests don't depend on the runner's terminal. */
+/** `TERM=… TERM_PROGRAM=… COLORTERM=…` plus multiplexer nesting, from an injected env. */
 export function terminalEnvLines(env: Record<string, string | undefined>): string[] {
   const show = (v: string | undefined): string => (v && v.length > 0 ? v : "(unset)")
   const program = env.TERM_PROGRAM
@@ -46,11 +34,9 @@ export type KittyProbeResult =
   | { kind: "skipped"; reason: string }
 
 /**
- * Decide from accumulated reply bytes. The probe writes `CSI ? u` (kitty
- * flags query) followed by `CSI c` (DA1) as a fence: every terminal answers
- * DA1, so a DA1 reply WITHOUT a preceding `CSI ? <flags> u` means the kitty
- * query was ignored — protocol unsupported. Returns null while undecided
- * (keep reading until timeout).
+ * The probe writes `CSI ? u` then `CSI c` (DA1) as a fence: every terminal
+ * answers DA1, so DA1 without a `CSI ? <flags> u` = unsupported. Null while
+ * undecided.
  */
 export function parseKittyProbeReply(data: string): KittyProbeResult | null {
   // biome-ignore lint/suspicious/noControlCharactersInRegex: matching a raw ESC-prefixed terminal reply is the whole point
@@ -81,10 +67,8 @@ export function kittyProbeLine(result: KittyProbeResult): string {
 }
 
 /**
- * Live probe against the controlling terminal. Only runs when stdin AND
- * stdout are TTYs (piped `rove doctor | pbcopy` must not emit escape bytes
- * into the pipe or wait on a reply that can't come). Raw mode for the read,
- * always restored; hard timeout so doctor can never hang on a mute terminal.
+ * Only when stdin AND stdout are TTYs, so a pipe gets no escape bytes. Raw
+ * mode always restored; hard timeout so a mute terminal can't hang doctor.
  */
 async function probeKittyKeyboard(timeoutMs = 300): Promise<KittyProbeResult> {
   const stdin = process.stdin

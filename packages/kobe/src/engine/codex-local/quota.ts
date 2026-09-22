@@ -1,14 +1,8 @@
 /**
- * Codex subscription-quota probe. Unlike Claude's there is no endpoint to
- * call: the Codex CLI already records the server's `rate_limits` block on
- * every `token_count` event it writes to its rollout JSONL, so the freshest
- * numbers are sitting on disk. Reading the newest rollouts is the whole
- * probe — no network, no auth, nothing to rate-limit.
- *
- * Because it is a SNAPSHOT of the last response Codex received, a window
- * whose `resets_at` has already passed says nothing about the current one;
- * those are dropped, and a rollout set with nothing live yields `null` (the
- * usage dashboard then simply omits Codex).
+ * Codex quota probe: no endpoint, no network — the CLI records the server's
+ * `rate_limits` on every `token_count` event in its rollout JSONL. It is a
+ * SNAPSHOT, so windows whose `resets_at` passed are dropped; nothing live
+ * yields `null` (the dashboard omits Codex).
  */
 
 import type { EngineQuotaUsage, EngineQuotaWindow } from "@/types/engine"
@@ -39,9 +33,7 @@ function windowLabel(minutes: number): string {
 
 function toWindow(kind: string, raw: CodexRateWindow | null | undefined, nowMs: number): EngineQuotaWindow | null {
   if (!raw || typeof raw.used_percent !== "number" || typeof raw.window_minutes !== "number") return null
-  // resets_at is epoch SECONDS. A window that already reset is a stale
-  // reading, not a live one — the percent it carries belongs to a window
-  // that has already closed.
+  // resets_at is epoch SECONDS; an already-reset window is stale.
   const resetsAt = typeof raw.resets_at === "number" && raw.resets_at > 0 ? raw.resets_at * 1000 : null
   if (resetsAt == null || resetsAt <= nowMs) return null
   return {
@@ -52,11 +44,7 @@ function toWindow(kind: string, raw: CodexRateWindow | null | undefined, nowMs: 
   }
 }
 
-/**
- * Last `rate_limits` block in one rollout's raw JSONL, normalized. Scans
- * lines back-to-front so a long session costs one `JSON.parse` instead of
- * one per turn. Returns null when the file has no usable live window.
- */
+/** Last live `rate_limits` block in one rollout, scanned back-to-front (one parse, not one per turn). */
 export function usageFromRolloutRaw(raw: string, nowMs: number): EngineQuotaUsage | null {
   const lines = raw.split("\n")
   for (let i = lines.length - 1; i >= 0; i--) {
@@ -77,11 +65,7 @@ export function usageFromRolloutRaw(raw: string, nowMs: number): EngineQuotaUsag
   return null
 }
 
-/**
- * Snapshot of the Codex account's quota windows, or null when none can be
- * read (no sessions, no request made yet, every window already reset).
- * Never throws.
- */
+/** The account's live quota windows, or null when none can be read. Never throws. */
 export async function fetchCodexQuotaUsage(
   now: () => number = Date.now,
   deps: HistoryDeps = defaultHistoryDeps,

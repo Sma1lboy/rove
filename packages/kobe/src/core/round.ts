@@ -1,16 +1,8 @@
 /**
- * The pure half of "fan out N attempts at one prompt" — turning an attempt
- * COUNT into the list of `createTask` inputs a round is made of.
- *
- * Its own module, and pure, because the round's two invariants are the ones a
- * live run cannot show you: every sibling carries the SAME `groupId` (or
- * `collect --group` finds nothing and the round is three loose tasks), and the
- * `#i/N` ordinals line up with creation order. Both are asserted here rather
- * than inferred from a screenshot.
- *
- * The shape deliberately matches `cli/api/handlers-add.ts`'s fan-out, so a
- * round started from the TUI and one started by `rove api add --count` are
- * indistinguishable on the row and to `collect`.
+ * Attempt COUNT → the `createTask` inputs of a round. Invariants: every sibling
+ * shares ONE `groupId` (else `collect --group` finds nothing) and `#i/N`
+ * follows creation order. Matches `cli/api/handlers-add.ts`'s fan-out, so TUI
+ * and `rove api add --count` rounds are indistinguishable.
  */
 
 import { ulid } from "../orchestrator/index/ulid.ts"
@@ -23,13 +15,7 @@ export interface RoundSibling {
   readonly title?: string
 }
 
-/**
- * Plan `attempts` siblings.
- *
- * `attempts <= 1` returns ONE sibling with no `groupId` and an unsuffixed
- * title: a lone fork is not a round, and marking it as one would make
- * `collect --group` report a "round" of a single task.
- */
+/** `attempts <= 1` → one sibling, no `groupId`, unsuffixed title: a lone fork is not a round. */
 export function planRound(attempts: number, title?: string): readonly RoundSibling[] {
   const n = Math.max(1, Math.trunc(attempts))
   if (n === 1) return [title ? { title } : {}]

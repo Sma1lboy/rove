@@ -1,13 +1,8 @@
 /**
- * The daemon handshake for `RemoteOrchestrator.init()`, plus the reconnect
- * loop below — the CONNECTION half of the class, apart from what it does once
- * connected (`-reads.ts` / `-writes.ts` / `-events.ts`). This is the only code
- * that runs while there may be no daemon at all.
- *
- * Taking the client + subscribe options + an explicit
- * {@link OrchestratorSignals} deps bag instead of closing over `this` is what
- * makes that testable: drive a handshake or a retry policy with fakes, no
- * socket and no real backoff.
+ * The daemon handshake for `RemoteOrchestrator.init()` plus the reconnect loop:
+ * the only code that runs while there may be no daemon at all. Takes an
+ * explicit {@link OrchestratorSignals} deps bag instead of `this` so handshake
+ * and retry policy are testable with fakes, no socket, no real backoff.
  */
 
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
@@ -33,15 +28,10 @@ export interface PerformInitOptions {
   readonly channels?: readonly ChannelName[]
   /** `false` when a channel filter excludes `task.snapshot` — skip hello task hydration. */
   readonly subscribesTasks: boolean
-  /**
-   * True for a MACHINE connection (a remote daemon reached through an SSH
-   * tunnel). A different `homeDir` is then the expected answer, not the
-   * sandbox-squatting-the-socket accident the guard exists to catch — see the
-   * guard site below. Absent/false keeps the local behaviour byte-for-byte.
-   */
+  /** True for a MACHINE connection (remote daemon over an SSH tunnel), where a
+   *  different `homeDir` is expected and the foreign-home guard is skipped. */
   readonly expectForeignHome?: boolean
-  /** Called with the peer's identity once the handshake succeeds — how a
-   *  machine learns which host actually answered its forwarded socket. */
+  /** Peer identity after a successful handshake: which host answered a forwarded socket. */
   readonly onPeerIdentity?: (peer: {
     hostname: string
     homeDir: string
@@ -51,22 +41,14 @@ export interface PerformInitOptions {
 }
 
 /**
- * The reconnect loop body — moved verbatim from
- * `RemoteOrchestrator.runReconnectLoop`, taking an explicit deps bag instead
- * of closing over `this` so the retry policy can be driven with fake clocks
- * and a fake `init` — no daemon, and no waiting out real backoff. A GUI
- * (`spawnDaemon`) may spawn
- * the daemon via `ensureReachable`; a pane only retries the existing socket
- * so helper panes never defeat daemon lazy-shutdown. Failures stay silent in
- * the UI with the caller-supplied bounded forensic logging policy.
+ * Reconnect loop. A GUI (`spawnDaemon`) may spawn the daemon via
+ * `ensureReachable`; a pane only retries the existing socket so helper panes
+ * never defeat daemon lazy-shutdown. Failures stay silent in the UI, logged per
+ * the caller's bounded policy.
  *
- * Retrying assumes the next attempt could differ from this one. Exactly one
- * failure breaks that assumption: this process is running from an install
- * that has been deleted, so `ensureReachable` cannot resolve an entry point
- * to re-exec and fails identically forever. The loop gives up there and
- * reports it once, via `onFatal`. Giving up is the SAFE direction — a client
- * that cannot spawn is not a reason to keep pressure on a healthy daemon,
- * and the remedy is reinstalling, which no amount of waiting performs.
+ * One failure is permanent: this process's install was deleted, so
+ * `ensureReachable` can't resolve an entry point to re-exec. The loop reports it
+ * once via `onFatal` and stops — only reinstalling fixes it.
  */
 export async function runReconnectLoop(deps: {
   readonly isDisposed: () => boolean
@@ -77,12 +59,8 @@ export async function runReconnectLoop(deps: {
   /** Called once, then the loop stops, when retrying cannot ever succeed. */
   readonly onFatal?: (err: unknown) => void
 }): Promise<void> {
-  // Retrying with ZERO delay wakes every GUI in the process at the same
-  // instant after a shared daemon drop, all probing a daemon that is still
-  // cold-starting. Jitter the first GUI attempt so they arrive
-  // staggered: the first one through does the work, the rest find a live
-  // daemon and never enter the spawn path at all. Small enough to stay
-  // imperceptible, wide enough to separate same-tick wakeups.
+  // Jitter the first GUI attempt: after a shared daemon drop every GUI wakes in
+  // the same tick; staggered, the first one spawns and the rest find it live.
   let delayMs = deps.spawnDaemon ? Math.floor(Math.random() * 400) : 500
   let attempt = 0
   while (!deps.isDisposed()) {
@@ -95,9 +73,6 @@ export async function runReconnectLoop(deps: {
       logClient("orch", `reconnected and re-subscribed after ${attempt} attempt(s) — task list re-synced`)
       return
     } catch (err) {
-      // The one non-transient failure: our own install is gone. Retrying is
-      // not recovery here, it is days of identical throws. Say it once and
-      // stop.
       if (isStaleInstallError(err)) {
         logClientError("orch-reconnect-fatal", err)
         deps.onFatal?.(err)
@@ -117,31 +92,21 @@ export async function performInit(
   opts: PerformInitOptions,
   signals: OrchestratorSignals,
 ): Promise<void> {
-  // Send our protocol version so the daemon can reject a mismatch, and
-  // verify the daemon's version so an OLD daemon (which predates the
-  // server-side check) is caught client-side too — both surface the
-  // documented "upgrade your kobe" error instead of cryptic failures.
+  // Version check runs both ways: an OLD daemon predates the server-side check.
   const hello = await client.request<{
     tasks?: SerializedTask[]
     protocolVersion?: number
     minProtocolVersion?: number
-    // The daemon's BUILD version (package.json). Omitted by a daemon that
-    // predates the field, in which case it stays unknown → never "stale".
-    // Distinct from the protocol versions above: those gate compatibility,
-    // this drives the non-fatal stale-build banner (see daemonStaleSignal).
+    // BUILD version; drives the non-fatal stale-build banner, not
+    // compatibility. Absent (old daemon) → never "stale".
     kobeVersion?: string
-    // The state root the daemon serves. Omitted by a daemon that predates
-    // the field, in which case the ownership check below is skipped.
+    // Absent (old daemon) → the ownership check is skipped.
     homeDir?: string
-    // The host the daemon runs on. Omitted by a daemon that predates the
-    // field; a machine falls back to its alias then.
+    // Absent (old daemon) → a machine falls back to its alias.
     hostname?: string
     daemonPid?: number
-    // The daemon's channel/feature set. The client gates the
-    // `worktree.changes` consumer on it (see below) — a capability list
-    // is the honest rollout mechanism for an additive channel: an old
-    // daemon simply doesn't advertise it, and the pane keeps its local
-    // git-polling fallback instead of waiting for pushes that never come.
+    // Additive channels gate on this: an old daemon doesn't advertise them, so
+    // the client keeps its local polling fallback.
     capabilities?: readonly string[]
   }>("hello", {
     protocolVersion: DAEMON_PROTOCOL_VERSION,
@@ -161,31 +126,20 @@ export async function performInit(
       `Rove daemon is protocol v${daemonVersion} (min v${daemonMin}); this client is v${DAEMON_PROTOCOL_VERSION} (min v${MIN_COMPATIBLE_PROTOCOL_VERSION}). Restart the daemon (\`rove daemon restart\`) or upgrade Rove.`,
     )
   }
-  // Reject a daemon serving a DIFFERENT home BEFORE any of its state is
-  // believed. A sandbox daemon that inherited the production socket path
-  // answers hello perfectly and hands back its own empty task list; without
-  // this the TUI adopts it as the truth and blanks the sidebar while every
-  // task sits intact on disk. Throwing keeps the caller's
-  // reconnect loop running, so the moment the real daemon reclaims the socket
-  // the client re-syncs on its own.
-  // A machine's daemon serves ITS OWN home by definition, so the ownership
-  // guard is scoped to local sockets. It is not weakened for them: the failure
-  // it catches — a sandbox daemon squatting the production socket — is a
-  // local-socket accident, and a tunnel that reaches the wrong machine is
-  // caught instead by the identity triple recorded below.
+  // Reject a daemon serving a DIFFERENT home BEFORE believing any of its state:
+  // a sandbox daemon on the production socket would hand back its empty task
+  // list and blank the sidebar. Throwing keeps the reconnect loop running, so
+  // the client re-syncs once the real daemon reclaims the socket. Local sockets
+  // only; a tunnel to the wrong machine is caught by the identity triple below.
   const clientHome = homeDir()
   if (!opts.expectForeignHome && isForeignDaemonHome(hello.homeDir, clientHome)) {
     throw new Error(
       `Rove daemon on this socket serves ${hello.homeDir}, but this client uses ${clientHome}. A sandbox or dev daemon has taken the production socket — stop it (\`rove daemon stop\`), or unset ROVE_DAEMON_SOCKET_PATH / KOBE_DAEMON_SOCKET_PATH before starting it.`,
     )
   }
-  // Capture the daemon's BUILD version (NON-fatal — the protocol is already
-  // compatible). A patch upgrade keeps the protocol version put, so this is
-  // the only signal that the daemon is running stale code in memory; the TUI
-  // reads `daemonStaleSignal()` to show a "restart the daemon" banner. An old
-  // daemon that omits the field leaves the signal null → never flagged stale.
-  // Re-set on every init so a reconnect to a freshly-restarted daemon clears
-  // the banner once versions match.
+  // A patch upgrade keeps the protocol version, so the build version is the
+  // only stale-daemon signal (`daemonStaleSignal()` banner). Re-set on every
+  // init so reconnecting to a restarted daemon clears the banner.
   signals.setDaemonVersionSig(typeof hello.kobeVersion === "string" ? hello.kobeVersion : null)
   opts.onPeerIdentity?.({
     hostname: typeof hello.hostname === "string" ? hello.hostname : "",
@@ -193,44 +147,23 @@ export async function performInit(
     daemonPid: typeof hello.daemonPid === "number" ? hello.daemonPid : 0,
     kobeVersion: typeof hello.kobeVersion === "string" ? hello.kobeVersion : "",
   })
-  // A daemon that announced `reason: "restart"` on its way out has now come
-  // back and re-answered `hello`, so the swap is over: clear the flag and let
-  // the version comparison above be the only thing that decides whether a
-  // refresh is still worth offering. Without this a single restart would keep
-  // offering a reload forever, including to a client that is already current.
+  // A `reason: "restart"` daemon answered `hello` again, so the swap is over;
+  // otherwise one restart would offer a reload forever.
   signals.setDaemonRestartingSig(false)
-  // Hydrate the task list from `hello` only when this orchestrator actually
-  // subscribes to `task.snapshot`. A channel-filtered consumer (UiPrefsSync)
-  // that excluded it would otherwise deserialize the whole list into a
-  // mirror nothing reads — the exact churn the filter exists to remove.
+  // A channel-filtered consumer (UiPrefsSync) must not deserialize a list nobody reads.
   if (hello.tasks && opts.subscribesTasks) signals.setTasks(hello.tasks.map(deserializeTask))
-  // Subscribe to the daemon's push channels (it replays each channel's
-  // current value on connect). Pass `channels` to restrict the fan-out
-  // for a narrow consumer (UiPrefsSync), or omit for everything. Pass our
-  // role so the daemon's lazy-shutdown refcount counts only real
-  // front-end attaches (`gui`), not in-tmux helper panes (`pane`).
+  // The daemon replays each channel's current value on subscribe. `role` keeps
+  // helper panes out of the lazy-shutdown refcount, which counts only `gui`.
   await client.subscribe({ role: opts.role, channels: opts.channels, cellPixelSize: opts.cellPixelSize })
-  // Daemon-collected worktree changes: gate on the hello
-  // capability list — the honest "does this daemon run the collector?"
-  // signal during a rolling upgrade. A capable daemon replays the
-  // channel's last value during subscribe (handled by handleEvent before
-  // this response resolves); when no value has been published yet, an
-  // EMPTY map (not null) says "daemon collects — trust pushes, spawn no
-  // local git". An old daemon without the capability resets the signal
-  // to null so the sidebar's local poller engages cleanly — including
-  // after a reconnect that downgraded daemons.
+  // Capability-gated collectors. A capable daemon's replay lands before
+  // subscribe resolves; if nothing was published yet, seed an EMPTY map (not
+  // null): "trust pushes, run no local polling". Without the capability, reset
+  // to null so the local poller engages — including after a downgrade reconnect.
   if (hello.capabilities?.includes("worktree.changes")) {
     if (signals.worktreeChangesAcc() === null) signals.setWorktreeChangesSig(new Map())
   } else {
     signals.setWorktreeChangesSig(null)
   }
-  // Daemon-collected transcript activity (perf — deduplicate per-Ops-pane
-  // polling): same rolling-upgrade gate as `worktree.changes` above. A
-  // capable daemon → seed an EMPTY map (not null) so the Ops pane trusts
-  // pushes and stops its local mtime/completion probes; an old daemon
-  // without the capability resets the signal to null so the pane's local
-  // polling engages cleanly — including after a reconnect that downgraded
-  // daemons.
   if (hello.capabilities?.includes("transcript.activity")) {
     if (signals.transcriptActivityAcc() === null) signals.setTranscriptActivitySig(new Map())
   } else {

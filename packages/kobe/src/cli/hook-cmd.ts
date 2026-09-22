@@ -1,24 +1,15 @@
 /**
- * `kobe hook <verb>` — INTERNAL subcommand fired by an engine's hooks (e.g.
- * Claude Code's Stop / StopFailure / Notification), installed GLOBALLY into the
- * user's `~/.claude/settings.json` by the engine hook adapter. It reports a
- * NORMALIZED activity event to the daemon, which maps the hook's cwd to a task
- * (`daemon/cwd-task.ts`), folds it into that task's transient engine-state, and
- * broadcasts it (event-driven task badges).
+ * `kobe hook <verb>` — INTERNAL subcommand fired by engine hooks installed
+ * globally (e.g. `~/.claude/settings.json`). Reports a normalized activity event
+ * to the daemon, which maps the hook's cwd to a task (`daemon/cwd-task.ts`).
+ * `verb` is already vendor-neutral; detail comes from the stdin JSON payload.
  *
  * Contract (load-bearing):
- *  - **Never spawns the daemon.** A hook may fire while the user is detached
- *    (no gui) and the daemon has idle-stopped; resurrecting a gui-less daemon
- *    would break the refcounted lazy-shutdown. If no daemon is running the
- *    event is simply dropped (best-effort; the activity badge lapses to idle
- *    and the polling fallback still covers it).
- *  - **Always exits 0.** A non-zero hook exit is at best logged and at worst
- *    (WorktreeCreate) FAILS the engine's action — never acceptable for an
- *    observability hook. Every failure path here is swallowed.
- *
- * `verb` is already vendor-neutral (the engine adapter did the translation);
- * extra detail (failure class, waiting reason) is read from the hook's stdin
- * JSON payload.
+ *  - **Never spawns the daemon.** Resurrecting a gui-less daemon would break the
+ *    refcounted lazy-shutdown; with no daemon the event is dropped (polling
+ *    still covers the badge).
+ *  - **Always exits 0.** A non-zero hook exit can FAIL the engine's action
+ *    (WorktreeCreate). Every failure path is swallowed.
  */
 
 import { join, resolve } from "node:path"
@@ -33,19 +24,14 @@ import { getPersistedString, setPersistedString } from "../state/repos.ts"
 import { flagValue } from "./argv.ts"
 import { activeCliName } from "./rename-compat.ts"
 
-/** Default timeout for the stdin race — bounds a manual invocation without
- *  stdin so it can't hang. */
+/** Bounds a manual invocation without stdin so it can't hang. */
 const STDIN_READ_TIMEOUT_MS = 500
 
 /**
- * Race a text reader against a fallback timeout, returning "" if the timeout
- * wins. CRUCIALLY clears the timer the moment the race settles: an un-cleared
- * `setTimeout` stays pending and keeps the event loop alive for the full
- * `timeoutMs` after the work is already done. `kobe hook` runs on EVERY Bash
- * tool call + turn boundary of every Claude session machine-wide (it's the
- * global PostToolUse / activity hook), so a dangling 500ms timer added ~500ms
- * of pure idle wait to each of those invocations. Pure (reader + clock are the
- * only inputs) so the timer-hygiene contract is unit-testable without `Bun`.
+ * Race a reader against a timeout ("" if the timeout wins). MUST clear the timer
+ * on settle: a pending timer keeps the event loop alive for the full timeout,
+ * and this runs on every tool call / turn boundary machine-wide — a dangling
+ * 500ms timer added ~500ms to each. Pure so this is unit-testable without `Bun`.
  */
 export async function readTextWithTimeout(
   read: () => Promise<string>,
@@ -65,23 +51,12 @@ export async function readTextWithTimeout(
 }
 
 /**
- * Read this process's stdin to EOF, under whichever runtime is hosting us.
+ * Read stdin to EOF under bun OR node. The published CLI runs under node, where
+ * a bare `Bun.stdin` throws and {@link readStdinPayload}'s catch turns it into a
+ * silently empty payload (no session id, no cwd).
  *
- * `Bun.stdin.text()` alone is not enough, and the way it failed is the reason
- * this function exists: the PUBLISHED CLI runs under node (`#!/usr/bin/env
- * node` on the npm bin, a plain esbuild bundle), where `Bun` is not defined, so
- * the reference threw, {@link readStdinPayload}'s catch swallowed it, and every
- * hook in every released build saw an empty payload. Nothing looked broken —
- * hooks fired, exited 0, and quietly carried no session id, no failure class
- * and no cwd. Sessions inside a Rove tab survived on `KOBE_TASK_ID` from the
- * environment, which is exactly why this went unnoticed.
- *
- * The rest of the codebase already spells the guard `globalThis.Bun?.…`; this
- * one call site did not.
- *
- * A TTY returns "" immediately rather than waiting for a human to type: a hook
- * is always spawned with a pipe, and a person running `rove hook` by hand
- * should get the usage path, not a hang.
+ * A TTY returns "" at once: hooks always get a pipe, and a human running
+ * `rove hook` by hand should get the usage path, not a hang.
  */
 export async function readStdinText(): Promise<string> {
   const bun = (globalThis as { Bun?: { stdin: { text(): Promise<string> } } }).Bun
@@ -98,8 +73,7 @@ export async function readStdinText(): Promise<string> {
   return Buffer.concat(chunks).toString("utf8")
 }
 
-/** Read the hook's stdin JSON payload (Claude Code pipes it), bounded so a
- *  manual invocation without stdin can't hang. Returns {} on anything odd. */
+/** The hook's stdin JSON payload, time-bounded; {} on anything odd. */
 async function readStdinPayload(): Promise<Record<string, unknown>> {
   try {
     const text = await readTextWithTimeout(readStdinText)
@@ -113,16 +87,13 @@ async function readStdinPayload(): Promise<Record<string, unknown>> {
 
 export async function runHookSubcommand(argv: readonly string[]): Promise<void> {
   const [verb, ...rest] = argv
-  // `setup` is the only user-facing verb (now a deprecated cleanup) and may
-  // print on a usage error. Everything else is a hook callback: best-effort,
-  // always exit 0 (see header).
+  // `setup` and `cleanup` are user-facing and may print; every other verb is a
+  // hook callback (see header). `cleanup` is the sanctioned plugin migration —
+  // the launch-time gate only ever PROMPTS for it.
   if (verb === "setup") {
     await runHookSetup(rest)
     return
   }
-  // `cleanup` — the sanctioned migration path: remove the
-  // settings-managed Rove hooks after the Claude Code plugin takes over.
-  // User-invoked and loud; the launch-time gate only ever PROMPTS for this.
   if (verb === "cleanup") {
     await runHookCleanup()
     return
@@ -131,13 +102,9 @@ export async function runHookSubcommand(argv: readonly string[]): Promise<void> 
     if (!verb || !isEngineActivityKind(verb)) return // unknown verb → drop silently
 
     const payload = await readStdinPayload()
-    // The `--payload <json>` half of the channel. Engines whose hook runner
-    // cannot pipe stdin need it: the pi family's `pi.exec` fixes stdio to
-    // `["ignore","pipe","pipe"]`, so the extension it loads hands its payload
-    // over argv instead (see `engine/pi-local/extension-source.ts`). Merged
-    // INTO the stdin payload rather than replacing it, so an engine that can
-    // do both keeps working. Malformed JSON is dropped, not raised: this
-    // subcommand is best-effort by contract (see the header).
+    // `--payload <json>` is for engines that can't pipe stdin (pi's `pi.exec`
+    // fixes stdio to `["ignore","pipe","pipe"]`). Merged INTO the stdin payload;
+    // malformed JSON is dropped.
     const payloadFlag = flagValue(rest, "--payload")
     if (payloadFlag) {
       try {
@@ -149,42 +116,26 @@ export async function runHookSubcommand(argv: readonly string[]): Promise<void> 
         /* a hook must never fail the engine over a malformed payload */
       }
     }
-    // The global hook carries no task id — it reports the cwd it ran in, and
-    // the daemon maps that to a task by worktree path. Claude pipes `cwd` in
-    // the payload; fall back to the process cwd. `--task-id` is still honoured
-    // for back-compat / direct invocation.
+    // Global hooks carry no task id; the daemon maps cwd → task. `--task-id` is
+    // honoured for direct invocation.
     const taskId = flagValue(rest, "--task-id")
-    // Tab identity: engine tabs launch as `env KOBE_TASK_ID=… KOBE_TAB_ID=… <engine>`
-    // (terminal-tab-spawn.ts), and hooks are the engine's subprocesses, so the
-    // vars arrive here by inheritance. cwd alone can't tell tabs apart — every
-    // tab of a task shares the worktree. Env taskId also beats the cwd map
-    // (exact identity vs longest-prefix guess) but yields to an explicit flag.
+    // Engine tabs launch as `env KOBE_TASK_ID=… KOBE_TAB_ID=… <engine>`, and hooks
+    // inherit it. cwd can't tell tabs apart (they share the worktree); env
+    // taskId beats the cwd map but yields to an explicit flag.
     const envTaskId = process.env.KOBE_TASK_ID
     const envTabId = process.env.KOBE_TAB_ID
-    // Payload → neutral detail is the engine adapter's job (it owns the
-    // vendor's payload vocabulary, e.g. Claude's `error_type` classes).
-    // Current installs tag the command with `--engine <vendor>` so the RIGHT
-    // adapter decodes; legacy untagged installs fall back to asking each
-    // adapter and taking the first answer (fine for the pre-tool verb set).
+    // The adapter owns the vendor payload vocabulary. `--engine` picks the
+    // right one; untagged installs ask each adapter, first answer wins.
     const engine = flagValue(rest, "--engine")
     const adapters = activityHookAdapters().filter((a) => !engine || a.vendor === engine)
-    // Ambient identity must not cross into an UNATTENDED session. A tab's
-    // identity reaches this process by ENV INHERITANCE, so a nested headless
-    // engine — a script inside a Rove tab shelling out to one, a batch of
-    // them — inherits the tab and reports ITS turns as the tab's own,
-    // re-minting the tab's completion episode on every subprocess long after
-    // the user's real turn ended. Neither cwd nor the daemon can tell the two
-    // apart (same worktree; a tab's live session id is not authoritative), so
-    // the decision belongs here, where the environment still exists.
-    // An explicit `--task-id` is deliberate wiring rather than inheritance —
-    // a wrapper that asked to be counted still is.
+    // A nested headless engine inherits the tab's env and would report its turns
+    // as the tab's own, re-minting the tab's completion episode. Only the
+    // environment can tell them apart, so drop here — unless `--task-id` asked
+    // to be counted explicitly.
     if (!taskId && adapters.some((a) => a.isUnattendedSession?.(process.env) === true)) return
-    // Where the hook ran, in falling order of authority: the payload's own
-    // `cwd`, then whatever THIS engine calls that field (cursor spawns hooks in
-    // `~/.cursor` and names the workspace `workspace_roots`), then the hook
-    // process's cwd. The middle rung is the adapter's because the field name is
-    // the vendor's; without it a cursor hook reports cursor's config directory,
-    // maps to no task, and is dropped with the install looking perfect.
+    // cwd by authority: payload `cwd`, then the adapter's own field (cursor runs
+    // hooks in `~/.cursor` and names the workspace `workspace_roots` — without
+    // it the event maps to no task), then process cwd.
     let cwd = typeof payload.cwd === "string" && payload.cwd ? payload.cwd : undefined
     for (const adapter of adapters) {
       if (cwd) break
@@ -196,9 +147,8 @@ export async function runHookSubcommand(argv: readonly string[]): Promise<void> 
       detail = adapter.activityDetailFromPayload(verb, payload)
       if (detail) break
     }
-    // Session identity (session_id/transcript_path in Claude's payload) —
-    // same dispatch as `detail`. Lets the daemon pin "which engine session
-    // is live" per task/tab, including user-typed engines.
+    // Lets the daemon pin the live engine session per task/tab, including
+    // user-typed engines.
     let session: EngineSessionRef | undefined
     for (const adapter of adapters) {
       session = adapter.sessionFromPayload(payload)
@@ -222,10 +172,8 @@ export async function runHookSubcommand(argv: readonly string[]): Promise<void> 
       client.close()
     }
   } catch (err) {
-    // Swallowed — a hook must never fail the engine — but not INVISIBLE. A
-    // silently-dropped Stop leaves the sidebar spinning with zero evidence
-    // anywhere, and a catch that leaves no trace is undebuggable. Opt-in so
-    // normal runs stay quiet.
+    // Swallowed, but opt-in visible: a dropped Stop leaves the sidebar spinning
+    // with no evidence otherwise.
     if (readRoveEnv("HOOK_DEBUG")) {
       console.error(`[rove hook] ${verb} failed:`, err instanceof Error ? err.message : String(err))
     }
@@ -234,10 +182,7 @@ export async function runHookSubcommand(argv: readonly string[]): Promise<void> 
 
 const SYNC_SETTING_KEY = "externalWorktreeSync"
 
-/** Engines that once installed a WorktreeCreate hook (only Claude) — used now
- *  only to CLEAN UP that removed hook. Narrowed from the same hook-capable list
- *  the installer walks, so "which engines have hooks" is answered once
- *  (`engine/hook-adapter.ts#activityHookAdapters`) rather than recomputed here. */
+/** Engines that may carry a legacy WorktreeCreate hook to clean up. */
 function worktreeSyncAdapters() {
   return activityHookAdapters().filter((a) => a.supportsWorktreeSync())
 }
@@ -247,10 +192,8 @@ function globalSettingsPath(): string | undefined {
   return worktreeSyncAdapters()[0]?.globalSettingsPath()
 }
 
-/** Resolve a persisted sync setting to the settings-file path the
- *  WorktreeCreate hook was written into (so cleanup finds it), or undefined when
- *  off/unset. Accepts the current form (an absolute path) AND the older
- *  `global` / `repo:<path>` forms for back-compat. */
+/** Settings file the WorktreeCreate hook was written into, or undefined when
+ *  off/unset. Accepts an absolute path and the older `global` / `repo:<path>`. */
 function persistedSyncPath(stored: string | undefined): string | undefined {
   if (!stored || stored === "off") return undefined
   if (stored === "global") return globalSettingsPath()
@@ -259,47 +202,27 @@ function persistedSyncPath(stored: string | undefined): string | undefined {
 }
 
 /**
- * Default-ON global hook sync (KOB). Called once per kobe launch. One install
- * plus two removals, all best-effort and idempotent (the adapter skips the write when
- * nothing changes):
+ * Global hook sync, once per launch; best-effort and idempotent.
  *
- *  1. **Activity hooks** — Stop / StopFailure / Notification / Session* into the
- *     user's global `~/.claude/settings.json`, so EVERY Claude session reports
- *     normalized events; the daemon maps each hook's cwd to a task. Always
- *     global (a task's badge must light up wherever its engine runs).
- *  2. **Worktree-watch removal** — a global `PostToolUse` (Bash) observer
- *     firing `kobe hook worktree-created` after every Bash call is a pure tax:
- *     a ~170ms process spawn on EVERY Bash call of every session machine-wide,
- *     for nothing. Rove never installs it, and the removal runs on each launch
- *     so a settings file that already carries the entry gets it dropped.
- *  3. **WorktreeCreate cleanup** — a global `WorktreeCreate` hook for
- *     external-worktree sync must never be installed: `WorktreeCreate` is a VCS
- *     *provider* hook, so its mere presence makes Claude Code delegate worktree
- *     creation to it and skip the native git path, and an observer hook (which
- *     returns no path) BREAKS `claude --worktree` / `EnterWorktree` in every
- *     repo. Any such hook already on disk is removed here.
- *     Nothing replaces it: worktree adoption is intent-driven — the daemon's
- *     `session-start` auto-adopt (`daemon/cwd-task.ts` `findAdoptableWorktree`)
- *     catches worktrees first entered by an engine session, and `rove add .`
- *     covers the explicit case.
- *
- * Writing the user's global settings.json is intentionally invasive but
- * acceptable for now (current users are developers).
+ *  1. **Activity hooks** into each engine's global settings, so every session
+ *     reports wherever it runs.
+ *  2. **Worktree-watch removal** — a `PostToolUse` (Bash) observer costs a
+ *     ~170ms spawn on every Bash call machine-wide for nothing; removed each
+ *     launch.
+ *  3. **WorktreeCreate cleanup** — it's a VCS *provider* hook: its presence
+ *     makes Claude Code delegate worktree creation to it, and an observer
+ *     (returns no path) BREAKS `claude --worktree` / `EnterWorktree` in every
+ *     repo. Never install; remove any on disk. Adoption instead comes from the
+ *     daemon's `session-start` auto-adopt (`findAdoptableWorktree`) and
+ *     `rove add .`.
  */
 export async function ensureGlobalKobeHooks(opts: { quiet?: boolean } = {}): Promise<void> {
   try {
-    // 0. Plugin takeover: when the Rove Claude Code PLUGIN is
-    //    enabled, its own hooks.json already carries the Claude activity +
-    //    worktree-watch hooks, so the settings-managed install for CLAUDE is
-    //    skipped — installing both would double-fire every event. Detection
-    //    is prompt-only: legacy settings-managed hooks / a pre-plugin skill
-    //    dir are reported to stderr, never silently removed (the sanctioned
-    //    path is the user-invoked `rove hook cleanup`). Other engines
-    //    (codex/…) are untouched by plugin mode. Note: the volume-gated
-    //    tool-pre/post/failed family is settings-managed only, so a Rove
-    //    plugin subscribing tool.* events needs the settings install (run
-    //    `rove hook cleanup` only after disabling such plugins, or keep the
-    //    Claude plugin off).
+    // 0. With the Rove Claude Code plugin enabled, its hooks.json carries the
+    //    Claude hooks, so the Claude settings install is skipped (both would
+    //    double-fire). Legacy installs are only reported, never removed — that's
+    //    `rove hook cleanup`. Caveat: tool.* hooks are settings-managed only, so
+    //    a plugin subscribing tool.* events still needs the settings install.
     const { isRovePluginEnabled, detectLegacyInstalls, migrationHint } = await import(
       "../engine/claude-code-local/plugin-migration.ts"
     )
@@ -308,22 +231,14 @@ export async function ensureGlobalKobeHooks(opts: { quiet?: boolean } = {}): Pro
       const hint = migrationHint(detectLegacyInstalls(), activeCliName())
       if (hint) process.stderr.write(`\n${hint}\n`)
     }
-    // 1. Activity hooks + the creation-time worktree-watch hook — both global,
-    //    each written into the ENGINE's own settings file (Claude's
-    //    ~/.claude/settings.json, Codex's ~/.codex/hooks.json) so every session
-    //    of that engine reports.
+    // 1. Activity hooks, into each engine's own settings file.
     const toolEvents = pluginsWantToolEvents()
     for (const a of activityHookAdapters()) {
       if (pluginMode && a.vendor === "claude") continue
       const enginePath = a.globalSettingsPath()
       if (!enginePath) continue
       await a.installActivityHooks(enginePath, { toolEvents, quiet: opts.quiet })
-      // Uninstall the PostToolUse(Bash) watch hook. It spawns `kobe hook
-      // worktree-created` after EVERY Bash call for a ~170ms process spawn
-      // per Bash call, machine-wide, and nothing in return. Running the
-      // removal on every launch is how an already-registered settings file
-      // gets it dropped — idempotent, merge-safe, and it touches only Rove's
-      // own group.
+      // 2. Merge-safe: touches only Rove's own group.
       await a.removeWorktreeWatchHook(enginePath)
     }
     // 3. Remove the legacy WorktreeCreate hook wherever it was ever written.
@@ -334,12 +249,9 @@ export async function ensureGlobalKobeHooks(opts: { quiet?: boolean } = {}): Pro
 }
 
 /**
- * The tool-family volume gate (docs/design/plugin-events.md §Phase 2): the
- * PreToolUse/PostToolUse hooks spawn `kobe hook` on EVERY tool call of every
- * session machine-wide, so they're written into the engine config only while
- * an enabled plugin actually declares a `tool.*` event hook. Synced on every
- * launch (this runs from ensureGlobalKobeHooks), so installing/removing such
- * a plugin takes effect on the next kobe start.
+ * Tool-hook volume gate (docs/design/plugin-events.md §Phase 2): Pre/PostToolUse
+ * spawn `kobe hook` on every tool call machine-wide, so they're installed only
+ * while an enabled plugin declares a `tool.*` event. Takes effect next launch.
  */
 function pluginsWantToolEvents(): boolean {
   try {
@@ -357,11 +269,8 @@ function pluginsWantToolEvents(): boolean {
   return false
 }
 
-/**
- * Remove kobe's old `WorktreeCreate` hook from the global settings AND any repo
- * path it was persisted to, then mark the setting off so we don't rescan. Pure
- * cleanup — merge-safe (preserves the user's own WorktreeCreate hooks).
- */
+/** Remove the legacy `WorktreeCreate` hook (global + any persisted repo path),
+ *  keeping the user's own; then mark the setting off so we don't rescan. */
 async function cleanupWorktreeSyncHook(): Promise<void> {
   const adapters = worktreeSyncAdapters()
   if (adapters.length === 0) return
@@ -378,12 +287,9 @@ async function cleanupWorktreeSyncHook(): Promise<void> {
 }
 
 /**
- * `kobe hook cleanup` — remove Rove's settings-managed activity +
- * worktree-watch hooks from the CLAUDE settings file. The migration step
- * after installing the Claude Code plugin: the plugin's hooks.json carries
- * the same hooks, so the settings copy would double-fire every event. Merge
- * mechanics are the adapter's own remove path — only Rove-tagged groups are
- * touched, user hooks and other engines (codex/…) stay intact. Idempotent.
+ * `kobe hook cleanup` — remove Rove's settings-managed Claude hooks after the
+ * plugin takes over (both would double-fire). Only Rove-tagged groups are
+ * touched; other engines untouched. Idempotent.
  */
 async function runHookCleanup(): Promise<void> {
   const claude = activityHookAdapters().find((a) => a.vendor === "claude")
@@ -405,12 +311,8 @@ async function runHookCleanup(): Promise<void> {
   )
 }
 
-/**
- * `kobe hook setup` — DEPRECATED. External-worktree-sync was configured with a
- * global `WorktreeCreate` hook, which breaks `claude --worktree` /
- * `EnterWorktree` in every repo (see {@link ensureGlobalKobeHooks}). The command
- * only cleans up an installed hook; sync is automatic on the daemon side.
- */
+/** `kobe hook setup` — DEPRECATED; only removes the WorktreeCreate hook (see
+ *  {@link ensureGlobalKobeHooks}). Sync is automatic on the daemon side. */
 async function runHookSetup(_argv: readonly string[]): Promise<void> {
   await cleanupWorktreeSyncHook()
   process.stdout.write(

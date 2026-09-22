@@ -1,14 +1,8 @@
 /**
- * Dynamic command dispatch entries for `src/cli/index.ts`.
- *
- * Heavy or rarely-used subcommands are dynamically imported so a bare
- * `kobe add` does not pull in the TUI, opentui, or plugin machinery. That is
- * the seam this file draws, and the reason it holds only `import()` thunks:
- * anything eagerly imported here is paid for on EVERY CLI invocation, so
- * keeping the table apart from `index.ts` makes an accidental static import
- * visible instead of buried in the entry point. The three cheap inline
- * handlers (`add`, `remove`, `adopt`) stay in `index.ts` and are merged into
- * the final table there.
+ * Lazy dispatch entries for `index.ts`: only `import()` thunks, since any
+ * static import here is paid on EVERY CLI invocation (a bare `add` must not
+ * load the TUI/opentui/plugins). The cheap `add`/`remove`/`adopt` handlers
+ * stay in `index.ts`.
  */
 
 export type CommandHandler = (args: string[]) => Promise<void>
@@ -101,9 +95,8 @@ export const DYNAMIC_COMMANDS = new Map<string, CommandHandler>([
   [
     "pty-host",
     async (args) => {
-      // Internal (spawned detached by the terminal pane's
-      // ensurePtyHostReachable): the standalone process that owns embedded
-      // terminal PTYs so they survive TUI exits and daemon restarts.
+      // Internal (spawned detached by ensurePtyHostReachable): owns terminal
+      // PTYs so they survive TUI exits and daemon restarts.
       const { runPtyHostSubcommand } = await import("./pty-host-cmd.ts")
       await runPtyHostSubcommand(args)
     },
@@ -111,7 +104,6 @@ export const DYNAMIC_COMMANDS = new Map<string, CommandHandler>([
   [
     "skill",
     async (args) => {
-      // Install / inspect the kobe agent skill that ships in this package.
       const { runSkillSubcommand } = await import("./skill-cmd.ts")
       await runSkillSubcommand(args)
     },
@@ -126,8 +118,7 @@ export const DYNAMIC_COMMANDS = new Map<string, CommandHandler>([
   [
     "hook",
     async (args) => {
-      // Internal: fired by an engine's hooks inside a task worktree to report a
-      // normalized activity event to the daemon (event-driven task state).
+      // Internal: engine hooks report activity events to the daemon.
       // Always exits 0; never spawns the daemon.
       const { runHookSubcommand } = await import("./hook-cmd.ts")
       await runHookSubcommand(args)

@@ -1,19 +1,12 @@
 /**
- * `kobe export [--json|--csv|--format=<json|csv|table>]` — dump the task
- * list to stdout in a machine- or human-readable shape.
+ * `export [--json|--csv|--format=<json|csv|table>]` — dump the task list.
+ * Read-only and DAEMON-FREE (reads tasks.json via {@link TaskIndexStore}),
+ * unlike `api list`.
  *
- * Read-only and DAEMON-FREE: it loads `~/.rove/tasks.json` in-process via
- * {@link TaskIndexStore} (the canonical manifest owner — no re-parsing of
- * the file here) and prints. This complements `kobe api list`, which is
- * JSON-only and needs a running daemon; `export` works with the daemon
- * down and adds CSV / aligned-table output for piping into scripts,
- * spreadsheets, or a quick terminal glance.
- *
- * Output contract:
- *   - `--json` (default) → a JSON array of task rows (parses with `jq`).
+ *   - `--json` (default) → JSON array of task rows.
  *   - `--csv`            → RFC-4180-style CSV with a header row.
- *   - `--format=table`   → aligned, human-readable columns.
- * Mutates nothing; exit 0 on success, exit 2 on a bad flag/format.
+ *   - `--format=table`   → aligned columns.
+ * Exit 2 on a bad flag/format.
  */
 
 import { displayWidth } from "../lib/display-width.ts"
@@ -39,8 +32,7 @@ const EXPORT_USAGE = [
   "",
 ].join("\n")
 
-/** Columns emitted per task, in order. The single source of truth for
- *  every format's field set + header labels. */
+/** Columns per task, in order — every format's field set and header labels. */
 const COLUMNS = ["id", "title", "status", "vendor", "branch", "repo", "worktreePath"] as const
 type Column = (typeof COLUMNS)[number]
 

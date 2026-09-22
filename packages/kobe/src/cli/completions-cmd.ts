@@ -10,23 +10,14 @@
  *   kobe completions bash > ~/.bash_completion.d/kobe
  *   kobe completions fish > ~/.config/fish/completions/kobe.fish
  *
- * Why `--path` exists: the script is a constant, but the only way to GET it
- * was a process start, so every new shell paid ~0.3s (node launcher → bun)
- * just to print 1.8KB of static text, and anyone who cared had to write their
- * own cache shim. The build now bakes the same generator's output into
- * `dist/completions/<cli>.<shell>`, which `installCompletions` sources
- * directly — see cli/completion-scripts.ts. A source checkout has no dist, so
- * plain `completions <shell>` keeps generating on the fly and `--path` fails
- * loudly rather than printing a path that does not exist.
+ * `--path`: generating costs a process start (~0.3s per shell, node → bun) for
+ * static text, so the build bakes `dist/completions/<cli>.<shell>` for
+ * `installCompletions` to source. A checkout has no dist: generation runs on
+ * the fly and `--path` fails loudly.
  *
- * The zsh script works both ways: dropped into `$fpath` it is a normal
- * `#compdef` autoload file; sourced directly it registers itself via
- * `compdef` (the funcstack guard at the end tells the two apart).
- *
- * The generated scripts complete two levels — the top-level subcommand and,
- * for the commands that take one, its verb (`kobe daemon <TAB>` →
- * `start stop status restart`). Flags are omitted because most subcommands
- * define their own.
+ * The zsh script works from `$fpath` (`#compdef`) or sourced (self-`compdef`;
+ * a funcstack guard tells them apart). Two levels complete — subcommand and
+ * its verb; flags are omitted since subcommands define their own.
  */
 import { existsSync, readFileSync } from "node:fs"
 import type { ProductCliName } from "../product.ts"
@@ -105,10 +96,8 @@ export async function runCompletionsSubcommand(
   }
 
   if (flags[0] === "--install") {
-    // Both are lazy on purpose, the same way index-commands.ts keeps the heavy
-    // subcommands behind `import()`: writing to the user's rc is a rare branch,
-    // and a static import here would make every `completions <shell>` pay for
-    // the i18n store and the whole onboarding graph.
+    // Lazy: a static import would make every `completions <shell>` load i18n
+    // and the onboarding graph.
     const [{ installCompletions }, { t }] = await Promise.all([import("./onboarding.ts"), import("../tui/i18n")])
     const completion = installCompletions(shell, deps.home, cliName, shipped)
     const line = completion.installed ? "onboarding.appliedCompletions" : "onboarding.keptCompletions"
@@ -116,10 +105,7 @@ export async function runCompletionsSubcommand(
     return
   }
 
-  // A built install answers from the file the build wrote, so `--path` and
-  // stdout can never disagree about what the script is. Unbuilt (a checkout)
-  // falls through to generating it here. `api/verbs.ts` is the lazy half of the
-  // completion tables — see cli/completion-scripts.ts.
+  // Serve the shipped file so `--path` and stdout can never disagree.
   if (shipped) {
     process.stdout.write(readFileSync(shipped, "utf8"))
     return

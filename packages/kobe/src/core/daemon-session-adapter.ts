@@ -45,9 +45,8 @@ export async function ensureTaskSessionAdapter(link: DaemonRpcClient, taskId: st
   try {
     const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
     if (!opened.alive) throw new Error(`failed to start hosted engine session for ${taskId}`)
-    // Paste-delivery vendor (kimi) with a repo init-prompt: the
-    // message rides outside the argv. Best-effort paste — the engine IS up,
-    // so a missed paste leaves an idle prompt, not a failed session.
+    // Paste-delivery vendor (kimi): best-effort — the engine IS up, so a
+    // missed paste leaves an idle prompt, not a failed session.
     if (launch.firstMessage) {
       const engineBin = engineLaunchArgv({
         command: task.command,
@@ -68,24 +67,13 @@ export async function ensureTaskSessionAdapter(link: DaemonRpcClient, taskId: st
 
 /**
  * {@link ensureTaskSessionAdapter} with an explicit first message instead of
- * the repo's `.rove/init-prompt.md` (or legacy `.kobe` fallback). Used by the daemon's automation runner,
- * whose whole job is starting a session that says something specific.
+ * the repo init-prompt. `new-task` intent puts the prompt in the engine's own
+ * argv, not a paste racing a cold TUI with nobody watching.
  *
- * `promptIntent: {kind:"new-task"}` makes `buildEngineSessionLaunch` append the
- * text to the engine's OWN argv, so the prompt is part of the spawn rather
- * than a paste racing a cold TUI — the difference matters when no human is
- * watching to retype it.
- *
- * ## What `started` means here
- *
- * The ENGINE process was observed running, not "the login shell opened".
- * `ensureHostedEngine` answers the second question, and it answers `true` for
- * an `engineCommand` pointing at a binary that does not exist: the shell
- * prints `command not found`, keepAlive keeps the session, and the PTY is
- * alive with nothing in it. Reporting that as a start is what let a routine
- * record `dispatched` forever while every firing left a dead task behind — so
- * both delivery shapes wait for the engine itself before saying yes, and a
- * failure carries the session's last line so the caller can say WHY.
+ * `started` = the ENGINE process was observed, not just the shell:
+ * `ensureHostedEngine` says alive even for a missing binary (keepAlive keeps
+ * the `command not found` shell), which would record `dispatched` for a dead
+ * task. Failures carry the session's last line.
  */
 export async function startTaskSessionWithPromptAdapter(
   link: DaemonRpcClient,
@@ -93,15 +81,11 @@ export async function startTaskSessionWithPromptAdapter(
   prompt: string,
 ): Promise<{ started: boolean; error?: string }> {
   const { task, worktreePath } = await ensureTaskWorktree(link, taskId)
-  // Learn the user's language from their own first prompt, so the text Rove
-  // injects LATER — when no user message is in hand (a quota resume fired by
-  // a timer) — comes out in the language they actually write. Best-effort:
-  // this is an observation, and failing to record it must never block the
-  // session it was observed from.
+  // So later Rove-injected text (e.g. timer-fired quota resume) matches the
+  // user's language. Best-effort: must never block the session.
   await link.request("task.observeLanguage", { taskId, text: prompt }).catch(() => {})
-  // "new-task", not "explicit": both callers (automation runner, work-item
-  // start) create the task immediately ahead of this call, so the first prompt gets
-  // the branch-rename coda like every other new-worktree entry point.
+  // "new-task", not "explicit": callers just created the task, so the prompt
+  // gets the branch-rename coda like other new-worktree entry points.
   const launch = taskEngineLaunch(task, worktreePath, {
     kind: "new-task",
     prompt,
@@ -117,17 +101,13 @@ export async function startTaskSessionWithPromptAdapter(
       model: task.model,
     })[0]
     const wait = { initMarkerPath: launch.initMarkerPath, initTimeoutMs: launch.initTimeoutMs }
-    // Paste-delivery vendor (kimi): the prompt rides OUTSIDE the
-    // argv; deliver it once the engine process is up. A paste that never
-    // lands means the prompt was not delivered — report false.
+    // Paste-delivery vendor (kimi): a paste that never lands is not started.
     if (launch.firstMessage) {
       const outcome = await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage, wait)
       if (outcome !== null) return { started: true }
       return { started: false, error: await startFailureReason(host.rpc, launch.key) }
     }
-    // Argv-delivery vendor (claude, codex, copilot): the prompt is already on
-    // the engine's command line, so there is nothing left to deliver — but
-    // nothing has confirmed the engine READ that command line either.
+    // Argv-delivery vendor: prompt is on the command line, but confirm the engine runs.
     if ((await awaitEngineProcess(host.rpc, launch.key, engineBin, wait)) !== null) return { started: true }
     return { started: false, error: await startFailureReason(host.rpc, launch.key) }
   } finally {
@@ -165,18 +145,13 @@ function taskEngineLaunch(task: SerializedTask, worktreePath: string, promptInte
 }
 
 /**
- * Deliver a prompt into a task's LIVE hosted engine session only — never
- * spawns one. Used by the daemon's quota-resume runner: resuming a dead
- * engine would start a fresh context-less session and burn quota on it, so
- * "no alive engine" returns false and the schedule is dropped instead.
+ * Deliver into a LIVE engine only — never spawns (quota-resume: a fresh
+ * context-less session would burn quota), so returns false instead.
  *
- * "Alive engine" is a PROCESS fact, not a session one. `findHostedEngineKey`
- * matches the session's spawn argv, which keeps matching long after the
- * engine exited: keepAlive `exec`s a login shell in its place, the session
- * stays alive, and a paste into it is EXECUTED as shell commands in the
- * task's worktree. `enginePresence` is the same gate `send` applies before
- * writing a byte (`cli/api/pty-delivery.ts`), and every path that writes
- * needs it — this one delivers unattended, on a timer.
+ * "Alive" is a PROCESS fact: the spawn-argv key keeps matching after the
+ * engine exits and keepAlive `exec`s a shell, where a paste would be EXECUTED
+ * in the worktree. `enginePresence` is the same gate `send` applies; every
+ * writing path needs it.
  */
 export async function deliverPromptToLiveEngineAdapter(
   task: {
@@ -213,15 +188,9 @@ function tabIdFromHostedKey(key: string): string {
 }
 
 /**
- * {@link deliverPromptToLiveEngineAdapter} reporting WHICH tab it reached and
- * WHY it could not, as data — the routine runner records the tab in its run
- * history, and quota-resume keeps using the boolean form.
- *
- * `no-engine` is the same fact as {@link deliverPromptToLiveEngineAdapter}'s
- * refusal, kept distinct from `no-session` because the caller acts on it
- * differently: a routine that finds its overnight engine dead must respawn
- * and record `revived`, not paste a natural-language instruction at a zsh
- * prompt and record `dispatched`.
+ * {@link deliverPromptToLiveEngineAdapter} reporting which tab and why not.
+ * `no-engine` stays distinct from `no-session`: a routine finding its engine
+ * dead must respawn and record `revived`, not paste at a zsh prompt.
  */
 export async function deliverPromptToLiveEngineDetailedAdapter(
   task: {
@@ -251,8 +220,7 @@ export async function deliverPromptToLiveEngineDetailedAdapter(
     const delivered = await deliverToHostedKey(host.rpc, key, prompt, { vendor: presence.vendor })
     return delivered === null ? { outcome: "no-session" } : { outcome: "delivered", tabId: tabIdFromHostedKey(key) }
   } catch {
-    // A host that went away mid-delivery is indistinguishable from one that
-    // was never there — both mean "revive it", which is the caller's fallback.
+    // A host lost mid-delivery also means "revive it".
     return { outcome: "no-session" }
   } finally {
     host.close()
@@ -301,11 +269,8 @@ export async function tearDownTaskSessionAdapter(taskId: string): Promise<void> 
   const host = await openHostedSessionHost()
   if (!host) return
   try {
-    // `wait`: every caller of this adapter is about to remove the task's
-    // worktree (the deletion runner, `worktree.remove`, land) — and until
-    // the host held its reply, they all ran `git worktree remove` while the
-    // child was still exiting, which on Windows left the directory behind:
-    // a process whose cwd is inside it makes it undeletable.
+    // `wait`: every caller removes the worktree next, and on Windows a child
+    // still exiting with its cwd inside makes it undeletable.
     await killHostedSessions(host.rpc, hostedTaskKeys(await listHostedSessions(host.rpc), taskId), { wait: true })
   } catch {
     // Task mutation already committed; teardown remains best-effort.

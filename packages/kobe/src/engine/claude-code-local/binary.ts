@@ -1,27 +1,8 @@
 /**
- * Where the local `claude` CLI binary lives.
- *
- * Search order ported from `refs/opcode/src-tauri/src/claude_binary.rs` —
- * we strip the version-comparison + DB-preference machinery (opcode
- * stores a chosen path in SQLite) and keep just the order:
- *
- *   1. `$PATH` (the user's shell — `which claude`).
- *   2. `~/.claude/local/claude`  (Claude Code's bundled-update install).
- *   3. NVM-active (`$NVM_BIN/claude`).
- *   4. NVM versions (`~/.nvm/versions/node/<v>/bin/claude` — newest
- *      first, compared numerically).
- *   5. Homebrew + system paths (`/opt/homebrew/bin`, `/usr/local/bin`,
- *      `/usr/bin`, `/bin`).
- *   6. Misc user installs (`~/.local/bin`, `~/.npm-global/bin`,
- *      `~/.yarn/bin`, `~/.bun/bin`, `~/bin`).
- *
- * The first hit wins. We do *not* run `--version` to pick the newest —
- * that costs a subprocess per candidate and the user's shell PATH is
- * almost always the right answer. If the user has a strong preference
- * they can put it on PATH.
- *
- * The probing itself (`which`, stat, the checked-path ledger) lives in
- * `../binary-discovery.ts`.
+ * Locate the `claude` binary. Search order from
+ * `refs/opcode/src-tauri/src/claude_binary.rs`: `$PATH`, then the candidates
+ * below in order. First hit wins — no `--version` probing (a subprocess per
+ * candidate; PATH is almost always right).
  */
 
 import path from "node:path"
@@ -37,7 +18,6 @@ export class ClaudeBinaryNotFoundError extends BinaryNotFoundError {
   }
 }
 
-/** Locate the `claude` binary on this machine. */
 export const findClaudeBinary = createBinaryFinder({
   name: "claude",
   candidates({ deps, home }) {
@@ -46,9 +26,7 @@ export const findClaudeBinary = createBinaryFinder({
     const nvmBin = deps.env("NVM_BIN")
     if (nvmBin) out.push(path.join(nvmBin, "claude"))
 
-    // All NVM-installed node versions, newest first. A plain string sort
-    // mis-orders unpadded semver dir names ("v8.17.0" sorts after "v18.20.0"),
-    // so a single-digit major would shadow newer nodes; compare numerically.
+    // Newest first, numerically: a string sort puts "v8.17.0" after "v18.20.0".
     const nvmRoot = path.join(home, ".nvm", "versions", "node")
     const versions = (deps.readdir?.(nvmRoot) ?? []).sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
     for (const v of versions) out.push(path.join(nvmRoot, v, "bin", "claude"))

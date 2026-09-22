@@ -1,22 +1,13 @@
 /**
- * Claude Code's {@link EngineTurnReader} — per-turn telemetry lifted out of
- * its own JSONL transcript.
+ * Claude Code's {@link EngineTurnReader}: per-turn telemetry from its JSONL.
  *
- * The turn boundary Claude persists: a `user` record with real prompt content
- * opens a turn, every `assistant` record after it belongs to that turn, and
- * the turn closes at the next such `user` record. Tool-result `user` records
- * do NOT open a turn — they are the engine talking to itself mid-turn, so
- * they're skipped (same predicate the history parser already uses to keep
- * them out of the title path).
+ * A `user` record with real prompt content opens a turn; following `assistant`
+ * records belong to it until the next such `user` record. Tool-result `user`
+ * records are the engine feeding itself mid-turn and open nothing.
  *
- * Usage is summed per assistant MESSAGE id, not per record: Claude writes one
- * record per content block (thinking, tool_use, …) and repeats the SAME
- * `message.usage` on each — naively summing records multiplies a turn's cost
- * by its block count. `model` is the last one seen (a turn that switches
- * models mid-flight is attributed to what finished it).
- *
- * Pure (string in, records out) so it unit-tests without a filesystem; the
- * bounded file read lives in the reader wrapper below.
+ * Usage is summed per assistant MESSAGE id, not per record: Claude repeats the
+ * SAME `message.usage` on each content-block record, so summing records
+ * multiplies cost by block count. `model` is the last one seen.
  */
 
 import type { AgentTurn } from "../agent-turn.ts"
@@ -27,9 +18,7 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v)
 }
 
-/** True when a `user` record is the human opening a turn — i.e. its content
- *  is not purely `tool_result` blocks (the engine feeding itself). A plain
- *  string content is always a human prompt. */
+/** A human prompt: non-empty string content, or not purely `tool_result` blocks. */
 function opensTurn(content: unknown): boolean {
   if (typeof content === "string") return content.trim().length > 0
   if (!Array.isArray(content)) return false
@@ -68,8 +57,7 @@ function readUsage(v: unknown): Usage | undefined {
 }
 
 function finish(draft: Draft): AgentTurn | null {
-  // A turn with no assistant reply (interrupted before the model answered)
-  // has no id and nothing to attribute — drop it rather than emit a stub.
+  // No assistant reply (interrupted early) → no id, nothing to attribute.
   if (!draft.id) return null
   const totals: Usage = {
     input_tokens: 0,
@@ -93,11 +81,7 @@ function finish(draft: Draft): AgentTurn | null {
   }
 }
 
-/**
- * Parse a Claude JSONL transcript into completed turns, oldest-first.
- * `fallbackSessionId` names the session when a record omits `sessionId`.
- * Exported for unit tests; production callers use {@link readClaudeTurns}.
- */
+/** Completed turns, oldest-first. `fallbackSessionId` covers records omitting `sessionId`. */
 export function parseClaudeTurns(raw: string, fallbackSessionId = ""): AgentTurn[] {
   const out: AgentTurn[] = []
   let draft: Draft | null = null
@@ -132,17 +116,14 @@ export function parseClaudeTurns(raw: string, fallbackSessionId = ""): AgentTurn
     draft.endedAt = at
     if (typeof inner.model === "string") draft.model = inner.model
     const messageId = typeof inner.id === "string" ? inner.id : ""
-    // The turn's id is its LAST assistant message — stable across re-reads of
-    // a finished turn, and never colliding with the next turn's.
+    // Id = LAST assistant message: stable across re-reads, unique per turn.
     if (messageId) draft.id = messageId
     const usage = readUsage(inner.usage)
     if (usage && messageId) draft.usageByMessage.set(messageId, usage)
   }
 
-  // The trailing draft IS a completed turn once the engine stopped — the hook
-  // that triggers this read fires on Stop, so the last assistant record it
-  // sees closed the turn. (A turn still running just re-reads next time and
-  // dedupes on the same message id.)
+  // The trailing draft counts: this read is triggered on Stop. A still-running
+  // turn re-reads next time and dedupes on the same message id.
   if (draft) {
     const done = finish(draft)
     if (done) out.push(done)
@@ -150,9 +131,7 @@ export function parseClaudeTurns(raw: string, fallbackSessionId = ""): AgentTurn
   return out
 }
 
-/** Claude's {@link import("../agent-turn.ts").EngineTurnReader}: bounded file
- *  read + {@link parseClaudeTurns}. Never throws — an unreadable transcript
- *  yields no turns. */
+/** Bounded read + {@link parseClaudeTurns}. Never throws; unreadable → no turns. */
 export async function readClaudeTurns(transcriptPath: string): Promise<readonly AgentTurn[]> {
   try {
     const raw = await readTextFileBounded(transcriptPath)

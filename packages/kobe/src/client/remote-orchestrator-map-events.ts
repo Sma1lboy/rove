@@ -1,17 +1,7 @@
 /**
- * The five MAP channels, as a table.
- *
- * `usage.snapshot`, `usage.context`, `worktree.changes`,
- * `transcript.activity` and `task.tokens` all reduce to the same five lines:
- * parse the payload, drop it loudly if it is malformed (never clobbering a
- * good map with a bad frame), compare by VALUE, and write only on a real
- * change. Each had its own copy in the dispatcher, which is how one of them
- * ended up missing the equality gate for a while — an unchanged republish
- * (the bus replays every channel on every reconnect) swapping the map
- * reference and re-rendering every row that reads it.
- *
- * So the difference between them is the only thing this table states: which
- * parse, which comparison, and which cell. Adding a map channel is one row.
+ * The MAP channels as a table: each row states only its parse, value
+ * equality, and cell; {@link handleMapChannel} applies the shared rule (drop
+ * malformed loudly, write only on a real change). Adding one is one row.
  */
 
 import { logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
@@ -71,9 +61,7 @@ const MAP_CHANNELS: Readonly<Record<string, MapChannel<any>>> = {
     write: (signals, next) => signals.setTranscriptActivitySig(next),
   },
   "task.tokens": {
-    // Written by a PLUGIN — the one publisher in the system Rove does not
-    // ship — so a malformed frame is a third party's bug, and dropping it
-    // loudly is the only honest answer.
+    // Published by a PLUGIN, so malformed frames are third-party bugs.
     what: "token map",
     parse: parseRowTokensPayload,
     same: sameRowTokenMap,
@@ -82,10 +70,7 @@ const MAP_CHANNELS: Readonly<Record<string, MapChannel<any>>> = {
   },
 }
 
-/**
- * Handle a map channel, or report `false` for a name this table does not own
- * (the dispatcher then goes on to its other branches).
- */
+/** Handle a map channel; `false` for a name this table doesn't own. */
 export function handleMapChannel(name: string, payload: unknown, signals: OrchestratorSignals): boolean {
   const channel = MAP_CHANNELS[name]
   if (!channel) return false
@@ -95,9 +80,8 @@ export function handleMapChannel(name: string, payload: unknown, signals: Orches
     logClientError("orch", `dropped ${name} event: malformed ${channel.what} (${describePayload(payload)})`)
     return true
   }
-  // Value-equality gate: an unchanged republish (a bus replay across a
-  // reconnect, or a daemon publish that round-trips to the same values) must
-  // not swap the map reference and re-render every reader of it.
+  // The bus replays every channel on reconnect; an unchanged republish must not
+  // swap the map reference and re-render every reader.
   const current = channel.read(signals)
   if (current && channel.same(current, next)) return true
   channel.write(signals, next)

@@ -1,24 +1,10 @@
 /**
- * `kobe theme <action>` — manage user-installed color themes.
+ * `kobe theme list | add <source> | remove <name>` — user color themes under
+ * `~/.rove/themes/<name>.json`. `add` refuses to overwrite without `--force`;
+ * `remove` refuses bundled (read-only) names.
  *
- * Subcommands:
- *   - `list`            — print every theme kobe knows about (bundled +
- *                         user-installed) with a short marker for which
- *                         is which.
- *   - `add <source>`    — fetch / read a theme JSON, validate, and write
- *                         it under `~/.rove/themes/<name>.json`. Refuses
- *                         to overwrite without `--force`.
- *   - `remove <name>`   — delete a user theme file. Refuses if `<name>`
- *                         matches a bundled theme (those are read-only).
- *
- * Late-imported from `cli/index.ts` so the TUI startup graph (opentui /
- * UI runtime state) does not load when the user is just managing themes from
- * the shell.
- *
- * Error policy: print a one-line "kobe theme: <reason>" to stderr and
- * `process.exit(1)`. We do NOT print stack traces — these are
- * user-facing errors, not bugs in kobe. If a stack would help, the user
- * can `KOBE_DEBUG=1` (future) or `kobe diagnose`.
+ * Late-imported from `cli/index.ts` so the TUI startup graph doesn't load.
+ * Errors are one line on stderr + exit 1, no stack: they're user errors.
  */
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs"
@@ -37,12 +23,8 @@ const CLI_NAME = activeCliName()
 const THEME_VERB_ALIASES: Readonly<Record<string, string>> = { ls: "list", rm: "remove" }
 
 /**
- * The bundled theme names, read from the map that owns the JSON imports.
- *
- * Read from the real map rather than hand-mirrored: `bundled.ts` is nothing
- * but three `with { type: "json" }` imports and a type-only import, so this
- * pulls in no opentui and no UI runtime. Still no disk read — in a published
- * binary those JSONs live inside the compiled JS, not next to it.
+ * `bundled.ts` is only JSON imports plus a type import, so this pulls in no
+ * opentui. No disk read: a published binary compiles those JSONs into the JS.
  */
 const BUNDLED_NAMES: readonly string[] = Object.keys(BUNDLED_THEME_JSONS)
 
@@ -51,24 +33,15 @@ function fail(message: string): never {
   process.exit(1)
 }
 
-/**
- * A malformed invocation (unknown action/flag, missing or extra args).
- * Prints the error AND the full usage, then exits with the conventional
- * usage code (2). Distinct from {@link fail} (runtime/content errors,
- * exit 1) so an agent driving the CLI always sees the instruction surface
- * when it guesses the command shape wrong, not a bare one-liner.
- */
+/** Malformed invocation: error + full usage, exit 2 (vs {@link fail}'s exit 1),
+ *  so an agent that guessed the shape wrong sees the usage. */
 function failUsage(message: string): never {
   process.stderr.write(`${CLI_NAME} theme: ${message}\n\n`)
   printUsage()
   process.exit(2)
 }
 
-/**
- * List bundled + user-installed theme names. Bundled themes are tagged
- * `[built-in]`; user themes show their on-disk path. Sorted within each
- * group so `kobe theme list` output is deterministic.
- */
+/** Sorted within each group so the output is deterministic. */
 function listThemes(): void {
   const lines: string[] = []
   lines.push("bundled:")
@@ -100,12 +73,7 @@ function listThemes(): void {
   process.stdout.write(`${lines.join("\n")}\n`)
 }
 
-/**
- * Resolve a `<source>` argument to JSON text. Supports:
- *   - `http://` / `https://` URLs (fetched via Bun's global `fetch`)
- *   - everything else interpreted as a local filesystem path,
- *     resolved against `process.cwd()`.
- */
+/** `<source>` is an http(s) URL or a path resolved against cwd. */
 async function readSource(source: string): Promise<{ text: string; defaultName: string }> {
   if (/^https?:\/\//i.test(source)) {
     let res: Response
@@ -118,8 +86,7 @@ async function readSource(source: string): Promise<{ text: string; defaultName: 
       fail(`failed to fetch ${source}: HTTP ${res.status} ${res.statusText}`)
     }
     const text = await res.text()
-    // Use the URL's basename for the default name. Strip query/hash
-    // first so `https://…/foo.json?token=…` becomes `foo`.
+    // Strip query/hash so `…/foo.json?token=…` names `foo`.
     const cleanPath = source.split(/[?#]/)[0] ?? source
     const file = basename(cleanPath) || "theme.json"
     const defaultName = file.endsWith(".json") ? file.slice(0, -".json".length) : file
@@ -197,24 +164,15 @@ async function addTheme(args: string[]): Promise<void> {
   if (existsSync(dest) && !opts.force) {
     fail(`${dest} already exists (pass --force to overwrite)`)
   }
-  // Re-serialise from the parsed object so we strip BOM / weird
-  // whitespace and produce a normalised file. Keep the original `text`
-  // intent intact (no re-ordering of keys beyond what JSON.stringify
-  // does naturally — i.e. insertion order is preserved).
+  // Re-serialise the validated theme: strips BOM/odd whitespace, keeps key order.
   writeFileSync(dest, `${JSON.stringify(result.theme, null, 2)}\n`, "utf8")
   process.stdout.write(`installed theme "${name}" -> ${dest}\n`)
 }
 
 /**
- * A theme name that is safe to turn into `<userThemesDir()>/<name>.json`, or
- * exit.
- *
- * `join()` resolves `..`, so a name is a relative path unless something says
- * otherwise. `add` said so from the start; `remove` did not, and went straight
- * from an argument to `unlinkSync` — `rove theme remove '../../precious/notes'`
- * printed `removed theme` and deleted `~/precious/notes.json`. The
- * `BUNDLED_NAMES` check it did have only covers the built-in names, which is a
- * different question entirely. One check, both verbs, so they cannot drift.
+ * A name safe to turn into `<userThemesDir()>/<name>.json`, or exit. `join()`
+ * resolves `..`, so without this `remove '../../x/notes'` would unlink a file
+ * outside the themes dir. Shared by both verbs so they can't drift.
  */
 function requireThemeName(name: string | undefined): string {
   if (!name || !/^[a-zA-Z0-9._-]+$/.test(name) || name === "." || name === "..") {
@@ -256,10 +214,7 @@ function printUsage(out: NodeJS.WriteStream = process.stderr): void {
   )
 }
 
-/**
- * Entry point used by `cli/index.ts`. `args` is whatever followed
- * `kobe theme` on the command line.
- */
+/** `args` is whatever followed `kobe theme`. */
 export async function runThemeSubcommand(args: string[]): Promise<void> {
   const [action, ...rest] = args
   if (!action || action === "--help" || action === "-h" || action === "help") {
@@ -267,9 +222,7 @@ export async function runThemeSubcommand(args: string[]): Promise<void> {
     if (!action) process.exit(2)
     return
   }
-  // Canonical verbs come from `subcommands.ts` (the same list `kobe
-  // completions` offers); the short spellings stay local because completing
-  // both of every pair is noise.
+  // Canonical verbs are the completion list; aliases stay local (completing both is noise).
   const verb = THEME_VERB_ALIASES[action] ?? action
   if (!SUBCOMMAND_VERBS.theme.includes(verb)) {
     failUsage(`unknown action "${action}" (try ${SUBCOMMAND_VERBS.theme.map((v) => `"${v}"`).join(", ")})`)
@@ -287,7 +240,6 @@ export async function runThemeSubcommand(args: string[]): Promise<void> {
     removeTheme(rest)
     return
   }
-  // Unreachable via the gate above; kept so a verb added to SUBCOMMAND_VERBS
-  // without a branch here fails loud instead of falling into the last one.
+  // Unreachable today; a verb added to SUBCOMMAND_VERBS without a branch fails loud.
   failUsage(`unknown action "${action}"`)
 }

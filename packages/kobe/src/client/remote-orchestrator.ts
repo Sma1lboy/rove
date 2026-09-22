@@ -1,15 +1,8 @@
 /**
- * RemoteOrchestrator mirrors the slim {@link Orchestrator} that
- * runs in the daemon: same read surface (tasks signal + subscribe), and a
- * write surface forwarding each method as a daemon RPC.
- *
- * The wire boundary: `performInit`/`handleOrchestratorEvent`
- * (`remote-orchestrator-connect.ts`/`-events.ts`) take an explicit
- * {@link OrchestratorSignals} deps bag — built once in the constructor from
- * the same framework-free state cells this class's read methods return — instead of
- * closing over `this`. Write methods below are 1-line delegates to
- * `remote-orchestrator-writes.ts`. Wire-payload types/helpers live in
- * `remote-orchestrator-payloads.ts`, re-exported below for existing importers.
+ * Mirrors the daemon's {@link Orchestrator}: same read surface, writes
+ * forwarded as daemon RPCs. Event handling gets an explicit
+ * {@link OrchestratorSignals} deps bag built from the same state cells the
+ * read methods return, not `this`.
  */
 
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
@@ -130,7 +123,6 @@ export class RemoteOrchestrator {
   /** One shared retry task: repeated close events and an explicit reconnect
    *  join the same loop instead of racing two hello/subscribe handshakes. */
   private reconnectTask: Promise<void> | null = null
-  /** Deps bag for `performInit`/`handleOrchestratorEvent` — see file header. */
   private readonly signals: OrchestratorSignals
 
   constructor(
@@ -183,21 +175,12 @@ export class RemoteOrchestrator {
       setConnectionState: this.connectionStateAcc.set,
     }
     this.client.on("*", (frame) => handleOrchestratorEvent(frame.name, frame.payload, this.signals))
-    // Socket drop flips us to `disconnected`. What happens next depends on
-    // the role:
-    //   - gui:  AUTO-RECOVER (spawning). This is the front-end that owns daemon
-    //     availability, so it silently ensures a daemon is running, reconnects,
-    //     and re-subscribes until the current snapshot has been replayed.
-    //   - pane: AUTO-RECONNECT (non-spawning). An in-tmux pane DOES routinely
-    //     lose its daemon — the refcounted lazy-shutdown idle-stops the daemon
-    //     3s after the last gui quits, while the pane persists with the tmux
-    //     session. Without reconnect the pane's task list froze forever at the
-    //     last snapshot (the create/delete sync drift). The loop reconnects to
-    //     the SAME socket when a daemon returns and re-subscribes → the bus
-    //     replays the current task.snapshot → the pane re-syncs. It must NOT
-    //     spawn a daemon (that would resurrect an idle-stopped daemon and break
-    //     lazy-shutdown — panes alone never hold it alive), so it only retries
-    //     a plain connect, never `ensureReachable`.
+    // On socket drop:
+    //   - gui: spawning reconnect — it owns daemon availability.
+    //   - pane: non-spawning reconnect. Lazy-shutdown idle-stops the daemon 3s
+    //     after the last gui quits while tmux panes persist; without reconnect
+    //     the task list freezes at the last snapshot. It must NOT spawn (panes
+    //     alone never hold the daemon alive), so no `ensureReachable`.
     this.client.onLifecycle("close", () => {
       this.connectionStateAcc.set("disconnected")
       const spawnDaemon = this.role === "gui"
@@ -211,13 +194,7 @@ export class RemoteOrchestrator {
     })
   }
 
-  /**
-   * Start or join the role-appropriate reconnect loop. The body lives in
-   * `remote-orchestrator-connect.ts` `runReconnectLoop`, over an explicit deps
-   * bag, so the retry policy is testable without a daemon; this method only
-   * supplies this instance's dependencies. On success subscribe replay
-   * rehydrates every signal, including the current task snapshot.
-   */
+  /** Start or join the reconnect loop; subscribe replay rehydrates every signal. */
   private reconnectLoop(spawnDaemon: boolean): Promise<void> {
     if (this.reconnectTask) return this.reconnectTask
     const task = runReconnectLoop({
@@ -256,10 +233,8 @@ export class RemoteOrchestrator {
     return this.connectionStateAcc
   }
 
-  /** The reconnect loop's one terminal failure, as a message: non-null once
-   *  this process is confirmed to be running from a deleted install. Latched,
-   *  never cleared — only a reinstall clears it, and the alternative is what
-   *  a stale install already looked like: "reconnecting", forever. */
+  /** Non-null once this process is confirmed running from a deleted install.
+   *  Latched: otherwise a stale install shows "reconnecting" forever. */
   staleInstallSignal(): ReadableState<string | null> {
     return this.staleInstallAcc
   }
@@ -287,26 +262,16 @@ export class RemoteOrchestrator {
   readonly daemonStaleSignal = (): ReadableState<boolean> => this.daemonStaleAcc
 
   /**
-   * True while a daemon that announced an explicit restart has not yet come
-   * back. Narrower than "disconnected" on purpose: it is only ever set by a
-   * daemon SAYING it is being replaced, so it can never stand in for the
-   * generic socket-drop signal the workspace deliberately does not surface.
-   *
-   * Its one job is to keep a refresh from stopping a daemon somebody else is
-   * already mid-way through replacing (`planSelfRefresh`).
+   * True while a daemon that announced a restart hasn't come back. Set only
+   * by the daemon saying so — never a stand-in for generic socket drop. Keeps
+   * `planSelfRefresh` from stopping a daemon someone else is replacing.
    */
   readonly daemonRestartingSignal = (): ReadableState<boolean> => this.daemonRestartingAcc
 
   /**
-   * Ask the daemon to stop for a RESTART, then let the normal recovery path
-   * bring one back. Used by the self-refresh: the daemon reloads its code
-   * from disk on the way back up, which is the half of a build skew this
-   * process cannot fix by relaunching itself.
-   *
-   * Best-effort by design — a daemon that is already gone, already stopping,
-   * or too wedged to answer leaves nothing to stop, and the caller's next
-   * step (relaunch, which spawns a daemon if none is reachable) covers every
-   * one of those.
+   * Stop the daemon for a restart so it reloads code from disk (the half of
+   * a build skew relaunching this process can't fix). Best-effort: a gone or
+   * wedged daemon is covered by the caller's relaunch, which spawns one.
    */
   async restartDaemon(): Promise<void> {
     await this.client.request("daemon.stop", { reason: "restart" }).catch(() => {})
@@ -351,15 +316,9 @@ export class RemoteOrchestrator {
   readonly tabRenameStore = (): ExternalStore<TabRenamePayload | null> => this.tabRenameAcc
 
   /**
-   * The bare request/response seam onto this orchestrator's daemon, for the
-   * few callers that need a verb this class does not wrap — today the
-   * quick-fork ROUND, whose siblings are delivered by `core/`'s headless
-   * session starter rather than by a mounted pane.
-   *
-   * Deliberately narrowed to {@link DaemonRpcClient}: exposing the socket
-   * client itself would hand callers `subscribe`/`close`, and a second
-   * subscriber or an accidental close would take the whole UI's event stream
-   * down with it.
+   * Bare request/response for verbs this class doesn't wrap. Narrowed to
+   * {@link DaemonRpcClient}: exposing `subscribe`/`close` would let a caller
+   * take down the whole UI's event stream.
    */
   readonly rpc: DaemonRpcClient = { request: (name, payload) => this.client.request(name, payload) }
 
@@ -435,15 +394,13 @@ export class RemoteOrchestrator {
   markAttentionRead = (taskId: TaskId | string, tabId: string | null, at: number): Promise<boolean> =>
     writes.markAttentionReadOp(this.client, taskId, tabId, at)
 
-  /** Land a task's branch back into its base repo (`task.land`). Throws with a
-   *  `LAND_CONFLICT` / `MAIN_CHECKOUT_DIRTY` sentinel in the message on the
-   *  guarded failures so callers can print the conflicted files / re-prompt. */
-  /** Read-only land probe (`task.landPreflight`) — destination, commit count,
-   *  refusal. Never writes; behind the land confirm's copy. */
+  /** Read-only land probe: destination, commit count, refusal. */
   landPreflight(id: TaskId | string): ReturnType<typeof writes.landPreflightOp> {
     return writes.landPreflightOp(this.client, id)
   }
 
+  /** Throws with a `LAND_CONFLICT` / `MAIN_CHECKOUT_DIRTY` sentinel in the
+   *  message on guarded failures. */
   landTask(id: TaskId | string, opts?: Parameters<typeof writes.landTaskOp>[2]): ReturnType<typeof writes.landTaskOp> {
     return writes.landTaskOp(this.client, id, opts)
   }
@@ -456,9 +413,7 @@ export class RemoteOrchestrator {
     return writes.adoptWorktreeOp(this.client, input)
   }
 
-  /** Every worktree of every local saved project — the standalone
-   *  worktree-management TUI page (`worktree.list`). `network: false` =
-   *  local-signals-only fast pass. */
+  /** Every worktree of every saved project. `network: false` = local-only fast pass. */
   listWorktrees(opts?: { network?: boolean }): Promise<readonly WorktreeProject[]> {
     return writes.listWorktreesOp(this.client, opts)
   }
@@ -468,14 +423,12 @@ export class RemoteOrchestrator {
     return writes.listIssuesOp(this.client, repoRoot)
   }
 
-  /** Repo roots the issue store knows (`issue.repos`) — the kanban page's
-   *  board source, see {@link writes.listIssueReposOp}. */
+  /** Repo roots the issue store knows; see {@link writes.listIssueReposOp}. */
   listIssueRepos(): Promise<readonly string[]> {
     return writes.listIssueReposOp(this.client)
   }
 
-  /** One issue-store mutation (`issue.mutate`) — the kanban detail drawer's
-   *  write path (link on start, setStatus for the project placement). */
+  /** One issue-store mutation (`issue.mutate`). */
   mutateIssue(repoRoot: string, op: unknown): Promise<RepoIssues> {
     return writes.mutateIssueOp(this.client, repoRoot, op)
   }
@@ -497,18 +450,12 @@ export class RemoteOrchestrator {
   syncBase = (taskId: string) => writes.syncBaseOp(this.client, taskId)
   startWorkItem = (a: Parameters<typeof writes.startWorkItemOp>[1]) => writes.startWorkItemOp(this.client, a)
 
-  /** Remove a worktree (`worktree.remove`); refuses a dirty one unless
-   *  `force` is true — same safety property `GitWorktreeManager.remove`
-   *  always had. */
+  /** Refuses a dirty worktree unless `force`. */
   removeWorktree(path: string, force?: boolean): Promise<WorktreeResidue | null> {
     return writes.removeWorktreeOp(this.client, path, force)
   }
 
-  /**
-   * Mark a task as the active focus (the session just switched/entered).
-   * The daemon publishes it on the `active-task` channel so every Tasks
-   * pane + the outer monitor highlight the same task.
-   */
+  /** Published on `active-task` so every pane highlights the same task. */
   setActiveTask(id: TaskId | string | null): Promise<void> {
     return writes.setActiveTaskOp(this.client, id)
   }

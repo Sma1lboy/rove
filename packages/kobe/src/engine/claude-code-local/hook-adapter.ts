@@ -1,26 +1,16 @@
 /**
- * Claude Code hook adapter (KOB) — the first real {@link EngineHookAdapter}.
+ * Claude Code {@link EngineHookAdapter}: writes `kobe hook <verb>` hooks into
+ * the GLOBAL `~/.claude/settings.json`; the daemon maps each hook's cwd to a task
+ * (`daemon/cwd-task.ts`). I/O and install/remove live in {@link JsonHookAdapter};
+ * this file owns Claude's event names, detail decoding, and the legacy
+ * `WorktreeCreate` cleanup.
  *
- * Writes kobe's hooks into the user's GLOBAL `~/.claude/settings.json`, so a
- * single install makes EVERY Claude Code session report normalized activity
- * events back to kobe via `kobe hook <verb>`. The hook carries no task id; it
- * reports its `cwd` and the daemon maps that to a task by worktree path (see
- * `daemon/cwd-task.ts`). The read/merge/write I/O and the install/remove
- * methods live in the shared {@link JsonHookAdapter} base; this file adds only
- * what's Claude-specific: the hook event NAMES, the `error_type`/permission
- * detail decoding, and the legacy `WorktreeCreate` cleanup.
+ * Global, not per-worktree: per-task hooks missed already-running engines and
+ * leaked into the real repo root. The cost is cheap — `kobe hook` no-ops fast
+ * (never spawning the daemon) outside a task.
  *
- * Why global, not per-worktree: per-task hooks (written into each worktree's
- * `.claude/settings.local.json`) had to be installed at the right moment, only
- * fired after entering a task, didn't reach an already-running engine, and
- * leaked into a project's real repo root. One global block sidesteps all of
- * that and lights up every existing task at once. The cost — kobe's `kobe hook`
- * runs on every Claude session machine-wide — is cheap: it no-ops fast (and
- * never spawns the daemon) when the cwd isn't a kobe task.
- *
- * Don't clobber user hooks: this targets a SHARED file, so each merge tags its
- * own entries (by the kobe command substring) and replaces only those; the
- * user's own hooks for the same events are preserved.
+ * The file is SHARED: merges tag Rove's entries by command substring and
+ * replace only those, preserving the user's hooks.
  */
 
 import { join } from "node:path"
@@ -47,10 +37,8 @@ export const CLAUDE_HOOK_EVENT_MAP: readonly HookEventSpec[] = [
   { event: "Stop", verb: "turn-complete" },
   { event: "StopFailure", verb: "turn-failed" },
   { event: "Notification", matcher: "permission_prompt", verb: "awaiting-input" },
-  // elicitation_dialog = the engine put up a QUESTION dialog (AskUserQuestion /
-  // MCP elicitation) — the "question" stage the F7 attention jump must reach.
-  // NOT idle_prompt: that fires for ANY prompt idle after a response, which
-  // turn_complete already covers and would escalate every idle session.
+  // elicitation_dialog = a QUESTION dialog (AskUserQuestion / MCP elicitation),
+  // which F7 must reach. NOT idle_prompt: it fires for any idle session.
   { event: "Notification", matcher: "elicitation_dialog", verb: "awaiting-input" },
   { event: "SessionEnd", verb: "session-end" },
   // Lifecycle-only verbs (docs/design/plugin-events.md) — forwarded to plugin
@@ -59,9 +47,8 @@ export const CLAUDE_HOOK_EVENT_MAP: readonly HookEventSpec[] = [
   { event: "PostCompact", verb: "post-compact" },
   { event: "SubagentStart", verb: "subagent-start" },
   { event: "SubagentStop", verb: "subagent-stop" },
-  // Tool family: gated — installed only while an enabled plugin declares a
-  // tool.* hook (JsonHookAdapter.gatedVerbs), because these fire on EVERY
-  // tool call of every session machine-wide.
+  // Gated (JsonHookAdapter.gatedVerbs): fire on every tool call machine-wide,
+  // so installed only while a plugin declares a tool.* hook.
   { event: "PreToolUse", verb: "tool-pre" },
   { event: "PostToolUse", verb: "tool-post" },
   { event: "PostToolUseFailure", verb: "tool-failed" },
@@ -71,17 +58,12 @@ export const CLAUDE_HOOK_EVENT_MAP: readonly HookEventSpec[] = [
  *  one event can carry several matcher-scoped specs. */
 export const KOBE_HOOK_EVENTS: readonly string[] = [...new Set(CLAUDE_HOOK_EVENT_MAP.map((e) => e.event))]
 
-/** Normalized kobe verb for a Claude Code hook event name, or undefined for an
- *  event kobe doesn't install — the query side of {@link CLAUDE_HOOK_EVENT_MAP}, so tests
- *  (and future callers) can exercise the adapter's install-time translation
- *  without parsing generated hook commands. */
+/** Query side of {@link CLAUDE_HOOK_EVENT_MAP}; undefined for uninstalled events. */
 export function claudeVerbForHookEvent(event: string): EngineActivityKind | undefined {
   return CLAUDE_HOOK_EVENT_MAP.find((e) => e.event === event)?.verb
 }
 
-/** Map a Claude StopFailure `error_type` to the neutral failure class. Claude
- *  vocabulary (`rate_limit` / `overloaded` / `billing_error` / …) lives here
- *  with the rest of the hook translation, never in `kobe hook`. */
+/** Claude StopFailure `error_type` → neutral failure class. */
 function failureFromErrorType(errorType: unknown): EngineActivityDetail["failure"] {
   if (typeof errorType !== "string") return "other"
   if (errorType === "rate_limit" || errorType === "overloaded") return "rate_limit"
@@ -97,14 +79,12 @@ export function claudeSettingsPath(): string {
 /** Retired Rove verb in Claude WorktreeCreate hook records. */
 const WORKTREE_SYNC_VERB = "worktree-created"
 
-/** Build kobe's Claude activity hook groups (thin wrapper over the shared core,
- *  bound to Claude's {@link CLAUDE_HOOK_EVENT_MAP}). Exported for tests. */
+/** Shared core bound to {@link CLAUDE_HOOK_EVENT_MAP}. Exported for tests. */
 export function buildClaudeHooks(inv?: readonly string[]): Record<string, unknown> {
   return inv ? buildActivityHooks(CLAUDE_HOOK_EVENT_MAP, inv) : buildActivityHooks(CLAUDE_HOOK_EVENT_MAP)
 }
 
-/** Add/remove kobe's Claude activity hooks (thin wrapper over the shared core,
- *  bound to Claude's {@link CLAUDE_HOOK_EVENT_MAP}). Exported for tests. */
+/** Shared core bound to {@link CLAUDE_HOOK_EVENT_MAP}. Exported for tests. */
 export function mergeActivityHooks(
   current: Record<string, unknown>,
   install: boolean,
@@ -142,13 +122,7 @@ export class ClaudeHookAdapter extends JsonHookAdapter {
     return claudeSettingsPath()
   }
 
-  /**
-   * Fire-time translation: neutral verb + Claude's stdin payload → neutral
-   * detail. Only two verbs carry detail today: `turn-failed` (classify the
-   * StopFailure `error_type`) and `awaiting-input` (classified by the
-   * Notification payload's `notification_type` — `permission_prompt` vs
-   * `elicitation_dialog`, the two matchers kobe installs).
-   */
+  /** Fire-time translation of Claude's stdin payload into neutral detail. */
   override activityDetailFromPayload(
     kind: EngineActivityKind,
     payload: Record<string, unknown>,
@@ -179,9 +153,8 @@ export class ClaudeHookAdapter extends JsonHookAdapter {
     return undefined
   }
 
-  /** Claude pipes `session_id` + `transcript_path` on every hook payload —
-   *  the live session identity for whatever fired the hook, INCLUDING
-   *  user-typed `claude` sessions kobe never spawned. */
+  /** Every payload carries `session_id` (+ `transcript_path`), including
+   *  user-typed sessions kobe never spawned. */
   override sessionFromPayload(payload: Record<string, unknown>): EngineSessionRef | undefined {
     if (typeof payload.session_id !== "string" || !payload.session_id) return undefined
     return {
@@ -193,25 +166,16 @@ export class ClaudeHookAdapter extends JsonHookAdapter {
   }
 
   /**
-   * Claude stamps every subprocess it spawns with `CLAUDE_CODE_SESSION_ATTENDED`:
-   * `"1"` when a human is sitting in front of the session, `"0"` when it is
-   * headless (`claude -p`, the SDK). A hook is such a subprocess, so it reads
-   * the flag of the session that fired it.
-   *
-   * Only an explicit `"0"` counts as unattended. An older Claude that sets
-   * nothing must keep reporting — a missing variable meaning "drop" would
-   * take every badge dark on a version gap.
-   *
-   * NB `CLAUDE_CODE_CHILD_SESSION` is NOT the discriminator, though it reads
-   * like one: Claude sets it on every subprocess, so an attended session's own
-   * Bash tool calls carry it too.
+   * Claude stamps subprocesses (hooks included) with `CLAUDE_CODE_SESSION_ATTENDED`:
+   * `"1"` attended, `"0"` headless (`claude -p`, SDK). Only an explicit `"0"`
+   * counts — an older Claude that sets nothing must keep reporting.
+   * `CLAUDE_CODE_CHILD_SESSION` is NOT the discriminator: it's on every subprocess.
    */
   isUnattendedSession(env: NodeJS.ProcessEnv): boolean {
     return env.CLAUDE_CODE_SESSION_ATTENDED === "0"
   }
 
-  /** Claude is the only engine that ever wrote the legacy `WorktreeCreate`
-   *  provider hook, so it's the only one that cleans it up. */
+  /** Only Claude ever had the legacy `WorktreeCreate` hook to clean up. */
   override supportsWorktreeSync(): boolean {
     return true
   }

@@ -1,24 +1,13 @@
 /**
- * `kobe doctor --fix`: the diagnosis-to-remediation path.
+ * `kobe doctor --fix`. The fix kind IS the safety contract:
  *
- * Every fix doctor knows is one of two kinds, and the kind IS the safety
- * contract:
+ * - `run` — executed after a per-fix y/N; reversible, never destroys state
+ *   (daemon restart — engine PTYs survive in the host; idempotent installs).
+ * - `manual` — printed, never executed: killing live sessions, installing
+ *   software, logging in. {@link applyFixes} has no path that runs one.
  *
- * - `run` — safe to execute after a per-fix y/N confirmation: the action is
- *   reversible and never destroys state (a daemon restart — engine PTYs live
- *   in the separate host and survive it; an idempotent skill install).
- * - `manual` — doctor PRINTS the step but never executes it. Anything that
- *   kills live sessions (`kobe reset`, closing engine tabs), installs
- *   software, or logs in to an account lands here, and {@link applyFixes}
- *   has no code path that executes a manual fix.
- *
- * The criterion between the two: if the action went wrong, could the user
- * undo it themselves? No → `manual`.
- *
- * Each fix mirrors the remedy documented in `docs/TROUBLESHOOTING.md`; where
- * the documented fix is not runnable from here (engine logins, OS installs,
- * in-TUI tab restarts) it degrades to a printed pointer, so the two never
- * disagree.
+ * Criterion: if it went wrong, could the user undo it? No → `manual`.
+ * Fixes mirror `docs/TROUBLESHOOTING.md`; unrunnable remedies print a pointer.
  */
 
 import { createInterface } from "node:readline"
@@ -80,12 +69,8 @@ export function resetManualFix(cliName: string, reason: ResetReason): DoctorFix 
   }
 }
 
-/**
- * Orphaned PTY descendants: print-only, because the list can contain a process
- * the user deliberately backgrounded. Killing it is not undoable, and only the
- * user can tell those apart from a leak — so doctor shows the command and the
- * list, and never runs it behind a y/N.
- */
+/** Print-only: the list may hold a deliberately backgrounded process, and only
+ *  the user can tell it from a leak. */
 export function killOrphansManualFix(cliName: string, count: number): DoctorFix {
   return {
     kind: "manual",
@@ -107,11 +92,7 @@ export function engineTabsManualFix(): DoctorFix {
   }
 }
 
-/**
- * The install this process runs from was deleted. Print-only,
- * and not because it is dangerous: doctor cannot reinstall Rove over the
- * running process, and the running process is the one asking.
- */
+/** Install deleted. Print-only: can't reinstall over the running process. */
 export function reinstallManualFix(): DoctorFix {
   return {
     kind: "manual",
@@ -146,12 +127,7 @@ export function humanOnlyFix(reason: HumanOnlyReason, vars?: Record<string, stri
   }
 }
 
-/**
- * The engine remedy, branched on WHICH half failed. Nothing installed → say
- * install. A CLI on PATH with no account → say log in, and name the engines:
- * "install an engine CLI" printed under a row carrying that CLI's absolute
- * path sends the user to solve a problem they do not have.
- */
+/** Nothing installed → install; CLI present but signed out → log in, naming them. */
 export function noEngineFix(signedOut: readonly string[]): DoctorFix {
   return signedOut.length > 0 ? humanOnlyFix("noEngineLogin", { list: signedOut.join(", ") }) : humanOnlyFix("noEngine")
 }
@@ -185,11 +161,7 @@ export interface FixRuntime {
   readonly interactive: boolean
 }
 
-/**
- * Walk the collected fixes: runnable ones are shown (label, exact command,
- * why it is safe) and individually confirmed before executing; manual ones
- * are printed with the step and why doctor refuses to run it.
- */
+/** Runnable fixes are shown and individually confirmed; manual ones only printed. */
 export async function applyFixes(collected: readonly DoctorFix[], rt: FixRuntime): Promise<void> {
   const fixes = dedupeFixes(collected)
   if (fixes.length === 0) {

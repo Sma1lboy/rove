@@ -1,16 +1,10 @@
 /**
- * Breaking-version reset gate.
+ * Breaking-version reset gate: when the binary and `app.lastRunVersion` straddle
+ * a {@link BREAKING_VERSIONS} entry, the TUI refuses to start until `kobe reset`
+ * (tears down daemon/PTY host/sessions and re-stamps).
  *
- * `state.json` remembers the last version that ran (`app.lastRunVersion`).
- * When the running binary and that stamp sit on opposite sides of a
- * version in {@link BREAKING_VERSIONS}, the on-disk daemon/task/UI state
- * may be incompatible — so the app entrance (the default TUI)
- * refuses to start until the user runs `kobe reset`, which tears down the
- * daemon/PTY host/sessions and re-stamps the gate.
- *
- * Deliberately NOT enforced for non-app subcommands (`update`, `doctor`,
- * `reset` itself, `api`, …): the user must always be able to inspect and
- * recover a gated install.
+ * NOT enforced for non-app subcommands (`update`, `doctor`, `reset`, `api`, …):
+ * a gated install must stay inspectable and recoverable.
  */
 
 import { loadStateFile, patchStateFile } from "../state/store.ts"
@@ -20,10 +14,8 @@ import { activeCliName } from "./rename-compat.ts"
 export const LAST_RUN_VERSION_KEY = "app.lastRunVersion"
 
 /**
- * Pure decision: the breaking versions blocking a start, given the stored
- * stamp. A missing/non-string stamp is a fresh install (or a pre-gate
- * build's state) — nothing to block, the caller stamps and proceeds.
- * Direction-agnostic, same rule as {@link breakingVersionsCrossed}.
+ * Breaking versions blocking a start. A missing stamp is a fresh (or pre-gate)
+ * install: nothing blocks. Direction-agnostic, like {@link breakingVersionsCrossed}.
  */
 export function resetGateBlockers(
   lastRun: unknown,
@@ -35,11 +27,7 @@ export function resetGateBlockers(
   return breaking.filter((b) => compareSemver(b, lo) > 0 && compareSemver(b, hi) <= 0)
 }
 
-/**
- * Enforce the gate at an app entrance: exit(1) with instructions when a
- * breaking version was crossed since the last run, otherwise re-stamp the
- * current version (best-effort) and return.
- */
+/** exit(1) with instructions if blocked, else re-stamp (best-effort). */
 export function enforceResetGate(): void {
   const cliName = activeCliName()
   const lastRun = loadStateFile()[LAST_RUN_VERSION_KEY]
@@ -63,11 +51,8 @@ export function enforceResetGate(): void {
   if (lastRun !== CURRENT_VERSION) stampResetGate()
 }
 
-/**
- * Stamp the gate as satisfied for the running version. Called after a pass
- * and by `kobe reset` on completion (which is what clears a block).
- * Best-effort: a read-only FS must not turn the stamp into a crash.
- */
+/** Stamp the running version (also how `kobe reset` clears a block).
+ *  Best-effort: a read-only FS must not crash startup. */
 export function stampResetGate(): void {
   try {
     patchStateFile({ [LAST_RUN_VERSION_KEY]: CURRENT_VERSION })

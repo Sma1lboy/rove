@@ -1,13 +1,7 @@
 /**
- * `RemoteOrchestrator`'s write surface — each function forwards one daemon
- * RPC. Every mutation the client can make crosses the socket here, which is
- * the seam against `-reads.ts`: those are synchronous reads of the replayed
- * local cache and cannot fail, these are all async and every one of them is a
- * place the daemon can be gone.
- *
- * Same behavior, moved verbatim. The class keeps its public method
- * names/signatures — each is now a 1-line delegate to the matching function
- * here.
+ * `RemoteOrchestrator`'s write surface: each function forwards one daemon RPC.
+ * Unlike `-reads.ts` (synchronous cache reads that can't fail), every call here
+ * is async and can find the daemon gone.
  */
 
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
@@ -41,9 +35,7 @@ export async function createTaskOp(
     groupId?: string
   },
 ): Promise<Task> {
-  // The daemon's `task.create` payload spells effort as `effort`; the task
-  // field is `modelEffort` — remap on the wire so the daemon's
-  // `optionalString(payload, "effort")` picks it up.
+  // The wire spells `modelEffort` as `effort`.
   const { modelEffort, ...rest } = input
   const res = await client.request<{ task: SerializedTask }>("task.create", {
     ...rest,
@@ -57,8 +49,7 @@ export async function ensureMainTaskOp(client: KobeDaemonClient, repo: string): 
   return deserializeTask(res.task)
 }
 
-/** Open a directory as a `kind:"dir"` task; `scratch` marks a temp shell
- *  task for the sidebar's Scratch section (issue #33). */
+/** Open a directory as a `kind:"dir"` task; `scratch` puts it in the sidebar's Scratch section. */
 export async function openDirectoryTaskOp(
   client: KobeDaemonClient,
   input: { dir: string; scratch?: boolean },
@@ -67,7 +58,7 @@ export async function openDirectoryTaskOp(
   return deserializeTask(res.task)
 }
 
-/** Scratch → project migration (issue #33): repoint + clear the flag. */
+/** Scratch → project migration: repoint + clear the flag. */
 export async function adoptScratchRepoOp(client: KobeDaemonClient, id: TaskId | string, repo: string): Promise<void> {
   await client.request("task.adoptScratchRepo", { taskId: String(id), repo })
 }
@@ -82,11 +73,9 @@ export async function forgetProjectOp(client: KobeDaemonClient, repo: string): P
 }
 
 /**
- * Fire-and-forget `turn-interrupted` report for a tab whose engine ended
- * its turn with NO hook of its own — an ESC interrupt (issue #15; the TUI's
- * `InterruptObserver` confirmed the engine's resting title against a
- * hook-claimed `running`). Same `engine.reportEvent` verb the `kobe hook`
- * processes use, so the daemon reduces + broadcasts it like any hook event.
+ * Fire-and-forget `turn-interrupted` for a turn that ended with NO hook (ESC
+ * interrupt, confirmed by `InterruptObserver`). Same `engine.reportEvent` verb
+ * as `kobe hook`, so the daemon treats it like any hook event.
  */
 export function reportEngineInterruptOp(client: KobeDaemonClient, taskId: string, tabId: string): void {
   void client.request("engine.reportEvent", { kind: "turn-interrupted", taskId, tabId }).catch(() => {})
@@ -107,8 +96,7 @@ export async function setVendorOp(
   effort?: string,
   model?: string,
 ): Promise<void> {
-  // `effort`/`model` are omitted from the payload when the caller has no
-  // opinion, so the daemon can tell "leave it alone" from `""` = clear it.
+  // Omitted = leave alone; `""` = clear.
   await client.request("task.setVendor", {
     taskId: String(id),
     vendor,
@@ -141,10 +129,8 @@ export async function moveTaskOp(client: KobeDaemonClient, id: TaskId | string, 
   })
 }
 
-/** Record a task's brief (`task.setPrompt`). Second writer after the CLI
- *  `add` path: the row menu's "Run again" copies a task's stored brief onto
- *  the fork it creates, so the child can itself be re-run and `get-task`
- *  shows the words its engine is being handed. */
+/** Record a task's brief. "Run again" copies it onto the fork so the child can
+ *  itself be re-run and `get-task` shows what its engine was handed. */
 export async function setPromptOp(client: KobeDaemonClient, id: TaskId | string, prompt: string): Promise<void> {
   await client.request("task.setPrompt", { taskId: String(id), prompt })
 }
@@ -202,18 +188,14 @@ export async function markAttentionReadOp(
   return res.updated
 }
 
-/** Read-only land probe (`task.landPreflight`): the merge destination, the
- *  commit count, and any refusal — all without writing. The land confirm reads
- *  it so the dialog can name what it is merging into. */
+/** Read-only land probe: merge destination, commit count, any refusal. */
 export async function landPreflightOp(client: KobeDaemonClient, id: TaskId | string): Promise<LandPreflight> {
   const res = await client.request<{ result: LandPreflight }>("task.landPreflight", { taskId: String(id) })
   return res.result
 }
 
-/** Land a task's branch back into its base repo (`task.land`). Merge or
- *  squash; optionally delete the branch after. The daemon throws with a
- *  `LAND_CONFLICT`/`MAIN_CHECKOUT_DIRTY` sentinel in the message on the
- *  guarded failures, which the caller matches to prompt/print. */
+/** Land a task's branch into its base repo. Guarded failures throw with a
+ *  `LAND_CONFLICT`/`MAIN_CHECKOUT_DIRTY` sentinel the caller matches on. */
 export async function landTaskOp(
   client: KobeDaemonClient,
   id: TaskId | string,
@@ -256,10 +238,8 @@ export async function adoptWorktreeOp(
   return deserializeTask(res.task)
 }
 
-/** Every worktree of every local saved project — the standalone
- *  worktree-management TUI page (`worktree.list`). `network: false` skips
- *  the slow forge lookups (ls-remote, gh PR states) for an instant first
- *  paint; the page re-requests with them on for the full picture. */
+/** Every worktree of every saved project. `network: false` skips the slow forge
+ *  lookups (ls-remote, gh PR states) for an instant first paint. */
 export async function listWorktreesOp(
   client: KobeDaemonClient,
   opts?: { network?: boolean },
@@ -270,10 +250,8 @@ export async function listWorktreesOp(
   return res.projects
 }
 
-/** Remove a worktree (`worktree.remove`); refuses a dirty one unless
- *  `force` is true — same safety property `GitWorktreeManager.remove`
- *  always had. Resolves with the leftover directory when git deregistered the
- *  worktree but could not delete it, null on a clean removal. */
+/** Remove a worktree; refuses a dirty one unless `force`. Resolves with the
+ *  leftover directory when git deregistered but couldn't delete it, else null. */
 export async function removeWorktreeOp(
   client: KobeDaemonClient,
   path: string,
@@ -283,12 +261,8 @@ export async function removeWorktreeOp(
   return res.residue ?? null
 }
 
-/**
- * Merge a task's base branch INTO its worktree (`task.syncBase`) — the answer
- * to the sidebar's `↓N` drift chip. Rejects with a `SYNC_CONFLICT: <files>` /
- * `SYNC_WORKTREE_DIRTY` message the caller matches, the same shape
- * `landTaskOp` already uses for `LAND_CONFLICT`.
- */
+/** Merge a task's base branch INTO its worktree (the `↓N` chip). Rejects with a
+ *  `SYNC_CONFLICT: <files>` / `SYNC_WORKTREE_DIRTY` sentinel the caller matches. */
 export async function syncBaseOp(
   client: KobeDaemonClient,
   taskId: string,
@@ -299,11 +273,7 @@ export async function syncBaseOp(
   return res.result
 }
 
-/**
- * A PR's FAILING checks with their log tails (`pr.failingChecks`) — the
- * sidebar's "Fix failing checks". On demand only; the daemon spawns `gh` per
- * call, so this must never be wired to a poll.
- */
+/** A PR's FAILING checks with log tails. Never poll it: the daemon spawns `gh` per call. */
 export async function failingChecksOp(client: KobeDaemonClient, taskId: string): Promise<CIFailingChecksRead> {
   const res = await client.request<{
     checks?: readonly CIFailingCheck[]
@@ -313,9 +283,7 @@ export async function failingChecksOp(client: KobeDaemonClient, taskId: string):
   return {
     checks: res.checks ?? [],
     totalFailing: res.totalFailing ?? 0,
-    // Carried through verbatim. An empty `checks` is three different answers
-    // on the daemon side and only this field separates them; dropping it here
-    // would put the collapse back one layer down.
+    // Only this field tells the three meanings of an empty `checks` apart.
     ...(res.unavailable ? { unavailable: res.unavailable } : {}),
   }
 }
@@ -325,43 +293,34 @@ export async function listIssuesOp(client: KobeDaemonClient, repoRoot: string): 
   return client.request<RepoIssues>("issue.list", { repoRoot })
 }
 
-/** Repo roots the issue store holds a record for (`issue.repos`) — the kanban
- *  page's board source. A repo with a backlog is a board section; deriving the
- *  set from the task index instead made a landed-and-deleted task take its
- *  whole backlog off screen. */
+/** Repo roots the issue store holds a record for — the kanban's board source.
+ *  Not derived from the task index: deleting a repo's last task would hide its backlog. */
 export async function listIssueReposOp(client: KobeDaemonClient): Promise<readonly string[]> {
   const res = await client.request<{ repos?: readonly string[] }>("issue.repos", {})
   return res.repos ?? []
 }
 
-/** A repo's durable field notes, newest first (`note.list`) — the sidebar's
- *  project-row reader. Same wire shape `state/field-notes.ts` reads at launch,
- *  but through the daemon so the reader sees the whole live store (50), not
- *  the 15-note launch cap. */
+/** A repo's field notes, newest first — the whole live store (50), not the
+ *  15-note launch cap `state/field-notes.ts` applies. */
 export async function listFieldNotesOp(client: KobeDaemonClient, repo: string): Promise<readonly StoredFieldNote[]> {
   const res = await client.request<{ notes?: readonly StoredFieldNote[] }>("note.list", { repo })
   return res.notes ?? []
 }
 
-/** Retire one field note by id (`note.delete`) — the reader dialog's `d`.
- *  `false` means the id named nothing, which the caller renders rather than
- *  throwing: the retention ring may already have evicted it. */
+/** Retire one field note. `false` = id not found (the retention ring may have
+ *  evicted it); the caller renders that rather than throwing. */
 export async function deleteFieldNoteOp(client: KobeDaemonClient, repo: string, id: number): Promise<boolean> {
   const res = await client.request<{ deleted?: boolean }>("note.delete", { repo, id })
   return res.deleted === true
 }
 
-/** One issue-store mutation (`issue.mutate`) — the op union lives in the
- *  daemon's issues-store (create/setStatus/update/link/unlink/delete). The
- *  kanban detail drawer uses `link` (start → task) and `setStatus`. */
+/** One issue-store mutation; the op union lives in the daemon's issues-store. */
 export async function mutateIssueOp(client: KobeDaemonClient, repoRoot: string, op: unknown): Promise<RepoIssues> {
   return client.request<RepoIssues>("issue.mutate", { repoRoot, op })
 }
 
-/** Scheduled automations (`automation.list`) — the automations page read.
- *  `lastRunStatus` is the latest run's status per automation id, absent for a
- *  routine that has never run: what a list row needs to show health without a
- *  second request per row. */
+/** Scheduled automations. `lastRunStatus` = latest run's status per id, absent
+ *  for a never-run routine (row health without a request per row). */
 export async function listAutomationsOp(client: KobeDaemonClient): Promise<{
   automations: Automation[]
   keepsDaemonAlive: boolean
@@ -403,8 +362,7 @@ export async function deleteAutomationOp(client: KobeDaemonClient, id: string): 
   return client.request("automation.delete", { id })
 }
 
-/** External tracker items for a repo (`workitem.list`) — the read-only
- *  work-items page. `refresh` bypasses the daemon's 60s cache. */
+/** External tracker items for a repo. `refresh` bypasses the daemon's 60s cache. */
 export async function listWorkItemsOp(
   client: KobeDaemonClient,
   args: {
@@ -419,8 +377,7 @@ export async function listWorkItemsOp(
   return client.request<{ items: WorkItem[] }>("workitem.list", args)
 }
 
-/** Start a task on one external item (`workitem.start`) — creates the
- *  worktree, starts the engine with the issue as its first message. */
+/** Start a task on one external item, with the issue as the engine's first message. */
 export async function startWorkItemOp(
   client: KobeDaemonClient,
   args: { repo: string; number: number; vendor?: string; baseRef?: string },
@@ -428,31 +385,19 @@ export async function startWorkItemOp(
   return client.request<{ taskId: string; title: string; started: boolean }>("workitem.start", args)
 }
 
-/**
- * Mark a task as the active focus (the session just switched/entered).
- * The daemon publishes it on the `active-task` channel so every Tasks
- * pane + the outer monitor highlight the same task.
- */
+/** Mark the focused task; published on `active-task` so every pane highlights it. */
 export async function setActiveTaskOp(client: KobeDaemonClient, id: TaskId | string | null): Promise<void> {
   await client.request("task.setActive", {
     taskId: id === null ? null : String(id),
   })
 }
 
-/**
- * Acknowledge whether this TUI closed an exact Terminal Tab request
- * (`terminalTab.closeReply`). Fire-and-forget: a dead daemon just means the
- * broker times out on its side.
- */
+/** Ack a Terminal Tab close request. Fire-and-forget: the broker times out on its side. */
 export function replyTabCloseOp(client: KobeDaemonClient, requestId: string, closed: boolean): void {
   void client.request("terminalTab.closeReply", { requestId, closed }).catch(() => {})
 }
 
-/**
- * Answer a `ui.prompt` request (the host input dialog); omitting `value`
- * reports a cancel. Fire-and-forget, like the tab-close reply above: the
- * broker times out on the daemon's side if nothing arrives.
- */
+/** Answer a `ui.prompt`; omitting `value` = cancel. Fire-and-forget (broker times out). */
 export function replyPromptOp(client: KobeDaemonClient, promptId: string, value?: string): void {
   void client.request("ui.promptReply", { promptId, ...(value !== undefined ? { value } : {}) }).catch(() => {})
 }
