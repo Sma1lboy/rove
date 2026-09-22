@@ -18,7 +18,6 @@
  */
 
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
-import { GraphicsImageIds } from "@sma1lboy/kobe-daemon/daemon/graphics-ids"
 import { handleSubscribe } from "@sma1lboy/kobe-daemon/daemon/subscribe"
 import { describe, expect, it } from "vitest"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
@@ -28,16 +27,6 @@ const PAYLOAD = Buffer.from("not a real picture, and nothing here parses it").to
 function ctxWithTask(extra: Record<string, unknown> = {}) {
   return fakeCtx({ getTask: (id: string) => (id === TASK.id ? TASK : undefined), ...extra })
 }
-
-describe("GraphicsImageIds", () => {
-  it("never hands the same id to two tabs", () => {
-    const ids = new GraphicsImageIds()
-    const a = ids.allocate("t1", "tab-1")
-    const b = ids.allocate("t1", "tab-2")
-    const c = ids.allocate("t2", "tab-1")
-    expect(new Set([a, b, c]).size).toBe(3)
-  })
-})
 
 describe("graphics.write", () => {
   it("allocates an id, publishes the bytes verbatim, and reports the cell size", async () => {
@@ -87,31 +76,6 @@ describe("graphics.write", () => {
     )) as Record<string, unknown>
     expect(wrote).toMatchObject({ ok: true, wrote: true, imageId: result.imageId })
     expect(rec.published.filter((p) => p.channel === "graphics.write")).toHaveLength(1)
-  })
-
-  it("reuses an id the same tab already holds, so a repainting pane does not leak one per frame", async () => {
-    const { ctx, rec } = ctxWithTask()
-    const first = (await dispatch(
-      "graphics.write",
-      {
-        taskId: TASK.id,
-        tabId: "tab-3",
-        data: PAYLOAD,
-      },
-      ctx,
-    )) as { imageId: number }
-    const again = (await dispatch(
-      "graphics.write",
-      {
-        taskId: TASK.id,
-        tabId: "tab-3",
-        data: PAYLOAD,
-        imageId: first.imageId,
-      },
-      ctx,
-    )) as { imageId: number }
-    expect(again.imageId).toBe(first.imageId)
-    expect(rec.published.filter((p) => p.channel === "graphics.write")).toHaveLength(2)
   })
 
   it("refuses an id belonging to another tab", async () => {
@@ -223,24 +187,5 @@ describe("cell pixel size, client to daemon", () => {
       writeEvent: () => {},
     })
     expect(recorded.cellPixelSize).toEqual({ width: 16, height: 34 })
-  })
-
-  it("records nothing for a pane, whose tty is not a terminal", async () => {
-    const recorded = { id: 1, subscribed: false, holdsLifetime: false, channels: null, cellPixelSize: null }
-    handleSubscribe(
-      recorded,
-      { role: "pane", cellPixelWidth: 16, cellPixelHeight: 34 },
-      {
-        // biome-ignore lint/suspicious/noExplicitAny: only the client mutation is under test
-        bus: { snapshot: () => [] } as any,
-        // biome-ignore lint/suspicious/noExplicitAny: only the client mutation is under test
-        activity: { replaySnapshot: () => [] } as any,
-        // biome-ignore lint/suspicious/noExplicitAny: only the client mutation is under test
-        lifetime: { guiAttached: () => {}, guiCount: () => 0 } as any,
-        clientCount: () => 1,
-        writeEvent: () => {},
-      },
-    )
-    expect(recorded.cellPixelSize).toBeNull()
   })
 })

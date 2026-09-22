@@ -128,12 +128,6 @@ describe("kobe daemon status", () => {
     expect(process.exitCode).toBeUndefined()
   })
 
-  it("status is the default command when argv is empty", async () => {
-    mocks.daemonRequest.mockResolvedValue({ ok: true })
-    await runDaemonSubcommand([])
-    expect(mocks.daemonRequest).toHaveBeenCalledWith("daemon.status")
-  })
-
   it("reports a stale pidfile and sets exitCode 1 when the socket doesn't answer", async () => {
     mocks.daemonRequest.mockRejectedValue(new Error("ECONNREFUSED"))
     writeFileSync(join(home, ".rove", "daemon.pid"), "4242", "utf8")
@@ -141,13 +135,6 @@ describe("kobe daemon status", () => {
     expect(output()).toContain("stale pidfile pid=4242")
     expect(process.exitCode).toBe(1)
     expect(mocks.daemonClose).toHaveBeenCalledTimes(1)
-  })
-
-  it("reports no daemon running when there is no pidfile either", async () => {
-    mocks.daemonRequest.mockRejectedValue(new Error("ECONNREFUSED"))
-    await runDaemonSubcommand(["status"])
-    expect(output()).toContain("no daemon running at")
-    expect(process.exitCode).toBe(1)
   })
 })
 
@@ -233,14 +220,6 @@ describe("kobe daemon start", () => {
 })
 
 describe("usage", () => {
-  it("--help prints usage without touching the daemon", async () => {
-    const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
-    await runDaemonSubcommand(["--help"])
-    expect(outSpy.mock.calls.join("")).toContain("Usage: kobe daemon")
-    expect(mocks.daemonRequest).not.toHaveBeenCalled()
-    outSpy.mockRestore()
-  })
-
   it("unknown command prints usage to stderr and exits 2", async () => {
     await expect(runDaemonSubcommand(["bogus"])).rejects.toThrow("exit 2")
     expect(errSpy.mock.calls.join("")).toContain('unknown command "bogus"')

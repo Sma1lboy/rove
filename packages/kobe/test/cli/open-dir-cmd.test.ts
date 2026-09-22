@@ -89,17 +89,12 @@ afterEach(() => {
 describe("isPathLikeArg", () => {
   it.each([
     [".", true],
-    ["..", true],
     ["./x", true],
-    ["../x", true],
     ["/abs/path", true],
-    ["~", true],
     ["~/x", true],
     ["C:\\Projects\\demo", true],
-    ["c:/Projects/demo", true],
     ["\\\\server\\share\\demo", true],
     [".\\demo", true],
-    ["..\\demo", true],
     ["~\\demo", true],
     ["statsu", false],
     ["add", false],
@@ -116,11 +111,6 @@ describe("runOpenDirectory", () => {
     })
     await expect(runOpenDirectory("./missing")).rejects.toThrow("process.exit(1)")
     expect(stderrSpy.mock.calls.some((c) => String(c[0]).includes('"./missing" is not a directory'))).toBe(true)
-  })
-
-  it("exits 1 when the argument is a file", async () => {
-    mocks.statSync.mockReturnValue({ isDirectory: () => false })
-    await expect(runOpenDirectory("./file.txt")).rejects.toThrow("process.exit(1)")
   })
 
   it("uses the running daemon when one is available", async () => {

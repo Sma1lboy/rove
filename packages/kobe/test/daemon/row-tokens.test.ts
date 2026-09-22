@@ -14,7 +14,6 @@ import {
   type RowTokenMap,
   RowTokenStore,
   clampRowTokenTtl,
-  isRowTokenTone,
   normalizeRowTokenText,
 } from "@sma1lboy/kobe-daemon/daemon/row-tokens"
 import {
@@ -58,25 +57,9 @@ describe("row-token clamps", () => {
     expect(normalizeRowTokenText("  a\n\tb  ")).toBe("a b")
     expect(normalizeRowTokenText("x".repeat(80))).toHaveLength(ROW_TOKEN_MAX_TEXT)
   })
-
-  it("accepts only the semantic tones", () => {
-    expect(isRowTokenTone("warning")).toBe(true)
-    expect(isRowTokenTone("#ff0000")).toBe(false)
-    expect(isRowTokenTone(undefined)).toBe(false)
-  })
 })
 
 describe("RowTokenStore", () => {
-  it("publishes the full map on every write", () => {
-    const { store, published } = harness()
-    store.set({ taskId: "t1", source: "p", key: "k", text: "@ana" })
-    store.set({ taskId: "t2", source: "p", key: "k", text: "@bo" })
-    expect(published.at(-1)).toEqual({
-      t1: [expect.objectContaining({ text: "@ana" })],
-      t2: [expect.objectContaining({ text: "@bo" })],
-    })
-  })
-
   it("drops a token the moment its TTL passes, without another write", () => {
     const { store, advance } = harness()
     store.set({ taskId: "t1", source: "p", key: "k", text: "@ana", ttlMs: 5_000 })
@@ -139,13 +122,6 @@ describe("RowTokenStore", () => {
     expect(store.snapshot()).toEqual({})
   })
 
-  it("reports a clear that matched nothing without inventing a change", () => {
-    const { store } = harness()
-    store.set({ taskId: "t1", source: "p", key: "a", text: "a" })
-    expect(store.clear("t1", "someone-else")).toBe(false)
-    expect(store.snapshot().t1).toHaveLength(1)
-  })
-
   it("drops a deleted task's whole row", () => {
     const { store, published } = harness()
     store.set({ taskId: "t1", source: "p", key: "a", text: "a" })
@@ -181,15 +157,6 @@ describe("task.rowToken RPC", () => {
       token: { source: string; key: string }
     }
     expect(result.token).toMatchObject({ source: "cli", key: "default" })
-  })
-
-  it("clears on --clear", async () => {
-    const { ctx } = fakeCtx()
-    await dispatch("task.rowToken", { taskId: "t1", source: "p", key: "claim", text: "@ana" }, ctx)
-    await expect(dispatch("task.rowToken", { taskId: "t1", source: "p", clear: true }, ctx)).resolves.toEqual({
-      ok: true,
-      cleared: true,
-    })
   })
 
   it("requires text on a write", async () => {

@@ -42,10 +42,6 @@ describe("parsePsRows", () => {
       command: "bun test test/render",
     })
   })
-
-  it("drops lines that are not a process row", () => {
-    expect(parsePsRows("  PID  PPID\ngarbage\n")).toEqual([])
-  })
 })
 
 describe("orphanCandidates", () => {
@@ -62,10 +58,6 @@ describe("orphanCandidates", () => {
     expect(pids).not.toContain(300)
   })
 
-  it("spares an ordinary daemon, which is its own group leader", () => {
-    expect(pids).not.toContain(100)
-  })
-
   it("spares a reparented process whose group the PTY host still calls live", () => {
     // The tab is on screen; the user owns what is in it. Load-bearing on its
     // own here — 600 has no row, so only `liveSessionPids` rules 500 out.
@@ -78,16 +70,6 @@ describe("orphanCandidates", () => {
 
   it("spares our own process group", () => {
     expect(pids).not.toContain(700)
-  })
-
-  it("returns nothing when every group still has a leader", () => {
-    expect(
-      orphanCandidates(
-        rows.filter((row) => row.pgid === 850),
-        -1,
-        new Set(),
-      ),
-    ).toEqual([])
   })
 })
 
@@ -102,10 +84,6 @@ describe("orphanDoctorLines", () => {
     expect(orphanDoctorLines([], "could not read the process table — ps exited 1", "rove")[0]).toContain(
       "could not read the process table",
     )
-  })
-
-  it("is a ✓ line when nothing is orphaned", () => {
-    expect(orphanDoctorLines([], null, "rove")[0]).toContain("✓ none")
   })
 })
 

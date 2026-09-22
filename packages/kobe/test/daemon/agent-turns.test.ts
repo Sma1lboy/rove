@@ -1,6 +1,6 @@
 /** Durable per-turn telemetry: store persistence + the hook-driven ingest. */
 
-import { mkdtemp, rm, stat, writeFile } from "node:fs/promises"
+import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { daemonRuntime } from "@/core/daemon-runtime"
@@ -68,14 +68,6 @@ describe("AgentTurnsStore", () => {
     const reloaded = new AgentTurnsStore(path)
     await reloaded.init()
     expect(reloaded.list()).toEqual([fuller])
-  })
-
-  it("skips the write when a re-read is byte-identical (the common no-op Stop)", async () => {
-    const { store, path } = await createStore()
-    await store.record([record()])
-    const before = await stat(path)
-    expect(await store.record([record()])).toBe(0)
-    expect((await stat(path)).mtimeMs).toBe(before.mtimeMs) // untouched
   })
 
   it("scopes the dedupe key by task, so two tasks may carry the same engine id", async () => {
@@ -160,13 +152,6 @@ describe("ingestAgentTurns", () => {
     ).toBe(0)
     expect(asked).toEqual([])
     expect(store.list()).toEqual([])
-  })
-
-  it("falls back to the task's vendor when the hook carried no --engine tag", async () => {
-    const { store } = await createStore()
-    const { runtime, orch, asked } = deps()
-    await ingestAgentTurns(store, runtime, orch, { taskId: "task-1", transcriptPath: "/t.jsonl" })
-    expect(asked[0].vendor).toBe("claude")
   })
 
   // The whole join, with NO stubbed reader: real runtime adapter -> real

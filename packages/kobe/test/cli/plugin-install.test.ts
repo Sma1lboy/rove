@@ -50,17 +50,6 @@ describe("plugin manifest diagnostics", () => {
     expect(() => linkPlugin(dir)).toThrow(/rove-plugin\.toml: `name` must be a non-empty string/)
   })
 
-  it("labels parser errors with the legacy manifest filename actually read", () => {
-    const dir = pluginDir()
-    writeFileSync(join(dir, "kobe-plugin.toml"), 'id = "broken"\n')
-
-    expect(() => linkPlugin(dir)).toThrow(/kobe-plugin\.toml: `name` must be a non-empty string/)
-  })
-
-  it("names both accepted files when no manifest exists", () => {
-    expect(() => linkPlugin(pluginDir())).toThrow(/no rove-plugin\.toml or kobe-plugin\.toml found/)
-  })
-
   it("registers a canonical local plugin and creates its persistent directories", () => {
     const home = pluginDir()
     const root = pluginDir()

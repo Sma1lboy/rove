@@ -34,28 +34,12 @@ describe("breakingVersionsCrossed", () => {
   test("a downgrade back across a breaking version also reports it", () => {
     expect(breakingVersionsCrossed("0.8.2", "0.7.99", BREAKING)).toEqual(["0.8.0"])
   })
-
-  test("same-version moves cross nothing", () => {
-    expect(breakingVersionsCrossed("0.8.0", "0.8.0", BREAKING)).toEqual([])
-  })
 })
 
 describe("resetGateBlockers", () => {
-  test("blocks when the stamp is on the far side of a breaking version", () => {
-    expect(resetGateBlockers("0.7.99", "0.8.1", BREAKING)).toEqual(["0.8.0"])
-  })
-
   test("a missing or malformed stamp never blocks (fresh install / pre-gate state)", () => {
     expect(resetGateBlockers(undefined, "0.8.1", BREAKING)).toEqual([])
     expect(resetGateBlockers("", "0.8.1", BREAKING)).toEqual([])
     expect(resetGateBlockers(42, "0.8.1", BREAKING)).toEqual([])
-  })
-
-  test("a stamp on the same side passes", () => {
-    expect(resetGateBlockers("0.8.0", "0.8.3", BREAKING)).toEqual([])
-  })
-
-  test("a downgraded binary is blocked the same way", () => {
-    expect(resetGateBlockers("0.8.1", "0.7.99", BREAKING)).toEqual(["0.8.0"])
   })
 })

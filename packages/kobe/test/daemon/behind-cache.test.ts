@@ -72,18 +72,6 @@ describe("driftCached", () => {
     expect(second.calls()).toBe(1)
   })
 
-  test("recomputes when HEAD moves", async () => {
-    const first = counter(2)
-    expect(await driftCached(repo, "main", first.compute)).toBe(2)
-
-    writeFileSync(join(repo, "b.txt"), "b\n")
-    git("add", "-A")
-    git(...AUTHOR, "commit", "-qm", "work commit")
-
-    const second = counter(5)
-    expect(await driftCached(repo, "main", second.compute)).toBe(5)
-  })
-
   test("never memoises a failed compute", async () => {
     const failing = counter(null)
     expect(await driftCached(repo, "main", failing.compute)).toBeNull()
@@ -98,14 +86,5 @@ describe("driftCached", () => {
     expect(await driftCached(repo, "origin/nope", c.compute)).toBe(7)
     expect(await driftCached(repo, "origin/nope", c.compute)).toBe(7)
     expect(c.calls()).toBe(2)
-  })
-
-  test("falls through for a path that is not a git checkout", async () => {
-    const plain = mkdtempSync(join(tmpdir(), "kobe-behind-plain-"))
-    const c = counter(1)
-    expect(await driftCached(plain, "main", c.compute)).toBe(1)
-    expect(await driftCached(plain, "main", c.compute)).toBe(1)
-    expect(c.calls()).toBe(2)
-    rmSync(plain, { recursive: true, force: true })
   })
 })

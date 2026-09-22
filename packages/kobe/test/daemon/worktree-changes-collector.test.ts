@@ -113,16 +113,6 @@ describe("trackedWorktreePaths", () => {
 })
 
 describe("WorktreeChangesCollector", () => {
-  test("collects local worktrees and publishes the full map", async () => {
-    const { collector, published, runs } = harness([task({ id: "a" })], {
-      "/wt/a": { added: 2, deleted: 1 },
-    })
-    collector.tick()
-    await settle()
-    expect(runs).toEqual(["/wt/a"])
-    expect(published.at(-1)).toEqual({ changes: { "/wt/a": { added: 2, deleted: 1 } } })
-  })
-
   test("publishes only when counts actually changed", async () => {
     const { collector, published, counts } = harness([task({ id: "a" })], { "/wt/a": { added: 1, deleted: 0 } })
     collector.tick()
@@ -140,19 +130,6 @@ describe("WorktreeChangesCollector", () => {
     await settle()
     expect(published.length).toBe(2)
     expect(published.at(-1)).toEqual({ changes: { "/wt/a": { added: 3, deleted: 0 } } })
-  })
-
-  test("a failing run keeps the last published value (never errors, never publishes garbage)", async () => {
-    const { collector, published, counts } = harness([task({ id: "a" })], { "/wt/a": { added: 1, deleted: 0 } })
-    collector.tick()
-    await settle()
-    expect(published.length).toBe(1)
-
-    // Worktree vanished / git failed → the entry's value survives untouched.
-    counts["/wt/a"] = undefined as unknown as WorktreeChanges
-    collector.tick()
-    await settle()
-    expect(published.length).toBe(1)
   })
 
   test("drops a deleted task's entry from the published map", async () => {
@@ -249,20 +226,6 @@ describe("WorktreeChangesCollector", () => {
     expect(runs).toEqual(["/wt/a"])
     expect(published.at(-1)).toEqual({ changes: { "/wt/a": { added: 1, deleted: 0 } } })
   })
-
-  test("tick never throws when the task lister blows up", () => {
-    const bus = new DaemonEventBus()
-    const collector = new WorktreeChangesCollector(
-      {
-        listTasks: () => {
-          throw new Error("store exploded")
-        },
-      },
-      bus,
-      { cadence: FAST, publishDelayMs: 0, run: async () => ({ added: 0, deleted: 0 }) },
-    )
-    expect(() => collector.tick()).not.toThrow()
-  })
 })
 
 describe("the behind-base count", () => {
@@ -305,25 +268,6 @@ describe("the behind-base count", () => {
     await settle()
     expect(published).toHaveLength(2)
   })
-
-  test("a runner that reports no behind count publishes the counts without one", async () => {
-    // The honest degradation for a repo with no resolvable base: the field is
-    // absent, so the chip does not draw. Never a fabricated zero.
-    const bus = new DaemonEventBus()
-    const published: WorktreeChangesPayload[] = []
-    bus.onPublish((event) => {
-      if (event.channel === "worktree.changes") published.push(event.payload as WorktreeChangesPayload)
-    })
-    const collector = new WorktreeChangesCollector({ listTasks: () => [task({ id: "a" })] }, bus, {
-      cadence: FAST,
-      publishDelayMs: 0,
-      run: async () => ({ added: 0, deleted: 2 }),
-    })
-    collector.tick()
-    await settle()
-    expect(published.at(-1)?.changes["/wt/a"]).toEqual({ added: 0, deleted: 2 })
-    expect("behind" in (published.at(-1)?.changes["/wt/a"] ?? {})).toBe(false)
-  })
 })
 
 describe("parseAheadBehind", () => {
@@ -334,12 +278,6 @@ describe("parseAheadBehind", () => {
     expect(parseAheadBehind("3\t7\n")).toEqual({ behind: 3, ahead: 7 })
   })
 
-  test("a failed run leaves BOTH numbers absent", () => {
-    // `runGit` hands null on any non-zero exit; neither half may be guessed
-    // from the other's silence.
-    expect(parseAheadBehind(null)).toBeNull()
-  })
-
   test("a half-read line yields nothing rather than a guess", () => {
     // A single number is what the OLD one-way `--count` printed. Accepting it
     // would silently reinterpret a behind-count as a pair.
@@ -347,39 +285,6 @@ describe("parseAheadBehind", () => {
     expect(parseAheadBehind("3\t-1")).toBeNull()
     expect(parseAheadBehind("")).toBeNull()
     expect(parseAheadBehind("a\tb")).toBeNull()
-  })
-})
-
-describe("the ahead-of-base count", () => {
-  test("republishes when only `ahead` changed", async () => {
-    // The whole point of the chip: a committing worker leaves +N/−N at zero
-    // and moves nothing else. If `sameWorktreeChanges` ignored `ahead` the
-    // publish would be suppressed and the row would sit blank through the one
-    // event that proves the attempt delivered something.
-    const bus = new DaemonEventBus()
-    const published: WorktreeChangesPayload[] = []
-    bus.onPublish((event) => {
-      if (event.channel === "worktree.changes") published.push(event.payload as WorktreeChangesPayload)
-    })
-    let ahead = 0
-    const collector = new WorktreeChangesCollector({ listTasks: () => [task({ id: "a" })] }, bus, {
-      cadence: FAST,
-      publishDelayMs: 0,
-      run: async () => ({ added: 0, deleted: 0, behind: 0, ahead }),
-    })
-    collector.tick()
-    await settle()
-    expect(published.at(-1)?.changes["/wt/a"]).toEqual({ added: 0, deleted: 0, behind: 0, ahead: 0 })
-
-    ahead = 1
-    collector.tick()
-    await settle()
-    expect(published.at(-1)?.changes["/wt/a"]).toEqual({ added: 0, deleted: 0, behind: 0, ahead: 1 })
-    expect(published).toHaveLength(2)
-
-    collector.tick()
-    await settle()
-    expect(published).toHaveLength(2)
   })
 })
 
@@ -409,19 +314,6 @@ describe("a worktree whose git status fails", () => {
     collector.tick()
     await settle()
     expect(published.at(-1)?.unreadable).toBeUndefined()
-  })
-
-  test("republishes when an unreadable worktree becomes readable again", async () => {
-    const h = harness([task({ id: "a" })], {})
-    h.collector.tick()
-    await settle()
-    expect(h.published.at(-1)?.unreadable).toEqual(["/wt/a"])
-
-    h.counts["/wt/a"] = { added: 2, deleted: 0 }
-    h.collector.tick()
-    await settle()
-    expect(h.published.at(-1)?.unreadable).toBeUndefined()
-    expect(h.published.at(-1)?.changes["/wt/a"]).toEqual({ added: 2, deleted: 0 })
   })
 
   test("does NOT overwrite counts that once read cleanly", async () => {

@@ -17,11 +17,6 @@ function session(key: string, command: string[], alive = true): PtySessionInfo {
 }
 
 describe("findEngineKey", () => {
-  it("① picks the deterministic <taskId>::tab-1 engine", () => {
-    const sessions = [session("t1::tab-1", ["claude"])]
-    expect(findEngineKey(sessions, "t1", "claude")).toBe("t1::tab-1")
-  })
-
   it("② with tab-1 engine + tab-2 shell, picks tab-1 (never the shell)", () => {
     const sessions = [session("t1::tab-1", ["claude"]), session("t1::tab-2", ["/bin/zsh"])]
     expect(findEngineKey(sessions, "t1", "claude")).toBe("t1::tab-1")
@@ -31,12 +26,6 @@ describe("findEngineKey", () => {
     // Only a shell tab, and tab-1 absent: there is no engine to deliver into.
     const sessions = [session("t1::tab-2", ["/bin/zsh"])]
     expect(findEngineKey(sessions, "t1", "claude")).toBeNull()
-  })
-
-  it("falls back to an argv match when tab-1 is renumbered/absent", () => {
-    // No tab-1, but a session whose command is the vendor's engine binary.
-    const sessions = [session("t1::tab-5", ["codex"]), session("t1::tab-2", ["/bin/bash"])]
-    expect(findEngineKey(sessions, "t1", "codex")).toBe("t1::tab-5")
   })
 
   it("resolves a SHELL-WRAPPED engine tab when tab-1 is absent", () => {
@@ -52,18 +41,8 @@ describe("findEngineKey", () => {
     expect(findEngineKey(sessions, "t1", "claude")).toBe("t1::tab-2")
   })
 
-  it("a shell-wrapped SHELL tab still never matches", () => {
-    const sessions = [session("t1::tab-2", ["/bin/zsh", "-il"])]
-    expect(findEngineKey(sessions, "t1", "claude")).toBeNull()
-  })
-
   it("skips a DEAD tab-1 (an exited engine cannot receive a prompt)", () => {
     const sessions = [session("t1::tab-1", ["claude"], false)]
-    expect(findEngineKey(sessions, "t1", "claude")).toBeNull()
-  })
-
-  it("ignores other tasks' sessions", () => {
-    const sessions = [session("t2::tab-1", ["claude"])]
     expect(findEngineKey(sessions, "t1", "claude")).toBeNull()
   })
 

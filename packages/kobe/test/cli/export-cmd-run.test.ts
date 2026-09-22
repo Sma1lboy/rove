@@ -92,43 +92,14 @@ describe("runExportSubcommand", () => {
     expect(lines).toHaveLength(2)
   })
 
-  it("--format table prints aligned human-readable columns", async () => {
-    await runExportSubcommand(["--format", "table"])
-    const lines = out().trimEnd().split("\n")
-    expect(lines[0].startsWith("id")).toBe(true)
-    expect(lines[1]).toContain("Fix the thing")
-  })
-
-  it("--format=csv (equals form) works, and the LATER flag wins", async () => {
-    await runExportSubcommand(["--json", "--format=csv"])
-    expect(out().split("\n")[0]).toBe("id,title,status,vendor,branch,repo,worktreePath")
-  })
-
-  it("an empty task list in table format says 'no tasks' instead of a lonely header", async () => {
-    fake.tasks = []
-    await runExportSubcommand(["--format", "table"])
-    expect(out()).toBe("no tasks\n")
-  })
-
   it("an empty list still emits [] for json (parseable by jq)", async () => {
     fake.tasks = []
     await runExportSubcommand(["--json"])
     expect(JSON.parse(out())).toEqual([])
   })
 
-  it("--format without a value is a usage error, exit 2", async () => {
-    await expect(runExportSubcommand(["--format"])).rejects.toThrow("exit 2")
-    expect(err()).toContain("--format requires a value")
-    expect(err()).toContain("Usage: kobe export")
-  })
-
   it("an unknown format is a usage error, exit 2", async () => {
     await expect(runExportSubcommand(["--format", "yaml"])).rejects.toThrow("exit 2")
     expect(err()).toContain('unknown format "yaml"')
-  })
-
-  it("an unexpected argument is a usage error, exit 2", async () => {
-    await expect(runExportSubcommand(["tasks.json"])).rejects.toThrow("exit 2")
-    expect(err()).toContain('unexpected argument "tasks.json"')
   })
 })

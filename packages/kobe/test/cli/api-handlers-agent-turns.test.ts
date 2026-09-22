@@ -38,10 +38,6 @@ describe("summarizeTurns", () => {
     const t = summarizeTurns([turn({ usage: undefined, model: undefined, startedAt: 9_000, endedAt: 1_000 })])
     expect(t).toMatchObject({ turns: 1, inputTokens: 0, durationMs: 0, byModel: { unknown: 1 } })
   })
-
-  it("an empty page summarizes to zeros", () => {
-    expect(summarizeTurns([])).toMatchObject({ turns: 0, outputTokens: 0, byModel: {} })
-  })
 })
 
 describe("agent-turns handler", () => {

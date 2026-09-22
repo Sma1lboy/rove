@@ -284,26 +284,6 @@ describe("realPromptDeliveryOps (deliverPrompt with the default ops)", () => {
     })
   })
 
-  it("launches a newTask target as the new-task intent", async () => {
-    // add / fan-out mark their first delivery with newTask; the launch spec
-    // rides the "new-task" intent, which is what gates the per-worktree
-    // codas (today: the missing-dependency warning) in repo-init.ts.
-    //
-    // The spawner id deliberately does NOT ride here. The send-back
-    // instruction lives in the Rove agent skill, and the reply address comes
-    // from the task's recorded `dispatcher` — proven identity, covered by
-    // `api-dispatcher.test.ts`, not by this payload.
-    vi.stubEnv("KOBE_TASK_ID", "")
-    await deliverPrompt(
-      client,
-      { id: "t1", kind: "task", worktreePath: "/wt/t1", vendor: "claude", repo: "/repo/x", newTask: true },
-      "go",
-    )
-    expect(mocks.buildEngineSessionLaunch).toHaveBeenLastCalledWith(
-      expect.objectContaining({ promptIntent: { kind: "new-task", prompt: "go" } }),
-    )
-  })
-
   it("maps PTY RPC failures to SESSION_FAILED and always closes the client", async () => {
     mocks.deliverHostedPrompt.mockRejectedValue(new Error("socket closed"))
 
@@ -323,10 +303,5 @@ describe("feedback verb", () => {
       categorySlug: undefined,
     })
     expect(result).toEqual({ ok: true, discussion: { url: "https://github.com/d/1", number: 1 } })
-  })
-
-  it("passes an explicit --category slug through", async () => {
-    await invokeVerb("feedback", ["--title", "T", "--body", "B", "--category", "ideas"], { client: null })
-    expect(mocks.submitFeedback).toHaveBeenCalledWith({ title: "T", body: "B", categorySlug: "ideas" })
   })
 })

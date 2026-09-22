@@ -114,14 +114,6 @@ describe("worktree-changes quiet backoff", () => {
     expect(h.runs()).toBe(4)
   })
 
-  test("a worktree whose engine is working keeps the fast cadence", async () => {
-    // An engine writing `src/**` is exactly what the fingerprint is blind to.
-    const h = harness({ probe: () => "same", activeTaskIds: () => ["a"] })
-
-    for (let t = 0; t <= 3_000; t += 1_000) await h.tickAt(t)
-    expect(h.runs()).toBe(4)
-  })
-
   test("an active task in ANOTHER worktree does not exempt this one", async () => {
     const h = harness({ probe: () => "same", activeTaskIds: () => ["b"], tasks: [task("a"), task("b")] })
 

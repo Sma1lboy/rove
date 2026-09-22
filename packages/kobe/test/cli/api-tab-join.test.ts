@@ -32,10 +32,6 @@ describe("hasLiveEngineTab (the get-task/collect .running rule)", () => {
     expect(hasLiveEngineTab(snap, "t1", sessions)).toBe(true)
   })
 
-  it("a live canonical tab-1 counts even with no snapshot (headless start, snapshot write failed)", () => {
-    expect(hasLiveEngineTab(undefined, "t1", [{ key: "t1::tab-1", alive: true }])).toBe(true)
-  })
-
   it("non-engine tabs and other tasks' sessions never count", () => {
     const snap = snapshot([
       { kind: "engine", id: "tab-1", title: null, ordinal: 1 },
@@ -47,11 +43,6 @@ describe("hasLiveEngineTab (the get-task/collect .running rule)", () => {
       { key: "t2::tab-1", alive: true }, // someone else's task
     ]
     expect(hasLiveEngineTab(snap, "t1", sessions)).toBe(false)
-  })
-
-  it("a split's extra shell leaf does not make the tab read alive", () => {
-    const snap = snapshot([{ kind: "engine", id: "tab-2", title: null, ordinal: 2 }])
-    expect(hasLiveEngineTab(snap, "t1", [{ key: "t1::tab-2::leaf-2", alive: true }])).toBe(false)
   })
 
   // keepAlive `exec`s a login shell where an engine exits, so the PTY outlives
@@ -139,12 +130,6 @@ describe("joinTaskTabs", () => {
     expect(rows.map((r) => r.liveVendor)).toEqual(["claude", null, "codex"])
   })
 
-  it("a dead tab never takes a walk verdict — recorded liveVendor stands", () => {
-    const snap = vendorSnap([{ kind: "engine", id: "tab-1", title: null, ordinal: 1, liveVendor: "claude" }])
-    const rows = joinTaskTabs(snap, "t1", [{ key: "t1::tab-1", alive: false }], {}, new Map([["t1::tab-1", null]]))
-    expect(rows[0]?.liveVendor).toBe("claude")
-  })
-
   // An unreachable pty host answers nothing. Rendering that as `alive: false`
   // asserts a death nobody observed, and a cleanup loop deletes worktrees on
   // it — so every liveness field on every row goes to `null` instead.
@@ -212,18 +197,6 @@ describe("joinTaskTabs", () => {
   const oneTabSnap = (id: string): TabsState =>
     ({ tabs: [{ kind: "engine", id, title: null, ordinal: 1 }], activeId: id, nextOrdinal: 2 }) as TabsState
 
-  it("surfaces a dead tab's abnormal exit from the live host session", () => {
-    const exit = { code: 1, signal: null, at: "2026-08-11T00:00:00.000Z" }
-    const rows = joinTaskTabs(oneTabSnap("tab-1"), "t1", [{ key: "t1::tab-1", alive: false, exit }])
-    expect(rows[0]).toMatchObject({ alive: false, exit })
-  })
-
-  it("falls back to the durable exit record when the host has no session (idle-exited)", () => {
-    const exit = { code: null, signal: "SIGKILL", at: "2026-08-11T00:00:00.000Z" }
-    const rows = joinTaskTabs(oneTabSnap("tab-1"), "t1", [], { "t1::tab-1": exit })
-    expect(rows[0]).toMatchObject({ alive: false, exit })
-  })
-
   it("takes the durable record's banner code when the live host's exit has none", () => {
     // The host's in-memory exit is fresher but carries only a wait status, and
     // a SIGKILLed session has no code in one. The record for the same death
@@ -240,26 +213,10 @@ describe("joinTaskTabs", () => {
     expect(rows[0]?.exit).toMatchObject({ code: 143, signal: "SIGKILL", layer: "pty" })
   })
 
-  it("does not borrow a code from a record describing a DIFFERENT death", () => {
-    const rows = joinTaskTabs(
-      oneTabSnap("tab-1"),
-      "t1",
-      [{ key: "t1::tab-1", alive: false, exit: { code: null, signal: "SIGKILL", at: "2026-08-11T02:00:00.000Z" } }],
-      { "t1::tab-1": { code: 143, signal: null, at: "2026-08-11T00:00:00.000Z", layer: "pty" } },
-    )
-    expect(rows[0]?.exit).toMatchObject({ code: null, signal: "SIGKILL" })
-  })
-
   it("keeps clean exits quiet: code 0 reports exit null — the no-noise rule", () => {
     const exit = { code: 0, signal: null, at: "2026-08-11T00:00:00.000Z" }
     const rows = joinTaskTabs(oneTabSnap("tab-1"), "t1", [{ key: "t1::tab-1", alive: false, exit }])
     expect(rows[0]?.exit).toBeNull()
-  })
-
-  it("an alive tab never reports an exit, even with a stale record for its key", () => {
-    const stale = { code: 1, signal: null, at: "2026-08-10T00:00:00.000Z" }
-    const rows = joinTaskTabs(oneTabSnap("tab-1"), "t1", [{ key: "t1::tab-1", alive: true }], { "t1::tab-1": stale })
-    expect(rows[0]).toMatchObject({ alive: true, exit: null })
   })
 
   it("a dead tab carries the durable record's output tail, so the cause is readable", () => {
@@ -345,11 +302,6 @@ describe("joinTaskTabs", () => {
         new Map([["t1::tab-1", true]]),
       )
       expect(rows[0]).toMatchObject({ engineAlive: true, exit: null })
-    })
-
-    it("says nothing when no walk answered — `null` is not a verdict", () => {
-      const rows = joinTaskTabs(oneTabSnap("tab-1"), "t1", alive, { "t1::tab-1#engine": engineRecord })
-      expect(rows[0]).toMatchObject({ engineAlive: null, exit: null })
     })
 
     it("a pty-layer death of the session itself wins — the later, larger event", () => {

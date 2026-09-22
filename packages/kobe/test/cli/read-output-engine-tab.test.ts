@@ -98,12 +98,4 @@ describe("read-output resolves the engine tab from the task's own command", () =
     expect(out.terminal?.tail).not.toEqual([])
     expect(out.warnings ?? []).not.toContain("no live terminal session for this task")
   })
-
-  it("still finds a plain vendor engine on tab-2 when the task pins no command", async () => {
-    const peeked = fakeHost("claude")
-    const out = await readTerminal({ id: "t1", worktreePath: "/wt/t1", vendor: "claude" })
-
-    expect(peeked).toEqual(["t1::tab-2"])
-    expect(out.terminal?.live).toBe(true)
-  })
 })

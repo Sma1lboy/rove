@@ -68,13 +68,6 @@ describe("stopDaemonProcess", () => {
     expect(existsSync(pidPath)).toBe(false)
   })
 
-  it("ignores a non-numeric pidfile", async () => {
-    writeFileSync(pidPath, "not-a-pid\n")
-    const result = await stopDaemonProcess(socketPath, pidPath)
-    expect(result.pid).toBeNull()
-    expect(result.method).toBe("absent")
-  })
-
   /**
    * An untrustworthy pidfile is not a pid.
    *

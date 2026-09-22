@@ -13,12 +13,9 @@ describe("windowsPipePath", () => {
 })
 
 describe("isWindowsPipePath", () => {
-  test("recognises both pipe spellings", () => {
+  test("recognises both pipe spellings and rejects filesystem socket paths", () => {
     expect(isWindowsPipePath("\\\\.\\pipe\\kobe-abc12345-pty")).toBe(true)
     expect(isWindowsPipePath("//./pipe/kobe-abc12345-pty")).toBe(true)
-  })
-
-  test("rejects filesystem socket paths", () => {
     // A false positive here would skip the unlink that clears a stale unix
     // socket on POSIX, stranding the next host behind an EADDRINUSE.
     expect(isWindowsPipePath("/Users/dev/.kobe/pty.sock")).toBe(false)

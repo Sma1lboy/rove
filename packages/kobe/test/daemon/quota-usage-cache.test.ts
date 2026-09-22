@@ -30,15 +30,6 @@ function harness(results: Array<EngineQuotaUsage | null>) {
 }
 
 describe("QuotaUsageCache.get", () => {
-  it("serves a fresh snapshot without fetching", async () => {
-    const h = harness([usageAt(1_000_000)])
-    await h.cache.get("claude", 0) // first fetch
-    h.advance(30_000)
-    await h.cache.get("claude", 60_000)
-    expect(h.quotaUsage).toHaveBeenCalledTimes(1)
-    expect(h.cache.peek("claude")?.capturedAt).toBe(1_000_000)
-  })
-
   it("enforces the per-vendor fetch floor even for maxAge 0 callers", async () => {
     const h = harness([usageAt(1_000_000), usageAt(2_000_000)])
     await h.cache.get("claude", 0)

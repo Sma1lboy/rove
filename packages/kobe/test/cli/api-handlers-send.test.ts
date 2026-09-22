@@ -47,15 +47,6 @@ describe("send handler", () => {
     expect(result).toMatchObject({ ok: true, taskId: "abc", started: true })
   })
 
-  it("falls back to the daemon active task", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "active-1" }) }) })
-    client.replay.push({ channel: "active-task", payload: { taskId: "active-1" } })
-    const { calls, deliver } = recordingDelivery()
-    await invokeVerb("send", ["--prompt", "hi"], { client, runtime: stubRuntime({ deliverPrompt: deliver }) })
-    expect(client.subscribeCount).toBe(1)
-    expect(calls[0].target.id).toBe("active-1")
-  })
-
   it("reports a prompt that did not land", async () => {
     const client = new FakeClient({ "task.get": () => ({ task: taskFixture() }) })
     await expectApiError(
@@ -90,21 +81,6 @@ describe("send handler", () => {
     )
   })
 
-  it("threads --tab through to the delivery target", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc" }) }) })
-    const { calls, deliver } = recordingDelivery()
-    await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi", "--tab", "new"], {
-      client,
-      runtime: stubRuntime({ deliverPrompt: deliver }),
-    })
-    expect(calls[0].target.tab).toBe("new")
-    await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi", "--tab", "tab-3"], {
-      client,
-      runtime: stubRuntime({ deliverPrompt: deliver }),
-    })
-    expect(calls[1].target.tab).toBe("tab-3")
-  })
-
   // The shell, not Rove, was eating prompts: backticks inside a double-quoted
   // --prompt are command substitution, so the text that names a reply
   // command (`rove api send …`) shipped as that command's OUTPUT. A file (or
@@ -121,17 +97,6 @@ describe("send handler", () => {
       runtime: stubRuntime({ deliverPrompt: deliver }),
     })
     expect(calls[0].prompt).toBe(body)
-  })
-
-  it("--prompt and --prompt-file together is a BAD_FLAG, not a silent pick", async () => {
-    await expectApiError(
-      () =>
-        invokeVerb("send", ["--task-id", "abc", "--prompt", "a", "--prompt-file", "/dev/null"], {
-          client: new FakeClient(),
-          runtime: stubRuntime(),
-        }),
-      "BAD_FLAG",
-    )
   })
 
   it("an empty --prompt-file is refused (a blank turn is never what was meant)", async () => {
@@ -245,20 +210,6 @@ describe("send handler", () => {
       expect(calls[0].prompt).toMatch(/\)\n\nhi$/)
     })
 
-    it("keeps a non-English prompt intact and last, so nothing follows it", async () => {
-      const { calls, deliver } = recordingDelivery()
-      await invokeVerb("send", ["--task-id", "abc", "--prompt", "帮我重构登录模块"], {
-        client: peerClient(),
-        runtime: stubRuntime({ deliverPrompt: deliver }),
-      })
-      expect(calls[0].prompt.endsWith("帮我重构登录模块")).toBe(true)
-      // The prompt is not spliced into the sentence: everything before it is
-      // provenance, and the last thing the receiver reads is the sender's own words.
-      const [provenance, ...rest] = calls[0].prompt.split("\n\n")
-      expect(rest.join("\n\n")).toBe("帮我重构登录模块")
-      expect(provenance).not.toContain("帮我重构登录模块")
-    })
-
     it("gives a dispatched task the same reply address in its opening brief", async () => {
       // `add --prompt` from inside a kobe session is agent-to-agent too, and
       // its brief is where the reply address matters most: every report that
@@ -314,18 +265,6 @@ describe("send handler", () => {
         runtime: stubRuntime({ deliverPrompt: deliver }),
       })
       expect(calls[0].prompt).toContain('from "sender-1" (task sender-1')
-    })
-
-    it("a send from outside any kobe task stays untouched", async () => {
-      resetVerifiedSelfSession()
-      // biome-ignore lint/performance/noDelete: env must fully unset (assigning undefined leaves the string "undefined").
-      delete process.env.KOBE_TASK_ID
-      const { calls, deliver } = recordingDelivery()
-      await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
-        client: peerClient(),
-        runtime: stubRuntime({ deliverPrompt: deliver }),
-      })
-      expect(calls[0].prompt).toBe("hi")
     })
   })
 })

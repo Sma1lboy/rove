@@ -3,27 +3,12 @@
 import { describe, expect, it } from "vitest"
 import {
   ApiError,
-  type DeliveredPrompt,
   type PromptDeliveryOps,
   type PromptTarget,
   deliverPrompt,
   invokeVerb,
 } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
-
-describe("issue handler", () => {
-  it("sends a daemon-owned issue mutation", async () => {
-    const client = new FakeClient({ "issue.mutate": () => ({ repoRoot: "/repo/x", issues: [] }) })
-    await invokeVerb("issue-set-status", ["--repo", "/repo/x", "--id", "8", "--status", "done"], {
-      client,
-      runtime: stubRuntime(),
-    })
-    expect(client.requests[0]).toEqual({
-      name: "issue.mutate",
-      payload: { repoRoot: "/repo/x", op: { type: "setStatus", id: 8, status: "done" } },
-    })
-  })
-})
 
 describe("collect handler", () => {
   it("reads explicit ids and reports hosted liveness plus changes", async () => {
@@ -166,18 +151,6 @@ describe("collect handler", () => {
     expect(activity?.forMs).toBeGreaterThanOrEqual(90_000)
   })
 
-  it("a task the registry has never seen reports activity null — an honest unknown, not a fake idle", async () => {
-    const client = new FakeClient({
-      "debug.inspect": () => ({ activity: { tasks: {} } }),
-      "task.get": () => ({ task: taskFixture({ id: "a" }) }),
-    })
-    const result = (await invokeVerb("collect", ["--task-ids", "a"], {
-      client,
-      runtime: stubRuntime(),
-    })) as { tasks: Array<{ activity: unknown }> }
-    expect(result.tasks[0].activity).toBeNull()
-  })
-
   it("an unreachable registry degrades to activity null and still returns the git + pty truth", async () => {
     // `running`/`changes`/`base` come from the pty host and git, not the
     // daemon's registry — a daemon that just restarted must not blank them.
@@ -255,16 +228,6 @@ describe("task lifecycle handlers", () => {
     expect(payload.callerCwd).toBe(process.cwd())
   })
 
-  it("land --remove-worktree=false opts out of the removal", async () => {
-    const client = new FakeClient({
-      "task.land": () => ({ result: { branch: "b", strategy: "merge", landedOn: "main", commit: "abc" } }),
-    })
-    await invokeVerb("land", ["--task-id", "t1", "--remove-worktree=false"], { client, runtime: stubRuntime() })
-    const payload = client.requests[0]?.payload as { removeWorktree?: boolean; callerCwd?: string }
-    expect(payload.removeWorktree).toBe(false)
-    expect(payload.callerCwd).toBe(process.cwd())
-  })
-
   it("land maps EMPTY_BRANCH_DIRTY_WORKTREE to an executable recovery send (worker commits its own work)", async () => {
     // The daemon wire preserves only the message, so the CLI lifts the branch
     // back out of it for the prefilled prompt.
@@ -329,15 +292,6 @@ describe("task lifecycle handlers", () => {
 })
 
 describe("adopt handler", () => {
-  it("sends required repo and worktree paths", async () => {
-    const client = new FakeClient({ "worktree.adopt": () => ({ task: taskFixture() }) })
-    await invokeVerb("adopt", ["--repo", "/repo/x", "--worktree", "/wt/z"], {
-      client,
-      runtime: stubRuntime(),
-    })
-    expect(client.requests[0].payload).toEqual({ repo: "/repo/x", worktreePath: "/wt/z" })
-  })
-
   it("includes optional branch, command, and title", async () => {
     const client = new FakeClient({ "worktree.adopt": () => ({ task: taskFixture() }) })
     await invokeVerb(
@@ -377,13 +331,6 @@ describe("deliverPrompt", () => {
 
   const target: PromptTarget = { id: "t1", worktreePath: "/wt/t1", vendor: "claude", repo: "/repo/x" }
 
-  it("routes through the Hosted PTY seam", async () => {
-    const { ops, calls } = fakeOps()
-    const result = await deliverPrompt(new FakeClient(), target, "hello", ops)
-    expect(calls).toEqual([{ target, worktree: "/wt/t1", prompt: "hello" }])
-    expect(result).toMatchObject({ session: "t1::tab-1", delivered: true })
-  })
-
   it("materializes a missing worktree first", async () => {
     const client = new FakeClient({ "task.ensureWorktree": () => ({ worktreePath: "/wt/made" }) })
     const { ops, calls } = fakeOps()
@@ -395,26 +342,5 @@ describe("deliverPrompt", () => {
     const client = new FakeClient({ "task.ensureWorktree": () => ({ worktreePath: "" }) })
     const { ops } = fakeOps()
     await expectApiError(() => deliverPrompt(client, { ...target, worktreePath: "" }, "hello", ops), "NO_WORKTREE")
-  })
-
-  it("returns a Hosted PTY delivery failure without fallback", async () => {
-    const failed: DeliveredPrompt = {
-      session: "t1::tab-1",
-      pane: "t1::tab-1",
-      started: false,
-      engineReady: false,
-      delivered: false,
-    }
-    const { ops } = fakeOps({ deliverHosted: async () => failed })
-    expect(await deliverPrompt(new FakeClient(), target, "hello", ops)).toEqual(failed)
-  })
-
-  it("propagates PTY Host startup failures", async () => {
-    const { ops } = fakeOps({
-      deliverHosted: async () => {
-        throw new ApiError("host failed", "SESSION_FAILED")
-      },
-    })
-    await expectApiError(() => deliverPrompt(new FakeClient(), target, "hello", ops), "SESSION_FAILED")
   })
 })

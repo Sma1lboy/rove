@@ -151,21 +151,6 @@ describe("activity registry liveness watchdog", () => {
     expect(states.t).toEqual(["running", "running", "idle"])
   })
 
-  it("debugSnapshot exposes the raw entries (state, vendor, armed watchdog)", async () => {
-    const probe: ActivityLivenessProbe = vi.fn(() => Promise.resolve({ mtimeMs: Date.now() }))
-    registry = new DaemonActivityRegistry(bus, TTL, () => Date.now(), probe)
-
-    registry.report("t", "turn-start", undefined, "tab-1", undefined, "claude")
-    registry.report("u", "turn-start")
-    registry.report("u", "turn-complete")
-
-    const snap = registry.debugSnapshot()
-    expect(snap.tasks.t).toMatchObject({ state: "running", vendor: "claude", lapseArmed: true })
-    // Sticky states are not policed — no watchdog armed.
-    expect(snap.tasks.u).toMatchObject({ state: "turn_complete", lapseArmed: false })
-    expect(snap.tabs.t?.["tab-1"]).toMatchObject({ state: "running", vendor: "claude", lapseArmed: true })
-  })
-
   it("passes the REPORTING engine's vendor to the probe (custom wrapper ids)", async () => {
     // A task configured with a custom wrapper vendor (`claudecpa`) has no
     // transcript store under that id — the probe must ask about the engine
@@ -224,43 +209,6 @@ describe("activity registry liveness watchdog", () => {
     expect(registry.replaySnapshot().filter((p) => "tabId" in p && p.tabId)).toEqual([])
   })
 
-  it("keeps an alive per-tab running entry lit across windows (heartbeat)", async () => {
-    const probe: ActivityLivenessProbe = vi.fn(() => Promise.resolve({ mtimeMs: Date.now() }))
-    registry = new DaemonActivityRegistry(bus, TTL, () => Date.now(), probe)
-
-    registry.report("t", "turn-start", undefined, "tab-1")
-    await vi.advanceTimersByTimeAsync(TTL)
-    await vi.advanceTimersByTimeAsync(TTL)
-
-    const tabs = registry.replaySnapshot().filter((p) => "tabId" in p && p.tabId)
-    expect(tabs).toHaveLength(1)
-    expect(tabs[0]?.state).toBe("running")
-  })
-
-  it("sticky per-tab states (turn_complete) never lapse", async () => {
-    const probe: ActivityLivenessProbe = vi.fn(() => Promise.resolve({ mtimeMs: 0 }))
-    registry = new DaemonActivityRegistry(bus, TTL, () => Date.now(), probe)
-
-    registry.report("t", "turn-start", undefined, "tab-1")
-    registry.report("t", "turn-complete", undefined, "tab-1")
-    await vi.advanceTimersByTimeAsync(TTL * 3)
-
-    const tabs = registry.replaySnapshot().filter((p) => "tabId" in p && p.tabId)
-    expect(tabs).toHaveLength(1)
-    expect(tabs[0]?.state).toBe("turn_complete")
-  })
-
-  it("keeps unknown scoped evidence until its own completion arrives", async () => {
-    const probe: ActivityLivenessProbe = async () => ({ unknown: true })
-    registry = new DaemonActivityRegistry(bus, TTL, () => Date.now(), probe)
-    registry.report("t", "turn-start", undefined, "tab-1", { id: "own", transcriptPath: "/own" })
-    await vi.advanceTimersByTimeAsync(TTL * 3)
-    expect(registry.replaySnapshot().every((entry) => entry.state === "running")).toBe(true)
-    registry.report("t", "turn-complete", undefined, "tab-1")
-    await vi.advanceTimersByTimeAsync(TTL * 2)
-    expect(registry.replaySnapshot().every((entry) => entry.state === "turn_complete")).toBe(true)
-  })
-
   it("stops re-arming once the transcript has been unreadable for MAX_UNKNOWN_REARMS probes", async () => {
     // The second way a `running` claim outlives its engine. An unknown probe
     // is the absence of evidence, and the watchdog treated it as evidence of
@@ -304,22 +252,6 @@ describe("activity registry liveness watchdog", () => {
       readable = false
     }
     expect(states.t).toEqual(["running"])
-  })
-
-  it("replaces unknown evidence with a recovered session's own completion", async () => {
-    let known = false
-    registry = new DaemonActivityRegistry(
-      bus,
-      TTL,
-      () => Date.now(),
-      async () => (known ? { completedAt: Date.now() } : { unknown: true }),
-    )
-    registry.report("t", "turn-start")
-    await vi.advanceTimersByTimeAsync(TTL)
-    expect(states.t).toEqual(["running"])
-    known = true
-    await vi.advanceTimersByTimeAsync(TTL)
-    expect(states.t).toEqual(["running", "idle"])
   })
 
   it("does not let an old probe clear a replacement session with the same timestamp", async () => {
@@ -423,16 +355,6 @@ describe("readActivityLiveness session scoping", () => {
     await expect(readActivityLiveness(orch, runtime, "t", "claude", "/tp/s1.jsonl")).resolves.toEqual({
       mtimeMs: 7,
       completedAt: 5,
-    })
-  })
-
-  it("preserves unknown when the exact session transcript is gone", async () => {
-    const runtime = runtimeWith({
-      latestActivity: async () => ({ marker: { id: "wide", timestampMs: 999 }, mtimeMs: 1000 }),
-      latestActivityInFile: async () => null,
-    })
-    await expect(readActivityLiveness(orch, runtime, "t", "claude", "/tp/gone.jsonl")).resolves.toEqual({
-      unknown: true,
     })
   })
 

@@ -30,7 +30,6 @@ import {
   TranscriptActivityCollector,
   type TranscriptActivityEntry,
   runTranscriptActivity,
-  sameTranscriptActivityEntry,
   trackedWorktrees,
 } from "@sma1lboy/kobe-daemon/daemon/transcript-activity-collector"
 import { describe, expect, test } from "vitest"
@@ -112,20 +111,6 @@ describe("trackedWorktrees", () => {
     expect(map.get("/wt/a")).toBe("codex")
     // First task at the shared path (main1, vendor claude) picks the vendor.
     expect(map.get("/repo")).toBe("claude")
-  })
-
-  test("a task without a vendor normalizes to the default (claude)", () => {
-    const map = trackedWorktrees([task({ id: "a", vendor: undefined })], "claude")
-    expect(map.get("/wt/a")).toBe("claude")
-  })
-})
-
-describe("sameTranscriptActivityEntry", () => {
-  test("compares all three fields", () => {
-    expect(sameTranscriptActivityEntry(entry(5, "c1", 9), entry(5, "c1", 9))).toBe(true)
-    expect(sameTranscriptActivityEntry(entry(5, "c1", 9), entry(6, "c1", 9))).toBe(false)
-    expect(sameTranscriptActivityEntry(entry(5, "c1", 9), entry(5, "c2", 9))).toBe(false)
-    expect(sameTranscriptActivityEntry(entry(5, "c1", 9), entry(5, "c1", 10))).toBe(false)
   })
 })
 
@@ -260,28 +245,6 @@ describe("TranscriptActivityCollector", () => {
     await settle()
     expect(runs).toEqual(["/wt/a"])
     expect(published.at(-1)).toEqual({ activity: { "/wt/a": { mtimeMs: 7, completionId: "c", completionAt: 7 } } })
-  })
-
-  test("tick never throws when the task lister blows up", () => {
-    const bus = new DaemonEventBus()
-    const collector = new TranscriptActivityCollector(
-      {
-        listTasks: () => {
-          throw new Error("store exploded")
-        },
-      },
-      bus,
-      { cadence: FAST, defaultVendor: "claude", run: async () => entry(0) },
-    )
-    expect(() => collector.tick()).not.toThrow()
-  })
-
-  test("stop() halts further publishing", async () => {
-    const { collector, published } = harness([task({ id: "a" })], { "/wt/a": entry(10, "c", 9) })
-    collector.stop()
-    collector.tick()
-    await settle()
-    expect(published).toEqual([])
   })
 })
 

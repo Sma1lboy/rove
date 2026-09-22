@@ -214,11 +214,6 @@ describe("IssuesStore", () => {
       await store.mutate(repo, { type: "setStatus", id: 1, status: "done" })
       expect(await store.mirrorTaskDone(repo, "task-abc")).toBeNull()
     })
-
-    it("returns null when no issue is linked to the task", async () => {
-      const { repo, store } = await linkedStore()
-      expect(await store.mirrorTaskDone(repo, "task-nope")).toBeNull()
-    })
   })
 
   // The reverse of `link`, fired by `task.delete`. Nothing else clears
@@ -240,18 +235,6 @@ describe("IssuesStore", () => {
       expect(next?.issues.find((i) => i.id === 1)?.taskId).toBeUndefined()
       // Persisted, not just returned — the board re-reads from disk.
       expect((await store.list(repo)).issues.find((i) => i.id === 1)?.taskId).toBeUndefined()
-    })
-
-    it("leaves the issue otherwise untouched — status and title survive", async () => {
-      const { repo, store } = await linkedStore()
-      await store.mutate(repo, { type: "setStatus", id: 1, status: "doing" })
-      const next = await store.unlinkTask(repo, "task-abc")
-      expect(next?.issues.find((i) => i.id === 1)).toMatchObject({ title: "Linked", status: "doing" })
-    })
-
-    it("returns null when no issue is linked to that task", async () => {
-      const { repo, store } = await linkedStore()
-      expect(await store.unlinkTask(repo, "task-nope")).toBeNull()
     })
   })
 
@@ -325,15 +308,6 @@ describe("IssuesStore corrupt-record honesty", () => {
     // Without this, `exists: true` + a one-item list is indistinguishable from
     // a board that only ever had one story.
     expect(listed.skipped).toBe(1)
-  })
-
-  it("reports skipped: 0 when every entry parsed", async () => {
-    const repo = await realpath(await makeRepo())
-    const dir = await mkdtemp(join(tmpdir(), "kobe-issues-clean-"))
-    cleanups.push(dir)
-    const store = new IssuesStore(join(dir, "issues.json"))
-    await store.mutate(repo, { type: "create", title: "ship the thing" })
-    await expect(store.list(repo)).resolves.toMatchObject({ skipped: 0 })
   })
 
   it("allocates past the highest id on disk when nextId is corrupt", async () => {

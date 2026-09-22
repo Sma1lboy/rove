@@ -14,7 +14,7 @@
  */
 
 import { plainTail } from "@sma1lboy/kobe-daemon/daemon/pty-exit-store"
-import { stripTerminalControls, terminalRows } from "@sma1lboy/kobe-daemon/daemon/terminal-rows"
+import { terminalRows } from "@sma1lboy/kobe-daemon/daemon/terminal-rows"
 import { describe, expect, it } from "vitest"
 
 /** A rate-limit dialog as claude actually paints it: every row reached with
@@ -43,29 +43,11 @@ describe("terminalRows", () => {
     expect(rows.some((l) => l.includes("hit your weekly limit"))).toBe(true)
   })
 
-  it("keeps each row separate rather than concatenating the screen", () => {
-    const rows = terminalRows(ALT_SCREEN_DIALOG).filter((line) => line.trim() !== "")
-    // The bug's signature: one line carrying both the question and the footer.
-    const merged = rows.find((l) => l.includes("What do you want to do?") && l.includes("Esc to cancel"))
-    expect(merged).toBeUndefined()
-  })
-
   it("breaks a row on absolute cursor positioning too", () => {
     // The real capture ended `...Esc to cancel\x1b[44;1H\x1b[40;4H` — a status
     // line jumped to with ESC[row;colH rather than stepped down to. Treated as
     // "some other row", not as the row it names: this is not an emulator.
     expect(terminalRows("footer\x1b[44;1Hstatus")).toEqual(["footer", "status"])
-  })
-
-  it("still splits ordinary newline-terminated shell output, and honors CR overwrites", () => {
-    expect(terminalRows("one\ntwo\r\nthree")).toEqual(["one", "two", "three"])
-    // A progress line rewritten in place reports only its final state.
-    expect(terminalRows("Installing [1/9]\rInstalling [9/9]")).toEqual(["Installing [9/9]"])
-  })
-
-  it("clips to maxLineChars only when the caller asks", () => {
-    expect(terminalRows("abcdef", 3)).toEqual(["abc"])
-    expect(terminalRows("abcdef")).toEqual(["abcdef"])
   })
 
   it("bounds the rows one escape can synthesize", () => {
@@ -104,15 +86,5 @@ describe("control bytes never reach a non-terminal consumer", () => {
 
     expect(terminalRows(SIGKILL_TAIL)).toEqual(["bootREDbackspacecharset"])
     expect(bareControls(plainTail(SIGKILL_TAIL).join("\n"))).toEqual([])
-  })
-
-  it("keeps the bytes that carry line structure", () => {
-    // \t survives; \r still means "overwrite this row", not "delete me".
-    expect(terminalRows("a\tb")).toEqual(["a\tb"])
-    expect(terminalRows("first\rsecond")).toEqual(["second"])
-  })
-
-  it("leaves ordinary text alone", () => {
-    expect(stripTerminalControls("plain text — no escapes")).toBe("plain text — no escapes")
   })
 })

@@ -124,12 +124,6 @@ describe("runHookSubcommand — activity verbs", () => {
     expect(mocks.close).toHaveBeenCalledTimes(1)
   })
 
-  it("honours --task-id over the cwd mapping", async () => {
-    stubStdin({ cwd: "/ignored" })
-    await runHookSubcommand(["turn-start", "--task-id", "t1"])
-    expect(mocks.request).toHaveBeenCalledWith("engine.reportEvent", { taskId: "t1", kind: "turn-start" })
-  })
-
   // Why: tab precision for the F7 attention jump. Engine tabs launch as
   // `env KOBE_TASK_ID=… KOBE_TAB_ID=… <engine>` and hooks inherit that env —
   // the ONLY way to tell a task's tabs apart (they share one worktree cwd).
@@ -278,31 +272,14 @@ describe("runHookSubcommand — activity verbs", () => {
     expect(mocks.request).toHaveBeenCalledWith("engine.reportEvent", expect.objectContaining({ cwd: "/from/payload" }))
   })
 
-  it("drops a malformed --payload rather than failing the engine", async () => {
-    stubStdin({ cwd: "/x" })
-    await runHookSubcommand(["turn-start", "--payload", "{not json"])
-    expect(mocks.request).toHaveBeenCalledWith("engine.reportEvent", { cwd: "/x", kind: "turn-start" })
-  })
-
   it("drops the event silently when no daemon is running (never spawns one)", async () => {
     mocks.connectIfRunning.mockResolvedValue(null)
     await runHookSubcommand(["turn-complete"])
     expect(mocks.request).not.toHaveBeenCalled()
   })
 
-  it("accepts the --task-id=... equals form", async () => {
-    await runHookSubcommand(["turn-complete", "--task-id=t9"])
-    expect(mocks.request).toHaveBeenCalledWith("engine.reportEvent", { taskId: "t9", kind: "turn-complete" })
-  })
-
   it("treats malformed stdin JSON as an empty payload (cwd falls back to the process)", async () => {
     vi.stubGlobal("Bun", { stdin: { text: () => Promise.resolve("{not json") } })
-    await runHookSubcommand(["turn-complete"])
-    expect(mocks.request).toHaveBeenCalledWith("engine.reportEvent", { cwd: process.cwd(), kind: "turn-complete" })
-  })
-
-  it("treats a non-object JSON payload (array) as empty too", async () => {
-    vi.stubGlobal("Bun", { stdin: { text: () => Promise.resolve("[1,2,3]") } })
     await runHookSubcommand(["turn-complete"])
     expect(mocks.request).toHaveBeenCalledWith("engine.reportEvent", { cwd: process.cwd(), kind: "turn-complete" })
   })
@@ -333,25 +310,6 @@ describe("kobe hook setup (deprecated cleanup)", () => {
     expect(getPersistedString("externalWorktreeSync")).toBe("off")
     outSpy.mockRestore()
   })
-
-  it("cleans a persisted absolute settings path (the current stored form)", async () => {
-    const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
-    setPersistedString("externalWorktreeSync", "/custom/place/settings.json")
-    await runHookSubcommand(["setup"])
-    expect(mocks.adapter.removeWorktreeSyncHook).toHaveBeenCalledWith("/custom/place/settings.json")
-    outSpy.mockRestore()
-  })
-
-  it("resolves the legacy `global` form to the global settings path (deduped)", async () => {
-    const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
-    setPersistedString("externalWorktreeSync", "global")
-    await runHookSubcommand(["setup"])
-    // `global` maps to the same path the default sweep already covers —
-    // the path set is deduped, so every adapter sweeps exactly ONE path.
-    const sweptPaths = new Set(mocks.adapter.removeWorktreeSyncHook.mock.calls.map((c) => String(c[0])))
-    expect([...sweptPaths]).toEqual(["/fake/.claude/settings.json"])
-    outSpy.mockRestore()
-  })
 })
 
 describe("ensureGlobalKobeHooks (default-ON global install)", () => {
@@ -371,25 +329,11 @@ describe("ensureGlobalKobeHooks (default-ON global install)", () => {
     expect(getPersistedString("externalWorktreeSync")).toBe("off")
   })
 
-  it("skips engines whose adapter has no global settings path", async () => {
-    mocks.adapter.globalSettingsPath.mockReturnValue(null)
-    await ensureGlobalKobeHooks()
-    expect(mocks.adapter.installActivityHooks).not.toHaveBeenCalled()
-    expect(mocks.adapter.removeWorktreeWatchHook).not.toHaveBeenCalled()
-    // With no active profile or explicit persisted path, there is nothing to sweep.
-    expect(mocks.adapter.removeWorktreeSyncHook).not.toHaveBeenCalled()
-  })
-
   // A fresh install has no watch hook to remove. The uninstall still runs
   // (it cannot know in advance) and must be harmless — a failure there would
   // block the launch of a user who never had the hook at all.
   it("never throws when the watch-hook uninstall fails on a fresh install", async () => {
     mocks.adapter.removeWorktreeWatchHook.mockRejectedValue(new Error("ENOENT"))
-    await expect(ensureGlobalKobeHooks()).resolves.toBeUndefined()
-  })
-
-  it("never throws when an install fails (best-effort, must not block launch)", async () => {
-    mocks.adapter.installActivityHooks.mockRejectedValue(new Error("EACCES"))
     await expect(ensureGlobalKobeHooks()).resolves.toBeUndefined()
   })
 

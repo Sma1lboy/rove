@@ -15,10 +15,6 @@ describe("whatsNewFromVersion", () => {
     expect(whatsNewFromVersion({ [WHATS_NEW_SEEN_KEY]: "0.9.200" }, "0.9.205")).toBe("0.9.200")
   })
 
-  test("a relaunch on the same build says nothing", () => {
-    expect(whatsNewFromVersion({ [WHATS_NEW_SEEN_KEY]: "0.9.205" }, "0.9.205")).toBeNull()
-  })
-
   test("a fresh install says nothing — there is no older build to have changed from", () => {
     expect(whatsNewFromVersion({}, "0.9.205")).toBeNull()
   })

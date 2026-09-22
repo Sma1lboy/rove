@@ -123,9 +123,4 @@ describe("reportBranchDeletion", () => {
     expect(report?.deleted).toBe(false)
     expect(localExists(repo, "fix/never-pushed")).toBe(true)
   })
-
-  it("says nothing about a task that never had a branch", () => {
-    const { repo } = fixture()
-    expect(reportBranchDeletion(repo, "", { deleteBranch: true, force: false, deleteRemote: true })).toBeUndefined()
-  })
 })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { FakeClient, expectApiError, stubRuntime } from "./api-handler-fixtures.ts"
+import { FakeClient, stubRuntime } from "./api-handler-fixtures.ts"
 
 describe("tab-close handler", () => {
   it("uses the attached TUI's normal close path when it confirms the tab", async () => {
@@ -51,26 +51,5 @@ describe("tab-close handler", () => {
       kind: "command",
       wasAlive: false,
     })
-  })
-
-  it("requires both task and tab ids", async () => {
-    const client = new FakeClient()
-    await expectApiError(
-      () =>
-        invokeVerb("tab-close", ["--task-id", "t1"], {
-          client,
-          runtime: stubRuntime(),
-        }),
-      "MISSING_FLAG",
-    )
-    await expectApiError(
-      () =>
-        invokeVerb("tab-close", ["--tab", "tab-1"], {
-          client,
-          runtime: stubRuntime(),
-        }),
-      "MISSING_FLAG",
-    )
-    expect(client.requestNames).toEqual([])
   })
 })

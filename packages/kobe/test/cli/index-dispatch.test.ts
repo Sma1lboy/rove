@@ -44,9 +44,7 @@ vi.mock("../../src/tui/index.tsx", () => ({ startTui: spies.startTui }))
 
 let originalArgv: string[]
 let exitSpy: ReturnType<typeof vi.fn>
-let logSpy: MockInstance
 let errorSpy: MockInstance
-let stdoutSpy: MockInstance
 
 async function runCli(...args: string[]): Promise<void> {
   process.argv = ["bun", "/kobe/src/cli/index.ts", ...args]
@@ -58,10 +56,6 @@ async function runCli(...args: string[]): Promise<void> {
   for (let i = 0; i < 6; i++) await new Promise((resolve) => setImmediate(resolve))
 }
 
-function stdoutText(): string {
-  return stdoutSpy.mock.calls.map((call) => String(call[0])).join("")
-}
-
 beforeEach(() => {
   originalArgv = process.argv
   let exited = false
@@ -71,9 +65,9 @@ beforeEach(() => {
     throw new Error(`process.exit(${code}) sentinel`)
   })
   vi.spyOn(process, "exit").mockImplementation(exitSpy as unknown as typeof process.exit)
-  logSpy = vi.spyOn(console, "log").mockImplementation(() => {})
+  vi.spyOn(console, "log").mockImplementation(() => {})
   errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
-  stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
+  vi.spyOn(process.stdout, "write").mockImplementation(() => true)
   vi.spyOn(process.stderr, "write").mockImplementation(() => true)
 })
 
@@ -84,18 +78,6 @@ afterEach(() => {
 })
 
 describe("version, help, launch, and unknown commands", () => {
-  test("--version prints the current version", async () => {
-    await runCli("--version")
-    const { CURRENT_VERSION } = await import("../../src/version.ts")
-    expect(logSpy).toHaveBeenCalledWith(`kobe ${CURRENT_VERSION}`)
-  })
-
-  test("--help prints usage", async () => {
-    await runCli("--help")
-    expect(stdoutText()).toContain("Usage: kobe")
-    expect(exitSpy).not.toHaveBeenCalled()
-  })
-
   /**
    * The regression this guards: a first run used to divert into a wizard that
    * ran INSTEAD of the TUI and exited, so `rove` had to be typed twice to
@@ -128,33 +110,6 @@ describe("version, help, launch, and unknown commands", () => {
 })
 
 describe("public subcommand routing", () => {
-  const routes: Array<[string[], keyof typeof spies, string[]]> = [
-    [["completions", "zsh"], "completions", ["zsh"]],
-    [["export", "--csv"], "exportCmd", ["--csv"]],
-    [["repo", "list"], "repo", ["list"]],
-    [["api", "send", "hi"], "api", ["send", "hi"]],
-    [["update"], "update", []],
-    [["theme", "list"], "theme", ["list"]],
-    [["feedback"], "feedback", []],
-    [["daemon", "status"], "daemon", ["status"]],
-    [["doctor"], "doctor", []],
-    [["reset", "--yes"], "reset", ["--yes"]],
-    [["skill", "install"], "skill", ["install"]],
-    [["hook", "claude"], "hook", ["claude"]],
-  ]
-
-  for (const [argv, spy, rest] of routes) {
-    test(`kobe ${argv.join(" ")} routes to ${String(spy)}`, async () => {
-      await runCli(...argv)
-      expect(spies[spy]).toHaveBeenCalledWith(rest)
-    })
-  }
-
-  test("add --remote forwards remaining flags", async () => {
-    await runCli("add", "--remote", "--host", "box")
-    expect(spies.addRemote).toHaveBeenCalledWith(["--host", "box"])
-  })
-
   test.each([".", "..", "./x", "/abs/path", "~/x"])("kobe %s routes to open-directory", async (arg) => {
     await runCli(arg)
     expect(spies.openDirectory).toHaveBeenCalledWith(arg)

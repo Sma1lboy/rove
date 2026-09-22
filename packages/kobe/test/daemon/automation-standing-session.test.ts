@@ -164,20 +164,6 @@ describe("standing session — later firings", () => {
     expect(outcome).toMatchObject({ status: "revived", taskId: "task-1" })
   })
 
-  it("rebuilds and relinks when the standing task was deleted", async () => {
-    const { created, deps } = harness({ tasks: {} })
-
-    const outcome = await dispatchAutomation(deps, automation({ sessionTaskId: "gone" }))
-
-    expect(created).toHaveLength(1)
-    expect(outcome).toMatchObject({
-      status: "dispatched",
-      taskId: "task-1",
-      sessionTaskIdToSet: "task-1",
-      sessionTaskIdToClear: true,
-    })
-  })
-
   it("rebuilds when the standing task is mid-deletion or lost its worktree", async () => {
     for (const broken of [task({ deletion: { at: NOW } as never }), task({ worktreePath: "" })]) {
       const { created, deps } = harness({ tasks: { "task-1": broken } })

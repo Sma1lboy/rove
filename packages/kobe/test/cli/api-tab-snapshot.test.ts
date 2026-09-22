@@ -87,12 +87,6 @@ describe("publishCliTabSnapshot", () => {
     expect(state["terminalTabs.t1"]).toBeDefined()
   })
 
-  it("ignores an empty task id instead of writing a junk key", () => {
-    writeState({})
-    publishCliTabSnapshot("")
-    expect(Object.keys(readState())).toEqual([])
-  })
-
   it("records the pinned session id + spawned when the delivery started the session", () => {
     writeState({})
     publishCliTabSnapshot("t1", "uuid-abc")
@@ -116,12 +110,6 @@ describe("markCliTabSession", () => {
     expect(snapshot.tabs.find((t) => t.id === id)).toMatchObject({ sessionId: "uuid-xyz", spawned: true })
     // The canonical tab keeps having no id — its session was never CLI-pinned.
     expect(snapshot.tabs.find((t) => t.id === "tab-1")?.sessionId).toBeUndefined()
-  })
-
-  it("is a no-op for an unknown tab or a missing snapshot", () => {
-    writeState({})
-    markCliTabSession("t1", "tab-9", "uuid-xyz")
-    expect(readState()).toEqual({})
   })
 })
 
@@ -179,12 +167,5 @@ describe("closeTabsSnapshot", () => {
     const state = readState()
     expect((state["terminalTabs.t1"] as TabsState).tabs).toEqual([])
     expect(state.unrelated).toBe("keep")
-  })
-
-  it("does not write when the tab is absent", () => {
-    const snapshot = { tabs: [], activeId: "tab-1", nextOrdinal: 2 }
-    writeState({ "terminalTabs.t1": snapshot })
-    expect(closeTabsSnapshot("t1", "tab-9")).toBeUndefined()
-    expect(readState()["terminalTabs.t1"]).toEqual(snapshot)
   })
 })

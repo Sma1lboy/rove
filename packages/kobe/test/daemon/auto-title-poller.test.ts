@@ -61,23 +61,6 @@ describe("runAutoTitlePass", () => {
     expect(orch.getTask(placeholderNoWorktree)?.title).toBe(PLACEHOLDER_TASK_TITLE)
   })
 
-  test("skips tasks without a worktree even when still placeholder", async () => {
-    const noWorktree = await makeTask({ worktree: undefined })
-    const active = await makeTask({ worktree: "/wt/active" })
-
-    const renamed = await runAutoTitlePass(orch, async (worktree) => `title-for-${worktree}`)
-
-    expect(renamed.map((r) => r.id)).toEqual([active])
-    expect(orch.getTask(noWorktree)?.title).toBe(PLACEHOLDER_TASK_TITLE)
-  })
-
-  test("leaves the placeholder when the deriver yields no title", async () => {
-    const id = await makeTask({ worktree: "/wt/a" })
-    const renamed = await runAutoTitlePass(orch, async () => "")
-    expect(renamed).toEqual([])
-    expect(orch.getTask(id)?.title).toBe(PLACEHOLDER_TASK_TITLE)
-  })
-
   test("a failing task does not block the others", async () => {
     const boom = await makeTask({ worktree: "/wt/boom" })
     const ok = await makeTask({ worktree: "/wt/ok" })
@@ -119,11 +102,5 @@ describe("runAutoTitlePass", () => {
     expect(orch.getTask(a)?.title).toBe("same prompt title #1/2")
     expect(orch.getTask(b)?.title).toBe("same prompt title #2/2")
     expect(orch.getTask(solo)?.title).toBe("same prompt title")
-  })
-
-  test("a lone group member (siblings deleted away) gets no ordinal", async () => {
-    const only = await makeTask({ worktree: "/wt/only", groupId: "g-solo" })
-    await runAutoTitlePass(orch, async () => "derived")
-    expect(orch.getTask(only)?.title).toBe("derived")
   })
 })

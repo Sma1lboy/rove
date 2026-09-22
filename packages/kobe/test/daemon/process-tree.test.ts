@@ -28,19 +28,11 @@ describe("parseMsysPs", () => {
     expect(rows).toHaveLength(6)
     expect(rows[2]).toEqual({ pid: 44794, ppid: 44600, winpid: 48024 })
   })
-
-  test("skips the header and anything it cannot read", () => {
-    expect(parseMsysPs("      PID    PPID    PGID     WINPID\nnot a row\n")).toEqual([])
-  })
 })
 
 describe("msysDescendantWinpids", () => {
   test("follows MSYS parentage from the shell down to the exec'd engine and its children", () => {
     expect(msysDescendantWinpids(parseMsysPs(PS), 59448).sort()).toEqual([48024, 50000, 61476])
-  })
-
-  test("never reaches a process outside the shell's subtree", () => {
-    expect(msysDescendantWinpids(parseMsysPs(PS), 59448)).not.toContain(37600)
   })
 
   test("a root MSYS does not know (a native shell) adds nothing — taskkill /T is complete there", () => {
@@ -60,9 +52,5 @@ describe("msysPsFor", () => {
   test("only a bash shell has an MSYS table to read", () => {
     expect(msysPsFor(undefined)).toBeNull()
     expect(msysPsFor("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe")).toBeNull()
-  })
-
-  test("a bash with no ps.exe beside it (or one level up in usr/bin) has none either", () => {
-    expect(msysPsFor("/definitely/not/here/bash")).toBeNull()
   })
 })

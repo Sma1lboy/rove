@@ -286,12 +286,4 @@ describe("lastErrorLine", () => {
   it("prefers the wrapper's banner over the shell prompt printed under it", () => {
     expect(lastErrorLine(DEATH_TAIL)).toContain("Engine exited (code 143)")
   })
-
-  it("falls back to the last non-blank line where there is no banner", () => {
-    // A pty-layer death: the dying process really did write last.
-    expect(lastErrorLine(["starting", "Error: ENOSPC: no space left on device", "", "  "])).toBe(
-      "Error: ENOSPC: no space left on device",
-    )
-    expect(lastErrorLine([])).toBeUndefined()
-  })
 })

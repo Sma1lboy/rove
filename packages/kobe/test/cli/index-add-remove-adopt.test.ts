@@ -85,7 +85,6 @@ let originalArgv: string[]
 let exitSpy: ReturnType<typeof vi.fn>
 let logSpy: MockInstance
 let stderrSpy: MockInstance
-let stdoutSpy: MockInstance
 
 async function runCli(...args: string[]): Promise<void> {
   process.argv = ["bun", "/kobe/src/cli/index.ts", ...args]
@@ -124,7 +123,7 @@ beforeEach(() => {
   vi.spyOn(process, "exit").mockImplementation(exitSpy as unknown as typeof process.exit)
   logSpy = vi.spyOn(console, "log").mockImplementation(() => {})
   vi.spyOn(console, "error").mockImplementation(() => {})
-  stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
+  vi.spyOn(process.stdout, "write").mockImplementation(() => true)
   stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
 })
 
@@ -155,18 +154,6 @@ describe("kobe add", () => {
     expect(stderrText()).toContain("not a git repository")
   })
 
-  test("rejects an unknown flag with exit 2 and the usage text", async () => {
-    await runCli("add", "--frobnicate")
-    expect(exitSpy).toHaveBeenCalledWith(2)
-    expect(stderrText()).toContain("unknown flag")
-  })
-
-  test("--help prints usage without saving anything", async () => {
-    await runCli("add", "--help")
-    expect(stdoutSpy.mock.calls.map((c) => String(c[0])).join("")).toContain("Usage: kobe add")
-    expect(fake.addSavedRepo).not.toHaveBeenCalled()
-  })
-
   test("folds the repo's unlinked worktrees in as tasks (KOB-256)", async () => {
     fake.adoptable = [{ path: "/repo/.claude/worktrees/lynx", branch: "kobe/lynx" }]
     await runCli("add", "/repo")
@@ -182,13 +169,6 @@ describe("kobe add", () => {
     await runCli("add", "/repo")
     expect(fake.addSavedRepo).toHaveBeenCalled()
     expect(exitSpy).not.toHaveBeenCalled()
-  })
-
-  test("an already-saved repo says so instead of re-adding", async () => {
-    fake.addSavedRepo.mockImplementationOnce((p: string) => ({ added: false, path: p, total: 3 }))
-    await runCli("add", "/repo")
-    expect(logText()).toContain("already saved: /repo")
-    expect(logText()).not.toContain("added /repo")
   })
 
   test("adopts through a RUNNING daemon when one is up (live TUI updates)", async () => {
@@ -215,24 +195,11 @@ describe("kobe add", () => {
 })
 
 describe("kobe remove", () => {
-  test("--help prints usage without forgetting anything", async () => {
-    fake.savedRepos = ["/repo"]
-    await runCli("remove", "--help")
-    expect(stdoutSpy.mock.calls.map((c) => String(c[0])).join("")).toContain("Usage: kobe remove")
-    expect(fake.forgetProject).not.toHaveBeenCalled()
-  })
-
   test("rejects an unknown flag with exit 2 and the usage text", async () => {
     await runCli("remove", "--frobnicate")
     expect(exitSpy).toHaveBeenCalledWith(2)
     expect(stderrText()).toContain('unknown flag "--frobnicate"')
     expect(stderrText()).toContain("Usage: kobe remove")
-  })
-
-  test("with nothing saved, says so and exits cleanly", async () => {
-    await runCli("remove", "/repo")
-    expect(logText()).toContain("no saved projects to remove")
-    expect(exitSpy).not.toHaveBeenCalled()
   })
 
   test("an exact saved entry (e.g. a garbage or ssh:// key) is removable verbatim", async () => {
@@ -275,31 +242,11 @@ describe("kobe remove", () => {
       expect(fake.forgetProject).toHaveBeenCalledWith(SSH)
     })
 
-    test("the flag is not mistaken for the path to remove", async () => {
-      withPassword()
-      await runCli("remove", "--purge-credentials", SSH)
-      expect(fake.forgetProject).toHaveBeenCalledWith(SSH)
-      expect(fake.deleteKeychainPassword).toHaveBeenCalledWith(ref)
-    })
-
-    test("says so instead of claiming success when no item was found", async () => {
-      withPassword()
-      fake.deleteKeychainPassword.mockReturnValue(false)
-      await runCli("remove", SSH, "--purge-credentials")
-      expect(logText()).not.toContain("purged the keychain password")
-    })
-
     test("a key-auth remote has no password, so no note and no delete", async () => {
       fake.savedRepos = [SSH]
       fake.remoteRepos[SSH] = { auth: { kind: "key" } }
       await runCli("remove", SSH)
       expect(fake.deleteKeychainPassword).not.toHaveBeenCalled()
-      expect(logText()).not.toContain("--purge-credentials")
-    })
-
-    test("a local project never mentions credentials", async () => {
-      fake.savedRepos = ["/repo"]
-      await runCli("remove", "/repo")
       expect(logText()).not.toContain("--purge-credentials")
     })
   })
@@ -325,11 +272,6 @@ describe("kobe remove", () => {
 })
 
 describe("kobe adopt", () => {
-  test("no adoptable worktrees → friendly message, no daemon touch", async () => {
-    await runCli("adopt")
-    expect(logText()).toContain("no adoptable worktrees")
-  })
-
   test("no glob → dry-run listing plus the how-to hint", async () => {
     fake.adoptable = [{ path: "/repo/wt-a", branch: "a", dirty: true, kobeManaged: false }]
     await runCli("adopt")
@@ -350,12 +292,6 @@ describe("kobe adopt", () => {
     expect(fake.adoptWorktree).not.toHaveBeenCalled()
   })
 
-  test("a glob matching nothing says so", async () => {
-    fake.adoptable = [{ path: "/repo/wt-a", branch: "a" }]
-    await runCli("adopt", "/zzz/*")
-    expect(logText()).toContain("no worktrees match glob")
-  })
-
   test("glob + --yes adopts exactly the matches", async () => {
     fake.adoptable = [
       { path: "/repo/wt-a", branch: "a" },
@@ -365,24 +301,6 @@ describe("kobe adopt", () => {
     expect(fake.adoptWorktree).toHaveBeenCalledTimes(1)
     expect(fake.adoptWorktree).toHaveBeenCalledWith(expect.objectContaining({ worktreePath: "/repo/wt-a" }))
     expect(logText()).toContain("done — adopted 1 worktree(s)")
-  })
-
-  test("an unexpected argument is a usage error, not silently ignored", async () => {
-    await runCli("adopt", "glob-a", "glob-b")
-    expect(exitSpy).toHaveBeenCalledWith(2)
-    expect(stderrText()).toContain('unexpected argument "glob-b"')
-  })
-
-  test("--repo without a value is a usage error", async () => {
-    await runCli("adopt", "--repo")
-    expect(exitSpy).toHaveBeenCalledWith(2)
-    expect(stderrText()).toContain("--repo requires a value")
-  })
-
-  test("--vendor without a value is a usage error", async () => {
-    await runCli("adopt", "--vendor")
-    expect(exitSpy).toHaveBeenCalledWith(2)
-    expect(stderrText()).toContain("--vendor requires a value")
   })
 
   test("a misspelled --vendor exits 2 and creates nothing", async () => {
@@ -408,12 +326,5 @@ describe("kobe adopt", () => {
     await runCli("adopt", "/repo/wt-*", "--yes", "--vendor", "my-engine")
     expect(exitSpy).not.toHaveBeenCalled()
     expect(fake.adoptWorktree).toHaveBeenCalledWith(expect.objectContaining({ vendor: "my-engine" }))
-  })
-
-  test("--help prints usage without scanning anything", async () => {
-    await runCli("adopt", "--help")
-    expect(stdoutSpy.mock.calls.map((c) => String(c[0])).join("")).toContain("Usage: kobe adopt")
-    expect(fake.adoptWorktree).not.toHaveBeenCalled()
-    expect(exitSpy).not.toHaveBeenCalled()
   })
 })

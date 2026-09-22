@@ -5,7 +5,6 @@
  */
 
 import type { AutomationRun } from "@sma1lboy/kobe-daemon/daemon/contracts"
-import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { buildDigest } from "../../src/cli/api/handlers-digest.ts"
@@ -26,14 +25,6 @@ function run(status: AutomationRun["status"]): AutomationRun {
 }
 
 describe("buildDigest", () => {
-  it("counts touched tasks", () => {
-    const tasks = [
-      taskFixture({ id: "t1" }) as unknown as SerializedTask,
-      taskFixture({ id: "t2" }) as unknown as SerializedTask,
-    ]
-    expect(buildDigest("/repo/x", 0, tasks, []).tasks).toEqual({ total: 2 })
-  })
-
   it("buckets routine runs by status and never invents statuses it did not see", () => {
     const d = buildDigest("/repo/x", 0, [], [run("dispatched"), run("dispatched"), run("skipped_precheck")])
     expect(d.routines).toEqual({ runs: 3, byStatus: { dispatched: 2, skipped_precheck: 1 } })

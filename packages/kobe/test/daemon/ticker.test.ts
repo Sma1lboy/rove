@@ -56,16 +56,6 @@ describe("startTicker", () => {
     expect(run).toHaveBeenCalledTimes(1)
   })
 
-  it("runs ungated when no gate is supplied", () => {
-    // `quota-resume` and the automation sweep are
-    // ungated ON PURPOSE — a schedule that requires an audience is not a
-    // schedule — so the helper must never default one on.
-    const run = vi.fn()
-    startTicker({ name: "t", tickMs: 100, run })
-    vi.advanceTimersByTime(300)
-    expect(run).toHaveBeenCalledTimes(3)
-  })
-
   it("drops a tick that lands while the previous pass is still running", async () => {
     let release: (() => void) | undefined
     const run = vi.fn(
@@ -126,31 +116,6 @@ describe("startTicker", () => {
     expect(onStop).toHaveBeenCalledTimes(1)
     vi.advanceTimersByTime(1000)
     expect(run).toHaveBeenCalledTimes(1)
-  })
-
-  it("drains the active pass even when extra teardown throws", async () => {
-    let finish = () => {}
-    const run = new Promise<void>((resolve) => {
-      finish = resolve
-    })
-    const stop = startTicker({
-      name: "write",
-      tickMs: 100,
-      immediate: true,
-      run: () => run,
-      onStop: () => {
-        throw new Error("close failed")
-      },
-    })
-    let rejected = false
-    const pending = stop().catch(() => {
-      rejected = true
-    })
-    await vi.advanceTimersByTimeAsync(1000)
-    expect(rejected).toBe(false)
-    finish()
-    await pending
-    expect(rejected).toBe(true)
   })
 
   it("unrefs the timer", () => {

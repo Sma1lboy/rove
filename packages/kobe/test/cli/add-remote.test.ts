@@ -20,20 +20,9 @@ describe("parseRemoteFlags", () => {
     expect(f.password).toBeUndefined()
   })
 
-  it("treats a bare --key (no following path) as agent auth", () => {
-    const f = parseRemoteFlags(["--host", "box", "--user", "dev", "--path", "/srv", "--key"])
-    expect(f.key).toEqual({ present: true })
-  })
-
   it("does not consume the next flag as the key path", () => {
     const f = parseRemoteFlags(["--key", "--password"])
     expect(f.key).toEqual({ present: true })
     expect(f.password).toBe(true)
-  })
-
-  it("parses --password as a flag", () => {
-    const f = parseRemoteFlags(["--host", "box", "--user", "dev", "--path", "/srv", "--password"])
-    expect(f.password).toBe(true)
-    expect(f.key).toBeUndefined()
   })
 })

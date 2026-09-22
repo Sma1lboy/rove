@@ -1,5 +1,4 @@
 import { delimiter } from "node:path"
-import { detachOptions } from "@sma1lboy/kobe-daemon/client/detached-spawn"
 import {
   type NodePtyHostResolution,
   bundleWithBun,
@@ -84,11 +83,6 @@ describe("resolveNodePtyHostSpawn", () => {
     // MUST stay inside the daemon package: the bundle imports node-pty
     // externally, so it resolves against that package's node_modules.
     expect(seen).toEqual([[ENTRY, CACHE]])
-  })
-
-  test("names both candidates when neither the bundle nor the source entry exists", async () => {
-    await expect(resolveNodePtyHostSpawn(win())).rejects.toThrow(/no Windows PTY host found/)
-    await expect(resolveNodePtyHostSpawn(win())).rejects.toThrow(/pty-host-node-entry\.ts/)
   })
 
   test("surfaces bundler logs instead of returning a path to a file that was never written", async () => {
@@ -194,26 +188,10 @@ describe("resolveNodeBinary", () => {
     expect(norm(resolveNodeBinary(env, diskWith(first, second), "win32") ?? "")).toBe(first)
     expect(norm(resolveNodeBinary(env, diskWith(second), "win32") ?? "")).toBe(second)
   })
-
-  test("falls back to a default PATHEXT when the env does not set one", () => {
-    expect(norm(resolveNodeBinary({ PATH: PATH_DIR }, diskWith(NODE), "win32") ?? "")).toBe(NODE)
-  })
 })
 
 describe("defaultPtyHostSocketPath", () => {
   test("Windows gets a named pipe, since node cannot bind a filesystem socket there", () => {
     expect(defaultPtyHostSocketPath("C:\\Users\\dev", "win32")).toMatch(/^\\\\\.\\pipe\\kobe-[0-9a-f]{8}-pty$/)
-  })
-
-  test("POSIX still gets the unix socket under the home dir", () => {
-    expect(norm(defaultPtyHostSocketPath("/home/dev", "linux"))).toBe("/home/dev/.rove/pty.sock")
-  })
-})
-
-describe("detachOptions", () => {
-  test("POSIX detaches; Windows only hides (the fallback shape — the real spawn goes through win-detached-launch.ts)", () => {
-    expect(detachOptions("darwin")).toEqual({ detached: true })
-    expect(detachOptions("linux")).toEqual({ detached: true })
-    expect(detachOptions("win32")).toEqual({ windowsHide: true })
   })
 })

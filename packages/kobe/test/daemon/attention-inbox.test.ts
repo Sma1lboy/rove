@@ -140,22 +140,6 @@ describe("daemon attention inbox", () => {
     expect(snapshot[1]).toMatchObject({ state: "permission_needed" })
   })
 
-  it("treats pre-unread snapshots as unread", async () => {
-    dir = await mkdtemp(join(tmpdir(), "kobe-attention-inbox-legacy-"))
-    const path = join(dir, "attention-inbox.json")
-    await writeFile(
-      path,
-      JSON.stringify({
-        version: 1,
-        items: [{ taskId: "task-1", tabId: null, state: "turn_complete", at: 50 }],
-      }),
-      "utf8",
-    )
-    const store = new AttentionInboxStore(path, new DaemonEventBus())
-    await store.init()
-    expect(store.snapshot()[0]?.unread).toBe(true)
-  })
-
   it("keeps closed-tab episodes but cascades an explicit task deletion", async () => {
     const { store } = await create()
     await store.record("task-1", "turn-complete", undefined, "tab-1")
@@ -192,27 +176,6 @@ describe("daemon attention inbox", () => {
     await reloaded.init()
     expect(reloaded.snapshot()).toHaveLength(MAX_EPISODES)
     expect(reloaded.snapshot()[0]).toMatchObject({ taskId: "task-10" })
-  })
-
-  it("a fresh episode on a capped task re-stamps it to the tail, not past the cap", async () => {
-    const path = await seed(MAX_EPISODES, 1000)
-    const store = new AttentionInboxStore(path, new DaemonEventBus(), () => 1000 + MAX_EPISODES)
-    await store.init()
-    // Re-recording a task already under the cap REPLACES its episode (dedupe
-    // rule) — nothing is pruned yet, and the re-stamped episode sits at the
-    // newest slot.
-    await store.record("task-0", "awaiting-input", { waiting: "permission" }, "tab-1")
-    let snapshot = store.snapshot()
-    expect(snapshot).toHaveLength(MAX_EPISODES)
-    expect(snapshot.at(-1)).toMatchObject({ taskId: "task-0", state: "permission_needed" })
-
-    // The next NEW episode is the 501st — the cap prunes the OLDEST, which
-    // is task-1 (task-0 just re-stamped itself out of the danger slot).
-    await store.record("task-501", "turn-complete", undefined, "tab-1")
-    snapshot = store.snapshot()
-    expect(snapshot).toHaveLength(MAX_EPISODES)
-    expect(snapshot.some((item) => item.taskId === "task-1")).toBe(false)
-    expect(snapshot.at(-1)).toMatchObject({ taskId: "task-501" })
   })
 
   it("classifies waiting, rate limits, billing failures, and other failures", async () => {

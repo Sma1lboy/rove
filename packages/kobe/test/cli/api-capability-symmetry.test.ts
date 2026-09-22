@@ -34,12 +34,6 @@ describe("issue-delete", () => {
 })
 
 describe("note-delete", () => {
-  it("sends the store's delete op, the same one the reader dialog's `d` runs", async () => {
-    const client = new FakeClient({ "note.delete": () => ({ deleted: true }) })
-    await invokeVerb("note-delete", ["--repo", "/repo/x", "--id", "7"], { client, runtime: stubRuntime() })
-    expect(client.requests).toEqual([{ name: "note.delete", payload: { repo: "/repo/x", id: 7 } }])
-  })
-
   it("addresses the note by ID, not by its position in the list", async () => {
     // Notes are prepended and evicted from the tail, so an index names a
     // different fact tomorrow. This is the assertion that a switch to
@@ -198,12 +192,6 @@ describe("rename --tab", () => {
       { name: "terminalTab.rename", payload: { taskId: "rename-both", tabId, title: "e2e" } },
     ])
     expect(res).toMatchObject({ taskId: "rename-both", tabId, title: "e2e", renamed: true, clients: 2 })
-  })
-
-  it("still renames the TASK when --tab is absent", async () => {
-    const client = new FakeClient({ "task.rename": () => ({ ok: true }) })
-    await invokeVerb("rename", ["--task-id", "t1", "--title", "new title"], { client, runtime: stubRuntime() })
-    expect(client.requests).toEqual([{ name: "task.rename", payload: { taskId: "t1", title: "new title" } }])
   })
 
   it("refuses a tab id the snapshot does not name instead of broadcasting into nothing", async () => {

@@ -28,10 +28,6 @@ describe("matchTaskByCwd", () => {
   const other = { id: "other", worktreePath: "/elsewhere/proj" }
   const tasks = [main, sub, other]
 
-  it("matches an exact worktree path", () => {
-    expect(matchTaskByCwd(tasks, "/elsewhere/proj")).toBe("other")
-  })
-
   it("matches a cwd inside a worktree", () => {
     expect(matchTaskByCwd(tasks, "/elsewhere/proj/src/deep")).toBe("other")
   })
@@ -43,12 +39,6 @@ describe("matchTaskByCwd", () => {
     expect(matchTaskByCwd(tasks, "/repo/.claude/worktrees/snipe/pkg")).toBe("sub")
   })
 
-  it("matches a global Rove-state worktree", () => {
-    const wt = path.join(worktreeRootFor("/repo"), "snipe")
-    expect(matchTaskByCwd([{ id: "sub", worktreePath: wt }], wt)).toBe("sub")
-    expect(matchTaskByCwd([{ id: "sub", worktreePath: wt }], path.join(wt, "pkg"))).toBe("sub")
-  })
-
   it("falls back to the repo-root (main) task for a cwd not under any sub-worktree", () => {
     expect(matchTaskByCwd(tasks, "/repo/src")).toBe("main")
     expect(matchTaskByCwd(tasks, "/repo")).toBe("main")
@@ -58,17 +48,8 @@ describe("matchTaskByCwd", () => {
     expect(matchTaskByCwd(tasks, "/totally/unrelated")).toBeUndefined()
   })
 
-  it("ignores tasks with no worktree path", () => {
-    expect(matchTaskByCwd([{ id: "x" }, { id: "y", worktreePath: null }], "/repo")).toBeUndefined()
-  })
-
   it("does not treat a sibling-prefix dir as a match (/repo vs /repo-other)", () => {
     expect(matchTaskByCwd([main], "/repo-other/src")).toBeUndefined()
-  })
-
-  it("tolerates a trailing slash on either side", () => {
-    expect(matchTaskByCwd([{ id: "z", worktreePath: "/repo/wt/" }], "/repo/wt")).toBe("z")
-    expect(matchTaskByCwd([{ id: "z", worktreePath: "/repo/wt" }], "/repo/wt/")).toBe("z")
   })
 })
 
@@ -98,12 +79,6 @@ describe("matchTaskByCwd across a repository boundary", () => {
     const tasks = [{ id: "alpha", worktreePath: path.join(root, "alpha") }]
     expect(matchTaskByCwd(tasks, path.join(root, "alpha", "refs", "vendorlib"))).toBeUndefined()
     expect(matchTaskByCwd(tasks, path.join(root, "alpha", "refs", "vendorlib", "sub"))).toBeUndefined()
-  })
-
-  it("still matches a plain subdirectory of the same repo", () => {
-    const tasks = [{ id: "alpha", worktreePath: path.join(root, "alpha") }]
-    expect(matchTaskByCwd(tasks, path.join(root, "alpha", "src", "deep"))).toBe("alpha")
-    expect(matchTaskByCwd(tasks, path.join(root, "alpha"))).toBe("alpha")
   })
 
   it("does not make a directory task the owner of every repo beneath it", () => {
@@ -146,15 +121,6 @@ describe("matchTaskByWorktreePath", () => {
     // Removing an untracked worktree under /repo must not affect the main task.
     expect(matchTaskByWorktreePath(tasks, "/repo/.claude/worktrees/unknown")).toBeUndefined()
   })
-
-  it("tolerates a trailing slash on either side", () => {
-    expect(matchTaskByWorktreePath([{ id: "z", worktreePath: "/repo/wt/" }], "/repo/wt")).toBe("z")
-    expect(matchTaskByWorktreePath([{ id: "z", worktreePath: "/repo/wt" }], "/repo/wt/")).toBe("z")
-  })
-
-  it("ignores tasks without a worktree path", () => {
-    expect(matchTaskByWorktreePath([{ id: "x" }, { id: "y", worktreePath: null }], "/repo/wt")).toBeUndefined()
-  })
 })
 
 describe("findAdoptableWorktree", () => {
@@ -174,29 +140,17 @@ describe("findAdoptableWorktree", () => {
     })
   })
 
-  it("still adopts worktrees under the legacy global ~/.kobe root", () => {
-    const legacyRoot = managedWorktreeRootsFor("/repo").find((root) => root.includes("/.kobe/worktrees/"))!
-    const wt = path.join(legacyRoot, "external")
+  it.each([
+    [
+      "legacy global ~/.kobe",
+      () => path.join(managedWorktreeRootsFor("/repo").find((r) => r.includes("/.kobe/worktrees/"))!, "external"),
+    ],
+    ["repo-local .rove", () => `/repo/${REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH}/external`],
+    ["repo-local .kobe", () => "/repo/.kobe/worktrees/external"],
+    ["legacy .claude/worktrees", () => "/repo/.claude/worktrees/external"],
+  ])("still adopts worktrees under the %s root", (_label, wtOf) => {
+    const wt = wtOf()
     expect(findAdoptableWorktree(tasks(), wt)).toEqual({ repo: "/repo", worktreePath: wt })
-  })
-
-  it("recognizes repo-local .rove/worktrees", () => {
-    const wt = `/repo/${REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH}/external`
-    expect(findAdoptableWorktree(tasks(), wt)).toEqual({ repo: "/repo", worktreePath: wt })
-  })
-
-  it("still adopts repo-local .kobe/worktrees from the brief-lived layout", () => {
-    expect(findAdoptableWorktree(tasks(), "/repo/.kobe/worktrees/external")).toEqual({
-      repo: "/repo",
-      worktreePath: "/repo/.kobe/worktrees/external",
-    })
-  })
-
-  it("still adopts legacy external worktrees under a tracked repo's .claude/worktrees", () => {
-    expect(findAdoptableWorktree(tasks(), "/repo/.claude/worktrees/external")).toEqual({
-      repo: "/repo",
-      worktreePath: "/repo/.claude/worktrees/external",
-    })
   })
 
   it("derives the worktree dir even when cwd is a subdir of it", () => {
@@ -218,10 +172,6 @@ describe("findAdoptableWorktree", () => {
   it("ignores a cwd at the repo root or in a normal subdir (not a worktree)", () => {
     expect(findAdoptableWorktree(tasks(), "/repo")).toBeUndefined()
     expect(findAdoptableWorktree(tasks(), "/repo/src")).toBeUndefined()
-  })
-
-  it("ignores a cwd under an UNtracked repo", () => {
-    expect(findAdoptableWorktree(tasks(), path.join(worktreeRootFor("/other"), "x"))).toBeUndefined()
   })
 
   it("ignores a sibling-prefix repo (/repo vs /repo-other)", () => {

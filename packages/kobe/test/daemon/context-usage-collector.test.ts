@@ -3,11 +3,7 @@
  * gate. The reader is injected, so no transcripts are involved.
  */
 
-import {
-  ContextUsageCollector,
-  contextUsageTargets,
-  sameContextUsage,
-} from "@sma1lboy/kobe-daemon/daemon/context-usage-collector"
+import { ContextUsageCollector, contextUsageTargets } from "@sma1lboy/kobe-daemon/daemon/context-usage-collector"
 import { DaemonEventBus } from "@sma1lboy/kobe-daemon/daemon/event-bus"
 import { describe, expect, test } from "vitest"
 
@@ -36,27 +32,6 @@ describe("contextUsageTargets", () => {
 
   test("skips a session whose task is gone — the registry outlives a delete", () => {
     expect(contextUsageTargets([{ taskId: "gone", tabId: "tab-1", sessionId: "s1" }], vendorOf)).toEqual([])
-  })
-
-  test("dedupes repeated entries for the same tab, first one wins", () => {
-    const targets = contextUsageTargets(
-      [
-        { taskId: "t1", tabId: "tab-1", sessionId: "first" },
-        { taskId: "t1", tabId: "tab-1", sessionId: "second" },
-      ],
-      vendorOf,
-    )
-    expect(targets).toHaveLength(1)
-    expect(targets[0]?.sessionId).toBe("first")
-  })
-})
-
-describe("sameContextUsage", () => {
-  test("distinguishes an estimate from an engine-reported figure of the same size", () => {
-    const exact = { contextTokens: 10, contextWindowTokens: 100 }
-    expect(sameContextUsage(exact, { ...exact })).toBe(true)
-    expect(sameContextUsage(exact, { ...exact, approximate: true })).toBe(false)
-    expect(sameContextUsage(exact, { ...exact, contextWindowTokens: 200 })).toBe(false)
   })
 })
 

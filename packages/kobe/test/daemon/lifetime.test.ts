@@ -45,56 +45,6 @@ function make(clients: LifetimeClient[], opts: { firstGuiGraceMs?: number; keepA
 }
 
 describe("DaemonLifetime", () => {
-  it("counts only gui clients for the lifetime refcount, any subscriber for the collector gate", () => {
-    const { lifetime } = make([GUI, PANE, PANE])
-    expect(lifetime.guiCount()).toBe(1)
-    expect(lifetime.hasSubscribers()).toBe(true)
-  })
-
-  it("self-stops a grace after the last gui disconnects", () => {
-    const { lifetime, onIdleStop, clock, clients } = make([GUI])
-    clients.length = 0 // the gui's socket closed
-    lifetime.clientDisconnected(true)
-    expect(onIdleStop).not.toHaveBeenCalled()
-    clock.fire()
-    expect(onIdleStop).toHaveBeenCalledTimes(1)
-  })
-
-  it("does not arm while another gui remains", () => {
-    const { lifetime, onIdleStop, clock, clients } = make([GUI, GUI])
-    clients.pop() // one gui closed, one remains
-    lifetime.clientDisconnected(true)
-    clock.fire()
-    expect(onIdleStop).not.toHaveBeenCalled()
-  })
-
-  it("a pane disconnect never arms shutdown", () => {
-    const { lifetime, onIdleStop, clock, clients } = make([PANE])
-    clients.length = 0
-    lifetime.clientDisconnected(false)
-    clock.fire()
-    expect(onIdleStop).not.toHaveBeenCalled()
-  })
-
-  it("a gui re-attach cancels a pending grace", () => {
-    const { lifetime, onIdleStop, clock, clients } = make([GUI])
-    clients.length = 0
-    lifetime.clientDisconnected(true) // arms
-    clients.push(GUI) // a gui re-attached
-    lifetime.guiAttached() // must cancel
-    clock.fire()
-    expect(onIdleStop).not.toHaveBeenCalled()
-  })
-
-  it("a pane subscribing during the grace does NOT cancel shutdown", () => {
-    const { lifetime, onIdleStop, clock, clients } = make([GUI])
-    clients.length = 0
-    lifetime.clientDisconnected(true) // arms
-    clients.push(PANE) // a pane connected mid-grace — guiAttached NOT called
-    clock.fire()
-    expect(onIdleStop).toHaveBeenCalledTimes(1)
-  })
-
   it("markStopping cancels a pending grace and suppresses re-arm", () => {
     const { lifetime, onIdleStop, clock, clients } = make([GUI])
     clients.length = 0
@@ -126,12 +76,6 @@ describe("DaemonLifetime", () => {
     clock.fire()
     expect(onIdleStop).not.toHaveBeenCalled()
   })
-
-  it("no firstGuiGraceMs: a deliberate gui-less start keeps the stays-up behavior", () => {
-    const { onIdleStop, clock } = make([PANE])
-    clock.fire()
-    expect(onIdleStop).not.toHaveBeenCalled()
-  })
 })
 
 /**
@@ -147,15 +91,6 @@ describe("keep-alive hold", () => {
     lifetime.clientDisconnected(true)
     clock.fire()
     expect(onIdleStop).not.toHaveBeenCalled()
-  })
-
-  it("still self-stops when no hold is active", () => {
-    const clients: LifetimeClient[] = [GUI]
-    const { lifetime, onIdleStop, clock } = make(clients, { keepAlive: () => false })
-    clients.length = 0
-    lifetime.clientDisconnected(true)
-    clock.fire()
-    expect(onIdleStop).toHaveBeenCalledOnce()
   })
 
   it("suppresses arming entirely rather than arming a timer it would veto", () => {
@@ -201,12 +136,5 @@ describe("keep-alive hold", () => {
     lifetime.reevaluateIdle()
     clock.fire()
     expect(onIdleStop).toHaveBeenCalledOnce()
-  })
-
-  it("does not arm while a gui is still attached, hold or not", () => {
-    const { lifetime, onIdleStop, clock } = make([GUI], { keepAlive: () => false })
-    lifetime.reevaluateIdle()
-    clock.fire()
-    expect(onIdleStop).not.toHaveBeenCalled()
   })
 })

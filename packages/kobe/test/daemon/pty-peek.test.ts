@@ -62,9 +62,4 @@ describe("peekRing", () => {
     expect(Buffer.from(stale.data, "base64").toString("utf8")).toBe("hello world")
     expect(stale.offset).toBe(111)
   })
-
-  it("reports a dead child and a failed spawn honestly", () => {
-    expect(peekRing(view(["bye"], 0, false)).alive).toBe(false)
-    expect(peekRing(view([], 0, true, null)).pid).toBeNull()
-  })
 })

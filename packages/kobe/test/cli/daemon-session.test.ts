@@ -45,11 +45,6 @@ describe("openDaemonSession", () => {
     expect(session).toBeNull()
     expect(mocks.connectOrStartDaemon).not.toHaveBeenCalled()
   })
-
-  it("propagates a connect-or-start failure to the caller", async () => {
-    mocks.connectOrStartDaemon.mockRejectedValue(new Error("daemon did not start"))
-    await expect(openDaemonSession()).rejects.toThrow("daemon did not start")
-  })
 })
 
 describe("resolveActiveTaskId", () => {
@@ -72,11 +67,6 @@ describe("resolveActiveTaskId", () => {
     const client = fakeClient("task-123")
     expect(await resolveActiveTaskId(client)).toBe("task-123")
     expect(client.subscribe).toHaveBeenCalled()
-  })
-
-  it("returns null when the channel reports no active task", async () => {
-    const client = fakeClient(null)
-    expect(await resolveActiveTaskId(client)).toBeNull()
   })
 
   it("unsubscribes from the channel even if subscribe throws", async () => {

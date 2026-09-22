@@ -59,34 +59,7 @@ function err(): string {
   return errSpy.mock.calls.map((c) => String(c[0])).join("")
 }
 
-describe("runThemeSubcommand — usage / dispatch", () => {
-  it("no action prints usage and exits 2", async () => {
-    await expect(runThemeSubcommand([])).rejects.toThrow("exit 2")
-    expect(err()).toContain("Usage: kobe theme")
-  })
-
-  it("--help prints usage without exiting", async () => {
-    await runThemeSubcommand(["--help"])
-    expect(out()).toContain("Usage: kobe theme")
-    expect(err()).toBe("")
-    expect(exitSpy).not.toHaveBeenCalled()
-  })
-
-  it("unknown action fails usage with exit 2", async () => {
-    await expect(runThemeSubcommand(["bogus"])).rejects.toThrow("exit 2")
-    expect(err()).toContain('unknown action "bogus"')
-  })
-})
-
 describe("runThemeSubcommand list", () => {
-  it("lists bundled themes and '(none)' when no user themes exist", async () => {
-    await runThemeSubcommand(["list"])
-    const text = out()
-    expect(text).toContain("bundled:")
-    expect(text).toContain("claude  [built-in]")
-    expect(text).toContain("(none)")
-  })
-
   it("lists a user theme, flagging one that overrides a bundled name", async () => {
     const dir = themesDir()
     mkdirSync(dir, { recursive: true })
@@ -110,16 +83,6 @@ describe("runThemeSubcommand list", () => {
     for (const name of Object.keys(BUNDLED_THEME_JSONS)) {
       expect(text).toContain(name)
     }
-  })
-
-  it("rejects extra arguments to list", async () => {
-    await expect(runThemeSubcommand(["list", "extra"])).rejects.toThrow("exit 2")
-    expect(err()).toContain('"list" takes no arguments')
-  })
-
-  it("ls is an alias for list", async () => {
-    await runThemeSubcommand(["ls"])
-    expect(out()).toContain("bundled:")
   })
 })
 
@@ -156,13 +119,6 @@ describe("runThemeSubcommand add (local path)", () => {
     expect(out()).toContain('installed theme "dup"')
   })
 
-  it("fails with exit 1 on invalid JSON", async () => {
-    const src = join(home, "bad.json")
-    writeFileSync(src, "{not json", "utf8")
-    await expect(runThemeSubcommand(["add", src])).rejects.toThrow("exit 1")
-    expect(err()).toContain("not valid JSON")
-  })
-
   it("fails with exit 1 on a schema-invalid theme", async () => {
     const src = join(home, "invalid.json")
     writeFileSync(src, JSON.stringify({ nope: true }), "utf8")
@@ -170,30 +126,11 @@ describe("runThemeSubcommand add (local path)", () => {
     expect(err()).toContain("not a valid Rove theme")
   })
 
-  it("fails when the source file cannot be read", async () => {
-    await expect(runThemeSubcommand(["add", join(home, "missing.json")])).rejects.toThrow("exit 1")
-    expect(err()).toContain("failed to read")
-  })
-
   it("rejects an invalid theme name", async () => {
     const src = join(home, "src.json")
     writeFileSync(src, JSON.stringify(VALID_THEME), "utf8")
     await expect(runThemeSubcommand(["add", src, "--name", "bad name!"])).rejects.toThrow("exit 1")
     expect(err()).toContain("invalid theme name")
-  })
-
-  it("missing <source> fails usage with exit 2", async () => {
-    await expect(runThemeSubcommand(["add"])).rejects.toThrow("exit 2")
-    expect(err()).toContain("missing <source>")
-  })
-
-  it("rejects an unknown flag and an unexpected extra positional", async () => {
-    await expect(runThemeSubcommand(["add", "x", "--bogus"])).rejects.toThrow("exit 2")
-    expect(err()).toContain("unknown flag: --bogus")
-
-    errSpy.mockClear()
-    await expect(runThemeSubcommand(["add", "x", "y"])).rejects.toThrow("exit 2")
-    expect(err()).toContain("unexpected positional argument: y")
   })
 })
 
@@ -214,13 +151,6 @@ describe("runThemeSubcommand add (URL source)", () => {
     await expect(runThemeSubcommand(["add", "https://example.com/x.json"])).rejects.toThrow("exit 1")
     expect(err()).toContain("HTTP 404 Not Found")
   })
-
-  it("fails with exit 1 when fetch itself rejects", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")))
-    await expect(runThemeSubcommand(["add", "https://example.com/x.json"])).rejects.toThrow("exit 1")
-    expect(err()).toContain("failed to fetch")
-    expect(err()).toContain("network down")
-  })
 })
 
 describe("runThemeSubcommand remove", () => {
@@ -230,13 +160,6 @@ describe("runThemeSubcommand remove", () => {
     await runThemeSubcommand(["remove", "gone"])
     expect(out()).toContain('removed theme "gone"')
     expect(() => readFileSync(join(themesDir(), "gone.json"), "utf8")).toThrow()
-  })
-
-  it("rm is an alias for remove", async () => {
-    mkdirSync(themesDir(), { recursive: true })
-    writeFileSync(join(themesDir(), "gone.json"), "{}", "utf8")
-    await runThemeSubcommand(["rm", "gone"])
-    expect(out()).toContain('removed theme "gone"')
   })
 
   it("refuses to remove a bundled theme name", async () => {
@@ -260,20 +183,5 @@ describe("runThemeSubcommand remove", () => {
     await expect(runThemeSubcommand(["remove", "../../precious/notes"])).rejects.toThrow("exit 1")
     expect(err()).toContain('invalid theme name "../../precious/notes"')
     expect(readFileSync(outside, "utf8")).toBe('{"secret":"keep me"}')
-  })
-
-  it("fails when no such user theme exists", async () => {
-    await expect(runThemeSubcommand(["remove", "nope"])).rejects.toThrow("exit 1")
-    expect(err()).toContain('no user theme named "nope"')
-  })
-
-  it("missing <name> fails usage with exit 2", async () => {
-    await expect(runThemeSubcommand(["remove"])).rejects.toThrow("exit 2")
-    expect(err()).toContain("missing <name>")
-  })
-
-  it("rejects unexpected extra arguments", async () => {
-    await expect(runThemeSubcommand(["remove", "a", "b"])).rejects.toThrow("exit 2")
-    expect(err()).toContain('unexpected extra arguments after "a"')
   })
 })

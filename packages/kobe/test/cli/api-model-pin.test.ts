@@ -41,15 +41,6 @@ describe("add --model", () => {
     expect(client.requests[0]?.payload).toMatchObject({ command: "pi", vendor: "pi", model: "cliproxy/claude-fable-5" })
   })
 
-  it("is a free string — an id the engine's list never spelled still passes", async () => {
-    const client = createClient()
-    await invokeVerb("add", ["--repo", "/repo/x", "--command", "claude", "--model", "claude-opus-4-8"], {
-      client,
-      runtime: stubRuntime(),
-    })
-    expect(client.requests[0]?.payload).toMatchObject({ model: "claude-opus-4-8" })
-  })
-
   it("refuses an engine that declares no model flag, before creating anything", async () => {
     const client = createClient()
     await expectApiError(

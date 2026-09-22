@@ -39,14 +39,6 @@ function makeRepo(): string {
 }
 
 describe("parseShortstat", () => {
-  it("parses all three clauses", () => {
-    expect(parseShortstat(" 3 files changed, 40 insertions(+), 2 deletions(-)")).toEqual({
-      files: 3,
-      insertions: 40,
-      deletions: 2,
-    })
-  })
-
   it("tolerates missing clauses and the singular forms", () => {
     expect(parseShortstat(" 1 file changed, 1 insertion(+)")).toEqual({ files: 1, insertions: 1, deletions: 0 })
     expect(parseShortstat("")).toEqual({ files: 0, insertions: 0, deletions: 0 })

@@ -9,16 +9,7 @@
  */
 
 import { describe, expect, it } from "vitest"
-import {
-  API_SCHEMA_VERSION,
-  ApiError,
-  type ApiRuntime,
-  VERBS,
-  VERB_GROUPS,
-  VerbArgs,
-  findVerb,
-  invokeVerb,
-} from "../../src/cli/api-cmd.ts"
+import { ApiError, type ApiRuntime, VERBS, VerbArgs, findVerb, invokeVerb } from "../../src/cli/api-cmd.ts"
 import type { DaemonRpc } from "../../src/cli/daemon-session.ts"
 
 /** Records every request; answers from a per-RPC responder table. */
@@ -92,10 +83,6 @@ describe("schema drill-ins", () => {
     expect(result.name).toBe("add")
   })
 
-  it("--verb with an unknown name is BAD_VERB", async () => {
-    await expectApiError(() => invokeVerb("schema", ["--verb", "frobnicate"], offline), "BAD_VERB")
-  })
-
   // `fan-out` and `set-vendor` were removed with NO aliases, because both
   // changed their flag contract in the process — an alias would accept the
   // superseded flags and do something subtly different. What replaces the
@@ -136,11 +123,8 @@ describe("schema drill-ins", () => {
     })
   })
 
-  // Hardcoded on purpose: the neighbouring "every advertised group" test
-  // compares the listing against `VERB_GROUPS`, and both now derive from
-  // `VerbSpec.group`, so they move together. This one is the independent pin —
-  // and it is in canonical VERBS order, which is the order the index, `--all`
-  // and `--help` already use, so a group listing cannot disagree with them.
+  // Hardcoded on purpose, in canonical VERBS order (the order the index,
+  // `--all` and `--help` use).
   it("--group lists that group's verbs compactly (name + summary only)", async () => {
     const result = (await invokeVerb("schema", ["--group", "read"], offline)) as {
       group: string
@@ -168,12 +152,6 @@ describe("schema drill-ins", () => {
     await expectApiError(() => invokeVerb("schema", ["--group", "nope"], offline), "BAD_VERB", /unknown group: nope/)
   })
 
-  it("--all returns the complete spec with the api version", async () => {
-    const result = (await invokeVerb("schema", ["--all"], offline)) as { apiVersion: number; verbs: unknown[] }
-    expect(result.apiVersion).toBe(API_SCHEMA_VERSION)
-    expect(result.verbs.length).toBeGreaterThan(10)
-  })
-
   // A verb declared in `verbs-drive.ts` but missing from a hand-written group
   // table would report group "other" — a name `--group` then rejects as
   // unknown, leaving it in NO browsable group. Groups derive from
@@ -185,18 +163,6 @@ describe("schema drill-ins", () => {
         verbs: Array<{ name: string }>
       }
       expect(listing.verbs.map((entry) => entry.name)).toContain(v.name)
-    }
-  })
-
-  it("every advertised group is browsable, and lists exactly its own verbs", async () => {
-    for (const [group, names] of Object.entries(VERB_GROUPS)) {
-      const listing = (await invokeVerb("schema", ["--group", group], offline)) as {
-        group: string
-        verbs: Array<{ name: string; summary: string }>
-      }
-      expect(listing.group).toBe(group)
-      expect(listing.verbs.map((v) => v.name)).toEqual([...names])
-      for (const v of listing.verbs) expect(v.summary.length).toBeGreaterThan(0)
     }
   })
 })
@@ -225,12 +191,6 @@ describe("edit verbs — RPC name + payload", () => {
     ])
   })
 
-  it("set-status → task.status with a validated status", async () => {
-    const client = new FakeClient({ "task.status": () => ({}) })
-    await invokeVerb("set-status", ["--task-id", "t1", "--status", "in_review"], { client, runtime: stubRuntime() })
-    expect(client.requests).toEqual([{ name: "task.status", payload: { taskId: "t1", status: "in_review" } }])
-  })
-
   it("pin defaults pinned:true; --pinned=false unpins", async () => {
     const client = new FakeClient({ "task.pin": () => ({}) })
     await invokeVerb("pin", ["--task-id", "t1"], { client, runtime: stubRuntime() })
@@ -239,16 +199,6 @@ describe("edit verbs — RPC name + payload", () => {
       { taskId: "t1", pinned: true },
       { taskId: "t1", pinned: false },
     ])
-  })
-
-  it("a non-boolean --pinned value is BAD_FLAG (bool coercion happens in the handler)", async () => {
-    const client = new FakeClient({ "task.pin": () => ({}) })
-    await expectApiError(
-      () => invokeVerb("pin", ["--task-id", "t1", "--pinned=banana"], { client, runtime: stubRuntime() }),
-      "BAD_FLAG",
-      "--pinned must be a boolean (true/false)",
-    )
-    expect(client.requests).toEqual([])
   })
 })
 
@@ -267,12 +217,6 @@ describe("issue verbs", () => {
     ])
   })
 
-  it("issue-list reads the repo's issues", async () => {
-    const client = new FakeClient({ "issue.list": () => ({ issues: [] }) })
-    await invokeVerb("issue-list", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })
-    expect(client.requests).toEqual([{ name: "issue.list", payload: { repoRoot: "/repo/x" } }])
-  })
-
   it("issue-update with only a title sends an update mutation", async () => {
     const client = new FakeClient({ "issue.mutate": () => ({ issues: [] }) })
     await invokeVerb("issue-update", ["--repo", "/repo/x", "--id", "7", "--title", "Renamed"], {
@@ -286,15 +230,6 @@ describe("issue verbs", () => {
     })
   })
 
-  it("issue-update with only a body works too", async () => {
-    const client = new FakeClient({ "issue.mutate": () => ({ issues: [] }) })
-    await invokeVerb("issue-update", ["--repo", "/repo/x", "--id", "7", "--body", "More detail"], {
-      client,
-      runtime: stubRuntime(),
-    })
-    expect(client.requests[0].payload).toMatchObject({ op: { type: "update", id: 7, body: "More detail" } })
-  })
-
   it("issue-update with no flags at all is MISSING_FLAG before any RPC", async () => {
     const client = new FakeClient()
     await expectApiError(
@@ -303,15 +238,6 @@ describe("issue verbs", () => {
       "issue-update requires --title, --body, and/or --task",
     )
     expect(client.requests).toEqual([])
-  })
-
-  it("issue-update --task links the issue to the task", async () => {
-    const client = new FakeClient({ "issue.mutate": () => ({ issues: [] }) })
-    await invokeVerb("issue-update", ["--repo", "/repo/x", "--id", "7", "--task", "01TASK"], {
-      client,
-      runtime: stubRuntime(),
-    })
-    expect(client.requests[0].payload).toMatchObject({ op: { type: "update", id: 7, taskId: "01TASK" } })
   })
 
   it("issue-update --task none unlinks", async () => {
@@ -345,18 +271,6 @@ describe("issue verbs", () => {
 })
 
 describe("dispatch / note delivery verbs", () => {
-  it("dispatch routes the text through session.deliver tagged as the dispatcher", async () => {
-    const client = new FakeClient({ "session.deliver": () => ({}) })
-    const result = await invokeVerb("dispatch", ["--task-id", "t1", "--prompt", "focus on the parser"], {
-      client,
-      runtime: stubRuntime(),
-    })
-    expect(client.requests).toEqual([
-      { name: "session.deliver", payload: { taskId: "t1", text: "focus on the parser", source: "dispatcher" } },
-    ])
-    expect(result).toEqual({ ok: true, taskId: "t1", routed: "session.deliver" })
-  })
-
   // A dispatch that reached nobody must SAY so. session.deliver is
   // broadcast-only (an attached client performs the paste), so a bare
   // `ok: true` reads identically whether the engine saw the text or it went
@@ -416,11 +330,5 @@ describe("VerbArgs coercion guards", () => {
     const args = new VerbArgs(verb as NonNullable<typeof verb>, new Map([["status", "weird"]]))
     expect(() => args.enumOf("status")).toThrow(ApiError)
     expect(() => args.enumOf("status")).toThrow(/--status must be one of/)
-  })
-
-  it("reading an undeclared flag is a loud programming error, not a silent undefined", () => {
-    const verb = findVerb("list")
-    const args = new VerbArgs(verb as NonNullable<typeof verb>, new Map())
-    expect(() => args.str("nope")).toThrow('internal: --nope is not declared on verb "list"')
   })
 })

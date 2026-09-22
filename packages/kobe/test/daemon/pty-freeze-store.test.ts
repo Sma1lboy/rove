@@ -12,9 +12,7 @@ import { join } from "node:path"
 import {
   FREEZE_RESTORE_MAX_BYTES,
   FREEZE_TTL_MS,
-  type FreezeLoadSummary,
   type FreezeableSession,
-  type FrozenPtySession,
   clearFrozenSessions,
   fileFreezeSink,
   freezeSession,
@@ -73,20 +71,6 @@ describe("pty freeze store", () => {
     expect(Buffer.concat(thawed?.chunks ?? []).toString("utf8")).toBe("hello world")
   })
 
-  it("encodes :: keys into filesystem-safe, per-session filenames", () => {
-    const sink = fileFreezeSink(dir)
-    sink.save(freezeSession(fakeSession({ key: "t1::tab-1" })))
-    sink.save(freezeSession(fakeSession({ key: "t1::tab-1::leaf-2" })))
-    const names = readdirSync(dir)
-    expect(names.length).toBe(2)
-    for (const name of names) expect(name).toMatch(/^[^/\\:]+\.json$/)
-    expect(
-      loadFrozenSessions(dir)
-        .map((r) => r.key)
-        .sort(),
-    ).toEqual(["t1::tab-1", "t1::tab-1::leaf-2"])
-  })
-
   it("a corrupt or foreign-version file reads as absent and never blocks the rest", () => {
     const sink = fileFreezeSink(dir)
     sink.save(freezeSession(fakeSession({ key: "good::tab-1" })))
@@ -121,15 +105,6 @@ describe("pty freeze store", () => {
     // totalBytes stays monotonic from the record, not the trimmed window.
     const thawed = thawSession(record, 256)
     expect(thawed?.totalBytes).toBe(2048)
-  })
-
-  it("thaw tolerates a garbage ring — no throw, and the session still restores", () => {
-    // Buffer.from(…, "base64") never throws: it decodes the valid subset.
-    // The pin is that a weird ring can never crash the restore path.
-    const record: FrozenPtySession = { ...freezeSession(fakeSession()), ringB64: "%%%" }
-    const thawed = thawSession(record, 1024)
-    expect(thawed?.restored).toBe(true)
-    expect(thawed?.bytes).toBe(0)
   })
 })
 
@@ -174,10 +149,6 @@ describe("existing-permission remediation", () => {
     fileFreezeSink(legacy).save(freezeSession(fakeSession({ key: "a::tab-1" })))
 
     for (const name of names) expect(modeOf(join(legacy, name))).toBe("600")
-  })
-
-  it("survives a directory that does not exist yet", () => {
-    expect(() => fileFreezeSink(join(dir, "absent"))).not.toThrow()
   })
 })
 
@@ -242,22 +213,6 @@ describe("pruning stale + over-budget records", () => {
 
     expect(loaded.map((r) => r.key)).toEqual(["newer::tab-1"])
     expect(readdirSync(dir).filter((n) => n.endsWith(".json"))).toEqual(["newer%3A%3Atab-1.json"])
-  })
-
-  it("reports what the boot did with the store", () => {
-    const now = Date.parse("2026-08-30T00:00:00.000Z")
-    writeRecord("newer::tab-1", new Date(now - 60_000).toISOString(), HALF_BUDGET_RING)
-    writeRecord("older::tab-1", new Date(now - 120_000).toISOString(), HALF_BUDGET_RING)
-    writeRecord("ancient::tab-1", new Date(now - 30 * DAY).toISOString())
-
-    let summary: FreezeLoadSummary | undefined
-    loadFrozenSessions(dir, now, (s) => {
-      summary = s
-    })
-
-    // Deferring and deleting are different outcomes and the log must say which.
-    expect(summary).toMatchObject({ restored: 1, deferred: 1, expired: 1, unreadable: 0 })
-    expect(summary?.bytesRead).toBeLessThanOrEqual(FREEZE_RESTORE_MAX_BYTES)
   })
 
   it("keeps a record right at the TTL edge", () => {

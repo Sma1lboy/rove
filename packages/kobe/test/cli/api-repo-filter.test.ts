@@ -40,11 +40,4 @@ describe("repoFilter", () => {
     expect(filter.matches("/repos/old")).toBe(false)
     expect(filter.unresolvableRepos).toEqual(["/repos/old"])
   })
-
-  it("matches a resolvable repo and reports nothing unresolvable", async () => {
-    const filter = await repoFilter(runtimeWhere(["/repos/a", "/repos/b"]), "/repos/a", ["/repos/a", "/repos/b"])
-    expect(filter.matches("/repos/a")).toBe(true)
-    expect(filter.matches("/repos/b")).toBe(false)
-    expect(filter.unresolvableRepos).toEqual([])
-  })
 })

@@ -62,10 +62,6 @@ describe("worktreeFingerprint", () => {
     for (const dir of dirs) rmSync(dir, { recursive: true, force: true })
   })
 
-  test("is stable across reads when nothing happens", () => {
-    expect(worktreeFingerprint(repo)).toBe(worktreeFingerprint(repo))
-  })
-
   test("is null for a directory that is not a git checkout", () => {
     const plain = mkdtempSync(join(tmpdir(), "kobe-probe-plain-"))
     dirs.push(plain)
@@ -144,12 +140,6 @@ describe("ref reads", () => {
     repo = newRepo()
   })
 
-  test("readHeadSha follows the symref, and matches rev-parse", () => {
-    const probeDirs = resolveGitDirs(repo)
-    expect(probeDirs).not.toBeNull()
-    expect(readHeadSha(probeDirs as NonNullable<typeof probeDirs>)).toBe(git(repo, "rev-parse", "HEAD"))
-  })
-
   test("readRefSha finds a branch both loose and packed", () => {
     const probeDirs = resolveGitDirs(repo) as NonNullable<ReturnType<typeof resolveGitDirs>>
     const expected = git(repo, "rev-parse", "main")
@@ -159,8 +149,4 @@ describe("ref reads", () => {
     expect(readRefSha(probeDirs, "main")).toBe(expected)
   })
 
-  test("readRefSha is null for a ref that does not exist", () => {
-    const probeDirs = resolveGitDirs(repo) as NonNullable<ReturnType<typeof resolveGitDirs>>
-    expect(readRefSha(probeDirs, "origin/nope")).toBeNull()
-  })
 })

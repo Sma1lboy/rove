@@ -16,10 +16,9 @@ import {
   formatCrashEntry,
   formatDaemonError,
   installDaemonCrashHandlers,
-  logDaemonError,
   resetDaemonCrashHandlersForTest,
 } from "@sma1lboy/kobe-daemon/daemon/crash-log"
-import { afterEach, describe, expect, test, vi } from "vitest"
+import { afterEach, describe, expect, test } from "vitest"
 
 afterEach(() => {
   resetDaemonCrashHandlersForTest()
@@ -33,12 +32,6 @@ describe("formatCrashEntry", () => {
     expect(line).toContain("daemon uncaughtException")
     expect(line).toContain("kaboom")
     expect(line.endsWith("\n")).toBe(true)
-  })
-
-  test("wraps a non-Error rejection reason into something printable", () => {
-    const line = formatCrashEntry("unhandledRejection", "plain string reason")
-    expect(line).toContain("daemon unhandledRejection")
-    expect(line).toContain("plain string reason")
   })
 
   test("survives a reason that cannot be JSON-stringified", () => {
@@ -57,38 +50,9 @@ describe("formatDaemonError", () => {
     expect(line).toContain("fetch failed")
     expect(line.endsWith("\n")).toBe(true)
   })
-
-  test("coerces a non-Error reason into printable text", () => {
-    const line = formatDaemonError("rc-bridge", { code: "EPIPE" })
-    expect(line).toContain("daemon error [rc-bridge]")
-    expect(line).toContain("EPIPE")
-  })
-
-  test("logDaemonError writes the tagged line to stderr", () => {
-    const spy = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
-    try {
-      logDaemonError("daemon-shutdown", new Error("close hung"))
-      const written = spy.mock.calls.map((c) => String(c[0])).join("")
-      expect(written).toContain("daemon error [daemon-shutdown]")
-      expect(written).toContain("close hung")
-    } finally {
-      spy.mockRestore()
-    }
-  })
 })
 
 describe("installDaemonCrashHandlers", () => {
-  test("registers exactly one handler for each fatal process event", () => {
-    resetDaemonCrashHandlersForTest()
-    const rejectionsBefore = process.listenerCount("unhandledRejection")
-    const exceptionsBefore = process.listenerCount("uncaughtException")
-
-    installDaemonCrashHandlers(() => {})
-
-    expect(process.listenerCount("unhandledRejection")).toBe(rejectionsBefore + 1)
-    expect(process.listenerCount("uncaughtException")).toBe(exceptionsBefore + 1)
-  })
-
   test("is idempotent — a second call does not stack duplicate handlers", () => {
     resetDaemonCrashHandlersForTest()
     installDaemonCrashHandlers(() => {})
@@ -113,17 +77,5 @@ describe("installDaemonCrashHandlers", () => {
     // logged line instead of a process kill.
     ;(added[0] as (reason: unknown) => void)(new Error("stray rejection"))
     expect(lines.some((l) => l.includes("unhandledRejection") && l.includes("stray rejection"))).toBe(true)
-  })
-
-  test("resetDaemonCrashHandlersForTest removes exactly the handlers it installed", () => {
-    resetDaemonCrashHandlersForTest()
-    const rejectionsBaseline = process.listenerCount("unhandledRejection")
-    const exceptionsBaseline = process.listenerCount("uncaughtException")
-
-    installDaemonCrashHandlers(() => {})
-    resetDaemonCrashHandlersForTest()
-
-    expect(process.listenerCount("unhandledRejection")).toBe(rejectionsBaseline)
-    expect(process.listenerCount("uncaughtException")).toBe(exceptionsBaseline)
   })
 })

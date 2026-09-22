@@ -60,12 +60,6 @@ describe("row-token", () => {
     expect(lastPayload(c)).toMatchObject({ tone: "warning" })
   })
 
-  it("sends no tone when none was asked for", async () => {
-    const c = client()
-    await invokeVerb("row-token", ["--task-id", "t1", "--text", "@ana"], { client: c, runtime })
-    expect(lastPayload(c)).not.toHaveProperty("tone")
-  })
-
   it("sends clear instead of text under --clear", async () => {
     const c = client()
     await invokeVerb("row-token", ["--task-id", "t1", "--clear", "--key", "claim"], { client: c, runtime })

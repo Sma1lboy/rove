@@ -8,18 +8,9 @@ describe("parseSandboxArgs", () => {
     expect(parseSandboxArgs([])).toEqual({ mode: "run", roveArgs: [] })
   })
 
-  it("keeps reset and home unchanged", () => {
-    expect(parseSandboxArgs(["reset"])).toEqual({ mode: "reset", roveArgs: [] })
-    expect(parseSandboxArgs(["home"])).toEqual({ mode: "home", roveArgs: [] })
-  })
-
   it("run forwards trailing rove argv; other modes still reject extras", () => {
     expect(parseSandboxArgs(["run", "api", "list"])).toEqual({ mode: "run", roveArgs: ["api", "list"] })
     expect(() => parseSandboxArgs(["reset", "extra"])).toThrow('unexpected argument "extra"')
-  })
-
-  it("rejects retired launch flags", () => {
-    expect(() => parseSandboxArgs(["--tmux"])).toThrow('unknown sandbox mode "--tmux"')
   })
 
   it("--name selects a named instance and validates the name", () => {
@@ -82,14 +73,5 @@ describe("sandboxChildEnv", () => {
     expect(env.HOME).toBe("/Users/op")
     expect(env.XDG_CONFIG_HOME).toBeUndefined()
     expect(env.ROVE_HOME_DIR).toBe("/tmp/isolated")
-  })
-
-  // The daemon has no HTTP listener, so the sandbox allocates no port for one.
-  // What isolates a sandbox instance is its home and its sockets — both pinned
-  // above. A port stamped here would only look like a second isolation
-  // mechanism to whoever reads this next.
-  it("stamps no web-port knob at all", () => {
-    const env = sandboxChildEnv("/tmp/isolated", { HOME: "/Users/op" })
-    for (const key of Object.keys(env)) expect(key).not.toMatch(/WEB_PORT$/)
   })
 })

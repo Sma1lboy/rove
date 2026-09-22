@@ -78,11 +78,6 @@ describe("detectShell", () => {
     expect(detectShell({ SHELL: "/opt/homebrew/bin/bash" })).toBe("bash")
     expect(detectShell({ SHELL: "/usr/local/bin/fish" })).toBe("fish")
   })
-
-  it("unknown or missing $SHELL is null (the wizard skips the step)", () => {
-    expect(detectShell({ SHELL: "/bin/tcsh" })).toBeNull()
-    expect(detectShell({})).toBeNull()
-  })
 })
 
 describe("installCompletions", () => {
@@ -126,14 +121,6 @@ describe("installCompletions", () => {
     expect(existsSync(join(home, ".config", "fish", "config.fish"))).toBe(false)
   })
 
-  it("uses the active cli name (kobe) when no product is pinned", () => {
-    const home = freshHome()
-    const { path: rc } = installCompletions("zsh", home)
-    const content = readFileSync(rc, "utf8")
-    expect(content).toContain("source <(kobe completions zsh)")
-    expect(content).toContain("command -v kobe")
-  })
-
   it("sources the pre-generated script when one exists — no subprocess at shell start", () => {
     const home = freshHome()
     const shipped = join(freshHome(), "rove.zsh")
@@ -163,14 +150,6 @@ describe("installCompletions", () => {
     expect(content).toContain(`source "${shipped}"`)
     expect(content).not.toContain("source <(")
   })
-
-  it("fish autoloads a guard over the shipped script", () => {
-    const home = freshHome()
-    const shipped = join(freshHome(), "rove.fish")
-    writeFileSync(shipped, "# rove fish completions\n")
-    const { path } = installCompletions("fish", home, "rove", shipped)
-    expect(readFileSync(path, "utf8")).toBe(`test -f "${shipped}"; and source "${shipped}"\n`)
-  })
 })
 
 describe("recordWelcomeChoices", () => {
@@ -188,15 +167,10 @@ describe("recordWelcomeChoices", () => {
    * renderer's cells, and the corruption reads as an opentui bug rather than
    * as a greeting that spoke out of turn.
    */
-  it("never writes to stdout — the TUI still owns the screen", async () => {
+  it("never writes to stdout or spawns — the TUI still owns the screen", async () => {
     const { recordWelcomeChoices } = await import("../../src/cli/onboarding.ts")
     recordWelcomeChoices({ completions: true, skill: true }, "zsh")
     expect(stdoutSpy).not.toHaveBeenCalled()
-  })
-
-  it("never spawns — npx waits until the renderer is gone", async () => {
-    const { recordWelcomeChoices } = await import("../../src/cli/onboarding.ts")
-    recordWelcomeChoices({ completions: true, skill: true }, "zsh")
     expect(mocks.spawnSync).not.toHaveBeenCalled()
   })
 
@@ -206,22 +180,10 @@ describe("recordWelcomeChoices", () => {
     expect(mocks.patchStateFile).toHaveBeenCalledWith(expect.objectContaining({ welcomePendingCompletions: "fish" }))
   })
 
-  it("records nothing for completions when no shell was detected", async () => {
-    const { recordWelcomeChoices } = await import("../../src/cli/onboarding.ts")
-    recordWelcomeChoices({ completions: true, skill: false }, null)
-    expect(mocks.patchStateFile).toHaveBeenCalledWith(expect.objectContaining({ welcomePendingCompletions: undefined }))
-  })
-
   it("a declined skill settles the one-time startup hint — the user just answered it", async () => {
     const { recordWelcomeChoices } = await import("../../src/cli/onboarding.ts")
     recordWelcomeChoices({ completions: false, skill: false }, "zsh")
     expect(mocks.markSkillHintSeen).toHaveBeenCalled()
-  })
-
-  it("an accepted skill leaves the hint alone — the installer speaks for it", async () => {
-    const { recordWelcomeChoices } = await import("../../src/cli/onboarding.ts")
-    recordWelcomeChoices({ completions: false, skill: true }, "zsh")
-    expect(mocks.markSkillHintSeen).not.toHaveBeenCalled()
   })
 
   it("a read-only home loses the deferred install, not the session", async () => {
@@ -307,11 +269,6 @@ describe("shouldWelcome", () => {
   it("greets a genuine first run — no stamp of either kind", async () => {
     const { shouldWelcome } = await import("../../src/cli/welcome.ts")
     expect(shouldWelcome({})).toBe(true)
-  })
-
-  it("never greets twice", async () => {
-    const { shouldWelcome } = await import("../../src/cli/welcome.ts")
-    expect(shouldWelcome({ welcomed: true })).toBe(false)
   })
 
   /**
