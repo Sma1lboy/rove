@@ -36,8 +36,16 @@ export function normalizeSoundVolume(value: unknown): number {
 /** The step after `volume` — the nearest step at or below it, then one along, wrapping. */
 export function nextSoundVolume(volume: number): number {
   const current = normalizeSoundVolume(volume)
-  const at = SOUND_VOLUME_STEPS.findIndex((step) => step >= current - 1e-9)
-  return SOUND_VOLUME_STEPS[(at < 0 ? 0 : at + 1) % SOUND_VOLUME_STEPS.length] as number
+  // The first step strictly louder than `current`, which IS "the nearest step
+  // at or below, then one along": the steps are ascending, so the first one
+  // above `current` sits exactly one slot past the nearest at-or-below. The
+  // epsilon keeps a step that merely equals `current` from counting as louder,
+  // so an exact step still advances by one rather than staying put. None louder
+  // means `current` is at or past the top, so the cycle wraps to the quietest.
+  // (Finding the first step at-or-*above* and then adding one skipped a level
+  // for any between-step value, and wrapped 0.9 to 0.1 instead of up to 1.)
+  const above = SOUND_VOLUME_STEPS.findIndex((step) => step > current + 1e-9)
+  return SOUND_VOLUME_STEPS[above < 0 ? 0 : above] as number
 }
 
 /** Framework-free read for the sound layer — kv writes land in the same state.json. */
