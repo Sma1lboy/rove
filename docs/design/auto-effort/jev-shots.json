@@ -1,0 +1,98 @@
+[
+ {
+  "task": "能不能调查一下为什么审计日志表最近涨得这么快",
+  "tier": "deep"
+ },
+ {
+  "task": "搜索结果点进去经常是死链,404,麻烦查一下是不是构建的时候路由没同步",
+  "tier": "standard"
+ },
+ {
+  "task": "深色模式代码块背景色跟正文背景一个颜色 看不出区别",
+  "tier": "swift"
+ },
+ {
+  "task": "Tooltip 在 iframe 里定位完全是错的",
+  "tier": "swift"
+ },
+ {
+  "task": "Table 组件表头固定之后横向滚动条消失了",
+  "tier": "standard"
+ },
+ {
+  "task": "Preferences window doesn't remember size after quit\n\n`PreferencesWindowController.swift` never persists its frame via `setFrameAutosaveName`. Add an autosave name and call it in `windowDidLoad`, so resizing the window sticks across relaunches like the main status window already does.",
+  "tier": "swift"
+ },
+ {
+  "task": "what would it take to add keyboard-only card creation (no mouse) to the board view?",
+  "tier": "deep"
+ },
+ {
+  "task": "Add a `--json` flag to the `board list` command\n\nRight now `board list` only prints an ASCII table (src/commands/list.ts). Add a `--json` flag that dumps the same data as JSON to stdout instead, and update the `--help` text in `cli.ts` to document it. Useful for piping into `jq` in scripts.",
+  "tier": "swift"
+ },
+ {
+  "task": "Scheduled job leaks DB connections\n\n`ReportGenerationJob.java` opens a `Connection` manually in `run()` but never closes it in the catch block when an exception is thrown mid-query. Under load this exhausts the HikariCP pool within a couple hours. Wrap it in try-with-resources and add a test that simulates a query failure and asserts pool size returns to baseline.",
+  "tier": "swift"
+ },
+ {
+  "task": "跑大表的时候报了个内存错误\n```\nMemoryError: Unable to allocate 3.2 GiB for an array\n```\n看看能不能流式处理不要一次读全部",
+  "tier": "standard"
+ },
+ {
+  "task": "角色权限缓存没有失效机制\n\nPermissionCacheService.java 用 Guava Cache 存权限,没设 TTL,管理员在后台改了某个角色的权限之后,已经登录的用户那边还是读到旧的缓存值,要重启服务才会刷新。想加两块:一是给缓存加个合理的 TTL 兜底,二是在 RoleController.updateRole 保存成功之后主动调用一次缓存失效,把改动立刻生效。顺便补一个覆盖这个失效逻辑的单测。",
+  "tier": "swift"
+ },
+ {
+  "task": "any chance we could speed up the parquet export path? it feels way slower than the csv one for the same row count",
+  "tier": "deep"
+ },
+ {
+  "task": "could we support opening files in $EDITOR from the file manager instead of always using vi?",
+  "tier": "deep"
+ },
+ {
+  "task": "打怪掉钱的几率好像太高了,能不能配置化",
+  "tier": "standard"
+ },
+ {
+  "task": "电量图标在充满电之后没有变绿,看下",
+  "tier": "standard"
+ },
+ {
+  "task": "any ideas on how to make undo/redo work across card moves, not just edits?",
+  "tier": "deep"
+ },
+ {
+  "task": "Getting this on startup after bumping api-version in plugin.yml:\n```\njava.lang.NoSuchMethodError: 'void org.bukkit.entity.Player.sendActionBar(net.md_5.bungee.api.chat.BaseComponent)'\n```\nLooks like a Paper API compat issue, please fix.",
+  "tier": "standard"
+ },
+ {
+  "task": "is there a way to make the Select component support async options loading?",
+  "tier": "deep"
+ },
+ {
+  "task": "websocket 代理老是断连,http 的没问题,是不是 upstream 的 timeout 设置太短了",
+  "tier": "standard"
+ },
+ {
+  "task": "OrderController 的分页接口,pageSize 传超过 1000 会直接 OOM,加个 max pageSize 校验,超过就 400,顺便把 error message 里那句英文改成中文",
+  "tier": "swift"
+ },
+ {
+  "task": "设置面板里加一个「开机自启」的开关,用 SMAppService 那套新 API(macOS 13+),状态存进 UserDefaults 的 launchAtLogin 键,UI 照抄现在「显示秒数」那个 toggle 的样式就行",
+  "tier": "swift"
+ },
+ {
+  "task": "感觉启动速度可以再快点,调查一下瓶颈在哪",
+  "tier": "deep"
+ },
+ {
+  "task": "文件树滚动的时候感觉卡一下 能不能查一下是不是重绘的问题",
+  "tier": "deep"
+ },
+ {
+  "task": "health check 的 interval 现在写死 5s,能不能做成每个 upstream 可配置?",
+  "tier": "standard"
+ }
+]

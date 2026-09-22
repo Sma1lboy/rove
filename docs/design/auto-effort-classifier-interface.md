@@ -3,6 +3,8 @@
 配套 [`auto-effort-classifier.md`](./auto-effort-classifier.md)（那份定的是**要不要做**，
 这份写的是**怎么做**）。目标是让接手的人不用重新趟一遍。
 
+代码和判据的快照在 [`auto-effort/`](./auto-effort/) —— 看可以，改要改原仓库。
+
 分类器本身的原料、数据和评测记录不在本仓库：它是一个独立的本地 git 仓库，
 挂在 `packages/auto-effort/`，被 [`.gitignore`](../../.gitignore) 排除
 （rove 是公开仓库，而 golden 是手工标注）。**它目前没有 remote，接手前先给它建一个。**
