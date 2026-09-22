@@ -77,9 +77,18 @@ const SIBLINGS = 4
 /** Sidebar row centres at 1280×800 — see the probe stills in `hero-shot.ts`. */
 const ROW = { firstTask: 136, firstSibling: 200 } as const
 
+/** One row of the fan-out result. `addParallel` returns the handles the
+ *  sidebar shows — not the task record, so the depth it landed on is read back
+ *  with `get-task`. */
 interface AddedTask {
   readonly taskId: string
-  readonly task?: { readonly worktreePath?: string; readonly tier?: string; readonly model?: string }
+  readonly title?: string
+}
+
+interface TaskRecord {
+  readonly worktreePath?: string
+  readonly tier?: string
+  readonly model?: string
 }
 
 /** `rove api` through the BUILT cli, async so the capture's sensitive-text
@@ -119,12 +128,42 @@ function guardTheKey(): void {
   forbidLiteral(key)
 }
 
-/** Every worktree this take creates must be inside the fixture. */
-function assertContained(tasks: readonly AddedTask[]): void {
-  for (const { taskId, task } of tasks) {
-    const path = task?.worktreePath
+/**
+ * Read back what each sibling actually landed on, and refuse to continue if
+ * any of it escaped the fixture.
+ *
+ * The containment check is the one that matters: a worktree root is resolved
+ * from the product home, and a capture that quietly created four checkouts in
+ * the operator's real `~/.rove/worktrees` would be discovered weeks later.
+ */
+async function describeSiblings(tasks: readonly AddedTask[]): Promise<void> {
+  for (const { taskId } of tasks) {
+    const got = (await heroApiAsync(["get-task", "--task-id", taskId])) as { task?: TaskRecord }
+    const path = got.task?.worktreePath
     if (path && !path.startsWith(HERO_ROOT)) {
       throw new Error(`task ${taskId} put its worktree at ${path}, outside the fixture root ${HERO_ROOT}`)
+    }
+    console.log(`[hero:routing]   ${taskId} tier=${got.task?.tier ?? "-"} model=${got.task?.model ?? "-"}`)
+  }
+}
+
+/**
+ * Close any non-engine tab the fixture is holding open.
+ *
+ * A shell tab renders the operator's shell prompt, which on a configured
+ * machine carries their e-mail address — and `hero-capture.ts`'s guard aborts
+ * the take when it sees one, correctly and after the fan-out has already been
+ * paid for. One left open by hand while probing the layout cost exactly that,
+ * so the recorder now clears them rather than trusting the fixture's state.
+ */
+async function closeShellTabs(): Promise<void> {
+  const listed = (await heroApiAsync(["list"])) as { tasks?: { id: string }[] }
+  for (const { id } of listed.tasks ?? []) {
+    const got = (await heroApiAsync(["get-task", "--task-id", id])) as { tabs?: { id: string; kind: string }[] }
+    for (const tab of got.tabs ?? []) {
+      if (tab.kind === "engine") continue
+      await heroApiAsync(["tab-close", "--task-id", id, "--tab", tab.id])
+      console.log(`[hero:routing] closed ${id} ${tab.id} (${tab.kind}) — a shell pane renders the operator's prompt`)
     }
   }
 }
@@ -168,12 +207,9 @@ async function storyboard(page: Page): Promise<void> {
   ])) as { tierAuto?: string; tasks?: AddedTask[]; failures?: unknown[] }
 
   created.push(...(result.tasks ?? []))
-  assertContained(created)
   // Printed, not filmed — see the header. This is what the PR quotes.
   console.log(`[hero:routing] ${result.tierAuto ?? "(no tierAuto reported)"}`)
-  for (const { taskId, task } of created) {
-    console.log(`[hero:routing]   ${taskId} tier=${task?.tier ?? "-"} model=${task?.model ?? "-"}`)
-  }
+  await describeSiblings(created)
   if (result.failures?.length) console.error(`[hero:routing] ${result.failures.length} sibling(s) failed to start`)
 
   // Beat 2 — four rows that were not there a moment ago, all on one branchpoint
@@ -196,6 +232,7 @@ async function storyboard(page: Page): Promise<void> {
 
 if (!args.includes("--encode-only")) {
   guardTheKey()
+  await closeShellTabs()
   await rm(workDir, { recursive: true, force: true })
   await mkdir(workDir, { recursive: true })
   try {
