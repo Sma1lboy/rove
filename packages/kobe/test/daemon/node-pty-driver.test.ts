@@ -149,20 +149,21 @@ describe("nodePtyDriver", () => {
     expect(pty.calls).toEqual([])
   })
 
-  test("supplies endTree, aimed at the child's own pid — the subtree kill() cannot reach", async () => {
+  test("supplies endTree, aimed at the child's own pid and shell — the subtree kill() cannot reach", async () => {
     // node-pty's kill() is TerminateProcess on the shell alone; the engine
     // and everything it spawned survive it with their cwd in the worktree,
     // which is what made a deleted worktree's directory undeletable.
     const pty = fakeNodePty()
-    const asked: number[] = []
-    const driver = await nodePtyDriver(pty.spawn, async (pid) => {
-      asked.push(pid)
+    const asked: [number, string | undefined][] = []
+    const driver = await nodePtyDriver(pty.spawn, async (pid, shellFile) => {
+      asked.push([pid, shellFile])
       return `taskkill /T /F /PID ${pid}: SUCCESS`
     })
     const proc = driver(request())
 
     await expect(proc.endTree?.()).resolves.toBe("taskkill /T /F /PID 31337: SUCCESS")
-    expect(asked).toEqual([31337])
+    // The shell's path is what lets a Git Bash tree be read from MSYS's table.
+    expect(asked).toEqual([[31337, "C:\\Program Files\\Git\\bin\\bash.exe"]])
     // Asking is not killing: the handle release stays a separate `kill()`.
     expect(pty.calls).toEqual([])
   })

@@ -163,7 +163,7 @@ export type NodePtySpawn = (
  */
 export async function nodePtyDriver(
   spawn?: NodePtySpawn,
-  endTree: (pid: number) => Promise<string> = taskkillProcessTree,
+  endTree: (pid: number, shellFile?: string) => Promise<string> = taskkillProcessTree,
 ): Promise<PtyDriver> {
   const spawnPty = spawn ?? ((await import("node-pty")).spawn as unknown as NodePtySpawn)
   return (request) => {
@@ -195,9 +195,10 @@ export async function nodePtyDriver(
       // ConPTY has no signals — node-pty maps every kill to TerminateProcess,
       // so SIGTERM and SIGKILL collapse into the same call here — and that
       // call reaches the shell alone: nothing it spawned, nothing holding
-      // the worktree as its cwd. `endTree` is what reaches the rest.
+      // the worktree as its cwd. `endTree` is what reaches the rest; it gets
+      // the shell's path so a Git Bash tree can be read from MSYS's own table.
       kill: () => child.kill(),
-      endTree: () => endTree(child.pid),
+      endTree: () => endTree(child.pid, file),
     }
   }
 }
