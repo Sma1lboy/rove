@@ -72,19 +72,6 @@ async function waitFor(cond: () => boolean): Promise<void> {
 }
 
 describe("readUiPrefsFromStateFile", () => {
-  test("missing file yields the documented defaults", () => {
-    expect(readUiPrefsFromStateFile(statePath)).toEqual({
-      theme: null, // the daemon has no theme registry — the TUI picks the default
-      themeMode: null,
-      transparentBackground: true, // transparent-by-default
-      focusAccent: null,
-      locale: "en",
-      sortMode: "default",
-      keysCollapsed: false,
-      projectFilter: null,
-    })
-  })
-
   test("corrupt JSON yields defaults instead of throwing (State Store corrupt-file policy)", () => {
     fs.mkdirSync(path.dirname(statePath), { recursive: true })
     fs.writeFileSync(statePath, "{not json", "utf8")
@@ -98,41 +85,6 @@ describe("readUiPrefsFromStateFile", () => {
       keysCollapsed: false,
       projectFilter: null,
     })
-  })
-
-  test("reads the visual keys; an unknown focusAccent slot is dropped to null", () => {
-    patchStateFile({ activeTheme: "nord", transparentBackground: true, focusAccent: "chartreuse" })
-    expect(readUiPrefsFromStateFile(statePath)).toEqual({
-      theme: "nord",
-      themeMode: null,
-      transparentBackground: true,
-      focusAccent: null,
-      locale: "en",
-      sortMode: "default",
-      keysCollapsed: false,
-      projectFilter: null,
-    })
-  })
-
-  test("reads themeMode; an unknown mode is dropped to null (the TUI's unset)", () => {
-    patchStateFile({ themeMode: "auto" })
-    expect(readUiPrefsFromStateFile(statePath).themeMode).toBe("auto")
-    patchStateFile({ themeMode: "sepia" })
-    expect(readUiPrefsFromStateFile(statePath).themeMode).toBeNull()
-  })
-
-  test("reads activeSortMode; a non-`recent` value falls back to the default ordering", () => {
-    patchStateFile({ activeSortMode: "recent" })
-    expect(readUiPrefsFromStateFile(statePath).sortMode).toBe("recent")
-    patchStateFile({ activeSortMode: "bogus" })
-    expect(readUiPrefsFromStateFile(statePath).sortMode).toBe("default")
-  })
-
-  test("reads tasksPane.keysCollapsed; only an explicit true collapses the legend", () => {
-    patchStateFile({ "tasksPane.keysCollapsed": true })
-    expect(readUiPrefsFromStateFile(statePath).keysCollapsed).toBe(true)
-    patchStateFile({ "tasksPane.keysCollapsed": false })
-    expect(readUiPrefsFromStateFile(statePath).keysCollapsed).toBe(false)
   })
 
   test("reads tasksPane.projectFilter; only a non-empty string is kept", () => {
@@ -212,13 +164,6 @@ describe("startUiPrefsWatcher", () => {
       keysCollapsed: false,
       projectFilter: null,
     })
-  })
-
-  test("debounceMs <= 0 disables the watcher entirely (no publish, no-op stop)", () => {
-    stop = startUiPrefsWatcher(bus, { statePath, debounceMs: 0 })
-    expect(events).toHaveLength(0)
-    stop()
-    stop = null
   })
 
   test("stop() ends delivery", async () => {

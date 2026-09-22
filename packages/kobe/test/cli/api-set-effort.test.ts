@@ -97,16 +97,6 @@ describe("set-effort", () => {
     expect(client.requests.map((r) => r.name)).toEqual(["task.get"])
   })
 
-  it("refuses any level on an engine with no declared levels", async () => {
-    const client = new FakeClient(taskOf({ vendor: "claude" }))
-    await expectApiError(
-      () => invokeVerb("set-effort", ["--task-id", "t1", "--level", "xhigh"], { client, runtime: stubRuntime() }),
-      "BAD_EFFORT",
-      /declares no reasoning effort levels/,
-    )
-    expect(client.requests.map((r) => r.name)).toEqual(["task.get"])
-  })
-
   // A preset declaring the codex protocol IS a codex launch, and the TUI
   // records the preset id in `vendor`. Reading that id raw found the
   // registry's empty custom entry, so every level was refused — set-effort

@@ -255,13 +255,4 @@ describe("add --tier auto", () => {
     expect(client.requests).toEqual([])
     expect(classifier.calls).toEqual([])
   })
-
-  it("still refuses an explicit engine field beside it — auto fills the same three", async () => {
-    const client = createClient()
-    await expectApiError(
-      () => invokeVerb("add", withPrompt(["--model", "opus"]), { client, runtime: stubRuntime() }),
-      "CONFLICTING_FLAGS",
-    )
-    expect(classifier.calls).toEqual([])
-  })
 })

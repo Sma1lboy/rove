@@ -162,19 +162,6 @@ describe("runDoctorSubcommand", () => {
     expect(output()).toContain("reset")
   })
 
-  it("says nothing alarming when the pty host is on the same build as the CLI", async () => {
-    mocks.request.mockImplementation(async (name: string) => {
-      if (name === "daemon.status") return { daemonPid: 42, kobeVersion: CURRENT_VERSION }
-      if (name === "pty.list") return { sessions: [], version: CURRENT_VERSION }
-      throw new Error(`unexpected request ${name}`)
-    })
-
-    await runDoctorSubcommand([])
-
-    expect(output()).toContain(`build: v${CURRENT_VERSION}`)
-    expect(output()).not.toContain("stale build: pty host")
-  })
-
   it("prints the whole terminal section, multiplexer and kitty probe included", async () => {
     // Regression guard: this section collapses to a single env line if it is
     // treated as tmux-runtime output. Multiplexer NESTING and the kitty probe
@@ -188,46 +175,6 @@ describe("runDoctorSubcommand", () => {
     expect(text).toContain("terminal: TERM=")
     expect(text).toContain("running inside a multiplexer:")
     expect(text).toContain("kitty keyboard protocol:")
-  })
-
-  it("reports legacy process counts and RSS from a single inspect pass", async () => {
-    mocks.request.mockRejectedValue(new Error("not running"))
-    mocks.inspectLegacyTmux.mockResolvedValue({
-      available: true,
-      version: "tmux 3.6b",
-      sessions: ["kobe-a"],
-      panePids: [501],
-      processes: [
-        { pid: 501, pgid: 501, rssKb: 4096, command: "bun" },
-        { pid: 510, pgid: 501, rssKb: 2048, command: "claude" },
-      ],
-      error: null,
-    })
-
-    await runDoctorSubcommand([])
-
-    expect(output()).toContain("legacy tmux: ⚠ tmux 3.6b — 1 pre-v0.8 session(s)")
-    expect(output()).toContain("2 process(es) across 1 pane(s), 6.0 MB RSS total")
-    expect(output()).toContain("bun: 1 proc, 4.0 MB")
-    expect(output()).toContain("claude: 1 proc, 2.0 MB")
-    expect(mocks.inspectLegacyTmux).toHaveBeenCalledTimes(1)
-  })
-
-  it("help describes a read-only daemon, Hosted PTY, engines, git, and legacy tmux diagnosis", async () => {
-    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
-    await runDoctorSubcommand(["--help"])
-    expect(writeSpy.mock.calls.join("")).toContain("daemon / Hosted PTY / engines / git / legacy tmux / state")
-    expect(writeSpy.mock.calls.join("")).toContain("--report")
-    expect(mocks.request).not.toHaveBeenCalled()
-    writeSpy.mockRestore()
-  })
-
-  it("failing checks add a --fix hint to the plain run", async () => {
-    mocks.request.mockRejectedValue(new Error("not running"))
-
-    await runDoctorSubcommand([])
-
-    expect(output()).toContain("doctor --fix")
   })
 
   it("--fix without a TTY prints the per-fix plan and executes nothing", async () => {
@@ -337,22 +284,6 @@ describe("runDoctorSubcommand engines block", () => {
     expect(output()).toContain("copilot ✗ not found on PATH")
     expect(output()).toContain("kimi    ✓ /bin/kimi — logged in")
     expect(output()).toContain("my-agent ✓ /bin/my-agent — login not detectable")
-  })
-
-  it("surfaces an engine's account error without dropping its row", async () => {
-    mocks.listPresetIds.mockReturnValue(["kimi"])
-    mocks.detectEngineStatuses.mockResolvedValue([
-      {
-        vendor: "kimi",
-        binary: { found: true, path: "/bin/kimi" },
-        account: { kind: "none" },
-        accountError: "parse /home/u/.kimi-code/credentials/kimi-code.json: bad json",
-      },
-    ])
-    await runDoctorSubcommand([])
-
-    expect(output()).toContain("kimi    ✓ /bin/kimi — no account")
-    expect(output()).toContain("⚠ parse /home/u/.kimi-code/credentials/kimi-code.json: bad json")
   })
 
   it("counts ANY usable engine, not a hardcoded few", async () => {

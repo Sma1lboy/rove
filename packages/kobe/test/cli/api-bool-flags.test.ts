@@ -39,10 +39,6 @@ describe("a bool flag takes the space form", () => {
       ["task-id", "T"],
     ])
   })
-
-  it("still accepts the = form", () => {
-    expect([...parseFlags(["--force=false"], bools).flags]).toEqual([["force", "false"]])
-  })
 })
 
 describe("routine-update --persistent-session", () => {

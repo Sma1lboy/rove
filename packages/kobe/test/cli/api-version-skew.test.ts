@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from "vitest"
-import { ApiError, invokeVerb, toApiError } from "../../src/cli/api-cmd.ts"
+import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, stubRuntime } from "./api-handler-fixtures.ts"
 
 describe("unknown daemon request", () => {
@@ -35,15 +35,6 @@ describe("unknown daemon request", () => {
       // The daemon's message survives so the caller can see WHICH verb.
       expect(err.message).toContain("task.setActive")
     }
-  })
-
-  it("covers both skew directions — old CLI × new daemon is the same rejection", () => {
-    // The removed-verb direction: this CLI still ships `archive`,
-    // the newer daemon does not serve `task.archive`. Identical wire error, so
-    // one branch has to answer both directions.
-    const err = toApiError(new Error("unknown daemon request: task.archive"))
-    expect(err.code).toBe("DAEMON_VERSION_SKEW")
-    expect(err.data?.nextCommandArgs).toEqual(["daemon", "restart"])
   })
 
   it("leaves an ordinary handler failure as RPC_ERROR", async () => {

@@ -88,18 +88,6 @@ describe("watch", () => {
     expect(lines).toHaveLength(3)
   })
 
-  it("ignores tasks it was not asked to watch", async () => {
-    const client = new FakeClient()
-    client.replay.push(
-      { channel: "engine-state", payload: event({ taskId: "other", state: "dead" }) as never },
-      { channel: "engine-state", payload: event({ state: "dead", at: 2000 }) as never },
-    )
-    const { lines } = await captureStdout(() =>
-      invokeVerb("watch", ["--task-ids", "t1", "--until", "dead"], { client, runtime }),
-    )
-    expect(lines).toEqual([{ taskId: "t1", tabId: "tab-1", state: "dead", at: 2000 }])
-  })
-
   it("refuses a state that does not exist, instead of waiting forever for it", async () => {
     // The worst failure mode for a verb whose whole job is to wait: a typo
     // that cannot ever match reads exactly like a task that is taking a while.

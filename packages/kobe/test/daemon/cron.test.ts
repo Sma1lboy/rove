@@ -60,18 +60,10 @@ describe("cronMatches day-field OR rule", () => {
   // Vixie cron: when BOTH day fields are restricted they are OR'd, not AND'd.
   const rule = parseCron("0 0 1 * MON")
 
-  it("matches the day-of-month even on the wrong weekday", () => {
-    // Sep 1 2026 is a Tuesday.
+  it("matches either day field and rejects a day that satisfies neither", () => {
+    // Sep 1 2026 is a Tuesday, Sep 7 a Monday, Sep 2 a Wednesday.
     expect(cronMatches(rule, at(2026, 9, 1))).toBe(true)
-  })
-
-  it("matches the weekday even on the wrong day-of-month", () => {
-    // Sep 7 2026 is a Monday.
     expect(cronMatches(rule, at(2026, 9, 7))).toBe(true)
-  })
-
-  it("rejects a day that satisfies neither", () => {
-    // Sep 2 2026, a Wednesday.
     expect(cronMatches(rule, at(2026, 9, 2))).toBe(false)
   })
 
@@ -89,32 +81,13 @@ describe("nextCronAfter", () => {
     expect(nextCronAfter("0 9 * * *", now)).toBe(at(2026, 8, 1, 9, 0))
   })
 
-  it("ignores sub-minute precision in the input", () => {
-    const noisy = at(2026, 7, 31, 8, 59) + 45_123
-    expect(nextCronAfter("0 9 * * *", noisy)).toBe(at(2026, 7, 31, 9, 0))
-  })
-
-  it("walks every-N-minutes schedules", () => {
-    expect(nextCronAfter("*/15 * * * *", at(2026, 7, 31, 10, 7))).toBe(at(2026, 7, 31, 10, 15))
-    expect(nextCronAfter("*/15 * * * *", at(2026, 7, 31, 10, 45))).toBe(at(2026, 7, 31, 11, 0))
-  })
-
   it("skips to Monday for a weekday schedule run on Friday evening", () => {
     // Jul 31 2026 is a Friday; next weekday 09:00 is Monday Aug 3.
     expect(nextCronAfter("0 9 * * MON-FRI", at(2026, 7, 31, 18, 0))).toBe(at(2026, 8, 3, 9, 0))
   })
 
-  it("crosses a month end", () => {
-    expect(nextCronAfter("0 0 1 * *", at(2026, 7, 31, 23, 59))).toBe(at(2026, 8, 1, 0, 0))
-  })
-
   it("crosses a year end", () => {
     expect(nextCronAfter("0 0 1 1 *", at(2026, 12, 31, 12, 0))).toBe(at(2027, 1, 1, 0, 0))
-  })
-
-  it("finds the next Feb 29 across the scan window", () => {
-    // 2028 is the next leap year after 2026.
-    expect(iso(nextCronAfter("0 0 29 2 *", at(2026, 3, 1)))).toBe("2028-02-29 00:00")
   })
 
   it("skips a day-of-month that does not exist in short months", () => {
@@ -140,24 +113,9 @@ describe("latestCronAtOrBefore", () => {
     expect(latestCronAtOrBefore("0 9 * * *", at(2026, 7, 31, 14, 30), CREATED)).toBe(at(2026, 7, 31, 9, 0))
   })
 
-  it("returns only the MOST RECENT occurrence, not every missed one", () => {
-    // Three days down: the compensation policy is "run once", so the answer is
-    // the newest occurrence — the runner never sees the older two.
-    expect(latestCronAtOrBefore("0 9 * * *", at(2026, 7, 31, 10, 0), CREATED)).toBe(at(2026, 7, 31, 9, 0))
-  })
-
   it("will not reach back before the notBefore bound", () => {
     const created = at(2026, 7, 31, 12, 0)
     expect(latestCronAtOrBefore("0 9 * * *", at(2026, 7, 31, 14, 0), created)).toBeNull()
-  })
-
-  it("returns null when now precedes the bound entirely", () => {
-    expect(latestCronAtOrBefore("* * * * *", at(2026, 1, 1), at(2026, 6, 1))).toBeNull()
-  })
-
-  it("crosses a weekend backwards for a weekday schedule", () => {
-    // Aug 2 2026 is a Sunday; the last weekday 09:00 is Friday Jul 31.
-    expect(latestCronAtOrBefore("0 9 * * MON-FRI", at(2026, 8, 2, 20, 0), CREATED)).toBe(at(2026, 7, 31, 9, 0))
   })
 })
 

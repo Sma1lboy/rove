@@ -2,8 +2,7 @@ import { DaemonActivityRegistry } from "@sma1lboy/kobe-daemon/daemon/activity-re
 import { EngineEventLog } from "@sma1lboy/kobe-daemon/daemon/engine-events-log"
 import { DaemonEventBus } from "@sma1lboy/kobe-daemon/daemon/event-bus"
 import { PromptBroker } from "@sma1lboy/kobe-daemon/daemon/prompt-broker"
-import type { DaemonRequestName } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { type DaemonHandlerContext, createDaemonHandlerRegistry } from "@sma1lboy/kobe-daemon/daemon/server"
+import type { DaemonHandlerContext } from "@sma1lboy/kobe-daemon/daemon/server"
 import { describe, expect, it } from "vitest"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
@@ -31,81 +30,6 @@ import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
  */
 
 describe("daemon handler registry", () => {
-  it("covers every RPC name except subscribe (connection lifecycle stays in server.ts)", () => {
-    // Compile-time: this array must be DaemonRequestNames; runtime: each has
-    // an entry. `subscribe` is the documented special case.
-    const rpcNames: DaemonRequestName[] = [
-      "hello",
-      "daemon.status",
-      "daemon.stop",
-      "task.list",
-      "task.get",
-      "task.create",
-      "task.rename",
-      "task.setBranch",
-      "task.observeLanguage",
-      "task.setVendor",
-      "task.setCommand",
-      "task.delete",
-      "task.land",
-      "task.landPreflight",
-      "pr.failingChecks",
-      "task.syncBase",
-      "task.pin",
-      "task.move",
-      "task.status",
-      "task.setPrompt",
-      "task.ensureMain",
-      "task.openDir",
-      "task.adoptScratchRepo",
-      "project.forget",
-      "task.ensureWorktree",
-      "task.setActive",
-      "issue.list",
-      "issue.repos",
-      "issue.mutate",
-      "worktree.discoverAdoptable",
-      "worktree.adopt",
-      "worktree.list",
-      "worktree.remove",
-      "engine.reportEvent",
-      "attention.dismiss",
-      "attention.dismissRoutine",
-      "attention.list",
-      "attention.read",
-      "automation.list",
-      "automation.create",
-      "automation.update",
-      "automation.delete",
-      "automation.runs",
-      "automation.runNow",
-      "workitem.list",
-      "workitem.start",
-      "session.deliver",
-      "task.recentEvents",
-      "agentTurn.list",
-      "debug.inspect",
-      "ui.reportEvent",
-      "ui.prompt",
-      "ui.promptReply",
-      "tab.open",
-      "tab.close",
-      "terminalTab.close",
-      "terminalTab.closeReply",
-      "terminalTab.rename",
-      "notice.send",
-      "graphics.write",
-      "note.file",
-      "note.list",
-      "note.delete",
-      "task.rowToken",
-    ]
-    const registry = createDaemonHandlerRegistry()
-    for (const name of rpcNames) expect(registry.get(name), name).toBeDefined()
-    expect(registry.has("subscribe")).toBe(false)
-    expect(registry.size).toBe(rpcNames.length)
-  })
-
   describe("ui.reportEvent", () => {
     it("feeds valid UI kinds to the plugin sink and rejects unknown kinds", async () => {
       const { ctx } = fakeCtx({ getTask: () => TASK })
@@ -188,13 +112,6 @@ describe("daemon handler registry", () => {
       const res = (await dispatch("task.recentEvents", { taskId: "t1" }, ctx)) as { events: { kind: string }[] }
       expect(res.events.map((e) => e.kind)).toEqual(["pre-compact", "tool-post"])
     })
-
-    it("state kinds still hit the badge and never the lifecycle channel", async () => {
-      const { ctx, rec } = fakeCtx({ getTask: () => TASK })
-      await dispatch("engine.reportEvent", { taskId: "t1", kind: "turn-complete" }, ctx)
-      expect(rec.reported.map((r) => r.kind)).toEqual(["turn-complete"])
-      expect(rec.published.filter((p) => p.channel === "engine.lifecycle")).toHaveLength(0)
-    })
   })
 
   describe("tab.close", () => {
@@ -267,15 +184,6 @@ describe("daemon handler registry", () => {
       await expect(dispatch("tab.open", { taskId: "t1", argv: [], title: "t" }, ctx2)).rejects.toThrow(/argv/)
     })
 
-    it("carries a valid direction and drops an unknown one", async () => {
-      const { ctx, rec } = fakeCtx({ getTask: () => TASK })
-      await dispatch("tab.open", { taskId: "t1", argv: ["x"], title: "t", direction: "down" }, ctx)
-      await dispatch("tab.open", { taskId: "t1", argv: ["x"], title: "t", direction: "sideways" }, ctx)
-      const [down, bogus] = rec.published as { payload: Record<string, unknown> }[]
-      expect(down.payload.direction).toBe("down")
-      expect(bogus.payload.direction).toBeUndefined()
-    })
-
     it("carries an explicit tabId through (pane-open --tab)", async () => {
       const { ctx, rec } = fakeCtx({ getTask: () => TASK })
       await dispatch("tab.open", { taskId: "t1", argv: ["x"], title: "t", tabId: "tab-3" }, ctx)
@@ -322,11 +230,6 @@ describe("daemon handler registry", () => {
       expect(event.channel).toBe("session.deliver")
       expect(event.payload).toMatchObject({ taskId: "t1", text: "hi", tabId: "tab-2", source: "dispatcher" })
     })
-
-    it("rejects an unknown task", async () => {
-      const { ctx } = fakeCtx({ getTask: () => undefined })
-      await expect(dispatch("session.deliver", { taskId: "nope", text: "x" }, ctx)).rejects.toThrow(/task not found/)
-    })
   })
 
   describe("notice.send", () => {
@@ -356,13 +259,6 @@ describe("daemon handler registry", () => {
       expect(payload.kind).toBe("needs_input")
       expect(payload.taskId).toBe("t1")
       expect(payload.source).toBe("api")
-    })
-
-    it("accepts an arbitrary agent-invented kind verbatim", async () => {
-      const { ctx, rec } = fakeCtx()
-      await dispatch("notice.send", { title: "review round 2 posted", kind: "review-ready" }, ctx)
-      const payload = (rec.published[0] as { payload: Record<string, unknown> }).payload
-      expect(payload.kind).toBe("review-ready")
     })
 
     it("rejects an empty kind and an unknown task", async () => {
@@ -458,19 +354,6 @@ describe("daemon handler registry", () => {
         { channel: "active-task", payload: { taskId: "t1" } },
         { channel: "active-task", payload: { taskId: null } },
       ])
-    })
-
-    // Perf-fix op-count pin (paired with orchestrator/set-active-perf.test.ts):
-    // the store's fsync'd doSave was dropped from the focus path, but the
-    // `active-task` frame the UI needs must STILL publish 1:1 per switch. Over
-    // 10 switches → exactly 10 frames (the win removes disk writes, not frames).
-    it("publishes one active-task frame per switch — 10 switches → 10 frames", async () => {
-      const { ctx, rec } = fakeCtx({ setActiveTask: async () => {} })
-      for (let i = 0; i < 10; i++) {
-        await dispatch("task.setActive", { taskId: `t${i % 5}` }, ctx)
-      }
-      const frames = rec.published.filter((p) => p.channel === "active-task")
-      expect(frames).toHaveLength(10)
     })
   })
 

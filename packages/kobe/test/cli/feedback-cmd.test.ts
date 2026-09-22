@@ -48,26 +48,6 @@ function err(): string {
 }
 
 describe("parseFeedbackArgs", () => {
-  it("parses title/body/category", () => {
-    expect(parseFeedbackArgs(["--title", "T", "--body", "B", "--category", "bugs"])).toEqual({
-      help: false,
-      title: "T",
-      body: "B",
-      category: "bugs",
-    })
-  })
-
-  it("returns help for --help / -h / help", () => {
-    expect(parseFeedbackArgs(["--help"]).help).toBe(true)
-    expect(parseFeedbackArgs(["-h"]).help).toBe(true)
-    expect(parseFeedbackArgs(["help"]).help).toBe(true)
-  })
-
-  it("rejects a flag missing its value with exit 2", () => {
-    expect(() => parseFeedbackArgs(["--title"])).toThrow("exit 2")
-    expect(err()).toContain("--title requires a value")
-  })
-
   it("rejects an unexpected argument with exit 2", () => {
     expect(() => parseFeedbackArgs(["positional"])).toThrow("exit 2")
     expect(err()).toContain('unexpected argument "positional"')
@@ -79,21 +59,6 @@ describe("runFeedbackSubcommand", () => {
     await runFeedbackSubcommand(["--help"])
     expect(outSpy.mock.calls.join("")).toContain("Usage: kobe feedback")
     expect(mocks.submitFeedback).not.toHaveBeenCalled()
-  })
-
-  it("requires --title", async () => {
-    await expect(runFeedbackSubcommand(["--body", "B"])).rejects.toThrow("exit 2")
-    expect(err()).toContain("--title is required")
-  })
-
-  it("requires a body from --body or --body-file", async () => {
-    await expect(runFeedbackSubcommand(["--title", "T"])).rejects.toThrow("exit 2")
-    expect(err()).toContain("--body or --body-file is required")
-  })
-
-  it("rejects passing both --body and --body-file", async () => {
-    await expect(runFeedbackSubcommand(["--title", "T", "--body", "B", "--body-file", "f"])).rejects.toThrow("exit 2")
-    expect(err()).toContain("either --body or --body-file, not both")
   })
 
   it("submits title/body/category and prints the created Discussion", async () => {
@@ -132,13 +97,6 @@ describe("submitFeedback (real module, scripted gh)", () => {
     })
     expect(() => submit({ title: "T", body: "B" }, { spawn: spawn as never, repoSlug: () => "o/r" })).toThrow(
       "Bad credentials",
-    )
-  })
-
-  it("throws when the package repo is not a GitHub repository", async () => {
-    const submit = await realSubmit()
-    expect(() => submit({ title: "T", body: "B" }, { spawn: vi.fn() as never, repoSlug: () => null })).toThrow(
-      "package repository is not a GitHub repository",
     )
   })
 

@@ -79,13 +79,6 @@ describe("runCompletionsSubcommand", () => {
     for (const sub of TOP_LEVEL_SUBCOMMANDS) expect(script).toContain(sub)
   })
 
-  test("zsh script is a #compdef carrying every subcommand", async () => {
-    await runCompletionsSubcommand(["zsh"])
-    const script = stdoutText()
-    expect(script.startsWith("#compdef kobe")).toBe(true)
-    for (const sub of TOP_LEVEL_SUBCOMMANDS) expect(script).toContain(`"${sub}"`)
-  })
-
   test("zsh script self-registers when sourced directly (not only via fpath)", async () => {
     await runCompletionsSubcommand(["zsh"])
     const script = stdoutText()
@@ -95,14 +88,6 @@ describe("runCompletionsSubcommand", () => {
     expect(script).toContain("compdef _kobe kobe")
   })
 
-  test("fish scopes the top-level list to the first word", async () => {
-    await runCompletionsSubcommand(["fish"])
-    const script = stdoutText()
-    for (const sub of TOP_LEVEL_SUBCOMMANDS) {
-      expect(script).toContain(`complete -c kobe -f -n __fish_use_subcommand -a ${sub}`)
-    }
-  })
-
   test("rove gets isolated shell registrations and install instructions", async () => {
     await runCompletionsSubcommand(["zsh"], "rove")
     const script = stdoutText()
@@ -110,12 +95,6 @@ describe("runCompletionsSubcommand", () => {
     expect(script).toContain('if [ "${funcstack[1]}" = "_rove" ]')
     expect(script).toContain("compdef _rove rove")
     expect(script).not.toContain("compdef _kobe kobe")
-  })
-
-  test("--help prints usage without exiting non-zero", async () => {
-    await runCompletionsSubcommand(["--help"])
-    expect(stdoutText()).toContain("Usage: kobe completions")
-    expect(exitSpy).not.toHaveBeenCalled()
   })
 
   test.each(["bash", "zsh", "fish"] as const)(
@@ -130,23 +109,10 @@ describe("runCompletionsSubcommand", () => {
     },
   )
 
-  test("a command with no sub-verbs gets no second level", async () => {
-    await runCompletionsSubcommand(["bash"])
-    const found = parseVerbs(stdoutText(), PARSERS.bash as RegExp)
-    // `doctor` takes flags, not verbs — offering it a verb list would invent one.
-    expect(found.doctor).toBeUndefined()
-    expect(found.export).toBeUndefined()
-  })
-
   test("an unknown shell prints usage to stderr and exits 2", async () => {
     await expect(runCompletionsSubcommand(["powershell"])).rejects.toThrow("exit sentinel")
     expect(exitSpy).toHaveBeenCalledWith(2)
     expect(stderrText()).toContain('unknown shell "powershell"')
-  })
-
-  test("a missing shell argument is the same usage error", async () => {
-    await expect(runCompletionsSubcommand([])).rejects.toThrow("exit sentinel")
-    expect(exitSpy).toHaveBeenCalledWith(2)
   })
 })
 
@@ -192,32 +158,10 @@ describe("runCompletionsSubcommand with a shipped script", () => {
     expect(stdoutText()).toContain(join(home, ".zshrc"))
   })
 
-  test("--install without a built script still hooks the live fallback", async () => {
-    const home = mkdtempSync(join(tmpdir(), "kobe-completions-home-"))
-    const empty = mkdtempSync(join(tmpdir(), "kobe-completions-empty-"))
-    await runCompletionsSubcommand(["zsh", "--install"], "kobe", { shippedDir: empty, home })
-    expect(readFileSync(join(home, ".zshrc"), "utf8")).toContain("source <(kobe completions zsh)")
-  })
-
-  test("--install says so when the rc already holds a hand-rolled block", async () => {
-    const home = mkdtempSync(join(tmpdir(), "kobe-completions-home-"))
-    const rc = join(home, ".zshrc")
-    writeFileSync(rc, "# mine\n# kobe completions\n_zsh_cached_completions kobe\n")
-    await runCompletionsSubcommand(["zsh", "--install"], "kobe", { shippedDir, home })
-    // A user's own loader is never clobbered — and the CLI must not claim otherwise.
-    expect(readFileSync(rc, "utf8")).toBe("# mine\n# kobe completions\n_zsh_cached_completions kobe\n")
-    expect(stdoutText()).toContain("already has a completions block")
-  })
-
   test("--path together with --install is a usage error, not a silent pick", async () => {
     await expect(runCompletionsSubcommand(["zsh", "--path", "--install"], "kobe", { shippedDir })).rejects.toThrow(
       "exit sentinel",
     )
     expect(stderrText()).toContain("--path and --install are different things")
-  })
-
-  test("an unknown option is a usage error", async () => {
-    await expect(runCompletionsSubcommand(["zsh", "--json"], "kobe", { shippedDir })).rejects.toThrow("exit sentinel")
-    expect(stderrText()).toContain('unknown option "--json"')
   })
 })

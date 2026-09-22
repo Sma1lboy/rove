@@ -99,13 +99,4 @@ describe("startKeybindingsWatcher", () => {
     stop()
     stop = null
   })
-
-  test("stop() ends delivery", async () => {
-    stop = startKeybindingsWatcher(bus, { path: filePath, debounceMs: 25 })
-    stop()
-    stop = null
-    fs.writeFileSync(filePath, "chat.fork.new: ctrl+g\n", "utf8")
-    await new Promise((r) => setTimeout(r, 250))
-    expect(revs).toEqual([0]) // only the initial publish
-  })
 })

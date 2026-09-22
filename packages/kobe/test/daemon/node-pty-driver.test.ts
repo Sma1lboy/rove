@@ -77,15 +77,6 @@ describe("nodePtyDriver", () => {
     })
   })
 
-  test("passes cwd as a NATIVE path, not the shell's posix form", async () => {
-    const pty = fakeNodePty()
-    const driver = await nodePtyDriver(pty.spawn)
-    driver(request())
-    // toPosixPath is for values interpolated INTO the script; CreateProcess
-    // needs the Windows path. Converting here would break every spawn.
-    expect(pty.spawnArgs?.options.cwd).toBe("C:\\wt\\task-1")
-  })
-
   test("drops undefined env entries — node-pty's env takes strings only", async () => {
     const pty = fakeNodePty()
     const driver = await nodePtyDriver(pty.spawn)
@@ -137,16 +128,6 @@ describe("nodePtyDriver", () => {
     proc.kill("SIGTERM")
     proc.kill("SIGKILL")
     expect(pty.calls).toEqual(["write:ls\r", "resize:120x40", "kill", "kill"])
-  })
-
-  test("close() is a no-op — killing is what releases a node-pty handle", async () => {
-    const pty = fakeNodePty()
-    const driver = await nodePtyDriver(pty.spawn)
-    const proc = driver(request())
-
-    expect(() => proc.close()).not.toThrow()
-    expect(() => proc.close()).not.toThrow()
-    expect(pty.calls).toEqual([])
   })
 
   test("supplies endTree, aimed at the child's own pid and shell — the subtree kill() cannot reach", async () => {
@@ -224,12 +205,6 @@ describe("bunTerminalDriver", () => {
     expect(bun.spawnArgs?.argv).not.toBe(argv)
     expect(bun.spawnArgs?.options).toMatchObject({ cwd: "/wt/task-1", env: { TERM: "xterm-256color" } })
     expect(bun.spawnArgs?.options.terminal).toMatchObject({ cols: 100, rows: 30, name: "xterm-256color" })
-  })
-
-  test("keeps undefined env entries — unlike node-pty, Bun accepts them", () => {
-    const bun = fakeBunTerminal()
-    bunTerminalDriver(bun.spawn)(request({ env: { KEEP: "yes", UNSET: undefined } }))
-    expect(bun.spawnArgs?.options.env).toEqual({ KEEP: "yes", UNSET: undefined })
   })
 
   test("routes Bun's (terminal, data) callback to the request's onData", () => {

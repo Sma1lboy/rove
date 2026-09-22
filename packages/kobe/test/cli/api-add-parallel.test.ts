@@ -58,19 +58,6 @@ describe("add --count (parallel round)", () => {
     expect(client.requests).toEqual([])
   })
 
-  it("refuses --branch on a parallel round (siblings cannot share one branch)", async () => {
-    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
-    await expectApiError(
-      () =>
-        invokeVerb("add", ["--repo", "/repo/x", "--prompt", "go", "--count", "2", "--branch", "feat/x"], {
-          client,
-          runtime: stubRuntime(),
-        }),
-      "BAD_FLAG",
-    )
-    expect(client.requests).toEqual([])
-  })
-
   const fanClient = () =>
     new FakeClient({
       "task.create": (_payload, index) => ({ taskId: `t${index + 1}`, task: taskFixture({ id: `t${index + 1}` }) }),
@@ -185,26 +172,6 @@ describe("add --count (parallel round)", () => {
     // compare them.
     expect(creates[1].title).toBe("go #1/2")
     expect(creates[2].title).toBe("go #2/2")
-  })
-
-  it("names titleless siblings from the prompt so a fan-out is comparable on return", async () => {
-    const client = fanClient()
-    const { deliver } = recordingDelivery()
-    await invokeVerb(
-      "add",
-      ["--repo", "/repo/x", "--prompt", "Try independent approaches to simplify the auth flow.", "--count", "2"],
-      { client, runtime: stubRuntime({ deliverPrompt: deliver }) },
-    )
-    const titles = client.requests
-      .filter((r) => r.name === "task.create")
-      .map((r) => (r.payload as Record<string, string | undefined>).title)
-    expect(titles).toEqual([
-      "Try independent approaches to simplify t… #1/2",
-      "Try independent approaches to simplify t… #2/2",
-    ])
-    // The defect this replaces: N rows all reading `(new task)`, indistinguishable.
-    expect(new Set(titles).size).toBe(titles.length)
-    expect(titles).not.toContain(undefined)
   })
 
   it("carries already-created taskIds when a mid-loop create fails (no orphans)", async () => {

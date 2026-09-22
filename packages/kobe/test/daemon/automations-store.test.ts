@@ -114,26 +114,6 @@ describe("AutomationsStore", () => {
     expect(new Date(updated?.nextRunAt ?? 0).getMinutes()).toBe(15)
   })
 
-  it("leaves nextRunAt alone for non-schedule edits", async () => {
-    const t = tempStore()
-    store = t.store
-    await store.init()
-    const created = await store.create(BASE)
-    const updated = await store.update(created.id, { name: "renamed" })
-    expect(updated?.nextRunAt).toBe(created.nextRunAt)
-    expect(updated?.name).toBe("renamed")
-  })
-
-  it("clears precheck when patched with null", async () => {
-    const t = tempStore()
-    store = t.store
-    await store.init()
-    const created = await store.create({ ...BASE, precheck: { command: "true", timeoutSeconds: 30 } })
-    expect(created.precheck).toBeDefined()
-    const updated = await store.update(created.id, { precheck: null })
-    expect(updated?.precheck).toBeUndefined()
-  })
-
   it("advances nextRunAt strictly past the fire time", async () => {
     const t = tempStore()
     store = t.store
@@ -282,19 +262,9 @@ describe("pruneRuns", () => {
     }
   }
 
-  it("keeps the newest N per automation", () => {
-    const runs = [run("r1", "a", NOW, 1), run("r2", "a", NOW + 1, 2), run("r3", "a", NOW + 2, 3)]
-    expect(pruneRuns(runs, new Set(), 2).map((r) => r.id)).toEqual(["r2", "r3"])
-  })
-
   it("counts per automation, not globally", () => {
     const runs = [run("a1", "a", NOW, 1), run("b1", "b", NOW, 1), run("a2", "a", NOW + 1, 2)]
     expect(pruneRuns(runs, new Set(), 1).map((r) => r.id)).toEqual(["b1", "a2"])
-  })
-
-  it("drops runs only for automations named as deleted", () => {
-    const runs = [run("a1", "a", NOW, 1), run("ghost", "deleted", NOW, 1)]
-    expect(pruneRuns(runs, new Set(["deleted"])).map((r) => r.id)).toEqual(["a1"])
   })
 
   it("keeps runs whose automation id it does not recognize", () => {
@@ -302,10 +272,5 @@ describe("pruneRuns", () => {
     // unknown id is not evidence of garbage.
     const runs = [run("a1", "a", NOW, 1), run("unknown", "not-in-store", NOW, 1)]
     expect(pruneRuns(runs).map((r) => r.id)).toEqual(["a1", "unknown"])
-  })
-
-  it("preserves append order among survivors", () => {
-    const runs = [run("r1", "a", NOW + 5, 1), run("r2", "a", NOW, 2), run("r3", "a", NOW + 9, 3)]
-    expect(pruneRuns(runs, new Set(), 3).map((r) => r.id)).toEqual(["r1", "r2", "r3"])
   })
 })

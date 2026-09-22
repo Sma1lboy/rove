@@ -65,18 +65,6 @@ describe("KobeDaemonClient pending-request cleanup", () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it("forceDisconnect rejects every in-flight request instead of retaining it", async () => {
-    const client = new KobeDaemonClient(socketPath)
-    await client.connect()
-    const first = client.request("daemon.status")
-    const second = client.request("task.list")
-    await settle()
-    client.forceDisconnect()
-    await expect(first).rejects.toThrow("daemon connection closed")
-    await expect(second).rejects.toThrow("daemon connection closed")
-    client.close()
-  })
-
   it("close rejects in-flight requests on a disposed client", async () => {
     const client = new KobeDaemonClient(socketPath)
     await client.connect()

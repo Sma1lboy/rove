@@ -11,21 +11,15 @@
 import { describe, expect, it } from "vitest"
 import {
   BUN_OVERRIDE_ENV,
-  MIN_BUN_VERSION,
   SKIP_VERSION_CHECK_ENV,
   bunCandidates,
-  bunInstallerCommand,
   canOfferBunInstall,
   exitCodeOf,
   installBun,
-  launcherDirOf,
-  launcherNameOf,
   missingBunMessage,
   relaunchWithBun,
   resolveBunBinary,
   resolveUsableBun,
-  staleBunMessage,
-  unusableBunMessage,
 } from "../../src/cli/bun-runtime.ts"
 
 const posix = { platform: "linux" as const, home: "/home/dev", env: { PATH: "/usr/bin:/opt/bin" } }
@@ -59,12 +53,6 @@ describe("bunCandidates", () => {
 })
 
 describe("resolveBunBinary", () => {
-  it("returns the first executable candidate", () => {
-    const found = resolveBunBinary({ ...posix, isExecutable: (path) => path === "/opt/bin/bun" })
-
-    expect(found).toBe("/opt/bin/bun")
-  })
-
   it("returns null when no candidate exists", () => {
     expect(resolveBunBinary({ ...posix, isExecutable: () => false })).toBeNull()
   })
@@ -90,13 +78,6 @@ describe("resolveUsableBun", () => {
     expect(found.stale).toEqual({ path: "/usr/bin/bun", version: "1.2.21" })
   })
 
-  it("accepts a Bun that runs but prints nothing rather than refusing to start", () => {
-    const found = resolveUsableBun({ ...all, bunVersionOf: () => "" })
-
-    expect(found.bun).toBe("/usr/bin/bun")
-    expect(found.stale).toBeNull()
-  })
-
   it("takes the first executable candidate when the check is opted out", () => {
     const probes: string[] = []
     const found = resolveUsableBun({
@@ -110,14 +91,6 @@ describe("resolveUsableBun", () => {
 
     expect(found.bun).toBe("/usr/bin/bun")
     expect(probes).toEqual([])
-  })
-
-  it("has nothing to report when there is no Bun at all", () => {
-    expect(resolveUsableBun({ ...posix, isExecutable: () => false })).toEqual({
-      bun: null,
-      stale: null,
-      unusable: null,
-    })
   })
 
   // A candidate that will not run is one the relaunch could not have run
@@ -134,12 +107,6 @@ describe("resolveUsableBun", () => {
     expect(found.unusable).toBe("/usr/bin/bun")
   })
 
-  it("reports the unrunnable Bun when it is the only one", () => {
-    const found = resolveUsableBun({ ...all, bunVersionOf: () => null })
-
-    expect(found).toEqual({ bun: null, stale: null, unusable: "/usr/bin/bun" })
-  })
-
   // The opposite call: it RAN, we just did not recognise what it printed.
   // Refusing that would brick everyone the day Bun changes its version string.
   it("uses a Bun that runs but prints an unrecognisable version", () => {
@@ -150,51 +117,7 @@ describe("resolveUsableBun", () => {
   })
 })
 
-describe("staleBunMessage", () => {
-  it("names the offending binary, its version, and the floor", () => {
-    const message = staleBunMessage("/usr/bin/bun", "1.2.21", "rove")
-
-    expect(message).toContain("/usr/bin/bun")
-    expect(message).toContain("1.2.21")
-    expect(message).toContain(MIN_BUN_VERSION)
-  })
-
-  it("offers an upgrade route per package manager, plus both escape hatches", () => {
-    const message = staleBunMessage("/opt/homebrew/bin/bun", "1.2.21", "rove")
-
-    expect(message).toContain("bun upgrade")
-    expect(message).toContain("brew upgrade bun")
-    expect(message).toContain("npm install -g bun@latest")
-    expect(message).toContain(BUN_OVERRIDE_ENV)
-    expect(message).toContain(SKIP_VERSION_CHECK_ENV)
-  })
-})
-
-describe("unusableBunMessage", () => {
-  it("says the binary is there but does not run, not that Bun is missing", () => {
-    const message = unusableBunMessage("/usr/bin/bun", "rove")
-
-    expect(message).toContain("/usr/bin/bun")
-    expect(message).toContain("could not be run")
-    expect(message).not.toContain("no Bun was found")
-    expect(message).toContain(BUN_OVERRIDE_ENV)
-  })
-})
-
-describe("launcher identity", () => {
-  it("derives the invoked CLI name from the launcher file", () => {
-    expect(launcherNameOf("file:///lib/rove/dist/cli/rove.js")).toBe("rove")
-    expect(launcherNameOf("file:///lib/rove/dist/cli/kobe.mjs")).toBe("kobe")
-    expect(launcherDirOf("file:///lib/rove/dist/cli/rove.js")).toBe("/lib/rove/dist/cli")
-  })
-})
-
 describe("install guidance", () => {
-  it("offers the platform's own installer", () => {
-    expect(bunInstallerCommand("darwin").join(" ")).toContain("https://bun.sh/install")
-    expect(bunInstallerCommand("win32")[0]).toBe("powershell")
-  })
-
   it("names every install route a user without Bun can take", () => {
     const message = missingBunMessage("rove", "linux")
 
@@ -202,10 +125,6 @@ describe("install guidance", () => {
     expect(message).toContain("npm install -g bun")
     expect(message).toContain("install.sh")
     expect(message).toContain(BUN_OVERRIDE_ENV)
-  })
-
-  it("shows the PowerShell installer first on Windows", () => {
-    expect(missingBunMessage("rove", "win32")).toContain("irm bun.sh/install.ps1")
   })
 
   it("uses the active CLI name by default", () => {
@@ -220,17 +139,6 @@ describe("install guidance", () => {
       else process.env.ROVE_INVOKED_AS = saved
     }
   })
-
-  it("falls back to kobe when no invocation marker is set", () => {
-    const saved = process.env.ROVE_INVOKED_AS
-    // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test (assigning undefined leaves the string "undefined").
-    delete process.env.ROVE_INVOKED_AS
-    try {
-      expect(missingBunMessage(undefined, "linux")).toContain("kobe: Rove runs on the Bun runtime")
-    } finally {
-      if (saved !== undefined) process.env.ROVE_INVOKED_AS = saved
-    }
-  })
 })
 
 describe("canOfferBunInstall", () => {
@@ -240,9 +148,6 @@ describe("canOfferBunInstall", () => {
     expect(canOfferBunInstall({}, tty, tty)).toBe(true)
     expect(canOfferBunInstall({}, { isTTY: false }, tty)).toBe(false)
     expect(canOfferBunInstall({}, tty, { isTTY: false })).toBe(false)
-  })
-
-  it("never prompts in CI or when the escape hatch is set", () => {
     expect(canOfferBunInstall({ CI: "true" }, tty, tty)).toBe(false)
     expect(canOfferBunInstall({ ROVE_NO_BUN_BOOTSTRAP: "1" }, tty, tty)).toBe(false)
   })

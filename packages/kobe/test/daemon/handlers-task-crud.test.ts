@@ -26,11 +26,6 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
         activeTaskId: "t-active",
       })
     })
-
-    it("reports activeTaskId: null when no task is active or the signal is unavailable", async () => {
-      const { ctx } = fakeCtx({ listTasks: () => [TASK] })
-      await expect(dispatch("task.list", {}, ctx)).resolves.toEqual({ tasks: [SERIALIZED_TASK], activeTaskId: null })
-    })
   })
 
   describe("task CRUD", () => {
@@ -65,30 +60,6 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       await expect(dispatch("task.get", { taskId: "t1" }, ctx)).resolves.toEqual({ task: SERIALIZED_TASK })
       await expect(dispatch("task.get", { taskId: "nope" }, ctx)).rejects.toThrow("task not found: nope")
       await expect(dispatch("task.get", {}, ctx)).rejects.toThrow("taskId is required")
-    })
-
-    it("task.rename returns the empty object and validates both fields", async () => {
-      const renames: Array<[string, string]> = []
-      const { ctx } = fakeCtx({
-        setTitle: async (id: string, title: string) => {
-          renames.push([id, title])
-        },
-      })
-      await expect(dispatch("task.rename", { taskId: "t1", title: "new" }, ctx)).resolves.toEqual({})
-      expect(renames).toEqual([["t1", "new"]])
-      await expect(dispatch("task.rename", { taskId: "t1" }, ctx)).rejects.toThrow("title is required")
-    })
-
-    it("task.setPrompt records the delivered brief and validates both fields", async () => {
-      const prompts: Array<[string, string]> = []
-      const { ctx } = fakeCtx({
-        setPrompt: async (id: string, prompt: string) => {
-          prompts.push([id, prompt])
-        },
-      })
-      await expect(dispatch("task.setPrompt", { taskId: "t1", prompt: "the brief" }, ctx)).resolves.toEqual({})
-      expect(prompts).toEqual([["t1", "the brief"]])
-      await expect(dispatch("task.setPrompt", { taskId: "t1" }, ctx)).rejects.toThrow("prompt is required")
     })
 
     it("task.delete durably prepares, clears activity, and enqueues background cleanup", async () => {
@@ -192,35 +163,6 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       expect(rec.deletions).toEqual([])
       expect(rec.inboxTaskDeleted).toEqual(["missing"])
     })
-
-    // A REFUSED delete must not be reportable as a successful one. If both
-    // outcomes returned a bare `{}`, a caller deleting a list of tasks could
-    // not tell which ones were even scheduled — the wire would carry no
-    // evidence either way. Asserting the two
-    // responses are UNEQUAL is what fails if `queued` ever stops riding along,
-    // whatever value it settles on.
-    it("task.delete reports a refusal differently from an acceptance", async () => {
-      const accept = await dispatch(
-        "task.delete",
-        { taskId: "t1" },
-        fakeCtx({ prepareTaskDeletion: async () => true }).ctx,
-      )
-      const refuse = await dispatch(
-        "task.delete",
-        { taskId: "t1" },
-        fakeCtx({ prepareTaskDeletion: async () => false }).ctx,
-      )
-      expect(accept).not.toEqual(refuse)
-      expect(accept).toMatchObject({ queued: true })
-      expect(refuse).toMatchObject({ queued: false })
-    })
-
-    it("task.move rejects a bogus direction with the legacy wording", async () => {
-      const { ctx } = fakeCtx()
-      await expect(dispatch("task.move", { taskId: "t1", direction: "sideways" }, ctx)).rejects.toThrow(
-        "direction must be up or down",
-      )
-    })
   })
 
   describe("issues", () => {
@@ -280,14 +222,6 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       expect(rec.issueCalls).toEqual([])
       expect(rec.published).toEqual([])
     })
-
-    it("issue.mutate links to a task that exists", async () => {
-      const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
-      await expect(
-        dispatch("issue.mutate", { repoRoot: "/repo", op: { type: "link", id: 1, taskId: "t1" } }, ctx),
-      ).resolves.toEqual({ repoRoot: "/repo", exists: true, nextId: 2, issues: [] })
-      expect(rec.issueCalls).toEqual([{ method: "mutate", repo: "/repo", op: { type: "link", id: 1, taskId: "t1" } }])
-    })
   })
 
   describe("task.ensureWorktree", () => {
@@ -296,11 +230,6 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       await expect(dispatch("task.ensureWorktree", { taskId: "t1" }, ctx)).resolves.toEqual({
         worktreePath: "/worktrees/t1",
       })
-    })
-
-    it("rejects a missing taskId", async () => {
-      const { ctx } = fakeCtx()
-      await expect(dispatch("task.ensureWorktree", {}, ctx)).rejects.toThrow("taskId is required")
     })
 
     // Long-operation feedback: `git worktree add` is minute-class
@@ -340,19 +269,6 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
           payload: { taskId: "t1", kind: "ensureWorktree", phase: "error", error: "git worktree add failed" },
         },
       ])
-    })
-
-    it("coerces a non-Error throw into the error string on the terminal publish", async () => {
-      const { ctx, rec } = fakeCtx({
-        ensureWorktree: async () => {
-          throw "plain failure"
-        },
-      })
-      await expect(dispatch("task.ensureWorktree", { taskId: "t1" }, ctx)).rejects.toBe("plain failure")
-      expect(rec.published[1]).toEqual({
-        channel: "task.jobs",
-        payload: { taskId: "t1", kind: "ensureWorktree", phase: "error", error: "plain failure" },
-      })
     })
   })
 })

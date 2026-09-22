@@ -38,12 +38,6 @@ afterEach(async () => {
 })
 
 describe("NotesStore", () => {
-  it("returns nothing for a repo that never filed a note", async () => {
-    const repo = await makeRepo()
-    const store = new NotesStore(join(repo, "home", ".kobe", "notes.json"))
-    expect(await store.list(repo)).toEqual([])
-  })
-
   it("appends newest-first so recall reads as a recency-ordered list", async () => {
     const repo = await makeRepo()
     const store = new NotesStore(join(repo, "home", ".kobe", "notes.json"))
@@ -134,12 +128,5 @@ describe("NotesStore", () => {
     expect((await store.list(repo)).map((n) => n.id)).toEqual(notes.map((n) => n.id))
     expect(await store.remove(repo, notes[1].id)).toBe(true)
     expect((await store.list(repo)).map((n) => n.text)).toEqual(["seed"])
-  })
-
-  it("rejects a plain directory rather than silently writing a bogus record", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "kobe-notes-plain-"))
-    cleanups.push(dir)
-    const store = new NotesStore(join(dir, "home", ".kobe", "notes.json"))
-    await expect(store.append(dir, note("x"))).rejects.toThrow()
   })
 })

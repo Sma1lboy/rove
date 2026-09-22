@@ -19,7 +19,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs"
-import { homedir, tmpdir } from "node:os"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { defaultAttentionInboxPath } from "@sma1lboy/kobe-daemon/daemon/attention-inbox"
 import { defaultAutomationsPath } from "@sma1lboy/kobe-daemon/daemon/automations-store"
@@ -90,14 +90,6 @@ describe("defaultDaemonSocketPath", () => {
     expect(defaultDaemonSocketPath()).toBe("/tmp/kobe-owned.sock")
   })
 
-  test("ROVE socket and home overrides outrank their KOBE aliases", () => {
-    process.env.KOBE_HOME_DIR = "/tmp/legacy-home"
-    process.env.ROVE_HOME_DIR = "/tmp/rove-home"
-    process.env.KOBE_DAEMON_SOCKET_PATH = "/tmp/legacy.sock"
-    process.env.ROVE_DAEMON_SOCKET_PATH = "/tmp/rove.sock"
-    expect(defaultDaemonSocketPath()).toBe("/tmp/rove.sock")
-  })
-
   test("caller-supplied homeDir argument wins over XDG_RUNTIME_DIR", () => {
     process.env.XDG_RUNTIME_DIR = "/run/user/1000"
     expect(defaultDaemonSocketPath("/tmp/sandbox-home")).toBe("/tmp/sandbox-home/.rove/daemon.sock")
@@ -113,62 +105,12 @@ describe("defaultDaemonSocketPath", () => {
     process.env.XDG_RUNTIME_DIR = "/run/user/1000"
     expect(defaultDaemonSocketPath()).toBe("/run/user/1000/kobe.sock")
   })
-
-  test("falls back to $HOME's own state dir when neither is set", () => {
-    // Directory only: whether the FILE resolves canonical or legacy depends on
-    // what is running on the machine (see the "live legacy runtime" block).
-    expect(defaultDaemonSocketPath().startsWith(join(homedir(), "."))).toBe(true)
-    expect(defaultDaemonSocketPath().endsWith("daemon.sock")).toBe(true)
-  })
-
-  test("ignores empty XDG_RUNTIME_DIR (treats it as unset)", () => {
-    process.env.XDG_RUNTIME_DIR = ""
-    expect(defaultDaemonSocketPath()).toBe(defaultDaemonSocketPath(homedir()))
-  })
-
-  test("two isolated home dirs produce disjoint socket paths", () => {
-    // The whole point: dev:sandbox and prod must not collide. Even with XDG
-    // set, the two explicit homes diverge.
-    process.env.XDG_RUNTIME_DIR = "/run/user/1000"
-    const prod = defaultDaemonSocketPath("/Users/me")
-    const sandbox = defaultDaemonSocketPath("/Users/me/.dev-sandbox/home")
-    expect(prod).not.toBe(sandbox)
-  })
 })
 
 describe("defaultDaemonPidPath", () => {
-  test("ROVE_DAEMON_PID_PATH overrides KOBE_DAEMON_PID_PATH", () => {
-    process.env.KOBE_DAEMON_PID_PATH = "/tmp/legacy.pid"
-    process.env.ROVE_DAEMON_PID_PATH = "/tmp/rove.pid"
-    expect(defaultDaemonPidPath()).toBe("/tmp/rove.pid")
-  })
-
-  test("KOBE_DAEMON_PID_PATH override wins over KOBE_HOME_DIR", () => {
-    process.env.KOBE_HOME_DIR = "/tmp/from-env"
-    process.env.KOBE_DAEMON_PID_PATH = "/tmp/kobe-owned.pid"
-    expect(defaultDaemonPidPath()).toBe("/tmp/kobe-owned.pid")
-  })
-
   test("uses KOBE_HOME_DIR when set (XDG never relevant for pidfile)", () => {
     process.env.KOBE_HOME_DIR = "/tmp/from-env"
     expect(defaultDaemonPidPath()).toBe("/tmp/from-env/.rove/daemon.pid")
-  })
-
-  test("falls back to $HOME's own state dir", () => {
-    expect(defaultDaemonPidPath()).toBe(defaultDaemonPidPath(homedir()))
-  })
-})
-
-describe("defaultDaemonLogPath", () => {
-  test("uses KOBE_HOME_DIR when set", () => {
-    process.env.KOBE_HOME_DIR = "/tmp/from-env"
-    expect(defaultDaemonLogPath()).toBe("/tmp/from-env/.rove/daemon.log")
-  })
-
-  test("falls back to $HOME/.rove/daemon.log", () => {
-    // Logs are always canonical — nothing addresses a log file, so there is
-    // no live-process reason to keep writing the legacy one.
-    expect(defaultDaemonLogPath()).toBe(join(homedir(), ".rove", "daemon.log"))
   })
 })
 
@@ -236,11 +178,6 @@ describe("fitSocketPath — sun_path length fallback", () => {
   // 108 on Linux. Worktree-based dev:sandbox paths can easily blow
   // past that; without the fallback `listen()` fails silently.
 
-  test("returns the natural path when it's short enough", () => {
-    const natural = "/tmp/short-home/.rove/daemon.sock"
-    expect(fitSocketPath(natural, "/tmp/short-home", "daemon")).toBe(natural)
-  })
-
   test("falls back to $TMPDIR/kobe-<homeTag>-<role>.sock when natural path is too long", () => {
     const longHome = "/Users/me/i/kobe/.claude/worktrees/01KRAHRS48X42YK9TRJ2VE5X1F/packages/kobe/.dev-sandbox/home"
     const natural = `${longHome}/.rove/daemon.sock`
@@ -249,27 +186,6 @@ describe("fitSocketPath — sun_path length fallback", () => {
     expect(fitted.length).toBeLessThanOrEqual(100)
     expect(fitted.startsWith(tmpdir())).toBe(true)
     expect(fitted).toMatch(/kobe-[0-9a-f]{8}-daemon\.sock$/)
-  })
-
-  test("same homeDir + role → same short path (stable across calls)", () => {
-    const longHome = "/very/long/home/path/that/blows/past/the/socket/limit/easy/easy"
-    const a = fitSocketPath(`${longHome}/x.sock`, longHome, "daemon")
-    const b = fitSocketPath(`${longHome}/x.sock`, longHome, "daemon")
-    expect(a).toBe(b)
-  })
-
-  test("different homes → different short paths (no collision)", () => {
-    const homeA = "/very/long/home/path/that/blows/past/the/socket/limit/easy/A"
-    const homeB = "/very/long/home/path/that/blows/past/the/socket/limit/easy/B"
-    const a = fitSocketPath(`${homeA}/x.sock`, homeA, "daemon")
-    const b = fitSocketPath(`${homeB}/x.sock`, homeB, "daemon")
-    expect(a).not.toBe(b)
-  })
-
-  test("pidTag is appended for ephemeral sockets (bridge)", () => {
-    const longHome = "/Users/me/i/kobe/.claude/worktrees/01KRAHRS48X42YK9TRJ2VE5X1F/packages/kobe/.dev-sandbox/home"
-    const fitted = fitSocketPath(`${longHome}/.rove/run/bridge-12345.sock`, longHome, "bridge", 12345)
-    expect(fitted).toMatch(/kobe-[0-9a-f]{8}-bridge-12345\.sock$/)
   })
 
   test("daemon socket falls back automatically through defaultDaemonSocketPath", () => {

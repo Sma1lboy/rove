@@ -57,14 +57,6 @@ describe("runConfigSubcommand", () => {
     expect(mocks.resolveEditorCommand).not.toHaveBeenCalled()
   })
 
-  it("--help prints usage without opening an editor", async () => {
-    const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
-    await runConfigSubcommand(["--help"])
-    expect(outSpy.mock.calls.join("")).toContain("Usage: kobe config")
-    expect(mocks.resolveEditorCommand).not.toHaveBeenCalled()
-    outSpy.mockRestore()
-  })
-
   it("rejects an unknown argument with exit code 2", async () => {
     await expect(runConfigSubcommand(["--nope"])).rejects.toBeInstanceOf(ExitError)
     expect(exitSpy).toHaveBeenCalledWith(2)

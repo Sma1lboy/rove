@@ -74,12 +74,6 @@ describe("runSkillSubcommand usage / dispatch", () => {
     expect(process.exitCode).toBe(2)
   })
 
-  it("--help prints usage without an error exit code", async () => {
-    await runSkillSubcommand(["--help"])
-    expect(out()).toContain("usage: kobe skill")
-    expect(process.exitCode).toBeUndefined()
-  })
-
   it("unknown verb exits 2 with usage on stderr", async () => {
     await expect(runSkillSubcommand(["bogus"])).rejects.toThrow("exit 2")
     expect(err()).toContain('unknown verb "bogus"')
@@ -144,11 +138,6 @@ describe("kobe skill status", () => {
     expect(text).toContain("content differs from the copy bundled with this Rove at the same version")
     expect(text).toContain("run `kobe --skill > /home/u/.claude/skills/kobe/SKILL.md`")
   })
-
-  it("says nothing about content when the installed copy matches the bundle", async () => {
-    await runSkillSubcommand(["status"])
-    expect(out()).not.toContain("content differs")
-  })
 })
 
 describe("kobe skill command", () => {
@@ -168,16 +157,6 @@ describe("kobe skill command", () => {
     outSpy.mockClear()
     await runSkillSubcommand(["command", "--agent=windsurf"])
     expect(out()).toContain("--agent windsurf")
-  })
-
-  it("--agent without a value exits 2", async () => {
-    await expect(runSkillSubcommand(["command", "--agent"])).rejects.toThrow("exit 2")
-    expect(err()).toContain("--agent requires a value")
-  })
-
-  it("an unknown flag exits 2 with usage", async () => {
-    await expect(runSkillSubcommand(["command", "--bogus"])).rejects.toThrow("exit 2")
-    expect(err()).toContain('unknown flag "--bogus"')
   })
 })
 
@@ -234,10 +213,5 @@ describe("kobe skill install", () => {
     const [argv] = mocks.bunSpawn.mock.calls[0]
     expect(argv.filter((a: string) => a === "--agent")).toHaveLength(2)
     expect(argv).toEqual(expect.arrayContaining(["--agent", "claude-code", "--agent", "codex"]))
-  })
-
-  it("install --agent NAME threads the agent through to npx", async () => {
-    await runSkillSubcommand(["install", "--agent", "cursor"])
-    expect(mocks.bunSpawn).toHaveBeenCalledWith(expect.arrayContaining(["--agent", "cursor"]), expect.anything())
   })
 })

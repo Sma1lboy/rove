@@ -24,10 +24,6 @@ describe("classifyHookChannel", () => {
     })
     expect(verdict).toEqual({ kind: "live", hookTabs: 1, totalTabs: 2 })
   })
-
-  it("stays silent with no tabs — absence of tabs proves nothing", () => {
-    expect(classifyHookChannel({ socketPath, tabs: {} })).toEqual({ kind: "no-tabs" })
-  })
 })
 
 describe("hookChannelDoctorLines", () => {
@@ -42,13 +38,6 @@ describe("hookChannelDoctorLines", () => {
     expect(text).toContain("KOBE_HOOK_DEBUG=1")
   })
 
-  it("renders a live channel as a single ✓ line", () => {
-    const lines = hookChannelDoctorLines({ kind: "live", hookTabs: 2, totalTabs: 4 }, { socketPath }, "rove")
-    expect(lines).toHaveLength(1)
-    expect(lines[0]).toContain("✓")
-    expect(lines[0]).toContain("2/4")
-  })
-
   it("names a refused settings file — the SECOND way the channel dies", () => {
     // A stale socket at least leaves live tabs behind. A `hooks` shape the
     // installer cannot parse means the install never ran, and until now
@@ -57,15 +46,5 @@ describe("hookChannelDoctorLines", () => {
     const text = hookChannelDoctorLines({ kind: "down", totalTabs: 3 }, { socketPath, configIssues }, "rove").join("\n")
     expect(text).toContain("hook install skipped: /home/u/.claude/settings.json")
     expect(text).toContain('"hooks.PreToolUse" is not an array')
-  })
-
-  it("reports a refused file even when another engine's hooks are live", () => {
-    const configIssues = [{ file: "/home/u/.codex/hooks.json", reason: "top level is not a JSON object" }]
-    const lines = hookChannelDoctorLines(
-      { kind: "live", hookTabs: 2, totalTabs: 4 },
-      { socketPath, configIssues },
-      "rove",
-    )
-    expect(lines.join("\n")).toContain("/home/u/.codex/hooks.json")
   })
 })

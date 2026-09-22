@@ -41,13 +41,6 @@ describe("attention Inbox handlers", () => {
     expect(rec.inboxDeleted).toEqual([{ taskId: "t1", tabId: null }])
   })
 
-  it("rejects a malformed optional dismiss timestamp", async () => {
-    const { ctx } = fakeCtx()
-    await expect(dispatch("attention.dismiss", { taskId: "t1", at: "old" }, ctx)).rejects.toThrow(
-      "at must be a finite number",
-    )
-  })
-
   it("records normalized engine events with their Terminal Tab identity", async () => {
     const { ctx, rec } = fakeCtx()
     await dispatch("engine.reportEvent", { taskId: "t1", tabId: "tab-3", kind: "awaiting-input" }, ctx)

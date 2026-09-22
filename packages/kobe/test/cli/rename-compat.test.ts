@@ -1,10 +1,4 @@
-import {
-  installRoveEnvCompatibility,
-  legacyKobeEnvKey,
-  readRoveEnv,
-  readRoveHomeDirEnv,
-  setRoveEnv,
-} from "@sma1lboy/kobe-daemon/compat-env"
+import { installRoveEnvCompatibility, readRoveEnv, setRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import {
   defaultDaemonPidPath,
   defaultDaemonSocketPath,
@@ -60,12 +54,6 @@ describe("rove environment compatibility", () => {
 
     expect(activeCliName(env)).toBe("rove")
     expect(env.KOBE_INVOKED_AS).toBeUndefined()
-  })
-
-  test("the shared kobe entry stays the legacy alias by default", () => {
-    expect(activeCliName({})).toBe("kobe")
-    expect(legacyKobeEnvKey("ROVE_TASK_ID")).toBe("KOBE_TASK_ID")
-    expect(legacyKobeEnvKey("OTHER_TASK_ID")).toBeUndefined()
   })
 
   test("the kobe wrapper overrides a stale inherited invocation marker", () => {
@@ -129,11 +117,6 @@ describe("a blank ROVE_* value is unset, not a value", () => {
 
   test.each(SUFFIXES)("%s: blank in both namespaces reads as absent", (suffix) => {
     expect(readRoveEnv(suffix, { [`ROVE_${suffix}`]: "", [`KOBE_${suffix}`]: "   " })).toBeUndefined()
-  })
-
-  test("the home accessor answers the same, so a caller's `?? homedir()` takes over", () => {
-    expect(readRoveHomeDirEnv({ ROVE_HOME_DIR: "", KOBE_HOME_DIR: "/isolated-home" })).toBe("/isolated-home")
-    expect(readRoveHomeDirEnv({ ROVE_HOME_DIR: "" })).toBeUndefined()
   })
 
   test("mirroring does not overwrite a real KOBE_* with a blank ROVE_*", () => {

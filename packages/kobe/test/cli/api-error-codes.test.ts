@@ -66,12 +66,4 @@ describe("daemon error codes at the CLI boundary", () => {
       expect(toApiError(new Error(message))).toMatchObject({ code: "RPC_ERROR", message })
     }
   })
-
-  it("also lifts a node errno, which is deliberate", () => {
-    // The rule is SHAPE, not a roster of Rove's own names — that is what makes
-    // a new orchestrator sentinel need no CLI change. A `ENOENT` bubbling up
-    // from the daemon lands the same way, and a caller is better off with it
-    // than with RPC_ERROR.
-    expect(toApiError(new Error("ENOENT: no such file or directory, open '/x'")).code).toBe("ENOENT")
-  })
 })

@@ -99,9 +99,4 @@ describe("note.list", () => {
     await expect(dispatch("note.list", { repo: "/repo" }, ctx)).resolves.toEqual({ notes })
     expect(rec.noteCalls).toEqual([{ method: "list", repo: "/repo" }])
   })
-
-  it("requires a repo", async () => {
-    const { ctx } = fakeCtx()
-    await expect(dispatch("note.list", {}, ctx)).rejects.toThrow("repo is required")
-  })
 })

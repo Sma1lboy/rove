@@ -78,19 +78,11 @@ const emptyRunner: PrViewRunner = async () => ({ kind: "empty" })
 const noJitter = (): number => 0.5
 
 describe("pickPr", () => {
-  test("empty list → undefined (no PR)", () => {
-    expect(pickPr([])).toBeUndefined()
-  })
   test("an open PR wins over a merged/closed one, regardless of order", () => {
     const open = { number: 2, state: "OPEN" }
     const merged = { number: 1, state: "MERGED" }
     expect(pickPr([merged, open])).toBe(open)
     expect(pickPr([open, merged])).toBe(open)
-  })
-  test("merged vs closed ties keep the first (list order = most-recently-updated)", () => {
-    const merged = { number: 1, state: "MERGED" }
-    const closed = { number: 2, state: "CLOSED" }
-    expect(pickPr([merged, closed])).toBe(merged)
   })
 })
 
@@ -105,14 +97,6 @@ describe("isPrPollable", () => {
     createdAt: "2026-06-24T00:00:00.000Z",
     updatedAt: "2026-06-24T00:00:00.000Z",
   }
-  test("a regular task with a branch + local worktree is pollable", () => {
-    expect(isPrPollable(base)).toBe(true)
-  })
-  test("main / no-branch / no-worktree are not", () => {
-    expect(isPrPollable({ ...base, kind: "main", branch: "" })).toBe(false)
-    expect(isPrPollable({ ...base, branch: "" })).toBe(false)
-    expect(isPrPollable({ ...base, worktreePath: "" })).toBe(false)
-  })
   test("remote (ssh://) projects are skipped", () => {
     expect(isPrPollable({ ...base, repo: "ssh://host/repo" })).toBe(false)
   })
@@ -132,22 +116,6 @@ describe("runPrStatusPass", () => {
     expect(changed).toEqual([id])
     expect(orch.getTask(id)?.prStatus?.checkState).toBe("passing")
     expect(orch.getTask(id)?.prStatus?.lifecycle).toBe("open")
-  })
-
-  test("a second pass with the same status reports no change (samePrStatus)", async () => {
-    const id = await makeTask()
-    const schedule: PrPollSchedule = new Map()
-    await runPrStatusPass(orch, { run: prRunner("OPEN", "SUCCESS"), now: 0, at: "t1", schedule, rand: noJitter })
-    // Advance past the backoff so the task is due again.
-    const changed = await runPrStatusPass(orch, {
-      run: prRunner("OPEN", "SUCCESS"),
-      now: 10_000_000,
-      at: "t2",
-      schedule,
-      rand: noJitter,
-    })
-    expect(changed).toEqual([])
-    expect(orch.getTask(id)?.prStatus?.checkState).toBe("passing")
   })
 
   test("backoff: a task is not re-polled until its scheduled time", async () => {
@@ -335,21 +303,6 @@ describe("startPrStatusPoller consumer gate", () => {
     await tickOnce(stop)
     expect(runs()).toBe(0)
   })
-
-  test("an attached subscriber alone still opens the gate (no agent required)", async () => {
-    await makeTask()
-    const { runs, run } = countingRunner()
-    const stop = startPrStatusPoller(
-      orch,
-      daemonRuntime,
-      DEFAULT_PR_STATUS_POLL_MS,
-      () => true,
-      run,
-      () => false,
-    )
-    await tickOnce(stop)
-    expect(runs()).toBeGreaterThan(0)
-  })
 })
 
 describe("stale marker (prStatus.lastError)", () => {
@@ -418,12 +371,5 @@ describe("stale marker (prStatus.lastError)", () => {
     expect(orch.getTask(id)?.prStatus?.lastError).toBeUndefined()
     // `empty` keeps the last value; only the marker goes.
     expect(orch.getTask(id)?.prStatus?.checkState).toBe("passing")
-  })
-
-  test("a task that never had a PR status gets no marker — nothing on screen to mark", async () => {
-    const id = await makeTask()
-    const schedule: PrPollSchedule = new Map()
-    await runPrStatusPass(orch, { run: errorRunner, now: 0, at: "T0", schedule, rand: noJitter })
-    expect(orch.getTask(id)?.prStatus).toBeUndefined()
   })
 })

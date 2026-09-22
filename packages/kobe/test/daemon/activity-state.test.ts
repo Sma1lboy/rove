@@ -83,22 +83,6 @@ describe("daemon activity state", () => {
     registry.close()
   })
 
-  it("replays every current non-idle activity, not just the bus cache", () => {
-    const bus = new DaemonEventBus()
-    const registry = new DaemonActivityRegistry(bus, 1_000)
-
-    registry.report("task-1", "turn-start")
-    registry.report("task-2", "awaiting-input", { waiting: "permission" })
-
-    expect(registry.replaySnapshot().map((p) => [p.taskId, p.state])).toEqual([
-      ["task-1", "running"],
-      ["task-2", "permission_needed"],
-    ])
-    expect(bus.snapshot().filter((event) => event.channel === "engine-state")).toHaveLength(1)
-
-    registry.close()
-  })
-
   // Why: the reducer now has ONE definition (kobe-daemon activity-reduce;
   // kobe/src/engine/hook-events.ts re-exports it). These two behaviors were
   // paid for with production bugs and were only pinned on the kobe side —

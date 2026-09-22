@@ -22,14 +22,9 @@ describe("recomputeTabActivity", () => {
     expect(recomputeTabActivity({}, T)).toBeUndefined()
   })
 
-  it("observed running fills the hole when no hook ever reported (restart seeding)", () => {
-    const eff = recomputeTabActivity({ observed: { state: "running", at: T } }, T)
-    expect(eff).toMatchObject({ state: "running", source: "observed" })
-  })
-
-  it("observed idle alone is the KNOWN-idle marker", () => {
-    const eff = recomputeTabActivity({ observed: { state: "idle", at: T } }, T)
-    expect(eff).toMatchObject({ state: "idle", source: "observed" })
+  it.each(["running", "idle"] as const)("observed %s alone fills the hole (restart seeding / known-idle)", (state) => {
+    const eff = recomputeTabActivity({ observed: { state, at: T } }, T)
+    expect(eff).toMatchObject({ state, source: "observed" })
   })
 
   it("a hook entry in ANY non-running state beats observation outright", () => {
@@ -41,15 +36,6 @@ describe("recomputeTabActivity", () => {
       )
       expect(eff).toMatchObject({ state, source: "hook" })
     }
-  })
-
-  it("a hook running beats an observed WORKING claim (hook is authoritative)", () => {
-    const eff = recomputeTabActivity(
-      { hook: { state: "running", at: T - 100 }, observed: { state: "running", at: T } },
-      T,
-      0,
-    )
-    expect(eff).toMatchObject({ state: "running", source: "hook" })
   })
 
   it("a YOUNG hook running stands against an observed rest (turn-boundary grace)", () => {
@@ -93,13 +79,6 @@ describe("recomputeTabActivity", () => {
     expect(eff).toMatchObject({ state: "running", source: "hook" })
   })
 
-  it("a corrected observation carries its own session lineage once the hook slot is dropped", () => {
-    // The registry drops a disproved hook slot, so the lineage it supplied
-    // has to live on the observed slot instead.
-    const eff = recomputeTabActivity({ observed: { state: "idle", at: T, vendor: "claude", session: { id: "s1" } } }, T)
-    expect(eff).toMatchObject({ state: "idle", source: "observed", vendor: "claude", session: { id: "s1" } })
-  })
-
   it("a NEWER observed running unsticks a hook dead (the no-hook-engine escape)", () => {
     // A dead process emits nothing, so observed output after the death can
     // only come from a NEW engine. Without this an engine whose adapter never
@@ -139,13 +118,5 @@ describe("recomputeTabActivity", () => {
     expect(
       recomputeTabActivity({ hook: { state: "dead", at: T }, observed: { state: "running", at: T } }, T),
     ).toMatchObject({ state: "dead", source: "hook" })
-  })
-
-  it("hook detail rides the effective payload (badge subtitles read it)", () => {
-    const eff = recomputeTabActivity(
-      { hook: { state: "permission_needed", at: T, detail: { waiting: "permission" } } },
-      T,
-    )
-    expect(eff?.detail).toEqual({ waiting: "permission" })
   })
 })

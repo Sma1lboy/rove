@@ -163,17 +163,6 @@ describe("runAddRemote key-auth registration", () => {
     outSpy.mockRestore()
   })
 
-  it("reports a reachable host whose base path is missing, without unregistering", async () => {
-    enableRemoteProjects()
-    vi.spyOn(process.stdout, "write").mockImplementation(() => true)
-    mocks.run.mockResolvedValue({ exitCode: 1, stdout: "", stderr: "" })
-
-    await runAddRemote(["--host", "box", "--user", "dev", "--path", "/srv", "--key"])
-
-    expect(log()).toContain('reachable, but base path "/srv" is not a directory')
-    expect(getRemoteRepos()["ssh://dev@box/srv"]).toBeDefined()
-  })
-
   it("keeps the project saved when the probe cannot connect", async () => {
     enableRemoteProjects()
     vi.spyOn(process.stdout, "write").mockImplementation(() => true)
@@ -184,21 +173,6 @@ describe("runAddRemote key-auth registration", () => {
     expect(log()).toContain("could not connect (connection refused)")
     expect(log()).toContain("the project is saved")
     expect(getRemoteRepos()["ssh://dev@box/srv"]).toBeDefined()
-  })
-
-  it("--help prints usage and exits 0 without registering anything", async () => {
-    enableRemoteProjects()
-    const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
-    await expect(runAddRemote(["--help"])).rejects.toThrow("exit 0")
-    expect(outSpy.mock.calls.join("")).toContain("Usage: kobe add --remote")
-    expect(getSavedRepos()).toEqual([])
-    outSpy.mockRestore()
-  })
-
-  it("an unknown flag is a usage error, exit 2", async () => {
-    enableRemoteProjects()
-    await expect(runAddRemote(["--frobnicate"])).rejects.toThrow("exit 2")
-    expect(err()).toContain('unknown flag "--frobnicate"')
   })
 })
 

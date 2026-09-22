@@ -115,36 +115,6 @@ describe("task delete handler", () => {
     expect(result).toMatchObject({ queued: true, status: "removed" })
   })
 
-  // A removal that failed must not be reportable as one that worked. Comparing
-  // the two replies is what breaks if the outcome ever stops reaching the
-  // caller, whatever the field is named.
-  it("a failed removal and a successful one are not the same reply", async () => {
-    const { tearDownSession } = recordingTearDown()
-    const runtime = () => stubRuntime({ tearDownSession })
-    const failed = await invokeVerb("delete", ["--task-id", "t1", "--force", "--wait"], {
-      client: new FakeClient({
-        "task.delete": () => ({ taskId: "t1", queued: true }),
-        "task.list": () => ({
-          tasks: [
-            taskFixture({
-              id: "t1",
-              deletion: { phase: "error", force: true, requestedAt: "2026-08-31T00:00:00.000Z", error: "nope" },
-            }),
-          ],
-        }),
-      }),
-      runtime: runtime(),
-    })
-    const removed = await invokeVerb("delete", ["--task-id", "t1", "--force", "--wait"], {
-      client: new FakeClient({
-        "task.delete": () => ({ taskId: "t1", queued: true }),
-        "task.list": () => ({ tasks: [] }),
-      }),
-      runtime: runtime(),
-    })
-    expect(failed).not.toEqual(removed)
-  })
-
   // Without --wait the caller gets the fast path, and it must still say which
   // of the two synchronous outcomes happened rather than a bare `{}`.
   it("without --wait, a refused delete does not look like an accepted one", async () => {

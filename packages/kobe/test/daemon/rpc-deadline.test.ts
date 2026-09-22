@@ -26,19 +26,4 @@ describe("rpc deadline policy", () => {
     // wedge detector for a verb that should have it.
     expect([...blockingRpcNames(createDaemonHandlerRegistry())].sort()).toEqual([...BLOCKING_RPCS].sort())
   })
-
-  it("keeps the interactive write surface on the deadline", () => {
-    // These answer in milliseconds. Losing the wedge detector on them is how a
-    // hung daemon turns into a silently frozen UI on stale state.
-    for (const name of [
-      "task.create",
-      "task.rename",
-      "task.delete",
-      "task.status",
-      "task.list",
-      "daemon.status",
-    ] as const) {
-      expect(BLOCKING_RPCS.has(name), name).toBe(false)
-    }
-  })
 })

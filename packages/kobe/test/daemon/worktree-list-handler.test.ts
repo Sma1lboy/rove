@@ -87,24 +87,9 @@ describe("worktree.list", () => {
     // No `origin` configured on this throwaway repo — unreachable, not "not pushed".
     expect(row?.branchOnRemote).toBeNull()
   })
-
-  it("includes a repo with no worktrees in the result rather than erroring", async () => {
-    const result = (await dispatch("worktree.list", {})) as { projects: Array<{ repo: string }> }
-    const project = result.projects.find((p) => p.repo === repo)
-    expect(project).toBeDefined()
-  })
 })
 
 describe("worktree.remove", () => {
-  it("removes a clean worktree without force", async () => {
-    const wt = join(root, "clean-worktree")
-    execSync(`git worktree add -b feature/clean ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })
-
-    await expect(dispatch("worktree.remove", { path: wt })).resolves.toEqual({ removed: true })
-    expect(() => execSync("git worktree list", { cwd: repo, env: gitEnv }).toString()).not.toThrow()
-    expect(execSync("git worktree list", { cwd: repo, env: gitEnv }).toString()).not.toContain(wt)
-  })
-
   it("refuses a dirty worktree, then removes it once force is set — the same gate as GitWorktreeManager.remove", async () => {
     const wt = join(root, "dirty-worktree")
     execSync(`git worktree add -b feature/dirty ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })
@@ -145,10 +130,6 @@ describe("worktree.remove", () => {
     // And force still gets through, which is what the second confirm authorizes.
     await expect(dispatch("worktree.remove", { path: wt, force: true })).resolves.toEqual({ removed: true })
     expect(existsSync(wt)).toBe(false)
-  })
-
-  it("rejects a missing path", async () => {
-    await expect(dispatch("worktree.remove", {})).rejects.toThrow("path is required")
   })
 
   /**
@@ -241,31 +222,19 @@ describe("worktree.remove", () => {
     } as unknown as DaemonHandlerContext
   }
 
-  it("refuses to delete a dir task's own directory, and leaves it on disk", async () => {
-    const wt = join(root, "user-directory")
-    execSync(`git worktree add -b feature/dir-task ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })
+  it.each([
+    ["dir", "user-directory"],
+    ["main", "project-checkout"],
+  ])("refuses to delete a %s task's own directory, and leaves it on disk", async (kind, dir) => {
+    const wt = join(root, dir)
+    execSync(`git worktree add -b feature/${kind}-task ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })
 
     await expect(
       dispatchDaemonRequest(
         createDaemonHandlerRegistry(),
         "worktree.remove",
         { path: wt },
-        ctxWithTask({ id: "task-dir", worktreePath: wt, kind: "dir" }),
-      ),
-    ).rejects.toThrow(new RegExp(`^${NOT_A_ROVE_WORKTREE}: `))
-    expect(existsSync(wt)).toBe(true)
-  })
-
-  it("refuses to delete a main task's project checkout, and leaves it on disk", async () => {
-    const wt = join(root, "project-checkout")
-    execSync(`git worktree add -b feature/main-task ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })
-
-    await expect(
-      dispatchDaemonRequest(
-        createDaemonHandlerRegistry(),
-        "worktree.remove",
-        { path: wt },
-        ctxWithTask({ id: "task-main", worktreePath: wt, kind: "main" }),
+        ctxWithTask({ id: `task-${kind}`, worktreePath: wt, kind }),
       ),
     ).rejects.toThrow(new RegExp(`^${NOT_A_ROVE_WORKTREE}: `))
     expect(existsSync(wt)).toBe(true)

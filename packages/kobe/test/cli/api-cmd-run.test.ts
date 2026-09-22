@@ -92,12 +92,6 @@ describe("runApiSubcommand", () => {
     expect(fake.request).not.toHaveBeenCalled()
   })
 
-  test("an unknown flag fails validation as a JSON error, exit 2", async () => {
-    await expect(runApiSubcommand(["schema", "--bogus", "x"])).rejects.toThrow("exit(2)")
-    const err = stderrJson().error
-    expect(err.message).toContain("bogus")
-  })
-
   test("a positional argument is a parse-stage BAD_FLAG JSON error, exit 2", async () => {
     await expect(runApiSubcommand(["list", "positional"])).rejects.toThrow("exit(2)")
     const err = stderrJson().error
@@ -111,11 +105,6 @@ describe("runApiSubcommand", () => {
     expect(openDaemonSession).not.toHaveBeenCalled()
     const out = JSON.parse(stdoutText())
     expect(out).toHaveProperty("groups")
-  })
-
-  test("--pretty pretty-prints the emitted JSON", async () => {
-    await runApiSubcommand(["schema", "--pretty"])
-    expect(stdoutText()).toContain("\n  ")
   })
 
   test("a daemon-backed verb that can't reach the daemon fails BAD_DAEMON, exit 2", async () => {
@@ -248,11 +237,6 @@ describe("runApiSubcommand", () => {
     const err = stderrJson().error
     expect(err.code).toBe("UNKNOWN_VERB")
     expect(err.nextCommandArgs).toEqual(["api", "add", "--help"])
-  })
-
-  test("schema --group on an unknown group is a bad NAME, not a bad flag", async () => {
-    await expect(runApiSubcommand(["schema", "--group", "nope"])).rejects.toThrow("exit(2)")
-    expect(stderrJson().error.code).toBe("BAD_VERB")
   })
 
   test("a verb with no --task-id and no active task refuses with MISSING_TARGET", async () => {

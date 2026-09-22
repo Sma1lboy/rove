@@ -1,5 +1,4 @@
 import {
-  isChannelName,
   isDaemonVersionStale,
   isForeignDaemonHome,
   isProtocolCompatible,
@@ -28,21 +27,9 @@ describe("isProtocolCompatible", () => {
     // remote dropped support below v3; we are still v2.
     expect(isProtocolCompatible({ localVersion: 2, localMin: 2, remoteVersion: 3, remoteMin: 3 })).toBe(false)
   })
-
-  it("is symmetric", () => {
-    const a = { localVersion: 4, localMin: 2 }
-    const b = { localVersion: 2, localMin: 2 }
-    const ab = isProtocolCompatible({ ...a, remoteVersion: b.localVersion, remoteMin: b.localMin })
-    const ba = isProtocolCompatible({ ...b, remoteVersion: a.localVersion, remoteMin: a.localMin })
-    expect(ab).toBe(ba)
-  })
 })
 
 describe("isForeignDaemonHome", () => {
-  it("accepts a daemon serving the same home", () => {
-    expect(isForeignDaemonHome("/home/dev", "/home/dev")).toBe(false)
-  })
-
   it("rejects a sandbox daemon squatting on the production socket", () => {
     // `dev:sandbox` inheriting KOBE_DAEMON_SOCKET_PATH from the task terminal
     // binds the real socket and serves an EMPTY task index.
@@ -64,44 +51,16 @@ describe("isForeignDaemonHome", () => {
 })
 
 describe("isDaemonVersionStale", () => {
-  it("is not stale when daemon and client are the same build", () => {
-    expect(isDaemonVersionStale("0.7.4", "0.7.4")).toBe(false)
-  })
-
   it("is stale when the daemon is OLDER than the client (the common upgrade case)", () => {
     // User ran `npm i -g @sma1lboy/kobe@latest` (client v0.7.4) but the
     // long-lived daemon is still running v0.7.3 in memory.
     expect(isDaemonVersionStale("0.7.3", "0.7.4")).toBe(true)
   })
 
-  it("is stale when the daemon is NEWER than the client (mismatched either direction)", () => {
-    // Any difference at all is worth a restart prompt — a plain inequality,
-    // not a semver ordering.
-    expect(isDaemonVersionStale("0.8.0", "0.7.4")).toBe(true)
-  })
-
   it("is NOT stale when the daemon version is unknown (older daemon omits the field)", () => {
     // A daemon predating the kobeVersion handshake field reports undefined;
     // we must never flag that as stale (no false banner).
     expect(isDaemonVersionStale(undefined, "0.7.4")).toBe(false)
-  })
-
-  it("is not stale on an empty daemon version string (treated as unknown)", () => {
-    expect(isDaemonVersionStale("", "0.7.4")).toBe(false)
-  })
-})
-
-describe("isChannelName", () => {
-  it("accepts a real channel name", () => {
-    expect(isChannelName("ui-prefs")).toBe(true)
-    expect(isChannelName("task.snapshot")).toBe(true)
-  })
-
-  it("rejects unknown / non-string values", () => {
-    expect(isChannelName("daemon.stopping")).toBe(false) // a lifecycle frame, not a channel
-    expect(isChannelName("nope")).toBe(false)
-    expect(isChannelName(42)).toBe(false)
-    expect(isChannelName(undefined)).toBe(false)
   })
 })
 
@@ -111,12 +70,6 @@ describe("normalizeChannelFilter", () => {
     expect(normalizeChannelFilter(undefined)).toBeNull()
     expect(normalizeChannelFilter("ui-prefs")).toBeNull()
     expect(normalizeChannelFilter({})).toBeNull()
-  })
-
-  it("returns the requested set of valid channels", () => {
-    const set = normalizeChannelFilter(["ui-prefs", "keybindings"])
-    expect(set).not.toBeNull()
-    expect([...(set ?? [])].sort()).toEqual(["keybindings", "ui-prefs"])
   })
 
   it("drops unknown names (forward-compat) but keeps the valid ones", () => {

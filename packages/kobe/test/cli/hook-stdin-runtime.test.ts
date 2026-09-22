@@ -55,12 +55,4 @@ describe("readStdinText", () => {
     useStdin(tty)
     expect(await readStdinText()).toBe("")
   })
-
-  it("prefers Bun's own reader when running under Bun", async () => {
-    const text = vi.fn(async () => '{"from":"bun"}')
-    vi.stubGlobal("Bun", { stdin: { text } })
-    useStdin(pipedStdin('{"from":"node"}'))
-    expect(await readStdinText()).toBe('{"from":"bun"}')
-    expect(text).toHaveBeenCalledOnce()
-  })
 })

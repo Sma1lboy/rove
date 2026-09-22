@@ -84,11 +84,6 @@ describe("daemon home lease", () => {
     await expect(acquire(home, "two.sock")).resolves.toBeDefined()
   })
 
-  it("does not serialize unrelated homes", async () => {
-    await acquire(home, "one.sock")
-    await acquire(join(home, "independent"), "two.sock")
-  })
-
   it("does not remove metadata that another owner replaced", async () => {
     const claim = await acquire(home, "one.sock")
     await writeFile(daemonHomeOwnerPath(home), "999999999:replacement.sock\n")

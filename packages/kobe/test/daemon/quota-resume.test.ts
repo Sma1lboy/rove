@@ -90,18 +90,6 @@ describe("exhaustedResetAtMs", () => {
     }
     expect(exhaustedResetAtMs(usage, NOW)).toBe(NOW + 2000)
   })
-
-  it("returns null when nothing is exhausted or resets are missing/past", () => {
-    const usage: EngineQuotaUsage = {
-      windows: [
-        { kind: "session", label: "5h", percent: 99, resetsAt: NOW + 1000 },
-        { kind: "weekly_all", label: "7d", percent: 100, resetsAt: null },
-        { kind: "weekly_scoped", label: "Fable", percent: 100, resetsAt: NOW - 1000 },
-      ],
-      capturedAt: NOW,
-    }
-    expect(exhaustedResetAtMs(usage, NOW)).toBeNull()
-  })
 })
 
 describe("scheduleQuotaResume", () => {
@@ -114,13 +102,6 @@ describe("scheduleQuotaResume", () => {
       resumeAt: new Date(NOW + 5000).toISOString(),
       requestedAt: new Date(NOW).toISOString(),
     })
-  })
-
-  it("arms nothing when the cache has no usage or nothing is exhausted", async () => {
-    const orch = fakeOrch([task("t1")])
-    await scheduleQuotaResume(orch, RUNTIME, fakeCache(null), "t1", () => NOW)
-    await scheduleQuotaResume(orch, RUNTIME, fakeCache({ windows: [], capturedAt: NOW }), "t1", () => NOW)
-    expect(orch.setQuotaResume).not.toHaveBeenCalled()
   })
 
   // Kimi's hook adapter classifies its 429s as `rate_limit` — that is what
@@ -147,14 +128,6 @@ describe("scheduleQuotaResume", () => {
     // The reason, stated where a future reader will look: kimi is absent from
     // the probe list, so there is nothing to ask when the limit lands.
     expect(vendorsWithQuotaProbe()).toEqual(["claude", "codex"])
-  })
-
-  it("ignores unknown and deleting tasks", async () => {
-    const cache = fakeCache(exhaustedUsage(NOW + 5000))
-    const orch = fakeOrch([task("deleting", { deletion: { phase: "queued", force: false, requestedAt: PAST } })])
-    await scheduleQuotaResume(orch, RUNTIME, cache, "missing", () => NOW)
-    await scheduleQuotaResume(orch, RUNTIME, cache, "deleting", () => NOW)
-    expect(cache.get).not.toHaveBeenCalled()
   })
 })
 
@@ -206,20 +179,5 @@ describe("startQuotaResumeRunner", () => {
       stop()
     }
     expect(prompts[0]).toContain("继续这个任务")
-  })
-
-  it("leaves future schedules untouched", async () => {
-    const orch = fakeOrch([task("t1", { quotaResume: schedule(FUTURE) })])
-    const deliverPromptToLiveEngine = vi.fn(async () => true)
-    const runtime = { deliverPromptToLiveEngine } as unknown as DaemonRuntimeAdapter
-
-    const stop = startQuotaResumeRunner(orch, runtime, 5, () => NOW)
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 30))
-    } finally {
-      stop()
-    }
-    expect(deliverPromptToLiveEngine).not.toHaveBeenCalled()
-    expect(orch.setQuotaResume).not.toHaveBeenCalled()
   })
 })

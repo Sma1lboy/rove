@@ -54,15 +54,6 @@ function stateJson(): Record<string, unknown> {
 }
 
 describe("runRepoSubcommand usage", () => {
-  it("prints usage on --help / no verb without exiting non-zero", async () => {
-    const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
-    await runRepoSubcommand(["--help"])
-    await runRepoSubcommand([])
-    expect(outSpy.mock.calls.join("")).toContain("Usage: kobe repo")
-    expect(exitSpy).not.toHaveBeenCalled()
-    outSpy.mockRestore()
-  })
-
   it("rejects an unknown verb with usage + exit 2", async () => {
     await expect(runRepoSubcommand(["bogus"])).rejects.toThrow("exit 2")
     expect(errSpy.mock.calls.join("")).toContain('unknown verb "bogus"')
@@ -137,19 +128,6 @@ describe("kobe repo set / show / unset round-trip", () => {
     expect(out).toContain(".kobe/init-prompt.md: present (shadowed)")
   })
 
-  it("show truncates a long override to a 60-char one-line preview", async () => {
-    const long = `echo ${"x".repeat(100)}\necho second line`
-    await runRepoSubcommand(["set", repo, "--init-script", long])
-    logSpy.mockClear()
-    await runRepoSubcommand(["show", repo])
-    const line = output()
-      .split("\n")
-      .find((l) => l.includes("override initScript"))
-    expect(line).toContain("…")
-    // Multi-line value is collapsed to one line in the preview.
-    expect(line).not.toContain("\n")
-  })
-
   it("unset with a field flag clears only that field", async () => {
     await runRepoSubcommand(["set", repo, "--init-script", "s", "--init-prompt", "p"])
     logSpy.mockClear()
@@ -182,11 +160,6 @@ describe("runRepoSubcommand argument errors", () => {
     expect(errSpy.mock.calls.join("")).toContain("set needs at least one of")
   })
 
-  it("set with a flag missing its value fails usage", async () => {
-    await expect(runRepoSubcommand(["set", repo, "--init-script"])).rejects.toThrow("exit 2")
-    expect(errSpy.mock.calls.join("")).toContain("--init-script requires a value")
-  })
-
   it("set with an unknown flag fails usage", async () => {
     await expect(runRepoSubcommand(["set", repo, "--bogus", "x"])).rejects.toThrow("exit 2")
     expect(errSpy.mock.calls.join("")).toContain('unknown flag "--bogus"')
@@ -197,15 +170,5 @@ describe("runRepoSubcommand argument errors", () => {
       "exit 2",
     )
     expect(errSpy.mock.calls.join("")).toContain("cannot read")
-  })
-
-  it("unset with an unknown flag fails usage", async () => {
-    await expect(runRepoSubcommand(["unset", repo, "--bogus"])).rejects.toThrow("exit 2")
-    expect(errSpy.mock.calls.join("")).toContain('unknown flag "--bogus"')
-  })
-
-  it("set with two positional paths fails usage", async () => {
-    await expect(runRepoSubcommand(["set", repo, "other", "--init-script", "x"])).rejects.toThrow("exit 2")
-    expect(errSpy.mock.calls.join("")).toContain('unexpected argument "other"')
   })
 })

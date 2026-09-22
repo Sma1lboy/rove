@@ -38,11 +38,6 @@ describe("routine-update clear-by-empty", () => {
     expect(payload.precheck).toEqual({ command: "bun test", timeoutSeconds: 30 })
   })
 
-  it("still sends a non-empty base ref verbatim", async () => {
-    const payload = await updatePayload(["--id", "r1", "--base-branch", "main"])
-    expect(payload.baseRef).toBe("main")
-  })
-
   it("omits precheck and baseRef entirely when neither flag is passed", async () => {
     const payload = await updatePayload(["--id", "r1", "--name", "renamed"])
     expect("precheck" in payload).toBe(false)

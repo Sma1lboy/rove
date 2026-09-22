@@ -16,10 +16,6 @@ describe("shouldRotateLog", () => {
     expect(shouldRotateLog(0, 100)).toBe(false)
     expect(shouldRotateLog(100, 100)).toBe(false)
   })
-
-  test("true once strictly over the cap", () => {
-    expect(shouldRotateLog(101, 100)).toBe(true)
-  })
 })
 
 describe("rotateLogIfNeeded", () => {

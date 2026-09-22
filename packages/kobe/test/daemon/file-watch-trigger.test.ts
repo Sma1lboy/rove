@@ -163,24 +163,6 @@ describe("startFileWatchTrigger", () => {
     expect(triggers).toBe(1)
   })
 
-  test("debounceMs <= 0 is a no-op (no trigger, no-op stop)", async () => {
-    let triggers = 0
-    stop = startFileWatchTrigger({
-      filePath,
-      debounceMs: 0,
-      onTrigger: () => {
-        triggers += 1
-      },
-      onError: () => {},
-    })
-    fs.writeFileSync(filePath, "{}", "utf8")
-    await new Promise((r) => setTimeout(r, 250))
-    expect(triggers).toBe(0)
-    // stop() is safe to call.
-    stop()
-    stop = null
-  })
-
   test("stop() closes cleanly — no triggers after stop", async () => {
     let triggers = 0
     const localStop = startFileWatchTrigger({

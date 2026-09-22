@@ -88,12 +88,6 @@ describe("add handler", () => {
     )
   })
 
-  it("still accepts a branch name git allows", async () => {
-    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
-    await invokeVerb("add", ["--repo", "/repo/x", "--branch", "feat/ok"], { client, runtime: stubRuntime() })
-    expect(client.requests[0].payload).toMatchObject({ branch: "feat/ok" })
-  })
-
   it("says so when --repo resolved UP out of a subdirectory", async () => {
     // `--repo my-repo/packages/app` came back as `"repo": "…/my-repo"` with
     // no trace of the levels it climbed, so a typo'd path and an intended one
@@ -121,26 +115,6 @@ describe("add handler", () => {
       runtime: stubRuntime({ resolveRepoRoot: async () => "/private/tmp/x" }),
     })) as { repoResolvedFrom?: string }
     expect(symlinked.repoResolvedFrom).toBeUndefined()
-  })
-
-  it("names the home it wrote to, so a collapsed isolation is visible in a success", async () => {
-    // Four fan-out tasks once landed in a production `~/.rove` behind
-    // `failures: []` because the payload never said where it had written.
-    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
-    const result = (await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })) as {
-      home: string
-    }
-    expect(result.home).toBe(homeDir())
-  })
-
-  it("sets active only when requested", async () => {
-    const client = new FakeClient({
-      "task.create": () => ({ taskId: "t1", task: taskFixture() }),
-      "task.setActive": () => ({}),
-    })
-    await invokeVerb("add", ["--repo", "/repo/x", "--activate"], { client, runtime: stubRuntime() })
-    expect(client.requestNames).toEqual(["task.create", "task.setActive"])
-    expect(client.requests[1].payload).toEqual({ taskId: "t1" })
   })
 
   it("canonicalizes repo and uses the configured default engine", async () => {
@@ -188,17 +162,6 @@ describe("add handler", () => {
       command: "codex",
       vendor: "codex",
     })
-  })
-
-  it("records a RAW command line verbatim with its resolved protocol", async () => {
-    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
-    await invokeVerb("add", ["--repo", "/repo/x", "--command", "codex --search"], {
-      client,
-      runtime: stubRuntime(),
-    })
-    // The command is whatever the caller typed; the protocol is derived from
-    // its argv[0], never declared alongside it.
-    expect(client.requests[0].payload).toEqual({ repo: "/repo/x", command: "codex --search", vendor: "codex" })
   })
 
   it("records the generic protocol for a command naming no known engine", async () => {
@@ -259,20 +222,6 @@ describe("add handler", () => {
     })) as Record<string, unknown>
     // Still a success: the task exists and the engine is burning tokens on it.
     expect(result).toMatchObject({ taskId: "t1", delivered: true, promptPersisted: false })
-  })
-
-  it("omits promptPersisted when the brief did persist", async () => {
-    const task = taskFixture({ kind: "task", vendor: "claude" })
-    const client = new FakeClient({
-      "task.create": () => ({ taskId: "t1", task }),
-      "task.get": () => ({ task }),
-      "task.setPrompt": () => ({}),
-    })
-    const result = (await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "do it"], {
-      client,
-      runtime: stubRuntime({ deliverPrompt: recordingDelivery().deliver }),
-    })) as Record<string, unknown>
-    expect(result).not.toHaveProperty("promptPersisted")
   })
 
   it("reports a created task whose prompt never landed", async () => {

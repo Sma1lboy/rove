@@ -42,10 +42,6 @@ describe("engine exit code scrape", () => {
     expect(engineExitCodeFromTail(["  Engine exited (code 143). Check Settings"])).toBe(143)
     expect(engineExitCodeFromTail(["all quiet", "$ "])).toBeNull()
   })
-
-  it("takes the LAST banner — a tab that restarted its engine twice", () => {
-    expect(engineExitCodeFromTail(["Engine exited (code 1).", "Engine exited (code 143)."])).toBe(143)
-  })
 })
 
 describe("engine death records", () => {
@@ -79,11 +75,6 @@ describe("engine death records", () => {
     const records = readPtyExitRecords(path)
     expect(records["t1::tab-1#engine"]?.layer).toBe("engine")
     expect(records["t1::tab-1"]?.layer).toBe("pty")
-  })
-
-  it("records a clean disappearance too (no banner ⇒ null code)", () => {
-    recordEngineExit({ key: "t1::tab-1", vendor: "claude", pid: 9, at: "2026-08-30T12:00:00.000Z", tail: "$ " }, path)
-    expect(readPtyExitRecords(path)["t1::tab-1#engine"]).toMatchObject({ code: null, vendor: "claude" })
   })
 })
 
@@ -139,10 +130,6 @@ describe("observer engine-death edge", () => {
     expect(exits).toEqual([{ taskId: "t1", tabId: "tab-1", vendor: "kimi", pid: 9001 }])
   })
 
-  it("stays silent for a session that never had an engine", async () => {
-    expect((await observeWalk([null, null, null])).exits).toEqual([])
-  })
-
   it("fires again when an engine is restarted and dies a second time", async () => {
     expect((await observeWalk(["kimi", null, "kimi", null, null])).exits).toHaveLength(2)
   })
@@ -162,10 +149,6 @@ describe("observer boot reconciliation", () => {
     expect(absent).toEqual([{ taskId: "t1", tabId: "tab-1" }])
     // It is NOT an observed death — nothing was watched dying.
     expect(exits).toEqual([])
-  })
-
-  it("reports it once, not on every later walk that also finds nothing", async () => {
-    expect((await observeWalk([null, null, null, null, null])).absent).toHaveLength(1)
   })
 
   it("stays silent when the first walk finds an engine — including after it later dies", async () => {

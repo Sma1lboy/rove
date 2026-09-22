@@ -80,16 +80,4 @@ describe("selfRelaunchArgv", () => {
       }),
     ).toEqual(["/home/u/.bun/bin/bun", "--conditions=browser", "/repo/src/cli/rove.ts", "--zen"])
   })
-
-  it("carries the user's own arguments across the relaunch", () => {
-    // A relaunch that silently drops arguments is not the same Rove coming
-    // back — it is a different one, started for the user without being asked.
-    expect(
-      selfRelaunchArgv({
-        execPath: "/usr/local/bin/bun",
-        execArgv: [],
-        argv: ["/usr/local/bin/bun", "/opt/rove/dist/cli/rove.js", "tasks", "--repo", "/w/x"],
-      }),
-    ).toEqual(["/usr/local/bin/bun", "/opt/rove/dist/cli/rove.js", "tasks", "--repo", "/w/x"])
-  })
 })

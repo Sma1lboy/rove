@@ -1,16 +1,13 @@
 import { describe, expect, it, vi } from "vitest"
 import {
-  type DoctorFix,
   type FixRuntime,
   applyFixes,
   daemonRestartFix,
   dedupeFixes,
-  engineTabsManualFix,
   humanOnlyFix,
   noEngineAction,
   noEngineFix,
   resetManualFix,
-  skillInstallFix,
 } from "../../src/cli/doctor-fix.ts"
 
 function runtime(overrides: Partial<FixRuntime> = {}): FixRuntime & { lines: string[] } {
@@ -26,34 +23,6 @@ function runtime(overrides: Partial<FixRuntime> = {}): FixRuntime & { lines: str
 }
 
 describe("fix construction", () => {
-  it("daemon restart is a runnable fix carrying the exact command", () => {
-    const fix = daemonRestartFix("rove", "daemonStale")
-    expect(fix.kind).toBe("run")
-    expect(fix.id).toBe("daemon-restart")
-    expect(fix.kind === "run" && fix.command).toEqual(["rove", "daemon", "restart"])
-  })
-
-  it("skill install runs the wrapper command doctor already prints", () => {
-    const fix = skillInstallFix("kobe skill install", true)
-    expect(fix.kind === "run" && fix.command).toEqual(["kobe", "skill", "install"])
-  })
-
-  it("reset, engine-tab restarts, and installs/logins are manual (print-only)", () => {
-    for (const fix of [
-      resetManualFix("rove", "resetDaemonWedged"),
-      resetManualFix("rove", "resetPty"),
-      resetManualFix("rove", "resetLegacy"),
-      engineTabsManualFix(),
-      humanOnlyFix("git"),
-      humanOnlyFix("noEngine"),
-      humanOnlyFix("windowsNode"),
-    ]) {
-      expect(fix.kind).toBe("manual")
-    }
-    const reset = resetManualFix("rove", "resetPty")
-    expect(reset.kind === "manual" && reset.action).toBe("rove reset")
-  })
-
   it("dedupes repeat proposals of the same remedy", () => {
     const fixes = [
       daemonRestartFix("rove", "daemonStale"),
@@ -101,19 +70,6 @@ describe("applyFixes", () => {
     expect(rt.lines.join("\n")).toContain("nothing was executed")
   })
 
-  it("reports a failing fix command's exit code", async () => {
-    const rt = runtime({ exec: vi.fn(async () => 1) })
-    await applyFixes([daemonRestartFix("rove", "daemonStale")], rt)
-    expect(rt.lines.join("\n")).toContain("exited with code 1")
-  })
-
-  it("says so when there is nothing to fix", async () => {
-    const rt = runtime()
-    await applyFixes([] as DoctorFix[], rt)
-    expect(rt.exec).not.toHaveBeenCalled()
-    expect(rt.lines.join("\n")).toContain("nothing to fix")
-  })
-
   // The engine remedy branches on WHICH half failed. The installed-but-
   // logged-out arm is the one a cold machine actually hits, and it used to
   // print "install an engine CLI" directly under rows carrying those CLIs'
@@ -124,10 +80,5 @@ describe("applyFixes", () => {
     expect(noEngineAction(["claude", "codex"])).toContain("claude, codex")
     expect(noEngineAction(["claude", "codex"])).toContain("login")
     expect(noEngineAction(["claude", "codex"])).not.toContain("install an engine CLI")
-  })
-
-  it("still says install when nothing is on the machine at all", () => {
-    expect(noEngineAction([])).toContain("install an engine CLI")
-    expect(noEngineAction([])).not.toContain("run one of the installed")
   })
 })

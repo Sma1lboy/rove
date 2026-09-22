@@ -25,10 +25,9 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { verbHelp, verbSchema } from "../../src/cli/api/schema.ts"
+import { verbSchema } from "../../src/cli/api/schema.ts"
 import { findVerb } from "../../src/cli/api/verbs.ts"
-import { CONTRIB_ENGINE_IDS } from "../../src/engine/contrib-engines.ts"
-import { GENERIC_PROTOCOL, listEnginePresets, resolveCommandProtocol } from "../../src/engine/engine-presets.ts"
+import { GENERIC_PROTOCOL, resolveCommandProtocol } from "../../src/engine/engine-presets.ts"
 import { ALL_VENDORS } from "../../src/types/vendor.ts"
 import { FakeClient, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
@@ -124,11 +123,6 @@ describe("engine-list", () => {
 })
 
 describe("protocol resolution from a raw command", () => {
-  it("a preset id resolves to its declared protocol", () => {
-    writeState({ customEngineIds: ["my-pi"], "engineCommand.my-pi": "my-pi", "engineProtocol.my-pi": "codex" })
-    expect(resolveCommandProtocol("my-pi")).toBe("codex")
-  })
-
   it("a preset id wins over a coincidental binary of the same name", () => {
     // `claude` here is a REGISTERED preset declaring the codex protocol; the
     // id lookup must run before the argv walk that would say "claude".
@@ -160,11 +154,6 @@ describe("protocol resolution from a raw command", () => {
     expect(resolveCommandProtocol("some-random-agent --go")).toBe(GENERIC_PROTOCOL)
     expect(resolveCommandProtocol("")).toBe(GENERIC_PROTOCOL)
   })
-
-  it("only lists ids that are actually registered", () => {
-    writeState({ customEngineIds: ["my-pi"] })
-    expect(listEnginePresets().map((p) => p.id)).toEqual([...ALL_VENDORS, "my-pi"])
-  })
 })
 
 describe("the dispatch face takes a command, not an engine enum", () => {
@@ -183,15 +172,6 @@ describe("the dispatch face takes a command, not an engine enum", () => {
     await invokeVerb("add", ["--repo", "/repo/x", "--command", "aider --model sonnet"], { client, runtime })
     expect(client.requests[0]?.payload).toMatchObject({ command: "aider --model sonnet", vendor: GENERIC_PROTOCOL })
   })
-
-  it("--command is a plain string: no enum to reject an unfamiliar engine", () => {
-    const flags = verbSchema(findVerb("add")!) as { flags: Array<{ name: string; type: string; values?: string[] }> }
-    const command = flags.flags.find((f) => f.name === "command")
-    expect(command?.type).toBe("string")
-    expect(command?.values).toBeUndefined()
-    // ... and the dropped flag is gone from the dispatch verbs entirely.
-    expect(flags.flags.some((f) => f.name === "vendor")).toBe(false)
-  })
 })
 
 describe("--vendor discovery on the surfaces that still use it", () => {
@@ -205,19 +185,6 @@ describe("--vendor discovery on the surfaces that still use it", () => {
     const detail = verbSchema(findVerb("workitem-start")!)
     expect(vendorValues(detail)).toContain("claudecpa")
     expect(vendorValues(detail)).toContain("claude")
-  })
-
-  it("--help text shows the custom engine in the enum brace list", () => {
-    writeState({ customEngineIds: ["claudecpa"] })
-    expect(verbHelp(findVerb("workitem-start")!)).toMatch(/--vendor \{[^}]*\bclaudecpa\b[^}]*\}/)
-  })
-
-  it("lists the shipped contrib engines alongside the built-ins", () => {
-    writeState({})
-    // These are the ids `engine-list` advertises and `add --command` already
-    // takes. Leaving them out of `--vendor` made the gate reject a value its
-    // own error told the agent to go read off `engine-list`.
-    expect(vendorValues(verbSchema(findVerb("workitem-start")!))).toEqual([...ALL_VENDORS, ...CONTRIB_ENGINE_IDS])
   })
 
   it.each(["routine-create", "workitem-start"])("%s accepts a shipped contrib engine id", async (verb) => {

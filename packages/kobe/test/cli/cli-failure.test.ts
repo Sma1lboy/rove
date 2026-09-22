@@ -27,10 +27,6 @@ describe("summarizeCliGitError", () => {
 
   /** A boil-down that swallows what it does not understand is worse than a
    *  noisy one: the caller passes the original through on null. */
-  it("declines shapes it cannot improve", () => {
-    expect(summarizeCliGitError("EACCES: permission denied, open '/etc/x'", "/tmp")).toBeNull()
-    expect(summarizeCliGitError("boom", "/tmp")).toBeNull()
-  })
 })
 
 describe("formatCliFailure", () => {

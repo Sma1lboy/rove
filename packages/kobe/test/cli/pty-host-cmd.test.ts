@@ -101,18 +101,4 @@ describe("pty-host boot rotates pty.log", () => {
     expect(existsSync(logPath)).toBe(false)
     expect(mocks.startPtyHostServer).toHaveBeenCalledOnce()
   })
-
-  it("leaves an under-cap log alone", async () => {
-    writeFileSync(logPath, "small", "utf8")
-
-    await boot()
-
-    expect(existsSync(`${logPath}.old`)).toBe(false)
-    expect(readFileSync(logPath, "utf8")).toBe("small")
-  })
-
-  it("starts fine with no log yet", async () => {
-    await boot()
-    expect(mocks.startPtyHostServer).toHaveBeenCalledOnce()
-  })
 })

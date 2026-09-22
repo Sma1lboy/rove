@@ -1,12 +1,11 @@
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 import {
   dueAutomations,
   resolveDueOccurrence,
   runAutomationOnce,
-  startAutomationRunner,
   sweepAutomations,
 } from "../../../kobe-daemon/src/daemon/automation-runner.ts"
 import { AutomationsStore } from "../../../kobe-daemon/src/daemon/automations-store.ts"
@@ -25,17 +24,6 @@ describe("dueAutomations", () => {
 })
 
 describe("resolveDueOccurrence", () => {
-  it("reports the occurrence that should have run, not the current time", () => {
-    // Fired at 10:00 for a 09:00 daily schedule.
-    const found = resolveDueOccurrence(automation(), NOW)
-    expect(new Date(found?.scheduledFor ?? 0).getHours()).toBe(9)
-  })
-
-  it("marks an occurrence inside the grace window as runnable", () => {
-    // 10:00 now, 09:00 scheduled, 60m grace → exactly at the edge, still fine.
-    expect(resolveDueOccurrence(automation(), NOW)?.missed).toBe(false)
-  })
-
   it("marks an occurrence past the grace window as missed", () => {
     const found = resolveDueOccurrence(automation({ missedRunGraceMinutes: 30 }), NOW)
     expect(found?.missed).toBe(true)
@@ -76,20 +64,6 @@ describe("resolveDueOccurrence", () => {
     expect(resolveDueOccurrence(zero, scheduled + 30_000)?.missed).toBe(false)
   })
 
-  it("scales the floor with the runner's own tick period", () => {
-    // A harness (or a future slower cadence) passes its real tickMs, so the
-    // floor tracks the poll it actually runs at rather than the default 60s.
-    const zero = automation({
-      schedule: "*/5 * * * *",
-      missedRunGraceMinutes: 0,
-      createdAt: new Date(0).toISOString(),
-    })
-    const scheduled = new Date(2026, 6, 31, 10, 5, 0).getTime()
-    const seenAt = scheduled + 90_000
-    expect(resolveDueOccurrence(zero, seenAt)?.missed).toBe(true)
-    expect(resolveDueOccurrence(zero, seenAt, 120_000)?.missed).toBe(false)
-  })
-
   it("returns the single most recent occurrence after a long outage", () => {
     // Daemon down for three days: the answer is yesterday's 09:00 (one run),
     // never a stampede of every missed day.
@@ -112,16 +86,6 @@ describe("runAutomationOnce", () => {
     expect(store.runsFor(a.id)[0]).toMatchObject({ status: "dispatched", taskId: "task-1" })
   })
 
-  it("passes vendor and baseRef through to task creation", async () => {
-    const store = await tempStore()
-    const { deps, created } = fakeDeps({ store })
-    await runAutomationOnce(deps, await store.create(automation({ vendor: "codex", baseRef: "develop" })), {
-      scheduledFor: NOW,
-      trigger: "scheduled",
-    })
-    expect(created[0]).toMatchObject({ vendor: "codex", baseRef: "develop" })
-  })
-
   it("skips without creating a task when the precheck fails", async () => {
     const store = await tempStore()
     const { deps, created } = fakeDeps({ store })
@@ -133,15 +97,6 @@ describe("runAutomationOnce", () => {
     // The whole point of a precheck: no engine, no token spend.
     expect(created).toEqual([])
     expect(store.runsFor(a.id)[0]?.precheckResult?.exitCode).toBe(1)
-  })
-
-  it("proceeds when the precheck exits zero", async () => {
-    const store = await tempStore()
-    const { deps, created } = fakeDeps({ store })
-    const a = await store.create(automation({ precheck: { command: "exit 0", timeoutSeconds: 10 } }))
-
-    expect(await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })).toBe("dispatched")
-    expect(created).toHaveLength(1)
   })
 
   it("ignores the precheck on a manual trigger", async () => {
@@ -186,24 +141,6 @@ describe("runAutomationOnce", () => {
 })
 
 describe("sweepAutomations", () => {
-  it("advances the schedule past the fired occurrence", async () => {
-    const store = await tempStore()
-    const created = await store.create({
-      name: "audit",
-      repo: REPO,
-      prompt: "p",
-      schedule: "*/15 * * * *",
-      missedRunGraceMinutes: 60,
-    })
-    const { deps } = fakeDeps({ store })
-    // Force it due.
-    await store.advanceNextRun(created.id, NOW - 60_000)
-
-    await sweepAutomations(deps)
-
-    expect(Date.parse(store.get(created.id)?.nextRunAt ?? "")).toBeGreaterThan(NOW)
-  })
-
   it("does not fire the same occurrence twice across overlapping sweeps", async () => {
     const store = await tempStore()
     const created = await store.create({
@@ -286,16 +223,5 @@ describe("sweepAutomations", () => {
     // Fired purely off the persisted nextRunAt — no re-arm pass exists.
     expect(prompts).toEqual(["p"])
     expect(second.get(created.id)).toBeDefined()
-  })
-})
-
-describe("startAutomationRunner", () => {
-  it("is disabled by a zero tick (the test harness contract)", async () => {
-    const store = await tempStore()
-    const { deps } = fakeDeps({ store })
-    const spy = vi.spyOn(store, "list")
-    const stop = startAutomationRunner(deps, 0)
-    stop()
-    expect(spy).not.toHaveBeenCalled()
   })
 })

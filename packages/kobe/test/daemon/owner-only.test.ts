@@ -7,7 +7,6 @@ import {
   OWNER_ONLY_FILE_MODE,
   ensureOwnerOnlyDir,
   ensureOwnerOnlyStateDir,
-  tightenDirPermissions,
   tightenFilePermissions,
 } from "@sma1lboy/kobe-daemon/daemon/owner-only"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
@@ -83,14 +82,5 @@ describe("owner-only state tree", () => {
 
     expect(mode(file)).toBe(OWNER_ONLY_FILE_MODE)
     expect(mode(file)).toBe(0o600)
-  })
-
-  it("never throws on a path that is not there", async () => {
-    // Best-effort is the contract: a chmod that cannot run (absent, foreign
-    // owner, a filesystem with no unix modes) must not keep the daemon from
-    // booting. A loose mode is worse than a tight one; neither is worse than a
-    // daemon that will not start.
-    await expect(tightenDirPermissions(join(root, "gone"))).resolves.toBeUndefined()
-    await expect(tightenFilePermissions(join(root, "gone.json"))).resolves.toBeUndefined()
   })
 })

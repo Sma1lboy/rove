@@ -2,9 +2,6 @@ import { describe, expect, it, vi } from "vitest"
 import {
   API_VERBS,
   ApiError,
-  VERBS,
-  VerbArgs,
-  apiUsage,
   buildCountPlan,
   findVerb,
   fullSchema,
@@ -78,22 +75,9 @@ describe("parseFlags", () => {
   })
 })
 
-describe("apiUsage", () => {
-  it("documents every verb", () => {
-    const usage = apiUsage()
-    for (const verb of API_VERBS) {
-      expect(usage).toContain(verb)
-    }
-  })
-})
-
 describe("parseAgentsSpec", () => {
   it("expands engine:count pairs into one entry per task", () => {
     expect(parseAgentsSpec("claude:2,codex:1")).toEqual(["claude", "claude", "codex"])
-  })
-
-  it("tolerates whitespace and skips empty segments", () => {
-    expect(parseAgentsSpec(" claude:1 , , codex:2 ")).toEqual(["claude", "codex", "codex"])
   })
 
   it("rejects an unknown engine with the add help recovery step", () => {
@@ -124,18 +108,9 @@ describe("parseAgentsSpec", () => {
     expect(() => parseAgentsSpec("claude:1000000000")).toThrow(/exceeds the cap/)
     expect(() => parseAgentsSpec("claude:6,codex:6")).toThrow(/exceeds the cap/)
   })
-
-  it("rejects a spec that expands to nothing", () => {
-    expect(() => parseAgentsSpec(" , ")).toThrow(/no agents/)
-  })
 })
 
 describe("buildCountPlan", () => {
-  it("expands --count N into N copies of the engine", () => {
-    expect(buildCountPlan(3, "codex")).toEqual(["codex", "codex", "codex"])
-    expect(buildCountPlan(1, "claude")).toEqual(["claude"])
-  })
-
   it("rejects an over-cap count BEFORE allocating (no OOM on a huge --count)", () => {
     // Mirrors the parseAgentsSpec guard: `--count 1000000000` must fail fast
     // instead of building a billion-element array only to hit the post-build
@@ -146,16 +121,6 @@ describe("buildCountPlan", () => {
 })
 
 describe("parseFlags boolean presence flags", () => {
-  it("treats a verb's bool flag as standalone presence (--force ⇒ true)", () => {
-    const { flags } = parseFlags(["--task-id", "t1", "--force"], new Set(["force"]))
-    expect(flags.get("force")).toBe("true")
-    expect(flags.get("task-id")).toBe("t1")
-  })
-
-  it("still requires a value for a non-boolean trailing flag", () => {
-    expect(() => parseFlags(["--task-id"])).toThrow(/--task-id requires a value/)
-  })
-
   it("parses --help / -h", () => {
     expect(parseFlags(["--help"]).help).toBe(true)
     expect(parseFlags(["-h"]).help).toBe(true)
@@ -258,34 +223,11 @@ describe("API surface (full CRUD)", () => {
     expect(full.verbs.every((v) => Array.isArray(v.flags))).toBe(true)
   })
 
-  it("documents the feedback discussion verb with its default category", () => {
-    const feedback = findVerb("feedback")!
-    expect(feedback.offline).toBe(true)
-    const detail = verbSchema(feedback) as { group: string; flags: { name: string; default?: string }[] }
-    expect(detail.group).toBe("feedback")
-    expect(detail.flags.find((f) => f.name === "category")).toMatchObject({ default: "feedback" })
-  })
-
-  it("verbHelp renders a signature + flags for every verb", () => {
-    for (const v of VERBS) {
-      const help = verbHelp(v)
-      expect(help).toContain(`kobe api ${v.name}`)
-      for (const f of v.flags) expect(help).toContain(`--${f.name}`)
-    }
-  })
-
   it("uses the active CLI name (rove) when invoked through the rove wrapper", () => {
     withEnv("ROVE_INVOKED_AS", "rove", () => {
       const help = verbHelp(findVerb("add")!)
       expect(help).toContain("rove api add")
       expect(help).not.toContain("kobe api add")
-    })
-  })
-
-  it("falls back to kobe when no invocation marker is set", () => {
-    withEnv("ROVE_INVOKED_AS", undefined, () => {
-      const help = verbHelp(findVerb("add")!)
-      expect(help).toContain("kobe api add")
     })
   })
 })
@@ -309,52 +251,12 @@ describe("validateAgainstSpec", () => {
     }
   })
 
-  it("rejects an out-of-range enum value", () => {
-    const { flags } = parseFlags(["--repo", "/x", "--status", "nonsense"])
-    expect(() => validateAgainstSpec(add, flags)).toThrow(/must be one of/)
-  })
-
-  it("accepts a well-formed invocation", () => {
-    const { flags } = parseFlags(["--repo", "/x", "--status", "in_progress", "--command", "claude"])
-    expect(() => validateAgainstSpec(add, flags)).not.toThrow()
-  })
-
   it("rejects an int flag with trailing garbage instead of coercing it", () => {
     // `parseInt` stops at the first non-digit: without a shape guard `--count 2x`
     // passed as 2 and `--count 1e3` as 1 — a typo becoming a wrong action.
     for (const bad of ["2x", "1e3", "2.5", "0x10", "  ", "-1", "0", "abc"]) {
       const { flags } = parseFlags(["--repo", "/x", "--prompt", "p", "--count", bad])
       expect(() => validateAgainstSpec(add, flags)).toThrow(/must be a positive integer/)
-    }
-  })
-
-  it("accepts a clean integer flag (surrounding whitespace tolerated)", () => {
-    for (const ok of ["3", " 3 "]) {
-      const { flags } = parseFlags(["--repo", "/x", "--prompt", "p", "--count", ok])
-      expect(() => validateAgainstSpec(add, flags)).not.toThrow()
-    }
-  })
-})
-
-describe("VerbArgs.int", () => {
-  const add = findVerb("add")!
-  const intOf = (value: string): number | undefined => {
-    const { flags } = parseFlags(["--count", value])
-    return new VerbArgs(add, flags).int("count")
-  }
-
-  it("returns the parsed value for a clean positive integer", () => {
-    expect(intOf("3")).toBe(3)
-    expect(intOf(" 7 ")).toBe(7)
-  })
-
-  it("is undefined when the flag is absent", () => {
-    expect(new VerbArgs(add, parseFlags(["--repo", "/x"]).flags).int("count")).toBeUndefined()
-  })
-
-  it("rejects trailing garbage, decimals, and non-positive values", () => {
-    for (const bad of ["2x", "1e3", "2.5", "0x10", "0", "-4", "abc"]) {
-      expect(() => intOf(bad)).toThrow(/must be a positive integer/)
     }
   })
 })

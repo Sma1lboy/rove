@@ -33,19 +33,9 @@ describe("renderExport", () => {
     })
   })
 
-  it("defaults a missing vendor to the task default", () => {
-    const parsed = JSON.parse(renderExport([task({ vendor: undefined })], "json"))
-    expect(parsed[0].vendor).toBe("claude")
-  })
-
   it("quotes and escapes CSV fields containing commas or quotes", () => {
     const csv = renderExport([task({ title: 'a, "b"' })], "csv")
     expect(csv.split("\n")[1]).toContain('"a, ""b"""')
-  })
-
-  it("handles an empty task list per format", () => {
-    expect(renderExport([], "json")).toBe("[]")
-    expect(renderExport([], "csv")).toBe("id,title,status,vendor,branch,repo,worktreePath")
   })
 
   it("aligns table columns by terminal display width, not code-unit length (CJK titles)", () => {

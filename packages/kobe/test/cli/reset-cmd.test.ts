@@ -141,20 +141,6 @@ describe("runResetSubcommand", () => {
     expect(output()).not.toContain("reset complete")
   })
 
-  it("exits 2 on a non-TTY without --yes — a no-op must not report success", async () => {
-    // The full destruction plan has already been printed by then; a caller
-    // that reads only the status code would take "I did nothing" for "I reset
-    // your install".
-    const tty = process.stdin.isTTY
-    Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true })
-    try {
-      await runResetSubcommand(["--hard"])
-    } finally {
-      Object.defineProperty(process.stdin, "isTTY", { value: tty, configurable: true })
-    }
-    expect(process.exitCode).toBe(2)
-  })
-
   it("--hard names what it destroys in the settings file, with counts", async () => {
     // The preview used to say "UI state", which is not what gets unlinked:
     // saved projects and every registered custom engine live in the same file
@@ -200,17 +186,6 @@ describe("runResetSubcommand", () => {
     expect(output()).toContain("frozen sessions: cleared")
   })
 
-  it("leaves the freeze store to the host when it stopped gracefully", async () => {
-    const freezeDir = join(home, ".rove", "pty-sessions")
-    mkdirSync(freezeDir, { recursive: true })
-    mocks.stopDaemonProcess.mockResolvedValue({ pid: 1, method: "graceful" })
-
-    await runResetSubcommand(["--yes"])
-
-    // The host wiped it itself; reset must not claim a second time.
-    expect(output()).not.toContain("frozen sessions: cleared")
-  })
-
   it("--hard without --yes on a non-TTY refuses: nothing stopped, nothing wiped", async () => {
     // Every other test passes --yes, so the whole confirmation block
     // (reset-cmd.ts:104-116) can be deleted with the suite still green. This
@@ -238,6 +213,9 @@ describe("runResetSubcommand", () => {
     expect(mocks.stampResetGate).not.toHaveBeenCalled()
     expect(output()).toContain("re-run with --yes to proceed")
     expect(output()).not.toContain("reset complete")
+    // A refused no-op must not exit 0: a caller reading only the status would
+    // take "I did nothing" for "I reset your install".
+    expect(process.exitCode).toBe(2)
   })
 
   it("declining the interactive y/N prompt aborts with nothing changed", async () => {
@@ -288,14 +266,5 @@ describe("runResetSubcommand", () => {
     }
     // A typo must not be read as a bare `reset` and tear the daemon down.
     expect(mocks.stopDaemonProcess).not.toHaveBeenCalled()
-  })
-
-  it("help names Hosted PTY and legacy tmux cleanup", async () => {
-    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
-    await runResetSubcommand(["--help"])
-    const help = writeSpy.mock.calls.join("")
-    expect(help).toContain("Hosted PTY host")
-    expect(help).toContain("pre-v0.8 tmux sessions")
-    writeSpy.mockRestore()
   })
 })

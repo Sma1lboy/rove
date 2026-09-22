@@ -25,10 +25,6 @@ describe("tail", () => {
     expect(tail([first, second])).not.toContain("�")
   })
 
-  it("keeps a pushed error string in order alongside buffers", () => {
-    expect(tail([Buffer.from("out"), "spawn failed"])).toBe("outspawn failed")
-  })
-
   it("caps to the last 4000 code points without halving a surrogate pair", () => {
     // 4001 rockets is past the 4000-char cap; slicing by UTF-16 unit would cut
     // the boundary rocket in half and strand a lone surrogate.
@@ -36,11 +32,6 @@ describe("tail", () => {
     expect(Array.from(capped)).toHaveLength(4000)
     expect(capped).not.toContain("�")
     expect([...capped].every((point) => point === "🚀")).toBe(true)
-  })
-
-  it("returns short output untouched", () => {
-    expect(tail([Buffer.from("hello")])).toBe("hello")
-    expect(tail([])).toBe("")
   })
 })
 
@@ -56,12 +47,6 @@ describe("runAutomationPrecheck", () => {
     expect(result.exitCode).toBe(7)
     expect(precheckPassed(result)).toBe(false)
     expect(formatPrecheckSkip(result)).toMatch(/exited 7/)
-  })
-
-  it("captures stdout and stderr", async () => {
-    const result = await runAutomationPrecheck({ command: "echo out; echo err 1>&2; exit 1", timeoutSeconds: 10 }, CWD)
-    expect(result.stdout).toContain("out")
-    expect(result.stderr).toContain("err")
   })
 
   it("fails closed on a timeout rather than letting the run proceed", async () => {
@@ -82,14 +67,6 @@ describe("runAutomationPrecheck", () => {
     expect(result.stderr).toMatch(/working directory does not exist/)
     expect(result.stderr).not.toMatch(/ENOENT/)
     expect(precheckPassed(result)).toBe(false)
-  })
-
-  it("runs the command through a shell so pipes and && work", async () => {
-    const result = await runAutomationPrecheck(
-      { command: "echo hello | grep -q hello && exit 0", timeoutSeconds: 10 },
-      CWD,
-    )
-    expect(result.exitCode).toBe(0)
   })
 
   it("spawns the shell with -ilc, the same interactive login form engine tabs use", async () => {

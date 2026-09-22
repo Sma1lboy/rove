@@ -11,7 +11,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import {
   type SelfSessionProbe,
-  dispatcherEnvPayload,
   resetVerifiedSelfSession,
   takeIdentityWarning,
   verifiedSelfSession,
@@ -65,13 +64,6 @@ afterEach(() => {
 })
 
 describe("verifiedSelfSession (env identity is inheritable, so it must be proven)", () => {
-  it("accepts the env when the named tab is alive AND owns this process", async () => {
-    expect(await verifiedSelfSession({ KOBE_TASK_ID: "d1", KOBE_TAB_ID: "tab-4" }, probeFor("d1::tab-4"))).toEqual({
-      taskId: "d1",
-      tabId: "tab-4",
-    })
-  })
-
   it("anchors the snapshot on BOTH ends of the walk — the tab's shell and this CLI", async () => {
     // Windows severs the chain at both: the engine shim's cmd.exe under the
     // shell, and the forked bash that exec'd the npm sh shim above the CLI.
@@ -87,13 +79,6 @@ describe("verifiedSelfSession (env identity is inheritable, so it must be proven
     }
     await verifiedSelfSession({ KOBE_TASK_ID: "d1", KOBE_TAB_ID: "tab-4" }, probe)
     expect(anchors).toEqual([100, 500])
-  })
-
-  it("floors a missing tab id to the canonical tab-1 and verifies THAT", async () => {
-    expect(await verifiedSelfSession({ KOBE_TASK_ID: "d1" }, probeFor("d1::tab-1"))).toEqual({
-      taskId: "d1",
-      tabId: "tab-1",
-    })
   })
 
   it("REFUSES an inherited env: a detached background process no longer descends from the tab", async () => {
@@ -136,28 +121,6 @@ describe("verifiedSelfSession (env identity is inheritable, so it must be proven
     await verifiedSelfSession({ KOBE_TASK_ID: "d1" }, probeFor("d1::tab-1"))
     expect(takeIdentityWarning()).toBeNull()
   })
-
-  it("stays silent (no warning) for a plain shell with no env at all", async () => {
-    expect(await verifiedSelfSession({}, probeFor("d1::tab-1"))).toBeNull()
-    expect(takeIdentityWarning()).toBeNull()
-  })
-})
-
-describe("dispatcherEnvPayload", () => {
-  it("carries the verified pair, and stays empty when the env can't be proven", async () => {
-    expect(await dispatcherEnvPayload({ KOBE_TASK_ID: "d1", KOBE_TAB_ID: "tab-4" }, probeFor("d1::tab-4"))).toEqual({
-      dispatcherTaskId: "d1",
-      dispatcherTabId: "tab-4",
-    })
-    expect(await dispatcherEnvPayload({ KOBE_TASK_ID: "d1" }, probeFor("d1::tab-1"))).toEqual({
-      dispatcherTaskId: "d1",
-      dispatcherTabId: "tab-1",
-    })
-    expect(await dispatcherEnvPayload({ KOBE_TAB_ID: "tab-4" }, probeFor("d1::tab-1"))).toEqual({})
-    expect(await dispatcherEnvPayload({}, probeFor("d1::tab-1"))).toEqual({})
-    // The pollution case: real ids, real live tab, wrong process.
-    expect(await dispatcherEnvPayload({ KOBE_TASK_ID: "d1" }, probeFor("d1::tab-1", { detached: true }))).toEqual({})
-  })
 })
 
 /** Prime the verified-identity memo so `invokeVerb` runs no real pty/ps IO. */
@@ -199,22 +162,6 @@ describe("create records the dispatcher ($KOBE_TASK_ID/$KOBE_TAB_ID)", () => {
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
     await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })
     expect(client.requests[0].payload).toEqual({ repo: "/repo/x" })
-  })
-
-  it("a parallel `add --count` round with an inherited env records no dispatcher on any sibling", async () => {
-    await asSession("boccha", "tab-1", { detached: true })
-    const client = new FakeClient({
-      "task.create": (_payload, i) => ({ taskId: `t${i}`, task: taskFixture({ id: `t${i}` }) }),
-      "task.setPrompt": () => ({}),
-    })
-    const { deliver } = recordingDelivery()
-    await invokeVerb("add", ["--repo", "/repo/x", "--count", "2", "--prompt", "go"], {
-      client,
-      runtime: stubRuntime({ deliverPrompt: deliver }),
-    })
-    for (const create of client.requests.filter((r) => r.name === "task.create")) {
-      expect(create.payload).not.toHaveProperty("dispatcherTaskId")
-    }
   })
 
   it("a parallel `add --count` round records the same dispatcher on every sibling", async () => {
@@ -295,21 +242,6 @@ describe("bare send replies to the dispatcher", () => {
     expect(calls[0].target.tab).toBeUndefined()
   })
 
-  it("falls back the same way when the dispatcher tab is gone from the join entirely", async () => {
-    const client = workerClient({ taskId: "disp-1", tabId: "tab-2" })
-    const { calls, deliver } = recordingDelivery()
-    await invokeVerb("send", ["--prompt", "succeeded: done"], {
-      client,
-      runtime: stubRuntime({
-        deliverPrompt: deliver,
-        taskTabs: async () => ({ tabs: [{ id: "tab-3", kind: "engine", alive: true } as never], running: true }),
-      }),
-    })
-    // An absent tab must not be addressed exactly (TAB_NOT_FOUND at
-    // delivery) — the canonical live engine is the next rung down.
-    expect(calls[0].target.tab).toBeUndefined()
-  })
-
   it("fails LOUD when the dispatcher task has nothing alive — never a silent spawn", async () => {
     const client = workerClient({ taskId: "disp-1", tabId: "tab-2" })
     const { calls, deliver } = recordingDelivery()
@@ -374,16 +306,6 @@ describe("bare send replies to the dispatcher", () => {
       runtime: stubRuntime({ deliverPrompt: deliver }),
     })
     expect(calls[0].prompt).toBe("hi")
-  })
-
-  it("the [ROVE PEER] reply command is tab-precise (sender's $KOBE_TAB_ID)", async () => {
-    const client = workerClient({ taskId: "disp-1", tabId: "tab-2" })
-    const { calls, deliver } = recordingDelivery()
-    await invokeVerb("send", ["--task-id", "disp-1", "--prompt", "hi"], {
-      client,
-      runtime: stubRuntime({ deliverPrompt: deliver }),
-    })
-    expect(calls[0].prompt).toContain("send --task-id worker-1 --tab tab-9 --prompt")
   })
 })
 

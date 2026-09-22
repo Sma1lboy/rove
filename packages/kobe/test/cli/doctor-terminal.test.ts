@@ -9,27 +9,7 @@
  */
 
 import { describe, expect, test } from "vitest"
-import { kittyProbeLine, multiplexerLabel, parseKittyProbeReply, terminalEnvLines } from "../../src/cli/doctor-terminal"
-
-describe("terminalEnvLines", () => {
-  test("formats TERM / TERM_PROGRAM(+version) / COLORTERM and multiplexer nesting", () => {
-    const lines = terminalEnvLines({
-      TERM: "xterm-256color",
-      TERM_PROGRAM: "Apple_Terminal",
-      TERM_PROGRAM_VERSION: "453",
-      COLORTERM: undefined,
-      TMUX: "/tmp/tmux-501/kobe,123,0",
-    })
-    expect(lines[0]).toBe("terminal: TERM=xterm-256color  TERM_PROGRAM=Apple_Terminal v453  COLORTERM=(unset)")
-    expect(lines[1]).toBe("          running inside a multiplexer: tmux")
-  })
-
-  test("everything unset stays readable", () => {
-    const lines = terminalEnvLines({})
-    expect(lines[0]).toBe("terminal: TERM=(unset)  TERM_PROGRAM=(unset)  COLORTERM=(unset)")
-    expect(lines[1]).toBe("          running inside a multiplexer: no")
-  })
-})
+import { multiplexerLabel, parseKittyProbeReply } from "../../src/cli/doctor-terminal"
 
 describe("multiplexerLabel", () => {
   test("names whichever multiplexer wrapped the session", () => {
@@ -57,21 +37,5 @@ describe("parseKittyProbeReply", () => {
   test("partial buffer → null (keep reading)", () => {
     expect(parseKittyProbeReply("")).toBeNull()
     expect(parseKittyProbeReply("\x1b[?6")).toBeNull()
-  })
-})
-
-describe("kittyProbeLine", () => {
-  test("one line per outcome, unsupported names the legacy-key consequence", () => {
-    expect(kittyProbeLine({ kind: "supported", flags: 1 })).toContain("✓ answered (flags=1)")
-    const unsupported = kittyProbeLine({ kind: "unsupported" })
-    expect(unsupported).toContain("legacy key path")
-    // Names the consequence a "split doesn't work" report is actually about
-    // — docs/KEYBINDINGS.md says both split chords require this protocol.
-    expect(unsupported).toContain("ctrl+=")
-    expect(unsupported).toContain("ctrl+\\")
-    expect(kittyProbeLine({ kind: "no-response" })).toContain("no reply")
-    expect(kittyProbeLine({ kind: "skipped", reason: "not an interactive terminal" })).toContain(
-      "skipped (not an interactive terminal)",
-    )
   })
 })

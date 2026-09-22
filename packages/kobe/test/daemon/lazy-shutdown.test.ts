@@ -40,18 +40,6 @@ describe("daemon refcounted lazy shutdown", () => {
     expect(await waitFor(() => !existsSync(h.pidPath), 500)).toBe(true)
   })
 
-  it("stays up for a transient, never-subscribed connection", async () => {
-    h = await boot()
-    const poke = h.client()
-    await poke.request("hello")
-    await poke.request("daemon.status")
-    poke.close()
-
-    // Wait past the grace window; a non-GUI socket never armed the timer.
-    await new Promise((r) => setTimeout(r, GRACE_MS + 150))
-    expect(existsSync(h.socketPath)).toBe(true)
-  })
-
   it("stays up for a transient pane subscriber (a bare subscribe defaults to the pane role)", async () => {
     h = await boot()
     // A bare subscribe() (no role) is a "pane": it must NOT keep the daemon

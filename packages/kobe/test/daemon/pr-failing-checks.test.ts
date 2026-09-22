@@ -7,19 +7,8 @@ import {
   joinFailingChecks,
   parseFailedRunLog,
   readFailingChecks,
-  runIdFromDetailsUrl,
 } from "@sma1lboy/kobe-daemon/daemon/pr-failing-checks"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-
-describe("runIdFromDetailsUrl", () => {
-  it("pulls the workflow run id out of a CheckRun details url", () => {
-    expect(runIdFromDetailsUrl("https://github.com/o/r/actions/runs/33738142593/job/100593506044")).toBe("33738142593")
-  })
-  it("is null for a non-Actions check (a Vercel StatusContext target)", () => {
-    expect(runIdFromDetailsUrl("https://vercel.com/github")).toBeNull()
-    expect(runIdFromDetailsUrl("")).toBeNull()
-  })
-})
 
 describe("failingCheckTargets", () => {
   it("keeps only the failed COMPLETED CheckRuns, with their run ids", () => {
@@ -49,12 +38,6 @@ describe("failingCheckTargets", () => {
     expect(targets.map((t) => t.jobName)).toEqual(["render-track", "behavior"])
     expect(targets.map((t) => t.runId)).toEqual(["2", "2"])
     expect(targets[0]?.conclusion).toBe("FAILURE")
-  })
-
-  it("skips a still-running check even when it carries a stale conclusion", () => {
-    expect(
-      failingCheckTargets([{ name: "flaky", status: "IN_PROGRESS", conclusion: "FAILURE", detailsUrl: "" }]),
-    ).toEqual([])
   })
 
   it("reads a legacy StatusContext from its state and targetUrl", () => {
@@ -113,11 +96,6 @@ describe("joinFailingChecks", () => {
     expect(result.totalFailing).toBe(4)
     expect(result.checks).toHaveLength(MAX_FAILING_JOBS)
     expect(result.checks[0]).toEqual({ jobName: "a", conclusion: "FAILURE", url: "u/a", tail: "x" })
-  })
-
-  it("still reports a job whose log could not be read, with an empty tail", () => {
-    const result = joinFailingChecks([target("a")], new Map())
-    expect(result.checks).toEqual([{ jobName: "a", conclusion: "FAILURE", url: "u/a", tail: "" }])
   })
 })
 

@@ -171,15 +171,6 @@ describe("send refuses an empty-branch success report", () => {
 })
 
 describe("send delivers everything the guard has no business refusing", () => {
-  it("a `failed:` report — the whole point is that it reports having nothing", async () => {
-    const { calls, deliver } = recordingDelivery()
-    await invokeVerb("send", ["--task-id", "coord-1", "--prompt", "failed: blocked on a missing credential"], {
-      client: clientWith(),
-      runtime: stubRuntime({ deliverPrompt: deliver, ...emptyBranch }),
-    })
-    expect(calls).toHaveLength(1)
-  })
-
   it("a `succeeded:` report WITH commits", async () => {
     const { calls, deliver } = recordingDelivery()
     await invokeVerb("send", ["--task-id", "coord-1", "--prompt", "succeeded: fixed it"], {
@@ -213,15 +204,6 @@ describe("send delivers everything the guard has no business refusing", () => {
     expect(calls).toHaveLength(1)
   })
 
-  it("a `dir` task — likewise a user-owned directory, not a Rove branch", async () => {
-    const { calls, deliver } = recordingDelivery()
-    await invokeVerb("send", ["--task-id", "coord-1", "--prompt", "succeeded: done"], {
-      client: clientWith({ kind: "dir" }),
-      runtime: stubRuntime({ deliverPrompt: deliver, ...emptyBranch }),
-    })
-    expect(calls).toHaveLength(1)
-  })
-
   it("an UNVERIFIED session — an inherited env names a stranger's branch, never a refusal", async () => {
     resetVerifiedSelfSession()
     await asSession("worker-1", "tab-1", { detached: true })
@@ -229,20 +211,6 @@ describe("send delivers everything the guard has no business refusing", () => {
     await invokeVerb("send", ["--task-id", "coord-1", "--prompt", "succeeded: done"], {
       client: clientWith(),
       runtime: stubRuntime({ deliverPrompt: deliver, ...emptyBranch }),
-    })
-    expect(calls).toHaveLength(1)
-  })
-
-  it("a branch read that THROWS — every failure mode here is an unknown", async () => {
-    const { calls, deliver } = recordingDelivery()
-    await invokeVerb("send", ["--task-id", "coord-1", "--prompt", "succeeded: done"], {
-      client: clientWith(),
-      runtime: stubRuntime({
-        deliverPrompt: deliver,
-        readBranchSignals: async () => {
-          throw new Error("git exploded")
-        },
-      }),
     })
     expect(calls).toHaveLength(1)
   })

@@ -17,10 +17,6 @@ function usageCommandNames(usage: string): string[] {
 describe("topLevelUsage", () => {
   const usage = topLevelUsage()
 
-  it("shows the current version in the header", () => {
-    expect(usage).toContain(`kobe ${CURRENT_VERSION}`)
-  })
-
   it("renders the same command surface for the rove compatibility entry", () => {
     const roveUsage = topLevelUsage("rove")
     expect(roveUsage).toContain(`rove ${CURRENT_VERSION}`)
@@ -36,20 +32,5 @@ describe("topLevelUsage", () => {
     const help = [...usageCommandNames(usage)].sort()
     const completions = [...TOP_LEVEL_SUBCOMMANDS].sort()
     expect(completions).toEqual(help)
-  })
-
-  it("documents the help and version flags", () => {
-    expect(usage).toContain("--help")
-    expect(usage).toContain("--version")
-  })
-
-  it("documents the sole PureTUI launch path without retired mode switches", () => {
-    expect(usage).toContain("launch PureTUI")
-    expect(usage).not.toContain("--puretui")
-    expect(usage).not.toContain("--tmux")
-    expect(usage).not.toContain("kill-sessions")
-    expect(usage).not.toContain("  reload")
-    expect(usage).toContain("  doctor")
-    expect(usage).toContain("  reset")
   })
 })

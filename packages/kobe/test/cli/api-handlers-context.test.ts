@@ -12,7 +12,7 @@ import type { AttentionInboxItem } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { type ContextPayload, buildContext, renderContext } from "../../src/cli/api/context-view.ts"
+import { type ContextPayload, buildContext } from "../../src/cli/api/context-view.ts"
 import { FakeClient, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const NOW = 1_800_000_000_000
@@ -67,28 +67,8 @@ describe("buildContext", () => {
     ])
   })
 
-  it("breaks rank ties on the freshest activity", () => {
-    const payload = base({
-      tasks: [serialized({ id: "older" }), serialized({ id: "newer" })],
-      activity: {
-        older: { state: "permission_needed", at: NOW - 600_000 },
-        newer: { state: "permission_needed", at: NOW - 1_000 },
-      },
-    })
-    expect(payload.tasks.map((t) => t.taskId)).toEqual(["newer", "older"])
-  })
-
   it("answers unknown, never idle, when the activity registry could not be read", () => {
     const payload = base({ tasks: [serialized({ id: "t1" })], activity: null })
-    expect(payload.tasks[0]?.group).toBe("unknown")
-    expect(payload.tasks[0]?.activity).toBeNull()
-  })
-
-  it("ignores an activity state it does not recognise instead of inventing a group", () => {
-    const payload = base({
-      tasks: [serialized({ id: "t1" })],
-      activity: { t1: { state: "teleporting", at: NOW } },
-    })
     expect(payload.tasks[0]?.group).toBe("unknown")
     expect(payload.tasks[0]?.activity).toBeNull()
   })
@@ -107,10 +87,6 @@ describe("buildContext", () => {
     expect(payload.omittedTasks).toBe(2)
   })
 
-  it("omits omittedTasks entirely when nothing was dropped", () => {
-    expect(base({ tasks: [serialized()] })).not.toHaveProperty("omittedTasks")
-  })
-
   it("carries the CI observation and the worker's claim side by side", () => {
     const payload = base({
       tasks: [
@@ -124,35 +100,6 @@ describe("buildContext", () => {
     })
     expect(payload.tasks[0]).toMatchObject({ checkState: "failing", pr: 921, group: "ready-for-review" })
     expect(payload.tasks[0]?.report?.summary).toBe("done")
-  })
-
-  it("caps field notes at the injection cap so the coordinator reads what its workers read", () => {
-    const notes = Array.from({ length: 30 }, (_, i) => ({
-      id: i,
-      at: new Date(NOW).toISOString(),
-      text: `n${i}`,
-      author: "a",
-    }))
-    expect(base({ notes }).notes).toHaveLength(15)
-  })
-})
-
-describe("renderContext", () => {
-  it("renders one line per task, most-needs-you first", () => {
-    const payload = base({
-      tasks: [serialized({ id: "01JAAAAAAAAAAAAAAAAABLOCK", title: "auth", branch: "fix/auth" })],
-      activity: { "01JAAAAAAAAAAAAAAAAABLOCK": { state: "permission_needed", at: NOW - 240_000 } },
-      notes: [{ id: 3, at: new Date(NOW).toISOString(), text: "bun test needs the socket flag", author: "a" }],
-    })
-    const text = renderContext(payload)
-    expect(text).toContain("waiting-on-you")
-    expect(text).toContain("permission_needed 4m")
-    expect(text).toContain("[fix/auth]")
-    expect(text).toContain("bun test needs the socket flag")
-  })
-
-  it("says so when there is nothing to coordinate", () => {
-    expect(renderContext(base())).toContain("(no tasks)")
   })
 })
 

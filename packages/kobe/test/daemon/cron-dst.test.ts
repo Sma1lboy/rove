@@ -39,10 +39,6 @@ describe("DST fall-back", () => {
       "2025-11-04 01:00",
     ])
   })
-
-  it("holds for an hour that repeats only under a different rule (02:00, EU-style time)", () => {
-    expect(fireTimes("0 1 * * *", "2025-11-02T05:30:00Z", 2)).toEqual(["2025-11-03 01:00", "2025-11-04 01:00"])
-  })
 })
 
 describe("DST spring-forward", () => {

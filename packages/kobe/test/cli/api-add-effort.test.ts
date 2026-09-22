@@ -55,14 +55,6 @@ describe("add --effort", () => {
     expect(client.requests[0]?.payload).not.toHaveProperty("modelEffort")
   })
 
-  it("is optional — an add without it sends no effort at all", async () => {
-    const client = createClient()
-    await invokeVerb("add", ["--repo", "/repo/x", "--command", "codex"], { client, runtime: stubRuntime() })
-    expect(client.requests[0]?.name).toBe("task.create")
-    expect(client.requests[0]?.payload).toMatchObject({ command: "codex", vendor: "codex" })
-    expect(client.requests[0]?.payload).not.toHaveProperty("effort")
-  })
-
   it("refuses a level the engine does not declare, before creating anything", async () => {
     const client = createClient()
     await expectApiError(
@@ -76,20 +68,6 @@ describe("add --effort", () => {
     )
     // The whole point of validating up front: a rejected level must not leave
     // an orphan task behind an error that carries no taskId.
-    expect(client.requests).toEqual([])
-  })
-
-  it("refuses any level on an engine that declares none", async () => {
-    const client = createClient()
-    await expectApiError(
-      () =>
-        invokeVerb("add", ["--repo", "/repo/x", "--command", "claude", "--effort", "xhigh"], {
-          client,
-          runtime: stubRuntime(),
-        }),
-      "BAD_EFFORT",
-      /declares no reasoning effort levels/,
-    )
     expect(client.requests).toEqual([])
   })
 

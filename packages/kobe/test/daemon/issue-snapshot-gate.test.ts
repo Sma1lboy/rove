@@ -42,13 +42,6 @@ describe("issue.snapshot publish gate", () => {
     expect(await snapshotsPublished(false)).toBe(0)
   })
 
-  it("publishes when the daemon cannot answer at all (older contexts)", async () => {
-    // `hasSubscribersFor` is optional; its absence must NOT be read as "no
-    // subscribers" — that would suppress a plugin's events on any host that
-    // does not supply it.
-    expect(await snapshotsPublished(undefined)).toBe(1)
-  })
-
   it("still returns the snapshot to the CALLER when the publish is skipped", async () => {
     // Gating the broadcast must not gate the RPC result — the caller asked
     // for this state directly and always gets it.

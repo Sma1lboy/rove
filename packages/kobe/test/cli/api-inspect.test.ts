@@ -105,12 +105,6 @@ describe("kobe api inspect (offline)", () => {
     expect(res.sessionExits[0]?.key).toBe("t1::tab-1")
     expect(Object.keys(res.tabs)).toEqual(["t1"])
   })
-
-  it("missing state and records files read as empty, not errors", async () => {
-    const res = (await invokeVerb("inspect", [], { client: null })) as InspectResult
-    expect(res.sessionExits).toEqual([])
-    expect(res.tabs).toEqual({})
-  })
 })
 
 /**

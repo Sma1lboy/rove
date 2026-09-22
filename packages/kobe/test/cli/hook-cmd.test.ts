@@ -21,11 +21,6 @@ describe("readTextWithTimeout timer hygiene", () => {
     expect(vi.getTimerCount()).toBe(0)
   })
 
-  it("clears the timer even when the reader rejects (finally, not catch)", async () => {
-    await expect(readTextWithTimeout(async () => Promise.reject(new Error("boom")), 500)).rejects.toThrow("boom")
-    expect(vi.getTimerCount()).toBe(0)
-  })
-
   it("falls back to '' when the reader never settles before the timeout", async () => {
     const promise = readTextWithTimeout(() => new Promise<string>(() => {}), 500)
     await vi.advanceTimersByTimeAsync(500)

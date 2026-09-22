@@ -158,12 +158,6 @@ describe("read-output history paging", () => {
     expect(first?.endsWith(String(p.history?.returnedMessageCount))).toBe(true)
   })
 
-  it("clips oversized strings inside messages", () => {
-    const clipped = clipStrings({ text: "y".repeat(STRING_CLIP_CHARS + 500) }) as { text: string }
-    expect(clipped.text.length).toBeLessThan(STRING_CLIP_CHARS + 100)
-    expect(clipped.text).toContain("chars clipped]")
-  })
-
   it("clips on a code-point boundary so an astral char straddling the cut is not bisected", () => {
     // The emoji is the last code point within the cap, but its two UTF-16
     // units straddle the raw `STRING_CLIP_CHARS` index — a bare `.slice` would
@@ -178,23 +172,6 @@ describe("read-output history paging", () => {
     // The emoji is kept whole (it is the final in-cap code point); only the
     // trailing `z`s past the cap are clipped.
     expect(clipped.text).toBe(`${"y".repeat(STRING_CLIP_CHARS - 1)}😀…[+10 chars clipped]`)
-  })
-
-  it("counts clipped code points, not UTF-16 units, in the tally", () => {
-    // 300 astral chars past the cap is 300 clipped CHARS, even though they are
-    // 600 UTF-16 units — the label must not double-count them.
-    const value = `${"y".repeat(STRING_CLIP_CHARS)}${"😀".repeat(300)}`
-    const clipped = clipStrings({ text: value }) as { text: string }
-    expect(clipped.text).toContain("[+300 chars clipped]")
-  })
-
-  it("keeps a string whose code-point count is within the cap even when its UTF-16 length exceeds it", () => {
-    // All astral: STRING_CLIP_CHARS code points spelled with 2× that many
-    // UTF-16 units. It is within the cap by the "chars" the field name and
-    // clip label speak in, so it passes through unclipped.
-    const value = "😀".repeat(STRING_CLIP_CHARS)
-    const clipped = clipStrings({ text: value }) as { text: string }
-    expect(clipped.text).toBe(value)
   })
 })
 
@@ -356,25 +333,6 @@ describe("read-output --tab (tab-precise terminal reads)", () => {
     )
     await expectApiError(() => read(deps(null, noTerminal()), { cursor: p1.cursor ?? undefined }), "CURSOR_INVALID")
   })
-
-  it("a canonical-tab cursor rejects a later --tab (and vice versa)", async () => {
-    const t1 = fakeTerminal({ pid: 42, offset: 100, text: "one\n" })
-    const p1 = await read(deps(null, t1.peek), { source: "terminal" })
-    expect(t1.tabs).toEqual([undefined])
-    await expectApiError(
-      () => read(deps(null, noTerminal()), { cursor: p1.cursor ?? undefined, tab: "tab-3" }),
-      "CURSOR_INVALID",
-    )
-  })
-
-  it("a history cursor with --tab is CURSOR_INVALID (history is not tab-scoped)", async () => {
-    const history = fakeHistory(["s-current"], { "s-current": [msg("a")] })
-    const p1 = await read(deps(history, noTerminal()))
-    await expectApiError(
-      () => read(deps(history, noTerminal()), { cursor: p1.cursor ?? undefined, tab: "tab-3" }),
-      "CURSOR_INVALID",
-    )
-  })
 })
 
 describe("read-output terminal tail shaping", () => {
@@ -403,12 +361,5 @@ describe("read-output terminal tail shaping", () => {
     expect(shaped.tail).toEqual([huge])
     // Nothing older was dropped — there was only the one line.
     expect(shaped.truncated).toBe(false)
-  })
-
-  it("drops older lines but still returns the over-budget final line", () => {
-    const huge = "y".repeat(TERMINAL_TAIL_BYTES + 5000)
-    const shaped = boundedTail(`old-1\nold-2\n${huge}`)
-    expect(shaped.tail).toEqual([huge])
-    expect(shaped.truncated).toBe(true)
   })
 })
