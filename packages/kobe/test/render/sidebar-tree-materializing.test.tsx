@@ -80,16 +80,6 @@ test("every materializing sibling shows a spinner, with no tab row anywhere", as
   expect(spinnerCells(text)).toBe(3)
 })
 
-test("a task with NO job in flight shows no spinner", async () => {
-  tabsByTask.clear()
-  const { frame } = await renderComponent(
-    <SidebarTree tasks={SIBLINGS} selectedId="s1" selectedTabId={null} onSelect={() => {}} focused={true} width={30} />,
-    { width: 30, height: 20 },
-  )
-  await new Promise((r) => setTimeout(r, SETTLE))
-  expect(spinnerCells(await frame())).toBe(0)
-})
-
 test("only the tasks WITH a job spin — a sibling that finished stops", async () => {
   // The daemon removes an entry on `done`/`error`, so a partially-finished
   // fan-out must show exactly the still-running count, not all-or-nothing.

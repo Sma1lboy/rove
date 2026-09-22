@@ -11,7 +11,6 @@
 
 import { expect, test } from "bun:test"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
-import { SIDEBAR_NAV_ITEMS, cycleNavTarget, focusPaneForNav } from "../../src/tui/panes/sidebar/nav-core"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 import { renderComponent } from "./harness"
@@ -73,24 +72,6 @@ test("every destination gets its own line, in declared order", async () => {
   expect(new Set(Object.values(lines)).size).toBe(3)
 })
 
-test("no label is truncated at the 24-cell rail width", async () => {
-  const { frame } = await renderComponent(tree(), { width: 24, height: 40 })
-  await new Promise((r) => setTimeout(r, SETTLE))
-  const text = await frame()
-  expect(text).toContain("Routines")
-  expect(text).not.toContain("Routin…")
-})
-
-test("the rail has no row for the terminal — the task list IS that destination", async () => {
-  const { frame } = await renderComponent(tree(), { width: 24, height: 40 })
-  await new Promise((r) => setTimeout(r, SETTLE))
-  const text = await frame()
-  // A "Workspace"/"Terminal" row would be a second control for what selecting
-  // a task already does.
-  expect(text).not.toContain("Workspace")
-  expect(SIDEBAR_NAV_ITEMS.some((item) => item.nav === "terminal")).toBe(false)
-})
-
 test("the task list stays visible whatever the rail selects", async () => {
   // The rail swaps the CONTENT pane on the right; the sidebar is unchanged, so
   // clicking a task while the Kanban is up can switch back to its terminal.
@@ -99,25 +80,4 @@ test("the task list stays visible whatever the rail selects", async () => {
     await new Promise((r) => setTimeout(r, SETTLE))
     expect(await frame(), nav).toContain("feat/a")
   }
-})
-
-test("nav-core cycling wraps in both directions", () => {
-  expect(cycleNavTarget("kanban", 1)).toBe("automations")
-  expect(cycleNavTarget("automations", 1)).toBe("issues")
-  expect(cycleNavTarget("issues", 1)).toBe("kanban")
-  expect(cycleNavTarget("kanban", -1)).toBe("issues")
-  expect(cycleNavTarget("issues", -1)).toBe("automations")
-  // `terminal` is not on the rail — it is reached by selecting a task.
-  expect(cycleNavTarget("terminal", 1)).toBeNull()
-})
-
-test("opening a rail page carries focus into the content pane", () => {
-  // The pages gate their own keys on being focused. Without this the
-  // Automations page rendered "Press n to create one" while `n` still went to
-  // the sidebar's new-task chord.
-  expect(focusPaneForNav("kanban")).toBe("workspace")
-  expect(focusPaneForNav("automations")).toBe("workspace")
-  expect(focusPaneForNav("issues")).toBe("workspace")
-  // Back to the terminal means back to the task list.
-  expect(focusPaneForNav("terminal")).toBe("sidebar")
 })

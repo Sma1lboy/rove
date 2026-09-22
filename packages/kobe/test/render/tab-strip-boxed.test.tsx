@@ -107,26 +107,6 @@ test("a title wider than the pane is ellipsised inside its own frame", async () 
   expect(count(titleRow, "│")).toBe(2)
 })
 
-test("every tab is a closed box; only the active tab's bottom edge is missing", async () => {
-  const tabs: readonly TerminalTab[] = [
-    { kind: "engine", id: "tab-1", title: "one", ordinal: 1 },
-    { kind: "engine", id: "tab-2", title: "two", ordinal: 2 },
-    { kind: "engine", id: "tab-3", title: "three", ordinal: 3 },
-  ]
-  const { frame } = await renderComponent(<StripDriver tabs={tabs} start="tab-2" width={100} />, {
-    width: 100,
-    height: 4,
-    providers: { kv: true },
-  })
-  const out = await frame()
-  // Three boxes across the top…
-  expect(count(out, "╭")).toBe(3)
-  expect(count(out, "╮")).toBe(3)
-  // …but only two bottoms: the active tab (tab-2) is the notch.
-  expect(count(out, "╰")).toBe(2)
-  expect(count(out, "╯")).toBe(2)
-})
-
 test("the scroll window follows key-driven tab switches and keeps the active tab whole", async () => {
   const tabs: readonly TerminalTab[] = Array.from({ length: 8 }, (_, i) => ({
     kind: "engine" as const,

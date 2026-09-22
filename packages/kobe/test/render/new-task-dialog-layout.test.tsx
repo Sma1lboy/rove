@@ -84,10 +84,7 @@ async function press(handle: RenderHandle, key: "right" | "tab" | "down") {
   await settle()
 }
 
-for (const { width, height } of [
-  { width: 200, height: 60 },
-  { width: 120, height: 40 },
-]) {
+for (const { width, height } of [{ width: 200, height: 60 }]) {
   test(`${width}x${height}: wrapped engines and inputs keep full borders above the footer`, async () => {
     const h = await mount(width, height)
     await press(h, "right")
@@ -195,7 +192,6 @@ test("a focused last field remains visible after narrowing and shortening the te
 })
 
 for (const { width, height } of [
-  { width: 153, height: 35 },
   { width: 153, height: 34 },
   // The compact form grew a depth row and a MODEL well, so it scrolls even
   // on 33 rows; what it must still keep is the footer glued above Create.

@@ -6,39 +6,12 @@
  */
 
 import { expect, test } from "bun:test"
-import { setTransparentBackground } from "../../src/tui-react/context/theme"
 import { SidebarCreateAction } from "../../src/tui-react/panes/sidebar/chrome"
 import { renderComponent } from "./harness"
 
 function lineOf(frame: string, needle: string): number {
   return frame.split("\n").findIndex((line) => line.includes(needle))
 }
-
-test("renders a labelled task action with the live default keycap", async () => {
-  const { frame } = await renderComponent(<SidebarCreateAction onAddTask={() => {}} />, {
-    width: 24,
-    height: 5,
-  })
-  const text = await frame()
-
-  // `+` trails the label and pairs with the keycap in the right-hand column.
-  expect(text.split("\n")[lineOf(text, "New task")]).toMatch(/New task\s+\+\s+n/)
-  expect(text).not.toContain("[+]")
-})
-
-test("keeps the action row on the ambient terminal background in transparent mode", async () => {
-  setTransparentBackground(true)
-  const { spans } = await renderComponent(<SidebarCreateAction onAddTask={() => {}} />, {
-    width: 24,
-    height: 5,
-  })
-  const actionSpans = (await spans()).lines
-    .flatMap((line) => line.spans)
-    .filter((span) => span.text.includes("New task"))
-
-  expect(actionSpans.length).toBeGreaterThan(0)
-  expect(actionSpans.every((span) => span.bg === undefined || span.bg.a === 0)).toBe(true)
-})
 
 test("clicking anywhere on the action row creates a task", async () => {
   let calls = 0

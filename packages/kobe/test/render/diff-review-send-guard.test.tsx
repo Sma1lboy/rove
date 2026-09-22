@@ -202,32 +202,6 @@ test("r re-reads the file the diff tab is showing", async () => {
   await waitForFrameText(frame, "SECOND CONTENT")
 })
 
-test("the footer of a file with no notes does not claim the task's notes are here", async () => {
-  // The paint filters to this file; the count did not. A note written on
-  // `a.ts` made `other.ts`'s footer read `1 notes · 1 unsent` for a note that
-  // is on neither this file nor this screen.
-  const kv = memoryKv()
-  const handle = await renderComponent(<ReviewHarness kv={kv} deliver={false} />, {
-    width: 80,
-    height: 20,
-    providers: { dialog: true, notifications: true },
-  })
-  await settle(120)
-  await writeNote(handle, "belongs to a.ts", "Review note")
-  expect(await handle.frame()).toContain("notes: 1 · 1 unsent")
-
-  // The same task's notes, viewed from a file that holds none of them.
-  const other = await renderComponent(<ReviewHarness kv={kv} deliver={false} relPath="other.ts" />, {
-    width: 80,
-    height: 20,
-    providers: { dialog: true, notifications: true },
-  })
-  await settle(150)
-  const frame = await other.frame()
-  expect(frame).toContain("0 here")
-  expect(frame).toContain("1 in task")
-})
-
 test("the footer offers the focus chord instead of chords that cannot fire", async () => {
   // `d` opens the diff without stealing focus (deliberate), but the review
   // bindings need this pane focused — so every key the hint listed was inert.

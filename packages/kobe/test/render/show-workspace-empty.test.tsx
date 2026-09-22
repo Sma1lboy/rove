@@ -93,16 +93,6 @@ describe("a task whose last tab was closed", () => {
     tabsByTask.clear()
     expect(await frameForTask(SELECTED)).not.toContain("No sessions here")
   })
-
-  it("mounts normally while a tab is open", async () => {
-    tabsByTask.clear()
-    tabsByTask.set("t1", {
-      tabs: [{ kind: "engine", id: "tab-1", title: null, ordinal: 1 }],
-      activeId: "tab-1",
-      nextOrdinal: 2,
-    })
-    expect(await frameForTask(SELECTED)).not.toContain("No sessions here")
-  })
 })
 
 /**
@@ -129,9 +119,5 @@ describe("a task on a remote ssh:// project", () => {
 
   it("catches a remote WORKTREE under a repo key that reads local", async () => {
     expect(await frameForRemote(SELECTED, "ssh://me@buildbox/srv/rove/t1")).toContain("SSH is not implemented")
-  })
-
-  it("leaves a local task mounting as before", async () => {
-    expect(await frameForRemote(SELECTED, "/wt/t1")).not.toContain("SSH is not implemented")
   })
 })

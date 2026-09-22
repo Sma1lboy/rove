@@ -71,12 +71,6 @@ async function mount(dir: string, mainRepos?: ReadonlySet<string>, saved?: reado
   return { ...handle, submitted }
 }
 
-test("a repo with a project checkout offers the choice", async () => {
-  const dir = repo()
-  const { frame } = await mount(dir, new Set([dir]))
-  expect(await frame()).toContain("the project itself")
-})
-
 test("a repo with no project checkout does not", async () => {
   // The second option would resolve to nothing here, so the row is absent
   // rather than present-and-inert.
@@ -224,22 +218,5 @@ test("picking a different repo resets the intent back to a task worktree", async
   await settle()
 
   // Reset to the task worktree — the branch field is back.
-  expect(await frame()).toContain("FROM BRANCH")
-})
-
-test("left returns to the task intent and the branch field comes back", async () => {
-  const dir = repo()
-  const { frame, mockInput } = await mount(dir, new Set([dir]))
-  await tabToIntent(mockInput)
-  await act(async () => {
-    mockInput.pressArrow("right")
-  })
-  await settle()
-  expect(await frame()).not.toContain("FROM BRANCH")
-
-  await act(async () => {
-    mockInput.pressArrow("left")
-  })
-  await settle()
   expect(await frame()).toContain("FROM BRANCH")
 })

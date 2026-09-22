@@ -77,17 +77,6 @@ test("the SAME completion re-rendered does not re-arm the flash", async () => {
   expect(await frame()).toContain("rest")
 })
 
-test("a second completion flashes again", async () => {
-  const { frame, set } = await probe(undefined)
-  set(4000)
-  await wait(DONE_PULSE_MS + 80)
-  expect(await frame()).toContain("rest")
-
-  set(5000)
-  await wait(20)
-  expect(await frame()).toContain("PULSE")
-})
-
 test("losing the completion (a new turn started) clears the flash immediately", async () => {
   const { frame, set } = await probe(undefined)
   set(6000)

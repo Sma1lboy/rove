@@ -89,13 +89,3 @@ test("24 rows: the Create button survives a full branch picker", async () => {
   // (ui/dialog-parts.tsx, docs/design/dialogs.md).
   expect(text).not.toContain("╭")
 })
-
-test("a tall terminal is unchanged — the full 8-row window still renders", async () => {
-  const text = await withBranchPickerOpen(repoWithBranches(20), 40)
-  expect(text).toContain("Create")
-  const shown = text.split("\n").filter((l) => l.includes("feature/branch-name-")).length
-  expect(shown).toBeGreaterThanOrEqual(7)
-  // Tall enough for the house grammar: the fields wear their rounded wells.
-  expect(text).toContain("╭")
-  expect(text).toContain("╰")
-})

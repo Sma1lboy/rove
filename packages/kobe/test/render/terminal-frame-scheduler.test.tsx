@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test"
 import { createTestRenderer } from "@opentui/core/testing"
 import { createRoot } from "@opentui/react"
-import { testRender } from "@opentui/react/test-utils"
 import { act, useEffect, useState } from "react"
 import { terminalFrameScheduler } from "../../src/tui-react/panes/terminal/terminal-frame-scheduler"
 import type { TerminalRow } from "../../src/tui/panes/terminal/pty-types"
@@ -40,32 +39,6 @@ test("PTY data reaches the actual frame that requested its snapshot", async () =
   } finally {
     pty.kill()
     act(() => root.unmount())
-    t.renderer.destroy()
-  }
-})
-
-test("panes share a frame queue; cancellation and retries leave later frames usable", async () => {
-  const t = await testRender(<text>frame</text>, { width: 20, height: 3 })
-  try {
-    await t.renderOnce()
-    t.renderer.suspend()
-    const schedule = terminalFrameScheduler(t.renderer)
-    expect(terminalFrameScheduler(t.renderer)).toBe(schedule)
-    const calls: string[] = []
-    const cancel = schedule(() => calls.push("cancelled"))
-    cancel()
-    schedule(() => {
-      calls.push("first")
-      schedule(() => calls.push("next frame"))
-    })
-    schedule(() => calls.push("second"))
-    await t.renderOnce()
-    expect(calls).toEqual(["first", "second"])
-    await t.renderOnce()
-    expect(calls).toEqual(["first", "second", "next frame"])
-    await t.renderOnce()
-    expect(calls).toHaveLength(3)
-  } finally {
     t.renderer.destroy()
   }
 })

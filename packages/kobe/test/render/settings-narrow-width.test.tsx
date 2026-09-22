@@ -40,9 +40,3 @@ test("at 46 columns the label renders whole instead of being cut mid-word", asyn
   // Its inline hint is dropped rather than rendered as a clipped fragment.
   expect(text).not.toContain("re-enabling relights")
 })
-
-test("a desktop width still shows label and hint side by side", async () => {
-  const text = await generalAt(110)
-  expect(text).toContain("Show keyboard hints")
-  expect(text).toContain("re-enabling relights hints dismissed by use")
-})

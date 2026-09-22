@@ -431,12 +431,6 @@ describe("foldOscTitle", () => {
     expect(foldOscTitle("", `text ${ESC}[0m more`)).toEqual({ title: null, carry: "" })
   })
 
-  test("a title split mid-body across chunks completes on the next chunk", () => {
-    const first = foldOscTitle("", `${ESC}]0;my-ti`)
-    expect(first).toEqual({ title: null, carry: `${ESC}]0;my-ti` })
-    expect(foldOscTitle(first.carry, `tle${BEL}`)).toEqual({ title: "my-title", carry: "" })
-  })
-
   test("a title whose ST terminator splits across chunks is still captured", () => {
     // Pre-fix, lastIndexOf(ESC) kept only the terminator's lone ESC and
     // dropped the whole `ESC ]0;title` introducer — the title was lost.

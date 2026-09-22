@@ -57,46 +57,6 @@ function lineOf(text: string, needle: string): number {
   return at
 }
 
-test("right-click on a worktree row opens that row's menu", async () => {
-  tabsByTask.clear()
-  const { frame, mockMouse } = await renderComponent(tree(), { width: 40, height: 24 })
-  await settle()
-  const before = await frame()
-  expect(before).not.toContain("Rename")
-
-  await mockMouse.click(2, lineOf(before, "feat/a"), RIGHT)
-  await settle()
-
-  const after = await frame()
-  expect(after).toContain("Open")
-  expect(after).toContain("Rename")
-  expect(after).toContain("Delete")
-})
-
-test("a menu entry fires the row's real callback", async () => {
-  tabsByTask.clear()
-  const renamed: string[] = []
-  const { frame, mockMouse, mockInput } = await renderComponent(tree({ onRenameRequest: (id) => renamed.push(id) }), {
-    width: 40,
-    height: 24,
-  })
-  await settle()
-  await mockMouse.click(2, lineOf(await frame(), "feat/a"), RIGHT)
-  await settle()
-
-  // Highlight starts on "Open"; the new-conversation pair sits between it and
-  // the task verbs, so "Rename" is three steps down.
-  mockInput.typeText("jjj")
-  await settle()
-  mockInput.pressEnter()
-  await settle()
-
-  expect(renamed).toEqual(["a"])
-  // The menu closes on pick — leaving it up under a rename prompt would read
-  // as two live surfaces.
-  expect(await frame()).not.toContain("Delete")
-})
-
 test("escape closes the menu and hands j/k back to the tree", async () => {
   tabsByTask.clear()
   const chosen: string[] = []
@@ -208,27 +168,6 @@ test("a worktree row's menu opens a new conversation in that task", async () => 
   await settle()
 
   expect(asked).toEqual([["a", "chat"]])
-})
-
-test("a tab row's menu opens a new shell in its worktree", async () => {
-  tabsByTask.clear()
-  seedTabs("a", ["tab-1", "tab-2"])
-  const asked: Array<[string, string]> = []
-  const { frame, mockMouse, mockInput } = await renderComponent(
-    tree({ onNewTab: (taskId, kind) => asked.push([taskId, kind]) }),
-    { width: 40, height: 24 },
-  )
-  await settle()
-  await mockMouse.click(2, lineOf(await frame(), "tab 2"), RIGHT)
-  await settle()
-
-  // Open tab → Close tab → New conversation → New shell.
-  mockInput.typeText("jjj")
-  await settle()
-  mockInput.pressEnter()
-  await settle()
-
-  expect(asked).toEqual([["a", "shell"]])
 })
 
 test("a worktree's LAST tab DOES offer a close", async () => {

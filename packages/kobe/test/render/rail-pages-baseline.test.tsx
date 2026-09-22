@@ -102,14 +102,6 @@ const RAIL_PAGES: readonly RailPage[] = [
 ]
 
 for (const page of RAIL_PAGES) {
-  test(`rail page ${page.title} starts its title at x=2`, async () => {
-    const { line } = await renderPage(page.title, page.overrides)
-    // Exactly two leading cells before the title — the shared inset. Per-page
-    // choices (1 / 2 / 3) make the whole body jump sideways on every page
-    // switch.
-    expect(line.startsWith(`  ${page.title}`)).toBe(true)
-  })
-
   test(`rail page ${page.title} paints its title in theme.text`, async () => {
     const { titleSpan } = await renderPage(page.title, page.overrides)
     expect(titleSpan.fg).toBeDefined()
@@ -119,12 +111,13 @@ for (const page of RAIL_PAGES) {
     expect(titleSpan.fg?.toInts()).toEqual([...TEXT_RGB])
   })
 
-  test(`rail page ${page.title} starts its BODY at x=2 too`, async () => {
-    // The title row alone is not the contract — a page can pad its root to 2
-    // and still inset its own body children (Kanban's project selector and
-    // board each easily carry their own paddingLeft). Pin every content region,
-    // so a partial revert of the per-child insets fails here.
-    const { text } = await renderPage(page.title, page.overrides)
+  test(`rail page ${page.title} starts its title and BODY at x=2`, async () => {
+    // Per-page insets (1 / 2 / 3) made the body jump sideways on every page
+    // switch. The title row alone is not the contract — a page can pad its
+    // root to 2 and still inset its own body children (Kanban's project
+    // selector and board each carry their own paddingLeft), so pin both.
+    const { text, line: titleLine } = await renderPage(page.title, page.overrides)
+    expect(titleLine.startsWith(`  ${page.title}`)).toBe(true)
     for (const anchor of page.body) {
       const line = text.split("\n").find((l) => l.includes(anchor))
       expect(line).toBeDefined()

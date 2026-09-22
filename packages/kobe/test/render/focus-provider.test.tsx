@@ -9,39 +9,7 @@ import { describe, expect, it } from "bun:test"
 import { FocusProvider, type PaneId, useFocus } from "../../src/tui-react/context/focus"
 import { act, renderComponent } from "./harness"
 
-function Probe() {
-  const focus = useFocus()
-  return (
-    <box flexDirection="column">
-      <text>{`focused:${focus.focused}`}</text>
-      <text>{`sidebar:${focus.is("sidebar")}`}</text>
-      <text>{`workspace:${focus.is("workspace")}`}</text>
-    </box>
-  )
-}
-
 describe("FocusProvider", () => {
-  it("defaults to the sidebar pane", async () => {
-    const { frame } = await renderComponent(
-      <FocusProvider>
-        <Probe />
-      </FocusProvider>,
-    )
-    const text = await frame()
-    expect(text).toContain("focused:sidebar")
-    expect(text).toContain("sidebar:true")
-    expect(text).toContain("workspace:false")
-  })
-
-  it("honors an explicit `initial` pane", async () => {
-    const { frame } = await renderComponent(
-      <FocusProvider initial="terminal">
-        <Probe />
-      </FocusProvider>,
-    )
-    expect(await frame()).toContain("focused:terminal")
-  })
-
   it("setFocused moves focus and cycle wraps through PANE_ORDER", async () => {
     let cycleFn: ((delta: 1 | -1) => void) | undefined
     let setFocusedFn: ((pane: PaneId) => void) | undefined

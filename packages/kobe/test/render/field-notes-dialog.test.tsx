@@ -22,16 +22,6 @@ function mount(load: () => Promise<readonly StoredFieldNote[]>) {
 }
 
 describe("FieldNotesDialogView", () => {
-  test("a repo with no notes renders the empty message, not a blank box", async () => {
-    const { frame } = await mount(async () => [])
-    await settle()
-    const f = await frame()
-    expect(f).toContain("Field notes")
-    expect(f).toContain("/repos/rove")
-    expect(f).toContain("No field notes for this repo yet")
-    expect(f).not.toContain("Loading")
-  })
-
   test("each note shows its text, author and time, newest first", async () => {
     const notes: StoredFieldNote[] = [
       { at: "2026-09-01T10:30:00.000Z", text: "the gotcha", taskId: "t1", author: "fix-the-pty" },

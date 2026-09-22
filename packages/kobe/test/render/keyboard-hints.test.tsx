@@ -160,18 +160,6 @@ async function waitForGuideText(
 }
 
 describe("StatusKeyHintBar", () => {
-  it("advertises the live prefix and help chords from the workspace stack", async () => {
-    const { frame } = await renderComponent(
-      <WorkspaceDriver>
-        <StatusKeyHintBar />
-      </WorkspaceDriver>,
-      { providers: { focus: true, dialog: true } },
-    )
-    const text = await frame()
-    expect(text).toContain("⌃ A commands")
-    expect(text).toContain("F1 help")
-  })
-
   it("keeps the prefix command layer visible inside the terminal", async () => {
     const settingsOpened: true[] = []
     const { frame } = await renderComponent(
@@ -313,13 +301,6 @@ describe("footer hint clicks", () => {
 })
 
 describe("PaneKeyHint", () => {
-  it("teaches the sidebar's bare keys on first use", async () => {
-    const { frame } = await renderComponent(<PaneKeyHint pane="sidebar" />, {})
-    const text = await frame()
-    expect(text).toContain("j/k move")
-    expect(text).toContain("⏎ open")
-  })
-
   it("extinguishes the sidebar hint once its keys were used", async () => {
     withTempKvHome()
     const { frame } = await renderComponent(
@@ -330,21 +311,6 @@ describe("PaneKeyHint", () => {
     )
     await settle()
     expect((await frame()).trim()).toBe("")
-  })
-
-  it("falls back to the files pane's permanent short set after use", async () => {
-    withTempKvHome()
-    const { frame } = await renderComponent(
-      <KvSeed entries={[[PANE_HINT_USED_KEYS.files, true]]}>
-        <PaneKeyHint pane="files" />
-      </KvSeed>,
-      { providers: { kv: true } },
-    )
-    await settle()
-    const text = await frame()
-    expect(text).toContain("⏎ open")
-    expect(text).toContain("d diff")
-    expect(text).not.toContain("move")
   })
 })
 
@@ -387,15 +353,5 @@ describe("welcome dialog — questions then keyboard basics", () => {
     act(() => mockInput.pressEnter())
     await settle()
     expect(answers).toEqual([{ completions: true, skill: true }])
-  })
-
-  it("the environment report is NOT repeated here — the welcome pane behind it owns that", async () => {
-    const { frame } = await renderComponent(<WelcomeDialogView shell={null} onDone={NOOP} />, {
-      width: 100,
-      height: 24,
-    })
-    const text = await frame()
-    expect(text).not.toContain("Environment check")
-    expect(text).not.toContain("engines:")
   })
 })

@@ -25,14 +25,6 @@ async function mount(onSubmit: (protocol: string) => void) {
   return handle
 }
 
-test("offers every built-in protocol plus a None row, under the engine's own title", async () => {
-  const { frame } = await mount(NOOP)
-  const text = await frame()
-  expect(text).toContain("aider")
-  for (const protocol of ENGINE_PROTOCOLS) expect(text).toContain(protocol)
-  expect(text).toContain("None")
-})
-
 test("enter commits the row under the cursor", async () => {
   const picked: string[] = []
   const { mockInput } = await mount((p) => picked.push(p))

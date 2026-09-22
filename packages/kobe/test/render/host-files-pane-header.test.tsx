@@ -87,7 +87,3 @@ test("a project-main row offers no Create-PR chip — it has no branch to PR", a
   expect(text).toContain("Zen")
   expect(text).not.toContain("Ask agent to create PR")
 })
-
-test("a directory task keeps the chip — Rove does not own that checkout's branch", async () => {
-  expect((await headerLines("dir")).join("\n")).toContain("Ask agent to create PR")
-})

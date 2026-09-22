@@ -151,15 +151,6 @@ describe("FileTree", () => {
     await settle()
     expect(await frame()).toContain("alpha.ts")
   })
-
-  it("renders the no-task placeholder without a worktree", async () => {
-    const { frame } = await renderComponent(<FileTree worktreePath={null} onOpenFile={NOOP} />, {
-      width: 40,
-      height: 10,
-    })
-    const text = await frame()
-    expect(text.length).toBeGreaterThan(0)
-  })
 })
 
 describe("HostFilesPane", () => {

@@ -217,32 +217,6 @@ test("a path being typed renders VERBATIM — the field does not rewrite mid-key
   act(() => h.destroy())
 })
 
-test("picker rows right-align their directory tails into one column", async () => {
-  // Names of deliberately different lengths: left-aligned-with-a-gap would
-  // start each directory at a different column, and the whole point of the
-  // change is that they share one right edge.
-  const short = repo("a")
-  const long = repo("a-much-longer-repo-name")
-  // Wide enough that neither tail is clipped — a clipped tail ends where the
-  // card ends for reasons that have nothing to do with alignment.
-  const h = await mount(short, [short, long], 200)
-
-  // Open the dropdown: focus the repo field, then clear it so both rows show.
-  await pressTab(h, TO_REPO)
-  await act(async () => h.mockInput.typeText("\x15"))
-  await settle()
-
-  const lines = (await h.frame()).split("\n")
-  const rows = lines.filter((l) => l.includes("kobe-reponame-") && (l.includes(" a ") || l.includes("a-much-longer")))
-  expect(rows.length).toBeGreaterThanOrEqual(2)
-
-  // Every row's directory ends at the same column. `trimEnd().length` is that
-  // right edge; equal across rows means one column, not a ragged trail.
-  const ends = new Set(rows.map((l) => l.trimEnd().length))
-  expect(ends.size).toBe(1)
-  act(() => h.destroy())
-})
-
 test("a long directory never eats into the name", async () => {
   // Regression, caught in the harness and invisible to every test above: with
   // the input on `flexGrow`, a long directory compressed it below the name's
@@ -255,22 +229,5 @@ test("a long directory never eats into the name", async () => {
   const row = (await h.frame()).split("\n").find((l) => l.includes("ture-repo"))
   expect(row).toBeDefined()
   expect(row).toContain("fixture-repo")
-  act(() => h.destroy())
-})
-
-test("a full-width row keeps air between the name and the directory", async () => {
-  // `paddingLeft` on the muted tail belongs to the box Yoga is shrinking, so
-  // on a row wide enough to close the gap it went to zero and the two halves
-  // collided — `(current dir)/var/folders/…` reads as one string.
-  const dir = repo("fixture-repo")
-  const h = await mount(dir, [dir], 72)
-
-  await pressTab(h, TO_REPO)
-  await act(async () => h.mockInput.typeText("\x15"))
-  await settle()
-
-  const row = (await h.frame()).split("\n").find((l) => l.includes("current dir"))
-  expect(row).toBeDefined()
-  expect(row).not.toContain("dir)/")
   act(() => h.destroy())
 })

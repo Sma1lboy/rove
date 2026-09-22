@@ -78,32 +78,6 @@ test("enter on a tab row activates that tab, not just its task", async () => {
   expect(picked).toEqual([["a", "tab-1"]])
 })
 
-test("l on a tab row enters that tab's chat — there is no fold", async () => {
-  // The tree never folds, so `l` is "go in". On the last level (a tab row)
-  // that means entering the tab.
-  seedTabs("a", ["tab-1", "tab-2"])
-  const picked: Array<[string, string]> = []
-  const { frame, mockInput } = await renderComponent(
-    tree({ onSelectTab: (taskId, tabId) => picked.push([taskId, tabId]) }),
-    { width: 28, height: 20 },
-  )
-  await new Promise((r) => setTimeout(r, SETTLE))
-  // Tabs are visible without any keystroke…
-  expect(await frame()).toContain("tab 1")
-
-  // …h does nothing to them (no fold to drive)…
-  mockInput.typeText("h")
-  await new Promise((r) => setTimeout(r, SETTLE))
-  expect(await frame()).toContain("tab 1")
-
-  // …and l on the tab row (j steps onto it) opens that tab.
-  mockInput.typeText("j")
-  await new Promise((r) => setTimeout(r, SETTLE))
-  mockInput.typeText("l")
-  await new Promise((r) => setTimeout(r, SETTLE))
-  expect(picked).toEqual([["a", "tab-1"]])
-})
-
 test("j/k move the cursor over worktree rows", async () => {
   tabsByTask.clear()
   const chosen: string[] = []

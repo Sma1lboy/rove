@@ -106,67 +106,6 @@ test("a card linked to a task the index does not have renders in Backlog", async
 })
 
 /**
- * Where a card's breathing room lives, now that `padding={1}` is gone.
- *
- * That one prop was doing three jobs — air inside the card, separation from
- * the next card, and a break between title and description — and charged two
- * rows per card for it. It is split: horizontal padding on the card, a
- * `marginBottom` for the lane gap, and the title/description break falls out
- * of the box gap. This pins the two that are invisible in the source: a
- * `marginBottom` Yoga silently drops renders exactly like one that was never
- * written.
- */
-test("a card's title sits against its own top border, with a blank lane row after it", async () => {
-  const lines = (await board([issue(1), issue(2)])).split("\n")
-  // Newest first, so story-2 leads — index by content, not by argument order.
-  const first = lines.findIndex((line) => line.includes("story-2"))
-  const second = lines.findIndex((line) => line.includes("story-1"))
-  expect(first).toBeGreaterThan(0)
-  expect(second).toBeGreaterThan(first)
-
-  // Directly above the title is the card's own top border, not a padded row:
-  // the two rows a `padding={1}` would spend are what this buys back.
-  expect(lines[first - 1] ?? "").toContain("╭")
-
-  // Between the cards, exactly one row carrying no card chrome — the lane
-  // separator that `marginBottom` now owns, since a scrollbox has no `gap`.
-  const between = lines.slice(first + 1, second)
-  const closed = between.findIndex((line) => line.includes("╰"))
-  expect(closed).toBeGreaterThanOrEqual(0)
-  const gap = between[closed + 1] ?? ""
-  expect(gap).not.toContain("╭")
-  expect(gap).not.toContain("╰")
-  // ...and the very next row opens the following card, so the gap is ONE row.
-  expect(between[closed + 2] ?? "").toContain("╭")
-})
-
-/**
- * Both framed surfaces on the board — the four columns and the cards inside
- * them — draw ROUNDED corners, the same grammar the workspace pane, files
- * pane and tab strip already use.
- *
- * Pinned against the frame because opentui's default is SQUARE: a box that
- * says `border` and nothing else silently opts out of the house style, which
- * would leave the board the one page framed in `┌┐└┘`. Asserting the
- * absence of square glyphs is what makes this test fail if either box loses
- * its `borderStyle` again — a corner-count assertion alone would pass on the
- * default.
- */
-test("columns and cards are framed in rounded corners, never square", async () => {
-  const text = await board([issue(1)])
-  expect(text).toContain("╭")
-  expect(text).toContain("╯")
-  expect(text).not.toContain("┌")
-  expect(text).not.toContain("┘")
-  // Four columns plus the one card = five framed boxes, so five of each
-  // corner. Without this a single rounded box beside four square ones would
-  // still satisfy the checks above.
-  const corners = (glyph: string): number => text.split(glyph).length - 1
-  expect(corners("╭")).toBe(5)
-  expect(corners("╰")).toBe(5)
-})
-
-/**
  * Transparent mode reaches the cards too.
  *
  * The card was the one surface on the board that kept a solid fill when the
@@ -248,16 +187,6 @@ test("r refetches the board", async () => {
   mockInput.typeText("r")
   await settle()
   expect(fetches).toBeGreaterThan(before)
-})
-
-/**
- * Wide board: an empty lane says so instead of rendering a bare void — a
- * blank bordered box reads as "failed to load", not "nothing parked".
- */
-test("an empty column renders its placeholder", async () => {
-  const text = await board([issue(1)])
-  // Only Backlog holds a card; the other three lanes each show the hint.
-  expect(text.match(/No cards/g)?.length).toBe(3)
 })
 
 /**

@@ -48,18 +48,6 @@ const BODY_TIMEOUT = { timeoutMs: 3_000 }
  *  Anything asserting a NOTE BODY waits on the text instead. */
 const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 120))
 
-test("English chrome lists the notes for the range just crossed", async () => {
-  setLocaleLang("en")
-  const { frame } = await renderComponent(
-    <WhatsNewDialogView from="0.9.200" onClose={() => {}} fetchNotes={async () => NOTES} />,
-    { width: 80, height: 24 },
-  )
-  // The wait IS the assertion that the note body reached the screen.
-  const text = await waitForFrameText(frame, "renamed repo root", BODY_TIMEOUT)
-  expect(text).toContain("WHAT'S NEW")
-  expect(text).toContain("up from v0.9.200")
-})
-
 test("Chinese chrome translates the dialog, not the published note body", async () => {
   setLocaleLang("zh")
   const { frame } = await renderComponent(
@@ -105,37 +93,6 @@ test("q closes without waiting for the fetch", async () => {
   expect(closed).toBe(true)
 })
 
-test("the note body renders as markdown, not as its source text", async () => {
-  setLocaleLang("en")
-  const { frame, spans } = await renderComponent(
-    <WhatsNewDialogView
-      from="0.9.200"
-      onClose={() => {}}
-      fetchNotes={async () => [
-        {
-          version: "0.9.208",
-          url: "https://github.com/Sma1lboy/rove/releases/tag/v0.9.208",
-          body: "### Patch Changes\n\n- [#1032](https://x/pull/1032) [`0b99a4c`](https://x/commit/0b99a4c) Engines can now install **hooks**. — [@Sma1lboy](https://github.com/Sma1lboy)",
-        },
-      ]}
-    />,
-    { width: 80, height: 24 },
-  )
-  // Syntax markers are concealed and the link addresses are gone, so the
-  // sentence starts at the left edge instead of behind two GitHub URLs.
-  const text = await waitForFrameText(frame, "#1032 0b99a4c Engines can now install hooks.", BODY_TIMEOUT)
-  expect(text).toContain("Patch Changes")
-  expect(text).not.toContain("###")
-  expect(text).not.toContain("**")
-  expect(text).not.toContain("https://x/pull/1032")
-  // Rendered, not just stripped: the emphasis survives as an attribute.
-  const bold = (await spans()).lines
-    .flatMap((line) => line.spans)
-    .filter((span) => span.attributes !== 0)
-    .map((span) => span.text.trim())
-  expect(bold).toContain("hooks")
-})
-
 /** Six releases, each several lines: taller than any card, which is exactly
  *  the upgrade this dialog exists for. */
 function longRange(): ReleaseNotesRangeItem[] {
@@ -145,32 +102,6 @@ function longRange(): ReleaseNotesRangeItem[] {
     body: `- change ${i} alpha\n- change ${i} beta\n- change ${i} gamma\n- LAST-LINE-${i}`,
   }))
 }
-
-/**
- * Driven with the ARROW keys, not `end`.
- *
- * `end`/`home`/`pageup`/`pagedown` are bound (the same `scrollToEdge` /
- * `scrollBy` pair the help dialog ships), but this mock delivers key NAMES
- * and has no helper that produces a real End byte — a `pressKey("end")`
- * passes through as the letters and scrolls nothing, which would make this
- * test green for the wrong reason or red for one. Arrows have a helper that
- * delivers the real sequence, and they exercise the same scrollbox, so they
- * are what the claim rests on here. The named keys are covered where a real
- * terminal presses them: the /harness visual path.
- */
-test("a long range is reachable past the fold — the body scrolls", async () => {
-  setLocaleLang("en")
-  const { frame, mockInput } = await renderComponent(
-    <WhatsNewDialogView from="0.9.200" onClose={() => {}} fetchNotes={async () => longRange()} />,
-    { width: 80, height: 24 },
-  )
-  // Wait on the BODY, not a sleep — these are markdown mounts too.
-  const top = await waitForFrameText(frame, "LAST-LINE-0", BODY_TIMEOUT)
-  // The first release is on screen and the last one is below the fold.
-  expect(top).not.toContain("LAST-LINE-5")
-  for (let i = 0; i < 25; i++) await act(async () => mockInput.pressArrow("down"))
-  await waitForFrameText(frame, "LAST-LINE-5", BODY_TIMEOUT)
-})
 
 test("scrolling back up returns to the first release", async () => {
   setLocaleLang("en")

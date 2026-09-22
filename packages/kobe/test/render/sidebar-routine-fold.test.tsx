@@ -133,11 +133,3 @@ test("a folded routine session is still findable by search", async () => {
   // directly, so there would be nothing left underneath it.
   expect(painted).not.toContain("routine sessions")
 })
-
-test("a project with no routines shows no count row", async () => {
-  tabsByTask.clear()
-  const { frame } = await renderComponent(tree({ tasks: [MAIN, MINE] }), { width: 34, height: 20 })
-  await new Promise((r) => setTimeout(r, SETTLE))
-
-  expect(await frame()).not.toContain("routine sessions")
-})

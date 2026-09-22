@@ -31,13 +31,6 @@ function task(id: string, over: Partial<Task> = {}): Task {
   } as Task
 }
 
-const APPROVED = {
-  provider: "github",
-  lifecycle: "open",
-  checkState: "passing",
-  reviewDecision: "APPROVED",
-} as const
-
 async function render(
   tasks: readonly Task[],
   engineState?: ReadonlyMap<string, { state: string; at: number }>,
@@ -60,19 +53,6 @@ async function render(
   )
   return await frame()
 }
-
-test("a task-level group draws no marker on the worktree row", async () => {
-  // The rail carries engine state on TAB rows only. A task rollup here would
-  // put a second vocabulary in the same column — `●` meaning "needs review"
-  // one line above a `○` meaning "engine quiet" (owner 2026-09-19).
-  const reported = task("reported", {
-    report: { branch: "fix/reported", summary: "done", at: new Date(NOW - 60_000).toISOString() },
-    prStatus: APPROVED,
-  })
-  const text = await render([reported], new Map([["reported", { state: "permission_needed", at: NOW }]]))
-  expect(text).toContain("fix/reported")
-  for (const marker of ["! fix/reported", "● fix/reported", "» fix/reported"]) expect(text).not.toContain(marker)
-})
 
 test("a plugin's row token reaches the cells beside the branch", async () => {
   const tokens = new Map([

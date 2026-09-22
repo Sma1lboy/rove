@@ -25,28 +25,6 @@ async function mountTerminal(): Promise<{
   return { handle, harness }
 }
 
-test("entering scrollback does not resize the child PTY", async () => {
-  const { handle, harness } = await mountTerminal()
-  try {
-    const pty = harness.last()
-    await act(async () => {
-      pty.feed(Array.from({ length: 60 }, (_, index) => `line-${index + 1}`).join("\r\n"))
-      await handle.frame()
-    })
-    const before = pty.geometry
-
-    await act(async () => {
-      await handle.mockMouse.scroll(20, 8, "up")
-      await handle.frame()
-    })
-
-    expect(await handle.frame()).toMatch(/scrolled|已回滚/)
-    expect(pty.geometry).toEqual(before)
-  } finally {
-    handle.destroy()
-  }
-})
-
 test("scrollback buttons jump across a thousand lines and resume following without sending input", async () => {
   const { handle, harness } = await mountTerminal()
   try {

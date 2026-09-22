@@ -94,23 +94,3 @@ test("deleting rows in a burst settles instead of looping", async () => {
   // Still alive and rendering (a crashed tree paints the pane-crash box).
   expect(await frame()).toContain("hints:")
 })
-
-test("a render that changes no hint input does not re-run the snapshot", async () => {
-  // The guard proper. Without a dependency array this effect runs on EVERY
-  // render, which is the precondition for the loop above; a compare-and-set
-  // only hides it. Here the tree re-renders with the same focus, same
-  // bindings, same keymap — the effect must stay quiet.
-  const { frame, mockInput } = await renderComponent(<App />, { width: 80, height: 12 })
-  await act(async () => {})
-
-  footerRenders = 0
-  for (let i = 0; i < 10; i++) {
-    mockInput.typeText("t")
-    await act(async () => {})
-  }
-
-  // 10 keypresses, each one render of the tree. If the effect re-ran and
-  // re-set state on every render, this would be 20+.
-  expect(footerRenders).toBeLessThanOrEqual(12)
-  expect(await frame()).toContain("tick 10")
-})

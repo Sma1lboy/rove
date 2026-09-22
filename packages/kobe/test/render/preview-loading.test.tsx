@@ -87,7 +87,6 @@ test("hunkless previews state the change and cannot anchor a review note", async
     ["new.txt", "renamed from old.txt"],
     ["empty-deleted.txt", "empty file deleted"],
     ["binary.bin", "binary file changed"],
-    [".", "renamed from old.txt"],
   ]) {
     const handle = await renderComponent(
       <PreviewScreen

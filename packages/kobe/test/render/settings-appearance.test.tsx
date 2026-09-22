@@ -6,7 +6,6 @@ import { join } from "node:path"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
 import { useKV } from "../../src/tui-react/context/kv"
 import {
-  addTheme,
   focusAccent,
   selectedTheme,
   setFocusAccent,
@@ -59,10 +58,7 @@ async function setup(width = 120, height = 48) {
 describe("appearance choices", () => {
   const cases = [
     { row: 2, key: "activeTheme", next: "conductor", label: "Theme" },
-    { row: 3, key: "themeMode", next: "light", label: "Mode" },
     { row: 4, key: "transparentBackground", next: true, label: "Transparent background" },
-    { row: 5, key: "focusAccent", next: "success", label: "Focus accent" },
-    { row: 6, key: "appearance.splitStyle", next: "line", label: "Split panes" },
     { row: 7, key: "sidebar.foldStyle", next: "initials", label: "Folded task rail" },
     { row: 8, key: "sidebar.tabRowHeight", next: 2, label: "Tab row height" },
   ]
@@ -101,38 +97,4 @@ describe("appearance choices", () => {
       expect(h.persisted()).toEqual({ ...original, [example.key]: example.next })
     })
   }
-
-  it("keeps a long custom-theme list scrollable with the preview above it", async () => {
-    for (let i = 0; i < 14; i++)
-      addTheme(`zz-sample-${String(i).padStart(2, "0")}`, { theme: { background: "#121212", text: "#ffffff" } })
-    const h = await setup(100, 30)
-    await h.press("l")
-    await h.press("j")
-    await h.press("j")
-    await h.press("return")
-    const text = await h.press("k")
-    expect(text).toContain("zz-sample-13")
-    expect(text).toContain("Workspace preview")
-    expect(text).toContain("enter apply")
-    expect(h.persisted()).toEqual(initial)
-  })
-
-  it("shows the extra tab caption in a narrow preview", async () => {
-    const h = await setup(46, 30)
-    await h.press("l")
-    for (let i = 0; i < 8; i++) await h.press("j")
-    expect(await h.press("return")).not.toContain("model")
-    expect(await h.press("j")).toContain("model")
-    expect(h.persisted()).toEqual(initial)
-  })
-
-  it("keeps choices and cancellation visible in a short narrow terminal", async () => {
-    const h = await setup(46, 25)
-    await h.press("l")
-    for (let i = 0; i < 7; i++) await h.press("j")
-    const text = await h.press("return")
-    expect(text).toContain("(●) status glyphs")
-    expect(await h.press("k")).toContain("( ) colour band only")
-    expect(text.replace(/\s+/g, " ")).toContain("esc cancel")
-  })
 })

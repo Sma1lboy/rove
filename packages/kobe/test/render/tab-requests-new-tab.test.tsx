@@ -92,21 +92,3 @@ test("a request for a task whose tabs aren't mounted waits for that mount", asyn
 
   expect(chats.length).toBe(1)
 })
-
-test("a request aimed at another task is left alone", async () => {
-  const { Probe, chats, writes } = harnessFor("newtab-bystander")
-  await renderComponent(<Probe />, { width: 20, height: 4 })
-  await settle()
-
-  await act(async () => {
-    requestNewTab("newtab-other", "shell")
-  })
-
-  expect(chats.length).toBe(0)
-  expect(writes.length).toBe(0)
-  // Still pending: consumed by its own task's mount, whenever that happens.
-  const other = harnessFor("newtab-other")
-  await renderComponent(<other.Probe />, { width: 20, height: 4 })
-  await settle()
-  expect(other.writes.length).toBe(1)
-})

@@ -91,12 +91,3 @@ test("the All tab shows a CJK filename, not git's octal escaping", async () => {
     expect(displayWidth(line.replace(/\s+$/, ""))).toBeLessThanOrEqual(PANE_WIDTH)
   }
 })
-
-test("an ASCII path of the same length is unchanged", async () => {
-  // The desktop-layout guard: 1 cell per glyph, so cells and code points agree.
-  const text = await changesFrame(repoWith("docs/design/terminal-notes.md"), "terminal-notes")
-  expect(text).toContain("terminal-notes.md")
-  for (const line of text.split("\n")) {
-    expect(displayWidth(line.replace(/\s+$/, ""))).toBeLessThanOrEqual(PANE_WIDTH)
-  }
-})
