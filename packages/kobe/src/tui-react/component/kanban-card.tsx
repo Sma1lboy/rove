@@ -91,11 +91,7 @@ export function KanbanCard(props: {
           #{issue.id}
         </text>
       </box>
-      {/* Two-line preview is deliberate card grammar: enough room for a
-          description now, with a stable region for the future editor. The top
-          margin is what the card's vertical padding used to provide: without
-          it the description runs straight on from the title and the two read
-          as one wrapped paragraph. */}
+      {/* Fixed two-line preview: a stable region whether or not the issue has a description. */}
       <box height={2} overflow="hidden">
         {description ? (
           <text fg={theme.textMuted} wrapMode="word">
