@@ -18,12 +18,9 @@ import type { DaemonRpcClient } from "./rpc.ts"
 export type DaemonEventHandler = (frame: Extract<DaemonFrame, { type: "event" }>) => void
 
 /**
- * A daemon RPC exceeded its per-request deadline: the socket accepted the
- * request but never sent a response frame. This is the WEDGED-daemon signal
- * on a live connection (process alive, socket open, not servicing) — distinct
- * from a normal `close`. The client force-disconnects on it so the wedge is
- * converted into the ordinary disconnected→reconnect lifecycle instead of a
- * silently-hung promise.
+ * No response frame before the per-request deadline: the WEDGED-daemon signal
+ * on a live connection. The client force-disconnects on it so the wedge joins
+ * the ordinary disconnected→reconnect lifecycle instead of hanging a promise.
  */
 export class RpcTimeoutError extends Error {
   constructor(name: string, timeoutMs: number) {
@@ -33,11 +30,9 @@ export class RpcTimeoutError extends Error {
 }
 
 /**
- * Default per-request deadline. A healthy daemon answers writes in well under
- * a second; 20s is a wide margin for a busy-but-live daemon. Requests that can
- * legitimately run for minutes are exempted by name below, not by this value.
- * `ROVE_RPC_TIMEOUT_MS` overrides it (0/negative disables the deadline) — an
- * operator escape hatch and the test seam for the wedged-daemon path.
+ * Per-request deadline; a healthy daemon answers in well under a second.
+ * Minutes-long requests are exempted by name (`BLOCKING_RPCS`).
+ * `ROVE_RPC_TIMEOUT_MS` overrides it (0/negative disables); also the test seam.
  */
 function rpcTimeoutMs(): number {
   const raw = readRoveEnv("RPC_TIMEOUT_MS")?.trim()
@@ -49,31 +44,17 @@ function rpcTimeoutMs(): number {
 }
 
 /**
- * Single connection-lifecycle hook — fires when the socket transitions from
- * open to closed for ANY reason (daemon died, kernel dropped the socket,
- * manual `forceDisconnect`). The host TUI subscribes to this and prompts
- * the user "Restart daemon or Quit?". Reconnect is user-driven from that
- * prompt; the client does not auto-retry.
- *
- * Why no auto-reconnect: a kobe daemon dropping under a still-attached
- * client is rare and never transient. The daemon's refcounted lazy
- * shutdown (AGENTS.md "Daemon lifecycle") only self-stops once the LAST
- * subscriber is gone — so a live client never has the daemon vanish from
- * under it for that reason. The user is the one who decides to restart,
- * so popping a modal beats a backoff loop that just delays the same prompt.
+ * Fires when the socket goes open→closed for ANY reason (daemon died, kernel
+ * drop, `forceDisconnect`). The client never auto-retries: the daemon only
+ * self-stops once the LAST subscriber is gone, so a drop under a live client
+ * is rare and never transient; callers decide how to reconnect.
  */
 export type LifecycleEvent = "close"
 
 /**
- * JSON-line client over the kobe daemon's unix socket.
- *
- * Connection model: dumb but explicit. Open a socket via {@link connect},
- * use it until {@link close} (graceful) / {@link forceDisconnect} (kill)
- * / counterparty death drops it. The client emits `close` once on any
- * teardown and stops there. Callers that want to recover open a new
- * socket by calling {@link connect} again — `disposed` after `close()`
- * blocks further connects so a deliberately torn-down client stays torn
- * down.
+ * JSON-line client over the daemon's unix socket. Emits `close` once on any
+ * teardown; callers recover by calling {@link connect} again, except after
+ * {@link close}, which blocks further connects.
  */
 export class KobeDaemonClient implements DaemonRpcClient {
   private socket: Socket | null = null
@@ -85,11 +66,9 @@ export class KobeDaemonClient implements DaemonRpcClient {
   >()
   private readonly handlers = new Map<DaemonEventName | "*", Set<DaemonEventHandler>>()
   private readonly lifecycleHandlers = new Map<LifecycleEvent, Set<() => void>>()
-  /** Shared in-flight connect promise — avoids parallel openSocket calls
-   *  when two callers race on `connect()`. */
+  /** Shared so racing `connect()` callers open one socket. */
   private connecting: Promise<void> | null = null
-  /** Manual `close()` was called — block further `connect()` so a torn-down
-   *  client can't be silently revived by a stray request. */
+  /** Set by `close()`; a stray request must not revive a torn-down client. */
   private disposed = false
 
   constructor(readonly socketPath: string) {}
@@ -100,12 +79,8 @@ export class KobeDaemonClient implements DaemonRpcClient {
     if (this.connecting) return this.connecting
     const p = this.openSocket()
     this.connecting = p
-    // Use `.then(cleanup, cleanup)` instead of `.finally(...)` so the
-    // cleanup branch swallows its own outcome — `p.finally(cb)` returns
-    // a new promise that rejects in lockstep with `p`, and that returned
-    // promise has no handler, surfacing as an unhandled rejection in
-    // Bun (the original `p` is still awaited by the caller, so `p`
-    // itself is fine — the leak is the `finally`-derived promise).
+    // Not `.finally`: its derived promise rejects with `p` and has no
+    // handler, so Bun reports an unhandled rejection.
     const cleanup = (): void => {
       if (this.connecting === p) this.connecting = null
     }
@@ -113,9 +88,7 @@ export class KobeDaemonClient implements DaemonRpcClient {
     return p
   }
 
-  /** True after {@link close} — a deliberately torn-down client that must
-   *  not be revived. The pane reconnect loop checks this to stop retrying
-   *  once its host is disposing. */
+  /** True after {@link close}; the pane reconnect loop stops retrying on it. */
   get isDisposed(): boolean {
     return this.disposed
   }
@@ -124,30 +97,18 @@ export class KobeDaemonClient implements DaemonRpcClient {
     this.disposed = true
     this.socket?.end()
     this.socket = null
-    // Reject in-flight requests NOW. `onSocketClose` can't do it for us:
-    // its stale-close guard sees `this.socket === null` (we just nulled it)
-    // and returns early, so without this the `pending` map retained every
-    // unanswered request — promise, resolver closures, payload — for the
-    // life of the client object (a leak that grew with each teardown that
-    // raced an in-flight RPC).
+    // `onSocketClose`'s stale guard skips the sweep now that socket is null,
+    // so without this `pending` would leak every unanswered request.
     this.failPending()
   }
 
-  /**
-   * Tear down the live socket without marking the client as disposed.
-   * Lets a subsequent {@link connect} re-open. Used by the host TUI's
-   * disconnect modal when the user clicks "Restart": kill any half-open
-   * socket so the next connect path is clean.
-   */
+  /** Tear down the live socket without disposing, so {@link connect} can re-open cleanly. */
   forceDisconnect(): void {
     const socket = this.socket
     if (!socket) return
     this.socket = null
     socket.destroy()
-    // Same rationale as `close()`: the destroyed socket's close event hits
-    // `onSocketClose` with `this.socket` already null, so the guard skips
-    // the pending sweep. A long-lived TUI client calls this on EVERY manual
-    // reconnect — leaked entries would accumulate across reconnects.
+    // As in `close()`: the guard skips the sweep, and leaks would pile up per reconnect.
     this.failPending()
   }
 
@@ -175,25 +136,16 @@ export class KobeDaemonClient implements DaemonRpcClient {
     }
   }
 
-  /**
-   * Typed sugar over {@link on} for a push channel: the handler
-   * receives the channel's payload, typed from {@link ChannelPayloads}.
-   * Adding a consumer for a new channel is just `onChannel("cost", …)`.
-   */
+  /** {@link on} for a push channel, with the payload typed from {@link ChannelPayloads}. */
   onChannel<C extends ChannelName>(channel: C, handler: (payload: ChannelPayloads[C]) => void): () => void {
     return this.on(channel, (frame) => handler(frame.payload as ChannelPayloads[C]))
   }
 
   /**
-   * Subscribe to the daemon's push channels. Omit `channels` to receive
-   * ALL of them (today's behavior); a `channels` filter is accepted for
-   * forward-compat (the daemon currently sends everything regardless). The
-   * daemon replays each channel's current value on subscribe.
-   *
-   * `role` declares whether this subscriber HOLDS the daemon alive (KOB):
-   * `"gui"` for a real front-end attach, `"pane"` (default) for an in-tmux
-   * helper pane that receives channels but must not keep the daemon running
-   * after the user quits. See {@link SubscribeRole}.
+   * Subscribe to push channels; the daemon replays each current value. The
+   * `channels` filter is forward-compat only: the daemon sends everything.
+   * `role`: `"gui"` holds the daemon alive; `"pane"` (default) receives
+   * channels without keeping it running. See {@link SubscribeRole}.
    */
   subscribe(
     opts: { channels?: readonly ChannelName[]; role?: SubscribeRole; cellPixelSize?: CellPixelSize | null } = {},
@@ -206,9 +158,8 @@ export class KobeDaemonClient implements DaemonRpcClient {
     } = {}
     if (opts.channels) payload.channels = opts.channels
     if (opts.role) payload.role = opts.role
-    // Sent as two flat numbers rather than a nested object: the daemon reads
-    // them as optional fields, so a client that measured nothing sends
-    // nothing and an older daemon ignores what it does not know.
+    // Flat optional fields: an unmeasured client sends nothing, and an older
+    // daemon ignores what it does not know.
     if (opts.cellPixelSize) {
       payload.cellPixelWidth = opts.cellPixelSize.width
       payload.cellPixelHeight = opts.cellPixelSize.height
@@ -240,12 +191,8 @@ export class KobeDaemonClient implements DaemonRpcClient {
         reject: (err: Error) => void
         timer?: ReturnType<typeof setTimeout>
       } = { resolve: (value) => resolve(value as T), reject }
-      // Per-request deadline: without it a WEDGED daemon (socket open, no
-      // response frame) leaves this promise pending FOREVER — the caller's
-      // .catch never fires, connectionState stays a misleading "online", and
-      // the UI silently freezes on stale state. On expiry we reject with
-      // RpcTimeoutError and force-disconnect, routing the wedge into the same
-      // close→disconnected→reconnect recovery path a crashed daemon takes.
+      // Without a deadline a WEDGED daemon leaves this pending forever while
+      // connectionState reads "online"; expiry takes the crashed-daemon path.
       const timeoutMs = rpcTimeoutMs()
       if (timeoutMs > 0 && !BLOCKING_RPCS.has(name)) {
         entry.timer = setTimeout(() => this.onRequestTimeout(id, name, timeoutMs), timeoutMs)
@@ -256,18 +203,13 @@ export class KobeDaemonClient implements DaemonRpcClient {
     return promise
   }
 
-  /** A pending request blew its deadline: reject it, then tear down the
-   *  (wedged) socket so the client re-enters its ordinary reconnect flow. */
   private onRequestTimeout(id: string, name: DaemonRequestName, timeoutMs: number): void {
     const pending = this.pending.get(id)
     if (!pending) return
     this.pending.delete(id)
     pending.reject(new RpcTimeoutError(name, timeoutMs))
-    // forceDisconnect() nulls `this.socket` BEFORE destroy(), so the OS close
-    // event hits onSocketClose with the stale guard tripped and NO lifecycle
-    // "close" is emitted — connectionState would stay stuck on "online".
-    // Emit it explicitly here so a wedge converges on the same recovery
-    // semantics (disconnected → reconnect) as a normal socket drop.
+    // forceDisconnect() trips onSocketClose's stale guard, so no "close" is
+    // emitted; emit it here or connectionState stays "online".
     this.forceDisconnect()
     this.emitLifecycle("close")
   }
@@ -278,11 +220,8 @@ export class KobeDaemonClient implements DaemonRpcClient {
       this.socket = socket
       const onConnect = () => {
         socket.off("error", onError)
-        // Post-connect socket errors (EPIPE writing to a peer that's mid-
-        // exit, ECONNRESET) must NOT become unhandled 'error' events — an
-        // un-listened 'error' crashes the process. Destroying routes the
-        // failure through the 'close' handler below, which rejects every
-        // pending request; callers' own catch blocks take it from there.
+        // An un-listened 'error' (EPIPE, ECONNRESET) crashes the process;
+        // destroy routes it through 'close', which rejects pending requests.
         socket.on("error", () => socket.destroy())
         resolve()
       }
@@ -293,11 +232,9 @@ export class KobeDaemonClient implements DaemonRpcClient {
       }
       socket.once("connect", onConnect)
       socket.once("error", onError)
-      // A fresh decoder + line buffer per socket: `StringDecoder` holds a
-      // partial multibyte UTF-8 sequence (CJK, em-dash, emoji) across chunk
-      // boundaries instead of emitting U+FFFD for the split halves, and a
-      // dropped connection's leftover partial line must not bleed into the
-      // reconnected socket's first frame.
+      // Per socket: `StringDecoder` keeps a split multibyte char intact across
+      // chunks (no U+FFFD), and a dropped socket's partial line must not
+      // bleed into the next one's first frame.
       const decoder = new StringDecoder("utf8")
       this.buffer = ""
       socket.on("data", (chunk) => this.onData(decoder.write(chunk)))
@@ -306,9 +243,7 @@ export class KobeDaemonClient implements DaemonRpcClient {
   }
 
   private onSocketClose(which: Socket): void {
-    // Guard against stale close events for an old socket after we've
-    // already opened a new one (race between socket.destroy() and the
-    // OS delivering the close event for the prior socket).
+    // A prior socket's late close event must not tear down the current one.
     if (this.socket !== which) return
     this.socket = null
     this.failPending()
@@ -343,12 +278,8 @@ export class KobeDaemonClient implements DaemonRpcClient {
     try {
       frame = JSON.parse(line) as DaemonFrame
     } catch (err) {
-      // A single malformed frame must NOT kill the data handler — without
-      // this catch the throw propagated out of the socket 'data' callback
-      // and silently stopped ALL further event delivery (the socket stays
-      // OS-open, so no 'close' fires and the pane just goes deaf — a quiet
-      // sync-drift mode). Log it and skip the bad line; the buffer's
-      // remaining lines still drain.
+      // A throw out of the 'data' callback stops all further delivery with
+      // no 'close' (the pane goes deaf). Skip the line; the rest still drain.
       logClientError("client-frame", err)
       return
     }
@@ -362,9 +293,7 @@ export class KobeDaemonClient implements DaemonRpcClient {
     this.pending.delete(frame.id)
     if (pending.timer) clearTimeout(pending.timer)
     if (frame.error) {
-      // Preserve the daemon's error NAME (shapeDaemonError puts it on the
-      // wire) so callers can branch on e.g. IllegalTransitionError instead
-      // of string-matching the message.
+      // Keep the wire error NAME so callers can branch on e.g. IllegalTransitionError.
       const err = new Error(frame.error.message)
       if (frame.error.name) err.name = frame.error.name
       pending.reject(err)
@@ -372,13 +301,9 @@ export class KobeDaemonClient implements DaemonRpcClient {
   }
 
   private emit(frame: Extract<DaemonFrame, { type: "event" }>): void {
-    // Per-handler try/catch — same "one bad listener mustn't take the rest
-    // down" property `emitLifecycle` already has, and `onLine` already has
-    // for JSON.parse. Without it a single throwing subscriber (e.g. a React
-    // useSyncExternalStore listener down the setTasks→emit chain) skips the
-    // remaining handlers in this frame — including "*" — and the throw exits
-    // the socket 'data' callback as an uncaughtException, leaving the socket
-    // OS-open (no 'close', no reconnect) and the pane frozen on stale state.
+    // Per-handler try/catch: one throwing subscriber would skip the rest
+    // (including "*") and escape the 'data' callback, freezing the pane with
+    // the socket still open.
     for (const handler of this.handlers.get(frame.name) ?? []) {
       try {
         handler(frame)

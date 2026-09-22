@@ -1,46 +1,30 @@
 /**
- * Activity observer — the daemon-side ground-truth loop
- * behind the sidebar running dots. Hook events are the primary signal, but
- * they lie by omission: an ESC interrupt fires no hook, a daemon restart
- * wipes the in-memory registry while engines keep running, and a died
- * engine leaves its last claim standing. This loop closes those gaps from
- * facts the hosted-PTY world already has:
+ * Daemon-side ground truth behind the sidebar running dots. Hooks lie by
+ * omission (ESC fires no hook, a daemon restart wipes the registry, a dead
+ * engine leaves its last claim standing); this loop closes those gaps from:
  *
- *   - `pty.list` every poll: per-session OSC title + total output bytes.
- *     Output advancing (or the title changing) inside the silence window ⇒
- *     the session is WORKING; both frozen for the whole window ⇒ at rest.
- *     Engines repaint their status line (spinner frame / elapsed timer) at
- *     ≥1Hz while a turn runs, so the silence threshold is ~30× beyond any
- *     working repaint gap — a long "thinking" phase still animates its
- *     title, which is itself PTY output.
- *   - an engine-owned title hint (`titleTurnHint`): claude writes ⠂/⠐
- *     while working and a static ✳ at rest, codex only decorates while
- *     working — a resting title is an event-grade "not working" verdict.
- *     Engines without a declared vocabulary answer null and fall back to
- *     pure silence (never misread as rest).
- *   - a low-frequency foreground WALK (`ps` process-tree, the same
- *     primitive `kobe api inspect` uses): which engine actually runs in
- *     each session. Walk evidence gates every claim, and "no engine" is
- *     positive proof a `running` claim is stale.
+ *   - `pty.list` every poll: OSC title + total output bytes. Movement inside
+ *     the silence window ⇒ WORKING; both frozen for the window ⇒ rest.
+ *     Engines repaint at ≥1Hz mid-turn (a long "thinking" phase still
+ *     animates its title), so the threshold is ~30× any working gap.
+ *   - `titleTurnHint`: claude writes ⠂/⠐ working and a static ✳ at rest,
+ *     codex only decorates while working — a resting title is an event-grade
+ *     "not working". No declared vocabulary → null → pure silence (never rest).
+ *   - a low-frequency foreground WALK (`ps` tree, as `kobe api inspect`):
+ *     which engine runs in each session. Walk evidence gates every claim;
+ *     "no engine" proves a `running` claim stale.
  *
- * The walk's vendor→no-engine EDGE is also the only place an engine death
- * inside a still-living PTY is observable: the tab's shell wrapper reaps the
- * engine and `exec`s a fallback shell, so `pty.list` still reports the
- * session alive and the PTY-layer exit hook never fires. That edge is
- * persisted via `onEngineExit` (issue: seven engines died to a provider
- * usage limit and left zero records). Detection latency is one walk cadence
- * (~60s) — a sampler, not an event; the tail it captures is what makes it
- * useful, not the timestamp's precision.
+ * The walk's vendor→no-engine EDGE is the only place an engine death inside
+ * a still-living PTY is observable: the shell wrapper reaps the engine and
+ * `exec`s a fallback shell, so the session stays alive and the PTY exit hook
+ * never fires. It is persisted via `onEngineExit`, with one walk cadence
+ * (~60s) of latency — a sampler, not an event.
  *
- * Findings fold into the registry via `observeTab` (hook events outrank
- * observation; only a stale hook `running` is ever corrected — see there).
- * The loop runs on a SLOW lane when nothing is subscribed rather than
- * stopping: an agent fleet never attaches a TUI, and gating the walk on a
- * subscriber made the death edge invisible to precisely the caller that
- * cannot look at a screen.
- * The FIRST tick runs immediately and includes a walk, so a daemon restart
- * re-seeds busy sessions' dots within seconds instead of at the next
- * turn boundary.
+ * Findings fold in via `observeTab` (hooks outrank observation; only a stale
+ * hook `running` is corrected). With no subscriber the loop slows rather than
+ * stops: a headless agent fleet is exactly who needs the death edge. The
+ * first tick runs immediately with a walk, so a restart re-seeds busy dots
+ * within seconds.
  */
 
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
@@ -49,24 +33,18 @@ import { logDaemonInfo } from "./crash-log.ts"
 /** Poll cadence — bounds state-flip latency; `pty.list` is one local RPC. */
 export const DEFAULT_OBSERVER_POLL_MS = 10_000
 /**
- * How long output AND title must both stay frozen before a session reads
- * as resting. Working engines repaint at ≥1Hz (spinner/elapsed timer), so
- * 30s is far beyond any legitimate repaint gap, and ≥3 poll ticks means a
- * single missed/slow poll can't flap the dot.
+ * Output AND title frozen this long ⇒ resting. Far beyond the ≥1Hz working
+ * repaint, and ≥3 poll ticks so one missed poll can't flap the dot.
  */
 export const DEFAULT_SILENCE_MS = 30_000
 /** Walk cadence in ticks (~60s at the default poll — the foreground reconciler). */
 export const DEFAULT_WALK_EVERY_TICKS = 6
 /**
- * Tick cadence for the UNSUBSCRIBED lane (~60s at the default poll). The
- * subscriber gate is a cost control for a parked daemon, not a correctness
- * boundary: skipping the tick outright also skipped the engine-death edge,
- * which is the only place an engine dying inside a live PTY is observable —
- * so every headless caller (an agent fleet has no attached TUI, by
- * definition) got `.activity: null` and zero `layer:"engine"` records while
- * engines died in front of it. The slow lane restores the fact and keeps the
- * saving: one `pty.list` a minute, and a host owning no live sessions still
- * does no per-session work.
+ * Tick cadence for the UNSUBSCRIBED lane (~60s at the default poll). A cost
+ * control, not a correctness gate: skipping ticks outright would skip the
+ * engine-death edge, leaving headless callers with no `layer:"engine"`
+ * records. One `pty.list` a minute; a host with no live sessions does no
+ * per-session work.
  */
 export const DEFAULT_UNSUBSCRIBED_EVERY_TICKS = 6
 /**
@@ -96,10 +74,9 @@ export interface ActivityObserverIo {
   /** Engine-owned title verdict — see kobe's `engineTitleTurnHint`. */
   titleTurnHint(vendor: string, title: string): "working" | "rest" | null
   /**
-   * Live naming evidence for each ALIVE, WALKED session (tier-b
-   * protocol sniff): relayed as-is once per tick; the consumer owns
-   * eligibility and must never feed it back into activity claims (a sniff
-   * names an engine, it does not resurrect a dot). Optional.
+   * Naming evidence per ALIVE, WALKED session (tier-b protocol sniff), once
+   * per tick. The consumer owns eligibility and must never feed it back into
+   * activity claims: a sniff names an engine, it does not resurrect a dot.
    */
   onEngineEvidence?(
     taskId: string,
@@ -107,21 +84,16 @@ export interface ActivityObserverIo {
     evidence: { readonly walkVendor: string | null; readonly title: string },
   ): void | Promise<void>
   /**
-   * An engine vanished from a session whose PTY is STILL ALIVE — the blind
-   * spot the PTY-layer exit hook cannot see. Fired once per transition
-   * (vendor → no-engine), never on a repeat poll and never for a session
-   * that was never walked with an engine. Optional.
+   * An engine vanished from a session whose PTY is STILL ALIVE (the PTY exit
+   * hook's blind spot). Once per vendor→no-engine transition; never for a
+   * session never walked with an engine.
    */
   onEngineExit?(info: { taskId: string; tabId: string; vendor: string; pid: number | null }): void | Promise<void>
   /**
-   * A live session had NO engine on the FIRST walk this daemon ever ran —
-   * so there is no vendor→null edge to fire, and anything that died in there
-   * died while nobody was watching (this daemon was restarted, or was down
-   * entirely). Fired once per pre-existing session, only on the boot walk.
-   *
-   * The loop cannot tell that apart from a tab whose engine was never
-   * started; the consumer owns that judgement (it reads the session's ring).
-   * Optional.
+   * A live session had NO engine on this daemon's first walk, so no
+   * vendor→null edge exists: whatever died there died unwatched. Once per
+   * pre-existing session, boot walk only. The loop can't tell that from a
+   * never-started engine; the consumer judges (it reads the session's ring).
    */
   onEngineAbsentAtStart?(info: { taskId: string; tabId: string }): void | Promise<void>
 }
@@ -143,26 +115,21 @@ interface SessionTrack {
   firstSeenAt: number
   lastTotalBytes: number
   lastTitle: string
-  /** Last time output bytes advanced OR the title changed — null until the
-   *  first OBSERVED change. Merely existing is not evidence of work: an
-   *  idle engine at its prompt (custom vendor, no title vocabulary) must
-   *  read as unknown until something actually moves, not as running for
-   *  the first silence window. */
+  /** Last time bytes advanced OR the title changed; null until the first
+   *  OBSERVED change, so an idle engine with no title vocabulary reads
+   *  unknown rather than running for the first silence window. */
   lastActivityAt: number | null
   /** Last walk verdict: vendor id, null = no engine, undefined = never walked. */
   vendor: string | null | undefined
-  /** Pid of the ENGINE the last walk found — what a death record names as
-   *  the process that died. Distinct from the session pid, which outlives
-   *  it; null while no engine is running. */
+  /** ENGINE pid from the last walk (what a death record names), not the
+   *  longer-lived session pid; null while no engine runs. */
   enginePid: number | null
 }
 
 /**
- * Start the observer loop. First tick fires immediately (with a walk, which
- * is the restart seeding). `hasSubscribers` chooses the CADENCE, not whether
- * the loop runs: subscribed = every tick, unsubscribed = every
- * `unsubscribedEveryTicks`. A parked daemon whose host owns no live sessions
- * still does no per-session work either way. Returns stop().
+ * Start the loop; the first tick fires immediately with a walk. `hasSubscribers`
+ * picks the CADENCE (every tick vs every `unsubscribedEveryTicks`), not whether
+ * it runs. Returns stop().
  */
 export function startActivityObserver(
   activity: DaemonActivityRegistry,
@@ -181,12 +148,10 @@ export function startActivityObserver(
   let unsubscribedTicks = 0
   let inFlight: Promise<void> | undefined
   let stopped = false
-  /** Has a walk ever RESOLVED verdicts in this process. Gates the boot
-   *  reconciliation below to the first one — every session listed then
-   *  predates this daemon, which is exactly what makes "no engine, never
-   *  walked" mean "it died before we existed" rather than "it is starting".
-   *  Not `tickCount === 0`: an unreachable host on the first tick must not
-   *  burn the boot walk. */
+  /** Has a walk ever RESOLVED verdicts here. Only on that first one does every
+   *  listed session predate this daemon, so "no engine, never walked" means
+   *  "died before us", not "starting". Not `tickCount === 0`: an unreachable
+   *  host on the first tick must not burn the boot walk. */
   let bootWalkDone = false
 
   const applyRest = (track: Pick<SessionTrack, "taskId" | "tabId" | "vendor">, why: string): void => {
@@ -202,13 +167,9 @@ export function startActivityObserver(
   const tick = async (): Promise<void> => {
     const effects: Array<void | Promise<void>> = []
     try {
-      // Two lanes, not a gate. A subscriber (an attached TUI wanting its dots
-      // now) gets every tick; nobody subscribed drops to
-      // `unsubscribedEvery` — which still runs the walk, because the
-      // engine-death edge below is the ONLY report of an engine dying inside
-      // a live PTY and a headless fleet is exactly who needs it. The saving
-      // survives: `listSessions` on a host owning nothing returns `[]` and
-      // every loop below is empty.
+      // Two lanes, not a gate: the slow lane still walks every time, because
+      // the engine-death edge below is the only report of an engine dying in
+      // a live PTY. A host owning nothing lists `[]`, so the loops are empty.
       const subscribed = hasSubscribers()
       if (!subscribed && unsubscribedTicks++ % unsubscribedEvery !== 0) return
       const walkTick = !subscribed || tickCount % walkEvery === 0
@@ -216,20 +177,13 @@ export function startActivityObserver(
       const listed = await io.listSessions()
       if (stopped) return
       if (listed === null) {
-        // Host unreachable — maybe restarting, maybe gone. That is NOT
-        // positive evidence against hook claims, so only retire what this
-        // loop itself asserted: observed-running entries flip to idle
-        // (no `correctHookRunningAfterMs` → hook entries stand).
-        //
-        // The TRACKS survive the outage. They hold the only clock that can
-        // ever refute a title frame, and a failed RPC is a fact about the
-        // socket, not about the session. Dropping them restarted every
-        // silence clock at `firstSeenAt = now`, so a dead engine's last
-        // spinner glyph — frozen, never re-read as anything else — scored as
-        // fresh evidence again on the very next list and re-lit the dot,
-        // every outage, forever. A track is retired on EVIDENCE (`alive:
-        // false`, or missing from a list that actually answered), never on
-        // our own blindness.
+        // Host unreachable is NOT evidence against hook claims: retire only
+        // observed-running (no `correctHookRunningAfterMs` → hook entries stand).
+        // Tracks survive the outage — they hold the only clock that can refute
+        // a title frame; dropping them would restart silence at now and let a
+        // dead engine's frozen spinner glyph re-light the dot every outage.
+        // Tracks retire on EVIDENCE (`alive: false`, or missing from a list
+        // that answered), never on our own blindness.
         for (const track of tracks.values()) {
           activity.observeTab(track.taskId, track.tabId, "rest", {})
         }
@@ -238,9 +192,7 @@ export function startActivityObserver(
       const sessions = listed
       const seen = new Set<string>()
 
-      // Refresh tracks from the inventory (2-segment `taskId::tabId` keys
-      // only — split shell leaves are `::leaf-N` sub-keys and carry no tab
-      // state of their own).
+      // 2-segment `taskId::tabId` keys only; `::leaf-N` split leaves carry no tab state.
       const now = Date.now()
       const live: SessionTrack[] = []
       const newborn = new Set<string>()
@@ -249,9 +201,7 @@ export function startActivityObserver(
         if (parts.length !== 2 || !parts[0] || !parts[1]) continue
         seen.add(s.key)
         if (!s.alive) {
-          // An exited child is positive evidence — even one that was never
-          // tracked alive (dead before the daemon's first pass): a stale
-          // hook `running` for it must still be corrected.
+          // Exited is positive evidence even if never tracked alive: a stale hook `running` still gets corrected.
           const track = tracks.get(s.key)
           applyRest(track ?? { taskId: parts[0], tabId: parts[1], vendor: undefined }, "session exited")
           tracks.delete(s.key)
@@ -279,16 +229,14 @@ export function startActivityObserver(
         live.push(track)
       }
 
-      // Dead or vanished sessions: positive evidence the engine is gone —
-      // retire observed claims AND stale hook `running`s.
+      // Dead or vanished: retire observed claims AND stale hook `running`s.
       for (const [key, track] of tracks) {
         if (seen.has(key) && sessions.some((s) => s.key === key && s.alive)) continue
         applyRest(track, "session gone")
         tracks.delete(key)
       }
 
-      // Foreground walk: every `walkEvery` ticks, plus immediately for
-      // sessions first seen this tick (the seeding path).
+      // Walk every `walkEvery` ticks, plus immediately for new or never-walked sessions.
       const toWalk = live.filter((t) => walkTick || newborn.has(`${t.taskId}::${t.tabId}`) || t.vendor === undefined)
       if (toWalk.length > 0) {
         const pidByKey = new Map<string, number>()
@@ -307,12 +255,9 @@ export function startActivityObserver(
             const pid = pidByKey.get(`${track.taskId}::${track.tabId}`)
             if (pid === undefined || !verdicts.has(pid)) continue
             const found = verdicts.get(pid) ?? null
-            // The engine-death edge: this walk found no engine where the
-            // previous one found `track.vendor`, and the session is still
-            // alive (it is in `live`). That is the shape the PTY exit hook
-            // structurally cannot report — record it, once, on the edge.
-            // `enginePid` is the DEAD engine's pid, captured on the last
-            // walk that still saw it (it is unresolvable now, by definition).
+            // Engine-death edge: no engine where the last walk saw one, session
+            // still alive — invisible to the PTY exit hook. `enginePid` is the
+            // dead engine's pid from the last walk that still saw it.
             if (found === null && typeof track.vendor === "string") {
               effects.push(
                 io.onEngineExit?.({
@@ -323,32 +268,24 @@ export function startActivityObserver(
                 }),
               )
             } else if (found === null && track.vendor === undefined && bootWalk) {
-              // No engine, and this daemon has never walked this session:
-              // there is no edge to fire and never will be, because the
-              // observer starts every track at `vendor: undefined`. Whatever
-              // ran in here died unwatched — hand it to the consumer, which
-              // owns the "did an engine actually die" evidence.
+              // Never walked, no engine: tracks start at `vendor: undefined`, so
+              // no edge will ever fire. The consumer judges whether one died.
               effects.push(io.onEngineAbsentAtStart?.({ taskId: track.taskId, tabId: track.tabId }))
             }
             track.vendor = found?.vendor ?? null
             track.enginePid = found?.pid ?? null
           }
         } catch {
-          // ps failed — keep prior verdicts; sessions never walked stay
-          // unclaimed rather than guessed.
+          // ps failed: keep prior verdicts; never-walked sessions stay unclaimed.
         }
       }
 
       if (stopped) return
-      // Claims. Walk evidence gates everything: an unwalked session gets no
-      // claim at all (conservative — absence of knowledge is the client's
-      // "unknown", not idle). With a walked vendor, precedence is: a
-      // resting title (event-grade engine verdict) → rest; observed
-      // output/title movement inside the window → working; a WORKING title
-      // frame → working, but only until the silence window proves it frozen
-      // (the restart seeding path — a busy claude re-lights on the
-      // first pass off its ⠂/⠐ frame alone); full silence → rest; a quiet
-      // never-moved session with no title verdict → no claim (unknown).
+      // Claims. Unwalked → no claim (the client's "unknown", not idle). Walked
+      // precedence: resting title → rest; movement inside the window →
+      // working; WORKING title frame → working until silence proves it frozen
+      // (restart seeding: a busy claude re-lights off ⠂/⠐ alone); full
+      // silence → rest; quiet, never moved, no verdict → unknown.
       for (const track of live) {
         const key = `${track.taskId}::${track.tabId}`
         const session = sessions.find((s) => s.key === key)
@@ -357,13 +294,10 @@ export function startActivityObserver(
           io.onEngineEvidence?.(track.taskId, track.tabId, { walkVendor: track.vendor, title: session.title }),
         )
         if (track.vendor === null) {
-          // The engine is gone from this session's foreground. That is
-          // positive evidence against a live claim, so a stale hook `running`
-          // still gets corrected — but it is NOT the death badge: the shell
-          // outlives its engine, and a user who quit their agent on purpose
-          // has an ordinary idle tab. The `dead` state comes from the exit
-          // RECORD (pty-exit-watch.ts), which knows the exit code and the
-          // error text; arbitration rule 0 keeps it from being dimmed here.
+          // No foreground engine corrects a stale hook `running`, but is NOT the
+          // death badge (quitting an agent on purpose leaves an idle tab). `dead`
+          // comes from the exit RECORD (pty-exit-watch.ts, exit code + error
+          // text); arbitration rule 0 keeps it from being dimmed here.
           applyRest(track, "no engine in foreground")
           continue
         }

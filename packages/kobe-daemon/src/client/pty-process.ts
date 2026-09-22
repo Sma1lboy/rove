@@ -1,9 +1,8 @@
 /**
- * Client-side lifecycle for the standalone PTY HOST process
- * (`kobe pty-host`, see `daemon/pty-server.ts`) — the tmux-server analog
- * that keeps embedded-terminal children alive across TUI exits AND
- * `kobe daemon restart`. Mirrors `daemon-process.ts`'s spawn-and-poll
- * shape against the pty host's own socket.
+ * Client-side lifecycle for the PTY HOST (`kobe pty-host`,
+ * `daemon/pty-server.ts`), which keeps terminal children alive across TUI
+ * exits and `kobe daemon restart`. Same spawn-and-poll shape as
+ * `daemon-process.ts`.
  */
 
 import { spawn } from "node:child_process"
@@ -30,26 +29,20 @@ const PTY_HOST_NODE_DEV_CACHE = "../../.cache/pty-host-node.mjs"
 const PTY_HOST_NODE_ENTRY = "../daemon/pty-host-node-entry.ts"
 
 export interface NodePtyHostResolution {
-  /** Real platform by default; injected so the Windows path is testable on CI. */
   readonly platform?: NodeJS.Platform
   /** Directory this module resolves its siblings against. */
   readonly moduleDir?: string
   readonly exists?: (path: string) => boolean
   readonly env?: Readonly<Record<string, string | undefined>>
-  /** Lands a node bundle of `entry` at `outFile`. Injected to keep the unit
-   *  test off the bundler; landing it atomically is the impl's business. */
+  /** Lands a node bundle of `entry` at `outFile`; must land it atomically. */
   readonly bundle?: (entry: string, outFile: string) => Promise<{ success: boolean; logs: readonly unknown[] }>
 }
 
 /**
- * Locate `node` on PATH, returning its absolute path.
- *
- * The Windows PTY host is a node program, but kobe itself runs under Bun — and
- * `bun install -g @sma1lboy/rove` never brings node along. Without this the
- * spawn fails silently into the host's log and `ensurePtyHostReachable` only
- * reports a 5s timeout, which says nothing about the actual cause. Resolving
- * to an absolute path also stops the detached child from depending on however
- * PATH looks by the time it starts.
+ * Absolute path of `node` on PATH. The Windows PTY host needs node, which
+ * `bun install -g` never brings; unchecked, the spawn fails silently into the
+ * host log and surfaces only as a 5s timeout. Absolute also frees the detached
+ * child from PATH at start time.
  */
 export function resolveNodeBinary(
   env: Readonly<Record<string, string | undefined>> = process.env,
@@ -90,17 +83,14 @@ export async function bundleWithBun(entry: string, outFile: string, io?: BundleI
     rename: move,
     discard,
   } = io ?? {
-    // Lazy: `Bun` is not a global under the test runner, and this default is
-    // never evaluated when `io` is supplied.
+    // Lazy: `Bun` is not a global under the test runner.
     build: (config: Parameters<BundleIo["build"]>[0]) => Bun.build(config as Parameters<typeof Bun.build>[0]),
     rename,
     discard: (path: string) => rm(path, { force: true }),
   }
-  // Build to a pid-unique sibling, then rename into place. Two kobe instances
-  // can reach this together — both find no host, both rebuild the same
-  // absolute path — and node must never load a half-written module. rename is
-  // atomic on one volume, and node's Windows rename replaces the destination
-  // rather than failing on it.
+  // Two instances can rebuild the same path at once; node must never load a
+  // half-written module. rename is atomic on one volume, and on Windows node's
+  // rename replaces the destination rather than failing.
   const staging = `${outFile}.${process.pid}.tmp`
   const built = await build({
     entrypoints: [entry],
@@ -111,8 +101,7 @@ export async function bundleWithBun(entry: string, outFile: string, io?: BundleI
     external: ["node-pty"],
   })
   if (!built.success) {
-    // Leaving the partial behind would have the next run rename garbage into
-    // the path the host is spawned from.
+    // A leftover partial would get renamed into the spawn path next run.
     await discard(staging).catch(() => {})
     return built
   }
@@ -121,16 +110,13 @@ export async function bundleWithBun(entry: string, outFile: string, io?: BundleI
 }
 
 /**
- * Windows runs the PTY host under NODE, not Bun: Bun rejects its `terminal`
- * spawn option there, and a Bun-hosted node-pty session can be read but never
- * written to. Returns `[node, script]`, or null when this isn't Windows (every
- * other platform keeps the ordinary `kobe pty-host` Bun path).
+ * Windows runs the PTY host under node: Bun rejects its `terminal` spawn option
+ * there, and a Bun-hosted node-pty session can be read but never written.
+ * Returns `[node, script]`, or null off Windows.
  *
- * Two layouts, mirroring {@link resolveKobeSpawn}:
- *  - installed package: `dist/cli/pty-host-node.mjs`, emitted by scripts/build.ts
- *    next to the cli bundle.
- *  - dev from source: no dist, so bundle the entry on demand into the daemon
- *    package's `.cache/` (gitignored) and run that.
+ * Layouts, as in {@link resolveKobeSpawn}:
+ *  - installed: `dist/cli/pty-host-node.mjs`, emitted by scripts/build.ts.
+ *  - dev: bundle the entry on demand into the daemon package's `.cache/`.
  */
 export async function resolveNodePtyHostSpawn(deps: NodePtyHostResolution = {}): Promise<string[] | null> {
   const platform = deps.platform ?? process.platform
@@ -163,18 +149,14 @@ export async function resolveNodePtyHostSpawn(deps: NodePtyHostResolution = {}):
 }
 
 /**
- * How long a pty host whose PROCESS is alive gets to answer `hello` before it
- * counts as wedged. The twin of `daemon-process.ts`'s `BUSY_DAEMON_GRACE_MS`,
- * and for the same reason: one 3s probe decides "is this host quick", and
- * only a sustained silence may license a kill. The pty host had no such
- * window, so a host merely busy for three seconds was reaped — along with
- * every engine it hosted.
+ * Grace for a live host to answer `hello` before it counts as wedged (twin of
+ * `BUSY_DAEMON_GRACE_MS`): one 3s probe must not license a kill that takes
+ * every hosted engine with it.
  */
 const BUSY_PTY_HOST_GRACE_MS = 15_000
 
-/** Live child processes of `pid` — the pty host's sessions, each a shell
- *  leader. One `ps`; unreadable output counts as zero, which only ever
- *  makes the reap below MORE permissive, never less. */
+/** Live children of `pid` (each a session's shell leader). Unreadable `ps`
+ *  counts as zero, which only makes the reap below more permissive. */
 async function liveChildCount(pid: number): Promise<number> {
   try {
     const proc = spawn("/bin/ps", ["-A", "-o", "ppid="], { stdio: ["ignore", "pipe", "ignore"] })
@@ -193,20 +175,11 @@ async function liveChildCount(pid: number): Promise<number> {
 }
 
 /**
- * If the pty host socket already answers `hello`, do nothing. Otherwise
- * clear any wedged process and spawn a detached `kobe pty-host`, polling
- * until reachable. Returns the socket path. The terminal pane is the
- * product — it may resurrect an idle-exited host.
- *
- * "Idle-exited" is the whole licence. A host that EXITED owns nothing, so
- * clearing its stale socket and pidfile is free. A host that is ALIVE and
- * merely slow is a different thing entirely: killing it kills every hosted
- * engine with it, and `send` used to do exactly that off ONE 3s probe and
- * then report a bare `ok: true` — a caller asked to deliver one prompt got
- * its whole fleet reaped and was told nothing. So a live host gets the grace
- * window first, and a live host still holding sessions after it is refused
- * out loud rather than reaped silently: N engines with running work must not
- * be spent to deliver one message.
+ * Return the socket path once the pty host answers `hello`, spawning a
+ * detached `kobe pty-host` if needed. Only an EXITED host may be replaced
+ * freely; killing a live one kills every hosted engine. A live host gets the
+ * grace window, and one still holding sessions after it is refused loudly,
+ * never reaped: N running engines must not be spent to deliver one message.
  */
 export async function ensurePtyHostReachable(): Promise<string> {
   const socketPath = defaultPtyHostSocketPath()
@@ -218,8 +191,7 @@ export async function ensurePtyHostReachable(): Promise<string> {
     while (Date.now() < deadline) {
       await new Promise((resolveTimer) => setTimeout(resolveTimer, 250))
       if (await testDaemonResponds(socketPath)) return socketPath
-      // It died on its own while we waited: the pid is gone, so the
-      // stop+spawn below is now the free idle-exit path.
+      // Died while we waited: the stop+spawn below is now free.
       if (!isProcessAlive(hostPid)) break
     }
     if (isProcessAlive(hostPid)) {

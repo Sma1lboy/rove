@@ -1,15 +1,8 @@
 /**
- * Turn-telemetry ingest: the bridge from an engine hook report to
- * the durable {@link AgentTurnsStore}.
- *
- * Fired on `turn-complete`, the one event that means "a turn just finished and
- * its records are on disk". Everything here is best-effort and fire-and-forget
- * — the hook RPC must not wait on a transcript read, and a telemetry failure
- * must never surface to the engine.
- *
- * The vendor read is delegated to the runtime adapter (`readEngineTurns`), so
- * the daemon stays vendor-blind: it supplies a path and an engine id, and the
- * engine's own adapter decides what a turn is.
+ * Hook report → {@link AgentTurnsStore}, on `turn-complete` (records are on
+ * disk). Fire-and-forget: the hook RPC must not wait on a transcript read, and
+ * telemetry failures never reach the engine. `readEngineTurns` keeps the
+ * daemon vendor-blind.
  */
 
 import type { AgentTurnsStore } from "./agent-turns-store.ts"
@@ -29,12 +22,7 @@ export interface TurnIngestInput {
 /** The turn that just finished — the newest record of an ingest pass. */
 export type LatestTurn = Pick<AgentTurnRecord, "id" | "model" | "usage" | "startedAt" | "endedAt"> | undefined
 
-/**
- * Read the finished turns out of `transcriptPath` and merge them into the
- * store, joined to the task's identity. Resolves to the number of NEW turns
- * (0 when the transcript held nothing unseen, which is the common case since
- * every read starts from the top of the file).
- */
+/** `recorded` is NEW turns only — usually 0, since every read starts at the top of the file. */
 export async function ingestAgentTurns(
   store: AgentTurnsStore,
   runtime: DaemonRuntimeAdapter,
@@ -63,10 +51,8 @@ export async function ingestAgentTurns(
 }
 
 /**
- * Fire-and-forget wrapper for the hook path: never throws, never awaited.
- * `onDone` (when given) ALWAYS runs exactly once — with the just-finished
- * turn when the transcript yielded one, without it otherwise — so the caller
- * can defer its turn.complete plugin event onto the enriched data.
+ * Never throws, never awaited. `onDone` ALWAYS runs once (with the latest turn
+ * if any) so the caller can defer its turn.complete plugin event onto it.
  */
 export function ingestAgentTurnsBestEffort(
   store: AgentTurnsStore | undefined,

@@ -1,22 +1,13 @@
 /**
- * Daemon event bus.
+ * Typed pub/sub for channel events ({@link ../daemon/protocol.ts ChannelPayloads}).
  *
- * One typed pub/sub hub the daemon uses to fan channel events out to
- * subscribed clients. It replaces the inline single-purpose `task.snapshot`
- * broadcast so adding a new push channel is a registry edit + a
- * `publish(channel, payload)` — see {@link ../daemon/protocol.ts ChannelPayloads}.
+ *   - **fan-out**: `publish` notifies every sink (the server wires ONE that
+ *     writes frames to subscribed sockets).
+ *   - **last-value-per-channel**: a LATE subscriber gets each channel's current
+ *     value via `snapshot()`. An event-log channel would replay only its last
+ *     item (call that out at definition time).
  *
- * Two jobs:
- *   - **fan-out**: `publish` notifies every registered sink (the server
- *     wires ONE sink that writes the event frame to subscribed sockets).
- *   - **last-value-per-channel**: the most recent payload of each channel
- *     is cached so a client that connects/subscribes LATE gets the current
- *     value immediately (`snapshot()`), the same way `hello` returns the
- *     task list on connect. Suits state channels; a true event-log channel
- *     would only replay its last item (call that out at definition time).
- *
- * Synchronous + dependency-free. A `daemon.stopping` lifecycle signal is
- * intentionally NOT a channel and never flows through here.
+ * Synchronous. `daemon.stopping` is NOT a channel and never flows through here.
  */
 
 import type { ChannelName, ChannelPayloads } from "./protocol.ts"

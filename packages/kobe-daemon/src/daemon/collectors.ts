@@ -1,9 +1,6 @@
 /**
- * Background collectors/watchers the daemon runs while GUIs are attached —
- * the update poll, auto-title, ui-prefs/keybindings watchers, and the
- * worktree-changes / transcript-activity / pr-status collectors. Wired here
- * in one place so server.ts only decides WHEN they run (subscriber gating,
- * shutdown order); each collector's mechanics live in its own module.
+ * Wires the daemon's background collectors/watchers so server.ts only decides
+ * WHEN they run; each collector's mechanics live in its own module.
  */
 
 import type { DaemonRpcClient } from "../client/rpc.ts"
@@ -34,7 +31,7 @@ import {
 import { DEFAULT_UI_PREFS_DEBOUNCE_MS, defaultUiPrefsStatePath, startUiPrefsWatcher } from "./ui-prefs-watcher.ts"
 import { DEFAULT_WORKTREE_CHANGES_TICK_MS, startWorktreeChangesCollector } from "./worktree-changes-collector.ts"
 
-/** How often the daemon re-checks npm for a newer kobe (6h — `latest` rarely moves). */
+/** npm re-check cadence; `latest` rarely moves. */
 const DEFAULT_UPDATE_POLL_MS = 6 * 60 * 60 * 1000
 
 /** The interval/debounce knobs of `DaemonServerOptions` the collectors read. */
@@ -64,17 +61,13 @@ export interface AutomationCollectorDeps {
 }
 
 /**
- * Tier-(b) protocol sniff: the observer's evidence hook that
- * upgrades a GENERIC task record from its live session. Only `tab-1` — the
- * deterministic engine tab launched from the task's own command (kobe's
- * `hosted-session.ts`) — may speak for the record: an engine a user starts
- * by hand in another tab says nothing about what the task's command is, and
- * secondary engine tabs may legitimately run another vendor. Naming +
+ * Tier-(b) protocol sniff: upgrades a GENERIC task record from its live
+ * session. Only `tab-1`, launched from the task's own command, may speak for
+ * the record; other tabs may run a hand-started or different vendor. Naming +
  * eligibility are engine-owned (`runtime.resolveProtocolUpgrade`, absent →
- * never upgrades); the observer drains the returned write before shutdown,
- * and activity claims are untouched — a sniff names an
- * engine, it does not resurrect a dot. Idempotent by construction: an
- * upgraded record stops being generic, so the next tick resolves null.
+ * never upgrades). The observer drains the returned write before shutdown.
+ * Activity claims are untouched: a sniff names an engine, it doesn't resurrect
+ * a dot. Idempotent: an upgraded record is no longer generic.
  */
 export function createProtocolUpgradeReporter(
   orch: Pick<DaemonOrchestrator, "getTask" | "setCommand">,
@@ -103,44 +96,27 @@ export function createProtocolUpgradeReporter(
 }
 
 /**
- * Start every daemon-owned background collector. Returns a single `stop()`
- * that tears them down in the same order server.ts's `close()` historically
- * used. `hasSubscribersFor` gates the per-tick work of the pollers that would
- * otherwise burn CPU / network for nobody: each collector is wired to the
- * channel it PUBLISHES, so a client that filtered its subscribe down to
- * `["ui-prefs", "keybindings"]` never starts the git/gh pollers whose frames
- * it would drop at the socket anyway. An unfiltered subscriber (every real
- * gui) opens all of them, as before.
+ * Start every daemon-owned collector; returns one `stop()`. Each is gated on
+ * the channel it PUBLISHES, so a client subscribed only to
+ * `["ui-prefs", "keybindings"]` never starts the git/gh pollers. An
+ * unfiltered subscriber (every real GUI) opens all of them.
  *
- * What each one is for:
- *   - update poll (KOB): poll npm once on start + on an interval and publish
- *     to the `update` channel, so every `kobe tasks` pane subscribes instead
- *     of hitting the registry itself. A failure is logged, not fatal; the bus
- *     caches the last value for late subscribers like any other channel.
- *   - auto-title (KOB): rename still-placeholder tasks from their engine
- *     transcript on an interval, so a name appears WHILE attached — the
- *     detach-time path in tui/direct.ts only fires on return. The rename
- *     broadcasts via the `task.snapshot` channel.
- *   - ui-prefs watcher (KOB — cross-session theme propagation): watch
- *     `state.json` for the theme / transparent / focus-accent keys and publish
- *     them on the `ui-prefs` channel, so every pane in EVERY task session
- *     re-applies a Settings appearance change live. The state path follows
- *     the same homeDir the server was started with, so sandbox/test homes
- *     isolate.
- *   - keybindings watcher (KOB — cross-session keybinding propagation):
- *     watch `~/.rove/settings/keybindings.yaml` and ping the `keybindings`
- *     channel on change, so every pane re-reads + re-applies the file live.
- *   - worktree-changes collector: the daemon runs the guarded
- *     `git status` polls for every local worktree and publishes
- *     the counts map on the `worktree.changes` channel, so panes render
- *     pushes instead of each spawning their own per-row git polls.
- *   - transcript-activity collector (perf): the daemon runs the guarded
- *     filesystem probes (newest transcript mtime + the engine-owned
- *     completion marker) and publishes on the `transcript.activity` channel;
- *     the per-window quiescence check stays in-process (the daemon never
- *     touches front-end state).
- *   - pr-status poller: shells `gh pr view` per task with a real branch and
- *     writes the result onto Task.prStatus, which rides the task push.
+ *   - update poll: npm on start + interval → `update`, so panes don't hit the
+ *     registry themselves. Failures logged, not fatal.
+ *   - auto-title: renames placeholder tasks from the transcript WHILE attached
+ *     (tui/direct.ts only renames on detach); broadcasts via `task.snapshot`.
+ *   - ui-prefs watcher: theme / transparent / focus-accent keys in `state.json`
+ *     → `ui-prefs`, applied live in every task session. Path follows the
+ *     server's homeDir, so sandbox/test homes isolate.
+ *   - keybindings watcher: `~/.rove/settings/keybindings.yaml` → ping
+ *     `keybindings`; panes re-read the file.
+ *   - worktree-changes: guarded `git status` per local worktree →
+ *     `worktree.changes`, instead of per-row polls in each pane.
+ *   - transcript-activity: guarded fs probes (newest transcript mtime +
+ *     engine-owned completion marker) → `transcript.activity`; quiescence
+ *     stays in-process (the daemon never touches front-end state).
+ *   - pr-status: `gh pr list --head` per task with a real branch → Task.prStatus,
+ *     which rides the task push.
  */
 export function startDaemonCollectors(
   orch: DaemonOrchestrator,
@@ -150,15 +126,11 @@ export function startDaemonCollectors(
   options: DaemonCollectorOptions,
   quotaUsage?: QuotaUsageCache,
   automations?: AutomationCollectorDeps,
-  /** The activity registry — enables the activity observer (PTY output
-   *  heartbeat + foreground-walk reconciler + restart seeding).
-   *  Optional so handler-level tests that build collectors without one keep
-   *  working; the real server always passes it. */
+  /** Enables the activity observer (PTY heartbeat, foreground-walk
+   *  reconciler, restart seeding). Always passed by the real server. */
   activity?: DaemonActivityRegistry,
 ): () => Promise<void> {
-  // Activity observer: first tick immediately (restart seeding), then the
-  // slow poll; gated per-tick on subscribers like every collector here. Its
-  // per-session evidence also feeds the tier-(b) protocol sniff.
+  // First tick immediately (restart seeding), then the slow poll.
   const stopActivityObserver = activity
     ? startActivityObserver(
         activity,
@@ -207,9 +179,8 @@ export function startDaemonCollectors(
     bus,
     options.worktreeChangesTickMs ?? DEFAULT_WORKTREE_CHANGES_TICK_MS,
     () => hasSubscribersFor("worktree.changes"),
-    // Worktrees with a working engine keep the fast cadence — the change
-    // probe behind the collector's quiet backoff is blind to nested writes,
-    // which is exactly what a working engine produces.
+    // Working engines keep the fast cadence: the quiet-backoff change probe
+    // is blind to nested writes, which is what they produce.
     activity ? () => activity.workingTaskIds() : undefined,
   )
 
@@ -221,10 +192,8 @@ export function startDaemonCollectors(
     () => hasSubscribersFor("transcript.activity"),
   )
 
-  // Context-window occupancy per live engine session (the footer's `ctx N%`).
-  // Gated on subscribers like the other display collectors: with no pane
-  // attached there is no footer to draw it in. Needs the activity registry —
-  // it is what knows which tabs have a live session.
+  // Footer `ctx N%` per live session; the activity registry knows which tabs
+  // have one.
   const stopContextUsageCollector = activity
     ? startContextUsageCollector(
         activity,
@@ -236,10 +205,8 @@ export function startDaemonCollectors(
       )
     : () => {}
 
-  // PR status is the only CI truth Rove holds, and an unattended agent is the
-  // consumer that needs it most — so this collector's gate also opens on a
-  // live engine, not just an attached pane (see startPrStatusPoller). With
-  // neither, it still polls nobody.
+  // Gate also opens on a live engine: unattended agents need CI truth (see
+  // startPrStatusPoller).
   const stopPrStatusPoller = startPrStatusPoller(
     orch,
     runtime,
@@ -250,8 +217,7 @@ export function startDaemonCollectors(
     activity ? () => activity.workingTaskIds().length > 0 : undefined,
   )
 
-  // Quota-resume runner: deliberately NOT gated on `hasSubscribers` — its
-  // whole job is resuming rate-limited engines while nobody is attached.
+  // Ungated: its job is resuming rate-limited engines while nobody is attached.
   const stopQuotaResumeRunner = startQuotaResumeRunner(
     orch,
     runtime,
@@ -260,8 +226,7 @@ export function startDaemonCollectors(
     automations?.plugins,
   )
 
-  // Automation sweep: same reasoning as quota-resume, only more so — a
-  // schedule that requires an audience is not a schedule. Also ungated.
+  // Ungated: a schedule that requires an audience is not a schedule.
   const stopAutomationRunner = automations
     ? startAutomationRunner(
         {
@@ -276,12 +241,9 @@ export function startDaemonCollectors(
       )
     : () => {}
 
-  // Usage poller (Settings dashboard + workspace footer): gated on
-  // subscribers — the resume scheduler does its own on-demand cache reads.
-  // Every vendor WITH A PROBE is polled, not just the ones some task
-  // happens to use: a balance belongs to the account, so a logged-in engine
-  // with no open task still has a number worth showing. Cadence (slow poll,
-  // backoff, per-vendor floor) lives entirely in the cache.
+  // Gated; the resume scheduler reads the cache on demand. Polls every vendor
+  // with a probe, not just ones in use: a balance belongs to the account.
+  // Cadence lives entirely in the cache.
   const stopQuotaUsagePoller = quotaUsage
     ? startQuotaUsagePoller(
         quotaUsage,

@@ -1,12 +1,7 @@
 /**
- * PtyChildController — owns one hosted session's child process lifecycle.
- *
- * The seam is ONE session versus ALL of them. This module starts a PTY child,
- * feeds its output bytes into that session's ring buffer + narrow OSC scans,
- * observes its exit and tears it down — and deliberately knows nothing of the
- * host's session map, client sinks, or freeze policy, which are all questions
- * about the set. Keeping the per-child work free of that means a bug here can
- * only damage one session.
+ * Owns ONE hosted session's child lifecycle: spawn, output into its ring
+ * buffer + OSC scans, exit, teardown. It knows nothing of the host's session
+ * map, sinks, or freeze policy, so a bug here can only damage one session.
  */
 
 import { randomUUID } from "node:crypto"
@@ -26,11 +21,9 @@ export interface PtyChildControllerDeps {
   readonly scrollbackCap: number
   /** A session's child spawned — cancels a pending daemon idle-stop grace. */
   readonly onSessionStart?: (spare: boolean) => void
-  /** Raw output has been folded into the ring; the host should forward it to
-   *  attached sinks (if any) and trigger any persistence it tracks. */
+  /** Output already folded into the ring; host forwards to sinks + persistence. */
   readonly onOutput?: (session: PtySessionState, data: Buffer) => void
-  /** The child exited; the host should emit `pty.exit`, notify hooks, and
-   *  finalize persistence. */
+  /** Host emits `pty.exit`, notifies hooks, finalizes persistence. */
   readonly onExit?: (session: PtySessionState, exit: PtySessionExit) => void
   readonly log?: (event: string, message: string) => void
 }
@@ -39,11 +32,7 @@ export interface PtyChildControllerDeps {
 export class PtyChildController {
   constructor(private readonly deps: PtyChildControllerDeps) {}
 
-  /**
-   * Spawn a new session and start its child. Mirrors `PtyHost.spawn`;
-   * `spare=true` skips the `onSessionStart` callback so a warm shell does not
-   * pin the host open until it is adopted.
-   */
+  /** `spare=true` skips `onSessionStart` so a warm shell doesn't pin the host open until adopted. */
   spawn(key: string, spec: PtySpawnSpec, spare = false): PtySessionState {
     const argv = spec.command && spec.command.length > 0 ? [...spec.command] : [spec.shell ?? resolveLoginShell()]
     const session = freshSessionState(key, spec, argv)
@@ -56,11 +45,9 @@ export class PtyChildController {
   }
 
   /**
-   * Start `session`'s child process against its current command/cwd/size —
-   * the shared tail of a fresh spawn and a restored session's respawn. On
-   * failure the session flips to dead. Does NOT fire `onSessionStart`; callers
-   * that want the lifecycle callback must do so themselves (respawn needs its
-   * own log line, and warm-spare adoption skips the callback entirely).
+   * Start the child against the session's current command/cwd/size (spawn and
+   * respawn share this); on failure the session is dead. Does NOT fire
+   * `onSessionStart`: callers own that.
    */
   startChild(session: PtySessionState): void {
     session.generation = randomUUID()
@@ -140,9 +127,8 @@ export class PtyChildController {
     session.chunks.push(buf)
     session.bytes += buf.byteLength
     session.totalBytes += buf.byteLength
-    // ponytail: O(chunks) front-trim like the web sidecar; a chunk may
-    // overshoot the cap slightly — replay correctness only needs "recent
-    // tail", the client's xterm re-derives the screen from whatever it gets.
+    // ponytail: O(chunks) front-trim; may overshoot the cap by a chunk. Replay
+    // only needs the recent tail; xterm re-derives the screen from it.
     while (session.bytes > this.deps.scrollbackCap && session.chunks.length > 1) {
       const dropped = session.chunks.shift()
       if (dropped) session.bytes -= dropped.byteLength

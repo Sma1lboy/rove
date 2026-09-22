@@ -1,34 +1,21 @@
 /**
- * How a background child escapes its parent on Windows.
+ * How the daemon / PTY host outlive their spawner on Windows. POSIX needs only
+ * `detached: true`; under Bun on Windows two things kill the child regardless
+ * of spawn options:
  *
- * `spawnDetachedDaemon` (daemon-process.ts) spawns the daemon and the PTY
- * host as children that must OUTLIVE the process that started them — the
- * TUI, a `rove daemon restart`, an agent's `rove api` call. On POSIX
- * `detached: true` (setsid) is the whole answer. On Windows, under Bun,
- * two things kill such a child that no spawn option can prevent:
+ *  1. **Bun puts every child in a KILL_ON_JOB_CLOSE job object**, terminated
+ *     when the spawner exits (`unref()`, `detached`, `windowsHide` don't help).
+ *     The job allows breakaway, so `CREATE_BREAKAWAY_FROM_JOB` spares it.
+ *  2. **`windowsHide` is dropped when stdio carries file handles**, so the
+ *     child joins the PARENT'S console, and closing it / Ctrl+C in the TUI
+ *     terminal kills the PTY host and every engine tab with it.
  *
- *  1. **Bun puts every child in a job object with KILL_ON_JOB_CLOSE.** The
- *     moment the spawning Bun process exits, the job closes and every
- *     process in it is terminated — `unref()`, `detached: true`, and
- *     `windowsHide` change nothing. The job does allow breakaway
- *     (`BREAKAWAY_OK | SILENT_BREAKAWAY_OK`), so a process created with
- *     `CREATE_BREAKAWAY_FROM_JOB` is spared.
- *  2. **`windowsHide` is dropped when stdio carries file handles.** With
- *     `stdio: ["ignore", logFd, logFd]` the child lands on the PARENT'S
- *     console instead of a hidden one of its own, and a console close /
- *     Ctrl+C on the terminal running the TUI ends every process attached
- *     to it — the PTY host included, which is how "quit Rove and every
- *     engine tab died with it" happened on Windows while macOS kept them.
- *
- * Neither flag is reachable through `child_process`, so the child is
- * created by a small PowerShell launcher that calls `CreateProcess`
- * directly: `CREATE_BREAKAWAY_FROM_JOB | CREATE_NEW_CONSOLE` with the
- * window hidden, and stdout/stderr pointed at the log file with an
- * inheritable append handle — the same "append fd" contract the log
- * rotation in daemon-cmd.ts / pty-host-cmd.ts relies on. The launcher's own
- * parameters travel in environment variables (never on a command line, so
- * there is nothing to quote twice) and are removed before the child is
- * created, so the daemon does not inherit them.
+ * Neither flag is reachable through `child_process`, so a PowerShell launcher
+ * calls `CreateProcess` directly: `CREATE_BREAKAWAY_FROM_JOB |
+ * CREATE_NEW_CONSOLE`, window hidden, stdout/stderr on an inheritable append
+ * handle to the log (the "append fd" contract daemon-cmd.ts / pty-host-cmd.ts
+ * log rotation relies on). Launcher parameters travel in env vars (nothing to
+ * quote twice) and are removed before the child is created.
  */
 
 import { type ChildProcess, spawn } from "node:child_process"
@@ -39,11 +26,8 @@ import { join } from "node:path"
 export const LAUNCH_CMD_ENV = "ROVE_LAUNCH_CMD"
 export const LAUNCH_LOG_ENV = "ROVE_LAUNCH_LOG"
 
-/**
- * The launcher. Plain Windows PowerShell 5.1 (always present) plus one
- * `Add-Type` for the three kernel32 calls. Exit code 1 with the error on
- * stderr when the child could not be created, so the caller can fall back.
- */
+/** Windows PowerShell 5.1 (always present). Exits 1, error on stderr, when the
+ *  child could not be created, so the caller can fall back. */
 export const WIN_DETACHED_LAUNCHER_PS = `
 $ErrorActionPreference = 'Stop'
 $cmd = $env:${LAUNCH_CMD_ENV}
@@ -82,11 +66,9 @@ public static class RoveDetachedLaunch {
 `
 
 /**
- * One argv rendered as the command line `CreateProcess` hands the child —
- * the quoting MSVCRT's argv parser undoes: an argument with a space, tab or
- * quote is wrapped in quotes, a quote inside is escaped, and backslashes
- * are doubled ONLY where they precede a quote (a trailing run before the
- * closing quote included). A plain path with backslashes passes verbatim.
+ * argv → `CreateProcess` command line, quoted for MSVCRT's parser: backslashes
+ * are doubled ONLY before a quote (including the closing one), so a plain
+ * backslash path passes verbatim.
  */
 export function windowsCommandLine(argv: readonly string[]): string {
   return argv.map(quoteWindowsArg).join(" ")
@@ -124,7 +106,6 @@ export function encodePowershellCommand(script: string): string {
   return Buffer.from(script, "utf16le").toString("base64")
 }
 
-/** The launcher's argv, for callers and tests that inspect the spawn. */
 export function windowsDetachedLauncherArgs(): string[] {
   return [
     "-NoProfile",
@@ -137,14 +118,10 @@ export function windowsDetachedLauncherArgs(): string[] {
 }
 
 /**
- * Spawn `command args` on Windows so that it outlives this process and its
- * console, with stdout/stderr appended to `logPath`. Returns the LAUNCHER
- * child: it exits 0 once the real child exists, non-zero when it could not
- * be created — the caller decides what to do then.
- *
- * The launcher itself gets `windowsHide` + `stdio: "ignore"`, the one
- * combination Bun honours; the real child never sees the launcher's
- * console anyway (it gets its own), and never sees `LAUNCH_*` (stripped).
+ * Spawn so the child outlives this process and its console, output appended
+ * to `logPath`. Returns the LAUNCHER, which exits 0 once the real child exists,
+ * non-zero otherwise. The launcher gets `windowsHide` + `stdio: "ignore"`, the
+ * one combination Bun honours.
  */
 export function spawnWindowsDetached(
   command: string,

@@ -1,23 +1,14 @@
 /**
- * The `graphics.write` RPC — hand opaque graphics bytes to every attached GUI
- * to write to its own tty.
+ * `graphics.write`: hand opaque graphics bytes to every attached GUI to write
+ * to its own tty. Like `tab.open`, the daemon validates and publishes; an
+ * attached TUI does the work. It adds what a pane can't supply itself:
  *
- * Its own file rather than a tenth entry in `handlers-ui.ts` because it is its
- * own wire namespace, which is how that family is split (see its header).
+ *   - the IMAGE ID, whose number space is the terminal's, so panes picking
+ *     their own would overwrite each other ({@link GraphicsImageIds});
+ *   - the CELL PIXEL SIZE of the real surface; a pane's own tty is its PTY
+ *     slave, which knows nothing about it.
  *
- * Shaped exactly like `tab.open`: the daemon validates and publishes, and an
- * attached TUI performs the real work. What it adds is the one fact a pane
- * cannot supply for itself, because neither belongs to it:
- *
- *   - the IMAGE ID, whose number space belongs to the terminal, so two panes
- *     picking their own would overwrite each other ({@link GraphicsImageIds});
- *   - the CELL PIXEL SIZE, which is a measurement of the surface the pane's
- *     cells land on — a pane's own tty is its PTY slave, which knows nothing
- *     about it.
- *
- * Product-neutral, and it stays that way: nothing here parses, validates or
- * names the payload's content. An image viewer, a chart pane and a browser all
- * ride this one verb.
+ * Product-neutral: nothing here parses or names the payload's content.
  */
 
 import type { CellPixelSize } from "./channels-events.ts"
@@ -36,12 +27,8 @@ const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/
 
 /**
  * The one cell size every attached GUI agrees on, or why there isn't one.
- *
- * Disagreement is a real state, not an edge case: a task can be attached by
- * more than one GUI, in terminals at different font sizes. There is no honest
- * single answer then, and inventing one (the first, the smallest, an average)
- * would place every picture wrong in at least one of them — so the caller is
- * told, and falls back to whatever it does without graphics.
+ * GUIs at different font sizes have no honest single answer; inventing one
+ * would misplace pictures in some, so the caller is told and falls back.
  */
 export function agreedCellSize(
   sizes: readonly CellPixelSize[],
@@ -60,19 +47,15 @@ export const GRAPHICS_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const tabId = requireString(payload, "tabId")
-      // `data` is OPTIONAL, and that is the primary entry point rather than a
-      // convenience: a virtual placement carries its image id INSIDE the
-      // payload, so a caller has to be given an id before it can build one.
-      // A call with no data allocates and reports the geometry, publishing
-      // nothing; every frame after that names the id it was given.
+      // `data` is OPTIONAL by design: a virtual placement carries its image id
+      // INSIDE the payload, so a no-data call allocates an id and reports the
+      // geometry, publishing nothing.
       const data = optionalString(payload, "data")
       if (!ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
       const ids = ctx.graphics
       if (!ids) throw new Error("graphics unavailable")
-      // Shape-only validation. The bytes are never decoded here — the point of
-      // the verb is that Rove does not know what they are — but a payload that
-      // is not base64 at all could only ever arrive mangled at the terminal,
-      // and failing on the way in beats a picture that silently never draws.
+      // Shape-only check, never decoded: non-base64 would only arrive mangled
+      // at the terminal and silently never draw.
       if (data !== undefined) {
         if (!BASE64.test(data)) throw new Error("data must be base64")
         const bytes = Math.floor((data.length * 3) / 4)
@@ -83,16 +66,13 @@ export const GRAPHICS_HANDLERS: readonly DaemonRequestHandler[] = [
 
       const agreed = agreedCellSize(ctx.daemon.guiCellSizes?.() ?? [])
       if ("unsupported" in agreed) {
-        // Nothing is allocated and nothing is published: a caller that cannot
-        // be told the cell size cannot compute the cells to cover, so sending
-        // the payload anyway would burn an id on a picture with no placement.
+        // Allocate and publish nothing: without a cell size the caller can't
+        // compute a placement.
         return { ok: false, unsupported: agreed.unsupported, clients: ctx.daemon.clientCount() }
       }
 
-      // An id the caller already holds is REUSED, which is how a repainting
-      // pane replaces its picture in place instead of leaking a fresh id per
-      // frame. Ownership is checked so one pane cannot overwrite another's —
-      // the namespacing is the whole reason the id is allocated here.
+      // A held id is REUSED so a repainting pane replaces in place instead of
+      // leaking an id per frame; ownership stops one pane overwriting another's.
       const reuse = (payload as { imageId?: unknown }).imageId
       let imageId: number
       if (reuse === undefined) {
@@ -103,9 +83,8 @@ export const GRAPHICS_HANDLERS: readonly DaemonRequestHandler[] = [
       }
 
       if (data !== undefined) ctx.bus.publish("graphics.write", { taskId, tabId, imageId, data, at: Date.now() })
-      // Same reach report as `tab.open`: the write is performed by an attached
-      // TUI, so `clients` (raw CONNECTION count, the calling CLI included) is
-      // the only signal that anyone could have performed it.
+      // `clients` (raw CONNECTION count, calling CLI included) is the only
+      // signal an attached TUI could have performed the write.
       return {
         ok: true,
         wrote: data !== undefined,

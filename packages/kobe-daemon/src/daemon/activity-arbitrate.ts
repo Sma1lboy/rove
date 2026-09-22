@@ -1,54 +1,44 @@
 /**
- * Multi-source activity arbitration for one tab's activity state.
- *
- * Every status SOURCE writes its own slot; nobody edits anybody else's:
+ * Multi-source arbitration of one tab's activity. Each SOURCE writes only its
+ * own slot:
  *
  *   - `hook`     — engine hook events (`report()`). Authoritative while the
- *                  engine lives: hooks see turn boundaries, permission
- *                  prompts, and rate limits that no amount of screen/PTY
- *                  watching can. Idle is never stored — a hook idle CLEARS
- *                  the slot (the tab went quiet on the record).
- *   - `observed` — the activity observer's PTY/foreground facts
- *                  (`observeTab()`). Fills the holes hooks leave by omission
- *                  (ESC interrupt, daemon restart, dead engine) and provides
- *                  the KNOWN-idle marker that distinguishes "we looked, it's
- *                  resting" from "no signal" (the client's `◌` unknown).
+ *                  engine lives (turn boundaries, permission prompts, rate
+ *                  limits are invisible to PTY watching). A hook idle CLEARS
+ *                  the slot; idle is never stored.
+ *   - `observed` — the observer's PTY/foreground facts (`observeTab()`). Fills
+ *                  the hooks' gaps (ESC interrupt, daemon restart, dead engine)
+ *                  and marks KNOWN-idle, distinct from "no signal" (`◌`).
  *
  * `recomputeTabActivity` is the ONE place the priority order lives — add a
- * source by adding a slot and a rule here, never by special-casing a writer:
+ * source as a slot + rule here, never by special-casing a writer:
  *
  *   0. an observed `running` newer than a hook `dead` wins — see rule 1.
- *   1. a hook entry in a STICKY state (`turn_complete` / `permission_needed`
- *      / `error` / `rate_limited` / `dead`) always wins — those mean "a human
- *      should look", carry no output by nature, and observation must never dim
- *      them. `dead` is the strongest case: the process is GONE, so no live
- *      claim about it can be true, and an observed REST about it says nothing
- *      new — which is precisely what made a killed engine read as an idle one.
- *      Its one escape (rule 0) is an observed `running` newer than the death:
- *      a dead process emits no output, so that fact can only come from a new
- *      engine in the tab. Needed because an engine with a `NoopHookAdapter`
- *      never emits the session-start that would otherwise displace the slot,
- *      leaving its badge `dead` for the life of the daemon.
- *   2. a hook `running` wins UNLESS an observed `rest` fact is fresher than
- *      the claim (a stale observation must never idle a fresh turn)
- *      AND the claim is at least
- *      `correctHookRunningAfterMs` old (at a turn boundary the PTY evidence
- *      trails the hook by one poll) — then observation corrects it (the
- *      ESC-interrupt / dead-engine gap).
+ *   1. a hook in a STICKY state (`turn_complete` / `permission_needed` /
+ *      `error` / `rate_limited` / `dead`) always wins: "a human should look",
+ *      no output by nature, never dimmed by observation. A dead process can
+ *      have no live claim, and an observed REST about it says nothing new (it
+ *      would make a killed engine read idle). Rule 0 is its one escape: only a
+ *      new engine can produce output after the death. Needed because a
+ *      `NoopHookAdapter` engine never emits the session-start that would
+ *      displace the slot, leaving `dead` for the daemon's life.
+ *   2. a hook `running` wins UNLESS an observed `rest` is at least as fresh as
+ *      the claim (a stale observation must never idle a fresh turn) AND the
+ *      claim is ≥ `correctHookRunningAfterMs` old (PTY evidence trails the hook
+ *      by one poll at a turn boundary) — then observation corrects it.
  *   3. any other hook entry wins.
- *   4. no hook entry → the observed slot wins: `running` fills the hole a
- *      daemon restart left, `idle` is the known-idle marker.
- *   5. neither → undefined: unknown, distinguishable from known-idle.
+ *   4. no hook → observed wins: `running` fills a restart's hole, `idle` is
+ *      known-idle.
+ *   5. neither → undefined: unknown, distinct from known-idle.
  *
- * Pure: no timers, no bus, no I/O — the registry owns those.
+ * Pure: the registry owns timers, bus and I/O.
  */
 
 import { type EngineSessionInfo, STICKY_STATES } from "./activity-reduce.ts"
 import type { EngineActivityDetail, TaskActivityState } from "./contracts.ts"
 
-/** A hook-claimed state. `state` is never "idle" — hook idle clears the slot.
- *  `dead` is written here too (by `recordEngineDeath`, not by a hook event):
- *  it is a claim about the ENGINE, which is what this slot holds. */
+/** A hook-claimed state, never "idle". `dead` also lands here (via
+ *  `recordEngineDeath`, not a hook) since it is a claim about the ENGINE. */
 export interface HookSlot {
   readonly state: TaskActivityState
   readonly at: number
@@ -62,9 +52,8 @@ export interface ObservedSlot {
   readonly state: "running" | "idle"
   readonly at: number
   readonly vendor?: string
-  /** Lineage carried over from the hook slot this observation corrected —
-   *  a disproved hook slot is dropped, so the id has to live on somewhere
-   *  for late subscribers and the liveness probe. */
+  /** Lineage from the corrected (and dropped) hook slot, kept for late
+   *  subscribers and the liveness probe. */
   readonly session?: EngineSessionInfo
 }
 
@@ -100,20 +89,17 @@ function fromObserved(observed: ObservedSlot, hook?: HookSlot): EffectiveActivit
     state: observed.state,
     at: observed.at,
     source: "observed",
-    // Lineage falls back to the hook slot it just corrected: the liveness
-    // probe and late subscribers still need to know WHICH engine this was.
+    // Fall back to the corrected hook's lineage: consumers still need WHICH engine.
     ...((observed.vendor ?? hook?.vendor) ? { vendor: observed.vendor ?? hook?.vendor } : {}),
     ...((observed.session ?? hook?.session) ? { session: observed.session ?? hook?.session } : {}),
   }
 }
 
 /**
- * Arbitrate one tab's slots into the effective state subscribers see, or
- * `undefined` when nothing has ever reported (the client's "unknown").
- * `correctHookRunningAfterMs` gates rule 2; `Infinity` (the default) means
- * observation NEVER corrects a hook claim — the observer passes its configured
- * value only when the evidence is positive (resting title / dead session),
- * not on a mere host-unreachable pass.
+ * Effective state, or `undefined` if nothing ever reported ("unknown").
+ * `correctHookRunningAfterMs` gates rule 2; the `Infinity` default never
+ * corrects. The observer passes a value only on positive evidence (resting
+ * title / dead session), never on a host-unreachable pass.
  */
 export function recomputeTabActivity(
   slots: TabActivitySlots,
@@ -122,17 +108,10 @@ export function recomputeTabActivity(
 ): EffectiveActivity | undefined {
   const { hook, observed } = slots
   if (hook) {
-    // `dead` is sticky because a dead engine writes nothing — but that
-    // reasoning inverts the moment observation sees NEW output in the tab:
-    // a dead process cannot produce any. For an engine with hooks the slot
-    // clears on the next session-start; an engine with a `NoopHookAdapter`
-    // (copilot) never emits one, so its `dead` badge — written by the
-    // pty-exit record, which needs no hook — outlived every restart forever.
-    // Only `running` may win, and only if it was observed AFTER the death:
-    // a shell still alive around a genuinely dead engine walks as idle, and
-    // idle must not un-dim the badge. The observer's own vendor gate does
-    // the rest — it claims `working` only for a walked engine in the tab's
-    // foreground, never for a bare shell.
+    // Rule 0. A `NoopHookAdapter` engine (copilot) never clears `dead` via
+    // session-start. Only an observed `running` AFTER the death may win: the
+    // surviving shell walks as idle, which must not un-dim the badge, and the
+    // observer claims `working` only for a walked engine, never a bare shell.
     if (hook.state === "dead" && observed?.state === "running" && observed.at > hook.at) {
       return fromObserved(observed, hook)
     }

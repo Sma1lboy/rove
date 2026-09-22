@@ -1,13 +1,8 @@
 /**
- * `kobe api inspect`'s raw view of the activity registry — a pure projection
- * of registry state, in its own module because it is a DIAGNOSTIC surface
- * rather than part of the registry's job. Nothing in the daemon's behavior
- * depends on it, and it may show fields the wire payload deliberately hides.
- *
- * Deliberately NOT the wire payload: a production bug report needs the fields
- * `engine-state` omits — the probe vendor, whether a lapse watchdog is armed,
- * and which SOURCE won the arbitration — because those are what distinguish
- * "the hook says running" from "we observed it running" when the two disagree.
+ * `rove api inspect`'s raw view of the activity registry. Nothing in the
+ * daemon depends on it. Deliberately NOT the wire payload: it adds what
+ * `engine-state` omits (probe vendor, lapse watchdog armed, which SOURCE won
+ * arbitration), which tells "the hook says running" from "we observed it".
  */
 
 import type { EffectiveActivity } from "./activity-arbitrate.ts"
@@ -38,9 +33,7 @@ export interface ActivityDebugTask {
 export interface ActivityDebugTab extends ActivityDebugTask {
   readonly observed?: true
   readonly source: "hook" | "observed"
-  /** Present for a `dead` tab: how the engine process died. Without it an
-   *  inspect dump said "dead" and nothing about why, which is the whole
-   *  reason the exit record is worth carrying. */
+  /** Present for a `dead` tab: how the engine process died. */
   readonly exit?: EngineActivityDetail["exit"]
 }
 

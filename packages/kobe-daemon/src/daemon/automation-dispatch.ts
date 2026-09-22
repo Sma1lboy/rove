@@ -1,40 +1,22 @@
 /**
- * How ONE automation firing reaches an engine.
+ * WHERE one automation firing's prompt lands; the runner owns WHEN. So these
+ * paths are testable without a clock. Targets (`automationTarget`):
  *
- * Its own module along a real seam: the runner owns WHEN a schedule fires,
- * this owns WHERE the prompt lands. That is also what makes the four delivery
- * paths below testable without a clock — none of them needs to know a schedule
- * exists.
+ *  - **Fresh** (default): new task, prompt on the engine argv. One worktree +
+ *    branch per firing — a week of code-editing runs on one branch can't land.
+ *  - **Standing**: create once, re-deliver every firing; an inspection routine
+ *    needs the previous answer in the same transcript.
+ *  - **Existing tab**: only a user-owned task + exact tab. Missing targets
+ *    fail; never created or revived.
  *
- * Three targets, resolved by `automationTarget`:
+ * ## Continuity
  *
- *  - **Fresh** (default): create a task, spawn its engine with the prompt on
- *    the argv. One worktree and one
- *    branch per firing — what a routine that EDITS code needs, since a week of
- *    runs piled onto one branch is a branch nobody can land.
- *
- *  - **Standing**: create the task once, then re-deliver into it every firing.
- *    An inspection routine ("is CI worse than yesterday?") is worthless
- *    without the previous answer in the same transcript.
- *
- *  - **Existing tab**: deliver only to a user-owned task and exact tab. Missing
- *    targets fail; the routine never creates or revives them.
- *
- * ## What "continuity" actually rests on
- *
- * The engine's own conversation, kept alive by the PTY host — which lives
- * OUTSIDE the daemon on purpose (`pty-server.ts`), so it survives
- * `rove daemon restart` and every sweep in between. While that PTY is alive,
- * a firing is another turn in one conversation.
- *
- * When it is NOT alive, the standing task is revived by spawning a fresh
- * engine in the same worktree. That engine does NOT inherit the transcript:
- * the daemon's spawn path (`buildEngineSessionLaunch`) has no resume verb
- * wired into it — `engineResumeArgv` is the TUI's tab-restart path, not this
- * one. The worktree and its files carry over; the conversation does not. That
- * is recorded as `revived` on the run rather than reported as a plain
- * `dispatched`, because "it answered with yesterday in mind" and "it started
- * over" must not look identical in the run history.
+ * Rests on the engine conversation in the PTY host, which lives OUTSIDE the
+ * daemon (`pty-server.ts`) and survives `rove daemon restart`. When that PTY
+ * is gone, a standing task is revived with a fresh engine in the same
+ * worktree — files carry over, the transcript does NOT (`buildEngineSessionLaunch`
+ * has no resume verb; `engineResumeArgv` is the TUI's path). Recorded as
+ * `revived`, not `dispatched`, so run history tells the two apart.
  */
 
 import { assertAutomationTargetTask, automationTarget } from "./automation-target.ts"
@@ -59,11 +41,7 @@ export interface DispatchDeps {
   readonly canDeliver?: () => boolean
 }
 
-/**
- * Outcome of one firing. `taskId` is carried even on failure: the task may
- * exist while its engine did not start, and the run record is the only place
- * that id survives for a human to open by hand.
- */
+/** `taskId` survives failure too: the task may exist without an engine, and the run record is the only place a human finds it. */
 export interface DispatchOutcome {
   readonly status: AutomationRunStatus
   readonly taskId?: string
@@ -76,13 +54,9 @@ export interface DispatchOutcome {
 }
 
 /**
- * The standing task this automation should deliver into, or null when it must
- * be (re)built.
- *
- * A task that was deleted, is BEING deleted, or lost its worktree is not a
- * session — returning null here is what stops one deleted task from wedging a
- * routine into failing forever, which is the failure mode a bare stored id
- * would otherwise have.
+ * The standing task to deliver into, or null to (re)build. A deleted,
+ * being-deleted, or worktree-less task is null, so a deleted task can't wedge
+ * the routine into failing forever.
  */
 export function resolveStandingTask(
   orch: DispatchOrchestrator,
@@ -102,9 +76,8 @@ async function createRunTask(deps: DispatchDeps, automation: Automation): Promis
     title: automation.name,
     ...(automation.vendor ? { vendor: automation.vendor } : {}),
     ...(automation.baseRef ? { baseRef: automation.baseRef } : {}),
-    // The marker is what folds this task behind the sidebar's routine count
-    // row. Only standing sessions get it: a fresh-per-run routine produces
-    // ordinary tasks, and hiding those would hide work the user must land.
+    // Folds the task behind the sidebar's routine row. Standing only: fresh
+    // runs are work the user must land.
     ...(automation.persistentSession ? { routine: { automationId: automation.id } } : {}),
   })
 }
@@ -124,10 +97,7 @@ async function spawnWithPrompt(
   return { status, taskId }
 }
 
-/**
- * Run one firing to the point where an engine has the prompt. Pure of
- * scheduling and of run-recording — the runner does both.
- */
+/** Run one firing until an engine has the prompt. Scheduling and run-recording are the runner's. */
 export async function dispatchAutomation(deps: DispatchDeps, automation: Automation): Promise<DispatchOutcome> {
   if (deps.canDeliver?.() === false) return { status: "skipped_cancelled" }
   const target = automationTarget(automation)
@@ -164,16 +134,13 @@ export async function dispatchAutomation(deps: DispatchDeps, automation: Automat
 
   const standing = resolveStandingTask(deps.orch, automation)
   if (standing.task === null) {
-    // No session yet, or the one we had is gone. Build one and remember it —
-    // clearing the stale link in the same breath, so a deleted task cannot
-    // strand this routine on an id that will never resolve again.
+    // Build and remember a session, clearing any stale link.
     const task = await createRunTask(deps, automation)
     const outcome = await spawnWithPrompt(deps, automation, task.id, "dispatched")
     return {
       ...outcome,
-      // Remember the task even when its engine failed to start: the worktree
-      // exists, and the next firing should revive THAT session rather than
-      // stack a second standing task beside it.
+      // Even if the engine failed: the worktree exists, so the next firing
+      // revives THAT session instead of stacking a second one.
       sessionTaskIdToSet: task.id,
       ...(standing.hadStaleLink ? { sessionTaskIdToClear: true } : {}),
     }
@@ -187,14 +154,10 @@ export async function dispatchAutomation(deps: DispatchDeps, automation: Automat
   if (result.outcome === "delivered") {
     return await liveDeliveryOutcome(deps, automation, task.id, result)
   }
-  // `no-session` (the tab is gone) and `no-engine` (the tab is alive but
-  // keepAlive left a login shell where the engine exited) both land here: the
-  // engine died between firings, an overnight gap being the normal case.
-  // Respawn it in the SAME worktree: the files carry over, the transcript
-  // does not — recorded as `revived` so the run history says which it was.
-  // `no-engine` reaching this branch is what stops a daily prompt from being
-  // typed at a zsh prompt and RUN as shell commands while the run records
-  // `dispatched`.
+  // `no-session` (tab gone) and `no-engine` (keepAlive left a login shell):
+  // the engine died between firings. Respawn in the SAME worktree as
+  // `revived`. `no-engine` must land here, or the prompt gets typed into zsh
+  // and RUN as shell commands.
   return await spawnWithPrompt(deps, automation, task.id, "revived")
 }
 

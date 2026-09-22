@@ -1,41 +1,29 @@
 /**
- * Ending a process and everything descended from it, on the one platform
- * where a signal cannot: Windows.
+ * Ending a process tree on Windows, where no signal can.
  *
- * ConPTY has no process groups, and node-pty's own `kill()` reaches only the
- * processes attached to the pseudo console — asynchronously, and without
- * anything that allocated its own console or detached from it. A hosted
- * engine spawns exactly that shape (`shell → engine → helpers`, a dev server
- * the agent started), so ending the shell alone left the rest running with
- * their working directory inside the worktree — and Windows refuses to
- * unlink a directory some process has as its cwd, which is how every task
- * delete left an empty `~/.rove/worktrees/<repo>/<name>` behind with
- * `Permission denied`. `taskkill /T` walks the parent chain from the process
- * table, so it reaches the whole subtree whatever console it holds.
+ * ConPTY has no process groups; node-pty's `kill()` reaches only processes
+ * attached to the pseudo console, asynchronously. Engine helpers (a dev server
+ * the agent started) survive with cwd in the worktree, and Windows refuses to
+ * unlink a directory that is some process's cwd — task delete left an empty
+ * `~/.rove/worktrees/<repo>/<name>` with `Permission denied`. `taskkill /T`
+ * walks the parent chain, reaching the subtree whatever console it holds.
  *
- * Except where that chain is broken, and under Git Bash it is broken by
- * design. MSYS emulates `fork` + `exec`: the fork is a real Windows child,
- * but `exec` of another MSYS program starts a NEW Windows process and the
- * forked one exits. What bash runs — the `claude` npm shim, then the engine
- * it execs — therefore hangs off a Windows parent that no longer exists, and
- * `taskkill /T` on the shell never reaches it: a deleted task's engine kept
- * running (and messaging its dispatcher) with its cwd in the worktree. MSYS
- * keeps the real parentage in its own process table, which Git's `ps` prints
- * with each row's Windows pid. That table is read BEFORE anything is killed —
- * once the shell dies, its children are reparented to 1 there too — and
- * every Windows pid under the shell goes into the same `taskkill /T`.
+ * Git Bash breaks that chain: MSYS `exec` starts a NEW Windows process and the
+ * forked one exits, so the `claude` shim and engine hang off a dead Windows
+ * parent that `taskkill /T` never reaches. MSYS's own table (Git's `ps`, with
+ * Windows pids) keeps real parentage; it is read BEFORE killing — after the
+ * shell dies its children reparent to 1 — and all its pids join the same
+ * `taskkill /T`.
  */
 
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-/** Upper bound on one `taskkill` run — it answers in milliseconds; a hung
- *  one must not hold a deletion behind it. */
+/** It answers in ms; a hung one must not hold a deletion behind it. */
 const TASKKILL_TIMEOUT_MS = 5_000
 
-/** Same bound for the MSYS `ps` read; on timeout the kill goes ahead on the
- *  Windows parent chain alone, which is what it did before. */
+/** On timeout the kill proceeds on the Windows parent chain alone. */
 const MSYS_PS_TIMEOUT_MS = 5_000
 
 interface MsysProcessRow {
@@ -59,10 +47,8 @@ export function parseMsysPs(output: string): MsysProcessRow[] {
 }
 
 /**
- * Windows pids of every MSYS process descended from the one whose Windows pid
- * is `rootWinpid` — the root itself excluded, since the caller kills it
- * anyway. Empty when the root is not an MSYS process (a native shell): the
- * Windows parent chain is intact there and `taskkill /T` alone is complete.
+ * Windows pids of MSYS descendants of `rootWinpid`, root excluded. Empty for a
+ * non-MSYS root, whose Windows parent chain `taskkill /T` already covers.
  */
 export function msysDescendantWinpids(rows: readonly MsysProcessRow[], rootWinpid: number): number[] {
   const root = rows.find((row) => row.winpid === rootWinpid)
@@ -111,15 +97,11 @@ function readMsysDescendants(psPath: string, rootWinpid: number): Promise<number
 }
 
 /**
- * `taskkill /T /F /PID <pid>` — plus `/PID` for every MSYS descendant when the
- * child is a Git Bash shell (see the header). Resolves with one line for the
- * signal log — never rejects, because the child may already be gone and that
- * is the outcome the caller wanted.
+ * `taskkill /T /F`, plus every MSYS descendant for a Git Bash shell. Resolves
+ * with one signal-log line; never rejects (already-gone is the goal).
  *
- * Only ever called with the pid of a child THIS host spawned and still
- * believes alive: a stale pid can have been reused by an unrelated process,
- * and `/F` does not ask. The MSYS pids are read from a table snapshot taken
- * immediately before, for the same reason.
+ * Only for a child THIS host spawned and believes alive: a stale pid may be
+ * reused and `/F` doesn't ask — same reason the MSYS snapshot is taken just before.
  */
 export async function taskkillProcessTree(pid: number, shellFile?: string): Promise<string> {
   const psPath = msysPsFor(shellFile)

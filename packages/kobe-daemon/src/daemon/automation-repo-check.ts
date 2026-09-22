@@ -1,21 +1,11 @@
 /**
- * Refuse a routine whose repo or base ref cannot work — at CREATE time, while
- * the user is present to fix it.
+ * Refuse a routine whose repo or base ref can't work at CREATE time, while the
+ * user is there — otherwise every firing fails `skipped_unavailable` and a
+ * `0 3 * * *` routine reports it tomorrow. Checked at save, not fire: a later
+ * delete/rename still fails at 3am.
  *
- * Same reasoning as `requireSchedule` in `handlers-automations.ts`: an
- * unusable value that is only discovered by watching the schedule not run is
- * the expensive kind of wrong. A missing repo or an unresolvable base ref
- * fails identically at every firing (`skipped_unavailable`, from
- * `git worktree add`), and for a `0 3 * * *` routine the user finds out
- * tomorrow morning — a day after the moment they could have typed the right
- * path.
- *
- * What this is NOT: a guarantee. The repo is checked when the routine is
- * saved, not when it fires; a repo deleted or a branch renamed afterwards
- * still fails at 3am. Catching the typo the user just made is the whole claim.
- *
- * Deliberately here rather than in the CLI verb: the TUI composer calls
- * `automation.create` too, and a check in one caller only covers that caller.
+ * Lives here, not in the CLI verb, because the TUI composer also calls
+ * `automation.create`.
  */
 
 import { execFile } from "node:child_process"
@@ -24,9 +14,7 @@ import { promisify } from "node:util"
 
 const execFileAsync = promisify(execFile)
 
-/** A remote project key (`ssh://…`) names a checkout on ANOTHER host, so there
- *  is nothing local to probe — passing it through is the only correct answer,
- *  and rejecting valid input is worse than the gap it would close. */
+/** `ssh://…` is a checkout on ANOTHER host: nothing local to probe, so pass it. */
 function isProbeable(repo: string): boolean {
   return !repo.startsWith("ssh://")
 }
@@ -49,13 +37,9 @@ export async function assertRoutineRepo(repo: string): Promise<void> {
 }
 
 /**
- * Throw unless `ref` resolves to a commit in `repo` — the same question
- * `git worktree add -b <branch> <ref>` asks at every firing.
- *
- * A repo that is not a probeable work tree is a PASS, not a failure: on the
- * update path the repo cannot be changed, so failing here would make a routine
- * with a bad repo also unable to accept a corrected base ref, and the message
- * would name a problem the user was not editing.
+ * Throw unless `ref` resolves to a commit in `repo`, as `git worktree add`
+ * needs at every firing. A non-work-tree repo PASSES: on update the repo is
+ * fixed, so failing would block correcting the base ref.
  */
 export async function assertRoutineBaseRef(repo: string, ref: string): Promise<void> {
   if (!ref || !isProbeable(repo)) return

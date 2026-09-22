@@ -1,18 +1,10 @@
 /**
- * Shared `git status --porcelain` (v1) parser, with correct C-string unquoting.
+ * The one `git status --porcelain` (v1) parser, shared by the TUI (per-file
+ * rows) and the daemon's worktree-changes collector (sidebar counts), so the
+ * edge-case tests cover the production path.
  *
- * It lives in kobe-daemon because BOTH sides parse this format: the TUI's
- * file-tree pane and worktree-changes view want per-file rows, and the
- * daemon's worktree-changes collector — the one that actually feeds the
- * sidebar's `+N −M` chips today — wants aggregate counts. They used to hold
- * separate parsers, and only kobe's was covered by the porcelain edge-case
- * tests, so the tested implementation was not the one in production. Now
- * there is one parser and the tests land on it.
- *
- * Git emits any filename containing a space (porcelain renames), a
- * tab/newline/quote, or a non-ASCII byte as a double-quoted, C-escaped string
- * (e.g. `"a\tb.txt"`, `"\303\274.txt"`). Quoting/rename facts encoded here,
- * verified against real git:
+ * Git C-quotes any name with a space, tab/newline/quote, or non-ASCII byte
+ * (`"a\tb.txt"`, `"\303\274.txt"`). Verified against real git:
  *   - Porcelain rename: `XY orig -> new`. Each side is quoted INDEPENDENTLY
  *     (only when it needs quoting); the ` -> ` separator is literal. Porcelain
  *     quotes a path that merely contains a space.
@@ -20,9 +12,8 @@
  *     three-digit OCTAL escape per BYTE (`\303\274` = the UTF-8 bytes of `ü`),
  *     so octal runs must be decoded as bytes, then UTF-8 decoded.
  *
- * `unquoteGitPath` is exported for the numstat parser in kobe's
- * `lib/git-parsers.ts`: unquoting BOTH formats to one canonical path is what
- * lets numstat's +/- counts join their porcelain status row.
+ * `unquoteGitPath` is shared with kobe's numstat parser (`lib/git-parsers.ts`)
+ * so both formats unquote to one path and numstat counts join porcelain rows.
  */
 
 /** One parsed row of `git status --porcelain` (v1). */
@@ -45,11 +36,8 @@ function isOctalDigit(ch: string): boolean {
 }
 
 /**
- * Parse one C-quoted token starting at `field[start]` (which MUST be `"`).
- * Returns the unquoted value and `end`, the index just past the closing
- * quote (or the end of input if the quote was unterminated). Octal escapes
- * are decoded as raw bytes and the whole token is UTF-8 decoded, so
- * multi-byte names (`\303\274` → `ü`) round-trip correctly.
+ * Parse a C-quoted token at `field[start]` (MUST be `"`). `end` is just past
+ * the closing quote, or end of input if unterminated.
  */
 function readQuoted(field: string, start: number): { value: string; end: number } {
   const bytes: number[] = []
@@ -146,28 +134,19 @@ function readQuoted(field: string, start: number): { value: string; end: number 
   return { value: DECODER.decode(new Uint8Array(bytes)), end: i }
 }
 
-/**
- * Unquote a single git path field. If `field` is C-quoted (starts with `"`)
- * it is decoded; otherwise it is returned verbatim (git only quotes when a
- * path needs it). Pure and total — never throws.
- */
+/** Decode a C-quoted git path; unquoted fields pass through. Never throws. */
 export function unquoteGitPath(field: string): string {
   if (field.length === 0 || field[0] !== '"') return field
   return readQuoted(field, 0).value
 }
 
-/**
- * Split a porcelain rename field (`orig -> new`) into its two unquoted
- * sides, respecting independent C-quoting on each side. Returns `null` when
- * no separator is present (i.e. not a rename).
- */
+/** Split `orig -> new` (each side quoted independently); `null` if no separator. */
 function splitRenameField(field: string, sep: string): { orig: string; neu: string } | null {
   if (field[0] === '"') {
     const left = readQuoted(field, 0)
     if (field.startsWith(sep, left.end)) {
       return { orig: left.value, neu: unquoteGitPath(field.slice(left.end + sep.length)) }
     }
-    // Quoted opener but no separator after it — not a rename we can split.
     return null
   }
   const idx = field.indexOf(sep)
@@ -176,14 +155,9 @@ function splitRenameField(field: string, sep: string): { orig: string; neu: stri
 }
 
 /**
- * Parse the raw stdout of `git status --porcelain` (v1) into typed rows.
- *
- * LENIENT by design: every line of the `XY <path>` shape is returned with
- * its raw status pair and canonical unquoted path; branch-header (`## …`),
- * blank, and too-short lines are skipped. Consumers apply their own
- * status whitelist / directory filtering — this parser does not editorialize,
- * so the sidebar can count every entry while the file tree filters to the
- * statuses it colours.
+ * Lenient: every `XY <path>` line is returned; `##` headers, blank and short
+ * lines are skipped. Status filtering is the consumer's job (the sidebar
+ * counts everything; the file tree filters).
  */
 export function parsePorcelainRows(raw: string): PorcelainRow[] {
   const rows: PorcelainRow[] = []

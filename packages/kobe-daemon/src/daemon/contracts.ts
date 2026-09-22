@@ -3,10 +3,7 @@
 import type { ObservedLanguage } from "../prompts/observed-language.ts"
 import type { TaskRoutineLink } from "./automation-contracts.ts"
 
-// Automation ("routine") contracts live in their own module — nothing else in
-// this file refers to them, and they are the one group with their own store,
-// runner, and RPC family. Re-exported here so every existing importer still
-// names them through `contracts.ts`.
+// Re-exported so importers keep naming them through `contracts.ts`.
 export type {
   Automation,
   AutomationPatch,
@@ -18,7 +15,7 @@ export type {
 } from "./automation-contracts.ts"
 export { automationRunNeedsAttention } from "./automation-contracts.ts"
 
-// Engine activity + the attention Inbox, same arrangement and same reason.
+// Engine activity + the attention Inbox, likewise.
 export type {
   AttentionInboxItem,
   AttentionInboxState,
@@ -28,15 +25,11 @@ export type {
 } from "./attention-contracts.ts"
 export { ATTENTION_INBOX_STATES, attentionInboxItemKey, isAttentionInboxState } from "./attention-contracts.ts"
 
-/** Engine id (kobe `VendorId`). Deliberately plain `string`: the daemon
- *  treats vendor ids as opaque pass-through values and never narrows on
- *  the built-in literals. A `"claude" | "codex" | ... | (string & {})`
- *  union drifts from kobe's list, and its open string branch hides that
- *  drift inside an exhaustive-looking switch. Where the daemon DOES need
- *  the built-in
- *  list (plugin engine ids may not shadow a built-in or shipped-contrib
- *  engine), `plugins/manifest.ts` carries `RESERVED_ENGINE_IDS` as its
- *  own source of truth, locked to kobe's lists by a kobe-side test. */
+/** Engine id (kobe `VendorId`), opaque to the daemon. Plain `string`: a
+ *  literal union with `(string & {})` drifts from kobe's list and hides the
+ *  drift inside an exhaustive-looking switch. The built-in list the daemon
+ *  needs (plugin ids may not shadow one) is `plugins/manifest.ts`
+ *  `RESERVED_ENGINE_IDS`, locked to kobe's by a kobe-side test. */
 export type VendorId = string
 export type TaskStatus = "backlog" | "in_progress" | "in_review" | "done" | "canceled" | "error"
 
@@ -103,9 +96,8 @@ export interface TaskPRStatus {
   readonly lastError?: string
 }
 
-/** The kobe session (task + tab) that dispatched a task's creation — the
- *  reply address a sub-task's bare `send` routes back to (mirrors
- *  kobe/types/task.ts). Absent when created outside a kobe session. */
+/** Session (task + tab) that dispatched a task: where a sub-task's bare
+ *  `send` routes back (mirrors kobe/types/task.ts). */
 export interface TaskDispatcher {
   readonly taskId: string
   readonly tabId: string
@@ -128,12 +120,10 @@ export interface DaemonTask {
   readonly branch: string
   readonly worktreePath: string
   readonly kind?: "main" | "task" | "dir"
-  /** Scratch shell task: a dir task with no settled cwd, living
-   *  in the sidebar's Scratch section; cleared when named or adopted. */
+  /** Dir task with no settled cwd (sidebar Scratch section); cleared when named or adopted. */
   readonly scratch?: boolean
-  /** Standing session for a routine: the one task a
-   *  `persistentSession` automation re-delivers into, folded behind a count
-   *  row in the sidebar instead of a loose task row. */
+  /** The one task a `persistentSession` automation re-delivers into; folded
+   *  behind a count row in the sidebar. */
   readonly routine?: TaskRoutineLink
   readonly status: TaskStatus
   readonly pinned?: boolean
@@ -156,17 +146,13 @@ export interface DaemonTask {
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The kobe session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
-  /** The task brief: the full text of the prompt `add --prompt` delivered
-   *  into this task's engine, persisted so it survives the engine's own
-   *  transcript. Verbatim, never truncated. Absent until delivered. */
+  /** The `add --prompt` brief as delivered, verbatim, never truncated; outlives
+   *  the engine transcript. Absent until delivered. */
   readonly prompt?: string
-  /** The base ref the task branch was cut from (`add --base-branch`),
-   *  persisted so branch signals measure against the real fork point.
-   *  Absent on records that predate the field (signals fall back to a
-   *  base guess). */
+  /** Ref the branch was cut from (`add --base-branch`), so branch signals use
+   *  the real fork point. Absent on older records (signals guess a base). */
   readonly baseRef?: string
-  /** Caller-chosen worktree directory name (`add --worktree-name`), instead
-   *  of one drawn from the animal pool. Absent = generated. */
+  /** `add --worktree-name`; absent = drawn from the animal pool. */
   readonly worktreeName?: string
   /** The WORKER's own account of what it delivered (`set-status --report-*`).
    *  A claim, unlike `prStatus`, which the daemon observed from the forge. */
@@ -326,10 +312,9 @@ export interface DaemonOrchestrator {
 }
 
 /**
- * The ENGINE half of a turn record — what the vendor's adapter
- * lifts from its own transcript. Mirrors `kobe/src/engine/agent-turn.ts`,
- * which is the contract's source of truth; this is the daemon's structural
- * copy (the daemon package never imports kobe sources).
+ * Engine half of a turn record, lifted from the vendor transcript. Structural
+ * copy of `kobe/src/engine/agent-turn.ts` (source of truth); the daemon never
+ * imports kobe sources.
  */
 export interface AgentTurn {
   /** The engine's own stable turn id — dedupe key within a task. */
@@ -367,18 +352,12 @@ export interface UpdateInfo {
 }
 
 /**
- * The CONTEXT half of an engine's usage snapshot, for one live session.
+ * Context half of one live session's usage snapshot. Structural mirror of
+ * kobe's `EngineUsageSnapshot` (`kobe/src/types/engine.ts`, source of truth);
+ * the engine's history reader computes it, never the daemon (vendor arithmetic).
  *
- * Structural mirror of kobe's `EngineUsageSnapshot`
- * (`kobe/src/types/engine.ts`, the contract's source of truth). The daemon
- * never COMPUTES any of it — the engine's own history reader does, because
- * what counts as "context" and what counts toward a token total are both
- * vendor arithmetic (CLAUDE.md, "Engine-owned UI data").
- *
- * The four token counts are OPTIONAL throughout, and an adapter that does not
- * report one leaves it absent rather than reporting `0`: the difference
- * between "this session used no cache" and "this engine does not say" is the
- * whole reason a reader can trust the number.
+ * An unreported token count is absent, never `0`: "used no cache" and "engine
+ * doesn't say" must stay distinguishable.
  */
 export interface EngineContextUsage {
   /** Tokens currently in the session's context window. */
@@ -400,23 +379,14 @@ export interface EngineContextUsage {
 export interface WorktreeChanges {
   readonly added: number
   readonly deleted: number
-  /**
-   * Commits the worktree is BEHIND its base (`git rev-list --count
-   * HEAD..<base>`). Absent when no base ref resolves — a repo with no remote
-   * and no `main`/`master` degrades to exactly the pre-behind behaviour
-   * rather than reporting a fabricated zero.
-   */
+  /** `git rev-list --count HEAD..<base>`. Absent, never a fabricated zero,
+   *  when no base ref resolves (no remote and no `main`/`master`). */
   readonly behind?: number
   /**
-   * Commits this worktree has that its base does NOT (the right half of `git
-   * rev-list --left-right --count <base>...HEAD`). Absent under exactly the
-   * same conditions as `behind` — they come off one process — so a repo with
-   * no resolvable base reports neither rather than a fabricated zero.
-   *
-   * This is the only number that separates a worker that committed (clean
-   * worktree, `ahead > 0`) from one that reported success and delivered
-   * nothing (clean worktree, `ahead === 0`); without it both rows render
-   * blank and the difference only surfaces at land time as `EMPTY_BRANCH`.
+   * Right half of `git rev-list --left-right --count <base>...HEAD`; absent
+   * exactly when `behind` is (same process). The only number separating a
+   * clean worktree that committed (`ahead > 0`) from one that delivered
+   * nothing (`0`), which otherwise surfaces only at land time as `EMPTY_BRANCH`.
    */
   readonly ahead?: number
 }

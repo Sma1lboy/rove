@@ -7,21 +7,12 @@ import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import type { RepoIssues } from "./issues-store.ts"
 
 /**
- * Publish a repo's issue snapshot — but only when somebody is subscribed to
- * the channel.
+ * Publish only when someone subscribes. `issue.snapshot` has no in-repo
+ * subscriber but is a public plugin API; unguarded, every task delete, done
+ * transition and issue edit serializes the repo's ENTIRE issue state.
  *
- * `issue.snapshot` has no in-repo subscriber (its one consumer, the browser
- * Issues pane, was deleted in #855; the TUI kanban uses the `issue.list` /
- * `issue.mutate` RPCs). The channel survives because it is a public plugin
- * API, so out-of-repo subscribers nobody here can enumerate may hold it — but
- * with nobody attached, every task delete, every task→done transition and
- * every issue edit was serializing a repo's ENTIRE issue state for no reader.
- * `channels.ts` named this exact gate as the fix; this is it.
- *
- * `hasSubscribersFor` is optional on the context (older test doubles omit the
- * whole thing), and its absence must mean "publish" — the safe direction: a
- * missing gate costs one wasted publish, a wrongly-closed one silently drops a
- * plugin's events.
+ * A missing `hasSubscribersFor` means "publish": a missing gate costs one
+ * wasted publish, a wrongly-closed one silently drops a plugin's events.
  */
 export function publishIssueSnapshot(ctx: DaemonHandlerContext, state: RepoIssues): void {
   if (ctx.daemon.hasSubscribersFor?.("issue.snapshot") === false) return
@@ -45,20 +36,11 @@ export const ISSUE_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "issue.mutate",
     async handle(payload, ctx) {
       const repoRoot = requireString(payload, "repoRoot")
-      // A `link` op — and an `update` carrying a `taskId` — names a task, and
-      // the store only type-checks `taskId` as a non-empty string; without
-      // this guard a typo'd id is accepted and the card sits in In progress
-      // pointing at nothing. The check lives HERE, rather than in the store:
-      // both the
-      // CLI (`issue-update --task`) and the web link route funnel through this
-      // one RPC, and the task index is on the handler context, so the issue
-      // store keeps knowing nothing about tasks. The prose is the same one
-      // every other handler throws, which `toApiError` maps to a typed
-      // TASK_NOT_FOUND with the `api list` recovery command.
-      //
-      // It also runs BEFORE `issues.mutate` takes the store lock, which is
-      // what makes the CLI's title+link update all-or-nothing: a bad link
-      // rejects the whole op instead of landing the rename first.
+      // The store only type-checks `taskId`, so a typo'd id would leave a card
+      // In progress pointing at nothing. Checked here (every caller funnels
+      // through this RPC) so the store stays task-agnostic; the prose is what
+      // `toApiError` maps to TASK_NOT_FOUND. Running BEFORE the store lock
+      // makes the CLI's title+link update all-or-nothing.
       const op = payload.op
       const opType = op && typeof op === "object" ? (op as { type?: unknown }).type : undefined
       if (opType === "link" || opType === "update") {

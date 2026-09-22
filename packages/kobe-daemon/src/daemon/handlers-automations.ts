@@ -13,8 +13,7 @@ import { isValidCron } from "./cron.ts"
 import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 
-/** Reject an unusable schedule at the boundary — persisting one would leave a
- *  row that can never fire and is only discoverable by watching it not run. */
+/** A persisted bad schedule never fires and is only discoverable by its silence. */
 function requireSchedule(payload: Record<string, unknown>, key: string): string {
   const schedule = requireString(payload, key)
   if (!isValidCron(schedule)) throw new Error(`invalid cron expression: ${schedule}`)
@@ -28,22 +27,17 @@ function readPrecheck(payload: Record<string, unknown>): AutomationPrecheck | nu
   if (raw === null) return null
   if (!raw || typeof raw !== "object") throw new Error("precheck must be an object or null")
   const command = requireString(raw as Record<string, unknown>, "command")
-  // Same silent-rewrite trap as the grace window: `automations-store.ts` only
-  // keeps a timeout `> 0`, so a 0 or negative one survives in memory and turns
-  // into 120 on the next boot.
+  // `automations-store.ts` keeps only `> 0`, so 0/negative would silently
+  // become 120 on the next boot.
   const timeoutSeconds = optionalNumber(raw as Record<string, unknown>, "timeoutSeconds") ?? 120
   if (timeoutSeconds <= 0) throw new Error("precheck.timeoutSeconds must be greater than zero")
   return { command, timeoutSeconds }
 }
 
 /**
- * Read a grace window, refusing a negative one at the boundary.
- *
- * `optionalNumber` only rejects non-finite values, so `-1` used to pass and
- * make every firing `missed`, until `normalizeAutomation` silently rewrote it
- * to 60 on the next daemon boot — "it started working after I restarted the
- * daemon" is the resulting bug report. Zero is legal and means "no slack
- * beyond the tick that discovers the occurrence" (see `resolveDueOccurrence`).
+ * Refuse a negative grace window: it makes every firing `missed` until
+ * `normalizeAutomation` rewrites it to 60 on the next boot. Zero is legal: no
+ * slack beyond the discovering tick (see `resolveDueOccurrence`).
  */
 function readGraceMinutes(payload: Record<string, unknown>): number | undefined {
   const value = optionalNumber(payload, "missedRunGraceMinutes")
@@ -58,12 +52,8 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "automation.list",
     async handle(_payload, ctx) {
       const automations = ctx.automations.list()
-      // The latest run's STATUS per routine, so a list can show which ones are
-      // broken. Without it every row renders identically and finding the
-      // failing routine means opening each one in turn — which is exactly the
-      // work an unattended schedule is supposed to save. Status only: the
-      // error text, the task and the precheck output stay behind
-      // `automation.runs`, which the detail view already fetches.
+      // Latest run status so the list shows broken routines. Status only;
+      // details stay behind `automation.runs`.
       const lastRunStatus: Record<string, AutomationRunStatus> = {}
       for (const automation of automations) {
         const latest = ctx.automations.runsFor(automation.id, 1)[0]
@@ -72,8 +62,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       return {
         automations,
         lastRunStatus,
-        // The keep-alive reason, surfaced so `automation-list` explains why the
-        // daemon is staying up without a second round-trip.
+        // Why the daemon stays up, without a second round-trip.
         keepsDaemonAlive: ctx.automations.hasEnabled(),
       }
     },
@@ -85,9 +74,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       const repo = requireString(payload, "repo")
       const baseRef = optionalString(payload, "baseRef")
       const target = "target" in payload ? readAutomationTarget(payload.target) : undefined
-      // Before persisting, not after the first firing: a routine that can
-      // never resolve its worktree is a row the user cannot tell from a
-      // healthy one until it has already failed unattended.
+      // Validate before persisting, not at the first unattended failure.
       if (!target) await assertRoutineRepo(repo)
       if (baseRef) await assertRoutineBaseRef(repo, baseRef)
       const targetOptions = {
@@ -120,9 +107,8 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "automation.update",
     async handle(payload, ctx) {
       const id = requireString(payload, "id")
-      // A base ref set here is as permanently fatal as one set at create, and
-      // `--base-branch ''` (clear) has nothing to check. The repo is not
-      // patchable, so it is validated only where it is chosen.
+      // Validate a new base ref (a clear has nothing to check). The repo isn't
+      // patchable, so it's validated only at create.
       const nextBaseRef = "baseRef" in payload ? optionalString(payload, "baseRef") : undefined
       const currentRepo = ctx.automations.get(id)?.repo
       if (nextBaseRef && currentRepo) await assertRoutineBaseRef(currentRepo, nextBaseRef)
@@ -163,9 +149,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       const id = requireString(payload, "id")
       const deleted = await ctx.automations.delete(id)
       if (deleted) {
-        // The routine's Inbox episode outlives the routine otherwise: nothing
-        // else ever clears it, and the queue is meant to describe things that
-        // still exist.
+        // Nothing else clears the routine's Inbox episode.
         await ctx.inbox.deleteRoutineEpisode(id).catch(() => {})
         ctx.daemon.reevaluateIdle()
       }
@@ -176,9 +160,8 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "automation.runs",
     async handle(payload, ctx) {
       const automationId = requireString(payload, "id")
-      // An unknown id used to answer `{runs:[]}`, which reads as "it exists and
-      // has not run yet" — the one conclusion that makes an agent wait instead
-      // of fixing the id. Same failure as `setEnabled` / `runNow`.
+      // `{runs:[]}` for an unknown id would read as "not run yet" and make an
+      // agent wait instead of fixing the id.
       if (!ctx.automations.get(automationId)) throw new Error(`automation not found: ${automationId}`)
       return { runs: ctx.automations.runsFor(automationId) }
     },
@@ -190,8 +173,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       const id = requireString(payload, "id")
       const automation = ctx.automations.get(id)
       if (!automation) throw new Error(`automation not found: ${id}`)
-      // `trigger: "manual"` deliberately skips the precheck — the user asking
-      // for it IS the answer to "is this worth running".
+      // `manual` skips the precheck: the user asking is the answer.
       const status = await runAutomationOnce(
         {
           store: ctx.automations,

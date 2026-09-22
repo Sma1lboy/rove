@@ -1,13 +1,7 @@
 /**
- * Payload validators — the shared vocabulary every daemon RPC handler
- * validates with. Promoted verbatim from `handlers.ts` (itself promoted
- * verbatim from `server.ts`'s pre-registry switch); the error wording
- * (`"${key} is required"`, `"${key} must be a string"`, …) is part of the
- * wire contract, so don't reword it.
- *
- * Split into its own module (rather than living in `handlers.ts`) so
- * `handlers-task.ts`/`handlers-worktree.ts` can import these without a
- * circular import back into `handlers.ts`, which imports THEM.
+ * Payload validators shared by every daemon RPC handler. The error wording
+ * (`"${key} is required"`, `"${key} must be a string"`, …) is wire contract:
+ * don't reword it. Separate from `handlers.ts` to avoid a circular import.
  */
 
 import type { EngineActivityDetail, VendorId } from "./contracts.ts"
@@ -52,11 +46,9 @@ export function optionalNumber(payload: Record<string, unknown>, key: string): n
 }
 
 export function optionalVendor(payload: Record<string, unknown>, key: string): VendorId | undefined {
-  // Engines are open: a vendor id may be a built-in OR a user-registered
-  // custom engine (its launch command lives in the kobe-side customEngineIds
-  // registry, which the daemon can't see). So accept any non-empty string and
-  // let the launch path resolve it — a bogus id just fails to launch its
-  // (missing) binary in the pane. Empty/absent stays undefined (→ claude).
+  // Any non-empty string: custom engines live in kobe's customEngineIds
+  // registry, invisible here; a bogus id just fails to launch in the pane.
+  // Empty/absent stays undefined (→ claude).
   const value = optionalString(payload, key)
   return value && value.trim().length > 0 ? (value as VendorId) : undefined
 }

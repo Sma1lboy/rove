@@ -1,34 +1,20 @@
 /**
  * Five-field cron parsing + occurrence search for daemon Automations.
  *
- * Hand-rolled on purpose: the repo has ZERO scheduling dependencies, and
- * `bun build --compile` bans native/N-API addons — a pure-JS parser sized to
- * five fields is smaller than auditing a package for that constraint.
+ * Hand-rolled: zero scheduling deps, and `bun build --compile` bans N-API
+ * addons. Pure, local-time; no timezone field (out of scope for v1).
+ * {@link nextCronAfter} advances after a fire; {@link latestCronAtOrBefore}
+ * answers "what SHOULD have run" for missed-run compensation.
  *
- * Two functions, both pure, both local-time (the daemon runs on the user's
- * machine; a timezone field is deliberately out of scope for v1):
+ * Both scan the LOCAL CALENDAR (day by day, then only named hours/minutes),
+ * never epoch minutes. That is the DST fix: a fall-back minute maps to two
+ * instants, a spring-forward one to none; epoch stepping fired daily routines
+ * twice each autumn and skipped them each spring. One firing per local minute;
+ * a nonexistent time resolves to where the clock jumped (02:30 → 03:30).
  *
- *   - {@link nextCronAfter}       — advance a schedule after it fires
- *   - {@link latestCronAtOrBefore} — "what SHOULD have run by now", which is
- *     what missed-run compensation needs after the daemon was down
- *
- * Both scan the LOCAL CALENDAR — day by day, then only the hours and minutes
- * the expression actually names — rather than stepping fixed epoch minutes.
- * That is what makes them DST-correct: a cron expression names a wall clock,
- * and on a fall-back day one wall-clock minute maps to two epoch instants
- * while on a spring-forward day one maps to none. Stepping epoch minutes and
- * testing the local clock fired a daily routine twice every autumn and
- * skipped it silently every spring. Enumerating each local minute exactly
- * once, then converting to an instant, gives one firing per day in both
- * directions; a nonexistent local time resolves to the instant the clock
- * jumped to (02:30 fires at 03:30) rather than vanishing.
- *
- * Day-at-a-time also keeps the pathological case cheap. A valid expression can
- * have a genuinely huge gap (`0 0 29 2 *` skips 8 years across a non-leap
- * century boundary); at a minute per step that is 4.7M iterations, each
- * allocating a Date — ~150ms on the daemon's event loop, and the TUI's
- * schedule preview runs it in the render body, so arrowing the day-of-month
- * past 29 with the month on `2` froze the terminal once per keypress.
+ * Day steps also keep huge gaps cheap: `0 0 29 2 *` skips 8 years over 2100;
+ * minute steps were 4.7M Date allocations (~150ms), and the TUI's schedule
+ * preview runs this in the render body — once per keypress.
  */
 
 const MINUTE_MS = 60_000
@@ -80,16 +66,12 @@ function fieldNumber(raw: string, names: ReadonlyMap<string, number> | undefined
   const token = raw.toUpperCase()
   const named = names?.get(token)
   if (named !== undefined) return named
-  // Number("") is 0 and Number(" 5 ") is 5 — neither is a valid cron token, so
-  // require the literal digit form before trusting the coercion.
+  // Number("") is 0 and Number(" 5 ") is 5; require literal digits.
   if (!/^\d+$/.test(token)) throw new Error(`invalid cron ${field}: ${raw}`)
   return Number(token)
 }
 
-/**
- * One comma-separated field into the set of values it matches. Supports
- * a star, `N`, `A-B`, and a `/step` suffix on any of those (`10-30/5`).
- */
+/** One comma-separated field: `*`, `N`, `A-B`, each with optional `/step` (`10-30/5`). */
 function parseField(args: {
   value: string
   min: number
@@ -182,9 +164,7 @@ interface LocalDay {
   day: number
 }
 
-/** The instant a local wall clock names. An ambiguous (repeated) local time
- *  resolves to one of its two instants and a nonexistent (skipped) one to the
- *  instant the clock jumped to — both deliberate, see the module header. */
+/** A repeated local time resolves to one of its instants; a skipped one to where the clock jumped. */
 function instantOf(d: LocalDay, hour: number, minute: number): number {
   return new Date(d.year, d.month - 1, d.day, hour, minute, 0, 0).getTime()
 }
@@ -199,12 +179,7 @@ function shiftDay(d: LocalDay, delta: number): LocalDay {
   return localDayOf(new Date(d.year, d.month - 1, d.day + delta, 12, 0, 0, 0).getTime())
 }
 
-/**
- * Does this local day match? The Vixie-cron rule that trips everyone up: when
- * BOTH day fields are restricted they are OR'd, not AND'd (`0 0 1 * MON` = the
- * 1st **or** any Monday). With one restricted, only that one applies; with
- * neither, every day matches.
- */
+/** Vixie rule: when BOTH day fields are restricted they are OR'd (`0 0 1 * MON` = the 1st **or** any Monday). */
 function dayMatches(rule: ParsedCron, d: LocalDay): boolean {
   if (!rule.months.has(d.month)) return false
   const domMatch = rule.daysOfMonth.has(d.day)
@@ -215,12 +190,7 @@ function dayMatches(rule: ParsedCron, d: LocalDay): boolean {
   return true
 }
 
-/**
- * Does `timeMs` match? Same day rule as {@link dayMatches}, applied to the
- * whole instant. The scans do not use this — they enumerate matching local
- * minutes instead, which is what keeps them one-firing-per-day across a DST
- * boundary — but it is the honest "is this instant an occurrence" predicate.
- */
+/** "Is this instant an occurrence". The scans don't use it — they enumerate local minutes to stay DST-correct. */
 export function cronMatches(rule: ParsedCron, timeMs: number): boolean {
   const d = new Date(timeMs)
   if (!rule.minutes.has(d.getMinutes())) return false
@@ -228,9 +198,7 @@ export function cronMatches(rule: ParsedCron, timeMs: number): boolean {
   return dayMatches(rule, localDayOf(timeMs))
 }
 
-/** Truncate to the start of the containing minute (cron's resolution).
- *  Epoch ms are UTC-anchored and every supported timezone offset is a whole
- *  number of minutes, so the modulo lands on a local minute boundary too. */
+/** Every supported offset is whole minutes, so this is a local minute boundary too. */
 function floorToMinute(ms: number): number {
   return ms - (ms % MINUTE_MS)
 }
@@ -240,13 +208,9 @@ function sorted(values: ReadonlySet<number>, direction: 1 | -1): number[] {
 }
 
 /**
- * First occurrence strictly AFTER `afterMs`.
- *
- * Strictly-after matters: this is called right after a run fires, and a
- * `<=` boundary would return the timestamp that just fired and spin the
- * runner. Throws when no occurrence exists within the scan bound — a
- * schedule that parses but never fires (`0 0 30 2 *`) is a user error worth
- * surfacing at create time, not a silent no-op.
+ * First occurrence strictly AFTER `afterMs` — `<=` would return the run that
+ * just fired and spin the runner. Throws when none is within the scan bound
+ * (`0 0 30 2 *`), so it surfaces at create time instead of a silent no-op.
  */
 export function nextCronAfter(expression: string, afterMs: number): number {
   const rule = parseCron(expression)
@@ -263,9 +227,7 @@ export function nextCronAfter(expression: string, afterMs: number): number {
         for (const minute of minutes) {
           if (hour === fromHour && minute < fromMinute) continue
           const at = instantOf(day, hour, minute)
-          // A local minute inside a repeated hour can resolve to an instant at
-          // or before `afterMs` (the earlier of its two offsets). Skipping it
-          // keeps the result strictly increasing without firing twice.
+          // A repeated-hour minute can resolve at or before `afterMs`; skip it.
           if (at > afterMs) return at
         }
       }
@@ -278,14 +240,9 @@ export function nextCronAfter(expression: string, afterMs: number): number {
 }
 
 /**
- * Latest occurrence at or before `nowMs`, searching back no further than
- * `notBeforeMs`; `null` when none exists in that window.
- *
- * This is the missed-run question: after the daemon was down, "what should
- * have run?" is NOT the same as "when is the next run" — the answer has to
- * look backwards. `notBeforeMs` bounds the walk (callers pass the schedule's
- * creation time, so a brand-new automation can't claim occurrences that
- * predate it).
+ * Latest occurrence in `[notBeforeMs, nowMs]`, else `null`. Callers pass the
+ * schedule's creation time as `notBeforeMs`, so a new automation can't claim
+ * occurrences that predate it.
  */
 export function latestCronAtOrBefore(expression: string, nowMs: number, notBeforeMs: number): number | null {
   if (nowMs < notBeforeMs) return null
@@ -297,8 +254,7 @@ export function latestCronAtOrBefore(expression: string, nowMs: number, notBefor
   let fromHour = from.getHours()
   let fromMinute = from.getMinutes()
   for (let i = 0; i < SCAN_DAYS; i++) {
-    // Every remaining candidate is earlier than this day's last minute, so once
-    // that is out of the window there is nothing left to find.
+    // All remaining candidates are earlier than this day's last minute.
     if (instantOf(day, 23, 59) < notBeforeMs) return null
     if (dayMatches(rule, day)) {
       for (const hour of hours) {
@@ -319,32 +275,22 @@ export function latestCronAtOrBefore(expression: string, nowMs: number, notBefor
 }
 
 /**
- * How many occurrences fall in `[fromMs, beforeMs)`, capped at `cap`.
- *
- * The counterpart to {@link latestCronAtOrBefore}'s deliberate amnesia. That
- * function answers "which occurrence am I running" with only the most recent
- * one, so a sweep that arrives four minutes late runs the newest occurrence
- * and the three it passed over leave no trace at all. This counts them, so
- * the run history can say an occurrence was lost instead of showing an
- * unbroken column of successes.
- *
- * Capped because the interval is unbounded in practice — a per-minute
- * schedule and a daemon that was down for a week is 10,000 instants, and the
- * caller wants a number for one run record, not the walk.
+ * Occurrences in `[fromMs, beforeMs)`, capped at `cap`. {@link latestCronAtOrBefore}
+ * runs only the newest, so a late sweep's skipped ones leave no trace; this
+ * lets run history record them as lost. Capped: per-minute × a week down is
+ * 10,000 instants.
  */
 export function countCronBetween(expression: string, fromMs: number, beforeMs: number, cap = 500): number {
   if (!(fromMs < beforeMs)) return 0
   let count = 0
-  // `nextCronAfter` is strictly-after and every instant is minute-aligned, so
-  // starting one millisecond early makes `fromMs` itself the first candidate.
+  // `nextCronAfter` is strictly-after; 1ms early makes `fromMs` a candidate.
   let cursor = fromMs - 1
   while (count < cap) {
     let at: number
     try {
       at = nextCronAfter(expression, cursor)
     } catch {
-      // Past the scan bound. Whatever was counted so far is still true, and a
-      // count is not worth failing a sweep over.
+      // Past the scan bound; a count isn't worth failing a sweep over.
       return count
     }
     if (at >= beforeMs) return count

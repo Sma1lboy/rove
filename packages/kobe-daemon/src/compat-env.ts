@@ -1,17 +1,12 @@
 /**
- * Environment compatibility for the staged kobe -> rove rename.
- *
- * Runtime code still reads the established KOBE_* names internally. The
- * public CLI boundary mirrors every ROVE_* value onto its KOBE_* counterpart
- * before starting the daemon, PTY host, TUI, or a child CLI. Keeping the
- * translation here gives every process the same precedence rule:
+ * kobe -> rove env compatibility. Runtime reads KOBE_* internally; the CLI
+ * boundary mirrors ROVE_* onto KOBE_* before starting any process, so every
+ * process shares one precedence rule:
  *
  *   ROVE_* > KOBE_*
  *
- * Product data now uses the Rove layout. Runtime continuity surfaces (daemon
- * and PTY sockets/pids/logs) and plugins deliberately keep the legacy layout
- * until their own compatibility phases; callers choose the explicit constant
- * that matches the surface they own.
+ * Product data uses the Rove layout; daemon/PTY sockets, pids, logs and
+ * plugins keep the legacy layout. Callers pick the constant for their surface.
  */
 
 export const ROVE_ENV_PREFIX = "ROVE_"
@@ -33,19 +28,12 @@ export function legacyKobeEnvKey(roveKey: string): string | undefined {
 }
 
 /**
- * Read one renamed variable without mutating the supplied environment.
- *
- * Blank is UNSET, decided per namespace rather than on the combined result.
- * `VAR=` is how a shell says "unset" — the visual fixture writes
- * `ROVE_TASK_ID=` for exactly that meaning — so a `??` chain over the raw
- * values would treat a DEFINED empty `ROVE_*` as an answer and shadow the
- * real `KOBE_*` beside it. That is not a cosmetic difference for a path: an
- * empty `HOME_DIR` produced `""` as the home and then RELATIVE state paths
- * (`.rove`, `.config/rove/state.json`), relative to whatever the process's
- * cwd happened to be — the user's repository, for the TUI. For the socket
- * and pid overrides it silently dropped an isolated daemon back onto the
- * production one. Blank in the new name means unset, which is exactly when
- * the legacy name is supposed to answer.
+ * Read a renamed variable without mutating `env`. Blank is UNSET, per
+ * namespace (`VAR=` is a shell's "unset"; the visual fixture writes
+ * `ROVE_TASK_ID=`), so an empty `ROVE_*` never shadows a real `KOBE_*`. An
+ * empty `HOME_DIR` otherwise yields RELATIVE state paths under the cwd (the
+ * user's repo, for the TUI), and empty socket/pid overrides drop an isolated
+ * daemon onto the production one.
  */
 export function readRoveEnv(suffix: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
   for (const key of [`${ROVE_ENV_PREFIX}${suffix}`, `${LEGACY_KOBE_ENV_PREFIX}${suffix}`]) {
@@ -60,13 +48,8 @@ export function readRoveHomeDirEnv(env: NodeJS.ProcessEnv = process.env): string
   return readRoveEnv("HOME_DIR", env)
 }
 
-/**
- * Set an explicit control in both namespaces.
- *
- * Internal launchers use this when an isolation or command-line override must
- * beat every inherited value. Writing only KOBE_* is insufficient because a
- * child wrapper will correctly reapply ROVE_* precedence when it starts.
- */
+/** Set in both namespaces so an override beats inherited values: a child
+ *  wrapper reapplies ROVE_* precedence, so KOBE_* alone would lose. */
 export function setRoveEnv(suffix: string, value: string, env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   env[`${ROVE_ENV_PREFIX}${suffix}`] = value
   env[`${LEGACY_KOBE_ENV_PREFIX}${suffix}`] = value
@@ -74,12 +57,8 @@ export function setRoveEnv(suffix: string, value: string, env: NodeJS.ProcessEnv
 }
 
 /**
- * Mirror every public ROVE_* control into the legacy internal namespace.
- * Existing KOBE_* values remain when no new-name value was supplied — and a
- * BLANK `ROVE_*` counts as "not supplied" for the same reason
- * {@link readRoveEnv} does. Mirroring it copied `""` over a real `KOBE_*`,
- * which destroys the value in the one namespace that still had it, so the
- * per-namespace fallback there had nothing left to find.
+ * Mirror ROVE_* onto KOBE_*. A blank `ROVE_*` is "not supplied" (see
+ * {@link readRoveEnv}): mirroring `""` would destroy the real `KOBE_*` value.
  */
 export function installRoveEnvCompatibility(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   for (const [key, value] of Object.entries(env)) {
