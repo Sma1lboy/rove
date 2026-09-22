@@ -12,7 +12,7 @@
  * Error strings resolved at submit time use the module-level `t`.
  */
 
-import { AUTO_EFFORT_TIERS, readAutoEffortTable } from "@/engine/auto-effort"
+import { AUTO_ROUTING_TIERS, readAutoRoutingTable } from "@/engine/auto-routing"
 import { engineEntry } from "@/engine/registry"
 import { type VendorId, nextVendorWithin, prevVendorWithin } from "@/types/vendor"
 import type { AdoptableWorktree } from "@/types/worktree"
@@ -65,7 +65,7 @@ export type NewTaskDialogProps = {
 const EMPTY_MAIN_REPOS: ReadonlySet<string> = new Set()
 
 /** The tier chips: the three depths, then "manual" = pick the fields by hand. */
-const TIER_CHOICES = [...AUTO_EFFORT_TIERS, "manual"] as const
+export const TIER_CHOICES = [...AUTO_ROUTING_TIERS, "manual"] as const
 export type TierChoice = (typeof TIER_CHOICES)[number]
 
 export function useNewTaskViewModel(props: NewTaskDialogProps) {
@@ -88,12 +88,12 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   const effort = effortLevels.includes(effortPick) ? effortPick : ""
   const effortChoices = effortLevels.length > 0 ? ["", ...effortLevels] : []
   const modelVisible = engineAcceptsModel(vendor)
-  // Auto-effort tier. The table is read once per open (state.json); the row
+  // Auto-routing tier. The table is read once per open (state.json); the row
   // renders only while it is configured. What the pick FILLED is remembered,
   // and the tier reads as "manual" again the moment any of the three fields
   // differs from it — the label recorded on the task must describe the fields
   // that actually launch, or it is noise as training data.
-  const tierTable = useMemo(() => readAutoEffortTable(), [])
+  const tierTable = useMemo(() => readAutoRoutingTable(), [])
   const [tierPick, setTierPick] = useState<TierChoice>("manual")
   const tierApplied = useRef<{ vendor: VendorId; effort: string; model: string } | null>(null)
   const [modelSeed, setModelSeed] = useState<{ vendor: VendorId; model: string; key: number } | null>(null)
@@ -284,7 +284,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
    * Which stops the Tab cycle offers.
    *
    * Depth, model and effort no longer RENDER here (they belong to
-   * auto-effort, and a pinned model is a per-task exception), so they must
+   * auto-routing, and a pinned model is a per-task exception), so they must
    * not be focus stops either — the rule stated just above `advanceField`:
    * parking focus on an invisible input swallows every keystroke after it.
    * The `*Visible` flags stay in `nextField`'s signature because the
@@ -451,7 +451,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     setEffort: setEffortPick,
     modelVisible,
     modelField,
-    /** The tier row renders only while auto effort is configured. */
+    /** The tier row renders only while auto routing is configured. */
     tierVisible: tierTable !== null,
     tier,
     pickTier,

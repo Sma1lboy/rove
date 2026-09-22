@@ -1,26 +1,27 @@
 /**
- * Auto effort: tiers `swift` / `standard` / `deep`, each mapped to an (engine,
+ * Auto routing: tiers `swift` / `standard` / `deep`, each mapped to an (engine,
  * model, effort) target. Two parts that never reference each other:
  *   - the TABLE — a default, overridden per field in `state.json`
- *     (`autoEffort.<tier>.engine|model|effort`, docs/CONFIGURATION.md);
+ *     (`autoRouting.<tier>.engine|model|effort`, docs/CONFIGURATION.md);
  *   - the GATE — can the target start: engine listed by `engine-list`, login
  *     not `none`, model flag declared if a model is set, effort level declared
  *     if an effort is set. Which model deserves `deep` is taste, unchecked.
  *
  * Tier copy (`tasks.tier.*`) names no vendor. No auto-pick: a tier fills three
  * fields the user can still see and change. State is read through an injected
- * getter (CLI: `getPersistedString`, TUI: reactive `kv.get`).
+ * getter (CLI: `getPersistedString`, TUI: reactive `kv.get`). Keys were
+ * `autoEffort.*` up to v0.9.220; `state/state-key-migration.ts` moves them.
  */
 
 import { getPersistedString } from "@/state/repos"
 import type { VendorId } from "@/types/vendor"
 import { protocolEntry } from "./engine-presets.ts"
 
-export const AUTO_EFFORT_TIERS = ["swift", "standard", "deep"] as const
-export type AutoEffortTier = (typeof AUTO_EFFORT_TIERS)[number]
+export const AUTO_ROUTING_TIERS = ["swift", "standard", "deep"] as const
+export type AutoRoutingTier = (typeof AUTO_ROUTING_TIERS)[number]
 
-export function isAutoEffortTier(value: string | undefined): value is AutoEffortTier {
-  return (AUTO_EFFORT_TIERS as readonly string[]).includes(value ?? "")
+export function isAutoRoutingTier(value: string | undefined): value is AutoRoutingTier {
+  return (AUTO_ROUTING_TIERS as readonly string[]).includes(value ?? "")
 }
 
 /** What one tier launches. `engine` is an id `engine-list` names. */
@@ -30,10 +31,10 @@ export interface TierTarget {
   readonly effort?: string
 }
 
-export type AutoEffortTable = Readonly<Record<AutoEffortTier, TierTarget>>
+export type AutoRoutingTable = Readonly<Record<AutoRoutingTier, TierTarget>>
 
 /** One engine, three models: claude declares no effort levels, so tiers differ by model alone. */
-export const DEFAULT_AUTO_EFFORT: AutoEffortTable = {
+export const DEFAULT_AUTO_ROUTING: AutoRoutingTable = {
   swift: { engine: "claude", model: "sonnet" },
   standard: { engine: "claude", model: "opus" },
   deep: { engine: "claude", model: "fable" },
@@ -42,8 +43,8 @@ export const DEFAULT_AUTO_EFFORT: AutoEffortTable = {
 export type TierField = "engine" | "model" | "effort"
 
 /** state.json key for one field of one tier. */
-export function autoEffortKey(tier: AutoEffortTier, field: TierField): string {
-  return `autoEffort.${tier}.${field}`
+export function autoRoutingKey(tier: AutoRoutingTier, field: TierField): string {
+  return `autoRouting.${tier}.${field}`
 }
 
 type Getter = (key: string) => unknown
@@ -57,14 +58,14 @@ function stringAt(get: Getter, key: string): string | undefined {
  * The default with persisted fields laid over it. `null` = NOT configured (some
  * tier's engine is `""`); callers treat it as "no such feature", never guess.
  */
-export function readAutoEffortTable(get: Getter = getPersistedString): AutoEffortTable | null {
-  const table: Partial<Record<AutoEffortTier, TierTarget>> = {}
-  for (const tier of AUTO_EFFORT_TIERS) {
-    const base = DEFAULT_AUTO_EFFORT[tier]
-    const engine = stringAt(get, autoEffortKey(tier, "engine"))
+export function readAutoRoutingTable(get: Getter = getPersistedString): AutoRoutingTable | null {
+  const table: Partial<Record<AutoRoutingTier, TierTarget>> = {}
+  for (const tier of AUTO_ROUTING_TIERS) {
+    const base = DEFAULT_AUTO_ROUTING[tier]
+    const engine = stringAt(get, autoRoutingKey(tier, "engine"))
     if (engine !== undefined && !engine.trim()) return null
-    const model = stringAt(get, autoEffortKey(tier, "model"))
-    const effort = stringAt(get, autoEffortKey(tier, "effort"))
+    const model = stringAt(get, autoRoutingKey(tier, "model"))
+    const effort = stringAt(get, autoRoutingKey(tier, "effort"))
     const resolvedModel = model === undefined ? base.model : model.trim() || undefined
     const resolvedEffort = effort === undefined ? base.effort : effort.trim() || undefined
     table[tier] = {
@@ -73,7 +74,7 @@ export function readAutoEffortTable(get: Getter = getPersistedString): AutoEffor
       ...(resolvedEffort ? { effort: resolvedEffort } : {}),
     }
   }
-  return table as AutoEffortTable
+  return table as AutoRoutingTable
 }
 
 /** Why a tier cannot start, in a shape both the CLI error and the Settings row render. */

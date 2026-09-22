@@ -250,7 +250,7 @@ for (const { width, height } of [
 /**
  * Creating a task asks WHERE, WITH WHICH ENGINE, and OPENING WHAT — not about
  * depth, model or reasoning level (owner 2026-09-19). Depth and effort belong
- * to auto-effort, which owns that decision in Settings; a pinned model is a
+ * to auto-routing, which owns that decision in Settings; a pinned model is a
  * per-task exception. All three stay settable after the fact.
  *
  * Driven through the REAL view model's `advanceFrom`, not through `nextField`

@@ -16,12 +16,15 @@ import {
   HERO_WEB_PORT,
   KOBE_DIR,
   assertHeroIsolation,
+  ensureCaptureShell,
   heroEnv,
   heroPtyCommand,
 } from "./hero-env.ts"
 
 if (!existsSync(HERO_HOME)) throw new Error(`no hero fixture at ${HERO_HOME} — run \`bun e2e/hero-fixture.ts --fresh\``)
 assertHeroIsolation()
+// Before anything spawns a shell: the PTY host reads `ZDOTDIR` at boot.
+ensureCaptureShell()
 
 const child = Bun.spawn(["bun", "run", "dev.ts"], {
   cwd: resolve(import.meta.dirname, ".."),

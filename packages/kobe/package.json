@@ -47,6 +47,7 @@
     "dev:sandbox": "bun run scripts/dev-sandbox.ts run",
     "dev:sandbox:reset": "bun run scripts/dev-sandbox.ts reset",
     "build": "bun run scripts/build.ts",
+    "build:rubric": "bun run scripts/build-tier-rubric.ts",
     "compile": "bun run scripts/compile.ts",
     "typecheck": "tsc --noEmit",
     "check-i18n": "bun run scripts/check-i18n.ts",

@@ -21,7 +21,7 @@ export const en = {
 
   field: {
     mode: "MODE",
-    /** Auto-effort depth — only while the table is configured. */
+    /** Auto-routing depth — only while the table is configured. */
     tier: "DEPTH",
     engine: "ENGINE",
     /** Reasoning-level row — only for engines that declare levels. */
@@ -110,7 +110,7 @@ export const en = {
     repoAmbiguous: "more than one saved repo is named {name} — pick the one you mean from the list",
     /** The tier's engine is not offered on this machine (off, or not installed). */
     tierUnavailable:
-      "{tier} points at engine {engine}, which is not available here — retarget it in Settings → Auto effort",
+      "{tier} points at engine {engine}, which is not available here — retarget it in Settings → Auto routing",
   },
 }
 
@@ -213,6 +213,6 @@ export const zh: typeof en = {
     noAdoptable: "没有可接管的 worktree",
     /** Two saved repos share this basename — the name alone can't pick one. */
     repoAmbiguous: "有多个已保存仓库都叫 {name} — 请从列表中选择你要的那个",
-    tierUnavailable: "{tier} 指向的引擎 {engine} 在这台机器上不可用——去 设置 → 自动强度 重新指定",
+    tierUnavailable: "{tier} 指向的引擎 {engine} 在这台机器上不可用——去 设置 → 自动路由 重新指定",
   },
 }

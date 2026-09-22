@@ -16,7 +16,7 @@
  * can import it without @opentui.
  */
 
-import { AUTO_EFFORT_TIERS, type AutoEffortTier } from "../../../engine/auto-effort"
+import { AUTO_ROUTING_TIERS, type AutoRoutingTier } from "../../../engine/auto-routing"
 import type { VendorId } from "../../../types/vendor"
 // theme-core (not ../../context/theme): this module is shared with the
 // React port, which must not reference the Solid .tsx even type-only.
@@ -26,12 +26,12 @@ import { APPEARANCE_SETTINGS, type AppearanceSetting } from "./appearance"
 
 export type NavLevel = "sidebar" | "body"
 
-export type SectionId = "general" | "engines" | "autoEffort" | "plugins" | "marketplace" | "keys" | "feedback" | "dev"
+export type SectionId = "general" | "engines" | "autoRouting" | "plugins" | "marketplace" | "keys" | "feedback" | "dev"
 
 export const SECTIONS: ReadonlyArray<{ id: SectionId; label: string }> = [
   { id: "general", label: "General" },
   { id: "engines", label: "Engines" },
-  { id: "autoEffort", label: "Auto effort" },
+  { id: "autoRouting", label: "Auto routing" },
   { id: "plugins", label: "Plugins" },
   { id: "marketplace", label: "Marketplace" },
   { id: "keys", label: "Keybindings" },
@@ -66,7 +66,11 @@ export type SettingsRow =
   | { id: "add-engine"; kind: "engineAdd" }
   | { id: "install-hooks"; kind: "engineHooksInstall" }
   | { id: "uninstall-hooks"; kind: "engineHooksUninstall" }
-  | { id: string; kind: "autoEffortTier"; tier: AutoEffortTier }
+  | { id: string; kind: "autoRoutingTier"; tier: AutoRoutingTier }
+  | { id: "auto-routing-classifier"; kind: "autoRoutingClassifier" }
+  | { id: "auto-routing-endpoint"; kind: "autoRoutingClassifierEndpoint" }
+  | { id: "auto-routing-threshold"; kind: "autoRoutingClassifierThreshold" }
+  | { id: "auto-routing-key"; kind: "autoRoutingClassifierKey" }
   | { id: "keys-create"; kind: "keysCreate" }
   | { id: string; kind: "pluginToggle"; pluginId: string }
   | { id: string; kind: "pluginSetting"; pluginId: string; key: string }
@@ -90,8 +94,8 @@ export function engineRowId(vendor: VendorId): string {
   return `engine:${vendor}`
 }
 
-function autoEffortRowId(tier: AutoEffortTier): string {
-  return `auto-effort:${tier}`
+function autoRoutingRowId(tier: AutoRoutingTier): string {
+  return `auto-routing:${tier}`
 }
 
 export function prefixTapPresentationRowId(presentation: PrefixTapPresentation): string {
@@ -196,9 +200,40 @@ function marketplaceRows(refs: readonly string[]): SettingsRow[] {
   return refs.map((ref): SettingsRow => ({ id: marketplaceRowId(ref), kind: "pluginInstall", ref }))
 }
 
-/** Auto effort section: one row per tier, in depth order. */
-export function autoEffortRows(): SettingsRow[] {
-  return AUTO_EFFORT_TIERS.map((tier): SettingsRow => ({ id: autoEffortRowId(tier), kind: "autoEffortTier", tier }))
+/**
+ * Auto routing section: one row per tier in depth order, then the classifier —
+ * who PICKS a tier, as opposed to what a tier runs. The endpoint row is listed
+ * unconditionally (like `editor-custom`): a row that appears and disappears as
+ * the mode cycles moves every row under it, and the cursor with them.
+ */
+export function autoRoutingRows(): SettingsRow[] {
+  return [
+    ...AUTO_ROUTING_TIERS.map((tier): SettingsRow => ({ id: autoRoutingRowId(tier), kind: "autoRoutingTier", tier })),
+    { id: "auto-routing-classifier", kind: "autoRoutingClassifier" },
+    { id: "auto-routing-endpoint", kind: "autoRoutingClassifierEndpoint" },
+    { id: "auto-routing-threshold", kind: "autoRoutingClassifierThreshold" },
+    { id: "auto-routing-key", kind: "autoRoutingClassifierKey" },
+  ]
+}
+
+/**
+ * What the endpoint row shows.
+ *
+ * Three sources, and picking the wrong one is visible on screen: in `custom`
+ * the live URL, in `refused` the address the classifier will NOT post to
+ * (stored under the mode key, so showing it is how the user finds the typo),
+ * and otherwise the remembered one. It must never fall back to the raw mode
+ * VALUE — that is the string `jev` in jev mode, and the row then reads
+ * `Endpoint  jev`, which is not an address and not something anyone typed.
+ */
+export function displayEndpoint(
+  kind: "off" | "jev" | "url" | "refused",
+  storedMode: string,
+  remembered: string,
+): string {
+  if (kind === "url") return storedMode || remembered
+  if (kind === "refused") return storedMode
+  return remembered
 }
 
 export function feedbackRows(): SettingsRow[] {
@@ -247,8 +282,8 @@ export function sectionRows(section: SectionId, input: SettingsRowsInput): Setti
       return generalRows()
     case "engines":
       return engineRows(input.engineList)
-    case "autoEffort":
-      return autoEffortRows()
+    case "autoRouting":
+      return autoRoutingRows()
     case "keys":
       return keybindingRows(input.keybindingsFileExists)
     case "plugins":

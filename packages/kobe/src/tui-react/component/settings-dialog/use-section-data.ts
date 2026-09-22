@@ -31,7 +31,7 @@ import { type PluginRowView, readPluginRows, setPluginEnabled, setPluginSetting 
  * contrib / plugin / custom engines that only have a binary to probe.
  * `null` while the probe is in flight. Re-probes each time the section is
  * opened (and when the engine list grows), so a CLI installed from another
- * terminal shows up without restarting Rove. The Auto effort section reads
+ * terminal shows up without restarting Rove. The Auto routing section reads
  * the same probe — its gate asks "is this tier's engine logged in", which is
  * this question for a subset of the same list.
  */
@@ -42,7 +42,7 @@ export function useAccountProbes(section: SectionId, vendors: readonly VendorId[
   // array itself would re-probe on every keystroke in the dialog.
   const key = vendors.join(",")
   useEffect(() => {
-    if (section !== "engines" && section !== "autoEffort") return
+    if (section !== "engines" && section !== "autoRouting") return
     let cancelled = false
     void detectEngineStatuses(key ? key.split(",") : []).then((s) => {
       if (!cancelled) setStatuses(s)

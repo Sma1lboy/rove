@@ -107,7 +107,7 @@ export const en = {
     placeholder: "engine default",
     loading: "listing models…",
   },
-  /** Auto-effort tier names — the user-facing vocabulary; never an engine. */
+  /** Auto-routing tier names — the user-facing vocabulary; never an engine. */
   tier: {
     swift: "swift",
     standard: "standard",
@@ -115,7 +115,7 @@ export const en = {
     manual: "manual",
   },
   /** What each depth is FOR. Names no vendor, model or flag — the mapping
-   *  table (Settings → Auto effort) is the only place those appear. */
+   *  table (Settings → Auto routing) is the only place those appear. */
   tierDesc: {
     swift: "small, well-specified edits — the fastest, cheapest setting",
     standard: "everyday feature work and bug fixes",

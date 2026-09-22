@@ -1,5 +1,5 @@
 /**
- * Auto effort (`engine/auto-effort.ts`): the tier table's read rules and the
+ * Auto routing (`engine/auto-routing.ts`): the tier table's read rules and the
  * gate. The gate is the load-bearing half — a tier that passes here and dies
  * at launch is the exact "accepted everywhere, dropped at spawn" failure the
  * effort/model gates exist to prevent.
@@ -7,34 +7,34 @@
 
 import { describe, expect, it } from "vitest"
 import {
-  DEFAULT_AUTO_EFFORT,
-  autoEffortKey,
+  DEFAULT_AUTO_ROUTING,
+  autoRoutingKey,
   describeTierBlock,
-  readAutoEffortTable,
+  readAutoRoutingTable,
   tierBlock,
-} from "../../src/engine/auto-effort.ts"
+} from "../../src/engine/auto-routing.ts"
 
 const from = (state: Record<string, unknown>) => (key: string) => state[key]
 
-describe("readAutoEffortTable", () => {
+describe("readAutoRoutingTable", () => {
   it("is the shipped table when nothing is persisted", () => {
-    expect(readAutoEffortTable(from({}))).toEqual(DEFAULT_AUTO_EFFORT)
+    expect(readAutoRoutingTable(from({}))).toEqual(DEFAULT_AUTO_ROUTING)
   })
 
   it("overlays persisted fields per tier, and an empty model/effort means none", () => {
-    const table = readAutoEffortTable(
+    const table = readAutoRoutingTable(
       from({
-        [autoEffortKey("deep", "engine")]: "codex",
-        [autoEffortKey("deep", "effort")]: "xhigh",
-        [autoEffortKey("deep", "model")]: "",
+        [autoRoutingKey("deep", "engine")]: "codex",
+        [autoRoutingKey("deep", "effort")]: "xhigh",
+        [autoRoutingKey("deep", "model")]: "",
       }),
     )
     expect(table?.deep).toEqual({ engine: "codex", effort: "xhigh" })
-    expect(table?.swift).toEqual(DEFAULT_AUTO_EFFORT.swift)
+    expect(table?.swift).toEqual(DEFAULT_AUTO_ROUTING.swift)
   })
 
   it("is unconfigured (null) when any tier's engine is blanked — never guessed", () => {
-    expect(readAutoEffortTable(from({ [autoEffortKey("standard", "engine")]: "" }))).toBeNull()
+    expect(readAutoRoutingTable(from({ [autoRoutingKey("standard", "engine")]: "" }))).toBeNull()
   })
 })
 

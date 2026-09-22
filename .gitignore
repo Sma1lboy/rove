@@ -103,3 +103,8 @@ HANDOFF.md
 packages/kobe-daemon/.cache/
 .vercel
 .env*
+
+# Python bytecode. `docs/design/auto-routing/jev-head.py` is a reference
+# implementation people run by hand; running it writes a __pycache__ beside it.
+__pycache__/
+*.pyc

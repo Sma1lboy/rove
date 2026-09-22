@@ -64,7 +64,7 @@ async function enginePresetsInList() {
   return presets
 }
 
-/** Every id `engine-list` names — the membership half of the auto-effort gate. */
+/** Every id `engine-list` names — the membership half of the auto-routing gate. */
 export async function engineListIds(): Promise<readonly string[]> {
   return (await enginePresetsInList()).map((p) => p.id)
 }

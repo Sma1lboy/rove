@@ -124,16 +124,21 @@ The same three places select one:
 An engine that declares no model flag (copilot, contrib, custom) refuses a
 model up front (`BAD_MODEL`) instead of dropping it at launch.
 
-### Auto effort
+### Auto routing
 
 Rather than picking the three fields by hand, a new task can be started at a
 **depth** — `swift`, `standard` or `deep` — and Rove fills the engine, model
-and effort from the table in Settings → Auto effort (`autoEffort.<tier>.*`
+and effort from the table in Settings → Auto routing (`autoRouting.<tier>.*`
 in `state.json`, see [CONFIGURATION.md](./CONFIGURATION.md#engines)). The
 three fields stay on screen and editable; the tier is recorded on the task
 (`.task.tier`). A tier whose target cannot start — engine not listed, not
 logged in, a model or effort its engine cannot carry — says so in Settings
 and is refused by `rove api add --tier` (`TIER_UNAVAILABLE`), not at launch.
+
+`--tier auto` goes one step further and picks the depth from the prompt
+itself, through a classifier that is off until you configure it — see
+[the tier classifier](./CONFIGURATION.md#the-tier-classifier), which also
+spells out where the prompt text goes.
 
 ### Workspace trust
 

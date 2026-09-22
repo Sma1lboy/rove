@@ -1,13 +1,45 @@
 /**
- * `add --tier` — filling engine/model/effort from the auto-effort table.
- * The account probe is mocked: the gate's login half is what a real
- * `detectEngineStatus` answers, and the answer must not depend on who is
- * logged into the machine running the suite.
+ * `add --tier` — filling engine/model/effort from the auto-routing table, and
+ * `--tier auto`, where a classifier names the row instead of the caller.
+ *
+ * Two things are mocked, both for the same reason — the answer must not
+ * depend on the machine running the suite: the account probe (the gate's
+ * login half) and the classifier (which would otherwise be a network call).
+ * What the classifier itself does with a response is
+ * `test/engine/auto-routing-classifier.test.ts`; what is tested HERE is the
+ * wiring — that a pick fills the fields, and that every decline creates the
+ * task anyway.
  */
 
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const probe = vi.hoisted(() => ({ kind: "oauth" as string }))
+const classifier = vi.hoisted(() => ({
+  outcome: { kind: "declined", reason: "off" } as
+    | { kind: "picked"; verdict: { tier: string; confidence: number } }
+    | { kind: "declined"; reason: string; detail?: string },
+  calls: [] as string[],
+}))
+vi.mock("../../src/engine/auto-routing-classifier.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/engine/auto-routing-classifier.ts")>()
+  return {
+    ...actual,
+    readClassifierConfig: () => ({
+      mode: { kind: "jev" as const },
+      threshold: 0.5,
+      timeoutMs: 1000,
+      model: "jev-latest",
+      keyEnv: "TYPESAFE_API_KEY",
+    }),
+    classifyTier: async (text: string) => {
+      classifier.calls.push(text)
+      return classifier.outcome
+    },
+  }
+})
 vi.mock("../../src/engine/engine-status.ts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/engine/engine-status.ts")>()
   return {
@@ -21,7 +53,10 @@ vi.mock("../../src/engine/engine-status.ts", async (importOriginal) => {
 })
 
 const { invokeVerb } = await import("../../src/cli/api-cmd.ts")
-const { FakeClient, expectApiError, stubRuntime, taskFixture } = await import("./api-handler-fixtures.ts")
+const { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } = await import(
+  "./api-handler-fixtures.ts"
+)
+const { ApiError } = await import("../../src/cli/api/types.ts")
 
 const savedEnv = { taskId: process.env.KOBE_TASK_ID, tabId: process.env.KOBE_TAB_ID }
 beforeEach(() => {
@@ -30,6 +65,8 @@ beforeEach(() => {
   // biome-ignore lint/performance/noDelete: env must fully unset (assigning undefined leaves the string "undefined").
   delete process.env.KOBE_TAB_ID
   probe.kind = "oauth"
+  classifier.outcome = { kind: "declined", reason: "off" }
+  classifier.calls = []
 })
 afterEach(() => {
   for (const [name, value] of [
@@ -82,5 +119,149 @@ describe("add --tier", () => {
       /not logged in/,
     )
     expect(client.requests).toEqual([])
+  })
+})
+
+describe("add --tier auto", () => {
+  // The auto path always carries a prompt, so the create is followed by a
+  // delivery, a `task.setPrompt` and a re-`get` — all of which the bare
+  // create-only fake has no answer for.
+  const promptClient = () =>
+    new FakeClient({
+      "task.create": () => ({ taskId: "t1", task: taskFixture() }),
+      "task.get": () => ({ task: taskFixture() }),
+      "task.setPrompt": () => ({}),
+    })
+
+  const withPrompt = (extra: string[] = []) => [
+    "--repo",
+    "/repo/x",
+    "--tier",
+    "auto",
+    "--prompt",
+    "there is a memory leak somewhere in the daemon",
+    ...extra,
+  ]
+
+  it("fills the row the classifier named, and records the tier on the task", async () => {
+    classifier.outcome = { kind: "picked", verdict: { tier: "deep", confidence: 0.71 } }
+    const client = promptClient()
+    const { deliver } = recordingDelivery()
+    const result = (await invokeVerb("add", withPrompt(), {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })) as { tierAuto?: string }
+    expect(classifier.calls).toEqual(["there is a memory leak somewhere in the daemon"])
+    expect(client.requests[0]?.payload).toMatchObject({ command: "claude", model: "fable", tier: "deep" })
+    expect(result.tierAuto).toMatch(/auto → deep \(confidence 0\.71\)/)
+  })
+
+  it("creates the task anyway when the classifier declines, and says why", async () => {
+    for (const outcome of [
+      { kind: "declined" as const, reason: "off" },
+      { kind: "declined" as const, reason: "no-key", detail: "TYPESAFE_API_KEY is not set" },
+      { kind: "declined" as const, reason: "refused", detail: "http:// is only accepted for a loopback address" },
+      { kind: "declined" as const, reason: "low-confidence", detail: "standard at 0.44" },
+      { kind: "declined" as const, reason: "failed", detail: "timed out after 4000ms" },
+    ]) {
+      classifier.outcome = outcome
+      const client = promptClient()
+      const { deliver } = recordingDelivery()
+      const result = (await invokeVerb("add", withPrompt(), {
+        client,
+        runtime: stubRuntime({ deliverPrompt: deliver }),
+      })) as { tierAuto?: string }
+      // The create happened, and it carries no tier — not a wrong one.
+      expect(client.requests[0]?.name).toBe("task.create")
+      expect(client.requests[0]?.payload).not.toHaveProperty("tier")
+      expect(result.tierAuto).toContain(outcome.reason)
+    }
+  })
+
+  it("carries what it decided into a DELIVERY FAILURE too, not just a success", async () => {
+    // The task exists and is already carrying the tier. An error that drops
+    // that leaves a caller unable to tell "routed to deep, engine died" from
+    // "never routed at all" without a second round-trip.
+    classifier.outcome = { kind: "picked", verdict: { tier: "deep", confidence: 0.9 } }
+    const client = promptClient()
+    const failing = async () => {
+      throw new ApiError("failed to start hosted engine session for t1", "SESSION_FAILED", { taskId: "t1" })
+    }
+    try {
+      await invokeVerb("add", withPrompt(), { client, runtime: stubRuntime({ deliverPrompt: failing }) })
+      expect.unreachable("should have thrown")
+    } catch (error) {
+      const err = error as { code: string; data?: Record<string, unknown> }
+      expect(err.code).toBe("SESSION_FAILED")
+      // The original context survives alongside the addition.
+      expect(err.data?.taskId).toBe("t1")
+      expect(String(err.data?.tierAuto)).toMatch(/auto → deep/)
+    }
+  })
+
+  it("creates the task when the classifier picks a tier this machine cannot start", async () => {
+    // A tier the CALLER named is a refusal (TIER_UNAVAILABLE, tested above);
+    // one the classifier guessed at is our problem, not theirs.
+    classifier.outcome = { kind: "picked", verdict: { tier: "deep", confidence: 0.9 } }
+    probe.kind = "none"
+    const client = promptClient()
+    const { deliver } = recordingDelivery()
+    const result = (await invokeVerb("add", withPrompt(), {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })) as { tierAuto?: string }
+    expect(client.requests[0]?.name).toBe("task.create")
+    expect(client.requests[0]?.payload).not.toHaveProperty("tier")
+    expect(result.tierAuto).toMatch(/unusable/)
+  })
+
+  it("creates the task when auto routing is not configured, without sending anything", async () => {
+    // A tier the CALLER named is a refusal (TIER_UNAVAILABLE). `auto` is not:
+    // "never fails a create" has no exceptions, and an unconfigured table is
+    // the most ordinary reason of all for the classifier to have nothing to
+    // say. A blanked engine is how docs/CONFIGURATION.md says to switch auto
+    // routing off, so this is a state a real machine can be in.
+    const home = mkdtempSync(join(tmpdir(), "rove-tier-"))
+    mkdirSync(join(home, ".config", "rove"), { recursive: true })
+    writeFileSync(join(home, ".config", "rove", "state.json"), JSON.stringify({ "autoRouting.standard.engine": "" }))
+    const savedHome = process.env.ROVE_HOME_DIR
+    process.env.ROVE_HOME_DIR = home
+    try {
+      const client = promptClient()
+      const { deliver } = recordingDelivery()
+      const result = (await invokeVerb("add", withPrompt(), {
+        client,
+        runtime: stubRuntime({ deliverPrompt: deliver }),
+      })) as { tierAuto?: string }
+      expect(client.requests[0]?.name).toBe("task.create")
+      expect(client.requests[0]?.payload).not.toHaveProperty("tier")
+      expect(result.tierAuto).toContain("not configured")
+      // And it never reached the network to find that out.
+      expect(classifier.calls).toEqual([])
+    } finally {
+      // biome-ignore lint/performance/noDelete: env must fully unset (assigning undefined leaves the string "undefined").
+      if (savedHome === undefined) delete process.env.ROVE_HOME_DIR
+      else process.env.ROVE_HOME_DIR = savedHome
+    }
+  })
+
+  it("refuses --tier auto with nothing to classify, before anything is created", async () => {
+    const client = createClient()
+    await expectApiError(
+      () => invokeVerb("add", ["--repo", "/repo/x", "--tier", "auto"], { client, runtime: stubRuntime() }),
+      "BAD_FLAG",
+      /--prompt/,
+    )
+    expect(client.requests).toEqual([])
+    expect(classifier.calls).toEqual([])
+  })
+
+  it("still refuses an explicit engine field beside it — auto fills the same three", async () => {
+    const client = createClient()
+    await expectApiError(
+      () => invokeVerb("add", withPrompt(["--model", "opus"]), { client, runtime: stubRuntime() }),
+      "CONFLICTING_FLAGS",
+    )
+    expect(classifier.calls).toEqual([])
   })
 })

@@ -1,0 +1,247 @@
+/**
+ * Settings → Auto routing, the classifier half: who PICKS a tier.
+ *
+ * Its own hook beside `use-auto-routing-settings.ts` because the two answer
+ * different questions on the same screen — that file owns what a tier RUNS
+ * (the table, the gate, the engine picker), this one owns who CHOOSES one
+ * (the mode, the endpoint, the confidence floor, the key). They share no
+ * state.
+ *
+ * The stored key stays exactly what `engine/auto-routing-classifier.ts`
+ * reads — `off` / `jev` / a URL — so this hook adds no second spelling of the
+ * setting for the CLI to disagree with. `custom` is a mode in the UI, a URL
+ * on disk. The endpoint a user typed is remembered separately so that cycling
+ * off and back does not lose it, the way `worktreeBaseCustom` remembers a
+ * path the base cycle is not currently pointing at.
+ */
+
+import { readClassifierConfig } from "../../../engine/auto-routing-classifier"
+import { type SecretSource, secretStatus, writeSecret } from "../../../state/secrets"
+import { displayEndpoint } from "../../../tui/component/settings-dialog/model"
+import type { KVContext } from "../../context/kv"
+import { useT } from "../../i18n"
+import type { DialogContext } from "../../ui/dialog"
+import { DialogConfirm } from "../../ui/dialog-confirm"
+import { RenameTaskDialog } from "../rename-task-dialog"
+
+const MODE_KEY = "autoRouting.classifier"
+/** The last endpoint typed, kept while the mode points elsewhere. */
+const ENDPOINT_KEY = "autoRouting.classifierEndpoint"
+const THRESHOLD_KEY = "autoRouting.classifierThreshold"
+
+/** What the endpoint row accepts, and the reason it is not just `https?://`:
+ *  plain http is fine to a classifier on this machine and is cleartext to
+ *  anything else. Kept in step with `endpointMode` in the classifier. */
+const LOOPBACK = /^(?:localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|.+\.localhost)$/i
+
+export type ClassifierMode = "off" | "jev" | "custom"
+
+export interface ClassifierSettings {
+  readonly mode: ClassifierMode
+  /** The custom endpoint — the live one in custom mode, else the remembered one. */
+  readonly endpoint: string
+  readonly threshold: number
+  /** Name of the bearer token — an env var, and the entry under it in the secrets file. */
+  readonly keyEnv: string
+  /** Where the key came from — the environment outranks the stored one. */
+  readonly keySource: SecretSource
+  /**
+   * Whether THIS mode has a key variable at all. A custom endpoint has none
+   * until `autoRouting.classifierCustomKeyEnv` names one, and then no
+   * Authorization header is sent — so the section cannot describe the key
+   * situation without knowing this.
+   */
+  readonly keyConfigured: boolean
+  /** The last few characters of a STORED key. Never the key. */
+  readonly keyHint: string
+  /** Paste, replace, or clear the stored key. */
+  readonly editKey: () => Promise<void>
+  /** off → jev → custom → off. Custom is skipped when nothing is remembered. */
+  readonly cycle: () => void
+  readonly editEndpoint: () => Promise<void>
+  readonly editThreshold: () => Promise<void>
+}
+
+function stringAt(kv: KVContext, key: string): string {
+  const v = kv.get(key, "")
+  return typeof v === "string" ? v.trim() : ""
+}
+
+/** Whether the classifier would actually POST to this address. */
+function acceptableEndpoint(url: string): boolean {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return false
+  }
+  if (parsed.protocol === "https:") return true
+  return parsed.protocol === "http:" && LOOPBACK.test(parsed.hostname)
+}
+
+export function useClassifierSettings(
+  kv: KVContext,
+  dialog: DialogContext,
+  /**
+   * Whether the Auto routing section is the one on screen. The hook is called
+   * from the dialog body unconditionally, and reading the secrets file costs a
+   * blocking `readFileSync` — so holding `j` in Engines or General paid one
+   * disk read per keystroke for a row nobody was looking at.
+   */
+  visible: boolean,
+  env: NodeJS.ProcessEnv = process.env,
+): ClassifierSettings {
+  const t = useT()
+  // Read through the SAME parser the CLI uses, so a value this screen calls
+  // `off` is one the classifier also treats as off — including the typo case
+  // (anything unrecognised is off), which a second `=== "jev"` here would
+  // quietly disagree about.
+  const config = readClassifierConfig((key) => kv.get(key))
+  const mode: ClassifierMode = config.mode.kind === "url" ? "custom" : config.mode.kind === "jev" ? "jev" : "off"
+  const remembered = stringAt(kv, ENDPOINT_KEY)
+  const endpoint = displayEndpoint(config.mode.kind, stringAt(kv, MODE_KEY), remembered)
+
+  function cycle(): void {
+    if (mode === "off") {
+      kv.set(MODE_KEY, "jev")
+      return
+    }
+    if (mode === "jev") {
+      // Nothing remembered means there is no custom mode to land on — going
+      // to `off` is the honest stop, and the endpoint row is how you get to
+      // custom the first time.
+      kv.set(MODE_KEY, remembered || "off")
+      return
+    }
+    // Leaving custom: keep the URL so the next pass through finds it.
+    if (endpoint) kv.set(ENDPOINT_KEY, endpoint)
+    kv.set(MODE_KEY, "off")
+  }
+
+  async function editEndpoint(): Promise<void> {
+    const next = await RenameTaskDialog.show(dialog, endpoint, {
+      dialogTitle: t("settings.autoRouting.endpointTitle"),
+      fieldLabel: t("settings.autoRouting.endpointField"),
+      submitLabel: t("settings.action.save"),
+      placeholder: "https://tiers.internal/pick",
+      allowEmpty: true,
+    })
+    if (next === undefined) return
+    const url = next.trim()
+    if (!url) {
+      // Cleared: forget it, and fall back to off rather than leaving the mode
+      // pointing at an empty string the classifier would read as off anyway.
+      kv.set(ENDPOINT_KEY, "")
+      if (mode === "custom") kv.set(MODE_KEY, "off")
+      return
+    }
+    if (!acceptableEndpoint(url)) {
+      // Refused HERE rather than stored and refused at request time: the
+      // classifier declines a non-loopback `http://` with a reason, but that
+      // reason only reaches whoever reads `.tierAuto` after a create. The
+      // person typing the address is the one who can fix it.
+      await DialogConfirm.show(
+        dialog,
+        t("settings.autoRouting.endpointInvalidTitle"),
+        t("settings.autoRouting.endpointInvalidBody"),
+        "cancel",
+      )
+      return
+    }
+    kv.set(ENDPOINT_KEY, url)
+    // Remembered, NOT switched to — unless custom is already the mode, where
+    // editing the address means editing the live one.
+    //
+    // This row renders muted while the mode is something else, so it reads as
+    // inactive; a user on `jev` correcting a typo in a remembered URL would
+    // otherwise have silently repointed where their task prompts get sent.
+    // The Choose-with row owns the mode; this row owns the address.
+    if (mode === "custom") kv.set(MODE_KEY, url)
+  }
+
+  async function editThreshold(): Promise<void> {
+    const next = await RenameTaskDialog.show(dialog, config.threshold.toFixed(2), {
+      dialogTitle: t("settings.autoRouting.thresholdTitle"),
+      fieldLabel: t("settings.autoRouting.thresholdField"),
+      submitLabel: t("settings.action.save"),
+      placeholder: "0.50",
+    })
+    if (next === undefined) return
+    const n = Number.parseFloat(next.trim())
+    if (!Number.isFinite(n) || n < 0 || n > 1) {
+      // The same rule the classifier applies to a hand-edited value: out of
+      // range is a mistake, not an instruction. Refusing it here means the
+      // stored setting and the rendered one never disagree.
+      await DialogConfirm.show(
+        dialog,
+        t("settings.autoRouting.thresholdInvalidTitle"),
+        t("settings.autoRouting.thresholdInvalidBody"),
+        "cancel",
+      )
+      return
+    }
+    kv.set(THRESHOLD_KEY, n)
+  }
+
+  /**
+   * The key goes to `~/.rove/secrets.json`, never to `state.json` — that file
+   * is opened by `rove config` and pasted whole into bug reports.
+   *
+   * The field opens EMPTY rather than pre-filled with the stored key: there is
+   * no edit anyone wants to make to the middle of an API key, and a key on
+   * screen is a key in a screen share. Submitting it empty clears the stored
+   * one, which is the only other thing you would come here to do.
+   */
+  async function editKey(): Promise<void> {
+    // No variable for this mode means nowhere to put a key — a custom
+    // endpoint that was never given `classifierCustomKeyEnv` is sent no header
+    // at all, and storing one under a name nothing reads would be a key at
+    // rest for no purpose.
+    if (!config.keyEnv) {
+      await DialogConfirm.show(
+        dialog,
+        t("settings.autoRouting.keyNoVariableTitle"),
+        t("settings.autoRouting.keyNoVariableBody"),
+        "cancel",
+      )
+      return
+    }
+    const next = await RenameTaskDialog.show(dialog, "", {
+      dialogTitle: t("settings.autoRouting.keyTitle", { env: config.keyEnv }),
+      fieldLabel: config.keyEnv,
+      submitLabel: t("settings.action.save"),
+      placeholder: t("settings.autoRouting.keyPlaceholder"),
+      allowEmpty: true,
+    })
+    if (next === undefined) return
+    try {
+      writeSecret(config.keyEnv, next.trim())
+    } catch (err) {
+      // A read-only home, EACCES on ~/.rove, a full disk. Both call sites
+      // discard this promise, so without the catch a failed save is an
+      // unhandled rejection and the dialog closes exactly as it does on
+      // success — the user walks away believing the key is stored.
+      await DialogConfirm.show(
+        dialog,
+        t("settings.autoRouting.keyWriteFailedTitle"),
+        t("settings.autoRouting.keyWriteFailedBody", { reason: err instanceof Error ? err.message : String(err) }),
+        "cancel",
+      )
+    }
+  }
+
+  const key = visible && config.keyEnv ? secretStatus(config.keyEnv, env) : { source: "none" as const, hint: "" }
+  return {
+    mode,
+    endpoint,
+    threshold: config.threshold,
+    keyEnv: config.keyEnv ?? "",
+    keySource: key.source,
+    keyHint: key.hint,
+    keyConfigured: config.keyEnv !== undefined,
+    cycle,
+    editEndpoint,
+    editThreshold,
+    editKey,
+  }
+}

@@ -76,7 +76,7 @@ test("Marketplace marks installed plugins and reports an install it refused", as
       return await frame()
     }
 
-    // General → Engines → Auto effort → Plugins → Marketplace
+    // General → Engines → Auto routing → Plugins → Marketplace
     for (let i = 0; i < 4; i++) await press("j")
     await settle(120)
     const listing = await frame()

@@ -164,6 +164,20 @@ export function getPersistedString(key: string): string | undefined {
 }
 
 /**
+ * Read a kv value WITHOUT narrowing it to a string — for settings whose
+ * natural type is not one.
+ *
+ * {@link getPersistedString} drops anything that is not a string, which is
+ * right for the keys it was written for and silently wrong for a number: a
+ * threshold hand-edited (or written by Settings) as a JSON number reads as
+ * absent, the caller falls back to the shipped default, and two surfaces then
+ * disagree about the same setting with nothing anywhere looking broken.
+ */
+export function getPersistedValue(key: string): unknown {
+  return loadStateFile()[key]
+}
+
+/**
  * Persist a string value into the shared kv state.json: a single-key
  * read-merge-write + atomic rename via {@link patchStateFile}. Pairs with
  * {@link getPersistedString} for standalone processes. Concurrent with the
