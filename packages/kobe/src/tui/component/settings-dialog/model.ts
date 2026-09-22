@@ -271,10 +271,7 @@ export function devRows(hasDaemon: boolean): SettingsRow[] {
     { id: "dispatcher", kind: "devDispatcher" },
   ]
 }
-
-/**
- * The full registry: a section's ordered navigable rows. Keybindings is a
- * read-only display — zero navigable rows.
+/** Keybindings shows only the prefix-tap rows (+ keys-create while the file is absent). */
  */
 export function sectionRows(section: SectionId, input: SettingsRowsInput): SettingsRow[] {
   switch (section) {
