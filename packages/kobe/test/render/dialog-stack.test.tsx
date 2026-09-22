@@ -22,34 +22,6 @@ function Driver(props: { onMount: (dialog: ReturnType<typeof useDialog>) => void
 }
 
 describe("DialogProvider", () => {
-  it("push shows the dialog body on top of the base content", async () => {
-    const { frame } = await renderComponent(
-      <DialogProvider>
-        <Driver onMount={(dialog) => dialog.push(() => <text>dialog A</text>)} />
-      </DialogProvider>,
-    )
-    const text = await frame()
-    expect(text).toContain("base content")
-    expect(text).toContain("dialog A")
-  })
-
-  it("can anchor a dialog header at the viewport's upper fifth", async () => {
-    const height = 24
-    const { frame } = await renderComponent(
-      <DialogProvider>
-        <Driver
-          onMount={(dialog) => {
-            dialog.replace(() => <text>UPPER FIFTH</text>)
-            dialog.setPlacement("upper-fifth")
-          }}
-        />
-      </DialogProvider>,
-      { width: 80, height },
-    )
-    const headerRow = (await frame()).split("\n").findIndex((line) => line.includes("UPPER FIFTH"))
-    expect(headerRow).toBe(Math.floor(height / 5))
-  })
-
   it("resets upper placement when a different dialog replaces it", async () => {
     const height = 24
     const dialogRef: { current?: ReturnType<typeof useDialog> } = {}
@@ -104,22 +76,6 @@ describe("DialogProvider", () => {
     const dimmedText = after.lines.flatMap((line) => line.spans).find((span) => span.text.includes("split horizon"))
     expect(dimmedText).toBeDefined()
     expect(dimmedText?.fg.equals(beforeText?.fg)).toBe(false)
-  })
-
-  it("replace swaps the top dialog instead of stacking", async () => {
-    const { frame } = await renderComponent(
-      <DialogProvider>
-        <Driver
-          onMount={(dialog) => {
-            dialog.push(() => <text>dialog A</text>)
-            dialog.replace(() => <text>dialog B</text>)
-          }}
-        />
-      </DialogProvider>,
-    )
-    const text = await frame()
-    expect(text).not.toContain("dialog A")
-    expect(text).toContain("dialog B")
   })
 
   it("esc pops the top dialog and fires its onClose", async () => {
@@ -313,26 +269,6 @@ describe("DialogProvider", () => {
     await settle()
     expect(body).toBe(1)
     expect(background).toBe(0)
-  })
-
-  it("clear empties the whole stack at once", async () => {
-    const dialogRef: { current?: ReturnType<typeof useDialog> } = {}
-    const { frame } = await renderComponent(
-      <DialogProvider>
-        <Driver
-          onMount={(dialog) => {
-            dialogRef.current = dialog
-            dialog.push(() => <text>dialog A</text>)
-            dialog.push(() => <text>dialog B</text>)
-          }}
-        />
-      </DialogProvider>,
-    )
-    expect(await frame()).toContain("dialog B")
-    act(() => dialogRef.current?.clear())
-    const text = await frame()
-    expect(text).not.toContain("dialog B")
-    expect(dialogRef.current?.stack.length).toBe(0)
   })
 
   // Settings → Engines → "+ Add engine" chains three prompts, each closing

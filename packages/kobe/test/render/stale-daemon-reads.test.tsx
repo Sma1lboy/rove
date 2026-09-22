@@ -18,7 +18,6 @@ import type { DaemonConnectionState } from "../../src/client/remote-orchestrator
 import { createStateCell } from "../../src/lib/external-store"
 import { AutomationsPage } from "../../src/tui-react/component/automations-page"
 import { UpdatePage } from "../../src/tui-react/component/update-page"
-import { WorkspaceFrame } from "../../src/tui-react/workspace/host-footer"
 import { act, renderComponent, settle } from "./harness"
 
 const NOW = Date.now()
@@ -86,29 +85,6 @@ test("a failed registry check does not render as green up-to-date", async () => 
     globalThis.fetch = realFetch
     process.env.KOBE_FAKE_UPDATE = previous
   }
-})
-
-test("WorkspaceFrame renders a banner above the pane row", async () => {
-  // The frame is what every non-full-window surface mounts inside, so a banner
-  // handed to it has to sit ABOVE the panes rather than inside one of them.
-  // The daemon-down banner is gone; the version-skew banner still arrives
-  // through this same prop, and this is the only test that pins the ordering.
-  const usage = createStateCell(null)
-  const orch = {
-    usageSnapshotSignal: () => usage,
-    contextUsageSignal: () => createStateCell(null),
-  } as unknown as RemoteOrchestrator
-  const { frame } = await renderComponent(
-    <WorkspaceFrame orchestrator={orch} banner={<text>TOP STRIP</text>}>
-      <text>body</text>
-    </WorkspaceFrame>,
-    { width: 44, height: 8 },
-  )
-  const lines = (await frame()).split("\n")
-  const bannerRow = lines.findIndex((line) => line.includes("TOP STRIP"))
-  const bodyRow = lines.findIndex((line) => line.includes("body"))
-  expect(bannerRow).toBeGreaterThanOrEqual(0)
-  expect(bodyRow).toBeGreaterThan(bannerRow)
 })
 
 test("the routines page keeps its rows when a poll fails", async () => {

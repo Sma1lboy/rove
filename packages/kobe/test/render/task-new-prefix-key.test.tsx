@@ -198,14 +198,8 @@ describe("prefix+n New task", () => {
     }
   })
 
-  it("opens the dialog from kanban, routines, and issues pages", async () => {
-    for (const openPage of ["kanbanOpen", "automationsOpen", "workItemsOpen"] as const) {
-      expect(await pressNewTask({ initialFocus: "workspace", openPage })).toContain("New task dialog opened")
-    }
-  })
-
-  it("opens the dialog from the Worktrees and Update full-window pages", async () => {
-    for (const openPage of ["worktreesOpen", "updateOpen"] as const) {
+  it("opens the dialog from every full-window page", async () => {
+    for (const openPage of ["kanbanOpen", "automationsOpen", "workItemsOpen", "worktreesOpen", "updateOpen"] as const) {
       expect(await pressNewTask({ initialFocus: "workspace", openPage })).toContain("New task dialog opened")
     }
   })

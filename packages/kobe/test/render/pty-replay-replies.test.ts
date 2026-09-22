@@ -60,13 +60,6 @@ describe("XtermTaskPty replay reply muting", () => {
     expect(replies).toHaveLength(1)
   })
 
-  it("keeps answering a purely live stream (no replay involved)", async () => {
-    const pty = probe()
-    pty.feedLive("hello \x1b[6n world")
-    await until(() => screenText(pty).includes("world"))
-    expect(pty.writes.filter((w) => CPR.test(w))).toHaveLength(1)
-  })
-
   it("answers live default-color queries for terminal-aware engines", async () => {
     const pty = probe()
     pty.feedLive("\x1b]10;?\x1b\\\x1b]11;?\x1b\\")

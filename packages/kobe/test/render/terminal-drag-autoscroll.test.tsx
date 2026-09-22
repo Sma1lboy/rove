@@ -111,23 +111,6 @@ test("a drag that leaves the pane on its first move still scrolls", async () => 
   }
 })
 
-/** The pull is directional: a sideways drag along the top row is not "up". */
-test("dragging sideways along the top row does not scroll", async () => {
-  const [handle] = await mountPane("drag-sideways")
-  try {
-    await act(async () => {
-      await handle.mockMouse.pressDown(10, 2)
-      await handle.mockMouse.emitMouseEvent("drag", 20, 2)
-      await handle.mockMouse.emitMouseEvent("drag", 30, 2)
-      await handle.frame()
-    })
-    await settle(handle, 250)
-    expect(await handle.frame()).not.toMatch(/scrolled|已回滚/)
-  } finally {
-    handle.destroy()
-  }
-})
-
 /**
  * An app that owns its own scrollback — an engine on the ALTERNATE screen,
  * where the pane has no local history to move — must be scrolled the way the

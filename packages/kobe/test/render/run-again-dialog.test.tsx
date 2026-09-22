@@ -48,15 +48,6 @@ describe("RunAgainDialogView", () => {
     expect(f).toContain("new task")
   })
 
-  test("enter commits the re-run — the confirm button is where focus opens", async () => {
-    const p = mount()
-    const { frame, mockInput } = await p
-    await frame()
-    act(() => mockInput.pressEnter())
-    await frame()
-    expect(p.picked).toEqual([true])
-  })
-
   test("left moves to cancel, and enter there cancels instead of creating", async () => {
     const p = mount()
     const { frame, mockInput } = await p

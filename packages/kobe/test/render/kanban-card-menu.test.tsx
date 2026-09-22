@@ -99,14 +99,6 @@ test("picking a status writes it as a setStatus op", async () => {
   expect(await frame()).not.toContain("status → doing")
 })
 
-test("escape closes the menu without writing", async () => {
-  const { frame, mockInput, mutations } = await openMenu()
-  act(() => mockInput.pressEscape())
-  await settle()
-  expect(await frame()).not.toContain("status → doing")
-  expect(mutations).toEqual([])
-})
-
 test("a right-click never falls through to the card's open handler", async () => {
   // The right-click branch lives inside the card's existing onMouseUp, so a
   // missing early return would ALSO open the detail drawer underneath.

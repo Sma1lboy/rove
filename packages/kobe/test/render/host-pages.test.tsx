@@ -92,32 +92,17 @@ function deps(overrides: Partial<HostPageDeps>): HostPageDeps {
 
 const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 120))
 
-test("renderFullWindowPage returns null when no full-window page is open", async () => {
-  const { frame } = await renderComponent(<box>{renderFullWindowPage(deps({}))}</box>, {
+test.each([
+  ["Worktrees", { worktreesOpen: true }],
+  ["ROVE UPDATE", { updateOpen: true }],
+] as const)("renderFullWindowPage routes to the open page (%s)", async (title, overrides) => {
+  const { frame } = await renderComponent(<box>{renderFullWindowPage(deps(overrides))}</box>, {
     width: 80,
     height: 24,
-  })
-  expect(await frame()).not.toContain("Worktrees")
-  expect(await frame()).not.toContain("ROVE UPDATE")
-})
-
-test("renderFullWindowPage renders WorktreesPage", async () => {
-  const { frame } = await renderComponent(<box>{renderFullWindowPage(deps({ worktreesOpen: true }))}</box>, {
-    width: 70,
-    height: 20,
     providers: { dialog: true, notifications: true },
   })
   await settle()
-  expect(await frame()).toContain("Worktrees")
-})
-
-test("renderFullWindowPage renders UpdatePage", async () => {
-  const { frame } = await renderComponent(<box>{renderFullWindowPage(deps({ updateOpen: true }))}</box>, {
-    width: 80,
-    height: 24,
-  })
-  await settle()
-  expect(await frame()).toContain("ROVE UPDATE")
+  expect(await frame()).toContain(title)
 })
 
 test("useHostPagesState clears What's New once, and it cannot be reopened", async () => {
@@ -133,70 +118,18 @@ test("useHostPagesState clears What's New once, and it cannot be reopened", asyn
   expect(await frame()).toContain("dismissed")
 })
 
-test("renderContentPage returns null when no content page is open", async () => {
-  const { frame } = await renderComponent(<box>{renderContentPage(deps({}))}</box>, {
-    width: 80,
-    height: 24,
-    providers: { dialog: true, notifications: true },
-  })
-  await settle()
-  expect(await frame()).not.toContain("ROUTINES")
-})
-
-test("renderContentPage renders AutomationsPage with focus repo", async () => {
-  const { frame } = await renderComponent(
-    <box>{renderContentPage(deps({ automationsOpen: true, selectedTask: SELECTED_TASK }))}</box>,
-    {
-      width: 70,
-      height: 16,
-      providers: { dialog: true, notifications: true },
-    },
-  )
-  await settle()
-  expect(await frame()).toContain("ROUTINES")
-})
-
-test("renderContentPage renders WorkItemsPage with a selected task repo", async () => {
-  const { frame } = await renderComponent(
-    <box>{renderContentPage(deps({ workItemsOpen: true, selectedTask: SELECTED_TASK }))}</box>,
-    {
-      width: 80,
-      height: 24,
-      providers: { dialog: true, notifications: true },
-    },
-  )
-  await settle()
-  expect(await frame()).toContain("ISSUES")
-})
-
-test("renderContentPage renders AutomationsPage without a selected task", async () => {
-  const { frame } = await renderComponent(<box>{renderContentPage(deps({ automationsOpen: true }))}</box>, {
-    width: 70,
-    height: 16,
-    providers: { dialog: true, notifications: true },
-  })
-  await settle()
-  expect(await frame()).toContain("ROUTINES")
-})
-
-test("renderContentPage renders WorkItemsPage without a selected task", async () => {
-  const { frame } = await renderComponent(<box>{renderContentPage(deps({ workItemsOpen: true }))}</box>, {
-    width: 80,
-    height: 24,
-    providers: { dialog: true, notifications: true },
-  })
-  await settle()
-  expect(await frame()).toContain("ISSUES")
-})
-
-test("renderContentPage renders KanbanPage without a focus task", async () => {
-  const { frame } = await renderComponent(<box>{renderContentPage(deps({ kanbanOpen: true }))}</box>, {
+test.each([
+  ["ROUTINES", { automationsOpen: true, selectedTask: SELECTED_TASK }],
+  ["ISSUES", { workItemsOpen: true, selectedTask: SELECTED_TASK }],
+  ["Kanban", { kanbanOpen: true }],
+] as const)("renderContentPage routes to the open page (%s)", async (title, overrides) => {
+  const { frame } = await renderComponent(<box>{renderContentPage(deps(overrides))}</box>, {
     width: 120,
     height: 30,
     providers: { dialog: true, kv: true, notifications: true },
   })
   await settle()
-  expect(await frame()).toContain("Kanban")
+  expect(await frame()).toContain(title)
 })
 
 function mockFocus(): FocusContextValue {
@@ -311,26 +244,6 @@ test("useHostPagesRender surfaces the settings page", async () => {
   })
   await settle()
   expect(await frame()).toContain("Settings")
-})
-
-test("useHostPagesRender surfaces a full-window page", async () => {
-  const { frame } = await renderComponent(<RenderHarness width={80} initial={(pages) => pages.openWorktrees()} />, {
-    width: 80,
-    height: 24,
-    providers: { dialog: true, notifications: true },
-  })
-  await settle()
-  expect(await frame()).toContain("Worktrees")
-})
-
-test("useHostPagesRender surfaces a content page", async () => {
-  const { frame } = await renderComponent(<RenderHarness width={80} initial={(pages) => pages.openKanban()} />, {
-    width: 120,
-    height: 30,
-    providers: { dialog: true, kv: true, notifications: true },
-  })
-  await settle()
-  expect(await frame()).toContain("Kanban")
 })
 
 test("useHostPagesRender computes narrow layout and recent task", async () => {

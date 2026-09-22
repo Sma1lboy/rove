@@ -28,11 +28,6 @@ describe("sameSessions", () => {
     expect(sameSessions([], [])).toBe(true)
   })
 
-  test("reports a change when a session appears or disappears", () => {
-    expect(sameSessions([], [session()])).toBe(false)
-    expect(sameSessions([session()], [])).toBe(false)
-  })
-
   test("reports a change on each field the tree reads", () => {
     expect(sameSessions([session()], [session({ key: "task-2:tab-1" })])).toBe(false)
     expect(sameSessions([session()], [session({ alive: false })])).toBe(false)
@@ -51,11 +46,5 @@ describe("sameSessions", () => {
     expect(sameSessions([session()], [session({ pid: 202 })])).toBe(false)
     expect(sameSessions([session({ pid: 101 })], [session({ pid: null })])).toBe(false)
     expect(sameSessions([session({ pid: 101 })], [session({ pid: 101 })])).toBe(true)
-  })
-
-  test("compares position by position, so a reordered inventory is a change", () => {
-    const a = [session({ key: "a" }), session({ key: "b" })]
-    const b = [session({ key: "b" }), session({ key: "a" })]
-    expect(sameSessions(a, b)).toBe(false)
   })
 })

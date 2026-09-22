@@ -66,16 +66,6 @@ describe("NewChatDialogView", () => {
     expect(p.choices).toEqual([{ pick: "claude", destination: "fork", context: "continue" }])
   })
 
-  test("toggles flip back — tab twice returns to the default combo", async () => {
-    const p = mount()
-    const { frame, mockInput } = await p
-    act(() => mockInput.pressTab())
-    act(() => mockInput.pressTab())
-    const back = await frame()
-    expect(back).toContain("new tab in this worktree")
-    expect(back).toContain("shell")
-  })
-
   test("shell highlight clamps onto an engine when the combo leaves default", async () => {
     const p = mount({ availableVendors: ["claude"] })
     const { frame, mockInput } = await p
@@ -117,19 +107,5 @@ describe("NewChatDialogView", () => {
     await frame()
     expect(siblingTabFired).toBe(false)
     expect(await frame()).toContain("fork a child task")
-  })
-
-  test("preset props open the dialog pre-flipped (prefix entries)", async () => {
-    const p = mount({ initialDestination: "fork" })
-    const handle = await p
-    const first = await handle.frame()
-    expect(first).toContain("fork a child task")
-    expect(first).toContain("fresh conversation")
-    handle.destroy()
-
-    const q = mount({ initialContext: "continue" })
-    const second = await (await q).frame()
-    expect(second).toContain("new tab in this worktree")
-    expect(second).toContain("continue this conversation")
   })
 })

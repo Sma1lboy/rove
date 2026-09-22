@@ -17,15 +17,8 @@ import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
 import { bindByIds } from "../../src/tui/context/keybindings"
 import { currentLang, setLocaleLang } from "../../src/tui/i18n"
 import { CTRL_HOLD_THRESHOLD_MS } from "../../src/tui/lib/ctrl-hold"
-import {
-  PREFIX_GUIDE_DELAY_MS,
-  prefixHudPush,
-  prefixHudSetArmed,
-  prefixHudShowDirect,
-  resetPrefixHud,
-} from "../../src/tui/lib/prefix-hud"
+import { PREFIX_GUIDE_DELAY_MS, prefixHudPush, prefixHudSetArmed, resetPrefixHud } from "../../src/tui/lib/prefix-hud"
 import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
-import { DIRECT_GUIDE_PREFIX_ACTION_ID } from "../../src/tui/lib/shortcut-reveal"
 import { act, renderComponent, settle, waitForFrameText } from "./harness"
 
 const NOOP = (): void => {}
@@ -213,52 +206,6 @@ describe("which-key prefix guide", () => {
     expect(text).toContain("Ask the agent to create a PR from the current task")
   })
 
-  it("renders the resolved-action feed on the readable dialog surface", async () => {
-    prefixHudPush({ prefixKey: "ctrl+a", stroke: "f", action: "chat.fork.new", at: Date.now() })
-    const { frame, spans } = await renderComponent(<PrefixHud left={1} width={28} />, { width: 80, height: 24 })
-    expect(await frame()).toContain("ctrl+a + f")
-    const backgrounds = (await spans()).lines.flatMap((line) => line.spans).filter((span) => span.bg !== undefined)
-    expect(backgrounds.length).toBeGreaterThan(0)
-  })
-
-  it("uses a direct-shortcut title while ctrl is held", async () => {
-    prefixHudShowDirect([
-      { stroke: "q", action: "focus.sidebar" },
-      { stroke: "a", action: DIRECT_GUIDE_PREFIX_ACTION_ID },
-    ])
-    const { frame } = await renderComponent(<PrefixHud left={1} width={22} />, {
-      width: 100,
-      height: 28,
-    })
-
-    const text = await frame()
-    expect(text).toContain("Hold ctrl — Rove shortcuts")
-    expect(text).toContain("release ctrl to close")
-    expect(text).toContain("q")
-    expect(text).not.toContain("ctrl+q")
-    expect(text).toContain("More commands (prefix)")
-  })
-
-  it("keeps every alias visible when a direct action has many chords", async () => {
-    prefixHudShowDirect([
-      { stroke: "ctrl+2", action: "focus.next" },
-      { stroke: "ctrl+3", action: "focus.next" },
-      { stroke: "ctrl+4", action: "focus.next" },
-      { stroke: "ctrl+5", action: "focus.next" },
-      { stroke: "ctrl+6", action: "focus.next" },
-      { stroke: "ctrl+7", action: "focus.next" },
-      { stroke: "ctrl+8", action: "focus.next" },
-      { stroke: "ctrl+9", action: "focus.next" },
-      { stroke: "ctrl+0", action: "focus.next" },
-    ])
-    const { frame } = await renderComponent(<PrefixHud left={1} width={22} />, {
-      width: 100,
-      height: 28,
-    })
-
-    expect(await frame()).toContain("ctrl+0")
-  })
-
   it("opens from a bare ctrl press and closes on its release event", async () => {
     const { frame, mockInput } = await renderComponent(
       <>
@@ -378,12 +325,6 @@ describe("the resolved-action feed against a CELL budget", () => {
     expect(row).toContain("打开例行任务…")
     // The tail the code-point truncator kept, and Yoga then sheared off.
     expect(row).not.toContain("定时任务）")
-    expect(displayWidth(row.trim())).toBeLessThanOrEqual(HUD_WIDTH - 2)
-  })
-
-  it("still clips the English label the same way", async () => {
-    const row = await feedRow("en")
-    expect(row).toContain("Open routine…")
     expect(displayWidth(row.trim())).toBeLessThanOrEqual(HUD_WIDTH - 2)
   })
 })

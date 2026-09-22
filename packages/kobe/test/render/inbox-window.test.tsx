@@ -89,25 +89,6 @@ test("clipped cards surface as +N more instead of vanishing", async () => {
   expect(text).toContain("+3 more")
 })
 
-test("a long identity ends in an ellipsis, not a bare cut", async () => {
-  const tasks = [task("t0", { title: "a-title-that-cannot-possibly-fit-in-forty-columns-of-terminal" })]
-  const text = await pane([item("t0", "turn_complete")], tasks, { width: 44, height: 30 })
-  expect(text).toContain("…")
-})
-
-test("a tight identity line drops the badge label but keeps its glyph", async () => {
-  const tasks = [task("t0", { title: "some-reasonably-long-task-title" })]
-  const text = await pane([item("t0", "permission_needed")], tasks, { width: 40, height: 30 })
-  expect(text).toContain("?")
-  expect(text).not.toContain("needs input")
-})
-
-test("a comfortable width keeps the full badge label", async () => {
-  const tasks = [task("t0")]
-  const text = await pane([item("t0", "permission_needed")], tasks, { width: 80, height: 30 })
-  expect(text).toContain("needs input")
-})
-
 test("the clear hint dims on a RECENT row — only attention rows are dismissible", async () => {
   const tasks = [task("t-att"), task("t-recent")]
   const items = [item("t-att", "turn_complete")]

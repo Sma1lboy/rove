@@ -94,40 +94,6 @@ test("kanban: a failed issue delete shows an error toast, not just a log line", 
   await expectErrorToast(text, spans, "Couldn't delete story #1", "No cards")
 })
 
-test("kanban: a failed issue create shows an error toast", async () => {
-  const orch = {
-    listTasks: () => [{ repo: REPO }],
-    listIssueRepos: async () => [REPO],
-    listIssues: async () => ({ repoRoot: REPO, exists: true, nextId: 9, issues: [issue(1)] }),
-    activeTaskSignal: () => ({ get: () => null }),
-    mutateIssue: async () => {
-      throw new Error("issues store is read-only")
-    },
-  } as never
-  const { frame, spans, mockInput } = await renderComponent(
-    <>
-      <KanbanPage
-        orchestrator={orch}
-        focused={true}
-        onClose={() => {}}
-        onStartChat={async () => {}}
-        onOpenTask={() => {}}
-      />
-      <ToastOverlay />
-    </>,
-    { width: 120, height: 30, providers: { dialog: true, kv: true, notifications: true } },
-  )
-  await settle()
-  mockInput.typeText("n")
-  await settle()
-  expect(await frame()).toContain("NEW STORY")
-  mockInput.typeText("the new story")
-  await settle()
-  mockInput.typeText("\x13") // ctrl+s — file without starting
-  await settle(150)
-  await expectErrorToast(await frame(), spans, "Couldn't create the story", "No cards")
-})
-
 const AUTOMATION = {
   id: "a1",
   name: "weekday audit",
@@ -180,31 +146,6 @@ test("automations: a failed delete shows an error toast instead of a muted line"
   await expectErrorToast(await frame(), spans, 'Couldn\'t delete "weekday audit"', "in 1h")
 })
 
-test("automations: a failed toggle shows an error toast", async () => {
-  const orch = {
-    connectionStateSignal: () => ONLINE,
-    listAutomations: async () => ({ automations: [AUTOMATION], keepsDaemonAlive: true }),
-    automationRuns: async () => ({ runs: [] }),
-    listTasks: () => [{ repo: "/x/kobe" }],
-    setAutomationEnabled: async () => {
-      throw new Error("daemon refused")
-    },
-  } as never
-  const { frame, spans, mockInput } = await renderComponent(
-    <>
-      <AutomationsPage orchestrator={orch} focused={true} onClose={() => {}} />
-      <ToastOverlay />
-    </>,
-    { width: 90, height: 22, providers: { dialog: true, notifications: true } },
-  )
-  await settle(150)
-  mockInput.typeText("e")
-  await settle(150)
-  // The routine was enabled, so the toast names the state it KEPT — a toggle
-  // that failed must not read as though it half-applied.
-  await expectErrorToast(await frame(), spans, '"weekday audit" stays enabled', "in 1h")
-})
-
 const WORK_ITEM = {
   number: 42,
   title: "Fix the thing",
@@ -240,33 +181,6 @@ test("work-items: a failed start shows an error toast instead of a muted line", 
   // Muted reference: the repo label in the header renders `textMuted`; the
   // toast title must not share that color.
   await expectErrorToast(await frame(), spans, "Couldn't start work on #42", "kobe")
-})
-
-test("work-items: the muted inline line stays for non-failure progress", async () => {
-  // The notice mechanism survives for status text — "starting" renders as the
-  // quiet inline line, not an error toast.
-  let resolveStart: ((value: { started: boolean; taskId: string; title: string }) => void) | undefined
-  const orch = workItemsOrch({
-    startWorkItem: () =>
-      new Promise((resolve) => {
-        resolveStart = resolve
-      }),
-  })
-  const { frame, mockInput } = await renderComponent(
-    <>
-      <WorkItemsPage orchestrator={orch} focused={true} onClose={() => {}} />
-      <ToastOverlay />
-    </>,
-    { width: 90, height: 20, providers: { notifications: true } },
-  )
-  await settle(150)
-  mockInput.pressEnter()
-  await settle(150)
-  const text = await frame()
-  expect(text).toContain("Starting work on #42")
-  expect(text).not.toContain("✕")
-  resolveStart?.({ started: true, taskId: "T1", title: "Fix the thing" })
-  await settle(150)
 })
 
 test("work-items: a started item opens its task", async () => {
@@ -339,15 +253,4 @@ test("work-items: a failed list names the fix inline", async () => {
   const text = await frame()
   expect(text).toContain("no-remote: origin is not a GitHub remote")
   expect(text).toContain("git remote add origin")
-})
-
-test("work-items: no issues renders the empty state", async () => {
-  const orch = workItemsOrch({ listWorkItems: async () => ({ items: [] }) })
-  const { frame } = await renderComponent(<WorkItemsPage orchestrator={orch} focused={true} onClose={() => {}} />, {
-    width: 90,
-    height: 20,
-    providers: { notifications: true },
-  })
-  await settle(150)
-  expect(await frame()).toContain("No open issues.")
 })

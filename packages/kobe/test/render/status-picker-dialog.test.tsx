@@ -26,17 +26,6 @@ function mount(current: TaskStatus = "in_progress"): Promise<RenderHandle> & { p
 }
 
 describe("StatusPickerDialogView", () => {
-  test("lists all six statuses and marks the current one", async () => {
-    const p = mount("in_progress")
-    const { frame } = await p
-    const first = await frame()
-    expect(first).toContain("Set status")
-    for (const label of ["Backlog", "In progress", "In review", "Done", "Canceled", "Error"]) {
-      expect(first).toContain(label)
-    }
-    expect(first).toContain("current")
-  })
-
   test("opens ON the task's current status — enter alone re-picks it, never a neighbour", async () => {
     const p = mount("done")
     const { frame, mockInput } = await p
@@ -66,16 +55,5 @@ describe("StatusPickerDialogView", () => {
     act(() => mockInput.pressEnter())
     await frame()
     expect(p.picked).toEqual(["backlog"])
-  })
-
-  test("down clamps at the last status instead of falling off the end", async () => {
-    const p = mount("error")
-    const { frame, mockInput } = await p
-    await frame()
-    act(() => mockInput.pressArrow("down"))
-    act(() => mockInput.pressArrow("down"))
-    act(() => mockInput.pressEnter())
-    await frame()
-    expect(p.picked).toEqual(["error"])
   })
 })

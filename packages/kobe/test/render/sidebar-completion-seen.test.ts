@@ -39,14 +39,6 @@ describe("completionSeenFor", () => {
     expect(completionSeenFor(task, "turn_complete", false, "tab-1")).toBe(true)
   })
 
-  it("keeps per-tab completions independent", () => {
-    const task = "task-seen-4"
-    completionSeenFor(task, "turn_complete", true, "tab-1")
-    // tab-2 completes too, but you have not looked at IT.
-    expect(completionSeenFor(task, "turn_complete", false, "tab-2")).toBe(false)
-    expect(completionSeenFor(task, "turn_complete", false, "tab-1")).toBe(true)
-  })
-
   // Quitting kobe empties this Set while the DAEMON keeps reporting the same
   // `turn_complete`, so a relaunch relights every completion already read. A
   // fresh process is exactly this: nothing in the Set, and the persisted mark

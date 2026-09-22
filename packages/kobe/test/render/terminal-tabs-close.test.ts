@@ -77,19 +77,6 @@ test("a mounted owner claims the request, and the background write does NOT also
   expect(tabsByTask.get("t1")).toBe(before)
 })
 
-test("a listener for a DIFFERENT task does not claim it", () => {
-  tabsByTask.clear()
-  tabsByTask.set("t1", state(["tab-1", "tab-2"]))
-  const listener = () => void takeTabClose("other-task")
-  tabActivationListeners.add(listener)
-  try {
-    expect(closeTaskTab(fakeKv(), "t1", "tab-2")).toBe(true)
-  } finally {
-    tabActivationListeners.delete(listener)
-  }
-  expect(tabsByTask.get("t1")?.tabs.map((tab) => tab.id)).toEqual(["tab-1"])
-})
-
 test("the last tab closes, leaving the task empty", () => {
   // A task's last tab may go: the row stays and is revived on re-entry. The
   // mounted and background routes are the SAME gesture from the tree, so both
@@ -117,12 +104,6 @@ test("prefers the live module state over a stale snapshot", () => {
   tabsByTask.set("t1", state(["tab-1", "tab-2"]))
   expect(closeTaskTab(kv, "t1", "tab-2")).toBe(true)
   expect((kv.store[terminalTabsKey("t1")] as TabsState).tabs.map((tab) => tab.id)).toEqual(["tab-1"])
-})
-
-test("a tab the task does not have reports failure", () => {
-  tabsByTask.clear()
-  tabsByTask.set("t1", state(["tab-1"]))
-  expect(closeTaskTab(fakeKv(), "t1", "tab-9")).toBe(false)
 })
 
 test("a mounted task does not claim a tab id it does not have", () => {

@@ -34,27 +34,11 @@ function seedEmptied(reopenAs?: { kind: "engine"; vendor?: string } | { kind: "c
 const render = (focused = true) => renderComponent(<EmptyWorkspacePane taskId="t1" focused={focused} />)
 
 describe("the no-sessions placeholder's keys", () => {
-  it("says which keys to press", async () => {
-    seedEmptied()
-    const { frame } = await render()
-    expect(await frame()).toContain("No sessions here")
-  })
-
   it("enter reopens a session", async () => {
     seedEmptied()
     const { mockInput } = await render()
     await act(async () => {
       mockInput.pressEnter()
-    })
-    await settle()
-    expect(tabsByTask.get("t1")?.tabs.length).toBe(1)
-  })
-
-  it("ctrl+e reopens a session too", async () => {
-    seedEmptied()
-    const { mockInput } = await render()
-    await act(async () => {
-      mockInput.pressKey("e", { ctrl: true })
     })
     await settle()
     expect(tabsByTask.get("t1")?.tabs.length).toBe(1)

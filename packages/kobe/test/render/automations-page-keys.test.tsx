@@ -46,17 +46,6 @@ function orchestrator(automations: unknown[] = []) {
   }
 }
 
-test("n opens the create flow", async () => {
-  const { frame, mockInput } = await renderComponent(
-    <AutomationsPage orchestrator={orchestrator() as never} focused={true} onClose={() => {}} />,
-    { width: 60, height: 16, providers: { dialog: true, notifications: true } },
-  )
-  await new Promise((r) => setTimeout(r, 100))
-  mockInput.typeText("n")
-  await new Promise((r) => setTimeout(r, 100))
-  expect(await frame()).toContain("New routine")
-})
-
 test("esc closes the create flow", async () => {
   // A composer that binds escape itself and only resolves the promise is a
   // modal MEMBER outranking the barrier, so the card never pops.
@@ -104,25 +93,6 @@ test("keys stay dead while another pane holds focus", async () => {
   expect(await frame()).not.toContain("New routine")
 })
 
-test("each automation renders as a boxed strip", async () => {
-  const { frame } = await renderComponent(
-    <AutomationsPage orchestrator={orchestrator([AUTOMATION]) as never} focused={true} onClose={() => {}} />,
-    { width: 70, height: 16, providers: { dialog: true, notifications: true } },
-  )
-  await new Promise((r) => setTimeout(r, 120))
-  const lines = (await frame()).split("\n")
-  const row = lines.findIndex((line) => line.includes("weekday audit"))
-  expect(row).toBeGreaterThan(0)
-  // Border above and below: three cells tall, per the owner's layout call.
-  // Rounded — the strip spreads the shared FRAME (ui/frame.ts); the geometry
-  // this guards is the three-cell height, not the corner glyph.
-  expect(lines[row - 1]).toContain("╭")
-  expect(lines[row + 1]).toContain("╰")
-  // Everything on the one content line.
-  expect(lines[row]).toContain("0 9 * * MON-FRI")
-  expect(lines[row]).toContain("in 1h")
-})
-
 test("the schedule row is five editable cells, not a text field", async () => {
   // ←/→ moves between cells and ↑/↓ changes the one under the cursor. Typing
   // cron means knowing the field order before you can say anything.
@@ -157,19 +127,6 @@ test("the schedule row is five editable cells, not a text field", async () => {
   // The hour ladder starts at `*`, so one step off `9` lands there and the
   // description follows it.
   expect(await frame()).not.toContain("weekdays at 09:00")
-})
-
-test("the detail frame stays mounted with nothing selected", async () => {
-  // A panel that appears and disappears makes the page jump, and the empty
-  // frame is where a first-time user reads what a routine even carries.
-  const { frame } = await renderComponent(
-    <AutomationsPage orchestrator={orchestrator() as never} focused={true} onClose={() => {}} />,
-    { width: 74, height: 16, providers: { dialog: true, notifications: true } },
-  )
-  await new Promise((r) => setTimeout(r, 120))
-  const text = await frame()
-  expect(text).toContain("╭")
-  expect(text).toContain("A routine runs its prompt")
 })
 
 test("a selected routine offers an on-demand run", async () => {

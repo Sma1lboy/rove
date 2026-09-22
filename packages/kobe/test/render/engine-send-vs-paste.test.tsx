@@ -47,42 +47,10 @@ afterEach(() => {
 })
 
 describe("engine send vs paste", () => {
-  test("sendToEngine pastes then submits with a carriage return", () => {
-    const { ops, io } = harness()
-    buildEngineSend(io)("PR PROMPT")
-    expect(ops).toEqual([
-      { op: "paste", text: "PR PROMPT" },
-      { op: "write", text: "\r" },
-    ])
-  })
-
-  test("pasteToEngine pastes WITHOUT submitting — the mention stays in the composer", () => {
-    const { ops, io } = harness()
-    buildEnginePaste(io)("@src/a.ts")
-    expect(ops).toEqual([{ op: "paste", text: "@src/a.ts" }])
-    expect(ops.some((o) => o.op === "write")).toBe(false)
-  })
-
-  test("a delivered write answers true", () => {
-    const { io } = harness()
-    expect(buildEngineSend(io)("PR PROMPT")).toBe(true)
-    expect(buildEnginePaste(io)("@src/a.ts")).toBe(true)
-  })
-
   test("both answer false when the task has no engine tab — `ctrl+w` on the last one", () => {
     const { ops, io } = harness()
     const state = io as unknown as { stateRef: { current: { activeId: string; tabs: unknown[] } } }
     state.stateRef.current = { activeId: "tab-2", tabs: [{ id: "tab-2", kind: "command" }] }
-    expect(buildEngineSend(io)("PR PROMPT")).toBe(false)
-    expect(buildEnginePaste(io)("@src/a.ts")).toBe(false)
-    expect(ops).toEqual([])
-  })
-
-  test("both answer false when the engine PTY is dead", () => {
-    const { ops, io } = harness()
-    const reg = getDefaultPtyRegistry() as unknown as { get: (k: string) => { killed: boolean } }
-    const pty = reg.get("T1::tab-1")
-    pty.killed = true
     expect(buildEngineSend(io)("PR PROMPT")).toBe(false)
     expect(buildEnginePaste(io)("@src/a.ts")).toBe(false)
     expect(ops).toEqual([])

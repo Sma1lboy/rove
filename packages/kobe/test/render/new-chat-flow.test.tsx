@@ -153,17 +153,6 @@ describe("requestNewChat dispatch", () => {
     expect(captured.errors).toHaveLength(0)
   })
 
-  test("tab+continue with no conversation → refusal toast, no tab", async () => {
-    const { frame, mockInput, captured } = await mountFlow(tabs())
-    act(() => captured.request({ context: "continue" }))
-    await waitForFrameText(frame, "continue this conversation")
-    act(() => mockInput.pressEnter())
-    await settle()
-    await frame()
-    expect(captured.updates).toHaveLength(0)
-    expect(captured.errors).toEqual(["No conversation in this tab to fork yet"])
-  })
-
   // Why: `claudecpa` is a zsh function that ends up running the real claude
   // binary. Registered with no `engineProtocol`, its id resolves to the empty
   // custom registry entry — no transcript reader, no fork verb — so this

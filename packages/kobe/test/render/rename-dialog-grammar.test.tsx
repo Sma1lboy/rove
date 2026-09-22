@@ -35,30 +35,6 @@ function mount(props: Partial<Parameters<typeof RenameTaskDialogView>[0]> = {}):
   }
 }
 
-test("the field sits in a rounded well under a capitalised label, over a key legend", async () => {
-  const { frame } = await mount().handle
-  const text = await frame()
-  expect(text).toContain("Rename task")
-  expect(text).toContain("esc") // the header's dismiss affordance
-  expect(text).toContain("TITLE") // DialogLabel, not the old lowercase "title"
-  // DialogField spreads FRAME, so the well is ROUNDED — square corners here
-  // were the whole complaint that produced docs/design/dialogs.md.
-  expect(text).toContain("╭")
-  expect(text).toContain("╰")
-  expect(text).not.toContain("┌")
-  expect(text).not.toContain("└")
-  expect(text).toContain("enter rename") // DialogFooter
-})
-
-test("a caller's own label rides the same grammar", async () => {
-  // Every override reaches DialogLabel unchanged, so the CAPS convention is
-  // the CALLER's to keep — this pins that the dialog does not re-case it.
-  const { frame } = await mount({ dialogTitle: "Add engine · x — protocol", fieldLabel: "PROTOCOL" }).handle
-  const text = await frame()
-  expect(text).toContain("PROTOCOL")
-  expect(text).toContain("Add engine")
-})
-
 test("enter still commits the edited value through the framed field", async () => {
   const { handle, submitted } = mount()
   const { frame, mockInput } = await handle

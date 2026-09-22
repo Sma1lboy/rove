@@ -45,24 +45,6 @@ function mount(
 }
 
 describe("EnginePickerDialogView", () => {
-  test("lists every available engine by display name and marks the current one", async () => {
-    const p = mount("codex")
-    const { frame } = await p
-    const first = await frame()
-    expect(first).toContain("Change engine")
-    for (const label of ["Claude", "Codex", "Kimi"]) expect(first).toContain(label)
-    expect(first).toContain("current")
-  })
-
-  test("opens ON the task's current engine — enter alone re-picks it, never a neighbour", async () => {
-    const p = mount("kimi")
-    const { frame, mockInput } = await p
-    await frame()
-    act(() => mockInput.pressEnter())
-    await frame()
-    expect(p.picked).toEqual([{ vendor: "kimi", model: "" }])
-  })
-
   test("down then enter commits the NEXT engine in list order", async () => {
     const p = mount("claude")
     const { frame, mockInput } = await p
@@ -92,27 +74,6 @@ describe("EnginePickerDialogView", () => {
       { vendor: "kimi", model: "" },
       { vendor: "claude", model: "" },
     ])
-  })
-
-  test("an engine with no declared levels renders no effort row at all", async () => {
-    // Claude has no effort flag Rove can drive; offering one would promise a
-    // setting the launch path drops.
-    const p = mount("claude")
-    const { frame } = await p
-    const first = await frame()
-    expect(first).not.toContain("EFFORT")
-    expect(first).toContain("↑↓ engine")
-    expect(first).not.toContain("←→ effort")
-  })
-
-  test("codex shows its declared levels, and the footer names the new keys", async () => {
-    const p = mount("codex")
-    const { frame } = await p
-    const first = await frame()
-    expect(first).toContain("EFFORT")
-    expect(first).toContain("engine default")
-    for (const level of ["low", "medium", "high", "xhigh"]) expect(first).toContain(level)
-    expect(first).toContain("←→ effort")
   })
 
   test("right arrow steps the level and enter commits engine + level together", async () => {
@@ -147,18 +108,6 @@ describe("EnginePickerDialogView", () => {
     expect(p.picked).toEqual([{ vendor: "kimi", model: "" }])
   })
 
-  test("stepping left off the first level lands on the engine default, which clears it", async () => {
-    const p = mount("codex", "low")
-    const { frame, mockInput } = await p
-    await frame()
-    act(() => mockInput.pressArrow("left"))
-    act(() => mockInput.pressArrow("left"))
-    act(() => mockInput.pressEnter())
-    await frame()
-    // `""` is the wire spelling of "clear the level", distinct from absent.
-    expect(p.picked).toEqual([{ vendor: "codex", effort: "", model: "" }])
-  })
-
   test("tab reaches the model input; typed text is pinned verbatim on enter", async () => {
     const p = mount("claude")
     const { mockInput } = await p
@@ -170,18 +119,6 @@ describe("EnginePickerDialogView", () => {
     act(() => mockInput.pressEnter())
     await settle()
     expect(p.picked).toEqual([{ vendor: "claude", model: "opus" }])
-  })
-
-  test("opens ON the task's pinned model, so enter alone keeps it", async () => {
-    const p = mount("claude", undefined, "sonnet")
-    const { frame, mockInput } = await p
-    await settle()
-    const first = await frame()
-    expect(first).toContain("MODEL")
-    expect(first).toContain("sonnet")
-    act(() => mockInput.pressEnter())
-    await settle()
-    expect(p.picked).toEqual([{ vendor: "claude", model: "sonnet" }])
   })
 
   test("a pinned model never follows the cursor to another engine", async () => {

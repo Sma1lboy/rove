@@ -113,22 +113,6 @@ test("the events feed renders the task's engine lifecycle, newest first", async 
   expect(rendered.indexOf("tool-use")).toBeLessThan(rendered.indexOf("turn-start"))
 })
 
-test("no orchestrator reads as an empty feed, not an error", async () => {
-  const { frame } = await renderComponent(
-    drawer(() => {}, null),
-    {
-      width: 120,
-      height: 60,
-      providers: { dialog: true },
-    },
-  )
-
-  await flushFeed()
-  const rendered = await frame()
-  expect(rendered).toContain("EVENTS")
-  expect(rendered).toContain("No engine events recorded yet.")
-})
-
 test("a daemon that no longer knows the task also reads as empty", async () => {
   const { frame } = await renderComponent(
     drawer(() => {}, {

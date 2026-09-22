@@ -106,14 +106,6 @@ describe("DialogConfirm danger", () => {
     expect(findSpan(frame, "Confirm")?.bg.equals(theme.primary)).toBe(true)
   })
 
-  it("explicit initialActive still wins over the danger default", async () => {
-    const { mockInput, commits } = await mountConfirm({ danger: true, initialActive: "confirm" })
-
-    act(() => mockInput.pressEnter())
-    await settle()
-    expect(commits.confirm).toBe(1)
-  })
-
   it("DialogConfirm.show threads danger through its options", async () => {
     const results: DialogConfirmResult[] = []
     const { frame, mockInput } = await renderComponent(

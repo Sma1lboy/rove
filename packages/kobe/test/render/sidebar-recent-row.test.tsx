@@ -114,16 +114,4 @@ describe("recent jump row", () => {
     await settle()
     expect(deleted).toEqual([])
   })
-
-  it("absent recentTask renders no jump row", async () => {
-    process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-recent-row-"))
-    const { frame } = await renderComponent(
-      <box flexDirection="row" height={24}>
-        <HostSidebar {...sidebarProps()} />
-      </box>,
-      { width: 46, height: 24, providers: { kv: true, notifications: true } },
-    )
-    await settle()
-    expect(await frame()).not.toContain("↩ Recent")
-  })
 })

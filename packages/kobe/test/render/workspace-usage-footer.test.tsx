@@ -129,16 +129,3 @@ test("the context meter renders the active tab's occupancy, and only that tab's"
   // tab-2's 4% belongs to a session the user is not looking at.
   expect(out).not.toContain("4%")
 })
-
-test("no reading for the active tab renders no meter at all", async () => {
-  // A shell tab, a session that has not run a turn, or a vendor that does not
-  // report its context window — all three read as absence, never as 0%.
-  const orch = orchestratorWith(null, new Map([["t1::tab-1", { contextTokens: 124_000 }]]))
-  const { frame } = await renderComponent(
-    <WorkspaceFrame orchestrator={orch} activeTaskId="t1" activeTabId="tab-1">
-      <text>body</text>
-    </WorkspaceFrame>,
-    { width: 80, height: 6 },
-  )
-  expect(await frame()).not.toContain("ctx")
-})

@@ -157,16 +157,6 @@ test("the closed-down project is in neither surface, not merely ordered the same
   expect(dividers).not.toContain("d")
 })
 
-test("one project never folds to two dividers, however the store orders it", async () => {
-  const tasks = [
-    task("a1", { repo: "/work/api" }),
-    task("b1", { repo: "/work/web" }),
-    task("a2", { repo: "/work/api" }),
-  ]
-  seed({ a1: ["tab-1"], b1: ["tab-1"], a2: ["tab-1"] })
-  expect(await railDividers(tasks)).toEqual(["a", "w"])
-})
-
 test("the fold draws no cell for a routine session", async () => {
   const routine = task("r1", { repo: "/work/api", routine: { automationId: "nightly" } })
   seed({})

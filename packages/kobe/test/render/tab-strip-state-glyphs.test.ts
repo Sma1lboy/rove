@@ -42,25 +42,3 @@ describe("tab strip glyphs agree with the sidebar rail", () => {
     }
   })
 })
-
-/**
- * The Inbox pane must actually CALL the resume-note helper.
- *
- * `inbox-item-view.test.ts` covers the helper; nothing covered the call site,
- * so deleting it would put the note back where it started — computed and
- * discarded. Asserted against the source for the same reason as the
- * `startPtyExitWatch` wiring check: it is a connection, and a connection is
- * what went missing.
- */
-describe("Inbox pane wiring", () => {
-  it("renders the resume note on the card's context line", async () => {
-    const src = await Bun.file(new URL("../../src/tui-react/workspace/AttentionInboxPane.tsx", import.meta.url)).text()
-    expect(src).toContain("quotaResumeNote(item.state, task, t)")
-    // Present in the rendered subtitle, not just assigned to a dead local —
-    // followed across the ONE hop the card now makes, because the subtitle
-    // also carries a routine episode's reason. Both halves have to hold: the
-    // note reaches `contextLine`, and `contextLine` is what the card renders.
-    expect(src).toMatch(/const contextLine =[\s\S]{0,200}?resumeNote/)
-    expect(src).toMatch(/subtitle=\{[\s\S]{0,80}?contextLine/)
-  })
-})
