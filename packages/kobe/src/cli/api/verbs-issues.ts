@@ -7,13 +7,11 @@
  * schema/help/validation see one canonical list.
  */
 
+import { ISSUE_STATUSES, type IssueStatus } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { issueUpdate } from "./handlers-tasks.ts"
 import type { VerbSpec } from "./types.ts"
-
-const ISSUE_STATUSES = ["open", "doing", "hold", "done"] as const
-type IssueStatus = (typeof ISSUE_STATUSES)[number]
 
 export const ISSUE_VERBS: readonly VerbSpec[] = [
   {

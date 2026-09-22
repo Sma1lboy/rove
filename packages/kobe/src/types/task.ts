@@ -20,19 +20,33 @@ export type TaskId = string & { readonly [TaskIdBrand]: never }
 export const toTaskId = (id: string): TaskId => id as TaskId
 
 export type { VendorId } from "./vendor.ts"
+import type {
+  TaskDeletionState,
+  TaskDispatcher,
+  TaskLinkedWorkItem,
+  TaskPRStatus,
+  TaskQuotaResumeState,
+  TaskStatus,
+  TaskWorkerReport,
+} from "@sma1lboy/kobe-daemon/daemon/contracts"
 import type { ObservedLanguage } from "@sma1lboy/kobe-daemon/prompts/observed-language"
 import type { VendorId } from "./vendor.ts"
+
+export type {
+  TaskDeletionState,
+  TaskDispatcher,
+  TaskLinkedWorkItem,
+  TaskPRStatus,
+  TaskQuotaResumeState,
+  TaskStatus,
+  TaskWorkerReport,
+}
 
 /**
  * Default engine vendor when a task doesn't record one. Centralised so
  * a future "make codex the default" decision is a one-line change.
  */
 export const DEFAULT_TASK_VENDOR: VendorId = "claude"
-
-/**
- * Lifecycle states used by sidebar grouping and automation.
- */
-export type TaskStatus = "backlog" | "in_progress" | "in_review" | "done" | "canceled" | "error"
 
 /**
  * The runtime list of every {@link TaskStatus} — the single source of truth a
@@ -58,67 +72,10 @@ export function isTaskStatus(value: unknown): value is TaskStatus {
   return typeof value === "string" && (TASK_STATUSES as readonly string[]).includes(value)
 }
 
-type PRProviderId = "github" | "gitlab" | "bitbucket" | "unknown"
-export type PRCheckState = "none" | "pending" | "passing" | "failing" | "unknown"
-export type PRLifecycleState = "creating" | "open" | "ready_to_merge" | "merged" | "closed" | "unknown"
+export type PRCheckState = TaskPRStatus["checkState"]
+export type PRLifecycleState = TaskPRStatus["lifecycle"]
 
-/**
- * PR status persisted on Task. The monitor displays it; the orchestrator
- * does NOT drive PR creation itself — create-PR flows ask the active engine
- * through Hosted PTY delivery.
- */
-export interface TaskPRStatus {
-  readonly provider: PRProviderId
-  readonly lifecycle: PRLifecycleState
-  readonly checkState: PRCheckState
-  readonly number?: number
-  readonly url?: string
-  readonly title?: string
-  readonly baseRef?: string
-  readonly reviewDecision?: string
-  readonly mergeable?: string
-  readonly lastCheckedAt?: string
-  readonly lastError?: string
-}
-
-export type TaskDeletionPhase = "queued" | "running" | "error"
-
-/** Durable state for daemon-owned background worktree cleanup. */
-export interface TaskDeletionState {
-  readonly phase: TaskDeletionPhase
-  readonly force: boolean
-  /** Opt-in: also delete the task's git branch. Default (absent/false) keeps
-   *  the branch — git history is the durable record, the task row is not. */
-  readonly deleteBranch?: boolean
-  readonly requestedAt: string
-  readonly error?: string
-}
-
-/**
- * Durable schedule for the daemon's rate-limit auto-resume: the engine hit
- * its subscription quota and the provider reported when the window resets.
- * The daemon's quota-resume runner delivers a continue prompt into the
- * task's live engine session once `resumeAt` passes, then clears this.
- */
-export interface TaskQuotaResumeState {
-  /** ISO-8601 time the provider's exhausted window resets. */
-  readonly resumeAt: string
-  /** ISO-8601 time the rate limit was observed and this schedule written. */
-  readonly requestedAt: string
-}
-
-/**
- * Provenance of the kobe session that created this task: which task and
- * which terminal tab dispatched it (from the creating CLI process's
- * `$KOBE_TASK_ID` / `$KOBE_TAB_ID`). This is the reply address for the
- * collaboration loop — a sub-task's bare `send` routes its outcome back to
- * this exact tab. Absent when the task was created outside a kobe session
- * (TUI dialog, plain shell) and on records that predate the field.
- */
-export interface TaskDispatcher {
-  readonly taskId: string
-  readonly tabId: string
-}
+export type TaskDeletionPhase = TaskDeletionState["phase"]
 
 /** Back-pointer from a routine's standing session task to its schedule. */
 export interface TaskRoutineLink {
@@ -329,43 +286,6 @@ interface TaskOrigin {
    * instead — the one thing a vanished row cannot do.
    */
   readonly stale?: boolean
-}
-
-/**
- * A worker's own account of what it produced, stamped by
- * `set-status --report-branch/--report-pr/--report-summary`.
- *
- * The gap it closes: outcomes travelled as PROSE in a `send` back to the
- * dispatcher, which then parsed `succeeded: … (branch fix/x)` by convention.
- * A worker that phrased it differently was silently unparseable, and nothing
- * in the task row said what had been delivered. Every field is optional —
- * a report naming only a summary is still a report.
- */
-export interface TaskWorkerReport {
-  /** The branch the worker says holds the work. */
-  readonly branch?: string
-  /** The PR number the worker says it opened. NOT the same fact as
-   *  `prStatus.number`, which the daemon read from the forge. */
-  readonly pr?: number
-  /** One line of what was delivered. */
-  readonly summary?: string
-  /** When the report was written (ISO 8601). */
-  readonly at: string
-}
-
-/**
- * A pointer back to the issue in someone else's tracker that this task exists
- * to address. Stamped once at creation and never synced: the fields are a
- * SNAPSHOT for display, and `url` is the durable way back to the live item.
- * kobe deliberately does not mirror the item's state (see `work-items.ts`).
- */
-export interface TaskLinkedWorkItem {
-  readonly provider: "github"
-  readonly type: "issue" | "pr"
-  readonly number: number
-  /** Title as it read when the task was started. */
-  readonly title: string
-  readonly url: string
 }
 
 /**

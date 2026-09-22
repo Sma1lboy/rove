@@ -21,10 +21,9 @@
  * hands its answer to the daemon.
  */
 
-export interface CellPixelSize {
-  readonly width: number
-  readonly height: number
-}
+import type { CellPixelSize } from "@sma1lboy/kobe-daemon/daemon/protocol"
+
+export type { CellPixelSize }
 
 /**
  * `CSI 16 t` (XTWINOPS "report cell size in pixels") followed by `CSI c`
