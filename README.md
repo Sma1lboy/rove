@@ -4,7 +4,7 @@
   <img src="docs/assets/brand/bracket-chip.gif" alt="Rove, the agent multiplexer for your terminal — compatible with Claude Code, Codex, Copilot and Kimi" />
 </p>
 
-Rove is a terminal-native workspace for running multiple coding tasks in parallel with [Claude Code](https://claude.com/claude-code), [Codex](https://github.com/openai/codex), [Copilot](https://github.com/github/copilot-cli), Kimi, or any CLI you register.
+Rove is a terminal-native workspace for running multiple coding tasks in parallel with [Claude Code](https://claude.com/claude-code), [Codex](https://github.com/openai/codex), [Copilot](https://github.com/github/copilot-cli), Kimi, Gemini CLI, OpenCode, Cursor Agent, [and more](./docs/ENGINES.md), or any CLI you register.
 
 Rove isolates parallel work in git worktrees and branches, while agent and shell sessions keep running when you disconnect.
 
@@ -70,7 +70,7 @@ Press `n`, choose a repository, base branch, and agent, then enter a prompt. `F1
 - **Parallel tasks.** Keep a refactor, a bug fix, a test investigation, and a review moving at the same time.
 - **Git isolation.** Each managed task owns a worktree and branch, so agents on different tasks never overwrite each other's files.
 - **Persistent sessions.** Quit the TUI or drop SSH, then reattach without stopping the work.
-- **Your existing agents.** Rove runs the real Claude Code, Codex, Copilot, Kimi, or custom CLI, with its own auth, permissions, models, and access to the local machine.
+- **Every agent CLI, side by side.** Each task picks its engine: Claude Code, Codex, Copilot, Kimi, Pi, OMP, Gemini CLI, OpenCode, Cursor Agent, [and more](./docs/ENGINES.md), or a CLI you register. Rove runs the real CLI, with its own auth, permissions, models, and access to the local machine.
 - **Terminal-native.** Run Rove where the code lives: laptop, devbox, VPS, or a narrow mobile SSH session.
 - **Scriptable.** Scripts and coding agents create, inspect, message, and land tasks through `rove api`.
 
@@ -112,6 +112,17 @@ A task created from inside another Rove session remembers which task and tab dis
 
 Every verb, flag, and exit code is in the [Agent API reference](https://docs.rove.run/rove/api).
 
+## Plugins
+
+A plugin is a directory with a `rove-plugin.toml` manifest and commands in any language. It can add panes, react to events such as a finished agent turn, register commands and settings, and contribute whole engines. Browse and install from the terminal:
+
+```bash
+rove plugin search
+rove plugin install owner/repo
+```
+
+The same catalog is on [rove.run/plugins](https://rove.run/plugins) and under Settings → Marketplace. Any public GitHub repo tagged `rove-plugin` shows up there; [plugin authoring](./docs/PLUGIN-AUTHORING.md) covers the manifest, the event catalog, and the optional TypeScript SDK.
+
 ## Built for the terminal
 
 Rove runs the interactive agent CLIs you already have, keeps their sessions alive on the host, and lets you manage parallel coding tasks from the terminal, including over SSH.
@@ -119,7 +130,7 @@ Rove runs the interactive agent CLIs you already have, keeps their sessions aliv
 - **Terminal TUI.** No desktop app.
 - **SSH-native.** The same workflow on remote machines.
 - **Persistent sessions.** Disconnect and come back without losing running agents.
-- **Existing agent CLIs.** Claude Code, Codex, Copilot, Kimi, or your own.
+- **Existing agent CLIs.** Claude Code, Codex, Copilot, Kimi, Gemini CLI, Cursor Agent, and more, or your own.
 - **Git-native isolation.** Parallel tasks live in separate worktrees and branches.
 - **Programmable.** Orchestrate tasks through `rove api`.
 
@@ -130,7 +141,7 @@ Rove runs the interactive agent CLIs you already have, keeps their sessions aliv
 - **Remote ergonomics.** Narrow and mobile layouts, a durable Inbox, notifications, attachments.
 - **Unattended work.** Scheduled routines, with optional prechecks that skip idle runs.
 - **Planning context.** Local Kanban, GitHub issue intake, reusable repository field notes.
-- **Customization.** Themes, and plugins with custom panes, events, and commands.
+- **Customization.** Themes, and [plugins](#plugins) with custom panes, events, commands, and engines.
 
 Details live in the [TUI guide](./docs/TUI.md), [Routines](./docs/ROUTINES.md), [configuration](./docs/CONFIGURATION.md), and [plugin authoring](./docs/PLUGIN-AUTHORING.md).
 
