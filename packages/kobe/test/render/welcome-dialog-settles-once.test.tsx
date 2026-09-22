@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test"
 import type { ReactElement } from "react"
-import type { OnboardingChoices } from "../../src/cli/onboarding"
-import { WelcomeDialog } from "../../src/tui-react/onboarding/host"
+import { type OnboardingChoices, WelcomeDialog } from "../../src/tui-react/onboarding/host"
 import type { DialogContext } from "../../src/tui-react/ui/dialog"
 
 // The real stack runs every entry's onClose on clear(); an accepted answer used
