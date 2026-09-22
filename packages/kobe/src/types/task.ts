@@ -1,22 +1,14 @@
 /**
- * Task data model (v0.6).
- *
- * Tasks persist Worktree and lifecycle metadata. Terminal-tab state and live
- * Hosted PTY sessions have their own owners; engine conversation ids remain
- * engine-owned on disk.
- *
- * On-disk manifest moves to v3 (see `TaskIndex` below). The store
- * migrates v1/v2 records on load by stripping the dropped fields;
- * downgrading is not supported.
+ * Task data model. Tasks persist worktree and lifecycle metadata; terminal
+ * tabs and Hosted PTY sessions have their own owners, and engine conversation
+ * ids stay engine-owned on disk. The store migrates v1/v2 manifests to v3 on
+ * load; downgrading is not supported.
  */
 
 declare const TaskIdBrand: unique symbol
 export type TaskId = string & { readonly [TaskIdBrand]: never }
 
-/**
- * Cast a string to a {@link TaskId}. Caller asserts the value is a ULID.
- * No runtime validation — keep validators in the orchestrator layer.
- */
+/** Caller asserts a ULID; no runtime validation (validators live in the orchestrator). */
 export const toTaskId = (id: string): TaskId => id as TaskId
 
 export type { VendorId } from "./vendor.ts"
@@ -42,19 +34,10 @@ export type {
   TaskWorkerReport,
 }
 
-/**
- * Default engine vendor when a task doesn't record one. Centralised so
- * a future "make codex the default" decision is a one-line change.
- */
+/** Engine vendor for a task that records none. */
 export const DEFAULT_TASK_VENDOR: VendorId = "claude"
 
-/**
- * The runtime list of every {@link TaskStatus} — the single source of truth a
- * wire-boundary validator checks against, so an inbound `status` string is
- * confirmed with `isTaskStatus(x)` instead of a hand-maintained `!==` chain
- * that silently drifts when a status is added. The `satisfies` clause makes the
- * compiler reject this list if it ever falls out of sync with the union.
- */
+/** Every {@link TaskStatus} at runtime, for wire-boundary validation via {@link isTaskStatus}. */
 export const TASK_STATUSES = [
   "backlog",
   "in_progress",
@@ -84,17 +67,14 @@ export interface TaskRoutineLink {
 }
 
 /**
- * One task. Stored in `~/.rove/tasks.json` as part of {@link TaskIndex}.
+ * One task, stored in `~/.rove/tasks.json` ({@link TaskIndex}).
  *
- * Field invariants:
- * - `id` is a ULID (lexicographically sortable, time-prefixed).
- * - `repo` is an absolute path to the source repo's working tree
- *   (NOT the per-task worktree — that's `worktreePath`).
- * - `worktreePath` is an absolute path; may not yet exist if the
- *   task is still in `backlog`. For `kind: "main"` it equals `repo`.
- * - `vendor` is a hint for the monitor's history reader; missing
- *   records normalise to `DEFAULT_TASK_VENDOR`.
- * - `createdAt` / `updatedAt` are ISO-8601 strings (UTC).
+ * - `id` is a ULID (sortable, time-prefixed).
+ * - `repo` is the absolute path of the source repo's working tree, not the
+ *   per-task worktree (`worktreePath`).
+ * - `worktreePath` is absolute; may not exist yet while in `backlog`. Equals
+ *   `repo` for `kind: "main"`.
+ * - `createdAt` / `updatedAt` are ISO-8601 UTC.
  */
 export interface Task {
   readonly id: TaskId
@@ -103,111 +83,72 @@ export interface Task {
   readonly branch: string
   readonly worktreePath: string
   /**
-   * `"main"` tasks are pinned to a saved repo's root checkout (no
-   * `git worktree add`); they set `worktreePath === repo` and
-   * `branch === ""`. Regular `"task"` tasks live in a per-task
-   * worktree under `~/.rove/worktrees/<repo-key>/<slug>/` (or global/repo-local
-   * `.kobe/worktrees` / legacy `.claude/worktrees` for older records).
-   * `"dir"` tasks (`rove .`) pin an arbitrary existing directory the
-   * user opened directly: `worktreePath === repo`, `branch === ""`, no
-   * project association, and deletion only drops the index entry — the
-   * directory itself is never removed.
-   * Optional on disk: records without it normalize to `"task"` at load time.
+   * `"main"`: a saved repo's root checkout (`worktreePath === repo`,
+   * `branch === ""`). `"task"`: a per-task worktree under
+   * `~/.rove/worktrees/<repo-key>/<slug>/` (older records: `.kobe/worktrees`,
+   * `.claude/worktrees`). `"dir"` (`rove .`): an existing directory, same
+   * `worktreePath`/`branch` shape as main, no project; deletion drops only the
+   * index entry, never the directory. Absent normalizes to `"task"` on load.
    */
   readonly kind?: "main" | "task" | "dir"
   /**
-   * A SCRATCH shell task: a `kind: "dir"` task whose cwd is not
-   * settled yet — an ad-hoc shell opened to poke around, living in the
-   * sidebar's Scratch section instead of a project group. Zero-ceremony
-   * lifecycle: its shell exiting deletes the row outright. The flag CLEARS
-   * when the task earns a place — the user renames it (`setTitle`) or its
-   * live cwd + a detected harness migrate it into a project
-   * (`adoptScratchRepo`) — after which it is an ordinary directory task.
+   * Scratch shell: a `kind: "dir"` task with an unsettled cwd, shown in the
+   * sidebar's Scratch section. Its shell exiting deletes the row. Cleared on
+   * rename (`setTitle`) or when its live cwd + a detected harness move it into
+   * a project (`adoptScratchRepo`).
    */
   readonly scratch?: boolean
   /**
-   * The routine (`Automation`) this task is the standing session for.
-   * A routine with `persistentSession` creates ONE task and
-   * re-delivers into it on every firing, instead of a fresh worktree per
-   * run — so a daily check can read what it said yesterday.
-   *
-   * The sidebar renders these behind a per-project count row rather than as
-   * loose task rows: 7 daily routines are 49 rows a week of background noise
-   * competing with the handful of tasks the user opened themselves. The task
-   * is ordinary in every other layer — selectable, Inbox-reachable, and
-   * addressable by `rove api` — only its resting sidebar row is folded away.
-   *
-   * Absent on tasks created before the field, which is what keeps the
-   * already-created routine tasks rendering exactly as they do today.
+   * The routine (`Automation`, `persistentSession`) this task is the standing
+   * session for; every firing re-delivers here. The sidebar folds these behind
+   * a per-project count row (7 daily routines would add 49 rows a week);
+   * otherwise ordinary (selectable, Inbox, `rove api`). Absent on routine
+   * tasks created before the field, which keep rendering as loose rows.
    */
   readonly routine?: TaskRoutineLink
   readonly status: TaskStatus
-  /**
-   * User-pinned regular tasks float to the top of the sidebar's
-   * task list. Defaults to `false` at load time.
-   */
+  /** Floats to the top of the sidebar's task list. Defaults to `false` on load. */
   readonly pinned?: boolean
   /**
-   * Engine PROTOCOL hint — tells the monitor's history reader which
-   * adapter to use when parsing this task's transcript. Optional;
-   * missing values normalize to {@link DEFAULT_TASK_VENDOR}.
-   *
-   * Derived from {@link command}, not declared beside it: `rove api add
-   * --command …` resolves the protocol from the command's argv[0]
-   * (`engine/engine-presets.ts`), and a command kobe cannot name records
-   * the generic protocol until a live session is sniffed. Records that
-   * predate `command` carry a preset id here and launch from it, so the
-   * two fields stay interchangeable at the launch site.
+   * Engine protocol: which history reader parses this task's transcript.
+   * Absent normalizes to {@link DEFAULT_TASK_VENDOR}. Derived from
+   * {@link command}'s argv[0] (`engine/engine-presets.ts`); an unnameable
+   * command records the generic protocol until a live session is sniffed.
+   * Records without `command` carry a preset id here and launch from it.
    */
   readonly vendor?: VendorId
   /**
-   * The RAW launch command for this task's engine — what the dispatch
-   * face (`add --command` / `set-command`) was given, verbatim. Either a
-   * registered preset id (built-in or custom, whose `engineCommand.<id>`
-   * override still applies) or a full command line. Absent on records
-   * created before the field, which launch from {@link vendor} instead.
+   * Raw launch command as given to `add --command` / `set-command`: a preset
+   * id (its `engineCommand.<id>` override still applies) or a full command
+   * line. Absent = launch from {@link vendor}.
    */
   readonly command?: string
   readonly prStatus?: TaskPRStatus
   /**
-   * Reasoning/effort level for the task's engine, when the vendor supports
-   * one (codex: `none`/`low`/`medium`/`high`/`xhigh`/`max`). Optional + additive:
-   * missing records load unchanged, and a vendor with no effort levels
-   * (claude today) leaves it undefined. The launch path maps it to the
-   * vendor-correct flag (see `interactive-command.ts`).
+   * Effort level, when the vendor has them (codex:
+   * `none`/`low`/`medium`/`high`/`xhigh`/`max`; claude: undefined). Mapped to
+   * the vendor's flag in `interactive-command.ts`.
    */
   readonly modelEffort?: string
   /**
-   * Model pinned on the task's engine — an id, alias or pattern in that
-   * engine's own spelling, carried to launch by the protocol's `modelArgv`
-   * (`interactive-command.ts`). Optional + additive like {@link modelEffort}:
-   * absent = the engine's own default. Only engines declaring `modelArgv`
-   * ever record one (`BAD_MODEL` otherwise), so it is never silently dropped.
+   * Model in the engine's own spelling, passed via the protocol's `modelArgv`
+   * (`interactive-command.ts`). Absent = engine default. Only engines
+   * declaring `modelArgv` record one (`BAD_MODEL` otherwise), so it is never
+   * silently dropped.
    */
   readonly model?: string
   /**
-   * The auto-effort tier the user picked when creating this task (`swift` /
-   * `standard` / `deep`), when they picked one — the label the (engine,
-   * model, effort) above were filled from. Recorded verbatim as a weak
-   * label for later training; absent = the user chose the engine by hand.
+   * Auto-effort tier picked at creation (`swift` / `standard` / `deep`) that
+   * filled engine/model/effort; kept verbatim as a weak training label.
+   * Absent = engine chosen by hand.
    */
   readonly tier?: string
-  /**
-   * Fan-out round marker: every sibling created by one `kobe api fan-out`
-   * call shares a ULID, so the round survives the CLI call that created it
-   * (grouping, aggregate notifications, round-level operations). Optional +
-   * additive: single tasks never get one.
-   */
+  /** ULID shared by all siblings of one `kobe api fan-out` call; single tasks never get one. */
   readonly groupId?: string
   /**
-   * The language this task's user writes in, observed from their own prompts
-   * (`prompts/observed-language.ts`) — NOT a setting. Text Rove injects into
-   * the session at moments when no user message is in hand (a quota resume
-   * fired by a timer, the Create-PR prompt behind a keypress) reads this so
-   * it comes out in the language the person is actually using.
-   *
-   * Absent until the first prompt with an opinion in it; absent means
-   * English, which is what every record predating the field loads as.
+   * Language observed from the user's prompts (`prompts/observed-language.ts`),
+   * not a setting. Used for text Rove injects with no user message in hand
+   * (timer-fired quota resume, the Create-PR prompt). Absent means English.
    */
   readonly observedLanguage?: ObservedLanguage
   /** Present while background deletion is queued/running or after it failed. */
@@ -219,53 +160,35 @@ export interface Task {
   /** The kobe session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
   /**
-   * The task brief: the full text of the prompt `add --prompt` delivered
-   * into this task's engine, recorded on the delivery path. The engine's
-   * own transcript is NOT durable — without this a dead engine takes the
-   * brief down with it, and the only recovery is the user re-pasting it. Stored
-   * verbatim (never truncated: the constraints an agent needs most often
-   * sit at the END of a long brief). Optional + additive: tasks created
-   * without a prompt never get one.
+   * The brief `add --prompt` delivered, recorded on the delivery path because
+   * the engine transcript isn't durable. Verbatim, never truncated: the key
+   * constraints often sit at the end of a long brief.
    */
   readonly prompt?: string
   /**
-   * The base ref the task branch was cut from (`add --base-branch`),
-   * persisted so `collect`'s branch signals (ahead count / diffstat)
-   * compare against the REAL fork point instead of re-guessing
-   * `origin/HEAD` → `main` → `master`, and a daemon restart between
-   * create and lazy worktree materialise cannot silently drop it.
-   * Optional + additive: records predating the field fall back to the
-   * guess.
+   * Base ref the branch was cut from (`add --base-branch`). Persisted so
+   * `collect`'s ahead count / diffstat use the real fork point, not the
+   * `origin/HEAD` → `main` → `master` guess (the fallback when absent), and
+   * so a daemon restart before lazy worktree creation can't drop it.
    */
   readonly baseRef?: string
   /**
-   * The directory name this task's worktree will take under the repo's
-   * worktree root (`add --worktree-name`), instead of a name picked from the
-   * animal pool. Persisted because allocation is LAZY: the pick happens on
-   * first enter, possibly in a later daemon process than the create.
-   * Absent = the usual generated name.
+   * Worktree directory name (`add --worktree-name`) instead of an animal-pool
+   * pick. Persisted because allocation is lazy (first enter, maybe a later
+   * daemon process). Absent = generated name.
    */
   readonly worktreeName?: string
   /**
-   * What the WORKER said it delivered (`set-status --report-*`).
-   *
-   * Deliberately separate from {@link prStatus}, which the daemon polls from
-   * the forge: this is a claim, that is an observation, and a dispatcher
-   * deciding whether to land needs to know which one it is reading. A worker
-   * can write `report.pr = 921` for a PR that does not exist; only
-   * `prStatus.checkState` comes from asking GitHub.
+   * What the worker claims it delivered (`set-status --report-*`). Separate
+   * from {@link prStatus}, which the daemon polls from the forge: a worker can
+   * report a PR that doesn't exist; only `prStatus.checkState` is observed.
    */
   readonly report?: TaskWorkerReport
   /**
-   * Which MACHINE this task came from — stamped by the client that merged
-   * several daemons' task lists (`machines/hub.ts`), never by a daemon: a
-   * daemon has no idea who is looking at it or under what alias.
-   *
-   * ABSENT when only the local daemon is connected, which is the state of
-   * every install with no registered machines. That is deliberate: the field
-   * appearing is what says "more than one machine is in play", so a
-   * single-machine `rove api list` payload is byte-identical to what it was
-   * before machines existed.
+   * Source machine, stamped by the client merging several daemons' lists
+   * (`machines/hub.ts`), never by a daemon (it doesn't know the viewer's
+   * alias). Absent when only the local daemon is connected, so a
+   * single-machine `rove api list` payload carries no trace of machines.
    */
   readonly origin?: TaskOrigin
   readonly createdAt: string
@@ -277,24 +200,10 @@ export interface Task {
 interface TaskOrigin {
   readonly machineId: string
   readonly hostLabel: string
-  /**
-   * The machine is unreachable and this row is its LAST KNOWN state.
-   *
-   * The row survives the disconnect on purpose: a machine whose lid closed
-   * has not stopped having these tasks, and dropping them would erase the
-   * only record of where the work is. So it stays and says it is stale
-   * instead — the one thing a vanished row cannot do.
-   */
+  /** Machine unreachable; this is its last known state. Kept, not dropped: it's the only record of where the work is. */
   readonly stale?: boolean
 }
 
-/**
- * On-disk manifest at `~/.rove/tasks.json`.
- *
- * Version 3 = the v0.6 reshape. v1 (`sessionId`-only) and v2 (`tabs`)
- * manifests are migrated on load by dropping the chat-tab / model /
- * vendor / permissionMode fields. Downgrading is not supported.
- */
 /**
  * A persisted deletion marker. A concurrent writer that still holds the
  * deleted task dirty in memory must not write it back — the tombstone makes
@@ -306,15 +215,18 @@ export interface TaskTombstone {
   readonly at: string
 }
 
+/**
+ * On-disk manifest at `~/.rove/tasks.json`. v1 (`sessionId`-only) and v2
+ * (`tabs`) migrate on load by dropping the chat-tab / model / vendor /
+ * permissionMode fields.
+ */
 export interface TaskIndex {
   readonly version: 3
   readonly tasks: readonly Task[]
   /**
-   * Deletion tombstones. Optional and absent when empty: builds that predate
-   * the field ignore it on read and drop it on write, degrading to plain
-   * last-write-wins without corrupting anything (which is also why
-   * `version` stays 3 — older readers treat an unknown version as an empty
-   * index, losing everything).
+   * Deletion tombstones, absent when empty. Older builds ignore and drop it,
+   * degrading to last-write-wins; `version` stays 3 because older readers
+   * treat an unknown version as an empty index.
    */
   readonly removed?: readonly TaskTombstone[]
 }

@@ -1,30 +1,13 @@
 /**
- * Engine-derived data types (v0.6).
+ * Engine-derived data types. Engines run as interactive CLIs in Hosted PTYs
+ * and own their conversation lifecycle; adapters expose history, identity,
+ * launch, capabilities, and telemetry.
  *
- * v0.5 had a full `AIEngine` port (spawn/resume/stream/...) that the
- * orchestrator drove. Kobe now launches interactive engine CLIs through
- * Hosted PTYs and lets each engine own its conversation lifecycle. Engine
- * adapters expose history, identity, launch, capabilities, and telemetry.
- *
- * What lives here now:
- *   - `Message` / `EngineHistory` / `EngineUsageSnapshot` — the
- *     vendor-neutral shape that `engine/claude-code-local/history.ts`
- *     and `engine/codex-local/history.ts` normalize their on-disk
- *     JSONL into. Renderers downstream consume these, not the raw
- *     vendor records.
- *   - `ContentBlock` re-export — kept here as the canonical engine-type
- *     boundary; the actual taxonomy is owned by `types/content.ts`.
- *
- * What's gone (vs v0.5): `AIEngine`, `EngineEvent`, `SessionHandle`,
- * `SpawnOpts`, all UserInput / ApprovePlan / AskUserQuestion shapes,
- * `OrchestratorEvent`, command-discovery surfaces.
- * If a 0.6.x feature needs any of that, restore it deliberately —
- * don't drag the whole port back.
- *
- * Shared engine-capability types: `EngineCapabilities` / `EngineIdentity`,
- * consumed through the engine registry (engine-owned UI data, AGENTS.md).
- * The native composer's model picker + permission-mode cycle went with the
- * v0.6 port; their catalog members were retracted once nothing read them.
+ * `Message` / `EngineHistory` / `EngineUsageSnapshot` are the vendor-neutral
+ * shape each adapter's history module normalizes its on-disk JSONL into;
+ * renderers consume these, never raw vendor records. `ContentBlock`'s
+ * taxonomy is owned by `types/content.ts`. `EngineCapabilities` /
+ * `EngineIdentity` are read through the engine registry.
  */
 
 import type { EngineQuotaUsage, EngineQuotaWindow } from "@sma1lboy/kobe-daemon/daemon/contracts"
@@ -35,16 +18,13 @@ export type { EngineQuotaUsage, EngineQuotaWindow }
 export type { ContentBlock } from "./content"
 
 /**
- * Vendor-supplied capability surface — the single way the TUI asks
- * "what does this engine know / offer?". Today that is one question:
- * how the engine wants its full-screen terminal UI adjusted. Add a member
- * here only together with the neutral-layer consumer that reads it.
+ * The single way neutral layers ask what an engine offers. Add a member only
+ * together with the neutral-layer consumer that reads it.
  */
 export interface EngineCapabilities {
-  /** Rewrite the prompt text before delivery submits it with Enter. Delivery
-   *  never reads the engine's screen to pick a key, so an engine that needs
-   *  something about its own composer closed first (a mention popup) says so
-   *  here, in the text. */
+  /** Rewrite the prompt before delivery submits it with Enter. Delivery never
+   *  reads the screen, so an engine whose composer needs something closed
+   *  first (a mention popup) says so here, in the text. */
   readonly preparePromptSubmission?: (prompt: string) => string | null
   /** Non-text keys to finish composer preparation, outside the paste wrapper
    *  and immediately before the shared Enter. */
@@ -52,45 +32,29 @@ export interface EngineCapabilities {
   /** Optional vendor-owned adjustments for its full-screen terminal UI. */
   readonly terminalPresentation?: EngineTerminalPresentation
   /**
-   * The bytes that stop this engine's current turn, written to its pty as
-   * if typed (`rove api interrupt`).
-   *
-   * Vendor-owned because there is no shared answer: an engine that reads Esc
-   * as "cancel the turn" reads ctrl-C as "quit the process", and the two are
-   * swapped in others. Absent = this engine has not told Rove how to
-   * interrupt it, and the verb refuses (`UNSUPPORTED`) rather than guessing —
-   * a wrong guess kills a session instead of pausing it.
+   * Bytes that stop the current turn, typed into the pty (`rove api interrupt`).
+   * Vendor-owned: Esc cancels a turn in one engine and ctrl-C quits it, and
+   * others swap them. Absent = the verb refuses (`UNSUPPORTED`); a wrong guess
+   * kills the session instead of pausing it.
    */
   readonly interruptSequence?: string
 }
 
-/**
- * Product identity surfaced by the engine adapter — the composer asks
- * the engine how it wants to be named instead of hard-coding vendor
- * strings in TUI code.
- */
+/** How the engine wants to be named, so TUI code never hard-codes vendor strings. */
 export interface EngineIdentity {
   readonly shortName: string
 }
 
 /**
- * One historical message read off disk by an engine adapter's history
- * module. `blocks` is the vendor-neutral discriminated union (see
- * `types/content.ts`); adapters normalize their native shape into it
- * before surfacing. `timestamp` is ISO-8601 to match Claude Code's
- * JSONL on-disk format.
+ * One historical message read off disk. `blocks` is the vendor-neutral union
+ * from `types/content.ts`; `timestamp` is ISO-8601, matching Claude Code's JSONL.
  */
 export interface Message {
   readonly role: "user" | "assistant" | "system"
   readonly blocks: readonly ContentBlock[]
   readonly timestamp: string
   readonly sessionId: string
-  /**
-   * Anthropic token usage for this assistant turn, when persisted on
-   * disk. Claude Code stores it inline on each assistant record's
-   * `message.usage`. Surfaced so the monitor's cost dashboard can
-   * aggregate without re-parsing the raw JSONL.
-   */
+  /** Token usage for this assistant turn, when persisted (Claude Code's `message.usage`). */
   readonly usage?: {
     readonly input_tokens: number
     readonly output_tokens: number
@@ -99,11 +63,7 @@ export interface Message {
   }
 }
 
-/**
- * Per-turn usage snapshot — what an adapter's history module surfaces
- * alongside the message list. Fields are vendor-neutral; not all
- * adapters fill every field.
- */
+/** Vendor-neutral usage snapshot; not every adapter fills every field. */
 export type EngineUsageSnapshot = {
   readonly input_tokens: number
   readonly output_tokens: number
@@ -117,10 +77,7 @@ export type EngineUsageSnapshot = {
   readonly context_window_tokens?: number
 }
 
-/**
- * What `engine/<vendor>/history.ts` returns: the full message list plus
- * an aggregate usage snapshot for the session.
- */
+/** What `engine/<vendor>/history.ts` returns: messages plus the session's aggregate usage. */
 export interface EngineHistory {
   readonly messages: readonly Message[]
   readonly usageMetrics?: EngineUsageSnapshot

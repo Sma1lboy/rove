@@ -1,31 +1,18 @@
 /**
- * Codex hook adapter (KOB) — the second real {@link EngineHookAdapter}.
+ * Codex {@link EngineHookAdapter}. Codex hooks
+ * (https://developers.openai.com/codex/hooks) use Claude Code's settings shape
+ * (`{ "hooks": { "<Event>": [ { matcher?, hooks: [{ type: "command", command }] } ] } }`)
+ * in `~/.codex/hooks.json`, so {@link JsonHookAdapter} does the IO and this
+ * supplies the vendor id, event table, and path.
  *
- * Codex's hook system (https://developers.openai.com/codex/hooks) uses the SAME
- * settings-file shape as Claude Code — `{ "hooks": { "<Event>": [ { matcher?,
- * hooks: [{ type: "command", command }] } ] } }` — read from
- * `~/.codex/hooks.json`. So this adapter inherits ALL the install/merge/IO
- * mechanics from {@link JsonHookAdapter} and supplies only three things: its
- * vendor id, its event→verb table, and its settings path.
+ * NOT wired: `turn-failed` (Codex has no failure hook event) and
+ * `awaiting-input` (its only "waiting" event, `PermissionRequest`, is an
+ * allow/deny decision hook; an observer there could interfere with approval,
+ * the same trap that broke `claude --worktree`). Polling covers both states.
  *
- * What's wired vs. what isn't (Codex's event vocabulary is narrower than
- * Claude's, so three neutral verbs have no clean Codex signal in v1):
- *   - `SessionStart`     → session-start
- *   - `UserPromptSubmit` → turn-start
- *   - `Stop`             → turn-complete
- *   - `SessionEnd`       → session-end
- *   - `PostToolUse`(Bash)→ worktree-created (inherited worktree-watch observer)
- * NOT wired: `turn-failed` (Codex's hook enum has no failure event at all —
- * see `activityDetailFromPayload`) and `awaiting-input` (Codex's only "waiting"
- * event is `PermissionRequest`, an allow/deny DECISION hook — installing kobe's
- * observer on it could interfere with Codex's approval flow, the same
- * provider-hook trap that broke `claude --worktree`, so we leave it alone).
- * The polling fallback still covers those states.
- *
- * Trust model: Codex won't RUN a non-managed command hook until the user trusts
- * it once via `/hooks` (or launches with `--dangerously-bypass-hook-trust`).
- * kobe writes the definition but never auto-bypasses trust, so codex activity
- * badges light up only after the user approves the hook — by design.
+ * Codex won't run a non-managed hook until the user trusts it via `/hooks`
+ * (or `--dangerously-bypass-hook-trust`). kobe never bypasses trust, so codex
+ * activity badges light only after the user approves.
  */
 
 import { join } from "node:path"
@@ -35,27 +22,21 @@ import { JsonHookAdapter } from "../json-hook-adapter.ts"
 import type { HookEventSpec } from "../json-hooks.ts"
 import { vendorConfigHome } from "../vendor-home.ts"
 
-/** Codex hook event → normalized kobe verb. The ONE place Codex event names
- *  live. Only the verbs Codex can deliver without touching a decision hook. */
+/** Codex hook event → kobe verb; the one place Codex event names live. No decision hooks. */
 const EVENT_MAP: readonly HookEventSpec[] = [
   { event: "SessionStart", verb: "session-start" },
   { event: "UserPromptSubmit", verb: "turn-start" },
   { event: "Stop", verb: "turn-complete" },
-  // `SessionEnd` closes the session out. Without it a cleanly-quit codex task
-  // kept whatever state its last hook set — only the pty-exit record could
-  // move the badge, so `/quit` left the row lit.
+  // Without it `/quit` leaves the row lit until the pty-exit record lands.
   { event: "SessionEnd", verb: "session-end" },
-  // Lifecycle-only verbs (docs/design/plugin-events.md). All four verified
-  // present in codex-cli 0.153.4's hook event enum (see the note on
-  // `activityDetailFromPayload`); Subagent* is what puts the `◇N` marker on a
-  // codex sidebar row.
+  // Lifecycle-only verbs (docs/design/plugin-events.md), verified in codex-cli
+  // 0.153.4's enum. Subagent* drives the `◇N` sidebar marker.
   { event: "PreCompact", verb: "pre-compact" },
   { event: "PostCompact", verb: "post-compact" },
   { event: "SubagentStart", verb: "subagent-start" },
   { event: "SubagentStop", verb: "subagent-stop" },
-  // Tool family: gated (see JsonHookAdapter.gatedVerbs) + behind Codex's own
-  // hook trust prompt. Failures arrive folded into tool_response, so there is
-  // no tool-failed row.
+  // Gated (JsonHookAdapter.gatedVerbs) and behind Codex's trust prompt.
+  // Failures fold into tool_response, so no tool-failed row.
   { event: "PreToolUse", verb: "tool-pre" },
   { event: "PostToolUse", verb: "tool-post" },
 ]
@@ -76,28 +57,20 @@ export class CodexHookAdapter extends JsonHookAdapter {
     return codexHooksPath()
   }
 
-  /** Codex spells the tool fields `tool_name`/`tool_response`; compaction
-   *  carries the same `trigger` values as Claude.
+  /** Codex spells tool fields `tool_name`/`tool_response`; compaction `trigger`
+   *  matches Claude.
    *
-   *  No `turn-failed` branch, and that is not an oversight: Codex's hook
-   *  event enum (re-verified against codex-cli 0.153.4's binary) is PreToolUse
-   *  / PermissionRequest / PostToolUse / PreCompact / PostCompact /
-   *  SessionStart / SessionEnd / UserPromptSubmit / SubagentStart /
-   *  SubagentStop / Stop — there is no failure event to classify. `TurnFailed`
-   *  does not appear in that binary at all; the failure signal is the
-   *  app-server THREAD event (`turn.failed`), not a hook, so it never reaches
-   *  a `kobe hook` invocation. Codex therefore cannot reach `rate_limited`
-   *  through hooks at all; its quota probe (`vendorsWithQuotaProbe`) is the
-   *  only path, and adding a classifier here would be dead code pretending
-   *  otherwise.
+   *  No `turn-failed` branch: codex-cli 0.153.4's hook enum is PreToolUse /
+   *  PermissionRequest / PostToolUse / PreCompact / PostCompact / SessionStart /
+   *  SessionEnd / UserPromptSubmit / SubagentStart / SubagentStop / Stop. The
+   *  failure signal is the app-server thread event `turn.failed`, never a hook,
+   *  so codex reaches `rate_limited` only via its quota probe
+   *  (`vendorsWithQuotaProbe`).
    *
-   *  No `subagent-*` branch either, for a narrower reason: the EVENT names are
-   *  verified, the PAYLOAD field names are not. Claude spells them
-   *  `agent_type`/`agent_id`; both strings exist in the codex binary, but
-   *  nothing proves they belong to ITS Subagent hook payloads. Detail feeds
-   *  the plugin event stream, not the `◇N` sidebar marker (which counts
-   *  `engine.lifecycle` events), so leaving it absent costs the badge nothing
-   *  and beats shipping a guessed field name. */
+   *  No `subagent-*` branch: the event names are verified, the payload fields
+   *  are not (`agent_type`/`agent_id` exist in the binary, unproven for these
+   *  payloads). Detail feeds the plugin stream, not the `◇N` marker (which
+   *  counts `engine.lifecycle` events), so a guessed field name buys nothing. */
   override activityDetailFromPayload(
     kind: EngineActivityKind,
     payload: Record<string, unknown>,
@@ -111,14 +84,11 @@ export class CodexHookAdapter extends JsonHookAdapter {
     return undefined
   }
 
-  /** Codex spells session identity exactly as Claude does. Its `Stop` payload
-   *  schema (read off codex-cli 0.153.2's binary) REQUIRES both `session_id`
-   *  and `transcript_path`, and `transcript_path` is the rollout JSONL — the
-   *  same file `codexHistoryReader.transcriptPath` resolves. Without this
-   *  override the daemon records a codex turn with no transcript to read, so
+  /** Same fields as Claude. codex-cli 0.153.2's `Stop` schema requires
+   *  `session_id` and `transcript_path` (nullable), the rollout JSONL that
+   *  `codexHistoryReader.transcriptPath` resolves. Without this,
    *  {@link import("./turns.ts").readCodexTurns} is never reached and
-   *  `rove api agent-turns` answers an empty page for a codex task.
-   *  `transcript_path` is nullable in the schema, hence the string guard. */
+   *  `rove api agent-turns` returns an empty page for codex. */
   override sessionFromPayload(payload: Record<string, unknown>): EngineSessionRef | undefined {
     if (typeof payload.session_id !== "string" || !payload.session_id) return undefined
     return {

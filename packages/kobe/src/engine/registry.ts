@@ -1,27 +1,14 @@
 /**
- * Engine registry — the ONE place per-vendor wiring lives.
+ * Engine registry: the one place per-vendor wiring lives. Neutral layers
+ * (monitor, orchestrator, TUI) call {@link engineEntry} with the task's
+ * `vendor` instead of hard-coding vendor strings or if-ladders. Adding an
+ * engine = one entry here plus its vendor-local modules.
  *
- * CLAUDE.md "Engine-owned UI data": neutral layers (monitor, orchestrator,
- * TUI) must not hard-code vendor strings or pick vendor-specific readers
- * with inline if-ladders. Instead they call {@link engineEntry} with the
- * task's `vendor` and use whatever the entry exposes:
- *
- *   - `history`        — transcript store reader (auto-title, recap).
- *   - `detectAccount`  — read-only login/binary probe (Settings → Accounts).
- *   - `createHookAdapter` — activity-hook installer (claude + codex today).
- *   - `createTurnDetector` — Terminal Tab turn-completion detection.
- *   - `defaultCommand` / `displayName` — launch + label defaults.
- *
- * Adding an engine = one new entry here (plus its vendor-local modules);
- * removing the vendor if-ladders from neutral code was the point (KOB).
- *
- * Custom (user-registered) engines get {@link customEngineEntry}: an
- * explicit, documented EMPTY entry — no transcript store (auto-title keeps
- * the placeholder rather than mis-reading another vendor's files), no
- * account detection, no hooks, and a `defaultCommand` of the
- * bare id (the real launch command lives in the user's
- * `engineCommand.<id>` override; see `interactive-command.ts`). This
- * preserves the pre-registry behavior for unknown vendor ids exactly.
+ * Custom (user-registered) engines get {@link customEngineEntry}: an explicit
+ * EMPTY entry (no transcript store, so auto-title never mis-reads another
+ * vendor's files; no account detection; no hooks) whose `defaultCommand` is
+ * the bare id; the real launch command lives in `engineCommand.<id>`
+ * (`interactive-command.ts`).
  *
  * Must stay importable from vitest and MUST NOT import from `src/tui/`.
  */
@@ -54,44 +41,28 @@ import type { EngineTurnDetector } from "./turn-detector.ts"
 import { UnknownTurnDetector } from "./turn-detector.ts"
 
 /**
- * Reader over an engine's on-disk transcript store, in the neutral shape
- * auto-title (and future recap) consumes. Vendor formats stay behind it:
- * claude's per-worktree `~/.claude/projects/*` dirs, codex's global
- * `~/.codex/sessions/**` rollouts, copilot's `~/.copilot/session-state`.
+ * Neutral reader over an engine's transcript store (claude's per-worktree
+ * `~/.claude/projects/*`, codex's global `~/.codex/sessions/**`, copilot's
+ * `~/.copilot/session-state`).
  */
 export interface EngineHistoryReader {
-  /**
-   * Session ids recorded for `worktree`, OLDEST-FIRST (the task's origin
-   * conversation comes first — auto-title depends on this order). `[]`
-   * when the worktree has no transcripts. Never throws.
-   */
+  /** Session ids for `worktree`, OLDEST-FIRST (auto-title depends on it); `[]` when none. Never throws. */
   listSessionIdsForWorktree(worktree: string): Promise<readonly string[]>
   /** Neutral messages for one session id; `[]` when not found. */
   readHistory(sessionId: string): Promise<readonly Message[]>
   /**
-   * Session-aggregate usage in the neutral {@link EngineUsageSnapshot} —
-   * the vendor-specific token math (what counts as "context", what's
-   * cached vs fresh input) is the ADAPTER's job, computed here from its
-   * own parsed transcript, never in UI layers. Absent when the engine
-   * doesn't surface usage (kimi's unverified wire, custom engines): that
-   * is "not reported", distinct from a reported zero, so consumers can
-   * decline to render rather than assert emptiness.
+   * Session-aggregate usage. Vendor token math (what counts as context,
+   * cached vs fresh) happens here, never in UI layers. Absent (kimi, custom)
+   * means "not reported", distinct from a reported zero.
    */
   readUsageSnapshot?(sessionId: string): Promise<EngineUsageSnapshot | undefined>
   /**
-   * Absolute path of the on-disk transcript for `sessionId`, or null when
-   * the engine has no file to point at. Not for kobe to PARSE (that's
-   * `readHistory`) — it is what the cross-engine handoff hands the next
-   * agent to read itself, so its native format never has to be converted.
-   * `worktree` scopes stores that key by directory (claude's project dir).
+   * Absolute transcript path, or null. Not for kobe to parse: the cross-engine
+   * handoff gives it to the next agent in its native format. `worktree`
+   * scopes stores keyed by directory (claude).
    */
   transcriptPath(sessionId: string, worktree: string): Promise<string | null>
-  /**
-   * Newest transcript mtime (epoch ms) for `worktree`, or 0 when the task
-   * has no transcript yet. The Ops pane's activity poll watches this to
-   * light its "new activity" badge. Never throws — readers are
-   * best-effort and the poller treats 0 as "no activity seen".
-   */
+  /** Newest transcript mtime (epoch ms) for `worktree`, 0 when none; drives the Ops "new activity" badge. Never throws. */
   latestTranscriptMtimeForWorktree(worktree: string): Promise<number>
 }
 
@@ -117,175 +88,97 @@ export interface EngineRegistryEntry {
    */
   readonly defaultCommand: readonly string[]
   /**
-   * Reasoning/effort levels this engine accepts, lowest→highest. Undefined
-   * for engines with no kobe-driveable effort flag (claude picks reasoning at
-   * runtime; copilot/custom have none).
-   *
-   * Declaring levels only says the picker may OFFER them — {@link effortArgv}
-   * is what carries a chosen level to the process. An engine that declares
-   * levels without argv has its selection accepted by every gate and then
-   * dropped at launch, silently.
+   * Effort levels, lowest→highest; undefined when there is no driveable flag
+   * (claude picks at runtime; copilot/custom have none). Only lets the picker
+   * offer them: without {@link effortArgv} a pick passes every gate and is
+   * silently dropped at launch.
    */
   readonly effortLevels?: readonly string[]
   /**
-   * Argv that asks this engine for reasoning `level` (already validated
-   * against {@link effortLevels}). A full-argv rewrite for the same reason
-   * {@link EngineSessionIdentity.resumeArgv} is one: the shapes differ in
-   * kind, not just spelling — codex takes a config pair
-   * (`-c model_reasoning_effort=high`), and the next engine to grow one may
-   * take a flag or a subcommand.
-   *
-   * Absent = Rove knows no way to pass an effort to this engine, so a level
-   * is dropped rather than guessed at. Pair it with {@link effortLevels}: a
-   * hardcoded `if (vendor === "codex")` here is exactly what let a declared
-   * level reach the UI and die at launch.
+   * Argv for reasoning `level` (already validated against
+   * {@link effortLevels}). Full-argv rewrite because shapes differ in kind
+   * (codex: `-c model_reasoning_effort=high`). Absent = a level is dropped,
+   * not guessed. Always pair with {@link effortLevels}.
    */
   readonly effortArgv?: (base: readonly string[], level: string) => readonly string[]
   /**
-   * The models this engine can NAME, for the pickers' suggestion list.
-   * Undefined = Rove knows no way to list them (copilot, kimi, custom).
-   * Engines with no list command (claude, codex) answer a short static list
-   * of the aliases their CLI documents; pi/omp run their own list verb
-   * (`engine/model-lists.ts`). Suggestions only, never a closed set: the
-   * gates validate against {@link modelArgv}, not against this list, because
-   * pi's `--model` is a fuzzy pattern and claude takes full ids its alias
-   * list does not spell. May reject (a missing binary, a list command that
-   * hangs) — callers degrade to free text, they never hide the field.
+   * Model suggestions for pickers; undefined = can't list (copilot, kimi,
+   * custom). claude/codex return their documented aliases; pi/omp run their
+   * list verb (`engine/model-lists.ts`). Never a closed set: gates check
+   * {@link modelArgv}, since pi's `--model` is fuzzy and claude takes full ids.
+   * May reject; callers degrade to free text, never hide the field.
    */
   readonly listModels?: () => Promise<readonly EngineModel[]>
-  /**
-   * Argv that pins `model` on this engine. Absent = Rove knows no model flag
-   * for it, so a pinned model is REFUSED at the gate (`BAD_MODEL`) rather
-   * than dropped at launch — the same trap {@link effortArgv} documents:
-   * an engine that lists models it cannot pass would have the pick accepted
-   * everywhere and silently lost at spawn.
-   */
+  /** Argv that pins `model`. Absent = a pinned model is refused at the gate (`BAD_MODEL`), not lost at spawn. */
   readonly modelArgv?: (base: readonly string[], model: string) => readonly string[]
   /** Transcript store reader. Empty (not claude's!) for custom engines. */
   readonly history: EngineHistoryReader
   /**
-   * Read-only binary + login probe (Settings → Accounts). `deps` is the
-   * injectable fs/env surface from `account-detect.ts`; omit for production.
-   *
-   * Absent = Rove has no login detector for this engine (contrib, plugin,
-   * user-registered), which `engine-status.ts` reports as `account: null` —
-   * "not detectable", NOT "not logged in". Writing an explicit stub that
-   * answers `{ kind: "none" }` instead would mark every such engine
-   * unusable, because that kind means "detector ran, found no login".
+   * Read-only binary + login probe (Settings → Accounts); `deps` injects
+   * fs/env (`account-detect.ts`). Absent = `account: null` in
+   * `engine-status.ts`, "not detectable". Never stub `{ kind: "none" }`: that
+   * means "found no login" and marks the engine unusable.
    */
   readonly detectAccount?: (deps?: DetectDeps) => Promise<EngineAccountStatus<EngineAccount>>
   /** Activity-hook adapter — a no-op adapter for engines without wired hooks. */
   readonly createHookAdapter: () => EngineHookAdapter
-  /**
-   * Turn-completion detector for Terminal Tab status (transcript markers +
-   * pane quiescence; see `turn-detector.ts`). Engines without persisted
-   * completion markers (copilot, custom) get an {@link UnknownTurnDetector}
-   * whose `supportsCompletionMarkers()` is false.
-   */
+  /** Turn-completion detector (`turn-detector.ts`); copilot/custom get {@link UnknownTurnDetector}. */
   readonly createTurnDetector: () => EngineTurnDetector
-  /**
-   * Vendor-owned terminal-presentation policy. Undefined for engines that
-   * declare none (copilot, custom).
-   */
+  /** Undefined for engines that declare none (copilot, custom). */
   readonly capabilities?: EngineCapabilities
   /** Product identity (composer placeholder etc.). Paired with capabilities. */
   readonly identity?: EngineIdentity
-  /**
-   * Native OSC 0/2 title policy for interactive terminal sessions — status
-   * vocabulary, the launch args that select the engine's own title fields,
-   * and the rules for a title that isn't a name (see `terminal-title.ts`,
-   * which owns the shape and every rule that reads it).
-   */
+  /** OSC 0/2 title policy; shape and rules in `terminal-title.ts`. */
   readonly terminalTitle?: EngineTerminalTitle
-  /**
-   * How this engine's CLI handles session identity — the flag that pins a
-   * caller-set id, the flags that mean the command already controls its own
-   * session, and the argv that resumes one (see `session-identity.ts`,
-   * which owns the shape and every rule that reads it). Absent = Rove knows
-   * no session verbs for this engine.
-   */
+  /** Session pin/resume/fork verbs (`session-identity.ts`). Absent = none known. */
   readonly sessionIdentity?: EngineSessionIdentity
   /**
-   * Subscription-quota probe: snapshot of the account's usage windows, or
-   * null when unknowable. Drives the daemon's rate-limit auto-resume
-   * schedule and the Settings usage dashboard. The probe hits the vendor's
-   * own rate-limited API — the daemon's usage cache owns the fetch cadence;
-   * never call this per-render or per-event. Omit for engines without a
-   * readable quota API.
+   * Account usage windows, or null when unknowable; drives rate-limit
+   * auto-resume and the Settings usage view. Hits the vendor's rate-limited
+   * API: the daemon's usage cache owns cadence; never call per-render/event.
    */
   readonly quotaUsage?: () => Promise<EngineQuotaUsage | null>
   /**
-   * How a session's FIRST message (the `send --tab new --prompt` /
-   * `add --prompt` / repo init-prompt text) may reach the engine:
-   *   - "argv" (default): appended to the launch argv as a positional arg —
-   *     claude/codex accept an initial prompt there.
-   *   - "paste": the CLI's positional slot is a SUBCOMMAND, not a prompt
-   *     (kimi exits `Unknown command` on one), so the launch
-   *     spawns bare and the spawner pastes the message once the engine
-   *     process is up (`pastePromptWhenEngineUp` in `hosted-session.ts`).
-   * Custom engines keep "argv" — their launch-command contract is the
-   * user's own (`kimi -p` style wrappers RIDE the positional slot).
+   * How a session's first message (`--prompt`, init-prompt) reaches the engine:
+   *   - "argv" (default): a positional arg (claude/codex).
+   *   - "paste": the positional slot is a subcommand (kimi exits
+   *     `Unknown command`), so spawn bare and paste once the process is up
+   *     (`pastePromptWhenEngineUp`, `hosted-session.ts`).
+   * Custom engines keep "argv"; `kimi -p` style wrappers use that slot.
    */
   readonly firstMessageDelivery?: "argv" | "paste"
   /**
-   * Extra executable basenames this engine's LIVE process may show as in
-   * `ps`, beyond `defaultCommand[0]` — for binaries that rewrite their
-   * process title post-launch (kimi's Mach-O launcher rewrites argv[0] to
-   * `kimi-co`). The foreground
-   * walk (`engine/foreground.ts`) matches these the same way it matches
-   * the launch binary; without them a running engine reads as a plain
-   * shell and prompt delivery refuses with ENGINE_NOT_RUNNING.
+   * Extra `ps` basenames beyond `defaultCommand[0]`, for binaries that rewrite
+   * argv[0] (kimi's launcher becomes `kimi-co`). Without them the foreground
+   * walk (`engine/foreground.ts`) sees a plain shell and delivery refuses
+   * with ENGINE_NOT_RUNNING.
    */
   readonly processNames?: readonly string[]
   /**
-   * Pre-trust a Rove-created worktree in the vendor's first-run trust
-   * store. Every vendor gates a never-seen directory behind a
-   * modal trust dialog; hosted sessions can't answer one, so the pane stalls
-   * on the dialog. Writing the record is what skips it.
-   * Called before a hosted spawn; must be idempotent and merge-preserving.
-   * Absent = the vendor has no gate kobe knows how to pre-answer.
+   * Pre-trust a worktree in the vendor's trust store before a hosted spawn,
+   * so the pane doesn't stall on a trust dialog. Idempotent and
+   * merge-preserving. Absent = no gate kobe can pre-answer.
    */
   readonly trustWorktree?: (worktreePath: string) => void
-  /**
-   * Per-turn telemetry reader: completed {@link AgentTurn}s
-   * lifted from ONE of this engine's session transcripts. Engine-owned by
-   * construction — only the adapter knows where its vendor records the
-   * model, timings, and token usage of a turn. Absent = this engine has no
-   * per-turn attribution kobe can read (nothing is guessed for it).
-   */
+  /** Completed {@link AgentTurn}s from one session transcript. Absent = no per-turn data; nothing is guessed. */
   readonly readTurns?: EngineTurnReader
   /**
-   * Declarative screen-state rules (see `engine/screen-state.ts`): the
-   * quiescence poll classifies each pane capture into working/blocked/idle
-   * instead of publishing "unknown".
+   * Screen-state rules (`engine/screen-state.ts`) so the quiescence poll
+   * classifies captures as working/blocked/idle, not "unknown". Bottom of the
+   * ladder hooks > transcript markers > screen (precedence:
+   * `turn-state-merge.ts`); for engines with no hooks (contrib) or gaps
+   * (copilot's `NoopHookAdapter`).
    *
-   * It is the BOTTOM of a three-layer ladder — hooks > transcript markers >
-   * screen. Declare one for an engine whose own reporting cannot cover its
-   * states: no hook adapter at all (the contrib catalog), or a hook set that
-   * leaves a state unreported (copilot's adapter is a `NoopHookAdapter`).
-   *
-   * Claude and codex declare NONE, and that is correct twice over. Their
-   * hooks already report every state — including the one that looks like it
-   * needs a screen, the permission prompt: Claude fires
-   * `Notification/permission_prompt` while the dialog is up, which
-   * `CLAUDE_HOOK_EVENT_MAP` maps to `awaiting-input` → `permission_needed`
-   * (verified live 2026-09-18: the hook lands ~10s after the turn starts,
-   * while the engine sits on the dialog). And a manifest would be dead code
-   * even if it were right, because `mergeTurnStates` is unconditionally
-   * hook-wins per tab — any live hook claim covers the poll's reading, so a
-   * screen rule for an engine whose hooks are live can never be consulted.
-   *
-   * `turn-state-merge.ts` owns the precedence; `use-turn-polls.ts` passes
-   * this through when the entry has one.
+   * Claude and codex declare none: their hooks cover every state, including
+   * the permission prompt (Claude fires `Notification/permission_prompt` →
+   * `awaiting-input` → `permission_needed`, measured landing ~10s into the
+   * turn while the dialog is up), and `mergeTurnStates` is hook-wins per tab,
+   * so a screen rule would never be consulted.
    */
   readonly screenManifest?: EngineScreenManifest
 }
 
-// The per-vendor readers live in `history-readers.ts` — this file declares the
-// contract, that one holds the vendor-specific work of meeting it, so a
-// vendor's transcript format changing never edits the table below.
-// EMPTY_HISTORY is re-exported so `@/engine/registry` stays the one import
-// site for the whole registry surface.
+// Re-exported so `@/engine/registry` stays the one import site.
 export { EMPTY_HISTORY }
 
 /** See module doc: the explicit empty entry for a user-registered engine id. */
@@ -296,146 +189,92 @@ function customEngineEntry(vendor: VendorId): EngineRegistryEntry {
     displayName: vendor,
     defaultCommand: [vendor],
     history: EMPTY_HISTORY,
-    // No `detectAccount`: see the field's doc — absent is how "no detector"
-    // is spelled, and `contribEngineEntry` inherits it by spreading this.
+    // No `detectAccount`: absent spells "no detector"; `contribEngineEntry` inherits it.
     createHookAdapter: () => new NoopHookAdapter(vendor),
     createTurnDetector: () => new UnknownTurnDetector(vendor),
   }
 }
 
 /**
- * Resolve the registry entry for a vendor id. Built-ins return their
- * shared singleton entry; any other id returns a fresh
- * {@link customEngineEntry} (no registration step needed — a custom id is
- * "registered" by existing in the user's `customEngineIds` state, which
- * this module deliberately does not read so it stays state-free).
+ * Built-ins return their singleton; any other id a fresh
+ * {@link customEngineEntry}. This module never reads `customEngineIds`, so it
+ * stays state-free.
  */
 export function engineEntry(vendor: VendorId): EngineRegistryEntry {
   if (isBuiltinVendor(vendor)) return BUILTIN_ENGINES[vendor]
   const custom = customEngineEntry(vendor)
-  // Shipped contrib engines (data-only long tail): the custom empty entry
-  // overlaid with the catalog's identity + screen manifest.
+  // Contrib engines: the empty entry overlaid with catalog identity + screen manifest.
   return isContribEngine(vendor) ? contribEngineEntry(vendor, custom) : custom
 }
 
 /**
- * Every engine id whose launch binary this module can NAME without reading
- * state: the built-ins, the shipped contrib catalog, and whatever plugins
- * registered this run. That is the identifiable set — a truly custom id
- * carries its binary in `engineCommand.<id>`, which lives in state this
- * module deliberately never reads, so callers holding that state pass the
- * launch argv in themselves (see `foreground.ts#engineProcessIn`'s
- * `extraLaunch`).
- *
- * Recomputed per call rather than cached: `pluginEngineIds()` changes when
- * plugins are enabled/disabled at runtime, and the array is small enough
- * that a stale cache would cost more than it saves.
+ * Ids whose launch binary is nameable without state: built-ins, contrib, and
+ * this run's plugins. Custom ids keep theirs in `engineCommand.<id>`, so
+ * callers pass it in (`foreground.ts#engineProcessIn`'s `extraLaunch`). Not
+ * cached: `pluginEngineIds()` changes as plugins toggle at runtime.
  */
 export function identifiableEngineIds(): readonly VendorId[] {
   return [...BUILTIN_VENDORS, ...CONTRIB_ENGINE_IDS, ...pluginEngineIds()]
 }
 
 /**
- * True when `vendor`'s adapter can turn a session into neutral MESSAGES —
- * i.e. its `readHistory` is not {@link EMPTY_HISTORY}'s. Neutral layers
- * (e.g. `kobe api read-output`) use this to label an `engine_unsupported`
- * fallback honestly instead of confusing "engine has no reader" with
- * "reader found no sessions". Compares that one method rather than the
- * whole object because kimi's reader is a partial: it resolves session
- * ids and transcript PATHS (enough for a cross-engine handoff) while
- * still shipping no message parser.
+ * True when `readHistory` is not {@link EMPTY_HISTORY}'s, so callers can tell
+ * "no reader" (`engine_unsupported`) from "no sessions". Compares that one
+ * method because kimi's reader resolves ids and paths but parses no messages.
  */
 export function supportsStructuredHistory(vendor: VendorId): boolean {
   return engineEntry(vendor).history.readHistory !== EMPTY_HISTORY.readHistory
 }
 
-/**
- * Every status glyph any built-in engine declares. The fallback vocabulary
- * for a vendor that declares none of its own — see
- * {@link stripEngineStatusPrefix}. Computed once; the built-in table is a
- * module constant.
- */
+/** Union of every built-in's status glyphs; fallback for vendors declaring none. */
 const ALL_STATUS_PREFIXES: readonly string[] = [
   ...new Set(Object.values(BUILTIN_ENGINES).flatMap((entry) => entry.terminalTitle?.statusPrefixes ?? [])),
 ]
 
-/**
- * The status-glyph vocabulary to judge a vendor's title by: its own when it
- * declares one, else the union of every built-in's (see
- * {@link stripEngineStatusPrefix} for why the union is the right default).
- */
+/** The vendor's own status glyphs, else the built-in union. */
 export function engineStatusPrefixes(vendor: VendorId): readonly string[] {
   const declared = engineEntry(vendor).terminalTitle?.statusPrefixes
   return declared && declared.length > 0 ? declared : ALL_STATUS_PREFIXES
 }
 
 /**
- * Strip the engine's own STATUS decoration from a live OSC title (rule:
- * {@link stripStatusPrefix}).
- *
- * `vendor` NARROWS the vocabulary; it never gates the strip. Anything
- * unknown — a custom wrapper (`claudecpa`, a zsh function that ends up
- * running the real claude), or simply a process-tree probe that has not
- * answered yet — falls back to the union of every built-in's glyphs. This is
- * the common case, not an edge: the probe is a ~2s `ps` walk, so gating on it
- * lets a raw `✳ …` through on every tick it cannot answer, and that title
- * is what gets RECORDED. The union is safe precisely because these glyphs
- * are decoration in
- * any vendor's title — nothing writes a leading `⠹` it wants kept.
+ * Strip status decoration ({@link stripStatusPrefix}). `vendor` narrows the
+ * vocabulary, never gates the strip: unknown (a wrapper like `claudecpa`, or
+ * the ~2s `ps` probe not answered yet) uses the built-in union, else a raw
+ * `✳ …` gets recorded. Safe because nothing writes a leading `⠹` it wants kept.
  */
 export function stripEngineStatusPrefix(title: string, vendor: VendorId | null | undefined): string {
   return stripStatusPrefix(title, vendor ? engineStatusPrefixes(vendor) : ALL_STATUS_PREFIXES)
 }
 
-/**
- * What the engine's live OSC title says about its turn state (rule:
- * {@link titleTurnHint}) — how consumers (the TUI's interrupt observer, the
- * daemon's activity reconciler) read an interrupt without hard-coding any
- * vendor's glyphs.
- */
+/** Turn state from the live title ({@link titleTurnHint}). */
 export function engineTitleTurnHint(vendor: VendorId, title: string): "working" | "rest" | null {
   return titleTurnHint(engineEntry(vendor).terminalTitle, title)
 }
 
 /**
- * The engine session id a live OSC title IS, or null when it is a name. Both
- * this and {@link isEnginePlaceholderTitle} take a RESOLVED vendor — unlike
- * {@link stripEngineStatusPrefix}, which falls back to every built-in's
- * glyphs, there is no safe guess here: the id is only meaningful read against
- * the store of the engine that wrote it. See
- * {@link EngineTerminalTitle.sessionIdFromTitle}.
+ * Session id the title is, or null. Requires a resolved vendor (as does
+ * {@link isEnginePlaceholderTitle}): the id only means something in the
+ * writing engine's store. See {@link EngineTerminalTitle.sessionIdFromTitle}.
  */
 export function engineSessionIdFromTitle(vendor: VendorId, title: string): string | null {
   return titleSessionId(engineEntry(vendor).terminalTitle, title)
 }
 
-/**
- * True when a live OSC title is NOT a name — the engine's placeholder for
- * one it doesn't have yet (codex writes its thread UUID until the thread is
- * named). Surfaces render the next rung down instead: the tab's first-prompt
- * summary, then the vendor default.
- */
+/** True when the title is a placeholder (codex's thread UUID); render the first-prompt summary, then the vendor default. */
 export function isEnginePlaceholderTitle(title: string, vendor: VendorId): boolean {
   return titleIsPlaceholder(engineEntry(vendor).terminalTitle, title)
 }
 
-/**
- * Capabilities for a vendor, or `undefined` when the engine has none (copilot,
- * custom). Consumed by the workspace terminal for the engine's
- * `terminalPresentation`; callers must handle the missing case rather than
- * borrow another vendor's policy.
- */
+/** Undefined for copilot/custom; callers must not borrow another vendor's policy. */
 export function getCapabilities(vendor: VendorId): EngineCapabilities | undefined {
   return engineEntry(vendor).capabilities
 }
 
 /**
- * Built-in vendors that ship a quota probe. Quota is an ACCOUNT-level fact,
- * not a task-level one: a logged-in Codex account has a balance worth showing
- * whether or not any kobe task currently runs Codex. The daemon's usage poller
- * asks for this list rather than deriving vendors from the task list, which
- * silently hid every engine the user hadn't happened to open a task with.
- * Vendors whose probe can't read a login just never publish a snapshot.
+ * Built-ins with a quota probe. Quota is account-level, so the usage poller
+ * uses this list, not the vendors of open tasks. A probe that can't read a
+ * login never publishes a snapshot.
  */
 export function vendorsWithQuotaProbe(): readonly VendorId[] {
   return Object.values(BUILTIN_ENGINES)
@@ -443,14 +282,7 @@ export function vendorsWithQuotaProbe(): readonly VendorId[] {
     .map((entry) => entry.vendor)
 }
 
-/**
- * Built-in vendors that ship a per-turn reader. `agent-turns` names these in
- * its own summary so an empty page can say WHY it is empty — an engine with no
- * reader contributes nothing, which is a different fact from a task that did no
- * work. Derived rather than written down: a hard-coded pair in the CLI layer
- * would be a vendor string in neutral code AND would go stale the moment a
- * third adapter lands.
- */
+/** Built-ins with a per-turn reader; `agent-turns` names them so an empty page can say why it is empty. */
 export function vendorsWithTurnReader(): readonly VendorId[] {
   return Object.values(BUILTIN_ENGINES)
     .filter((entry) => entry.readTurns)

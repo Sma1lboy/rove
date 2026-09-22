@@ -1,16 +1,10 @@
 /**
- * Worktree manager — kobe's wrapper around `git worktree`.
- *
- * See DESIGN.md §5.3 (orchestrator owns worktree manager) and §11.3
- * (resolved: new Rove-created worktrees use
- * `~/.rove/worktrees/<repo-key>/<slug>/`; global/repo-local `.kobe/worktrees`
- * and legacy `.claude/worktrees` task paths remain supported).
- *
- * The orchestrator depends on this interface; `GitWorktreeManager` is
- * the production implementation. The orchestrator must never shell out
- * to `git worktree` directly — always go through this seam, so error
- * handling, dirty detection, and path conventions live in exactly one
- * place.
+ * Worktree manager: kobe's wrapper around `git worktree` (DESIGN.md §5.3,
+ * §11.3). New Rove-created worktrees use `~/.rove/worktrees/<repo-key>/<slug>/`;
+ * `.kobe/worktrees` (global/repo-local) and `.claude/worktrees` task paths
+ * remain supported. The orchestrator must never shell out to `git worktree`
+ * directly, so error handling, dirty detection, and path conventions live in
+ * one place.
  */
 
 import type { AdoptableWorktree } from "@sma1lboy/kobe-daemon/daemon/contracts"
@@ -19,15 +13,10 @@ import type { WorktreeVerdict, WorktreeVerdictReason } from "../orchestrator/wor
 export type { AdoptableWorktree }
 
 /**
- * Snapshot of a worktree on disk.
- *
- * `path` is absolute; `head` is the commit SHA; `dirty` is true iff
- * `git status --porcelain` returns any entries (untracked or modified),
- * and `null` when that probe FAILED (unreadable `.git`, worktree gone
- * between the porcelain snapshot and the probe). `null` is not `false`:
- * a worktree holding uncommitted work whose status answers "Permission
- * denied" must not list as clean, because clean is what a user reads
- * before deleting it.
+ * Snapshot of a worktree on disk. `path` is absolute; `head` is the commit SHA;
+ * `dirty` is true iff `git status --porcelain` lists entries (untracked or
+ * modified), and `null` when that probe failed (unreadable `.git`, worktree
+ * gone mid-probe). `null` is not `false`: a user reads "clean" before deleting.
  */
 export interface WorktreeInfo {
   readonly path: string
@@ -37,12 +26,9 @@ export interface WorktreeInfo {
 }
 
 /**
- * One row of the cross-project worktree audit (`worktree.list` RPC, the
- * standalone worktree-management TUI page). Extends {@link
- * AdoptableWorktree} — every worktree of a repo, kobe-managed or not — with
- * two fields no other caller needs: which project it belongs to, when the
- * worktree directory was created, and whether its branch has reached
- * `origin`. Local projects only (v1) — see `worktree.list`'s handler.
+ * One row of the cross-project worktree audit (`worktree.list` RPC). Extends
+ * {@link AdoptableWorktree} (every worktree of a repo, kobe-managed or not).
+ * Local projects only.
  */
 export interface WorktreeAuditRow extends AdoptableWorktree {
   readonly repo: string
@@ -91,12 +77,9 @@ export interface WorktreeManager {
    * worktree list. On failure, no partial state is left behind
    * (best-effort cleanup before throwing).
    *
-   * `baseRef` (optional): when creating a NEW branch, root it at this
-   * ref (a branch name, tag, or commit SHA — anything `git worktree
-   * add -b <new> <path> <baseRef>` accepts). When `baseRef` is
-   * undefined, behavior is unchanged: the new branch is rooted at the
-   * repo's current HEAD. When the requested branch already exists,
-   * `baseRef` is ignored — the impl never silently fast-forwards.
+   * `baseRef`: root a NEW branch at this ref (anything `git worktree add -b
+   * <new> <path> <baseRef>` accepts); undefined roots it at the repo's HEAD.
+   * Ignored when the branch already exists; never silently fast-forwards.
    */
   create(repo: string, branch: string, path: string, baseRef?: string): Promise<WorktreeInfo>
 
@@ -112,9 +95,8 @@ export interface WorktreeManager {
   /**
    * List all kobe-managed worktrees under `repo`.
    *
-   * Guarantees: returns only worktrees inside the kobe convention root
-   * (per DESIGN.md §11.3). Results are stable across calls when the
-   * filesystem is unchanged.
+   * Guarantees: only worktrees inside the kobe convention root (DESIGN.md
+   * §11.3); stable across calls when the filesystem is unchanged.
    */
   list(repo: string): Promise<readonly WorktreeInfo[]>
 
