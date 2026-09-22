@@ -186,8 +186,17 @@ export async function tierFields(ctx: VerbContext, prompt?: string): Promise<Tie
     })
   }
   const vendor = resolveCommandProtocol(target.engine)
-  if (target.model) assertEngineAcceptsModel(vendor, target.model, ["api", "engine-list"])
-  if (target.effort) assertEngineAcceptsEffort(vendor, target.effort, ["api", "engine-list"])
+  // These two throw, and a classifier's pick is never allowed to fail a
+  // create. `tierBlock` above covers the same ground, so the two cannot
+  // disagree today — but "cannot fail" has to be a rule the code keeps, not
+  // one that holds because two checks happen to agree.
+  try {
+    if (target.model) assertEngineAcceptsModel(vendor, target.model, ["api", "engine-list"])
+    if (target.effort) assertEngineAcceptsEffort(vendor, target.effort, ["api", "engine-list"])
+  } catch (err) {
+    if (requested !== "auto") throw err
+    return { note: `${note} — unusable: ${err instanceof Error ? err.message : String(err)}` }
+  }
   return {
     fields: { choice: { command: target.engine, vendor }, effort: target.effort, model: target.model, tier },
     ...(note ? { note } : {}),

@@ -86,9 +86,25 @@ export function resolveSecret(name: string, env: NodeJS.ProcessEnv = process.env
 /** Where the effective secret came from — what the Settings row reports. */
 export type SecretSource = "env" | "file" | "none"
 
-export function secretSource(name: string, env: NodeJS.ProcessEnv = process.env): SecretSource {
-  if (env[name]?.trim()) return "env"
-  return readSecret(name) ? "file" : "none"
+export interface SecretStatus {
+  readonly source: SecretSource
+  /** Tail of the STORED value; empty when nothing is stored. */
+  readonly hint: string
+}
+
+/**
+ * Everything a settings row needs about one secret, from ONE read.
+ *
+ * Source and hint as separate calls meant two `readFileSync`s per render,
+ * and a settings screen re-renders on every cursor move. The file is small
+ * enough that neither was slow, which is exactly why it would never have
+ * been noticed.
+ */
+export function secretStatus(name: string, env: NodeJS.ProcessEnv = process.env): SecretStatus {
+  const stored = readAll()[name]?.trim()
+  const hint = stored ? secretHint(stored) : ""
+  if (env[name]?.trim()) return { source: "env", hint }
+  return { source: stored ? "file" : "none", hint }
 }
 
 /**

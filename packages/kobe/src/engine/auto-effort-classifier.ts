@@ -71,6 +71,12 @@ export interface ClassifierConfig {
    * is opened by `rove config` and pasted whole into bug reports.
    */
   readonly keyEnv: string
+  /**
+   * Whether the user NAMED that variable themselves, as opposed to getting
+   * the shipped default. It decides one thing: whether a custom endpoint is
+   * sent the token at all — see {@link classifyTier}.
+   */
+  readonly keyEnvNamed: boolean
 }
 
 export type Getter = (key: string) => unknown
@@ -94,6 +100,7 @@ function numberAt(get: Getter, key: string, fallback: number, min: number, max: 
  */
 export function readClassifierConfig(get: Getter = getPersistedValue): ClassifierConfig {
   const raw = stringAt(get, "autoEffort.classifier") ?? "off"
+  const named = stringAt(get, "autoEffort.classifierKeyEnv")
   let mode: ClassifierMode = { kind: "off" }
   if (raw === "jev") mode = { kind: "jev" }
   else if (/^https?:\/\/\S+$/.test(raw)) mode = { kind: "url", url: raw }
@@ -102,7 +109,8 @@ export function readClassifierConfig(get: Getter = getPersistedValue): Classifie
     threshold: numberAt(get, "autoEffort.classifierThreshold", DEFAULT_THRESHOLD, 0, 1),
     timeoutMs: numberAt(get, "autoEffort.classifierTimeoutMs", DEFAULT_TIMEOUT_MS, 200, 60_000),
     model: stringAt(get, "autoEffort.classifierModel") ?? DEFAULT_MODEL,
-    keyEnv: stringAt(get, "autoEffort.classifierKeyEnv") ?? DEFAULT_KEY_ENV,
+    keyEnv: named ?? DEFAULT_KEY_ENV,
+    keyEnvNamed: named !== undefined,
   }
 }
 
@@ -167,6 +175,12 @@ export async function classifyTier(
     return declined("no-key", `no ${config.keyEnv} in the environment or ~/.rove/secrets.json`)
   }
 
+  // The default token is TypeSafe's, and a custom endpoint is some other
+  // host — often one whose address came from a colleague. Sending it there
+  // hands your credential to whoever wrote that URL, so a custom endpoint is
+  // given the header ONLY when the user pointed `autoEffort.classifierKeyEnv`
+  // at a variable deliberately. `jev` always sends it: that is whose key it is.
+  const sendKey = config.mode.kind === "jev" || config.keyEnvNamed
   const doFetch = deps.fetch ?? globalThis.fetch
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), config.timeoutMs)
@@ -179,7 +193,7 @@ export async function classifyTier(
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...(key ? { authorization: `Bearer ${key}` } : {}),
+        ...(key && sendKey ? { authorization: `Bearer ${key}` } : {}),
       },
       body: JSON.stringify(request.body),
       signal: controller.signal,

@@ -34,10 +34,10 @@ const file = () => join(home, ".rove", "secrets.json")
 
 describe("secrets file", () => {
   it("is absent until something is stored, and absent means no secrets", async () => {
-    const { readSecret, secretSource } = await load()
+    const { readSecret, secretStatus } = await load()
     expect(existsSync(file())).toBe(false)
     expect(readSecret("TYPESAFE_API_KEY")).toBeUndefined()
-    expect(secretSource("TYPESAFE_API_KEY", {})).toBe("none")
+    expect(secretStatus("TYPESAFE_API_KEY", {})).toEqual({ source: "none", hint: "" })
   })
 
   it("round-trips a secret, and holds nothing else", async () => {
@@ -81,21 +81,26 @@ describe("secrets file", () => {
   })
 })
 
-describe("resolveSecret / secretSource", () => {
+describe("resolveSecret / secretStatus", () => {
   it("lets the environment outrank the file", async () => {
-    const { writeSecret, resolveSecret, secretSource } = await load()
+    const { writeSecret, resolveSecret, secretStatus } = await load()
     writeSecret("TYPESAFE_API_KEY", "from_file")
     expect(resolveSecret("TYPESAFE_API_KEY", { TYPESAFE_API_KEY: "from_env" })).toBe("from_env")
-    expect(secretSource("TYPESAFE_API_KEY", { TYPESAFE_API_KEY: "from_env" })).toBe("env")
+    // The hint still describes the STORED key, so the row can say which one
+    // the environment is shadowing.
+    expect(secretStatus("TYPESAFE_API_KEY", { TYPESAFE_API_KEY: "from_env" })).toEqual({
+      source: "env",
+      hint: "…file",
+    })
   })
 
   it("treats an empty env var as unset, not as a deliberate blank", async () => {
-    const { writeSecret, resolveSecret, secretSource } = await load()
+    const { writeSecret, resolveSecret, secretStatus } = await load()
     writeSecret("TYPESAFE_API_KEY", "from_file")
     // `export FOO=` in a shell profile means "I never set this", and reading
     // it as an override would silently disable a key the user had saved.
     expect(resolveSecret("TYPESAFE_API_KEY", { TYPESAFE_API_KEY: "  " })).toBe("from_file")
-    expect(secretSource("TYPESAFE_API_KEY", { TYPESAFE_API_KEY: "" })).toBe("file")
+    expect(secretStatus("TYPESAFE_API_KEY", { TYPESAFE_API_KEY: "" }).source).toBe("file")
   })
 })
 

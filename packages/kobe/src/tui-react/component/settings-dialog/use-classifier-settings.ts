@@ -15,7 +15,7 @@
  */
 
 import { readClassifierConfig } from "../../../engine/auto-effort-classifier"
-import { readSecret, secretHint, secretSource, writeSecret } from "../../../state/secrets"
+import { secretStatus, writeSecret } from "../../../state/secrets"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"
@@ -167,16 +167,15 @@ export function useClassifierSettings(
     writeSecret(config.keyEnv, next.trim())
   }
 
-  const source = secretSource(config.keyEnv, env)
-  const stored = readSecret(config.keyEnv)
+  const key = secretStatus(config.keyEnv, env)
   return {
     mode,
     endpoint,
     threshold: config.threshold,
     keyEnv: config.keyEnv,
-    keyPresent: source !== "none",
-    keySource: source,
-    keyHint: stored ? secretHint(stored) : "",
+    keyPresent: key.source !== "none",
+    keySource: key.source,
+    keyHint: key.hint,
     cycle,
     editEndpoint,
     editThreshold,

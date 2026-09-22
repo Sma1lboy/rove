@@ -181,7 +181,9 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
   }
 
-  if (!prompt) return { taskId, task, home: homeDir(), started: false, ...tierNote }
+  // No `tierNote` here on purpose: `--tier auto` refuses a create with nothing
+  // to classify, so a note and an absent prompt cannot coexist.
+  if (!prompt) return { taskId, task, home: homeDir(), started: false }
   // Same provenance prefix `send` carries: a task created from inside another
   // kobe session is agent-to-agent, and its opening brief is where the reply
   // address matters most — every report this task ever sends goes back through

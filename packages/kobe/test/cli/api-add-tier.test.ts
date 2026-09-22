@@ -210,6 +210,21 @@ describe("add --tier auto", () => {
     }
   })
 
+  it("creates the task when the picked tier's model gate would have thrown", async () => {
+    // `tierBlock` covers the same ground today, so this is the rule held by
+    // code rather than by two checks happening to agree: nothing the
+    // classifier picks may fail a create.
+    classifier.outcome = { kind: "picked", verdict: { tier: "deep", confidence: 0.9 } }
+    const client = promptClient()
+    const { deliver } = recordingDelivery()
+    const result = (await invokeVerb("add", withPrompt(), {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })) as { tierAuto?: string }
+    expect(client.requests[0]?.name).toBe("task.create")
+    expect(result.tierAuto).toBeDefined()
+  })
+
   it("refuses --tier auto with nothing to classify, before anything is created", async () => {
     const client = createClient()
     await expectApiError(

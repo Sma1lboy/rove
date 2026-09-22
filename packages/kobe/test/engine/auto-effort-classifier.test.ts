@@ -35,6 +35,7 @@ const config = (over: Partial<ClassifierConfig> = {}): ClassifierConfig => ({
   timeoutMs: 1000,
   model: "jev-latest",
   keyEnv: "TYPESAFE_API_KEY",
+  keyEnvNamed: false,
   ...over,
 })
 
@@ -89,6 +90,13 @@ describe("readClassifierConfig", () => {
       kind: "url",
       url: "https://tiers.internal/pick",
     })
+  })
+
+  it("records whether the key variable was NAMED, which decides if a custom endpoint gets it", () => {
+    expect(readClassifierConfig(from({})).keyEnvNamed).toBe(false)
+    expect(readClassifierConfig(from({})).keyEnv).toBe("TYPESAFE_API_KEY")
+    const named = readClassifierConfig(from({ "autoEffort.classifierKeyEnv": "MY_TIER_KEY" }))
+    expect(named).toMatchObject({ keyEnv: "MY_TIER_KEY", keyEnvNamed: true })
   })
 
   it("reads anything else as off — a typo must not become 'send it somewhere'", () => {
@@ -257,6 +265,29 @@ describe("classifyTier — the request", () => {
     const { fn, calls } = stubFetch(choiceAnswer())
     await classifyTier("a".repeat(PROMPT_LIMIT + 500), config(), { fetch: fn, env, readSecret: secrets() })
     expect(JSON.parse(String(calls[0]?.init.body)).state.task_text).toHaveLength(PROMPT_LIMIT)
+  })
+
+  it("does NOT hand a custom endpoint the default TypeSafe key", async () => {
+    // The default token belongs to TypeSafe, and a custom endpoint is some
+    // other host — often one whose address came from a colleague. Sending it
+    // there hands them the credential.
+    const { fn, calls } = stubFetch({ tier: "swift", confidence: 0.9 })
+    await classifyTier("x", config({ mode: { kind: "url", url: "https://t.internal/p" } }), {
+      fetch: fn,
+      env,
+      readSecret: secrets(),
+    })
+    expect(calls[0]?.init.headers as Record<string, string>).not.toHaveProperty("authorization")
+  })
+
+  it("does hand it one when the user NAMED the variable deliberately", async () => {
+    const { fn, calls } = stubFetch({ tier: "swift", confidence: 0.9 })
+    await classifyTier(
+      "x",
+      config({ mode: { kind: "url", url: "https://t.internal/p" }, keyEnv: "MY_TIER_KEY", keyEnvNamed: true }),
+      { fetch: fn, env: { MY_TIER_KEY: "mine" }, readSecret: secrets() },
+    )
+    expect((calls[0]?.init.headers as Record<string, string>).authorization).toBe("Bearer mine")
   })
 
   it("posts a custom endpoint the one-line contract, and reads its two fields back", async () => {

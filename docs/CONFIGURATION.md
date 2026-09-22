@@ -233,9 +233,14 @@ the field empty clears it. Rename the variable with
 Set it to your own `https://` endpoint instead and Rove POSTs
 `{"text": "…"}` and expects `{"tier": "swift|standard|deep", "confidence":
 0.0–1.0}` back — that is the whole contract, so an endpoint you host (a local
-model, a rule, a lookup) is a ten-line program. Rove sends your bearer token
-to a custom endpoint only when `autoEffort.classifierKeyEnv` names a variable
-that is set.
+model, a rule, a lookup) is a ten-line program.
+
+A custom endpoint gets **no `Authorization` header** unless you set
+`autoEffort.classifierKeyEnv` yourself. The default variable holds a TypeSafe
+key, and a custom endpoint is a different host — often one whose address came
+from someone else — so shipping the credential there by default would hand it
+to whoever wrote the URL. Point `classifierKeyEnv` at your own variable and
+Rove sends that instead.
 
 Nothing here can fail a create. Off, no key, no network, a timeout, a
 malformed answer, or a confidence under the threshold all mean the same
