@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>Rove — share card source</title>
+<!-- Source of assets/og-card.jpg. Render at 1200×630 and save as JPEG (see README).
+     No version number on purpose: the card is a raster and would go stale on the next release. -->
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/blueprint.css">
+<style>
+html,body{width:1200px;height:630px;overflow:hidden}
+.sheet{margin:0;max-width:none;width:1200px;height:630px;border-width:14px;border-color:var(--paper);outline:2px solid var(--ink);outline-offset:-16px;padding:26px}
+.sheet::after{inset:20px}
+.inner{height:100%;padding:0 30px;display:grid;grid-template-rows:auto 1fr auto}
+.head{padding:14px 0 12px}
+.head .url{font-family:var(--font-mono);font-size:15px;color:var(--ink-2)}
+.body{display:grid;grid-template-columns:.94fr 1.06fr;min-height:0}
+.l{padding:28px 30px 0 0;border-right:1px solid var(--rule)}
+.r{padding:24px 0 0 30px;display:flex;flex-direction:column;justify-content:center}
+h1{font-size:76px;margin:0 0 26px;max-width:none}
+.copy .cmd{font-size:16px;padding:14px 14px}
+.r svg{width:100%;height:auto}
+.r .tx,.r .dimtx{font-size:15px}
+.l .copy{max-width:none}
+.r .cap{margin-top:6px}
+.foot{border-top:1.6px solid var(--ink);display:grid;grid-template-columns:auto 1fr auto;align-items:stretch}
+.foot>div{padding:9px 14px;border-right:1px solid var(--rule);display:flex;align-items:center;gap:10px}
+.foot>div:first-child{padding-left:0}
+.foot>div:last-child{border-right:0;padding-right:0}
+.foot .eqn{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.1em;font-weight:600;font-size:15px}
+.foot .eqn .lhs{color:var(--accent-text)}
+.foot .eqn .op{color:var(--ink-3);font-family:var(--font-mono);margin:0 4px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>
+  <marker id="arw" viewBox="0 0 10 8" refX="9.4" refY="4" markerWidth="9" markerHeight="7.2" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0.4 L10 4 L0 7.6 Z" fill="var(--ink-3)"/></marker>
+</defs></svg>
+<div class="sheet"><div class="inner">
+  <header class="head">
+    <span class="brand">
+      <svg viewBox="0 0 64 64" width="30" height="30" aria-hidden="true" class="mark"><rect x="1" y="1" width="62" height="62" rx="13"/><path d="M19 13H12V51h7" stroke-width="7"/><path d="M12 13V51" stroke-width="4"/><g transform="translate(19.811 45) scale(.01745 -.01745)"><path class="r" d="M111 0H419V521H689C690 521 691 521 692 521L956 0H1286L987 579C1154 656 1253 804 1253 1001C1253 1301 1043 1490 707 1490H111ZM419 768V1234H688C851 1234 952 1143 952 1001C952 859 851 768 689 768Z"/></g><path d="M45 13h7V51h-7" stroke-width="7"/><path d="M52 13V51" stroke-width="4"/></svg>
+      <span class="wm">Rove</span>
+    </span>
+    <span class="stamp">General assembly · Sheet 1 of 4</span>
+    <span class="spacer"></span>
+    <span class="url">rove.run</span>
+  </header>
+
+  <div class="body">
+    <div class="l">
+      <h1>The agent multiplexer <span class="thin">in your shell</span></h1>
+      <div class="copy"><span class="tag">Install</span><span class="cmd">curl -fsSL https://rove.run/install.sh | sh</span></div>
+    </div>
+    <div class="r">
+      <svg viewBox="-2 20 550 176" role="img" aria-label="One prompt fanned out to five isolated tasks">
+        <rect x="2" y="60" width="118" height="52" class="vf"/>
+        <text class="tx" x="14" y="82">1 prompt</text>
+        <text class="tx-m" x="14" y="99">rove api add</text>
+        <line x1="120" y1="86" x2="200" y2="42" class="dim"/><line x1="120" y1="86" x2="200" y2="64" class="dim"/>
+        <line x1="120" y1="86" x2="200" y2="86" class="dim"/><line x1="120" y1="86" x2="200" y2="108" class="dim"/>
+        <line x1="120" y1="86" x2="200" y2="130" class="dim"/>
+        <rect x="200" y="26" width="56" height="44" class="vf"/><line x1="200" y1="36" x2="256" y2="36" class="v"/>
+        <rect x="268" y="26" width="56" height="44" class="vf"/><line x1="268" y1="36" x2="324" y2="36" class="v"/>
+        <rect x="336" y="26" width="56" height="44" class="vf"/><line x1="336" y1="36" x2="392" y2="36" class="v"/>
+        <rect x="404" y="26" width="56" height="44" class="vf"/><line x1="404" y1="36" x2="460" y2="36" class="v"/>
+        <rect x="472" y="26" width="56" height="44" class="vf"/><line x1="472" y1="36" x2="528" y2="36" class="v"/>
+        <text class="tx-m" x="208" y="58">›_</text><text class="tx-m" x="276" y="58">›_</text><text class="tx-m" x="344" y="58">›_</text><text class="tx-m" x="412" y="58">›_</text><text class="tx-m" x="480" y="58">›_</text>
+        <line x1="200" y1="72" x2="200" y2="152" class="dim"/><line x1="324" y1="72" x2="324" y2="116" class="dim"/>
+        <line x1="336" y1="72" x2="336" y2="116" class="dim"/><line x1="460" y1="72" x2="460" y2="116" class="dim"/>
+        <line x1="472" y1="72" x2="472" y2="116" class="dim"/><line x1="528" y1="72" x2="528" y2="152" class="dim"/>
+        <line x1="200" y1="110" x2="324" y2="110" class="dim" marker-start="url(#arw)" marker-end="url(#arw)"/>
+        <line x1="336" y1="110" x2="460" y2="110" class="dim" marker-start="url(#arw)" marker-end="url(#arw)"/>
+        <line x1="472" y1="110" x2="528" y2="110" class="dim" marker-start="url(#arw)" marker-end="url(#arw)"/>
+        <text class="dimtx" x="262" y="128" text-anchor="middle">claude:2</text>
+        <text class="dimtx" x="398" y="128" text-anchor="middle">codex:2</text>
+        <text class="dimtx" x="500" y="128" text-anchor="middle">copilot:1</text>
+        <line x1="200" y1="146" x2="528" y2="146" class="dim" marker-start="url(#arw)" marker-end="url(#arw)"/>
+        <text class="dimtx" x="364" y="166" text-anchor="middle">5 × task — own worktree + branch each</text>
+        <text class="tx-s" x="364" y="188" text-anchor="middle">none can write another's files</text>
+      </svg>
+      <div class="micro cap">Fig. 4 — Fan-out on a mixed fleet</div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="eqn"><span class="lhs">Managed task</span><span class="op">=</span>git worktree<span class="op">+</span>branch<span class="op">+</span>terminal tabs</div>
+    <div class="micro">macOS · Linux · Windows</div>
+    <div class="micro">MIT</div>
+  </div>
+</div></div>
+</body>
+</html>

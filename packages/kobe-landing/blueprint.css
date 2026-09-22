@@ -271,6 +271,7 @@ tbody th{font-weight:500}
 .tb .k{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.18em;font-size:9px;color:var(--ink-2);display:block;margin-bottom:3px}
 .tb .v{font-family:var(--font-tech);text-transform:uppercase;letter-spacing:.07em;font-size:13px;font-weight:600;overflow-wrap:anywhere}
 .tb.span2{grid-column:span 2}
+.tb.span3{grid-column:span 3}
 .tb.span4{grid-column:span 4}
 .tb .v.mono{font-family:var(--font-mono);font-size:12px;letter-spacing:0;text-transform:none;font-weight:400}
 
@@ -339,8 +340,17 @@ svg .dot{fill:var(--ink);stroke:none}
   .legend div{border-right:0}
   .legend div:nth-last-child(2){border-bottom:1px solid var(--rule)}
   .t-c{width:38px;padding-right:6px}
+  /* nav gets its own scrolling row; the language toggle stays on the brand row */
+  .head .spacer{display:none}
+  .head #langToggle{margin-left:auto}
+  .head{gap:10px}
+  .stamp{font-size:9.5px;letter-spacing:.1em;padding:3px 6px}
+  .brand .wm{letter-spacing:.18em}
+  .head nav{order:1;flex:1 0 100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:16px;white-space:nowrap}
+  .head nav::-webkit-scrollbar{display:none}
   .tb-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .tb.span4{grid-column:span 2}
+  .tb-grid{grid-auto-flow:dense}
+  .tb.span3,.tb.span4,.tb.wide-sm{grid-column:span 2}
   footer{gap:8px 18px}
 }
 
