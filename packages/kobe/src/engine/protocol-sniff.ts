@@ -28,9 +28,11 @@ import { GENERIC_PROTOCOL, getEngineProtocol, resolveCommandProtocol } from "./e
 import { engineEntry } from "./registry.ts"
 
 /**
- * Vendor whose status vocabulary this title starts with, or null. Only glyphs
- * unique to one vendor identify: codex and claude share braille frames, so
- * `⠹` means "some engine", not codex.
+ * Vendor whose status vocabulary this title starts with, or null. Only a glyph
+ * one vendor alone declares identifies; a shared one answers null. The
+ * built-in vocabularies are disjoint today (claude `✳ ⠂ ⠐ ◐ ◑`, codex's ten
+ * braille frames, omp's `π`-prefixed ones), so the ambiguity branch is for
+ * vendors added later.
  */
 export function sniffProtocolFromTitle(title: string | null | undefined): VendorId | null {
   const trimmed = title?.trim()
