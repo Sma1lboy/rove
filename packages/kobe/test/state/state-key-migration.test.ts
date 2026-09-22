@@ -87,6 +87,30 @@ describe("migrateRenamedStateKeys", () => {
     expect(fs.existsSync(statePath())).toBe(false)
   })
 
+  it("leaves a file that is not JSON exactly where it is", () => {
+    // Reading through `loadStateFile` here QUARANTINES such a file — that is
+    // the store's corrupt-file policy, and it is right for a reader that needs
+    // a value. This is not one. It cost a real regression: on the first launch
+    // after the `.kobe` → `.rove` layout copy, the copy publishes the legacy
+    // blob at this path and the rename then renamed it away, so a migration
+    // that had nothing to do destroyed the file the migration before it had
+    // just saved (test/behavior/rove-alias.test.ts).
+    fs.mkdirSync(path.dirname(statePath()), { recursive: true })
+    fs.writeFileSync(statePath(), "legacy prefs", "utf8")
+    expect(migrateRenamedStateKeys()).toEqual({ moved: 0, superseded: 0 })
+    expect(fs.readFileSync(statePath(), "utf8")).toBe("legacy prefs")
+    expect(fs.readdirSync(path.dirname(statePath()))).toEqual(["state.json"])
+  })
+
+  it("takes no action on a value that merely mentions the old prefix", () => {
+    // The pre-check is a substring test, so this reaches the transaction —
+    // which walks real keys, finds none to move, and must not rewrite the file.
+    writeDisk({ "engineCommand.claude": 'claude --note "autoEffort.deep.engine"' })
+    const before = fs.statSync(statePath()).mtimeMs
+    expect(migrateRenamedStateKeys()).toEqual({ moved: 0, superseded: 0 })
+    expect(fs.statSync(statePath()).mtimeMs).toBe(before)
+  })
+
   it("is idempotent — a second launch finds nothing left to do", () => {
     writeDisk({ "autoEffort.deep.engine": "codex" })
     expect(migrateRenamedStateKeys()).toEqual({ moved: 1, superseded: 0 })

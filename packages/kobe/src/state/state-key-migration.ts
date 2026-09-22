@@ -19,11 +19,21 @@
  * Runs from `cli/rename-compat.ts` at process start, after the `.kobe` → `.rove`
  * layout copy has put the file where this can find it, and before any verb,
  * the TUI, or the daemon has read a key. Cheap when there is nothing to do:
- * the prefix scan is one read of an already-small file, and the lock is taken
- * only when a legacy key is actually present.
+ * the check is one read of an already-small file and a substring test, and the
+ * lock is taken only when a legacy key might actually be present.
+ *
+ * That first read is deliberately NOT `loadStateFile`. Reading through the
+ * store applies its corrupt-file policy, which renames an unparseable file to
+ * `state.json.corrupt-<ts>` and starts fresh — correct for a reader that needs
+ * a value, wrong for a rename that has nothing to do. On the launch right
+ * after the `.kobe` → `.rove` copy that would quarantine the very file the
+ * copy had just published, so a legacy blob this had no business touching
+ * disappeared on the first run of the new version.
  */
 
-import { loadStateFile, updateStateFile } from "./store.ts"
+import { readFileSync } from "node:fs"
+import { kvStatePath } from "../env.ts"
+import { updateStateFile } from "./store.ts"
 
 /**
  * Key prefixes that changed name after shipping, oldest first.
@@ -70,13 +80,18 @@ function legacyRename(key: string): string | undefined {
  * the state the next launch retries from.
  */
 export function migrateRenamedStateKeys(): StateKeyMigrationResult {
-  let hasLegacy: boolean
+  let text: string
   try {
-    hasLegacy = Object.keys(loadStateFile()).some((key) => legacyRename(key) !== undefined)
+    text = readFileSync(kvStatePath(), "utf8")
   } catch {
+    // Missing or unreadable: the fresh-machine case, and nothing to rename.
     return NOTHING
   }
-  if (!hasLegacy) return NOTHING
+  // A substring test, not a parse — this runs on every launch and must not
+  // decide anything about a file it is not going to change. A hit inside some
+  // unrelated VALUE costs one lock and no write, because the transaction below
+  // walks real keys and skips the write when it moved nothing.
+  if (!RENAMED_KEY_PREFIXES.some(({ from }) => text.includes(`"${from}`))) return NOTHING
 
   let moved = 0
   let superseded = 0
