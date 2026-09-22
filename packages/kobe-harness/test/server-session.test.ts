@@ -67,7 +67,6 @@ describe("web session launch init", () => {
       "/repo/kobe",
       "/worktrees/story",
       { kind: "repo-init" },
-      "task-1",
     )
     expect(hostedSession.ensureEngine).toHaveBeenCalledWith(
       hostedSession.rpc,
