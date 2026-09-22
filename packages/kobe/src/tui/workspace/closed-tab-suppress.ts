@@ -1,12 +1,9 @@
 /**
  * Recently-closed pty keys, for the sidebar's orphan-tab backstop.
  *
- * Closing a tab updates the tab state immediately, but the sidebar's host
- * inventory (`useHostSessions`) is a 2s poll — for up to one tick it still
- * lists the killed session as alive. The orphan backstop then sees a live
- * session no snapshot answers for and ADOPTS it right back: ctrl+w needed
- * two presses. So every close notes its key here, and orphan detection
- * skips noted keys until the poll can confirm the death.
+ * The host inventory (`useHostSessions`) is a 2s poll, so for up to one tick
+ * a just-closed session still looks alive and the orphan backstop would
+ * re-adopt it. Orphan detection skips keys noted here until the poll catches up.
  *
  * TTL-bounded on purpose: if the kill never lands (host unreachable), the
  * session really is an orphan and must resurface after the window.

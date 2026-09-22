@@ -1,22 +1,15 @@
 /**
- * Pure tab-list state for the workspace terminal tabs. User contract:
- * new tab spawns the SAME engine command in the same worktree, the last
- * tab can't be closed, titles are user-renameable, bracket chords cycle.
- *
- * Framework-free on purpose: the component owns signals/UI, this
- * module owns the transitions so vitest can pin them. Tab PTYs are keyed
- * `${taskId}::${tabId}` into the existing PtyRegistry — no registry
- * changes; each tab is just another registry entry that survives task
- * switches (acquire-reuse) until closed.
+ * Pure tab-list transitions for the workspace terminal tabs. User contract:
+ * a new tab spawns the SAME engine command in the same worktree, the last tab
+ * can't be closed, titles are renameable, bracket chords cycle. Tab PTYs are
+ * PtyRegistry entries keyed `${taskId}::${tabId}` that survive task switches
+ * until closed.
  */
 
 import type { VendorId } from "@/types/vendor"
 import type { PersistedSplit } from "./terminal-tab-split"
 
-// Split-tree + naming policy (PersistedSplit + the leaf predicates/keying/
-// naming + tab display naming) lives in `./terminal-tab-split`: what is
-// INSIDE one tab, versus this file's WHICH tabs exist. Re-exported here so
-// importers keep one entry point.
+// Re-exports keep one entry point for importers.
 export {
   type PersistedSplit,
   collapseSplit,
@@ -29,18 +22,9 @@ export {
   visibleNativeStatus,
 } from "./terminal-tab-split"
 
-// Tab SHAPES (TabBase + EngineTab/CommandTab/ContentTab + the TerminalTab
-// union) live in `./terminal-tab-shapes` — what a tab IS, so the split tree,
-// argv composition and the component can depend on the shapes without
-// depending on these transitions. Re-exported here so importers keep one
-// entry point.
 export type { CommandTab, ContentTab, EngineTab, TabsState, TerminalTab } from "./terminal-tab-shapes"
 import type { CommandTab, ContentTab, TabsState, TerminalTab } from "./terminal-tab-shapes"
 
-// Whole-list lifecycle (first mount, restart, revive, recycle) lives in
-// `./terminal-tabs-lifecycle` — where a list COMES FROM, versus this file's
-// what a user action does to one that exists. Re-exported here so importers
-// keep one entry point.
 export { initialShellTabs, initialTabs, recycleTabs, rehydrateTabs, reopenTabs } from "./terminal-tabs-lifecycle"
 import { reopenHintFor } from "./terminal-tabs-lifecycle"
 
@@ -62,13 +46,10 @@ export function addTab(state: TabsState, vendor?: VendorId): TabsState {
 }
 
 /**
- * Open a one-off command tab after the active tab and focus it — the
- * PTY-world equivalent of tmux's `openInEditor` transient window
- * (`tmux/editor-launch.ts`): runs the already-resolved `command` (e.g.
- * `["sh", "-c", "nvim -d ..."]`), labeled `label` (the file's basename;
- * null lets the live foreground-process title name the tab — the ctrl+e
- * "shell" pick), and closes itself when the process exits (kind
- * "command", consumed by `TerminalTabs.tsx`'s `onExit` wiring).
+ * Open a one-off command tab after the active tab and focus it. Runs the
+ * resolved `command` (e.g. `["sh", "-c", "nvim -d ..."]`); `label` null lets
+ * the live foreground-process title name the tab. Closes itself when the
+ * process exits (`TerminalTabs.tsx`'s `onExit`).
  */
 export function openCommandTab(state: TabsState, command: readonly string[], label: string | null): TabsState {
   const ordinal = state.nextOrdinal
@@ -111,12 +92,10 @@ export function findContentTab(state: TabsState): ContentTab | undefined {
 
 /**
  * Open or replace the one FileTree-owned read-only preview tab ({@link
- * ContentTab}) — the `d` action's singleton slot, mirroring {@link
- * openEditorTab}. First time: insert after the active tab and focus it. Later
- * hits: retarget the existing tab to the new file/base in place (its render
- * re-reads on the prop change) and select it. Selecting is a content swap,
- * not a focus grab — the FileTree keeps keyboard focus; the host
- * wires it without a `focus.setFocused`.
+ * ContentTab}), the `d` action's singleton slot like {@link openEditorTab}:
+ * insert after the active tab the first time, then retarget it in place and
+ * select it. Selecting is a content swap, not a focus grab: the FileTree
+ * keeps keyboard focus.
  */
 export function openContentTab(state: TabsState, relPath: string, label: string, base?: string): TabsState {
   const existing = findContentTab(state)
@@ -131,20 +110,17 @@ export function openContentTab(state: TabsState, relPath: string, label: string,
 }
 
 /**
- * Close a specific tab by id, focusing its left neighbor if it was the
- * active tab (right neighbor when closing the first) — same neighbor rule
- * as `closeActiveTab`, generalized so an ephemeral editor tab can close
- * itself on exit even when the user has since switched to another tab.
- * Refuses to close the only tab; no-op (`closedId: null`) if `id` isn't
- * present.
+ * Close a tab by id, focusing its left neighbor if it was active (right
+ * neighbor when closing the first), so an ephemeral editor tab can close
+ * itself on exit even after the user switched away. Refuses the only tab;
+ * no-op (`closedId: null`) if `id` isn't present.
  */
 export function closeTab(
   state: TabsState,
   id: string,
-  /** Allow the task's LAST tab to close, leaving `tabs` empty.
-   *  Off by default: `closeActive`'s scratch branch reads a
-   *  refusal as "this task is ending", so flipping this unconditionally would
-   *  turn every scratch ctrl+w into a task teardown. */
+  /** Allow the LAST tab to close, leaving `tabs` empty. Off by default:
+   *  `closeActive`'s scratch branch reads a refusal as "task ending", so
+   *  always-on would turn every scratch ctrl+w into a teardown. */
   opts: { readonly allowEmpty?: boolean } = {},
 ): { state: TabsState; closedId: string | null } {
   if (state.tabs.length <= 1 && !opts.allowEmpty) return { state, closedId: null }
@@ -152,9 +128,8 @@ export function closeTab(
   if (i < 0) return { state, closedId: null }
   const tabs = state.tabs.filter((t) => t.id !== id)
   if (state.activeId !== id) return { state: { ...state, tabs }, closedId: id }
-  // Emptied: keep the id of the tab that just went, so nothing downstream has
-  // to special-case an empty string. Nothing renders it — a task with no tabs
-  // is not mounted at all (show-workspace.tsx) until `reopenTabs` revives it.
+  // Emptied: keep the closed id so nothing downstream special-cases "". A
+  // tab-less task isn't mounted until `reopenTabs` revives it.
   if (tabs.length === 0) {
     return { state: { ...state, tabs, activeId: id, reopenAs: reopenHintFor(state.tabs[i]) }, closedId: id }
   }
@@ -162,11 +137,7 @@ export function closeTab(
   return { state: { ...state, tabs, activeId: (next ?? tabs[0]).id }, closedId: id }
 }
 
-/**
- * Close the active tab, focusing its left neighbor (right neighbor when
- * closing the first). Refuses to close the only tab — same guard the
- * tmux chattab had; the caller surfaces the refusal, state is unchanged.
- */
+/** Close the active tab (see {@link closeTab}); the caller surfaces a refusal. */
 export function closeActiveTab(state: TabsState): { state: TabsState; closedId: string | null } {
   return closeTab(state, state.activeId)
 }
@@ -177,14 +148,10 @@ export function renameActiveTab(state: TabsState, title: string): TabsState {
 }
 
 /**
- * Rename ONE tab by id; empty/whitespace clears back to the default title.
- * The by-id form f2's {@link renameActiveTab} delegates to, and the one
- * `rove api rename --tab` needs: a CLI naming a tab of a task it is not
- * looking at has no "active" to rename.
- *
- * Returns the SAME object when the title is already that value, so an
- * idempotent rename (the CLI writes the snapshot, then an attached TUI
- * applies the same broadcast) costs no re-render and no second persist.
+ * Rename one tab by id (`rove api rename --tab` has no "active" tab);
+ * empty/whitespace clears to the default. Returns the SAME object when
+ * unchanged, so the CLI write + TUI broadcast of one rename costs no
+ * re-render or second persist.
  */
 export function setTabTitle(state: TabsState, id: string, title: string): TabsState {
   const trimmed = title.trim()
@@ -196,10 +163,8 @@ export function setTabTitle(state: TabsState, id: string, title: string): TabsSt
 }
 
 /**
- * Record the engine session id pinned at PTY spawn on an engine tab.
- * Separate transition (not an `addTab` parameter) because the id is
- * IO-generated (`randomUUID` in `withClaudeSessionId`) — this module
- * stays pure so vitest can pin every transition.
+ * Record the engine session id pinned at PTY spawn. Separate from `addTab`
+ * because the id is IO-generated (`randomUUID`), keeping this module pure.
  */
 export function setTabSessionId(state: TabsState, id: string, sessionId: string | null): TabsState {
   const tabs = state.tabs.map((t): TerminalTab => (t.id === id && t.kind === "engine" ? { ...t, sessionId } : t))
@@ -240,15 +205,9 @@ export function setTabInitialPrompt(state: TabsState, id: string, prompt: string
 }
 
 /**
- * Record the tab's latest live process title. No-op when unchanged, so the
- * OSC stream (which repeats the same title on every turn) can call this
- * freely without churning the persisted snapshot.
- *
- * An EMPTY title is also a no-op: this field exists so surfaces that render
- * a tab they don't host still know its name, and "the process has not
- * reported a title" must never erase the one it reported earlier. Recording
- * `""` would rename a live session to its vendor default and persist that,
- * so the tab would come back wrong on the next start too.
+ * Record the tab's latest live process title. No-op when unchanged (the OSC
+ * stream repeats it every turn) and when EMPTY: "no title reported" must never
+ * erase the earlier one, or the tab would persist as its vendor default.
  */
 export function setTabLastTitle(state: TabsState, id: string, lastTitle: string): TabsState {
   if (lastTitle.length === 0) return state
@@ -258,11 +217,7 @@ export function setTabLastTitle(state: TabsState, id: string, lastTitle: string)
   return { ...state, tabs }
 }
 
-/**
- * Record the tab's live engine identity (see `TerminalTab.liveVendor`).
- * Same no-op contract as {@link setTabLastTitle} — the probe repeats the
- * same answer every tick.
- */
+/** Record the live engine identity (`TerminalTab.liveVendor`); no-op when unchanged (the probe repeats every tick). */
 export function setTabLiveVendor(state: TabsState, id: string, liveVendor: VendorId | null): TabsState {
   const current = state.tabs.find((t) => t.id === id)
   if (!current || (current.liveVendor ?? null) === liveVendor) return state
@@ -271,9 +226,8 @@ export function setTabLiveVendor(state: TabsState, id: string, liveVendor: Vendo
 }
 
 /**
- * Record an auto-derived title. Self-limiting like the tmux naming pass:
- * callers only derive for tabs with neither a user title nor an
- * autoTitle, and the display precedence keeps a later F2 rename on top.
+ * Record an auto-derived title. Callers only derive for tabs with neither a
+ * user title nor an autoTitle; display precedence keeps a later F2 rename on top.
  */
 export function setTabAutoTitle(state: TabsState, id: string, autoTitle: string): TabsState {
   const tabs = state.tabs.map((t): TerminalTab => (t.id === id ? { ...t, autoTitle } : t))
@@ -281,12 +235,10 @@ export function setTabAutoTitle(state: TabsState, id: string, autoTitle: string)
 }
 
 /**
- * Set an engine tab's spawned flag (see `EngineTab.spawned`). Identity-
- * stable when the value doesn't change. The `false` direction is the
- * restart-verification correction: `--session-id` creates NO transcript
- * until the first message, so a tab that spawned but never conversed
- * must NOT `--resume` on the next start (claude errors "no conversation
- * found" and drops the user at the wrapping shell's prompt).
+ * Set an engine tab's spawned flag (`EngineTab.spawned`); identity-stable
+ * when unchanged. `false` exists because `--session-id` creates NO transcript
+ * until the first message: a tab that never conversed must not `--resume`
+ * (claude errors "no conversation found").
  */
 export function setTabSpawned(state: TabsState, id: string, spawned: boolean): TabsState {
   const tabs = state.tabs.map(
@@ -300,11 +252,6 @@ export function markTabSpawned(state: TabsState, id: string): TabsState {
   return setTabSpawned(state, id, true)
 }
 
-// Engine-tab argv/spawn composition lives in `./terminal-tab-argv` (it reads
-// the ENGINE contract — resume/fork flags, trust — so vendor knowledge stays
-// off the transitions); shell-quoting in `./terminal-tab-spawn` (imports
-// nothing, pure string work). Both re-exported here so importers keep one
-// entry point.
 export { engineTabArgv, engineTabSpawnFor, tabExitAction } from "./terminal-tab-argv"
 export { type TabSpawn, shellCommandLine, shellIdentityInput, shellSpawn } from "./terminal-tab-spawn"
 
@@ -318,11 +265,9 @@ export function cycleTab(state: TabsState, delta: 1 | -1): TabsState {
 }
 
 /**
- * Move a tab up/down within its task's tab list (sidebar move mode, issue
- * Edge-stops — moving the first tab up or the last down returns the
- * SAME state object (no wrap), so callers persist nothing on a no-op. Tab
- * order IS the persisted `tabs` array order (`rehydrateTabs` keeps it), so
- * this needs no new persistence key.
+ * Move a tab up/down (sidebar move mode). Edge-stops return the SAME state
+ * (no wrap), so callers persist nothing. Order IS the persisted `tabs` array
+ * order.
  */
 export function moveTab(state: TabsState, id: string, delta: -1 | 1): TabsState {
   const i = state.tabs.findIndex((t) => t.id === id)
@@ -335,22 +280,17 @@ export function moveTab(state: TabsState, id: string, delta: -1 | 1): TabsState 
   return { ...state, tabs }
 }
 
-/** Switch directly to `id` (the tab strip's click target) — no-op if it
- *  isn't present OR is already active. The already-active guard matters:
- *  without it, clicking the current tab returned a NEW state object, which
- *  the component persisted (state.json write) and re-rendered — the same
- *  no-op-churn class as `focusLeaf`/`setTabSplit`. */
+/** Switch to `id` (tab-strip click). Returns the SAME state if absent or
+ *  already active; a new object would trigger a state.json write and re-render. */
 export function selectTab(state: TabsState, id: string): TabsState {
   if (state.activeId === id || !state.tabs.some((t) => t.id === id)) return state
   return { ...state, activeId: id }
 }
 
 /**
- * Set (or clear, with `null`) a tab's frozen split layout. Pure so vitest
- * pins the persistence round-trip; `TerminalSplit` calls it through the
- * component's `update` (which writes state.json), so every split / rename
- * / close inside the tree lands on disk and survives restart. Unknown ids
- * no-op.
+ * Set (or clear with `null`) a tab's frozen split layout; goes through the
+ * component's `update` (state.json), so split changes survive restart.
+ * Unknown ids no-op.
  */
 export function setTabSplit(state: TabsState, id: string, tree: PersistedSplit | null): TabsState {
   if (!state.tabs.some((t) => t.id === id)) return state

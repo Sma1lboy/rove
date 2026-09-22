@@ -42,37 +42,28 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   private cursor: CursorPos | null = null
   private snapshotWindow: TerminalSnapshotWindow | null = null
   private snapshotWrapped: RowWrapFlags = []
-  /** Output arrived while nobody was subscribed — snapshot is stale and
-   * will be rebuilt lazily on the next capture()/subscribe. Keeps the N
-   * background sessions of a multi-task workspace from re-converting
-   * their full grid+scrollback at output cadence for a consumer (the
-   * 1.5s turn poll) that only reads via capture(). */
+  /** Output arrived unsubscribed: rebuild lazily on capture()/subscribe, so
+   * background sessions don't re-convert grid+scrollback at output cadence
+   * for the 1.5s turn poll. */
   private snapshotDirty = false
   private readonly snapshotEngine: XtermSnapshotEngine
   private _title: string | null = null
-  /** Since when the pty has had zero data subscribers (epoch ms), null
-   * while watched. Fresh instances start "unwatched now" — the mounting
-   * pane subscribes within a tick; a handle that never gets a subscriber
-   * (defensive acquire) should age toward the park sweep, not hide from
-   * it. See `TaskPtyLike.unwatchedSinceMs`. */
+  /** Epoch ms since zero data subscribers; null while watched. Starts
+   * "unwatched now" so a never-subscribed handle ages toward the park sweep.
+   * See `TaskPtyLike.unwatchedSinceMs`. */
   private _unwatchedSince: number | null = Date.now()
   private _killed = false
-  /** True while a ring-buffer replay is being parsed — see the reply
-   * channel in the constructor. Flips back in the replay write's
-   * completion callback, which xterm fires strictly after that chunk's
-   * parse and before any later `feed` chunk's. */
+  /** True while a replay parses; cleared in that write's callback, which
+   * xterm fires after its parse and before any later chunk's. */
   private muteReplies = false
   protected cols: number
   protected rows: number
   private cancelRefresh: (() => void) | null = null
   private readonly scheduleRefresh: TerminalRefreshScheduler | undefined
-  /** When the last snapshot refresh was ATTEMPTED — the leading edge of the
-   *  coalesce window (see `queueRefresh`). 0 = never, so the first output
-   *  after a subscriber attaches draws immediately. */
+  /** Last refresh ATTEMPT (coalesce leading edge); 0 = never, so the first output draws immediately. */
   private lastRefreshAt = 0
   private readonly refreshTracker: XtermRefreshTracker
-  /** Scrollback rows resolved from the persisted preference at construction
-   * (Settings → General → Terminal) — fixed for this PTY's lifetime. */
+  /** From Settings → General → Terminal at construction; fixed for this PTY's lifetime. */
   private readonly scrollbackRows: number
 
   constructor(opts: TaskPtyOpts, options: { respondToDefaultColorQueries?: boolean } = {}) {
@@ -108,10 +99,9 @@ export abstract class XtermTaskPty implements TaskPtyLike {
       }
     }
     wireXtermChannels(this.term, {
-      // `muteReplies`: replies triggered while parsing a ring-buffer REPLAY
-      // answer queries the child asked in the PAST (already answered by the
-      // then-attached emulator); re-answering injects unsolicited CPR/DA
-      // into the child's stdin (scrambled claude's renderer). Live flows.
+      // Replay-triggered replies answer past (already-answered) queries;
+      // re-sending injects stray CPR/DA into stdin (scrambles claude).
+      // `muteReplies` drops them; live replies flow.
       onReply: reply,
       onTitle: (title) => {
         if (!title || title === this._title) return
@@ -314,19 +304,14 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     this.markDead(true)
   }
 
-  /** Hand raw child output to xterm. Bytes, not decoded strings: xterm's
-   * parser keeps a streaming UTF-8 decoder across `write` calls, so a
-   * multi-byte glyph (box-drawing `─`, claude's status icons) split across
-   * a chunk boundary is reassembled correctly. Decoding each chunk here
-   * instead corrupted any glyph straddling a boundary. */
+  /** Pass bytes, not decoded strings: xterm's streaming UTF-8 decoder
+   * reassembles a glyph split across chunks; per-chunk decoding corrupts it. */
   protected feed(data: string | Uint8Array): void {
     this.feedInternal(data, false)
   }
 
-  /** Feed a ring-buffer REPLAY: parsed like live output, but the emulator's
-   * auto-replies are muted for exactly this chunk's parse (see the reply
-   * channel). Live chunks fed after this parse in FIFO order, so the
-   * un-mute callback lands between the replay's parse and theirs. */
+  /** Replay chunk: auto-replies muted for exactly its parse (FIFO order puts
+   * the un-mute between it and any later live chunk). */
   protected feedReplay(data: string | Uint8Array): void {
     this.feedInternal(data, true)
   }
@@ -416,10 +401,9 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     this.listeners.publishData(this.snapshot, this.cursor, this.snapshotWindow, this.snapshotWrapped)
   }
 
-  /** Free the emulator's cell buffers NOW instead of waiting for GC — the
-   *  whole point of parking a hidden tab. The last snapshot stays readable
-   *  (capture() serves the cached rows; every term-touching path guards on
-   *  `_killed`), so the dead-shell banner still shows the final screen. */
+  /** Free cell buffers now (the point of parking). capture() still serves the
+   *  cached snapshot — term paths guard on `_killed` — so the dead-shell
+   *  banner shows the final screen. */
   private disposeEmulator(): void {
     try {
       this.term.dispose()

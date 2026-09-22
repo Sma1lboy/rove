@@ -1,30 +1,13 @@
 /**
- * Tiny git-HEAD poller for the sidebar's pinned "main" task rows.
+ * Git-HEAD poller for the sidebar's main-task rows' live branch hint
+ * (`○ kobe   main`), computed at display time so an external checkout shows
+ * on the next render.
  *
- * Each main task is bound to a saved repo and shows the repo's
- * live current branch as a right-aligned hint — the row reads e.g.
- * `○ kobe   main`. The branch isn't stored on the task; it's computed
- * at display time so checking out a different branch in another shell
- * is reflected the next time the sidebar re-renders.
- *
- * Implementation: an ASYNC `git symbolic-ref --short HEAD` through the
- * generic `src/tui/lib/background-poll.ts` poller. The commands are O(1)
- * — they read a ref, not the working tree — but even an O(1) spawnSync
- * per project row per ~2s tick is a render-thread block (slow disk, NFS,
- * cold cache), so the render path never spawns synchronously; the memo
- * fires `pollCurrentBranch` and reads the signal. Falls back to
- * `(detached)` if the HEAD is detached (symbolic-ref exits non-zero but
- * rev-parse verifies a HEAD) or `""` for any other failure mode (missing
- * repo, EACCES, git not on PATH) so the renderer skips the hint entirely
- * rather than showing a confusing error string. Never throws — the
- * sidebar must always render.
- *
- * Why a separate file rather than reaching into
- * `src/orchestrator/worktree/manager.ts#currentBranch`: that method
- * throws on detached-HEAD. The sidebar must tolerate every failure mode.
- * Same trade-off `src/tui/panes/filetree/git.ts` made — pane-side git
- * wrappers are intentionally separate from the orchestrator's stricter
- * ones.
+ * Async via `background-poll.ts`: even an O(1) ref-read spawnSync per row
+ * per ~2s tick blocks the render thread on slow disk/NFS. Yields
+ * `(detached)` for detached HEAD, `""` (hint skipped) for any failure.
+ * Never throws — the sidebar must always render, which is why this doesn't
+ * reuse the orchestrator's `currentBranch` (throws on detached HEAD).
  */
 
 import { stat } from "node:fs/promises"
@@ -41,16 +24,11 @@ const BRANCH_SLOW_RETRY_MS = 30_000
 const BRANCH_MIN_POLL_INTERVAL_MS = 1_500
 
 /**
- * Per-repo `.git/HEAD` fingerprint cache (waste audit). The branch NAME is
- * a pure function of HEAD's content — a checkout rewrites the file, a
- * commit on a branch does not — so when HEAD's mtime+size haven't moved
- * since the last successful resolve, the cached name is returned without
- * spawning git at all. Without the gate every visible project row costs
- * one `git symbolic-ref` spawn per ~2s tick forever (5 projects ≈ 150
- * spawns/min steady-state, daemon-connected or not); with it the steady
- * state is one ~µs `stat` per row per tick, with a spawn only on an actual
- * HEAD change. Repos where `.git/HEAD` isn't statable (a linked-worktree
- * `.git` FILE, permissions) skip the gate and always spawn.
+ * Per-repo `.git/HEAD` mtime+size cache: the branch name is a pure function
+ * of HEAD (checkout rewrites it, commits don't), so an unchanged fingerprint
+ * skips the spawn. Without it, 5 projects ≈ 150 spawns/min steady state;
+ * with it, one ~µs `stat` per row per tick. Unstatable HEAD (linked-worktree
+ * `.git` file, permissions) always spawns.
  */
 const headCache = new Map<string, { fingerprint: string; value: string }>()
 
@@ -63,35 +41,25 @@ async function headFingerprint(repo: string): Promise<string | null> {
   }
 }
 
-/**
- * Resolve `repo`'s current short branch name, with the HEAD-fingerprint
- * fast path above. `spawn` is injectable so tests can count subprocess
- * launches; production passes nothing and gets the real `spawnCapture`.
- * Exported for tests only — render code goes through the poller.
- */
+/** Resolve `repo`'s short branch name. Exported (with injectable `spawn`)
+ *  for tests; render code goes through the poller. */
 export async function resolveBranchHead(
   repo: string,
   signal: AbortSignal,
   spawn: typeof spawnCapture = spawnCapture,
 ): Promise<string> {
-  // Fingerprint FIRST (before the spawn): if HEAD changes mid-resolve we
-  // cache the new value against the pre-change fingerprint, and the next
-  // tick's mismatch simply re-resolves — the race converges.
+  // Fingerprint before the spawn, so a mid-resolve HEAD change mismatches
+  // next tick and re-resolves.
   const fingerprint = await headFingerprint(repo)
   if (fingerprint !== null) {
     const cached = headCache.get(repo)
     if (cached && cached.fingerprint === fingerprint) return cached.value
   }
-  // `symbolic-ref --short HEAD` is more direct than `rev-parse
-  // --abbrev-ref HEAD` for the "what branch am I on" question — it
-  // exits non-zero on detached HEAD instead of returning the literal
-  // string `HEAD`, so the failure mode is unambiguous.
+  // symbolic-ref, not `rev-parse --abbrev-ref`: it exits non-zero on
+  // detached HEAD instead of printing `HEAD`.
   let value = ""
-  // Track whether we genuinely resolved (branch name or verified
-  // detached HEAD) vs. both spawns failing/timing out. On a timeout both
-  // spawns resolve with status:null and `value` stays "" — caching that
-  // empty value against a still-valid HEAD fingerprint would permanently
-  // blank the branch label, so only the resolved case is cached.
+  // Only a genuine resolve is cached: a timed-out "" against a valid
+  // fingerprint would blank the label forever.
   let resolved = false
   recordSpawn("sidebar.gitHead", ["git", "symbolic-ref", "--short", "HEAD"], repo)
   const ref = await spawn("git", ["symbolic-ref", "--short", "HEAD"], {
@@ -104,8 +72,7 @@ export async function resolveBranchHead(
     value = name
     resolved = true
   } else {
-    // Detached HEAD path: symbolic-ref exits non-zero. Confirm with
-    // rev-parse so we don't mislabel an unreadable repo as detached.
+    // Confirm detached so an unreadable repo isn't mislabelled.
     const head = await spawn("git", ["rev-parse", "--verify", "HEAD"], {
       cwd: repo,
       env: readOnlyGitProcessEnv(),
@@ -116,8 +83,6 @@ export async function resolveBranchHead(
       resolved = true
     }
   }
-  // Only memoize a genuine resolve. A failed/timed-out poll must fall
-  // back and retry, not stick "" against a valid fingerprint.
   if (resolved && fingerprint !== null) headCache.set(repo, { fingerprint, value })
   return value
 }
@@ -130,20 +95,12 @@ const poller = createBackgroundPoller<string>({
   run: (repo, signal) => resolveBranchHead(repo, signal),
 })
 
-/**
- * Reactive read of the last known short branch name for `repo`'s HEAD,
- * or a fallback string: `"(detached)"` for detached HEAD, `""` (hint
- * skipped) until a poll lands or for any failure. Never throws.
- */
+/** Last known branch, `"(detached)"`, or `""` until a poll lands / on failure. */
 export function currentBranch(repo: string): string {
   return poller.read(repo)
 }
 
-/**
- * Fire-and-forget: maybe start an async HEAD read for `repo`. Safe to
- * call from a reactive memo on every tick — in-flight dedupe and the
- * interval floor make the extra calls free.
- */
+/** Maybe start an async read; safe every tick (dedupe + interval floor). */
 export function pollCurrentBranch(repo: string): void {
   poller.poll(repo)
 }

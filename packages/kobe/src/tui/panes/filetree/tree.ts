@@ -1,28 +1,17 @@
-/** Directory-tree data structure for the file-tree pane.
- *
- * {@link buildTree} turns a flat list of file paths into a sorted, nested
- * {@link TreeNode} hierarchy. This is independent of git: the file list can
- * come from `git ls-files`, a static snapshot, or any other source. */
+/** Directory tree for the file-tree pane; git-independent. */
 
 export type TreeNode = {
   /** Path segment (last component). Empty for the root. */
   name: string
   /** Full path relative to worktree root. Empty for the root. */
   path: string
-  /** Directories vs leaves. Directories may have empty `children` if
-   * a file under them is filtered out — but `buildTree` never produces
-   * empty dirs since paths terminate at files. */
+  /** `buildTree` never yields empty dirs (paths end at files); filtering may. */
   isDir: boolean
   children: TreeNode[]
 }
 
-/**
- * Build a directory tree from a flat list of paths. Used by the All
- * tab to render files grouped by their on-disk hierarchy. The returned
- * root has an empty name/path; its children are the top-level entries
- * sorted with directories first, then files, alphabetically within each
- * group (matches VS Code / Finder default).
- */
+/** Nested tree from flat paths; root has empty name/path. Dirs first, then
+ *  files, alphabetical within each (VS Code / Finder order). */
 export function buildTree(paths: readonly string[]): TreeNode {
   const root: TreeNode = { name: "", path: "", isDir: true, children: [] }
   const indexes = new Map<TreeNode, Map<string, TreeNode>>()

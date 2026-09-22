@@ -1,20 +1,13 @@
 /**
- * Presentation of the DERIVED task group (`lib/task-group.ts`) — the one
- * place the TUI turns "whose turn is it" into a tone, a label and a sort key.
- * One module so the board badge and the rail's `attention` sort cannot
- * disagree about what `waiting-on-you` means.
+ * The one place the derived task group (`lib/task-group.ts`) becomes a tone,
+ * label and sort key, so the board badge and `attention` sort agree.
  *
- * Deliberately NOT a row glyph: the sidebar rail draws no task-level marker
- * (owner 2026-09-19). Engine state on a tab row and a task rollup on the
- * worktree row above it are two different vocabularies sharing one column,
- * and the rail reads as a legend when both are lit.
+ * Deliberately NOT a row glyph: tab-level engine state and a task rollup in one
+ * rail column read as a legend when both are lit.
  *
- * Why the group and not raw engine activity: activity describes what ONE tab's
- * engine is doing. The group describes what the TASK needs from a person, and
- * that is the question every surface here was already trying to answer with a
- * tab-level signal — which is why a worker whose engine died at a permission
- * prompt, and a task whose PR was approved an hour ago, both read as ordinary
- * work in progress.
+ * Group, not engine activity: activity is what ONE tab's engine does; the group
+ * is what the TASK needs from a person. Tab signals made a permission-stalled
+ * worker and an approved PR both read as ordinary work in progress.
  */
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
@@ -25,21 +18,14 @@ import { compareRecent } from "./groups"
 import type { SidebarTone } from "./row-view"
 
 /**
- * Derive one task's group from what a TUI pane has in hand.
- *
- * `tabAlive` is passed as `null` (could not ask) on purpose: a pane has the
- * daemon's activity map, not the pty host's session inventory, and `null`
- * refutes nothing — exactly the honest reading. The CLI's `context` verb,
- * which does hold a fleet-wide `pty.list`, supplies the real answer.
+ * `tabAlive: null` (could not ask) on purpose: a pane lacks the pty host's
+ * session inventory. The CLI `context` verb, holding `pty.list`, supplies it.
  */
 export function taskGroupIn(task: Task, activity: TaskEngineState | undefined, now: number = Date.now()): TaskGroup {
   return deriveTaskGroup({ task, activity, tabAlive: null, now })
 }
 
-/**
- * The group's word, for a surface with room for one (the board badge), or
- * `null` for `idle`/`unknown`. Called at render time so `t()` stays reactive.
- */
+/** `null` for `idle`/`unknown`. Call at render time so `t()` stays reactive. */
 export function taskGroupLabel(group: TaskGroup): string | null {
   switch (group) {
     case "waiting-on-you":
@@ -55,8 +41,7 @@ export function taskGroupLabel(group: TaskGroup): string | null {
   }
 }
 
-/** Board/badge tone per group. `working` is the accent (it is progress, not a
- *  problem); the rest share the rail's tones. */
+/** `working` is the accent: progress, not a problem. */
 export function taskGroupTone(group: TaskGroup): SidebarTone | "accent" | null {
   switch (group) {
     case "waiting-on-you":
@@ -73,14 +58,8 @@ export function taskGroupTone(group: TaskGroup): SidebarTone | "accent" | null {
 }
 
 /**
- * The `attention` sort mode's comparator: by derived group rank, so the top
- * of the list is what needs a person NEXT, most-recently-touched first inside
- * each group.
- *
- * `now` is captured ONCE for the whole sort rather than read per comparison:
- * a debounce boundary crossing mid-sort would make the comparator
- * inconsistent, which is how a sort produces a different order every time it
- * runs on the same data.
+ * `attention` sort: group rank, then most recent. `now` is captured ONCE per
+ * sort: a debounce boundary crossed mid-sort makes the comparator inconsistent.
  */
 export function compareTaskGroup(
   activityOf: (taskId: string) => TaskEngineState | undefined,
@@ -89,9 +68,7 @@ export function compareTaskGroup(
   const rankOf = (task: Task): number => taskGroupRank(taskGroupIn(task, activityOf(task.id), now))
   return (a, b) => {
     const byGroup = rankOf(a) - rankOf(b)
-    // The tiebreak BORROWS `compareRecent` rather than restating it, so
-    // "recent" means the same thing here, in `recent` sort, and in the
-    // Inbox's RECENT section.
+    // Reuse `compareRecent` so "recent" matches `recent` sort and the Inbox.
     return byGroup !== 0 ? byGroup : compareRecent(a, b)
   }
 }

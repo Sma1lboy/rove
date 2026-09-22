@@ -1,18 +1,8 @@
 /**
  * Spawn composition for an engine tab: argv (session pin / resume / fork)
- * plus the shell-wrapped launch.
- *
- * Separate from `terminal-tabs-core.ts` because the two fail for different
- * reasons and change on different schedules. Core's transitions are closed
- * over the tab list — a bug there is a wrong active tab. Everything here
- * reads the ENGINE contract (`engine-presets`, `session-launch`,
- * `trust-worktree`), so a bug is a wrong command line, and the thing that
- * moves it is a vendor changing its resume/fork flags, not anything about
- * tabs. Vendor knowledge stays on this side of the line.
- *
- * Re-exported from core, so importers keep one entry point. Tab shapes come
- * back from core as TYPE-only imports — erased at build time, so the cycle
- * is cosmetic.
+ * plus the shell-wrapped launch. Vendor knowledge stays here, not in
+ * `terminal-tabs-core.ts` (which re-exports this); the type-only imports
+ * back from core are erased, so the cycle is cosmetic.
  */
 
 import {
@@ -28,17 +18,13 @@ import type { TabSpawn } from "./terminal-tab-spawn"
 import type { EngineTab, TabsState, TerminalTab } from "./terminal-tabs-core"
 
 /**
- * Argv for an engine tab's PTY spawn. `base` is the tab's engine command
- * (vendor-pinned or the task's); `live` is whether the tab's PTY currently
- * exists in the registry. A fork tab (see `EngineTab.forkFrom`) opens ON
- * the source conversation's history — engine-owned flag shapes, and it only
- * applies to the tab's FIRST spawn (afterwards the fork is its own session,
- * resumed by id like any other). No recorded session id → the bare command.
- * A tab that already spawned but has NO live PTY (host restart, degrade
- * re-acquire) resumes its conversation; otherwise the id is pinned fresh.
- * Every flag shape comes from the engine's own `sessionIdentity`
- * declaration — `fallbackVendor` is the TASK's engine, used when the tab
- * pinned no vendor of its own.
+ * `base` = the tab's engine command; `live` = its PTY exists in the registry;
+ * `fallbackVendor` = the task's engine when the tab pinned none.
+ *
+ * Fork tab, first spawn only → opens on the source's history. No session id
+ * → bare command. Spawned but not live (host restart, degrade re-acquire) →
+ * resume. Otherwise → pin the id fresh. Flag shapes come from the engine's
+ * `sessionIdentity`.
  */
 export function engineTabArgv(
   tab: EngineTab,
@@ -47,34 +33,25 @@ export function engineTabArgv(
   fallbackVendor?: VendorId,
 ): readonly string[] {
   if (tab.forkFrom && !tab.spawned && !live) {
-    // `tab.vendor` is always concrete on a fork tab (the chord pins it) —
-    // guard anyway so an inherited-vendor tab can never get claude's flags.
+    // Fork tabs always pin a vendor; guard so an inherited one never gets claude's flags.
     const forked = tab.vendor ? engineForkArgv(base, tab.vendor, tab.forkFrom, tab.sessionId ?? null) : null
     if (forked) return forked
   }
   if (!tab.sessionId) return base
   const vendor = tab.vendor ?? fallbackVendor
-  // Restart / degrade re-acquire: the conversation exists, so REOPEN it with
-  // whatever verb this engine declared (claude `--resume <id>`, kimi
-  // `-S <id>`, codex `resume <id>`). An engine with no resume verb answers
-  // null and gets the bare command — a fresh conversation, honestly, rather
-  // than a flag that would kill the launch.
+  // Reopen with the engine's declared verb (claude `--resume`, kimi `-S`,
+  // codex `resume`). No verb → bare command, not a flag that kills the launch.
   if (tab.spawned && !live) return engineResumeArgv(base, vendor, tab.sessionId) ?? base
-  // Fresh spawn: re-pin the recorded id, but only for engines that accept a
-  // caller-set one. Kimi's id was DISCOVERED from its session store, so
-  // passing it back as a pin is not a thing its CLI can do.
+  // Re-pin only where the engine accepts a caller-set id (kimi's is
+  // discovered from its store; its CLI can't take it as a pin).
   return withPinnedSessionId(base, vendor, () => tab.sessionId as string).argv
 }
 
 /**
- * Full spawn composition for an engine tab — {@link engineTabArgv} wrapped
- * in the user's shell (`shellSpawn`), plus the quick-fork initial
- * prompt policy: `prompt` rides the
- * argv as a positional arg ONLY on the first engine tab's FIRST spawn —
- * never on a later engine tab, an already-spawned tab, or one whose PTY is
- * still live (re-render churn), so the prompt can't re-deliver. Pure so
- * vitest pins the rule; the component supplies the IO reads (`live` from
- * the registry, `prompt` from props, `shell` from the environment).
+ * {@link engineTabArgv} wrapped in the user's shell, plus prompt policy:
+ * the task `prompt` is delivered ONLY on the first engine tab's first spawn
+ * (not spawned, not live), so re-render churn can't re-deliver it. IO reads
+ * (`live`, `prompt`, `shell`) come from the caller.
  */
 export function engineTabSpawnFor(
   state: TabsState,
@@ -92,15 +69,13 @@ export function engineTabSpawnFor(
   const { live, shell, prompt } = opts
   const firstEngine = state.tabs.find((t) => t.kind === "engine")
   const fresh = !tab.spawned && !live
-  // A tab-owned prompt (the cross-engine handoff brief) wins over the
-  // task-level one, which by policy only ever reaches the FIRST engine tab.
+  // A tab-owned prompt (cross-engine handoff brief) wins over the task one.
   const tabPrompt = fresh ? tab.initialPrompt?.trim() : undefined
   const wantsPrompt = !!prompt && tab.id === firstEngine?.id && fresh
   const isFreshFirstEngine = tab.id === firstEngine?.id && fresh
-  // Tab-owned prompts (cross-engine handoff on an existing worktree) stay
-  // "explicit"; the task-level prompt only exists on a freshly created
-  // worktree task (quick-fork, issue-chat), so it rides as "new-task" and
-  // picks up the branch-rename coda.
+  // Tab prompts stay "explicit"; the task prompt exists only on a fresh
+  // worktree task (quick-fork, issue-chat), so it's "new-task" and gets the
+  // branch-rename coda.
   const promptIntent = tabPrompt
     ? ({ kind: "explicit", prompt: tabPrompt } as const)
     : wantsPrompt
@@ -108,12 +83,10 @@ export function engineTabSpawnFor(
       : isFreshFirstEngine
         ? ({ kind: "repo-init" } as const)
         : ({ kind: "none" } as const)
-  // A viewport tab (see EngineTab.ptyTask) launches AS the referenced
-  // task's first tab: its id, worktree, and tab identity — so activity,
-  // hooks, and a dead-reattach resume all belong to the story's task.
+  // A viewport tab (EngineTab.ptyTask) launches AS the referenced task's
+  // first tab, so activity, hooks and resume belong to that task.
   const ref = tab.ptyTask
-  // Pre-trust the worktree in the vendor's first-run store — a
-  // hosted session can't answer a trust dialog. The tab's pinned vendor wins.
+  // A hosted session can't answer a trust dialog; pre-trust. Tab vendor wins.
   trustEngineWorktree(tab.vendor ?? opts.task.vendor, ref?.worktree ?? opts.worktreePath)
   const launch = buildEngineSessionLaunch({
     task: ref ? { ...opts.task, id: ref.id, kind: "task" } : opts.task,
@@ -122,15 +95,11 @@ export function engineTabSpawnFor(
     argv: engineTabArgv(tab, base, live, opts.task.vendor),
     promptIntent,
     protocolGates: opts.protocolGates,
-    // No firstMessageDelivery override: the registry contract applies, so a
-    // paste vendor's (kimi) first message comes back as
-    // `launch.firstMessage` instead of riding the argv (its positional slot
-    // is a subcommand — the text would kill the launch as an unknown
-    // command). The hosted PTY backend pastes it post-spawn
-    // (`TaskPtyOpts.firstMessage` → `pastePromptWhenEngineUp`).
-    // Tab identity → exported env in the launch script: the engine's hook
-    // subprocesses inherit it, so `kobe hook` can attribute activity to
-    // THIS tab — cwd alone can't (every tab of a task shares the worktree).
+    // No firstMessageDelivery override: a paste vendor's (kimi) message
+    // returns as `launch.firstMessage` (its positional slot is a subcommand)
+    // and the hosted backend pastes it post-spawn (`pastePromptWhenEngineUp`).
+    // tabId is exported into the launch env so `kobe hook` attributes
+    // activity to THIS tab; cwd can't (tabs share the worktree).
     tabId: ref ? "tab-1" : tab.id,
   })
   return {
@@ -142,13 +111,10 @@ export function engineTabSpawnFor(
 export type TabExitAction = "close" | "resume"
 
 /**
- * Policy for the ACTIVE tab's process exiting. Engine tabs run their CLI
- * inside the user's shell (`shellSpawn`), so a live PTY exit means
- * the SHELL ended — the tab closes, same as a command tab (editor quit,
- * shell exit). An engine tab found dead ON ATTACH (host restart /
- * park-sweep corpse) with a resumable session gets ONE resume attempt —
- * `resumeTried` is the per-tab one-shot guard, so a `--resume` that
- * itself dies closes normally instead of respawning forever.
+ * ACTIVE tab exit policy. Engines run inside the user's shell, so a live exit
+ * means the shell ended → close. An engine tab dead ON ATTACH (host restart,
+ * park-sweep corpse) with a session gets ONE resume; `resumeTried` stops a
+ * dying `--resume` from respawning forever.
  */
 export function tabExitAction(tab: TerminalTab, deadOnAttach: boolean, resumeTried: boolean): TabExitAction {
   if (tab.kind === "engine" && deadOnAttach && !!tab.sessionId && tab.spawned && !resumeTried) return "resume"

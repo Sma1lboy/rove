@@ -1,37 +1,23 @@
 /**
- * Adopt live-but-unregistered pty sessions into a task's tab state.
+ * Adopt live-but-unlisted pty sessions into a task's tab state. The pty host
+ * is the truth; the tab snapshot is intent, and they diverge (canonical-spawn
+ * fallback, a tab closed while unmounted so the kill never reached the host,
+ * an older kobe). An unlisted session can't be opened, focused or closed.
  *
- * The pty host holds the truth about what is running; the tab snapshot is a
- * record of intent, and the two diverge (a canonical-spawn
- * fallback, a tab closed while its task was unmounted so the kill never
- * reached the host, an older kobe). The sidebar already SHOWS such sessions
- * as `⚠` rows, but a row that isn't in the tab state can't be opened,
- * focused or closed: the owner sees a live engine he can neither read nor
- * end.
- *
- * So reconcile instead of only reporting: a live `<taskId>::<tabId>` session
- * the state doesn't list becomes a real engine tab under ITS OWN id, which
- * is what makes the ordinary open/close paths work on it (a mount attaches
- * to the existing host session under the same key — it does not respawn).
- * The adopted tab never steals `activeId`: adoption is bookkeeping, not a
- * navigation.
+ * A live `<taskId>::<tabId>` becomes an engine tab under ITS OWN id, so a
+ * mount attaches to the host session instead of respawning. Never steals
+ * `activeId`: bookkeeping, not navigation.
  */
 
 import type { EngineTab, TabsState, TerminalTab } from "./terminal-tabs-core"
 
-/** `tab-7` → 7, so an adopted tab keeps the ordinal its id already implies
- *  (the strip labels engine tabs by ordinal — minting a fresh one would
- *  rename a session the user knows as "Claude Code 7"). */
+/** `tab-7` → 7: the strip labels by ordinal, so a fresh one would rename "Claude Code 7". */
 function ordinalOf(tabId: string, fallback: number): number {
   const match = /^tab-(\d+)$/.exec(tabId)
   return match ? Number(match[1]) : fallback
 }
 
-/**
- * Append `tabIds` as engine tabs, skipping ids the state already has.
- * Identity-stable when there is nothing to adopt, so callers can use the
- * result to decide whether to write at all.
- */
+/** Append unknown `tabIds` as engine tabs; returns `state` itself when nothing is new (callers skip the write). */
 export function adoptTabs(state: TabsState, tabIds: readonly string[]): TabsState {
   const known = new Set(state.tabs.map((tab) => tab.id))
   const fresh: string[] = []
@@ -48,8 +34,7 @@ export function adoptTabs(state: TabsState, tabIds: readonly string[]): TabsStat
     id,
     title: null,
     ordinal: ordinalOf(id, minted++),
-    // The session already exists — a spawn here would run a second engine
-    // under the key we are adopting.
+    // Already running; a spawn would start a second engine under this key.
     spawned: true,
   }))
   adopted.sort((a, b) => a.ordinal - b.ordinal)

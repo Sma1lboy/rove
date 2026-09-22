@@ -1,19 +1,10 @@
-/**
- * Framework-free pane logic for the file tree, kept out of `FileTree.tsx`
- * so every consumer shares the exact same behavior instead of duplicating
- * it. Everything here is pure functions
- * over the `Row` model (plus one node-only fs.watch helper), unit-tested
- * in `test/tui-react/filetree-pane-core.test.ts`.
- */
+/** Framework-free file tree logic: pure functions over `Row`, plus one fs.watch helper. */
 
 import { watch } from "node:fs"
 import type { FileStatus } from "./git"
 import type { Row } from "./rows"
 
-/**
- * Map a status code to its theme token. Resolved at render time so a
- * theme switch reactively recolours pre-existing rows.
- */
+/** Theme token, not a color, so a theme switch recolours existing rows. */
 export function statusToken(s: FileStatus): "warning" | "success" | "error" | "textMuted" | "info" {
   switch (s) {
     case "M":
@@ -28,20 +19,13 @@ export function statusToken(s: FileStatus): "warning" | "success" | "error" | "t
     case "C":
     case "U":
     case "T":
-      // Renames/copies/conflicts/typechanges are uncommon in the loop;
-      // render them in info-blue to distinguish from the M/A/D/? majority.
       return "info"
   }
 }
 
 /**
- * Boil a raw `git ls-files` / `git status` error down to a single
- * human-friendly sentence. The thrown messages from `git.ts` look
- * like `git ls-files ... (cwd=/foo) exited with code 128: fatal: not
- * a git repository`. Most users don't need the full args / exit
- * code; we surface the common cases and keep the rest generic.
- * `t` is the caller's translate fn — each caller passes its
- * own reactive one.
+ * One sentence from a `git.ts` error (`git ls-files ... (cwd=/foo) exited with
+ * code 128: fatal: …`). `t` is the caller's reactive translate fn.
  */
 export function summarizeGitError(raw: string, t: (key: string) => string): string {
   const kind = classifyGitError(raw)
@@ -64,27 +48,13 @@ function classifyGitError(raw: string): GitErrorKind | null {
   return null
 }
 
-/**
- * Should the pane offer `r` under this error?
- *
- * `r` re-runs the same git command, so it is only honest where a retry can
- * change the answer: a transient git failure, or a permission the user just
- * fixed. Offering it beside "not a git repository" or "git is not on PATH"
- * invites the user to press it forever — neither `git init` nor an install
- * happens by retrying.
- */
+/** Offer `r` only where a retry can change the answer; not for no-repo or no-git. */
 export function gitErrorIsRetryable(raw: string): boolean {
   const kind = classifyGitError(raw)
   return kind !== "notGitRepo" && kind !== "gitNotInstalled"
 }
 
-/**
- * Column widths for the `+N` / `-N` stats on the Changes tab. Computed
- * across the visible rows so every cell pads to the widest sibling —
- * without this, `+0 -202` and `+1 -1` end at the same right edge but
- * the `-` columns drift, which reads as misaligned. Width includes
- * the leading sign (`+`/`-`).
- */
+/** `+N` / `-N` column widths (sign included) across visible rows, so `-` columns align. */
 export type StatWidths = { added: number; deleted: number }
 
 export function computeStatWidths(rows: readonly Row[]): StatWidths {
@@ -98,28 +68,20 @@ export function computeStatWidths(rows: readonly Row[]): StatWidths {
   return { added, deleted }
 }
 
-/**
- * Cell budget for a Changes-tab path. Tail-truncated to whatever the pane
- * leaves after the status char, the `+N`/`-N` stat columns, the inter-column
- * gaps, row padding, and the scrollbar — so the filename always survives and
- * only the leading directories elide.
- */
+/** Cells left for a Changes-tab path; tail-truncated so only leading dirs elide. */
 export function computePathBudget(paneWidth: number, w: StatWidths): number {
   const stats = (w.added > 0 ? w.added + 1 : 0) + (w.deleted > 0 ? w.deleted + 1 : 0)
   // row padding (2) + status glyph (1) + gap (1) + stats + scrollbar (1) + slack (1).
   return Math.max(8, paneWidth - 6 - stats)
 }
 
-/** Render a `+N` / `-N` stat cell padded to the column width; a missing
- * count renders as blanks so the columns stay aligned. */
+/** A missing count renders as blanks so columns stay aligned. */
 export function statCell(value: number | null | undefined, width: number, sign: "+" | "-"): string {
-  // Deletions render the typographic minus (U+2212) — same glyph as the
-  // sidebar's −N counter, same 1-cell width as ASCII "-".
+  // U+2212 minus, as the sidebar's −N; same 1-cell width as "-".
   const glyph = sign === "-" ? "−" : sign
   return value == null ? " ".repeat(width) : `${glyph}${value}`.padStart(width)
 }
 
-/** Toggle a directory path in the expansion set (immutably). */
 export function toggleDir(expanded: ReadonlySet<string>, path: string): ReadonlySet<string> {
   const next = new Set(expanded)
   if (next.has(path)) next.delete(path)
@@ -127,23 +89,16 @@ export function toggleDir(expanded: ReadonlySet<string>, path: string): Readonly
   return next
 }
 
-/** What a hierarchy keypress should do — mutate the expansion set or move
- * the cursor. `null` means no-op. */
+/** Hierarchy keypress result; callers treat `null` as no-op. */
 export type NavAction = { type: "expand" | "collapse"; path: string } | { type: "cursor"; index: number }
 
-/** `l` — hierarchy navigation only. On a closed dir, expand it; on
- * an open dir, step into its first child; on a file, no-op (use
- * `enter` to open). Keeping `l` purely structural lets the user roam
- * through the tree without accidentally pulling the file into the
- * preview pane. Changes-tab untracked dirs (status rows carrying a
- * `fileCount`) follow the same expand/descend semantics. */
+/** `l`: expand a closed dir, step into an open one, no-op on files — purely
+ * structural so roaming never pulls a file into preview (`enter` opens).
+ * Changes-tab untracked dirs (status rows with `fileCount`) behave the same. */
 export function expandOrDescendAction(rows: readonly Row[], cursorIndex: number): NavAction | null {
   const row = rows[cursorIndex]
   if (!row) return null
   if (row.kind === "status") {
-    // Untracked-dir row → expand; already open → step onto its first child.
-    // Plain status rows (incl. children under an expanded untracked dir)
-    // never expand.
     if (row.fileCount == null) return null
     if (!row.expanded) return { type: "expand", path: row.path }
     return cursorIndex + 1 < rows.length ? { type: "cursor", index: cursorIndex + 1 } : null
@@ -154,15 +109,11 @@ export function expandOrDescendAction(rows: readonly Row[], cursorIndex: number)
   return null
 }
 
-/** `h` — collapse the current directory, or jump to the parent dir
- * (depth - 1) walking upward in rows. Tab-agnostic: Changes-tab
- * untracked dirs (status rows carrying a `fileCount`) collapse too;
- * the status list is flat (no depth), so its other rows have no
- * parent to jump to and no-op. */
+/** `h`: collapse an open dir, else jump to the parent dir. Changes-tab
+ * untracked dirs collapse too; other status rows are flat and no-op. */
 export function collapseOrParentAction(rows: readonly Row[], cursorIndex: number): NavAction | null {
   const row = rows[cursorIndex]
   if (!row) return null
-  // Open dir → collapse.
   if (row.kind === "dir" && row.expanded) return { type: "collapse", path: row.path }
   if (row.kind === "status") {
     return row.fileCount != null && row.expanded ? { type: "collapse", path: row.path } : null
@@ -178,12 +129,7 @@ export function collapseOrParentAction(rows: readonly Row[], cursorIndex: number
   return null
 }
 
-/**
- * Viewport follow: each row renders as a height-1 box, so its y-offset
- * inside the scrollbox content equals its index. When the cursor moves
- * past the visible window (either edge), return the scrollTop that puts
- * the cursor row just inside the viewport; `null` means don't scroll.
- */
+/** scrollTop keeping the cursor visible (rows are height 1, so y = index); null = don't scroll. */
 export function followScrollTop(scrollTop: number, viewportHeight: number, cursorIndex: number): number | null {
   if (viewportHeight <= 0) return null
   if (cursorIndex < scrollTop) return cursorIndex
@@ -191,8 +137,7 @@ export function followScrollTop(scrollTop: number, viewportHeight: number, curso
   return null
 }
 
-/** Whether an fs-watch event under the worktree should trigger a refresh —
- * `.git` internals and node_modules churn are noise. */
+/** `.git` internals and node_modules churn are noise. */
 export function watchEventRelevant(filename: string): boolean {
   if (filename === ".git" || filename.startsWith(".git/") || filename.startsWith(".git\\")) return false
   if (filename.startsWith("node_modules/") || filename.startsWith("node_modules\\")) return false
@@ -202,19 +147,14 @@ export function watchEventRelevant(filename: string): boolean {
 type EventedWatcher = ReturnType<typeof watch> & { on(event: "error", listener: (err: Error) => void): void }
 
 /**
- * Recursive fs watch over a worktree with a 500ms trailing debounce.
- * Returns a disposer. Errors are swallowed (the `r` keystroke remains as
- * the escape hatch); an unwatchable path degrades to manual refresh.
- * On by default; `ROVE_FILETREE_WATCH=0` at the call site opts out, for a
- * repo big enough that a recursive watcher costs more than the staleness it
- * removes.
+ * Recursive worktree watch, trailing debounce; returns a disposer. Errors
+ * degrade to manual `r`. Callers honor `ROVE_FILETREE_WATCH=0` for repos too
+ * big to watch.
  *
- * Known window, deliberately NOT closed: macOS FSEvents arms
- * asynchronously, so a write landing right after this call may be dropped
- * before the stream is live. The daemon's single-file watchers close that
- * with a stat-poll, but stat-polling a whole worktree is disproportionate
- * here — the cost of a miss is only a stale pane until the next fs event
- * or a manual `r`, in a feature that is best-effort by contract.
+ * Known window, deliberately open: macOS FSEvents arms asynchronously, so a
+ * write right after this call may be missed. Stat-polling a whole worktree
+ * (as the daemon's single-file watchers do) is disproportionate for a
+ * best-effort pane; a miss is stale until the next event or `r`.
  */
 export function watchWorktree(path: string, onChange: () => void, debounceMs = 500): () => void {
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -230,10 +170,10 @@ export function watchWorktree(path: string, onChange: () => void, debounceMs = 5
       }, debounceMs)
     }) as EventedWatcher
     watcher.on("error", () => {
-      // Swallow — the `r` keystroke remains as the escape hatch.
+      // Swallowed: `r` is the escape hatch.
     })
   } catch {
-    // Path missing or not watchable — fall back to manual refresh.
+    // Unwatchable path: manual refresh only.
   }
   return () => {
     if (debounceTimer != null) clearTimeout(debounceTimer)

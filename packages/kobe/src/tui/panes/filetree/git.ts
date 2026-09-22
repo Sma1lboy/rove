@@ -1,30 +1,14 @@
 /**
- * Thin git wrappers for the file tree pane.
+ * Git reads for the file tree pane: {@link listFiles} (gitignore-respecting
+ * file list) and {@link statusFiles} (porcelain status + line counts).
  *
- * Two narrow operations the pane needs:
- *   1. {@link listFiles} — `git ls-files --cached --others --exclude-standard --full-name`,
- *      a flat list of every gitignore-respecting file in the worktree.
- *   2. {@link statusFiles} — `git status --porcelain`, parsed into a tiny
- *      `{ path, status }` shape carrying the single-char status the pane
- *      colour-codes (M / A / D / ?).
+ * Kept apart from `src/orchestrator/worktree/git.ts`, which carries worktree
+ * lifecycle invariants (`GitCommandError` etc.) a pane must not couple to.
  *
- * Implementation is intentionally separate from `src/orchestrator/worktree/git.ts`
- * — that module is owned by Stream B and is wired into worktree
- * lifecycle invariants (throws `GitCommandError`, etc.). Sharing it
- * would couple a pane to orchestrator-side code we should not touch
- * cross-stream. This wrapper is a few dozen lines of thin spawn glue
- * that matches Stream B's pattern but lives in the pane's slice.
- *
- * Implementation notes:
- *   - Git runs through `src/worktree/content.ts`, so local and remote
- *     Worktrees share one async ExecHost-backed read path.
- *   - Args always pass as an array. Never a shell string.
- *   - `cwd` is required on every call. The pane never relies on
- *     `process.cwd()` because tasks run in different worktrees
- *     concurrently.
- *   - On non-zero exit we throw — the pane shows an error empty-state.
- *     This mirrors the orchestrator's behaviour and avoids silently
- *     rendering stale data.
+ * - Git runs through `src/worktree/content.ts`, so local and remote worktrees
+ *   share one ExecHost-backed read path. Args are always an array, never a shell string.
+ * - `cwd` is required: tasks run in different worktrees concurrently, so never `process.cwd()`.
+ * - Non-zero exit throws, so the pane shows an error state instead of stale data.
  */
 
 import { parseNumstatRows, parsePorcelainRows, unquoteGitPath } from "@/lib/git-parsers"
@@ -33,16 +17,12 @@ import { readWorktreeFile, runWorktreeGit } from "../../../worktree/content.ts"
 /**
  * Which diff the Changes tab shows:
  *   - `working`: uncommitted work only (`git status` / `diff HEAD`).
- *   - `branch`:  everything this task's branch adds over its base
- *                (`git diff <base>...HEAD` — the vs-base view). Because the
- *                engine contract is "commit when green", a finished task's
- *                whole output only shows up here.
+ *   - `branch`:  `git diff <base>...HEAD`. Engines commit when green, so a
+ *                finished task's whole output only shows up here.
  */
 export type GitScope = "working" | "branch"
 
-/** Status code our pane displays. Mirrors `git status` two-char codes
- * collapsed to a single-char headline. `T` is a typechange (a regular
- * file became a symlink or vice-versa). */
+/** `git status` two-char code collapsed to one char. `T` = typechange (file <-> symlink). */
 export type FileStatus = "M" | "A" | "D" | "?" | "R" | "C" | "U" | "T"
 
 /** A single row from `git status --porcelain`. */
@@ -70,7 +50,7 @@ export type NumstatEntry = {
   deleted: number | null
 }
 
-/** Internal helper — drives Worktree content git, throws on non-zero. */
+/** Throws on non-zero exit. */
 async function runGit(args: readonly string[], cwd: string, signal?: AbortSignal): Promise<string> {
   if (!cwd) throw new Error("git(): cwd is required")
   const result = await runWorktreeGit(cwd, args, { signal })
@@ -85,30 +65,17 @@ async function runGit(args: readonly string[], cwd: string, signal?: AbortSignal
   return result.stdout ?? ""
 }
 
-/**
- * List every file in `worktreePath` that's either tracked or untracked-
- * but-not-ignored. Equivalent to "what would `git status` know about,"
- * just flattened. Returns paths relative to the worktree root, sorted
- * alphabetically (git's default order from `ls-files` is already
- * alphabetical, but we sort defensively in case a future flag changes
- * that).
- */
+/** Tracked + untracked-not-ignored files, worktree-relative, de-duplicated and sorted. */
 export async function listFiles(worktreePath: string, signal?: AbortSignal): Promise<string[]> {
   const out = await runGit(
     ["ls-files", "--cached", "--others", "--exclude-standard", "--full-name"],
     worktreePath,
     signal,
   )
-  // `unquoteGitPath` for the same reason the porcelain parser calls it:
-  // git octal-escapes any non-ASCII byte in a path by default, so
-  // `文档/设计/笔记.md` arrives as `"\346\226\207…"`, quotes and all. The
-  // Changes tab has always decoded it; the All tab did not, so a Chinese
-  // filename — the ordinary case in a zh-default product — rendered as
-  // escape gibberish that no width budget can rescue.
+  // git octal-escapes non-ASCII path bytes by default (`文档/笔记.md` arrives
+  // as `"\346\226\207…"`, quotes and all), so unquote like the porcelain parser.
   const lines = out.split("\n").map((l) => unquoteGitPath(l.replace(/\r$/, "")))
-  // De-dup: --cached + --others can in theory list the same file twice
-  // when the working tree has both an index entry and an untracked
-  // counterpart — rare but possible during merges.
+  // --cached + --others can list the same file twice during merges.
   const set = new Set<string>()
   for (const line of lines) {
     if (line.length > 0) set.add(line)
@@ -117,42 +84,23 @@ export async function listFiles(worktreePath: string, signal?: AbortSignal): Pro
 }
 
 /**
- * Run `git status --porcelain` in `worktreePath` and parse into
- * structured entries. Each row of porcelain output is exactly:
- *
- *   XY <path>
- *
- * where X is the index status, Y the worktree status. Untracked rows
- * are reported as `?? <path>`. We collapse the two status chars into a
- * single headline char by preferring the worktree status (Y) if non-
- * space, else the index status (X). Untracked stays `?`. Renames look
- * like `R  old -> new` — we keep only the "new" path and report `R`.
+ * `git status --porcelain` rows (see {@link parseStatusEntries}) with +/-
+ * counts merged from `git diff HEAD --numstat`; untracked files are counted on
+ * disk. Count failures leave cells blank.
  */
 export async function statusFiles(worktreePath: string, signal?: AbortSignal): Promise<StatusEntry[]> {
-  // Default untracked mode: git collapses a FULLY-untracked directory into one
-  // `?? dir/` row (it never does this for a directory that also holds tracked
-  // files). We keep that row as a single collapsed entry — an untracked asset
-  // dump shouldn't drown the tracked changes — and attach the files beneath it
-  // as `children` (one `ls-files --others` pass) so the row can expand on
-  // demand and carry a file count + summed line count.
+  // git collapses a FULLY-untracked directory into one `?? dir/` row (never one
+  // that also holds tracked files). Keep it collapsed so an untracked asset dump
+  // doesn't drown tracked changes; its files attach as expandable `children`.
   const out = await runGit(["status", "--porcelain"], worktreePath, signal)
   const entries = parseStatusEntries(out)
-  // Merge in `git diff HEAD --numstat` so each row carries +/- counts.
-  // Untracked files don't appear in `git diff` output — for those we
-  // count line counts on disk so the user still sees how many lines
-  // were added. Failures fall through silently: the pane already
-  // handles missing stats by rendering blanks.
   let stats: Map<string, { added: number | null; deleted: number | null }> = new Map()
   try {
     const diffOut = await runGit(["diff", "--no-color", "--numstat", "-z", "HEAD"], worktreePath, signal)
     stats = new Map(parseNumstat(diffOut).map((n) => [n.path, { added: n.added, deleted: n.deleted }]))
   } catch {
-    // No HEAD yet (initial commit / unborn branch): `git diff HEAD` exits
-    // non-zero because there's no HEAD to diff against. On a first commit
-    // every tracked change is staged, so fall back to the staged diff so
-    // the files still show real +/- counts instead of silently blank. If
-    // even that fails, leave stats empty — the rows already render from the
-    // porcelain pass, just with "counts unavailable" (blank) cells.
+    // Unborn branch: no HEAD to diff. Every tracked change is staged then, so
+    // the staged diff gives real counts; if that fails too, cells stay blank.
     try {
       const cachedOut = await runGit(["diff", "--no-color", "--numstat", "-z", "--cached"], worktreePath, signal)
       stats = new Map(parseNumstat(cachedOut).map((n) => [n.path, { added: n.added, deleted: n.deleted }]))
@@ -165,8 +113,7 @@ export async function statusFiles(worktreePath: string, signal?: AbortSignal): P
     if (s) return { ...e, added: s.added, deleted: s.deleted }
     return e
   })
-  // Attach the files beneath each untracked-directory row. Failures leave the
-  // dir row bare (no children, no count) — still a valid collapsed entry.
+  // On failure the dir row stays bare (no children, no count) — still valid.
   if (merged.some(isUntrackedDir)) {
     try {
       const others = (await runGit(["ls-files", "--others", "--exclude-standard", "--full-name"], worktreePath, signal))
@@ -177,12 +124,8 @@ export async function statusFiles(worktreePath: string, signal?: AbortSignal): P
       // ls-files failed — dir rows render without a count.
     }
   }
-  // Untracked files never appear in `git diff --numstat`, so the merge above
-  // leaves their `added` blank. Count their lines on disk (all lines are
-  // "added" against nothing; deleted stays 0) so the Changes tab shows how big
-  // each new file is. Unreadable/binary reads fall through to blank rather than
-  // guessing. Runs in parallel — a big untracked drop is rare but shouldn't
-  // serialize dozens of reads.
+  // Untracked files never appear in `git diff --numstat`: count lines on disk
+  // (all added, 0 deleted), in parallel so a big drop doesn't serialize reads.
   const untracked: StatusEntry[] = []
   for (const e of merged) {
     if (e.status !== "?") continue
@@ -200,8 +143,7 @@ export async function statusFiles(worktreePath: string, signal?: AbortSignal): P
       }),
     )
   }
-  // Roll the children's counts up onto their directory row so the collapsed
-  // row still says how big the drop is. All-binary children leave it blank.
+  // Roll children's counts up onto the dir row. All-binary children leave it blank.
   for (const e of merged) {
     if (!e.children) continue
     let sum = 0
@@ -225,11 +167,7 @@ function isUntrackedDir(e: StatusEntry): boolean {
   return e.status === "?" && e.path.endsWith("/")
 }
 
-/**
- * Attach to each untracked-directory entry the untracked files beneath it,
- * from one `git ls-files --others --exclude-standard` listing. Pure —
- * exported for unit tests. Mutates the entries in place.
- */
+/** Mutates each untracked-dir entry in place, attaching the `ls-files --others` paths beneath it. */
 export function attachUntrackedChildren(entries: StatusEntry[], others: readonly string[]): void {
   for (const e of entries) {
     if (!isUntrackedDir(e)) continue
@@ -238,20 +176,12 @@ export function attachUntrackedChildren(entries: StatusEntry[], others: readonly
 }
 
 /**
- * Resolve the ref this worktree's branch should be diffed against for the
- * Branch scope. Prefers an explicit PR base (`prBaseRef` — the GitHub base
- * ref off `task.prStatus`, the only place kobe persists a base). Otherwise
- * asks git for the repo's default branch — `origin/HEAD`, falling back to
- * `origin/main` / `origin/master` — mirroring `daemon-worktree-adapter`'s
- * `defaultRef`, then to a LOCAL `main` / `master` for a repo that has no
- * remote at all. Returns `null` only when nothing resolves (orphan branch, or
- * a repo whose default branch is the one checked out here), and the caller
- * stays in working scope and says so.
- *
- * The local fallback is what keeps a remoteless repo's Branch scope reachable.
- * Without it an attempt that committed all its work showed `no changes —
- * clean worktree` beside a sidebar row reading `↑1`: the diff existed, the
- * base to compare it against did not, and `b` was a silent no-op.
+ * Base ref for the Branch scope. Order: `prBaseRef` (from `task.prStatus`, the
+ * only persisted base), `origin/HEAD`, `origin/main` / `origin/master` (as
+ * `daemon-worktree-adapter`'s `defaultRef`), then LOCAL `main` / `master` so a
+ * remoteless repo's committed work is still reachable. `null` when nothing
+ * resolves (orphan branch, or the default branch is checked out here); the
+ * caller stays in working scope and says so.
  */
 export async function resolveBase(
   worktreePath: string,
@@ -276,9 +206,7 @@ export async function resolveBase(
   const head = await revParse("HEAD", worktreePath, signal)
   for (const guess of ["main", "master"]) {
     const sha = await revParse(guess, worktreePath, signal)
-    // Skip a local default that IS this worktree's HEAD: `main...HEAD` is
-    // empty by construction there, and offering it would just move the empty
-    // pane behind a toggle instead of saying there is nothing to compare to.
+    // A local default that IS HEAD makes `main...HEAD` empty by construction.
     if (sha != null && sha !== head) return guess
   }
   return null
@@ -295,13 +223,9 @@ async function revParse(ref: string, worktreePath: string, signal?: AbortSignal)
 }
 
 /**
- * Branch scope for the Changes tab: every file this task's branch changed
- * relative to `base`, via `git diff <base>...HEAD` (three-dot = diff against
- * the merge-base, so unrelated commits landed on the base afterward don't
- * pollute the list). Two reads keyed by path — `--name-status` for the M/A/D
- * headline, `--numstat` for the +/- counts — the same two-call merge
- * {@link statusFiles} does for working scope. Throws on a bad base so the
- * pane's error empty-state shows instead of silently rendering nothing.
+ * Branch scope: `git diff <base>...HEAD` (three-dot = vs merge-base, so later
+ * commits on the base don't pollute the list), `--name-status` merged with
+ * `--numstat` by path. Throws on a bad base so the pane shows its error state.
  */
 export async function statusFilesBranch(
   worktreePath: string,
@@ -323,10 +247,8 @@ export async function statusFilesBranch(
 }
 
 /**
- * Parse `git diff --name-status` rows into the pane's `{ status, path }`
- * headline. Each line is `<X>\t<path>` (or `R<score>\t<old>\t<new>` /
- * `C<score>\t<old>\t<new>` for renames/copies — we keep the NEW path, same
- * as the porcelain façade). Statuses the pane doesn't colour are dropped.
+ * Parse `git diff --name-status`: `<X>\t<path>`, or `R|C<score>\t<old>\t<new>`
+ * (keeps the NEW path). Statuses the pane doesn't colour are dropped.
  */
 export function parseNameStatus(raw: string): { status: FileStatus; path: string }[] {
   const out: { status: FileStatus; path: string }[] = []
@@ -359,12 +281,8 @@ export function parseNameStatus(raw: string): { status: FileStatus; path: string
 }
 
 /**
- * Count the added-line count of an untracked file on disk. Every line is an
- * addition (there is no HEAD version), so this is just the newline count with
- * a trailing non-empty line counted as a line too — matching how `wc -l`-style
- * "lines added" reads to a user. An empty file is `0` added. Returns `null`
- * for unreadable files (missing/binary/permission) so callers leave the cell
- * blank instead of showing a wrong `+0`.
+ * Line count of an untracked file (newlines, plus an unterminated last line).
+ * `null` for unreadable/binary files so the cell stays blank, not a wrong `+0`.
  */
 async function countAddedLines(worktreePath: string, relPath: string, signal?: AbortSignal): Promise<number | null> {
   if (signal?.aborted) return null
@@ -377,32 +295,23 @@ async function countAddedLines(worktreePath: string, relPath: string, signal?: A
   for (let i = 0; i < text.length; i++) {
     if (text[i] === "\n") count++
   }
-  // A final line without a trailing newline still counts as a line.
   if (!text.endsWith("\n")) count++
   return count
 }
 
 /**
- * Pure parser for `git diff --numstat -z` output, kept as the pane's typed
- * façade ({@link NumstatEntry}) over the shared {@link parseNumstatRows}.
- * The shared parser owns the hard parts — NUL-delimited records, C-string
- * unquoting, and rename path pairing — so the counts key by the same
- * unquoted path the porcelain `R` row reports. We drop the shared row's
- * `origPath` here to preserve {@link NumstatEntry}'s `{ path, added, deleted }
- * shape.
+ * `git diff --numstat -z` via the shared {@link parseNumstatRows}, which
+ * unquotes and pairs renames so counts key by the same path the porcelain `R`
+ * row reports. `origPath` is dropped.
  */
 export function parseNumstat(raw: string): NumstatEntry[] {
   return parseNumstatRows(raw).map((r) => ({ path: r.path, added: r.added, deleted: r.deleted }))
 }
 
 /**
- * Pure parser exported for unit testing. Accepts the raw stdout of
- * `git status --porcelain` and returns the pane's typed {@link StatusEntry}
- * rows. Parsing (the `XY <path>` shape, C-string unquoting, and rename
- * `old -> new` resolution) is delegated to the shared
- * {@link parsePorcelainRows}; this façade applies only the file-tree's own
- * editorial choices: collapse the two status chars to one headline, drop
- * statuses it doesn't colour, and skip directory rows.
+ * `git status --porcelain` via the shared {@link parsePorcelainRows} (which
+ * unquotes and resolves `old -> new` renames), then: collapse `XY` to one
+ * char, drop uncoloured statuses, skip non-untracked directory rows.
  */
 export function parseStatusEntries(raw: string): StatusEntry[] {
   const out: StatusEntry[] = []
@@ -411,9 +320,7 @@ export function parseStatusEntries(raw: string): StatusEntry[] {
     if (row.x === "?" && row.y === "?") {
       status = "?"
     } else {
-      // Prefer the worktree-side status for our headline; fall back to
-      // index-side. Spaces collapse to the other char so "M " (staged
-      // modify) reports M.
+      // Prefer worktree side (Y), else index side (X): "M " (staged) reports M.
       const candidate = row.y !== " " ? row.y : row.x
       if (
         candidate === "M" ||
@@ -432,9 +339,7 @@ export function parseStatusEntries(raw: string): StatusEntry[] {
     }
     const path = row.path
     if (path.length === 0) continue
-    // Trailing-slash rows: an untracked DIRECTORY (default-mode `?? dir/`) is
-    // kept as a collapsed entry — {@link statusFiles} attaches its files as
-    // children. Any other dir row would be garbage; skip defensively.
+    // Keep `?? dir/` ({@link statusFiles} attaches its children); any other dir row is garbage.
     if (path.endsWith("/") && status !== "?") continue
     out.push({ path, status })
   }

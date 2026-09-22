@@ -1,30 +1,22 @@
 /**
- * Pure, CONTENT-AGNOSTIC split-tree state for one workspace surface —
- * the tmux-pane layout idea, generic over what a leaf
- * shows. Leaves carry an opaque `content` payload (today: a terminal
- * command, see `TerminalSplit.tsx`; later: any workspace surface);
- * groups lay their children out `row` (side-by-side, tmux's `%`) or
- * `column` (stacked, tmux's `"`). Splitting inside a group of the same
- * orientation inserts a sibling; splitting across orientations nests a
- * new group — arbitrary tmux-style layouts fall out of two chords.
+ * Pure, content-agnostic tmux-style split tree for one workspace surface.
+ * Leaves carry an opaque `content`; groups lay out `row` (side-by-side,
+ * tmux `%`) or `column` (stacked, tmux `"`). Same-orientation splits insert
+ * a sibling, cross-orientation splits nest a group.
  *
- * Framework-free on purpose, same architecture as `terminal-tabs-core.ts`:
- * the renderer owns signals/UI, this module owns the transitions
- * so vitest can pin them. Nothing in here may know about terminals,
- * PTYs, or engines — content-specific keying (e.g. `splitLeafPtyKey`)
- * lives with the content adapter.
+ * Framework-free so vitest can pin the transitions. Nothing here may know
+ * about terminals, PTYs, or engines — content keying (e.g. `splitLeafPtyKey`)
+ * lives with the adapter.
  */
 
 export interface SplitLeaf<T> {
   readonly kind: "leaf"
-  /** Stable id — content adapters key their resources off it. Never
-   *  reused within one split tree. The FIRST leaf is always `leaf-1`. */
+  /** Stable id adapters key resources off; never reused within a tree. The
+   *  first leaf is always `leaf-1`. */
   readonly id: string
-  /** Opaque payload — what this leaf displays. Owned by the adapter. */
+  /** Opaque payload, owned by the adapter. */
   readonly content: T
-  /** User-set display name. Absent/null = the adapter's default name
-   *  (the TAB is the "group"; every leaf
-   *  inside carries its own name, tab-title naming-flow style). */
+  /** User-set name; absent/null = the adapter's default. */
   readonly title?: string | null
 }
 
@@ -46,16 +38,12 @@ export interface SplitState<T> {
   readonly nextOrdinal: number
 }
 
-/** FALLBACK max group-nesting depth, used only when the caller cannot
- *  supply the active leaf's rendered size (tests, headless). With a real
- *  size, `splitFits` replaces this entirely: how deep you can nest is
- *  decided by the screen, not a fixed count. */
+/** Nesting-depth cap used only without a rendered size (tests, headless);
+ *  otherwise `splitFits` decides. */
 export const MAX_SPLIT_DEPTH = 4
 
-/** Minimum usable pane size in cells. A split whose predicted panes would
- *  fall below this is rejected — the caller keeps its fallback (chord
- *  no-ops, pane-open falls back to a tab). The cols floor matches the
- *  render clamp in `use-terminal-geometry`; rows sits above its 4-row
+/** Minimum pane size in cells; smaller predicted splits are rejected. Cols
+ *  matches `use-terminal-geometry`'s render clamp; rows sits above its 4-row
  *  clamp so a pane never renders pinned at the degenerate minimum. */
 export const MIN_PANE_COLS = 20
 export const MIN_PANE_ROWS = 6
@@ -64,9 +52,8 @@ function depth<T>(node: SplitNode<T>): number {
   return node.kind === "leaf" ? 0 : 1 + Math.max(...node.children.map(depth))
 }
 
-/** Same-orientation direct-sibling count of the active leaf — mirrors
- *  `splitActive`'s insert rule: only a leaf sitting directly in a group of
- *  the requested orientation gains a sibling; anywhere else it nests (1). */
+/** Active leaf's direct-sibling count in a same-orientation group (else 1,
+ *  it nests) — must mirror `splitActive`'s insert rule. */
 function siblingCount<T>(root: SplitNode<T>, id: string, orientation: "row" | "column"): number {
   const find = (node: SplitNode<T>): number | null => {
     if (node.kind === "leaf") return null
@@ -83,13 +70,11 @@ function siblingCount<T>(root: SplitNode<T>, id: string, orientation: "row" | "c
 }
 
 /**
- * Whether splitting the active leaf leaves every resulting pane at or above
- * `MIN_PANE_COLS`×`MIN_PANE_ROWS`, judged from the active leaf's CURRENT
- * rendered size. Even-flex prediction: a sibling insert re-divides the
- * group's extent (≈ n × the active leaf's, all children `flexGrow=1
- * flexBasis=0`) among n+1 children; a nesting split halves the leaf. One
- * cell is charged for the new divider edge. Existing siblings shrink to the
- * same predicted extent, so checking it covers them too.
+ * Whether splitting keeps every pane ≥ `MIN_PANE_COLS`×`MIN_PANE_ROWS`,
+ * from the active leaf's current size. Even-flex prediction (children are
+ * `flexGrow=1 flexBasis=0`): a sibling insert divides ≈ n × the leaf's
+ * extent among n+1; a nest halves it; one cell goes to the divider. Siblings
+ * shrink to the same extent, so this covers them too.
  */
 export function splitFits<T>(
   state: SplitState<T>,
@@ -113,16 +98,8 @@ export function leaves<T>(node: SplitNode<T>): readonly SplitLeaf<T>[] {
 }
 
 /**
- * Split the active leaf: insert a new leaf showing `content` after it,
- * laid out by `orientation`, and focus the new leaf (tmux focuses the
- * split it just created). Inside a group of the same orientation the
- * new leaf becomes a sibling; otherwise the active leaf is replaced by
- * a nested group of the two — exactly tmux's nesting behavior.
- *
- * Gating: with `activeSize` (the active leaf's current rendered cells) the
- * split is a no-op when `splitFits` predicts a pane below the minimum —
- * screen size decides, not nesting count. Without it (tests, headless) the
- * `MAX_SPLIT_DEPTH` fallback applies.
+ * Insert a leaf after the active one and focus it (as tmux does). No-op when
+ * `splitFits` rejects `activeSize`, or, without a size, past `MAX_SPLIT_DEPTH`.
  */
 export function splitActive<T>(
   state: SplitState<T>,
@@ -152,13 +129,9 @@ export function splitActive<T>(
 }
 
 /**
- * Remove a leaf (its content finished, tmux-style auto-close): 1-child
- * groups collapse into their parent so the tree never holds degenerate
- * groups. Returns `null` when `id` is the last leaf — the CALLER owns
- * what happens then (e.g. the terminal tab's own exit behavior). When the
- * removed leaf held focus, focus moves to the previous leaf in reading
- * order — or the next one when the FIRST leaf was the one removed (there
- * is no previous), never to the just-pruned id.
+ * Remove a leaf, collapsing 1-child groups. `null` when it's the last leaf —
+ * the caller decides what then. Focus on the removed leaf moves to the
+ * previous leaf in reading order (the next, if it was first).
  */
 export function removeLeaf<T>(state: SplitState<T>, id: string): SplitState<T> | null {
   const all = leaves(state.root)
@@ -174,20 +147,14 @@ export function removeLeaf<T>(state: SplitState<T>, id: string): SplitState<T> |
   if (root === null) return null // unreachable behind the length guard; keeps prune's type honest
   if (leaves(root).length === all.length) return state // id not present — no-op
   const order = all.map((l) => l.id)
-  // `order` is the reading order BEFORE removal, so `order[removedIdx]` is the
-  // leaf being pruned. Step to the previous surviving leaf; when the first leaf
-  // (index 0) was removed there is no previous, so take the next one — never the
-  // just-pruned id. `all.length >= 2` (length guard) means index 1 always exists.
+  // `order` is pre-removal; the length guard guarantees index 1 exists.
   const removedIdx = order.indexOf(id)
   const fallback = order[removedIdx > 0 ? removedIdx - 1 : removedIdx + 1]
   const activeLeafId = state.activeLeafId === id ? fallback : state.activeLeafId
   return { ...state, root, activeLeafId }
 }
 
-/**
- * Rename a leaf — empty/whitespace titles clear back to the adapter's
- * default name, same semantics as `renameActiveTab`. Unknown ids no-op.
- */
+/** Rename a leaf; blank clears to the default (as `renameActiveTab`). Unknown ids no-op. */
 export function renameLeaf<T>(state: SplitState<T>, id: string, title: string): SplitState<T> {
   const trimmed = title.trim()
   const next = trimmed.length > 0 ? trimmed : null

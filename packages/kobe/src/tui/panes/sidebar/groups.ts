@@ -1,25 +1,11 @@
 /**
- * Pure list-shaping helpers for the sidebar pane.
+ * Pure list-shaping helpers for the sidebar pane. Selected-task repo/branch
+ * metadata lives in the topbar, not here.
  *
- * The sidebar is a flat list of task rows showing the working set only.
- * Repo / branch / worktree metadata for the SELECTED task is shown in the
- * topbar instead — see `src/tui/component/topbar.tsx`.
- *
- * No grouping = no per-project headers in the row list. {@link buildRows}
- * returns a filtered, ordered task list with each row's `flatIndex` so the
- * renderer can compare cursor positions without recounting.
- *
- * The renderer (`Sidebar.tsx`) draws this single ordered list as TWO flat
- * sections: the `main` (repo-root) rows come first — rendered as a compact
- * PROJECTS list — then a divider, then every non-main row as the flat TASKS
- * list. This is NOT per-project grouping: a task is not nested under its
- * repo, it just lives in the one shared tasks section. Because `buildRows`
- * already emits all `main` rows before any task row, the renderer only needs
- * the index of the first non-main row to place the divider.
- *
- * No reactivity here: pure functions over `readonly Task[]`. The Sidebar
- * component memoizes them so they recompute only when the upstream task
- * list changes.
+ * {@link buildRows} emits one flat ordered list (no per-project nesting);
+ * the renderer draws it as two sections, PROJECTS (`main` rows) then TASKS.
+ * Because every `main` row precedes every task row, the divider sits at the
+ * first non-main index.
  */
 
 import { reconcileStableRows } from "@/tui/lib/stable-rows"
@@ -28,21 +14,13 @@ import { pathIdentity, pathSyntax } from "@sma1lboy/kobe-daemon/path-identity"
 import { fuzzyMatch } from "./fuzzy"
 
 /**
- * How the sidebar orders tasks inside a project group.
- *
- * `attention` is the "who needs me" order — blocked rows first, then unread
- * completions, then the rest. Its comparator lives in `row-view.ts` with the
- * attention-state list it reads (`compareAttention`); this module cannot own
- * it because `row-view.ts` already imports from here.
+ * `attention` ranks by derived task group (what needs a person next). Its
+ * comparator (`compareTaskGroup`) lives in `task-group-view.ts`, which
+ * imports this module, so it can't live here.
  */
 export type TaskSortMode = "default" | "recent" | "attention"
 
-/**
- * One visible row in the sidebar body. Wave 4.5 collapsed the row union
- * to just `task` — repo headers were dropped. The shape is preserved as
- * a discriminated union so future row types (e.g. a "loading…"
- * placeholder, separator) can be added without rewriting the renderer.
- */
+/** One visible sidebar row; kept a discriminated union so new row kinds slot in. */
 export type SidebarRow = { kind: "task"; task: Task; flatIndex: number }
 export type SidebarProjectOption = { repo: string; label: string; count: number }
 export type SidebarRowSections = {
@@ -51,37 +29,16 @@ export type SidebarRowSections = {
 }
 
 /**
- * Build the flat row list for rendering. Each task row carries its
- * `flatIndex` — its position in the navigable id list — so the renderer
- * can compare against the cursor without recounting.
+ * Flat row list; `flatIndex` is the row's position in the navigable id list.
  *
- * Row order:
- *   1. Pinned "main" tasks first, in stored order.
- *   2. User-pinned regular tasks (`pinned === true`), in input order.
- *   3. Other regular tasks (`kind === "task"`), in input order.
+ * Order: `main` rows (stored order, one per repo), then `pinned` tasks, then
+ * the rest — a stable partition, not a sort, because regular-task order is
+ * the orchestrator's (ULID/createdAt) and a sort would scramble it.
  *
- * `searchQuery` — optional case-insensitive subsequence filter applied
- * before grouping. Haystack per task is `title + " " + basename(repo)`.
- * Empty / undefined query is a no-op. Search preserves the main → pinned
- * → regular ordering so users filtering inside a long list still see the
- * same predictable shape.
- *
- * `projectFilter` scopes BOTH sections to the one repo:
- * the filter label lives on the PROJECTS header, so the PROJECTS list must
- * agree with it — main rows outside the filtered repo are hidden along with
- * their tasks.
- *
- * Why two passes rather than a single sort: the regular-task ordering
- * is owned by the orchestrator (createdAt-derived ULID order), and
- * sorting both groups together would scramble it. A stable partition
- * preserves the regular tasks' original order.
- *
- * Empty input returns an empty array. The caller (`Sidebar.tsx`)
- * handles the empty-state placeholder separately; we don't emit a
- * synthetic header for that.
- *
- * Pure: no framework, no opentui. Component code calls this inside a memo;
- * tests call it directly.
+ * `searchQuery`: case-insensitive subsequence filter over
+ * `title + " " + basename(repo)`, applied before partitioning.
+ * `projectFilter` scopes BOTH sections: the filter label sits on the PROJECTS
+ * header, so out-of-scope main rows hide too.
  */
 export function buildRows(
   tasks: readonly Task[],
@@ -109,11 +66,8 @@ export function buildRows(
     if (t.pinned === true) pinnedRegular.push(t)
     else regular.push(t)
   }
-  // Projects keep their STORED order: tasks.json order =
-  // save order, so a newly-added repo lands at the end and the list never
-  // reshuffles on its own. Manual reordering goes through move mode
-  // (`moveTask` covers main rows within the projects partition). `recent`
-  // sort still only affects the task groups — projects sit tight.
+  // Projects keep tasks.json (save) order so the list never reshuffles on its
+  // own; `recent` only sorts tasks. Manual reorder goes through `moveTask`.
   if (sortMode === "recent") {
     pinnedRegular.sort(compareRecent)
     regular.sort(compareRecent)
@@ -148,30 +102,18 @@ function taskTime(task: Task): number {
 }
 
 /**
- * Repo basename. Strips a trailing slash before taking the last
- * segment so `/Users/x/kobe/` and `/Users/x/kobe` land on the same
- * label. Empty input yields an empty string.
- *
- * Exported for the Sidebar's row renderer — main tasks display this
- * as the title (instead of `task.title`, which is a stored copy that
- * could drift if the user renamed the directory). Pure / framework-free.
+ * Repo basename; a trailing slash doesn't change it. Main rows show this
+ * instead of `task.title`, a stored copy that drifts if the dir is renamed.
  */
 export function repoBasename(repo: string): string {
   return pathSyntax(repo).basename(repo) || repo
 }
 
 /**
- * The identity of a project row.
- *
- * A path alone is NOT an identity once more than one machine is connected:
- * `~/i/kobe` exists on the laptop and on the build box, and keying on the path
- * merged the two into one row whose tasks came from both. So the key is
- * `machineId + NUL + pathIdentity(repo)`, with the local machine's id fixed at
- * `"local"`.
- *
- * `machineId` is OPTIONAL and defaults to `"local"`, which is what keeps the
- * zero-machine install byte-identical: every existing caller passes one
- * argument and gets exactly the string it got before.
+ * Project row identity: `machineId + NUL + pathIdentity(repo)`. A path alone
+ * would merge the same `~/i/kobe` on two machines into one row.
+ * The local machine (`"local"`, the default) gets the bare path, so
+ * single-machine keys are unchanged.
  */
 export function sidebarProjectKey(repo: string, machineId = "local"): string {
   const path = pathIdentity(repo.trim()) || repo
@@ -190,28 +132,17 @@ export interface LabelledRepo {
 }
 
 /**
- * What a project header is CALLED.
+ * Narrowest project header label that is unique on screen:
  *
- * Narrowest label that still tells this project apart from every other one on
- * screen, resolved in that order:
+ *   1. basename unique → `kobe`;
+ *   2. shared on the SAME machine → last two segments (`gihub/kobe`), since
+ *      the host name wouldn't distinguish them;
+ *   3. shared only with another MACHINE → `host:basename` (`narwhal:kobe`);
+ *      the local machine (no host label) keeps the bare name.
  *
- *   1. nothing else shares the basename → the bare basename (`kobe`);
- *   2. something on the SAME machine shares it → the last two path segments
- *      (`gihub/kobe` vs `i/kobe`), because on one machine the path is what
- *      differs and the machine name would say nothing;
- *   3. only another MACHINE shares it → `host:basename` (`narwhal:kobe`).
- *      The local machine keeps the bare name: it is the one you are sitting
- *      at, and prefixing it makes the common case pay for the rare one.
- *
- * Step 2 runs before step 3 on purpose. Two checkouts of `kobe` on one remote
- * machine both answered `narwhal:kobe` when the machine test came first — two
- * headers reading as one project, which is the whole failure this function
- * exists to prevent. When a same-machine tail is ITSELF ambiguous across
- * machines, the host still goes in front of it.
- *
- * `repos` may be plain strings (every pre-machines caller) or
- * {@link LabelledRepo}s. With no host labels anywhere the function is exactly
- * the two-tier rule it always was.
+ * Step 2 must precede 3: otherwise two checkouts on one remote machine both
+ * read `narwhal:kobe`. A tail that also repeats across machines still gets
+ * the host prefix. `repos` may be plain strings or {@link LabelledRepo}s.
  */
 export function sidebarProjectLabel(
   repo: string,
@@ -244,8 +175,7 @@ function pathTail(repo: string): string {
 export function buildProjectOptions(tasks: readonly Task[]): SidebarProjectOption[] {
   const byKey = new Map<string, { repo: string; count: number }>()
   for (const task of tasks) {
-    // A standalone `dir` task has no project — it must not mint a
-    // phantom entry in the project-filter list.
+    // A `dir` task has no project; don't mint a phantom filter entry.
     if (task.kind === "dir") continue
     const key = sidebarProjectKey(task.repo)
     const next = byKey.get(key) ?? { repo: task.repo, count: 0 }
@@ -276,21 +206,16 @@ export function cursorIndexForProjectScope(rows: readonly SidebarRow[], projectF
 }
 
 /**
- * Where the cursor should sit after the external selection or the flat id list
- * changed — the single owner of the "follow selection / clamp into range"
- * policy. Returns the TARGET index (may equal
- * `cursor`, i.e. leave it put). Pure, so the edge cases that keep biting —
- * selection cleared, selected task vanished from another surface and the list
- * shrank, cursor left dangling past a shortened list — are unit-tested instead
- * of hand-traced. `cursor` is the current index (-1 when unset).
+ * Target cursor index after the selection or flat id list changed — sole
+ * owner of the "follow selection / clamp into range" policy. `cursor` is -1
+ * when unset.
  *
- *  - `selectedId === null`: keep the cursor in place; snap an unset cursor (-1)
- *    to the first row, and clamp an out-of-range cursor down to the last row.
- *    (Empty list: -1 only when the cursor was already unset — a stray cursor >= 0
- *    resolves to 0 here, which the view-switch reset then corrects.)
+ *  - `selectedId === null`: keep the cursor; unset (-1) snaps to row 0,
+ *    out-of-range clamps to the last row. (Empty list: a stray cursor >= 0
+ *    resolves to 0; the view-switch reset corrects it.)
  *  - selected row present: follow it.
- *  - selected row absent: leave the cursor put if still in range, else clamp to
- *    the last row (or -1 on an empty list).
+ *  - selected row absent: keep the cursor if in range, else the last row
+ *    (-1 on an empty list).
  */
 export function resolveCursorTarget(selectedId: string | null, flatIds: readonly string[], cursor: number): number {
   const len = flatIds.length
@@ -308,11 +233,8 @@ export function resolveCursorTarget(selectedId: string | null, flatIds: readonly
 }
 
 /**
- * Split the already-ordered flat row list into the two rendered sections.
- *
- * The flat list remains the keyboard-navigation source of truth; this helper
- * is only a render partition so PROJECTS and TASKS can own independent
- * scrollboxes without changing cursor indexes or row identity.
+ * Render-only partition so PROJECTS and TASKS get separate scrollboxes; the
+ * flat list stays the navigation source of truth (indexes, identity unchanged).
  */
 export function splitSidebarRows(rows: readonly SidebarRow[]): SidebarRowSections {
   const projectRows: SidebarRow[] = []
@@ -325,21 +247,14 @@ export function splitSidebarRows(rows: readonly SidebarRow[]): SidebarRowSection
 }
 
 /**
- * Field-level equality over exactly the Task fields the sidebar row
- * renderer dereferences from its captured `row.task` (Sidebar.tsx reads
- * the task NON-reactively inside the `<For>` callback, so a reused row
- * object freezes these fields until identity breaks).
+ * Equality over exactly the Task fields a sidebar row renders. The row reads
+ * its captured task non-reactively, so a reused row freezes these fields —
+ * a new rendered field MUST be added here or it renders stale.
  *
- * Deliberately excludes `createdAt` / `updatedAt` / `prStatus`: none are
- * rendered by a row, and `updatedAt` is bumped by every
- * `setActiveTask` recency touch — comparing it would re-key (destroy +
- * recreate) the switched-to row on every task switch for no visual
- * change. They still participate upstream: `buildRows` consumes
- * `updatedAt` for `recent` ordering BEFORE reconciliation, and a real
+ * Excludes `createdAt`/`updatedAt`/`prStatus`: unrendered, and `updatedAt`
+ * bumps on every `setActiveTask` touch, which would re-key the row on each
+ * switch. `recent` ordering still sees `updatedAt` (in `buildRows`), and an
  * order change breaks reuse via `flatIndex`.
- *
- * If the row renderer starts reading a new Task field, add it here —
- * otherwise the row will render stale data after that field changes.
  */
 export function sameSidebarRowTask(a: Task, b: Task): boolean {
   return (
@@ -357,30 +272,18 @@ export function sameSidebarRowTask(a: Task, b: Task): boolean {
 }
 
 /**
- * Reconcile a freshly built sidebar row list against the previous one,
- * preserving object identity for rows whose rendered fields are
- * unchanged (docs/DESIGN.md §5.5 — the long-lived-pane rule).
+ * Keep object identity for rows whose rendered fields are unchanged
+ * (docs/DESIGN.md §5.5, long-lived-pane rule). Every `task.snapshot` push
+ * deserializes all-new Tasks; lists key by identity, so without this each
+ * push recreates every row's renderables, and @opentui/core 0.2.4 retains
+ * ~300B native memory per create/destroy — unbounded over a days-long pane.
  *
- * Why: every daemon `task.snapshot` push deserializes ALL-new Task
- * objects, so `buildRows` produces all-new `SidebarRow` wrappers even
- * when nothing the row renders changed (the common case: a
- * `setActiveTask` recency touch echoing back). List rendering keys by
- * object identity, so without reconciliation each push destroys and
- * recreates every row's opentui renderables — and @opentui/core 0.2.4
- * retains ~300B of native memory per renderable create/destroy cycle.
- * A Tasks pane lives for days in every tmux session; task switches
- * happen constantly; multiply and that's unbounded native growth
- * (same class as the Ops-pane filetree leak, `filetree/rows.ts`).
- *
- * Contract (mirrors `reconcileRows` in filetree):
- * - A `next` row whose task id exists in `prev` at the SAME flatIndex
- *   with {@link sameSidebarRowTask}-equal task fields → the PREV row
- *   object is returned in its place (so `<For>` reuses renderables).
- *   flatIndex must match because the renderer captures it non-reactively
- *   too (cursor compare + section-header placement).
- * - When every position resolves to its previous object, the `prev`
- *   ARRAY itself is returned, so a memo holding the result keeps its
- *   value identity and notifies nobody downstream.
+ * Contract (mirrors filetree `reconcileRows`):
+ * - same task id at the SAME flatIndex with {@link sameSidebarRowTask}-equal
+ *   fields → the prev row object (flatIndex must match: the renderer
+ *   captures it non-reactively for cursor compare + divider placement);
+ * - all positions reused → the `prev` ARRAY itself, so downstream memos
+ *   don't fire.
  */
 export function reconcileSidebarRows(prev: readonly SidebarRow[], next: readonly SidebarRow[]): readonly SidebarRow[] {
   return reconcileStableRows(

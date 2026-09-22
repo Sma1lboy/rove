@@ -1,24 +1,13 @@
 /**
- * Terminal pane process abstraction.
+ * Terminal pane backends (`KOBE_TERMINAL_BACKEND`):
+ *   - `hosted` (default, `pty-hosted.ts`): PTY lives in the standalone pty-host,
+ *     so a session survives TUI exits AND daemon restarts, with scrollback.
+ *   - `bun-pty`: Bun's native PTY in the TUI process.
+ *   - `pipe`: for old Bun builds / unsupported platforms; no emulator, parsed via `sgr.ts`.
  *
- * kobe deliberately does NOT use tmux here anymore. The default backend
- * (`HostedTaskPty`, `pty-hosted.ts`) keeps the raw PTY in the standalone
- * `kobe pty-host` process so an engine session survives TUI exits AND
- * daemon restarts, reattaching with scrollback; `BunTerminalTaskPty`
- * below is the local fallback using Bun's native PTY support
- * (`Bun.spawn(..., { terminal })`) directly in the TUI process.
- *
- * Both feed a headless xterm emulator that turns terminal control bytes
- * into a stable screen buffer for opentui to render — that shared half
- * lives in `pty-xterm-base.ts`. xterm's authoritative cell grid renders
- * DIRECTLY into opentui-ready style runs (`Chunk[]` per row); we do not
- * re-serialize cells back to ANSI and re-parse them. (The old
- * cell→ANSI→reparse round-trip was where every render bug lived.)
- *
- * A pipe backend remains available through `KOBE_TERMINAL_BACKEND=pipe`
- * as a fallback for old Bun builds or unsupported platforms. It has no
- * emulator, so it still parses its raw byte buffer via `sgr.ts` into the
- * same `Chunk[]` rows.
+ * The PTY backends feed headless xterm (`pty-xterm-base.ts`), whose cell grid
+ * renders DIRECTLY to `Chunk[]` rows. Never re-serialize cells to ANSI and
+ * re-parse: that round-trip is where render bugs lived.
  */
 
 import { embeddedTerminalEnv } from "@sma1lboy/kobe-daemon/daemon/pty-env"
@@ -37,9 +26,7 @@ export type {
   TerminalSnapshotWindow,
 } from "./pty-types"
 
-/* --------------------------------------------------------------------- */
-/*  Bun PTY backend (local child — dies with the TUI process)             */
-/* --------------------------------------------------------------------- */
+/* Bun PTY backend: a local child that dies with the TUI process. */
 
 export class BunTerminalTaskPty extends XtermTaskPty {
   private readonly proc: ReturnType<typeof Bun.spawn>
@@ -96,10 +83,6 @@ export class BunTerminalTaskPty extends XtermTaskPty {
     }
   }
 }
-
-/* --------------------------------------------------------------------- */
-/*  Backend selection                                                     */
-/* --------------------------------------------------------------------- */
 
 export function createTaskPty(opts: TaskPtyOpts): TaskPtyLike {
   const backend = process.env.KOBE_TERMINAL_BACKEND ?? "hosted"

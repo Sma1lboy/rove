@@ -24,11 +24,8 @@ export class MockTaskPty implements TaskPtyLike {
   private readonly titleListeners = new Set<(title: string) => void>()
   /** Pasted payloads, observable by tests. */
   readonly pastes: string[] = []
-  /**
-   * Scriptable corpse-attach flag (see `TaskPtyLike.deadOnAttach`): tests
-   * set it before `kill()` to simulate an engine that died while no TUI
-   * was attached, so exit consumers can assert the resume-vs-degrade path.
-   */
+  /** Set before `kill()` to simulate an engine that died while detached
+   *  (see `TaskPtyLike.deadOnAttach`). */
   deadOnAttach = false
   readonly wheels: { direction: "up" | "down"; col: number; row: number }[] = []
   readonly clicks: { kind: "down" | "up" | "drag"; button: number; col: number; row: number }[] = []
@@ -95,11 +92,7 @@ export class MockTaskPty implements TaskPtyLike {
     return this.modes
   }
 
-  /**
-   * Scripted full-screen repaint: replace the whole snapshot instead of
-   * appending — how an alternate-screen app (an engine tab) redraws after
-   * scrolling its own content.
-   */
+  /** Replace the whole snapshot, as an alternate-screen app redraws. */
   replaceScreen(data: string): void {
     if (this._killed) return
     this.buffer = ""

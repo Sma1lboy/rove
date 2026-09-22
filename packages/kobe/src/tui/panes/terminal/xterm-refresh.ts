@@ -10,13 +10,9 @@ import type { CursorPos, TerminalRow } from "./pty-types"
 import { type XtermLineLike, xtermLineMatchesChunks } from "./xterm-chunks"
 
 /**
- * Wire the two outbound xterm channels every backend needs:
- *   - the query-reply channel (`onData`): xterm's answers to the child's
- *     terminal queries (Primary DA `\x1b[c`, CPR `\x1b[6n`, DSR…) MUST flow
- *     back to the child's stdin — interactive engines probe the terminal on
- *     startup and fall onto broken redraw paths without the replies;
- *   - window-title tracking (`onTitleChange`, OSC 0/2): the tab strip shows
- *     the live foreground-process name instead of a static "shell".
+ * Wire xterm's outbound channels: query replies (`onData` — DA, CPR, DSR
+ * answers MUST reach the child's stdin, or engines probing at startup take
+ * broken redraw paths) and OSC 0/2 titles for the tab strip.
  */
 export function wireXtermChannels(
   term: XtermHeadless,
@@ -142,19 +138,12 @@ function sameMeta(a: SnapshotMeta, b: SnapshotMeta): boolean {
 }
 
 /**
- * The rebuild path's absolute-id view of frozen scrollback, handed to the
- * verify path so it can skip rows that provably cannot have changed.
- *
- * Why this is needed: a synchronized-output engine (DECSET 2026 — which is
- * what claude and codex actually emit) closes every frame with a refresh
- * event carrying no range, which lands here as `{kind:"all"}`. With dirty=ALL
- * the loop below has no range to narrow to, so it re-verified the ENTIRE
- * window — viewport plus up to `scrollbackRows` frozen rows — on every single
- * refresh, both when the frame changed and when it didn't. At the default
- * 1000-row scrollback that measured 0.63ms per refresh proving nothing had
- * changed (3.9% of a core against the 62.5Hz coalesce cap), and it is paid
- * BEFORE reaching the viewport rows that actually differ, so streaming frames
- * pay it too.
+ * The rebuild path's absolute-id view of frozen scrollback, letting verify
+ * skip rows that provably can't have changed. Synchronized-output engines
+ * (DECSET 2026: claude, codex) end every frame with a rangeless refresh
+ * (`{kind:"all"}`), so without this verify walks the whole window each
+ * refresh — measured 0.63ms at 1000-row scrollback (3.9% of a core at the
+ * 62.5Hz cap), paid before reaching the rows that actually differ.
  */
 export interface FrozenScrollback {
   /** Rows below this index have scrolled out of the viewport. */
@@ -187,19 +176,11 @@ export function dirtyRowsMatchSnapshot(
   for (let y = first; y <= last; y++) {
     const row = snapshot[y - currentMeta.start]
     if (!row) return false
-    // xterm never edits a line that has scrolled out of the viewport — it
-    // only trims from the top or appends at the bottom. So a frozen row the
-    // rebuild path already cached under its ABSOLUTE line id cannot have
-    // changed in place, and re-deriving it from the buffer is pure waste.
-    //
-    // The identity compare is what keeps this sound across a shift: in a
-    // saturated buffer `baseY`/`length`/`start` all stay constant while
-    // content scrolls, so `sameMeta` above cannot see the move. But the
-    // absolute id -> snapshot index mapping DOES move, so `cache.get()`
-    // returns some other row (or nothing) and the compare fails, dropping us
-    // into the full rebuild that re-derives the shifted window. That is the
-    // same anchor the rebuild loop trusts, so the two paths agree by
-    // construction.
+    // xterm never edits a scrolled-out line (only trims top / appends), so a
+    // frozen row cached under its ABSOLUTE id can't have changed. The
+    // identity compare keeps this sound across a shift `sameMeta` can't see
+    // (saturated buffer: meta constant while content scrolls): the id →
+    // index mapping moves, the compare fails, and we fall to full rebuild.
     if (frozen && y < frozen.baseY && frozen.cache.get(frozen.absBase + y) === row) continue
     const minLast = !cursorHidden && y === cursorY ? active.cursorX - 1 : -1
     if (!xtermLineMatchesChunks(active.getLine(y), row, minLast, styleRewrites)) return false

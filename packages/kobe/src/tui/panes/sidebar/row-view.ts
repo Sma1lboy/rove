@@ -13,82 +13,49 @@ export interface SidebarRowView {
   readonly titleText: string
   readonly subtitleText: string
   readonly loading: boolean
-  /**
-   * The row's status glyph. ONE vocabulary for project and task rows — a
-   * project-only glyph like `★` reads as a different kind of thing rather
-   * than a different state of the same thing.
-   */
+  /** Status glyph; one vocabulary for project and task rows (a project-only glyph reads as a different kind of thing). */
   readonly stateGlyph: string
   readonly tone: SidebarTone
-  /**
-   * The engine-owned frame set this row animates with while loading
-   * (registry `spinnerFrames`, braille fallback). Carried on the view so
-   * `withSpinnerFrame` needs no extra caller wiring.
-   */
+  /** Frames this row animates while loading; carried so `withSpinnerFrame` needs no caller wiring. */
   readonly spinnerFrames: readonly string[]
-  /**
-   * A daemon job (worktree add) is materialising this task — the subtitle
-   * renders the indeterminate sweep bar instead of the shimmer.
-   */
+  /** A daemon job (worktree add) is materialising the task: subtitle shows the sweep bar, not the shimmer. */
   readonly materializing: boolean
 }
 
-/**
- * TONE for the attention states, so a row whose engine needs a human keeps
- * its error colour even while something else makes it spin (a materializing
- * worktree) — `loading` otherwise paints every
- * such row `primary`.
- */
+/** Attention tone; beats `loading`'s `primary` so a spinning row that needs a human stays coloured. */
 function activityToneFor(state: TaskActivityState | undefined): SidebarTone | null {
   if (!ATTENTION_STATES.has(state)) return null
-  // A quota wall clears itself once the window rolls; a refused permission, a
-  // hard error and a dead process do not. Amber for the one that resolves on
-  // its own, red for the ones that stay broken until you act — the same split
-  // `tab-strip.tsx`'s `turnColor` and the Inbox's `itemColor` already draw, so
-  // one tab can no longer read red on the rail and amber two panes over.
+  // Amber for a quota wall (clears on its own), red for states that stay
+  // broken until you act — same split as `tab-strip.tsx` `turnColor` and the
+  // Inbox `itemColor`, so one tab reads the same colour everywhere.
   return state === "rate_limited" ? "warning" : "error"
 }
 
-/** Neutral fallback frames — kept under the historical name for existing consumers/tests. */
+/** Alias of the default frames for existing consumers/tests. */
 export const IN_PROGRESS_SPINNER: readonly string[] = DEFAULT_SPINNER_FRAMES
 
 export const SPINNER_FRAME_MS = 100
 
 /**
- * Cycle length for the shared 10Hz frame counter. Engine frame sets have
- * different lengths (braille 10, claude's star oscillation 12); the counter
- * ticks over a common multiple and each row reduces modulo its own set, so
- * every set loops seamlessly. 600 covers every divisor we'd plausibly ship
- * (8/10/12/15/20/24/25).
+ * Shared 10Hz counter cycle: a common multiple of every frame-set length
+ * (8/10/12/15/20/24/25), so each row's `% frames.length` loops seamlessly.
  */
 export const SPINNER_TICK_CYCLE = 600
 
-/**
- * How long a row stays emphasized after its turn lands. Lives here with the
- * other state-glyph timings because BOTH surfaces that flash use it — the
- * workspace tab strip and the sidebar's tab rows — and two independently
- * chosen durations would make one landing cue look like two events.
- */
+/** Post-turn emphasis; shared by the tab strip and sidebar tab rows so one landing reads as one event. */
 export const DONE_PULSE_MS = 600
 
 /**
- * The rail speaks FOUR states, and the reader acts on exactly one of them:
+ * The rail's four states; only `!` asks the reader to act:
  *
  *   spinner  working
- *   `!`      needs you — permission, rate limit, error, dead engine,
- *            failed deletion. Which one is the tab's job to say; the rail
- *            only has to make you open it.
+ *   `!`      needs you (permission, rate limit, error, dead engine, failed
+ *            deletion) — the tab says which
  *   `●`      a turn finished and you have not looked
- *   `○`      quiet — idle, unobserved, a shell tab, a custom engine with no
- *            tracking. Every one of those means "nothing to do here".
+ *   `○`      quiet (idle, unobserved, shell tab, untracked custom engine)
  *
- * Two glyphs per row used to distinguish `◷` from `?` from `×` from `†`, and
- * `·` from `○`; the sidebar read like a legend. None of those splits changed
- * what the reader did next.
- *
- * `!` and `○` are ASCII / Latin-1 — one cell in every monospace font, the
- * same rule that ruled out `◌` (U+25CC, oversized fallback) and `✕` (U+2715,
- * dingbat block).
+ * `!` and `○` are one cell in every monospace font; `◌` (U+25CC, oversized
+ * fallback) and `✕` (U+2715, dingbat block) are not.
  */
 export const NO_STATE_GLYPH = "○"
 export const ATTENTION_GLYPH = "!"
@@ -100,33 +67,23 @@ const ATTENTION_STATES: ReadonlySet<TaskActivityState | undefined> = new Set([
   "dead",
 ])
 
-/** Whether this activity is one the rail marks `!` — the row is stopped and
- *  stays stopped until somebody acts. Exported so renderers can ask the
- *  question without re-listing the states (the tab row's age chip does). */
+/** Whether the rail marks this `!` (stopped until somebody acts); lets renderers skip re-listing the states. */
 export function isAttentionActivity(state: TaskActivityState | undefined): boolean {
   return ATTENTION_STATES.has(state)
 }
 
-// The `attention` sort mode's comparator lives in `task-group-view.ts`: it
-// ranks by the DERIVED task group, which reads the worker's report and the PR
-// observation as well as engine activity, and this module must not import the
-// group derivation (the group's glyph vocabulary is defined in terms of the
-// constants here, so the dependency runs the other way).
+// The `attention` comparator lives in `task-group-view.ts`: it ranks by the
+// derived task group, whose glyphs are defined from the constants here, so
+// the import must run that way.
 
-/**
- * Muted subtitle shown when a custom-engine task has nothing else to say.
- * Called at render time so `t()` is reactive.
- */
+/** Called at render time so `t()` is reactive. */
 function noTrackingSubtitle(): string {
   return t("tasks.subtitle.noTracking")
 }
 
 /**
- * Subtitle word while a long daemon job runs for the task (today: the
- * `ensureWorktree` `git worktree add`, minute-class on a huge repo). The
- * word + spinner replace the branch — there IS no branch on disk yet while
- * the worktree materialises, so "materializing" is the honest row state.
- * Called at render time so `t()` is reactive.
+ * Replaces the branch while `ensureWorktree` runs (minutes on a huge repo):
+ * no branch exists on disk yet. Called at render time so `t()` is reactive.
  */
 function materializingSubtitle(): string {
   return t("tasks.subtitle.materializing")
@@ -137,19 +94,16 @@ function deletionSubtitle(failed: boolean): string {
 }
 
 /**
- * True when this task runs on a user-added (custom) engine, which has no
- * transcript store for the activity monitor to read — so liveness simply
- * isn't tracked. A missing vendor normalizes to the built-in default
- * ({@link DEFAULT_TASK_VENDOR}), so `undefined` is NOT custom. `main` tasks
- * never carry a real engine session, so they're excluded.
+ * Custom engines have no transcript for the activity monitor, so liveness
+ * isn't tracked. `undefined` vendor means the built-in default
+ * ({@link DEFAULT_TASK_VENDOR}), not custom; `main` rows have no session.
  */
 function isCustomEngineTask(task: Task): boolean {
   if (task.kind === "main") return false
   return task.vendor !== undefined && !isBuiltinVendor(task.vendor)
 }
 
-/** The inputs that decide whether a row spins — the loading subset of
- *  `buildSidebarRowView`'s options. */
+/** The loading subset of `buildSidebarRowView`'s options. */
 export interface RowLoadingInputs {
   readonly task: Task
   readonly activity?: TaskEngineState
@@ -157,11 +111,9 @@ export interface RowLoadingInputs {
 }
 
 /**
- * Whether a single row is in its loading (spinning) state. THE source of the
- * `loading` decision — `buildSidebarRowView` calls this, so a pane-level
- * "does anything spin" check built on it can never drift from what the rows
- * actually render (a drift would freeze a genuinely-loading row's spinner,
- * which is worse than the idle CPU tax it saves). Pure.
+ * Sole source of the row `loading` decision (`buildSidebarRowView` calls it),
+ * so a spin check built on it can't drift from what rows render — a drift
+ * would freeze a genuinely-loading row's spinner.
  */
 export function rowIsLoading(opts: RowLoadingInputs): boolean {
   const { task } = opts
@@ -175,14 +127,9 @@ export function rowIsLoading(opts: RowLoadingInputs): boolean {
 }
 
 /**
- * Pane-level "is ANY visible row spinning" — the OR of `rowIsLoading` over a
- * task list.
- *
- * It has NO production caller. It was the O11 gate that suspended the
- * Sidebar's own 10Hz interval while every row was idle; `spinner-frame-store`
- * replaced that with per-row subscription, so the interval now starts and
- * stops on subscriber count and no pane-level question is asked. What remains
- * here is the pure function and the agreement test below it.
+ * OR of `rowIsLoading` over a task list. No production caller: the spinner
+ * interval runs on `spinner-frame-store` subscriber count; only its
+ * agreement test uses this.
  */
 export function anyRowLoading(
   tasks: readonly Task[],
@@ -207,51 +154,35 @@ export function buildSidebarRowView(opts: {
    *  subagent prefix ahead of the branch. */
   readonly lifecycle?: { readonly subagents: number }
   /**
-   * A long daemon operation in flight for this task, from the orchestrator's
-   * `task.jobs` map (today: `ensureWorktree`). Presence means "running" —
-   * the row spins with a "materializing" subtitle, in EVERY attached pane,
-   * for the whole minutes-long `git worktree add` on a huge repo. Outranks
-   * the other signals: the worktree doesn't exist yet, so engine activity /
-   * branch labels can't be more current than this.
+   * In-flight daemon job from `task.jobs` (e.g. `ensureWorktree`); presence
+   * means running, in every attached pane. Outranks other signals: the
+   * worktree doesn't exist yet.
    */
   readonly job?: TaskJobState
   readonly spinnerFrame: number
   readonly subtitleBudget: number
   readonly truncateBranch: (branch: string, budget: number) => string
-  /**
-   * The repo root's current branch, for a `main` (project) row — its
-   * `task.branch` is always `""`, so the sidebar resolves the checked-out
-   * branch separately and passes it here so a project's two-line card shows
-   * `main` / `feat/x` on line 2 like a task does.
-   */
+  /** Checked-out branch of a `main` row's repo root (its `task.branch` is always `""`). */
   readonly mainBranch?: string
   /**
-   * The "seen" bit: the user has selected this task since its current
-   * `turn_complete` fired, so the badge digests ● → ✓. Callers track it;
-   * absent means unseen.
+   * Selected since the current `turn_complete` fired; the `●` badge then
+   * drops back to quiet. Callers track it; absent means unseen.
    */
   readonly completionSeen?: boolean
 }): SidebarRowView {
   const { task } = opts
   const isMain = task.kind === "main"
-  // Regular tasks store their branch; a `main` row's branch lives in the repo
-  // root checkout, resolved by the caller and passed as `mainBranch`.
   const branch = isMain ? (opts.mainBranch ?? "") : task.branch
   const activityState = opts.activity?.state
   const hasActivity = activityState !== undefined
   const activityBadge = activityBadgeFor(activityState, opts.completionSeen === true)
   const activityTone = activityToneFor(activityState)
-  // A custom-engine task with no genuine activity signal has nothing to
-  // animate — the monitor can't read its transcript (monitor/activity.ts),
-  // so a spinner here would lie. Hook-driven words (rate limited / needs
-  // permission / error) are engine-agnostic, so if one DID fire we still
-  // honour it; we only fall back to the neutral affordance when there isn't
-  // one. `hasActivity` also covers `turn_complete` / `running` from hooks.
+  // No activity for a custom engine means untracked, not idle: a spinner
+  // would lie. Hook-driven states are engine-agnostic, so any that fired
+  // still count.
   const untrackedCustomEngine = isCustomEngineTask(task) && !hasActivity
-  // A daemon job in flight (worktree materialising) outranks everything,
-  // including the untracked-custom-engine fallback — the job signal is a
-  // genuine daemon-side liveness fact, not engine telemetry, so the spinner
-  // never lies here even for a custom engine.
+  // A daemon job outranks even that fallback: it's a daemon-side fact, not
+  // engine telemetry.
   const materializing = opts.job !== undefined
   const deleting = task.deletion?.phase === "queued" || task.deletion?.phase === "running"
   const deleteFailed = task.deletion?.phase === "error"
@@ -260,10 +191,7 @@ export function buildSidebarRowView(opts: {
     activity: opts.activity,
     job: opts.job,
   })
-  // One frame set for every engine (see `spinner-frames.ts`). It must stay
-  // visually distinct from the STATIC badge glyphs (`●` unseen-complete, `○`
-  // quiet): a spinner that borrows a badge glyph makes a RUNNING row read as
-  // a finished one.
+  // Frames must not reuse a badge glyph (`●`, `○`), or a running row reads as finished.
   const spinnerFrames = DEFAULT_SPINNER_FRAMES
   const spinner = spinnerFrames[opts.spinnerFrame % spinnerFrames.length] ?? spinnerFrames[0]
   const tone = deleteFailed
@@ -273,20 +201,13 @@ export function buildSidebarRowView(opts: {
       : untrackedCustomEngine
         ? "textMuted"
         : (activityTone ?? (loading ? "primary" : (activityBadge?.tone ?? "textMuted")))
-  // Subtitle priority: the deletion/materializing word while a daemon job
-  // runs (there is no branch on disk yet), then the branch, then — for an
-  // untracked custom engine with no branch — an explicit "no activity
-  // tracking" note so the row reads as un-tracked rather than stuck, then a
-  // neutral dash. Engine ACTIVITY does not appear here: its glyph carries it
-  // (see `activityToneFor`). Persisted task lifecycle belongs to the board,
-  // not this runtime-activity projection.
+  // Subtitle priority: deletion/materializing word, branch, "no tracking"
+  // (untracked custom engine, so it doesn't read as stuck), dash. Activity
+  // is carried by the glyph, not here; task lifecycle belongs to the board.
   const fallbackSubtitle = untrackedCustomEngine ? noTrackingSubtitle() : "—"
-  // Subagent activity rides as a compact `◇N` prefix ahead of the branch,
-  // and ONLY while the row is actually animating: every transient mark is
-  // subordinate to the spinner, so one whose end event never arrived can
-  // never caption a quiet row. There is deliberately NO compaction word at
-  // all — its end event is cancellable (esc during /compact), so it has no
-  // reliable clearing edge; compaction reads as the running animation.
+  // `◇N` subagent prefix only while spinning, so a mark whose end event never
+  // arrived can't caption a quiet row. No compaction word: its end event is
+  // cancellable (esc during /compact), so it has no reliable clearing edge.
   const subagents = loading ? (opts.lifecycle?.subagents ?? 0) : 0
   const branchWithMarks = subagents > 0 && branch.length > 0 ? `◇${subagents} ${branch}` : branch
   const subtitleText =
@@ -297,8 +218,7 @@ export function buildSidebarRowView(opts: {
         : branchWithMarks.length > 0
           ? opts.truncateBranch(branchWithMarks, opts.subtitleBudget)
           : opts.truncateBranch(fallbackSubtitle, opts.subtitleBudget)
-  // The client deliberately removes an explicit `idle` activity entry, so
-  // absence is the quiet projection.
+  // The client drops `idle` entries, so absence means quiet.
   const restGlyph = deleteFailed ? ATTENTION_GLYPH : (activityBadge?.glyph ?? NO_STATE_GLYPH)
   return {
     isMain,
@@ -313,14 +233,10 @@ export function buildSidebarRowView(opts: {
 }
 
 /**
- * Overlay the LIVE spinner frame onto a row view built with a fixed
- * `spinnerFrame: 0`. The frame is passed as an ACCESSOR and read only
- * when the row is actually loading — inside a memo that makes the
- * 10Hz frame signal a conditional dependency, so an idle row never
- * re-derives on the spinner tick (with N tasks and nothing running, the
- * tick has zero subscribers — no row rebuilds its view 10×/s). For a loading row this
- * reproduces exactly what `buildSidebarRowView` would have produced with
- * the live frame.
+ * Overlay the live frame onto a view built with `spinnerFrame: 0`. `frame` is
+ * an accessor read only when loading, so inside a memo the 10Hz tick is a
+ * conditional dependency and idle rows never re-derive. Output equals
+ * `buildSidebarRowView` with the live frame.
  */
 export function withSpinnerFrame(view: SidebarRowView, frame: () => number): SidebarRowView {
   if (!view.loading) return view
@@ -331,16 +247,9 @@ export function withSpinnerFrame(view: SidebarRowView, frame: () => number): Sid
 }
 
 /**
- * Attention badge: `!` needs a human, `●` turn done (not yet viewed), null
- * for quiet. `completionSeen` is the "seen" bit — and seen means
- * CONSUMED: a completion you have already looked at is simply over, so the
- * badge drops back to the quiet circle rather than lingering as a ✓ forever.
- *
- * The attention tone comes from {@link activityToneFor} rather than a second
- * `ATTENTION_STATES` lookup: two copies of the same test drifted apart the
- * moment one of them learned to tell a quota wall from a dead engine. The
- * GLYPH stays one `!` for all of them — which kind it is is the tab's job to
- * say, the rail only has to make you open it.
+ * `!` needs a human, `●` unseen completion, null quiet. A seen completion is
+ * consumed: back to quiet, no lingering ✓. Tone comes from
+ * {@link activityToneFor} so the attention test has one copy.
  */
 function activityBadgeFor(
   state: TaskActivityState | undefined,

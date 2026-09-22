@@ -1,29 +1,17 @@
 /**
- * Scratch-task adoption decision — pure. A scratch shell
- * earns a project home when TWO facts line up: its live cwd resolved to a
- * git repo, and a coding harness is confirmed running in it (the foreground
- * walk's verdict — the same confidence bar the tab identity uses; a mere
- * `cd` into a repo is browsing, not working).
+ * Pure scratch-task adoption decision over caller-canonicalized facts. A
+ * scratch shell earns a project home only when its cwd is in a git repo AND a
+ * coding harness is confirmed live (foreground walk; a bare `cd` is browsing).
+ * Then it de-dupes against existing tasks so no second row is minted:
  *
- * Once that bar is met, the decision de-dupes against tasks that already
- * exist, so migrating a shell parked in the kobe main checkout does not
- * mint a second sidebar row for the same directory:
- *
- *   1. cwd equal to or inside a MANAGED task's worktree → FOLD the shell
- *      into that task as a new terminal tab. Checked first because
- *      `resolveMainRepoRoot` maps a linked worktree to the MAIN checkout —
- *      the repo-root match below would misfold into the main task.
- *   2. cwd equal to a main/dir task's directory — or the repo root the
- *      adopt would pin equal to one (a shell in a SUBDIR of the main
- *      checkout adopts the root, which is the same duplicate) → FOLD.
- *      Main rows win over dir rows: the canonical project row absorbs.
- *   3. No owner: cwd inside a KNOWN repo → migrate the row into that
- *      project group, silently. An UNFAMILIAR repo → migrate + surface the
- *      save-as-project hint (about the savedRepos registry, not the move).
- *   4. No repo semantics, or no live harness → stay in Scratch.
- *
- * The caller supplies already-resolved, canonicalized facts; this module
- * only decides.
+ *   1. cwd at/inside a MANAGED task's worktree → FOLD into it as a tab.
+ *      Checked first: `resolveMainRepoRoot` maps a linked worktree to the
+ *      MAIN checkout, so rule 2 would misfold into the main task.
+ *   2. cwd, or the repo root adopt would pin (a subdir shell), equals a
+ *      main/dir task's directory → FOLD. Main rows win over dir rows.
+ *   3. No owner → adopt into the repo; an UNFAMILIAR repo also gets the
+ *      save-as-project hint (about savedRepos, not the move).
+ *   4. No repo, or no live harness → stay in Scratch.
  */
 
 import { pathWithin, samePath } from "@sma1lboy/kobe-daemon/path-identity"
@@ -39,14 +27,11 @@ export interface ScratchOwnerTask {
 export interface ScratchAdoptInput {
   /** The scratch shell's live cwd, canonicalized; null when unreadable. */
   readonly cwd: string | null
-  /** The cwd resolved to its repo MAIN root, or null when the cwd is not
-   *  inside a git work tree (or unreadable). */
+  /** The cwd's repo MAIN root; null outside a git work tree or unreadable. */
   readonly repoRoot: string | null
-  /** A coding harness is confirmed live under the shell (foreground walk). */
   readonly harnessLive: boolean
   /** Known project roots: savedRepos + every existing task's repo. */
   readonly knownRepos: ReadonlySet<string>
-  /** Candidate owners for the fold check. */
   readonly ownerTasks: readonly ScratchOwnerTask[]
 }
 
