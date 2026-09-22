@@ -3,15 +3,14 @@ import { ptyUrl } from "../src/lib/terminal.ts"
 
 /**
  * ptyUrl builds the PTY WebSocket URL — a bug here breaks every terminal tab.
- * The load-bearing bits: the `port + 2` sidecar convention, ws/wss by scheme,
- * and the query params xterm sends. Drive it by stubbing `location`.
+ * The load-bearing bits: same origin as the page (the proxy owns the port
+ * layout), ws/wss by scheme, and the query params xterm sends.
  */
 
 function withLocation(loc: Partial<Location>): void {
   vi.stubGlobal("location", {
     protocol: "http:",
-    hostname: "localhost",
-    port: "5173",
+    host: "localhost:5173",
     ...loc,
   })
 }
@@ -19,17 +18,15 @@ function withLocation(loc: Partial<Location>): void {
 afterEach(() => vi.unstubAllGlobals())
 
 describe("ptyUrl", () => {
-  it("targets the pty sidecar at port + 2 over ws on http", () => {
-    withLocation({ protocol: "http:", hostname: "localhost", port: "5173" })
+  it("dials the page's own origin over ws on http", () => {
+    withLocation({ protocol: "http:", host: "localhost:5173" })
     const url = ptyUrl("tab1", "task1", "engine", 80, 24)
-    expect(url.startsWith("ws://localhost:5175/pty?")).toBe(true)
+    expect(url.startsWith("ws://localhost:5173/pty?")).toBe(true)
   })
 
   it("uses wss on https", () => {
-    withLocation({ protocol: "https:", hostname: "kobe.local", port: "8443" })
-    expect(ptyUrl("t", "k", "shell", 80, 24)).toMatch(
-      /^wss:\/\/kobe\.local:8445\/pty\?/,
-    )
+    withLocation({ protocol: "https:", host: "kobe.local:8443" })
+    expect(ptyUrl("t", "k", "shell", 80, 24)).toMatch(/^wss:\/\/kobe\.local:8443\/pty\?/)
   })
 
   it("carries tab/taskId/mode/cols/rows as query params", () => {
