@@ -3,7 +3,7 @@ owner:
   kind: repo
   id: kobe
 domain: promo
-revision: 7
+revision: 8
 accepted:
   - id: cursor-block
     concept: "cursor block"
@@ -151,3 +151,15 @@ accepted:
     duration_seconds: 38.2
     checksum_sha256: bba25fbea074f6f662992df72ebcad9ef6da67f97f9187798b1f14c281b3ae54
     accepted_at: "2026-08-25"
+  - id: chaos-converge
+    concept: "chaos->converge 24s X-post demo: scattered agent terminals collapse into the five-pane TUI, real capture, wordmark outro (English captions)"
+    round: "gtm-x-week1 · r1"
+    modality: video
+    asset_type: promo-video
+    path: public/assets/video/chaos-converge.mp4
+    source: .studio/out/chaos-converge/out/chaos-converge.mp4
+    mime_type: video/mp4
+    size: [1920, 1080]
+    duration_seconds: 24.0
+    checksum_sha256: 2faf30593cad5af510f55b42532c713b58b37f00612257471d1dc99c69b23976
+    accepted_at: "2026-09-14"
