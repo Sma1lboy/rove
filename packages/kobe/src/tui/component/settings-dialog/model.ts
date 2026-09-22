@@ -271,8 +271,8 @@ export function devRows(hasDaemon: boolean): SettingsRow[] {
     { id: "dispatcher", kind: "devDispatcher" },
   ]
 }
+
 /** Keybindings shows only the prefix-tap rows (+ keys-create while the file is absent). */
- */
 export function sectionRows(section: SectionId, input: SettingsRowsInput): SettingsRow[] {
   switch (section) {
     case "general":
