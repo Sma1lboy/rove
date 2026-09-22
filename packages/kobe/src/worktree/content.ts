@@ -93,11 +93,22 @@ export async function runWorktreeGit(
  * Absolute path of `relPath` inside the Worktree, or `null` for invalid
  * relative paths (absolute / `..`-escaping). Exported for callers that hand
  * the file to something outside the read seam (e.g. the system viewer).
+ *
+ * The guard is separator-aware because the returned path feeds a filesystem
+ * read (`readWorktreeFile`, `worktreeFileSize`), and a LOCAL host on Windows
+ * treats `\` as a path separator just like `/`. So a leading `\` (a Windows
+ * root), a `drive:\`/`drive:/` prefix (a Windows absolute path), and a `..\`
+ * segment each escape the worktree there exactly as their `/` forms do on
+ * POSIX — and each has to be rejected, or the "relative, inside the worktree"
+ * contract only holds on one OS. The `..` check splits on BOTH separators;
+ * the result is still assembled from `/`-segments, so a POSIX filename that
+ * legitimately contains a `\` is passed through unchanged rather than split.
  */
 export function worktreeFilePath(worktreePath: string, relPath: string): string | null {
-  if (!worktreePath || !relPath || relPath.startsWith("/")) return null
+  if (!worktreePath || !relPath) return null
+  if (/^[/\\]/.test(relPath) || /^[a-zA-Z]:[/\\]/.test(relPath)) return null
+  if (relPath.split(/[/\\]/).some((part) => part === "..")) return null
   const parts = relPath.split("/")
-  if (parts.some((part) => part === "..")) return null
   return `${worktreePath.replace(/\/+$/, "")}/${parts.filter(Boolean).join("/")}`
 }
 
