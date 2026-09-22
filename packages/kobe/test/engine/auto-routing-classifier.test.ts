@@ -11,9 +11,10 @@
  *     one mode must not travel to the other, and a prompt must not leave over
  *     cleartext http to a host on the network.
  *
- * No network: `fetch` is injected. No ambient environment either — `env` is
- * passed in every case, so a machine with a real `TYPESAFE_API_KEY` exported
- * does not change what these assert.
+ * No network: `fetch` is injected. No ambient environment either — `env` AND
+ * `readSecret` are passed in every case, so neither a real
+ * `TYPESAFE_API_KEY` exported in the shell nor one stored in the operator's
+ * `~/.rove/secrets.json` changes what these assert.
  */
 
 import { describe, expect, it } from "vitest"
@@ -39,6 +40,16 @@ const config = (over: Partial<ClassifierConfig> = {}): ClassifierConfig => ({
 })
 
 const env = { TYPESAFE_API_KEY: "apikey_test" } as NodeJS.ProcessEnv
+
+/**
+ * Secret lookup, injected in EVERY case. The real one falls back to
+ * `~/.rove/secrets.json`, so a test asserting "no key" would otherwise pass
+ * or fail depending on whether the machine running it has a key stored.
+ */
+const secrets =
+  (stored?: string) =>
+  (name: string, e: NodeJS.ProcessEnv): string | undefined =>
+    e[name]?.trim() || stored
 
 /** A `fetch` that answers once with `body`, and records what it was asked. */
 function stubFetch(body: unknown, init: { status?: number; headers?: Record<string, string> } = {}) {
@@ -144,44 +155,68 @@ describe("readClassifierConfig", () => {
 describe("classifyTier — every failure is a decline", () => {
   it("sends nothing at all while the classifier is off", async () => {
     const { fn, calls } = stubFetch(choiceAnswer())
-    const out = await classifyTier("anything", config({ mode: { kind: "off" } }), { fetch: fn, env })
+    const out = await classifyTier("anything", config({ mode: { kind: "off" } }), {
+      fetch: fn,
+      env,
+      readSecret: secrets(),
+    })
     expect(out).toEqual({ kind: "declined", reason: "off" })
     expect(calls).toHaveLength(0)
   })
 
   it("sends nothing to a refused endpoint, and says why", async () => {
     const { fn, calls } = stubFetch({ tier: "swift", confidence: 0.9 })
-    const out = await classifyTier("x", config({ mode: { kind: "refused", why: "use https://" } }), { fetch: fn, env })
+    const out = await classifyTier("x", config({ mode: { kind: "refused", why: "use https://" } }), {
+      fetch: fn,
+      env,
+      readSecret: secrets(),
+    })
     expect(out).toEqual({ kind: "declined", reason: "refused", detail: "use https://" })
     expect(calls).toHaveLength(0)
   })
 
   it("declines blank text without a request", async () => {
     const { fn, calls } = stubFetch(choiceAnswer())
-    expect(await classifyTier("   \n ", config(), { fetch: fn, env })).toMatchObject({ reason: "blank" })
+    expect(await classifyTier("   \n ", config(), { fetch: fn, env, readSecret: secrets() })).toMatchObject({
+      reason: "blank",
+    })
     expect(calls).toHaveLength(0)
   })
 
   it("declines when no key is set, rather than calling unauthenticated", async () => {
     const { fn, calls } = stubFetch(choiceAnswer())
-    const out = await classifyTier("fix the flaky test", config(), { fetch: fn, env: {} })
+    const out = await classifyTier("fix the flaky test", config(), { fetch: fn, env: {}, readSecret: secrets() })
     expect(out).toMatchObject({ kind: "declined", reason: "no-key" })
     expect(calls).toHaveLength(0)
   })
 
+  it("uses a key from the secrets file when the environment has none", async () => {
+    // The stored key's whole reason for existing: a long-lived TUI cannot be
+    // handed an env var after it started, so `~/.rove/secrets.json` is the
+    // only way that process ever gets one.
+    const { fn, calls } = stubFetch(choiceAnswer())
+    const out = await classifyTier("x", config(), { fetch: fn, env: {}, readSecret: secrets("apikey_stored") })
+    expect(out).toMatchObject({ kind: "picked" })
+    expect(headersOf(calls[0]).authorization).toBe("Bearer apikey_stored")
+  })
+
   it("declines a non-2xx, a thrown fetch, and an answer that fails validation", async () => {
     const { fn: http500 } = stubFetch({}, { status: 500 })
-    expect(await classifyTier("x", config(), { fetch: http500, env })).toMatchObject({
+    expect(await classifyTier("x", config(), { fetch: http500, env, readSecret: secrets() })).toMatchObject({
       reason: "failed",
       detail: "HTTP 500",
     })
     const thrower = (async () => {
       throw new Error("ECONNREFUSED")
     }) as unknown as typeof globalThis.fetch
-    expect(await classifyTier("x", config(), { fetch: thrower, env })).toMatchObject({ reason: "failed" })
+    expect(await classifyTier("x", config(), { fetch: thrower, env, readSecret: secrets() })).toMatchObject({
+      reason: "failed",
+    })
 
     const { fn: garbage } = stubFetch({ answers: { verdict: { choice: "urgent" } } })
-    expect(await classifyTier("x", config(), { fetch: garbage, env })).toMatchObject({ reason: "failed" })
+    expect(await classifyTier("x", config(), { fetch: garbage, env, readSecret: secrets() })).toMatchObject({
+      reason: "failed",
+    })
   })
 
   it("names a 429 as the shared pool rather than your quota, and reports retry-after without sleeping", async () => {
@@ -189,7 +224,7 @@ describe("classifyTier — every failure is a decline", () => {
     // not send someone off to buy credit they already have.
     const { fn } = stubFetch({}, { status: 429, headers: { "retry-after": "12" } })
     const started = Date.now()
-    const out = await classifyTier("x", config(), { fetch: fn, env })
+    const out = await classifyTier("x", config(), { fetch: fn, env, readSecret: secrets() })
     expect(out).toMatchObject({ reason: "failed" })
     expect(out.kind === "declined" && out.detail).toMatch(/pool rate limit, not necessarily your quota, retry-after 12/)
     // Reported, not honoured — a create is not held for twelve seconds.
@@ -207,26 +242,34 @@ describe("classifyTier — every failure is a decline", () => {
           reject(err)
         })
       })) as unknown as typeof globalThis.fetch
-    const out = await classifyTier("x", config({ timeoutMs: 200 }), { fetch: slow, env })
+    const out = await classifyTier("x", config({ timeoutMs: 200 }), { fetch: slow, env, readSecret: secrets() })
     expect(out).toMatchObject({ reason: "failed" })
     expect(aborted).toBe(true)
   })
 
   it("declines an answer below the threshold — a wrong pre-fill costs more than none", async () => {
     const { fn } = stubFetch(choiceAnswer({ confidence: 0.44 }))
-    expect(await classifyTier("x", config({ threshold: 0.5 }), { fetch: fn, env })).toMatchObject({
+    expect(
+      await classifyTier("x", config({ threshold: 0.5 }), { fetch: fn, env, readSecret: secrets() }),
+    ).toMatchObject({
       kind: "declined",
       reason: "low-confidence",
     })
     const { fn: same } = stubFetch(choiceAnswer({ confidence: 0.44 }))
-    expect(await classifyTier("x", config({ threshold: 0.4 }), { fetch: same, env })).toMatchObject({ kind: "picked" })
+    expect(
+      await classifyTier("x", config({ threshold: 0.4 }), { fetch: same, env, readSecret: secrets() }),
+    ).toMatchObject({ kind: "picked" })
   })
 })
 
 describe("classifyTier — the request", () => {
   it("posts to the jev endpoint with the bearer token and the rubric's examples", async () => {
     const { fn, calls } = stubFetch(choiceAnswer())
-    const out = await classifyTier("there's a memory leak somewhere", config(), { fetch: fn, env })
+    const out = await classifyTier("there's a memory leak somewhere", config(), {
+      fetch: fn,
+      env,
+      readSecret: secrets(),
+    })
     expect(out).toEqual({
       kind: "picked",
       verdict: { tier: "deep", confidence: 0.71, probabilities: { swift: 0.05, standard: 0.2, deep: 0.75 } },
@@ -242,7 +285,7 @@ describe("classifyTier — the request", () => {
 
   it("trims the prompt to the limit — a tier is decided by the opening, not the tail", async () => {
     const { fn, calls } = stubFetch(choiceAnswer())
-    await classifyTier("a".repeat(PROMPT_LIMIT + 500), config(), { fetch: fn, env })
+    await classifyTier("a".repeat(PROMPT_LIMIT + 500), config(), { fetch: fn, env, readSecret: secrets() })
     expect(JSON.parse(String(calls[0]?.init.body)).state.task_text).toHaveLength(PROMPT_LIMIT)
   })
 
@@ -253,6 +296,7 @@ describe("classifyTier — the request", () => {
     await classifyTier("x", config({ mode: { kind: "url", url: "https://t.internal/p" }, keyEnv: undefined }), {
       fetch: fn,
       env: { TYPESAFE_API_KEY: "jevs-key" },
+      readSecret: secrets(),
     })
     expect(headersOf(calls[0])).not.toHaveProperty("authorization")
   })
@@ -262,6 +306,7 @@ describe("classifyTier — the request", () => {
     await classifyTier("x", config({ mode: { kind: "url", url: "https://t.internal/p" }, keyEnv: "MY_TIER_KEY" }), {
       fetch: fn,
       env: { MY_TIER_KEY: "mine", TYPESAFE_API_KEY: "jevs-key" },
+      readSecret: secrets(),
     })
     expect(headersOf(calls[0]).authorization).toBe("Bearer mine")
   })
@@ -271,6 +316,7 @@ describe("classifyTier — the request", () => {
     const out = await classifyTier("rename the flag", config({ mode: { kind: "url", url: "https://t.internal/p" } }), {
       fetch: fn,
       env,
+      readSecret: secrets(),
     })
     expect(out).toEqual({ kind: "picked", verdict: { tier: "swift", confidence: 0.9 } })
     expect(calls[0]?.url).toBe("https://t.internal/p")
