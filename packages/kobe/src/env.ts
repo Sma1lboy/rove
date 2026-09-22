@@ -1,25 +1,10 @@
 /**
- * Centralised environment / runtime flag access.
+ * Every production env/runtime flag read goes through here: `ROVE_*` first,
+ * falling back to the `KOBE_*` alias. Test-only vars (`KOBE_TEST_ENGINE`,
+ * `KOBE_TEST_FAKE_PORT`, per-pane `KOBE_*_HOST` fixtures) stay at their use
+ * sites.
  *
- * Convention: renamed controls accept `ROVE_*` first and fall back to their
- * `KOBE_*` aliases. Any new production read goes through here. Test-only env vars (`KOBE_TEST_ENGINE`,
- * `KOBE_TEST_FAKE_PORT`, the per-pane `KOBE_*_HOST` fixtures, etc.)
- * stay where they are — they're internal plumbing for the harness,
- * not part of kobe's user-facing surface.
- *
- * The win of routing reads through here:
- *
- *   1. One place to learn which knobs the binary respects.
- *   2. Typed, validated accessors (no `process.env.KOBE_X === "1"`
- *      stringly-typed checks scattered through the codebase).
- *   3. Easy to mock in unit tests — just stub the function.
- *   4. Documents the *intent* of each variable in the comment, not
- *      buried at its first use site.
- *
- * This is *not* a generic config layer. We don't load `.env` files,
- * don't cascade through `~/.rove/config.json`, don't do any of that.
- * If we ever need that, build a `loadConfig()` that returns a frozen
- * record once at startup and have these accessors read from it.
+ * Not a config layer: no `.env` loading, no config-file cascade.
  */
 
 import { createHash } from "node:crypto"
@@ -33,33 +18,22 @@ import {
 import { LEGACY_KOBE_CONFIG_DIR_BASENAME, LEGACY_KOBE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "./product.ts"
 
 /**
- * `ROVE_DEV=1` (or compatible `KOBE_DEV=1`) — declares the binary is running from a developer
- * checkout rather than an installed package. Suppresses the npm
- * version-check chip so contributors don't see "↑ vX.Y.Z available"
- * every time they `bun run dev` against an older `package.json` than
- * what's published. Intentionally opt-in: the production CLI path
- * never sets it, so `npm i -g @sma1lboy/rove` users always get the
- * notification.
+ * `ROVE_DEV=1` / `KOBE_DEV=1` — running from a developer checkout. Suppresses
+ * the npm "↑ vX.Y.Z available" chip; the installed CLI never sets it.
  */
 export function isDev(): boolean {
   return readRoveEnv("DEV") === "1"
 }
 
 /**
- * `ROVE_HOME_DIR` (or compatible `KOBE_HOME_DIR`) — overrides `os.homedir()` for everything Rove
- * persists (state file, task index). Tests point this at a temp dir
- * so they don't trample the real `~/.rove/`.
+ * `ROVE_HOME_DIR` / `KOBE_HOME_DIR` — overrides `os.homedir()` for everything
+ * Rove persists; tests point it at a temp dir.
  */
 export function homeDir(): string {
   return resolveProductHomeDir()
 }
 
-/**
- * Root directory for Rove's persistent product data — `~/.rove/` by default
- * (or `$ROVE_HOME_DIR/.rove/` / `$KOBE_HOME_DIR/.rove/` when overridden). Callers join their
- * own filename onto this; we don't `mkdir` here, that's the writer's
- * job at the actual write site.
- */
+/** `<home>/.rove/`. Not created here — writers mkdir at the write site. */
 export function roveStateDir(): string {
   return join(homeDir(), ROVE_STATE_DIR_BASENAME)
 }
@@ -70,14 +44,9 @@ export function legacyKobeStateDir(): string {
 }
 
 /**
- * Path to the small flat-JSON KV blob shared between the TUI's
- * `KVProvider` (src/tui/context/kv.tsx) and CLI-side modules like
- * `src/state/repos.ts`. Defaults to `~/.config/rove/state.json`;
- * honours `KOBE_HOME_DIR` so tests can isolate via tmpdir.
- *
- * All reads/writes of this file go through `src/state/store.ts` (the
- * single owner of state.json I/O — read-merge-write, atomic rename);
- * this accessor is the one place the path is spelled.
+ * Shared flat-JSON KV blob (`~/.config/rove/state.json`), read by the TUI's
+ * `KVProvider` and CLI modules. All I/O goes through `src/state/store.ts`;
+ * this is the one place the path is spelled.
  */
 export function kvStatePath(): string {
   return defaultUiPrefsStatePath(homeDir())
@@ -89,43 +58,32 @@ export function legacyKobeKvStatePath(): string {
 }
 
 /**
- * Directory for user-editable Rove settings files — `~/.rove/settings/`.
- * Unlike the KV blob (`kvStatePath()`, machine-written JSON), files in
- * here are hand-authored YAML the user owns (keybindings today; future
- * settings files land alongside). Not created eagerly — readers treat a
- * missing dir as "no overrides", writers mkdir at the write site.
+ * `~/.rove/settings/` — hand-authored YAML the user owns (unlike the
+ * machine-written KV blob). A missing dir means "no overrides"; writers mkdir.
  */
 export function roveSettingsDir(): string {
   return join(roveStateDir(), "settings")
 }
 
 /**
- * User keybinding overrides — `~/.rove/settings/keybindings.yaml`.
- * Loaded once per process at TUI boot (see
- * `src/tui/context/keybindings-user.ts`) and applied onto `KobeKeymap`.
- * `.yml` is accepted as a fallback spelling when the `.yaml` file is
- * absent.
+ * `~/.rove/settings/keybindings.yaml` (`.yml` accepted when `.yaml` is absent).
+ * Loaded once per process at TUI boot.
  */
 export function keybindingsConfigPath(): string {
   return defaultKeybindingsPath(homeDir())
 }
 
 /**
- * Directory for prompt attachments pasted into composers (clipboard
- * screenshots saved to disk so their path can travel in a prompt) —
- * `<home>/.rove/attachments/`. Created lazily at the write site; files
- * are small PNGs named by timestamp+nonce so they never collide. Honours
- * `KOBE_HOME_DIR` via {@link roveStateDir}.
+ * `<home>/.rove/attachments/` — clipboard screenshots saved so their path can
+ * travel in a prompt. Created lazily; timestamp+nonce names never collide.
  */
 export function promptAttachmentsDir(): string {
   return join(roveStateDir(), "attachments")
 }
 
 /**
- * SSH ControlMaster socket for a remote project — one multiplexed connection
- * per host/user/port, reused by every `ssh` Rove runs against that remote (see
- * `exec/exec-host.ts`). Lives under `<home>/.rove/ssh/`. Keyed by a short hash so a long `user@host:port`
- * never blows past the ~104-char unix-socket path limit.
+ * SSH ControlMaster socket, one per host/user/port. Hashed so a long
+ * `user@host:port` stays under the ~104-char unix-socket path limit.
  */
 export function remoteControlSocketPath(host: string, user: string, port?: number): string {
   const hash = createHash("sha1")
@@ -136,12 +94,9 @@ export function remoteControlSocketPath(host: string, user: string, port?: numbe
 }
 
 /**
- * Per-worktree marker proving the repo's init script already ran for that
- * worktree (once-per-worktree semantics). Kept under `<home>/.rove/` —
- * NOT inside the worktree — so it never shows up as an uncommitted change.
- * Keyed by a short hash of the worktree path; a deleted+recreated worktree
- * at the same path reuses the marker, which is the intended "don't re-run"
- * behaviour.
+ * Marker that the repo init script already ran for a worktree. Under
+ * `<home>/.rove/`, not the worktree, so it never shows as an uncommitted
+ * change. A worktree recreated at the same path reuses it — intentionally.
  */
 export function worktreeInitMarkerPath(worktreePath: string): string {
   const hash = createHash("sha1").update(worktreePath).digest("hex").slice(0, 16)

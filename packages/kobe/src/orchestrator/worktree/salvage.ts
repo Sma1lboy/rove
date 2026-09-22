@@ -1,18 +1,14 @@
 /**
  * Salvage: make a force-delete recoverable.
  *
- * `remove(path, { force: true })` runs `git worktree remove --force`, which
- * deletes uncommitted edits AND untracked files with no copy anywhere. Three
- * callers reach it without a fresh dirty check — the queued task deletion
- * (whose `force` was frozen a daemon restart ago), the scratch-shell teardown,
- * and the worktrees page's force retry on a row captured before the confirm.
- * Salvage runs first and writes what is about to be destroyed into the repo's
- * object database, so "gone" becomes "recoverable".
+ * `git worktree remove --force` deletes uncommitted edits AND untracked files.
+ * Three callers reach it without a fresh dirty check — queued task deletion
+ * (its `force` frozen a daemon restart ago), scratch-shell teardown, and the
+ * worktrees page's force retry on a pre-confirm row. Salvage first writes what
+ * is about to be destroyed into the repo's object database.
  *
- * Why not `git stash create`: it CANNOT capture untracked files. `-u` is
- * accepted and silently ignored (the resulting commit has two parents, no
- * untracked tree) — and a new file nobody has `git add`ed yet is exactly the
- * kind most easily lost. So the snapshot is built by hand:
+ * Not `git stash create`: `-u` is silently ignored (two parents, no untracked
+ * tree), and a never-added new file is the easiest to lose. Built by hand:
  *
  *     GIT_INDEX_FILE=<throwaway> git read-tree HEAD  → so git knows what's TRACKED
  *                                git add -A          → tracked edits + untracked
@@ -20,16 +16,14 @@
  *     git commit-tree <tree> -p HEAD                 → a commit rooted at real history
  *     git update-ref refs/rove/salvage/<slug> <c> "" → a named, gc-proof anchor
  *
- * `git add -A` honours `.gitignore` — which keeps `node_modules/` out, and
- * ALSO threw away real work: `HANDOFF.md`, `.scratch/**`, `.env*` and
- * `.rove/*` are all gitignored in this very repo. So a second, forced `git
- * add -f` pass adds back the ignored entries small enough to be a person's
- * work rather than a dependency tree ({@link smallIgnoredPaths}).
+ * `git add -A` honours `.gitignore`, keeping `node_modules/` out but also real
+ * work (`HANDOFF.md`, `.scratch/**`, `.env*`, `.rove/*` are gitignored in this
+ * repo). A second `git add -f` pass restores ignored entries small enough to
+ * be a person's work ({@link smallIgnoredPaths}).
  *
- * The ref (not just the loose object) is the point: a dangling commit is
- * findable only via `git fsck` and expires with gc, while
- * `git for-each-ref refs/rove/salvage` lists every snapshot by branch and
- * timestamp — the two things a user who just lost work actually has.
+ * The ref is the point: a dangling commit is findable only via `git fsck` and
+ * expires with gc; `git for-each-ref refs/rove/salvage` lists snapshots by
+ * branch and timestamp — what a user who lost work remembers.
  */
 
 import type { ExecHost } from "../../exec/exec-host.ts"
@@ -46,12 +40,10 @@ export interface SalvageRecord {
   readonly ref: string
   readonly commit: string
   /**
-   * Paths the snapshot could NOT capture: submodules and nested worktrees.
-   * `git add` stages those as a `160000` gitlink — a commit SHA, never the
-   * files — so uncommitted work inside one is in neither the snapshot tree nor
-   * the commit that SHA names, while the ref itself reports success. Empty for
-   * an ordinary snapshot; non-empty is the caller's cue to say so, because the
-   * recovery commands do not work for these paths.
+   * Paths NOT captured: submodules and nested worktrees, staged as a `160000`
+   * gitlink (a SHA, never the files), so uncommitted work inside is lost while
+   * the ref reports success. Non-empty = the caller must say recovery won't
+   * cover these paths.
    */
   readonly uncaptured: readonly string[]
 }
@@ -72,16 +64,13 @@ async function gitlinkPaths(git: (args: readonly string[]) => Promise<GitRunResu
  * A branch name as one ref-name component, keeping everything
  * `git check-ref-format` allows.
  *
- * Only what git actually forbids is replaced — control characters, space,
- * `~^:?*[\`, a `..` run, a `@{` sequence, a leading/trailing `.` or `-` — plus
- * `/`, flattened so every snapshot stays exactly one level under
- * `refs/rove/salvage/`. Ref names are byte strings, so a UTF-8
- * branch survives intact; the old `[^A-Za-z0-9._-]` filter erased a Chinese
- * branch name down to the empty string and EVERY such snapshot was named
- * `detached-<stamp>` — unidentifiable, and colliding with the next one.
+ * Replaces only what git forbids — control chars, space, `~^:?*[\`, `..`,
+ * `@{`, leading/trailing `.` or `-` — plus `/`, so every snapshot stays one
+ * level under `refs/rove/salvage/`. UTF-8 survives intact (ref names are
+ * bytes); an ASCII allowlist would collapse e.g. Chinese names to `detached`.
  *
- * A `.lock` suffix needs no handling: git forbids it only at the END of a
- * component, and the slug is always followed by `-<stamp>` in the finished ref.
+ * `.lock` needs no handling: forbidden only at a component's END, and
+ * `-<stamp>` always follows the slug.
  */
 function branchRefSlug(branch: string | null): string {
   return (
@@ -94,16 +83,11 @@ function branchRefSlug(branch: string | null): string {
   )
 }
 
-/** `refs/rove/salvage/<branch>-<utc-stamp>` — a ref name git accepts, keyed by
- *  the two things a user remembers: which branch, and roughly when. Exported
- *  so {@link anchorBranchTip} writes into the SAME namespace: a user who lost
- *  work has one place to look and one `for-each-ref` to run, whether the loss
- *  was a force-removed worktree or a squash-landed branch.
+/** `refs/rove/salvage/<branch>-<utc-stamp>`. Shared with {@link anchorBranchTip}
+ *  so every lost-work snapshot is under one `for-each-ref`.
  *
- *  The stamp resolves to the SECOND, and the slug is lossy by construction
- *  (`feat/login` and `feat-login` both flatten to `feat-login`), so this name
- *  is a preferred name rather than a unique one — {@link createSalvageRef}
- *  owns making the write itself collision-proof. */
+ *  Preferred, not unique: the stamp resolves to the second and the slug is
+ *  lossy (`feat/login` = `feat-login`); {@link createSalvageRef} avoids collisions. */
 export function salvageRef(branch: string | null, now: Date): string {
   const stamp = now
     .toISOString()
@@ -115,18 +99,14 @@ export function salvageRef(branch: string | null, now: Date): string {
 /**
  * Write `commit` under `preferred`, NEVER over a ref that already exists.
  *
- * `git update-ref <ref> <new>` overwrites unconditionally, and two names
- * collide easily: the stamp only resolves to the second, and the slug flattens
- * `feat/login` and `feat-login` together. Deleting a batch of tasks lands
- * several force-removes inside one second by construction, so the first
- * snapshot became a dangling commit reachable from nothing — while both
- * callers were handed a ref and told their work was saved.
+ * `git update-ref <ref> <new>` overwrites unconditionally, and a batch delete
+ * lands several force-removes in one second — the overwritten snapshot would
+ * dangle while its caller was told the work was saved.
  *
- * An EMPTY `<oldvalue>` makes the write a create-only compare-and-swap (git
- * refuses with "reference already exists"); the empty string rather than the
- * all-zero OID because that literal is hash-length dependent and this one is
- * not. Numbered suffixes then find the next free name. Returns the ref
- * actually written, or null if none could be.
+ * An EMPTY `<oldvalue>` makes it create-only (git refuses "reference already
+ * exists"); empty rather than the all-zero OID, which is hash-length
+ * dependent. Numbered suffixes find the next free name. Returns the ref
+ * written, or null.
  */
 async function createSalvageRef(
   git: (args: readonly string[]) => Promise<GitRunResult>,
@@ -143,11 +123,8 @@ async function createSalvageRef(
 /**
  * Snapshot everything in `worktreePath` that a force-remove would destroy.
  *
- * Returns null when there is nothing to save (clean worktree) or when the
- * snapshot could not be taken. NEVER throws: salvage is a safety net around
- * a delete the caller already asked for, so a failure here must not turn a
- * requested deletion into an error. A null return is the caller's cue to log
- * "no snapshot" rather than to abort.
+ * Null when clean or when the snapshot failed — log "no snapshot", don't
+ * abort. NEVER throws: it must not turn a requested deletion into an error.
  */
 export async function salvageWorktree(
   deps: SalvageDeps,
@@ -157,56 +134,40 @@ export async function salvageWorktree(
 ): Promise<SalvageRecord | null> {
   const git = (args: readonly string[]) => deps.runGit(exec, args, { cwd: worktreePath, allowFail: true })
   try {
-    // Nothing uncommitted (tracked, untracked, OR salvageable-ignored) →
-    // nothing a force-remove could destroy that HEAD doesn't already hold.
-    //
-    // `--porcelain` alone CANNOT answer that: it is blind to `.gitignore`d
-    // entries, and `HANDOFF.md` / `.scratch/**` — the two places AGENTS.md
-    // tells agents to keep cross-session reasoning — are gitignored in this
-    // very repo. Returning here on an empty porcelain made the `add -f` pass
-    // below (the whole point of `salvage-ignored.ts`) unreachable for exactly
-    // the worktrees it exists for.
+    // Skip only when nothing tracked, untracked OR salvageable-ignored is
+    // uncommitted. Porcelain alone is blind to `.gitignore`d entries like
+    // `HANDOFF.md` / `.scratch/**`, which would make the `add -f` pass
+    // unreachable for exactly the worktrees it exists for.
     const status = await git(["status", "--porcelain"])
     if (status.exitCode !== 0) return null
-    // `"unknown"` (the listing itself failed) degrades to the old
-    // ignored-files-excluded snapshot: salvage must never fail the removal a
-    // caller already asked for. The DELETE GATE reads the same probe and must
-    // do the opposite — see `manager-remove.ts`.
+    // `"unknown"` degrades to a snapshot without ignored files: salvage never
+    // fails the removal. The DELETE GATE (`manager-remove.ts`) reads the same
+    // probe and must do the opposite.
     const probe = await smallIgnoredPaths(exec, worktreePath)
     const ignored = probe === "unknown" ? [] : probe
     if (status.stdout.trim().length === 0 && ignored.length === 0) return null
 
-    // A throwaway index INSIDE the worktree's own git dir, so staging never
-    // touches the real index and the file dies with the worktree either way.
+    // Throwaway index in the worktree's git dir: never touches the real index, dies with the worktree.
     const indexPath = (await git(["rev-parse", "--git-path", "rove-salvage-index"])).stdout.trim()
     if (!indexPath) return null
     const withIndex = (args: readonly string[]) =>
       deps.runGit(exec, args, { cwd: worktreePath, allowFail: true, env: { GIT_INDEX_FILE: indexPath } })
 
-    // Parent the snapshot on HEAD so `git show <ref>` diffs against the real
-    // history. An unborn branch has no HEAD — commit a root instead of losing
-    // the files.
+    // Parent on HEAD so `git show <ref>` diffs against real history; an unborn
+    // branch gets a root commit instead of losing the files.
     const head = (await git(["rev-parse", "HEAD"])).stdout.trim()
     const branch = (await git(["rev-parse", "--abbrev-ref", "HEAD"])).stdout.trim()
 
     try {
-      // Seed the throwaway index from HEAD before staging anything.
-      //
-      // An EMPTY index makes git treat every path as untracked, and
-      // `.gitignore` only applies to untracked paths — so `add -A` skipped
-      // every TRACKED file the repo's own `.gitignore` happens to cover (a
-      // committed `dist/README.md` under `dist/`, a committed `server.log`
-      // under `*.log`). The `add -f` pass below cannot recover them either:
-      // its input comes from `git status --ignored`, which reports a tracked
-      // file as ` M` and NEVER as `!!`. The snapshot then recorded those
-      // files as DELETIONS, `uncaptured` stayed empty, and the caller
-      // reported a successful salvage over work that no longer existed.
+      // Seed from HEAD first. With an EMPTY index every path counts as
+      // untracked, so `.gitignore` makes `add -A` skip TRACKED files it covers
+      // (a committed `dist/README.md`, `server.log` under `*.log`), and the
+      // `add -f` pass can't restore them (`status --ignored` shows tracked
+      // files as ` M`, never `!!`) — they'd be snapshotted as DELETIONS.
       if (head && (await withIndex(["read-tree", head])).exitCode !== 0) return null
       if ((await withIndex(["add", "-A"])).exitCode !== 0) return null
-      // Second pass: the ignored entries that are a person's work rather than
-      // build output. `-f` is what overrides `.gitignore`; without it the
-      // first pass silently dropped them. Best-effort — a failure here leaves
-      // the tracked+untracked snapshot the first pass already staged.
+      // `-f` overrides `.gitignore` for person-sized ignored work. Best-effort:
+      // failure keeps the tracked+untracked snapshot.
       if (ignored.length > 0) await withIndex(["add", "-f", "--", ...ignored])
       const tree = (await withIndex(["write-tree"])).stdout.trim()
       if (!tree) return null
@@ -218,17 +179,11 @@ export async function salvageWorktree(
 
       const ref = await createSalvageRef(git, salvageRef(branch && branch !== "HEAD" ? branch : null, now), commit)
       if (!ref) return null
-      // Read back what the tree actually holds. A submodule or nested worktree
-      // staged as a `160000` gitlink is a promise the recovery commands cannot
-      // keep, so the record says which paths it missed rather than letting the
-      // ref imply it caught everything.
+      // Name the gitlinks the recovery can't restore rather than imply full capture.
       return { ref, commit, uncaptured: await gitlinkPaths(git, tree) }
     } finally {
-      // The index file lives in `.git/worktrees/<name>/`, which the removal
-      // prunes anyway; clearing it keeps a failed salvage from leaving debris
-      // when the caller's remove then also fails. Plain `rm` (not `git rm`,
-      // which only unstages TRACKED paths) through the exec seam so a remote
-      // worktree cleans up over the same ssh connection.
+      // No debris if the caller's remove also fails. Plain `rm` (`git rm` only
+      // unstages tracked paths) via the exec seam, so remote cleans up over ssh.
       await exec.run(["rm", "-f", indexPath], { cwd: worktreePath }).catch(() => undefined)
     }
   } catch {

@@ -1,13 +1,7 @@
 /**
- * Minting a task ROW — the one cluster in `core.ts` that was real logic rather
- * than a delegation to a coordinator, which is why the file splits here.
- *
- * Three entry points, three shapes of new row: a repo-backed task (lazy
- * worktree), a standalone directory task (`rove .`), and the adoption that
- * turns a scratch shell into a repo-homed one. They take the store (and, for
- * the first, the main-task coordinator) rather than the Orchestrator, so the
- * class above stays the thin delegator its own doc comment claims to be —
- * the same division `landTaskWithCleanup` already follows.
+ * Minting task rows: repo-backed (lazy worktree), standalone directory
+ * (`rove .`), and scratch-shell adoption. Takes the store, not the
+ * Orchestrator, so the Orchestrator stays a thin delegator.
  */
 
 import { resolvePreferredVendor } from "../state/vendor-prefs.ts"
@@ -28,13 +22,9 @@ export interface StoreDeps {
 export interface CreateDeps extends StoreDeps {
   readonly mainTasks: MainTaskCoordinator
   /**
-   * Take a caller-chosen worktree directory name, or throw.
-   *
-   * Injected rather than reached for so this module keeps needing only the
-   * store: the check belongs to the slug allocator, which the worktree
-   * coordinator owns. Called BEFORE the row is written — a name collision
-   * must not leave a task behind that can never materialise where its caller
-   * was told to look.
+   * Claim a caller-chosen worktree directory name, or throw (the slug
+   * allocator's check). Called BEFORE the row is written, so a collision never
+   * leaves a task that can't materialise where its caller was told.
    */
   readonly claimWorktreeName: (repo: string, name: string) => Promise<string>
 }
@@ -55,39 +45,24 @@ export interface OpenDirectoryTaskInput {
  */
 export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): Promise<Task> {
   if (!input.repo) throw new Error("createTask: repo is required")
-  // Bring the project row into existence alongside the task — but only if
-  // the repo may BE a project (state/project-eligibility.ts). A `/tmp`
-  // fixture or a checkout inside `.dev-sandbox` still gets its task; it
-  // just stops leaving a permanent sidebar row behind — which is how a
-  // project list reaches a dozen rows on two saved repos. `buildTreeRows`
-  // groups a main-less task under a header derived from its own repo, so
-  // the task still renders — the header just dies with it.
+  // Ensure the project row only if the repo may BE a project
+  // (state/project-eligibility.ts). An ineligible one (`/tmp` fixture,
+  // `.dev-sandbox`) still gets its task; `buildTreeRows` renders it under a
+  // header that dies with it.
   //
-  // Normalize to the git toplevel regardless of that outcome. A caller
-  // passing a SUBDIRECTORY (`rove` run from `my-monorepo/packages/app`,
-  // whose path passes `validateRepoPath` because `rev-parse --git-dir`
-  // succeeds in a subdir) otherwise splits into two sidebar projects: the
-  // main row keyed on `/my-monorepo`, this task keyed on
-  // `/my-monorepo/packages/app` — a ghost project named after a
-  // subdirectory, with its own worktree root. Taking the normalization from
-  // `normalizeMainRepo` directly, rather than off the returned main row,
-  // keeps it working when no row is created.
-  // Dir/scratch tasks do NOT come through here (see openDirectoryTask),
-  // so pinning a user-owned directory is unaffected.
+  // Always normalize to the git toplevel (via `normalizeMainRepo`, so it works
+  // with no main row): a SUBDIRECTORY passes `validateRepoPath` and would
+  // otherwise become a ghost project with its own worktree root. Dir/scratch
+  // tasks don't come through here.
   const mainTask = await deps.mainTasks.ensureIfEligible(input.repo, input.projectIntent ?? "explicit")
   const repo = mainTask?.repo ?? normalizeMainRepo(input.repo).repo
   const title = sanitizeTaskTitle(input.title ?? PLACEHOLDER_TASK_TITLE) || PLACEHOLDER_TASK_TITLE
-  // Against the NORMALIZED repo, which is the key the allocator's occupied
-  // set is built under — checking the caller's possibly-subdirectory path
-  // would compare against a different repo's names.
+  // Against the NORMALIZED repo — the key the allocator's occupied set uses.
   const worktreeName = input.worktreeName?.trim()
   if (worktreeName) await deps.claimWorktreeName(repo, worktreeName)
-  // Leave the branch EMPTY for a lazily-allocated task (unless the caller
-  // gave an explicit one): {@link ensureWorktree} derives a repo-convention
-  // name (branch-style.ts) with collision suffixes when the worktree
-  // materialises. We must NOT pre-derive a branch here — uniqueness is
-  // resolved against the repo's live branch list at materialise time, and
-  // deferring also lets the branch follow a rename made before first enter.
+  // Branch stays EMPTY unless given: {@link ensureWorktree} derives it at
+  // materialise time against the live branch list, and so it can follow a
+  // rename made before first enter.
   const task = await deps.store.create({
     repo,
     title,
@@ -103,34 +78,24 @@ export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): P
     ...(input.groupId ? { groupId: input.groupId } : {}),
     ...(input.dispatcher ? { dispatcher: input.dispatcher } : {}),
     ...(input.routine ? { routine: input.routine } : {}),
-    // Persisted ON the task (not a one-shot side-map): `ensureWorktree`
-    // reads it whenever the worktree materialises — including after a
-    // daemon restart between create and first enter — and `collect`'s
-    // branch signals compare against the recorded fork point instead of
-    // re-guessing the base.
+    // Persisted ON the task: `ensureWorktree` may run in a later daemon
+    // process, and `collect` compares against this recorded fork point.
     ...(input.baseRef?.trim() ? { baseRef: input.baseRef.trim() } : {}),
-    // Persisted for the same reason as `baseRef`: the directory is allocated
-    // lazily, possibly in a later daemon process, and the caller has already
-    // been told which path to expect.
+    // Same: allocated lazily, and the caller was already told the path.
     ...(worktreeName ? { worktreeName } : {}),
   })
   return task
 }
 
 /**
- * Open an existing directory as a standalone `kind: "dir"` task (`rove .`).
- * Deliberately NO project association: no main task is ensured, no worktree or
- * branch is created — the task pins the directory itself and deletion later
- * only drops the index entry. Every call creates a NEW task: opening the same
- * directory twice is two parallel sessions in it, so the title gets a random
- * suffix (`rove-af3x`) to tell the rows apart.
+ * Open a directory as a standalone `kind: "dir"` task (`rove .`): no main
+ * task, worktree or branch; deletion only drops the index entry. Every call is
+ * a NEW parallel session, hence the random title suffix (`rove-af3x`).
  */
 export async function openDirectoryTaskRow(deps: StoreDeps, input: OpenDirectoryTaskInput): Promise<Task> {
   if (!input.dir) throw new Error("openDirectoryTask: dir is required")
   const dir = canonPath(input.dir)
-  // A scratch shell's home is unsettled by definition, so it mints NO
-  // auto-name: title stays empty until the user names it or
-  // adoption derives one; every display surface falls back to path/branch.
+  // Scratch mints no name (its home is unsettled); displays fall back to path/branch.
   return deps.store.create({
     repo: dir,
     title: input.scratch ? "" : `${titleFromRepo(dir)}-${randomDirTaskSuffix()}`,
@@ -144,11 +109,9 @@ export async function openDirectoryTaskRow(deps: StoreDeps, input: OpenDirectory
 }
 
 /**
- * Migrate a scratch task into a repo (adoption): the shell's live cwd landed in
- * `repo` and a coding harness was detected there, so the row earns a project
- * home. Repoints `repo`/`worktreePath` at the repo root and clears the scratch
- * flag — the task becomes an ordinary `kind: "dir"` row grouped under that
- * repo. No-op unless the task is actually a scratch dir task.
+ * Adopt a scratch task into `repo` (its shell's cwd landed there and a coding
+ * harness was detected): it becomes an ordinary `dir` row under that repo.
+ * No-op unless it is a scratch dir task.
  */
 export async function adoptScratchRepoRow(deps: StoreDeps, id: TaskId | string, repo: string): Promise<void> {
   const task = deps.store.get(id)
