@@ -1,18 +1,10 @@
 /**
- * Asking an engine's session store two questions a tab needs answered:
- * "which session is mine?" and "does the one I recorded still exist?".
- *
- * Both are the IO half of `session-identity.ts` (which is pure policy), and
- * both go through `EngineHistoryReader.listSessionIdsForWorktree` — the one
- * method EVERY built-in implements, including the readers that ship no
- * message parser.
- *
- * That last point is the whole reason this module exists. Testing existence
- * with `readHistory(id).length > 0` silently means "this engine has a message
- * parser": kimi's reader is paths-only, so every kimi tab would answer "your
- * session does not exist", never set `spawned`, and respawn blank on restart
- * even once its id was known. Listing ids is the question actually being
- * asked, and every engine can answer it.
+ * IO half of `session-identity.ts`: "which session is mine?" and "does the one
+ * I recorded still exist?". Both go through
+ * `EngineHistoryReader.listSessionIdsForWorktree`, the one method every
+ * built-in implements. Testing existence with `readHistory(id).length > 0`
+ * would require a message parser: kimi's reader is paths-only, so every kimi
+ * tab would read "missing", never set `spawned`, and respawn blank on restart.
  */
 
 import type { VendorId } from "../types/vendor.ts"
@@ -25,16 +17,12 @@ async function sessionIds(vendor: VendorId | undefined, worktree: string): Promi
   try {
     return await protocolEntry(vendor).history.listSessionIdsForWorktree(worktree)
   } catch {
-    // Readers are best-effort by contract; an unreadable store is "no
-    // evidence", never an error the tab has to handle.
+    // Readers are best-effort by contract: an unreadable store is "no evidence".
     return []
   }
 }
 
-/**
- * True when `sessionId` is still recorded in this engine's store for
- * `worktree` — i.e. the tab has a conversation worth resuming.
- */
+/** True when `sessionId` is still recorded for `worktree`, i.e. worth resuming. */
 export async function engineSessionExists(
   vendor: VendorId | undefined,
   worktree: string,
@@ -45,15 +33,10 @@ export async function engineSessionExists(
 }
 
 /**
- * The session id to adopt for a tab that has none — the newest one this
- * engine recorded for `worktree` that no sibling tab already claims, or
- * null when the store is empty or every session is spoken for.
- *
- * This is origin (3) in `session-identity.ts`: the only way to learn the id
- * of an engine that mints its own and reports it nowhere (kimi). It is
- * deliberately the LAST resort — a pinned id (claude) or one the engine put
- * in its own title (codex) is authoritative and never reaches here, because
- * those tabs already have a `sessionId`.
+ * Id to adopt for a tab that has none: the newest one recorded for `worktree`
+ * that no sibling tab claims, else null. Origin (3) in `session-identity.ts`,
+ * the last resort for engines that mint ids and report them nowhere (kimi);
+ * pinned (claude) and title-reported (codex) ids never reach here.
  */
 export async function discoverSessionId(
   vendor: VendorId | undefined,

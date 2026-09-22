@@ -1,23 +1,8 @@
 /**
- * Engine vendor identifier (v0.6).
- *
- * v0.5 supported `"claude" | "codex" | "gemini"` so the engine
- * registry could route per-task. v0.6 drops gemini entirely (no
- * interactive TUI equivalent worth wrapping) and keeps the engines
- * whose interactive CLIs run in Hosted PTYs and whose on-disk history is
- * normalized by engine adapters: `"claude"`, `"codex"`, and `"copilot"`.
- *
- * Per-task vendor is still recorded on Task so the monitor knows
- * which history-reader to call.
- */
-/**
- * Engine vendor id. The three built-ins (claude/codex/copilot) are
- * literals — they back the exhaustive maps + history-reader dispatch — but
- * the type is OPEN (`string & {}`) because users can register their own
- * engines (a slug id + launch command, see `state/repos.ts`
- * customEngineIds). A custom id is just a string that isn't one of the
- * three; it flows through Task metadata and selectors and resolves its
- * launch command from `engineCommand.<id>`.
+ * Engine vendor id. Built-ins are literals backing the exhaustive maps and
+ * history-reader dispatch; the type is open (`string & {}`) because users
+ * register custom engines (`state/repos.ts` customEngineIds), whose launch
+ * command resolves from `engineCommand.<id>`.
  */
 export type VendorId = "claude" | "codex" | "copilot" | "kimi" | (string & {})
 
@@ -25,17 +10,11 @@ export type VendorId = "claude" | "codex" | "copilot" | "kimi" | (string & {})
 export const BUILTIN_VENDORS = ["claude", "codex", "copilot", "kimi", "pi", "omp"] as const
 export type BuiltinVendorId = (typeof BUILTIN_VENDORS)[number]
 
-/** The engine everything falls back to: a fresh install's default, and where
- *  `defaultVendor`/`lastSelectedVendor` land when the custom engine they named
- *  is deleted. Named so those call sites stop spelling the literal. */
+/** Fresh-install default, and where `defaultVendor`/`lastSelectedVendor` land
+ *  when their custom engine is deleted. */
 export const DEFAULT_VENDOR: BuiltinVendorId = BUILTIN_VENDORS[0]
 
-/**
- * Built-in vendors, in cycle order. NB: this is the BUILT-IN set only;
- * surfaces that should also offer user-added engines (the new-task selector,
- * Settings → Engines) compose this with the customEngineIds registry rather
- * than reading this array directly.
- */
+/** Built-ins only, in cycle order; surfaces offering custom engines compose it with customEngineIds. */
 export const ALL_VENDORS: readonly VendorId[] = [...BUILTIN_VENDORS]
 
 /** True when `id` is one of the first-party engines (not a custom one). */
@@ -43,24 +22,14 @@ export function isBuiltinVendor(id: string | undefined): id is BuiltinVendorId {
   return id !== undefined && (BUILTIN_VENDORS as readonly string[]).includes(id)
 }
 
-/**
- * Next vendor within an arbitrary subset (e.g. the detected-only list the
- * new-task dialog renders), wrapping around. `current` need not be in the
- * list — cycling starts from the first entry. Empty list returns `current`
- * unchanged so a caller with nothing detected never crashes.
- */
+/** Next vendor in `list`, wrapping. A `current` not in the list yields the first entry; empty list returns `current`. */
 export function nextVendorWithin(list: readonly VendorId[], current: VendorId): VendorId {
   if (list.length === 0) return current
   const i = list.indexOf(current)
   return list[(i + 1) % list.length] ?? list[0] ?? current
 }
 
-/**
- * Previous vendor within an arbitrary subset, wrapping around — the
- * reverse of {@link nextVendorWithin}, powering ←/→ on the new-task
- * engine selector. A `current` not in the list starts from the last
- * entry; an empty list returns `current` unchanged.
- */
+/** Reverse of {@link nextVendorWithin}. A `current` not in the list yields the last entry; empty list returns `current`. */
 export function prevVendorWithin(list: readonly VendorId[], current: VendorId): VendorId {
   if (list.length === 0) return current
   const i = list.indexOf(current)
@@ -69,12 +38,8 @@ export function prevVendorWithin(list: readonly VendorId[], current: VendorId): 
 }
 
 /**
- * Coerce an untrusted string (a CLI flag, a persisted record) to a
- * {@link VendorId}. Engines are now OPEN (users register their own), so a
- * non-empty value passes through as-is — a built-in OR a custom id; the
- * launch path resolves it from `engineCommand.<id>` and a truly bogus id
- * just fails to launch its (missing) binary. Only an empty/absent value
- * falls back to `"claude"`, the default for a task with no recorded vendor.
+ * Coerce an untrusted string to a {@link VendorId}. Any non-empty value passes
+ * (a bogus id just fails to launch); only empty/absent falls back to `"claude"`.
  */
 export function coerceVendorId(value: string | undefined): VendorId {
   const v = value?.trim()
@@ -82,18 +47,11 @@ export function coerceVendorId(value: string | undefined): VendorId {
 }
 
 /**
- * Validate an untrusted PERSISTED vendor id (e.g. `lastSelectedVendor` read
- * from state.json) against the set of vendors kobe can actually launch: the
- * three built-ins PLUS the user's registered custom engines. Unlike
- * {@link coerceVendorId} (which only rejects empty), this rejects a corrupt or
- * typo'd value — one that is neither a built-in nor a registered custom id —
- * and falls back to `"claude"` ({@link DEFAULT_TASK_VENDOR} in `types/task.ts`)
- * rather than letting a bogus id flow into engine selection as the chosen
- * default and silently fail to launch a missing binary.
- *
- * Pass the user's `customEngineIds` registry (see
- * `state/repos.ts#getCustomEngineIds`) so a real custom engine id passes
- * through; omit it (defaults to `[]`) when only built-ins should be accepted.
+ * Validate a persisted vendor id (e.g. `lastSelectedVendor`). Unlike
+ * {@link coerceVendorId}, rejects anything neither built-in nor in
+ * `customEngineIds` (`state/repos.ts#getCustomEngineIds`; omit to accept
+ * built-ins only), falling back to `"claude"` ({@link DEFAULT_TASK_VENDOR})
+ * so a typo can't become the default and silently fail to launch.
  */
 export function resolvePersistedVendor(value: string | undefined, customEngineIds: readonly string[] = []): VendorId {
   const v = value?.trim()

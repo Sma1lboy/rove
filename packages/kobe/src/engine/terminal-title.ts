@@ -1,108 +1,66 @@
 /**
- * Terminal-title policy — the rules for reading an engine's OWN OSC 0/2
- * title, held apart from `registry.ts` so the rules never learn a vendor's
- * name (see the next paragraph — that is the seam, and the imports keep it
- * honest).
+ * Terminal-title policy: rules for reading an engine's own OSC 0/2 title.
+ * Pure and vendor-free: functions take the declared {@link EngineTerminalTitle},
+ * never a vendor id; `registry.ts` keeps the vendor→entry resolution and the
+ * wrappers neutral callers import.
  *
- * Pure on purpose: every function here takes the engine's declared
- * {@link EngineTerminalTitle} rather than a vendor id, so `registry.ts` keeps
- * the one vendor→entry resolution (and its thin wrappers stay the import
- * site every neutral caller already uses) while the rules live here. Nothing
- * in this file names an engine — the vendor-specific KNOWLEDGE (which
- * glyphs, which identifier shape) is declared by the adapter that owns it.
- *
- * Three questions a neutral surface asks of a live title, in order:
- *   1. what is the NAME in it — {@link stripStatusPrefix} drops the engine's
- *      own status decoration, which Rove draws in its own glyph column;
- *   2. what does it say about the TURN — {@link titleTurnHint};
- *   3. is it a name at ALL — {@link titleIsPlaceholder} / {@link titleSessionId}.
- *
- * Question 3 exists because an engine's title is only as good as what the
- * engine has to put in it. Codex writes its thread UUID until the thread is
- * named, so a fresh codex tab reports `01a00ee9-f0e9-…` where claude and
- * kimi report a sentence. {@link EngineTerminalTitle.sessionIdFromTitle} is
- * how an engine says so — and, because that placeholder happens to be an id,
- * how it says what to name the tab instead. An engine whose bad title carries
- * NO id needs a sibling knob here; none does today, so none exists yet.
+ * Three questions, in order:
+ *   1. the NAME in it: {@link stripStatusPrefix} drops the engine's status
+ *      decoration, which Rove draws in its own glyph column;
+ *   2. the TURN state: {@link titleTurnHint};
+ *   3. is it a name at all: {@link titleIsPlaceholder} / {@link titleSessionId}.
+ *      Codex writes its thread UUID until the thread is named, where claude
+ *      and kimi write a sentence. An engine whose bad title carries no id
+ *      would need a new knob; none does today.
  */
 
 /**
- * Native OSC 0/2 title policy for an engine's interactive sessions.
- * `ownsStatus` means the engine's live title is the status surface while it
- * is visible, so neutral tab chrome must not prefix a duplicate turn glyph.
- * `launchArgs` lets an adapter select the engine's own title fields without
- * teaching the launcher vendor-specific config syntax — the FIRST way to fix
- * a bad title is to ask the engine for a better one.
+ * OSC 0/2 title policy for an engine's interactive sessions. `ownsStatus`: the
+ * live title is the status display, so tab chrome must not prefix a duplicate
+ * turn glyph. `launchArgs` selects the engine's own title fields; asking the
+ * engine for a better title is the first fix for a bad one.
  */
 export interface EngineTerminalTitle {
   readonly ownsStatus: boolean
   readonly launchArgs?: readonly string[]
   /**
-   * Leading STATUS decoration the engine writes into its own OSC title,
-   * stripped before Rove renders the name. Engine-owned by construction:
-   * only the adapter knows its vendor's glyph vocabulary, and Rove already
-   * draws that state in its own column — showing both is the same fact
-   * twice, and the animated variants make a resting tab look busy.
-   *
-   * Matched anchored at the start, longest-first, with any following
-   * whitespace; the remainder is the title. A pattern that would consume
-   * the WHOLE title is not applied (a session actually named "Working" is
-   * a name, not a status).
+   * Leading status decoration, stripped before Rove renders the name (Rove
+   * draws that state itself; animated variants make a resting tab look busy).
+   * Anchored, longest-first, plus following whitespace. Never applied when it
+   * would consume the whole title: a session named "Working" keeps its name.
    */
   readonly statusPrefixes?: readonly string[]
   /**
-   * The subset of {@link statusPrefixes} the engine ONLY writes while a
-   * turn is running (its animated frames). A title that stops starting
-   * with one of these is the engine's own "I stopped working" signal —
-   * the one observable event an ESC interrupt leaves behind (claude-code
-   * runs no Stop hook on its abort path). Consumed by
-   * {@link titleTurnHint}. Omit when the engine's resting title is
-   * indistinguishable from its working one.
+   * Subset of {@link statusPrefixes} written only while a turn runs. Losing it
+   * is the one observable event an ESC interrupt leaves (claude-code runs no
+   * Stop hook on its abort path). Omit when resting and working titles look
+   * alike.
    */
   readonly workingPrefixes?: readonly string[]
   /**
-   * The subset of {@link statusPrefixes} the engine writes ONLY while it is
-   * blocked on a human — an approval prompt or a question dialog. Such a
-   * title is neither working nor resting: the turn is still in flight, it
-   * just cannot proceed. {@link titleTurnHint} therefore refuses a `"rest"`
-   * verdict for these titles, which is what keeps the interrupt observer
-   * (`tui/workspace/interrupt-observer.ts`) from reading an approval pause as
-   * "the user pressed escape" and idling a live turn. omp writes `π !` here.
+   * Subset of {@link statusPrefixes} written only while blocked on a human
+   * (approval, question). The turn is still in flight, so {@link titleTurnHint}
+   * never says `"rest"` here, or `tui/workspace/interrupt-observer.ts` would
+   * idle a live turn. omp writes `π !`.
    */
   readonly attentionPrefixes?: readonly string[]
   /**
-   * The engine's SESSION id read back out of its own title, for engines
-   * whose title IS an identifier until they have a name for it. Codex's
-   * `thread-title` segment documents itself as "the thread title, or the
-   * thread identifier when unnamed", so a fresh codex tab's OSC title is a
-   * bare UUID.
+   * Session id read out of a title that is an identifier until named. Codex's
+   * `thread-title` is "the thread title, or the thread identifier when
+   * unnamed", so a fresh codex tab's title is a bare UUID.
    *
-   * A non-null answer means BOTH things Rove needs. The title must not be
-   * RENDERED as a name — a UUID beside a task is noise where claude and
-   * kimi put a sentence. And the session it points at is exactly what names
-   * the tab instead: the engine's own `history` reader turns that id into
-   * the conversation's first-prompt summary, which is the label the user
-   * actually wanted.
-   *
-   * Resolution is deliberately STRICT — only the engine that declared the
-   * rule may answer, never a guess at which engine wrote the title: the id is
-   * about to be looked up in THAT vendor's transcript store, and reading it
-   * from the wrong one is worse than having no name.
-   *
-   * Absent = this engine's title is always a name (claude, kimi).
+   * Non-null means: don't render the title, and name the tab from that
+   * session's first-prompt summary via the engine's `history` reader. Strict:
+   * only the declaring engine answers, since the id is looked up in that
+   * vendor's store. Absent = the title is always a name (claude, kimi).
    */
   readonly sessionIdFromTitle?: (title: string) => string | null
 }
 
 /**
- * Strip an engine's leading STATUS decoration from a live OSC title.
- *
- * Conservative where it matters: a prefix that would consume the whole title
- * is returned unchanged, so a session genuinely named after one of these
- * glyphs keeps its name. Longest-first so a multi-char prefix isn't shadowed
- * by a shorter one. See {@link EngineTerminalTitle.statusPrefixes}; the
- * vendor→vocabulary resolution (including the union fallback for a title
- * whose engine isn't known yet) lives in `registry.ts`.
+ * Strip leading status decoration ({@link EngineTerminalTitle.statusPrefixes}).
+ * Longest-first; a prefix that is the whole title is kept as the name. The
+ * union fallback for a not-yet-known engine lives in `registry.ts`.
  */
 export function stripStatusPrefix(title: string, prefixes: readonly string[]): string {
   for (const prefix of [...prefixes].sort((a, b) => b.length - a.length)) {
@@ -116,25 +74,14 @@ export function stripStatusPrefix(title: string, prefixes: readonly string[]): s
 }
 
 /**
- * What the engine's live OSC title says about its turn state, or `null` when
- * the title carries no verdict.
+ * Turn state from the live title, or null for no verdict. The title rewrite
+ * on stop is the only event-grade "turn ended" signal an ESC interrupt
+ * produces (claude-code's abort path skips its stop hooks).
  *
- * A status-owning engine writes its animated frames (`workingPrefixes`) into
- * the title exactly while a turn runs and rewrites the title the moment it
- * stops — including on an ESC interrupt, which fires no Stop hook at all
- * (claude-code's abort path returns before its stop hooks). That
- * rewrite is therefore the one event-grade "the turn ended" signal an
- * interrupt produces.
- *
- * Strict on purpose: `"rest"` is only claimed for an engine that declares
- * `workingPrefixes` AND wrote a non-empty title without one — an engine that
- * never decorates its title (copilot, custom wrappers) or a session that
- * never set a title answers `null`, never `"rest"`.
- *
- * An {@link EngineTerminalTitle.attentionPrefixes} title also answers `null`:
- * the engine is waiting on the user mid-turn, so "not working" here does NOT
- * mean "stopped". Reporting `"rest"` would let the interrupt observer idle a
- * turn that is merely blocked on an approval prompt.
+ * `"rest"` only when the engine declares `workingPrefixes` AND wrote a
+ * non-empty title without one; undecorated engines (copilot, custom wrappers)
+ * and untitled sessions answer null. Attention titles answer null too: blocked
+ * mid-turn is not stopped.
  */
 export function titleTurnHint(config: EngineTerminalTitle | undefined, title: string): "working" | "rest" | null {
   const working = config?.workingPrefixes
@@ -145,23 +92,14 @@ export function titleTurnHint(config: EngineTerminalTitle | undefined, title: st
   return working.some((prefix) => trimmed.startsWith(prefix)) ? "working" : "rest"
 }
 
-/**
- * The engine session id this title IS, or null when the title is a name (or
- * the engine declares no such rule). See
- * {@link EngineTerminalTitle.sessionIdFromTitle}.
- */
+/** Session id this title is, or null; see {@link EngineTerminalTitle.sessionIdFromTitle}. */
 export function titleSessionId(config: EngineTerminalTitle | undefined, title: string): string | null {
   const trimmed = title.trim()
   if (!trimmed) return null
   return config?.sessionIdFromTitle?.(trimmed) ?? null
 }
 
-/**
- * True when this title is not a NAME under the given policy — today, an
- * identifier the engine writes until its session is named. Callers render the
- * next rung down instead (the first-prompt summary, then the vendor default);
- * they never show the placeholder itself.
- */
+/** True when the title is not a name; callers show the first-prompt summary, then the vendor default. */
 export function titleIsPlaceholder(config: EngineTerminalTitle | undefined, title: string): boolean {
   return titleSessionId(config, title) !== null
 }

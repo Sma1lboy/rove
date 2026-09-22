@@ -1,99 +1,63 @@
 /**
- * Session-identity policy — how an engine answers "what is my current
- * session id" and "how do I resume it". Like its sibling `terminal-title.ts`,
- * held apart from `registry.ts` so the POLICY can be written without naming a
- * vendor while the registry keeps the vendor→entry resolution.
+ * Session-identity policy: how an engine reports and resumes its session id.
+ * Pure and vendor-free: functions take the adapter's declared
+ * {@link EngineSessionIdentity}, never a vendor id.
  *
- * Pure on purpose: every function here takes the engine's declared
- * {@link EngineSessionIdentity} rather than a vendor id, so nothing in this
- * file names an engine. The vendor-specific KNOWLEDGE (which flag pins an
- * id, which flag resumes one, whether the id is even knowable at launch) is
- * declared by the adapter that owns it.
+ * The id has three possible origins, fixed by each CLI:
  *
- * The id has THREE possible origins, and which one an engine uses is a
- * property of its CLI, not a choice Rove gets to make:
- *
- *   1. PINNED at launch — the CLI accepts a caller-generated id
- *      (`claude --session-id <uuid>`). Rove knows the id before the process
- *      exists, so the tab is trackable from its first frame.
- *   2. READ FROM THE TITLE — the CLI writes its own id into its OSC title
- *      until it has a name for the thread (codex). Declared on
- *      `EngineTerminalTitle.sessionIdFromTitle`, not here.
- *   3. DISCOVERED AFTER THE FACT — the CLI mints its own id and tells no
- *      one, so the only way to learn it is to look in the engine's session
- *      store for what appeared under this worktree (kimi). This is the
- *      weakest source and the one every engine has, because it is exactly
- *      `EngineHistoryReader.listSessionIdsForWorktree`.
- *
- * (3) is why kimi tabs lost their conversation on every restart: with no
- * pin flag and a title that is a sentence rather than an id, nothing ever
- * recorded which session a tab belonged to, so the tab respawned blank.
+ *   1. PINNED at launch: the CLI accepts a caller-generated id
+ *      (`claude --session-id <uuid>`), so the tab is trackable from frame one.
+ *   2. READ FROM THE TITLE: the CLI writes its id into its OSC title until the
+ *      thread has a name (codex). Declared on
+ *      `EngineTerminalTitle.sessionIdFromTitle`.
+ *   3. DISCOVERED AFTER THE FACT: the CLI mints an id and tells no one, so Rove
+ *      looks in the session store for what appeared under this worktree
+ *      (kimi). Weakest, but every engine has it
+ *      (`EngineHistoryReader.listSessionIdsForWorktree`). Without it a kimi
+ *      tab respawns blank on every restart.
  */
 
 /**
- * How an engine's CLI handles session identity. Absent on a registry entry
- * = Rove knows no session flags for this engine: its tabs are still named
- * and tracked from whatever id the history store yields, but a restart
- * opens a fresh conversation because there is no verb to resume with.
+ * How an engine's CLI handles session identity. Absent = no known session
+ * flags: tabs are still tracked from the history store, but a restart opens a
+ * fresh conversation.
  */
 export interface EngineSessionIdentity {
-  /**
-   * The flag that pins a CALLER-GENERATED session id at launch
-   * (`--session-id <uuid>`), for the engines whose CLI accepts one. Absent
-   * = this engine mints its own id and the tab learns it later (origin 2
-   * or 3 above) — kimi cannot be told what to call a new session, only
-   * asked which sessions exist.
-   */
+  /** Flag that pins a caller-generated id at launch (`--session-id <uuid>`).
+   *  Absent = the engine mints its own and the tab learns it via origin 2 or 3. */
   readonly pinFlag?: string
   /**
-   * Flags meaning "this launch command already controls its own session".
-   * When the user's `engineCommand.<id>` override carries one, Rove must
-   * NOT append its own pin: the engine would either refuse two session
-   * controls or silently resume something other than the id we recorded.
-   * The user's explicit flag always wins.
+   * Flags meaning "this command already controls its own session". When the
+   * user's `engineCommand.<id>` carries one, Rove must NOT append its pin: the
+   * engine would refuse two session controls or resume some other id. The
+   * user's flag always wins.
    */
   readonly sessionControlFlags?: readonly string[]
   /**
-   * Argv that REOPENS `sessionId`'s conversation, given the launch command.
-   * A full-argv rewrite rather than a flag pair because the shapes differ
-   * in kind, not just spelling: claude and kimi take a flag
-   * (`--resume <id>` / `-S <id>`), codex takes a SUBCOMMAND with the id as
-   * a positional (`codex resume [opts] <id>`). Probed against the real
-   * binaries; see each adapter's declaration.
-   *
-   * Absent = this engine has no resume verb Rove knows, so a restarted tab
-   * honestly starts a new conversation instead of passing a flag that
-   * would kill the launch.
+   * Argv that reopens `sessionId`'s conversation. A full-argv rewrite because
+   * shapes differ in kind: claude/kimi take a flag (`--resume <id>` /
+   * `-S <id>`), codex a subcommand (`codex resume [opts] <id>`); probed on the
+   * real binaries. Absent = a restarted tab starts fresh rather than pass a
+   * flag that kills the launch.
    */
   readonly resumeArgv?: (base: readonly string[], sessionId: string) => readonly string[]
   /**
-   * Argv that opens `sourceId`'s conversation as a NEW, diverging session —
-   * "fork this chat into another tab", same worktree. Absent = this engine
-   * has no fork verb, so Rove refuses instead of pretending: kimi's `-S` and
-   * copilot's `--resume` REOPEN a session, which would put two live
-   * processes on one transcript.
+   * Argv that opens `sourceId`'s conversation as a NEW diverging session in the
+   * same worktree: claude `--resume <src> --fork-session`, codex
+   * `codex fork [opts] <src>`. Absent = Rove refuses; kimi's `-S` and
+   * copilot's `--resume` reopen rather than fork, putting two live processes
+   * on one transcript.
    *
-   * A full-argv rewrite for the same reason {@link resumeArgv} is one — the
-   * shapes differ in kind: claude combines flags on the base command
-   * (`--resume <src> --fork-session`), codex takes a SUBCOMMAND with the id
-   * as a positional (`codex fork [opts] <src>`).
-   *
-   * `newId` is the id Rove wants the FORKED session to carry, for engines
-   * whose CLI accepts a caller-set one (claude's `--session-id`); an engine
-   * that mints its own ignores it. Null/absent = let the engine name it.
-   *
-   * Returning null refuses this particular fork (the caller then opens an
-   * ordinary tab on the base command).
+   * `newId` is the id the fork should carry, for CLIs that accept one
+   * (claude's `--session-id`); others ignore it. Null/absent = the engine
+   * names it. Returning null refuses this fork; the caller opens an ordinary tab.
    */
   readonly forkArgv?: (base: readonly string[], sourceId: string, newId?: string | null) => readonly string[] | null
 }
 
 /**
- * True when `argv` carries `flag` — in EITHER the separated form
- * (`--flag value`) or the attached form (`--flag=value`). Kept local rather
- * than imported from `interactive-command.ts` so this module stays a leaf
- * with no engine-module dependencies. Prefix-safe: `--resume-x` is not
- * `--resume`.
+ * `--flag value` or `--flag=value`; `--resume-x` is not `--resume`. Local so
+ * this module stays a leaf with no engine-module imports.
  */
 function hasFlag(argv: readonly string[], flag: string): boolean {
   return argv.some((a) => a === flag || a.startsWith(`${flag}=`))
@@ -104,11 +68,7 @@ export function controlsOwnSession(identity: EngineSessionIdentity | undefined, 
   return (identity?.sessionControlFlags ?? []).some((flag) => hasFlag(argv, flag))
 }
 
-/**
- * Append the engine's session-pin flag with `sessionId`, or return `argv`
- * unchanged when this engine takes no pin (kimi/codex/custom) or the
- * command already controls its session.
- */
+/** Append the pin flag, unless the engine takes none (kimi/codex/custom) or the command controls its session. */
 export function pinSessionArgv(
   identity: EngineSessionIdentity | undefined,
   argv: readonly string[],
@@ -125,10 +85,9 @@ export function acceptsPinnedSession(identity: EngineSessionIdentity | undefined
 }
 
 /**
- * Argv that resumes `sessionId`, or `null` when this engine declares no
- * resume verb or the command already controls its own session (the user's
- * `--resume <other>` must not be overridden by ours). Null means the caller
- * launches the bare command — a fresh conversation, honestly.
+ * Argv that resumes `sessionId`, or null (caller launches fresh) when there is
+ * no resume verb or the command controls its own session; the user's
+ * `--resume <other>` must not be overridden.
  */
 export function resumeSessionArgv(
   identity: EngineSessionIdentity | undefined,
@@ -141,15 +100,10 @@ export function resumeSessionArgv(
 }
 
 /**
- * The newest session id in `ids` (oldest-first, per the history-reader
- * contract) that no sibling tab has already claimed.
- *
- * Claim-tracking is what makes discovery safe with more than one tab per
- * worktree. The store answers per-WORKTREE, not per-tab, so two kimi tabs
- * in one task both see the same list; taking the newest unclaimed one
- * gives the second tab the second-newest session instead of both tabs
- * fighting over one conversation. Returns null when every session is
- * spoken for — better a blank tab than a stolen one.
+ * Newest id in `ids` (oldest-first) that no sibling tab claims. The store
+ * answers per worktree, not per tab, so two tabs see one list; claims give the
+ * second tab the second-newest. Null when all are claimed: better a blank tab
+ * than a stolen one.
  */
 export function pickUnclaimedSessionId(ids: readonly string[], claimed: ReadonlySet<string>): string | null {
   for (let i = ids.length - 1; i >= 0; i--) {
@@ -160,11 +114,9 @@ export function pickUnclaimedSessionId(ids: readonly string[], claimed: Readonly
 }
 
 /**
- * Argv that FORKS `sourceId` into a new diverging session, or null when this
- * engine declares no fork verb, there is no source id, or the command already
- * controls its own session (a second `--resume` makes claude refuse to launch
- * — the user's explicit flag wins, same precedent as
- * {@link resumeSessionArgv}). Null means the caller opens an ordinary tab.
+ * Argv that forks `sourceId`, or null (caller opens an ordinary tab) when there
+ * is no fork verb, no source id, or the command controls its own session (a
+ * second `--resume` makes claude refuse to launch).
  */
 export function forkSessionArgvFor(
   identity: EngineSessionIdentity | undefined,
