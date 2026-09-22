@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from "vitest"
 import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
-import { FakeClient, expectApiError, recordingTearDown, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
+import { FakeClient, recordingTearDown, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 describe("task delete handler", () => {
   it("deletes before stopping orphaned hosted sessions", async () => {

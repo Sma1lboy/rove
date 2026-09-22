@@ -276,7 +276,6 @@ describe("deliverHostedPrompt", () => {
     // brand-new engine at tab-1 and reported ok — sender and receiver both
     // believed the message arrived. It must be a typed error instead.
     const calls: string[] = []
-    const engine = echoingPeek()
     const rpc = {
       request: async <T>(name: string, payload?: unknown): Promise<T> => {
         calls.push(name)

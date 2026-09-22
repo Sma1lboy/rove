@@ -21,7 +21,6 @@
  * JSON payload.
  */
 
-import { readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { connectIfRunning } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"

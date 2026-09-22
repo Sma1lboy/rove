@@ -28,7 +28,6 @@ import {
   filterTreeRows,
   jumpRowsOf,
   parseRowId,
-  treeFlatIds,
   withRecentRow,
 } from "../../src/tui/panes/sidebar/tree-core"
 import type { Task } from "../../src/types/task"

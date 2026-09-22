@@ -17,7 +17,6 @@
 import { userFacingErrorMessage } from "@/lib/error-message"
 import { useRenderer } from "@opentui/react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
-import { t } from "../../tui/i18n"
 import { copyTextToSystemClipboard } from "../../tui/lib/clipboard-copy"
 import {
   applyVendorChange,

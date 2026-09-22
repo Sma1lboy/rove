@@ -14,8 +14,6 @@
  * the surrounding template is what tells it what to do.
  */
 
-import { promises as fs } from "node:fs"
-import path from "node:path"
 import { readFirstNonEmptyRepoFile } from "../../lib/repo-config-file.ts"
 
 /** One failing check as the daemon's `pr.failingChecks` returns it. */

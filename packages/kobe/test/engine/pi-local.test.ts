@@ -8,8 +8,7 @@
  *  - the session store layout, including the two directory encodings.
  */
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
+import { mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { basename, join } from "node:path"
 import { afterAll, describe, expect, it, vi } from "vitest"
 

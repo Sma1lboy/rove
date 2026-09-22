@@ -20,7 +20,6 @@
  */
 
 import { stat } from "node:fs/promises"
-import { homedir } from "node:os"
 import path from "node:path"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
 import { sameHistoryWorktree } from "../history-worktree"
@@ -122,15 +121,6 @@ export async function latestTranscriptMtimeForWorktree(
   deps: KimiHistoryDeps = defaultDeps,
 ): Promise<number> {
   return (await worktreeSessionFiles(worktree, deps)).at(-1)?.mtimeMs ?? 0
-}
-
-/** mtime (epoch ms) of a stream this module resolved, or 0 when it went
- *  away between the resolve and the stat. */
-export async function transcriptMtime(file: string, deps: KimiHistoryDeps = defaultDeps): Promise<number> {
-  return await deps
-    .stat(file)
-    .then((s) => s.mtimeMs)
-    .catch(() => 0)
 }
 
 /** Absolute path of `sessionId`'s stream, or null when the index has no

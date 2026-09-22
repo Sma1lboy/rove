@@ -147,16 +147,6 @@ test("keys stay dead while another pane holds focus", async () => {
   expect(picked).toEqual([])
 })
 
-/** Seed tabs with explicit titles — the tab-title search needs a label that
- *  is nothing like its task's. */
-function seedTabsNamed(taskId: string, tabs: ReadonlyArray<readonly [string, string]>): void {
-  tabsByTask.set(taskId, {
-    tabs: tabs.map(([id, title], i) => ({ kind: "engine" as const, id, title, ordinal: i + 1 })),
-    activeId: tabs[0]?.[0] ?? "tab-1",
-    nextOrdinal: tabs.length + 1,
-  })
-}
-
 test("escape leaves search and restores the full tree", async () => {
   tabsByTask.clear()
   const tasks = [MAIN, task("a", { title: "alpha" }), task("b", { title: "bravo" })]

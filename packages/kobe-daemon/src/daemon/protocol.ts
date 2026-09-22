@@ -12,13 +12,6 @@
 
 import type { ChannelName } from "./channels.ts"
 import type { DaemonTask } from "./contracts.ts"
-import type {
-  PtyDataEventPayload,
-  PtyExitEventPayload,
-  PtyOpenResult,
-  PtyPeekResult,
-  PtySessionExit,
-} from "./pty-protocol.ts"
 export type {
   PtyDataEventPayload,
   PtyExitEventPayload,

@@ -19,26 +19,15 @@
  */
 
 import type {
-  CellPixelSize,
-  ChannelName,
   ChannelPayloads,
   EngineQuotaUsage,
   EngineQuotaWindow,
-  NoticeEventPayload,
   SerializedTask,
-  SubscribeRole,
-  TabClosePayload,
-  TabOpenPayload,
-  TabRenamePayload,
   UiPrefsPayload,
-  UiPromptPayload,
 } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { EngineActivityDetail, TaskActivityState } from "../engine/hook-events.ts"
-import type { ReadableState } from "../lib/external-store.ts"
-import { type WorktreeChanges, sameWorktreeChanges } from "../tui/panes/sidebar/worktree-changes.ts"
 import type { Task } from "../types/task.ts"
 import { toTaskId } from "../types/task.ts"
-import type { UpdateInfo } from "../version.ts"
 
 /** Per-task engine activity, accumulated from the daemon's `engine-state` channel. */
 export interface TaskEngineState {
@@ -68,7 +57,6 @@ export type AttentionInboxItem = ChannelPayloads["attention.inbox"]["items"][num
 // The `worktree.changes` wire contract lives in its own module (its payload
 // carries two facts per key); re-exported here so existing importers keep
 // naming it through this one.
-import type { WorktreeChangesMap } from "./remote-orchestrator-worktree-changes.ts"
 export {
   type WorktreeChangesMap,
   parseWorktreeChangesPayload,

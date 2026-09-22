@@ -39,7 +39,7 @@
 
 import { assertAutomationTargetTask, automationTarget } from "./automation-target.ts"
 import type { Automation, AutomationRunStatus, DaemonOrchestrator, DaemonTask } from "./contracts.ts"
-import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import { logDaemonInfo } from "./crash-log.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 
 /** The orchestrator slice a firing needs. */

@@ -16,37 +16,6 @@ function session(key: string, command: string[], alive = true): PtySessionInfo {
   return { key, alive, pid: alive ? 123 : null, command, title: "" }
 }
 
-/** A ps snapshot in which pid 123 (the session shell) hosts `child`. */
-function psWith(child: string): () => Promise<string> {
-  return async () => `123 1 -zsh\n456 123 ${child}\n`
-}
-
-/**
- * A `pty.peek` reply from an engine that has announced bracketed paste, i.e.
- * one that is in raw mode and READING. Delivery now waits for exactly this
- * before writing — a prompt written into the pre-raw window is truncated at
- * the tty's 1024-byte canonical buffer (see `pty-large-prompt.test.ts`).
- */
-function readyPeek(echo = ""): { exists: boolean; alive: boolean; data: string; offset: number } {
-  return { exists: true, alive: true, data: Buffer.from(`\x1b[?2004h${echo}`).toString("base64"), offset: 0 }
-}
-
-/**
- * A fake engine that echoes what it was written, the way a real composer
- * redraws pasted text. Delivery confirms the prompt's tail on capture, so a
- * fake that stayed silent would poll until its confirm budget expired.
- */
-function echoingPeek(): { seen: () => string; onWrite: (data: string) => void; peek: () => unknown } {
-  let buffer = ""
-  return {
-    seen: () => buffer,
-    onWrite: (data: string) => {
-      buffer += data
-    },
-    peek: () => readyPeek(buffer),
-  }
-}
-
 describe("findEngineKey", () => {
   it("① picks the deterministic <taskId>::tab-1 engine", () => {
     const sessions = [session("t1::tab-1", ["claude"])]

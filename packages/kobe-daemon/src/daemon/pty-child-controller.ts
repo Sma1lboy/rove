@@ -12,7 +12,7 @@
 import { randomUUID } from "node:crypto"
 import { resolveLoginShell } from "./platform-shell.js"
 import type { PtySessionExit } from "./protocol.ts"
-import { type PtyChild, type PtyDriver, type PtyExit, bunTerminalDriver } from "./pty-driver.ts"
+import { type PtyDriver, type PtyExit, bunTerminalDriver } from "./pty-driver.ts"
 import { embeddedTerminalEnv } from "./pty-env.js"
 import { type PtySessionState, type PtySpawnSpec, freshSessionState } from "./pty-host-types.ts"
 import { scanOscTitle } from "./pty-observability.ts"

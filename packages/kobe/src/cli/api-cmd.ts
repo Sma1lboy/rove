@@ -64,7 +64,6 @@ import { ApiError, splitDaemonCode } from "./api/types.ts"
 import type {
   ApiRuntime,
   DeliveredPrompt,
-  FlagSpec,
   Flags,
   ParsedArgs,
   PromptDeliveryOps,

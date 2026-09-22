@@ -11,7 +11,6 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type {
   AttentionInboxItem,
   EngineLifecycleMap,
-  EngineTabStateMap,
   TaskEngineState,
   TaskJobState,
   WorktreeChangesMap,

@@ -9,12 +9,12 @@
  * manifests normalize on load, and listeners fire after every mutation.
  */
 
-import { mkdir, open, rename, unlink, writeFile } from "node:fs/promises"
+import { mkdir, open, rename, unlink } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { readRoveHomeDirEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import { LEGACY_KOBE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "../../product.ts"
-import type { Task, TaskId, TaskIndex, TaskStatus } from "../../types/task.ts"
+import type { Task, TaskId, TaskIndex } from "../../types/task.ts"
 import { DEFAULT_TASK_VENDOR, toTaskId } from "../../types/task.ts"
 import { release } from "./lockfile.ts"
 import { acquireWithRetry, mergeTasksWithDisk, readDiskIndex, recoverIndexFromDisk } from "./store-codec.ts"

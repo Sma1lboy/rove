@@ -23,10 +23,6 @@ export function setMachineHub(next: MachineHub | null): void {
   hub = next
 }
 
-export function machineHub(): MachineHub | null {
-  return hub
-}
-
 const NO_MACHINES: readonly MachineLayerEntry[] = []
 
 /**

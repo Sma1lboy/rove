@@ -38,8 +38,6 @@ import {
   computePathBudget,
   computeStatWidths,
   expandOrDescendAction,
-  gitErrorIsRetryable,
-  summarizeGitError,
   toggleDir,
   watchWorktree,
 } from "../../../tui/panes/filetree/pane-core"
@@ -53,8 +51,6 @@ import {
 } from "../../../tui/panes/filetree/rows"
 import { type TreeNode, buildTree } from "../../../tui/panes/filetree/tree"
 import { PaneKeyHint, usePaneHintMark } from "../../component/keyboard-hints"
-import { useTheme } from "../../context/theme"
-import { useT } from "../../i18n"
 import { useBindings } from "../../lib/keymap"
 import { useLatest } from "../../lib/use-latest"
 import { FileTreeBodyView } from "./body-view"
@@ -91,8 +87,6 @@ export type FileTreeProps = {
 }
 
 export function FileTree(props: FileTreeProps) {
-  const { theme } = useTheme()
-  const t = useT()
   // Fallback width when the host doesn't pass `paneWidth` (full-width hosts).
   const dims = useTerminalDimensions()
 

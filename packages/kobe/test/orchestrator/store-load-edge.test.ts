@@ -11,7 +11,7 @@
  * shape here is one a real crash can produce.
  */
 
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { flushClientLog } from "@sma1lboy/kobe-daemon/client/client-log"

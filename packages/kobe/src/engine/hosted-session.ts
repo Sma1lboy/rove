@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs"
 import { basename } from "node:path"
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { ensurePtyHostReachable } from "@sma1lboy/kobe-daemon/client/pty-process"
@@ -9,10 +8,9 @@ import type { TerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/termina
 import { readPersistedTerminalDefaultColors } from "../tui/lib/terminal-colors.ts"
 import { BUILTIN_VENDORS, type VendorId } from "../types/vendor.ts"
 import { withDeliveryLock } from "./delivery-lock.ts"
-import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from "./foreground.ts"
 import { PASTE_READY_POLL_MS, PASTE_READY_TIMEOUT_MS, bracketedPasteActive, encodePaste } from "./paste-readiness.ts"
 import { engineEntry } from "./registry.ts"
-import { ENGINE_EXIT_BANNER, type EngineSessionLaunch, REPO_INIT_TIMEOUT_SECONDS } from "./session-launch.ts"
+import type { EngineSessionLaunch } from "./session-launch.ts"
 
 export interface HostedSessionRpc {
   request<T = unknown>(name: string, payload?: unknown): Promise<T>

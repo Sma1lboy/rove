@@ -22,7 +22,6 @@
  * gets both.
  */
 
-import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 

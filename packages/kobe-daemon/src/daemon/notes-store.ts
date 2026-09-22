@@ -17,9 +17,9 @@
  * retrieval, not a bigger number.
  */
 
-import { readFile, stat } from "node:fs/promises"
+import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
-import { join, resolve } from "node:path"
+import { join } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
 import { serialized, writeJsonAtomic } from "./json-file.ts"
 import { resolveRepoRoot } from "./repo-key.ts"

@@ -15,7 +15,6 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import type { OnboardingEnvReport } from "../../src/cli/env-checks.ts"
 import { detectShell, installCompletions } from "../../src/cli/onboarding.ts"
 
 const mocks = vi.hoisted(() => ({
@@ -56,35 +55,6 @@ vi.mock("../../src/lib/skill-install.ts", () => ({
 }))
 function freshHome(): string {
   return mkdtempSync(join(tmpdir(), "kobe-onboarding-"))
-}
-
-/** A passing environment: git present, one usable engine. */
-function readyEnv(): OnboardingEnvReport {
-  return {
-    git: { line: "git:      ✓ git version 2.39.5", found: true },
-    engines: {
-      lines: ["engines:", "  claude  ✓ /bin/claude — logged in (a@b.c)"],
-      anyUsable: true,
-      signedOut: [],
-    },
-  }
-}
-
-/**
- * The audit's abandon scenario: git is fine (every machine that ran
- * install.sh has it), no engine is usable. git present is the point — a
- * fixture missing BOTH lets a readiness check that ignores engines entirely
- * still pass this test.
- */
-function emptyEnv(): OnboardingEnvReport {
-  return {
-    git: { line: "git:      ✓ git version 2.39.5", found: true },
-    engines: {
-      lines: ["engines:", "  claude  ✗ not found on PATH", "  codex   ✗ not found on PATH"],
-      anyUsable: false,
-      signedOut: [],
-    },
-  }
 }
 
 function setProduct(name: "rove" | "kobe"): void {

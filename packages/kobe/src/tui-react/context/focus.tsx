@@ -6,7 +6,7 @@
  */
 
 import { useRenderer } from "@opentui/react"
-import { type ReactNode, createContext, useCallback, useContext, useMemo, useRef, useState } from "react"
+import { type ReactNode, createContext, useCallback, useContext, useMemo, useState } from "react"
 import { useLatest } from "../lib/use-latest"
 
 /** The primary panes in kobe's layout. */

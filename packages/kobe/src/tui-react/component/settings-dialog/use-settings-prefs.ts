@@ -11,7 +11,6 @@
 
 import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
-import { logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
 import { AUTO_STATUS_KEY } from "../../../state/auto-status"
 import { DISPATCHER_KEY } from "../../../state/dispatcher"
 import { DEFAULT_SCROLLBACK_ROWS, SCROLLBACK_ROWS_KEY, normalizeScrollbackRows } from "../../../state/scrollback"

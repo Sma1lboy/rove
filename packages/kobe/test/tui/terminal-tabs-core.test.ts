@@ -18,7 +18,6 @@ import {
   openCommandTab,
   openContentTab,
   openEditorTab,
-  recycleTabs,
   rehydrateTabs,
   renameActiveTab,
   selectTab,

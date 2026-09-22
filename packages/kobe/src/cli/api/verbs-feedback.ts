@@ -8,7 +8,6 @@
  */
 
 import { DEFAULT_FEEDBACK_CATEGORY_SLUG } from "../../lib/feedback.ts"
-import { F } from "./flags.ts"
 import { feedback } from "./handlers-fanout.ts"
 import type { VerbSpec } from "./types.ts"
 

@@ -34,16 +34,6 @@ import {
   decodeUiPrefsPayload,
   describePayload,
   deserializeTask,
-  parseContextUsagePayload,
-  parseRowTokensPayload,
-  parseTranscriptActivityPayload,
-  parseUsageSnapshotPayload,
-  parseWorktreeChangesPayload,
-  sameContextUsageMap,
-  sameRowTokenMap,
-  sameTranscriptActivityMap,
-  sameUsageSnapshotMap,
-  sameWorktreeChangesMap,
 } from "./remote-orchestrator-payloads.ts"
 
 /**

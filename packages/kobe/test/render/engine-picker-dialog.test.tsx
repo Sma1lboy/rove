@@ -161,7 +161,7 @@ describe("EnginePickerDialogView", () => {
 
   test("tab reaches the model input; typed text is pinned verbatim on enter", async () => {
     const p = mount("claude")
-    const { frame, mockInput } = await p
+    const { mockInput } = await p
     await settle()
     act(() => mockInput.pressTab())
     await settle()

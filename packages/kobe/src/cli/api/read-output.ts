@@ -42,7 +42,6 @@ import type { VendorId } from "../../types/vendor.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { findEngineKey, listSessionsOrNull, openPtyHost } from "./pty-delivery.ts"
 import {
-  type Cursor,
   DEFAULT_PAGE_MESSAGES,
   type FallbackReason,
   type HistoryCursor,

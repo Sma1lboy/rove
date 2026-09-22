@@ -2,7 +2,6 @@ import { describe, expect, test } from "vitest"
 import type { AttentionInboxItem } from "../../src/client/remote-orchestrator"
 import {
   type InboxRow,
-  attentionInboxCounts,
   attentionInboxKey,
   clampSelectableRow,
   inboxRows,
@@ -10,8 +9,6 @@ import {
   nextAttentionInboxTarget,
   nextSelectableRow,
   partitionAttentionInboxAvailability,
-  sortAttentionInbox,
-  visitResolvedEpisodes,
   windowInboxRows,
 } from "../../src/tui-react/workspace/attention-inbox-core"
 import type { Task } from "../../src/types/task"

@@ -30,7 +30,7 @@ vi.mock("../../src/state/keybindings-file", () => ({
   }),
 }))
 
-const { KobeKeymap, findBinding, resetKeymapToDefaults } = await import("../../src/tui/context/keybindings")
+const { findBinding, resetKeymapToDefaults } = await import("../../src/tui/context/keybindings")
 const userKb = await import("../../src/tui/context/keybindings-user")
 
 const ID = "sidebar.rename" // overridable, default ["r"], carries a hint

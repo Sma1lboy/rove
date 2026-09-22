@@ -30,12 +30,7 @@
 import { userFacingErrorMessage } from "@/lib/error-message"
 import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import { kobeApiInvocation } from "../../engine/interactive-command"
-import {
-  type IssueChatPlacement,
-  issueChatTaskTitle,
-  issueProjectPrompt,
-  issueWorktreePrompt,
-} from "../../state/issue-chat"
+import { type IssueChatPlacement, issueChatTaskTitle, issueProjectPrompt } from "../../state/issue-chat"
 import { addSavedRepo } from "../../state/repos"
 import { setRepoLastActiveVendor } from "../../state/vendor-prefs"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"

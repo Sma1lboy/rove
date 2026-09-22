@@ -30,9 +30,8 @@
 
 import { TextAttributes, type TextareaRenderable } from "@opentui/core"
 import { usePaste } from "@opentui/react"
-import { ISSUE_STATUSES, type Issue, type IssueStatus } from "@sma1lboy/kobe-daemon/daemon/issues-store"
-import { type ReactNode, useRef, useState } from "react"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { ISSUE_STATUSES, type IssueStatus } from "@sma1lboy/kobe-daemon/daemon/issues-store"
+import { useRef, useState } from "react"
 import { ISSUE_CHAT_PLACEMENTS, type IssueChatPlacement, withImagePlaceholders } from "../../state/issue-chat"
 import { stripNewlines } from "../../tui/component/new-task-dialog/state"
 import { asAttachmentPaths, captureClipboardAttachment } from "../../tui/lib/attachments"
@@ -41,15 +40,7 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
-import {
-  ChipButton,
-  ChipRow,
-  DialogField,
-  DialogFooter,
-  DialogHeader,
-  DialogLabel,
-  DialogSection,
-} from "../ui/dialog-parts"
+import { ChipButton, ChipRow, DialogField, DialogFooter, DialogHeader, DialogSection } from "../ui/dialog-parts"
 import type { IssueDetailOptions, IssueDetailOutcome, IssueDraft } from "./issue-detail-contract"
 import { IssueEventsSection } from "./issue-detail-parts"
 

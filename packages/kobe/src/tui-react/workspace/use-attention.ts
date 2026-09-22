@@ -33,7 +33,6 @@ import { tabTitleStable } from "../../tui/workspace/terminal-tabs-core"
 import { DEFAULT_TASK_VENDOR, type Task } from "../../types/task"
 import type { KVContext } from "../context/kv"
 import type { NotificationsContext } from "../context/notifications"
-import { useT } from "../i18n"
 import { isAttentionInboxItemAvailable, nextAttentionInboxTarget } from "./attention-inbox-core"
 import { activeTabIdFor, knownTaskTab, taskTabExists } from "./terminal-tabs-shared"
 
@@ -102,7 +101,6 @@ export function useAttention(args: {
   noTasksMessage: string
 }): { jumpToNextAttention: () => void } {
   const { tasks, engineState, engineTabState, inboxItems, selectedId, kv, notif, openAttention, noTasksMessage } = args
-  const t = useT()
 
   // Previous frame's state per NOTIFY TARGET, for rising-edge detection.
   // Seeded on the first render so targets already sitting in an attention

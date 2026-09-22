@@ -10,7 +10,6 @@
  * limit and a crash look identical.
  */
 
-import { relativeCountdown } from "@/lib/relative-time"
 import { intlLocale } from "@/tui/i18n"
 import type { Task } from "@/types/task"
 import type { RGBA } from "@opentui/core"

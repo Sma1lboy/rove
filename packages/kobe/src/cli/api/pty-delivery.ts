@@ -30,7 +30,6 @@ import {
   listHostedSessionsOrNull,
   openHostedSessionHost,
   pastePromptWhenEngineUp,
-  writeHostedPrompt,
 } from "../../engine/hosted-session.ts"
 import { enginePresence } from "../../engine/session-engine-presence.ts"
 import { type EngineSessionLaunch, initMarkerSaysFinished } from "../../engine/session-launch.ts"

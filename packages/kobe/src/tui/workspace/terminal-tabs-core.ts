@@ -42,7 +42,7 @@ import type { CommandTab, ContentTab, TabsState, TerminalTab } from "./terminal-
 // what a user action does to one that exists. Re-exported here so importers
 // keep one entry point.
 export { initialShellTabs, initialTabs, recycleTabs, rehydrateTabs, reopenTabs } from "./terminal-tabs-lifecycle"
-import { initialTabs, reopenHintFor } from "./terminal-tabs-lifecycle"
+import { reopenHintFor } from "./terminal-tabs-lifecycle"
 
 /** Shared insert: append `tab` after the active tab and focus it. */
 function insertAfterActive(state: TabsState, tab: TerminalTab): TabsState {

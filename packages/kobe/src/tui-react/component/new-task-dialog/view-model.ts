@@ -12,7 +12,7 @@
  * Error strings resolved at submit time use the module-level `t`.
  */
 
-import { AUTO_EFFORT_TIERS, type AutoEffortTier, readAutoEffortTable } from "@/engine/auto-effort"
+import { AUTO_EFFORT_TIERS, readAutoEffortTable } from "@/engine/auto-effort"
 import { engineEntry } from "@/engine/registry"
 import { type VendorId, nextVendorWithin, prevVendorWithin } from "@/types/vendor"
 import type { AdoptableWorktree } from "@/types/worktree"

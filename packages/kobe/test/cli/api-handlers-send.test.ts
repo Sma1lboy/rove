@@ -6,7 +6,7 @@ import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { ApiError, type ApiRuntime, invokeVerb } from "../../src/cli/api-cmd.ts"
+import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
 import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 

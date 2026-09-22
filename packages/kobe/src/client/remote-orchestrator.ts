@@ -13,7 +13,7 @@
  */
 
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
-import { logClient, logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
+import { logClient } from "@sma1lboy/kobe-daemon/client/client-log"
 import { ensureDaemonReachable } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import type { DaemonRpcClient } from "@sma1lboy/kobe-daemon/client/rpc"
 import type { RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"

@@ -29,7 +29,6 @@
 
 import type { ContentBlock } from "./content"
 import type { EngineTerminalPresentation } from "./terminal-presentation"
-import type { VendorId } from "./vendor"
 export type { ContentBlock } from "./content"
 
 /**
