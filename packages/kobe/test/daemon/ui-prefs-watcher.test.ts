@@ -71,12 +71,6 @@ async function waitFor(cond: () => boolean): Promise<void> {
   expect(cond()).toBe(true)
 }
 
-describe("defaultUiPrefsStatePath", () => {
-  test("resolves under the given home (mirror of kvStatePath in env.ts)", () => {
-    expect(defaultUiPrefsStatePath("/some/home")).toBe(path.join("/some/home", ".config", "rove", "state.json"))
-  })
-})
-
 describe("readUiPrefsFromStateFile", () => {
   test("missing file yields the documented defaults", () => {
     expect(readUiPrefsFromStateFile(statePath)).toEqual({

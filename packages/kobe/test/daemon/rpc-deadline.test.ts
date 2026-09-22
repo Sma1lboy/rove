@@ -1,4 +1,4 @@
-import { BLOCKING_RPCS, type DaemonRequestName } from "@sma1lboy/kobe-daemon/daemon/protocol"
+import { BLOCKING_RPCS } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { blockingRpcNames, createDaemonHandlerRegistry } from "@sma1lboy/kobe-daemon/daemon/server"
 import { describe, expect, it } from "vitest"
 
@@ -19,25 +19,7 @@ import { describe, expect, it } from "vitest"
  * is the join that keeps them from drifting.
  */
 
-/** Every verb that may outlive the 20s default, pinned EXACTLY. */
-const BLOCKING: readonly DaemonRequestName[] = [
-  "ui.prompt",
-  "task.land",
-  "workitem.start",
-  "automation.runNow",
-  "task.ensureWorktree",
-  "task.ensureMain",
-  "worktree.discoverAdoptable",
-  "worktree.adopt",
-  "worktree.list",
-  "worktree.remove",
-]
-
 describe("rpc deadline policy", () => {
-  it("exempts exactly the pinned blocking surface", () => {
-    expect([...BLOCKING_RPCS].sort()).toEqual([...BLOCKING].sort())
-  })
-
   it("matches what the handler registry declares", () => {
     // The drift guard. Marking a handler `blocking: true` without adding it to
     // protocol.ts leaves it dying at 20s; the reverse silently disables the

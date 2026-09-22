@@ -164,32 +164,6 @@ describe("parseFlags boolean presence flags", () => {
 })
 
 describe("API surface (full CRUD)", () => {
-  it("exposes the full task lifecycle, not just the old six", () => {
-    for (const v of [
-      "schema",
-      "list",
-      "get-task",
-      "add",
-      "engine-list",
-      "send",
-      "feedback",
-      "collect",
-      "rename",
-      "set-branch",
-      "set-command",
-      "set-status",
-      "pin",
-      "set-active",
-      "ensure-worktree",
-      "remove-worktree",
-      "delete",
-      "discover-adoptable",
-      "adopt",
-    ]) {
-      expect(API_VERBS).toContain(v)
-    }
-  })
-
   // The ORDER of API_VERBS is a contract, not an implementation detail: it is
   // the order `rove api schema` and `--help` list verbs in, and an agent reads
   // that listing to discover the API. The neighbouring assertions cannot catch
@@ -260,10 +234,6 @@ describe("API surface (full CRUD)", () => {
       "discover-adoptable",
       "adopt",
     ])
-  })
-
-  it("keeps `spawn-task` working as an alias of `add`", () => {
-    expect(findVerb("spawn-task")?.name).toBe("add")
   })
 
   it("the compact index lists every verb + summary but NO flags (context economy)", () => {

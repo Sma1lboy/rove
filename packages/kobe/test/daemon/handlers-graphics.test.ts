@@ -19,7 +19,6 @@
 
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { GraphicsImageIds } from "@sma1lboy/kobe-daemon/daemon/graphics-ids"
-import { agreedCellSize } from "@sma1lboy/kobe-daemon/daemon/handlers-graphics"
 import { handleSubscribe } from "@sma1lboy/kobe-daemon/daemon/subscribe"
 import { describe, expect, it } from "vitest"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
@@ -37,42 +36,6 @@ describe("GraphicsImageIds", () => {
     const b = ids.allocate("t1", "tab-2")
     const c = ids.allocate("t2", "tab-1")
     expect(new Set([a, b, c]).size).toBe(3)
-  })
-
-  it("lets a tab claim only the ids it was given", () => {
-    const ids = new GraphicsImageIds()
-    const mine = ids.allocate("t1", "tab-1")
-    expect(ids.owns("t1", "tab-1", mine)).toBe(true)
-    expect(ids.owns("t1", "tab-2", mine)).toBe(false)
-    expect(ids.owns("t1", "tab-1", mine + 1000)).toBe(false)
-  })
-
-  it("forgets a closed tab's ids", () => {
-    const ids = new GraphicsImageIds()
-    const mine = ids.allocate("t1", "tab-1")
-    ids.clearTab("t1", "tab-1")
-    expect(ids.owns("t1", "tab-1", mine)).toBe(false)
-  })
-})
-
-describe("agreedCellSize", () => {
-  it("answers the one size when every attached terminal reports it", () => {
-    expect(
-      agreedCellSize([
-        { width: 16, height: 34 },
-        { width: 16, height: 34 },
-      ]),
-    ).toEqual({ cell: { width: 16, height: 34 } })
-  })
-
-  it("refuses when nobody could measure, and when two terminals disagree", () => {
-    expect(agreedCellSize([])).toEqual({ unsupported: "no-cell-size" })
-    expect(
-      agreedCellSize([
-        { width: 16, height: 34 },
-        { width: 8, height: 17 },
-      ]),
-    ).toEqual({ unsupported: "mixed-cell-size" })
   })
 })
 

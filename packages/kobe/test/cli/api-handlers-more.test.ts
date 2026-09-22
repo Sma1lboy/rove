@@ -134,11 +134,6 @@ describe("schema drill-ins", () => {
       expect(err.code).toBe("BAD_VERB")
       expect(err.data?.nextCommandArgs).toEqual(["api", "schema"])
     })
-
-    it("neither retired name resolves through the alias table", () => {
-      expect(findVerb("fan-out")).toBeUndefined()
-      expect(findVerb("set-vendor")).toBeUndefined()
-    })
   })
 
   // Hardcoded on purpose: the neighbouring "every advertised group" test

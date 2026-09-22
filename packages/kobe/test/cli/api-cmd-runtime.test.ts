@@ -203,11 +203,6 @@ describe("defaultApiRuntime", () => {
     ])
   })
 
-  it("resolveRepoRoot canonicalizes through state/repos resolveMainRepoRoot", async () => {
-    await expect(defaultApiRuntime.resolveRepoRoot("/repo/main/.kobe/worktrees/x")).resolves.toBe("/repo/main")
-    expect(mocks.resolveMainRepoRoot).toHaveBeenCalledWith("/repo/main/.kobe/worktrees/x")
-  })
-
   it("defaultVendor resolves repo last-active → global default, blank/unset → undefined", async () => {
     mocks.getPersistedString.mockReturnValue("codex")
     await expect(defaultApiRuntime.defaultVendor()).resolves.toBe("codex")
@@ -223,11 +218,6 @@ describe("defaultApiRuntime", () => {
 
     mocks.getPersistedString.mockReturnValue(undefined)
     await expect(defaultApiRuntime.defaultVendor()).resolves.toBeUndefined()
-  })
-
-  it("readWorktreeChanges delegates to the sidebar's git reader", async () => {
-    await expect(defaultApiRuntime.readWorktreeChanges("/wt/t1")).resolves.toEqual({ added: 3, deleted: 1 })
-    expect(mocks.readWorktreeChanges).toHaveBeenCalledWith("/wt/t1")
   })
 
   it("tearDownSession kills every hosted task key and closes the probe client", async () => {

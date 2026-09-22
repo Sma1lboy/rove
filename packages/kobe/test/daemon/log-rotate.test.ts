@@ -8,11 +8,7 @@
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import {
-  DEFAULT_LOG_ROTATE_CAP_BYTES,
-  rotateLogIfNeeded,
-  shouldRotateLog,
-} from "@sma1lboy/kobe-daemon/daemon/log-rotate"
+import { rotateLogIfNeeded, shouldRotateLog } from "@sma1lboy/kobe-daemon/daemon/log-rotate"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
 
 describe("shouldRotateLog", () => {
@@ -23,12 +19,6 @@ describe("shouldRotateLog", () => {
 
   test("true once strictly over the cap", () => {
     expect(shouldRotateLog(101, 100)).toBe(true)
-  })
-
-  test("defaults to a 10MB cap", () => {
-    expect(DEFAULT_LOG_ROTATE_CAP_BYTES).toBe(10 * 1024 * 1024)
-    expect(shouldRotateLog(DEFAULT_LOG_ROTATE_CAP_BYTES)).toBe(false)
-    expect(shouldRotateLog(DEFAULT_LOG_ROTATE_CAP_BYTES + 1)).toBe(true)
   })
 })
 

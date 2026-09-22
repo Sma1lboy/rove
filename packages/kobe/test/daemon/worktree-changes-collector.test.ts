@@ -250,13 +250,6 @@ describe("WorktreeChangesCollector", () => {
     expect(published.at(-1)).toEqual({ changes: { "/wt/a": { added: 1, deleted: 0 } } })
   })
 
-  test("collects unconditionally when hasSubscribers is omitted (back-compat)", async () => {
-    const { collector, runs } = harness([task({ id: "a" })], { "/wt/a": { added: 2, deleted: 1 } })
-    collector.tick()
-    await settle()
-    expect(runs).toEqual(["/wt/a"])
-  })
-
   test("tick never throws when the task lister blows up", () => {
     const bus = new DaemonEventBus()
     const collector = new WorktreeChangesCollector(

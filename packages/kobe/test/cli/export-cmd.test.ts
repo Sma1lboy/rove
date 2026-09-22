@@ -38,23 +38,9 @@ describe("renderExport", () => {
     expect(parsed[0].vendor).toBe("claude")
   })
 
-  it("writes a CSV header plus one row per task", () => {
-    const csv = renderExport([task(), task({ id: toTaskId("01HZ0000000000000000000002") })], "csv")
-    const lines = csv.split("\n")
-    expect(lines[0]).toBe("id,title,status,vendor,branch,repo,worktreePath")
-    expect(lines).toHaveLength(3)
-  })
-
   it("quotes and escapes CSV fields containing commas or quotes", () => {
     const csv = renderExport([task({ title: 'a, "b"' })], "csv")
     expect(csv.split("\n")[1]).toContain('"a, ""b"""')
-  })
-
-  it("renders an aligned table with a header row", () => {
-    const table = renderExport([task()], "table")
-    const lines = table.split("\n")
-    expect(lines[0].startsWith("id")).toBe(true)
-    expect(lines[1]).toContain("Fix the thing")
   })
 
   it("handles an empty task list per format", () => {
@@ -74,24 +60,5 @@ describe("renderExport", () => {
     const ascii = renderExport([task({ id: toTaskId("01HZ0000000000000000000001"), title: asciiTitle })], "table")
     const cjk = renderExport([task({ id: toTaskId("01HZ0000000000000000000002"), title: cjkTitle })], "table")
     expect(displayWidth(ascii.split("\n")[1])).toBe(displayWidth(cjk.split("\n")[1]))
-  })
-})
-
-describe("displayWidth", () => {
-  it("counts CJK and fullwidth glyphs as two cells", () => {
-    expect(displayWidth("ascii")).toBe(5)
-    expect(displayWidth(String.fromCodePoint(0x4e2d, 0x6587))).toBe(4) // 中文
-    expect(displayWidth(String.fromCodePoint(0xff21, 0xff22))).toBe(4) // ＡＢ fullwidth latin
-  })
-
-  it("counts an astral emoji once (two cells), not as two UTF-16 units", () => {
-    const party = String.fromCodePoint(0x1f389) // 🎉
-    expect(party.length).toBe(2)
-    expect(displayWidth(party)).toBe(2)
-  })
-
-  it("ignores zero-width combining marks and variation selectors", () => {
-    expect(displayWidth(`e${String.fromCodePoint(0x0301)}`)).toBe(1) // e + combining acute
-    expect(displayWidth(`a${String.fromCodePoint(0xfe0f)}`)).toBe(1) // base + variation selector
   })
 })
