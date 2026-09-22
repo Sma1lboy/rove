@@ -216,6 +216,26 @@ export function autoRoutingRows(): SettingsRow[] {
   ]
 }
 
+/**
+ * What the endpoint row shows.
+ *
+ * Three sources, and picking the wrong one is visible on screen: in `custom`
+ * the live URL, in `refused` the address the classifier will NOT post to
+ * (stored under the mode key, so showing it is how the user finds the typo),
+ * and otherwise the remembered one. It must never fall back to the raw mode
+ * VALUE — that is the string `jev` in jev mode, and the row then reads
+ * `Endpoint  jev`, which is not an address and not something anyone typed.
+ */
+export function displayEndpoint(
+  kind: "off" | "jev" | "url" | "refused",
+  storedMode: string,
+  remembered: string,
+): string {
+  if (kind === "url") return storedMode || remembered
+  if (kind === "refused") return storedMode
+  return remembered
+}
+
 export function feedbackRows(): SettingsRow[] {
   return [
     { id: "feedback-title", kind: "feedbackTitle" },

@@ -17,6 +17,7 @@
 
 import { readClassifierConfig } from "../../../engine/auto-routing-classifier"
 import { type SecretSource, secretStatus, writeSecret } from "../../../state/secrets"
+import { displayEndpoint } from "../../../tui/component/settings-dialog/model"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"
@@ -98,10 +99,7 @@ export function useClassifierSettings(
   const config = readClassifierConfig((key) => kv.get(key))
   const mode: ClassifierMode = config.mode.kind === "url" ? "custom" : config.mode.kind === "jev" ? "jev" : "off"
   const remembered = stringAt(kv, ENDPOINT_KEY)
-  // `refused` is a mode the classifier reports and the UI does not offer: the
-  // address is stored, so show it on the endpoint row rather than pretending
-  // nothing is configured.
-  const endpoint = config.mode.kind === "url" ? config.mode.url : stringAt(kv, MODE_KEY) || remembered
+  const endpoint = displayEndpoint(config.mode.kind, stringAt(kv, MODE_KEY), remembered)
 
   function cycle(): void {
     if (mode === "off") {
