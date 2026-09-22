@@ -66,6 +66,15 @@ export function roveSettingsDir(): string {
 }
 
 /**
+ * `~/.rove/secrets.json`: credentials Rove holds for the user. Kept out of
+ * `state.json`, which gets dumped and pasted into bug reports. Written 0600
+ * by `src/state/secrets.ts`; not created eagerly.
+ */
+export function secretsPath(): string {
+  return join(roveStateDir(), "secrets.json")
+}
+
+/**
  * `~/.rove/settings/keybindings.yaml` (`.yml` accepted when `.yaml` is absent).
  * Loaded once per process at TUI boot.
  */
