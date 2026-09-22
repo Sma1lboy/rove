@@ -1,12 +1,7 @@
 /**
- * The DERIVED task group — "whose turn is it", computed from signals Rove
- * already stores, never declared.
- *
- * A task's `status` is a CLAIM: `set-status` is written by a worker or a
- * human, so a worker that crashed mid-run stays `in_progress` forever and the
- * board reads as busy when nothing is running. This function answers the
- * question the status field was being asked to answer and cannot — is anyone
- * blocked on ME — from facts with owners:
+ * The DERIVED task group — "whose turn is it" — computed from stored signals,
+ * never declared. `status` is only a claim (a crashed worker stays
+ * `in_progress` forever); this reads facts with owners:
  *
  *   - `task.report`      the worker's own claim of what it delivered
  *   - `task.prStatus`    the daemon's OBSERVATION of the forge
@@ -15,35 +10,26 @@
  *   - tab liveness       pty-host process truth
  *   - `task.deletion` / `task.quotaResume` / the record's timestamps
  *
- * Pure: no clock of its own (pass `now`), no I/O, no storage. Adding a group
- * means adding a rule here, never a new field on disk.
+ * Pure (pass `now`). A new group is a new rule here, never a field on disk.
  *
- * ## Absence is never a verdict
- *
- * `null` ≠ `false` throughout `docs/API.md`, and it holds here: a task whose
- * activity could not be read, with nothing else stored to stand on, is
- * `unknown` — NOT `idle`. `idle` claims "we looked, nothing is happening",
- * which is a thing a coordinator acts on.
+ * Absence is never a verdict: unreadable activity with nothing else to stand
+ * on is `unknown`, NOT `idle` — `idle` means "we looked", and a coordinator
+ * acts on it.
  */
 
 import type { TaskActivityState } from "@/engine/hook-events"
 import type { TaskPRStatus, TaskStatus, TaskWorkerReport } from "@/types/task"
 
-/**
- * One group, in RANK order — the human's queue, most-needs-you first. The
- * order of the union is the order of the ranks; see {@link taskGroupRank}.
- */
+/** In RANK order (most-needs-you first); array order IS {@link taskGroupRank}. */
 export const TASK_GROUPS = [
-  /** Blocked on a person: a permission prompt, a quota wall nothing will
-   *  clear on its own, a settled error, a dead tab that delivered nothing. */
+  /** Permission prompt, quota wall that won't clear itself, settled error,
+   *  or a dead tab that delivered nothing. */
   "waiting-on-you",
-  /** The PR is open and approved — one merge away from done. */
+  /** PR open and approved — one merge away. */
   "landing",
-  /** Something was handed back (a report, or a finished turn) and nobody has
-   *  acted on it yet. */
+  /** A report or finished turn nobody has acted on. */
   "ready-for-review",
-  /** An engine is producing output, or the daemon will resume it on a timer.
-   *  Nothing for a person to do. */
+  /** An engine is producing output, or will be resumed on a timer. */
   "working",
   /** We looked; nothing is happening. */
   "idle",
@@ -59,32 +45,22 @@ export function taskGroupRank(group: TaskGroup): number {
 }
 
 /**
- * How long a reported `error` must stand before it counts as waiting on a
- * person. An engine that fails a turn and starts another one by itself fires
- * `turn-failed` then `turn-start` seconds apart; summoning a human into that
- * gap is the noise this whole derivation exists to avoid. 20s is
- * `DEFAULT_CORRECT_AFTER_MS` — the daemon's own "wait this long before
- * believing a claim a fresher signal could overturn".
+ * How long `error` must stand before it waits on a person: a self-retrying
+ * engine fires `turn-failed` then `turn-start` seconds apart. Matches the
+ * daemon's `DEFAULT_CORRECT_AFTER_MS`.
  */
 export const ERROR_SETTLE_MS = 20_000
 
 /**
- * How long a dead/absent engine tab must stay that way before it counts as
- * waiting on a person. An engine that dies inside a still-live PTY is only
- * observable on the foreground WALK, one sample per ~60s
- * (`DEFAULT_WALK_EVERY_TICKS` × `DEFAULT_OBSERVER_POLL_MS`). Below one walk
- * cadence the death has been seen once at most, and a respawn inside the
- * window is invisible to us.
+ * How long a dead/absent tab must stay so before it waits on a person. A death
+ * inside a live PTY is only seen on the foreground WALK, ~once per 60s
+ * (`DEFAULT_WALK_EVERY_TICKS` × `DEFAULT_OBSERVER_POLL_MS`); a respawn inside
+ * one cadence is invisible.
  */
 export const DEAD_SETTLE_MS = 60_000
 
-/**
- * `permission_needed` and `rate_limited` get NO debounce: both are engine
- * HOOK events with turn-boundary precision, and neither is ever retracted by
- * observation. A screen-read blocked state would need a debounce because it
- * flickers; these do not, and delaying them would slow down the one group the
- * feature exists to surface.
- */
+// `permission_needed` / `rate_limited` get NO debounce: hook events with
+// turn-boundary precision that observation never retracts.
 
 /** Arbitrated engine activity for a task, or `null`/`undefined` = not read. */
 export interface TaskActivitySignal {
@@ -93,12 +69,7 @@ export interface TaskActivitySignal {
   readonly at: number
 }
 
-/**
- * The stored half of the input — structural, not `Task`, so the CLI's
- * `SerializedTask` and the TUI's `Task` both satisfy it without a cast.
- * Exactly the fields the rules below read; adding one here is the honest
- * signal that a rule grew a new dependency.
- */
+/** Structural (not `Task`) so CLI `SerializedTask` and TUI `Task` both fit uncast. Only fields the rules read. */
 interface TaskGroupTask {
   readonly status: TaskStatus
   readonly report?: TaskWorkerReport
@@ -109,18 +80,11 @@ interface TaskGroupTask {
 
 export interface TaskGroupInput {
   readonly task: TaskGroupTask
-  /**
-   * The task's effective engine activity. `null`/absent means the signal
-   * could NOT be read (daemon restarted, no entry) — it never means idle.
-   * A known-idle answer arrives as `{ state: "idle" }`.
-   */
+  /** `null`/absent = could NOT be read, never idle (idle is `{ state: "idle" }`). */
   readonly activity?: TaskActivitySignal | null
-  /**
-   * Whether any hosted engine tab is alive (pty-host process truth).
-   * `null`/absent = could not ask, which refutes nothing.
-   */
+  /** Any hosted engine tab alive; `null`/absent = could not ask, refutes nothing. */
   readonly tabAlive?: boolean | null
-  /** Epoch ms. Passed in so the function stays pure and testable. */
+  /** Epoch ms. */
   readonly now: number
 }
 
@@ -140,12 +104,10 @@ function autoResumes(task: TaskGroupTask, now: number): boolean {
 }
 
 /**
- * Which group a task is in. FIRST MATCH WINS, and the match order is
- * deliberately not the rank order: `working` is tested before `landing` and
- * `ready-for-review` because a live engine makes every other signal
- * provisional — a PR approved two minutes ago describes commits the engine
- * may already have replaced. It still RANKS below both, because a busy agent
- * is the one state with nothing in it for a person.
+ * FIRST MATCH WINS, in an order that is not rank order: `working` is tested
+ * before `landing`/`ready-for-review` because a live engine makes them
+ * provisional (it may be replacing the approved commits), yet ranks below them
+ * since it needs nothing from a person.
  */
 export function deriveTaskGroup(input: TaskGroupInput): TaskGroup {
   const { task, now } = input
@@ -158,15 +120,12 @@ export function deriveTaskGroup(input: TaskGroupInput): TaskGroup {
   if (state === "permission_needed") return "waiting-on-you"
   if (state === "rate_limited" && !autoResumes(task, now)) return "waiting-on-you"
   if (state === "error" && age >= ERROR_SETTLE_MS) return "waiting-on-you"
-  // A dead tab that delivered nothing. `activity` must exist: without it we
-  // cannot tell a crashed engine from a task whose engine never started.
+  // Needs `activity`: otherwise a crashed engine and a never-started one look alike.
   if (activity && !task.report && age >= DEAD_SETTLE_MS && (state === "dead" || input.tabAlive === false))
     return "waiting-on-you"
 
-  // 2. An agent is on it.
-  //    A `running` claim about a tab the pty host says is NOT alive is stale
-  //    (a hook claim outliving a daemon restart) — it must not read as work
-  //    in progress.
+  // 2. An agent is on it. `running` on a tab the pty host says is dead is a
+  //    stale hook claim (outlived a daemon restart).
   if (state === "running" && input.tabAlive !== false) return "working"
   if (state === "rate_limited") return "working" // auto-resume is scheduled
 
@@ -181,9 +140,7 @@ export function deriveTaskGroup(input: TaskGroupInput): TaskGroup {
   // 4. Handed back, nobody has looked.
   if ((task.report !== undefined || state === "turn_complete") && !actedOn(task)) return "ready-for-review"
 
-  // 5. Quiet — but only when the engine signal actually answered. A stored
-  //    PR observation says nothing about whether an agent is running, so it
-  //    cannot buy an `idle` verdict.
+  // 5. Quiet — only if the engine signal answered; a PR observation can't buy `idle`.
   return activity ? "idle" : "unknown"
 }
 

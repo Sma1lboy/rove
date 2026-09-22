@@ -1,25 +1,14 @@
 import { pathIdentity } from "@sma1lboy/kobe-daemon/path-identity"
 
 /**
- * Promote a `dir` task that is sitting on a repository root into that repo's
- * `main` row.
+ * Finds persisted `dir` tasks pinned to a repo root, so they can be promoted
+ * into that repo's `main` row (outside it they miss the sidebar's project
+ * ordering, pin and fold). `MainTaskCoordinator.ensure` does the promotion
+ * (its `adoptable` branch keeps the task id, so terminal tabs move) but only
+ * runs when someone names the repo; this is the sweep.
  *
- * `rove .` already routes a repo root to `ensureMainTask` (open-dir-cmd.ts),
- * so nothing NEW lands as a mis-shaped row. What has no owner is a row
- * already on disk: a `dir` task pinned to a git toplevel, rendering
- * under its own path as though the directory were not a project, and outside
- * every rule written for `main` — the sidebar's project ordering, the pin, the
- * fold. `MainTaskCoordinator.ensure` already knows how to absorb such a row
- * (its `adoptable` branch keeps the task id, so terminal tabs move with it);
- * this is the sweep that finds them, since `ensure` only runs when somebody
- * names the repo.
- *
- * Its own module because the two halves answer different questions and fail
- * differently: WHICH rows qualify is a pure decision over the task list, and
- * DOING the promotion is `MainTaskCoordinator`'s existing job. Keeping the
- * decision here lets every exclusion below be tested without a git repo —
- * `isRepoRoot` is injected — and each of them is a row that LOOKS promotable
- * and must not be.
+ * Pure over the task list with `isRepoRoot` injected, so each exclusion — a row
+ * that LOOKS promotable and must not be — is testable without git.
  */
 
 import type { Task } from "../types/task.ts"
@@ -35,17 +24,10 @@ export interface PromotableDeps {
  * The repo roots that a `dir` task occupies and no `main` row claims yet.
  *
  * Excludes:
- *   - **scratch** rows — their cwd is unsettled by definition, and
- *     a scratch shell that happens to start inside a repo is still a scratch
- *     shell, not that repo's project row;
- *   - roots that ALREADY have a main row — promoting there would mint a
- *     second row for one checkout, which is the duplicate `ensure` exists to
- *     prevent;
- *   - a `dir` task pinned to a SUBDIRECTORY of a repo. Opening
- *     `my-monorepo/packages/app` is a deliberate choice of that directory;
- *     promoting it would silently re-target the whole monorepo, which is the
- *     "ghost project named after a subdirectory" `open-dir-cmd` refuses to
- *     create in the first place.
+ *   - **scratch** rows — a scratch shell started inside a repo is still scratch;
+ *   - roots that ALREADY have a main row — that would mint a duplicate;
+ *   - a `dir` task pinned to a SUBDIRECTORY (`my-monorepo/packages/app` is a
+ *     deliberate choice; promoting would re-target the whole monorepo).
  */
 export function promotableDirTasks(deps: PromotableDeps): readonly Task[] {
   const claimed = new Set(deps.tasks.filter((task) => task.kind === "main").map((task) => pathIdentity(task.repo)))
@@ -53,8 +35,7 @@ export function promotableDirTasks(deps: PromotableDeps): readonly Task[] {
   const out: Task[] = []
   for (const task of deps.tasks) {
     if (task.kind !== "dir" || task.scratch === true) continue
-    // A dir task's `repo` IS the directory it pins (openDirectoryTask), so
-    // this asks "is the thing you opened a repo root", not "is it inside one".
+    // A dir task's `repo` IS its pinned directory: "is it a repo root", not "inside one".
     const path = task.repo
     const key = pathIdentity(path)
     if (!path || claimed.has(key) || seen.has(key)) continue

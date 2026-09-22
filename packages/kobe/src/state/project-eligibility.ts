@@ -1,34 +1,18 @@
 /**
- * Who is allowed to become a PROJECT — the one gate every path that mints a
- * `kind:"main"` row or a `savedRepos` entry passes through.
+ * Who may become a PROJECT — the gate every path minting a `kind:"main"` row
+ * or a `savedRepos` entry passes through. The mutators apply it themselves, so
+ * no caller can forget it.
  *
- * The sidebar's project list grew to 12 rows on a machine whose `savedRepos`
- * held 2. `ensureMainTask` is called by `createTask`, by the worktree
- * coordinator, by the issue-chat flow and by quick-fork, and none of them
- * asked whether the path deserved a permanent row: test fixtures under
- * `/tmp`, a repo inside `.dev-sandbox`, and a checkout nested in Rove's own
- * worktrees dir all became permanent sidebar entries. Worse, they became
- * UNREMOVABLE — `task.delete` refuses a main row ("remove the repo from
- * saved repos instead") while `rove remove` refuses a repo that was never in
- * `savedRepos`, which is precisely the set these rows belong to.
+ * Rows that slip through are UNREMOVABLE: `task.delete` refuses a main row
+ * ("remove the repo from saved repos instead") while `rove remove` refuses a
+ * repo never in `savedRepos`.
  *
- * Validation is NOT the caller's job: of the eight call sites, exactly one
- * would remember. So the rule lives here and the mutators apply it
- * themselves — a caller cannot forget a check it does not perform.
+ * Not a taste filter (that's the user's Forget action): it rejects only paths
+ * structurally incapable of being a project — throwaway dirs and Rove's own
+ * state. Stricter for INFERRED projects than named ones ({@link ProjectIntent}).
  *
- * Deliberately NOT a taste filter: "I'm not working on codefox right now" is
- * the user's Forget action, not this function's call. It rejects only paths
- * structurally incapable of being someone's project — throwaway directories,
- * and Rove's own state.
- *
- * And it is stricter about a project Rove INFERRED than one the user asked
- * for by name (see {@link ProjectIntent}). Every leaked row was inferred; a
- * `rove add` on a `/tmp` checkout is a deliberate, reversible choice, and
- * banning it would also ban every test that builds its fixture repo there.
- *
- * Pure path logic, no fs and no import of `repos.ts` (which imports THIS
- * module). The one filesystem question — "is this a git repo" — is injected
- * by the caller, which also keeps the `git` subprocess out of bulk scans.
+ * Pure path logic; no import of `repos.ts` (which imports this). The "is it a
+ * git repo" question is injected, keeping `git` out of bulk scans.
  */
 
 import { tmpdir } from "node:os"
@@ -40,72 +24,52 @@ import { homeDir, legacyKobeStateDir, roveStateDir } from "../env.ts"
 export type ProjectRejection = "notAbsolute" | "notGitRepo" | "temporary" | "roveInternal" | "insideSandbox"
 
 /**
- * Path segments that can never hold a durable project.
- *
- * Matched by SEGMENT rather than by prefix: `.dev-sandbox` lives inside the
- * Rove checkout, so a prefix rule would hard-code this repo's location, and
- * an agent running `dev:sandbox` from a worktree produces a different
- * absolute path every time.
+ * Path segments that never hold a durable project. By SEGMENT, not prefix:
+ * `.dev-sandbox` sits inside whichever checkout/worktree ran `dev:sandbox`.
  */
 const THROWAWAY_SEGMENTS = new Set([".dev-sandbox", ".scratch"])
 
-/** True for a synthetic remote-project key. One `startsWith`, duplicated
- *  from `repos.ts` rather than imported so this module stays out of the
- *  cycle — `repos.ts` calls into here. */
+/** Synthetic remote-project key. Duplicated from `repos.ts` to stay out of its import cycle. */
 function isRemoteKey(key: string): boolean {
   return key.startsWith("ssh://")
 }
 
-/** Is `candidate` at or below `root`? Pure string comparison on resolved
- *  paths — no fs access, so it answers the same way for a directory that has
- *  since been deleted. */
+/** Is `candidate` at or below `root`? String-only, so a deleted directory answers the same. */
 function isInside(candidate: string, root: string): boolean {
   return pathWithin(root, candidate) !== null
 }
 
 /**
- * Rove's own state directories — `~/.rove` (worktrees, plugins, issue
- * assets), the pre-rename `~/.kobe`, and the config dir. A repo checked out
- * INSIDE a task worktree is the clearest case: it is a fixture some test
- * created under the worktree it was handed, and it dies with that task.
+ * Rove's own state dirs: `~/.rove` (worktrees, plugins, issue assets), legacy
+ * `~/.kobe`, and the config dir. A repo inside a task worktree is a test
+ * fixture that dies with the task.
  */
 function roveInternalRoots(): readonly string[] {
   return [roveStateDir(), legacyKobeStateDir(), join(homeDir(), ".config", "rove")]
 }
 
-/* Checked BEFORE the `temporary` rule: a test that redirects `ROVE_HOME_DIR`
- * into a tmpdir puts Rove's own state under `/tmp`, and reporting that as
- * "temporary" would hide the more specific reason. */
-
 /**
- * How the path was offered, which decides how strict the gate is.
+ * How the path was offered:
  *
- *   - `"explicit"` — the user asked for this exact path (`rove add`,
- *     `rove .` on a repo root). A checkout under `/tmp` is unusual but it is
- *     THEIR call, and `rove remove` can undo it.
- *   - `"derived"` — Rove inferred a project while doing something else
- *     (`createTask`, worktree adopt). This is where the leak lived: nobody
- *     asked for these rows, nobody saw them appear, and they outlived the
- *     tasks that spawned them.
+ *   - `"explicit"` — the user named it (`rove add`, `rove .` on a repo root);
+ *     a `/tmp` checkout is their call and `rove remove` undoes it (tests build
+ *     fixture repos there).
+ *   - `"derived"` — Rove inferred it (`createTask`, worktree adopt); nobody
+ *     sees these rows appear, and they outlive their tasks.
  *
- * Only `temporary` differs between the two. Everything else — Rove's own
- * state dir, a sandbox path, a non-repo — is wrong under any intent.
+ * Only `temporary` differs between the two.
  */
 export type ProjectIntent = "explicit" | "derived"
 
 /**
- * Why `absPath` may not become a project, considering PATH SHAPE only.
- *
- * Structural rejections are deliberately decided before any filesystem
- * question, so a fixture that has already been deleted still reports
- * `temporary` — the answer a cleanup scan needs — rather than `notGitRepo`,
- * which reads like a user's repo that merely moved.
+ * Rejection from PATH SHAPE only, decided before any fs question so a deleted
+ * fixture still reports `temporary` (what a cleanup scan needs), not
+ * `notGitRepo` (which reads like a moved user repo).
  */
 export function pathRejection(absPath: string, intent: ProjectIntent = "derived"): ProjectRejection | null {
   const raw = absPath.trim()
   if (!raw) return "notAbsolute"
-  // A remote project's key is a synthetic ssh:// URL validated by the
-  // remote-add flow — none of the local path rules can speak about it.
+  // ssh:// keys are validated by the remote-add flow; local rules don't apply.
   if (isRemoteKey(raw)) return null
   const syntax = pathSyntax(raw)
   if (!syntax.isAbsolute(raw)) return "notAbsolute"
@@ -116,6 +80,7 @@ export function pathRejection(absPath: string, intent: ProjectIntent = "derived"
       .some((s) => THROWAWAY_SEGMENTS.has(s))
   )
     return "insideSandbox"
+  // Before `temporary`: a test with `ROVE_HOME_DIR` in a tmpdir would otherwise hide the specific reason.
   for (const root of roveInternalRoots()) {
     if (isInside(raw, root)) return "roveInternal"
   }
@@ -126,11 +91,8 @@ export function pathRejection(absPath: string, intent: ProjectIntent = "derived"
 }
 
 /**
- * The full gate: path shape plus "is it actually a git repo".
- *
- * `isRepo` is injected (callers pass `isGitRepo` from `repos.ts`) so this
- * module stays import-free of the module that calls it, and so a scan over
- * stale records can skip the subprocess by omitting it.
+ * Path shape plus "is it a git repo". Omit `isRepo` (`isGitRepo` from
+ * `repos.ts`) to skip the subprocess in a scan over stale records.
  */
 export function projectRejection(
   absPath: string,
