@@ -159,22 +159,43 @@ function customEngineBinaries(): ReadonlyMap<string, VendorId> {
   return out
 }
 
+/**
+ * Breadth-first over `rootPid`'s descendants; the first row `pick` maps to a
+ * non-null value wins (shallowest first), else null.
+ *
+ * Cycle-guarded by a visited set on pid, for the same reason {@link hasAncestor}
+ * bounds its walk: a `ps` snapshot is normally a forest, but a malformed or
+ * racy one (pid reuse forming a reachable ppid cycle) would otherwise spin this
+ * BFS forever — and every caller wraps the probe in try/catch, which catches a
+ * throw, not a hang, so an unbounded loop here freezes whichever gate asked. A
+ * healthy forest has unique pids, so the guard never blocks a real node.
+ */
+function findDescendant<T>(rows: readonly ProcRow[], rootPid: number, pick: (row: ProcRow) => T | null): T | null {
+  const kids = childrenIndex(rows)
+  const queue = [...(kids.get(rootPid) ?? [])]
+  const visited = new Set<number>()
+  while (queue.length > 0) {
+    const row = queue.shift()
+    if (!row) break
+    if (visited.has(row.pid)) continue
+    visited.add(row.pid)
+    const hit = pick(row)
+    if (hit !== null) return hit
+    queue.push(...(kids.get(row.pid) ?? []))
+  }
+  return null
+}
+
 /** Shallowest descendant of `rootPid` that `identify` names, or null. */
 function walkDescendants(
   rows: readonly ProcRow[],
   rootPid: number,
   identify: (args: string) => VendorId | null,
 ): ForegroundEngine | null {
-  const kids = childrenIndex(rows)
-  const queue = [...(kids.get(rootPid) ?? [])]
-  while (queue.length > 0) {
-    const row = queue.shift()
-    if (!row) break
+  return findDescendant(rows, rootPid, (row) => {
     const vendor = identify(row.args)
-    if (vendor) return { vendor, argv: row.args, pid: row.pid }
-    queue.push(...(kids.get(row.pid) ?? []))
-  }
-  return null
+    return vendor ? { vendor, argv: row.args, pid: row.pid } : null
+  })
 }
 
 /**
@@ -222,16 +243,11 @@ export function engineProcessIn(
     ? executableNameFromArgv(typeof extraLaunch === "string" ? [extraLaunch] : extraLaunch)
     : null
   if (!expected) return false
-  const kids = childrenIndex(rows)
-  const queue = [...(kids.get(rootPid) ?? [])]
-  while (queue.length > 0) {
-    const row = queue.shift()
-    if (!row) break
-    const executable = executableNameFromArgv(row.args.trim().split(/\s+/))
-    if (executable === expected) return true
-    queue.push(...(kids.get(row.pid) ?? []))
-  }
-  return false
+  return (
+    findDescendant(rows, rootPid, (row) =>
+      executableNameFromArgv(row.args.trim().split(/\s+/)) === expected ? true : null,
+    ) === true
+  )
 }
 
 /**
