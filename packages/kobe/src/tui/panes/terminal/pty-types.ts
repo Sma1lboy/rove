@@ -33,47 +33,35 @@ export type TaskPtyOpts = {
   scrollback?: number
   /** Override `$SHELL`. Defaults to `process.env.SHELL` or `/bin/bash`. */
   shell?: string
-  /**
-   * Override the spawned process argv. When set, the PTY runs this
-   * command instead of an interactive shell — e.g. `["claude"]` to
-   * embed an interactive Claude Code session in the terminal pane.
-   * The first element is the executable; the rest are its arguments.
-   * When unset (or empty) the PTY falls back to the user's shell.
-   */
+  /** Spawn argv instead of an interactive shell (e.g. `["claude"]`); unset/empty → the user's shell. */
   command?: readonly string[]
   /**
-   * Bytes typed into the child right after a FRESH spawn — the shell-
-   * wrapped engine launch (`shellSpawn`): the PTY runs the user's
-   * interactive shell and this carries the engine command line + `\r`.
-   * Kernel tty input buffering holds it until the shell reads it.
-   * Backends that reattach to an existing session must NOT resend it.
+   * Bytes typed after a FRESH spawn (the `shellSpawn` engine line + `\r`); tty
+   * input buffering holds them until the shell reads. A reattach must NOT resend.
    */
   initialInput?: string
   /**
-   * First message to bracketed-paste once the engine process is up
-   * (paste-delivery vendors — their positional argv slot is a
-   * subcommand, so the message can't ride `command`). Same fresh-spawn-only
-   * rule as `initialInput`: a reattach must NOT redeliver it. Delivered by
-   * the hosted backend (`pastePromptWhenEngineUp`); other backends ignore it.
+   * First message bracketed-pasted once the engine is up, for paste-delivery
+   * vendors whose positional argv slot is a subcommand. Fresh spawn only, like
+   * `initialInput`. Delivered by the hosted backend (`pastePromptWhenEngineUp`);
+   * other backends ignore it.
    */
   firstMessage?: string
   /** Engine binary name the first-message engine-up probe matches against. */
   engineBin?: string
   /**
-   * A parked screen to restore. When the host
-   * confirms the recorded byte offset is still inside its ring window,
-   * the fresh emulator is primed with `serialized` and fed only the
-   * delta written since park — bit-identical to never detaching. When
-   * the offset was trimmed away (or the session was respawned), the
-   * restore is discarded and the full-replay + repaint-wiggle path runs.
+   * Parked screen to restore. If the host confirms the byte offset is still in
+   * its ring window, the emulator is primed with `serialized` plus the delta
+   * since park — bit-identical to never detaching. If trimmed away (or
+   * respawned), falls back to full replay + repaint wiggle.
    */
   restore?: ParkedScreen
 }
 
 /**
- * Everything a parked (hidden, detached) tab keeps in place of its live
- * xterm instance: the SerializeAddon VT stream (~100-200KB) instead of a
- * multi-MB emulator. Captured by `capturePark()` right before detach.
+ * What a parked (hidden, detached) tab keeps instead of its live xterm: the
+ * SerializeAddon VT stream (~100-200KB, vs a multi-MB emulator). Captured by
+ * `capturePark()` right before detach.
  */
 export type ParkedScreen = {
   /** SerializeAddon output — a VT escape stream that rebuilds cells,
@@ -117,10 +105,9 @@ export type DataListener = (
   rows: readonly TerminalRow[],
   cursor: CursorPos | null,
   window: TerminalSnapshotWindow | null,
-  /** Parallel to `rows`: row i is a soft-wrap CONTINUATION of row i-1 — one
-   *  logical line the emulator broke because it ran out of columns. Omitted
-   *  by backends with no emulator behind them (`PipeTaskPty`, mocks), where
-   *  every row counts as its own line. */
+  /** Parallel to `rows`: row i soft-wraps from row i-1 (one logical line).
+   *  Omitted by emulator-less backends (`PipeTaskPty`, mocks) — every row
+   *  is its own line. */
   wrapped?: RowWrapFlags,
 ) => void
 
@@ -136,54 +123,37 @@ export interface TaskPtyLike {
   /** Current child-requested keyboard modes used when kitty input must be re-encoded. */
   inputModes(): TerminalInputModes
   /**
-   * Deliver pasted text. Backends that can see the app's DECSET 2004
-   * state wrap it in bracketed-paste markers when (and only when) the
-   * app asked for them — pasting a multiline prompt into an engine CLI
-   * must not execute line-by-line.
+   * Wrap in bracketed-paste markers when (and only when) the app enabled
+   * DECSET 2004 — a multiline prompt must not execute line-by-line.
    */
   paste(text: string): void
   onData(cb: DataListener): () => void
   /**
-   * Notify once when the underlying process ends for ANY reason (its own
-   * exit, a write failure, or kill()). Fires immediately if already dead —
-   * a pane subscribing after a fast crash must still see the state. The
-   * pane renders a dead-shell banner off this instead of silently freezing
-   * on the last snapshot (revival checklist #5).
+   * Fires once when the process ends for any reason (exit, write failure,
+   * kill()); immediately if already dead, so a late subscriber after a fast
+   * crash still sees it. Drives the pane's dead-shell banner.
    */
   onExit(cb: () => void): () => void
   /**
-   * Notify when the foreground command's window title changes — the
-   * same OSC 0/2 mechanism a real terminal emulator uses to show "vim"
-   * or "htop" in a tab instead of a static "shell" (real terminals track
-   * this per-pane). Fires immediately with the latest known title on
-   * subscribe, same replay contract as `onData`. Never fires if the
-   * shell/program never sets one.
+   * OSC 0/2 window-title changes ("vim", "htop"). Replays the latest title on
+   * subscribe, like `onData`; never fires if nothing sets one.
    */
   onTitleChange(cb: (title: string) => void): () => void
   /**
-   * Pid of this PTY's own child (the tab's shell), or null before it
-   * spawned / after it died. The root of the process-tree walk that
-   * answers "which engine is running in this tab" (`engine/foreground.ts`)
-   * — the identity signal that replaced guessing from the OSC title.
-   * Backends with no real child (mocks, scripted fixtures) omit it.
+   * Pid of this PTY's child (the tab's shell), null before spawn/after death.
+   * Root of the process-tree walk that answers "which engine runs in this tab"
+   * (`engine/foreground.ts`). Omitted by backends with no real child.
    */
   readonly shellPid?: number | null
   /**
-   * Route a mouse-wheel tick the way a real terminal emulator would:
-   * the app enabled mouse tracking → encode an SGR wheel event at
-   * (col,row) (1-based, pane-local) and forward it — the app scrolls
-   * itself (claude's transcript, less, vim…); app on the alternate
-   * screen without mouse tracking → 3× arrow-key fallback. Returns
-   * false when the app asked for neither — the CALLER then scrolls its
-   * local scrollback view, exactly like a normal terminal's wheel.
+   * Wheel like a real terminal: mouse tracking on → forward an SGR wheel event
+   * at (col,row) (1-based, pane-local); alternate screen without tracking → 3×
+   * arrow keys. False when neither — the CALLER scrolls its local scrollback.
    */
   wheel(direction: "up" | "down", col: number, row: number): boolean
   /**
-   * Route a mouse button transition the same way: the app enabled mouse
-   * tracking → encode an SGR press/release/drag at (col,row) and forward
-   * it, returning true — the app owns the click (claude's expandable tool
-   * rows, vim, less…). False when the app did not ask for the mouse — the
-   * CALLER then keeps the click for its local grid selection.
+   * Mouse tracking on → forward an SGR press/release/drag and return true (the
+   * app owns the click). False → the caller keeps it for local selection.
    */
   click(
     kind: "down" | "up" | "drag",
@@ -193,21 +163,16 @@ export interface TaskPtyLike {
     modifiers?: { shift?: boolean; alt?: boolean; ctrl?: boolean },
   ): boolean
   /**
-   * True while the app has mouse tracking enabled — the SAME
-   * `mouseTrackingMode` read `click()` gates on, exposed so the pane can see
-   * the app TAKE the mouse without waiting for a click. That is the case a
-   * forwarded press cannot cover: `vim` typed at a prompt where the pane's
-   * own selection is still highlighted leaves two highlights stacked, and
-   * the app cannot see (or clear) ours. Backends with no emulator behind
-   * them (`PipeTaskPty`) omit it and the pane keeps the mouse.
+   * The same `mouseTrackingMode` read `click()` gates on, exposed so the pane
+   * sees the app take the mouse before any click — e.g. `vim` launched while
+   * our selection is highlighted would stack two highlights the app can't
+   * clear. Emulator-less backends (`PipeTaskPty`) omit it; the pane keeps the mouse.
    */
   readonly appOwnsMouse?: boolean
   /**
-   * True while the child is on the ALTERNATE screen (vim, less, an engine
-   * TUI). That app owns its own scrollback, so Rove's local ring holds one
-   * screen and nothing more — the scrollback search refuses instead of
-   * walking a buffer the user can already see in full. Backends with no
-   * emulator behind them (`PipeTaskPty`, mocks) omit it and count as normal.
+   * On the ALTERNATE screen (vim, less, engine TUI): the app owns scrollback and
+   * our ring holds one screen, so scrollback search refuses. Emulator-less
+   * backends omit it and count as normal.
    */
   readonly onAlternateScreen?: boolean
   resize(cols: number, rows: number): void
@@ -224,43 +189,35 @@ export interface TaskPtyLike {
   captureWrapped?(): RowWrapFlags
   kill(): void
   /**
-   * Drop this handle WITHOUT ending the session, when the backend can
-   * persist it (the daemon backend leaves its child running for a later
-   * reattach). Backends without persistence omit it — callers fall back
-   * to kill(). App teardown calls this via `registry.detachAll()`; the
-   * registry's park sweep detaches idle unwatched handles the same way.
+   * Drop the handle WITHOUT ending a persistable session (the daemon backend
+   * keeps its child for reattach); without persistence, omitted and callers
+   * kill(). Used by `registry.detachAll()` and the park sweep.
    */
   detach?(opts?: PtyDetachOpts): void
   /**
-   * Epoch ms since the last data subscriber left, null while anyone is
-   * subscribed. The park sweep's idle signal (`registry.parkIdle`): a
-   * BACKGROUND tab's PTY has no `onData` subscriber — only the mounted
-   * pane subscribes — so "unwatched for N ms" means "hidden for N ms".
+   * Epoch ms since the last data subscriber left, null while subscribed. The
+   * park sweep's idle signal (`registry.parkIdle`): only the mounted pane
+   * subscribes, so "unwatched N ms" = "hidden N ms".
    */
   unwatchedSinceMs?(): number | null
   /**
-   * Epoch ms of the last LIVE output chunk (replays excluded), null before
-   * any. The park sweep's QUIET signal: an actively-streaming session must
-   * not be parked — its delta outruns the host ring (degraded wake), the
-   * park can split an escape sequence (serialize carries no parser state),
-   * and the degraded wake's repaint wiggle coalesces under a live stream.
-   * Backends without it are treated as quiet.
+   * Epoch ms of the last LIVE chunk (replays excluded). The park sweep's quiet
+   * signal: parking a streaming session outruns the host ring (degraded wake),
+   * can split an escape sequence (serialize has no parser state), and the
+   * repaint wiggle coalesces under a live stream. Absent = quiet.
    */
   lastOutputAtMs?(): number | null
   /**
-   * Snapshot everything a parked tab needs for a lossless wake (see
-   * {@link ParkedScreen}) — the park sweep calls this right before
-   * `detach()` and hands the result to the next `acquire()` as
-   * `TaskPtyOpts.restore`. Null when this handle can't restore exactly
-   * (not attached yet, already dead) — the sweep still detaches, and the
-   * wake degrades to the full-replay path.
+   * Snapshot for a lossless wake ({@link ParkedScreen}), taken right before
+   * `detach()` and passed to the next `acquire()` as `TaskPtyOpts.restore`.
+   * Null when exact restore is impossible (not attached, dead); the sweep still
+   * detaches and the wake uses full replay.
    */
   capturePark?(): ParkedScreen | null
   /**
-   * True when this handle attached to a session whose child had ALREADY
-   * exited — the engine died while no TUI was attached. Lets the tab
-   * layer resume the conversation (`--resume <sessionId>`) instead of
-   * treating it like a live engine exit (which degrades to a shell).
+   * Attached to a session whose child had ALREADY exited (engine died while no
+   * TUI was attached), so the tab layer resumes (`--resume <sessionId>`)
+   * instead of treating it as a live exit (which degrades to a shell).
    */
   deadOnAttach?: boolean
 }
@@ -274,13 +231,9 @@ export function defaultShell(): string {
 }
 
 /**
- * Extract the last OSC 0/2 (icon+title / title) escape's payload from a
- * chunk of raw terminal output — `\x1b]0;name\x07` or `\x1b]2;name\x07`,
- * the window-title mechanism shells/programs (vim, htop, ssh, npm…) use
- * to name themselves. Backends without a full emulator (`PipeTaskPty`,
- * `MockTaskPty`) call this per chunk; `BunTerminalTaskPty` gets it for
- * free from `@xterm/headless`'s own `onTitleChange`. Returns null if the
- * chunk carries no title escape.
+ * Payload of the last OSC 0/2 title escape in a chunk, or null. For
+ * emulator-less backends (`PipeTaskPty`, `MockTaskPty`); `BunTerminalTaskPty`
+ * gets it from `@xterm/headless`'s `onTitleChange`.
  */
 export function extractOscTitle(chunk: string): string | null {
   let title: string | null = null
@@ -292,12 +245,7 @@ export function extractOscTitle(chunk: string): string | null {
   return title
 }
 
-/**
- * Resolve the argv a `TaskPty` should spawn. Honours an explicit
- * `command` override (the `["claude"]` interactive-engine path used by
- * the chat pane) and otherwise falls back to a single-element shell
- * argv — the terminal pane's default.
- */
+/** Explicit `command` override, else a single-element shell argv. */
 export function resolveArgv(opts: TaskPtyOpts): string[] {
   if (opts.command && opts.command.length > 0) return [...opts.command]
   return [opts.shell ?? defaultShell()]

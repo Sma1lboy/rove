@@ -1,38 +1,21 @@
 /**
- * Tiny worktree-changes helper for the sidebar's per-row `+N −M` chip.
+ * Uncommitted-file counts for the sidebar's `+N −M` chip (shown only when
+ * dirty): `+N` added/modified/renamed/copied/untracked, `−M` deleted in index
+ * or worktree.
  *
- * Each task row renders a status badge + title; this helper feeds the
- * right-edge "uncommitted file counts" chip:
+ * Never throws, but failure returns `null`, NOT zeros: missing repo, EACCES,
+ * git off PATH, vanished worktree all mean "could not read", while `+0 −0` is a
+ * real clean worktree. Conflating them makes an unreadable worktree read as
+ * safe to land or delete.
  *
- *   `+N` — files added, modified, renamed, copied, or untracked
- *   `−M` — files deleted (in index or worktree)
+ * ⚠️ SYNC — one-shot CLI use ONLY (`kobe api` task queries). `git status` is
+ * O(repo size); on a render path it froze the Tasks pane for a 30GB repo's
+ * walk every tick. Render paths go through `worktree-changes-poller.ts` (async,
+ * deduped, timeout/backoff); only `parsePorcelain` is shared.
  *
- * Shows up next to the task title only when the worktree is dirty —
- * a clean tracked branch contributes nothing, so the row reads as it
- * always has.
- *
- * Implementation: a single synchronous `git status --porcelain=v1`
- * call, classified per row (any `D` in either column → `−`, anything
- * else → `+`). Never throws — the sidebar must always render — but a
- * failure returns `null`, NOT zeros: a missing repo, an EACCES, git off
- * PATH or a vanished worktree all mean "could not read", and `+0 −0` is
- * the legitimate answer for a genuinely clean worktree. Rendering the two
- * the same is how a coordinator reads an unreadable worktree as safe to
- * land and a user reads it as safe to delete.
- *
- * ⚠️ SYNC — one-shot CLI use ONLY (`kobe api` task queries). `git
- * status` is O(repo size); calling this from a render path froze the
- * Tasks pane for the lifetime of a 30GB repo's status walk, every
- * tick. The sidebar reads through `worktree-changes-poller.ts` (async
- * spawn + in-flight dedupe + timeout/backoff) instead — new render-
- * path consumers must too. Only `parsePorcelain` is shared.
- *
- * Why a separate file rather than reaching into
- * `src/orchestrator/worktree/manager.ts#isDirty`: that one is `async`,
- * boolean-only, and throws. The sidebar is sync, needs counts, and
- * tolerates every failure mode. Same trade-off `git-head.ts` and
- * `src/tui/panes/filetree/git.ts` made — pane-side git wrappers are
- * intentionally separate from the orchestrator's stricter ones.
+ * Not `orchestrator/worktree/manager.ts#isDirty`: that one is async,
+ * boolean-only and throws. Pane-side git wrappers are deliberately separate
+ * from the orchestrator's stricter ones.
  */
 
 import { spawnSync } from "node:child_process"
@@ -46,10 +29,9 @@ export type { WorktreeChanges }
 const ZERO: WorktreeChanges = { added: 0, deleted: 0 }
 
 /**
- * Value equality for change counts — shared by the local poller's signal
- * `equals`, the sidebar's per-row memo, and the RemoteOrchestrator's
- * pushed-map comparison, so "unchanged counts don't re-render rows"
- * (DESIGN §5.5) is one predicate everywhere.
+ * Value equality shared by the poller's signal `equals`, the per-row memo and
+ * RemoteOrchestrator's pushed-map compare, so "unchanged counts don't
+ * re-render rows" (DESIGN §5.5) is one predicate.
  */
 export function sameWorktreeChanges(a: WorktreeChanges | null, b: WorktreeChanges | null): boolean {
   if (a === null || b === null) return a === b
@@ -57,31 +39,26 @@ export function sameWorktreeChanges(a: WorktreeChanges | null, b: WorktreeChange
 }
 
 /**
- * Pick the DAEMON-pushed counts for a row, or `null` when the local
- * poller must serve it. A non-null `pushed` map means a
- * daemon-side collector owns git polling for this process — a worktree
- * absent from the map (just-created task, deleted row, remote project)
- * reads as zeros (chip hidden), NEVER as "poll locally": the fallback is
- * per-connection, not per-row, or every pane would re-grow git polls for
- * exactly the rows the daemon deliberately skips. Pure — unit-tested.
+ * Daemon-pushed counts for a row, or `null` when the local poller must serve
+ * it. A non-null map means the daemon owns polling: an absent worktree (new
+ * task, deleted row, remote project) reads as zeros, NEVER "poll locally" — the
+ * fallback is per-connection, not per-row, or panes would re-grow git polls for
+ * exactly the rows the daemon skips.
  */
 export function pickPushedChanges(
   pushed: ReadonlyMap<string, WorktreeChanges | null> | null | undefined,
   worktreePath: string,
 ): WorktreeChanges | "unknown" | null {
   if (!pushed) return null
-  // PRESENT-with-null is the daemon saying it tried and could not read. That
-  // is not the same as an absent key, and it must not collapse into ZERO — the
-  // hidden chip is what let an unreadable worktree read as clean.
+  // Present-with-null = daemon tried and couldn't read; must not collapse into
+  // ZERO, or an unreadable worktree reads as clean.
   if (pushed.has(worktreePath)) return pushed.get(worktreePath) ?? "unknown"
   return ZERO
 }
 
 /**
- * Read worktree change counts for `worktreePath`. Never throws; returns
- * `null` when the counts could not be read at all — an empty path, a
- * non-zero `git status`, or a spawn that threw. `null` is NOT `{0,0}`:
- * callers must render/report it as unknown, never as clean.
+ * Never throws; `null` (empty path, non-zero exit, spawn threw) means unknown
+ * and must never be rendered as clean.
  */
 export function readWorktreeChanges(worktreePath: string): WorktreeChanges | null {
   if (!worktreePath) return null
@@ -91,11 +68,9 @@ export function readWorktreeChanges(worktreePath: string): WorktreeChanges | nul
       cwd: worktreePath,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
-      // `git status` opportunistically rewrites `.git/index` (refreshed
-      // stat cache), which takes `.git/index.lock`. This runs on a 2s
-      // poll for every row, so it would race the worktree's engine
-      // commits and other panes for the lock. `GIT_OPTIONAL_LOCKS=0`
-      // makes this read-only: inspect, don't write, never take the lock.
+      // `git status` may refresh `.git/index` and take `.git/index.lock`,
+      // racing engine commits on a 2s-per-row poll. `GIT_OPTIONAL_LOCKS=0`
+      // keeps it read-only.
       env: readOnlyGitProcessEnv(),
     })
     if (out.status !== 0 || out.stdout === undefined || out.stdout === null) return null
@@ -106,15 +81,10 @@ export function readWorktreeChanges(worktreePath: string): WorktreeChanges | nul
 }
 
 /**
- * Aggregate porcelain output into `+N −M` counts. Exported for unit tests.
- *
- * Parsing (the `XY <path>` shape, branch-header skip, C-string unquoting,
- * rename resolution) is delegated to the shared {@link parsePorcelainRows};
- * this helper only classifies each row by its raw status pair: a `D` in
- * EITHER column counts as a deletion, everything else (M, A, R, C, T, U, ??)
- * as an addition. A rename is one porcelain row → one `added` event; the
- * shared parser preserves the raw `x`/`y` chars so this
- * classification stays exact.
+ * Porcelain → `+N −M`. Parsing is {@link parsePorcelainRows}'s; this only
+ * classifies the raw `x`/`y` pair: a `D` in EITHER column is a deletion,
+ * everything else (M, A, R, C, T, U, ??) an addition. A rename is one row, one
+ * `added`. Exported for tests.
  */
 export function parsePorcelain(text: string): WorktreeChanges {
   let added = 0

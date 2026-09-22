@@ -1,35 +1,20 @@
 /**
- * Async, self-throttling poller behind the sidebar's per-row `+N −M`
- * worktree-changes chip.
+ * Async poller behind the sidebar's `+N −M` chip. Render paths must use this:
+ * `git status` is O(repo size), and the sync `readWorktreeChanges` blocks the
+ * event loop for seconds per tick on a huge repo (sync is CLI-only).
  *
- * Why this exists: `git status` walks the working tree — O(repo size) —
- * so calling the synchronous `readWorktreeChanges` (`spawnSync git
- * status`) from a render path blocks the whole event loop for seconds
- * per tick on a huge repo. The sync helper survives ONLY for one-shot
- * CLI use (`kobe api`); render paths must go through this poller.
+ * Scheduling (per-key cell, in-flight dedupe, adaptive cadence, timeout + hard
+ * backoff) is `src/tui/lib/background-poll.ts`; this binds it to one
+ * `git status --porcelain=v1` per worktree. Failure/timeout keeps the LAST
+ * value; never-read reads `null` = UNKNOWN, not zeros — EACCES `.git`, a walk
+ * past POLL_TIMEOUT_MS (then SLOW_REPO_RETRY_MS off), git off PATH must not look
+ * clean, since users check this chip before deleting a task. Deleted rows never
+ * call `poll()`.
  *
- * The scheduling core (per-key value cell, in-flight dedupe, adaptive
- * cadence, timeout + hard backoff) is the generic
- * `src/tui/lib/background-poll.ts` — this module is the worktree-changes
- * binding: one async `git status --porcelain=v1` per worktree, parsed
- * into `+N −M` counts. Failure / timeout keeps the LAST value; a worktree
- * that has never read cleanly reads `null`, which the row renders as
- * UNKNOWN. Deliberately not zeros: an EACCES `.git`, a repo whose status
- * walk blows POLL_TIMEOUT_MS (then sits out SLOW_REPO_RETRY_MS), and git
- * off PATH would otherwise all be indistinguishable from a clean worktree
- * — and this chip is what a user checks before deleting a task.
- *
- * Deleted rows never call `poll()` at all (the Sidebar shows only live
- * tasks): a deleted task must not pay git-status for worktrees that no
- * longer matter.
- *
- * This poller is the NO-DAEMON FALLBACK only: when a
- * connected daemon advertises the `worktree.changes` channel (one
- * collector in the daemon, pushed counts), the Sidebar renders the pushes
- * and never calls `poll()` here — a pane spawns zero git processes while
- * daemon-connected. The daemon's collector
- * (`kobe-daemon/daemon/worktree-changes-collector.ts`) reuses the same
- * scheduling guards via `src/lib/poll-scheduling.ts`.
+ * NO-DAEMON FALLBACK only: when the daemon advertises `worktree.changes`, the
+ * Sidebar renders its pushes and spawns zero git processes. The daemon's
+ * collector (`kobe-daemon/daemon/worktree-changes-collector.ts`) shares the
+ * guards via `src/lib/poll-scheduling.ts`.
  */
 
 import { readOnlyGitProcessEnv } from "@/lib/git-env"
@@ -47,18 +32,16 @@ export const SLOW_REPO_RETRY_MS = 60_000
 export const MIN_POLL_INTERVAL_MS = 1_500
 
 const poller = createBackgroundPoller<WorktreeChanges | null>({
-  /** Unknown until a poll lands — see the header: never zeros. */
+  /** Unknown until a poll lands — never zeros. */
   initial: null,
-  // Value-equality so a poll returning the same counts doesn't
-  // re-render every visible row each tick.
+  // Same counts mustn't re-render every row each tick.
   equals: sameWorktreeChanges,
   timeoutMs: POLL_TIMEOUT_MS,
   slowRetryMs: SLOW_REPO_RETRY_MS,
   minIntervalMs: MIN_POLL_INTERVAL_MS,
   run: async (worktreePath, signal) => {
-    // Same flags + lock policy as the sync helper: porcelain v1, and
-    // GIT_OPTIONAL_LOCKS=0 so the read never takes .git/index.lock from
-    // under the engine's own commits.
+    // GIT_OPTIONAL_LOCKS=0 so the read never takes .git/index.lock from under
+    // the engine's commits.
     recordSpawn("sidebar.worktreeChanges", ["git", "status", "--porcelain=v1"], worktreePath)
     const res = await spawnCapture("git", ["status", "--porcelain=v1"], {
       cwd: worktreePath,
@@ -70,19 +53,14 @@ const poller = createBackgroundPoller<WorktreeChanges | null>({
   },
 })
 
-/**
- * Reactive read of the last known change counts for `worktreePath`.
- * `null` until a poll has completed successfully — the row renders that as
- * unknown, not as clean.
- */
+/** Reactive last-known counts; `null` until a poll succeeds (unknown, not clean). */
 export function worktreeChanges(worktreePath: string): WorktreeChanges | null {
   return poller.read(worktreePath)
 }
 
 /**
- * When the next poll may start. Pure — exported for unit tests.
- * Timed-out runs back off hard; completed runs scale with their own
- * duration so slow repos self-thin without a special case.
+ * When the next poll may start. Timeouts back off hard; completed runs scale
+ * with their own duration so slow repos self-thin. Exported for tests.
  */
 export function nextAllowedAt(startedAt: number, finishedAt: number, timedOut: boolean): number {
   return computeNextAllowedAt(startedAt, finishedAt, timedOut, {
@@ -92,11 +70,9 @@ export function nextAllowedAt(startedAt: number, finishedAt: number, timedOut: b
 }
 
 /**
- * Fire-and-forget: maybe start an async `git status` for `worktreePath`.
- * Safe to call from a reactive memo on every tick — the guards make the
- * extra calls free, and a signal update caused by a finishing poll
- * cannot re-trigger an immediate spawn (MIN_POLL_INTERVAL_MS floor).
- *
+ * Fire-and-forget; safe from a reactive memo every tick. The
+ * MIN_POLL_INTERVAL_MS floor stops a finishing poll's signal update from
+ * re-triggering an immediate spawn.
  */
 export function pollWorktreeChanges(worktreePath: string): void {
   poller.poll(worktreePath)
