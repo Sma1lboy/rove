@@ -40,7 +40,6 @@
  */
 
 import { homedir } from "node:os"
-import path from "node:path"
 import { errorMessage } from "@/lib/error-message"
 import { getCustomEngineIds, getDisabledEngineIds } from "@/state/repos"
 import type { VendorId } from "@/types/vendor"

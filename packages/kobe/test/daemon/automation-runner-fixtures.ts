@@ -7,19 +7,11 @@
  * Both need the same fake store, orchestrator, runtime and Inbox.
  */
 
-import { mkdtempSync, writeFileSync } from "node:fs"
+import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { vi } from "vitest"
 import type { DaemonRpcClient } from "../../../kobe-daemon/src/client/rpc.ts"
 import type { DispatchRuntime } from "../../../kobe-daemon/src/daemon/automation-dispatch.ts"
-import {
-  dueAutomations,
-  resolveDueOccurrence,
-  runAutomationOnce,
-  startAutomationRunner,
-  sweepAutomations,
-} from "../../../kobe-daemon/src/daemon/automation-runner.ts"
 import { AutomationsStore } from "../../../kobe-daemon/src/daemon/automations-store.ts"
 import type { Automation, DaemonTask } from "../../../kobe-daemon/src/daemon/contracts.ts"
 

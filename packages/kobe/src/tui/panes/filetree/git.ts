@@ -29,7 +29,6 @@
 
 import { parseNumstatRows, parsePorcelainRows, unquoteGitPath } from "@/lib/git-parsers"
 import { readWorktreeFile, runWorktreeGit } from "../../../worktree/content.ts"
-import type { TreeNode } from "./tree"
 
 /**
  * Which diff the Changes tab shows:

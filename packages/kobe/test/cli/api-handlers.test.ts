@@ -2,12 +2,8 @@
  *  `./api-handlers-send.test.ts`; the parallel `add --count` round lives in
  *  `./api-add-parallel.test.ts`. */
 
-import { mkdtempSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { ApiError, type ApiRuntime, invokeVerb } from "../../src/cli/api-cmd.ts"
-import { resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
+import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { homeDir } from "../../src/env.ts"
 import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 

@@ -191,7 +191,6 @@ export function TabStrip(props: {
     )
     // Every tab is a bordered box (2 cells of frame + 2 of padding) —
     // the scroll math must see the same width it draws.
-    const active = tab.id === props.activeId
     return { tab, turn, chipShown, title, cells: 4 + (chipShown ? 2 : 0) + displayWidth(title) }
   })
   const stripRef = useRef<BoxRenderable | null>(null)

@@ -52,7 +52,7 @@ import {
 import { type RemoveOpts, removeWorktree } from "./manager-remove.ts"
 import { canonicalize, remoteWorktreePathFor, requireAbsolute, worktreePathFor } from "./paths.ts"
 import { type IgnoredWorkProbe, smallIgnoredPaths } from "./salvage-ignored.ts"
-import { type SalvageRecord, salvageWorktree } from "./salvage.ts"
+import type { SalvageRecord } from "./salvage.ts"
 import { parseWorktreeListPorcelain } from "./worktree-list.ts"
 
 export class GitWorktreeManager implements WorktreeManager {

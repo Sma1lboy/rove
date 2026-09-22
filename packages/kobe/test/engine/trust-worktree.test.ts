@@ -5,7 +5,7 @@
  * Runs against temp HOME dirs; the real stores are never touched.
  */
 
-import { spawn, spawnSync } from "node:child_process"
+import { spawn } from "node:child_process"
 import { createHash } from "node:crypto"
 import fs from "node:fs"
 import os from "node:os"

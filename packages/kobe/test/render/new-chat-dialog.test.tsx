@@ -108,13 +108,8 @@ describe("NewChatDialogView", () => {
     }
     const { frame, mockInput } = await renderComponent(<Host />, { providers: { dialog: true } })
     expect(await frame()).toContain("workspace")
-    let choice: NewChatChoice | undefined
     act(() => {
-      void NewChatDialog.show(dialogRef.current!, ["claude", "codex"], "claude", {
-        allowShell: true,
-      }).then((c) => {
-        choice = c
-      })
+      void NewChatDialog.show(dialogRef.current!, ["claude", "codex"], "claude", { allowShell: true })
     })
     await frame()
     expect(await frame()).toContain("new tab in this worktree")

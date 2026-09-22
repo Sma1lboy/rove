@@ -1,11 +1,10 @@
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { TaskActivityState } from "@/engine/hook-events"
-import { engineEntry } from "@/engine/registry"
 import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
 import { t } from "@/tui/i18n"
-import { DEFAULT_TASK_VENDOR, type Task } from "@/types/task"
+import type { Task } from "@/types/task"
 import { isBuiltinVendor } from "@/types/vendor"
-import { compareRecent, repoBasename } from "./groups"
+import { repoBasename } from "./groups"
 
 export type SidebarTone = "success" | "warning" | "primary" | "textMuted" | "error"
 

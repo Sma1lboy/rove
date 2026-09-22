@@ -1,5 +1,4 @@
 import { readdir, rm, stat } from "node:fs/promises"
-import { homedir } from "node:os"
 import path from "node:path"
 import type { ContentBlock } from "@/types/content"
 import type { EngineHistory, EngineUsageSnapshot, Message } from "@/types/engine"

@@ -18,8 +18,8 @@
 
 import { type TaskEngineState, type TaskJobState, liveRowTokens } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
-import { type BoxRenderable, MouseButton, TextAttributes } from "@opentui/core"
-import { type ReactNode, useEffect, useMemo } from "react"
+import { TextAttributes } from "@opentui/core"
+import { useEffect, useMemo } from "react"
 import { engineDisplayName } from "../../../engine/interactive-command"
 import { charWidth } from "../../../lib/display-width"
 import { relativeAge } from "../../../lib/relative-time"
@@ -36,8 +36,7 @@ import {
   withSpinnerFrame,
 } from "../../../tui/panes/sidebar/row-view"
 import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
-import { SIDEBAR_WIDTH, rowTokenTone, toneColor, truncateBranchLabel } from "../../../tui/panes/sidebar/view-core"
-import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
+import { rowTokenTone, toneColor, truncateBranchLabel } from "../../../tui/panes/sidebar/view-core"
 import { useOptionalKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"

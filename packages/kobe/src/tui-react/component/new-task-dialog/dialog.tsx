@@ -14,11 +14,10 @@ import { useT } from "../../i18n"
 import { useDialogPaddingX } from "../../ui/dialog"
 import { DialogBody } from "../../ui/dialog-body"
 import { ChipRow, DialogActions, DialogFooter, DialogHeader, DialogSection } from "../../ui/dialog-parts"
-import { ModelSection } from "../model-field"
 import { AdoptTab } from "./tab-adopt"
 import { CloneTab } from "./tab-clone"
 import { ExistingTab } from "./tab-existing"
-import { type NewTaskDialogProps, TIER_CHOICES, useNewTaskViewModel } from "./view-model"
+import { type NewTaskDialogProps, useNewTaskViewModel } from "./view-model"
 
 export type { NewTaskDialogProps } from "./view-model"
 

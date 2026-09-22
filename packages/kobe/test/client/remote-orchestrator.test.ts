@@ -371,7 +371,7 @@ describe("RemoteOrchestrator channel handling", () => {
 
     it("keeps the happy path silent — a well-formed event logs nothing", () => {
       const { client, emit } = fakeClient()
-      const orch = new RemoteOrchestrator(client)
+      new RemoteOrchestrator(client)
       emit("active-task", { taskId: "t1" })
       emit("ui-prefs", { theme: "nord" })
       emit("keybindings", { rev: 3 })

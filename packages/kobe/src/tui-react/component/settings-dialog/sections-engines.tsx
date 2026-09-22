@@ -9,7 +9,7 @@
  * you hop between two lists of the same names.
  */
 
-import { type BoxRenderable, TextAttributes } from "@opentui/core"
+import { TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
 import type { EngineAccount, EngineStatus } from "../../../engine/engine-status"
 import type { EngineIntegration } from "../../../engine/integration-status"

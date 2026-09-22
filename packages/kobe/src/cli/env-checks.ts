@@ -1,10 +1,7 @@
 /**
- * Read-only environment probes shared by `rove doctor` and the first-run
- * onboarding wizard: is git on PATH, and can any registered engine actually
- * run a task (binary present + account where detectable). One implementation
- * so the wizard's third page and `rove doctor` can never disagree about the
- * same machine. `doctor-cmd.ts` owns presentation of the full report; the
- * wizard owns its page.
+ * Read-only environment probes behind `rove doctor`: is git on PATH, and can
+ * any registered engine actually run a task (binary present + account where
+ * detectable). `doctor-cmd.ts` owns presentation of the full report.
  */
 
 import type { BinaryStatus } from "../engine/account-detect.ts"
@@ -26,12 +23,6 @@ export interface EngineProbeResult {
    *  states take opposite remedies, so the caller must be able to tell them
    *  apart before printing one. */
   readonly signedOut: readonly string[]
-}
-
-/** What the onboarding wizard's environment page and closing banner render. */
-export interface OnboardingEnvReport {
-  readonly git: GitProbeResult
-  readonly engines: EngineProbeResult
 }
 
 /** `git --version` if git is on PATH, else a not-found marker. */
@@ -79,14 +70,4 @@ export async function probeEngines(): Promise<EngineProbeResult> {
   // a missing vendor the user never launches is not a finding.
   const { usable, signedOut } = summarizeEngines(statuses)
   return { lines, anyUsable: usable.length > 0, signedOut }
-}
-
-/**
- * The wizard's pre-flight: both probes in parallel. Runs BEFORE the wizard
- * renders, so the environment page is static text and a killed wizard never
- * leaves a probe half-printed.
- */
-export async function checkOnboardingEnv(): Promise<OnboardingEnvReport> {
-  const [git, engines] = await Promise.all([probeGit(), probeEngines()])
-  return { git, engines }
 }

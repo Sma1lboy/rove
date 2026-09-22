@@ -15,18 +15,7 @@
 
 // Type-only, so the registry↔table pair is not a runtime cycle.
 import type { BuiltinVendorId } from "@/types/vendor"
-import {
-  type ClaudeAccount,
-  type CodexAccount,
-  type CopilotAccount,
-  type DetectDeps,
-  type EngineAccountStatus,
-  type KimiAccount,
-  detectClaudeAccount,
-  detectCodexAccount,
-  detectCopilotAccount,
-  detectKimiAccount,
-} from "./account-detect.ts"
+import { detectClaudeAccount, detectCodexAccount, detectCopilotAccount, detectKimiAccount } from "./account-detect.ts"
 import { claudeCapabilities, claudeIdentity } from "./claude-code-local/capabilities.ts"
 import { ClaudeHookAdapter } from "./claude-code-local/hook-adapter.ts"
 import { fetchClaudeQuotaUsage } from "./claude-code-local/quota.ts"
@@ -42,7 +31,6 @@ import { CopilotHookAdapter } from "./copilot-local/hook-adapter.ts"
 import { COPILOT_SCREEN_MANIFEST } from "./copilot-local/screen.ts"
 import { trustCopilotWorktree } from "./copilot-local/trust.ts"
 import {
-  EMPTY_HISTORY,
   claudeHistoryReader,
   codexHistoryReader,
   copilotHistoryReader,
@@ -50,7 +38,6 @@ import {
   ompHistoryReader,
   piHistoryReader,
 } from "./history-readers.ts"
-import { type EngineHookAdapter, NoopHookAdapter } from "./hook-adapter.ts"
 import { KimiHookAdapter } from "./kimi-local/hook-adapter.ts"
 import { KIMI_SCREEN_MANIFEST } from "./kimi-local/screen.ts"
 import { trustKimiWorktree } from "./kimi-local/trust.ts"

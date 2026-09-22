@@ -119,14 +119,6 @@ function TerminalPassthroughDriver(props: { children?: React.ReactNode }) {
   return <>{props.children}</>
 }
 
-const TEST_MODAL_SCOPE = Symbol("test-modal")
-
-/** Registers a modal barrier, the way an open dialog does. */
-function ModalBarrierDriver(props: { children?: React.ReactNode }) {
-  useBindings(() => ({ modal: true, bindings: [] }), { modalOwner: TEST_MODAL_SCOPE })
-  return <>{props.children}</>
-}
-
 /** Writes KV keys on mount, then renders children — for persisted-state cases. */
 function KvSeed(props: { entries: readonly [string, unknown][]; children?: React.ReactNode }) {
   const kv = useKV()

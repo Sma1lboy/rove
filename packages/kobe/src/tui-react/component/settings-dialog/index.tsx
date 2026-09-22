@@ -38,7 +38,7 @@ import { type LocaleId, currentLang, setLocaleLang, useT } from "../../i18n"
 import { useBindings } from "../../lib/keymap"
 import { useAccessor } from "../../lib/use-accessor"
 import { useCursorFollow } from "../../lib/use-cursor-follow"
-import { type DialogContext, useDialog, useDialogPaddingX } from "../../ui/dialog"
+import { useDialog, useDialogPaddingX } from "../../ui/dialog"
 import {
   confirmResetState,
   confirmRestartDaemon,

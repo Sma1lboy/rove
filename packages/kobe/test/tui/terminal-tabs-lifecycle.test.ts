@@ -15,14 +15,12 @@ import {
   type TabsState,
   addTab,
   initialTabs,
-  openCommandTab,
   openEditorTab,
   recycleTabs,
   rehydrateTabs,
   renameActiveTab,
   setTabAutoTitle,
   setTabSessionId,
-  setTabSpawned,
 } from "../../src/tui/workspace/terminal-tabs-core"
 
 describe("terminal tabs lifecycle", () => {

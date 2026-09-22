@@ -32,12 +32,11 @@
  * once per mount, re-fired on remount.
  */
 
-import { availableEngineIds } from "@/engine/account-detect"
 import { engineLaunchArgv, withPinnedSessionId } from "@/engine/engine-presets"
 
 import { getCapabilities } from "@/engine/registry"
 import { resolveMainRepoRoot } from "@/state/repos"
-import { resolvePreferredVendor, setRepoLastActiveVendor } from "@/state/vendor-prefs"
+import { resolvePreferredVendor } from "@/state/vendor-prefs"
 import type { VendorId } from "@/types/vendor"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { prefixAction } from "../../tui/lib/keymap-dispatch"
@@ -51,22 +50,17 @@ import {
   type TabSpawn,
   type TabsState,
   addTab,
-  closeActiveTab,
-  closeTab,
   cycleTab,
   engineTabSpawnFor,
   initialShellTabs,
   initialTabs,
   isTabSplit,
   rehydrateTabs,
-  renameActiveTab,
   selectTab,
   setTabSessionId,
   setTabSplit,
   splitLeafPtyKey,
   tabCwdFor,
-  tabExitAction,
-  tabPtyKey,
   tabPtyKeyFor,
 } from "../../tui/workspace/terminal-tabs-core"
 import type { HookTabState } from "../../tui/workspace/turn-state-merge"
@@ -80,10 +74,9 @@ import { useBindings } from "../lib/keymap"
 import { useLatest } from "../lib/use-latest"
 import { PreviewScreen } from "../ops/preview"
 import { useDialog } from "../ui/dialog"
-import { TerminalSplit, releaseSplitLeaves } from "./TerminalSplit"
+import { TerminalSplit } from "./TerminalSplit"
 import { noteEngineTabInput } from "./optimistic-activity"
-import { TabStrip, tabTitle } from "./tab-strip"
-import { releaseClosedTabPtys } from "./terminal-tabs-close"
+import { TabStrip } from "./tab-strip"
 import { terminalTabsKey } from "./terminal-tabs-persist"
 import { reportTabsDelta, setTaskTabs, tabsByTask } from "./terminal-tabs-shared"
 import { useTabClose } from "./use-tab-close"

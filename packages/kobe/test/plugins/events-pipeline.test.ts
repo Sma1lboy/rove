@@ -63,10 +63,6 @@ afterEach(() => {
   }
 })
 
-function names(): string[] {
-  return events.map((e) => e.event)
-}
-
 describe("dropped-path regressions through the real orchestrator", () => {
   test("adoptWorktree fires task.created AND worktree.created", async () => {
     const ext = path.join(tmpRoot, "ext-feat")

@@ -10,11 +10,8 @@
  * "the prompt did not land" and moves on a different schedule.
  */
 
-import { errorMessage } from "@/lib/error-message"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
-import { kobeApiInvocation } from "../../engine/interactive-command.ts"
-import { DIRTY_WORKTREE_CODE, EMPTY_BRANCH_DIRTY_WORKTREE_CODE } from "../../orchestrator/errors.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { readOwnDispatcher, resolveDispatcherTab, verifiedSelfSession, withPeerProvenance } from "./dispatcher.ts"
@@ -22,7 +19,7 @@ import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
-import { ApiError, type VerbContext, type VerbSpec, helpStep, splitDaemonCode } from "./types.ts"
+import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
 
 export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
   const title = ctx.args.str("title")

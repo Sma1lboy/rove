@@ -28,7 +28,7 @@
  */
 
 import { randomUUID } from "node:crypto"
-import { chmodSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { StringDecoder } from "node:string_decoder"
 import {

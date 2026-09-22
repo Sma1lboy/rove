@@ -38,7 +38,6 @@
 
 import { randomUUID } from "node:crypto"
 import { appendFile, mkdir, readdir, stat, unlink } from "node:fs/promises"
-import { homedir } from "node:os"
 import path from "node:path"
 import type { EngineUsageSnapshot, Message } from "@/types/engine"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"

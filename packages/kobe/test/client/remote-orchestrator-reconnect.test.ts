@@ -175,7 +175,7 @@ describe("RemoteOrchestrator auto-reconnect", () => {
   it("stops retrying once the client is disposed", async () => {
     const h = fakeClient()
     h.setDisposed(true) // host tore the pane down
-    const orch = new RemoteOrchestrator(h.client, { role: "pane" })
+    new RemoteOrchestrator(h.client, { role: "pane" })
     h.triggerClose()
     await sleep(800)
     expect(h.helloCount()).toBe(0) // disposed → loop bails before any attempt

@@ -4,15 +4,12 @@ import {
   SCRATCH_SECTION_ID,
   type TreeTab,
   buildTreeRows,
-  filterTreeRows,
   mainTaskIdOfProject,
   parseRowId,
   projectKeysOf,
-  rowLiveBranchPath,
   tabRowId,
   treeFlatIds,
   withRecentRow,
-  worktreeRowLabel,
 } from "../../src/tui/panes/sidebar/tree-core"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"

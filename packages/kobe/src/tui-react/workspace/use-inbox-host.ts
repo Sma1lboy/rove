@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef } from "react"
 import type { AttentionInboxItem, RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { Task } from "../../types/task"
 import type { KVContext } from "../context/kv"
-import { useT } from "../i18n"
 import { useLatest } from "../lib/use-latest"
 import type { DialogContext } from "../ui/dialog"
 import { AttentionInboxDialog } from "./AttentionInboxPane"
@@ -40,7 +39,6 @@ export function useInboxHost(args: {
   notifyError: (message: string) => void
 }) {
   const { orchestrator: orch } = args
-  const t = useT()
   const { availableItems, unavailableItems } = useMemo(
     () =>
       // Tri-state (see taskTabExists): `undefined` when this task has no

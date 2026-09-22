@@ -6,7 +6,7 @@
  */
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { DEFAULT_FEEDBACK_CATEGORY_SLUG, submitFeedback } from "../../lib/feedback.ts"
+import { submitFeedback } from "../../lib/feedback.ts"
 import { daemonOf, repoFilter } from "./handler-helpers.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext } from "./types.ts"

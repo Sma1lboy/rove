@@ -14,14 +14,13 @@
 
 import { type KeyEvent, decodePasteBytes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo } from "react"
 import { asAttachmentPaths } from "../../../tui/lib/attachments"
 import {
   COPY_CHORDS,
   DEFAULT_PAGE_SIZE,
   NORMAL_TERMINAL_INPUT_MODES,
   PASSTHROUGH_CHORDS,
-  TRAPPED_KEYS,
   keyEventToShellBytes,
 } from "../../../tui/panes/terminal/keys-pure"
 import type { TerminalInputModes } from "../../../tui/panes/terminal/keys-pure"

@@ -16,7 +16,6 @@ import type { TaskGroup } from "../../lib/task-group"
 import type { BoardColumnKey } from "../../state/issue-board"
 import { taskGroupLabel, taskGroupTone } from "../../tui/panes/sidebar/task-group-view"
 import { useTheme } from "../context/theme"
-import { useT } from "../i18n"
 import { FRAME } from "../ui/frame"
 
 /**
@@ -52,7 +51,6 @@ export function KanbanCard(props: {
   boxRef?: (r: BoxRenderable | null) => (() => void) | undefined
 }): ReactNode {
   const { theme, transparentBackground } = useTheme()
-  const t = useT()
   const { issue, column, selected } = props
   const columnBorder = transparentBackground ? theme.border : theme.borderSubtle
   const fg = column === "done" ? theme.textMuted : theme.text

@@ -26,7 +26,7 @@
 
 import { readFile, stat, unlink } from "node:fs/promises"
 import type { Server } from "node:net"
-import { OWNER_ONLY_FILE_MODE, tightenFilePermissions } from "./owner-only.ts"
+import { tightenFilePermissions } from "./owner-only.ts"
 import { isWindowsPipePath } from "./paths.ts"
 
 /** How often a running daemon re-checks that it still owns its socket path. */

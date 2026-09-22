@@ -20,10 +20,9 @@
  * re-attach.
  */
 
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { type ObservedLanguage, detectLanguage } from "@sma1lboy/kobe-daemon/prompts/observed-language"
-import { kobeApiInvocation } from "../engine/interactive-command.ts"
 import { REPO_CONFIG_DIRS, isNonEmptyRepoFile, readFirstNonEmptyRepoFile } from "../lib/repo-config-file.ts"
 import { getRepoInitOverride } from "./repos.ts"
 

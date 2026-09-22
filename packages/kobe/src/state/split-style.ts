@@ -15,8 +15,6 @@ export type SplitStyle = "box" | "line"
 
 const DEFAULT_SPLIT_STYLE: SplitStyle = "box"
 
-export const SPLIT_STYLES: readonly SplitStyle[] = ["box", "line"]
-
 /** Coerce a persisted value to a valid style (unknown → default). */
 export function normalizeSplitStyle(value: unknown): SplitStyle {
   return value === "line" || value === "box" ? value : DEFAULT_SPLIT_STYLE

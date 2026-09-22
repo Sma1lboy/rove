@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { SNAPSHOT_COALESCE_MS } from "../../src/tui/panes/terminal/pty-xterm-base"
-import { FakeTransportPty, settleRefresh } from "./pty-fake"
+import { FakeTransportPty } from "./pty-fake"
 
 /**
  * The coalesce window's LEADING edge — keystroke-echo latency.

@@ -47,7 +47,6 @@ let exitSpy: ReturnType<typeof vi.fn>
 let logSpy: MockInstance
 let errorSpy: MockInstance
 let stdoutSpy: MockInstance
-let stderrSpy: MockInstance
 
 async function runCli(...args: string[]): Promise<void> {
   process.argv = ["bun", "/kobe/src/cli/index.ts", ...args]
@@ -75,7 +74,7 @@ beforeEach(() => {
   logSpy = vi.spyOn(console, "log").mockImplementation(() => {})
   errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
   stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
-  stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
+  vi.spyOn(process.stderr, "write").mockImplementation(() => true)
 })
 
 afterEach(() => {

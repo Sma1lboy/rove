@@ -9,7 +9,7 @@ import {
   deliverPrompt,
   invokeVerb,
 } from "../../src/cli/api-cmd.ts"
-import { FakeClient, expectApiError, recordingTearDown, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
+import { FakeClient, expectApiError, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 describe("issue handler", () => {
   it("sends a daemon-owned issue mutation", async () => {

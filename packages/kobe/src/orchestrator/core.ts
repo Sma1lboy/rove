@@ -7,25 +7,13 @@
 import { samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import { type ReadableState, type StateCell, createStateCell } from "../lib/external-store.ts"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
-import { getRemoteRepoConfig, getSavedRepos, removeSavedRepo } from "../state/repos.ts"
 import { isGitRepo, resolveRepoRoot } from "../state/repos.ts"
-import { resolvePreferredVendor } from "../state/vendor-prefs.ts"
-import type {
-  Task,
-  TaskDispatcher,
-  TaskId,
-  TaskPRStatus,
-  TaskRoutineLink,
-  TaskStatus,
-  TaskWorkerReport,
-  VendorId,
-} from "../types/task.ts"
-import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
+import type { Task, TaskId, TaskPRStatus, TaskStatus, TaskWorkerReport, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
 import { type OpenDirectoryTaskInput, adoptScratchRepoRow, createTaskRow, openDirectoryTaskRow } from "./core-create.ts"
 import { canonPath, repoWorkingDir } from "./core-helpers.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
-import { DirtyWorktreeError, TaskDeletingError, TaskNotFoundError, WorktreeRemoveFailedError } from "./errors.ts"
+import { TaskDeletingError, TaskNotFoundError } from "./errors.ts"
 import type { TaskIndexStore, TaskIndexUnsubscribe } from "./index/store.ts"
 import { type LandPreflight, landPreflight } from "./land-preflight.ts"
 import { type LandResult, type LandTaskOpts, landTaskWithCleanup } from "./land.ts"

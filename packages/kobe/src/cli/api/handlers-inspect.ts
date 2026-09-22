@@ -22,7 +22,6 @@
 
 import { foregroundEngineIn, parsePsSnapshot, psSnapshot } from "../../engine/foreground.ts"
 import { loadStateFile } from "../../state/store.ts"
-import { terminalTabsKey } from "../../tui-react/workspace/terminal-tabs-persist.ts"
 import type { TabsState } from "../../tui/workspace/terminal-tabs-core.ts"
 import { F } from "./flags.ts"
 import { type TaskSessionRow, unregisteredTabIds } from "./tab-snapshot.ts"

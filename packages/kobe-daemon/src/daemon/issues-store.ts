@@ -1,14 +1,10 @@
-import { execFile } from "node:child_process"
-import { readFile, stat } from "node:fs/promises"
+import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
-import { promisify } from "node:util"
 import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { serialized, writeJsonAtomic } from "./json-file.ts"
 import { gitTopLevel, resolveRepoRoot } from "./repo-key.ts"
-
-const execFileAsync = promisify(execFile)
 
 export type IssueStatus = "open" | "doing" | "hold" | "done"
 

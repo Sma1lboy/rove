@@ -28,11 +28,9 @@ import {
   shapeDaemonError,
 } from "./handlers.ts"
 import { acquireHomeClaim } from "./home-owner.ts"
-import { IssuesStore, defaultIssuesStorePath } from "./issues-store.ts"
 import { writeTextAtomic } from "./json-file.ts"
 import { DaemonLifetime, FIRST_GUI_GRACE_MS, resolveIdleGraceMs } from "./lifetime.ts"
 import { LineReceiver } from "./line-receiver.ts"
-import { NotesStore, defaultNotesStorePath } from "./notes-store.ts"
 import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
 import {
   defaultDaemonPidPath,
@@ -42,13 +40,7 @@ import {
   resolveDaemonHomeDir,
 } from "./paths.ts"
 import { PromptBroker } from "./prompt-broker.ts"
-import {
-  type DaemonFrame,
-  type DaemonStopReason,
-  type DaemonStoppingPayload,
-  normalizeChannelFilter,
-  serializeTask,
-} from "./protocol.ts"
+import { type DaemonFrame, type DaemonStopReason, type DaemonStoppingPayload, serializeTask } from "./protocol.ts"
 import { startPtyExitWatch } from "./pty-exit-watch.ts"
 import { PtyLiveHold } from "./pty-live-hold.ts"
 import type { DaemonServer, DaemonServerOptions } from "./server-options.ts"
@@ -57,7 +49,6 @@ import { createSocketOwnershipGuard, listenOnUnixSocket } from "./socket-guard.t
 import { initDaemonStores } from "./stores.ts"
 import { handleSubscribe } from "./subscribe.ts"
 import { TabCloseBroker } from "./tab-close-broker.ts"
-import { WorkItemCache } from "./work-items.ts"
 
 // RPC handler registry + per-request dispatch seam — re-exported so consumers
 // (tests) keep the existing `daemon/server` import path.

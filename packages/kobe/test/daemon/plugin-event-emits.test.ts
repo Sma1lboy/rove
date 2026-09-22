@@ -148,7 +148,7 @@ describe("automation runner emit sites", () => {
   })
 
   it("a missed occurrence fires automation.skipped", async () => {
-    const { seen, automation, deps: d } = await deps()
+    const { seen, deps: d } = await deps()
     // now far past the grace window relative to the last cron occurrence
     await sweepAutomations({ ...(d as object), now: () => Date.parse("2026-01-10T12:00:00Z") } as never)
     expect(seen[0]).toMatchObject({ kind: "automation.skipped", detail: { status: "skipped_missed" } })

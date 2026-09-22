@@ -1,5 +1,3 @@
-import { promises as fs } from "node:fs"
-import path from "node:path"
 import { readOnlyGitProcessEnv } from "@/lib/git-env"
 import { recordSpawn } from "@/lib/spawn-profile"
 import { readFirstNonEmptyRepoFile } from "../../lib/repo-config-file.ts"

@@ -3,11 +3,6 @@
 import type { Binding, PrefixAction } from "../lib/keymap-dispatch"
 import { findBinding } from "./keybindings"
 
-/** Resolve direct chords for one binding id. */
-function chordsOf(id: string): readonly string[] {
-  return findBinding(id)?.keys ?? []
-}
-
 /** Expand binding ids into direct and prefix-marked dispatcher entries. */
 export function bindByIds(handlers: Record<string, Binding["cmd"] | PrefixAction>): Binding[] {
   const out: Binding[] = []

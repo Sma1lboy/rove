@@ -18,7 +18,6 @@ import {
   VerbArgs,
   findVerb,
   invokeVerb,
-  verbSchema,
 } from "../../src/cli/api-cmd.ts"
 import type { DaemonRpc } from "../../src/cli/daemon-session.ts"
 

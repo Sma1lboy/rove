@@ -38,7 +38,6 @@ import {
   filterTreeRows,
   jumpRowsOf,
   mainTaskIdOfProject,
-  parseRowId,
   projectKeyOfRoutinesRow,
   rowLiveBranchPath,
   tabRowId,

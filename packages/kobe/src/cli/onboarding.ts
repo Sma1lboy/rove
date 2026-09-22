@@ -30,7 +30,6 @@ import { loadStateFile, patchStateFile } from "../state/store.ts"
 import type { OnboardingChoices } from "../tui-react/onboarding/host.tsx"
 import { t } from "../tui/i18n"
 import { type ShellKind, shippedCompletionsPath } from "./completion-scripts.ts"
-import type { OnboardingEnvReport } from "./env-checks.ts"
 import { activeCliName } from "./rename-compat.ts"
 import { PENDING_SKILL_KEY } from "./welcome.ts"
 
@@ -123,15 +122,6 @@ export function installCompletions(
   if (existing.includes(`${cli} completions`)) return { path: rc, installed: false }
   appendFileSync(rc, `\n# ${cli} completions\n${hook}\n`)
   return { path: rc, installed: true }
-}
-
-/**
- * True when the machine can actually run a first task: at least one usable
- * engine AND git (worktrees need it). The same gates doctor proposes fixes
- * for, so every surface that reports readiness tells one story.
- */
-export function envReadyForTasks(env: OnboardingEnvReport): boolean {
-  return env.engines.anyUsable && env.git.found
 }
 
 /**

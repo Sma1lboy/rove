@@ -227,7 +227,7 @@ describe("moveTask", () => {
     ).toEqual(["b", "a"])
   })
   it("moves a task within its partition and skips pinned siblings", async () => {
-    const a = await makeTask({ title: "a" })
+    await makeTask({ title: "a" })
     const b = await makeTask({ title: "b" })
     const c = await makeTask({ title: "c" })
     await orch.setPinned(b.id, true) // b leaves a+c's partition
@@ -246,7 +246,7 @@ describe("moveTask", () => {
   // task's move partition is its REPO — a swap must never cross into another
   // repo's group (invisible there) or reorder it as a side effect.
   it("keeps a regular task inside its repo group, skipping other repos' tasks", async () => {
-    const a = await makeTask({ title: "a" })
+    await makeTask({ title: "a" })
     const other = await makeTask({ title: "other", repo: "/repo-b" })
     const b = await makeTask({ title: "b" })
 

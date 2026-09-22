@@ -23,7 +23,6 @@ import { PREFIX_TAP_PRESENTATIONS } from "../../../tui/lib/prefix-tap-presentati
 import { useKeymapVersion } from "../../context/keybindings"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import { ChipRow } from "../../ui/dialog-parts"
 import { Row, type SectionCursorProps, SubSection } from "./rows"
 import type { SettingsPrefs } from "./use-settings-prefs"
 
