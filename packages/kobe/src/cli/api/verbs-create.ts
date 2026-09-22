@@ -44,9 +44,9 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
       {
         name: "tier",
         type: "enum",
-        values: ["swift", "standard", "deep"],
+        values: ["swift", "standard", "deep", "auto"],
         description:
-          "Auto-routing tier: fills the engine, model and effort from the table in Settings → Auto routing (autoRouting.<tier>.* in state.json) and records the tier on the task (.task.tier). Exclusive with --command/--model/--effort/--agents (CONFLICTING_FLAGS). A tier whose target cannot start — engine not in engine-list, not logged in, model or effort its engine cannot carry — is refused up front (TIER_UNAVAILABLE) with the reason.",
+          "Auto-routing tier: fills the engine, model and effort from the table in Settings → Auto routing (autoRouting.<tier>.* in state.json) and records the tier on the task (.task.tier). Exclusive with --command/--model/--effort/--agents (CONFLICTING_FLAGS). A tier whose target cannot start — engine not in engine-list, not logged in, model or effort its engine cannot carry — is refused up front (TIER_UNAVAILABLE) with the reason. `auto` asks the classifier named by `autoRouting.classifier` (OFF by default — nothing is sent anywhere until you set it, and with `jev` the prompt goes to TypeSafe, a third party that is not your engine vendor) to read --prompt and pick the tier; needs --prompt/--prompt-file, and NEVER fails the create — off, no key, a timeout, or an answer below `autoRouting.classifierThreshold` all create the task with the ordinary defaults and say so in `.tierAuto`.",
       },
       {
         name: "model",

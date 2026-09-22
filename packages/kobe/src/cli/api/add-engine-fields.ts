@@ -5,7 +5,9 @@
  * two paths cannot drift on the engine contract.
  */
 
+import { classifyTier, readClassifierConfig } from "../../engine/auto-routing-classifier.ts"
 import {
+  type AutoRoutingTier,
   type TierTarget,
   describeTierBlock,
   isAutoRoutingTier,
@@ -66,19 +68,63 @@ export interface EngineFields {
 }
 
 /**
+ * What `--tier` resolved to. `fields` absent = no tier applies and the caller
+ * falls back to the typed-out engine fields; `note` is the one line `--tier
+ * auto` has to say for itself, present whether or not a tier came back.
+ */
+export interface TierOutcome {
+  readonly fields?: EngineFields
+  readonly note?: string
+}
+
+/**
+ * `--tier auto`: ask the configured classifier which tier this prompt
+ * deserves (`engine/auto-routing-classifier.ts`).
+ *
+ * Declining is the ordinary case, not an error: the classifier is off by
+ * default, the key may be unset, the endpoint may be slow or wrong, and the
+ * answer may simply not be confident enough. All of those create the task
+ * with the engine fields the caller already had — a picker that can fail a
+ * create is a dependency, and this is an accelerator. The only hard failure
+ * is asking to classify NOTHING, which is a flag mistake the caller wants to
+ * hear about before a task exists.
+ */
+async function autoTier(prompt: string | undefined): Promise<{ tier?: AutoRoutingTier; note: string }> {
+  if (!prompt?.trim()) {
+    throw new ApiError(
+      "--tier auto classifies the first message — pass --prompt/--prompt-file, or name a tier explicitly",
+      "BAD_FLAG",
+      helpStep("add"),
+    )
+  }
+  const outcome = await classifyTier(prompt, readClassifierConfig())
+  if (outcome.kind === "picked") {
+    const { tier, confidence } = outcome.verdict
+    return { tier, note: `auto → ${tier} (confidence ${confidence.toFixed(2)})` }
+  }
+  const detail = outcome.detail ? `: ${outcome.detail}` : ""
+  return { note: `auto → no tier (${outcome.reason}${detail})` }
+}
+
+/**
  * `--tier`: fill (engine, model, effort) from the auto-routing table and
  * record the tier on the task. Exclusive with the three explicit flags —
  * a caller who wrote both believes both applied. The target then passes the
  * same gates a hand-picked engine does (`engine-list` membership, login,
  * `assertEngineAcceptsModel`, `assertEngineAcceptsEffort`), so a tier that
  * cannot start fails HERE with the reason, not minutes later at launch.
+ *
+ * `auto` runs the same gauntlet: the classifier only chooses WHICH row of the
+ * table to read, and a row it picks that cannot start is refused exactly as a
+ * hand-typed one is — except that for `auto` "refused" means falling back to
+ * the caller's own fields rather than failing the create.
  */
-export async function tierFields(ctx: VerbContext): Promise<EngineFields | undefined> {
-  const tier = ctx.args.str("tier")?.trim()
-  if (!tier) return undefined
-  if (!isAutoRoutingTier(tier)) {
+export async function tierFields(ctx: VerbContext, prompt?: string): Promise<TierOutcome> {
+  const requested = ctx.args.str("tier")?.trim()
+  if (!requested) return {}
+  if (requested !== "auto" && !isAutoRoutingTier(requested)) {
     throw new ApiError(
-      `--tier must be one of swift, standard, deep (got ${JSON.stringify(tier)})`,
+      `--tier must be one of swift, standard, deep, auto (got ${JSON.stringify(requested)})`,
       "BAD_FLAG",
       helpStep("add"),
     )
@@ -94,11 +140,30 @@ export async function tierFields(ctx: VerbContext): Promise<EngineFields | undef
   }
   const table = readAutoRoutingTable()
   if (!table) {
+    // A tier the CALLER named is a refusal: they asked for a table that does
+    // not exist. `auto` is not — "never fails a create" has no exceptions,
+    // and an unconfigured table is the most ordinary reason of all for the
+    // classifier to have nothing to say. It also costs nothing to notice
+    // here, BEFORE the prompt is sent anywhere.
+    if (requested === "auto") return { note: "auto → no tier (auto routing is not configured)" }
     throw new ApiError(
       "auto routing is not configured — a tier has no engine (autoRouting.<tier>.engine in state.json); set it in Settings → Auto routing",
       "TIER_UNAVAILABLE",
       helpStep("add"),
     )
+  }
+  // The table is read BEFORE the classifier runs: with auto routing switched
+  // off there is no row for any answer to name, and sending the prompt to a
+  // third party to learn that would be a network call for nothing.
+  let tier: AutoRoutingTier
+  let note: string | undefined
+  if (requested === "auto") {
+    const picked = await autoTier(prompt)
+    note = picked.note
+    if (!picked.tier) return { note }
+    tier = picked.tier
+  } else {
+    tier = requested
   }
   const target: TierTarget = table[tier]
   const status = await detectEngineStatus(target.engine)
@@ -107,6 +172,11 @@ export async function tierFields(ctx: VerbContext): Promise<EngineFields | undef
     accountKind: () => status.account?.kind ?? null,
   })
   if (block) {
+    // A tier the CALLER named is a refusal — they asked for a target that
+    // cannot start, and silently launching something else would be worse. A
+    // tier the CLASSIFIER named is not: it guessed at a row this machine
+    // cannot run, which is our problem, not the caller's.
+    if (requested === "auto") return { note: `${note} — unusable: ${describeTierBlock(block)}` }
     throw new ApiError(`tier ${tier} cannot start: ${describeTierBlock(block)}`, "TIER_UNAVAILABLE", {
       tier,
       block,
@@ -115,9 +185,46 @@ export async function tierFields(ctx: VerbContext): Promise<EngineFields | undef
     })
   }
   const vendor = resolveCommandProtocol(target.engine)
-  if (target.model) assertEngineAcceptsModel(vendor, target.model, ["api", "engine-list"])
-  if (target.effort) assertEngineAcceptsEffort(vendor, target.effort, ["api", "engine-list"])
-  return { choice: { command: target.engine, vendor }, effort: target.effort, model: target.model, tier }
+  // These two throw, and a classifier's pick is never allowed to fail a
+  // create. `tierBlock` above covers the same ground, so the two cannot
+  // disagree today — but "cannot fail" has to be a rule the code keeps, not
+  // one that holds because two checks happen to agree.
+  try {
+    if (target.model) assertEngineAcceptsModel(vendor, target.model, ["api", "engine-list"])
+    if (target.effort) assertEngineAcceptsEffort(vendor, target.effort, ["api", "engine-list"])
+  } catch (err) {
+    if (requested !== "auto") throw err
+    return { note: `${note} — unusable: ${err instanceof Error ? err.message : String(err)}` }
+  }
+  return {
+    fields: { choice: { command: target.engine, vendor }, effort: target.effort, model: target.model, tier },
+    ...(note ? { note } : {}),
+  }
+}
+
+/**
+ * Run `body`, and if it throws an {@link ApiError}, re-raise the same error
+ * with the `--tier auto` note merged into its data.
+ *
+ * Lives here rather than in the create handler because everything else about
+ * what a tier decided lives here, and the reason this exists is the same
+ * reason {@link tierFields} returns a note at all: the decision has to reach
+ * the caller whether the create went well or badly.
+ *
+ * Re-raising rather than mutating: an ApiError may be shared or inspected by
+ * the caller that built it, and a handler quietly editing someone else's
+ * error object is a worse bargain than one extra allocation. A non-ApiError
+ * throw is left exactly as it is — wrapping it would change its type on a
+ * path whose whole job is to report faithfully.
+ */
+export async function withTierNote<T>(note: Record<string, string>, body: () => Promise<T>): Promise<T> {
+  if (Object.keys(note).length === 0) return body()
+  try {
+    return await body()
+  } catch (err) {
+    if (!(err instanceof ApiError)) throw err
+    throw new ApiError(err.message, err.code, { ...err.data, ...note })
+  }
 }
 
 /**

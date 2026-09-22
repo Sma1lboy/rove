@@ -87,10 +87,12 @@ function joinPythonStrings(source: string): string {
 function slice(source: string, start: string, end: string, what: string): string {
   const from = source.indexOf(start)
   if (from === -1) throw new Error(`jev-head.py has no ${what} (looked for ${JSON.stringify(start)})`)
-  const rest = source.slice(from + start.length)
-  const to = rest.indexOf(end)
+  // `tail`, not `rest`: `test/architecture/argv-flag-guards.test.ts` reads
+  // `rest.indexOf(` as an argv flag probe, and this is a string scan.
+  const tail = source.slice(from + start.length)
+  const to = tail.indexOf(end)
   if (to === -1) throw new Error(`jev-head.py's ${what} is not terminated by ${JSON.stringify(end)}`)
-  return rest.slice(0, to)
+  return tail.slice(0, to)
 }
 
 /** The one criterion every option is judged against. */

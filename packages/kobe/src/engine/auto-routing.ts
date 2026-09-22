@@ -10,7 +10,7 @@
  * Tier copy (`tasks.tier.*`) names no vendor. No auto-pick: a tier fills three
  * fields the user can still see and change. State is read through an injected
  * getter (CLI: `getPersistedString`, TUI: reactive `kv.get`). Keys were
- * `autoEffort.*` up to v0.9.219; `state/state-key-migration.ts` moves them.
+ * `autoEffort.*` up to v0.9.220; `state/state-key-migration.ts` moves them.
  */
 
 import { getPersistedString } from "@/state/repos"

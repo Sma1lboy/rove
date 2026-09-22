@@ -165,7 +165,7 @@ clear the shared active task.
 <!-- generated:begin create,edit,lifecycle -->
 ```text
 add          --repo(REQ) --title --branch --base-branch --worktree-name --command --effort
-             --tier{swift|standard|deep} --model --count --agents <claude:2,codex:1>
+             --tier{swift|standard|deep|auto} --model --count --agents <claude:2,codex:1>
              --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
              --activate(false) --prompt|--prompt-file
 rename       --task-id(REQ) --title(REQ) --tab

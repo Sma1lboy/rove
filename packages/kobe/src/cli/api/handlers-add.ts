@@ -25,6 +25,7 @@ import {
   enginePayload,
   modelFor,
   tierFields,
+  withTierNote,
 } from "./add-engine-fields.ts"
 import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
 import { FANOUT_CAP, buildCountPlan, parseAgentsSpec } from "./flags.ts"
@@ -96,7 +97,11 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   // otherwise leave an orphan task behind an error carrying no taskId.
   const prompt = args.promptText()
   // The dispatcher is the reply address a sub-task's bare `send` routes to.
-  const fields = (await tierFields(ctx)) ?? (await typedEngineFields(ctx, repo))
+  // `--tier auto` reads the prompt, so it resolves after it; a declined
+  // classifier leaves `fields` empty, which is the typed path.
+  const picked = await tierFields(ctx, prompt)
+  const fields = picked.fields ?? (await typedEngineFields(ctx, repo))
+  const tierNote: Record<string, string> = picked.note ? { tierAuto: picked.note } : {}
   const payload: Record<string, string> = {
     repo,
     ...(await dispatcherEnvPayload()),
@@ -122,25 +127,35 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
   }
 
+  // No `tierNote` here on purpose: `--tier auto` refuses a create with nothing
+  // to classify, so a note and an absent prompt cannot coexist.
   if (!prompt) return { taskId, task, home: homeDir(), started: false }
   // Same provenance prefix `send` carries: the `dispatcher` row field is data
   // a receiver must think to read; this puts the reply address in the brief.
   // No-op for a create from a plain shell.
   const brief = await withPeerProvenance(daemon, taskId, prompt)
-  const delivered = await ctx.runtime.deliverPrompt(
-    daemon,
-    {
-      id: taskId,
-      worktreePath: task.worktreePath,
-      kind: task.kind,
-      vendor: task.vendor as VendorId | undefined,
-      command: task.command,
-      modelEffort: task.modelEffort,
-      model: task.model,
-      repo: task.repo,
-      newTask: true,
-    },
-    brief,
+  // Delivery failures (SESSION_FAILED and friends) are raised inside
+  // `deliverPrompt`, which knows nothing about tiers — so what `--tier auto`
+  // decided would vanish exactly when the caller most needs it. The task IS
+  // created and IS carrying whatever tier was picked; an error that omits
+  // that leaves an agent unable to tell "it routed to deep and the engine
+  // died" from "it never routed at all" without a second round-trip.
+  const delivered = await withTierNote(tierNote, () =>
+    ctx.runtime.deliverPrompt(
+      daemon,
+      {
+        id: taskId,
+        worktreePath: task.worktreePath,
+        kind: task.kind,
+        vendor: task.vendor as VendorId | undefined,
+        command: task.command,
+        modelEffort: task.modelEffort,
+        model: task.model,
+        repo: task.repo,
+        newTask: true,
+      },
+      brief,
+    ),
   )
   // The task IS created, so carry the taskId in the error.
   if (!delivered.delivered) {
@@ -149,6 +164,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
       "NOT_DELIVERED",
       {
         taskId,
+        ...tierNote,
       },
     )
   }
@@ -174,6 +190,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     // leaving `engineReady: false` to be read as a bare failure.
     ...(delivered.reason ? { reason: delivered.reason } : {}),
     ...(promptPersisted ? {} : { promptPersisted: false }),
+    ...tierNote,
   }
 }
 
@@ -253,7 +270,8 @@ async function addParallel(
 
   // `--count` repeats ONE engine — `--command`'s (full command line) or a
   // tier's; the plan carries only its protocol.
-  const tier = await tierFields(ctx)
+  const picked = await tierFields(ctx, prompt)
+  const tier = picked.fields
   const choice = tier?.choice ?? (await engineChoice(ctx, repo))
   const plan: VendorId[] = agentsSpec
     ? parseAgentsSpec(agentsSpec)
@@ -365,7 +383,15 @@ async function addParallel(
   if (createFailure) failures.push({ ok: false, vendor: createFailure.vendor, error: createFailure.error })
   await Promise.all(persistedPrompts)
 
-  const result = { count: created.length, requested: plan.length, groupId, home: homeDir(), tasks, failures }
+  const result = {
+    count: created.length,
+    requested: plan.length,
+    groupId,
+    home: homeDir(),
+    tasks,
+    failures,
+    ...(picked.note ? { tierAuto: picked.note } : {}),
+  }
   // Any failure must not exit 0: the dispatcher emits the whole result
   // (created taskIds included) to stdout and exits 3.
   if (failures.length > 0) {

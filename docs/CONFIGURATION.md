@@ -167,16 +167,98 @@ it off, `r` is the only thing that repopulates the list.
 | `autoRouting.<tier>.engine` | engine id | `claude` for all three | What the `swift` / `standard` / `deep` depth launches. Set from Settings → Auto routing; an empty string switches auto routing off (no tier is guessed) |
 | `autoRouting.<tier>.model` | string | `sonnet` / `opus` / `fable` | Model for that depth, in the engine's own spelling; empty = the engine's default |
 | `autoRouting.<tier>.effort` | string | unset | Reasoning level for that depth, one the engine declares; empty = the engine's default |
+| `autoRouting.classifier` | `off` \| `jev` \| an `http(s)://` URL | `off` | Who picks the tier for `rove api add --tier auto`. See below — anything else, a typo included, reads as `off` |
+| `autoRouting.classifierThreshold` | number, 0–1 | `0.5` | Confidence below which no tier is picked. A value outside the range is refused and the default used |
+| `autoRouting.classifierTimeoutMs` | number, 200–60000 | `4000` | How long to wait before giving up on the classifier. Outside the range, the default |
+| `autoRouting.classifierModel` | string | `jev-latest` | Model id for `jev`. Pin a version (e.g. `jev-1.13.0`) to stop a silent upgrade |
+| `autoRouting.classifierKeyEnv` | string | `TYPESAFE_API_KEY` | Environment variable holding **jev's** key. The token itself never goes in `state.json` |
+| `autoRouting.classifierCustomKeyEnv` | string | unset | Environment variable holding a **custom endpoint's** key. Unset = no `Authorization` header is sent |
 
 Launch commands are parsed shell-ish, so quotes group arguments. Clear both
 `engineName.<id>` and `engineCommand.<id>` to reset an engine to its default.
 
-These three keys were called `autoEffort.<tier>.*` up to v0.9.219, and the
+These three keys were called `autoEffort.<tier>.*` up to v0.9.220, and the
 feature was called Auto effort. Rove moves the old keys to the new names once,
 at the first launch after upgrading, and deletes the old ones — a table you had
 retargeted keeps launching exactly what it launched before, and there is
 nothing to do by hand. If you had both spellings in the file (an older Rove run
 in between, say), the `autoRouting.*` value is the one kept.
+
+#### The tier classifier
+
+`autoRouting.classifier` is **off**, and while it is off nothing leaves your
+machine. Switching it on means one thing you should decide deliberately:
+
+> **Your prompt is sent to a third party that is not your engine vendor.**
+> With `jev`, the first message of the task — trimmed to 1,200 characters —
+> is POSTed to TypeSafe System One (`https://api.typesafe.ai/v1/systemone`).
+> That is a different company from whoever runs the engine you picked, and it
+> sees the text before the engine does.
+
+It answers one question — how much of the PROCEDURE the prompt leaves for the
+model to work out — and maps the answer onto `swift` / `standard` / `deep`:
+procedure given is `swift`, goal given but not the procedure is `standard`,
+and a goal that still has to be found is `deep`.
+
+```jsonc
+{
+  "autoRouting.classifier": "jev",          // off by default
+  "autoRouting.classifierThreshold": 0.5,   // below this, no tier is picked
+  "autoRouting.classifierModel": "jev-1.13.0"
+}
+```
+
+```bash
+export TYPESAFE_API_KEY=...   # keys: https://console.typesafe.ai/keys
+rove api add --repo ~/code/app --tier auto --prompt "there's a memory leak somewhere"
+```
+
+The key comes from the environment, under the name the mode's `…KeyEnv`
+setting gives — never from `state.json`, which `rove config` opens, people
+hand-edit, and bug reports get pasted into whole. An empty value counts as
+unset rather than as "deliberately blank", so an `export TYPESAFE_API_KEY=`
+left in a shell profile does not silently disable the key. There is no
+Settings row for this yet, so the environment is the only place it can come
+from — which also means the classifier reaches `rove api add` and not a
+long-running TUI, whose environment was fixed when it started.
+
+Point `autoRouting.classifier` at your own endpoint instead and Rove POSTs
+`{"text": "…"}` and expects `{"tier": "swift|standard|deep", "confidence":
+0.0–1.0}` back — that is the whole contract, so an endpoint you host (a local
+model, a rule, a lookup) is a ten-line program.
+
+`http://` is accepted **only for a loopback address** (`127.0.0.1`,
+`localhost`, `::1`), because a classifier you run on your own machine is the
+whole point of the custom option and nothing leaves the host. To anywhere
+else, plain `http` would carry the task's first 1,200 characters — and your
+bearer token, once you name one — in cleartext to a host anyone on the path
+can impersonate, so it is refused and `.tierAuto` says so.
+
+**The two modes read different key settings, and that is deliberate.** `jev`
+reads `autoRouting.classifierKeyEnv`; a custom endpoint reads
+`autoRouting.classifierCustomKeyEnv`, which has no default, so a custom
+endpoint gets **no `Authorization` header** until you name one. A single
+shared variable would leak in both directions across a mode switch: a name
+chosen for your own endpoint would send that credential to TypeSafe the
+moment the setting changed to `jev`, and TypeSafe's token would go to your
+endpoint the moment it changed back. Neither is a mistake you could watch
+yourself make.
+
+Nothing here can fail a create. Off, no key, no network, a timeout, a
+malformed answer, a refused endpoint, or a confidence under the threshold all
+mean the same thing: the task is created with the engine fields it would have
+had anyway, and `rove api add` reports what happened in `.tierAuto`. A pick
+below the threshold is dropped on purpose — a wrong pre-fill costs more than
+no pre-fill, because someone has to notice it before they can undo it.
+
+The judgement Rove sends is the one that was measured: 73.0% on 94
+human-labelled prompts against a 48.9% floor, with deep recall 17/20. It is
+generated from [`design/auto-routing/`](./design/auto-routing/) rather than
+written in code, so the text a reviewer reads is the text on the wire. What
+the numbers mean and what else was tried:
+[`design/auto-routing-classifier.md`](./design/auto-routing-classifier.md)
+and
+[`design/auto-routing-classifier-interface.md`](./design/auto-routing-classifier-interface.md).
 
 ### Terminal and tabs
 
