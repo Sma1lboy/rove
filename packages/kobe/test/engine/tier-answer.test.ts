@@ -24,9 +24,24 @@ describe("readChoiceAnswer", () => {
   })
 
   it("refuses probability keys that are not exactly the enum", () => {
+    // A missing tier, and an extra one that skews the total.
     expect(readChoiceAnswer({ ...ok, probabilities: { swift: 0.5, standard: 0.5 } })).toMatchObject({ ok: false })
     expect(
       readChoiceAnswer({ ...ok, probabilities: { swift: 0.2, standard: 0.5, deep: 0.2, urgent: 0.1 } }),
+    ).toMatchObject({ ok: false })
+  })
+
+  it("refuses an EXTRA tier even when the three we asked about are perfectly well-formed", () => {
+    // The case that pins this check on its own. Both rows above are also
+    // refused with the key check deleted — a missing key reads back as
+    // `undefined` and trips the range check, and an extra key that carries
+    // probability mass makes the total miss 1 and trips the sum check. A
+    // fourth option at zero trips neither: the three tiers we offered sum to
+    // 1, agree with `choice`, and are each in range. Without this check that
+    // answer is accepted, and an endpoint answering a FOUR-tier question we
+    // never asked passes for one answering ours.
+    expect(
+      readChoiceAnswer({ ...ok, probabilities: { swift: 0.2, standard: 0.5, deep: 0.3, urgent: 0 } }),
     ).toMatchObject({ ok: false })
   })
 
@@ -42,19 +57,44 @@ describe("readChoiceAnswer", () => {
     expect(readChoiceAnswer({ ...ok, choice: "swift" })).toMatchObject({ ok: false })
   })
 
-  it("tolerates a sum of 0.99 / 1.01 and passes the numbers through UNSCALED", () => {
-    const rounded = { choice: "deep", confidence: 0.5, probabilities: { swift: 0.33, standard: 0.33, deep: 0.34 } }
-    const read = readChoiceAnswer(rounded)
-    expect(read).toMatchObject({ ok: true })
-    // Renormalizing would make this 0.3333…; every threshold after it would
-    // then be judging our arithmetic rather than the model's answer.
-    expect(read.ok && read.value.probabilities).toEqual(rounded.probabilities)
+  it("tolerates a sum of 0.99 and of 1.01, and passes the numbers through UNSCALED", () => {
+    // `jev-1.13.0` reports probabilities rounded to the cent, so a real
+    // distribution sums to 0.99 or 1.01 — both of these are answers the live
+    // endpoint actually returns, not contrived ones.
+    for (const probabilities of [
+      { swift: 0.2, standard: 0.5, deep: 0.29 }, // 0.99
+      { swift: 0.2, standard: 0.5, deep: 0.31 }, // 1.01
+    ]) {
+      const read = readChoiceAnswer({ choice: "standard", confidence: 0.5, probabilities })
+      expect(read, JSON.stringify(probabilities)).toMatchObject({ ok: true })
+      // Renormalizing would rewrite these to sum to exactly 1; every
+      // threshold comparison after it would then be judging our arithmetic
+      // rather than the model's answer.
+      expect(read.ok && read.value.probabilities).toEqual(probabilities)
+    }
   })
 
   it("refuses a distribution that does not sum to 1 within tolerance", () => {
     expect(readChoiceAnswer({ ...ok, probabilities: { swift: 0.1, standard: 0.2, deep: 0.3 } })).toMatchObject({
       ok: false,
     })
+    // Just outside ±0.02 on each side — the tolerance is a window, not a
+    // one-sided allowance, and a test that only ever fails far away from it
+    // would pass with the bound written wrong.
+    expect(readChoiceAnswer({ ...ok, probabilities: { swift: 0.2, standard: 0.5, deep: 0.27 } })).toMatchObject({
+      ok: false,
+    })
+    expect(readChoiceAnswer({ ...ok, probabilities: { swift: 0.2, standard: 0.5, deep: 0.33 } })).toMatchObject({
+      ok: false,
+    })
+  })
+
+  it("accepts a TIE — the argmax check refuses a choice that is beaten, not one that is matched", () => {
+    // Deliberate: with two tiers at the same probability the reported choice
+    // IS an argmax, and refusing it would throw away a legitimate answer. The
+    // check exists to catch a response that disagrees with itself.
+    const tied = { choice: "swift", confidence: 0.4, probabilities: { swift: 0.5, standard: 0.5, deep: 0 } }
+    expect(readChoiceAnswer(tied)).toMatchObject({ ok: true })
   })
 
   it("refuses a missing or out-of-range confidence", () => {
