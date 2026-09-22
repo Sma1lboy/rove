@@ -7,6 +7,7 @@ const spies = vi.hoisted(() => ({
   publishTitle: vi.fn(),
   startWorkspaceHost: vi.fn(async () => {}),
   takeWhatsNew: vi.fn(() => null as string | null),
+  takeWelcome: vi.fn(() => null as { shell: string | null } | null),
 }))
 
 vi.mock("../../src/cli/hook-cmd.ts", () => ({ ensureGlobalKobeHooks: spies.installHooks }))
@@ -18,6 +19,7 @@ vi.mock("../../src/cli/reset-gate.ts", async (importActual) => ({
   enforceResetGate: spies.enforceResetGate,
 }))
 vi.mock("../../src/cli/whats-new.ts", () => ({ takeWhatsNew: spies.takeWhatsNew }))
+vi.mock("../../src/cli/welcome.ts", () => ({ takeWelcome: spies.takeWelcome }))
 vi.mock("../../src/lib/skill-install.ts", () => ({ maybeHintSkillInstall: spies.hintSkillInstall }))
 vi.mock("../../src/tui/lib/outer-terminal-title.ts", () => ({ publishKobeTerminalTitle: spies.publishTitle }))
 vi.mock("../../src/tui-react/workspace/start-workspace", () => ({ startWorkspaceHost: spies.startWorkspaceHost }))
@@ -69,12 +71,34 @@ describe("startTui", () => {
     await startTui()
 
     expect(order).toEqual(["whats-new", "reset-gate"])
-    expect(spies.startWorkspaceHost).toHaveBeenCalledWith({ whatsNewFrom: "0.9.100" })
+    expect(spies.startWorkspaceHost).toHaveBeenCalledWith({ whatsNewFrom: "0.9.100", welcome: null })
   })
 
   it("passes null through when there is nothing new to show", async () => {
     await startTui()
 
-    expect(spies.startWorkspaceHost).toHaveBeenCalledWith({ whatsNewFrom: null })
+    expect(spies.startWorkspaceHost).toHaveBeenCalledWith({ whatsNewFrom: null, welcome: null })
+  })
+
+  /**
+   * Same ordering constraint as What's New, for the same reason: the welcome
+   * gate reads `app.lastRunVersion` to tell a genuine first run from an
+   * existing user, and the reset gate overwrites that stamp. Reading it after
+   * the gate would greet every upgrading user exactly once.
+   */
+  it("reads the welcome gate before the reset gate and hands it to the host", async () => {
+    const order: string[] = []
+    spies.takeWelcome.mockImplementationOnce(() => {
+      order.push("welcome")
+      return { shell: "zsh" }
+    })
+    spies.enforceResetGate.mockImplementationOnce(() => {
+      order.push("reset-gate")
+    })
+
+    await startTui()
+
+    expect(order).toEqual(["welcome", "reset-gate"])
+    expect(spies.startWorkspaceHost).toHaveBeenCalledWith({ whatsNewFrom: null, welcome: { shell: "zsh" } })
   })
 })

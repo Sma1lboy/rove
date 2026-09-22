@@ -147,7 +147,12 @@ async function seedStartupState(): Promise<void> {
 
   const state: Record<string, string | boolean | string[]> = {
     "app.lastRunVersion": packageJson.version,
-    onboarded: true,
+    // A fixture is a sandbox someone has BEEN using, so it must never be owed
+    // the first-run welcome dialog — it would cover whatever a journey came
+    // to photograph. `app.lastRunVersion` alone already settles the gate;
+    // this is the explicit half, so the fixture stays quiet even if the
+    // fallback stamp ever moves.
+    welcomed: true,
     skillHintSeen: "1",
     // The Worktrees page audits saved projects rather than task rows. Keep
     // the fixture repo in this independent registry so that visual journey

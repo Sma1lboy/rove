@@ -14,6 +14,7 @@
  */
 
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react"
+import type { WelcomeRequest } from "../../cli/welcome.ts"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { TaskEngineState } from "../../client/remote-orchestrator-payloads"
 import { type SidebarNav, focusPaneForNav } from "../../tui/panes/sidebar/nav-core"
@@ -37,6 +38,17 @@ interface HostPageState {
   readonly updateOpen: boolean
 }
 
+/**
+ * The one-shot dialogs a launch can owe the user, resolved at the process
+ * entry point and handed down. Both touch `state.json`, so neither may be
+ * decided in the render track; they are mutually exclusive in practice (What's
+ * New needs a stamp from an older build, the welcome needs no stamp at all).
+ */
+export interface BootDialogs {
+  readonly whatsNewFrom?: string | null
+  readonly welcome?: WelcomeRequest | null
+}
+
 export interface HostPagesState extends HostPageState {
   /**
    * Version the user upgraded FROM when this launch owes them a What's New,
@@ -49,6 +61,15 @@ export interface HostPagesState extends HostPageState {
    */
   readonly whatsNewFrom: string | null
   readonly closeWhatsNew: () => void
+  /**
+   * The first-run welcome this launch owes the user, else null. Mirrors
+   * {@link whatsNewFrom} in every respect — resolved at the process entry
+   * point because the decision touches `state.json`, handed to the dialog
+   * stack rather than the page router, and mutually exclusive with it (one
+   * fires only with an older stamp, the other only with no stamp at all).
+   */
+  readonly welcome: WelcomeRequest | null
+  readonly closeWelcome: () => void
   readonly nav: SidebarNav
   /** Point the rail without moving focus — task selection uses this. */
   readonly setNav: (next: SidebarNav) => void
@@ -90,12 +111,14 @@ export function useHostPagesState(
    * the decision touches `state.json`, and this hook mounts in the render
    * track, where a stray write lands in the operator's real home.
    */
-  opts: { whatsNewFrom?: string | null } = {},
+  opts: BootDialogs = {},
 ): HostPagesState {
   const [whatsNewFrom, setWhatsNewFrom] = useState<string | null>(opts.whatsNewFrom ?? null)
   // Stable identity: the dialog opener takes this as an effect dependency,
   // and a fresh closure every render would re-run it on every host render.
   const closeWhatsNew = useCallback(() => setWhatsNewFrom(null), [])
+  const [welcome, setWelcome] = useState<WelcomeRequest | null>(opts.welcome ?? null)
+  const closeWelcome = useCallback(() => setWelcome(null), [])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [worktreesOpen, setWorktreesOpen] = useState(false)
   const [updateOpen, setUpdateOpen] = useState(false)
@@ -125,6 +148,8 @@ export function useHostPagesState(
     closeAutomations: () => goToNav("terminal"),
     whatsNewFrom,
     closeWhatsNew,
+    welcome,
+    closeWelcome,
     workItemsOpen: nav === "issues",
     openWorkItems: () => goToNav("issues"),
     closeWorkItems: () => goToNav("terminal"),

@@ -17,6 +17,7 @@
  *   bun run visual:shot -- click:29,56         # a row the keyboard can't reach
  *   bun run visual:shot -- rclick:29,140       # that row's context menu
  *   bun run visual:shot -- drag:236,300,420,300  # pull a pane edge rightwards
+ *   bun run visual:shot -- --no-focus-click      # keep a boot-time modal open
  */
 
 import { resolve } from "node:path"
@@ -96,6 +97,7 @@ const height = dimension("--height", 800)
 // indistinguishable from an opaque one against a flat backdrop.
 const wallpaper = args.find((arg) => arg.startsWith("--wallpaper="))?.slice(12)
 const ready = args.find((arg) => arg.startsWith("--ready="))?.slice(8) ?? "fixture-repo"
+const noFocusClick = args.includes("--no-focus-click")
 const tokens = args.filter((arg) => !arg.startsWith("--"))
 const runId = `shot-${Date.now()}`
 
@@ -129,7 +131,15 @@ try {
   // project header row (same re-anchor rationale as sandbox.spec.ts). The y
   // is element-relative, so it scales with --height: a fixed 400 falls
   // outside a short viewport and Playwright then retries the click forever.
-  await page.getByTestId("opentui-terminal").click({ position: { x: 24, y: Math.floor(height / 2) } })
+  //
+  // `--no-focus-click` skips it, for the one class of capture this click
+  // destroys: a modal the TUI opens ON BOOT (the welcome dialog, What's New).
+  // The sidebar point is OUTSIDE the card, so it lands on the dialog's
+  // backdrop and dismisses it — before any `wait:` token runs, which makes
+  // the modal look like it never opened rather than like it was closed.
+  if (!noFocusClick) {
+    await page.getByTestId("opentui-terminal").click({ position: { x: 24, y: Math.floor(height / 2) } })
+  }
   for (const token of tokens) {
     if (token.startsWith("text:")) await page.keyboard.type(token.slice(5))
     else if (token.startsWith("wait:")) await page.waitForTimeout(Number(token.slice(5)))

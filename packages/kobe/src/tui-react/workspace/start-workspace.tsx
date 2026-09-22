@@ -20,8 +20,9 @@ import { queryCellPixelSize } from "../../tui/lib/cell-pixel-size"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { bootPaneHost } from "../lib/host-boot"
 import { WorkspaceRoot } from "./host"
+import type { BootDialogs } from "./host-pages"
 
-export async function startWorkspaceHost(opts: { whatsNewFrom?: string | null } = {}): Promise<void> {
+export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> {
   await bootPaneHost({
     logContext: "workspace",
     providers: { kv: true, focus: true, notifications: true },
@@ -47,7 +48,13 @@ export async function startWorkspaceHost(opts: { whatsNewFrom?: string | null } 
       machines.attach()
       setMachineHub(machines)
       return {
-        root: () => <WorkspaceRoot orchestrator={orchestrator} whatsNewFrom={opts.whatsNewFrom ?? null} />,
+        root: () => (
+          <WorkspaceRoot
+            orchestrator={orchestrator}
+            whatsNewFrom={opts.whatsNewFrom ?? null}
+            welcome={opts.welcome ?? null}
+          />
+        ),
         onDestroy: () => {
           setMachineHub(null)
           machines.dispose()

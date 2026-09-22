@@ -18,7 +18,7 @@ const spies = vi.hoisted(() => ({
   addRemote: vi.fn(async () => {}),
   openDirectory: vi.fn(async () => {}),
   startTui: vi.fn(async () => {}),
-  onboarding: vi.fn(async () => false),
+  pendingWelcomeInstalls: vi.fn(() => {}),
 }))
 
 vi.mock("../../src/cli/completions-cmd.ts", () => ({ runCompletionsSubcommand: spies.completions }))
@@ -39,7 +39,7 @@ vi.mock("../../src/cli/open-dir-cmd.ts", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/cli/open-dir-cmd.ts")>()),
   runOpenDirectory: spies.openDirectory,
 }))
-vi.mock("../../src/cli/onboarding.ts", () => ({ maybeRunOnboarding: spies.onboarding }))
+vi.mock("../../src/cli/onboarding.ts", () => ({ runPendingWelcomeInstalls: spies.pendingWelcomeInstalls }))
 vi.mock("../../src/tui/index.tsx", () => ({ startTui: spies.startTui }))
 
 let originalArgv: string[]
@@ -53,9 +53,9 @@ async function runCli(...args: string[]): Promise<void> {
   process.argv = ["bun", "/kobe/src/cli/index.ts", ...args]
   vi.resetModules()
   await import("../../src/cli/index.ts")
-  // Bare launch performs two sequential dynamic imports (terminal-title,
-  // then onboarding) before it may import the TUI. Drain enough turns for
-  // that fire-and-forget main() chain to settle before assertions run.
+  // Bare launch performs sequential dynamic imports (terminal-title, the
+  // TUI, then the deferred welcome installs). Drain enough turns for that
+  // fire-and-forget main() chain to settle before assertions run.
   for (let i = 0; i < 6; i++) await new Promise((resolve) => setImmediate(resolve))
 }
 
@@ -65,7 +65,6 @@ function stdoutText(): string {
 
 beforeEach(() => {
   originalArgv = process.argv
-  spies.onboarding.mockResolvedValue(false)
   let exited = false
   exitSpy = vi.fn((code?: number) => {
     if (exited) return
@@ -98,18 +97,29 @@ describe("version, help, launch, and unknown commands", () => {
     expect(exitSpy).not.toHaveBeenCalled()
   })
 
-  test("bare kobe launches the sole TUI after onboarding is complete", async () => {
+  test("bare kobe launches the sole TUI", async () => {
     await runCli()
-    await vi.waitFor(() => expect(spies.onboarding).toHaveBeenCalled())
     await vi.waitFor(() => expect(spies.startTui).toHaveBeenCalledWith())
   })
 
-  test("a first run hands launch to onboarding instead of the TUI", async () => {
-    spies.onboarding.mockResolvedValueOnce(true)
+  /**
+   * The regression this guards: a first run used to divert into a wizard that
+   * ran INSTEAD of the TUI and exited, so `rove` had to be typed twice to
+   * reach the product. The greeting is a dialog over the workspace now, so
+   * every bare launch starts Rove — there is no branch that skips it.
+   */
+  test("a first run still launches the TUI — the greeting is a dialog, not a detour", async () => {
     await runCli()
-    await vi.waitFor(() => expect(spies.onboarding).toHaveBeenCalled())
-    await new Promise((resolve) => setImmediate(resolve))
-    expect(spies.startTui).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(spies.startTui).toHaveBeenCalled())
+  })
+
+  /** npx and the summary lines need a terminal the renderer no longer owns. */
+  test("deferred welcome installs run after the TUI exits", async () => {
+    await runCli()
+    await vi.waitFor(() => expect(spies.pendingWelcomeInstalls).toHaveBeenCalled())
+    expect(spies.startTui.mock.invocationCallOrder[0]).toBeLessThan(
+      spies.pendingWelcomeInstalls.mock.invocationCallOrder[0] as number,
+    )
   })
 
   test.each(["--tmux", "--puretui", "reload", "kill-sessions"])(
