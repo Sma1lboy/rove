@@ -1,14 +1,12 @@
 /**
  * Pure mapping for the PR-status poller.
  *
- * The daemon-side `pr-status-collector` shells `gh pr view <branch> --json
- * <fields>` per task and feeds the parsed JSON through {@link mapGhPrView} to
- * get a neutral {@link TaskPRStatus}. Keeping the mapping pure (no `gh`, no
- * tmux, no fs) is what lets the error-prone bits — the `statusCheckRollup`
- * reduction and the `state`→lifecycle mapping — be unit-tested directly.
+ * The daemon-side `pr-status-collector` shells `gh pr list --head <branch>
+ * --json <fields>` per task and feeds the picked PR through {@link mapGhPrView}
+ * to get a neutral {@link TaskPRStatus}. Pure (no `gh`, no fs) so the rollup
+ * reduction and `state`→lifecycle mapping are unit-testable.
  *
- * GitHub only by design: GitLab/Bitbucket carry no `gh` equivalent
- * here, so the collector never runs for them and this module always stamps
+ * GitHub only: GitLab/Bitbucket have no `gh` equivalent, so this always stamps
  * `provider: "github"`.
  */
 
@@ -18,7 +16,7 @@ import type { PrViewErrorKind } from "@sma1lboy/kobe-daemon/daemon/pr-status-col
 
 export type { PrViewErrorKind }
 
-/** The `--json` field set the collector requests from `gh pr view`. */
+/** The `--json` field set the collector requests from `gh pr list`. */
 export const GH_PR_VIEW_FIELDS = "number,url,title,state,baseRefName,reviewDecision,mergeable,statusCheckRollup"
 
 /**
@@ -36,7 +34,7 @@ export interface GhCheckEntry {
   readonly state?: string
 }
 
-/** Shape of `gh pr view --json <GH_PR_VIEW_FIELDS>`. All fields optional —
+/** One PR from `gh pr list --json <GH_PR_VIEW_FIELDS>`. All fields optional —
  * `gh` omits empties and older versions vary. */
 export interface GhPrView {
   readonly number?: number
@@ -85,19 +83,12 @@ function entryCheckState(entry: GhCheckEntry): PRCheckState {
 }
 
 /**
- * Roll the per-check states up to the PR headline. Precedence is the same
- * mental model GitHub's own badge uses: **any** failing → failing; else any
- * pending → pending; else `passing` ONLY when every remaining entry passed;
- * an empty rollup is `none` (no checks configured); an unreadable entry
- * mixed in (`unknown`) pulls the headline to `unknown`.
- *
- * `passing` reports "all checks are green", so a single entry we could not
- * classify must not be swept under a green headline — that would tell the
- * user CI is clear when one check's state is actually unknown. Real
- * `gh pr view` output never produces an `unknown` entry ({@link
- * entryCheckState} covers every CheckRun status/conclusion and StatusContext
- * state), so this only hardens the malformed / partial-payload case; a
- * well-formed all-green rollup still reports `passing`.
+ * Roll the per-check states up to the PR headline, as GitHub's badge does:
+ * **any** failing → failing; else any pending → pending; else `passing` ONLY
+ * when every entry passed; an empty rollup is `none`; any `unknown` entry makes
+ * the headline `unknown`, so an unclassifiable check never hides under green.
+ * Well-formed `gh` output never yields `unknown` ({@link entryCheckState}
+ * covers every state); this guards malformed / partial payloads.
  */
 export function checkStateFromRollup(rollup: readonly GhCheckEntry[] | undefined): PRCheckState {
   if (!rollup || rollup.length === 0) return "none"
@@ -115,10 +106,9 @@ export function checkStateFromRollup(rollup: readonly GhCheckEntry[] | undefined
 }
 
 /**
- * Map a parsed `gh pr view` payload to a {@link TaskPRStatus}. `at` is the
- * caller's ISO timestamp (kept out so the function stays pure/deterministic
- * for tests). Returns `null` when the payload has no PR number — the caller
- * treats that as "no PR for this branch" and clears any stale status.
+ * Map a parsed `gh` PR payload to a {@link TaskPRStatus}. `at` is the caller's
+ * ISO timestamp (keeps this pure). Returns `null` when there is no PR number —
+ * the caller treats that as "no PR" and clears any stale status.
  */
 export function mapGhPrView(view: GhPrView | null | undefined, at: string): TaskPRStatus | null {
   if (!view || typeof view.number !== "number") return null
@@ -160,14 +150,11 @@ export function samePrStatus(a: TaskPRStatus | undefined, b: TaskPRStatus | unde
 // ---------------------------------------------------------------------------
 // Failure classification + adaptive backoff (the "gh broke" vs "no PR" split).
 //
-// Collapsing every non-success `gh pr view` — gh missing,
-// unauthed, a network stall, a rate-limit, malformed JSON, no GitHub remote —
-// into one "no PR" result makes a broken `gh` indistinguishable from a
-// branch that simply has no PR yet, and the user gets no signal. These pure
-// helpers split a failure into a genuine `empty` (gh ran, said no PR) vs a
-// typed transport/tooling `error`, and compute the next poll delay so a
-// persistent failure backs off (and a deterministic "no GitHub remote" settles
-// to a long idle cadence) instead of re-spawning `gh` at full rate.
+// A broken `gh` (missing, unauthed, network, rate-limit, bad JSON, no GitHub
+// remote) must stay distinguishable from a branch with no PR yet. These pure
+// helpers type the failure and compute the next poll delay so persistent
+// failures back off (and "no GitHub remote" settles to a long idle cadence)
+// instead of re-spawning `gh` at full rate.
 // ---------------------------------------------------------------------------
 
 /** The raw signals from one non-success `gh pr list` run, fed to {@link classifyGhFailure}. */
@@ -220,14 +207,10 @@ function matchesAny(haystack: string, needles: readonly string[]): boolean {
 }
 
 /**
- * Classify a non-success `gh pr list` run into a typed transport/tooling
- * `error`. Pure + unit-tested. There is no `empty` outcome here anymore: "no
- * PR for this branch" is a structural SUCCESS (`gh pr list` exits 0 with an
- * empty JSON array — see `pr-status-collector.ts`), never inferred from a
- * failure's stderr. So every non-zero exit is a genuine error; an
- * unrecognized one still classifies as `error` (kind `"unknown"`) rather than
- * silently collapsing to "no PR" — a broken `gh` must never look like a clean
- * "no PR yet" to the poller.
+ * Classify a non-success `gh pr list` run into a typed `error`. No `empty`
+ * outcome: "no PR" is a structural SUCCESS (exit 0, empty JSON array — see
+ * `pr-status-collector.ts`), never inferred from stderr. An unrecognized
+ * failure is kind `"unknown"`, never collapsed to "no PR".
  */
 export function classifyGhFailure(s: GhFailureSignals): { kind: "error"; error: PrViewErrorKind } {
   if (s.parseError) return { kind: "error", error: "parse" }
@@ -274,15 +257,13 @@ export interface PrPollDecision {
 
 /**
  * Decide when a task may next be polled, given the latest outcome and its prior
- * consecutive-failure streak. Pure + deterministic (inject `rand` for tests):
- *   - success / genuine empty → reset the streak, jittered base cadence.
- *   - `no-remote` (deterministic) → reset the streak, settle to the long idle
- *     cadence (it will never have a GitHub PR — don't retry with backoff).
- *   - any other error → grow the streak, exponential-backoff capped at
- *     `failureCapMs`, so a persistent failure (gh missing/unauthed) stops
- *     re-spawning at full rate.
- * Jitter is applied to every delay so N tasks coming due together (e.g. after a
- * network reconnect) don't poll in lockstep.
+ * failure streak. Pure (inject `rand` for tests):
+ *   - success / empty → reset the streak, jittered base cadence.
+ *   - `no-remote` → reset the streak, long idle cadence (never a GitHub PR).
+ *   - any other error → grow the streak, exponential backoff capped at
+ *     `failureCapMs`.
+ * Every delay is jittered so tasks due together (e.g. after a reconnect) don't
+ * poll in lockstep.
  */
 export function nextPrPoll(
   outcome: PrPollOutcome,
@@ -306,10 +287,8 @@ export function nextPrPoll(
 }
 
 /**
- * Whether a check-state transition is worth interrupting the user for. We
- * notify only when checks RESOLVE — pending → passing or pending → failing —
- * not on every flap (e.g. none → pending is just "CI started"). Returns the
- * landing state to notify on, or `null` for a non-event.
+ * Notify only when checks RESOLVE (pending → passing | failing), not on every
+ * flap. Returns the landing state to notify on, or `null`.
  */
 export function checkResolutionNotify(
   prev: PRCheckState | undefined,

@@ -1,18 +1,13 @@
 /**
- * Shared JSON-hooks merge core (KOB) — the engine-neutral half of the hook
- * adapters.
- *
- * Claude Code (`~/.claude/settings.json`) and Codex (`~/.codex/hooks.json`)
- * happen to share the SAME hook file shape:
+ * Engine-neutral JSON-hooks merge core. Claude Code
+ * (`~/.claude/settings.json`) and Codex (`~/.codex/hooks.json`) share one
+ * hook file shape:
  *
  *   { "hooks": { "<Event>": [ { "matcher"?: string,
  *                               "hooks": [ { "type": "command", "command": … } ] } ] } }
  *
- * so the install/merge/remove mechanics (tag kobe's own groups, replace only
- * those, preserve the user's hooks + every other key, drop empties) are
- * identical. Only the EVENT→verb table differs per engine. This module owns the
- * mechanics; each adapter passes its own {@link HookEventSpec}[] and keeps the
- * vendor's event-name vocabulary. Pure (no I/O), so it's unit-tested directly.
+ * so install/merge/remove is identical; each adapter passes only its own
+ * {@link HookEventSpec}[]. Pure (no I/O).
  */
 
 import { kobeHookInvocation } from "../cli/invocation.ts"
@@ -23,31 +18,24 @@ import type { EngineActivityKind } from "./hook-events.ts"
  * Shape version of the hooks Rove writes into an engine's config, stamped
  * onto every installed command as `--hook-version <n>`.
  *
- * Without it "installed" was the only readable state: an entry written by an
- * older Rove — a different event table, a different verb spelling, a command
- * that no longer decodes — is indistinguishable from a current one, so a
- * machine that upgraded Rove kept reporting through whatever shape happened
- * to be on disk and nothing could say so. An install written before this
- * existed carries no flag at all, which reads as `outdated`, not as a
- * parse failure (see `integration-status.ts`).
+ * Lets an entry written by an older Rove be told apart from a current one. An
+ * entry with no flag reads as `outdated`, not a parse failure
+ * (`integration-status.ts`).
  *
- * BUMP THIS when the installed shape changes in a way an old entry gets
- * wrong: a verb renamed or retired, an event remapped, the argv contract
- * changed. Do NOT bump for a change the old entry still satisfies — every
- * bump rewrites every user's engine config on their next launch.
+ * BUMP when an old entry gets the shape wrong: a verb renamed or retired, an
+ * event remapped, the argv contract changed. Don't bump otherwise — every
+ * bump rewrites every user's engine config on next launch.
  */
 export const ROVE_HOOK_VERSION = 1
 
-/** The argv every adapter appends after the verb: which engine decodes the
- *  payload, and which shape wrote the entry. One helper so the four adapters
- *  cannot drift into three spellings of the same two flags. */
+/** Argv every adapter appends after the verb: which engine decodes the payload
+ *  and which shape wrote the entry. */
 export function roveHookArgs(vendor: string): readonly string[] {
   return ["--engine", vendor, "--hook-version", String(ROVE_HOOK_VERSION)]
 }
 
-/** Verbs installed only while a plugin subscribes to tool.* hooks (volume gate).
- *  Defined once here so JSON-shaped and TOML-shaped adapters share the same
- *  gated set and a future change cannot drift between them. */
+/** Verbs installed only while a plugin subscribes to tool.* hooks (volume gate);
+ *  shared by the JSON- and TOML-shaped adapters. */
 export const GATED_TOOL_VERBS: ReadonlySet<string> = new Set(["tool-pre", "tool-post", "tool-failed"])
 
 /** One engine hook event mapped to a normalized kobe verb. `matcher` narrows
@@ -63,40 +51,27 @@ export function isObject(v: unknown): v is Record<string, unknown> {
 }
 
 /**
- * Whether a hook merge reached the settings file.
- *
- * Returned rather than thrown: every caller is on a best-effort launch path
- * and must continue either way. What changed is that "continue" no longer
- * means "say nothing" — a permanently skipped install used to leave the
- * product looking merely slow (every badge back on the daemon's ~10s activity
- * poll) with not one line naming the file responsible.
+ * Whether a hook merge reached the settings file. Returned, not thrown: every
+ * caller is best-effort and continues — but must still name the file, since a
+ * silently skipped install just looks slow (badges fall back to the ~10s poll).
  */
 export type HookEditOutcome =
   | { readonly ok: true }
   | { readonly ok: false; readonly file: string; readonly reason: string }
 
 /**
- * A settings document the hook merge may run on, or the reason it may not.
- *
- * Rejecting is deliberate: a best-effort install must never clobber an engine
- * configuration it could not understand. But abandoning the write and
- * abandoning it SILENTLY are different things — a hand-edited
- * `~/.claude/settings.json` whose `hooks` fails this check means Rove
- * permanently stops installing hooks, every badge falls back to the ~10s
- * activity poll, and the product reads as slow rather than misconfigured.
- * Hence a reason string that names the offending path inside the document.
+ * A settings document the hook merge may run on, or why not. Rejecting is
+ * deliberate — never clobber a config we can't understand — and the reason
+ * names the offending path, since a rejected file silently stops hook installs.
  */
 export type HookSettingsParse =
   | { readonly ok: true; readonly doc: Record<string, unknown> }
   | { readonly ok: false; readonly reason: string }
 
 /**
- * Validate the bytes of a shared settings file for the hook merge. A missing
- * file (`undefined`) is an EMPTY document, not a rejection — that is the
- * first-launch case the install exists to serve.
- *
- * Shared with `cli/doctor-hook-channel.ts` so doctor reports the same verdict
- * on the same file rather than re-deriving a second opinion.
+ * Validate a shared settings file for the hook merge. Missing (`undefined`) is
+ * an empty document, not a rejection. Shared with `cli/doctor-hook-channel.ts`
+ * so doctor gives the same verdict.
  */
 export function parseHookSettings(raw: string | undefined): HookSettingsParse {
   if (raw === undefined) return { ok: true, doc: {} }
@@ -129,16 +104,13 @@ const ROVE_HOOK_FLAGS: Readonly<Record<string, RegExp>> = {
 }
 
 /**
- * Does this hook entry belong to Rove — i.e. is its command a recognized
- * `rove hook <verb>` invocation? Ownership, not string equality: the same
- * install run from a dev checkout spells the command
- * `bun /…/src/cli/rove.ts hook …`, so matching literal text would leave a
- * second entry behind on the next run instead of replacing the first.
+ * Is this hook entry a recognized `rove hook <verb>` invocation? Ownership,
+ * not string equality: a dev checkout spells it `bun /…/src/cli/rove.ts hook …`,
+ * and literal matching would leave a duplicate instead of replacing it.
  *
- * `type` is OPTIONAL because two engine hook-file shapes share this predicate:
- * Claude/Codex write `{ "type": "command", "command": … }`, and Cursor's
- * `~/.cursor/hooks.json` writes a bare `{ "command": … }`. Any other `type`
- * is somebody else's entry.
+ * `type` is optional: Claude/Codex write `{ "type": "command", … }`, Cursor's
+ * `~/.cursor/hooks.json` a bare `{ "command": … }`. Any other `type` is
+ * somebody else's.
  */
 export function isRoveHook(hook: unknown, verbs: readonly string[]): boolean {
   if (!isObject(hook) || typeof hook.command !== "string") return false
@@ -162,10 +134,8 @@ export function isRoveHook(hook: unknown, verbs: readonly string[]): boolean {
     return false
   }
   if (argv[offset] !== "hook" || !verbs.includes(argv[offset + 1])) return false
-  // Trailing flags are OURS to recognize, and every known one is a pair. An
-  // empty tail and a bare `--engine <id>` are what older Rove versions wrote:
-  // still ours, so they stay removable and replaceable (that is what makes a
-  // version upgrade a clean rewrite rather than a duplicate install).
+  // Every known trailing flag is a pair. An empty tail or bare `--engine <id>`
+  // (older installs) is still ours, so an upgrade rewrites instead of duplicating.
   const rest = argv.slice(offset + 2)
   for (let i = 0; i < rest.length; i += 2) {
     const value = rest[i + 1]
@@ -185,9 +155,8 @@ export function removeRoveHooks(groups: unknown[], verbs: readonly string[]): un
   })
 }
 
-/** True if a shared settings object still carries any of kobe's activity hook
- *  groups (the same ownership predicate the merge uses). Detection only — the
- *  plugin-migration hint needs a read-side answer without editing the file. */
+/** True if a shared settings object still carries any of kobe's activity hooks.
+ *  Read-only, for the plugin-migration hint. */
 export function hasKobeActivityHooks(current: Record<string, unknown>, eventMap: readonly HookEventSpec[]): boolean {
   const verbs = eventMap.map((spec) => spec.verb)
   const hooks = isObject(current.hooks) ? current.hooks : {}
@@ -202,10 +171,8 @@ export function hasKobeActivityHooks(current: Record<string, unknown>, eventMap:
 
 /** Optional knobs shared by the build/merge pair. */
 export interface ActivityHookOpts {
-  /** Extra argv appended after the verb (e.g. `--engine claude`, so `kobe
-   *  hook` decodes the payload with the RIGHT adapter instead of guessing).
-   *  Literal argv recognition accepts this suffix as well as legacy
-   *  untagged installs. */
+  /** Extra argv after the verb (e.g. `--engine claude`, so `kobe hook` decodes
+   *  with the right adapter instead of guessing). */
   readonly extraArgs?: readonly string[]
   /** When present, only specs passing the filter are INSTALLED; every spec
    *  still participates in removal (so disabling a gated family cleans up). */
@@ -213,17 +180,11 @@ export interface ActivityHookOpts {
 }
 
 /**
- * How a persisted hook command line is quoted.
- *
- * Bare tokens wherever the argv allows it — `kobe hook turn-complete --engine
- * codex` is one command in POSIX sh, cmd.exe AND PowerShell. The engines run
- * their hooks through whatever shell the platform hands them, and on Windows
- * that is not sh: the single-quoted form the conservative quoter emits
- * (`'kobe' 'hook' …`) is a program named `'kobe'` to cmd and a string literal
- * to PowerShell, so every codex hook fire on Windows failed without a trace
- * and no badge, turn state or attention item ever came from a codex tab. A
- * token that still needs quoting (a dev entry path with spaces) gets the
- * platform's own dialect.
+ * How a persisted hook command line is quoted. Bare tokens wherever possible:
+ * `kobe hook turn-complete --engine codex` is one command in sh, cmd.exe AND
+ * PowerShell, whereas `'kobe' 'hook' …` is a program named `'kobe'` to cmd
+ * and a string literal to PowerShell (Windows hooks fail silently). Tokens
+ * that still need quoting get the platform's own dialect.
  */
 export function hookCommandQuoting(platform: NodeJS.Platform = process.platform): QuoteShellArgvOptions {
   return { bareSafe: true, windows: platform === "win32" }
@@ -283,21 +244,15 @@ export function mergeActivityHooks(
 }
 
 /**
- * A `PostToolUse` (Bash) hook Rove only ever REMOVES: an observer that fires
- * `kobe hook worktree-created` after every Bash call, machine-wide, for a
- * ~170ms process spawn each time and nothing in return. These two constants
- * exist so {@link removeWorktreeWatchHook} can find and delete the entries
- * already written into users' settings files.
+ * Event of the retired `kobe hook worktree-created` observer (a ~170ms spawn
+ * after every Bash call, machine-wide), which Rove now only removes.
  */
 const RETIRED_WATCH_EVENT = "PostToolUse"
 
 /**
- * Pure merge: drop the worktree-watch hook from a SHARED settings
- * object. Removal-only (there is no install counterpart) and
- * merge-safe: it filters only commands naming Rove's verb, so a
- * hand-edited settings file keeps the user's own PostToolUse hooks and every
- * other key untouched. Idempotent — a second pass finds nothing and returns an
- * equal object, so the write is skipped.
+ * Pure merge: drop the worktree-watch hook from a shared settings object,
+ * keeping the user's own PostToolUse hooks and every other key. Idempotent —
+ * a second pass returns an equal object, so the write is skipped.
  */
 export function removeWorktreeWatchHook(current: Record<string, unknown>): Record<string, unknown> {
   const { hooks: rawHooks, ...restSettings } = current

@@ -1,17 +1,10 @@
 /**
  * The product's one relative-time clock: coarse buckets for a millisecond
- * delta, and the compact `3m` / `2h` / `4d` label built on them. Every TUI
- * surface that prints an age or a countdown derives its units here — the
- * Routines schedule preview (`formatRelative`), the Automations page
- * (`formatWhen`), the attention inbox, the worktrees page, the issue event
- * list, and the plugins section — so two screens cannot disagree about the
- * same instant.
+ * delta, and the compact `3m` / `2h` / `4d` label built on them. Every TUI age
+ * or countdown derives its units here, so two screens never disagree.
  *
- * Every step FLOORS. Two reasons the rounding variant lost: a countdown that
- * rounds up overstates headroom (a routine 1h40m out rendered `in 2h` and
- * then fired twenty minutes early), and `relativeAge`'s seconds step has no
- * rounding rule anyone wants (a 45-second-old event is not `1m ago`). Flooring
- * makes both read early rather than late.
+ * Every step FLOORS: rounding up overstates a countdown (1h40m would read
+ * `in 2h`), and a 45-second-old event is not `1m ago`.
  */
 export function relativeBuckets(absMs: number): { minutes: number; hours: number; days: number } {
   const minutes = Math.floor(absMs / 60_000)

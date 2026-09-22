@@ -21,10 +21,7 @@ export class TaskNotFoundError extends Error {
   }
 }
 
-/**
- * Thrown when a caller tries to delete a task with `kind: "main"`.
- * Main tasks are bound to a saved repo entry, not a kobe-allocated worktree.
- */
+/** Main tasks are bound to a saved repo entry, not a Rove-allocated worktree. */
 export class CannotDeleteMainTaskError extends Error {
   constructor() {
     super("cannot delete a main task; remove the repo from saved repos instead")
@@ -33,34 +30,25 @@ export class CannotDeleteMainTaskError extends Error {
 }
 
 /**
- * Stable sentinel embedded in {@link DirtyWorktreeError}'s message.
- *
- * The daemon RPC layer reconstructs a thrown error as `new Error(message)`
- * (the `name` field does NOT survive the wire), so a caller across the
- * daemon boundary can only discriminate on the MESSAGE. This code is that
- * machine-stable marker — match it with `err.message.includes(...)`.
+ * Stable sentinel in {@link DirtyWorktreeError}'s message. The daemon RPC layer
+ * rebuilds errors as `new Error(message)` (`name` does NOT survive the wire),
+ * so remote callers match `err.message.includes(...)`.
  */
 export const DIRTY_WORKTREE_CODE = "DIRTY_WORKTREE"
 
 /**
  * Thrown when deleting a task whose worktree has uncommitted / untracked
- * changes and `force` was not requested. The UI catches it (via
- * {@link DIRTY_WORKTREE_CODE}) and re-prompts for explicit force-delete
- * confirmation rather than silently destroying the work.
+ * changes without `force`; the UI matches {@link DIRTY_WORKTREE_CODE} and
+ * re-prompts for force-delete.
  *
- * `ignored` names the gitignored paths that triggered the refusal, when that
- * is what did. `git status` cannot see those, so a user told only "uncommitted
- * or untracked changes" would go looking with a command that reports nothing
- * — the paths are the only way that refusal is actionable.
+ * `ignored` names the gitignored paths behind the refusal — `git status` can't
+ * see them, so the paths are the only way the refusal is actionable.
+ * `"unknown"` means the ignored listing did not run; it refuses through the
+ * SAME error on purpose, since a force re-prompt is exactly what an
+ * unverifiable worktree needs.
  *
- * `"unknown"` is the third answer: the ignored listing did not run, so nothing
- * can say whether this worktree holds such work. It refuses through the SAME
- * error on purpose — the UI already turns this one into a force-delete
- * re-prompt, which is exactly the choice an unverifiable worktree needs.
- *
- * The sentence itself is {@link describeDirtyWorktreeWork}, shared with
- * `GitWorktreeManager.remove`'s own refusals — the same three states, and a
- * caller across the daemon boundary sees only the message either way.
+ * {@link describeDirtyWorktreeWork} is shared with `GitWorktreeManager.remove`'s
+ * refusals — remote callers see only the message either way.
  */
 export function describeDirtyWorktreeWork(ignored: readonly string[] | "unknown"): string {
   return ignored === "unknown"
@@ -80,12 +68,8 @@ export class DirtyWorktreeError extends Error {
   }
 }
 
-/**
- * Thrown when `git worktree remove` itself failed (locked, permission,
- * corrupt git-dir). The orchestrator keeps the task index entry in this
- * case so the orphaned worktree stays visible + re-deletable instead of
- * becoming invisible on-disk debris.
- */
+/** `git worktree remove` failed (locked, permission, corrupt git-dir); the index
+ *  entry is kept so the orphan stays visible and re-deletable. */
 export class WorktreeRemoveFailedError extends Error {
   constructor(
     public readonly taskId: string,
@@ -106,20 +90,13 @@ export class TaskDeletingError extends Error {
   }
 }
 
-/**
- * Stable sentinel embedded in {@link MainCheckoutDirtyError}'s message — the
- * `name` field doesn't survive the daemon wire, so a caller across the boundary
- * discriminates on the MESSAGE (`err.message.includes(MAIN_CHECKOUT_DIRTY_CODE)`).
- */
+/** Wire sentinel — same reason as {@link DIRTY_WORKTREE_CODE}. */
 const MAIN_CHECKOUT_DIRTY_CODE = "MAIN_CHECKOUT_DIRTY"
 
 /**
- * Thrown by `landTask` when the base repo's checkout has uncommitted changes.
- * Landing merges the task branch INTO that checkout, so a dirty tree would
- * entangle the user's in-progress work with the landed branch — we refuse and
- * let them commit first. (Never `git stash` here: the stash stack lives in
- * the repo's common dir and is shared by every linked worktree, so a stash in
- * the base checkout can entangle parallel tasks' work.)
+ * `landTask` merges INTO the base checkout, so a dirty one would entangle the
+ * user's work with the landed branch. Never `git stash` instead: the stash
+ * stack is shared by every linked worktree of the repo.
  */
 export class MainCheckoutDirtyError extends Error {
   constructor(
@@ -133,18 +110,11 @@ export class MainCheckoutDirtyError extends Error {
   }
 }
 
-/**
- * Stable sentinel embedded in {@link EmptyBranchError}'s message — same
- * wire-boundary reason as {@link DIRTY_WORKTREE_CODE}.
- */
+/** Wire sentinel — same reason as {@link DIRTY_WORKTREE_CODE}. */
 export const EMPTY_BRANCH_CODE = "EMPTY_BRANCH"
 
-/**
- * Thrown by `landTask` when the task branch has ZERO commits ahead of the base
- * branch and its worktree is clean (or gone). Merging it would be a no-op —
- * the classic shape of "worker reported success but delivered nothing" — so we
- * refuse loudly instead of landing an empty merge into main.
- */
+/** Zero commits ahead of base and a clean (or gone) worktree — the shape of
+ *  "worker reported success but delivered nothing", so refuse loudly. */
 export class EmptyBranchError extends Error {
   constructor(
     public readonly branch: string,
@@ -157,17 +127,10 @@ export class EmptyBranchError extends Error {
   }
 }
 
-/**
- * Stable sentinel embedded in {@link EmptyBranchDirtyWorktreeError}'s message.
- */
 export const EMPTY_BRANCH_DIRTY_WORKTREE_CODE = "EMPTY_BRANCH_DIRTY_WORKTREE"
 
-/**
- * Thrown by `landTask` when the task branch has ZERO commits ahead of the base
- * branch AND its worktree still has uncommitted/untracked files: the work was
- * written but never committed, so landing would silently drop it. The file
- * list rides in the message; the hint points at committing in the worktree.
- */
+/** Zero commits ahead of base but uncommitted files in the worktree: landing
+ *  would silently drop work that was written but never committed. */
 export class EmptyBranchDirtyWorktreeError extends Error {
   constructor(
     public readonly branch: string,
@@ -183,19 +146,13 @@ export class EmptyBranchDirtyWorktreeError extends Error {
   }
 }
 
-/**
- * Stable sentinel embedded in {@link MissingRefError}'s message — same
- * wire-boundary reason as {@link DIRTY_WORKTREE_CODE}.
- */
+/** Wire sentinel — same reason as {@link DIRTY_WORKTREE_CODE}. */
 export const MISSING_REF_CODE = "MISSING_REF"
 
 /**
- * Thrown by `landTask` when git cannot resolve the `<base>..<branch>` range at
- * all — the recorded branch was renamed or deleted outside Rove, so
- * `git rev-list --count` exits non-zero instead of printing a number. Distinct
- * from {@link EmptyBranchError}: that one means "git counted, and the answer
- * was zero"; this one means "git could not count", which is a broken task
- * record, not an empty branch.
+ * `<base>..<branch>` does not resolve (branch renamed or deleted outside Rove),
+ * so `git rev-list --count` exits non-zero. Unlike {@link EmptyBranchError}
+ * ("git counted zero"), this is a broken task record.
  */
 export class MissingRefError extends Error {
   constructor(
@@ -210,18 +167,10 @@ export class MissingRefError extends Error {
   }
 }
 
-/**
- * Stable sentinel embedded in {@link LandConflictError}'s message — same
- * wire-boundary reason as {@link DIRTY_WORKTREE_CODE}. The conflicted-file list
- * rides along in the message so a CLI/TUI caller can print it after matching.
- */
+/** Wire sentinel — same reason as {@link DIRTY_WORKTREE_CODE}; the file list rides in the message. */
 const LAND_CONFLICT_CODE = "LAND_CONFLICT"
 
-/**
- * Thrown by `landTask` when the merge hit conflicts. The merge is aborted
- * before the throw, so the base checkout is left untouched; the conflicted
- * paths are carried so the caller can show the human what to resolve.
- */
+/** The merge is aborted before the throw, so the base checkout is untouched. */
 export class LandConflictError extends Error {
   constructor(
     public readonly taskId: string,
@@ -234,26 +183,16 @@ export class LandConflictError extends Error {
   }
 }
 
-/**
- * Stable sentinel embedded in {@link GitCommandFailedError}'s message — same
- * wire-boundary reason as {@link DIRTY_WORKTREE_CODE}.
- */
+/** Wire sentinel — same reason as {@link DIRTY_WORKTREE_CODE}. */
 export const GIT_COMMAND_FAILED_CODE = "GIT_COMMAND_FAILED"
 
 /**
- * Thrown by `landTask` when a git command failed for a reason Rove has no
- * policy for — a `pre-commit`/`commit-msg` hook, a broken `commit.gpgsign`
- * key, an unset `user.email`.
+ * A land git command failed for a reason Rove has no policy for (a
+ * `pre-commit`/`commit-msg` hook, a broken `commit.gpgsign` key, an unset
+ * `user.email`). Surfaces git's stderr rather than misreading the failure as
+ * "empty branch" or a {@link LandConflictError} with no files.
  *
- * It exists because the alternative is a LIE. Both land strategies used to
- * read a failed commit as the one benign cause they knew: squash reported
- * "already merged or empty" about a branch that had staged cleanly (and then
- * `reset --hard` threw the squash away), and merge threw the phantom
- * {@link LandConflictError} with an empty file list that
- * `assertBranchHasWork`'s docstring says it exists to prevent. Neither ever
- * looked at git's stderr, which said exactly what was wrong.
- *
- * The `hint` names what the caller can still do — for squash, that the staged
+ * `hint` names what the caller can still do — for squash, that the staged
  * merge is deliberately left in place to be committed by hand.
  */
 export class GitCommandFailedError extends Error {
@@ -271,15 +210,9 @@ export class GitCommandFailedError extends Error {
 const WORKTREE_NAME_TAKEN_CODE = "WORKTREE_NAME_TAKEN"
 
 /**
- * Thrown when `add --worktree-name` names a directory that is already in use
- * in this repo — by a live task, by a directory still on disk, or by a
- * concurrent create that has picked it but not yet persisted.
- *
- * It is an ERROR rather than a `-v2` suffix because the whole point of naming
- * the directory is that the caller can predict the path afterwards: a script
- * that asked for `probe-1` and silently got `probe-1-v2` looks in the wrong
- * place, and finds out later and somewhere else. The random pool exists to
- * make collisions somebody else's problem; an explicit name opts out of that.
+ * `add --worktree-name` names a directory already in use (live task, dir on
+ * disk, or a concurrent create not yet persisted). An ERROR, not a `-v2`
+ * suffix: an explicit name exists so the caller can predict the path.
  */
 export class WorktreeNameTakenError extends Error {
   constructor(public readonly worktreeName: string) {
@@ -292,14 +225,8 @@ export class WorktreeNameTakenError extends Error {
 
 const INVALID_WORKTREE_NAME_CODE = "INVALID_WORKTREE_NAME"
 
-/**
- * Thrown when `add --worktree-name` is not a single directory name.
- *
- * The value becomes one path segment under the repo's worktree root, so a
- * separator or a `..` would place the checkout outside the root that every
- * Rove cleanup path is scoped to — a `delete` would then decline to touch it,
- * or worse, reach somewhere it should not.
- */
+/** `add --worktree-name` must be one path segment: a separator or `..` would put
+ *  the checkout outside the root every cleanup path is scoped to. */
 export class InvalidWorktreeNameError extends Error {
   constructor(public readonly worktreeName: string) {
     super(

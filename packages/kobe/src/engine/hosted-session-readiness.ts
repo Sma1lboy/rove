@@ -1,15 +1,8 @@
 /**
- * Is the engine READY — and if it never became ready, why.
- *
- * The seam against `hosted-session.ts`: that module owns a session's
- * lifecycle and the writes into it, and every function there answers a
- * question about the SESSION. These answer a question about the ENGINE inside
- * it, which the session cannot answer about itself: keepAlive leaves a session
- * whose engine exited sitting in a fallback shell, so `pty.open` reports
- * `alive` identically for a healthy launch and for a launch command pointing
- * at nothing. Only the process table separates them, and both delivery shapes
- * — paste-delivery vendors before they type, argv-delivery vendors before
- * they claim a spawn succeeded — have to look.
+ * Is the ENGINE inside a hosted session ready — and if not, why.
+ * `hosted-session.ts` answers questions about the session; the session can't
+ * answer this about itself, since keepAlive leaves a dead engine's session
+ * alive in a fallback shell. Only the process table separates them.
  */
 
 import type { PtyPeekResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -31,14 +24,10 @@ import { ENGINE_EXIT_BANNER, REPO_INIT_TIMEOUT_SECONDS, initMarkerSaysFinished }
 const FIRST_MESSAGE_ENGINE_TIMEOUT_MS = 20_000
 const FIRST_MESSAGE_POLL_INTERVAL_MS = 500
 /**
- * Post-detection grace, kept ONLY as the fallback for an engine that never
- * announces bracketed paste. The readiness wait (`awaitPasteReady`) is the
- * real gate now: this sleep was the whole bug. It guessed that 1.5s after
- * the engine PROCESS appears the engine is reading its tty — but a process
- * that has forked is not a process that has called `stty raw`, and a write
- * into that window is discarded past the tty's 1024-byte canonical buffer.
- * Measured: kimi announces bracketed paste at ~1953ms, i.e. AFTER this
- * timer fired, which is why kimi was the vendor that lost 8.6KB prompts.
+ * Blind grace, only for an engine that never announces bracketed paste;
+ * `awaitPasteReady` is the real gate. A forked process hasn't necessarily
+ * called `stty raw`, and writes before then are cut at the 1024-byte
+ * canonical buffer — kimi announces at ~1953ms (measured), after this fires.
  */
 const FIRST_MESSAGE_SETTLE_MS = 1_500
 
@@ -49,12 +38,9 @@ export interface PasteFirstMessageOptions extends HostedPromptDeliveryOpts {
   /** Test seam for the process-table read (see `pty-delivery.ts`'s gate). */
   readonly snapshot?: PsSnapshot
   readonly sleep?: (ms: number) => Promise<void>
-  /** When the launch includes a repo-init script, wait for this marker file
-   *  before budgeting the engine-startup wait. Prevents a short paste-delivery
-   *  window from expiring while dependencies are still installing. The launch
-   *  script writes it when init FINISHES, whatever the outcome — a
-   *  success-only marker made "init failed" indistinguishable from "init is
-   *  still running", and the loop below then sat out the whole budget. */
+  /** With a repo-init script, wait for this marker before starting the
+   *  engine-startup budget. Written when init FINISHES, whatever the outcome,
+   *  so "init failed" doesn't read as "still running". */
   readonly initMarkerPath?: string
   /** How long to wait for {@link initMarkerPath} to appear (ms). */
   readonly initTimeoutMs?: number
@@ -62,17 +48,12 @@ export interface PasteFirstMessageOptions extends HostedPromptDeliveryOpts {
 
 /**
  * Wait until the ENGINE process appears inside a hosted session's tree.
+ * Session liveness is the login shell's: `pty.open` reports `alive` for
+ * `engineCommand: /nonexistent/binary` just as for a healthy launch, so
+ * anything reporting spawn success (e.g. an unwatched routine) must look here.
  *
- * The session's own liveness is the LOGIN SHELL's, not the engine's: keepAlive
- * leaves a session whose engine exited sitting in a fallback shell, so
- * `pty.open` reports `alive` for `engineCommand: /nonexistent/binary` exactly
- * as it does for a healthy launch. The process table is the only thing that
- * separates "the engine is running" from "the shell printed `command not
- * found` and stayed". Anything that reports success for a spawn — and a
- * scheduled routine has nobody watching to catch it out — has to look here.
- *
- * Returns the session pid and live vendor once the engine is in its tree,
- * or `null` when the session died or the budget ran out.
+ * Returns the session pid and live vendor, or `null` when the session died or
+ * the budget ran out.
  */
 export async function awaitEngineProcess(
   rpc: HostedSessionRpc,
@@ -84,10 +65,8 @@ export async function awaitEngineProcess(
   // Undefined uses the process probe's default.
   const snapshot = opts.snapshot
 
-  // If the session was launched with a repo-init script, the engine child does
-  // not appear until init finishes. Wait for the init marker before starting
-  // the engine-startup budget so a slow `bun install` does not eat the whole
-  // paste-delivery window.
+  // The engine child appears only after repo init; a slow `bun install` must
+  // not eat the engine-startup budget.
   if (opts.initMarkerPath) {
     const initDeadline = Date.now() + (opts.initTimeoutMs ?? REPO_INIT_TIMEOUT_SECONDS * 1000)
     while (Date.now() < initDeadline) {
@@ -104,9 +83,7 @@ export async function awaitEngineProcess(
     const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
     const session = sessions.find((s) => s.key === key)
     if (!session?.alive) return null
-    // Same predicate the delivery gates use, in a loop: one implementation of
-    // "is the engine actually there", and a ps hiccup reads as "not yet" and
-    // keeps polling.
+    // Same predicate as the delivery gates; a ps hiccup reads as "not yet".
     if (session.pid) {
       const presence = await enginePresence(session.pid, engineBin, snapshot)
       if (presence.kind === "engine") return { pid: session.pid, vendor: presence.vendor }
@@ -117,14 +94,9 @@ export async function awaitEngineProcess(
 }
 
 /**
- * The line that explains why a hosted session has no engine in it.
- *
- * A caller outside the PTY can see that the engine never appeared but not why.
- * The session itself printed the answer: the shell's own `command not found`,
- * and above all the `Engine exited (code N)` banner that {@link keepAlive}
- * prints before dropping into the fallback shell. That banner is preferred
- * over the literal last line, which by then is the fallback shell's PROMPT —
- * true, and useless to whoever has to fix the launch command.
+ * The line explaining why a hosted session has no engine: preferably the
+ * `Engine exited (code N)` banner {@link keepAlive} prints, since by then the
+ * literal last line is the fallback shell's prompt.
  */
 export async function hostedSessionFailureLine(
   rpc: HostedSessionRpc,
@@ -144,14 +116,9 @@ export async function hostedSessionFailureLine(
 }
 
 /**
- * Deliver a paste-delivery vendor's FIRST message: the launch
- * spawned the bare engine (its positional argv slot is a subcommand, not a
- * prompt), so the prompt is bracketed-pasted once the engine process is
- * actually up — the same reason `send` into a cold engine embeds nowhere
- * but waits here instead. Waits for the engine child to appear (or the
- * session to die / the budget to run out), waits for it to start READING,
- * then pastes + submits.
- * Returns what the write observed, or `null` when it never happened.
+ * Deliver a paste-delivery vendor's FIRST message (its positional argv slot
+ * is a subcommand, not a prompt): wait for the engine child, wait for it to
+ * start READING, then paste + submit. `null` when the write never happened.
  */
 export async function pastePromptWhenEngineUp(
   rpc: HostedSessionRpc,
@@ -163,9 +130,7 @@ export async function pastePromptWhenEngineUp(
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
   const engine = await awaitEngineProcess(rpc, key, engineBin, opts)
   if (engine !== null) {
-    // The engine process exists; now wait for it to actually be READING
-    // (see `awaitPasteReady`). Only when it never announces bracketed
-    // paste do we fall back to a blind settle.
+    // Blind settle only when bracketed paste is never announced.
     if (!(await awaitPasteReady(rpc, key, { timeoutMs: opts.pasteReadyTimeoutMs, sleep }))) {
       await sleep(opts.settleMs ?? FIRST_MESSAGE_SETTLE_MS)
     }

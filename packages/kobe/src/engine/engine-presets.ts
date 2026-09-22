@@ -1,14 +1,11 @@
 /**
  * Engine PRESETS and the command → protocol resolution behind them.
  *
- * The dispatch face (`rove api add` / `send --tab new`) takes a raw
- * `--command`, never a vendor: what an engine IS at launch is a command
- * line, and the protocol kobe speaks to it (which history reader, which
- * trust store, whether the first message may ride argv) is DERIVED from
- * that command rather than declared alongside it.
+ * Dispatch (`rove api add` / `send --tab new`) takes a raw `--command`, never
+ * a vendor; the protocol kobe speaks to it (history reader, trust store,
+ * whether the first message may ride argv) is DERIVED from that command.
  *
- * Resolution is three-tiered — this module owns tier (a), the
- * deterministic one:
+ * Resolution is three-tiered — this module owns tier (a), the deterministic one:
  *   a) `argv[0]` names a built-in binary or a registered preset ⇒ that
  *      preset's protocol. The main path, and the only one that answers
  *      before the process exists.
@@ -18,15 +15,12 @@
  *      registry's empty custom entry: no transcript reader, no hooks,
  *      silence-window liveness and settle-paste delivery.
  *
- * A CUSTOM engine is a NAMED PRESET: an id in `customEngineIds`, its
- * command in `engineCommand.<id>`, its display name in `engineName.<id>`,
- * and — new here — the protocol it speaks in `engineProtocol.<id>`,
- * declared once at registration so every later dispatch is deterministic
- * instead of re-sniffed. A preset with no `engineProtocol.<id>` recorded
- * reads as generic until its protocol is set.
+ * A CUSTOM engine is a NAMED PRESET: an id in `customEngineIds`, its command
+ * in `engineCommand.<id>`, display name in `engineName.<id>`, and protocol in
+ * `engineProtocol.<id>` (declared once so dispatch is deterministic, not
+ * re-sniffed; unset reads as generic).
  *
- * State-reading by construction, which is why it is NOT in `registry.ts`
- * (that module stays state-free so vitest and the daemon can import it).
+ * Reads state, so NOT in `registry.ts` (kept state-free for vitest and the daemon).
  */
 
 import { randomUUID } from "node:crypto"
@@ -60,12 +54,7 @@ import {
  */
 export const GENERIC_PROTOCOL = "generic" as const
 
-/**
- * Protocols a preset may declare. The built-ins, because a protocol IS a
- * built-in adapter — declaring one says "talk to my binary the way you talk
- * to claude". Derived from {@link BUILTIN_VENDORS} so a new built-in engine
- * becomes declarable without editing a second list.
- */
+/** Protocols a preset may declare: the built-in adapters ({@link BUILTIN_VENDORS}). */
 export const ENGINE_PROTOCOLS: readonly VendorId[] = BUILTIN_VENDORS
 
 /** state.json key holding a custom preset's declared protocol. */
@@ -74,12 +63,9 @@ export function engineProtocolKey(id: string): string {
 }
 
 /**
- * A preset's declared protocol, or undefined.
- *
- * Built-ins and contrib engines ARE their own protocol: each has a registry
- * entry carrying the knowledge a protocol names (a screen manifest, for a
- * contrib engine), so answering `generic` for `opencode` would throw away
- * the badge rules `engineEntry("opencode")` already holds.
+ * A preset's declared protocol, or undefined. Built-ins and contrib engines ARE
+ * their own protocol: their registry entry (e.g. a contrib screen manifest)
+ * already holds what a protocol names.
  */
 export function getEngineProtocol(id: string): VendorId | undefined {
   if (isBuiltinVendor(id) || isContribEngine(id)) return id
@@ -129,13 +115,12 @@ export function listEnginePresets(): readonly EnginePreset[] {
  * Tier (a): the protocol a raw launch command speaks, or
  * {@link GENERIC_PROTOCOL} when nothing in it is recognisable.
  *
- * Order matters. A bare preset id wins first so `--command my-aider` means
- * the registered preset (and its declared protocol), not a coincidental
- * binary of the same name. Otherwise the argv walk — the same one the
+ * Order matters: (1) a bare preset id, so `--command my-aider` means the
+ * registered preset, not a same-named binary; (2) the argv walk the
  * process-tree probe uses, so wrappers (`env FOO=1 claude`, `node …/codex.js`)
- * and post-launch renames (kimi → `kimi-co`) resolve identically here and at
- * runtime. Last, a preset whose OWN command starts with this binary: a user
- * who typed the preset's command by hand gets the protocol they declared.
+ * and renames (kimi → `kimi-co`) resolve as at runtime; (3) a preset whose OWN
+ * command starts with this binary, so a hand-typed preset command gets its
+ * declared protocol.
  */
 export function resolveCommandProtocol(command: string | undefined): VendorId {
   const trimmed = command?.trim()
@@ -167,19 +152,13 @@ export interface EngineLaunchSpec {
 /**
  * Launch argv for a task or tab.
  *
- * Two things have to hold at once, and they pull apart for a custom preset:
- *
- *   - the BASE command comes from the preset id when there is one, so
- *     `--command claude` means "my claude" (the `engineCommand.claude`
- *     override configured in Settings), not a bare `claude` that ignores it;
- *   - the vendor-specific launch FLAGS (codex's effort + terminal-title
- *     config) come from the resolved PROTOCOL, not from the id. A preset
- *     `mycodex` declaring the codex protocol is a codex launch — keying the
- *     decoration off its id would find the empty custom registry entry and
- *     silently drop every flag, so a declared protocol would buy nothing at
- *     launch time.
- *
- * A built-in id resolves to itself, so the two rules agree for a built-in.
+ * For a custom preset two rules pull apart:
+ *   - the BASE command comes from the preset id, so `--command claude` honors
+ *     the `engineCommand.claude` override from Settings;
+ *   - vendor launch FLAGS (codex effort + terminal-title) come from the
+ *     resolved PROTOCOL — keying off the id finds the empty custom entry and
+ *     silently drops them.
+ * A built-in id resolves to itself, so both agree there.
  */
 export function engineLaunchArgv(spec: EngineLaunchSpec): readonly string[] {
   const command = spec.command?.trim()
@@ -210,14 +189,9 @@ function presetBaseArgv(id: string): readonly string[] | null {
 
 /**
  * The engine whose SESSION VERBS apply to a launch of `id` — its declared
- * protocol when it is a custom preset, else the id itself.
- *
- * The same rule `engineLaunchArgv` already uses for codex's effort and
- * terminal-title flags, applied to session identity: a preset `claudecpa`
- * declaring the claude protocol IS a claude launch, so it takes claude's
- * `--session-id` / `--resume`. Keying off the id instead would find the
- * empty custom entry and silently drop both, so a wrapper engine would lose
- * its conversation on restart.
+ * protocol when it is a custom preset, else the id itself. A `claudecpa` preset
+ * declaring claude takes claude's `--session-id` / `--resume`; keying off the id
+ * would find the empty custom entry and lose the conversation on restart.
  */
 export function sessionProtocol(vendor: VendorId | undefined): VendorId {
   const id = vendor?.trim()
@@ -229,14 +203,11 @@ export function sessionProtocol(vendor: VendorId | undefined): VendorId {
  * The registry entry whose PROTOCOL behaviour applies to `vendor` — its
  * declared `engineProtocol.<id>` when it is a custom preset, else its own.
  *
- * `engineEntry(vendor)` answers "what IS this engine" (display name, default
- * command) and must stay keyed on the raw id. This answers "how do we TALK to
- * it": the transcript reader, the workspace-trust store and first-message
- * delivery are all the wrapped engine's, exactly as `docs/ENGINES.md`
- * promises. Keying those off the raw id finds the empty custom entry, so a
- * `claudecpa` preset would read no history, meet the trust dialog Rove is
- * supposed to pre-answer, and — for a kimi-protocol preset — take the first
- * message on argv, which kills the launch.
+ * `engineEntry(vendor)` answers "what IS this engine" (name, default command)
+ * and stays keyed on the raw id. This answers "how do we TALK to it": transcript
+ * reader, trust store, first-message delivery (`docs/ENGINES.md`). The raw id
+ * would give the empty custom entry — no history, an unanswered trust dialog,
+ * and argv delivery that kills a kimi-protocol launch.
  */
 export function protocolEntry(vendor: VendorId | undefined): EngineRegistryEntry {
   return engineEntry(sessionProtocol(vendor))
@@ -276,18 +247,14 @@ export function engineResumeArgv(
 /**
  * True when this engine can BRANCH a conversation — declared by the adapter
  * (`EngineSessionIdentity.forkArgv`), not listed here. The bar is a verb that
- * LAUNCHES the branched session, because this argv becomes a tab's command.
- * Claude and codex clear it. Copilot's `--resume` only REOPENs a session,
- * which would put two live processes on one transcript. Kimi 0.40.1 does have
- * a `fork [sessionId]` subcommand, but it is a one-shot: it prints
- * `Forked to session_<new-id> … in <n>ms` and EXITS (verified 2026-09-04), so
- * as a tab command it would open a pane that dies on the first frame.
- * Branching it would take fork-then-`-S <new-id>`, which is two launches and
- * does not fit this contract. Rove refuses instead of pretending.
+ * LAUNCHES the branched session, since this argv becomes a tab's command.
+ * Claude and codex clear it. Copilot's `--resume` only REOPENs (two live
+ * processes on one transcript). Kimi 0.40.1's `fork [sessionId]` prints
+ * `Forked to session_<new-id> … in <n>ms` and EXITS, so the pane would die on
+ * the first frame; fork-then-`-S <new-id>` is two launches, outside this contract.
  *
- * Protocol-resolved like {@link withPinnedSessionId}: a preset `claudecpa`
- * declaring the claude protocol IS a claude launch, so it forks. Keying off
- * the raw id instead finds the empty custom entry and refuses.
+ * Protocol-resolved like {@link withPinnedSessionId}, so a claude-protocol
+ * preset forks.
  */
 export function engineCanFork(vendor: VendorId | undefined): boolean {
   return acceptsSessionFork(engineEntry(sessionProtocol(vendor)).sessionIdentity)

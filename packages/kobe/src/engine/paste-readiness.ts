@@ -1,31 +1,23 @@
 /**
  * When a hosted engine is actually safe to paste a large prompt into.
  *
- * A cold engine's pty starts in CANONICAL mode with nothing draining it. The tty's
- * canonical input buffer is `MAX_INPUT` (1024 bytes on macOS), and a write
- * past it is DISCARDED, not blocked — so an 8.6KB prompt written into that
- * window arrives as a 1024-byte prefix and the rest is gone. Measured, not
- * theorised: a `Bun.spawn` pty whose child had not yet run `stty raw`
- * received exactly 1024 of 8600 bytes on every run.
+ * A cold engine's pty starts in CANONICAL mode with nothing draining it; the
+ * canonical buffer is `MAX_INPUT` (1024 bytes on macOS) and a write past it
+ * is DISCARDED, not blocked. Measured: a `Bun.spawn` pty whose child had not
+ * yet run `stty raw` received exactly 1024 of 8600 bytes on every run.
  *
- * Two things follow, and the second is the one that matters:
+ *  - Chunking does NOT fix it: 512-byte chunks with gaps lose the same 1024
+ *    bytes, since nothing drains the buffer.
+ *  - Once the engine is RAW and reading, one write is safe: 8.6KB, 64KB,
+ *    256KB and 1MB all arrived whole.
  *
- *  - Chunking does NOT fix it. 512-byte chunks with a gap between them lose
- *    exactly the same 1024 bytes — the buffer is never drained, so slower
- *    writing just refills a full buffer.
- *  - Once the engine is in RAW mode and reading, a single write is safe at
- *    any size we care about — 8.6KB, 64KB, 256KB and 1MB all arrived whole.
+ * So the fix is WHEN. An engine emits `\x1b[?2004h` (DECSET 2004, bracketed
+ * paste on) only after entering raw mode and reading stdin, a direct
+ * observation that it drains its tty. Measured: claude 258ms, codex 321ms,
+ * kimi 1953ms; a shorter fixed settle drops kimi's prompt.
  *
- * So the fix is not how we write, it is WHEN. `\x1b[?2004h` (DECSET 2004,
- * bracketed paste on) is emitted by an engine only after it has taken the
- * terminal into raw mode and started reading stdin, which makes it a direct
- * observation of "this process is draining its tty" rather than a guess.
- * Measured against the three real engines: claude 258ms, codex 321ms, kimi
- * 1953ms. A fixed settle shorter than that drops kimi's prompt on the floor.
- *
- * It doubles as the bracketed-paste contract the interactive path already
- * honours (`pty-xterm-base.paste`): wrapping in `\x1b[200~ … \x1b[201~` is
- * only correct once the app has ASKED for it.
+ * Same contract as `pty-xterm-base.paste`: wrap in `\x1b[200~ … \x1b[201~`
+ * only once the app has ASKED for it.
  */
 
 /** DECSET 2004 set — the engine turned bracketed paste on. */
@@ -50,9 +42,8 @@ export function bracketedPasteActive(output: string): boolean {
   return on > output.lastIndexOf(BRACKETED_PASTE_OFF)
 }
 
-/** Wrap `prompt` for an engine that asked for bracketed paste; send it bare
- *  otherwise. Mirrors the interactive backend's conditional wrapping — an
- *  engine that never enabled DECSET 2004 would render `\x1b[200~` as text. */
+/** Wrap only when the engine asked: without DECSET 2004 it would render
+ *  `\x1b[200~` as text. */
 export function encodePaste(prompt: string, bracketed: boolean): string {
   return bracketed ? `\x1b[200~${prompt}\x1b[201~` : prompt
 }

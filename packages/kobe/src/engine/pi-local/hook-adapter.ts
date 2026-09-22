@@ -1,14 +1,10 @@
 /**
- * pi-family hook adapter — the Rove side of the state channel for `pi` and
- * `omp`. See `./extension-source.ts` for what the installed file does and
- * which events it reports; this module owns WHERE it lives, WHAT the CLI's
- * payload means, and how a bad install refuses without breaking a launch.
+ * pi-family hook adapter for `pi` and `omp`: where the extension lives and
+ * what its payload means (`./extension-source.ts` owns what it reports).
  *
- * One class for both vendors: they are the same product family (omp is
- * Stencil Labs' fork of pi) and share the extension API, the
- * `PI_CODING_AGENT_DIR` override and the session store layout. Only the
- * default agent directory and the `--engine <id>` tag differ, so the vendor
- * is a constructor argument rather than a subclass.
+ * One class for both: omp is Stencil Labs' fork of pi, sharing the extension
+ * API, `PI_CODING_AGENT_DIR` and session layout. Only the default agent dir
+ * and `--engine <id>` tag differ, so the vendor is a constructor argument.
  */
 
 import { existsSync } from "node:fs"
@@ -39,15 +35,11 @@ export function piActivityExtensionPath(vendor: PiFamilyVendor, deps?: VendorHom
 }
 
 /**
- * Provider failure text → the neutral failure class. Heuristic on purpose:
- * neither CLI gives a stable error CODE here — they hand us the provider's own
- * message (`400 ...`, `Rate limit exceeded`, `insufficient credits`) — so the
- * classes are read off the two things the daemon acts on differently.
+ * Provider failure text → neutral failure class. Heuristic because neither
+ * CLI gives a stable error CODE, only the provider's message.
  *
- * `rate_limit` arms the daemon's auto-resume timer (it will retry on its
- * own); `billing` does NOT, because an exhausted balance needs a human. A
- * generic 429 is a rate limit, but a 402 / "insufficient credits" is billing
- * even though both arrive as four-hundreds.
+ * `rate_limit` (429) arms the daemon's auto-resume timer; `billing` (402,
+ * "insufficient credits") does NOT, since an exhausted balance needs a human.
  */
 function piFailureDetail(payload: Record<string, unknown>): EngineActivityDetail {
   const raw = typeof payload.error_message === "string" ? payload.error_message : ""
@@ -80,18 +72,15 @@ export class PiFamilyHookAdapter implements EngineHookAdapter {
   }
 
   /**
-   * The hook payload is Rove's own (see `extension-source.ts`), so this
-   * vocabulary is the extension's, not the CLI's — except `error_message`,
-   * which the extension copies straight out of the engine's message.
+   * The payload vocabulary is the extension's, not the CLI's, except
+   * `error_message`, copied straight from the engine.
    */
   activityDetailFromPayload(
     kind: EngineActivityKind,
     payload: Record<string, unknown>,
   ): EngineActivityDetail | undefined {
     if (kind === "turn-failed") return piFailureDetail(payload)
-    // The extension says WHICH wait it is: an approval prompt blocks on a
-    // decision, the question tool blocks on an answer, and plugin subscribers
-    // get a different event for each.
+    // Approval (decision) vs question tool (answer); subscribers get different events.
     if (kind === "awaiting-input") return { waiting: payload.waiting === "input" ? "input" : "permission" }
     if (kind === "tool-pre" || kind === "tool-post" || kind === "tool-failed") {
       const name = typeof payload.tool_name === "string" ? payload.tool_name : undefined
@@ -109,12 +98,9 @@ export class PiFamilyHookAdapter implements EngineHookAdapter {
   }
 
   async installActivityHooks(settingsFilePath: string, opts: { toolEvents?: boolean } = {}): Promise<HookEditOutcome> {
-    // Don't materialize ~/.pi or ~/.omp for someone who never installed that
-    // CLI — with no agent directory there is no engine to read the extension.
-    // Not a refusal (same contract as the Kimi adapter): nothing is missing.
-    // Derived from the given path (`<agentDir>/extensions/<file>`) rather than
-    // from `vendorAgentDir`, so the existence check always describes the same
-    // tree the write would land in.
+    // No agent dir = CLI not installed: don't materialize it, and not a
+    // refusal. Derived from the given path, not `vendorAgentDir`, so the check
+    // describes the tree the write would land in.
     const agentDir = path.dirname(path.dirname(settingsFilePath))
     if (!existsSync(agentDir)) return { ok: true }
     const source = renderPiExtensionSource({
@@ -147,12 +133,7 @@ export class PiFamilyHookAdapter implements EngineHookAdapter {
   }
 }
 
-/**
- * Write `content` only when it differs, so a reinstall on every launch leaves
- * the file's mtime alone (the same "skip the write when the transform is a
- * no-op" contract as the JSON and TOML adapters — a rewrite per launch would
- * invalidate every editor's state and re-read the file for nothing).
- */
+/** Write only when different, so a per-launch reinstall leaves the mtime alone. */
 async function writeIfChanged(file: string, content: string): Promise<void> {
   try {
     const current = await readFile(file, "utf8").catch(() => undefined)

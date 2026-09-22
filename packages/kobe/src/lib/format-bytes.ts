@@ -1,10 +1,4 @@
-/**
- * The one byte formatter. Every "N KB / N MB" string in the kobe package
- * renders through here — the promote-then-round dance below is exactly the
- * logic that drifted into buggy per-file copies before (doctor's old
- * `fmtBytes` compared the raw value against the threshold *before* rounding,
- * so sizes just under a boundary rendered as "1024.0 KB").
- */
+/** The one byte formatter; the promote-then-round logic is easy to get wrong in copies. */
 
 /** `1.2 KB` / `340 B` / `12 MB` — human-readable byte size. */
 export function formatBytes(n: number): string {
@@ -18,11 +12,8 @@ export function formatBytes(n: number): string {
     v /= 1024
     i++
   }
-  // Decide precision from the value we'd actually print, not the raw quotient:
-  // a v in [99.95, 100) renders as "100.0" under toFixed(1), which is the very
-  // three-digit-with-a-decimal the >= 100 integer branch exists to avoid. Branch
-  // on the rounded string's magnitude, but keep Math.round(v) for the integer so
-  // we round the raw value once (no double rounding of e.g. 1023.499 -> 1024).
+  // Branch on the printed value: v in [99.95, 100) would print "100.0". The
+  // integer still rounds raw v once (no double rounding of 1023.499 → 1024).
   const oneDecimal = v.toFixed(1)
   return `${Number(oneDecimal) >= 100 ? Math.round(v) : oneDecimal} ${units[i]}`
 }

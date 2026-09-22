@@ -1,11 +1,6 @@
 /**
- * The shape of a `createTask` call.
- *
- * Its own module because the direction of dependency should only go one way:
- * this type names what a caller must supply, and it imports nothing from the
- * Orchestrator class. Callers building a `createTask` argument read one small
- * file instead of pulling the whole orchestrator into view, and nothing about
- * the class's internals can leak into the shape of its own input.
+ * The shape of a `createTask` call. Its own module so the dependency runs one
+ * way: it imports nothing from the Orchestrator class.
  */
 
 import type { ProjectIntent } from "../state/project-eligibility.ts"
@@ -21,10 +16,9 @@ export interface CreateTaskInput {
   /** Optional base ref for the new lazy worktree branch. */
   readonly baseRef?: string
   /**
-   * Directory name for the lazy worktree, instead of one drawn from the
-   * animal pool. Refused (rather than suffixed) when the name is already in
-   * use in this repo — a caller naming the directory is a caller that
-   * intends to predict the path. Single task only, like {@link branch}.
+   * Directory name for the lazy worktree instead of the animal pool. Refused
+   * (not suffixed) when already in use in this repo, since the caller means to
+   * predict the path. Single task only, like {@link branch}.
    */
   readonly worktreeName?: string
   /** Engine PROTOCOL for the monitor's history-reader hint (derived from
@@ -47,11 +41,10 @@ export interface CreateTaskInput {
   readonly routine?: TaskRoutineLink
   /**
    * How the repo was chosen, for the project-admission gate
-   * (state/project-eligibility.ts). Defaults to `"explicit"`: every caller
-   * today reaches here from a user naming the repo — the new-task dialog,
-   * `rove api add`, a quick-fork of the row you are on. A caller that
-   * INFERRED the repo (a script walking directories, a fixture harness)
-   * should pass `"derived"` to get the stricter gate.
+   * (state/project-eligibility.ts). Defaults to `"explicit"` (a user named the
+   * repo: new-task dialog, `rove api add`, quick-fork). A caller that INFERRED
+   * the repo (directory walker, fixture harness) should pass `"derived"` for
+   * the stricter gate.
    */
   readonly projectIntent?: ProjectIntent
 }

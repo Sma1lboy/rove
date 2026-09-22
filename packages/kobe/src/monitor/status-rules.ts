@@ -1,26 +1,19 @@
 /**
- * Daemon-side status rules (docs/design/web-kanban.md M5): a pure rule plus
- * the agent's own self-report, no small-model judge.
+ * Daemon-side status rules (docs/design/web-kanban.md M5). `turn-start` on a
+ * `backlog` task unambiguously means work began, so a pure rule moves it to
+ * `in_progress`; in_progress → in_review is the agent's own self-report via
+ * the injected status protocol (engine/worktree-protocol.ts
+ * `withWorktreeProtocol`).
  *
- * The one rule that needs no judgment: an engine STARTING a turn on a
- * `backlog` task means work has begun — `turn-start` is unambiguous, so a
- * pure rule advances the card to `in_progress`. The other half of the flow
- * (in_progress → in_review) is the agent's own self-report via the injected
- * status protocol (engine/interactive-command.ts `withStatusProtocol`); the
- * agent knows whether it finished, no external classifier needed.
- *
- * Guardrails (the auto-done incident is the cautionary tale): the ONLY
- * transition this rule makes is `backlog → in_progress`. A task the user
- * placed anywhere else is never touched, so dragging a card back to
- * Backlog mid-session sticks until the engine's NEXT turn starts. Opt-in
- * via state.json `experimental.autoStatus`, read per event.
+ * The ONLY transition made is `backlog → in_progress`; a card the user put
+ * elsewhere is never touched, so dragging it back to Backlog sticks until the
+ * engine's next turn starts. Opt-in via `experimental.autoStatus`, read per event.
  */
 
 import { autoStatusEnabled } from "@/state/auto-status"
 import type { Task, TaskStatus } from "@/types/task"
 
-/** The minimal orchestrator surface the rule needs (structural, so tests
- *  fake it and the daemon passes the real Orchestrator). */
+/** The minimal (structural) orchestrator surface the rule needs. */
 export interface StatusRuleOrchestrator {
   getTask(id: string): Task | undefined
   setStatus(id: string, status: TaskStatus): Promise<void>

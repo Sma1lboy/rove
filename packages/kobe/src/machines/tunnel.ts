@@ -1,23 +1,17 @@
 /**
  * The SSH forward that makes a machine's daemon reachable as a local socket.
  *
- * Both forwards ride the machine's shared ControlMaster connection
- * (`ssh -O forward`), which outlives the process that created it by
- * `ControlPersist` seconds. That is what lets a millisecond-long `rove api`
- * process and a day-long TUI use the SAME mechanism: neither has to hold an
- * `ssh -N` open, and neither can knock the other's forward down by racing it
- * for the same socket path — which is exactly what happened while the two were
- * separate.
+ * Both forwards ride the machine's shared ControlMaster (`ssh -O forward`),
+ * which outlives its creator by `ControlPersist` seconds — so a short `rove api`
+ * process and a day-long TUI share one mechanism, neither holds an `ssh -N`
+ * open, and neither can knock the other's forward down racing for the path.
  *
- * So {@link ensureForwards} is the whole transport, and {@link startTunnel} is
- * that plus a liveness poll: it re-establishes the forward when the socket
- * stops answering, with exponential backoff, forever. The far side coming back
- * is the expected outcome — a machine you registered should not need
- * re-registering after a lid close.
+ * {@link startTunnel} = {@link ensureForwards} + a liveness poll that
+ * re-establishes the forward with exponential backoff, forever.
  *
- * Windows has no `AF_UNIX` forwarding in OpenSSH's `-L local-socket` form, so
- * both entry points report failure there rather than pretending. The module
- * still IMPORTS cleanly on Windows — `rove machine list` must run everywhere.
+ * Windows has no `AF_UNIX` `-L local-socket` forwarding, so both entry points
+ * report failure there; the module still IMPORTS cleanly (`rove machine list`
+ * must run everywhere).
  */
 
 import { spawn } from "node:child_process"
@@ -37,7 +31,7 @@ export interface TunnelHandle {
   readonly alias: string
   /** Local socket the machine's daemon answers on. */
   readonly daemonSocketPath: string
-  /** Local socket the machine's PTY host answers on (PR 2 attaches to it). */
+  /** Local socket the machine's PTY host answers on. */
   readonly ptySocketPath: string
   state(): TunnelState
   /** Called on every state transition, including the initial connect. */
@@ -65,12 +59,8 @@ const BACKOFF_MAX_MS = 5_000
  *  enough that a closed lid greys its rows within one glance. */
 const HEALTH_INTERVAL_MS = 10_000
 
-/**
- * Keep a machine's forward up. Returns immediately with a handle whose state
- * starts at `connecting`; callers watch {@link TunnelHandle.onState} rather
- * than awaiting, because a machine that is down must not block the ones that
- * are up.
- */
+/** Returns immediately (state `connecting`); watch {@link TunnelHandle.onState}
+ *  instead of awaiting, so a down machine never blocks the up ones. */
 export function startTunnel(opts: StartTunnelOptions): TunnelHandle {
   const home = opts.home ?? homeDir()
   const daemonSocketPath = localDaemonSocketPath(opts.alias, home)
@@ -139,9 +129,6 @@ export function startTunnel(opts: StartTunnelOptions): TunnelHandle {
       if (!stopped) schedule(() => void health(), HEALTH_INTERVAL_MS)
       return
     }
-    // The forward went away — the master timed out, the network dropped, or
-    // the machine went to sleep. Rows stay on screen and grey out; this side
-    // just starts trying again.
     setState("offline")
     void attempt()
   }
@@ -150,14 +137,8 @@ export function startTunnel(opts: StartTunnelOptions): TunnelHandle {
   return handle
 }
 
-/**
- * Install both forwards onto the machine's shared ssh connection, leaving no
- * process behind.
- *
- * Best-effort: every failure answers `false`, and the caller reports the
- * machine as offline. Returns true only when the forwarded daemon socket
- * actually answers afterwards, which is the only claim worth making.
- */
+/** Install both forwards on the shared ssh connection, leaving no process
+ *  behind. True only when the forwarded daemon socket actually answers. */
 export async function ensureForwards(args: {
   readonly alias: string
   readonly config: MachineConfig
@@ -174,9 +155,8 @@ export async function ensureForwards(args: {
   } catch {
     /* already there, or a filesystem without modes */
   }
-  // Already up — including when another Rove process on this machine put it
-  // up. Sharing the forward is the point: a second one on the same path is
-  // what `ExitOnForwardFailure` would refuse.
+  // Possibly another Rove process's forward: share it (a second on the same
+  // path is what `ExitOnForwardFailure` would refuse).
   if (await socketAnswers(daemonLocal)) return true
   // A socket FILE with nothing behind it is a leftover from a dead master;
   // ssh refuses to bind over it. Only our own two paths, in our own directory.

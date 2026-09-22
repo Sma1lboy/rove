@@ -1,24 +1,18 @@
 /**
- * The Rove activity extension Rove WRITES into a pi-family agent directory —
- * the pi/omp half of the hook channel, as source text.
+ * The activity extension Rove WRITES into a pi-family agent directory — the
+ * pi/omp half of the hook channel, as source text.
  *
- * Why a generated file instead of a settings merge: the pi family has no
- * hook TABLE to edit (unlike Claude's `settings.json` or Kimi's
- * `config.toml`). Its extension points are TypeScript modules discovered from
- * `<agentDir>/extensions/*.ts`, verified in the installed 0.80.6 (pi) and
- * 18.1.17 (omp) binaries on 2026-09-11 — both load the module, call its
- * default export, and dispatch these event names through the SAME
- * `pi.on(name, handler)` surface. Both also expose `pi.exec(command, args)`,
- * which spawns with the engine's environment inherited, so `kobe hook` still
- * finds the daemon socket and the tab env vars Rove launched the engine with.
+ * Generated, not a settings merge: the pi family has no hook TABLE, only
+ * TypeScript modules discovered from `<agentDir>/extensions/*.ts`. Verified
+ * against pi 0.80.6 and omp 18.1.17: both call the default export and
+ * dispatch through the SAME `pi.on(name, handler)`, and `pi.exec` inherits the
+ * engine's env, so `kobe hook` finds the daemon socket and tab env vars.
  *
- * `pi.exec` cannot pipe stdin (its `stdio` is fixed to `["ignore","pipe",
- * "pipe"]`), which is why the payload rides argv through `kobe hook
- * --payload <json>` rather than Claude's stdin channel.
+ * `pi.exec` cannot pipe stdin (`stdio` fixed to `["ignore","pipe","pipe"]`),
+ * so the payload rides argv (`kobe hook --payload <json>`).
  *
- * The event set below is the INTERSECTION of the two APIs — no pi-only
- * `agent_settled`, no omp-only `session_stop` — so one file serves both
- * engines and neither logs an unknown-event warning:
+ * Events are the INTERSECTION of both APIs (no pi-only `agent_settled`, no
+ * omp-only `session_stop`), so neither logs an unknown-event warning:
  *
  *   session_start          → session-start
  *   turn_start             → turn-start              (running)
@@ -43,10 +37,7 @@ export interface ExtensionSourceOptions {
   readonly toolEvents?: boolean
 }
 
-/**
- * Render the extension module. Pure: the same options always produce the same
- * bytes, which is what lets the installer skip the write when nothing changed.
- */
+/** Pure: same options → same bytes, so the installer can skip unchanged writes. */
 export function renderPiExtensionSource(opts: ExtensionSourceOptions): string {
   const { vendor, invocation, toolEvents = false } = opts
   const tool = toolEvents ? TOOL_SECTION : ""

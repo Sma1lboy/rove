@@ -2,13 +2,10 @@
  * The `ssh` argv a machine connection uses — one builder, so the discovery
  * probe, the tunnel and any future call agree on the multiplexing options.
  *
- * Deliberately a sibling of `exec/exec-host.ts`'s `sshConnectArgs` rather than
- * a call into it: that one takes a `RemoteSpec` built for remote PROJECTS
- * (which carries a `basePath` and a lazily-fetched keychain password), and its
- * ControlPath lives under the remote-project tree. The FLAGS below are
- * deliberately the same set — `ControlMaster=auto` + `ControlPersist=300` +
- * TOFU host keys — because they encode the same decision, and this file is
- * where a machine's version of it is stated.
+ * Not a call into `exec/exec-host.ts`'s `sshConnectArgs`: that takes a
+ * remote-PROJECT `RemoteSpec` (`basePath`, keychain password) and keeps its
+ * ControlPath under the remote-project tree. The flags are deliberately the
+ * same set (`ControlMaster=auto`, `ControlPersist=300`, TOFU host keys).
  */
 
 import { tmpdir } from "node:os"
@@ -25,28 +22,20 @@ const CONTROL_PERSIST_SECONDS = 300
  * `<home>/.rove/machines/<alias>` — holds the control socket and both
  * forwarded sockets. Owner-only; created by the tunnel.
  *
- * Falls back to a short `$TMPDIR` directory when the natural path would put a
- * socket past the kernel's `sun_path` limit — a real case, not a theoretical
- * one: a Rove home inside a worktree (`~/.rove/worktrees/<name>/…`) already
- * spends 60 of the ~104 bytes before `machines/<alias>/daemon.sock` starts,
- * and ssh's own refusal reads `ControlPath too long`, which names neither the
- * machine nor the remedy. Keyed on home + alias via the same
- * {@link shortHomeTag} the daemon's sockets use, so the fallback path is the
- * SAME string every time — a client that computed a different one would look
- * for the forward in the wrong place.
+ * Falls back to a short `$TMPDIR` dir when a socket would pass the `sun_path`
+ * limit: a Rove home inside a worktree already spends ~60 of ~104 bytes, and
+ * ssh's refusal (`ControlPath too long`) names neither machine nor remedy.
+ * Keyed on home + alias via {@link shortHomeTag} so every client computes the
+ * same fallback path.
  */
 export function machineSocketDir(alias: string, home = homeDir()): string {
   const natural = join(home, ".rove", "machines", alias)
-  // The longest name this directory has to hold. Measuring the DIRECTORY
-  // against the limit would pass and then fail on the socket inside it.
+  // Measure the longest socket inside, not the directory itself.
   if (Buffer.byteLength(join(natural, "daemon.sock"), "utf8") <= SOCKET_PATH_LIMIT) return natural
   return join(tmpdir(), `rove-m-${shortHomeTag(home)}-${shortHomeTag(alias)}`)
 }
 
-/**
- * Budget for a unix socket path. `sun_path` is 104 bytes on macOS and 108 on
- * Linux; the daemon's own paths use 100 as the safe floor and so does this.
- */
+/** Unix socket path budget: `sun_path` is 104 bytes on macOS, 108 on Linux; 100 matches the daemon's floor. */
 const SOCKET_PATH_LIMIT = 100
 
 /** The local end of the forwarded DAEMON socket for a machine. */
@@ -66,9 +55,9 @@ function controlPath(alias: string, home = homeDir()): string {
 }
 
 /**
- * Connection flags shared by every machine ssh invocation — no remote command,
- * no target. `batch` (the default) fails fast instead of prompting, which is
- * required for anything the daemon or a reconnect loop runs unattended.
+ * ssh argv shared by every machine invocation, ending at the target (no remote
+ * command). `batch` (default) fails fast instead of prompting — required for
+ * anything run unattended.
  */
 export function machineSshArgs(
   alias: string,

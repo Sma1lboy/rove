@@ -1,12 +1,10 @@
 /**
  * Ask a machine where its daemon listens.
  *
- * `ssh <target> 'rove daemon status --json'` — and, when nothing is running
- * there, `rove daemon start` first. The answer carries the remote socket paths
- * verbatim, which is the whole point: the remote home may belong to a
- * different user, and `fitSocketPath` may have SHORTENED either path to fit
- * the platform's `sun_path` limit, so a path derived locally would be wrong in
- * two independent ways. Rove never guesses a remote socket path.
+ * `ssh <target> 'rove daemon status --json'` (after `rove daemon start` if
+ * nothing runs). The answer carries the remote socket paths verbatim: the
+ * remote home may be another user's, and `fitSocketPath` may have SHORTENED a
+ * path for `sun_path`. Rove never guesses a remote socket path.
  */
 
 import { spawn } from "node:child_process"
@@ -40,10 +38,8 @@ async function runOnMachine(
   command: string,
   opts: { readonly home?: string; readonly timeoutMs?: number } = {},
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  // The ControlPath's directory must exist before ssh tries to bind there.
-  // Without it ssh reports `Control socket connect(...): No such file or
-  // directory` — a message that names the .rove path and reads like a missing
-  // Rove rather than a missing directory.
+  // The ControlPath's directory must exist first, else ssh's `Control socket
+  // connect(...): No such file or directory` reads like a missing Rove.
   try {
     mkdirSync(machineSocketDir(alias, opts.home), { recursive: true, mode: 0o700 })
   } catch {
@@ -80,11 +76,10 @@ async function runOnMachine(
 /**
  * `rove daemon status --json`, starting the remote daemon once if none is up.
  *
- * Starting it is not overreach: a machine the user just registered is a
- * machine they want to see, and the remote daemon idle-stops on its own once
- * nothing is attached. Failure is classified rather than thrown so `machine
- * add` can say WHICH of the three things went wrong — unreachable host, Rove
- * not installed, daemon refused to start.
+ * Starting it is fine: the user just registered the machine, and the remote
+ * daemon idle-stops once nothing is attached. Failure is classified, not
+ * thrown, so `machine add` can say which: unreachable host, Rove not
+ * installed, or daemon refused to start.
  */
 export async function discoverMachine(
   alias: string,
@@ -113,9 +108,8 @@ export async function discoverMachine(
   const second = await runOnMachine(alias, config, "rove daemon status --json", opts)
   const retry = parseStatusJson(second.stdout)
   if (retry) return { ok: true, status: retry }
-  // A remote Rove old enough to predate `ptySocketPath` answers `daemon
-  // status` perfectly and still cannot be tunnelled — say so, rather than
-  // reporting it as a daemon that would not start.
+  // A remote Rove predating `ptySocketPath` answers but can't be tunnelled —
+  // report that, not a daemon that would not start.
   if (looksLikeOldStatus(second.stdout)) {
     return {
       ok: false,
@@ -145,13 +139,10 @@ export function looksLikeOldStatus(stdout: string): boolean {
 /**
  * Pull the status object out of a command's stdout.
  *
- * Tolerant of leading noise (a login banner, an update notice) by scanning for
- * the first `{` — a machine whose shell prints something on every
- * non-interactive login is common enough that being strict here would read as
- * "Rove is broken on that host". Returns null unless BOTH socket paths are
- * present, so an older remote Rove — which reports `socketPath` but not
- * `ptySocketPath` — is a clean "upgrade that machine" rather than a tunnel
- * that half-forwards.
+ * Scans for the first `{` to tolerate leading noise (login banner, update
+ * notice) — common on non-interactive logins. Returns null unless BOTH socket
+ * paths are present, so an older remote Rove (no `ptySocketPath`) is a clean
+ * "upgrade that machine", not a half-forwarding tunnel.
  */
 export function parseStatusJson(stdout: string): RemoteDaemonStatus | null {
   const at = stdout.indexOf("{")

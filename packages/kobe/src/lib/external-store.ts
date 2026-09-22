@@ -1,9 +1,8 @@
 /**
  * Framework-free observable state shared by the Orchestrator, daemon client,
- * and React adapters. A state is callable for compatibility with the former
- * Solid Accessor interface, while `get`/`subscribe` plug directly into
- * `useSyncExternalStore`. There is one cell per semantic stream so unrelated
- * daemon channels do not invalidate each other.
+ * and React adapters. A state is callable (Accessor-style); `get`/`subscribe`
+ * plug into `useSyncExternalStore`. One cell per semantic stream so unrelated
+ * daemon channels don't invalidate each other.
  */
 
 export interface ReadableState<T> {

@@ -1,18 +1,14 @@
 /**
  * Engine-neutral activity-event vocabulary (+ the reducer, re-exported).
  *
- * kobe learns "what is this task's engine doing right now" from engine HOOKS
- * (Claude Code's Stop / StopFailure / Notification / Session*; Codex's
- * hooks.json equivalents later). Each engine's {@link EngineHookAdapter}
- * translates its vendor-specific hook into one of these NORMALIZED verbs and
- * shells out to `kobe hook <verb>` (cwd-based; the daemon maps it to a task).
- * Everything downstream —
- * the `kobe hook` CLI, the daemon, the TUI — speaks only this neutral
+ * kobe learns what a task's engine is doing from engine HOOKS (e.g. Claude
+ * Code's Stop / StopFailure / Notification / Session*, Codex's hooks.json).
+ * Each {@link EngineHookAdapter} maps its vendor hook to a NORMALIZED verb and
+ * shells out to `kobe hook <verb>`; everything downstream speaks only this
  * vocabulary, so no vendor strings leak past the adapter (CLAUDE.md
  * "Engine-owned UI data").
  *
- * This module is pure (no I/O). The state machine itself ({@link
- * reduceActivity}) is defined in the daemon package and re-exported below.
+ * Pure (no I/O). {@link reduceActivity} lives in the daemon package, re-exported below.
  */
 
 /** The normalized hook verbs a `kobe hook <verb>` invocation carries. */
@@ -92,20 +88,17 @@ export const TASK_ACTIVITY_STATES = [
 ] as const satisfies readonly DaemonTaskActivityState[]
 /**
  * Re-exported from the daemon, which OWNS this vocabulary (kobe depends on
- * kobe-daemon, never the reverse). The runtime list above is the same set —
- * `satisfies` rejects a member the daemon doesn't have, and the assignment
- * below rejects one it has that the list is missing, so the two cannot drift
- * the way the reducer once did.
+ * kobe-daemon, never the reverse). `satisfies` rejects a member the daemon
+ * lacks and the assignment below rejects one the list above is missing, so
+ * they cannot drift.
  */
 export type TaskActivityState = DaemonTaskActivityState
 const _everyStateListed: readonly (typeof TASK_ACTIVITY_STATES)[number][] = [] as readonly TaskActivityState[]
 void _everyStateListed
 
 /**
- * The activity state machine. Defined ONCE, in the daemon package — the
- * daemon is the only production caller (`DaemonActivityRegistry`), and kobe
- * depends on kobe-daemon (never the reverse), so this side re-exports
- * rather than keeping a second copy that can drift.
+ * The activity state machine, defined ONCE in the daemon package (its only
+ * production caller is `DaemonActivityRegistry`) and re-exported here.
  * @see {@link import("@sma1lboy/kobe-daemon/daemon/activity-reduce").reduceActivity}
  */
 export { reduceActivity } from "@sma1lboy/kobe-daemon/daemon/activity-reduce"

@@ -1,16 +1,12 @@
 /**
- * The Windows half of the process walk — the snapshot `foreground.ts` cannot
+ * The Windows half of the process walk: the snapshot `foreground.ts` cannot
  * take with `ps`, and the parent chain Windows does not keep.
  *
- * Two things are broken on win32 and neither is visible from the POSIX path:
- *
- * 1. **There is no usable `ps`.** The `ps` on PATH is Git for Windows'
- *    Cygwin build, which rejects `-A` (`ps: unknown option -- A`, exit 1,
- *    EMPTY stdout) and whose `-W` mode lists native processes with PPID 0 and
- *    no argv. An empty snapshot parses to zero rows, and zero rows read as a
- *    confident "no engine anywhere" — which is how every task came to report
- *    `running: false` while its agent sat at the prompt. The process table
- *    comes from `Get-CimInstance Win32_Process` instead.
+ * 1. **No usable `ps`.** The `ps` on PATH is Git for Windows' Cygwin build:
+ *    it rejects `-A` (exit 1, EMPTY stdout) and its `-W` mode lists native
+ *    processes with PPID 0 and no argv. Zero rows would read as a confident
+ *    "no engine anywhere", so the table comes from `Get-CimInstance
+ *    Win32_Process` instead.
  *
  * 2. **The parent chain to the engine is severed.** An npm-installed engine
  *    launches through a `.cmd` shim, so the real tree is
@@ -21,32 +17,26 @@
  *                    └─ sh.exe .../npm/claude …
  *                         └─ claude.exe
  *
- *    The shim's `cmd.exe` is gone by the time anyone looks, so `sh.exe`'s
- *    ParentProcessId names a dead pid and NO ancestor walk from the tab's
- *    shell can ever reach `claude.exe`. Windows keeps no reparent-to-init
- *    rule that would heal this.
+ *    The shim's `cmd.exe` exits at once, so `sh.exe`'s ParentProcessId names
+ *    a dead pid and NO ancestor walk from the tab's shell reaches
+ *    `claude.exe`; Windows has no reparent-to-init rule to heal this.
  *
- *    What does survive is the CONSOLE. Every process in that chain inherited
- *    the tab's ConPTY console handle, so `GetConsoleProcessList` — which
- *    node-pty already ships as a native addon for its own `pty.process` — can
- *    still name the whole cohort. {@link repairConsoleParentage} takes that
- *    membership and re-attaches each cohort member whose parent is missing to
- *    the tab's shell, rebuilding a walkable tree.
+ *    The CONSOLE survives: every process in the chain inherited the tab's
+ *    ConPTY console, so `GetConsoleProcessList` (a native addon node-pty
+ *    already ships) still names the whole cohort, and
+ *    {@link repairConsoleParentage} re-attaches members with a missing parent
+ *    to the tab's shell.
  *
- *    The same break happens on the OTHER end of the identity walk. A `rove
- *    api` call from an engine's Bash tool runs through the npm `sh` shim:
- *    Git-Bash forks, the fork execs `sh.exe`, and — `sh.exe` being an MSYS
- *    program whose parent is another MSYS process — the forked bash's Windows
- *    process exits instead of lingering as an exec stub. `sh.exe`'s
- *    ParentProcessId is dead, and `hasAncestor(cli, tabShell)` was false for
- *    every call made that way: no task recorded its dispatcher, and every
- *    bare `send` fell back to the ACTIVE task — whichever tab the user was
- *    looking at. The CLI's own console (the hidden one the Bash tool runs
- *    in) still names its whole chain, so the same repair, anchored on the
- *    CLI itself, re-attaches the orphan to that console's root.
+ *    The same break hits the OTHER end of the identity walk: a `rove api`
+ *    call from an engine's Bash tool runs through the npm `sh` shim, and the
+ *    forked Git-Bash process exits on exec of `sh.exe` (MSYS parent → MSYS
+ *    child), leaving a dead ParentProcessId. Without repair
+ *    `hasAncestor(cli, tabShell)` is false, no dispatcher is recorded, and a
+ *    bare `send` falls back to the ACTIVE task. The CLI's own (hidden)
+ *    console still names its chain, so the same repair, anchored on the CLI,
+ *    re-attaches the orphan to that console's root.
  *
- * Nothing here runs off win32: `psSnapshot` branches on the platform, and the
- * POSIX `ps` path is untouched.
+ * win32 only: `psSnapshot` branches on the platform.
  */
 
 import { existsSync } from "node:fs"
@@ -57,16 +47,12 @@ import { type ProcRow, PsProbeUnavailableError, serializeProcRows } from "./proc
 /**
  * `Get-CimInstance Win32_Process` rendered as `pid ppid commandline`.
  *
- * `-Property` narrows the CIM fetch to the five fields the walk reads.
- * `CommandLine` is null for processes this user may not open (and for the
- * kernel's own), so `Name` stands in: a row with no text at all would be
- * dropped by the parser and could break a chain that runs THROUGH it.
- * Command lines are flattened because a Windows command line may contain
- * literal newlines — Rove's own launch script does — and the snapshot format
- * is one process per line. Rows come out in creation order: when a console
- * cohort holds several processes whose parents are off the console,
- * {@link repairConsoleParentage} takes the OLDEST as that console's root, and
- * row order is how it knows which one that is.
+ * `CommandLine` is null for processes this user may not open, so `Name`
+ * stands in: a textless row would be dropped by the parser and break a chain
+ * running THROUGH it. Newlines are flattened (Rove's own launch script has
+ * them; the format is one process per line). Rows are in creation order
+ * because {@link repairConsoleParentage} takes the OLDEST off-console member
+ * as a console's root.
  */
 const WIN_PROCESS_LIST_COMMAND =
   "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; " +
@@ -82,15 +68,10 @@ function winBasename(path: string): string {
 }
 
 /**
- * A Windows command line rewritten so the ARGV[0] parser can read it.
- *
- * `ps` prints argv joined by spaces; Windows hands back a raw command line in
- * which argv[0] is usually an absolute path, quoted when it contains spaces
- * (`"C:\Program Files\Git\usr\bin\sh.exe" …`). Splitting that on whitespace
- * yields `"C:\Program` — so the executable-identity parser sees `Program`,
- * not `sh`, and the walk misses the wrapper it was written to see through.
- * Replacing the first token with its basename is what makes a Windows row
- * look like the `ps` row the walk expects; the arguments are left verbatim.
+ * A Windows command line with argv[0] replaced by its basename, so it looks
+ * like a `ps` row. argv[0] is usually an absolute path, quoted when it has
+ * spaces (`"C:\Program Files\Git\usr\bin\sh.exe" …`); split on whitespace,
+ * the identity parser would see `Program`, not `sh`. Arguments stay verbatim.
  */
 export function normalizeWindowsArgs(commandLine: string): string {
   const line = commandLine.trim()
@@ -116,28 +97,20 @@ export function parseWinProcessList(text: string): ProcRow[] {
 }
 
 /**
- * Re-attach each console cohort's orphans to the root of that console, so the
- * tree is walkable again.
+ * Re-attach each console cohort's orphans to the root of that console.
  *
- * `cohorts` maps an anchor pid to every pid attached to its console (`null` =
- * the console could not be read, e.g. the shell already exited — that anchor
- * is left alone rather than guessed at). Membership is the authority: a
- * process on this console really is running inside whatever that console
- * belongs to. So a cohort member whose parent is ALSO in the cohort keeps its
- * real parent — depth is preserved, and the shallowest-engine walk still
- * prefers a wrapper's engine child over that engine's own helpers — while a
- * member whose parent is dead or off-console hangs off the root directly.
+ * `cohorts` maps an anchor pid to every pid on its console (`null` = console
+ * unreadable, e.g. the shell exited; that anchor is left alone, not guessed
+ * at). Membership is the authority. A member whose parent is ALSO in the
+ * cohort keeps it, preserving depth so the shallowest-engine walk still
+ * prefers a wrapper's engine child over its helpers; a member whose parent is
+ * dead or off-console hangs off the root.
  *
- * The root is the anchor when the anchor is where the console begins — a
- * tab's shell, whose parent is the PTY host and not on the console. An anchor
- * can also be a LEAF: the `rove api` CLI asking about its own console, which
- * Git-Bash's `fork` + `exec` of the npm `sh` shim breaks the same way the
- * shim's `cmd.exe` breaks the engine's (the forked bash's Windows process
- * exits the moment it execs `sh.exe`, so the CLI's parent chain reaches a
- * dead pid before it reaches the tab). There the root is the oldest member
- * whose parent is alive and off the console — the process that brought the
- * console into the tree — and the leaf itself is never a target, so the
- * repair cannot build a cycle.
+ * The root is the anchor when the console begins there (a tab's shell, whose
+ * parent is the off-console PTY host). An anchor can also be a LEAF (the
+ * `rove api` CLI asking about its own console, see the header): then the root
+ * is the oldest member whose parent is alive and off the console, and the
+ * leaf is never a target, so the repair cannot build a cycle.
  */
 export function repairConsoleParentage(
   rows: readonly ProcRow[],
@@ -207,16 +180,12 @@ function powershellPath(): string {
 /**
  * The Windows snapshot's whole budget, shared by both of its children.
  *
- * Not {@link import("./foreground.ts").PS_PROBE_TIMEOUT_MS}: that constant is
- * sized for a probe that answers in ~20ms, where 5s can only mean a stuck
- * process table. This one is a PowerShell start plus a CIM query, ~0.8s on an
- * idle machine — and on the loaded box Rove is built for (a dozen agents
- * compiling at once) a 5s cap fired on a probe that was merely slow, which
- * spends the whole point of the tri-state on noise: the tab reads "unknown",
- * the sidebar badge drops, and `send` refuses with `ENGINE_PROBE_FAILED`.
- * 10s keeps the same promise as the POSIX constant — wide enough never to
- * cost a true answer — and still fits two attempts inside the 20s engine
- * readiness window that polls it.
+ * Not {@link import("./foreground.ts").PS_PROBE_TIMEOUT_MS} (sized for a
+ * ~20ms probe): PowerShell start + CIM query is ~0.8s idle, and under a dozen
+ * compiling agents a 5s cap fired on merely-slow probes, turning tabs
+ * "unknown" and making `send` refuse with `ENGINE_PROBE_FAILED`. 10s never
+ * costs a true answer and still fits two attempts in the 20s engine
+ * readiness window.
  */
 export const WIN_PROBE_TIMEOUT_MS = 10_000
 
@@ -255,10 +224,8 @@ async function capture(cmd: readonly string[], what: string, deadline: number): 
 }
 
 /**
- * node-pty's `GetConsoleProcessList` addon, wherever the installed copy put
- * it. Resolved the same way `doctor-node-pty.ts` finds the package: the
- * bundle keeps `node-pty` external, so this is the copy actually loaded at
- * runtime rather than a build-time guess.
+ * node-pty's `GetConsoleProcessList` addon, resolved at runtime: the bundle
+ * keeps `node-pty` external, so this is the copy actually loaded.
  */
 function consoleListAddonPath(): string {
   let pkg: string
@@ -280,17 +247,13 @@ function consoleListAddonPath(): string {
 /**
  * Ask a CHILD process which pids share each anchor's console.
  *
- * It has to be a child: `GetConsoleProcessList` reports the caller's own
- * console, so reading someone else's means `FreeConsole()` then
- * `AttachConsole(pid)` — and a process may be attached to only one console at
- * a time. Doing that in the CLI or the TUI would detach the terminal the user
- * is looking at. node-pty forks a fresh agent per pid for the same reason;
- * one child looping over every anchor costs one spawn per snapshot instead of
- * one per tab.
+ * It has to be a child: reading another console means `FreeConsole()` +
+ * `AttachConsole(pid)`, and a process has one console at a time, so doing it
+ * in the CLI or TUI would detach the user's terminal. One child loops over
+ * every anchor: one spawn per snapshot, not per tab.
  *
- * The child reports its OWN pid alongside the lists because
- * `GetConsoleProcessList` counts the attached caller as a member, and that
- * transient is not part of the tab.
+ * The child reports its OWN pid because `GetConsoleProcessList` counts the
+ * attached caller as a member, and it is not part of the tab.
  */
 function agentScript(addon: string, anchors: readonly number[]): string {
   return `const native = require(${JSON.stringify(addon)})
@@ -313,9 +276,8 @@ function parseCohorts(json: string, anchors: readonly number[]): ReadonlyMap<num
 }
 
 /**
- * The production probe: PowerShell for the table, a forked agent for the
- * consoles, both against ONE deadline taken when the snapshot starts — so the
- * caller's budget is what it says it is rather than twice that.
+ * The production probe. Both children share ONE deadline taken at snapshot
+ * start, so the caller's budget is not doubled.
  */
 export function defaultWinProcessProbe(budgetMs: number = WIN_PROBE_TIMEOUT_MS): WinProcessProbe {
   const deadline = Date.now() + budgetMs
@@ -335,19 +297,15 @@ export function defaultWinProcessProbe(budgetMs: number = WIN_PROBE_TIMEOUT_MS):
 }
 
 /**
- * The win32 replacement for one `ps -A -o pid=,ppid=,args=` run, in the same
- * text shape.
+ * The win32 replacement for one `ps -A -o pid=,ppid=,args=` run, same text
+ * shape.
  *
- * `anchors` are the pids whose consoles the walk runs through: the shell of
- * every tab about to be walked, plus the caller itself when the walk is an
- * ancestry check on the caller. They are what the console repair needs — and
- * the reason {@link import("./foreground.ts").PsSnapshot} takes them at all;
- * the POSIX branch ignores them, because a POSIX parent chain is already
- * intact.
+ * `anchors`: every tab shell about to be walked, plus the caller for an
+ * ancestry check on itself. Only the console repair uses them; the POSIX
+ * branch of {@link import("./foreground.ts").PsSnapshot} ignores them.
  *
- * Failure is a THROW, never a thin snapshot: with the parent chain severed,
- * rows we could not repair would answer "no engine" for a tab whose engine is
- * running, and that answer is the bug this file exists to fix.
+ * Failure is a THROW, never a thin snapshot: unrepaired rows would answer
+ * "no engine" for a tab whose engine is running.
  */
 export async function winProcessSnapshot(anchors: readonly number[], probe: WinProcessProbe): Promise<string> {
   const rows = parseWinProcessList(await probe.processList())

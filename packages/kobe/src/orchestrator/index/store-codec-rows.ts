@@ -1,14 +1,11 @@
 /**
- * Row codec: ONE persisted JSON entry → a v3 {@link Task}.
+ * Row codec: ONE persisted JSON entry → a v3 {@link Task}, or `null`. Never
+ * sees the file; manifest-level concerns (lock retry, corrupt-version
+ * recovery, read-merge-write) live in `store-codec.ts`, whose
+ * `normalizeIndex` is the only caller.
  *
- * The seam against `store-codec.ts` is scope. That file works at MANIFEST
- * level — lock retry, corrupt/unsupported-version recovery, the read-merge-
- * write protocol — and it is where a bug costs you the whole index. This one
- * never sees the file: it takes an arbitrary parsed value and answers with a
- * task or `null`, so tolerating a v1/v2 shape, a dropped field, or a
- * half-written row is checkable one field at a time.
- *
- * `normalizeIndex` in `store-codec.ts` is the only caller.
+ * Every optional field must be listed below: a field absent from
+ * {@link coerceTask} writes fine and vanishes on the next daemon restart.
  */
 
 import type {
@@ -46,11 +43,9 @@ export function coerceTask(value: unknown): Task | null {
   }
   if (!isTaskStatus(v.status)) return null
 
-  // A `main` (project root) task has NO session lifecycle that maintains
-  // its status — nothing ever flips it to in_progress on a turn start or
-  // back to backlog on a turn end. So a persisted in_progress/done on a
-  // main row is junk. Reset a main row to a neutral backlog so the
-  // project's liveness comes ONLY from a real live engine handle.
+  // Nothing maintains a `main` task's status across turns, so a persisted
+  // in_progress/done there is junk: reset to backlog so project liveness
+  // comes ONLY from a real live engine handle.
   const kind: Task["kind"] = v.kind === "main" ? "main" : v.kind === "dir" ? "dir" : "task"
   // Scratch only means anything on a dir task — a corrupt flag elsewhere is
   // dropped rather than inventing a Scratch worktree row.
@@ -76,64 +71,38 @@ export function coerceTask(value: unknown): Task | null {
     ...(scratch ? { scratch: true } : {}),
     ...(routine ? { routine } : {}),
     vendor: coerceVendorId(typeof v.vendor === "string" ? v.vendor : undefined),
-    // Raw launch command (`add --command` / `set-command`) — must survive
-    // the load coercion or the task falls back to its protocol's preset on
-    // every daemon restart, silently dropping the user's own command line.
+    // Raw launch command; lost, the task falls back to its protocol's preset.
     ...(typeof v.command === "string" && v.command.trim().length > 0 ? { command: v.command } : {}),
     prStatus: coercePRStatus(v.prStatus),
-    // Engine reasoning/effort level — must survive the load coercion or the
-    // task forgets its effort on every daemon restart.
     ...(typeof v.modelEffort === "string" && v.modelEffort.length > 0 ? { modelEffort: v.modelEffort } : {}),
-    // Pinned model — same rule.
     ...(typeof v.model === "string" && v.model.length > 0 ? { model: v.model } : {}),
     ...(typeof v.tier === "string" && v.tier.length > 0 ? { tier: v.tier } : {}),
-    // Fan-out round marker — must survive the load coercion or siblings
-    // lose their grouping on every daemon restart.
+    // Fan-out round marker: siblings' grouping.
     ...(typeof v.groupId === "string" && v.groupId.length > 0 ? { groupId: v.groupId } : {}),
-    // Observed user language — must survive the load coercion or a daemon
-    // restart silently reverts injected prompts to English for a user who
-    // never writes it. Same failure mode as the fields above: absent from
-    // this list, the field writes fine and vanishes on load.
+    // Lost, injected prompts revert to English for a user who never writes it.
     ...(v.observedLanguage === "zh" || v.observedLanguage === "en" ? { observedLanguage: v.observedLanguage } : {}),
     ...(deletion ? { deletion } : {}),
-    // The optional records below were written to disk but silently dropped
-    // on load, so each survived only until the next daemon restart: a
-    // pending quota resume was forgotten by the very runner whose
-    // durability rationale is "absolute timestamp on disk", and a task
-    // lost the tracker item it was started from.
+    // A pending quota resume's durability rests on this timestamp being on disk.
     ...(quotaResume ? { quotaResume } : {}),
     ...(linkedWorkItem ? { linkedWorkItem } : {}),
-    // Reply address for the collaboration loop — must survive the
-    // load coercion or a daemon restart severs every sub-task's route home.
-    // Records that predate the field normalize to undefined.
+    // Sub-task's route home in the collaboration loop; older records → undefined.
     ...(dispatcher ? { dispatcher } : {}),
-    // The task brief (`add --prompt`) — must survive the load coercion or a
-    // daemon restart destroys the only durable copy of what the task was
-    // asked to do (the engine transcript does not survive the engine).
+    // The only durable copy of the brief; the engine transcript dies with the engine.
     ...(typeof v.prompt === "string" && v.prompt.length > 0 ? { prompt: v.prompt } : {}),
-    // Recorded fork point (`add --base-branch`) — must survive the load
-    // coercion or a daemon restart loses it before the lazy worktree
-    // materialises (branches then silently cut from the guessed base), and
-    // `collect`'s ahead/diffstat signals revert to the wrong comparison ref.
+    // Fork point: lost before the lazy worktree materialises, the branch is
+    // cut from a guessed base and `collect` compares against the wrong ref.
     ...(typeof v.baseRef === "string" && v.baseRef.trim().length > 0 ? { baseRef: v.baseRef } : {}),
-    // Caller-chosen worktree directory (`add --worktree-name`). Same reason
-    // `baseRef` survives the coercion: allocation is lazy, so a restart
-    // between create and first enter would otherwise hand the task a random
-    // animal name after the caller was told which path to expect.
+    // Caller-chosen worktree dir; allocation is lazy, so losing it would hand
+    // out a random name after the caller was told the path.
     ...(typeof v.worktreeName === "string" && v.worktreeName.trim().length > 0 ? { worktreeName: v.worktreeName } : {}),
-    // The worker's own outcome claim (`set-status --report-*`) — durable so a
-    // dispatcher reading `collect` days later still sees what was reported.
+    // Worker's outcome claim, read by `collect` long after the fact.
     ...(report ? { report } : {}),
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
   }
 }
 
-/**
- * A worker's `set-status --report-*` claim. Every field is optional, so the
- * only thing that makes a report a report is its timestamp — an object
- * without one is a malformed row, not a report with a missing field.
- */
+/** A `set-status --report-*` claim; only its timestamp is required, so none → malformed. */
 function coerceWorkerReport(value: unknown): TaskWorkerReport | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
   const v = value as Record<string, unknown>
@@ -154,9 +123,8 @@ function coerceDispatcher(value: unknown): TaskDispatcher | undefined {
   return { taskId: v.taskId, tabId: v.tabId }
 }
 
-/** Routine back-pointer. A link with no automation id is junk —
- *  dropped, so the task reads as an ordinary one rather than folding itself
- *  behind a routine section that can never be resolved back to a schedule. */
+/** Routine back-pointer. No automation id → dropped, so the task reads as
+ *  ordinary instead of folding behind an unresolvable routine section. */
 function coerceRoutine(value: unknown): TaskRoutineLink | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
   const v = value as Record<string, unknown>
@@ -197,8 +165,7 @@ function coerceDeletion(value: unknown): TaskDeletionState | undefined {
   return {
     phase: v.phase,
     force: v.force,
-    // Delete-branch opt-in — must survive the load coercion or a daemon
-    // restart silently downgrades the user's "delete branch too" to keep.
+    // Lost, a restart downgrades "delete branch too" to keep.
     ...(typeof v.deleteBranch === "boolean" ? { deleteBranch: v.deleteBranch } : {}),
     requestedAt: v.requestedAt,
     ...(typeof v.error === "string" ? { error: v.error } : {}),

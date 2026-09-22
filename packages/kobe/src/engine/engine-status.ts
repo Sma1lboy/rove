@@ -2,26 +2,17 @@
  * "Can Rove launch this engine here, and is it logged in?" — for ANY engine
  * id, not just the four with a dedicated account detector.
  *
- * WHICH detector runs is the registry's call, not this file's: an engine's
- * entry either carries a `detectAccount` or it doesn't, so adding a built-in
- * is one edit there. A vendor→detector table here would be a second list to
- * keep in sync, and the one that silently loses is this one — an engine
- * missing from it reads as "login not detectable" even with a working
- * detector wired in its entry.
+ * WHICH detector runs is the registry entry's `detectAccount`, not a table
+ * here — a second list would silently read a missing engine as "login not
+ * detectable".
  *
- * `account-detect.ts` answers both questions for the built-ins (claude /
- * codex / copilot / kimi), each against its own credential file. Everything
- * else Rove can launch — the shipped contrib catalog, plugin-registered
- * engines, engines the user added — has no account detector by design (that
- * per-vendor work is what promotes an engine to built-in). The *binary*
- * question is still answerable for all of them: probe `argv[0]` of the launch
- * command the task would actually run, override included. So Settings →
- * Accounts can cover every engine in the list, with `account: null` meaning
- * "no detector for this engine" — never "not logged in".
+ * Built-ins (claude / codex / copilot / kimi) have account detectors in
+ * `account-detect.ts`. Contrib, plugin and user engines have none by design;
+ * for them only the binary is probed (`argv[0]` of the real launch command,
+ * override included). `account: null` means "no detector" — never "not logged in".
  *
- * A built-in whose dedicated finder misses falls back to the same launch-command
- * probe, so pointing `engineCommand.claude` at an off-PATH binary stops reading
- * as "not found".
+ * A built-in whose dedicated finder misses falls back to the launch-command
+ * probe, so an off-PATH `engineCommand.claude` isn't reported "not found".
  */
 
 import { spawnSync } from "node:child_process"
@@ -125,16 +116,12 @@ export function detectEngineStatuses(
 
 /**
  * One-line description of any built-in engine's account, for plain-text
- * surfaces (`rove doctor`). Switches on the account KIND, never on a vendor:
- * the arms (`oauth` / `chatgpt` / `apikey` / `token` / `none`) are already
- * shared across the union, which is why one function covers every engine —
- * and why doctor's three per-vendor label functions were three copies of
- * this. Settings renders the same union its own way (themed + i18n); this is
- * the string form.
+ * surfaces (`rove doctor`). Switches on the account KIND (`oauth` / `chatgpt` /
+ * `apikey` / `token` / `none`), never on a vendor. Settings renders the same
+ * union themed + i18n.
  *
- * `null` = no account detector for this engine (contrib / plugin / custom),
- * which is NOT "not logged in" — say so rather than implying a logged-out
- * account we never looked for.
+ * `null` = no account detector (contrib / plugin / custom), which is NOT "not
+ * logged in" — say so.
  */
 export function describeAccount(account: EngineAccount | null): string {
   if (account === null) return "login not detectable"
@@ -167,12 +154,9 @@ function engineUsable(status: EngineStatus): boolean {
  * (built-ins + the user's own) plus the contrib engines whose binary is
  * actually on PATH.
  *
- * `listPresetIds()` alone omits the whole contrib catalog, so a user whose
- * only CLI is `opencode` was told "no usable engine" by the two surfaces meant
- * to diagnose exactly that — `rove doctor` and the setup wizard — while the
- * new-task dialog offered opencode and ran it fine. Contrib engines that are
- * NOT installed stay out: six `✗ not found on PATH` rows for engines the user
- * never asked about is noise, not a diagnosis.
+ * `listPresetIds()` alone omits contrib engines, so `rove doctor` and the setup
+ * wizard would call an opencode-only machine "no usable engine". Uninstalled
+ * contrib engines stay out — `✗ not found` rows for them are noise.
  */
 export async function probeableEngineIds(): Promise<readonly VendorId[]> {
   return [...new Set<VendorId>([...listPresetIds(), ...(await installedEngineIds())])]
@@ -182,16 +166,15 @@ export async function probeableEngineIds(): Promise<readonly VendorId[]> {
 export interface EngineReadiness {
   /** Could run a task right now (binary present, and logged in where readable). */
   readonly usable: readonly VendorId[]
-  /** Binary on PATH, but the login Rove CAN read says there is no account.
-   *  The common new-user state, and the one that used to render as `✓`. */
+  /** Binary on PATH, but the login Rove CAN read says there is no account
+   *  (the common new-user state). */
   readonly signedOut: readonly VendorId[]
 }
 
 /**
  * Split statuses into "can run a task" and "installed but not signed in".
- * The second bucket is the whole point: `usable.length === 0` alone cannot
- * tell a machine with no CLI at all from one CLI away from working, and those
- * two states need opposite remedies (install vs. run it once and log in).
+ * `usable.length === 0` alone can't tell "no CLI" (install) from "one login
+ * away" (run it once and log in).
  */
 export function summarizeEngines(statuses: readonly EngineStatus[]): EngineReadiness {
   const usable: VendorId[] = []

@@ -2,15 +2,11 @@
  * Where each vendor's CLI keeps its own state, and the files inside it that
  * Rove reads.
  *
- * The env-var names below are the contract each vendor CLI honors, so a
- * drift between two copies of this derivation is a correctness bug that only
- * shows up under an isolated profile (a `CLAUDE_CONFIG_DIR` sandbox, the
- * dev-sandbox `HOME`) — which is exactly where it is hardest to notice. It
- * was written out nine times across six files before this module existed.
+ * The env-var names are each CLI's contract; a second copy of this
+ * derivation drifts silently and only bites under an isolated profile.
  *
- * Read per call, never cached: a module-level `const` would freeze whichever
- * profile happened to be set at import time and silently write to the real
- * `~/.claude`.
+ * Read per call, never cached: a module-level `const` would freeze the
+ * import-time profile and silently write to the real `~/.claude`.
  */
 
 import { homedir } from "node:os"
@@ -33,21 +29,16 @@ const VENDOR_HOMES: Readonly<Record<ConfigHomeVendor, { readonly envVar: string;
 }
 
 /**
- * The pi coding-agent family — `omp` is Stencil Labs' fork of
- * `@earendil-works/pi-coding-agent`, and both keep the same layout and the
- * same `PI_CODING_AGENT_DIR` override. Verified against the installed
- * binaries on 2026-09-11: omp 18.1.17 carries the var nine times in its
- * bundle and its `--help` documents it; pi 0.80.6 derives it as
- * `${APP_NAME.toUpperCase()}_CODING_AGENT_DIR` with APP_NAME `pi`. The two
- * differ only in their DEFAULT directory, which is why the map is keyed by
- * vendor rather than by env var. */
+ * The pi coding-agent family — `omp` forks `@earendil-works/pi-coding-agent`
+ * and shares its layout and `PI_CODING_AGENT_DIR` override (verified: omp
+ * 18.1.17 documents it in `--help`; pi 0.80.6 derives it from APP_NAME `pi`).
+ * They differ only in the default directory, hence keyed by vendor. */
 const AGENT_DIR_VENDORS: Readonly<Record<AgentDirVendor, { readonly envVar: string; readonly dirName: string }>> = {
   pi: { envVar: "PI_CODING_AGENT_DIR", dirName: ".pi" },
   omp: { envVar: "PI_CODING_AGENT_DIR", dirName: ".omp" },
 }
 
-/** Env/home injection. Defaults read the live process, which is what every
- *  non-test caller wants. */
+/** Env/home injection; defaults read the live process. */
 export interface VendorHomeDeps {
   env(name: string): string | undefined
   home(): string
@@ -63,11 +54,7 @@ export function vendorWriteHomeDeps(home?: string): VendorHomeDeps {
   return home === undefined ? defaultVendorHomeDeps : { env: () => undefined, home: () => home }
 }
 
-/**
- * The vendor's config directory. An override that is empty or whitespace
- * counts as unset — `.trim()` was already reaching for that, and treating
- * `CODEX_HOME=""` as a real path would send reads to the filesystem root.
- */
+/** The vendor's config directory. An empty/whitespace override counts as unset — `CODEX_HOME=""` would otherwise read from the filesystem root. */
 export function vendorConfigHome(vendor: ConfigHomeVendor, deps: VendorHomeDeps = defaultVendorHomeDeps): string {
   const { envVar, dirName } = VENDOR_HOMES[vendor]
   const override = deps.env(envVar)?.trim()
@@ -78,11 +65,9 @@ export function vendorConfigHome(vendor: ConfigHomeVendor, deps: VendorHomeDeps 
 /**
  * The pi/omp AGENT directory (`~/.pi/agent`, `~/.omp/agent` by default).
  *
- * NOT `vendorConfigHome`: those two are the only vendors whose override
- * points at the agent directory itself instead of a config home with
- * `agent/` beneath it. Feeding `PI_CODING_AGENT_DIR` through the config-home
- * resolver would look for `<override>/agent/extensions` and write Rove's
- * hook where the CLI never reads.
+ * NOT `vendorConfigHome`: this override names the agent dir itself, so the
+ * config-home resolver would write Rove's hook to `<override>/agent/extensions`,
+ * where the CLI never reads.
  */
 export function vendorAgentDir(vendor: AgentDirVendor, deps: VendorHomeDeps = defaultVendorHomeDeps): string {
   const { envVar, dirName } = AGENT_DIR_VENDORS[vendor]

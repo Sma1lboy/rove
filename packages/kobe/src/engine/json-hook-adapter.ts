@@ -1,15 +1,11 @@
 /**
  * Abstract base for engine hook adapters whose engine uses the shared
  * settings.json hook shape (Claude Code's `~/.claude/settings.json`, Codex's
- * `~/.codex/hooks.json`). It owns EVERYTHING vendor-neutral: the best-effort
- * read→merge→write I/O and the four install/remove methods, all delegating to
- * the pure merge core in `./json-hooks`. A concrete adapter supplies only its
- * vendor id, its event→verb table ({@link eventMap}), and its settings path —
- * plus any vendor-specific override (Claude adds `error_type`/permission detail
- * decoding + the legacy `WorktreeCreate` cleanup).
- *
- * This is the seam the architecture promises: "adding a new engine = a new
- * adapter file." For a same-shape engine that file is ~3 members.
+ * `~/.codex/hooks.json`). Owns everything vendor-neutral: best-effort
+ * read→merge→write I/O and the four install/remove methods, delegating to the
+ * pure merge core in `./json-hooks`. A concrete adapter supplies its vendor id,
+ * event→verb table ({@link eventMap}), settings path, and any override (Claude
+ * adds `error_type`/permission decoding + legacy `WorktreeCreate` cleanup).
  */
 
 import type { VendorId } from "../types/vendor.ts"
@@ -32,25 +28,20 @@ import { updateSharedJson } from "./shared-config-write.ts"
  * transform is a no-op (the default-on installers run on every launch; don't
  * churn the user's file mtime / VCS status when the hooks are already in place).
  *
- * The file is shared with the engine itself and with Rove's other two
- * processes, so the read-merge-write runs under the compare-and-swap in
- * `./shared-config-write.ts` (read its module doc — the guarantee is partial by
- * design) and lands via tmp+rename, never a write straight onto the live file a
- * starting session may be reading.
+ * The file is shared with the engine and Rove's other two processes, so the
+ * write runs under the compare-and-swap in `./shared-config-write.ts` (its
+ * guarantee is partial by design) and lands via tmp+rename, never onto the
+ * live file a starting session may be reading.
  *
- * Best-effort: a failure to read/parse/write must never block a launch — it is
- * REPORTED rather than thrown ({@link HookEditOutcome}). Reporting is the
- * caller's job so the noise lands once: `ensureGlobalKobeHooks` runs an
- * install and two removals over the same file on every launch, and three
- * lines about one file is how a real signal gets read as boilerplate.
+ * Best-effort: failure never blocks a launch; it is REPORTED, not thrown
+ * ({@link HookEditOutcome}), and the caller reports once — `ensureGlobalKobeHooks`
+ * runs three edits on this file every launch.
  */
 export async function editJsonSettings(
   settingsFilePath: string,
   transform: (current: Record<string, unknown>) => Record<string, unknown>,
-  /** The shape validator for THIS engine's hook file. Defaults to the
-   *  Claude/Codex group shape; Cursor's `hooks.json` nests differently and
-   *  passes its own, so it reuses the lock + tmp+rename + skip-if-unchanged
-   *  mechanics below instead of copying them. */
+  /** Shape validator for THIS engine's hook file. Defaults to the Claude/Codex
+   *  group shape; Cursor's `hooks.json` nests differently and passes its own. */
   parse: (raw: string | undefined) => HookSettingsParse = parseHookSettings,
 ): Promise<HookEditOutcome> {
   // Set by the loader when it refuses the document. The loader signals refusal
@@ -61,9 +52,8 @@ export async function editJsonSettings(
     await updateSharedJson(
       settingsFilePath,
       (raw) => {
-        // A missing file starts empty; a document we cannot understand abandons
-        // the write so a best-effort install never clobbers an existing engine
-        // configuration.
+        // Missing file starts empty; an unreadable document abandons the write
+        // so we never clobber the engine's config.
         const parsed = parse(raw)
         if (parsed.ok) return parsed.doc
         rejected = parsed.reason
@@ -132,17 +122,15 @@ export abstract class JsonHookAdapter implements EngineHookAdapter {
     const gated = this.gatedVerbs()
     const outcome = await editJsonSettings(settingsFilePath, (cur) =>
       mergeActivityHooks(cur, true, this.eventMap, undefined, {
-        // Phase 0 (docs/design/plugin-events.md): tag the report with the
-        // vendor so `kobe hook` decodes with the right adapter, not a guess,
-        // and with the shape version so a later Rove can tell its own old
-        // entry from a current one.
+        // Tag with the vendor so `kobe hook` picks the right decoder, and the
+        // shape version so a later Rove can spot its own old entries
+        // (docs/design/plugin-events.md).
         extraArgs: roveHookArgs(this.vendor),
         buildFilter: (spec) => opts.toolEvents === true || !gated.has(spec.verb),
       }),
     )
-    // stderr, not a throw: under `rove daemon` this lands in daemon.log, which
-    // is where `rove doctor` sends a reader whose hook channel is dead. The
-    // removals stay silent — this is the write whose absence costs the badges.
+    // stderr, not a throw: under `rove daemon` it lands in daemon.log, where
+    // `rove doctor` points. Removals stay silent — only this write costs badges.
     if (!outcome.ok && !opts.quiet) {
       process.stderr.write(`[rove hooks] ${this.vendor}: skipped ${outcome.file}: ${outcome.reason}\n`)
     }

@@ -1,27 +1,20 @@
 /**
  * How each engine reports its state to Rove, read off this machine.
  *
- * Rove learns "what is this engine doing" through three independent layers,
- * and which of them an engine HAS is a fact about that engine, not a health
- * score. Top to bottom (`tui/workspace/turn-state-merge.ts` owns the
- * precedence, this module never restates it):
+ * Three independent reporting layers; which ones an engine HAS is a fact, not
+ * a health score. Precedence is owned by `tui/workspace/turn-state-merge.ts`.
  *
- *   1. HOOKS — the engine reports events itself (`hook-adapter.ts`). The only
- *      layer that needs INSTALLING, so it is the only one with a disk state.
- *   2. COMPLETION MARKERS — the engine persists a turn-completion marker in
- *      its transcript that Rove can read back (`turn-detector.ts`).
- *   3. SCREEN — declarative rules over the pane capture (`screen-state.ts`),
- *      for engines whose own reporting cannot cover a state.
+ *   1. HOOKS (`hook-adapter.ts`): the only layer that needs INSTALLING, so
+ *      the only one with a disk state.
+ *   2. COMPLETION MARKERS in the transcript (`turn-detector.ts`).
+ *   3. SCREEN rules over the pane capture (`screen-state.ts`).
  *
- * An engine missing a layer is not a defect: claude's hooks report session,
- * turn start/complete/failed AND the permission prompt, so it needs no screen
- * rules — and could not use them anyway, because `mergeTurnStates` lets any
- * live hook claim win over the poll.
+ * A missing layer is not a defect: claude's hooks cover every state, and any
+ * live hook claim beats the poll in `mergeTurnStates` anyway.
  *
- * Its own file rather than `cli/hook-cmd.ts` for the reason
- * `hook-config-check.ts` gives about `doctor`: a read-only status surface must
- * not take a runtime edge on a CLI verb's module, which lands as a bundle-only
- * TDZ crash in a neighbouring verb that neither tsc nor unit tests see.
+ * Not in `cli/hook-cmd.ts`: a runtime edge from a status surface onto a CLI
+ * verb's module lands as a bundle-only TDZ crash neither tsc nor unit tests
+ * see (see `hook-config-check.ts`).
  */
 
 import { readFileSync } from "node:fs"
@@ -35,12 +28,9 @@ import { engineEntry } from "./registry.ts"
 /**
  * What is on disk for an engine's activity hooks.
  *
- * `outdated` covers BOTH an entry stamped with an older {@link
- * ROVE_HOOK_VERSION} and one stamped with nothing at all — every install
- * written before the stamp existed. Reporting those as `installed` is what
- * this whole read exists to stop; reporting them as `not-installed` would be
- * a different lie, and would hide that the launch rewrite has something to
- * replace.
+ * `outdated` covers BOTH an older {@link ROVE_HOOK_VERSION} stamp and no stamp
+ * at all. Not `not-installed`: that would hide that the launch rewrite has
+ * something to replace.
  */
 export type HookInstallState = "installed" | "outdated" | "not-installed"
 
@@ -48,11 +38,9 @@ export type HookInstallState = "installed" | "outdated" | "not-installed"
 const VERB_ALTERNATION = ENGINE_ACTIVITY_KINDS.join("|")
 
 /**
- * One persisted hook invocation plus its trailing flags. Deliberately a TEXT
- * scan rather than a per-format parse: the four adapters write the same argv
- * into three containers (Claude/Codex JSON, Kimi TOML, and — as a header
- * comment — the pi-family extension module), and a scan reads all three
- * without this module learning any of their shapes.
+ * One persisted hook invocation plus its trailing flags. A TEXT scan, not a
+ * per-format parse, so it reads JSON (Claude/Codex), TOML (Kimi) and the
+ * pi-family extension's header comment without learning their shapes.
  */
 const HOOK_CALL = new RegExp(String.raw`\bhook\s+(?:${VERB_ALTERNATION})\b([^"'\n]*)`, "g")
 const VERSION_FLAG = /--hook-version[ =]+(\d+)/
@@ -94,25 +82,19 @@ export interface EngineIntegration {
   /** The engine declares screen-classification rules. */
   readonly screen: boolean
   /**
-   * Why the hook merge into {@link hookFile} is being REFUSED, when it is.
-   * Today the only symptom of a refused file is latency — every badge falls
-   * back to the daemon's ~10s poll — and nothing says which file did it
-   * unless someone thinks to run `rove doctor`.
+   * Why the hook merge into {@link hookFile} is REFUSED, when it is. Otherwise
+   * the only symptom is latency (badges fall back to the daemon's ~10s poll).
    */
   readonly configIssue?: string
 }
 
 /**
- * Read one engine's integration row. Never throws: an unreadable or missing
- * config is `not-installed` (the first-launch case), which is what the
- * install action exists to fix.
+ * Read one engine's integration row. Never throws: a missing or unreadable
+ * config is `not-installed`.
  *
- * `adapter` comes from {@link activityHookAdapters}, which is the ONE answer
- * to "which engines get hooks" — the installer reads the same list. Asking
- * the registry here instead would be a second derivation, and the one that
- * goes stale: a hook adapter is no longer a built-in privilege (cursor is a
- * contrib entry that declares one), so the two lists have already diverged
- * once. `undefined` = this engine is not in that list.
+ * `adapter` comes from {@link activityHookAdapters}, the ONE list the
+ * installer also reads; deriving it from the registry would drift (contrib
+ * entries like cursor declare adapters too). `undefined` = not in that list.
  */
 function integrationFor(
   vendor: VendorId,
@@ -143,12 +125,9 @@ function integrationFor(
 }
 
 /**
- * Integration rows for the engines the caller lists — built-ins, the shipped
- * contrib catalog, plugin-registered and user-added ids alike. The vendor list
- * is a PARAMETER rather than something this module enumerates: the set of
- * engines Rove can launch is assembled from several sources that change at
- * runtime, and a second list here would be the one that silently goes stale
- * when an engine joins one of them.
+ * Integration rows for the engines the caller lists. A PARAMETER because the
+ * launchable set is assembled at runtime from several sources; a second list
+ * here would silently go stale.
  */
 export function engineIntegrations(vendors: readonly VendorId[]): EngineIntegration[] {
   const issues = new Map(hookConfigIssues().map((issue) => [issue.file, issue.reason]))
@@ -161,10 +140,8 @@ export function enginesNeedingHookInstall(rows: readonly EngineIntegration[]): r
   return rows.filter((row) => row.hooksSupported && row.hookState !== "installed").map((row) => row.vendor)
 }
 
-/** Engines a single uninstall would actually change — anything with hooks on
- *  disk, current or stale. The mirror of {@link enginesNeedingHookInstall},
- *  so the two buttons never both read "nothing to do" while a file has
- *  Rove's entries in it. */
+/** Engines a single uninstall would change: any hooks on disk, current or
+ *  stale, so install and uninstall never both read "nothing to do". */
 export function enginesWithHooksInstalled(rows: readonly EngineIntegration[]): readonly VendorId[] {
   return rows.filter((row) => row.hooksSupported && row.hookState !== "not-installed").map((row) => row.vendor)
 }

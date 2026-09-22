@@ -3,18 +3,12 @@
  * engines WITHOUT persisted completion markers (copilot, kimi's no-hook
  * mode, future plugin-registered engines).
  *
- * The quiescence poll already captures each engine pane's text; for
- * marker-less engines it could only ever say "unknown". This module turns
- * that capture into working / blocked / idle by evaluating an engine-owned
- * rule list against the visible bottom of the screen, with three checks:
- * substring conjunction, substring alternation, and per-line regex.
+ * Turns the quiescence poll's pane capture into working / blocked / idle by
+ * evaluating an engine-owned rule list against the bottom of the screen.
  *
- * DATA, not code, on purpose: an engine (or later a plugin) declares a
- * manifest; no neutral layer names a vendor. First matching rule wins, so
- * blocked rules go before working rules. A null answer means "no rule
- * matched" — callers keep their previous reading rather than flapping.
- *
- * Pure (no I/O), so it's unit-tested directly.
+ * DATA, not code: engines and plugins declare a manifest, so no neutral layer
+ * names a vendor. First match wins (blocked before working); null = no match,
+ * and callers keep their previous reading rather than flapping. Pure.
  */
 
 /** One classification rule. All present conditions must hold. */

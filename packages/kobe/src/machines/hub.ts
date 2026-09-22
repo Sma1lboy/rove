@@ -1,21 +1,15 @@
 /**
  * The machine hub: one `RemoteOrchestrator` per machine, one merged task list.
+ * Every machine is connected at once and its tasks stamped with a
+ * {@link TaskOrigin}; there is no "current machine".
  *
- * Multiplexing, not switching. Every registered machine is connected at once
- * and its tasks are merged into the list the sidebar renders, each stamped
- * with a {@link TaskOrigin}. There is no "current machine" — the tree IS the
- * answer to "what is running where".
+ * With NO machines registered it does nothing: the local task signal is
+ * returned unchanged, object identity included, so a zero-machine install
+ * renders and serializes byte-for-byte as without this module.
  *
- * With NO machines registered, this module does nothing at all: `attach`
- * returns early and the local orchestrator's task signal is handed back
- * unchanged, object identity included. That is the regression guard — the
- * zero-machine install must render and serialize byte-for-byte what it did
- * before machines existed.
- *
- * PR 1 is READ-ONLY across the tunnel. Writes aimed at a remote task are
- * refused by {@link guardRemoteTaskRequests} rather than silently landing on
- * the local daemon, which is what would otherwise happen: the local daemon
- * would simply not know that id.
+ * READ-ONLY across the tunnel: writes aimed at a remote task are refused by
+ * {@link guardRemoteTaskRequests} instead of landing on the local daemon,
+ * which would not know that id.
  */
 
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
@@ -40,16 +34,8 @@ import { type TunnelHandle, startTunnel } from "./tunnel.ts"
 /** What a machine row in the sidebar renders from. */
 export interface MachineStatus {
   readonly alias: string
-  /**
-   * What the machine is CALLED on screen — the alias, always.
-   *
-   * Not the remote hostname. The alias is the name the user chose for this
-   * machine, and they chose it because it is short: a real hostname
-   * (`Nahuels-Mac-mini.local`) fills the whole sidebar rail and turns a
-   * disambiguated repo into `Nahuels-Mac-mini.local:kobe`. The hostname stays
-   * where it answers a different question — `machine list`, and the identity
-   * triple that recognizes two aliases as one machine.
-   */
+  /** On-screen name — always the alias, never the hostname: a real hostname
+   *  (`Nahuels-Mac-mini.local`) fills the sidebar rail. */
   readonly hostLabel: string
   /** The machine's own hostname, once a handshake reported it. */
   readonly hostname?: string
@@ -85,13 +71,7 @@ export class MachineHub {
     return this.machinesAcc
   }
 
-  /**
-   * The task list the UI should render.
-   *
-   * Returns the LOCAL orchestrator's own signal when no machine is registered
-   * — same cell, same identity, so nothing downstream can tell this class
-   * exists. Only a real machine puts a merging cell in the path.
-   */
+  /** With no machine registered, the LOCAL signal itself (same identity). */
   tasksSignal(): ReadableState<Task[]> {
     if (this.slots.size === 0) return this.local.tasksSignal()
     return this.mergedAcc
@@ -105,14 +85,9 @@ export class MachineHub {
   }
 
   /**
-   * Register every machine and start connecting.
-   *
-   * SYNCHRONOUS on purpose. The signals this returns to must be stable from
-   * the first render — `tasksSignal()` picks its cell by whether any machine
-   * exists — so the slots have to be in place before the UI mounts, while the
-   * SSH probe behind each of them may take a lidded laptop's worth of time. A
-   * machine that is asleep must never delay the ones that are awake, so each
-   * slot reports its own state as it settles and none of them are awaited.
+   * SYNCHRONOUS on purpose: `tasksSignal()` picks its cell by whether any
+   * machine exists, so slots must be in place before the UI mounts. Connections
+   * are not awaited — an asleep machine must never delay the awake ones.
    */
   attach(): void {
     const entries = dedupeMachines(listMachines())
@@ -131,9 +106,8 @@ export class MachineHub {
     if (!slot || this.disposed) return
     const found = await discoverMachine(entry.alias, entry)
     if (this.disposed) return
-    // A probe that failed is not fatal when we already know where that machine
-    // listens: the paths do not move, and reusing them lets the tunnel's own
-    // backoff be what waits for a machine that is merely asleep.
+    // A failed probe falls back to the known socket paths (they don't move),
+    // so the tunnel's backoff waits out a machine that is merely asleep.
     const sockets = found.ok ? { daemon: found.status.socketPath, pty: found.status.ptySocketPath } : entry.sockets
     if (!sockets) {
       this.setStatus(entry.alias, { state: "offline", error: found.ok ? undefined : found.message })
@@ -156,9 +130,7 @@ export class MachineHub {
     }
     tunnel.onState((state) => {
       if (state === "online") void this.openOrchestrator(entry, tunnel)
-      // A dropped tunnel does NOT drop the machine's rows: the last snapshot
-      // stays on screen, greyed, because a laptop that closed its lid has not
-      // stopped having those tasks. See `docs/MACHINES.md`.
+      // A dropped tunnel keeps the last snapshot on screen, greyed. See `docs/MACHINES.md`.
       else if (state === "offline") {
         this.setStatus(entry.alias, { state: "offline" })
         this.republishTasks()
@@ -172,12 +144,9 @@ export class MachineHub {
     if (!slot || this.disposed || slot.orchestrator) return
     const client = new KobeDaemonClient(tunnel.daemonSocketPath)
     const orchestrator = new RemoteOrchestrator(client, {
-      // `gui`, not `pane`: this connection holds the remote daemon open for as
-      // long as its rows are on screen. A pane-role watcher does not take that
-      // refcount, so the remote daemon idle-stopped three seconds after its
-      // own last window closed and the machine row flapped online → offline →
-      // online while somebody was looking straight at it. Someone IS looking
-      // at that machine, which is exactly what the refcount counts.
+      // `gui`, not `pane`: holds the remote daemon's refcount while its rows are
+      // on screen; a pane watcher doesn't, and the remote daemon idle-stops ~3s
+      // after its own last window closes, flapping the row.
       role: "gui",
       expectForeignHome: true,
       onPeerIdentity: (peer) => this.onPeerIdentity(entry.alias, peer),
@@ -195,12 +164,8 @@ export class MachineHub {
       slot.tasks = orchestrator.tasksSignal().get()
       this.republishTasks()
     })
-    // The daemon's own connection state, not just the tunnel's. A forwarded
-    // socket keeps ACCEPTING after the far daemon dies — ssh answers locally
-    // and only then discovers there is nothing behind it — so a liveness poll
-    // on the socket alone reports a machine as online while its Rove is gone.
-    // The orchestrator is the layer that actually talks to that daemon, so its
-    // verdict is the one the row shows.
+    // The daemon's connection state, not the tunnel's: a forwarded socket keeps
+    // ACCEPTING after the far daemon dies (ssh answers locally).
     const stopConnection = orchestrator.connectionStateSignal().subscribe(() => {
       const connected = orchestrator.connectionStateSignal().get() === "online"
       if (this.slots.get(entry.alias) !== slot) return
@@ -248,12 +213,8 @@ export class MachineHub {
     )
   }
 
-  /**
-   * Rebuild the merged list: local tasks first (stamped `local`), then each
-   * machine's, in registration order. Stamping the LOCAL ones too is what
-   * makes `origin` answerable for every row rather than only the remote ones —
-   * a consumer should never have to read "absent" as "local".
-   */
+  /** Local tasks first, then each machine's in registration order. Local ones are
+   *  stamped too, so no consumer has to read an absent `origin` as "local". */
   private republishTasks(): void {
     const merged: Task[] = this.local
       .tasksSignal()
@@ -282,17 +243,9 @@ export class MachineHub {
 }
 
 /**
- * What a failed handshake means for the machine's row.
- *
- * A protocol-range mismatch is that ONE machine's problem: the other machines
- * keep working and its row says what is wrong with it, rather than the failure
- * reaching the top level as if Rove were broken. `performInit` phrases that
- * rejection as "Rove daemon is protocol vN (min vM)" on the client side and
- * "daemon is protocol vN" on the daemon side — both name a protocol version,
- * which nothing else in the handshake path does.
- *
- * Everything else is `offline`: unreachable, wedged, or gone. Pure, so the
- * classification is tested without a daemon to be incompatible with.
+ * A protocol mismatch is that ONE machine's problem, shown on its row. Both
+ * sides of `performInit` phrase it with "protocol vN", which nothing else in
+ * the handshake path does. Everything else is `offline`.
  */
 export function classifyHandshakeFailure(message: string): MachineStatus["state"] {
   return /protocol v\d/i.test(message) ? "mismatch" : "offline"
