@@ -12,6 +12,7 @@ configured using Git-style forward slashes without creating a second entry.
 | Path | What | Written by |
 |---|---|---|
 | `~/.config/rove/state.json` | All your preferences, as flat JSON | Rove (Settings, CLI); yours to hand-edit |
+| `~/.rove/secrets.json` | Credentials Rove holds for you (today: the tier classifier's API key) | Settings → Auto routing; **not** part of `state.json`, and never printed |
 | `~/.rove/themes/*.json` | Installed themes | `rove theme add`, or drop files in |
 | `~/.rove/settings/keybindings.yaml` | Keybinding overrides | You only |
 | `<repo>/.rove/init.sh` + `init-prompt.md` | Per-repo worktree setup | You (committed to the repo) |
@@ -171,6 +172,7 @@ it off, `r` is the only thing that repopulates the list.
 | `autoRouting.classifierThreshold` | number, 0–1 | `0.5` | Confidence below which no tier is picked. A value outside the range is refused and the default used |
 | `autoRouting.classifierTimeoutMs` | number, 200–60000 | `4000` | How long to wait before giving up on the classifier. Outside the range, the default |
 | `autoRouting.classifierModel` | string | `jev-latest` | Model id for `jev`. Pin a version (e.g. `jev-1.13.0`) to stop a silent upgrade |
+| `autoRouting.classifierEndpoint` | string | unset | The custom endpoint Settings remembers while the classifier points elsewhere. Not read by the classifier — `autoRouting.classifier` is |
 | `autoRouting.classifierKeyEnv` | string | `TYPESAFE_API_KEY` | Environment variable holding **jev's** key. The token itself never goes in `state.json` |
 | `autoRouting.classifierCustomKeyEnv` | string | unset | Environment variable holding a **custom endpoint's** key. Unset = no `Authorization` header is sent |
 
@@ -213,14 +215,39 @@ export TYPESAFE_API_KEY=...   # keys: https://console.typesafe.ai/keys
 rove api add --repo ~/code/app --tier auto --prompt "there's a memory leak somewhere"
 ```
 
-The key comes from the environment, under the name the mode's `…KeyEnv`
-setting gives — never from `state.json`, which `rove config` opens, people
-hand-edit, and bug reports get pasted into whole. An empty value counts as
-unset rather than as "deliberately blank", so an `export TYPESAFE_API_KEY=`
-left in a shell profile does not silently disable the key. There is no
-Settings row for this yet, so the environment is the only place it can come
-from — which also means the classifier reaches `rove api add` and not a
-long-running TUI, whose environment was fixed when it started.
+Settings → Auto routing carries all of this as rows — **Classifier** (`off` /
+`jev` / `custom`), **Endpoint**, **Confidence floor**, **API key** — with the
+data-flow sentence above them in every mode, and a line saying where the key
+is coming from, which is the usual reason a switched-on classifier appears to
+do nothing. Everything below is the same settings by hand.
+
+##### Where the key lives
+
+Two places, in this order (and `$TYPESAFE_API_KEY` below means whichever
+variable the current mode reads):
+
+1. **The variable in the environment** — wins whenever it is set, so a one-off
+   `TYPESAFE_API_KEY=… rove …` and a CI secret behave the way you would
+   expect. An empty value counts as unset, not as "deliberately blank".
+2. **`~/.rove/secrets.json`** — what Settings → Auto routing → API key writes.
+   It holds nothing but secrets and is deliberately NOT `state.json`: that
+   file is opened by `rove config`, hand-edited, and pasted whole into bug
+   reports, which is no place for a live key.
+
+The stored key is the only way a running TUI can have one: it is a long-lived
+process, so an `export` typed after it started never reaches it. Settings
+shows the last four characters of a stored key and never the key; submitting
+the field empty clears it, and clearing the last key removes the file. Rename
+the variable with `autoRouting.classifierKeyEnv` and both places follow the
+new name.
+
+> **On Windows, `0600` is not what protects that file.** Rove writes it with
+> owner-only permissions, and on macOS and Linux that is enforced. Node maps
+> POSIX mode bits onto the read-only attribute on Windows; who may open the
+> file is decided by the ACL it inherits from your user profile. That is the
+> same protection every other per-user file there has, and it is weaker than
+> the guarantee on the other two platforms — if that matters for your threat
+> model, keep the key in the environment instead.
 
 Point `autoRouting.classifier` at your own endpoint instead and Rove POSTs
 `{"text": "…"}` and expects `{"tier": "swift|standard|deep", "confidence":
