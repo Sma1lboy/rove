@@ -5,6 +5,14 @@ export function appearanceChoiceLabel(choice: AppearanceChoice, t: ReturnType<ty
   switch (choice.kind) {
     case "theme":
       return choice.value
+    case "themeMode":
+      return t(
+        {
+          dark: "settings.appearance.modeDark",
+          light: "settings.appearance.modeLight",
+          auto: "settings.appearance.modeAuto",
+        }[choice.value],
+      )
     case "transparent":
       return t(choice.value ? "settings.appearance.enabled" : "settings.appearance.disabled")
     case "focusAccent":

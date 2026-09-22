@@ -14,7 +14,14 @@
 
 import { readFileSync } from "node:fs"
 import { kvStatePath } from "../../env.ts"
-import { FOCUS_ACCENT_SLOTS, type FocusAccentSlot, hasBundledTheme } from "../context/theme-core"
+import {
+  DEFAULT_THEME_MODE,
+  FOCUS_ACCENT_SLOTS,
+  type FocusAccentSlot,
+  THEME_MODE_PREFERENCES,
+  type ThemeModePreference,
+  hasBundledTheme,
+} from "../context/theme-core"
 import { DEFAULT_LOCALE, type LocaleId, isLocaleId } from "../i18n/catalog"
 
 /** state.json key holding the persisted UI language. */
@@ -42,6 +49,7 @@ export function defaultTransparentBackground(platform: NodeJS.Platform = process
 export interface PersistedUiPrefs {
   /** Active theme name, validated against the registry (stale names fall back). */
   readonly theme: string
+  readonly themeMode: ThemeModePreference
   readonly transparent: boolean
   readonly focusAccent: FocusAccentSlot | null
   /** Active UI language, validated against the registered locales. */
@@ -70,6 +78,9 @@ export function readPersistedUiPrefs(
       typeof parsed.activeTheme === "string" && isKnownTheme(parsed.activeTheme) ? parsed.activeTheme : fallbackTheme
     // Only an explicitly stored boolean overrides the per-platform default,
     // so nobody's deliberate choice is rewritten by the Windows default.
+    const themeMode = (THEME_MODE_PREFERENCES as readonly unknown[]).includes(parsed.themeMode)
+      ? (parsed.themeMode as ThemeModePreference)
+      : DEFAULT_THEME_MODE
     const transparent =
       typeof parsed.transparentBackground === "boolean" ? parsed.transparentBackground : defaultTransparentBackground()
     const focusAccent =
@@ -77,10 +88,11 @@ export function readPersistedUiPrefs(
         ? (parsed.focusAccent as FocusAccentSlot)
         : null
     const locale = isLocaleId(parsed[LOCALE_KEY]) ? parsed[LOCALE_KEY] : DEFAULT_LOCALE
-    return { theme, transparent, focusAccent, locale }
+    return { theme, themeMode, transparent, focusAccent, locale }
   } catch {
     return {
       theme: fallbackTheme,
+      themeMode: DEFAULT_THEME_MODE,
       transparent: defaultTransparentBackground(),
       focusAccent: null,
       locale: DEFAULT_LOCALE,

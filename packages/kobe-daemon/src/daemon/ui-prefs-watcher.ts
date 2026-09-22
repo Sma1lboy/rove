@@ -55,6 +55,9 @@ export const DEFAULT_UI_PREFS_DEBOUNCE_MS = 200
  */
 const FOCUS_ACCENT_SLOT_NAMES = ["primary", "success", "info"] as const
 
+/** Mirror of `THEME_MODE_PREFERENCES` in the same TUI module, for the same reason. */
+const THEME_MODE_NAMES = ["dark", "light", "auto"] as const
+
 // Path of the shared KV blob — derived in `product-paths.ts`, which the TUI's
 // `kvStatePath()` wraps too. Re-exported here because this module's own
 // importers (collectors, tests) address it by the watcher.
@@ -83,6 +86,10 @@ export function readUiPrefsFromStateFile(statePath: string): UiPrefsPayload {
   // which is the only thing that knows what the default IS. `null` says
   // "state.json has no selection" and lets the registry answer.
   const theme = typeof parsed.activeTheme === "string" && parsed.activeTheme.length > 0 ? parsed.activeTheme : null
+  const themeMode =
+    typeof parsed.themeMode === "string" && (THEME_MODE_NAMES as readonly string[]).includes(parsed.themeMode)
+      ? parsed.themeMode
+      : null
   // Default-true: only an explicit stored `false` opts out.
   const transparentBackground = parsed.transparentBackground !== false
   const focusAccent =
@@ -106,12 +113,13 @@ export function readUiPrefsFromStateFile(statePath: string): UiPrefsPayload {
   // file; the TUI validates it against its registered locales (defaulting
   // to English on anything unknown). Empty/missing → "en".
   const locale = typeof parsed.locale === "string" && parsed.locale.length > 0 ? parsed.locale : "en"
-  return { theme, transparentBackground, focusAccent, locale, sortMode, keysCollapsed, projectFilter }
+  return { theme, themeMode, transparentBackground, focusAccent, locale, sortMode, keysCollapsed, projectFilter }
 }
 
 function samePrefs(a: UiPrefsPayload, b: UiPrefsPayload): boolean {
   return (
     a.theme === b.theme &&
+    a.themeMode === b.themeMode &&
     a.transparentBackground === b.transparentBackground &&
     a.focusAccent === b.focusAccent &&
     a.locale === b.locale &&

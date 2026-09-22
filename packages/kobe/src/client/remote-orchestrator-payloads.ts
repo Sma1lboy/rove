@@ -134,6 +134,9 @@ export function decodeUiPrefsPayload(payload: unknown): UiPrefsPayload | null {
   if (p.theme !== null && typeof p.theme !== "string") return null
   return {
     theme: typeof p.theme === "string" && p.theme.length > 0 ? p.theme : null,
+    // Absent (a daemon older than the field) stays absent, which `applyUiPrefs`
+    // skips; `null` is the file's "unset" and converges on the default.
+    ...("themeMode" in p ? { themeMode: typeof p.themeMode === "string" ? p.themeMode : null } : {}),
     transparentBackground: p.transparentBackground !== false,
     focusAccent: typeof p.focusAccent === "string" ? p.focusAccent : null,
     locale: typeof p.locale === "string" ? p.locale : "",

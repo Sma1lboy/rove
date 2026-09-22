@@ -21,6 +21,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 // don't depend on the full bundled-theme list.
 vi.mock("../../src/tui/context/theme-core", () => ({
   FOCUS_ACCENT_SLOTS: ["primary", "success", "info"] as const,
+  THEME_MODE_PREFERENCES: ["dark", "light", "auto"] as const,
+  DEFAULT_THEME_MODE: "dark",
   hasBundledTheme: (name: string) => ["claude", "tokyonight"].includes(name),
 }))
 
@@ -55,6 +57,7 @@ describe("readPersistedUiPrefs", () => {
     writeState(
       JSON.stringify({
         activeTheme: "tokyonight",
+        themeMode: "auto",
         transparentBackground: true,
         focusAccent: "success",
         locale: "en",
@@ -62,6 +65,7 @@ describe("readPersistedUiPrefs", () => {
     )
     expect(readPersistedUiPrefs("claude")).toEqual({
       theme: "tokyonight",
+      themeMode: "auto",
       transparent: true,
       focusAccent: "success",
       locale: "en",
@@ -92,6 +96,7 @@ describe("readPersistedUiPrefs", () => {
     writeState(
       JSON.stringify({
         activeTheme: "claude",
+        themeMode: "sepia", // unknown → dark, the mode every earlier release drew
         transparentBackground: "yes", // garbage → the platform default; only a real boolean overrides
         focusAccent: "not-a-slot",
         locale: "xx-nope",
@@ -99,6 +104,7 @@ describe("readPersistedUiPrefs", () => {
     )
     const prefs = readPersistedUiPrefs("claude")
     expect(prefs.theme).toBe("claude")
+    expect(prefs.themeMode).toBe("dark")
     expect(prefs.transparent).toBe(UNSET_TRANSPARENT)
     expect(prefs.focusAccent).toBeNull()
     expect(prefs.locale).toBe("en") // DEFAULT_LOCALE
@@ -108,6 +114,7 @@ describe("readPersistedUiPrefs", () => {
     // no file at all
     expect(readPersistedUiPrefs("claude")).toEqual({
       theme: "claude",
+      themeMode: "dark",
       transparent: UNSET_TRANSPARENT,
       focusAccent: null,
       locale: "en",

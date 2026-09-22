@@ -20,11 +20,15 @@ import { createStateCell } from "../../lib/external-store"
 import {
   BUNDLED_THEMES,
   DEFAULT_THEME,
+  DEFAULT_THEME_MODE,
   type FocusAccentSlot,
   type Theme,
   type ThemeJson,
+  type ThemeMode,
+  type ThemeModePreference,
   applyDisplayOverlay,
   resolveTheme,
+  resolveThemeMode,
 } from "../../tui/context/theme-core"
 import { useAccessor } from "../lib/use-accessor"
 
@@ -34,7 +38,8 @@ export type { FocusAccentSlot, Theme, ThemeJson } from "../../tui/context/theme-
 type State = {
   readonly themes: Record<string, ThemeJson>
   readonly active: string
-  readonly mode: "dark" | "light"
+  /** The user's choice; `auto` is resolved against the host in the provider. */
+  readonly mode: ThemeModePreference
   readonly transparentBackground: boolean
   readonly focusAccent: FocusAccentSlot
 }
@@ -42,7 +47,7 @@ type State = {
 const store = createStateCell<State>({
   themes: { ...BUNDLED_THEMES },
   active: DEFAULT_THEME,
-  mode: "dark",
+  mode: DEFAULT_THEME_MODE,
   // Transparent by default — kobe sits on the terminal's own
   // background unless the user explicitly turns transparency off. Every
   // host reseeds this before its first render from
@@ -98,8 +103,11 @@ export function setFocusAccent(v: FocusAccentSlot): void {
   store.update((s) => ({ ...s, focusAccent: v }))
 }
 
-/** Test seam: flip dark/light without a Settings round-trip (sidebar-update-chip.test.tsx). */
-export function setThemeMode(mode: "dark" | "light"): void {
+export function themeMode(): ThemeModePreference {
+  return store.get().mode
+}
+
+export function setThemeMode(mode: ThemeModePreference): void {
   store.update((s) => ({ ...s, mode }))
 }
 
@@ -109,12 +117,20 @@ export type ThemeContextValue = {
   selected: string
   transparentBackground: boolean
   focusAccent: FocusAccentSlot
-  mode(): "dark" | "light"
+  /** The persisted choice, `auto` included. */
+  modePreference: ThemeModePreference
+  /** The half actually drawn — `auto` already resolved against the host. */
+  mode(): ThemeMode
   set(name: string): boolean
-  setMode(mode: "dark" | "light"): void
+  setMode(mode: ThemeModePreference): void
   setTransparentBackground(v: boolean): void
   setFocusAccent(v: FocusAccentSlot): void
-  preview(options: { themeName: string; focusAccent: FocusAccentSlot; transparentBackground: boolean }): Theme
+  preview(options: {
+    themeName: string
+    themeMode: ThemeModePreference
+    focusAccent: FocusAccentSlot
+    transparentBackground: boolean
+  }): Theme
   all(): string[]
   has(name: string): boolean
 }
@@ -128,19 +144,39 @@ const ThemeContext = createContext<ThemeContextValue | null>(null)
  */
 const HOST_PALETTE_QUERY_TIMEOUT_MS = 2_000
 
-function resolveActive(state: State): Theme {
+function resolveActive(state: State, mode: ThemeMode): Theme {
   const active = state.themes[state.active]
-  if (active) return resolveTheme(active, state.mode)
+  if (active) return resolveTheme(active, mode)
   // safety net: if active was somehow cleared, fall back to the default theme
   const fallback = state.themes[DEFAULT_THEME] ?? Object.values(state.themes)[0]
   if (!fallback) {
     // truly empty — synthesize a black theme so the renderer can stand up
-    return resolveTheme({ theme: { background: "#000000", text: "#ffffff" } }, state.mode)
+    return resolveTheme({ theme: { background: "#000000", text: "#ffffff" } }, mode)
   }
-  return resolveTheme(fallback, state.mode)
+  return resolveTheme(fallback, mode)
 }
 
-export function ThemeProvider(props: { children?: ReactNode; mode?: "dark" | "light"; theme?: string }) {
+/**
+ * The host terminal's light/dark reading. opentui asks for it at startup
+ * (OSC 10/11) and again whenever the terminal reports an appearance change,
+ * emitting `theme_mode` each time the answer differs; `null` until a
+ * terminal answers, and forever for one that never does.
+ */
+function useHostThemeMode(renderer: ReturnType<typeof useRenderer> | null): ThemeMode | null {
+  const [mode, setMode] = useState<ThemeMode | null>(() => renderer?.themeMode ?? null)
+  useEffect(() => {
+    if (!renderer) return
+    const onChange = (next: ThemeMode) => setMode(next)
+    renderer.on("theme_mode", onChange)
+    setMode(renderer.themeMode)
+    return () => {
+      renderer.off("theme_mode", onChange)
+    }
+  }, [renderer])
+  return mode
+}
+
+export function ThemeProvider(props: { children?: ReactNode; mode?: ThemeModePreference; theme?: string }) {
   // Seed once from props, during the first render (not an effect) so the very
   // first paint already uses the requested theme; the store dedupes identical
   // snapshots.
@@ -155,6 +191,8 @@ export function ThemeProvider(props: { children?: ReactNode; mode?: "dark" | "li
 
   const state = useAccessor(store)
   const renderer = useRenderer()
+  const hostMode = useHostThemeMode(renderer)
+  const mode = resolveThemeMode(state.mode, hostMode)
 
   // Host-background detection for the transparent-mode contrast guard
   // (contrast-guard.ts). The theme's muted ink renders directly on the
@@ -185,12 +223,12 @@ export function ThemeProvider(props: { children?: ReactNode; mode?: "dark" | "li
   const theme = useMemo(
     () =>
       applyDisplayOverlay(
-        resolveActive(state),
+        resolveActive(state, mode),
         state.focusAccent,
         state.transparentBackground,
         hostBackground ?? undefined,
       ),
-    [state, hostBackground],
+    [state, mode, hostBackground],
   )
 
   // Push background to the renderer so the terminal background matches
@@ -208,14 +246,15 @@ export function ThemeProvider(props: { children?: ReactNode; mode?: "dark" | "li
       selected: state.active,
       transparentBackground: state.transparentBackground,
       focusAccent: state.focusAccent,
-      mode: () => state.mode,
+      modePreference: state.mode,
+      mode: () => mode,
       set(name: string): boolean {
         if (!hasTheme(name)) return false
         store.update((s) => ({ ...s, active: name }))
         return true
       },
-      setMode(mode: "dark" | "light"): void {
-        store.update((s) => ({ ...s, mode }))
+      setMode(next: ThemeModePreference): void {
+        store.update((s) => ({ ...s, mode: next }))
       },
       setTransparentBackground(v: boolean): void {
         store.update((s) => ({ ...s, transparentBackground: v }))
@@ -225,7 +264,7 @@ export function ThemeProvider(props: { children?: ReactNode; mode?: "dark" | "li
       },
       preview: (options) =>
         applyDisplayOverlay(
-          resolveActive({ ...state, active: options.themeName }),
+          resolveActive({ ...state, active: options.themeName }, resolveThemeMode(options.themeMode, hostMode)),
           options.focusAccent,
           options.transparentBackground,
           hostBackground ?? undefined,
@@ -233,7 +272,7 @@ export function ThemeProvider(props: { children?: ReactNode; mode?: "dark" | "li
       all: listThemes,
       has: hasTheme,
     }),
-    [theme, state, hostBackground],
+    [theme, state, mode, hostMode, hostBackground],
   )
 
   return <ThemeContext.Provider value={value}>{props.children}</ThemeContext.Provider>

@@ -1,10 +1,11 @@
 import type { SplitStyle } from "../../../state/split-style"
 import type { TabRowHeight } from "../../../state/tab-row-height"
 import type { CollapsedRailStyle } from "../../../tui-react/panes/sidebar/collapsed-rail"
-import type { FocusAccentSlot } from "../../context/theme-core"
+import { type FocusAccentSlot, THEME_MODE_PREFERENCES, type ThemeModePreference } from "../../context/theme-core"
 
 export const APPEARANCE_SETTINGS = [
   "theme",
+  "themeMode",
   "transparent",
   "focusAccent",
   "splitStyle",
@@ -15,6 +16,7 @@ export type AppearanceSetting = (typeof APPEARANCE_SETTINGS)[number]
 
 export type AppearanceSnapshot = {
   themeName: string
+  themeMode: ThemeModePreference
   transparentBackground: boolean
   focusAccent: FocusAccentSlot
   splitStyle: SplitStyle
@@ -23,6 +25,7 @@ export type AppearanceSnapshot = {
 }
 export type AppearanceChoice =
   | { kind: "theme"; value: string }
+  | { kind: "themeMode"; value: ThemeModePreference }
   | { kind: "transparent"; value: boolean }
   | { kind: "focusAccent"; value: FocusAccentSlot }
   | { kind: "splitStyle"; value: SplitStyle }
@@ -33,6 +36,8 @@ export function appearanceChoices(setting: AppearanceSetting, themes: readonly s
   switch (setting) {
     case "theme":
       return themes.map((value) => ({ kind: setting, value }))
+    case "themeMode":
+      return THEME_MODE_PREFERENCES.map((value) => ({ kind: setting, value }))
     case "transparent":
       return [false, true].map((value) => ({ kind: setting, value }))
     case "focusAccent":
@@ -50,6 +55,8 @@ export function applyAppearanceChoice(current: AppearanceSnapshot, choice: Appea
   switch (choice.kind) {
     case "theme":
       return { ...current, themeName: choice.value }
+    case "themeMode":
+      return { ...current, themeMode: choice.value }
     case "transparent":
       return { ...current, transparentBackground: choice.value }
     case "focusAccent":
@@ -67,6 +74,8 @@ export function currentAppearanceChoice(current: AppearanceSnapshot, setting: Ap
   switch (setting) {
     case "theme":
       return { kind: setting, value: current.themeName }
+    case "themeMode":
+      return { kind: setting, value: current.themeMode }
     case "transparent":
       return { kind: setting, value: current.transparentBackground }
     case "focusAccent":

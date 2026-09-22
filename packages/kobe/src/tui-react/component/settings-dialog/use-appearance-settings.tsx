@@ -14,6 +14,7 @@ export function useAppearanceSettings(kv: KVContext, dialog: DialogContext, pref
   const theme = useTheme()
   const current: AppearanceSnapshot = {
     themeName: theme.selected,
+    themeMode: theme.modePreference,
     transparentBackground: theme.transparentBackground,
     focusAccent: theme.focusAccent,
     splitStyle: prefs.splitStyle(),
@@ -24,6 +25,10 @@ export function useAppearanceSettings(kv: KVContext, dialog: DialogContext, pref
     switch (choice.kind) {
       case "theme":
         if (theme.set(choice.value)) kv.set("activeTheme", choice.value)
+        break
+      case "themeMode":
+        theme.setMode(choice.value)
+        kv.set("themeMode", choice.value)
         break
       case "transparent":
         theme.setTransparentBackground(choice.value)

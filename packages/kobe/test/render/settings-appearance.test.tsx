@@ -11,7 +11,9 @@ import {
   selectedTheme,
   setFocusAccent,
   setTheme,
+  setThemeMode,
   setTransparentBackground,
+  themeMode,
   transparentBackground,
 } from "../../src/tui-react/context/theme"
 import { act, renderComponent, settle } from "./harness"
@@ -36,6 +38,7 @@ async function setup(width = 120, height = 48) {
   const path = join(dir, "state.json")
   writeFileSync(path, JSON.stringify(initial))
   setTheme("claude")
+  setThemeMode("dark")
   setFocusAccent("primary")
   setTransparentBackground(false)
   const h = await renderComponent(<Driver />, { width, height, providers: { kv: true, dialog: true } })
@@ -56,11 +59,12 @@ async function setup(width = 120, height = 48) {
 describe("appearance choices", () => {
   const cases = [
     { row: 2, key: "activeTheme", next: "conductor", label: "Theme" },
-    { row: 3, key: "transparentBackground", next: true, label: "Transparent background" },
-    { row: 4, key: "focusAccent", next: "success", label: "Focus accent" },
-    { row: 5, key: "appearance.splitStyle", next: "line", label: "Split panes" },
-    { row: 6, key: "sidebar.foldStyle", next: "glyphs", label: "Folded task rail" },
-    { row: 7, key: "sidebar.tabRowHeight", next: 2, label: "Tab row height" },
+    { row: 3, key: "themeMode", next: "light", label: "Mode" },
+    { row: 4, key: "transparentBackground", next: true, label: "Transparent background" },
+    { row: 5, key: "focusAccent", next: "success", label: "Focus accent" },
+    { row: 6, key: "appearance.splitStyle", next: "line", label: "Split panes" },
+    { row: 7, key: "sidebar.foldStyle", next: "glyphs", label: "Folded task rail" },
+    { row: 8, key: "sidebar.tabRowHeight", next: 2, label: "Tab row height" },
   ]
   for (const example of cases) {
     it(`${example.label}: preview and cancel do not persist; Enter applies exactly one field`, async () => {
@@ -85,6 +89,7 @@ describe("appearance choices", () => {
       expect(await previewSpans()).not.toEqual(before)
       expect(h.persisted()).toEqual(original)
       expect(selectedTheme()).toBe("claude")
+      expect(themeMode()).toBe("dark")
       expect(focusAccent()).toBe("primary")
       expect(transparentBackground()).toBe(false)
       expect(await h.press("escape")).not.toContain(`Appearance / ${example.label}`)
@@ -115,7 +120,7 @@ describe("appearance choices", () => {
   it("shows the extra tab caption in a narrow preview", async () => {
     const h = await setup(46, 30)
     await h.press("l")
-    for (let i = 0; i < 7; i++) await h.press("j")
+    for (let i = 0; i < 8; i++) await h.press("j")
     expect(await h.press("return")).not.toContain("model")
     expect(await h.press("j")).toContain("model")
     expect(h.persisted()).toEqual(initial)
@@ -124,7 +129,7 @@ describe("appearance choices", () => {
   it("keeps choices and cancellation visible in a short narrow terminal", async () => {
     const h = await setup(46, 25)
     await h.press("l")
-    for (let i = 0; i < 6; i++) await h.press("j")
+    for (let i = 0; i < 7; i++) await h.press("j")
     const text = await h.press("return")
     expect(text).toContain("(●) jump keys")
     expect(await h.press("k")).toContain("( ) colour band only")

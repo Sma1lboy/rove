@@ -1,7 +1,7 @@
 import { RGBA } from "@opentui/core"
 import { describe, expect, it } from "vitest"
 import { contrastRatio } from "../../src/tui/context/contrast-guard"
-import { BUNDLED_THEMES, applyDisplayOverlay, resolveTheme } from "../../src/tui/context/theme-core"
+import { BUNDLED_THEMES, applyDisplayOverlay, resolveTheme, resolveThemeMode } from "../../src/tui/context/theme-core"
 import { terminalDefaultColorsForTheme } from "../../src/tui/lib/terminal-colors"
 
 const base = resolveTheme(BUNDLED_THEMES.claude as never, "dark")
@@ -114,7 +114,40 @@ describe("applyDisplayOverlay", () => {
   })
 })
 
+describe("skylight", () => {
+  it("keeps body, muted and state text at 4.5:1 on its canvas, panels and selected row in both modes", () => {
+    for (const mode of ["dark", "light"] as const) {
+      const theme = resolveTheme(BUNDLED_THEMES.skylight as never, mode)
+      for (const ink of ["text", "textMuted", "primary", "info", "success", "warning", "error"] as const) {
+        for (const surface of ["background", "backgroundPanel", "backgroundElement", "backgroundDialog"] as const) {
+          expect(contrastRatio(theme[ink], theme[surface]), `${mode} ${ink} on ${surface}`).toBeGreaterThanOrEqual(4.5)
+        }
+      }
+      // A selected list row paints selectedListItemText on the primary fill.
+      expect(contrastRatio(theme.selectedListItemText, theme.primary), `${mode} selected row`).toBeGreaterThanOrEqual(
+        4.5,
+      )
+    }
+  })
+})
+
+describe("resolveThemeMode", () => {
+  it("an explicit mode ignores the terminal; auto follows it, and draws dark before (or without) an answer", () => {
+    expect(resolveThemeMode("light", "dark")).toBe("light")
+    expect(resolveThemeMode("dark", "light")).toBe("dark")
+    expect(resolveThemeMode("auto", "light")).toBe("light")
+    expect(resolveThemeMode("auto", null)).toBe("dark")
+  })
+})
+
 describe("terminalDefaultColorsForTheme", () => {
+  it("reports the light half when the TUI draws light", () => {
+    expect(terminalDefaultColorsForTheme(BUNDLED_THEMES.skylight as never, "light")).toEqual({
+      foreground: "#16202c",
+      background: "#fafbfc",
+    })
+  })
+
   it("reports the embedded terminal's actual foreground and background", () => {
     expect(terminalDefaultColorsForTheme(BUNDLED_THEMES.claude as never)).toEqual({
       foreground: "#eae7df",

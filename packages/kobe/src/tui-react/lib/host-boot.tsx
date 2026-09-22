@@ -58,7 +58,9 @@ import {
   selectedTheme,
   setFocusAccent,
   setTheme,
+  setThemeMode,
   setTransparentBackground,
+  themeMode,
   transparentBackground,
 } from "../context/theme"
 import { DEFAULT_THEME, useTheme } from "../context/theme"
@@ -106,6 +108,8 @@ const themeTarget: UiPrefsTarget = {
   reloadUserThemes: () => {
     for (const { name, theme } of loadUserThemes()) addTheme(name, theme)
   },
+  themeMode,
+  setThemeMode,
   transparentBackground,
   setTransparentBackground,
   focusAccent,
@@ -231,6 +235,7 @@ export async function bootPaneHost(opts: BootPaneHostOpts): Promise<void> {
   // already themed (no transparent/accent flash).
   applyUiPrefs(themeTarget, {
     theme: prefs.theme,
+    themeMode: prefs.themeMode,
     transparentBackground: prefs.transparent,
     focusAccent: prefs.focusAccent,
   })
@@ -276,11 +281,7 @@ export async function bootPaneHost(opts: BootPaneHostOpts): Promise<void> {
   const withDialog = <DialogProvider>{withNotifications}</DialogProvider>
   const withFocus = focus ? <FocusProvider initial="sidebar">{withDialog}</FocusProvider> : withDialog
   const withKv = kv ? <KVProvider>{withFocus}</KVProvider> : withFocus
-  createRoot(renderer).render(
-    <ThemeProvider mode="dark" theme={prefs.theme}>
-      {withKv}
-    </ThemeProvider>,
-  )
+  createRoot(renderer).render(<ThemeProvider theme={prefs.theme}>{withKv}</ThemeProvider>)
   installExitRestoreBackstop(renderer)
   // After render: opentui has finished its own terminal setup, so the mode we
   // add on top isn't clobbered by it.

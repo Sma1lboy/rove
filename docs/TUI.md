@@ -431,10 +431,10 @@ Open Settings with `ctrl+a` `,`, or press `s` while the sidebar is focused.
 Use `j`/`k` to choose a section, `l` or right arrow to enter its rows, `h` or
 left arrow to return to the section list, and `enter` to activate a row.
 
-- **General** controls theme, language, transparency, focus and split styles,
-  notifications, keyboard hints, zen startup, editor choice, worktree
-  location, terminal scrollback and the optional horizontal tab strip. It
-  also shows available engine quota snapshots.
+- **General** controls theme, light/dark mode, language, transparency, focus
+  and split styles, notifications, keyboard hints, zen startup, editor
+  choice, worktree location, terminal scrollback and the optional horizontal
+  tab strip. It also shows available engine quota snapshots.
 - **Engines** lists every engine Rove can launch: built-ins, the contrib
   catalog, plugin-registered and your own, each with what local detection
   found under it: where its binary is, and for engines with an account

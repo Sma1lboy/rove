@@ -81,6 +81,7 @@ describe("readUiPrefsFromStateFile", () => {
   test("missing file yields the documented defaults", () => {
     expect(readUiPrefsFromStateFile(statePath)).toEqual({
       theme: null, // the daemon has no theme registry — the TUI picks the default
+      themeMode: null,
       transparentBackground: true, // transparent-by-default
       focusAccent: null,
       locale: "en",
@@ -95,6 +96,7 @@ describe("readUiPrefsFromStateFile", () => {
     fs.writeFileSync(statePath, "{not json", "utf8")
     expect(readUiPrefsFromStateFile(statePath)).toEqual({
       theme: null, // the daemon has no theme registry — the TUI picks the default
+      themeMode: null,
       transparentBackground: true, // transparent-by-default
       focusAccent: null,
       locale: "en",
@@ -108,6 +110,7 @@ describe("readUiPrefsFromStateFile", () => {
     patchStateFile({ activeTheme: "nord", transparentBackground: true, focusAccent: "chartreuse" })
     expect(readUiPrefsFromStateFile(statePath)).toEqual({
       theme: "nord",
+      themeMode: null,
       transparentBackground: true,
       focusAccent: null,
       locale: "en",
@@ -115,6 +118,13 @@ describe("readUiPrefsFromStateFile", () => {
       keysCollapsed: false,
       projectFilter: null,
     })
+  })
+
+  test("reads themeMode; an unknown mode is dropped to null (the TUI's unset)", () => {
+    patchStateFile({ themeMode: "auto" })
+    expect(readUiPrefsFromStateFile(statePath).themeMode).toBe("auto")
+    patchStateFile({ themeMode: "sepia" })
+    expect(readUiPrefsFromStateFile(statePath).themeMode).toBeNull()
   })
 
   test("reads activeSortMode; a non-`recent` value falls back to the default ordering", () => {
@@ -156,6 +166,7 @@ describe("startUiPrefsWatcher", () => {
     expect(events).toEqual([
       {
         theme: "dracula",
+        themeMode: null,
         transparentBackground: true, // transparent-by-default
         focusAccent: "info",
         locale: "en",
@@ -178,6 +189,7 @@ describe("startUiPrefsWatcher", () => {
     await waitFor(() => events.length === 2)
     expect(events[1]).toEqual({
       theme: "tokyonight",
+      themeMode: null,
       transparentBackground: true,
       focusAccent: null,
       locale: "en",
@@ -198,6 +210,7 @@ describe("startUiPrefsWatcher", () => {
     await waitFor(() => events.length === 3)
     expect(events[2]).toEqual({
       theme: "tokyonight",
+      themeMode: null,
       transparentBackground: true,
       focusAccent: "success",
       locale: "en",

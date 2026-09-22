@@ -47,6 +47,11 @@ describe("decodeUiPrefsPayload — backward-compat defaults", () => {
       keysCollapsed: false,
       projectFilter: null,
     })
+    // themeMode stays ABSENT (not null): null is the file's "unset" and would
+    // reset a pane to dark on every push from a daemon that predates the field.
+    expect("themeMode" in (decodeUiPrefsPayload({ theme: "claude" }) ?? {})).toBe(false)
+    expect(decodeUiPrefsPayload({ theme: "claude", themeMode: null })?.themeMode).toBeNull()
+    expect(decodeUiPrefsPayload({ theme: "claude", themeMode: "auto" })?.themeMode).toBe("auto")
   })
 
   it("carries real values through and normalizes odd ones", () => {
