@@ -175,21 +175,31 @@ export function WelcomeDialogView(props: {
 
 /** `replace`, not `push`: it arrives on boot with nothing underneath to return to. */
 function show(dialog: DialogContext, opts: { shell: ShellKind | null; onDone: (c: OnboardingChoices) => void }): void {
-  const settle = (choices: OnboardingChoices): void => {
+  // `dialog.clear()` runs this entry's onClose, so without the guard an
+  // accepted answer is followed by a "declined everything" one that wins.
+  let settled = false
+  const once = (choices: OnboardingChoices): void => {
+    if (settled) return
+    settled = true
     opts.onDone(choices)
-    dialog.clear()
   }
   dialog.replace(
-    () => <WelcomeDialogView shell={opts.shell} onDone={settle} />,
-    // Every route out (esc, ctrl+c, backdrop) settles as "declined
-    // everything". `dialog.clear()` above re-enters here; `onDone` is
-    // idempotent at the host (its one-shot state is already null).
-    () => opts.onDone({ completions: false, skill: false }),
+    () => (
+      <WelcomeDialogView
+        shell={opts.shell}
+        onDone={(choices) => {
+          once(choices)
+          dialog.clear()
+        }}
+      />
+    ),
+    // Every other route out (esc, ctrl+c, backdrop) is "declined everything".
+    () => once({ completions: false, skill: false }),
   )
   dialog.setSize("medium")
 }
 
-const WelcomeDialog = { show }
+export const WelcomeDialog = { show }
 
 /**
  * Hand the boot-time first-run signal to the dialog stack, once. The CLI
