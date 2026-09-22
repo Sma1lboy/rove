@@ -1,8 +1,9 @@
 /**
  * Behavior of the CI file-size gate (scripts/file-size-check.sh, run by the
  * file-size-cap job): over-cap files fail, near-cap files warn without
- * failing, files with headroom stay silent, and PR-body exemptions still
- * downgrade an over-cap file to a notice.
+ * failing, files with headroom stay silent, PR-body exemptions still
+ * downgrade an over-cap file to a notice, and a file that was already over
+ * the cap only fails when the PR grows it.
  */
 
 import { execFileSync } from "node:child_process"
@@ -76,5 +77,22 @@ describe("file-size-check.sh", () => {
     const { code, stdout } = run("file-size-exemption: big.ts — generated table")
     expect(code).toBe(0)
     expect(stdout).toContain("::notice file=big.ts::")
+  })
+
+  test("an already-over-cap file the PR does not grow is a notice, not a failure", () => {
+    tsFile("legacy.ts", 520)
+    git("update-ref", "refs/remotes/origin/main", "HEAD") // legacy.ts is on the base now
+    tsFile("legacy.ts", 519) // this PR only deletes a line
+    const { code, stdout } = run("file-size-exemption: big.ts — generated table")
+    expect(code).toBe(0)
+    expect(stdout).toContain("::notice file=legacy.ts::")
+    expect(stdout).toContain("did not grow it (was 520)")
+  })
+
+  test("growing an already-over-cap file still fails", () => {
+    tsFile("legacy.ts", 521)
+    const { code, stdout } = run("file-size-exemption: big.ts — generated table")
+    expect(code).toBe(1)
+    expect(stdout).toContain("::error file=legacy.ts::")
   })
 })

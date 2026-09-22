@@ -15,6 +15,12 @@ test('UI bug fixes and refactors cannot bypass screenshots by choosing another t
   for (const section of ['Bug fix', 'Refactor', 'Feature']) assert.ok(validateUiEvidence(files, `## ${section}\nTests pass`).length)
 })
 test('before and after images plus capture provenance pass', () => assert.deepEqual(validateUiEvidence(files, body), []))
+test('an explicit waiver with a reason passes; an empty, placeholder or hidden one does not', () => {
+  assert.deepEqual(validateUiEvidence(files, '## Refactor\nui-evidence: none — only unused imports removed'), [])
+  for (const invalid of ['ui-evidence: none', 'ui-evidence: none — <reason>', 'ui-evidence: none — TODO', '<!-- ui-evidence: none — hidden -->', '```\nui-evidence: none — in code\n```']) {
+    assert.ok(validateUiEvidence(files, invalid).length, invalid)
+  }
+})
 test('non-UI changes need no images', () => assert.deepEqual(validateUiEvidence(['docs/API.md'], ''), []))
 test('comments, code, local images, duplicate images and missing metadata fail', () => {
   for (const invalid of [`<!--${body}-->`, '```\n' + body + '\n```', body.replaceAll('https://example.com/', '/tmp/'), body.replace('after.png', 'before.png'), body.replace('Theme: default', 'Theme: TODO'), body.replace('/harness', 'Terminal.app'), body.replace('1280×800', 'same')]) {

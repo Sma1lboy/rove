@@ -35,7 +35,11 @@ publish both states on one share-server series board as well.
 
 The CI evidence check covers `packages/kobe/src/tui/`,
 `packages/kobe/src/tui-react/` and `packages/kobe-harness/src/`, including deleted
-or renamed files. It reads the current PR description and reruns on body edits.
+or renamed files. It reads the current PR description and reruns on body edits; it lives in
+`pr-gates.yml`, so an edit re-runs only the gates, not the test jobs. A change
+that cannot move a frame (a dropped import, a type moved to another module) may
+instead carry one `ui-evidence: none — <reason>` line; the reason is what the
+reviewer judges.
 It checks image references and capture metadata, not image authenticity or
 whether the changed behavior is visible. Review the actual images before merge;
 a passing render test or generic visual journey does not replace these captures.
