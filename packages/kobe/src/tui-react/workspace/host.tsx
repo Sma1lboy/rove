@@ -488,7 +488,11 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
           folding, and the narrow layout gives the rail the whole terminal,
           with no workspace on the other side to trade cells with. */}
       {pageRender.showSidebar && pageRender.showContent && !sidebarCollapsed ? (
-        <SidebarResizeGrip width={sidebarWidth.width} onGripDown={sidebarResize.onGripDown} />
+        <SidebarResizeGrip
+          width={sidebarWidth.width}
+          active={sidebarResize.active}
+          onGripDown={sidebarResize.onGripDown}
+        />
       ) : null}
     </WorkspaceFrame>
   )

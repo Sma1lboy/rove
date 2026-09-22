@@ -17,6 +17,7 @@
  *   bun run visual:shot -- click:29,56         # a row the keyboard can't reach
  *   bun run visual:shot -- rclick:29,140       # that row's context menu
  *   bun run visual:shot -- drag:236,300,420,300  # pull a pane edge rightwards
+ *   bun run visual:shot -- hover:236,300       # park the pointer on a cell
  *   bun run visual:shot -- --no-focus-click      # keep a boot-time modal open
  */
 
@@ -154,6 +155,15 @@ try {
       if (!Number.isFinite(x) || !Number.isFinite(y))
         throw new Error(`${right ? "rclick" : "click"}: needs X,Y, got ${JSON.stringify(token)}`)
       await page.mouse.click(x, y, right ? { button: "right" } : undefined)
+    } else if (token.startsWith("hover:")) {
+      // `hover:X,Y` — park the pointer without pressing. Hover is a STATE the
+      // keyboard can't reach and a click would change, so it needs its own
+      // token. Two moves, so the TUI sees motion arrive at the cell rather
+      // than a single report it could read as the pointer's first sighting.
+      const [x, y] = token.slice(6).split(",").map(Number)
+      if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error(`hover: needs X,Y, got ${JSON.stringify(token)}`)
+      await page.mouse.move(x + 40, y)
+      await page.mouse.move(x, y, { steps: 4 })
     } else if (token.startsWith("drag:")) {
       // `drag:X1,Y1,X2,Y2` — press, travel, release. A splitter is the case
       // `click:` cannot photograph: what it does is a FUNCTION of the travel,

@@ -21,7 +21,7 @@
  * column, so none of this has to know where the rail's left edge is.
  */
 
-import { useRef } from "react"
+import { useRef, useState } from "react"
 
 /** Two releases closer together than this are one double-click. */
 const DOUBLE_CLICK_MS = 400
@@ -32,6 +32,8 @@ export interface GestureMouseEvent {
 }
 
 export interface SidebarResizeGesture {
+  /** A press on the grip is live — the grip keeps its light until release. */
+  readonly active: boolean
   /** Goes on the grip: arms a gesture from the rail's current width. */
   readonly onGripDown: (event: GestureMouseEvent) => void
   /** Goes on the pane row: live width while the cursor travels. */
@@ -49,9 +51,15 @@ export function useSidebarResizeGesture(opts: {
 }): SidebarResizeGesture {
   const armed = useRef<{ x: number; width: number; moved: boolean } | null>(null)
   const lastRelease = useRef(0)
+  // Mirrors `armed` for paint only. It flips on press and on release — two
+  // renders a gesture — while the drag itself stays in the ref, so travel
+  // never waits on a commit.
+  const [active, setActive] = useState(false)
   return {
+    active,
     onGripDown: (event) => {
       armed.current = { x: event.x, width: opts.width, moved: false }
+      setActive(true)
     },
     onPaneDrag: (event) => {
       // Every drag in the workspace bubbles through here, including the ones
@@ -67,6 +75,7 @@ export function useSidebarResizeGesture(opts: {
       const from = armed.current
       if (from == null) return
       armed.current = null
+      setActive(false)
       // A drag is never half of a double-click: resizing twice in a row must
       // not throw away the width the first drag just set.
       if (from.moved) {

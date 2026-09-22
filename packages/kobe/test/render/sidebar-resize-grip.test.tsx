@@ -20,7 +20,7 @@
 import { expect, test } from "bun:test"
 import { useSidebarResizeGesture } from "../../src/tui-react/workspace/sidebar-resize-gesture"
 import { SidebarResizeGrip } from "../../src/tui-react/workspace/sidebar-resize-grip"
-import { renderComponent } from "./harness"
+import { act, renderComponent } from "./harness"
 
 const RAIL_WIDTH = 24
 /** The grip's own column: the rail's last cell, zero-indexed. */
@@ -38,7 +38,7 @@ function Workspace(props: { onResize?: (w: number) => void; onReset?: () => void
     <box width={60} height={12} flexDirection="row" onMouseDrag={gesture.onPaneDrag} onMouseUp={gesture.onPaneRelease}>
       <box width={RAIL_WIDTH} height={12} />
       <box flexGrow={1} height={12} />
-      <SidebarResizeGrip width={RAIL_WIDTH} onGripDown={gesture.onGripDown} />
+      <SidebarResizeGrip width={RAIL_WIDTH} active={gesture.active} onGripDown={gesture.onGripDown} />
     </box>
   )
 }
@@ -50,13 +50,13 @@ test("a drag that leaves the grip still resizes, by the cursor's travel", async 
     height: 12,
   })
 
-  await mockMouse.pressDown(EDGE_X, ROW_Y)
+  await act(() => mockMouse.pressDown(EDGE_X, ROW_Y))
   // Each step leaves the grip's column further behind — the case that silently
   // did nothing while the grip tried to own the gesture itself.
   for (const x of [30, 38, 45]) {
-    await mockMouse.moveTo(x, ROW_Y)
+    await act(() => mockMouse.moveTo(x, ROW_Y))
   }
-  await mockMouse.release(45, ROW_Y)
+  await act(() => mockMouse.release(45, ROW_Y))
   await rerender()
 
   expect(widths.length).toBeGreaterThan(0)
@@ -74,9 +74,9 @@ test("dragging anywhere else in the workspace resizes nothing", async () => {
 
   // Same row, same handler — but the press never touched the grip, so this is
   // somebody selecting text in a pane, not a resize.
-  await mockMouse.pressDown(40, ROW_Y)
-  await mockMouse.moveTo(50, ROW_Y)
-  await mockMouse.release(50, ROW_Y)
+  await act(() => mockMouse.pressDown(40, ROW_Y))
+  await act(() => mockMouse.moveTo(50, ROW_Y))
+  await act(() => mockMouse.release(50, ROW_Y))
   await rerender()
 
   expect(widths).toEqual([])
@@ -89,11 +89,11 @@ test("double-click on the grip clears the pin, a lone click does not", async () 
     height: 12,
   })
 
-  await mockMouse.click(EDGE_X, ROW_Y)
+  await act(() => mockMouse.click(EDGE_X, ROW_Y))
   await rerender()
   expect(resets).toBe(0)
 
-  await mockMouse.click(EDGE_X, ROW_Y)
+  await act(() => mockMouse.click(EDGE_X, ROW_Y))
   await rerender()
   expect(resets).toBe(1)
 })
@@ -106,13 +106,49 @@ test("two quick drags are two resizes, not a double-click", async () => {
   })
 
   for (const _ of [0, 1]) {
-    await mockMouse.pressDown(EDGE_X, ROW_Y)
-    await mockMouse.moveTo(40, ROW_Y)
-    await mockMouse.release(40, ROW_Y)
+    await act(() => mockMouse.pressDown(EDGE_X, ROW_Y))
+    await act(() => mockMouse.moveTo(40, ROW_Y))
+    await act(() => mockMouse.release(40, ROW_Y))
   }
   await rerender()
 
   // Both releases land inside the double-click window, and both gestures
   // MOVED: setting a width twice in a row must not throw the second one away.
   expect(resets).toBe(0)
+})
+
+/** The character the grip paints on `row` of the rail's edge column. */
+function edgeCell(frame: string, row: number): string {
+  return [...(frame.split("\n")[row] ?? "")][EDGE_X] ?? ""
+}
+
+test("the edge is blank at rest and lights only while the cursor is on it", async () => {
+  const { mockMouse, frame } = await renderComponent(<Workspace />, { width: 60, height: 12 })
+
+  expect(edgeCell(await frame(), ROW_Y)).toBe(" ")
+
+  // Arrive from inside the rail, as a real pointer does.
+  await act(() => mockMouse.moveTo(10, ROW_Y))
+  await act(() => mockMouse.moveTo(EDGE_X, ROW_Y))
+  const lit = await frame()
+  expect(edgeCell(lit, ROW_Y)).not.toBe(" ")
+  // The whole column, not the one cell under the cursor: it reads as an edge.
+  expect(edgeCell(lit, 1)).toBe(edgeCell(lit, ROW_Y))
+
+  await act(() => mockMouse.moveTo(40, ROW_Y))
+  expect(edgeCell(await frame(), ROW_Y)).toBe(" ")
+})
+
+test("a drag keeps the edge lit after the cursor leaves it, until release", async () => {
+  const { mockMouse, frame } = await renderComponent(<Workspace />, { width: 60, height: 12 })
+
+  await act(() => mockMouse.moveTo(EDGE_X, ROW_Y))
+  await act(() => mockMouse.pressDown(EDGE_X, ROW_Y))
+  await act(() => mockMouse.moveTo(40, ROW_Y))
+  // The rail in this miniature never actually resizes, so the cursor is now
+  // well off the edge — only the live gesture can be keeping it lit.
+  expect(edgeCell(await frame(), ROW_Y)).not.toBe(" ")
+
+  await act(() => mockMouse.release(40, ROW_Y))
+  expect(edgeCell(await frame(), ROW_Y)).toBe(" ")
 })
