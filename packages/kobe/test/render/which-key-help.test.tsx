@@ -241,15 +241,15 @@ describe("which-key prefix guide", () => {
 
   it("keeps every alias visible when a direct action has many chords", async () => {
     prefixHudShowDirect([
-      { stroke: "ctrl+2", action: "tasks.jump" },
-      { stroke: "ctrl+3", action: "tasks.jump" },
-      { stroke: "ctrl+4", action: "tasks.jump" },
-      { stroke: "ctrl+5", action: "tasks.jump" },
-      { stroke: "ctrl+6", action: "tasks.jump" },
-      { stroke: "ctrl+7", action: "tasks.jump" },
-      { stroke: "ctrl+8", action: "tasks.jump" },
-      { stroke: "ctrl+9", action: "tasks.jump" },
-      { stroke: "ctrl+0", action: "tasks.jump" },
+      { stroke: "ctrl+2", action: "focus.next" },
+      { stroke: "ctrl+3", action: "focus.next" },
+      { stroke: "ctrl+4", action: "focus.next" },
+      { stroke: "ctrl+5", action: "focus.next" },
+      { stroke: "ctrl+6", action: "focus.next" },
+      { stroke: "ctrl+7", action: "focus.next" },
+      { stroke: "ctrl+8", action: "focus.next" },
+      { stroke: "ctrl+9", action: "focus.next" },
+      { stroke: "ctrl+0", action: "focus.next" },
     ])
     const { frame } = await renderComponent(<PrefixHud left={1} width={22} />, {
       width: 100,

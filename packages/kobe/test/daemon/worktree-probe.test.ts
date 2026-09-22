@@ -20,7 +20,12 @@ import { execFileSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { readHeadSha, readRefSha, resolveGitDirs, worktreeFingerprint } from "@sma1lboy/kobe-daemon/daemon/worktree-probe"
+import {
+  readHeadSha,
+  readRefSha,
+  resolveGitDirs,
+  worktreeFingerprint,
+} from "@sma1lboy/kobe-daemon/daemon/worktree-probe"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
 
 const AUTHOR = ["-c", "user.email=t@t", "-c", "user.name=t"]
@@ -90,7 +95,12 @@ describe("worktreeFingerprint", () => {
     git(repo, "checkout", "-q", "-b", "work")
     const before = worktreeFingerprint(repo)
     pause()
-    git(repo, "update-ref", "refs/heads/main", git(repo, ...AUTHOR, "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "advance"))
+    git(
+      repo,
+      "update-ref",
+      "refs/heads/main",
+      git(repo, ...AUTHOR, "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "advance"),
+    )
     expect(worktreeFingerprint(repo)).not.toBe(before)
   })
 

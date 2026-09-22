@@ -8,6 +8,29 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## Task jump digits removed
+
+**2026-09-22 — `ctrl+2`…`ctrl+0` and the per-row digits are gone, in both the
+expanded tree and the folded rail.** Owner call: unused.
+
+**Why.** The feature's case rested on the `recent` sort, where the list
+reorders as you switch and a digit reads as distance from where you are. Under
+the default project-grouped sort the order is static and only the first nine
+tasks get a number, so with a couple of dozen tasks the column was noise.
+Hiding the digits but keeping the chords was rejected: an unprinted positional
+chord is exactly what the 2026-07-29 entry said makes the feature unusable.
+
+**What it gives back.** The chords were reserved out of terminal passthrough;
+`ctrl+2`…`ctrl+8` (C0 bytes such as `ctrl+3` = ESC, `ctrl+8` = DEL) reach the
+embedded engine and shell again. Tasks are still reached with `f7`, the rail,
+`ctrl+q` + `j`/`k`/`enter`, and search. The folded rail's default style moves
+from `digits` to `glyphs`; a saved `digits` preference falls back to it. A
+stale `tasks.jump` keymap override now warns as an unknown binding id.
+
+**When it could come back.** If the `recent` sort becomes the default, or a
+jump is designed around a stable address rather than list position. The two
+entries below are the design it would start from.
+
 ## `ctrl+<digit>` numbers TASKS, not rows
 
 **2026-09-21 — the jump digit is anchored on the sidebar's shared group

@@ -45,7 +45,6 @@ function shared(): TreeRowShared {
     selectedTaskId: null,
     rowEls: new Map<number, BoxRenderable>(),
     onPress: () => {},
-    jumpDigitOf: () => null,
     branchTick: 0,
   }
 }

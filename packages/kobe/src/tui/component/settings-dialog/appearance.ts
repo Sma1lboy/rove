@@ -45,7 +45,7 @@ export function appearanceChoices(setting: AppearanceSetting, themes: readonly s
     case "splitStyle":
       return (["box", "line"] as const).map((value) => ({ kind: setting, value }))
     case "railFold":
-      return (["digits", "glyphs", "initials", "hairline"] as const).map((value) => ({ kind: setting, value }))
+      return (["glyphs", "initials", "hairline"] as const).map((value) => ({ kind: setting, value }))
     case "tabRowHeight":
       return ([1, 2] as const).map((value) => ({ kind: setting, value }))
   }

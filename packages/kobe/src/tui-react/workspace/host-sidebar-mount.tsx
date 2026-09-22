@@ -82,8 +82,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
         const next = !collapsed
         setCollapsed(next)
         // Folding unmounts the tree and its focused chords, with no chord to
-        // unfold, so focus moves off. `ctrl+<digit>` survives (the strip
-        // registers it, `use-task-jump.ts`).
+        // unfold, so focus moves off.
         if (next) focus.setFocused("workspace")
       }}
       nav={pages.nav}

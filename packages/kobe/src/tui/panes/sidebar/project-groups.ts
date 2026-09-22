@@ -253,13 +253,3 @@ export function ownerProjectKey(task: Task): string | null {
 export function ownTasks(group: SidebarGroup): readonly Task[] {
   return group.tasks.slice(0, group.tasks.length - group.routineCount)
 }
-
-/**
- * The tasks a `ctrl+<digit>` jump can reach, in order. Counted over tasks, not
- * rendered rows (the tree has tab rows, the rail doesn't), so `ctrl+3` names
- * the same session folded or not. Routines are excluded: unbounded in count,
- * they'd push the user's own tasks past the ninth digit.
- */
-export function jumpTaskIds(groups: readonly SidebarGroup[]): string[] {
-  return groups.flatMap((group) => ownTasks(group).map((task) => String(task.id)))
-}

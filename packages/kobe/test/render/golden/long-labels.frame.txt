@@ -10,9 +10,9 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-|  refactor/tab-strip… ▴ ✓ ? 2 |
+|  refactor/tab-strip-r… ▴ ✓ ? |
 |  ○ persist scrollback acros… |
-|  feat/alpha              ? 3 |
+|  feat/alpha                ? |
 |▌ ○ build                     |
 |                              |
 |                              |

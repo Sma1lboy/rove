@@ -36,7 +36,6 @@ import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import {
   ChangeStats,
-  JumpDigit,
   UNKNOWN_CHANGES_MARK,
   completionSeenFor,
   completionStampOf,
@@ -45,7 +44,7 @@ import {
   useDurableCompletionSeen,
   useSpinnerFrame,
 } from "./row-cards"
-import { MoveChip, RowShell, type TreeRowShared, clusterCells, jumpDigitCells, treeLabelBudget } from "./tree-row-shell"
+import { MoveChip, RowShell, type TreeRowShared, clusterCells, treeLabelBudget } from "./tree-row-shell"
 
 /**
  * Age in the current state (`12m`) for WORKING or STOPPED rows only; null
@@ -85,7 +84,6 @@ export function WorktreeTreeRow(props: {
   const t = useT()
   const shared = props.shared
   const task = props.task
-  const isCursor = shared.cursorIndex === props.flatIndex
   const changes = useChanges(shared, task)
   const chip = prChip(task)
   // Named by BRANCH (`worktreeRowLabel`). Main checkouts and directory/scratch
@@ -119,7 +117,6 @@ export function WorktreeTreeRow(props: {
     // A plugin can crowd the branch name but never overflow the row.
     tokens.reduce((cells, token) => cells + clusterCells(token.text), 0) +
     (deletionWord ? clusterCells(deletionWord) : 0) +
-    jumpDigitCells(shared.jumpDigitOf(props.rowId)) +
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
     // The unknown mark replaces the whole ↑/+/−/↓ cluster.
@@ -177,7 +174,6 @@ export function WorktreeTreeRow(props: {
           </text>
         ) : null}
         <MoveChip rowId={props.rowId} shared={shared} />
-        <JumpDigit digit={shared.jumpDigitOf(props.rowId)} dim={!isCursor} />
       </box>
     </RowShell>
   )
@@ -224,7 +220,6 @@ export function TabTreeRow(props: {
   const { theme } = useTheme()
   const t = useT()
   const shared = props.shared
-  const isCursor = shared.cursorIndex === props.flatIndex
   // Only an AGENT tab with daemon-reported activity wears a live state glyph.
   const isAgent = props.tab.engine === true
   const taskTabStates = isAgent ? shared.engineTabState?.get(props.task.id) : undefined
@@ -305,7 +300,6 @@ export function TabTreeRow(props: {
               treeLabelBudget(
                 shared,
                 2 +
-                  jumpDigitCells(shared.jumpDigitOf(props.rowId)) +
                   (age ? clusterCells(age) : 0) +
                   (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
               ),
@@ -318,7 +312,6 @@ export function TabTreeRow(props: {
             </text>
           ) : null}
           <MoveChip rowId={props.rowId} shared={shared} />
-          <JumpDigit digit={shared.jumpDigitOf(props.rowId)} dim={!isCursor} />
         </box>
         {modelLine ? (
           // Flush with the title (owner call): the pair reads as one block.

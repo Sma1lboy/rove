@@ -5,7 +5,6 @@
  * decided by its `scope`, nothing else.
  */
 
-import { TASK_JUMP_CHORDS } from "../panes/sidebar/jump-digits.ts"
 import type { KobeBinding } from "./keybindings-table.ts"
 
 export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
@@ -163,22 +162,6 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     category: "Tasks pane",
     description: "Open the update page — version check + release notes",
     hint: { keys: "u" },
-  },
-  {
-    // POSITIONAL: slot N jumps to the Nth task in the sidebar's CURRENT
-    // visible order (filters + sort), counted over TASKS from the grouping
-    // both sidebar surfaces share (tab rows and routine sessions carry none).
-    // Global so you can switch without leaving the engine; reserved out of
-    // terminal passthrough in keys-pure.ts. Each row prints its digit
-    // (jump-digits.ts). No ctrl+1: legacy terminals can't encode it, so row 1
-    // is `2`. See docs/design/keybinding-decisions.md.
-    id: "tasks.jump",
-    scope: "global",
-    keys: [...TASK_JUMP_CHORDS],
-    category: "Tasks pane",
-    description: "Jump to the task showing that digit (ctrl+2 = first task)",
-    hint: { keys: "ctrl+2-0" },
-    presentation: "onePress",
   },
   {
     // Right arrow = "go right into the conversation", inverse of ctrl+h.
