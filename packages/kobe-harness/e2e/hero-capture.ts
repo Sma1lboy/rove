@@ -224,8 +224,18 @@ export async function record(workDir: string, storyboard: (page: Page) => Promis
       clearInterval(guard)
     }
     if (breach) throw breach
-    await page.request.post(`http://127.0.0.1:${HERO_PTY_PORT}/pty/close`, { data: { tab: `visual-${runId}` }, headers: fixtureAuthHeaders() }).catch(() => {})
   } finally {
+    // Closed on EVERY exit, not just a clean one. The harness TUI is a real
+    // process in the fixture; a take that threw (a guard breach, a failed
+    // precondition) used to leave it running, still holding its settings in
+    // memory — and a later flush from that orphan rewrote state the next take
+    // had just reset, which is how a cleared "last-used engine" kept coming
+    // back and steering the engine picker onto the wrong choice.
+    await fetch(`http://127.0.0.1:${HERO_PTY_PORT}/pty/close`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...fixtureAuthHeaders() },
+      body: JSON.stringify({ tab: `visual-${runId}` }),
+    }).catch(() => {})
     await context.close()
     await browser.close()
   }

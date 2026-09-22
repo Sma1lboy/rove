@@ -15,7 +15,7 @@
  * this file only wires them to the hero-specific paths and `HOME` policy.
  */
 
-import { readFileSync } from "node:fs"
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 import {
@@ -84,6 +84,57 @@ function classifierKeyEnv(parent: NodeJS.ProcessEnv): Record<string, string> {
   }
 }
 
+/**
+ * The fixture's own shell configuration: a `ZDOTDIR` whose `.zshrc` sets a
+ * plain prompt, and a `bin/rove` that runs THIS branch's build.
+ *
+ * `HOME` stays the operator's (above), and the PTY host starts every tab as a
+ * login `$SHELL` — so without this, a shell pane in a capture renders the
+ * operator's prompt, which on a configured machine carries their account
+ * (starship's cloud module prints the signed-in e-mail). `hero-capture.ts`
+ * refuses to encode a take that shows one, which is right, and which made
+ * the one surface that can show a CLI's output unusable on camera. Pointing
+ * `ZDOTDIR` here swaps the operator's zsh startup files for the fixture's
+ * without touching `HOME`, so engines still find their credentials.
+ *
+ * The shim exists because `rove` on the operator's PATH is whatever they have
+ * INSTALLED, not the code under capture. It is prepended in `.zshrc` rather
+ * than in the environment: macOS's `/etc/zprofile` runs `path_helper`, which
+ * would reorder an env-level prefix behind the system paths.
+ */
+export const CAPTURE_SHELL_DIR: string = join(HERO_ROOT, "shell")
+
+export function ensureCaptureShell(): void {
+  const bin = join(CAPTURE_SHELL_DIR, "bin")
+  mkdirSync(bin, { recursive: true })
+  const write = (path: string, body: string, mode?: number) => {
+    let current: string | undefined
+    try {
+      current = readFileSync(path, "utf8")
+    } catch {
+      current = undefined
+    }
+    if (current !== body) writeFileSync(path, body, "utf8")
+    if (mode !== undefined) chmodSync(path, mode)
+  }
+  write(
+    join(CAPTURE_SHELL_DIR, ".zshrc"),
+    [
+      "# Written by packages/kobe-harness/e2e/hero-env.ts — the capture shell is the",
+      "# fixture's, not the operator's. See ensureCaptureShell() for why.",
+      "PROMPT='%F{8}%1~%f $ '",
+      "RPROMPT=''",
+      `path=(${JSON.stringify(bin)} $path)`,
+      "",
+    ].join("\n"),
+  )
+  write(
+    join(bin, "rove"),
+    ["#!/bin/sh", "# Written by hero-env.ts: `rove` in a capture shell is this branch's build.", `exec bun ${JSON.stringify(HERO_CLI)} "$@"`, ""].join("\n"),
+    0o755,
+  )
+}
+
 export function heroEnv(parent: NodeJS.ProcessEnv = process.env): Record<string, string> {
   assertHeroIsolation()
   return buildFixtureEnv({
@@ -92,7 +143,7 @@ export function heroEnv(parent: NodeJS.ProcessEnv = process.env): Record<string,
     ports: PORTS,
     homePolicy: "keep",
     parentEnv: parent,
-    extra: classifierKeyEnv(parent),
+    extra: { ...classifierKeyEnv(parent), ZDOTDIR: CAPTURE_SHELL_DIR },
   })
 }
 
