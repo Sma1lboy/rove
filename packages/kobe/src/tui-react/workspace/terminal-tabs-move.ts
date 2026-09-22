@@ -1,30 +1,19 @@
 /**
- * Move a tab of ANY task — mounted or not (sidebar move mode).
- *
- * Same two routes as `closeTaskTab`, for the same reason: the sidebar tree
- * names tabs of tasks whose `TerminalTabs` may or may not be mounted, and the
- * mounted component owns its state. Claimed → the component reorders through
- * its own `update` (which also persists); unclaimed → write the module map +
- * kv snapshot here, so the next mount renders the new order.
- *
- * Tab order is the persisted `tabs` array order (`rehydrateTabs` keeps it),
- * so a move survives restart with no new persistence key.
+ * Move a tab of ANY task (sidebar move mode). Same two routes as
+ * `closeTaskTab`: claimed → the mounted component reorders via `update`
+ * (persists); unclaimed → write map + kv here. Order is the persisted `tabs`
+ * array (`rehydrateTabs` keeps it), so moves survive restart.
  */
 
 import { moveTab } from "../../tui/workspace/terminal-tabs-core"
 import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
 import { knownTabsState, requestTabMove, setTaskTabs, takeUnclaimedTabMove } from "./terminal-tabs-shared"
 
-/**
- * Move `tabId` of `taskId` by `delta`. Returns whether the order changed —
- * false covers "no such tab", "task never opened tabs", and the edge-stop
- * (first tab up / last tab down is a no-op, never a wrap).
- */
+/** Whether the order changed; false for no such tab, no tabs, or the edge-stop (never wraps). */
 export function moveTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string, delta: -1 | 1): boolean {
   requestTabMove(taskId, tabId, delta)
   const unclaimed = takeUnclaimedTabMove()
-  // Claimed: the mounted TerminalTabs already ran the move through its own
-  // state writer. Report "changed" — the component edge-stops identically.
+  // Claimed: the component edge-stops identically, so report "changed".
   if (!unclaimed) return true
 
   const state = knownTabsState(kv, taskId)

@@ -1,26 +1,15 @@
 /**
- * Contrast guard for transparent-background mode.
- *
- * In transparent mode the theme's foreground tokens render directly on the
- * host terminal's background — a surface the palette author never saw. A
- * muted gray tuned for a dark theme (e.g. claude `#A9A39A`) sits at ~2.5:1
- * on a light host background, and even the primary text (`#EAE7DF`) drops
- * below readable. The host background is only knowable at runtime (opentui's
- * palette detection, `renderer.getPalette()`), so the guard takes the
- * detected background and lifts offending tokens until they clear a floor —
- * moving lightness AWAY from the host background while preserving hue, so a
- * muted token stays visually muted relative to the primary text.
- *
- * Pure functions only; the overlay in `theme-core.ts` applies it.
+ * Transparent mode puts foreground tokens straight on the host terminal's
+ * background, which the palette author never saw: claude's muted `#A9A39A`
+ * is ~2.5:1 on a light host, and even `#EAE7DF` text drops below readable.
+ * The host bg is only known at runtime (`renderer.getPalette()`), so offending
+ * tokens are lifted to a floor by moving lightness AWAY from it, keeping hue
+ * (muted stays muted relative to primary). Pure; `theme-core.ts` applies it.
  */
 
 import { RGBA } from "@opentui/core"
 
-/**
- * WCAG 2.x AA floor for normal-size text. `textMuted` carries real content
- * (subtitles, footer labels, empty states), so it gets the honest 4.5:1,
- * not the 3:1 large-text concession.
- */
+/** WCAG AA normal-text floor: `textMuted` carries real content, so 4.5:1, not the 3:1 large-text concession. */
 export const HOST_TEXT_MIN_CONTRAST = 4.5
 
 type Rgb = readonly [number, number, number]
@@ -85,16 +74,13 @@ function hslToRgb(h: number, s: number, l: number): Rgb {
   return [channel(h / 360 + 1 / 3), channel(h / 360), channel(h / 360 - 1 / 3)]
 }
 
-/**
- * Return `fg` adjusted to reach at least `minRatio` against `bg`, or `fg`
- * untouched when it already clears the floor. The adjustment moves HSL
- * lightness away from the host background's luminance (dark host → lighter
- * text, light host → darker text), preserving hue and saturation so the
- * token keeps its identity; a token that already sat far from the floor is
- * returned unchanged, so dark-host terminals see zero shift.
- */
 const MID_HOST_LUMINANCE = 0.5
 
+/**
+ * `fg` moved to at least `minRatio` against `bg` (untouched if it already
+ * clears): HSL lightness moves away from the host, hue and saturation kept,
+ * so dark-host terminals typically see zero shift.
+ */
 export function ensureContrast(fg: RGBA, bg: RGBA, minRatio: number = HOST_TEXT_MIN_CONTRAST): RGBA {
   const fgInts = fg.toInts()
   const bgInts = bg.toInts()
@@ -103,20 +89,16 @@ export function ensureContrast(fg: RGBA, bg: RGBA, minRatio: number = HOST_TEXT_
   if (contrastRatioTriplet(fgTriplet, bgTriplet) >= minRatio) return fg
 
   const [h, s, l] = rgbToHsl(fgTriplet)
-  // Direction: a LIGHT host (luminance above 0.5) gets darker text; anything
-  // darker gets lighter text. The luminance gate — not a pole comparison —
-  // matters for mid-tone hosts (wallpapers): darkening would satisfy the
-  // host floor while sinking the token below the still-OPAQUE theme
-  // surfaces (`backgroundDialog`, `backgroundElement`), which keep their
-  // dark palette in transparent mode. Lightening keeps those surfaces
-  // readable at the cost of a below-floor muted on a host nobody ships as
-  // a terminal default.
+  // A LIGHT host (luminance > 0.5) gets darker text, anything else lighter.
+  // The luminance gate matters for mid-tone wallpapers: darkening would pass
+  // the host floor but sink the token below the still-OPAQUE dark surfaces
+  // (`backgroundDialog`, `backgroundElement`); lightening keeps those readable
+  // at the cost of a below-floor muted on a host nobody ships as a default.
   const lighten = relativeLuminance(bgTriplet) <= MID_HOST_LUMINANCE
 
   const at = (lightness: number): number => contrastRatioTriplet(hslToRgb(h, s, lightness), bgTriplet)
-  // Binary search for the SMALLEST lightness move that clears the floor:
-  // lightening scans [l, 1] for the first passing value, darkening scans
-  // [0, l] for the last passing one.
+  // Binary search for the SMALLEST passing move: first pass in [l, 1] when
+  // lightening, last pass in [0, l] when darkening.
   let lo = lighten ? l : 0
   let hi = lighten ? 1 : l
   for (let i = 0; i < 32; i++) {

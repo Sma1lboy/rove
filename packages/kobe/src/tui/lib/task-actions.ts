@@ -1,14 +1,8 @@
 /**
- * Shared task-action flows — the ONE implementation behind every host
- * that exposes task mutations.
- * Host differences are an explicit option or hook on {@link TaskActionContext},
- * never a second copy.
- *
- * Testability rule: NO `@opentui` imports here. Modal UI (DialogConfirm /
- * RenameTaskDialog / NewTaskDialog) reaches this module only as
- * context-provided adapter callbacks (`confirm`, `promptText`,
- * `promptNewTask`), so the flows run under plain vitest with mocks
- * (`test/tui/task-actions.test.ts`).
+ * The one implementation of task-mutation flows for every host; host
+ * differences are options/hooks on {@link TaskActionContext}, never a copy.
+ * No `@opentui` imports: modal UI arrives as `confirm`/`promptText`/… adapter
+ * callbacks so the flows run under plain vitest (`test/tui/task-actions.test.ts`).
  */
 
 import type { KobeOrchestrator } from "@/client/remote-orchestrator"
@@ -25,22 +19,13 @@ export interface TaskActionLogger {
   error(message?: unknown, ...optionalParams: unknown[]): void
 }
 
-/**
- * Confirm-modal copy for {@link TaskActionContext.confirm}. The COPY lives
- * in the flows (single source for both hosts); only the rendering is
- * host-provided — each host implements `confirm` with `DialogConfirm.show`.
- */
+/** Confirm copy lives in the flows; hosts only render it via `DialogConfirm.show`. */
 export interface ConfirmPrompt {
   readonly title: string
   readonly body: string
   readonly cancelLabel: string
   readonly confirmLabel: string
-  /**
-   * Destructive action (delete / force delete): the confirm dialog starts
-   * focused on Cancel and draws the confirm button in the error color, so a
-   * stray Enter cannot commit it. Flows own this — the host adapter only
-   * forwards it to `DialogConfirm.show`.
-   */
+  /** Dialog starts focused on Cancel with an error-colored confirm, so a stray Enter can't commit. */
   readonly danger?: boolean
 }
 
@@ -50,12 +35,6 @@ export interface TextPromptOpts {
   readonly fieldLabel?: string
 }
 
-/**
- * Host-agnostic context bag the lifted flows run against. Required members
- * are what BOTH hosts provide; every optional member is a documented
- * host divergence — modeled here as an option/hook so neither host keeps
- * its own copy of a flow.
- */
 /** What {@link TaskActionContext.pickEngine} is asked, and what it answers. */
 interface EnginePickOpts {
   readonly engines: readonly VendorId[]
@@ -70,68 +49,37 @@ export interface EnginePick {
   readonly model?: string
 }
 
+/** Required members are what every host provides; each optional member is a documented host divergence. */
 export interface TaskActionContext {
-  /**
-   * Daemon-backed mutation surface. `null` only in the Tasks pane's
-   * degraded no-daemon fallback, where mutations are unavailable — flows
-   * no-op (or log, matching the pane's old behavior).
-   */
+  /** `null` only in the Tasks pane's no-daemon fallback; flows then no-op or log. */
   readonly orch: KobeOrchestrator | null
-  /** Live task list accessor (orchestrator signal or file-poll fallback). */
+  /** Orchestrator signal or file-poll fallback. */
   readonly tasks: () => readonly Task[]
-  /** Confirm-modal adapter — host implements with `DialogConfirm.show(dialog, …) === true`. */
+  /** Host implements with `DialogConfirm.show(dialog, …) === true`. */
   readonly confirm: (prompt: ConfirmPrompt) => Promise<boolean>
-  /** Text-input adapter — host implements with `RenameTaskDialog.show(dialog, …)`. */
+  /** Host implements with `RenameTaskDialog.show(dialog, …)`. */
   readonly promptText: (initial: string, opts?: TextPromptOpts) => Promise<string | undefined>
   /**
-   * DIVERGENCE — the six-value {@link TaskStatus} picker behind
-   * {@link setStatusFlow}. Optional because only the workspace host has a
-   * surface that offers it (the tree's right-click menu); a host that omits
-   * it makes the flow a no-op rather than forcing every host to carry a
-   * dialog it never opens. Resolves `undefined` on cancel, like `promptText`.
+   * Status picker behind {@link setStatusFlow}; only the workspace host offers
+   * it (tree right-click menu). Absent → the flow no-ops. `undefined` = cancel.
    */
   readonly pickStatus?: (current: TaskStatus) => Promise<TaskStatus | undefined>
-  /**
-   * DIVERGENCE — the change-engine picker behind {@link pickVendorFlow}
-   * (engine list + effort chips + model input). Optional for the same reason
-   * as `pickStatus`; host implements with `EnginePickerDialog.show(dialog, …)`.
-   */
+  /** Engine picker behind {@link pickVendorFlow}; absent → no-op. Host uses `EnginePickerDialog.show`. */
   readonly pickEngine?: (opts: EnginePickOpts) => Promise<EnginePick | undefined>
-  /**
-   * DIVERGENCE — system-clipboard writer behind {@link copyTaskFieldFlow}.
-   * Optional for the same reason as `pickStatus`: only the workspace host has
-   * a renderer to hand the OSC52 half to; a host that omits it makes the flow
-   * a no-op.
-   */
+  /** Clipboard writer behind {@link copyTaskFieldFlow}; only the workspace host has a renderer for OSC52. Absent → no-op. */
   readonly copyText?: (text: string) => Promise<boolean>
   readonly logger: TaskActionLogger
-  /** Forensic log tag — `[rove]` (outer monitor) vs `[rove tasks]` (Tasks pane). */
+  /** `[rove]` (outer monitor) vs `[rove tasks]` (Tasks pane). */
   readonly logPrefix: string
-  /**
-   * DIVERGENCE — on-screen failure toast. The Tasks pane surfaces failures
-   * as red toasts (a bare console.error is invisible in the TUI); the outer monitor has no toast wiring for task actions, so
-   * it omits this and failures stay log-only, as before.
-   */
+  /** Failure toast (a bare console.error is invisible in the TUI). The outer monitor omits it: log-only. */
   readonly notifyError?: (message: string) => void
-  /** DIVERGENCE — neutral "this happened" toast. Same split as `notifyError`. */
+  /** Neutral info toast; same split as `notifyError`. */
   readonly notifyInfo?: (message: string) => void
-  /**
-   * DIVERGENCE — force an immediate tasks.json re-read after a mutation.
-   * The Tasks pane needs it for its poll fallback; the outer monitor is
-   * signal-driven and omits it.
-   */
+  /** Force a tasks.json re-read after a mutation; the Tasks pane's poll fallback needs it. */
   readonly reload?: () => Promise<void>
-  /**
-   * DIVERGENCE — publish the shared active-task focus after delete.
-   * The Tasks pane sets this; the outer monitor historically didn't and
-   * keeps that behavior.
-   */
+  /** Publish shared active-task focus after delete. Tasks pane only; the outer monitor keeps not doing it. */
   readonly updateActiveTask?: boolean
-  /**
-   * DIVERGENCE — selection is host-owned signal state, so the post-delete
-   * cursor move stays a hook: the Tasks pane prefers the flow-computed
-   * `nextTask`, the outer monitor recomputes from the remaining list.
-   */
+  /** Post-delete cursor move; selection is host-owned. The Tasks pane uses `nextTask`, the monitor recomputes. */
   readonly onTaskDeleted?: (taskId: string, nextTask: Task | undefined) => void
 }
 
@@ -152,13 +100,8 @@ async function stopHostedTask(taskId: string, logger: TaskActionLogger, logPrefi
 }
 
 /**
- * True when `taskId` is the CURRENTLY active task, so delete should hand the
- * shared active-task focus to the next task. Deleting a BACKGROUND task must
- * not steal focus from whatever is active — an unconditional
- * `setActiveTask(nextTask)` would do exactly that. Both real orchestrators
- * expose `activeTaskSignal()`; when it's absent (a bare test mock) we fall back
- * to `true` rather than throw — real usage
- * always resolves the active id and gets the guard.
+ * Deleting a BACKGROUND task must not steal focus from the active one. A bare
+ * test mock without `activeTaskSignal()` counts as active.
  */
 function removedTaskIsActive(orch: KobeOrchestrator, taskId: string): boolean {
   const read = (orch as { activeTaskSignal?: () => () => string | null }).activeTaskSignal
@@ -175,8 +118,6 @@ export async function finishDeletedTaskFlow(opts: {
   readonly updateActiveTask?: boolean
 }): Promise<{ nextTask?: Task }> {
   const nextTask = nextActiveTask(opts.tasks, opts.taskId)
-  // Only re-point shared active-task focus when the DELETED task was the active
-  // one — deleting a background task must leave the current focus alone.
   if (opts.updateActiveTask && opts.orch && removedTaskIsActive(opts.orch, opts.taskId)) {
     await opts.orch.setActiveTask(nextTask?.id ?? null).catch(() => {})
   }
@@ -185,23 +126,17 @@ export async function finishDeletedTaskFlow(opts: {
 }
 
 /**
- * Delete a task: confirm → non-force delete → on DIRTY_WORKTREE re-prompt
- * for an explicit force-delete → tear down hosted sessions → host
- * selection hook. The first attempt is deliberately non-force: the
- * orchestrator refuses to destroy a worktree with uncommitted/untracked
- * work and throws a DIRTY_WORKTREE error instead, so the user can't lose
- * unsaved work silently. A failed/declined delete leaves
- * everything in place — no session kill, no selection move.
+ * The first attempt is non-force: the orchestrator refuses a worktree with
+ * uncommitted/untracked work (DIRTY_WORKTREE), and only then do we ask for an
+ * explicit force. A failed/declined delete leaves everything in place.
  */
 export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
   if (!ctx.orch) return
   const task = ctx.tasks().find((t) => t.id === taskId)
   if (!task) return
-  // A "project" row is a synthetic `kind: "main"` task projecting a saved
-  // repo. It has no worktree of its own to destroy, and `deleteTask` refuses
-  // it (CannotDeleteMainTaskError), so `d` on it would just error.
-  // Route it to forget-project instead: un-save the repo + drop the main row,
-  // leaving the repo and any real tasks under it on disk.
+  // A `kind: "main"` project row has no worktree and `deleteTask` refuses it
+  // (CannotDeleteMainTaskError). Forget the project instead: the repo and any
+  // real tasks under it stay on disk.
   if (task.kind === "main") {
     const ok = await ctx.confirm({
       title: t("tasks.confirm.forgetProjectTitle", { title: task.title }),
@@ -222,8 +157,7 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
   }
   const ok = await ctx.confirm({
     title: t("tasks.confirm.deleteTitle", { title: task.title }),
-    // A `dir` task pins the user's own directory — deletion only drops the
-    // task entry; the directory is never touched.
+    // A `dir` task pins the user's own directory; only the entry is dropped.
     body: t(task.kind === "dir" ? "tasks.confirm.deleteBodyDir" : "tasks.confirm.deleteBodyTask"),
     cancelLabel: t("tasks.confirm.cancel"),
     confirmLabel: t("tasks.confirm.deleteConfirm"),
@@ -239,9 +173,8 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
     if (message.includes(DIRTY_WORKTREE_CODE)) {
       const forceOk = await ctx.confirm({
         title: t("tasks.confirm.forceDeleteTitle", { title: task.title }),
-        // Shared verbatim with the worktrees page's force-remove: one event,
-        // one wording, and it names the salvage snapshot every force path
-        // takes rather than promising the work is gone forever.
+        // Shared with the worktrees page's force-remove; it names the salvage
+        // snapshot every force path takes.
         body: t("worktrees.delete.forceBody", { branch: task.branch || task.title }),
         cancelLabel: t("tasks.confirm.cancel"),
         confirmLabel: t("tasks.confirm.forceDeleteConfirm"),
@@ -261,8 +194,6 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
       ctx.notifyError?.(t("tasks.toast.deleteFailed", { title: task.title, error: errorMessage(err) }))
     }
   }
-  // Only tear down the session + move selection if the task was actually
-  // removed — a failed/declined delete must leave everything in place.
   if (!deleted) return
   const { nextTask } = await finishDeletedTaskFlow({
     orch: ctx.orch,
@@ -277,9 +208,8 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
 }
 
 /**
- * Rename a task's title via `task.rename` (same RPC from both hosts). The
- * branch follows the title for not-yet-materialised tasks (the auto branch
- * derives from it); a worktree that already exists keeps its git branch.
+ * The branch follows the title only for not-yet-materialised tasks; an
+ * existing worktree keeps its git branch.
  */
 export async function renameTaskFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
   const task = ctx.tasks().find((t) => t.id === taskId)
@@ -297,12 +227,9 @@ export async function renameTaskFlow(ctx: TaskActionContext, taskId: string): Pr
 }
 
 /**
- * Rename a task's branch via `task.setBranch`. For a materialised worktree
- * the daemon runs `git branch -m` (HEAD moves on the checked-out worktree,
- * a running session keeps streaming); otherwise it just records the name
- * for the eventual `ensureWorktree`. No-op on `main` rows — the project
- * root's branch isn't kobe's to rename. Tasks-pane-only today (`b`), but
- * host-agnostic so the outer monitor could wire it without a port.
+ * Materialised worktree: the daemon runs `git branch -m` (a running session
+ * keeps streaming); otherwise the name is recorded for `ensureWorktree`. No-op
+ * on `main` rows: the project root's branch isn't Rove's to rename.
  */
 export async function renameBranchFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
   const task = ctx.tasks().find((t) => t.id === taskId)
@@ -323,43 +250,21 @@ export async function renameBranchFlow(ctx: TaskActionContext, taskId: string): 
 }
 
 /**
- * Cycle the task's engine vendor via `task.setVendor`.
- * Takes effect on the task's next enter: `ensureSession` rebuilds a session
- * whose `@kobe_vendor` tag does not match, launching the new engine.
- *
- * Cycle over the SAME detected-built-ins + custom set the new-task dialog
- * offers (`availableEngineIds()` + `nextVendorWithin`), not the built-ins
- * alone: a task on a user-added custom engine must be able to cycle back to
- * it instead of jumping to a built-in and getting stranded. Tasks-pane-only
- * today (`v`), lifted host-agnostic like {@link renameBranchFlow}.
- */
-/**
- * Persist a task's engine and say so — the shared half of the two routes that
- * switch engines (`v` on a row, and the ctrl+e picker's "new tab in this
- * worktree"). Both need the same two toasts: without them a rejected
- * `setVendor` leaves a tab rendered under the NEW engine's label
- * while the task keeps the previous one — success and failure look identical.
- *
- * Returns whether the write landed, so a caller can undo its optimistic UI.
+ * Persist a task's engine and toast either way; without the toasts a rejected
+ * `setVendor` leaves a tab labelled with the new engine while the task keeps
+ * the old one. Returns whether the write landed, for optimistic-UI undo.
  */
 export async function applyVendorChange(
   ctx: Pick<TaskActionContext, "orch" | "logger" | "logPrefix" | "notifyError" | "notifyInfo">,
   taskId: string,
   next: VendorId,
   /**
-   * Skip the success toast. For the caller that ALREADY showed the result: the
-   * ctrl+e picker opens a tab running the new engine right there, so the
-   * "applies on reopen" line was both noise and untrue — the tab in front of
-   * you is already the new engine. The failure toast is never optional; a
-   * rejected write there leaves a tab labelled with an engine the task does
-   * not have, which is exactly the divergence this function was added to
-   * surface.
+   * `silentSuccess`: for a caller that already opened a tab on the new engine,
+   * where "applies on reopen" would be untrue. The failure toast is never optional.
    */
   opts: {
     readonly silentSuccess?: boolean
-    /** Reasoning level to persist alongside the engine. Absent = leave the
-     *  task's alone (the engine declares none, or the caller has no opinion);
-     *  `""` = clear it back to the engine's own default. */
+    /** Absent = leave the task's alone; `""` = clear back to the engine default. */
     readonly effort?: string
     /** Same tri-state for the pinned model. */
     readonly model?: string
@@ -373,19 +278,15 @@ export async function applyVendorChange(
     ctx.notifyError?.(t("tasks.toast.switchEngineFailed", { error: errorMessage(err) }))
     return false
   }
-  // Only for a change with nothing on screen to show it: the new vendor takes
-  // effect on the task's NEXT enter (ensureSession rebuilds the pane when its
-  // `@kobe_vendor` tag does not match), so `v` on a row otherwise looks
-  // like a no-op.
+  // The new vendor applies on the NEXT enter (ensureSession rebuilds a pane
+  // whose `@kobe_vendor` tag mismatches), so without this `v` looks like a no-op.
   if (!opts.silentSuccess) ctx.notifyInfo?.(t("tasks.toast.engineSwitched", { engine: engineDisplayName(next) }))
   return true
 }
 
 /**
- * The row menu's "Change engine": open the picker on the task's current
- * engine, level and model, and persist what comes back. Not `pick.vendor ===
- * current` alone — re-picking the same engine at a different level or model
- * is a real change, which that comparison would swallow.
+ * Re-picking the same engine at a different level or model is a real change,
+ * so `pick.vendor === current` alone would swallow it.
  */
 export async function pickVendorFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
   const task = ctx.tasks().find((t) => t.id === taskId)
@@ -405,6 +306,10 @@ export async function pickVendorFlow(ctx: TaskActionContext, taskId: string): Pr
   await applyVendorChange(ctx, taskId, pick.vendor, { effort: pick.effort, model: pick.model })
 }
 
+/**
+ * Cycles over the same set the new-task dialog offers (detected built-ins +
+ * custom engines), so a custom-engine task can cycle back to its engine.
+ */
 export async function cycleVendorFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
   const task = ctx.tasks().find((t) => t.id === taskId)
   if (!task || !ctx.orch) return
@@ -415,19 +320,10 @@ export async function cycleVendorFlow(ctx: TaskActionContext, taskId: string): P
 }
 
 /**
- * Set a task's lifecycle status via `task.status` — a picker over the six
- * {@link TaskStatus} values, then one RPC.
- *
- * COSMETIC, and the copy has to keep saying so: the status is a LABEL on the
- * board (`docs/CONCEPTS.md`), so `canceled` does not close, stop, or clean up
- * anything — the worktree, the branch and every hosted session are exactly
- * where they were. That is the same framing the CLI verb carries
- * (`cli/api/verbs-edit.ts`), and the two must not drift: a "cancel" the user
- * reads as teardown is how someone loses a session they meant to keep.
- *
- * The success toast exists for the same reason `applyVendorChange`'s does —
- * a status the row renders as a chip only when it leaves backlog/in_progress
- * would otherwise look like a no-op on the two states that show nothing.
+ * COSMETIC: status is a board LABEL (`docs/CONCEPTS.md`); `canceled` closes,
+ * stops and cleans up nothing. Keep the copy saying so, in step with the CLI
+ * verb (`cli/api/verbs-edit.ts`): a "cancel" read as teardown loses sessions.
+ * The success toast exists because backlog/in_progress render no chip.
  */
 export async function setStatusFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
   const task = ctx.tasks().find((t) => t.id === taskId)
@@ -446,22 +342,11 @@ export async function setStatusFlow(ctx: TaskActionContext, taskId: string): Pro
 }
 
 /**
- * Copy a task's branch name or worktree path to the system clipboard (tree
- * menu "Copy branch name" / "Copy path"), for a `git checkout` / `cd` in
- * another shell.
- *
- * Reads the RECORDED `task.worktreePath` verbatim — it does NOT materialize the
- * worktree the way opening the task does (`openTaskWorktreeFor` calls
- * `ensureWorktree` first). A copy is a read; creating a directory as its side
- * effect would be the kind of surprise `rove api get-task` never springs. A
- * task never entered records "" for both fields, and the menu withholds the
- * entries then (tree-menu.ts); the empty-string guard here is the backstop.
- *
- * The success toast is the only feedback a clipboard write can have on screen,
- * so it echoes what was copied rather than a bare "copied" — and it is printed
- * only once `copyText` has said the text actually landed. Neither channel is
- * guaranteed: a headless box may have no clipboard command at all, and OSC 52
- * is refused outright by some terminals.
+ * Copies the RECORDED `task.worktreePath`/branch; never materializes the
+ * worktree (a read must not create a directory). A never-entered task records
+ * "" for both; tree-menu.ts hides the entries and the `""` guard is the backstop.
+ * The toast echoes the text and prints only once `copyText` confirms: a
+ * headless box may have no clipboard command and some terminals refuse OSC 52.
  */
 export async function copyTaskFieldFlow(
   ctx: TaskActionContext,

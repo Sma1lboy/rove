@@ -1,37 +1,20 @@
 /**
- * External-editor launch for the Ops pane's file tree (`enter` — `files.open`
- * in `tui/context/keybindings-files.ts`).
+ * `enter` in the Ops file tree (`files.open`) opens the file in the user's real
+ * editor in an embedded command tab. The read-only `openPreview` has no
+ * cursor/insert/save, so shelling out (as lazygit/gitui do) beats writing an
+ * editor.
  *
- * `enter` opens the file in the user's real editor (nvim / vim / nano / a
- * custom command) in an embedded command tab. The in-TUI read-only
- * preview/diff window (`openPreview`) is the FALLBACK below, not a separate
- * key: it is where `enter` lands when no editor binary can be resolved.
+ * Fallback: a missing binary (or empty `custom` with no `$EDITOR`) returns
+ * `false` and the caller opens the preview, so `enter` is never dead. Gate on
+ * "binary missing", NOT exit code: a `:cq` quit is a real session.
  *
- * Why shell out instead of editing in-pane: the preview is an opentui
- * `<code>`/`<diff>` renderer with no cursor/insert/save. A real editable
- * buffer would mean reimplementing a text editor in the TUI; launching
- * vim/nano/$EDITOR is what lazygit/gitui do and it's strictly better.
+ * nvim/vim diff mode: a PLAIN `<bin> <file>` open of a file that differs from
+ * HEAD upgrades to side-by-side diff (HEAD read-only left, live file right).
+ * Touches neither the user's config nor the repo. Custom commands with their
+ * own flags are never rewritten.
  *
- * Fallback chain (KOB — file-editor-launch): if the configured editor's
- * binary isn't on PATH (or `custom` is empty with no `$EDITOR`), this
- * returns `false` and the caller falls back to the read-only preview, so
- * `enter` is never a dead key. We gate on "binary missing", NOT on the
- * editor's exit code — a `:cq` / non-zero quit is a real edit session,
- * not a launch failure, and must not bounce to preview.
- *
- * nvim/vim diff mode: when the resolved editor is a PLAIN nvim/vim open
- * (`<bin> <file>`, no custom flags) AND the file differs from HEAD, `enter`
- * upgrades to side-by-side diff mode — the committed HEAD blob read-only
- * on the left, the live editable file on the right. This is the sh-`-c`
- * safe form of `nvim -d <file> <(git show HEAD:<file>)`: tmux runs the
- * window via `sh -c`, which has no `<(…)` process substitution, so the
- * HEAD blob is dumped to a tmp file (the explicit stand-in for the
- * process-substitution fd) and `rm`-ed when the editor exits. Nothing
- * touches the user's nvim config or the repo — zero-install, zero-config.
- * A custom command with its own flags is never rewritten.
- *
- * Settings (shared `state.json`, read cross-process via getPersistedString
- * since the Ops host is its own process):
+ * Settings come from shared `state.json` via getPersistedString (the Ops host
+ * is its own process):
  *   - `editor.kind`          "auto" | "vim" | "nvim" | "nano" | "emacs" |
  *                            "custom"   (default "auto" — see `editor-prefs.ts`)
  *   - `editor.customCommand` e.g. `code -w` / `emacsclient` / `subl -w {file}`
@@ -53,24 +36,18 @@ import { pathSyntax, pathWithin } from "@sma1lboy/kobe-daemon/path-identity"
 /** Token replaced with the (shell-quoted) file path in a custom command. */
 const FILE_PLACEHOLDER = "{file}"
 
-/** First whitespace-delimited token of a command (the binary to probe). */
 function firstToken(cmd: string): string {
   return cmd.trim().split(/\s+/)[0] ?? ""
 }
 
 /**
- * Pure: build the shell command that opens `absPath` in the chosen editor.
- * Returns `null` when nothing usable is configured (caller → preview).
+ * Pure (unit-testable without state.json). `null` = nothing usable (caller →
+ * preview).
  *
- * - vim / nano → `<bin> '<abs>'`
- * - custom     → `customCommand`, with `{file}` substituted by the quoted
- *                path, or the quoted path appended when no placeholder is
- *                present. Empty custom falls back to `envEditor`
- *                (`$VISUAL` / `$EDITOR`), then `null`.
- *
- * Kept pure (inputs in, strings out — no IO) so the quoting / substitution
- * / fallback policy is unit-testable without a state.json, the same way
- * the launcher stays independent from terminal ownership.
+ * - vim / nvim / nano / emacs → `<bin> '<abs>'`
+ * - custom → `customCommand` with `{file}` replaced by the quoted path, or the
+ *   path appended when there's no placeholder. Empty custom falls back to
+ *   `envEditor` (`$VISUAL` / `$EDITOR`), then `null`.
  */
 export function buildEditorCommand(
   kind: EditorKind,
@@ -79,14 +56,12 @@ export function buildEditorCommand(
   envEditor?: string,
 ): { bin: string; command: string } | null {
   const file = shellQuote(absPath)
-  // Explicit terminal editors map straight to their binary.
   if (kind === "vim") return { bin: "vim", command: `vim ${file}` }
   if (kind === "nvim") return { bin: "nvim", command: `nvim ${file}` }
   if (kind === "nano") return { bin: "nano", command: `nano ${file}` }
   if (kind === "emacs") return { bin: "emacs", command: `emacs ${file}` }
 
-  // `custom` (and the `auto` env path, which reuses this with envEditor as the
-  // template): the user's command, or $VISUAL/$EDITOR.
+  // `custom`, and `auto`'s env path (envEditor as the template).
   const tmpl = (customCommand.trim() || (envEditor ?? "").trim()).trim()
   if (!tmpl) return null
   const bin = firstToken(tmpl)
@@ -96,20 +71,11 @@ export function buildEditorCommand(
 }
 
 /**
- * Pure: the sh command that opens `absPath` in nvim/vim's built-in diff
- * mode (`-d`) against its committed HEAD version.
- *
- * The command runs via `sh -c`, which has no `<(…)` process
- * substitution, so we materialise bash's `<(git show HEAD:<file>)` as a
- * mktemp file: dump the HEAD blob into it, `nvim -d "$tmp" <file>` (HEAD
- * read-only on the LEFT, live editable file on the RIGHT, cursor parked on
- * the right), then `rm` it on exit. A single sh layer — every path is
- * `shellQuote`d here, with no second shell-in-nvim parse to re-escape.
- *
- * `relPath` is worktree-relative; `HEAD:./<rel>` pins the blob lookup to
- * the worktree cwd. If the HEAD blob can't be read (e.g. a race removed
- * the diff between the check and the launch), it falls back to a plain
- * `<bin> <file>` open so `enter` still lands in an editor.
+ * Pure: nvim/vim `-d` against HEAD. `sh -c` has no `<(…)`, so the HEAD blob
+ * goes to a mktemp file, removed on exit; one sh layer, every path
+ * `shellQuote`d here. Cursor parks on the live (right) side. `HEAD:./<rel>`
+ * pins the lookup to the worktree cwd. If the blob can't be read (the diff
+ * raced away), it opens plain so `enter` still lands in an editor.
  */
 export function buildNvimDiffCommand(bin: string, absPath: string, relPath: string): string {
   const file = shellQuote(absPath)
@@ -125,32 +91,22 @@ export function buildNvimDiffCommand(bin: string, absPath: string, relPath: stri
   ].join("\n")
 }
 
-/**
- * Worktree-relative form of `absPath`, or `null` when it isn't under
- * `worktree` (then the diff upgrade is skipped and we just open the file).
- */
+/** `null` when `absPath` is outside `worktree` (the diff upgrade is skipped). */
 export function relativeToWorktree(worktree: string, absPath: string): string | null {
   return pathWithin(worktree, absPath) || null
 }
 
 /**
- * Resolve the editor command from persisted settings + env (the IO wrapper
- * around {@link buildEditorCommand}). Read cross-process via
- * getPersistedString since the Ops host is its own process.
- *
- * The default kind is `auto`, which follows the STANDARD convention: prefer
- * $VISUAL / $EDITOR, and if neither is set, auto-detect the first installed of
- * {@link AUTO_EDITOR_CANDIDATES} (nvim → vim → emacs → nano). That detection is
- * why this is async. Explicit kinds resolve synchronously via buildEditorCommand.
+ * `auto` (default) prefers $VISUAL / $EDITOR, else the first installed of
+ * {@link AUTO_EDITOR_CANDIDATES} (nvim → vim → emacs → nano); that probe is
+ * why this is async.
  */
 export async function resolveEditorCommand(absPath: string): Promise<{ bin: string; command: string } | null> {
   const kind = normalizeEditorKind(getPersistedString(EDITOR_KIND_KEY))
   const custom = getPersistedString(EDITOR_CUSTOM_KEY) ?? ""
   const env = (process.env.VISUAL ?? process.env.EDITOR ?? "").trim()
   if (kind !== "auto") return buildEditorCommand(kind, custom, absPath, env)
-  // auto: honour the standard env first…
   if (env) return buildEditorCommand("custom", "", absPath, env)
-  // …else probe for an installed terminal editor, in preference order.
   const file = shellQuote(absPath)
   for (const bin of AUTO_EDITOR_CANDIDATES) {
     if (await binaryAvailable(bin)) return { bin, command: `${bin} ${file}` }
@@ -158,7 +114,7 @@ export async function resolveEditorCommand(absPath: string): Promise<{ bin: stri
   return null
 }
 
-/** Is `bin` resolvable on PATH (or as an absolute path)? Pre-flight for fallback. */
+/** On PATH (or an absolute path)? */
 export async function binaryAvailable(bin: string): Promise<boolean> {
   try {
     const proc = Bun.spawn(["sh", "-c", `command -v ${shellQuote(bin)} >/dev/null 2>&1`], {
@@ -173,14 +129,9 @@ export async function binaryAvailable(bin: string): Promise<boolean> {
 }
 
 /**
- * Does `relPath` differ from its HEAD version? Gate for the nvim/vim diff
- * upgrade. `git diff --quiet` exits 1 on differences, 0 on none; we treat
- * ONLY exit 1 as "has diff" so an untracked/new file (exit 0 — no HEAD
- * blob to diff) or a git error (other codes) opens plain, not in diff mode.
- *
- * `GIT_OPTIONAL_LOCKS=0` keeps it lock-free, matching the read-only preview
- * (`tui/ops/host.tsx` gitDiff) — it must not take `.git/index.lock` and
- * race the worktree's engine commits.
+ * Only exit 1 means "has diff": an untracked file (0, no HEAD blob) or a git
+ * error opens plain. `GIT_OPTIONAL_LOCKS=0` keeps it lock-free so it never
+ * takes `.git/index.lock` and races the engine's commits.
  */
 export async function fileHasDiff(worktree: string, relPath: string): Promise<boolean> {
   try {
@@ -198,12 +149,7 @@ export async function fileHasDiff(worktree: string, relPath: string): Promise<bo
   }
 }
 
-/**
- * Resolve + (maybe) diff-upgrade the editor command for `absPath`, without
- * launching it. The workspace runs the result in an embedded terminal tab.
- * Returns `null` when nothing usable is configured/installed
- * (caller falls back to the read-only preview / an external opener).
- */
+/** Resolve + maybe diff-upgrade, without launching. `null` → caller falls back to preview / an external opener. */
 export async function resolveEditorLaunch(
   worktree: string,
   absPath: string,
@@ -216,15 +162,9 @@ export async function resolveEditorLaunch(
 }
 
 /**
- * Upgrade a resolved editor command to nvim/vim side-by-side diff mode when
- * it's a PLAIN nvim/vim open of a file that differs from HEAD; otherwise
- * return it unchanged.
- *
- * Gated on the command being EXACTLY the simple `<bin> <file>` form: an
- * explicit `vim`/`nvim` kind, an auto-detected one, or `$EDITOR=nvim` all
- * resolve to that, while a custom command carrying its own flags
- * (`nvim -u … {file}`) does not match and is left untouched — we never
- * rewrite a user's deliberate invocation.
+ * Only the EXACT `<bin> <file>` form upgrades (explicit, auto-detected, or
+ * `$EDITOR=nvim`); a custom `nvim -u … {file}` is a deliberate invocation and
+ * is left untouched.
  */
 async function maybeDiffCommand(
   resolved: { bin: string; command: string },
@@ -240,7 +180,6 @@ async function maybeDiffCommand(
   return buildNvimDiffCommand(bin, absPath, rel)
 }
 
-/** Basename of the file path, used as the editor tab label. */
 export function editorWindowLabel(absPath: string): string {
   const base = pathSyntax(absPath).basename(absPath).trim()
   return base.length > 0 ? base : "edit"

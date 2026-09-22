@@ -1,24 +1,12 @@
 /**
- * The rail-resize gesture, split across the two places it has to live.
- *
- * opentui hands pointer capture to whatever the cursor is over on the FIRST
- * motion report, not to whatever was pressed (`processSingleMouseEvent`). A
- * one-cell grip loses that race every time: by the first report the cursor is
- * already cells away, capture goes to the terminal pane, and the grip never
- * hears `drag` or `up` again. Measured, not assumed — a 24-cell pull and a
- * 4-cell nudge both left the rail exactly where it was.
- *
- * Growing the grip on press does not fix it either. That needs a React commit
- * to land between the press and the first motion, which a browser driver's
- * 30ms pause supplies and a real flick of the wrist does not.
- *
- * So the press arms the gesture and an ANCESTOR of every pane finishes it.
- * Wherever capture lands, the event bubbles up through the row that holds the
- * panes, and that row is always above it. Nothing has to be reached, expanded,
- * or timed.
- *
- * Width comes from the drag's OFFSET (`start + Δx`), never the cursor's
- * column, so none of this has to know where the rail's left edge is.
+ * The rail-resize gesture, split across two places. opentui gives pointer
+ * capture to whatever is under the cursor on the FIRST motion report
+ * (`processSingleMouseEvent`), so a one-cell grip always loses it to the
+ * terminal pane: measured, a 24-cell pull and a 4-cell nudge both left the rail
+ * unmoved. Growing the grip on press needs a React commit before the first
+ * motion, which a real flick doesn't allow. So the grip arms the gesture and an
+ * ANCESTOR of every pane (the pane row) finishes it via bubbling. Width is
+ * `start + Δx`, never the cursor column, so the rail's edge needn't be known.
  */
 
 import { useRef } from "react"
@@ -26,7 +14,6 @@ import { useRef } from "react"
 /** Two releases closer together than this are one double-click. */
 const DOUBLE_CLICK_MS = 400
 
-/** The slice of opentui's MouseEvent this gesture reads. */
 export interface GestureMouseEvent {
   readonly x: number
 }
@@ -41,7 +28,7 @@ export interface SidebarResizeGesture {
 }
 
 export function useSidebarResizeGesture(opts: {
-  /** The rail's width right now — every drag offsets from this. */
+  /** Every drag offsets from this. */
   readonly width: number
   readonly onResize: (width: number) => void
   /** Double-click on the grip: back to the terminal-derived width. */
@@ -54,8 +41,7 @@ export function useSidebarResizeGesture(opts: {
       armed.current = { x: event.x, width: opts.width, moved: false }
     },
     onPaneDrag: (event) => {
-      // Every drag in the workspace bubbles through here, including the ones
-      // that belong to a text selection — an unarmed gesture must be silent.
+      // Every workspace drag bubbles here (text selections too); unarmed = silent.
       const from = armed.current
       if (from == null) return
       const delta = event.x - from.x
@@ -67,8 +53,7 @@ export function useSidebarResizeGesture(opts: {
       const from = armed.current
       if (from == null) return
       armed.current = null
-      // A drag is never half of a double-click: resizing twice in a row must
-      // not throw away the width the first drag just set.
+      // A drag is never half of a double-click, or a second resize would reset the first.
       if (from.moved) {
         lastRelease.current = 0
         return

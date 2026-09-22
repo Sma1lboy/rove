@@ -1,15 +1,9 @@
 /**
- * Create-PR action (FileTree `pr` chip + prefix+p) — a PTY paste+submit of
- * the PR prompt into the selected task's engine session. Its own module
- * because of the guard below, which is the whole hazard: after an await, the
- * selected task (and the TerminalTabs mount behind the ref) may have changed,
- * and a stale continuation must not deliver into the new task. Same guard as
- * the other imperative-ref actions in `host.tsx`, kept where it can be read in
- * one screen.
- *
- * `createPRAction` is the React-free core (git IO injectable) so vitest can
- * pin the target-branch toast and both identity guards without a repo;
- * `useCreatePR` binds it to the live locale.
+ * Create-PR (FileTree `pr` chip + prefix+p): PTY paste+submit of the PR prompt
+ * into the selected task's engine. The hazard is identity: after an await the
+ * selected task (and the mount behind the ref) may have changed, and a stale
+ * continuation must not deliver into the new task. `createPRAction` is the
+ * React-free core (git IO injectable, vitest-able); `useCreatePR` binds the locale.
  */
 
 import type { MutableRefObject } from "react"
@@ -22,7 +16,7 @@ export type CreatePRDeps = {
   selectedWorktreeRef: { readonly current: string | null }
   notifyError: (message: string) => void
   t: (key: string, params?: Record<string, string | number>) => string
-  /** Injectable for tests; default to the real git-backed helpers. */
+  /** Injectable for tests; defaults to the real git helpers. */
   gather?: typeof gatherPRPromptState
   build?: typeof buildPRPrompt
 }
@@ -45,18 +39,10 @@ export function createPRAction(deps: CreatePRDeps): () => Promise<void> {
 }
 
 /**
- * "Create a PR for THAT task" — the sidebar-row aim of `prefix+p`, held
- * across the task switch it needs.
- *
- * The action can only run where the engine is: `sendToEngineFn` is handed up
- * by the mounted TerminalTabs, so a row that is not the active task has no
- * send closure to reach. The host therefore activates the row and parks the
- * request here; the next `onEngineSendReady` for that task claims it. Same
- * shape as the sidebar menu's `requestNewTab`, kept in this module because
- * the action is what it is about.
- *
- * One slot: a second press before the first is claimed retargets it rather
- * than queueing, which is what a user pressing the chord twice means.
+ * `prefix+p` aimed at a sidebar row: a non-active row has no send closure, so
+ * the host activates it and parks the request here; the next
+ * `onEngineSendReady` for that task claims it. One slot: a second press before
+ * the claim retargets rather than queues.
  */
 let pendingCreatePR: string | null = null
 
@@ -64,7 +50,6 @@ export function requestCreatePR(taskId: string): void {
   pendingCreatePR = taskId
 }
 
-/** Claim a parked request for this task. */
 export function takeCreatePR(taskId: string | null): boolean {
   if (taskId === null || pendingCreatePR !== taskId) return false
   pendingCreatePR = null

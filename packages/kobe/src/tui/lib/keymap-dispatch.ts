@@ -1,11 +1,7 @@
 /**
- * Pure dispatch logic for kobe's TUI keymap.
- *
- * Kept framework-free so unit tests can exercise the binding-stack
- * precedence + preventDefault behavior without pulling in the renderer.
- * The React hook + renderer-install side lives in
- * `src/tui-react/lib/keymap.ts` and re-exports from here for the rest
- * of the codebase.
+ * Framework-free keymap dispatch, so tests cover binding-stack precedence and
+ * preventDefault without a renderer. `src/tui-react/lib/keymap.ts` owns the
+ * React hook + renderer install and re-exports from here.
  */
 
 import type { KeyEvent } from "@opentui/core"
@@ -15,9 +11,7 @@ import { inputPassthroughReachable, prefixReachable, scanReachability } from "./
 import { isKittyModifierKeyName } from "./modifier-keys"
 import { type PrefixHudOption, prefixHudPush, prefixHudSetArmed } from "./prefix-hud"
 
-// Re-exported for `test/bench/hot-paths.bench.ts`, which benchmarks the
-// dispatch path through its public door rather than reaching into
-// `keymap-match` behind it.
+// Re-exported for `test/bench/hot-paths.bench.ts`, which benches the public door.
 export { matchKey } from "./keymap-match"
 
 /** Mouse-safe command paired with a keyboard binding. */
@@ -36,30 +30,21 @@ export type Binding = {
   passthrough?: boolean
   /** Skip this match when the current input surface forwards keys to a PTY. */
   yieldToPassthrough?: boolean
-  /**
-   * Owning KobeKeymap binding id (`tab.new`) — `bindByIds` fills it in so
-   * the prefix HUD can name what a resolved sequence did. Hand-rolled
-   * `{ key, cmd }` literals may omit it.
-   */
+  /** Owning KobeKeymap id, filled by `bindByIds` so the prefix HUD can name the action. Hand-rolled literals may omit it. */
   id?: string
   /**
-   * Handler. The second argument is the binding's {@link Binding.slot} —
-   * present when the registration site assigned one (`bindByIds` does).
-   * Single-chord handlers can ignore it; multiplexed handlers (one id,
-   * several chords, direction decided by WHICH chord fired) read it
+   * `slot` is present when the registration assigned one (`bindByIds` does).
+   * Multiplexed handlers (direction decided by WHICH chord fired) read it
    * instead of `event.name`, so user-rebound chords keep working.
    */
   cmd: (event: KeyEvent, slot?: number) => void
   /** Typed command used by the local prefix reveal; never synthesizes a KeyEvent. */
   action?: PrefixAction
   /**
-   * Positional index of `key` within the owning binding id's `keys` array
-   * at registration time (slot-based dispatch). `bindByIds` fills this in;
-   * hand-rolled `{ key, cmd }` literals may omit it. The slot is what lets
-   * a handler like `sidebar.nav` map "which chord fired" → "which
-   * direction" without inspecting `event.name` — the contract that makes
-   * direction-multiplexed ids user-rebindable (see SLOT_CONTRACTS in
-   * keymap-overrides.ts for the per-id slot layouts).
+   * Index of `key` in the owning id's `keys` at registration; `bindByIds`
+   * fills it. Lets `sidebar.nav` map chord → direction without `event.name`,
+   * which is what makes multiplexed ids rebindable (SLOT_CONTRACTS in
+   * keymap-overrides.ts).
    */
   slot?: number
 }
@@ -67,14 +52,10 @@ export type Binding = {
 export type BindingsConfig = {
   enabled?: boolean
   /**
-   * Modal barrier: when this entry is reached and none of ITS bindings
-   * matched, the walk STOPS — every entry registered below (i.e. before
-   * this one mounted) is unreachable. `preventDefault` is NOT called on
-   * the way out, so opentui's native routing (a dialog's focused text
-   * input) still receives the key. This is the structural guarantee that
-   * an open dialog can never operate the UI behind it — bindings inside
-   * the dialog mount after the barrier and stay reachable; everything
-   * older is cut off wholesale instead of each pane gating itself.
+   * Modal barrier: if none of ITS bindings matched, the walk STOPS, so every
+   * older entry is unreachable. `preventDefault` is NOT called, so the
+   * dialog's focused input still gets the key. This is the structural
+   * guarantee that a dialog can't operate the UI behind it.
    */
   modal?: boolean
   bindings: Binding[]
@@ -84,29 +65,23 @@ export type RegisteredBinding = {
   config: () => BindingsConfig
   id: number
   /**
-   * Modal-scope declaration (static, set at registration — unlike `config`,
-   * never re-read per keypress). Together with {@link insertRegistration}
-   * this makes barrier-vs-body precedence a function of DECLARED DATA
-   * instead of registration (React effect-commit) order:
-   *   - `modalOwner`: this entry IS the modal barrier for that scope token.
-   *     Its `config()` should also return `modal: true` — the owner field
-   *     governs stack POSITION, `config.modal` governs the dispatch cut-off.
-   *   - `modalMember`: this entry belongs INSIDE that scope (a dialog
-   *     body's bindings) and must stay reachable above the barrier.
+   * Static modal-scope declaration, never re-read per keypress. With
+   * {@link insertRegistration} it makes barrier-vs-body precedence DECLARED
+   * DATA instead of React effect-commit order:
+   *   - `modalOwner`: this entry IS the barrier for that scope. Its `config()`
+   *     should also return `modal: true` (owner = stack POSITION, `config.modal`
+   *     = dispatch cut-off).
+   *   - `modalMember`: inside that scope (a dialog body); stays above the barrier.
    */
   modalOwner?: symbol
   modalMember?: symbol
 }
 
 /**
- * Insert a registration into the live binding stack. Plain entries push
- * (LIFO, unchanged). A modal OWNER (barrier) is inserted BELOW the lowest
- * already-registered MEMBER of its scope, so members win over the barrier
- * and the barrier still cuts off everything older — regardless of whether
- * React commits the body's effects before or after the barrier's. Making
- * that ordering explicit here keeps it from being an effect-commit-order
- * accident (see tui-react/ui/dialog.tsx). O(n) only at mount/unmount, never on the
- * per-keypress dispatch path.
+ * Plain entries push (LIFO). A modal OWNER goes BELOW the lowest registered
+ * MEMBER of its scope, so members beat the barrier and the barrier still cuts
+ * off everything older, whichever order React commits the effects in (see
+ * tui-react/ui/dialog.tsx). O(n) only at mount/unmount, never per keypress.
  */
 export function insertRegistration(stack: RegisteredBinding[], reg: RegisteredBinding): void {
   if (reg.modalOwner !== undefined) {
@@ -120,15 +95,9 @@ export function insertRegistration(stack: RegisteredBinding[], reg: RegisteredBi
 }
 
 /**
- * Re-entrancy guard. A binding's `cmd()` runs synchronously and can mount /
- * unmount React components, which in turn synchronously dispatch their own
- * key events (rare, but possible — e.g. a handler that programmatically
- * pushes a key into the renderer). A nested dispatch would scan a stack that
- * the outer dispatch's handler is in the middle of mutating, firing a chord
- * against a half-applied / wrong-scope set of bindings. We drop nested
- * dispatches: a single physical keypress should resolve to at most one
- * binding. In normal (non-re-entrant) use this flag is always false at entry,
- * so the guard is a no-op and observed behavior is unchanged.
+ * Re-entrancy guard: a `cmd()` can mount/unmount components that synchronously
+ * dispatch keys, and a nested dispatch would scan a stack mid-mutation. One
+ * physical keypress resolves to at most one binding, so nested dispatches drop.
  */
 let dispatching = false
 
@@ -184,14 +153,11 @@ function armPrefix(now: number, options: readonly PrefixHudOption[], inputPassth
 }
 
 /**
- * Arm the PureTUI prefix programmatically — the mouse path into the command
- * layer (the footer's "commands" hint is clickable). Same guards as the
- * keyboard arm branch in {@link dispatchKeyEvent}: a disabled prefix or an
- * unreachable catalogue (modal barrier) is a no-op. Terminal passthrough is
- * deliberately allowed because the configured prefix is Kobe-global; every
- * other unclaimed key still reaches the PTY. Returns whether it armed; the
- * armed state is the real one, so the next keypress dispatches as a second
- * stroke.
+ * Arm the prefix from the mouse (the clickable footer "commands" hint). Same
+ * guards as the keyboard arm in {@link dispatchKeyEvent}: disabled prefix or
+ * unreachable catalogue (modal barrier) → no-op. Allowed over terminal
+ * passthrough because the prefix is Kobe-global. The armed state is real, so
+ * the next keypress dispatches as the second stroke.
  */
 export function armPrefixNow(snapshot: readonly RegisteredBinding[], now: number = Date.now()): boolean {
   if (prefixConfiguration.key === null) return false
@@ -202,9 +168,8 @@ export function armPrefixNow(snapshot: readonly RegisteredBinding[], now: number
 }
 
 /**
- * Invoke one advertised prefix option from a mouse click. The option must
- * still be armed and resolve to the same live LIFO binding; stale UI never
- * gets to operate a newly mounted scope.
+ * Mouse-click a prefix option. It must still be armed and resolve to the same
+ * live LIFO binding, so stale UI never operates a newly mounted scope.
  */
 export function invokeArmedPrefixAction(
   bindingStack: readonly RegisteredBinding[],
@@ -254,24 +219,18 @@ export function invokeArmedPrefixAction(
   }
 }
 
-/** Chords already flagged by the shadowed-match warning (once per process
- *  per chord — a stuck contract violation must not spam every keypress). */
+/** Once per chord per process, so a stuck violation doesn't spam every keypress. */
 const shadowWarned = new Set<string>()
 
 /**
- * Contract check behind the ctrl+w-class bug (split-close vs tab-close):
- * two ENABLED entries matching the same chord means LIFO order — React's
- * effect-order registration puts ancestors on top (see
- * tui-react/lib/keymap.ts) — silently picks the winner. The rule is
- * mutual GATING (exactly one enabled at a time); a second enabled match
- * is a latent bug, so surface it. Runs on the pre-`cmd` snapshot (the
- * handler may re-gate the loser) and respects modal barriers: everything
- * below a modal entry is deliberately unreachable, not shadowed.
+ * The ctrl+w-class bug (split-close vs tab-close): two ENABLED entries on one
+ * chord means LIFO silently picks the winner (React effect order puts
+ * ancestors on top). The rule is mutual gating, so warn. Runs on the pre-`cmd`
+ * snapshot (the handler may re-gate the loser); below a modal entry is
+ * unreachable, not shadowed.
  *
- * DEV-ONLY (`isDev()` — KOBE_DEV=1, set by every dev/dev:sandbox/dev:mock
- * script): the scan reads every lower group config, which would break
- * dispatch's read-one-config-on-hit budget on the per-keypress hot path
- * (test/tui/perf-budgets.test.ts).
+ * DEV-ONLY (`isDev()`, KOBE_DEV=1): it reads every lower config, which breaks
+ * the read-one-config-on-hit hot-path budget (test/tui/perf-budgets.test.ts).
  */
 function warnShadowedMatch(
   snapshot: readonly RegisteredBinding[],
@@ -309,11 +268,8 @@ function dispatchMode(
     if (!reg) continue
     const cfg = reg.config()
     if (cfg.enabled === false) continue
-    // Candidate ORDER is a precedence contract: matchKey lists the most
-    // specific form first (`shift+z` before the bare `z` fallback), so an
-    // entry holding both a `shift+z` and a `z` binding must fire the
-    // shift-specific one — registration order within the entry must not
-    // decide. Candidates are ≤3 strings, so the nested scan stays O(1).
+    // Candidate ORDER is a precedence contract: `shift+z` before bare `z`, so
+    // registration order within an entry can't decide. ≤3 candidates, O(1).
     let hit: Binding | undefined
     for (const candidate of candidates) {
       hit = cfg.bindings.find((binding) => Boolean(binding.prefix) === prefix && binding.key === candidate)
@@ -331,20 +287,13 @@ function dispatchMode(
 }
 
 /**
- * Walk the binding stack top-down and fire the first matching binding.
- * Returns true if a binding was fired (caller can inspect this; the
- * production listener uses it to short-circuit). On a hit, the event's
- * `preventDefault()` is called so opentui's native widgets (e.g. the
- * textarea's onSubmit) don't also receive the key in the same tick.
+ * Fire the first top-down match; true if one fired. On a hit,
+ * `preventDefault()` keeps opentui's native widgets (textarea onSubmit) from
+ * also getting the key this tick.
  *
- * The scan runs over a STABLE SNAPSHOT of `bindingStack` taken at entry. A
- * matched handler's `cmd()` can synchronously mutate the live stack (React
- * mount/cleanup effects push/remove entries — see `useBindings` in
- * `src/tui-react/lib/keymap.ts`);
- * iterating the live array would let those mid-flight mutations skip or
- * double-visit entries. Snapshotting insulates the in-progress scan without
- * changing precedence: the same top-down (LIFO) order is searched and the
- * same binding wins.
+ * Scans a SNAPSHOT taken at entry: a `cmd()` can synchronously push/remove
+ * entries (`useBindings` in `src/tui-react/lib/keymap.ts`), and iterating the
+ * live array would skip or double-visit. Precedence is unchanged.
  */
 export function dispatchKeyEvent(
   bindingStack: readonly RegisteredBinding[],
@@ -371,9 +320,8 @@ export function dispatchKeyEvent(
   const runCmd = opts?.flushSync ?? ((fn) => fn())
   dispatching = true
   try {
-    // A sequence cannot cross the PTY boundary after it is armed: the next
-    // key must resolve in the same kind of input surface that showed the
-    // command map. Prefixes armed INSIDE the terminal remain valid there.
+    // An armed sequence can't cross the PTY boundary; one armed inside the
+    // terminal stays valid there.
     if (prefixArmedAt !== null && inputPassthroughReachable(snapshot) !== prefixArmedOnPassthrough) {
       resetPrefixState()
     }
@@ -390,8 +338,7 @@ export function dispatchKeyEvent(
           evt.preventDefault()
           return true
         }
-        // A miss is consumed so it cannot type into an input or Terminal pane
-        // after the user deliberately started a prefix sequence.
+        // A miss is consumed so it can't type into an input or the terminal.
         resetPrefixState()
         const hit = dispatchMode(snapshot, evt as KeyEvent, candidates, true, runCmd)
         prefixHudPush({
@@ -406,10 +353,8 @@ export function dispatchKeyEvent(
     }
 
     if (prefixConfiguration.key !== null && candidates.includes(prefixConfiguration.key)) {
-      // The configured first stroke is Kobe-global, including while the
-      // embedded terminal owns every other unreserved key. If no prefix row
-      // is reachable (disabled configuration/modal context), normal direct
-      // dispatch below still lets the terminal's passthrough binding win.
+      // The first stroke is Kobe-global, even over the terminal. With no
+      // reachable prefix row, direct dispatch below lets passthrough win.
       if (prefixReachable(snapshot)) {
         const reach = scanReachability(snapshot)
         armPrefix(now, reach.prefixOptions, reach.inputPassthrough)
@@ -420,11 +365,8 @@ export function dispatchKeyEvent(
 
     const direct = dispatchMode(snapshot, evt as KeyEvent, candidates, false, runCmd)
     if (direct) {
-      // Direct chords land in the HUD too — but only REAL modifier chords
-      // (ctrl+t, alt+…): plain pane letters (sidebar j/k) would stream
-      // noise on every navigation keypress, and shift+letter is just
-      // typing an uppercase character (terminal passthrough included) —
-      // same noise class as the bare letters.
+      // HUD shows only real modifier chords: bare pane letters (j/k) and
+      // shift+letter (just uppercase typing) would be noise.
       if (direct.id && direct.key.includes("+") && !direct.key.startsWith("shift+")) {
         prefixHudPush({ prefixKey: "", stroke: direct.key, action: direct.id ?? direct.key, at: now })
       }

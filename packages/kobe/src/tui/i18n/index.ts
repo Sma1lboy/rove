@@ -1,18 +1,12 @@
 /**
- * Reactive translation runtime.
+ * Reactive translation runtime: one framework-free cell holds the process
+ * language; `t()` reads it and React subscribes via `useSyncExternalStore`
+ * (`tui-react/i18n`). The booter seeds it from `state.json`
+ * (`readPersistedUiPrefs().locale`) and Settings calls `setLocaleLang` +
+ * `kv.set("locale", …)`; this module owns only the in-memory value.
  *
- * One framework-free state cell holds the active language for the process.
- * Framework-free callers read `t()` directly; React subscribes to the same
- * cell through `useSyncExternalStore` in `tui-react/i18n`.
- *
- * Persistence is handled the same way the theme is: the booter seeds the
- * language from `state.json` (`readPersistedUiPrefs().locale`) via
- * {@link setLocaleLang}, and the Settings switcher calls `setLocaleLang` +
- * `kv.set("locale", …)`. This module owns the in-memory reactive value only.
- *
- * IMPORTANT (matches the repo's i18n convention): import the `t` FUNCTION at
- * module scope and call it inside the render/getter — never capture `t("…")`'s
- * RESULT in a module-level constant, which would freeze the language.
+ * Call `t()` inside the render/getter; never keep `t("…")`'s RESULT in a
+ * module-level constant, which freezes the language.
  */
 
 import { type ReadableState, createStateCell } from "../../lib/external-store"
@@ -28,16 +22,11 @@ export function setLocaleLang(lang: LocaleId): void {
   if (CATALOGS[lang]) langState.set(lang)
 }
 
-/** The active language id. */
 export function currentLang(): LocaleId {
   return langState.get()
 }
 
-/**
- * The BCP-47 tag for the active UI language — the argument every `Intl` /
- * `toLocale*` call needs so a date or clock follows the UI setting rather
- * than the machine's.
- */
+/** BCP-47 tag for `Intl` / `toLocale*`, so dates follow the UI setting, not the machine. */
 export function intlLocale(): string {
   return LOCALES.find((locale) => locale.id === langState.get())?.intl ?? "en-US"
 }
@@ -47,10 +36,7 @@ export function localeState(): ReadableState<LocaleId> {
   return langState
 }
 
-/**
- * Translate `key` for the active language. Falls back to English, then to the
- * raw key (so a missing string is loud, not blank). Reactive via `store.lang`.
- */
+/** Falls back to English, then the raw key (missing strings are loud, not blank). */
 export function t(key: string, params?: Record<string, string | number>): string {
   const lang = langState.get()
   const resolved = lookup(CATALOGS[lang], key) ?? lookup(CATALOGS.en, key) ?? key
@@ -58,11 +44,9 @@ export function t(key: string, params?: Record<string, string | number>): string
 }
 
 /**
- * Lookup for the keybinding catalog (`keys.category.*` / `keys.desc.*`),
- * where the lookup key is itself a binding id like `chat.tab.new` whose dots
- * would mis-split the generic dotted `t()` path. Indexes the leaf record by
- * the EXACT key string instead. Reactive via `store.lang`; English fallback,
- * then the raw key (so an unmapped binding shows its id, never blank).
+ * Catalog lookup for `keys.category.*` / `keys.desc.*`, whose keys are binding
+ * ids with dots (`chat.tab.new`) that the dotted `t()` path would mis-split;
+ * indexes the leaf record by the EXACT key. English, then raw-id fallback.
  */
 export function tKeys(group: "category" | "desc", key: string): string {
   const lang = langState.get()

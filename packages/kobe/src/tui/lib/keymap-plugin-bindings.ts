@@ -11,12 +11,11 @@
  *     cmd+g: pane:examples.lazygit.git
  * ```
  *
- * Kobe ships NO default plugin chords — every chord here is the user's own
- * placement call (docs/KEYBINDINGS.md). Values are `pane:<plugin-id>.<pane>`
- * or `action:<plugin-id>.<action>`; the qualified id is resolved by the CLI
- * at fire time, so a chord for an uninstalled plugin parses fine and just
- * errors in the log when pressed. Zero-opentui module (vitest-importable);
- * chord grammar shared with keymap-overrides-parse.
+ * No default plugin chords: each is the user's placement call
+ * (docs/KEYBINDINGS.md). Values are `pane:<plugin-id>.<pane>` or
+ * `action:<plugin-id>.<action>`, resolved by the CLI at fire time, so a chord
+ * for an uninstalled plugin parses fine and errors in the log when pressed.
+ * Zero-opentui; grammar shared with keymap-overrides-parse.
  */
 
 import { normalizeChord } from "./keymap-overrides-parse"
@@ -74,10 +73,7 @@ function collect(section: Record<string, unknown>, into: Map<string, PluginKeyBi
   }
 }
 
-/**
- * Extract the `plugins:` chord map for `platform`. Platform overlays win
- * per chord (same rule as `bindings:` overlays, applied per key).
- */
+/** Platform overlays win per chord, like `bindings:` overlays. */
 export function extractPluginKeybindings(doc: unknown, platform: string): ExtractedPluginKeybindings {
   const warnings: string[] = []
   const byChord = new Map<string, PluginKeyBinding>()

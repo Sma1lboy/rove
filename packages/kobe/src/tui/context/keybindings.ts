@@ -1,10 +1,7 @@
 /**
- * Keymap RUNTIME — lookup index, chord resolution, override reset, and the
- * reload version store. The chord-table DATA (`KobeKeymap` + the row types
- * and the full hand-off contract doc) lives in `keybindings-table.ts` and
- * is re-exported here so every existing importer (panes, help dialog,
- * tests, the `src/tui-react/context/keybindings.ts` shim) keeps compiling
- * unchanged.
+ * Keymap RUNTIME: lookup index, chord resolution, override reset, reload
+ * version store. The table DATA and its contract live in
+ * `keybindings-table.ts`, re-exported here for existing importers.
  */
 
 import type { KobeBinding, KobeBindingHint } from "./keybindings-table.ts"
@@ -14,11 +11,9 @@ export { KobeKeymap } from "./keybindings-table.ts"
 export type { KobeBinding, KobeBindingScope } from "./keybindings-table.ts"
 
 /**
- * Pristine snapshot of every row's overridable fields (`keys` + `hint`),
- * captured at module load BEFORE any `applyKeymapOverrides` mutation. The
- * live-reload path ({@link resetKeymapToDefaults}) restores from this so a
- * removed override returns to its default — additive in-place mutation
- * alone can't "un-override" a row.
+ * Pristine `keys`/`prefixKeys`/`hint` captured at module load, BEFORE any
+ * override. {@link resetKeymapToDefaults} restores from it, since in-place
+ * mutation alone can't "un-override" a row.
  */
 const KEYMAP_DEFAULTS: ReadonlyMap<
   string,
@@ -31,25 +26,18 @@ const KEYMAP_DEFAULTS: ReadonlyMap<
 )
 
 /**
- * Default chords for a binding id, read from the pristine
- * {@link KEYMAP_DEFAULTS} snapshot — NOT the live (possibly
- * user-overridden) row. `RESERVED_GLOBAL_CHORDS`
- * (panes/terminal/keys-pure.ts) derives the terminal-passthrough
- * reservation from this, so a user override never changes which chords
- * the embedded terminal swallows. Unknown id → empty array (same
- * contract as {@link chordsOf}).
+ * From the pristine snapshot, NOT the live row: `RESERVED_GLOBAL_CHORDS`
+ * (panes/terminal/keys-pure.ts) derives from this, so a user override never
+ * changes which chords the terminal swallows. Unknown id → [].
  */
 export function defaultChordsOf(id: string): readonly string[] {
   return KEYMAP_DEFAULTS.get(id)?.keys ?? []
 }
 
 /**
- * Restore every `KobeKeymap` row to its boot-time default chords + hint.
- * Called before re-applying the (re-read) keybindings file on a live
- * reload, so the net effect is "defaults + current overrides", never a
- * pile-up of stale overrides. Mutates in place — the same cast
- * `applyKeymapOverrides` uses, since the rows are runtime-mutable despite
- * the `readonly` types.
+ * Called before re-applying the re-read file on live reload, so the result is
+ * "defaults + current overrides", never stale pile-up. Mutates in place (rows
+ * are runtime-mutable despite `readonly`).
  */
 export function resetKeymapToDefaults(): void {
   for (const row of KobeKeymap) {
@@ -63,25 +51,18 @@ export function resetKeymapToDefaults(): void {
 }
 
 /**
- * A bump-only version token: every live keymap reload increments it. The
- * chord LEGENDS (status bar, help dialog) read it so they re-render after a
- * reload — the keymap array is mutated in place, so a mutation is otherwise
- * invisible to the renderer. Behaviour doesn't need it (the dispatcher
- * re-reads chords on every keypress); this is purely the display nudge.
- *
- * React consumers subscribe via `useSyncExternalStore(subscribeKeymapVersion,
- * keymapVersion)` (src/tui-react/context/keybindings.ts) — `keymapVersion()`
- * is the getSnapshot getter, `subscribeKeymapVersion` the store subscription.
+ * Bump-only token incremented on every live reload. Chord LEGENDS need it to
+ * re-render because rows mutate in place; dispatch doesn't (it re-reads
+ * chords per keypress). React reads it via `useSyncExternalStore(
+ * subscribeKeymapVersion, keymapVersion)` (src/tui-react/context/keybindings.ts).
  */
 let keymapVersionValue = 0
 const keymapVersionListeners = new Set<() => void>()
 
-/** Current keymap version (getSnapshot for `useSyncExternalStore`). */
 export function keymapVersion(): number {
   return keymapVersionValue
 }
 
-/** Subscribe to keymap reloads. Returns the unsubscribe fn. */
 export function subscribeKeymapVersion(listener: () => void): () => void {
   keymapVersionListeners.add(listener)
   return () => {
@@ -89,25 +70,19 @@ export function subscribeKeymapVersion(listener: () => void): () => void {
   }
 }
 
-/** Increment {@link keymapVersion}, forcing chord legends to re-render. */
 export function bumpKeymapVersion(): void {
   keymapVersionValue += 1
   for (const listener of [...keymapVersionListeners]) listener()
 }
 
 /**
- * id → row index. Safe to build once: `KobeKeymap` rows are mutated in
- * place by overrides (`keys` / `hint` fields change) but never added,
- * removed, or replaced, so the row identities the map holds stay
- * canonical forever. This keeps `findBinding` O(1) — it runs per id per
- * registered binding group on EVERY keypress (`useBindings` configs call
- * `bindByIds` on each dispatch), where the previous linear scan cost
- * ~60 row comparisons per id (~1.4k per keypress at a realistic
- * 5-group / 23-id stack).
+ * id → row. Built once: overrides mutate rows but never add/remove/replace
+ * them. Keeps `findBinding` O(1) on the per-keypress path (`useBindings`
+ * configs call `bindByIds` each dispatch); a linear scan is ~1.4k comparisons
+ * per keypress at a realistic 5-group / 23-id stack.
  */
 const KEYMAP_BY_ID: ReadonlyMap<string, KobeBinding> = new Map(KobeKeymap.map((b) => [b.id, b]))
 
-/** Lookup helper used by tests and pane registration. */
 export function findBinding(id: string): KobeBinding | undefined {
   return KEYMAP_BY_ID.get(id)
 }

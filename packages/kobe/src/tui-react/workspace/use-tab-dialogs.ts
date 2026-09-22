@@ -1,12 +1,9 @@
 /**
- * Tab-strip dialog flows: rename (F2) and the unified new-conversation dialog
- * — the places the component ASKS the user something, kept apart from the
- * places it acts. Pure composition over the injected deps: no state of its
- * own, so every closure reads the CURRENT render's `state`/`active` (the
- * caller re-creates this hook's return every render).
+ * Tab-strip dialog flows (F2 rename, the unified new-conversation dialog),
+ * kept apart from the places the component acts. No state of its own: the
+ * caller rebuilds it every render, so closures read the CURRENT `state`/`active`.
  *
- * `requestNewChat` is the single entry: one dialog (`NewChatDialog`), two
- * toggles, four combos:
+ * `requestNewChat` is the single entry: one `NewChatDialog`, two toggles:
  *
  *   destination=tab  + context=fresh    → new tab here (ctrl+e enter,
  *                                         incl. shell / plugin panes)
@@ -65,8 +62,7 @@ export function useTabDialogs(deps: {
   state: TabsState
   active: TerminalTab
   vendor: VendorId
-  /** The task these tabs belong to — rides into a plugin pane's env as
-   *  `ROVE_PLUGIN_TASK_ID` so the pane can name its own task. */
+  /** Passed to plugin panes as `ROVE_PLUGIN_TASK_ID`. */
   taskId: string
   worktree: string
   liveTitles: ReadonlyMap<string, string>
@@ -76,8 +72,7 @@ export function useTabDialogs(deps: {
   activeLeafSize: () => { cols: number; rows: number } | null
   onChooseEngine?: (vendor: VendorId) => void
   onQuickFork?: (repo: string, result: QuickTaskResult) => void
-  /** The dialog's trailing "scratch shell" choice: open a
-   *  Scratch temp shell task. Absent = the choice isn't offered. */
+  /** Absent = the dialog's "scratch shell" choice isn't offered. */
   onOpenScratch?: () => void
   /** Toast for the "nothing to continue from" refusals. */
   notifyError: (title: string) => void
@@ -107,12 +102,9 @@ export function useTabDialogs(deps: {
         : t("terminal.tab.nothingToFork"),
     )
 
-  /** destination=tab: land the picked engine as a sibling tab — fresh
-   *  (plain `addTab`) or continuing (fork/handoff, `ctrl+a c`).
-   *  `tabVendor` is the id the active tab was LAUNCHED under, `source` the
-   *  protocol it speaks; picking that same id is "continue here", so it
-   *  continues under the same protocol rather than reading as a handoff to a
-   *  foreign engine. */
+  /** Fresh (`addTab`) or continuing (fork/handoff). Picking the id the tab was
+   *  LAUNCHED under (`tabVendor`) continues under its live protocol
+   *  (`source`) rather than reading as a handoff to a foreign engine. */
   const openTabHere = async (choice: NewChatChoice, tabVendor: VendorId, source: VendorId): Promise<void> => {
     const vendor = choice.pick as VendorId
     if (choice.context === "continue") {
@@ -132,10 +124,8 @@ export function useTabDialogs(deps: {
     }
   }
 
-  /** destination=fork: the QuickTaskComposer child-task flow (`ctrl+a f`),
-   *  seeded from THIS task's repo/branch and the dialog's
-   *  engine pick. With context=continue the created task's first prompt
-   *  opens on the transcript handoff brief, then the user's own prompt. */
+  /** Child task seeded from THIS task's repo/branch and the picked engine;
+   *  with context=continue its first prompt opens on the handoff brief. */
   const forkChildTask = async (
     choice: NewChatChoice,
     source: VendorId,
@@ -165,17 +155,15 @@ export function useTabDialogs(deps: {
     deps.onQuickFork?.(repo, contextPrompt ? { ...result, prompt: `${contextPrompt}\n\n${result.prompt}` } : result)
   }
 
-  /** The unified entry: `ctrl+e` opens it pristine, `ctrl+a c` / `ctrl+a f`
-   *  open it with a toggle pre-flipped. Dispatches the four combos above. */
+  /** `ctrl+e` opens it pristine; `ctrl+a c` / `ctrl+a f` pre-flip a toggle. */
   const requestNewChat = (preset: NewChatPreset = {}): void => {
     void (async () => {
       const tabVendor = (active.kind === "engine" ? active.vendor : undefined) ?? deps.vendor
       const source = liveSourceProtocol(active, tabVendor)
       const available = await availableEngineIds()
-      // Installed plugin panes ride the same picker: ctrl+e is "what runs in
-      // this tab", and a pane is exactly that. Reads
-      // the local registry synchronously — a handful of small files. Only
-      // offered in the default combo (the dialog filters otherwise).
+      // Plugin panes ride the picker too ("what runs in this tab"). A
+      // synchronous read of a few small registry files; the dialog shows them
+      // only in the default combo.
       let panes: PaneLaunch[] = []
       try {
         panes = listPaneLaunches({
@@ -189,9 +177,8 @@ export function useTabDialogs(deps: {
       const choice = await NewChatDialog.show(
         dialog,
         available,
-        // Continue-presets highlight the tab's own engine (the conversation
-        // being continued); the pristine entry keeps ctrl+e's task-engine
-        // default.
+        // Continue-presets highlight the tab's own engine; pristine keeps
+        // the task engine.
         preset.context === "continue" ? tabVendor : deps.vendor,
         {
           allowShell: true,
@@ -211,15 +198,13 @@ export function useTabDialogs(deps: {
         update(openPluginPane(state, pane.argv, pane.title, pane.placement, undefined, deps.activeLeafSize()))
         return
       }
-      // "shell" = a plain terminal tab (kind "command"): no session pin, no
-      // vendor preference write, closes itself on exit. Null label so the
-      // tab is named by its live foreground process ("zsh", "vim"…).
+      // Plain terminal tab: no session pin, no vendor-preference write, closes
+      // on exit; null label so the live process names it ("zsh", "vim").
       if (choice.pick === "shell") {
         update(openCommandTab(state, [defaultShell()], null))
         return
       }
-      // "scratch" = a whole Scratch temp shell TASK, not a tab of this one.
-      // This menu entry is its only entry point; there is no chord.
+      // A whole Scratch TASK, not a tab; this is its only entry point.
       if (choice.pick === "scratch") {
         deps.onOpenScratch?.()
         return

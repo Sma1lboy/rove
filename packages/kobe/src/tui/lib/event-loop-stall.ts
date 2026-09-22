@@ -1,17 +1,10 @@
 /**
- * Event-loop stall telemetry: when the TUI "freezes", nothing after the
- * fact distinguishes an event loop blocked by JS (a kobe bug — `sample`
- * would show the stack) from the whole
- * process being paged out under memory pressure (an OS-level stall — nothing
- * in-process is at fault). A 1s heartbeat measures wall-clock drift; when a
- * beat arrives far later than scheduled, the gap IS the stall, and the log
- * line carries heap numbers so the next freeze report starts with ground
- * truth instead of inference.
- *
- * Interpretation guide for the log line:
- *   - big gap + rss far above heapUsed → process was swapped/paged (OS)
- *   - big gap + heapUsed near rss      → suspect in-process work; `sample`
- *     the pid during the next stall to get the stack
+ * Event-loop stall telemetry: a 1s heartbeat measures wall-clock drift, and a
+ * late beat's gap IS the stall. The log line carries heap numbers to tell a
+ * JS-blocked loop (a Rove bug) from a paged-out process (OS memory pressure):
+ *   - big gap + rss far above heapUsed → swapped/paged (OS)
+ *   - big gap + heapUsed near rss      → in-process work; `sample` the pid
+ *     during the next stall for the stack
  */
 import { logClient } from "@sma1lboy/kobe-daemon/client/client-log"
 
@@ -31,10 +24,7 @@ export function stallReport(
   return `event loop stalled ~${stallMs}ms — rss=${mb(mem.rss)}MB heapUsed=${mb(mem.heapUsed)}MB`
 }
 
-/**
- * Start the heartbeat. Returns a stop function; the timer is unref'd so it
- * never keeps a dying host alive.
- */
+/** Returns a stop function; the timer is unref'd so it never keeps a dying host alive. */
 export function installEventLoopStallTelemetry(): () => void {
   let last = Date.now()
   const timer = setInterval(() => {

@@ -1,13 +1,10 @@
 /**
- * Keystroke HUD feed — a tiny framework-free stream the dispatch layer
- * writes and the workspace overlay renders (bottom-left of the Tasks
- * sidebar). Carries resolved PureTUI prefix sequences AND direct modifier
- * chords (`prefixKey: ""`). Keeps the last three plus the active prefix or
- * direct-shortcut guide;
- * entries carry a timestamp and the OVERLAY enforces expiry, so this module
- * owns no timers and stays inert for headless/unit-test dispatch. It does own
- * the CLOCK those overlay timers read, so a render test can drive the delayed
- * reveal instead of racing a real setTimeout — see {@link setPrefixHudClock}.
+ * Keystroke HUD feed: the dispatch layer writes, the workspace overlay renders
+ * (bottom-left of the Tasks sidebar). Carries resolved prefix sequences and
+ * direct modifier chords (`prefixKey: ""`), keeping the last three plus the
+ * active guide. Entries are timestamped and the OVERLAY enforces expiry, so
+ * this module owns no timers and stays inert for headless dispatch; it does own
+ * the CLOCK the overlay reads (see {@link setPrefixHudClock}).
  */
 
 import { type ReadableState, createStateCell } from "../../lib/external-store"
@@ -26,7 +23,7 @@ export type PrefixHudEntry = {
   prefixKey: string
   /** Second stroke as displayed, e.g. `t`. */
   stroke: string
-  /** Resolved binding id (`tab.new`) — null when nothing was bound. */
+  /** Resolved binding id (`tab.new`); null when nothing was bound. */
   action: string | null
   at: number
 }
@@ -53,12 +50,10 @@ type PrefixHudGuide =
     }
 
 /**
- * Clock the HUD overlay reads for `now` and for its expiry timers. Real
- * timers make the PREFIX_GUIDE_DELAY_MS reveal a race: the render suite
- * saturates the event loop, and the armed prefix cancels itself
- * DEFAULT_PREFIX_CONFIGURATION.timeoutMs after the tap, so a slipped timer
- * deletes the answer rather than merely delaying it. Tests swap in a manual
- * clock and advance it.
+ * Real timers make the PREFIX_GUIDE_DELAY_MS reveal a race: the render suite
+ * saturates the event loop, and the armed prefix cancels itself after
+ * DEFAULT_PREFIX_CONFIGURATION.timeoutMs, so a slipped timer deletes the
+ * answer. Tests install a manual clock and advance it.
  */
 export type PrefixHudClock = {
   now(): number

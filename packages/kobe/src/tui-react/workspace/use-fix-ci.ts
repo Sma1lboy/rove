@@ -1,24 +1,16 @@
 /**
- * Fix-failing-checks action (sidebar row menu) — a PTY paste+submit of the CI
- * prompt into the row's engine session.
+ * Row-menu "Fix failing checks": PTY paste+submit of the CI prompt into the
+ * row's engine. Same shape as `use-create-pr.ts`, for the same two hazards:
  *
- * Deliberately the same module shape as `use-create-pr.ts`, for the same two
- * reasons:
+ *   - Identity: `pr.failingChecks` downloads job logs (seconds) and the user may
+ *     switch tasks meanwhile, so the selected worktree AND the send closure are
+ *     re-checked after the await; one task's failure must never paste into another.
+ *   - A non-active row has no send closure, so the host activates it and PARKS
+ *     the request; the next `onEngineSendReady` for that task claims it. One
+ *     slot: a second request before the claim retargets it.
  *
- *   - The identity guard IS the hazard. `pr.failingChecks` downloads job logs,
- *     which takes seconds, and by then the user may have switched tasks. A
- *     stale continuation must not paste one task's CI failure into another
- *     task's engine, so the selected worktree AND the send closure are both
- *     re-checked after the await.
- *   - The action can only run where the engine is. A menu opened on a row that
- *     is not the active task has no send closure to reach, so the host
- *     activates the row and PARKS the request here; the next
- *     `onEngineSendReady` for that task claims it. One slot, like create-PR:
- *     a second request before the first is claimed retargets it.
- *
- * `fixCIAction` is the React-free core (daemon + prompt IO injectable) so
- * vitest can pin the empty-result toast and the identity guard without a
- * daemon; `useFixCI` binds it to the live locale.
+ * `fixCIAction` is the React-free core (IO injectable, vitest-able);
+ * `useFixCI` binds the live locale.
  */
 
 import type { MutableRefObject } from "react"
@@ -62,20 +54,15 @@ export function fixCIAction(deps: FixCIDeps): (taskId: string) => Promise<void> 
     const task = deps.getTask(taskId)
     if (!wt || !send || !task) return
     const { checks, totalFailing, unavailable } = await deps.fetchChecks(taskId)
-    // `gh` never answered — not installed, not authenticated, no network. The
-    // old toast covered this case with "the checks are no longer red", which
-    // is the one thing it definitely does not mean while the badge is red, so
-    // this branch names `gh` as the thing that failed.
-    //
-    // The toast card is 39 cells of text, so the VERDICT leads and `gh`'s own
-    // line trails: the first line is what has to survive truncation. The full
-    // stderr goes to `~/.rove/daemon.log`, which is where a multi-line hint
-    // ("please run: gh auth login") is actually readable.
+    // `gh` never answered (not installed, not authenticated, no network), so
+    // name `gh`, not "checks aren't red". The card fits 39 cells: the VERDICT
+    // leads so it survives truncation; full stderr ("please run: gh auth
+    // login") is in `~/.rove/daemon.log`.
     if (unavailable) {
       return deps.notifyError(deps.t("files.toast.ciChecksUnavailable", { detail: firstLine(unavailable.detail) }))
     }
-    // Nothing red: the run expired, or the checks turned green while the menu
-    // was open. Saying so beats pasting a prompt with no evidence in it.
+    // Nothing red (run expired, or went green while the menu was open); better
+    // than pasting a prompt with no evidence.
     if (checks.length === 0) return deps.notifyError(deps.t("files.toast.ciNoFailingChecks"))
     const prompt = await build(wt, {
       branch: task.branch || "HEAD",
@@ -95,7 +82,6 @@ export function requestFixCI(taskId: string): void {
   pendingFixCI = taskId
 }
 
-/** Claim a parked request for this task. */
 export function takeFixCI(taskId: string | null): string | null {
   if (taskId === null || pendingFixCI !== taskId) return null
   pendingFixCI = null

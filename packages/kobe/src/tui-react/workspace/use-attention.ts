@@ -1,28 +1,17 @@
 /**
- * Cross-task attention wiring for the native workspace host:
+ * Cross-task attention for the native workspace host:
  *
- *  1. Rising-edge notify — diff the previous vs current daemon activity each
- *     render and fire `notify()` for any NON-selected task that just crossed
- *     into an attention state (permission_needed / error / rate_limited /
- *     turn_complete — the daemon's `ATTENTION_INBOX_STATES`).
- *     The selected task already surfaces its own state in the middle column, so
- *     it's skipped. Gated by the `notifications.crossTask.enabled` preference.
+ *  1. Rising-edge notify for any NON-selected task crossing into an attention
+ *     state ({@link attentionKindFor}), gated by `notifications.crossTask.enabled`.
+ *     Diffs the PER-TAB map: the task rollup is last-event-wins, so two tabs
+ *     finishing in a row leave it at `turn_complete` and the second never
+ *     fires. Inbox episodes are keyed `(taskId, tabId)` too. Tasks with no tab
+ *     identity (`claude` typed into a plain shell, no KOBE_TAB_ID) notify off
+ *     the rollup.
+ *  2. F7 walks available pending items in the daemon-owned Inbox; visiting the
+ *     target resolves it.
  *
- *     The diff runs over the PER-TAB map, not the task-level one. The task
- *     entry is a last-event-wins rollup across every tab, and an edge only
- *     fires on a value CHANGE — so diffing the rollup would leave it sitting
- *     at `turn_complete` when two tabs of one task finish in a row, and the
- *     second one would never announce itself. The daemon keys its Inbox
- *     episodes `(taskId, tabId)`, so the per-tab map is the matching grain.
- *     Tasks whose engine reports no tab identity at all (a `claude` typed
- *     into a plain shell — no KOBE_TAB_ID) have no per-tab entry, so they
- *     keep notifying off the rollup.
- *  2. Jump-to-next — F7 walks available pending items in the daemon-owned
- *     durable Inbox. Opening or visiting the target resolves the item and
- *     removes it from the queue.
- *
- * State is engine-owned and vendor-neutral: `TaskEngineState.state` and the
- * Inbox state are the only inputs, so there are no Claude/Codex strings here.
+ * Inputs are engine-owned and vendor-neutral, so no Claude/Codex strings here.
  */
 
 import { useEffect, useRef } from "react"
@@ -38,8 +27,7 @@ import { activeTabIdFor, knownTaskTab, taskTabExists } from "./terminal-tabs-sha
 
 const CROSS_TASK_KEY = "notifications.crossTask.enabled"
 
-/** Edge-detection key for one notify target — a tab, or a whole task when
- *  its engine reports no tab identity. Mirrors `unreadKey`'s shape. */
+/** A tab, or a whole task (`tabId` "") when its engine reports no tab identity. */
 function notifyTargetKey(taskId: string, tabId: string): string {
   return `${taskId}:${tabId}`
 }
@@ -47,15 +35,9 @@ function notifyTargetKey(taskId: string, tabId: string): string {
 export type NotifyTarget = { readonly taskId: string; readonly tabId: string }
 
 /**
- * Flatten the daemon's two activity levels into ONE entry per notify target.
- *
- * A task whose tabs report gets one entry per tab; a task whose engine reports
- * no tab identity (a `claude` typed into a plain shell — no `KOBE_TAB_ID`)
- * keeps its task-level rollup entry. Never both: the rollup mirrors whichever
- * tab moved last, so emitting it alongside the tabs double-counts.
- *
- * Pure, so the load-bearing edge — two tabs of one task finishing in a row —
- * is testable without mounting the host.
+ * One entry per notify target: per tab, or the task rollup when no tab
+ * reports. Never both: the rollup mirrors whichever tab moved last, so it
+ * would double-count. Pure, so "two tabs finish in a row" is testable.
  */
 export function notifyTargetStates(
   engineState: ReadonlyMap<string, TaskEngineState>,
@@ -65,11 +47,9 @@ export function notifyTargetStates(
   const targets = new Map<string, NotifyTarget>()
   for (const [taskId, es] of engineState) {
     const tabs = engineTabState?.get(taskId)
-    // Idle entries are KNOWN-idle tombstones (the accumulator keeps them so
-    // the sidebar can tell idle from unknown). They carry no
-    // attention and must not make a task look "tab-covered": a task whose
-    // only tab entries are tombstones still notifies from its rollup (an
-    // untagged external session reports task-level only).
+    // Idle entries are known-idle tombstones: they don't make a task
+    // "tab-covered", so a task with only tombstones still notifies from its
+    // rollup (untagged external sessions report task-level only).
     const liveTabs = tabs ? [...tabs].filter(([, tabEs]) => tabEs.state !== "idle") : []
     if (liveTabs.length > 0) {
       for (const [tabId, tabEs] of liveTabs) {
@@ -89,8 +69,7 @@ export function notifyTargetStates(
 export function useAttention(args: {
   tasks: readonly Task[]
   engineState: ReadonlyMap<string, TaskEngineState>
-  /** Per-tab activity, `taskId → tabId → state`. Absent for engines that
-   *  report no tab identity; those fall back to the task-level rollup. */
+  /** `taskId → tabId → state`; absent for engines with no tab identity. */
   engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
   inboxItems: readonly AttentionInboxItem[]
   selectedId: string | null
@@ -102,36 +81,29 @@ export function useAttention(args: {
 }): { jumpToNextAttention: () => void } {
   const { tasks, engineState, engineTabState, inboxItems, selectedId, kv, notif, openAttention, noTasksMessage } = args
 
-  // Previous frame's state per NOTIFY TARGET, for rising-edge detection.
-  // Seeded on the first render so targets already sitting in an attention
-  // state at mount don't fire a burst of stale notifications.
+  // Seeded on first render so targets already in an attention state at mount
+  // don't fire a burst of stale toasts.
   const prevStates = useRef<Map<string, string> | null>(null)
 
   useEffect(() => {
     const { states: next, targets } = notifyTargetStates(engineState, engineTabState)
 
-    // Edge detection is the shared framework-free `attentionEdges` (the ONE
-    // notification module): seed rule inside (prev===null → no toasts). The
-    // selected task is filtered AFTER the diff rather than via `skip`, which
-    // takes one key: every tab of the selected task has to be excluded (its
-    // state is already on the middle column, and its background tabs belong
-    // to the per-tab notifier in `use-tab-turn-state`). Dropping those keys
-    // from `next` instead would make them read as fresh edges the moment you
-    // switched away — a burst of stale toasts on every task switch.
+    // The selected task is filtered AFTER the diff, not via `skip` (one key):
+    // all its tabs must be excluded (the middle column shows it; background
+    // tabs belong to `use-tab-turn-state`'s notifier). Dropping them from
+    // `next` instead would fire stale edges on every task switch.
     const edges = attentionEdges(prevStates.current, next, null, attentionKindFor)
     prevStates.current = next
     if (kv.get(CROSS_TASK_KEY, true) === false) return
     const repos = [...new Set(tasks.map((t) => t.repo))]
-    // One O(n) index build instead of a per-edge `tasks.find` scan, which
-    // re-scans the whole array once per notification.
+    // Index once instead of a `tasks.find` per edge.
     const taskById = new Map<string, Task>(tasks.map((task) => [task.id, task]))
     for (const { key, kind } of edges) {
       const target = targets.get(key)
       if (!target || target.taskId === selectedId) continue
       const task = taskById.get(target.taskId)
-      // Toast identity mirrors the Inbox card: task title leads, project
-      // (repo label) is the context body line — plus the tab when one is
-      // known, so two tabs of one task finishing don't read identically.
+      // Mirrors the Inbox card: task title, then project (+ tab, so two tabs
+      // of one task don't read identically).
       const project = task ? sidebarProjectLabel(task.repo, repos) : ""
       const tab = target.tabId ? knownTaskTab(kv, target.taskId, target.tabId) : undefined
       const tabLabel = tab ? tabTitleStable(tab, task?.vendor ?? DEFAULT_TASK_VENDOR) : ""
@@ -154,8 +126,8 @@ export function useAttention(args: {
         taskId: selectedId,
         tabId: selectedId ? activeTabIdFor(selectedId) : null,
       },
-      // Tri-state — a binary check makes F7 skip episodes whose task simply
-      // hasn't mounted here and toast "nothing needs you".
+      // Tri-state: a binary check would skip episodes whose task just hasn't
+      // mounted here and toast "nothing needs you".
       (item) =>
         isAttentionInboxItemAvailable(
           item,

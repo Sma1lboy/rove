@@ -4,18 +4,14 @@ import type { KobeBinding } from "./keybindings-table.ts"
 
 export const CHAT_BINDINGS: readonly KobeBinding[] = [
   // ─── Workspace ────────────────────────────────────────────────────────
-  // The workspace is a PTY running the engine CLI — Rove has no composer of
-  // its own, so `chat.send` / `chat.newline` / `chat.cycle-mode` / `chat.steer`
-  // (and `chat.interrupt`, formerly in keybindings-table.ts) are gone. They
-  // hard-coded ONE vendor's composer keymap into Rove's help and rendered in
-  // every workspace and terminal pane; `shift+enter` in particular is a chord
-  // terminals cannot deliver without kitty-protocol setup Rove keeps off.
-  // Engine-owned UI data belongs to the engine adapter (AGENTS.md).
+  // No composer rows (`chat.send` / newline / cycle-mode / steer / interrupt):
+  // the workspace is the engine CLI in a PTY, and one vendor's composer keys
+  // don't belong in Rove's help (`shift+enter` can't even be delivered without
+  // the kitty protocol Rove keeps off). Engine UI data is the adapter's (AGENTS.md).
   {
     id: "chat.tab.new",
     scope: "workspace",
-    // Direct-only: tab management is high-frequency, so it gets a
-    // single-press chord rather than a prefix stroke.
+    // Direct-only: tab management is high-frequency.
     keys: ["ctrl+t"],
     category: "Workspace",
     description: "New chat tab",
@@ -23,16 +19,12 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
-    // Can't reuse `ctrl+shift+t`: it has the same shift+letter collision
-    // (the keymap layer drops shift+ on letter keys, so ctrl+shift+t and
-    // ctrl+t are indistinguishable).
-    // `ctrl+e` mirrors the "engine" mnemonic the new-task dialog already
-    // uses for its own vendor cycle chord. Direct-only, same reasoning as
-    // the tab-management rows above.
-    // Opens the UNIFIED new-conversation dialog: default enter = a new tab
-    // with this engine, while in-dialog `tab` flips the destination
-    // (tab ⇄ fork a child task) and `ctrl+f` the context (fresh ⇄ continue).
-    // See docs/design/keybinding-decisions.md.
+    // `ctrl+e` = "engine", the new-task dialog's vendor-cycle mnemonic. Not
+    // `ctrl+shift+t`: shift+ is dropped on letters, so it equals ctrl+t.
+    // Opens the UNIFIED new-conversation dialog: enter = new tab on this
+    // engine; in-dialog `tab` flips destination (tab ⇄ fork a child task),
+    // `ctrl+f` flips context (fresh ⇄ continue). See
+    // docs/design/keybinding-decisions.md.
     id: "chat.tab.chooseEngine",
     scope: "workspace",
     keys: ["ctrl+e"],
@@ -42,13 +34,9 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
-    // Fork the CONVERSATION, not the worktree: a new tab in the SAME
-    // worktree that opens on this tab's history and then diverges
-    // (claude `--resume … --fork-session`, `codex fork`). Sibling of
-    // `chat.fork.new`, which forks the WORKTREE into a child task.
-    // prefix + `c` ("continue") is a PRESET entry into the unified
-    // `chat.tab.chooseEngine` dialog with the context toggle pre-flipped
-    // to "continue".
+    // Forks the CONVERSATION into a new tab in the SAME worktree (claude
+    // `--resume … --fork-session`, `codex fork`); `chat.fork.new` forks the
+    // WORKTREE. A preset of `chat.tab.chooseEngine` with context = "continue".
     id: "chat.tab.fork",
     scope: "workspace",
     keys: [],
@@ -58,13 +46,10 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "ctrl+a c" },
   },
   {
-    // Quick-fork: from a focused chat tab, spin up a child
-    // task that inherits repo + branch + model from the source. The
-    // dialog asks only for a prompt; the fork's first turn fires
-    // immediately. A PRESET entry into the unified
-    // `chat.tab.chooseEngine` dialog with the destination toggle
-    // pre-flipped to "fork a child task"; enter continues into the
-    // QuickTaskComposer.
+    // Child task inheriting repo + branch + model; the dialog asks only for a
+    // prompt and the first turn fires immediately. A preset of
+    // `chat.tab.chooseEngine` with destination = "fork a child task"; enter
+    // continues into QuickTaskComposer.
     id: "chat.fork.new",
     scope: "workspace",
     keys: [],
@@ -76,12 +61,9 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
   {
     id: "chat.tab.close",
     scope: "workspace",
-    // ctrl+w AND prefix-w, mirroring workspace.split.close exactly. The two
-    // rows are mutually gated (see that row's comment), so whichever is live
-    // owns BOTH strokes: without the prefix half here, `<prefix> w` on an
-    // unsplit tab found no enabled prefix binding and was swallowed, while
-    // docs/KEYBINDINGS.md and the split row's own help text
-    // ("Close active split (tab when unsplit)") both promise it closes the tab.
+    // Mutually gated with workspace.split.close, so whichever is live owns
+    // BOTH strokes; without prefix-w here, `<prefix> w` on an unsplit tab was
+    // swallowed despite the docs promising it closes the tab.
     keys: ["ctrl+w"],
     prefixKeys: ["w"],
     category: "Workspace",
@@ -90,15 +72,10 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
-    // The other half of ctrl+w on a task's LAST tab: that close leaves the
-    // task with no tabs, and the pane it leaves behind (`EmptyWorkspacePane`)
-    // has no TerminalTabs mounted — so every workspace chord is unreachable
-    // there.
-    //
-    // Plain `return` is safe in this scope precisely because that pane holds
-    // no input and no tab: there is nothing else for Enter to mean while it
-    // is on screen, and the binding is gated on it being on screen.
-    // See docs/design/keybinding-decisions.md.
+    // Covers ctrl+w on a task's LAST tab: `EmptyWorkspacePane` has no
+    // TerminalTabs, so every other workspace chord is unreachable there. Plain
+    // `return` is safe because that pane holds no input and the binding is
+    // gated on it being on screen. See docs/design/keybinding-decisions.md.
     id: "workspace.reopenSession",
     scope: "workspace",
     keys: ["return"],
@@ -108,11 +85,8 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
-    // Rename the active chat tab. F2 is the cross-OS / cross-IDE
-    // rename convention (file managers on Windows + Linux, IntelliJ,
-    // VS Code etc.) — chosen here because `ctrl+r` is owned by the
-    // composer's prompt-history palette (claude-code parity). F2 has no other binding in kobe and doesn't
-    // collide with terminal bytes the way some control chords do.
+    // F2 is the cross-OS/IDE rename convention; `ctrl+r` is the engine's
+    // prompt-history search.
     id: "chat.tab.rename",
     scope: "workspace",
     keys: ["f2"],
@@ -122,16 +96,11 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
-    // `ctrl+]` cycles forward, `ctrl+[` cycles backward — bracket
-    // pair mirrors the sidebar's `[/]` view switcher and the files
-    // pane's `[/]` tab cycler so the bracket-pair pattern is
-    // consistent across panes. `ctrl+tab` / `ctrl+shift+tab` stay
-    // deliberately unbound: `tab` is the global pane-cycle (focus.next)
-    // and the ctrl-prefixed variant is collision-prone.
+    // `ctrl+]` / `ctrl+[` mirror the `[/]` cyclers in sidebar and files.
+    // `ctrl+tab` stays unbound: collision-prone.
     id: "chat.tab.cycle-next",
     scope: "workspace",
-    // Direct-only: cycling is a repeated action — a two-stroke prefix per
-    // hop is unusable.
+    // Direct-only: a two-stroke prefix per hop is unusable.
     keys: ["ctrl+]"],
     category: "Workspace",
     description: "Next chat tab",
@@ -141,7 +110,6 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
   {
     id: "chat.tab.cycle-prev",
     scope: "workspace",
-    // Direct-only, same as cycle-next.
     keys: ["ctrl+["],
     category: "Workspace",
     description: "Previous chat tab",
@@ -149,16 +117,11 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
-    // Splits inside the active workspace tab.
-    // Deliberately CONTENT-NEUTRAL ids (`workspace.split.*`, not
-    // chat/terminal): the split tree (`workspace/split-core.ts`) is
-    // generic over leaf content — terminals today, other surfaces
-    // later. `ctrl+\` reads as a vertical divider → new leaf to the
-    // RIGHT; `ctrl+=` reads as horizontal strokes → new leaf BELOW.
-    // Both need the kitty keyboard protocol (legacy terminals can't
-    // encode ctrl+=; ctrl+\ would be SIGQUIT) — see docs/KEYBINDINGS.md.
-    // Direct-only: no prefix stroke, same reasoning as the tab-management
-    // rows and ctrl+e.
+    // CONTENT-NEUTRAL ids: the split tree (`workspace/split-core.ts`) is
+    // generic over leaf content. `ctrl+\` reads as a vertical divider → leaf
+    // RIGHT; `ctrl+=` as horizontal strokes → leaf BELOW. Both need the kitty
+    // protocol (legacy can't encode ctrl+=; ctrl+\ is SIGQUIT), see
+    // docs/KEYBINDINGS.md. Direct-only.
     id: "workspace.split.right",
     scope: "workspace",
     keys: ["ctrl+\\"],
@@ -177,10 +140,8 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
-    // Split-focus cycle in reading order. F3 because
-    // every useful ctrl+letter is either engine passthrough or
-    // taken; F-keys already carry the tab
-    // vocabulary here (F2 rename).
+    // F3: every useful ctrl+letter is engine passthrough or taken, and F-keys
+    // already carry tab vocabulary (F2).
     id: "workspace.split.focus-next",
     scope: "workspace",
     keys: ["f3"],
@@ -190,13 +151,10 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
-    // Same chords as chat.tab.close (ctrl+w and prefix-w), contextual scope:
-    // while the tab is SPLIT they close the active leaf (the innermost thing
-    // — VS Code/iTerm/Warp convention). Resolution is mutual
-    // gating (React stacks ancestors on top — see tui-react/lib/keymap.ts):
-    // TerminalSplit enables this entry only when split, and TerminalTabs
-    // disables its close-tab entry while split, so exactly one is live — and
-    // whichever it is owns BOTH strokes.
+    // While SPLIT, ctrl+w / prefix-w close the active leaf (VS Code/iTerm/Warp).
+    // Mutual gating (React stacks ancestors on top, see tui-react/lib/keymap.ts):
+    // TerminalSplit enables this only when split and TerminalTabs disables its
+    // close-tab entry then, so exactly one is live and owns BOTH strokes.
     id: "workspace.split.close",
     scope: "workspace",
     keys: ["ctrl+w"],
@@ -207,11 +165,8 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
-    // Same chord as chat.tab.rename, contextual like workspace.split.close:
-    // while SPLIT, F2 renames the ACTIVE LEAF (the tab is the "group", each
-    // leaf has its own name: rename wins over the default basename of what
-    // it runs); unsplit tabs fall through the
-    // LIFO stack to rename-tab.
+    // While SPLIT, F2 renames the ACTIVE LEAF (overrides the default basename
+    // of what it runs); unsplit falls through the LIFO stack to rename-tab.
     id: "workspace.split.rename",
     scope: "workspace",
     keys: ["f2"],

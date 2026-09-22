@@ -1,22 +1,11 @@
 /**
- * The rail's persisted layout — its width and its fold — and the one place
- * anything is allowed to ask for either.
- *
- * Three surfaces size themselves off the width and they have to agree: the
- * rail itself, the prefix HUD that caps its lines to the rail, and the files
- * pane — which takes what's LEFT (`terminal − rail`). Let those derive the
- * width separately and a drag tears the layout: the rail moves, the pane
- * beside it doesn't, and the gap is either a dead column or an overlap.
- *
- * So the hook is the source of truth, not `resolveSidebarWidth` — the pure
- * function can't know about the pin, and a call site that reads only the
- * terminal width is exactly the bug above.
- *
- * Both read straight out of the KV store rather than mirroring it into
- * component state: `kv.set` re-renders every consumer under the provider, so a
- * copy buys nothing and can disagree with the file for a frame. It also lets
- * the rail's own mount and the frame-level grip read ONE fold, which they must
- * — the grip may not exist while the rail is folded.
+ * The rail's persisted width and fold, and the ONLY place to ask for either.
+ * The rail, the prefix HUD (caps lines to it) and the files pane (takes
+ * `terminal − rail`) must agree, or a drag leaves a dead column or overlap; the
+ * pure `resolveSidebarWidth` can't see the pin, so it isn't the source of truth.
+ * Reads KV directly (`kv.set` re-renders every consumer), so no copy can lag a
+ * frame, and the rail and the grip read ONE fold (the grip may not exist while
+ * folded).
  */
 
 import { useTerminalDimensions } from "@opentui/react"
@@ -34,9 +23,9 @@ export interface SidebarWidthHandle {
   readonly width: number
   /** Is a pin in effect (as opposed to the derived width)? */
   readonly pinned: boolean
-  /** Pin a width. Clamping happens on read, so the raw drag target is stored. */
+  /** Stores the raw drag target; clamping happens on read. */
   readonly pin: (width: number) => void
-  /** Drop the pin — back to following the terminal. */
+  /** Back to following the terminal. */
   readonly reset: () => void
 }
 

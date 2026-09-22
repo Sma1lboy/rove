@@ -1,18 +1,10 @@
 /**
- * Every toast `WorkspaceRoot` raises, in one place.
+ * Every toast `WorkspaceRoot` raises. Some are needed by hooks called BEFORE
+ * `useWorkspaceSelection` produces `selectedId`, so it's taken as a GETTER read
+ * at fire time (always after the render that built the closure).
  *
- * The ordering problem this settles: three of these are wanted by hooks the
- * host calls BEFORE `useWorkspaceSelection`, which produces the `selectedId`
- * they tag with. That used to be handled by declaring two notifiers by hand
- * ahead of the selection hook, each carrying a comment explaining why. Taking
- * `selectedId` as a GETTER settles it once — the closure reads the current
- * render's value at the moment a toast fires, which is always later than the
- * render that built it.
- *
- * `taskId`/`tabId` are bookkeeping, not display: `ToastOverlay` draws kind,
- * title and body only, and nothing reads the notifications context's unread
- * map. A host action is not tab-scoped, so these carry the selected task and
- * an empty tab.
+ * `taskId`/`tabId` are bookkeeping only (`ToastOverlay` draws kind/title/body;
+ * nothing reads the unread map), so host toasts carry the selected task and "".
  */
 
 import type { NotificationKind, NotificationsContext } from "../context/notifications"
@@ -20,35 +12,25 @@ import type { WorktreeGoneEvent } from "./use-workspace-selection"
 
 export interface HostNotifiers {
   /**
-   * Surface a user-action FAILURE as a red error toast. Under an alternate
-   * screen a bare `console.error` is invisible (it only reaches the daemon
-   * log), so a failed key press would otherwise look like a silent no-op.
-   * Call sites KEEP their matching `console.error` for log forensics — this
-   * is the on-screen half.
+   * Red failure toast: under the alternate screen `console.error` only reaches
+   * the daemon log, so a failed key press would look like a no-op. Call sites
+   * KEEP their `console.error` for forensics.
    */
   readonly notifyError: (message: string) => void
-  /**
-   * Neutral (non-error) toast — same on-screen surfacing as notifyError but
-   * green/`done` styling, for "this happened" confirmations (engine cycled,
-   * creating task, already up to date) that aren't failures.
-   */
+  /** Green "this happened" confirmation (engine cycled, creating task, already up to date). */
   readonly notifyInfo: (message: string) => void
-  /** Amber "over to you" — an action stopped on something only the user can
-   *  settle (a land conflict, a dirty base, a kept worktree). */
+  /** Amber "over to you": stopped on something only the user can settle
+   *  (land conflict, dirty base, kept worktree). */
   readonly notifyNeedsInput: (message: string) => void
-  /**
-   * A task's worktree vanished out-of-band and its tabs went with it. Carries
-   * the affected task's id rather than the selection: the user may well be
-   * looking at a different task when another client removes this one's
-   * worktree.
-   */
+  /** Carries the affected task's id, not the selection: another client may
+   *  remove a worktree while the user looks at a different task. */
   readonly notifyWorktreeGone: (event: WorktreeGoneEvent) => void
 }
 
 export function useHostNotifiers(args: {
   readonly notif: NotificationsContext
   readonly t: (key: string, params?: Record<string, string | number>) => string
-  /** Read at fire time, not at build time — see the module header. */
+  /** Read at fire time (see the header). */
   readonly selectedId: () => string | null
 }): HostNotifiers {
   const { notif, t, selectedId } = args

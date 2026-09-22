@@ -1,18 +1,8 @@
 /**
- * `sidebar.*` / `tasks.*` keybinding rows. These are data, not behavior:
- * plain {@link KobeBinding} literals spread back into the one table in
- * `keybindings-table.ts`, which stays the single source of truth.
- *
- * There is no responsibility boundary here. The cut follows the `─── Sidebar
- * ───` section header that was already a comment in the table — one long
- * literal split at its existing seams, so a row's file is decided by its
- * `scope`, nothing else. Adding a sidebar row here and a files row in
- * `keybindings-files.ts` are the same edit.
- *
- * What the split does NOT change, and what you must preserve: spread order
- * in `keybindings-table.ts` is the display order, and id stability is what
- * `bindByIds` and user overrides key off. See `keybindings-table.ts`'s doc
- * comment for that full contract.
+ * `sidebar.*` / `tasks.*` rows: plain {@link KobeBinding} data spread into
+ * `keybindings-table.ts`, which owns the contract (spread order = display
+ * order; ids are what `bindByIds` and user overrides key off). A row's file is
+ * decided by its `scope`, nothing else.
  */
 
 import { TASK_JUMP_CHORDS } from "../panes/sidebar/jump-digits.ts"
@@ -40,9 +30,7 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "enter" },
   },
   {
-    // The tree has NO fold — every level is always expanded — so `l` is "go
-    // in" rather than "unfold": it opens the row under the cursor, and on a
-    // tab row (the last level) that means entering that tab's chat.
+    // The tree never folds, so `l` means "go in": on a tab row, enter its chat.
     id: "sidebar.tree.open",
     scope: "sidebar",
     keys: ["l", "space"],
@@ -68,9 +56,8 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "r" },
   },
   {
-    // Explicit shift+m chord (matchKey mints `shift+m` from Shift+M). An
-    // evt.shift gate in the handler instead would make the id un-rebindable
-    // (FIXED_BINDING_IDS).
+    // Explicit shift+m chord: an evt.shift gate in the handler would make the
+    // id un-rebindable (FIXED_BINDING_IDS).
     id: "sidebar.localMerge",
     scope: "sidebar",
     keys: ["shift+m"],
@@ -79,12 +66,9 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "M" },
   },
   {
-    // Capital P pins / unpins a managed task — an explicit shift+p chord; an
-    // evt.shift gate instead would keep the id in FIXED_BINDING_IDS. A
-    // mistyped lowercase `p` matches nothing, so it can't churn the flag.
-    // Pinned managed tasks float to the top of the
-    // sidebar's flat list, just below the saved-repo "main" rows.
-    // `kind: "main"` rows ignore the chord — they're implicitly pinned.
+    // Explicit shift+p (see sidebar.localMerge); a stray lowercase `p` matches
+    // nothing, so it can't churn the flag. Pinned tasks float to the top, just
+    // below the "main" rows, which ignore it (implicitly pinned).
     id: "sidebar.pin",
     scope: "sidebar",
     keys: ["shift+p"],
@@ -109,12 +93,9 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "d" },
   },
   {
-    // `/`-search filter. Enters an inline search mode rendered at the
-    // top of the sidebar: typed text fuzz-matches against task title +
-    // repo basename, up/down navigates the filtered list, enter selects
-    // + exits, esc cancels + restores. While search is active the
-    // single-letter sidebar chords (j/k/g/G/d/r/P/m) are
-    // de-registered so they fall through to the input as literal text.
+    // Inline search at the top of the sidebar: fuzzy on title + repo basename.
+    // While active the single-letter chords (j/k/g/G/d/r/P/m) de-register so
+    // they type into the input.
     id: "sidebar.search.enter",
     scope: "sidebar",
     keys: ["/"],
@@ -123,8 +104,7 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "/" },
   },
   {
-    // Search-mode nav. Only fires while the search input is focused —
-    // j/k are intentionally NOT bound here so they reach the input.
+    // Only while searching; j/k deliberately unbound so they reach the input.
     // POSITIONAL: [down, up] pairs (slot dispatch).
     id: "sidebar.search.nav",
     scope: "sidebar",
@@ -133,7 +113,6 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     description: "Move highlight in search results",
   },
   {
-    // Search-mode submit: select highlighted match and leave search.
     id: "sidebar.search.submit",
     scope: "sidebar",
     keys: ["return"],
@@ -141,8 +120,7 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     description: "Select search match and exit search",
   },
   {
-    // Search-mode cancel. Only registered while searching; outside
-    // search there is no sidebar-scope esc handler.
+    // Only registered while searching; otherwise the sidebar has no esc handler.
     id: "sidebar.search.cancel",
     scope: "sidebar",
     keys: ["escape"],
@@ -152,12 +130,8 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
 
   // ─── Tasks pane ───────────────────────────────────────────────────────
   // The standalone Tasks pane (`kobe tasks`, src/tui/tasks-pane/host.tsx)
-  // consumes these ids via `bindByIds` (since the keybindings-customization
-  // pass; they were raw `{ key: "…" }` literals before), so the rows are
-  // LIVE bindings there and follow user overrides from
-  // `~/.rove/settings/keybindings.yaml`. New-task (n), settings (s),
-  // rename (r), delete (d), merge (M), sort (t) are already covered by the
-  // Sidebar / Global rows above and aren't duplicated here.
+  // binds these via `bindByIds`, so user overrides apply. n/s/r/d/M/t come
+  // from the Sidebar/Global rows above.
   {
     id: "tasks.openWorktree",
     scope: "sidebar",
@@ -192,21 +166,12 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
   },
   {
     // POSITIONAL: slot N jumps to the Nth task in the sidebar's CURRENT
-    // visible order (filters + sort applied), so a digit means what the
-    // eye reads, not a fixed task id. Global on purpose — the point is
-    // switching tasks without first leaving the engine, and
-    // modifier-prefixed chords are the global tier (docs/KEYBINDINGS.md).
-    // Reserved out of the terminal passthrough in keys-pure.ts.
-    //
-    // Each row PRINTS its own digit (jump-digits.ts), so nothing here has
-    // to be memorised and the recency sort reshuffling the list is
-    // self-evident rather than confusing. ctrl+1 is deliberately not in
-    // the set — the legacy terminal protocol has no encoding for it, so
-    // row 1 shows (and answers to) `2`.
-    //
-    // The count is over TASKS, taken from the grouping both sidebar surfaces
-    // share, so a digit reaches the same session folded or unfolded — tab
-    // rows and routine sessions carry none (docs/design/keybinding-decisions.md).
+    // visible order (filters + sort), counted over TASKS from the grouping
+    // both sidebar surfaces share (tab rows and routine sessions carry none).
+    // Global so you can switch without leaving the engine; reserved out of
+    // terminal passthrough in keys-pure.ts. Each row prints its digit
+    // (jump-digits.ts). No ctrl+1: legacy terminals can't encode it, so row 1
+    // is `2`. See docs/design/keybinding-decisions.md.
     id: "tasks.jump",
     scope: "global",
     keys: [...TASK_JUMP_CHORDS],
@@ -216,12 +181,9 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
-    // Right arrow jumps from the Tasks pane back into the current
-    // window's engine pane — the spatial "go right into the conversation"
-    // gesture, the inverse of ctrl+h. Named key, not a bare letter, but
-    // still sidebar-scoped per the boundary rule; the Tasks-pane host gates
-    // it on no dialog + `/`-search inactive, so Right typed while searching
-    // keeps moving the input cursor.
+    // Right arrow = "go right into the conversation", inverse of ctrl+h.
+    // Sidebar-scoped; the host gates it off during dialogs and `/`-search so
+    // Right still moves the input cursor there.
     id: "tasks.focusEngine",
     scope: "sidebar",
     keys: ["right"],

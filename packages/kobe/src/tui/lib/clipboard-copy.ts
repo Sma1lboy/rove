@@ -1,18 +1,10 @@
 /**
- * System-clipboard delivery for the embedded terminal's copy-on-select —
- * OSC52 alone is not enough:
- * several terminals ship with it disabled (iTerm2) or unsupported
- * (Terminal.app), so the selection is ALSO piped into the platform
- * clipboard command when one exists (pbcopy / clip / wl-copy / xclip / xsel).
- * Both channels fire — the local pipe covers strict terminals, OSC52
- * covers SSH/remote sessions where the local pipe lands on the wrong
- * machine's clipboard.
- *
- * Both channels can REFUSE, and the caller has to be able to see it: a
- * headless Linux box with no `wl-copy`/`xclip`/`xsel` has no local pipe at
- * all, and `isOsc52Supported()` says no on the terminals named above. A
- * "Copied branch X" toast printed over that pair is feedback for an event
- * that did not happen, so the result is reported rather than discarded.
+ * Copy-on-select to the system clipboard through BOTH channels: OSC52 (reaches
+ * the local machine over SSH, but off in iTerm2 and unsupported in
+ * Terminal.app) and the platform command (pbcopy / clip / wl-copy / xclip /
+ * xsel). Either can REFUSE (headless Linux with no command,
+ * `isOsc52Supported()` false), so the result is reported: a "Copied branch X"
+ * toast over a copy that never happened is false feedback.
  */
 
 import { spawn } from "node:child_process"
@@ -33,14 +25,9 @@ function clipboardCommand(): readonly string[] | null {
 }
 
 /**
- * Whether `cmd` took the text. Null argv (no clipboard command on this
- * platform's PATH) is a refusal, not an error.
- *
- * The exit status is the ONLY place a clipboard failure shows up: a spawn
- * neither throws nor writes anywhere the pane can see when the command is
- * missing (127 / ENOENT) or refuses (`xclip` on a box with no `$DISPLAY`
- * passes the `which` probe, spawns fine, and exits non-zero). Discarding it
- * is what let "Copied branch X" print over a clipboard nothing reached.
+ * Null argv (no command on PATH) is a refusal, not an error. The exit status is
+ * the ONLY signal: a missing (127/ENOENT) or refusing command (`xclip` with no
+ * `$DISPLAY` passes `which` and exits non-zero) neither throws nor prints.
  */
 export function pipeToClipboardCommand(text: string, cmd: readonly string[] | null): Promise<boolean> {
   if (!cmd || cmd.length === 0) return Promise.resolve(false)
@@ -65,10 +52,7 @@ export function pipeToClipboardCommand(text: string, cmd: readonly string[] | nu
   })
 }
 
-/**
- * Copy through both channels; resolves true when EITHER accepted the text.
- * Never throws.
- */
+/** True when EITHER channel accepted. Never throws. */
 export async function copyTextToSystemClipboard(text: string, osc52: Osc52Writer): Promise<boolean> {
   const piped = await pipeToClipboardCommand(text, clipboardCommand())
   let escaped = false

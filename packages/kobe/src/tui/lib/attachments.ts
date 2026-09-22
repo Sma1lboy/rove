@@ -1,22 +1,15 @@
 /**
- * Prompt attachments — multimodal inputs for the quick-task composer.
+ * Prompt attachments for the quick-task composer (pattern from refs/claude-code
+ * `utils/imagePaste.ts`, minus resizing/base64: engines read files from disk).
  *
- * Two paste flows land here (pattern lifted from refs/claude-code
- * `utils/imagePaste.ts`, trimmed to kobe's needs — no resizing/base64,
- * engines read files from disk themselves):
+ *   1. Pasted TEXT that is an image/PDF path (Finder copy, drag-drop): attached
+ *      instead of inserted ({@link asAttachmentPaths}).
+ *   2. A raw clipboard IMAGE sends no text on paste, so ctrl+v calls
+ *      {@link captureClipboardAttachment}: a copied FILE attaches its own path,
+ *      raw bytes are saved under `~/.rove/attachments/`.
  *
- *   1. Pasted TEXT that is a file path (Finder copy → paste, drag-drop):
- *      {@link asAttachmentPaths} recognises image/PDF paths and the
- *      composer attaches them in place of inserting the text.
- *   2. A raw clipboard IMAGE (screenshot): no text arrives on paste, so
- *      the composer binds ctrl+v → {@link captureClipboardAttachment},
- *      which asks the OS clipboard. A copied FILE resolves to its own
- *      path; raw image bytes are saved under `~/.rove/attachments/` and
- *      that saved path is attached.
- *
- * Attachments render as `images[0]` / `pdf[1]` chips in the composer and
- * are appended to the delivered prompt as `label: /path` lines via
- * {@link appendAttachmentRefs} — the engine reads the files itself.
+ * Rendered as `images[0]` / `pdf[1]` chips and appended to the prompt as
+ * `label: /path` lines ({@link appendAttachmentRefs}).
  */
 
 import { randomBytes } from "node:crypto"
@@ -36,10 +29,7 @@ function removeOuterQuotes(text: string): string {
   return text
 }
 
-/**
- * Remove shell escape backslashes (`name\ \(1\).png` → `name (1).png`).
- * Double backslashes survive as literal ones.
- */
+/** `name\ \(1\).png` → `name (1).png`; double backslashes survive as one. */
 function stripBackslashEscapes(path: string): string {
   const salt = randomBytes(8).toString("hex")
   const placeholder = `__DOUBLE_BACKSLASH_${salt}__`
@@ -47,10 +37,8 @@ function stripBackslashEscapes(path: string): string {
 }
 
 /**
- * Normalize one pasted line to an attachment path, or null when it isn't
- * one. Requires an ABSOLUTE path that exists on disk — a relative name
- * can't be resolved reliably from the composer's cwd, and attaching a
- * non-existent path would just hand the engine a broken reference.
+ * ABSOLUTE and existing only: a relative name can't be resolved reliably from
+ * the composer's cwd, and a missing file is a broken reference.
  */
 export function asAttachmentPath(text: string, exists: (p: string) => boolean = existsSync): string | null {
   const cleaned = stripBackslashEscapes(removeOuterQuotes(text.trim()))
@@ -60,10 +48,8 @@ export function asAttachmentPath(text: string, exists: (p: string) => boolean = 
 }
 
 /**
- * Parse a whole paste payload as attachment paths. A Finder multi-file
- * copy pastes newline-separated paths — ALL non-empty lines must resolve,
- * otherwise the paste is ordinary text (return null so it falls through
- * to the input).
+ * A Finder multi-file copy pastes newline-separated paths; ALL non-empty lines
+ * must resolve, else null (ordinary text falls through to the input).
  */
 export function asAttachmentPaths(pasted: string, exists: (p: string) => boolean = existsSync): string[] | null {
   const lines = pasted
@@ -99,7 +85,7 @@ export function appendAttachmentRefs(prompt: string, attachments: readonly strin
   return `${prompt}\n\n${refs}`
 }
 
-/** Run a shell command, capturing stdout. Null on failure. Best-effort. */
+/** Stdout, or null on any failure. */
 async function capture(cmd: string[]): Promise<string | null> {
   try {
     const proc = Bun.spawn(cmd, { stdin: "ignore", stdout: "pipe", stderr: "ignore" })
@@ -111,15 +97,9 @@ async function capture(cmd: string[]): Promise<string | null> {
 }
 
 /**
- * Read the OS clipboard for an attachable payload (ctrl+v flow):
- *
- *   1. A copied FILE (Finder cmd+c): resolve its path — attach directly,
- *      no copy made.
- *   2. Raw image bytes (screenshot): write a PNG under
- *      `~/.rove/attachments/` and attach the saved path.
- *
- * macOS via osascript; Linux via wl-paste/xclip. Returns null when the
- * clipboard has nothing attachable (or on an unsupported platform).
+ * ctrl+v: a copied FILE (Finder cmd+c) attaches its path, no copy; raw image
+ * bytes are saved as a PNG under `~/.rove/attachments/`. macOS via osascript,
+ * Linux via wl-paste/xclip; null when nothing attachable or unsupported.
  */
 export async function captureClipboardAttachment(): Promise<string | null> {
   if (process.platform === "darwin") {

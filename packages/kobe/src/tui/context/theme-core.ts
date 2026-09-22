@@ -1,10 +1,7 @@
 /**
- * Framework-free theme core behind the React provider
- * (`src/tui-react/context/theme.tsx`). JSON shape types, hex/def-ref/variant
- * resolution, and the display-time overlay (focus-accent slot +
- * transparent-background policy) all live here so the provider and
- * off-render consumers (`tui/lib/persisted-ui-prefs.ts`, tests) cannot
- * drift. The bundled theme JSONs themselves live in `./theme/bundled`.
+ * Framework-free theme core behind `src/tui-react/context/theme.tsx`: JSON
+ * types, hex/def-ref/variant resolution, and the display overlay, shared with
+ * off-render consumers (`tui/lib/persisted-ui-prefs.ts`, tests) so they can't drift.
  */
 
 import { RGBA } from "@opentui/core"
@@ -24,11 +21,7 @@ export type ThemeJson = {
   theme: Record<string, ColorValue>
 }
 
-/**
- * The set of color slots kobe components expect to find on a `Theme`. The
- * names mirror opencode's so lifted components keep compiling. Entries marked
- * optional fall back to a related slot when missing.
- */
+/** Slot names mirror opencode's so lifted components compile; missing slots fall back to a related one. */
 export type Theme = {
   primary: RGBA
   secondary: RGBA
@@ -45,12 +38,7 @@ export type Theme = {
   backgroundPanel: RGBA
   backgroundElement: RGBA
   backgroundMenu: RGBA
-  /**
-   * Modal/dialog card surface. In transparent mode this keeps the same
-   * RGB as the active theme but becomes semi-transparent so the host
-   * terminal can show through the card.
-   * Falls back to `backgroundPanel` at theme-resolution time.
-   */
+  /** Modal card surface; stays opaque in transparent mode. Falls back to `backgroundPanel`. */
   backgroundDialog: RGBA
   border: RGBA
   borderActive: RGBA
@@ -62,37 +50,22 @@ export type Theme = {
   diffAddedBg: RGBA
   diffRemovedBg: RGBA
   selectedListItemText: RGBA
-  /**
-   * Resolved focus-indicator color. Components that paint focus state
-   * read this instead of picking primary/success/info directly, so the
-   * user-controlled `focusAccent` setting unifies the focus signal.
-   */
+  /** Resolved from the user's `focusAccent` slot; focus painters read this, not primary/success/info. */
   focusAccent: RGBA
   // arbitrary string access falls through to text
   [key: string]: RGBA
 }
 
-/**
- * The bundled theme registry. The JSON payloads live in `./theme/bundled`
- * (the single owner); this re-export keeps the historical import path for
- * consumers (`src/tui-react/context/theme.tsx`, tests).
- */
+/** Payloads live in `./theme/bundled`; re-exported at this path for existing consumers. */
 export const BUNDLED_THEMES: Record<string, ThemeJson> = BUNDLED_THEME_JSONS
 
-/**
- * Brand default theme for new installs and any fallback path that needs a
- * bundled palette. Kept as one named constant so theme consumers don't
- * hard-code the string.
- */
+/** Brand default for new installs and every bundled-palette fallback. */
 export const DEFAULT_THEME = "claude"
 
 /**
- * Is `name` a bundled theme? Framework-free check against the bundled set —
- * the live provider (`src/tui-react/context/theme.tsx`) keeps its own
- * mutable registry (bundled + user themes) behind its own `hasTheme`; this
- * bundled-only check is what off-render callers (e.g. `readPersistedUiPrefs`
- * in a pane subprocess) use to validate a persisted theme name before
- * applying it.
+ * Bundled-only check for off-render callers (`readPersistedUiPrefs` in a pane
+ * subprocess) validating a persisted name. The live provider has its own
+ * `hasTheme` over bundled + user themes.
  */
 export function hasBundledTheme(name: string): boolean {
   return Boolean(BUNDLED_THEMES[name])
@@ -102,11 +75,9 @@ export function hasBundledTheme(name: string): boolean {
 export type ThemeMode = "dark" | "light"
 
 /**
- * The user's mode choice. `auto` follows the host terminal: opentui reads its
- * background over OSC 11 and re-reads it when the terminal reports an
- * appearance change (`?2031`), so a terminal that flips with the OS flips
- * Rove too. Persisted as `themeMode`; unset is `dark`, the mode every release
- * before this one was locked to.
+ * `auto` follows the host terminal: opentui reads its background over OSC 11
+ * and re-reads on an appearance-change report (`?2031`). Persisted as
+ * `themeMode`; unset is `dark`.
  */
 export type ThemeModePreference = ThemeMode | "auto"
 export const THEME_MODE_PREFERENCES: ReadonlyArray<ThemeModePreference> = ["dark", "light", "auto"]
@@ -118,19 +89,15 @@ export function resolveThemeMode(preference: ThemeModePreference, detected: Them
 }
 
 /**
- * Which theme slot drives the "focused pane" indicator. Default is
- * `primary` — under the Claude palette that's terracotta, which doubles
- * as the brand hue. `success` keeps the older green-focus look
- * (opencode legacy); `info` picks the cyan/blue. Persisted via KV.
+ * Slot for the focused-pane indicator. Default `primary` (terracotta under
+ * Claude, the brand hue); `success` = green, `info` = cyan/blue. Persisted via KV.
  */
 export type FocusAccentSlot = "primary" | "success" | "info"
 export const FOCUS_ACCENT_SLOTS: ReadonlyArray<FocusAccentSlot> = ["primary", "success", "info"]
 
 /**
- * Resolve a theme JSON to flat RGBA values. Missing slots fall back to
- * `text` for foregrounds and `background` for backgrounds; this means we
- * never throw if a freshly-copied opencode theme is missing one of the
- * extended slots opencode added later.
+ * Missing slots fall back (foregrounds → `text`, backgrounds → `background`),
+ * so an opencode theme lacking later-added slots never throws.
  */
 export function resolveTheme(theme: ThemeJson, mode: ThemeMode = "dark"): Theme {
   const defs = theme.defs ?? {}
@@ -142,7 +109,7 @@ export function resolveTheme(theme: ThemeJson, mode: ThemeMode = "dark"): Theme 
       const rgb = parseRgbLiteral(c)
       if (rgb) return RGBA.fromInts(rgb.r, rgb.g, rgb.b, rgb.a)
       if (chain.includes(c)) {
-        // circular ref — collapse to black rather than throw to keep the TUI alive
+        // circular ref: black rather than throw, to keep the TUI alive
         return RGBA.fromInts(0, 0, 0)
       }
       const next = defs[c] ?? (theme.theme[c] as ColorValue | undefined)
@@ -157,7 +124,6 @@ export function resolveTheme(theme: ThemeJson, mode: ThemeMode = "dark"): Theme 
     out[k] = resolve(v as ColorValue)
   }
 
-  // Fallback chain: ensure the slots kobe components consume are defined.
   const text = out.text ?? RGBA.fromHex("#ffffff")
   const background = out.background ?? RGBA.fromHex("#000000")
   const fallback: Record<string, RGBA> = {
@@ -192,26 +158,15 @@ export function resolveTheme(theme: ThemeJson, mode: ThemeMode = "dark"): Theme 
 }
 
 /**
- * Display-time overlay on a resolved palette:
- *
- *   1. `focusAccent` is derived from the user-picked slot (primary /
- *      success / info), falling back to `primary` if a user-installed
- *      theme is missing the chosen slot.
- *   2. When `transparentBackground` is on, BOTH `background` AND
- *      `backgroundPanel` are forced to alpha-0 — panels (sidebar, right
- *      column, chat tab strip) all read panel, and the policy is "in
- *      transparent mode, get out of the way of the host terminal". Only
- *      `backgroundElement` keeps its tinted value so the chat input stays
- *      legible against any host wallpaper. `backgroundDialog` deliberately
- *      stays OPAQUE: a translucent modal card lets pane content bleed
- *      through the dialog text. Transparency is for the chrome around
- *      content, never for an overlay you must read.
- *   3. Also when transparent, body text (`text`, `textMuted`) and the
- *      host-backed chrome token (`warningOnHost`) are contrast-guarded against
- *      the detected host background (see `contrast-guard.ts`). The base
- *      `warning` token stays unchanged for opaque dialog and element surfaces.
- *      When no host background is known (detection failed/timed out), the
- *      tokens pass through unchanged rather than guessing.
+ * Display-time overlay:
+ *   1. `focusAccent` from the user's slot, else `primary` (user themes may lack it).
+ *   2. Transparent: `background` AND `backgroundPanel` go alpha-0 (all panels
+ *      read panel). `backgroundElement` stays tinted so inputs stay legible;
+ *      `backgroundDialog` stays OPAQUE, since a translucent modal lets pane
+ *      content bleed through its text.
+ *   3. Transparent + known host background: `text`, `textMuted` and
+ *      `warningOnHost` are contrast-guarded against it (`contrast-guard.ts`);
+ *      base `warning` stays for opaque surfaces. Unknown host bg → unchanged.
  */
 export function applyDisplayOverlay(
   base: Theme,

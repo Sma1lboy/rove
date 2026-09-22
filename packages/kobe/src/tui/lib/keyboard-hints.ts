@@ -93,9 +93,8 @@ export type PaneHintToken = {
 }
 
 /**
- * What each pane's hint line teaches. `always: true` rows survive past the
- * first-use window as the pane's permanent short footer (today only the
- * files pane keeps one — its pre-existing `↵ open · d diff` line, now live).
+ * What each pane's hint line teaches. `always: true` rows outlive the
+ * first-use window as the pane's permanent short footer.
  */
 const PANE_HINT_ROWS: Record<HintPane, readonly { id: string; msg: string; always?: true }[]> = {
   // Two tokens only: the line must fit the narrow sidebar rail (clipping a

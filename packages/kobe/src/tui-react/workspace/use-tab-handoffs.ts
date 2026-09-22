@@ -1,13 +1,8 @@
 /**
- * Mount-once parent-handoff effects, sibling of `use-tab-lifecycle.ts`: the
- * imperative editor-tab / engine-send handles handed to the parent. The seam
- * against the per-render hooks is lifetime — these run ONCE per mount and live
- * forever, so grouping them keeps that distinction visible instead of buried
- * among effects that rebuild every render. Both are
- * mount-only, forever-lived effects — everything they read comes through
- * the caller's `stateRef`/`propsRef` latest-render mirrors, and every write
- * goes through the caller's `update` (which refreshes `stateRef`
- * synchronously). See the TerminalTabs file header for why refs.
+ * Mount-once, forever-lived parent handoffs (sibling of `use-tab-lifecycle.ts`):
+ * the imperative editor-tab / diff-tab / engine-send handles. Reads go through
+ * the caller's `stateRef`/`propsRef` mirrors, writes through `update` (which
+ * refreshes `stateRef` synchronously). See TerminalTabs' header for why refs.
  */
 
 import { useEffect } from "react"
@@ -36,17 +31,16 @@ export interface TabHandoffIO {
     }
   }
   readonly update: (next: TabsState) => void
-  /** Latest-render mirror of the per-tab spawn-opts builder. */
+  /** The per-tab spawn-opts builder. */
   readonly engineTabSpawnRef: { readonly current: (tab: EngineTab) => TabSpawn }
   readonly bumpResetToken: () => void
 }
 
 type EnginePtyIO = Pick<TabHandoffIO, "stateRef" | "propsRef" | "engineTabSpawnRef">
 
-/** The engine tab's live PTY — the active tab when it's an engine, else the
- *  first engine tab; a parked background tab is re-acquired
- *  (reattach + replay, then the paste lands). Reads everything through the
- *  latest-render refs, so one closure stays valid for the mount's life. */
+/** The active engine tab, else the first engine tab; a parked background tab is
+ *  re-acquired (reattach + replay, then the paste lands). One closure stays
+ *  valid for the mount's life because every read is through refs. */
 function resolveEnginePty(io: EnginePtyIO): ReturnType<ReturnType<typeof getDefaultPtyRegistry>["get"]> | null {
   const { stateRef, propsRef, engineTabSpawnRef } = io
   const activeTab = stateRef.current.tabs.find((tab) => tab.id === stateRef.current.activeId)
@@ -56,8 +50,7 @@ function resolveEnginePty(io: EnginePtyIO): ReturnType<ReturnType<typeof getDefa
   const key = tabPtyKey(propsRef.current.taskId, target.id)
   let pty = reg.get(key)
   if (!pty && target.kind === "engine") {
-    // Default geometry until the tab is next mounted; the engine rewraps on
-    // the real resize like any terminal.
+    // Default geometry until next mount; the engine rewraps on the real resize.
     try {
       pty = reg.acquire(key, propsRef.current.worktree, { ...engineTabSpawnRef.current(target) })
     } catch {
@@ -69,15 +62,10 @@ function resolveEnginePty(io: EnginePtyIO): ReturnType<ReturnType<typeof getDefa
 }
 
 /**
- * Paste `text` into the task's engine tab PTY and submit. Exported for the
- * send-vs-paste contract test — the mention must NOT submit.
- *
- * Returns FALSE when there was nowhere to deliver — no engine tab at all
- * (`ctrl+w` on the last tab leaves the task open with no session), or a dead
- * PTY that would not respawn. This is the whole reason the closure answers at
- * all: it used to swallow the write, and the diff review then marked its notes
- * sent and the FileTree mention reported nothing, both indistinguishable from
- * a delivered write. Every caller must treat `false` as a failure to surface.
+ * Paste + submit into the engine tab. FALSE when there's nowhere to deliver
+ * (no engine tab, e.g. after ctrl+w on the last one, or a dead PTY that won't
+ * respawn); every caller must surface `false`, or the diff review marks notes
+ * sent and the mention reports nothing. Exported for the send-vs-paste test.
  */
 export function buildEngineSend(io: EnginePtyIO): (text: string) => boolean {
   return (text) => {
@@ -89,9 +77,8 @@ export function buildEngineSend(io: EnginePtyIO): (text: string) => boolean {
   }
 }
 
-/** Paste `text` into the task's engine tab PTY WITHOUT submitting — the
- *  FileTree `a` mention leaves the `@path` in the engine's composer for the
- *  user to keep typing around (docs/TUI.md). */
+/** No submit: the FileTree `a` mention leaves `@path` for the user to type
+ *  around (docs/TUI.md). */
 export function buildEnginePaste(io: EnginePtyIO): (text: string) => boolean {
   return (text) => {
     const pty = resolveEnginePty(io)
@@ -102,10 +89,8 @@ export function buildEnginePaste(io: EnginePtyIO): (text: string) => boolean {
 }
 
 /**
- * Hand the parent the editor-tab / engine-send imperative handles once per
- * mount — remounting on task/worktree switch re-fires it. Returns the same
- * engine-send closure so the owning component can use it directly (the diff
- * review's send-notes action).
+ * Once per mount (a task/worktree switch remounts). Also returns the closures
+ * for direct use (the diff review's send-notes).
  */
 export function useTabHandoffs(io: TabHandoffIO): {
   sendToEngine: (text: string) => boolean
@@ -130,10 +115,8 @@ export function useTabHandoffs(io: TabHandoffIO): {
     })
   }, [])
 
-  // Read-only diff/preview tab: the FileTree `d` action. A content swap, NOT
-  // a focus grab — `openContentTab` selects the tab but the host never calls
-  // `focus.setFocused` here, so keyboard focus stays on the FileTree that
-  // opened it.
+  // FileTree `d`: a content swap, NOT a focus grab; the host never calls
+  // `focus.setFocused` here, so focus stays on the FileTree.
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once handoff; the callback reads propsRef/stateRef for freshness.
   useEffect(() => {
     propsRef.current.onDiffTabReady?.((relPath, label, base) => {
@@ -146,7 +129,6 @@ export function useTabHandoffs(io: TabHandoffIO): {
     propsRef.current.onEngineSendReady?.(sendToEngine)
   }, [])
 
-  // Paste-only sibling (no submit): the FileTree `a` @path mention.
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once handoff; same ref-freshness contract as onEngineSendReady above.
   useEffect(() => {
     propsRef.current.onEnginePasteReady?.(pasteToEngine)

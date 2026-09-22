@@ -49,12 +49,10 @@ export function useInboxHost(args: {
       ),
     [args.items, args.tasks, args.kv],
   )
-  // Episodes whose target is what you're ALREADY looking at never surface:
-  // the daemon records them unconditionally and its push lands before the
-  // background dismiss (the resolve effect below) round-trips, so without
-  // this synchronous filter the Inbox count flashes 1 → 0 on every
-  // turn-complete of the current tab. The durable record is still cleaned
-  // up by the dismiss — this only keeps it out of the visible queue.
+  // Episodes targeting what you're ALREADY looking at never surface: the
+  // daemon records them unconditionally and the push beats the background
+  // dismiss below, so without this sync filter the count flashes 1 → 0 on
+  // every turn-complete of the current tab. The dismiss still cleans up.
   const viewingResolved = args.selectedId
     ? new Set(
         visitResolvedEpisodes(availableItems, {
@@ -73,11 +71,10 @@ export function useInboxHost(args: {
   const unavailableSignature = episodeSignature(unavailableItems)
   const attemptedUnavailable = useRef(new Set<string>())
 
-  // The host is always mounted, unlike the Inbox dialog. Hide unavailable
-  // targets from its count immediately, then remove their durable records in
-  // the background so opening the dialog is never required for cleanup. Each
-  // episode is attempted once while unavailable: unrelated KV writes rebuild
-  // the partition but must not repeat the RPC or its failure toast.
+  // The host is always mounted (unlike the Inbox dialog): hide unavailable
+  // targets from the count now and remove their records in the background, so
+  // cleanup never needs the dialog open. One attempt per episode while
+  // unavailable: unrelated KV rebuilds must not repeat the RPC or its toast.
   useEffect(() => {
     const currentItems = unavailableItemsRef.current
     if (episodeSignature(currentItems) !== unavailableSignature) return
@@ -94,9 +91,8 @@ export function useInboxHost(args: {
   }, [unavailableSignature, orch])
 
   function openItem(item: AttentionInboxItem, knownAvailable?: boolean): void {
-    // routine_failed: the subject is a SCHEDULE, so opening lands on the
-    // Routines page — where the run history and `run now` are — rather than
-    // on a task that may not exist.
+    // routine_failed: the subject is a SCHEDULE, so land on the Routines page
+    // (run history, `run now`), not a task that may not exist.
     if (item.state === "routine_failed") {
       notifyInboxRpcFailure(dismissEpisode(item, orch), "dismiss", args.notifyError)
       if (args.dialog.stack.length > 0) args.dialog.clear({ refocus: false })
@@ -156,10 +152,8 @@ export function useInboxHost(args: {
   )
 
   /**
-   * One landing = two records: the episode it resolves, and the visit that
-   * feeds the Inbox's RECENT order. Recording HERE (rather than off task
-   * selection) is what makes RECENT tab-accurate — you come back to the tab
-   * you left, not to the task's default one.
+   * One landing = the resolved episode + a visit for RECENT order. Recorded
+   * here, not off task selection, so RECENT returns to the tab you left.
    */
   function resolveVisited(taskId: string, tabId: string): void {
     resolveEpisodes(availableItemsRef.current, { taskId, tabId })

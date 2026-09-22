@@ -1,40 +1,23 @@
 /**
- * Framework-free live-title subscription store — the ONE "ptyKey → live
- * foreground-process display title" reconciler shared by the workspace
- * terminal surfaces. Two properties are load-bearing, and a hand-written
- * subscription pass tends to miss both:
+ * The ONE "ptyKey → live foreground-process title" reconciler for workspace
+ * terminal surfaces. Two load-bearing properties:
  *
- *   - INSTANCE-compared, not `has(key)`: release + respawn at the same key
- *     must re-subscribe, or the leaf keeps a subscription pinned to the dead
- *     PTY and freezes on its last title.
- *   - keyed on the GLOBALLY-UNIQUE registry ptyKey
- *     (`splitLeafPtyKey(tabKey, id)` / `soloKey(...)`), not on the bare leaf
- *     id: TerminalSplit mounts without a React key, so its instance survives
- *     tab switches while every tab's leaves start at `leaf-1` — a bare-id
- *     subscription bleeds one tab's title onto the next tab's `leaf-1`.
+ *   - INSTANCE-compared, not `has(key)`: release + respawn at the same key must
+ *     re-subscribe, or the leaf freezes on the dead PTY's last title.
+ *   - keyed on the GLOBALLY-UNIQUE registry ptyKey (`splitLeafPtyKey(tabKey,
+ *     id)` / `soloKey(...)`), not the bare leaf id: TerminalSplit has no React
+ *     key and survives tab switches while every tab starts at `leaf-1`, so bare
+ *     ids bleed one tab's title onto the next.
  *
- * Reconcile is therefore: for each requested ptyKey, resolve the registry
- * PTY, (re)subscribe when the instance at that key changed, and drop
- * subscriptions whose key is unrequested or whose PTY died.
+ * The store keeps titles RAW (the OSC stream is the label). Collapsing to the
+ * binary via the live-engine vendor would drop the engine's live status line
+ * and flicker, since the ps-walk probe transiently loses the vendor mid-turn.
+ * Render projections (here and use-turn-polls) strip only the leading status
+ * decoration (`terminalTitle.statusPrefixes`), since Rove draws that state in
+ * its own glyph column.
  *
- * The STORE keeps titles raw — the OSC stream IS the label. Collapsing an
- * engine's title to its binary ("✳ Claude Code" → "claude") via the
- * live-engine vendor would (a) throw away the one line of live status the
- * engine writes and (b) FLICKER: the ps-walk probe transiently loses a vendor
- * mid-turn, so labels would flap raw ↔ collapsed every probe tick. Identity
- * (which detector to attach) comes from the process tree; display does not.
- *
- * What the RENDER projections below (and use-turn-polls' twin) do strip is
- * the engine's leading STATUS decoration — claude's `✳`/`⠂`/`⠐`, codex's
- * spinner frame — because kobe draws that state in its own glyph column and
- * showing both says it twice. That is a display concern,
- * so it lives in the projection, not in the store, and the vocabulary is
- * declared per engine (`terminalTitle.statusPrefixes`). The name itself is
- * still never rewritten.
- *
- * No React, no @opentui — plain closures over Maps, unit-testable
- * under vitest. Callers own the tick that drives `reconcile()` (a PTY spawns
- * asynchronously after its Terminal mounts, so the attach must retry).
+ * {@link createTitleSubscriptions} is plain closures over Maps (vitest-able).
+ * Callers own the tick driving `reconcile()`: PTYs spawn after mount, so attach retries.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -44,31 +27,26 @@ import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"
 import { useLatest } from "../lib/use-latest"
 
-/** A registry lookup — injectable so tests drive a fake PTY set. */
+/** Injectable so tests drive a fake PTY set. */
 export type PtyLookup = (key: string) => TaskPtyLike | null
 
 export interface TitleSubscriptions {
   /**
-   * Reconcile the live subscription set to exactly `ptyKeys`. Instance-
-   * compared: a key whose registry PTY instance changed since last time
-   * (release + respawn) re-subscribes against the fresh PTY, dropping the
-   * dead one's stale title. Returns true when any display title changed as
-   * a result (a caller can skip re-rendering when nothing moved).
+   * Reconcile to exactly `ptyKeys`; a key whose PTY instance changed
+   * re-subscribes. True when any title changed.
    */
   reconcile(ptyKeys: Iterable<string>): boolean
-  /** Latest display title for a ptyKey, or undefined if none seen yet. */
+  /** Undefined until the PTY reports one. */
   get(key: string): string | undefined
-  /** Subscribe to title changes (fires on any reconcile that moved a title). */
+  /** Fires on any reconcile that moved a title. */
   subscribe(listener: () => void): () => void
-  /** Drop every subscription — final teardown. */
   dispose(): void
 }
 
 export function createTitleSubscriptions(
   lookup: PtyLookup = getDefaultPtyRegistry().get.bind(getDefaultPtyRegistry()),
 ): TitleSubscriptions {
-  /** ptyKey → the subscribed PTY instance, its unsub, and its raw OSC title. */
-  /** `title` is undefined until the PTY reports one — see the seeding note below. */
+  /** `title` is undefined until the PTY reports one (see the seeding note below). */
   type Entry = { pty: TaskPtyLike; unsub: () => void; title: string | undefined }
   const subs = new Map<string, Entry>()
   const listeners = new Set<() => void>()
@@ -82,8 +60,7 @@ export function createTitleSubscriptions(
       const wanted = new Set(ptyKeys)
       let changed = false
 
-      // Drop subscriptions that are unwanted OR whose PTY instance changed
-      // (release + respawn) — the dead PTY's title must not linger.
+      // Unwanted, or the instance changed: the dead PTY's title must not linger.
       for (const [key, sub] of subs) {
         const cur = wanted.has(key) ? lookup(key) : null
         if (cur === sub.pty) continue
@@ -92,19 +69,15 @@ export function createTitleSubscriptions(
         changed = true
       }
 
-      // Attach to newly-wanted keys once their PTY exists (lazy — a leaf's
-      // PTY spawns after its Terminal mounts, so absent keys retry next tick).
+      // Lazy: absent PTYs (spawned after mount) retry next tick.
       for (const key of wanted) {
         if (subs.has(key)) continue
         const pty = lookup(key)
         if (!pty) continue
-        // onTitleChange replays the CURRENT title synchronously when there
-        // is one, so `title` is seeded below. Until then it stays
-        // `undefined` — NOT `""`: `get()` returning an empty string reads as
-        // "this tab's live title is empty" instead of "nothing reported
-        // yet", and the host records that over the tab's real `lastTitle`
-        // (use-tab-turn-state), wiping the name to the vendor default a beat
-        // after the correct one rendered.
+        // onTitleChange replays the current title synchronously when there is
+        // one. Until then `undefined`, NOT `""`: an empty `get()` reads as
+        // "title is empty" and the host would record it over the tab's real
+        // `lastTitle` (use-tab-turn-state), wiping the name to the vendor default.
         const entry: Entry = { pty, unsub: () => {}, title: undefined }
         entry.unsub = pty.onTitleChange((raw) => {
           if (entry.title === raw) return
@@ -134,20 +107,14 @@ export function createTitleSubscriptions(
   }
 }
 
-/** Retry cadence: a leaf/tab PTY spawns asynchronously after mount. */
 const TITLE_ATTACH_MS = 2000
 
 /**
- * React binding for {@link createTitleSubscriptions}: owns one store for the
- * component's lifetime, drives its reconcile whenever the given `ptyKeys` map
- * changes AND on a 2s lazy-attach tick AND on title pushes (the tick and the
- * pushes call the stable reconcile directly — no render-tick state, so a
- * no-change tick re-renders nothing), and returns the requested-id → live
- * display title map for render. `ptyKeys` maps a caller-chosen id (a leaf id,
- * a tab id) to its GLOBALLY-UNIQUE registry ptyKey — the id keys the returned
- * map, the ptyKey keys the subscription (so no two components' `leaf-1`s
- * collide). Stable identity: an unchanged title set returns the SAME Map so
- * the tick doesn't churn re-renders.
+ * React binding: one store per component, reconciled on `ptyKeys` change, on
+ * a 2s lazy-attach tick, and on title pushes (called directly, so a no-change
+ * tick renders nothing). `ptyKeys` maps a caller id (leaf/tab id) to its
+ * GLOBALLY-UNIQUE ptyKey; the returned map is keyed by that id. An unchanged
+ * title set returns the SAME Map.
  */
 export function useTitleSubscriptions(ptyKeys: ReadonlyMap<string, string>): ReadonlyMap<string, string> {
   const storeRef = useRef<TitleSubscriptions | null>(null)
@@ -156,9 +123,6 @@ export function useTitleSubscriptions(ptyKeys: ReadonlyMap<string, string>): Rea
   const [titles, setTitles] = useState<ReadonlyMap<string, string>>(new Map())
   const ptyKeysRef = useLatest(ptyKeys)
 
-  // Reconcile subscriptions + project ptyKey→title onto id→title. Stable so
-  // the retry tick and title pushes call it directly without re-rendering
-  // the host; the identity-stable setTitles keeps a no-change run render-free.
   const reconcile = useCallback(() => {
     const keys = ptyKeysRef.current
     store.reconcile(keys.values())
@@ -168,9 +132,8 @@ export function useTitleSubscriptions(ptyKeys: ReadonlyMap<string, string>): Rea
       for (const [id, key] of keys) {
         const title = store.get(key)
         if (title === undefined) continue
-        // Same rule as use-turn-polls' projection: the engine's own status
-        // decoration is stripped before anything renders it, so kobe's glyph
-        // column stays the one place turn state is drawn.
+        // Same strip as use-turn-polls: Rove's glyph column is the one place
+        // turn state is drawn.
         next.set(id, stripEngineStatusPrefix(title, liveEngines.resolve(key)))
       }
       if (next.size === prev.size && [...next].every(([id, v]) => prev.get(id) === v)) return prev
@@ -178,7 +141,6 @@ export function useTitleSubscriptions(ptyKeys: ReadonlyMap<string, string>): Rea
     })
   }, [store])
 
-  // Retry tick — a PTY may have just spawned.
   useEffect(() => {
     const timer = setInterval(reconcile, TITLE_ATTACH_MS)
     return () => clearInterval(timer)
@@ -190,10 +152,9 @@ export function useTitleSubscriptions(ptyKeys: ReadonlyMap<string, string>): Rea
     reconcile()
   }, [ptyKeys, reconcile])
 
-  // Title-change pushes (not caused by a reconcile) re-project the view.
-  // Deferred one microtask (coalesced): a fresh subscription seeds its title
-  // SYNCHRONOUSLY inside the store's reconcile loop, which must never be
-  // re-entered.
+  // Title pushes re-project, deferred one microtask (coalesced): a fresh
+  // subscription seeds SYNCHRONOUSLY inside the store's reconcile loop, which
+  // must never be re-entered.
   useEffect(() => {
     let active = true
     let scheduled = false

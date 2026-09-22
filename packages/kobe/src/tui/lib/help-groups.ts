@@ -1,14 +1,8 @@
 /**
- * Framework-free keymap DISPLAY seam: grouping for the help
- * dialog plus the chord-cap resolution the Tasks-pane footer legend and the
- * help dialog share. `groupBindings` stays generic over the `category`
- * field; the cap helpers read the real keymap via `findBinding` (itself
- * framework-free and vitest-safe — tests import both directly).
- *
- * The two category mappers live here rather than in their rendering
- * components for the same reason: which header a binding prints under is the
- * only thing that says which `keys.category` entries the catalog must carry,
- * and a CI guard cannot import an opentui component to ask.
+ * Framework-free keymap DISPLAY: help-dialog grouping and the chord cap shared
+ * by the help dialog and the Tasks-pane footer legend. The category mappers
+ * live here, not in their components, because a CI guard must ask which
+ * `keys.category` entries the catalog needs and can't import an opentui component.
  */
 
 import type { KobeBinding, KobeBindingScope } from "../context/keybindings"
@@ -33,22 +27,12 @@ export function groupBindings<T extends { readonly category: string }>(
   return grouped
 }
 
-/**
- * The chord cap a keymap row advertises: the cosmetic `hint.keys` when
- * present (it's refreshed in place on an override — keymap-overrides.ts),
- * else the canonical first chord; `undefined` when the row has neither.
- */
+/** `hint.keys` (refreshed in place by overrides), else the first chord. */
 function capOf(row: Pick<KobeBinding, "keys" | "hint">): string | undefined {
   return row.hint?.keys ?? row.keys[0]
 }
 
-/**
- * Resolve a single binding id to the chord cap a legend should advertise
- * ({@link capOf}). Returns `null` when the id is unknown or unbound (no
- * chords) — the row that owns it should then drop, since advertising a dead
- * chord is worse than none (mirrors the override path that nulls a hint on
- * unbind).
- */
+/** `null` for an unknown or unbound id: the row should drop, a dead chord is worse than none. */
 export function legendCap(id: string): string | null {
   const row = findBinding(id)
   if (!row) return null
@@ -56,13 +40,7 @@ export function legendCap(id: string): string | null {
   return cap && cap.length > 0 ? cap : null
 }
 
-/**
- * Resolve a (possibly composite) legend row's keycap from the binding ids it
- * represents. Each id contributes its {@link legendCap}; unbound ids drop out
- * and the survivors join with `/` (so `r/b/v` becomes `r/v` if `b` is
- * unbound, or the whole row drops when nothing survives). Returns `null` when
- * every id resolved to no chord — the caller drops the row entirely.
- */
+/** Composite row: survivors of {@link legendCap} joined with `/` (`r/b/v` → `r/v`); `null` if none survive. */
 export function legendRowCap(ids: readonly string[]): string | null {
   const caps = ids.map(legendCap).filter((c): c is string => c !== null)
   return caps.length > 0 ? caps.join("/") : null
@@ -83,13 +61,9 @@ export type HelpGrammarSection = {
 
 function directCap(row: KobeBinding): string | null {
   if (row.keys.length > 0) return row.hint?.keys ?? row.keys[0] ?? null
-  // Documentation-only rows (the diff-review keys, the new-task tab cycler)
-  // still describe a direct, surface-owned gesture through their friendly
-  // hint. They carry no `keys`, so they are never dispatched from the table —
-  // the owning component registers the raw chord and tags it with this row's
-  // id, which is what puts them in the reachability scan alongside every
-  // other row. A doc-only row whose owner is not mounted is unreachable and
-  // must not be advertised.
+  // Doc-only rows (diff review, new-task tab cycler) advertise their hint: the
+  // owning component registers the raw chord tagged with this row's id, which
+  // puts them in the reachability scan. An unmounted owner makes them unreachable.
   return row.prefixKeys?.length ? null : (row.hint?.keys ?? null)
 }
 
@@ -97,17 +71,14 @@ function availableOn(row: KobeBinding, surface: HelpSurface | null): boolean {
   if (row.scope === "global") return true
   if (surface === null) return false
   if (row.scope === surface) return true
-  // Terminal is the workspace's embedded input surface. Workspace-owned
-  // reserved direct chords and the configured global prefix stay relevant
-  // there; other unclaimed keys still pass through to the PTY.
+  // Terminal is the workspace's embedded input surface: reserved workspace
+  // chords and the prefix still apply there.
   return surface === "terminal" && row.scope === "workspace"
 }
 
 /**
- * Reframe the catalogue around the user's input grammar: keys in the focused
- * surface, one-press Kobe shortcuts, then commands behind the configured
- * prefix. Remaining pane-local rows follow as reference instead of being
- * mixed into the primary list.
+ * Organize by input grammar: keys on the focused surface, one-press shortcuts,
+ * prefix commands, then other panes' rows as reference.
  */
 export function grammarHelpSections(
   keymap: readonly KobeBinding[],
@@ -154,15 +125,9 @@ export function grammarHelpSections(
 }
 
 /**
- * The category header the F1 help dialog prints a section under. The dialog
- * groups by SCOPE, not by the binding's own `category` field.
- *
- * A `Record` over the closed scope union rather than an if-chain with a
- * default: the chain ended in `return "Dialog"`, which no scope ever meant —
- * `inbox` fell through it and F1 headed the Inbox rows `OTHER PANE — Dialog`.
- * A default that is a valid catalogue string also satisfies the "every header
- * resolves" guard, so nothing caught it. Exhaustiveness makes the next scope
- * added to the union a compile error instead of a wrong-but-plausible header.
+ * F1 section header; F1 groups by SCOPE, not the row's `category`. An
+ * exhaustive Record so a new scope is a compile error, not a plausible wrong
+ * header (an if-chain default once headed the Inbox rows "Dialog").
  */
 const SCOPE_CATEGORY: Record<KobeBindingScope, string> = {
   global: "Global",
@@ -178,10 +143,9 @@ export function scopeCategory(scope: HelpGrammarSection["scope"]): string {
 }
 
 /**
- * The category header the prefix HUD's guide groups an action under. Mostly
- * a synthetic set of its own (`Views` / `Sessions` / `Tasks` / …) that has no
- * counterpart in `KobeKeymap.category`, falling through to the binding's own
- * category — and then to `Global` — only for actions no rule claims.
+ * Prefix-HUD guide header: mostly a synthetic set (`Views` / `Sessions` /
+ * `Tasks` / …) with no `KobeKeymap.category` counterpart; unclaimed actions
+ * fall back to their own category, then `Global`.
  */
 export function guideCategory(action: string): string {
   if (["kanban.open", "automations.open", "workItems.open"].includes(action)) return "Views"

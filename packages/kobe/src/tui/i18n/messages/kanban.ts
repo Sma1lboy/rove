@@ -9,16 +9,13 @@ export const en = {
   hint: "tab project · ←↓↑→ card · enter detail · n new · d delete · r refresh · esc close",
   loading: "Loading issues…",
   /** Nothing to render a section for: no saved project, no live task, and no
-   *  repo in the issue store. It used to say "create a task first" while
-   *  deriving its sections from the task index alone, so a store full of
-   *  stories read as an empty one. */
+   *  repo in the issue store. */
   noRepos: "No projects yet — add one with `rove add <path>`, or file a story with `rove api issue-create`.",
   /** A repo section with zero issues. */
   empty: "No issues — agents file them via `rove api issue-create`.",
-  /** In place of the four columns when THIS project's issue read rejected.
-   *  The project keeps its slot in the selector: dropping it made a whole
-   *  repo — and every card in it — vanish, reading as "you only have one
-   *  project". `{error}` = the daemon's message. */
+  /** Replaces the columns when THIS project's issue read rejected; the project
+   *  keeps its selector slot so its cards don't silently vanish.
+   *  `{error}` = the daemon's message. */
   readFailed: "Couldn't read this project's stories: {error}",
   /** Error toast for the same failure, naming which project it was.
    *  `{repo}` = the project label, `{error}` = the daemon's message. */
