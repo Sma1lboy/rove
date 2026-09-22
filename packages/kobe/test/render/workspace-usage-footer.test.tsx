@@ -47,11 +47,15 @@ test("renders one chip per window per vendor", async () => {
       ["codex", { capturedAt: Date.now(), windows: [{ kind: "primary", label: "7d", percent: 47, resetsAt: null }] }],
     ]),
   )
+  // 100 columns, not 80: the full form needs 44 cells, and at 80 the real
+  // `⌃ A commands · F1 help` bar leaves 43. That bar lands in a post-commit
+  // effect, so an 80-column frame only showed the full form when it was
+  // captured before the bar arrived, and any extra render flipped it compact.
   const { frame } = await renderComponent(
     <WorkspaceFrame orchestrator={orch}>
       <box />
     </WorkspaceFrame>,
-    { width: 80, height: 6 },
+    { width: 100, height: 6 },
   )
   const out = await frame()
   expect(out).toContain("5h 42%")
