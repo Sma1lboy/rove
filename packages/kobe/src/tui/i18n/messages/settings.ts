@@ -45,7 +45,7 @@ export const en = {
   sections: {
     general: "General",
     engines: "Engines",
-    autoEffort: "Auto effort",
+    autoRouting: "Auto routing",
     plugins: "Plugins",
     marketplace: "Marketplace",
     keys: "Keybindings",
@@ -188,12 +188,12 @@ export const en = {
   },
   ...engineCard,
   ...pluginsEn,
-  /** Settings → Auto effort: the depth-tier → (engine, model, effort) table. */
-  autoEffort: {
-    title: "Auto effort",
-    hint: "Three depths a new task can be started at — swift, standard, deep — each mapped to an engine, a model and a reasoning effort. Pick a depth in the new-task dialog (or `rove api add --tier`) and Rove fills those three fields from this table; you still see and can change them. enter (or click) a row to retarget it with the same picker a task uses. A row whose target cannot start says why here, not at launch.",
+  /** Settings → Auto routing: which model a task's DEPTH routes it to. */
+  autoRouting: {
+    title: "Auto routing",
+    hint: "Routing by depth: a task says how deep the work is — swift, standard, deep — and this table says which engine, model and reasoning effort that depth runs on. Pick a depth in the new-task dialog (or `rove api add --tier`) and Rove fills those three fields from the row; you still see them and can change them before the task starts. enter (or click) a row to point it somewhere else, with the same picker a task uses. A row whose target cannot start says why here, not at launch.",
     unconfigured:
-      "Auto effort is off: a tier has no engine. Retarget it below, or remove the blank autoEffort.<tier>.engine from state.json.",
+      "Auto routing is off: a depth has nowhere to route — its engine is blank. Point it somewhere below, or remove the empty autoRouting.<tier>.engine from state.json.",
     engineDefault: "engine default",
     ready: "● ready",
     unavailable: "! unavailable — {reason}",
@@ -286,7 +286,7 @@ export const zh: typeof en = {
   },
   sections: {
     general: "通用",
-    autoEffort: "自动强度",
+    autoRouting: "自动路由",
     engines: "引擎",
     plugins: "插件",
     marketplace: "插件市场",
@@ -409,11 +409,11 @@ export const zh: typeof en = {
   },
   ...engineCardZh,
   ...pluginsZh,
-  autoEffort: {
-    title: "自动强度",
-    hint: "新任务可以按三档深度启动——轻快、标准、深入——每一档对应一个引擎、一个模型和一个推理强度。在新建任务对话框里选一档（或 `rove api add --tier`），Rove 就从这张表填进那三个字段；你仍然看得见、改得了。enter（或点击）某一行，用和任务一样的选择器重新指定。目标起不来的行会在这里说明原因，而不是等到启动时才炸。",
+  autoRouting: {
+    title: "自动路由",
+    hint: "按深度路由：任务说明这活有多深——轻快、标准、深入——这张表说明那一档跑在哪个引擎、哪个模型、哪个推理强度上。在新建任务对话框里选一档（或 `rove api add --tier`），Rove 就照那一行填进这三个字段；任务启动前你仍然看得见、改得了。enter（或点击）某一行，用和任务一样的选择器把它指到别处。目标起不来的行会在这里说明原因，而不是等到启动时才炸。",
     unconfigured:
-      "自动强度已关闭：有一档没有引擎。在下面重新指定，或从 state.json 里删掉空的 autoEffort.<tier>.engine。",
+      "自动路由已关闭：有一档无处可去——它的引擎是空的。在下面把它指到某个引擎，或从 state.json 里删掉空的 autoRouting.<tier>.engine。",
     engineDefault: "引擎默认",
     ready: "● 可用",
     unavailable: "! 不可用——{reason}",

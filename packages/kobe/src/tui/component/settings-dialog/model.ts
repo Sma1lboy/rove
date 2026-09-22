@@ -16,7 +16,7 @@
  * can import it without @opentui.
  */
 
-import { AUTO_EFFORT_TIERS, type AutoEffortTier } from "../../../engine/auto-effort"
+import { AUTO_ROUTING_TIERS, type AutoRoutingTier } from "../../../engine/auto-routing"
 import type { VendorId } from "../../../types/vendor"
 // theme-core (not ../../context/theme): this module is shared with the
 // React port, which must not reference the Solid .tsx even type-only.
@@ -26,12 +26,12 @@ import { APPEARANCE_SETTINGS, type AppearanceSetting } from "./appearance"
 
 export type NavLevel = "sidebar" | "body"
 
-export type SectionId = "general" | "engines" | "autoEffort" | "plugins" | "marketplace" | "keys" | "feedback" | "dev"
+export type SectionId = "general" | "engines" | "autoRouting" | "plugins" | "marketplace" | "keys" | "feedback" | "dev"
 
 export const SECTIONS: ReadonlyArray<{ id: SectionId; label: string }> = [
   { id: "general", label: "General" },
   { id: "engines", label: "Engines" },
-  { id: "autoEffort", label: "Auto effort" },
+  { id: "autoRouting", label: "Auto routing" },
   { id: "plugins", label: "Plugins" },
   { id: "marketplace", label: "Marketplace" },
   { id: "keys", label: "Keybindings" },
@@ -66,7 +66,7 @@ export type SettingsRow =
   | { id: "add-engine"; kind: "engineAdd" }
   | { id: "install-hooks"; kind: "engineHooksInstall" }
   | { id: "uninstall-hooks"; kind: "engineHooksUninstall" }
-  | { id: string; kind: "autoEffortTier"; tier: AutoEffortTier }
+  | { id: string; kind: "autoRoutingTier"; tier: AutoRoutingTier }
   | { id: "keys-create"; kind: "keysCreate" }
   | { id: string; kind: "pluginToggle"; pluginId: string }
   | { id: string; kind: "pluginSetting"; pluginId: string; key: string }
@@ -90,8 +90,8 @@ export function engineRowId(vendor: VendorId): string {
   return `engine:${vendor}`
 }
 
-function autoEffortRowId(tier: AutoEffortTier): string {
-  return `auto-effort:${tier}`
+function autoRoutingRowId(tier: AutoRoutingTier): string {
+  return `auto-routing:${tier}`
 }
 
 export function prefixTapPresentationRowId(presentation: PrefixTapPresentation): string {
@@ -196,9 +196,9 @@ function marketplaceRows(refs: readonly string[]): SettingsRow[] {
   return refs.map((ref): SettingsRow => ({ id: marketplaceRowId(ref), kind: "pluginInstall", ref }))
 }
 
-/** Auto effort section: one row per tier, in depth order. */
-export function autoEffortRows(): SettingsRow[] {
-  return AUTO_EFFORT_TIERS.map((tier): SettingsRow => ({ id: autoEffortRowId(tier), kind: "autoEffortTier", tier }))
+/** Auto routing section: one row per tier, in depth order. */
+export function autoRoutingRows(): SettingsRow[] {
+  return AUTO_ROUTING_TIERS.map((tier): SettingsRow => ({ id: autoRoutingRowId(tier), kind: "autoRoutingTier", tier }))
 }
 
 export function feedbackRows(): SettingsRow[] {
@@ -247,8 +247,8 @@ export function sectionRows(section: SectionId, input: SettingsRowsInput): Setti
       return generalRows()
     case "engines":
       return engineRows(input.engineList)
-    case "autoEffort":
-      return autoEffortRows()
+    case "autoRouting":
+      return autoRoutingRows()
     case "keys":
       return keybindingRows(input.keybindingsFileExists)
     case "plugins":

@@ -76,7 +76,7 @@ function locate(frameText: string, needle: string): { x: number; y: number } {
 }
 
 /** Tab `times` stops along the field chain: tabs → depth → engine → model → repo
- *  → baseRef (auto effort ships configured, so the depth row renders; claude,
+ *  → baseRef (auto routing ships configured, so the depth row renders; claude,
  *  the default engine, declares a model flag, so the model row does too). */
 async function pressTab(handle: { mockInput: { pressTab: () => void } }, times: number) {
   for (let i = 0; i < times; i++) {

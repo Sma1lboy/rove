@@ -1,5 +1,5 @@
 /**
- * `add --tier` — filling engine/model/effort from the auto-effort table.
+ * `add --tier` — filling engine/model/effort from the auto-routing table.
  * The account probe is mocked: the gate's login half is what a real
  * `detectEngineStatus` answers, and the answer must not depend on who is
  * logged into the machine running the suite.

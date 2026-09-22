@@ -162,7 +162,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `BAD_EFFORT` | The task's engine declares no effort levels, or not that one. |
 | `BAD_MODEL` | The task's engine declares no model flag, so a model cannot be passed to it. |
 | `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. |
-| `TIER_UNAVAILABLE` | Auto effort is not configured, or the tier's target cannot start (engine not listed, not logged in, model/effort its engine cannot carry). |
+| `TIER_UNAVAILABLE` | Auto routing is not configured, or the tier's target cannot start (engine not listed, not logged in, model/effort its engine cannot carry). |
 | `PARTIAL_FANOUT` | A parallel round with at least one failure (exit 3). |
 | `UNSUPPORTED` | `interrupt` on an engine that never declared how it is interrupted. |
 | `WATCH_TIMEOUT` | `watch` reached `--timeout` before any `--until` state; nothing has happened YET. |
@@ -541,7 +541,7 @@ replacement in `nextCommandArgs`.
   model for the first session onward; both are gated per engine
   (`BAD_EFFORT` / `BAD_MODEL`), and `--model` is passed verbatim in the
   engine's own spelling. `--tier swift|standard|deep` fills all three from
-  the auto-effort table (Settings → Auto effort) and records `.task.tier`;
+  the auto-routing table (Settings → Auto routing) and records `.task.tier`;
   it is exclusive with `--command`/`--model`/`--effort`/`--agents`
   (`CONFLICTING_FLAGS`) and refuses a tier that cannot start
   (`TIER_UNAVAILABLE`).

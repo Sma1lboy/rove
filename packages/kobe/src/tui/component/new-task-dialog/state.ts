@@ -42,7 +42,7 @@ export type NewTaskInput =
       modelEffort?: string
       /** Pinned model, when the engine declares a model flag and one was typed. */
       model?: string
-      /** The auto-effort tier the three fields above were filled from, when one was. */
+      /** The auto-routing tier the three fields above were filled from, when one was. */
       tier?: string
       /**
        * Set when submitted from the New Repo tab: the clone already finished and
@@ -104,7 +104,7 @@ export function prevDialogTab(tab: DialogTab): DialogTab {
 /**
  * Focusable fields. Shared, top of the visual order:
  *   - `tabs`   — mode-tab selector; ←/→ switches sub-tab.
- *   - `tier`   — auto-effort chips; only while auto effort is configured.
+ *   - `tier`   — auto-routing chips; only while auto routing is configured.
  *   - `engine` — vendor selector; ←/→ (or ctrl+e anywhere) cycles it.
  *   - `effort` — reasoning chips; only for engines that declare levels.
  *   - `model`  — model input; only for engines with a model flag.

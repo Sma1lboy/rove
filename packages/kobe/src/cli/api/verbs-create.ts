@@ -46,7 +46,7 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
         type: "enum",
         values: ["swift", "standard", "deep"],
         description:
-          "Auto-effort tier: fills the engine, model and effort from the table in Settings → Auto effort (autoEffort.<tier>.* in state.json) and records the tier on the task (.task.tier). Exclusive with --command/--model/--effort/--agents (CONFLICTING_FLAGS). A tier whose target cannot start — engine not in engine-list, not logged in, model or effort its engine cannot carry — is refused up front (TIER_UNAVAILABLE) with the reason.",
+          "Auto-routing tier: fills the engine, model and effort from the table in Settings → Auto routing (autoRouting.<tier>.* in state.json) and records the tier on the task (.task.tier). Exclusive with --command/--model/--effort/--agents (CONFLICTING_FLAGS). A tier whose target cannot start — engine not in engine-list, not logged in, model or effort its engine cannot carry — is refused up front (TIER_UNAVAILABLE) with the reason.",
       },
       {
         name: "model",

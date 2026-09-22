@@ -774,9 +774,9 @@ modal and prints its own legend (`tab model`).
 only while the engine under the cursor declares a model flag; for copilot
 (and any engine without one) the row and the binding are both absent.
 
-**Also new, but no new keys:** the new-task dialog's DEPTH (auto-effort
+**Also new, but no new keys:** the new-task dialog's DEPTH (auto-routing
 tier), EFFORT and MODEL rows ride the existing `tab` walk and `←→` chip
-stepping; Settings → Auto effort rows open the picker on the existing
+stepping; Settings → Auto routing rows open the picker on the existing
 `enter`. The owner's call is only whether `tab` is the right hop inside the
 picker, or whether the model input should instead sit behind a letter.
 

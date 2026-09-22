@@ -36,7 +36,7 @@ export interface CreateTaskInput {
   readonly modelEffort?: string
   /** Model pinned on the engine, in its own spelling (`Task.model`). */
   readonly model?: string
-  /** The auto-effort tier the engine fields were filled from (`Task.tier`). */
+  /** The auto-routing tier the engine fields were filled from (`Task.tier`). */
   readonly tier?: string
   /** Fan-out round marker shared by all siblings of one fan-out call. */
   readonly groupId?: string

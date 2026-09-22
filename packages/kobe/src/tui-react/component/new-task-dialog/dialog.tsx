@@ -59,7 +59,7 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
           />
         </DialogSection>
         {/* No depth / model / effort rows here (owner 2026-09-19). Depth and
-            reasoning level belong to auto-effort, which owns that decision in
+            reasoning level belong to auto-routing, which owns that decision in
             Settings; a pinned model is a per-task exception, not something
             every new task should be asked about. Both are still settable
             after the fact — `rove api set-model` / `set-effort`, or the

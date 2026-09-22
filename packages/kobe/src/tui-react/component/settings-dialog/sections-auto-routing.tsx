@@ -1,53 +1,53 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Settings → Auto effort: one row per depth tier, each showing the
+ * Settings → Auto routing: one row per depth tier, each showing the
  * engine · model · effort it launches, with the gate's verdict under it.
  * Enter opens the change-engine picker on that row. The prose above names
  * what the tiers are FOR; the rows name what they RUN — the two never quote
- * each other (see `engine/auto-effort.ts`).
+ * each other (see `engine/auto-routing.ts`).
  */
 
 import { TextAttributes } from "@opentui/core"
-import { type AutoEffortTier, describeTierBlock } from "../../../engine/auto-effort"
+import { type AutoRoutingTier, describeTierBlock } from "../../../engine/auto-routing"
 import { engineDisplayName } from "../../../engine/interactive-command"
-import { autoEffortRows, rowIndex } from "../../../tui/component/settings-dialog/model"
+import { autoRoutingRows, rowIndex } from "../../../tui/component/settings-dialog/model"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { Row, type SectionCursorProps } from "./rows"
-import type { AutoEffortSettings } from "./use-auto-effort-settings"
+import type { AutoRoutingSettings } from "./use-auto-routing-settings"
 
-export function AutoEffortSettingsSection(props: SectionCursorProps & { autoEffort: AutoEffortSettings }) {
+export function AutoRoutingSettingsSection(props: SectionCursorProps & { autoRouting: AutoRoutingSettings }) {
   const { theme } = useTheme()
   const t = useT()
-  const rows = autoEffortRows()
-  const { table } = props.autoEffort
+  const rows = autoRoutingRows()
+  const { table } = props.autoRouting
   const isBodyCursor = (row: number) => props.level === "body" && props.bodyRow === row
   return (
     <box flexDirection="column" gap={1}>
       <text fg={theme.text} attributes={TextAttributes.BOLD}>
-        {t("settings.autoEffort.title")}
+        {t("settings.autoRouting.title")}
       </text>
       <text fg={theme.textMuted} wrapMode="word">
-        {t("settings.autoEffort.hint")}
+        {t("settings.autoRouting.hint")}
       </text>
       {table === null ? (
         <text fg={theme.warning} wrapMode="word">
-          {t("settings.autoEffort.unconfigured")}
+          {t("settings.autoRouting.unconfigured")}
         </text>
       ) : null}
       <box flexDirection="column" gap={0}>
         {rows.map((row) => {
-          if (row.kind !== "autoEffortTier") return null
-          const tier: AutoEffortTier = row.tier
+          if (row.kind !== "autoRoutingTier") return null
+          const tier: AutoRoutingTier = row.tier
           const i = rowIndex(rows, row.id)
           const target = table?.[tier]
-          const block = props.autoEffort.block(tier)
+          const block = props.autoRouting.block(tier)
           const label = `${t(`tasks.tier.${tier}`)}`.padEnd(10)
           const fields = target
             ? [
                 engineDisplayName(target.engine),
-                target.model ?? t("settings.autoEffort.engineDefault"),
-                target.effort ?? t("settings.autoEffort.engineDefault"),
+                target.model ?? t("settings.autoRouting.engineDefault"),
+                target.effort ?? t("settings.autoRouting.engineDefault"),
               ].join(" · ")
             : "—"
           return (
@@ -58,7 +58,7 @@ export function AutoEffortSettingsSection(props: SectionCursorProps & { autoEffo
                 onMouseUp={() => {
                   props.setLevel("body")
                   props.setBodyRow(i)
-                  void props.autoEffort.edit(tier)
+                  void props.autoRouting.edit(tier)
                 }}
                 fg={theme.text}
                 bold
@@ -75,10 +75,10 @@ export function AutoEffortSettingsSection(props: SectionCursorProps & { autoEffo
                 {block === undefined ? (
                   <text fg={theme.textMuted}>{t("settings.accounts.checking")}</text>
                 ) : block === null ? (
-                  <text fg={theme.success}>{t("settings.autoEffort.ready")}</text>
+                  <text fg={theme.success}>{t("settings.autoRouting.ready")}</text>
                 ) : (
                   <text fg={theme.warning} wrapMode="none" flexShrink={1}>
-                    {t("settings.autoEffort.unavailable", { reason: describeTierBlock(block) })}
+                    {t("settings.autoRouting.unavailable", { reason: describeTierBlock(block) })}
                   </text>
                 )}
               </box>

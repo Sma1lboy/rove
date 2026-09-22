@@ -310,7 +310,7 @@ export interface SerializedTask {
   readonly modelEffort?: string
   /** Model pinned on the engine, in its own spelling. */
   readonly model?: string
-  /** Auto-effort tier the engine fields were filled from, when one was. */
+  /** Auto-routing tier the engine fields were filled from, when one was. */
   readonly tier?: string
   /** Fan-out round marker shared by the siblings of one fan-out call. */
   readonly groupId?: string

@@ -45,7 +45,7 @@ test("the Keybindings page writes the starter YAML on enter", async () => {
     return await frame()
   }
 
-  // General → Engines → Auto effort → Plugins → Marketplace → Keybindings.
+  // General → Engines → Auto routing → Plugins → Marketplace → Keybindings.
   for (let i = 0; i < 5; i++) await press("j") // → Keybindings
   expect(await frame()).toContain("not created yet")
 

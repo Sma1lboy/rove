@@ -46,14 +46,14 @@ import {
   installEngineHooks,
   uninstallEngineHooks,
 } from "./actions"
-import { AutoEffortSettingsSection } from "./sections-auto-effort"
+import { AutoRoutingSettingsSection } from "./sections-auto-routing"
 import { EngineSettingsSection } from "./sections-engines"
 import { GeneralSettingsSection, SettingsSectionSidebar } from "./sections-general"
 import { MarketplaceSettingsSection } from "./sections-marketplace"
 import { DevSettingsSection, FeedbackSettingsSection, KeybindingsSettingsSection } from "./sections-misc"
 import { PluginSettingsSection } from "./sections-plugins"
 import { useAppearanceSettings } from "./use-appearance-settings"
-import { useAutoEffortSettings } from "./use-auto-effort-settings"
+import { useAutoRoutingSettings } from "./use-auto-routing-settings"
 import { useEngineSettings } from "./use-engine-settings"
 import { useAccountProbes, useEngineIntegrations, useMarketplace, usePluginSettings } from "./use-section-data"
 import { useSettingsPrefs } from "./use-settings-prefs"
@@ -106,7 +106,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     integrations.reprobe()
   }
   // The tier targets, gated against the same account probe the cards read.
-  const autoEffort = useAutoEffortSettings(props.kv, dialog, engines.engineList, engineStatuses)
+  const autoRouting = useAutoRoutingSettings(props.kv, dialog, engines.engineList, engineStatuses)
   // Writing the starter YAML flips the Keybindings section from "here is an
   // example" to a real file — and re-applying it is what re-renders the
   // section (and drops its create row) without a restart.
@@ -239,7 +239,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     engineAdd: () => void engines.addEngineFlow(),
     engineHooksInstall: () => void runHookInstall(),
     engineHooksUninstall: () => void runHookUninstall(),
-    autoEffortTier: (row) => void autoEffort.edit(row.tier),
+    autoRoutingTier: (row) => void autoRouting.edit(row.tier),
     keysCreate: () => createKeysFile(),
     pluginToggle: (row) => plugins.toggle(row.pluginId),
     pluginSetting: (row) => void plugins.editSetting(row.pluginId, row.key),
@@ -393,7 +393,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
               onUninstallHooks={() => void runHookUninstall()}
             />
           ) : null}
-          {section === "autoEffort" ? <AutoEffortSettingsSection {...cursorProps} autoEffort={autoEffort} /> : null}
+          {section === "autoRouting" ? <AutoRoutingSettingsSection {...cursorProps} autoRouting={autoRouting} /> : null}
           {section === "plugins" ? (
             <PluginSettingsSection
               {...cursorProps}

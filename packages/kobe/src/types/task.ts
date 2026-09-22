@@ -138,7 +138,7 @@ export interface Task {
    */
   readonly model?: string
   /**
-   * Auto-effort tier picked at creation (`swift` / `standard` / `deep`) that
+   * Auto-routing tier picked at creation (`swift` / `standard` / `deep`) that
    * filled engine/model/effort; kept verbatim as a weak training label.
    * Absent = engine chosen by hand.
    */

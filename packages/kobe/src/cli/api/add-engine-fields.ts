@@ -1,17 +1,17 @@
 /**
  * The ENGINE half of an `add`: which engine a new task launches, at what
  * reasoning level, and on which model — typed out, or filled from an
- * auto-effort tier. Both `addOne` and `addParallel` route through it so the
+ * auto-routing tier. Both `addOne` and `addParallel` route through it so the
  * two paths cannot drift on the engine contract.
  */
 
 import {
   type TierTarget,
   describeTierBlock,
-  isAutoEffortTier,
-  readAutoEffortTable,
+  isAutoRoutingTier,
+  readAutoRoutingTable,
   tierBlock,
-} from "../../engine/auto-effort.ts"
+} from "../../engine/auto-routing.ts"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { detectEngineStatus } from "../../engine/engine-status.ts"
 import type { VendorId } from "../../types/vendor.ts"
@@ -66,7 +66,7 @@ export interface EngineFields {
 }
 
 /**
- * `--tier`: fill (engine, model, effort) from the auto-effort table and
+ * `--tier`: fill (engine, model, effort) from the auto-routing table and
  * record the tier on the task. Exclusive with the three explicit flags —
  * a caller who wrote both believes both applied. The target then passes the
  * same gates a hand-picked engine does (`engine-list` membership, login,
@@ -76,7 +76,7 @@ export interface EngineFields {
 export async function tierFields(ctx: VerbContext): Promise<EngineFields | undefined> {
   const tier = ctx.args.str("tier")?.trim()
   if (!tier) return undefined
-  if (!isAutoEffortTier(tier)) {
+  if (!isAutoRoutingTier(tier)) {
     throw new ApiError(
       `--tier must be one of swift, standard, deep (got ${JSON.stringify(tier)})`,
       "BAD_FLAG",
@@ -86,16 +86,16 @@ export async function tierFields(ctx: VerbContext): Promise<EngineFields | undef
   for (const flag of ["command", "model", "effort", "agents"] as const) {
     if (ctx.args.str(flag)) {
       throw new ApiError(
-        `--${flag} conflicts with --tier, which already fills the engine, model and effort from the auto-effort table — pass one or the other`,
+        `--${flag} conflicts with --tier, which already fills the engine, model and effort from the auto-routing table — pass one or the other`,
         "CONFLICTING_FLAGS",
         helpStep("add"),
       )
     }
   }
-  const table = readAutoEffortTable()
+  const table = readAutoRoutingTable()
   if (!table) {
     throw new ApiError(
-      "auto effort is not configured — a tier has no engine (autoEffort.<tier>.engine in state.json); set it in Settings → Auto effort",
+      "auto routing is not configured — a tier has no engine (autoRouting.<tier>.engine in state.json); set it in Settings → Auto routing",
       "TIER_UNAVAILABLE",
       helpStep("add"),
     )
@@ -110,7 +110,7 @@ export async function tierFields(ctx: VerbContext): Promise<EngineFields | undef
     throw new ApiError(`tier ${tier} cannot start: ${describeTierBlock(block)}`, "TIER_UNAVAILABLE", {
       tier,
       block,
-      hint: "Retarget the tier in Settings → Auto effort, or pass --command/--model/--effort by hand.",
+      hint: "Retarget the tier in Settings → Auto routing, or pass --command/--model/--effort by hand.",
       nextCommandArgs: ["api", "engine-list"],
     })
   }

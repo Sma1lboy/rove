@@ -124,11 +124,11 @@ The same three places select one:
 An engine that declares no model flag (copilot, contrib, custom) refuses a
 model up front (`BAD_MODEL`) instead of dropping it at launch.
 
-### Auto effort
+### Auto routing
 
 Rather than picking the three fields by hand, a new task can be started at a
 **depth** — `swift`, `standard` or `deep` — and Rove fills the engine, model
-and effort from the table in Settings → Auto effort (`autoEffort.<tier>.*`
+and effort from the table in Settings → Auto routing (`autoRouting.<tier>.*`
 in `state.json`, see [CONFIGURATION.md](./CONFIGURATION.md#engines)). The
 three fields stay on screen and editable; the tier is recorded on the task
 (`.task.tier`). A tier whose target cannot start — engine not listed, not

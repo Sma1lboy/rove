@@ -191,7 +191,7 @@ describe("nextField / firstFieldFor (per-tab field cycling)", () => {
     expect(nextField("tabs", "existing")).toBe("engine")
     expect(nextField("engine", "existing")).toBe("repo")
     // The tier stop sits between the mode row and the engine row while the
-    // auto-effort table is configured.
+    // auto-routing table is configured.
     expect(nextField("tabs", "existing", { tierVisible: true })).toBe("tier")
     expect(nextField("tier", "existing")).toBe("engine")
     // The model/effort stops exist only while their rows render, and the walk

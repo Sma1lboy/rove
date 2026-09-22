@@ -164,12 +164,19 @@ it off, `r` is the only thing that repopulates the list.
 | `customEngineIds` | string[] | `[]` | Your own engines; see [Custom engines](#custom-engines) |
 | `engineProtocol.<id>` | built-in engine id | unset | Adapter a custom engine borrows; see [Custom engines](#custom-engines) |
 | `lastActiveVendor.<repo>` | engine id | unset | Per-project last used; outranks `defaultVendor`. Written by Rove |
-| `autoEffort.<tier>.engine` | engine id | `claude` for all three | What the `swift` / `standard` / `deep` depth launches. Set from Settings → Auto effort; an empty string switches auto effort off (no tier is guessed) |
-| `autoEffort.<tier>.model` | string | `sonnet` / `opus` / `fable` | Model for that depth, in the engine's own spelling; empty = the engine's default |
-| `autoEffort.<tier>.effort` | string | unset | Reasoning level for that depth, one the engine declares; empty = the engine's default |
+| `autoRouting.<tier>.engine` | engine id | `claude` for all three | What the `swift` / `standard` / `deep` depth launches. Set from Settings → Auto routing; an empty string switches auto routing off (no tier is guessed) |
+| `autoRouting.<tier>.model` | string | `sonnet` / `opus` / `fable` | Model for that depth, in the engine's own spelling; empty = the engine's default |
+| `autoRouting.<tier>.effort` | string | unset | Reasoning level for that depth, one the engine declares; empty = the engine's default |
 
 Launch commands are parsed shell-ish, so quotes group arguments. Clear both
 `engineName.<id>` and `engineCommand.<id>` to reset an engine to its default.
+
+These three keys were called `autoEffort.<tier>.*` up to v0.9.219, and the
+feature was called Auto effort. Rove moves the old keys to the new names once,
+at the first launch after upgrading, and deletes the old ones — a table you had
+retargeted keeps launching exactly what it launched before, and there is
+nothing to do by hand. If you had both spellings in the file (an older Rove run
+in between, say), the `autoRouting.*` value is the one kept.
 
 ### Terminal and tabs
 
