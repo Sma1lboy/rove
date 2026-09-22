@@ -2,11 +2,11 @@
 /**
  * The rail's right edge, draggable.
  *
- * It spends no column: absolute over the rail's rightmost cell, which is the
- * padding the row budgets already reserve (`titleBudgetFor` keeps a right pad
- * plus a breathing cell), so nothing clickable moves out from under it. A
- * visible divider column would have cost a cell of every row in the
- * tallest-pressure panel in the product.
+ * It sits on the workspace pane's left border — the one line on screen that
+ * already reads as "the rail ends here" — absolute over that column, so it
+ * spends no cell of its own. Not the rail's last (padding) column: that is
+ * blank, one cell left of the line people aim for, so a grab there is found
+ * only by accident.
  *
  * It draws NOTHING. What says "this edge drags" is the mouse pointer: under the
  * cursor, and for as long as a drag it started is live, the terminal's pointer
@@ -30,7 +30,7 @@ import { useEffect, useRef } from "react"
 import type { GestureMouseEvent } from "./sidebar-resize-gesture"
 
 export interface SidebarResizeGripProps {
-  /** The rail's width — the grip sits on its last column. */
+  /** The rail's width — the grip sits on the column right after it. */
   readonly width: number
   /** A drag the grip started is still live — keep the pointer until release. */
   readonly active?: boolean
@@ -68,7 +68,7 @@ export function SidebarResizeGrip(props: SidebarResizeGripProps) {
       position="absolute"
       top={0}
       bottom={0}
-      left={props.width - 1}
+      left={props.width}
       width={1}
       onMouseDown={props.onGripDown}
       onMouseOver={() => {

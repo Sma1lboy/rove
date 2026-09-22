@@ -24,8 +24,8 @@ import { SidebarResizeGrip } from "../../src/tui-react/workspace/sidebar-resize-
 import { act, renderComponent } from "./harness"
 
 const RAIL_WIDTH = 24
-/** The grip's own column: the rail's last cell, zero-indexed. */
-const EDGE_X = RAIL_WIDTH - 1
+/** The grip's own column: the workspace border right after the rail, zero-indexed. */
+const EDGE_X = RAIL_WIDTH
 const ROW_Y = 6
 
 /** The workspace's shape in miniature: a pane row with a rail inside it. */
