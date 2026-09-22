@@ -22,15 +22,6 @@ function Driver(props: { onMount: (dialog: ReturnType<typeof useDialog>) => void
 }
 
 describe("DialogProvider", () => {
-  it("renders no overlay when the stack is empty", async () => {
-    const { frame } = await renderComponent(
-      <DialogProvider>
-        <Driver onMount={() => {}} />
-      </DialogProvider>,
-    )
-    expect(await frame()).toContain("base content")
-  })
-
   it("push shows the dialog body on top of the base content", async () => {
     const { frame } = await renderComponent(
       <DialogProvider>

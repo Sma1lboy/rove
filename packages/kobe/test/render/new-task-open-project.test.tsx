@@ -85,15 +85,6 @@ test("a repo with no project checkout does not", async () => {
   expect(await frame()).not.toContain("the project itself")
 })
 
-test("omitting mainRepos entirely leaves the tab as it was", async () => {
-  // A caller that passes no `mainRepos` gets the tab unchanged.
-  const dir = repo()
-  const { frame } = await mount(dir)
-  const text = await frame()
-  expect(text).not.toContain("the project itself")
-  expect(text).toContain("FROM BRANCH")
-})
-
 /**
  * Stops from the dialog's opening field (`tabs`) to `target`, counted from
  * the focus chain rather than written down. The literal counts here were

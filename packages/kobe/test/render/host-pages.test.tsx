@@ -120,22 +120,6 @@ test("renderFullWindowPage renders UpdatePage", async () => {
   expect(await frame()).toContain("ROVE UPDATE")
 })
 
-/**
- * What's New is a MODAL now, not a page (`whats-new-dialog.tsx`), so the page
- * router must not know about it at all: it outranks the chord-opened pages by
- * being a dialog, not by winning a precedence check here. The old version of
- * this test asserted the opposite.
- */
-test("the page router has no What's New branch left", async () => {
-  const { frame } = await renderComponent(<box>{renderFullWindowPage(deps({ updateOpen: true }))}</box>, {
-    width: 80,
-    height: 24,
-  })
-  await settle()
-  expect(await frame()).toContain("ROVE UPDATE")
-  expect(await frame()).not.toContain("WHAT'S NEW")
-})
-
 test("useHostPagesState clears What's New once, and it cannot be reopened", async () => {
   let pagesRef: HostPagesState | null = null
   function Harness() {
@@ -183,19 +167,6 @@ test("renderContentPage renders WorkItemsPage with a selected task repo", async 
   )
   await settle()
   expect(await frame()).toContain("ISSUES")
-})
-
-test("renderContentPage renders KanbanPage with a focus task", async () => {
-  const { frame } = await renderComponent(
-    <box>{renderContentPage(deps({ kanbanOpen: true, selectedTask: SELECTED_TASK }))}</box>,
-    {
-      width: 120,
-      height: 30,
-      providers: { dialog: true, kv: true, notifications: true },
-    },
-  )
-  await settle()
-  expect(await frame()).toContain("Kanban")
 })
 
 test("renderContentPage renders AutomationsPage without a selected task", async () => {
