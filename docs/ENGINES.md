@@ -25,7 +25,8 @@ you need git-level isolation and a separate branch.
 | Pi | `pi` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` | `--model` (pattern or `provider/id`; listed by `pi --list-models`) |
 | OMP | `omp` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` | `--model=` (pattern or `provider/id`; listed by `omp models --json`) |
 | Cursor Agent | `cursor` | binary only | ✓ (screen-based, plus a session hook) | — | — | — |
-| Gemini CLI, OpenCode, Grok CLI, Droid, Amp | contrib | binary only | ✓ (screen-based) | — | — | — |
+| Droid, Devin, Qoder CLI | contrib | binary only | ✓ (screen-based, plus a session hook) | — | — | — |
+| Gemini CLI, OpenCode, Grok CLI, Amp, Cline, Kiro CLI, Maki, Antigravity | contrib | binary only | ✓ (screen-based) | — | — | — |
 | Anything you register | custom | binary only | — | — | — | — |
 
 A model is pinned per task in the engine's own spelling (see
@@ -44,7 +45,7 @@ all rather than a stale number.
 
 **Contrib engines are launch + badge only.** Rove ships a catalog of
 well-known coding CLIs (`gemini`, `opencode`, `cursor`, `grok`, `droid`,
-`amp`, `cline`, `kiro`, `maki`, `antigravity`) so they appear in the engine selector whenever the binary is on your
+`amp`, `devin`, `qodercli`, `cline`, `kiro`, `maki`, `antigravity`) so they appear in the engine selector whenever the binary is on your
 PATH, with a proper name, a launch command, and screen-based activity
 badges. A catalog entry also declares how its CLI takes a first message:
 OpenCode's positional argument is a project directory, so Rove pastes the
@@ -255,6 +256,14 @@ agent's own actions, and Rove does not install an observer on a hook that gates
 approvals. If `~/.cursor` does not exist, nothing is written and no directory is
 created: there is no CLI there to read it. Your own entries in `hooks.json`, and
 every other event, are left alone.
+
+Droid, Devin, and Qoder CLI get the same single observer, `SessionStart`,
+written into their Claude-shaped settings file: `~/.factory/settings.json` for
+Droid, `$XDG_CONFIG_HOME/devin/config.json` (else `~/.config/devin/config.json`)
+for Devin, and `$QODERCLI_CONFIG_DIR/settings.json` (else
+`~/.qoder/settings.json`) for Qoder CLI. As with Cursor, the hook only reports
+which session is live; the badge comes from the screen rules. If the settings
+file's directory does not exist, nothing is written.
 
 Every hook Rove installs carries the version of the shape that wrote it, so
 Rove can tell its own current entry from one an older version left behind.
