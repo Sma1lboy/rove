@@ -17,4 +17,3 @@ Landing page 迭代清单。源文件：`packages/kobe-landing/index.html`（静
 ## 待办
 
 - **清理未引用的大资产**（需 owner 确认删除）：`assets/hero-flow-v2.png` (2.1MB)、`assets/demo.mp4` (1.6MB)、`assets/task-streams.gif` (1.1MB)、`assets/quicklook.mp4`、`assets/quicklook-poster.jpg`、`assets/demo-poster.png`、`hero-fanout.png`、`z1-zen-fill.png` 都不再被任何页面引用（现役图片只有 `cand-5-rivers.png`、`assets/favicon.png`、`assets/og-card.jpg`），约 5.6MB 会跟着每次 deploy 一起上传。
-- og-card：`assets/og-card.jpg` 是真实页面 1200×630 截图。hero 文案改版后需要重截一张（用本地 server + 1200×630 viewport,隐藏 navbar）。
