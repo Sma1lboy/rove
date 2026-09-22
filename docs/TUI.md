@@ -35,8 +35,10 @@ project**. Clicking anywhere else dismisses that menu.
 
 The Tasks rail sizes itself from the terminal — wider terminals get a wider
 rail, so branch names stop truncating. Drag its right edge to set the width
-yourself; the edge lights up when the cursor is on it, and double-clicking it
-goes back to the width Rove picks. A width you drag to is remembered across
+yourself; over the edge the mouse pointer turns into a left-right resize arrow
+(in terminals that let an app set the pointer shape; elsewhere the edge still
+drags, it just gives no cue), and double-clicking it goes back to the width
+Rove picks. A width you drag to is remembered across
 restarts, and it is an override rather than a replacement: a terminal too
 narrow to honour it squeezes the rail down to what fits and pays the full
 width back when the window grows again. The fold has no draggable edge — its

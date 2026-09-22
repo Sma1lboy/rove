@@ -18,6 +18,7 @@
  */
 
 import { expect, test } from "bun:test"
+import { useState } from "react"
 import { useSidebarResizeGesture } from "../../src/tui-react/workspace/sidebar-resize-gesture"
 import { SidebarResizeGrip } from "../../src/tui-react/workspace/sidebar-resize-grip"
 import { act, renderComponent } from "./harness"
@@ -122,33 +123,69 @@ function edgeCell(frame: string, row: number): string {
   return [...(frame.split("\n")[row] ?? "")][EDGE_X] ?? ""
 }
 
-test("the edge is blank at rest and lights only while the cursor is on it", async () => {
-  const { mockMouse, frame } = await renderComponent(<Workspace />, { width: 60, height: 12 })
+/** Every pointer shape (OSC 22) the component wrote to the terminal, in order. */
+function recordPointer(renderer: object): string[] {
+  const shapes: string[] = []
+  const raw = renderer as { writeOut: (chunk: string) => unknown }
+  const passThrough = raw.writeOut.bind(renderer)
+  raw.writeOut = (chunk) => {
+    const osc = /^\x1b\]22;([^\x07]*)\x07$/.exec(chunk)
+    if (osc) shapes.push(osc[1] as string)
+    else return passThrough(chunk)
+  }
+  return shapes
+}
 
-  expect(edgeCell(await frame(), ROW_Y)).toBe(" ")
+test("hovering the edge swaps the pointer and paints nothing", async () => {
+  const { mockMouse, frame, renderer } = await renderComponent(<Workspace />, { width: 60, height: 12 })
+  const shapes = recordPointer(renderer)
 
   // Arrive from inside the rail, as a real pointer does.
   await act(() => mockMouse.moveTo(10, ROW_Y))
   await act(() => mockMouse.moveTo(EDGE_X, ROW_Y))
-  const lit = await frame()
-  expect(edgeCell(lit, ROW_Y)).not.toBe(" ")
-  // The whole column, not the one cell under the cursor: it reads as an edge.
-  expect(edgeCell(lit, 1)).toBe(edgeCell(lit, ROW_Y))
-
-  await act(() => mockMouse.moveTo(40, ROW_Y))
+  expect(shapes).toEqual(["ew-resize"])
+  // The cue is the pointer, not ink: the row keeps every cell it had.
   expect(edgeCell(await frame(), ROW_Y)).toBe(" ")
+
+  // Travel within the edge column is one cell owner — no further requests.
+  await act(() => mockMouse.moveTo(EDGE_X, ROW_Y + 2))
+  await act(() => mockMouse.moveTo(40, ROW_Y))
+  expect(shapes).toEqual(["ew-resize", "default"])
 })
 
-test("a drag keeps the edge lit after the cursor leaves it, until release", async () => {
-  const { mockMouse, frame } = await renderComponent(<Workspace />, { width: 60, height: 12 })
+test("a drag keeps the pointer after the cursor leaves the edge, until release", async () => {
+  const { mockMouse, renderer } = await renderComponent(<Workspace />, { width: 60, height: 12 })
+  const shapes = recordPointer(renderer)
 
   await act(() => mockMouse.moveTo(EDGE_X, ROW_Y))
   await act(() => mockMouse.pressDown(EDGE_X, ROW_Y))
   await act(() => mockMouse.moveTo(40, ROW_Y))
   // The rail in this miniature never actually resizes, so the cursor is now
-  // well off the edge — only the live gesture can be keeping it lit.
-  expect(edgeCell(await frame(), ROW_Y)).not.toBe(" ")
+  // well off the edge — only the live gesture can be holding the pointer.
+  expect(shapes).toEqual(["ew-resize"])
 
   await act(() => mockMouse.release(40, ROW_Y))
-  expect(edgeCell(await frame(), ROW_Y)).toBe(" ")
+  expect(shapes).toEqual(["ew-resize", "default"])
+})
+
+test("unmounting under the cursor hands the pointer back", async () => {
+  let fold: () => void = () => {}
+  function Rail() {
+    const [show, setShow] = useState(true)
+    fold = () => setShow(false)
+    return (
+      <box width={60} height={12}>
+        {show ? <SidebarResizeGrip width={RAIL_WIDTH} onGripDown={() => {}} /> : null}
+      </box>
+    )
+  }
+  const { mockMouse, renderer } = await renderComponent(<Rail />, { width: 60, height: 12 })
+  const shapes = recordPointer(renderer)
+  await act(() => mockMouse.moveTo(10, ROW_Y))
+  await act(() => mockMouse.moveTo(EDGE_X, ROW_Y))
+  expect(shapes).toEqual(["ew-resize"])
+
+  // Folding the rail mid-hover: the grip is gone before any `out` could fire.
+  await act(async () => fold())
+  expect(shapes).toEqual(["ew-resize", "default"])
 })
