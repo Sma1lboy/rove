@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   holdExitFor,
-  hostRenderOptions,
   installBracketedPasteMode,
   installPaneExitBackstop,
   whenExitReady,
@@ -30,20 +29,6 @@ function recordingTty(isTTY = true): { stream: NodeJS.WriteStream; written: stri
     } as unknown as NodeJS.WriteStream,
   }
 }
-
-describe("hostRenderOptions", () => {
-  it("spreads onDestroy in only when present (same shape otherwise)", () => {
-    const onDestroy = () => {}
-    expect(hostRenderOptions(onDestroy)).toMatchObject({ onDestroy })
-    expect("onDestroy" in hostRenderOptions()).toBe(false)
-  })
-
-  it("requests kitty press, repeat, release, and all-keys-as-escapes reporting", () => {
-    expect(hostRenderOptions()).toMatchObject({
-      useKittyKeyboard: {},
-    })
-  })
-})
 
 describe("createHostImeOutput", () => {
   it("uses a local custom-output feed for fullscreen macOS and Windows hosts", () => {

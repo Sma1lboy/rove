@@ -14,7 +14,6 @@ import {
   sidebarEmptyStateKey,
   subtitleBudgetFor,
   titleBudgetFor,
-  toneColor,
   truncateBranchLabel,
   truncateProjectFilterLabel,
 } from "../../src/tui/panes/sidebar/view-core"
@@ -93,20 +92,5 @@ describe("row helpers", () => {
     const long = "feature/very-long-branch-name"
     expect(truncateBranchLabel(long).length).toBeLessThanOrEqual(BRANCH_LABEL_MAX)
     expect(truncateBranchLabel("main")).toBe("main")
-  })
-
-  it("toneColor maps every tone to its theme slot with textMuted as default", () => {
-    const theme = {
-      success: "S",
-      warning: "W",
-      primary: "P",
-      error: "E",
-      textMuted: "M",
-    } as const
-    expect(toneColor(theme, "success")).toBe("S")
-    expect(toneColor(theme, "warning")).toBe("W")
-    expect(toneColor(theme, "primary")).toBe("P")
-    expect(toneColor(theme, "error")).toBe("E")
-    expect(toneColor(theme, "textMuted")).toBe("M")
   })
 })

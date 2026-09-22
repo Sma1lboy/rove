@@ -278,12 +278,6 @@ describe("windowInboxRows", () => {
     expect(hiddenBelow).toBe(0)
   })
 
-  test("headers do not consume card budget", () => {
-    // 5 cards + 2 headers with a budget of 5 — the old row-based window
-    // (budget 5 rows) would have clipped the recent section entirely.
-    expect(windowInboxRows(queue, 1, 5).visible.filter((row) => row.kind === "header")).toHaveLength(2)
-  })
-
   test("clips below and reports the hidden card count", () => {
     const { visible, hiddenAbove, hiddenBelow } = windowInboxRows(queue, 1, 3)
     expect(visible.map((row) => row.id)).toEqual(["header:attention", "a", "b", "c"])

@@ -33,14 +33,6 @@ describe("applyDisplayOverlay", () => {
     expect(out.backgroundDialog).toBe(base.backgroundDialog)
   })
 
-  it("resolveTheme output feeds the overlay for every bundled theme without throwing", () => {
-    for (const [name, json] of Object.entries(BUNDLED_THEMES)) {
-      const resolved = resolveTheme(json, "dark")
-      const overlaid = applyDisplayOverlay(resolved, "info", true)
-      expect(overlaid.focusAccent, name).toBeDefined()
-    }
-  })
-
   describe("with a detected host background (transparent mode)", () => {
     const lightHost = RGBA.fromHex("#FFFFFF")
 

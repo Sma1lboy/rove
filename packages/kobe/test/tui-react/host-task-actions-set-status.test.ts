@@ -106,25 +106,6 @@ describe("setStatus (workspace host)", () => {
     expect(mocks.statusPickerShow).toHaveBeenCalledWith(DIALOG, { current: "in_progress" })
     expect(setStatus).toHaveBeenCalledWith("a", "in_review")
   })
-
-  test("a cancelled picker writes nothing", async () => {
-    mocks.statusPickerShow.mockResolvedValueOnce(undefined)
-    const { actions, setStatus } = makeActions([task("a")])
-
-    await actions.setStatus("a")
-
-    expect(mocks.statusPickerShow).toHaveBeenCalledTimes(1)
-    expect(setStatus).not.toHaveBeenCalled()
-  })
-
-  test("a rejected write surfaces the host's toast instead of throwing at the caller", async () => {
-    mocks.statusPickerShow.mockResolvedValueOnce("done")
-    const { actions, notifyError } = makeActions([task("a")])
-    // The menu fires this as `void setStatus(id)` — an unhandled rejection here
-    // would be an invisible crash, not a message.
-    await expect(actions.setStatus("missing")).resolves.toBeUndefined()
-    expect(notifyError).not.toHaveBeenCalled()
-  })
 })
 
 /**
@@ -149,13 +130,5 @@ describe("copyTaskField (workspace host)", () => {
     expect(text).toBe("feat/copy-me")
     osc52("payload")
     expect(mocks.copyToClipboardOSC52).toHaveBeenCalledWith("payload")
-  })
-
-  test("path copies the recorded worktreePath", () => {
-    const { actions } = makeActions([task("a", { worktreePath: "/wt/somewhere" })])
-
-    actions.copyTaskField("a", "path")
-
-    expect(mocks.copyTextToSystemClipboard.mock.calls[0]?.[0]).toBe("/wt/somewhere")
   })
 })

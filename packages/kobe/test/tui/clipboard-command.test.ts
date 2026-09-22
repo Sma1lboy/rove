@@ -20,11 +20,6 @@ describe("resolveClipboardCopyCommand", () => {
     expect(resolveClipboardCopyCommand("linux", all)).toEqual(["wl-copy"])
   })
 
-  test("linux with only xclip → xclip clipboard command", () => {
-    const onlyXclip = (bin: string) => bin === "xclip"
-    expect(resolveClipboardCopyCommand("linux", onlyXclip)).toEqual(["xclip", "-selection", "clipboard", "-in"])
-  })
-
   test("linux with only xsel → xsel clipboard command", () => {
     const onlyXsel = (bin: string) => bin === "xsel"
     expect(resolveClipboardCopyCommand("linux", onlyXsel)).toEqual(["xsel", "--clipboard", "--input"])

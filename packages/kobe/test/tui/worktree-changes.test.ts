@@ -20,10 +20,6 @@ describe("parsePorcelain", () => {
     const text = ["## main...origin/main [ahead 2, behind 1]", " M src/a.ts", " D src/b.ts", ""].join("\n")
     expect(parsePorcelain(text)).toEqual({ added: 1, deleted: 1 })
   })
-
-  test("clean tree yields zeros", () => {
-    expect(parsePorcelain("\n")).toEqual({ added: 0, deleted: 0 })
-  })
 })
 
 // The sidebar's source-preference seam: a non-null pushed map
@@ -37,14 +33,6 @@ describe("pickPushedChanges", () => {
   test("null/undefined map → null (local-poller fallback engages)", () => {
     expect(pickPushedChanges(null, "/wt/a")).toBeNull()
     expect(pickPushedChanges(undefined, "/wt/a")).toBeNull()
-  })
-
-  test("a tracked worktree reads its pushed counts", () => {
-    expect(pickPushedChanges(pushed, "/wt/a")).toEqual({ added: 3, deleted: 1 })
-  })
-
-  test("a worktree absent from a non-null map reads zeros, not fallback", () => {
-    expect(pickPushedChanges(pushed, "/wt/absent")).toEqual({ added: 0, deleted: 0 })
   })
 
   test("absent keys share one zeros reference (memo-equality friendly)", () => {

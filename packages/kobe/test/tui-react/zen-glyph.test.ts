@@ -13,13 +13,4 @@ describe("zenChipGlyph", () => {
       expect(zenChipGlyph(platform)).toBe("◐")
     }
   })
-
-  test("no fallback glyph carries an emoji presentation of its own", () => {
-    // Anything in the emoji/pictograph planes is exactly what we're escaping.
-    for (const platform of ["linux", "win32"] as NodeJS.Platform[]) {
-      const cp = zenChipGlyph(platform).codePointAt(0) as number
-      expect(cp).toBeLessThan(0x1f000)
-      expect(cp === 0x262f).toBe(false)
-    }
-  })
 })

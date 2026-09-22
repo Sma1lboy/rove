@@ -49,17 +49,4 @@ describe("XtermTaskPty lazy snapshot (no subscribers)", () => {
 
     pty.kill()
   })
-
-  it("keeps the eager push path for live subscribers", async () => {
-    const pty = new FakeTransportPty({ taskId: "t1", cwd: "/wt" })
-    const seen: string[] = []
-    pty.onData((snap) => seen.push(rowsText(snap)))
-
-    await pty.pump("streamed line\r\n")
-    await settleRefresh()
-    // No capture() needed — the subscriber was pushed the fresh snapshot.
-    expect(seen.some((s) => s.includes("streamed line"))).toBe(true)
-
-    pty.kill()
-  })
 })

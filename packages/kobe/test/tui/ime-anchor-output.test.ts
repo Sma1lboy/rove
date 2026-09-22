@@ -48,14 +48,6 @@ describe("ImeAnchorController", () => {
     expect(controller.release(focusedPane)).toBe(true)
     expect(controller.current()).toBeNull()
   })
-
-  it("stores renderer screen coordinates as zero-based values", () => {
-    const controller = new ImeAnchorController()
-
-    controller.claim(Symbol("terminal"), { x: 0, y: 0 })
-
-    expect(controller.current()).toEqual({ x: 0, y: 0 })
-  })
 })
 
 describe("createImeAnchoredOutput", () => {

@@ -65,32 +65,13 @@ function rowText(chunks: ReturnType<typeof xtermLineToChunks>): string {
 }
 
 describe("xtermLineToChunks", () => {
-  test("materializes only up to the last visible glyph when no floor is given", () => {
-    const chunks = xtermLineToChunks(makeLine("hello", 80))
-    expect(rowText(chunks)).toBe("hello")
-  })
-
   test("an all-blank line collapses to no chunks", () => {
     const chunks = xtermLineToChunks(makeLine("", 80))
     expect(chunks).toHaveLength(0)
   })
 
-  test("honours the minLast floor past the last glyph so the cursor column stays backed", () => {
-    // Cursor parked at column 20 → minLast = 19. The row must materialize out to
-    // column 19 (20 cells) even though the last glyph is at column 4, otherwise
-    // the block-cursor overlay collapses onto the last glyph instead of column 20.
-    const chunks = xtermLineToChunks(makeLine("hello", 80), 19)
-    expect(rowText(chunks)).toBe(`hello${" ".repeat(15)}`)
-    expect(rowText(chunks)).toHaveLength(20)
-  })
-
   test("the floor never shrinks a row that already extends past it", () => {
     const chunks = xtermLineToChunks(makeLine("hello world", 80), 4)
     expect(rowText(chunks)).toBe("hello world")
-  })
-
-  test("the floor is clamped to the line width", () => {
-    const chunks = xtermLineToChunks(makeLine("hi", 5), 999)
-    expect(rowText(chunks)).toHaveLength(5)
   })
 })

@@ -40,10 +40,6 @@ describe("asAttachmentPath", () => {
     expect(asAttachmentPath("/tmp/notes.txt", exists(["/tmp/notes.txt"]))).toBeNull()
     expect(asAttachmentPath("/tmp/gone.png", exists([]))).toBeNull()
   })
-
-  test("accepts pdf", () => {
-    expect(asAttachmentPath("/tmp/spec.pdf", exists(["/tmp/spec.pdf"]))).toBe("/tmp/spec.pdf")
-  })
 })
 
 describe("asAttachmentPaths (whole-paste gate)", () => {

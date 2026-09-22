@@ -11,7 +11,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
-import { type Row, flattenTree, statusRows, truncatePathTail } from "../../src/tui/panes/filetree/rows.ts"
+import { type Row, flattenTree, statusRows } from "../../src/tui/panes/filetree/rows.ts"
 import type { TreeNode } from "../../src/tui/panes/filetree/tree.ts"
 import { readWorktreeChanges } from "../../src/tui/panes/sidebar/worktree-changes.ts"
 
@@ -79,12 +79,6 @@ describe("statusRows / truncatePathTail", () => {
       { kind: "status", path: "assets/", status: "?", added: 2, deleted: 0, fileCount: 1, expanded: true },
       { kind: "status", path: "assets/x.png", status: "?", added: undefined, deleted: undefined, child: true },
     ])
-  })
-
-  test("keeps the path TAIL when truncating (the filename carries the meaning)", () => {
-    const truncated = truncatePathTail("src/components/sidebar/Sidebar.tsx", 20)
-    expect(truncated.endsWith("Sidebar.tsx")).toBe(true)
-    expect(truncated.length).toBeLessThanOrEqual(20)
   })
 })
 

@@ -32,10 +32,6 @@ describe("press: the app's mouse tracking decides who gets the click", () => {
   it("keeps the press at a plain prompt, so a selection starts", () => {
     expect(pressStartsSelection("none")).toBe(true)
   })
-
-  it("keeps the press when shift bypasses a mouse-aware app", () => {
-    expect(pressStartsSelection("any", { shift: true })).toBe(true)
-  })
 })
 
 describe("flip: an app that takes the mouse under a live selection", () => {

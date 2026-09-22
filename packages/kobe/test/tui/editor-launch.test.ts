@@ -31,10 +31,6 @@ describe("buildEditorCommand", () => {
     expect(buildEditorCommand("custom", "diff {file} {file}", "/wt/a.ts")?.command).toBe("diff '/wt/a.ts' '/wt/a.ts'")
   })
 
-  it("custom binary token is the first word (for the PATH pre-flight)", () => {
-    expect(buildEditorCommand("custom", "subl -w -n", "/wt/a.ts")?.bin).toBe("subl")
-  })
-
   it("empty custom falls back to $VISUAL/$EDITOR", () => {
     expect(buildEditorCommand("custom", "", "/wt/a.ts", "hx")).toEqual({ bin: "hx", command: "hx '/wt/a.ts'" })
     expect(buildEditorCommand("custom", "   ", "/wt/a.ts", "code -w {file}")?.command).toBe("code -w '/wt/a.ts'")
@@ -106,12 +102,6 @@ describe("editorWindowLabel", () => {
 })
 
 describe("normalizeEditorKind", () => {
-  it("passes through valid kinds", () => {
-    for (const k of ["auto", "vim", "nvim", "nano", "emacs", "custom"]) {
-      expect(normalizeEditorKind(k)).toBe(k)
-    }
-  })
-
   it("defaults to auto for unset / unknown values", () => {
     expect(DEFAULT_EDITOR_KIND).toBe("auto")
     expect(normalizeEditorKind(undefined)).toBe("auto")

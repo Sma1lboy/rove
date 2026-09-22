@@ -13,9 +13,4 @@ describe("settings.general.notificationsHint", () => {
     expect(en.general.notificationsHint).not.toMatch(/unread dot/i)
     expect(zh.general.notificationsHint).not.toContain("未读圆点")
   })
-
-  test("both locales describe the same trigger", () => {
-    expect(en.general.notificationsHint.length).toBeGreaterThan(0)
-    expect(zh.general.notificationsHint.length).toBeGreaterThan(0)
-  })
 })

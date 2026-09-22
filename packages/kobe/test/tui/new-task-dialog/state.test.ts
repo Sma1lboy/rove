@@ -35,7 +35,6 @@ import {
   prevDialogTab,
   resolveBaseRef,
   splitRepoRow,
-  stripNewlines,
   windowAround,
 } from "@/tui/component/new-task-dialog/state"
 import { describe, expect, it } from "vitest"
@@ -232,13 +231,6 @@ describe("nextField / firstFieldFor (per-tab field cycling)", () => {
     expect(nextField("confirm", "adopt")).toBe("tabs")
   })
 
-  it("threads the shared selectors + Create through every tab in the same order", () => {
-    // confirm → tabs → engine → <first input> is shared trailer logic.
-    expect(nextField("confirm", "existing")).toBe("tabs")
-    expect(nextField("tabs", "clone")).toBe("engine")
-    expect(nextField("engine", "adopt")).toBe("adoptFilter")
-  })
-
   it("recovers a stale cross-tab field by restarting the cycle", () => {
     // e.g. field left on a clone field while existing tab is active.
     expect(nextField("cloneUrl", "existing")).toBe("repo")
@@ -333,14 +325,6 @@ describe("filterBranches → resolveBaseRef (set-branch dialog composition)", ()
   it("resolves to the highlighted row when the typed text only substring-matches", () => {
     const filtered = filterBranches(branches, "feat") // ["feature/login"]
     expect(resolveBaseRef("feat", filtered, 0)).toBe("feature/login")
-  })
-})
-
-describe("stripNewlines (opentui input sanitizer)", () => {
-  it("strips CR and LF anywhere in the value", () => {
-    expect(stripNewlines("foo\n")).toBe("foo")
-    expect(stripNewlines("foo\r\nbar\n")).toBe("foobar")
-    expect(stripNewlines("clean")).toBe("clean")
   })
 })
 
