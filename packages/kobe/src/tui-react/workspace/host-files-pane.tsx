@@ -1,12 +1,6 @@
 /** @jsxImportSource @opentui/react */
-/**
- * The workspace host's right rail — the FileTree pane and its width math.
- *
- * A region that owns its own layout, like `host-sidebar.tsx`: the width math
- * below is this rail's business, not the host's. Width: a third of what's left
- * beside the sidebar, clamped to the documented worktree-tools convention
- * [22, 34].
- */
+/** The host's right rail (FileTree). Width: a third of what's left beside the
+ *  sidebar, clamped to the worktree-tools convention [22, 34]. */
 
 import { useTerminalDimensions } from "@opentui/react"
 import { useFocus } from "../context/focus"
@@ -18,12 +12,8 @@ const WORKTREE_TOOLS_MIN_WIDTH = 22
 const WORKTREE_TOOLS_MAX_WIDTH = 34
 
 export function HostFilesPane(props: {
-  /** The rail's width RIGHT NOW, handed down rather than derived here. This
-   *  pane takes what is left beside the rail, so the two numbers have to be
-   *  the same one — and the rail's width is no longer a function of the
-   *  terminal alone (a dragged pin lives in the KV store). Deriving it here
-   *  again would tear the layout mid-drag, and would give a leaf pane a
-   *  dependency on the store it has no other reason to read. */
+  /** The sidebar's width RIGHT NOW, handed down: it depends on a KV-stored
+   *  drag pin, and re-deriving it here would tear the layout mid-drag. */
   readonly sidebarWidth: number
   readonly worktree: string | null
   readonly prBaseRef: string | undefined
@@ -35,17 +25,10 @@ export function HostFilesPane(props: {
   readonly onMention: (relPath: string) => void
   readonly onZenToggle: () => void
   readonly onCreatePR: () => void
-  /** Selected task's `kind`. A `"main"` row IS the repo's root checkout —
-   *  `branch: ""`, `worktreePath === repo` — so it has no task branch to open
-   *  a PR from and `createPRAction` can only answer with its
-   *  already-on-the-target-branch toast. The header withholds the chip there.
-   *  `"dir"` rows point at a directory whose branch Rove does not own, so they
-   *  keep it. */
+  /** A `"main"` row IS the root checkout (no task branch to PR from), so the
+   *  header withholds the Create PR chip; `"dir"` rows keep it. */
   readonly taskKind: "main" | "task" | "dir" | undefined
-  /** Host the selected task's worktree lives on, when that is not this
-   *  machine. A remote worktree path means nothing to the local filesystem —
-   *  reading it would list whatever happens to sit at the same path here — so
-   *  the pane names the machine instead of showing a tree. */
+  /** Remote host of the worktree: the path means nothing locally, so the pane names the machine instead. */
   readonly remoteHost?: string
 }) {
   const { theme } = useTheme()
@@ -82,9 +65,7 @@ export function HostFilesPane(props: {
           onOpenDiff={props.onOpenDiff}
           onMention={props.onMention}
           onZenToggle={props.onZenToggle}
-          // Withholding the chip is not withholding the action: `files.createPR`
-          // is a GLOBAL prefix binding, so prefix+P still fires on a main row and
-          // still explains itself with the toast.
+          // prefix+P is GLOBAL, so it still fires here and explains itself with a toast.
           onCreatePR={props.taskKind === "main" ? undefined : props.onCreatePR}
         />
       )}

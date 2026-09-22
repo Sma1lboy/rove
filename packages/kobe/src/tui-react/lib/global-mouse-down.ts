@@ -1,24 +1,13 @@
 /**
- * "Was there a click ANYWHERE?" — one renderer-root mouse-down listener,
- * shared by every surface that dismisses itself on an outside click.
- *
- * opentui bubbles a mouse event up the renderable chain until someone calls
- * `stopPropagation`, so the root sees every press the app didn't swallow.
- * Nothing in the TUI stops the DOWN phase (the panes' guards all sit on
- * `onMouseUp`), which makes root-level down the one signal that means "the
- * user just pressed somewhere else" without every pane having to report it.
- *
- * A surface that must NOT self-dismiss on its own press stops the down event
- * itself (see `ui/context-menu.tsx`) — that keeps "is this press mine?" a
- * hit-test opentui already answers, instead of geometry every subscriber
- * would have to recompute.
- *
- * Framework-free on purpose: the React face is `use-global-mouse-down.ts`.
+ * One renderer-root mouse-down listener shared by every outside-click
+ * dismissal. Mouse events bubble to the root unless stopped, and nothing
+ * stops the DOWN phase (pane guards sit on `onMouseUp`), so root-level down
+ * means "pressed somewhere". A surface that must not dismiss on its own press
+ * stops its down event (see `ui/context-menu.tsx`). React face:
+ * `use-global-mouse-down.ts`.
  */
 
-/** The slice of a renderable this module touches — a structural type so the
- *  core stays testable with a plain object (and independent of opentui's
- *  setter-only accessor typing). */
+/** Structural slice of a renderable, so tests can pass a plain object. */
 export interface MouseDownHost {
   onMouseDown: ((event: unknown) => void) | undefined
 }
@@ -31,15 +20,10 @@ function dispatch(event: unknown): void {
   for (const handler of [...subscribers]) handler(event)
 }
 
-/**
- * Subscribe to every mouse-down that reaches `host`. Returns the unsubscribe.
- * The listener is installed with the first subscriber and removed with the
- * last, so an app with nothing dismissable up pays nothing.
- */
+/** The root listener exists only while there is at least one subscriber. */
 export function subscribeGlobalMouseDown(host: MouseDownHost, handler: (event: unknown) => void): () => void {
   subscribers.add(handler)
-  // Re-point on a host swap (a test harness builds a fresh renderer per test):
-  // the previous root is torn down, and its listener would never fire again.
+  // Re-point on a host swap (fresh renderer per test); the old root is dead.
   if (installedHost !== host) {
     if (installedHost) installedHost.onMouseDown = undefined
     installedHost = host

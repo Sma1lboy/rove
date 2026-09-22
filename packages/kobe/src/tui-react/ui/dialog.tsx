@@ -19,12 +19,7 @@ import { ModalScopeContext, useBindings } from "../lib/keymap"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useLatest } from "../lib/use-latest"
 
-/**
- * Horizontal padding for a dialog BODY's root box: the
- * desktop's 2 cells halve to 1 below the narrow breakpoint, so a 44-cell
- * card keeps its columns for content. One hook so every dialog body agrees
- * — and follows a live resize.
- */
+/** Dialog BODY horizontal padding: 2 cells, 1 below the narrow breakpoint. Follows live resize. */
 export function useDialogPaddingX(): number {
   const dims = useTerminalDimensions()
   return isNarrowWidth(dims.width) ? 1 : 2
@@ -47,21 +42,13 @@ function Dialog(props: {
   const renderer = useRenderer()
 
   const dismissRef = useRef(false)
-  // Default-medium = 80 cols; small (50) is for tight yes/no prompts;
-  // large/xlarge get proportional bumps: wide help/settings cards need
-  // headroom, narrow PTYs cap at width-2 via maxWidth below.
+  // medium = 80 cols, small = 50; narrow PTYs cap at width-2 via maxWidth.
   const width = props.size === "xlarge" ? 140 : props.size === "large" ? 110 : props.size === "small" ? 50 : 80
 
-  // Vertical headroom around the card so it never lands flush against
-  // the terminal's top/bottom edge.
   const VERTICAL_MARGIN = 2
-  // Narrow: every dialog is a centered clamp — the card's
-  // maxWidth (width-2) already owns the width, and upper-fifth anchoring
-  // gives away rows a 70-row phone screen doesn't have spare.
+  // Narrow: always centered; upper-fifth anchoring wastes rows a phone lacks.
   const upperFifth = props.placement === "upper-fifth" && !isNarrowWidth(dimensions.width)
-  // The content's first row sits one cell below the card top because the card
-  // owns paddingTop=1. Back the card up by that cell so an upper-fifth
-  // dialog's header lands at exactly one fifth of the viewport.
+  // Back up one cell for the card's paddingTop so the header lands at exactly one fifth.
   const headerTop = Math.max(VERTICAL_MARGIN, Math.floor(dimensions.height / 5))
   const cardTop = upperFifth ? Math.max(VERTICAL_MARGIN, headerTop - 1) : 0
   const maxCardHeight = Math.max(
@@ -103,12 +90,9 @@ function Dialog(props: {
         maxWidth={dimensions.width - 2}
         maxHeight={maxCardHeight}
         flexShrink={1}
-        // Content-sized + maxHeight is the contract: short cards float as a
-        // tight block, tall cards hit the cap and clip.
+        // Content-sized + maxHeight: tall cards hit the cap and clip.
         flexGrow={0}
-        // The card is ALWAYS opaque — even in transparent mode (where only
-        // the backdrop lightens). A translucent card lets pane content bleed
-        // through the dialog text and becomes unreadable.
+        // ALWAYS opaque, even in transparent mode, or panes bleed through the text.
         backgroundColor={theme.backgroundDialog}
         paddingTop={1}
       >
@@ -120,12 +104,8 @@ function Dialog(props: {
 
 type StackEntry = { key: number; element: () => ReactNode; onClose?: () => void }
 
-/**
- * Per-entry React key seq. Without it, two consecutive dialogs built from
- * the SAME component type (e.g. addEngineFlow's chained id → command → name
- * RenameTaskDialog prompts) reconcile in place, so the previous prompt's
- * input state leaks into the next one.
- */
+/** Per-entry React key seq, so consecutive dialogs of the SAME component
+ *  don't reconcile in place and leak input state. */
 let entrySeq = 0
 
 export type DialogContext = {
@@ -135,11 +115,7 @@ export type DialogContext = {
    * focus back to the pane that was active before the dialog opened.
    */
   clear(options?: { refocus?: boolean }): void
-  /**
-   * Replace the current dialog (if any) with a new one. The body is a thunk,
-   * evaluated inside the provider's render, so hooks/contexts resolve
-   * normally.
-   */
+  /** Replace the current dialog. The thunk runs inside the provider's render, so hooks resolve. */
   replace(thunk: () => ReactNode, onClose?: () => void): void
   push(thunk: () => ReactNode, onClose?: () => void): void
   pop(): void
@@ -161,8 +137,7 @@ export function DialogProvider(props: { children?: ReactNode }) {
 
   const focusRef = useRef<Renderable | null>(null)
   const refocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Cancel a pending deferred refocus on unmount so `.focus()` can't land
-  // on a renderable destroyed in the same tick.
+  // Cancel a pending refocus on unmount: it could hit a destroyed renderable.
   useEffect(
     () => () => {
       if (refocusTimer.current) clearTimeout(refocusTimer.current)
@@ -189,17 +164,12 @@ export function DialogProvider(props: { children?: ReactNode }) {
     }, 1)
   }, [renderer])
 
-  // Latest stack for callbacks (kept in a ref so replace/push/pop/clear can
-  // stay identity-stable while reading current state).
+  // A ref so replace/push/pop/clear stay identity-stable.
   const stackRef = useLatest(stack)
 
   const captureFocusIfFirst = useCallback(() => {
-    // A dialog closing schedules a deferred refocus of the pane behind it.
-    // Opening the NEXT dialog in the same turn (addEngineFlow's chained
-    // id → command → name prompts: each `clear()` is followed by the next
-    // `replace()`) must cancel it, or that timer fires ~1ms later and pulls
-    // native focus off the new dialog's input — every Enter then reads as a
-    // lost focus.
+    // Opening the NEXT dialog in the same turn (`clear()` then `replace()`)
+    // must cancel the pending refocus, or ~1ms later it steals the new input's focus.
     if (refocusTimer.current) clearTimeout(refocusTimer.current)
     if (stackRef.current.length === 0) {
       focusRef.current = renderer?.currentFocusedRenderable ?? null
@@ -207,11 +177,8 @@ export function DialogProvider(props: { children?: ReactNode }) {
     }
   }, [renderer])
 
-  // escape and ctrl+c both dismiss the top dialog identically. A live text
-  // selection makes the FIRST press clear it and the next one close. Do NOT
-  // disable the binding while a selection exists: a stale selection highlight
-  // (kept after a copy, cleared only on the next click) then leaves esc
-  // permanently dead.
+  // With a text selection the FIRST press clears it, the next closes. Never
+  // disable the binding on a selection: a stale highlight would kill esc.
   const dismissTop = useCallback(() => {
     const selection = renderer?.getSelection()
     if (selection) {
@@ -252,10 +219,8 @@ export function DialogProvider(props: { children?: ReactNode }) {
         if (stackRef.current.length <= 1) refocus()
       },
       get stack() {
-        // Read the render snapshot so React/Biome can see that context
-        // identity intentionally follows stack transitions. Return the ref
-        // so imperative holders of an older context object still see the
-        // latest stack, preserving the existing API contract.
+        // Read the snapshot so identity visibly follows the stack; return the
+        // ref so holders of an older context object see the latest stack.
         void stack
         return stackRef.current
       },
@@ -268,12 +233,9 @@ export function DialogProvider(props: { children?: ReactNode }) {
       },
       setPlacement,
     }),
-    // `stack` is intentionally a dependency even though the public getter
-    // reads stackRef. Consumers derive pane focus / binding gates from
-    // `dialog.stack.length`; without a new context value on push/pop, a host
-    // that happened to render while the modal was open could keep those
-    // gates disabled after Escape removes the barrier — until some unrelated
-    // pane click forces that host to render again.
+    // `stack` is a dependency on purpose: consumers gate on
+    // `dialog.stack.length`, and without a new value on push/pop a host could
+    // keep its gates disabled after Escape until something re-renders it.
     [stack, size, placement, refocus, captureFocusIfFirst],
   )
 
@@ -288,12 +250,9 @@ export function DialogProvider(props: { children?: ReactNode }) {
       </box>
       <box position="absolute" zIndex={3000}>
         {top ? (
-          // Modal precedence is DECLARED, not positional: everything inside
-          // this ModalScopeContext (the dialog body's useBindings) registers
-          // as a member of MODAL_SCOPE; the barrier declares ownership of it
-          // and insertRegistration (keymap-dispatch.ts) slots the barrier
-          // below its members — body keys win, panes registered earlier are
-          // cut off — regardless of effect-commit order.
+          // Modal precedence is DECLARED, not positional: body bindings join
+          // MODAL_SCOPE and `insertRegistration` slots the barrier below them,
+          // regardless of effect-commit order.
           <ModalScopeContext value={MODAL_SCOPE}>
             <ModalBarrier dismissTop={dismissTop} />
             <Dialog key={top.key} onClose={() => value.clear()} size={size} placement={placement}>
@@ -310,16 +269,10 @@ export function DialogProvider(props: { children?: ReactNode }) {
 const MODAL_SCOPE = Symbol("kobe.dialog.modal")
 
 /**
- * Mounted exactly while a dialog is up. Owns the esc/ctrl+c dismiss keys
- * AND the modal cut-off (`modal: true` — see keymap-dispatch.ts): any key
- * neither the dialog body nor this entry handles stops here instead of
- * reaching the panes behind the dialog. This is what keeps keys from
- * operating the background while a dialog is open, so background bindings
- * need no `dialog.stack.length === 0` gates of their own.
- *
- * `modalOwner` (stack position: below the body's member registrations) and
- * `modal: true` (dispatch cut-off) together are the explicit contract —
- * see RegisteredBinding in keymap-dispatch.ts.
+ * Mounted exactly while a dialog is up: esc/ctrl+c dismiss AND the modal
+ * cut-off. Keys the body doesn't handle stop here, so background bindings
+ * need no `dialog.stack.length === 0` gates. `modalOwner` (stack position)
+ * + `modal: true` (cut-off) are the contract; see RegisteredBinding.
  */
 function ModalBarrier(props: { dismissTop: () => void }) {
   useBindings(
@@ -341,22 +294,15 @@ export function useDialog(): DialogContext {
   return value
 }
 
-/**
- * Read the dialog context when present — null outside a provider. For
- * consumers that degrade gracefully in dialog-less mounts (the footer's
- * clickable key hints in render tests).
- */
+/** The dialog context, or null outside a provider. */
 export function useOptionalDialog(): DialogContext | null {
   return useContext(ctx)
 }
 
 /**
- * Open a dialog that resolves a single value — the shared `show` shape:
- * `body` receives the promise's `resolve` and wires it to its
- * submit/cancel props; dismissing through the stack (esc / backdrop /
- * replaced) resolves `undefined`. Not for dialogs that resolve a value
- * on their onClose path too (e.g. SettingsDialog) — those keep their own
- * wrapper.
+ * Open a dialog resolving one value: `body` wires `resolve` to submit/cancel;
+ * dismissal via the stack resolves `undefined`. Not for dialogs that also
+ * resolve on onClose (e.g. SettingsDialog).
  */
 export function showDialog<T>(
   dialog: DialogContext,

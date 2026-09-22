@@ -1,15 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The tree sidebar: project → Task → Terminal Tab, with the right pane
- * showing nothing but the active session's terminal. Tasks group under their
- * project header and a worktree's tabs render as child rows beneath it.
- *
- * Everything starts expanded — the collapse sets hold only what you folded by
- * hand, so a new worktree or a freshly-mounted tab needs no keystroke.
- *
- * The cursor indexes one flat id list, so j/k/gg/enter come from
- * `createSidebarController` and a tab row is selectable by exactly the
- * mechanism that selects tasks.
+ * The tree sidebar: project → Task → Terminal Tab. Everything starts
+ * expanded; the collapse sets hold only what you folded by hand. The cursor
+ * indexes one flat id list, so a tab row is selected exactly like a task.
  */
 
 import type { Task } from "@/types/task"
@@ -39,7 +32,7 @@ import { useTreeState } from "./use-tree-state"
 export type SidebarTreeProps = SidebarProps & {
   /** The selected task's active tab, so the tree can mark the live row. */
   selectedTabId?: string | null
-  /** Activate a specific tab of a task (the tree's whole reason to exist). */
+  /** Activate a specific tab of a task. */
   onSelectTab?: (taskId: string, tabId: string) => void
   /** Close one tab of any worktree — offered by the tab row's menu. */
   onCloseTab?: (taskId: string, tabId: string) => void
@@ -48,8 +41,7 @@ export type SidebarTreeProps = SidebarProps & {
   onNewTab?: (taskId: string, kind: "chat" | "shell") => void
   /** Move one tab within its task (move mode on a tab row). */
   onMoveTabRequest?: (taskId: string, tabId: string, delta: -1 | 1) => void
-  /** Narrow mode's "↩ recent" jump target — renders as the
-   *  first navigable row; ⏎ re-enters that task's workspace. */
+  /** Narrow mode's "↩ recent" row: first navigable row; ⏎ re-enters that task. */
   recentTask?: Task | null
   /** Filled with a reader of the task under the cursor, so the host's
    *  sidebar-scope chords (`b`/`v`/`o`) can target the highlighted row. */
@@ -60,15 +52,12 @@ export type SidebarTreeProps = SidebarProps & {
 
 export function SidebarTree(props: SidebarTreeProps) {
   const { theme } = useTheme()
-  // Optional: the live tab map answers for everything currently running, and
-  // the kv snapshot only adds tasks that have not mounted since restart — so
-  // a host without the provider renders a correct (if restart-blind) tree.
+  // Optional: kv only adds tasks not mounted since restart; without it the tree is restart-blind.
   const kv = useOptionalKV()
   const focused = props.focused ?? true
   const dims = useTerminalDimensions()
 
-  // The ~2s branch/changes poll tick — the row cards'
-  // `useChanges`/`pollCurrentBranch` effects key on it.
+  // The ~2s branch/changes poll tick the row cards' effects key on.
   const [branchTick, setBranchTick] = useState(0)
   useEffect(() => {
     const timer = setInterval(() => setBranchTick((n) => n + 1), MAIN_BRANCH_POLL_MS)
@@ -104,32 +93,24 @@ export function SidebarTree(props: SidebarTreeProps) {
     setCursorIndexState(next)
   }, [])
   const flatIdsRef = useLatest(tree.flatIds)
-  // Hand the host a reader, not a value: the cursor ref is written
-  // synchronously on every move, so a chord in the same tick as the `j`
-  // still sees the new row.
+  // A reader, not a value: a chord in the same tick as the `j` sees the new row.
   const cursorTaskIdRef = props.cursorTaskIdRef
   useEffect(() => {
     if (!cursorTaskIdRef) return
     cursorTaskIdRef.current = () => cursorTaskIdOf(flatIdsRef.current[cursorRef.current])
   }, [cursorTaskIdRef])
 
-  // Follow the active row when the selection moves from elsewhere (the F7
-  // attention jump, the inbox). EDGE-triggered on the active row CHANGING —
-  // not on every list identity churn: flatIds rebuilds on the 2s branch tick
-  // and every engine-state push, and re-anchoring then would drag the cursor
-  // back to the selected row while the user is j/k-walking the tree. Clamps run
-  // on every list change so a shrunken list can't strand the cursor.
+  // Follow the active row when selection moves from elsewhere (F7, inbox).
+  // EDGE-triggered on the active row CHANGING: flatIds rebuilds every 2s tick
+  // and engine push, and re-anchoring then would yank a j/k-walking cursor.
+  // Clamps run on every list change so a shrunken list can't strand it.
   const prevActiveRef = useRef<string | null>(null)
-  // The row the cursor sat on LAST render — what move mode re-anchors to when
-  // a project reorder shifts every flat index under the cursor. Written by a
-  // deps-less effect below so it always holds the pre-change row.
+  // The row under the cursor LAST render; move mode re-anchors to it.
   const cursorRowIdRef = useRef<string | null>(null)
   const moveMode = props.moveMode === true
   useEffect(() => {
     const ids = tree.flatIds
-    // Move mode: the cursor follows its ROW, not its index — a reorder moves
-    // the project (and the row with it), so an index-anchored cursor would
-    // land in the neighbouring project and the next j/k would move THAT one.
+    // Move mode: follow the ROW, not the index, or the next j/k moves the neighbour.
     if (moveMode) {
       const wanted = cursorRowIdRef.current
       const at = wanted === null ? -1 : ids.indexOf(wanted)
@@ -155,28 +136,20 @@ export function SidebarTree(props: SidebarTreeProps) {
     cursorRowIdRef.current = tree.flatIds[cursorRef.current] ?? null
   })
 
-  // Land the highlight on the top match on every search keystroke. Declared
-  // AFTER the follow effect so it wins while a query is open — otherwise the
-  // cursor would snap back to the active row you are trying to search away
-  // from.
+  // Top match on every search keystroke. Declared AFTER the follow effect so
+  // it wins while a query is open.
   useEffect(() => {
     void search.query
     if (!search.active) return
     setCursorIndex(0)
   }, [search.active, search.query, setCursorIndex])
 
-  /**
-   * Activate a row: a worktree row switches task, a tab row switches task
-   * AND tab. Both go through the host so the right pane, the pty registry,
-   * and the tab state all move together.
-   */
+  /** A worktree row switches task; a tab row switches task AND tab, via the host. */
   const recentTaskRef = useLatest(props.recentTask ?? null)
   const toggleRoutinesRow = tree.toggleRoutinesRow
   const activateRow = useCallback(
     (rowId: string): void => {
-      // The routine count row opens and closes instead of
-      // activating: it names no task, so `parseRowId` below would hand a
-      // sentinel id to `onSelect` and land on nothing.
+      // The routine count row names no task; it only toggles.
       if (toggleRoutinesRow(rowId)) return
       // The "↩ recent" jump row IS its task — ⏎ re-enters that workspace.
       const recent = rowId === RECENT_ROW_ID ? recentTaskRef.current : null
@@ -205,13 +178,9 @@ export function SidebarTree(props: SidebarTreeProps) {
   const ctrl = controllerRef.current
 
   /**
-   * Move mode is SCOPE-AWARE: the cursor row's level is what
-   * moves. A tab row moves within its task's tab list; a task/branch row
-   * moves within its repo group (`moveTask` partitions by repo); a `main`
-   * row — the repo's own checkout, the group's first row and the nearest
-   * navigable thing to the group header — moves the whole PROJECT, since
-   * project order IS the mains' stored order (see `mainTaskIdOfProject`).
-   * Every level edge-stops (store/`moveTab` refuse past the ends — no wrap).
+   * Move mode is SCOPE-AWARE: a tab row moves within its task; a task row
+   * within its repo group; a `main` row moves the whole PROJECT, since project
+   * order IS the mains' stored order. Every level edge-stops, no wrap.
    */
   const tasksRef = useLatest(props.tasks)
   const moveCursorRow = useCallback(
@@ -225,16 +194,13 @@ export function SidebarTree(props: SidebarTreeProps) {
       }
       const task = tasksRef.current.find((candidate) => candidate.id === taskId)
       if (!task) return
-      // Non-main rows (regular tasks, dir tasks, scratch) move themselves —
-      // `moveTask` keeps them inside their repo/flag partition.
       if (task.kind !== "main") {
         props.onMoveRequest?.(taskId, delta)
         return
       }
       const projectId = tree.projectIdOfTask(taskId)
       if (projectId === null) return
-      // No main checkout ⇒ nothing to move. Silent rather than an error: a
-      // repo with only task worktrees has no project row position to change.
+      // No main checkout ⇒ no project position to change; silent.
       const mainId = tree.mainTaskIdOfProject(projectId)
       if (mainId === null) return
       props.onMoveRequest?.(mainId, delta)
@@ -242,9 +208,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     [tree.projectIdOfTask, tree.mainTaskIdOfProject, props.onMoveRequest, props.onMoveTabRequest],
   )
 
-  // What wears the move chip: a main row drags its whole PROJECT, so the
-  // group header carries the chip; any other row drags itself, so the chip
-  // sits on the row under the cursor.
+  // A main row drags its PROJECT, so the header wears the move chip.
   const cursorRowId = tree.flatIds[cursorIndex]
   const cursorMove = useMemo((): { projectId: string | null; rowId: string | null } => {
     if (cursorRowId === undefined || cursorRowId === RECENT_ROW_ID) return { projectId: null, rowId: null }
@@ -269,9 +233,7 @@ export function SidebarTree(props: SidebarTreeProps) {
   // Using the pane's own nav/select keys extinguishes its first-use hint.
   const markKeysUsed = usePaneHintMark("sidebar")
 
-  // Sidebar-scoped chords collapsed from six `useBindings` calls down to
-  // four. Mode priority (menu > search > move > main) is explicit in the
-  // hook's `enabled` guards and registration order.
+  // Mode priority (menu > search > move > main) lives in the hook's `enabled` guards.
   useTreeBindings({
     focused,
     search,
@@ -289,12 +251,9 @@ export function SidebarTree(props: SidebarTreeProps) {
     markKeysUsed,
   })
 
-  // ctrl+<digit> jump: slot N is the Nth TASK, counted over the groups both
-  // sidebar surfaces share (`jumpTaskIds`) rather than over this one's rendered
-  // rows. Counting rows is what used to make a digit name a different session
-  // once you folded the rail — the tree draws a row per tab, the fold draws one
-  // cell per task. `jumpRowIds` is those same tasks mapped to the row that
-  // WEARS each digit here, so the cursor still lands on something real.
+  // ctrl+<digit>: slot N is the Nth TASK over the groups both sidebar surfaces
+  // share, not rendered rows, so a digit names the same session folded or not.
+  // `jumpRowIds` maps those tasks to the row wearing each digit here.
   useTaskJump({
     ids: tree.jumpRowIds,
     onJump: (rowId) => {
@@ -303,8 +262,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     },
   })
 
-  // Viewport follow — rowEls is keyed by flat index, the registration
-  // convention every row type shares.
+  // Viewport follow; rowEls is keyed by flat index.
   const scrollRef = useRef<ScrollBoxRenderable | null>(null)
   const rowElsRef = useRef<Map<number, BoxRenderable> | null>(null)
   if (rowElsRef.current === null) rowElsRef.current = new Map()
@@ -336,8 +294,6 @@ export function SidebarTree(props: SidebarTreeProps) {
     movingRowId: moveMode ? cursorMove.rowId : null,
     rowEls,
     onPress: (flatIndex, rowId) => {
-      // Clicking a row while a menu is up dismisses it — otherwise the menu
-      // would hang over a row it does not describe.
       menu.close()
       setCursorIndex(flatIndex)
       activateRow(rowId)
@@ -412,10 +368,7 @@ export function SidebarTree(props: SidebarTreeProps) {
           cursor={menu.cursor}
           x={menu.x}
           y={menu.y}
-          // Clamp to the RAIL, not the screen: the menu is an absolute child
-          // of the sidebar box, so anything past the rail's right edge is
-          // clipped under the workspace pane. Every entry fits in the rail's
-          // width, so opening leftward beats being half-hidden.
+          // Clamp to the RAIL: past its right edge the menu clips under the workspace.
           dims={{ width: effectiveWidth, height: dims.height }}
           onPick={menu.pick}
         />

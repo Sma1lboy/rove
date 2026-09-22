@@ -1,16 +1,11 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The terminal pane's `/` query row. Shape deliberately matches the sidebar's
- * search row (`panes/sidebar/chrome.tsx`) — one search affordance, one look —
- * with two differences the terminal needs: the count reads POSITION
- * (`3/17`), because walking hits is the whole interaction here, and there is
- * an alternate-screen refusal the sidebar has no equivalent for.
+ * The terminal pane's `/` query row, shaped like the sidebar's, but the count
+ * is POSITION (`3/17`) and it can refuse on the alternate screen.
  *
- * It positions itself as an ABSOLUTE overlay rather than being a flow child:
- * a row in the pane's flex column would take one line off the body, resize
- * xterm, and invalidate the snapshot's absolute-line epoch mid-search — the
- * same trap `Terminal.tsx` documents for the scrolled-back hint. zIndex sits
- * above that hint, which it replaces while open.
+ * ABSOLUTE overlay, not a flow child: a flow row would resize xterm and
+ * invalidate the snapshot's absolute-line epoch mid-search. It sits above
+ * (and replaces) the scrolled-back hint.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -38,8 +33,7 @@ export function TerminalSearchBar(props: {
 }) {
   const { theme } = useTheme()
   const t = useT()
-  // `backgroundElement`, not `backgroundPanel`: the panel slot is forced
-  // alpha-0 in transparent mode, and this row sits on top of live output.
+  // `backgroundElement`: `backgroundPanel` is alpha-0 in transparent mode.
   const surface = theme.backgroundElement
   if (props.unavailable) {
     return (

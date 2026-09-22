@@ -1,22 +1,13 @@
 /**
- * React key-bindings layer. The dispatcher core (LIFO stack walk, chord matching,
- * preventDefault-on-first-hit) is the shared framework-free
- * `src/tui/lib/keymap-dispatch.ts`; this file owns only registration.
+ * React registration for key bindings; dispatch lives in
+ * `src/tui/lib/keymap-dispatch.ts`. `config` is re-read on every keypress via
+ * a ref; bindings stack LIFO and only the topmost enabled match fires.
  *
- * Contract:
- *   - `config` is re-evaluated on EVERY keypress. React closures go stale
- *     across renders, so the registered entry reads the LATEST config
- *     through a ref that every render refreshes.
- *   - Bindings stack LIFO; only the topmost enabled match fires.
- *
- * Registration happens in mount EFFECTS, which run children before parents,
- * so ANCESTORS end up on top of the stack. Consequence: a parent and child
- * sharing a chord must resolve by GATING, not stack order — the parent's
- * entry disables itself when the child should win. Live case: TerminalTabs'
- * ctrl+w/F2 gate off while the active tab is split, so TerminalSplit's
- * leaf-level close/rename fire. Modal barrier vs dialog body is not resolved
- * by order at all — it is declared via `ModalScopeContext` + `modalOwner`
- * below and settled by `insertRegistration`.
+ * Mount effects run children before parents, so ANCESTORS land on top. A
+ * parent and child sharing a chord must resolve by GATING the parent (e.g.
+ * TerminalTabs' ctrl+w/F2 gate off while split so TerminalSplit's fire).
+ * Modal barrier vs dialog body is declared via `ModalScopeContext` +
+ * `modalOwner` and settled by `insertRegistration`, not by order.
  */
 
 import type { KeyEvent, KeyHandler } from "@opentui/core"
@@ -42,31 +33,22 @@ import { useLatest } from "../lib/use-latest"
 export type { Binding, BindingsConfig } from "../../tui/lib/keymap-dispatch"
 
 /**
- * Modal-scope context: a provider (the dialog overlay) sets a scope token;
- * every `useBindings` mounted inside is stamped as a MEMBER of that scope,
- * and the barrier declares OWNERSHIP via `useBindings`'s `modalOwner`
- * option. `insertRegistration` (keymap-dispatch.ts) then places the barrier
- * below its members no matter which effect committed first, so sibling
- * registration order is never load-bearing.
+ * Scope token set by the dialog overlay: `useBindings` inside it become
+ * members, the barrier passes `modalOwner`, and `insertRegistration` puts
+ * the barrier below its members whatever the commit order.
  */
 export const ModalScopeContext = createContext<symbol | null>(null)
 
 let nextId = 1
 const stack: RegisteredBinding[] = []
-// Renderer-swap guard: production runs one renderer per process (no-op from
-// the second call), but a test harness that creates
-// a fresh renderer per test in the same process must rebind the listener to
-// the new renderer's keyInput emitter.
+// Production has one renderer; tests make one per test and need a rebind.
 let installedRenderer: unknown = null
 let installed: KeyHandler | null = null
 let listener: ((evt: KeyEvent) => void) | null = null
 let releaseListener: ((evt: KeyEvent) => void) | null = null
 let ctrlHoldDetector: CtrlHoldDetector | null = null
-/** Renderers this process has already moved past. A superseded renderer's
- *  tree can keep re-rendering after teardown (pending timers — the test
- *  harness destroys the renderer without unmounting React), and its
- *  useBindings renders must NOT steal the listener back onto a destroyed
- *  renderer and wipe the live stack. Forward-only, like the process. */
+/** Superseded renderers. Their trees can keep rendering after teardown
+ *  (pending timers) and must not steal the listener back or wipe the stack. */
 const supersededRenderers = new WeakSet<object>()
 
 function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
@@ -79,12 +61,9 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
   if (installed && releaseListener) installed.off("keyrelease", releaseListener)
   ctrlHoldDetector?.cancel()
   if (installedRenderer) supersededRenderers.add(installedRenderer as object)
-  // New renderer → fresh stack. The superseded renderer's tree may be torn
-  // down without React cleanups (test harness destroy, hard renderer swap) —
-  // its entries would linger in the module-global stack forever. Harmless
-  // once, but a lingering MODAL barrier (dialog open at teardown) would
-  // block every key of the next renderer. Late cleanups from that tree
-  // splice by id and no-op safely against the cleared array.
+  // Fresh stack: the old tree may die without React cleanups, and a
+  // lingering modal barrier would block every key. Late cleanups splice by
+  // id and no-op.
   stack.length = 0
   resetPrefixState()
   installedRenderer = renderer
@@ -100,12 +79,9 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
   listener = (evt: KeyEvent) => {
     ctrlHoldDetector?.keypress(evt)
     dispatchKeyEvent(stack, evt, Date.now(), {
-      // OpenTUI's renderer renders synchronously on input. React state updates
-      // scheduled from a non-React event listener (the keyInput emitter) are
-      // batched and would otherwise flush *after* that render pass, which can
-      // drop the just-updated subtree (e.g. a dialog body toggled by tab).
-      // Flush synchronously inside the matched cmd so the new state is
-      // committed before the renderer paints.
+      // OpenTUI renders synchronously on input; batched updates from this
+      // non-React listener would commit after the paint and can drop the
+      // just-updated subtree (a dialog body toggled by tab).
       flushSync,
     })
   }
@@ -115,13 +91,9 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
 }
 
 /**
- * True while a modal barrier (the dialog overlay's `ModalBarrier`) is
- * registered. `dispatchKeyEvent` already cuts bindings off at the barrier,
- * but raw `renderer.keyInput` listeners (the terminal pane's catch-all
- * IME/paste forwarder, the sidebar's search capture) bypass dispatch
- * entirely — they must check this, or keys typed into a dialog also land
- * in the PTY / search query behind it. One query so every raw listener
- * honors every dialog, instead of each one re-fixing the bug.
+ * True while a modal barrier is registered. Raw `renderer.keyInput`
+ * listeners (terminal IME/paste forwarder, sidebar search) bypass dispatch
+ * and must check this, or dialog keystrokes land in the PTY/query behind.
  */
 export function modalActive(): boolean {
   return stack.some((r) => r.modalOwner !== undefined)
@@ -142,10 +114,9 @@ export function invokeArmedPrefixActionFromCurrentStack(actionId: string, stroke
   return invokeArmedPrefixAction(stack, actionId, stroke)
 }
 
-// Reachability-change signal. Registrations land in mount EFFECTS (after the
-// tree rendered), and enabled gates can change with focus/page state, so
-// anything deriving render output from the stack must subscribe below. Each
-// bump also closes an in-flight direct guide before it can show stale commands.
+// Registrations land in effects after render and gates change with focus, so
+// render output derived from the stack must subscribe. Each bump also closes
+// an in-flight direct guide before it shows stale commands.
 let stackVersion = 0
 const stackListeners = new Set<() => void>()
 function bumpStackVersion(): void {
@@ -180,15 +151,8 @@ export function useBindingStackVersion(): number {
 }
 
 /**
- * Register a set of bindings for the lifetime of the calling component.
- * The `config` function is re-evaluated on every keypress via a ref, so
- * `enabled` flags computed from the latest render stay correct.
- *
- * Modal semantics are declared, not positional: a component inside a
- * `ModalScopeContext` provider registers as a member of that scope; the
- * barrier passes `modalOwner` and is slotted below its members by
- * `insertRegistration`. Both tokens are read at mount (the scope symbol is
- * stable for the provider's lifetime), matching the mount-once effect.
+ * Register bindings for the component's lifetime. Scope and `modalOwner`
+ * are read once at mount (stable for the provider's lifetime).
  */
 export function useBindings(config: () => BindingsConfig, opts?: { modalOwner?: symbol }): void {
   const renderer = useRenderer()
@@ -207,14 +171,9 @@ export function useBindings(config: () => BindingsConfig, opts?: { modalOwner?: 
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once registration; scope/owner tokens are stable for the component's lifetime.
   useEffect(() => {
-    // Same guard `ensureInstalled` applies to the listener, applied to
-    // registration. A superseded renderer's tree keeps rendering after
-    // teardown, so a component it mounts LATE (a dialog opened by a pending
-    // timer) would insert into the live renderer's stack — past the
-    // `stack.length = 0` that was supposed to drop it. One stale `modalOwner`
-    // landing that way makes `modalActive()` true forever and silences every
-    // raw keyInput listener gated on it (the terminal pane's paste
-    // forwarder). No-op in production: one renderer, never superseded.
+    // A superseded tree can mount late (a timer-opened dialog) past the stack
+    // reset; one stale `modalOwner` would make `modalActive()` true forever
+    // and silence the raw keyInput listeners.
     if (supersededRenderers.has(renderer as object)) return
     // Opening a Dialog Stack scope invalidates an in-flight prefix from the
     // surface behind it before any async/mouse transition can leak it back.
@@ -236,13 +195,7 @@ export function useBindings(config: () => BindingsConfig, opts?: { modalOwner?: 
   }, [])
 }
 
-/**
- * The standard page-close chord trio — escape / q / ctrl+c — every
- * standalone full-window page binds to its close action. Spread into the
- * site's `bindings` array; extra keys (f1, list navigation) and `enabled`
- * gates stay at the site. The three keys are distinct, so the fixed order
- * here never changes which binding a keypress dispatches to.
- */
+/** escape / q / ctrl+c → close, for standalone pages to spread into `bindings`. */
 export function pageCloseBindings(cmd: () => void): Binding[] {
   return [
     { key: "escape", cmd },

@@ -1,24 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Embedded terminal pane. The PureTUI Workspace Host mounts it as the center
- * column running the task's real interactive engine CLI (its `command`
- * prop); it also works as a plain worktree shell. Body: a headless xterm
- * screen snapshot fed by the task PTY, clipped via opentui's `overflow` +
- * viewport slicing.
- *
- * Framework-free logic (PTY backend, key encoding, SGR→StyledText, viewport
- * math, grid selection) comes from `tui/panes/terminal/*`; this file plus its
- * `use-terminal-*` hooks own only the React reactivity. The lifecycle
- * contract — acquire/subscribe, never-kill-on-unmount, the dead-shell banner,
- * F5 reset — is documented on `use-terminal-pty.ts`.
- *
- * Hook ORDER here is for readability, not correctness: `useMemo` evaluates
- * lazily off a dependency array, so a memo may be declared after one it
- * reads. Body-box measurement and the resize-push / host-cursor-anchor
- * effects live in `use-terminal-geometry.ts` and `use-terminal-host-cursor.ts`
- * — they receive the PTY handle and the computed viewport cursor after
- * `useTerminalPty` has produced them. Turning the visible rows plus their
- * overlays (selection, search hits, cursor) into retained row buffers is `use-terminal-paint.ts`; this file only feeds it.
+ * Embedded terminal pane: the task's interactive engine CLI (`command`) or a
+ * plain worktree shell, drawn from a headless xterm snapshot fed by the task
+ * PTY. The lifecycle contract (acquire/subscribe, never-kill-on-unmount,
+ * dead-shell banner, F5 reset) is documented on `use-terminal-pty.ts`.
  */
 
 import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
@@ -59,24 +44,17 @@ export type TerminalProps = {
   /** Stable id used for pty registry keying. */
   taskId: string | null
   focused?: boolean
-  /** Raw keystroke bytes just written to the PTY — the optimistic
-   *  activity feed (engine tabs only; see workspace/optimistic-activity). */
+  /** Raw keystroke bytes just written: the optimistic activity feed (engine tabs only). */
   onUserInput?: (data: string) => void
   /**
-   * Whether this mounted terminal represents the visible chat tab / active
-   * split leaf for macOS IME placement. Unlike `focused`, this stays true when
-   * keyboard ownership moves to Sidebar or Files. Inactive split leaves pass
-   * false so background output cannot steal the shared anchor. An explicit
-   * true also designates the sole unfocused attachment-paste target; omission
-   * remains IME-compatible but fails closed for attachment routing.
+   * The visible chat tab / active split leaf for macOS IME placement; unlike
+   * `focused`, stays true when Sidebar or Files own the keyboard. Inactive
+   * leaves pass false so background output can't steal the anchor. Only an
+   * explicit true makes this the unfocused attachment-paste target.
    */
   imeAnchorActive?: boolean
-  /**
-   * Ask the host to focus this pane (mouse click). Needed because opentui
-   * mouse events don't bubble to the workspace wrapper's `onMouseUp`, and
-   * this pane's own selection handlers consume the click — so a bare click
-   * inside the terminal would never reach the global focus setter.
-   */
+  /** Ask the host to focus this pane on click: the pane's selection handlers
+   *  consume the click before the workspace wrapper sees it. */
   onRequestFocus?: () => void
   /** Override the embedded process argv (e.g. `["claude"]` to embed an
    *  interactive Claude Code session instead of a plain shell). */
@@ -87,26 +65,17 @@ export type TerminalProps = {
    * existing session never resend it.
    */
   initialInput?: string
-  /** Paste-delivery vendor's first message + the engine binary its up-probe
-   *  matches (`TaskPtyOpts.firstMessage`): the hosted backend
-   *  pastes it once the fresh-spawned engine is up; reattaches never
-   *  redeliver it. */
+  /** Paste-delivery first message + the binary its up-probe matches; pasted
+   *  once a fresh spawn is up, never on reattach. */
   firstMessage?: string
   engineBin?: string
   /**
-   * Fires once when the PTY reports exit (or is already dead at mount) —
-   * `undefined` for the default "leave the dead shell + exit banner up"
-   * behavior. Used by `TerminalTabs.tsx` to auto-close command tabs and
-   * to degrade engine tabs to a shell. `info.deadOnAttach` marks an exit
-   * discovered on reattach (engine died while the TUI was away) so the
-   * tab layer can resume instead of degrading.
+   * Fires once on PTY exit (or dead at mount); absent = leave the dead shell +
+   * exit banner up. `info.deadOnAttach` marks an exit found on reattach, so
+   * the tab layer can resume instead of degrading.
    */
   onExit?: (info?: { deadOnAttach?: boolean }) => void
-  /**
-   * Bump this to force a fresh PTY acquire under the SAME `cwd`/`taskId`
-   * — for a caller whose underlying command changed without the pty key
-   * changing. Ignored on the initial mount.
-   */
+  /** Bump to force a fresh PTY acquire under the same pty key. Ignored on mount. */
   resetToken?: number
   /** Optional registry override (tests inject a mock-backed registry). */
   registry?: PtyRegistry
@@ -127,8 +96,7 @@ function TerminalSession(props: TerminalProps) {
   const t = useT()
   const registry = props.registry ?? getDefaultPtyRegistry()
 
-  // Local "focus" — the pane manages its own focus on click unless the
-  // caller drives it via `props.focused` (behavior tests).
+  // Self-managed focus unless the caller drives `props.focused`.
   const [focusedLocal, setFocusedLocal] = useState(false)
   const focused = props.focused ?? focusedLocal
 
@@ -170,9 +138,7 @@ function TerminalSession(props: TerminalProps) {
   // bottom. The fallback offset preserves degraded pipe/mock behavior.
   const scrollOffset = resolveViewportScrollOffset(snapshot.length, bodyRows, scrollState, snapshotWindow)
 
-  // Shared by the ctrl+pgup/pgdn chords and the mouse wheel. Positive
-  // `lines` moves toward newer output, negative moves up into history.
-  // Clamped to the real history depth.
+  // Positive `lines` = toward newer output; clamped to the real history depth.
   const scrollBy = (lines: number): void => {
     setScrollState((current) => moveViewportScroll(current, snapshot.length, bodyRows, lines, snapshotWindow))
   }
@@ -183,8 +149,7 @@ function TerminalSession(props: TerminalProps) {
 
   /* --------- viewport slicing ---------- */
 
-  // Rows visible after applying scroll offset. offset 0 means
-  // follow-bottom: render only the last body-height rows.
+  // offset 0 = follow-bottom.
   const visibleRange = useMemo(
     () => computeViewport(snapshot.length, bodyRows, scrollOffset),
     [snapshot.length, bodyRows, scrollOffset],
@@ -217,9 +182,7 @@ function TerminalSession(props: TerminalProps) {
     snapshotWindow,
     wrapped,
     scrollBy: scrollFromPointer,
-    // Same `mouseTrackingMode` the forwarded press is gated on, read rather
-    // than clicked — the pane has to notice the app taking the mouse under a
-    // selection that already exists, and no click announces that.
+    // Read, not clicked: the app can take the mouse under an existing selection.
     appOwnsMouse: pty?.appOwnsMouse ?? false,
   })
 
@@ -274,13 +237,9 @@ function TerminalSession(props: TerminalProps) {
   })
 
   /**
-   * Copy the live selection, then drop it. Returns false when there was no
-   * selection — the signal that ctrl+c must go through as SIGINT.
-   *
-   * The rule is "a selection exists", NOT "which platform": Rove draws the
-   * selection itself, so no terminal emulator on any OS knows it is there to
-   * claim the chord first. This used to be gated on win32, which left macOS
-   * and Linux interrupting the engine while text sat highlighted.
+   * Copy the live selection, then drop it. False = no selection, so ctrl+c
+   * goes through as SIGINT. Keyed on "a selection exists", not the platform:
+   * Rove draws the selection, so no emulator knows to claim the chord.
    */
   const copySelectionIfAny = (): boolean => {
     if (!selection.selection) return false
@@ -292,23 +251,17 @@ function TerminalSession(props: TerminalProps) {
 
   useTerminalBindings({
     focused,
-    // TerminalSplit explicitly assigns IME ownership to its active leaf.
-    // Require that explicit signal here so standalone/future mounts fail closed.
+    // Require TerminalSplit's explicit ownership signal; other mounts fail closed.
     unfocusedAttachmentTarget,
     inputModes: () => pty?.inputModes() ?? { applicationCursorKeys: false, applicationKeypad: false },
     copySelection: copySelectionIfAny,
     write: (data) => {
-      // Selection-aware ctrl+c: copy when something is highlighted, interrupt
-      // when nothing is. Intercepted here rather than as a binding because
-      // BOTH input paths (the passthrough table and the raw catch-all
-      // forwarder) funnel through `write`, so this is the one choke point the
-      // interrupt byte cannot get past.
+      // Selection-aware ctrl+c, here because BOTH input paths funnel through
+      // `write`: the one choke point the interrupt byte can't bypass.
       if (data === "\x03" && copySelectionIfAny()) return
       if (!pty || pty.killed) return
       pty.write(data)
-      // Engine tabs feed the optimistic sidebar-activity overlay: the
-      // triggering/interrupting keypress is visible here long before the
-      // hook round trip confirms it. Wired only for engine leaves.
+      // The keypress is visible here long before the hook round trip confirms it.
       props.onUserInput?.(data)
     },
     paste: (text) => {
@@ -338,17 +291,14 @@ function TerminalSession(props: TerminalProps) {
   /* --------- view ---------- */
 
   return (
-    // Borderless by design: the workspace layout wrapper owns the focus
-    // border; this pane is pure content.
+    // Borderless: the workspace wrapper owns the focus border.
     <box
       flexDirection="column"
       flexGrow={1}
       overflow="hidden"
       backgroundColor={theme.background}
       onMouseDown={(evt) => {
-        // Focus on press — but ONLY when not already focused, so clicking
-        // inside a focused terminal is a pure no-op. A text-selection
-        // drag still works regardless.
+        // Focus on press only when unfocused; a click in a focused pane is a no-op.
         if (!focused) props.onRequestFocus?.()
         if (forwardMouse("down", evt)) return
         if (evt.button !== 0) return
@@ -358,8 +308,7 @@ function TerminalSession(props: TerminalProps) {
       }}
       onMouseDrag={(evt) => {
         if (forwardMouse("drag", evt)) return
-        // Past the top/bottom edge this keeps scrolling on its own — opentui
-        // captures the drag here, so the coordinates stay real off-pane.
+        // opentui captures the drag, so coordinates stay real off-pane.
         selection.dragTo(evt)
       }}
       onMouseUp={(evt) => {
@@ -376,18 +325,14 @@ function TerminalSession(props: TerminalProps) {
         }
       }}
       onMouseScroll={(evt) => {
-        // Native terminal wheel semantics, in emulator order: the app
-        // enabled mouse tracking → forward the wheel; fullscreen app
-        // without it → arrow-key fallback (both inside pty.wheel); ONLY
-        // otherwise scroll kobe's local scrollback.
+        // Emulator order: mouse tracking → forward; fullscreen without it →
+        // arrow keys (both in pty.wheel); ONLY otherwise local scrollback.
         const scroll = evt.scroll
         if (!scroll || (scroll.direction !== "up" && scroll.direction !== "down")) return
-        // One line per event — opentui's parser emits delta:1 per wheel
-        // tick already granulated by the host terminal.
+        // One line per event: the host terminal already granulated the ticks.
         const step = Math.max(1, scroll.delta || 1)
         const forwarded = scrollFromPointer(scroll.direction === "up" ? -step : step, evt.x, evt.y)
-        // A wheel tick mid-drag scrolls the app too — the selection must
-        // follow that shift exactly as it follows the edge pull's.
+        // A wheel tick mid-drag scrolls the app; the selection must follow.
         if (forwarded) selection.noteAppScroll()
       }}
     >
@@ -426,10 +371,8 @@ function TerminalSession(props: TerminalProps) {
           gap={1}
           onMouseDown={(event) => event.stopPropagation()}
           onMouseUp={(event) => event.stopPropagation()}
-          // `backgroundElement`, not `backgroundPanel`: the panel slot is
-          // forced alpha-0 in transparent mode, and this is an overlay you
-          // must read — the policy (theme-core) never lets readable overlays
-          // go transparent. The split-leaf name tag does the same.
+          // `backgroundElement`: `backgroundPanel` is alpha-0 in transparent
+          // mode, and a readable overlay must never go transparent.
           backgroundColor={theme.backgroundElement}
         >
           <text fg={theme.warning} wrapMode="none">

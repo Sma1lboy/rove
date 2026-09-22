@@ -1,13 +1,7 @@
 /**
- * The tree sidebar's right-click menu: which row was clicked, the entries it
- * offers, the highlight, and what each entry does.
- *
- * The seam here is a three-way one, and this hook is the middle: what the menu
- * OFFERS is the framework-free `tree-menu.ts`, what each entry DOES is the
- * host's callbacks, and this holds only the React state between them, plus
- * the `t()` pass that turns label keys into text so the menu follows a language
- * switch, plus the dispatch that routes an entry to the host callback the tree
- * was already holding.
+ * The tree sidebar's right-click menu state. What it OFFERS is `tree-menu.ts`;
+ * what entries DO is the host's callbacks; this holds the React state, the
+ * `t()` pass, and the dispatch between them.
  */
 
 import { useCallback, useState } from "react"
@@ -44,12 +38,9 @@ export interface TreeMenuDeps {
   readonly activateRow: (rowId: string) => void
   readonly setCursorIndex: (index: number) => void
   readonly onAddTask?: () => void
-  /** Close one tab of a worktree — the host owns the mounted/background split
-   *  (`closeTaskTab`), the tree only names the pair. */
+  /** Close one tab; the host owns the mounted/background split. */
   readonly onCloseTab?: (taskId: string, tabId: string) => void
-  /** Add a session to a worktree: `"chat"` opens the ctrl+e engine/shell
-   *  picker there, `"shell"` opens a bare shell tab. The host activates the
-   *  task and hands the request to its workspace. */
+  /** `"chat"` opens the ctrl+e picker there, `"shell"` a bare shell tab. */
   readonly onNewTab?: (taskId: string, kind: "chat" | "shell") => void
   readonly actions: SidebarTaskCallbacks
 }
@@ -81,10 +72,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
       setMenu({
         row,
         actions: items.map((item) => item.action),
-        // Caps resolve at OPEN time, from the live keymap — the menu is
-        // transient, so there is nothing to re-render on a mid-menu rebind,
-        // and `legendCap` already drops an unbound or unknown id to `null`
-        // rather than advertising a dead chord.
+        // Caps resolve at OPEN time from the live keymap; unbound ids get none.
         entries: items.map((item) => ({
           id: item.action,
           label: t(item.labelKey),
@@ -102,12 +90,10 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
   const openForRow = useCallback(
     (flatIndex: number, rowId: string, x: number, y: number): void => {
       const row = tree.rows.find((candidate) => candidate.id === rowId)
-      // Neither the "↩ recent" jump row nor the routine count row has a menu:
-      // both are shortcuts, not task rows, so there is no task to act on.
+      // Shortcut rows ("↩ recent", routine count) name no task: no menu.
       if (!row || row.kind === "project" || row.kind === "machine" || row.kind === "recent" || row.kind === "routines")
         return
-      // Move the cursor too: the menu and the highlight must agree about which
-      // row the next action lands on.
+      // Menu and highlight must agree on the target row.
       setCursorIndex(flatIndex)
       openAt(row, { tabCount: tree.tabCount(row.task.id) }, x, y)
     },
@@ -125,51 +111,38 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
 
   const close = useCallback((): void => setMenu(null), [])
 
-  // A press anywhere else dismisses the menu — the click that opened it is
-  // over, so the next one belongs to whatever the user pressed, not to a
-  // popup they have to shoot down first. Presses INSIDE the menu never reach
-  // the root (`ContextMenu` stops the down phase), so picking an entry still
-  // gets its mouse-up.
+  // A press elsewhere dismisses. Presses INSIDE never reach the root
+  // (`ContextMenu` stops the down phase), so picking still gets its mouse-up.
   useGlobalMouseDown(menu !== null, close)
 
   const moveCursor = useCallback(
     (delta: 1 | -1): void => {
       const count = menu?.entries.length ?? 0
       if (count === 0) return
-      // Wraps: a menu is short enough that walking off the end and landing
-      // back at the top beats clamping.
+      // Wraps.
       setCursor((prev) => (prev + delta + count) % count)
     },
     [menu],
   )
 
-  /**
-   * Run an entry. Every branch routes to something the tree could already do —
-   * the menu adds a route, not a capability (see `tree-menu.ts` for why that
-   * rule picks the entries).
-   */
+  /** Run an entry. The menu adds a route, not a capability (see `tree-menu.ts`). */
   const fire = useCallback(
     (action: TreeMenuAction | undefined): void => {
       if (!menu || action === undefined) return
-      // Close BEFORE dispatching: several actions open a dialog, and a menu
-      // still painted underneath a confirm prompt reads as two live surfaces.
+      // Close BEFORE dispatching: several actions open a dialog.
       const row = menu.row
       setMenu(null)
       if (row.kind === "project") {
         if (action === "newTask") deps.onAddTask?.()
         if (action === "fieldNotes") actions.onFieldNotesRequest?.(row.repo)
-        // Forget routes to the SAME flow `d` runs (task-actions.ts sends a
-        // main row to `forgetProject` behind a confirm). The header itself is
-        // not navigable, so the row the flow needs is the project's main
-        // checkout — the one `d` would have been pressed on.
+        // Same flow as `d` on the project's main checkout row.
         if (action === "forgetProject") {
           const mainId = deps.tree.mainTaskIdOfProject(row.id)
           if (mainId) actions.onDeleteRequest?.(mainId)
         }
         return
       }
-      // A routine count row never opens a menu (see the guard above), so it
-      // can only arrive here through a stale `menu` — nothing to act on.
+      // Only reachable through a stale `menu`.
       if (row.kind === "routines" || row.kind === "machine") return
       const taskId = row.task.id
       switch (action) {
@@ -177,7 +150,6 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
           activateRow(row.id)
           break
         case "closeTab":
-          // Only a tab row offers it, and only above one tab (tree-menu.ts).
           if (row.kind === "tab") deps.onCloseTab?.(taskId, row.tab.id)
           break
         case "newChat":
@@ -207,10 +179,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         case "copyPath":
           actions.onCopyRequest?.(taskId, "path")
           break
-        // The `o` / `b` / `v` trio. Routed through the MENU's row (`taskId`),
-        // not the active task the chords read (host-keybindings.ts
-        // `deps.selectedId`) — a right-click names one row, and the verb
-        // must land on that row.
+        // The `o` / `b` / `v` trio: the MENU's row, not the active task the chords read.
         case "openEditor":
           actions.onOpenEditorRequest?.(taskId)
           break
@@ -220,8 +189,6 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         case "changeEngine":
           actions.onChangeEngineRequest?.(taskId)
           break
-        // Menu-only, like `setStatus` above: no chord to mirror, so the
-        // ROW's task is the only thing it could mean.
         case "fixChecks":
           actions.onFixChecksRequest?.(taskId)
           break

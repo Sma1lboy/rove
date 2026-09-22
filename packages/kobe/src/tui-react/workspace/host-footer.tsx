@@ -1,25 +1,12 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The workspace's bottom line: per-vendor subscription quota on the left,
- * e.g. `CLAUDE 5h 42% → 14:00 · 7d 12%   CODEX 7d 47% → 8/4 06:00`, and the
- * keyboard micro-hint (`⌃ A commands · F1 help`) on the right.
+ * The workspace's bottom line: per-vendor quota on the left
+ * (`CLAUDE 5h 42% → 14:00 · 7d 12%`), key hint (`⌃ A commands · F1 help`)
+ * on the right. Quota is snapshot-only (the daemon's `usage.snapshot`); a
+ * vendor with no readable login never appears. Nothing to show → no row.
  *
- * Usage is snapshot-only — this pane never fetches. It renders whatever the
- * daemon's quota cache last pushed on `usage.snapshot` (slow poll + backoff,
- * see kobe-daemon/src/daemon/quota-usage-cache.ts); a vendor with no
- * readable login simply never appears. The hint resolves through the live
- * keymap/reachability (component/keyboard-hints.tsx). With no vendors AND
- * the hint muted, the row is not rendered, so nothing shifts on terminals
- * that have nothing to show.
- *
- * Both halves share ONE 1-cell row, and the chips are the yielding half:
- * their box shrinks + clips and the chip view model is built against an
- * explicit cell budget (usage-core's buildFooterChips), so an 80-col
- * terminal degrades to compact chips instead of colliding with the hint bar.
- *
- * `WorkspaceFrame` owns the column wrapper, for the same reason as
- * `host-sidebar.tsx`: the host composes the workspace's regions and each
- * region owns how it renders itself.
+ * One 1-cell row; the chips yield: built against an explicit cell budget
+ * (`buildFooterChips`), so 80 columns degrade to compact chips.
  */
 
 import { useTerminalDimensions } from "@opentui/react"
@@ -40,15 +27,9 @@ import { isNarrowWidth } from "../lib/narrow-mode"
 import { useAccessor } from "../lib/use-accessor"
 
 /**
- * The active session's context-window meter, left of the vendor quota chips.
- *
- * The chip is resolved by `WorkspaceFrame`, not here: the frame decides whether
- * the footer ROW exists at all, and a context reading has to count toward that
- * — otherwise a session with a meter but no quota data and a muted hint bar
- * would hide the row it belongs to. This component only paints. A null chip
- * renders nothing: no reading for this tab (a shell tab, a session that has not
- * run a turn, a vendor that does not report its context window) is absence,
- * never `0%`.
+ * Context-window meter. Resolved by `WorkspaceFrame`, which decides whether
+ * the row exists, so a reading keeps the row alive. Null (no reading) is
+ * absence, never `0%`.
  */
 function ContextChip(props: { chip: ReturnType<typeof contextChip> }) {
   const { theme } = useTheme()
@@ -67,12 +48,7 @@ function ContextChip(props: { chip: ReturnType<typeof contextChip> }) {
   )
 }
 
-/**
- * The active session's token total, right of the context meter. Muted in both
- * cells: unlike the meters beside it this is a record of what the session has
- * spent, not a budget with a threshold to cross. A null chip renders nothing —
- * an engine that does not report tokens says nothing rather than `0`.
- */
+/** Session token total. Muted: a record, not a budget. Null → nothing, never `0`. */
 function TokenChip(props: { chip: ReturnType<typeof tokenTotalChip> }) {
   const { theme } = useTheme()
   const chip = props.chip
@@ -158,15 +134,11 @@ export function WorkspaceFrame(props: {
   /** The tab the context meter reads — the workspace's active engine session. */
   activeTaskId?: string | null
   activeTabId?: string | null
-  /** Top-of-window strip (the daemon-down banner) — rendered above the pane
-   *  row. The host owns it because the surfaces that BYPASS this frame
-   *  (settings, worktrees, update) need the same strip. */
+  /** Top-of-window banner; host-owned because frame-bypassing pages need it too. */
   banner?: ReactNode
-  /** Mouse handlers for the row that HOLDS the panes. A pane-edge gesture has
-   *  to finish on an ancestor of every pane: opentui gives pointer capture to
-   *  whatever the cursor is over on the first motion, so the element that was
-   *  pressed stops hearing about its own drag the moment the cursor leaves it
-   *  (`sidebar-resize-gesture.ts`). Bubbling up to this row always works. */
+  /** Drag handler on the row HOLDING the panes: opentui captures the pointer
+   *  to whatever is under it on first motion, so only an ancestor of every
+   *  pane hears the whole drag (`sidebar-resize-gesture.ts`). */
   onPaneDrag?: (event: { readonly x: number }) => void
   onPaneRelease?: () => void
   children: ReactNode
@@ -180,8 +152,7 @@ export function WorkspaceFrame(props: {
     props.activeTaskId && props.activeTabId ? context?.get(`${props.activeTaskId}::${props.activeTabId}`) : undefined
   const ctxChip = contextChip(usageEntry)
   const tokChip = tokenTotalChip(usageEntry)
-  // The same options the bar below renders with — the budget must measure
-  // the bar that is actually on screen (compact drops the [settings] chip).
+  // Same options as the rendered bar, so the budget measures what's on screen.
   const hintItems = useStatusKeyHintItems({
     onOpenSettings: narrow ? undefined : props.onOpenSettings,
     compact: narrow,
@@ -189,18 +160,11 @@ export function WorkspaceFrame(props: {
   const footerVisible =
     (usage != null && usage.size > 0) || ctxChip !== null || tokChip !== null || hintItems.length > 0
   const hintCells = hintItems.reduce((sum, item, index) => sum + displayWidth(item.text) + (index > 0 ? 3 : 0), 0)
-  // The context chip shares the chips' half of the row, so its cells come out
-  // of the quota budget — otherwise the two together overflow onto the hint
-  // bar at exactly the widths the budget exists to protect. `ctx 100%~` + the
-  // inter-box gap is 11; reserving the max keeps the reservation constant
-  // instead of making the quota chips reflow as the percentage changes.
+  // Reserved from the quota budget at max width (`ctx 100%~` + gap = 11), so
+  // quota chips don't reflow as the percentage changes.
   const contextCells = 11
-  // Same rule as the context chip — reserve the WIDEST this chip gets
-  // (`Σ 999.9M` plus the inter-box gap) so the quota chips keep a constant
-  // budget instead of reflowing as the total climbs — but only while the chip
-  // is actually on screen. The context chip can afford its reservation
-  // unconditionally; a second standing 10 cells is what pushes a 46-column
-  // footer over, and a session with no token reading has nothing to protect.
+  // Max width (`Σ 999.9M` + gap), but only while shown: a standing 10 cells
+  // pushes a 46-column footer over.
   const tokenCells = tokChip ? 10 : 0
   const chipsBudget = Math.max(
     0,

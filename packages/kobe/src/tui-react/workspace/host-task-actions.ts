@@ -1,17 +1,8 @@
 /**
- * Workspace-host task-action wiring. Builds the `CreateTaskContext` the
- * shared `tui/lib/task-actions` flows run on — confirm copy, DIRTY_WORKTREE
- * force-delete branch and error handling all live there, so no host drifts —
- * and returns the host's action callbacks.
- *
- * Only this host's genuine divergences are wired here: dialog surfacing
- * (`DialogConfirm`/`RenameTaskDialog`/`NewTaskDialog`), toast notifications
- * and selection. No `openCreateSurface` (the in-pane NewTaskDialog IS the
- * surface), no `reload` (this host is fully render-driven).
- *
- * `tasks` / `selectedId` / `selectedTask` are passed as getter closures over
- * the latest render's value (`() => tasks`), the shape the flows expect
- * (`TaskActionContext.tasks` is `() => readonly Task[]`).
+ * Builds the `CreateTaskContext` the shared `tui/lib/task-actions` flows run
+ * on (confirm copy, DIRTY_WORKTREE, errors live there). Only this host's
+ * divergences are wired: dialogs, toasts, selection. No `reload`: this host
+ * is render-driven.
  */
 
 import { userFacingErrorMessage } from "@/lib/error-message"
@@ -48,8 +39,7 @@ export type WorkspaceTaskActionDeps = {
   notifyInfo: (message: string) => void
   /** Attention tone (yellow): it worked, but something needs a human next. */
   notifyNeedsInput: (message: string) => void
-  /** The host's live translator — passed in rather than pulled from `useT()`,
-   *  which would tie this hook to a React render its unit tests do not have. */
+  /** Passed in, not `useT()`: the unit tests have no React render. */
   t: (key: string, params?: Record<string, string | number>) => string
   selectedId: () => string | null
   setSelectedId: (id: string | null) => void
@@ -65,11 +55,9 @@ export type WorkspaceTaskActions = {
   renameTask: (id: string) => Promise<void>
   renameBranch: (id: string) => Promise<void>
   cycleVendor: (id: string) => Promise<void>
-  /** Tree-menu "Change engine" — `v`'s persist behind a picker over the
-   *  available engines instead of the chord's blind cycle. */
+  /** Tree-menu "Change engine": `v`'s persist behind a picker. */
   pickVendor: (id: string) => Promise<void>
-  /** ctrl+e picker's engine pick — same persist as `cycleVendor`, but silent
-   *  on success: the tab it opens already shows the result. */
+  /** ctrl+e engine pick: `cycleVendor`'s persist, silent on success. */
   setVendor: (id: string, vendor: VendorId) => Promise<void>
   togglePin: (id: string) => Promise<void>
   moveTask: (id: string, delta: -1 | 1) => Promise<void>
@@ -79,15 +67,10 @@ export type WorkspaceTaskActions = {
   copyTaskField: (id: string, field: "branch" | "path") => void
   /** Project-row menu "Field notes" — read-only list of the repo's notes. */
   showFieldNotes: (repo: string) => void
-  /**
-   * Row menu "Run again" — show the task's stored brief and resolve the task
-   * to re-fire once the user commits, or `undefined` on cancel. The CREATE is
-   * quick-fork's (`runAgainTask`), which owns the first-prompt handoff into
-   * the new task's mount; this half is the dialog and the lookup.
-   */
+  /** Row menu "Run again": the brief dialog; resolves the task to re-fire, or
+   *  `undefined` on cancel. quick-fork's `runAgainTask` does the create. */
   confirmRunAgain: (id: string) => Promise<Task | undefined>
-  /** Row menu "Land into base branch" — the Worktrees page's `l` reachable
-   *  from the row. No busy state: the row goes with its worktree. */
+  /** Row menu "Land": the Worktrees page's `l`. No busy state: the row goes with its worktree. */
   landTask: (id: string) => Promise<void>
   /** Row menu "Sync with base": merge the base branch into the worktree. */
   syncBase: (id: string) => Promise<boolean>
@@ -110,19 +93,13 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
       logPrefix: "[rove workspace]",
       enterTask: deps.activateTask,
     }),
-    // The set-status picker, supplied as an adapter so `setStatusFlow` stays
-    // opentui-free like every other flow (task-actions.ts's testability rule).
+    // Pickers are adapters so the flows stay opentui-free.
     pickStatus: (current) => StatusPickerDialog.show(dialog, { current }),
-    // The change-engine picker, supplied the same way for `pickVendorFlow`.
     pickEngine: (opts) => EnginePickerDialog.show(dialog, opts),
-    // The clipboard writer, supplied the same way: both channels the terminal
-    // pane's copy-on-select uses (local pbcopy-style pipe + OSC52 through the
-    // renderer, which is the half that reaches the user's machine over SSH).
+    // Local pipe + OSC52 (the half that reaches the user's machine over SSH).
     copyText: (text) => copyTextToSystemClipboard(text, (payload) => renderer?.copyToClipboardOSC52(payload)),
     onTaskDeleted: (() => {
-      // Reclaim the deleted task's terminal-tab snapshot, THEN move the
-      // host cursor off it (the shared selection move — the base's bare
-      // `selectNextAfterDelete` overridden with this wrapper).
+      // Reclaim the tab snapshot, THEN move selection off the deleted task.
       const moveSelection = selectNextAfterDelete({
         tasks,
         selectedId: deps.selectedId,
@@ -149,12 +126,8 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     })
   }
 
-  // Set-branch (`b`): pick from the repo's local branches (filter-as-you-type)
-  // or type a new name — the shared `renameBranchFlow`'s bare text prompt
-  // replaced by the branch-listing dialog. `setBranch` no-ops on
-  // an unchanged name and rejects main/dir rows, so we guard/notify here:
-  // opening the picker for a task whose branch can't be set would send the
-  // user through a choice that only ever ends in the error toast.
+  // `b`: branch-listing picker. `setBranch` rejects main/dir rows, so guard
+  // before opening a picker that could only end in an error toast.
   async function renameBranch(id: string): Promise<void> {
     const task = tasks().find((t) => t.id === id)
     if (!task || task.kind === "main" || task.kind === "dir") return
@@ -167,24 +140,19 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
 
   async function confirmRunAgain(id: string): Promise<Task | undefined> {
     const task = tasks().find((t) => t.id === id)
-    // The menu withholds the entry from a task with no stored brief
-    // (tree-menu.ts), so this only fires on a stale row.
+    // Only a stale row reaches here (the menu hides it without a brief).
     if (task?.prompt === undefined) return undefined
     const ok = await RunAgainDialog.show(dialog, { taskTitle: task.title, prompt: task.prompt })
     return ok === true ? task : undefined
   }
 
-  // Row menu "Land into base branch". The land itself is shared with the
-  // Worktrees page (`land-task-action.ts`); this is only the host's dialog,
-  // toasts and row lookup — the same division `pickVendor` follows.
+  // The land is `land-task-action.ts`; this is the host's dialog and toasts.
   async function landTask(id: string): Promise<void> {
     const task = tasks().find((candidate) => String(candidate.id) === id)
     if (!task) return
     await landTaskAction(
       {
         orchestrator,
-        // Body arrives rendered from `landTaskAction` — it names the
-        // destination branch and commit count, which the preflight owns.
         confirm: (body) =>
           DialogConfirm.show(
             dialog,
@@ -204,8 +172,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     )
   }
 
-  // Row menu "Sync with base" — no dialog (a merge from the base is additive
-  // and `git merge --abort` undoes it), so this is only the notifier wiring.
+  // No dialog: a merge from base is additive and `git merge --abort` undoes it.
   const syncBase = (id: string): Promise<boolean> =>
     syncBaseAction(
       { orchestrator, notifyInfo: deps.notifyInfo, notifyNeedsInput: deps.notifyNeedsInput, notifyError, t },
@@ -220,10 +187,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     renameBranch,
     cycleVendor: (id) => cycleVendorFlow(taskActions, id),
     pickVendor: (id) => pickVendorFlow(taskActions, id),
-    // The ctrl+e picker's engine pick. Silent on success: the tab it just
-    // opened IS the new engine, so a toast saying the change "applies on
-    // reopen" would contradict what the user is looking at. Failures
-    // still toast — see applyVendorChange.
+    // Silent on success: the opened tab IS the new engine. Failures still toast.
     setVendor: async (id, vendor) => {
       await applyVendorChange(taskActions, id, vendor, { silentSuccess: true })
     },

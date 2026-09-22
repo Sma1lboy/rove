@@ -1,27 +1,15 @@
 /**
- * Durable "I already looked at this completion" record — the persisted half
- * of the sidebar's unread lamp (● turn done, not yet viewed).
+ * Durable "seen this completion" record, the persisted half of the unread
+ * lamp: the daemon's activity registry outlives the TUI, so a process-local
+ * Set would re-light every read completion on relaunch.
  *
- * A process-local Set alone is not enough: quitting kobe throws the fact away
- * while the daemon keeps publishing the very same `turn_complete` (its
- * activity registry is daemon-lived, not TUI-lived), so every completion you
- * had already read comes back unread on the next launch.
- *
- * The mark is the completion's own timestamp: `turn_complete` is a STICKY
- * activity state, so its `at` is stamped once by the reporting event and
- * only a new event restamps it. Recording "seen up to `at`" per (task, tab)
- * therefore reads exactly right across restarts — an older completion is
- * read, a newer one is not — with no way for a stale entry to swallow a
- * fresh turn.
- *
- * Framework-free so the row cards, the tree's tab rows and unit tests share
- * one rule; the KV layer just persists the record.
+ * The mark is the completion's own `at`: `turn_complete` is STICKY, stamped
+ * once per event, so "seen up to `at`" per (task, tab) can't swallow a newer turn.
  */
 
 export const COMPLETION_SEEN_KEY = "completionSeen"
 
-/** Bounded like the visit log — the oldest marks are pruned, and a pruned
- *  mark can at worst re-light one lamp for a task untouched that long. */
+/** Oldest marks prune; at worst one long-untouched lamp re-lights. */
 const SEEN_LIMIT = 200
 
 export type CompletionSeenKv = {
@@ -29,8 +17,7 @@ export type CompletionSeenKv = {
   set(key: string, value: unknown): void
 }
 
-/** Row identity of a seen mark: a task's own rollup, or one of its tabs.
- *  Same NUL-joined shape the session Set uses. */
+/** A task's rollup or one tab; NUL-joined like the session Set. */
 export function completionSeenKey(taskId: string, tabId?: string): string {
   return tabId === undefined ? taskId : `${taskId}\0${tabId}`
 }
@@ -45,11 +32,8 @@ export function parseCompletionSeen(stored: unknown): Record<string, number> {
   return out
 }
 
-/**
- * Fold one seen completion into the record, pruning the oldest marks at the
- * cap. Returns the INPUT object when the record already covers `at`, so the
- * caller can skip the write (this runs per viewed row, per render).
- */
+/** Fold one completion in, pruning at the cap. Returns the INPUT object when
+ *  already covered, so the per-render caller can skip the write. */
 export function foldCompletionSeen(
   seen: Readonly<Record<string, number>>,
   key: string,
@@ -66,15 +50,10 @@ export function foldCompletionSeen(
   return pruned
 }
 
-/**
- * Has this row's CURRENT completion already been looked at? `at` is the
- * activity entry's stamp; `undefined` means the row isn't sitting on a
- * completion at all, which is never "seen".
- */
+/** Has this row's CURRENT completion been seen? `at` undefined = no completion = never seen. */
 export function completionSeenAt(kv: CompletionSeenKv | null, key: string, at: number | undefined): boolean {
   if (!kv || at === undefined) return false
-  // Read the raw snapshot rather than parsing the whole record: this is a
-  // render-path call, once per row per frame.
+  // Raw read, no full parse: once per row per frame.
   const stored = kv.get(COMPLETION_SEEN_KEY)
   if (typeof stored !== "object" || stored === null || Array.isArray(stored)) return false
   const known = (stored as Record<string, unknown>)[key]
@@ -89,16 +68,9 @@ export function markCompletionSeen(kv: CompletionSeenKv, key: string, at: number
 }
 
 /**
- * The subset of `stamps` whose completion the persisted record already
- * covers — the tab strip's half of the same bit.
- *
- * A purely in-process unread map loses the fact on every relaunch, so a tab
- * that finished while you were away comes back looking unread. Folding the
- * SAME (task, tab) → seen-at record the sidebar lamp uses keeps the two
- * surfaces telling one story across restarts. A tab with no stamp
- * (`undefined` — the poll-only path, where
- * no hook ever reported a completion timestamp) is never "seen": there is
- * nothing to key a mark on.
+ * The `stamps` the persisted record covers: the tab strip reads the SAME
+ * record as the sidebar lamp so both agree across restarts. No stamp (the
+ * poll-only path) is never "seen".
  */
 export function seenCompletionTabs(
   kv: CompletionSeenKv | null,

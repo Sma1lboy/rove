@@ -1,15 +1,7 @@
 /**
- * The sidebar's sections, for whichever surface is rendering them.
- *
- * The sidebar forks into two renderers — the expanded tree and the folded
- * rail — and only one of them is mounted at a time. That fork is exactly where
- * the two used to drift apart: the tree derived its projects from
- * `buildTreeRows` while the rail re-derived its own from the raw task list, so
- * a project the tree hid was still a divider in the fold.
- *
- * This hook is the fix's shape: the fork now happens BELOW one answer. Both
- * surfaces call this, both get `SidebarGroup[]` from the same pure builder,
- * and neither is in a position to invent a grouping of its own.
+ * The sidebar's sections for both renderers (expanded tree, folded rail):
+ * both get `SidebarGroup[]` from this one builder, so neither can invent its
+ * own grouping.
  */
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
@@ -34,9 +26,8 @@ export interface SidebarGroupsOpts {
 export interface SidebarGroupsState {
   /** Sections in render order: the scratch bench, then the visible projects. */
   readonly groups: readonly SidebarGroup[]
-  /** The projection the groups were decided from — the tree also renders tab
-   *  rows out of it, so handing it back costs nothing and guarantees the rows
-   *  and the grouping were computed from the same instant. */
+  /** The projection the groups came from; the tree's tab rows use it, so rows
+   *  and grouping share one instant. */
   readonly tabsByTask: ReadonlyMap<string, readonly TreeTab[]>
 }
 
@@ -44,8 +35,7 @@ export function useSidebarGroups(opts: SidebarGroupsOpts): SidebarGroupsState {
   const { tasks } = opts
   const tabsByTask = useTabsByTask({ tasks, kv: opts.kv })
   const sortMode = opts.sortMode ?? "default"
-  // Only `attention` reads activity, so the other two modes keep their memo
-  // free of a map that churns on every daemon push.
+  // Only `attention` reads activity; other modes skip the per-push churn.
   const sortEngineState = sortMode === "attention" ? opts.engineState : undefined
   const groups = useMemo(() => {
     // The whole entry, not just its state: `attention` sort ranks by the

@@ -1,23 +1,10 @@
 /**
- * Tree sidebar keybindings — collapsed from six `useBindings` calls in
- * `SidebarTree.tsx` down to four, while preserving the original dispatch
- * priority and every user-rebindable registry id.
+ * Tree sidebar keybindings, one registration per mode. Not one registration:
+ * `escape` must NOT be bound when no mode is active, or the sidebar silently
+ * eats it; and the search chords are user-rebindable registry ids.
  *
- * Why not literally one registration:
- *   - `escape` must NOT be registered when no mode is active, or the sidebar
- *     silently consumes an otherwise harmless key (regression).
- *   - `sidebar.search.cancel`, `sidebar.search.nav`, and
- *     `sidebar.search.submit` are registry ids the user may rebind; they must
- *     stay routed through `bindByIds`.
- *
- * So the split follows the real modes:
- *   1. Main navigation & action chords (no mode active).
- *   2. Move-mode escape (raw key — there is no registry id for this).
- *   3. Search-mode chords (registry ids).
- *   4. Menu-mode chords + menu escape.
- *
- * Registration order is main → move → search → menu, which gives the LIFO
- * stack the priority menu > search > move > main.
+ * Registration order main → move → search → menu gives the LIFO stack the
+ * priority menu > search > move > main.
  */
 
 import type { createSidebarController } from "../../../tui/panes/sidebar/controller"
@@ -44,12 +31,8 @@ export interface TreeBindingsOpts
   readonly markKeysUsed: () => void
 }
 
-/**
- * The task a cursor row names, or null when the row is not a task (the
- * "↩ recent" jump row, an empty tree). Shared by the tree's own row verbs
- * and the host's sidebar-scope chords (`b`/`v`/`o`) so both resolve the
- * same target.
- */
+/** The task a cursor row names, or null ("↩ recent", empty tree). Shared with
+ *  the host's `b`/`v`/`o` chords so both resolve the same target. */
 export function cursorTaskIdOf(rowId: string | undefined): string | null {
   if (rowId === undefined || rowId === RECENT_ROW_ID) return null
   return parseRowId(rowId).taskId
@@ -78,8 +61,7 @@ export function useTreeBindings(opts: TreeBindingsOpts): void {
     if (taskId !== null && fn) fn(taskId)
   }
 
-  // 1. Main navigation & per-row verbs — only when no transient mode has the
-  //    keyboard.
+  // 1. Main navigation & per-row verbs.
   useBindings(() => ({
     enabled: focused && !search.active && !menu.open,
     bindings: bindByIds({
@@ -133,13 +115,13 @@ export function useTreeBindings(opts: TreeBindingsOpts): void {
     }),
   }))
 
-  // 2. Move-mode escape — no registry id covers this, so it is a raw key.
+  // 2. Move-mode escape: no registry id, so a raw key.
   useBindings(() => ({
     enabled: focused && moveMode,
     bindings: [{ key: "escape", cmd: () => onMoveModeExit?.() }],
   }))
 
-  // 3. Search-mode chords — registry ids so user rebinding keeps working.
+  // 3. Search mode.
   useBindings(() => ({
     enabled: focused && search.active,
     bindings: bindByIds({
@@ -156,9 +138,7 @@ export function useTreeBindings(opts: TreeBindingsOpts): void {
     }),
   }))
 
-  // 4. Menu-mode chords — retarget j/k/enter at the menu, and close it on
-  //    escape. Kept separate from main so the same `sidebar.nav`/`sidebar.select`
-  //    ids can be reused without within-config key collisions.
+  // 4. Menu mode: separate so `sidebar.nav`/`sidebar.select` reuse doesn't collide.
   useBindings(() => ({
     enabled: focused && menu.open,
     bindings: [

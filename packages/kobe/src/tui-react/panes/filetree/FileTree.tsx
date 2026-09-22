@@ -1,21 +1,13 @@
 /** @jsxImportSource @opentui/react */
 /**
- * File tree pane. The behavior lives in the shared framework-free logic
- * (`git.ts`, `rows.ts`, `pane-core.ts`, `keys-core.ts`, `open-external.ts`);
- * this file owns only the React reactivity, following THE ASYNC CANON from
- * `src/tui-react/history/host.tsx`:
+ * File tree pane: React reactivity only, following THE ASYNC CANON
+ * (`src/tui-react/history/host.tsx`): the last resolved value stays visible
+ * during a refresh, stale completions drop (AbortController + fetch
+ * sequence), and the fs watch bumps `refreshTick` rather than fetching.
  *
- *   - each async git read is `useState` + a dependency-keyed `useEffect`;
- *   - the last resolved value stays visible while a refresh is in flight;
- *   - stale completions are dropped (AbortController + fetch sequence);
- *   - the opt-in fs watch bumps a `refreshTick` scalar the data effect
- *     refetches from, instead of owning its own fetch.
- *
- * Three fetch effects: worktree change (wipe + reload), tab change
- * (cache-first + cursor reset), and refresh tick (cursor-preserving reload).
- * Content-equality setters (`sameFileList` / `sameStatusEntries`) keep
- * no-change refreshes from re-rendering — see rows.ts for why renderable
- * churn matters here.
+ * Fetch effects: worktree change (wipe + reload), tab change (cache-first +
+ * cursor reset), refresh tick (cursor-preserving). Content-equality setters
+ * keep no-change refreshes from re-rendering (see rows.ts).
  */
 
 import { errorMessage } from "@/lib/error-message"
@@ -56,7 +48,6 @@ import { useLatest } from "../../lib/use-latest"
 import { FileTreeBodyView } from "./body-view"
 import { FileTreeHeaderView } from "./header-view"
 
-/** Public props. */
 export type FileTreeProps = {
   /** Active task's worktree path; `null` renders the "No worktree" placeholder. */
   worktreePath: string | null
@@ -78,28 +69,21 @@ export type FileTreeProps = {
   onZenToggle?: () => void
   /** Whether the pane has keyboard focus. Defaults to `true`. */
   focused?: boolean
-  /** CONTENT width (cells) of the box this pane renders in. The pane is a
-   *  narrow column inside the workspace, so the Changes-tab path budget must
-   *  come from this, not the full terminal width — otherwise tail-keeping
-   *  truncation never fires and long paths right-clip, losing the filename.
-   *  Defaults to the terminal width for hosts that give the pane full width. */
+  /** CONTENT width (cells) of this pane; the path budget must come from it, not
+   *  the terminal width, or long paths right-clip and lose the filename.
+   *  Defaults to the terminal width. */
   paneWidth?: number
 }
 
 export function FileTree(props: FileTreeProps) {
-  // Fallback width when the host doesn't pass `paneWidth` (full-width hosts).
   const dims = useTerminalDimensions()
 
-  // ---------- pane state ----------
   const [tab, setTab] = useState<FileTreeTab>("all")
-  // Changes-tab scope: uncommitted work vs the whole branch vs its base.
-  // `scopeManual` tracks whether the user pressed `b` — until then the pane
-  // auto-falls-back to Branch scope when the working tree is clean (the
-  // engine committed everything, so working scope would show nothing).
+  // Until the user presses `b` (`scopeManual`), a clean working tree
+  // auto-falls-back to Branch scope: the engine committed everything.
   const [scope, setScope] = useState<GitScope>("working")
   const [scopeManual, setScopeManual] = useState(false)
-  // Resolved base ref for Branch scope (null = couldn't resolve → working
-  // scope). Recomputed on worktree / prBaseRef change.
+  // Branch-scope base ref; null = unresolved → working scope only.
   const [base, setBase] = useState<string | null>(null)
   const [cursorIndex, setCursorIndex] = useState(0)
   // Bumped by `r` (and the opt-in fs watch) to force a re-fetch.
@@ -110,8 +94,6 @@ export function FileTree(props: FileTreeProps) {
   // Expanded directory paths (worktree-relative). Reset on worktree change.
   const [expandedDirs, setExpandedDirs] = useState<ReadonlySet<string>>(() => new Set())
 
-  // Latest-render mirrors for effect bodies that must read a value without
-  // depending on it.
   const pathRef = useLatest(props.worktreePath)
   const tabRef = useLatest(tab)
   const allFilesRef = useLatest(allFiles)
@@ -122,12 +104,8 @@ export function FileTree(props: FileTreeProps) {
   const onOpenFileRef = useLatest(props.onOpenFile)
   const fetchSeq = useRef(0)
 
-  /**
-   * Fetch the data for a tab. Errors land in `error` and the row list goes
-   * empty. The non-active tab's cache is wiped only on worktree change, not
-   * on tab switch (cache-first tab pings). Content-equality functional
-   * setters keep a no-change refresh from notifying downstream.
-   */
+  /** Fetch a tab's data. The other tab's cache is wiped only on worktree
+   *  change, so tab switches are cache-first. */
   const refetch = useCallback(
     async (currentTab: FileTreeTab, path: string | null, signal?: AbortSignal): Promise<void> => {
       const seq = ++fetchSeq.current
@@ -149,10 +127,7 @@ export function FileTree(props: FileTreeProps) {
             ? await statusFilesBranch(path, baseRef.current as string, signal)
             : await statusFiles(path, signal)
           if (signal?.aborted || seq !== fetchSeq.current || pathRef.current !== path) return
-          // Auto-fallback: a clean working tree in un-toggled working scope
-          // means the engine committed everything — switch to Branch scope so
-          // the task's output is visible. Only when a base resolved; the
-          // scope change re-triggers this effect via the changes-scope effect.
+          // Auto-fallback to Branch scope (needs a base); the scope effect refetches.
           if (!wantBranch && entries.length === 0 && !scopeManualRef.current && baseRef.current != null) {
             setScope("branch")
             return
@@ -160,8 +135,7 @@ export function FileTree(props: FileTreeProps) {
           setChanges((prev) => (sameStatusEntries(prev, entries) ? prev : entries))
         }
       } catch (err) {
-        // An aborted fetch (tab/worktree changed out from under us) throws
-        // via the killed subprocess — swallow it, the next run owns state.
+        // An aborted fetch throws via the killed subprocess; the next run owns state.
         if (signal?.aborted) return
         const message = errorMessage(err)
         if (seq === fetchSeq.current && pathRef.current === path) setError(message)
@@ -170,11 +144,8 @@ export function FileTree(props: FileTreeProps) {
     [],
   )
 
-  // Re-fetch when the worktree changes — wipe all caches first because the
-  // previous worktree's cache does not apply. Cleanup aborts the in-flight
-  // git read so
-  // rapid task-switches don't stack subprocesses. Scope resets to its
-  // auto-fallback default (working, un-toggled) for the new task.
+  // Worktree change: wipe caches and reset scope. Cleanup aborts the in-flight
+  // git read so rapid task switches don't stack subprocesses.
   useEffect(() => {
     setAllFiles(null)
     setChanges(null)
@@ -188,10 +159,7 @@ export function FileTree(props: FileTreeProps) {
     return () => controller.abort()
   }, [props.worktreePath, refetch])
 
-  // Resolve the Branch-scope base ref for this worktree (prefers the task's
-  // PR base, else the repo default branch). Runs on worktree / prBaseRef
-  // change; a null result keeps the pane in working scope. `base` becoming
-  // available is what lets the auto-fallback flip a clean worktree to Branch.
+  // Resolve the Branch-scope base; its arrival is what lets the auto-fallback flip.
   useEffect(() => {
     const path = props.worktreePath
     if (path == null) {
@@ -213,9 +181,7 @@ export function FileTree(props: FileTreeProps) {
     }
   }, [props.worktreePath, props.prBaseRef])
 
-  // Re-fetch the Changes tab when scope OR the resolved base changes — a
-  // scope toggle (`b`) or an async base resolution both switch which diff the
-  // tab shows. Only fires on the Changes tab; the All tab is scope-agnostic.
+  // Scope or base changed: refetch Changes (the All tab is scope-agnostic).
   // biome-ignore lint/correctness/useExhaustiveDependencies: reads tab/path via refs; runs on the scope/base transition, matching the other refetch effects' shape.
   useEffect(() => {
     if (tabRef.current !== "changes") return
@@ -226,9 +192,7 @@ export function FileTree(props: FileTreeProps) {
     return () => controller.abort()
   }, [scope, base, refetch])
 
-  // Realtime watch is on by default; `ROVE_FILETREE_WATCH=0` opts out (see
-  // watchWorktree) and leaves explicit refresh (`r`) plus tab/worktree
-  // changes as the only paths that repopulate the pane.
+  // Watch is on by default; `ROVE_FILETREE_WATCH=0` leaves only `r` and tab/worktree changes.
   useEffect(() => {
     const path = props.worktreePath
     if (path == null) return
@@ -236,10 +200,8 @@ export function FileTree(props: FileTreeProps) {
     return watchWorktree(path, () => setRefreshTick((n) => n + 1))
   }, [props.worktreePath])
 
-  // Re-fetch when the active TAB changes — cache-first, so pinging between
-  // already-loaded tabs never respawns git. Resetting the cursor belongs
-  // here (a different tab is a different list); a refresh of the SAME tab
-  // must NOT yank the cursor to the top (that effect is below).
+  // Tab change: cache-first, and the only place the cursor resets — a
+  // refresh of the SAME tab must not yank it to the top.
   useEffect(() => {
     setCursorIndex(0)
     const path = pathRef.current
@@ -253,10 +215,7 @@ export function FileTree(props: FileTreeProps) {
     return () => controller.abort()
   }, [tab, refetch])
 
-  // Re-fetch on a real refresh tick (`r` or a debounced fs-watch event).
-  // Tick 0 is the mount value — the worktree effect already did the first
-  // fetch. Unlike a tab switch, a refresh PRESERVES the cursor (the clamp
-  // effect below pulls it back only if the row count shrank past it).
+  // Refresh tick (`r` or fs watch). Tick 0 is mount; the worktree effect fetched.
   useEffect(() => {
     if (refreshTick === 0) return
     const path = pathRef.current
@@ -270,9 +229,7 @@ export function FileTree(props: FileTreeProps) {
   // state mutates — flattening below is O(visible-rows).
   const tree = useMemo<TreeNode | null>(() => (allFiles == null ? null : buildTree(allFiles)), [allFiles])
 
-  // Derived rows, reconciled against the previous list so unchanged rows
-  // keep object identity (stable React keys + reference-equal memo output
-  // when nothing changed), so opentui reuses the renderables.
+  // Reconciled so unchanged rows keep identity and opentui reuses renderables.
   const prevRows = useRef<readonly Row[]>([])
   const rows = useMemo<readonly Row[]>(() => {
     const next: Row[] = []
@@ -289,9 +246,7 @@ export function FileTree(props: FileTreeProps) {
     return reconciled
   }, [tab, tree, expandedDirs, changes])
 
-  // Keep the cursor in range when a refresh shrinks the list. Tab switches
-  // already reset the cursor to 0; this only clamps a preserved cursor that
-  // now points past the end.
+  // Clamp a preserved cursor when a refresh shrinks the list.
   useEffect(() => {
     if (rows.length === 0) return
     setCursorIndex((i) => (i > rows.length - 1 ? rows.length - 1 : i))
@@ -301,7 +256,6 @@ export function FileTree(props: FileTreeProps) {
   const paneWidth = props.paneWidth ?? dims.width
   const pathBudget = useMemo(() => computePathBudget(paneWidth, statWidths), [paneWidth, statWidths])
 
-  // ---------- key bindings ----------
   function applyNav(action: NavAction | null): void {
     if (!action) return
     if (action.type === "cursor") setCursorIndex(action.index)
@@ -317,9 +271,8 @@ export function FileTree(props: FileTreeProps) {
     else onOpenFileRef.current(row.path)
   }, [])
 
-  /** Mouse activation for rows: set the cursor there, then activate. ONE
-   *  identity across renders so a j/k keystroke re-renders only the two
-   *  rows whose `cursor` flag flipped (FileTreeRowView is memoized). */
+  /** ONE identity across renders so j/k re-renders only the two rows whose
+   *  `cursor` flag flipped (FileTreeRowView is memoized). */
   const handleRowActivate = useCallback(
     (row: Row, index: number): void => {
       setCursorIndex(index)
@@ -331,8 +284,6 @@ export function FileTree(props: FileTreeProps) {
   // Using the pane's own nav/open keys extinguishes its first-use hint.
   const markKeysUsed = usePaneHintMark("files")
 
-  // `useBindings` re-reads the config per keypress through a render-refreshed
-  // ref, so these closures always see the latest rows/cursor/tab.
   useBindings(() => ({
     enabled: props.focused ?? true,
     bindings: fileTreeBindings({
@@ -355,8 +306,7 @@ export function FileTree(props: FileTreeProps) {
       },
       mentionCurrent: () => {
         const row = rows[cursorIndex]
-        // Only files make sense as an @mention; dirs (incl. untracked-dir
-        // status rows) are ignored.
+        // Files only; untracked-dir status rows end `/`.
         if (!row || row.kind === "dir" || row.path.endsWith("/")) return
         props.onMention?.(row.path)
       },
@@ -379,12 +329,9 @@ export function FileTree(props: FileTreeProps) {
       openDiff: () => {
         const row = rows[cursorIndex]
         if (!row) return
-        // A directory is a git PATHSPEC, so it opens the combined diff of
-        // everything under it in ONE tab — reviewing a 12-file attempt used to
-        // cost 12 presses and 12 tabs. Normalised with a trailing slash: that
-        // is what tells the loader (and the preview) this diff spans files, so
-        // an empty result reports "no changes in src/" instead of falling back
-        // to reading a directory as if it were a file.
+        // A directory is a pathspec → one combined diff. The trailing slash
+        // tells the loader it spans files, so an empty result says "no changes
+        // in src/" instead of reading the directory as a file.
         const spec = row.kind === "dir" || row.path.endsWith("/") ? `${row.path.replace(/\/+$/, "")}/` : row.path
         // Branch scope diffs vs the resolved base; working scope vs HEAD.
         props.onOpenDiff?.(spec, scope === "branch" && base != null ? base : undefined)
@@ -397,7 +344,6 @@ export function FileTree(props: FileTreeProps) {
     }),
   }))
 
-  // ---------- render ----------
   const loaded = (tab === "all" && allFiles != null) || (tab === "changes" && changes != null)
   return (
     <box flexDirection="column" flexGrow={1} paddingLeft={0} paddingRight={0}>

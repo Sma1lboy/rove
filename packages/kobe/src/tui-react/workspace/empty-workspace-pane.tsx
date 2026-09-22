@@ -1,22 +1,11 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The placeholder for a task whose last tab was closed — and the keys that
- * get out of it.
- *
- * `show-workspace` deliberately does NOT mount `TerminalTabs` over an empty
- * tab list, which means every "open a session here" chord is unreachable in
- * this state: they are all registered inside that component. Entering the
- * task from the sidebar revives it (`reviveEmptiedTabs`), but this pane is
- * also reached WITHOUT an activation — restart restore, or a task emptied
- * while already on screen — so a placeholder that only NAMES the keys would
- * name two chords with no handler at all.
- *
- * So the placeholder owns them itself. Both chords do the same thing (revive
- * this task's session), because from here there is only one thing to do:
+ * Placeholder for a task whose last tab closed, and the keys out of it.
+ * `TerminalTabs` (which registers the open-session chords) is NOT mounted
+ * over an empty tab list, and this pane is reachable without an activation
+ * (restart restore), so it binds the chords itself; both revive the session:
  *   - `workspace.reopenSession` (⏎).
- *   - `chat.tab.chooseEngine` (ctrl+e) — the SAME id `TerminalTabs` binds.
- *     Registering it here is not a second chord, it is the one chord staying
- *     answerable in the state where its usual owner is unmounted.
+ *   - `chat.tab.chooseEngine` (ctrl+e), the SAME id `TerminalTabs` binds.
  */
 
 import type { ReactNode } from "react"
@@ -33,9 +22,8 @@ export function EmptyWorkspacePane(props: { taskId: string; focused: boolean }):
   const t = useT()
   const kv = useOptionalKV()
 
-  // `reviveEmptiedTabs` writes through `setTaskTabs`, so the revision counter
-  // `show-workspace` subscribes to bumps and this pane is replaced by the
-  // mounted TerminalTabs on the next render — no callback up to the host.
+  // `reviveEmptiedTabs` bumps the revision `show-workspace` watches, which
+  // swaps in TerminalTabs next render; no host callback needed.
   const reopen = (): void => {
     reviveEmptiedTabs(kv, props.taskId, defaultShell())
   }

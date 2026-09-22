@@ -1,57 +1,21 @@
 /** @jsxImportSource @opentui/react */
 /**
- * "What's new" — the first thing you see after an upgrade, shown once.
+ * "What's new" — release notes for the version range just crossed, shown
+ * once after an upgrade. Unlike `UpdatePage` it offers no installer action.
  *
- * Sibling of `UpdatePage`, and deliberately not the same surface: Update
- * answers "there is a newer build, do you want it", this one answers "you
- * are already on the new build, here is what changed". So it offers no
- * installer action and no version comparison — only the release notes for
- * the range the user just crossed, and a way out.
+ * A modal, not a page: a full-window page hid the task list the user was
+ * returning to. Shape follows `docs/design/dialogs.md`:
+ *   - SIZE — `medium`, content-sized under `maxHeight` (no fixed height: it
+ *     would pad a short note and clip a long range).
+ *   - FOOTER — a legend, no button: `DialogActions` is for dialogs with a
+ *     focusable confirm, and this one commits nothing.
  *
- * ## Why a modal and not a page
+ * No new chords: `escape`/`ctrl+c` come from the DialogProvider (don't
+ * re-bind), so only `q` plus native navigation are ours. `end` matters — a
+ * multi-version range is longer than any card.
  *
- * It shipped (#1039) as a full-window page that replaced the workspace,
- * sidebar included. A page is the right shape for something you NAVIGATE to
- * and come back from; this is a single dismissal you were handed on boot.
- * Taking the whole screen for it made the first frame after an upgrade look
- * like Rove had started somewhere else, and hid the task list the user was
- * actually returning to. As a modal over the workspace, the thing you came
- * back for is visible behind the thing you have to acknowledge.
- *
- * ## The shape, decided against OUR dialog grammar
- *
- * The release-notes modal is a well-trodden PRESENTATION: a fixed-size
- * centered modal, dimmed behind, a header carrying a title and a subtitle, a
- * scrollbar down the body, an action in the footer. What we take and what we
- * leave is decided against `docs/design/dialogs.md`, because a What's New
- * modal wearing borrowed chrome would be the only dialog in Rove that looked
- * like that:
- *
- *   - SIZE — `medium` (80 cells) is already our default card and is already
- *     the conventional width. A fixed 24-row height we do NOT take: our card is
- *     content-sized under a `maxHeight`, so a two-line note draws a small
- *     card and a six-version range grows to the cap and scrolls. A fixed
- *     height would pad the first and clip the second.
- *   - SCROLL — yes, and through the same `scrollbox` + visible scrollbar the
- *     help dialog and the field-notes reader already use.
- *   - HEADER — title plus subtitle is our header too (the field-notes
- *     reader's repo line, the help dialog's scope line), so it carries over
- *     unchanged.
- *   - FOOTER BUTTON — no. `DialogActions` is for a dialog whose commit has a
- *     focusable confirm field; one that closes with esc "states the verb in
- *     its legend instead — a button nothing can focus would be a fourth
- *     thing to explain" (`ui/dialog-parts.tsx`). This dialog commits
- *     nothing, so it gets the legend.
- *
- * ZERO new chords: the native navigation set (arrows / page / home / end)
- * plus the dismiss keys the page already had. `escape` and `ctrl+c` come
- * from the DialogProvider — do not re-bind them here — so only `q` is ours.
- * `end` matters: a six-version upgrade is longer than any card, and the
- * reader has to be able to reach the bottom of it.
- *
- * LANGUAGE: the chrome is translated; the note BODIES are whatever GitHub
- * published, which today is English only. See `docs/TUI.md`
- * §"What's new after an upgrade".
+ * Chrome is translated; note bodies are whatever GitHub published (English).
+ * See `docs/TUI.md` §"What's new after an upgrade".
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -78,9 +42,7 @@ export function WhatsNewDialogView(props: {
 
   useEffect(() => {
     let live = true
-    // Total by contract: offline, rate-limited and 500 all answer []. The
-    // dialog states that rather than surfacing an error, and the release URL
-    // below stays useful either way.
+    // Total by contract: offline, rate-limited and 500 all answer [].
     const load = props.fetchNotes ?? fetchReleaseNotesRange
     void load({ current: props.from, latest: CURRENT_VERSION }).then((fetched) => {
       if (!live) return
@@ -92,9 +54,6 @@ export function WhatsNewDialogView(props: {
     }
   }, [props.from, props.fetchNotes])
 
-  // Native navigation only — the same set the help dialog binds, for the
-  // same reason (docs/KEYBINDINGS.md pane-scope rules: a reader must be
-  // keyboard-reachable without inventing a chord).
   const scrollRef = useRef<ScrollBoxRenderable | null>(null)
   const scrollBy = (lines: number): void => {
     const scroll = scrollRef.current
@@ -109,8 +68,7 @@ export function WhatsNewDialogView(props: {
 
   useBindings(() => ({
     bindings: [
-      // `escape` and `ctrl+c` are the DialogProvider's; `q` is the one the
-      // page had that a dialog does not get for free.
+      // `escape` and `ctrl+c` are the DialogProvider's.
       { key: "q", cmd: props.onClose },
       { key: "up", cmd: () => scrollBy(-1) },
       { key: "down", cmd: () => scrollBy(1) },
@@ -188,11 +146,7 @@ export function WhatsNewDialogView(props: {
   )
 }
 
-/**
- * Open it. `dialog.replace` rather than `push`: this arrives on boot, before
- * anything else could be on the stack, and it is a single dismissal — there
- * is nothing underneath it to come back to.
- */
+/** `replace`, not `push`: it arrives on boot with nothing underneath to return to. */
 function show(
   dialog: DialogContext,
   opts: { from: string; onClosed: () => void; fetchNotes?: typeof fetchReleaseNotesRange },
@@ -205,9 +159,8 @@ function show(
         {...(opts.fetchNotes ? { fetchNotes: opts.fetchNotes } : {})}
       />
     ),
-    // Fires for every route out — `q`, esc, ctrl+c, a click on the backdrop
-    // — so the host clears its one-shot state exactly once, whichever the
-    // user took.
+    // Fires on every route out (q, esc, ctrl+c, backdrop click), so the host
+    // clears its one-shot state exactly once.
     opts.onClosed,
   )
   dialog.setSize("medium")
@@ -215,14 +168,7 @@ function show(
 
 const WhatsNewDialog = { show }
 
-/**
- * Hand the boot-time "you just upgraded" signal to the dialog stack, once.
- *
- * A hook rather than a call site in the page router because this is no
- * longer a page: `renderFullWindowPage` had it first in its precedence order
- * purely so it could beat the surfaces a chord opens, and a modal outranks
- * all of them by being a modal.
- */
+/** Hand the boot-time "you just upgraded" signal to the dialog stack, once. */
 export function useWhatsNewDialog(
   from: string | null,
   onClosed: () => void,

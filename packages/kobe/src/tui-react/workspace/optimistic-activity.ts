@@ -1,26 +1,16 @@
 /**
- * Optimistic sidebar-activity overlay — kobe hosts the engine terminal, so
- * the keystroke that triggers or interrupts a turn is visible LOCALLY long
- * before the hook→daemon→channel round trip confirms it.
+ * Optimistic sidebar-activity overlay: the keystroke that triggers or
+ * interrupts a turn is visible LOCALLY before the hook round trip confirms it.
  *
- * The two marks are deliberately NOT symmetric, because they are different
- * kinds of claim:
+ * The marks are deliberately asymmetric:
+ * - `running` (enter) is a GUESS about the future; a short TTL self-heals an
+ *   enter on an empty composer.
+ * - `interrupted` (esc) is a FACT about the past: authoritative state stamped
+ *   before it stays suppressed until a newer event. Its TTL is only a memory
+ *   bound, because esc during `/compact` sends no Stop hook, so a decaying
+ *   suppression would resurface the stale `running`.
  *
- * - `running` (enter) is a GUESS ABOUT THE FUTURE — "a turn is probably
- *   starting". It expires on a short TTL, so enter on an empty composer
- *   self-heals with no correcting event.
- * - `interrupted` (esc) is a FACT ABOUT THE PAST — "at time T the user
- *   interrupted". Every authoritative state stamped BEFORE T is therefore
- *   stale evidence, and stays suppressed until a genuinely newer event
- *   arrives. It never decays back into the state it suppressed; its TTL is
- *   only a memory bound.
- *
- * That asymmetry is what handles an engine that never reports a terminal
- * state: esc during `/compact` sends no post-compact and no Stop hook, so a
- * decaying suppression would let the stale `running` entry resurface the
- * moment it expired.
- *
- * No label text is ever derived from a mark — this feeds the ICON only.
+ * Feeds the ICON only; no label text derives from a mark.
  */
 
 import type { TaskEngineState } from "../../client/remote-orchestrator-payloads"
@@ -31,22 +21,13 @@ export type OptimisticMark = { readonly kind: "running" | "interrupted"; readonl
 /** Enter-guess lifetime: hooks usually confirm in <1s; decay if they never do. */
 const RUNNING_TTL_MS = 5_000
 /**
- * Answering a QUESTION is the exception to the short guess TTL.
- *
- * A permission prompt that gets approved ends its turn, so `Stop` arrives and
- * clears the badge. An AskUserQuestion dialog does not: answering it resumes
- * the SAME turn, so no `Stop`, no `UserPromptSubmit` — no event at all — while
- * `permission_needed` is deliberately sticky (the lapse watchdog must not idle
- * a task that genuinely needs a human). Nothing then clears it, and the `?`
- * pins forever on a tab whose engine is already working again.
- *
- * So an enter typed AT a `permission_needed` tab is treated as a fact about
- * the past ("the user answered at time T"), not a 5s guess: it suppresses that
- * stale state until a genuinely newer event supersedes it.
+ * Answering a QUESTION: an AskUserQuestion answer resumes the SAME turn, so no
+ * hook fires, and `permission_needed` is sticky by design. An enter AT such a
+ * tab is therefore a fact ("answered at T") that suppresses the stale state
+ * until a newer event, not a 5s guess.
  */
 const ANSWERED_TTL_MS = 30 * 60_000
-/** Esc-fact lifetime: correctness comes from supersession, this is just a
- *  memory bound so a long-lived pane can't accumulate marks forever. */
+/** Memory bound only; correctness comes from supersession. */
 const INTERRUPTED_TTL_MS = 30 * 60_000
 
 const cell = createStateCell<ReadonlyMap<string, OptimisticMark>>(new Map())
@@ -91,46 +72,30 @@ export function clearOptimisticMark(taskId: string): void {
   cell.set(next)
 }
 
-/**
- * Feed one raw input write from an ENGINE tab's terminal. Enter (a lone
- * `\r` or a paste ending in one) reads as "turn triggered"; a bare esc
- * byte reads as "turn interrupted". Everything else is ignored — note the
- * bare-`\x1b` test excludes arrow keys and other CSI sequences.
- */
+/** One raw ENGINE-tab write: enter (`\r`, or a paste ending in one) = turn
+ *  triggered; a bare `\x1b` (not CSI/arrows) = interrupted. */
 export function noteEngineInput(taskId: string, data: string): void {
   if (data === "\r" || data.endsWith("\r")) put(taskId, "running")
   else if (data === "\x1b") put(taskId, "interrupted")
 }
 
-/**
- * Per-TAB answer marks. Separate from the task-level cell on purpose: the
- * task entry is a last-event-wins rollup, so a sibling tab's activity already
- * moves it off `permission_needed` — the badge that strands is the TAB's, and
- * the task-level overlay cannot reach it. Keyed `taskId::tabId`.
- */
+/** Per-TAB answer marks, keyed `taskId::tabId`: the stranded badge is the
+ *  TAB's, which the last-event-wins task overlay can't reach. */
 const answered = createStateCell<ReadonlyMap<string, number>>(new Map())
 
 export const answeredTabsStore = answered
 
 const tabKey = (taskId: string, tabId: string): string => `${taskId}::${tabId}`
 
-/**
- * The user pressed enter in a tab whose engine was waiting on them. Records
- * WHEN, so any activity the daemon stamped before that moment reads as stale.
- * Only call this when the tab actually shows `permission_needed` — an enter at
- * an idle tab is an ordinary prompt submit and must not suppress anything.
- */
+/** Records WHEN the user answered. Only for a tab showing `permission_needed`:
+ *  an enter elsewhere is an ordinary submit. */
 function noteQuestionAnswered(taskId: string, tabId: string): void {
   const next = new Map(answered.get())
   next.set(tabKey(taskId, tabId), Date.now())
   answered.set(next)
 }
 
-/**
- * One raw write from an engine tab's terminal, routed to both overlays:
- * always the task-level enter/esc guess, plus the per-tab answer mark when
- * this tab is the one waiting on the user.
- */
+/** Routes a write to the task-level mark, plus the answer mark when this tab waits on the user. */
 export function noteEngineTabInput(data: string, taskId: string, tabId: string, tabState?: string): void {
   noteEngineInput(taskId, data)
   if ((data === "\r" || data.endsWith("\r")) && tabState === "permission_needed") {
@@ -138,15 +103,8 @@ export function noteEngineTabInput(data: string, taskId: string, tabId: string, 
   }
 }
 
-/**
- * Drop `permission_needed` from a tab the user has since answered, until the
- * daemon reports something stamped after the answer. Pure.
- *
- * Deliberately narrow: it suppresses ONLY `permission_needed`, and only on the
- * exact tab that was answered. Every other state, and every other tab, passes
- * through untouched — a local guess must never be able to hide a real error or
- * rate-limit badge.
- */
+/** Suppress ONLY `permission_needed` on the exact answered tab until a newer
+ *  event; a local guess must never hide a real error or rate-limit badge. Pure. */
 export function mergeAnsweredTabs(
   tabs: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>,
   marks: ReadonlyMap<string, number>,
@@ -163,14 +121,8 @@ export function mergeAnsweredTabs(
     const perTab = (out ?? tabs).get(taskId)
     const entry = perTab?.get(tabId)
     if (entry?.state !== "permission_needed" || entry.at >= at) continue
-    // Downgrade, never delete. An ABSENT tab entry does not read as "nothing
-    // to show" downstream — `tabRowActivity` hands the row no activity at all,
-    // and the sidebar then draws the dim `·` it reserves for "the daemon has
-    // never reported this tab". So deleting the entry would blank the row of
-    // an engine that is visibly working, for as long as the 30min mark lives.
-    // `idle` is the honest claim: we know the tab
-    // stopped waiting on the user, we just don't know what it is doing now —
-    // which is exactly what the resting `○` says.
+    // Downgrade to `idle`, never delete: an absent entry reads as "never
+    // reported" and would blank a working row for the mark's 30min life.
     const nextTabs = new Map(perTab)
     nextTabs.set(tabId, { ...entry, state: "idle" })
     out ??= new Map(tabs)
@@ -179,8 +131,7 @@ export function mergeAnsweredTabs(
   return out ?? tabs
 }
 
-/** Answer marks the daemon has superseded — the host drops these so the
- *  overlay stays self-cleaning rather than a second source of truth. */
+/** Superseded answer marks; the host drops them so the overlay self-cleans. */
 export function supersededAnswers(
   tabs: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>,
   marks: ReadonlyMap<string, number>,
@@ -251,11 +202,7 @@ export function mergeOptimisticActivity(
   return out ?? auth
 }
 
-/**
- * Marks the given authoritative map has superseded (an event at/after the
- * mark). The host drops these so the overlay stays a thin, self-cleaning
- * layer rather than a second source of truth.
- */
+/** Marks superseded (event at/after the mark); the host drops them so the overlay self-cleans. */
 export function supersededMarks(
   auth: ReadonlyMap<string, TaskEngineState>,
   marks: ReadonlyMap<string, OptimisticMark>,

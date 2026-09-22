@@ -1,37 +1,17 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The first-run welcome — a modal over the real workspace, shown once.
+ * The first-run welcome — a modal over the real workspace, shown once, so
+ * dismissing it leaves the user in the product rather than at a shell prompt.
  *
- * ## Why a modal and not a pre-TUI wizard
+ *   - Questions: completions and the agent skill. Both are re-runnable
+ *     (`rove completions --help`, `rove skill install`), so declining is safe.
+ *   - No environment report: `workspace/welcome-pane.tsx` behind it renders
+ *     the same probe; a copy here could disagree.
+ *   - Keyboard basics as the second page, ending at Settings → Engines.
  *
- * This was an inline wizard that ran INSTEAD of the TUI: `rove` rendered a
- * footer, asked its two questions, printed a summary and exited, and the
- * user typed `rove` again to reach the product. A first run therefore ended
- * at the user's own shell prompt, and the environment report it printed was
- * a second copy of what `workspace/welcome-pane.tsx` already renders in the
- * center column from the same `probeEngines`.
- *
- * It is now a dialog, decided the way `whats-new-dialog.tsx` decided its own
- * shape: a page is right for something you NAVIGATE to and come back from;
- * this is a single dismissal you are handed on boot. As a modal, the
- * workspace the user actually came for is visible behind it, and dismissing
- * it leaves them IN the product rather than back in the shell.
- *
- * ## What it asks, and what it no longer says
- *
- *   - QUESTIONS — completions and the agent skill, unchanged. Both remain
- *     re-runnable later (`rove completions --help`, `rove skill install`),
- *     so declining is always safe.
- *   - ENVIRONMENT — dropped. The welcome pane behind this dialog renders the
- *     same engine/git verdict from the same probe; printing it here too made
- *     three copies of one fact, and the copies had already disagreed once
- *     (see the note in `welcome-pane.tsx` about binary-vs-account).
- *   - KEYBOARD BASICS — kept as the second page, and it still ends by naming
- *     Settings → Engines, which is where the one durable action lives.
- *
- * Applying the answers is split by what each one needs: completions is a
- * filesystem write and happens immediately; the skill installer wants a real
- * terminal, so it is recorded and run after the TUI exits (`cli/welcome.ts`).
+ * Completions is a filesystem write and applies immediately; the skill
+ * installer wants a real terminal, so it runs after the TUI exits
+ * (`cli/welcome.ts`).
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -58,18 +38,14 @@ type WelcomePageKind = "questions" | "keys"
 /** Horizontal padding, matching the What's New card. */
 const PAD_X = 2
 
-/**
- * Exported for the render track; production opens it through
- * {@link useWelcomeDialog}.
- */
+/** Exported for the render track; production opens it via {@link useWelcomeDialog}. */
 export function WelcomeDialogView(props: {
   shell: ShellKind | null
   onDone: (choices: OnboardingChoices) => void
 }): ReactNode {
   const { theme } = useTheme()
   const t = useT()
-  // No shell detected → nothing to hook completions into; ask only about
-  // the skill. The apply layer skips the completions summary line too.
+  // No shell detected → no completions question.
   const steps: readonly StepId[] = props.shell === null ? ["skill"] : ["completions", "skill"]
   const [stepIndex, setStepIndex] = useState(0)
   const [yes, setYes] = useState(true)
@@ -116,9 +92,8 @@ export function WelcomeDialogView(props: {
   }
   const explain = step === "completions" ? t("onboarding.completionsExplain") : t("onboarding.skillExplain")
 
-  // Transcript flow inside the card, no backgrounds: answered questions stay
-  // on screen as one muted line each (question + chosen answer), the active
-  // question flows naturally below them — the npm-create feel, not a form.
+  // Transcript flow: answered questions stay as one muted line each, the
+  // active one below them.
   return (
     <box paddingLeft={PAD_X} paddingRight={PAD_X} gap={1} flexShrink={1}>
       <box flexDirection="column" gap={0} flexShrink={0}>
@@ -198,11 +173,7 @@ export function WelcomeDialogView(props: {
   )
 }
 
-/**
- * Open it. `dialog.replace` rather than `push`, for the reason What's New
- * gives: this arrives on boot, before anything else could be on the stack,
- * and it is a single dismissal — there is nothing underneath to come back to.
- */
+/** `replace`, not `push`: it arrives on boot with nothing underneath to return to. */
 function show(dialog: DialogContext, opts: { shell: ShellKind | null; onDone: (c: OnboardingChoices) => void }): void {
   const settle = (choices: OnboardingChoices): void => {
     opts.onDone(choices)
@@ -210,10 +181,9 @@ function show(dialog: DialogContext, opts: { shell: ShellKind | null; onDone: (c
   }
   dialog.replace(
     () => <WelcomeDialogView shell={opts.shell} onDone={settle} />,
-    // Fires for every route out — esc, ctrl+c, a click on the backdrop — so
-    // a dismissed dialog settles as "declined everything" exactly once,
-    // whichever way the user took. `dialog.clear()` above re-enters here;
-    // `onDone` is idempotent at the host (its one-shot state is already null).
+    // Every route out (esc, ctrl+c, backdrop) settles as "declined
+    // everything". `dialog.clear()` above re-enters here; `onDone` is
+    // idempotent at the host (its one-shot state is already null).
     () => opts.onDone({ completions: false, skill: false }),
   )
   dialog.setSize("medium")
@@ -222,14 +192,8 @@ function show(dialog: DialogContext, opts: { shell: ShellKind | null; onDone: (c
 const WelcomeDialog = { show }
 
 /**
- * Hand the boot-time "this user has never run Rove" signal to the dialog
- * stack, once. Same signature as `useWhatsNewDialog` and mounted beside it:
- * the request plus the host's one-shot clear, nothing else.
- *
- * Recording the answers lives HERE rather than at the call site because it is
- * part of what this dialog does, and the host has no other use for it. The
- * CLI module is reached through a dynamic import so a render-track mount
- * (which never passes a request, so this effect returns early) cannot pull a
+ * Hand the boot-time first-run signal to the dialog stack, once. The CLI
+ * recorder is a dynamic import so a render-track mount can't pull a
  * state-writing module into its graph.
  */
 export function useWelcomeDialog(request: WelcomeRequest | null, onClosed: () => void): void {

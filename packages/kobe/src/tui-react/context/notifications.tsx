@@ -1,13 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Per-ChatTab completion notifications: three signals (audible cue,
- * transient toast, unread tab mark) and their gating. The pure state
- * transforms + the "error toasts always show" invariant live in the shared
- * framework-free `src/tui/lib/notify-state.ts`.
- *
- * Sound/toast toggles are read from KV when a KVProvider is present. Render
- * tests and the mock dialogs host intentionally run without KV, so they fall
- * back to a one-time `state.json` snapshot.
+ * Per-ChatTab completion notifications: sound, toast, unread mark. Pure
+ * transforms and the "error toasts always show" invariant live in
+ * `src/tui/lib/notify-state.ts`. Toggles come from KV, else (render tests,
+ * mock host) a one-time `state.json` snapshot.
  */
 
 import { useRenderer } from "@opentui/react"
@@ -42,8 +38,6 @@ const ctx = createContext<NotificationsContext | null>(null)
 export function NotificationsProvider(props: { children?: ReactNode }) {
   const [toasts, setToasts] = useState<readonly Toast[]>([])
   const [unread, setUnread] = useState<ReadonlyMap<string, NotificationKind>>(new Map())
-  // Read toggles from KV when available; otherwise fall back to the mount-time
-  // snapshot (render tests / mock hosts intentionally omit KVProvider).
   const kv = useOptionalKV()
   const renderer = useRenderer()
   const snapshot = useMemo(() => loadStateFile(), [])
@@ -58,9 +52,7 @@ export function NotificationsProvider(props: { children?: ReactNode }) {
   )
   const counter = useRef(0)
 
-  // Toast auto-dismiss timers are provider-scoped: any still-pending timer
-  // is cleared on unmount so `dismiss()` never fires against a torn-down
-  // tree.
+  // Cleared on unmount so `dismiss()` never fires against a torn-down tree.
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
   useEffect(
     () => () => {
@@ -76,28 +68,21 @@ export function NotificationsProvider(props: { children?: ReactNode }) {
 
   const notify = useCallback(
     (input: NotifyInput): void => {
-      // Always update the unread map — the dot is a passive marker, not an
-      // interruption, so neither toggle gates it. Escalation rule
-      // (needs_input/error outrank done) lives in the shared notify-state.
+      // The unread dot is passive, so neither toggle gates it.
       setUnread((prev) => addUnread(prev, input))
 
-      // Sound gate (BEL + chime + OSC 9 desktop notification). All three are
-      // the same intent (get the user's attention), one toggle. The OSC 9
-      // escape is the SSH-critical one: iTerm2/kitty/WezTerm/Ghostty raise a
-      // native OS notification from it, and it rides the SSH stream to the
-      // user's LOCAL terminal — unlike `afplay`, which rings on the remote box.
-      // Unsupported terminals ignore the unknown OSC silently.
+      // One toggle for BEL + chime + OSC 9. OSC 9 matters over SSH: it rides
+      // the stream to the LOCAL terminal (iTerm2/kitty/WezTerm/Ghostty raise
+      // an OS notification; others ignore it), unlike `afplay`, which rings
+      // on the remote box.
       if ((prefs["notifications.sound.enabled"] as boolean | undefined) !== false) {
-        // Through the renderer, not `process.stdout`: the native render
-        // thread owns fd 1 while `useThread` is on (everywhere but Linux),
-        // so a bare write can interleave with a frame's escape sequences.
-        // Same bytes, defined ordering. See `screen-refresh.ts`.
+        // Through the renderer: its native thread owns fd 1 while `useThread`
+        // is on (all but Linux), so a bare write could split a frame's escapes.
         writeThroughRenderer(renderer, `\x07${osc9(`Rove — ${input.title}`)}`)
         pulseSound()
       }
 
-      // Toast gate — independent of sound; `error` always shows (shared
-      // notify-state invariant).
+      // Independent of sound; `error` always shows.
       const toastEnabled = (prefs["notifications.toast.enabled"] as boolean | undefined) !== false
       if (shouldShowToast(input.kind, toastEnabled)) {
         const id = ++counter.current
@@ -130,9 +115,7 @@ export function useNotifications(): NotificationsContext {
   return value
 }
 
-/** Null instead of throwing, for panes that must also mount in render tests
- *  and mock hosts (which intentionally omit the provider) — the same escape
- *  hatch `useOptionalKV` gives the KV store. */
+/** Null instead of throwing, for panes that also mount in render tests and mock hosts. */
 export function useOptionalNotifications(): NotificationsContext | null {
   return useContext(ctx)
 }

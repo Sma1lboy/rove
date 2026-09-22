@@ -1,25 +1,14 @@
 /**
- * Scrollback search for the terminal pane: the `/` query row, its keystroke
- * capture, the walk between hits, and the viewport moves both of those need.
+ * Scrollback search for the terminal pane. A hit IS a `SelectionRange`,
+ * painted through the selection's chunk splitter.
  *
- * Its own hook for the reason `use-terminal-selection.ts` is one — it reads
- * the snapshot buffer and paints over it, and nothing else in the pane reads
- * its state. It borrows rather than re-derives: a hit IS a `SelectionRange`,
- * and `overlayMatches` paints it through the same chunk splitter the
- * selection highlight uses.
+ * The query is captured by a RAW keypress listener (no focusable `<input>`
+ * here); it never sees a chord the dispatcher already `preventDefault`ed.
+ * `keys.ts` keeps the query out of the PTY by switching passthrough off.
  *
- * The query is captured with a RAW renderer keypress listener, exactly like
- * the sidebar's `/` (`panes/sidebar/use-tree-search.ts`): this pane has no
- * focusable opentui `<input>` to put a cursor in, and a raw listener
- * registered after the keymap dispatcher never sees a chord that already
- * `preventDefault`ed. What keeps the typed query out of the PTY is separate
- * — `keys.ts` switches the pane's whole passthrough off while `active`.
- *
- * The viewport is moved through `moveViewportScroll`, not by setting an
- * offset, so a jump to a hit is anchored to its absolute line id the same way
- * a `ctrl+pgup` is: output streaming in underneath does not slide the view off
- * the match. `esc` restores the `ViewportScrollState` captured at open for the
- * same reason — an offset would land somewhere else after 200 new lines.
+ * Moves go through `moveViewportScroll`, anchored to absolute line ids, so
+ * streaming output doesn't slide the view off a match; `esc` restores the
+ * `ViewportScrollState` captured at open for the same reason.
  */
 
 import { type KeyEvent, type PasteEvent, decodePasteBytes } from "@opentui/core"
@@ -76,7 +65,7 @@ export interface TerminalSearch {
   readonly close: () => void
   /** +1 walks toward newer output, -1 toward older. Both wrap. */
   readonly step: (delta: 1 | -1) => void
-  /** Overlay the visible hits onto a rendered window. Reference-stable per (matches, index, theme). */
+  /** Reference-stable per (matches, index, theme). */
   readonly paint: (
     rows: readonly (readonly Chunk[])[],
     firstRow: number,
@@ -87,22 +76,15 @@ export interface TerminalSearch {
 export function useTerminalSearch(opts: UseTerminalSearchOpts): TerminalSearch {
   const [active, setActive] = useState(false)
   const [query, setQuery] = useState("")
-  // The parked hit is stored by IDENTITY, not by array position — `matches` is
-  // rebuilt every PTY frame and a scrollback trim renumbers it. `index` is
-  // re-derived from it below, so the counter and the accent highlight name the
-  // occurrence the user actually walked to.
+  // Parked hit by IDENTITY: `matches` is rebuilt every frame and a trim renumbers it.
   const [parked, setParked] = useState<ParkedHit | null>(null)
   const { theme } = useTheme()
   const optsRef = useLatest(opts)
 
-  // Derived, not stored: a shell that launches `vim` while the row is open
-  // must switch to the refusal on that frame, not keep searching one screen
-  // of somebody else's redraw.
+  // Derived, not stored: launching `vim` mid-search must switch to the refusal that frame.
   const unavailable = active && opts.onAlternateScreen
 
-  // Scanned only while the row is open. The snapshot is replaced on every PTY
-  // frame, so an always-on memo would re-walk the whole ring for each line of
-  // streaming output — for a query nobody typed.
+  // Only while open: the snapshot changes every frame, so an always-on scan re-walks the ring.
   const matches = useMemo(
     () => (active && !unavailable ? findMatches(opts.snapshot, query, opts.wrapped) : NO_MATCHES),
     [active, unavailable, opts.snapshot, opts.wrapped, query],
@@ -122,9 +104,7 @@ export function useTerminalSearch(opts: UseTerminalSearchOpts): TerminalSearch {
     setScrollState(moveViewportScroll(scrollState, snapshot.length, bodyRows, current - target, snapshotWindow))
   }, [])
 
-  // Bookmarked at open, restored on close. A STATE, not an offset: it carries
-  // the epoch + top line, so `esc` lands back on the line you left even when
-  // the buffer grew while you searched. A ref, because nothing renders it.
+  // A STATE (epoch + top line), not an offset, so `esc` survives buffer growth.
   const bookmarkRef = useRef<ViewportScrollState | null>(null)
 
   const open = useCallback((): void => {
@@ -147,8 +127,7 @@ export function useTerminalSearch(opts: UseTerminalSearchOpts): TerminalSearch {
     (delta: 1 | -1): void => {
       const list = matchesRef.current
       if (list.length === 0) return
-      // No hit parked yet: `enter` (older) starts at the last, `↓` (newer) at
-      // the first — both land on an end of the list rather than nowhere.
+      // Nothing parked: older starts at the last hit, newer at the first.
       const from = indexRef.current < 0 ? (delta > 0 ? -1 : 0) : indexRef.current
       const next = (((from + delta) % list.length) + list.length) % list.length
       setParked(parkHit(list, next, optsRef.current.snapshotWindow))
@@ -157,11 +136,8 @@ export function useTerminalSearch(opts: UseTerminalSearchOpts): TerminalSearch {
     [jumpToRow],
   )
 
-  // A scrollback is read newest-first — the occurrence you want is nearly
-  // always the last one — so every new query parks on it and `enter` walks
-  // back through history from there. Keyed on the QUERY and not on `matches`:
-  // the array is rebuilt on every PTY frame, and re-parking then would yank
-  // the viewport off the hit you had walked to.
+  // Each new query parks on the newest hit. Keyed on the QUERY, not `matches`
+  // (rebuilt every frame), or the viewport would be yanked off a walked hit.
   // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the typed query; `matches` is re-derived per frame and must not re-trigger.
   useEffect(() => {
     if (!active) return
@@ -174,8 +150,7 @@ export function useTerminalSearch(opts: UseTerminalSearchOpts): TerminalSearch {
   useEffect(() => {
     if (!active || !renderer) return
     const listener = (evt: KeyEvent): void => {
-      // Raw listener: it bypasses dispatch, so it honors the dialog overlay's
-      // modal barrier itself — same contract as the pane's IME catch-all.
+      // Raw listener bypasses dispatch, so it honors the modal barrier itself.
       if (!optsRef.current.focused || modalActive()) return
       setQuery((current) => searchQueryKeystroke(current, evt) ?? current)
     }
@@ -193,9 +168,7 @@ export function useTerminalSearch(opts: UseTerminalSearchOpts): TerminalSearch {
     }
   }, [active, renderer])
 
-  // The current hit paints accent-on-background; the others keep the
-  // selection's inverse video. Two inverse blocks would be indistinguishable,
-  // and "which one am I on" is the whole point of walking them.
+  // The current hit is accent, the rest inverse, so "which one am I on" is visible.
   const hitPaint = useMemo(() => {
     const [ar, ag, ab] = theme.accent.toInts()
     const [br, bg, bb] = theme.background.toInts()

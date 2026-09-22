@@ -1,35 +1,18 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Workspace terminal tabs. The PTY-world chattab: a strip of engine-terminal
- * tabs above the embedded Terminal pane; every tab runs the user's SHELL in
- * its own PTY (registry key `${taskId}::${tabId}`) with the interactive engine
- * command TYPED into it (`shellSpawn`), so ctrl+t gives a parallel session in
- * the same worktree. Plain ctrl+t opens the preferred engine
- * (`resolvePreferredVendor`); ctrl+e prompts for one instead
- * (`chat.tab.chooseEngine`), pins it to that tab via `TerminalTab.vendor`,
- * and records the pick as the project's new default.
+ * Workspace terminal tabs. Every tab runs the user's SHELL in its own PTY
+ * (key `${taskId}::${tabId}`) with the engine command TYPED into it
+ * (`shellSpawn`). ctrl+t opens the preferred engine; ctrl+e prompts for one,
+ * pins it via `TerminalTab.vendor`, and records it as the project default.
+ * Chords: ctrl+t new · ctrl+e new-with-engine · ctrl+w close · F2 rename ·
+ * ctrl+]/[ cycle. Tab state lives in `terminal-tabs-shared.ts` (shared with
+ * non-mounted writers), so task switches preserve tabs.
  *
- * Chords reuse the canonical chattab binding ids: ctrl+t new · ctrl+e
- * new-with-engine · ctrl+w close · F2 rename · ctrl+]/[ cycle.
- * Per-task tab state lives in the module-level map owned by
- * `terminal-tabs-shared.ts` (shared with non-mounted writers like the
- * kanban issue-start paths), so switching tasks and back preserves each
- * task's tabs — their PTYs already survive via the registry's
- * acquire-reuse.
- *
- * Freshness rule: `stateRef` mirrors the live state and `update()` refreshes
- * it SYNCHRONOUSLY on every write. This matters for the two places multiple
- * `update()` calls land within one JS tick without an intervening render —
- * the restart-hydration `Promise.all` and the naming-poll's per-candidate
- * loop — where a plain destructured `state` variable goes stale mid-loop and
- * a later `update()` clobbers an earlier one's change. `propsRef` gives the
- * same freshness to props read inside the two mount-only, forever-lived
- * effects (the naming-poll interval, the hydration verification) — both run
- * ONCE (`useEffect(..., [])`), so anything they read must come through a ref,
- * not a captured render-time value. Everywhere else reads the plain
- * `state`/`props`, recreated fresh every render.
- * `onEditorTabReady`/`onEngineSendReady` hand their callback to the parent
- * once per mount, re-fired on remount.
+ * Freshness rule: `update()` refreshes `stateRef` SYNCHRONOUSLY, because the
+ * hydration `Promise.all` and the naming-poll loop issue several updates in
+ * one tick; a destructured `state` would clobber earlier ones. `propsRef`
+ * does the same for the two mount-only effects (naming poll, hydration
+ * verification). `on*Ready` hand their callback to the parent once per mount.
  */
 
 import { engineLaunchArgv, withPinnedSessionId } from "@/engine/engine-presets"
@@ -91,53 +74,39 @@ export interface TerminalTabsProps {
   worktree: string
   repo?: string
   taskKind?: "main" | "task" | "dir"
-  /** Scratch temp shell task: tab-1 spawns as a BARE SHELL
-   *  instead of an engine, and the last tab's shell exiting deletes the
-   *  task outright (zero-ceremony lifecycle) via `onScratchExit` instead
-   *  of recycling into a fresh engine tab. */
+  /** Scratch task: tab-1 is a BARE SHELL, and the last shell exiting deletes
+   *  the task via `onScratchExit` instead of recycling into an engine tab. */
   scratch?: boolean
   /** The scratch task's last shell exited — the host deletes the task row. */
   onScratchExit?: () => void
-  /** ctrl+e's trailing "scratch shell" choice — open a Scratch temp shell
-   *  task. This menu entry is the only entry point; there is no chord. */
+  /** ctrl+e's "scratch shell" choice; the only entry point, no chord. */
   onOpenScratch?: () => void
   command: readonly string[]
-  /** Task's current engine + effort — builds a per-tab command when a tab
-   *  pins its own vendor via `chooseEngine`. */
+  /** Task's engine; builds a per-tab command when a tab pins its own vendor. */
   vendor: VendorId
   modelEffort?: string
   /** Best-effort: persist the picked vendor as the task's new default. */
   onChooseEngine?: (vendor: VendorId) => void
-  /** Hands the parent an imperative "open this file in the editor tab"
-   *  function, once per mount (see file header). */
+  /** Parent gets an "open this file in the editor tab" function. */
   onEditorTabReady?: (open: (command: readonly string[], label: string) => void) => void
-  /** Hands the parent an imperative "paste this into the active engine tab
-   *  and submit" function, once per mount (see file header). */
+  /** Parent gets a "paste into the active engine tab and submit" function. */
   onEngineSendReady?: (send: (text: string) => boolean) => void
   /** Paste-only sibling of `onEngineSendReady` (no submit) — the FileTree `a` @path mention. */
   onEnginePasteReady?: (paste: (text: string) => boolean) => void
-  /** Hands the parent an imperative "open this file's read-only diff in a
-   *  content tab" function, once per mount — the FileTree `d` action.
-   *  Opening is a content swap, not a focus grab. */
+  /** Parent gets an "open read-only diff tab" function (FileTree `d`); a
+   *  content swap, not a focus grab. */
   onDiffTabReady?: (open: (relPath: string, label: string, base?: string) => void) => void
-  /** Quick-fork: the composer submitted — parent creates the
-   *  child task (in `repo`, the source task's main repo root) and jumps in. */
+  /** Quick-fork submitted: parent creates the child in `repo` (the source's main repo root). */
   onQuickFork?: (repo: string, result: QuickTaskResult) => void
-  /** Quick-fork phase 2: a prompt auto-delivered to this task's first
-   *  engine tab. Rides the engine argv as a positional arg on that tab's
-   *  FIRST spawn (`engineTabSpawn`) — once the session has spawned or
-   *  conversed it never re-applies. */
+  /** Prompt for the first engine tab, riding its FIRST spawn's argv only. */
   initialPrompt?: string
-  /** This task's slice of the daemon's per-tab `engine-state` push —
-   *  hook-wins over the quiescence poll (see `use-tab-turn-state`). */
+  /** Daemon per-tab `engine-state`; wins over the quiescence poll. */
   hookTabStates?: ReadonlyMap<string, HookTabState>
   /** Task title — background-toast context line (under the tab label). */
   taskTitle?: string
-  /** The user landed on a tab (switch or mount) — the host resolves any
-   *  pending Inbox episode targeting it. */
+  /** User landed on a tab; the host resolves Inbox episodes targeting it. */
   onTabVisited?: (tabId: string) => void
-  /** Confirmed ESC interrupt on a hook-running tab — the host
-   *  reports `turn-interrupted` to the daemon. */
+  /** Confirmed ESC interrupt; the host reports `turn-interrupted`. */
   onEngineInterrupt?: (tabId: string) => void
   focused: boolean
   /** Ask the host to focus the workspace pane (terminal click). */
@@ -152,8 +121,6 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   const t = useT()
   const persistKey = terminalTabsKey(props.taskId)
 
-  // Latest-render mirror — read inside the two mount-only forever-lived
-  // effects below (see file header).
   const propsRef = useLatest(props)
 
   /** Pin a fresh engine-session id on the just-created active engine tab. */
@@ -163,21 +130,15 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     return setTabSessionId(s, s.activeId, sessionId)
   }
 
-  // Flips true when initState rehydrated from disk — those tabs' `spawned`
-  // flags are up to 5s stale and must be re-verified against the real
-  // transcripts before anything spawns. A ref (not a plain render-scope
-  // `let`) so it survives past the one `useState` lazy-init call.
+  // True when rehydrated from disk: `spawned` flags are up to 5s stale and
+  // must be re-verified before anything spawns.
   const rehydratedRef = useRef(false)
   const initState = (): TabsState => {
     const existing = tabsByTask.get(props.taskId)
     if (existing) return existing
-    // Restart survival: rehydrate the persisted tab snapshot
-    // before falling back to a fresh single tab.
     const saved = kv.get(persistKey, null) as TabsState | null
     const fromDisk = saved && Array.isArray(saved.tabs) ? rehydrateTabs(saved, [defaultShell()]) : null
     rehydratedRef.current = fromDisk !== null
-    // A scratch task's first tab is a BARE SHELL — the task IS
-    // the shell; an engine only appears if the user types one.
     const fresh =
       fromDisk ?? (props.scratch === true ? initialShellTabs(defaultShell()) : pinSession(initialTabs(), undefined))
     tabsByTask.set(props.taskId, fresh) // silent: render phase, see setTaskTabs
@@ -195,12 +156,9 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     kv.set(persistKey, next)
   }
 
-  // Cross-component tab requests (activation / pane open+close / close /
-  // adopt) are consumed by `useTabRequests` below — it needs these refs.
   const updateRef = useLatest(update)
 
-  /** The active tab's focused-leaf emulator cells — feeds split-core's size
-   *  gate. Ref-reads only; null (no PTY yet) → depth-cap fallback. */
+  /** Focused-leaf emulator cells for split-core's size gate; null → depth-cap fallback. */
   const activeLeafSize = (): { cols: number; rows: number } | null => {
     const s = stateRef.current
     const tab = s.tabs.find((x) => x.id === s.activeId)
@@ -209,15 +167,11 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     const key = splitLeafPtyKey(tabPtyKeyFor(propsRef.current.taskId, tab), leafId)
     return getDefaultPtyRegistry().get(key)?.size ?? null
   }
-  // Latest-render mirror for the mount-once request-consume closure.
   const activeLeafSizeRef = useLatest(activeLeafSize)
 
-  /** Engine-tab spawn: the composition (shell wrap + resume-vs-pin +
-   *  first-spawn initial prompt) is pure — `engineTabSpawnFor`;
-   *  this closure only supplies the IO reads (registry liveness, props). */
+  /** Supplies IO reads to the pure `engineTabSpawnFor`. */
   const engineTabSpawn = (tab: EngineTab): TabSpawn => {
-    // A tab's own pinned command/protocol wins; otherwise it inherits the
-    // task's already-resolved launch argv (props.command).
+    // A tab's pinned command wins over the task's launch argv.
     const base =
       tab.engineCommand || tab.vendor
         ? engineLaunchArgv({ command: tab.engineCommand, vendor: tab.vendor, effort: props.modelEffort })
@@ -236,20 +190,16 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
       worktreePath: props.worktree,
     })
   }
-  // Latest-render mirror for the mount-once engine-send closure — same freshness convention as propsRef/stateRef (file header).
   const engineTabSpawnRef = useLatest(engineTabSpawn)
 
-  /** Nudge Terminal to re-acquire under the CURRENTLY visible tab's key —
-   *  see the `resetToken` doc on `Terminal.tsx`. */
+  /** Re-acquire under the visible tab's key (see `resetToken` on `Terminal.tsx`). */
   const [resetToken, setResetToken] = useState(0)
 
   /* --------- restart resume verification — mount-only ------------------- */
   const hydrating = useTabHydration(rehydratedRef.current, { stateRef, propsRef, update })
 
-  // Parent handoffs — the once-per-mount work, in use-tab-handoffs.ts apart
-  // from the per-render hooks below. The quick-fork initial prompt needs no
-  // delivery effect: it rides the first spawn (argv, or firstMessage paste
-  // for paste-delivery vendors — engineTabSpawn).
+  // Once-per-mount parent handoffs. The quick-fork prompt needs no delivery
+  // effect: it rides the first spawn.
   const { sendToEngine } = useTabHandoffs({
     stateRef,
     propsRef,
@@ -258,9 +208,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     bumpResetToken: () => setResetToken((n) => n + 1),
   })
 
-  // Warm one spare shell for this worktree in the pty host so the next
-  // engine/shell tab adopts an already-initialized shell (rc files done)
-  // instead of paying shell startup. Best-effort fire-and-forget.
+  // Warm a spare shell so the next tab skips shell startup. Best-effort.
   useEffect(() => {
     warmHostedShell(props.worktree)
   }, [props.worktree])
@@ -283,9 +231,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     onEngineInterrupt: props.onEngineInterrupt,
   })
 
-  // Visiting a tab clears its unread mark (toast already auto-dismisses)
-  // and reports the visit upstream — the host resolves any pending Inbox
-  // episode targeting this tab (visited = handled, no explicit open needed).
+  // Visiting clears the unread mark and reports upstream (visited = handled).
   // biome-ignore lint/correctness/useExhaustiveDependencies: fires only on a real activeId transition; `notif`/`taskId` are stable for this component's lifetime.
   useEffect(() => {
     notif.markRead(props.taskId, state.activeId)
@@ -296,11 +242,9 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     active.kind === "command"
       ? {
           command: active.command,
-          // A BARE shell tab (ctrl+e "shell" pick — the tab IS the user's
-          // shell, no editor purpose) gets the identity export typed in, so
-          // a user-typed engine's hooks report tab-precise events +
-          // sessionId. Editor/one-off command tabs skip it (meaningless for
-          // nvim, and the argv isn't a prompt to type into).
+          // A BARE shell tab gets the identity export typed in, so a
+          // user-typed engine's hooks report tab-precise events. Editor and
+          // one-off command tabs skip it.
           ...(active.purpose !== "editor" && active.command.length === 1 && active.command[0] === defaultShell()
             ? { initialInput: shellIdentityInput(props.taskId, active.id) }
             : {}),
@@ -311,14 +255,11 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           { command: [] }
         : engineTabSpawn(active)
 
-  /** Engine tabs whose dead-on-attach resume was already attempted — one
-   *  shot per tab, so a `--resume` that itself dies closes normally instead
-   *  of respawning forever. Owned here (not in `useTabClose`) so the marks
-   *  survive that hook being rebuilt every render. */
+  /** Tabs whose dead-on-attach resume was tried: one shot, so a dying
+   *  `--resume` closes instead of looping. Here so it survives re-renders. */
   const resumeTriedRef = useRef(new Set<string>())
 
-  // Tab teardown — ctrl+w, close-from-the-tree, process exit, and the exit
-  // policy above them: one hook (use-tab-close.ts) so the four stay one rule.
+  // All tab teardown paths share one rule in use-tab-close.ts.
   const tabClose = useTabClose({
     stateRef,
     propsRef,
@@ -331,12 +272,9 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
       notif.notify({ kind: "error", taskId: props.taskId, tabId, title: t("terminal.tab.cannotCloseLast") }),
     onScratchExit: props.scratch === true ? props.onScratchExit : undefined,
   })
-  // The pending-close listener is mount-only, so it reaches the CURRENT hook
-  // through a ref rather than the one from its first render.
+  // The mount-only pending-close listener reads the CURRENT hook via ref.
   const tabCloseRef = useLatest(tabClose)
 
-  // Rename + the unified new-conversation dialog — the flows that
-  // ASK the user something (use-tab-dialogs.ts); per render for freshness.
   const { requestRename, requestNewChat } = useTabDialogs({
     dialog,
     t,
@@ -357,12 +295,8 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
 
   const requestNewChatRef = useLatest(requestNewChat)
 
-  // Cross-component requests aimed at this task: F7 activation, plugin-pane
-  // open/close, the sidebar menu's new-conversation / new-shell / close, and
-  // adoption of unregistered live sessions. Declared AFTER the dialogs hook
-  // so the picker opener exists to hand over — the listener is mount-only and
-  // reads it through the ref, so render order is the only ordering that
-  // matters.
+  // Cross-component tab requests. Declared AFTER the dialogs hook so the
+  // picker opener exists to hand over.
   useTabRequests({
     stateRef,
     propsRef,
@@ -372,10 +306,8 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     requestNewChatRef,
   })
 
-  /** What a plain ctrl+t tab should run — the full preference chain.
-   *  Always CONCRETE: the tab pins the vendor it actually spawns. An
-   *  "inherit" mode (undefined when equal to the task engine) would let a
-   *  later task-vendor switch relabel and re-target every earlier tab. */
+  /** What ctrl+t runs. Always CONCRETE: an "inherit" mode would let a later
+   *  task-vendor switch re-target every earlier tab. */
   const preferredTabVendor = (): VendorId => {
     try {
       return resolvePreferredVendor(resolveMainRepoRoot(props.worktree))
@@ -391,10 +323,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
         const preferred = preferredTabVendor()
         update(pinSession(addTab(state, preferred), preferred))
       },
-      // One dialog, three entries: ctrl+e opens it pristine,
-      // the prefix chords open it with a toggle pre-flipped — c dials
-      // context to "continue this conversation", f dials destination to
-      // "fork a child task worktree".
+      // One dialog: prefix c/f open it with continue/fork pre-flipped.
       "chat.tab.chooseEngine": () => requestNewChat(),
       "chat.tab.fork": prefixAction(() => requestNewChat({ context: "continue" })),
       "chat.tab.cycle-next": () => update(cycleTab(state, 1)),
@@ -403,19 +332,15 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     }),
   }))
 
-  // ctrl+w / F2 share chords with TerminalSplit's leaf-level close/rename.
-  // In React the keymap stack puts ANCESTORS on top (mount effects
-  // run children-first — see keymap.ts), so these tab-level entries would
-  // always shadow the split ones. Gate them off while the active tab is
-  // actually split (>1 leaf) so the chords fall through the LIFO stack to
-  // the leaf bindings: precedence comes from the gate, not from mount order.
+  // ctrl+w / F2 are shared with TerminalSplit's leaf bindings, and ANCESTORS
+  // sit on top of the keymap stack (effects run children-first). Gated off
+  // while split so the chords reach the leaf.
   const activeIsSplit = isTabSplit(active.splitTree)
   const spawn = activeSpawn()
   useBindings(() => ({
     enabled: props.focused && !activeIsSplit,
     bindings: bindByIds({
-      // prefixAction so the prefix HUD's clickable option resolves too —
-      // the mouse path needs `action`, not just `cmd`.
+      // The HUD's mouse path needs `action`, not just `cmd`.
       "chat.tab.close": prefixAction(() => tabClose.closeActive()),
       "chat.tab.rename": requestRename,
     }),
@@ -442,17 +367,14 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           <text fg={theme.textMuted}>{t("terminal.restoring")}</text>
         </box>
       ) : active.kind === "content" ? (
-        // Read-only diff/preview tab — the shared PreviewScreen,
-        // no PTY. `onClose` (q/esc) closes THIS tab instead of exiting the
-        // process (the standalone entrypoint keeps the process.exit default).
+        // No PTY; `onClose` closes THIS tab rather than exiting.
         <PreviewScreen
           worktree={props.worktree}
           relPath={active.relPath}
           base={active.base}
           focused={props.focused}
           onClose={() => tabClose.closeExited(active.id)}
-          // Line-anchored review notes: per-task, kv-persisted, sent to the
-          // engine session over the same PTY paste path as the PR prompt.
+          // Per-task, kv-persisted notes, sent over the PTY paste path.
           review={buildDiffReview(kv, props.taskId, sendToEngine)}
         />
       ) : (
@@ -477,8 +399,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           resetToken={resetToken}
           focused={props.focused}
           onRequestFocus={props.onRequestFocus}
-          // Engine leaf name = the tab's first-prompt title (title ?? auto),
-          // NOT the "group N" fallback.
+          // Not the "group N" fallback.
           engineTitle={active.title ?? active.autoTitle ?? null}
         />
       )}

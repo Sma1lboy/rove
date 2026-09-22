@@ -1,16 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The workspace host's full-page swaps, in one place.
- *
- * Each of these replaces the whole workspace rather than layering over it, so
- * they were a run of early-returns at the top of `host.tsx`'s render. That is
- * the seam: "which surface occupies the window" is one decision, and it is a
- * different question from how the normal workspace lays out its rails. Six of
- * them is enough to be its own thing, and a seventh belongs here too.
- *
- * Order is the precedence order: the first open page wins. That matters only
- * in theory (the keybinding gate stops a second page opening over a first),
- * but keeping it explicit means a future page can't silently shadow one.
+ * The workspace host's full-page swaps: "which surface occupies the window".
+ * Order is precedence (first open page wins), explicit so a future page
+ * can't silently shadow one.
  */
 
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react"
@@ -38,36 +30,19 @@ interface HostPageState {
   readonly updateOpen: boolean
 }
 
-/**
- * The one-shot dialogs a launch can owe the user, resolved at the process
- * entry point and handed down. Both touch `state.json`, so neither may be
- * decided in the render track; they are mutually exclusive in practice (What's
- * New needs a stamp from an older build, the welcome needs no stamp at all).
- */
+/** One-shot launch dialogs, resolved at the process entry point: both touch
+ *  `state.json`. Mutually exclusive (older stamp vs no stamp). */
 export interface BootDialogs {
   readonly whatsNewFrom?: string | null
   readonly welcome?: WelcomeRequest | null
 }
 
 export interface HostPagesState extends HostPageState {
-  /**
-   * Version the user upgraded FROM when this launch owes them a What's New,
-   * else null. Not a boolean: the dialog needs the range to fetch, and
-   * "which range" and "is it open" are the same fact.
-   *
-   * Lives on the PAGES state rather than the page-router state because
-   * What's New is a modal now, not a page: the host hands it to the dialog
-   * stack (`useWhatsNewDialog`) and the router never sees it.
-   */
+  /** Version upgraded FROM when What's New is owed, else null (the dialog
+   *  needs the range). A modal on the dialog stack, not a routed page. */
   readonly whatsNewFrom: string | null
   readonly closeWhatsNew: () => void
-  /**
-   * The first-run welcome this launch owes the user, else null. Mirrors
-   * {@link whatsNewFrom} in every respect — resolved at the process entry
-   * point because the decision touches `state.json`, handed to the dialog
-   * stack rather than the page router, and mutually exclusive with it (one
-   * fires only with an older stamp, the other only with no stamp at all).
-   */
+  /** The owed first-run welcome, else null; mirrors {@link whatsNewFrom}. */
   readonly welcome: WelcomeRequest | null
   readonly closeWelcome: () => void
   readonly nav: SidebarNav
@@ -90,32 +65,21 @@ export interface HostPagesState extends HostPageState {
 }
 
 /**
- * Which surface the workspace shows — extracted from `host.tsx` (file-size
- * cap) into the module that renders those surfaces.
+ * Which surface the workspace shows. Settings / Worktrees / Update are full
+ * swaps; the rail's pages are ONE `nav` value (separate booleans could
+ * represent "two open").
  *
- * Settings / Worktrees / Update are full swaps with their own booleans. The
- * rail's pages (kanban/automations/issues) are ONE `nav` value — three
- * independent booleans allowed "kanban and automations both open", a state
- * the rail cannot represent and no key can reach.
- *
- * Opening a rail page moves focus INTO the content pane (`goToNav`), and
- * leaving hands it back. Without this the page renders but its keys stay
- * dead — they are gated on the content pane being focused, so `n` fell
- * through to the sidebar's new-task chord while the Automations page sat
- * there telling the user to press `n`.
+ * Opening a rail page moves focus INTO the content pane (`goToNav`): its keys
+ * are gated on that focus, else they fall through to sidebar chords.
  */
 export function useHostPagesState(
   focus: FocusContextValue,
-  /**
-   * Resolved by the process entry point (`tui/index.tsx`), not read here:
-   * the decision touches `state.json`, and this hook mounts in the render
-   * track, where a stray write lands in the operator's real home.
-   */
+  /** Resolved by `tui/index.tsx`, not here: this hook mounts in the render
+   *  track, where a `state.json` write lands in the operator's real home. */
   opts: BootDialogs = {},
 ): HostPagesState {
   const [whatsNewFrom, setWhatsNewFrom] = useState<string | null>(opts.whatsNewFrom ?? null)
-  // Stable identity: the dialog opener takes this as an effect dependency,
-  // and a fresh closure every render would re-run it on every host render.
+  // Stable: the dialog opener's effect depends on it.
   const closeWhatsNew = useCallback(() => setWhatsNewFrom(null), [])
   const [welcome, setWelcome] = useState<WelcomeRequest | null>(opts.welcome ?? null)
   const closeWelcome = useCallback(() => setWelcome(null), [])
@@ -165,18 +129,13 @@ export interface HostPageDeps extends HostPageState {
   readonly closeKanban: () => void
   readonly closeUpdate: () => void
   readonly activateTask: (taskId: string) => void
-  /** True while the content pane holds focus — rail pages share the window
-   *  with the sidebar, so their bare keys are gated on it. */
+  /** Content pane focused; rail pages gate their bare keys on it. */
   readonly contentFocused: boolean
   readonly startIssueChat: Parameters<typeof KanbanPage>[0]["onStartChat"]
   readonly engineStates: Parameters<typeof KanbanPage>[0]["engineStates"]
 }
 
-/**
- * FULL-WINDOW pages — Worktrees and Update replace everything, sidebar
- * included. They are reached by their own chords, not by the rail, and have
- * no task list to stay beside.
- */
+/** FULL-WINDOW pages (Worktrees, Update) replace everything, sidebar included. */
 export function renderFullWindowPage(deps: HostPageDeps): ReactNode | null {
   if (deps.worktreesOpen) {
     return <WorktreesPage orchestrator={deps.orchestrator} onClose={deps.closeWorktrees} />
@@ -187,11 +146,7 @@ export function renderFullWindowPage(deps: HostPageDeps): ReactNode | null {
   return null
 }
 
-/**
- * CONTENT-PANE pages — what the sidebar rail swaps. The task list stays
- * visible beside these, which is how selecting a task returns to its
- * terminal.
- */
+/** CONTENT-PANE pages the rail swaps; the task list stays beside them. */
 export function renderContentPage(deps: HostPageDeps): ReactNode | null {
   const orch = deps.orchestrator
 
@@ -216,8 +171,7 @@ export function renderContentPage(deps: HostPageDeps): ReactNode | null {
         orchestrator={orch}
         focused={deps.contentFocused}
         onClose={deps.closeWorkItems}
-        // Opens pointed at the selected task's project, the same way the
-        // kanban does — the page you wanted is almost always this one's.
+        // Opens on the selected task's project, like the kanban.
         {...(deps.selectedTask ? { focusRepo: deps.selectedTask.repo } : {})}
         onOpenTask={(taskId) => {
           deps.closeWorkItems()
@@ -265,28 +219,16 @@ export interface UseHostPagesRenderOpts {
 }
 
 export interface UseHostPagesRenderResult {
-  /** The settings full-window page, if open. */
   settingsPage: ReactNode | null
-  /** Full-window pages (worktrees/update) or null. */
   fullWindowPage: ReactNode | null
-  /** Rail content-pane pages or null. */
   contentPage: ReactNode | null
-  /** Whether the sidebar should render in the current layout. */
   showSidebar: boolean
-  /** Whether the content pane should render in the current layout. */
   showContent: boolean
   /** "↩ recent" jump target for narrow mode. */
   recentTask: Task | null
 }
 
-/**
- * Page-render + layout decisions for the workspace host.
- *
- * `pageDeps`, the full-window/content-page render calls, the narrow-mode
- * surface decision, and the settings standalone page all serve one concern:
- * deciding which surface occupies the workspace. Keeping them together is
- * what spares `host.tsx` from threading every dependency through `pageDeps`.
- */
+/** Page-render + layout decisions: which surface occupies the workspace. */
 export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRenderResult {
   const {
     orchestrator,
@@ -330,9 +272,7 @@ export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRe
   const fullWindowPage = useMemo(() => renderFullWindowPage(pageDeps), [pageDeps])
   const contentPage = useMemo(() => renderContentPage(pageDeps), [pageDeps])
 
-  // Narrow hides the files pane entirely, so a focus stranded there (a
-  // resize below the breakpoint mid-session) falls back to the workspace —
-  // otherwise plain keys would land in an unmounted pane.
+  // Narrow hides the files pane, so focus stranded there falls back to the workspace.
   const narrow = isNarrowWidth(dims.width)
   useEffect(() => {
     if (narrow && focus.focused === "files") focus.setFocused("workspace")

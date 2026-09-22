@@ -1,13 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * `kobe ops --preview <rel>`. Data + syntax-style mapping are the shared
- * `tui/ops/preview-core.ts` / `preview-syntax.ts`. Loading follows THE ASYNC
- * CANON (`src/tui-react/history/host.tsx`): `useState` + a dependency-keyed
- * `useEffect` whose stale completions are dropped by an effect-local
- * `disposed` flag. `r` bumps a reload tick: the standalone `rove ops
- * --preview` window really is immutable for its lifetime, but the workspace
- * diff tab is meant to stay open while the engine works (docs/TUI.md), so its
- * hunks go stale under you with no way to ask for the current ones.
+ * `kobe ops --preview <rel>`. Loading follows THE ASYNC CANON
+ * (`src/tui-react/history/host.tsx`): a dependency-keyed `useEffect` whose
+ * stale completions an effect-local `disposed` flag drops. `r` reloads: the
+ * workspace diff tab stays open while the engine works, so its hunks go stale.
  */
 
 import { type DiffRenderable, TextAttributes } from "@opentui/core"
@@ -38,13 +34,9 @@ export interface OpsPreviewArgs {
   readonly relPath: string
   /** Base ref for the vs-base (Branch scope) diff; omitted = diff vs HEAD. */
   readonly base?: string
-  /**
-   * How q/escape/ctrl+c close the preview. The standalone `kobe ops
-   * --preview` entrypoint passes `() => process.exit(0)` (the whole process
-   * IS the preview); the in-workspace content tab passes a real closer that
-   * removes the tab — same `onClose` seam as `UpdatePage`, so the shared
-   * component never hard-exits when it's just one tab in a live TUI.
-   */
+  /** How q/escape/ctrl+c close the preview. Defaults to `process.exit(0)`
+   *  (standalone, the process IS the preview); a workspace tab passes a closer
+   *  that removes the tab, so a live TUI never hard-exits. */
   readonly onClose?: () => void
   /** Whether this preview has keyboard focus — gates its close chords when
    *  hosted as a tab (a standalone process is always focused). */
@@ -92,13 +84,10 @@ export function PreviewScreen(props: OpsPreviewArgs) {
     (data?.kind === "binary" || (data?.kind === "patch-note" && data.note.kind === "binary")) &&
     !execHostForWorktreePath(props.worktree).isRemote
 
-  // Review overlay (line-anchored notes) — inert unless the host supplied
-  // `review` AND the preview is a diff. Owns its own (PROPOSED) chords.
+  // Review overlay: inert unless the host supplied `review` AND this is a diff.
   const diffRef = useRef<DiffRenderable | null>(null)
   const review = useDiffReview({
-    // A combined diff spans files and a note anchors to ONE path, so notes
-    // would all file against the directory. Read-only rather than wrong — the
-    // footer says so, so the absence reads as a rule.
+    // A note anchors to ONE path, so a combined diff is read-only (header says so).
     review: combined ? undefined : props.review,
     relPath: props.relPath,
     worktree: props.worktree,
@@ -107,9 +96,7 @@ export function PreviewScreen(props: OpsPreviewArgs) {
     diffRef,
   })
 
-  // One vocabulary for a hunk-less patch, shared by the single-file card and
-  // a combined diff's sections — the two used to disagree by rendering
-  // nothing in different shapes.
+  // One vocabulary for a hunk-less patch: single-file card and combined sections.
   const noteLabel = (note: PatchNote, path: string): string => {
     switch (note.kind) {
       case "mode":
@@ -130,8 +117,7 @@ export function PreviewScreen(props: OpsPreviewArgs) {
     // never shadows anything else the rest of the time.
     bindings: [
       ...pageCloseBindings(onClose),
-      // `r` matches the Files pane next door, which has refreshed its tree
-      // with the same key since it landed.
+      // `r` matches the Files pane's refresh key.
       { key: "r", id: "diff.review.reload", cmd: () => setReloadTick((tick) => tick + 1) },
       ...(canSystemOpen
         ? [
@@ -186,9 +172,7 @@ export function PreviewScreen(props: OpsPreviewArgs) {
         {data == null ? (
           <text fg={theme.textMuted}>{t("ops.preview.loading")}</text>
         ) : data.kind === "error" ? (
-          // git refused. The Files pane next door already renders its own git
-          // failures rather than swallowing them; this used to be the one
-          // surface that turned a refusal into "no changes".
+          // git refused: say so, never render it as "no changes".
           <box flexDirection="column" paddingLeft={1} paddingTop={1} gap={1}>
             <text fg={theme.error} wrapMode="word">
               {data.message}
@@ -224,11 +208,9 @@ export function PreviewScreen(props: OpsPreviewArgs) {
             </text>
           </box>
         ) : data.kind === "diff" && combined ? (
-          // One `<diff>` per file: opentui's DiffRenderable renders only the
-          // first patch of a multi-file diff, so handing it the whole thing
-          // would silently drop every file after the first — which is the one
-          // thing a combined diff exists to show. Explicit heights because a
-          // `<diff>` has no intrinsic size inside a scroll container.
+          // One `<diff>` per file: DiffRenderable renders only the first patch
+          // of a multi-file diff. Explicit heights: a `<diff>` has no intrinsic
+          // size inside a scroll container.
           <scrollbox
             flexGrow={1}
             backgroundColor={theme.background}
@@ -240,9 +222,7 @@ export function PreviewScreen(props: OpsPreviewArgs) {
                   {file.path}
                 </text>
                 {file.note ? (
-                  // `lines` counts hunk rows, so a patch with none got
-                  // height={0} — a bare filename over empty space. Three of
-                  // eight sections of a real commit rendered that way.
+                  // `lines` counts hunk rows: a hunk-less patch would get height={0}.
                   <text fg={theme.textMuted} wrapMode="none">
                     {`  ${noteLabel(file.note, file.path)}`}
                   </text>

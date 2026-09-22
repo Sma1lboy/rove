@@ -1,16 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The workspace host's left rail — which sidebar renders, and its wiring.
- *
- * Its own component because `host.tsx` should compose the workspace, not know
- * how one rail is wired. The props below are that wiring made explicit —
- * having to pass them is the honest cost of the boundary, and it is why a new
- * sidebar concern lands here instead of accreting on the host.
- *
- * The fourteen task-lifecycle callbacks are NOT re-declared here: they come
- * from {@link SidebarTaskCallbacks}, whose whole point is that the surfaces
- * can't drift. They arrive here REQUIRED (the host supplies every one) except
- * `onLandRequest`, which stays optional exactly as the shared type has it.
+ * The host's left rail: which sidebar renders, and its wiring. A new sidebar
+ * concern lands here, not on the host. Task-lifecycle callbacks come from
+ * {@link SidebarTaskCallbacks}, all REQUIRED except `onLandRequest`.
  */
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
@@ -36,7 +28,6 @@ export interface HostSidebarProps
   extends Readonly<Required<Omit<SidebarTaskCallbacks, "onLandRequest">>>,
     Readonly<Pick<SidebarTaskCallbacks, "onLandRequest">> {
   readonly width: number
-  /** Is the rail folded to its strip? */
   readonly collapsed?: boolean
   /** Fold / unfold. Absent = the rail renders without the control. */
   readonly onToggleCollapsed?: () => void
@@ -82,13 +73,9 @@ export function HostSidebar(props: HostSidebarProps) {
   const kv = useKV()
   const notif = useNotifications()
   const t = useT()
-  // Tab close is the one sidebar action the host can't express as a task-level
-  // callback: the tree names a tab of ANY worktree, so who owns that tab's
-  // state depends on whether its TerminalTabs is mounted. `closeTaskTab` is
-  // where that fork lives; a failure surfaces as a toast rather than a silent
-  // no-op. Closing the LAST tab is not a failure (it empties the list and the
-  // row is revived on re-entry), so the only false left is a tab the tree
-  // still lists but the state does not have — a stale row, not a refusal.
+  // Who owns a tab's state depends on whether its TerminalTabs is mounted;
+  // `closeTaskTab` holds that fork. Closing the LAST tab is fine (revived on
+  // re-entry); false means a stale row, surfaced as a toast.
   const closeTab = useCallback(
     (taskId: string, tabId: string): void => {
       if (!closeTaskTab(kv, taskId, tabId))
@@ -96,21 +83,15 @@ export function HostSidebar(props: HostSidebarProps) {
     },
     [kv, notif, t],
   )
-  // Tab reorder is tab close's sibling (move mode on a tab row):
-  // same mounted-vs-background fork, same "who owns this task's state"
-  // question — `moveTaskTab` is where that fork lives. An edge-stop (first
-  // tab up / last down) is a silent no-op, not an error.
+  // Same mounted-vs-background fork (`moveTaskTab`); an edge-stop is a silent no-op.
   const moveTab = useCallback(
     (taskId: string, tabId: string, delta: -1 | 1): void => {
       moveTaskTab(kv, taskId, tabId, delta)
     },
     [kv],
   )
-  // "New conversation" / "New shell" from a row's menu. Unlike close/move
-  // there is no background path: the picker is
-  // a dialog and a shell tab needs its PTY where the tabs render, so this
-  // ENTERS the task first and the request is claimed by its workspace — on
-  // the spot when it is already mounted, on first mount otherwise.
+  // No background path: the picker is a dialog and a shell tab needs its PTY
+  // where tabs render, so ENTER the task; its workspace claims the request.
   const newTab = useCallback(
     (taskId: string, kind: "chat" | "shell"): void => {
       props.onActivate(taskId)
@@ -160,17 +141,8 @@ export function HostSidebar(props: HostSidebarProps) {
   )
 }
 
-/**
- * The folded rail, wired to the sidebar's shared grouping.
- *
- * Its own component for one reason: `useSidebarGroups` is a hook and the fold
- * is an early return, so the shared answer cannot be computed above the branch
- * without also computing it for the expanded tree that does not need it here.
- * Putting the hook on THIS side of the fork is what lets the rail hide the same
- * projects the tree hides instead of re-deriving its own list from `tasks` —
- * which is what it used to do, and why a project closed down to nothing still
- * had a divider in the fold.
- */
+/** The folded rail. Its own component so the `useSidebarGroups` hook runs
+ *  only on this side of the fold's early return. */
 function CollapsedSidebar(props: {
   readonly style: CollapsedRailStyle
   readonly tasks: readonly Task[]
@@ -182,9 +154,7 @@ function CollapsedSidebar(props: {
   readonly onActivate: (taskId: string) => void
   readonly onExpand: () => void
 }) {
-  // Optional for the same reason the tree reads it optionally: with no KV
-  // provider the tabs are simply unknown, which the hide rules already treat as
-  // "never mounted" rather than "has no tabs".
+  // No KV provider: tabs unknown, which the hide rules read as "never mounted".
   const kv = useOptionalKV()
   const { groups } = useSidebarGroups({
     tasks: props.tasks,

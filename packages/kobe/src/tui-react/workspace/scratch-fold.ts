@@ -1,18 +1,12 @@
 /**
- * Fold a scratch shell into the task that already owns its cwd — the
- * execution half of `decideScratchAdopt`'s `fold` verdict. Repointing the
- * scratch row at the repo instead would mint a duplicate sidebar row for a
- * directory some task already names, so the shell's HOSTED sessions
- * are re-keyed under the owning task's next free tab ids (`pty.rename` — the
- * child keeps running, engine and all) and the tab records are adopted
- * through the ordinary orphan-adoption write (`adoptTaskTabs`), which never
- * steals the target's active tab. The caller then deletes the emptied
- * scratch row.
+ * Fold a scratch shell into the task that already owns its cwd
+ * (`decideScratchAdopt`'s `fold`), rather than minting a duplicate row. HOSTED
+ * sessions are re-keyed under the owner's next free tab ids (`pty.rename`,
+ * the child keeps running) and adopted via `adoptTaskTabs`, which never
+ * steals the active tab; the caller deletes the emptied scratch row.
  *
- * Hosted backend only: a local (`Bun.spawn`) shell lives inside this
- * process keyed to the scratch task and cannot change owners host-side —
- * `rename` answers false and the shell simply STAYS in Scratch (quiet,
- * retried each tick), which beats minting the duplicate row this fixes.
+ * Hosted only: a local shell can't change owners, `rename` answers false and
+ * it STAYS in Scratch (retried each tick).
  */
 
 import { getSharedPtyClient } from "../../tui/panes/terminal/pty-hosted-client"
@@ -23,9 +17,7 @@ import { knownTaskTabs } from "./terminal-tabs-shared"
 
 export interface ScratchFoldIO {
   readonly kv: TabsSnapshotKv
-  /** Host-side session re-key (`pty.rename`); false = source session gone,
-   *  target key taken, or a host that predates the verb. Injectable for
-   *  tests; defaults to the shared pty-host client. */
+  /** `pty.rename`; false = source gone, target taken, or an older host. */
   readonly rename?: (from: string, to: string) => Promise<boolean>
 }
 
@@ -42,13 +34,8 @@ async function renameHostedSession(from: string, to: string): Promise<boolean> {
 
 const tabNumber = (id: string): number => Number(/^tab-(\d+)$/.exec(id)?.[1] ?? 0)
 
-/**
- * Move every hosted session of `scratchTaskId`'s tabs under
- * `targetTaskId`'s next free tab ids and adopt them into its tab state.
- * Returns the folded id of the scratch's FIRST tab (the shell — the one the
- * user was watching, for selection follow-up), or null when nothing moved
- * (no hosted sessions / old host) — the scratch row must then stay put.
- */
+/** Returns the folded id of the scratch's FIRST tab (for selection
+ *  follow-up), or null when nothing moved; the scratch row then stays. */
 export async function foldScratchShell(
   io: ScratchFoldIO,
   scratchTaskId: string,
@@ -63,8 +50,7 @@ export async function foldScratchShell(
   const folded: string[] = []
   for (const tabId of scratchTabIds) {
     const from = tabPtyKey(scratchTaskId, tabId)
-    // One bump retry: a stray hosted session (an orphan the sidebar hasn't
-    // adopted yet) can occupy the computed id.
+    // One bump retry: an unadopted orphan can occupy the computed id.
     let ok = await rename(from, tabPtyKey(targetTaskId, `tab-${next}`))
     if (!ok) {
       next++
@@ -73,10 +59,8 @@ export async function foldScratchShell(
     if (!ok) continue
     folded.push(`tab-${next}`)
     next++
-    // The local handle still keyed to `from` is NOT released here: the
-    // scratch row's deletion (the caller's next step) runs the ordinary
-    // task-PTY sweep, whose `pty.kill` on the pre-rename key is a host-side
-    // no-op — the moved session survives, the handle dies.
+    // The `from` handle dies in the caller's task-PTY sweep; `pty.kill` on the
+    // pre-rename key is a host-side no-op, so the moved session survives.
   }
   if (folded.length === 0) return null
   adoptTaskTabs(io.kv, targetTaskId, folded)

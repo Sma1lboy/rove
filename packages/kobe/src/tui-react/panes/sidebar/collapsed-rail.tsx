@@ -1,23 +1,11 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The sidebar's COLLAPSED rail — the task list folded down to a strip a few
- * cells wide, so the workspace gets the width back without losing the "what
- * is happening on my other tasks" glance the full rail exists for.
- *
- * Every style below renders the SAME row vocabulary the expanded rail does:
- * the status glyph and tone come from `buildSidebarRowView`, which is
- * engine-owned, so a collapsed row can never disagree with the card it folds
- * from. What varies between styles is only how much of that vocabulary
- * survives the fold.
- *
- * WHICH tasks are here, and which section each sits in, is not this file's
- * question: the rail renders the `SidebarGroup[]` the expanded tree renders,
- * so a project the tree hides cannot be a divider in the fold. See
- * `tui/panes/sidebar/project-groups.ts`.
+ * The sidebar's COLLAPSED rail: the task list folded to a strip a few cells
+ * wide. Glyph and tone come from `buildSidebarRowView`, so a folded row can't
+ * disagree with its card; groups are the expanded tree's `SidebarGroup[]`.
  *
  * `digits` is the default (owner call): the jump key is the one thing a folded
- * row can still be acted on, and tinting it with the row's own state colour
- * makes the same character carry both. The rest stay as a preference.
+ * row can still act on, tinted with the row's state colour.
  */
 
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
@@ -35,18 +23,15 @@ import { CollapseButton } from "./collapse-button"
 import { useSpinnerFrame } from "./row-cards"
 import { useTaskJump } from "./use-task-jump"
 
-/** The styles on offer. `digits` is the default; the others are a preference. */
 export type CollapsedRailStyle = "hairline" | "digits" | "glyphs" | "initials"
 
-/** What a user who has never opened the setting gets. */
 export const DEFAULT_COLLAPSED_RAIL_STYLE: CollapsedRailStyle = "digits"
 
 /** Cycle order for the setting — widest-keeping last, so repeated presses walk
  *  from "only a colour" toward "still readable". */
 export const COLLAPSED_RAIL_STYLES: readonly CollapsedRailStyle[] = ["digits", "glyphs", "initials", "hairline"]
 
-/** Rail width in cells per style — the whole point of the fold, so it lives
- *  beside the styles rather than at a call site that would drift from them. */
+/** Rail width in cells per style. */
 export const COLLAPSED_RAIL_WIDTH: Record<CollapsedRailStyle, number> = {
   hairline: 2,
   digits: 3,
@@ -54,8 +39,7 @@ export const COLLAPSED_RAIL_WIDTH: Record<CollapsedRailStyle, number> = {
   initials: 7,
 }
 
-/** Two cells that stand for a title: initials across words, else its first two
- *  characters. Pure so the rule is testable without a terminal. */
+/** Two cells for a title: initials across words, else its first two characters. */
 export function railInitials(title: string): string {
   const words = title
     .trim()
@@ -87,21 +71,15 @@ function useRailSections(props: {
   engineState?: ReadonlyMap<string, TaskEngineState>
   taskJobs?: ReadonlyMap<string, TaskJobState>
 }): readonly RailSection[] {
-  // A routine session takes no cell. The expanded tree folds them behind its
-  // count row; the fold has no room for a control that could open one, so it
-  // simply does not draw them — a schedule that fires daily would otherwise
-  // make the FOLDED rail the longer of the two surfaces, which is backwards.
+  // Routine sessions take no cell: the fold has no room for the tree's count
+  // row, and a daily schedule would make the folded rail the longer surface.
   const tasks = useMemo(() => props.groups.flatMap(ownTasks), [props.groups])
-  // One spinner clock for the whole rail: a per-row hook would give each row
-  // its own phase and the strip would shimmer instead of pulse together.
+  // One spinner clock: per-row hooks would put rows out of phase.
   const spinning = tasks.some((task) => props.taskJobs?.get(task.id) !== undefined)
   const frame = useSpinnerFrame(spinning)
-  // The jump digit is a position in the WHOLE strip, not within a section, so
-  // it runs across the dividers — the same way the expanded tree numbers rows
-  // down the pane rather than restarting under each project header.
+  // Jump digits run across the whole strip, not per section.
   let slot = 0
-  // A project whose every task is a routine has nothing left to draw; its
-  // divider would rule off an empty stretch of strip.
+  // An all-routine project has nothing to draw, so no divider either.
   return props.groups
     .filter((group) => ownTasks(group).length > 0)
     .map((group) => ({
@@ -130,24 +108,19 @@ function useRailSections(props: {
 
 export interface CollapsedRailProps {
   readonly style: CollapsedRailStyle
-  /** The sections to fold — the very ones the expanded tree renders. */
+  /** The very sections the expanded tree renders. */
   readonly groups: readonly SidebarGroup[]
   readonly selectedId: string | null
   readonly engineState?: ReadonlyMap<string, TaskEngineState>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
   readonly onSelect: (taskId: string) => void
-  /** Enter the task, not just highlight it — what `ctrl+<digit>` means on the
-   *  expanded side, so the fold's digits have to mean it too. Absent (a bare
-   *  mount) leaves the jump a selection. */
+  /** Enter the task on a digit jump, as on the expanded side; absent = select only. */
   readonly onActivate?: (taskId: string) => void
-  /** Put the full rail back. */
   readonly onExpand: () => void
 }
 
-/** A section divider: one character of the header the expanded tree prints,
- *  then a rule. Taking it from the group's LABEL rather than the repo basename
- *  is what makes two same-named repos fold to different letters — the label is
- *  already disambiguated (`work/api` vs `oss/api`), the basename is not. */
+/** Divider: first char of the group LABEL, then a rule. The label, not the
+ *  basename, is already disambiguated (`work/api` vs `oss/api`). */
 function projectHeading(label: string, width: number): string {
   const first = new Intl.Segmenter().segment(label.trim()).containing(0)?.segment ?? "·"
   const initial = first.toLowerCase()
@@ -160,9 +133,7 @@ export function CollapsedRail(props: CollapsedRailProps) {
   const { theme } = useTheme()
   const sections = useRailSections(props)
   const width = COLLAPSED_RAIL_WIDTH[props.style]
-  // The strip prints a digit on every row; this is what answers for it. Before
-  // the fold had its own registration the chord lived in the expanded tree
-  // alone, which folding unmounts — so every number on screen did nothing.
+  // The expanded tree's jump registration unmounts on fold; this answers the digits.
   useTaskJump({
     ids: jumpTaskIds(props.groups),
     onJump: (taskId) => {
@@ -191,13 +162,9 @@ function RailRowView(props: { row: RailRow; style: CollapsedRailStyle; onSelect:
   const { theme } = useTheme()
   const { row } = props
   const fg = toneColor(theme, row.tone)
-  // Selection carries the SAME `▌` the expanded rows use, resolved by the same
-  // function, so the two surfaces agree about what "you are here" looks like.
-  // A background alone was the whole signal before, and under a transparent
-  // theme `resolveRowSelectionChrome` returns no background at all — which is
-  // exactly when the marker is the only thing left saying where you are. The
-  // marker spends a cell the fold already had: it replaces one of the trailing
-  // spaces, so no style gets wider.
+  // The same `▌` marker as the expanded rows: under a transparent theme there
+  // is no selection background, so the marker is the only signal. It takes a
+  // cell the fold already had, so no style gets wider.
   const chrome = resolveRowSelectionChrome(theme, { cursor: row.selected })
   return (
     <box
@@ -220,31 +187,28 @@ function RailCell(props: { row: RailRow; style: CollapsedRailStyle; fg: string |
   const { theme } = useTheme()
   const { row, fg } = props
   switch (props.style) {
-    // A: the state as a solid bar. Nothing to read, only to notice — the
-    // colour IS the message, and the strip costs the workspace two columns.
+    // A: the colour IS the message; two columns.
     case "hairline":
       return (
         <text fg={fg} wrapMode="none">
           {row.selected ? "█ " : "▎ "}
         </text>
       )
-    // B: the jump digit, tinted by state. Keeps the one thing a collapsed
-    // rail can still act on — the number you press to get there.
+    // B: the jump digit, tinted by state.
     case "digits":
       return (
         <text fg={fg} attributes={row.selected ? TextAttributes.BOLD : undefined} wrapMode="none">
           {`${row.digit ?? "·"} `}
         </text>
       )
-    // C: the status glyph itself, the same one the expanded card shows.
+    // C: the status glyph.
     case "glyphs":
       return (
         <text fg={fg} attributes={row.selected ? TextAttributes.BOLD : undefined} wrapMode="none">
           {`${row.glyph}  `}
         </text>
       )
-    // D: glyph plus two letters of the title — the widest fold, and the only
-    // one where a row is still identifiable without counting positions.
+    // D: glyph + two title letters; the only style identifiable without counting.
     default:
       return (
         <box flexDirection="row" flexShrink={0}>

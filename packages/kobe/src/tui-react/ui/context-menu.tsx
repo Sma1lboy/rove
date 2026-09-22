@@ -1,16 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * A right-click menu: a bordered, screen-clamped list of labels anchored to
- * the click.
- *
- * Presentational only — the owner holds the open/cursor state and does the
- * key binding, the same split the sidebar already uses (`panel.tsx` renders,
- * `Sidebar.tsx` decides). That keeps this component reusable by any pane that
- * wants a menu without inheriting the sidebar's state machine.
- *
- * Placement reuses the hover tooltip's clamp: "a box of text lines pinned near
- * a point, kept on screen" is the same geometry problem, and one implementation
- * means one set of off-by-one bugs.
+ * A right-click menu: a bordered, screen-clamped list anchored to the click.
+ * Presentational only; the owner holds open/cursor state and key bindings.
+ * Placement reuses the hover tooltip's clamp.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -20,16 +12,14 @@ import { truncateTitle } from "../../tui/panes/sidebar/labels"
 import { useTheme } from "../context/theme"
 import { FRAME } from "./frame"
 
-/** Above the hover tooltip: if both are somehow up, the menu is the one the
- *  user is interacting with. */
+/** Above the hover tooltip: the menu is what the user is interacting with. */
 const CONTEXT_MENU_Z_INDEX = SIDEBAR_HOVER_TOOLTIP_Z_INDEX + 10
 
 export interface ContextMenuEntry {
   readonly id: string
   readonly label: string
   readonly danger?: boolean
-  /** Live chord cap for the entry, already formatted; absent when the verb
-   *  has no binding. Right-aligned so the labels stay a readable column. */
+  /** Formatted live chord cap, right-aligned; absent when unbound. */
   readonly cap?: string
 }
 
@@ -53,8 +43,7 @@ export function ContextMenu(props: {
     hoverY: props.y,
     screenWidth: props.dims.width,
     screenHeight: props.dims.height,
-    // Measure label + cap together: a cap sized out of the box would be
-    // clipped by the border it is supposed to sit inside.
+    // Measure label + cap together, or the border clips the cap.
     lines: props.entries.map((entry) => ({ text: entry.label + " ".repeat(capCells(entry)) })),
   })
   return (
@@ -67,16 +56,11 @@ export function ContextMenu(props: {
       flexDirection="column"
       {...FRAME}
       borderColor={theme.focusAccent}
-      // `backgroundMenu`, not `backgroundElement`: the menu floats OVER panel
-      // insets, and every bundled theme gives it its own lighter step so the
-      // popup separates from the row it covers, not just by its border.
+      // `backgroundMenu`: its own lighter step separates the popup from the row it covers.
       backgroundColor={theme.backgroundMenu}
       paddingLeft={1}
       paddingRight={1}
-      // The menu swallows its own press so the owner's "a click landed
-      // elsewhere → dismiss" listener (`useGlobalMouseDown`) never sees it —
-      // otherwise the down phase of picking an entry would close the menu
-      // before the up phase could fire it.
+      // Swallow the press so `useGlobalMouseDown` doesn't dismiss before the up fires the pick.
       onMouseDown={(e: { stopPropagation(): void }) => e.stopPropagation()}
     >
       {props.entries.map((entry, i) => {
@@ -90,8 +74,7 @@ export function ContextMenu(props: {
             onMouseUp={() => props.onPick(entry.id)}
           >
             <text
-              // Contrast fg on the accent fill: `background` is alpha-0 in
-              // transparent mode, so a filled row must not use it.
+              // `background` is alpha-0 in transparent mode.
               fg={active ? theme.selectedListItemText : entry.danger ? theme.error : theme.text}
               attributes={active ? TextAttributes.BOLD : undefined}
               wrapMode="none"

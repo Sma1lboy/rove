@@ -1,15 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The file tree's scrolling body: the one scrollbox, its four states (no
- * worktree / git error / empty / rows), and the viewport windowing that keeps
- * a large tree cheap to draw.
- *
- * Split out of `FileTree.tsx` along the seam that file already names in its
- * siblings (`header-view`, `row-view`): everything above owns the pane's
- * state, git reads and keys; everything here owns the list and where it is
- * scrolled to. Cursor position comes in as a prop — deciding which row the
- * cursor is on stays with the pane, only following it with the viewport lives
- * here.
+ * The file tree's scrolling body: four states (no worktree / git error /
+ * empty / rows) and viewport windowing. The pane decides the cursor row; this
+ * only follows it with the viewport.
  */
 
 import type { ScrollBoxRenderable } from "@opentui/core"
@@ -42,19 +35,13 @@ export function FileTreeBodyView(props: {
   // The scrollbox is held as STATE, not a ref: `useRowWindow` subscribes to
   // its scrollbar, so it has to re-run when the element itself changes.
   const [scrollEl, setScrollEl] = useState<ScrollBoxRenderable | null>(null)
-  // Only the rows the viewport can show are mounted; the rest are two spacer
-  // boxes that hold the content's height. See `use-row-window.ts` for why
-  // opentui's own culling does not already cover this.
+  // Only visible rows mount; two spacer boxes hold the height (see `use-row-window.ts`).
   const rowWindow = useRowWindow({ scrollEl, rowCount: rows.length })
 
-  // Follow the cursor, then re-read the position immediately: a jump longer
-  // than one viewport would otherwise leave the window that is no longer on
-  // screen mounted, and the pane blank until something else asks for a redraw.
-  //
-  // Keyed on `rows.length`, NOT on `rows`: that array has a fresh identity
-  // every render, and an effect that both re-runs every render and sets state
-  // is a render loop. Following only ever depends on where the cursor is and
-  // how tall the list is.
+  // Follow the cursor, then re-sample at once: a jump longer than one viewport
+  // would otherwise leave the off-screen window mounted and the pane blank.
+  // Keyed on `rows.length`, NOT `rows`: a fresh array every render + setState
+  // would be a render loop.
   const rowCount = rows.length
   const sample = rowWindow.sample
   useEffect(() => {
@@ -67,9 +54,7 @@ export function FileTreeBodyView(props: {
   return (
     // Track + thumb both transparent → invisible by default but still scrollable.
     <scrollbox
-      // Stable setter, not an inline arrow: a fresh ref-callback identity makes
-      // React detach and reattach on every render, and each pair costs an extra
-      // commit of the whole pane.
+      // Stable setter: an inline ref callback detaches/reattaches every render.
       ref={setScrollEl}
       flexGrow={1}
       verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}

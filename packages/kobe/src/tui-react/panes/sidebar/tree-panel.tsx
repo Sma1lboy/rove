@@ -1,16 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The sidebar tree's body — one scrollbox of ONE-CELL rows. Density wins
- * inside the tree: a worktree row is one line, and tab rows start at the same
- * column with the state glyph carrying the hierarchy.
- *
- * No fold anywhere with ONE scoped exception: a project's routine count row,
- * which folds only the standing sessions a SCHEDULE created. Every project
- * and every task a human opened still shows everything under it.
- *
- * ONE scrollbox: a tree's whole point is that a project and its worktrees
- * scroll together, and the cursor indexes one flat id list, so one viewport
- * is what "scroll the cursor into view" needs.
+ * The sidebar tree's body: ONE scrollbox of one-line rows (the cursor indexes
+ * one flat id list). The only fold is a project's routine count row, which
+ * hides sessions a SCHEDULE created; everything a human opened shows.
  */
 
 import type { ScrollBoxRenderable } from "@opentui/core"
@@ -27,8 +19,7 @@ export function SidebarTreeBody(props: {
   readonly rows: readonly TreeRow[]
   /** Row id → index in the tree's navigable flat id list. */
   readonly flatIndexOf: ReadonlyMap<string, number>
-  /** A query is open and non-empty — picks the "no matches" empty state over
-   *  the plain "nothing here yet". */
+  /** Non-empty query open: "no matches" empty state instead of "nothing here yet". */
   readonly searching: boolean
   readonly shared: TreeRowShared
   readonly onProjectContextMenu?: (projectId: string, x: number, y: number) => void
@@ -44,18 +35,14 @@ export function SidebarTreeBody(props: {
       flexGrow={1}
       minHeight={0}
       stickyScroll={false}
-      // Scrollbar fully hidden: the cursor drives
-      // scrolling, the thumb column is pure noise.
+      // Hidden: the cursor drives scrolling.
       verticalScrollbarOptions={{ visible: false }}
     >
       <box flexShrink={0} gap={0}>
         {props.rows.map((row, i) => {
           if (row.kind === "machine") {
-            // A machine header is a SectionHeader like a project's, one rung
-            // up: its whole content is the label `machine-layer.ts` composed
-            // (`narwhal · v0.9.185` / `narwhal · offline`). Offline and
-            // protocol-mismatch rows grey out, and so do the rows beneath
-            // them — a stale snapshot must not read as live.
+            // Machine header, one rung above projects. Offline/mismatched
+            // machines grey out: a stale snapshot must not read as live.
             return (
               <SectionHeader
                 key={row.id}
@@ -69,9 +56,7 @@ export function SidebarTreeBody(props: {
             )
           }
           if (row.kind === "project") {
-            // The Scratch header reuses the project-row shape but
-            // is a fixed section, not a repo: translated label, no context
-            // menu (nothing to file, nothing to move).
+            // Scratch is a fixed section, not a repo: no context menu.
             const isScratch = row.id === SCRATCH_SECTION_ID
             return (
               <SectionHeader

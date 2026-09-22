@@ -36,24 +36,18 @@ import { activeTabIdFor, knownTaskTab, taskTabExists } from "./terminal-tabs-sha
 
 const MAX_VISIBLE_CARDS = 6
 const CARD_ROWS_WITH_GAP = 3
-// Title + hints + up to two 1-line section headers + two "+N more" lines,
-// each with the list's gap row: headers do not charge a card slot, so the
-// chrome estimate carries them instead.
+// Title + hints + two section headers + two "+N more" lines, each with a gap
+// row; headers take no card slot, so the chrome estimate carries them.
 const DIALOG_CHROME_ROWS = 12
 const AGE_REFRESH_MS = 30_000
 /** Identity keeps at least this many cells before the badge drops its label. */
 const IDENTITY_FLOOR_CELLS = 16
 
 /**
- * Engine-registry tab title for a (task, tab) pair — "" when unknown.
- *
- * `tabTitleStable`, NOT `tabTitle`: the Inbox renders tabs it does not host,
- * so raw `tabTitle` falls back to `lastTitle` — a FROZEN status line from
- * whenever a status-owning engine last reported ("✳ Claude Code", a stale
- * turn summary), which matches nothing the sidebar or tab strip shows. Same
- * rule (and rationale) as the sidebar tree's rows. A recorded tab that no
- * longer exists yields "" so the card falls back to task-level identity
- * instead of a raw `tab-N` id.
+ * Tab title for a (task, tab), "" when unknown or gone (the card then falls
+ * back to task identity, not a raw `tab-N`). `tabTitleStable`, NOT
+ * `tabTitle`: for unhosted tabs `tabTitle` falls back to a FROZEN engine
+ * status line.
  */
 function taskTabLabel(taskId: string | null, tabId: string | null, task: Task | undefined, kv: KVContext): string {
   const tab = tabId && taskId ? knownTaskTab(kv, taskId, tabId) : undefined
@@ -75,13 +69,8 @@ function tabLabel(
   }
 }
 
-/**
- * The only badge a RECENT row carries: is this task's engine still working?
- * Every OTHER activity state (done / error / needs input / rate limited)
- * already surfaced as an episode, so that task is sitting in ATTENTION
- * above — running is the one thing this section can tell you that the
- * queue can't.
- */
+/** A RECENT row's only badge: still working? Every other state already
+ *  surfaced as an ATTENTION episode. */
 function runningBadge(opts: {
   activity: TaskEngineState | undefined
   task: Task
@@ -110,16 +99,10 @@ function useSpinnerFrame(active: boolean): number {
 }
 
 /**
- * ONE card grammar for both sections: line 1 is WHERE (`project › tab` for
- * an episode, `project › task` for a recent task) plus its state badge and
- * age, line 2 is the context line. The attention badge is the only colored
- * ink — recent rows stay quiet so pending work still reads first.
- *
- * Both lines are cell-budgeted against the dialog's known width (medium =
- * 80 cols, clamped to the terminal) and end in `…` when clipped — Yoga's
- * bare hard cut reads as the full name (the sidebar's round-one rule). When
- * the identity would drop under its floor, the badge gives up its label
- * first and keeps only the glyph.
+ * ONE card grammar: line 1 is WHERE (`project › tab` / `project › task`) +
+ * badge + age, line 2 the context. Only the attention badge is coloured.
+ * Both lines are cell-budgeted and end in `…` (Yoga's bare cut reads as the
+ * full name); under the identity floor the badge drops its label first.
  */
 function InboxCard(props: {
   identity: string
@@ -142,9 +125,7 @@ function InboxCard(props: {
   const badgeText = props.badge ? (dropLabel ? ` ${props.badge.glyph}` : fullBadge) : ""
   const identity = truncateEndCells(props.identity, rowCells - cells(ageText) - cells(badgeText), approxCharCells)
   const subtitle = truncateEndCells(props.subtitle, rowCells, approxCharCells)
-  // ONE cursor vocabulary across every navigable list: the shared sidebar
-  // row chrome (▌ marker + row tint). Toast accent bars are a different
-  // semantic (status color) and deliberately don't route through this.
+  // The shared row chrome: ONE cursor vocabulary across navigable lists.
   const selection = resolveRowSelectionChrome(theme, { cursor: props.active })
   return (
     <box
@@ -214,26 +195,18 @@ export function AttentionInboxPane(props: {
   const [now, setNow] = useState(() => Date.now())
   const { availableItems } = useMemo(
     () =>
-      // Tri-state, same predicate as the host's partition — a binary
-      // `!== undefined` here read "don't know" as "gone", so the header badge
-      // counted episodes this list hid.
+      // Tri-state, same predicate as the host's partition: "don't know" is not "gone".
       partitionAttentionInboxAvailability(props.items, props.tasks, (taskId, tabId) =>
         taskTabExists(props.kv, taskId, tabId),
       ),
     [props.items, props.tasks, props.kv],
   )
-  // Every episode in the Inbox is pending by definition (opening one removes
-  // it — no read/unread lifecycle), so the attention section IS the unread
-  // set and always leads; recent tasks trail it. Unavailable targets are
-  // hidden synchronously; the always-mounted Workspace host dismisses them
-  // in the background so stale rows never flash onscreen.
-  // RECENT is ordered by the visit log, not `updatedAt` — see inbox-visits.
-  // Parsing yields a fresh array, and the KV context identity only changes
-  // on a real write — memoizing on it keeps `rows` stable across the 10Hz
-  // spinner tick.
+  // Every episode is pending (opening removes it), so ATTENTION always leads.
+  // Unavailable targets hide here; the Workspace host dismisses them. RECENT
+  // follows the visit log; memoized on KV identity (changes only on a real
+  // write) so `rows` survives the 10Hz spinner tick.
   const visits = useMemo(() => readInboxVisits(props.kv), [props.kv])
-  // Only the tab you're actually on is dropped, not its whole task — its
-  // sibling chat tabs are exactly what RECENT is for.
+  // Drop only the tab you're on; its sibling tabs are what RECENT is for.
   const selectedTabId = props.selectedId ? activeTabIdFor(props.selectedId) : null
   const rows = useMemo(
     () =>
@@ -343,8 +316,7 @@ export function AttentionInboxPane(props: {
             }
             if (row.kind === "recent") {
               const project = sidebarProjectLabel(row.task.repo, repos)
-              // A `main` task IS its repo — the sidebar shows the basename
-              // instead of the stored title, so the Inbox matches.
+              // A `main` task IS its repo: basename, matching the sidebar.
               const title = row.task.kind === "main" ? project : row.task.title
               const tab = taskTabLabel(row.task.id, row.tabId, row.task, props.kv)
               // Same identity grammar as an episode row: `project › tab`
@@ -370,26 +342,15 @@ export function AttentionInboxPane(props: {
             const item = row.item
             const task = props.tasks.find((candidate) => candidate.id === item.taskId)
             const tab = tabLabel(item, task, props.kv)
-            // A routine episode names the ROUTINE and why it needs a human —
-            // it may have no task at all, so the task-shaped identity below
-            // would render an empty row for the one failure that repeats
-            // forever.
+            // A routine episode may have no task: name the ROUTINE instead.
             const routine = item.detail?.routine
             const title = routine?.name ?? task?.title ?? item.taskId ?? ""
-            // A rate-limited task usually has an auto-resume armed
-            // (`Task.quotaResume`, persisted by the daemon's quota probe).
-            // Surfacing that clock is what lets a user tell "back at 3:14,
-            // already scheduled" from "stuck, go do something". This card is
-            // where it belongs: the rail's tree row is one cell
-            // wide, and the Inbox's whole job is what-needs-me / when.
+            // Surface an armed auto-resume (`Task.quotaResume`): "back at 3:14"
+            // vs "stuck, go do something".
             const resumeNote = quotaResumeNote(item.state, task, t)
             const contextLine = resumeNote ? `${title} · ${resumeNote}` : title
             const project = task ? sidebarProjectLabel(task.repo, repos) : ""
-            // Identity line: `project › tab` — WHERE the episode happened is
-            // the primary key a user scans for (which project, which tab),
-            // so it leads; the task title is context on line 2. Both labels
-            // are runtime data (repo basename, engine-registry tab title) —
-            // no vendor strings live here.
+            // `project › tab` leads (what a user scans for); task title is line 2.
             return (
               <InboxCard
                 key={row.id}

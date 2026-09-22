@@ -1,32 +1,16 @@
 /**
- * Body-box geometry measurement for the embedded terminal pane.
+ * Body-box geometry for the terminal pane, measured BEFORE the PTY exists so
+ * a fresh pane boots at its real size (booting at 80x24 then resizing makes
+ * zsh/starship prompts redraw into stray lines). Nothing here may depend on
+ * the PTY handle or viewport cursor (`use-terminal-host-cursor.ts` owns
+ * those effects).
  *
- * The seam is ordering, and the import graph pins it: this hook measures
- * BEFORE the PTY exists, so its `bodyGeometry` can feed `useTerminalPty`. The
- * resize-push-to-pty and host-cursor-anchor effects stay in `Terminal.tsx`
- * because they need the PTY handle and the computed viewport cursor, which
- * only exist afterwards — nothing here may depend on either, or the pane
- * cannot boot at its real size.
- *
- * Measures the rendered body box (before spawning the PTY) so a fresh pane
- * boots at its real size instead of the 80x24 default — booting small
- * then immediately resizing makes zsh/starship-style prompts redraw into
- * stray standalone lines.
- *
- * `bodyEl` MUST be React state (not a plain ref) — the measurement effect
- * needs to re-run the instant the box ref is attached, and a plain `useRef`
- * would silently skip that first measurement.
- *
- * The caller's ref callback for that box MUST also be an inline arrow rather
- * than the stable `setBodyEl`. A fresh callback identity makes React detach
- * and reattach on every render, and that re-attach is what re-runs this
- * measurement after Yoga's first pass: when the ref first attaches the box
- * still reports 0x0, and `onSizeChange` arrives from the renderer's own loop,
- * after the mount has already settled. Stabilise that ref and a pane can
- * settle with no geometry and therefore no PTY at all — measured as three
- * Terminal render tests losing their PTY. A replacement that re-measures on
- * the renderer's frame event, on a 0ms or 16ms timer, or via one forced
- * post-mount render all land too late for the same reason.
+ * `bodyEl` MUST be React state, not a ref, so the effect re-runs the instant
+ * the box attaches. The caller's ref callback MUST be an inline arrow, not
+ * the stable `setBodyEl`: its re-attach every render is what re-measures
+ * after Yoga's first pass (the first attach reports 0x0). A stable ref left
+ * three Terminal render tests with no PTY; re-measuring on the frame event, a
+ * 0/16ms timer, or one forced post-mount render all land too late.
  */
 
 import type { BoxRenderable } from "@opentui/core"
@@ -39,7 +23,7 @@ export interface UseTerminalGeometryResult {
   bodyRows: number
   bodyGeometry: { cols: number; rows: number } | null
   bumpGeomTick: () => void
-  /** Live host-terminal dims — re-exported so callers can key their own effects off resize ticks without a second subscription. */
+  /** Live host-terminal dims, so callers needn't subscribe again. */
   dims: { width: number; height: number }
   /** Layout-tick bumped by the body box's `onSizeChange` — see header. */
   geomTick: number
@@ -51,26 +35,18 @@ export function useTerminalGeometry(): UseTerminalGeometryResult {
   const [bodyGeometry, setBodyGeometry] = useState<{ cols: number; rows: number } | null>(null)
   const dims = useTerminalDimensions()
 
-  // Layout-tick — bumped by the body box's real `onSizeChange` (fires once
-  // Yoga computes a new size) so this hook catches up with layout changes
-  // that have no React state of their own (a splitter drag resizes the
-  // pane downstream of the state that mutates it).
+  // Bumped by `onSizeChange`: catches layout changes with no React state (splitter drags).
   const [geomTick, setGeomTick] = useState(0)
   const bumpGeomTick = useCallback((): void => {
     setGeomTick((n) => (n + 1) & 0xff)
   }, [])
 
   useEffect(() => {
-    // Dependency-only invalidation keys: dims (host terminal resize) and
-    // geomTick (splitter-drag `onSizeChange`) re-run this measurement
-    // without being read directly — screenX/width/height are non-reactive
-    // geometry, read imperatively off `bodyEl` below.
+    // Invalidation keys only: geometry is read imperatively off `bodyEl`.
     void dims
     void geomTick
     if (!bodyEl) return
-    // Pre-layout guard: before Yoga's first pass the box reports 0 (or junk)
-    // — flooring that into a "plausible" 20x4 and pushing it to an
-    // already-running PTY forces the engine CLI to redraw tiny.
+    // Pre-layout the box reports 0 (or junk); pushing a floored size makes the engine redraw tiny.
     if (bodyEl.width <= 0 || bodyEl.height <= 0) return
     const cols = Math.max(20, bodyEl.width)
     const rows = Math.max(4, bodyEl.height)

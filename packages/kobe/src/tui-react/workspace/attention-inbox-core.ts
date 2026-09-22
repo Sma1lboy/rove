@@ -10,13 +10,8 @@ export function attentionInboxCounts(items: readonly AttentionInboxItem[]): { to
   return { total: items.length }
 }
 
-/**
- * Episodes RESOLVED by the user landing on their target: visiting a tab (or
- * selecting a task) means its pending attention was seen — the episode
- * leaves the queue without an explicit open. Tab-scoped episodes match the
- * exact (task, tab); task-level episodes (tabId null) match any visit to
- * the task.
- */
+/** Episodes RESOLVED by visiting their target. Tab-scoped episodes match the
+ *  exact (task, tab); task-level ones (tabId null) match any visit to the task. */
 export function visitResolvedEpisodes(
   items: readonly AttentionInboxItem[],
   visit: { taskId: string; tabId: string | null },
@@ -25,25 +20,17 @@ export function visitResolvedEpisodes(
 }
 
 /**
- * Whether an episode's target still exists.
- *
- * `hasTab` is TRI-STATE, and the distinction is load-bearing: `false` means
- * the tab list was readable and this tab is gone; `undefined` means the tab
- * list could not be read at all (this process has never mounted that task's
- * TerminalTabs, so its KV snapshot is absent). Callers treat unavailable
- * episodes as garbage and DELETE them from the daemon, so answering "gone"
- * for "don't know" destroys live episodes: two tabs read as unread while the
- * Inbox lists one. Unknown keeps the episode.
+ * Whether an episode's target still exists. `hasTab` is TRI-STATE: `false` =
+ * tab gone; `undefined` = tab list unreadable (never mounted). Callers DELETE
+ * unavailable episodes from the daemon, so unknown must keep the episode.
  */
 export function isAttentionInboxItemAvailable(
   item: AttentionInboxItem,
   task: Pick<Task, "deletion"> | undefined,
   hasTab: (tabId: string) => boolean | undefined,
 ): boolean {
-  // A routine episode's target is the SCHEDULE, which exists whether or not
-  // the firing produced a task — a routine pointed at a repo that moved never
-  // creates one. Without this it fails the task lookup below, is classified as
-  // garbage, and the host silently deletes the only notice the user gets.
+  // A routine episode targets the SCHEDULE, which exists even when the firing
+  // produced no task; the task lookup would mark it garbage and delete it.
   if (item.state === "routine_failed") return true
   if (item.taskId === null || task === undefined || task.deletion) return false
   if (item.tabId === null) return true
@@ -72,32 +59,16 @@ export function partitionAttentionInboxAvailability(
 }
 
 /**
- * Which band an episode sorts into. Band 0 BLOCKS: the agent has stopped and
- * will not move again until a human acts. `turn_complete` is the one episode
- * blocked on nobody — a turn ended, which is what turns are supposed to do —
- * so it alone trails.
- *
- * Named as the exception rather than as a list of blocking states so a state
- * added to `ATTENTION_INBOX_STATES` bands as blocking without touching this
- * file. That default is the safe one: a new episode kind mis-sorted into the
- * blocking band costs one extra F7 press, while the same kind mis-sorted into
- * the trailing band is buried behind every finished turn.
+ * Band 0 BLOCKS on a human; `turn_complete` alone trails. Named as the
+ * exception so a new `ATTENTION_INBOX_STATES` entry defaults to blocking,
+ * the safe mis-sort (one extra F7 press vs buried behind finished turns).
  */
 function inboxBand(item: AttentionInboxItem): 0 | 1 {
   return item.state === "turn_complete" ? 1 : 0
 }
 
-/**
- * Blocked episodes first, then oldest-first WITHIN each band — the Inbox is
- * still a queue that drains top-down, but F7 walks it, and one agent stuck on
- * a permission prompt used to sit behind four finished turns purely because
- * it had the newer timestamp. Age alone ranks by when something happened;
- * what the reader needs ranked is what is still stopped.
- *
- * Only the BAND is new. Inside a band the order is unchanged (oldest first,
- * task order breaking same-instant ties), so a queue of one kind reads
- * exactly as it did before.
- */
+/** Blocked episodes first, then oldest-first within each band (task order
+ *  breaks same-instant ties), so a stuck agent never waits behind finished turns. */
 export function sortAttentionInbox(
   items: readonly AttentionInboxItem[],
   taskOrder: readonly string[],
@@ -133,22 +104,14 @@ export type InboxRow =
     }
 
 /**
- * The Inbox reads as ONE list with two sections: every pending episode
- * (unread by definition — opening one removes it) sits on top, oldest
- * first so the queue drains top-down, then the TABS you most recently
- * VISITED. Rows are per (task, tab), matching the visit log and the
- * episode rows above — switching among one task's chat tabs is the most
- * common way to move around, so collapsing them into a single per-task
- * row hid exactly the places you'd want to jump back to.
+ * ONE list, two sections: pending episodes on top, then the TABS you most
+ * recently VISITED, per (task, tab). A target with a pending episode is not
+ * repeated below (a task-level episode covers all its tabs); nor is the tab
+ * you're on.
  *
- * A target with a pending episode is not repeated below (a task-level
- * episode covers every tab of its task); neither is the tab you're on.
- *
- * Visit order comes from the log (`inbox-visits.ts`), not `updatedAt` —
- * "where was I" is not "what changed". Never-visited tasks still appear
- * as one task-level row each, ranked below every visited tab by their own
- * mtime, so a fresh install has a useful RECENT section before the log
- * fills up.
+ * Visit order comes from the log (`inbox-visits.ts`), not `updatedAt`:
+ * "where was I" is not "what changed". Never-visited tasks trail as one
+ * task-level row each, by mtime, so a fresh install has a RECENT section.
  */
 export function inboxRows(
   items: readonly AttentionInboxItem[],
@@ -159,13 +122,8 @@ export function inboxRows(
     selectedTabId?: string | null
     recentLimit?: number
     visits?: readonly InboxVisit[]
-    /**
-     * TRI-STATE "does this tab still exist" (see `taskTabExists`). Nothing
-     * prunes the visit log when a tab closes, and a row whose tab is gone
-     * renders with the TASK's label — so three closed tabs of one task read
-     * as three identical rows that each eat a slot and open nothing.
-     * `undefined` (unreadable list) KEEPS the row, same rule as episodes.
-     */
+    /** TRI-STATE tab existence (see `taskTabExists`). The visit log is never
+     *  pruned on close, so a confirmed-gone tab drops its row; `undefined` keeps it. */
     tabExists?: (taskId: string, tabId: string) => boolean | undefined
   } = {},
 ): InboxRow[] {
@@ -174,20 +132,15 @@ export function inboxRows(
     tasks.map((task) => task.id),
   )
   const tasksById = new Map(tasks.map((task) => [String(task.id), task]))
-  // A visited row names one tab, so only an episode on THAT tab (or a
-  // task-level one) duplicates it. An unvisited row is task-level, so any
-  // episode on its task does.
+  // A visited row is duplicated only by an episode on THAT tab or a task-level
+  // one; an unvisited (task-level) row by any episode on its task.
   const pendingTasks = new Set(items.map((item) => item.taskId))
   const coveredTab = (taskId: string, tabId: string | null): boolean =>
     items.some((item) => item.taskId === taskId && (item.tabId === null || item.tabId === tabId))
   const visited = [...inboxVisitIndex(options.visits ?? []).values()]
-  // No known active tab (task never mounted its tabs) falls back to hiding
-  // the whole selected task, as before — there's nothing tab-precise to say.
+  // No known active tab → hide the whole selected task.
   const isSelected = (taskId: string, tabId: string | null): boolean =>
     taskId === options.selectedId && (options.selectedTabId == null || tabId === options.selectedTabId)
-  // A visit to a tab that has since closed opens nothing and renders with the
-  // task's own label, so several of them read as duplicate rows. Confirmed
-  // gone drops the row; unreadable keeps it.
   const tabAlive = (visit: InboxVisit): boolean =>
     visit.tabId === null || options.tabExists?.(visit.taskId, visit.tabId) !== false
   const visitedRows = visited
@@ -259,12 +212,9 @@ export type InboxWindow = {
 }
 
 /**
- * The slice of rows the pane can show. `budget` counts CARDS only — a header
- * is one line against a card's three, so charging it a whole card slot both
- * shrank the window and let a trailing section header dangle with its rows
- * clipped and nothing saying so. The window slides so the cursor's card is
- * always inside it; the clipped-card counts feed the pane's "+N more" lines,
- * which is what tells the user the queue continues past the fold.
+ * Rows the pane can show. `budget` counts CARDS only (a header is one line to
+ * a card's three). The window keeps the cursor's card inside; clipped counts
+ * feed the pane's "+N more" lines.
  */
 export function windowInboxRows(rows: readonly InboxRow[], cursor: number, budget: number): InboxWindow {
   const cardIndexes = rows.reduce<number[]>((acc, row, index) => {
@@ -298,12 +248,8 @@ export function nextAttentionInboxTarget(
 ): AttentionInboxItem | null {
   const liveTasks = new Set(taskOrder)
   const ordered = sortAttentionInbox(items, taskOrder).filter(
-    // A routine episode's subject is the SCHEDULE, so a live task is not what
-    // makes it reachable — the same rule `isAttentionInboxItemAvailable` states,
-    // and opening one lands on the Routines page rather than on any task.
-    // Gating on a live task here made the episode that DOES name one (the
-    // firing created a task, its engine never started) visible in the pane and
-    // unreachable from F7 — listed, and skipped, forever.
+    // A routine episode targets the SCHEDULE (opens the Routines page), so a
+    // live task must not gate it, or F7 skips a listed episode forever.
     (item) =>
       (item.state === "routine_failed" || item.taskId === null || liveTasks.has(item.taskId)) && isAvailable(item),
   )
@@ -312,8 +258,7 @@ export function nextAttentionInboxTarget(
   const currentIndex =
     currentKey === null ? -1 : ordered.findIndex((item) => attentionInboxItemKey(item) === currentKey)
   if (currentIndex < 0) return ordered[0] ?? null
-  // The sole pending episode may already be the current tab. Returning it
-  // lets F7 resolve it instead of leaving an unvisitable item stuck.
+  // The sole episode may be the current tab; returning it lets F7 resolve it.
   if (ordered.length === 1) return ordered[0] ?? null
   return ordered[(currentIndex + 1) % ordered.length] ?? null
 }

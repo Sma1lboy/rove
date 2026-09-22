@@ -1,8 +1,4 @@
-/**
- * Pointer events routed to the app inside the PTY, in emulator order — the
- * half of the terminal pane's mouse wiring that talks to the PTY rather than
- * to the local grid selection.
- */
+/** Pointer events routed to the app inside the PTY, in emulator order. */
 
 import { useRef } from "react"
 import type { TaskPtyLike } from "../../../tui/panes/terminal/pty-types"
@@ -30,16 +26,11 @@ export function useTerminalPointerForward(opts: {
   })
 
   /**
-   * Emulator order for ANY scroll this pane performs — a wheel tick or a
-   * selection drag hanging past an edge. An app that owns its own scrollback
-   * (mouse tracking, or a fullscreen app on the alternate screen) gets wheel
-   * events; only when it wants neither do we move kobe's local viewport.
-   * Engine tabs are why this matters for the drag: Claude Code runs on the
-   * ALTERNATE screen, where there is no local scrollback to move at all, so a
-   * drag held at the edge has to ask the app to scroll, exactly as the wheel
-   * does. `screenX`/`screenY` are absolute pointer coords. Returns true when
-   * the scroll was forwarded — the selection hook then tracks the content
-   * shifts the app's redraws cause under the fixed snapshot rows.
+   * Emulator order for ANY scroll (wheel, or a selection drag past an edge):
+   * an app with mouse tracking or on the alternate screen gets wheel events;
+   * otherwise kobe's local viewport moves. Engines on the ALTERNATE screen
+   * have no local scrollback, so an edge drag must ask the app. Coords are
+   * absolute. True = forwarded; the selection hook then tracks the shift.
    */
   const scrollFromPointer = (lines: number, screenX: number, screenY: number): boolean => {
     if (lines === 0) return false
@@ -56,13 +47,10 @@ export function useTerminalPointerForward(opts: {
   }
 
   /**
-   * Same order for a button transition: the app enabled mouse tracking → encode
-   * an SGR event and hand the click to the app (Claude Code's expandable tool
-   * rows, vim, less…), and the pane's grid selection never sees it. Shift
-   * bypasses the app the way iTerm/kitty do, so text can still be selected
-   * out of a mouse-aware app. A press that was forwarded owns its release
-   * too — a drag that leaves the grid must not fall through into a local
-   * selection halfway through.
+   * Button transitions: with mouse tracking, send an SGR event to the app and
+   * skip the grid selection. Shift bypasses the app (as iTerm/kitty do). A
+   * forwarded press owns its release, so a drag can't turn into a local
+   * selection halfway.
    */
   const forwardMouse = (kind: "down" | "up" | "drag", evt: PointerEvent): boolean => {
     if (kind === "down") mouseOwnedByApp.current = false

@@ -1,29 +1,18 @@
 /** @jsxImportSource @opentui/react */
 /**
- * WorktreesPage — lists every git worktree across all locally-saved projects
- * (kobe-managed or not — see `worktree.list`'s handler), each row flagging
- * whether kobe manages it, its age, uncommitted-changes state, and whether
- * its branch has reached `origin`. Modeled on `tui-react/settings/host.tsx`
- * (standalone full-window surface, same close-key contract) and the new-task
- * dialog's Adopt tab (cursor-navigable worktree list — see
- * `component/new-task-dialog/tab-adopt.tsx` for the row grammar this extends
- * with badges).
+ * WorktreesPage — every git worktree across saved projects, kobe-managed or
+ * not, with managed/age/dirty/pushed badges.
  *
- * Delete flow mirrors the daemon's own safety gate
- * (`GitWorktreeManager.remove`): a clean worktree deletes on a single
- * confirm; a dirty one fails the first attempt and surfaces a SECOND,
- * more severe confirm before retrying with `force: true` — no client-side
- * dirty check duplicates the backend's.
+ * Delete defers to the daemon's gate (`GitWorktreeManager.remove`): a clean
+ * worktree deletes on one confirm; a dirty one fails the first attempt and
+ * surfaces a second, more severe confirm before retrying with `force: true`.
+ * No client-side dirty check.
  *
- * The delete itself is OPTIMISTIC: `git worktree remove` on a worktree with
- * a populated `node_modules` is seconds of real filesystem work, so the row
- * disappears the moment the user confirms and the daemon call runs in the
- * background. A failure (dirty refusal, or anything else) puts the row back.
+ * Delete is optimistic: `git worktree remove` with a populated `node_modules`
+ * takes seconds, so the row hides on confirm and any failure restores it.
  *
- * Loading follows THE ASYNC CANON (`src/tui-react/history/host.tsx`):
- * `useState` + a `reloadTick`-keyed `useEffect` whose stale completions are
- * dropped by an effect-local `disposed` flag; a refetch is just bumping
- * `reloadTick`.
+ * Loading follows the async canon (`src/tui-react/history/host.tsx`): a
+ * `reloadTick`-keyed effect with an effect-local `disposed` flag.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -49,19 +38,12 @@ function flattenRows(projects: readonly WorktreeProject[]): readonly WorktreeAud
 }
 
 /**
- * Read a dirty refusal out of a daemon error, or `null` when it is something
- * else. The RPC layer rebuilds a thrown error as `new Error(message)`, so the
- * message is all that survives — the same test `tui/lib/task-actions.ts` uses
- * for the task-row delete, which is the other half of this one event.
- *
- * Matching the CODE and not prose is the point: `GitWorktreeManager.remove`
- * refuses in three ways (porcelain-dirty, `git status --ignored` failed,
- * gitignored work present) and the old regex recognised only the first, so the
- * other two never reached the force re-prompt at all.
- *
- * The returned reason is what follows the code — it names the gitignored paths
- * in the case where that is what refused, which is the only way that refusal is
- * actionable: `git status` cannot see them.
+ * Read a dirty refusal out of a daemon error, or `null`. The RPC layer keeps
+ * only the message, so match the CODE (as `tui/lib/task-actions.ts` does):
+ * `GitWorktreeManager.remove` refuses three ways (porcelain-dirty, `git status
+ * --ignored` failed, gitignored work present) and all must reach the force
+ * re-prompt. The returned reason names the gitignored paths when those
+ * refused — `git status` can't show them.
  */
 function dirtyRefusalReason(err: unknown): string | null {
   if (!(err instanceof Error)) return null
@@ -83,11 +65,8 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
   const notif = useNotifications()
 
   /**
-   * Surface action outcomes as on-screen toasts. Under an alternate screen a
-   * bare `console.error` is invisible (it only reaches the daemon log), so a
-   * land/delete result would otherwise look like a silent no-op. Empty
-   * taskId/tabId match the pattern in `useSidebarHostState`: this page is not
-   * scoped to a single chat tab, only the toast queue is consumed.
+   * Action outcomes as toasts: under the alternate screen `console.error` is
+   * invisible. Empty taskId/tabId — the page isn't scoped to a chat tab.
    */
   function notifyError(message: string): void {
     notif.notify({ kind: "error", taskId: "", tabId: "", title: message })
@@ -103,10 +82,9 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
   const [reloadTick, setReloadTick] = useState(0)
   const refetch = (): void => setReloadTick((tick) => tick + 1)
 
-  // Two-phase load: the local-signals pass paints instantly, the full pass
-  // (ls-remote + gh PR states, seconds when a remote is slow) swaps in when
-  // it lands. `fullLanded` guards the rare inversion where the full pass
-  // returns before the fast one — richer rows must not be overwritten.
+  // Two-phase load: local signals paint instantly; the full pass (ls-remote +
+  // gh PR states, seconds on a slow remote) swaps in later. `fullLanded` stops
+  // a late fast pass overwriting richer rows.
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick is a TRIGGER — the effect body doesn't read it.
   useEffect(() => {
     let disposed = false
@@ -130,23 +108,20 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
         fullLanded = true
         if (disposed) return
         setProjects(rows)
-        // Stop hiding paths the daemon confirms are gone; a path still listed
-        // is either a delete still running or one that never took, and the
-        // catch path is what un-hides those.
+        // Unhide only confirmed-gone paths; a still-listed one is in flight or
+        // failed, and the catch path un-hides those.
         const live = new Set(flattenRows(rows).map((r) => r.path))
         setRemovingPaths((paths) => paths.filter((p) => live.has(p)))
       })
       .catch(() => {
-        // Failure boundary: a failed read leaves the fast-pass rows (or the
-        // loading placeholder) rather than crashing.
+        // A failed read keeps the fast-pass rows or the placeholder.
       })
     return () => {
       disposed = true
     }
   }, [props.orchestrator, reloadTick])
 
-  // Paths whose delete is in flight — hidden from the list so the row goes
-  // away on confirm, restored if the daemon call fails.
+  // Paths with a delete in flight: hidden, restored if the daemon call fails.
   const [removingPaths, setRemovingPaths] = useState<readonly string[]>([])
   const visibleProjects = (projects ?? []).map((p) => ({
     ...p,
@@ -159,8 +134,7 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
   useEffect(() => {
     setCursor((c) => clampCursor(c, flatRows.length))
   }, [flatRows.length])
-  // Rows are two lines each and the page scrolls, so a cursor a few screens
-  // down is otherwise off-frame with nothing following it.
+  // Two-line rows in a scrolling page: keep the cursor in frame.
   const follow = useCursorFollow(cursor)
 
   const [busyPath, setBusyPath] = useState<string | null>(null)
@@ -172,9 +146,8 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
     setRemovingPaths((paths) => [...paths, row.path])
     try {
       const residue = await orch.removeWorktree(row.path, force)
-      // git deregistered the worktree but could not delete the directory. The
-      // row IS gone (nothing lists that path any more), so this is not an
-      // error toast — but it is the only time the leftover path is ever named.
+      // Deregistered but the directory stayed: not an error, but the only
+      // place the leftover path is ever named.
       if (residue) notifyNeedsInput(t("worktrees.delete.residue", { path: residue.path, reason: residue.reason }))
       // Path stays in `removingPaths`: refetch is async, and dropping it here
       // would flash the dead row back until the fresh list lands.
@@ -222,9 +195,8 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
       console.error("[rove worktrees] land refused: no tracked task for", row.path)
       return
     }
-    // The land itself is shared with the sidebar row menu
-    // (`workspace/land-task-action.ts`); the page adds only the busy row and
-    // the refetch that clears it, since landing removes the worktree.
+    // Landing is shared (`workspace/land-task-action.ts`); the page adds the
+    // busy row and a refetch, since landing removes the worktree.
     setBusyPath(row.path)
     try {
       await landTaskAction(
@@ -285,9 +257,7 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
     return <text fg={theme.textMuted}> {t("worktrees.badge.remoteUnknown")}</text>
   }
 
-  /** Staleness-rubric badge (see `orchestrator/worktree/staleness.ts`).
-   *  `dirty` already has its own badge and `fresh` is the quiet default —
-   *  neither repeats here. */
+  /** Staleness badge (`orchestrator/worktree/staleness.ts`); `dirty` and `fresh` don't repeat here. */
   function verdictBadge(row: WorktreeAuditRow): ReactNode {
     if (row.verdictReason === "dirty" || row.verdictReason === "fresh") return null
     const fg = row.verdict === "merged" ? theme.success : row.verdict === "stale" ? theme.warning : theme.accent
@@ -335,10 +305,7 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
                 project.worktrees.map((row, i) => {
                   const absoluteIndex = base + i
                   const isCursor = absoluteIndex === cursor
-                  // The shared cursor vocabulary (▌ marker + row tint, no fill
-                  // under transparency). `▸` used to mean two things at once
-                  // here — it is the sidebar's and the file tree's "collapsed"
-                  // glyph — and the `primary` text tint was this page's alone.
+                  // Shared cursor chrome; `▸` is reserved for "collapsed".
                   const chrome = resolveRowSelectionChrome(theme, { cursor: isCursor })
                   return (
                     <box
