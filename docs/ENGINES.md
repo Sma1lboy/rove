@@ -138,12 +138,7 @@ and is refused by `rove api add --tier` (`TIER_UNAVAILABLE`), not at launch.
 `--tier auto` goes one step further and picks the depth from the prompt
 itself, through a classifier that is off until you configure it — see
 [the tier classifier](./CONFIGURATION.md#the-tier-classifier), which also
-spells out where the prompt text goes. Below, one fan-out of four: nobody
-chose a depth, the classifier read the first sentence and answered `deep`,
-and all four siblings launched on what the `deep` row names, each in its own
-worktree.
-
-![A four-way fan-out routed to deep](assets/auto-routing.gif)
+spells out where the prompt text goes.
 
 ### Workspace trust
 
