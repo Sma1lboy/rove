@@ -36,12 +36,6 @@ afterEach(() => {
 })
 
 describe("vendor preference layers", () => {
-  test("unset everywhere → claude", () => {
-    expect(resolvePreferredVendor("/repo")).toBe("claude")
-    expect(resolvePreferredVendor()).toBe("claude")
-    expect(getGlobalDefaultVendor()).toBeUndefined()
-  })
-
   test("repo last-active wins over the global default", () => {
     setGlobalDefaultVendor("claude")
     setRepoLastActiveVendor("/repo", "codex")

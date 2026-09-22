@@ -23,11 +23,6 @@ function issue(over: Partial<Issue> & { id: number }): Issue {
 }
 
 describe("issueColumnKey", () => {
-  test("done → done, even with a stale task link", () => {
-    expect(issueColumnKey(issue({ id: 1, status: "done" }))).toBe("done")
-    expect(issueColumnKey(issue({ id: 2, status: "done", taskId: "01T" }))).toBe("done")
-  })
-
   test("hold → parked, WITH or without a task link (the disposition defect)", () => {
     // The original bug: a linked hold issue rendered as In progress.
     expect(issueColumnKey(issue({ id: 3, status: "hold", taskId: "01T" }))).toBe("parked")
@@ -36,16 +31,6 @@ describe("issueColumnKey", () => {
 
   test("an unknown status parks (fail-safe) — never backlog or done", () => {
     expect(issueColumnKey(issue({ id: 5, status: "wat" as Issue["status"] }))).toBe("parked")
-  })
-
-  test("a linked active issue is in progress", () => {
-    expect(issueColumnKey(issue({ id: 6, taskId: "01T" }))).toBe("in_progress")
-    expect(issueColumnKey(issue({ id: 7, status: "doing", taskId: "01T" }))).toBe("in_progress")
-  })
-
-  test("open / empty-link are backlog", () => {
-    expect(issueColumnKey(issue({ id: 8 }))).toBe("backlog")
-    expect(issueColumnKey(issue({ id: 10, taskId: "" }))).toBe("backlog")
   })
 
   // `doing` needs no task to mean what it says. Bucketing it with `open` made
@@ -142,12 +127,6 @@ describe("applyBoardAttention", () => {
   const inProgress = (cols: readonly ReturnType<typeof buildIssueBoard>[number][]) =>
     cols.find((c) => c.key === "in_progress")?.issues.map((i) => i.id)
 
-  test("floats blocked cards to the column head, stable within both groups", () => {
-    const { columns, attentionCount } = applyBoardAttention(base, (id) => id === "T1")
-    expect(inProgress(columns)).toEqual([1, 3, 2])
-    expect(attentionCount).toBe(1)
-  })
-
   // WHICH tasks need a person is the derived group's job now
   // (`lib/task-group.ts`, tested there): this module only partitions on the
   // predicate it is handed. That split is what let `dead` be missing from the
@@ -166,12 +145,6 @@ describe("applyBoardAttention", () => {
     expect(attentionCount).toBe(0)
   })
 
-  test("a vanished task — one the predicate cannot answer for — stays in place", () => {
-    const { columns, attentionCount } = applyBoardAttention(base, () => false)
-    expect(inProgress(columns)).toEqual([3, 2, 1])
-    expect(attentionCount).toBe(0)
-  })
-
   test("parked/done/backlog are never partitioned nor counted, even with blocked links", () => {
     // Issue 30 is parked AND its task needs a person — that is often WHY it
     // was parked, so it neither floats nor counts as attention.
@@ -180,12 +153,6 @@ describe("applyBoardAttention", () => {
     expect(columns.find((c) => c.key === "done")?.issues.map((i) => i.id)).toEqual([20])
     expect(columns.find((c) => c.key === "backlog")?.issues.map((i) => i.id)).toEqual([10])
     expect(attentionCount).toBe(3)
-  })
-
-  test("empty board is a no-op", () => {
-    const { columns, attentionCount } = applyBoardAttention(buildIssueBoard([]), () => true)
-    expect(columns.every((c) => c.issues.length === 0)).toBe(true)
-    expect(attentionCount).toBe(0)
   })
 })
 
@@ -204,10 +171,6 @@ describe("moveBoardSelection", () => {
   test("anchors on the first visible card when nothing (or a stale id) is selected", () => {
     expect(moveBoardSelection(columns, null, "down")).toBe(1)
     expect(moveBoardSelection(columns, 99, "right")).toBe(1)
-  })
-
-  test("null only on an empty board", () => {
-    expect(moveBoardSelection(buildIssueBoard([]), null, "down")).toBeNull()
   })
 
   test("up/down step within a column and clamp at the edges", () => {

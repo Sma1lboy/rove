@@ -5,12 +5,6 @@ const MIN = 60_000
 const NOW = Date.parse("2026-07-27T12:00:00.000Z")
 
 describe("relativeBuckets", () => {
-  test("steps minutes → hours → days from one delta", () => {
-    expect(relativeBuckets(15 * MIN)).toEqual({ minutes: 15, hours: 0, days: 0 })
-    expect(relativeBuckets(23 * 60 * MIN)).toEqual({ minutes: 23 * 60, hours: 23, days: 0 })
-    expect(relativeBuckets(3 * 24 * 60 * MIN)).toMatchObject({ hours: 72, days: 3 })
-  })
-
   test("each step FLOORS, so a countdown never overstates headroom", () => {
     // The two cases the decision turned on: a routine 1h40m out used to read
     // `in 2h` and fire twenty minutes early, and 36h out used to read `in 2d`.

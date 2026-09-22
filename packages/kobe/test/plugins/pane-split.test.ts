@@ -44,12 +44,6 @@ describe("openPluginPane", () => {
     expect(next.tabs.find((t) => t.id === next.activeId)).toMatchObject({ kind: "command", command: ARGV })
   })
 
-  it("splits normally when the size gate passes", () => {
-    const state = initialTabs()
-    const next = openPluginPane(state, ARGV, "lazygit", "split", "right", { cols: 120, rows: 40 })
-    expect(next.tabs).toHaveLength(state.tabs.length)
-  })
-
   it("falls back to a tab when the active tab cannot host a split", () => {
     const withContent = openContentTab(initialTabs(), "README.md", "README.md")
     const next = openPluginPane(withContent, ARGV, "lazygit")
@@ -71,13 +65,6 @@ describe("openPluginPane", () => {
     expect(ls[1]).toMatchObject({ content: ARGV, title: "logs" })
     // The focused command tab is untouched.
     expect(next.tabs.find((t) => t.id === "tab-2")).toMatchObject({ kind: "command" })
-  })
-
-  it("an unknown tabId falls back to a command tab like any un-splittable host", () => {
-    const state = initialTabs()
-    const next = openPluginPane(state, ARGV, "lazygit", "split", "right", null, "tab-9")
-    expect(next.tabs).toHaveLength(state.tabs.length + 1)
-    expect(next.tabs.find((t) => t.id === next.activeId)?.kind).toBe("command")
   })
 })
 

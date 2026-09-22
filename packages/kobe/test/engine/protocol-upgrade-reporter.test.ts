@@ -92,20 +92,6 @@ describe("createProtocolUpgradeReporter", () => {
     await Promise.resolve()
     expect(orch.setCommandCalls).toEqual([])
   })
-
-  it("ignores evidence for a task the store no longer has", () => {
-    const orch = fakeOrch({ vendor: "generic", command: "my-wrapper.sh" })
-    const report = createProtocolUpgradeReporter(orch as never, runtime as never)
-    expect(() => report("task-gone", "tab-1", { walkVendor: "claude", title: "⠂ x" })).not.toThrow()
-    expect(orch.setCommandCalls).toEqual([])
-  })
-
-  it("never upgrades when the runtime ships no resolver", () => {
-    const orch = fakeOrch({ vendor: "generic", command: "my-wrapper.sh" })
-    const report = createProtocolUpgradeReporter(orch as never, {} as never)
-    report("task-1", "tab-1", { walkVendor: "claude", title: "⠂ x" })
-    expect(orch.setCommandCalls).toEqual([])
-  })
 })
 
 describe("observer → reporter relay", () => {

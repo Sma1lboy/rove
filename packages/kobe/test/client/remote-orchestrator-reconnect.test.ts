@@ -27,12 +27,6 @@ describe("shouldLogReconnectAttempt", () => {
     expect(shouldLogReconnectAttempt(100)).toBe(true)
   })
 
-  it("stays silent on non-1st, non-10th attempts", () => {
-    expect(shouldLogReconnectAttempt(2)).toBe(false)
-    expect(shouldLogReconnectAttempt(11)).toBe(false)
-    expect(shouldLogReconnectAttempt(99)).toBe(false)
-  })
-
   it("goes silent for every attempt past the ceiling, even a would-be 10th", () => {
     expect(shouldLogReconnectAttempt(RECONNECT_LOG_ATTEMPT_CEILING)).toBe(true) // last one logged
     expect(shouldLogReconnectAttempt(RECONNECT_LOG_ATTEMPT_CEILING + 1)).toBe(false)

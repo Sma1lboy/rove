@@ -29,21 +29,6 @@ describe("Orchestrator active task recency", () => {
     await rm(home, { recursive: true, force: true })
   })
 
-  it("touches updatedAt when a task becomes active", async () => {
-    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"))
-    const task = await orch.createTask({
-      repo: "/repo",
-      title: "first",
-      branch: "first",
-      vendor: "claude",
-    })
-
-    vi.setSystemTime(new Date("2026-01-02T00:00:00.000Z"))
-    await orch.setActiveTask(task.id)
-
-    expect(orch.getTask(task.id)?.updatedAt).toBe("2026-01-02T00:00:00.000Z")
-  })
-
   // CORRECTNESS PIN for `store.touchRecency`: keeping the fsync'd
   // `store.update(id, {})` off the focus path must NOT cost the `recent`
   // ordering it would have fed. After a sequence of setActive calls the

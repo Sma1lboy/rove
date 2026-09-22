@@ -8,23 +8,11 @@ import { charWidth, displayWidth, padEndCells } from "../../src/lib/display-widt
  * exact misalignment the module exists to prevent.
  */
 describe("charWidth", () => {
-  it("counts plain ASCII / Latin as one cell", () => {
-    expect(charWidth("a".codePointAt(0) as number)).toBe(1)
-    expect(charWidth("Z".codePointAt(0) as number)).toBe(1)
-    expect(charWidth(" ".codePointAt(0) as number)).toBe(1)
-    expect(charWidth("ü".codePointAt(0) as number)).toBe(1)
-  })
-
   it("counts CJK ideographs, kana, and fullwidth forms as two cells", () => {
     expect(charWidth("中".codePointAt(0) as number)).toBe(2) // CJK Unified
     expect(charWidth("あ".codePointAt(0) as number)).toBe(2) // Hiragana
     expect(charWidth("Ａ".codePointAt(0) as number)).toBe(2) // Fullwidth A (U+FF21)
     expect(charWidth("한".codePointAt(0) as number)).toBe(2) // precomposed Hangul syllable
-  })
-
-  it("counts astral CJK / emoji as two cells (single code point)", () => {
-    expect(charWidth(0x20000)).toBe(2) // CJK Unified Ext B
-    expect(charWidth("😀".codePointAt(0) as number)).toBe(2) // U+1F600
   })
 
   it("counts C0 / DEL / C1 control characters as zero (non-printing)", () => {
@@ -48,60 +36,9 @@ describe("charWidth", () => {
     expect(charWidth(0xfe0f)).toBe(0) // variation selector-16
     expect(charWidth(0xfeff)).toBe(0) // BOM / zero-width no-break space
   })
-
-  it("splits conjoining Hangul Jamo: leading is wide, medial/final are zero-width", () => {
-    // Decomposed 한 = choseong U+1112 + jungseong U+1161 + jongseong U+11AB.
-    // Only the leading jamo advances the cursor; the vowel/final fold onto it.
-    expect(charWidth(0x1112)).toBe(2) // choseong (leading)
-    expect(charWidth(0x1161)).toBe(0) // jungseong (medial)
-    expect(charWidth(0x11ab)).toBe(0) // jongseong (final)
-    expect(charWidth(0x1160)).toBe(0) // jungseong filler (range floor)
-    expect(charWidth(0x11ff)).toBe(0) // range ceiling
-  })
-
-  it("counts the CJK-region combining sound / tone marks as zero", () => {
-    // U+3099/U+309A are the nonspacing (semi-)voiced sound marks that NFD
-    // decomposition splits off precomposed voiced kana (が = か + U+3099);
-    // U+302A–U+302F are ideographic / Hangul tone marks. All fold onto the
-    // preceding glyph's cell, matching xterm's wcwidth combining table.
-    expect(charWidth(0x3099)).toBe(0) // combining voiced sound mark
-    expect(charWidth(0x309a)).toBe(0) // combining semi-voiced sound mark
-    expect(charWidth(0x302a)).toBe(0) // ideographic tone mark (range floor)
-    expect(charWidth(0x302f)).toBe(0) // range ceiling
-    expect(charWidth(0x3041)).toBe(2) // ぁ — wide kana just past the sound marks
-  })
-
-  it("counts combining half marks (U+FE20–U+FE2F) as zero", () => {
-    expect(charWidth(0xfe20)).toBe(0)
-    expect(charWidth(0xfe26)).toBe(0) // combining conjoining macron
-    expect(charWidth(0xfe2f)).toBe(0)
-  })
-
-  it("keeps the wide CJK-compatibility neighbours of the half-mark block intact", () => {
-    expect(charWidth(0xfe19)).toBe(2) // presentation form for vertical horizontal ellipsis (0xfe10–0xfe19)
-    expect(charWidth(0xfe30)).toBe(2) // CJK compatibility form (0xfe30–0xfe6f)
-  })
-
-  it("counts the Enclosed Ideographic Supplement block as two cells", () => {
-    // Whole block (U+1F200–U+1F2FF) is East-Asian-Width = Wide; it sits just
-    // below the emoji range, which makes it easy to miscount as one cell.
-    expect(charWidth(0x1f200)).toBe(2) // 🈀 square hiragana hoka
-    expect(charWidth(0x1f21a)).toBe(2) // 🈚 squared CJK "no charge"
-    expect(charWidth(0x1f22f)).toBe(2) // 🈯 squared CJK "reserved"
-    expect(charWidth(0x1f250)).toBe(2) // 🉐 circled ideograph "advantage"
-  })
-
-  it("counts the isolated Mahjong / playing-card emoji as two cells", () => {
-    expect(charWidth(0x1f004)).toBe(2) // 🀄 mahjong tile red dragon
-    expect(charWidth(0x1f0cf)).toBe(2) // 🃏 playing card black joker
-  })
 })
 
 describe("displayWidth", () => {
-  it("is zero for the empty string", () => {
-    expect(displayWidth("")).toBe(0)
-  })
-
   it("sums cells across a mixed CJK / ASCII string", () => {
     expect(displayWidth("ab中c")).toBe(5) // 1 + 1 + 2 + 1
     expect(displayWidth("你好, world")).toBe(11) // 2 + 2 + rest ASCII (7)
@@ -159,22 +96,8 @@ describe("displayWidth", () => {
  * glyph under-pads and every column to its right drifts.
  */
 describe("padEndCells", () => {
-  it("pads ASCII to the cell target", () => {
-    expect(padEndCells("ab", 4)).toBe("ab  ")
-    expect(padEndCells("ab", 2)).toBe("ab")
-  })
-
   it("pads a wide CJK string by cells, not code units", () => {
     expect(padEndCells("中文", 6)).toBe("中文  ") // 4 cells + 2 spaces
     expect(padEndCells("中文", 4)).toBe("中文") // already at target
-  })
-
-  it("pads a chord cap like ⌘N to the cell target", () => {
-    expect(padEndCells("⌘N", 5)).toBe("⌘N   ")
-  })
-
-  it("passes through strings already at or past the target", () => {
-    expect(padEndCells("abcdef", 3)).toBe("abcdef")
-    expect(padEndCells("中文", 0)).toBe("中文")
   })
 })

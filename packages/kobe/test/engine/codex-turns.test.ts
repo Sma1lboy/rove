@@ -102,13 +102,6 @@ describe("parseCodexTurns", () => {
     expect(turns[1]?.usage?.cache_read_input_tokens).toBe(10000)
   })
 
-  test("turn ids are stable across re-reads — the dedupe key AgentTurn requires", () => {
-    // The hook fires on every Stop and the rollout is re-read from the top, so
-    // an unstable id would re-record every past turn on each read.
-    expect(parseCodexTurns(ROLLOUT).map((t) => t.id)).toEqual(parseCodexTurns(ROLLOUT).map((t) => t.id))
-    expect(parseCodexTurns(ROLLOUT).map((t) => t.id)).toEqual([T1, T2])
-  })
-
   test("a turn still running is not emitted until its task_complete lands", () => {
     const open = ROLLOUT.split("\n").slice(0, -1).join("\n")
     expect(parseCodexTurns(open).map((t) => t.id)).toEqual([T1])

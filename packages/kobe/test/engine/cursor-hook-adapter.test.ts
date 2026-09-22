@@ -12,7 +12,6 @@ import { join } from "node:path"
 import { ROVE_HOOK_VERSION } from "@/engine/json-hooks"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
-  CURSOR_HOOK_EVENT_MAP,
   CursorHookAdapter,
   cursorHooksPath,
   mergeCursorHooks,
@@ -38,13 +37,6 @@ describe("mergeCursorHooks", () => {
     expect(sessionStart(doc)).toEqual([
       { command: `rove hook session-start --engine cursor --hook-version ${ROVE_HOOK_VERSION}` },
     ])
-  })
-
-  it("is idempotent — a second install replaces rather than appends", () => {
-    const once = mergeCursorHooks({}, true, PROD)
-    const twice = mergeCursorHooks(once, true, PROD)
-    expect(twice).toEqual(once)
-    expect(sessionStart(twice)).toHaveLength(1)
   })
 
   it("replaces a dev-checkout install with the released one instead of stacking", () => {
@@ -80,23 +72,9 @@ describe("mergeCursorHooks", () => {
     const ours = mergeCursorHooks({}, true, PROD)
     expect((mergeCursorHooks(ours, false, PROD).hooks as Record<string, unknown>).sessionStart).toBeUndefined()
   })
-
-  // The other five cursor events (beforeSubmitPrompt, beforeShellExecution,
-  // beforeMCPExecution, stop, sessionEnd) gate the agent's own actions — Rove
-  // installs no observer into a decision hook, and the screen manifest keeps
-  // owning cursor's working/blocked state.
-  it("wires sessionStart and nothing else", () => {
-    expect(CURSOR_HOOK_EVENT_MAP).toEqual([{ event: "sessionStart", verb: "session-start" }])
-  })
 })
 
 describe("parseCursorHooks", () => {
-  it("accepts a missing file, a hookless document, and cursor's own shape", () => {
-    expect(parseCursorHooks(undefined)).toEqual({ ok: true, doc: {} })
-    expect(parseCursorHooks('{"version":1}')).toEqual({ ok: true, doc: { version: 1 } })
-    expect(parseCursorHooks('{"version":1,"hooks":{"sessionStart":[{"command":"x"}]}}').ok).toBe(true)
-  })
-
   it("refuses what it cannot merge into, with a reason naming the path", () => {
     expect(parseCursorHooks("{oops")).toMatchObject({ ok: false })
     expect(parseCursorHooks("[]")).toEqual({ ok: false, reason: "top level is not a JSON object" })

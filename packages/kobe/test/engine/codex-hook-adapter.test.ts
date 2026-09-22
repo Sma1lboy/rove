@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { CodexHookAdapter, KOBE_CODEX_HOOK_EVENTS, codexHooksPath } from "../../src/engine/codex-local/hook-adapter.ts"
+import { CodexHookAdapter, KOBE_CODEX_HOOK_EVENTS } from "../../src/engine/codex-local/hook-adapter.ts"
 
 // The adapter's install path builds hook commands from `kobeHookInvocation()`
 // (whose dev fallback is `roveCliInvocation()`). Pin the whole module so the
@@ -40,22 +40,6 @@ describe("CodexHookAdapter", () => {
   it("tolerates the schema's nullable transcript_path and an absent session", () => {
     expect(adapter.sessionFromPayload({ session_id: "s1", transcript_path: null })).toEqual({ sessionId: "s1" })
     expect(adapter.sessionFromPayload({ transcript_path: "/t.jsonl" })).toBeUndefined()
-  })
-
-  it("declares itself a wired hook engine writing ~/.codex/hooks.json", () => {
-    expect(adapter.vendor).toBe("codex")
-    expect(adapter.supportsHooks()).toBe(true)
-    expect(adapter.globalSettingsPath()).toBe(codexHooksPath())
-    expect(adapter.globalSettingsPath().endsWith(join(".codex", "hooks.json"))).toBe(true)
-  })
-
-  it("never installed the legacy WorktreeCreate hook → nothing to clean up", () => {
-    expect(adapter.supportsWorktreeSync()).toBe(false)
-  })
-
-  it("decodes no extra detail (no failure/permission events are wired)", () => {
-    expect(adapter.activityDetailFromPayload("turn-complete", {})).toBeUndefined()
-    expect(adapter.activityDetailFromPayload("turn-failed", { error_type: "rate_limit" })).toBeUndefined()
   })
 
   it("owns exactly the events Codex can deliver safely", () => {

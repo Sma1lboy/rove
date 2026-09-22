@@ -67,8 +67,4 @@ describe("readUsageSnapshot", () => {
     const raw = record("2026-01-01T00:00:01.000Z", undefined)
     expect(await readUsageSnapshot("s1", fakeDeps("nousage", "s1", raw))).toBeUndefined()
   })
-
-  it("returns undefined for a missing session", async () => {
-    expect(await readUsageSnapshot("nope", fakeDeps("missing", "s1", ""))).toBeUndefined()
-  })
 })

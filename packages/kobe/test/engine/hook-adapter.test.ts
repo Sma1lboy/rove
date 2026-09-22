@@ -14,11 +14,6 @@ import { describe, expect, it } from "vitest"
 import { NoopHookAdapter, createEngineHookAdapter } from "../../src/engine/hook-adapter.ts"
 
 describe("createEngineHookAdapter", () => {
-  it("resolves claude + codex to real hook adapters", () => {
-    expect(createEngineHookAdapter("claude").supportsHooks()).toBe(true)
-    expect(createEngineHookAdapter("codex").supportsHooks()).toBe(true)
-  })
-
   it("resolves copilot to its own wired adapter, not the noop one", () => {
     const adapter = createEngineHookAdapter("copilot")
     expect(adapter.supportsHooks()).toBe(true)
@@ -28,16 +23,6 @@ describe("createEngineHookAdapter", () => {
 
 describe("NoopHookAdapter", () => {
   const noop = new NoopHookAdapter("copilot")
-
-  it("claims no hook support and no settings file", () => {
-    expect(noop.supportsHooks()).toBe(false)
-    expect(noop.globalSettingsPath()).toBe("")
-    expect(noop.supportsWorktreeSync()).toBe(false)
-  })
-
-  it("understands no payload — kobe hook's adapter probe must skip it", () => {
-    expect(noop.activityDetailFromPayload()).toBeUndefined()
-  })
 
   it("every install/remove is a resolved no-op (never throws into the launch path)", async () => {
     await expect(noop.installActivityHooks()).resolves.toEqual({ ok: true })

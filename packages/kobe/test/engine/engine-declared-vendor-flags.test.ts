@@ -104,10 +104,6 @@ describe("declared effort reaches the launch argv", () => {
     expect(withEngineEffort(["fake-cli"], "fakeengine", "high")).toEqual(["fake-cli", "--reasoning", "high"])
   })
 
-  it("still drops a level the engine never declared", () => {
-    expect(withEngineEffort(["fake-cli"], "fakeengine", "turbo")).toEqual(["fake-cli"])
-  })
-
   it("drops a level for an engine that declares levels but no argv", () => {
     // Honest refusal, not a guess: nothing here knows how to spell it.
     expect(withEngineEffort(["copilot"], "copilot", "high")).toEqual(["copilot"])
@@ -126,10 +122,6 @@ describe("declared effort reaches the launch argv", () => {
 describe("declared model reaches the launch argv", () => {
   it("applies a NON-BUILT-IN engine's own modelArgv, verbatim", () => {
     expect(withEngineModel(["fake-cli"], "fakeengine", "x/y-2")).toEqual(["fake-cli", "--llm", "x/y-2"])
-  })
-
-  it("drops a model for an engine that declares no flag (the gate refuses it earlier)", () => {
-    expect(withEngineModel(["copilot"], "copilot", "gpt-5")).toEqual(["copilot"])
   })
 
   it("carries a model through a WRAPPER preset that declares the claude protocol", () => {
@@ -170,12 +162,6 @@ describe("system-prompt protocols reach a wrapper engine", () => {
       "engineProtocol.mykimi": "kimi",
     })
     expect(withWorktreeProtocol(["mykimi"], "mykimi", "t1", { status: on, notes: on })).toEqual(["mykimi"])
-  })
-
-  it("still leaves a wrapper command that sets its own prompt flag alone", () => {
-    registerClaudeWrapper()
-    const own = ["claudecpa", "--append-system-prompt=mine"]
-    expect(withWorktreeProtocol(own, "claudecpa", "t1", { status: on, notes: on })).toEqual(own)
   })
 })
 

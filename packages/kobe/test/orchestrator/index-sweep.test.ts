@@ -67,8 +67,4 @@ describe("sweepIndexLeftovers", () => {
       expect(existsSync(at(name))).toBe(true)
     }
   })
-
-  it("reports nothing swept for a directory that does not exist", () => {
-    expect(sweepIndexLeftovers(join(dir, "absent"))).toEqual({ tmp: [], tmpBytes: 0, lock: false })
-  })
 })

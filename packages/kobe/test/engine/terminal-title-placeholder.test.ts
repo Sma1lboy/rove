@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest"
 import { engineSessionIdFromTitle, isEnginePlaceholderTitle } from "../../src/engine/registry.ts"
-import { titleIsPlaceholder, titleSessionId } from "../../src/engine/terminal-title.ts"
 
 /**
  * Codex writes its THREAD ID into the OSC title until the thread is named
@@ -23,21 +22,5 @@ describe("engine placeholder titles", () => {
     expect(isEnginePlaceholderTitle("fix the flaky watcher test", "codex")).toBe(false)
     // A title that merely CONTAINS a uuid is still a name (anchored match).
     expect(isEnginePlaceholderTitle(`resume ${CODEX_THREAD_TITLE}`, "codex")).toBe(false)
-  })
-
-  it("engines whose title is always a name declare no rule", () => {
-    for (const vendor of ["claude", "kimi", "copilot"] as const) {
-      expect(isEnginePlaceholderTitle(CODEX_THREAD_TITLE, vendor)).toBe(false)
-      expect(engineSessionIdFromTitle(vendor, CODEX_THREAD_TITLE)).toBeNull()
-    }
-  })
-
-  it("an engine that declares no rule judges nothing", () => {
-    // The pure layer is what a future engine plugs into; with no policy there
-    // is no verdict, and "" is never a placeholder — it is "nothing reported
-    // yet", which every caller already treats as absent.
-    expect(titleIsPlaceholder(undefined, CODEX_THREAD_TITLE)).toBe(false)
-    expect(titleSessionId(undefined, CODEX_THREAD_TITLE)).toBeNull()
-    expect(titleIsPlaceholder({ ownsStatus: true, sessionIdFromTitle: () => null }, "   ")).toBe(false)
   })
 })

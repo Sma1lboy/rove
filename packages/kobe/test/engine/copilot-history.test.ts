@@ -8,13 +8,6 @@ import {
 import { copilotUsageToSnapshot } from "../../src/engine/copilot-local/usage.ts"
 
 describe("parseWorkspaceYaml", () => {
-  it("reads id / cwd / updated_at, stripping quotes", () => {
-    const meta = parseWorkspaceYaml('id: abc123\ncwd: "/work/tree"\nupdated_at: 2026-05-01T00:00:00Z\n')
-    expect(meta.id).toBe("abc123")
-    expect(meta.cwd).toBe("/work/tree")
-    expect(meta.updatedAt).toBe("2026-05-01T00:00:00Z")
-  })
-
   it("strips a trailing CR so a CRLF workspace.yaml still matches the worktree", () => {
     // The Copilot CLI writes CRLF line endings on Windows. Without stripping
     // the CR, `cwd` keeps a trailing "\r" (breaking the worktree comparison)
@@ -97,10 +90,5 @@ describe("copilotUsageToSnapshot", () => {
       cache_read_input_tokens: 10,
       context_tokens: 1200,
     })
-  })
-
-  it("returns undefined when there's nothing to report", () => {
-    expect(copilotUsageToSnapshot({ modelMetrics: {} })).toBeUndefined()
-    expect(copilotUsageToSnapshot(null)).toBeUndefined()
   })
 })

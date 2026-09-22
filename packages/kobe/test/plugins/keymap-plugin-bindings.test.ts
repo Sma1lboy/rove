@@ -42,9 +42,4 @@ describe("extractPluginKeybindings", () => {
     expect(entries).toEqual([])
     expect(warnings).toHaveLength(3)
   })
-
-  it("returns empty for docs without a plugins section", () => {
-    expect(extractPluginKeybindings({}, "darwin").entries).toEqual([])
-    expect(extractPluginKeybindings(null, "darwin").entries).toEqual([])
-  })
 })

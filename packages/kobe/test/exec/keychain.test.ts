@@ -4,7 +4,6 @@ import {
   type KeychainRef,
   deleteKeychainPassword,
   getKeychainPassword,
-  isKeychainSupported,
   remoteKeychainRef,
   setKeychainPassword,
 } from "../../src/exec/keychain.ts"
@@ -43,18 +42,16 @@ describe("remoteKeychainRef", () => {
   })
 })
 
-describe("isKeychainSupported", () => {
-  it("is true on darwin, false elsewhere", () => {
-    expect(isKeychainSupported(fakeKeychain("darwin").deps)).toBe(true)
-    expect(isKeychainSupported(fakeKeychain("linux").deps)).toBe(false)
-  })
-})
-
 describe("set/get/delete round-trip", () => {
   it("stores then reads the same password back without a trailing newline", () => {
     const { deps } = fakeKeychain()
     expect(setKeychainPassword(REF, "hunter2", deps)).toBe(true)
     expect(getKeychainPassword(REF, deps)).toBe("hunter2")
+  })
+
+  it("returns null for a missing item", () => {
+    const { deps } = fakeKeychain()
+    expect(getKeychainPassword(REF, deps)).toBeNull()
   })
 
   it("uses -U so a re-store updates instead of erroring", () => {
@@ -63,11 +60,6 @@ describe("set/get/delete round-trip", () => {
     setKeychainPassword(REF, "b", deps)
     expect(getKeychainPassword(REF, deps)).toBe("b")
     expect(calls[0]).toContain("-U")
-  })
-
-  it("returns null for a missing item", () => {
-    const { deps } = fakeKeychain()
-    expect(getKeychainPassword(REF, deps)).toBeNull()
   })
 
   it("deletes an item", () => {

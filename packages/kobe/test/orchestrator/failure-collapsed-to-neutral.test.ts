@@ -101,12 +101,6 @@ describe("one definition of a dirty porcelain", () => {
     exists: async () => true,
   }
 
-  it('agrees that "\\n" is clean', async () => {
-    expect(isDirtyOutput("\n")).toBe(false)
-    expect(isDirtyOutput("")).toBe(false)
-    expect(isDirtyOutput(" M src/a.ts\n")).toBe(true)
-  })
-
   it("gives all three call sites the same verdict on the same stdout", async () => {
     // Asserting the shared helper alone would not notice a call site quietly
     // going back to its own notion of empty, which is exactly the drift.

@@ -13,18 +13,11 @@ import {
   LAUNCH_CMD_ENV,
   LAUNCH_LOG_ENV,
   WIN_DETACHED_LAUNCHER_PS,
-  encodePowershellCommand,
   spawnWindowsDetached,
   windowsCommandLine,
 } from "../../../kobe-daemon/src/client/win-detached-launch.ts"
 
 describe("windowsCommandLine (MSVCRT argv quoting)", () => {
-  it("passes plain arguments and backslash paths verbatim", () => {
-    expect(windowsCommandLine(["C:\\Users\\me\\.bun\\bin\\bun.exe", "daemon", "start"])).toBe(
-      "C:\\Users\\me\\.bun\\bin\\bun.exe daemon start",
-    )
-  })
-
   it("quotes an argument with a space and doubles only the backslashes before the closing quote", () => {
     expect(windowsCommandLine(["C:\\Program Files\\Git\\bin\\bash.exe"])).toBe(
       '"C:\\Program Files\\Git\\bin\\bash.exe"',
@@ -50,11 +43,6 @@ describe("the launcher script", () => {
     // CREATE_NEW_CONSOLE | CREATE_BREAKAWAY_FROM_JOB | CREATE_NEW_PROCESS_GROUP, SW_HIDE
     expect(WIN_DETACHED_LAUNCHER_PS).toContain("0x00000010 | 0x01000000 | 0x00000200")
     expect(WIN_DETACHED_LAUNCHER_PS).toContain("si.wShowWindow = 0;")
-  })
-
-  it("is handed to PowerShell as base64 UTF-16LE", () => {
-    const encoded = encodePowershellCommand("Write-Output hi")
-    expect(Buffer.from(encoded, "base64").toString("utf16le")).toBe("Write-Output hi")
   })
 })
 

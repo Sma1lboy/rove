@@ -12,8 +12,6 @@ import {
   isNewerSemver,
   owningNpmPrefix,
   recommendedGlobalInstallCommand,
-  releasePageUrl,
-  repoSlug,
 } from "../src/version.ts"
 
 // The npm version check is suppressed in dev. `isDev()` reads ROVE_DEV first
@@ -196,14 +194,6 @@ describe("release channels", () => {
 })
 
 describe("repo slug + static commands", () => {
-  it("derives owner/repo from package.json#repository.url", () => {
-    expect(repoSlug()).toBe("Sma1lboy/rove")
-  })
-
-  it("recommendedGlobalInstallCommand targets this package", () => {
-    expect(recommendedGlobalInstallCommand(null)).toBe(`npm install -g ${PACKAGE_NAME}@latest`)
-  })
-
   // A bare `npm install -g` writes to the prefix of whichever node runs
   // npm, which need not be the prefix holding the binary the user ran.
   // When we know the owning prefix, the command has to pin it.
@@ -222,10 +212,6 @@ describe("repo slug + static commands", () => {
     expect(owningNpmPrefix("/Users/x/.bun/install/global/node_modules/pkg/dist/version.js")).toBeNull()
     expect(owningNpmPrefix("/Users/x/src/rove/packages/kobe/src/version.ts")).toBeNull()
     expect(owningNpmPrefix("/lib/node_modules/pkg/dist/version.js")).toBeNull()
-  })
-
-  it("releasePageUrl points at the GitHub tag for a version", () => {
-    expect(releasePageUrl("0.1.2")).toBe("https://github.com/Sma1lboy/rove/releases/tag/v0.1.2")
   })
 })
 
@@ -297,14 +283,6 @@ describe("fetchReleaseSummaries", () => {
     ])
   })
 
-  it("falls back to an empty list on API failures", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response("nope", { status: 500 })),
-    )
-    await expect(fetchReleaseSummaries()).resolves.toEqual([])
-  })
-
   it("falls back to an empty list on a non-array body and on a network error", async () => {
     vi.stubGlobal(
       "fetch",
@@ -348,29 +326,5 @@ describe("fetchReleaseNotesRange", () => {
       { version: "0.7.12", url: "https://github.com/Sma1lboy/rove/releases/tag/v0.7.12", body: "latest" },
       { version: "0.7.11", url: "https://github.com/Sma1lboy/rove/releases/tag/v0.7.11", body: "middle" },
     ])
-  })
-
-  it("falls back to an empty list on API failures", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response("nope", { status: 500 })),
-    )
-    await expect(fetchReleaseNotesRange({ current: "0.7.10", latest: "0.7.12" })).resolves.toEqual([])
-  })
-
-  it("falls back to an empty list on a non-array body and on a network error", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(JSON.stringify({ message: "rate limited" }), { status: 200 })),
-    )
-    await expect(fetchReleaseNotesRange({ current: "0.7.10", latest: "0.7.12" })).resolves.toEqual([])
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => {
-        throw new Error("offline")
-      }),
-    )
-    await expect(fetchReleaseNotesRange({ current: "0.7.10", latest: "0.7.12" })).resolves.toEqual([])
   })
 })

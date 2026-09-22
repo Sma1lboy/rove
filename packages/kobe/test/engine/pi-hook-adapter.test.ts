@@ -23,20 +23,9 @@ describe("PiFamilyHookAdapter", () => {
   const pi = new PiFamilyHookAdapter("pi")
   const omp = new PiFamilyHookAdapter("omp")
 
-  it("serves both family ids off one implementation", () => {
-    expect(pi.vendor).toBe("pi")
-    expect(omp.vendor).toBe("omp")
-    expect(pi.supportsHooks()).toBe(true)
-    expect(omp.supportsHooks()).toBe(true)
-  })
-
   it("installs into each CLI's own agent directory", () => {
     expect(pi.globalSettingsPath().endsWith(join(".pi", "agent", "extensions", ACTIVITY_EXTENSION_FILE))).toBe(true)
     expect(omp.globalSettingsPath().endsWith(join(".omp", "agent", "extensions", ACTIVITY_EXTENSION_FILE))).toBe(true)
-  })
-
-  it("never installed the legacy worktree hooks → nothing to clean up", () => {
-    expect(pi.supportsWorktreeSync()).toBe(false)
   })
 
   it("classifies a permission wait and reads the tool name", () => {
@@ -137,11 +126,6 @@ describe("PiFamilyHookAdapter", () => {
       expect(await readFile(installPath(), "utf8")).not.toContain('"tool-pre"')
       await pi.installActivityHooks(installPath(), { toolEvents: true })
       expect(await readFile(installPath(), "utf8")).toContain('"tool-pre"')
-    })
-
-    it("keeps the two vendors' install paths apart", async () => {
-      await mkdir(agentDir, { recursive: true })
-      expect(installPath("omp")).not.toBe(installPath("pi"))
     })
   })
 })

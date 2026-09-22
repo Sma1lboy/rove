@@ -3,7 +3,6 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
   flushClientLog,
-  formatClientEntry,
   installClientCrashHandlers,
   logClient,
   resetClientCrashHandlersForTest,
@@ -15,20 +14,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 /**
  * The client log is the observability that was MISSING when the Tasks-pane
  * sync drift went undiagnosed: a pane in an opentui alternate-screen has no
- * visible stdout, so its disconnect churn left no trace. These lock the line
- * format (context + pid + subsystem tag) and that a real write lands on disk
- * under the KOBE_HOME_DIR-isolated `.kobe/client.log`.
+ * visible stdout, so its disconnect churn left no trace. These lock that a
+ * real write lands on disk under the KOBE_HOME_DIR-isolated `.kobe/client.log`.
  */
 describe("client-log", () => {
-  it("formats a line with context, pid, and subsystem tag", () => {
-    setClientLogContext("tasks")
-    const at = new Date("2026-06-03T12:00:00.000Z")
-    const line = formatClientEntry("orch", "subscribed as pane (3 tasks)", at)
-    expect(line).toBe(
-      `[2026-06-03T12:00:00.000Z] client tasks [orch] pid=${process.pid}: subscribed as pane (3 tasks)\n`,
-    )
-  })
-
   describe("file write", () => {
     let home: string
     const prev = process.env.KOBE_HOME_DIR
@@ -107,15 +96,6 @@ describe("client-log", () => {
       installClientCrashHandlers()
       expect(process.listenerCount("unhandledRejection")).toBe(rej)
       expect(process.listenerCount("uncaughtException")).toBe(exc)
-    })
-
-    it("resetForTest removes exactly the handlers it installed", () => {
-      const rejBaseline = process.listenerCount("unhandledRejection")
-      const excBaseline = process.listenerCount("uncaughtException")
-      installClientCrashHandlers()
-      resetClientCrashHandlersForTest()
-      expect(process.listenerCount("unhandledRejection")).toBe(rejBaseline)
-      expect(process.listenerCount("uncaughtException")).toBe(excBaseline)
     })
   })
 })

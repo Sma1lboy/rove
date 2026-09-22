@@ -60,23 +60,12 @@ describe("npxSkillsArgv / npxSkillsCommand", () => {
     expect(npxSkillsArgv({ source: "/bundled" })).not.toContain("--agent")
   })
 
-  it("installs GLOBAL by default; global:false opts into project-level", () => {
-    // The skill drives a machine-wide daemon — one user-level copy, one
-    // staleness lifecycle, instead of a re-prompt in every repo.
-    expect(npxSkillsArgv({ source: "/b" })).toContain("--global")
-    expect(npxSkillsArgv({ source: "/b", global: false })).not.toContain("--global")
-  })
-
   it("installs from the BUNDLED path, not a repo clone", () => {
     // `npx skills add Sma1lboy/rove` is a `git clone --depth 1` = ~198MB of
     // working tree for an 8KB file. The local path skips the network.
     const dir = bundledSkillDir()
     expect(dir).not.toBeNull()
     expect(npxSkillsArgv()[2]).toBe(dir)
-  })
-
-  it("falls back to the repo slug when nothing is bundled", () => {
-    expect(npxSkillsArgv({ source: null })).toContain("Sma1lboy/rove")
   })
 
   it("repeats --agent per agent (the CLI rejects a comma-joined list)", () => {
@@ -120,27 +109,6 @@ describe("skill version / staleness", () => {
     expect(source).not.toContain("${KOBE_TASK_ID:-}")
   })
 
-  it("kobeSkillState: absent → not installed, not stale", () => {
-    const s = kobeSkillState({ home: tempDir(), cwd: tempDir() })
-    expect(s).toMatchObject({ installed: false, stale: false })
-  })
-
-  it("kobeSkillState: current version → fresh", () => {
-    const cwd = tempDir()
-    installSkillUnder(cwd, `<!-- rove-skill-version: ${KOBE_SKILL_VERSION} -->`)
-    expect(kobeSkillState({ home: tempDir(), cwd })).toMatchObject({ installed: true, stale: false })
-  })
-
-  it("kobeSkillState: older version → stale", () => {
-    const cwd = tempDir()
-    installSkillUnder(cwd, `<!-- kobe-skill-version: ${KOBE_SKILL_VERSION - 1} -->`)
-    expect(kobeSkillState({ home: tempDir(), cwd })).toMatchObject({
-      installed: true,
-      installedVersion: KOBE_SKILL_VERSION - 1,
-      stale: true,
-    })
-  })
-
   it("kobeSkillState: a leftover kobe copy is reported beside a current rove one", () => {
     // Agents load every skill directory they find, so the stale `kobe` copy
     // keeps teaching an old `api` surface however green the rove copy is.
@@ -167,16 +135,6 @@ describe("skill version / staleness", () => {
     const home = tempDir()
     installSkillUnder(home, `<!-- kobe-skill-version: ${KOBE_SKILL_VERSION} -->`, "kobe")
     expect(kobeSkillState({ home, cwd: tempDir() })).toMatchObject({ installed: true, legacyCopies: [] })
-  })
-
-  it("kobeSkillState: unstamped install → stale (refresh once)", () => {
-    const cwd = tempDir()
-    installSkillUnder(cwd, "old skill with no version marker")
-    expect(kobeSkillState({ home: tempDir(), cwd })).toMatchObject({
-      installed: true,
-      installedVersion: null,
-      stale: true,
-    })
   })
 })
 

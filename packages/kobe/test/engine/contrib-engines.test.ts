@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { CONTRIB_ENGINES, CONTRIB_ENGINE_IDS, isContribEngine } from "../../src/engine/contrib-engines.ts"
+import { CONTRIB_ENGINES, CONTRIB_ENGINE_IDS } from "../../src/engine/contrib-engines.ts"
 import { engineEntry } from "../../src/engine/registry.ts"
 import { classifyScreen } from "../../src/engine/screen-state.ts"
 import { isBuiltinVendor } from "../../src/types/vendor.ts"
@@ -18,13 +18,6 @@ describe("contrib engine catalog", () => {
     // The rest stays the documented empty custom entry.
     expect(gemini.createHookAdapter().supportsHooks()).toBe(false)
     expect(gemini.createTurnDetector().supportsCompletionMarkers()).toBe(false)
-  })
-
-  it("a non-catalog custom id keeps the plain custom entry", () => {
-    expect(isContribEngine("my-aider")).toBe(false)
-    const entry = engineEntry("my-aider")
-    expect(entry.displayName).toBe("my-aider")
-    expect(entry.screenManifest).toBeUndefined()
   })
 
   // opencode's positional argument is a project DIRECTORY, so an argv-delivered

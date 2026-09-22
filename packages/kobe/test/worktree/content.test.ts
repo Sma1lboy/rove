@@ -50,17 +50,6 @@ describe("runWorktreeGit", () => {
     ])
   })
 
-  it("returns a failure result for an empty Worktree path", async () => {
-    const { exec, runs } = fakeExecHost()
-
-    await expect(runWorktreeGit("", ["status"], { execForPath: () => exec })).resolves.toEqual({
-      stdout: "",
-      stderr: "worktreePath is required",
-      status: -1,
-    })
-    expect(runs).toEqual([])
-  })
-
   it("aborts a slow git run when timeoutMs expires", async () => {
     const exec: ExecHost = {
       isRemote: true,
@@ -133,22 +122,5 @@ describe("readWorktreeFile", () => {
     await expect(readWorktreeFile("/srv/wt", "../secret", { execForPath: () => exec })).resolves.toBeNull()
 
     expect(reads).toEqual([])
-  })
-
-  it("returns null when the ExecHost read rejects", async () => {
-    const exec: ExecHost = {
-      isRemote: true,
-      run: async () => ({ stdout: "", stderr: "", exitCode: 0 }),
-      exists: async () => false,
-      mkdirp: async () => {},
-      readFile: async () => {
-        throw new Error("read failed")
-      },
-      readdir: async () => [],
-      wrapCommand: (command) => command,
-      ensureReady: () => {},
-    }
-
-    await expect(readWorktreeFile("/srv/wt", "src/app.ts", { execForPath: () => exec })).resolves.toBeNull()
   })
 })

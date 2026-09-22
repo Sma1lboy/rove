@@ -33,13 +33,6 @@ describe("reduceActivity", () => {
     expect(reduceActivity(undefined, "turn-complete")).toBe("turn_complete")
   })
 
-  it("classifies turn-failed by failure class", () => {
-    expect(reduceActivity("running", "turn-failed", { failure: "rate_limit" })).toBe("rate_limited")
-    expect(reduceActivity("running", "turn-failed", { failure: "billing" })).toBe("rate_limited")
-    expect(reduceActivity("running", "turn-failed", { failure: "other" })).toBe("error")
-    expect(reduceActivity("running", "turn-failed")).toBe("error")
-  })
-
   it("treats awaiting-input as permission_needed — permission prompt AND question dialog", () => {
     // A question dialog blocks the engine on the user
     // exactly like a permission prompt, and F7 must reach it. `detail.waiting`

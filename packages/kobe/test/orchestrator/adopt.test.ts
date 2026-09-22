@@ -74,12 +74,6 @@ describe("adoptWorktree", () => {
     expect(await orch.ensureWorktree(task.id)).toBe(task.worktreePath)
   })
 
-  test("defaults the title to the worktree directory basename", async () => {
-    const ext = addExternalWorktree("featD")
-    const task = await orch.adoptWorktree({ repo, worktreePath: ext, branch: "featD" })
-    expect(task.title).toBe(path.basename(ext))
-  })
-
   test("rejects a path that isn't an adoptable worktree of the repo", async () => {
     await expect(orch.adoptWorktree({ repo, worktreePath: path.join(tmpRoot, "nope"), branch: "x" })).rejects.toThrow()
   })

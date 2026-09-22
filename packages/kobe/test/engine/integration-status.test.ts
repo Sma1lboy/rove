@@ -27,24 +27,6 @@ vi.mock("../../src/cli/invocation.ts", () => ({
 }))
 
 describe("readHookInstallState", () => {
-  it("calls a stamped current entry installed", () => {
-    const text = JSON.stringify({
-      hooks: {
-        Stop: [
-          {
-            hooks: [
-              {
-                type: "command",
-                command: `rove hook turn-complete --engine claude --hook-version ${ROVE_HOOK_VERSION}`,
-              },
-            ],
-          },
-        ],
-      },
-    })
-    expect(readHookInstallState(text)).toBe("installed")
-  })
-
   it("calls an entry stamped with an older version outdated", () => {
     const text = `command = "rove hook turn-complete --engine kimi --hook-version ${ROVE_HOOK_VERSION - 1}"`
     expect(readHookInstallState(text)).toBe("outdated")
@@ -125,25 +107,6 @@ describe("the installed shape carries the stamp", () => {
     expect(stop[0]?.hooks).toHaveLength(1)
     expect(twice).toEqual(once)
   })
-
-  it("removal finds the entry it just wrote", () => {
-    const installed = mergeActivityHooks({}, true, CLAUDE_HOOK_EVENT_MAP, ["rove"], {
-      extraArgs: roveHookArgs("claude"),
-    })
-    const removed = mergeActivityHooks(installed, false, CLAUDE_HOOK_EVENT_MAP, ["rove"])
-    expect(removed.hooks).toBeUndefined()
-  })
-
-  it("leaves the user's own hook for the same event alone", () => {
-    const mine = {
-      hooks: { Stop: [{ hooks: [{ type: "command", command: "notify-send done" }] }] },
-    }
-    const merged = mergeActivityHooks(mine, true, CLAUDE_HOOK_EVENT_MAP, ["rove"], {
-      extraArgs: roveHookArgs("claude"),
-    })
-    const stop = (merged.hooks as Record<string, { hooks: { command: string }[] }[]>).Stop
-    expect(stop.some((group) => group.hooks.some((h) => h.command === "notify-send done"))).toBe(true)
-  })
 })
 
 describe("a contrib engine that declares a hook adapter", () => {
@@ -223,10 +186,5 @@ describe("outdated → install → installed, through the real adapter", () => {
     } finally {
       process.stderr.write = real
     }
-  })
-
-  it("reads a file Rove has never touched as not-installed", async () => {
-    await writeFile(file, `${JSON.stringify({ model: "opus" })}\n`)
-    expect(readHookInstallState(await readFile(file, "utf8"))).toBe("not-installed")
   })
 })

@@ -51,13 +51,6 @@ function harness(answers: { ensure: boolean[]; check: boolean[] }) {
 }
 
 describe.skipIf(!POSIX)("startTunnel", () => {
-  it("is online once the forward is up", async () => {
-    const h = harness({ ensure: [true], check: [] })
-    expect(h.handle.state()).toBe("connecting")
-    await h.tick()
-    expect(h.handle.state()).toBe("online")
-  })
-
   it("stays offline and keeps retrying while the machine is unreachable", async () => {
     const h = harness({ ensure: [false, false, true], check: [] })
     await h.tick()

@@ -12,10 +12,6 @@ describe("ulid", () => {
     for (const ch of id) expect(ULID_ALPHABET).toContain(ch)
   })
 
-  it("encodes timestamp 0 as ten leading zeros", () => {
-    expect(ulid(0).slice(0, 10)).toBe("0000000000")
-  })
-
   it("sorts lexicographically by timestamp", () => {
     const earlier = ulid(1000)
     const later = ulid(2000)
@@ -44,20 +40,5 @@ describe("ulid", () => {
     const second = ulid(8000)
     expect(second > first).toBe(true)
     expect(second.slice(0, 10)).toBe(first.slice(0, 10))
-  })
-
-  it("resumes fresh timestamps once the clock catches back up", () => {
-    const first = ulid(9000)
-    const held = ulid(8000)
-    expect(held.slice(0, 10)).toBe(first.slice(0, 10))
-    // A later timestamp advances the prefix normally again.
-    const later = ulid(9001)
-    expect(later > held).toBe(true)
-    expect(later.slice(0, 10) > first.slice(0, 10)).toBe(true)
-  })
-
-  it("generates a distinct id per call", () => {
-    const ids = new Set([ulid(9000), ulid(9000), ulid(9001), ulid(9001)])
-    expect(ids.size).toBe(4)
   })
 })

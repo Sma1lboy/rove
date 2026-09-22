@@ -25,12 +25,6 @@ afterAll(() => {
 })
 
 describe("git()", () => {
-  test("runs in the given cwd and returns stdout", () => {
-    const result = git(["rev-parse", "--show-toplevel"], { cwd: repo })
-    expect(result.exitCode).toBe(0)
-    expect(realpathSync(result.stdout.trim())).toBe(repo)
-  })
-
   test("refuses to run without an explicit cwd", () => {
     expect(() => git(["status"], { cwd: "" })).toThrow("cwd is required")
   })

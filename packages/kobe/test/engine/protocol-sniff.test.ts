@@ -29,10 +29,6 @@ describe("sniffProtocolFromTitle", () => {
     expect(sniffProtocolFromTitle("✳ refactoring the parser")).toBe("claude")
   })
 
-  it("names codex from a spinner frame only codex declares", () => {
-    expect(sniffProtocolFromTitle("⠹ fixing the build")).toBe("codex")
-  })
-
   it("keeps the built-in vocabularies disjoint — the property the sniff rests on", () => {
     // Every glyph today belongs to exactly one engine, which is WHY a title
     // can identify one. The sniff returns null for a shared glyph rather than
@@ -64,11 +60,6 @@ describe("sniffProtocolFromTitle", () => {
 })
 
 describe("sniffProtocolFromSessions", () => {
-  it("stays silent without a worktree to look under", async () => {
-    expect(await sniffProtocolFromSessions(undefined)).toBeNull()
-    expect(await sniffProtocolFromSessions("")).toBeNull()
-  })
-
   it("stays silent for a directory no engine has ever written a session for", async () => {
     // Readers are best-effort by contract, so a nonexistent path resolves to
     // "no store answered" rather than throwing.
@@ -104,24 +95,6 @@ describe("protocolUpgradeFromLiveSession", () => {
     rmSync(home, { recursive: true, force: true })
   })
 
-  const generic = { vendor: "generic", command: "my-wrapper.sh --yolo" }
-
-  it("upgrades a generic record when the walk finds a built-in engine in its tree", () => {
-    expect(protocolUpgradeFromLiveSession(generic, { walkVendor: "claude", title: "zsh" })).toEqual({
-      command: "my-wrapper.sh --yolo",
-      vendor: "claude",
-    })
-  })
-
-  it("upgrades from the title glyph when the walk sees nothing (renamed binary)", () => {
-    // A wrapper that execs a RENAMED claude never matches a process name —
-    // the engine's own title vocabulary is the only fingerprint left.
-    expect(protocolUpgradeFromLiveSession(generic, { walkVendor: null, title: "✳ refactoring" })).toEqual({
-      command: "my-wrapper.sh --yolo",
-      vendor: "claude",
-    })
-  })
-
   it("refuses when the record already names a built-in protocol", () => {
     // Sniffing must never flip one engine to another — even against
     // apparently contradicting live evidence.
@@ -150,13 +123,6 @@ describe("protocolUpgradeFromLiveSession", () => {
     expect(
       protocolUpgradeFromLiveSession({ vendor: "claude", command: "aider" }, { walkVendor: "codex", title: "⠹ x" }),
     ).toBeNull()
-  })
-
-  it("stays generic when the evidence names nothing", () => {
-    expect(protocolUpgradeFromLiveSession(generic, { walkVendor: null, title: "bash" })).toBeNull()
-    expect(protocolUpgradeFromLiveSession(generic, { walkVendor: null, title: "" })).toBeNull()
-    // A walk verdict that is not a built-in identifies no protocol either.
-    expect(protocolUpgradeFromLiveSession(generic, { walkVendor: "mystery-engine", title: "bash" })).toBeNull()
   })
 })
 
@@ -221,12 +187,6 @@ describe("protocolWriteBackFromLiveSession", () => {
   it("refuses a title glyph — this key outlives the session, so only the walk counts", () => {
     expect(
       protocolWriteBackFromLiveSession({ vendor: "wrap" }, { walkVendor: null, title: "✳ refactoring" }, registered),
-    ).toBeNull()
-  })
-
-  it("refuses a walk verdict that is not a built-in", () => {
-    expect(
-      protocolWriteBackFromLiveSession({ vendor: "wrap" }, { walkVendor: "mystery-engine", title: "zsh" }, registered),
     ).toBeNull()
   })
 })

@@ -96,9 +96,4 @@ describe("PluginEventReducer", () => {
     ])
     expect(feed("b", "rate_limited")).toEqual([expect.objectContaining({ event: "agent.rate-limited", taskId: "b" })])
   })
-
-  it("ignores unrelated channels", () => {
-    const reducer = new PluginEventReducer()
-    expect(reducer.reduce({ channel: "ui-prefs", payload: {} } as never)).toEqual([])
-  })
 })

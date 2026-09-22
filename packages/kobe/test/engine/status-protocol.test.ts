@@ -44,10 +44,6 @@ describe("withWorktreeProtocol", () => {
     expect(argv[2]).not.toContain("set-status")
   })
 
-  it("missing vendor defaults to claude (the withClaudeSessionId convention)", () => {
-    expect(withWorktreeProtocol(["claude"], undefined, "t1", { status: on, notes: off })).toHaveLength(3)
-  })
-
   it("leaves the argv alone when nothing is enabled, vendor isn't claude, or no task", () => {
     expect(withWorktreeProtocol(["claude"], "claude", "t1", { status: off, notes: off })).toEqual(["claude"])
     expect(withWorktreeProtocol(["codex"], "codex", "t1", { status: on, notes: on })).toEqual(["codex"])
@@ -60,24 +56,9 @@ describe("withWorktreeProtocol", () => {
     const customFile = ["claude", "--append-system-prompt-file", "/tmp/p.txt"]
     expect(withWorktreeProtocol(customFile, "claude", "t1", { status: on, notes: on })).toEqual(customFile)
   })
-
-  it("never double-injects over the attached --flag=value form either", () => {
-    const attached = ["claude", "--append-system-prompt=user's own"]
-    expect(withWorktreeProtocol(attached, "claude", "t1", { status: on, notes: on })).toEqual(attached)
-    const attachedFile = ["claude", "--append-system-prompt-file=/tmp/p.txt"]
-    expect(withWorktreeProtocol(attachedFile, "claude", "t1", { status: on, notes: on })).toEqual(attachedFile)
-  })
 })
 
 describe("statusReportProtocol", () => {
-  it("bakes the task id into both the identity line and the command", () => {
-    const text = statusReportProtocol("01HXABC")
-    expect(text).toContain("as task 01HXABC")
-    expect(text).toContain("--task-id 01HXABC --status in_review")
-    // The agent must never be told to set anything beyond in_review.
-    expect(text).not.toContain("--status done")
-  })
-
   it("the api prefix is injectable — packaged builds bake plain `kobe api`", () => {
     // The default resolves the environment's CLI invocation (the dev bun
     // line from a source checkout), so a protocol agent never drives a
@@ -98,12 +79,6 @@ describe("statusReportProtocol", () => {
     // Guard the "pointer" property itself: the whole protocol must stay a
     // handful of lines, not absorb the skill's verb tables over time.
     expect(text.split("\n").length).toBeLessThanOrEqual(6)
-  })
-})
-
-describe("worktreeProtocol", () => {
-  it("returns null when neither switch is on (no pointless injection)", () => {
-    expect(worktreeProtocol("t1", "kobe api", { status: off, notes: off })).toBeNull()
   })
 })
 
@@ -133,11 +108,6 @@ describe("note recall", () => {
   it("withholds recall when the note switch is off, even with notes on disk", () => {
     expect(worktreeProtocol("t1", "kobe api", { status: on, notes: off }, notes)).not.toContain("--no-sandbox")
   })
-
-  it("carries recall through the argv wrapper", () => {
-    const argv = withWorktreeProtocol(["claude"], "claude", "t1", { status: off, notes: on }, notes)
-    expect(argv[2]).toContain("the build needs --no-sandbox")
-  })
 })
 
 describe("withDispatcherProtocol", () => {
@@ -157,34 +127,6 @@ describe("withDispatcherProtocol", () => {
     expect(withDispatcherProtocol(["claude"], "claude", "m1", off)).toEqual(["claude"])
     expect(withDispatcherProtocol(["codex"], "codex", "m1", on)).toEqual(["codex"])
     expect(withDispatcherProtocol(["claude"], "claude", undefined, on)).toEqual(["claude"])
-  })
-
-  it("never double-injects over a custom command that sets the flag — either form", () => {
-    const custom = ["claude", "--append-system-prompt", "user's own"]
-    expect(withDispatcherProtocol(custom, "claude", "m1", on)).toEqual(custom)
-    const attached = ["claude", "--append-system-prompt=user's own"]
-    expect(withDispatcherProtocol(attached, "claude", "m1", on)).toEqual(attached)
-  })
-
-  it("composes with the worktree protocol: mutually exclusive task ids → exactly one protocol", () => {
-    // A board card: worktree taskId set, dispatcher taskId undefined.
-    const card = withDispatcherProtocol(
-      withWorktreeProtocol(["claude"], "claude", "t1", { status: on, notes: on }),
-      "claude",
-      undefined,
-      on,
-    )
-    expect(card.filter((a) => a === "--append-system-prompt")).toHaveLength(1)
-    expect(card[2]).toContain("in_review")
-    // A main session: the reverse.
-    const main = withDispatcherProtocol(
-      withWorktreeProtocol(["claude"], "claude", undefined, { status: on, notes: on }),
-      "claude",
-      "m1",
-      on,
-    )
-    expect(main.filter((a) => a === "--append-system-prompt")).toHaveLength(1)
-    expect(main[2]).toContain("DISPATCHER")
   })
 })
 

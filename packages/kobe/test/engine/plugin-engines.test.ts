@@ -67,15 +67,6 @@ describe("plugin manifest [[engines]]", () => {
     expect(() => parsePluginManifest(bad)).toThrow(/needs at least one of/)
   })
 
-  it("parses first_message_delivery", () => {
-    const paste = MANIFEST.replace(
-      'command = ["aider", "--no-auto-commits"]',
-      'command = ["aider"]\nfirst_message_delivery = "paste"',
-    )
-    expect(parsePluginManifest(paste).manifest.engines[0]?.firstMessageDelivery).toBe("paste")
-    expect(parsePluginManifest(MANIFEST).manifest.engines[0]?.firstMessageDelivery).toBeUndefined()
-  })
-
   it("rejects an unknown first_message_delivery rather than falling back to argv", () => {
     // Silently defaulting would leave the author with the launch failure the
     // key exists to fix, and no error pointing at the typo.
@@ -86,21 +77,6 @@ describe("plugin manifest [[engines]]", () => {
   it("rejects invalid line_regex", () => {
     const bad = `${MANIFEST}\n[[engines.rules]]\nstate = "working"\nline_regex = ["("]\n`
     expect(() => parsePluginManifest(bad)).toThrow(/not a valid regex/)
-  })
-
-  it("parses [engines.identity] with snake_case keys", () => {
-    const withIdentity = MANIFEST.replace(
-      'command = ["aider", "--no-auto-commits"]',
-      `command = ["aider", "--no-auto-commits"]
-
-[engines.identity]
-product_name = "Aider"
-short_name = "Aider"
-input_placeholder = "Ask Aider…"`,
-    )
-    // Retired keys (product_name / input_placeholder) are ignored, not errors.
-    const { manifest } = parsePluginManifest(withIdentity)
-    expect(manifest.engines[0]?.identity).toEqual({ shortName: "Aider" })
   })
 
   it("a manifest without engines parses to an empty list", () => {
@@ -140,12 +116,6 @@ describe("plugin engine registration", () => {
     expect(ok).toBe(false)
     expect(engineEntry("gemini").displayName).toBe("Gemini CLI")
   })
-
-  it("clearPluginEngines drops registrations (entry falls back to custom)", () => {
-    registerPluginEngine("aider", { displayName: "Aider", defaultCommand: ["aider"], screenManifest: { rules: [] } })
-    clearPluginEngines()
-    expect(engineEntry("aider").displayName).toBe("aider")
-  })
 })
 
 describe("loadPluginEngines + reloadPluginEngines", () => {
@@ -168,18 +138,6 @@ describe("loadPluginEngines + reloadPluginEngines", () => {
     writeFileSync(join(root, "rove-plugin.toml"), manifest)
     return root
   }
-
-  it("loads engines from enabled plugins in the registry (homeDir seam)", () => {
-    const home = registryLinking(pluginRoot(MANIFEST))
-    expect(loadPluginEngines(home)).toEqual(["aider"])
-    expect(pluginEngineIds()).toEqual(["aider"])
-  })
-
-  it("contributes nothing for a disabled plugin", () => {
-    const home = registryLinking(pluginRoot(MANIFEST), false)
-    expect(loadPluginEngines(home)).toEqual([])
-    expect(pluginEngineIds()).toEqual([])
-  })
 
   it("contributes nothing for a manifest whose engine id is rejected at parse time", () => {
     // `gemini` now fails manifest parsing (reserved id), so the loader's

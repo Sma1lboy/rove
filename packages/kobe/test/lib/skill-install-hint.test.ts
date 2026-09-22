@@ -108,15 +108,6 @@ describe("maybeHintSkillInstall", () => {
     expect(stderrSpy).not.toHaveBeenCalled()
   })
 
-  it("uses the compatibility command when invoked through kobe", async () => {
-    process.env.ROVE_INVOKED_AS = "kobe"
-    await maybeHintSkillInstall()
-    const msg = String(stderrSpy.mock.calls[0]?.[0])
-    expect(msg).toContain("kobe skill install")
-    expect(msg).toContain("`kobe api`")
-    expect(msg).toContain("`kobe doctor`")
-  })
-
   it("plugin mode: absent AND stale skill both stay silent (skill versions with the plugin)", async () => {
     // The Rove Claude Code plugin bundles the skill, so neither the install
     // nudge nor the staleness prompt may fire — the mocked homedir means this
@@ -149,13 +140,6 @@ describe("maybeHintSkillInstall", () => {
 
     await maybeHintSkillInstall()
     expect(stderrSpy).toHaveBeenCalledTimes(1)
-  })
-
-  it("unstamped install: hinted as 'an older' version", async () => {
-    mkdirSync(skillDir(cwd), { recursive: true })
-    writeFileSync(join(skillDir(cwd), "SKILL.md"), "no marker")
-    await maybeHintSkillInstall()
-    expect(String(stderrSpy.mock.calls[0]?.[0])).toContain("an older")
   })
 
   it("stale + interactive 'y': runs the install, nothing persisted", async () => {

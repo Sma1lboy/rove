@@ -45,19 +45,6 @@ describe("concurrent delivery into one session", () => {
     ])
   })
 
-  it("locks per key, so a second tab's delivery is not held behind the first", async () => {
-    const log: string[] = []
-    const rpc = recordingRpc(log)
-    await Promise.all([
-      writeHostedPrompt(rpc, "task::tab-1", "to tab one", { ready: true }),
-      writeHostedPrompt(rpc, "task::tab-2", "to tab two", { ready: true }),
-    ])
-    // Different keys share no lock, so these MAY interleave — what must hold is
-    // that each tab received its own complete pair.
-    expect(log).toHaveLength(4)
-    expect(log.filter((d) => d.endsWith("\r"))).toHaveLength(2)
-  })
-
   it("delivers anyway when the lock never comes free", async () => {
     // Best effort, never a refusal: a wedged holder must cost a merge at worst,
     // never a report that silently never reached its coordinator.

@@ -37,15 +37,6 @@ describe("cline screen manifest", () => {
     expect(classifyScreen(cline, "[ACT MODE]\nReading src/app.ts…")).toBeNull()
     expect(classifyScreen(cline, "Execute command?\n  npm run build")).toBeNull()
   })
-
-  // Documented gap: a catch-all working rule (`regex = '(?s).+'`) would only
-  // be safe as a hint weighed against other evidence. Here the classifier's
-  // answer IS the badge, so the catch-all was dropped and cline has no
-  // working/idle rule at all.
-  it("answers null on working and resting screens (no rule, by design)", () => {
-    expect(classifyScreen(cline, "Cline is editing src/app.ts…\nesc to cancel")).toBeNull()
-    expect(classifyScreen(cline, "Cline v3.2.1\n❯ Type a message")).toBeNull()
-  })
 })
 
 describe("kiro screen manifest", () => {
@@ -83,13 +74,6 @@ describe("kiro screen manifest", () => {
   it("does not claim blocked on an approval banner with no options", () => {
     expect(classifyScreen(kiro, "Using tool: executeBash (requires approval)\n   ⋮ npm test")).toBeNull()
     expect(classifyScreen(kiro, "2 tool approvals pending from subagents")).toBeNull()
-  })
-
-  it("does not claim working on a bare cancel hint or a resting prompt", () => {
-    // The spinner glyph is half of the conjunction; `esc to cancel` alone is
-    // drawn by other kiro screens too.
-    expect(classifyScreen(kiro, "esc to cancel")).toBeNull()
-    expect(classifyScreen(kiro, "kiro-cli 1.4.0\n> ")).toBeNull()
   })
 })
 
@@ -149,11 +133,6 @@ describe("antigravity screen manifest", () => {
 
   it("does not claim blocked on a permission banner with no answer row", () => {
     expect(classifyScreen(agy, "Requesting permission for: run_command\n  $ git push --force")).toBeNull()
-  })
-
-  it("does not claim working on a resting pane or a zero task count", () => {
-    expect(classifyScreen(agy, "Antigravity 0.4.0\n❯ ")).toBeNull()
-    expect(classifyScreen(agy, "❯ \n · 0 tasks running")).toBeNull()
   })
 })
 

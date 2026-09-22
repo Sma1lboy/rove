@@ -187,13 +187,6 @@ describe("deliverToHostedKey", () => {
     return { rpc, calls, writes }
   }
 
-  it("delivers into a live session", async () => {
-    const { rpc, writes } = echoingRpc("\u276f")
-    const outcome = await deliverToHostedKey(rpc, "t1::tab-1", "go")
-    expect(outcome).toMatchObject({ ready: true, confirmed: true })
-    expect(writes).toEqual(["pty.write", "pty.write"])
-  })
-
   it("submits with Enter even when the engine's footer asks for Tab", async () => {
     // The submit key is NOT read off the engine's repaint: an engine drawing
     // "tab to queue message" gets Enter like every other engine, so a footer

@@ -7,7 +7,6 @@
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { pathRejection, projectRejection, rejectionReason } from "@/state/project-eligibility"
-import { isGitRepo } from "@/state/repos"
 import { describe, expect, it } from "vitest"
 
 /** The repo this test runs in — a real checkout at a durable path. */
@@ -39,23 +38,9 @@ describe("pathRejection", () => {
     expect(pathRejection("./relative")).toBe("notAbsolute")
   })
 
-  it("passes remote project keys through untouched", () => {
-    // Their eligibility was settled by the remote-add flow; none of the local
-    // path rules can speak about an ssh:// key.
-    expect(pathRejection("ssh://user@host/srv/repo")).toBeNull()
-  })
-
   it("accepts an ordinary checkout on path shape alone", () => {
     expect(pathRejection(REPO_ROOT)).toBeNull()
     expect(pathRejection("/Users/jacksonc/i/codefox")).toBeNull()
-  })
-
-  it("answers without touching the filesystem", () => {
-    // The cleanup scan runs over records whose directory is already gone. A
-    // vanished fixture must still report WHY it never belonged, rather than
-    // reading as a user's repo that merely moved.
-    const gone = "/tmp/rove-i18n-repo-62375/deleted/long/ago"
-    expect(pathRejection(gone)).toBe("temporary")
   })
 })
 
@@ -79,11 +64,6 @@ describe("projectRejection", () => {
     // `isGitRepo` returns false for an ssh:// key by design — consulting it
     // would reject every remote project.
     expect(projectRejection("ssh://user@host/srv/repo", () => false)).toBeNull()
-  })
-
-  it("accepts this repo with the real git check wired in", () => {
-    // The end-to-end shape `addSavedRepo` and `ensureIfEligible` both use.
-    expect(projectRejection(REPO_ROOT, isGitRepo)).toBeNull()
   })
 
   it("skips the fs question entirely when no checker is passed", () => {

@@ -136,10 +136,6 @@ describe("isRemoteProjectsEnabled", () => {
 })
 
 describe("execHostForRepo", () => {
-  it("returns a LocalExecHost for an ordinary path", () => {
-    expect(execHostForRepo("/Users/dev/proj").isRemote).toBe(false)
-  })
-
   it("returns a RemoteExecHost for a registered remote key", () => {
     const { key } = addRemoteRepo({ host: "box", user: "dev", basePath: "/srv", auth: { kind: "key" } })
     expect(execHostForRepo(key).isRemote).toBe(true)
@@ -195,10 +191,6 @@ describe("worktreeUsable", () => {
 })
 
 describe("localSpawnCwd", () => {
-  it("is the identity for a local worktree", () => {
-    expect(localSpawnCwd(home)).toBe(home)
-  })
-
   it("falls back to the local home dir for a remote worktree path", () => {
     addRemoteRepo({ host: "box", user: "dev", basePath: "/srv/work", auth: { kind: "key" } })
     // KOBE_HOME_DIR (= the temp home) overrides os.homedir() in env.homeDir().

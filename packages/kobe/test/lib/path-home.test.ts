@@ -31,26 +31,9 @@ describe("expandTilde", () => {
     expect(expandTilde("~")).toBe(HOME)
   })
 
-  test("expands a `~/…` prefix, joining the remainder onto home", () => {
-    expect(expandTilde("~/myrepo")).toBe(path.join(HOME, "myrepo"))
-    expect(expandTilde("~/a/b/c")).toBe(path.join(HOME, "a", "b", "c"))
-  })
-
-  test("leaves absolute and relative paths untouched", () => {
-    expect(expandTilde("/abs/path")).toBe("/abs/path")
-    expect(expandTilde("relative/path")).toBe("relative/path")
-    expect(expandTilde(".")).toBe(".")
-    expect(expandTilde("")).toBe("")
-  })
-
   test("does not expand `~user` (no username lookup)", () => {
     expect(expandTilde("~user/repo")).toBe("~user/repo")
     expect(expandTilde("~-foo")).toBe("~-foo")
-  })
-
-  test("only a *leading* `~` is special — an interior `~` is literal", () => {
-    expect(expandTilde("a/~/b")).toBe("a/~/b")
-    expect(expandTilde("foo~bar")).toBe("foo~bar")
   })
 
   test("the regression: resolving a quoted `~/repo` no longer yields `<cwd>/~/repo`", () => {

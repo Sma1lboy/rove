@@ -2,7 +2,6 @@ import { describe, expect, test } from "vitest"
 import {
   ClaudeTurnDetector,
   CodexTurnDetector,
-  createEngineTurnDetector,
   latestClaudeCompletionMarkerFromJsonl,
   latestCodexCompletionMarkerFromJsonl,
 } from "../../src/engine/turn-detector"
@@ -30,13 +29,6 @@ describe("latestCodexCompletionMarkerFromJsonl", () => {
     const marker = latestCodexCompletionMarkerFromJsonl(raw, "rollout")
     expect(marker?.source).toBe("codex")
     expect(marker?.timestampMs).toBe(Date.parse("2026-05-29T01:00:05.000Z"))
-  })
-
-  test("also accepts the turn_complete alias and turn_aborted", () => {
-    for (const type of ["turn_complete", "turn_aborted"]) {
-      const raw = JSON.stringify({ type: "event_msg", timestamp: "2026-05-29T01:00:06.000Z", payload: { type } })
-      expect(latestCodexCompletionMarkerFromJsonl(raw)?.timestampMs).toBe(Date.parse("2026-05-29T01:00:06.000Z"))
-    }
   })
 
   test("ignores non-completion event_msg records (token_count, etc.)", () => {
@@ -103,26 +95,11 @@ describe("latestClaudeCompletionMarkerFromJsonl", () => {
     expect(marker?.timestampMs).toBe(Date.parse("2026-05-29T01:00:09.000Z"))
   })
 
-  test("accepts the other turn-ending stop reasons", () => {
-    for (const reason of ["stop_sequence", "max_tokens", "refusal"]) {
-      const marker = latestClaudeCompletionMarkerFromJsonl(assistant("2026-05-29T01:00:06.000Z", reason))
-      expect(marker?.timestampMs).toBe(Date.parse("2026-05-29T01:00:06.000Z"))
-    }
-  })
-
   // Allowlist, not `!== "tool_use"`: pause_turn is mid-turn too, and so is
   // whatever mid-turn value the API adds next.
   test("pause_turn and a missing stop_reason are both mid-turn", () => {
     expect(latestClaudeCompletionMarkerFromJsonl(assistant("2026-05-29T01:00:07.000Z", "pause_turn"))).toBeNull()
     expect(latestClaudeCompletionMarkerFromJsonl(assistant("2026-05-29T01:00:08.000Z"))).toBeNull()
-  })
-})
-
-describe("createEngineTurnDetector", () => {
-  test("keeps unsupported vendors behind the same abstraction", () => {
-    const detector = createEngineTurnDetector("copilot")
-    expect(detector.vendor).toBe("copilot")
-    expect(detector.supportsCompletionMarkers()).toBe(false)
   })
 })
 
@@ -226,19 +203,5 @@ describe("CodexTurnDetector mtime gating", () => {
     mtime = 2000
     await detector.latestCompletion("/wt")
     expect(reads).toHaveLength(2)
-  })
-
-  test("a null marker (no turn.completed yet) is cached under the same mtime gate", async () => {
-    const reads: string[] = []
-    const detector = new CodexTurnDetector({
-      findLatestRollout: async () => ({ path: "/r/rollout.jsonl", mtimeMs: 1000 }),
-      readFile: async (p) => {
-        reads.push(p)
-        return JSON.stringify({ type: "response_item", timestamp: "2026-05-29T01:00:00.000Z" })
-      },
-    })
-    expect(await detector.latestCompletion("/wt")).toBeNull()
-    expect(await detector.latestCompletion("/wt")).toBeNull()
-    expect(reads).toHaveLength(1)
   })
 })

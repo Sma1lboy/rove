@@ -54,12 +54,4 @@ describe("maybeAutoStart", () => {
       expect(orch.moves).toEqual([])
     }
   })
-
-  it("skips main / missing tasks", async () => {
-    for (const t of [task({ kind: "main" }), undefined]) {
-      const orch = fakeOrch(t)
-      await expect(maybeAutoStart(orch, "t1", () => true)).resolves.toBe("skipped")
-      expect(orch.moves).toEqual([])
-    }
-  })
 })

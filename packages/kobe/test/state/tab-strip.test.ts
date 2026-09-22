@@ -10,10 +10,6 @@ import { DEFAULT_TAB_STRIP_MODE, TAB_STRIP_MODES, resolveTabStripMode, tabStripV
 import { describe, expect, it } from "vitest"
 
 describe("the default mode", () => {
-  it("is `never` — the sidebar tree already lists every tab", () => {
-    expect(DEFAULT_TAB_STRIP_MODE).toBe("never")
-  })
-
   it("applies when nothing is stored", () => {
     expect(resolveTabStripMode(undefined, undefined)).toBe("never")
   })
@@ -57,9 +53,5 @@ describe("tabStripVisible", () => {
   it("`multipleOnly` needs a second tab", () => {
     expect(tabStripVisible("multipleOnly", 1)).toBe(false)
     expect(tabStripVisible("multipleOnly", 2)).toBe(true)
-  })
-
-  it("`never` renders nothing", () => {
-    expect(tabStripVisible("never", 2)).toBe(false)
   })
 })

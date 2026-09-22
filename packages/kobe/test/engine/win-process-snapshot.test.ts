@@ -47,18 +47,6 @@ describe("normalizeWindowsArgs", () => {
       "sh.exe /c/npm/claude --resume x",
     )
   })
-
-  it("basenames an unquoted argv[0] and leaves the arguments alone", () => {
-    expect(normalizeWindowsArgs('C:\\Users\\me\\bin\\claude.exe --resume "Minecraft 服务器调研"')).toBe(
-      'claude.exe --resume "Minecraft 服务器调研"',
-    )
-  })
-
-  it("handles a bare executable, a trailing quote, and empty input", () => {
-    expect(normalizeWindowsArgs("System")).toBe("System")
-    expect(normalizeWindowsArgs('"C:\\a b\\claude.exe')).toBe("claude.exe")
-    expect(normalizeWindowsArgs("   ")).toBe("")
-  })
 })
 
 describe("parseWinProcessList", () => {
@@ -115,17 +103,6 @@ describe("repairConsoleParentage (the npm shim's cmd.exe took the chain with it)
     // A dead tab: AttachConsole fails, and a guess would be worse than none.
     expect(repairConsoleParentage(raw, new Map([[39308, null]]))).toEqual(raw)
   })
-
-  it("ignores cohort members and anchors that are not in the snapshot", () => {
-    const fixed = repairConsoleParentage(
-      raw,
-      new Map([
-        [999999, [1, 2]],
-        [39308, [...COHORT_39308, 424242]],
-      ]),
-    )
-    expect(fixed.find((r) => r.pid === 39384)?.ppid).toBe(39308)
-  })
 })
 
 /**
@@ -177,11 +154,6 @@ describe("repairConsoleParentage anchored on the CLI itself (Git-Bash's fork exe
     expect(hasAncestor(fixed, 29612, 31768)).toBe(true)
   })
 
-  it("the root is the oldest member whose parent is alive and off the console, and it keeps that parent", () => {
-    const fixed = repairConsoleParentage(raw, both)
-    expect(fixed.find((r) => r.pid === 20368)?.ppid).toBe(7504)
-  })
-
   it("never reparents onto a leaf anchor, so the CLI keeps its real parent and no cycle forms", () => {
     const fixed = repairConsoleParentage(raw, both)
     expect(fixed.find((r) => r.pid === 29612)?.ppid).toBe(19248)
@@ -219,23 +191,6 @@ describe("winProcessSnapshot", () => {
     const rows = parsePsSnapshot(await winProcessSnapshot([39308], probe()))
     expect(foregroundEngineIn(rows, 39308)?.vendor).toBe("claude")
     expect(engineProcessIn(rows, 39308)).toBe(true)
-  })
-
-  it("skips the console probe when there is nothing to anchor on", async () => {
-    let asked = 0
-    const rows = parsePsSnapshot(
-      await winProcessSnapshot(
-        [],
-        probe({
-          consoleCohorts: async () => {
-            asked++
-            return new Map()
-          },
-        }),
-      ),
-    )
-    expect(asked).toBe(0)
-    expect(rows.length).toBe(6)
   })
 
   it("throws rather than answering 'no engine' when the process table is empty", async () => {

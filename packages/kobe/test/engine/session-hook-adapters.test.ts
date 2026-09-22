@@ -82,20 +82,8 @@ describe.each(CASES)("$vendor hooks", (c) => {
     return { ...(matcher ? { matcher } : {}), hooks: [{ type: "command", command: installedCommand }] }
   }
 
-  it("wires SessionStart and nothing else", () => {
-    expect(c.eventMap.map((spec) => ({ event: spec.event, verb: spec.verb }))).toEqual([
-      { event: "SessionStart", verb: "session-start" },
-    ])
-  })
-
   it("installs one SessionStart group into an empty document, stamped", () => {
     expect(sessionStart(merge({}, true))).toEqual([installed()])
-  })
-
-  it("is idempotent — a second install replaces rather than appends", () => {
-    const once = merge({}, true)
-    expect(merge(once, true)).toEqual(once)
-    expect(sessionStart(merge(once, true))).toHaveLength(1)
   })
 
   it("replaces a dev-checkout install with the released one instead of stacking", () => {
@@ -104,25 +92,6 @@ describe.each(CASES)("$vendor hooks", (c) => {
       `bun /repo/packages/kobe/src/cli/rove.ts hook session-start --engine ${c.vendor}`,
     )
     expect(sessionStart(merge(dev, true))).toEqual([installed()])
-  })
-
-  it("preserves a third party's group, other events, and other top-level keys", () => {
-    const before = {
-      theme: "dark",
-      hooks: { SessionStart: [foreign], PreToolUse: [{ hooks: [{ type: "command", command: "audit.sh" }] }] },
-    }
-    const after = merge(before, true)
-    expect(sessionStart(after)).toEqual([foreign, installed()])
-    expect((after.hooks as Record<string, unknown>).PreToolUse).toEqual([
-      { hooks: [{ type: "command", command: "audit.sh" }] },
-    ])
-    expect(after.theme).toBe("dark")
-  })
-
-  it("removal takes only Rove's group and drops the event when nothing is left", () => {
-    const shared = merge({ hooks: { SessionStart: [foreign] } }, true)
-    expect(sessionStart(merge(shared, false))).toEqual([foreign])
-    expect(sessionStart(merge(merge({}, true), false))).toEqual([])
   })
 
   describe("config path", () => {

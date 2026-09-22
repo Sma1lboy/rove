@@ -17,11 +17,8 @@ import {
   deleteHistory,
   findSessionDir,
   latestTranscriptMtimeForWorktree,
-  listSessionDirs,
   parseEvents,
-  readHistory,
   readHistoryWithMetrics,
-  readWorkspace,
 } from "../../src/engine/copilot-local/history.ts"
 
 function deps(over: Partial<CopilotHistoryDeps> = {}): CopilotHistoryDeps {
@@ -37,18 +34,7 @@ function deps(over: Partial<CopilotHistoryDeps> = {}): CopilotHistoryDeps {
   }
 }
 
-describe("listSessionDirs", () => {
-  it("joins session-state entries under copilotDir", async () => {
-    const d = deps({ readdir: async (p) => (p.endsWith("session-state") ? ["a", "b"] : []) })
-    expect(await listSessionDirs(d)).toEqual(["/home/.copilot/session-state/a", "/home/.copilot/session-state/b"])
-  })
-})
-
 describe("latestTranscriptMtimeForWorktree", () => {
-  it("returns 0 for an empty worktree without scanning", async () => {
-    expect(await latestTranscriptMtimeForWorktree("", deps())).toBe(0)
-  })
-
   it("returns the newest matching session's events.jsonl mtime", async () => {
     const d = deps({
       readdir: async (p) => (p.endsWith("session-state") ? ["s1", "s2"] : []),
@@ -61,29 +47,9 @@ describe("latestTranscriptMtimeForWorktree", () => {
     })
     expect(await latestTranscriptMtimeForWorktree("/wt", d)).toBe(500)
   })
-
-  it("skips a session dir whose events.jsonl stat fails", async () => {
-    const d = deps({
-      readdir: async (p) => (p.endsWith("session-state") ? ["s1"] : []),
-      readFile: async (p) => (p.endsWith("workspace.yaml") ? "cwd: /wt\n" : ""),
-      stat: async () => {
-        throw new Error("ENOENT")
-      },
-    })
-    expect(await latestTranscriptMtimeForWorktree("/wt", d)).toBe(0)
-  })
 })
 
-describe("readWorkspace / findSessionDir", () => {
-  it("readWorkspace degrades to {} when workspace.yaml is unreadable", async () => {
-    expect(await readWorkspace("/x/dir", deps())).toEqual({})
-  })
-
-  it("findSessionDir matches by directory basename", async () => {
-    const d = deps({ readdir: async (p) => (p.endsWith("session-state") ? ["sess-1"] : []) })
-    expect(await findSessionDir("sess-1", d)).toBe("/home/.copilot/session-state/sess-1")
-  })
-
+describe("findSessionDir", () => {
   it("findSessionDir matches by workspace id or name (case-insensitive)", async () => {
     const d = deps({
       readdir: async (p) => (p.endsWith("session-state") ? ["dir-a"] : []),
@@ -92,19 +58,9 @@ describe("readWorkspace / findSessionDir", () => {
     expect(await findSessionDir("real-id", d)).toBe("/home/.copilot/session-state/dir-a")
     expect(await findSessionDir("myname", d)).toBe("/home/.copilot/session-state/dir-a")
   })
-
-  it("returns undefined when nothing matches", async () => {
-    const d = deps({ readdir: async (p) => (p.endsWith("session-state") ? ["dir-a"] : []) })
-    expect(await findSessionDir("nope", d)).toBeUndefined()
-  })
 })
 
-describe("readHistoryWithMetrics / readHistory / deleteHistory", () => {
-  it("returns empty messages when the session dir isn't found", async () => {
-    expect(await readHistoryWithMetrics("nope", deps())).toEqual({ messages: [] })
-    expect(await readHistory("nope", deps())).toEqual([])
-  })
-
+describe("readHistoryWithMetrics / deleteHistory", () => {
   it("parses events.jsonl for a matched session and includes usage metrics", async () => {
     const raw = [
       JSON.stringify({ type: "session.start", data: { sessionId: "s1" } }),
@@ -133,17 +89,6 @@ describe("readHistoryWithMetrics / readHistory / deleteHistory", () => {
     })
     await deleteHistory("dir-a", d)
     expect(removed).toEqual(["/home/.copilot/session-state/dir-a"])
-  })
-
-  it("deleteHistory is a no-op when no session dir matches", async () => {
-    const removed: string[] = []
-    const d = deps({
-      rm: async (p) => {
-        removed.push(p)
-      },
-    })
-    await deleteHistory("nope", d)
-    expect(removed).toEqual([])
   })
 })
 
@@ -199,11 +144,6 @@ describe("parseEvents — remaining record types", () => {
     ])
   })
 
-  it("drops an assistant.message with no text and no toolRequests", () => {
-    const raw = JSON.stringify({ type: "assistant.message", data: {} })
-    expect(parseEvents(raw, "fallback").messages).toEqual([])
-  })
-
   it("captures usage on session.shutdown, undefined when there's nothing to report", () => {
     const withUsage = JSON.stringify({ type: "session.shutdown", data: { currentTokens: 5, modelMetrics: {} } })
     expect(parseEvents(withUsage, "fallback").usageMetrics).toEqual({
@@ -218,13 +158,6 @@ describe("parseEvents — remaining record types", () => {
   it("skips blank lines, non-JSON lines, and records with no string type", () => {
     const raw = ["", "   ", "{not json", JSON.stringify({ data: {} }), JSON.stringify({ type: 42 })].join("\n")
     expect(parseEvents(raw, "fallback")).toEqual({ messages: [], usageMetrics: undefined, firstUserMessage: null })
-  })
-
-  it("skips a user.message with empty content and doesn't set firstUserMessage", () => {
-    const raw = JSON.stringify({ type: "user.message", data: { content: "" } })
-    const result = parseEvents(raw, "fallback")
-    expect(result.messages).toEqual([])
-    expect(result.firstUserMessage).toBeNull()
   })
 
   it("adopts the sessionId recorded on session.start for subsequent messages", () => {

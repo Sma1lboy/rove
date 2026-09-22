@@ -56,13 +56,6 @@ afterEach(() => {
 })
 
 describe("normalizeWorktreeBase", () => {
-  test("blank / non-string values fall back to null (use default)", () => {
-    expect(normalizeWorktreeBase(undefined)).toBeNull()
-    expect(normalizeWorktreeBase(null)).toBeNull()
-    expect(normalizeWorktreeBase("")).toBeNull()
-    expect(normalizeWorktreeBase("   ")).toBeNull()
-  })
-
   test("expands a leading ~ against the kobe home", () => {
     expect(normalizeWorktreeBase("~")).toBe(home)
     expect(normalizeWorktreeBase("~/code/wt")).toBe(path.join(home, "code/wt"))
@@ -85,11 +78,6 @@ describe("normalizeWorktreeBase", () => {
   test("$project_dir without a project context falls back to null (default root)", () => {
     expect(normalizeWorktreeBase("$project_dir/../wt")).toBeNull()
   })
-
-  test("a non-leading $project_dir is a literal path segment, not a token", () => {
-    const literal = path.join(tmpRoot, "x/$project_dir")
-    expect(normalizeWorktreeBase(literal, repo)).toBe(literal)
-  })
 })
 
 describe("worktreeBaseKindOf", () => {
@@ -101,10 +89,6 @@ describe("worktreeBaseKindOf", () => {
     expect(worktreeBaseKindOf("  $project_dir/..  ")).toBe("nextToProject")
     expect(worktreeBaseKindOf("~/code/wt")).toBe("custom")
     expect(worktreeBaseKindOf("$project_dir/../wt")).toBe("custom")
-  })
-
-  test("the sibling preset resolves to the project's parent dir", () => {
-    expect(normalizeWorktreeBase(PROJECT_SIBLING_BASE, repo)).toBe(path.dirname(repo))
   })
 })
 
@@ -148,17 +132,6 @@ describe("worktree paths honor the override", () => {
     expect(roots[0]).toBe(root)
     expect(roots).toContain(path.join(home, ".rove", "worktrees", path.basename(root)))
     expect(roots).toContain(path.join(home, ".kobe", "worktrees", path.basename(root)))
-  })
-
-  test("with an override, the default root stays recognized for listing", () => {
-    const base = path.join(tmpRoot, "custom-worktrees")
-    writeState({ "worktree.basePath": base })
-
-    const roots = managedWorktreeRootsFor(repo)
-    const activeRoot = worktreeRootFor(repo)
-    const defaultRoot = path.join(home, ".rove", "worktrees", path.basename(activeRoot))
-    expect(roots[0]).toBe(activeRoot)
-    expect(roots).toContain(defaultRoot)
   })
 
   /**

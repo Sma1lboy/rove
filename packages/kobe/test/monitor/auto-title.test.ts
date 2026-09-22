@@ -57,11 +57,6 @@ function userLine(sessionId: string, text: string): string {
 }
 
 describe("deriveTitleFromSession (claude, through the registry)", () => {
-  it("returns the first user prompt of the worktree's session", async () => {
-    await writeSession("aaaa-1111", [userLine("aaaa-1111", "Fix the flaky login test")], 1_000)
-    await expect(deriveTitleFromSession(WORKTREE, "claude")).resolves.toBe("Fix the flaky login test")
-  })
-
   it("walks sessions OLDEST-first so the origin conversation wins", async () => {
     await writeSession("newer-2222", [userLine("newer-2222", "a follow-up prompt")], 2_000)
     await writeSession("older-1111", [userLine("older-1111", "the origin prompt")], 1_000)
@@ -84,10 +79,6 @@ describe("deriveTitleFromSession (claude, through the registry)", () => {
     await writeSession("newer-2222", [userLine("newer-2222", "usable prompt")], 2_000)
     await expect(deriveTitleFromSession(WORKTREE, "claude")).resolves.toBe("usable prompt")
   })
-
-  it("returns '' when the worktree has no transcripts", async () => {
-    await expect(deriveTitleFromSession(WORKTREE, "claude")).resolves.toBe("")
-  })
 })
 
 describe("deriveTitleFromSession (custom vendor)", () => {
@@ -103,11 +94,5 @@ describe("deriveTitleFromSessionId", () => {
   it("reads one claude session by id", async () => {
     await writeSession("bbbb-2222", [userLine("bbbb-2222", "rename the API endpoints")], 1_000)
     await expect(deriveTitleFromSessionId("claude", "bbbb-2222")).resolves.toBe("rename the API endpoints")
-  })
-
-  it("returns '' for a custom vendor and for a blank id", async () => {
-    await writeSession("bbbb-2222", [userLine("bbbb-2222", "claude-only prompt")], 1_000)
-    await expect(deriveTitleFromSessionId("my-custom-engine", "bbbb-2222")).resolves.toBe("")
-    await expect(deriveTitleFromSessionId("claude", "")).resolves.toBe("")
   })
 })

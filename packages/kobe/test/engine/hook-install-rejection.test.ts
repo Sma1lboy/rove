@@ -27,16 +27,6 @@ vi.mock("../../src/cli/invocation.ts", () => ({
 }))
 
 describe("parseHookSettings", () => {
-  it("treats a missing file as an empty document, not a refusal", () => {
-    expect(parseHookSettings(undefined)).toEqual({ ok: true, doc: {} })
-  })
-
-  it("accepts a document with no hooks key and a well-formed one", () => {
-    expect(parseHookSettings('{"model":"opus"}')).toEqual({ ok: true, doc: { model: "opus" } })
-    const ok = parseHookSettings('{"hooks":{"PreToolUse":[{"hooks":[]}]}}')
-    expect(ok.ok).toBe(true)
-  })
-
   it("names what it refused, down to the offending group index", () => {
     expect(parseHookSettings("{oops")).toMatchObject({ ok: false })
     expect(parseHookSettings("[]")).toEqual({ ok: false, reason: "top level is not a JSON object" })

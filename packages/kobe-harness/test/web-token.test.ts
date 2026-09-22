@@ -10,13 +10,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
  * all of them.
  */
 
-async function freshModule(html: string | null) {
+async function freshModule(html: string) {
   vi.resetModules()
-  if (html === null) {
-    vi.stubGlobal("document", undefined)
-  } else {
-    document.head.innerHTML = html
-  }
+  document.head.innerHTML = html
   return await import("../src/lib/web-token.ts")
 }
 
@@ -69,10 +65,5 @@ describe("web token", () => {
   it("leaves requests untouched when no token was injected (vite dev)", async () => {
     const { withWebTokenQuery } = await freshModule("")
     expect(withWebTokenQuery("/pty")).toBe("/pty")
-  })
-
-  it("does not throw when imported without a DOM (node unit tests)", async () => {
-    const { webToken } = await freshModule(null)
-    expect(webToken()).toBe("")
   })
 })

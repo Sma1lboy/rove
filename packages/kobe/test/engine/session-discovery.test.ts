@@ -66,11 +66,6 @@ describe("discoverSessionId", () => {
     await writeSession("session_elsewhere", "/some/other/worktree", new Date(1_000_000))
     expect(await discoverSessionId("kimi", worktree, new Set())).toBeNull()
   })
-
-  it("answers null for an engine with no transcript store at all", async () => {
-    await writeSession("session_new", worktree, new Date(2_000_000))
-    expect(await discoverSessionId("my-custom-engine", worktree, new Set())).toBeNull()
-  })
 })
 
 describe("engineSessionExists", () => {

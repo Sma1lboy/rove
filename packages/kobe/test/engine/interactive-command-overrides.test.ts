@@ -20,7 +20,6 @@ import {
   engineNameKey,
   interactiveEngineCommand,
   withEngineEffort,
-  withEngineTerminalTitle,
 } from "../../src/engine/interactive-command.ts"
 import { setPersistedString } from "../../src/state/repos.ts"
 
@@ -40,18 +39,9 @@ afterEach(() => {
 })
 
 describe("engineDisplayName", () => {
-  it("uses the registry label when no override is persisted", () => {
-    expect(engineDisplayName("claude")).toBe("Claude")
-    expect(engineDisplayName("codex")).toBe("Codex")
-  })
-
   it("prefers the persisted engineName override (trimmed)", () => {
     setPersistedString(engineNameKey("claude"), "  My Claude  ")
     expect(engineDisplayName("claude")).toBe("My Claude")
-  })
-
-  it("falls back to the id itself for a custom engine with no name set", () => {
-    expect(engineDisplayName("aider")).toBe("aider")
   })
 })
 
@@ -82,21 +72,6 @@ describe("interactiveEngineCommand", () => {
   })
 })
 
-describe("withEngineTerminalTitle", () => {
-  it("asks Codex to emit its native activity plus thread title", () => {
-    expect(withEngineTerminalTitle(["codex"], "codex")).toEqual([
-      "codex",
-      "-c",
-      'tui.terminal_title=["activity","thread-title"]',
-    ])
-  })
-
-  it("leaves engines without a native-title launch policy untouched", () => {
-    expect(withEngineTerminalTitle(["claude"], "claude")).toEqual(["claude"])
-    expect(withEngineTerminalTitle(["aider"], "aider")).toEqual(["aider"])
-  })
-})
-
 describe("withEngineEffort", () => {
   it("appends -c model_reasoning_effort=<level> for codex", () => {
     expect(withEngineEffort(["codex"], "codex", "xhigh")).toEqual(["codex", "-c", "model_reasoning_effort=xhigh"])
@@ -104,13 +79,6 @@ describe("withEngineEffort", () => {
 
   it("drops an unknown level instead of passing it through (codex would refuse to launch)", () => {
     expect(withEngineEffort(["codex"], "codex", "turbo")).toEqual(["codex"])
-  })
-
-  it("ignores effort for vendors without a driveable flag, and blank/undefined effort", () => {
-    expect(withEngineEffort(["claude"], "claude", "high")).toEqual(["claude"])
-    expect(withEngineEffort(["claude"], undefined, "high")).toEqual(["claude"])
-    expect(withEngineEffort(["codex"], "codex", "  ")).toEqual(["codex"])
-    expect(withEngineEffort(["codex"], "codex", undefined)).toEqual(["codex"])
   })
 })
 

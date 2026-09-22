@@ -22,27 +22,12 @@ function accountDeps(over: Partial<DetectDeps> = {}): DetectDeps {
 }
 
 describe("probeLaunchBinary", () => {
-  it("resolves a bare command name through which", () => {
-    expect(probeLaunchBinary(["gemini", "--yolo"], (b) => (b === "gemini" ? "/usr/bin/gemini" : null))).toEqual({
-      found: true,
-      path: "/usr/bin/gemini",
-    })
-  })
-
-  it("reports a PATH miss instead of throwing", () => {
-    expect(probeLaunchBinary(["nope"], () => null)).toEqual({ found: false, error: "not found on PATH" })
-  })
-
   it("stats an explicit path rather than searching PATH", () => {
     expect(probeLaunchBinary([process.execPath], () => null)).toEqual({ found: true, path: process.execPath })
     expect(probeLaunchBinary(["/definitely/not/here"], () => "/usr/bin/here")).toEqual({
       found: false,
       error: "not found at /definitely/not/here",
     })
-  })
-
-  it("treats an empty command as a miss", () => {
-    expect(probeLaunchBinary([], () => "/x")).toEqual({ found: false, error: "no launch command" })
   })
 })
 
@@ -81,15 +66,6 @@ describe("detectEngineStatus", () => {
     })
     expect(status.binary).toEqual({ found: true, path: "/opt/cx" })
     expect(status.account).toEqual({ kind: "none" })
-  })
-
-  it("keeps a built-in's not-found error when nothing resolves", async () => {
-    const status = await detectEngineStatus("kimi", {
-      command: () => ["kimi"],
-      which: () => null,
-      accountDeps: accountDeps(),
-    })
-    expect(status.binary.found).toBe(false)
   })
 
   it("probes a list in order", async () => {

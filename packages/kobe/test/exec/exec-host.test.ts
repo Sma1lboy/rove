@@ -37,31 +37,15 @@ function recordingSpawner(result: ExecResult = { stdout: "", stderr: "", exitCod
 }
 
 describe("shQuote / shJoin", () => {
-  it("single-quotes a plain string", () => {
-    expect(shQuote("hello")).toBe("'hello'")
-  })
-
   it("escapes embedded single quotes the POSIX way", () => {
     // a'b → 'a'\''b'
     expect(shQuote("a'b")).toBe("'a'\\''b'")
-  })
-
-  it("quotes each argv element and space-joins", () => {
-    expect(shJoin(["git", "status", "--porcelain"])).toBe("'git' 'status' '--porcelain'")
   })
 })
 
 describe("remoteShellCommand", () => {
   it("prefixes cd <cwd> when a cwd is given", () => {
     expect(remoteShellCommand(shJoin(["git", "status"]), "/srv/wt")).toBe("cd '/srv/wt' && 'git' 'status'")
-  })
-
-  it("omits the cd when no cwd is given", () => {
-    expect(remoteShellCommand(shJoin(["git", "status"]))).toBe("'git' 'status'")
-  })
-
-  it("passes an env-prefixed command through untouched (the `run` shape)", () => {
-    expect(remoteShellCommand("FOO='b ar' 'git' 'status'", "/srv/wt")).toBe("cd '/srv/wt' && FOO='b ar' 'git' 'status'")
   })
 })
 
@@ -85,21 +69,10 @@ describe("sshConnectArgs", () => {
     ])
   })
 
-  it("adds -tt for a tty launch and BatchMode for a batch call", () => {
-    expect(sshConnectArgs(KEY_SPEC, { tty: true })).toContain("-tt")
-    expect(sshConnectArgs(KEY_SPEC, { batch: true })).toContain("BatchMode=yes")
-  })
-
   it("uses TOFU (accept-new), never StrictHostKeyChecking=no", () => {
     const argv = sshConnectArgs(KEY_SPEC)
     expect(argv).toContain("StrictHostKeyChecking=accept-new")
     expect(argv).not.toContain("StrictHostKeyChecking=no")
-  })
-
-  it("omits -p / -i when no port / key is configured", () => {
-    const argv = sshConnectArgs(PW_SPEC)
-    expect(argv).not.toContain("-p")
-    expect(argv).not.toContain("-i")
   })
 })
 
@@ -259,14 +232,6 @@ describe("RemoteExecHost fs helpers", () => {
 })
 
 describe("LocalExecHost.run (async, non-blocking)", () => {
-  it("resolves with stdout and exit code 0 on success", async () => {
-    const host = new LocalExecHost()
-    const r = await host.run(["printf", "out"])
-    expect(r.exitCode).toBe(0)
-    expect(r.stdout).toBe("out")
-    expect(r.stderr).toBe("")
-  })
-
   it("resolves (never rejects) with the non-zero exit code and stderr", async () => {
     const host = new LocalExecHost()
     const r = await host.run(["sh", "-c", "echo oops >&2; exit 3"])

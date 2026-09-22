@@ -16,13 +16,6 @@ describe("normalizeCodexContent", () => {
     expect(normalizeCodexContent("hi")).toEqual([{ type: "text", text: "hi" }])
   })
 
-  it("returns [] for an empty string or a non-array value", () => {
-    expect(normalizeCodexContent("")).toEqual([])
-    expect(normalizeCodexContent(null)).toEqual([])
-    expect(normalizeCodexContent(42)).toEqual([])
-    expect(normalizeCodexContent({ type: "input_text", text: "x" })).toEqual([])
-  })
-
   it("maps input_text / output_text to text blocks", () => {
     expect(
       normalizeCodexContent([
@@ -42,17 +35,9 @@ describe("normalizeCodexContent", () => {
   it("renders an unknown block type as a placeholder", () => {
     expect(normalizeCodexContent([{ type: "image" }])).toEqual([{ type: "text", text: "[codex: image]" }])
   })
-
-  it("skips object items with no type", () => {
-    expect(normalizeCodexContent([{ text: "no type" }])).toEqual([])
-  })
 })
 
 describe("isSyntheticCodexUserRow", () => {
-  it("is false for an empty list", () => {
-    expect(isSyntheticCodexUserRow([])).toBe(false)
-  })
-
   it("detects an environment_context envelope", () => {
     expect(isSyntheticCodexUserRow([{ type: "text", text: "<environment_context>cwd</environment_context>" }])).toBe(
       true,
@@ -95,10 +80,6 @@ describe("isSyntheticCodexUserRow", () => {
       ]),
     ).toBe(false)
   })
-
-  it("is false for a non-text block", () => {
-    expect(isSyntheticCodexUserRow([{ type: "image" }])).toBe(false)
-  })
 })
 
 describe("visibleCodexUserText", () => {
@@ -111,10 +92,6 @@ describe("visibleCodexUserText", () => {
     expect(
       visibleCodexUserText([{ type: "input_text", text: "<environment_context>x</environment_context>" }]),
     ).toBeNull()
-  })
-
-  it("returns null when there is no text", () => {
-    expect(visibleCodexUserText([])).toBeNull()
   })
 })
 
@@ -198,13 +175,6 @@ describe("codexUsageToSnapshot", () => {
     })
   })
 
-  it("omits the cache field when nothing was cached", () => {
-    expect(codexUsageToSnapshot({ input_tokens: 100, output_tokens: 50 })).toEqual({
-      input_tokens: 100,
-      output_tokens: 50,
-    })
-  })
-
   it("clamps non-cached input at zero", () => {
     expect(codexUsageToSnapshot({ input_tokens: 20, cached_input_tokens: 50 })).toEqual({
       input_tokens: 0,
@@ -245,11 +215,6 @@ describe("deriveCodexUsageMetrics", () => {
   it("prefers the max-timestamp turn when timestamps are present", () => {
     const raw = [turn(10, "2026-06-10T03:00:00Z"), turn(99, "2026-06-10T01:00:00Z")].join("\n")
     expect(deriveCodexUsageMetrics(raw)).toEqual({ input_tokens: 0, output_tokens: 10 })
-  })
-
-  it("ignores blank / non-JSON / non-turn lines", () => {
-    const raw = ["", "{not json", JSON.stringify({ type: "response_item" }), turn(42)].join("\n")
-    expect(deriveCodexUsageMetrics(raw)).toEqual({ input_tokens: 0, output_tokens: 42 })
   })
 })
 

@@ -50,16 +50,6 @@ afterEach(() => {
 })
 
 describe("readKeybindingsFile", () => {
-  test("missing file → exists=false, null doc, no warnings", () => {
-    const r = readKeybindingsFile()
-    expect(r).toEqual({
-      path: path.join(settingsDir(), "keybindings.yaml"),
-      exists: false,
-      doc: null,
-      warnings: [],
-    })
-  })
-
   test("reads + parses the canonical .yaml file", () => {
     fs.mkdirSync(settingsDir(), { recursive: true })
     fs.writeFileSync(

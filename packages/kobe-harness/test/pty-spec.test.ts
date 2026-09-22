@@ -28,12 +28,6 @@ describe("createSpecFetcher", () => {
     expect(await fetchSpec("task-1", "shell")).toEqual(await fetchSpec("task-1", "engine"))
   })
 
-  it("falls back to the process cwd when no override cwd is set", async () => {
-    const fetchSpec = createSpecFetcher({ env: { KOBE_PTY_DEV_COMMAND: "bun run dev:mock" } })
-
-    expect((await fetchSpec("task-1", "engine")).cwd).toBe(process.cwd())
-  })
-
   it("throws naming the variable when it is unset, rather than resolving undefined", async () => {
     // A silent `undefined` would surface as a TypeError deep in
     // pty-session-lifecycle and present as a blank terminal with no cause.

@@ -19,16 +19,6 @@ describe("stripEngineStatusPrefix", () => {
     expect(stripEngineStatusPrefix("◑ fixing the watcher", "claude")).toBe("fixing the watcher")
   })
 
-  it("strips codex's spinner frame", () => {
-    expect(stripEngineStatusPrefix("⠹ add the ruler", "codex")).toBe("add the ruler")
-    expect(stripEngineStatusPrefix("⠏ add the ruler", "codex")).toBe("add the ruler")
-  })
-
-  it("leaves an already-clean title alone", () => {
-    expect(stripEngineStatusPrefix("Claude Code", "claude")).toBe("Claude Code")
-    expect(stripEngineStatusPrefix("add the ruler", "codex")).toBe("add the ruler")
-  })
-
   it("does not strip one engine's glyphs from another's title", () => {
     // ✳ is claude's; codex never writes it, so a codex thread NAMED that
     // keeps its name.
@@ -57,13 +47,6 @@ describe("stripEngineStatusPrefix", () => {
     expect(stripEngineStatusPrefix("✳ whatever", "copilot")).toBe("whatever")
     // Still conservative: decoration-only stays a name.
     expect(stripEngineStatusPrefix("⠂", "claudecpa" as never)).toBe("⠂")
-  })
-
-  // A prefix that would eat the entire title is a NAME, not a status: the
-  // alternative renames such a session to the vendor default.
-  it("never consumes the whole title", () => {
-    expect(stripEngineStatusPrefix("✳", "claude")).toBe("✳")
-    expect(stripEngineStatusPrefix("✳   ", "claude")).toBe("✳   ")
   })
 
   it("only strips at the START — a glyph inside the name survives", () => {

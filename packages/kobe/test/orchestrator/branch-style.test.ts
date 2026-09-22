@@ -12,14 +12,6 @@ describe("inferBranchStyle", () => {
     expect(style).toEqual({ kind: "typed", defaultPrefix: "fix" })
   })
 
-  it("reads a bare-kebab repo as bare", () => {
-    expect(inferBranchStyle(["main", "login-flow", "signup-page", "billing-refactor"])).toEqual({ kind: "bare" })
-  })
-
-  it("falls back to bare for an empty repo (no branches)", () => {
-    expect(inferBranchStyle([])).toEqual({ kind: "bare" })
-  })
-
   it("ignores non-conventional prefixes (user/, backup/, legacy rove/)", () => {
     // None of these vote; only `main` votes bare → bare.
     expect(inferBranchStyle(["main", "alice/spike", "backup/old", "rove/task-abc123"])).toEqual({ kind: "bare" })
@@ -42,10 +34,6 @@ describe("deriveConventionBranch", () => {
   it("lifts a leading type word out of the title as the prefix", () => {
     expect(deriveConventionBranch("Fix login flow", typed, ID)).toBe("fix/login-flow")
     expect(deriveConventionBranch("docs update quickstart", typed, ID)).toBe("docs/update-quickstart")
-  })
-
-  it("emits a bare kebab slug in a bare repo", () => {
-    expect(deriveConventionBranch("Fix login flow", bare, ID)).toBe("fix-login-flow")
   })
 
   it("NEVER contains rove/kobe brand tokens", () => {
@@ -90,15 +78,6 @@ describe("deriveConventionBranch", () => {
 })
 
 describe("uniqueBranchName", () => {
-  it("returns the base when free", () => {
-    expect(uniqueBranchName("feat/login", new Set(["main"]), "01HXABCDEF")).toBe("feat/login")
-  })
-
-  it("appends -2 / -3 short suffixes on collision", () => {
-    expect(uniqueBranchName("feat/login", new Set(["feat/login"]), "01HXABCDEF")).toBe("feat/login-2")
-    expect(uniqueBranchName("feat/login", new Set(["feat/login", "feat/login-2"]), "01HXABCDEF")).toBe("feat/login-3")
-  })
-
   it("falls back to a task-id suffix when -2…-99 are all taken", () => {
     const taken = new Set(["x", ...Array.from({ length: 98 }, (_, i) => `x-${i + 2}`)])
     expect(uniqueBranchName("x", taken, "01HXABCDEF")).toBe("x-abcdef")

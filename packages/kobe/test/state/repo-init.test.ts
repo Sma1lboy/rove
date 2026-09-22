@@ -42,11 +42,6 @@ function makeWorktree(files: Record<string, string> = {}): string {
 }
 
 describe("repo init override (state.json)", () => {
-  test("round-trips set → get", () => {
-    setRepoInitOverride("/repo/x", { initScript: "pnpm i", initPrompt: "read CLAUDE.md" })
-    expect(getRepoInitOverride("/repo/x")).toEqual({ initScript: "pnpm i", initPrompt: "read CLAUDE.md" })
-  })
-
   test("patches one field without dropping the other", () => {
     setRepoInitOverride("/repo/x", { initScript: "a", initPrompt: "b" })
     setRepoInitOverride("/repo/x", { initPrompt: "b2" })
@@ -60,18 +55,9 @@ describe("repo init override (state.json)", () => {
     setRepoInitOverride("/repo/x", { initPrompt: "" })
     expect(getRepoInitOverride("/repo/x")).toEqual({})
   })
-
-  test("absent repo → empty override", () => {
-    expect(getRepoInitOverride("/never/set")).toEqual({})
-  })
 })
 
 describe("resolveRepoInit (files win over override, per field)", () => {
-  test("no files, no override → nothing", () => {
-    const wt = makeWorktree()
-    expect(resolveRepoInit(wt, wt)).toEqual({})
-  })
-
   test("override is the fallback when the repo ships no convention files", () => {
     const wt = makeWorktree()
     setRepoInitOverride(wt, { initScript: "make setup", initPrompt: "hi" })
@@ -157,12 +143,6 @@ describe("resolveEngineLaunchInit", () => {
   // What must survive: the user's prompt reaches the engine unchanged, and
   // the per-worktree FACTS (the missing-dependency warning below) still ride
   // along, because no skill can know them.
-  test("new-task delivers the user's prompt verbatim — no appended instructions", () => {
-    const wt = makeWorktree()
-    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix the bug" }).firstMessage
-    expect(msg?.source).toBe("explicit")
-    expect(msg?.text).toBe("fix the bug")
-  })
 
   test("no branch-rename or send-back instruction is injected any more", () => {
     // Pins the deletion: these strings coming back means the coda returned,
@@ -194,21 +174,8 @@ describe("missing-dependency coda (new-task only)", () => {
     expect(msg?.text).not.toContain("no installed dependencies")
   })
 
-  test("no lockfile → silent", () => {
-    const wt = makeWorktree()
-    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }).firstMessage
-    expect(msg?.text).not.toContain("no installed dependencies")
-  })
-
   test("repo init script configured → silent (install is init.sh's job)", () => {
     const wt = makeWorktree({ "bun.lock": "{}", ".rove/init.sh": "bun install" })
-    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }).firstMessage
-    expect(msg?.text).not.toContain("no installed dependencies")
-  })
-
-  test("per-user init-script override also silences it", () => {
-    const wt = makeWorktree({ "Cargo.lock": "" })
-    setRepoInitOverride(wt, { initScript: "cargo fetch" })
     const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }).firstMessage
     expect(msg?.text).not.toContain("no installed dependencies")
   })

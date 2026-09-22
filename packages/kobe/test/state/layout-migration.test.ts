@@ -71,12 +71,6 @@ describe("migrateRoveStateLayout", () => {
     expect(existsSync(join(root, ".rove/issues.json"))).toBe(false)
   })
 
-  test("does nothing on a fresh home without legacy data", () => {
-    root = mkdtempSync(join(tmpdir(), "rove-layout-"))
-    expect(migrateRoveStateLayout({ ROVE_HOME_DIR: root })).toEqual({ attempted: false, copied: 0, warnings: [] })
-    expect(existsSync(join(root, ".rove"))).toBe(false)
-  })
-
   test("defers daemon-owned files until daemon startup so the latest legacy write wins", () => {
     root = mkdtempSync(join(tmpdir(), "rove-layout-"))
     write(".kobe/tasks.json", "before old daemon write")

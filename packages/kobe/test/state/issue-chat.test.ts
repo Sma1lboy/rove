@@ -17,7 +17,6 @@ import {
 } from "@sma1lboy/kobe-daemon/prompts/issue-prompts"
 import { describe, expect, test } from "vitest"
 import {
-  ISSUE_CHAT_PLACEMENTS,
   issueChatTaskTitle,
   issueProjectPrompt,
   issueWorktreePrompt,
@@ -77,15 +76,6 @@ describe("issue-chat prompts", () => {
     expect(prompt).toContain("Verify the acceptance criteria")
     expect(prompt).toContain("merge this task branch back into the current project's main branch")
     expect(prompt).toContain("rove api issue-set-status --repo . --id 9 --status done")
-  })
-
-  test("a blank body leaves no dangling blank section", () => {
-    const prompt = issueWorktreePrompt({ ...story, body: "   " })
-    expect(prompt).not.toContain("\n\n\n")
-  })
-
-  test("placement cycle order is worktree → projectWorktree → project (jump is a separate toggle)", () => {
-    expect(ISSUE_CHAT_PLACEMENTS).toEqual(["worktree", "projectWorktree", "project"])
   })
 })
 

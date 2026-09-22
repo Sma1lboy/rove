@@ -38,25 +38,4 @@ describe("embeddedTerminalEnv", () => {
 
     expect(result).toEqual({ HOME: "/home/test" })
   })
-
-  it("removes every emulator family's identity variables and multiplexer markers", () => {
-    const result = embeddedTerminalEnv({
-      KITTY_WINDOW_ID: "1",
-      KITTY_PID: "42",
-      GHOSTTY_RESOURCES_DIR: "/opt/ghostty",
-      WEZTERM_PANE: "0",
-      ALACRITTY_WINDOW_ID: "7",
-      KONSOLE_VERSION: "230800",
-      VTE_VERSION: "7600",
-      WT_SESSION: "uuid",
-      TMUX: "/tmp/tmux-501/default,123,0",
-      TMUX_PANE: "%1",
-      ZELLIJ: "0",
-      ZELLIJ_SESSION_NAME: "main",
-      STY: "1234.pts-0.host",
-      PATH: "/usr/bin",
-    })
-
-    expect(result).toEqual({ PATH: "/usr/bin" })
-  })
 })

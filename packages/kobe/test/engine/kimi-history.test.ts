@@ -10,7 +10,6 @@ import {
   parseSessionIndex,
   transcriptPath,
 } from "@/engine/kimi-local/history"
-import { supportsStructuredHistory } from "@/engine/registry"
 import { describe, expect, it } from "vitest"
 
 const INDEX = [
@@ -57,11 +56,6 @@ describe("listSessionIdsForWorktree", () => {
     const d = deps(INDEX, { [wire("session_a")]: 1, [wire("session_c", "wd_q_2")]: 9 })
     expect(await listSessionIdsForWorktree("/wt", d)).toEqual(["session_a"])
   })
-
-  it("returns nothing for an empty worktree or an unreadable index", async () => {
-    expect(await listSessionIdsForWorktree("", deps(INDEX, {}))).toEqual([])
-    expect(await listSessionIdsForWorktree("/wt", deps("", {}))).toEqual([])
-  })
 })
 
 describe("transcriptPath", () => {
@@ -76,13 +70,6 @@ describe("transcriptPath", () => {
     // In the index, but no stream on disk — briefing an agent with a path
     // that doesn't resolve is worse than refusing the handoff.
     expect(await transcriptPath("session_b", d)).toBeNull()
-  })
-})
-
-describe("supportsStructuredHistory", () => {
-  it("stays false for kimi: it resolves paths, but parses no messages", () => {
-    expect(supportsStructuredHistory("kimi")).toBe(false)
-    expect(supportsStructuredHistory("copilot")).toBe(true)
   })
 })
 

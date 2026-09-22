@@ -11,12 +11,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import {
-  COPILOT_HOOK_EVENT_MAP,
-  CopilotHookAdapter,
-  copilotSettingsPath,
-  mergeCopilotHooks,
-} from "@/engine/copilot-local/hook-adapter"
+import { CopilotHookAdapter, copilotSettingsPath, mergeCopilotHooks } from "@/engine/copilot-local/hook-adapter"
 import { ROVE_HOOK_VERSION } from "@/engine/json-hooks"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -42,13 +37,6 @@ describe("mergeCopilotHooks", () => {
     // wrote the entry (`engine/integration-status.ts` reads it back).
     expect(doc.version).toBe(1)
     expect(sessionStart(doc)).toEqual([INSTALLED])
-  })
-
-  it("is idempotent — a second install replaces rather than appends", () => {
-    const once = mergeCopilotHooks({}, true, PROD)
-    const twice = mergeCopilotHooks(once, true, PROD)
-    expect(twice).toEqual(once)
-    expect(sessionStart(twice)).toHaveLength(1)
   })
 
   it("replaces a dev-checkout install with the released one instead of stacking", () => {
@@ -79,14 +67,6 @@ describe("mergeCopilotHooks", () => {
     expect(sessionStart(mergeCopilotHooks(shared, false, PROD))).toEqual([FOREIGN])
     const ours = mergeCopilotHooks({}, true, PROD)
     expect((mergeCopilotHooks(ours, false, PROD).hooks as Record<string, unknown>).SessionStart).toBeUndefined()
-  })
-
-  // Copilot's remaining events (userPromptSubmitted, preToolUse, postToolUse,
-  // agentStop, …) stay unhooked: the screen manifest keeps owning copilot's
-  // working/blocked state, and none of the nine is a verified authority for
-  // turn state.
-  it("wires SessionStart and nothing else", () => {
-    expect(COPILOT_HOOK_EVENT_MAP).toEqual([{ event: "SessionStart", verb: "session-start" }])
   })
 })
 

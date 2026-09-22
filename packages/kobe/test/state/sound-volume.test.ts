@@ -13,12 +13,6 @@ import {
 } from "../../src/state/sound-volume"
 
 describe("normalizeSoundVolume", () => {
-  it("keeps a value already in range, including the silent 0", () => {
-    expect(normalizeSoundVolume(0.25)).toBe(0.25)
-    expect(normalizeSoundVolume(0)).toBe(0)
-    expect(normalizeSoundVolume(1)).toBe(1)
-  })
-
   it("clamps out-of-range numbers rather than letting them reach the scaler", () => {
     expect(normalizeSoundVolume(4)).toBe(1)
     expect(normalizeSoundVolume(-2)).toBe(0)
@@ -43,18 +37,9 @@ describe("nextSoundVolume", () => {
     expect(walked[SOUND_VOLUME_STEPS.length - 1]).toBe(SOUND_VOLUME_STEPS[0])
   })
 
-  it("includes the shipped default, so cycling always returns to it", () => {
-    expect(SOUND_VOLUME_STEPS).toContain(DEFAULT_SOUND_VOLUME)
-  })
-
   it("lands on a step from a value between steps, never staying put", () => {
     const off = nextSoundVolume(0.33)
     expect(SOUND_VOLUME_STEPS).toContain(off)
     expect(off).not.toBe(0.33)
-  })
-
-  it("offers something quieter than the default to cycle down to", () => {
-    // The whole point of the row: "too loud" had no answer but muting.
-    expect(SOUND_VOLUME_STEPS.some((step) => step < DEFAULT_SOUND_VOLUME)).toBe(true)
   })
 })

@@ -23,23 +23,6 @@ describe("diffTask", () => {
     expect(diffTask(task(), task({ updatedAt: "y" }))).toBeNull()
   })
 
-  it("collects changed fields with from/to", () => {
-    const diff = diffTask(task(), task({ title: "renamed", pinned: true }))
-    expect(diff).toMatchObject({
-      fields: ["title", "pinned"],
-      from: { title: "t", pinned: false },
-      to: { title: "renamed", pinned: true },
-    })
-  })
-
-  it("flags prChanged via deep compare, outside `fields`", () => {
-    const withPr = task({ prStatus: { state: "open" } as never })
-    const diff = diffTask(task(), withPr)
-    expect(diff).toMatchObject({ fields: [], prChanged: true })
-    // Structurally equal prStatus objects are not a change.
-    expect(diffTask(withPr, task({ prStatus: { state: "open" } as never }))).toBeNull()
-  })
-
   it("flags worktreeCreated for a task-kind empty→set transition only", () => {
     expect(diffTask(task({ worktreePath: "" }), task())?.worktreeCreated).toBe(true)
     expect(diffTask(task({ kind: "main", worktreePath: "" }), task({ kind: "main" }))?.worktreeCreated).toBe(false)

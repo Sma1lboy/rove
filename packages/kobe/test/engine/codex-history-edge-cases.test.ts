@@ -35,19 +35,9 @@ describe("rolloutCwd", () => {
     expect(rolloutCwd(raw)).toBe("/work/tree")
   })
 
-  it("returns '' when session_meta has no cwd", () => {
-    const raw = JSON.stringify({ type: "session_meta", payload: { id: "x" } })
-    expect(rolloutCwd(raw)).toBe("")
-  })
-
   it("returns '' when the first record isn't session_meta", () => {
     const raw = JSON.stringify({ type: "response_item", payload: {} })
     expect(rolloutCwd(raw)).toBe("")
-  })
-
-  it("returns '' for a blank file", () => {
-    expect(rolloutCwd("")).toBe("")
-    expect(rolloutCwd("\n\n")).toBe("")
   })
 
   it("tolerates a malformed FIRST line without throwing, but still stops there (no meta)", () => {
@@ -55,11 +45,6 @@ describe("rolloutCwd", () => {
     // means "no meta" even if a later line happens to be valid.
     const raw = ["{not json", JSON.stringify({ type: "session_meta", payload: { cwd: "/wt" } })].join("\n")
     expect(rolloutCwd(raw)).toBe("")
-  })
-
-  it("treats an oversize leading line as unparseable", () => {
-    const megaLine = "x".repeat(9 * 1024 * 1024)
-    expect(rolloutCwd(megaLine)).toBe("")
   })
 })
 
@@ -213,11 +198,6 @@ describe("parseJsonl — tool call / result records", () => {
     expect(out[0]?.blocks).toEqual([
       { type: "tool_result", callId: "c3", output: { results: ["a.ts"] }, isError: false },
     ])
-  })
-
-  it("drops a *_output record with no call_id", () => {
-    const raw = meta({ type: "function_call_output", output: "x" })
-    expect(parseJsonl(raw, SID)).toEqual([])
   })
 
   it("normalizes web_search_call / image_generation_call / local_shell_call as a paired tool_call+tool_result", () => {

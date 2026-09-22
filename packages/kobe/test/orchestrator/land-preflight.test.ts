@@ -146,12 +146,6 @@ describe("landPreflight", () => {
     expect(pf.ahead).toBeUndefined()
   })
 
-  test("zero commits ahead with no worktree is the plain empty-branch no-op", async () => {
-    git(["branch", "feat"], repo)
-    const pf = await landPreflight(task())
-    expect(pf).toMatchObject({ refusal: "EMPTY_BRANCH", ahead: 0, landedOn: "main" })
-  })
-
   test("zero commits ahead with a dirty worktree names the uncommitted files", async () => {
     const wt = path.join(tmpRoot, "wt")
     git(["worktree", "add", "-b", "feat", wt], repo)

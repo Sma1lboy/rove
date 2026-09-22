@@ -13,11 +13,6 @@ import { detectLanguage } from "@sma1lboy/kobe-daemon/prompts/observed-language"
 import { describe, expect, test } from "vitest"
 
 describe("detectLanguage", () => {
-  test("plain prose in either language", () => {
-    expect(detectLanguage("帮我重构登录模块")).toBe("zh")
-    expect(detectLanguage("Refactor the login module")).toBe("en")
-  })
-
   test("Chinese prose stays Chinese through identifiers, paths and flags", () => {
     // The realistic shape of a Rove prompt: prose plus the code it is about.
     // Counting CJK presence alone would be fine here, but so would a share

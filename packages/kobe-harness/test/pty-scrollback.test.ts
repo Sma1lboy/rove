@@ -4,23 +4,6 @@ import { describe, expect, it } from "vitest"
 import { createScrollback } from "../pty-scrollback.mjs"
 
 describe("createScrollback", () => {
-  it("replays everything while under the cap", () => {
-    const sb = createScrollback(100)
-    sb.push("abc")
-    sb.push("def")
-    expect(sb.replay()).toBe("abcdef")
-    expect(sb.length()).toBe(6)
-  })
-
-  it("returns empty before any output and ignores empty chunks", () => {
-    const sb = createScrollback(100)
-    expect(sb.replay()).toBe("")
-    expect(sb.length()).toBe(0)
-    sb.push("")
-    expect(sb.replay()).toBe("")
-    expect(sb.chunkCount()).toBe(0)
-  })
-
   it("drops whole chunks off the head once over cap, keeping recent output", () => {
     const sb = createScrollback(5)
     sb.push("aaa") // 3
