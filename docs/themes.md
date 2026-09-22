@@ -1,7 +1,7 @@
 # Themes
 
-Rove bundles three themes (`claude`, `conductor`, `tokyonight`) and ten
-more are [one command away](#hosted-themes). You can also write your own.
+Rove bundles four themes (`claude`, `conductor`, `skylight`, `tokyonight`) and
+ten more are [one command away](#hosted-themes). You can also write your own.
 
 Any `~/.rove/themes/*.json` file loads at boot and appears in the theme
 picker (Settings → General → Theme, or `ctrl+a` then `,`). A user theme with
@@ -33,7 +33,9 @@ A theme is a JSON object with two top-level fields:
   string (`#abc`, `#aabbcc`, `#aabbccdd`), a bare string referencing a
   key in `defs`, or a `{ dark, light }` pair for theme-mode-aware
   colors. Both `dark` and `light` are required when you use the variant
-  form.
+  form. Settings → General → Appearance → Mode (`themeMode` in
+  `state.json`) picks which half is drawn: `dark`, `light`, or `auto` to
+  follow the terminal's background.
 - **`$schema`** (optional): pointer back to Rove's JSON schema for
   editor autocomplete. The canonical URL is the one above.
 

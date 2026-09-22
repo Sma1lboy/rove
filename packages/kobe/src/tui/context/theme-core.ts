@@ -98,6 +98,25 @@ export function hasBundledTheme(name: string): boolean {
   return Boolean(BUNDLED_THEMES[name])
 }
 
+/** Which half of a `{ dark, light }` theme entry is drawn. */
+export type ThemeMode = "dark" | "light"
+
+/**
+ * The user's mode choice. `auto` follows the host terminal: opentui reads its
+ * background over OSC 11 and re-reads it when the terminal reports an
+ * appearance change (`?2031`), so a terminal that flips with the OS flips
+ * Rove too. Persisted as `themeMode`; unset is `dark`, the mode every release
+ * before this one was locked to.
+ */
+export type ThemeModePreference = ThemeMode | "auto"
+export const THEME_MODE_PREFERENCES: ReadonlyArray<ThemeModePreference> = ["dark", "light", "auto"]
+export const DEFAULT_THEME_MODE: ThemeModePreference = "dark"
+
+/** `auto` with no answer from the terminal yet (or ever) draws dark. */
+export function resolveThemeMode(preference: ThemeModePreference, detected: ThemeMode | null): ThemeMode {
+  return preference === "auto" ? (detected ?? "dark") : preference
+}
+
 /**
  * Which theme slot drives the "focused pane" indicator. Default is
  * `primary` — under the Claude palette that's terracotta, which doubles
@@ -113,7 +132,7 @@ export const FOCUS_ACCENT_SLOTS: ReadonlyArray<FocusAccentSlot> = ["primary", "s
  * never throw if a freshly-copied opencode theme is missing one of the
  * extended slots opencode added later.
  */
-export function resolveTheme(theme: ThemeJson, mode: "dark" | "light" = "dark"): Theme {
+export function resolveTheme(theme: ThemeJson, mode: ThemeMode = "dark"): Theme {
   const defs = theme.defs ?? {}
 
   function resolve(c: ColorValue, chain: string[] = []): RGBA {

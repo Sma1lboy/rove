@@ -146,6 +146,9 @@ export interface ChannelPayloads {
      *  would be a second, silently-drifting copy of the TUI's. `null` means
      *  "no opinion": `applyUiPrefs` leaves whatever theme the pane already has. */
     theme: string | null
+    /** `state.json`'s `themeMode` (`dark`/`light`/`auto`), `null` when unset or unknown.
+     *  Absent only from a daemon that predates the field — the TUI then leaves its mode alone. */
+    themeMode?: string | null
     transparentBackground: boolean
     focusAccent: string | null
     /** UI language id (`state.json`'s `locale`). Opaque to the daemon — the TUI validates it. */

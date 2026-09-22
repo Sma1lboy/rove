@@ -20,6 +20,7 @@
 import { describe, expect, test } from "vitest"
 import {
   DEFAULT_FOCUS_ACCENT_SLOT,
+  DEFAULT_UI_PREFS_THEME_MODE,
   type UiPrefsTarget,
   applyUiPrefs,
   normalizeFocusAccent,
@@ -30,6 +31,7 @@ interface FakeState {
   registry: Set<string>
   /** Themes that become registered when reloadUserThemes() runs. */
   diskThemes: string[]
+  mode: string
   transparent: boolean
   accent: string
 }
@@ -39,6 +41,7 @@ function makeTarget(initial?: Partial<FakeState>) {
     theme: "claude",
     registry: new Set(["claude", "nord"]),
     diskThemes: [],
+    mode: "dark",
     transparent: false,
     accent: "primary",
     ...initial,
@@ -56,6 +59,11 @@ function makeTarget(initial?: Partial<FakeState>) {
     reloadUserThemes: () => {
       calls.push("reloadUserThemes")
       for (const name of state.diskThemes) state.registry.add(name)
+    },
+    themeMode: () => state.mode,
+    setThemeMode: (mode) => {
+      calls.push(`setThemeMode:${mode}`)
+      state.mode = mode
     },
     transparentBackground: () => state.transparent,
     setTransparentBackground: (v) => {
@@ -109,6 +117,18 @@ describe("applyUiPrefs", () => {
     const { calls, target } = makeTarget({ accent: "info" })
     applyUiPrefs(target, { focusAccent: "chartreuse" })
     expect(calls).toEqual([])
+  })
+
+  test("themeMode: a known mode applies, null (unset) converges on dark, unknown or absent is skipped", () => {
+    const { state, calls, target } = makeTarget()
+    applyUiPrefs(target, { themeMode: "auto" })
+    applyUiPrefs(target, { themeMode: "auto" })
+    applyUiPrefs(target, { themeMode: "sepia" })
+    // An older daemon's push carries no themeMode at all — the pane keeps its mode.
+    applyUiPrefs(target, { theme: "claude" })
+    expect(state.mode).toBe("auto")
+    applyUiPrefs(target, { themeMode: null })
+    expect(calls).toEqual(["setThemeMode:auto", `setThemeMode:${DEFAULT_UI_PREFS_THEME_MODE}`])
   })
 
   test("absent / malformed fields are skipped — a partial snapshot can't reset prefs it didn't carry", () => {

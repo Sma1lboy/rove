@@ -10,6 +10,7 @@ import type { ThemeJson } from "../theme-core"
 
 import claude from "./claude.json" with { type: "json" }
 import conductor from "./conductor.json" with { type: "json" }
+import skylight from "./skylight.json" with { type: "json" }
 import tokyonight from "./tokyonight.json" with { type: "json" }
 
 export const BUNDLED_THEME_JSONS: Record<string, ThemeJson> = {
@@ -18,5 +19,11 @@ export const BUNDLED_THEME_JSONS: Record<string, ThemeJson> = {
   // new kobe installs so the TUI reads as part of the Claude ecosystem.
   claude: claude as ThemeJson,
   conductor: conductor as ThemeJson,
+  // Cool daylight canvas with a sky-cyan selection accent, and a near-black
+  // night twin where that cyan reads as a glow. The light half is the reason
+  // to ship it: pick it with Settings → Appearance → Mode = Light or Auto.
+  // The day accent is the same hue deepened until it holds 4.5:1 as text on
+  // the white canvas (the raw sky cyan reads 2.1:1 there).
+  skylight: skylight as ThemeJson,
   tokyonight: tokyonight as ThemeJson,
 }

@@ -3,7 +3,7 @@
  * the live `ui-prefs` daemon channel (KOB — cross-session theme
  * propagation).
  *
- * One function decides how a `{ theme, transparentBackground, focusAccent }`
+ * One function decides how a `{ theme, themeMode, transparentBackground, focusAccent }`
  * snapshot lands on the theme runtime, so the boot-time application and
  * every later live push behave identically in all hosts. Before this,
  * hosts drifted: tasks/settings/ops applied transparent + focus accent in
@@ -33,9 +33,16 @@ export type UiPrefsFocusAccentSlot = (typeof UI_PREFS_FOCUS_ACCENT_SLOTS)[number
 /** Default focus-accent slot when the pref is unset (the theme provider's default, `tui-react/context/theme.tsx`). */
 export const DEFAULT_FOCUS_ACCENT_SLOT: UiPrefsFocusAccentSlot = "primary"
 
+/** Mirror of `THEME_MODE_PREFERENCES` in `tui/context/theme-core.ts`, local for the same reason. */
+const UI_PREFS_THEME_MODES = ["dark", "light", "auto"] as const
+export type UiPrefsThemeMode = (typeof UI_PREFS_THEME_MODES)[number]
+/** `DEFAULT_THEME_MODE` in `tui/context/theme-core.ts`. */
+export const DEFAULT_UI_PREFS_THEME_MODE: UiPrefsThemeMode = "dark"
+
 /** A visual-prefs snapshot, as loose as the wire/file can make it. */
 export interface UiPrefsSnapshot {
   readonly theme?: unknown
+  readonly themeMode?: unknown
   readonly transparentBackground?: unknown
   readonly focusAccent?: unknown
 }
@@ -56,6 +63,8 @@ export interface UiPrefsTarget {
    * after this pane booted.
    */
   reloadUserThemes(): void
+  themeMode(): string
+  setThemeMode(mode: UiPrefsThemeMode): void
   transparentBackground(): boolean
   setTransparentBackground(v: boolean): void
   focusAccent(): string
@@ -71,6 +80,8 @@ export interface UiPrefsTarget {
  *     still unknown after that → keep the current theme (never blind-
  *     fall back to the default and yank a working pane to `claude`
  *     because another process persisted a name this build doesn't have).
+ *   - **themeMode** — validated like the focus accent: `null` (unset)
+ *     converges on the default, an unknown string is skipped.
  *   - **transparentBackground** — applied when it's a real boolean that
  *     differs.
  *   - **focusAccent** — validated against the known slots; `null` (the
@@ -83,6 +94,11 @@ export function applyUiPrefs(target: UiPrefsTarget, prefs: UiPrefsSnapshot): voi
   if (typeof prefs.theme === "string" && prefs.theme.length > 0 && prefs.theme !== target.selectedTheme()) {
     if (!target.hasTheme(prefs.theme)) target.reloadUserThemes()
     if (target.hasTheme(prefs.theme)) target.setTheme(prefs.theme)
+  }
+
+  if (prefs.themeMode === null || typeof prefs.themeMode === "string") {
+    const mode = normalizeThemeMode(prefs.themeMode)
+    if (mode && mode !== target.themeMode()) target.setThemeMode(mode)
   }
 
   if (
@@ -105,4 +121,10 @@ export function applyUiPrefs(target: UiPrefsTarget, prefs: UiPrefsSnapshot): voi
 export function normalizeFocusAccent(value: string | null): UiPrefsFocusAccentSlot | null {
   if (value === null) return DEFAULT_FOCUS_ACCENT_SLOT
   return (UI_PREFS_FOCUS_ACCENT_SLOTS as readonly string[]).includes(value) ? (value as UiPrefsFocusAccentSlot) : null
+}
+
+/** `null` → the default mode (persisted "unset"); a known mode passes through; anything else → `null` (skip). */
+function normalizeThemeMode(value: string | null): UiPrefsThemeMode | null {
+  if (value === null) return DEFAULT_UI_PREFS_THEME_MODE
+  return (UI_PREFS_THEME_MODES as readonly string[]).includes(value) ? (value as UiPrefsThemeMode) : null
 }
