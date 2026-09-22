@@ -1,24 +1,11 @@
 /**
- * Publish a tab snapshot for a session the CLI started.
+ * Tab snapshots for sessions the CLI started. The sidebar renders a task's
+ * tabs from `terminalTabs.<taskId>`; without a snapshot, a headlessly
+ * started engine (`api add --prompt`, `api send`, a routine) is invisible.
  *
- * The sidebar tree renders a worktree's tabs by reading the task's
- * `terminalTabs.<taskId>` snapshot (see `tui-react/workspace/
- * terminal-tabs-shared.ts`). That snapshot was only ever written by a MOUNTED
- * `TerminalTabs` — so a task started headlessly (`kobe api add --prompt`,
- * `kobe api send`, a routine firing) ran a perfectly live engine that the
- * tree could not see: `knownTaskTabs` returned null and the worktree row got
- * no children at all. Since headless start is how agent-driven work enters
- * kobe, that was most of the fleet rendering as empty worktrees.
- *
- * Same fix the issue-chat background spawn already applies
- * (`tui/workspace/issue-chat-spawn.ts` — "persist so a visit attaches, not
- * respawns"); this is that precedent applied to the CLI's own launch path.
- *
- * Deliberately WRITE-ONCE: it seeds the first engine tab for a task with no
- * snapshot and never touches an existing one. A mounted TUI owns tab state
- * for real (ordinals, titles, splits, closes), and a CLI process must not
- * fight it — `kobe api send` into a task you have open in the TUI reuses that
- * session, so overwriting here would clobber live state with a one-tab stub.
+ * Seeding is WRITE-ONCE: a mounted TUI owns tab state (ordinals, titles,
+ * splits, closes), and `api send` into an open task reuses its session, so
+ * overwriting would clobber live state with a one-tab stub.
  */
 
 import type { PtySessionExit } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -34,22 +21,20 @@ import {
 } from "../../tui/workspace/terminal-tabs-core.ts"
 import type { VendorId } from "../../types/vendor.ts"
 
-/**
- * One tab row `get-task` returns: the persisted snapshot fields the sidebar
- * renders from (same mapping as `inspect`'s tabs section) joined with whether
- * the tab's OWN hosted session (`<taskId>::<tabId>`) is alive right now — the
- * discovery read an agent needs to pick a `send --tab tab-N` target.
- */
 /** A death as `pty-exits.json` records it, joined onto a tab row. */
 export type TabExit = PtySessionExit & {
   readonly tail?: readonly string[]
   readonly layer?: "pty" | "engine"
-  /** `at` is when the daemon DISCOVERED this death, not when it happened —
-   *  set on engine deaths reconciled at daemon boot, where the wrapper's
-   *  banner proves the death but nothing on disk carries its clock. */
+  /** `at` is when the daemon DISCOVERED this death — set on engine deaths
+   *  reconciled at boot, where nothing on disk carries the real clock. */
   readonly atApproximate?: true
 }
 
+/**
+ * One `get-task` tab row: persisted snapshot fields (same mapping as
+ * `inspect`) joined with the liveness of the tab's OWN session
+ * (`<taskId>::<tabId>`) — what an agent reads to pick a `send --tab` target.
+ */
 export interface TaskTabRow {
   readonly id: string
   readonly kind: TerminalTab["kind"]
@@ -58,47 +43,30 @@ export interface TaskTabRow {
   readonly liveVendor: string | null
   readonly lastTitle: string | null
   readonly autoTitle: string | null
-  /** Is the tab's hosted PTY SESSION alive. `null` means the pty host could
-   *  not be asked, which is "couldn't look" and not a dead tab — the whole
-   *  inventory is unknown then, and a caller acting on `false` here would be
-   *  acting on a fact nobody established. */
+  /** Is the tab's PTY SESSION alive. `null` = the pty host could not be
+   *  asked ("couldn't look", not a dead tab). */
   readonly alive: boolean | null
-  /** Is an ENGINE PROCESS running inside this tab's session tree — the fact
-   *  `alive` cannot report. keepAlive `exec`s a login shell where an engine
-   *  exits, so `alive: true, engineAlive: false` is a tab holding a bare
-   *  zsh prompt. `null` means nothing walked it (a `ps` that failed), never
-   *  "no engine": a reader must not turn "couldn't look" into a verdict. */
+  /** Is an ENGINE PROCESS running in the session tree. keepAlive `exec`s a
+   *  login shell where an engine exits, so `alive: true, engineAlive: false`
+   *  is a bare shell prompt. `null` = nothing walked it, never "no engine". */
   readonly engineAlive: boolean | null
-  /** How this tab's engine or session died; null while it is healthy, or
-   *  while nothing could be established. Joined from the live host when
-   *  present, else the durable exit records — `tail` (the exit-time output
-   *  lines the durable record keeps) rides along whenever the record
-   *  describes the same death.
-   *
-   *  `layer` names WHICH process this describes, without which `code` and
-   *  `signal` cannot be read together:
-   *  - `"pty"` — the tab's own session child, on a DEAD tab. Abnormal exits
-   *    only (a clean exit 0 stays null, by the no-noise rule). A `code`
-   *    recovered from the wrapper's `Engine exited (code N)` banner belongs
-   *    to the engine, while `signal` belongs to the session that outlived it.
-   *  - `"engine"` — the AI process gone from a tab whose SESSION IS STILL
-   *    ALIVE (`alive: true, engineAlive: false`), which is what keepAlive's
-   *    login shell leaves behind. Reported for a clean engine exit too: `code
-   *    0` is "the human quit their agent" and `code 143` is "it was
-   *    SIGTERMed", and telling those apart is the whole reason a fleet reader
-   *    asks. */
+  /** How the engine or session died; null while healthy or unknown. Live
+   *  host exit wins, else the durable record; `tail` rides along only when
+   *  the record describes the same death. `layer` says which process:
+   *  - `"pty"` — the session child of a DEAD tab. Abnormal exits only. A
+   *    `code` recovered from the wrapper's `Engine exited (code N)` banner
+   *    is the engine's; `signal` is the session's.
+   *  - `"engine"` — the engine gone from a still-ALIVE session. Clean exits
+   *    reported too: code 0 (human quit) vs 143 (SIGTERM) is why callers ask. */
   readonly exit: TabExit | null
-  /** Present (true) only on rows derived from a LIVE pty session the
-   *  persisted snapshot does not list — an otherwise invisible engine. The
-   *  snapshot is a record of intent; the pty host holds the truth, and a
-   *  divergence must render as a row, not vanish. */
+  /** True only on rows from a LIVE session the snapshot doesn't list. The
+   *  pty host is the truth; divergence must render as a row, not vanish. */
   readonly unregistered?: true
 }
 
 /**
- * The task's own engine launch argv, for the liveness walk. Passing it is
- * what lets a CUSTOM engine — a wrapper script no vendor table names — read
- * as running; without it that task walks as "no engine" and an unattended
+ * The task's engine launch argv for the liveness walk. Without it a CUSTOM
+ * engine (a wrapper no vendor table names) walks as "no engine", and a
  * cleanup loop would treat live work as finished.
  */
 export function taskEngineArgv(task: { readonly command?: string; readonly vendor?: string }): readonly string[] {
@@ -110,8 +78,8 @@ export interface TaskSessionRow {
   readonly key: string
   readonly alive?: boolean
   readonly exit?: PtySessionExit | null
-  /** Spawn argv, as `pty.list` reports it. Absent rows simply fail the argv
-   *  half of the engine-tab judgement; they never fail the label half. */
+  /** Spawn argv. Absent fails only the argv half of the engine-tab
+   *  judgement, never the label half. */
   readonly command?: readonly string[]
 }
 
@@ -126,10 +94,9 @@ export function readTabsSnapshot(taskId: string): TabsState | undefined {
 }
 
 /**
- * Remove one persisted tab with the same pure transition ctrl+w uses.
- * Returns the removed tab, or undefined when the current snapshot does not
- * name it. The fresh-state transaction prevents a stale CLI snapshot from
- * overwriting a newer TUI tab list.
+ * Remove one persisted tab via ctrl+w's transition; undefined when the
+ * snapshot doesn't name it. The fresh-state transaction keeps a stale CLI
+ * read from overwriting a newer TUI tab list.
  */
 export function closeTabsSnapshot(taskId: string, tabId: string): TerminalTab | undefined {
   let closing: TerminalTab | undefined
@@ -151,13 +118,9 @@ export function closeTabsSnapshot(taskId: string, tabId: string): TerminalTab | 
 }
 
 /**
- * Set one persisted tab's user title, with the same pure transition f2 uses.
- * Returns whether the snapshot named the tab — false covers "no such tab" and
- * "task has never opened any", which is the one case `rename --tab` reports
- * as a miss. An empty title clears back to the tab's default name.
- *
- * The fresh-state transaction is what keeps a stale CLI read from overwriting
- * a newer TUI tab list, exactly as {@link closeTabsSnapshot} does.
+ * Set one tab's user title via f2's transition (empty clears to default).
+ * False = the snapshot doesn't name the tab (the one miss `rename --tab`
+ * reports). Transactional like {@link closeTabsSnapshot}.
  */
 export function renameTabsSnapshot(taskId: string, tabId: string, title: string): boolean {
   let found = false
@@ -168,8 +131,7 @@ export function renameTabsSnapshot(taskId: string, tabId: string, title: string)
     if (!state.tabs.some((tab) => tab.id === tabId)) return false
     found = true
     const next = setTabTitle(state, tabId, title)
-    // Same object = already named that. Abort the transaction rather than
-    // rewrite an identical snapshot.
+    // Same object = already named that; don't rewrite.
     if (next === state) return false
     store[key] = next
     return undefined
@@ -181,11 +143,9 @@ const aliveKeysOf = (sessions: readonly TaskSessionRow[]): Set<string> =>
   new Set(sessions.filter((s) => s.alive).map((s) => s.key))
 
 /**
- * Tab ids with a LIVE `<taskId>::<tabId>` pty session the snapshot does not
- * list — the reconciliation read for an invisible engine (a canonical-spawn
- * fallback, an older kobe, any future path that opens a session without
- * writing the snapshot). Split leaves (`::leaf-N` suffix) belong to their
- * tab and never count on their own, matching `joinTaskTabs`' exact-key rule.
+ * Tab ids with a LIVE `<taskId>::<tabId>` session the snapshot doesn't list
+ * (any path that opens a session without writing the snapshot). Split leaves
+ * (`::leaf-N`) belong to their tab, matching `joinTaskTabs`' exact-key rule.
  */
 export function unregisteredTabIds(
   snapshot: TabsState | undefined,
@@ -209,27 +169,20 @@ const abnormalExit = (exit: PtySessionExit | null | undefined): PtySessionExit |
   exit && (exit.code !== 0 || exit.signal !== null) ? exit : null
 
 /**
- * Persisted tabs joined with hosted-session liveness. Exact-key match on
- * purpose: a split's extra shell leaves (`<taskId>::<tabId>::leaf-N`) never
- * make the tab itself read alive — only the tab's own session does.
- * `persistedExits` (the durable `pty-exits.json` records, keyed by session
- * key) answers "how did it die" after the host itself is gone; a live host's
- * in-memory exit wins when both exist.
+ * Persisted tabs joined with session liveness. Exact-key match on purpose:
+ * split leaves (`<taskId>::<tabId>::leaf-N`) never make the tab read alive.
+ * `persistedExits` (durable `pty-exits.json`, keyed by session key) answers
+ * "how did it die" after the host is gone; a live host's exit wins.
  *
- * `liveVendors` is a fresh foreground-walk verdict per session
- * key — the same tri-state the TUI's live-engine store speaks: a vendor =
- * that engine runs under the session's shell NOW, null = walked and
- * engine-free, absent = couldn't look. Where it answers it overrides the
- * RECORDED `liveVendor` (a snapshot written only by a mounted TUI, so it
- * goes stale for tasks never opened): a user-typed `claude` in a shell tab
- * reads as live claude, and a ctrl+C'd engine reads as a plain shell. A
- * dead session's verdict is meaningless — only alive rows take it.
+ * `liveVendors` is a fresh foreground-walk verdict per key (vendor = running
+ * NOW, null = walked and engine-free, absent = couldn't look). On alive rows
+ * it overrides the recorded `liveVendor`, which only a mounted TUI writes
+ * and so goes stale for never-opened tasks.
  */
 export function joinTaskTabs(
   snapshot: TabsState | undefined,
   taskId: string,
-  /** `null` = the pty host could not be asked; every liveness field on every
-   *  row then reports `null` rather than a verdict nobody checked. */
+  /** `null` = the pty host could not be asked; every liveness field is then `null`. */
   sessions: readonly TaskSessionRow[] | null,
   persistedExits: Readonly<Record<string, TabExit>> = {},
   liveVendors?: ReadonlyMap<string, string | null>,
@@ -239,38 +192,26 @@ export function joinTaskTabs(
   const rows0 = sessions ?? []
   const alive = aliveKeysOf(rows0)
   const sessionExits = new Map(rows0.map((s) => [s.key, s.exit]))
-  // Death cause + tail for one dead tab. The live host's in-memory exit wins
-  // (fresher when the key was reopened) but carries no output; the durable
-  // record has the exit-time tail — merge it in only when both describe the
-  // SAME death (`at` matches), so a stale record never captions a newer one.
+  // The live host's exit wins (fresher if the key was reopened) but has no
+  // tail; merge the durable record's tail only for the SAME death (`at`
+  // matches), so a stale record never captions a newer one.
   const deadExit = (key: string): TaskTabRow["exit"] => {
     const ex = abnormalExit(sessionExits.get(key) ?? persistedExits[key])
     if (!ex) return null
     const record = persistedExits[key]
     const sameDeath = record?.at === ex.at
     const tail = sameDeath ? record?.tail : undefined
-    // The live host's in-memory exit wins on freshness but carries only a
-    // wait status, and a signalled session has no code in one. The durable
-    // record for the SAME death recovered the engine's from the wrapper's
-    // banner — take that rather than report `code: null` beside a tail that
-    // spells the number out.
+    // A signalled session's wait status has no code; the same-death record
+    // recovered the engine's from the wrapper banner.
     const code = ex.code ?? (sameDeath ? (record?.code ?? null) : null)
-    // Keyed by the bare session key, so this row is structurally the PTY
-    // layer (engine-layer records live under `<key>#engine`); a legacy
-    // record predating the field is PTY-layer too.
+    // Bare session key = PTY layer (engine records live under `<key>#engine`);
+    // legacy records without the field are PTY too.
     const layer = record?.layer ?? "pty"
     return { code, signal: ex.signal, at: ex.at, layer, ...(tail && tail.length > 0 ? { tail } : {}) }
   }
-  // The ENGINE-layer death of a tab whose SESSION IS STILL ALIVE — the case
-  // `deadExit` cannot describe twice over: it only ran for `alive === false`,
-  // and it looks records up under the bare session key while engine records
-  // live under `<key>#engine`. So `layer: "engine"` — which `TaskTabRow.exit`
-  // is typed for and `docs/API.md` documents — could never appear on a row
-  // from `get-task` or `collect`, and an agent polling a fleet read "no
-  // engine, no reason" while `inspect` printed the code and the tail. No
-  // abnormal-exit filter: the store already decided every engine
-  // disappearance is worth recording, and code 0 is the "quit on purpose"
-  // answer the caller came for.
+  // ENGINE-layer death under a still-alive session (records under
+  // `<key>#engine`). No abnormal-exit filter: every engine disappearance is
+  // recorded, and code 0 ("quit on purpose") is an answer callers want.
   const engineExit = (key: string): TaskTabRow["exit"] => {
     const record = persistedExits[`${key}#engine`]
     if (!record) return null
@@ -288,9 +229,8 @@ export function joinTaskTabs(
     const key = `${taskId}::${t.id}`
     const isAlive = unknown ? null : alive.has(key)
     const walked = isAlive === true && liveVendors?.has(key) === true ? (liveVendors.get(key) ?? null) : undefined
-    // Gated on the WALK, not on the record's existence: a tab that has since
-    // started a new engine still holds its old death record, and captioning a
-    // live engine with it would be the same lie in the other direction.
+    // Gated on the WALK, not the record: a tab that started a new engine
+    // still holds its old death record.
     const engineIsAlive = engineAliveOf(key, isAlive, engineAlive)
     return {
       id: t.id,
@@ -302,15 +242,12 @@ export function joinTaskTabs(
       autoTitle: t.autoTitle ?? null,
       alive: isAlive,
       engineAlive: engineIsAlive,
-      // A pty-layer death of the session itself wins: it is the later and
-      // larger event, and it took the engine's tab with it.
+      // A session death wins: it is the later event and took the engine with it.
       exit: isAlive === false ? deadExit(key) : engineIsAlive === false ? engineExit(key) : null,
     }
   })
-  // Live sessions the snapshot doesn't know still get a row — the discovery
-  // read must show every engine that exists, not just the registered ones.
-  // "engine" is the same assumption the sidebar's orphan backstop documents:
-  // headless paths only ever start engines.
+  // Unlisted live sessions still get a row. kind "engine": headless paths
+  // only ever start engines (same assumption as the sidebar orphan backstop).
   for (const tabId of unregisteredTabIds(snapshot, taskId, rows0)) {
     rows.push({
       id: tabId,
@@ -329,13 +266,7 @@ export function joinTaskTabs(
   return rows
 }
 
-/**
- * Was an ENGINE PROCESS found inside this tab's session tree — `null` when
- * nothing walked it (a dead tab, or a `ps` that failed). Distinct from
- * `alive`, which is the SESSION's liveness: keepAlive leaves a login shell
- * where an engine exited, so a tab can be `alive: true, engineAlive: false`
- * for as long as nobody closes it.
- */
+/** Engine found in the session tree; `null` when nothing walked it (see `TaskTabRow.engineAlive`). */
 function engineAliveOf(
   key: string,
   isAlive: boolean | null,
@@ -347,24 +278,19 @@ function engineAliveOf(
 }
 
 /**
- * Seed `terminalTabs.<taskId>` with the canonical first engine tab when the
- * task has none. No-op when a snapshot already exists, and never throws — a
- * sidebar-visibility nicety must not fail an otherwise-good session start.
+ * Seed the canonical first engine tab when the task has no snapshot. Never
+ * throws — sidebar visibility must not fail a good session start.
  *
- * `sessionId` is the conversation id the launch pinned (`withClaudeSessionId`)
- * — recording it (with `spawned`, the conversation provably started: the
- * caller only passes it after a successful delivery) makes a later
- * dead-reattach `--resume` this conversation, matching a TUI-spawned tab.
+ * `sessionId` (the pinned conversation id, passed only after a successful
+ * delivery, hence `spawned`) makes a later dead-reattach `--resume` it.
  */
 export function publishCliTabSnapshot(taskId: string, sessionId?: string | null): void {
   if (!taskId) return
   try {
     const key = terminalTabsKey(taskId)
     if (loadStateFile()[key] !== undefined) return
-    // `initialTabs()` is the same shape a mounting TerminalTabs would write:
-    // one engine tab `tab-1`, active — matching the PTY key the CLI launch
-    // path uses (`engineSessionKey` → `<taskId>::tab-1`), so the tree's row
-    // and the live process agree on which tab this is.
+    // One active engine tab `tab-1`, matching the CLI launch's PTY key
+    // (`engineSessionKey` → `<taskId>::tab-1`).
     const seeded = initialTabs()
     patchStateFile({
       [key]: sessionId
@@ -375,17 +301,14 @@ export function publishCliTabSnapshot(taskId: string, sessionId?: string | null)
         : seeded,
     })
   } catch {
-    // Unreadable/unwritable state.json: the session is still fine, the tree
-    // just won't list its tab until the TUI opens the task.
+    // Unwritable state.json: the tab just stays unlisted until the TUI opens the task.
   }
 }
 
 /**
- * Record a CLI-spawned EXTRA tab's pinned session id after its session
- * actually started (the `send --tab new` twin of {@link publishCliTabSnapshot}'s
- * sessionId). mintCliTab runs BEFORE the spawn — it deliberately leaves the
- * id unset so a failed start never claims a resumable conversation that
- * does not exist (claude errors hard on `--resume` of a missing id).
+ * Record a `send --tab new` tab's session id after the session started.
+ * {@link mintCliTab} runs before the spawn and leaves it unset: claude errors
+ * hard on `--resume` of a missing id.
  */
 export function markCliTabSession(taskId: string, tabId: string, sessionId: string): void {
   try {
@@ -406,19 +329,11 @@ export function markCliTabSession(taskId: string, tabId: string, sessionId: stri
 }
 
 /**
- * Mint the next engine-tab id for a CLI-spawned EXTRA tab (`send --tab new`)
- * and append it to the task's persisted snapshot, so a mounted (or later)
- * TUI renders and attaches the tab instead of never knowing it exists.
- *
- * The append mirrors `addTab()`'s shape but keys the id off `nextOrdinal`
- * exactly like the TUI does, so CLI- and TUI-minted ids can never collide —
- * both consume the same monotonic counter from the same snapshot. Unlike
- * {@link publishCliTabSnapshot} this MUST write over an existing snapshot
- * (that's where the counter lives); a task with none gets seeded first.
- *
- * Best-effort like its sibling — but the caller needs the id even when
- * state.json is unwritable, so the id is returned regardless and the
- * snapshot write failure only costs sidebar visibility.
+ * Mint the next engine-tab id for `send --tab new` and append it to the
+ * snapshot so the TUI can attach it. Keyed off `nextOrdinal` like the TUI,
+ * so CLI and TUI ids never collide; hence it MUST write over an existing
+ * snapshot (seeding one first if absent). Returns an id even when the write
+ * fails — that only costs sidebar visibility.
  */
 export function mintCliTab(taskId: string, vendor?: VendorId, command?: string): string {
   let tabId = "tab-1"
@@ -431,10 +346,8 @@ export function mintCliTab(taskId: string, vendor?: VendorId, command?: string):
     patchStateFile({
       [key]: {
         ...state,
-        // `command`/`vendor` present = this tab is PINNED to an engine other
-        // than the task's default (`send --tab new --command …`); `vendor` is
-        // the same field the TUI's ctrl+e pick writes. Absent, the tab
-        // follows the task like every other.
+        // `command`/`vendor` present = tab PINNED to a non-default engine
+        // (`vendor` is the field ctrl+e writes); absent = follows the task.
         tabs: [
           ...state.tabs,
           {
@@ -451,8 +364,7 @@ export function mintCliTab(taskId: string, vendor?: VendorId, command?: string):
       },
     })
   } catch {
-    // Snapshot write failed: fall back to a time-keyed id that cannot
-    // collide with ordinal ids, so the spawn still proceeds.
+    // Time-keyed id cannot collide with ordinal ids.
     tabId = `tab-cli-${Date.now().toString(36)}`
   }
   return tabId

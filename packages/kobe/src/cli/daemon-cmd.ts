@@ -1,11 +1,4 @@
-/**
- * `kobe daemon <command>` — daemon lifecycle subcommands.
- *
- * Ported from the now-removed `kobed` bin. The body is the same
- * logic with a different argv shape: the dispatcher in `cli/index.ts`
- * passes `rest` already trimmed of the `daemon` verb, so we read the
- * sub-command at `argv[0]` instead of `argv[2]`.
- */
+/** `kobe daemon <command>` — daemon lifecycle. `argv` is already trimmed of the `daemon` verb. */
 
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { connectOrStartDaemon, daemonSpawnReason } from "@sma1lboy/kobe-daemon/client/daemon-process"
@@ -50,9 +43,7 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     return
   }
 
-  // The accept-set lives in `subcommands.ts` so `kobe completions` offers
-  // exactly what this dispatch runs; a verb added below but not there is
-  // rejected here rather than becoming an uncompletable secret.
+  // Accept-set shared with `kobe completions`, so every verb is completable.
   if (!SUBCOMMAND_VERBS.daemon.includes(command)) {
     process.stderr.write(`${CLI_NAME} daemon: unknown command "${command}"\n\n`)
     printDaemonUsage(process.stderr)
@@ -81,10 +72,8 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
       await client.request("daemon.stop")
       console.log(`${CLI_NAME} daemon: stop requested`)
     } catch {
-      // No daemon answering the socket → "stop" is already satisfied. Report
-      // it cleanly and exit 0 (a defensive `daemon stop` in a teardown script
-      // must not fail just because nothing was running) rather than letting
-      // the connection error bubble to the top-level "failed to start" catch.
+      // Nothing running already satisfies "stop": exit 0, so a defensive
+      // `daemon stop` in a teardown script doesn't fail.
       console.log(`${CLI_NAME} daemon: no daemon running at ${socketPath}`)
     } finally {
       client.close()
@@ -93,41 +82,26 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
   }
 
   if (command === "restart") {
-    // Stop + confirm-dead + unlink socket/pidfile via the shared
-    // escalation helper, then respawn. Spawn the new daemon as
-    // a detached child instead of becoming it ourselves — otherwise
-    // `kobe daemon restart` blocks the shell forever and looks "hung" to
-    // anyone running it interactively.
-    // `restart`, not the default `stop`: the outgoing daemon relays it to
-    // every attached TUI, which is how a running client learns its own build
-    // is about to be the stale one — before the socket even drops.
+    // Respawn as a detached child, not in-process, or restart blocks the shell.
+    // Reason `restart` is relayed to every attached TUI, so a client learns its
+    // build is about to be stale before the socket drops.
     await stopDaemonProcess(socketPath, pidPath, { reason: "restart" })
-    // Tag the respawn. The restart path and an idle helper's autospawn go
-    // through the same spawn, so without this the new daemon's boot line
-    // cannot say which one it was — and "did my restart end those sessions?"
-    // has no answer in the log.
+    // Tagged so the new daemon's boot line tells restart from autospawn.
     const next = await connectOrStartDaemon("explicit-restart")
     next.close()
     console.log(`${CLI_NAME} daemon: restarted, listening on ${socketPath}`)
     return
   }
 
-  // We ARE the daemon process from here on. `daemon.log` is stdout/stderr
-  // inherited from the parent's `spawnDetachedDaemon` open (an append fd,
-  // not routed through any in-process writer here) — the only rotation
-  // point that can cover it is boot, before the daemon writes a single
-  // byte. One generation kept (`daemon.log.old`); see log-rotate.ts.
+  // We ARE the daemon from here. `daemon.log` is an inherited append fd, so
+  // boot — before the first byte — is the only rotation point.
   rotateLogIfNeeded(defaultDaemonLogPath())
 
-  // Install the crash net before doing any work so a stray rejection
-  // during startup (or any time after) is logged to daemon.log instead of
-  // silently killing the daemon. Safe here because this branch only runs
-  // in the spawned daemon process, never in the TUI or tests.
+  // Before any work, so a startup rejection is logged, not a silent death.
+  // Only ever runs in the spawned daemon process, never the TUI or tests.
   installDaemonCrashHandlers()
 
-  // First line this daemon writes: who asked for it. `explicit-restart` is a
-  // `rove daemon restart`, `autospawn` a client that found no daemon
-  // answering, `manual` a `rove daemon start` typed by hand.
+  // First line: who asked (`explicit-restart`, `autospawn`, `manual`).
   logDaemonInfo("boot", `daemon starting — ${daemonSpawnReason()} (pid ${process.pid}, v${CURRENT_VERSION})`)
 
   let core: KobeCore | undefined

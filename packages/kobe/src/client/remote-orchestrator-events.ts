@@ -1,13 +1,7 @@
 /**
- * Daemon push-channel event handling for `RemoteOrchestrator` — the INBOUND
- * direction, the one place the daemon drives us rather than the other way
- * round. It is the third side of the same split: `-reads.ts` answers from the
- * local cache, `-writes.ts` pushes RPCs out, and this is what keeps that cache
- * true as the daemon reports changes.
- *
- * Taking an explicit {@link OrchestratorSignals} deps bag instead of closing
- * over `this` is what makes that testable: hand it plain closures and drive
- * event payloads through with no daemon and no class.
+ * Inbound daemon push events for `RemoteOrchestrator`: keeps the local cache
+ * true. Takes an {@link OrchestratorSignals} deps bag so tests drive payloads
+ * with no daemon and no class.
  */
 
 import { logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
@@ -37,37 +31,23 @@ import {
 } from "./remote-orchestrator-payloads.ts"
 
 /**
- * The default `graphics.write` sink: this process's own fd 1, verbatim.
- *
- * Every attached GUI writes the SAME payload to its OWN terminal — a task can
- * be open in more than one, and each has to receive the picture separately
- * because each terminal keeps its own image store. Rove parses none of it: the
- * bytes are the caller's dialect with the daemon's id already inside them.
- *
- * Written straight through rather than queued for a frame boundary, which is
- * the arrangement the feasibility probes measured against a real terminal: the
- * renderer emits a frame in one `write`, so an opaque payload appended to the
- * same stream lands between frames rather than inside one.
+ * Default `graphics.write` sink: fd 1, verbatim, unparsed. Every attached
+ * GUI writes it to its own terminal (each keeps its own image store). Not
+ * queued for a frame boundary: the renderer emits each frame in one `write`,
+ * so the payload lands between frames (measured against a real terminal).
  */
 export function writeGraphicsToStdout(data: Buffer): void {
-  // A redirected stdout is a file, not a terminal; writing binary into it
-  // corrupts whatever is capturing the session and draws nothing.
+  // Binary into a redirected stdout corrupts the capture and draws nothing.
   if (!process.stdout.isTTY) return
   process.stdout.write(data)
 }
 
 /**
- * Drop engine-state entries for tasks that are gone (leak guard).
- * The `engine-state` channel only removes an entry on an explicit `idle`
- * event for that taskId — a task deleted/pruned while non-idle (running /
- * permission-needed / error, the common delete case) never gets one, so
- * in a long-lived pane process the map grows one stale entry per deleted
- * task, forever. Reconcile against each `task.snapshot`: any key
- * absent from the authoritative task list is dead. Benign race: an
- * `engine-state` event arriving before the snapshot that introduces its
- * task would be dropped here — the next engine-state event re-adds it
- * (and in practice the daemon publishes the create snapshot before the
- * engine ever starts). No-op (no signal write) when nothing is stale.
+ * Leak guard: entries are only removed on an explicit `idle`, which a task
+ * deleted while non-idle never sends, so reconcile against each
+ * `task.snapshot`. Benign race: an event before its task's first snapshot is
+ * dropped until the next one (the daemon publishes the create snapshot before
+ * the engine starts). No signal write when nothing is stale.
  */
 function pruneEngineState(tasks: readonly SerializedTask[], signals: OrchestratorSignals): void {
   const live = new Set(tasks.map((t) => t.id))
@@ -81,9 +61,6 @@ function pruneEngineState(tasks: readonly SerializedTask[], signals: Orchestrato
     }
     if (next) signals.setEngineStateSig(next)
   }
-  // Same leak guard for the per-tab map — a task deleted while a tab is
-  // non-idle never delivers its per-tab idle events to a client that was
-  // disconnected for them.
   const tabs = signals.engineTabStateAcc()
   if (tabs.size > 0) {
     let nextTabs: Map<string, ReadonlyMap<string, TaskEngineState>> | null = null
@@ -94,7 +71,6 @@ function pruneEngineState(tasks: readonly SerializedTask[], signals: Orchestrato
     }
     if (nextTabs) signals.setEngineTabStateSig(nextTabs)
   }
-  // Same guard for the transient lifecycle marks (subagent counts).
   const lifecycle = signals.engineLifecycleAcc()
   if (lifecycle.size > 0) {
     let nextLifecycle: Map<string, EngineLifecycleState> | null = null
@@ -108,12 +84,8 @@ function pruneEngineState(tasks: readonly SerializedTask[], signals: Orchestrato
 }
 
 /**
- * Drop task-job entries for tasks that are gone — the same leak
- * guard as {@link pruneEngineState}. A `done`/`error` publish normally
- * clears the entry, but a task DELETED while its job runs (or a dropped
- * terminal frame across a reconnect) would otherwise pin a phantom
- * "materializing" row state forever in a long-lived pane process.
- * No-op (no signal write) when nothing is stale.
+ * Same leak guard as {@link pruneEngineState}: a task deleted mid-job, or a
+ * `done` frame lost across a reconnect, would pin "materializing" forever.
  */
 function pruneTaskJobs(tasks: readonly SerializedTask[], signals: OrchestratorSignals): void {
   const current = signals.taskJobsAcc()
@@ -136,19 +108,14 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       pruneEngineState(value, signals)
       pruneTaskJobs(value, signals)
     } else {
-      // Dropping this leaves the task list frozen at the last good snapshot;
-      // log the anomaly so a stuck-list incident is diagnosable.
+      // Logged so a frozen task list is diagnosable.
       logClientError("orch", `dropped task.snapshot event: tasks is not an array (got ${describePayload(value)})`)
     }
     return
   }
-  // The daemon's own obituary (v5) — a lifecycle frame, not a channel, so it
-  // is never replayed to a late subscriber as if current. Only `restart` is
-  // acted on: it says an operator is swapping the daemon's code, which makes
-  // this process the one about to be a build behind. Every other reason
-  // (idle, socket-lost, a plain stop) is a shutdown the reconnect loop
-  // already handles silently, and deliberately paints nothing — see the
-  // no-disconnect-banner rule in `host-banner.tsx`.
+  // Lifecycle frame (v5), never replayed. Only `restart` is acted on (this
+  // process is about to be a build behind); other reasons paint nothing —
+  // see the no-disconnect-banner rule in `host-banner.tsx`.
   if (name === "daemon.stopping") {
     const p = payload as { reason?: unknown; kobeVersion?: unknown } | undefined
     if (typeof p?.kobeVersion === "string") signals.setDaemonVersionSig(p.kobeVersion)
@@ -191,12 +158,8 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       ...(tabId ? { tabId } : {}),
       at: typeof p.at === "number" ? p.at : 0,
     }
-    // The task rollup comes from the daemon's TASK-level events only (no
-    // `tabId`). It used to be re-derived here from tab events too — a second
-    // copy of a rule the daemon already owns, and the two disagreed the moment
-    // a task had more than one tab. The daemon now publishes its derived
-    // rollup alongside every tab event (activity-rollup.ts), so this just
-    // records what it says.
+    // The task rollup comes only from TASK-level events (no `tabId`); the
+    // daemon owns the rollup rule (activity-rollup.ts) — don't re-derive it.
     const prevTaskState = signals.engineStateAcc().get(p.taskId)?.state
     if (!tabId) {
       const next = new Map(signals.engineStateAcc())
@@ -204,13 +167,10 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       else next.set(p.taskId, entry)
       signals.setEngineStateSig(next)
     }
-    // Transient lifecycle marks (subagent counts) must never outlive
-    // the evidence: a turn ending clears them, and so does a FRESH running
-    // edge — a cancelled compaction never sends post-compact, and an
-    // esc-interrupted turn may send no idle/stop either, so the next
-    // prompt's running edge is the label's only chance to un-stick. (A turn
-    // that auto-compacts at its very start may briefly lose the word to
-    // this edge — it self-heals; a stuck label doesn't.)
+    // Lifecycle marks must not outlive the evidence: cleared on turn end AND
+    // on a fresh running edge, since an esc-interrupted turn may send no
+    // idle/stop. An auto-compact at turn start may briefly lose its label —
+    // self-heals, unlike a stuck one.
     const endsMarks =
       p.state === "idle" ||
       p.state === "turn_complete" ||
@@ -222,11 +182,8 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       signals.setEngineLifecycleSig(lifecycle)
     }
     if (tabId) {
-      // An idle entry is KEPT as a tombstone, not deleted: the
-      // sidebar renders absence as UNKNOWN (no signal — a dotted ◌), so
-      // "the daemon said this tab is idle" must stay distinguishable from
-      // "the daemon never said anything". Bounded by tabs-per-task; the
-      // task.snapshot prune drops deleted tasks' maps wholesale.
+      // Idle is KEPT as a tombstone: absence renders as UNKNOWN (◌), which
+      // must differ from "said idle". Bounded by tabs-per-task.
       const nextTabs = new Map(signals.engineTabStateAcc())
       const tabs = new Map(nextTabs.get(p.taskId) ?? [])
       tabs.set(tabId, entry)
@@ -241,19 +198,13 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       logClientError("orch", `dropped attention.inbox event: items is not an array (${describePayload(items)})`)
       return
     }
-    // Per ITEM, not `every`: this payload is the whole Inbox, so rejecting it
-    // wholesale for one unrecognized row silently blanks a queue whose entire
-    // job is to be noticed — no count, no rows, and nothing to dismiss, on
-    // every republish and every fresh attach. A newer daemon's state, or one
-    // corrupt line on disk, must cost exactly its own row.
+    // Per ITEM, not `every`: one unrecognized row (newer daemon, corrupt
+    // line) must cost only its own row, not blank the whole Inbox.
     const kept = items.filter((item) => {
       if (!item || typeof item !== "object" || Array.isArray(item)) return false
       const p = item as Partial<AttentionInboxItem>
-      // Same rule as the daemon's `normalizeItem`: `null` is legal only for a
-      // routine episode. A routine episode may equally NAME a task — a firing
-      // that built one and then failed to start its engine carries that id
-      // (see `AttentionInboxItem.taskId`), and demanding `null` here rejected
-      // the episode the daemon actually writes.
+      // Matches the daemon's `normalizeItem`: `null` only for a routine
+      // episode, which may also name a task (see `AttentionInboxItem.taskId`).
       const taskIdOk = typeof p.taskId === "string" || (p.taskId === null && p.state === "routine_failed")
       return (
         taskIdOk &&
@@ -269,10 +220,8 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
         `dropped ${items.length - kept.length} malformed attention.inbox item(s) of ${items.length} (${describePayload(items)})`,
       )
     }
-    // Nothing readable at ALL is not evidence the queue is empty — that is the
-    // one case the old whole-event drop got right, so keep the previous
-    // snapshot rather than invent an empty one. A genuinely empty Inbox
-    // arrives as `items: []` and still publishes.
+    // Nothing readable isn't evidence of empty: keep the previous snapshot.
+    // A real empty Inbox arrives as `items: []`.
     if (kept.length === 0 && items.length > 0) return
     signals.setAttentionInboxSig(
       kept.map((item) => ({
@@ -298,9 +247,7 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       signals.setTaskJobsSig(next)
       return
     }
-    // Terminal phases (`done` / `error`) remove the entry. Skip the signal
-    // write when nothing is tracked — a replayed terminal payload to a
-    // late subscriber must be a true no-op, not a map-identity churn.
+    // A replayed terminal payload must be a true no-op, not identity churn.
     if ((p.phase === "done" || p.phase === "error") && current.has(p.taskId)) {
       const next = new Map(current)
       next.delete(p.taskId)
@@ -308,9 +255,6 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
     }
     return
   }
-  // The five MAP channels (usage × 2, worktree changes, transcript activity,
-  // plugin row tokens) share one parse/compare/write shape — see
-  // `remote-orchestrator-map-events.ts`.
   if (handleMapChannel(name, payload, signals)) return
   if (name === "tab.open") {
     const p = payload as Partial<TabOpenPayload> | undefined
@@ -344,8 +288,7 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
   }
   if (name === "tab.rename") {
     const p = payload as Partial<TabRenamePayload> | undefined
-    // `title` may legitimately be "" (clear back to the default name), so the
-    // gate is the TYPE, never truthiness.
+    // `title` may be "" (reset to default): gate on type, not truthiness.
     if (
       typeof p?.taskId !== "string" ||
       typeof p.tabId !== "string" ||
@@ -373,9 +316,8 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       logClientError("orch", `dropped engine.lifecycle event: malformed payload (${describePayload(payload)})`)
       return
     }
-    // Compaction kinds are intentionally ignored here: pre-compact has no
-    // guaranteed post-compact (esc cancels it), so any flag it set would
-    // outlive its evidence. Compaction reads as the running animation.
+    // Compaction kinds ignored: esc cancels post-compact, so a flag would
+    // outlive its evidence.
     const prev = signals.engineLifecycleAcc()
     const cur = prev.get(p.taskId) ?? { subagents: 0 }
     const entry =
@@ -397,8 +339,7 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       logClientError("orch", `dropped graphics.write event: malformed payload (${describePayload(payload)})`)
       return
     }
-    // Base64 is the wire encoding the daemon put on, not something the caller
-    // chose — decoding it is undoing our own transport, not parsing content.
+    // Base64 is our own transport encoding, not the caller's content.
     signals.writeGraphics(Buffer.from(p.data, "base64"))
     return
   }

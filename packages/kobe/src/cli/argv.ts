@@ -1,14 +1,8 @@
 /**
- * Shared argv flag helpers for CLI subcommands and engine command guards.
- *
- * Both forms of a value flag are one idiom to the user but two token shapes
- * to us: `--flag value` (two tokens) and `--flag=value` (one token).
- * `parseEngineCommand` keeps the attached form as a single token, and so does
- * `process.argv`. A bare `argv.includes("--flag")` / `argv.indexOf("--flag")`
- * therefore misses the attached form silently — the bug class behind double
- * `--session-id` (#361 → #365 → #386) and behind a `--port=N` that bound the
- * default port with no error (#58). Every flag probe goes through these
- * two; `test/architecture/argv-flag-guards.test.ts` rejects new bare checks.
+ * Every flag probe goes through these: a bare `argv.includes("--flag")`
+ * silently misses the one-token `--flag=value` form (e.g. a double
+ * `--session-id`, or `--port=N` binding the default port).
+ * `test/architecture/argv-flag-guards.test.ts` rejects new bare checks.
  */
 
 /** True when `argv` carries `flag` as `--flag` or `--flag=…`. Prefix-safe: `--resume-x` ≠ `--resume`. */

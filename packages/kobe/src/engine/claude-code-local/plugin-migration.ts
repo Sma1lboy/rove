@@ -1,21 +1,14 @@
 /**
  * Claude Code plugin takeover detection — the migration hard-gate.
  *
- * Once the user installs the Rove Claude Code plugin (`claude-plugin/` in this
- * repo, enabled as `rove@<marketplace>` in `~/.claude/settings.json`), the
- * plugin's own hooks.json + bundled skill carry the 12 activity hooks and the
- * SKILL.md. Two legacy installs then become DOUBLE registrations:
+ * With the Rove plugin (`claude-plugin/`, enabled as `rove@<marketplace>`)
+ * carrying the activity hooks + skill, two legacy installs double-register:
  *
- *   1. the settings.json activity-hook block kobe wrote on every launch
- *      (every event would fire twice → duplicate daemon reports), and
- *   2. a pre-plugin skill install under `~/.claude/skills/rove|kobe`
- *      (Claude Code loads both copies).
+ *   1. the settings.json activity-hook block (every event fires twice), and
+ *   2. a pre-plugin skill copy (Claude Code loads both).
  *
- * The gate is PROMPT-ONLY by design: detection here never edits the user's
- * settings.json or deletes a skill directory. The one sanctioned cleanup path
- * is the explicit `rove hook cleanup` command (user-invoked), plus manually
- * removing the legacy skill directory. Vendor-specific (file location +
- * `enabledPlugins` schema are Claude Code's), hence this directory.
+ * PROMPT-ONLY: never edits settings.json or deletes a skill dir. Cleanup is the
+ * user-invoked `rove hook cleanup` plus removing the skill dir by hand.
  */
 
 import { readFileSync } from "node:fs"
@@ -24,9 +17,8 @@ import { installedSkillDirs } from "../../lib/skill-install.ts"
 import { hasKobeActivityHooks, isObject } from "../json-hooks.ts"
 import { CLAUDE_HOOK_EVENT_MAP, claudeSettingsPath } from "./hook-adapter.ts"
 
-/** The plugin name inside `claude-plugin/.claude-plugin/plugin.json`. An
- *  enabledPlugins key is `<plugin>@<marketplace>`; the marketplace half varies
- *  (git install vs local dev), so match on the plugin half only. */
+/** From `claude-plugin/.claude-plugin/plugin.json`. Keys are
+ *  `<plugin>@<marketplace>`; the marketplace half varies, so match the plugin half. */
 const PLUGIN_NAME = "rove"
 
 function readSettings(path: string): Record<string, unknown> | null {
@@ -57,15 +49,11 @@ export function detectLegacyInstalls(opts: { settingsFilePath?: string; home?: s
   const settingsFilePath = opts.settingsFilePath ?? claudeSettingsPath()
   const home = opts.home ?? homedir()
   const settings = readSettings(settingsFilePath)
-  // The worktree-watch hook shares the activity ownership predicate: its
-  // command is `… hook worktree-created`, and "worktree-created" is not an
-  // activity verb, so check it via its own marker substring.
+  // "worktree-created" isn't an activity verb, so the watch hook needs its own check.
   const legacyHooks =
     settings !== null && (hasKobeActivityHooks(settings, CLAUDE_HOOK_EVENT_MAP) || settingsHasWorktreeWatch(settings))
-  // Every hand-installed copy, not just `.claude/skills/{rove,kobe}`: the
-  // agent-skills CLI writes the real file into `.agents/skills` and symlinks
-  // the agent dirs at it, so a `--copy`-free install has nothing under
-  // `.claude` at all and used to slip past this gate entirely.
+  // Not just `.claude/skills/{rove,kobe}`: the agent-skills CLI writes into
+  // `.agents/skills` and symlinks agent dirs at it.
   const legacySkillDirs = installedSkillDirs(home)
   return { legacyHooks, legacySkillDirs }
 }
@@ -84,18 +72,15 @@ function settingsHasWorktreeWatch(settings: Record<string, unknown>): boolean {
               isObject(h) &&
               typeof h.command === "string" &&
               h.command.includes("worktree-created") &&
-              // The plugin's own hook also contains the marker — only the
-              // settings-managed one (kobe/rove invocation, no plugin root)
-              // is legacy.
+              // The plugin's own hook has the marker too; only non-plugin-root is legacy.
               !h.command.includes("CLAUDE_PLUGIN_ROOT"),
           ),
       ),
   )
 }
 
-/** The stderr notice for a detected double registration. Repeats every launch
- *  until cleaned — a double-firing hook set is an active misconfiguration,
- *  not a one-shot tip. Never edits anything. */
+/** Stderr notice; repeats every launch until cleaned (an active
+ *  misconfiguration, not a tip). Never edits anything. */
 export function migrationHint(findings: MigrationFindings, cliName: string): string | null {
   if (!findings.legacyHooks && findings.legacySkillDirs.length === 0) return null
   const lines = [`${cliName}: the Rove Claude Code plugin is enabled, but legacy installs remain:`]

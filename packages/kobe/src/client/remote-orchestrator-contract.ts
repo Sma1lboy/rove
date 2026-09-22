@@ -1,14 +1,7 @@
 /**
- * The orchestrator's own CONTRACT — what a `RemoteOrchestrator` is configured
- * with ({@link RemoteOrchestratorOptions}), the deps bag its three helper
- * modules operate on ({@link OrchestratorSignals}), and the connection-state
- * vocabulary they share.
- *
- * Split from `-payloads.ts`, which owns the daemon's payload SHAPES and the
- * pure functions that parse and compare them. These describe the orchestrator
- * instead — none of them appears on the wire — and they were only sitting
- * there because that was the file both sides already imported. Re-exported
- * through `-payloads.ts` so every existing import path is unchanged.
+ * `RemoteOrchestrator`'s own contract: its options, the deps bag its helper
+ * modules operate on, and the connection-state vocabulary. None of it is on
+ * the wire (wire shapes live in `-payloads.ts`, which re-exports these).
  */
 
 import type { ChannelName, NoticeEventPayload, SubscribeRole } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -40,11 +33,8 @@ import type {
 export type DaemonConnectionState = "online" | "disconnected"
 
 export interface RemoteOrchestratorOptions {
-  /**
-   * True for a MACHINE connection: the daemon on the far end of an SSH tunnel
-   * serves its OWN home, so the foreign-home guard must not fire. Defaults to
-   * false, which keeps every local connection's behaviour unchanged.
-   */
+  /** True for a MACHINE connection: the daemon across an SSH tunnel serves
+   *  its OWN home, so the foreign-home guard must not fire. */
   readonly expectForeignHome?: boolean
   /** Told who answered the handshake — hostname / homeDir / daemonPid, the
    *  triple that identifies a machine (`machines/registry.ts`). */
@@ -54,62 +44,37 @@ export interface RemoteOrchestratorOptions {
     daemonPid: number
     kobeVersion: string
   }) => void
-  /**
-   * Bring the daemon back on the socket this client already points
-   * at. Shared mode uses the stable production socket; single/owned
-   * mode injects a restart function for its per-TUI socket.
-   */
+  /** Bring the daemon back on this client's socket (single/owned mode injects
+   *  a restart for its per-TUI socket). */
   readonly ensureReachable?: () => Promise<unknown>
-  /**
-   * Subscribe role (KOB). `"gui"` keeps the daemon alive while this
-   * orchestrator is connected — pass it only from a real front-end attach
-   * (`direct.ts`, the outer monitor). Default `"pane"`: an in-tmux helper
-   * (Tasks pane, Ops, settings/new-task windows) subscribes for data but
-   * never holds the daemon open after the user quits. See {@link SubscribeRole}.
-   */
+  /** `"gui"` keeps the daemon alive while connected — only a real front-end
+   *  attach passes it. Default `"pane"` never holds the daemon open after the
+   *  user quits. See {@link SubscribeRole}. */
   readonly role?: SubscribeRole
   /**
-   * Per-channel subscribe filter (KOB — per-channel subscribe). Omit to
-   * receive EVERY channel (the default — what a primary orchestrator
-   * driving the task list needs). Pass a narrow set for a single-purpose
-   * consumer: host-boot's UiPrefsSync passes `["ui-prefs", "keybindings"]`
-   * so it never receives — nor deserializes — the full `task.snapshot`
-   * fan-out it does not read. When the filter excludes `task.snapshot`, the
-   * `hello` task hydration is also skipped (the task list would be dead
-   * weight), and `worktreeChangesSignal()` is left null (its consumer isn't
-   * subscribed). An older daemon ignores the filter and sends everything;
-   * the unread channels simply land in signals nobody reads — still cheaper
-   * to ask, and correct.
+   * Per-channel subscribe filter; omit for EVERY channel. A narrow consumer
+   * (e.g. UiPrefsSync: `["ui-prefs", "keybindings"]`) never deserializes the
+   * `task.snapshot` fan-out. Excluding `task.snapshot` also skips `hello`
+   * task hydration and leaves `worktreeChangesSignal()` null. An older daemon
+   * ignores the filter; the extra channels land unread, still correct.
    */
   readonly channels?: readonly ChannelName[]
-  /**
-   * This terminal's cell size in pixels, measured at boot (`queryCellPixelSize`),
-   * or `null` when the terminal declined to report one. Sent with `subscribe`
-   * so the daemon can answer a `graphics.write` caller with it. Only a `"gui"`
-   * attach owns a real tty, so only a gui should pass it.
-   */
+  /** Cell size in pixels measured at boot, `null` if the terminal declined.
+   *  Sent with `subscribe` for `graphics.write` callers; gui attaches only
+   *  (only they own a real tty). */
   readonly cellPixelSize?: CellPixelSize | null
-  /**
-   * Where a `graphics.write` payload is written. Defaults to this process's own
-   * fd 1 for a `"gui"` attach, and to nowhere otherwise — a pane has no tty of
-   * its own worth writing pictures to. Injectable so a test can observe the
-   * bytes without a terminal.
-   */
+  /** Where `graphics.write` payloads go: fd 1 for a `"gui"` attach, nowhere
+   *  otherwise. Injectable for tests. */
   readonly graphicsOut?: (data: Buffer) => void
 }
 
 /**
- * The accessor/setter closures `handleOrchestratorEvent` and `performInit`
- * operate on, threaded in by `RemoteOrchestrator` instead of `this`. Built
- * once in the constructor from the same Solid signals the class's own
- * read-signal methods return.
+ * Accessor/setter closures `handleOrchestratorEvent` and `performInit` use in
+ * place of `this`; built once from the same state the class's read methods return.
  */
 export interface OrchestratorSignals {
-  /**
-   * Write one `graphics.write` payload out, verbatim. Not a signal: a picture
-   * is an ACT on the terminal, not a value to hold — storing the last one and
-   * re-rendering it would replay it on every reconnect.
-   */
+  /** Write one `graphics.write` payload verbatim. Not a signal: storing a
+   *  picture would replay it on every reconnect. */
   readonly writeGraphics: (data: Buffer) => void
   readonly tasksAcc: ReadableState<Task[]>
   readonly setTasks: (next: Task[]) => void
@@ -149,20 +114,13 @@ export interface OrchestratorSignals {
 }
 
 /**
- * How many failed attempts the pane reconnect loop keeps logging
- * (`orch-reconnect`) before it goes quiet. Issue #26: a daemon that stays
- * down for days with dozens of orphan panes each retrying forever was
- * still unbounded spam even at "attempt 1 and every 10th" — that decays
- * the RATE but never stops. A hard ceiling actually bounds it.
+ * Failed reconnect attempts logged (`orch-reconnect`) before going quiet. A
+ * decaying rate alone never stops: orphan panes retrying for days against a
+ * dead daemon would still spam forever.
  */
 export const RECONNECT_LOG_ATTEMPT_CEILING = 100
 
-/**
- * Pure decision: should this failed reconnect attempt be logged? Attempt 1
- * and every 10th up to {@link RECONNECT_LOG_ATTEMPT_CEILING}; silent after
- * that until a successful reconnect resets the caller's attempt counter
- * back to 0. Exported for unit tests.
- */
+/** Log attempt 1 and every 10th up to the ceiling; the caller resets the count on reconnect. */
 export function shouldLogReconnectAttempt(attempt: number): boolean {
   if (attempt > RECONNECT_LOG_ATTEMPT_CEILING) return false
   return attempt === 1 || attempt % 10 === 0

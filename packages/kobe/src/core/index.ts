@@ -1,9 +1,4 @@
-/**
- * Public bootstrap for the kobe "core" — the orchestrator + worktree
- * manager + task index, wired together with sensible defaults. v0.5
- * had an engine port (and an MCP bridge that exposed it to spawned
- * claude); both are gone in v0.6.
- */
+/** Bootstrap for the kobe core: orchestrator + worktree manager + task index. */
 
 import { homedir } from "node:os"
 import { readRoveHomeDirEnv } from "@sma1lboy/kobe-daemon/compat-env"
@@ -38,29 +33,17 @@ export async function createKobeCore(options: KobeCoreOptions = {}): Promise<Kob
   const orchestrator = new Orchestrator({
     store,
     worktrees,
-    // A forced delete's salvage ref goes to daemon.log beside the rest of the
-    // deletion audit trail, which is where TROUBLESHOOTING already sends a
-    // user asking "what happened to my task".
+    // These three go to daemon.log's deletion audit trail, where TROUBLESHOOTING
+    // sends users; the task row is gone by then, so it's the only record.
     onSalvage: (taskId, salvage) =>
       auditDeletionSalvaged(String(taskId), salvage.ref, salvage.commit, store.get(taskId)?.repo, salvage.uncaptured),
-    // The task IS deleted in this case, so nothing else will ever mention the
-    // directory git could not unlink. Same log, same reason as the salvage
-    // line: it is where a user is already told to look.
     onWorktreeResidue: (taskId, residue) => auditDeletionResidue(String(taskId), residue.path, residue.reason),
-    // Same log, same reason again: the task row is gone by the time the
-    // deletion resolves, so this line is the only place a kept branch is ever
-    // mentioned.
     onBranchKept: (taskId, kept) => auditDeletionBranchKept(String(taskId), kept.branch, kept.reason),
-    // A landed worktree is about to be unlinked; anything the engine writes
-    // into it after that is written to nothing. Same ordering the task-
-    // deletion runner already uses.
+    // Tear down before a landed worktree is unlinked, as task deletion does.
     tearDownSession: (taskId) => tearDownTaskSessionAdapter(String(taskId)),
   })
 
-  // Heal the projects/savedRepos split (see backfillSavedReposFromProjects):
-  // rows minted by an older kobe are in the sidebar but not the picker. Runs
-  // once per daemon boot and is idempotent — after the first pass every row
-  // is already saved and `addSavedRepo` reports nothing added.
+  // Older kobe rows are in the sidebar but not the picker. Idempotent, once per boot.
   const backfilled = backfillSavedReposFromProjects(
     store
       .list()

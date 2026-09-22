@@ -1,12 +1,6 @@
 /**
- * Declarative verb table; see `api-cmd.ts` for the split rationale.
- *
- * The large {@link VERBS} array is split by domain into `verbs-*.ts` files
- * (read, create, drive, edit, lifecycle, worktree, feedback, plus the
- * pre-existing issues/automations/work-items). This module keeps the registry
- * metadata, the `schema` verb handler (it references VERBS/findVerb at load
- * time, so it must live here to avoid circular imports), and the concat that
- * produces the canonical VERBS list.
+ * Declarative verb registry; per-domain specs live in `verbs-*.ts`. The
+ * `schema` verb lives here because it references VERBS/findVerb at load time.
  */
 
 import { ENGINE_LIST_VERB } from "./handlers-engines.ts"
@@ -31,20 +25,15 @@ import { WORKTREE_VERBS } from "./verbs-worktree.ts"
  *   - --group G → the verbs in one group (compact)
  *   - --all     → the complete spec (every verb AND every flag)
  *
- * Lives HERE (not in `./schema.ts`, which owns the render functions this
- * calls) because it's referenced inside the {@link VERBS} array literal
- * below, which is evaluated at module-load time — a handler imported from a
- * module that itself imports `VERBS` back from here would still be
- * `undefined` at that point (load-order circular-import hazard).
+ * Lives here, not in `./schema.ts`: {@link VERBS} is built at module load, and
+ * a handler imported from a module that imports `VERBS` back would still be
+ * `undefined` then.
  */
 async function handleSchema(ctx: VerbContext): Promise<unknown> {
   const verbName = ctx.args.str("verb")
   if (verbName) {
     const v = findVerb(verbName)
-    // The SAME rejection `api <verb>` raises for the same typo — including the
-    // RETIRED_VERBS migration step. Probing a name is what `schema --verb` is
-    // FOR, so a bare `BAD_VERB` here withheld the recovery argv exactly where a
-    // caller is looking for it.
+    // Same rejection as `api <verb>`, including the RETIRED_VERBS recovery argv.
     if (!v) throw unknownVerbError(verbName)
     return verbSchema(v)
   }
@@ -58,16 +47,9 @@ async function handleSchema(ctx: VerbContext): Promise<unknown> {
 export const VERB_ALIASES: Readonly<Record<string, string>> = { "spawn-task": "add" }
 
 /**
- * Verbs that were REMOVED, mapped to the argv that replaces them.
- *
- * Deliberately not aliases: `fan-out` folded into `add --count` and
- * `set-vendor` became `set-command`, and both changed their flag contract in
- * the process — an alias would silently accept the superseded flags and do
- * something subtly different. `archive` has no successor hiding state — its
- * replacement is the destructive-but-recoverable `delete`. A removed verb
- * instead fails loud with
- * `UNKNOWN_VERB` plus the `nextCommandArgs` an agent can run verbatim, which
- * is the same self-healing contract every other high-traffic rejection uses.
+ * Removed verbs → the argv that replaces them. Not aliases: the successors
+ * changed their flag contract, so an alias would silently accept superseded
+ * flags. Fails loud with `UNKNOWN_VERB` + runnable `nextCommandArgs`.
  */
 const RETIRED_VERBS: Readonly<Record<string, { hint: string; nextCommandArgs: readonly string[] }>> = {
   "fan-out": {
@@ -78,9 +60,6 @@ const RETIRED_VERBS: Readonly<Record<string, { hint: string; nextCommandArgs: re
     hint: "set-vendor was replaced by `set-command`, which takes the engine's raw launch command (an engine id from `engine-list`, or a full command line)",
     nextCommandArgs: ["api", "set-command", "--help"],
   },
-  // `archive` went away with the archived-task dimension itself: there is no
-  // "hide but keep"; `delete` is the cleanup, and its branch always survives
-  // unless the caller explicitly passes --delete-branch.
   archive: {
     hint: "archive was removed: there is no hide-without-delete anymore — use `delete` to remove a finished task and its worktree; the git branch survives (pass --delete-branch explicitly only when the history may go)",
     nextCommandArgs: ["api", "delete", "--help"],
@@ -93,15 +72,9 @@ const SCHEMA_STEP = {
 } as const
 
 /**
- * The typed rejection for a verb name that does not resolve. A REMOVED verb
- * ({@link RETIRED_VERBS}) points at its replacement instead of the schema
- * index — an agent that learned `fan-out` from an older skill or a stale
- * transcript gets the exact argv for `add --count`, not a 40-verb dump to
- * re-derive it from.
- *
- * Lives here rather than in `api-cmd.ts` so BOTH callers can reach it: the
- * dispatcher's unknown-verb path and `schema --verb`, which cannot import the
- * dispatcher back (load-order cycle).
+ * Rejection for an unresolved verb; a {@link RETIRED_VERBS} name points at its
+ * replacement instead of the schema index. Here, not in `api-cmd.ts`, so
+ * `schema --verb` can reach it without a load-order cycle.
  */
 export function unknownVerbError(verbName: string): ApiError {
   const retired = RETIRED_VERBS[verbName]
@@ -111,8 +84,7 @@ export function unknownVerbError(verbName: string): ApiError {
       nextCommandArgs: [...retired.nextCommandArgs],
     })
   }
-  // BAD_VERB (not UNKNOWN_VERB) for a name that never existed — the
-  // documented code for a typo'd verb, unchanged.
+  // BAD_VERB is the documented code for a name that never existed.
   return new ApiError(`unknown verb: ${verbName}`, "BAD_VERB", SCHEMA_STEP)
 }
 
@@ -156,18 +128,9 @@ export const VERBS: readonly VerbSpec[] = [
 export const API_VERBS = VERBS.map((v) => v.name)
 
 /**
- * Verb groups for LEVELED exploration. An agent reads the compact index
- * (groups + verb summaries), then drills into one verb or one group — instead
- * of slurping every flag of every verb and polluting its context.
- *
- * DERIVED from `VerbSpec.group`, not hand-written. Stating a verb's group
- * twice (once by which `verbs-*.ts` declares it, once in a table here) lets
- * the table half be forgotten, silently producing a group that `--group` then
- * rejects as unknown. One declaration, one source of truth —
- * `VerbGroup` is a closed union, so an ungrouped verb is a type error.
- *
- * Group order follows {@link VERB_GROUP_IDS}; verbs within a group follow the
- * canonical {@link VERBS} order, so every listing agrees.
+ * Verb groups for leveled exploration, DERIVED from `VerbSpec.group` (a closed
+ * union, so an ungrouped verb is a type error). Group order follows
+ * {@link VERB_GROUP_IDS}; verbs within a group follow {@link VERBS}.
  */
 export const VERB_GROUPS: Readonly<Record<VerbGroup, readonly string[]>> = (() => {
   const byGroup = Object.fromEntries(VERB_GROUP_IDS.map((g) => [g, [] as string[]])) as Record<VerbGroup, string[]>

@@ -1,24 +1,13 @@
 /**
- * The three shell completion scripts, as pure functions, plus where the
- * pre-generated copies live.
+ * Shell completion scripts as pure functions, plus where pre-generated copies
+ * live. `scripts/build.ts` writes them to `dist/completions/<cli>.<shell>` so a
+ * shell `source`s a file instead of starting a process per shell.
  *
- * Split out of `completions-cmd.ts` so the BUILD can call the same
- * generators the CLI does: `scripts/build.ts` writes them to
- * `dist/completions/<cli>.<shell>` and ships them in the tarball. That is
- * what lets a shell `source` a file instead of paying a process start on
- * every new shell — `installCompletions` (cli/onboarding.ts) hooks that path
- * into the rc file, and `completions <shell> --path` prints it.
- *
- * Keeping this module runtime-free is the point: it imports the subcommand
- * registry and nothing else, so the build script can evaluate it without
- * dragging in the CLI graph. The one thing the generators cannot know — the
- * `api` verb list — is passed IN as {@link SubVerbs}, because that registry
- * imports every `api` handler and stays behind a lazy import at runtime.
- *
- * Both levels are DERIVED, never transcribed: the top level from
- * {@link TOP_LEVEL_SUBCOMMANDS}, the verbs from {@link SUBCOMMAND_VERBS}
- * (which the command modules themselves validate against) and, for `api`,
- * from the same `VERBS` registry `kobe api schema` enumerates.
+ * Must stay runtime-free (imports only the subcommand registry) so the build
+ * can evaluate it. The `api` verb list is passed IN as {@link SubVerbs}: that
+ * registry imports every handler and stays lazy at runtime. Everything is
+ * DERIVED from {@link TOP_LEVEL_SUBCOMMANDS}, {@link SUBCOMMAND_VERBS} and the
+ * `VERBS` registry, never transcribed.
  */
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -37,12 +26,8 @@ export function isShellKind(value: string | undefined): value is ShellKind {
   return SHELLS.some((shell) => shell === value)
 }
 
-/**
- * The pre-generated scripts, beside the bundle that reads them: `dist/completions`
- * in an installed package (every module of a split build lands in `dist/cli`),
- * `src/completions` in a source checkout — which does not exist, so a checkout
- * legitimately falls back to generating on the fly.
- */
+/** `dist/completions` when installed; `src/completions` in a checkout, which
+ *  doesn't exist, so a checkout generates on the fly. */
 const SHIPPED_COMPLETIONS_DIR = fileURLToPath(new URL("../completions/", import.meta.url))
 
 /** Where the build wrote `<cli>.<shell>`; not necessarily on disk in a checkout. */
@@ -139,9 +124,7 @@ function generateZshCompletions(cliName: ProductCliName, subVerbs: SubVerbs): st
 }
 
 function generateFishCompletions(cliName: ProductCliName, subVerbs: SubVerbs): string {
-  // `__fish_use_subcommand` keeps the top-level list from reappearing after a
-  // subcommand is already typed; `__fish_seen_subcommand_from` scopes each
-  // verb list to its own command.
+  // `__fish_use_subcommand`: top level only before a subcommand is typed.
   const lines = [
     ...TOP_LEVEL_SUBCOMMANDS.map((s) => `complete -c ${cliName} -f -n __fish_use_subcommand -a ${s}`),
     ...subVerbs.map(

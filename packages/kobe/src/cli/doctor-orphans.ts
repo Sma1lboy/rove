@@ -1,52 +1,34 @@
 /**
  * Processes a dead PTY session left behind, and how to reclaim them.
  *
- * Rove's own killing is complete: `terminatePtyChild` signals the child's
- * whole process GROUP, so ending a session ends its subtree. The leak is the
- * path Rove never gets to run. When something OUTSIDE Rove kills an engine —
- * a `kill -9`, an OOM reaper, a crashed terminal — the host is never told, so
- * it never signals the group, and everything the engine had spawned is
- * reparented to init and runs forever. Measured on one developer machine:
- * eight survivors aged two to five days, several of them still burning CPU.
+ * `terminatePtyChild` signals the whole process GROUP, so Rove's own kills are
+ * complete. The leak is an engine killed OUTSIDE Rove (`kill -9`, OOM reaper,
+ * crashed terminal): the host never signals the group and the subtree is
+ * reparented to init forever. Measured on one machine: eight survivors aged two
+ * to five days, several still burning CPU.
  *
- * ## The predicate
+ * ## The predicate — reported only when ALL hold
  *
- * A process is reported here only when ALL of these hold:
+ *   1. `KOBE_TERMINAL_PTY=1` is in its environment. Only the PTY host sets it
+ *      (`pty-child-controller.ts`), so it keeps the sweep off user processes.
+ *   2. `ppid === 1` — nothing is coming to reap it.
+ *   3. Its process group has no leader. A hosted session's leader IS the PTY
+ *      child, so leaderless = ended session; ordinary daemons lead themselves.
+ *   4. Its group is neither a live `pty.list` session nor our own group.
  *
- *   1. `KOBE_TERMINAL_PTY=1` is in its environment. The PTY host sets that
- *      variable on every child it spawns (`pty-child-controller.ts`) and
- *      nothing else on the machine does, so it marks the whole subtree as
- *      descended from a Rove terminal. This is what keeps the sweep off a
- *      process the user started themselves.
- *   2. Its parent is init (`ppid === 1`). Its parent died and nothing is
- *      coming to reap it.
- *   3. Its process group has no leader left. The leader of a hosted session's
- *      group IS the PTY child, so a leaderless group is a session that ended.
- *      This also excludes every ordinary daemon, which is its own leader.
- *   4. Its group is not a session the PTY host currently lists as alive, and
- *      is not this process's own group. A healthy task can never match.
+ * ## Reports instead of killing
  *
- * ## Why this reports instead of killing
+ * The predicate can't read intent: a process backgrounded from a since-closed
+ * tab matches every clause (two of the eight measured were database tunnels).
+ * So `doctor` only LISTS, with age and command; killing needs the explicit
+ * `--kill-orphans` flag. Nothing sweeps on a timer, at boot, or behind a y/N.
  *
- * The predicate cannot read intent. A process deliberately backgrounded from
- * a Rove terminal whose tab was then closed satisfies every clause — on the
- * machine this was written against, two of the eight matches were database
- * tunnels. So a plain `doctor` run only ever LISTS them, with age and command
- * so the user can tell a leak from something they meant to keep, and killing
- * needs the explicit `--kill-orphans` flag. Typing that flag is the consent;
- * nothing sweeps on a timer, at host boot, or behind a y/N.
- *
- * POSIX only: Windows has no process groups to orphan a subtree into. And on
- * macOS the kernel refuses to hand a process's environment to a non-root
- * reader when the binary is SIP-protected, so a system binary (`/bin/sleep`
- * and friends) can never satisfy clause 1 there and is never reported. That
- * failure is closed by construction — the sweep skips what it cannot verify —
- * and it costs nothing in practice, because what actually leaks is the
- * long-running third-party program (`bun`, `node`, a browser, a CLI tool),
- * whose environment reads fine. A probe that could not run AT ALL is a
- * different thing and is reported as one: `ps eww` failing to spawn, or Linux
- * refusing every `/proc/<pid>/environ` under `hidepid=2`, leaves every
- * candidate unclassified, and "none" there is a claim nothing checked.
+ * POSIX only (Windows has no process groups). On macOS, SIP-protected binaries'
+ * environments are unreadable to non-root, so they never satisfy clause 1 —
+ * closed by construction and harmless, since leaks are third-party programs
+ * (`bun`, `node`, browsers). A probe that could not run AT ALL (`ps eww` failed
+ * to spawn, `hidepid=2` refusing every environ) is reported as an error, not
+ * "none".
  */
 
 import { appendFileSync, readFileSync } from "node:fs"
@@ -83,12 +65,8 @@ interface ProbeResult {
 type ProbeRunner = (argv: readonly string[]) => Promise<ProbeResult>
 
 /**
- * Test seam for the two probes the predicate rests on.
- *
- * `platform` is here because the environment read has two entirely different
- * implementations (procfs on Linux, `ps eww` everywhere else) and a test that
- * cannot pick one only ever exercises whichever OS it happens to run on —
- * which is how a check nobody runs on Linux ships broken on Linux.
+ * Test seam for the two probes. `platform` lets a test exercise both
+ * environment readers (procfs on Linux, `ps eww` elsewhere) on any OS.
  */
 export interface OrphanProbeDeps {
   readonly run?: ProbeRunner
@@ -126,11 +104,8 @@ function pidAlive(pid: number, rows: readonly PsRow[]): boolean {
   return rows.some((row) => row.pid === pid)
 }
 
-/**
- * Clauses 2-4 of the predicate, over the process table alone. Runs BEFORE the
- * environment read because reading environments is the expensive half: this
- * cuts ~900 processes to a handful, and only those get inspected.
- */
+/** Clauses 2-4, over the process table alone. Runs before the expensive
+ *  environment read: cuts ~900 processes to a handful. */
 export function orphanCandidates(
   rows: readonly PsRow[],
   selfPgid: number,
@@ -142,25 +117,18 @@ export function orphanCandidates(
 }
 
 /**
- * Clause 1: does this pid's environment carry the PTY marker?
- *
- * Linux exposes `/proc/<pid>/environ` exactly (NUL-separated), so read it
- * directly. macOS has no procfs and only surfaces environments through `ps
- * eww`, which appends them to the command column — hence the batched call and
- * the word-boundary match, so an argv that merely CONTAINS the marker text
- * cannot pass for the variable itself.
+ * Clause 1: does this pid's environment carry the PTY marker? Linux reads
+ * `/proc/<pid>/environ` (NUL-separated). macOS only has `ps eww`, which appends
+ * the environment to the command column — hence the word-boundary match, so an
+ * argv merely CONTAINING the marker text can't pass.
  */
 export interface MarkedPidsResult {
   readonly marked: Set<number>
   /**
-   * Why the environment read could not be TRUSTED, or null when it ran.
-   *
-   * This is the step that turns a candidate into a finding, so a probe that
-   * never ran produces the same empty set as a machine with nothing wrong —
-   * and doctor printed "✓ none" either way. A process that simply exited
-   * between the two passes is still not a finding (ENOENT is an answer); a
-   * refusal to read (`hidepid=2`, another uid, a `ps` that would not spawn)
-   * is not.
+   * Why the environment read can't be TRUSTED, or null. A probe that never ran
+   * yields the same empty set as a clean machine, so it must be surfaced. A
+   * process that exited between passes (ENOENT) is an answer; a refusal
+   * (`hidepid=2`, another uid, `ps` wouldn't spawn) is not.
    */
   readonly failed: string | null
 }
@@ -176,10 +144,8 @@ export async function markedPids(pids: readonly number[], deps: OrphanProbeDeps 
       try {
         if (readEnviron(pid).split("\0").includes(PTY_MARKER)) marked.add(pid)
       } catch (err) {
-        // ENOENT means it exited between the two passes — an answer, not a
-        // failure. EACCES/EPERM means the kernel refused us, which under
-        // `hidepid=2` or across uids is EVERY candidate, and reporting that
-        // as "none" is the bug.
+        // ENOENT = exited between passes. EACCES/EPERM under `hidepid=2` or
+        // across uids refuses EVERY candidate; that must not read as "none".
         const code = (err as NodeJS.ErrnoException).code
         if (code !== "ENOENT" && code !== "ESRCH") refused ??= `/proc/${pid}/environ: ${code ?? "unreadable"}`
       }
@@ -187,9 +153,8 @@ export async function markedPids(pids: readonly number[], deps: OrphanProbeDeps 
     return { marked, failed: refused }
   }
   const result = await runProbe(["ps", "eww", "-o", "pid=,command=", "-p", pids.join(",")])
-  // A macOS `ps eww` that RAN but omitted a SIP-protected binary's environment
-  // stays closed by construction (see the file header) — only a `ps` that did
-  // not run at all is reported here.
+  // Only a `ps` that didn't run is a failure; SIP-omitted environments are
+  // closed by construction (see header).
   if (result.code !== 0) return { marked, failed: `ps eww exited ${result.code}` }
   const marker = new RegExp(`(^|\\s)${PTY_MARKER}(\\s|$)`)
   for (const line of result.stdout.split("\n")) {
@@ -206,12 +171,8 @@ async function ownPgid(runProbe: ProbeRunner): Promise<number> {
   return Number.isFinite(pgid) ? pgid : -1
 }
 
-/**
- * The full predicate against the live process table. `liveSessionPids` are the
- * PTY host's currently-alive session pids (`pty.list`); an empty set is safe —
- * clause 3 already excludes any group whose leader is still running, and a
- * live session's leader always is.
- */
+/** The full predicate. `liveSessionPids` (`pty.list`) may be empty safely —
+ *  clause 3 already excludes any group with a running leader. */
 export async function collectOrphans(
   liveSessionPids: ReadonlySet<number>,
   deps: OrphanProbeDeps = {},
@@ -222,10 +183,8 @@ export async function collectOrphans(
   if (ps.code !== 0) return { orphans: [], error: `could not read the process table — ps exited ${ps.code}` }
   const rows = parsePsRows(ps.stdout)
   const candidates = orphanCandidates(rows, await ownPgid(runProbe), liveSessionPids)
-  // The SECOND probe gets the same treatment as the first. It did not, and it
-  // is the one that decides: with the environment read broken every candidate
-  // stays unmarked, the filter empties the list, and doctor reported a clean
-  // machine it had never managed to look at.
+  // A broken environment read leaves every candidate unmarked, which would
+  // report a clean machine nobody looked at — so it's an error too.
   const { marked, failed } = await markedPids(
     candidates.map((row) => row.pid),
     deps,
@@ -272,16 +231,10 @@ const GROUP_EXIT_GRACE_MS = 2_000
 const GROUP_POLL_MS = 100
 
 /**
- * Append one line per killed group to `daemon.log`.
- *
- * This is the only path in Rove that can end a hosted session's process tree
- * WITHOUT going through the PTY host, so nothing else records it: the host
- * writes no exit record (it was never asked), and doctor is a short-lived CLI
- * whose stdout is gone the moment the terminal scrolls. Someone later asking
- * "who SIGKILLed those two shells?" had every Rove path to rule out except
- * this one, which left no trace at all. Written straight to the file — doctor
- * runs this whether or not a daemon is up, so there is no socket to route it
- * through — with the same ISO prefix the daemon uses, so it interleaves.
+ * Append one line per killed group to `daemon.log`. This is the only path that
+ * ends a hosted session's tree WITHOUT the PTY host, so nothing else records it.
+ * Written straight to the file (no daemon may be up) with the daemon's ISO
+ * prefix so it interleaves.
  */
 function logOrphanKill(pgid: number, signal: NodeJS.Signals, logPath: string = defaultDaemonLogPath()): void {
   try {
@@ -301,12 +254,8 @@ function groupAlive(pgid: number): boolean {
   }
 }
 
-/**
- * SIGTERM every orphaned group, then SIGKILL whatever is still there past a
- * short grace. Signals the GROUP rather than each pid for the same reason
- * `terminatePtyChild` does: the survivors are a subtree, and a per-pid kill
- * would leave the grandchildren to re-orphan on the next sweep.
- */
+/** SIGTERM each orphaned group, SIGKILL survivors after a grace. Signals the
+ *  GROUP: a per-pid kill would leave grandchildren to re-orphan. */
 export async function killOrphanGroups(orphans: readonly Orphan[]): Promise<{ groups: number[]; survivors: number[] }> {
   const groups = [...new Set(orphans.map((row) => row.pgid))]
   for (const pgid of groups) {

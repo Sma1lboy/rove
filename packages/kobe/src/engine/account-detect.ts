@@ -1,42 +1,20 @@
 /**
- * Read-only account detection for the engines kobe drives:
- * `claude` (Anthropic), `codex` (OpenAI), and `copilot` (GitHub).
- * (v0.6 dropped the `gemini` engine entirely — no interactive TUI worth
- * wrapping — so it's not detected here.)
- *
- * The settings dialog's "Accounts" section calls these to show "is
- * `claude` / `codex` / `copilot` installed?" and "is there a local account?".
- * Future work (codex sub-login flows etc.) layers on top — the read
- * path stays the same, only the action set grows.
- *
- * What we read (no writes, ever):
+ * Read-only binary + account detection for the Settings "Accounts" section
+ * and the new-task engine selector. Never writes.
  *
  *   - **claude-code**: `$CLAUDE_CONFIG_DIR/.claude.json` (default
- *     `~/.claude.json`). The `oauthAccount` sub-object — when present —
- *     carries `emailAddress`, `organizationName`, `displayName`,
- *     `billingType`. Verified by reading
- *     `refs/claude-code/src/services/oauth/client.ts` (the canonical
- *     producer) and a live account file.
+ *     `~/.claude.json`); `oauthAccount` carries `emailAddress`,
+ *     `organizationName`, `displayName`, `billingType` (producer:
+ *     `refs/claude-code/src/services/oauth/client.ts`).
+ *   - **codex**: `$CODEX_HOME/auth.json`, two exclusive shapes:
+ *       - ChatGPT login → `tokens.id_token` JWT with `email` and
+ *         `https://api.openai.com/auth.chatgpt_plan_type`.
+ *       - API-key login → `OPENAI_API_KEY` is a non-empty string.
  *
- *   - **codex**: `$CODEX_HOME/auth.json` (default `~/.codex/auth.json`).
- *     Has two mutually-exclusive shapes:
- *       - ChatGPT login → `tokens.id_token` is a JWT whose payload
- *         carries `email` and `https://api.openai.com/auth.chatgpt_plan_type`.
- *       - API-key login → `OPENAI_API_KEY` is a non-null string.
- *     Verified against a live account file.
- *
- * The functions are pure — fs + env + binary discovery are injected
- * via {@link DetectDeps}, so tests pin every path and the production
- * paths only flow through `defaultDeps`. No subprocess for account
- * detection: we don't shell out to `claude /status` or `codex auth
- * status` — both are slow and the on-disk shape is the source of
- * truth those subcommands print anyway.
- *
- * Error handling: anything that's *not* "logged in"/"not logged in"
- * (file unreadable, JSON parse error, JWT malformed) surfaces as
- * `accountError`. The caller renders that as a muted warning so the
- * user can self-diagnose; we don't pretend "parse failed" means "not
- * logged in".
+ * No subprocess (`claude /status`, `codex auth status` are slow and print
+ * the same on-disk state). Anything other than logged-in / not-logged-in
+ * (unreadable file, bad JSON, malformed JWT) is `accountError`, never
+ * reported as "not logged in".
  */
 
 import { homedir } from "node:os"
@@ -71,11 +49,8 @@ export type CopilotAccount =
   | { kind: "none" }
 
 /**
- * Kimi Code stores an OAuth token bundle at
- * `~/.kimi-code/credentials/kimi-code.json` (`access_token` +
- * `refresh_token` + `expires_at`).
- * The JWT payload has no email claim — only opaque ids — so a logged-in
- * account is reported without one.
+ * Kimi Code's OAuth bundle at `~/.kimi-code/credentials/kimi-code.json`.
+ * Its JWT has no email claim (opaque ids only), so none is reported.
  */
 export type KimiAccount = { kind: "oauth" } | { kind: "none" }
 
@@ -103,10 +78,8 @@ export interface DetectDeps {
 
 const defaultDeps: DetectDeps = {
   readFile(p: string): string | null {
-    // statSync-then-read (cleaner ENOENT signal than readFile's mixed errors)
-    // PLUS a size ceiling: an oversize/corrupt credential file degrades to the
-    // same `null` ("not detected") result as a missing one — never an OOM,
-    // never a thrown error into the Accounts UI, never a logged secret.
+    // Size-capped: an oversize/corrupt credential file reads as `null` like a
+    // missing one — no OOM, no throw into the UI, no logged secret.
     return readTextFileSyncBounded(p)
   },
   env(name) {
@@ -136,10 +109,8 @@ const defaultDeps: DetectDeps = {
 }
 
 /**
- * Decode the payload of a JWT (header.payload.signature) without
- * verifying the signature. We're not authenticating the user — we're
- * reading what `codex login` already wrote to disk. The token's
- * trustworthiness is whatever the codex CLI's own trust assumption is.
+ * Decode a JWT payload WITHOUT verifying the signature: this only reads what
+ * `codex login` wrote to disk; it authenticates nothing.
  */
 function decodeJwtPayload(jwt: string): Record<string, unknown> | null {
   const parts = jwt.split(".")
@@ -163,34 +134,16 @@ async function probeBinary(probe: () => Promise<string>): Promise<BinaryStatus> 
     const p = await probe()
     return { found: true, path: p }
   } catch (err) {
-    // Every vendor's not-found error derives from this one, so "no binary
-    // anywhere we look" reads the same regardless of which CLI was probed.
+    // Every vendor's not-found error derives from this one.
     if (err instanceof BinaryNotFoundError) return { found: false, error: "not found on PATH" }
     return { found: false, error: errorMessage(err) }
   }
 }
 
 /**
- * The vendors whose engine CLI binary is detected on this machine, in
- * {@link VendorId} cycle order (`BUILTIN_VENDORS`). Pure binary
- * discovery — the same probe the Accounts section uses — with account
- * state deliberately NOT consulted: having the CLI installed is the only
- * gate. The new-task dialog uses this to hide vendors you can't run.
- *
- * Probes run concurrently (each is a `which` + a few `statSync`s); a miss
- * excludes that vendor rather than throwing. Returns `[]` only when none of
- * the three CLIs are found — callers fall back to showing all vendors so an
- * empty selector never blocks task creation.
- */
-/**
- * Per-process memo of the production binary-discovery result. Installed engine
- * CLIs don't appear or vanish mid-session, and the underlying `which` is three
- * blocking `spawnSync` probes — uncached this re-runs on every engine-cycle
- * keypress, every new-task dialog open, and every Ctrl+T (~10-15ms render-thread
- * block each, repeated forever for an effectively-constant value). Cached only
- * for the DEFAULT deps (the production path); a caller that injects custom deps
- * (tests, an explicit re-probe) always runs fresh, so injectability and the
- * first-call correctness are preserved.
+ * Per-process memo of the production (default-deps) discovery. Installed CLIs
+ * don't change mid-session, and the blocking `which` probes cost ~10-15ms of
+ * render thread on every engine-cycle keypress, dialog open, and Ctrl+T.
  */
 let cachedDefaultVendors: Promise<readonly VendorId[]> | null = null
 
@@ -209,16 +162,20 @@ async function probeAvailableVendors(deps: DetectDeps): Promise<readonly VendorI
   return detected.filter((v): v is VendorId => v !== null)
 }
 
-// NOT `async`: a plain function returns the cached promise VERBATIM, so the
-// memo is real (an `async` wrapper would mint a fresh outer promise per call
-// even when the inner value is cached).
+/**
+ * Built-in vendors whose CLI binary is found, in `BUILTIN_VENDORS` order.
+ * Binary only — account state is NOT a gate. Probes run concurrently; a miss
+ * excludes the vendor. Callers treat `[]` as "show all" so an empty selector
+ * never blocks task creation.
+ */
+// NOT `async`: returns the cached promise VERBATIM (an async wrapper would
+// mint a fresh one per call).
 export function detectAvailableVendors(deps: DetectDeps = defaultDeps): Promise<readonly VendorId[]> {
-  // Only the production (default-deps) path is memoized — custom deps must
-  // re-probe so tests and explicit re-checks stay honest.
+  // Custom deps (tests, explicit re-checks) always re-probe.
   if (deps !== defaultDeps) return probeAvailableVendors(deps)
   if (cachedDefaultVendors) return cachedDefaultVendors
-  // Cache the PROMISE (not the resolved value) so concurrent first calls share
-  // one probe; on rejection, clear it so a later call can retry.
+  // Cache the PROMISE so concurrent first calls share one probe; clear on
+  // rejection so a later call can retry.
   const pending = probeAvailableVendors(deps).catch((err) => {
     cachedDefaultVendors = null
     throw err
@@ -227,27 +184,18 @@ export function detectAvailableVendors(deps: DetectDeps = defaultDeps): Promise<
   return pending
 }
 
-/** Drop the memoized production binary-discovery result so the next
- *  {@link detectAvailableVendors} (and {@link availableEngineIds}) re-probes.
- *  For the rare case a CLI is installed/removed mid-session and the UI offers a
- *  "rescan" — the Settings Accounts section is the natural caller. */
+/** Drop both discovery memos so the next {@link detectAvailableVendors} /
+ *  {@link availableEngineIds} re-probes (a UI "rescan"). */
 export function resetAvailableVendorsCache(): void {
   cachedDefaultVendors = null
   cachedContribEngines = null
 }
 
 /**
- * The full engine list to OFFER in the new-task selector: the detected
- * built-ins (above) PLUS every user-registered custom engine. Custom
- * engines are always shown — "the user added it" counts as available, no
- * binary probe (a missing binary just fails to launch with a shell error).
- * Reads the customEngineIds registry from the shared state.json.
- *
- * The built-in probe is memoized per process (see
- * {@link detectAvailableVendors}) since installed CLIs don't change
- * mid-session, but the custom-engine ids are re-read from state.json on EVERY
- * call — state.json can change (Settings → Engines), and only the slow binary
- * `which` probes are worth caching.
+ * Detected built-ins + custom engines + detected contrib/plugin engines.
+ * Custom engines are never probed ("the user added it" = available; a
+ * missing binary fails at launch). Custom ids are re-read from state.json on
+ * EVERY call since Settings → Engines can change them; only probes are cached.
  */
 export async function installedEngineIds(deps: DetectDeps = defaultDeps): Promise<readonly VendorId[]> {
   const builtins = await detectAvailableVendors(deps)
@@ -257,9 +205,8 @@ export async function installedEngineIds(deps: DetectDeps = defaultDeps): Promis
 }
 
 /**
- * {@link installedEngineIds} minus the engines the user switched OFF in
- * Settings → Engines. This is the list to OFFER — Settings itself reads the
- * installed list, since a disabled engine still needs a row to switch back on.
+ * {@link installedEngineIds} minus engines switched OFF — the list to OFFER.
+ * Settings reads the installed list so a disabled engine keeps its row.
  */
 export async function availableEngineIds(deps: DetectDeps = defaultDeps): Promise<readonly VendorId[]> {
   const disabled = new Set(getDisabledEngineIds())
@@ -267,22 +214,16 @@ export async function availableEngineIds(deps: DetectDeps = defaultDeps): Promis
 }
 
 /**
- * Per-process memo of contrib-engine binary discovery (same rationale as
- * {@link detectAvailableVendors}: installed CLIs don't change mid-session,
- * `Bun.which` per keypress is waste). A contrib engine is offered when its
- * `defaultCommand[0]` is on PATH — the exact binary the launch would run.
- * Reset alongside the built-in cache in {@link resetAvailableVendorsCache}.
+ * Per-process memo of contrib-engine discovery: offered when
+ * `defaultCommand[0]` (the binary launch would run) is on PATH.
  */
 let cachedContribEngines: Promise<readonly VendorId[]> | null = null
 
 function detectContribEngines(): Promise<readonly VendorId[]> {
   if (cachedContribEngines) return cachedContribEngines
-  // `Bun.which` is absent under vitest (node runtime) — treat that as "none
-  // detected", the same degradation as a missing binary.
+  // `Bun.which` is absent under vitest (node) — reads as "none detected".
   const which: ((bin: string) => string | null) | undefined = globalThis.Bun?.which
-  // Plugin-registered engines are offered unconditionally — like custom
-  // engines, "the user installed the plugin" counts as available (a missing
-  // binary just fails to launch with a shell error).
+  // Plugin engines are offered unconditionally, like custom engines.
   cachedContribEngines = Promise.resolve([
     ...(which
       ? CONTRIB_ENGINE_IDS.filter((id) => {
@@ -381,9 +322,7 @@ export async function detectCodexAccount(deps: DetectDeps = defaultDeps): Promis
         : undefined
     const plan = typeof authClaim?.chatgpt_plan_type === "string" ? authClaim.chatgpt_plan_type : undefined
     if (email) return { binary, account: { kind: "chatgpt", email, plan } }
-    // id_token present but no email — surface so the user knows we
-    // saw it but couldn't identify the account, rather than silently
-    // reporting "not logged in".
+    // Token but no email: an error, not a silent "not logged in".
     return { binary, account: { kind: "none" }, accountError: "codex id_token: no email claim" }
   }
   const apiKey = obj.OPENAI_API_KEY

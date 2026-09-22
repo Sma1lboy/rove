@@ -1,21 +1,8 @@
 /**
  * Wire-payload types + pure parse/decode/compare helpers for
- * `RemoteOrchestrator`.
- *
- * The seam is the wire: this file knows the daemon's payload SHAPES and
- * nothing about the connection, so decoding a task or comparing two snapshots
- * is checkable against literals with no socket in play. That also makes it the
- * file the other three can all depend on without depending on each other. Same
- * types/functions, moved verbatim, re-exported from `remote-orchestrator.ts`
- * so existing importers (tests, `deserializeTask` callers) keep their path.
- *
- * Also defines {@link OrchestratorSignals} — the explicit "deps bag" of
- * accessor/setter closures `handleOrchestratorEvent`
- * (`remote-orchestrator-events.ts`) and `performInit`
- * (`remote-orchestrator-connect.ts`) operate on, instead of closing over
- * `RemoteOrchestrator`'s private fields directly. Solid signals are plain
- * closures (no `this` binding), so passing them across the file boundary
- * is exactly as cheap as calling them as methods.
+ * `RemoteOrchestrator`. Knows the daemon's payload SHAPES and nothing about the
+ * connection, so the sibling modules can all depend on it without depending on
+ * each other. Re-exported from `remote-orchestrator.ts`.
  */
 
 import type {
@@ -33,36 +20,29 @@ import { toTaskId } from "../types/task.ts"
 export interface TaskEngineState {
   readonly state: TaskActivityState
   readonly detail?: EngineActivityDetail
-  /** The engine's OWN session id (latest-known, from its hook payload) —
-   *  resolves "which engine session is live here" even for user-typed
-   *  engines kobe never spawned. Absent on old daemons. */
+  /** The engine's OWN latest session id from its hook payload — works even for
+   *  user-typed engines kobe never spawned. Absent on old daemons. */
   readonly sessionId?: string
   /** The session's transcript file, when the hook payload named it. */
   readonly transcriptPath?: string
-  /** The tab that produced this entry, when the event carried one — on the
-   *  TASK rollup it records which tab last wrote it, so a tab-scoped idle
-   *  only clears a rollup its own tab owns. */
+  /** The tab that produced this entry. On the TASK rollup it records the last
+   *  writer, so a tab-scoped idle only clears a rollup its own tab owns. */
   readonly tabId?: string
   readonly at: number
 }
 
-/** Per-TAB engine activity (taskId → tabId → state), accumulated from the
- *  same channel's `tabId`-carrying events. Sparse — only tabs with a live
- *  non-idle state; sessions without a tab identity stay task-level only. */
+/** Per-TAB engine activity (taskId → tabId → state). Sparse: only live
+ *  non-idle tabs; sessions without a tab identity stay task-level only. */
 export type EngineTabStateMap = ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
 
 /** Durable daemon-owned attention episode, pushed as a full snapshot. */
 export type AttentionInboxItem = ChannelPayloads["attention.inbox"]["items"][number]
 
-// The `worktree.changes` wire contract lives in its own module (its payload
-// carries two facts per key); re-exported here so existing importers keep
-// naming it through this one.
 export {
   type WorktreeChangesMap,
   parseWorktreeChangesPayload,
   sameWorktreeChangesMap,
 } from "./remote-orchestrator-worktree-changes.ts"
-// Plugin-written row labels (`task.tokens`) — same arrangement, same reason.
 export {
   type RowToken,
   type RowTokenMap,
@@ -72,23 +52,16 @@ export {
 } from "./remote-orchestrator-row-tokens.ts"
 
 /**
- * A long daemon operation currently IN FLIGHT for a task, accumulated from
- * the `task.jobs` channel (today: `ensureWorktree` — `git worktree add` is
- * minute-class on a huge repo). Presence in the map means "running"; the
- * terminal phases (`done` / `error`) remove the entry, so a replayed
- * terminal payload to a late subscriber is a harmless no-op. The job's
- * outcome isn't surfaced here — the blocking RPC delivers it to the caller.
+ * A long daemon operation IN FLIGHT for a task, from `task.jobs` (`git worktree
+ * add` is minute-class on a huge repo). Presence means "running"; `done`/`error`
+ * remove the entry, so a replayed terminal payload is a no-op. The outcome goes
+ * to the blocking RPC's caller, not here.
  */
 export interface TaskJobState {
   readonly kind: "ensureWorktree"
 }
 
-/**
- * Compact, bounded description of a dropped event payload for `client.log` —
- * enough to diagnose a malformed daemon frame (the type, and a short prefix of
- * its stringified form) without dumping a huge object into the log. Used only
- * on the drop paths in `handleOrchestratorEvent`.
- */
+/** Bounded description (type + 120-char prefix) of a dropped payload for `client.log`. */
 export function describePayload(value: unknown): string {
   if (value === undefined) return "undefined"
   if (value === null) return "null"
@@ -105,37 +78,28 @@ export function describePayload(value: unknown): string {
 
 /**
  * Decode a `ui-prefs` wire payload into a fully-defaulted {@link UiPrefsPayload},
- * or `null` when it's unusable (no `theme` string — the event is then ignored).
- * The single owner of the backward-compat defaults: an older daemon omits newer
- * fields, and each MUST resolve to its "absent → leave it" sentinel rather than
- * a hard reset. These were inline in handleEvent, where the version-negotiation
- * intent was a wall of per-field fallbacks easy to get subtly wrong. Exported
- * for unit tests.
+ * or `null` when unusable (no `theme` key, or a non-string non-null theme).
+ * Sole owner of the backward-compat defaults: an older daemon omits newer
+ * fields, and each MUST resolve to "absent → leave it", never a hard reset.
  *
- *  - `locale` absent → "" (UNSET): a payload that never mentioned the language
- *    must not yank it back to English; only a real non-empty locale changes it.
+ *  - `locale` absent → "" (UNSET), so it never yanks the language to English.
  *  - `sortMode` absent → "default"; `keysCollapsed` absent → false (expanded);
  *    `projectFilter` absent/empty → null (all projects); `focusAccent` → null.
- *  - `transparentBackground` absent → TRUE, the product default the two other
- *    decoders (`ui-prefs-watcher`, `persisted-ui-prefs`) already spell as
- *    `!== false`. Defaulting it off here was the one field that hard-reset
- *    instead of leaving things alone: against an older daemon whose payload
- *    omits it, every remote pane turned opaque while the local ones stayed
- *    transparent, and no setting in the UI explained the difference.
+ *  - `transparentBackground` absent → TRUE, matching `ui-prefs-watcher` and
+ *    `persisted-ui-prefs` (`!== false`); defaulting off turns remote panes
+ *    opaque against an older daemon while local ones stay transparent.
  */
 export function decodeUiPrefsPayload(payload: unknown): UiPrefsPayload | null {
   const p = payload as Partial<UiPrefsPayload> | undefined
-  // `theme` stays the marker KEY — every daemon that speaks this channel sends
-  // it — but its VALUE is nullable now: `state.json` may name no selection, and
-  // the daemon has no theme registry to invent one. A null theme means "keep
-  // the theme this pane already has"; dropping the whole payload for it would
-  // take transparency, locale and sort mode down with it.
+  // `theme` is the marker KEY (every daemon sends it) but its VALUE is nullable:
+  // `state.json` may name none. Null means "keep this pane's theme"; dropping the
+  // payload would lose transparency, locale and sort mode too.
   if (!p || typeof p !== "object" || !("theme" in p)) return null
   if (p.theme !== null && typeof p.theme !== "string") return null
   return {
     theme: typeof p.theme === "string" && p.theme.length > 0 ? p.theme : null,
-    // Absent (a daemon older than the field) stays absent, which `applyUiPrefs`
-    // skips; `null` is the file's "unset" and converges on the default.
+    // Absent (older daemon) stays absent and `applyUiPrefs` skips it; `null` is
+    // the file's "unset" and converges on the default.
     ...("themeMode" in p ? { themeMode: typeof p.themeMode === "string" ? p.themeMode : null } : {}),
     transparentBackground: p.transparentBackground !== false,
     focusAccent: typeof p.focusAccent === "string" ? p.focusAccent : null,
@@ -146,18 +110,11 @@ export function decodeUiPrefsPayload(payload: unknown): UiPrefsPayload | null {
   }
 }
 
-/**
- * Per-vendor quota snapshots from the `usage.snapshot` channel. `null`
- * means "no daemon-collected data yet" (older daemon, or the cache hasn't
- * fetched) — the Settings dashboard then renders nothing.
- */
+/** Per-vendor quota snapshots from `usage.snapshot`; `null` = no daemon data yet. */
 export type UsageSnapshotMap = ReadonlyMap<string, EngineQuotaUsage>
 
-/**
- * Context-window occupancy per live engine session, keyed `taskId::tabId`,
- * from the `usage.context` channel. `null` means "no daemon-collected data
- * yet" (older daemon, nothing live) — the footer then renders nothing.
- */
+/** Context-window occupancy per live session, keyed `taskId::tabId`, from
+ *  `usage.context`; `null` = no daemon data yet, and the footer renders nothing. */
 export interface ContextUsage {
   readonly contextTokens: number
   readonly contextWindowTokens?: number
@@ -171,14 +128,13 @@ export interface ContextUsage {
 }
 export type ContextUsageMap = ReadonlyMap<string, ContextUsage>
 
-/**
- * Parse a `usage.context` wire payload. `null` for a malformed one (the event
- * is ignored rather than clobbering a good map). Each entry is validated
- * field-by-field: this is a trust boundary, and one bad row drops the payload.
- */
-/** The optional token counts carried alongside the context reading. */
 const TOKEN_TOTAL_FIELDS = ["inputTokens", "outputTokens", "cacheReadTokens", "cacheCreationTokens"] as const
 
+/**
+ * Parse a `usage.context` payload; `null` for a malformed one so a good map
+ * isn't clobbered. Trust boundary: one bad field in any row (including a
+ * non-number token total) drops the whole payload, never coerced or skipped.
+ */
 export function parseContextUsagePayload(payload: unknown): Map<string, ContextUsage> | null {
   const context = (payload as { context?: unknown } | undefined)?.context
   if (!context || typeof context !== "object" || Array.isArray(context)) return null
@@ -187,10 +143,6 @@ export function parseContextUsagePayload(payload: unknown): Map<string, ContextU
     const v = value as Record<string, unknown> | undefined
     if (typeof v?.contextTokens !== "number") return null
     if (v.contextWindowTokens !== undefined && typeof v.contextWindowTokens !== "number") return null
-    // Same trust-boundary rule as the two fields above: a token count that is
-    // present but not a number drops the whole payload rather than being
-    // silently coerced or skipped — one bad row means the sender is not the
-    // sender we think it is.
     const totals: Record<string, number> = {}
     for (const field of TOKEN_TOTAL_FIELDS) {
       const raw = v[field]
@@ -226,11 +178,9 @@ export function sameContextUsageMap(a: ContextUsageMap, b: ContextUsageMap): boo
 }
 
 /**
- * Folded `engine.lifecycle` state per task — the sidebar's subagent mark.
- * Compaction deliberately keeps NO client state: its end event can be
- * cancelled (esc during /compact), so a compacting flag has no reliable
- * clearing edge and could only ever go stale. Compaction shows as the
- * normal running animation instead.
+ * Folded `engine.lifecycle` state per task (the sidebar's subagent mark).
+ * Compaction keeps NO client state: esc during /compact cancels its end event,
+ * so a flag would go stale. It shows as the normal running animation.
  */
 export type EngineLifecycleState = { readonly subagents: number }
 export type EngineLifecycleMap = ReadonlyMap<string, EngineLifecycleState>
@@ -244,12 +194,8 @@ export interface RecentTaskEvent {
   readonly at: number
 }
 
-/**
- * Parse a `usage.snapshot` wire payload into a vendor→usage map. Returns
- * `null` for a malformed payload (the event is then ignored — never clobber
- * a good map with garbage). Windows are re-validated field-by-field: this is
- * a trust boundary, and one bad row drops the payload, not the field.
- */
+/** Parse `usage.snapshot` into vendor→usage; `null` if malformed. Trust
+ *  boundary: one bad window field drops the whole payload. */
 export function parseUsageSnapshotPayload(payload: unknown): Map<string, EngineQuotaUsage> | null {
   const usage = (payload as { usage?: unknown } | undefined)?.usage
   if (!usage || typeof usage !== "object" || Array.isArray(usage)) return null
@@ -286,12 +232,9 @@ export function sameUsageSnapshotMap(a: UsageSnapshotMap, b: UsageSnapshotMap): 
 }
 
 /**
- * One worktree's daemon-collected transcript facts (perf — deduplicate
- * per-Ops-pane polling), from the `transcript.activity` channel: the newest
- * engine-transcript mtime plus the engine-owned latest-completion marker
- * (drives the ChatTab "done" chip).
- * The per-window tmux quiescence check stays in the Ops pane — this is only
- * the shareable filesystem half.
+ * One worktree's transcript facts from `transcript.activity` (collected once in
+ * the daemon instead of per Ops pane): newest transcript mtime plus the latest
+ * completion marker (ChatTab "done" chip). Tmux quiescence stays in the Ops pane.
  */
 export interface TranscriptActivity {
   readonly mtimeMs: number
@@ -299,20 +242,11 @@ export interface TranscriptActivity {
   readonly completionAt: number
 }
 
-/**
- * Daemon-collected transcript facts keyed by worktree path, from the
- * `transcript.activity` channel. `null` means "no daemon-collected data":
- * either the daemon predates the channel (absent from `hello.capabilities`)
- * or `init()` hasn't completed — the Ops pane then falls back to its local
- * mtime/completion polling.
- */
+/** Keyed by worktree path. `null` = daemon lacks the channel or `init()` is
+ *  pending; the Ops pane then polls locally. */
 export type TranscriptActivityMap = ReadonlyMap<string, TranscriptActivity>
 
-/**
- * Parse a `transcript.activity` wire payload into a path→facts map. Returns
- * `null` for a malformed payload (the event is then ignored — never clobber
- * a good map with garbage). Exported for unit tests.
- */
+/** Parse `transcript.activity` into path→facts; `null` if malformed. */
 export function parseTranscriptActivityPayload(payload: unknown): Map<string, TranscriptActivity> | null {
   const activity = (payload as { activity?: unknown } | undefined)?.activity
   if (!activity || typeof activity !== "object" || Array.isArray(activity)) return null
@@ -326,7 +260,7 @@ export function parseTranscriptActivityPayload(payload: unknown): Map<string, Tr
   return map
 }
 
-/** Entry-wise value equality for two transcript-activity maps. Exported for unit tests. */
+/** Entry-wise value equality for two transcript-activity maps. */
 export function sameTranscriptActivityMap(a: TranscriptActivityMap, b: TranscriptActivityMap): boolean {
   if (a.size !== b.size) return false
   for (const [path, v] of a) {
@@ -342,9 +276,6 @@ export function sameTranscriptActivityMap(a: TranscriptActivityMap, b: Transcrip
   return true
 }
 
-// The orchestrator's own contract (options, deps bag, connection vocabulary)
-// lives in `-contract.ts`; re-exported here so every existing import path —
-// and there are many — keeps working.
 export {
   type DaemonConnectionState,
   type OrchestratorSignals,

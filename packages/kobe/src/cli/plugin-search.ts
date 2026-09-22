@@ -1,11 +1,7 @@
 /**
- * The plugin marketplace: the canonical GitHub topic `rove-plugin`, unioned
- * with the legacy `kobe-plugin` topic so existing publishers stay
- * discoverable, plus a hard-coded first-party list that doubles as the
- * offline fallback.
- *
- * `fetchMarketplace` is the data layer (also used by Settings → Marketplace);
- * `searchMarketplace` is `rove plugin search`'s printer on top of it.
+ * Plugin marketplace: GitHub topics `rove-plugin` + legacy `kobe-plugin`, plus
+ * a first-party list that doubles as the offline fallback. `fetchMarketplace`
+ * is the data layer (also Settings → Marketplace).
  */
 
 import { activeCliName } from "./rename-compat.ts"
@@ -60,12 +56,8 @@ async function fetchTopic(topic: string, query: string | undefined): Promise<Mar
   }
 }
 
-/**
- * Both topics plus the first-party seeds, de-duplicated by repo ref. Never
- * rejects: an unreachable GitHub returns the seeds with `offline: true`, so
- * a caller with no error surface (the TUI section) still has something to
- * render.
- */
+/** Both topics + seeds, de-duplicated by repo ref. Never rejects: offline
+ *  returns the seeds with `offline: true` (the TUI has no error surface). */
 export async function fetchMarketplace(query?: string): Promise<MarketplaceResult> {
   const topicResults = await Promise.all([fetchTopic("rove-plugin", query), fetchTopic("kobe-plugin", query)])
   const lower = query?.toLowerCase()

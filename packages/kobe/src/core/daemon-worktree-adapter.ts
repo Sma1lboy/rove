@@ -84,13 +84,9 @@ export async function listWorktreeProjectsAdapter(network: boolean): Promise<Wor
           ])
           const judgement = judgeWorktree(
             {
-              // The staleness cascade's `dirty` signal stays a boolean: an
-              // UNREADABLE probe reads as not-dirty here, exactly as it did
-              // before `dirty` grew a null. Safe because the destructive path
-              // does not consult this verdict — `manager-remove.ts` calls
-              // `isDirty` UNCAUGHT, so removing an unreadable worktree throws
-              // rather than proceeding. The honest `null` still reaches the
-              // row, which is where the user reads it.
+              // Unreadable reads as not-dirty for staleness only. Safe: removal
+              // calls `isDirty` UNCAUGHT (`manager-remove.ts`) and throws; the
+              // row still carries the honest `null`.
               dirty: worktree.dirty === true,
               prState: states?.get(worktree.branch) ?? null,
               aheadOfDefault: aheadBy,
@@ -113,21 +109,16 @@ export async function listWorktreeProjectsAdapter(network: boolean): Promise<Wor
   )
 }
 
-/**
- * Worktree admin dirs of `repo` that `git worktree list` omitted without an
- * error — see `manager-list.ts`'s `unreadableWorktreeNames`. Reported next to
- * `discover-adoptable`'s rows so an empty `worktrees` array means only "this
- * repo has nothing to adopt", never "one of them is unreadable".
- */
+/** Admin dirs `git worktree list` silently omitted (`unreadableWorktreeNames`),
+ *  so an empty `discover-adoptable` never hides an unreadable worktree. */
 export async function listUnreadableWorktreesAdapter(repo: string): Promise<readonly string[]> {
   return manager.listUnreadableWorktrees(repo)
 }
 
 /**
- * The daemon runtime's `removeWorktree`. Its force retry re-uses a `row`
- * captured BEFORE the first attempt's dirty refusal, so by the time the user
- * answers the confirm the tree may hold work the confirm never described.
- * `manager.remove` salvages any uncommitted work first; this records where.
+ * The daemon runtime's `removeWorktree`. A force retry reuses a `row` captured
+ * before the dirty refusal, so the tree may hold work the confirm never
+ * described; `manager.remove` salvages it first and this records where.
  */
 export async function removeWorktreeAdapter(
   path: string,
@@ -139,10 +130,8 @@ export async function removeWorktreeAdapter(
     onSalvage: (record) => {
       if (record) auditWorktreeSalvaged(path, record.ref, record.commit, record.uncaptured)
     },
-    // git deregistered the worktree but could not delete the directory. Not a
-    // failure — the removal is as complete as git can make it and retrying is
-    // fatal by construction — so it is returned to the caller, and logged
-    // because after this nothing in Rove lists that path again.
+    // Deregistered but directory left behind: not a failure (a retry would be
+    // fatal), but logged — nothing in Rove lists that path again.
     onResidue: (r) => {
       residue = { path: r.path, reason: r.reason }
       auditWorktreeResidue(r.path, r.reason)

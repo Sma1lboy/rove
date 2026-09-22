@@ -1,11 +1,7 @@
 /**
- * `kobe plugin` — install, link, inspect, and invoke plugins.
- *
- * A plugin is a directory with a `rove-plugin.toml` manifest (the legacy
- * `kobe-plugin.toml` spelling remains accepted); the whole Rove CLI is the
- * plugin API. This command owns
- * the registry (`~/.rove/plugins.json`); the daemon's PluginHost watches
- * that file, so mutations here apply to a running daemon without a restart.
+ * `kobe plugin`. A plugin is a dir with `rove-plugin.toml` (legacy
+ * `kobe-plugin.toml` accepted). Owns `~/.rove/plugins.json`, which the
+ * daemon's PluginHost watches, so changes apply without a restart.
  */
 
 import { spawnSync } from "node:child_process"
@@ -139,11 +135,7 @@ function listActions(pluginFilter?: string): void {
   }
 }
 
-/**
- * Plugin ids may contain dots, so a naive `<id>.<local>` split is wrong.
- * Match registered ids by longest prefix, then let the caller pick the local
- * item (action or pane) from the suffix.
- */
+/** Plugin ids may contain dots, so match the longest registered id prefix. */
 function findByLongestPluginPrefix<T>(
   qualified: string,
   options: { enabledOnly?: boolean },
@@ -161,11 +153,7 @@ function findByLongestPluginPrefix<T>(
   return undefined
 }
 
-/**
- * Refuse to run something the manifest says this machine cannot run. The
- * daemon's host and the TUI's pane picker have always skipped these; the CLI
- * ran them anyway, so `platforms` meant nothing from a shell.
- */
+/** Honor manifest `platforms`, as the daemon host and TUI pane picker do. */
 function assertPlatformSupported(
   label: string,
   item: { readonly platforms?: readonly PluginPlatform[] },
@@ -183,8 +171,7 @@ function invokeAction(qualified: string, extraArgs: string[]): void {
   if (!hit) throw new PluginCliError(`no action \`${qualified}\`; see \`${CLI_NAME} plugin action list\``)
   assertPlatformSupported(qualified, hit.item, hit.manifest)
 
-  // Extra CLI args are appended to the action's argv so an action can take
-  // an argument (`<active CLI> plugin action invoke p.start <url>`).
+  // Extra CLI args append to the action's argv (`plugin action invoke p.start <url>`).
   const action = hit.item
   const [cmd, ...args] = [...action.command, ...extraArgs]
   const res = spawnSync(cmd as string, args, {
@@ -223,11 +210,8 @@ async function openPane(pluginId: string, entrypoint: string, taskFlag: string |
   try {
     const taskId = taskFlag ?? (await resolveActiveTaskId(session.client))
     if (!taskId) throw new PluginCliError("no active task; pass --task <id>")
-    // Resolve the task BEFORE composing argv: its id rides the env contract
-    // into the pane, so the pane can name the task it runs in instead of
-    // guessing from its cwd.
-    // Shared composition with the TUI's ctrl+e picker (plugins/pane-command.ts):
-    // one login-shell `-ilc` script, env contract riding an `env` prefix, cwd = worktree.
+    // Task resolved BEFORE argv: its id rides the env contract into the pane.
+    // Same composition as the TUI's ctrl+e picker.
     const argv = buildPaneArgv(loaded.entry.id, loaded.entry.root, pane, {
       socketPath: defaultDaemonSocketPath(),
       binPath: resolvePluginBinPath(),
@@ -239,9 +223,8 @@ async function openPane(pluginId: string, entrypoint: string, taskFlag: string |
       title: pane.title,
       placement: pane.placement,
     })) as Record<string, unknown> | undefined
-    // Same machine-readable shape as `api pane-open`: `clients` is the only
-    // way a caller can tell "nobody performed the split" from "opened" —
-    // exit 0 alone means the broadcast went out, not that a UI acted on it.
+    // Same shape as `api pane-open`: exit 0 means broadcast sent; only
+    // `clients` says whether a UI performed the split.
     console.log(JSON.stringify({ ...reply, ok: true, pane: `${pluginId}.${pane.id}`, taskId, title: pane.title }))
   } finally {
     session.close()
@@ -263,9 +246,8 @@ function tailLog(id: string, count: number): void {
 
 export async function runPluginSubcommand(rest: string[]): Promise<void> {
   const [command, ...args] = rest
-  // The switch below dispatches, but `subcommands.ts` decides what is a verb
-  // at all — so `kobe completions` offers exactly this set, and a case added
-  // without listing it there is unreachable instead of silently uncompletable.
+  // `subcommands.ts` gates verbs so completions match exactly: an unlisted
+  // case is unreachable rather than silently uncompletable.
   if (command !== undefined && !SUBCOMMAND_VERBS.plugin.includes(command)) {
     const isHelp = command === "help" || command === "--help" || command === "-h"
     printUsage(isHelp ? process.stdout : process.stderr)

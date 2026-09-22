@@ -1,10 +1,7 @@
 /**
- * The `edit` verb group — mutating task METADATA (title, branch, command,
- * status), as opposed to driving the running session (`drive`) or ending it
- * (`lifecycle`). One file per `VerbGroup`, mirroring the taxonomy
- * `rove api schema --group edit` prints — though it is each spec's own `group`
- * field, not this file, that decides where a verb lists. Specs spread back into the {@link VERBS} table, so
- * schema/help/validation see one canonical list.
+ * The `edit` verb group: task METADATA (title, branch, command, status). Each
+ * spec's own `group` field, not this file, decides where it lists; specs
+ * spread into {@link VERBS}.
  */
 
 import type { TaskStatus } from "../../types/task.ts"
@@ -16,15 +13,10 @@ import { TASK_STATUSES } from "./task-statuses.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 
 /**
- * `rename` — the task's title, or with `--tab` one Terminal Tab's name.
- *
- * The tab half writes the persisted snapshot itself and THEN broadcasts.
- * Both halves are needed and neither is a fallback for the other: the write
- * is the entire rename when no TUI is attached, and the broadcast is what
- * makes an attached one repaint instead of holding the old name in memory
- * until its next tab mutation overwrites the file. They converge because
- * `setTabTitle` is idempotent — which is also why this needs no
- * request/reply broker, unlike `tab-close`, whose second run would kill PTYs.
+ * `--tab` writes the snapshot, THEN broadcasts: the write is the whole rename
+ * with no TUI attached; the broadcast stops an attached one overwriting the
+ * file with the old name. `setTabTitle` is idempotent, so no request/reply
+ * broker is needed (unlike `tab-close`).
  */
 async function renameTaskOrTab(ctx: VerbContext): Promise<unknown> {
   const taskId = ctx.args.require("task-id")

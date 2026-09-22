@@ -1,21 +1,15 @@
 /**
  * Bun discovery + relaunch for the published `rove` / `kobe` bins.
  *
- * Rove's CLI bundle is a Bun program, but the bin file is started by whatever
- * runtime the installer chose: `bun install -g` symlinks it (Bun runs it),
- * while `npm install -g` and `npx` hand it to node. So the bin ships as a
- * small node launcher that finds a Bun runtime and re-execs the real entry
- * through it — which is also how a machine with npm but no Bun still gets a
- * working `rove` (the launcher offers to install Bun once).
+ * The bundle is a Bun program, but `npm install -g` / `npx` start the bin under
+ * node. So the bin is a node launcher that finds Bun and re-execs the real
+ * entry (offering to install Bun once if missing).
  *
- * Everything in this file must run under plain node: no Bun globals, no
- * imports that pull the Bun bundle in.
+ * Everything here must run under plain node: no Bun globals, no imports that
+ * pull the Bun bundle in.
  *
- * Deliberately NOT solved by declaring `bun` an optionalDependency: that
- * downloads a ~90MB platform binary on EVERY
- * install, including `bun install -g`, where a Bun is already present. The
- * install offer below costs nothing and covers the same gap; the npm-package
- * path stays a lookup candidate for anyone who installs `bun` themselves.
+ * Not an optionalDependency on `bun`: that downloads a ~90MB binary on every
+ * install, even where Bun is present.
  */
 
 import { type SpawnSyncReturns, spawnSync } from "node:child_process"
@@ -34,18 +28,15 @@ const NO_BOOTSTRAP_ENV = "ROVE_NO_BUN_BOOTSTRAP"
 export const SKIP_VERSION_CHECK_ENV = "ROVE_SKIP_BUN_CHECK"
 
 /**
- * Oldest Bun this build runs on, read from `package.json#engines.bun`.
+ * Oldest Bun this build runs on, from `package.json#engines.bun`.
  *
- * The requirement is real and load-bearing: the terminal backend spawns with
- * Bun's PTY option (`Bun.spawn(…, { terminal })`, src/tui/panes/terminal/pty.ts),
- * which an older Bun drops as an unknown option — no error, no PTY, no output.
- * NOBODY enforces `engines` for us: `bun install` ignores the field outright and
- * npm only honours it under `engine-strict`, so a too-old machine installs
- * cleanly and then runs a Rove whose every terminal tab is silently dead. This
- * constant is what turns that into a sentence the user can act on.
+ * Load-bearing: an older Bun silently drops `Bun.spawn(…, { terminal })`
+ * (src/tui/panes/terminal/pty.ts) — no PTY, no output. `bun install` ignores
+ * `engines` and npm only honours it under `engine-strict`, so nothing else
+ * enforces it.
  *
- * `engines.bun` is the single source of truth; scripts/install.sh carries the
- * same floor and test/architecture/bun-version-floor.test.ts holds the three in sync.
+ * scripts/install.sh carries the same floor; test/architecture/bun-version-floor.test.ts
+ * keeps them in sync.
  */
 export const MIN_BUN_VERSION: string = pkg.engines.bun.match(/\d+\.\d+\.\d+/)?.[0] ?? "0.0.0"
 
@@ -87,16 +78,10 @@ const defaultIsExecutable = (path: string): boolean => {
 const bunFileName = (platform: NodeJS.Platform): string => (platform === "win32" ? "bun.exe" : "bun")
 
 /**
- * What a candidate answered to `bun --version`: its first line of output, or
- * `null` when the binary could not be RUN at all (exec error, non-zero exit,
- * or a 5s hang).
- *
- * The two are kept apart because they license opposite decisions. A binary
- * that cannot be run is one the relaunch below could not run either — it is
- * the same `spawnSync`, so skipping it can only turn a certain failure into a
- * possible success. A binary that runs and prints something we don't recognise
- * is a working Bun whose output shape we failed to anticipate, and refusing
- * that would brick every user the day Bun changes its version string.
+ * First line of `bun --version`, or `null` when it can't RUN (exec error,
+ * non-zero exit, 5s hang). Kept apart: an unrunnable binary would fail the
+ * relaunch too, so skip it; unrecognised output is still a working Bun, and
+ * refusing it would brick everyone the day Bun changes its version string.
  */
 const defaultBunVersionOf = (path: string): string | null => {
   const result = spawnSync(path, ["--version"], { encoding: "utf8", timeout: 5_000 })
@@ -110,14 +95,9 @@ export function parseBunVersion(raw: string): string | null {
 }
 
 /**
- * Whether a reported Bun version clears the floor.
- *
- * Deliberately fails OPEN on anything unparseable: this predicate gates
- * starting Rove at all, and a Bun whose `--version` we cannot read is a worse
- * reason to refuse than the PTY bug is to proceed.
- *
- * Not `version.ts`'s `compareSemver` — everything in this file runs under plain
- * node before any Bun exists, and that module reaches the Bun bundle.
+ * Whether a reported Bun version clears the floor. Fails OPEN on anything
+ * unparseable: it gates starting Rove at all. Not `version.ts`'s
+ * `compareSemver` — that module reaches the Bun bundle.
  */
 export function isBunAtLeast(raw: string, minimum: string = MIN_BUN_VERSION): boolean {
   const found = parseBunVersion(raw)
@@ -179,17 +159,11 @@ export function resolveBunBinary(lookup: BunLookup = {}): string | null {
 
 /**
  * First candidate that runs and clears {@link MIN_BUN_VERSION}, plus the ones
- * it walked past.
+ * it walked past. Skips rather than stops: an old system Bun on PATH commonly
+ * shadows a current `~/.bun`, and an unrunnable `bun` would wedge the relaunch.
  *
- * Skipping rather than stopping matters: a system Bun on PATH shadowing a
- * current `~/.bun` one is the common shape of this, and Rove works fine if it
- * just uses the newer one. The same holds for a candidate that will not run —
- * a `bun` that is a stray text file, crashes, or hangs. Relaunching into one
- * of those produces garbage output or a wedged process instead of an error.
- *
- * Costs one `bun --version` per candidate until the first hit (~4ms, measured,
- * against a ~300ms node→Bun re-exec), and only on the node launcher path;
- * under Bun the version is already in hand.
+ * One `bun --version` per candidate until a hit (~4ms measured, vs ~300ms for
+ * the node→Bun re-exec); node launcher path only.
  */
 export function resolveUsableBun(lookup: BunLookup = {}): BunResolution {
   const isExecutable = lookup.isExecutable ?? defaultIsExecutable
@@ -251,12 +225,8 @@ export function missingBunMessage(
   ].join("\n")
 }
 
-/**
- * Shown when every Bun on the machine predates {@link MIN_BUN_VERSION}.
- *
- * Names the binary and its version, because the fix depends on which one it is
- * — upgrading `~/.bun` does nothing for a Homebrew Bun earlier on PATH.
- */
+/** Every Bun predates {@link MIN_BUN_VERSION}. Names the binary: upgrading
+ *  `~/.bun` does nothing for a Homebrew Bun earlier on PATH. */
 export function staleBunMessage(bunPath: string, version: string, cliName: string = activeCliName()): string {
   return [
     `${cliName}: this machine's Bun is too old for Rove — found ${version} at ${bunPath}, need ${MIN_BUN_VERSION} or newer.`,
@@ -275,11 +245,8 @@ export function staleBunMessage(bunPath: string, version: string, cliName: strin
   ].join("\n")
 }
 
-/**
- * Shown when a Bun is on disk but will not run — it crashed, exited non-zero,
- * or hung past the probe's timeout. Distinct from "no Bun found": telling
- * someone to install Bun when the file is right there sends them in circles.
- */
+/** A Bun is on disk but won't run. Distinct from "no Bun found", which would
+ *  send the user in circles. */
 export function unusableBunMessage(bunPath: string, cliName: string = activeCliName()): string {
   return [
     `${cliName}: the Bun at ${bunPath} could not be run — \`${bunPath} --version\` failed or never returned.`,
@@ -315,10 +282,8 @@ export function installBun(lookup: BunLookup = {}, spawn: Spawn = spawnSync): st
   if (!command) return null
   const result = spawn(command, args, { stdio: "inherit" })
   if (result.error || result.status !== 0) return null
-  // The installer edits shell rc files, not this process's PATH, so re-probe
-  // the well-known prefixes rather than trusting PATH to have grown. Version-
-  // aware, or an install run to escape a stale Bun would hand back that same
-  // stale Bun whenever it sits earlier on PATH than the fresh `~/.bun` one.
+  // The installer edits rc files, not our PATH, so re-probe — version-aware, or
+  // a stale Bun earlier on PATH would be handed back again.
   return resolveUsableBun(lookup).bun
 }
 

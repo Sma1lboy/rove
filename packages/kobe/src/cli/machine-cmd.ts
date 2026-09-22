@@ -1,17 +1,11 @@
 /**
- * `rove machine <add|remove|list>` — register the other computers running Rove.
+ * `rove machine <add|remove|list>`. Machines are reached by forwarding the
+ * daemon's unix socket over SSH — no ports, no own auth. The remote socket
+ * path is always asked, never guessed.
  *
- * A machine is reached by forwarding its daemon's unix socket over SSH; nothing
- * here opens a port and nothing here invents an auth scheme. That means `add`
- * has exactly two jobs: remember how to `ssh` there, and ask that machine where
- * its daemon listens (`machines/discover.ts` — Rove never guesses a remote
- * socket path).
- *
- * `add` VERIFIES before it saves. A registration that silently fails at first
- * connect is worse than a refusal: the machine sits in the sidebar as an
- * offline row and nothing says whether the host, the install or the daemon is
- * the problem. So the discovery probe runs first and its failure is the
- * command's failure, with the specific remedy in the message.
+ * `add` VERIFIES before saving: a silently-offline row can't say whether the
+ * host, install or daemon is at fault, so a failed probe fails the command
+ * with the specific remedy.
  */
 
 import { discoverMachine } from "../machines/discover.ts"
@@ -104,10 +98,8 @@ async function add(argv: readonly string[]): Promise<void> {
   if (port !== undefined && (!Number.isInteger(port) || port < 1 || port > 65535)) usageError("--port must be 1-65535")
   const identity = flagValue(argv, "identity")
 
-  // The default alias may depend on the machine's own hostname, which is only
-  // knowable AFTER the probe — so probe under a provisional alias derived from
-  // the target text, then settle. The provisional alias only names a
-  // ControlMaster socket.
+  // The default alias may need the remote hostname, known only after the
+  // probe; the provisional alias just names a ControlMaster socket.
   const requested = flagValue(argv, "alias")
   if (requested && !isValidMachineAlias(requested)) {
     usageError(`--alias must be letters/digits/._- and cannot be "local" (got "${requested}")`)
@@ -145,9 +137,7 @@ async function add(argv: readonly string[]): Promise<void> {
   const sockets = { daemon: found.status.socketPath, pty: found.status.ptySocketPath }
   addMachine(alias, { ...config, identity: identityTriple, sockets })
   setMachineIdentity(alias, identityTriple)
-  // Bring the forward up now, on the connection the probe just opened. Without
-  // it the machine is registered but unreachable until a TUI starts one, and
-  // `rove machine list` would report a machine `rove api list` cannot see.
+  // Forward now, or `rove api list` can't see it until a TUI starts one.
   const { ensureForwards } = await import("../machines/tunnel.ts")
   const up = await ensureForwards({
     alias,
@@ -165,9 +155,7 @@ async function add(argv: readonly string[]): Promise<void> {
     )
   }
   if (duplicate) {
-    // Not an error: two names for one machine is a reasonable thing to do by
-    // accident, and the fix (pick one) is the user's. The sidebar renders one
-    // row either way — see `MachineHub.republishTasks`.
+    // Not an error; the sidebar shows one row (`MachineHub.republishTasks`).
     process.stdout.write(
       `${CLI_NAME} machine: ${alias} is the same machine as ${duplicate} (hostname/homeDir/pid match) — the sidebar shows one row\n`,
     )

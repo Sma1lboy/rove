@@ -58,8 +58,7 @@ type InspectSnapshot = {
 type PtyInventory = {
   pid?: number
   rssBytes?: number
-  /** The build the HOST is running — not this CLI's. Absent from hosts older
-   *  than the check, which is itself the answer: they are stale by definition. */
+  /** The HOST's build, not this CLI's. Absent = a host older than the check, so stale. */
   version?: string
   sessions?: PtySessionStatus[]
   stats?: {
@@ -134,11 +133,9 @@ function tailFile(path: string, count: number): string {
 }
 
 /**
- * Is the entry point this process would re-exec still on disk? Runs the
- * spawn path's own resolver rather than re-deriving the candidate list, so
- * doctor cannot pass while the spawn path fails (or vice versa). Only a
- * StaleInstallError is a finding: any other throw means the resolver itself
- * had a problem, which is not a verdict about the install.
+ * Is the entry point this process would re-exec still on disk? Uses the spawn
+ * path's own resolver so the two can't disagree. Only a StaleInstallError is a
+ * finding; any other throw is a resolver problem, not a verdict on the install.
  */
 function describeInstall(): { line: string; ok: boolean } {
   try {
@@ -194,17 +191,11 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
   if (!git.found) fixes.push(humanOnlyFix("git"))
   const engines = await probeEngines()
   if (!engines.anyUsable) fixes.push(noEngineFix(engines.signedOut))
-  // Can this process still re-exec itself? A `bun`/`node` process holds its
-  // entry open by inode, so uninstalling Rove out from under a running one
-  // leaves it alive on a path that is gone — it keeps working until it needs
-  // to spawn a daemon, then fails identically forever. The check
-  // is exactly the resolution the spawn path performs, so the two can never
-  // disagree about whether this install is intact.
+  // A running process holds its entry by inode, so an uninstall leaves it alive
+  // on a gone path until it needs to spawn a daemon — then it fails forever.
   const install = describeInstall()
   if (!install.ok) fixes.push(reinstallManualFix())
-  // Reachable only behind ROVE_SKIP_BUN_CHECK — the launcher refuses to start
-  // on a Bun below the floor. That is exactly the run where the user needs to
-  // be told which of their symptoms is just an unsupported runtime.
+  // Reachable only behind ROVE_SKIP_BUN_CHECK; the launcher refuses an old Bun.
   const staleBun = !isBunAtLeast(Bun.version)
   if (staleBun) fixes.push(humanOnlyFix("staleBun"))
   const out = [
@@ -237,33 +228,25 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
       out.push(`         → run \`${CLI_NAME} daemon restart\`, then relaunch Rove`)
       fixes.push(daemonRestartFix(CLI_NAME, "daemonStale"))
     } else if (version) out.push(`         build: v${version}`)
-    // A daemon serving a DIFFERENT state root than this CLI reads is the
-    // "my tasks vanished" symptom: a sandbox/dev daemon that inherited the
-    // production socket path answers with an empty index, and every read
-    // below it is honest about the wrong home. The TUI already rejects this
-    // (protocol.isForeignDaemonHome); doctor is where a user finds out why.
+    // A daemon on a DIFFERENT state root is the "my tasks vanished" symptom: a
+    // sandbox daemon on the production socket answers with an empty index.
     if (isForeignDaemonHome(typeof daemon.homeDir === "string" ? daemon.homeDir : undefined, homeDir())) {
       out.push(`         ⚠ foreign home: daemon serves ${String(daemon.homeDir)}, you are reading ${homeDir()}`)
       out.push(`         → clear ROVE_HOME_DIR/KOBE_HOME_DIR, then \`${CLI_NAME} daemon restart\``)
     }
-    // Hook channel: hooks are the only sub-second path to the badge, and
-    // they fail SILENTLY (`kobe hook` swallows everything by contract), so
-    // a dead channel reads as a merely sluggish UI. Read-only — the verdict
-    // comes from activity entries the daemon already recorded.
+    // Hooks are the only sub-second badge path and fail SILENTLY (`kobe hook`
+    // swallows everything), so a dead channel reads as a sluggish UI.
     const snapshot = await requestIfReachable<InspectSnapshot>(daemonSocket, "debug.inspect")
     const tabs = snapshot?.activity?.tabs
     if (tabs) {
-      // The second way the channel dies (see doctor-hook-channel.ts): the
-      // install was refused, so the hooks were never written at all.
+      // The install was refused, so the hooks were never written.
       const hookInput = { socketPath: daemonSocket, configIssues: hookConfigIssues() }
       const verdict = classifyHookChannel({ tabs, ...hookInput })
       out.push("", ...hookChannelDoctorLines(verdict, hookInput, CLI_NAME))
       if (verdict.kind === "down") fixes.push(daemonRestartFix(CLI_NAME, "hooksDown"), engineTabsManualFix())
     } else {
-      // `requestIfReachable` swallows its failure into null, so an
-      // unanswered `debug.inspect` (a daemon predating the verb) would drop
-      // this whole block without a word — the exact silence this check
-      // exists to end. Say the check could not run instead.
+      // `requestIfReachable` returns null on failure (e.g. a daemon predating
+      // `debug.inspect`); say the check couldn't run rather than stay silent.
       out.push("", "hooks:   ? could not read the daemon's activity registry (debug.inspect unavailable)")
       fixes.push(daemonRestartFix(CLI_NAME, "inspectStale"))
     }
@@ -290,11 +273,9 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
     if (typeof inventory.pid === "number" && typeof inventory.rssBytes === "number") {
       out.push(`         pid ${inventory.pid}, ${formatBytes(inventory.rssBytes)} RSS`)
     }
-    // The host is the ONE process a `daemon restart` never replaces (that is
-    // its whole job — see pty-server.ts), so an install upgraded underneath it
-    // keeps serving whatever code it booted with, for as long as sessions
-    // live. Six days of that has happened. `rove reset` is the only verb that
-    // swaps it, and it kills live sessions, so this is print-only.
+    // `daemon restart` never replaces the host, so it serves its boot-time code
+    // as long as sessions live. Only `rove reset` swaps it, killing sessions, so
+    // this is print-only.
     const hostVersion = typeof inventory.version === "string" ? inventory.version : undefined
     if (hostVersion === undefined) {
       out.push("         build: unknown — this host predates the version check, so it is at least that old")
@@ -317,20 +298,15 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
       )
     }
   } else {
-    // Only a WEDGED host is a finding. The PTY host is started on demand by
-    // the first task tab, so "no pidfile, no socket" is the normal state of
-    // every home where no tab has opened yet — including a brand-new install.
-    // Proposing `reset` there told a first-time user their install was damaged
-    // and pointed them at the one command that is documented as not undoable
-    // and as killing every live session. The daemon branch above already reads
-    // this same verdict; this one used to discard it.
+    // Only a WEDGED host is a finding: the host starts with the first task tab,
+    // so "no pidfile, no socket" is normal on a fresh install, and proposing the
+    // non-undoable `reset` there would be wrong.
     const ptyState = await appendUnavailableProcess(out, "pty host", defaultPtyHostPidPath(), ptySocket)
     if (ptyState === "wedged") fixes.push(resetManualFix(CLI_NAME, "resetPty"))
     else out.push("         starts on demand — the first task tab launches it; nothing to fix")
   }
-  // Windows runs the PTY host under node (Bun has no PTY there). A kobe
-  // installed with `bun install -g` may have no node at all, and the only
-  // symptom is a host that never comes up — say so here instead.
+  // Windows runs the PTY host under node (Bun has no PTY there); a `bun install
+  // -g` may have no node, and the only symptom is a host that never comes up.
   if (process.platform === "win32") {
     const node = resolveNodeBinary()
     out.push(
@@ -340,9 +316,8 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
     )
     if (!node) fixes.push(humanOnlyFix("windowsNode"))
   }
-  // macOS: node-pty@1.1.0 ships spawn-helper at 0644. The root postinstall
-  // restores +x on install; a tree where it did not run fails every node-pty
-  // spawn with nothing on screen, so name it here.
+  // macOS: node-pty@1.1.0 ships spawn-helper at 0644; without the postinstall's
+  // +x every spawn fails with nothing on screen.
   if (process.platform === "darwin") {
     const helpers = spawnHelperDoctorLines(installedSpawnHelpers())
     out.push(...helpers.lines)
@@ -350,9 +325,8 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
   }
   out.push("")
 
-  // Processes a PTY session left behind when something OUTSIDE Rove killed it.
-  // Read-only here by design: the predicate cannot tell a leak from a process
-  // the user deliberately backgrounded, so `--kill-orphans` is the consent.
+  // Leftovers of PTY sessions killed from OUTSIDE Rove. Read-only: a leak looks
+  // like a deliberately backgrounded process, so `--kill-orphans` is the consent.
   const liveSessionPids = new Set<number>()
   for (const session of inventory?.sessions ?? []) {
     if (session.alive && typeof session.pid === "number") liveSessionPids.add(session.pid)
@@ -390,11 +364,7 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
   return { lines: out, fixes, orphans: orphaned.orphans }
 }
 
-/**
- * `--kill-orphans`: end every process group the report just listed. Prints the
- * groups it signalled and any that outlived SIGKILL, so "nothing changed" can
- * never be mistaken for "nothing was there".
- */
+/** `--kill-orphans`: end every listed process group; reports survivors of SIGKILL too. */
 async function sweepOrphans(orphans: readonly Orphan[]): Promise<string[]> {
   if (orphans.length === 0) return ["orphans: nothing to kill"]
   const { groups, survivors } = await killOrphanGroups(orphans)

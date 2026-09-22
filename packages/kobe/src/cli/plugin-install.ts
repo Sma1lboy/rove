@@ -1,18 +1,14 @@
 /**
  * `kobe plugin install` / `kobe plugin link` — getting a plugin registered.
  *
- * Install accepts GitHub shorthand only (`owner/repo[/subdir...]`) and runs in
- * two phases so the confirmation gate is a real one: `preparePluginInstall`
- * clones, parses the manifest and reports every command the install WOULD run;
- * `commit()` is what actually runs them, moves the checkout under
- * `~/.rove/plugins/<id>/` and registers it. The CLI prints that preview and
- * asks on stdin; the TUI's Marketplace section renders it in a confirm dialog.
- * Neither may skip the phase boundary — a plugin's `[[build]]` is arbitrary
- * code on the user's machine.
+ * Install takes GitHub shorthand (`owner/repo[/subdir...]`) in two phases:
+ * `preparePluginInstall` clones and previews every command it WOULD run;
+ * `commit()` runs them, moves the checkout to `~/.rove/plugins/<id>/` and
+ * registers it. No caller may skip the approval between — `[[build]]` is
+ * arbitrary code.
  *
- * Link registers a local working directory as-is and runs no build — authors
- * build their own tree. Both work with no daemon running; the daemon
- * file-watches the registry and picks changes up live.
+ * Link registers a local directory as-is, no build. Neither needs the daemon;
+ * it file-watches the registry.
  */
 
 import { spawn } from "node:child_process"
@@ -94,11 +90,8 @@ export interface PreparedPluginInstall {
 export interface PluginInstallOptions {
   /** Branch/tag/sha to check out instead of the default branch's tip. */
   readonly ref?: string
-  /**
-   * Stream git/build output straight to this process's stdio. True for the
-   * CLI; the TUI must leave it false — inherited output lands mid-frame and
-   * shreds the rendered screen, so there it is captured and reported instead.
-   */
+  /** Stream git/build output to our stdio. CLI only — in the TUI it would
+   *  shred the frame, so output is captured instead. */
   readonly inherit?: boolean
 }
 
@@ -115,10 +108,7 @@ function commandLines(parsed: ParsedPluginManifest): string[] {
 /** Tail of a failed command's output — enough to diagnose, bounded. */
 const CAPTURE_TAIL_BYTES = 4096
 
-/**
- * One child process, awaited. Async on purpose: `spawnSync` would block the
- * TUI's render loop for the whole of a `git clone` or an `npm install`.
- */
+/** Async on purpose: `spawnSync` would block the TUI render loop for a whole clone/install. */
 function run(
   cmd: string,
   args: readonly string[],
@@ -164,12 +154,8 @@ async function runBuildCommands(parsed: ParsedPluginManifest, root: string, opts
   }
 }
 
-/**
- * Stage the clone inside the plugins root, not the OS temp dir: `/tmp` is a
- * separate filesystem on most Linux setups (tmpfs, and always so under WSL2),
- * and `rename(2)` across devices fails with EXDEV. Staging next to the
- * destination keeps the final move an atomic same-device rename.
- */
+/** Stage inside the plugins root, not `/tmp`: that's often tmpfs (always under
+ *  WSL2), and cross-device `rename(2)` fails with EXDEV. */
 function makeStagingDir(): string {
   const root = pluginsRootDir()
   mkdirSync(root, { recursive: true })
@@ -189,20 +175,15 @@ function movePluginTree(from: string, to: string): void {
 
 function register(entry: PluginRegistryEntry): void {
   savePluginRegistry(upsertPluginEntry(loadPluginRegistry(), entry))
-  // 0700, matching the daemon's own mkdir: config holds the settings `.env`
-  // (the documented home for API keys) and state is plugin-owned data.
-  // Whoever creates the directory FIRST sets its mode — `mkdirSync` never
-  // chmods an existing one — so a 0755 here would outlive every later 0700.
+  // 0700 like the daemon: config holds the `.env` with API keys. The first
+  // creator sets the mode (`mkdirSync` never chmods), so 0755 here would stick.
   mkdirSync(pluginConfigDir(entry.id), { recursive: true, mode: 0o700 })
   mkdirSync(pluginStateDir(entry.id), { recursive: true, mode: 0o700 })
 }
 
-/**
- * Clone + inspect, stopping short of running anything the plugin authored.
- * Everything that can refuse the install (bad spec, unreadable manifest,
- * version gate, unsupported platform, an existing local link) refuses HERE,
- * so an approved preview is one the install can actually carry out.
- */
+/** Clone + inspect, running nothing plugin-authored. Every refusal (bad spec,
+ *  manifest, version gate, platform, existing link) happens HERE, so an
+ *  approved preview can actually be carried out. */
 export async function preparePluginInstall(
   spec: string,
   opts: PluginInstallOptions = {},
@@ -250,9 +231,7 @@ export async function preparePluginInstall(
         try {
           await runBuildCommands(parsed, rootInClone, { inherit })
 
-          // Re-read after build: a build that rewrites the manifest voids the
-          // preview the user approved, so the install stops rather than
-          // registering something nobody agreed to.
+          // A build that rewrites the manifest voids the approved preview.
           const manifestPath = pluginManifestPath(rootInClone)
           if (!manifestPath) fail("manifest disappeared during build; aborting")
           if (manifestPath !== parsed.manifestPath) fail("manifest changed during build; aborting")
@@ -329,9 +308,7 @@ export function linkPlugin(dir: string): void {
     fail(`\`${id}\` is installed from GitHub; uninstall it before linking a local copy`)
   }
   for (const w of parsed.warnings) console.log(`warning: ${w}`)
-  // A warning, not a refusal: `install` fails here, but developing a
-  // Windows-only plugin on a Mac is legitimate. What is not legitimate is
-  // registering it with no hint that nothing will ever run it.
+  // Warn, don't refuse: developing a Windows-only plugin on a Mac is legitimate.
   if (!supportsPlatform({}, parsed.manifest, currentPluginPlatform())) {
     console.log(
       `warning: declares platforms [${parsed.manifest.platforms?.join(", ")}]; nothing will run on this machine`,

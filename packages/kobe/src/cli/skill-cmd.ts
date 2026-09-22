@@ -1,21 +1,11 @@
 /**
- * `kobe skill <verb>` — install + inspect the kobe agent skill.
+ * `kobe skill install | status | command | print`.
  *
- * Installation shells out to the Vercel Labs agent-skills CLI, pointed at
- * the SKILL.md bundled in this install (no repo clone — see
- * `lib/skill-install.ts`). Which agents to install for is the CLI's call,
- * not kobe's: with no `--agent` it detects what's installed and prompts,
- * writing the real file to `.agents/skills` and symlinking the agent dirs
- * that want one. Verbs:
- *
- *   install [--global|-g | --project|-p] [--agent NAME]…  run the npx skills flow
- *   status                                                report whether the skill is installed
- *   command [--global|-g | --project|-p] [--agent NAME]…  print the npx command (don't run it)
- *   print                                                 print the bundled SKILL.md (also `kobe --skill`)
- *
- * Installs are GLOBAL (user-level) by default — the skill drives a
- * machine-wide daemon, so one copy per machine is the right shape;
- * `--project` opts back into a per-project install.
+ * Install shells out to the agent-skills CLI, pointed at the bundled SKILL.md
+ * (a repo clone only when none is bundled; `lib/skill-install.ts`). With no
+ * `--agent` that CLI detects installed agents and prompts, so kobe carries no
+ * agent list. Installs are GLOBAL by default — the skill drives a machine-wide
+ * daemon; `--project` opts into a per-project install.
  */
 
 import { existsSync, readFileSync } from "node:fs"
@@ -54,12 +44,7 @@ function skillUsage(): string {
   ].join("\n")
 }
 
-/**
- * Parse repeated `--agent NAME` / `--agent=NAME` plus the `--project` /
- * `--global` scope pair. Empty agents means "let the agent-skills CLI ask" —
- * that's the default, and the reason kobe carries no agent list of its own.
- * Scope defaults to global; `--global` is accepted for explicitness.
- */
+/** Empty `agents` = let the agent-skills CLI ask. Scope defaults to global. */
 function parseInstallFlags(rest: readonly string[]): { agents: string[]; global: boolean } {
   let global = true
   const agents: string[] = []
@@ -84,8 +69,7 @@ function parseInstallFlags(rest: readonly string[]): { agents: string[]; global:
       process.exit(2)
     }
   }
-  // The CLI rejects a comma-joined list, and silently installing to only the
-  // first of `--agent claude-code,codex` would be worse than saying so.
+  // The agent-skills CLI rejects a comma-joined list; say so up front.
   const joined = agents.find((a) => a.includes(","))
   if (joined) {
     process.stderr.write(
@@ -139,10 +123,8 @@ export async function runSkillSubcommand(argv: readonly string[]): Promise<void>
       : state.stale
         ? `⚠ out of date (installed ${state.installedVersion === null ? "unstamped" : `v${state.installedVersion}`}, this Rove wants v${state.currentVersion})`
         : `✓ installed (v${state.installedVersion})`
-    // Second opinion on a copy that LOOKS current: staleness only compares
-    // marker numbers, so a SKILL.md edited without a version bump installs
-    // as ✓ and keeps teaching the old flow. Diagnostic only — `stale` (which
-    // drives the startup prompt) deliberately stays version-based.
+    // `stale` compares versions only, so an edit without a bump reads ✓.
+    // Diagnostic only: the startup prompt stays version-based.
     const contentDrift = state.installed && !state.stale && !!state.path && installedSkillDiffersFromBundled(state.path)
     process.stdout.write(
       [
@@ -153,9 +135,7 @@ export async function runSkillSubcommand(argv: readonly string[]): Promise<void>
               `    run \`${CLI_NAME} --skill > ${state.path}\` to refresh it`,
             ]
           : []),
-        // A `kobe`-named copy beside the current one is not cosmetic: agents
-        // load every skill dir they find, so it keeps handing them an old
-        // `api` surface however green the line above is.
+        // Agents load every skill dir, so a `kobe`-named copy teaches an old `api`.
         ...state.legacyCopies.map(
           (copy) =>
             `  ⚠ stale duplicate: ${copy.path}${copy.version === null ? "" : ` (v${copy.version})`} — remove it; agents load both`,
@@ -174,8 +154,7 @@ export async function runSkillSubcommand(argv: readonly string[]): Promise<void>
     return
   }
 
-  // install — shell out to the agent-skills CLI via npx. stdio is inherited,
-  // so with no --agent its own picker runs here interactively.
+  // stdio is inherited, so with no --agent the CLI's picker runs interactively.
   const { agents, global } = parseInstallFlags(rest)
   const bundled = bundledSkillDir()
   process.stdout.write(
@@ -185,11 +164,7 @@ export async function runSkillSubcommand(argv: readonly string[]): Promise<void>
   )
   const code = await runNpxSkillsInstall(agents, global)
   if (code !== 0) {
-    // NPX_MISSING_EXIT means runNpxSkillsInstall already explained that Node
-    // is missing — don't follow it with "run it yourself", which needs the
-    // same absent binary. (Its old "Is `npx` on PATH?" text was unreachable:
-    // it only ran on a non-zero EXIT, and a missing binary made Bun.spawn
-    // throw straight past it.)
+    // NPX_MISSING_EXIT: already explained; "run it yourself" needs the same missing npx.
     if (code !== NPX_MISSING_EXIT) {
       process.stderr.write(
         `\n${CLI_NAME} skill install failed (npx exited ${code}).\n` +

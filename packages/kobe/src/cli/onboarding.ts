@@ -1,23 +1,11 @@
 /**
- * First-run welcome — the framework-free half.
- *
- * The dialog (`src/tui-react/onboarding/host.tsx`) collects the answers over
- * the live workspace; this module owns everything that touches disk or spawns
- * a process. The split is not cosmetic: a dialog resolves while the TUI still
- * owns the screen, so NOTHING here may write to stdout at that moment — a
- * stray line repaints over the renderer's cells and corrupts the frame.
- *
- * So both answers are RECORDED when the dialog resolves and APPLIED after
- * `startTui()` returns, when the terminal is plain again:
- *
- *   - completions is a filesystem write, and could technically run either
- *     way — it is deferred anyway so its summary line lands next to the
- *     skill installer's instead of vanishing behind the TUI.
- *   - the skill installer is `npx`: it wants a real terminal for prompts and
- *     progress, and inherits one only once the renderer is gone.
- *
- * Every install is re-runnable later (`rove completions --help`,
- * `rove skill install`), so declining is always safe.
+ * First-run welcome — the disk/process half (the dialog is
+ * `tui-react/onboarding/host.tsx`). The dialog resolves while the TUI owns
+ * the screen, where any stdout line corrupts the frame, so answers are
+ * RECORDED then and APPLIED after `startTui()` returns: the `npx` skill
+ * installer needs a real terminal, and completions are deferred so their
+ * summary line lands beside it. Both are re-runnable later
+ * (`rove completions --help`, `rove skill install`).
  */
 
 import { spawnSync } from "node:child_process"
@@ -43,12 +31,9 @@ export function detectShell(env: NodeJS.ProcessEnv = process.env): ShellKind | n
 }
 
 /**
- * The hook line for one shell, given the pre-generated script (or null).
- *
- * Sourced from the shipped file the shell starts nothing: the guard is a
- * `test -f`, not a subprocess. Without one (a source checkout, which has no
- * `dist/completions`) the old live line stands — correct, but it pays a
- * process per shell.
+ * The hook line for one shell. Sourcing the shipped script spawns nothing;
+ * without one (a source checkout has no `dist/completions`) the live line
+ * costs a process per shell.
  */
 function completionHook(shell: ShellKind, cli: ProductCliName, shipped: string | null): string {
   if (shipped === null) return legacyCompletionHook(shell, cli)
@@ -75,24 +60,16 @@ function shippedScriptFor(shell: ShellKind, cli: ProductCliName): string | null 
 export interface CompletionInstall {
   /** The rc file (or fish autoload file) the hook lives in. */
   readonly path: string
-  /**
-   * False when the file already covered this shell, so nothing was written —
-   * the caller must not claim it installed something. A hand-rolled
-   * `# <cli> completions` block the user wrote themselves lands here too:
-   * their file, their line, never clobbered.
-   */
+  /** False when the file already covered this shell (including a user's own
+   *  `<cli> completions` block, never clobbered) and nothing was written. */
   readonly installed: boolean
 }
 
 /**
- * Hook completions into the shell, returning the file it touched and whether
- * this call wrote it. zsh/bash get one `source "<shipped script>"` line in
- * their rc file (the generated zsh script self-registers via compdef when
- * sourced); fish gets a one-liner in its autoload directory, which fish reads
- * with no rc edit.
- *
- * `shipped` defaults to the script generated beside the installed bundle, so
- * completions track the binary that owns them and can never go stale.
+ * Hook completions into the shell: one source line in the zsh/bash rc (the
+ * zsh script self-registers via compdef), or a fish autoload file (no rc
+ * edit). `shipped` defaults to the script beside the installed bundle, so
+ * completions track their binary and never go stale.
  */
 export function installCompletions(
   shell: ShellKind,
@@ -111,8 +88,7 @@ export function installCompletions(
   const rc = join(home, shell === "zsh" ? ".zshrc" : ".bashrc")
   const existing = existsSync(rc) ? readFileSync(rc, "utf8") : ""
   if (existing.includes(hook)) return { path: rc, installed: false }
-  // An install from before the pre-generated files: upgrade that one line in
-  // place rather than deciding the user is already hooked.
+  // Upgrade a legacy hook line in place.
   const legacy = legacyCompletionHook(shell, cli)
   if (existing.includes(legacy)) {
     writeFileSync(rc, existing.replace(legacy, hook))
@@ -125,12 +101,9 @@ export function installCompletions(
 }
 
 /**
- * Record the dialog's answers for {@link runPendingWelcomeInstalls}.
- *
- * Called while the TUI still owns the screen, so this writes state and
- * nothing else — no stdout, no spawn. A declined skill also settles the
- * one-time startup hint: the user just answered that exact question, and the
- * next launch must not ask it again on stderr.
+ * Record the dialog's answers for {@link runPendingWelcomeInstalls}. Runs
+ * while the TUI owns the screen: state writes only, no stdout, no spawn. A
+ * declined skill also settles the one-time startup hint so it isn't re-asked.
  */
 export function recordWelcomeChoices(choices: OnboardingChoices, shell: ShellKind | null): void {
   if (!choices.skill) markSkillHintSeen()
@@ -144,14 +117,7 @@ export function recordWelcomeChoices(choices: OnboardingChoices, shell: ShellKin
   }
 }
 
-/**
- * Apply whatever the welcome dialog recorded, then clear it. Runs AFTER the
- * renderer is destroyed — the skill installer inherits the real terminal
- * (npx prompts/progress) and every summary line lands in scrollback.
- *
- * A no-op for the overwhelming majority of launches: only the run right
- * after a first-run dialog has anything pending.
- */
+/** Apply and clear what the welcome dialog recorded. Runs AFTER the renderer is destroyed. */
 export function runPendingWelcomeInstalls(): void {
   const state = loadStateFile()
   const shell = state[PENDING_COMPLETIONS_KEY]
@@ -178,9 +144,8 @@ export function runPendingWelcomeInstalls(): void {
   if (wantsSkill) {
     const skillInstall = `${cli} skill install`
     if (isNpxMissing()) {
-      // The install.sh path in the QUICKSTART installs Bun and Rove but never
-      // Node, so a missing `npx` is ordinary here. Say what's missing instead
-      // of pointing at `rove skill install`, which needs the same binary.
+      // install.sh never installs Node, so no `npx` is ordinary; don't point
+      // at `rove skill install`, which needs it too.
       out(t("onboarding.skillNeedsNode", { command: skillInstall }))
     } else {
       out(t("onboarding.installingSkill", { command: npxSkillsCommand() }))

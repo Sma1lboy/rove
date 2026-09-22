@@ -1,25 +1,15 @@
 /**
- * How to probe for a vendor's CLI binary. Each `<vendor>-local/binary.ts`
- * owns only WHERE to look; this file owns the probing itself — the `which`
- * call and its macOS alias unwrapping, the stat-based existence check, the
- * `checkedPaths` ledger that ends up in the user-facing error, and the
- * injection seam the tests drive.
- *
- * Every vendor's search ORDER is different and deliberately so (claude walks
- * `~/.nvm/versions/node/*` newest-first, codex tries homebrew before NVM,
- * kimi looks in its installer's own dir first, copilot expands `.exe`/`.cmd`
- * spellings on Windows). Those lists stay in the vendor files, verbatim.
+ * Vendor CLI binary probing: `which` (+ macOS alias unwrapping), stat check,
+ * the `checkedPaths` ledger for the error, and the test seam. Each
+ * `<vendor>-local/binary.ts` owns only WHERE to look; the search orders
+ * differ on purpose and stay in the vendor files.
  */
 
 import { spawnSync } from "node:child_process"
 import { existsSync, statSync } from "node:fs"
 import { homedir } from "node:os"
 
-/**
- * Optional FS/env injection for tests. Real callers don't need to pass this.
- * `readdir` and `platform` are optional because only claude and copilot
- * respectively consult them.
- */
+/** FS/env injection for tests. `readdir`/`platform` are optional: only claude/copilot consult them. */
 export interface BinaryDiscoveryDeps {
   /** Returns true if the path exists and is a regular file (or symlink to one). */
   fileExists(p: string): boolean
@@ -50,9 +40,7 @@ const defaultBinaryDeps: BinaryDiscoveryDeps = {
     return homedir()
   },
   which(name) {
-    // We deliberately use `command -v` style via `which`/`where` rather
-    // than scanning PATH ourselves: shells often have aliases or
-    // shims that show up under `which` but not under a naive PATH walk.
+    // Not a PATH walk: aliases and shims show up only under `which`.
     const cmd = process.platform === "win32" ? "where" : "which"
     const out = spawnSync(cmd, [name], { encoding: "utf8" })
     if (out.status !== 0) return undefined
@@ -81,9 +69,8 @@ const defaultBinaryDeps: BinaryDiscoveryDeps = {
 }
 
 /**
- * Base of the four per-vendor not-found errors. The message lists every path
- * that was checked, in probe order, so a user can see why discovery failed;
- * subclasses supply the label and the install hint and keep their own `name`.
+ * Base of the per-vendor not-found errors; the message lists every checked
+ * path in probe order. Subclasses supply label, hint, and their own `name`.
  */
 export class BinaryNotFoundError extends Error {
   readonly checkedPaths: readonly string[]
@@ -111,11 +98,8 @@ export interface BinaryFinderSpec {
 }
 
 /**
- * Build a vendor's finder. The returned function resolves with an absolute
- * path, or rejects with the vendor's {@link BinaryNotFoundError}.
- *
- * Cheap (one `which`, a handful of stats) and pure aside from filesystem
- * reads — safe to call once per spawn. Callers wanting caching can wrap it.
+ * Build a vendor's finder: resolves an absolute path or rejects with its
+ * {@link BinaryNotFoundError}. Uncached (one `which`, a few stats).
  */
 export function createBinaryFinder(spec: BinaryFinderSpec): (deps?: BinaryDiscoveryDeps) => Promise<string> {
   return async function findBinary(deps: BinaryDiscoveryDeps = defaultBinaryDeps): Promise<string> {

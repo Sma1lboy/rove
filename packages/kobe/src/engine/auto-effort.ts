@@ -1,23 +1,15 @@
 /**
- * Auto effort — three user-facing depth tiers (`swift` / `standard` /
- * `deep`), each mapped to a concrete (engine, model, effort) target.
+ * Auto effort: tiers `swift` / `standard` / `deep`, each mapped to an (engine,
+ * model, effort) target. Two parts that never reference each other:
+ *   - the TABLE — a default, overridden per field in `state.json`
+ *     (`autoEffort.<tier>.engine|model|effort`, docs/CONFIGURATION.md);
+ *   - the GATE — can the target start: engine listed by `engine-list`, login
+ *     not `none`, model flag declared if a model is set, effort level declared
+ *     if an effort is set. Which model deserves `deep` is taste, unchecked.
  *
- * Two things live here and deliberately never reference each other:
- *   - the TABLE (which engine/model/effort a tier launches) — shipped with a
- *     default and overridden per field in `state.json`
- *     (`autoEffort.<tier>.engine|model|effort`, see docs/CONFIGURATION.md);
- *   - the GATE (can this target start at all) — the same four checks the
- *     dispatch face already runs one by one: the engine is one `engine-list`
- *     names, its login (when detectable) is not `none`, its protocol declares
- *     a model flag when a model is set, and it declares the effort level when
- *     one is set. "Which model deserves `deep`" is taste, and is not checked.
- *
- * What a tier MEANS to the user is copy (`tasks.tier.*` in the i18n catalog),
- * and that copy names no vendor. No classifier, no auto-pick: the tier is a
- * one-keystroke fill of three fields the user can still see and change.
- *
- * State-reading through an injected getter, so the CLI passes
- * `getPersistedString` and the TUI passes its reactive `kv.get`.
+ * Tier copy (`tasks.tier.*`) names no vendor. No auto-pick: a tier fills three
+ * fields the user can still see and change. State is read through an injected
+ * getter (CLI: `getPersistedString`, TUI: reactive `kv.get`).
  */
 
 import { getPersistedString } from "@/state/repos"
@@ -40,11 +32,7 @@ export interface TierTarget {
 
 export type AutoEffortTable = Readonly<Record<AutoEffortTier, TierTarget>>
 
-/**
- * The shipped table: one engine, three models — the only spread this
- * machine can verify on 2026-09-17 (claude declares no effort levels, so
- * the tiers differ by model alone). Users retarget any field in Settings.
- */
+/** One engine, three models: claude declares no effort levels, so tiers differ by model alone. */
 export const DEFAULT_AUTO_EFFORT: AutoEffortTable = {
   swift: { engine: "claude", model: "sonnet" },
   standard: { engine: "claude", model: "opus" },
@@ -66,10 +54,8 @@ function stringAt(get: Getter, key: string): string | undefined {
 }
 
 /**
- * The effective table: the default with every persisted field laid over it.
- * `null` = auto effort is NOT configured — some tier has its engine blanked
- * (`""` in state.json). A missing tier is never guessed at, and the callers
- * (the new-task tier row, `add --tier`) treat null as "no such feature".
+ * The default with persisted fields laid over it. `null` = NOT configured (some
+ * tier's engine is `""`); callers treat it as "no such feature", never guess.
  */
 export function readAutoEffortTable(get: Getter = getPersistedString): AutoEffortTable | null {
   const table: Partial<Record<AutoEffortTier, TierTarget>> = {}
@@ -100,19 +86,13 @@ export type TierBlock =
 export interface TierGateDeps {
   /** Every id `engine-list` would print. */
   readonly engineIds: ReadonlySet<string>
-  /**
-   * The engine's detected account kind: `"none"` = detector ran, found no
-   * login; `null` = no detector (contrib/plugin/custom), which passes —
-   * absent is "not detectable", never "not logged in".
-   */
+  /** `"none"` = detector found no login; `null` = no detector, which passes. */
   readonly accountKind: (engine: VendorId) => string | null
 }
 
 /**
- * The gate. Order matches the failure a launch would hit first. Reuses the
- * registry facts the `add --model` / `set-effort` gates read
- * (`modelArgv`, `effortLevels`) on the engine's PROTOCOL, so a preset
- * `mycodex` declaring codex is judged as codex.
+ * Checks run in the order a launch would fail. Reads `modelArgv`/`effortLevels`
+ * on the engine's PROTOCOL, so a preset declaring codex is judged as codex.
  */
 export function tierBlock(target: TierTarget, deps: TierGateDeps): TierBlock | null {
   const { engine } = target

@@ -1,18 +1,10 @@
 /**
- * `kobe update` — self-update helper for the globally-installed CLI.
+ * `update` — delegates to the GitHub-hosted `scripts/update.sh` rather than
+ * baking the package-manager command into the binary, so install-flow
+ * changes need only a script edit on main.
  *
- * The TUI update chip points at a GitHub-hosted update script. This
- * wrapper intentionally delegates to that remote script instead of
- * baking the package-manager command into the binary, so future install
- * flow changes only require editing `scripts/update.sh` on main.
- *
- * `kobe update <version>` pins the install (the script receives the
- * version as `sh -s -- <version>`); `kobe update list` prints recent
- * published versions. Verbs are the canonical spelling — `--list` /
- * `--dry-run` stay as accepted aliases. Installing across a
- * {@link BREAKING_VERSIONS} entry prints a
- * heads-up that the next launch will demand `kobe reset` (the boot gate
- * in reset-gate.ts is the enforcement point — the script stays dumb).
+ * Crossing a {@link BREAKING_VERSIONS} entry prints a heads-up; the boot gate
+ * in reset-gate.ts enforces `reset`, the script stays dumb.
  */
 
 import { spawnSync } from "node:child_process"
@@ -48,11 +40,7 @@ type RunDeps = {
   exit: (code: number) => never
 }
 
-/**
- * The install target passed through to `update.sh`: an exact version, or a
- * channel name the script resolves as an npm dist-tag. Both take the same
- * `sh -s -- <arg>` slot, so `nightly` needs no separate flag downstream.
- */
+/** `target` (exact version, or channel = npm dist-tag) rides the same `sh -s -- <arg>` slot. */
 export function updatePlan(target?: string): UpdatePlan {
   const shell = target === undefined ? UPDATE_COMMAND : `${UPDATE_COMMAND} -s -- ${target}`
   return {
@@ -69,10 +57,7 @@ type ParsedArgs = {
   list: boolean
   /** Pinned target version (`kobe update 0.7.90`); undefined = channel head. */
   version?: string
-  /**
-   * Explicit `--channel <name>`. Undefined means "stay on whichever channel
-   * this build came from" — switching is an explicit act, never a default.
-   */
+  /** Explicit `--channel`; undefined = stay on this build's channel. */
   channel?: ReleaseChannel
 }
 
@@ -100,10 +85,8 @@ export function parseUpdateArgs(args: readonly string[]): ParsedArgs {
       list = true
       continue
     }
-    // `--channel nightly` and `--channel=nightly` both land here. An
-    // unknown name is refused rather than passed through: npm resolves an
-    // unpublished dist-tag to a 404 the install script reports as a
-    // generic failure, which reads like a broken network.
+    // Unknown names are refused: an unpublished dist-tag 404s into a generic
+    // script failure that reads like a broken network.
     if (arg === "--channel" || arg.startsWith("--channel=")) {
       const inline = arg.startsWith("--channel=") ? arg.slice("--channel=".length) : undefined
       const value = inline ?? args[++i]
@@ -128,9 +111,7 @@ export function parseUpdateArgs(args: readonly string[]): ParsedArgs {
       version = arg
       continue
     }
-    // Malformed invocation → show the error AND the usage, exit 2. An
-    // agent that guesses a flag wrong should land on the instruction
-    // surface, not a bare one-liner.
+    // Error AND usage, so a wrong guess lands on the instructions.
     process.stderr.write(`${CLI_NAME} update: unknown argument "${arg}"\n\n`)
     printUsage(process.stderr)
     process.exit(2)
@@ -212,8 +193,7 @@ async function printVersionList(io: RunDeps): Promise<void> {
  * stays silent when offline — the boot gate is the real enforcement point.
  */
 async function warnBreakingCrossings(target: string | undefined, channel: ReleaseChannel, io: RunDeps): Promise<void> {
-  // Nothing registered → nothing to warn about; skip the channel-head
-  // lookup entirely so the common path (and the tests) never touch the net.
+  // Keeps the common path (and tests) off the network.
   if (BREAKING_VERSIONS.length === 0) return
   const resolved = target ?? (await checkLatestVersion({ force: true, channel }))?.latest
   if (!resolved) return
@@ -230,15 +210,9 @@ async function warnBreakingCrossings(target: string | undefined, channel: Releas
 }
 
 /**
- * What a finished install has NOT done yet.
- *
- * Installing new files does not replace running processes, and Rove keeps two
- * of them: the daemon (restartable, and doctor already flags it) and the PTY
- * host, which by design survives every `daemon restart` and can only be
- * replaced by `rove reset` — at the cost of every live session. An update that
- * printed nothing here left both serving the old build with the CLI reporting
- * success; the only mention of it lived in TROUBLESHOOTING, and covered only
- * the daemon.
+ * What an install has NOT done: the daemon and the PTY host keep running the
+ * old build. The PTY host survives `daemon restart` by design; only `reset`
+ * replaces it, ending every live session.
  */
 const FOLLOW_UP_NOTE = [
   "",
@@ -263,9 +237,7 @@ export async function runUpdateSubcommand(args: readonly string[], deps?: Partia
     return
   }
   if (parsed.list) {
-    // Interactive terminal → the TUI versions browser (list + release
-    // notes + pinned install). Injected deps (tests) or a pipe keep the
-    // plain parseable text output for scripts and agents.
+    // TTY → TUI versions browser; injected deps or a pipe → plain text.
     if (deps === undefined && process.stdout.isTTY) {
       const { startVersionsHost } = await import("../tui-react/component/versions-page.tsx")
       await startVersionsHost()
@@ -275,9 +247,7 @@ export async function runUpdateSubcommand(args: readonly string[], deps?: Partia
     return
   }
 
-  // An explicit --channel wins; otherwise stay on the channel this build
-  // came from. A pinned version outranks both — it names one exact build,
-  // and the channel it belongs to is whatever that version says it is.
+  // Pinned version > explicit --channel > this build's channel.
   const channel = parsed.channel ?? channelOf()
   const target = parsed.version ?? (channel === DEFAULT_RELEASE_CHANNEL ? undefined : channel)
   const plan = updatePlan(target)
@@ -285,9 +255,7 @@ export async function runUpdateSubcommand(args: readonly string[], deps?: Partia
   io.stdout.write(`${CLI_NAME} ${CURRENT_VERSION} -> ${target ?? channel}\n`)
   if (switching) io.stdout.write(`switching channel: ${channelOf()} -> ${channel}\n`)
   io.stdout.write(`running: ${plan.display}\n`)
-  // Warn BEFORE the dry-run bail. A dry run is the rehearsal — "print what you
-  // would do" that omits the one thing you would have had to act on is the
-  // wrong half to leave out.
+  // Warn BEFORE the dry-run bail: a rehearsal must show what you'd act on.
   await warnBreakingCrossings(parsed.version, channel, io)
   if (parsed.dryRun) return
 

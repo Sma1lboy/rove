@@ -1,18 +1,11 @@
 /**
- * Claude subscription-quota probe: when did the exhausted rate-limit window
- * reset? Called by the daemon (via the runtime adapter) the moment a hook
- * reports `failure: "rate_limit"`, so the quota-resume runner can schedule a
- * continue prompt instead of leaving the task parked until a human returns.
+ * Claude subscription-quota probe: when does the exhausted window reset? Lets
+ * the quota-resume runner schedule a continue prompt after a `rate_limit` hook.
  *
- * The usage endpoint is Claude Code's own `/usage` API; it requires the CLI's
- * OAuth beta header and rejects unknown clients, so we mirror the CLI
- * contract (same approach as the CLI's own /usage view). The OAuth access
- * token comes from the CLI's credential store — macOS Keychain first, then
- * `~/.claude/.credentials.json` (or `$CLAUDE_CONFIG_DIR/.credentials.json`
- * when an isolated profile is configured). Tokens are only READ: refreshing
- * is the CLI's job (racing its refresh-token rotation can log the user out),
- * so an expired credential simply means "no probe" — the schedule is skipped
- * and the rate-limit badge stays for the user, exactly as before.
+ * Mirrors the CLI's `/usage` contract (OAuth beta header; unknown clients are
+ * rejected). Token from macOS Keychain, then `~/.claude/.credentials.json` (or
+ * `$CLAUDE_CONFIG_DIR`'s). Tokens are only READ: racing the CLI's refresh-token
+ * rotation can log the user out, so an expired token just means no probe.
  */
 
 import { homedir, userInfo } from "node:os"
@@ -62,12 +55,8 @@ function windowLabel(kind: string, scopeModel: string | null | undefined): strin
   return kind.startsWith("weekly") || kind.startsWith("seven_day") ? "7d" : "5h"
 }
 
-/**
- * Normalize a usage response into engine-neutral quota windows. Prefers the
- * generalized `limits[]` array (Anthropic adds/removes top-level codenames
- * freely, but `limits[]` rows stay a stable `{kind, percent, resets_at,
- * scope}` shape); falls back to the legacy `five_hour`/`seven_day` fields.
- */
+/** Usage response → neutral windows. Prefers `limits[]` (stable shape; top-level
+ *  codenames churn), falling back to legacy `five_hour`/`seven_day`. */
 export function usageFromClaudePayload(payload: ClaudeUsagePayload, capturedAt: number): EngineQuotaUsage {
   const windows: EngineQuotaWindow[] = []
   if (payload.limits?.length) {
@@ -136,13 +125,10 @@ async function readKeychainCredentials(): Promise<OAuthCredentials | null> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 3000)
   try {
-    // `-a` is load-bearing, not decoration: a machine can carry SEVERAL
-    // items under this one service name (a stale `acct=unknown` row from an
-    // older CLI alongside today's login). Querying by service alone returns
-    // whichever `security` scans first, which can be a long-expired token —
-    // the usage dashboard then stays empty through repeated re-logins. The
-    // CLI itself always pairs `-a $USER` with `-s`
-    // (refs/claude-code `macOsKeychainStorage.ts`); mirror it exactly.
+    // `-a` is load-bearing: one service can hold SEVERAL items (a stale
+    // `acct=unknown` row beside today's login), and service-only returns
+    // whichever scans first. The CLI pairs `-a $USER` with `-s`
+    // (refs/claude-code `macOsKeychainStorage.ts`).
     const result = await spawnCapture(
       "security",
       ["find-generic-password", "-a", userInfo().username, "-w", "-s", KEYCHAIN_SERVICE],
@@ -172,13 +158,9 @@ async function readAccessToken(): Promise<string | null> {
   return candidates.find((c): c is OAuthCredentials => c != null && isFresh(c))?.accessToken ?? null
 }
 
-/**
- * Snapshot of the account's quota windows, or null when it can't be fetched
- * (no login, expired token, network failure). Never throws. Callers own the
- * fetch CADENCE — this endpoint is itself rate-limited, so nothing here may
- * be called on a hot path; the daemon's usage cache is the only production
- * caller and it enforces min-interval + backoff.
- */
+/** Quota windows, or null when unfetchable. Never throws. The endpoint is
+ *  itself rate-limited: never call on a hot path (the daemon's usage cache
+ *  enforces min-interval + backoff). */
 export async function fetchClaudeQuotaUsage(now: () => number = Date.now): Promise<EngineQuotaUsage | null> {
   const token = await readAccessToken().catch(() => null)
   if (!token) return null

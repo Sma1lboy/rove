@@ -51,15 +51,12 @@ function taskCount(path: string): number | null {
 }
 
 /**
- * What `--hard` actually destroys in the settings file.
- *
- * `removeStateFile` unlinks the WHOLE of `~/.config/rove/state.json`, not
- * some "UI state" subset: saved projects, every registered custom engine
- * (`customEngineIds` plus its `engineCommand.*` / `engineName.*` bodies — the
- * only record they exist), theme, default engine, language and the onboarding
- * flag all go with it. The backfill in `core/index.ts` cannot restore the
- * projects either, because `--hard` deletes tasks.json in the same breath.
- * So the preview names them, with counts, instead of saying "UI state".
+ * What `--hard` destroys: `removeStateFile` unlinks the WHOLE
+ * `~/.config/rove/state.json` — saved projects, custom engines
+ * (`customEngineIds` + `engineCommand.*`/`engineName.*`, their only record),
+ * theme, default engine, language, onboarding flag. The `core/index.ts`
+ * backfill can't restore projects since tasks.json goes too. So the preview
+ * names them with counts.
  */
 function stateSummary(path: string): string[] {
   let parsed: Record<string, unknown>
@@ -146,11 +143,8 @@ export async function runResetSubcommand(argv: readonly string[]): Promise<void>
 
   if (!yes) {
     if (!process.stdin.isTTY) {
-      // Exit 2, not 0. The plan above has already been printed in full, and a
-      // caller that reads only the status code would otherwise take "I did
-      // nothing" for "I reset your install" — the same silent-success shape as
-      // #918. `daemon stop` may exit 0 on a no-op because the goal state is
-      // reached; nothing about this run reached it.
+      // Exit 2, not 0: a status-code-only caller must not read "did nothing"
+      // as "reset done". Unlike a no-op `daemon stop`, no goal state was reached.
       console.log("\nre-run with --yes to proceed (no interactive terminal for a y/N prompt) — nothing was changed")
       process.exitCode = 2
       return
@@ -179,13 +173,9 @@ export async function runResetSubcommand(argv: readonly string[]): Promise<void>
       : `  pty host: stopped via ${ptyHost.method}${ptyHost.pid ? ` (pid ${ptyHost.pid})` : ""}`,
   )
 
-  // "All frozen rings are dropped" (docs/SESSIONS.md) is the host's own doing
-  // — but ONLY on the `daemon.stop` RPC path, which sets `wipeFreezeOnStop`.
-  // A host wedged badly enough to need SIGTERM/SIGKILL — exactly the state
-  // TROUBLESHOOTING points at reset for — never runs that code, and a host
-  // that was already dead never had the chance, so every frozen archive
-  // survives and the next boot restores the whole scene reset was asked to
-  // end. Finish the job here when the graceful path did not.
+  // The host wipes frozen rings only on the graceful `daemon.stop` path
+  // (`wipeFreezeOnStop`). A SIGTERM/SIGKILL'd or already-dead host leaves
+  // them, and the next boot would restore the scene reset was meant to end.
   if (ptyHost.method !== "graceful") {
     clearFrozenSessions(defaultPtyFreezeDir())
     console.log(`  frozen sessions: cleared (${ptyHost.method} stop skips the host's own wipe)`)

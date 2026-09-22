@@ -1,23 +1,13 @@
 /**
- * Shipped contrib engines — the long tail, as DATA.
+ * Shipped contrib engines as DATA: id, display name, launch command and a
+ * screen-state manifest (`./screen-state.ts`). No account detector or history
+ * reader — those make an engine a BUILT-IN. A hook adapter is the one optional
+ * extra, since installing a hook needs nothing else from a built-in. Plugins
+ * register exactly this shape.
  *
- * A contrib engine is everything kobe needs to launch a coding CLI and
- * badge its activity, without a dedicated adapter: an id, a display name,
- * a launch command, and a screen-state manifest (`./screen-state.ts`).
- * No account detector and no history reader — those are what make an engine a
- * BUILT-IN, and each one is real per-vendor work. A hook adapter is the one
- * piece a contrib entry MAY declare (`createHookAdapter`, cursor being the
- * worked example), because installing a hook needs nothing from the rest of
- * the built-in surface. A contrib entry is ~10 lines; a future plugin
- * registers exactly this shape.
- *
- * Selection gating: a contrib engine appears in the new-task selector only
- * when its binary is on PATH (`account-detect.ts` probes `defaultCommand[0]`
- * with the same generic `which` the custom-engine launch would hit anyway),
- * so shipping the catalog costs users without these CLIs nothing.
- *
- * Screen manifests are reduced to the classifier's vocabulary. Blocked rules
- * go before working rules.
+ * A contrib engine appears in the new-task selector only when
+ * `defaultCommand[0]` is on PATH (`account-detect.ts`), so the catalog costs
+ * users without these CLIs nothing. Blocked rules go before working rules.
  */
 
 import type { EngineIdentity } from "@/types/engine"
@@ -37,34 +27,24 @@ export interface ContribEngineSpec {
   /** Plugin-declared product identity (composer placeholder etc.). */
   readonly identity?: EngineIdentity
   /**
-   * How this CLI accepts a session's FIRST message — same field the built-in
-   * table declares (see `registry.ts`). Contrib entries otherwise inherit the
-   * `"argv"` default, which appends the prompt as a positional; declare
-   * `"paste"` when the positional slot means something else, or the launch
-   * dies on the prompt text.
+   * How the CLI accepts a session's FIRST message (see `registry.ts`). The
+   * `"argv"` default appends it as a positional; declare `"paste"` when the
+   * positional means something else, or the launch dies on the prompt text.
    */
   readonly firstMessageDelivery?: "argv" | "paste"
   /**
-   * This engine's activity-hook installer — the A layer, OPTIONAL because most
-   * of the long tail has no hook mechanism Rove has wired. Declaring one costs
-   * the rest of the catalog nothing: an entry without it keeps the base's
-   * `NoopHookAdapter` and stays screen-only, with no install, no warning and no
-   * new file on anyone's disk.
-   *
-   * Declaring one does NOT replace {@link screenManifest} — they are different
-   * rungs of the same ladder (`registry.ts`'s `screenManifest` doc). Cursor is
-   * the worked example: its hook reports session identity, its manifest keeps
-   * reporting state.
+   * Optional activity-hook installer. Without it the entry keeps the base's
+   * `NoopHookAdapter`: screen-only, no install, no warning, no file written.
+   * It does NOT replace {@link screenManifest}: the hook reports session
+   * identity, the manifest keeps reporting state.
    */
   readonly createHookAdapter?: () => EngineHookAdapter
 }
 
 /**
- * Plugin-contributed engines, registered at process start from enabled
- * plugin manifests' `[[engines]]` tables (`./plugin-engines.ts` reads +
- * translates; this module only holds the table so `registry.ts` stays
- * import-cycle-free and state-free). Shipped catalog ids and built-ins win
- * over a same-named plugin engine — registration skips those.
+ * Plugin engines from enabled manifests' `[[engines]]` tables, held here so
+ * `registry.ts` stays import-cycle-free and state-free. Shipped catalog ids and
+ * built-ins win over a same-named plugin engine.
  */
 const pluginEngines = new Map<string, ContribEngineSpec>()
 
@@ -91,31 +71,22 @@ const GEMINI: EngineScreenManifest = {
   ],
 }
 
-// Footer vocabulary verified against opencode 0.6.3 on 2026-09-04: a running
-// turn ends `…working...  esc interrupt` and a resting one `enter send`.
-// `esc interrupt` is the string copilot's manifest already carries; the
-// `esc to interrupt` spellings are kept so an older opencode still matches.
+// Verified against opencode 0.6.3: a running turn ends `…working...  esc
+// interrupt`, a resting one `enter send`. `esc to interrupt` covers older builds.
 const OPENCODE: EngineScreenManifest = {
   rules: [
     { state: "blocked", any: ["△ permission required"] },
     { state: "blocked", all: ["esc dismiss"], any: ["enter confirm", "enter submit", "enter toggle"] },
     { state: "working", any: ["esc interrupt", "esc to interrupt", "ctrl+c to interrupt", "esc again to interrupt"] },
-    // The rest footer, LAST so a running turn (which draws `enter send` too)
-    // still reads working. Without an idle rule the badge that finally lights
-    // up on the rule above could never come back down.
+    // LAST: a running turn draws `enter send` too. Without it the badge never clears.
     { state: "idle", any: ["enter send"] },
   ],
 }
 
 const CURSOR: EngineScreenManifest = {
   rules: [
-    // The login wall, captured from cursor-agent 2026.04.17 in a fresh git
-    // directory. Without this rule an unauthenticated cursor task classifies
-    // exactly like a healthy resting one — no rule matches either, the
-    // classifier answers null, and the badge stays wherever it was. A task
-    // that CANNOT RUN AT ALL is blocked on a human, which is what this state
-    // means everywhere else, so it gets the same "go look at it" badge rather
-    // than a new vocabulary.
+    // Login wall (cursor-agent 2026.04.17). Without it an unauthenticated task
+    // classifies null like a resting one; a task that cannot run is blocked on a human.
     { state: "blocked", any: ["press any key to log in"] },
     { state: "blocked", all: ["proceed (y)"] },
     { state: "blocked", any: ["run this command?", "waiting for approval", "skip (esc or n)", "(y) (enter)"] },
@@ -125,13 +96,11 @@ const CURSOR: EngineScreenManifest = {
 
 const GROK: EngineScreenManifest = {
   rules: [
-    // Permission / question dialogs draw a "┃"-guttered option list with a
-    // select footer; the ⚠ prefix rides the OSC title too but the pane copy
-    // is the portable signal.
+    // Dialogs draw a "┃"-guttered option list; the ⚠ also rides the OSC title
+    // but the pane copy is the portable signal.
     { state: "blocked", any: ["⚠ action required", "ctrl+o:yolo"] },
     { state: "blocked", all: ["┃"], lineRegex: ["^\\s*┃\\s+\\S+\\s+\\(○\\)"] },
-    // A working turn anchors on the [stop] chip (the startup splash draws
-    // its logo in braille, so a bare spinner glyph is not usable).
+    // Anchor on [stop]: the startup splash draws its logo in braille.
     { state: "working", any: ["[stop]"], lineRegex: ["^\\s*[\\u2800-\\u28FF]"] },
   ],
 }
@@ -161,36 +130,22 @@ const AMP: EngineScreenManifest = {
 }
 
 // ── Screen-only engines (no hook, no history) ──────────────────────────────
-// The four below have no hook integration at all, so reading the pane is the
-// ONLY way Rove learns their state.
-//
-// The classifier's rule model is deliberately small, and two shapes these
-// screens want have no equivalent here:
-//   - OR-of-ANDs (`any = [{ contains = [a, b] }, …]`). A rule here takes at
-//     most one `any`, so each conjunctive disjunct becomes its own rule with
-//     the same state — first match wins, so N same-state rules ARE an OR.
-//   - `not` gates. No negation at all; a rule that needs one is dropped, and
-//     said so below.
-// A whole-screen region collapses to the classifier's default bottom
-// region (12 non-empty lines), the same reduction the six entries above made:
-// a dialog taller than that is missed. Missing is the safe direction — a
-// false `blocked` lights the attention inbox and keeps it lit.
-// `\p{Alphabetic}` becomes `[A-Za-z]` wherever it appears: the classifier
-// compiles patterns without the `u` flag, so a non-Latin word after a spinner
-// glyph no longer matches.
+// The pane is the ONLY state source for the four below. The rule model lacks:
+//   - OR-of-ANDs: each conjunctive disjunct becomes its own same-state rule
+//     (first match wins, so N same-state rules ARE an OR).
+//   - `not` gates: a rule that needs one is dropped, noted below.
+// A whole-screen region collapses to the default bottom 12 non-empty lines, so
+// a taller dialog is missed — the safe direction, since a false `blocked`
+// keeps the attention inbox lit. `\p{Alphabetic}` becomes `[A-Za-z]`: patterns
+// compile without the `u` flag, so a non-Latin word after a spinner won't match.
 
-// Only the permission rule survives. A catch-all "any non-empty cline screen
-// is working" rule was considered and dropped: classifyScreen's answer IS the
-// badge, so it would pin cline to running for the tab's whole life with
-// nothing able to bring it down.
-// `null` (keep the previous reading) is the honest answer for a cline screen
-// with no dialog on it, so cline ships blocked-only until someone with the
-// CLI installed captures its real working/resting footer.
+// Blocked-only: a catch-all "non-empty screen is working" rule would pin the
+// badge to running forever, and `null` (keep the previous reading) is honest
+// until someone captures cline's real working/resting footer.
 const CLINE: EngineScreenManifest = {
   rules: [
     { state: "blocked", any: ["let cline use this tool"] },
-    // The remaining four disjuncts are the [act mode]/[plan mode] ×
-    // execute-a-command/use-a-tool cross product; two rules cover it exactly.
+    // The [act mode]/[plan mode] × command/tool cross product.
     { state: "blocked", all: ["execute command?", "yes"], any: ["[act mode]", "[plan mode]"] },
     { state: "blocked", all: ["use this tool?", "yes"], any: ["[act mode]", "[plan mode]"] },
   ],
@@ -203,9 +158,7 @@ const KIRO: EngineScreenManifest = {
       all: ["requires approval"],
       any: ["yes, single permission", "trust, always allow", "no (tab to edit)", "esc to close"],
     },
-    // The screen carries one of "tool approval"/"tool approvals"; the
-    // singular is a prefix of the plural, so one substring covers both and
-    // the rule's single `any` slot stays free for the action list.
+    // "tool approval" is a prefix of "tool approvals", so one substring covers both.
     {
       state: "blocked",
       all: ["pending from subagents", "tool approval"],
@@ -216,13 +169,10 @@ const KIRO: EngineScreenManifest = {
   ],
 }
 
-// Maki keeps a
-// one-line status bar on the bottom row — `[BUILD]`/`[PLAN]`/`[BASH]` at rest,
-// with a leading braille cell while it streams — hence the `bottomLines: 1`.
-// DROPPED: a `prompt_box_idle` fallback (a bare `❯ ` on a pane narrow
-// enough that the status bar's right half has overwritten the mode label). It
-// is only correct behind two `not` gates; ungated it reads a streaming maki as
-// idle, so on a narrow pane maki reports `null` instead of `idle`.
+// Maki's bottom-row status bar shows `[BUILD]`/`[PLAN]`/`[BASH]`, with a leading
+// braille cell while streaming — hence `bottomLines: 1`. DROPPED: the narrow-pane
+// `prompt_box_idle` fallback (bare `❯ `) needs two `not` gates; ungated it reads
+// a streaming maki as idle, so a narrow pane reports `null` instead.
 const MAKI: EngineScreenManifest = {
   rules: [
     // Maki's permission screen has four alternatives, two of them
@@ -236,9 +186,7 @@ const MAKI: EngineScreenManifest = {
   ],
 }
 
-// Antigravity's manifest id is "agy", not its command name. OSC-title and
-// OSC-progress regions have no counterpart in the classifier, but this
-// manifest declares none.
+// Antigravity's manifest id is "agy", not its command name.
 const ANTIGRAVITY: EngineScreenManifest = {
   rules: [
     { state: "blocked", all: ["requesting permission for:", "do you want to proceed?"] },
@@ -248,10 +196,8 @@ const ANTIGRAVITY: EngineScreenManifest = {
   ],
 }
 
-// Rove's rule vocabulary has no `not` gate; the negations the working and
-// idle rules would need only exclude the blocked/working conditions that
-// already sit ABOVE them here, and first match wins, so the ordering does
-// that job.
+// Order stands in for `not`: the negations working/idle need only exclude the
+// rules ABOVE them, and first match wins.
 const DEVIN: EngineScreenManifest = {
   rules: [
     { state: "blocked", bottomLines: 8, all: ["do you trust the authors of this directory?", "yes, trust "] },
@@ -269,10 +215,8 @@ const DEVIN: EngineScreenManifest = {
   ],
 }
 
-// Qodercli's blocked screen has eight alternatives, two of them conjunctions
-// — one rule each here, since a Rove rule's `any` slot is already spoken for
-// by the conjunction's second half. Its whole-screen region is this
-// classifier's default window.
+// Each conjunctive blocked alternative gets its own rule: its `any` slot holds
+// the conjunction's second half.
 const QODERCLI: EngineScreenManifest = {
   rules: [
     { state: "blocked", all: ["waiting for user confirmation"], any: ["yes", "no", "allow", "reject"] },
@@ -296,13 +240,9 @@ const QODERCLI: EngineScreenManifest = {
 /** The shipped catalog. Key = the engine's VendorId. */
 export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
   gemini: { displayName: "Gemini CLI", defaultCommand: ["gemini"], screenManifest: GEMINI },
-  // opencode's positional is a project DIRECTORY ("Positionals: project  path
-  // to start opencode in"), so an argv-delivered first message becomes a path:
-  // `opencode "Run the shell command: ls -la"` exits with
-  // `Failed to change directory to <cwd>/Run the shell command: ls -la`.
-  // Verified against opencode 0.6.3 on 2026-09-04. The other catalog entries
-  // keep the "argv" default — their positional semantics are UNVERIFIED here
-  // (binaries absent from the machine this was checked on).
+  // opencode's positional is a project DIRECTORY: an argv first message exits
+  // `Failed to change directory to <cwd>/<prompt>` (opencode 0.6.3). Other
+  // entries keep "argv" with positional semantics UNVERIFIED.
   opencode: {
     displayName: "OpenCode",
     defaultCommand: ["opencode"],
@@ -323,14 +263,9 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     createHookAdapter: () => new DroidHookAdapter(),
   },
   amp: { displayName: "Amp", defaultCommand: ["amp"], screenManifest: AMP },
-  // devin and qodercli, like droid and cursor, are catalog entries that ALSO
-  // declare a hook adapter: their `SessionStart` reports which session is live
-  // and the manifest above keeps owning working/blocked/idle. Command names
-  // and `processNames` are each CLI's own executable plus its known
-  // aliases; neither CLI was on the machine this
-  // was written on, so both keep the "argv" first-message default (positional
-  // semantics UNVERIFIED) and every screen string comes from the manifest
-  // rather than a fresh capture.
+  // The hook's `SessionStart` reports the live session; the manifest owns
+  // working/blocked/idle. Screen strings are uncaptured (CLI not installed
+  // when written), and "argv" delivery is UNVERIFIED.
   devin: {
     displayName: "Devin",
     defaultCommand: ["devin"],
@@ -345,13 +280,9 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     screenManifest: QODERCLI,
     createHookAdapter: () => new QodercliHookAdapter(),
   },
-  // Command names are each CLI's own executable, NOT the manifest ids:
-  // antigravity's manifest is "agy" and kiro's binary is `kiro-cli`.
-  // `processNames` carries the other spellings a running process may wear, so
-  // it still maps back to the engine (`foreground.ts`). None of these four CLIs was on the
-  // machine this was written on, so every screen string below comes from the
-  // manifest rather than a fresh capture; each keeps the "argv" first-message
-  // default because their positional semantics are likewise UNVERIFIED.
+  // Commands are each CLI's executable, not the manifest id (kiro → `kiro-cli`).
+  // `processNames` maps other process spellings back (`foreground.ts`). Screen
+  // strings are uncaptured and "argv" delivery is UNVERIFIED for these four.
   cline: { displayName: "Cline", defaultCommand: ["cline"], screenManifest: CLINE },
   kiro: { displayName: "Kiro CLI", defaultCommand: ["kiro-cli"], processNames: ["kiro"], screenManifest: KIRO },
   maki: { displayName: "Maki", defaultCommand: ["maki"], screenManifest: MAKI },
@@ -370,10 +301,8 @@ export function isContribEngine(id: string): boolean {
 export const CONTRIB_ENGINE_IDS: readonly string[] = Object.keys(CONTRIB_ENGINES)
 
 /**
- * Fill a contrib spec into a full registry entry. The base is the caller's
- * empty custom entry (registry.ts owns that shape and passes it in — this
- * module must not import registry.ts back, the entry type is imported
- * type-only), overlaid with the contrib's identity + manifest.
+ * Overlay a contrib spec on the caller's empty custom entry. `base` is passed
+ * in because this module must not import registry.ts at runtime (cycle).
  */
 export function contribEngineEntry(id: string, base: EngineRegistryEntry): EngineRegistryEntry {
   const spec = CONTRIB_ENGINES[id] ?? pluginEngines.get(id)

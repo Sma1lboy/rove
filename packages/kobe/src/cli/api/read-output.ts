@@ -1,37 +1,24 @@
 /**
- * `kobe api read-output` — structured, cursor-paged read of a task's
- * engine session output, so a coordinator agent can see what a task's
- * engine did WITHOUT scraping its terminal.
+ * `kobe api read-output` — cursor-paged read of a task's engine output, so a
+ * coordinator agent needn't scrape its terminal.
  *
- * Source selection (mirrors orca's structured worker-read, adapted to
- * kobe's simpler topology where a Task already binds worktree + engine
- * session):
+ *   auto      → engine transcript history, else a bounded terminal tail with
+ *               a typed `fallbackReason`.
+ *   history   → require history; typed error instead of falling back.
+ *   terminal  → bounded terminal tail (never probes history).
  *
- *   auto      → the engine adapter's own transcript history when it
- *               exists, else a bounded terminal tail labeled with a typed
- *               `fallbackReason`.
- *   history   → require structured history; typed error instead of
- *               falling back.
- *   terminal  → the bounded terminal tail (never probes history).
- *
- * Contract rules:
- *   - The envelope ALWAYS says which source was used.
- *   - Pages are bounded: message count, serialized byte budget, and
- *     per-string clipping. Pagination is deterministic.
- *   - The opaque cursor stays pinned to ONE source + session/incarnation;
- *     when that changed underneath, the read returns a typed
- *     SOURCE_CHANGED error instead of silently switching.
- *   - No absolute transcript paths in the envelope or the cursor
- *     (session ids are flat vendor tokens, terminal identity is a pid).
+ * Contract:
+ *   - The envelope ALWAYS names the source used.
+ *   - Pages are bounded (message count, byte budget, per-string clip) and
+ *     deterministic.
+ *   - The cursor pins ONE source + session/incarnation (+ tab); a change
+ *     underneath is SOURCE_CHANGED, never a silent switch.
+ *   - No absolute transcript paths in envelope or cursor.
  *   - Strictly read-only: never spawns, attaches, resizes, or mutates
- *     task/engine lifecycle (terminal reads go through `pty.peek`).
+ *     lifecycle (terminal reads use `pty.peek`).
  *
- * Tab precision: the default terminal read resolves the
- * task's CANONICAL engine tab; `--tab tab-N` reads exactly that hosted
- * session instead (the API's smallest unit is one tab, same as
- * `send --tab`). A tab read is terminal-only — history is
- * worktree-scoped and cannot resolve to a tab — and the cursor pins
- * the tab alongside the pid, so paged reads can't silently hop tabs.
+ * Default terminal read = the canonical engine tab; `--tab tab-N` reads that
+ * session and is terminal-only (history is worktree-scoped).
  */
 
 import type { PtyPeekResult, SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -59,9 +46,6 @@ import { resolveActiveTaskId } from "./runtime.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 
-// The paging/shaping half lives in `read-output-page.ts` — pure functions with
-// no daemon and no PTY host, so cursor and page-boundary behavior is testable
-// on plain arrays; this file keeps the reads that need a live daemon.
 // Re-exported so `@/cli/api/read-output` stays the one import site.
 export {
   boundedTail,
@@ -82,11 +66,8 @@ export type {
 export interface ReadOutputDeps {
   /** The engine adapter's transcript reader; null = engine ships none. */
   readonly history: EngineHistoryReader | null
-  /** Bounded ring peek of one hosted session; `tab` selects the exact tab
-   *  (`undefined` = the task's canonical engine tab). `null` = the host
-   *  answered and holds no such session; `"host-unreachable"` = it could not
-   *  be asked at all, which is a different fact and must not render as an
-   *  empty read. */
+  /** `tab` undefined = canonical engine tab. `null` = host answered, no such
+   *  session; `"host-unreachable"` = couldn't ask — must not render as empty. */
   peekTerminal(tab: string | undefined, sinceOffset?: number): Promise<TerminalPeekPage | null | "host-unreachable">
 }
 
@@ -108,8 +89,6 @@ function sourceChanged(detail: string): ApiError {
 export async function readTaskOutput(input: ReadOutputInput, deps: ReadOutputDeps): Promise<ReadOutputEnvelope> {
   const limit = Math.min(Math.max(input.limit ?? DEFAULT_PAGE_MESSAGES, 1), MAX_PAGE_MESSAGES)
 
-  // A tab read IS a terminal read: history is worktree-scoped, so there is
-  // no per-tab history to serve. --source history + --tab is a contradiction.
   if (input.tab && input.source === "history") {
     throw new ApiError("--tab reads one terminal tab; --source history is task/worktree-scoped", "BAD_FLAG")
   }
@@ -146,9 +125,7 @@ export async function readTaskOutput(input: ReadOutputInput, deps: ReadOutputDep
   return firstTerminalPage(input, deps, first)
 }
 
-/** The task's CURRENT engine conversation = the newest session recorded
- *  for its worktree (a kobe worktree is task-exclusive, so every session
- *  there belongs to this task — no directory-guessing across tasks). */
+/** Newest session for the worktree; worktrees are task-exclusive, so it's this task's. */
 async function currentSessionId(history: EngineHistoryReader, worktree: string): Promise<string | null> {
   const ids = await history.listSessionIdsForWorktree(worktree)
   return ids.length > 0 ? (ids[ids.length - 1] ?? null) : null
@@ -192,8 +169,7 @@ async function continueHistory(
   } catch {
     throw new ApiError("history became unreadable — retry, or restart without the cursor", "HISTORY_UNREADABLE")
   }
-  // The engine started a NEW session (resume/compaction/replacement): never
-  // silently merge or switch — the caller restarts without the cursor.
+  // New session (resume/compaction): never silently merge or switch.
   if (sid !== cursor.sid)
     throw sourceChanged(`the task's engine session changed (was ${cursor.sid}, now ${sid ?? "none"})`)
   // Transcripts are append-only; a shrink means the pinned session was rewritten.
@@ -219,8 +195,7 @@ function historyEnvelope(
       totalMessages: messages.length,
       limited,
     },
-    // Always return a cursor: the session may still be appending, so "no
-    // more messages right now" is a poll point, not an end.
+    // Always a cursor: the session may still append — a poll point, not an end.
     cursor: encodeCursor({ v: 1, task: taskId, src: "history", sid: sessionId, idx: nextIdx }),
     fallbackReason: null,
     warnings: [],
@@ -234,10 +209,8 @@ async function firstTerminalPage(
 ): Promise<ReadOutputEnvelope> {
   const t = await deps.peekTerminal(input.tab)
   if (!t || t === "host-unreachable") {
-    // An unreachable host is not an empty task. Saying "no live terminal
-    // session" there asserts something nobody checked, and `live: false`
-    // beside it reads as a verdict — so the host's own state wins the
-    // fallbackReason, and the warning says which question went unanswered.
+    // An unreachable host is not an empty task: its state wins the
+    // fallbackReason and the warning says nothing was checked.
     const unreachable = t === "host-unreachable"
     return {
       taskId: input.taskId,
@@ -295,16 +268,12 @@ async function continueTerminal(
 
 // ── Real deps + the verb ─────────────────────────────────────────────────────
 
-/** Read-only ring peek of one hosted session via `pty.peek`. Never spawns
- *  the host or a session; an old host without the verb (or any RPC hiccup)
- *  reads as "no terminal data".
+/** Read-only `pty.peek`; never spawns. A failed host connect/list/peek RPC is
+ *  "host-unreachable"; any other non-ApiError failure reads as null.
  *
- *  `tab` selects the exact session key `<taskId>::<tab>`; an explicit tab
- *  whose key the host doesn't know is a typed TAB_NOT_FOUND, not an empty
- *  read. Without it, the canonical engine tab: findEngineKey only matches
- *  ALIVE sessions; a dead engine's retained scrollback (how it died) is
- *  still worth reading, so fall back to the deterministic engine-tab key
- *  the TUI always mints first. */
+ *  An explicit unknown `tab` is TAB_NOT_FOUND, not empty. Without one:
+ *  findEngineKey matches only ALIVE sessions, so fall back to `tab-1` (the
+ *  engine tab the TUI mints first) to read a dead engine's scrollback. */
 async function peekTaskTerminal(
   taskId: string,
   engineBin: string | undefined,
@@ -318,16 +287,13 @@ async function peekTaskTerminal(
     if (tab) {
       key = `${taskId}::${tab}`
     } else {
-      // Tri-state: a host that cannot be asked must not render as a task with
-      // no sessions — see `listHostedSessionsOrNull`.
+      // Tri-state: an unaskable host is not "no sessions".
       const sessions = await listSessionsOrNull(host.rpc)
       if (sessions === null) return "host-unreachable"
       key = findEngineKey(sessions, taskId, engineBin) ?? sessions.find((s) => s.key === `${taskId}::tab-1`)?.key
     }
     if (!key) return null
-    // An explicit --tab skips the listing above, so this is the first request
-    // that can discover an unreachable host. A raw RPC failure here is that,
-    // not an empty tab.
+    // With --tab this is the first RPC; its failure means unreachable, not empty.
     let res: PtyPeekResult
     try {
       res = await host.rpc.request<PtyPeekResult>("pty.peek", { key, sinceOffset })
@@ -371,11 +337,8 @@ async function handleReadOutput(ctx: VerbContext): Promise<unknown> {
   }
   const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
   const vendor = task.vendor as VendorId | undefined
-  // The task's OWN launch binary, not its vendor's default. `findEngineKey`
-  // matches the session's spawn argv, and a task whose command is a wrapper
-  // (`claudecpa`, any custom preset) never carries the vendor's word — so
-  // deriving this from `vendor` alone made a bare `read-output` report "no
-  // live terminal session" while `--tab tab-2` returned a live tail.
+  // The task's OWN launch binary: `findEngineKey` matches spawn argv, and a
+  // wrapper command (`claudecpa`, custom presets) never carries the vendor's word.
   const engineBin = vendor || task.command ? taskEngineArgv(task)[0] : undefined
   const tab = ctx.args.str("tab")
   const deps: ReadOutputDeps = {

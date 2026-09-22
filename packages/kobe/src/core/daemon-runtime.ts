@@ -40,16 +40,10 @@ import {
 } from "./daemon-worktree-adapter.ts"
 
 /**
- * The observer's protocol hook, doing tier (b)'s two jobs in one pass: name
- * THIS task's record (returned to the daemon, which writes it via
- * `setCommand`) and — separately — learn the custom PRESET's protocol, so the
- * next task launched on that preset starts named instead of re-sniffing.
- *
- * Both rules live in `protocol-sniff.ts`; the preset write is here because it
- * is the only half that touches state.json, and it is a write rather than a
- * return value because the daemon's `resolveProtocolUpgrade` contract is
- * about one task's record. Idempotent — the key it writes is what makes the
- * next call refuse — so no dedupe is needed around it.
+ * Tier-(b) protocol sniff: returns THIS task's record upgrade (the daemon
+ * writes it via `setCommand`) and persists the custom PRESET's protocol so
+ * the next task on it starts named. Rules live in `protocol-sniff.ts`. The
+ * preset write is idempotent: the key it writes makes the next call refuse.
  */
 function resolveProtocolUpgradeAndLearnPreset(
   task: { readonly vendor?: string; readonly command?: string },
@@ -67,8 +61,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   isTaskStatus,
   isEngineActivityKind,
   affectsActivityState,
-  // The activity observer's foreground walk: ONE `ps`
-  // snapshot, then the same shallowest-engine walk `kobe api inspect` uses.
+  // ONE `ps` snapshot, then the same shallowest-engine walk `api inspect` uses.
   async foregroundEngines(pids) {
     const rows = parsePsSnapshot(await psSnapshot([...pids]))
     const out = new Map<number, { vendor: VendorId; pid: number } | null>()
@@ -78,19 +71,12 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
     }
     return out
   },
-  // Protocol-keyed, like every other "how do we talk to it" read in this
-  // object: a `claudecpa` task's OSC title is claude's, and `registry.ts`
-  // stays state-free so it cannot resolve the preset itself. Keying off the
-  // raw id finds the empty custom entry, whose `terminalTitle` is undefined
-  // — `titleTurnHint` then answers null forever and the interrupt observer
-  // never sees working→rest on a wrapped tab.
+  // Protocol-keyed: a `claudecpa` task's OSC title is claude's, and
+  // state-free `registry.ts` can't resolve presets. The raw id finds an empty
+  // custom entry, so working→rest would never be seen on a wrapped tab.
   titleTurnHint: (vendor, title) => engineTitleTurnHint(sessionProtocol(vendor), title),
-  // Tier-(b) protocol sniff: the record upgrade for a generic
-  // task identified by its live session, plus the preset write-back —
-  // rules live with the sniffer.
   resolveProtocolUpgrade: resolveProtocolUpgradeAndLearnPreset,
-  // Per-turn telemetry — delegated straight to the vendor's own
-  // adapter; an engine without a turn reader simply reports none.
+  // An engine without a turn reader reports none.
   readEngineTurns: async (vendor, transcriptPath) => (await protocolEntry(vendor).readTurns?.(transcriptPath)) ?? [],
   checkLatestVersion,
   latestTranscriptMtime,
@@ -104,19 +90,13 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
     })
     if (result.status !== 0) throw new Error("git status failed")
     const counts = parsePorcelain(result.stdout)
-    // The base drift BOTH ways, on the SAME guarded run as the status walk so
-    // it inherits its in-flight dedupe, timeout and backoff. One
-    // `--left-right --count` process yields behind and ahead together: two
-    // separate counts would cost a second fork per poll per worktree and
-    // could straddle a commit, reporting a pair that never coexisted. The
-    // base resolution ladder lives here rather than in the daemon:
-    // `resolveBaseRef` is kobe's, and kobe-daemon does not import kobe
-    // sources.
+    // Base drift on the SAME guarded run as the status walk (inherits its
+    // dedupe, timeout, backoff). One `--left-right --count` yields both
+    // sides: two counts could straddle a commit. The ladder lives here
+    // because kobe-daemon does not import kobe sources.
     const base = await resolveBaseRefCached(worktreePath, baseRef, signal)
     if (!base) return counts
-    // Memoised on the HEAD/base shas read from the ref files: the counts can
-    // only move when one of them does, and re-deriving them every tick was
-    // half the collector's spawns.
+    // Memoised on HEAD/base shas from ref files (was half the collector's spawns).
     const drift = await driftCached(worktreePath, base, async () => {
       const out = await spawnCapture("git", ["rev-list", "--left-right", "--count", `${base}...HEAD`], {
         cwd: worktreePath,
@@ -149,16 +129,8 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   ensureTaskSession: ensureTaskSessionAdapter,
   startTaskSessionWithPrompt: startTaskSessionWithPromptAdapter,
   tearDownTaskSession: tearDownTaskSessionAdapter,
-  // Delegated straight to the vendor's own history reader: what counts as
-  // "context" and what counts toward a token total are both vendor
-  // arithmetic, and the neutral layers only carry and render the result. The
-  // same read already produced the four token counts — dropping them here was
-  // paying for the parse and throwing away most of what it returned.
-  //
-  // `context_tokens` stays the gate: no context reading, no entry, so the
-  // footer meter's behaviour is unchanged. Each token count is carried only
-  // when the adapter reported it; a missing field stays missing rather than
-  // becoming a fabricated `0`.
+  // Vendor history does the token arithmetic; neutral layers only carry it.
+  // No `context_tokens` = no entry. A missing count stays missing, never `0`.
   async readEngineContextUsage(vendor, sessionId) {
     const read = protocolEntry(vendor).history.readUsageSnapshot
     if (!read) return null
