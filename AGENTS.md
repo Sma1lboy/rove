@@ -78,7 +78,7 @@ No Linear. Backlog/open issues live in the daemon-owned issue store (`rove api i
 - Workspace-level config (`/Users/jacksonc/i/CLAUDE.md`, global git config, etc.).
 
 ### Keybindings: every NEW or MOVED chord needs owner sign-off
-Adding/moving a chord is a taste + muscle-memory call the owner makes, not the agent. Follow `docs/KEYBINDINGS.md` for the mechanical rules (pane scope, modifier tiers), but the PLACEMENT decision — direct chord vs prefix-sequence, which letter, what it may shadow — requires context the agent doesn't have: which keys are high-frequency for the owner (e.g. `ctrl+w`/`ctrl+t` stay direct), which collide with claude/codex in-terminal shortcuts, which are fine behind the prefix (e.g. `ctrl+f`). So: implement behind a PROPOSED chord if needed, but always surface new/changed bindings for discussion before (or immediately after) landing — never silently ship a chord as settled. Record each resolution + its reasoning in `docs/design/keybinding-decisions.md` so the next agent has the context (`docs/KEYBINDINGS.md` stays the user-facing vocabulary — update the chord tables there when the defaults change).
+Placement is the owner's taste and muscle-memory call: which keys stay direct (`ctrl+w`/`ctrl+t`), which collide with claude/codex in-terminal shortcuts, which can sit behind the prefix (`ctrl+f`). Follow `docs/KEYBINDINGS.md` for the mechanics; ship a new chord only as PROPOSED and surface it. Record each decision and its reason in `docs/design/keybinding-decisions.md`; update the chord tables in `docs/KEYBINDINGS.md` when defaults change.
 
 ### Layout: flex-first, hardcode last
 opentui boxes are Yoga flexbox. Default to flex flow (`flexGrow`/`flexShrink`/`flexBasis`/`flexDirection`) — panes share width by ratio, not pixels. Hardcoded `width={N}`/`height={N}` is acceptable only for a documented convention (e.g. the 12-cell sidebar rail), a terminal-grammar fixed glyph (a 2-cell `+`/`-` diff column), or a modal overlay. Never use `width={N}` to mean "this big proportionally" — that's `flexGrow={N}`. Avoid `height="100%"` (use `flexGrow={1}`).
@@ -92,6 +92,10 @@ The engine adapter is the source of truth for agent/product identity, capabiliti
 
 ### Diagrams in `docs/`: use Mermaid
 ` ```mermaid ` fences (GitHub + VS Code render them); ASCII only for ≤3 nodes with no states. Example: [`docs/design/tasks.md`](./docs/design/tasks.md).
+
+### Tests: pin behavior, not implementation
+- Test a bug that happened, a boundary users hit, or a contract other code relies on — one test per behavior, at the highest level that can see it.
+- Don't test: a constant or table against a copy of itself, re-exports/getters, shapes `tsc` already checks, "the mock was called" with no observable outcome, the same behavior twice at two levels. Such a test is a delete candidate.
 
 ### Comments and PR text: short
 - A comment says what the code can't: an invariant, an ordering constraint, a non-obvious why, measured outside behavior. One line by default; a block only for a real constraint.
