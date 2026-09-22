@@ -237,7 +237,10 @@ variable the current mode reads):
 The stored key is the only way a running TUI can have one: it is a long-lived
 process, so an `export` typed after it started never reaches it. Settings
 shows the last four characters of a stored key and never the key; submitting
-the field empty clears it, and clearing the last key removes the file. Rename
+the field empty clears it, and clearing the last key removes the file. A
+`secrets.json` that no longer parses is renamed to
+`secrets.json.corrupt-<timestamp>` on the next save rather than overwritten,
+so the keys still inside it can be recovered by hand. Rename
 the variable with `autoRouting.classifierKeyEnv` and both places follow the
 new name.
 

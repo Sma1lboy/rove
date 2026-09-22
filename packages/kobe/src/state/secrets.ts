@@ -43,28 +43,41 @@ import { acquireSync, releaseSync } from "../orchestrator/index/lockfile.ts"
 /** How much of a key the hint shows. Enough to recognise, not to use. */
 const HINT_TAIL = 4
 
-function parse(raw: string): Record<string, string> {
+/**
+ * The file as stored: every entry, whatever its type, or `"corrupt"` when it
+ * does not parse as a JSON object. Absent reads as empty.
+ */
+function readStored(path: string): Record<string, unknown> | "corrupt" {
+  let raw: string
   try {
-    const parsed: unknown = JSON.parse(raw)
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {}
-    const out: Record<string, string> = {}
-    for (const [k, v] of Object.entries(parsed)) if (typeof v === "string") out[k] = v
-    return out
-  } catch {
-    // Corrupt: treat as empty rather than throwing on a path that runs while
-    // someone is creating a task. A bad file is replaced by the next write,
-    // and the worst case is one classification that does not happen.
-    return {}
-  }
-}
-
-function readAll(): Record<string, string> {
-  try {
-    return parse(readFileSync(secretsPath(), "utf8"))
+    raw = readFileSync(path, "utf8")
   } catch {
     // Absent is the normal state — nobody has stored a secret yet.
     return {}
   }
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>
+    }
+  } catch {
+    // fall through
+  }
+  return "corrupt"
+}
+
+/**
+ * Readers see the string entries of a readable file and nothing otherwise.
+ * Corrupt reads as empty rather than throwing on a path that runs while
+ * someone is creating a task — the worst case is one classification that
+ * does not happen.
+ */
+function readAll(): Record<string, string> {
+  const stored = readStored(secretsPath())
+  if (stored === "corrupt") return {}
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(stored)) if (typeof v === "string") out[k] = v
+  return out
 }
 
 /** Staging file for one write. Unique per CALL, so two writers in the same
@@ -125,14 +138,23 @@ function sweepStagingFiles(path: string): void {
  * whole problem, and a lock states that where a retry loop would only imply
  * it.
  */
-function transact(mutate: (secrets: Record<string, string>) => void): void {
+function transact(mutate: (secrets: Record<string, unknown>) => void): void {
   const path = secretsPath()
   mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
   const lockPath = `${path}.lock`
   const token = acquireSync(lockPath)
   try {
     sweepStagingFiles(path)
-    const secrets = readAll()
+    let secrets = readStored(path)
+    if (secrets === "corrupt") {
+      // Set aside, never overwritten: an unparseable file is most likely a
+      // hand edit that lost a comma, and it still holds every key the user
+      // put there. Writing over it — or unlinking it because the parse came
+      // back empty — would destroy all of them to store one. The backup keeps
+      // the original's 0600, since rename carries the mode with it.
+      renameSync(path, `${path}.corrupt-${Date.now()}`)
+      secrets = {}
+    }
     mutate(secrets)
     if (Object.keys(secrets).length === 0) {
       // Nothing left to hold: take the file away rather than leaving an empty

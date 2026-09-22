@@ -71,6 +71,15 @@ function legacyRename(key: string): string | undefined {
   return undefined
 }
 
+function isStateObject(text: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(text)
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+  } catch {
+    return false
+  }
+}
+
 /**
  * Move every renamed key to its new name, once. Idempotent: a second call
  * finds no legacy key and writes nothing.
@@ -92,6 +101,12 @@ export function migrateRenamedStateKeys(): StateKeyMigrationResult {
   // unrelated VALUE costs one lock and no write, because the transaction below
   // walks real keys and skips the write when it moved nothing.
   if (!RENAMED_KEY_PREFIXES.some(({ from }) => text.includes(`"${from}`))) return NOTHING
+  // A hit is not yet a licence to lock: `updateStateFile` reads through the
+  // same corrupt-file policy as `loadStateFile`, so an unparseable file that
+  // merely contains the prefix — a hand edit of exactly these keys with a
+  // stray comma — would be quarantined here. Parse first; a file this cannot
+  // read is one it has nothing to rename in.
+  if (!isStateObject(text)) return NOTHING
 
   let moved = 0
   let superseded = 0

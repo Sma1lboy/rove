@@ -88,6 +88,36 @@ describe("writeSecret / readSecret", () => {
     expect(readDisk()).toEqual({ A: "one" })
   })
 
+  it("sets a corrupt file ASIDE before writing, so the keys still in it survive", () => {
+    // A hand edit that lost a comma still holds every key someone put there.
+    // Storing one more must not cost them the rest.
+    fs.mkdirSync(path.dirname(secretsPath()), { recursive: true })
+    const broken = '{"B": "two", "C": "three",}'
+    fs.writeFileSync(secretsPath(), broken, "utf8")
+    writeSecret("A", "one")
+    expect(readDisk()).toEqual({ A: "one" })
+    const backups = siblings().filter((f) => f.startsWith("secrets.json.corrupt-"))
+    expect(backups).toHaveLength(1)
+    expect(fs.readFileSync(path.join(path.dirname(secretsPath()), backups[0] ?? ""), "utf8")).toBe(broken)
+  })
+
+  it("clearing a key in a corrupt file backs it up instead of deleting it", () => {
+    fs.mkdirSync(path.dirname(secretsPath()), { recursive: true })
+    fs.writeFileSync(secretsPath(), "{not json", "utf8")
+    writeSecret("A", "")
+    expect(fs.existsSync(secretsPath())).toBe(false)
+    expect(siblings().filter((f) => f.startsWith("secrets.json.corrupt-"))).toHaveLength(1)
+  })
+
+  it("carries entries it does not read through a write untouched", () => {
+    // Readers only see strings; the writer must not narrow the FILE to what
+    // readers see, or a hand-added entry of another type vanishes on save.
+    fs.mkdirSync(path.dirname(secretsPath()), { recursive: true })
+    fs.writeFileSync(secretsPath(), JSON.stringify({ note: { from: "me" } }), "utf8")
+    writeSecret("A", "one")
+    expect(JSON.parse(fs.readFileSync(secretsPath(), "utf8"))).toEqual({ note: { from: "me" }, A: "one" })
+  })
+
   it("does not lose a key written by another process between our read and our write", () => {
     // The lost update this takes the index lockfile for. Simulated at the one
     // point a second writer could interleave: the transaction re-reads under

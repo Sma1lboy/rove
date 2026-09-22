@@ -17,6 +17,8 @@
  * `~/.rove/secrets.json` changes what these assert.
  */
 
+import http from "node:http"
+import type { AddressInfo } from "node:net"
 import { describe, expect, it } from "vitest"
 import {
   type ClassifierConfig,
@@ -309,6 +311,36 @@ describe("classifyTier — the request", () => {
       readSecret: secrets(),
     })
     expect(headersOf(calls[0]).authorization).toBe("Bearer mine")
+  })
+
+  it("refuses to follow a redirect — the prompt never reaches the Location host", async () => {
+    // Real sockets, real fetch: the gate on `http://` judges the configured
+    // address, and a 307 would otherwise re-send the body somewhere unchecked.
+    let reachedTarget = false
+    const target = http.createServer((_req, res) => {
+      reachedTarget = true
+      res.end(JSON.stringify({ tier: "swift", confidence: 0.9 }))
+    })
+    await new Promise<void>((resolve) => target.listen(0, "127.0.0.1", resolve))
+    const targetPort = (target.address() as AddressInfo).port
+    const redirector = http.createServer((_req, res) => {
+      res.writeHead(307, { location: `http://127.0.0.1:${targetPort}/elsewhere` })
+      res.end()
+    })
+    await new Promise<void>((resolve) => redirector.listen(0, "127.0.0.1", resolve))
+    const redirectorPort = (redirector.address() as AddressInfo).port
+    try {
+      const out = await classifyTier(
+        "x",
+        config({ mode: { kind: "url", url: `http://127.0.0.1:${redirectorPort}/pick` }, keyEnv: undefined }),
+        { env, readSecret: secrets() },
+      )
+      expect(out).toMatchObject({ kind: "declined", reason: "failed" })
+      expect(reachedTarget).toBe(false)
+    } finally {
+      redirector.close()
+      target.close()
+    }
   })
 
   it("posts a custom endpoint the one-line contract, and reads its two fields back", async () => {

@@ -247,6 +247,11 @@ export async function classifyTier(
       },
       body: JSON.stringify(request.body),
       signal: controller.signal,
+      // The scheme gate above judged the CONFIGURED address only. Following a
+      // 307/308 re-sends the prompt to wherever `Location` points — a plain
+      // `http://` host included — so a redirect is a failed request, not a
+      // second destination nobody checked.
+      redirect: "error",
     })
     if (!res.ok) return declined("failed", describeHttpFailure(res))
     const payload: unknown = await res.json()

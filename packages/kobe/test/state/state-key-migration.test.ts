@@ -102,6 +102,18 @@ describe("migrateRenamedStateKeys", () => {
     expect(fs.readdirSync(path.dirname(statePath()))).toEqual(["state.json"])
   })
 
+  it("leaves an unparseable file alone even when it mentions the old prefix", () => {
+    // The substring peek hits, but the transaction reads through the store's
+    // corrupt-file policy — reaching it would quarantine a hand edit of
+    // exactly these keys that lost a comma.
+    fs.mkdirSync(path.dirname(statePath()), { recursive: true })
+    const broken = '{"autoEffort.deep.engine": "codex",}'
+    fs.writeFileSync(statePath(), broken, "utf8")
+    expect(migrateRenamedStateKeys()).toEqual({ moved: 0, superseded: 0 })
+    expect(fs.readFileSync(statePath(), "utf8")).toBe(broken)
+    expect(fs.readdirSync(path.dirname(statePath()))).toEqual(["state.json"])
+  })
+
   it("takes no action on a value that merely mentions the old prefix", () => {
     // The pre-check is a substring test, so this reaches the transaction —
     // which walks real keys, finds none to move, and must not rewrite the file.
