@@ -15,6 +15,7 @@
  */
 
 import { readClassifierConfig } from "../../../engine/auto-effort-classifier"
+import { readSecret, secretHint, secretSource, writeSecret } from "../../../state/secrets"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"
@@ -33,16 +34,22 @@ export interface ClassifierSettings {
   /** The custom endpoint — the live one in custom mode, else the remembered one. */
   readonly endpoint: string
   readonly threshold: number
-  /** Name of the env var the bearer token comes from. */
+  /** Name of the bearer token — an env var, and the entry under it in the secrets file. */
   readonly keyEnv: string
   /**
-   * Whether that variable is set in THIS process. The commonest way for the
-   * classifier to do nothing at all is a missing key, and a setting that is
+   * Whether a key is available at all, from either place. The commonest way
+   * for the classifier to do nothing is a missing key, and a setting that is
    * on while the key is absent looks identical to one that is working — so
    * the section says which it is rather than leaving the user to guess from
    * tiers that never pre-fill.
    */
   readonly keyPresent: boolean
+  /** Where the key came from — the environment outranks the stored one. */
+  readonly keySource: "env" | "file" | "none"
+  /** The last few characters of a STORED key. Never the key. */
+  readonly keyHint: string
+  /** Paste, replace, or clear the stored key. */
+  readonly editKey: () => Promise<void>
   /** off → jev → custom → off. Custom is skipped when nothing is remembered. */
   readonly cycle: () => void
   readonly editEndpoint: () => Promise<void>
@@ -139,14 +146,40 @@ export function useClassifierSettings(
     kv.set(THRESHOLD_KEY, n)
   }
 
+  /**
+   * The key goes to `~/.rove/secrets.json`, never to `state.json` — that
+   * file is opened by `rove config` and pasted whole into bug reports.
+   *
+   * The field opens EMPTY rather than pre-filled with the stored key: there
+   * is no edit anyone wants to make to the middle of an API key, and a key
+   * on screen is a key in a screen share. Submitting it empty clears the
+   * stored one, which is the only other thing you would come here to do.
+   */
+  async function editKey(): Promise<void> {
+    const next = await RenameTaskDialog.show(dialog, "", {
+      dialogTitle: t("settings.autoEffort.keyTitle", { env: config.keyEnv }),
+      fieldLabel: config.keyEnv,
+      submitLabel: t("settings.action.save"),
+      placeholder: t("settings.autoEffort.keyPlaceholder"),
+      allowEmpty: true,
+    })
+    if (next === undefined) return
+    writeSecret(config.keyEnv, next.trim())
+  }
+
+  const source = secretSource(config.keyEnv, env)
+  const stored = readSecret(config.keyEnv)
   return {
     mode,
     endpoint,
     threshold: config.threshold,
     keyEnv: config.keyEnv,
-    keyPresent: Boolean(env[config.keyEnv]?.trim()),
+    keyPresent: source !== "none",
+    keySource: source,
+    keyHint: stored ? secretHint(stored) : "",
     cycle,
     editEndpoint,
     editThreshold,
+    editKey,
   }
 }

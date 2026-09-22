@@ -168,7 +168,7 @@ describe("sectionRows / bodyRowCount", () => {
     const inp = input({ engineList: [...ALL_VENDORS, "aider", "goose"], hasDaemon: true })
     expect(bodyRowCount("general", inp)).toBe(LANG + 6 + 12) // language + appearance summaries + remaining preferences
     expect(bodyRowCount("engines", inp)).toBe(ALL_VENDORS.length + 2 + 3) // built-ins + 2 custom + add + install + remove
-    expect(bodyRowCount("autoEffort", inp)).toBe(3 + 3) // swift / standard / deep, then classifier / endpoint / floor
+    expect(bodyRowCount("autoEffort", inp)).toBe(3 + 4) // three tiers, then classifier / endpoint / floor / key
     expect(bodyRowCount("keys", inp)).toBe(2)
     expect(bodyRowCount("marketplace", inp)).toBe(2)
     expect(bodyRowCount("marketplace", { ...inp, marketplace: [] })).toBe(0)

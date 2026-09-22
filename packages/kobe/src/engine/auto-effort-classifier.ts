@@ -30,6 +30,7 @@
  */
 
 import { getPersistedString } from "@/state/repos"
+import { resolveSecret } from "@/state/secrets"
 import { DEFAULT_TIER_RUBRIC, type TierRubric, rubricCriteria } from "./auto-effort-rubric.ts"
 import { AUTO_EFFORT_TIERS, type AutoEffortTier, isAutoEffortTier } from "./auto-effort.ts"
 
@@ -64,8 +65,11 @@ export interface ClassifierConfig {
   readonly timeoutMs: number
   /** Model id for `jev` — pin a version here to stop a silent upgrade. */
   readonly model: string
-  /** Env var the bearer token is read from. Never state.json: a key in
-   *  `state.json` is a key in a file that gets pasted into bug reports. */
+  /**
+   * Name of the bearer token — an environment variable first, then the entry
+   * under that name in `~/.rove/secrets.json`. Never `state.json`: that file
+   * is opened by `rove config` and pasted whole into bug reports.
+   */
   readonly keyEnv: string
 }
 
@@ -116,7 +120,7 @@ export interface TierVerdict {
 export type DeclineReason =
   | "off"
   | "blank"
-  /** The classifier is on but the bearer token's env var is unset. */
+  /** The classifier is on but no bearer token is set, in either place. */
   | "no-key"
   | "low-confidence"
   /** Network, timeout, non-2xx, or an answer that failed validation. */
@@ -130,6 +134,8 @@ export interface ClassifyDeps {
   readonly fetch?: typeof globalThis.fetch
   readonly env?: NodeJS.ProcessEnv
   readonly rubric?: TierRubric
+  /** Secret lookup, injected so a test never reads the real secrets file. */
+  readonly readSecret?: (name: string, env: NodeJS.ProcessEnv) => string | undefined
 }
 
 const declined = (reason: DeclineReason, detail?: string): ClassifyOutcome => ({
@@ -152,10 +158,13 @@ export async function classifyTier(
   const prompt = text.trim().slice(0, PROMPT_LIMIT)
   if (!prompt) return declined("blank")
 
+  // The environment first, then `~/.rove/secrets.json` — a long-lived TUI
+  // cannot be handed an env var after it started, and the stored key is the
+  // only way that process ever gets one. `resolveSecret` owns the order.
   const env = deps.env ?? process.env
-  const key = env[config.keyEnv]?.trim()
+  const key = (deps.readSecret ?? resolveSecret)(config.keyEnv, env)
   if (config.mode.kind === "jev" && !key) {
-    return declined("no-key", `${config.keyEnv} is not set`)
+    return declined("no-key", `no ${config.keyEnv} in the environment or ~/.rove/secrets.json`)
   }
 
   const doFetch = deps.fetch ?? globalThis.fetch

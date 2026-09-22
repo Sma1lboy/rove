@@ -12,6 +12,7 @@ configured using Git-style forward slashes without creating a second entry.
 | Path | What | Written by |
 |---|---|---|
 | `~/.config/rove/state.json` | All your preferences, as flat JSON | Rove (Settings, CLI); yours to hand-edit |
+| `~/.rove/secrets.json` | Credentials Rove holds for you (today: the tier classifier's API key) | Settings; owner-only (0600). **Not** part of `state.json`, and never printed |
 | `~/.rove/themes/*.json` | Installed themes | `rove theme add`, or drop files in |
 | `~/.rove/settings/keybindings.yaml` | Keybinding overrides | You only |
 | `<repo>/.rove/init.sh` + `init-prompt.md` | Per-repo worktree setup | You (committed to the repo) |
@@ -179,8 +180,8 @@ Launch commands are parsed shell-ish, so quotes group arguments. Clear both
 #### The tier classifier
 
 Settings → Auto effort carries these as rows — **Classifier** (`off` / `jev` /
-`custom`), **Endpoint**, **Confidence floor** — with the data-flow sentence
-above them and a line saying whether the key's variable is actually set,
+`custom`), **Endpoint**, **Confidence floor**, **API key** — with the
+data-flow sentence above them and a line saying where the key is coming from,
 which is the usual reason a switched-on classifier appears to do nothing.
 Everything below is the same settings by hand.
 
@@ -210,6 +211,24 @@ and a goal that still has to be found is `deep`.
 export TYPESAFE_API_KEY=...   # keys: https://console.typesafe.ai/keys
 rove api add --repo ~/code/app --tier auto --prompt "there's a memory leak somewhere"
 ```
+
+##### Where the key lives
+
+Two places, in this order:
+
+1. **`$TYPESAFE_API_KEY` in the environment** — wins whenever it is set, so a
+   one-off `TYPESAFE_API_KEY=… rove …` and a CI secret behave the way you
+   would expect. An empty value counts as unset, not as "deliberately blank".
+2. **`~/.rove/secrets.json`** — what Settings → Auto effort → API key writes.
+   Owner-only (0600), holds nothing but secrets, and is deliberately NOT
+   `state.json`: that file is opened by `rove config`, hand-edited, and pasted
+   whole into bug reports, which is no place for a live key.
+
+The stored key is the only way the TUI can get one: it is a long-lived
+process, so an `export` typed after it started never reaches it. Settings
+shows the last four characters of a stored key and never the key; submitting
+the field empty clears it. Rename the variable with
+`autoEffort.classifierKeyEnv` and both places follow the new name.
 
 Set it to your own `https://` endpoint instead and Rove POSTs
 `{"text": "…"}` and expects `{"tier": "swift|standard|deep", "confidence":

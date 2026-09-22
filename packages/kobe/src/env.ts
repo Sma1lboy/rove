@@ -100,6 +100,21 @@ export function roveSettingsDir(): string {
 }
 
 /**
+ * Credentials Rove holds on the user's behalf — `~/.rove/secrets.json`.
+ *
+ * Deliberately NOT `state.json`. That file is opened by `rove config`,
+ * hand-edited, and pasted whole into bug reports; a live API key has no
+ * business travelling with it. This one is written 0600, is never printed by
+ * any surface that dumps configuration, and holds nothing but secrets — so
+ * "don't share this file" is a rule with no exceptions to remember.
+ *
+ * Owner: `src/state/secrets.ts`. Not created eagerly.
+ */
+export function secretsPath(): string {
+  return join(roveStateDir(), "secrets.json")
+}
+
+/**
  * User keybinding overrides — `~/.rove/settings/keybindings.yaml`.
  * Loaded once per process at TUI boot (see
  * `src/tui/context/keybindings-user.ts`) and applied onto `KobeKeymap`.

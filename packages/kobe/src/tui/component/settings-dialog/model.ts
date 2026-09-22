@@ -70,6 +70,7 @@ export type SettingsRow =
   | { id: "auto-effort-classifier"; kind: "autoEffortClassifier" }
   | { id: "auto-effort-endpoint"; kind: "autoEffortClassifierEndpoint" }
   | { id: "auto-effort-threshold"; kind: "autoEffortClassifierThreshold" }
+  | { id: "auto-effort-key"; kind: "autoEffortClassifierKey" }
   | { id: "keys-create"; kind: "keysCreate" }
   | { id: string; kind: "pluginToggle"; pluginId: string }
   | { id: string; kind: "pluginSetting"; pluginId: string; key: string }
@@ -212,6 +213,7 @@ export function autoEffortRows(): SettingsRow[] {
     { id: "auto-effort-classifier", kind: "autoEffortClassifier" },
     { id: "auto-effort-endpoint", kind: "autoEffortClassifierEndpoint" },
     { id: "auto-effort-threshold", kind: "autoEffortClassifierThreshold" },
+    { id: "auto-effort-key", kind: "autoEffortClassifierKey" },
   ]
 }
 

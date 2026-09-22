@@ -245,6 +245,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     autoEffortClassifier: () => classifier.cycle(),
     autoEffortClassifierEndpoint: () => void classifier.editEndpoint(),
     autoEffortClassifierThreshold: () => void classifier.editThreshold(),
+    autoEffortClassifierKey: () => void classifier.editKey(),
     keysCreate: () => createKeysFile(),
     pluginToggle: (row) => plugins.toggle(row.pluginId),
     pluginSetting: (row) => void plugins.editSetting(row.pluginId, row.key),

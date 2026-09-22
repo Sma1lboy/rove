@@ -148,6 +148,18 @@ function ClassifierRows(
   const mode = open("auto-effort-classifier", () => c.cycle())
   const endpoint = open("auto-effort-endpoint", () => void c.editEndpoint())
   const threshold = open("auto-effort-threshold", () => void c.editThreshold())
+  const key = open("auto-effort-key", () => void c.editKey())
+
+  // What the key row says about itself. The env case names the variable
+  // because the environment OUTRANKS a stored key — someone who pastes one
+  // here while a shell export is live would otherwise watch it have no
+  // effect and have nothing to blame.
+  const keyValue =
+    c.keySource === "env"
+      ? t("settings.autoEffort.keyFromEnv", { env: c.keyEnv })
+      : c.keySource === "file"
+        ? t("settings.autoEffort.keyStored", { hint: c.keyHint })
+        : t("settings.autoEffort.keyNone")
 
   return (
     <SubSection title={t("settings.autoEffort.classifierTitle")} hint={t("settings.autoEffort.classifierHint")}>
@@ -182,12 +194,17 @@ function ClassifierRows(
       >
         {`${t("settings.autoEffort.thresholdLabel").padEnd(20)}${c.threshold.toFixed(2)}`}
       </Row>
+      <Row cursor={isBodyCursor(key.i)} rowRef={props.rowRef(key.i)} onMouseUp={key.onMouseUp} fg={theme.text}>
+        {`${t("settings.autoEffort.keyLabel").padEnd(20)}${keyValue}`}
+      </Row>
       {on ? (
         <box paddingTop={1}>
           <text fg={c.keyPresent ? theme.success : theme.warning} wrapMode="word">
-            {c.keyPresent
-              ? t("settings.autoEffort.keyPresent", { env: c.keyEnv })
-              : t("settings.autoEffort.keyMissing", { env: c.keyEnv })}
+            {c.keySource === "env"
+              ? t("settings.autoEffort.keyPresentEnv", { env: c.keyEnv })
+              : c.keySource === "file"
+                ? t("settings.autoEffort.keySaved")
+                : t("settings.autoEffort.keyMissing")}
           </text>
         </box>
       ) : null}

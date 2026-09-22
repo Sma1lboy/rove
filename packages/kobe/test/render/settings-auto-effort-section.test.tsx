@@ -25,9 +25,12 @@ const OFF: ClassifierSettings = {
   threshold: 0.5,
   keyEnv: "TYPESAFE_API_KEY",
   keyPresent: false,
+  keySource: "none",
+  keyHint: "",
   cycle: () => {},
   editEndpoint: async () => {},
   editThreshold: async () => {},
+  editKey: async () => {},
 }
 
 function mount(autoEffort: AutoEffortSettings, classifier: ClassifierSettings = OFF) {
@@ -90,15 +93,31 @@ describe("AutoEffortSettingsSection — the classifier", () => {
     expect(text).not.toContain("TYPESAFE_API_KEY is not set")
   })
 
-  test("on without the env var says so, because that looks exactly like working", async () => {
+  test("on with no key anywhere says so, because that looks exactly like working", async () => {
     const text = flat(await (await mount(ready, { ...OFF, mode: "jev" })).frame())
-    expect(text).toContain("TYPESAFE_API_KEY is not set")
+    expect(text).toContain("no key — the classifier stays silent")
     expect(text).toContain("tasks keep their usual depth")
+    expect(text).toContain("API key not set — enter to paste one")
   })
 
-  test("on with the env var set reports where the key came from", async () => {
-    const text = flat(await (await mount(ready, { ...OFF, mode: "jev", keyPresent: true })).frame())
-    expect(text).toContain("key read from TYPESAFE_API_KEY")
+  test("a stored key shows a tail you can recognise, never the key", async () => {
+    const text = flat(
+      await (
+        await mount(ready, { ...OFF, mode: "jev", keyPresent: true, keySource: "file", keyHint: "…4938" })
+      ).frame(),
+    )
+    expect(text).toContain("stored …4938")
+    expect(text).toContain("~/.rove/secrets.json")
+    // The row is a place to replace or clear it, not to read it back.
+    expect(text).not.toContain("apikey_")
+  })
+
+  test("an env var outranks a stored key, and the row names the variable", async () => {
+    // Someone who pastes a key here while a shell export is live would
+    // otherwise watch it do nothing and have nothing to blame.
+    const text = flat(await (await mount(ready, { ...OFF, mode: "jev", keyPresent: true, keySource: "env" })).frame())
+    expect(text).toContain("the environment wins over a stored key")
+    expect(text).toContain("key read from $TYPESAFE_API_KEY")
   })
 
   test("custom mode shows its endpoint and the floor, both editable", async () => {
