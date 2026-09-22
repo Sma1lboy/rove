@@ -1,7 +1,4 @@
-/** Snapshot refresh engine for {@link XtermTaskPty}.
- *
- * Owns the scrollback cache, anchor marker, and snapshot metadata so the
- * main PTY class can stay focused on transport/lifecycle. */
+/** Snapshot refresh for {@link XtermTaskPty}: scrollback cache, anchor marker, snapshot metadata. */
 
 import type { TerminalStyleRewrite } from "@/types/terminal-presentation"
 import type { IMarker, Terminal as XtermHeadless } from "@xterm/headless"
@@ -39,9 +36,7 @@ function sameFlags(previous: RowWrapFlags, next: readonly boolean[]): boolean {
 export class XtermSnapshotEngine {
   /** Frozen-scrollback conversion cache: absolute line id → converted row. */
   private readonly scrollbackCache = new Map<number, TerminalRow>()
-  /** Same keys as {@link scrollbackCache}: the frozen row's `isWrapped` flag.
-   *  Cached beside the row so the frozen fast path never has to allocate a
-   *  `getLine` wrapper for scrollback it already converted. */
+  /** Frozen rows' `isWrapped`, so the fast path never allocates a `getLine` wrapper. */
   private readonly wrappedCache = new Map<number, boolean>()
   /** Last published flags — returned by reference when nothing changed, so a
    *  consumer memoizing on them does not re-scan the ring every frame. */
@@ -165,9 +160,7 @@ export class XtermSnapshotEngine {
           : line
             ? xtermLineToChunks(line, minLast, styleRewrites)
             : []
-      // The first row of the window can be a continuation of a row the ring
-      // already dropped; there is nothing left to join it to, so it starts a
-      // logical line like any other orphan.
+      // The window's first row may continue a dropped row; treat it as a line start.
       const wraps = y > start && line?.isWrapped === true
       const stableRow = frozen ? reconcileTerminalRow(previousSnapshot[rowsOut.length], row) : row
       rowsOut.push(stableRow)

@@ -1,13 +1,9 @@
 /**
- * Plugin-pane placement (`tab.open` consumption): the DEFAULT is a split of
- * the currently-focused chattab — the pane joins the tab's split group
- * beside the engine: `placement = "split"`.
- * `"tab"` opens a separate self-closing command tab
- * instead. An explicit `tabId` (`pane-open --tab`) hosts the split in THAT
- * tab instead of the focused one. Falls back to a tab when the host tab
- * can't host a split (content tab, or the size gate — min-pane cells from
- * the active leaf's rendered size, depth cap when no size is known — made
- * it a no-op).
+ * Plugin-pane placement (`tab.open`): default `"split"` beside the engine in
+ * the focused chattab (or `tabId`, from `pane-open --tab`); `"tab"` opens a
+ * self-closing command tab. Falls back to a tab when the host can't split: a
+ * content tab, or split-core's size gate (min-pane cells from the active
+ * leaf's size, depth cap when unknown) made it a no-op.
  */
 
 import { initialSplit, leaves, removeLeaf, renameLeaf, splitActive } from "./split-core"
@@ -41,18 +37,15 @@ export function openPluginPane(
 }
 
 /**
- * `tab.close` consumption — the inverse of {@link openPluginPane}: remove
- * every split leaf whose label matches `title` (never the engine leaf) and
- * name every command tab with that title for closing. Pure on the split
- * trees; the CALLER releases the returned leaves' PTYs and closes the
- * returned tabs through its own close path (exit behavior, releases). A tab
- * whose LAST leaf matches closes as a whole tab instead of leaf-pruning.
+ * `tab.close`: prune split leaves labelled `title` (never the engine leaf) and
+ * list command tabs with that title. Pure; the CALLER releases returned leaves'
+ * PTYs and closes returned tabs via its own close path. A tab whose LAST leaf
+ * matches closes whole.
  */
 export function closePluginPanes(
   state: TabsState,
   title: string,
-  /** Scope the title match to one tab (`pane-close --tab`); absent = all
-   *  tabs of the task. */
+  /** Scope to one tab (`pane-close --tab`); absent = all of the task's tabs. */
   tabId?: string,
 ): { next: TabsState; closedLeaves: readonly { tabId: string; leafId: string }[]; closedTabIds: readonly string[] } {
   let next = state

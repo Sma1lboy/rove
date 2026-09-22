@@ -1,20 +1,10 @@
 /**
- * "Which engine is live in this tab right now" — the framework-free store
- * that owns kobe's process-identity signal.
+ * Which engine is live in each tab, from the process tree: one `ps` snapshot
+ * per tick, walked from each tab's shell pid (`engine/foreground.ts`). Not the
+ * OSC title — free text; a claude summary mentioning "codex" would relabel it.
  *
- * NOT the OSC window title: that is free-form text an engine writes for
- * humans, so matching it by substring would relabel a claude session whose
- * activity summary happens to mention "codex" and attach a Codex turn
- * detector. Identity comes from the process tree instead — one `ps`
- * snapshot per tick serves every live PTY, and each tab's shell pid roots a
- * walk (`engine/foreground.ts`). A tab is "running claude" exactly while a
- * claude process is alive under its shell, and stops being so the moment
- * that process exits.
- *
- * Self-driving on purpose: it enumerates the PTY registry itself rather
- * than taking a caller-supplied key set, so the two consumers (turn-poll
- * attach, tab-strip titles) share ONE probe instead of racing each other's
- * reconcile.
+ * Enumerates the PTY registry itself so both consumers (turn-poll attach,
+ * tab-strip titles) share ONE probe instead of racing reconciles.
  */
 
 import { type PsSnapshot, foregroundEngineIn, parsePsSnapshot, psSnapshot } from "../../engine/foreground"
@@ -29,23 +19,17 @@ export interface LiveEngineStore {
   /** Live vendor for a ptyKey, or null when it runs no engine. */
   get(key: string): VendorId | null
   /**
-   * Tri-state identity: a vendor = that engine runs under the key's shell
-   * right now; null = an engine RAN here and is gone (the shell sits at its
-   * prompt — a ctrl+C'd tab); undefined = the probe can't answer (PTY not
-   * attached/spawned yet), so callers fall back to recorded identity.
-   * The null/undefined split is what lets an engine tab's creation pin
-   * cover the spawn window without also resurrecting a dead engine's name.
+   * Vendor = that engine runs under the shell now; null = the last probe
+   * walked the shell and found no engine (e.g. ctrl+C'd to the prompt);
+   * undefined = couldn't look (no PTY/pid yet, ps failed) → callers use the
+   * recorded identity. The split lets a creation pin cover the spawn window
+   * without resurrecting a dead engine's name.
    */
   resolve(key: string): VendorId | null | undefined
   /**
-   * Auxiliary ptyKey → shell pid pairs to probe ALONGSIDE the local PTY
-   * registry: the registry only knows PTYs this process
-   * attached, but the sidebar tree renders every task's hosted tabs — the
-   * pty host's `pty.list` inventory carries their pids, and feeding them
-   * here lights a shell-turned-agent row for tasks never opened in this
-   * TUI. Hosted sessions only, by construction — the map's source is the
-   * host's own inventory, so a foreign terminal can never be probed.
-   * A key present in both sources uses the registry's pid.
+   * Extra ptyKey → shell pid pairs from the pty host's `pty.list`, for hosted
+   * tabs this process never attached. Sourced from the host inventory, so a
+   * foreign terminal can't be probed. The registry's pid wins on overlap.
    */
   setAuxPids(pids: ReadonlyMap<string, number>): void
   /** Subscribe to identity changes (fires when any key's vendor moved). */
@@ -61,12 +45,9 @@ export type LiveEngineOpts = {
   /** Engines start and stop on human timescales — one `ps` every 2s. */
   intervalMs?: number
   /**
-   * Debounce for the OFF edge: a lit identity goes dark only
-   * after this many CONSECUTIVE engine-free walks. Engines briefly show an
-   * empty tree mid-restart (claude relaunching after /login, a wrapper
-   *  re-exec), and a 1-probe flicker would strobe the sidebar badge. The ON
-   * edge stays immediate — lighting up needs no debounce, the walk only
-   * answers a vendor on positive argv evidence.
+   * OFF-edge debounce: consecutive engine-free walks before a lit identity
+   * goes dark (engines vanish briefly mid-restart, e.g. claude after /login).
+   * ON is immediate: a vendor needs positive argv evidence.
    */
   releaseAfterMisses?: number
 }
@@ -78,9 +59,7 @@ export function createLiveEngines(opts: LiveEngineOpts = {}): LiveEngineStore {
   const vendors = new Map<string, VendorId>()
   /** Consecutive engine-free walks per lit key — the OFF-edge debounce. */
   const misses = new Map<string, number>()
-  /** Keys the last successful probe actually walked — the resolve() tri-state:
-   *  in here with no vendor means "shell confirmed engine-free", absent means
-   *  "couldn't look" (no PTY / no pid / ps failed). */
+  /** Keys the last successful probe walked: present without vendor = null, absent = undefined in resolve(). */
   const answered = new Set<string>()
   /** Hosted-session pids the local registry can't see — see setAuxPids. */
   let auxPids: ReadonlyMap<string, number> = new Map()
@@ -103,14 +82,11 @@ export function createLiveEngines(opts: LiveEngineOpts = {}): LiveEngineStore {
       for (const [key, pty] of entries()) {
         live.add(key)
         const pid = pty.shellPid ?? null
-        // The registry's attached PTY outranks the host inventory's row for
-        // the same key — but an attached-yet-unspawned PTY (pid null) must
-        // not erase a host pid we can walk.
+        // Registry pid outranks the host's, but a null (unspawned) one must not erase it.
         if (pid !== null) pids.set(key, pid)
       }
       let changed = false
-      // A key whose PTY is gone (or has no walkable child) holds no identity —
-      // and no ANSWER either: nothing to walk means "can't look", not "empty".
+      // No walkable pid → no identity and no answer ("can't look", not "empty").
       for (const key of [...vendors.keys()]) {
         if (live.has(key) && pids.has(key)) continue
         vendors.delete(key)
@@ -142,8 +118,6 @@ export function createLiveEngines(opts: LiveEngineOpts = {}): LiveEngineStore {
             continue
           }
           if (prev === null) continue
-          // OFF-edge debounce: hold a lit identity through brief engine-free
-          // walks; only consecutive misses confirm the exit.
           const count = (misses.get(key) ?? 0) + 1
           if (count < releaseAfterMisses) {
             misses.set(key, count)

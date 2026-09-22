@@ -31,10 +31,8 @@ Follow these steps to create a PR:
 
 If any of these steps fail, ask the user for help.`
 
-// Async spawn — `git status` is O(repo size), and this runs on the Ops
-// pane's render process. On a huge repo a spawnSync would block the
-// pane until the timeout; the async child costs nothing on the event
-// loop. Same timeout, SIGKILLed via AbortSignal.
+// Async: `git status` is O(repo size) and a spawnSync would block the Ops
+// pane's render process until the timeout. Aborted via AbortSignal.
 async function git(cwd: string, args: readonly string[]): Promise<string | null> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), GIT_TIMEOUT_MS)
@@ -42,10 +40,8 @@ async function git(cwd: string, args: readonly string[]): Promise<string | null>
     recordSpawn("tui.prPrompt", ["git", ...args], cwd)
     const out = await spawnCapture("git", args, {
       cwd,
-      // Read-only inspection (`status`, `rev-parse`, `symbolic-ref`).
-      // `git status` would otherwise rewrite `.git/index`'s stat cache
-      // and take `.git/index.lock`, racing the worktree's engine commits
-      // for the lock. `GIT_OPTIONAL_LOCKS=0` keeps it lock-free.
+      // `git status` would otherwise take `.git/index.lock` to refresh the stat
+      // cache, racing the engine's commits. `GIT_OPTIONAL_LOCKS=0` avoids it.
       env: readOnlyGitProcessEnv(),
       signal: controller.signal,
     })
@@ -116,12 +112,8 @@ export function renderPRPrompt(template: string, state: PRPromptState): string {
 }
 
 /**
- * Per-repo PR instruction overrides, canonical spelling first. `.rove/` is
- * the convention repos ship today (same rule as `.rove/init.sh` in
- * `state/repo-init.ts`); the legacy `.kobe/` spelling stays a fallback so a
- * repo that already committed one keeps working. First readable NON-EMPTY
- * file wins — an empty `.rove/pr-instructions.md` is a no-op placeholder,
- * not an instruction to blank the prompt.
+ * Per-repo PR prompt override: `.rove/`, then `.kobe/` fallback. First
+ * NON-EMPTY file wins; an empty file is a placeholder, not a blank prompt.
  */
 const PR_INSTRUCTION_FILENAME = "pr-instructions.md"
 

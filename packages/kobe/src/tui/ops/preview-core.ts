@@ -1,8 +1,6 @@
 /**
- * Framework-free data half of the `kobe ops --preview <rel>` window,
- * extracted from `tui/ops/host.tsx` so the Solid and React previews (issue
- * #15, G3) share it. Vitest-safe: no @opentui imports (the theme-bound
- * SyntaxStyle builder lives in `./preview-syntax`), no framework.
+ * Framework-free data half of the `kobe ops --preview <rel>` window.
+ * Vitest-safe: no @opentui imports (SyntaxStyle lives in `./preview-syntax`).
  */
 
 import { unquoteGitPath } from "@/lib/git-parsers"
@@ -32,10 +30,9 @@ export function filetypeOf(relPath: string): string | undefined {
 }
 
 /**
- * What a patch expressed entirely in its preamble changed. Binary, mode,
- * rename and empty-file changes are real patches with no hunks — and `<diff>` draws hunk rows and nothing else, so
- * without this they render as a blank pane, which is indistinguishable from
- * "nothing changed": the one thing the patch proves false.
+ * What a hunkless patch changed (binary, mode, rename, empty file). `<diff>`
+ * draws only hunk rows, so without this they'd render blank, which reads as
+ * "nothing changed".
  */
 export type PatchNote =
   | { readonly kind: "binary" }
@@ -53,23 +50,16 @@ export type PreviewData =
   | { readonly kind: "binary"; readonly image: boolean; readonly sizeBytes: number | null }
   /** A non-empty patch with no hunks — see {@link PatchNote}. */
   | { readonly kind: "patch-note"; readonly note: PatchNote; readonly sizeBytes: number | null }
-  /** git itself refused. Carries git's stderr so the pane can name the
-   *  failure instead of presenting an absent diff as an absence of changes. */
+  /** git refused; carries its stderr so the pane doesn't present a failure as "no changes". */
   | { readonly kind: "error"; readonly message: string }
-  /**
-   * A COMBINED diff (a directory, or the whole worktree) that git produced no
-   * hunks for. A single file falls back to its own content here, which is the
-   * right answer for a file and a blank pane for a pathspec — there is no
-   * "content of src/" to show, so the emptiness has to be stated.
-   */
+  /** A COMBINED diff (directory or whole worktree) with no hunks; unlike a
+   *  file there's no content to fall back to, so emptiness is stated. */
   | { readonly kind: "empty" }
 
 /**
- * Whether a pathspec can match MANY files: the whole worktree (`.`) or a
- * directory. Callers that open a directory diff normalise it with a trailing
- * slash, which is what makes this decidable from the string alone — no file
- * path ever ends in one — so the flag never has to be threaded from the tree
- * row through four hand-offs to the loader.
+ * Whether a pathspec can match MANY files: `.` or a directory. Callers
+ * normalise directories with a trailing slash (no file path ends in one), so
+ * this is decidable from the string alone.
  */
 export function isCombinedPathspec(relPath: string): boolean {
   return relPath === "." || relPath.endsWith("/")
@@ -81,12 +71,10 @@ export interface UnifiedDiffFile {
   readonly path: string
   /** That file's complete patch, parseable on its own. */
   readonly text: string
-  /** Rendered rows the hunks occupy — `@@` headers are not drawn, so this is
-   *  the count of context/added/removed lines. The view needs it because a
-   *  `<diff>` inside a scroll container has no intrinsic height. */
+  /** Context/added/removed line count (`@@` headers aren't drawn). Needed
+   *  because a `<diff>` in a scroll container has no intrinsic height. */
   readonly lines: number
-  /** Set when the patch has no hunks: what it changed, so the section states
-   *  it instead of rendering a label over zero rows. */
+  /** Set when the patch has no hunks: what it changed. */
   readonly note?: PatchNote
 }
 
@@ -120,8 +108,7 @@ export function hunklessPatchNote(patch: string): PatchNote | null {
 
 /** Decode one `--- ` / `+++ ` side into its path. `null` for `/dev/null`. */
 function sidePath(field: string): string | null {
-  // git appends a TAB after the path when it needed quoting or holds a space.
-  // The tab always follows the closing quote, so cutting at it is safe.
+  // git appends a TAB after a quoted or spaced path, always after the closing quote.
   const raw = field.replace(/\t[\s\S]*$/, "")
   if (raw === "/dev/null") return null
   const path = unquoteGitPath(raw)
@@ -131,18 +118,14 @@ function sidePath(field: string): string | null {
 /**
  * The b-side path of a `diff --git a/X b/Y` header.
  *
- * git C-quotes a path holding any non-ASCII byte, so a Chinese filename's
- * header reads `diff --git "a/…" "b/…"` — there is no ` b/` in it to split
- * on, which is what left the label showing raw octal escapes and both sides
- * at once. Spaces, by contrast, are NOT quoted, so an unquoted header is
- * genuinely ambiguous by scanning; the split whose two sides name the same
- * file resolves it for everything except a rename.
+ * git C-quotes any non-ASCII path (`"a/…" "b/…"`, no ` b/` to split on) but
+ * not spaces, so an unquoted header is ambiguous; the split whose two sides
+ * match resolves it for everything except a rename.
  */
 function headerPath(header: string): string {
-  // A quoted a-side: `unquoteGitPath` decodes exactly the first field and
-  // stops at its closing quote. The two sides agree except on a rename, and
-  // a header is only consulted for patches that have no `+++` line at all —
-  // binary and mode-only, neither of which can be a rename.
+  // Quoted: `unquoteGitPath` decodes just the first field. Sides differ only
+  // on a rename, and the header is only consulted when there's no `+++` line
+  // (binary, mode-only), which can't be a rename.
   if (header.startsWith('"')) return sidePath(unquoteGitPath(header)) ?? header
   for (let i = header.indexOf(" b/"); i >= 0; i = header.indexOf(" b/", i + 1)) {
     const a = sidePath(header.slice(0, i))
@@ -154,13 +137,9 @@ function headerPath(header: string): string {
 }
 
 /**
- * Split a multi-file unified diff into one patch per file.
- *
- * Needed because opentui's `DiffRenderable` keeps only the FIRST file: its
- * parser returns every patch (`parsePatch` → a list) and the renderable then
- * does `this._parsedDiff = patches[0]`. So a directory's diff handed over
- * whole renders one file and silently drops the rest — which is the entire
- * point of a combined diff. The view stacks one `<diff>` per entry instead.
+ * Split a multi-file unified diff into one patch per file. opentui's
+ * `DiffRenderable` keeps only `patches[0]`, silently dropping the rest, so the
+ * view stacks one `<diff>` per entry.
  */
 export function unifiedDiffFiles(text: string): UnifiedDiffFile[] {
   const files: UnifiedDiffFile[] = []
@@ -168,9 +147,8 @@ export function unifiedDiffFiles(text: string): UnifiedDiffFile[] {
   const push = () => {
     if (!current) return
     const patch = `${current.lines.join("\n")}\n`
-    // Prefer the `+++`/`---` lines: one field to end-of-line, so they carry a
-    // path with a space unambiguously where the `diff --git` header cannot.
-    // A deletion's `+++` is `/dev/null`, so its own `---` side is the label.
+    // `+++`/`---` carry spaced paths unambiguously, unlike the header. A
+    // deletion's `+++` is `/dev/null`, so `---` labels it.
     const path = current.plus ?? current.minus ?? current.path
     const note = hunklessPatchNote(patch)
     files.push({ path, text: patch, lines: current.rows, ...(note ? { note } : {}) })
@@ -187,8 +165,7 @@ export function unifiedDiffFiles(text: string): UnifiedDiffFile[] {
     else if (line.startsWith("copy to ")) current.path = unquoteGitPath(line.slice(8))
     else if (line.startsWith("+++ ")) current.plus = sidePath(line.slice(4)) ?? undefined
     else if (line.startsWith("--- ")) current.minus = sidePath(line.slice(4)) ?? undefined
-    // Hunk bodies only: `@@` headers and the `---`/`+++`/`index` preamble are
-    // not rendered as rows.
+    // Hunk bodies only; the preamble and `@@` aren't rendered rows.
     else if (/^[ +-]/.test(line)) current.rows += 1
   }
   push()
@@ -209,24 +186,17 @@ export function looksBinaryText(text: string): boolean {
 
 /**
  * Re-run a single file's diff with BOTH sides of a rename in the pathspec.
+ * Restricted to the new path, git can't pair the rename and reports the whole
+ * file as added; the old path comes from an UNRESTRICTED `--name-status`.
  *
- * Restricting `git diff` to the new path alone removes the old path from the
- * comparison, so git cannot pair the two and reports the whole file as added
- * — 60 solid green lines where the row beside it correctly says `+1 −1`, and
- * where the combined diff of the same commit shows the one-line change. The
- * pairing survives only in an UNRESTRICTED `--name-status`, which is where
- * the old path comes from.
- *
- * Returns `null` when this is not an unpaired rename — every ordinary add
- * pays one metadata-only git call and takes this exit.
+ * `null` when not an unpaired rename (costs ordinary adds one metadata call).
  */
 async function pairRename(
   worktree: string,
   spec: string,
   relPath: string,
 ): Promise<{ text: string; origPath: string } | null> {
-  // `-z` keeps the fields NUL-separated and the paths raw, so a non-ASCII or
-  // spaced path needs no unquoting here.
+  // `-z`: NUL-separated raw paths, no unquoting needed.
   const listed = await runWorktreeGit(worktree, ["diff", spec, "--name-status", "--find-renames", "-z"])
   if (listed.status !== 0) return null
   const fields = listed.stdout.split("\u0000")
@@ -245,27 +215,16 @@ async function pairRename(
 }
 
 /**
- * Diff for `relPath`, otherwise its full content. `range` picks the diff:
- * omitted → uncommitted work (`git diff HEAD`); `{ base }` → everything this
- * branch changed vs its base (`git diff <base>...HEAD`, three-dot = against
- * the merge-base — the Changes tab's Branch scope). Either way, an empty diff
- * falls back to the file's current content.
+ * Diff for `relPath`, otherwise its full content. `range` omitted →
+ * uncommitted work (`git diff HEAD`); `{ base }` → `git diff <base>...HEAD`
+ * (merge-base, the Changes tab's Branch scope). An empty diff falls back to
+ * the file's content.
  *
- * Images (by extension) and files whose content carries null bytes skip the
- * text path entirely and come back as a `binary` card — a PNG rendered as
- * utf8 is mojibake, not a preview.
- *
- * `relPath` is a git pathspec, and a COMBINED one (a directory, or `.` for the
- * whole worktree — see {@link isCombinedPathspec}) is handled the same way up
- * to the fallback: git emits every matching file's hunks in one unified diff,
- * which `<diff>` already renders. Only the EMPTY case differs — reading "the
- * file" back does not mean anything for a directory, so it reports `empty`
- * instead of rendering a blank code view.
- *
- * A git that REFUSES the BASE is never one of those outcomes. A bad base — a
- * pruned remote, a renamed base branch — used to collapse into an empty diff
- * and then be presented as the file's current content or as `no changes in
- * src/`, both of which state as fact something git never said.
+ * Images (by extension) and null-byte content come back as a `binary` card.
+ * A COMBINED pathspec ({@link isCombinedPathspec}) yields one multi-file diff,
+ * and `empty` instead of the content fallback. A git refusal of the base
+ * (pruned remote, renamed branch) is an `error`, never presented as content
+ * or "no changes".
  */
 export async function loadPreviewData(
   worktree: string,

@@ -1,11 +1,7 @@
 /**
- * Pure helpers for the terminal pane's key handling.
- *
- * Split out of `keys.ts` so unit tests (which run under Node) can
- * import from here without dragging in `../../lib/keymap` — that
- * module pulls `@opentui/solid`, which transitively loads
- * `@opentui/core`'s native bindings, which need Bun. Same architecture
- * as `panes/sidebar/groups.ts` vs `panes/sidebar/keys.ts`.
+ * Pure helpers for the terminal pane's key handling. Must stay free of
+ * opentui runtime imports: unit tests run under Node, and `@opentui/core`'s
+ * native bindings need Bun.
  */
 
 import type { KeyEvent } from "@opentui/core"
@@ -14,10 +10,9 @@ import { defaultChordsOf } from "../../context/keybindings.ts"
 import { isKittyModifierKeyEvent } from "../../lib/modifier-keys.ts"
 
 /**
- * Kitty keyboard-protocol CSI-u sequence (e.g. ctrl+c = `\x1b[99;5u`,
- * esc = `\x1b[27u`). The host renderer enables kitty
- * (`useKittyKeyboard` in host-render-options.ts), so on kitty-capable
- * terminals modifier chords and esc arrive CSI-u encoded on the wire.
+ * Kitty CSI-u sequence (ctrl+c = `\x1b[99;5u`, esc = `\x1b[27u`). The host
+ * enables kitty (`useKittyKeyboard`), so on capable terminals modifier chords
+ * and esc arrive CSI-u encoded.
  */
 // biome-ignore lint/suspicious/noControlCharactersInRegex: matching the raw ESC-prefixed kitty wire encoding is the whole point
 const KITTY_CSI_U_RE = /^\x1b\[[\d:;]*u$/
@@ -111,19 +106,6 @@ function legacyFunctionSequence(evt: KeyEvent, key: LegacyFunctionKey): string {
   return modifier === 1 ? `\x1bO${key.final}` : `\x1b[1;${modifier}${key.final}`
 }
 
-/**
- * Encode an opentui `KeyEvent` to the byte sequence the shell expects.
- *
- * Where the keystroke arrived as legacy bytes we forward `evt.sequence`
- * verbatim. Kitty CSI-u keystrokes must be re-encoded: the embedded PTY
- * never negotiated kitty, and opentui's parser makes `sequence`
- * unusable for them — measured on the real wire:
- * ctrl+c ⇒ `{ raw: "\x1b[99;5u", sequence: "c" }` (forwarding sequence
- * types a literal "c"!) while esc ⇒ `{ raw: "\x1b[27u", sequence:
- * "\x1b[27u" }` (forwarding sends garbage). So if EITHER field is
- * CSI-u shaped we synthesize from name+modifiers instead. Synthetic
- * events (unit tests) lack `sequence` and take the same synthesis path.
- */
 export interface TerminalInputModes {
   readonly applicationCursorKeys: boolean
   readonly applicationKeypad: boolean
@@ -134,6 +116,16 @@ export const NORMAL_TERMINAL_INPUT_MODES: TerminalInputModes = {
   applicationKeypad: false,
 }
 
+/**
+ * Encode an opentui `KeyEvent` to the bytes the shell expects.
+ *
+ * Legacy keystrokes forward `evt.sequence` verbatim. Kitty CSI-u ones must be
+ * re-encoded (the PTY never negotiated kitty) and their `sequence` is
+ * unusable, measured on the wire: ctrl+c ⇒ `{ raw: "\x1b[99;5u", sequence:
+ * "c" }` (would type "c"); esc ⇒ `{ raw: "\x1b[27u", sequence: "\x1b[27u" }`
+ * (garbage). So if EITHER field is CSI-u shaped we synthesize from
+ * name+modifiers; synthetic events (tests) lack `sequence` and synthesize too.
+ */
 export function keyEventToShellBytes(
   evt: KeyEvent,
   modes: TerminalInputModes = NORMAL_TERMINAL_INPUT_MODES,
@@ -146,15 +138,10 @@ export function keyEventToShellBytes(
     (typeof e.raw === "string" && KITTY_CSI_U_RE.test(e.raw)) ||
     (seq != null && KITTY_CSI_U_RE.test(seq))
   if (seq != null && !kittyInput) return seq
-  // Kitty wire, but the parser already extracted the typed TEXT into
-  // `sequence` (shift+z → "Z", shift+1 → "!"). With no ctrl/alt/meta/super a
-  // printable single char IS the byte to type — synthesis would drop the
-  // shift and forward lowercase (measured: Shift+Z typed "z" on kitty
-  // terminals). ctrl chords keep synthesizing (ctrl+c carries sequence
-  // "c", which lies), and control chars like "\t" (shift+tab) fall
-  // through so the back-tab CSI still wins. `super` (the macOS Command key)
-  // lies the same way ctrl does — Cmd+C also carries sequence "c" — so it
-  // must fall through to synthesis, which drops it rather than typing it.
+  // Kitty wire with typed TEXT in `sequence` (shift+z → "Z"): with no
+  // ctrl/alt/meta/super that text IS the byte; synthesis would drop the shift
+  // (measured: Shift+Z typed "z"). ctrl and super (Cmd) lie ("c" for ctrl+c /
+  // Cmd+C) and control chars ("\t" for shift+tab) must synthesize instead.
   if (seq != null && !containsControlCharacter(seq) && !evt.ctrl && !e.option && !e.meta && !evt.super) return seq
   return synthesizeShellBytes(evt, modes)
 }
@@ -163,9 +150,8 @@ function synthesizeShellBytes(evt: KeyEvent, modes: TerminalInputModes): string 
   const name = evt.name
   if (!name) return null
 
-  // Modifier synthesis for synthetic events (real keystrokes carry
-  // `sequence`): shift+tab is the back-tab CSI claude's plan-mode cycle
-  // expects; alt+<key> is ESC-prefixed per xterm convention.
+  // shift+tab is the back-tab CSI claude's plan-mode cycle expects;
+  // alt+<key> is ESC-prefixed per xterm convention.
   if (evt.shift && name === "tab") return "\x1b[Z"
   const functionKey = LEGACY_FUNCTION_KEYS[name]
   const xtermModifiedNamedKey = functionKey !== undefined || XTERM_MODIFIER_NAMED_KEYS.has(name)
@@ -233,13 +219,10 @@ function synthesizeShellBytes(evt: KeyEvent, modes: TerminalInputModes): string 
           // Unknown ctrl chord: dropping beats typing a stray literal.
           return null
         }
-        // Command/Win held (kitty `super`): no terminal encodes cmd+<char>
-        // as a byte, and the emulator normally keeps the chord for itself.
-        // Dropping is the only correct answer — falling through typed the
-        // bare letter, which is what made Cmd+C insert a literal "c".
+        // Cmd/Win (kitty `super`): no terminal encodes cmd+<char> as a
+        // byte; drop it rather than type the bare letter (Cmd+C → "c").
         if (evt.super) return null
-        // Synthetic shifted letter (no sequence to forward): type the
-        // uppercase form, not the lowercase key name.
+        // Synthetic shifted letter: type the uppercase form.
         if (evt.shift && name >= "a" && name <= "z") return name.toUpperCase()
         return name
       }
@@ -248,121 +231,73 @@ function synthesizeShellBytes(evt: KeyEvent, modes: TerminalInputModes): string 
 }
 
 /**
- * Chords that copy the terminal selection to the system clipboard.
+ * Chords that copy the terminal selection to the clipboard.
  *
- * `cmd+c` is the macOS platform copy chord — RESTORING it is a fix, not a new
- * binding: before this existed the Command key (kitty modifier `super`) was
- * invisible to `matchKey`, so Cmd+C fell through to the passthrough table as
- * the bare chord `c` and typed a literal "c" into the session.
+ * `cmd+c` is the macOS platform copy chord (the platform's own behavior, not
+ * a new binding). `ctrl+shift+c` is the Linux/Windows emulator convention,
+ * leaving ctrl+c as SIGINT; only kitty-protocol terminals can express it (a
+ * legacy terminal sends the same C0 byte as ctrl+c), so `matchKey` mints it
+ * there alone.
  *
- * `ctrl+shift+c` is the unconditional copy chord — the terminal-emulator
- * convention on Linux/Windows, where plain ctrl+c has to stay available as
- * SIGINT. It is only expressible on kitty-protocol terminals (a legacy
- * terminal sends ctrl+shift+c and ctrl+c as the same C0 byte and reports no
- * shift), so `matchKey` mints it there alone.
- *
- * PROPOSED, pending owner sign-off per AGENTS.md — `ctrl+shift+c` is a NEW
- * chord. `cmd+c` is the platform's own behavior being handed back.
+ * PROPOSED, pending owner sign-off per AGENTS.md: `ctrl+shift+c` is a NEW
+ * chord.
  */
 export const COPY_CHORDS: readonly string[] = ["cmd+c", "ctrl+shift+c"]
 
-/**
- * Lines per page for `ctrl+pgup` / `ctrl+pgdown` when the consumer
- * doesn't supply a `pageSize` accessor. Picked to match a typical
- * terminal scrollback "page" feel.
- */
+/** Lines per `ctrl+pgup` / `ctrl+pgdown` when no `pageSize` accessor is supplied. */
 export const DEFAULT_PAGE_SIZE = 10
 
-/**
- * Names of keys we trap (do NOT forward to the shell). Re-exported so
- * documentation / tests can assert the list without re-deriving it.
- */
+/** Keys trapped (never forwarded to the shell). */
 export const TRAPPED_KEYS = ["ctrl+pageup", "ctrl+pagedown"] as const
 
 /**
- * Chord strings the terminal pane must NEVER passthrough to the shell.
- * The dispatcher also dynamically claims the configured command prefix;
- * keeping that out of this static table makes live rebindings release the
- * old prefix immediately. This list stays deliberately MINIMAL: the engine CLI owns
- * its own chords (shift+tab plan-mode, ctrl+r history, ctrl+hjkl, F1…),
- * so kobe keeps only ctrl+q as the escape hatch plus the tab-management
- * and reset chords. Kobe's other global chords stay reachable from every
- * non-terminal pane.
+ * Chords the terminal pane must NEVER pass through to the shell. Deliberately
+ * MINIMAL: the engine CLI owns its chords (shift+tab, ctrl+r, ctrl+hjkl…), and
+ * kobe's other globals stay reachable from non-terminal panes. The command
+ * prefix is claimed dynamically by the dispatcher instead, so a live rebind
+ * releases the old prefix immediately. Not here: bare `escape`/`tab` (vim,
+ * shell completion) and `ctrl+pageup`/`ctrl+pagedown` (trapped earlier,
+ * first-match-wins).
  *
- * Notes on what's *not* here:
- *   - bare `escape` and `tab` stay as passthrough so vim and shell tab
- *     completion still work inside the embedded terminal.
- *   - `ctrl+pageup`/`ctrl+pagedown` are already trapped earlier in the
- *     same bindings array (scrollback) — first-match-wins handles them.
- */
-/**
- * Reservation spec for {@link RESERVED_GLOBAL_CHORDS}. Two entry kinds:
- *
- *   - `{ id }` — a keymap id whose DEFAULT direct chords are reserved via
- *     `defaultChordsOf` (the pristine defaults, NOT the live rows), so
- *     `KobeKeymap` (keybindings-table.ts) stays the single source of truth
- *     and a user override never changes what the terminal swallows.
- *   - a chord literal — reserved even though no keymap row binds it
- *     directly. The workspace/chat management chords are prefix-only
- *     (`prefixKeys`), but the terminal passthrough still swallows their
- *     direct chords; the literals hold that behavior until the prefix
- *     follow-up decides
- *     whether to release them to the PTY (and whether the configured
- *     prefix key itself must be reserved instead).
- *
- * `terminal-keys-pure.test.ts` pins the resolved set.
+ * Entries: `{ id }` reserves that keymap id's DEFAULT direct chords via
+ * `defaultChordsOf` (pristine defaults, so a user override never changes what
+ * the terminal swallows); a chord literal is reserved though no keymap row
+ * binds it directly (prefix-only rows whose direct chords the terminal still
+ * swallows, pending a decision on releasing them to the PTY).
  */
 const RESERVED_SPEC: ReadonlyArray<string | { id: string }> = [
-  // The live keymap reference: docs promise
-  // "F1 anywhere", the rest of the F-row (f2-f5, f7) is
-  // reserved, and the status-bar hint advertises F1 inside the terminal —
-  // leaving f1 passthrough would make all three lie. No engine binds F1.
+  // Docs promise "F1 anywhere" and the status bar advertises it inside the
+  // terminal. No engine binds F1.
   { id: "help.open" }, // f1
-  // THE escape hatch out of the terminal: ctrl+q returns to the tasks
-  // list (a direct chord, same as the tab rows below).
+  // THE escape hatch out of the terminal, back to the task list.
   { id: "focus.sidebar" }, // ctrl+q
-  // Terminal tab management (the PTY chattab) — parity with the
-  // tmux root key-table, which intercepts these too. ctrl+w / f2 double
-  // as `workspace.split.close` / `workspace.split.rename` when split —
-  // same chords, so one reservation covers both. Direct chords are dual
-  // aliases beside the prefix strokes, so these derive from the table.
+  // Tab management (tmux root key-table parity). ctrl+w / f2 double as
+  // `workspace.split.close` / `workspace.split.rename`; one reservation covers both.
   { id: "chat.tab.new" }, // ctrl+t
   { id: "chat.tab.close" }, // ctrl+w
   { id: "chat.tab.cycle-next" }, // ctrl+]
   { id: "chat.tab.cycle-prev" }, // ctrl+[
   { id: "chat.tab.rename" }, // f2
-  // Engine picker / quick-fork (without the reservation the embedded
-  // terminal forwards them to the engine CLI, e.g. emacs-style
-  // forward-char on ctrl+f). ctrl+e is the unified new-conversation
-  // dialog's direct chord; ctrl+f has no direct binding
-  // (chat.fork.new is prefix-only) but STAYS reserved
-  // — it's the dialog's in-scope context toggle, and releasing it to the
-  // PTY would make the byte mean different things per focus.
+  // ctrl+e opens the new-conversation dialog. ctrl+f has no direct binding
+  // but stays reserved: it's that dialog's context toggle, and releasing it
+  // would make the byte mean different things per focus.
   "ctrl+e", // chat.tab.chooseEngine
   "ctrl+f", // new-chat dialog context toggle
-  // Split panes inside the tab (tmux % / "): direct chords, so they
-  // derive from the table.
-  // Reserving ctrl+\ costs the embedded shell SIGQUIT — accepted trade,
-  // documented in docs/KEYBINDINGS.md.
+  // Split panes (tmux % / "). Reserving ctrl+\ costs the shell SIGQUIT:
+  // accepted, documented in docs/KEYBINDINGS.md.
   { id: "workspace.split.right" }, // ctrl+\
   { id: "workspace.split.down" }, // ctrl+=
   { id: "workspace.split.focus-next" }, // f3 — still a direct default
-  // Pane cycle: the one cross-pane chord besides ctrl+q that works from
-  // inside the terminal — without it, workspace → files always costs two
-  // hops. `tab` itself stays passthrough (shell completion).
+  // Pane cycle from inside the terminal; `tab` stays passthrough.
   { id: "focus.next" }, // f4
   // Terminal reset (confirm-gated).
   { id: "terminal.reset" }, // f5
-  // Zen toggle is prefix-only (prefix+z) — f6 is not reserved and passes
-  // through to the shell.
-  // Jump to the next waiting task. NOT ctrl+g (the engine/readline
-  // abort-editing chord) — see docs/KEYBINDINGS.md.
+  // f6 is not reserved (zen is prefix-only). Next waiting task is f7, NOT
+  // ctrl+g (readline abort); see docs/KEYBINDINGS.md.
   { id: "attention.next" }, // f7
-  // Jump to task N from anywhere, including inside the engine — the whole
-  // point is not having to leave the terminal first, so ctrl+<digit> comes
-  // out of the passthrough table. Costs the embedded shell its ctrl+digit
-  // control bytes (ctrl+3 = ESC, ctrl+8 = DEL); the real escape/backspace
-  // keys are untouched, which is how anyone actually types them.
+  // Jump to task N without leaving the terminal. Costs the shell its
+  // ctrl+digit bytes (ctrl+3 = ESC, ctrl+8 = DEL); real esc/backspace are
+  // untouched.
   { id: "tasks.jump" }, // ctrl+1 … ctrl+0
 ] as const
 
@@ -370,11 +305,7 @@ export const RESERVED_GLOBAL_CHORDS: readonly string[] = [
   ...new Set(RESERVED_SPEC.flatMap((entry) => (typeof entry === "string" ? [entry] : defaultChordsOf(entry.id)))),
 ]
 
-/**
- * Names opentui's keypress events use that we want forwarded to the
- * shell when the terminal pane is focused. Lives here (pure) so the
- * pane and its tests both consume the same source.
- */
+/** opentui key names forwarded to the shell when the terminal pane is focused. */
 export const PASSTHROUGH_NAMES: readonly string[] = [
   // Letters
   ..."abcdefghijklmnopqrstuvwxyz".split(""),
@@ -418,21 +349,18 @@ export const PASSTHROUGH_NAMES: readonly string[] = [
 const PASSTHROUGH_MODIFIER_PREFIXES = ["", "ctrl+", "alt+", "shift+", "ctrl+shift+", "alt+shift+", "ctrl+alt+"] as const
 
 /**
- * The full passthrough chord vocabulary — every `PASSTHROUGH_NAMES ×
- * modifier-prefix` combination minus the kobe-reserved chords. Computed
- * once at module load: the terminal pane re-renders per PTY frame, and
- * rebuilding ~850 chord strings per render was measurable GC pressure
- * on the hottest path.
+ * Every `PASSTHROUGH_NAMES × modifier-prefix` chord minus the reserved ones.
+ * Computed once at load: the pane re-renders per PTY frame, and rebuilding
+ * ~850 strings per render was measurable GC pressure.
  */
 export const PASSTHROUGH_CHORDS: readonly string[] = PASSTHROUGH_NAMES.flatMap((name) =>
   PASSTHROUGH_MODIFIER_PREFIXES.map((prefix) => `${prefix}${name}`),
 ).filter((chord) => !RESERVED_GLOBAL_CHORDS.includes(chord))
 
 /**
- * Encode one mouse-wheel tick the way a real terminal emulator would —
- * see `TaskPtyLike.wheel` for the routing contract. Pure: the caller
- * (`XtermTaskPty.wheel`) supplies the mode facts; null means "the app
- * asked for neither", i.e. the caller scrolls its local view.
+ * Encode one wheel tick like a real emulator (routing contract:
+ * `TaskPtyLike.wheel`). Null means the app asked for neither, so the caller
+ * scrolls its local view.
  */
 export function encodeWheel(
   modes: { mouseTracking: boolean; applicationCursorKeys: boolean; alternateScreen: boolean },
@@ -441,15 +369,13 @@ export function encodeWheel(
   row: number,
 ): string | null {
   if (modes.mouseTracking) {
-    // SGR (1006) wheel encoding — xterm.js doesn't expose which encoding
-    // the app negotiated, and every current TUI (claude, vim, less with
-    // --mouse) requests SGR, so it's assumed.
+    // SGR (1006) assumed: xterm.js doesn't expose the negotiated encoding,
+    // and every current TUI (claude, vim, less --mouse) requests SGR.
     const btn = direction === "up" ? 64 : 65
     return `\x1b[<${btn};${Math.max(1, col)};${Math.max(1, row)}M`
   }
   if (modes.alternateScreen) {
-    // Fullscreen app without mouse reporting: the classic emulator
-    // fallback of 3 arrow keys per wheel tick.
+    // Fullscreen app without mouse reporting: 3 arrow keys per tick.
     const arrow = modes.applicationCursorKeys
       ? direction === "up"
         ? "\x1bOA"
@@ -463,12 +389,10 @@ export function encodeWheel(
 }
 
 /**
- * Encode one mouse button transition (SGR 1006) for an app that enabled
- * mouse tracking — the other half of `encodeWheel`. Null when the app did
- * not ask for the mouse, so the caller keeps the click for its own grid
- * selection. Modifiers use the xterm bit layout (shift 4, alt 8, ctrl 16).
- * `drag` is button-held motion; only reported when the app asked for
- * button-event or any-event tracking (mode 1002/1003).
+ * Encode one mouse button transition (SGR 1006). Null when the app didn't ask
+ * for the mouse, so the caller keeps the click for its own selection.
+ * Modifier bits: shift 4, alt 8, ctrl 16. `drag` (button-held motion) is
+ * reported only under mode 1002/1003.
  */
 export function encodeMouseButton(
   modes: { mouseTracking: "none" | "x10" | "vt200" | "drag" | "any" },

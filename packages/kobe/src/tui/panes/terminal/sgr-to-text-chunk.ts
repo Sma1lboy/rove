@@ -1,12 +1,6 @@
 /**
- * Adapter: maps an opentui-free `Chunk` from `./sgr.ts` to an opentui
- * `TextChunk` ready to drop into a `StyledText`. Lives in its own file
- * so `./sgr.ts` stays opentui-free — that file is loaded by the SGR
- * unit tests under vitest, which chokes on opentui's tree-sitter
- * `.scm` assets if they're pulled in transitively.
- *
- * The only reason this file exists is the test-runner dep boundary;
- * the conversion itself is trivial.
+ * `./sgr.ts` `Chunk` → opentui `TextChunk`. Separate so `sgr.ts` stays
+ * opentui-free: vitest chokes on opentui's tree-sitter `.scm` assets.
  */
 
 import { RGBA } from "@opentui/core"
@@ -29,15 +23,9 @@ function toTextChunk(c: Chunk): TextChunk {
 }
 
 /**
- * Flatten a 2D parsed snapshot (one chunk-list per row) into a single
- * `StyledText` whose chunks span every row with `\n` separators
- * between rows. Used by the terminal pane: rendering ONE `<text>`
- * element per snapshot keeps opentui's layout / screenY computation
- * in the same shape as the pre-SGR plain-text version, so the
- * cursor positioning math (`screenY + cursor.y`) lands on the right
- * row. Per-row `<text>` rendering (via Solid `<For>`) breaks that
- * invariant because flex column children don't necessarily occupy
- * exactly one row each.
+ * Flatten per-row chunks into one `StyledText` joined by `\n`. ONE `<text>`
+ * keeps cursor math (`screenY + cursor.y`) on the right row; per-row
+ * `<text>` breaks it, since flex children needn't be exactly one row each.
  */
 export function rowsToStyledText(rows: readonly (readonly Chunk[])[]): TextChunk[] {
   const chunks: TextChunk[] = []

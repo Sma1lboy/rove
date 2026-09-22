@@ -1,22 +1,11 @@
 /**
- * Vendor-neutral content blocks.
+ * Vendor-neutral content blocks (`Message.blocks`, wire and disk). Vendor
+ * adapters normalize into this (e.g. `engine/claude-code-local/normalize.ts`).
  *
- * `Message.blocks` on the wire / on-disk side is a discriminated union
- * over this type. Vendor adapters (currently `engine/claude-code-local/`)
- * are responsible for normalizing their native shape (Claude Code's
- * content-block array) into this form — see
- * `engine/claude-code-local/normalize.ts`.
- *
- * Why these four and not Anthropic's full taxonomy: each one maps to a
- * UI affordance (text row, tool banner, tool result body, thinking dots).
- * `image` / `redacted_thinking` / citation blocks were dropped by
- * kobe's renderers anyway — leaving them out of the neutral type makes
- * "we don't render this" explicit instead of accidental.
- *
- * Why `tool_result.output: unknown`: tool outputs are engine- and
- * tool-specific (Bash returns a string, Edit returns a diff blob, MCP
- * tools return arbitrary JSON). Renderers in `tui/panes/chat/` narrow
- * per tool. We don't try to project that into a neutral shape here.
+ * Four kinds, one per UI affordance; `image`, `redacted_thinking` and
+ * citations are left out so "we don't render this" is explicit.
+ * `tool_result.output` is `unknown` because outputs are tool-specific
+ * (string, diff, arbitrary MCP JSON); renderers narrow per tool.
  */
 
 export type ContentBlock =

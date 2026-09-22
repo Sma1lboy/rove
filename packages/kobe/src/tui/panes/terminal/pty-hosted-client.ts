@@ -1,9 +1,4 @@
-/**
- * Shared pty-host connection + O(1) inbound routing for `HostedTaskPty`
- * (split from `pty-hosted.ts` — the handle class stays there; this module
- * owns everything process-wide: the one socket, the frame dispatcher, and
- * the key → handle route table).
- */
+/** Process-wide pty-host socket, frame dispatcher and key → handle route table for `HostedTaskPty`. */
 
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { ensurePtyHostReachable } from "@sma1lboy/kobe-daemon/client/pty-process"
@@ -18,33 +13,23 @@ export interface HostedRoute {
 }
 
 /**
- * One shared pty-host connection for every HostedTaskPty in this process
- * (the host speaks the daemon frame grammar, so the same client class
- * works). Spawns the host if none is running — the terminal pane is the
- * product; it may resurrect an idle-exited host.
+ * One connection per process (the host speaks the daemon frame grammar). Spawns
+ * the host if none runs: the terminal pane may resurrect an idle-exited host.
  */
 let shared: Promise<KobeDaemonClient> | null = null
 
 /**
- * Key → live handles, for O(1) inbound routing. The client's `emit()` walks
- * its whole `pty.data`/`pty.exit` handler Set per frame, so one `on()` per
- * open tab made every interactive `claude` chunk cost N handler calls +
- * N key-compares (N-1 pure rejections) on the busiest path. Instead we
- * install ONE dispatcher per shared client (see `installDispatch`) that
- * does a single map lookup. Each handle adds itself here on open and the
- * `cleanup()` teardown route (`detach`/`kill`/`park`/socket-close all pass
- * through it) removes it — so a dead tab never receives a stray chunk.
+ * Key → live handles for O(1) routing: the client's `emit()` walks every
+ * handler per frame, so one `on()` per tab cost N calls on the busiest path.
+ * Handles add themselves on open; `cleanup()` (every detach/kill/park/close
+ * path) removes them, so a dead tab never gets a stray chunk.
  *
- * A SET per key, not a single handle: two live handles for one key are
- * legal (a second viewer of the same session), and a single-slot map let
- * the newcomer silently STEAL the route — the first handle froze on its
- * last frame with the child still streaming (the "UI is gone but it's
- * still running" bug). Every handle for the key gets every frame; each
- * keeps its own xterm.
+ * A SET per key: a second viewer of one session is legal, and a single slot
+ * let the newcomer steal the route, freezing the first while the child kept
+ * streaming. Every handle gets every frame; each keeps its own xterm.
  */
 const hostedByKey = new Map<string, Set<HostedRoute>>()
 
-/** Register `handle` as a live route for its key. */
 export function routeAdd(handle: HostedRoute): void {
   let set = hostedByKey.get(handle.taskId)
   if (!set) {
@@ -54,7 +39,7 @@ export function routeAdd(handle: HostedRoute): void {
   set.add(handle)
 }
 
-/** Drop `handle` from the route table. Returns how many siblings remain. */
+/** Returns how many siblings remain. */
 export function routeRemove(handle: HostedRoute): number {
   const set = hostedByKey.get(handle.taskId)
   if (!set) return 0
@@ -63,20 +48,13 @@ export function routeRemove(handle: HostedRoute): number {
   return set.size
 }
 
-/** How many live handles are currently routed for `key`. */
 export function routeCount(key: string): number {
   return hostedByKey.get(key)?.size ?? 0
 }
 
-/** Guards the one-time dispatcher install per client instance. */
 const dispatchInstalled = new WeakSet<KobeDaemonClient>()
 
-/**
- * Install the single per-frame router on a shared client. Both `pty.data`
- * and `pty.exit` fan out to exactly one map lookup; unknown keys (a dead
- * handle's late frame, a key from another process) drop silently, in
- * O(1) rather than the O(open-tabs) a per-handle key compare would cost.
- */
+/** One map lookup per frame; unknown keys (late frames, other processes) drop silently. */
 function installDispatch(client: KobeDaemonClient): void {
   if (dispatchInstalled.has(client)) return
   dispatchInstalled.add(client)
@@ -113,12 +91,9 @@ export function getSharedPtyClient(): Promise<KobeDaemonClient> {
 }
 
 /**
- * The shared connection ONLY IF this process already has one — never opens
- * it. For callers whose work is worth doing over a connection that exists
- * but is not worth dialing the host for, so they can't spawn (or pin) a
- * client as a side effect: under a test runner `getSharedPtyClient()` would
- * cache a client aimed at whatever socket was current and starve the suite
- * that owns the real one, the same trap `use-host-sessions.ts` documents.
+ * The shared connection only if one exists; never dials. Under a test runner
+ * `getSharedPtyClient()` would cache a client on whatever socket was current and
+ * starve the suite owning the real one (as `use-host-sessions.ts` documents).
  * In a live TUI the sidebar's host poll keeps this non-null.
  */
 export function peekSharedPtyClient(): Promise<KobeDaemonClient> | null {
@@ -126,11 +101,8 @@ export function peekSharedPtyClient(): Promise<KobeDaemonClient> | null {
 }
 
 /**
- * Ask the pty host to pre-spawn one idle shell for `cwd` (`pty.warm`) so
- * the next shell-wrapped engine tab adopts an ALREADY-initialized shell
- * (rc files done) instead of paying shell startup. Fire-and-forget and
- * best-effort: a host that predates the verb (or no hosted backend at
- * all) simply means the next spawn is cold.
+ * `pty.warm`: pre-spawn an idle shell for `cwd` so the next shell-wrapped
+ * engine tab skips rc startup. Best-effort; an older host just spawns cold.
  */
 export function warmHostedShell(cwd: string, shell: string = defaultShell()): void {
   if ((process.env.KOBE_TERMINAL_BACKEND ?? "hosted") !== "hosted") return

@@ -1,11 +1,4 @@
-/**
- * Worktree content reads.
- *
- * File/preview surfaces need a small, soft-failing way to inspect a Task's
- * Worktree without knowing whether it lives locally or behind SSH. This module
- * is that interface: callers ask for git output or file text, and the
- * local/remote choice stays behind ExecHost.
- */
+/** Soft-failing Worktree reads (git output, file text); local vs SSH stays behind ExecHost. */
 
 import { errorMessage } from "@/lib/error-message"
 import type { ExecResult } from "../exec/exec-host.ts"
@@ -25,20 +18,11 @@ export interface WorktreeContentDeps {
 
 export interface RunWorktreeGitOptions extends WorktreeContentDeps {
   readonly timeoutMs?: number
-  /**
-   * Caller cancellation. Combined with the internal timeout (if any) so
-   * aborting the signal kills the underlying subprocess — lets UI panes
-   * cancel an in-flight `git` read when the tab/worktree changes out from
-   * under them instead of stacking overlapping subprocesses.
-   */
+  /** Combined with the timeout; aborting kills the subprocess (panes cancel stale reads). */
   readonly signal?: AbortSignal
 }
 
-/**
- * Run `git <args>` in a Worktree via its ExecHost. Never throws for git
- * failure; spawn/SSH failures come back as `status: -1`, matching the previous
- * spawn-wrapper shape used by pane code.
- */
+/** `git <args>` via the Worktree's ExecHost. Never throws; spawn/SSH failure is `status: -1`. */
 export async function runWorktreeGit(
   worktreePath: string,
   args: readonly string[],
@@ -56,8 +40,6 @@ export async function runWorktreeGit(
         controller.abort()
       }, options.timeoutMs)
     : null
-  // Fold the caller's signal in with the timeout controller so either
-  // source aborts the subprocess.
   const signal =
     controller && options.signal
       ? AbortSignal.any([controller.signal, options.signal])
@@ -102,9 +84,7 @@ export function worktreeFilePath(worktreePath: string, relPath: string): string 
 }
 
 /**
- * Byte size of a Worktree file, or `null` when unreadable. Goes through the
- * ExecHost (`wc -c`) so it works for local AND remote worktrees with one
- * code path.
+ * Byte size via ExecHost `wc -c` (local and remote alike); `null` when unreadable.
  * ponytail: `wc` is absent on native Windows — size degrades to null there;
  * switch to an ExecHost `stat` member if Windows support ever matters.
  */
@@ -126,10 +106,7 @@ export async function worktreeFileSize(
   }
 }
 
-/**
- * Read a utf8 file inside a Worktree. Invalid relative paths and unreadable
- * files return `null` so UI panes can render an empty/soft state.
- */
+/** utf8 file text; `null` for invalid paths or unreadable files. */
 export async function readWorktreeFile(
   worktreePath: string,
   relPath: string,

@@ -1,17 +1,8 @@
 /**
- * The "fix my CI" engine prompt, built from a PR's failing checks.
- *
- * Sibling of `pr-prompt.ts` and shaped like it: a default template with
- * `{{token}}` holes, a per-repo override file, and a pure renderer so vitest
- * can pin the wording without a repo, a daemon, or `gh`. The difference is
- * where the facts come from — `pr-prompt.ts` reads git itself, while the
- * failing-check logs arrive already fetched from the daemon's
- * `pr.failingChecks` RPC (the daemon is the only thing in the tree that
- * spawns `gh`).
- *
- * The log tails are pasted VERBATIM inside a fenced block. They are CI output,
- * not instructions, and an engine reading them should treat them as evidence;
- * the surrounding template is what tells it what to do.
+ * The "fix my CI" engine prompt from a PR's failing checks: `{{token}}`
+ * template, per-repo override, pure renderer. Logs come pre-fetched from the
+ * daemon's `pr.failingChecks` (the daemon is the only thing that spawns `gh`).
+ * Log tails are pasted verbatim in a fence — evidence, not instructions.
  */
 
 import { readFirstNonEmptyRepoFile } from "../../lib/repo-config-file.ts"
@@ -24,13 +15,8 @@ export interface CIFailingCheck {
   readonly tail: string
 }
 
-/**
- * What a `pr.failingChecks` read came back with.
- *
- * `unavailable` is the difference between "no check is red" and "nothing could
- * be asked". Both arrive as `checks: []`, and only one of them means the user
- * can stop worrying about the red badge they are looking at.
- */
+/** A `pr.failingChecks` result. `unavailable` distinguishes "nothing could be
+ *  asked" from "no check is red" — both arrive as `checks: []`. */
 export interface CIFailingChecksRead {
   readonly checks: readonly CIFailingCheck[]
   readonly totalFailing: number
@@ -75,11 +61,8 @@ function jobsSentence(state: CIPromptState): string {
   return `${head}${extra}`
 }
 
-/**
- * The per-job log sections. A check whose tail could not be read still gets a
- * section saying so: "the log is unavailable" is a different instruction to
- * the engine than silence, which would read as "this job logged nothing".
- */
+/** Per-job log sections. An unreadable tail still gets a section saying so —
+ *  silence would read as "this job logged nothing". */
 function logs(checks: readonly CIFailingCheck[]): string {
   if (checks.length === 0) return ""
   return checks
@@ -106,11 +89,7 @@ export function renderCIPrompt(template: string, state: CIPromptState): string {
   )
 }
 
-/**
- * Per-repo CI instruction overrides, canonical spelling first — the same
- * `.rove/` → `.kobe/` fallback pair `pr-prompt.ts` reads for its own template.
- * First readable NON-EMPTY file wins.
- */
+/** Per-repo override, `.rove/` then `.kobe/`; first readable non-empty wins. */
 const CI_INSTRUCTION_FILENAME = "ci-instructions.md"
 
 function loadTemplate(worktree: string): string {

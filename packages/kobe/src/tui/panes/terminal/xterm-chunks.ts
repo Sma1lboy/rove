@@ -37,12 +37,7 @@ type RenderStyle = {
 
 const DEFAULT_RENDER_STYLE: RenderStyle = Object.freeze({ fg: "", bg: "", attrs: 0 })
 
-/**
- * Convert one of `colorKey`'s opaque keys (`""` / `rgb:<packed>` /
- * `pal:<index>`) to an RGB triple for a `Chunk`. The key is only an
- * in-process comparison token for run-coalescing; this resolves it to
- * the real color without any ANSI text in between.
- */
+/** Resolve a `colorKey` token (`""` / `rgb:<packed>` / `pal:<index>`) straight to RGB, no ANSI. */
 function colorKeyToRGB(key: string): RGB | undefined {
   if (key === "") return undefined
   const sep = key.indexOf(":")
@@ -122,20 +117,12 @@ function isSolidBlock(chars: string): boolean {
 }
 
 /**
- * Do these two paints land on the same pixel color? THE single definition
- * behind the solid-block substitution below, deliberately expressed on
- * RESOLVED RGB and shared by the converter and the comparator.
+ * Same pixel color? The one definition behind solid-block substitution,
+ * shared by converter and comparator, on RESOLVED RGB: keys differ for the
+ * same color (`pal:231` vs `rgb:16777215`, common in half-block renderers),
+ * and a converter/comparator split on that re-rendered the pane forever.
  *
- * Comparing the opaque color KEYS instead is a trap: `pal:231` and
- * `rgb:16777215` are different keys but the same white, so a converter
- * keying on strings while the comparator keyed on RGB disagreed about
- * whether a block became a space — the comparator then reported "changed"
- * on EVERY compare and the pane re-rendered forever (visible as a chat
- * that keeps redrawing with no new output). Half-block renderers mix
- * palette and truecolor freely, so this is the normal case, not a corner.
- *
- * Two undefined (default) paints are NOT a fill: a default-styled block is
- * a real glyph against the terminal's own colors.
+ * Two undefined (default) paints are NOT a fill: that block is a real glyph.
  */
 function paintsSamePixel(fg: RGB | undefined, bg: RGB | undefined): boolean {
   if (fg === undefined || bg === undefined) return false
@@ -149,27 +136,13 @@ function isVisibleCell(cell: XtermCellLike): boolean {
 }
 
 /**
- * One reusable scratch cell, shared across every line conversion.
+ * Program-wide scratch cell for `getCell(x, cell)`; the no-arg form allocates
+ * per cell on the render hot path. `@xterm/headless` exports no `CellData`
+ * constructor and `getNullCell()` needs a buffer, so it's seeded lazily from
+ * the first `getCell`.
  *
- * `@xterm/headless`'s `line.getCell(x)` allocates a fresh cell object on
- * every call; `getCell(x, cell)` instead loads the data into `cell` and
- * returns that same reference (xterm's documented "avoid recreating cell
- * objects" fast path). On the terminal render hot path this fires for
- * every cell of every converted line, so the no-arg form was the dominant
- * per-cell allocation.
- *
- * There is no public `CellData` constructor in `@xterm/headless` (it
- * exports only `Terminal`), and `getNullCell()` needs a live buffer this
- * function never sees. So we seed the scratch lazily from the first
- * `getCell` call we ever make (a fresh cell obtained without the scratch
- * arg) and reuse it forever after — a single program-wide allocation
- * amortized to zero per line.
- *
- * Reuse is safe ONLY because nothing here retains a cell reference across
- * iterations: each pass reads the cell's chars + attributes immediately
- * (`cellStyle` copies every attribute out into a fresh `RenderStyle`,
- * `getChars()` extracts the text) and moves on. Stashing the cell object
- * itself would see it clobbered on the next `getCell`.
+ * Safe ONLY because nothing retains a cell across iterations (`cellStyle`
+ * and `getChars()` copy out immediately); a stashed cell would be clobbered.
  */
 let scratchCell: XtermCellLike | undefined
 
@@ -189,25 +162,17 @@ function getCellReusing(line: XtermLineLike, x: number): XtermCellLike | undefin
 }
 
 /**
- * Map one xterm buffer line to a list of opentui-ready style runs.
- *
- * This is the direct cell→chunk path: we read xterm's authoritative
- * cells (chars + fg/bg/attrs) and coalesce contiguous same-style cells
- * into one `Chunk`, resolving colors straight to RGB. No ANSI is
- * produced or re-parsed. `minLast` keeps the cursor column visible even
- * when the trailing cells are blank, mirroring the snapshot the cursor
- * overlay is computed against.
+ * One xterm line → style runs, coalescing same-style cells (no ANSI round
+ * trip). `minLast` keeps the cursor column emitted even over trailing
+ * blanks, matching the snapshot the cursor overlay uses.
  */
 export function xtermLineToChunks(
   line: XtermLineLike,
   minLast = -1,
   styleRewrites?: readonly TerminalStyleRewrite[],
 ): Chunk[] {
-  // `Math.max` is load-bearing: the `minLast` seed (cursor column) must
-  // survive the visible-cell scan. A plain `last = x` let the FIRST
-  // visible cell clobber the seed, so trailing BLANK cells (typed spaces
-  // echo as default-style blanks) were never emitted and the cursor
-  // overlay stuck at end-of-text — "cursor doesn't move on space".
+  // `Math.max` keeps the `minLast` seed; `last = x` would drop trailing
+  // typed spaces and freeze the cursor overlay at end-of-text.
   let last = Math.min(line.length - 1, minLast)
   for (let x = 0; x < line.length; x++) {
     const cell = getCellReusing(line, x)
@@ -237,11 +202,9 @@ export function xtermLineToChunks(
       activeIsFill = paintsSamePixel(colorKeyToRGB(next.fg), colorKeyToRGB(next.bg))
     }
     const chars = cell.getChars() || " "
-    // Solid-block glyphs whose fg equals bg render as bg-only spaces: same
-    // pixels, but the HOST terminal's minimum-contrast feature (iTerm)
-    // cannot darken the "glyph" half — the zebra-stripe fix for
-    // half-block renderers (carbonyl, the video plugin). The
-    // decision lives in `paintsSamePixel`, shared with the comparator.
+    // fg == bg solid blocks become bg-only spaces, so the host's
+    // minimum-contrast (iTerm) can't darken the glyph half — zebra stripes
+    // in half-block renderers (carbonyl, the video plugin).
     buf += isSolidBlock(chars) && activeIsFill ? " " : chars
   }
   flush()
@@ -315,10 +278,8 @@ export function xtermLineMatchesChunks(
     const chunk = row[chunkIndex]
     if (!chunk || !chunkStyleMatchesCell(chunk, cell, styleRewrites)) return false
     const raw = cell.getChars() || " "
-    // Same substitution as the converter, from the same `paintsSamePixel`
-    // definition. `chunkStyleMatchesCell` above already proved the chunk's
-    // colors ARE this cell's resolved colors, so reading them off the
-    // chunk needs no extra allocation and cannot drift from the converter.
+    // Same substitution as the converter; `chunkStyleMatchesCell` proved the
+    // chunk colors are this cell's, so reading them off the chunk can't drift.
     const text = isSolidBlock(raw) && paintsSamePixel(chunk.fg, chunk.bg) ? " " : raw
     if (!chunk.text.startsWith(text, textOffset)) return false
     textOffset += text.length

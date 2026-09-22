@@ -1,11 +1,8 @@
 /**
- * Scripted PTY test double — a `PtyRegistry` whose factory spawns NOTHING:
- * every acquire hands back a `MockTaskPty` the test drives by hand. This is
- * the cheap track for the pane's error/exit paths, which the real backends
- * only reach through slow subprocess plumbing.
+ * Test double: a `PtyRegistry` whose factory spawns nothing and returns a
+ * hand-driven `MockTaskPty` — the cheap track for error/exit paths.
  *
- * Scripting surface (all synchronous, test-timed — "delay" is just calling
- * these later):
+ * Scripting (synchronous; "delay" = call later):
  *
  *   - emit output:      `harness.last().feed("hello\r\n")`
  *   - engine exit:      `harness.last().kill()` (fires `onExit`, same as a
@@ -15,10 +12,8 @@
  *                       factory call (plain `acquire` or the acquire half of
  *                       `reset`) throws. Queue several to fail several.
  *
- * Lives beside `pty-mock.ts` rather than in it because this file needs the
- * `PtyRegistry` class value and `registry.ts → pty.ts → pty-mock.ts` already
- * forms an import chain — importing registry from pty-mock would close a
- * module cycle.
+ * Not in `pty-mock.ts`: `registry.ts → pty.ts → pty-mock.ts` already exists,
+ * so importing registry there would close a cycle.
  */
 
 import { MockTaskPty } from "./pty-mock"

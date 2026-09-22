@@ -1,45 +1,18 @@
 /**
- * `PtyRegistry` — one PTY per task, kept alive while the task is in
- * progress, released when the task is deleted.
+ * `PtyRegistry` — one PTY per key, decoupling shell lifecycle (per task)
+ * from pane lifecycle (per render), so remounts keep scrollback and
+ * in-flight commands. A dumb container: it doesn't watch task status
+ * (callers `release()`), and there is no concurrency cap.
  *
- * The pane mounts and unmounts per render (every time the user switches
- * the active task or remounts the layout), but the underlying shell
- * shouldn't restart on every mount — that would lose scrollback and any
- * in-flight commands. The registry decouples pane lifecycle (per-render)
- * from shell lifecycle (per-task).
+ * Parking is automatic: the idle sweep detaches hidden tabs' emulators after
+ * serializing the screen (`capturePark`, ~100-200KB); the wake feeds that
+ * plus the host's exact byte delta since park (`pty.open sinceOffset`) —
+ * bit-identical to never detaching, which a 512KB ring replay alone can't
+ * do for a long session. A trimmed delta or respawned child degrades to
+ * full replay + repaint wiggle.
  *
- * Contract (mirrored in `Terminal.tsx`):
- *
- *   - `acquire(taskId, cwd)` returns the existing `TaskPty` for the
- *     task, or creates a new one. Subsequent `acquire`s with the same
- *     id return the same instance.
- *   - `release(taskId)` kills the PTY and forgets it. Called when the
- *     task is deleted.
- *   - `releaseAll()` kills every registered PTY. Called on app
- *     teardown to avoid leaking shell processes.
- *
- * What the registry deliberately does NOT do:
- *   - It does not subscribe to task status changes. The orchestrator
- *     (Stream E) is responsible for calling `release()` when a task
- *     transitions to `done` / etc. The registry is a dumb container.
- *   - It does not cap concurrency. Nothing else does either — there is
- *     no cap on simultaneous running tasks.
- *
- * PTY parking is AUTOMATIC: the
- * idle sweep detaches hidden tabs' xterm instances, but each handle
- * serializes its full screen first (`capturePark` → SerializeAddon VT
- * stream, ~100-200KB in `this.parked`) and the wake feeds that stream
- * plus the host's EXACT byte delta since park (`pty.open sinceOffset`)
- * into the fresh emulator — bit-identical to never detaching. A 512KB
- * ring replay alone cannot rebuild a long session's screen. When the
- * delta has been trimmed away or the child was respawned, the wake
- * degrades to the full-replay + repaint-wiggle path.
- *
- * Concurrency: every method is synchronous and JS is single-threaded,
- * so there's no race within a single registry. Two registries pointing
- * at the same task id return the same in-process shell handle. The
- * host component creates exactly one registry per app instance; tests
- * stand up disposable registries inside a single `describe` block.
+ * All methods are sync, so no intra-registry races. The app makes one
+ * registry; each registry holds its own handles.
  */
 
 import { isDev } from "../../../env.ts"
@@ -51,24 +24,17 @@ export type AcquireOpts = Omit<TaskPtyOpts, "taskId" | "cwd">
 const PARK_AFTER_MS = 120_000
 /** Cadence of the park sweep. */
 const PARK_SWEEP_MS = 30_000
-/** A session that produced output within this window is ACTIVE — never park
- *  it (see `TaskPtyLike.lastOutputAtMs`: an active stream defeats all three
- *  legs of the lossless wake). It stays resident and the next sweep
- *  re-checks. */
+/** Output within this window = ACTIVE, never parked (an active stream
+ *  defeats the lossless wake, see `TaskPtyLike.lastOutputAtMs`). */
 export const PARK_QUIET_MS = 30_000
 
-/**
- * Factory for the underlying `TaskPty`. Defaults to `createTaskPty`
- * but is injectable so tests can swap in a `MockTaskPty` without
- * touching `process.env`.
- */
+/** Injectable so tests can use `MockTaskPty` without touching `process.env`. */
 export type PtyFactory = (opts: TaskPtyOpts) => TaskPty
 
 export class PtyRegistry {
   private readonly map = new Map<string, TaskPty>()
-  /** Serialized screens of parked handles, keyed like `map` — consumed by
-   *  the next `acquire()` as `TaskPtyOpts.restore`. Entries are small
-   *  (~100-200KB VT strings) where a live handle is a multi-MB emulator. */
+  /** Parked screens (~100-200KB vs a multi-MB live emulator), consumed by the
+   *  next `acquire()` as `TaskPtyOpts.restore`. */
   private readonly parked = new Map<string, ParkedScreen>()
   private readonly factory: PtyFactory
   private sweepTimer: ReturnType<typeof setInterval> | null = null
@@ -77,9 +43,8 @@ export class PtyRegistry {
     this.factory = factory
   }
 
-  /** Lazily start the park sweep on first acquire — a registry that never
-   *  holds a PTY (tests, mock hosts) never runs a timer. `unref` so the
-   *  sweep can't keep a wound-down process alive. */
+  /** Started on first acquire so PTY-less registries run no timer; `unref`
+   *  so it can't keep the process alive. */
   private ensureSweeper(): void {
     if (this.sweepTimer) return
     const timer = setInterval(() => this.parkIdle(PARK_AFTER_MS), PARK_SWEEP_MS)
@@ -93,12 +58,9 @@ export class PtyRegistry {
   }
 
   /**
-   * Park every idle handle: persistent backend (`detach` present), no data
-   * subscriber for `idleMs`+ (see `TaskPtyLike.unwatchedSinceMs` — only the
-   * mounted pane subscribes, so unwatched == hidden tab). The child keeps
-   * running in the pty host; the serialized screen (`capturePark`) is kept
-   * here and the next `acquire()` under the same key restores it plus the
-   * host's exact byte delta. Returns the parked keys.
+   * Park every persistent-backend handle with no data subscriber for
+   * `idleMs`+ (only the mounted pane subscribes, so unwatched == hidden tab).
+   * Returns the parked keys.
    */
   parkIdle(idleMs: number, now: number = Date.now()): string[] {
     const parked: string[] = []
@@ -107,11 +69,8 @@ export class PtyRegistry {
       if (!pty.detach || !pty.unwatchedSinceMs) continue
       const since = pty.unwatchedSinceMs()
       if (since === null || now - since < idleMs) continue
-      // Quiet gate: a hidden tab whose child is still streaming (claude
-      // working in the background) keeps its emulator resident — parking
-      // it produces the "input box gone on wake" failure: the delta outruns
-      // the 512KB host ring, and the degraded wake's repaint wiggle
-      // coalesces under an active stream.
+      // A still-streaming child stays resident: its delta outruns the 512KB
+      // ring and the degraded wake's wiggle coalesces ("input box gone").
       const lastOut = pty.lastOutputAtMs?.() ?? null
       if (lastOut !== null && now - lastOut < PARK_QUIET_MS) continue
       const screen = pty.capturePark?.() ?? null
@@ -135,23 +94,15 @@ export class PtyRegistry {
   }
 
   /**
-   * Return the existing PTY for `taskId`, or spawn a new one bound to
-   * `cwd`. The `cwd` is only used on first acquisition; subsequent
-   * acquires return the existing instance regardless of `cwd`. The
-   * host component is expected to `release()` and re-`acquire()` if
-   * the task's worktree path actually changes — but in our data model
-   * the worktree path is immutable for the lifetime of the task, so
-   * that's a defensive contract not a runtime concern.
+   * The live PTY for `taskId`, or a new one in `cwd`. `cwd` only matters on
+   * first acquire; a changed path needs `release()` + `acquire()`.
    */
   acquire(taskId: string, cwd: string, opts: AcquireOpts = {}): TaskPty {
     const existing = this.map.get(taskId)
     if (existing && !existing.killed) return existing
-    // If we had a stale entry (killed externally), drop it before
-    // creating a fresh one.
     if (existing) this.map.delete(taskId)
 
-    // A parked screen for this key rides along exactly once — the wake
-    // either restores it (host-confirmed delta) or discards it.
+    // A parked screen rides along exactly once: restored or discarded.
     const restore = this.parked.get(taskId)
     if (restore) this.parked.delete(taskId)
     const pty = this.factory({ taskId, cwd, ...opts, ...(restore ? { restore } : {}) })
@@ -176,15 +127,11 @@ export class PtyRegistry {
     return this.get(taskId) !== null
   }
 
-  /**
-   * Kill the PTY for `taskId` and forget it. No-op if absent. The
-   * host calls this when the task is deleted.
-   */
+  /** Kill the PTY for `taskId` and forget it. No-op if absent. */
   release(taskId: string): void {
     const pty = this.map.get(taskId)
     this.map.delete(taskId)
-    // A released key's parked screen is garbage — restoring it onto the
-    // NEXT session under this key would paint a dead session's past.
+    // Else the next session under this key would paint a dead one's past.
     this.parked.delete(taskId)
     if (!pty) return
     try {
@@ -195,11 +142,9 @@ export class PtyRegistry {
   }
 
   /**
-   * Kill and forget every PTY whose id matches `predicate` — the
-   * task-scoped teardown for tab-keyed PTYs (`taskId::tabId`):
-   * deleting a task must end every engine session it owns.
-   * Parked keys match too: their host sessions are ended by the delete
-   * flow, and the screens must not outlive the task.
+   * Kill and forget every PTY whose id matches — task-scoped teardown for
+   * tab keys (`taskId::tabId`). Parked screens go too; the delete flow ends
+   * their host sessions.
    */
   releaseWhere(predicate: (id: string) => boolean): void {
     const ids = Array.from(this.map.keys()).filter(predicate)
@@ -207,10 +152,7 @@ export class PtyRegistry {
     for (const id of Array.from(this.parked.keys()).filter(predicate)) this.parked.delete(id)
   }
 
-  /**
-   * Kill every PTY and forget them all. Called on TUI teardown to
-   * leave no orphan shell processes.
-   */
+  /** Kill and forget every PTY. */
   releaseAll(): void {
     const ids = Array.from(this.map.keys())
     for (const id of ids) this.release(id)
@@ -218,13 +160,8 @@ export class PtyRegistry {
     this.stopSweeper()
   }
 
-  /**
-   * Detach every PTY and forget them all — the app-exit counterpart of
-   * `releaseAll()` for persistent backends: a daemon-hosted session keeps
-   * RUNNING in the background and reattaches on the next boot. Backends
-   * without `detach()` (local child — nothing to persist) are killed,
-   * exactly as before.
-   */
+  /** App exit: hosted sessions keep running and reattach next boot;
+   *  backends without `detach()` are killed. */
   detachAll(): void {
     const ptys = Array.from(this.map.values())
     this.map.clear()
@@ -240,20 +177,8 @@ export class PtyRegistry {
     }
   }
 
-  /**
-   * Kill the PTY for `taskId` (if any) and immediately spawn a fresh
-   * one with the same `cwd` / `opts`. Returns the new instance.
-   *
-   * The use cases are "shell is stuck" / "binary spew corrupted the
-   * grid" / "I want a clean slate without restarting kobe." The
-   * user-visible effect is: scrollback wiped, fresh prompt at the
-   * worktree path, all in-flight processes (vim, htop, paused jobs)
-   * killed.
-   *
-   * Implemented in terms of release + acquire so the cleanup path is
-   * shared with delete teardown — no risk of leaking a PTY whose old
-   * listeners weren't unwired.
-   */
+  /** Kill and respawn: scrollback wiped, in-flight processes killed. Shares
+   *  release's cleanup so no old listener leaks. */
   reset(taskId: string, cwd: string, opts: AcquireOpts = {}): TaskPty {
     this.release(taskId)
     return this.acquire(taskId, cwd, opts)
@@ -277,13 +202,7 @@ export class PtyRegistry {
   }
 }
 
-/**
- * Default registry shared by every `<Terminal />` instance in the app.
- * The workspace host reaches into it to call `release(taskId)` when a
- * task is deleted; until then the registry just keeps PTYs alive.
- *
- * Tests pass their own registry via `props.registry`.
- */
+/** App-wide registry shared by every `<Terminal />`; tests pass `props.registry`. */
 let defaultRegistry: PtyRegistry | null = null
 
 export function getDefaultPtyRegistry(): PtyRegistry {
@@ -291,10 +210,7 @@ export function getDefaultPtyRegistry(): PtyRegistry {
   return defaultRegistry
 }
 
-/**
- * Reset the module-level registry. Tests use this between cases so a
- * leftover registry doesn't leak shell processes across tests.
- */
+/** Tests: reset between cases so shells don't leak across tests. */
 export function _resetDefaultPtyRegistry(): void {
   if (defaultRegistry) defaultRegistry.releaseAll()
   defaultRegistry = null

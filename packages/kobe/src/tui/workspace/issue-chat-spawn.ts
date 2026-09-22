@@ -1,18 +1,12 @@
 /**
- * Issue-chat spawn compositions — the kanban board's "trigger" paths. A
- * Start must actually LAUNCH the engine session, not park a prompt for the
- * first visit: the caller feeds these compositions to `PtyRegistry.acquire`
- * so the hosted PTY starts working immediately, whether the user jumps in
- * or stays on the board tracking the card (`state/issue-chat.ts` for the
- * placement grammar).
+ * Kanban "Start" spawns: fed to `PtyRegistry.acquire` so the engine LAUNCHES
+ * now, not on first visit (placement grammar: `state/issue-chat.ts`).
  *
- * The composition mirrors `TerminalTabs`' first-tab spawn exactly —
- * `initialTabs()` + a pinned session id + `engineTabSpawnFor` with the
- * story prompt — so a later visit to the task ATTACHES to the same live
- * PTY (same `tabPtyKey`) instead of respawning. `tabsSnapshot` is the
- * matching persisted tab state (spawned=true): written to the
- * `terminalTabs.<taskId>` kv slot, it makes the visit rehydrate onto this
- * session and, after a host restart, `--resume` it.
+ * Mirrors `TerminalTabs`' first-tab spawn exactly (`initialTabs()` + pinned
+ * session id + `engineTabSpawnFor`) so a later visit ATTACHES to the same
+ * `tabPtyKey`. `tabsSnapshot` (spawned=true), written to
+ * `terminalTabs.<taskId>`, makes the visit rehydrate onto this session and
+ * `--resume` it after a host restart.
  */
 
 import { withPinnedSessionId } from "@/engine/engine-presets"
@@ -36,8 +30,7 @@ export interface IssueChatBackgroundSpawn {
   readonly ptyKey: string
   readonly command: readonly string[]
   readonly initialInput?: string
-  /** Paste-delivery vendor's first message (kimi): the prompt rides OUTSIDE
-   *  the argv; the hosted PTY pastes it post-spawn. */
+  /** Paste-delivery vendor (kimi): the prompt is pasted post-spawn, not in argv. */
   readonly firstMessage?: string
   /** Engine binary name for the first-message engine-up probe. */
   readonly engineBin?: string
@@ -79,12 +72,10 @@ export function buildIssueChatBackgroundSpawn(input: {
 }
 
 /**
- * Headless spawn for a story chattab APPENDED to an existing task's strip —
- * the `project` placement: `tab` is the already-persisted entry from
- * `appendBackgroundEngineTab` (spawned=true on disk), so the spawn composes
- * from its UNSPAWNED view — fresh `--session-id`, prompt riding — while a
- * SYNTHETIC single-tab state satisfies the first-tab prompt policy (the
- * host task's real tab-1 already consumed its own first spawn).
+ * `project` placement: a story tab APPENDED to an existing task. `tab` is
+ * persisted spawned=true (`appendBackgroundEngineTab`), so compose from its
+ * unspawned view (fresh `--session-id`, prompt) in a SYNTHETIC one-tab state
+ * that passes the first-tab prompt policy (the real tab-1 already spawned).
  */
 export function buildIssueTabSpawn(input: {
   /** The task hosting the tab (the repo's main task) + its checkout. */

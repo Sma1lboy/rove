@@ -1,19 +1,13 @@
 /**
- * Grid-based selection for the embedded terminal pane — the way real
- * terminal emulators select, replacing opentui's text-flow selection
- * which broke over this pane (the snapshot <text> is replaced wholesale
- * on every PTY frame, so flow anchors were invalidated mid-drag:
- * glitchy highlight, empty extraction).
+ * Grid-based selection for the embedded terminal pane. opentui's text-flow
+ * selection can't work here: the snapshot <text> is replaced on every PTY
+ * frame, invalidating flow anchors mid-drag.
  *
- * Everything here is pure and cell-addressed: a selection is an anchor
- * and a head in ABSOLUTE snapshot coordinates (row = index into the
- * full snapshot row array, col = terminal column), normalized into
- * per-row spans with linear reading-order semantics (first row from
- * the start column, middle rows whole, last row to the end column) —
- * exactly xterm/tmux selection shape. The component owns the mouse
- * wiring and the copy; `overlaySelection` reuses the cursor overlay's
- * chunk-splitting to paint the highlight, so it survives every frame
- * refresh untouched.
+ * Pure and cell-addressed: anchor/head are ABSOLUTE snapshot coordinates
+ * (row = snapshot row index, col = terminal column), normalized to
+ * xterm/tmux reading-order spans (first row from start col, middle rows
+ * whole, last row to end col). The highlight is painted per frame by
+ * `overlaySelection`, so it survives snapshot refreshes.
  */
 
 import { charWidth } from "../../../lib/display-width"
@@ -25,23 +19,19 @@ export type CellPoint = { readonly row: number; readonly col: number }
 export type SelectionRange = { readonly anchor: CellPoint; readonly head: CellPoint }
 
 /**
- * The absolute snapshot cell under a pointer, plus the auto-scroll pull that
- * pointer position asks for.
+ * The absolute snapshot cell under a pointer, plus the auto-scroll pull it
+ * asks for.
  *
- * `viewCol`/`viewRow` are pointer coordinates RELATIVE to the pane body and
- * may be negative or past the last row: opentui captures the drag to the
- * element the press started on, so a drag that leaves the pane keeps
- * reporting real coordinates.
+ * `viewCol`/`viewRow` are pane-relative and may be negative or past the last
+ * row: opentui captures the drag to the pressed element, so a drag leaving
+ * the pane keeps reporting real coordinates.
  *
- * `edgePull` counts from the EDGE ROW, not from outside the pane — the first
- * visible row already pulls by 1, one row above it by 2, and so on (mirrored
- * at the bottom). A terminal pane sits flush under a one-row tab strip, so
- * "drag beyond the pane" is a one-row target the pointer rarely hits;
- * emulators scroll at the pane boundary itself, and so do we. The cell stays
- * a valid snapshot address either way (column clamped to the grid, row to the
- * snapshot). Selection coordinates are absolute, so the row under a
- * stationary pointer changes as the viewport scrolls — that is what lets a
- * held drag keep extending into scrollback.
+ * `edgePull` counts from the EDGE ROW (first visible row pulls 1, one above
+ * pulls 2; mirrored at the bottom): the pane sits flush under a one-row tab
+ * strip, so "beyond the pane" is a target the pointer rarely hits. The cell
+ * is always a valid snapshot address (col clamped to grid, row to snapshot);
+ * since it's absolute, a stationary pointer's row changes as the viewport
+ * scrolls, which is what lets a held drag extend into scrollback.
  */
 export function pointerCell(
   viewCol: number,
@@ -134,16 +124,11 @@ function sliceTextByCells(text: string, from: number, to: number): CellSlice {
  * Extract the selected text: per-row slice by span, trailing whitespace
  * trimmed per line, lines joined with \n.
  *
- * Snapshot rows are TRIMMED, not grid-padded (`xtermLineToChunks` drops
- * trailing blank cells), so a row's text can be shorter than the grid. The
- * mouse column, however, is clamped to the grid width — a drag can anchor in
- * the blank padding past a short line. When that happens on a multi-row
- * selection's FIRST row, its selected slice is empty. The loop only visits
- * rows within `[start.row, end.row]`, so a null span here always means "in
- * selection, empty slice" (rowSpan's out-of-range null can't occur inside
- * these bounds) — it must still contribute an empty line so the newline
- * survives, matching what `overlaySelection` highlights. Dropping it collapsed
- * two visibly-selected lines into one on copy.
+ * Snapshot rows are TRIMMED (`xtermLineToChunks` drops trailing blanks) but
+ * the mouse column is clamped to the grid, so a drag can anchor past a short
+ * line and yield an empty slice. Inside `[start.row, end.row]` a null span
+ * always means "selected, empty": it still contributes an empty line so the
+ * newline survives, matching what `overlaySelection` highlights.
  */
 export function extractSelection(
   rows: readonly (readonly Chunk[])[],
@@ -157,26 +142,20 @@ export function extractSelection(
     const text = rowText(rows[r] ?? [])
     const span = rowSpan(range, r, Math.max(textCells(text), 1))
     const slice = span ? sliceTextByCells(text, span[0], span[1]).selected : ""
-    // A soft-wrap continuation is the SAME line the emulator ran out of
-    // columns on, so it appends with no separator. Only a row that starts a
-    // logical line opens a new one; the row the selection starts on always
-    // does, since its predecessor is outside the selection.
+    // A soft-wrap continuation appends to the same logical line; the first
+    // selected row always opens one, since its predecessor is outside.
     if (r > first && isWrapContinuation(wrapped, r) && lines.length > 0) lines[lines.length - 1] += slice
     else lines.push(slice)
   }
-  // Trimmed per LOGICAL line, not per row: the padding a user never selected
-  // sits at the end of the line, and a wrap point is mid-line.
+  // Trim per LOGICAL line: a wrap point is mid-line, padding is at its end.
   return lines.map((line) => line.trimEnd()).join("\n")
 }
 
 /**
- * How {@link overlaySelection} repaints the cells it covers.
- *
- * `"inverse"` XORs the inverse attribute — the pane's own selection, which
- * has to read as "selected" over whatever colors the cell already carried.
- * A flat `{fg,bg}` OVERRIDES those colors instead, which is what the
- * scrollback search's current hit needs: it shares the screen with the other
- * hits, and two inverse blocks would be indistinguishable.
+ * How {@link overlaySelection} repaints covered cells. `"inverse"` XORs the
+ * inverse attribute (the pane selection, readable over any colors); a flat
+ * `{fg,bg}` overrides colors, for the search's current hit, which would be
+ * indistinguishable from the other inverse hits.
  */
 export type SpanPaint = "inverse" | { readonly fg: RGB; readonly bg: RGB }
 
@@ -203,13 +182,9 @@ function overlayRowSpan(row: readonly Chunk[], from: number, to: number, paint: 
     out.push(paintChunk(chunk, selected, paint))
     if (after) out.push({ ...chunk, text: after })
   }
-  // Selection reaching past the row's painted cells: show the highlight
-  // on the padding too, like terminals do. When the span STARTS past the
-  // painted cells (a drag anchored in the blank padding right of a short
-  // line, `from > col`), the highlight must begin at `from`, not at the
-  // row's painted width — so emit the `from - col` gap as plain spaces
-  // first, then the inverse block. With `from <= col` the gap is zero and
-  // the inverse block fills `[col, to)` exactly as before.
+  // Highlight the padding past the painted cells too, like terminals do. A
+  // span starting past them (`from > col`) begins at `from`: emit the gap as
+  // plain spaces, then the painted block.
   if (col < to) {
     const gap = from - col
     if (gap > 0) out.push({ text: " ".repeat(gap) })
@@ -221,22 +196,18 @@ function overlayRowSpan(row: readonly Chunk[], from: number, to: number, paint: 
 /* --------- alt-screen drag scrolling ---------- */
 
 /**
- * An app that owns its own scrollback (an engine on the ALTERNATE screen) has
- * a one-screen snapshot: forwarding wheel ticks scrolls the APP, the content
- * shifts on screen, and the snapshot row numbers don't move. The pieces below
- * keep a drag-selection glued to the content anyway:
+ * An app on the ALTERNATE screen owns its scrollback: the snapshot is one
+ * screen, wheel ticks scroll the APP, and row numbers don't move. To keep a
+ * drag-selection glued to content:
  *
- *  - `snapshotShift` MEASURES how far the content actually moved between two
- *    snapshots — the wheel only *asks* the app to scroll (`pty.wheel` reports
- *    "sequence sent", not "app moved N lines"), so the displacement has to be
- *    read back from what changed on screen.
- *  - `shiftShadow` banks the rows that scrolled off screen during the drag so
- *    the copy can include them; `extractShadowedSelection` extracts over the
- *    composed buffer through the SAME `extractSelection` path the highlight's
- *    range feeds — see-it = copy-it by construction.
+ *  - `snapshotShift` MEASURES the displacement from what changed on screen;
+ *    `pty.wheel` only reports "sequence sent", not "app moved N lines".
+ *  - `shiftShadow` banks rows scrolled off during the drag;
+ *    `extractShadowedSelection` extracts them through the same
+ *    `extractSelection` path, so what's highlighted is what's copied.
  *
- * Coordinates stay snapshot-addressed: shadow rows live at logical indices
- * below 0 (`above`, top-first) and at `snapshotLength` and beyond (`below`).
+ * Shadow rows sit at logical indices below 0 (`above`, top-first) and at
+ * `snapshotLength` and beyond (`below`).
  */
 export type SelectionShadow = {
   /** Rows scrolled off the TOP, top-first: `above[i]` sits at logical index `i - above.length`. */
@@ -333,18 +304,13 @@ export type SelectionShiftState = {
 }
 
 /**
- * Roll a selection across one snapshot change: measure the content
- * displacement, bank the rows that scrolled off, and move the endpoints that
- * belong to the CONTENT along with it.
+ * Roll a selection across one snapshot change: measure the shift, bank rows
+ * that scrolled off, and move content-owned endpoints with it. During a live
+ * drag only the anchor follows (the pane re-derives the head from the
+ * pointer); after release both follow, so the highlight scrolls with content.
  *
- * While the drag is LIVE only the anchor follows — the head is pinned to the
- * pointer, which the pane re-derives from the last pointer position itself.
- * Once the drag is released both endpoints belong to the content, so both
- * follow and the highlight scrolls off the top or bottom of the pane the way
- * every emulator's does, instead of staying pinned to screen rows.
- *
- * Returns the input state by reference when there is nothing selected or no
- * shift is measurable, so callers can skip the update entirely.
+ * Returns the input by reference when nothing is selected or no shift is
+ * measurable, so callers can skip the update.
  */
 export function followContentShift(
   state: SelectionShiftState,
@@ -375,10 +341,8 @@ export function extractShadowedSelection(
   if (shadow.above.length === 0 && shadow.below.length === 0) return extractSelection(snapshot, range, wrapped)
   const offset = shadow.above.length
   const rows = [...shadow.above, ...snapshot, ...shadow.below]
-  // Shadow rows are whole screens banked during an ALT-screen drag, and this
-  // path only runs there. They carry no wrap flags of their own — an app that
-  // owns its own scrollback positions each row itself rather than letting the
-  // emulator wrap — so they count as line starts.
+  // Shadow rows come from an ALT-screen app that positions each row itself
+  // (no emulator wrap), so they count as line starts.
   const shifted = wrapped
     ? [...new Array<boolean>(offset).fill(false), ...wrapped, ...new Array<boolean>(shadow.below.length).fill(false)]
     : undefined
@@ -393,23 +357,17 @@ export function extractShadowedSelection(
 }
 
 /**
- * Whether the app inside the PTY just TOOK the mouse — the moment the pane's
- * own selection has to get out of its way.
+ * Whether the PTY app just TOOK the mouse, so the pane's selection must yield.
  *
- * Mouse ownership decides selection ownership. An app with mouse tracking on
- * (claude, vim, htop, less) draws and copies its own selection, so a second
- * highlight painted over it is always the wrong one — the app cannot see it
- * and neither layer can clear the other's. A forwarded PRESS already keeps the
- * pane out of a mouse-aware app (`encodeMouseButton` returns null only while
- * tracking is `none`, and `Terminal.tsx` starts a selection only when the
- * press was NOT forwarded). What a press cannot cover is the app arriving
- * afterwards: `vim` typed at a prompt where text is still highlighted, or
- * launched while a drag is live.
+ * A mouse-tracking app (claude, vim, htop, less) owns its own selection; a
+ * second highlight over it is always wrong and neither layer can clear the
+ * other's. Forwarded presses already keep the pane out (`encodeMouseButton`
+ * is null only while tracking is `none`; `Terminal.tsx` selects only on an
+ * unforwarded press); this covers the app arriving afterwards (`vim`
+ * launched with text highlighted or mid-drag).
  *
- * So this is a RISING EDGE, not the steady state. A selection begun while the
- * app ALREADY owned the mouse is the shift bypass — the iTerm/kitty escape
- * hatch for pulling text out of a mouse-aware app — and a deliberate override
- * must survive, highlight included.
+ * RISING EDGE only: a selection begun while the app already owned the mouse
+ * is the deliberate shift bypass (iTerm/kitty escape hatch) and must survive.
  */
 export function appTookMouse(previouslyOwned: boolean, ownedNow: boolean): boolean {
   return ownedNow && !previouslyOwned
@@ -435,24 +393,19 @@ export function overlaySelection(
 }
 
 /**
- * Roll a selection across a snapshot-WINDOW move — the NORMAL screen's
+ * Roll a selection across a snapshot-WINDOW move, the NORMAL screen's
  * counterpart to {@link followContentShift}.
  *
- * The local scrollback is bounded, so once it saturates every new line drops
- * one row off the front of the snapshot and every array index addresses
- * content one line newer than it did. `startLine` — the same absolute line id
- * `resolveViewportScrollOffset` re-derives the viewport from — states that
- * displacement exactly, so this is arithmetic, not the content matching
- * `snapshotShift` has to do for an app that owns its own scrollback.
+ * Saturated local scrollback drops a row off the front per new line, so
+ * indices drift. `startLine` (the absolute line id
+ * `resolveViewportScrollOffset` also uses) gives the exact displacement, no
+ * content matching needed. Trimmed rows are gone, so endpoints clamp rather
+ * than being banked in the shadow (the shadow is for alt-screen drags, where
+ * the rows still exist inside the app).
  *
- * Rows the trim took are gone from local scrollback, so the endpoints clamp to
- * what is still addressable rather than being banked in the shadow (that bank
- * belongs to the alt-screen drag, where the rows still exist inside the app).
- *
- * Returns the input by reference when nothing moved, and `null` when line
- * numbering was RESET (a resize reflows history and bumps `epoch`): the
- * selection then addresses content that does not exist under those ids and
- * must be dropped, not silently mis-mapped.
+ * Returns the input by reference when nothing moved; `null` when numbering
+ * was RESET (resize reflow bumps `epoch`), since the ids then address
+ * different content and the selection must be dropped, not mis-mapped.
  */
 export function followWindowShift(
   state: SelectionShiftState,
@@ -472,8 +425,7 @@ export function followWindowShift(
   return {
     shadow: state.shadow,
     anchor: follow(state.anchor),
-    // The head belongs to the POINTER while the drag is live — the pane
-    // re-derives it from the last pointer position itself.
+    // A live drag's head belongs to the pointer.
     head: dragging || !state.head ? state.head : follow(state.head),
   }
 }

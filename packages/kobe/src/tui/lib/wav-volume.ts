@@ -1,19 +1,11 @@
 /**
- * Scale a 16-bit PCM WAV's samples, so the chime's volume is a property of
- * the FILE rather than an argument to the player.
+ * Scale a 16-bit PCM WAV's samples, so volume is a property of the FILE, not
+ * a player argument: four of `sound.ts`'s eleven players take no volume flag
+ * (`afplay`, `aplay`, `omxplayer`, and Windows' only option, powershell's
+ * `Media.SoundPlayer`).
  *
- * Why not the player: `sound.ts` picks the first audio player on PATH, and
- * four of the eleven candidates take no volume flag at all — `afplay`,
- * `aplay`, `omxplayer`, and the `powershell.exe` fallback, whose
- * `Media.SoundPlayer` class has no volume API (its only knobs are Play,
- * PlaySync, PlayLooping and Stop). Windows only ever reaches that last one,
- * so the `volume` argument was silently discarded there and the chime played
- * at full system level with no setting able to lower it. Scaling the samples
- * makes one mechanism that works for every player.
- *
- * Pure and total: anything unexpected (not RIFF/WAVE, not 16-bit PCM, a
- * truncated chunk) returns null and the caller plays the asset untouched.
- * A quieter chime is worth having; a corrupted one is not.
+ * Total: anything unexpected (not RIFF/WAVE, not 16-bit PCM, truncated)
+ * returns null and the caller plays the asset untouched.
  */
 
 const RIFF = 0x52494646 // "RIFF"

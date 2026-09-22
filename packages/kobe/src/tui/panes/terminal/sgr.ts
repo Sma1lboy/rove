@@ -1,39 +1,18 @@
 /**
- * SGR (Select Graphic Rendition) parser for the terminal pane.
- *
- * The terminal pane historically forwarded pipe stdout/stderr into
- * this parser. The default backend now uses `@xterm/headless` first,
- * so snapshots are already terminal-emulated text; this parser remains
- * as a light styling layer for any SGR that reaches the render path and
- * for the explicit pipe fallback backend.
- *
- * Reference for SGR semantics:
- *   - ECMA-48 §8.3.117
- *   - https://en.wikipedia.org/wiki/ANSI_escape_code#SGR
- *
- * Parser is pure / Solid-free / opentui-free except for the RGBA
- * helpers it uses for color conversion. Unit-tested in
- * `test/tui/terminal-sgr.test.ts`.
+ * SGR parser (ECMA-48 §8.3.117) for the pipe fallback backend and any SGR
+ * reaching the render path; the default backend is already emulated by
+ * `@xterm/headless`. Pure and opentui-free.
  */
 
 import { parse } from "@ansi-tools/parser"
 
 /**
- * RGB triple in 0-255 ints. Used in place of opentui's RGBA so this
- * file has zero opentui dependency — that lets vitest load it without
- * dragging in opentui's tree-sitter `.scm` assets (which vitest's
- * default loader refuses on sight). The thin adapter in
- * `./sgr-to-text-chunk.ts` converts RGB → RGBA at render time.
+ * 0-255 RGB instead of opentui's RGBA: importing opentui drags in tree-sitter
+ * `.scm` assets vitest's loader refuses. `./sgr-to-text-chunk.ts` converts at render.
  */
 export type RGB = readonly [r: number, g: number, b: number]
 
-/**
- * Attribute bitmask values. Intentionally match opentui's
- * `TextAttributes` enum (BOLD=1, DIM=2, ITALIC=4, …) so a chunk
- * produced here can be handed straight to a `TextChunk` consumer
- * without remapping. Hard-coded rather than imported from opentui
- * for the same vitest reason described on RGB above.
- */
+/** Must match opentui's `TextAttributes` bit-for-bit; hard-coded for the vitest reason on {@link RGB}. */
 export const ATTR = Object.freeze({
   BOLD: 1, // 1 << 0
   DIM: 2, // 1 << 1
@@ -65,21 +44,14 @@ const EMPTY_STYLE: Style = Object.freeze({
 })
 
 /**
- * Inline ANSI 256-color palette. The first 16 entries are the xterm
- * defaults for the standard / bright system colors; entries 16-231
- * are the 6×6×6 RGB cube; entries 232-255 are the 24-step grayscale
- * ramp. Reference: https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit
- *
- * We don't import opentui's `ansi256IndexToRgb` because that would
- * pull opentui's full module graph into the test runtime (see file
- * top-of-comment for why we keep this file opentui-free).
+ * ANSI 256-color: 0-15 system palette, 16-231 6×6×6 cube, 232-255 grayscale.
+ * Not opentui's `ansi256IndexToRgb`, to stay opentui-free (see {@link RGB}).
  */
 export function ansi256ToRgb(index: number): RGB {
   if (index < 0) return [0, 0, 0]
   if (index < 16) return SYSTEM_PALETTE[index] ?? [0, 0, 0]
   if (index < 232) {
-    // 6x6x6 cube. cube_step[0..5] = {0, 95, 135, 175, 215, 255} —
-    // matches xterm's published table.
+    // Steps {0, 95, 135, 175, 215, 255}, as xterm's table.
     const i = index - 16
     const r = Math.floor(i / 36)
     const g = Math.floor((i / 6) % 6)
@@ -96,24 +68,10 @@ export function ansi256ToRgb(index: number): RGB {
 }
 
 /**
- * Basic-16 ANSI palette (indices 0-15). Ls/eza color a directory or
- * symlink with a BARE ANSI code (30-37/90-97), not truecolor — the actual
- * displayed hue is always "whatever this terminal's theme maps that slot
- * to," which is why the embedded terminal's picks matter here even though
- * they'll never byte-match a user's personal terminal profile.
- *
- * Previously the textbook xterm defaults (pure blue `#0000EE`, pure
- * magenta `#CD00CD`, …). Every ANSI slot kept its "expected" hue in
- * isolation, but real terminal themes commonly cluster several slots
- * (blue/cyan/bright-magenta) into one accent family — e.g. `ls`'s `di`
- * (directory, blue) and `ln` (symlink, cyan) can read as one accent
- * family in a themed profile but as two distinct colors against the
- * stock palette; `ansi256ToRgb`/truecolor decode is bit-exact either way.
- *
- * Replaced with Tokyo Night's published terminal ANSI colors (a popular
- * modern scheme, also one of kobe's own bundled UI themes) so the
- * embedded terminal's defaults read as one coherent, contemporary palette
- * instead of xterm's 1990s primaries.
+ * Basic-16 palette: Tokyo Night's terminal ANSI colors (also a bundled UI
+ * theme), not xterm's primaries. Tools like ls/eza color by bare slot
+ * (30-37/90-97), so these picks set the embedded terminal's look; 256-color
+ * and truecolor decode is bit-exact regardless.
  */
 const SYSTEM_PALETTE: readonly RGB[] = [
   [21, 22, 30], // black       #15161e
@@ -135,14 +93,8 @@ const SYSTEM_PALETTE: readonly RGB[] = [
 ]
 
 /**
- * Apply one SGR escape's params to the running style, returning the
- * new style. Unknown params are silently ignored — better to render
- * "missing one color" than to crash on a malformed escape.
- *
- * Each escape can chain multiple SGR ops: `\x1b[1;31;48;5;238m` =
- * bold + red fg + 256-color bg. We walk the params array linearly.
- * Extended-color introducers (38, 48) consume their follow-up params
- * before continuing the walk.
+ * Apply one (possibly chained, `\x1b[1;31;48;5;238m`) SGR escape. 38/48
+ * consume their follow-up params; unknown params are skipped, never thrown on.
  */
 function applySgr(prev: Style, rawParams: readonly string[]): Style {
   // Empty params (just `\x1b[m`) means reset, same as `\x1b[0m`.
@@ -155,7 +107,6 @@ function applySgr(prev: Style, rawParams: readonly string[]): Style {
   while (i < params.length) {
     const p = params[i]
     if (p === undefined) break
-    // Reset everything.
     if (p === 0) {
       fg = undefined
       bg = undefined
@@ -163,7 +114,6 @@ function applySgr(prev: Style, rawParams: readonly string[]): Style {
       i += 1
       continue
     }
-    // Single-byte attribute toggles.
     if (p === 1) {
       attr |= ATTR.BOLD
       i += 1
@@ -204,7 +154,6 @@ function applySgr(prev: Style, rawParams: readonly string[]): Style {
       i += 1
       continue
     }
-    // Attribute resets.
     if (p === 22) {
       attr &= ~(ATTR.BOLD | ATTR.DIM)
       i += 1
@@ -240,7 +189,6 @@ function applySgr(prev: Style, rawParams: readonly string[]): Style {
       i += 1
       continue
     }
-    // Standard fg (30-37) / bright fg (90-97).
     if (p >= 30 && p <= 37) {
       fg = ansi256ToRgb(p - 30)
       i += 1
@@ -251,13 +199,11 @@ function applySgr(prev: Style, rawParams: readonly string[]): Style {
       i += 1
       continue
     }
-    // Default fg.
     if (p === 39) {
       fg = undefined
       i += 1
       continue
     }
-    // Standard bg (40-47) / bright bg (100-107).
     if (p >= 40 && p <= 47) {
       bg = ansi256ToRgb(p - 40)
       i += 1
@@ -268,22 +214,14 @@ function applySgr(prev: Style, rawParams: readonly string[]): Style {
       i += 1
       continue
     }
-    // Default bg.
     if (p === 49) {
       bg = undefined
       i += 1
       continue
     }
-    // Extended fg. Two introducer forms:
-    //   - 38;5;N        — 256-color palette (3 params total)
-    //   - 38;2;R;G;B    — true-color, legacy semicolon shape (5 params)
-    //
-    // We deliberately parse the legacy 5-param shape. The optional ITU
-    // T.416 colorspace id (the 6-param `38;2;ID;R;G;B`) only exists in
-    // the colon-subparameter form in practice; semicolon-delimited SGR
-    // is universally R;G;B. `parseAnsiLine` feeds us params split from
-    // the raw escape (see `sgrParamsFromRaw`) precisely so no phantom
-    // colorspace id can shift the RGB triple here.
+    // 38;5;N (256-color) or 38;2;R;G;B. The ITU T.416 colorspace id
+    // (`38;2;ID;R;G;B`) only occurs in the colon form in practice; semicolon SGR
+    // is universally R;G;B, and `sgrParamsFromRaw` keeps phantom ids out.
     if (p === 38) {
       const sub = params[i + 1]
       if (sub === 5) {
@@ -324,33 +262,19 @@ function applySgr(prev: Style, rawParams: readonly string[]): Style {
       i += 1
       continue
     }
-    // Unknown param — skip and continue. Don't bail; the next param
-    // might still be meaningful.
     i += 1
   }
   return { fg, bg, attributes: attr }
 }
 
 /**
- * Split an SGR escape's parameter list straight from its raw bytes.
- *
- * We do NOT trust `@ansi-tools/parser`'s pre-split `params`: for a bare
- * single true-color escape like `\x1b[38;2;R;G;B m` it injects a
- * phantom ITU colorspace id (`38;2;0;R;G;B`), but it does NOT inject
- * one when the introducer is chained (`\x1b[0;38;2;R;G;B m`,
- * `\x1b[1;38;2;R;G;B m`). That inconsistency can't be undone from the
- * split values alone, and it shifted the RGB triple by one — every
- * true-color cell rendered the wrong hue. Re-splitting the raw escape
- * gives the uniform legacy `R;G;B` shape regardless of chaining.
- *
- * Strips the CSI introducer (`\x1b[` or the 1-byte `\x9b`) and the
- * trailing `m`, then splits on `;`. Empty body (`\x1b[m`) yields `[""]`,
- * which `applySgr` treats as a reset — same as `\x1b[0m`.
+ * Split SGR params from the raw escape. `@ansi-tools/parser`'s `params` inject
+ * a phantom colorspace id (`38;2;0;R;G;B`) for a bare true-color escape but not
+ * a chained one (`\x1b[1;38;2;R;G;B m`), shifting RGB by one; the split values
+ * can't tell which. `\x1b[m` yields `[""]`, a reset in `applySgr`.
  */
 function sgrParamsFromRaw(raw: string): string[] {
-  // String slicing rather than a regex: the CSI introducers are control
-  // characters (ESC 0x1b, 1-byte CSI 0x9b), which a regex literal can't
-  // carry under our lint rules. Strip the introducer + trailing `m`.
+  // Slicing, not a regex: lint forbids control chars (0x1b, 0x9b) in regex literals.
   let body = raw
   if (body.charCodeAt(0) === 0x1b)
     body = body.slice(2) // ESC `[`
@@ -359,14 +283,7 @@ function sgrParamsFromRaw(raw: string): string[] {
   return body.split(";")
 }
 
-/**
- * Parse one line of text containing SGR escapes into a list of style
- * runs. Caller passes the carry-in style (the style state at the end
- * of the previous line).
- *
- * Returned chunks are ready to feed into a `StyledText`:
- *   `new StyledText(parseAnsiLine(s, style).map(toTextChunk))`
- */
+/** One line into style runs; `initial` is the previous line's end style. */
 export function parseAnsiLine(input: string, initial: Style = EMPTY_STYLE): { chunks: Chunk[]; endStyle: Style } {
   if (input.length === 0) return { chunks: [], endStyle: initial }
   const out: Chunk[] = []
@@ -389,45 +306,30 @@ export function parseAnsiLine(input: string, initial: Style = EMPTY_STYLE): { ch
       buf += code.raw
       continue
     }
-    // SGR escapes come back from @ansi-tools/parser as CSI codes
-    // with command "m" — the parser doesn't separately label SGR, it
-    // just exposes the raw CSI envelope. Anything else with type
-    // "CSI" (cursor motion, erase-in-line, etc.) is either already
-    // handled by @xterm/headless or unsupported in the pipe fallback;
-    // we drop those rather than rendering raw bytes.
+    // SGR is a CSI with command "m". Other CSIs are handled by xterm or
+    // unsupported in the pipe fallback, and dropped below.
     if (code.type === "CSI" && code.command === "m") {
       flush()
       style = applySgr(style, sgrParamsFromRaw(code.raw))
       continue
     }
-    // OSC 8 hyperlinks (`ESC ] 8 ; params ; URL ST`, the form claude-code and
-    // friends emit for clickable links). `@xterm/headless` underlines linked
-    // cells, so the production cell→chunk path reports ATTR.UNDERLINE for
-    // them; dropping the sequence here made this fallback render a link as
-    // plain text and, worse, made the MOCK pane disagree with the real pane
-    // about what a link looks like. Params are `["", url]` to open and
-    // `["", ""]` to close.
+    // OSC 8 hyperlink: underline, matching how `@xterm/headless` renders linked
+    // cells so this path agrees with the real pane. Params `["", url]` open,
+    // `["", ""]` close.
     if (code.type === "OSC" && code.command === "8") {
       flush()
       const url = code.params[code.params.length - 1] ?? ""
       style = { ...style, attributes: url ? style.attributes | ATTR.UNDERLINE : style.attributes & ~ATTR.UNDERLINE }
     }
-    // Any other control code we let through as raw text is silently
-    // dropped. If a stray OSC / CSI slips through, dropping it is safer
-    // than rendering its raw bytes.
+    // Any other control code is dropped rather than rendered as raw bytes.
   }
   flush()
   return { chunks: out, endStyle: style }
 }
 
 /**
- * Parse a full multi-line snapshot into one chunk-list per row.
- * Splits on `\n`. Carries SGR state across line breaks because shell
- * output can keep a single style state across multiple rows.
- *
- * Empty trailing lines (from a stripped-final-newline capture) are
- * preserved so cursor-capable backends can index into the returned
- * array 1:1.
+ * One chunk-list per `\n` row, carrying SGR state across rows. Empty trailing
+ * rows are kept so cursor-capable backends index 1:1.
  */
 export function parseAnsiSnapshot(input: string): Chunk[][] {
   const lines = input.split("\n")

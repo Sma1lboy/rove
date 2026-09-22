@@ -1,18 +1,13 @@
 /**
- * Line-anchored review comments on the read-only diff view — the
- * framework-free half (types, prompt format, unified-row mapping, the
- * kv-backed per-task store). The React UI lives in
- * `src/tui-react/ops/preview-review.tsx`; wiring into the engine PTY in
- * `src/tui-react/workspace/TerminalTabs.tsx`.
+ * Line-anchored review comments on the read-only diff view: types, prompt
+ * format, unified-row mapping, kv-backed per-task store.
  *
  * The prompt format is ported from orca's `src/shared/diff-comments-format.ts`
- * (File / Line-or-range / quote-escaped User comment, blank-line separated)
- * — deliberately dead simple: it's the contract between review notes and
- * whichever engine consumes them.
+ * (File / Line-or-range / quote-escaped User comment, blank-line separated);
+ * it's the contract with whichever engine consumes the notes.
  *
- * Anchoring ceiling (deliberate): a comment is file path + the display line
- * number of the diff it was written against. If the diff changes and lines
- * drift, the comment stays attached to file+stored line — no re-anchoring.
+ * Anchoring ceiling (deliberate): a comment is file path + display line; if
+ * the diff drifts, it stays on file+stored line, no re-anchoring.
  */
 
 import { randomUUID } from "node:crypto"
@@ -37,11 +32,9 @@ export type DiffComment = {
 }
 
 /**
- * One note in the prompt. `stale` marks a note whose path the branch no
- * longer has — a rename or a delete after the note was written. Saying so is
- * the whole point: the anchoring ceiling below means the note keeps its
- * original path forever, and a prompt that just names a file the agent
- * cannot open reads as the agent's mistake rather than as history.
+ * One note in the prompt. `stale` marks a path the branch no longer has
+ * (renamed/deleted since); notes keep their path forever, and naming a file
+ * the agent can't open would otherwise read as the agent's mistake.
  */
 export function formatDiffComment(
   c: Pick<DiffComment, "filePath" | "startLine" | "line" | "body">,
@@ -86,10 +79,9 @@ export type DiffRow = {
 const HUNK_HEADER = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/
 
 /**
- * Map a unified diff to the row list opentui's DiffRenderable renders
- * (unified view, wrapMode "none"): row index i here is line index i for
- * `setLineColor`/scroll. Only `+`/`-`/` ` lines inside hunks are rows;
- * headers and `\ No newline` markers are not rendered.
+ * Map a unified diff to the rows opentui's DiffRenderable renders (unified,
+ * wrapMode "none"): row i is line i for `setLineColor`/scroll. Only
+ * `+`/`-`/` ` hunk lines are rows.
  */
 export function unifiedDiffRows(diff: string): readonly DiffRow[] {
   const rows: DiffRow[] = []
@@ -170,11 +162,7 @@ export function computeReviewPaint(
   return paint
 }
 
-/**
- * The note the cursor row sits inside — what a delete chord aims at. Newest
- * first, because overlapping notes on one line are read in the order they were
- * written and the last one is the one just added.
- */
+/** The note under the cursor row (delete target); newest first among overlaps. */
 export function commentAtRow(
   rows: readonly DiffRow[],
   cursor: number,
@@ -192,9 +180,7 @@ export function commentAtRow(
 
 /* ------------------- per-task store (kv-backed) ------------------- */
 
-/** Kv key holding a task's `DiffComment[]` — same per-task keying as the
- * `terminalTabs.<taskId>` snapshots, so notes survive pane switches and TUI
- * restarts through the existing state file. */
+/** Kv key for a task's `DiffComment[]`; persisted, so notes survive TUI restarts. */
 export function diffCommentsKey(taskId: string): string {
   return `diffComments.${taskId}`
 }
@@ -205,18 +191,14 @@ type NewDiffComment = Pick<DiffComment, "filePath" | "startLine" | "line" | "bod
 export interface DiffReviewApi {
   readonly comments: readonly DiffComment[]
   add(input: NewDiffComment): void
-  /** Drop one note by id — a typo'd note was otherwise only escapable by
-   *  sending it to the engine. */
+  /** Drop one note by id. */
   remove(id: string): void
   /**
-   * Send ALL of the task's unsent notes as one prompt, then mark them sent.
-   * `worktreePath` (the screen showing the diff knows it; the store does not)
-   * lets the prompt mark a note whose path the branch no longer has.
+   * Send ALL unsent notes as one prompt, then mark them sent. `worktreePath`
+   * enables stale-path marking.
    *
-   * FALSE means there were unsent notes and NOTHING was delivered (the task
-   * has no live engine session). The notes stay unsent in that case — marking
-   * them sent anyway is what made a dropped batch indistinguishable from a
-   * delivered one. Nothing to send is not a failure and answers true.
+   * FALSE: unsent notes existed and NOTHING was delivered (no live engine
+   * session); they stay unsent. Nothing to send answers true.
    */
   send(worktreePath?: string): boolean
 }
@@ -228,8 +210,7 @@ export type DiffCommentsKv = {
 }
 
 /**
- * Build the review handle over the kv store + the engine-send seam (the
- * same PTY paste+submit path the Create-PR prompt uses — engine-neutral).
+ * Build the review handle over kv + the engine-neutral PTY paste+submit path.
  * Handlers re-read kv at call time so they never act on a stale snapshot.
  */
 export function buildDiffReview(
@@ -255,8 +236,7 @@ export function buildDiffReview(
       const all = read()
       const unsent = unsentComments(all)
       if (unsent.length === 0) return true
-      // Mark sent ONLY after a delivery that answered. The order matters: a
-      // refused send must leave kv untouched so the notes survive.
+      // Mark sent only after delivery: a refused send leaves kv untouched.
       if (!sendToEngine(formatDiffComments(unsent, worktreePath))) return false
       kv.set(key, markAllSent(all, Date.now()))
       return true

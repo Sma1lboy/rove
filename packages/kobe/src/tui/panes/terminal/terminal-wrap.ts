@@ -1,18 +1,9 @@
 /**
- * Soft-wrap grouping for the terminal snapshot.
- *
- * The snapshot is a GRID: one entry per terminal row. xterm marks a row
- * `isWrapped` when it is the continuation of the row above — the emulator ran
- * out of columns and broke ONE logical line across several rows. Nothing
- * downstream can recover that from the cells, so both places a user touches
- * text would otherwise read the break as a real newline: a copied path comes
- * back in pieces, and a needle lying across the boundary exists in no single
- * row and is reported as "no matches".
- *
- * One definition of "continuation" lives here. `extractSelection` reads it
- * directly (it only needs "does this row continue the last one"), and
- * `findMatches` reads it through {@link logicalLines}, which also carries the
- * offsets a hit needs to map back onto grid coordinates.
+ * Soft-wrap grouping for the terminal snapshot grid. xterm's `isWrapped`
+ * can't be recovered from cells, and without it copy splits a wrapped path
+ * and search misses needles across the break. The one definition of
+ * "continuation": `extractSelection` reads it directly, `findMatches` via
+ * {@link logicalLines}.
  */
 
 /** Per-snapshot-row soft-wrap flags, parallel to the snapshot rows. */
@@ -32,11 +23,7 @@ export type LogicalLine = {
   readonly starts: readonly number[]
 }
 
-/**
- * Group row texts into logical lines. With no flags (a backend that cannot
- * report wrapping) every row is its own logical line, which is exactly
- * today's behavior.
- */
+/** Group row texts into logical lines; without flags each row is its own line. */
 export function logicalLines(rowTexts: readonly string[], wrapped: RowWrapFlags | undefined): readonly LogicalLine[] {
   const out: { text: string; firstRow: number; starts: number[] }[] = []
   for (let row = 0; row < rowTexts.length; row++) {

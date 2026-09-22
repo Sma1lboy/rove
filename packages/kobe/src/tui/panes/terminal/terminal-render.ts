@@ -2,22 +2,16 @@ import { charWidth } from "../../../lib/display-width.ts"
 import type { CursorPos } from "./pty"
 import { ATTR, type Chunk, type RGB } from "./sgr"
 
-/**
- * Heuristic: is this acquire-error message about the user's shell
- * being absent / unreachable? Used to swap a plain-English hint in for
- * the raw error tail.
- */
+/** Heuristic: acquire error means the shell is missing, so show a plain hint instead. */
 export function isShellMissing(message: string): boolean {
   const m = message.toLowerCase()
   return m.includes("enoent") || m.includes("not found")
 }
 
 /**
- * Cells a single code point occupies in the grid, matching `displayWidth`'s
- * accounting exactly: a zero-width mark (combining diacritic, emoji variation
- * selector, ZWJ/bidi control) contributes 0. xterm folds such a mark onto its
- * base char's cell, so counting it as 1 drifts the cell-column cursor right by
- * one column per mark to its left — do NOT `|| 1` this back to a width of one.
+ * Grid cells for one code point, as `displayWidth`. Zero-width marks are 0:
+ * xterm folds them onto the base cell, so do NOT `|| 1` this — each would
+ * drift the cursor one column right.
  */
 function cellWidth(ch: string): number {
   return charWidth(ch.codePointAt(0) as number)
@@ -32,7 +26,6 @@ function cloneChunk(c: Chunk, text: string, attrs = c.attributes ?? 0): Chunk {
   }
 }
 
-/** Sum the display width (in cells) of a chunk's text. */
 function chunkCells(chars: readonly string[]): number {
   let w = 0
   for (const ch of chars) w += cellWidth(ch)
@@ -57,12 +50,8 @@ function cursorChunk(source: Chunk, text: string, colors: TerminalRenderColors):
 
 function overlayCursorRow(row: readonly Chunk[], x: number, colors: TerminalRenderColors): Chunk[] {
   const out: Chunk[] = []
-  // `x` is a terminal CELL column. Chunk text is code points, and a wide
-  // (CJK / fullwidth / emoji) glyph is ONE code point but TWO cells — so we
-  // advance the column cursor by each char's display WIDTH, not by 1.
-  // Counting code points instead drifted the inverse-cell cursor left by one
-  // column per wide char before it (the "cursor doesn't follow the text" bug
-  // when typing Chinese).
+  // `x` is a CELL column; a wide (CJK / emoji) glyph is one code point but two
+  // cells, so advance by display width, not 1.
   let col = 0
   let inserted = false
 
@@ -72,9 +61,7 @@ function overlayCursorRow(row: readonly Chunk[], x: number, colors: TerminalRend
       continue
     }
     const chars = Array.from(chunk.text)
-    // Walk this chunk's chars by cell width; the cursor lands on the char
-    // whose cell span [localCol, localCol + width) contains `x` (so a wide
-    // char's trailing cell resolves to the char itself).
+    // Cursor lands on the char whose span [localCol, localCol + w) contains `x`.
     let localCol = col
     let hit = -1
     for (let idx = 0; idx < chars.length; idx++) {
@@ -99,10 +86,8 @@ function overlayCursorRow(row: readonly Chunk[], x: number, colors: TerminalRend
   }
 
   if (!inserted) {
-    // Cursor sits past the row's rendered cells (blank tail a backend
-    // didn't emit). Pad to the REAL column before drawing — appending at
-    // end-of-text instead is how the cursor visually froze while xterm's
-    // cursor kept advancing over typed spaces.
+    // Past the emitted cells: pad to the REAL column, or the cursor freezes at
+    // end-of-text while xterm's advances over typed spaces.
     if (x > col) out.push({ text: " ".repeat(x - col) })
     out.push(cursorChunk({ text: " " }, " ", colors))
   }
@@ -147,29 +132,18 @@ export function resolveInverseAttributes(
 }
 
 /**
- * LOCAL PATCH for an opentui attribute leak (kept in kobe rather than
- * upstreamed — see the `sealRowEndAttributes` call in the React pane).
+ * LOCAL PATCH for an opentui attribute leak (not upstreamed).
  *
- * opentui's zig diff renderer declares `runLength` INSIDE its per-row loop
- * (`renderer.zig`, `prepareRenderFrameWithWriter`) while its SGR writer only
- * ever ADDS attribute bits (`ansi.zig` emits `\e[4m`, never `\e[24m`). So the
- * first cell of a new row takes the `runStart == -1` branch with
- * `runLength == 0` and SKIPS the `\e[0m` reset — any attribute still open at
- * the end of the previous row bleeds into every following row until some
- * other run happens to reset. A styled run that reaches the LAST column is
- * exactly what triggers it, i.e. a wrapped URL: the terminal draws the rest
- * of the frame underlined ("link underline runs off into the text below").
+ * opentui's zig renderer declares `runLength` INSIDE its per-row loop
+ * (`renderer.zig`, `prepareRenderFrameWithWriter`) and its SGR writer only ADDS
+ * bits (`ansi.zig` emits `\e[4m`, never `\e[24m`), so a new row's first cell
+ * skips the `\e[0m` reset. An attribute open at a full-width row's last column
+ * (e.g. a wrapped URL) bleeds into every following row.
  *
- * The fix has to live where the row still exists as data: clear the
- * attributes on the final cell of a row that fills the full width, and
- * preserve what those attributes were DRAWING by resolving them to explicit
- * colors — INVERSE becomes a literal fg/bg swap, so a cursor or selection
- * cell parked in the last column keeps its highlight instead of vanishing.
- * Underline/bold/italic lose one cell of decoration at the wrap point; that
- * is the whole cost, and it is invisible next to a frame-wide bleed.
- *
- * Rows shorter than `cols` need no sealing: their run is followed by another
- * chunk on the same row, which resets normally.
+ * Fix: clear attributes on the last visible cell of such rows, replaying
+ * INVERSE as a literal fg/bg swap so a cursor/selection there keeps its
+ * highlight. Underline/bold/italic lose one cell of decoration. Shorter rows
+ * reset normally via the next chunk.
  */
 export function sealRowEndAttributes(
   rows: readonly (readonly Chunk[])[],
@@ -180,13 +154,8 @@ export function sealRowEndAttributes(
   if (cols <= 0) return rows
   const lastColumn = cols - 1
   return rows.map((row) => {
-    // Find the char occupying the row's LAST VISIBLE column. That is not
-    // necessarily the row's last char: the pane clips at `cols`
-    // (`wrapMode="none"`), and a snapshot row can be wider than the pane —
-    // an unwrapped backend hands over whole logical lines. Sealing the final
-    // CHUNK instead of the final visible CELL missed exactly that case: a
-    // long line whose trailing ` (round 2)` is clipped away still painted its
-    // underlined URL into the last column, and the leak survived.
+    // Seal the last VISIBLE cell, not the last chunk: the pane clips at `cols`
+    // (`wrapMode="none"`) and an unwrapped backend can hand over wider rows.
     let col = 0
     for (let i = 0; i < row.length; i++) {
       const chunk = row[i] as Chunk
@@ -198,14 +167,10 @@ export function sealRowEndAttributes(
           col += w
           continue
         }
-        // `ch` covers the last visible column (a wide glyph straddling it
-        // counts). Everything after it is clipped and cannot paint a cell.
+        // `ch` covers the last visible column (a straddling wide glyph counts).
         const attrs = chunk.attributes ?? 0
         if (attrs === 0) return row
-        // INVERSE is the only attribute carrying information rather than
-        // decoration here (cursor + selection both paint with it), so replay
-        // it as swapped colors. `defaultFg`/`defaultBg` stand in for "the
-        // chunk didn't say" — the pane passes its theme's text/background.
+        // INVERSE carries information (cursor, selection), so replay it as swapped colors.
         const fg = chunk.fg ?? defaultFg
         const bg = chunk.bg ?? defaultBg
         const sealed: Chunk = (attrs & ATTR.INVERSE) !== 0 ? { text: ch, fg: bg, bg: fg } : { text: ch, fg, bg }
@@ -215,14 +180,11 @@ export function sealRowEndAttributes(
         const rebuilt = row.slice(0, i)
         if (head) rebuilt.push(cloneChunk(chunk, head))
         rebuilt.push(sealed)
-        // The tail is clipped, but keep it so the row's text stays intact for
-        // anything reading chunks back (selection, copy).
+        // Clipped, but kept so selection/copy read the full text.
         if (tail) rebuilt.push(cloneChunk(chunk, tail))
         return [...rebuilt, ...row.slice(i + 1)]
       }
     }
-    // Row never reaches the last column — its final run is followed by
-    // another chunk on the same row, which resets normally.
     return row
   })
 }

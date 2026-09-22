@@ -1,48 +1,28 @@
-/**
- * Framework-free view logic for the React sidebar. Pure derivations only — no React, no
- * opentui: view-tab cycling, line budgets, the search-input keystroke
- * reducer, empty-state / label i18n-key selection, and small row helpers
- * (theme-core / lookup / message-core precedent).
- */
+/** Pure view derivations for the React sidebar: no React, no opentui. */
 
 import { charWidth, displayWidth } from "../../../lib/display-width"
 import { truncateEnd, truncateEndCells } from "../../lib/truncate"
 import type { SidebarTone } from "./row-view"
 
-/** Minimum width of the PureTUI task-list rail. Also the width
- * at and below ~144 cols, see {@link sidebarWidthFor}. */
+/** Minimum task-list rail width; also the width at and below ~144 cols ({@link sidebarWidthFor}). */
 export const SIDEBAR_WIDTH = 24
 
 /**
- * Wide-terminal rail width: a sixth of the terminal, clamped to
- * [SIDEBAR_WIDTH, 40]. A fixed 24 rail never grew, so branch names
- * truncated on 200-col terminals with the middle pane idle; the Files pane
- * already scales by the same principle (a third of what's left). Growth
- * onset is ~150 cols: 120 → 24, 160 → 26, 200 → 33, 240 → 40 — the
- * workspace keeps ~⅔ of the terminal at every width.
+ * Rail width: a sixth of the terminal, clamped to [SIDEBAR_WIDTH, 40], so
+ * branch names get room on wide terminals. 120 → 24, 160 → 26, 200 → 33,
+ * 240 → 40; the workspace keeps ~⅔ at every width.
  */
 export function sidebarWidthFor(terminalWidth: number): number {
   return Math.max(SIDEBAR_WIDTH, Math.min(40, Math.floor(terminalWidth / 6)))
 }
 
-/**
- * Cells the workspace keeps no matter how wide the rail is pinned. The files
- * pane alone claims 22, and a terminal narrower than a short command line is
- * not a terminal — so a pin that would starve the right half is clamped here
- * rather than honoured.
- */
+/** Cells the workspace keeps however wide the rail is pinned (the files pane alone claims 22). */
 export const MIN_WORKSPACE_WIDTH = 40
 
 /**
- * The rail's width: the user's pin when there is one, the derived width
- * otherwise. `null` means "follow the terminal" — the pin is an OVERRIDE, not
- * a replacement, so clearing it returns to {@link sidebarWidthFor}.
- *
- * The clamp runs on every read rather than at write time, which is what makes
- * a pin survive a narrow terminal: shrinking the window squeezes the rail down
- * to what fits, widening it again pays the pinned width back. Storing the
- * clamped value instead would lose the pin the first time someone split their
- * screen.
+ * The rail's width: the user's pin, else {@link sidebarWidthFor} (`null`).
+ * Clamped on every read, not at write time, so a pin survives a narrow
+ * terminal and returns when it widens again.
  */
 export function resolveSidebarWidth(terminalWidth: number, override: number | null): number {
   if (override == null) return sidebarWidthFor(terminalWidth)
@@ -54,30 +34,25 @@ export function resolveSidebarWidth(terminalWidth: number, override: number | nu
 export const MAIN_BRANCH_POLL_MS = 2_000
 
 /**
- * Two-line card budgets. Line 1: selection marker (1) + badge (1) +
- * spacedTitle's leading space (1) + right pad (1) + one breathing cell =
- * 5 reserved (the move chip may still shrink the title via flex).
+ * Card line-1 budget: marker + badge + leading space + right pad + breathing
+ * cell = 5 reserved (the move chip may still shrink the title via flex).
  */
 export function titleBudgetFor(width: number): number {
   return Math.max(6, width - 5)
 }
 
 /**
- * Line 2 BASE budget: marker (1) + badge-column indent (2) + right pad (1)
- * + one breathing cell = 5 reserved — same as the title line. No static
- * cluster reserve: the cards subtract the LIVE pin/PR/`+N −M` width per
- * row, so a branch on a quiet row runs the full rail width.
+ * Card line-2 BASE budget: marker + 2-cell indent + right pad + breathing
+ * cell = 5. Cards subtract the LIVE pin/PR/`+N −M` width per row.
  */
 export function subtitleBudgetFor(width: number): number {
   return Math.max(6, width - 5)
 }
 
 /**
- * Fit the active project filter into the PROJECTS header. Besides the
- * translated section label, the row reserves two padding cells and two gaps,
- * plus one safety cell for the divider (which Yoga may shrink to zero). The
- * label itself is measured in terminal cells so a wide CJK glyph cannot paint
- * past the sidebar edge.
+ * Fit the project filter into the PROJECTS header: reserves the section label
+ * + 2 padding + 2 gaps + 1 divider cell (Yoga may shrink it to zero). Measured
+ * in cells so a wide CJK glyph can't paint past the edge.
  */
 export function truncateProjectFilterLabel(opts: {
   readonly label: string
@@ -89,22 +64,14 @@ export function truncateProjectFilterLabel(opts: {
   return truncateEndCells(label, Math.max(0, width - reservedCells), charWidth)
 }
 
-/**
- * PROJECTS scroll-region height: cap derived from terminal cells, clamped
- * to a small rail band, then shrunk to the actual content (each project
- * card is 2 lines) so a one-project workspace doesn't reserve dead space.
- */
+/** PROJECTS scroll height: a quarter of the terminal clamped to [2, 10], shrunk to content (2 lines per card). */
 export function projectScrollMaxHeightFor(terminalHeight: number, projectRowCount: number): number {
   const cellCap = Math.max(2, Math.min(10, Math.floor(terminalHeight * 0.25)))
   const contentHeight = Math.max(2, projectRowCount * 2)
   return Math.min(cellCap, contentHeight)
 }
 
-/**
- * i18n key for the task list's empty-state / scoped-empty placeholder.
- * `searching` wins (no fuzzy match), then a project-scoped empty, then the
- * plain empty copy.
- */
+/** i18n key for the task list's empty placeholder; `searching` wins, then project scope. */
 export function sidebarEmptyStateKey(opts: { readonly searching: boolean; readonly projectFilter: boolean }): string {
   if (opts.searching) return "tasks.empty.noMatchSearch"
   if (opts.projectFilter) return "tasks.empty.noActiveProject"
@@ -118,14 +85,10 @@ export function truncateBranchLabel(branch: string, max = BRANCH_LABEL_MAX): str
   return truncateEnd(branch, max)
 }
 
-/** Map a row tone to its theme slot. */
 /**
- * A PLUGIN's semantic tone (`row-tokens.ts`) mapped onto the rail's own tone
- * vocabulary — the boundary that keeps the theme in charge. A plugin names a
- * role, never a colour, so the one thing it can never do is clash with the
- * palette the user chose. `info` lands on `primary` (the rail's neutral
- * emphasis) rather than on an accent of its own: a plugin's ordinary label
- * should read like the row, not louder than it.
+ * A plugin's semantic tone (`row-tokens.ts`) mapped onto the rail's tones:
+ * plugins name a role, never a colour, so they can't clash with the user's
+ * theme. `info` → `primary` so a plugin label reads like the row, not louder.
  */
 export function rowTokenTone(tone: "info" | "success" | "warning" | "error" | "muted"): SidebarTone {
   switch (tone) {
@@ -142,6 +105,7 @@ export function rowTokenTone(tone: "info" | "success" | "warning" | "error" | "m
   }
 }
 
+/** Map a row tone to its theme slot. */
 export function toneColor<V>(theme: Record<SidebarTone, V>, tone: SidebarTone): V {
   switch (tone) {
     case "success":
@@ -168,11 +132,9 @@ export type SearchKeystroke = {
 }
 
 /**
- * `/`-search inline-input reducer: the next query for a keypress, or null
- * when the key doesn't belong to the input (already consumed by a chord,
- * modifier-prefixed, or non-printable — esc/arrows/function keys have
- * multi-byte sequences or names the search-mode bindings already handle).
- * Backspace pops the last char.
+ * `/`-search input reducer: the next query, or null when the key isn't the
+ * input's (consumed, modifier-prefixed, or non-printable; search-mode bindings
+ * handle those). Backspace pops a char.
  */
 export function searchQueryKeystroke(query: string, evt: SearchKeystroke): string | null {
   if (evt.defaultPrevented) return null

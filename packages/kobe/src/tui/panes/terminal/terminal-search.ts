@@ -1,15 +1,10 @@
 /**
- * Plain-substring search over the terminal pane's LOCAL scrollback.
+ * Plain-substring search over the terminal pane's LOCAL scrollback. Pure and
+ * cell-addressed: hits are `SelectionRange`s, so selection's paint and
+ * coordinates carry search too.
  *
- * Everything here is pure and cell-addressed, like `terminal-selection.ts`
- * next door, and for the same reason: a hit is handed back as a
- * `SelectionRange`, so the highlight paint and the coordinate space the pane
- * already uses for selection carry the search too — no second notion of
- * "a piece of the buffer".
- *
- * Matching is case-insensitive, literal, and non-overlapping. No regex mode:
- * what people look for in a build log is a file name or an error string, and
- * a half-typed regex matching nothing is worse than no feature.
+ * Case-insensitive, literal, non-overlapping. No regex: a half-typed regex
+ * matching nothing is worse than no feature.
  */
 
 import { charWidth } from "../../../lib/display-width"
@@ -32,13 +27,11 @@ function rowText(row: readonly Chunk[]): string {
 }
 
 /**
- * Lowercase WITHOUT moving any index — the `indexOf` result has to address
- * the original string, and a few code points (`İ`, and `ẞ` under some
- * engines) lowercase to more than one unit.
- * ponytail: a row containing one of those falls back to case-SENSITIVE
- * matching. Per-code-point folding would fix it and costs a full array walk
- * of the scrollback on every keystroke; take that trade only if someone is
- * actually searching Turkish build logs.
+ * Lowercase without moving any index (`indexOf` must address the original);
+ * `İ`, and `ẞ` on some engines, lowercase to more than one unit.
+ * ponytail: such a row falls back to case-SENSITIVE matching; per-code-point
+ * folding costs a full scrollback walk per keystroke — do it only if someone
+ * searches Turkish build logs.
  */
 function foldCase(text: string): string {
   const lower = text.toLowerCase()
@@ -46,11 +39,9 @@ function foldCase(text: string): string {
 }
 
 /**
- * Turn `[at, to)` within one logical line into a snapshot `SelectionRange`.
- * A hit that crosses a soft wrap spans rows, which is the shape `rowSpan`
- * already means by "first row from the start column, last row to the end
- * column" — so the existing highlight paints it with no changes.
- * Null when the hit covers no cells (zero-width marks only).
+ * `[at, to)` within one logical line as a snapshot `SelectionRange`; a hit
+ * across a soft wrap spans rows, which the selection highlight already
+ * paints. Null when it covers no cells (zero-width marks only).
  */
 function matchRange(line: LogicalLine, at: number, to: number): SelectionRange | null {
   if (cellWidth(line.text.slice(at, to)) <= 0) return null
@@ -65,15 +56,9 @@ function matchRange(line: LogicalLine, at: number, to: number): SelectionRange |
 }
 
 /**
- * Every occurrence of `query` in `rows`, top-first, in ABSOLUTE snapshot
- * coordinates. An empty query yields nothing: it matches everywhere, which
- * is the same as matching nothing worth painting.
- *
- * Searching is done over LOGICAL lines: a row the emulator soft-wrapped is
- * half of the line above it, and a per-row `indexOf` cannot see a needle
- * straddling that break — it answers "no matches" for text the user can read
- * two rows up. `wrapped` is the snapshot's per-row flags; without them every
- * row is its own line, which is the pre-wrap behavior.
+ * Every occurrence of `query`, top-first, in ABSOLUTE snapshot coordinates;
+ * empty query → none. Searched over LOGICAL lines so a needle straddling a
+ * soft wrap is found. Without `wrapped` flags every row is its own line.
  */
 export function findMatches(
   rows: readonly (readonly Chunk[])[],
@@ -101,14 +86,9 @@ export function findMatches(
 }
 
 /**
- * Paint the matches that fall inside the rendered window, with the one at
- * `current` in its own tone: while walking hits you need to see which of the
- * highlights on screen is the one `enter` will move away from.
- *
- * ponytail: one `overlaySelection` pass per visible hit — a one-letter query
- * can put a hundred on screen, which is a hundred cheap row maps over a
- * viewport-sized array. Bucket by row if that ever shows up in a frame
- * profile.
+ * Paint matches inside the rendered window, `current` in its own tone.
+ * ponytail: one `overlaySelection` pass per visible hit (a one-letter query
+ * can put ~100 on screen); bucket by row if it shows in a frame profile.
  */
 export function overlayMatches(
   rows: readonly (readonly Chunk[])[],
@@ -123,8 +103,7 @@ export function overlayMatches(
   let out = rows
   for (let i = 0; i < matches.length; i++) {
     const match = matches[i] as SelectionRange
-    // Compared on the whole SPAN, not the anchor alone: a hit across a soft
-    // wrap starts one row above the viewport and still has a tail inside it.
+    // Whole span: a wrapped hit can start above the viewport with a tail inside.
     if (match.head.row < firstRow || match.anchor.row > lastRow) continue
     out = overlaySelection(out, match, firstRow, width, i === current ? currentPaint : "inverse")
   }
@@ -132,11 +111,8 @@ export function overlayMatches(
 }
 
 /**
- * The scroll offset that brings absolute row `row` into view, parked a third
- * of the way down the body rather than centered: the lines AFTER a hit are
- * usually the ones that explain it, so they get the larger half of the pane.
- * Already-visible rows still resolve to a valid offset — the caller decides
- * whether moving is worth it.
+ * Scroll offset putting `row` a third of the way down (lines after a hit
+ * usually explain it). Visible rows still get an offset; the caller decides.
  */
 export function scrollOffsetForRow(total: number, height: number, row: number): number {
   const body = Math.max(1, height)
@@ -145,19 +121,10 @@ export function scrollOffsetForRow(total: number, height: number, row: number): 
 }
 
 /**
- * Which hit the viewport is parked on, addressed so it survives the buffer
- * moving underneath it.
- *
- * An array POSITION does not: the local scrollback is bounded, so once it
- * saturates every new line drops a hit off the front and every survivor
- * shifts down one slot — the counter keeps saying `3/5` while the accent
- * highlight has walked to a different occurrence. The absolute line id is the
- * same address `moveViewportScroll` anchors the viewport by, and it is stable
- * across a trim.
- *
- * `position` is the degraded form for backends with no stable line ids
- * (`PipeTaskPty`, mocks, the alternate screen): there is nothing better to
- * park on there, so it keeps the old behavior rather than pretending.
+ * The hit the viewport is parked on, addressed by absolute line id (stable
+ * across scrollback trims, as `moveViewportScroll` uses) — an array position
+ * shifts as a saturated buffer drops hits off the front. `position` is the
+ * fallback for backends without stable ids (`PipeTaskPty`, mocks, alt screen).
  */
 export type ParkedHit =
   | { readonly kind: "line"; readonly epoch: number; readonly line: number; readonly col: number }
@@ -176,15 +143,10 @@ export function parkHit(
 }
 
 /**
- * Re-derive the parked hit's position in a freshly recomputed match list.
- *
- * Returns -1 when the park cannot be honoured rather than pointing at a
- * neighbour: a resize reflows history and bumps `epoch`, so the recorded id
- * names content that no longer exists under that numbering —
- * `followWindowShift` drops a selection on exactly that signal, and guessing
- * here would put the accent on a line the user never walked to. A hit the
- * scrollback trimmed away falls forward to the next surviving hit, which is
- * where `enter` would have taken them anyway.
+ * The parked hit's index in a recomputed match list. -1 on an `epoch` change
+ * (a resize reflowed history, so the id names nothing — same signal
+ * `followWindowShift` drops a selection on). A trimmed hit falls forward to
+ * the next surviving one.
  */
 export function resolveParkedIndex(
   parked: ParkedHit | null,

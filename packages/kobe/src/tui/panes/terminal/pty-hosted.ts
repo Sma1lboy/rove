@@ -1,26 +1,18 @@
 /**
- * HostedTaskPty — the pty-host-backed terminal backend (protocol v4) and
- * the DEFAULT backend.
- *
- * The raw PTY child lives in the standalone `kobe pty-host` process
- * (kobe's tmux-server analog, `kobe-daemon/daemon/pty-server.ts`) — NOT
- * in the daemon and NOT in this TUI process. So an engine session
- * survives BOTH quitting the TUI and `kobe daemon restart`; reopening
- * kobe reattaches and replays the host's byte ring buffer into a fresh
+ * HostedTaskPty — the default terminal backend (protocol v4). The PTY child
+ * lives in the standalone `kobe pty-host` (`kobe-daemon/daemon/pty-server.ts`),
+ * not the daemon or this TUI, so sessions survive quitting the TUI and
+ * `kobe daemon restart`; reopening replays the host's byte ring into a fresh
  * local xterm. Only `kobe reset` (or the host idle-exiting at zero live
- * sessions) ends the children. VT emulation stays in this process
- * (`pty-xterm-base.ts`); only raw bytes cross the socket (`pty.data`
- * frames, base64).
+ * sessions) ends children. VT emulation stays here; only raw bytes (base64
+ * `pty.data`) cross the socket.
  *
- * Lifecycle mapping onto {@link TaskPtyLike}:
- *   - `kill()`  → `pty.kill` — ends the REMOTE child (tab close, delete,
- *     reset). This is the "I'm done with this session" path.
- *   - `detach()` → `pty.detach` — drops only this handle; the child keeps
- *     running. App teardown calls this via `registry.detachAll()`.
+ * {@link TaskPtyLike} mapping: `kill()` → `pty.kill` ends the remote child;
+ * `detach()` → `pty.detach` drops only this handle (app exit, via
+ * `registry.detachAll()`).
  *
- * The socket opens asynchronously while the constructor stays sync (the
- * registry contract): input typed before the open completes is queued and
- * flushed after the replay, so nothing is lost or reordered.
+ * The constructor stays sync (registry contract) while the socket opens
+ * async: input typed meanwhile is queued and flushed after the replay.
  */
 
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
@@ -46,31 +38,25 @@ export class HostedTaskPty extends XtermTaskPty {
   private pendingInput: string[] = []
   private pendingResize: { cols: number; rows: number } | null = null
   private unsubs: (() => void)[] = []
-  /** See {@link TaskPtyLike.deadOnAttach} — set when `pty.open` handed us
-   *  a session whose child had already exited (non-empty replay tells a
-   *  corpse apart from a failed fresh spawn). */
+  /** See {@link TaskPtyLike.deadOnAttach}. Non-empty replay tells an already
+   *  exited session apart from a failed fresh spawn. */
   deadOnAttach = false
-  /** OUR incarnation's child pid, from the `pty.open` response; undefined
-   *  until that response lands. `pty.exit` frames route by KEY, and a
-   *  kill()→reopen under the same key (editor-tab file swap, F5 reset,
-   *  engine degrade) makes the OLD child's exit frame race the NEW
-   *  handle's open — the pid tells the incarnations apart. */
+  /** Our incarnation's child pid from `pty.open`; undefined until it lands.
+   *  `pty.exit` routes by KEY, and a kill()→reopen under the same key (file
+   *  swap, F5, engine degrade) races the old child's exit against our open. */
   private sessionPid: number | null | undefined = undefined
-  /** A pid-tagged `pty.exit` that arrived before our open response —
-   *  parked, then resolved against the response's pid in `openRemote`. */
+  /** A pid-tagged `pty.exit` that beat our open response; resolved in `openRemote`. */
   private pendingExitPid: number | null = null
 
-  /** See {@link TaskPtyLike.shellPid}. The host runs on the SAME machine
-   *  as this process, so its pid is walkable here (a remote-project host
-   *  would need the walk to happen host-side — not wired yet). */
+  /** See {@link TaskPtyLike.shellPid}. Walkable only because the host runs on
+   *  this machine; a remote host would need a host-side walk (not wired). */
   get shellPid(): number | null {
     return this.sessionPid ?? null
   }
   /** SerializeAddon riding our emulator — `capturePark` reads it. */
   private readonly serializer = new SerializeAddon()
-  /** Monotonic host byte offset this handle has consumed: the open
-   *  response's `offset` plus every `pty.data` frame since. Recorded into
-   *  {@link ParkedScreen} at park; null until the open response lands. */
+  /** Host byte offset consumed: open response `offset` + every frame since.
+   *  Recorded into {@link ParkedScreen}; null until the open response lands. */
   private hostOffset: number | null = null
 
   constructor(opts: TaskPtyOpts) {
@@ -80,13 +66,9 @@ export class HostedTaskPty extends XtermTaskPty {
     void this.openRemote(opts)
   }
 
-  /**
-   * Whether the open response describes a session WE just brought into
-   * being (spawned fresh or adopted from the host's warm-shell slot) —
-   * only then may `initialInput` be typed; a reattach means the command
-   * line already ran. Pre-`created` hosts fall back to "alive with an
-   * empty replay", which is only ever true for a just-spawned child.
-   */
+  /** Whether we just created the session (fresh spawn or warm-shell adopt) —
+   *  only then may `initialInput` be typed. Pre-`created` hosts fall back to
+   *  "alive with empty replay", true only for a just-spawned child. */
   private static createdFresh(res: PtyOpenResult): boolean {
     return res.alive && (res.created ?? res.replay.length === 0)
   }
@@ -96,13 +78,11 @@ export class HostedTaskPty extends XtermTaskPty {
       const client = await getSharedPtyClient()
       if (this.killed) return
       this.client = client
-      // Route inbound frames through the shared O(1) dispatcher (installed
-      // on the client in getSharedPtyClient) instead of a per-handle
-      // `on("pty.data")` that the client would walk for every tab per chunk.
+      // Shared O(1) dispatcher, not a per-handle `on("pty.data")` the client
+      // would walk for every tab per chunk.
       routeAdd(this)
       this.unsubs.push(
-        // Host died / socket dropped: the pane shows its dead-shell
-        // banner; the user reopens the tab (or reset) to reattach.
+        // Host/socket gone → dead-shell banner; reopen the tab to reattach.
         client.onLifecycle("close", () => this.remoteGone()),
       )
       const res = await client.request<PtyOpenResult>("pty.open", {
@@ -119,21 +99,17 @@ export class HostedTaskPty extends XtermTaskPty {
       if (this.killed) return
       this.sessionPid = res.pid ?? null
       this.hostOffset = res.offset ?? null
-      // A parked screen restores ONLY when the host proved the delta is
-      // exact: `sinceValid` covers offset-in-window AND same-pid (the pid
-      // check must live host-side — a stale restore has to receive the
-      // FULL ring, not a delta it would discard). The local re-checks are
-      // a belt against pre-offset hosts echoing unknown fields.
+      // Restore a parked screen only when the host proved the delta exact:
+      // `sinceValid` = offset in window AND same pid (host-side, so a stale
+      // restore gets the FULL ring). Local re-checks guard pre-offset hosts.
       const restored =
         opts.restore !== undefined &&
         res.sinceValid === true &&
         res.created !== true &&
         (res.pid ?? null) === opts.restore.pid
-      // Replay BEFORE flushing queued input — the ring buffer is the
-      // session's past; queued keystrokes are its future. feedReplay, not
-      // feed: the replayed stream contains the child's PAST terminal
-      // queries, and answering them again from this fresh emulator would
-      // inject stray CPR/DA into the child's stdin.
+      // Replay before flushing queued input (past before future). feedReplay,
+      // not feed: answering the replay's past terminal queries would inject
+      // stray CPR/DA into the child's stdin.
       if (restored && opts.restore) {
         await this.restoreParked(opts.restore, Buffer.from(res.replay, "base64"))
         if (this.killed) return
@@ -146,23 +122,20 @@ export class HostedTaskPty extends XtermTaskPty {
         this.pendingResize = null
         this.sendResize(cols, rows)
       }
-      // The typed engine line goes FIRST (it belongs to the spawn), then
-      // any keystrokes the user queued while the socket opened.
+      // Engine line first (it belongs to the spawn), then queued keystrokes.
       const fresh = HostedTaskPty.createdFresh(res)
       if (opts.initialInput && fresh) this.sendInput(opts.initialInput)
-      // Paste-delivery vendor (kimi): the launch keeps the first
-      // message OUT of its argv (the positional slot is a subcommand), so we
-      // owe the session a paste once its engine process is up. Only on a
-      // fresh spawn — a reattach already received (or never had) it.
+      // Paste-delivery vendors (kimi) can't take the first message in argv
+      // (positional slot is a subcommand); paste it once the engine is up,
+      // fresh spawns only.
       if (opts.firstMessage && fresh) {
         void pastePromptWhenEngineUp(client, this.taskId, opts.engineBin, opts.firstMessage).catch((err) =>
           logClientError("pty-hosted", err),
         )
       }
       for (const data of this.pendingInput.splice(0)) this.sendInput(data)
-      // An exit frame that raced the open response: ours only if the pid
-      // matches this session's child — a mismatch is the previous
-      // incarnation of this key dying, which must not kill this handle.
+      // A raced exit frame is ours only on pid match; otherwise it's the
+      // key's previous incarnation dying.
       const parkedExitPid = this.pendingExitPid
       this.pendingExitPid = null
       if (!res.alive) {
@@ -171,27 +144,16 @@ export class HostedTaskPty extends XtermTaskPty {
       } else if (parkedExitPid !== null && parkedExitPid === this.sessionPid) {
         this.remoteGone()
       } else if (res.replay.length > 0 && !restored) {
-        // Reattach to a LIVE session (TUI restart): when our geometry
-        // matches the host's, no SIGWINCH ever fires and nothing tells
-        // the app to repaint what the replay painted — a long session's
-        // ring-buffer tail starts mid-stream, so the replayed screen is
-        // garbage until the next full redraw. Wiggle one row and back to
-        // force it (tmux repaints on attach the same way); a same-size
-        // TIOCSWINSZ raises no signal, it must move.
+        // Live reattach: a ring tail starts mid-stream, so the replayed
+        // screen is garbage until a full redraw, and same geometry raises no
+        // SIGWINCH. Wiggle one row and back to force one (as tmux does).
         // ponytail: a 1-row-tall pane can't wiggle — never real.
         this.sendResize(this.cols, Math.max(1, this.rows - 1))
-        // Back-to-back resizes COALESCE: the child gets ONE SIGWINCH,
-        // reads the already-restored size, sees "unchanged", and skips
-        // the repaint (measured: 2 zero-gap resizes → 1 signal at the
-        // final size). Wait for the child's shrink repaint to actually
-        // arrive before restoring; macOS can schedule a shell's trap one
-        // tick later than the resize frame, so leave a bounded half-second
-        // for it. The timeout still covers children that do not repaint on
-        // WINCH at all (a plain shell). The data-wait alone is defeated by
-        // an ACTIVELY-STREAMING child — its ordinary output frame lands ms
-        // after the shrink and races the restore back into the coalescing
-        // ("input box gone") — so a floor keeps a real gap
-        // between the two TIOCSWINSZ (see WIGGLE_MIN_GAP_MS).
+        // Zero-gap resizes coalesce into one SIGWINCH at the unchanged size
+        // (measured: 2 → 1), so wait for the shrink repaint (≤500ms: macOS
+        // may run a shell's trap a tick late; non-repainting children hit
+        // the timeout) AND a WIGGLE_MIN_GAP_MS floor — a streaming child's
+        // ordinary output would otherwise satisfy the wait instantly.
         await Promise.all([this.nextDataOrTimeout(500), new Promise((r) => setTimeout(r, WIGGLE_MIN_GAP_MS))])
         if (!this.killed) this.sendResize(this.cols, this.rows)
       }
@@ -225,14 +187,11 @@ export class HostedTaskPty extends XtermTaskPty {
   }
 
   /**
-   * kill() must forget the REMOTE session record even when this handle is
-   * already dead: the host keeps an exited session under its key
-   * (post-mortem reattach), and the base kill() early-returns on `_killed`
-   * so `pty.kill` never reached the host. The next `pty.open` under the
-   * same key then reattached the corpse (spawn spec ignored, alive:false)
-   * instead of spawning fresh — which turned "engine exit → degrade to
-   * shell" into the tab closing itself, and made F5 reset of a dead shell
-   * a no-op.
+   * Forget the remote session even when this handle is already dead: the host
+   * keeps exited sessions under their key for post-mortem reattach, and the
+   * base kill() early-returns on `_killed`. Otherwise the next `pty.open`
+   * reattaches the corpse instead of spawning — engine degrade closes the tab
+   * and F5 on a dead shell does nothing.
    */
   override kill(): void {
     if (this.killed) {
@@ -243,24 +202,18 @@ export class HostedTaskPty extends XtermTaskPty {
   }
 
   /**
-   * Drop this handle, leave the child running in the pty host — the whole
-   * point of the backend. Called by `registry.detachAll()` on app exit.
-   */
-  /**
-   * Snapshot this handle's screen for a lossless wake: the
-   * SerializeAddon VT stream (~100-200KB) replaces the multi-MB emulator
-   * while the tab is hidden. Null when we can't restore exactly — never
-   * attached (no offset), already dead — so the park sweep still detaches
-   * and the wake degrades to the full-replay + wiggle path.
+   * Snapshot the screen for a lossless wake: the serialized VT stream
+   * (~100-200KB) replaces the multi-MB emulator while hidden. Null when an
+   * exact restore is impossible (never attached, dead); the wake then falls
+   * back to full replay + wiggle.
    */
   capturePark(): ParkedScreen | null {
     if (this.killed || !this.opened || this.hostOffset === null || this.sessionPid === undefined) return null
     try {
       return {
         // Buffer round-trip is load-bearing: serialize() returns a JSC rope
-        // whose fragments pin the emulator's internal strings — keeping it
-        // as-is retained ~2MB per parked tab (measured). The copy owns its
-        // backing store, so the disposed emulator actually gets collected.
+        // pinning the emulator's strings (~2MB retained per parked tab,
+        // measured); the copy lets the disposed emulator be collected.
         serialized: Buffer.from(this.serializer.serialize({ scrollback: this.scrollback }), "utf8").toString(),
         title: this.windowTitle,
         cursorHidden: xtermCursorHidden(this.term),
@@ -275,11 +228,10 @@ export class HostedTaskPty extends XtermTaskPty {
   }
 
   /**
-   * Prime the fresh emulator from a parked screen: parse the serialized
-   * stream at its CAPTURE geometry (wrapping is width-dependent), re-apply
-   * the `?25l` state serialize doesn't carry, apply the exact byte delta
-   * the host confirmed, then reflow to the pane's current size. The result
-   * is bit-identical to never detaching — no repaint wiggle needed.
+   * Prime the emulator from a parked screen: parse at CAPTURE geometry
+   * (wrapping is width-dependent), re-apply `?25l` (serialize drops it), feed
+   * the host-confirmed delta, then reflow to the current size. Bit-identical
+   * to never detaching, so no wiggle.
    */
   private async restoreParked(state: ParkedScreen, delta: Buffer): Promise<void> {
     const targetCols = this.cols
@@ -287,11 +239,9 @@ export class HostedTaskPty extends XtermTaskPty {
     if (state.cols !== targetCols || state.rows !== targetRows) this.resizeEmulator(state.cols, state.rows)
     this.feedReplay(state.serialized + (state.cursorHidden ? "\x1b[?25l" : ""))
     if (delta.byteLength > 0) this.feedReplay(delta)
-    // Geometry restore must wait for the queued parses — xterm resizes take
-    // effect immediately while writes parse async, so resizing early would
-    // reflow the serialized stream at the wrong width. A kill() mid-restore
-    // disposes the emulator and may drop the write callback; the exit
-    // listener keeps this await from hanging the open.
+    // Wait for queued parses before resizing (resize is immediate, writes
+    // parse async). The exit listener covers a kill() mid-restore dropping
+    // the write callback.
     await new Promise<void>((resolve) => {
       const off = this.onExit(resolve)
       this.term.write("", () => {
@@ -304,13 +254,12 @@ export class HostedTaskPty extends XtermTaskPty {
     }
   }
 
+  /** Drop this handle; the child keeps running in the pty host. */
   detach(opts: PtyDetachOpts = {}): void {
     const client = this.client
     this.cleanup()
-    // The host keeps ONE sink per (key, connection) — shared by every local
-    // handle for the key. Detach the host side only when we were the LAST
-    // local viewer; sending it with a sibling still attached would starve
-    // the survivor's stream.
+    // One host sink per (key, connection): detach host-side only as the last
+    // local viewer, or the surviving sibling's stream starves.
     const siblings = routeCount(this.taskId)
     if (client && siblings === 0) {
       void client
@@ -366,20 +315,13 @@ export class HostedTaskPty extends XtermTaskPty {
     this.dataWaiter?.()
     this._lastOutputAt = Date.now()
     const buf = Buffer.from(dataB64, "base64")
-    // Frames only count once the open response set the baseline: anything
-    // routed to us earlier (a sibling handle's stream) is already inside
-    // the response's `offset`.
+    // Earlier frames (a sibling's stream) are already inside the open `offset`.
     if (this.hostOffset !== null) this.hostOffset += buf.byteLength
     this.feed(buf)
   }
 
-  /**
-   * The shared dispatcher's `pty.exit` route. Applied only when the exit
-   * belongs to OUR child: a kill()→reopen under the same key sends the
-   * previous incarnation's exit frame ahead of our open response (socket
-   * FIFO), and blindly dying here would close the freshly-opened tab.
-   * Pre-pid hosts (no `pid` in the frame) die on any exit.
-   */
+  /** `pty.exit` route: applied only for OUR child's pid (see `sessionPid`).
+   *  Pre-pid hosts (no `pid` in the frame) die on any exit. */
   remoteExited(pid: number | null | undefined): void {
     if (this.killed) return
     if (pid === undefined) {
@@ -394,20 +336,15 @@ export class HostedTaskPty extends XtermTaskPty {
     if (pid !== null && pid === this.sessionPid) this.remoteGone()
   }
 
-  /**
-   * The remote child (or the host itself) is gone — dead-shell banner.
-   * Public for the shared dispatcher's `pty.exit` route; also the local
-   * lifecycle-close reaction.
-   */
+  /** Remote child or host gone → dead-shell banner. Public for the dispatcher. */
   remoteGone(): void {
     this.cleanup()
     this.markDead(false)
   }
 
   private cleanup(): void {
-    // Drop our route entry FIRST so no in-flight frame can reach a torn-down
-    // handle — every teardown route (detach/kill/park/socket-close) lands
-    // here, so this is the single place the registration is undone.
+    // Unroute first so no in-flight frame reaches a torn-down handle; every
+    // teardown path lands here.
     routeRemove(this)
     for (const unsub of this.unsubs.splice(0)) {
       try {

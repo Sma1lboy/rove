@@ -1,20 +1,12 @@
 /**
- * Pure row model for the file tree pane — extracted from `FileTree.tsx`
- * so it stays unit-testable (the component file drags in `@opentui`,
- * which vitest/node cannot load; see `index.ts`).
+ * Pure row model for the file tree pane, kept out of `FileTree.tsx` so
+ * vitest/node can load it (no `@opentui`).
  *
- * The load-bearing export is {@link reconcileRows}: the Ops pane's
- * fs-watch refresh re-fetches `git ls-files` / `git status` and rebuilds
- * the row list from scratch, so every refresh produces ALL-NEW row
- * objects. List rendering keys by object identity, so each
- * refresh would destroy and recreate every row's opentui renderables —
- * and @opentui/core 0.2.4 retains a small amount of native memory per
- * renderable create/destroy cycle (~300B; JS heap stays flat while RSS
- * climbs). A busy engine worktree refreshes thousands of times a day,
- * which is enough for multi-GB Ops-pane growth.
- * Reconciling by row key keeps the previous object whenever its fields
- * are unchanged, so the list reuses the existing renderables and the
- * native churn drops to "rows that actually changed".
+ * {@link reconcileRows} is load-bearing: every fs-watch refresh rebuilds all
+ * row objects, list rendering keys by identity, and @opentui/core 0.2.4
+ * leaks ~300B native memory per renderable create/destroy (RSS climbs, JS
+ * heap flat) — thousands of refreshes a day reach multi-GB. Reusing
+ * unchanged rows limits churn to rows that actually changed.
  */
 
 import { charWidth } from "@/lib/display-width"
@@ -23,11 +15,7 @@ import { truncateStartCells } from "@/tui/lib/truncate"
 import type { FileStatus, StatusEntry } from "./git"
 import type { TreeNode } from "./tree"
 
-/**
- * Internal row shape. The All tab renders a tree (files + collapsible
- * directories with `depth` for indentation). The Changes tab renders a
- * flat list of status rows carrying +/- diff stats.
- */
+/** All tab: file/dir tree rows with `depth`. Changes tab: flat status rows with +/- stats. */
 export type Row =
   | { kind: "file"; path: string; name: string; depth: number }
   | { kind: "dir"; path: string; name: string; depth: number; expanded: boolean; hasChildren: boolean }
@@ -65,20 +53,13 @@ export function flattenTree(node: TreeNode, expanded: ReadonlySet<string>, depth
 }
 
 /**
- * Truncate a path keeping its TAIL — the leaf (filename) carries the
- * meaning, so on a narrow pane we drop the leading directories and show
- * `…components/sidebar/Sidebar.tsx` rather than clipping the filename off
- * the right. Thin alias over the shared {@link truncateStartCells} owner,
- * which never bisects a surrogate pair (emoji / astral char in a filename)
- * into a replacement glyph.
+ * Truncate keeping the TAIL (`…sidebar/Sidebar.tsx`) — the filename carries
+ * the meaning. Via {@link truncateStartCells}, which never splits a
+ * surrogate pair.
  *
- * `maxCells` is a CELL budget, not a code-point count, because the caller
- * (`computePathBudget`) derives it from the pane's real width and the row
- * has a hard right edge: the status glyph, the `+N`/`−N` stat columns and
- * the pane border all sit there. A Chinese path spends 2 cells per glyph,
- * so counting code points here let `文档/设计/终端渲染说明书笔记.md` (18 code
- * points, 31 cells) "fit" a 26-cell budget and draw through the border into
- * the workspace pane, dragging the stat columns out of alignment with it.
+ * `maxCells` is a CELL budget: the row has a hard right edge (status glyph,
+ * stat columns, border), and a CJK path spends 2 cells per glyph — counting
+ * code points would draw it through the border.
  */
 export function truncatePathTail(path: string, maxCells: number): string {
   return truncateStartCells(path, maxCells, charWidth)
@@ -86,11 +67,8 @@ export function truncatePathTail(path: string, maxCells: number): string {
 
 const NO_EXPANSION: ReadonlySet<string> = new Set()
 
-/**
- * Map a status entry list to Changes-tab rows. An entry carrying `children`
- * (an untracked directory) renders as one collapsed row with a file count;
- * when its path is in `expanded`, its children follow as indented file rows.
- */
+/** Changes-tab rows. An untracked dir (`children`) is one row with a file
+ *  count; when `expanded`, its children follow as indented rows. */
 export function statusRows(entries: readonly StatusEntry[], expanded: ReadonlySet<string> = NO_EXPANSION): Row[] {
   const out: Row[] = []
   for (const e of entries) {
@@ -148,26 +126,14 @@ function rowEquals(a: Row, b: Row): boolean {
   }
 }
 
-/**
- * Reconcile a freshly built row list against the previous one, preserving
- * object identity for rows whose fields are unchanged.
- *
- * - A `next` row whose key exists in `prev` with equal fields → the PREV
- *   object is returned in its place (so `<For>` reuses its renderables).
- * - When every position resolves to its previous object (same order, same
- *   length), the `prev` ARRAY itself is returned, so a memo holding the
- *   result doesn't notify downstream at all.
- */
+/** Keep `prev` objects for unchanged rows; return the `prev` ARRAY itself
+ *  when nothing moved, so a holding memo doesn't notify. */
 export function reconcileRows(prev: readonly Row[], next: readonly Row[]): readonly Row[] {
   return reconcileStableRows(prev, next, rowKey, rowEquals)
 }
 
-/**
- * Content equality for the `allFiles` signal — `git ls-files` output is a
- * sorted string list, so an mtime-only touch produces an identical list
- * and the signal must not notify (otherwise the tree memo and every row
- * rebuild for nothing). Null = "not loaded"; only equal to itself.
- */
+/** Content equality for `allFiles`, so an mtime-only touch doesn't rebuild
+ *  the tree. Null = "not loaded", equal only to itself. */
 export function sameFileList(a: string[] | null, b: string[] | null): boolean {
   if (a === b) return true
   if (a == null || b == null) return false
@@ -178,9 +144,8 @@ export function sameFileList(a: string[] | null, b: string[] | null): boolean {
   return true
 }
 
-/** Content equality for the `changes` signal (status + numstat rows).
- * Compares one level of untracked-dir `children` too — a refresh that only
- * adds/removes files inside a collapsed dir must still notify. */
+/** Content equality for `changes`, including one level of untracked-dir
+ *  `children` (changes inside a collapsed dir must still notify). */
 export function sameStatusEntries(a: StatusEntry[] | null, b: StatusEntry[] | null): boolean {
   if (a === b) return true
   if (a == null || b == null) return false

@@ -1,40 +1,27 @@
 /**
- * ESC-interrupt observer — framework-free.
+ * ESC-interrupt observer.
  *
- * An ESC interrupt ends a turn without ANY hook: claude-code's abort path
- * returns before its stop hooks run, so without this the daemon's
- * hook-driven `running` badge stays lit until the ~10min lapse watchdog
- * catches it. The one
- * event-grade signal an interrupt does produce is the engine's own OSC
- * title rewrite — the animated working frame (`⠂`/`⠐`, codex's braille)
- * flips back to the resting form the instant the turn stops
- * (`engineTitleTurnHint`).
+ * An ESC interrupt fires NO hook (claude-code's abort returns before stop
+ * hooks), so the hook-driven `running` badge would stay lit until the ~10min
+ * lapse watchdog. The only event-grade signal is the engine's OSC title
+ * flipping from the working frame to rest (`engineTitleTurnHint`).
  *
- * This observer watches exactly that: a tab whose HOOK state says
- * `running` while its live title says "rest" arms a confirm timer; if the
- * disagreement still holds when it fires, `report` tells the daemon the
- * turn was interrupted (`engine.reportEvent` kind `turn-interrupted`) and
- * every attached client's badge flips.
+ * Hook `running` + title "rest" arms a confirm timer; if it still disagrees
+ * on fire, `report` sends `turn-interrupted` to the daemon.
  *
- * The confirm delay is the Stop-race guard: on a NATURAL turn end the
- * title flips a beat before the Stop hook lands, so acting immediately
- * would race the real event and an interrupt report arriving after Stop
- * would eat the unseen-● lamp (reduce(turn_complete, turn-interrupted) →
- * idle). Any hook movement away from `running` during the window —
- * turn_complete, permission_needed, anything — disarms the pending
- * confirm; Stop always wins.
+ * The delay guards the Stop race: on a NATURAL end the title flips a beat
+ * before Stop lands, and an interrupt report after Stop would eat the
+ * unseen-● lamp (reduce(turn_complete, turn-interrupted) → idle). Any hook
+ * move away from `running` in the window disarms; Stop always wins.
  */
 
 import { engineTitleTurnHint } from "../../engine/registry"
 import type { VendorId } from "../../types/vendor"
 
 /**
- * How long the title must keep saying "rest" against a hook-claimed
- * `running` before an interrupt is reported. The window only needs to
- * outlive a natural turn end's title→Stop gap: the Stop hook is a spawned
- * `kobe hook` process plus one daemon RPC, well under a second on a sane
- * machine — 2.5s covers a loaded one with margin, while keeping the ESC
- * flip inside the "immediately" a user perceives.
+ * Must outlive a natural end's title→Stop gap (a spawned `kobe hook` + one
+ * RPC, well under 1s); 2.5s covers a loaded machine while still feeling
+ * immediate.
  */
 const INTERRUPT_CONFIRM_MS = 2500
 
@@ -49,11 +36,8 @@ export interface InterruptObservation {
 }
 
 export interface InterruptObserverOptions {
-  /**
-   * Fire-time re-check: return true when the hook state STILL claims
-   * `running` for the tab. Read from live state, not the arm-time
-   * snapshot — a Stop that landed during the window must win the race.
-   */
+  /** Fire-time re-check that the hook STILL claims `running`, read from live
+   *  state so a Stop during the window wins. */
   readonly confirm: (tabId: string) => boolean
   /** Report the confirmed interrupt (fire-and-forget daemon RPC). */
   readonly report: (tabId: string) => void
@@ -71,12 +55,7 @@ export class InterruptObserver {
 
   constructor(private readonly opts: InterruptObserverOptions) {}
 
-  /**
-   * Feed one tab's current observation. Arms the confirm timer on a fresh
-   * running-vs-resting disagreement, re-arms nothing while one is pending,
-   * and disarms the moment the disagreement clears (hook left `running` —
-   * Stop/permission/idle — or the title says working again).
-   */
+  /** Arm on a fresh disagreement (never re-arm while pending); disarm once it clears. */
   observe(tabId: string, obs: InterruptObservation): void {
     if (disagrees(obs)) {
       if (this.pending.has(tabId)) return

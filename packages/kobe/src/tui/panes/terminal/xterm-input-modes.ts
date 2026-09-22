@@ -1,28 +1,16 @@
 /**
- * The emulator's INPUT-mode surface: what the program running in the PTY has
- * asked the terminal to do with pointer and key input, read off xterm's own
- * mode state.
+ * What the PTY program asked the terminal to do with pointer and key input,
+ * read off xterm's mode state. Encoders return bytes for the caller to write.
  *
- * Split from `pty-xterm-base.ts`, which otherwise owns the opposite
- * direction — bytes arriving from the child, parsed into the snapshot the
- * pane draws. These five answers share no state with that pipeline: each one
- * is a read of `term.modes` / `term.buffer.active`, and the two that emit
- * hand back a byte sequence for the caller to write rather than writing it.
- *
- * Every probe is best-effort by contract. `term.modes` is xterm's internal
- * surface and a killed or mid-teardown emulator can throw from it; a pane
- * that cannot answer "does the app want the mouse" must fall back to Rove's
- * own handling, never take the TUI down.
+ * Every probe is best-effort: a killed or mid-teardown emulator can throw from
+ * `term.modes`, and the pane must fall back to Rove's own handling, never
+ * take the TUI down.
  */
 
 import type { Terminal as XtermHeadless } from "@xterm/headless"
 import { type TerminalInputModes, encodeMouseButton, encodeWheel } from "./keys-pure"
 
-/**
- * The mode state these helpers read. Derived from xterm's own type rather
- * than restated: `mouseTrackingMode` is a closed union `keys-pure` switches
- * on exhaustively, and a hand-written copy would let a widened one through.
- */
+/** Derived from xterm's type, not restated, so a widened `mouseTrackingMode` union can't slip past `keys-pure`. */
 export type XtermModeSource = Pick<XtermHeadless, "modes" | "buffer">
 
 /** Cursor-key / keypad modes, as `keys-pure` needs them to encode a keypress. */

@@ -1,20 +1,12 @@
 /**
- * Hook-wins merge of the two per-tab turn-state sources (framework-free).
+ * Hook-wins merge of the two per-tab turn-state sources: the daemon's hook
+ * `engine-state` push (sub-second) and the local quiescence poll (3–6 s,
+ * works without hooks). Per tabId a live hook entry supersedes the poll; the
+ * poll re-owns the tab when the entry clears or never appears. With no hook
+ * data the output is the poll map unchanged.
  *
- * Two chains report "what is this tab's engine doing": the daemon's
- * hook-driven `engine-state` push (sub-second, carries `tabId` for every
- * kobe-spawned engine tab) and the local capture-pane quiescence poll
- * (3–6 s, works without hooks). This module owns the precedence rule:
- * per tabId, a live hook entry supersedes the poll's reading; the poll
- * keeps running untouched and re-owns the tab the moment the hook entry
- * clears (daemon publishes idle → client deletes the map entry) or never
- * appears (hooks not installed, daemon down when the hook fired). No
- * timers, no vendor knowledge — with no hook data the output is the poll
- * map byte-for-byte.
- *
- * Known ceiling: a dropped Stop pins the hook's `running` until the
- * daemon's per-tab lapse watchdog idles it (~10 min TTL) or the next
- * event; the poll's (correct) `done` is ignored for that window.
+ * Known ceiling: a dropped Stop pins hook `running` until the daemon's lapse
+ * watchdog (~10 min) or the next event; the poll's `done` is ignored meanwhile.
  */
 
 import type { TaskActivityState } from "../../engine/hook-events.ts"
@@ -25,16 +17,11 @@ export interface HookTabState {
   readonly state: TaskActivityState
   readonly sessionId?: string
   readonly transcriptPath?: string
-  /** The state's stamp — the key the durable completion-seen mark is
-   *  recorded under. Absent on the poll-only path. */
+  /** Key for the durable completion-seen mark; absent on the poll-only path. */
   readonly at?: number
 }
 
-/**
- * Daemon activity state → tab-chip vocabulary. `null` = "no hook claim"
- * (idle entries are deleted client-side, but a replayed idle can still
- * arrive here — treat it as no-claim so the poll owns the chip).
- */
+/** Daemon activity state → tab-chip state. `null` = no hook claim (a replayed idle can still arrive; the poll owns it). */
 export function activityTurnState(state: TaskActivityState): ChatTabTurnState | null {
   switch (state) {
     case "running":
@@ -43,10 +30,8 @@ export function activityTurnState(state: TaskActivityState): ChatTabTurnState | 
       return "done"
     case "error":
       return "error"
-    // NOT folded into `error`: "blocked until the window resets" and "broke,
-    // needs you" ask for opposite actions, and the sidebar rail has always
-    // drawn them apart (`◷` vs `×`). Collapsing them here is what made the
-    // strip and the rail disagree about the same tab.
+    // NOT folded into `error`: "wait for the window" vs "broke, needs you"
+    // ask for opposite actions, and the rail draws them apart (`◷` vs `×`).
     case "rate_limited":
       return "rate_limited"
     case "dead":
@@ -58,11 +43,7 @@ export function activityTurnState(state: TaskActivityState): ChatTabTurnState | 
   }
 }
 
-/**
- * Merge hook-derived tab states over the poll's map, hook-wins per tabId.
- * Returns `poll` unchanged (same reference) when no hook entry claims any
- * tab — callers can identity-compare to skip downstream work.
- */
+/** Returns `poll` by reference when no hook entry claims a tab, so callers can identity-compare. */
 export function mergeTurnStates(
   hook: ReadonlyMap<string, HookTabState> | undefined,
   poll: ReadonlyMap<string, ChatTabTurnState>,

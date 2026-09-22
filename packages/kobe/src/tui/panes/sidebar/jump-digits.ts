@@ -1,16 +1,10 @@
 /**
- * Digits for the `ctrl+<digit>` task jump — ONE definition shared by the
- * chord table, the key handler, and the row renderer, so the number a row
- * prints is always the number that actually jumps to it.
+ * `ctrl+<digit>` jump digits, shared by chord table, key handler and row
+ * renderer so a row's printed digit is the one that jumps to it.
  *
- * `1` is deliberately absent. Ctrl+1 has no encoding in the legacy
- * terminal protocol (only ctrl+2…ctrl+8 map to C0 bytes; 1, 9 and 0 send
- * nothing), so it can't be relied on — verified on the owner's terminal.
- * Rather than leave the first row unreachable or make people compute an
- * offset, the row PRINTS its own digit: row 1 shows `2`, and the mapping
- * needs no memorising.
- *
- * Rows past the ninth get no digit rather than a wrong one.
+ * `1` is absent: legacy terminal protocol has no ctrl+1 encoding (only
+ * ctrl+2…ctrl+8 map to C0 bytes; 1, 9, 0 send nothing; verified on the owner's
+ * terminal). Rows print their own digit (row 1 shows `2`). Past the ninth: none.
  */
 export const TASK_JUMP_DIGITS: readonly string[] = ["2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
@@ -23,16 +17,9 @@ export function taskJumpDigit(rowIndex: number): string | null {
 }
 
 /**
- * The row a jump slot reaches, in a surface's OWN ordered list of
- * digit-bearing rows.
- *
- * Which rows are in that list is the surface's business — the expanded tree
- * numbers every navigable row, so a task's tab rows take digits of their own;
- * the folded rail numbers its tasks, because one cell per task is every row a
- * fold draws. What is NOT the surface's business is the arithmetic, which is
- * why it lives beside the digit table: a slot past the table names a row that
- * printed no digit, and must reach nothing rather than the row that happens to
- * sit at that index.
+ * Row a slot reaches in the surface's own digit-bearing list (the tree numbers
+ * every navigable row, the folded rail its tasks). A slot past the table
+ * printed no digit, so it reaches nothing, not whatever sits at that index.
  */
 export function jumpSlotTarget(ids: readonly string[], slot: number): string | undefined {
   if (!Number.isInteger(slot) || slot < 0 || slot >= TASK_JUMP_DIGITS.length) return undefined
