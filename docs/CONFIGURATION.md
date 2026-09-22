@@ -167,27 +167,29 @@ it off, `r` is the only thing that repopulates the list.
 | `autoEffort.<tier>.engine` | engine id | `claude` for all three | What the `swift` / `standard` / `deep` depth launches. Set from Settings → Auto effort; an empty string switches auto effort off (no tier is guessed) |
 | `autoEffort.<tier>.model` | string | `sonnet` / `opus` / `fable` | Model for that depth, in the engine's own spelling; empty = the engine's default |
 | `autoEffort.<tier>.effort` | string | unset | Reasoning level for that depth, one the engine declares; empty = the engine's default |
-| `autoEffort.classifier` | `off` \| `jev` \| an `http(s)://` URL | `off` | Who picks the tier for `rove api add --tier auto`. See below — anything else, a typo included, reads as `off` |
-| `autoEffort.classifierThreshold` | number | `0.5` | Confidence below which no tier is picked. Clamped 0–1 |
-| `autoEffort.classifierTimeoutMs` | number | `4000` | How long to wait before giving up on the classifier. Clamped 200–60,000 |
+| `autoEffort.classifier` | `off` \| `jev` \| an `http(s)://` URL | `off` | Who routes a task to a depth for `rove api add --tier auto`. See below — anything else, a typo included, reads as `off` |
+| `autoEffort.classifierThreshold` | number | `0.5` | Confidence below which the task is not routed. Clamped 0–1 |
+| `autoEffort.classifierTimeoutMs` | number | `4000` | How long to wait before giving up on the router. Clamped 200–60,000 |
 | `autoEffort.classifierModel` | string | `jev-latest` | Model id for `jev`. Pin a version (e.g. `jev-1.13.0`) to stop a silent upgrade |
-| `autoEffort.classifierEndpoint` | string | unset | The custom endpoint Settings remembers while the classifier points elsewhere. Not read by the classifier — `autoEffort.classifier` is |
+| `autoEffort.classifierEndpoint` | string | unset | The custom endpoint Settings remembers while routing points elsewhere. Not read at request time — `autoEffort.classifier` is |
 | `autoEffort.classifierKeyEnv` | string | `TYPESAFE_API_KEY` | Variable holding **jev's** key. The token itself never goes in `state.json` |
 | `autoEffort.classifierCustomKeyEnv` | string | unset | Variable holding a **custom endpoint's** key. Unset = no `Authorization` header is sent |
 
 Launch commands are parsed shell-ish, so quotes group arguments. Clear both
 `engineName.<id>` and `engineCommand.<id>` to reset an engine to its default.
 
-#### The tier classifier
+#### Auto routing
 
-Settings → Auto effort carries these as rows — **Classifier** (`off` / `jev` /
+Settings → Auto effort carries these as rows — **Route with** (`off` / `jev` /
 `custom`), **Endpoint**, **Confidence floor**, **API key** — with the
 data-flow sentence above them and a line saying where the key is coming from,
-which is the usual reason a switched-on classifier appears to do nothing.
-Everything below is the same settings by hand.
+which is the usual reason routing appears to do nothing once switched on.
+Everything below is the same settings by hand. (The setting keys still read
+`autoEffort.classifier*`: the feature is called routing, the key names are
+what they have always been.)
 
 `autoEffort.classifier` is **off**, and while it is off nothing leaves your
-machine. Switching it on means one thing you should decide deliberately:
+machine. Turning routing on means one thing you should decide deliberately:
 
 > **Your prompt is sent to a third party that is not your engine vendor.**
 > With `jev`, the first message of the task — trimmed to 1,200 characters —
@@ -195,8 +197,9 @@ machine. Switching it on means one thing you should decide deliberately:
 > That is a different company from whoever runs the engine you picked, and it
 > sees the text before the engine does.
 
-It answers one question — how much of the PROCEDURE the prompt leaves for the
-model to work out — and maps the answer onto `swift` / `standard` / `deep`:
+Routing answers one question — how much of the PROCEDURE the prompt leaves
+for the model to work out — and maps the answer onto `swift` / `standard` /
+`deep`:
 procedure given is `swift`, goal given but not the procedure is `standard`,
 and a goal that still has to be found is `deep`.
 

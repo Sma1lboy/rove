@@ -546,9 +546,9 @@ replacement in `nextCommandArgs`.
   (`CONFLICTING_FLAGS`) and refuses a tier that cannot start
   (`TIER_UNAVAILABLE`).
 
-  `--tier auto` asks a classifier to read `--prompt` and pick the tier for
-  you. It needs a prompt (`BAD_FLAG` without one) and it is **off until you
-  configure it** — see
+  `--tier auto` routes the task to a depth: a router reads `--prompt` and
+  picks the tier for you. It needs a prompt (`BAD_FLAG` without one) and it is
+  **off until you configure it** — see
   [`autoEffort.classifier`](./CONFIGURATION.md#the-tier-classifier), which
   also spells out where the prompt text goes. It never fails a create: an
   unset classifier, a missing key, a timeout, an answer below the confidence

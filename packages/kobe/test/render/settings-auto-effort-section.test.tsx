@@ -86,7 +86,7 @@ describe("AutoEffortSettingsSection — the classifier", () => {
     // their mind.
     expect(text).toContain("sends the task's first message to a third party that is NOT the engine vendor you picked")
     expect(text).toContain("Nothing leaves this machine while it is off")
-    expect(text).toContain("Classifier off")
+    expect(text).toContain("Route with off")
   })
 
   test("off shows no key line — there is no key to need", async () => {
@@ -96,7 +96,7 @@ describe("AutoEffortSettingsSection — the classifier", () => {
 
   test("on with no key anywhere says so, because that looks exactly like working", async () => {
     const text = flat(await (await mount(ready, { ...OFF, mode: "jev" })).frame())
-    expect(text).toContain("no key — the classifier stays silent")
+    expect(text).toContain("no key — nothing is routed")
     expect(text).toContain("tasks keep their usual depth")
     expect(text).toContain("API key not set — enter to paste one")
   })
@@ -130,7 +130,7 @@ describe("AutoEffortSettingsSection — the classifier", () => {
         await mount(ready, { ...OFF, mode: "custom", endpoint: "https://t.internal/p", keyConfigured: false })
       ).frame(),
     )
-    expect(text).not.toContain("no key — the classifier stays silent")
+    expect(text).not.toContain("no key — nothing is routed")
     expect(text).toContain("no Authorization header is sent to a custom endpoint")
   })
 
@@ -188,6 +188,6 @@ describe("AutoEffortSettingsSection — the classifier", () => {
 
   test("custom with nothing typed yet says how to get there, not a blank", async () => {
     const text = flat(await (await mount(ready)).frame())
-    expect(text).toContain("enter one, then set Classifier to custom")
+    expect(text).toContain("enter one, then set Route with to custom")
   })
 })
