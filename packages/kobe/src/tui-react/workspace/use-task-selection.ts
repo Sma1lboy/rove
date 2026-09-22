@@ -8,18 +8,11 @@ import { TASK_DELETING_CODE, TaskDeletingError } from "../../orchestrator/errors
 import type { Task } from "../../types/task.ts"
 
 /**
- * Map an activation failure onto the toast the user actually sees.
- *
- * Three shapes reach here and they need different words:
- *  - the task is mid-delete — nothing is wrong, the answer is "wait";
- *  - the project has no git repo yet — actionable, `git init` fixes it;
- *  - anything else — carry the reason so the user can act on it, minus the
- *    throw-site prefix the worktree layer stamps on it (`create(): …`),
- *    which would otherwise stutter the verb the toast already supplies.
- *
- * `TaskDeletingError` is matched on its MESSAGE, not `instanceof`: the same
- * refusal is also raised daemon-side and the RPC layer rebuilds it as a plain
- * `Error`, dropping the class (see TASK_DELETING_CODE's own note).
+ * Toast wording by failure shape: mid-delete ("wait"), no git repo
+ * (`git init` fixes it), or the reason minus the worktree layer's
+ * `create(): …` throw-site prefix. `TaskDeletingError` is matched by MESSAGE:
+ * the daemon-side copy arrives over RPC as a plain `Error` (see
+ * TASK_DELETING_CODE).
  */
 export function activationErrorMessage(
   error: unknown,
@@ -38,8 +31,7 @@ type ActivateWorkspaceTaskOptions = {
   selectTask: (id: string) => void
   focusWorkspace: () => void
   reportError: (error: unknown) => void
-  /** Last-intent guard: `false` after the await means a newer activation
-   *  superseded this one, so selection/focus must not be applied. */
+  /** `false` after the await = a newer activation superseded this one. */
   isCurrent?: () => boolean
 }
 
@@ -49,21 +41,16 @@ export async function activateWorkspaceTask(opts: ActivateWorkspaceTaskOptions, 
     opts.reportError(new TaskDeletingError(id))
     return false
   }
-  // A task on ANOTHER machine has its worktree over there. Materializing is a
-  // write, and the only daemon this process can reach is the local one — which
-  // has never heard of that id, so the attempt fails as "task not found" for a
-  // task the user is looking at. Select it and stop: the row, the topbar and
-  // the files pane all still say what it is.
+  // A task on ANOTHER machine: materializing would hit the local daemon, which
+  // doesn't know the id ("task not found"). Select it and stop.
   if (task?.origin && task.origin.machineId !== "local") {
     opts.selectTask(id)
     opts.focusWorkspace()
     return true
   }
-  // A create RPC can resolve before the daemon's task snapshot causes the
-  // workspace host to render. An unknown task is therefore not proof that the
-  // id is invalid — materialize by the authoritative RPC id and let the daemon
-  // reject a genuinely missing task. `ensureWorktree` is idempotent, so known
-  // materialized tasks can keep the local fast path below.
+  // A create RPC can resolve before the snapshot renders it, so an unknown task
+  // isn't proof of a bad id: materialize by the RPC id and let the daemon
+  // reject a truly missing one. `ensureWorktree` is idempotent.
   if (!task?.worktreePath) {
     try {
       await opts.ensureWorktree(id)
@@ -79,21 +66,14 @@ export async function activateWorkspaceTask(opts: ActivateWorkspaceTaskOptions, 
 }
 
 /**
- * Boot/fallback selection, in trust order: the daemon's active task → the
- * persisted `lastActive` record (survives daemon confusion: a stale or
- * freshly-respawned daemon can replay a null/ancient focus while disk still
- * knows the truth) → the most recently UPDATED live task. Raw array order is
- * never used as a tiebreak — tasks.json leads with the oldest saved repo's
- * main task, so array order lands every SSH reconnect on an untouched project
- * instead of the one being worked on.
+ * Trust order: daemon's active task → persisted `lastActive` (a stale or
+ * respawned daemon can replay a null/ancient focus) → most recently UPDATED
+ * live task. Never raw array order: tasks.json leads with the oldest saved
+ * repo, which lands every SSH reconnect on an untouched project.
  *
- * The recency fallback SKIPS a routine's standing session: a
- * schedule that fired at 03:00 makes it the most recently updated task in the
- * install, but it is the least likely thing you meant to open — and its
- * sidebar row is folded away, so booting onto it would leave the cursor on a
- * session with no visible row. It stays reachable by every deliberate route
- * (search, the Routines page, the Inbox); it just never wins by default.
- * An explicit active/lastActive id still selects it — that was a real choice.
+ * The recency fallback SKIPS routine sessions: a 03:00 firing makes one the
+ * newest task, yet its row is folded away, so booting onto it leaves the
+ * cursor on an invisible row. An explicit active/lastActive id still wins.
  */
 export function firstSelectableTask(
   tasks: readonly Task[],
@@ -107,8 +87,6 @@ export function firstSelectableTask(
   const live = tasks.filter((task) => !task.deletion)
   const newest = (pool: readonly Task[]): Task | undefined =>
     pool.length > 0 ? pool.reduce((best, task) => (task.updatedAt > best.updatedAt ? task : best)) : undefined
-  // Routine sessions are the fallback of last resort, never the default: an
-  // overnight firing would otherwise win every cold boot on recency alone.
   return (
     newest(live.filter((task) => task.routine === undefined)) ?? newest(live) ?? tasks.find((task) => !task.deletion)
   )

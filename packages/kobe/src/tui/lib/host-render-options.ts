@@ -1,34 +1,28 @@
 /**
- * Framework-free host-boot pieces used by the pane host
- * (`src/tui-react/lib/host-boot.tsx`), kept apart from it so the
- * render-option contract and the exit-signal backstop cannot drift
- * between boot paths.
+ * Framework-free host-boot pieces for `src/tui-react/lib/host-boot.tsx`, kept
+ * apart so the render-option contract and exit backstops can't drift between
+ * boot paths.
  */
 
 /**
- * The render-option set shared by every host: transparent background (the
- * terminal's own bg shows through), passthrough external output, no
- * exit-on-Ctrl+C (hosts own their quit semantics), alternate screen, kitty
- * keyboard protocol. `onDestroy` is the only delta any host ever had; it's
- * spread in only when present so a host without teardown passes the exact
- * same shape as before.
- */
-/**
- * Kitty keyboard protocol flags: opentui's defaults only (disambiguate +
- * alternate keys). `allKeysAsEscapes` is deliberately NOT requested: under it
- * a terminal encodes input-method commits as `CSI 0 u` text events, and
- * iTerm2 3.5.x crashes on that path (owner report: typing Chinese quit the
- * whole app). The ctrl-hold shortcut guide, which wanted bare modifier
- * press/release, degrades to "never shows" on every terminal, the same way
- * it already did on Terminal.app and inside tmux.
+ * Kitty flags: opentui's defaults only (disambiguate + alternate keys). NOT
+ * `allKeysAsEscapes`: it makes terminals send IME commits as `CSI 0 u`, which
+ * crashes iTerm2 3.5.x (typing Chinese quit the app). Cost: the ctrl-hold
+ * shortcut guide (bare modifier press/release) never shows, as on
+ * Terminal.app and tmux.
  */
 const KITTY_KEYBOARD = {} as const
 
-/** Keep continuous terminal snapshots and host rendering on a 60fps cadence. */
+/** Terminal snapshots and host rendering share a 60fps cadence. */
 export function hostTargetFps(): number {
   return 60
 }
 
+/**
+ * Shared by every host: transparent bg, passthrough external output, no
+ * exit-on-Ctrl+C (hosts own quit), alternate screen. `onDestroy` is spread in
+ * only when present.
+ */
 export function hostRenderOptions(onDestroy?: () => void): Record<string, unknown> {
   const base = {
     backgroundColor: "transparent",
@@ -42,19 +36,15 @@ export function hostRenderOptions(onDestroy?: () => void): Record<string, unknow
 }
 
 /**
- * Inline (ink-style) variant for CLI-command hosts (`kobe update list`,
- * onboarding): a reserved `heightRows` footer on the MAIN screen instead of
- * the alternate screen — the shell's scrollback stays visible above, and
- * the footer is cleared on exit so the prompt returns where it was. The
- * runtime TUI (workspace, panes) keeps `hostRenderOptions`; anything a user
- * reaches through a subcommand should feel like a prompt, not an app.
+ * Inline variant for CLI-command hosts (`kobe update list`, onboarding): a
+ * `heightRows` footer on the MAIN screen, scrollback visible above, cleared
+ * on exit. Subcommands should feel like a prompt, not an app.
  */
 export function inlineRenderOptions(heightRows: number, onDestroy?: () => void): Record<string, unknown> {
   const base = {
     backgroundColor: "transparent",
-    // No externalOutputMode override: split-footer defaults to
-    // capture-stdout, which replays stray logs above the footer instead of
-    // letting them corrupt it.
+    // split-footer's default capture-stdout replays stray logs above the
+    // footer instead of letting them corrupt it.
     exitOnCtrlC: false,
     screenMode: "split-footer",
     footerHeight: heightRows,
@@ -64,13 +54,10 @@ export function inlineRenderOptions(heightRows: number, onDestroy?: () => void):
 }
 
 /**
- * Terminal-restore backstop: pages quit via `process.exit()` (every
- * `onClose`), which fires "exit" but NOT "beforeExit" — the only hook
- * opentui registers. Without this, mouse tracking / kitty keyboard stay
- * enabled and the shell prompt drowns in `35;57;38M…` reports until a
- * manual `reset`. `destroy()` is idempotent (`_isDestroyed` guard) and
- * restores terminal+input state synchronously, so it is safe inside the
- * sync-only "exit" handler; a normal destroy beforehand makes this a no-op.
+ * Pages quit via `process.exit()`, which fires "exit" but NOT "beforeExit",
+ * opentui's only hook; without this, mouse tracking / kitty stay on and the
+ * prompt drowns in `35;57;38M…` until `reset`. `destroy()` is idempotent and
+ * synchronous, so it's safe in "exit" and a no-op after a normal destroy.
  */
 export function installExitRestoreBackstop(renderer: { destroy(): void }): void {
   process.on("exit", () => renderer.destroy())
@@ -81,20 +68,13 @@ const BRACKETED_PASTE_ON = "\x1b[?2004h"
 const BRACKETED_PASTE_OFF = "\x1b[?2004l"
 
 /**
- * Ask the host terminal for BRACKETED PASTE, and give it back on exit.
- *
- * Without this the terminal delivers a paste as ordinary keystrokes, so every
- * newline in the pasted text is an Enter: paste three lines into an engine tab
- * and the first line is SUBMITTED while the rest land wherever the engine went
- * next. With it the terminal frames the paste, opentui's key parser buffers
- * the whole thing into one `paste` event (it knows the markers but never turns
- * the mode on), the focused pane hands it to its PTY as a paste, and
- * `pty-xterm-base.ts#paste` re-frames it for the engine when the engine itself
- * asked for the mode. Every other link of that chain already existed.
- *
- * Returns the restore, which is also registered on "exit" — pages quit through
- * `process.exit()`, and a terminal left in bracketed-paste mode makes the next
- * shell's own paste handling look broken.
+ * Enable BRACKETED PASTE; returns the restore, also registered on "exit".
+ * Without it a paste arrives as keystrokes, so each newline is an Enter and
+ * the first line of a multi-line paste into an engine tab gets SUBMITTED.
+ * With it opentui buffers the paste into one `paste` event (it parses the
+ * markers but never enables the mode) and `pty-xterm-base.ts#paste` re-frames
+ * it for engines that asked for the mode. A terminal left in the mode breaks
+ * the next shell's paste.
  */
 export function installBracketedPasteMode(stdout: NodeJS.WriteStream = process.stdout): () => void {
   if (!stdout.isTTY) return () => {}
@@ -117,28 +97,15 @@ export function installBracketedPasteMode(stdout: NodeJS.WriteStream = process.s
 }
 
 /**
- * Work a signal-triggered exit must not truncate.
- *
- * The backstop below used to stand in for this set with a flat five-second
- * sleep, because some flows kill the session their own pane lives in and
- * then keep orchestrating. A constant cannot know when that finished: it is
- * simultaneously too long (an idle host sat there for five seconds doing
- * nothing, and anything reading its state file raced its exit-flush) and too
- * short (a slower rebuild is truncated anyway). Register the actual work
- * instead and the exit follows it.
- *
- * Synchronous exit-time work — the KV flush, the bracketed-paste restore —
- * needs nothing here: it runs on `process.on("exit")`, inside `process.exit`
- * itself. Nothing holds this set today: the two flows the delay was written
- * for (`togglePreview`, `ensureSession`) left with the tmux host, so the five
- * seconds had become pure latency. This is the seam they would use.
+ * Work a signal-triggered exit must not truncate. A fixed sleep can't know
+ * when work is done (too long for an idle host, too short for a slow
+ * rebuild), so the exit waits on registered work instead. Synchronous
+ * exit-time work (KV flush, paste restore) runs on `process.on("exit")` and
+ * needs nothing here. Currently empty; this is the seam.
  */
 const exitCriticalWork = new Set<Promise<unknown>>()
 
-/**
- * Hold a signal-triggered exit open until `work` settles. Returns `work`
- * unchanged, so it wraps a call in place: `await holdExitFor(rebuild())`.
- */
+/** Returns `work` unchanged, so it wraps in place: `await holdExitFor(rebuild())`. */
 export function holdExitFor<T>(work: Promise<T>): Promise<T> {
   exitCriticalWork.add(work)
   const forget = (): void => {
@@ -148,37 +115,25 @@ export function holdExitFor<T>(work: Promise<T>): Promise<T> {
   return work
 }
 
-/**
- * Resolves once nothing is in flight. Work registered WHILE waiting still
- * counts — a rebuild that kicks off a follow-up must not be cut in half —
- * hence the loop rather than a single `allSettled`.
- */
+/** Loops because work registered while waiting still counts (a follow-up must not be cut in half). */
 export async function whenExitReady(): Promise<void> {
   while (exitCriticalWork.size > 0) await Promise.allSettled([...exitCriticalWork])
 }
 
 /**
- * Exit-signal backstop (orphaned-helper leak): opentui's own exit handler
- * for SIGHUP/SIGTERM only destroys the renderer — it never calls
- * process.exit — and installing that listener replaced the signals' default
- * "terminate" action. A host keeps its event loop alive (daemon socket,
- * file watcher, poll timers), so every tmux `kill-pane` / `respawn-pane -k`
- * / session teardown would leave the process running forever with a revoked
- * tty, reparented to launchd. Register AFTER render resolves so opentui's
- * handler (terminal restore + onDestroy) runs first.
- *
- * The exit waits on `whenExitReady()`, not on the clock. `ceilingMs` is a
- * watchdog for work that never settles, and it says so in the log — a silent
- * cap is indistinguishable from the fixed delay it replaced.
+ * opentui's SIGHUP/SIGTERM handler only destroys the renderer, never exits,
+ * and installing it replaced the default "terminate". A host's event loop
+ * stays alive (socket, watcher, timers), so every kill/teardown would leave it
+ * running forever with a revoked tty, reparented to launchd. Register AFTER
+ * render resolves so opentui's handler (restore + onDestroy) runs first.
+ * `ceilingMs` is a logged watchdog for work that never settles.
  */
 export function installPaneExitBackstop(opts: { ceilingMs?: number; exit?: (code: number) => void } = {}): void {
   const ceilingMs = opts.ceilingMs ?? 5000
   const exit = opts.exit ?? ((code: number) => process.exit(code))
   let exitScheduled = false
   let exited = false
-  /** The ceiling and the readiness signal both fire on a slow hang; whichever
-   *  wins, the other must not re-enter (process.exit never returns, so this
-   *  only shows up under test — where a double exit is a false signal). */
+  /** Ceiling and readiness both fire on a slow hang; exit only once (a double exit is a false signal under test). */
   const exitOnce = (): void => {
     if (exited) return
     exited = true
@@ -205,15 +160,11 @@ export function installPaneExitBackstop(opts: { ceilingMs?: number; exit?: (code
 }
 
 /**
- * Orphan watchdog — the signal-FREE half of the leak defense.
- * The signal backstop above only fires when a signal actually arrives; when
- * the parent chain is SIGKILLed (an OOM kill takes the tmux server with it,
- * reparenting every pane host to init), nothing is delivered and the host
- * lives forever with a revoked tty, holding RSS that feeds the next OOM. A host's parent is always its tmux pane shell or the user's shell,
- * so PPID 1 can only mean "my pane/terminal is gone" — exit.
- *
- * Poll, don't listen: there is no parent-death event on macOS for an
- * already-running child. 5s cadence on a 0-work check is free.
+ * Signal-FREE leak defense: a SIGKILLed parent chain (an OOM kill) delivers
+ * nothing, reparents the host to init, and it lives on with a revoked tty
+ * feeding the next OOM. The parent is always a shell, so PPID 1 means the
+ * terminal is gone. Polled: macOS has no parent-death event for a running
+ * child; 5s on a 0-work check is free.
  */
 export function installOrphanExitWatchdog(intervalMs = 5000): () => void {
   const timer = setInterval(() => {

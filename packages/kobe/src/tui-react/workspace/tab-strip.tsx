@@ -1,16 +1,10 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Workspace tab strip — the row of engine/command tabs above the embedded
- * terminal. Owns the per-tab turn chip and the turn-complete pulse: when a
- * tab's turn flips running→done, the chip and title flash emphasized for a
- * few frames before settling — a landing cue for work that finished while
- * you looked elsewhere. Engines whose visible OSC title already owns the
- * activity state omit the duplicate chip.
- *
- * Naming policy (`tabTitle`, `visibleNativeStatus`) is framework-free and
- * lives with its sibling `splitLeafNames` in `terminal-tab-split.ts`;
- * `tabTitle` is re-exported here for `TerminalTabs.tsx`'s non-render uses
- * (rename dialog prefill, notification titles).
+ * Tab row above the embedded terminal. Owns the turn chip and the
+ * running→done pulse (chip and title flash for a few frames as a landing cue).
+ * Engines whose visible OSC title already shows activity omit the chip.
+ * `tabTitle` is re-exported for `TerminalTabs.tsx`'s non-render uses (rename
+ * prefill, notification titles).
  */
 
 import { type BoxRenderable, TextAttributes } from "@opentui/core"
@@ -39,24 +33,20 @@ export const TURN_GLYPHS: Record<ChatTabTurnState, string> = {
   running: "●",
   done: "✓",
   error: "!",
-  // Borrowed verbatim from the sidebar rail (row-view.ts) so the strip and
-  // the rail never say different things about the same tab: `◷` a limit that
-  // clears itself, `†` an engine process that is gone. Distinct glyphs on
-  // purpose: they demand opposite actions, so one shared `!` would hide that.
+  // Same glyphs as the sidebar rail (row-view.ts): `◷` a limit that clears
+  // itself, `†` a gone engine process. Distinct because they demand opposite actions.
   rate_limited: "◷",
   dead: "†",
-  // Hook-only "blocked on the user" state — same ?/warning pairing as the
-  // sidebar's permission_needed badge (row-view.ts). No collision with
-  // `unknown`: that placeholder is never rendered (skip below).
+  // Hook-only "blocked on the user", paired like the sidebar's
+  // permission_needed badge. `unknown` is never rendered, so no collision.
   needs_input: "?",
   unknown: "?",
   idle: "○",
 }
 
 /**
- * The tone a turn glyph carries, in BOTH strip forms. Semantic activity
- * color, never `focusAccent`: several tabs can be running at once, and the
- * focus orange must keep meaning only "you are here".
+ * Semantic activity color, never `focusAccent`: several tabs can run at once
+ * and the focus orange means only "you are here".
  */
 function turnColor(theme: Theme, turn: ChatTabTurnState) {
   switch (turn) {
@@ -75,13 +65,12 @@ function turnColor(theme: Theme, turn: ChatTabTurnState) {
   }
 }
 
-/** Active tab: three sides, so the missing bottom edge reads as a notch. */
-/** A tab's own chrome: 2 cells of frame + 2 of padding, plus the strip's
- *  1-cell left padding. Subtracted from the pane width to bound a title. */
+/** 2 cells of frame + 2 of padding + the strip's 1-cell left padding. */
 const TAB_CHROME_CELLS = 5
 /** Enough of a name to tell two tabs apart, plus the ellipsis. */
 const MIN_TAB_TITLE_CELLS = 6
 
+/** Active tab: three sides, so the missing bottom edge reads as a notch. */
 const ACTIVE_TAB_SIDES: ("top" | "left" | "right")[] = ["top", "left", "right"]
 
 export function TabStrip(props: {
@@ -96,11 +85,8 @@ export function TabStrip(props: {
   /** tabId → resolved live engine identity (see `useTurnPolls().turnVendors`). */
   turnVendors: ReadonlyMap<string, VendorId>
   /**
-   * Tabs whose CURRENT completion the user has already looked at, from the
-   * durable `(task, tab) → seen-at` record the sidebar lamp reads. Their
-   * `done` chip digests to the resting `○` — a finished turn you have read is
-   * simply over, the same "seen means consumed" rule the rail follows.
-   * Omitted (render tests, hosts without kv) = nothing seen.
+   * Tabs whose CURRENT completion was seen (the durable record the sidebar
+   * lamp reads); their `done` chip rests at `○`. Omitted = nothing seen.
    */
   seenTabs?: ReadonlySet<string>
 }) {
@@ -108,27 +94,18 @@ export function TabStrip(props: {
   const { theme } = themeCtx
   const kv = useKV()
   const dims = useTerminalDimensions()
-  // Off by default: the sidebar tree already lists
-  // every worktree's tabs and marks the active one, so the strip is a second
-  // copy of a list that is already on screen. Settings → General → Terminal
-  // turns it back on.
-  // Rendered as a late bail so the hooks below always run in the same order.
+  // Off by default: the sidebar tree already lists every worktree's tabs.
+  // Late bail so hooks run in the same order.
   const stripMode = resolveTabStripMode(
     kv.get(TAB_STRIP_MODE_KEY, undefined),
     kv.get(TAB_STRIP_HIDE_SINGLE_KEY, undefined),
   )
-  // Narrow mode overrides the setting: the sidebar tree is not on screen
-  // beside a narrow workspace, so the condensed strip is the only tab
-  // affordance there.
+  // Narrow mode overrides the setting: the sidebar tree isn't on screen there.
   const narrow = isNarrowWidth(dims.width)
   const hidden = !narrow && !tabStripVisible(stripMode, props.tabs.length)
 
-  /* --------- turn-complete pulse ---------------------------------------
-   * Track running→done transitions; a transitioned tab id sits in
-   * `pulsing` for DONE_PULSE_MS then drops out, un-emphasizing the chip.
-   * Plain prev-map comparison (a ref, not state) — the effect re-runs
-   * only when the turnStates map identity changes (the caller always
-   * writes a new Map). */
+  /* Pulse: a running→done tab id sits in `pulsing` for DONE_PULSE_MS. The
+   * effect re-runs per turnStates identity (the caller always writes a new Map). */
   const prevTurns = useRef(new Map<string, ChatTabTurnState>())
   const [pulsing, setPulsing] = useState<ReadonlySet<string>>(new Set())
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
@@ -157,45 +134,30 @@ export function TabStrip(props: {
     }
   }, [])
 
-  /* --------- horizontal overflow window --------------------------------
-   * With enough tabs the row outgrows the pane and, unclipped, overdraws
-   * the pane's right border glyph. The strip is therefore a one-row
-   * viewport: the inner row keeps its natural width, the outer box clips
-   * (`overflow="hidden"`), and a cell offset (negative marginLeft) scrolls
-   * only as far as needed to keep the ACTIVE tab fully visible — a smooth
-   * per-cell scroll, not per-tab paging. Widths are computed with the
-   * shared display-width table so CJK titles count 2 cells. */
+  /* Overflow: the strip is a one-row viewport (outer box clips, negative
+   * marginLeft scrolls) so many tabs don't overdraw the pane's right border.
+   * Scrolls per cell, only as far as keeps the ACTIVE tab fully visible.
+   * Widths use display-width so CJK counts 2 cells. */
   const entries = props.tabs.map((tab) => {
     const raw = props.turnStates.get(tab.id) ?? "idle"
-    // Seen means consumed (docs/TUI.md): a read completion rests at `○`
-    // rather than wearing ✓ forever. The ACTIVE tab is exempt — you are
-    // looking at it, so its live chip is the point.
+    // Seen means consumed (docs/TUI.md); the ACTIVE tab is exempt.
     const turn: ChatTabTurnState =
       raw === "done" && tab.id !== props.activeId && props.seenTabs?.has(tab.id) === true ? "idle" : raw
     const liveTitle = props.liveTitles.get(tab.id)
     const nativeStatusVisible = visibleNativeStatus(tab, props.vendor, props.turnVendors.get(tab.id), liveTitle)
     const chipShown = !nativeStatusVisible && turn !== "unknown" && props.turnStates.has(tab.id)
-    // Cap a single tab at the pane it lives in. Without this a long shell
-    // name (`a-very-long-shell-name…`) draws past the strip: the box is
-    // `overflow: hidden`, so the frame's right edge is clipped away and the
-    // title runs to the last column with no ellipsis — nothing on screen says
-    // it was cut. Same rule the narrow form follows.
-    //
-    // Truncating HERE, before `cells`, is what keeps the scroll math honest:
-    // the offset is computed from these widths, so measuring the untruncated
-    // title would scroll by a width nothing ever draws.
+    // Cap a tab at its pane: the box clips, so a long name would be cut with
+    // no ellipsis. Truncate BEFORE `cells` so the scroll math measures what's drawn.
     const title = truncateEndCells(
       tabTitle(tab, props.vendor, liveTitle),
       Math.max(MIN_TAB_TITLE_CELLS, dims.width - TAB_CHROME_CELLS - (chipShown ? 2 : 0)),
       approxCharCells,
     )
-    // Every tab is a bordered box (2 cells of frame + 2 of padding) —
-    // the scroll math must see the same width it draws.
+    // 2 frame + 2 padding; the scroll math must see the drawn width.
     return { tab, turn, chipShown, title, cells: 4 + (chipShown ? 2 : 0) + displayWidth(title) }
   })
   const stripRef = useRef<BoxRenderable | null>(null)
-  // Viewport cells (strip width minus the 1-cell left padding); 0 until
-  // the first Yoga layout reports a size.
+  // Strip width minus the 1-cell left padding; 0 until first layout.
   const [availCells, setAvailCells] = useState(0)
   const offsetRef = useRef(0)
   let activeStart = 0
@@ -220,11 +182,8 @@ export function TabStrip(props: {
 
   if (hidden) return null
 
-  /* --------- narrow condensed form -------------------------------------
-   * At phone-SSH widths a row of tabs cannot fit: show only the ACTIVE
-   * tab — turn chip + title truncated to the pane — with a right-stuck
-   * `2/3` position counter. Tab-switching chords are unchanged; the
-   * counter is what tells you the others exist. */
+  /* Narrow (phone-SSH) form: only the ACTIVE tab plus a right-stuck `2/3`
+   * counter, which is what tells you the others exist. */
   if (narrow) {
     const activeIndex = Math.max(
       0,
@@ -233,15 +192,12 @@ export function TabStrip(props: {
     const active = entries[activeIndex]
     if (!active) return null
     const counter = `${activeIndex + 1}/${entries.length}`
-    // Budget: strip padding (2) + active-chip padding (2) + chip glyph
-    // (2 when shown) + gap before the counter (1) + the counter itself.
+    // Strip padding 2 + chip padding 2 + glyph 2 (if shown) + gap 1 + counter.
     const titleCells = Math.max(4, dims.width - 5 - (active.chipShown ? 2 : 0) - counter.length)
     const pulse = pulsing.has(active.tab.id)
     return (
-      // No row background: the strip is panel chrome, and the transparent-mode
-      // policy (theme-core's applyDisplayOverlay) forces panel backgrounds to
-      // alpha-0 so the host wallpaper shows through — only the active tab's
-      // chip fill paints (it must stay legible against any backdrop).
+      // No row background: transparent mode forces panel backgrounds to alpha-0
+      // (applyDisplayOverlay); only the active tab's fill paints.
       <box flexDirection="row" flexShrink={0} paddingLeft={1} paddingRight={1} gap={1} overflow="hidden">
         {/* Chip OUTSIDE the fill, for the reason the wide branch dropped its
             own fill: on `focusAccent` the error red lands at a 1.02 contrast
@@ -288,10 +244,8 @@ export function TabStrip(props: {
               flexShrink={0}
               paddingLeft={1}
               paddingRight={1}
-              // The notch: the ACTIVE tab omits its bottom edge, so its frame
-              // opens downward into the pane it is showing (claude-squad's
-              // `activeTabBorder`, ui/tabbed_window.go). Inactive tabs stay
-              // closed boxes.
+              // Notch: the ACTIVE tab omits its bottom edge, opening into its
+              // pane (claude-squad's `activeTabBorder`).
               border={active ? ACTIVE_TAB_SIDES : true}
               borderStyle="rounded"
               borderColor={active ? theme.focusAccent : theme.borderActive}

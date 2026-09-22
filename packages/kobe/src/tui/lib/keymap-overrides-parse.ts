@@ -1,12 +1,7 @@
 /**
- * Chord grammar + YAML-document extraction for user keybinding
- * overrides (~/.rove/settings/keybindings.yaml).
- *
- * Split out of `keymap-overrides.ts` (which keeps the apply/validation
- * policy and re-exports everything here) so the parsing half — chord
- * normalization and document extraction — stays a self-contained,
- * zero-opentui module both the TUI loader and the tmux-layer resolver
- * share.
+ * Chord grammar + YAML extraction for user keybinding overrides
+ * (~/.rove/settings/keybindings.yaml). Zero-opentui; `keymap-overrides.ts`
+ * keeps the apply/validation policy and re-exports this.
  *
  * Config shape (per-field optional):
  *
@@ -24,12 +19,11 @@
  * ```
  *
  * Platform sections: `darwin` (aliases `macos` / `mac`), `linux`, `win32`
- * (alias `windows`) — matched against `process.platform`. An entry in the
- * platform overlay replaces the SAME id's entry from `bindings:` wholesale
- * (no per-chord merge).
+ * (alias `windows`), matched against `process.platform`. A platform entry
+ * replaces the SAME id's `bindings:` entry wholesale (no per-chord merge).
  *
- * Chord grammar mirrors `matchKey()` (keymap-match.ts) — the override
- * must produce exactly the candidate string the dispatcher mints:
+ * Chord grammar mirrors `matchKey()` (keymap-match.ts): the override must be
+ * exactly the candidate string the dispatcher mints.
  *   - `mod+...+key`, modifiers in any order/alias; canonicalized to the
  *     dispatcher's order: ctrl, cmd, alt, shift.
  *   - aliases: control/ctl→ctrl, command/meta/super/win→cmd,
@@ -77,10 +71,8 @@ const KEY_ALIASES: Readonly<Record<string, string>> = {
 }
 
 /**
- * Named keys opentui is known to deliver via `evt.name`. A key outside
- * this set (and not a single character) still APPLIES, but with a "may
- * never fire" warning — the list is descriptive, not a hard gate, so a
- * terminal-specific name we haven't catalogued isn't rejected.
+ * Named keys opentui delivers via `evt.name`. Descriptive, not a gate: an
+ * unlisted multi-char name still applies, with a "may never fire" warning.
  */
 const KNOWN_NAMED_KEYS = new Set([
   "up",
@@ -107,29 +99,19 @@ const MOD_ORDER: ReadonlyArray<"ctrl" | "cmd" | "alt" | "shift"> = ["ctrl", "cmd
 
 export type ChordResult = { chord: string; warning?: string } | { error: string }
 
-/**
- * Normalize one user-written chord into the exact candidate string
- * `matchKey()` mints, or explain why it can't work.
- */
+/** Normalize to the exact string `matchKey()` mints, or explain why it can't work. */
 export function normalizeChord(raw: string): ChordResult {
-  // A BARE single uppercase letter is sugar for the shift+ form ("P" →
-  // shift+p) — checked on the raw string BEFORE the lowercase pass erases
-  // the case information. Only the modifier-less spelling gets the sugar:
-  // "Control+T" has always meant ctrl+t (chords are case-insensitive), so
-  // an uppercase letter AFTER modifiers stays plain.
+  // A BARE uppercase letter is sugar for shift+ ("P" → shift+p), so check
+  // before lowercasing. After modifiers it stays plain: "Control+T" = ctrl+t.
   const rawTrimmed = raw.trim()
   const upperLetterKey = rawTrimmed.length === 1 && rawTrimmed >= "A" && rawTrimmed <= "Z"
   const trimmed = raw.trim().toLowerCase()
   if (!trimmed) return { error: "empty chord" }
 
-  // Split on "+", then read the trailing token. A trailing "+" leaves an
-  // empty final token; whether that means "the literal plus key" or "a
-  // dangling modifier with no key" is decided by the part BEFORE it:
-  //   "ctrl++" → ["ctrl", "", ""] — an empty marker part precedes, so "+"
-  //              is the key; drop the marker.
-  //   "+"      → ["", ""]         — the plus key on its own.
-  //   "ctrl+"  → ["ctrl", ""]     — a real modifier precedes, so there is
-  //              no key; fall through to the error below.
+  // A trailing "+" leaves an empty last token; the part before decides:
+  //   "ctrl++" → ["ctrl", "", ""]  empty marker precedes → key is "+".
+  //   "+"      → ["", ""]          the plus key alone.
+  //   "ctrl+"  → ["ctrl", ""]      modifier precedes → no key, error below.
   const parts = trimmed.split("+")
   let key = parts.pop() ?? ""
   if (key === "" && parts.length > 0 && parts[parts.length - 1] === "") {
@@ -148,11 +130,8 @@ export function normalizeChord(raw: string): ChordResult {
   key = KEY_ALIASES[key] ?? key
   if (upperLetterKey) mods.add("shift")
 
-  // Bare `shift+<char>` matches (matchKey mints `shift+z` from an
-  // uppercase keypress), but shift COMBINED with other modifiers on a
-  // single char cannot: legacy terminals send ctrl+shift+z and ctrl+z as
-  // the same C0 byte, so such a chord would only fire on kitty-protocol
-  // terminals.
+  // Shift with other modifiers on one char can't match: legacy terminals send
+  // ctrl+shift+z and ctrl+z as the same C0 byte (only kitty tells them apart).
   if (mods.has("shift") && mods.size > 1 && key.length === 1) {
     return {
       error: `"${raw}": shift with other modifiers on a single character can never match — legacy terminals send the same byte with and without shift`,
@@ -181,16 +160,15 @@ function platformSectionNames(platform: string): string[] {
 
 function extractBindingsMap(section: unknown): Record<string, unknown> | null {
   if (!isRecord(section)) return null
-  // Accept both `darwin: { bindings: {...} }` and `darwin: {...}` flat.
+  // Accept both `darwin: { bindings: {...} }` and flat `darwin: {...}`.
   const nested = section.bindings
   if (isRecord(nested)) return nested
   return section
 }
 
 /**
- * Turn a parsed YAML document into a flat override list for `platform`.
- * Never throws; malformed pieces degrade to warnings. Each warning string
- * is prefixed `"<id>: "` when it concerns a specific binding.
+ * Flatten a parsed YAML document for `platform`. Never throws; malformed pieces
+ * become warnings, prefixed `"<id>: "` when about one binding.
  */
 export function extractKeybindingOverrides(doc: unknown, platform: string): ExtractedKeybindingOverrides {
   const warnings: string[] = []

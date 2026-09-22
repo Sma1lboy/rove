@@ -57,12 +57,9 @@ export const en = {
   land: {
     button: "Land",
     confirmTitle: "Land branch?",
-    // NAMES the destination and the commit count, both read before the dialog
-    // opens (`task.landPreflight`). The old copy said "the base repo's current
-    // branch" — a description of a value Rove already had — on the one screen
-    // where the docs tell you to check it. The refusals it used to warn about
-    // (dirty base, empty branch) now stop the land BEFORE this dialog, so they
-    // are gone from the body.
+    // NAMES the destination and commit count, read by `task.landPreflight`
+    // before the dialog opens. Dirty base / empty branch refuse BEFORE this
+    // dialog, so the body doesn't warn about them.
     confirmBody:
       'Merge "{branch}" into {landedOn} ({commits} commits), then remove this worktree? The branch is kept. Conflicts abort with a file list.',
     /** Singular sibling of {@link confirmBody} — "1 commits" is the kind of

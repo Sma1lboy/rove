@@ -1,16 +1,9 @@
 /**
- * Zen mode state for the PureTUI workspace: the layout collapses
- * to the engine pane, hiding files and terminal. The Tasks rail stays either
- * way — it carries the affordance for leaving zen.
- *
- * The on/off intent is persisted under `zen.active`, so the workspace comes
- * back in the layout it left in — Settings → General → "Start in zen mode"
- * edits the same key, which makes that row both the startup default and a
- * mirror of the live state.
- *
- * Read/written through the KV context rather than `state/zen.ts`'s helpers so
- * this shares the Settings dialog's cache; the two layers write the same
- * state.json but would disagree until a reload if they cached separately.
+ * Zen collapses the workspace to the engine pane (hides the Files column); the
+ * Tasks rail stays, carrying the exit affordance. Intent persists under
+ * `zen.active`, which Settings → "Start in zen mode" edits too (startup default
+ * and live mirror at once). Goes through the KV context, not `state/zen.ts`, so
+ * it shares the Settings dialog's cache instead of disagreeing until reload.
  */
 
 import { useEffect, useState } from "react"
@@ -19,7 +12,6 @@ import type { FocusContextValue } from "../context/focus"
 import type { KVContext } from "../context/kv"
 
 export type ZenMode = {
-  /** Whether the workspace is currently collapsed to the engine pane. */
   readonly zen: boolean
   /** Flip zen and persist the new intent. */
   toggleZen: () => void
@@ -36,10 +28,8 @@ export function useZenMode(deps: { kv: KVContext; focus: FocusContextValue }): Z
     if (next) focus.setFocused("workspace")
   }
 
-  // Reaching the file tree means the user wants the panes back, so zen drops
-  // for this session — but deliberately WITHOUT persisting. It's a transient
-  // layout reaction, not a change of intent; writing here would let one click
-  // on the file tree silently clear "Start in zen mode".
+  // Reaching the file tree drops zen for this session WITHOUT persisting:
+  // a transient reaction, or one click would silently clear "Start in zen mode".
   useEffect(() => {
     if (focus.focused === "files") setZen(false)
   }, [focus.focused])

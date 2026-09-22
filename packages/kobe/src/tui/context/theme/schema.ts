@@ -1,50 +1,30 @@
 /**
- * Hand-rolled runtime validator for `ThemeJson` — the on-disk shape kobe
- * expects from both bundled themes (under `src/tui/context/theme/*.json`)
- * and user-installed themes (`~/.rove/themes/*.json`).
+ * Hand-rolled `ThemeJson` validator for bundled (`src/tui/context/theme/*.json`)
+ * and user (`~/.rove/themes/*.json`) themes; the shape is small enough not to
+ * justify a validator dependency.
  *
- * Why hand-rolled and not zod / valibot / etc.: nothing in
- * `src/tui/context/` currently pulls in a runtime validator, and the
- * shape is small enough (~10 rules) that a 70-line check is cheaper than
- * adding a dependency. If we ever introduce zod elsewhere, swap this
- * implementation — the public surface (`validateTheme`) is intentionally
- * tiny so callers don't have to care.
+ * Validated: top level is an object; `theme` is a required record; optional
+ * `defs` values are strings; each theme value is a string (hex or def-ref) or
+ * a `{ dark, light }` object of strings.
  *
- * What we validate:
- *   - top level is an object (not null, not array, not primitive).
- *   - `theme` key is required and is a record.
- *   - `defs` key is optional; when present, every value must be a string.
- *   - every theme entry value is either a string (hex or def-ref) OR
- *     a `{ dark, light }` variant object whose both fields are strings.
- *
- * What we deliberately don't enforce:
- *   - Required slot presence (no "must have `text` and `background`").
- *     The existing `resolveTheme` falls back gracefully via the fallback
- *     chain in theme.tsx, so a sparse user theme that overrides only a
- *     couple of slots is a feature, not an error.
- *   - Hex format on bare strings. A bare string that doesn't match
- *     `^#…$` is treated as a def-name reference — EXCEPT one shaped like
- *     `rgb(…)` / `rgba(…)`, which is a literal that failed to parse and is
- *     rejected by name (see `badRgbLiteral`). Names that don't
- *     resolve get collapsed to black at render time (theme.tsx's
- *     `resolve()` returns `RGBA.fromInts(0,0,0)` for unresolvable
- *     refs). Refusing them here would force users to predeclare every
- *     def-name, which is more rigid than the runtime needs.
- *   - `$schema` URL. We accept any string (or its absence). The schema
- *     pointer is purely for editor autocomplete, not runtime semantics.
+ * Deliberately NOT enforced:
+ *   - Required slots: `resolveTheme` (theme-core.ts) falls back, so a sparse
+ *     user theme is a feature.
+ *   - Hex format: a non-`#` string is a def-ref, EXCEPT an `rgb(…)`/`rgba(…)`
+ *     that failed to parse (rejected by name, see `badRgbLiteral`).
+ *     Unresolvable refs render black; requiring predeclared names would be
+ *     more rigid than the runtime needs.
+ *   - `$schema` content: editor autocomplete only.
  */
 
 import type { ThemeJson } from "../theme-core"
 import { isRgbLiteral, parseRgbLiteral } from "./color-literal"
 
-/** Hex strings: 3, 6, or 8 hex digits after `#`. */
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
 
 /**
- * A value that LOOKS like `rgb(…)` but does not parse is a typo, not a
- * def-name. Naming it here is the difference between the author reading
- * "rgb(300, 0, 0) is not a valid rgb()/rgba() literal" and watching the slot
- * silently render black, which is where an unresolvable ref ends up.
+ * A value that LOOKS like `rgb(…)` but doesn't parse is a typo, not a def-name:
+ * name it rather than let the slot silently render black.
  */
 function badRgbLiteral(value: string): string | null {
   if (!isRgbLiteral(value) || parseRgbLiteral(value)) return null
@@ -57,24 +37,17 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v)
 }
 
-/** True if `s` is `#abc`, `#aabbcc`, or `#aabbccdd`. */
 export function isHex(s: string): boolean {
   return HEX_RE.test(s)
 }
 
-/**
- * Validate a parsed JSON value as a `ThemeJson`. Returns a discriminated
- * union so callers can branch on `ok` and surface a useful one-line
- * reason on rejection (used by both the disk loader's `console.warn`
- * and the CLI's `kobe theme add` error path).
- */
+/** The one-line `reason` feeds the disk loader's `console.warn` and `kobe theme add`'s error. */
 export function validateTheme(value: unknown): ValidateResult {
   if (!isPlainObject(value)) {
     return { ok: false, reason: "theme must be a JSON object at the top level" }
   }
   const obj = value as Record<string, unknown>
 
-  // `theme` — required, must be an object map of slot -> value.
   if (!("theme" in obj)) {
     return { ok: false, reason: "missing required key `theme`" }
   }
@@ -83,7 +56,6 @@ export function validateTheme(value: unknown): ValidateResult {
     return { ok: false, reason: "`theme` must be an object map" }
   }
 
-  // `defs` — optional, but when present every value must be a string.
   if ("defs" in obj && obj.defs !== undefined) {
     if (!isPlainObject(obj.defs)) {
       return { ok: false, reason: "`defs` must be an object map" }
@@ -97,7 +69,6 @@ export function validateTheme(value: unknown): ValidateResult {
     }
   }
 
-  // Every theme entry value: string (hex / ref) OR { dark, light } variant.
   for (const [slot, raw] of Object.entries(theme)) {
     if (typeof raw === "string") {
       const bad = badRgbLiteral(raw)
@@ -121,12 +92,10 @@ export function validateTheme(value: unknown): ValidateResult {
       const bad = badRgbLiteral(variant[mode] as string)
       if (bad) return { ok: false, reason: `theme.${slot}.${mode}: ${bad}` }
     }
-    // Reject extra keys silently? No — accept them so future kobe
-    // versions can introduce optional variants (e.g. `highContrast`)
-    // without breaking older binaries that don't know about them.
+    // Extra keys are accepted so future optional variants (e.g. `highContrast`)
+    // don't break older binaries.
   }
 
-  // `$schema` — optional informational pointer, only used by editors.
   if ("$schema" in obj && obj.$schema !== undefined && typeof obj.$schema !== "string") {
     return { ok: false, reason: "`$schema` must be a string when present" }
   }

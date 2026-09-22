@@ -1,9 +1,6 @@
-/** Imperative tab-handle wiring for the workspace host.
- *
- * TerminalTabs re-hands its open/send/diff callbacks on every mount;
- * FileTree and keybindings read them at click/keypress time. Keeping the
- * refs, the identity guard, and the FileTree/PR actions together lets
- * `host.tsx` treat the whole bundle as one concern. */
+/** Imperative tab-handle wiring for the workspace host. TerminalTabs re-hands
+ * its open/send/diff callbacks every mount; FileTree and keybindings read them
+ * at click/keypress time. */
 
 import { useRef } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
@@ -20,7 +17,7 @@ export interface UseEditorHandlesOpts {
   selectedId: string | null
   focus: FocusContextValue
   notifyError: (msg: string) => void
-  /** Enter a task — the row-aimed actions below need its engine mounted. */
+  /** Row-aimed actions below need the task's engine mounted. */
   activateTask: (taskId: string) => void
 }
 
@@ -32,29 +29,21 @@ export interface UseEditorHandlesResult {
   onOpenFile: (relPath: string) => void
   onOpenDiff: (relPath: string, base?: string) => void
   onCreatePR: () => void
-  /** Sidebar row menu "Fix failing checks" (and the proposed prefix+k) —
-   *  enters the row when it is not already active, then pastes the failing
-   *  job's log into its engine. */
+  /** Row menu "Fix failing checks" (and proposed prefix+k): enters the row if
+   *  not active, then pastes the failing job's log into its engine. */
   onFixChecks: (taskId: string) => void
-  /** FileTree `a` — paste `@<path>` into the engine's composer WITHOUT
-   *  submitting (docs/TUI.md); the user keeps typing around it. */
+  /** FileTree `a`: paste `@<path>` WITHOUT submitting (docs/TUI.md). */
   onMention: (relPath: string) => void
 }
 
-/** The `@<path>` mention shape the FileTree `a` key pastes into the engine's
- *  composer (docs/TUI.md) — a worktree-relative path, matching the
- *  keybinding row's documented "Inject @<path> mention" contract. */
+/** Worktree-relative, per the keybinding row's "Inject @<path> mention" contract. */
 export function mentionText(relPath: string): string {
   return `@${relPath}`
 }
 
-/** React-free core of the FileTree `a` action (sibling of `createPRAction`):
- *  paste `@<path>` into the engine's composer, never submit. Reads the ref at
- *  call time — TerminalTabs re-hands the paste closure on every mount.
- *
- *  Two ways to have nowhere to paste, and both used to be a dead key: the ref
- *  is null (no TerminalTabs mounted yet) or the paste closure answers false
- *  (no engine tab in this task). `onRefused` is how the user hears about it. */
+/** React-free core of FileTree `a`; reads the ref at call time (re-handed each
+ *  mount). A null ref (not mounted yet) or a `false` paste (no engine tab)
+ *  calls `onRefused` instead of being a dead key. */
 export function mentionAction(
   pasteToEngineFn: {
     readonly current: ((text: string) => boolean) | null
@@ -71,32 +60,22 @@ export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesRe
   const { orchestrator, worktree, selectedId, focus, notifyError, activateTask } = opts
   const t = useT()
 
-  // Imperative handle from the currently-mounted TerminalTabs: a ref, since
-  // FileTree's "open" only READS it at click time and
-  // TerminalTabs re-hands it on every mount (task/worktree switch).
+  // Refs: TerminalTabs re-hands these per mount; readers only read at action time.
   const openEditorTabFn = useRef<((command: readonly string[], label: string) => void) | null>(null)
   const sendToEngineFn = useRef<((text: string) => boolean) | null>(null)
-  // Paste-only sibling of sendToEngineFn (no submit) — the FileTree `a` @path
-  // mention, handed up through the same TerminalTabs mount-once contract.
   const pasteToEngineFn = useRef<((text: string) => boolean) | null>(null)
-  // Read-only diff tab opener — same ref pattern as the editor tab:
-  // TerminalTabs re-hands it per mount, FileTree's `d` reads it at keypress.
-  // Opening is a content swap; the host does NOT focus the workspace here — a
-  // read-only open must not pull focus.
+  // The diff opener never focuses the workspace: a read-only open must not pull focus.
   const openDiffTabFn = useRef<((relPath: string, label: string, base?: string) => void) | null>(null)
 
-  // Identity guard for the async actions below: after an await, the selected
-  // task (and therefore the TerminalTabs mount behind the imperative refs) may
-  // have changed — a stale continuation must not deliver into the new task.
+  // After an await the selected task (and the mount behind the refs) may have
+  // changed; a stale continuation must not deliver into the new task.
   const selectedWorktreeRef = useLatest(worktree)
 
-  // FileTree `pr` chip + prefix+p — own module for the guard above, which its
-  // awaits also need.
+  // FileTree `pr` chip + prefix+p.
   const createPR = useCreatePR({ worktree, sendToEngineFn, selectedWorktreeRef, notifyError })
 
-  // Sidebar row menu "Fix failing checks" — same module shape and same park
-  // slot as create-PR, because it has the same two hazards (a long await, and
-  // a row that may not be the active task).
+  // Same shape and park slot as create-PR: same hazards (a long await, a row
+  // that may not be active).
   const fixCI = useFixCI({
     worktree,
     sendToEngineFn,
@@ -111,7 +90,6 @@ export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesRe
     fetchChecks: (taskId) => orchestrator.failingChecks(taskId),
   })
 
-  // FileTree's Enter (editor/plugin/OS) and `d` (read-only diff tab).
   const { openFileInEditor, openDiff } = useFileOpenActions({
     orch: orchestrator,
     worktree,
@@ -128,9 +106,7 @@ export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesRe
     },
     onEngineSendReady: (send) => {
       sendToEngineFn.current = send
-      // A `prefix+p` aimed at a sidebar row that was not the active task
-      // activated it and parked the request; this mount is the first moment
-      // the prompt can actually be sent, so claim it here.
+      // First moment a parked request (aimed at a then-inactive row) can send.
       if (takeCreatePR(selectedId)) void createPR()
       const parked = takeFixCI(selectedId)
       if (parked) void fixCI(parked)
@@ -145,9 +121,8 @@ export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesRe
     onOpenDiff: openDiff,
     onCreatePR: () => void createPR(),
     onFixChecks: (taskId) => {
-      // Already the active task → the send closure is live, run it now.
-      // Otherwise park it and enter the row: `onEngineSendReady` claims the
-      // parked request once that task's TerminalTabs has mounted.
+      // Active → the send closure is live. Otherwise park and enter the row;
+      // `onEngineSendReady` claims it once that task's TerminalTabs mounts.
       if (taskId === selectedId) return void fixCI(taskId)
       requestFixCI(taskId)
       activateTask(taskId)

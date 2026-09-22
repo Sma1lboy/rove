@@ -1,13 +1,10 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Zero-tasks welcome panel — the workspace center column's empty state when
- * NO task exists yet (first launch, or no tasks). Passive, never
- * modal: it teaches the three keys QUICKSTART.md teaches (new task / help /
- * command menu), resolved from the LIVE keymap so a rebound chord shows its
- * real cap and an unbound one drops, and it is honest about the environment
- * (engine CLIs detected via the same probe the new-task dialog uses, git on
- * PATH) with `rove doctor` as the escalation. Creating a task makes it
- * disappear for good — no persisted "dismissed" flag needed.
+ * Center-column empty state when NO task exists. Passive, never modal: teaches
+ * the three QUICKSTART.md keys (new task / help / command menu) from the LIVE
+ * keymap (rebound shows its cap, unbound drops), and reports the environment
+ * (engines via the new-task dialog's probe, git on PATH) with `rove doctor` as
+ * the escalation. The first task makes it disappear; no dismissed flag.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -30,13 +27,9 @@ export type WelcomeEnv = {
 }
 
 /**
- * Real probe: engine binary AND account, plus git on PATH.
- *
- * Binary-on-PATH alone is what this pane used to ask, and on the most likely
- * new-user machine — every CLI installed, none logged in — that renders a `✓`
- * seconds after the setup wizard said `✗ No usable engine yet` about the same
- * home. Same probe as `rove doctor` now (`probeEngines`), so the two surfaces
- * cannot reach opposite verdicts again.
+ * Engine binary AND account (same `probeEngines` as `rove doctor`), plus git.
+ * Binary-only would show `✓` on the likeliest new-user machine (CLIs installed,
+ * none logged in) right after the wizard said `✗ No usable engine yet`.
  */
 async function probeWelcomeEnv(): Promise<WelcomeEnv> {
   const { usable, signedOut } = await probeableEngineIds()
@@ -82,13 +75,11 @@ export function WelcomePane(props: { probe?: () => Promise<WelcomeEnv> }): React
   }, [])
 
   const steps = stepLines()
-  // Cell width, not String.length: a ⌘/⌃-class chord cap is one UTF-16 unit
-  // but wider in cells (and CJK caps are 2), so a .length column misaligns
-  // every message row.
+  // Cell width, not .length: ⌘/⌃ caps are one UTF-16 unit but wider in cells
+  // (CJK caps are 2), so .length misaligns every row.
   const capWidth = Math.max(...steps.map((s) => displayWidth(s.cap)), 0)
   const broken = env !== null && (env.engines.length === 0 || !env.git)
-  // Three states, not two. "Installed but not signed in" is the common cold
-  // state and used to have no rendering at all: it fell into the ✓ branch.
+  // Three states: "installed but not signed in" is the common cold state.
   const engineLine =
     env === null
       ? null

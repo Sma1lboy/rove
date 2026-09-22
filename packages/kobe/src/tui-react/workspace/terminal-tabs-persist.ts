@@ -1,35 +1,23 @@
 /**
- * Persisted terminal-tab snapshot reclamation — the `terminalTabs.*` kv keys
- * `TerminalTabs.tsx` writes on every tab mutation (the whole splitTree +
- * pinned sessionId per task). Without a deleter they are WRITE-ONLY: a
- * high-churn build/delete workflow (fan-out is the product's basic move)
- * grows one orphan snapshot per deleted task forever, and because kv-core
- * reads and rewrites the whole file, every leftover key taxes every later tab
- * write.
- *
- * Two pure operations over a minimal kv surface (`set(key, undefined)` deletes
- * — kv-core's explicit-undefined serialization). Framework-free so both live
- * under vitest with a fake kv.
- *
- * IMPORTANT — hook on DELETE only: deleting a task destroys its
- * worktree/branch/history, so its tab snapshot is genuinely dead and safe to
- * reclaim.
+ * Reclaims the `terminalTabs.*` kv snapshots `TerminalTabs.tsx` writes on every
+ * mutation. Without a deleter they only grow: one orphan per deleted task, and
+ * since kv-core rewrites the whole file, every orphan taxes every later write.
+ * `set(key, undefined)` deletes. Hook on task DELETE only: that is when the
+ * snapshot is genuinely dead.
  */
 
 const TERMINAL_TABS_PREFIX = "terminalTabs."
 
-/** The kv key holding one task's persisted tab snapshot. */
 export function terminalTabsKey(taskId: string): string {
   return `${TERMINAL_TABS_PREFIX}${taskId}`
 }
 
-/** The minimal kv surface these helpers need (satisfied by `KVContext`). */
+/** Satisfied by `KVContext`. */
 export interface TabsSnapshotKv {
   readonly store: Record<string, unknown>
   set(key: string, value: unknown): void
 }
 
-/** Reclaim one deleted task's persisted tab snapshot (explicit-undefined = delete). */
 export function forgetTaskTabsSnapshot(kv: TabsSnapshotKv, taskId: string): void {
   const key = terminalTabsKey(taskId)
   if (kv.store[key] === undefined) return
@@ -37,10 +25,8 @@ export function forgetTaskTabsSnapshot(kv: TabsSnapshotKv, taskId: string): void
 }
 
 /**
- * One-time orphan sweep: drop every `terminalTabs.*` snapshot whose task id is
- * not in `liveTaskIds` — clears the historical backlog that accumulated before
- * delete-time reclamation existed. Returns the count swept, for a caller log.
- * Idempotent: a second call sweeps nothing.
+ * Drop every snapshot whose task id isn't in `liveTaskIds` (covers deletes
+ * made elsewhere). Idempotent; returns the count swept.
  */
 export function sweepOrphanTabsSnapshots(kv: TabsSnapshotKv, liveTaskIds: Iterable<string>): number {
   const live = new Set(liveTaskIds)

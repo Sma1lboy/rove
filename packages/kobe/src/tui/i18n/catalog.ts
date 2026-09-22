@@ -1,20 +1,10 @@
 /**
- * i18n message catalog — the per-namespace message files composed into one
- * `en` / `zh` tree.
- *
- * English (`en`) is the SOURCE OF TRUTH: it defines the `Messages` shape every
- * other locale must satisfy. `zh` (简体中文) must carry the exact same key set —
- * `bun run check-i18n` and `test/tui/i18n-catalog.test.ts` (CI) fail on any
- * missing/extra key or dropped `{placeholder}` so the two never drift.
- *
- * Each surface owns its own file under `./messages/` (settings, tasks, files,
- * …) so translation work parallelizes without colliding. Pure data, zero
- * runtime deps — safe under node / vitest (the observable `t()` runtime lives
- * in `./index.ts`). Values may contain `{name}`
- * placeholders; `t(key, params)` substitutes them.
- *
- * We translate prose; literal config syntax (YAML keys, shell command
- * examples) is left in the calling code as-is — it isn't language.
+ * Composes the per-namespace `./messages/` files (one per surface, so
+ * translation work parallelizes) into `en` / `zh` trees. English is the SOURCE
+ * OF TRUTH; `zh` must carry the exact key set, enforced by `bun run check-i18n`
+ * and `test/tui/i18n-catalog.test.ts`, including `{placeholder}`s. Pure data,
+ * vitest-safe (the `t()` runtime is `./index.ts`). Prose is translated;
+ * literal config syntax (YAML keys, shell commands) stays in the calling code.
  */
 
 import { en as automations, zh as automationsZh } from "./messages/automations"
@@ -59,11 +49,7 @@ export const en = {
   doctor,
 }
 
-/**
- * Every locale must structurally match the English source of truth. The
- * namespace `zh` files are each typed `typeof en`, so the assembled tree is
- * structurally identical and this annotation just documents the contract.
- */
+/** Each namespace `zh` is typed `typeof en`, so this annotation just documents the contract. */
 export type Messages = typeof en
 
 const zh: Messages = {
@@ -89,12 +75,9 @@ const zh: Messages = {
 }
 
 /**
- * Registered locales, in display order. `intl` is the BCP-47 tag handed to
- * `Intl`/`toLocale*` — a UI language is a catalog id, and the two are not
- * interchangeable. Calling `toLocaleDateString()` with no argument formats in
- * the OS locale instead, which is wrong in BOTH directions: a zh UI on an
- * `en-US` machine printed `8/3/2026`, an en UI on a `zh-CN` machine printed
- * `2026/8/3`, and neither followed the setting the user actually changed.
+ * Display order. `intl` is the BCP-47 tag for `Intl`/`toLocale*`; a catalog
+ * id isn't one. A bare `toLocaleDateString()` uses the OS locale, wrong both
+ * ways (zh UI on `en-US` printed `8/3/2026`, en UI on `zh-CN` `2026/8/3`).
  */
 export const LOCALES = [
   { id: "en", label: "English", intl: "en-US" },

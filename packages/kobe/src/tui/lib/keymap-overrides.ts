@@ -1,16 +1,9 @@
 /**
  * Apply policy for user keybinding overrides (~/.rove/settings/keybindings.yaml).
- *
- * Split out of the loader (`src/tui/context/keybindings-user.ts`) for the
- * same reason `keymap-dispatch.ts` is split out of `keymap.tsx`: vitest
- * can't import `@opentui/*` (transitive `.scm` assets), so everything
- * testable — validation and the keymap mutation — lives here with zero
- * opentui imports. The loader is a thin Bun-runtime wrapper (read file →
- * `Bun.YAML.parse` → these functions).
- *
- * The parsing half — chord grammar, config shape, YAML-document
- * extraction — lives in `keymap-overrides-parse.ts` and is re-exported
- * below, so consumers keep importing everything from this module.
+ * Zero opentui imports because vitest can't load `@opentui/*` (transitive
+ * `.scm` assets); the loader (`src/tui/context/keybindings-user.ts`) is a thin
+ * read → `Bun.YAML.parse` → these functions wrapper. Parsing lives in
+ * `keymap-overrides-parse.ts`, re-exported here.
  */
 
 import type { KeymapOverrideEntry } from "./keymap-overrides-parse"
@@ -25,11 +18,7 @@ type OverridableHint = {
   keys: string
 }
 
-/**
- * Structural slice of `KobeBinding` this module needs. `KobeBinding` is
- * assignable; keeping a local type avoids importing the opentui-tainted
- * keybindings module.
- */
+/** Structural slice of `KobeBinding`; avoids importing the opentui-tainted keybindings module. */
 export type OverridableBinding = {
   id: string
   scope: string
@@ -38,7 +27,6 @@ export type OverridableBinding = {
   hint?: OverridableHint
 }
 
-/** One override that actually landed on the keymap. */
 export type AppliedOverride = {
   id: string
   keys: readonly string[]
@@ -46,13 +34,10 @@ export type AppliedOverride = {
 }
 
 /**
- * Ids whose event-shape or handler contract cannot be expressed by a rebind.
- * The four diff-review chords are raw literal bindings registered by
- * preview-review.tsx (fixed bindings, docs/KEYBINDINGS.md
- * "Diff review") — the table rows exist so F1 lists them, but no handler
- * reads the keymap, so an override would apply cleanly and change nothing.
- * `applyKeymapOverrides` rejects any id listed here, and Settings →
- * Keybindings surfaces the list.
+ * Ids a rebind can't express. The diff-review rows are raw literal bindings in
+ * preview-review.tsx (docs/KEYBINDINGS.md "Diff review"); the rows exist only
+ * so F1 lists them, so an override would apply and change nothing. Rejected by
+ * `applyKeymapOverrides` and listed in Settings → Keybindings.
  */
 export const FIXED_BINDING_IDS: Readonly<Record<string, string>> = {
   "diff.review.cursor": "diff-review cursor is a fixed raw binding (j/k), not keymap-driven",
@@ -64,14 +49,12 @@ export const FIXED_BINDING_IDS: Readonly<Record<string, string>> = {
 }
 
 /**
- * Positional slot contract for a direction-multiplexed binding id. The
- * keymap layer threads the matched chord's index within the id's `keys`
- * array to the handler (`Binding.slot`, assigned by `bindByIds`), so the
- * meaning of each position is a documented contract an override must
- * respect.
+ * Position contract for a direction-multiplexed id: handlers receive the
+ * matched chord's index (`Binding.slot`, from `bindByIds`), so an override
+ * must respect what each position means.
  */
 type SlotContract = {
-  /** Human-readable layout, used in warnings and the docs. */
+  /** Used in warnings and the docs. */
   layout: string
   /** Null when `count` chords satisfy the layout; otherwise the problem. */
   validateCount: (count: number) => string | null
@@ -88,12 +71,8 @@ function pairContract(first: string, second: string): SlotContract {
 }
 
 /**
- * Slot layouts for the user-rebindable multiplexed ids. Handlers map
- * `slot % 2` (pairs), so any even chord count works: the 4-chord default
- * `sidebar.nav: [j, k, down, up]` and a 2-chord override
- * `sidebar.nav: [w, s]` follow the same contract. Validation runs in
- * {@link applyKeymapOverrides} (and re-runs on a live keybindings
- * reload, since the reload path resets and re-applies from scratch).
+ * Handlers map `slot % 2`, so any even count works (`[j, k, down, up]` and
+ * `[w, s]` alike). Re-validated on live reload, which re-applies from scratch.
  */
 const SLOT_CONTRACTS: Readonly<Record<string, SlotContract>> = {
   "sidebar.goto": pairContract("top (double-tap)", "bottom"),
@@ -102,9 +81,8 @@ const SLOT_CONTRACTS: Readonly<Record<string, SlotContract>> = {
   "sidebar.search.nav": pairContract("down", "up"),
   "files.hierarchy": pairContract("collapse", "expand"),
   "files.tab": pairContract("previous tab", "next tab"),
-  // Not a pair: slot 0 = quit confirm, slot 1 = hard exit (native
-  // workspace's second ctrl+q). The hard-exit chord is optional — a
-  // single-chord override keeps the confirm and drops the two-stage exit.
+  // Not a pair: slot 0 = quit confirm, slot 1 = the native workspace's second
+  // ctrl+q hard exit. One chord keeps the confirm and drops the two-stage exit.
   "app.quit": {
     layout: "[quit confirm, hard exit] (second chord optional)",
     validateCount: (count) => (count <= 2 ? null : `needs [quit confirm, hard exit] (1 or 2 chords — got ${count})`),
@@ -114,23 +92,18 @@ const SLOT_CONTRACTS: Readonly<Record<string, SlotContract>> = {
 /** Scopes where a bare single-character chord would steal typed input. */
 const NO_BARE_LETTER_SCOPES = new Set(["global", "workspace", "terminal"])
 
-/** True when two binding scopes can both be live for the same keypress. */
 function scopesOverlap(a: string, b: string): boolean {
   return a === b || a === "global" || b === "global"
 }
 
 /**
- * Validate the requested overrides against `keymap` and apply the
- * survivors by MUTATING the matching rows in place (`keys`, plus a
- * refreshed `hint.keys` so the help dialog / footer legend advertise the
- * user's chord, not the stale default). Returns what landed and every
- * warning produced on the way.
+ * MUTATES matching rows in place (`keys`, and `hint.keys` so F1 / the footer
+ * advertise the user's chord). Returns what landed plus every warning.
  */
 export function applyKeymapOverrides(
   keymap: readonly OverridableBinding[],
   entries: readonly KeymapOverrideEntry[],
-  // Injectable so the fixed-id rejection stays testable against a synthetic
-  // map (parameter defaults to the shipped FIXED_BINDING_IDS above).
+  // Injectable so the fixed-id rejection is testable against a synthetic map.
   fixedIds: Readonly<Record<string, string>> = FIXED_BINDING_IDS,
 ): { applied: AppliedOverride[]; warnings: string[] } {
   const warnings: string[] = []
@@ -152,10 +125,7 @@ export function applyKeymapOverrides(
       continue
     }
 
-    // Slot-contract count check (direction-multiplexed ids): the handler
-    // maps slot position → action, so an override must supply a chord
-    // count matching the documented layout. Unbind ([]) is exempt — an
-    // empty list disables the id wholesale, no slots involved.
+    // Slot ids need a chord count matching the layout. Unbind ([]) is exempt.
     const contract = SLOT_CONTRACTS[entry.id]
     if (contract && entry.keys.length > 0) {
       const problem = contract.validateCount(entry.keys.length)
@@ -165,10 +135,8 @@ export function applyKeymapOverrides(
       }
     }
 
-    // Boundary rule (docs/KEYBINDINGS.md): a bare single character on a
-    // scope whose focused surface accepts typed text would steal input.
-    // `shift+<char>` is the same keystroke as typing the uppercase char,
-    // so it falls under the same rule (shift is not a real modifier here).
+    // Boundary rule (docs/KEYBINDINGS.md): a bare char on a text-accepting
+    // scope steals input. `shift+<char>` is just the uppercase char, same rule.
     const keys = entry.keys.filter((chord) => {
       const typedChar = chord.length === 1 || (chord.startsWith("shift+") && chord.length === "shift+".length + 1)
       if (typedChar && NO_BARE_LETTER_SCOPES.has(row.scope)) {
@@ -183,8 +151,7 @@ export function applyKeymapOverrides(
       warnings.push(`${entry.id}: no chords survived validation — keeping the default`)
       continue
     }
-    // A slot id can't survive a partial drop: removing one chord shifts
-    // every later slot, silently remapping directions. All-or-nothing.
+    // All-or-nothing for slot ids: dropping one chord shifts every later slot.
     if (contract && keys.length !== entry.keys.length) {
       warnings.push(
         `${entry.id}: a dropped chord would shift the slot layout (${contract.layout}) — keeping the default`,
@@ -197,7 +164,7 @@ export function applyKeymapOverrides(
     mutable.keys = keys
     if (row.hint) {
       if (keys.length === 0) {
-        // Unbound — a hint advertising a dead chord is worse than none.
+        // A hint advertising a dead chord is worse than none.
         mutable.hint = undefined
       } else {
         row.hint.keys = keys.join("/")
@@ -206,9 +173,8 @@ export function applyKeymapOverrides(
     applied.push({ id: entry.id, keys, defaultKeys })
   }
 
-  // Conflict scan — only for chords an override introduced (pre-existing
-  // same-chord pairs like sidebar.select / sidebar.search.submit are
-  // intentional, gated by mode at the registration site).
+  // Conflicts only for override-introduced chords; default same-chord pairs
+  // (sidebar.select / sidebar.search.submit) are intentionally mode-gated.
   for (const change of applied) {
     for (const chord of change.keys) {
       const owner = keymap.find((b) => b.id === change.id)

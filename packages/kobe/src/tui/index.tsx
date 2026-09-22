@@ -1,9 +1,4 @@
-/**
- * kobe TUI bootstrap.
- *
- * Thin entry point: plain `kobe` starts the Workspace Host. Daemon recovery
- * is `kobe daemon restart`, not a daemon-less in-process Orchestrator.
- */
+/** TUI entry: plain `kobe` starts the Workspace Host. Daemon recovery is `kobe daemon restart`. */
 
 import { ensureGlobalKobeHooks } from "../cli/hook-cmd.ts"
 import { enforceResetGate } from "../cli/reset-gate.ts"
@@ -16,31 +11,29 @@ export async function startTui(): Promise<void> {
   // Before the reset gate, which overwrites the `app.lastRunVersion` stamp
   // this falls back to for installs predating its own key.
   const whatsNewFrom = takeWhatsNew()
-  // Same ordering rule, same reason: this reads `app.lastRunVersion` to tell a
-  // first-ever run from an existing user, and the reset gate overwrites it.
+  // Same ordering rule: reads `app.lastRunVersion` to tell a first run from an
+  // existing user.
   const welcome = takeWelcome()
 
   // Breaking-version gate first: refuse to touch daemon/session state that
   // a version in BREAKING_VERSIONS made incompatible (run `kobe reset`).
   enforceResetGate()
 
-  // Own the outer emulator's tab/window title while kobe is running. Without
-  // an OSC title, iTerm2 falls back to the packaged JavaScript runtime name
-  // (observed as "node") instead of the product the user launched.
+  // Own the emulator's tab title; without an OSC title iTerm2 shows the
+  // packaged runtime name ("node").
   publishKobeTerminalTitle()
 
-  // Before the screen takeover: nudge if the kobe agent skill is absent
-  // (one-time hint), or prompt yes/no/don't-notify-this-version if it's
-  // out of date. Best-effort — the reliable check is `kobe skill status`.
+  // Before the screen takeover: hint once if the agent skill is absent, or
+  // prompt yes/no/don't-notify-this-version if stale. Best-effort; the reliable
+  // check is `kobe skill status`.
   await maybeHintSkillInstall()
 
-  // Finish the idempotent local settings merge before the Workspace Host can
-  // launch an engine, so its first activity events are observable too.
+  // Finish the idempotent settings merge before any engine launches, so its
+  // first activity events are observable.
   await ensureGlobalKobeHooks()
 
-  // Plugin-contributed engines ([[engines]] in enabled plugin manifests) —
-  // registered before the Workspace Host so the selector, launch path, and
-  // screen badges all see them from the first frame.
+  // Plugin engines ([[engines]] in enabled manifests) before the host, so every
+  // surface sees them from the first frame.
   const { loadPluginEngines } = await import("../engine/plugin-engines.ts")
   loadPluginEngines()
 

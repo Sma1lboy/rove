@@ -4,30 +4,16 @@
  * a single `pulse()` entry point — kobe only needs a short ding when a
  * background chat tab transitions out of `running`.
  *
- * Strategy:
- *   1. Probe the user's PATH for the first available audio player
- *      (afplay on macOS, ffplay/mpv/play/aplay/etc. elsewhere) and cache
- *      the choice.
- *   2. Write the bundled `pulse.wav` to `$TMPDIR/kobe-sfx/` on first use,
- *      its samples already scaled to the user's volume
- *      (`state/sound-volume.ts`) and cached per volume. The asset then has
- *      a stable filesystem path even when kobe runs from the bundled
- *      `dist/`, and repeated spawns stay cheap.
- *   3. Spawn the player detached with all stdio ignored. Failures are
- *      swallowed — the BEL in `notifications.tsx` is the always-on
- *      fallback; this just adds an audible chime on top.
+ * Probes PATH for the first audio player (cached), writes the bundled
+ * `pulse.wav` to `$TMPDIR/kobe-sfx/` (a stable path even from `dist/`),
+ * spawns detached with stdio ignored, and swallows failures: the BEL in
+ * `notifications.tsx` is the always-on fallback. No player → no-op.
  *
- * VOLUME LIVES IN THE FILE, never in the player's argv. Four of the players
- * below take no volume flag at all — `afplay`, `aplay`, `omxplayer`, and the
- * `powershell.exe` fallback, whose `Media.SoundPlayer` class has no volume
- * API (Play, PlaySync, PlayLooping, Stop, and nothing else). Windows only
- * ever reaches that last one, so a volume passed as an argument was silently
- * discarded there: the chime rang at full system level and no setting could
- * lower it. Scaling the samples (`wav-volume.ts`) is one mechanism every
- * player honours, and it cannot double-apply.
- *
- * If no player is on PATH (rare on a Mac dev box, common in stripped CI
- * containers), `pulse()` is a no-op and we rely on the terminal bell.
+ * VOLUME LIVES IN THE FILE (samples scaled by `wav-volume.ts`, cached per
+ * volume), never in argv: `afplay`, `aplay`, `omxplayer` and the
+ * `powershell.exe` `Media.SoundPlayer` (Windows' only option) take no volume
+ * flag, so an argv volume rang at full level there. Scaling works for every
+ * player and can't double-apply.
  */
 
 import { existsSync, mkdirSync } from "node:fs"
@@ -37,10 +23,8 @@ import { persistedSoundVolume } from "../../state/sound-volume"
 import pulseAssetRaw from "../asset/pulse.wav" with { type: "file" }
 import { scaleWavVolume } from "./wav-volume"
 
-// Bun's `with { type: "file" }` import returns an absolute path in dev
-// and a path relative to the emitting chunk in `bun build` output.
-// Normalise against `import.meta.dir` so both modes resolve to a real
-// file on disk.
+// Bun's `type: "file"` import is absolute in dev but chunk-relative in
+// `bun build` output; normalise against `import.meta.dir`.
 const pulseAsset = isAbsolute(pulseAssetRaw) ? pulseAssetRaw : resolve(import.meta.dir, pulseAssetRaw)
 
 const DIR = join(tmpdir(), "kobe-sfx")
@@ -62,11 +46,7 @@ const PLAYERS = [
 
 type Player = (typeof PLAYERS)[number]
 
-/**
- * Per-player argv to play `file` once and get out of the way (no window, no
- * video, exit when done). No volume flag anywhere: `file` already carries
- * the level — see the file header.
- */
+/** Play once, no window/video, exit when done. No volume flag: `file` carries the level. */
 function args(player: Player, file: string): string[] {
   if (player === "ffplay") return [player, "-autoexit", "-nodisp", file]
   if (player === "mpv") return [player, "--no-video", "--audio-display=no", file]
@@ -78,17 +58,13 @@ function args(player: Player, file: string): string[] {
 }
 
 let cachedPlayer: Player | null | undefined
-/** One cached asset per volume — the level is baked into the bytes. */
+/** One cached asset per volume; the level is baked into the bytes. */
 const cachedPaths = new Map<number, Promise<string>>()
 
 /**
- * Directories on a PATH string, split on the platform's list delimiter
- * (`;` on Windows, `:` elsewhere) and stripped of empty entries. Splitting
- * on a hard-coded `:` shattered every Windows entry on its drive-letter
- * colon (`C:\Windows\System32` → `["C", "\\Windows\\System32"]`), so no real
- * directory ever matched and `powershell.exe` was never found — the chime
- * went permanently silent on Windows with only the terminal BEL left. The
- * delimiter is injectable so that win32 split is unit-testable on a POSIX host.
+ * Split on the platform delimiter: a hard-coded `:` shattered Windows entries
+ * on the drive colon, so `powershell.exe` was never found and the chime went
+ * silent. Injectable so the win32 split is testable on POSIX.
  */
 export function pathDirs(rawPath: string, delim: string = delimiter): string[] {
   return rawPath.split(delim).filter(Boolean)
@@ -109,10 +85,8 @@ function assetNameFor(assetPath: string, volume: number): string {
 }
 
 /**
- * Path to the chime at `volume`, written into the tmp cache on first use.
- * Falls back to the unscaled bytes when the asset is not the 16-bit PCM
- * `scaleWavVolume` understands — a chime at the wrong level still beats no
- * chime, and the bundled asset is the only input in practice.
+ * Falls back to unscaled bytes when the asset isn't the 16-bit PCM
+ * `scaleWavVolume` understands; wrong level beats no chime.
  */
 async function ensureAsset(volume: number): Promise<string> {
   const cached = cachedPaths.get(volume)
@@ -130,11 +104,7 @@ async function ensureAsset(volume: number): Promise<string> {
   return pending
 }
 
-/**
- * Fire one short ding at the user's configured volume. Best-effort, never
- * throws. Volume 0 is silence, and nothing is spawned for it — a muted chime
- * costs no process.
- */
+/** Best-effort, never throws. Volume 0 spawns nothing. */
 export function pulse(volume: number = persistedSoundVolume()): void {
   if (!(volume > 0)) return
   const player = pickPlayer()
@@ -147,8 +117,7 @@ export function pulse(volume: number = persistedSoundVolume()): void {
           stdout: "ignore",
           stderr: "ignore",
         })
-        // Detach so the player's lifetime doesn't keep kobe alive at
-        // shutdown. Bun's `unref()` is on the underlying Subprocess.
+        // Detached so the player doesn't keep Rove alive at shutdown.
         proc.unref?.()
       } catch {
         /* swallow */

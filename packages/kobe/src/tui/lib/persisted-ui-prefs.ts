@@ -1,15 +1,8 @@
 /**
- * Read the UI prefs the outer kobe TUI persisted to `state.json`.
- *
- * A kobe subcommand that renders in a tmux pane (the Ops pane today,
- * a full-width preview window soon) wants to match the outer app's
- * look: same theme, transparent-bg toggle, focus accent. It can't
- * share the outer TUI's runtime (separate process), so it reads
- * the persisted prefs off disk instead.
- *
- * READ-ONLY by contract: the outer app owns `state.json`; a pane
- * subprocess writing it would race the main process. This module only
- * reads. (The KV store at `tui/context/kv.tsx` is the writer.)
+ * Read the UI prefs (theme, transparency, focus accent, locale) the outer TUI
+ * persisted to `state.json`, for subprocess hosts that can't share its runtime.
+ * READ-ONLY by contract: the outer app owns `state.json` (writer: the KV store,
+ * `tui/context/kv.tsx`); a subprocess write would race it.
  */
 
 import { readFileSync } from "node:fs"
@@ -28,45 +21,31 @@ import { DEFAULT_LOCALE, type LocaleId, isLocaleId } from "../i18n/catalog"
 export const LOCALE_KEY = "locale"
 
 /**
- * Default for `transparentBackground` when the user has never set it.
- *
- * Transparent everywhere except Windows. In transparent mode the theme's
- * background and panel slots are rewritten to alpha 0
- * (`theme-core.ts#applyDisplayOverlay`), so no surface in the app paints an
- * opaque cell — the terminal shows through by design. On macOS and Linux
- * that lands on a plain terminal background and reads the way it should.
- * Windows Terminal ships acrylic and background images on by default, and
- * every cell Rove has not repainted this frame shows the wallpaper instead
- * of the previous frame, which turns ordinary render skew into visible
- * debris. Windows starts opaque; `transparentBackground: true` in
- * `state.json` still turns it on, and an existing user who already chose
- * transparency keeps it (only an ABSENT key takes this default).
+ * Transparent except on Windows. Transparent mode alpha-0s the background and
+ * panel slots (`applyDisplayOverlay`), so the terminal shows through. Windows
+ * Terminal ships acrylic/background images by default, and every cell not
+ * repainted this frame shows wallpaper, turning ordinary render skew into
+ * visible debris. Only an ABSENT key takes this default.
  */
 export function defaultTransparentBackground(platform: NodeJS.Platform = process.platform): boolean {
   return platform !== "win32"
 }
 
 export interface PersistedUiPrefs {
-  /** Active theme name, validated against the registry (stale names fall back). */
+  /** Validated against the registry; stale names fall back. */
   readonly theme: string
   readonly themeMode: ThemeModePreference
   readonly transparent: boolean
   readonly focusAccent: FocusAccentSlot | null
-  /** Active UI language, validated against the registered locales. */
   readonly locale: LocaleId
 }
 
 /**
- * Read + validate the persisted prefs. Never throws — a missing /
- * malformed `state.json` yields the fallback theme with defaults off,
- * so a pane subcommand always renders.
- *
- * `isKnownTheme` decides whether a stored theme name still resolves. It
- * defaults to the bundled-only check, which is all an off-render caller can
- * answer on its own. A host that has already registered user themes (see
- * `bootPaneHost`, which calls `loadUserThemes()` first) must pass the live
- * registry's check instead — otherwise every `kobe theme add` theme is
- * treated as stale on the next boot and silently reverts to the fallback.
+ * Never throws: missing/malformed `state.json` yields the fallback theme with
+ * defaults, so a pane always renders. `isKnownTheme` defaults to the
+ * bundled-only check; a host that already loaded user themes (`bootPaneHost`
+ * via `loadUserThemes()`) must pass the live registry's check, or every
+ * `kobe theme add` theme silently reverts on the next boot.
  */
 export function readPersistedUiPrefs(
   fallbackTheme: string,
@@ -76,11 +55,10 @@ export function readPersistedUiPrefs(
     const parsed = JSON.parse(readFileSync(kvStatePath(), "utf8")) as Record<string, unknown>
     const theme =
       typeof parsed.activeTheme === "string" && isKnownTheme(parsed.activeTheme) ? parsed.activeTheme : fallbackTheme
-    // Only an explicitly stored boolean overrides the per-platform default,
-    // so nobody's deliberate choice is rewritten by the Windows default.
     const themeMode = (THEME_MODE_PREFERENCES as readonly unknown[]).includes(parsed.themeMode)
       ? (parsed.themeMode as ThemeModePreference)
       : DEFAULT_THEME_MODE
+    // Only an explicitly stored boolean overrides the per-platform default.
     const transparent =
       typeof parsed.transparentBackground === "boolean" ? parsed.transparentBackground : defaultTransparentBackground()
     const focusAccent =

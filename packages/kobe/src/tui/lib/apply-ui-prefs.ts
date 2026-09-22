@@ -1,36 +1,21 @@
 /**
- * Pure "apply visual prefs" logic, shared by every pane host's boot AND
- * the live `ui-prefs` daemon channel (KOB — cross-session theme
- * propagation).
+ * The one function that lands a `{ theme, themeMode, transparentBackground,
+ * focusAccent }` snapshot on the theme runtime, for every host's boot
+ * (`tui-react/lib/host-boot.tsx`) and every live `ui-prefs` daemon push, so
+ * hosts can't drift.
  *
- * One function decides how a `{ theme, themeMode, transparentBackground, focusAccent }`
- * snapshot lands on the theme runtime, so the boot-time application and
- * every later live push behave identically in all hosts. Before this,
- * hosts drifted: tasks/settings/ops applied transparent + focus accent in
- * their own `onMount` while new-task / quick-task / update / ops-preview
- * only ever got the theme name — the central caller in
- * `tui-react/lib/host-boot.tsx` now routes all of them through here.
- *
- * The target is INJECTED (not `useTheme()` directly) for two reasons:
- *   - vitest-safety: the theme provider (`tui-react/context/theme.tsx`)
- *     imports @opentui/react, which is not importable under node/vitest —
- *     this module must stay pure so the apply rules are unit-testable
- *     (same seam stance as `tmux-border-theme.ts`'s mirrored slot list);
- *   - echo-loop guard: the process that CAUSED a prefs write (the
- *     Settings dialog applied it locally already) receives its own push
- *     back from the daemon — every setter here is gated on a
- *     compare-with-current, so an identical payload is a strict no-op.
+ * The target is INJECTED rather than `useTheme()`:
+ *   - the theme provider imports @opentui/react, unloadable under vitest, and
+ *     these rules must stay unit-testable;
+ *   - echo guard: the process that caused a write gets its own push back, so
+ *     every setter compares with current and an identical payload is a no-op.
  */
 
-/**
- * Mirror of `FOCUS_ACCENT_SLOTS` in `tui/context/theme-core.ts` — kept
- * as a local copy so this module stays import-free (see the identical
- * mirror in `tui/lib/tmux-border-theme.ts`).
- */
+/** Mirror of `FOCUS_ACCENT_SLOTS` in `tui/context/theme-core.ts`, local to keep this module import-free. */
 export const UI_PREFS_FOCUS_ACCENT_SLOTS = ["primary", "success", "info"] as const
 export type UiPrefsFocusAccentSlot = (typeof UI_PREFS_FOCUS_ACCENT_SLOTS)[number]
 
-/** Default focus-accent slot when the pref is unset (the theme provider's default, `tui-react/context/theme.tsx`). */
+/** Unset-pref default (the theme provider's, `tui-react/context/theme.tsx`). */
 export const DEFAULT_FOCUS_ACCENT_SLOT: UiPrefsFocusAccentSlot = "primary"
 
 /** Mirror of `THEME_MODE_PREFERENCES` in `tui/context/theme-core.ts`, local for the same reason. */
@@ -47,21 +32,12 @@ export interface UiPrefsSnapshot {
   readonly focusAccent?: unknown
 }
 
-/**
- * The slice of the theme runtime the apply needs — `useTheme()` plus a
- * user-theme reload hook, adapted by the caller (host-boot wires the
- * real context; tests inject a fake).
- */
+/** `useTheme()` plus a user-theme reload hook; host-boot adapts the real context, tests inject a fake. */
 export interface UiPrefsTarget {
   selectedTheme(): string
   hasTheme(name: string): boolean
   setTheme(name: string): boolean
-  /**
-   * Re-scan `~/.rove/themes/` into the registry. Called once when the
-   * pushed theme name isn't registered in THIS process — e.g. the user
-   * added a theme file and selected it from another session's Settings
-   * after this pane booted.
-   */
+  /** Re-scan `~/.rove/themes/`; called once when a pushed name isn't registered here (added after this pane booted). */
   reloadUserThemes(): void
   themeMode(): string
   setThemeMode(mode: UiPrefsThemeMode): void
@@ -72,23 +48,13 @@ export interface UiPrefsTarget {
 }
 
 /**
- * Apply a prefs snapshot onto the theme runtime. Field-by-field,
- * changed-only (identical values touch nothing — the echo guard):
- *
- *   - **theme** — switch when the name differs from the current
- *     selection. An unregistered name triggers ONE user-theme reload;
- *     still unknown after that → keep the current theme (never blind-
- *     fall back to the default and yank a working pane to `claude`
- *     because another process persisted a name this build doesn't have).
- *   - **themeMode** — validated like the focus accent: `null` (unset)
- *     converges on the default, an unknown string is skipped.
- *   - **transparentBackground** — applied when it's a real boolean that
- *     differs.
- *   - **focusAccent** — validated against the known slots; `null` (the
- *     persisted "unset") converges on the default slot.
- *
- * Absent/malformed fields are skipped, never defaulted-and-applied, so a
- * partial snapshot can't reset prefs it didn't carry.
+ * Field-by-field, changed-only (the echo guard). Absent/malformed fields are
+ * skipped, never defaulted, so a partial snapshot can't reset what it didn't carry.
+ *   - theme: an unregistered name triggers ONE user-theme reload; still
+ *     unknown → keep the current theme, never yank a working pane to the default.
+ *   - themeMode / focusAccent: `null` (persisted "unset") → default; unknown
+ *     string skipped.
+ *   - transparentBackground: only a real boolean that differs.
  */
 export function applyUiPrefs(target: UiPrefsTarget, prefs: UiPrefsSnapshot): void {
   if (typeof prefs.theme === "string" && prefs.theme.length > 0 && prefs.theme !== target.selectedTheme()) {
@@ -114,16 +80,13 @@ export function applyUiPrefs(target: UiPrefsTarget, prefs: UiPrefsSnapshot): voi
   }
 }
 
-/**
- * `null` → the default slot (persisted "unset"); a known slot passes
- * through; an unknown string → `null` (skip — don't guess).
- */
+/** `null` → default slot; known slot passes; unknown → `null` (skip, don't guess). */
 export function normalizeFocusAccent(value: string | null): UiPrefsFocusAccentSlot | null {
   if (value === null) return DEFAULT_FOCUS_ACCENT_SLOT
   return (UI_PREFS_FOCUS_ACCENT_SLOTS as readonly string[]).includes(value) ? (value as UiPrefsFocusAccentSlot) : null
 }
 
-/** `null` → the default mode (persisted "unset"); a known mode passes through; anything else → `null` (skip). */
+/** Same rule as {@link normalizeFocusAccent}. */
 function normalizeThemeMode(value: string | null): UiPrefsThemeMode | null {
   if (value === null) return DEFAULT_UI_PREFS_THEME_MODE
   return (UI_PREFS_THEME_MODES as readonly string[]).includes(value) ? (value as UiPrefsThemeMode) : null

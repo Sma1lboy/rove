@@ -1,25 +1,14 @@
 /**
- * Loader for user keybinding overrides — `~/.rove/settings/keybindings.yaml`.
+ * Loads `~/.rove/settings/keybindings.yaml` (via `src/state/keybindings-file.ts`;
+ * the CLI always runs under Bun, so `Bun.YAML` exists) and MUTATES the matching
+ * `KobeKeymap` rows in place for `process.platform`. Panes register through
+ * `bindByIds`/`chordsOf` and legends render from the table, so one boot-time
+ * mutation re-points every surface.
  *
- * Thin wrapper around the shared file reader
- * (`src/state/keybindings-file.ts` — kobe's CLI always runs under Bun,
- * so `Bun.YAML` is available) and the pure logic in
- * `src/tui/lib/keymap-overrides.ts`: extract the overrides for
- * `process.platform` and MUTATE the matching `KobeKeymap` rows in place.
- * Because every pane registers chords through `bindByIds`/`chordsOf` and
- * the help dialog / status bar render straight from `KobeKeymap`,
- * mutating the table once at boot re-points every surface — exactly the
- * "runtime overlay" the keymap's header comment reserved for a future
- * settings layer.
- *
- * Call `applyUserKeybindings()` ONCE per process, BEFORE the first
- * `render()` — same slot as `loadUserThemes()` in every TUI host. It is
- * idempotent (subsequent calls return the cached report), never throws,
- * and a missing file is the normal fresh-install case (no warning).
- *
- * Deliberately NOT applied at module import time: unit tests import
- * `KobeKeymap` and must see pristine defaults regardless of what the
- * developer's own `~/.rove/settings/keybindings.yaml` says.
+ * Call `applyUserKeybindings()` ONCE per process BEFORE the first `render()`
+ * (same slot as `loadUserThemes()`). Idempotent, never throws; a missing file
+ * is the normal fresh-install case. Not applied at import: unit tests must see
+ * pristine defaults whatever the developer's own file says.
  */
 
 import { readKeybindingsFile, resetKeybindingsFileCache } from "../../state/keybindings-file"
@@ -44,12 +33,7 @@ export type UserKeybindingsReport = {
 
 let cached: UserKeybindingsReport | null = null
 
-/**
- * Load `~/.rove/settings/keybindings.yaml` and apply it onto `KobeKeymap`.
- * Idempotent; returns the (cached) report. Warnings are also mirrored to
- * `console.warn` so they land in the pane's log even if nobody opens the
- * Settings → Keybindings section.
- */
+/** Idempotent (cached report). Warnings also go to `console.warn` so they reach the log even if Settings → Keybindings is never opened. */
 export function applyUserKeybindings(): UserKeybindingsReport {
   if (cached) return cached
   const file = readKeybindingsFile()
@@ -77,9 +61,8 @@ export function applyUserKeybindings(): UserKeybindingsReport {
   warnings.push(...prefixResult.warnings)
   applied.push(...prefixResult.applied)
 
-  // User chords → plugin panes/actions. Collisions with catalogue chords are
-  // the user's own placement call — warn, still apply (host-level plugin
-  // bindings sit above pane bindings in the keymap stack).
+  // Collisions with catalogue chords are the user's call: warn but apply
+  // (host-level plugin bindings sit above pane bindings in the stack).
   const plugins = extractPluginKeybindings(file.doc, process.platform)
   warnings.push(...plugins.warnings)
   for (const p of plugins.entries) {
@@ -92,30 +75,20 @@ export function applyUserKeybindings(): UserKeybindingsReport {
   return cached
 }
 
-/** The user's plugin chords (loading the config first if needed). */
 export function pluginKeybindings(): readonly PluginKeyBinding[] {
   return userKeybindingsReport().plugins
 }
 
-/** Report from the boot-time load (loading first if needed). */
 export function userKeybindingsReport(): UserKeybindingsReport {
   return cached ?? applyUserKeybindings()
 }
 
 /**
- * Re-read `keybindings.yaml` and re-apply it from a clean slate — the
- * live-reload counterpart to {@link applyUserKeybindings} (KOB —
- * cross-session keybinding propagation). Invoked when the daemon's
- * keybindings watcher pings the `keybindings` channel.
- *
- * The order matters: the three per-process caches (file read, applied
- * report) are dropped, then `KobeKeymap` is reset to its
- * boot-time defaults BEFORE re-applying — so removing an override actually
- * restores the default instead of leaving the stale chord behind. A
- * `keymapVersion` bump then re-renders the chord legends; binding BEHAVIOUR
- * needs no nudge, since the dispatcher re-reads chords on every keypress.
- *
- * Scope note: this refreshes the in-process keymap and its legend display.
+ * Live-reload counterpart of {@link applyUserKeybindings}, run when the daemon's
+ * watcher pings the `keybindings` channel. Order matters: drop the file and
+ * report caches, reset `KobeKeymap` to boot defaults, THEN re-apply, so a
+ * removed override restores its default. The `keymapVersion` bump re-renders
+ * legends; dispatch needs no nudge (it re-reads chords every keypress).
  */
 export function reloadUserKeybindings(): UserKeybindingsReport {
   cached = null

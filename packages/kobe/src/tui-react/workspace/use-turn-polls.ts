@@ -16,7 +16,7 @@ import type { VendorId } from "../../types/vendor"
 import { useLatest } from "../lib/use-latest"
 import { type TitleSubscriptions, createTitleSubscriptions } from "./title-subscriptions"
 
-/** Cadence of the lazy attach retry (a tab's PTY spawns after mount). */
+/** Lazy attach retry: a tab's PTY spawns after mount. */
 const TURN_POLL_ATTACH_MS = 2000
 
 export function useTurnPolls(deps: {
@@ -28,16 +28,12 @@ export function useTurnPolls(deps: {
   hookTabStates?: ReadonlyMap<string, HookTabState>
 }): {
   turnStates: ReadonlyMap<string, ChatTabTurnState>
-  /** tabId → live foreground-process display name (engine binary when the
-   *  title matches a vendor, else the raw OSC title). Feeds the tab
-   *  strip's dynamic default names. */
+  /** tabId → live OSC title minus the engine's status prefix; the tab strip's dynamic default names. */
   liveTitles: ReadonlyMap<string, string>
-  /** tabId → UNSTRIPPED live OSC title — the engine's status decoration
-   *  intact, for the ESC-interrupt observer's working→rest flip read. */
+  /** tabId → UNSTRIPPED OSC title, for the ESC-interrupt observer's working→rest flip. */
   rawTitles: ReadonlyMap<string, string>
-  /** tabId → resolved live engine identity — the `targetFor` vendor the
-   *  attached detector tracks, whether kobe-launched or user-typed. The tab
-   *  strip's launch-path-agnostic "does this process own its status" input. */
+  /** tabId → the vendor the attached detector tracks, whether Rove-launched or
+   *  user-typed; the strip's "does this process own its status" input. */
   turnVendors: ReadonlyMap<string, VendorId>
 } {
   const [turnStates, setTurnStates] = useState<ReadonlyMap<string, ChatTabTurnState>>(new Map())
@@ -45,24 +41,19 @@ export function useTurnPolls(deps: {
   const [rawTitles, setRawTitles] = useState<ReadonlyMap<string, string>>(new Map())
   const [turnVendors, setTurnVendors] = useState<ReadonlyMap<string, VendorId>>(new Map())
   const turnPollsRef = useRef(new Map<string, { dispose: () => void; vendor: VendorId; key: string }>())
-  /** Shared live-title store: ptyKey → display title, instance-compared so a
-   *  release + respawn at the same key drops the dead PTY's stale title
-   *  before targets are computed (a dead claude's title must not keep a
-   *  detector attached to the fresh shell). Same store `TerminalSplit` uses. */
+  /** Instance-compared (see title-subscriptions.ts): a dead claude's stale
+   *  title must not keep a detector attached to the fresh shell. */
   const titleStoreRef = useRef<TitleSubscriptions | null>(null)
   if (titleStoreRef.current === null) titleStoreRef.current = createTitleSubscriptions()
 
-  // Latest-render mirrors for the long-lived detector closures (created
-  // once per attach, must never go stale between renders) and for the
-  // stable reconcile callback below.
+  // Latest-render mirrors for detector closures created once per attach.
   const hookTabStatesRef = useLatest(deps.hookTabStates)
   const stateRef = useLatest(deps.state)
   const taskIdRef = useLatest(deps.taskId)
   const vendorRef = useLatest(deps.vendor)
 
-  // The reconcile pass — stable so the 2s tick and title-store pushes call
-  // it directly without re-rendering the host; the inner setStates'
-  // identity-stable guards make a no-change run render-free.
+  // Stable, so the tick and store pushes call it directly; identity-stable
+  // setState guards keep a no-change run render-free.
   const reconcile = useCallback(() => {
     const reg = getDefaultPtyRegistry()
     const attached = new Set<string>()
@@ -73,19 +64,15 @@ export function useTurnPolls(deps: {
     const taskId = taskIdRef.current
     const state = stateRef.current
 
-    // Pass 1 — reconcile title subscriptions on every tab's solo PTY through
-    // the shared store (instance-compared: a release + respawn at the same
-    // key drops the dead PTY's stale title before targets are computed).
+    // Pass 1: title subscriptions on every tab's solo PTY.
     const soloKeys = new Map<string, string>() // ptyKey → tabId
     for (const tab of state.tabs) {
       const key = soloKey(taskId, tab)
       if (key) soloKeys.set(key, tab.id)
     }
     titleStore.reconcile(soloKeys.keys())
-    // The UNSTRIPPED titles, for the one consumer that needs the engine's
-    // status decoration intact: the ESC-interrupt observer reads the
-    // working-frame → resting flip (`engineTitleTurnHint`), which the
-    // display strip below would erase. Identity-stable like its sibling.
+    // UNSTRIPPED titles for the ESC-interrupt observer, which reads the
+    // working → resting flip (`engineTitleTurnHint`) the strip below erases.
     setRawTitles((prev) => {
       const next = new Map<string, string>()
       for (const [key, tabId] of soloKeys) {
@@ -95,28 +82,22 @@ export function useTurnPolls(deps: {
       if (next.size === prev.size && [...next].every(([id, v]) => prev.get(id) === v)) return prev
       return next
     })
-    // Project the store's ptyKey→title map onto tabId→title for render; identity-
-    // stable so the slow tick doesn't churn re-renders when nothing moved.
+    // tabId → title, identity-stable.
     setLiveTitles((prev) => {
       const next = new Map<string, string>()
       for (const [key, tabId] of soloKeys) {
         const title = titleStore.get(key)
         if (title === undefined) continue
-        // Strip the engine's own status decoration HERE, at the one place the
-        // raw OSC title enters the app: every consumer (the tab strip, the
-        // tree, and the recorder that persists it as `lastTitle`) then works
-        // with the name alone, and kobe's glyph column is the single place
-        // that draws turn state. Engine-declared vocabulary — see
-        // `stripEngineStatusPrefix`.
+        // Strip the status decoration HERE, where the raw OSC title enters the
+        // app: the strip, the tree and the `lastTitle` recorder all get the bare
+        // name, and Rove's glyph column is the one place turn state is drawn.
         next.set(tabId, stripEngineStatusPrefix(title, liveEngines.resolve(key)))
       }
       if (next.size === prev.size && [...next].every(([id, v]) => prev.get(id) === v)) return prev
       return next
     })
 
-    // Pass 2 — attach/detach detectors per the tab's process identity.
-    // `targetFor` reads the store by the tab's solo ptyKey (the same key it
-    // resolves for the title lookup).
+    // Pass 2: attach/detach detectors per the tab's process identity.
     for (const tab of state.tabs) {
       const target = targetFor(taskId, tab, vendorRef.current, (key) => liveEngines.resolve(key))
       if (!target) continue
@@ -129,8 +110,7 @@ export function useTurnPolls(deps: {
         existing.dispose()
         turnPolls.delete(tab.id)
       }
-      // Attach only once the PTY exists so the loop's prime() hashes a
-      // real first capture (the Ops pane's prime-before-poll contract).
+      // Attach only once the PTY exists, so prime() hashes a real first capture.
       if (!reg.has(target.key)) continue
       const tabId = tab.id
       const entry = engineEntry(target.vendor)
@@ -138,7 +118,7 @@ export function useTurnPolls(deps: {
       const dispose = startTurnStatusPoll(
         {
           detector,
-          // Marker-less engines (copilot/kimi-without-hooks) classify the
+          // Marker-less engines (copilot/kimi without hooks) classify the
           // capture declaratively instead of publishing "unknown".
           ...(entry.screenManifest ? { screenManifest: entry.screenManifest } : {}),
           session: () => {
@@ -158,8 +138,7 @@ export function useTurnPolls(deps: {
               .map((row) => row.map((chunk) => chunk.text).join(""))
               .join("\n")
           },
-          // Pure state production — background-attention notification edges
-          // are detected downstream on the merged map (`use-tab-turn-state`).
+          // Notification edges are detected downstream on the merged map (`use-tab-turn-state`).
           setTurnState: async (turn) => {
             setTurnStates((prev) => new Map(prev).set(tabId, turn))
           },
@@ -169,8 +148,7 @@ export function useTurnPolls(deps: {
       attached.add(tabId)
     }
 
-    // Tabs whose process is not an engine any more (closed, degraded, or the
-    // user-typed engine exited back to the prompt) stop polling.
+    // Closed, degraded, or a user-typed engine that exited: stop polling.
     for (const [id, poll] of turnPolls) {
       if (attached.has(id)) continue
       poll.dispose()
@@ -182,9 +160,6 @@ export function useTurnPolls(deps: {
       })
     }
 
-    // Mirror the attach map's resolved identities for render consumers.
-    // Identity-stable: an unchanged map returns `prev` so the 2s attach
-    // tick doesn't churn re-renders.
     setTurnVendors((prev) => {
       const next = new Map<string, VendorId>()
       for (const [id, poll] of turnPolls) next.set(id, poll.vendor)
@@ -193,11 +168,9 @@ export function useTurnPolls(deps: {
     })
   }, [])
 
-  // A title push (not from this hook's own reconcile) may flip a tab's engine
-  // identity — re-evaluate attach/detach the moment a user-typed engine
-  // announces itself, not on the next slow tick. Deferred one microtask
-  // (coalesced): a fresh subscription seeds its title SYNCHRONOUSLY inside
-  // the store's reconcile loop, which must never be re-entered.
+  // A title push can flip a tab's engine identity; re-evaluate immediately.
+  // Deferred one microtask (coalesced): a fresh subscription seeds SYNCHRONOUSLY
+  // inside the store's reconcile loop, which must never be re-entered.
   useEffect(() => {
     let active = true
     let scheduled = false
@@ -215,21 +188,17 @@ export function useTurnPolls(deps: {
     }
   }, [reconcile])
 
-  // The live-engine probe flipping a tab's identity (a user-typed `claude`
-  // came up, or exited back to the prompt) attaches/detaches its detector
-  // on the spot instead of waiting out the attach tick.
+  // Live-engine probe flips (user-typed `claude` up or exited) attach/detach at once.
   useEffect(() => {
     return getDefaultLiveEngines().subscribe(reconcile)
   }, [reconcile])
 
-  // Lazy attach retry — a tab's PTY spawns after mount.
   useEffect(() => {
     const timer = setInterval(reconcile, TURN_POLL_ATTACH_MS)
     return () => clearInterval(timer)
   }, [reconcile])
 
-  // Re-reconcile the moment the real inputs change (and once on mount) —
-  // the tick only covers lazy PTY attach.
+  // Real input changes (and mount); the tick only covers lazy PTY attach.
   useEffect(() => {
     void deps.taskId
     void deps.worktree
@@ -238,7 +207,6 @@ export function useTurnPolls(deps: {
     reconcile()
   }, [deps.taskId, deps.worktree, deps.vendor, deps.state, reconcile])
 
-  // Final teardown on unmount only.
   useEffect(() => {
     return () => {
       for (const poll of turnPollsRef.current.values()) poll.dispose()

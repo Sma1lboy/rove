@@ -1,17 +1,10 @@
 /**
- * Pure hex resolver for theme JSON slots — the opentui-free sibling of
- * `resolveTheme()` in `theme.tsx`.
- *
- * `resolveTheme` returns `@opentui/core` RGBA values and lives in a module
- * that builds a Solid store at import time, so CLI / session-build code
- * (e.g. external styling) can't import it without dragging in the whole TUI
- * runtime — the same constraint that keeps `cli/theme.ts` away from
- * `theme.tsx`. This module resolves a single slot to a plain `#rrggbb`
- * string instead, mirroring `resolve()`'s semantics (defs refs, slot
- * refs, `{dark,light}` variants, circular-ref protection) with one
- * deliberate difference: unresolvable / circular / transparent values
- * return `null` rather than collapsing to black — for external styling,
- * "skip the option" beats "paint it black".
+ * Opentui-free hex resolver for theme slots. `resolveTheme()` (theme-core.ts)
+ * returns `@opentui/core` RGBA, which CLI / external-styling code must not
+ * load; this resolves one slot to `#rrggbb` with the same semantics (def
+ * refs, slot refs, `{dark,light}`, circular-ref protection), except that
+ * unresolvable / circular / transparent return `null` instead of black:
+ * for external styling, skipping beats painting black.
  */
 
 import type { ThemeJson } from "../theme-core"
@@ -20,11 +13,7 @@ import { type ColorLiteral, parseRgbLiteral } from "./color-literal"
 type Variant = { dark: string; light: string }
 type ColorValue = string | Variant
 
-/**
- * Normalize a theme hex literal to a 6-digit `#rrggbb` value
- * accepts: expand `#abc`, strip the alpha byte off `#rrggbbaa`, and
- * lowercase. Returns `null` for malformed values.
- */
+/** `#abc` expanded, `#rrggbbaa` alpha stripped, lowercased; `null` if malformed. */
 export function normalizeHex(value: string): string | null {
   const m = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.exec(value)
   if (!m) return null
@@ -37,23 +26,15 @@ export function normalizeHex(value: string): string | null {
 }
 
 /**
- * Format a parsed `rgb()` / `rgba()` literal as `#rrggbb`.
- *
- * The alpha byte is dropped, exactly as `normalizeHex` drops it off
- * `#rrggbbaa`: this module's whole output contract is a 6-digit string for
- * callers that paint external surfaces. Alpha survives on the opentui path
- * (`resolveTheme`), which is the one the TUI itself renders from.
+ * Alpha dropped like `normalizeHex` does: this module's contract is 6 digits.
+ * Alpha survives on the opentui path the TUI renders from.
  */
 function rgbToHex({ r, g, b }: ColorLiteral): string {
   const hex = (n: number) => n.toString(16).padStart(2, "0")
   return `#${hex(r)}${hex(g)}${hex(b)}`
 }
 
-/**
- * Resolve one theme slot to a `#rrggbb` hex string, following defs refs
- * and slot refs exactly like `resolveTheme()`. Returns `null` when the
- * slot is missing, transparent, circular, or malformed.
- */
+/** Follows def and slot refs like `resolveTheme()`; `null` when missing, transparent, circular, or malformed. */
 export function resolveThemeSlotHex(theme: ThemeJson, slot: string, mode: "dark" | "light" = "dark"): string | null {
   const defs = theme.defs ?? {}
 

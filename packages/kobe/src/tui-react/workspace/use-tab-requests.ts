@@ -1,20 +1,11 @@
 /**
- * Consume the cross-component tab REQUESTS aimed at this task — a third
- * mount-once listener, sibling of `use-tab-handoffs.ts`, and its own file
- * because consuming a request is what CLAIMS it (see below): that ownership
- * rule is easier to keep true when there is exactly one place doing it.
- *
- * All requests (`terminal-tabs-shared.ts`) share one mount-once listener:
- * activation (F7 attention jump), plugin-pane open/close (`tab.open` /
- * `tab.close`), new-tab (the sidebar tree menu's "New conversation" / "New
- * shell"), close-from-elsewhere (the same menu) and adoption of
- * live-but-unregistered sessions. Consuming them HERE is
- * what claims them — a request still pending after the listener sweep is
- * one nobody owns, and only then may a background writer touch the state
- * (see `closeTaskTab` / `adoptTaskTabs`).
- *
- * Mount-only and forever-lived: everything is read through the caller's
- * latest-render refs, per the TerminalTabs file header.
+ * Consumes the cross-component tab REQUESTS (`terminal-tabs-shared.ts`) aimed
+ * at this task: activation (F7), plugin-pane open/close, tree-menu new-tab and
+ * close, adoption, move, rename. Consuming is what CLAIMS a request; one still
+ * pending after the listener sweep is ownerless, and only then may a
+ * background writer touch the state (`closeTaskTab` / `adoptTaskTabs`). One
+ * place does it so that rule stays true. Mount-only; reads via the caller's
+ * latest-render refs (see TerminalTabs' header).
  */
 
 import { useEffect } from "react"
@@ -46,14 +37,12 @@ import {
 export interface TabRequestIO {
   readonly stateRef: { readonly current: TabsState }
   readonly propsRef: { readonly current: { readonly taskId: string } }
-  /** Latest-render mirror of the caller's single state writer. */
+  /** The caller's single state writer. */
   readonly updateRef: { readonly current: (next: TabsState) => void }
-  /** Latest-render mirror of the tab-close handle (`useTabClose`). */
   readonly tabCloseRef: { readonly current: { closeById: (id: string) => void } }
   /** Active leaf geometry for the split-size gate; null when no PTY yet. */
   readonly activeLeafSizeRef: { readonly current: () => { cols: number; rows: number } | null }
-  /** Latest-render mirror of the ctrl+e picker opener (`useTabDialogs`) —
-   *  what the sidebar's "New conversation" entry ends up pressing. */
+  /** The ctrl+e picker opener (`useTabDialogs`): what the tree's "New conversation" presses. */
   readonly requestNewChatRef: { readonly current: () => void }
 }
 
@@ -68,9 +57,8 @@ export function useTabRequests(io: TabRequestIO): void {
         const s = stateRef.current
         if (s.activeId !== tabId && s.tabs.some((tab) => tab.id === tabId)) updateRef.current(selectTab(s, tabId))
       }
-      // Plugin panes (`tab.open`): split the focused chattab (default) or
-      // open a separate command tab — pane-split.ts owns the policy. An
-      // explicit tabId hosts the split in THAT tab instead of the focused one.
+      // Plugin panes: split the focused chattab (default) or open a command
+      // tab (pane-split.ts owns the policy); an explicit tabId hosts the split there.
       const open = takeTabOpen(taskId)
       if (open) {
         const size = activeLeafSizeRef.current()
@@ -78,10 +66,8 @@ export function useTabRequests(io: TabRequestIO): void {
           openPluginPane(stateRef.current, open.argv, open.title, open.placement, open.direction, size, open.tabId),
         )
       }
-      // Pane-close (`tab.close` — the inverse of tab.open): prune matching
-      // titled leaves (state first, then release), close whole matching
-      // command tabs via the normal close path. tabId scopes the title
-      // match to one tab.
+      // Prune matching titled leaves (state first, then release); whole
+      // matching command tabs go through the normal close. tabId scopes the match.
       const paneClose = takePaneClose(taskId)
       if (paneClose) {
         const prev = stateRef.current
@@ -93,45 +79,38 @@ export function useTabRequests(io: TabRequestIO): void {
         }
         for (const id of closedTabIds) tabCloseRef.current.closeById(id)
       }
-      // New tab from the sidebar tree's menu: "New conversation" opens the
-      // same ctrl+e picker (engines + shell + plugin panes), "New shell" is
-      // that picker's shell pick taken directly — a bare command tab named by
-      // its live foreground process. The sidebar activated this task first,
-      // so a request aimed at a cold task is claimed by its first mount.
+      // "New conversation" = the ctrl+e picker; "New shell" = its shell pick
+      // directly. The sidebar activated this task first, so a cold task's
+      // request is claimed by its first mount.
       const newTab = takeNewTab(taskId)
       if (newTab === "chat") requestNewChatRef.current()
       else if (newTab === "shell") updateRef.current(openCommandTab(stateRef.current, [defaultShell()], null))
-      // Adoption: a live session this component's state doesn't list becomes
-      // a real tab, so it can be opened and closed like any other.
+      // A live session this state doesn't list becomes a real tab.
       const adopt = takeTabAdopt(taskId)
       if (adopt) {
         const prev = stateRef.current
         const next = adoptTabs(prev, adopt)
         if (next !== prev) updateRef.current(next)
       }
-      // Move-from-elsewhere (sidebar move mode): reorder through the single
-      // state writer so the change persists; `moveTab` edge-stops, so a
-      // top/bottom press is a same-object no-op nothing writes.
+      // Through the single writer so it persists; `moveTab` edge-stops, so a
+      // top/bottom press is a same-object no-op.
       const move = takeTabMove(taskId)
       if (move) {
         const prev = stateRef.current
         const next = moveTab(prev, move.tabId, move.delta)
         if (next !== prev) updateRef.current(next)
       }
-      // Rename-from-elsewhere (`rove api rename --tab`, over the daemon's
-      // `tab.rename` broadcast). Through the single state writer so the tab
-      // strip repaints and the snapshot persists; `setTabTitle` is a
-      // same-object no-op when the name already matches, which is the normal
-      // case — the CLI wrote the snapshot before broadcasting.
+      // `setTabTitle` is normally a same-object no-op (the CLI wrote the
+      // snapshot before broadcasting); the writer still repaints and persists
+      // when it isn't.
       const rename = takeTabRename(taskId)
       if (rename) {
         const prev = stateRef.current
         const next = setTabTitle(prev, rename.tabId, rename.title)
         if (next !== prev) updateRef.current(next)
       }
-      // Close-from-elsewhere (the sidebar tree's menu): claiming it here is
-      // what keeps `closeTaskTab` from ALSO writing the background state —
-      // this component owns the state while it is mounted.
+      // Claiming here keeps `closeTaskTab` from ALSO writing background state:
+      // while mounted, this component owns it.
       const closeId = takeTabClose(taskId)
       if (closeId) tabCloseRef.current.closeById(closeId)
     }

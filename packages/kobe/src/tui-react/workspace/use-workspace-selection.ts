@@ -1,12 +1,8 @@
 /**
- * Workspace task selection: the selected-task state, the adopt-first-focus
- * rule, the deleting-task PTY sweep, and the select/activate actions.
- *
- * These four belong together because they all answer "which task is the user
- * on" and go wrong together when they drift. The seam against
- * `use-task-selection.ts` is React: the activation POLICY there is
- * framework-free and testable on plain values, and this hook owns only the
- * reactivity that drives it.
+ * Which task the user is on: selected state, adopt-first-focus, the
+ * deleting-task PTY sweep, select/activate. They drift together, so they live
+ * together. The framework-free activation POLICY is in `use-task-selection.ts`;
+ * this hook owns only the reactivity.
  */
 
 import { useEffect, useRef, useState } from "react"
@@ -48,21 +44,20 @@ export function useWorkspaceSelection(args: {
   readonly kv: TabsSnapshotKv
   /** A task's worktree disappeared out-of-band and its tabs were dropped. */
   readonly notifyWorktreeGone?: (event: WorktreeGoneEvent) => void
-  /** Refused activation (mid-delete, non-git project, worktree failure) —
-   *  the on-screen half of `reportError`. */
+  /** Refused activation (mid-delete, non-git project, worktree failure); the on-screen half of `reportError`. */
   readonly notifyError?: (message: string) => void
 }): WorkspaceSelection {
   const { orch, tasks, activeTaskId, kv } = args
   const t = useT()
-  // Seed from the daemon's replayed focus, else the persisted lastActive
-  // record — the adopt/fallback effect below corrects a stale/deleting id.
+  // Daemon's replayed focus, else persisted lastActive; the effect below
+  // corrects a stale/deleting id.
   const [selectedId, setSelectedId] = useState<string | null>(() => orch.activeTaskSignal()() ?? readLastActiveTaskId())
 
   const focusRestoredRef = useRef(false)
   const userPickedRef = useRef(false)
   const bootFocusRef = useRef(false)
-  // Adopt the daemon's first restored focus, but never let later events from
-  // sibling clients yank a task the local user already selected.
+  // Adopt the daemon's first restored focus, but never let later sibling-client
+  // events yank a task the local user already selected.
   useEffect(() => {
     if (!focusRestoredRef.current && activeTaskId && tasks.some((task) => task.id === activeTaskId)) {
       focusRestoredRef.current = true
@@ -71,46 +66,32 @@ export function useWorkspaceSelection(args: {
         return
       }
     }
-    // Boot lands IN the restored session: reopening kobe
-    // resumes where you quit, so the content pane — not the sidebar — should
-    // hold focus. One-shot, only while the user hasn't picked anything yet;
-    // a boot with no restorable task leaves the sidebar focused (cold-start
-    // default, nothing to resume into).
+    // One-shot: boot lands focus IN the restored session (reopening resumes
+    // where you quit) until the user picks something. No restorable task →
+    // sidebar keeps focus.
     if (!bootFocusRef.current && !userPickedRef.current && selectedId && tasks.some((task) => task.id === selectedId)) {
       bootFocusRef.current = true
       args.focusWorkspace()
     }
-    // A deleting task is NOT a valid selection: the snapshot still contains
-    // it, but its sidebar row is gone and the PTY sweep below kills its
-    // sessions — leaving selection on it keeps its Terminal mounted, which
-    // answers the kill with a dead-on-attach RESUME.
+    // A deleting task is NOT selectable: keeping it selected keeps its
+    // Terminal mounted, which answers the sweep's kill with a dead-on-attach RESUME.
     if (selectedId && tasks.some((task) => task.id === selectedId && !task.deletion)) return
-    // Fallback carries the persisted lastActive record too — a stale or
-    // freshly-respawned daemon can replay a null focus while disk still
-    // knows the real one, which lands the boot on an arbitrary project.
+    // Pass lastActive too: a stale or respawned daemon can replay a null focus
+    // while disk knows the real one.
     setSelectedId(firstSelectableTask(tasks, activeTaskId, readLastActiveTaskId())?.id ?? null)
   }, [tasks, activeTaskId, selectedId, args.focusWorkspace])
 
-  // Orphan sweep: clear `terminalTabs.*` snapshots whose task is gone. Runs
-  // on EVERY task-list identity change, not once per session: a sibling
-  // client (`rove api` / web board) deleting a task only lands here as a
-  // changed list — forgetTaskTabs is wired to THIS client's delete flow
-  // alone, so a once-per-session sweep would leave those orphans taxing every
-  // later kv write until the next launch. The sweep itself is idempotent and cheap
-  // (one Set lookup per snapshot key), so re-running it on every list echo
-  // costs nothing: a live task's id is always in the list, so its snapshots
-  // can never be swept by a re-run.
+  // Orphan sweep of `terminalTabs.*` on EVERY task-list change: a sibling
+  // client's delete only arrives as a changed list (forgetTaskTabs covers this
+  // client's deletes alone), and orphans tax every kv write. Idempotent and
+  // cheap; a live task's id is always in the list.
   //
-  // The `tasks.length === 0` guard is load-bearing and SUFFICIENT, despite
-  // reading like a weak null-check: this list is only ever assigned from the
-  // daemon's own index (`hello.tasks` / `task.snapshot` — nothing else calls
-  // `setTasks`), a corrupt or unreadable manifest recovers to an EMPTY index
-  // rather than a truncated one, and a daemon serving a foreign home is
-  // rejected before its list is believed. So a NON-EMPTY list here is the
-  // daemon's authoritative task set, and anything absent from it is a genuine
-  // orphan. Do not relax the empty check — empty is exactly the shape a
-  // pre-connection render and a corrupt-manifest recovery both take, and
-  // sweeping on it would wipe every live snapshot on the machine.
+  // The `tasks.length === 0` guard is load-bearing and SUFFICIENT: the list only
+  // comes from the daemon's index (`hello.tasks` / `task.snapshot`), a corrupt
+  // manifest recovers to EMPTY not truncated, and a foreign-home daemon is
+  // rejected first. So non-empty is authoritative. Empty is exactly what a
+  // pre-connection render and a corrupt-manifest recovery look like; sweeping
+  // on it would wipe every live snapshot. Don't relax it.
   useEffect(() => {
     if (tasks.length === 0) return
     sweepOrphanTabsSnapshots(
@@ -119,17 +100,13 @@ export function useWorkspaceSelection(args: {
     )
   }, [tasks, kv])
 
-  // PTY lifecycle: deleting a task must end every engine session
-  // it owns — its tab PTYs are keyed `taskId::tabId` in the default registry,
-  // invisible to the pane once unmounted. Watch the task snapshot and release
-  // the corpses; the pane never kills (registry docs), so this is the one
-  // place tab shells die with their task.
+  // The one place tab shells die with their task: tab PTYs are keyed
+  // `taskId::tabId` in the default registry, invisible once the pane unmounts,
+  // and the pane never kills.
   //
-  // The worktree-gone notifier is held by REF, not listed as a dep: the host
-  // rebuilds that callback every render, and depending on it would re-run this
-  // effect each render — which also rewrites `worktreePathsRef`, the very
-  // thing the transition below is measured against. Same useLatest shape
-  // use-inbox-host uses for its notifiers.
+  // The notifier is held by REF (useLatest): the host rebuilds it every render,
+  // and re-running this effect would rewrite `worktreePathsRef`, the baseline
+  // the transition below is measured against.
   const notifyWorktreeGoneRef = useLatest(args.notifyWorktreeGone)
   const liveTaskIdsRef = useRef<ReadonlySet<string>>(new Set())
   const worktreePathsRef = useRef<ReadonlyMap<string, string>>(new Map())
@@ -140,23 +117,15 @@ export function useWorkspaceSelection(args: {
       if (!next.has(id)) registry.releaseWhere((key) => key === id || key.startsWith(`${id}::`))
     }
     liveTaskIdsRef.current = next
-    // Chattabs die WITH their worktree: removing a task's worktree (worktrees
-    // page / web / a sibling client) clears its `worktreePath` but keeps the
-    // task — without this its tab rows stay in the tree, its snapshot
-    // respawns them, and their PTYs keep shells alive in a deleted directory.
-    // A non-empty → empty transition
-    // is the observable edge; task deletion itself is already covered by
-    // the delete flow's forgetTaskTabs + the live-task sweep above.
+    // Tabs die WITH their worktree: a worktree removed elsewhere clears
+    // `worktreePath` but keeps the task, leaving tab rows, a respawning
+    // snapshot, and shells alive in a deleted directory. Non-empty → empty is
+    // the edge; task deletion is covered above.
     //
-    // ANNOUNCE IT. This destroys every tab of a task the user did NOT delete,
-    // triggered by something that happened somewhere else (another client, a
-    // web action, another agent's `rove api`); silently is how a tab vanishes
-    // out from under someone with nothing to look at. The toast is
-    // deliberately not a confirm: the worktree is ALREADY gone by the time
-    // this runs, so there is
-    // nothing left to consent to, and a modal here would interrupt for a
-    // decision the user cannot make. Telling them what happened, and that the
-    // branch survives, is the whole remedy.
+    // ANNOUNCE IT: this destroys tabs the user didn't delete, triggered
+    // elsewhere. A toast, not a confirm: the worktree is already gone, there's
+    // nothing to consent to. Saying what happened (and that the branch
+    // survives) is the whole remedy.
     const paths = new Map<string, string>()
     for (const task of tasks) paths.set(task.id, task.worktreePath)
     for (const [id, prevPath] of worktreePathsRef.current) {
@@ -180,14 +149,10 @@ export function useWorkspaceSelection(args: {
   function selectTask(id: string): void {
     userPickedRef.current = true
     if (selectedId === id) {
-      // Entering the already-selected task must still publish it as active:
-      // a fresh home boots with a fallback-selected task but a null active
-      // record, and without this the first Enter never writes lastActive —
-      // so narrow mode's "↩ recent" row (and every lastActive consumer)
-      // stays empty until the user switches tasks once.
-      // Focus bookkeeping, not a user gesture — the pane has already switched
-      // locally, so the only casualty is the lastActive record. A toast would
-      // report a failure the user just watched succeed.
+      // Still publish it as active: a fresh home boots with a fallback-selected
+      // task but a null active record, so the first Enter must write lastActive
+      // (narrow mode's "↩ recent" row reads it). No toast on failure: the pane
+      // already switched, only the record is lost.
       if (orch.activeTaskSignal()() !== id)
         // silent-catch-ok: focus bookkeeping, see above.
         void orch.setActiveTask(id).catch((error) => console.error("[rove workspace] setActiveTask failed:", error))
@@ -206,10 +171,8 @@ export function useWorkspaceSelection(args: {
   const activationGenerationRef = useRef(0)
   async function activateTask(id: string): Promise<void> {
     const generation = ++activationGenerationRef.current
-    // Entering a task whose last tab was closed reopens one. Before the
-    // worktree await, so the revived tab is published
-    // by the time selection lands and the workspace never paints the blank
-    // frame `show-workspace` renders for an empty tab list.
+    // Revive before the worktree await, so the tab exists when selection
+    // lands and the blank empty-tab-list frame never paints.
     reviveEmptiedTabs(kv, id, defaultShell())
     await activateWorkspaceTask(
       {
@@ -218,9 +181,7 @@ export function useWorkspaceSelection(args: {
         selectTask,
         focusWorkspace: args.focusWorkspace,
         reportError: (error) => {
-          // Keep the log line for forensics; the toast is the on-screen half.
-          // Without it a refused Enter is a total no-op — the row never moves,
-          // so the user just presses it again, forever.
+          // Without the toast a refused Enter is a silent no-op, pressed forever.
           console.error("[rove workspace] task.ensureWorktree failed:", error)
           args.notifyError?.(activationErrorMessage(error, t))
         },

@@ -1,10 +1,7 @@
 /**
- * Framework-free notification state — the pure map
- * transforms + gating rules behind the per-ChatTab completion
- * notifications, consumed by the notification provider
- * (`src/tui-react/context/notifications.tsx`). Keeping the escalation
- * rule ("needs_input / error outrank done") and the "error toasts always
- * show" invariant in one place means both runtimes can't drift.
+ * Pure map transforms and gating rules behind per-tab completion notifications
+ * (`src/tui-react/context/notifications.tsx`): the escalation rule
+ * (needs_input / error outrank done) and "error toasts always show" live here once.
  */
 
 export type NotificationKind = "done" | "needs_input" | "error"
@@ -34,12 +31,7 @@ export function unreadKey(taskId: string, tabId: string): string {
   return `${taskId}:${tabId}`
 }
 
-/**
- * Merge a notification into the unread map. Attention-demanding kinds
- * outrank `done` if both fire for the same key before the user clears it —
- * yellow (`needs_input`) / red (`error`) trump green. Returns `prev`
- * unchanged when the existing mark already outranks the new one.
- */
+/** needs_input / error outrank `done` for the same uncleared key; returns `prev` then. */
 export function addUnread(
   prev: ReadonlyMap<string, NotificationKind>,
   input: NotifyInput,
@@ -52,7 +44,6 @@ export function addUnread(
   return next
 }
 
-/** Clear the unread mark for a (task, tab). Returns `prev` when absent. */
 export function removeUnread(
   prev: ReadonlyMap<string, NotificationKind>,
   taskId: string,
@@ -66,26 +57,19 @@ export function removeUnread(
 }
 
 /**
- * Toast gate. `error` always shows: error toasts are failure feedback and
- * must not vanish into the daemon log when the user disables the
- * completion "Toast" preference — that's a silent-failure regression.
+ * `error` always shows: failure feedback must not vanish into the daemon log
+ * because the user disabled the completion "Toast" preference.
  */
 export function shouldShowToast(kind: NotificationKind, toastEnabled: boolean): boolean {
   return kind === "error" || toastEnabled
 }
 
 /**
- * Cross-task attention (WorkspaceRoot rising-edge notify). The daemon's
- * `TaskActivityState` is engine-normalized (no vendor strings); we map the
- * attention-worthy transitions to a {@link NotificationKind} and treat
- * everything else as "no notification". A `null` return means "don't notify".
- * `permission_needed` → `needs_input` (yellow), `error`/`rate_limited` →
- * `error` (red), and `turn_complete` → `done` (green). These are exactly the
- * daemon's `ATTENTION_INBOX_STATES`, so a state that becomes a pending Inbox
- * episode always announces itself — `rate_limited` maps to `error` here the
- * same way the per-tab chip notifier does (`activityTurnState`), keeping the
- * two notifiers symmetric. Kept as a string→string map so the caller (which
- * owns the daemon state type) doesn't import the notify enum names.
+ * Task-level `TaskActivityState` → kind; null = don't notify.
+ * permission_needed → needs_input; error / rate_limited / dead → error;
+ * turn_complete → done. These are the daemon's `ATTENTION_INBOX_STATES`, so
+ * every pending Inbox episode announces itself, symmetric with the chip
+ * notifier. String-typed so the caller needn't import the notify enum.
  */
 export function attentionKindFor(state: string): NotificationKind | null {
   if (state === "permission_needed") return "needs_input"
@@ -94,38 +78,24 @@ export function attentionKindFor(state: string): NotificationKind | null {
   return null
 }
 
-/**
- * Tab-chip vocabulary (`ChatTabTurnState`) → notification kind. The chip
- * sibling of {@link attentionKindFor}: `done`/`error`/`needs_input` notify,
- * everything else (idle/running/unknown) is not an attention edge. String→
- * string for the same reason.
- */
+/** Tab-chip (`ChatTabTurnState`) twin of {@link attentionKindFor}; idle/running/unknown → null. */
 export function chipAttentionKind(turn: string): NotificationKind | null {
   if (turn === "done") return "done"
-  // `rate_limited` and `dead` are separate from the chip's `error`, but all
-  // three are attention edges here, matching `attentionKindFor`'s task-level
-  // rule. The chip vocabulary distinguishes them so the GLYPH can; a toast
-  // has only the three kinds, and all three mean "something needs you".
+  // The chip keeps these apart so the GLYPH can; a toast has three kinds and
+  // all three mean "something needs you".
   if (turn === "error" || turn === "rate_limited" || turn === "dead") return "error"
   if (turn === "needs_input") return "needs_input"
   return null
 }
 
 /**
- * Rising-edge detector shared by both notifiers (the ONE notification
- * module's core). Diffs `prev` → `next` and returns the keys whose value
- * transitioned INTO an attention state, per `kindFor`. Two rules, both
- * load-bearing:
- *
- *  - Seed: `prev === null` (first observation, or a fresh subscribe whose
- *    replay includes sticky states like `turn_complete`) returns [] — the
- *    caller seeds its prev map and must NOT re-fire toasts for replayed
- *    history. Mirrors `use-attention.ts`'s original prevStates convention.
- *  - Edge: an unchanged value never notifies; only a transition does.
- *
- * `skip` excludes the key whose state is already on screen (the selected
- * task for the task-level notifier, the active tab for the tab-level one) —
- * the disjointness that makes double-toasting impossible by construction.
+ * Rising-edge detector shared by both notifiers: keys whose value transitioned
+ * INTO an attention state per `kindFor`.
+ *  - Seed: `prev === null` (first observation, or a replay including sticky
+ *    states like `turn_complete`) returns []; replayed history must not toast.
+ *  - Edge: an unchanged value never notifies.
+ * `skip` is the key already on screen (selected task / active tab); that
+ * disjointness makes double-toasting impossible by construction.
  */
 export function attentionEdges(
   prev: ReadonlyMap<string, string> | null,
@@ -144,13 +114,6 @@ export function attentionEdges(
   return out
 }
 
-/**
- * OSC 9 desktop-notification escape. iTerm2 / kitty / WezTerm / Ghostty render
- * it as a native OS notification; every other terminal ignores an unknown OSC
- * silently. Zero deps, and — crucially — it travels down the SSH stream to the
- * user's LOCAL terminal, unlike an `afplay` chime that rings on the remote box.
- * Body is BEL-terminated (`\x07`), the widely-accepted OSC terminator.
- */
 function sanitizeOscBody(body: string): string {
   let out = ""
   let segmentStart = 0
@@ -163,6 +126,12 @@ function sanitizeOscBody(body: string): string {
   return segmentStart === 0 ? body : out + body.slice(segmentStart)
 }
 
+/**
+ * OSC 9 desktop notification: iTerm2 / kitty / WezTerm / Ghostty show it
+ * natively, others ignore it, and it travels over SSH to the user's LOCAL
+ * terminal (unlike a remote `afplay`). BEL-terminated; control chars in the
+ * body become spaces.
+ */
 export function osc9(body: string): string {
   return `\x1b]9;${sanitizeOscBody(body)}\x07`
 }

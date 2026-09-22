@@ -1,16 +1,9 @@
 /**
- * macOS-style keyboard glyphs for chord display.
- *
- * kobe stores chords as machine strings (`ctrl+q`, `shift+tab`, `prefix f`,
- * `j/k`) but renders them in the footer, the F1 help dialog, and the status
- * bar. This is the single place that turns a chord into the glyphs a Mac user
- * expects — `⌃Q`, `⇧⇥`, `⌃B F`, `J/K` — so every surface reads the same.
- *
- * Conventions: modifier glyphs are concatenated (`⌃⇧`), then a SPACE, then the
- * key (`⌃⇧ T`, `⌃ Q`) so the modifier icons read separately from the letter;
- * letters uppercase; named keys become their glyph (`⏎ ⎋ ↑`) EXCEPT `tab`,
- * which stays the word `tab` (a glyph is overkill for it); a `prefix X`
- * chord is a two-step PureTUI chord, shown as `<prefix glyph> X`.
+ * The single chord → macOS-glyph formatter for footer, F1 and status bar
+ * (`ctrl+q` → `⌃ Q`, `shift+tab` → `⇧ tab`). Modifier glyphs concatenate, then
+ * a SPACE, then the key, so icons read apart from the letter; named keys become
+ * glyphs (`⏎ ⎋ ↑`) except `tab`, which stays a word; `prefix X` is the two-step
+ * PureTUI chord, shown as `<prefix glyph> X`.
  */
 
 const MODIFIER_GLYPH: Record<string, string> = {
@@ -48,14 +41,11 @@ const KEY_GLYPH: Record<string, string> = {
 }
 
 /**
- * Format a single key token (the part after any modifiers). `upper` uppercases
- * letters — true for a MODIFIER chord (mac style: `⌃ Q`), false for a BARE key
- * so a plain-letter chord stays the literal key you press (`n`, not `N`), and a
- * deliberately-capital one (`M` = Shift+M) keeps its case.
+ * `upper` is true for MODIFIER chords (`⌃ Q`) and false for BARE keys, which
+ * stay as pressed (`n`, not `N`; a deliberate `M` = Shift+M keeps its case).
  */
 function formatKey(k: string, upper: boolean): string {
-  // Compound key display like `j/k`, `h/l`, `enter/esc`, `[/]`: format each
-  // side so a multi-key hint renders `j/k` / `⏎/⎋`, not `ENTER/ESC`.
+  // Compound hints (`j/k`, `enter/esc`, `[/]`): format each side (`⏎/⎋`, not `ENTER/ESC`).
   if (k.includes("/")) {
     return k
       .split("/")
@@ -73,14 +63,13 @@ function formatKey(k: string, upper: boolean): string {
 }
 
 /**
- * Turn a chord / display string into macOS key glyphs. `prefixGlyph` (default
- * `⌃A`, the PureTUI default) renders `prefix X` chords as `⌃A X`.
+ * `prefixGlyph` defaults to the PureTUI default `⌃A`.
  *
  *   formatChord("ctrl+q")      → "⌃ Q"
  *   formatChord("shift+tab")   → "⇧ tab"
  *   formatChord("ctrl+enter")  → "⌃ ⏎"
- *   formatChord("prefix f")    → "⌃B F"
- *   formatChord("j/k")         → "J/K"
+ *   formatChord("prefix f")    → "⌃A F"
+ *   formatChord("j/k")         → "j/k"
  *   formatChord("ctrl+hjkl")   → "⌃ HJKL"
  */
 export function formatChord(chord: string, prefixGlyph = "⌃A"): string {
@@ -95,6 +84,5 @@ export function formatChord(chord: string, prefixGlyph = "⌃A"): string {
   if (parts.length === 1) return formatKey(parts[0] ?? "", false) // bare key — keep its case
   const key = parts[parts.length - 1] ?? ""
   const mods = parts.slice(0, -1).map((p) => MODIFIER_GLYPH[p.toLowerCase().trim()] ?? p)
-  // Modifier-icon cluster, a SPACE, then the (uppercased) key.
   return `${mods.join("")} ${formatKey(key, true)}`
 }

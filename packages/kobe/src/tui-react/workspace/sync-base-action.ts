@@ -1,17 +1,10 @@
 /**
- * Sync a task's worktree with its base — the row menu's "Sync with base", and
- * the action behind the sidebar's `↓N` drift chip.
- *
- * Its own module for the same reason as `land-task-action.ts`, and shaped
- * deliberately like it: the two outcomes a human has to act on (a merge
- * conflict, a worktree too dirty to merge into) come back from the daemon as
- * MARKERS inside the error message rather than as failures, so they get the
- * attention tone and a message naming the files, while anything else is a real
- * error. React-free so it can be unit-tested.
- *
- * No confirm dialog, unlike landing: a merge from the base is additive and
- * `git merge --abort` undoes it, whereas landing rewrites the base branch and
- * removes the worktree.
+ * Row menu "Sync with base" / the sidebar's `↓N` drift chip. Shaped like
+ * `land-task-action.ts`: the outcomes a human must act on (conflict, worktree
+ * too dirty to merge into) arrive as MARKERS in the daemon's error message, so
+ * they get the attention tone and name the files; anything else is an error.
+ * React-free for unit tests. No confirm, unlike landing: a merge from base is
+ * additive and `git merge --abort` undoes it.
  */
 
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
@@ -28,11 +21,7 @@ export interface SyncBaseDeps {
   readonly t: (key: string, params?: Record<string, string | number>) => string
 }
 
-/**
- * Run one sync. Resolves true when the worktree ends up current (including
- * "it already was"), false on a conflict, a refusal, or a failure — each of
- * which has already been reported through the notifiers.
- */
+/** True when the worktree ends up current (incl. already was); false otherwise, already reported. */
 export async function syncBaseAction(deps: SyncBaseDeps, taskId: string): Promise<boolean> {
   const { t } = deps
   try {
@@ -46,8 +35,7 @@ export async function syncBaseAction(deps: SyncBaseDeps, taskId: string): Promis
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     const conflict = CONFLICT_RE.exec(msg)
-    // The merge is left IN PLACE on a conflict — the conflicted files are what
-    // the user (or their engine) is about to resolve, so name them.
+    // The merge stays IN PLACE on conflict: name the files the user (or engine) will resolve.
     const dirty = DIRTY_RE.exec(msg)
     if (conflict) deps.notifyNeedsInput(t("tasks.sync.conflict", { files: conflict[1]?.trim() || "?" }))
     else if (dirty) deps.notifyNeedsInput(t("tasks.sync.dirty", { files: dirty[1]?.trim() || "?" }))

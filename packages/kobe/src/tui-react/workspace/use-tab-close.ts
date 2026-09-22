@@ -1,23 +1,14 @@
 /**
- * Everything about a tab going away, in one hook so the four exits below stay
- * one policy — they differ in ways that are easy to get subtly wrong, and
- * scattering them across the component is how two of them drift. Joins
- * `use-tab-dialogs` / `use-tab-handoffs` / `use-tab-lifecycle` as a per-render
- * hook (state freshness comes from being rebuilt each render, plus refs for
- * the mount-only callers).
+ * Every way a tab goes away, in one per-render hook so the subtly different
+ * exits can't drift (freshness from the per-render rebuild, plus refs for
+ * mount-only callers):
  *
- * The four exits a tab has, and why they differ:
- *
- *   - `closeActive`   — ctrl+w. Closes the last tab too, leaving the task
- *     with none: its sidebar row stays and re-opens on ⏎ / ctrl+e. On a
- *     scratch task the last tab tears the task down instead — its whole life
- *     IS that one shell.
- *   - `closeById`     — a close named from OUTSIDE the component (the sidebar
- *     tree's menu). Same semantics as ctrl+w minus the toast.
- *   - `closeExited`   — the tab's process ended. No viewport carve-out is
- *     needed: that process is already gone.
- *   - `handleActiveExit` — the policy layer above `closeExited`, deciding
- *     between resume, close, and recycle-in-place.
+ *   - `closeActive`: ctrl+w. The last tab closes too and the row re-opens on
+ *     ⏎ / ctrl+e; on a scratch task it tears the task down (its whole life IS
+ *     that shell).
+ *   - `closeById`: a close named from OUTSIDE (tree menu); ctrl+w minus the toast.
+ *   - `closeExited`: the process ended; no viewport carve-out needed.
+ *   - `handleActiveExit`: policy above `closeExited`: resume, close, or recycle in place.
  */
 
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
@@ -40,21 +31,17 @@ export interface TabCloseDeps {
   readonly stateRef: { readonly current: TabsState }
   readonly propsRef: { readonly current: { readonly taskId: string } }
   readonly updateRef: { readonly current: (next: TabsState) => void }
-  /** The tab the strip is showing — render-scope, so the hook is rebuilt with it. */
+  /** Render-scope, so the hook is rebuilt with it. */
   readonly active: TerminalTab
-  /** Mint a fresh engine-session id on the active engine tab (recycle path). */
+  /** Recycle path: mint a fresh engine-session id on the active engine tab. */
   readonly pinSession: (state: TabsState, vendor: VendorId | undefined) => TabsState
   /** Nudge Terminal to re-acquire under the visible tab's key. */
   readonly bumpResetToken: () => void
-  /** One-shot-per-tab dead-on-attach resume marks, owned by the component so
-   *  they survive this hook being rebuilt every render. */
+  /** One-shot-per-tab dead-on-attach resume marks; component-owned to survive rebuilds. */
   readonly resumeTriedRef: { readonly current: Set<string> }
-  /** Surface a refused close. Reachable only on a scratch task whose
-   *  teardown hook is missing — an ordinary task's last tab closes. */
+  /** Only reachable on a scratch task missing its teardown hook. */
   readonly notifyCannotCloseLast: (tabId: string) => void
-  /** Scratch task: the LAST tab going away — its shell exiting OR ctrl+w on
-   *  it — ends the task itself (the host deletes the row) instead of
-   *  recycling/refusing. Absent on ordinary tasks. */
+  /** Scratch only: the LAST tab going away (exit or ctrl+w) ends the task. */
   readonly onScratchExit?: () => void
 }
 
@@ -68,9 +55,7 @@ export interface TabClose {
 export function useTabClose(deps: TabCloseDeps): TabClose {
   const taskId = (): string => deps.propsRef.current.taskId
 
-  /** Auto-close: a tab closes itself when its process exits and
-   *  releases its PTY. Reads the FRESH state — exit events can arrive from a
-   *  stale render (see `handleActiveExit`). */
+  /** Reads FRESH state: exit events can come from a stale render. */
   function closeExited(id: string): void {
     const current = deps.stateRef.current
     const closing = current.tabs.find((tab) => tab.id === id)
@@ -79,8 +64,8 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
       const key = closing ? tabPtyKeyFor(taskId(), closing) : tabPtyKey(taskId(), closedId)
       releaseSplitLeaves(key, closing?.splitTree ?? null)
       getDefaultPtyRegistry().release(key)
-      // Keep the orphan backstop from adopting the dying session back
-      // before its next poll observes the exit (closed-tab-suppress.ts).
+      // Keep the orphan backstop from re-adopting the dying session before
+      // its next poll sees the exit (closed-tab-suppress.ts).
       noteClosedPtyKey(key)
     }
     deps.updateRef.current(next)
@@ -89,11 +74,9 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
   function closeById(id: string): void {
     const current = deps.stateRef.current
     const closing = current.tabs.find((tab) => tab.id === id)
-    // A task may be closed down to zero tabs: its sidebar row stays and
-    // re-opens on ⏎ / ctrl+e. Scratch tasks differ — their last tab going
-    // away ends the task, which `closeActive` routes through `onScratchExit`.
+    // Scratch tasks refuse the last tab here; `closeActive` routes that via `onScratchExit`.
     const { state: next, closedId } = closeTab(current, id, { allowEmpty: deps.onScratchExit === undefined })
-    // Refused: nothing named `id`, or a scratch task's last tab.
+    // Refused: no such `id`, or a scratch task's last tab.
     if (!closedId) return
     deps.updateRef.current(next)
     releaseClosedTabPtys(taskId(), closing, closedId)
@@ -102,17 +85,14 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
   function closeActive(): void {
     const current = deps.stateRef.current
     const closing = current.tabs.find((tab) => tab.id === current.activeId)
-    // Ordinary task: ctrl+w on the last tab empties it (the row stays, and
-    // re-opens on ⏎ / ctrl+e). Scratch: `closeActiveTab` still refuses, and
-    // the refusal below tears the task down — its whole life IS that shell.
+    // Scratch: `closeActiveTab` refuses the last tab, and the refusal tears
+    // the task down below.
     const { state: next, closedId } =
       deps.onScratchExit === undefined
         ? closeTab(current, current.activeId, { allowEmpty: true })
         : closeActiveTab(current)
     if (!closedId) {
-      // Scratch task: ctrl+w on its only tab tears down the
-      // whole task — same zero-ceremony semantics (and same path) as the
-      // shell exiting on its own. Ordinary tasks keep the refusal toast.
+      // Same path as the scratch shell exiting on its own.
       if (deps.onScratchExit) {
         if (closing) releaseClosedTabPtys(taskId(), closing, closing.id)
         deps.onScratchExit()
@@ -127,17 +107,14 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
 
   function handleActiveExit(info?: { deadOnAttach?: boolean }): void {
     const active = deps.active
-    // An exit event can be the echo of an intentional ctrl+w: closing kills
-    // the PTY, which fires onExit into a STALE render before React swaps the
-    // Terminal. If the tab is already gone from the fresh state there is
-    // nothing to do — acting on the stale snapshot resurrects the closed tab,
-    // which reads as "ctrl+w needs two presses".
+    // Possibly the echo of an intentional ctrl+w (the killed PTY's onExit hits
+    // a STALE render). Acting on it would resurrect the closed tab
+    // ("ctrl+w needs two presses").
     if (!deps.stateRef.current.tabs.some((tab) => tab.id === active.id)) return
-    // Policy is pure (`tabExitAction`): a live exit means the tab's SHELL
-    // ended (engines run inside it — `shellSpawn`), so the tab closes; a
-    // corpse found on reattach (host restart, machine reboot) gets ONE resume
-    // — releasing the dead handle makes `engineTabSpawn` type
-    // `--resume <sessionId>` on the re-acquire (`spawned && !live`).
+    // `tabExitAction`: a live exit means the tab's SHELL ended (engines run
+    // inside it), so close; a corpse found on reattach (host restart, reboot)
+    // gets ONE resume: releasing the handle makes `engineTabSpawn` type
+    // `--resume <sessionId>` on re-acquire (`spawned && !live`).
     const action = tabExitAction(active, info?.deadOnAttach === true, deps.resumeTriedRef.current.has(active.id))
     if (action === "resume") {
       deps.resumeTriedRef.current.add(active.id)
@@ -149,22 +126,17 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
       closeExited(active.id)
       return
     }
-    // Scratch task: the last shell exiting IS the end of the
-    // task — zero ceremony, the row disappears. No recycle: a scratch task
-    // has no engine to respawn into.
+    // Scratch: the last shell exiting ends the task; nothing to respawn into.
     if (deps.onScratchExit) {
       getDefaultPtyRegistry().release(tabPtyKeyFor(taskId(), active))
       deps.onScratchExit()
       return
     }
-    // Last tab: the strip can never be empty — recycle it in place as a fresh
-    // engine tab (new session) instead of freezing on the exit banner.
-    // `recycleTabs` carries the outgoing tab's title/autoTitle so the recycle does
-    // not visibly rename the tab.
+    // Last tab exited: recycle in place as a fresh engine tab (new session)
+    // instead of freezing on the exit banner; `recycleTabs` keeps the title.
     getDefaultPtyRegistry().release(tabPtyKeyFor(taskId(), active))
     deps.resumeTriedRef.current.clear()
-    // The recycled tab gets a NEW id, so its `${taskId}::${tabId}` pty key
-    // differs and Terminal re-acquires on its own — no resetToken nudge.
+    // New tab id → new pty key, so Terminal re-acquires without a resetToken nudge.
     deps.updateRef.current(deps.pinSession(recycleTabs(deps.stateRef.current, active), undefined))
   }
 

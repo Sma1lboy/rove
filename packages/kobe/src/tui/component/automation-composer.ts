@@ -1,12 +1,8 @@
 /**
- * Framework-free state for the automation composer card — field order,
- * validation, and the schedule preview. No React, no opentui: the dialog
- * shell renders what these return.
- *
- * A cron expression is the one field a user cannot check by reading it back.
- * `0 9 * * MON-FRI` is only obviously right once something says "weekdays at
- * 09:00 — next Mon Aug 3, 09:00". So the composer answers that continuously
- * rather than letting the daemon reject a typo after the fact.
+ * Framework-free state for the automation composer card (field order,
+ * validation, schedule preview). A cron expression can't be checked by
+ * reading it back, so the composer continuously answers "weekdays at 09:00 —
+ * next Mon Aug 3, 09:00" instead of letting the daemon reject a typo later.
  */
 
 import { intlLocale, t } from "@/tui/i18n"
@@ -58,9 +54,8 @@ export function canSubmitDraft(draft: ComposerDraft): boolean {
 }
 
 /**
- * Which field to jump to when submit is refused — the first incomplete one.
- * Never `confirm`: the button is not a thing that can be blank, so the return
- * type says so and no caller has to look up a message that cannot exist.
+ * First incomplete field on a refused submit. Never `confirm` (a button can't
+ * be blank), so the return type rules out a message that can't exist.
  */
 export function firstIncompleteField(draft: ComposerDraft): Exclude<ComposerField, "confirm"> | null {
   if (draft.name.trim().length === 0) return "name"
@@ -79,10 +74,8 @@ export type SchedulePreview =
   | { readonly kind: "ok"; readonly nextRunMs: number; readonly relative: string; readonly absolute: string }
 
 /**
- * What the schedule field shows beneath itself: the next fire time in the
- * user's own timezone, phrased both ways. "in 14h" answers "is this soon?",
- * the absolute stamp answers "is this the time I meant?" — a cron typo
- * usually shows up as one of the two reading wrong.
+ * Next fire time in the user's timezone, both relative ("in 14h": is it soon?)
+ * and absolute (is it the time I meant?); a cron typo usually misreads in one.
  */
 export function previewSchedule(expression: string, nowMs: number): SchedulePreview {
   const trimmed = expression.trim()
@@ -109,15 +102,10 @@ function formatRelative(deltaMs: number): string {
 }
 
 /**
- * Local wall-clock, at the coarsest useful precision: `09:00` when it fires
- * today, `Mon 09:00` within the week, `Mon, Aug 3, 09:00` beyond it. The date
- * is what disambiguates a schedule; repeating today's is noise.
- *
- * The calendar words and their ORDER come from `Intl` for the UI locale, not
- * from an English table plus a hand-built template: zh reads `8月3日周一`,
- * not `周一 8月 3`, and every locale added later gets its own order for free.
- * The 24-hour clock is built by hand on purpose — it is the same instant in
- * every locale, and `Intl`'s en-US default would turn it into `9:00 AM`.
+ * Coarsest useful precision: `09:00` today, `Mon 09:00` this week,
+ * `Mon, Aug 3, 09:00` beyond. Calendar words and ORDER come from `Intl` for the
+ * UI locale (zh reads `8月3日周一`, not `周一 8月 3`). The 24-hour clock is
+ * built by hand: same in every locale, where `Intl`'s en-US gives `9:00 AM`.
  */
 function formatAbsolute(atMs: number, nowMs: number): string {
   const at = new Date(atMs)

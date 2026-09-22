@@ -1,67 +1,31 @@
 /**
- * Central keybinding registry for kobe.
+ * Central keybinding registry: which chords trigger which action, and what the
+ * help dialog (F1) and Tasks-pane footer legend display. Panes register by
+ * binding **id** (`bindByIds`), never by chord string.
  *
- * Single source of truth for: which chords trigger which action and what
- * the help dialog (F1) + Tasks-pane footer legend display. Panes register
- * handlers by binding **id** (`bindByIds`) — they don't hardcode chord
- * strings. A future settings UI can edit `KobeKeymap` (in-memory or
- * persisted via KV) without any pane having to know.
+ *   - `id` is stable; tests and settings persistence key off it.
+ *   - `keys[0]` is the canonical chord (shown when there is no `hint`). Extra
+ *     chords cover terminals that send the same logical key as different bytes
+ *     (`ctrl+k`/`alt+k`) or equivalent keys (`j`/`down`).
+ *   - `scope`: global, or registered only while that pane is focused.
+ *   - `hint.keys`: display-only pseudo-chord (`j/k`, `1/2/3`) for the F1 cap and
+ *     footer legend (`capOf`/`legendCap` in `lib/help-groups.ts`); the real
+ *     chords stay individually registered and testable.
  *
- * Hand-off contract:
- *   - `id` is stable. Tests + settings persistence key off it.
- *   - `keys` is the list of chords that register the action. The first
- *     entry is the canonical chord (the displayed cap when there is no
- *     `hint.keys` override). Multiple chords are common when a
- *     terminal delivers the same logical key as different byte sequences
- *     (`ctrl+k`/`alt+k`) or when several keys do the same thing
- *     (`j`/`down`).
- *   - `scope` says whether the binding is registered globally or only
- *     when a specific pane is focused. The pane that owns the scope
- *     calls `bindByIds(...)` with the same id → the chord(s) come from
- *     this table.
- *   - `hint` is cosmetic display metadata: a friendly pseudo-chord
- *     (`j/k`, `prefix+j`, etc.) read by the two hint consumers — the
- *     help dialog's (F1) primary cap and the Tasks-pane footer legend
- *     (`capOf`/`legendCap` in `lib/help-groups.ts`). `hint == null` means
- *     no friendly display override — the canonical chord shows instead.
- *   - `description` + `category` feed the help dialog (F1).
+ * Users rebind via `~/.rove/settings/keybindings.yaml`; `applyUserKeybindings()`
+ * mutates this table in place at boot, so panes and legends pick it up for free.
  *
- * Hint vs. chord:
- *   - Legends may show a collapsed pseudo-chord (e.g. "j/k" for four
- *     real chords or "1/2/3") — that's `hint.keys`. The actually
- *     registered chords stay in `keys` and remain individually testable.
+ * macOS modifiers:
+ *   - `ctrl+X`: always works (stable C0 bytes). Use as the primary chord.
+ *   - `alt+X`: Option, `ESC X` in legacy mode. Launchers (Raycast, Karabiner,
+ *     Alfred) often grab Option+digit first, so never the only path.
+ *   - `cmd+X`: Terminal.app/iTerm2/Ghostty keep Cmd+letter as an app shortcut
+ *     by default; only forwarding terminals (Kitty, iTerm2 "Send Modifier
+ *     Keys", Ghostty `keybind`) deliver it. Register it alongside `ctrl+X` so
+ *     it isn't swallowed unbound on those.
  *
- * Re-binding a chord = mutate `keys` for the relevant id. Users do this
- * via `~/.rove/settings/keybindings.yaml`, applied once at TUI boot by
- * `applyUserKeybindings()` (context/keybindings-user.ts), which mutates
- * this table in place. No pane code has to change because pane
- * registration goes through `bindByIds` and the help dialog / footer
- * legend render from the (already-overridden) rows.
- *
- * Cmd / Option / Ctrl on macOS — three different modifiers, three different
- * chord prefixes:
- *
- *   - `ctrl+X`  always works; ctrl+letter has stable C0 byte mappings that
- *     every terminal forwards to the TTY. Use this as the primary chord.
- *   - `alt+X`   is the Option key on macOS. Sends `ESC X` in legacy mode and
- *     opentui surfaces it as `evt.option = true`. Note: macOS launchers
- *     (Raycast, Karabiner, Alfred) often grab Option+digit globally before it
- *     reaches the terminal. Don't rely on alt-chords as the only path.
- *   - `cmd+X`   is the Command key on macOS. Default-config terminals
- *     (Terminal.app, iTerm2, Ghostty) handle Cmd+letter as an *application*
- *     shortcut and never forward it to the TTY — so a `cmd+X` binding is a
- *     no-op there. Terminals that *can* forward modifier keys (Kitty,
- *     iTerm2 with "Send Modifier Keys" enabled, Ghostty with `keybind`) do
- *     deliver Cmd+X as `evt.meta = true`, which our keymap layer surfaces
- *     as `cmd+X`. Register `cmd+X` alongside the primary `ctrl+X` so users
- *     on forwarding terminals get the chord they expect (and `cmd+X`
- *     doesn't get silently swallowed by the stdin reader for lack of a
- *     binding).
- *
- * The native workspace also registers `ctrl+q` while the sidebar is focused,
- * matching the tmux handover's two-stage detach shape: first ctrl+q returns to
- * Tasks, second ctrl+q exits the attached UI. Plain `q` remains the sidebar
- * quit-confirm shortcut.
+ * Sidebar-focused `ctrl+q` is the tmux-style two-stage detach: first returns to
+ * Tasks, second exits the attached UI. Plain `q` is the sidebar quit-confirm.
  */
 
 import { CHAT_BINDINGS } from "./keybindings-chat.ts"
@@ -72,11 +36,7 @@ import { SIDEBAR_BINDINGS } from "./keybindings-sidebar.ts"
 /** Pane scopes that gate where a binding is active. */
 export type KobeBindingScope = "global" | "sidebar" | "workspace" | "files" | "inbox" | "terminal"
 
-/**
- * Friendly-chord display override, read by the help dialog (F1) and the
- * Tasks-pane footer legend (`capOf`/`legendCap` in `lib/help-groups.ts`).
- * Optional — without it the canonical first chord is displayed.
- */
+/** Display override for F1 and the footer legend; without it `keys[0]` shows. */
 export type KobeBindingHint = {
   /** Display string for the chord. May be a collapsed pseudo-chord (e.g. "j/k"). */
   keys: string
@@ -84,25 +44,19 @@ export type KobeBindingHint = {
 
 /** A single binding row. */
 export type KobeBinding = {
-  /** Stable identifier (tests + future settings persistence key off this). */
+  /** Stable identifier; tests and settings persistence key off it. */
   id: string
-  /** Where the binding is registered. */
   scope: KobeBindingScope
   /**
-   * Chord(s) that fire this binding. First is canonical. Multiple chords
-   * exist for terminal-byte-sequence variants and equivalent keys.
-   * An empty array means "this row exists for documentation/hint purposes
-   * only — no chord is registered here." (Used for composer-internal keys
-   * that the textarea handles via `onKeyDown`, e.g. `chat.send`.)
+   * First is canonical. Empty = documentation/hint row only, no chord
+   * registered (composer-internal keys the textarea handles, e.g. `chat.send`).
    */
   keys: readonly string[]
   /** Second strokes reached through the configurable PureTUI prefix. */
   prefixKeys?: readonly string[]
-  /** Help-dialog category (groups rows visually). */
   category: string
-  /** Help-dialog description text. */
   description: string
-  /** Friendly-chord display override. Omitted = the first chord in `keys` shows. */
+  /** Omitted = the first chord in `keys` shows. */
   hint?: KobeBindingHint
   /** User-facing tier. Only the deliberately small Kobe-owned direct set opts in. */
   presentation?: "onePress"
@@ -110,13 +64,7 @@ export type KobeBinding = {
   yieldToPassthrough?: boolean
 }
 
-/**
- * The full kobe keymap. Edit this table to rebind / rename / regroup.
- * Pane code reaches in via `chordsOf(id)` / `bindByIds({...})`; the help
- * dialog and the Tasks-pane footer legend render from this list.
- *
- * Order matters for help-dialog grouping (preserved within a category).
- */
+/** The full keymap. Order within a category is the help-dialog order. */
 export const KobeKeymap: readonly KobeBinding[] = [
   // ─── Global ───────────────────────────────────────────────────────────
   {
@@ -129,11 +77,8 @@ export const KobeKeymap: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
-    // Sidebar-only — single letter `n`. While focused on the chat
-    // composer / files / terminal, `n` is just a letter you type;
-    // ctrl+q jumps back to the sidebar where `n` opens the new-task
-    // dialog. A global `ctrl+n` would hit the muscle-memory-vs-typing
-    // collision instead.
+    // Sidebar-only: in the composer/files/terminal `n` is a typed letter, and a
+    // global `ctrl+n` would collide with typing muscle memory.
     id: "task.new",
     scope: "sidebar",
     keys: ["n"],
@@ -142,9 +87,8 @@ export const KobeKeymap: readonly KobeBinding[] = [
     hint: { keys: "n" },
   },
   {
-    // From anywhere via the prefix. Not a direct ctrl+n: readline/emacs
-    // next-history inside the embedded engine and shell terminals owns
-    // that chord, and the prefix's first stroke never passes through.
+    // Prefix, not direct ctrl+n: readline next-history in the embedded
+    // terminals owns that chord.
     id: "task.new.global",
     scope: "global",
     keys: [],
@@ -160,13 +104,10 @@ export const KobeKeymap: readonly KobeBinding[] = [
     category: "Global",
     description: "Open active Task directory in editor",
   },
-  // No Scratch-shell chord: Scratch entry lives in the ctrl+e
-  // new-conversation dialog as a trailing choice instead; no chord until
-  // frequency proves one out. See docs/design/keybinding-decisions.md.
+  // No Scratch-shell chord: it's a trailing choice in the ctrl+e
+  // new-conversation dialog. See docs/design/keybinding-decisions.md.
   {
-    // Global entry into the sidebar's move mode — focuses the sidebar,
-    // highlights the current
-    // selection, then j/k reorders saved projects; enter/esc exits.
+    // Focuses the sidebar in move mode: j/k reorders saved projects; enter/esc exits.
     id: "task.moveMode",
     scope: "global",
     keys: [],
@@ -183,14 +124,10 @@ export const KobeKeymap: readonly KobeBinding[] = [
     description: "Open settings",
   },
   {
-    // PROPOSED — awaiting owner sign-off (AGENTS.md: chord PLACEMENT is the
-    // owner's call). `r` is the only free prefix stroke that says "refresh",
-    // and this belongs behind the prefix rather than on a direct chord: it is
-    // rare (once per upgrade) and destructive-looking (the UI goes away and
-    // comes back), which is exactly the tier the prefix exists for.
-    //
-    // Registered only while a refresh is actually available, so the command
-    // guide never advertises a chord that would answer "nothing to refresh".
+    // PROPOSED, awaiting owner sign-off. Prefix tier because it is rare (once
+    // per upgrade) and looks destructive (the UI goes away and comes back).
+    // Registered only while a refresh is available, so the guide never
+    // advertises a no-op.
     id: "app.refresh",
     scope: "global",
     keys: [],
@@ -199,9 +136,7 @@ export const KobeKeymap: readonly KobeBinding[] = [
     description: "Refresh Rove onto the installed build (after an update)",
   },
   {
-    // Sidebar shortcut — single letter `s` mirrors the n/q pattern
-    // (plain keys when the tasks list is focused). `prefix+,`
-    // (settings.open above) is the from-anywhere equivalent.
+    // `prefix+,` (settings.open) is the from-anywhere equivalent.
     id: "settings.open.sidebar",
     scope: "sidebar",
     keys: ["s"],
@@ -210,11 +145,9 @@ export const KobeKeymap: readonly KobeBinding[] = [
     hint: { keys: "s" },
   },
   {
-    // Sidebar-only, like `task.new` — a sidebar-launched utility page, not
-    // an anywhere-reachable surface like Settings, so no `ctrl+…` global
-    // companion chord. NOT `w`/`e` — `keymap-slot-parity.test.ts` documents
-    // those two as a free-key example for `sidebar.nav` override testing;
-    // `x` avoids clobbering that.
+    // Sidebar-only: a sidebar utility page, no global companion. NOT `w`/`e`:
+    // `keymap-slot-parity.test.ts` uses those as free keys for `sidebar.nav`
+    // override testing.
     id: "worktrees.open.sidebar",
     scope: "sidebar",
     keys: ["x"],
@@ -223,11 +156,8 @@ export const KobeKeymap: readonly KobeBinding[] = [
     hint: { keys: "x" },
   },
   {
-    // The three sidebar-rail pages take prefix+1/2/3, matching the rail's
-    // own top-to-bottom order — the sidebar is the legend, so there is no
-    // mnemonic to remember. They swap only the content
-    // pane, so the prefix stays live behind them and 1→2→3 hops directly
-    // between pages without an esc.
+    // Rail pages take prefix+1/2/3 in the rail's top-to-bottom order. They swap
+    // only the content pane, so the prefix stays live and 1→2→3 hops directly.
     id: "kanban.open",
     scope: "global",
     keys: [],
@@ -254,10 +184,8 @@ export const KobeKeymap: readonly KobeBinding[] = [
     description: "Open GitHub issues (external tracker)",
   },
   {
-    // Sidebar-only — single letter `q` opens the quit confirm. ctrl+q is
-    // also registered here for the native workspace's tmux-like two-stage
-    // detach: first ctrl+q returns focus to the sidebar, second ctrl+q exits
-    // the attached native UI. Pressing q while in the composer just types q.
+    // ctrl+q here is the second stage of the native two-stage detach (see
+    // focus.sidebar). In the composer, q just types q.
     id: "app.quit",
     scope: "sidebar",
     keys: ["q", "ctrl+q"],
@@ -266,11 +194,8 @@ export const KobeKeymap: readonly KobeBinding[] = [
     hint: { keys: "q" },
   },
   {
-    // "Back to tasks" chord. Plain `q` (sidebar scope) actually quits;
-    // ctrl+q is THE escape hatch out of any pane (direct-only, same as the
-    // tab-management rows: too load-bearing for a two-stroke prefix).
-    // Scope stays "workspace"
-    // for override validation.
+    // ctrl+q is THE escape hatch out of any pane; direct-only, too load-bearing
+    // for a two-stroke prefix. Scope "workspace" is for override validation.
     id: "focus.sidebar",
     scope: "workspace",
     keys: ["ctrl+q"],
@@ -282,11 +207,8 @@ export const KobeKeymap: readonly KobeBinding[] = [
 
   // ─── Navigation ───────────────────────────────────────────────────────
   {
-    // Relative pane cycling, not a four-slot absolute map. Keeping previous
-    // and next as separate ids lets users rebind either direction without
-    // preserving a positional slot contract. Direct ctrl+h/j/k/l stay
-    // available to the embedded engine. prefix+h/l, not j/k — the three
-    // panes sit side by side, so the chords read left/right.
+    // Separate prev/next ids so either direction rebinds on its own. Direct
+    // ctrl+h/j/k/l stay with the engine. h/l because the panes sit side by side.
     id: "focus.previous",
     scope: "global",
     keys: [],
@@ -295,16 +217,11 @@ export const KobeKeymap: readonly KobeBinding[] = [
     description: "Focus previous pane (files → workspace → sidebar)",
   },
   {
-    // Forward pane move — walks sidebar → workspace → files, clamped at
-    // the ends (cursor semantics — no wrap).
-    // `f4` stays the direct alias and sits in RESERVED_GLOBAL_CHORDS
-    // (panes/terminal/keys-pure.ts), so it fires identically from inside
-    // the embedded terminal; prefix+l is the relative navigation form.
-    // NOT `tab`: the cycle path always
-    // lands on the workspace terminal, which must keep tab as shell /
-    // engine completion — so tab-cycling both trapped there every lap AND
-    // typed a literal \t into the engine composer on arrival. NOT
-    // `shift+tab` reverse either — that's claude's plan-mode chord.
+    // Clamped at the ends, no wrap. `f4` is in RESERVED_GLOBAL_CHORDS
+    // (panes/terminal/keys-pure.ts) so it fires from inside the terminal.
+    // NOT `tab`: the cycle lands on the terminal, which needs tab for
+    // completion (it trapped focus and typed \t into the composer). NOT
+    // `shift+tab`: claude's plan-mode chord.
     id: "focus.next",
     scope: "global",
     keys: ["f4"],
@@ -315,15 +232,9 @@ export const KobeKeymap: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
-    // Jump to the next available durable Inbox item. Opening or visiting the
-    // target resolves it and removes it from the queue. `f7`
-    // continues kobe's F-row (F2 rename / F3 split / F4 pane-cycle / F5
-    // reset) — the only chord tier that fires from inside the embedded
-    // terminal without stealing an engine chord. NOT `ctrl+g`: that's the
-    // engine/readline abort-editing chord, and reserving it ate the user's
-    // ctrl+g inside claude — kobe must not swallow the engine's own keys.
-    // In RESERVED_GLOBAL_CHORDS so it fires identically from inside the
-    // embedded terminal, same tier as focus.next (f4).
+    // Visiting the target resolves it. F-row because it fires from inside the
+    // terminal (RESERVED_GLOBAL_CHORDS) without stealing an engine chord. NOT
+    // `ctrl+g`: readline/engine abort-editing; reserving it ate claude's ctrl+g.
     id: "attention.next",
     scope: "global",
     keys: ["f7"],
@@ -333,11 +244,9 @@ export const KobeKeymap: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
-    // Zen toggle — hides the Files column; the sidebar's ☯ ZEN chip is the
-    // click-based exit affordance, this is the keyboard one. Prefix-only
-    // `prefix+z`; f6 carries no chord and passes through to the embedded
-    // shell. Reachable from the terminal pane too, because the prefix first
-    // stroke does not pass through.
+    // Keyboard counterpart of the sidebar's ☯ ZEN chip. Prefix-only (f6 passes
+    // through to the shell); reachable from the terminal because the prefix's
+    // first stroke never passes through.
     id: "workspace.zenToggle",
     scope: "global",
     keys: [],
@@ -346,15 +255,10 @@ export const KobeKeymap: readonly KobeBinding[] = [
     description: "Toggle zen mode (hide the files column)",
   },
   {
-    // PROPOSED prefix+r — awaiting owner sign-off (docs/design/
-    // keybinding-decisions.md). Erase + fully repaint the screen, for the
-    // corruption nothing can detect: a terminal that reflowed without
-    // changing the cell grid, a background image bleeding through a
-    // transparent theme, another program that scribbled on the alternate
-    // screen. `r` was the only free second stroke with the right mnemonic.
-    // Prefix-only and deliberately not a direct ctrl+l: that chord belongs
-    // to the shell and the engine inside the terminal pane, and "clear" is
-    // exactly what a user expects it to do THERE.
+    // PROPOSED, awaiting owner sign-off. Erase + full repaint for corruption
+    // nothing can detect: reflow without a grid change, a background image
+    // through a transparent theme, another program scribbling the alt screen.
+    // Not direct ctrl+l: inside the terminal that must stay the shell's clear.
     id: "view.redraw",
     scope: "global",
     keys: [],
@@ -363,19 +267,13 @@ export const KobeKeymap: readonly KobeBinding[] = [
     description: "Redraw the screen",
   },
   // ─── Sidebar + Tasks pane ─────────────────────────────────────────────
-  // The rows below this header live in keybindings-sidebar.ts — a long
-  // literal cut at its scope headers, not a responsibility boundary. Order
-  // here is the order they display in, and `kobe tasks` still consumes them
-  // through `bindByIds` after user overrides, exactly as when they were
-  // inline.
+  // Rows in keybindings-sidebar.ts; spread order is display order.
   ...SIDEBAR_BINDINGS,
 
   // ─── Workspace (chat) ────────────────────────────────────────────────
-  // In keybindings-chat.ts — same entries, same order, spread back in place.
   ...CHAT_BINDINGS,
 
   // ─── Files ────────────────────────────────────────────────────────────
-  // In keybindings-files.ts — same entries, same order, spread back in place.
   ...FILES_BINDINGS,
 
   // ─── Attention Inbox ─────────────────────────────────────────────────
@@ -407,11 +305,8 @@ export const KobeKeymap: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
-    // PROPOSED chord, pending owner sign-off (docs/design/keybinding-decisions.md).
-    // Prefix-only: the terminal forwards a bare `/` to the shell and must keep
-    // doing so, and the prefix's first stroke never passes through. `/` as the
-    // second stroke mirrors the sidebar's bare `/` — one search key across the
-    // app. Adds nothing to TRAPPED_KEYS.
+    // PROPOSED, pending owner sign-off. Prefix-only: bare `/` must keep reaching
+    // the shell. Mirrors the sidebar's `/`. Adds nothing to TRAPPED_KEYS.
     id: "terminal.search",
     scope: "terminal",
     keys: [],
@@ -420,15 +315,10 @@ export const KobeKeymap: readonly KobeBinding[] = [
     description: "Search the scrollback",
   },
   {
-    // Search-mode walk, registered only while the query row is open. Named by
-    // DIRECTION rather than next/previous because a new query parks on the
-    // newest hit, so the useful first press goes back through history — and
-    // `return` is the obvious repeat key for that after typing.
-    //
-    // NOT `shift+return`: without the kitty keyboard protocol (which Rove
-    // keeps off — see host-render-options.ts) a terminal sends the same CR
-    // for enter and shift+enter, so `matchKey` sees a plain `return` and the
-    // chord would be a silently dead key.
+    // Registered only while the query row is open. Named by direction because a
+    // new query parks on the newest hit, so `return` walks back through history.
+    // NOT `shift+return`: without the kitty protocol (off, see
+    // host-render-options.ts) enter and shift+enter send the same CR.
     id: "terminal.search.older",
     scope: "terminal",
     keys: ["up", "return"],
@@ -443,26 +333,17 @@ export const KobeKeymap: readonly KobeBinding[] = [
     description: "Scrollback search: walk to the newer match",
   },
   {
-    // Search-mode cancel — closes the row and restores the prior viewport.
-    // Only registered while searching; outside it the terminal passes esc
-    // through to the shell (vim depends on that).
+    // Only while searching; otherwise esc passes through to the shell (vim).
     id: "terminal.search.cancel",
     scope: "terminal",
     keys: ["escape"],
     category: "Terminal",
     description: "Close scrollback search (restore prior scroll position)",
   },
-  // NOTE: The terminal pane's bare-key passthrough (every alphanumeric /
-  // named key forwarded to the PTY) is intentionally NOT in this table.
-  // Those aren't user-configurable shortcuts — they're terminal-pane
-  // behavior that has to forward whatever the user types to the shell.
+  // The terminal's bare-key PTY passthrough is intentionally not here: it
+  // forwards whatever is typed, it isn't a configurable shortcut.
 
   // ─── Dialog ───────────────────────────────────────────────────────────
-  // No rows. Every dialog owns its own chrome and prints its own chords —
-  // `esc` in the corner, `MODE  ctrl+[ ]` above the new-task chips — and
-  // dialogs are modal, so F1 cannot open over one anyway. The two rows that
-  // used to live here (`dialog.cancel`, `dialog.newtask.tab.cycle`) could
-  // only ever render where they were false: `dialog.cancel` had no `hint`
-  // and rendered nowhere at all, and the new-task chord showed in the
-  // sidebar, workspace and terminal — i.e. whenever the dialog was closed.
+  // No rows: every dialog prints its own chords and is modal, so F1 can't open
+  // over one. Rows here would only render while the dialog is closed.
 ] as const

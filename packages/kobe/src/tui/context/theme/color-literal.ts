@@ -1,28 +1,17 @@
 /**
- * Parser for the `rgb()` / `rgba()` colour literals a theme JSON may use
- * anywhere a `#hex` is accepted.
- *
- * Deliberately dependency-free — no `@opentui/core`, no regex helpers — so
- * BOTH colour resolvers can share it: `resolveTheme()` in `../theme-core`
- * (returns opentui `RGBA`) and `resolveThemeSlotHex()` in `./hex` (returns a
- * plain `#rrggbb` string for CLI / external-styling code that must not drag
- * in the TUI runtime). A second copy in either one is how the two drift.
- *
- * Syntax accepted, comma-separated only:
+ * Parser for `rgb()` / `rgba()` literals, accepted wherever a theme JSON takes
+ * `#hex`. Dependency-free so BOTH resolvers share one copy: `resolveTheme()`
+ * (`../theme-core`, opentui `RGBA`) and `resolveThemeSlotHex()` (`./hex`,
+ * `#rrggbb` for code that must not load the TUI runtime).
  *
  *     rgb(134, 225, 252)
  *     rgba(134, 225, 252, 0.5)
  *
- * Channels are integers 0-255. Alpha follows CSS: a 0-1 fraction, not a byte.
- * Whitespace around any component is free. CSS's space-separated form
- * (`rgb(134 225 252)`) is NOT accepted — nothing needs it yet, and rejecting
- * it keeps the grammar one shape instead of two.
- *
- * Out-of-range components return `null` rather than clamping the way CSS
- * does. A theme file is authored by hand, and `rgb(300, 0, 0)` is a typo the
- * author wants to hear about — `validateTheme` turns that `null` into a named
- * rejection instead of letting the value fall through to the def-name lookup
- * and collapse to black.
+ * Integer channels 0-255; alpha is a CSS 0-1 fraction; free whitespace. Comma
+ * form only: CSS's space-separated form is rejected (one grammar, not two).
+ * Out-of-range returns `null` rather than clamping: `rgb(300, 0, 0)` is a
+ * hand-authored typo, and `validateTheme` names it instead of letting it fall
+ * through to the def-name lookup and render black.
  */
 
 /** A parsed literal. `a` is a 0-255 byte, already converted from CSS's 0-1. */

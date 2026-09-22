@@ -1,30 +1,19 @@
 /**
- * Issue-chat start wiring (kanban detail drawer → engine session). The
- * placement says WHERE the session runs; `jump` says whether the user
- * follows it or stays on the board — every combination LAUNCHES the engine
- * immediately in the hosted PTY (`tui/workspace/issue-chat-spawn.ts`), so
- * "start" always means the agent is working, and a jump merely attaches to
- * the already-running session:
+ * Kanban drawer → engine session. `placement` says WHERE it runs, `jump`
+ * whether the user follows or stays on the board; every combination LAUNCHES
+ * the engine immediately in the hosted PTY (`tui/workspace/issue-chat-spawn.ts`),
+ * so a jump only attaches to an already-running session.
  *
- *   - `worktree`        — create the story's task + link the issue (the
- *                         link stamps issue.taskId, flips it `doing`, arms
- *                         the daemon's done-mirror), spawn its tab-1
- *                         session headlessly, persist the tab snapshot.
- *                         Jump = enter the task's workspace.
- *   - `projectWorktree` — same task/spawn as `worktree`, PLUS a viewport
- *                         tab (`EngineTab.ptyTask`) appended to the repo's
- *                         MAIN workspace strip: isolated work, presented in
- *                         the project. Jump = enter the project workspace
- *                         (the viewport tab is active).
- *   - `project`         — no worktree: a NEW chattab appended to the main
- *                         workspace, running on the project checkout with
- *                         the story prompt riding its spawn, so a busy tab-1
- *                         cannot swallow it. Jump = enter
- *                         the project workspace.
+ *   - `worktree`: create the story's task and link the issue (stamps
+ *     issue.taskId, flips it `doing`, arms the daemon's done-mirror), spawn its
+ *     tab-1 headlessly, persist the snapshot. Jump = enter the task.
+ *   - `projectWorktree`: the same, PLUS a viewport tab (`EngineTab.ptyTask`)
+ *     in the repo's MAIN workspace. Jump = enter the project (viewport active).
+ *   - `project`: no worktree; a NEW chattab in the main workspace with the
+ *     prompt riding its spawn, so a busy tab-1 can't swallow it. Jump = enter
+ *     the project.
  *
- * Image references need no side channel — `images[N]: /path` placeholder
- * lines live in the issue BODY (the detail drawer inserts them on paste),
- * so they ride the prompt as part of the story text.
+ * Images need no side channel: `images[N]: /path` lines live in the issue BODY.
  */
 
 import { userFacingErrorMessage } from "@/lib/error-message"
@@ -45,11 +34,10 @@ import { appendBackgroundEngineTab } from "./terminal-tabs-shared"
 
 export interface IssueChatStart {
   readonly repoRoot: string
-  /** The story as the drawer left it — edited title/body already saved. */
+  /** Edited title/body already saved. */
   readonly issue: Issue
   readonly vendor: VendorId
   readonly placement: IssueChatPlacement
-  /** Follow the session (enter its workspace) or stay on the board. */
   readonly jump: boolean
 }
 
@@ -74,7 +62,6 @@ export function useIssueChat(
     /** Close the kanban page before landing on the session's workspace. */
     closeKanban: () => void
     notifyError: (message: string) => void
-    /** Feedback for a stay-on-the-board start. */
     notifyInfo: (message: string) => void
   },
 ): UseIssueChatResult {
@@ -92,18 +79,14 @@ export function useIssueChat(
     else hooks.notifyInfo(t("kanban.detail.startedBackground", { title: issueChatTaskTitle(request.issue) }))
   }
 
-  /** Append a story chattab to the repo's MAIN workspace and spawn it (the
-   *  `project` placement — the story runs on the project checkout). */
+  /** `project` placement: a story chattab on the MAIN workspace's checkout. */
   async function startProjectTab(request: IssueChatStart, api: string): Promise<void> {
     const { repoRoot, issue, vendor } = request
     const main = await orch.ensureMainTask(repoRoot)
-    // Vendor lands on the task for future tabs; the story flip is
-    // best-effort (a status write must not strand the chat).
     await orch.setVendor(main.id, vendor)
     await orch.mutateIssue(repoRoot, { type: "setStatus", id: issue.id, status: "doing" }).catch((err: unknown) => {
-      // Best-effort by design — a refused status write must not strand the
-      // chat. But "not fatal" isn't "not worth saying": the card silently
-      // stays in Backlog while its session runs.
+      // Best-effort (must not strand the chat), but said: otherwise the card
+      // silently stays in Backlog while its session runs.
       console.error("[rove kanban] issue setStatus failed:", err)
       hooks.notifyError(t("kanban.statusFailed", { id: String(issue.id), error: userFacingErrorMessage(err) }))
     })
@@ -124,8 +107,7 @@ export function useIssueChat(
     await finish(request, main.id)
   }
 
-  /** Create + link the story's task and spawn its tab-1 session headlessly
-   *  (both worktree placements share this half). */
+  /** Shared by both worktree placements. */
   async function startWorktreeTask(
     request: IssueChatStart,
     api: string,
@@ -135,9 +117,8 @@ export function useIssueChat(
     addSavedRepo(repoRoot)
     const task = await orch.createTask({ repo: repoRoot, title: issueChatTaskTitle(issue), vendor })
     await orch.mutateIssue(repoRoot, { type: "link", id: issue.id, taskId: task.id }).catch((err: unknown) => {
-      // Also best-effort: the task exists and runs either way. Unsaid, the
-      // story just never grows its `linked to a session` badge and the
-      // drawer's "open the linked session" never appears.
+      // Best-effort too, but said: otherwise no `linked to a session` badge
+      // and no "open the linked session" in the drawer.
       console.error("[rove kanban] issue link failed:", err)
       hooks.notifyError(t("kanban.linkFailed", { id: String(issue.id), error: userFacingErrorMessage(err) }))
     })
@@ -162,9 +143,8 @@ export function useIssueChat(
       }
       const { task, worktreePath, tab } = await startWorktreeTask(request, api)
       if (request.placement === "projectWorktree") {
-        // Present the running session as a viewport tab in the PROJECT
-        // workspace — same PTY key, the task's worktree as cwd. Workspaces
-        // render one at a time, so the two views attach sequentially.
+        // Same PTY key, worktree as cwd. Workspaces render one at a time, so
+        // the two views attach sequentially.
         const main = await orch.ensureMainTask(request.repoRoot)
         appendBackgroundEngineTab(kv, main.id, defaultShell(), {
           vendor: request.vendor,

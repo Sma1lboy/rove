@@ -1,13 +1,6 @@
 /**
- * `files.*` keybinding rows — the `scope: "files"` slice of the one binding
- * table, spread back into `keybindings-table.ts`.
- *
- * Same kind of cut as `keybindings-sidebar.ts` and `keybindings-chat.ts`:
- * a long array literal sliced at the scope headers it already carried as
- * comments. No responsibility boundary — which file a row lives in is
- * decided by its `scope` field and nothing else. See `keybindings-table.ts`
- * for the contract these rows must satisfy (stable `id`, spread order is
- * display order, `hint` vs `keys`).
+ * `scope: "files"` rows, spread into `keybindings-table.ts`, which owns the
+ * contract (stable `id`, spread order = display order, `hint` vs `keys`).
  */
 
 import type { KobeBinding } from "./keybindings-table.ts"
@@ -23,12 +16,8 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "j/k" },
   },
   {
-    // `h`/`l` for hierarchy navigation in the All tab tree:
-    //   l → expand directory / descend into first child / open file
-    //   h → collapse directory / jump to parent
-    // Plain letters are pane-scoped per the keybinding-boundaries
-    // rule (docs/KEYBINDINGS.md): files-focused only, so they don't
-    // collide with composer typing.
+    // l → expand / descend into first child / open file; h → collapse / jump
+    // to parent. Plain letters are fine: files-scoped (docs/KEYBINDINGS.md).
     // POSITIONAL: alternating [collapse, expand] pairs (slot dispatch).
     id: "files.hierarchy",
     scope: "files",
@@ -38,10 +27,8 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "h/l" },
   },
   {
-    // enter → one-key "just open it": opens the file in the configured TTY
-    // editor. Nvim/Vim use a side-by-side diff vs HEAD when the file changed;
-    // other editors open the file normally. Resolution failure falls back to
-    // our own OpenTUI read-only preview.
+    // Opens the configured TTY editor (nvim/vim: side-by-side diff vs HEAD when
+    // changed). Resolution failure falls back to the read-only preview.
     id: "files.open",
     scope: "files",
     keys: ["return"],
@@ -50,9 +37,7 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "enter" },
   },
   {
-    // `[` / `]` cycle the All / Changes tabs. A bracket pair, the same
-    // shape as the `ctrl+[` / `ctrl+]` terminal-tab cycle one tier up —
-    // brackets mean "adjacent tab" everywhere.
+    // Brackets mean "adjacent tab" everywhere (cf. ctrl+[ / ctrl+]).
     // POSITIONAL: [previous tab, next tab] pairs (slot dispatch).
     id: "files.tab",
     scope: "files",
@@ -70,9 +55,7 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "r" },
   },
   {
-    // `b` → toggle the Changes tab between working-tree scope (uncommitted
-    // work) and Branch scope (everything vs the base — the vs-base view).
-    // Plain letter, files-scoped per the keybinding-boundaries rule.
+    // Changes tab scope: working tree (uncommitted) ⇄ Branch (vs base).
     id: "files.scope",
     scope: "files",
     keys: ["b"],
@@ -81,9 +64,8 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "b" },
   },
   {
-    // `d` → open the current file's read-only diff in a workspace content
-    // tab (a content swap, does not steal focus). Enter still opens
-    // the editable editor tab; this is the non-focus-stealing diff view.
+    // Read-only diff in a workspace content tab, without stealing focus
+    // (enter opens the editable editor instead).
     id: "files.diff",
     scope: "files",
     keys: ["d"],
@@ -93,13 +75,9 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
   },
   {
     // PROPOSED, awaiting owner sign-off (docs/design/keybinding-decisions.md).
-    // Shift+D → the whole worktree's diff in one tab: the "bigger d". Shadows
-    // nothing in the Files table, and the header chip does the same job with
-    // no chord at all, so the feature ships whatever the owner decides here.
-    //
-    // Spelled `shift+d`, not `"D"`: matchKey mints `shift+d` from Shift+D, so
-    // a bare uppercase key never matches — the same rule `sidebar.localMerge`
-    // records next door.
+    // The whole worktree's diff in one tab. Shadows nothing here, and the
+    // header chip does the same job chord-free. `shift+d`, not `"D"`: matchKey
+    // mints `shift+d`, so a bare uppercase key never matches.
     id: "files.diffAll",
     scope: "files",
     keys: ["shift+d"],
@@ -116,10 +94,8 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "o" },
   },
   {
-    // `a` → paste `@<path>` into the engine (claude/codex) pane's composer,
-    // without submitting — the "add as a mention" action, so the user keeps
-    // typing around it. Plain letter, files-scoped per
-    // the keybinding-boundaries rule, so it can't collide elsewhere.
+    // Pastes `@<path>` into the engine composer WITHOUT submitting, so the
+    // user keeps typing around it.
     id: "files.mention",
     scope: "files",
     keys: ["a"],
@@ -128,13 +104,10 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "a" },
   },
   {
-    // Ops-pane action on the Changes tab: sends the PR prompt into the
-    // engine pane. prefix+p / prefix+P, no direct chord: a files-scoped
-    // ctrl+p is unreachable from the sidebar (ctrl+p = project filter there)
-    // and from the terminal (passes through to the engine). shift+p rides
-    // along because "PR" reads uppercase: the capital press lands too.
-    // Registered by the workspace host (host-keybindings.ts), not the
-    // FileTree pane, so it fires from any pane focus.
+    // Sends the PR prompt into the engine pane. Prefix-only: a files-scoped
+    // ctrl+p is unreachable from the sidebar (project filter) and the terminal
+    // (passthrough). shift+p because "PR" reads uppercase. Registered by the
+    // workspace host (host-keybindings.ts), so it fires from any pane.
     id: "files.createPR",
     scope: "global",
     keys: [],
@@ -143,13 +116,9 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     description: "Ask the agent to create a PR from the current task",
   },
   {
-    // PROPOSED CHORD — awaiting owner sign-off
-    // (docs/design/keybinding-decisions.md). The row menu's "Fix failing
-    // checks" is the settled route; this mirrors it for the keyboard. `k` is
-    // free behind the prefix (the bare `k` is the sidebar's cursor-up, which
-    // the prefix does not reach) and sits next to the `p`/`P` create-PR pair
-    // because they are the same shape of action: build a prompt about this
-    // branch's PR and hand it to the engine.
+    // PROPOSED, awaiting owner sign-off (docs/design/keybinding-decisions.md).
+    // Keyboard mirror of the row menu's "Fix failing checks". `k` is free
+    // behind the prefix and sits beside `p`/`P`: same shape of action.
     id: "files.fixChecks",
     scope: "global",
     keys: [],
@@ -158,10 +127,8 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     description: "Ask the agent to fix the failing PR checks",
   },
   {
-    // PROPOSED CHORD — awaiting owner sign-off
-    // (docs/design/keybinding-decisions.md). The row menu's "Sync with base"
-    // is the settled route; this mirrors it for the keyboard. `u` is free
-    // behind the prefix and reads as "update this branch from its base".
+    // PROPOSED, awaiting owner sign-off (docs/design/keybinding-decisions.md).
+    // Keyboard mirror of the row menu's "Sync with base"; `u` = "update from base".
     id: "files.syncBase",
     scope: "global",
     keys: [],
@@ -170,10 +137,8 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     description: "Merge the base branch into this task's worktree",
   },
   // ─── Diff review (read-only diff content tab) ─────────────────────────
-  // Plain letters, diff-tab-scoped raw bindings
-  // (registered by preview-review.tsx like the preview's `o`), inert
-  // everywhere else so they can't shadow input or embedded terminals.
-  // Rows here are documentation-only (`keys: []`) so F1 lists them.
+  // Raw bindings registered by preview-review.tsx, live only in the diff tab
+  // so they can't shadow input or terminals. `keys: []` rows exist so F1 lists them.
   {
     id: "diff.review.cursor",
     scope: "workspace",
@@ -207,10 +172,8 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "s" },
   },
   {
-    // The diff footer has always named six keys; the table carried four, so
-    // F1 listed four. These two close that gap rather than adding a chord:
-    // both have been registered and reachable since they landed
-    // (`x` in preview-review.tsx, `r` in preview.tsx).
+    // Registered in preview-review.tsx (`x`) and preview.tsx (`r`); rows here
+    // so F1 matches the six keys the diff footer names.
     id: "diff.review.drop",
     scope: "workspace",
     keys: [],
@@ -219,8 +182,8 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "x" },
   },
   {
-    // Registered by the preview itself, not the review layer, so it is live
-    // on an image or binary preview too — hence "file", not "diff".
+    // Registered by the preview itself, so it's live on image/binary previews
+    // too, hence "file", not "diff".
     id: "diff.review.reload",
     scope: "workspace",
     keys: [],
