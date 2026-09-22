@@ -24,8 +24,10 @@ you need git-level isolation and a separate branch.
 | Kimi Code | `kimi` | ✓ | ✓ | handoff only | — | `--model` (an alias from its config) |
 | Pi | `pi` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` | `--model` (pattern or `provider/id`; listed by `pi --list-models`) |
 | OMP | `omp` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` | `--model=` (pattern or `provider/id`; listed by `omp models --json`) |
-| Cursor Agent | `cursor` | binary only | ✓ (screen-based, plus a session hook) | — | — | — |
-| Gemini CLI, OpenCode, Grok CLI, Droid, Amp | contrib | binary only | ✓ (screen-based) | — | — | — |
+| Cursor Agent, Grok CLI, Hermes Agent | contrib | binary only | ✓ (screen-based, plus a session hook) | — | — | — |
+| OpenCode, Kilo | contrib | binary only | ✓ (screen-based, plus a lifecycle plugin) | — | — | — |
+| MastraCode | contrib | binary only | ✓ (hook-based) | — | — | — |
+| Gemini CLI, Droid, Amp | contrib | binary only | ✓ (screen-based) | — | — | — |
 | Anything you register | custom | binary only | — | — | — | — |
 
 A model is pinned per task in the engine's own spelling (see
@@ -44,11 +46,13 @@ all rather than a stale number.
 
 **Contrib engines are launch + badge only.** Rove ships a catalog of
 well-known coding CLIs (`gemini`, `opencode`, `cursor`, `grok`, `droid`,
-`amp`, `cline`, `kiro`, `maki`, `antigravity`) so they appear in the engine selector whenever the binary is on your
+`amp`, `cline`, `kiro`, `maki`, `antigravity`, `hermes`, `kilo`,
+`mastracode`) so they appear in the engine selector whenever the binary is on your
 PATH, with a proper name, a launch command, and screen-based activity
 badges. A catalog entry also declares how its CLI takes a first message:
 OpenCode's positional argument is a project directory, so Rove pastes the
-prompt after launch instead of appending it to the command line.
+prompt after launch instead of appending it to the command line; Kilo is an
+OpenCode fork and takes its first message the same way.
 Settings → Engines lists them (and your own registered engines) with their
 binary discovery, and that is all detection can answer for them. No
 login state, history, or model picker; those need a real adapter, which is
@@ -250,6 +254,34 @@ agent's own actions, and Rove does not install an observer on a hook that gates
 approvals. If `~/.cursor` does not exist, nothing is written and no directory is
 created: there is no CLI there to read it. Your own entries in `hooks.json`, and
 every other event, are left alone.
+
+Grok installs the same single `SessionStart` observer, but into a file of its
+own: `hooks/rove.json` under `GROK_HOME` (unset or blank uses `~/.grok`). Grok
+merges every `*.json` in that directory, so Rove never edits a file you also
+write to; removal deletes only its own entries. If the config directory does
+not exist, nothing is written.
+
+OpenCode and Kilo have no hook table to edit. Rove writes one plugin module,
+`rove-agent-state.js`, into `~/.config/opencode/plugins/` and
+`~/.config/kilo/plugin/`; it reports the session lifecycle — turn started,
+waiting on a permission or a question, failed, finished — and cleanup deletes
+it. Sub-agent sessions are tracked so a nested agent finishing cannot mark your
+turn complete. Tool-call events are deliberately not subscribed: each one would
+cost a process spawn to re-state what the turn's start already said.
+
+Hermes needs two things, and both must land before a report arrives: a plugin
+package under `~/.hermes/plugins/rove-agent-state/`, and that name in the
+`plugins.enabled` list of `~/.hermes/config.yaml`. The config edit is
+line-based so your comments and key order survive it; a `plugins:` block Rove
+cannot add to without rewriting lines you wrote is reported by `rove doctor`
+and left untouched, and enabling the plugin by hand is then all that remains.
+
+MastraCode is the one catalog engine whose hooks own the badge outright. It
+reads `~/.mastracode/hooks.json` — the same flat entry shape cursor uses — and
+Rove installs the events that change state: session start, prompt submitted,
+agent start, permission request and result, interrupt, and the two that end a
+turn. `PreToolUse` and the subagent pair are skipped for the same
+spawn-per-event reason.
 
 Every hook Rove installs carries the version of the shape that wrote it, so
 Rove can tell its own current entry from one an older version left behind.

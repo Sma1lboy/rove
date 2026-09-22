@@ -83,14 +83,29 @@ export async function readTextWithTimeout(
  * A TTY returns "" immediately rather than waiting for a human to type: a hook
  * is always spawned with a pipe, and a person running `rove hook` by hand
  * should get the usage path, not a hang.
+ *
+ * `isComplete` is why this does not simply read to EOF. Some engines write
+ * their one JSON object and then WAIT for the hook to exit without ever
+ * closing the pipe — so EOF never arrives, the 500 ms race below wins, and the
+ * payload that was sitting in the buffer the whole time is thrown away. The
+ * symptom is the one this function's own history describes: the hook fires,
+ * exits 0, and quietly carries no session id and no cwd. Stopping as soon as
+ * the bytes read so far are a complete document costs a writer that DOES close
+ * the pipe nothing — its last chunk completes the document either way.
  */
-export async function readStdinText(): Promise<string> {
+export async function readStdinText(isComplete?: (text: string) => boolean): Promise<string> {
   const bun = (globalThis as { Bun?: { stdin: { text(): Promise<string> } } }).Bun
+  // Bun's reader is all-or-nothing, so it cannot stop early. That is not the
+  // published path — the npm bin runs under node, and `kobeHookInvocation`
+  // prefers the packaged bin even in dev — and the race still bounds it.
   if (bun) return bun.stdin.text()
   if (process.stdin.isTTY) return ""
   const chunks: Buffer[] = []
   try {
-    for await (const chunk of process.stdin) chunks.push(chunk as Buffer)
+    for await (const chunk of process.stdin) {
+      chunks.push(chunk as Buffer)
+      if (isComplete?.(Buffer.concat(chunks).toString("utf8"))) break
+    }
   } finally {
     // The read refs the event loop; without this a hook whose writer never
     // closes the pipe keeps the process alive past the timeout below.
@@ -99,11 +114,23 @@ export async function readStdinText(): Promise<string> {
   return Buffer.concat(chunks).toString("utf8")
 }
 
+/** Whether `text` is already a complete JSON document — the stop condition
+ *  {@link readStdinPayload} hands the reader. Anything that does not parse is
+ *  either still arriving or was never JSON; both keep reading. */
+function isCompleteJson(text: string): boolean {
+  try {
+    JSON.parse(text)
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Read the hook's stdin JSON payload (Claude Code pipes it), bounded so a
  *  manual invocation without stdin can't hang. Returns {} on anything odd. */
 async function readStdinPayload(): Promise<Record<string, unknown>> {
   try {
-    const text = await readTextWithTimeout(readStdinText)
+    const text = await readTextWithTimeout(() => readStdinText(isCompleteJson))
     if (!text.trim()) return {}
     const parsed = JSON.parse(text) as unknown
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {}
