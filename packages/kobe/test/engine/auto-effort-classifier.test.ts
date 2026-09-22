@@ -97,6 +97,34 @@ describe("readClassifierConfig", () => {
     }
   })
 
+  it("reads a threshold stored as a NUMBER — which is how Settings writes it", async () => {
+    // The bug this pins: the default getter was `getPersistedString`, which
+    // drops every non-string. Settings writes the threshold as a JSON number,
+    // so the CLI saw nothing there and silently used 0.5 while the TUI
+    // rendered the number the user had chosen. Two surfaces, one setting,
+    // different answers, and nothing anywhere looking broken.
+    const { mkdtempSync, writeFileSync, mkdirSync } = await import("node:fs")
+    const { tmpdir } = await import("node:os")
+    const { join } = await import("node:path")
+    const home = mkdtempSync(join(tmpdir(), "rove-classifier-"))
+    const saved = process.env.ROVE_HOME_DIR
+    process.env.ROVE_HOME_DIR = home
+    try {
+      mkdirSync(join(home, ".config", "rove"), { recursive: true })
+      writeFileSync(
+        join(home, ".config", "rove", "state.json"),
+        JSON.stringify({ "autoEffort.classifier": "jev", "autoEffort.classifierThreshold": 0.9 }),
+      )
+      // No getter passed — exactly what the CLI does.
+      const live = readClassifierConfig()
+      expect(live.mode).toEqual({ kind: "jev" })
+      expect(live.threshold).toBe(0.9)
+    } finally {
+      if (saved === undefined) delete process.env.ROVE_HOME_DIR
+      else process.env.ROVE_HOME_DIR = saved
+    }
+  })
+
   it("clamps the threshold into [0,1] and keeps the defaults for junk", () => {
     expect(readClassifierConfig(from({ "autoEffort.classifierThreshold": "0.8" })).threshold).toBe(0.8)
     expect(readClassifierConfig(from({ "autoEffort.classifierThreshold": 4 })).threshold).toBe(1)

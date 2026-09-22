@@ -164,6 +164,22 @@ export function getPersistedString(key: string): string | undefined {
 }
 
 /**
+ * Read a kv value WITHOUT narrowing it to a string — for settings whose
+ * natural type is not one.
+ *
+ * {@link getPersistedString} drops anything that is not a string, which is
+ * right for the keys it was written for and silently wrong for a number:
+ * Settings writes `autoEffort.classifierThreshold` as a JSON number, so a
+ * string-only reader saw nothing there and fell back to the default. The two
+ * surfaces then disagreed about the same setting — the TUI rendering what the
+ * user chose while the CLI used the shipped value — which is the worst shape
+ * a settings bug can take, because nothing anywhere looks broken.
+ */
+export function getPersistedValue(key: string): unknown {
+  return loadStateFile()[key]
+}
+
+/**
  * Persist a string value into the shared kv state.json: a single-key
  * read-merge-write + atomic rename via {@link patchStateFile}. Pairs with
  * {@link getPersistedString} for standalone processes. Concurrent with the

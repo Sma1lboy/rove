@@ -29,7 +29,7 @@
  * {@link readChoiceAnswer}.
  */
 
-import { getPersistedString } from "@/state/repos"
+import { getPersistedValue } from "@/state/repos"
 import { resolveSecret } from "@/state/secrets"
 import { DEFAULT_TIER_RUBRIC, type TierRubric, rubricCriteria } from "./auto-effort-rubric.ts"
 import { AUTO_EFFORT_TIERS, type AutoEffortTier, isAutoEffortTier } from "./auto-effort.ts"
@@ -92,7 +92,7 @@ function numberAt(get: Getter, key: string, fallback: number, min: number, max: 
  * `off` — including a typo. A misspelled endpoint must not become "send the
  * prompt somewhere", and off is the shape that sends nothing.
  */
-export function readClassifierConfig(get: Getter = getPersistedString): ClassifierConfig {
+export function readClassifierConfig(get: Getter = getPersistedValue): ClassifierConfig {
   const raw = stringAt(get, "autoEffort.classifier") ?? "off"
   let mode: ClassifierMode = { kind: "off" }
   if (raw === "jev") mode = { kind: "jev" }
