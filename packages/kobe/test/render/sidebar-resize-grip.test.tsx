@@ -40,7 +40,7 @@ function Workspace(props: { onResize?: (w: number) => void; onReset?: () => void
     <box width={60} height={12} flexDirection="row" onMouseDrag={gesture.onPaneDrag} onMouseUp={gesture.onPaneRelease}>
       <box width={RAIL_WIDTH} height={12} />
       <box flexGrow={1} height={12} />
-      <SidebarResizeGrip width={RAIL_WIDTH} active={gesture.active} onGripDown={gesture.onGripDown} />
+      <SidebarResizeGrip width={RAIL_WIDTH} color="#888888" active={gesture.active} onGripDown={gesture.onGripDown} />
     </box>
   )
 }
@@ -131,25 +131,33 @@ function recordPointer(renderer: { setMousePointer: (shape: MousePointerStyle) =
   return shapes
 }
 
-test("hovering the edge swaps the pointer and paints nothing", async () => {
+test("hovering the edge dots the line and swaps the pointer, once each way", async () => {
   const { mockMouse, frame, renderer } = await renderComponent(<Workspace />, { width: 60, height: 12 })
   const shapes = recordPointer(renderer)
+  expect(edgeCell(await frame(), ROW_Y)).toBe(" ")
 
   // Arrive from inside the rail, as a real pointer does.
   await act(() => mockMouse.moveTo(10, ROW_Y))
   await act(() => mockMouse.moveTo(EDGE_X, ROW_Y))
   expect(shapes).toEqual(["move"])
-  // The cue is the pointer, not ink: the row keeps every cell it had.
-  expect(edgeCell(await frame(), ROW_Y)).toBe(" ")
+  const lit = await frame()
+  // The whole line, not the cell under the cursor — but never the corners,
+  // which belong to the pane's frame.
+  expect(edgeCell(lit, ROW_Y)).toBe("⋮")
+  expect(edgeCell(lit, 1)).toBe("⋮")
+  expect(edgeCell(lit, 10)).toBe("⋮")
+  expect(edgeCell(lit, 0)).toBe(" ")
+  expect(edgeCell(lit, 11)).toBe(" ")
 
   // Travel within the edge column is one cell owner — no further requests.
   await act(() => mockMouse.moveTo(EDGE_X, ROW_Y + 2))
   await act(() => mockMouse.moveTo(40, ROW_Y))
   expect(shapes).toEqual(["move", "default"])
+  expect(edgeCell(await frame(), ROW_Y)).toBe(" ")
 })
 
 test("a drag keeps the pointer after the cursor leaves the edge, until release", async () => {
-  const { mockMouse, renderer } = await renderComponent(<Workspace />, { width: 60, height: 12 })
+  const { mockMouse, frame, renderer } = await renderComponent(<Workspace />, { width: 60, height: 12 })
   const shapes = recordPointer(renderer)
 
   await act(() => mockMouse.moveTo(EDGE_X, ROW_Y))
@@ -158,9 +166,11 @@ test("a drag keeps the pointer after the cursor leaves the edge, until release",
   // The rail in this miniature never actually resizes, so the cursor is now
   // well off the edge — only the live gesture can be holding the pointer.
   expect(shapes).toEqual(["move"])
+  expect(edgeCell(await frame(), ROW_Y)).toBe("⋮")
 
   await act(() => mockMouse.release(40, ROW_Y))
   expect(shapes).toEqual(["move", "default"])
+  expect(edgeCell(await frame(), ROW_Y)).toBe(" ")
 })
 
 test("unmounting under the cursor hands the pointer back", async () => {
@@ -170,7 +180,7 @@ test("unmounting under the cursor hands the pointer back", async () => {
     fold = () => setShow(false)
     return (
       <box width={60} height={12}>
-        {show ? <SidebarResizeGrip width={RAIL_WIDTH} onGripDown={() => {}} /> : null}
+        {show ? <SidebarResizeGrip width={RAIL_WIDTH} color="#888888" onGripDown={() => {}} /> : null}
       </box>
     )
   }

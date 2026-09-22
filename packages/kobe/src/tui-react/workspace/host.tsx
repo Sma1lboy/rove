@@ -59,10 +59,10 @@ import { useZenMode } from "./use-zen-mode"
  *  green even when the mount is deleted. */
 export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & BootDialogs) {
   const { theme } = useTheme()
-  const inactiveBorder = theme.borderActive
   const dialog = useDialog()
   const kv = useKV()
   const focus = useFocus()
+  const workspaceBorder = focus.focused === "workspace" ? theme.focusAccent : theme.borderActive
   const dims = useTerminalDimensions()
   const sidebarWidth = useSidebarWidth()
   const [sidebarCollapsed] = useSidebarCollapsed()
@@ -419,7 +419,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
           flexGrow={1}
           flexShrink={1}
           borderStyle="rounded"
-          borderColor={focus.focused === "workspace" ? theme.focusAccent : inactiveBorder}
+          borderColor={workspaceBorder}
           onMouseUp={() => focus.setFocused("workspace")}
         >
           {/* The rail swaps THIS pane, not the whole window — the task list on
@@ -490,6 +490,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
       {pageRender.showSidebar && pageRender.showContent && !sidebarCollapsed ? (
         <SidebarResizeGrip
           width={sidebarWidth.width}
+          color={workspaceBorder}
           active={sidebarResize.active}
           onGripDown={sidebarResize.onGripDown}
         />
