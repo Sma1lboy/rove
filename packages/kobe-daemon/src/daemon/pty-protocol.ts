@@ -1,9 +1,7 @@
 /**
- * PTY protocol payloads. Their own module because they travel on a DIFFERENT
- * socket than the rest of `protocol.ts`: the standalone PTY host's v4
- * protocol, which is versioned and restarted independently of the daemon. A
- * change here is a compatibility question about that socket alone.
- * Re-exported from `protocol.ts` for existing callers.
+ * Payloads for the standalone PTY host's v4 socket, versioned and restarted
+ * independently of the daemon — a change here is a compat question for that
+ * socket alone. Re-exported from `protocol.ts`.
  */
 
 /** How a session's child ended — recorded at exit time by the PTY host.
@@ -27,9 +25,9 @@ export interface PtyDataEventPayload {
 /** Targeted `pty.exit` event payload — the session's child ended. */
 export interface PtyExitEventPayload {
   readonly key: string
-  /** The dead child's pid (null when spawn failed). Lets a client that
-   *  kill()ed + reopened the same key tell the OLD incarnation's exit
-   *  apart from its new session's — absent from pre-pid hosts. */
+  /** Dead child's pid (null if spawn failed), so a client that reopened the
+   *  key can tell the old incarnation's exit from the new one's. Absent from
+   *  pre-pid hosts. */
   readonly pid?: number | null
   /** Exit status/signal/time — absent from pre-exit-info hosts. */
   readonly code?: number | null
@@ -46,35 +44,25 @@ export interface PtyOpenResult {
   /** This session's child pid (null when spawn failed) — the client keys
    *  `pty.exit` frames against it; absent from pre-pid hosts. */
   readonly pid?: number | null
-  /** True when THIS open brought the session into being (fresh spawn or
-   *  warm-shell adoption) — the client's cue that `initialInput` may be
-   *  typed. False on reattach; absent from pre-warm hosts. */
+  /** This open created the session (fresh spawn or warm-shell adoption) —
+   *  cue to type `initialInput`. False on reattach; absent from pre-warm hosts. */
   readonly created?: boolean
-  /** True when THIS open respawned a freeze-restored corpse in place:
-   *  `replay` is the pre-restart scrollback and the child is brand new
-   *  (the caller's launch spec won — e.g. the TUI's engine `--resume`).
-   *  Distinct from `created` because the spawn spec was NOT swallowed by
-   *  a live session: a prompt embedded in the launch argv DID ride it,
-   *  so the caller must not also paste it. Absent from pre-freeze hosts. */
+  /** This open respawned a freeze-restored corpse: `replay` is pre-restart
+   *  scrollback, the child is new and ran the caller's launch spec (e.g.
+   *  `--resume`). Unlike `created`, a prompt in the launch argv already rode
+   *  the spawn, so the caller must not paste it too. Absent from pre-freeze hosts. */
   readonly respawned?: boolean
-  /** Monotonic per-session byte offset at attach time (total bytes the
-   *  child has ever written). A client that detaches records it and asks
-   *  the next `pty.open` for only the delta via `sinceOffset`; absent
-   *  from pre-offset hosts. */
+  /** Monotonic total bytes written at attach time; a reattaching client
+   *  passes it as `sinceOffset` to get only the delta. Absent from pre-offset hosts. */
   readonly offset?: number
-  /** True when the request's `sinceOffset` was still inside the ring
-   *  window and `replay` is exactly the bytes written since it — the
-   *  client may restore its serialized screen and apply the delta.
-   *  False/absent means `replay` is the full ring (offset trimmed away,
-   *  or an old host). */
+  /** `replay` is exactly the delta since `sinceOffset` (still in the ring), so
+   *  the client may restore its serialized screen and apply it. False/absent =
+   *  full ring (offset trimmed, or an old host). */
   readonly sinceValid?: boolean
 }
 
-/**
- * `pty.peek` response — a read-only ring-buffer snapshot for one session
- * key. Unlike `pty.open` it never attaches, spawns, or resizes, so it is
- * safe for pure observation (`kobe api read-output` terminal fallback).
- */
+/** `pty.peek` response — read-only ring snapshot; never attaches, spawns or
+ *  resizes, so safe for observation (`kobe api read-output` fallback). */
 export interface PtyPeekResult {
   /** False when no session exists under the key (nothing was spawned). */
   readonly exists: boolean
@@ -82,15 +70,12 @@ export interface PtyPeekResult {
   /** The session child's pid (null when spawn failed or `exists` is false).
    *  Callers pin pagination to it: a different pid = a new incarnation. */
   readonly pid: number | null
-  /** Monotonic total bytes the child has ever written — the caller's next
-   *  `sinceOffset`. */
+  /** Monotonic total bytes written — the caller's next `sinceOffset`. */
   readonly offset: number
   /** Ring bytes (base64): the full ring, or exactly the delta since the
    *  request's `sinceOffset` when `sinceValid`. */
   readonly data: string
-  /** True when `data` is the exact delta since `sinceOffset` (still inside
-   *  the ring window); false means the offset was trimmed away and `data`
-   *  is the full ring. */
+  /** `data` is the exact delta since `sinceOffset`; false = offset trimmed, full ring. */
   readonly sinceValid: boolean
   /** How the child died when `alive` is false — null while alive, absent
    *  from pre-exit-info hosts. */

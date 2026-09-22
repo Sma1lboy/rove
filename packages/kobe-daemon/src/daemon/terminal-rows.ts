@@ -1,25 +1,15 @@
 /**
- * Raw PTY bytes → readable rows. The one definition, shared by every reader
- * that turns a captured terminal stream back into lines: the durable death
- * record's tail (`pty-exit-store.ts`) and the `read-output` verb
- * (`kobe/src/cli/api/read-output-page.ts`).
+ * Raw PTY bytes → readable rows, shared by the death record's tail
+ * (`pty-exit-store.ts`) and `read-output` (`kobe/src/cli/api/read-output-page.ts`).
  *
- * The subtlety is that a full-screen TUI does not write newlines. A shell
- * ends every row with `\n`, so splitting on it recovers the screen — but an
- * engine in the alternate screen positions its cursor with CSI instead
- * (`ESC[1B` down a row, `ESC[H` home), and emits no `\n` at all for a screen
- * it is painting. Strip the escapes first, as a plain `replace(ANSI_RE, "")`
- * does, and every row of that screen concatenates into ONE line — then the
- * caller's "keep the last N lines" budget keeps 1 line where it meant to keep
- * 40, and what survives is whatever the engine painted LAST (a footer, a
- * `Enter to confirm · Esc to cancel`) with the question it belongs to
- * discarded.
- *
- * So vertical cursor motion becomes a row break BEFORE the escapes are
- * stripped. This is not a terminal emulator and does not try to be: absolute
- * positioning is treated as "some other row", not as the row it names, so a
- * screen repainted out of order reads out of order. It recovers the ROWS,
- * which is what a tail budget needs to count.
+ * A full-screen TUI writes no `\n`: in the alternate screen it moves the
+ * cursor with CSI (`ESC[1B`, `ESC[H`). Stripping escapes first joins the whole
+ * screen into ONE line, so a "last 40 lines" budget keeps 1 line — whatever
+ * was painted last (a footer, `Enter to confirm · Esc to cancel`) — and drops
+ * the question. So vertical motion becomes a row break before stripping.
+ * Not an emulator: absolute positioning is just "another row", so an
+ * out-of-order repaint reads out of order. It recovers rows, which is what a
+ * tail budget counts.
  */
 
 /** CSI cursor-down (`B`) / next-line (`E`), with an optional repeat count. */
@@ -32,32 +22,24 @@ const CURSOR_POSITION_RE = /\x1b\[[\d;]*[Hf]/g
  *  cannot turn a short capture into a huge array. A real screen is ~50 rows. */
 const MAX_ROWS_PER_ESCAPE = 200
 
-// Same escape grammar every reader here strips: CSI, OSC, and the generic
-// `ESC <intermediates> <final>` form. That last alternative used to be
-// `\x1b[@-_]` (the C1 set only), which left the charset-select `ESC ( B` that
-// every full-screen redraw emits sitting in the output as visible garbage.
+// CSI, OSC, and generic `ESC <intermediates> <final>`. The last must cover
+// more than C1 (`\x1b[@-_]`): every full-screen redraw emits charset-select
+// `ESC ( B`, which would otherwise survive as visible garbage.
 // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping raw ANSI escapes is the point
 const ANSI_RE = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b[ -/]*[0-~]/g
 
 /**
- * Bare control bytes no escape sequence introduces — a shell's BEL, a
- * spinner's backspace, a stray NUL. A terminal renders them as nothing, so
- * they survive unnoticed until something that is NOT a terminal reads the
- * text: `get-task`'s `exit.tail` shipped them to every API consumer, where
- * `jq -r`, a log file, or a diff each show a different kind of damage.
- * `\t` (\x09), `\n` (\x0a) and `\r` (\x0d) are the three that carry meaning
- * here — `\r` is the CR-overwrite {@link terminalRows} honours below — so
- * they stay; DEL rides along because it is invisible for the same reason.
+ * Bare control bytes (BEL, a spinner's backspace, NUL): invisible in a
+ * terminal, damage in `jq -r`, logs and diffs. `\t`, `\n` and `\r` stay —
+ * `\r` is the CR-overwrite {@link terminalRows} honours; DEL goes too.
  */
 // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping raw control bytes is the point
 const CONTROL_RE = /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g
 
 /**
- * Raw terminal bytes → text safe to hand a non-terminal: escapes and bare
- * control bytes gone, line structure untouched.
- *
- * The one stripper — {@link terminalRows} is this plus row recovery, and the
- * durable exit store runs it over records written before it existed.
+ * Raw terminal bytes → text safe for a non-terminal: escapes and bare control
+ * bytes gone, line structure untouched. The exit store also runs it over
+ * records persisted unstripped.
  */
 export function stripTerminalControls(text: string): string {
   return text.replace(ANSI_RE, "").replace(CONTROL_RE, "")

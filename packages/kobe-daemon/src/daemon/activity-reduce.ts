@@ -1,22 +1,15 @@
 /**
- * The engine-activity reducer + its policy constants/types — the pure half of
- * the daemon activity registry. The seam is state: this file is
- * `(state, event) → state` with nothing to mount, while `activity-registry.ts`
- * holds the live map, the timers and the subscribers. That is what lets the
- * state machine below be driven through every transition as plain values, and
- * it is why the reducer can be shared across both packages at all — a stateful
- * registry could not be. `activity-registry.ts` re-exports the public names so
- * existing importers keep one entry point.
- *
- * {@link reduceActivity} is the single definition of the activity state
- * machine for BOTH packages: `kobe/src/engine/hook-events.ts` re-exports it
- * (kobe depends on kobe-daemon, never the reverse) so a fix lands once.
+ * Pure half of the activity registry: `(state, event) → state`, nothing to
+ * mount. `activity-registry.ts` holds the live map, timers and subscribers and
+ * re-exports these names. Being stateless is what lets
+ * `kobe/src/engine/hook-events.ts` re-export {@link reduceActivity} (kobe
+ * depends on kobe-daemon, never the reverse), so it is the one definition.
  */
 
 import type { EngineActivityDetail, EngineActivityKind, TaskActivityState } from "./contracts.ts"
 
 /**
- * Pure state machine: fold a normalized event into the next activity state.
+ * Fold a normalized event into the next activity state.
  *   session-start                  → idle
  *   turn-start                     → running
  *   turn-complete                  → turn_complete
@@ -26,9 +19,6 @@ import type { EngineActivityDetail, EngineActivityKind, TaskActivityState } from
  *                                    question dialog — either way the engine is
  *                                    blocked on the user; `detail.waiting` keeps why)
  *   session-end                    → idle
- *
- * The ONE definition: `kobe/src/engine/hook-events.ts` re-exports this rather
- * than keeping a second copy (the two drifted apart once already).
  */
 export function reduceActivity(
   previous: TaskActivityState | undefined,
@@ -45,17 +35,13 @@ export function reduceActivity(
     case "turn-start":
       return "running"
     case "turn-complete":
-      // A completion is only a completion when a turn was actually in
-      // flight: running, or blocked on the user mid-turn (an approved
-      // permission continues WITHOUT a new turn-start). Engines fire Stop
-      // for automated wakes too — a background monitor stream ending
-      // "completes" a turn the user never started, and lighting the ● lamp
-      // for it is wrong. That wake signature is a Stop landing on a KNOWN
-      // untracked state (an explicit idle/sticky entry) — keep it.
-      // `undefined` is different: the reducer knows NOTHING (fresh daemon,
-      // registry wiped by a restart), and the one real way a first event is
-      // a Stop is a turn that started before the wipe — swallowing it would
-      // cost the ● lamp for every turn that outlives a daemon restart.
+      // Only a completion if a turn was in flight: running, or blocked on the
+      // user mid-turn (an approved permission continues with no turn-start).
+      // Engines also fire Stop for automated wakes (a background monitor
+      // stream ending); a Stop on a KNOWN idle/sticky state is that, so keep
+      // it. `undefined` (fresh or restarted daemon) is a turn that began
+      // before the wipe — swallowing it would drop the ● lamp for every turn
+      // that outlives a restart.
       return previous === "running" || previous === "permission_needed" || previous === undefined
         ? "turn_complete"
         : previous
@@ -75,29 +61,20 @@ export function reduceActivity(
 export const DEFAULT_ENGINE_STATE_TTL_MS = 10 * 60 * 1000
 
 /**
- * States that persist until the NEXT real hook event clears them, rather than
- * lapsing to idle on a stale liveness probe. `running` is the only state the
- * lapse watchdog polices (a missed Stop pinning it forever); every other
- * non-idle state is terminal-until-next-event:
- *
- *   - `turn_complete` keeps its checkmark until the next activity.
- *   - `permission_needed` / `error` / `rate_limited` are exactly the states a
- *     user leaves the session to attend to. The liveness probe is the transcript
- *     mtime, and an engine BLOCKED on a permission prompt / rate limit / error
- *     writes nothing — so the probe always reads "stale", and a watchdog over
- *     these would idle precisely the tasks that need a human, hiding the ?
- *     badge after ~10min. They clear naturally: an approved turn emits Stop →
- *     turn_complete,
- *     an exit emits SessionEnd → idle, and clearTask() / task deletion wipe them.
+ * States held until the next real hook event, never lapsed by the watchdog —
+ * which polices only `running` (a missed Stop pinning it). `turn_complete`
+ * keeps its checkmark. `permission_needed` / `error` / `rate_limited` are the
+ * states needing a human, and a blocked engine writes nothing, so the mtime
+ * probe always reads stale and would hide the ? badge after ~10min. They
+ * clear via Stop → turn_complete, SessionEnd → idle, clearTask() or deletion.
  */
 export const STICKY_STATES: ReadonlySet<TaskActivityState> = new Set([
   "turn_complete",
   "permission_needed",
   "error",
   "rate_limited",
-  // A dead engine writes nothing, ever — the probe reads "stale" forever, so
-  // the watchdog would idle exactly the tab whose engine is gone. It clears
-  // when a new session starts in that tab (session-start → idle).
+  // A dead engine never writes, so the probe would idle exactly that tab.
+  // Cleared by a new session-start in the tab.
   "dead",
 ])
 
@@ -109,19 +86,15 @@ export function resolveEngineStateTtlMs(): number {
 }
 
 /**
- * Liveness probe: latest engine-transcript mtime (epoch ms) for a task, or
- * `undefined` when it can't be determined (unknown task, no worktree, probe
- * error). Used by the lapse watchdog to tell a genuinely-silent engine (a
- * missed Stop ⇒ idle) apart from a long single turn that is still writing
- * tool output to its transcript (alive ⇒ keep the badge, re-arm). Filesystem-
- * only; never throws (a rejection is treated as `undefined` ⇒ lapse).
+ * Liveness probe result: latest transcript mtime (epoch ms), telling a silent
+ * engine (missed Stop ⇒ idle) from a long turn still writing tool output
+ * (keep the badge, re-arm). `undefined` when undeterminable; filesystem-only,
+ * and a rejection counts as `undefined` ⇒ lapse.
  *
- * `completedAt` is the newest turn-COMPLETION marker in the same transcript.
- * Mtime alone answers "is anything still being written", which is NOT the
- * question the watchdog is asking: an engine sitting idle at its prompt keeps
- * touching its transcript, so a missed Stop re-armed the watchdog forever and
- * the spinner never stopped. A completion at/after the last write means the
- * last thing that happened WAS the turn ending, so the badge must drop.
+ * `completedAt` is the newest turn-completion marker. Mtime alone isn't
+ * enough: an engine idle at its prompt keeps touching its transcript, so a
+ * missed Stop would re-arm forever. A completion at/after the last write means
+ * the turn ended, so the badge drops.
  */
 export type ActivityLiveness =
   | { readonly unknown: true; readonly mtimeMs?: never; readonly completedAt?: never }
@@ -145,12 +118,9 @@ export function activityStillWorking(
 }
 
 /**
- * `vendor` is the REPORTING engine's id (the hook's `--engine`), when the
- * entry being policed carries one. A task whose configured vendor is a
- * custom wrapper id (`claudecpa` → cc-switch → claude) has no transcript
- * store under that id — probing by task.vendor read mtime 0 forever, so
- * every long turn lapsed to idle at the TTL while the engine was mid-turn.
- * The hook knows what actually runs; the probe must ask about THAT.
+ * `vendor` is the REPORTING engine's id (the hook's `--engine`), not the
+ * task's vendor: a wrapper id (`claudecpa` → cc-switch → claude) has no
+ * transcript store, reads mtime 0 forever, and would lapse every long turn.
  */
 export type ActivityLivenessProbe = (
   taskId: string,

@@ -1,9 +1,7 @@
 /**
- * Push-channel registry — the SINGLE source of truth for daemon→client push
- * channels, plus the subscribe-filter helpers. Split from protocol.ts (which
- * keeps version negotiation, the frame grammar, request names, and the PTY
- * payloads) and re-exported there, so `./protocol.ts` stays the one public
- * import path for the wire protocol.
+ * Push-channel registry — the single source of truth for daemon→client push
+ * channels, plus subscribe-filter helpers. Re-exported from `protocol.ts`,
+ * the one public import path for the wire protocol.
  */
 
 import { DAEMON_CHANNELS } from "@sma1lboy/rove-plugin-sdk/contract"
@@ -43,73 +41,53 @@ import type { SerializedTask } from "./protocol.ts"
 import type { RowTokenMap } from "./row-tokens.ts"
 
 /**
- * Channel registry — the SINGLE source of truth for daemon→client push
- * channels. The daemon is a cross-process pub/sub bus over the
- * socket: each channel carries a last-value the daemon caches and replays
- * to a late subscriber on connect (see `daemon/event-bus.ts`). Add a key
- * here (name + payload type) and the whole stack — `bus.publish`,
- * `client.onChannel`, the subscribe-time replay — is typed for it; nothing
- * else needs touching.
+ * Daemon→client push channels. Each carries a last value the daemon caches
+ * and replays to a late subscriber (`daemon/event-bus.ts`). Adding a key here
+ * types `bus.publish`, `client.onChannel` and the replay; nothing else needs
+ * touching.
  *
- * Ordering: per-socket delivery is FIFO; cross-channel ordering is NOT
- * guaranteed. Last-value replay suits STATE channels (a snapshot, a cost,
- * a status); a true event-LOG channel would only replay its last item.
+ * Per-socket delivery is FIFO; cross-channel ordering is not guaranteed.
+ * Last-value replay suits STATE channels; an EVENT channel replays only its
+ * last item, so its consumers dedupe on `at` and drop stale replays.
  */
 export interface ChannelPayloads {
   "task.snapshot": { tasks: SerializedTask[] }
   /**
-   * Daemon-owned issue tracker snapshot for ONE repo. Published after every
-   * `issue.mutate`. The payload is the repo's full issue state, not a delta,
-   * which keeps subscribers stateless; last-value replay carries only the
-   * most recently changed repo.
+   * One repo's full issue state (not a delta), published after every
+   * `issue.mutate`; replay carries only the most recently changed repo.
    *
-   * WRITE-ONLY IN THIS REPO. Its subscriber was the browser Issues pane,
-   * deleted in #855; the TUI kanban uses the `issue.list` / `issue.mutate`
-   * request/response RPCs instead. The channel stays because it is a public
-   * plugin API — it is in `DAEMON_CHANNELS` (`kobe-plugin-sdk`) and
-   * documented in `docs/PLUGIN-SDK.md`, so out-of-repo subscribers nobody
-   * here can enumerate depend on it. So the publish is GATED rather than
-   * removed: every writer goes through `publishIssueSnapshot`
-   * (`handlers-issues.ts`), which asks `lifetime.hasSubscribersFor` — the
-   * same per-channel gate `startDaemonCollectors` uses — before serializing a
-   * repo's whole issue state. With nobody attached it costs nothing; with a
-   * plugin attached it behaves exactly as before.
+   * No in-repo subscriber (the TUI uses `issue.list` / `issue.mutate`), but it
+   * is public plugin API (`DAEMON_CHANNELS`, `docs/PLUGIN-SDK.md`), so it stays.
+   * Writers go through `publishIssueSnapshot` (`handlers-issues.ts`), gated on
+   * `lifetime.hasSubscribersFor`: free with nobody attached.
    */
   "issue.snapshot": RepoIssues
   /**
-   * The currently-active task (the session last switched/entered into).
-   * Shared so EVERY Tasks pane + the outer monitor highlight the SAME
-   * focus, instead of each pane remembering its own last click.
-   * `null` = nothing active yet. Set via the `task.setActive` RPC.
+   * The task last switched into, shared so every Tasks pane and the monitor
+   * highlight the same focus. `null` = none yet. Set via `task.setActive`.
    */
   "active-task": { taskId: string | null }
   /**
-   * Latest published-version info, polled by the daemon on an interval and
-   * pushed to every pane so each `kobe tasks` process doesn't hit the npm
-   * registry itself (KOB — daemon-owned update check). `info` is `null`
-   * when the check is suppressed (dev mode) or unavailable (offline).
+   * Latest published version, polled by the daemon so panes don't each hit
+   * npm. `null` when suppressed (dev mode) or unavailable (offline).
    */
   update: { info: UpdateInfo | null }
   /**
-   * Transient, engine-driven activity for ONE task — pushed when a hook
-   * event arrives (KOB). Distinct from `task.snapshot`'s lifecycle status:
-   * this is "what is the engine doing right now" (running / turn just
-   * completed / rate-limited / waiting on a permission prompt), reduced from
-   * normalized hook verbs ({@link import("../engine/hook-events").reduceActivity}).
-   * Last-value-per-channel replay means a late subscriber gets the most
-   * recent task's state; the daemon also lets a state lapse back to idle.
+   * What ONE task's engine is doing right now (running / turn done /
+   * rate-limited / awaiting permission), reduced from hook verbs
+   * ({@link import("../engine/hook-events").reduceActivity}). Distinct from
+   * `task.snapshot`'s lifecycle status. Replay gives only the most recent
+   * task's state; the daemon lets a state lapse back to idle.
    */
   "engine-state": {
     taskId: string
-    /** Which engine TAB the event came from (the `KOBE_TAB_ID` env the hook
-     *  process inherits from its tab's spawn line). Absent for sessions kobe
-     *  didn't spawn as a tab (manual `claude` in a shell) — task-level only. */
+    /** The engine tab (`KOBE_TAB_ID` inherited by the hook process). Absent
+     *  for sessions Rove didn't spawn as a tab (manual `claude` in a shell). */
     tabId?: string
     state: TaskActivityState
     detail?: EngineActivityDetail
-    /** The engine's OWN session id, from its hook payload (Claude pipes
-     *  `session_id`). Latest-known, carried forward across events that omit
-     *  it. Covers user-typed engines too (cwd-matched to the task). */
+    /** The engine's own session id from the hook payload, carried forward
+     *  across events that omit it. Covers user-typed engines (cwd-matched). */
     sessionId?: string
     /** The session's transcript file, when the hook payload names it. */
     transcriptPath?: string
@@ -122,34 +100,22 @@ export interface ChannelPayloads {
    */
   "attention.inbox": { items: AttentionInboxItem[] }
   /**
-   * The user's persisted VISUAL prefs (`state.json`'s `activeTheme` /
-   * `transparentBackground` / `focusAccent` / `activeSortMode`), pushed
-   * whenever the daemon's file watcher sees them change. Every pane host
-   * applies the payload live so a theme switch in one session's Settings
-   * restyles the Tasks/Ops panes of EVERY task session — without the push,
-   * each pane would read the prefs once at boot and keep that look forever.
-   * The
-   * same fan-out carries `sortMode`: toggling the Tasks-pane sort (`t`) in
-   * one session re-sorts the Tasks pane of EVERY session, instead of only
-   * the pane the key was pressed in; `keysCollapsed` likewise syncs the
-   * Tasks-pane `── keys ──` legend fold (`?`) across every session, and
-   * `projectFilter` syncs the Tasks-pane project scope (`ctrl+p`) so switching
-   * task sessions does not reveal another pane's stale local filter. Last-
-   * value replay hydrates a late/reconnecting subscriber. `focusAccent` is
-   * the raw slot string (`null` = unset → the default slot); the TUI side
-   * validates it — the daemon stays vendor/UI-neutral and just mirrors the
-   * file.
+   * `state.json` visual prefs, pushed when the daemon's watcher sees them
+   * change, so a theme switch, Tasks-pane sort (`t`), keys fold (`?`) or
+   * project scope (`ctrl+p`) in one session applies to every session's panes
+   * (otherwise each reads once at boot). Replay hydrates a late subscriber.
+   * The daemon mirrors the file unvalidated; the TUI validates.
    */
   "ui-prefs": {
-    /** Selected theme NAME, or `null` when `state.json` names none. The daemon
-     *  has no theme registry, so it cannot supply a default — a literal here
-     *  would be a second, silently-drifting copy of the TUI's. `null` means
-     *  "no opinion": `applyUiPrefs` leaves whatever theme the pane already has. */
+    /** Theme name, or `null` when unset. The daemon has no theme registry, so
+     *  a default here would be a drifting copy of the TUI's. `null` = no
+     *  opinion: `applyUiPrefs` keeps the pane's current theme. */
     theme: string | null
-    /** `state.json`'s `themeMode` (`dark`/`light`/`auto`), `null` when unset or unknown.
-     *  Absent only from a daemon that predates the field — the TUI then leaves its mode alone. */
+    /** `themeMode` (`dark`/`light`/`auto`), `null` when unset or unknown.
+     *  Absent from older daemons — the TUI then leaves its mode alone. */
     themeMode?: string | null
     transparentBackground: boolean
+    /** Raw slot string; `null` = the default slot. */
     focusAccent: string | null
     /** UI language id (`state.json`'s `locale`). Opaque to the daemon — the TUI validates it. */
     locale: string
@@ -158,44 +124,26 @@ export interface ChannelPayloads {
     projectFilter: string | null
   }
   /**
-   * "Re-read your keybindings" ping (KOB — live keybinding propagation).
-   * The daemon's keybindings-file watcher bumps `rev` whenever
-   * `~/.rove/settings/keybindings.yaml` changes; every pane re-reads +
-   * re-applies the file onto its in-memory `KobeKeymap` (and re-renders the
-   * chord legends), so an edit takes effect across EVERY session without a
-   * rebuild. The daemon carries no keymap data — `rev` is an opaque change
-   * token; only its TRANSITIONS matter. Last-value replay lets a late
-   * subscriber learn the channel's current rev (it skips the first value so
-   * a fresh pane doesn't re-apply what it already read at boot).
+   * "Re-read `~/.rove/settings/keybindings.yaml`" ping; every pane re-applies
+   * it onto its `KobeKeymap`. `rev` is an opaque token — only transitions
+   * matter; panes skip the first (replayed) value since they read it at boot.
    */
   keybindings: { rev: number }
   /**
-   * Lifecycle progress of a MINUTE-CLASS daemon operation on one task
-   * (today: `task.ensureWorktree` — `git worktree add` on a huge repo).
-   * The blocking RPC contract is untouched (callers still await the
-   * result); this channel is the additive feedback path, so EVERY
-   * attached Tasks pane — not just the initiator — can show a live
-   * "materializing" state on the task row while the job runs.
-   *
-   * The publisher MUST always emit a terminal phase (`done` / `error`),
-   * including on throw — the handler wraps the operation in try/catch.
-   * Replay of a terminal phase to a late subscriber is harmless by
-   * design: clients treat `done`/`error` as "remove the entry", a no-op
-   * when nothing is tracked. A replayed `running` is only possible while
-   * the op is GENUINELY in flight (the bus is in-memory and dies with
-   * the daemon), so a late pane correctly picks up an ongoing job.
-   * Last-value caveat: with two jobs overlapping, a late subscriber only
-   * replays the most recent publish — live subscribers see both.
-   */
-  /**
-   * Plugin-written row tokens for every task that currently has one —
-   * the FULL map, republished on every write and again as each token's TTL
-   * expires (see `row-tokens.ts`). Full snapshots make reconnect stateless,
-   * and the expiry republish is what makes an abandoned label FADE instead
-   * of sitting on the row forever.
+   * Plugin-written row tokens, the FULL map, republished on every write and
+   * as each token's TTL expires (`row-tokens.ts`) — the expiry republish is
+   * what makes an abandoned label fade.
    */
   "task.tokens": { tokens: RowTokenMap }
   "task.jobs": {
+    // Progress of a minute-class op on one task (`task.ensureWorktree`), so
+    // every attached Tasks pane, not just the initiator, shows it. Additive:
+    // the RPC still blocks on the result.
+    //
+    // The publisher MUST emit a terminal phase (`done`/`error`), including on
+    // throw. Replayed terminal phases are harmless (clients remove the entry);
+    // a replayed `running` means the op is genuinely in flight (the bus dies
+    // with the daemon). With two overlapping jobs, replay carries only the last.
     taskId: string
     kind: "ensureWorktree"
     phase: "running" | "done" | "error"
@@ -203,164 +151,104 @@ export interface ChannelPayloads {
     error?: string
   }
   /**
-   * Uncommitted-change counts for every collected worktree —
-   * the daemon is the SINGLE `git status` collector; panes render these
-   * pushes instead of each running their own per-row git polls (N panes ×
-   * M tasks of duplicated subprocesses, the pre-daemon shape). The payload
-   * is the FULL map (worktreePath → counts), republished only when
-   * something actually changed, so the last-value replay hands a late
-   * subscriber the whole picture in one frame. Keys are absolute LOCAL
-   * worktree paths; remote (`ssh://`) projects are
-   * never collected, and a deleted task's entry drops from the
-   * map on the collector's next tick. A `Record` (not a Map) because this
-   * is a JSON wire payload. Clients that never see this channel (an older
-   * daemon — detected via `hello.capabilities`) fall back to local
-   * polling.
+   * Uncommitted-change counts; the daemon is the single `git status`
+   * collector so panes don't each poll. FULL map (absolute local worktree path
+   * → counts), republished only on change, so one replayed frame is the whole
+   * picture. Remote (`ssh://`) projects are never collected; a deleted task
+   * drops on the next tick. Clients whose daemon lacks the channel (per
+   * `hello.capabilities`) poll locally.
    */
   "worktree.changes": {
     changes: Record<string, { added: number; deleted: number }>
     /**
-     * Tracked worktrees whose `git status` FAILED — absent from `changes`
-     * because there are no counts, but present here so a subscriber can tell
-     * "could not read" from "not collected". Without it both look like an
-     * absent key, which the sidebar renders as a clean row: exactly the
-     * signal a user checks before deleting a task. Additive: an older client
-     * ignores the field and keeps today's behaviour, and an older DAEMON
-     * omits it, which a newer client reads as "nothing unreadable".
+     * Worktrees whose `git status` failed, so a subscriber can tell "could not
+     * read" from "not collected" — both are absent from `changes`, which the
+     * sidebar would render as clean, the signal a user checks before deleting.
+     * Absent from older daemons = nothing unreadable.
      */
     unreadable?: string[]
   }
   /**
-   * Engine-transcript activity for every collected worktree (perf —
-   * deduplicate per-Ops-pane polling). Today EVERY `kobe ops` pane stat'd
-   * the engine's transcript dir + parsed its JSONL on its own 1.5–2.5s
-   * timer (the `● new` badge's mtime probe + the Terminal Tab "done" chip's
-   * completion-marker read) — W Terminal Tabs × K transcripts of duplicated
-   * filesystem churn at total rest. The daemon now runs ONE collector
-   * (`daemon/transcript-activity-collector.ts`) doing the shareable,
-   * FILESYSTEM half — newest transcript mtime + the engine-owned completion
-   * marker — and fans it out here. The per-window quiescence check and
-   * pane-local state writes STAY in the Ops pane process (the daemon must
-   * never touch front-end state), so this channel carries only the fs-derived
-   * facts a window combines with its local pane hash.
+   * Transcript facts per worktree from one collector
+   * (`daemon/transcript-activity-collector.ts`) instead of every Ops pane
+   * stat-ing and parsing JSONL: newest transcript mtime + the engine-owned
+   * completion marker. The quiescence check and pane-local state writes stay
+   * in the Ops pane — the daemon never touches front-end state.
    *
-   * Same FULL-map-replace contract as `worktree.changes`: keys are absolute
-   * LOCAL worktree paths, the payload is the whole map republished only when
-   * an entry changed, remote tasks are never collected, and a
-   * deleted task's entry drops on the next tick. `completionId` is
-   * the engine's opaque latest-completion marker id (`null` when the vendor
-   * has none or none exists yet); `completionAt` is its epoch-ms timestamp
-   * (`0` when absent). A `Record` (not a Map) — JSON wire payload. Clients
-   * on an older daemon (channel absent from `hello.capabilities`) fall back
-   * to the Ops pane's local polling.
+   * Same full-map contract as `worktree.changes`. `completionId` is the
+   * engine's opaque marker id (`null` if none); `completionAt` its epoch ms
+   * (`0` if absent). Older daemons (absent from `hello.capabilities`) → the
+   * Ops pane polls locally.
    */
   "transcript.activity": {
     activity: Record<string, { mtimeMs: number; completionId: string | null; completionAt: number }>
   }
   /**
-   * Text addressed INTO a task's live engine session (docs/design/
-   * dispatcher.md). The daemon never owns delivery — engines are hosted
-   * by front-ends (OpenTUI terminal panes, the web PTY sidecar), so this channel is
-   * the daemon-side half of the contract: producers publish "paste this
-   * into task X", and whichever front-end hosts that task's session
-   * delivers it (the SPA via /pty/send today). Producers: the `note.file`
-   * RPC (a worktree session's field note, forwarded to the repo's
-   * main-task dispatcher, `source: "note"`) and the `session.deliver` RPC
-   * (`kobe api dispatch` — the dispatcher relaying a note onward,
-   * `source: "dispatcher"`). EVENT channel, not state: last-value replay
-   * hands a late subscriber only the most recent item (the event-bus
-   * definition-time caveat) — consumers dedupe on `at`.
+   * Text to paste into a task's live engine session (docs/design/dispatcher.md).
+   * The daemon never delivers: whichever front-end hosts the session does.
+   * Producers: `note.file` (`source: "note"`, to the repo's main-task
+   * dispatcher) and `session.deliver` (`kobe api dispatch`,
+   * `source: "dispatcher"`). EVENT channel.
    */
   "session.deliver": SessionDeliverPayload
   /**
-   * One "open a terminal tab running argv in task X" (plugin panes:
-   * `kobe plugin pane open` → `tab.open` RPC → here → the TUI hosting the
-   * task opens a CommandTab). EVENT channel like `notice.event`: consumers
-   * dedupe on `at` and drop stale replays.
+   * "Open a terminal tab running argv in task X" (`kobe plugin pane open` →
+   * `tab.open` RPC → the hosting TUI opens a CommandTab). EVENT channel.
    */
   "tab.open": TabOpenPayload
   /**
-   * The inverse of `tab.open`: one "close the panes opened under `title` in
-   * task X" (`kobe api pane-close` → `tab.close` RPC → here → the TUI
-   * hosting the task removes matching split leaves / command tabs). EVENT
-   * channel: consumers dedupe on `at` and drop stale replays.
+   * Inverse of `tab.open`: close panes opened under `title` in task X
+   * (`kobe api pane-close` → `tab.close` RPC). EVENT channel.
    */
   "tab.close": TabClosePayload
   /**
-   * One "rename Terminal Tab `tabId` of task X" (`kobe api rename --tab` →
-   * `terminalTab.rename` RPC → here → the TUI hosting the task repaints its
-   * tab strip). EVENT channel: consumers dedupe on `at` and drop stale
-   * replays.
-   *
-   * Unlike `tab.close` this carries no `requestId`, because it needs no
-   * reply: a rename is idempotent, so the CLI writes the persisted snapshot
-   * itself (covering the headless case) and broadcasts, and both writers
-   * converge on the same title in either order.
+   * Rename Terminal Tab `tabId` of task X (`kobe api rename --tab` →
+   * `terminalTab.rename` RPC). EVENT channel. No `requestId`, unlike
+   * `tab.close`: rename is idempotent, so the CLI writes the persisted
+   * snapshot itself (headless case) and both writers converge in any order.
    */
   "tab.rename": TabRenamePayload
   /**
-   * LOW-FREQUENCY agent-lifecycle signals the TUI renders (compaction in
-   * progress, subagent activity). Deliberately excludes the tool family —
-   * that volume stays plugin-only via the PluginHost's direct feed. EVENT
-   * channel: consumers dedupe on `at`.
+   * Low-frequency agent lifecycle (compaction, subagent activity). Excludes
+   * the tool family — that volume stays plugin-only via the PluginHost feed.
+   * EVENT channel.
    */
   "engine.lifecycle": EngineLifecyclePayload
-  /**
-   * One toast for the attached UIs (`kobe api notify` → `notice.send` →
-   * here). EVENT channel, not state: last-value replay hands a late
-   * subscriber only the most recent notice — consumers dedupe on `at`
-   * and drop stale replays.
-   */
+  /** One toast for attached UIs (`kobe api notify` → `notice.send`). EVENT channel. */
   "notice.event": NoticeEventPayload
   /**
-   * Per-vendor subscription-quota snapshots from the daemon's usage cache
-   * (Settings usage dashboard; the quota-resume scheduler reads the cache
-   * directly). STATE channel, full-map-replace like `worktree.changes`:
-   * keys are vendor ids, the payload is the whole map, republished only
-   * when a vendor's snapshot changed. Vendors without a quota probe (or
-   * whose probe can't read a login) simply never appear — "claude-only"
-   * is a data fact, not a type. Consumers derive staleness from each
-   * snapshot's `capturedAt`; the cache owns all fetch cadence.
+   * Per-vendor quota snapshots from the daemon's usage cache, keyed by vendor
+   * id; full map, republished on change. Vendors without a quota probe (or a
+   * readable login) never appear. Consumers derive staleness from
+   * `capturedAt`; the cache owns fetch cadence.
    */
   "usage.snapshot": {
     usage: Record<string, EngineQuotaUsage>
   }
   /**
-   * Per-SESSION context-window occupancy, keyed `taskId::tabId` — the
-   * workspace footer's `ctx 62%` meter. The sibling of `usage.snapshot`, and
-   * deliberately a separate channel rather than a second field on it: the two
-   * have different producers and different cadences, and one last-value slot
-   * per channel means a co-tenant would clobber the other's replay.
-   *
-   * STATE channel, full-map-replace like `worktree.changes`. A session whose
-   * engine reports no usage simply never appears — the footer then renders
-   * nothing, which is the honest answer, not a zero.
+   * Per-session context occupancy keyed `taskId::tabId` (footer `ctx 62%`).
+   * Separate from `usage.snapshot` because producers and cadences differ and
+   * one last-value slot per channel would clobber the other's replay. Full
+   * map. A session with no reported usage never appears — the footer renders
+   * nothing rather than a false zero.
    */
   "usage.context": {
     context: Record<string, EngineContextUsage>
   }
   /**
-   * One "ask the human for a line of text" request (`kobe api prompt` —
-   * the host-provided input dialog plugins call through the CLI). EVENT
-   * channel like `tab.open`: consumers dedupe on `at`, drop stale
-   * replays, and answer via the `ui.promptReply` RPC.
+   * "Ask the human for a line of text" (`kobe api prompt`). EVENT channel;
+   * answered via the `ui.promptReply` RPC.
    */
   "ui.prompt": UiPromptPayload
   /**
-   * One opaque graphics payload for every attached GUI to write to its own
-   * tty (`rove api pane-graphics` → `graphics.write` RPC → here). EVENT
-   * channel like `tab.open`: consumers dedupe on `at` and drop stale replays.
+   * Opaque graphics for every attached GUI to write to its own tty
+   * (`rove api pane-graphics` → `graphics.write`). EVENT channel.
    *
-   * The broadcast is deliberately unfiltered by task: a picture is addressed
-   * to a tab's CELLS, and a terminal not currently showing those cells simply
-   * stores the image until they appear. One task may also be attached by more
-   * than one GUI, so "the terminal" is never a single thing.
+   * Unfiltered by task on purpose: a picture is addressed to a tab's cells, a
+   * terminal not showing them stores the image until they appear, and one task
+   * may be attached by several GUIs.
    */
   "graphics.write": GraphicsWritePayload
-  // Add a channel ↓ then `bus.publish(name, payload)` in the daemon and
-  // `client.onChannel(name, …)` in a consumer — that's the whole recipe:
-  // "cost": { taskId: string; usd: number; tokens: number }
-  // "pr-status": { taskId: string; state: "open" | "merged" | "closed" | "none" }
 }
 
 /** The `ui-prefs` channel payload — the persisted visual prefs snapshot. */
@@ -376,12 +264,10 @@ export type TranscriptActivityPayload = ChannelPayloads["transcript.activity"]
 export type ChannelName = keyof ChannelPayloads
 
 /**
- * Runtime channel list — defaults subscribe-to-all + validates a filter.
- * The name list itself ships in the plugin SDK's contract module so external
- * authors and the daemon read ONE source; the payload types above stay here.
- * Both directions are compile-checked: the annotation rejects an SDK name
- * with no {@link ChannelPayloads} entry, `_everyChannelListed` rejects a
- * payload entry missing from the SDK list.
+ * Runtime channel list (default subscribe-all, filter validation). Names live
+ * in the plugin SDK contract so plugins and the daemon share one list. Both
+ * directions are compile-checked: the annotation rejects an SDK name with no
+ * {@link ChannelPayloads} entry; `_everyChannelListed` rejects the reverse.
  */
 export const CHANNEL_NAMES: readonly ChannelName[] = DAEMON_CHANNELS
 
@@ -397,15 +283,11 @@ export function isChannelName(value: unknown): value is ChannelName {
 }
 
 /**
- * Normalize a subscribe `channels` request into the filter the daemon
- * enforces (KOB — per-channel subscribe). Returns `null` for "no filter →
- * deliver every channel" (back-compat: a subscriber that omits `channels`,
- * sends a non-array, or sends an empty/all-garbage list gets everything,
- * exactly as before the filter existed). Otherwise returns the set of valid
- * channel names requested — unknown names are dropped (forward-compat: a
- * newer client asking for a channel this daemon doesn't have just doesn't
- * receive it, never an error). `daemon.stopping` is intentionally NOT a
- * channel and is always delivered regardless of the filter (server.ts).
+ * Subscribe `channels` → the filter the daemon enforces. `null` = deliver
+ * everything: a missing, non-array, empty or all-unknown list gets every
+ * channel (back-compat). Unknown names are dropped, never an error
+ * (forward-compat). `daemon.stopping` is not a channel and always delivers
+ * (server.ts).
  */
 export function normalizeChannelFilter(value: unknown): ReadonlySet<ChannelName> | null {
   if (!Array.isArray(value)) return null
