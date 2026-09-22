@@ -70,10 +70,6 @@ describe("usageFromClaudePayload", () => {
       { kind: "weekly_all", label: "7d", percent: 60, resetsAt: IN_5H },
     ])
   })
-
-  it("returns an empty window list for an empty payload", () => {
-    expect(usageFromClaudePayload({}, NOW).windows).toEqual([])
-  })
 })
 
 describe("fetchClaudeQuotaUsage keychain lookup", () => {

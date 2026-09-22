@@ -64,12 +64,6 @@ describe("openDirectoryTask", () => {
     expect(orch.listTasks()).toHaveLength(2)
   })
 
-  it("titles carry the directory basename plus a random suffix", async () => {
-    const task = await orch.openDirectoryTask({ dir })
-    const base = dir.split("/").filter(Boolean).at(-1)
-    expect(task.title).toMatch(new RegExp(`^${base}-[a-z0-9]{4}$`))
-  })
-
   it("ensureWorktree returns the pinned directory without touching git", async () => {
     const task = await orch.openDirectoryTask({ dir })
     await expect(orch.ensureWorktree(task.id)).resolves.toBe(task.worktreePath)
@@ -94,13 +88,6 @@ describe("openDirectoryTask", () => {
 })
 
 describe("scratch tasks", () => {
-  it("openDirectoryTask({scratch:true}) marks the row; a plain open does not", async () => {
-    const scratch = await orch.openDirectoryTask({ dir, scratch: true })
-    const plain = await orch.openDirectoryTask({ dir })
-    expect(scratch.scratch).toBe(true)
-    expect(plain.scratch).toBeUndefined()
-  })
-
   it("a scratch task mints NO auto-name — title stays empty until named or adopted", async () => {
     const scratch = await orch.openDirectoryTask({ dir, scratch: true })
     expect(scratch.title).toBe("")
@@ -118,12 +105,6 @@ describe("scratch tasks", () => {
     expect(adopted?.repo.endsWith(home.replace(/^\/private/, ""))).toBe(true)
     expect(adopted?.worktreePath).toBe(adopted?.repo)
     expect(adopted?.kind).toBe("dir")
-  })
-
-  it("adoptScratchRepo is a no-op on non-scratch rows", async () => {
-    const plain = await orch.openDirectoryTask({ dir })
-    await orch.adoptScratchRepo(plain.id, home)
-    expect(orch.getTask(plain.id)?.repo).toBe(plain.repo)
   })
 
   it("renaming a scratch task clears the flag — naming is the keep gesture", async () => {

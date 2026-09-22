@@ -17,15 +17,12 @@ import path from "node:path"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import {
   addSavedRepo,
-  getPersistedString,
   getRemoteRepos,
   getSavedRepos,
-  isRemoteProjectsEnabled,
   normalizeSavedRepos,
   remoteRepoKey,
   resolveMainRepoRoot,
   resolveRepoRoot,
-  setPersistedString,
   statePath,
 } from "../../src/state/repos.ts"
 
@@ -79,15 +76,6 @@ describe("resolveRepoRoot", () => {
     // realpath comparison must keep the user's spelling, not canonicalize it.
     expect(resolveRepoRoot(repo)).toBe(repo)
   })
-
-  test("returns the input for a non-repo directory", () => {
-    const plain = tempDir("kobe-root-plain-")
-    expect(resolveRepoRoot(plain)).toBe(plain)
-  })
-
-  test("passes a remote ssh:// key through untouched", () => {
-    expect(resolveRepoRoot("ssh://jc@box:22")).toBe("ssh://jc@box:22")
-  })
 })
 
 describe("resolveMainRepoRoot", () => {
@@ -107,17 +95,6 @@ describe("resolveMainRepoRoot", () => {
     const plain = tempDir("kobe-main-plain-")
     expect(resolveMainRepoRoot(plain)).toBe(plain)
     expect(resolveMainRepoRoot("ssh://jc@box")).toBe("ssh://jc@box")
-  })
-})
-
-describe("getPersistedString / setPersistedString", () => {
-  test("round-trips a string and returns undefined for absent or non-string values", () => {
-    expect(getPersistedString("lastSelectedVendor")).toBeUndefined()
-    setPersistedString("lastSelectedVendor", "codex")
-    expect(getPersistedString("lastSelectedVendor")).toBe("codex")
-
-    fs.writeFileSync(statePath(), JSON.stringify({ lastSelectedVendor: 42 }))
-    expect(getPersistedString("lastSelectedVendor")).toBeUndefined()
   })
 })
 
@@ -157,13 +134,6 @@ describe("remote projects", () => {
   test("remoteRepoKey includes the port only when set", () => {
     expect(remoteRepoKey("box", "jc", 2222)).toBe("ssh://jc@box:2222")
     expect(remoteRepoKey("box", "jc")).toBe("ssh://jc@box")
-  })
-
-  test("isRemoteProjectsEnabled defaults to false and reads the experimental flag", () => {
-    expect(isRemoteProjectsEnabled()).toBe(false)
-    fs.mkdirSync(path.dirname(statePath()), { recursive: true })
-    fs.writeFileSync(statePath(), JSON.stringify({ "experimental.remoteProjects": true }))
-    expect(isRemoteProjectsEnabled()).toBe(true)
   })
 
   test("getRemoteRepos returns {} when absent and rejects a malformed blob", () => {

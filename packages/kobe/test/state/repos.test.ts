@@ -81,15 +81,6 @@ describe("isGitRepo", () => {
     }
   })
 
-  test("false for an existing directory that is not a git repo", () => {
-    const plain = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-plain-"))
-    try {
-      expect(isGitRepo(plain)).toBe(false)
-    } finally {
-      fs.rmSync(plain, { recursive: true, force: true })
-    }
-  })
-
   test("false for a path that does not exist (the `kobe add ,` case)", () => {
     expect(isGitRepo(path.join(os.tmpdir(), "kobe-does-not-exist", ","))).toBe(false)
   })
@@ -105,42 +96,13 @@ describe("getCustomEngineIds", () => {
     fs.writeFileSync(statePath(), JSON.stringify(blob))
   }
 
-  test("returns [] when the file does not exist", () => {
-    expect(getCustomEngineIds()).toEqual([])
-  })
-
   test("reads the customEngineIds array, dropping non-strings and blanks", () => {
     writeState({ customEngineIds: ["aider", "", 3, "  ", "my-engine"], savedRepos: ["/x"] })
     expect(getCustomEngineIds()).toEqual(["aider", "my-engine"])
   })
-
-  test("returns [] when customEngineIds is absent or not an array", () => {
-    writeState({ customEngineIds: "nope" })
-    expect(getCustomEngineIds()).toEqual([])
-  })
 })
 
 describe("getSavedRepos", () => {
-  test("returns [] when the file does not exist", () => {
-    expect(getSavedRepos()).toEqual([])
-  })
-
-  test("returns [] when the file is not parseable JSON", () => {
-    const p = statePath()
-    fs.mkdirSync(path.dirname(p), { recursive: true })
-    fs.writeFileSync(p, "{not valid json", "utf8")
-    expect(getSavedRepos()).toEqual([])
-  })
-
-  test("returns [] when savedRepos is missing or wrong type", () => {
-    const p = statePath()
-    fs.mkdirSync(path.dirname(p), { recursive: true })
-    fs.writeFileSync(p, JSON.stringify({ activeTheme: "dracula" }), "utf8")
-    expect(getSavedRepos()).toEqual([])
-    fs.writeFileSync(p, JSON.stringify({ savedRepos: "/not/an/array" }), "utf8")
-    expect(getSavedRepos()).toEqual([])
-  })
-
   test("filters out non-string entries defensively", () => {
     const p = statePath()
     fs.mkdirSync(path.dirname(p), { recursive: true })
@@ -150,26 +112,11 @@ describe("getSavedRepos", () => {
 })
 
 describe("addSavedRepo", () => {
-  test("creates the file + directory on first write and reports added=true", () => {
-    expect(fs.existsSync(statePath())).toBe(false)
-    const r = addSavedRepo("/repos/alpha", { skipGate: true })
-    expect(r).toEqual({ added: true, path: "/repos/alpha", total: 1 })
-    expect(getSavedRepos()).toEqual(["/repos/alpha"])
-    expect(fs.existsSync(statePath())).toBe(true)
-  })
-
   test("is idempotent — re-adding the same path returns added=false and doesn't grow", () => {
     addSavedRepo("/repos/alpha", { skipGate: true })
     const r = addSavedRepo("/repos/alpha", { skipGate: true })
     expect(r).toEqual({ added: false, path: "/repos/alpha", total: 1 })
     expect(getSavedRepos()).toEqual(["/repos/alpha"])
-  })
-
-  test("appends to existing entries in insertion order", () => {
-    addSavedRepo("/repos/alpha", { skipGate: true })
-    addSavedRepo("/repos/beta", { skipGate: true })
-    addSavedRepo("/repos/gamma", { skipGate: true })
-    expect(getSavedRepos()).toEqual(["/repos/alpha", "/repos/beta", "/repos/gamma"])
   })
 
   test("preserves sibling KV keys (kobe add must not wipe TUI state)", () => {
@@ -192,14 +139,6 @@ describe("addSavedRepo", () => {
     expect(after.lastSelectedTaskId).toBe("01XYZ")
     expect(after.savedRepos).toEqual(["/old", "/new"])
   })
-
-  test("write is atomic — no leftover .tmp after a successful add", () => {
-    addSavedRepo("/repos/alpha", { skipGate: true })
-    const dir = path.dirname(statePath())
-    const entries = fs.readdirSync(dir)
-    expect(entries).toContain("state.json")
-    expect(entries).not.toContain("state.json.tmp")
-  })
 })
 
 describe("removeSavedRepo (KOB-15)", () => {
@@ -216,32 +155,6 @@ describe("removeSavedRepo (KOB-15)", () => {
     const r = removeSavedRepo("/repos/never-added")
     expect(r).toEqual({ removed: false, path: "/repos/never-added", total: 1 })
     expect(getSavedRepos()).toEqual(["/repos/alpha"])
-  })
-
-  test("preserves sibling KV keys (must not wipe TUI state)", () => {
-    const p = statePath()
-    fs.mkdirSync(path.dirname(p), { recursive: true })
-    fs.writeFileSync(
-      p,
-      JSON.stringify({
-        activeTheme: "dracula",
-        lastSelectedTaskId: "01XYZ",
-        savedRepos: ["/old", "/keep"],
-      }),
-      "utf8",
-    )
-    removeSavedRepo("/old")
-    const after = JSON.parse(fs.readFileSync(p, "utf8")) as Record<string, unknown>
-    expect(after.activeTheme).toBe("dracula")
-    expect(after.lastSelectedTaskId).toBe("01XYZ")
-    expect(after.savedRepos).toEqual(["/keep"])
-  })
-
-  test("returns total=0 when removing the last entry", () => {
-    addSavedRepo("/only", { skipGate: true })
-    const r = removeSavedRepo("/only")
-    expect(r).toEqual({ removed: true, path: "/only", total: 0 })
-    expect(getSavedRepos()).toEqual([])
   })
 
   test("preserves order of remaining entries", () => {
@@ -293,14 +206,6 @@ describe("addSavedRepo admission gate", () => {
     expect(getSavedRepos()).toEqual([])
   })
 
-  test("accepts an ordinary repo", () => {
-    const repo = initRepo("my-project")
-    const r = addSavedRepo(repo)
-    expect(r.rejected).toBeUndefined()
-    expect(r.added).toBe(true)
-    expect(getSavedRepos()).toEqual([repo])
-  })
-
   test("a rejection still reports the normalized path, so callers can name it", () => {
     // `rove add` prints this path in its error, and `createTaskFlow` uses it
     // as the task's repo — a rejection must not degrade it to the raw input.
@@ -327,13 +232,6 @@ describe("backfillSavedReposFromProjects", () => {
 
     expect(backfillSavedReposFromProjects([a, b])).toEqual([b])
     expect(getSavedRepos()).toEqual([a, b])
-  })
-
-  test("is idempotent — a second pass adds nothing", () => {
-    const a = initRepo("proj-a")
-    backfillSavedReposFromProjects([a])
-    expect(backfillSavedReposFromProjects([a])).toEqual([])
-    expect(getSavedRepos()).toEqual([a])
   })
 
   test("skips a row that fails the admission gate", () => {

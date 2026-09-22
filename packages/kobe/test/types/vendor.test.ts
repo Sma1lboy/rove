@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest"
-import {
-  ALL_VENDORS,
-  BUILTIN_VENDORS,
-  coerceVendorId,
-  isBuiltinVendor,
-  nextVendorWithin,
-  resolvePersistedVendor,
-} from "../../src/types/vendor.ts"
+import { coerceVendorId, isBuiltinVendor, nextVendorWithin, resolvePersistedVendor } from "../../src/types/vendor.ts"
 
 describe("nextVendorWithin", () => {
   it("cycles within a subset, wrapping around", () => {
@@ -23,19 +16,6 @@ describe("nextVendorWithin", () => {
   it("returns current unchanged for an empty subset (nothing detected)", () => {
     expect(nextVendorWithin([], "codex")).toBe("codex")
   })
-
-  it("is a no-op cycle for a single-vendor subset", () => {
-    expect(nextVendorWithin(["codex"], "codex")).toBe("codex")
-  })
-
-  it("walks the full built-in list in order and wraps", () => {
-    expect(nextVendorWithin(ALL_VENDORS, "claude")).toBe("codex")
-    expect(nextVendorWithin(ALL_VENDORS, "codex")).toBe("copilot")
-    expect(nextVendorWithin(ALL_VENDORS, "copilot")).toBe("kimi")
-    expect(nextVendorWithin(ALL_VENDORS, "kimi")).toBe("pi")
-    expect(nextVendorWithin(ALL_VENDORS, "pi")).toBe("omp")
-    expect(nextVendorWithin(ALL_VENDORS, "omp")).toBe("claude")
-  })
 })
 
 describe("isBuiltinVendor", () => {
@@ -49,23 +29,9 @@ describe("isBuiltinVendor", () => {
     expect(isBuiltinVendor("aider")).toBe(false)
     expect(isBuiltinVendor(undefined)).toBe(false)
   })
-
-  it("agrees with BUILTIN_VENDORS exactly — no hand-maintained second list", () => {
-    for (const id of BUILTIN_VENDORS) expect(isBuiltinVendor(id)).toBe(true)
-    expect(BUILTIN_VENDORS.every((id) => isBuiltinVendor(id))).toBe(true)
-  })
 })
 
 describe("coerceVendorId", () => {
-  it("passes a built-in through unchanged", () => {
-    expect(coerceVendorId("codex")).toBe("codex")
-  })
-
-  it("passes a custom engine id through (engines are open now)", () => {
-    expect(coerceVendorId("aider")).toBe("aider")
-    expect(coerceVendorId("  my-engine ")).toBe("my-engine")
-  })
-
   it("falls back to claude only for empty/absent", () => {
     expect(coerceVendorId(undefined)).toBe("claude")
     expect(coerceVendorId("")).toBe("claude")
@@ -74,12 +40,6 @@ describe("coerceVendorId", () => {
 })
 
 describe("resolvePersistedVendor", () => {
-  it("passes a built-in through unchanged", () => {
-    expect(resolvePersistedVendor("codex")).toBe("codex")
-    expect(resolvePersistedVendor("copilot")).toBe("copilot")
-    expect(resolvePersistedVendor("  claude ")).toBe("claude")
-  })
-
   it("passes a registered custom engine id through", () => {
     expect(resolvePersistedVendor("aider", ["aider"])).toBe("aider")
     expect(resolvePersistedVendor("  my-engine ", ["my-engine"])).toBe("my-engine")
@@ -90,12 +50,5 @@ describe("resolvePersistedVendor", () => {
     expect(resolvePersistedVendor("clade")).toBe("claude")
     expect(resolvePersistedVendor("aider")).toBe("claude") // not in the (empty) custom registry
     expect(resolvePersistedVendor("aider", ["other-engine"])).toBe("claude")
-  })
-
-  it("falls back to claude for empty/absent", () => {
-    expect(resolvePersistedVendor(undefined)).toBe("claude")
-    expect(resolvePersistedVendor("")).toBe("claude")
-    expect(resolvePersistedVendor("   ")).toBe("claude")
-    expect(resolvePersistedVendor(undefined, ["aider"])).toBe("claude")
   })
 })

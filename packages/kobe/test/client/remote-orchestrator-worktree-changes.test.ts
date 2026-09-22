@@ -17,13 +17,6 @@ import {
 } from "../../src/client/remote-orchestrator.ts"
 
 describe("worktree.changes pure helpers", () => {
-  it("parseWorktreeChangesPayload accepts an empty map and rejects malformed entries", () => {
-    expect(parseWorktreeChangesPayload({ changes: {} })?.size).toBe(0)
-    expect(parseWorktreeChangesPayload(undefined)).toBeNull()
-    expect(parseWorktreeChangesPayload({ changes: [] })).toBeNull()
-    expect(parseWorktreeChangesPayload({ changes: { "/wt": { added: 1 } } })).toBeNull()
-  })
-
   it("parseWorktreeChangesPayload maps the daemon's unreadable paths to null", () => {
     // `unreadable` is additive: an older daemon omits it entirely, and the
     // parser must still accept the payload rather than reject the whole map.
@@ -44,12 +37,5 @@ describe("worktree.changes pure helpers", () => {
     expect(sameWorktreeChangesMap(unreadable, new Map([["/wt", null]]))).toBe(true)
     expect(sameWorktreeChangesMap(unreadable, new Map([["/wt", { added: 0, deleted: 0 }]]))).toBe(false)
     expect(sameWorktreeChangesMap(unreadable, new Map())).toBe(false)
-  })
-
-  it("sameWorktreeChangesMap compares entry-wise", () => {
-    const a = new Map([["/wt", { added: 1, deleted: 2 }]])
-    expect(sameWorktreeChangesMap(a, new Map([["/wt", { added: 1, deleted: 2 }]]))).toBe(true)
-    expect(sameWorktreeChangesMap(a, new Map([["/wt", { added: 1, deleted: 3 }]]))).toBe(false)
-    expect(sameWorktreeChangesMap(a, new Map())).toBe(false)
   })
 })

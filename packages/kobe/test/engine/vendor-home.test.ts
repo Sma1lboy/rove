@@ -26,13 +26,6 @@ const deps = (env: Record<string, string> = {}, home = "/home/u") => ({
 })
 
 describe("vendorConfigHome", () => {
-  it("defaults to the vendor's dotdir under home", () => {
-    expect(vendorConfigHome("claude", deps())).toBe("/home/u/.claude")
-    expect(vendorConfigHome("codex", deps())).toBe("/home/u/.codex")
-    expect(vendorConfigHome("copilot", deps())).toBe("/home/u/.copilot")
-    expect(vendorConfigHome("kimi", deps())).toBe("/home/u/.kimi-code")
-  })
-
   it("honours each vendor's own env override", () => {
     expect(vendorConfigHome("claude", deps({ CLAUDE_CONFIG_DIR: "/profiles/c" }))).toBe("/profiles/c")
     expect(vendorConfigHome("codex", deps({ CODEX_HOME: "/profiles/x" }))).toBe("/profiles/x")

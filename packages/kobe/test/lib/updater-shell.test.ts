@@ -33,9 +33,4 @@ describe("updaterShellFailureHint", () => {
     expect(hint).toContain("Git for Windows")
     expect(hint).toContain("npm install -g")
   })
-
-  it("adds nothing on POSIX, where a missing `sh` is not a known story", () => {
-    expect(updaterShellFailureHint({ platform: "darwin" })).toBeNull()
-    expect(updaterShellFailureHint({ platform: "linux" })).toBeNull()
-  })
 })

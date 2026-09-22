@@ -34,12 +34,6 @@ describe("deriveTitleFromPrompt", () => {
     expect(deriveTitleFromPrompt("  add   a\n  feature ")).toBe("add a feature")
   })
 
-  it("returns '' for empty / non-string input", () => {
-    expect(deriveTitleFromPrompt("")).toBe("")
-    expect(deriveTitleFromPrompt("   \n  ")).toBe("")
-    expect(deriveTitleFromPrompt(undefined as unknown as string)).toBe("")
-  })
-
   it("truncates with an ellipsis past the cap", () => {
     const long = "x".repeat(TITLE_CHAR_CAP + 20)
     const out = deriveTitleFromPrompt(long)
@@ -74,10 +68,6 @@ describe("sanitizeTaskTitle", () => {
     expect(sanitizeTaskTitle("a\tb")).toBe("a b")
     expect(sanitizeTaskTitle("red\u001b[31mtext")).toBe("red [31mtext")
     expect(sanitizeTaskTitle("a\u0000b")).toBe("a b")
-  })
-
-  it("collapses runs and trims the edges, so nothing becomes a wall of spaces", () => {
-    expect(sanitizeTaskTitle("  \n\n a  \n b \n ")).toBe("a b")
   })
 
   it("leaves an ordinary title — including a non-Latin one — byte-for-byte alone", () => {

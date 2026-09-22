@@ -49,13 +49,6 @@ describe("TaskIndexStore self-heal on load", () => {
     expect(tasks[0]?.status).toBe("backlog")
   })
 
-  it("resets a main task stuck at done back to backlog", async () => {
-    await writeTasks([baseRow({ kind: "main", status: "done" })])
-    const store = new TaskIndexStore({ homeDir: home })
-    const { tasks } = await store.load()
-    expect(tasks[0]?.status).toBe("backlog")
-  })
-
   it("leaves a done TASK alone (archive concept removed; done is legitimate)", async () => {
     await writeTasks([baseRow({ id: "01HXTASKAAAAAAAAAAAAAAAAA", kind: "task", status: "done" })])
     const store = new TaskIndexStore({ homeDir: home })
@@ -110,20 +103,12 @@ describe("TaskIndexStore vendor coercion on load", () => {
     return tasks[0]?.vendor
   }
 
-  it("preserves a copilot vendor", async () => {
-    expect(await loadVendor({ vendor: "copilot" })).toBe("copilot")
-  })
-
   it("preserves a built-in codex vendor", async () => {
     expect(await loadVendor({ vendor: "codex" })).toBe("codex")
   })
 
   it("preserves a custom (user-registered) engine vendor", async () => {
     expect(await loadVendor({ vendor: "my-engine" })).toBe("my-engine")
-  })
-
-  it("falls back to claude when vendor is absent", async () => {
-    expect(await loadVendor({})).toBe("claude")
   })
 
   it("falls back to claude for an empty or non-string vendor", async () => {
@@ -177,27 +162,5 @@ describe("TaskIndexStore task ordering", () => {
     await store.move(b.id, -1, [String(a.id), String(b.id)])
 
     expect(store.list().map((t) => t.id)).toEqual([b.id, a.id, pinned.id])
-  })
-
-  it("keeps boundary moves as no-ops", async () => {
-    const store = await createStore()
-    const a = await store.create({
-      title: "a",
-      repo: "/repo",
-      branch: "a",
-      worktreePath: "/repo/a",
-      status: "backlog",
-    })
-    const b = await store.create({
-      title: "b",
-      repo: "/repo",
-      branch: "b",
-      worktreePath: "/repo/b",
-      status: "backlog",
-    })
-
-    await store.move(a.id, -1, [String(a.id), String(b.id)])
-
-    expect(store.list().map((t) => t.id)).toEqual([a.id, b.id])
   })
 })

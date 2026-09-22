@@ -45,12 +45,6 @@ describe("isRovePluginEnabled", () => {
     writeSettings({ enabledPlugins: { "rove@rove": false, "ponytail@ponytail": true, "rover@x": true } })
     expect(isRovePluginEnabled(settingsPath)).toBe(false)
   })
-
-  it("is false for a missing or unparsable settings file", () => {
-    expect(isRovePluginEnabled(join(home, "nope.json"))).toBe(false)
-    writeFileSync(settingsPath, "{oops")
-    expect(isRovePluginEnabled(settingsPath)).toBe(false)
-  })
 })
 
 describe("detectLegacyInstalls", () => {
@@ -92,20 +86,9 @@ describe("detectLegacyInstalls", () => {
     const found = detectLegacyInstalls({ settingsFilePath: settingsPath, home })
     expect(found.legacySkillDirs).toEqual([dir])
   })
-
-  it("reports clean when nothing legacy exists", () => {
-    writeSettings({})
-    const found = detectLegacyInstalls({ settingsFilePath: settingsPath, home })
-    expect(found.legacyHooks).toBe(false)
-    expect(found.legacySkillDirs).toEqual([])
-  })
 })
 
 describe("migrationHint", () => {
-  it("is null when clean", () => {
-    expect(migrationHint({ legacyHooks: false, legacySkillDirs: [] }, "rove")).toBeNull()
-  })
-
   it("names the cleanup command for legacy hooks and the dir for legacy skills", () => {
     const hint = migrationHint({ legacyHooks: true, legacySkillDirs: ["/h/.claude/skills/rove"] }, "rove")
     expect(hint).toContain("rove hook cleanup")

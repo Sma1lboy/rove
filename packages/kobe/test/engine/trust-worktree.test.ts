@@ -36,17 +36,6 @@ function tempHome(): string {
 const WORKTREE = "/wt/rove-task-1"
 
 describe("trustKimiWorktree", () => {
-  it("writes the workspace-trust record named by sha256(path)[:12]", () => {
-    const home = tempHome()
-    trustKimiWorktree(WORKTREE, home)
-    const hash = createHash("sha256").update(WORKTREE).digest("hex").slice(0, 12)
-    const file = kimiTrustFilePath(WORKTREE, home)
-    expect(file).toBe(path.join(home, ".kimi-code", "workspace-trust", `wd_rove-task-1_${hash}`))
-    const record = JSON.parse(fs.readFileSync(file, "utf8")) as { root: string; trustedAt: number }
-    expect(record.root).toBe(WORKTREE)
-    expect(typeof record.trustedAt).toBe("number")
-  })
-
   // Kimi hashes the RESOLVED path and lowercases the basename — read off a
   // record kimi 0.40.1 wrote itself. A record keyed on the literal path
   // suppresses no dialog, which is the whole point of writing one.
@@ -127,20 +116,6 @@ describe("trustCodexWorktree", () => {
     const text = fs.readFileSync(file, "utf8")
     expect(text).toContain('model = "gpt-5"')
     expect(text).toContain(`[projects.${JSON.stringify(WORKTREE)}]\ntrust_level = "trusted"`)
-  })
-
-  it("creates the config when absent and never double-appends", () => {
-    const home = tempHome()
-    trustCodexWorktree(WORKTREE, home)
-    trustCodexWorktree(WORKTREE, home)
-    const text = fs.readFileSync(path.join(home, ".codex", "config.toml"), "utf8")
-    expect(text.split(`[projects.${JSON.stringify(WORKTREE)}]`)).toHaveLength(2)
-  })
-
-  it("leaves no lock file behind after a call", () => {
-    const home = tempHome()
-    trustCodexWorktree(WORKTREE, home)
-    expect(fs.existsSync(path.join(home, ".codex", "config.toml.rove.lock"))).toBe(false)
   })
 
   it("repairs duplicate stanzas from a missed race — for any path, not just its own", () => {

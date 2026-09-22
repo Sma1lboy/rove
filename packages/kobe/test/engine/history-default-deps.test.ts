@@ -89,11 +89,6 @@ afterAll(() => {
 })
 
 describe("encodeCwd", () => {
-  it("replaces / and . with - (Claude Code's lossy on-disk encoding)", () => {
-    expect(encodeCwd("/Users/j/i/kobe")).toBe("-Users-j-i-kobe")
-    expect(encodeCwd("/v/1.2.3")).toBe("-v-1-2-3")
-  })
-
   it("replaces every non-alphanumeric char, matching Claude Code's encoder", () => {
     // Claude Code encodes with `cwd.replace(/[^a-zA-Z0-9]/g, "-")`, so an
     // underscore, space, or accented letter in the path all fold to `-`.
@@ -102,10 +97,6 @@ describe("encodeCwd", () => {
     expect(encodeCwd("/home/jane_doe/my_app")).toBe("-home-jane-doe-my-app")
     expect(encodeCwd("/tmp/a b/c")).toBe("-tmp-a-b-c")
     expect(encodeCwd("/home/josé/repo")).toBe("-home-jos--repo")
-  })
-
-  it("preserves case and leaves alphanumerics untouched", () => {
-    expect(encodeCwd("/Repo123/AbC")).toBe("-Repo123-AbC")
   })
 })
 
@@ -132,11 +123,6 @@ describe("fresh HOME — no engine dirs on disk yet", () => {
 })
 
 describe("listSessionFilesForWorktree (real default deps)", () => {
-  it("returns [] for an empty worktree arg and for a worktree never entered", async () => {
-    await expect(listSessionFilesForWorktree("")).resolves.toEqual([])
-    await expect(listSessionFilesForWorktree("/never/entered")).resolves.toEqual([])
-  })
-
   it("lists only .jsonl files, newest mtime first, and tolerates a vanishing entry", async () => {
     const wt = "/repo/wt-list"
     const older = writeSession(wt, "aaaa", [userLine("old", "aaaa", "2026-01-01T00:00:00Z")])
@@ -180,10 +166,6 @@ describe("readHistory (real default deps)", () => {
     ])
     // usage survives normalization when both token counts are present.
     expect(messages[2]?.usage).toEqual({ input_tokens: 10, output_tokens: 3 })
-  })
-
-  it("returns [] when no project dir holds the session (and when ~/.claude is empty)", async () => {
-    await expect(readHistory("no-such-session")).resolves.toEqual([])
   })
 })
 

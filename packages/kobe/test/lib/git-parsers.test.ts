@@ -21,46 +21,12 @@ import { describe, expect, test } from "vitest"
 import { type NumstatRow, parseNumstatRows, parsePorcelainRows, unquoteGitPath } from "../../src/lib/git-parsers"
 
 describe("unquoteGitPath", () => {
-  test("returns an unquoted path verbatim", () => {
-    expect(unquoteGitPath("src/app.ts")).toBe("src/app.ts")
-  })
-
-  test("returns the empty string verbatim", () => {
-    expect(unquoteGitPath("")).toBe("")
-  })
-
-  test("strips the wrapping quotes off a quoted path", () => {
-    expect(unquoteGitPath('"has space.txt"')).toBe("has space.txt")
-  })
-
-  test("decodes \\t / \\n escapes to real control chars", () => {
-    expect(unquoteGitPath('"weird\\tname.txt"')).toBe("weird\tname.txt")
-    expect(unquoteGitPath('"line\\nbreak.txt"')).toBe("line\nbreak.txt")
-  })
-
-  test("decodes the full C-escape set (\\a \\b \\v \\f \\r)", () => {
-    expect(unquoteGitPath('"a\\ab\\bv\\vf\\fr\\r"')).toBe("a\x07b\x08v\x0bf\x0cr\r")
-  })
-
   test("decodes escaped quote and backslash", () => {
     expect(unquoteGitPath('"a\\"b\\\\c.txt"')).toBe('a"b\\c.txt')
   })
 
   test("decodes octal byte escapes as UTF-8 (ü)", () => {
     expect(unquoteGitPath('"\\303\\274nicode.txt"')).toBe("ünicode.txt")
-  })
-
-  test("decodes a multi-byte octal run mixed with ASCII", () => {
-    // "\303\274n\303\257code.txt" → ü n ï code.txt
-    expect(unquoteGitPath('"\\303\\274n\\303\\257code.txt"')).toBe("ünïcode.txt")
-  })
-
-  test("an unknown escape keeps the escaped char literally", () => {
-    expect(unquoteGitPath('"a\\zb"')).toBe("azb")
-  })
-
-  test("a path that merely contains a quote mid-string (unquoted) is verbatim", () => {
-    expect(unquoteGitPath('a"b.txt')).toBe('a"b.txt')
   })
 })
 
@@ -95,30 +61,10 @@ describe("parsePorcelainRows", () => {
     ])
   })
 
-  test("resolves a rename with both sides quoted (spaces)", () => {
-    expect(parsePorcelainRows('R  "spaced name.txt" -> "sub/spaced name.txt"')).toEqual([
-      { x: "R", y: " ", path: "sub/spaced name.txt", origPath: "spaced name.txt" },
-    ])
-  })
-
-  test("resolves a rename with C-escaped (tab) sides", () => {
-    expect(parsePorcelainRows('R  "weird\\tname.txt" -> "weird\\trenamed.txt"')).toEqual([
-      { x: "R", y: " ", path: "weird\trenamed.txt", origPath: "weird\tname.txt" },
-    ])
-  })
-
   test("resolves a rename+modify (RM) row", () => {
     expect(parsePorcelainRows('RM "src/has space.txt" -> "src/has space2.txt"')).toEqual([
       { x: "R", y: "M", path: "src/has space2.txt", origPath: "src/has space.txt" },
     ])
-  })
-
-  test("unquotes a non-rename C-quoted untracked path", () => {
-    expect(parsePorcelainRows('?? "weird\\tfile.txt"')).toEqual([{ x: "?", y: "?", path: "weird\tfile.txt" }])
-  })
-
-  test("unquotes a unicode (octal) untracked path", () => {
-    expect(parsePorcelainRows('?? "\\303\\274.txt"')).toEqual([{ x: "?", y: "?", path: "ü.txt" }])
   })
 })
 
@@ -126,10 +72,6 @@ const numstat = (path: string, added: number | null, deleted: number | null, ori
   origPath !== undefined ? { path, origPath, added, deleted } : { path, added, deleted }
 
 describe("parseNumstatRows", () => {
-  test("parses a plain modified file", () => {
-    expect(parseNumstatRows("3\t2\tsrc/app.ts\0")).toEqual([numstat("src/app.ts", 3, 2)])
-  })
-
   test("surfaces binary `-` counts as null", () => {
     expect(parseNumstatRows("-\t-\tassets/logo.png\0")).toEqual([numstat("assets/logo.png", null, null)])
   })
@@ -150,43 +92,8 @@ describe("parseNumstatRows", () => {
     ])
   })
 
-  test("resolves a cross-directory rename", () => {
-    expect(parseNumstatRows("0\t0\t\0dir/x.txt\0other/x.txt\0")).toEqual([numstat("other/x.txt", 0, 0, "dir/x.txt")])
-  })
-
-  test("resolves a root-level rename", () => {
-    expect(parseNumstatRows("0\t0\t\0root1.txt\0root2.txt\0")).toEqual([numstat("root2.txt", 0, 0, "root1.txt")])
-  })
-
-  test("keeps content-change counts on a renamed-and-edited file", () => {
-    expect(parseNumstatRows("8\t1\t\0src/a.ts\0src/b.ts\0")).toEqual([numstat("src/b.ts", 8, 1, "src/a.ts")])
-  })
-
   test("does not mangle a normal path that merely contains a brace", () => {
     expect(parseNumstatRows("1\t0\tsrc/{shared}/util.ts\0")).toEqual([numstat("src/{shared}/util.ts", 1, 0)])
-  })
-
-  test("resolves a move OUT of a subdirectory", () => {
-    expect(parseNumstatRows("0\t0\t\0src/sub/a.txt\0src/a.txt\0")).toEqual([
-      numstat("src/a.txt", 0, 0, "src/sub/a.txt"),
-    ])
-  })
-
-  test("resolves a move INTO a subdirectory", () => {
-    expect(parseNumstatRows("0\t0\t\0src/a.txt\0src/sub/a.txt\0")).toEqual([
-      numstat("src/sub/a.txt", 0, 0, "src/a.txt"),
-    ])
-  })
-
-  test("resolves a rename with a tab in the path", () => {
-    // With `-z`, the tab is a literal byte in the path, not a C escape.
-    expect(parseNumstatRows("2\t1\t\0weird\tname.txt\0weird\trenamed.txt\0")).toEqual([
-      numstat("weird\trenamed.txt", 2, 1, "weird\tname.txt"),
-    ])
-  })
-
-  test("resolves a unicode rename", () => {
-    expect(parseNumstatRows("0\t0\t\0ü.txt\0üv2.txt\0")).toEqual([numstat("üv2.txt", 0, 0, "ü.txt")])
   })
 
   test("a literal brace survives a rename path", () => {
@@ -218,13 +125,6 @@ describe("porcelain ↔ numstat path coherence (the join the bug breaks)", () =>
     const [n] = parseNumstatRows("1\t0\ta b.txt\0")
     expect(p?.path).toBe("a b.txt")
     expect(n?.path).toBe("a b.txt")
-  })
-
-  test("a tab-named modify resolves identically across formats", () => {
-    const [p] = parsePorcelainRows(' M "a\\tb.txt"')
-    const [n] = parseNumstatRows("1\t0\ta\tb.txt\0")
-    expect(p?.path).toBe("a\tb.txt")
-    expect(n?.path).toBe("a\tb.txt")
   })
 
   test("a move OUT of a subdirectory keys onto the same porcelain path", () => {

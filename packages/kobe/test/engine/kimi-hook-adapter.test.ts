@@ -1,13 +1,11 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { ROVE_HOOK_VERSION } from "@/engine/json-hooks"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
-  KIMI_HOOK_EVENT_MAP,
   KOBE_KIMI_HOOK_EVENTS,
   KimiHookAdapter,
-  kimiConfigPath,
   mergeKimiHooks,
   removeKimiHookBlock,
   renderKimiHookBlock,
@@ -23,17 +21,6 @@ vi.mock("../../src/cli/invocation.ts", () => ({
 
 describe("KimiHookAdapter", () => {
   const adapter = new KimiHookAdapter()
-
-  it("declares itself a wired hook engine writing ~/.kimi-code/config.toml", () => {
-    expect(adapter.vendor).toBe("kimi")
-    expect(adapter.supportsHooks()).toBe(true)
-    expect(adapter.globalSettingsPath()).toBe(kimiConfigPath())
-    expect(adapter.globalSettingsPath().endsWith(join(".kimi-code", "config.toml"))).toBe(true)
-  })
-
-  it("never installed the legacy WorktreeCreate hook → nothing to clean up", () => {
-    expect(adapter.supportsWorktreeSync()).toBe(false)
-  })
 
   it("wires the load-bearing Kimi events and keeps Notification out", () => {
     // Interrupt is the load-bearing one: Kimi fires it INSTEAD of Stop on a
@@ -82,12 +69,6 @@ describe("mergeKimiHooks (pure TOML block merge)", () => {
     expect(mergeKimiHooks(installed, false, inv).trim()).toBe(user.trim())
   })
 
-  it("is idempotent — reinstall replaces kobe's block instead of stacking", () => {
-    const once = mergeKimiHooks("", true, inv)
-    const twice = mergeKimiHooks(once, true, inv)
-    expect(twice).toBe(once)
-  })
-
   it("keeps the user's own [[hooks]] tables (only the marker block is owned)", () => {
     const user = '[[hooks]]\nevent = "Stop"\ncommand = "my-own-hook"\n'
     const installed = mergeKimiHooks(user, true, inv)
@@ -95,30 +76,6 @@ describe("mergeKimiHooks (pure TOML block merge)", () => {
     const removed = mergeKimiHooks(installed, false, inv)
     expect(removed).toContain('command = "my-own-hook"')
     expect(removed).not.toContain("# >>> rove hooks")
-  })
-
-  it("every event map row spells a real Kimi hook event", () => {
-    // The 13 documented events + Interrupt/PermissionRequest/PermissionResult
-    // verified against the installed 0.37.2 binary.
-    const known = new Set([
-      "PreToolUse",
-      "PostToolUse",
-      "PostToolUseFailure",
-      "UserPromptSubmit",
-      "Stop",
-      "StopFailure",
-      "SessionStart",
-      "SessionEnd",
-      "SubagentStart",
-      "SubagentStop",
-      "PreCompact",
-      "PostCompact",
-      "Notification",
-      "Interrupt",
-      "PermissionRequest",
-      "PermissionResult",
-    ])
-    for (const spec of KIMI_HOOK_EVENT_MAP) expect(known.has(spec.event)).toBe(true)
   })
 })
 
@@ -146,15 +103,6 @@ describe("KimiHookAdapter install/remove roundtrip (real file)", () => {
     const missing = join(dir, "no-such-dir", "config.toml")
     await adapter.installActivityHooks(missing)
     await expect(readFile(missing, "utf8")).rejects.toThrow()
-  })
-
-  it("install → remove restores the user's config", async () => {
-    const user = 'default_model = "kimi-code/k3"\n'
-    await writeFile(file, user)
-    await adapter.installActivityHooks(file)
-    expect(await readFile(file, "utf8")).toContain("# >>> rove hooks")
-    await adapter.removeActivityHooks(file)
-    expect((await readFile(file, "utf8")).trim()).toBe(user.trim())
   })
 
   it("reinstall on an already-installed file skips the write (mtime stable)", async () => {

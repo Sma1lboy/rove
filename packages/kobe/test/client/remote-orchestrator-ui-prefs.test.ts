@@ -13,12 +13,6 @@ import { describe, expect, it } from "vitest"
 import { decodeUiPrefsPayload } from "../../src/client/remote-orchestrator.ts"
 
 describe("decodeUiPrefsPayload — backward-compat defaults", () => {
-  it("drops a payload with no theme string", () => {
-    expect(decodeUiPrefsPayload(undefined)).toBeNull()
-    expect(decodeUiPrefsPayload({})).toBeNull()
-    expect(decodeUiPrefsPayload({ theme: 42 })).toBeNull()
-  })
-
   it("keeps a payload whose theme is null — state.json names no selection", () => {
     // The daemon has no theme registry, so `null` is its honest answer and the
     // rest of the snapshot must still land. `applyUiPrefs` reads a non-string

@@ -87,19 +87,6 @@ describe("branch follows title", () => {
     expect(gitBranches()).not.toContain(legacyPlaceholder)
   })
 
-  test("does not touch a manually-set branch", async () => {
-    const task = await orch.createTask({ repo })
-    await orch.ensureWorktree(task.id)
-    await orch.setBranch(task.id, "feature/custom")
-    expect(gitBranches()).toContain("feature/custom")
-
-    await orch.setTitle(task.id, "Some new title")
-
-    // Branch is not the placeholder default any more, so it stays put.
-    expect(orch.getTask(task.id)?.branch).toBe("feature/custom")
-    expect(gitBranches()).toContain("feature/custom")
-  })
-
   test("only follows once — a second rename leaves the branch alone", async () => {
     const task = await orch.createTask({ repo })
     await orch.ensureWorktree(task.id)

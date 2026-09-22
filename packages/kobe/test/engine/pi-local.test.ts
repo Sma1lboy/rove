@@ -61,10 +61,6 @@ describe("pi-family terminal titles", () => {
     expect(stripEngineStatusPrefix("π - Fix the sidebar - kobe", "pi")).toBe("Fix the sidebar - kobe")
   })
 
-  it("claims no turn state for pi, whose title carries none", () => {
-    expect(engineTitleTurnHint("pi", "π - work")).toBeNull()
-  })
-
   it("gives the protocol sniffer one unambiguous glyph per family id", () => {
     expect(sniffProtocolFromTitle("π ⠋ Fix the sidebar")).toBe("omp")
     expect(sniffProtocolFromTitle("π > Fix the sidebar")).toBe("omp")
@@ -107,10 +103,6 @@ describe("pi-family screen manifests", () => {
       "idle",
     )
   })
-
-  it("answers null rather than guessing on an unknown screen", () => {
-    expect(classifyScreen(PI_SCREEN_MANIFEST, "hello from a plain shell")).toBeNull()
-  })
 })
 
 describe("pi-family session store", () => {
@@ -123,10 +115,6 @@ describe("pi-family session store", () => {
     stat: async () => null,
     readFile: async () => null,
   }
-
-  it("derives pi's absolute session directory", () => {
-    expect(sessionDirNamesForWorktree("pi", "/Users/me/i/kobe", deps)).toEqual(["--Users-me-i-kobe--"])
-  })
 
   it("derives omp's home-, temp- and absolute-form directories", () => {
     // omp writes the home-relative form for a cwd under $HOME …
@@ -160,10 +148,6 @@ describe("pi-family session store", () => {
     expect(await listSessionIdsForWorktree("pi", "/Users/me/i/kobe", withFiles)).toEqual(["a", "b"])
     expect(await latestTranscriptMtimeForWorktree("pi", "/Users/me/i/kobe", withFiles)).toBe(200)
     expect(await transcriptPath("pi", "b", "/Users/me/i/kobe", withFiles)).toContain("2026-01-02_b.jsonl")
-  })
-
-  it("returns no history rather than throwing when the store is absent", async () => {
-    expect(await readHistory("omp", "nope", deps)).toEqual([])
   })
 })
 

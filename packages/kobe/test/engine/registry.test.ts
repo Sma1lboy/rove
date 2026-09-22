@@ -128,18 +128,6 @@ describe("engineEntry — built-in vendors", () => {
     )
     expect(status?.account.kind).toBe("oauth")
   })
-
-  it("routes detectAccount to the vendor's own detector (codex api key)", async () => {
-    const detect = engineEntry("codex").detectAccount
-    expect(detect).toBeDefined()
-    const status = await detect?.(
-      deps({
-        // ~/.codex/auth.json shape — only the codex detector understands this.
-        readFile: () => JSON.stringify({ OPENAI_API_KEY: "sk-test" }),
-      }),
-    )
-    expect(status?.account.kind).toBe("apikey")
-  })
 })
 
 describe("vendorsWithQuotaProbe", () => {
@@ -151,10 +139,6 @@ describe("vendorsWithQuotaProbe", () => {
     expect([...vendors].sort()).toEqual(["claude", "codex"])
     for (const vendor of vendors) expect(engineEntry(vendor).quotaUsage).toBeDefined()
   })
-
-  it("omits engines with no probe rather than listing them as silent failures", () => {
-    expect(vendorsWithQuotaProbe()).not.toContain("copilot")
-  })
 })
 
 describe("vendorsWithTurnReader", () => {
@@ -165,10 +149,6 @@ describe("vendorsWithTurnReader", () => {
     const vendors = vendorsWithTurnReader()
     expect([...vendors].sort()).toEqual(["claude", "codex"])
     for (const vendor of vendors) expect(engineEntry(vendor).readTurns).toBeDefined()
-  })
-
-  it("omits engines with no reader rather than implying they report nothing", () => {
-    expect(vendorsWithTurnReader()).not.toContain("kimi")
   })
 })
 

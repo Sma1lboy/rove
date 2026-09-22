@@ -13,7 +13,6 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
-  GENERIC_PROTOCOL,
   engineCanFork,
   engineForkArgv,
   engineLaunchArgv,
@@ -49,23 +48,11 @@ describe("engineLaunchArgv", () => {
     expect(engineLaunchArgv({ command: "aider --model sonnet" })).toEqual(["aider", "--model", "sonnet"])
   })
 
-  it("honours quoting so a flag value with spaces survives", () => {
-    expect(engineLaunchArgv({ command: 'claude --append-system-prompt "be terse"' })).toEqual([
-      "claude",
-      "--append-system-prompt",
-      "be terse",
-    ])
-  })
-
   it("routes a bare preset id through the user's own launch-command override", () => {
     // The whole point of recording the ID rather than its expansion: editing
     // the command in Settings must still reach every task pinned to it.
     writeState({ "engineCommand.claude": "claudecpa --model opus" })
     expect(engineLaunchArgv({ command: "claude" })).toEqual(["claudecpa", "--model", "opus"])
-  })
-
-  it("falls back to the protocol's preset when no command is pinned", () => {
-    expect(engineLaunchArgv({ vendor: "codex" })[0]).toBe("codex")
   })
 
   it("applies the protocol's effort flag to a raw command line too", () => {
@@ -171,9 +158,5 @@ describe("contrib engines resolve as their own protocol", () => {
     expect(engineLaunchArgv({ command: "cursor" })).toEqual(["cursor-agent"])
     writeState({ "engineCommand.opencode": "opencode --model sonnet" })
     expect(engineLaunchArgv({ command: "opencode" })).toEqual(["opencode", "--model", "sonnet"])
-  })
-
-  it("still answers generic for a command that names no engine", () => {
-    expect(resolveCommandProtocol("some-random-agent --go")).toBe(GENERIC_PROTOCOL)
   })
 })

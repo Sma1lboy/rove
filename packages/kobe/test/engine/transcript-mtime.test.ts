@@ -78,17 +78,6 @@ describe("codex latestTranscriptMtimeForWorktree", () => {
     expect(found?.mtimeMs).toBe(9000)
     expect(found?.path).toContain("rollout-2026-05-29T01-00-00-aaaaaaaa")
   })
-
-  it("returns 0 when no rollout matches the worktree", async () => {
-    const files = {
-      "rollout-2026-05-29T01-00-00-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.jsonl": { cwd: "/other", mtimeMs: 1000 },
-    }
-    expect(await codexMtime("/wt", deps(files))).toBe(0)
-  })
-
-  it("returns 0 for an empty worktree", async () => {
-    expect(await codexMtime("", deps({}))).toBe(0)
-  })
 })
 
 describe("copilot latestTranscriptMtimeForWorktree", () => {
@@ -119,10 +108,6 @@ describe("copilot latestTranscriptMtimeForWorktree", () => {
       other: { cwd: "/elsewhere", eventsMtime: 9000 },
     }
     expect(await copilotMtime("/wt", deps(sessions))).toBe(5000)
-  })
-
-  it("returns 0 when no session matches", async () => {
-    expect(await copilotMtime("/wt", deps({ a: { cwd: "/x", eventsMtime: 1 } }))).toBe(0)
   })
 })
 

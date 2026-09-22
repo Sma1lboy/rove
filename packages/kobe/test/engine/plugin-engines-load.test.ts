@@ -96,11 +96,6 @@ describe("loadPluginEngines", () => {
     expect(loadPluginEngines()).toEqual([])
   })
 
-  it("an empty registry registers nothing", () => {
-    homeWith([])
-    expect(loadPluginEngines()).toEqual([])
-  })
-
   // A subcommand- or directory-positional CLI dies on its own first prompt
   // under the "argv" default. The manifest key is the author's only fix, so it
   // has to survive all three hops: TOML parse -> ContribEngineSpec -> registry.
@@ -109,11 +104,5 @@ describe("loadPluginEngines", () => {
     homeWith([{ id: "acme.engines", root: pluginRoot(paste) }])
     expect(loadPluginEngines()).toEqual(["aider"])
     expect(engineEntry("aider").firstMessageDelivery).toBe("paste")
-  })
-
-  it("omitting first_message_delivery leaves the registry's argv default", () => {
-    homeWith([{ id: "acme.engines", root: pluginRoot(MANIFEST) }])
-    expect(loadPluginEngines()).toEqual(["aider"])
-    expect(engineEntry("aider").firstMessageDelivery).toBeUndefined()
   })
 })

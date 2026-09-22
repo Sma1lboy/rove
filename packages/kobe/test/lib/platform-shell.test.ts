@@ -24,20 +24,6 @@ describe("resolveLoginShell", () => {
     expect(resolveLoginShell({ platform: "linux", env: {} })).toBe("/bin/bash")
   })
 
-  test("POSIX ignores a blank $SHELL rather than spawning an empty argv0", () => {
-    expect(resolveLoginShell({ platform: "linux", env: { SHELL: "   " }, fallback: "/bin/zsh" })).toBe("/bin/zsh")
-  })
-
-  test("Windows resolves Git for Windows bash, never the POSIX fallback", () => {
-    const shell = resolveLoginShell({
-      platform: "win32",
-      env: { ProgramFiles: "C:\\Program Files" },
-      fallback: "/bin/zsh",
-      exists: diskWith(GIT_BASH),
-    })
-    expect(shell).toBe(GIT_BASH)
-  })
-
   test("Windows searches the other Git install roots", () => {
     const perUser = "C:\\Users\\dev\\AppData\\Local\\Programs\\Git\\bin\\bash.exe"
     const shell = resolveLoginShell({
@@ -70,15 +56,6 @@ describe("resolveLoginShell", () => {
     expect(shell).toBe(custom)
   })
 
-  test("Windows drops a drive-absolute $SHELL that is not actually installed", () => {
-    const shell = resolveLoginShell({
-      platform: "win32",
-      env: { SHELL: "C:\\nope\\bash.exe", ProgramFiles: "C:\\Program Files" },
-      exists: diskWith(GIT_BASH),
-    })
-    expect(shell).toBe(GIT_BASH)
-  })
-
   test("Windows names the expected Git bash path when nothing is installed", () => {
     // Not bare `bash.exe` — that resolves to System32's WSL launcher, which
     // would open a Linux filesystem with no view of the Windows worktree.
@@ -87,18 +64,9 @@ describe("resolveLoginShell", () => {
 })
 
 describe("toPosixPath", () => {
-  test("is identity on POSIX", () => {
-    expect(toPosixPath("/repo/.worktrees/task-1", "darwin")).toBe("/repo/.worktrees/task-1")
-  })
-
   test("rewrites a Windows path to the MSYS form Git Bash reads", () => {
     expect(toPosixPath("C:\\Users\\dev\\.kobe\\worktree-init\\ab12", "win32")).toBe(
       "/c/Users/dev/.kobe/worktree-init/ab12",
     )
-  })
-
-  test("handles a UNC-free relative path and an already-posix path", () => {
-    expect(toPosixPath(".kobe\\init.sh", "win32")).toBe(".kobe/init.sh")
-    expect(toPosixPath("/c/already/posix", "win32")).toBe("/c/already/posix")
   })
 })

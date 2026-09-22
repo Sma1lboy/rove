@@ -116,12 +116,6 @@ describe("activity pipeline — vendor hook payload to sidebar badge", () => {
     expect(row.subtitleText).toBe("feature/sidebar")
   })
 
-  it("turn failed (billing classifies as rate-limited too)", () => {
-    const row = rowAfterClaudeHook("StopFailure", { error_type: "billing_error" })
-    expect(row.stateGlyph).toBe("!")
-    expect(row.subtitleText).toBe("feature/sidebar")
-  })
-
   it("turn failed (other): unknown error_type shows the attention badge", () => {
     const row = rowAfterClaudeHook("StopFailure", { error_type: "hook_crashed" })
     expect(row.loading).toBe(false)

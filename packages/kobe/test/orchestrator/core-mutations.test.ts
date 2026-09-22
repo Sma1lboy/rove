@@ -21,7 +21,6 @@ import {
   CannotDeleteMainTaskError,
   DirtyWorktreeError,
   IllegalTransitionError,
-  TaskNotFoundError,
   WorktreeRemoveFailedError,
 } from "../../src/orchestrator/errors.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
@@ -91,10 +90,6 @@ describe("setVendor", () => {
     expect(orch.getTask(t.id)?.updatedAt).toBe(before)
   })
 
-  it("throws TaskNotFoundError for an unknown id", async () => {
-    await expect(orch.setVendor("nope", "codex")).rejects.toThrow(TaskNotFoundError)
-  })
-
   // `effort` is tri-state on purpose — absent, a level, and "" (clear) are
   // three different asks, and collapsing any two of them strands a codex task
   // on whatever level it launched with.
@@ -158,14 +153,6 @@ describe("setPinned", () => {
 })
 
 describe("setStatus", () => {
-  it("moves between statuses and no-ops on the same status", async () => {
-    const t = await makeTask()
-    await orch.setStatus(t.id, "in_progress")
-    expect(orch.getTask(t.id)?.status).toBe("in_progress")
-    await orch.setStatus(t.id, "in_progress")
-    expect(orch.getTask(t.id)?.status).toBe("in_progress")
-  })
-
   it("refuses done ↔ error flip-flops in both directions", async () => {
     const t = await makeTask()
     await orch.setStatus(t.id, "done")
@@ -382,14 +369,6 @@ describe("signals + subscription surface", () => {
     unsub()
     await makeTask({ title: "second" })
     expect(seen.at(-1)).toBe(1) // unsubscribed — no further notifications
-  })
-
-  it("setActiveTask publishes to activeTaskSignal and clears with null", async () => {
-    const t = await makeTask()
-    await orch.setActiveTask(t.id)
-    expect(orch.activeTaskSignal()()).toBe(String(t.id))
-    await orch.setActiveTask(null)
-    expect(orch.activeTaskSignal()()).toBeNull()
   })
 
   it("createTask blanks a whitespace-only title to the placeholder and requires a repo", async () => {

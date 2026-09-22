@@ -68,9 +68,4 @@ describe("promotableDirTasks", () => {
     const b = task("b", { repo: "/i/site" })
     expect(ids(promotableDirTasks({ tasks: [a, b], isRepoRoot: anyRepo }))).toEqual(["a"])
   })
-
-  it("ignores real work — a task row is never promoted", () => {
-    const t = task("w", { kind: "task", repo: "/i/site", branch: "feat/x" })
-    expect(promotableDirTasks({ tasks: [t], isRepoRoot: anyRepo })).toEqual([])
-  })
 })

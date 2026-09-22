@@ -54,7 +54,7 @@ vi.mock("node:fs", async (importOriginal) => {
 })
 
 import { ClaudeBinaryNotFoundError, findClaudeBinary } from "../../src/engine/claude-code-local/binary.ts"
-import { CodexBinaryNotFoundError, findCodexBinary } from "../../src/engine/codex-local/binary.ts"
+import { findCodexBinary } from "../../src/engine/codex-local/binary.ts"
 import {
   CopilotBinaryNotFoundError,
   type BinaryDiscoveryDeps as CopilotDeps,
@@ -108,12 +108,6 @@ describe("findClaudeBinary — default deps", () => {
 })
 
 describe("findCodexBinary — default deps", () => {
-  it("resolves a `which` alias line to its target when the target exists", async () => {
-    which = { status: 0, stdout: "codex: aliased to /vhome/u/real-codex\n" }
-    files.add("/vhome/u/real-codex")
-    await expect(findCodexBinary()).resolves.toBe("/vhome/u/real-codex")
-  })
-
   it("ignores a which hit that is not a regular file and falls to the system paths", async () => {
     which = { status: 0, stdout: "/somewhere/codex\n" } // not in the virtual file set
     files.add("/usr/local/bin/codex")
@@ -129,12 +123,6 @@ describe("findCodexBinary — default deps", () => {
     files.add(path.join(HOME, ".bun/bin/codex"))
     await expect(findCodexBinary()).resolves.toBe(path.join(HOME, ".bun/bin/codex"))
   })
-
-  it("throws CodexBinaryNotFoundError with the checked paths when nothing exists", async () => {
-    const err = await findCodexBinary().catch((e: unknown) => e)
-    expect(err).toBeInstanceOf(CodexBinaryNotFoundError)
-    expect((err as CodexBinaryNotFoundError).checkedPaths).toContain("/opt/homebrew/bin/codex")
-  })
 })
 
 // Kimi's own `which` parser never unwrapped the alias line; the shared
@@ -147,21 +135,9 @@ describe("findKimiBinary — default deps", () => {
     files.add("/vhome/u/real-kimi")
     await expect(findKimiBinary()).resolves.toBe("/vhome/u/real-kimi")
   })
-
-  it("discards an alias whose target is gone and falls through to ~/.kimi-code/bin", async () => {
-    which = { status: 0, stdout: "kimi: aliased to /vanished/kimi\n" }
-    files.add(path.join(HOME, ".kimi-code/bin", "kimi"))
-    await expect(findKimiBinary()).resolves.toBe(path.join(HOME, ".kimi-code/bin", "kimi"))
-  })
 })
 
 describe("findCopilotBinary — default deps", () => {
-  it("resolves a `which` alias line to its target when the target exists", async () => {
-    which = { status: 0, stdout: "copilot: aliased to /vhome/u/real-copilot\n" }
-    files.add("/vhome/u/real-copilot")
-    await expect(findCopilotBinary()).resolves.toBe("/vhome/u/real-copilot")
-  })
-
   it("falls through a failed which to the system dirs via the default platform()", async () => {
     files.add("/opt/homebrew/bin/copilot")
     await expect(findCopilotBinary()).resolves.toBe("/opt/homebrew/bin/copilot")

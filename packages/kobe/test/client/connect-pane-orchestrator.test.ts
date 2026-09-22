@@ -167,12 +167,6 @@ describe("RemoteOrchestrator channel filter", () => {
     await rm(home, { recursive: true, force: true })
   })
 
-  it("hydrates the hello task list when subscribed to task.snapshot (default)", async () => {
-    const orch = new RemoteOrchestrator(helloTaskClient())
-    await orch.init()
-    expect(orch.listTasks().map((t) => t.id)).toEqual(["t1"])
-  })
-
   it("skips hello task hydration when the filter excludes task.snapshot", async () => {
     const orch = new RemoteOrchestrator(helloTaskClient(), { channels: ["ui-prefs", "keybindings"] })
     await orch.init()

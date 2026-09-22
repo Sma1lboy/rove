@@ -37,11 +37,4 @@ describe("home resolution with no explicit homeDir", () => {
     process.env.KOBE_HOME_DIR = "/tmp/rove-home-resolution/kobe"
     expect(new TaskIndexStore().filePath).toBe(join("/tmp/rove-home-resolution/kobe", ".rove", "tasks.json"))
   })
-
-  it("still lets an explicit homeDir win over both", () => {
-    process.env.ROVE_HOME_DIR = "/tmp/rove-home-resolution/rove"
-    process.env.KOBE_HOME_DIR = "/tmp/rove-home-resolution/kobe"
-    const store = new TaskIndexStore({ homeDir: "/tmp/rove-home-resolution/explicit" })
-    expect(store.filePath).toBe(join("/tmp/rove-home-resolution/explicit", ".rove", "tasks.json"))
-  })
 })

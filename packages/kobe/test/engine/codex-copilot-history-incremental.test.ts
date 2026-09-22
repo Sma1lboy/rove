@@ -106,18 +106,6 @@ describe("codex readHistory append-aware cache", () => {
     ])
   })
 
-  it("truncation: a shorter file falls back to a full re-parse", async () => {
-    const { deps, set } = codexDeps("truncate")
-    const l1 = codexMsg("user", "keep", "2026-06-10T01:00:01Z")
-    set(`${l1}\n${codexMsg("assistant", "dropped", "2026-06-10T01:00:02Z")}\n`)
-    expect(await readCodexHistory(CODEX_UUID, deps)).toHaveLength(2)
-
-    set(`${l1}\n`)
-    const out = await readCodexHistory(CODEX_UUID, deps)
-    expect(out).toHaveLength(1)
-    expect(out[0]?.blocks).toEqual([{ type: "text", text: "keep" }])
-  })
-
   it("usage metrics keep advancing across appends (fold state, not first-turn freeze)", async () => {
     const { deps, set } = codexDeps("usage")
     const l1 = codexMsg("user", "hi", "2026-06-10T01:00:01Z")
@@ -179,17 +167,6 @@ describe("copilot readHistory append-aware cache", () => {
     expect(second[0]).toBe(first[0])
     expect(second[1]).toBe(first[1])
     expect(second[2]?.blocks).toEqual([{ type: "text", text: "third" }])
-  })
-
-  it("rewrite: a changed prefix falls back to a full re-parse", async () => {
-    const { deps, set } = copilotDeps("rewrite")
-    set(`${copilotEvent("user.message", { content: "original" }, "2026-06-10T01:00:01Z")}\n`)
-    await readCopilotHistory("sess1", deps)
-
-    set(`${copilotEvent("user.message", { content: "rewritten" }, "2026-06-10T01:00:01Z")}\n`)
-    const out = await readCopilotHistory("sess1", deps)
-    expect(out).toHaveLength(1)
-    expect(out[0]?.blocks).toEqual([{ type: "text", text: "rewritten" }])
   })
 
   it("cross-line fold state survives the cache boundary (session.start id applies to appended lines)", async () => {

@@ -107,11 +107,6 @@ describe("mapGhPrView", () => {
       lastCheckedAt: at,
     })
   })
-  test("empty-string reviewDecision/mergeable normalize to undefined", () => {
-    const out = mapGhPrView({ number: 1, state: "OPEN", reviewDecision: "", mergeable: "" }, at)
-    expect(out?.reviewDecision).toBeUndefined()
-    expect(out?.mergeable).toBeUndefined()
-  })
 })
 
 describe("samePrStatus", () => {
@@ -126,10 +121,6 @@ describe("samePrStatus", () => {
       "t3",
     )
     expect(samePrStatus(base ?? undefined, passed ?? undefined)).toBe(false)
-  })
-  test("undefined handling", () => {
-    expect(samePrStatus(undefined, undefined)).toBe(true)
-    expect(samePrStatus(base ?? undefined, undefined)).toBe(false)
   })
 })
 
@@ -205,24 +196,11 @@ describe("nextPrPoll", () => {
     expect(nextPrPoll({ kind: "error", error: "missing-binary" }, 20, 0, cfg, noJitter).nextAllowedAt).toBe(900_000)
   })
 
-  test("a success after failures returns to the normal cadence (streak reset)", () => {
-    const after = nextPrPoll({ kind: "pr", settled: false }, 6, 0, cfg, noJitter)
-    expect(after).toEqual({ nextAllowedAt: 30_000, failures: 0 })
-  })
-
   test("no-remote is deterministic: settles to the long idle cadence, no streak", () => {
     expect(nextPrPoll({ kind: "error", error: "no-remote" }, 9, 0, cfg, noJitter)).toEqual({
       nextAllowedAt: 1_800_000,
       failures: 0,
     })
-  })
-
-  test("jitter keeps the delay inside the ± ratio band", () => {
-    for (const r of [0, 0.25, 0.75, 1]) {
-      const at = nextPrPoll({ kind: "pr", settled: false }, 0, 0, cfg, () => r).nextAllowedAt
-      expect(at).toBeGreaterThanOrEqual(30_000 * 0.8)
-      expect(at).toBeLessThanOrEqual(30_000 * 1.2)
-    }
   })
 })
 

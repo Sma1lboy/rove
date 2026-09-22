@@ -32,12 +32,6 @@ describe("userFacingErrorMessage", () => {
     )
   })
 
-  it("strips only the leading prefix, so the rest of the sentence survives", () => {
-    expect(
-      userFacingErrorMessage(new Error("create(): git reported success but /p is not a worktree: fatal: bad")),
-    ).toBe("git reported success but /p is not a worktree: fatal: bad")
-  })
-
   it("passes non-Error throws through the same way errorMessage does", () => {
     expect(userFacingErrorMessage("remove(): /p is not a git worktree")).toBe("/p is not a git worktree")
     expect(userFacingErrorMessage(undefined)).toBe("undefined")

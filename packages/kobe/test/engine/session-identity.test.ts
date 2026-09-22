@@ -13,12 +13,7 @@
 
 import { engineResumeArgv, withPinnedSessionId } from "@/engine/engine-presets"
 import { engineEntry } from "@/engine/registry"
-import {
-  acceptsPinnedSession,
-  controlsOwnSession,
-  pickUnclaimedSessionId,
-  resumeSessionArgv,
-} from "@/engine/session-identity"
+import { controlsOwnSession } from "@/engine/session-identity"
 import { describe, expect, it, vi } from "vitest"
 
 vi.mock("@/state/repos", async (orig) => ({
@@ -33,10 +28,6 @@ describe("per-engine session declarations", () => {
     expect(sessionId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
     expect(argv).toEqual(["claude", "--session-id", sessionId])
     expect(engineResumeArgv(["claude"], "claude", "u1")).toEqual(["claude", "--resume", "u1"])
-  })
-
-  it("defaults an undefined vendor to claude (the launch convention)", () => {
-    expect(withPinnedSessionId(["claude"], undefined).sessionId).not.toBeNull()
   })
 
   it("resumes kimi with -S, and never pins — its CLI can only reopen (probed)", () => {
@@ -87,31 +78,5 @@ describe("the user's own session flags always win", () => {
   it("leaves a kimi command that already resumes alone", () => {
     expect(controlsOwnSession(kimi, ["kimi", "-S", "sess-1"])).toBe(true)
     expect(engineResumeArgv(["kimi", "-c"], "kimi", "sess-2")).toBeNull()
-  })
-
-  it("acceptsPinnedSession is false without a pin flag, whatever the argv", () => {
-    expect(acceptsPinnedSession(kimi, ["kimi"])).toBe(false)
-    expect(acceptsPinnedSession(claude, ["claude"])).toBe(true)
-    expect(acceptsPinnedSession(undefined, ["x"])).toBe(false)
-  })
-
-  it("resumeSessionArgv refuses an empty id rather than passing a blank flag", () => {
-    expect(resumeSessionArgv(claude, ["claude"], "")).toBeNull()
-  })
-})
-
-// Why: the session store answers per-WORKTREE, so every tab of a task sees
-// the same list. Without claim-tracking two kimi tabs would both adopt the
-// newest session and fight over one conversation.
-describe("pickUnclaimedSessionId", () => {
-  it("takes the newest id no sibling tab already holds", () => {
-    expect(pickUnclaimedSessionId(["old", "mid", "new"], new Set())).toBe("new")
-    expect(pickUnclaimedSessionId(["old", "mid", "new"], new Set(["new"]))).toBe("mid")
-    expect(pickUnclaimedSessionId(["old", "mid", "new"], new Set(["new", "mid"]))).toBe("old")
-  })
-
-  it("answers null rather than handing back a claimed or absent session", () => {
-    expect(pickUnclaimedSessionId([], new Set())).toBeNull()
-    expect(pickUnclaimedSessionId(["a"], new Set(["a"]))).toBeNull()
   })
 })

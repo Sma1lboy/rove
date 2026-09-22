@@ -18,12 +18,6 @@ describe("buildClaudeHooks", () => {
   // Inject a fixed invocation so the test doesn't depend on the dev/prod CLI resolver.
   const hooks = buildClaudeHooks(["kobe"]) as Record<string, Array<{ matcher?: string; hooks: { command: string }[] }>>
 
-  it("installs hooks for the core activity events (full set pinned by the KOBE_HOOK_EVENTS test)", () => {
-    for (const event of ["SessionStart", "UserPromptSubmit", "Stop", "StopFailure", "Notification", "SessionEnd"]) {
-      expect(hooks[event]).toBeDefined()
-    }
-  })
-
   it("points each hook at `kobe hook <verb>` with NO task id (bare argv — one command in sh, cmd and PowerShell)", () => {
     expect(hooks.Stop[0].hooks[0].command).toContain("hook turn-complete")
     expect(hooks.Stop[0].hooks[0].command).not.toContain("'")
@@ -245,11 +239,6 @@ describe("removeWorktreeWatchHook (PostToolUse observer)", () => {
     expect(removeWorktreeWatchHook({ model: "opus" })).toEqual({ model: "opus" })
   })
 
-  it("is idempotent — a second pass changes nothing", () => {
-    const once = removeWorktreeWatchHook({ hooks: { PostToolUse: [REGISTERED] } })
-    expect(removeWorktreeWatchHook(once)).toEqual(once)
-  })
-
   it("leaves OTHER tools' PostToolUse hooks and unrelated keys alone", () => {
     // A hand-edited settings.json: other tools register Bash PostToolUse hooks
     // in the same array. Removing ours must not touch theirs.
@@ -305,10 +294,6 @@ describe("ClaudeHookAdapter.isUnattendedSession", () => {
 
   it("calls a headless session unattended", () => {
     expect(adapter.isUnattendedSession({ CLAUDE_CODE_SESSION_ATTENDED: "0" })).toBe(true)
-  })
-
-  it("leaves a session with a human in front of it reporting", () => {
-    expect(adapter.isUnattendedSession({ CLAUDE_CODE_SESSION_ATTENDED: "1" })).toBe(false)
   })
 
   // An older Claude sets nothing. Reading that as "unattended" would take

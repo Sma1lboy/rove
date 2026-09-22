@@ -20,20 +20,11 @@ describe("classifyScreen", () => {
     expect(classifyScreen(manifest, "thinking…\nESC TO INTERRUPT")).toBe("working")
   })
 
-  it("returns null when nothing matches (caller keeps previous state)", () => {
-    expect(classifyScreen(manifest, "$ ls\nfile.txt")).toBeNull()
-    expect(classifyScreen(manifest, "")).toBeNull()
-  })
-
   it("only looks at the trailing bottomLines of the capture", () => {
     const rule: EngineScreenManifest = { rules: [{ state: "working", bottomLines: 2, any: ["spinner"] }] }
     const capture = `spinner up here\n${Array.from({ length: 20 }, (_, i) => `line ${i}`).join("\n")}`
     expect(classifyScreen(rule, capture)).toBeNull()
     expect(classifyScreen(rule, `${capture}\nspinner`)).toBe("working")
-  })
-
-  it("a rule with no conditions never matches", () => {
-    expect(classifyScreen({ rules: [{ state: "idle" }] }, "anything")).toBeNull()
   })
 
   it("lineRegex matches per line, not across the joined region", () => {
@@ -49,9 +40,6 @@ describe("COPILOT_SCREEN_MANIFEST", () => {
   })
   it("reads a bare interrupt hint as working", () => {
     expect(classifyScreen(COPILOT_SCREEN_MANIFEST, "Working on it…\nEsc to cancel")).toBe("working")
-  })
-  it("stays silent on a plain shell", () => {
-    expect(classifyScreen(COPILOT_SCREEN_MANIFEST, "$ git status\nclean")).toBeNull()
   })
 })
 

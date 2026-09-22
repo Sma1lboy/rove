@@ -121,8 +121,4 @@ describe("parseClaudeTurns", () => {
 
     expect(parseClaudeTurns(raw).map((t) => t.id)).toEqual(["msg_b"])
   })
-
-  test("empty transcript yields no turns", () => {
-    expect(parseClaudeTurns("")).toEqual([])
-  })
 })

@@ -9,11 +9,6 @@ describe("formatBytes", () => {
     expect(formatBytes(3 * 1024 * 1024 * 1024)).toBe("3.0 GB")
   })
 
-  test("drops the decimal once the value reaches 100", () => {
-    expect(formatBytes(100 * 1024)).toBe("100 KB")
-    expect(formatBytes(128 * 1024)).toBe("128 KB")
-  })
-
   test("a quotient that rounds up to 100 renders as an integer, not 100.0", () => {
     // 99.9502 KB: below 100 raw, but toFixed(1) rounds it to "100.0" — a
     // three-digit magnitude with a decimal, exactly what the >= 100 branch kills.

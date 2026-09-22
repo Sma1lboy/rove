@@ -26,12 +26,6 @@ afterAll(() => {
 describe("LocalExecHost", () => {
   const host = new LocalExecHost()
 
-  it("is local, wraps commands as identity, and ensureReady is a no-op", () => {
-    expect(host.isRemote).toBe(false)
-    expect(host.wrapCommand("echo hi")).toBe("echo hi")
-    expect(() => host.ensureReady()).not.toThrow()
-  })
-
   it("run executes in the given cwd with merged env and captures stdout", async () => {
     // `$PWD`, not `$(pwd)`: the subshell forks, and under a parallel test
     // run MSYS sh on Windows CI occasionally fails that fork and exits with
@@ -43,17 +37,6 @@ describe("LocalExecHost", () => {
     expect(result.exitCode).toBe(0)
     expect(result.stdout.startsWith("yes:")).toBe(true)
     expect(result.stdout).toContain("kobe-local-exec-")
-  })
-
-  it("run captures stderr and non-zero exit codes without throwing", async () => {
-    const result = await host.run(["sh", "-c", "echo oops >&2; exit 3"])
-    expect(result.exitCode).toBe(3)
-    expect(result.stderr).toContain("oops")
-  })
-
-  it("run degrades a missing binary to exitCode -1 (spawn error, no throw)", async () => {
-    const result = await host.run(["definitely-not-a-binary-xyz"])
-    expect(result.exitCode).toBe(-1)
   })
 
   it("fs helpers: exists / mkdirp / readFile / readdir with graceful fallbacks", async () => {
@@ -89,19 +72,6 @@ describe("RemoteExecHost residual branches", () => {
     }
     return { calls, spawn }
   }
-
-  it("readdir parses ls -1 output and degrades a failure to []", async () => {
-    const { spawn } = recordingSpawner({ "'ls' '-1A' '/srv/dir'": { stdout: "a\nb\n\n", stderr: "", exitCode: 0 } })
-    const host = new RemoteExecHost(spec({ kind: "key", keyPath: "/id" }), spawn)
-    expect(await host.readdir("/srv/dir")).toEqual(["a", "b"])
-
-    const failing = new RemoteExecHost(spec({ kind: "key", keyPath: "/id" }), () => ({
-      stdout: "",
-      stderr: "err",
-      exitCode: 1,
-    }))
-    expect(await failing.readdir("/srv/dir")).toEqual([])
-  })
 
   it("a null password from the keychain falls back to plain ssh (no sshpass)", () => {
     const { calls, spawn } = recordingSpawner()

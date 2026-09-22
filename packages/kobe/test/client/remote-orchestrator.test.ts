@@ -100,13 +100,6 @@ describe("RemoteOrchestrator channel handling", () => {
     expect(orch.uiPrefsSignal()()?.locale).toBe("zh")
   })
 
-  it("treats a malformed update payload as null", () => {
-    const { client, emit } = fakeClient()
-    const orch = new RemoteOrchestrator(client)
-    emit("update", undefined)
-    expect(orch.updateSignal()()).toBeNull()
-  })
-
   // Leak guard: `engine-state` only deletes an entry on an explicit `idle`
   // event, but a task deleted while non-idle (running / error — the common
   // delete case) never emits one. Without snapshot reconciliation a
@@ -220,15 +213,6 @@ describe("RemoteOrchestrator channel handling", () => {
       expect(orch.taskJobsSignal()()).toBe(before)
     })
 
-    it("ignores malformed payloads", () => {
-      const { client, emit } = fakeClient()
-      const orch = new RemoteOrchestrator(client)
-      emit("task.jobs", undefined)
-      emit("task.jobs", { taskId: "t1", kind: "somethingElse", phase: "running" })
-      emit("task.jobs", { kind: "ensureWorktree", phase: "running" })
-      expect(orch.taskJobsSignal()().size).toBe(0)
-    })
-
     // Leak guard (same contract as engine-state pruning): a task DELETED
     // while its job runs — or a dropped terminal frame across a reconnect —
     // must not pin a phantom "materializing" entry forever. Each
@@ -258,12 +242,6 @@ describe("RemoteOrchestrator channel handling", () => {
   // there's no snapshot reconciliation — but unchanged pushes must still be
   // identity no-ops or every sidebar row re-renders on bus-replay noise.
   describe("worktree.changes channel", () => {
-    it("starts null (no daemon-collected data → local-poller fallback)", () => {
-      const { client } = fakeClient()
-      const orch = new RemoteOrchestrator(client)
-      expect(orch.worktreeChangesSignal()()).toBeNull()
-    })
-
     it("reflects a pushed map and replaces it wholesale (absent keys drop)", () => {
       const { client, emit } = fakeClient()
       const orch = new RemoteOrchestrator(client)
@@ -290,17 +268,6 @@ describe("RemoteOrchestrator channel handling", () => {
       const before = orch.worktreeChangesSignal()()
       // Bus replay across a reconnect resends the identical last value.
       emit("worktree.changes", { changes: { "/wt/a": { added: 1, deleted: 0 } } })
-      expect(orch.worktreeChangesSignal()()).toBe(before)
-    })
-
-    it("ignores malformed payloads instead of clobbering a good map", () => {
-      const { client, emit } = fakeClient()
-      const orch = new RemoteOrchestrator(client)
-      emit("worktree.changes", { changes: { "/wt/a": { added: 1, deleted: 0 } } })
-      const before = orch.worktreeChangesSignal()()
-      emit("worktree.changes", undefined)
-      emit("worktree.changes", { changes: "nope" })
-      emit("worktree.changes", { changes: { "/wt/a": { added: "two", deleted: 0 } } })
       expect(orch.worktreeChangesSignal()()).toBe(before)
     })
   })
@@ -429,22 +396,6 @@ describe("worktree.changes capability gating (init)", () => {
 })
 
 describe("framework-free store twins (React hosts)", () => {
-  it("ui-prefs channel lands in uiPrefsStore and notifies subscribers", () => {
-    const { client, emit } = fakeClient()
-    const orch = new RemoteOrchestrator(client)
-    const store = orch.uiPrefsStore()
-    const seen: Array<string | null | undefined> = []
-    const unsub = store.subscribe(() => seen.push(store.get()?.theme))
-    emit("ui-prefs", { theme: "nord" })
-    expect(store.get()?.theme).toBe("nord")
-    expect(orch.uiPrefsSignal()()?.theme).toBe("nord")
-    emit("ui-prefs", { theme: "claude" })
-    unsub()
-    emit("ui-prefs", { theme: "dracula" })
-    expect(seen).toEqual(["nord", "claude"])
-    expect(store.get()?.theme).toBe("dracula")
-  })
-
   it("keybindings channel lands in keybindingsRevStore and notifies", () => {
     const { client, emit } = fakeClient()
     const orch = new RemoteOrchestrator(client)

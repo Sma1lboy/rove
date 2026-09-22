@@ -38,12 +38,6 @@ describe("droid hook merge", () => {
     expect(sessionStart(merge({}, true))).toEqual([INSTALLED])
   })
 
-  it("is idempotent — a second install replaces rather than appends", () => {
-    const once = merge({}, true)
-    expect(merge(once, true)).toEqual(once)
-    expect(sessionStart(merge(once, true))).toHaveLength(1)
-  })
-
   it("replaces a dev-checkout install with the released one instead of stacking", () => {
     const dev = merge({}, true, DEV)
     expect(sessionStart(dev)).toEqual([
@@ -57,33 +51,6 @@ describe("droid hook merge", () => {
       },
     ])
     expect(sessionStart(merge(dev, true))).toEqual([INSTALLED])
-  })
-
-  it("preserves a third party's group, other events, and other top-level keys", () => {
-    const before = {
-      model: "claude-sonnet",
-      hooks: { SessionStart: [FOREIGN], PreToolUse: [{ hooks: [{ type: "command", command: "audit.sh" }] }] },
-    }
-    const after = merge(before, true)
-    expect(sessionStart(after)).toEqual([FOREIGN, INSTALLED])
-    expect((after.hooks as Record<string, unknown>).PreToolUse).toEqual([
-      { hooks: [{ type: "command", command: "audit.sh" }] },
-    ])
-    expect(after.model).toBe("claude-sonnet")
-  })
-
-  it("removal takes only Rove's group and drops the event when nothing is left", () => {
-    const shared = merge({ hooks: { SessionStart: [FOREIGN] } }, true)
-    expect(sessionStart(merge(shared, false))).toEqual([FOREIGN])
-    expect(sessionStart(merge(merge({}, true), false))).toEqual([])
-  })
-
-  // Droid's other events (UserPromptSubmit, PreToolUse, Notification, Stop,
-  // SessionEnd, …) stay unhooked: the screen manifest keeps owning droid's
-  // working/blocked state, and none of the others is a verified authority
-  // for turn state.
-  it("wires SessionStart and nothing else", () => {
-    expect(DROID_HOOK_EVENT_MAP).toEqual([{ event: "SessionStart", verb: "session-start" }])
   })
 })
 

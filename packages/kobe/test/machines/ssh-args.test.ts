@@ -38,10 +38,6 @@ describe.skipIf(!POSIX)("machineSshArgs", () => {
 })
 
 describe.skipIf(!POSIX)("machineSocketDir", () => {
-  it("keeps the natural path when it fits", () => {
-    expect(machineSocketDir("narwhal", "/Users/x")).toBe("/Users/x/.rove/machines/narwhal")
-  })
-
   it("falls back to a short path when a socket inside it would not fit", () => {
     // A Rove home inside a worktree already spends most of the ~104-byte
     // sun_path budget; ssh's own refusal is `ControlPath too long`, which

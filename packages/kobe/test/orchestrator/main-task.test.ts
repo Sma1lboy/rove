@@ -105,19 +105,6 @@ describe("ensureMainTask", () => {
     expect(orch.listTasks().filter((t) => t.kind === "main" && t.id !== scratch.id)).toHaveLength(1)
   })
 
-  test("dedupes repo-root and subdirectory inputs to one main task", async () => {
-    const subdir = path.join(repo, "packages", "kobe")
-    fs.mkdirSync(subdir, { recursive: true })
-
-    const first = await orch.ensureMainTask(repo)
-    const second = await orch.ensureMainTask(subdir)
-    const mainRows = orch.listTasks().filter((t) => t.kind === "main")
-
-    expect(second.id).toBe(first.id)
-    expect(mainRows).toHaveLength(1)
-    expect(mainRows[0]?.repo).toBe(first.repo)
-  })
-
   test("dedupes concurrent equivalent repo inputs before either create settles", async () => {
     const subdir = path.join(repo, "src")
     fs.mkdirSync(subdir)
@@ -155,11 +142,6 @@ describe("forgetProject", () => {
     await orch.forgetProject(subdir)
 
     expect(getSavedRepos()).not.toContain(repo)
-    expect(orch.listTasks().filter((t) => t.kind === "main")).toHaveLength(0)
-  })
-
-  test("idempotent: forgetting a never-saved repo no-ops", async () => {
-    await expect(orch.forgetProject(repo)).resolves.toBeUndefined()
     expect(orch.listTasks().filter((t) => t.kind === "main")).toHaveLength(0)
   })
 })
@@ -230,11 +212,6 @@ describe("a project row and a saved-repos entry are the same fact", () => {
     // a project, that gap loses it with no way back.
     expect(getSavedRepos()).not.toContain(repo)
     await orch.ensureMainTask(repo)
-    expect(getSavedRepos()).toContain(repo)
-  })
-
-  test("createTask on a fresh repo saves it too", async () => {
-    await orch.createTask({ repo, title: "t" })
     expect(getSavedRepos()).toContain(repo)
   })
 

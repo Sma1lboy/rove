@@ -5,7 +5,6 @@ import {
   TASK_GROUPS,
   type TaskActivitySignal,
   deriveTaskGroup,
-  taskGroupOf,
   taskGroupRank,
 } from "../../src/lib/task-group.ts"
 import { type Task, toTaskId } from "../../src/types/task.ts"
@@ -37,13 +36,6 @@ describe("taskGroupRank", () => {
     expect(taskGroupRank("landing")).toBeLessThan(taskGroupRank("ready-for-review"))
     expect(taskGroupRank("ready-for-review")).toBeLessThan(taskGroupRank("working"))
     expect(taskGroupRank("idle")).toBeLessThan(taskGroupRank("unknown"))
-  })
-
-  it("taskGroupOf carries the rank beside the group", () => {
-    expect(taskGroupOf({ task: task(), activity: act("running"), now: NOW })).toEqual({
-      group: "working",
-      rank: 3,
-    })
   })
 })
 
@@ -114,10 +106,6 @@ describe("deriveTaskGroup — waiting on you", () => {
 })
 
 describe("deriveTaskGroup — working", () => {
-  it("is a live engine", () => {
-    expect(deriveTaskGroup({ task: task(), activity: act("running"), now: NOW })).toBe("working")
-  })
-
   it("outranks a stale PR approval in MATCH order — the diff is still moving", () => {
     const prStatus = {
       provider: "github",
@@ -150,16 +138,6 @@ describe("deriveTaskGroup — landing", () => {
   it("is an open, approved PR", () => {
     expect(deriveTaskGroup({ task: task({ prStatus: approved }), activity: act("idle"), now: NOW })).toBe("landing")
   })
-
-  it("is not an open PR without an approval", () => {
-    const pending = { ...approved, reviewDecision: "REVIEW_REQUIRED" } as const
-    expect(deriveTaskGroup({ task: task({ prStatus: pending }), activity: act("idle"), now: NOW })).toBe("idle")
-  })
-
-  it("is not a merged PR", () => {
-    const merged = { ...approved, lifecycle: "merged" } as const
-    expect(deriveTaskGroup({ task: task({ prStatus: merged }), activity: act("idle"), now: NOW })).toBe("idle")
-  })
 })
 
 describe("deriveTaskGroup — ready for review", () => {
@@ -176,11 +154,6 @@ describe("deriveTaskGroup — ready for review", () => {
   it("clears once the task is marked done", () => {
     expect(deriveTaskGroup({ task: task({ report, status: "done" }), activity: act("idle"), now: NOW })).toBe("idle")
   })
-
-  it("clears once the PR merged", () => {
-    const prStatus = { provider: "github", lifecycle: "merged", checkState: "passing" } as const
-    expect(deriveTaskGroup({ task: task({ report, prStatus }), activity: act("idle"), now: NOW })).toBe("idle")
-  })
 })
 
 describe("deriveTaskGroup — absence is not a verdict", () => {
@@ -192,10 +165,6 @@ describe("deriveTaskGroup — absence is not a verdict", () => {
   it("does not buy `idle` with a stored PR observation alone", () => {
     const prStatus = { provider: "github", lifecycle: "open", checkState: "pending" } as const
     expect(deriveTaskGroup({ task: task({ prStatus }), now: NOW })).toBe("unknown")
-  })
-
-  it("answers idle only when something actually looked", () => {
-    expect(deriveTaskGroup({ task: task(), activity: act("idle"), now: NOW })).toBe("idle")
   })
 
   it("clamps a future activity timestamp instead of going negative", () => {

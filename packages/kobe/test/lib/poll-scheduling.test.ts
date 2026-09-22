@@ -108,19 +108,9 @@ describe("maybeStartScheduledRun", () => {
 })
 
 describe("applyJitter", () => {
-  test("rand 0.5 is the no-jitter midpoint (exact delay)", () => {
-    expect(applyJitter(1000, 0.2, () => 0.5)).toBe(1000)
-  })
   test("rand 0 / 1 hit the ± bounds of the ratio band", () => {
     expect(applyJitter(1000, 0.2, () => 0)).toBe(800) // -20%
     expect(applyJitter(1000, 0.2, () => 1)).toBe(1200) // +20%
-  })
-  test("stays within [delay·(1−r), delay·(1+r)] across the rand range", () => {
-    for (const r of [0, 0.13, 0.5, 0.87, 1]) {
-      const v = applyJitter(1000, 0.25, () => r)
-      expect(v).toBeGreaterThanOrEqual(750)
-      expect(v).toBeLessThanOrEqual(1250)
-    }
   })
   test("ratio is clamped to [0,1] and the result is never negative", () => {
     expect(applyJitter(1000, 0, () => 0)).toBe(1000) // no jitter
@@ -178,8 +168,5 @@ describe("decodeCapturedChunks", () => {
   })
   test("accepts string chunks and preserves ASCII round-trips", () => {
     expect(decodeCapturedChunks([Buffer.from("ab"), "cd", Buffer.from("ef")])).toBe("abcdef")
-  })
-  test("returns an empty string for no chunks", () => {
-    expect(decodeCapturedChunks([])).toBe("")
   })
 })

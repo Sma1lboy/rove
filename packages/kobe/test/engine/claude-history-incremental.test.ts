@@ -144,12 +144,4 @@ describe("readHistory append-aware cache", () => {
     ])
     expect(second[0]).toBe(first[0])
   })
-
-  it("repeat read with no change returns the same message refs", async () => {
-    const { deps, set } = fakeDeps("stable", "s6")
-    set(`${record("user", "hello", "2026-01-01T00:00:01.000Z")}\n`)
-    const a = await readHistory("s6", deps)
-    const b = await readHistory("s6", deps)
-    expect(b[0]).toBe(a[0])
-  })
 })

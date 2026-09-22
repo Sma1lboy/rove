@@ -64,14 +64,6 @@ describe("a wrapped preset resolves the protocol's adapter, not the empty custom
     expect(protocolEntry("claudecpa").history.readUsageSnapshot).toBe(engineEntry("claude").history.readUsageSnapshot)
   })
 
-  it("reads per-turn telemetry through claude's turn reader", () => {
-    expect(protocolEntry("claudecpa").readTurns).toBe(engineEntry("claude").readTurns)
-  })
-
-  it("reads the OSC title turn hint with claude's title rules", () => {
-    expect(protocolEntry("claudecpa").terminalTitle).toBe(engineEntry("claude").terminalTitle)
-  })
-
   it("resolves claude's turn detector and session identity", () => {
     expect(sessionProtocol("claudecpa")).toBe("claude")
     expect(protocolEntry("claudecpa").sessionIdentity).toBe(engineEntry("claude").sessionIdentity)

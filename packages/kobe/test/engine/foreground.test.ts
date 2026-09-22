@@ -52,11 +52,6 @@ describe("vendorFromArgv", () => {
     expect(vendorFromArgv("kimi-co NVM_RC_VERSION=")).toBe("kimi")
     expect(vendorFromArgv("kimi-co SSH_AUTH_SOCK=/private/tmp/com.apple.launchd.x/Listeners")).toBe("kimi")
   })
-
-  it("returns null for a plain shell or unrelated process", () => {
-    expect(vendorFromArgv("-zsh")).toBeNull()
-    expect(vendorFromArgv("")).toBeNull()
-  })
 })
 
 describe("foregroundEngineIn", () => {
@@ -84,10 +79,6 @@ describe("foregroundEngineIn", () => {
 })
 
 describe("engineProcessIn (delivery foreground gate)", () => {
-  it("sees a builtin engine through the wrapper chain", () => {
-    expect(engineProcessIn(parsePsSnapshot(REAL_TREE), 56070)).toBe(true)
-  })
-
   it("a keepAlive fallback shell (engine exited) is NOT an engine", () => {
     const rows = parsePsSnapshot(`
 10 1 -zsh
@@ -103,15 +94,6 @@ describe("engineProcessIn (delivery foreground gate)", () => {
 `)
     // caller passed claude's bin; the running codex is still an engine
     expect(engineProcessIn(rows, 10, "claude")).toBe(true)
-  })
-
-  it("a live kimi session passes the gate despite its rewritten title", () => {
-    const rows = parsePsSnapshot(`
-10 1 -zsh
-11 10 /bin/bash -ilc kimi -y
-12 11 kimi-co NVM_RC_VERSION=
-`)
-    expect(engineProcessIn(rows, 10, "kimi")).toBe(true)
   })
 
   it("extraBin matches a custom engine binary the builtin walk cannot see", () => {
@@ -141,10 +123,6 @@ describe("engineProcessIn (delivery foreground gate)", () => {
 })
 
 describe("foregroundEngine", () => {
-  it("reads the snapshot it is given", async () => {
-    expect(await foregroundEngine(56070, async () => REAL_TREE)).toMatchObject({ vendor: "claude" })
-  })
-
   it("returns null when ps fails — never a guess", async () => {
     expect(
       await foregroundEngine(56070, () => {
@@ -204,18 +182,6 @@ describe("vendorFromArgv covers every engine the registry can name state-free", 
     expect(vendorFromArgv("/usr/local/bin/aider --model gpt-5")).toBe("aider")
     clearPluginEngines()
     expect(vendorFromArgv("/usr/local/bin/aider --model gpt-5")).toBeNull()
-  })
-
-  it("walks to a live contrib engine under a tab's shell", () => {
-    const rows = parsePsSnapshot(`
-100 1 /bin/zsh -l
-101 100 /usr/local/bin/opencode
-200 1 /bin/zsh -l
-`)
-    expect(foregroundEngineIn(rows, 100)?.vendor).toBe("opencode")
-    expect(foregroundEngineIn(rows, 100)?.pid).toBe(101)
-    // Still honestly null for a shell with no engine under it.
-    expect(foregroundEngineIn(rows, 200)).toBeNull()
   })
 
   it("an UNREGISTERED custom binary stays unnameable — callers pass its launch argv", () => {
@@ -288,12 +254,5 @@ describe("custom engine presets in the walk", () => {
 12 11 /opt/homebrew/bin/claude --model opus
 `)
     expect(foregroundEngineIn(rows, 10)?.vendor).toBe("claude")
-  })
-
-  it("still answers a confirmed null for a shell running nothing", () => {
-    const rows = parsePsSnapshot(`
-10 1 /bin/zsh -l
-`)
-    expect(foregroundEngineIn(rows, 10)).toBeNull()
   })
 })

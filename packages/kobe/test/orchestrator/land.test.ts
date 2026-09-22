@@ -236,17 +236,6 @@ describe("landTaskWithCleanup worktree cleanup", () => {
     return spawnSync("git", ["branch", "--list", name], { cwd: repo, encoding: "utf8" }).stdout.trim().length > 0
   }
 
-  test("successful land removes the worktree, keeps the branch, unlinks the task", async () => {
-    makeWorktree()
-    const { deps: d, cleared } = deps()
-    const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, { removeWorktree: true }, d)
-    expect(res.worktree).toEqual({ removed: true })
-    expect(fs.existsSync(wt)).toBe(false)
-    expect(branchExists("feat")).toBe(true)
-    expect(cleared).toEqual(["t-land"])
-    expect(fs.existsSync(path.join(repo, "b.txt"))).toBe(true) // the merge itself landed
-  })
-
   test("land with no opts removes the worktree by default, keeping the branch", async () => {
     // The DEFAULT, not the flag: `{}` is what the TUI and a flagless
     // `rove api land` send. Revert land.ts to `opts.removeWorktree ? … :

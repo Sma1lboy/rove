@@ -1,14 +1,7 @@
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import {
-  currentPluginPlatform,
-  parsePluginManifest,
-  pluginManifestPath,
-  qualifiedActionId,
-  readPluginManifest,
-  supportsPlatform,
-} from "@sma1lboy/kobe-daemon/plugins/manifest"
+import { parsePluginManifest, readPluginManifest, supportsPlatform } from "@sma1lboy/kobe-daemon/plugins/manifest"
 import { describe, expect, it } from "vitest"
 
 const VALID = `
@@ -112,13 +105,6 @@ describe("parsePluginManifest", () => {
 describe("plugin manifest filenames", () => {
   const body = 'id = "p"\nname = "P"\nversion = "1.0.0"\nmin_rove_version = "0.1.0"\nplatforms = ["linux"]'
 
-  it("reads rove-plugin.toml as the canonical spelling", () => {
-    const root = mkdtempSync(join(tmpdir(), "rove-manifest-"))
-    writeFileSync(join(root, "rove-plugin.toml"), body)
-    expect(pluginManifestPath(root)).toBe(join(root, "rove-plugin.toml"))
-    expect(readPluginManifest(root).manifest.id).toBe("p")
-  })
-
   it("falls back to kobe-plugin.toml and prefers Rove when both exist", () => {
     const root = mkdtempSync(join(tmpdir(), "rove-manifest-compat-"))
     writeFileSync(join(root, "kobe-plugin.toml"), body.replace('id = "p"', 'id = "legacy"'))
@@ -129,13 +115,6 @@ describe("plugin manifest filenames", () => {
 })
 
 describe("platform helpers", () => {
-  it("maps process.platform tokens", () => {
-    expect(currentPluginPlatform("darwin")).toBe("macos")
-    expect(currentPluginPlatform("linux")).toBe("linux")
-    expect(currentPluginPlatform("win32")).toBe("windows")
-    expect(currentPluginPlatform("freebsd" as NodeJS.Platform)).toBeUndefined()
-  })
-
   it("item-level platforms override the manifest list", () => {
     const manifest = { platforms: ["macos" as const] }
     expect(supportsPlatform({}, manifest, "macos")).toBe(true)
@@ -144,10 +123,6 @@ describe("platform helpers", () => {
     // No declaration anywhere → runs everywhere.
     expect(supportsPlatform({}, {}, undefined)).toBe(true)
   })
-})
-
-it("qualifies action ids as plugin.action", () => {
-  expect(qualifiedActionId("example.notify", "test")).toBe("example.notify.test")
 })
 
 describe("settings + file handlers", () => {

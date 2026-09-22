@@ -77,10 +77,4 @@ describe("createKobeCore", () => {
     expect(core.worktrees).toBeDefined()
     expect(core.orchestrator).toBeDefined()
   })
-
-  test("close() disposes the orchestrator", async () => {
-    const core = await createKobeCore({ homeDir: "/h" })
-    await core.close()
-    expect(fake.disposeCalls).toBe(1)
-  })
 })

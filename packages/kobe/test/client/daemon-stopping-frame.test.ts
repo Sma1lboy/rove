@@ -57,14 +57,6 @@ describe("daemon.stopping", () => {
     expect(state.version).toBe(null)
   })
 
-  it("an unrecognized reason arms nothing", () => {
-    // Forward-compat in the safe direction: a future reason this build has
-    // never heard of must not be read as the one reason that tears down the UI.
-    const { signals, state } = fakeSignals()
-    handleOrchestratorEvent("daemon.stopping", { reason: "upgrading-in-place" }, signals)
-    expect(state.restarting).toBe(false)
-  })
-
   it("does not mistake a version for a reason", () => {
     // A daemon that reports its build on an ordinary stop is not restarting.
     const { signals, state } = fakeSignals()

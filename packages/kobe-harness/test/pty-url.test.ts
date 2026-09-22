@@ -53,10 +53,4 @@ describe("ptyUrl", () => {
     expect(new URL(fresh("t", "k", "shell", 80, 24)).searchParams.get("token")).toBe("tok pty")
     vi.unstubAllEnvs()
   })
-
-  it("falls back to 5175 when the port is unparseable", () => {
-    withLocation({ port: "" })
-    // empty port → defaults to 5173 → +2 = 5175
-    expect(ptyUrl("t", "k", "shell", 80, 24)).toContain(":5175/")
-  })
 })

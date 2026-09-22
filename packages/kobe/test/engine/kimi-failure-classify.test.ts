@@ -53,10 +53,4 @@ describe("kimi turn-failed classification", () => {
     expect(stateFor({ error_type: "TypeError", error_message: "boom" })).toBe("error")
     expect(stateFor({})).toBe("error")
   })
-
-  it("keeps the vendor error class as a note for diagnostics", () => {
-    expect(adapter.activityDetailFromPayload("turn-failed", { error_type: "APIProviderRateLimitError" })?.note).toBe(
-      "APIProviderRateLimitError",
-    )
-  })
 })

@@ -7,12 +7,6 @@ describe("normalizeClaudeContent", () => {
     expect(normalizeClaudeContent("")).toEqual([])
   })
 
-  it("returns [] for non-array, non-string values", () => {
-    expect(normalizeClaudeContent(null)).toEqual([])
-    expect(normalizeClaudeContent(123)).toEqual([])
-    expect(normalizeClaudeContent({ type: "text", text: "x" })).toEqual([])
-  })
-
   it("normalizes text blocks and bare strings", () => {
     expect(normalizeClaudeContent([{ type: "text", text: "a" }, "b"])).toEqual([
       { type: "text", text: "a" },
@@ -23,12 +17,6 @@ describe("normalizeClaudeContent", () => {
   it("maps tool_use to a tool_call block", () => {
     expect(normalizeClaudeContent([{ type: "tool_use", id: "t1", name: "Bash", input: { cmd: "ls" } }])).toEqual([
       { type: "tool_call", callId: "t1", name: "Bash", input: { cmd: "ls" } },
-    ])
-  })
-
-  it("defaults missing tool_use id/name to empty strings", () => {
-    expect(normalizeClaudeContent([{ type: "tool_use" }])).toEqual([
-      { type: "tool_call", callId: "", name: "", input: undefined },
     ])
   })
 

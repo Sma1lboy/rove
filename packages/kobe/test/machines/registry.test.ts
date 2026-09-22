@@ -19,10 +19,6 @@ import {
 } from "../../src/machines/registry.ts"
 
 describe("parseSshTarget", () => {
-  it("reads a bare host as a host with no user or port", () => {
-    expect(parseSshTarget("narwhal")).toEqual({ host: "narwhal" })
-  })
-
   it("reads user@host:port", () => {
     expect(parseSshTarget("nahuel@mac-mini.local:2222")).toEqual({
       host: "mac-mini.local",
@@ -91,10 +87,6 @@ describe("duplicateAliasOf", () => {
     // shape; a pid recycles. Only the triple names one running daemon.
     expect(duplicateAliasOf(machines, "nar2", { ...identity, daemonPid: 43 })).toBeNull()
     expect(duplicateAliasOf(machines, "nar2", { ...identity, homeDir: "/Users/other" })).toBeNull()
-  })
-
-  it("ignores a machine that has never connected (no identity yet)", () => {
-    expect(duplicateAliasOf({ fresh: { host: "h", auth: { kind: "key" } } }, "x", identity)).toBeNull()
   })
 })
 

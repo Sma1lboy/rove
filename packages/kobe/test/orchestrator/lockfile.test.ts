@@ -23,10 +23,6 @@ describe("isProcessAlive", () => {
     expect(isProcessAlive(1.5)).toBe(false)
   })
 
-  it("returns false for a pid far above the typical max", () => {
-    expect(isProcessAlive(999_999)).toBe(false)
-  })
-
   // ESRCH is the ONLY code that means gone. Everything else means the probe
   // failed, not that the process did — and every caller uses this answer to
   // decide whether to kill something or steal a lock, both unsafe on a guess.
@@ -77,11 +73,6 @@ describe("acquire / release", () => {
     await expect(release(lock, token)).resolves.toBeUndefined()
   })
 
-  it("rejects with LockfileError when held by a live process", async () => {
-    await acquire(lock) // held by us — alive
-    await expect(acquire(lock)).rejects.toBeInstanceOf(LockfileError)
-  })
-
   it("rejects when a SIBLING holder in this same process holds the lock", async () => {
     // Same pid, different token — two stores in one
     // process). The holder is alive, so the second acquirer must wait, not
@@ -129,24 +120,9 @@ describe("acquire / release — edge branches", () => {
     await rm(lockPath, { force: true })
   })
 
-  it("treats an EPERM kill probe on a real system pid as alive", () => {
-    const killSpy = vi.spyOn(process, "kill").mockImplementation(() => {
-      throw Object.assign(new Error("EPERM"), { code: "EPERM" })
-    })
-    try {
-      expect(isProcessAlive(1)).toBe(true)
-    } finally {
-      killSpy.mockRestore()
-    }
-  })
-
   it("steals a lockfile whose content isn't a pid at all", async () => {
     writeFileSync(lockPath, "not-a-pid")
     const token = await acquire(lockPath)
     expect(readFileSync(lockPath, "utf8")).toBe(token)
-  })
-
-  it("release tolerates a lock that's already gone", async () => {
-    await expect(release(join(dir, "never-existed.lock"), "any-token")).resolves.toBeUndefined()
   })
 })

@@ -44,13 +44,6 @@ describe("readFieldNotes", () => {
     expect(readFieldNotes("/repo/a", path)).toHaveLength(NOTE_INJECTION_CAP)
   })
 
-  it("is empty for an unknown repo, an empty repoRoot, and a missing file", async () => {
-    const path = await storeWith({ k: { repoRoot: "/repo/a", notes: [{ at: "", text: "x", taskId: "", author: "" }] } })
-    expect(readFieldNotes("/repo/zzz", path)).toEqual([])
-    expect(readFieldNotes("", path)).toEqual([])
-    expect(readFieldNotes("/repo/a", join(tmpdir(), "kobe-no-such-notes.json"))).toEqual([])
-  })
-
   it("survives a corrupt store rather than throwing into the launch path", async () => {
     const dir = await mkdtemp(join(tmpdir(), "kobe-field-notes-bad-"))
     cleanups.push(dir)

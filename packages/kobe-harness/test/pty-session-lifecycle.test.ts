@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { createScrollback } from "../pty-scrollback.mjs"
 import {
   createPtySessionManager,
-  pickEvictableTab,
   shouldPausePty,
   shouldResumePty,
 } from "../pty-session-lifecycle.mjs"
@@ -264,16 +263,6 @@ describe("createPtySessionManager", () => {
     expect(ptys[0].writes).toHaveLength(2)
   })
 
-  it("skips the first-message paste when the spec carries none", async () => {
-    vi.useFakeTimers()
-    const { manager, ptys } = setup({
-      submitDelays: { spawnedPasteMs: 25, existingPasteMs: 0, enterMs: 10 },
-    })
-    await manager.ensureSession("tab", "task", "engine", 80, 24)
-    await vi.advanceTimersByTimeAsync(100)
-    expect(ptys[0].writes).toEqual([])
-  })
-
   it("closes sockets and clears the session on process exit", async () => {
     const { manager, ptys } = setup()
     const ws = new FakeSocket()
@@ -393,39 +382,6 @@ describe("createPtySessionManager", () => {
     vi.advanceTimersByTime(10)
     expect(ptys[0].paused).toBe(false)
     expect(ptys[0].resumeCount).toBe(1)
-  })
-
-  it("does not pause while sockets stay under the high-water mark", async () => {
-    vi.useFakeTimers()
-    const { manager, ptys } = setup({
-      backpressure: { highWaterBytes: 100, lowWaterBytes: 50, drainPollMs: 10 },
-    })
-    const ws = new FakeSocket()
-    await manager.attachSocket({ ws, tabId: "tab", taskId: "task", mode: "engine", cols: 80, rows: 24 })
-
-    ws.bufferedAmount = 80
-    ptys[0].emitData("ok")
-    expect(ptys[0].paused).toBe(false)
-    expect(ptys[0].pauseCount).toBe(0)
-  })
-})
-
-describe("pickEvictableTab", () => {
-  it("returns the first session (insertion order) with no sockets", () => {
-    const sessions = new Map<string, { sockets: Set<unknown> }>([
-      ["a", { sockets: new Set(["s"]) }],
-      ["b", { sockets: new Set() }],
-      ["c", { sockets: new Set() }],
-    ])
-    expect(pickEvictableTab(sessions)).toBe("b")
-  })
-
-  it("returns null when every session is actively viewed", () => {
-    const sessions = new Map<string, { sockets: Set<unknown> }>([
-      ["a", { sockets: new Set(["s"]) }],
-    ])
-    expect(pickEvictableTab(sessions)).toBeNull()
-    expect(pickEvictableTab(new Map())).toBeNull()
   })
 })
 

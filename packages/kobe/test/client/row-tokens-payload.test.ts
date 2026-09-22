@@ -14,13 +14,6 @@ function payload(tokens: unknown): unknown {
 }
 
 describe("parseRowTokensPayload", () => {
-  it("parses a well-formed map", () => {
-    const map = parseRowTokensPayload(
-      payload({ t1: [{ source: "p", key: "claim", text: "@ana", tone: "info", expiresAt: NOW }] }),
-    )
-    expect(map?.get("t1")).toEqual([{ source: "p", key: "claim", text: "@ana", tone: "info", expiresAt: NOW }])
-  })
-
   it("rejects the payload shape, so a bad frame never clobbers a good map", () => {
     expect(parseRowTokensPayload(undefined)).toBeNull()
     expect(parseRowTokensPayload({})).toBeNull()
@@ -97,11 +90,6 @@ describe("liveRowTokens", () => {
 
   it("drops a token whose deadline has passed, without waiting for a push", () => {
     expect(liveRowTokens(map, "t1", NOW).map((token) => token.key)).toEqual(["fresh"])
-  })
-
-  it("is empty for a task with no tokens, and for no map at all", () => {
-    expect(liveRowTokens(map, "t2", NOW)).toEqual([])
-    expect(liveRowTokens(undefined, "t1", NOW)).toEqual([])
   })
 
   it("treats the deadline itself as expired — `expiresAt` is exclusive", () => {

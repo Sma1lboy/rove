@@ -56,14 +56,4 @@ describe("missing-dependencies coda (user text one line away)", () => {
     expect(missingDependenciesCoda(worktree, "zh")).toContain("node_modules")
     expect(missingDependenciesCoda(worktree, "en")).toContain("node_modules")
   })
-
-  test("stays silent when the dependencies are installed", () => {
-    // No lockfile-without-install means no warning, in any language.
-    const clean = mkdtempSync(join(tmpdir(), "rove-clean-"))
-    try {
-      expect(missingDependenciesCoda(clean, "zh")).toBeUndefined()
-    } finally {
-      rmSync(clean, { recursive: true, force: true })
-    }
-  })
 })

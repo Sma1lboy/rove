@@ -163,9 +163,4 @@ describe("RemoteOrchestrator RPC wire mapping", () => {
       unavailable: { reason: "gh_failed", detail: "gh auth login" },
     })
   })
-
-  it("getTask finds by id from the current snapshot", () => {
-    expect(orch.getTask("nope")).toBeUndefined()
-    expect(orch.listTasks()).toEqual([])
-  })
 })

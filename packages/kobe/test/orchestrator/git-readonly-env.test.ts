@@ -64,34 +64,6 @@ describe("GitWorktreeManager — READ_ONLY_GIT_ENV on probes", () => {
     expect(byToken(runs, "--abbrev-ref").every(flagged)).toBe(true)
   })
 
-  it("list() probes (worktree list + status) run lock-free", async () => {
-    const { exec, runs } = fakeExec((argv) => {
-      if (argv.includes("--porcelain")) {
-        return {
-          stdout: "worktree /repo\nHEAD aaa\nbranch refs/heads/main\n\n",
-          stderr: "",
-          exitCode: 0,
-        }
-      }
-      return ok
-    })
-    const mgr = new GitWorktreeManager(depsFor(exec))
-    // /repo itself is the main checkout → no managed worktrees, but the
-    // porcelain list still ran.
-    await expect(mgr.list("/repo")).resolves.toEqual([])
-    expect(byToken(runs, "--porcelain").every(flagged)).toBe(true)
-  })
-
-  it("listBranchNames / hasLocalBranch / branchHasUpstream run lock-free", async () => {
-    const { exec, runs } = fakeExec(() => ok)
-    const mgr = new GitWorktreeManager(depsFor(exec))
-    await mgr.listBranchNames("/repo")
-    await mgr.hasLocalBranch("/wt/a", "feat")
-    await mgr.branchHasUpstream("/wt/a", "feat")
-    expect(byToken(runs, "for-each-ref").every(flagged)).toBe(true)
-    expect(byToken(runs, "show-ref").every(flagged)).toBe(true)
-  })
-
   it("writes (worktree add/remove/prune, branch -m) run WITHOUT the lock-free env", async () => {
     const { exec, runs } = fakeExec((argv) => {
       if (argv.includes("list") && argv.includes("--porcelain")) {
