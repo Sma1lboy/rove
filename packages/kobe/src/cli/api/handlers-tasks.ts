@@ -1,13 +1,8 @@
 /**
  * Verb handlers for task reads, prompt delivery and issue-update — the
- * `read` / `drive` / `edit` groups that aren't a one-line `simpleRpc` inline
- * in the {@link VERBS} table. Split out of `api-cmd.ts` (see that file's
- * header).
- *
- * The `lifecycle` group (delete / land / adopt) lives in
- * `handlers-lifecycle.ts`: those verbs END a task and each owns a recovery
- * story for a half-finished teardown, which is a different failure mode from
- * "the prompt did not land" and moves on a different schedule.
+ * `read` / `drive` / `edit` verbs that aren't a one-line `simpleRpc` in the
+ * {@link VERBS} table. Task-ending verbs (with their teardown recovery) live
+ * in `handlers-lifecycle.ts`.
  */
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -30,12 +25,9 @@ export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
   }
   const repoRoot = ctx.args.requireRepo("repo")
   const id = ctx.args.int("id")
-  // ONE mutate, not two. Title/body and the link used to be separate RPCs, so
-  // `--title X --task <bogus>` committed the rename and THEN failed the link —
-  // the caller got exit 1, a typed TASK_NOT_FOUND and a hint saying "retry
-  // with a real id" for a command that had already half-run. The store applies
-  // all three fields under its one lock, and the daemon's task-existence check
-  // runs before that lock is taken, so a rejected link writes nothing.
+  // ONE mutate, so `--title X --task <bogus>` can't half-run: the store
+  // applies all three fields under one lock, and the daemon's task-existence
+  // check runs before it, so a rejected link writes nothing.
   //
   // `--task none` unlinks (carried as `taskId: null`); anything else links.
   // Linking IS the kanban move to In progress — the board column derives from
@@ -45,18 +37,12 @@ export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
 }
 
 /**
- * Refuse a `succeeded:` report from a worker whose branch carries no commits.
+ * Refuse a `succeeded:` report from a worker whose branch carries no commits —
+ * at `send`, where the claim enters, rather than at `land`'s EMPTY_BRANCH after
+ * the coordinator may have archived the siblings.
  *
- * `send` is where a completion CLAIM enters the system, and until now it was
- * the one hop that never looked at the claim. The contradiction was already
- * detectable AT THAT MOMENT — the sender's worktree is on disk and
- * `readBranchSignals` is a lock-free read `collect` already makes — but the
- * only thing that ever checked was `land`'s EMPTY_BRANCH, two steps later,
- * after the coordinator had believed the report and possibly archived the
- * siblings. The check was in the right codebase at the wrong end of the loop.
- *
- * Scope is deliberately narrow, because a false NEGATIVE here is cheap and a
- * false POSITIVE blocks a worker from reporting at all:
+ * Deliberately narrow: a false NEGATIVE is cheap, a false POSITIVE blocks a
+ * worker from reporting at all:
  *   - only a VERIFIED self session (the same identity `send` already trusts
  *     for dispatcher routing) — an unverified env names a stranger's branch;
  *   - only a MANAGED task: `main`/`dir` tasks have no Rove-created branch, and
@@ -64,17 +50,12 @@ export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
  *   - only a DEFINITE `ahead === 0`. An unresolvable base reads null — an
  *     honest unknown, never grounds to refuse.
  *
- * And it is a refusal WITH an exit, not a wall: investigation and review tasks
- * genuinely succeed with no commits, so `--allow-empty` states that outright
- * (the `git commit --allow-empty` spelling, same meaning). What the guard
- * removes is the ACCIDENTAL empty success — the one that shipped as a clean
- * report — not the deliberate one.
+ * Investigation and review tasks genuinely succeed with no commits, so
+ * `--allow-empty` (the `git commit` spelling) says so outright.
  */
 async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext, prompt: string): Promise<void> {
   if (ctx.args.bool("allow-empty")) return
-  // The fullwidth colon is not a typo — an agent writing Chinese types
-  // `succeeded：` from a CJK IME without noticing, and matching only U+003A
-  // would let exactly the reports this repo's agents write walk past.
+  // Fullwidth colon too: a CJK IME types `succeeded：` without the agent noticing.
   if (!/^\s*succeeded\s*[:\uff1a]/i.test(prompt)) return
   const self = await verifiedSelfSession()
   if (!self) return
@@ -86,18 +67,12 @@ async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext, prompt
   }
   if (sender.kind === "main" || sender.kind === "dir") return
   if (!sender.worktreePath) return
-  // Every failure mode here is an UNKNOWN, and the rule this guard states for
-  // itself is that an unknown never refuses — so a read that throws delivers,
-  // exactly like the `ahead: null` it returns for an unresolvable base.
+  // A throwing read is an unknown, and an unknown never refuses.
   let ahead: number | null
   try {
-    // Paired with `collect`'s read in handlers-fanout.ts: both measure against
-    // the task's RECORDED base (`add --base-branch`), never the origin/main
-    // guess. Reading against the guess produced BOTH failure modes at once on
-    // a task cut from `release/2.x` two commits ahead of `main`: an empty
-    // branch read `ahead: 2` (the guard let a hollow success through), and a
-    // HEAD behind the guessed base read a false positive — the exact
-    // "false POSITIVE blocks a worker" case the paragraph above warns against.
+    // Against the task's RECORDED base (`add --base-branch`), like `collect`,
+    // never the origin/main guess: on a branch cut from `release/2.x` the
+    // guess reads an empty branch as `ahead: 2` and can false-positive too.
     ahead = (await ctx.runtime.readBranchSignals(sender.worktreePath, sender.baseRef)).ahead
   } catch {
     return
@@ -111,10 +86,8 @@ async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext, prompt
       taskId: self.taskId,
       branch,
       hint: "commit your work with a real message and send again — or, if this task genuinely produced no commits (an investigation or a review), re-send with --allow-empty to say so explicitly",
-      // Carry the caller's own target forward. The hint tells the agent to run
-      // this verbatim, and without the flags the retry re-resolves through the
-      // active-task fallback — so an explicit `send --task-id X` could retry
-      // into a DIFFERENT task than the one it addressed.
+      // Carry the caller's target forward, or the verbatim retry re-resolves
+      // via the active-task fallback and could land in a DIFFERENT task.
       nextCommandArgs: [
         "api",
         "send",
@@ -142,10 +115,8 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   if (tab && tab !== "new" && !/^tab-[A-Za-z0-9-]+$/.test(tab)) {
     throw new ApiError(`--tab must be "new" or a tab id like tab-2 (got ${JSON.stringify(tab)})`, "BAD_TAB")
   }
-  // A pinned engine only means something on a tab being CREATED: an alive
-  // tab already runs whatever it runs, and the canonical tab belongs to the
-  // task's own engine. Refuse rather than silently ignore — a caller that
-  // asked for codex must not get claude and a success exit.
+  // A pinned engine only applies to a tab being CREATED; refuse rather than
+  // hand a caller who asked for codex a claude tab and a success exit.
   const tabCommand = ctx.args.str("command")
   if (tabCommand && tab !== "new") {
     throw new ApiError(
@@ -155,10 +126,8 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     )
   }
   const respawn = ctx.args.bool("respawn")
-  // Reviving is an exact-tab act: the canonical path already respawns a
-  // restored tab-1 on its own (it is the tab it would create), and `--tab
-  // new` spawns by definition. Refuse rather than accept a flag that would
-  // do nothing — a caller asking to revive tab-2 must not get a silent no-op.
+  // Exact-tab only: the canonical path already respawns a restored tab-1 and
+  // `--tab new` spawns by definition, so the flag would be a silent no-op.
   if (respawn && (tab === undefined || tab === "new")) {
     throw new ApiError(
       `--respawn addresses one frozen tab; pass --tab tab-N (got --tab ${tab ?? "<canonical>"})`,
@@ -171,12 +140,9 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   const tabVendor = tabCommand ? resolveCommandProtocol(tabCommand) : undefined
   let taskId = ctx.args.str("task-id")
   if (!taskId) {
-    // Inside a sub-task, a bare `send` is the reply verb: it defaults to the
-    // DISPATCHER (task + tab) that created this task, not the global active
-    // task — the loop's outcome contract (55c990f34) routes completion back
-    // to the dispatching chat tab. An explicit --tab keeps its exact-tab
-    // semantics (on the dispatcher task); the fallback chain only runs for
-    // the tab default.
+    // Inside a sub-task a bare `send` replies to its DISPATCHER (task + tab),
+    // not the global active task. An explicit --tab stays exact (on the
+    // dispatcher task); the fallback chain only runs for the tab default.
     const dispatcher = await readOwnDispatcher(daemon)
     if (dispatcher) {
       taskId = dispatcher.taskId
@@ -229,8 +195,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     session: delivered.session,
     started: delivered.started,
     engineReady: delivered.engineReady,
-    // The measured delivery facts, spelled the same way `add` spells them
-    // (handlers-add.ts).
+    // Measured delivery facts, spelled as `add` spells them.
     delivered: delivered.delivered,
     ...(delivered.bytes === undefined ? {} : { bytes: delivered.bytes }),
     ...(delivered.promptEcho ? { promptEcho: delivered.promptEcho } : {}),
@@ -238,10 +203,8 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     // This call reopened a frozen tab rather than delivering into a session
     // that was already running (`send --tab tab-N --respawn`).
     ...(delivered.respawned ? { respawned: true } : {}),
-    // The conversations this call did NOT reach. Only present when a NEW
-    // session was started, which is the branch where `started/delivered:
-    // true` plus `running: true` reads as "your message reached the agent"
-    // while the task's real conversations sit frozen. See
+    // Conversations this call did NOT reach; only when a NEW session started,
+    // where `delivered: true` would otherwise hide the frozen real ones. See
     // `DeliveredPrompt.frozenTabs`.
     ...(delivered.frozenTabs?.length ? { frozenTabs: delivered.frozenTabs } : {}),
   }
@@ -258,12 +221,10 @@ async function dispatch(ctx: VerbContext): Promise<unknown> {
     ...(tabId !== undefined ? { tabId } : {}),
     source: "dispatcher",
   })) as { clients?: number; delivered?: boolean; reason?: string; layer?: string; tabId?: string } | undefined
-  // Surface the daemon's own verdict. `delivered: true` is OBSERVED — a paste
-  // landed in a live engine session. `false` is not: the daemon either
-  // refused (a busy composer) or fell back to the broadcast, where `clients`
-  // is a raw CONNECTION count (the calling CLI is one of them) and only its
-  // zero is proof — the text reached nobody. An older daemon omits `delivered`
-  // entirely; absent stays absent rather than being guessed either way.
+  // `delivered: true` is OBSERVED (a paste landed in a live engine). `false`
+  // means refused (busy composer) or broadcast, where `clients` is a raw
+  // connection count including this CLI — only its zero proves nobody got it.
+  // An older daemon omits `delivered`; absent stays absent.
   return {
     ok: true,
     taskId,
@@ -276,9 +237,7 @@ async function dispatch(ctx: VerbContext): Promise<unknown> {
   }
 }
 
-/** The verb spec lives beside its handler (PANE_VERB pattern): the flag list
- *  and the code that reads those flags change together, so they stay in one
- *  file and `verbs.ts` imports the finished spec. */
+/** Spec beside its handler: the flags and the code reading them change together. */
 export const DISPATCH_VERB: VerbSpec = {
   name: "dispatch",
   group: "drive",
@@ -318,9 +277,7 @@ export async function getTask(ctx: VerbContext): Promise<unknown> {
 
 export async function list(ctx: VerbContext): Promise<unknown> {
   const local = await daemonOf(ctx).request<{ tasks: SerializedTask[] }>("task.list")
-  // With no machine registered this hands back the daemon's own response
-  // object untouched, so the single-machine payload is byte-identical to what
-  // it was before machines existed.
+  // With no machine registered, returns the daemon's response untouched.
   const { mergeTaskList } = await import("../../machines/api-merge.ts")
   return await mergeTaskList(local)
 }

@@ -1,37 +1,17 @@
 /**
  * `watch` — block until a task's engine reaches a state, instead of polling
- * for it.
+ * `collect`. A subscription to `engine-state` (which includes `dead`, written
+ * from the pty exit record since a killed engine fires no hook) with a filter
+ * and an exit condition — deliberately not a general event bus.
  *
- * The gap is a dispatcher one. Every other read here is a snapshot, so an
- * agent supervising ten workers had exactly one shape available: call
- * `collect`, sleep, call it again. That costs a process spawn and a socket
- * per tick, and it is wrong in both directions — too slow and the news is
- * stale (an engine killed with SIGKILL went unnoticed for a full poll
- * interval), too fast and the fleet spends its time answering the watcher.
- *
- * The daemon already publishes exactly this: `engine-state` carries every
- * activity transition it knows, INCLUDING `dead`, which it writes from the
- * pty-host exit record rather than from a hook (a killed engine fires no
- * hook — that is the whole reason the state exists). So this verb is a
- * subscription with a filter and an exit condition, deliberately not a
- * general event bus: one channel, one predicate, one process that ends.
- *
- * Output is a STREAM: one NDJSON line per transition on stdout, then the
- * usual single result object when the watch ends. A caller reading
- * line-by-line acts on the first line; a caller reading the whole output
- * gets both.
+ * Output is a STREAM: one NDJSON line per transition, then the usual single
+ * result object when the watch ends.
  */
 
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 
-/**
- * Every state `engine-state` can carry (kobe-daemon's `TaskActivityState`).
- *
- * Spelled out here so a typo in `--until` is refused at the boundary rather
- * than waiting forever for a state that does not exist — the single worst
- * failure mode for a verb whose entire job is to wait.
- */
+/** Mirrors kobe-daemon's `TaskActivityState`, so an `--until` typo is refused instead of waiting forever. */
 const WATCHABLE_STATES = [
   "idle",
   "running",
@@ -103,22 +83,14 @@ async function watch(ctx: VerbContext): Promise<unknown> {
     let settled = false
     let events = 0
     /**
-     * Events already emitted, so a repeat of the same (task, tab, state, at)
-     * never prints twice — that is one daemon transition, not two.
-     *
-     * A SET rather than a last-seen key: the registry publishes a transition
-     * at tab level and again as the task-level rollup, and the two interleave
-     * (`tab-1 running` / `running` / `tab-1 running` for a single turn start),
-     * so comparing only against the previous line lets the third through.
-     * Bounded because a long watch on a busy fleet would otherwise grow
-     * without limit; the cap is far above any plausible burst.
+     * Dedupes (task, tab, state, at). A SET, not a last-seen key: tab-level
+     * and task-rollup publishes interleave (`tab-1 running` / `running` /
+     * `tab-1 running`). Capped far above any plausible burst.
      */
     const seen = new Set<string>()
     const SEEN_CAP = 512
 
-    // `off` / `deadline` / `heartbeat` are declared below and closed over
-    // here: nothing can call this before they exist (every caller is a
-    // channel push or a timer, both of which fire after this scope is set up).
+    // Closes over `off`/`deadline`/`heartbeat` declared below; every caller fires after setup.
     const finish = (fn: () => void): void => {
       if (settled) return
       settled = true
@@ -170,11 +142,8 @@ async function watch(ctx: VerbContext): Promise<unknown> {
       )
     }, timeoutMs)
 
-    // A dead daemon is silence, and silence is indistinguishable from "the
-    // engine is still working" — which is exactly the wrong thing for a verb
-    // whose answer is a wait. The heartbeat converts it into a named
-    // failure the caller can reconnect on. It also catches a socket that is
-    // open but wedged, which a close event never reports.
+    // A dead daemon is silence, indistinguishable from "still working". The
+    // heartbeat names it — including an open-but-wedged socket no close event reports.
     const heartbeat = setInterval(() => {
       daemon.request("daemon.status").catch(() => {
         finish(() =>

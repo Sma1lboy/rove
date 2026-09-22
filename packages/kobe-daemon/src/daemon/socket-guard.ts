@@ -1,27 +1,16 @@
 /**
- * Daemon-socket bind + ownership hygiene — the guard against daemon-
- * succession split brain.
+ * Daemon-socket bind + ownership hygiene against succession split brain.
+ * The client's stop+spawn path unlinks the socket first, so a usurper can
+ * bind while the incumbent keeps serving on an unlinked inode. Two rules:
  *
- * The boot-time live-owner probe refuses to REPLACE a healthy daemon, but it
- * cannot help once the path has already been clobbered: the client-side
- * stop+spawn path unlinks the socket before spawning, so a usurper's boot
- * probe sees "absent" and binds — leaving the incumbent serving its attached
- * TUI on an unlinked inode, invisible to every new connection. Two rules here
- * close that hole:
- *
- *  1. A running daemon WATCHES its own socket path
- *     ({@link createSocketOwnershipGuard}): if the file vanishes or its
- *     inode changes, another daemon took the path. This daemon can never
- *     receive another connection, so it stops itself; its attached
- *     clients' reconnect loops then land on the new owner. A socketless
- *     daemon must never outlive its socket.
- *  2. Shutdown cleanup ({@link SocketOwnershipGuard.release}) unlinks the
- *     socket + pidfile ONLY on PROVEN ownership — armed, and the inode
- *     still matches. Unproven (superseded, or never armed) means hands off.
- *     A superseded daemon exiting late must not delete the NEW owner's
- *     files — that was the whack-a-mole cascade where killing each stale
- *     daemon unlinked the live one's socket and triggered yet another
- *     autospawn.
+ *  1. A running daemon WATCHES its socket path
+ *     ({@link createSocketOwnershipGuard}): file gone or inode changed means
+ *     it can never get another connection, so it stops; its clients'
+ *     reconnect loops land on the new owner.
+ *  2. Shutdown ({@link SocketOwnershipGuard.release}) unlinks socket +
+ *     pidfile ONLY on PROVEN ownership (armed, inode matches). A superseded
+ *     daemon exiting late must not delete the new owner's files, or each
+ *     stale kill triggers another autospawn.
  */
 
 import { readFile, stat, unlink } from "node:fs/promises"
@@ -38,18 +27,10 @@ type EventedServer = Server & {
 }
 
 /**
- * Bind `server` to `socketPath`; resolves once listening, rejects on the
- * first bind error (EADDRINUSE, path too long, …).
- *
- * The socket is chmod'd to 0600 after the bind, not before: `listen()` applies
- * the process umask, so under the default 022 the node lands `srwxr-xr-x` and
- * any local user can connect. The containing directory being 0700
- * (`ensureOwnerOnlyDir`) already closes that, but the socket is the thing the
- * whole no-peer-credential design leans on, so it says owner-only itself
- * rather than borrowing the statement from its parent.
- *
- * A Windows named pipe has no filesystem node to chmod; its ACL comes from the
- * pipe namespace instead.
+ * Bind; rejects on the first bind error. chmod 0600 AFTER listen: `listen()`
+ * applies the umask, so under 022 any local user could connect. The 0700
+ * parent dir covers that too, but the no-peer-credential design leans on the
+ * socket being owner-only itself. Windows named pipes have no node to chmod.
  */
 export async function listenOnUnixSocket(server: Server, socketPath: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
@@ -64,20 +45,10 @@ export async function listenOnUnixSocket(server: Server, socketPath: string): Pr
 }
 
 /**
- * Whether a process exists. `process.kill(pid, 0)` sends no signal — it only
- * runs the permission/existence check — so it answers in three ways:
- *
- * - returns → alive
- * - throws `ESRCH` → gone
- * - throws `EPERM` → alive, just owned by another user and not signalable
- *
- * The pid guard is load-bearing, not defensive typing: `kill(0, 0)` targets
- * the CALLER'S OWN process group and succeeds, so a pidfile that parsed to
- * `0` would otherwise report a dead daemon as alive and block every cleanup
- * path that waits for it to go away.
- *
- * Any other error code counts as alive. Callers use this to decide whether
- * to kill a process or steal a lock, and both are unsafe to do on a guess.
+ * `kill(pid, 0)`: returns → alive; `ESRCH` → gone; `EPERM` (or any other
+ * code) → alive — callers kill or steal locks on this, never on a guess.
+ * The pid guard is load-bearing: `kill(0, 0)` hits the caller's OWN process
+ * group and succeeds, so pid 0 would report a dead daemon alive.
  */
 export function isProcessAlive(pid: number): boolean {
   if (!Number.isInteger(pid) || pid <= 0) return false
@@ -90,17 +61,9 @@ export function isProcessAlive(pid: number): boolean {
 }
 
 /**
- * The pid in `pidPath`, or `null` when the file cannot be trusted.
- *
- * `Number("")` is `0`, so a pidfile truncated mid-write parses as pid `0` —
- * the value {@link isProcessAlive} guards against precisely because
- * `kill(0, …)` targets the caller's own process group. This is the second
- * layer: the predicate stops the signal, and this stops the bad pid from
- * being carried any further, so a torn pidfile reads as "no pidfile" rather
- * than as pid `0` in `stopDaemonProcess`'s reported result.
- *
- * Neither layer is the root fix. That is writing the file with tmp+rename
- * (see `writeTextAtomic`) so a torn pidfile stops being produced at all.
+ * The pid, or `null` when untrusted (pid <= 1). `Number("")` is `0`, so a
+ * torn pidfile reads as "no pidfile" instead of carrying pid 0 onward. The
+ * root fix is tmp+rename writes (`writeTextAtomic`).
  */
 export async function readPidFile(pidPath: string): Promise<number | null> {
   try {
@@ -123,22 +86,15 @@ export interface SocketOwnershipGuard {
    *  Call once, right after listen + pidfile write. */
   arm(): Promise<void>
   /**
-   * Ownership-aware teardown, and it FAILS CLOSED. Unlink socket + pidfile
-   * only while ownership is PROVEN — the guard armed, and the path still
-   * carries the inode it stamped. Otherwise (superseded, or never armed at
-   * all) only UNREF the listener: both node and Bun unlink the socket path
-   * BY NAME inside `server.close()`, so closing gracefully would delete
-   * whoever owns the path now. The unref'd listener sits on an unlinked
-   * inode, can never accept another connection, and dies with the process.
+   * FAILS CLOSED: unlink socket + pidfile only on PROVEN ownership (armed,
+   * inode matches). Otherwise only UNREF the listener — node and Bun unlink
+   * the path BY NAME inside `server.close()`, which would delete the current
+   * owner's socket.
    *
-   * "Never armed" must NOT fall back to unconditional cleanup: a daemon that
-   * lost the path between bind and arm would delete the live owner's socket
-   * AND pidfile, and a missing pidfile blinds `ensureDaemonReachable`'s
-   * busy-daemon grace, which keys on `readPidFile` — every client then skips
-   * the grace and goes straight to stop+spawn, feeding a takeover cascade.
-   * The cost of failing closed is a stale socket/pidfile, which the boot
-   * probe and `stopDaemonProcess` already clear; the cost of failing open is
-   * killing a healthy daemon.
+   * "Never armed" must NOT clean up unconditionally: a missing pidfile blinds
+   * `ensureDaemonReachable`'s busy-daemon grace (keyed on `readPidFile`),
+   * sending every client to stop+spawn. Failing closed costs a stale file the
+   * boot probe and `stopDaemonProcess` clear; failing open kills a healthy daemon.
    */
   release(server: Server): Promise<void>
 }
@@ -146,11 +102,9 @@ export interface SocketOwnershipGuard {
 export function createSocketOwnershipGuard(options: {
   readonly socketPath: string
   readonly pidPath: string
-  /** Watch interval in ms; `0` disables the periodic check (release() still
-   *  verifies ownership). Defaults to {@link DEFAULT_SOCKET_WATCH_MS}. */
+  /** Watch interval in ms; `0` disables the periodic check (release() still verifies). */
   readonly watchMs?: number
-  /** Fired once when the socket path is observed gone or rebound by another
-   *  process. Callee decides how to stop (server.ts routes to stopSoon). */
+  /** Fired once when the socket path is gone or rebound by another process. */
   readonly onLost: () => void
 }): SocketOwnershipGuard {
   const watchMs = options.watchMs ?? DEFAULT_SOCKET_WATCH_MS
@@ -158,8 +112,7 @@ export function createSocketOwnershipGuard(options: {
   let lost = false
   let timer: ReturnType<typeof setInterval> | null = null
 
-  /** null = path gone; "error" = stat failed for a non-ENOENT reason (never
-   *  a takeover verdict on a maybe — the watch skips, release() falls back). */
+  /** null = path gone; "error" = non-ENOENT stat failure (never a takeover verdict). */
   const currentStamp = async (): Promise<OwnershipStamp | null | "error"> => {
     try {
       const s = await stat(options.socketPath)
@@ -174,8 +127,7 @@ export function createSocketOwnershipGuard(options: {
     timer = null
   }
 
-  /** Re-read the path; flips `lost` once it is gone or rebound. Never flips
-   *  on a transient stat error — a takeover verdict is not made on a maybe. */
+  /** Flips `lost` once the path is gone or rebound; never on a transient stat error. */
   const verify = async (): Promise<void> => {
     if (stamp === null || lost) return
     const now = await currentStamp()
@@ -193,11 +145,9 @@ export function createSocketOwnershipGuard(options: {
 
   return {
     async arm() {
-      // Call this IMMEDIATELY after listen: every await between bind and
-      // fingerprint is a window in which the path can be unlinked (stamp
-      // stays null) or rebound by a usurper (we would stamp THEIR inode and
-      // later delete their socket). A null stamp means ownership was never
-      // proven, and release() treats that as not-ours.
+      // Call IMMEDIATELY after listen: any await before this lets a usurper
+      // rebind, and we'd stamp (and later delete) THEIR inode. A null stamp
+      // means never proven; release() treats it as not-ours.
       const now = await currentStamp()
       if (now === null || now === "error") return
       stamp = now
@@ -208,8 +158,7 @@ export function createSocketOwnershipGuard(options: {
     },
     async release(server: Server) {
       stopTimer()
-      // Final ownership read — a takeover between watch ticks (or with the
-      // watch disabled) must still be honored here.
+      // Catch a takeover between watch ticks, or with the watch disabled.
       await verify()
       if (stamp === null || lost) {
         server.unref()

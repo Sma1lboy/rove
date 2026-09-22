@@ -1,16 +1,8 @@
 /**
- * `digest` — the RULER. An aggregate read over state Rove already persists:
- * tasks touched in the window and routine run outcomes
- * (`AutomationRun.status`). No new data model, no new writer.
- *
- * Why it exists: Rove runs a lot of unattended agent work (fan-out, routines,
- * the dispatcher) and had no way to answer "is this week better than last
- * week". Every self-improvement mechanism is astrology without a measurement
- * it can move, so the ruler ships before anything that claims to learn.
- *
- * Task OUTCOMES are deliberately absent: completion flows back to the
- * spawning agent's chat tab (`send`), not into Rove state. There is
- * deliberately no stored `workerReport` channel: nothing would read it.
+ * `digest` — aggregate read over state Rove already persists (tasks touched in
+ * the window, `AutomationRun.status`); no new data model or writer. Task
+ * OUTCOMES are deliberately absent: completion flows to the spawning agent's
+ * chat tab (`send`), and a stored `workerReport` would have no reader.
  */
 
 import type { Automation, AutomationRun, AutomationRunStatus } from "@sma1lboy/kobe-daemon/daemon/contracts"
@@ -46,10 +38,7 @@ function epochOf(iso: string | undefined): number | null {
   return Number.isNaN(ms) ? null : ms
 }
 
-/**
- * Fold already-filtered tasks + runs into the digest shape. Pure, so the
- * arithmetic is testable without a daemon; callers own repo/window filtering.
- */
+/** Pure fold of already-filtered tasks + runs; callers own repo/window filtering. */
 export function buildDigest(
   repo: string,
   sinceMs: number,
@@ -75,9 +64,7 @@ async function digest(ctx: VerbContext): Promise<unknown> {
 
   const { tasks: allTasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
   const { automations } = await daemon.request<{ automations: Automation[] }>("automation.list")
-  // Throws when `--repo` itself does not resolve, and names the repos it
-  // could not resolve. A zero-task digest beside a non-empty
-  // `unresolvableRepos` is a failed lookup, not a quiet week.
+  // Zero tasks beside non-empty `unresolvableRepos` is a failed lookup, not a quiet week.
   const filter = await repoFilter(runtime, repoFlag, [
     ...allTasks.map((t) => t.repo),
     ...automations.map((a) => a.repo),
@@ -86,8 +73,7 @@ async function digest(ctx: VerbContext): Promise<unknown> {
 
   const tasks: SerializedTask[] = []
   for (const task of allTasks) {
-    // Only board CARDS are units of work — the repo's `main` seat (the
-    // dispatcher) and `dir` entries would park a constant in the count.
+    // Only board CARDS count; `main` seats and `dir` entries would add a constant.
     if ((task.kind ?? "task") !== "task") continue
     if ((epochOf(task.updatedAt) ?? 0) < sinceMs) continue
     if (filter.matches(task.repo)) tasks.push(task)
@@ -108,7 +94,6 @@ async function digest(ctx: VerbContext): Promise<unknown> {
   }
 }
 
-/** Spec half of the digest verb — spread into {@link VERBS} in `verbs.ts`. */
 export const DIGEST_VERB: VerbSpec = {
   name: "digest",
   group: "read",

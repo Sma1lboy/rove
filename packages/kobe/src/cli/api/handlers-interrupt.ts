@@ -1,20 +1,12 @@
 /**
- * `interrupt` — stop the turn an engine is in the middle of.
+ * `interrupt` — stop the turn an engine is in the middle of, keeping the
+ * conversation and worktree (unlike `tab-close`/`delete`; `send` can't reach
+ * a busy composer).
  *
- * The gap this closes is a dispatcher one. When a worker runs away, the only
- * headless levers were `tab-close` (which throws the conversation away) and
- * `delete` (which throws the worktree away); `send` is not one, because it
- * needs a quiet composer and a runaway engine's composer is exactly not that.
- * So the escalation from "stop, and let me redirect you" jumped straight to
- * "destroy the session", and dispatchers took the second option because it
- * was the only one that existed.
- *
- * Delivery is a plain `pty.write` of the ENGINE'S OWN interrupt bytes — the
- * same thing a human pressing the key produces, so nothing here has to model
- * what interrupting means. The bytes come from the engine registry
- * (`EngineCapabilities.interruptSequence`); an engine that has not declared
- * them is refused, never guessed at, because the two plausible guesses (Esc,
- * ctrl-C) mean opposite things across engines and one of them quits.
+ * A plain `pty.write` of the engine's own declared bytes
+ * (`EngineCapabilities.interruptSequence`). Undeclared engines are refused,
+ * never guessed at: Esc and ctrl-C mean opposite things across engines and
+ * one of them quits.
  */
 
 import { openHostedSessionHost } from "../../engine/hosted-session.ts"
@@ -33,12 +25,8 @@ interface InterruptTask {
 }
 
 /**
- * The bytes for this task's engine, or a typed refusal.
- *
- * `UNSUPPORTED` is the honest answer for a `generic` protocol engine: Rove
- * launched it and can write to its pty, but nothing in the registry knows how
- * that program spells "cancel". Sending Esc on the chance it works is how you
- * discover, in production, that it meant "quit".
+ * The bytes for this task's engine, or a typed refusal — `UNSUPPORTED` for a
+ * `generic` protocol engine, whose spelling of "cancel" nothing knows.
  */
 function interruptSequenceFor(task: InterruptTask): string {
   const vendor = task.vendor as VendorId | undefined
@@ -56,9 +44,8 @@ async function interruptTask(ctx: VerbContext): Promise<unknown> {
   const taskId = ctx.args.require("task-id")
   const tabFlag = ctx.args.str("tab")
   const { task } = await daemonOf(ctx).request<{ task: InterruptTask }>("task.get", { taskId })
-  // Resolved BEFORE opening the pty host: a refusal must not depend on
-  // whether a host happened to be up, or the same call would answer
-  // UNSUPPORTED and NO_ENGINE_TAB on alternate runs.
+  // Before opening the pty host, so UNSUPPORTED doesn't depend on whether a
+  // host happens to be up.
   const sequence = interruptSequenceFor({ ...task, id: taskId })
 
   const host = await openHostedSessionHost()
@@ -85,11 +72,8 @@ async function interruptTask(ctx: VerbContext): Promise<unknown> {
       )
     }
     await host.rpc.request("pty.write", { key, data: sequence })
-    // `interrupted` is the WRITE, not the effect: the engine acknowledges an
-    // interrupt on its own screen and its own schedule, and this call has no
-    // way to wait for that without inventing a second gate. A caller that
-    // needs the effect reads `collect`'s `.activity.state` afterwards, which
-    // is what the daemon actually observes.
+    // `interrupted` is the WRITE, not the effect; the effect shows in
+    // `collect`'s `.activity.state`.
     return {
       ok: true,
       taskId,

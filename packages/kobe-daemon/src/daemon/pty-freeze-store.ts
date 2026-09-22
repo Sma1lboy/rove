@@ -1,30 +1,20 @@
 /**
  * Freeze/restore persistence for hosted PTY sessions.
  *
- * The host keeps every session's scrollback ring in memory, so the host
- * process ending (crash, machine reboot, SIGTERM) would otherwise take the
- * whole work scene with it: dead children are expected, but the session
- * table and every byte of scrollback would go too, leaving the next host to
- * come up knowing nothing. This store is the freeze half: one small
- * JSON file per session under `<home>/.kobe/pty-sessions/`, holding
- * everything a LATER host incarnation needs to put the session back —
- * metadata (key, cwd, launch command, size, title, byte offsets) plus the
- * ring buffer itself.
+ * Scrollback lives in host memory, so a host crash / reboot / SIGTERM would
+ * otherwise lose the session table and every byte of it. One JSON file per
+ * session under `<home>/.kobe/pty-sessions/` holds what a LATER host needs:
+ * key, cwd, launch command, size, title, byte offsets, and the ring.
  *
- * Restore is LAZY and lossy-by-design: a thawed session comes back as a
- * dead "restored" corpse with its scrollback intact, and the first
- * `pty.open` respawns the child in place (see `pty-host.ts`). Nothing
- * pretends a dead process can be resurrected — the contract is "your
- * screen and your launch line survive the host, your conversation
- * survives via the engine's own resume".
+ * Restore is LAZY and lossy-by-design: a thawed session is a dead
+ * "restored" corpse with scrollback intact; the first `pty.open` respawns
+ * the child in place (`pty-host.ts`). Screen and launch line survive the
+ * host; the conversation survives via the engine's own resume.
  *
- * Write discipline: atomic tmp+rename per session file, everything
- * best-effort (a freeze hiccup must never take the terminal down), one
- * file per session so a flush rewrites only what drifted. Explicitly
- * killed sessions (`pty.kill`, task-deletion sweep) drop their record — a
- * close the user asked for is not a restart casualty. `rove reset`'s
- * graceful stop clears the whole directory ("starts fresh" is reset's
- * contract); a bare SIGTERM / crash / reboot leaves it for the next host.
+ * Writes: atomic tmp+rename, one file per session, all best-effort (a
+ * freeze hiccup must never take the terminal down). Explicit kills
+ * (`pty.kill`, task-deletion sweep) drop their record. `rove reset`'s
+ * graceful stop clears the directory; SIGTERM / crash / reboot leave it.
  */
 
 import { randomUUID } from "node:crypto"
@@ -172,35 +162,26 @@ function parseRecord(raw: string): FrozenPtySession | null {
 
 /**
  * How stale a record may be before a host boot discards it instead of
- * thawing it. Restore exists so the session you were just looking at
- * survives a host restart; a snapshot nobody has touched in a fortnight is
- * a dead task's leftovers, not a work scene. Two weeks is well past any
- * plausible "I'll come back to that tab on Monday" and still short enough
- * that the directory can't grow without bound.
+ * thawing it: well past "back to that tab on Monday", short enough that the
+ * directory can't grow without bound.
  */
 export const FREEZE_TTL_MS = 14 * 24 * 60 * 60 * 1000
 
 /**
  * How much frozen scrollback ONE boot reads back, newest first.
  *
- * This is a restore budget, not a retention policy: a record past it is left
- * on disk untouched, not deleted. The two jobs used to be one 64-record cap
- * that did neither well — it was applied AFTER reading every file (so it
- * bounded nothing) and it `rmSync`'d the overflow (so a directory that had
- * merely outgrown a guess lost real scrollback). A measured install carried
- * 108 records / 69MB against that "several times any realistic number" cap,
- * and every record past 64 was from the previous day's work.
+ * A restore budget, not a retention policy: a record past it stays on disk
+ * untouched. Measured: one install carried 108 records / 69MB, and records
+ * past the newest 64 were real previous-day work.
  *
- * Bytes rather than records because bytes are what both costs actually track:
- * the boot read, and the rings the host then holds in memory for the whole
- * session. 64MB is ~128 sessions at the 512KB ring cap and ~100 at the 640KB
- * mean record that install showed.
+ * Bytes, not records, because bytes drive both costs: the boot read and the
+ * rings held in memory. 64MB is ~128 sessions at the 512KB ring cap and ~100
+ * at that install's 640KB mean record.
  */
 export const FREEZE_RESTORE_MAX_BYTES = 64 * 1024 * 1024
 
-/** What one {@link loadFrozenSessions} did — `pty-server` logs it, so a boot
- *  that dropped or deferred someone's scrollback says so in `daemon.log`
- *  instead of doing it silently. */
+/** What one {@link loadFrozenSessions} did — `pty-server` logs it so dropped
+ *  or deferred scrollback shows in `daemon.log`. */
 export interface FreezeLoadSummary {
   readonly restored: number
   readonly bytesRead: number
@@ -222,19 +203,15 @@ function updatedAtMs(record: FrozenPtySession): number {
  * Every restorable record in `dir` that fits the restore budget; missing or
  * corrupt entries read as none.
  *
- * Ordering comes from each file's mtime, taken from `statSync` — deciding
- * what to read by a field INSIDE the records would mean reading all of them
- * first, which is the unbounded read this budget exists to stop. A record is
- * rewritten wholesale on every freeze, so its mtime and its `updatedAt` are
- * stamped at the same moment; the parsed `updatedAt` still governs the TTL
- * for everything actually read, so a record whose mtime drifted newer than
- * its contents (a copy, a restore-from-backup) is still expired correctly.
+ * Ordered by file mtime (`statSync`): ordering by a field inside the records
+ * would mean reading them all — the unbounded read the budget prevents.
+ * Every freeze rewrites the file, so mtime ≈ `updatedAt`; the parsed
+ * `updatedAt` still governs the TTL for records read, so a copy/backup with
+ * a drifted-newer mtime still expires correctly.
  *
- * Only the TTL deletes. That is what bounds the directory — the daemon's
- * task-deletion sweep reaches only a RUNNING host, so a task deleted while
- * the host was down leaves its record behind, and two weeks is the backstop. Deferring a record
- * for being over budget must never delete it: the budget is a statement about
- * this boot's memory, and the user may still want that scrollback.
+ * Only the TTL deletes — the backstop for tasks deleted while the host was
+ * down (the task-deletion sweep reaches only a RUNNING host). Over-budget
+ * records are never deleted: the budget is about this boot's memory.
  */
 export function loadFrozenSessions(
   dir = defaultPtyFreezeDir(),
@@ -304,10 +281,8 @@ export function loadFrozenSessions(
 /**
  * Re-`chmod` the freeze directory and every record already in it.
  *
- * The SWEEP is what is specific to this module — a record not re-frozen
- * since the laxer-umask days keeps world-readable scrollback, so the repair
- * has to walk what is already on disk. Why a repair pass is needed at all is
- * the shared reasoning in `owner-only.ts`.
+ * Walks existing records: one not re-frozen since a laxer umask keeps
+ * world-readable scrollback. Why a repair pass at all: `owner-only.ts`.
  */
 export function tightenExistingPermissions(dir: string): void {
   tightenDirPermissionsSync(dir)
@@ -324,16 +299,14 @@ export function tightenExistingPermissions(dir: string): void {
 
 /** The real sink: per-session atomic files under `dir`. Never throws. */
 export function fileFreezeSink(dir = defaultPtyFreezeDir()): PtyFreezeSink {
-  // Remediate on construction (once per host boot), not per save: the mode
-  // arguments below only bind at creation time, so a pre-existing 0755
-  // directory / 0644 record would otherwise stay wide open forever.
+  // Once per host boot: the mode args below bind only at creation, so a
+  // pre-existing 0755 dir / 0644 record would otherwise stay open forever.
   tightenExistingPermissions(dir)
   return {
     save(record) {
       try {
-        // 0700/0600: `ringB64` is the session's whole scrollback, so this file
-        // holds every byte the agent printed — `env` output, `cat`ed credential
-        // files, a git remote carrying a PAT. Owner-only, like a private key.
+        // 0700/0600: the ring holds every byte the agent printed (`env`,
+        // `cat`ed credentials, a PAT in a git remote). Owner-only.
         mkdirSync(dir, { recursive: true, mode: OWNER_ONLY_DIR_MODE })
         const target = recordFile(dir, record.key)
         const staging = `${target}.${process.pid}.tmp`
@@ -354,9 +327,8 @@ export function fileFreezeSink(dir = defaultPtyFreezeDir()): PtyFreezeSink {
 }
 
 /**
- * Wipe every frozen session — `rove reset`'s graceful pty-host stop only.
- * An explicit teardown is not a restart: the next host must come up empty,
- * not resurrect sessions reset was asked to end.
+ * Wipe every frozen session — `rove reset`'s graceful pty-host stop only, so
+ * the next host comes up empty.
  */
 export function clearFrozenSessions(dir = defaultPtyFreezeDir()): void {
   try {

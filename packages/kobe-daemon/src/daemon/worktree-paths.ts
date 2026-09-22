@@ -7,19 +7,15 @@
  * `worktree.basePath` setting; `<repo-key>` is `<basename>-<sha1-12>` of the
  * repo path, so two repos never collide under a shared base.
  *
- * This lives in kobe-daemon (kobe -> kobe-daemon, never back) because BOTH
- * sides compute it: the TUI/orchestrator to CREATE and list worktrees, and the
- * daemon's `cwd-task.ts` to recognize one an engine started inside. They used
- * to hold separate copies, and the copies drifted — the daemon's never learned
- * about the base override, so a user who moved their worktree location got
- * silent adoption failures. Same move `product-paths.ts` and
- * `lib/poll-scheduling.ts` already made.
+ * Lives in kobe-daemon (kobe -> kobe-daemon, never back) because both sides
+ * compute it: the orchestrator to create/list worktrees, the daemon's
+ * `cwd-task.ts` to recognize one an engine started in. Separate copies drift
+ * into silent adoption failures.
  *
- * I/O policy stays with each caller: kobe reads `state.json` through its State
- * Store (which owns the corrupt-file backup), the daemon reads it here with a
- * plain best-effort read. Only the INTERPRETATION of the stored value is
- * shared, via {@link normalizeWorktreeBase} — the two must never disagree
- * about what a given `state.json` means.
+ * I/O stays with each caller (kobe's State Store owns the corrupt-file
+ * backup; the daemon reads best-effort). Only the INTERPRETATION is shared,
+ * via {@link normalizeWorktreeBase}, so the two never disagree about what a
+ * `state.json` means.
  *
  * `repo` is always absolute. Callers must normalize before invoking.
  */
@@ -75,16 +71,13 @@ export function hasProjectDirToken(raw: string): boolean {
  * Normalize a raw user-entered base path to an absolute directory, or `null`
  * when it's unset/blank (meaning "use Rove's default root").
  *
- * A leading `~` / `~/` expands to the OS home; relative paths resolve against
- * it too, so a user who types `code/worktrees` gets a stable absolute location
- * instead of one that depends on the process's cwd.
+ * `~` / `~/` expands to the OS home, and relative paths resolve against it
+ * too (never the process cwd).
  *
- * A leading `$project_dir` segment expands to `projectDir` (the repo root of
- * the task being created), with `..` segments collapsed — so
- * `$project_dir/../wt` lands next to each project. When the token is present
- * but no `projectDir` context exists (a global read with no repo at hand), the
- * result is `null`: fall back to the default root rather than inventing a
- * literal `$project_dir` directory.
+ * A leading `$project_dir` expands to `projectDir` (the task's repo root),
+ * `..` collapsed, so `$project_dir/../wt` lands beside each project. With
+ * the token but no `projectDir`, returns `null` (default root) rather than
+ * a literal `$project_dir` directory.
  */
 export function normalizeWorktreeBase(raw: string | undefined | null, projectDir?: string): string | null {
   if (typeof raw !== "string") return null
@@ -103,10 +96,9 @@ export function normalizeWorktreeBase(raw: string | undefined | null, projectDir
 }
 
 /**
- * Daemon-side read of the configured base override. Best-effort and read-only:
- * a missing / malformed `state.json` yields `null` (the default root), and
- * unlike kobe's State Store this never moves the file aside — the daemon must
- * not rewrite a user file it merely observes.
+ * Daemon-side read of the base override. A missing / malformed `state.json`
+ * yields `null`; never moves the file aside — the daemon must not rewrite a
+ * user file it merely observes.
  */
 export function readWorktreeBaseOverride(projectDir?: string): string | null {
   try {
@@ -145,20 +137,13 @@ export function worktreeRootFor(repo: string, override: string | null): string {
 }
 
 /**
- * Absolute paths of every worktree root Rove recognizes for `repo`. The active
- * root (override-aware) is first; the built-in default follows when an override
- * moved it (so worktrees created before the override stay discoverable for
- * listing + slug allocation), then the legacy global root and the repo-local
- * roots that older task records used.
+ * Every worktree root Rove recognizes for `repo`: the active root first, then
+ * the built-in default (pre-override worktrees stay listable and block slug
+ * reuse), the legacy global root, and the repo-local roots.
  *
- * KNOWN LIMITATION: only the CURRENT override and the built-in default are
- * recognized — we don't persist a history of past override paths. If a user
- * points the base at A, creates tasks, then re-points it at B, the worktrees
- * under A fall out of managed listing + slug allocation. Those tasks are NOT
- * lost — each task record pins its own absolute `worktreePath`, so
- * opening/removing them keeps working; they just stop appearing in "list
- * Rove-managed worktrees" and their slugs stop blocking reuse. Recording every
- * base ever used would close the gap but is deliberately out of scope here.
+ * KNOWN LIMITATION: past override paths aren't persisted. Re-pointing the
+ * base from A to B drops A's worktrees from listing + slug allocation; the
+ * tasks still work since each record pins its absolute `worktreePath`.
  */
 export function managedWorktreeRootsFor(repo: string, override: string | null): readonly string[] {
   if (!path.isAbsolute(repo)) {

@@ -1,11 +1,7 @@
 /**
- * `rove-plugin.toml` — the canonical contract between Rove and a plugin.
- *
- * A plugin is a directory with this manifest plus argv commands Rove can
- * launch; the whole `rove` CLI (and the daemon
- * socket) is the plugin API. The manifest is four table arrays — [[build]] /
- * [[startup]] / [[actions]] / [[events]] — and this file is their parser and
- * validator. Design doc: docs/design/plugins.md.
+ * Parser + validator for `rove-plugin.toml`, the Rove↔plugin contract: a
+ * directory of argv commands whose API is the `rove` CLI and daemon socket.
+ * Design doc: docs/design/plugins.md.
  */
 
 import { existsSync, readFileSync } from "node:fs"
@@ -29,9 +25,7 @@ import { settingKeyRejection } from "./setting-keys.ts"
 
 export { PLUGIN_PLATFORMS, type PluginPlatform }
 
-/** The event catalog lives in the published SDK's contract module — ONE
- *  source shared by the daemon and external plugin authors (catalog docs:
- *  docs/design/plugin-events.md; dispatch: plugins/events.ts). */
+/** Event catalog: ONE source in the published SDK, shared with plugin authors. */
 export { PLUGIN_EVENT_NAMES, type PluginEventName }
 
 export interface PluginCommandSpec {
@@ -40,10 +34,8 @@ export interface PluginCommandSpec {
   /** Item-level platform override; absent → the manifest-level list. */
   readonly platforms?: readonly PluginPlatform[]
   /**
-   * Deadline in ms for `[[startup]]` / `[[events]]` / `[[shutdown]]` hooks,
-   * after which the host SIGKILLs the hook's whole process group. Absent →
-   * the host default for that kind. Actions and panes are user-driven and
-   * carry no deadline; declaring one there is a manifest warning.
+   * Startup/event/shutdown hook deadline (ms); then the process group is
+   * SIGKILLed. Absent → host default. Actions/panes have none (warning if set).
    */
   readonly timeoutMs?: number
 }
@@ -58,28 +50,22 @@ export interface PluginEventHook extends PluginCommandSpec {
   readonly on: PluginEventName
 }
 
-/** One user-tunable setting: declared here, edited in Settings → Plugins,
- *  stored as `KEY=value` in the plugin's config `.env` (the contract plugin
- *  commands already source). */
+/** A user-tunable setting, stored as `KEY=value` in the plugin's config `.env`. */
 export interface PluginSetting {
   /** Env var name written to the config .env (conventionally ROVE_<PLUGIN>_*). */
   readonly key: string
   readonly label: string
-  /** `secret` is a string whose value is masked wherever it is displayed —
-   *  the row shows `••••` instead of the API key the user pasted. Storage is
-   *  unchanged; only rendering differs. */
+  /** `secret` = string rendered masked (`••••`); storage is unchanged. */
   readonly type: "string" | "number" | "boolean" | "enum" | "secret"
   /** Enum choices (required for type = "enum"). */
   readonly options?: readonly string[]
-  /** Default shown when the .env has no value; storage is always a string —
-   *  TOML `true` / `false` / numbers are accepted and stored as `"1"` /
-   *  absent / their decimal spelling. */
+  /** Default when unset. Always a string: TOML `true`/`false`/numbers store
+   *  as `"1"` / absent / decimal spelling. */
   readonly default?: string
 }
 
-/** Route "open this file" from the Files pane to a plugin action: the first
- *  enabled handler whose pattern matches the file name wins; the action
- *  receives the absolute path as its argument. */
+/** Files-pane "open" → plugin action. First enabled match wins; the action
+ *  gets the absolute path as its argument. */
 export interface PluginFileHandler {
   /** JS regex source tested against the file's name/path. */
   readonly pattern: string
@@ -97,11 +83,8 @@ export interface PluginPane extends PluginCommandSpec {
 }
 
 /**
- * One coding-CLI engine a plugin contributes (same shape as kobe's shipped
- * contrib-engine catalog): identity +
- * launch command + declarative screen-state rules. The TUI overlays this onto
- * the empty custom registry entry — launch + selector + screen-based badges,
- * no account/history/hook surfaces (those require a built-in adapter).
+ * A plugin-contributed engine (contrib-catalog shape): launch + selector +
+ * screen-rule badges only; account/history/hooks need a built-in adapter.
  */
 export interface PluginEngineRule {
   readonly state: "working" | "blocked" | "idle"
@@ -127,12 +110,9 @@ export interface PluginEngine {
     readonly shortName?: string
   }
   /**
-   * How this CLI takes a session's FIRST message. Default `"argv"` appends the
-   * prompt as a positional, which is right for most CLIs and fatal for the ones
-   * whose positional slot means something else — a subcommand, or a project
-   * directory. Such an engine declares `"paste"` and the first message is typed
-   * into the running pane instead. Without this key the author's only fix is to
-   * not use the feature.
+   * How the FIRST message is delivered. `"argv"` (default) appends a
+   * positional — fatal for CLIs whose positional is a subcommand or project
+   * dir; those declare `"paste"` to type it into the running pane.
    */
   readonly firstMessageDelivery?: "argv" | "paste"
 }
@@ -146,8 +126,7 @@ export interface PluginManifest {
   readonly platforms?: readonly PluginPlatform[]
   readonly build: readonly PluginCommandSpec[]
   readonly startup: readonly PluginCommandSpec[]
-  /** Run at daemon stop (bounded — the host kills a hook that outlives its
-   *  grace window rather than delaying shutdown). */
+  /** Run at daemon stop; a hook outliving its grace window is killed. */
   readonly shutdown: readonly PluginCommandSpec[]
   readonly actions: readonly PluginAction[]
   readonly events: readonly PluginEventHook[]
@@ -168,12 +147,9 @@ export const LEGACY_PLUGIN_MANIFEST_FILENAME = "kobe-plugin.toml"
 export const PLUGIN_MANIFEST_FILENAMES = [PLUGIN_MANIFEST_FILENAME, LEGACY_PLUGIN_MANIFEST_FILENAME] as const
 
 /**
- * Engine ids a plugin's `[[engines]]` may not claim: the four built-in
- * adapters plus the shipped contrib catalog (gemini/opencode/cursor/grok/
- * droid/amp/devin/qodercli/cline/kiro/maki/antigravity). The daemon cannot import kobe's
- * BUILTIN_VENDORS / CONTRIB_ENGINES (kobe depends on the daemon, not vice
- * versa), so this is the daemon-side source of truth; a kobe-side test locks
- * the lists together.
+ * Engine ids `[[engines]]` may not claim: built-in adapters + shipped contrib
+ * catalog. The daemon can't import kobe's lists (kobe depends on the daemon),
+ * so this is the daemon-side copy; a kobe-side test locks them together.
  */
 export const RESERVED_ENGINE_IDS: readonly string[] = [
   "claude",
@@ -196,8 +172,7 @@ export const RESERVED_ENGINE_IDS: readonly string[] = [
   "antigravity",
 ]
 
-/** Resolve a plugin manifest with the canonical Rove spelling winning when
- * both files exist. The Kobe spelling remains a permanent read fallback. */
+/** Canonical Rove spelling wins; the Kobe spelling is a permanent read fallback. */
 export function pluginManifestPath(root: string): string | null {
   for (const filename of PLUGIN_MANIFEST_FILENAMES) {
     const path = join(root, filename)
@@ -241,9 +216,7 @@ export function supportsPlatform(
   return platform !== undefined && declared.includes(platform)
 }
 
-/** Parse manifest text while preserving the source filename in diagnostics.
- * Direct callers default to the canonical filename; file readers pass the
- * actual basename so legacy manifests remain debuggable. */
+/** Parse manifest text; diagnostics name `filename` (legacy spelling included). */
 export function parsePluginManifest(text: string, filename: string = PLUGIN_MANIFEST_FILENAME): ParsedPluginManifest {
   try {
     return parseCanonicalPluginManifest(text)
@@ -255,10 +228,7 @@ export function parsePluginManifest(text: string, filename: string = PLUGIN_MANI
   }
 }
 
-/**
- * Parse + validate manifest text. Throws with a `rove-plugin.toml:`-prefixed
- * message on a fatal problem; collects non-fatal issues into `warnings`.
- */
+/** Throws a `rove-plugin.toml:`-prefixed error on fatal problems; else collects `warnings`. */
 function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
   let raw: Record<string, unknown>
   try {
@@ -321,9 +291,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
     seen.add(a.id)
   }
 
-  // Panes join the focused chattab's split group by default (`split`), or
-  // open a separate command tab (`tab`); `overlay`/`popup` are tolerated
-  // with a warning and treated as split.
+  // Unknown placements (`overlay`/`popup`) warn and fall back to split.
   const panes = asTableArray(raw.panes, "panes").map((t, i) => {
     const paneId = asString(t.id, `panes[${i}].id`)
     if (!LOCAL_ID_RE.test(paneId)) fail(`pane id \`${paneId}\` may not contain dots`)
@@ -401,8 +369,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
   const engines = asTableArray(raw.engines, "engines").map((t, i) => {
     const engineId = asString(t.id, `engines[${i}].id`)
     if (!LOCAL_ID_RE.test(engineId)) fail(`engine id \`${engineId}\` may not contain dots`)
-    // Shadowing a first-party or shipped-contrib engine would silently
-    // reroute launches through plugin data — always a mistake, always fatal.
+    // Shadowing would silently reroute launches through plugin data: fatal.
     if (RESERVED_ENGINE_IDS.includes(engineId)) {
       fail(`engine id \`${engineId}\` shadows a built-in or shipped engine`)
     }
@@ -447,8 +414,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
     let firstMessageDelivery: PluginEngine["firstMessageDelivery"]
     if (t.first_message_delivery !== undefined) {
       const raw = asString(t.first_message_delivery, `engines[${i}].first_message_delivery`)
-      // A typo here would otherwise fall back to "argv" and kill the launch on
-      // the engine's own first prompt — the exact failure the key exists to fix.
+      // Fatal: a typo falling back to "argv" is the failure this key prevents.
       if (raw !== "argv" && raw !== "paste") fail(`engines[${i}].first_message_delivery must be argv | paste`)
       firstMessageDelivery = raw
     }

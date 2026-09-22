@@ -1,16 +1,11 @@
 /**
- * The Windows PTY host, as its own NODE program.
+ * The Windows PTY host, as its own NODE program: Bun rejects its `terminal`
+ * spawn option there, and a Bun-hosted node-pty session can be read but not
+ * written (ConPTY input pipe → `ERR_SOCKET_CLOSED`). Same `startPtyHostServer`
+ * with the node-pty driver injected; clients speak the same frames over a
+ * named pipe.
  *
- * Everywhere else the PTY host is `kobe pty-host` running under Bun. Windows
- * cannot be: Bun rejects its `terminal` spawn option there outright, and a
- * Bun-hosted node-pty session can be read but not written to (the ConPTY
- * input pipe comes back `ERR_SOCKET_CLOSED`). So on Windows the same
- * `startPtyHostServer` — same sessions, same ring buffer, same wire protocol —
- * runs under node with the node-pty driver injected.
- *
- * Bundled to a node target at build time; nothing here may touch a Bun global.
- * Clients are unaffected: they still speak the daemon frame grammar, just over
- * a named pipe instead of a unix socket (see paths.ts).
+ * Bundled to a node target; nothing here may touch a Bun global.
  */
 
 import { rotateLogIfNeeded } from "./log-rotate.ts"
@@ -24,9 +19,7 @@ async function main(): Promise<void> {
   // `cli/pty-host-cmd.ts`: boot is the only safe rotation point.
   rotateLogIfNeeded(defaultPtyHostLogPath())
 
-  // No installDaemonCrashHandlers(): that lives in the Bun-side crash-log
-  // module. Keep the net local and dependency-free so this entry stays
-  // node-clean.
+  // Not installDaemonCrashHandlers(): that module is Bun-side.
   process.on("uncaughtException", (err) => console.error(formatPtyHostLine("crash", err?.stack ?? String(err))))
   process.on("unhandledRejection", (err) => console.error(formatPtyHostLine("reject", String(err))))
 

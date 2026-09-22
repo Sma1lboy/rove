@@ -1,16 +1,7 @@
 /**
- * The verbs the PTY host serves — one request in, one reply out.
- *
- * Split from `pty-server.ts` along the wire/lifecycle seam: that file owns
- * the process (socket, pidfile, idle exit, the orphan watchdog, freeze on
- * shutdown) and the frame grammar; this one owns what each named request
- * does to the session host. Nothing here knows how a frame arrives or how
- * the reply is written — `dispatchPtyRequest` returns the payload, and the
- * caller frames it.
- *
- * Every verb answers synchronously except a `pty.kill` that was asked to
- * `wait` for the exit: that one returns a promise, and the caller has to
- * await it before framing (a promise written as-is serialises to `{}`).
+ * The PTY host's verbs: `dispatchPtyRequest` returns the payload and the
+ * caller frames it. Every verb is synchronous except `pty.kill` with `wait`,
+ * whose promise the caller must await (as-is it serialises to `{}`).
  */
 
 import type { Socket } from "node:net"
@@ -21,9 +12,7 @@ import { DAEMON_PROTOCOL_VERSION, type DaemonFrame } from "./protocol.ts"
 import type { PtyHost } from "./pty-host.ts"
 import { parseTerminalDefaultColors } from "./terminal-colors.ts"
 
-/** One connected client: the socket it arrived on and the writer that
- *  frames replies and PTY output back to it. Doubles as the identity token
- *  the session host keys attached sinks by. */
+/** One connected client; also the identity token attached sinks are keyed by. */
 export interface PtyClientState {
   socket: Socket
   writer: ClientWriter
@@ -36,8 +25,7 @@ export interface PtyVerbDeps {
   readonly ptys: PtyHost
   /** Frame a reply or a PTY event to one client — `pty.open`'s output sink. */
   readonly writeFrame: (client: Pick<PtyClientState, "writer">, frame: DaemonFrame) => void
-  /** `daemon.stop`: end the host gracefully, and make the next boot start
-   *  fresh instead of restoring the frozen sessions. */
+  /** `daemon.stop`: end gracefully; the next boot starts fresh, not restored. */
   readonly requestStop: () => void
   /** The Rove build this host runs, echoed by `pty.list` when known. */
   readonly version?: string
@@ -89,11 +77,9 @@ export function dispatchPtyRequest(req: PtyRequest, client: PtyClientState, deps
       const key = requireString(payload, "key")
       if ("expectedGeneration" in payload)
         return ptys.killIfGeneration(key, requireString(payload, "expectedGeneration"))
-      // `wait`: the caller is about to unlink the child's working directory
-      // (a task deletion, a land) and needs the EXIT, not the acknowledgement
-      // — a process still exiting inside that directory makes it
-      // undeletable on Windows. Bounded by the host's own SIGTERM → SIGKILL
-      // grace, so the reply is never held behind a wedged child.
+      // `wait`: the caller will unlink the child's cwd, and a still-exiting
+      // process makes it undeletable on Windows. Bounded by the host's
+      // SIGTERM → SIGKILL grace, so a wedged child can't hold the reply.
       if (optionalBoolean(payload, "wait") === true) {
         return ptys.kill(key).then(
           () => ({ accepted: true, ended: true }),
@@ -103,11 +89,7 @@ export function dispatchPtyRequest(req: PtyRequest, client: PtyClientState, deps
           },
         )
       }
-      // Same as `killIfGeneration`: the session is dropped synchronously,
-      // the child's teardown is not. `accepted` says the request was taken,
-      // which is all this reply can honestly claim — and the rejection now
-      // reaches `daemon.log` under a tag instead of an anonymous
-      // unhandledRejection (see crash-log.ts).
+      // Session dropped synchronously, teardown not: `accepted` is all this can claim.
       void ptys.kill(key).catch((err) => logDaemonError("pty-kill", err))
       return { accepted: true }
     }
@@ -152,9 +134,7 @@ export function dispatchPtyRequest(req: PtyRequest, client: PtyClientState, deps
       return {}
     }
     case "daemon.stop":
-      // Shared graceful-stop verb so `stopDaemonProcess` (kobe reset)
-      // works against this socket unchanged. Reset's "starts fresh"
-      // contract includes NOT resurrecting frozen sessions next boot.
+      // Shared with the daemon so `stopDaemonProcess` works here unchanged.
       deps.requestStop()
       return {}
     default:

@@ -1,11 +1,9 @@
 /**
  * `row-token` — put one label on a task row, with a deadline.
  *
- * The plugin-facing half of `row-tokens.ts`: a plugin (or any script) writes
- * a short label into its own slot on a task row, and that label FADES when
- * its TTL runs out rather than outliving the process that wrote it. See
- * docs/PLUGIN-AUTHORING.md § Task-row tokens for what a plugin may say here
- * and what stays host-owned.
+ * The plugin-facing half of `row-tokens.ts`: the label FADES at its TTL
+ * rather than outliving its writer. See docs/PLUGIN-AUTHORING.md § Task-row
+ * tokens for what stays host-owned.
  */
 
 import { ROW_TOKEN_MAX_TEXT, ROW_TOKEN_TONES } from "@sma1lboy/kobe-daemon/daemon/row-tokens"
@@ -17,9 +15,8 @@ import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 const DEFAULT_TTL_SECONDS = 60
 
 /**
- * Who is writing. The host injects `ROVE_PLUGIN_ID` into every plugin
- * command, so a plugin's tokens are attributed and quota'd without the
- * plugin having to name itself; a plain shell writes as `cli`.
+ * Who is writing: the host-injected `ROVE_PLUGIN_ID` (attribution + quota),
+ * else `cli`.
  */
 function sourceOf(env: NodeJS.ProcessEnv = process.env): string {
   return env.ROVE_PLUGIN_ID ?? env.KOBE_PLUGIN_ID ?? "cli"

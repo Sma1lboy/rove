@@ -3,9 +3,8 @@
  * to write to its own terminal, and learn the two numbers a pane cannot
  * measure for itself: the image id and the cell pixel size.
  *
- * Product-neutral by design, exactly like the daemon verb underneath it: this
- * reads stdin and forwards it. It has no idea whether the bytes draw a photo,
- * a chart or a web page, and nothing here may ever grow one.
+ * Product-neutral like the daemon verb beneath it: reads stdin and forwards
+ * it, and must never learn what the bytes draw.
  */
 
 import { F } from "./flags.ts"
@@ -43,16 +42,14 @@ export const PANE_GRAPHICS_VERB: VerbSpec = {
     },
   ],
   handler: async (ctx) => {
-    // Same resolution order (and same MISSING_TARGET rejection) as the other
-    // pane verbs — an agent that has one of them has all of them.
+    // Same resolution order and MISSING_TARGET as the other pane verbs.
     const client = daemonOf(ctx)
     const taskId = ctx.args.str("task-id") ?? process.env.KOBE_TASK_ID ?? (await resolveActiveTaskId(client))
     if (!taskId) {
       throw new ApiError("no target task: pass --task-id (no $ROVE_TASK_ID, no active task)", "MISSING_TARGET")
     }
-    // Nothing piped in = the allocate-and-measure call. That is the FIRST
-    // call any caller makes, because a virtual placement carries its image id
-    // inside the payload: you cannot build the bytes until you have the id.
+    // Nothing piped = allocate-and-measure, always the FIRST call: a virtual
+    // placement carries its image id inside the payload.
     const data = process.stdin.isTTY ? Buffer.alloc(0) : await readStdin()
     const imageId = ctx.args.int("image-id")
     return simpleRpc(ctx, "graphics.write", {

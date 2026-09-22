@@ -1,10 +1,7 @@
 /**
  * Ending a PTY child — the escalation, and the bounded waits around it.
- *
- * A separate concern from the host: nothing here knows what a session is, only
- * how to make a process stop and how long to wait for proof. Both helpers are
- * pure over their arguments, which is what makes the platform behaviour below
- * testable without spawning.
+ * Knows nothing of sessions; pure over its arguments so the platform
+ * behaviour is testable without spawning.
  */
 
 import type { PtyChild } from "./pty-driver.ts"
@@ -13,10 +10,9 @@ import type { PtyChild } from "./pty-driver.ts"
  * True if `exited` settled inside `ms`; false on timeout. A rejection counts
  * as settled — an exit is an exit however the runtime reports it.
  *
- * Every wait on a child's exit MUST go through this. `Bun.spawn`'s `exited`
- * always settles, so awaiting it bare is safe there; the node-pty driver's
- * resolves only when ConPTY delivers `onExit`, and one wedged child would
- * otherwise hang the host's shutdown behind it.
+ * Every wait on a child's exit MUST go through this: node-pty's `exited`
+ * resolves only when ConPTY delivers `onExit` (Bun's always settles), so one
+ * wedged child would otherwise hang the host's shutdown.
  */
 export async function settledWithin(exited: Promise<unknown>, ms: number): Promise<boolean> {
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -39,17 +35,15 @@ export async function settledWithin(exited: Promise<unknown>, ms: number): Promi
  * the whole group, with a per-process fallback for runtimes that do not make
  * the PTY child a group leader.
  *
- * Windows has neither process groups to signal nor signals at all — the
- * fallback there lands in node-pty's `kill()`, which ignores the signal and
- * calls `TerminateProcess` on the shell alone. The subtree is reached
- * separately, through the driver's `endTree` in {@link terminatePtyChild};
- * this function is only ever the handle-release step there.
+ * On Windows (no groups, no signals) the fallback is node-pty's `kill()`,
+ * which `TerminateProcess`es the shell alone; the subtree is ended by the
+ * driver's `endTree` in {@link terminatePtyChild}, so this only releases the
+ * handle there.
  *
  * Every signal Rove sends a PTY subtree goes through here, so `onSignal` is
- * the complete record of Rove's own killing. A receiver cannot learn its
- * killer's pid on POSIX (that needs `SA_SIGINFO`, which Node does not
- * expose), so post-mortem attribution is elimination only: no line here for
- * a dead engine's group means something OUTSIDE Rove sent the signal.
+ * the complete record of Rove's own killing. Node can't expose the killer's
+ * pid (`SA_SIGINFO`), so attribution is by elimination: no line here for a
+ * dead engine's group means something OUTSIDE Rove sent the signal.
  */
 export function signalProcessGroup(
   pid: number,
@@ -80,20 +74,15 @@ const TERMINATION_GRACE_MS = 500
 
 /**
  * End one PTY child: SIGTERM its process group, escalate to SIGKILL past a
- * short grace, then fire `onSettled`. BOUNDED on purpose. Bun's
- * `proc.exited` always settles, so an unbounded await is safe there; the
- * node-pty driver's resolves only when ConPTY delivers onExit, and a
- * wedged one would hang the host's shutdown — and with it `kobe reset`.
- * A child that outlives SIGKILL is already beyond this process's reach;
- * reporting the session dead is strictly better than never returning.
+ * short grace, then fire `onSettled`. BOUNDED (see {@link settledWithin}) so a
+ * wedged node-pty child can't hang shutdown and `kobe reset`; a child that
+ * outlives SIGKILL is beyond reach, and reporting it dead beats never returning.
  *
- * A child whose driver supplies `endTree` (node-pty on Windows, where there
- * is no group to signal) has its whole subtree ended FIRST, and only then is
- * `kill()` called to release the pseudo console — the other order closes the
- * console the tree is attached to while the tree is still there to walk.
- * The ordering is keyed on the driver, not on `process.platform`: a fake
- * child in a test carries a made-up pid, and `taskkill /F` on a made-up pid
- * is a kill of whatever real process holds it today.
+ * With a driver `endTree` (node-pty on Windows) the subtree ends FIRST, then
+ * `kill()` releases the pseudo console — the reverse closes the console while
+ * the tree is still there to walk. Keyed on the driver, not
+ * `process.platform`: `taskkill /F` on a test fake's made-up pid would kill
+ * whatever real process holds it.
  */
 export async function terminatePtyChild(
   proc: PtyChild,
@@ -102,9 +91,7 @@ export async function terminatePtyChild(
 ): Promise<void> {
   if (proc.endTree) {
     onSignal?.(await proc.endTree())
-    // node-pty throws here once the child has exited, which after a
-    // successful tree kill it has — swallowed by the fallback path, same as
-    // a dead child on POSIX.
+    // node-pty throws once the child exited; swallowed by the fallback path.
     signalProcessGroup(proc.pid, "SIGKILL", () => proc.kill("SIGKILL"), process.platform, onSignal)
     await settledWithin(proc.exited, TERMINATION_GRACE_MS)
     onSettled()

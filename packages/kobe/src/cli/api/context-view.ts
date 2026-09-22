@@ -1,13 +1,9 @@
 /**
- * The pure half of `context` — fold already-fetched daemon reads into the
- * coordinator's one-screen payload, and render it as text.
- *
- * Split from `handlers-context.ts` so the SHAPE is testable without a daemon:
- * that file owns the five RPCs, this one owns what a coordinator is charged
- * for on every single turn. Every field here has to survive the question
- * "would a coordinator act differently without it" — the ones that didn't
- * (worktreePath, vendor, groupId, the declared `status`, timestamps) are in
- * `get-task` and `collect`, one hop away.
+ * Pure half of `context`: fold fetched daemon reads into the coordinator's
+ * one-screen payload and render it. Paid for every coordinator turn, so a
+ * field stays only if a coordinator would act differently without it; the
+ * rest (worktreePath, vendor, groupId, `status`, timestamps) are in
+ * `get-task` / `collect`.
  */
 
 import { TASK_ACTIVITY_STATES, type TaskActivityState } from "@/engine/hook-events"
@@ -15,15 +11,11 @@ import { type TaskActivitySignal, type TaskGroup, taskGroupOf } from "@/lib/task
 import type { AttentionInboxItem } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 
-/** Newest field notes carried. Matches `NOTE_INJECTION_CAP` — these are the
- *  ones a fresh session on this repo is already handed, so a coordinator
- *  reading a different set would brief its workers on facts they never see. */
+/** Must match `NOTE_INJECTION_CAP`, so the coordinator reads the same notes
+ *  its fresh workers are handed. */
 const CONTEXT_NOTE_CAP = 15
 
-/** Default task cap. The verb is paid for on every coordinator turn; a repo
- *  with fifty stale attempts would spend thousands of tokens re-reading rows
- *  nobody is going to act on. Sorted by rank, so the cap drops the quiet
- *  tail, and `omittedTasks` says it happened. */
+/** Default task cap; rank-sorted, so it drops the quiet tail (`omittedTasks`). */
 export const CONTEXT_TASK_LIMIT = 20
 
 export interface ContextNote {
@@ -57,8 +49,7 @@ export interface ContextPayload {
   readonly omittedTasks?: number
   /** Unhandled attention episodes — what is queued for a person right now. */
   readonly attention: readonly AttentionInboxItem[]
-  /** The repo's newest field notes: the same ones injected into fresh
-   *  sessions here, so the coordinator briefs from what its workers read. */
+  /** Newest field notes — the same set injected into fresh sessions. */
   readonly notes: readonly ContextNote[]
 }
 
@@ -84,18 +75,12 @@ export interface ContextInput {
   readonly limit: number
 }
 
-/**
- * Compose the payload. Tasks are sorted by derived rank (what needs a person
- * NEXT first), ties broken by most-recent activity so a stale row cannot sit
- * above a fresh one in the same group.
- */
+/** Tasks sorted by rank (needs a person NEXT first), ties by most-recent activity. */
 export function buildContext(input: ContextInput): ContextPayload {
   const rows: Array<ContextTask & { readonly at: number }> = []
   for (const task of input.tasks) {
     const entry = input.activity?.[task.id]
-    // Wire-boundary check: `debug.inspect` types `state` as a bare string.
-    // An unrecognised one is NOT a licence to invent a group — it goes to
-    // the derivation as "nothing was read", which answers `unknown`.
+    // `state` is a bare string on the wire; unrecognised = nothing read → `unknown`.
     const activity: TaskActivitySignal | null =
       entry && (TASK_ACTIVITY_STATES as readonly string[]).includes(entry.state)
         ? { state: entry.state as TaskActivityState, at: entry.at }
@@ -132,8 +117,7 @@ export function buildContext(input: ContextInput): ContextPayload {
   }
 }
 
-/** `4m` / `2h` / `3d` — coarse on purpose; a coordinator acts on the order of
- *  magnitude, not the seconds. */
+/** `4m` / `2h` / `3d` — coarse on purpose. */
 function age(ms: number): string {
   const m = Math.floor(ms / 60_000)
   if (m < 60) return `${m}m`
@@ -141,16 +125,12 @@ function age(ms: number): string {
   return h < 48 ? `${h}h` : `${Math.floor(h / 24)}d`
 }
 
-/** Short task-id tail — enough to name a row to a human, and every verb
- *  still needs the full id from the JSON. */
+/** Human-facing id tail; verbs still need the full id from the JSON. */
 function shortId(id: string): string {
   return id.slice(-6)
 }
 
-/**
- * Compact text rendering (`--text`). One line per task in rank order, so the
- * first line is what needs a person next.
- */
+/** `--text`: one line per task in rank order. */
 export function renderContext(payload: ContextPayload): string {
   const lines = [`repo ${payload.repo} · ${payload.tasks.length} tasks · ${payload.attention.length} in the inbox`]
   if (payload.tasks.length === 0) lines.push("  (no tasks)")

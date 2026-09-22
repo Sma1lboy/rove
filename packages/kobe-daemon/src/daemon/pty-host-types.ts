@@ -1,6 +1,4 @@
-/** PtyHost's public contract types. Their own module so a caller can name what
- *  it sends the host without importing the host itself — behavior and
- *  ownership stay there; this is only the vocabulary. */
+/** PtyHost's contract types, importable without the host itself. */
 
 import { randomUUID } from "node:crypto"
 import { StringDecoder } from "node:string_decoder"
@@ -17,10 +15,8 @@ export interface PtySpawnSpec {
   readonly command?: readonly string[]
   /** Shell override; defaults to `resolveLoginShell()`. */
   readonly shell?: string
-  /** Absent = size-agnostic open (headless clients): a fresh spawn gets
-   *  80×24 and a reattach NEVER resizes the session away from whatever
-   *  client is attached to it. Only size-carrying opens (the TUI, which
-   *  always sends its real pane size) take last-attach-wins. */
+  /** Absent = size-agnostic open: fresh spawn gets 80×24, reattach NEVER
+   *  resizes. Only size-carrying opens (the TUI) take last-attach-wins. */
   readonly cols?: number
   readonly rows?: number
   /** Default colors reported to child applications through OSC 10/11. */
@@ -35,9 +31,7 @@ export interface PtyAttachResult {
   readonly pid: number | null
   /** True when this open spawned/adopted the session — see `PtyOpenResult.created`. */
   readonly created: boolean
-  /** True when this open RESPAWNED a freeze-restored corpse in place — the
-   *  replay is the pre-restart scrollback and the child is new. See
-   *  `PtyOpenResult.respawned`. */
+  /** RESPAWNED a freeze-restored corpse: pre-restart replay, new child. See `PtyOpenResult.respawned`. */
   readonly respawned: boolean
   /** Monotonic byte offset at attach — see `PtyOpenResult.offset`. */
   readonly offset: number
@@ -48,11 +42,7 @@ export interface PtyAttachResult {
 /** Writes one event frame to an attached connection. */
 export type PtySink = (frame: DaemonFrame) => void
 
-/**
- * One hosted session's full mutable state. Lives here (not in pty-host.ts)
- * so the freeze store (`pty-freeze-store.ts`) can convert it to/from its
- * durable record without an import cycle.
- */
+/** One hosted session's mutable state; here so the freeze store avoids an import cycle. */
 export interface PtySessionState {
   /** Mutable: warm-shell adoption re-keys the spare under the opener's key. */
   key: string
@@ -62,10 +52,8 @@ export interface PtySessionState {
   alive: boolean
   chunks: Buffer[]
   bytes: number
-  /** Total bytes the child has EVER written (monotonic — never reduced by
-   *  ring trimming). `totalBytes - bytes` is the ring window's start
-   *  offset; a detached client's recorded offset stays comparable across
-   *  trims, which makes `sinceOffset` delta replays exact. */
+  /** Monotonic bytes EVER written. `totalBytes - bytes` is the ring start
+   *  offset, so a client's offset survives trims and delta replays are exact. */
   totalBytes: number
   cols: number
   rows: number
@@ -88,20 +76,16 @@ export interface PtySessionState {
   parkedScreenBytes: number
   /** Death cause, recorded once by markExited; null while alive. */
   exit: PtySessionExit | null
-  /** Set by `kill()` — this session is ending because someone ASKED for it
-   *  (tab close, task-deletion teardown/sweep, `rove reset`). The child still
-   *  exits under a signal, so without this flag the exit is indistinguishable
-   *  from a crash and gets persisted as a death record. */
+  /** Set by `kill()`: a requested close still exits by signal, and without
+   *  this would be persisted as a crash death record. */
   closedByRequest?: boolean
-  /** True between "rebuilt from a freeze record at host boot" and the first
-   *  `open` that respawns it — the marker that separates a host-death
-   *  casualty (respawn on attach) from an ordinary corpse (view only). */
+  /** Freeze-restored and not yet respawned: a host-death casualty (respawn on
+   *  attach), unlike an ordinary corpse (view only). */
   restored: boolean
   /** Freeze bookkeeping: output/exit drift since the last persisted snapshot. */
   lastFreezeAtMs: number
-  /** `totalBytes` as of the last persisted snapshot — the periodic freeze
-   *  gate spends a whole-ring rewrite only once this much has moved. Optional
-   *  so a record thawed by an older host reads as "nothing frozen yet". */
+  /** `totalBytes` at the last snapshot; gates periodic whole-ring rewrites.
+   *  Optional: an older host's record reads as "nothing frozen yet". */
   frozenTotalBytes?: number
 }
 
@@ -116,8 +100,7 @@ export interface PtyHostOptions {
   /** Death record (exit status + output tail) per ended session — the
    *  durable-persistence hook. MUST be fail-safe; the host guards it. */
   readonly onSessionExit?: (info: PtySessionEndInfo) => void
-  /** Freeze/restore sink (`pty-freeze-store.ts`). Absent = the pre-freeze
-   *  behavior: session state dies with this process. */
+  /** Freeze/restore sink. Absent = session state dies with this process. */
   readonly freeze?: PtyFreezeSink
   /** Ring-buffer cap in bytes per session. Default 512KiB (`DEFAULT_SCROLLBACK_CAP`). */
   readonly scrollbackCap?: number
@@ -126,8 +109,7 @@ export interface PtyHostOptions {
   readonly log?: (event: string, message: string) => void
 }
 
-/** A fresh session's initial state — extracted from `PtyHost.spawn` (file-size
- *  cap); the host starts the child and owns every mutation after this. */
+/** A fresh session's initial state; the host starts the child and owns every mutation after. */
 export function freshSessionState(key: string, spec: PtySpawnSpec, argv: readonly string[]): PtySessionState {
   return {
     key,

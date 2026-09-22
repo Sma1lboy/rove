@@ -1,24 +1,15 @@
 /**
  * Standalone PTY host server — kobe's persistent terminal host.
  *
- * Runs as its own detached process (`kobe pty-host`), on its own unix
- * socket, deliberately OUTSIDE the daemon: the daemon restarts routinely
- * (it holds the fast-moving code), while this process is tiny, stable,
- * and must keep embedded-terminal children alive across both TUI exits
- * and daemon restarts. Only `kobe reset`, idle-exit at zero live sessions,
- * or losing its own address (see the watchdog below) ends it.
+ * Its own detached process and socket, OUTSIDE the daemon: the daemon
+ * restarts routinely, while this tiny process must keep embedded-terminal
+ * children alive across TUI exits and daemon restarts. Only `kobe reset`,
+ * idle-exit at zero live sessions, or losing its own address (watchdog
+ * below) ends it.
  *
- * Wire: the same JSON-lines frame grammar as the daemon socket
- * (`protocol.ts`), so `KobeDaemonClient` speaks it unchanged. Every
- * outbound frame is written CRITICAL — this socket carries only ordered
- * PTY byte streams and RPC responses, neither of which may be dropped;
- * the ring-buffer cap bounds what a session can queue.
- *
- * Requests served: `hello` (reachability probe), `pty.open/write/resize/
- * kill/detach/list`, `pty.peek` (read-only ring snapshot — no attach),
- * `pty.warm` (pre-spawn one idle shell for adoption),
- * `daemon.stop` (reset teardown — shared with `stopDaemonProcess`'s
- * graceful path).
+ * Wire: the daemon's JSON-lines frame grammar (`protocol.ts`). Every
+ * outbound frame is CRITICAL (ordered PTY bytes and RPC responses may not
+ * drop); the ring-buffer cap bounds what a session can queue.
  */
 
 import { readFileSync } from "node:fs"
@@ -56,10 +47,8 @@ import { type PtyClientState, type PtyVerbDeps, dispatchPtyRequest } from "./pty
 import { listenOnUnixSocket } from "./socket-guard.ts"
 
 /**
- * Grace before a host with ZERO live sessions exits (persistent terminal
- * hosts exit at zero sessions too — the grace absorbs the boot window
- * before the first `pty.open` and quick close→reopen cycles). Override via
- * `KOBE_PTY_IDLE_EXIT_MS`.
+ * Grace before a zero-live-session host exits; absorbs the boot window before
+ * the first `pty.open` and quick close→reopen. Env: `KOBE_PTY_IDLE_EXIT_MS`.
  */
 const DEFAULT_IDLE_EXIT_MS = 60_000
 
@@ -67,13 +56,9 @@ const DEFAULT_IDLE_EXIT_MS = 60_000
 const DEFAULT_ORPHAN_CHECK_MS = 30_000
 
 /**
- * Optional wall-clock ceiling on this host's life, in ms — read from
- * `KOBE_PTY_MAX_LIFETIME_MS`. Unset (production, and an interactive
- * `dev:sandbox` a human is watching) means no ceiling at all: a host whose
- * owner is still there must never be killed for being old. Test fixtures set
- * it, because a fixture host that outlives its run has nobody left to serve
- * and the pidfile signal below cannot see a run that was interrupted before
- * it tore anything down.
+ * `KOBE_PTY_MAX_LIFETIME_MS` wall-clock ceiling. Unset in production: a host
+ * whose owner is still there must never die for being old. Only fixtures set
+ * it — the pidfile watchdog can't see a run interrupted before teardown.
  */
 function resolveMaxLifetimeMs(): number | null {
   const raw = process.env.KOBE_PTY_MAX_LIFETIME_MS
@@ -101,16 +86,13 @@ export interface PtyHostServerOptions {
   readonly maxLifetimeMs?: number | null
   /** How PTY children get spawned. Defaults to Bun's; the node host passes node-pty's. */
   readonly driver?: PtyDriver
-  /** Freeze-store directory (`pty-freeze-store.ts`). Defaults to the home's
-   *  `pty-sessions/`; tests pass a temp dir. */
+  /** Freeze-store directory; defaults to the home's `pty-sessions/`. */
   readonly freezeDir?: string
   /** Called after close() when the host stops itself (idle / daemon.stop). */
   readonly onStop?: () => void
   readonly log?: (event: string, message: string) => void
-  /** The Rove build this host is running, echoed back by `pty.list`. The host
-   *  outlives every daemon restart, so an install upgraded underneath it keeps
-   *  serving old code; this is how `rove doctor` can say so. Absent when the
-   *  entry point could not resolve one (an older host reports nothing at all). */
+  /** This host's Rove build, echoed by `pty.list` so `rove doctor` can flag a
+   *  host serving old code after an upgrade. Absent when unresolvable. */
   readonly version?: string
 }
 
@@ -134,10 +116,8 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
   const log = options.log ?? (() => {})
   const clients = new Set<PtyClientState>()
   let stopping = false
-  /** Set by the `daemon.stop` verb (rove reset): an explicit teardown wipes
-   *  the freeze store so the next host comes up EMPTY — reset's contract is
-   *  "starts fresh". Idle-exit, SIGTERM, and crashes keep it (they are the
-   *  restarts freeze/restore exists for). */
+  /** Set by `daemon.stop` (rove reset): wipe the freeze store so the next host
+   *  starts EMPTY. Idle-exit, SIGTERM, and crashes keep it. */
   let wipeFreezeOnStop = false
   let idleTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -145,10 +125,7 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
     if (idleTimer) clearTimeout(idleTimer)
     idleTimer = null
   }
-  // Zero LIVE sessions → exit after a grace, like other persistent terminal
-  // hosts. NOT
-  // unref'd: this timer being the only pending work is exactly the state
-  // it exists to resolve.
+  // NOT unref'd: being the only pending work is exactly the state it resolves.
   const armIdle = (): void => {
     if (stopping) return
     cancelIdle()
@@ -162,28 +139,22 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
   /**
    * Orphan watchdog — the ONLY keep-alive that survives losing every client.
    *
-   * A live session keeps this host up indefinitely (`armIdle` above), and a
-   * `PtyLiveHold` in the daemon chains off the same fact. That pair is
-   * correct while somebody still owns the sessions, and it is exactly what
-   * stranded 25 hosts for up to two days: a harness run died between
-   * `stopDaemonProcess` and its `rm -rf`, the socket and pidfile went with
-   * the fixture home, and the host kept a handful of idle shells alive with
-   * no address left for anyone to reach it on.
+   * A live session keeps this host up indefinitely (and the daemon's
+   * `PtyLiveHold` chains off that), so a host whose home was deleted under it
+   * would keep idle shells alive with no address left to reach it (observed:
+   * 25 hosts stranded for up to two days after harness homes were rm'd).
    *
-   * The signal is possession of our own ADDRESS, not age and not client
-   * count: re-read the pidfile and require it to still say `process.pid`.
+   * The signal is possession of our own ADDRESS, not age or client count:
+   * the pidfile must still say `process.pid`.
    *  - pidfile gone      → whatever owned this home tore it down (or deleted
    *                        the home outright) while we kept running.
    *  - pidfile is a peer → a second host bound our path and owns it now; we
    *                        are the stranded one.
    *  - pidfile is us     → still reachable. A daemon restart never touches
-   *                        it, which is what keeps `rove daemon restart`
-   *                        (and an attached `dev:sandbox` idling overnight)
-   *                        out of this branch entirely.
+   *                        it, so `rove daemon restart` never lands here.
    *
-   * Self-termination only, and only on evidence about THIS process: nothing
-   * here reads the process table or signals a pid it did not write itself,
-   * so it cannot reach another home's host.
+   * Self-termination only: nothing here reads the process table or signals
+   * another pid, so it cannot reach another home's host.
    */
   const orphaned = (): string | null => {
     if (maxLifetimeMs !== null && Date.now() - bootedAtMs >= maxLifetimeMs) {
@@ -200,8 +171,7 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
     return Number.isInteger(pid) ? `pidfile ${pidPath} now names pid ${pid}` : `pidfile ${pidPath} is unreadable`
   }
 
-  // unref'd, unlike the idle timer: this one must never be the reason the
-  // event loop stays alive, only the reason it stops.
+  // unref'd, unlike the idle timer: never the reason the loop stays alive.
   const orphanTimer = setInterval(() => {
     if (stopping) return
     const reason = orphaned()
@@ -216,8 +186,7 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
     onSessionEnd: () => {
       if (ptys.liveCount() === 0) armIdle()
     },
-    // Durable death record — must survive this host's own idle-exit. The
-    // host already guards the callback; logging the failure is on us.
+    // Durable death record — must survive this host's own idle-exit.
     onSessionExit: (info) => {
       try {
         recordPtyExit(info)
@@ -225,20 +194,16 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
         log("pty", `exit record write failed for ${info.key}: ${err instanceof Error ? err.message : String(err)}`)
       }
     },
-    // Freeze/restore: per-session snapshots so a host restart (idle-exit,
-    // crash, reboot) hands the next incarnation every session's metadata +
-    // scrollback. Restore happens BEFORE listen below, so no client open
-    // can race the thaw.
+    // Per-session snapshots survive a host restart. Restore runs BEFORE
+    // listen, so no client open can race the thaw.
     freeze: fileFreezeSink(freezeDir),
     driver: options.driver,
     log,
   })
   ptys.restoreFrozen(
     loadFrozenSessions(freezeDir, Date.now(), (s) => {
-      // Say what the boot did with the store. Restoring fewer sessions than
-      // the directory holds is the one thing a user cannot otherwise see, and
-      // `expired` is a deletion — silence there is how a store quietly loses
-      // scrollback nobody knew was at risk.
+      // Log deferred/expired counts: a partial restore or a TTL deletion is
+      // otherwise invisible to the user.
       const mib = (bytes: number): string => `${Math.round(bytes / (1024 * 1024))}MB`
       const notes = [`restored ${s.restored} (${mib(s.bytesRead)})`]
       if (s.deferred > 0) notes.push(`${s.deferred} left unread past the ${mib(FREEZE_RESTORE_MAX_BYTES)} budget`)
@@ -248,20 +213,16 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
     }),
   )
 
-  // A Windows named pipe lives in the `\\.\pipe` namespace, not the
-  // filesystem — there is no parent directory to create.
+  // A Windows named pipe has no parent directory to create.
   const pipeSocket = isWindowsPipePath(socketPath)
-  // 0700 on creation AND on every boot — same reasoning as the daemon's, and
-  // the same directory: this host spawns shells for whoever reaches its
-  // socket, so the directory mode is the gate (see owner-only.ts).
+  // 0700 every boot: this host spawns shells for whoever reaches its socket,
+  // so the directory mode is the gate.
   await ensureOwnerOnlyStateDir(resolveDaemonHomeDir())
   if (!pipeSocket) await mkdir(dirname(socketPath), { recursive: true })
   await mkdir(dirname(pidPath), { recursive: true })
-  // Never unlink before listen: an already-running host keeps its socket
-  // alive after unlink, so a second host could bind the same pathname,
+  // Never unlink before listen: a second host could bind the same path,
   // overwrite the pidfile, and strand the first host's live sessions.
-  // `ensurePtyHostReachable()` clears only a confirmed-stale socket through
-  // stopDaemonProcess before it spawns us.
+  // `ensurePtyHostReachable()` clears only a confirmed-stale socket.
 
   const server: Server = createServer((socket) => {
     const client: PtyClientState = {
@@ -297,16 +258,12 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
       stopping = true
       cancelIdle()
       clearInterval(orphanTimer)
-      // The host process IS the sessions' lifetime — ending it ends them.
-      // shutdown() freezes first: the records outlive us, and the next
-      // host incarnation restores the work scene. An explicit `daemon.stop`
-      // (rove reset) wipes the store instead — starts fresh means fresh.
+      // Ending the host ends its sessions; shutdown() freezes them first.
       await ptys.shutdown()
       if (wipeFreezeOnStop) clearFrozenSessions(freezeDir)
       for (const client of Array.from(clients)) client.socket.destroy()
       await new Promise<void>((resolve) => server.close(() => resolve()))
-      // A named pipe is reclaimed with its last handle; only a filesystem
-      // socket leaves a node behind to remove.
+      // Only a filesystem socket leaves a node behind; a named pipe doesn't.
       if (!pipeSocket) await unlink(socketPath).catch(() => {})
       await unlink(pidPath).catch(() => {})
     },
@@ -351,9 +308,8 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
             })
           try {
             const payload = dispatchPtyRequest(req, client, verbDeps)
-            // Every verb answers synchronously except a `pty.kill` that was
-            // asked to wait for the exit; its reply goes out when the child
-            // has ended. A promise written as-is would serialise to `{}`.
+            // Only a waiting `pty.kill` returns a promise; written as-is it
+            // would serialise to `{}`.
             if (payload instanceof Promise) payload.then(reply, fail)
             else reply(payload)
           } catch (err) {
@@ -364,14 +320,11 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
     }
   }
 
-  // Shared with the daemon's bind (socket-guard.ts) so both sockets get the
-  // same post-listen chmod — `listen()` applies the umask, so an unchmod'd
-  // node lands world-connectable.
+  // Post-listen chmod: `listen()` applies the umask, leaving the node world-connectable.
   await listenOnUnixSocket(server, socketPath)
   // tmp+rename: a torn pidfile is EMPTY, and empty parses as pid 0.
   await writeTextAtomic(pidPath, `${process.pid}\n`)
-  // Same reason as the daemon's: a pre-rename TUI that can't see this host
-  // starts a SECOND one, and the engine tabs split across the pair.
+  // A pre-rename TUI that can't see this host starts a SECOND one, splitting engine tabs.
   if (!pipeSocket) {
     const home = resolveDaemonHomeDir()
     await linkLegacyRuntimePath(socketPath, legacyPtyHostSocketPath(home))
@@ -383,7 +336,6 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
 }
 
 function writeFrame(client: Pick<PtyClientState, "writer">, frame: DaemonFrame): void {
-  // Everything on this socket is critical: RPC responses and ordered PTY
-  // byte-stream frames — dropping either corrupts the client.
+  // Everything here is critical: dropping a response or PTY frame corrupts the client.
   client.writer.write(frameToLine(frame))
 }

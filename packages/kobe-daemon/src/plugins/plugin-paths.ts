@@ -17,12 +17,9 @@ import { join } from "node:path"
 import { COMPAT_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
 
 /**
- * Plugins live under the canonical state dir. An install predating the rename
- * is still under `.kobe`, and its registry is the only thing that says which
- * plugins exist — so a home whose canonical registry is absent keeps reading
- * the legacy tree until the daemon's startup migration moves it across
- * (`state/layout-migration.ts`). Never a copy at read time: the registry has
- * exactly one writer.
+ * The canonical state dir, or the legacy `.kobe` tree when only it has a
+ * registry (until the daemon's startup migration moves it). Never a copy at
+ * read time: the registry has exactly one writer.
  */
 function stateRoot(homeDir?: string): string {
   const home = homeDir ?? readRoveHomeDirEnv() ?? homedir()

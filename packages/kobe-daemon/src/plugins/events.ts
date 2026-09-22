@@ -1,19 +1,13 @@
 /**
- * Derive discrete plugin events from the daemon's push channels.
- *
- * The channels are STATE snapshots (last-value replay); plugin hooks want
- * edges. This reducer is fed every `bus.publish` and emits the transitions:
+ * Turns the daemon's STATE channels into the edges plugin hooks want:
  *
  *   task.snapshot diff       → task.created / task.deleted / task.changed /
  *                              task.pr-changed / worktree.created
  *   engine-state transitions → agent.* (per task+tab, deduped)
  *
- * `worktree.created` is snapshot-derived (empty → non-empty worktreePath, or
- * a task-kind row born with one) so EVERY materialization path fires it —
- * lazy ensure, adopt, scratch-adopt — rather than only the ensureWorktree
- * job. It is deliberately blind to the first snapshot
- * after daemon start — replayed state must not re-fire hooks for tasks that
- * already existed.
+ * `worktree.created` is snapshot-derived so EVERY materialization path fires
+ * it. The first snapshot after daemon start is baseline — replay must not
+ * re-fire hooks for existing tasks.
  */
 
 import type { ChannelEvent } from "../daemon/event-bus.ts"

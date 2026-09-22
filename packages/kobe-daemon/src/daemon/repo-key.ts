@@ -1,16 +1,9 @@
 /**
  * How a repo path becomes the two identities the per-repo daemon stores need.
  *
- * Both stores key their records by the git COMMON dir, so every linked
- * worktree of one repository reads and writes the same record — that is what
- * makes an issue filed from a task's worktree visible from the main checkout.
- * The main worktree's path is the human-readable `repoRoot` shown alongside it.
- *
- * Shared because the issues and notes stores each grew a private copy that
- * then drifted (one fell back to `--show-toplevel` when `worktree list`
- * answered nothing, the other threw). The derivation is the same question;
- * the ANSWER to "no worktree line" is a per-store policy, so this returns
- * null and each store's own `resolveRepo` keeps deciding.
+ * Records key by the git COMMON dir, so every linked worktree of a repo shares
+ * one record (an issue filed from a task worktree shows in the main checkout).
+ * The main worktree path is the human-readable `repoRoot`.
  */
 
 import { execFile } from "node:child_process"
@@ -48,11 +41,10 @@ export async function gitTopLevel(path: string): Promise<string> {
 }
 
 /**
- * The shared half of both repo-keyed stores' `resolveRepo`: validate the path
- * is a directory, then derive both identities in one round trip. `repoRoot` is
- * null exactly when `git worktree list` printed no worktree line — the stores
- * disagree on what that means (issues falls back to {@link gitTopLevel}, notes
- * refuses), so the policy stays with them.
+ * Validate the path is a directory, then derive both identities. `repoRoot`
+ * is null exactly when `git worktree list` printed no worktree line; the
+ * policy stays per store (issues falls back to {@link gitTopLevel}, notes
+ * refuses).
  */
 export async function resolveRepoRoot(raw: string): Promise<{ repoRoot: string | null; repoKey: string }> {
   const absolute = resolve(raw)

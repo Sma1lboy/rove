@@ -1,21 +1,15 @@
 /**
- * Daemon-owned cache in front of the engine quota probes. The vendor usage
- * APIs are themselves rate-limited, so the cache is the ONLY caller of
- * `runtime.quotaUsage(vendor)` and enforces the whole cadence policy:
+ * The ONLY caller of `runtime.quotaUsage(vendor)` — the vendor usage APIs are
+ * rate-limited, so the whole cadence policy lives here:
  *
  *  - Have a snapshot → refresh slowly ({@link FRESH_POLL_MS}).
- *  - No snapshot yet / last fetch failed → retry with exponential backoff
- *    from {@link RETRY_BASE_MS}, capped at the slow interval — so a vendor
- *    that can't answer (no login, endpoint down) is still re-tried
- *    eventually, but never hammered.
- *  - A hard floor ({@link MIN_FETCH_INTERVAL_MS}) between attempts per
- *    vendor, regardless of who asks — an event storm of rate-limit hooks
- *    collapses onto one fetch.
+ *  - No snapshot / last fetch failed → exponential backoff from
+ *    {@link RETRY_BASE_MS}, capped at the slow interval.
+ *  - Hard floor ({@link MIN_FETCH_INTERVAL_MS}) per vendor whoever asks, so
+ *    a storm of rate-limit hooks collapses onto one fetch.
  *  - Concurrent callers share one in-flight fetch per vendor.
  *
- * Memory is strictly bounded: one entry per vendor id ever seen (a handful),
- * each holding one snapshot object — no histories, no growing arrays. The
- * event bus's last-value slot for `usage.snapshot` is likewise a single map.
+ * Memory is bounded: one entry (one snapshot) per vendor id ever seen.
  */
 
 import type { EngineQuotaUsage, VendorId } from "./contracts.ts"
@@ -54,10 +48,8 @@ export class QuotaUsageCache {
   }
 
   /**
-   * Cached snapshot, refreshed first when older than `maxAgeMs` AND the
-   * per-vendor fetch floor allows. Callers that tolerate stale data pass a
-   * large `maxAgeMs`; the rate-limit scheduler passes a small one and still
-   * cannot push the vendor API past one request per {@link MIN_FETCH_INTERVAL_MS}.
+   * Refreshes first when older than `maxAgeMs` AND the fetch floor allows —
+   * a small `maxAgeMs` still can't exceed one request per {@link MIN_FETCH_INTERVAL_MS}.
    */
   async get(vendor: VendorId, maxAgeMs: number): Promise<EngineQuotaUsage | null> {
     const entry = this.entry(vendor)
@@ -68,10 +60,7 @@ export class QuotaUsageCache {
     return this.fetch(vendor, entry)
   }
 
-  /**
-   * Poller tick entry: refresh when the adaptive schedule says the vendor is
-   * due — slow while data exists, backing-off retries while it doesn't.
-   */
+  /** Poller tick entry: refresh when the adaptive schedule says the vendor is due. */
   async refreshIfDue(vendor: VendorId): Promise<void> {
     const entry = this.entry(vendor)
     // 1× base after the first failure, doubling per further failure, capped
@@ -122,11 +111,9 @@ export class QuotaUsageCache {
 }
 
 /**
- * The usage poller: one cheap interval that asks the cache to refresh the
- * vendors currently in play (task vendors + the default). Skips entirely
- * while no GUI is attached — the dashboard is the only poll consumer; the
- * rate-limit scheduler does its own on-demand `get`. All real cadence
- * control lives in the cache, so a fast tick here costs comparisons only.
+ * Asks the cache to refresh vendors in play. Gated on subscribers: the
+ * dashboard is the only poll consumer (the rate-limit scheduler calls `get`
+ * itself). Cadence lives in the cache, so a fast tick costs comparisons only.
  */
 export function startQuotaUsagePoller(
   cache: QuotaUsageCache,

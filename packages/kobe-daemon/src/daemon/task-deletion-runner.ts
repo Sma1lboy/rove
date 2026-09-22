@@ -13,21 +13,14 @@ export class TaskDeletionRunner implements TaskDeletionScheduler {
   private readonly inFlight = new Map<string, Promise<void>>()
 
   constructor(
-    // Narrowed to exactly what the runner touches: `getTask` is only here to
-    // snapshot the task for the audit line before the index drops it, and
-    // spelling that out keeps a caller from having to supply the whole
-    // orchestrator surface.
+    // `getTask` only snapshots the task for the audit line.
     private readonly orch: Pick<DaemonOrchestrator, "beginTaskDeletion" | "finishTaskDeletion" | "getTask">,
     private readonly runtime: Pick<DaemonRuntimeAdapter, "tearDownTaskSession">,
     private readonly clearTaskState: (taskId: string) => void | Promise<void>,
     /**
-     * Where a FAILED deletion is announced. Attached UIs drop the row the
-     * moment the `queued` snapshot lands — before anything is destroyed — so
-     * the row reappearing (with `deletion.phase === "error"`) is the only
-     * thing that contradicts "it's gone". On its own that reads as the list
-     * glitching; without the toast the reason lived in `daemon.log` alone,
-     * which is not telling anyone. Optional so the local/test wiring can skip
-     * it — a missing bus costs the toast, never the deletion.
+     * Announces a FAILED deletion. UIs drop the row at `queued`, so without a
+     * toast a reappearing `error` row reads as a glitch. Optional: a missing
+     * bus costs the toast, never the deletion.
      */
     private readonly bus?: Pick<DaemonEventBus, "publish">,
   ) {}
@@ -54,9 +47,7 @@ export class TaskDeletionRunner implements TaskDeletionScheduler {
 
   private async run(taskId: string): Promise<void> {
     if (!(await this.orch.beginTaskDeletion(taskId))) return
-    // Snapshot the task BEFORE anything is destroyed: `finishTaskDeletion`
-    // drops it from the index, so an audit line read afterwards would have
-    // nothing but an id to report.
+    // Snapshot BEFORE `finishTaskDeletion` drops it from the index.
     const task = this.orch.getTask(taskId)
     await this.clearTaskState(taskId)
     await this.runtime.tearDownTaskSession(taskId).catch((err) => logDaemonError("task-deletion-session-teardown", err))
@@ -75,8 +66,6 @@ export class TaskDeletionRunner implements TaskDeletionScheduler {
     const reason = err instanceof Error ? err.message : String(err)
     this.bus?.publish("notice.event", {
       title: `Delete failed: ${task?.title || taskId}`,
-      // The worktree surviving is the half the user has to act on: the row is
-      // back, and deleting it again (or with `--force`) is still on them.
       body: `${reason} — the worktree and the task are still there.`,
       kind: "error",
       taskId,

@@ -34,12 +34,10 @@ export function readPluginSettings(pluginId: string, homeDir?: string): Record<s
 }
 
 /**
- * A value is one `KEY=value` line, so it may not contain a line break. A
- * newline in the middle of a value would end the assignment early and let
- * everything after it parse as its own `KEY=` line — the user edits one
- * innocuous-looking setting and silently defines a second variable in a file
- * plugin commands source. Strip rather than reject: the store is called from
- * a dialog with no error channel, and no legitimate value wants a newline.
+ * A value is one `KEY=value` line: an embedded newline would let the rest
+ * parse as a second variable in a file plugin commands source. Strip rather
+ * than reject — the caller is a dialog with no error channel, and no
+ * legitimate value wants a newline.
  */
 function oneLine(value: string): string {
   return value.replace(/[\r\n]/g, "")
@@ -75,11 +73,8 @@ export function writePluginSettings(pluginId: string, values: Record<string, str
     if (value !== "") next.push(`${key}=${value}`)
   }
   while (next.length > 0 && next[next.length - 1] === "") next.pop()
-  // 0700/0600: this .env is where PLUGIN-AUTHORING tells authors to keep API
-  // keys, so it must not be world-readable like the manifest beside it. The
-  // `mode` arguments only cover a FRESH path — this is a rewrite-in-place, so
-  // an existing 0644 .env keeps 0644 through every save. Hence the repair
-  // afterwards, which is what actually closes an old install.
+  // 0700/0600: authors keep API keys here (PLUGIN-AUTHORING). `mode` only
+  // applies to a FRESH path, so the repair afterwards closes an existing 0644.
   mkdirSync(pluginConfigDir(pluginId, homeDir), { recursive: true, mode: OWNER_ONLY_DIR_MODE })
   writeFileSync(path, next.length > 0 ? `${next.join("\n")}\n` : "", { mode: OWNER_ONLY_FILE_MODE })
   tightenPluginPermissions(pluginId, homeDir)

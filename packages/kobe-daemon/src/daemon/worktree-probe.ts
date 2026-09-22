@@ -5,29 +5,25 @@
  * The collector's cost is process spawns: `git status` + `rev-list` per
  * worktree per 2s tick, measured at 1280 `git` processes and 14.7s of CPU
  * in 62 seconds across 19 idle tasks, to publish 19 frames. Everything here
- * is `stat`/small-file reads instead — no subprocess, no lock, no walk.
+ * is `stat`/small-file reads — no subprocess, no lock, no walk.
  *
- * ## What the fingerprint can and cannot see — read before trusting it
+ * ## What the fingerprint can and cannot see
  *
- * It sees GIT-METADATA movement — staging (`index`), checkout/commit (`HEAD`
- * and the branch's ref file), fetch or ref update (`FETCH_HEAD`,
- * `packed-refs`, the base ref files) — and entries CREATED, DELETED or
- * RENAMED directly in the worktree root.
+ * It sees git-metadata movement (`index`, `HEAD` and the branch ref,
+ * `FETCH_HEAD`, `packed-refs`, the base ref files) and entries created,
+ * deleted or renamed directly in the worktree root.
  *
- * It does NOT see a content edit of an existing file, at any depth, nor a
- * new file in a subdirectory. Measured, not assumed: appending to
- * `src/deep/f.ts` moved neither `.git/index` nor the worktree root's mtime,
- * and creating `src/deep/untracked.ts` moved only `src/deep`'s own mtime,
- * which nothing here stats — `git status` reports both. (Our polls run
- * `GIT_OPTIONAL_LOCKS=0`, so they never refresh-write the index either.)
- * A directory's mtime tracks its entry list, not its contents, and seeing
- * through that costs the recursive walk this exists to avoid.
+ * It does NOT see a content edit of an existing file at any depth, nor a new
+ * file in a subdirectory. Measured: appending to `src/deep/f.ts` moved
+ * neither `.git/index` nor the root's mtime, and creating
+ * `src/deep/untracked.ts` moved only `src/deep`'s mtime — `git status`
+ * reports both. (Our polls run `GIT_OPTIONAL_LOCKS=0`, so they never
+ * refresh-write the index either.) Seeing through directory mtimes costs the
+ * recursive walk this exists to avoid.
  *
- * So this is an ACCELERATOR, not an authority: a moved fingerprint means
- * "poll now", an unmoved one only means "the fast poll may relax". The
- * collector keeps a safety poll behind it, and everything ambiguous — a
- * missing file, an unreadable HEAD, a worktree that is not a git checkout —
- * returns `null`, which the collector reads as "poll".
+ * So this is an ACCELERATOR, not an authority: moved means "poll now",
+ * unmoved only "the fast poll may relax". The collector keeps a safety poll,
+ * and anything ambiguous returns `null`, read as "poll".
  */
 
 import { readFileSync, statSync } from "node:fs"
@@ -35,12 +31,10 @@ import { isAbsolute, join, resolve } from "node:path"
 
 /**
  * The base branches the daemon falls back to when a task recorded none —
- * kobe's `base-ref-cache.ts` ladder, in its order. Kept here because the
- * fingerprint has to stat these ref files too: the collector is handed the
- * task's RECORDED base ref, which is usually absent, and the real base is
- * resolved later inside the runner. Without them a `git fetch` that only
- * advanced `origin/main` was invisible to the probe (`FETCH_HEAD` catches a
- * fetch, but not a local `update-ref` or a ref moved by another worktree).
+ * kobe's `base-ref-cache.ts` ladder, in its order. The fingerprint stats
+ * these too: the recorded base is usually absent and the real one is resolved
+ * later in the runner, and `FETCH_HEAD` misses a local `update-ref` or a ref
+ * moved by another worktree.
  */
 export const DEFAULT_BASE_REF_CANDIDATES = ["origin/main", "origin/master", "main", "master"] as const
 
@@ -137,11 +131,8 @@ export function readHeadSha(dirs: GitDirs): string | null {
  * "cannot tell" — a missing `.git`, an unreadable `HEAD`, any throw — and
  * the caller must poll.
  *
- * Base refs are included because they are what moves the behind-count: a
- * fetch that advances `origin/main` changes `packed-refs`, `FETCH_HEAD`, or
- * that ref's own file. The {@link DEFAULT_BASE_REF_CANDIDATES} are stat'd
- * alongside any supplied `baseRef` — a task usually records none, and the
- * real base is only resolved later, inside the status runner.
+ * Base refs are included because they move the behind-count;
+ * {@link DEFAULT_BASE_REF_CANDIDATES} are stat'd alongside any `baseRef`.
  */
 export function worktreeFingerprint(worktreePath: string, baseRef?: string): string | null {
   try {

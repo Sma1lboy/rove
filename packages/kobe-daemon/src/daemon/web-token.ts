@@ -1,24 +1,13 @@
 /**
- * Mints the bearer token the PTY sidecar authenticates with.
+ * Mints the bearer token the PTY sidecar authenticates with. Minter only: the
+ * reader is `kobe-harness/pty-auth.mjs`, a live security boundary since
+ * `pty-server.mjs` spawns shells, and it duplicates the path logic rather
+ * than importing anything from here.
  *
- * This is now a MINTER only. It used to be both halves of a two-gate scheme
- * for the daemon-hosted web transport — this token plus an Origin check
- * (`web-origin.ts`) — but #855 deleted the transport, and with it both
- * `web-origin.ts` and every caller of the verifying half. The remaining
- * consumers all write the file: `kobe-harness/dev.ts`, `e2e/hero-fixture.ts`
- * and `scripts/fixture-core.ts`.
- *
- * The reader is `kobe-harness/pty-auth.mjs`, which gates the PTY sidecar —
- * a live security boundary, since `pty-server.mjs` spawns shells. It
- * deliberately duplicates the path logic rather than importing it (see its
- * own header), so it does not depend on anything exported here.
- *
- * The secret is 32 random bytes in one 0600 file under the state dir, so the
- * OS enforces the boundary that matters on a shared machine: another local
- * user can still connect to the loopback port, but cannot read the file, and
- * so cannot form a request that passes. Rotation is `rm` + restarting whatever
- * writes it (the harness dev server, or a fixture's setup) — a missing file
- * regenerates on the next read, so no rotate verb is needed.
+ * The secret is 32 random bytes in one 0600 file under the state dir: another
+ * local user can reach the loopback port but cannot read the file, so cannot
+ * form a passing request. Rotation is `rm` + restarting the writer — a
+ * missing file regenerates on the next read.
  */
 
 import { randomBytes } from "node:crypto"
@@ -37,12 +26,8 @@ function mintToken(): string {
 }
 
 /**
- * Re-`chmod` an existing token file and its directory.
- *
- * The dir+file PAIR is what is specific to this module; why a repair pass is
- * needed at all (mkdir/write modes bind only at creation, so the loose
- * installs are exactly the ones creation-time modes cannot reach) is the
- * shared reasoning in `owner-only.ts`.
+ * Re-`chmod` an existing token file and its directory — creation-time modes
+ * cannot reach an already-loose install (see `owner-only.ts`).
  */
 export function tightenTokenPermissions(file: string): void {
   tightenDirPermissionsSync(dirname(file))

@@ -1,9 +1,7 @@
 /**
- * `<home>/.kobe/plugins.json` — the installed/linked plugin registry.
- *
- * Written by the `kobe plugin` CLI; read (and stat-polled) by the daemon's
- * plugin runtime. Registration is global to the user: one list for every
- * session. The file is small and rewritten whole on every mutation.
+ * `<home>/.rove/plugins.json` (legacy `.kobe/` when only that exists) — the
+ * user-global installed/linked plugin registry. Written whole by the `kobe
+ * plugin` CLI on every mutation; stat-polled by the daemon's plugin runtime.
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
@@ -47,12 +45,9 @@ export function loadPluginRegistry(homeDir?: string): PluginRegistry {
 }
 
 /**
- * A managed checkout's `root` is an absolute path recorded at install time.
- * The `.kobe` → `.rove` layout migration moves the checkout tree but the
- * registry still names the old tree, so every manifest read fails with
- * "no rove-plugin.toml found at ~/.kobe/plugins/…". Re-anchor a root that
- * sits under the legacy plugins dir onto the canonical one; the next save
- * writes the corrected path. Linked plugins keep the author's root as-is.
+ * A managed checkout's absolute `root` can still name the pre-migration
+ * `.kobe` tree after the checkout moved to `.rove`; re-anchor it onto the
+ * canonical dir (the next save persists it). Linked roots are left as-is.
  */
 function withCanonicalRoot(entry: PluginRegistryEntry, homeDir?: string): PluginRegistryEntry {
   if (entry.source.kind !== "github") return entry

@@ -1,29 +1,20 @@
 /**
  * Plugin-written task-row tokens — the one place a third party can put
- * characters on a task row.
- *
- * Rove gave plugins ~40 events, panes, settings, actions and engines, and no
- * way to label a row. That is why nobody could build a coordination plugin on
- * top of Rove: the whole point of one is to say, on the row, who claimed this
- * / what queue it is in / what your own system thinks of it.
+ * characters on a task row (who claimed it, what queue it is in).
  *
  * ## In memory, never on disk
  *
- * A token is a CLAIM WITH A DEADLINE, not a fact. Every write carries a TTL,
- * readers drop what has expired, and a timer republishes at the next expiry
- * so a label FADES on its own — a plugin that dies leaves a row that cleans
- * itself up instead of a screen of stale state. Persisting tokens would
- * defeat that exactly: a daemon restart would restore labels whose author is
- * gone. (This is what the reference implementation does, and why.)
+ * A token is a CLAIM WITH A DEADLINE: every write carries a TTL, readers drop
+ * what has expired, and a timer republishes at the next expiry so a dead
+ * plugin's label fades on its own. Persisting would let a daemon restart
+ * restore labels whose author is gone.
  *
- * ## What a plugin may say, and what it may not
+ * ## What a plugin may say
  *
- * A plugin owns its OWN label, nothing else. The derived group, the activity
- * badge, the PR chip, the title and the branch are host-owned and are not
- * addressable here — a plugin that could overwrite "waiting on you" could
- * make the row lie about whether a human is blocked. `tone` names a ROLE
- * (`info`/`success`/`warning`/`error`/`muted`), never a colour, so the
- * active theme still decides what it looks like.
+ * Only its OWN label. Group, activity badge, PR chip, title and branch are
+ * host-owned — a plugin that could overwrite "waiting on you" could make the
+ * row lie about whether a human is blocked. `tone` names a ROLE, never a
+ * colour, so the theme decides the look.
  *
  * `source` is the writing plugin's id, carried for attribution and for
  * per-source quotas. It is informational: a plugin already runs arbitrary
@@ -169,10 +160,9 @@ export class RowTokenStore {
   }
 
   /**
-   * Publish the map and arm one timer at the nearest expiry. Without the
-   * timer a token would stay on screen until somebody wrote again — an
-   * abandoned label lingering forever is exactly the failure the TTL exists
-   * to prevent, and no UI redraws on its own schedule.
+   * Publish the map and arm one timer at the nearest expiry — no UI redraws
+   * on its own schedule, so without it an expired label lingers until the
+   * next write.
    */
   private publish(): void {
     const tokens = this.snapshot()

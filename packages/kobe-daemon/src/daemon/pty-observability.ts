@@ -62,9 +62,8 @@ export interface PtySessionEndInfo {
   readonly key: string
   readonly pid: number | null
   readonly exit: PtySessionExit
-  /** Raw tail of the ring at exit time. Still carries escapes and control
-   *  bytes: `terminal-rows.ts` is the one stripper, and the exit store runs
-   *  it (`plainTail`) before anything persists or renders this. */
+  /** Raw ring tail at exit, escapes included; the exit store strips it
+   *  (`plainTail`) before persisting or rendering. */
   readonly tail: string
 }
 
@@ -141,15 +140,9 @@ const OSC_TITLE_RE = /\x1b\][02];([^\x07\x1b]*)(?:\x07|\x1b\\)/g
 const TITLE_CARRY_CAP = 1024
 
 /**
- * What to carry into the next chunk from `rest` (the tail past the last
- * complete title). Only a trailing INCOMPLETE OSC-title sequence matters,
- * and it begins at the last OSC introducer `\x1b]` — a buffer ending in a
- * bare ESC may be that introducer's first byte. Anchoring on any *later*
- * bare ESC (a bare `lastIndexOf("\x1b")`) strands the real title: a
- * split ST terminator (`…title\x1b` | `\`) or a color escape after an
- * in-progress title both leave a later ESC that is NOT the introducer, and
- * anchoring there loses the whole `\x1b]0;title` prefix — and the tab name
- * it drives.
+ * Carry from `rest`: an incomplete title starts at the last `\x1b]` (or a
+ * trailing bare ESC may be its first byte). Anchoring on any later bare ESC
+ * — a split ST terminator, a color escape — loses the `\x1b]0;title` prefix.
  */
 function titleCarryFrom(rest: string): string {
   const osc = rest.lastIndexOf("\x1b]")
@@ -158,11 +151,8 @@ function titleCarryFrom(rest: string): string {
 }
 
 /**
- * Fold one already-decoded chunk (prepended with the previous chunk's
- * carry) into the last complete OSC 0/2 title it contains, plus the tail to
- * carry forward. Pure — exported for the cross-chunk boundary tests, which
- * a real PTY can't drive (read boundaries fall anywhere, including inside a
- * title's terminator). `title: null` = the chunk closed no title.
+ * carry + decoded chunk → last complete OSC 0/2 title (`null` = none closed)
+ * and the next carry. Exported for cross-chunk boundary tests.
  */
 export function foldOscTitle(prevCarry: string, chunkText: string): { title: string | null; carry: string } {
   const text = prevCarry + chunkText
@@ -183,8 +173,7 @@ export function scanOscTitle(session: PtyTitleState, buf: Buffer): void {
   session.titleCarry = carry
 }
 
-/** The ring-buffer fields `peekRing` reads off a host session (structural
- *  subset of the host's PtySessionState — pure, so it stays testable). */
+/** The ring fields `peekRing` reads (structural subset of PtySessionState). */
 export interface PtyRingView {
   readonly alive: boolean
   readonly chunks: readonly Buffer[]
@@ -197,11 +186,7 @@ export interface PtyRingView {
   readonly exit?: PtySessionExit | null
 }
 
-/**
- * Read-only ring peek — the pure half of `pty.peek`. Returns the full ring
- * (or the exact delta since `sinceOffset` when it is still inside the ring
- * window) without attaching, spawning, or resizing anything.
- */
+/** Pure half of `pty.peek`: full ring, or exact delta since an in-window `sinceOffset`. */
 export function peekRing(session: PtyRingView | undefined, sinceOffset?: number): PtyPeekResult {
   if (!session) {
     return { exists: false, alive: false, pid: null, offset: 0, data: "", sinceValid: false, exit: null }

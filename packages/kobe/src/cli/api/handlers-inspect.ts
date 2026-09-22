@@ -1,23 +1,17 @@
 /**
- * `kobe api inspect` — one production-diagnostics read that aggregates every
- * identity/activity signal a bug report usually needs, so an investigating
- * agent (or Jackson pasting output into a chat) doesn't hand-assemble it
- * from `ps`, state.json, and daemon internals:
+ * `kobe api inspect` — one production-diagnostics read aggregating the
+ * identity/activity signals a bug report needs:
  *
- *   - `daemon`    — the daemon's RAW activity registry (`debug.inspect`):
- *                   per-task/per-tab state, probe vendor, armed watchdogs.
- *   - `sessions`  — pty-host inventory (key, pid, live OSC title) JOINED with
- *                   a live process-tree walk per session: which engine is
- *                   ACTUALLY running under each shell right now — the exact
- *                   `foregroundEngineIn` the TUI's live-engine store runs,
- *                   so CLI output and TUI behavior can be compared 1:1.
- *   - `tabs`      — the persisted `terminalTabs.<taskId>` snapshots the
- *                   sidebar tree renders from (liveVendor, lastTitle,
- *                   autoTitle per tab).
+ *   - `daemon`    — RAW activity registry (`debug.inspect`): per-tab state,
+ *                   probe vendor, armed watchdogs.
+ *   - `sessions`  — pty-host inventory JOINED with a process-tree walk per
+ *                   session, using the TUI's exact `foregroundEngineIn` so
+ *                   CLI and TUI compare 1:1.
+ *   - `tabs`      — persisted `terminalTabs.<taskId>` snapshots the sidebar
+ *                   renders from.
  *
- * Read-only by contract: no writes, no spawns, no daemon startup (offline
- * verb — a missing daemon/host degrades that section to null, never errors).
- * `--task-id` narrows every section to one task.
+ * Read-only by contract: no writes, spawns, or daemon startup; a missing
+ * daemon/host degrades that section to null. `--task-id` narrows every section.
  */
 
 import { foregroundEngineIn, parsePsSnapshot, psSnapshot } from "../../engine/foreground.ts"
@@ -37,10 +31,8 @@ type PtySessionRow = {
 }
 
 /**
- * Best-effort daemon read — null section when no daemon runs. `inspect` is
- * an offline verb ON PURPOSE (a diagnostics read must never spawn the very
- * daemon it's inspecting), so it connects non-spawning itself instead of
- * taking the dispatcher's auto-start session.
+ * Best-effort daemon read; null when none runs. Connects non-spawning: a
+ * diagnostics read must never spawn the daemon it's inspecting.
  */
 async function daemonSection(): Promise<unknown> {
   const { connectIfRunning } = await import("@sma1lboy/kobe-daemon/client/daemon-process")
@@ -74,9 +66,8 @@ async function sessionsSection(taskId: string | undefined): Promise<unknown> {
   } finally {
     client.close()
   }
-  // `::` for the same reason the exits filter below uses it: a session key is
-  // `<taskId>::<tabId>[::leaf-N]`, so the separator is what makes this a task
-  // match rather than a prefix match.
+  // Keys are `<taskId>::<tabId>[::leaf-N]`; the `::` makes this a task match,
+  // not a prefix match.
   if (taskId) sessions = sessions.filter((s) => s.key.startsWith(`${taskId}::`))
   // ONE ps snapshot serves every session — same economy as live-engine.ts.
   let rows: ReturnType<typeof parsePsSnapshot> | null = null
@@ -103,13 +94,10 @@ async function sessionsSection(taskId: string | undefined): Promise<unknown> {
   })
 }
 
-/** Durable death records (`pty-exits.json`) — survive the host's idle-exit,
- *  so "how did it die" stays answerable with no host running. Includes the
- *  exit-time output tail (plain text). TWO layers: `layer: "pty"` is the
- *  session's own child, `layer: "engine"` is the AI process gone from a
- *  session that stayed alive (`parentAlive: true`). Legacy records predate
- *  the field and are all PTY-layer. Newest first — a triage read wants
- *  today's deaths, not the file's key order. */
+/** Durable death records (`pty-exits.json`), readable with no host running;
+ *  include the exit-time output tail. `layer: "pty"` is the session's child,
+ *  `layer: "engine"` the AI process gone from a live session (`parentAlive:
+ *  true`); records without the field are PTY-layer. Newest first. */
 async function sessionExitsSection(taskId: string | undefined): Promise<unknown> {
   try {
     const { readPtyExitRecords } = await import("@sma1lboy/kobe-daemon/daemon/pty-exit-store")
@@ -121,12 +109,10 @@ async function sessionExitsSection(taskId: string | undefined): Promise<unknown>
 }
 
 /**
- * Persisted tab snapshots (what the sidebar tree names its rows from),
- * RECONCILED against the live session inventory: each task also
- * reports `unregistered` — alive `<taskId>::tab-N` sessions its snapshot
- * does not list — and a task with live sessions but no snapshot at all still
- * gets an entry. A live engine must never be invisible in this read.
- * Exported for tests; production callers go through the `inspect` verb.
+ * Persisted tab snapshots RECONCILED against live sessions: `unregistered`
+ * lists alive `<taskId>::tab-N` sessions the snapshot omits, and a task with
+ * live sessions but no snapshot still gets an entry — a live engine must
+ * never be invisible here. Exported for tests.
  */
 export function tabsSection(taskId: string | undefined, sessions: unknown): unknown {
   const live: TaskSessionRow[] = Array.isArray(sessions)

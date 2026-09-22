@@ -58,11 +58,7 @@ export function pluginContext(env: NodeJS.ProcessEnv = process.env): PluginConte
   }
 }
 
-/**
- * The fired event's envelope, parsed from `ROVE_PLUGIN_EVENT_JSON` (or its
- * legacy `KOBE_` alias).
- * Returns null outside an `[[events]]` entrypoint.
- */
+/** Event envelope from `ROVE_PLUGIN_EVENT_JSON` (or `KOBE_`); null outside `[[events]]`. */
 export function pluginEvent(env: NodeJS.ProcessEnv = process.env): PluginEventEnvelope | null {
   const raw = readCompat(env, "PLUGIN_EVENT_JSON")
   if (!raw) return null

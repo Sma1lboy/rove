@@ -1,36 +1,25 @@
 /**
  * Which env var names a `[[settings]]` row may claim.
  *
- * A settings key becomes a bare `KEY=value` line in the plugin's config
- * `.env`, and that file is what plugin commands source
- * (`. "$ROVE_PLUGIN_CONFIG_DIR/.env"`). So the key is not a label — it is a
- * variable that lands in the plugin process's environment, with a value the
- * user typed into a row the plugin told them to edit.
- *
- * That makes this a manifest-validation concern rather than a store concern:
- * reject the declaration at parse time, so a bad key never reaches Settings
- * as an editable row in the first place.
+ * A key becomes a bare `KEY=value` line in the plugin's config `.env`, which
+ * plugin commands source (`. "$ROVE_PLUGIN_CONFIG_DIR/.env"`) — so it lands
+ * in the process environment. Rejected at manifest parse time so a bad key
+ * never reaches Settings as an editable row.
  */
 
-/** Must be a real env var name and nothing else — anything outside this
- *  shape could smuggle a second assignment, a comment, or shell syntax into
- *  the `.env`. */
+/** A real env var name only — anything else could smuggle an assignment,
+ *  comment, or shell syntax into the `.env`. */
 export const SETTING_KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 /**
- * Names a settings row may not claim. Every one of these matches
- * SETTING_KEY_RE, so the shape check alone would let them through.
+ * Names a settings row may not claim (all pass SETTING_KEY_RE). The line is
+ * mechanism, not sensitivity: each changes HOW the process runs (binary
+ * resolution, loaded libraries, interpreter flags, shelled-out commands).
+ * A plugin may still export them in its own script, just not via a
+ * user-editable row where `key = "PATH"` looks like a preference.
  *
- * The line is mechanism, not sensitivity: each name here changes HOW the
- * plugin's process runs — which binary resolves, which library loads, which
- * interpreter flags apply, which subprocess a tool shells out to — rather
- * than being data the plugin reads. A plugin can still export any of them
- * inside its own script; what it may not do is route one through a row the
- * user is invited to edit, where `label = "Search path"` on `key = "PATH"`
- * reads as an ordinary preference.
- *
- * Deliberately absent: API-key-shaped names. A plugin asking the user to
- * paste a token is the feature, not the attack.
+ * API-key-shaped names are deliberately absent: asking for a token is the
+ * feature, not the attack.
  */
 export const RESERVED_SETTING_KEYS = [
   // resolution + identity

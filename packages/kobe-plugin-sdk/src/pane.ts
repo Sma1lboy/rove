@@ -1,13 +1,11 @@
 /**
  * A tiny pane kit for `[[panes]]` entrypoints: alternate screen, raw-mode
- * keys, resize, and absolute-addressed full-frame draws — the boilerplate
- * every terminal "page" needs, and nothing more. For rich UIs bring your
- * own framework; this is for the 100-line status board.
+ * keys, resize, and absolute-addressed full-frame draws. For rich UIs bring
+ * your own framework.
  *
- * Draws use per-row cursor addressing (CUP) + erase-to-EOL, never newline
- * flow — relative-flow writes are what produced ghost wrap lines in
- * embedded terminals. Lines longer than the terminal width will wrap;
- * keep rows within `pane.cols` (mind CJK double-width).
+ * Draws use per-row CUP + erase-to-EOL, never newline flow, which produces
+ * ghost wrap lines in embedded terminals. Keep rows within `pane.cols` (mind
+ * CJK double-width) or they wrap.
  */
 
 export interface Key {

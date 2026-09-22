@@ -3,18 +3,12 @@
  * what command?), `set-command` (pin a task's launch command), `set-effort`
  * (pin its reasoning level) and `set-model` (pin its model).
  *
- * These are the two halves of the dispatch contract. `engine-list` is
- * WYSIWYG on purpose — it prints each entry's raw command line so an agent
- * can copy one, edit a flag, and pass the result straight back as
- * `--command`, without kobe modelling anyone's flags. `set-command` is the
- * write twin: it resolves the command's protocol here (the preset registry
- * lives in kobe's state.json, which the daemon cannot read) and sends both.
+ * `engine-list` is WYSIWYG: it prints each raw command line so an agent can
+ * copy one, edit a flag, and pass it back as `--command` without kobe
+ * modelling anyone's flags. `set-command` resolves the protocol HERE (the
+ * preset registry lives in state.json, which the daemon cannot read).
  *
- * Spec + handler live together (the PANE_VERB pattern) rather than the spec
- * sitting in a `verbs-*.ts` group: these two read the engine preset registry,
- * so keeping the flag list next to the code that consumes it is what stops the
- * documented values and the accepted values drifting apart. `verbs.ts` imports
- * the finished specs.
+ * Spec + handler live together so documented and accepted values can't drift.
  */
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -36,18 +30,15 @@ import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 /**
  * The same engines the TUI's pickers offer: `listEnginePresets()` (built-ins +
  * registered custom presets) widened with everything else
- * `installedEngineIds()` finds — the shipped contrib engines whose binary is
- * on PATH, and every plugin-contributed engine. One list, so `engine-list` and
- * Settings → Engines cannot disagree about what Rove can launch; a contrib
- * engine `engine-list` could not name was dispatched as `generic` and lost its
- * activity badges.
+ * `installedEngineIds()` finds (contrib engines on PATH, plugin engines). One
+ * list, so `engine-list` and Settings → Engines cannot disagree; an unnamed
+ * contrib engine would dispatch as `generic` and lose its activity badges.
  */
 async function listAllEnginePresets() {
   const presets = await enginePresetsInList()
-  // `models` is keyed by PROTOCOL — a `claudecpa` preset lists claude's
-  // aliases — and listed once per protocol, since pi/omp answer by running a
-  // process. `null` = this engine has no list verb (or it failed); `[]` would
-  // claim "listed, found none", which is a different fact.
+  // Keyed by PROTOCOL (`claudecpa` lists claude's aliases), listed once each
+  // since pi/omp spawn a process. `null` = no list verb or it failed; `[]`
+  // would mean "listed, found none".
   const byProtocol = new Map<string, Promise<readonly EngineModel[] | null>>()
   const modelsOf = (protocol: string) => {
     let pending = byProtocol.get(protocol)
@@ -63,8 +54,7 @@ async function listAllEnginePresets() {
 
 /** The presets `engine-list` prints, before their model lists are attached. */
 async function enginePresetsInList() {
-  // Plugin-contributed engines are loaded from enabled plugin manifests at
-  // process start in the TUI, but the CLI path must load them explicitly.
+  // The TUI loads plugin engines at start; the CLI must load them explicitly.
   ensurePluginEnginesLoaded()
   const presets = [...listEnginePresets()]
   const seen = new Set(presets.map((p) => p.id))
@@ -92,12 +82,9 @@ export const ENGINE_LIST_VERB: VerbSpec = {
 
 async function setCommand(ctx: VerbContext): Promise<unknown> {
   const command = ctx.args.require("command")
-  // The protocol is DERIVED, never declared: this is the same resolution
-  // `add --command` runs, so a task's recorded protocol matches what the
-  // dispatch face would have picked for the same string. An unrecognisable
-  // command records the generic protocol rather than keeping a stale one
-  // from a different engine — a wrong protocol points the history reader
-  // and trust store at another vendor's files.
+  // DERIVED, never declared — the same resolution `add --command` runs. An
+  // unknown command records generic rather than keeping a stale protocol,
+  // which would point the history reader and trust store at another vendor.
   const vendor = resolveCommandProtocol(command)
   await simpleRpc(ctx, "task.setCommand", {
     taskId: ctx.args.require("task-id"),
@@ -122,12 +109,9 @@ export const SET_COMMAND_VERB: VerbSpec = {
  * `engineLaunchArgv` performs, so the level this verb accepts is the level
  * the launch actually carries.
  *
- * `sessionProtocol`, not the raw `vendor`: a task created from the TUI's
- * new-task dialog records the picked engine id in `vendor` with no `command`
- * (`tui/lib/task-create-flow.ts`), so a `mycodex` preset declaring the codex
- * protocol arrived here as `mycodex`, found the registry's empty custom entry,
- * and had every level rejected — `set-effort` could not set one at all on the
- * tasks most likely to want one. A built-in id resolves to itself.
+ * `sessionProtocol`, not the raw `vendor`: TUI-created tasks record the
+ * preset id (e.g. `mycodex`) with no `command`, and the raw id finds an empty
+ * registry entry that rejects every level. A built-in id resolves to itself.
  */
 function taskEngine(task: Pick<SerializedTask, "command" | "vendor">): VendorId {
   const command = task.command?.trim()
@@ -139,14 +123,9 @@ function taskEngine(task: Pick<SerializedTask, "command" | "vendor">): VendorId 
 }
 
 /**
- * Reject `level` unless `engine` declares it. Exported because `add --effort`
- * must refuse exactly what `set-effort` refuses — one gate, two entry points,
- * so a level accepted at create time cannot be one `set-effort` would have
- * rejected.
- *
- * Validated HERE rather than passed through: `withEngineEffort` drops a level
- * the engine never declared, silently — which is how a user picks "high" and
- * gets the default with no error anywhere.
+ * Reject `level` unless `engine` declares it. One gate shared by
+ * `add --effort` and `set-effort`. Validated HERE because `withEngineEffort`
+ * silently drops an undeclared level (user picks "high", gets the default).
  *
  * `recover` is the argv the error's `nextCommandArgs` offers: `get-task` when
  * the task already exists, `engine-list` when it does not yet.
@@ -178,8 +157,7 @@ export function assertEngineAcceptsEffort(engine: VendorId, level: string, recov
  * Reject a model unless `engine` declares a flag to carry it. No closed-set
  * check on purpose: pi's `--model` is a fuzzy pattern and claude takes full
  * ids its alias list does not spell, so `listModels` is a suggestion source,
- * not a validator. Shared by `add --model` and `set-model` for the same
- * reason {@link assertEngineAcceptsEffort} is.
+ * not a validator. Shared by `add --model` and `set-model`.
  */
 export function assertEngineAcceptsModel(engine: VendorId, model: string, recover: readonly string[]): void {
   if (engineEntry(engine).modelArgv) return
@@ -232,19 +210,10 @@ async function setEffort(ctx: VerbContext): Promise<unknown> {
   const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
   const engine = taskEngine(task)
   assertEngineAcceptsEffort(engine, level, ["api", "get-task", "--task-id", taskId])
-  // Which vendor to write back. `taskEngine` resolved the PROTOCOL — the right
-  // thing to validate a level against, and the wrong thing to persist when the
-  // record already spells that protocol as a preset id: a `mycodex` task
-  // silently became `codex`, so the footer stopped rendering the user's
-  // `engineName.mycodex` label. Launch never depended on the write
-  // (`engineLaunchArgv` prefers the pinned command), so the label was the only
-  // casualty.
-  //
-  // A record whose vendor does NOT resolve to the engine is a different case:
-  // that is a stale or generic vendor next to a command naming a real one, and
-  // naming it is a genuine upgrade (the same one `resolveProtocolUpgrade`
-  // performs). So: keep the id when it already means this engine, correct it
-  // when it does not.
+  // Validate against the PROTOCOL, but keep a preset id that already means it
+  // (persisting `codex` over `mycodex` loses the footer's
+  // `engineName.mycodex` label). A vendor that does NOT resolve to the engine
+  // is stale/generic and gets corrected (as `resolveProtocolUpgrade` does).
   await simpleRpc(ctx, "task.setVendor", { taskId, vendor: vendorToRecord(task, engine), effort: level })
   return { ok: true, taskId, engine, effort: level }
 }
@@ -256,10 +225,8 @@ export const SET_EFFORT_VERB: VerbSpec = {
     "Set a task's reasoning effort level (takes effect on the next session rebuild). Rejected when the task's engine declares no levels, or does not declare THIS one — the error names the levels it does accept. Codex accepts none/low/medium/high/xhigh/max; claude has none.",
   flags: [
     F.taskId(),
-    // Deliberately not an enum: levels are declared PER ENGINE (registry
-    // `effortLevels`), including by plugin engines this static list cannot
-    // see — the same open-set reasoning as `F.vendor()`. The handler checks
-    // against the task's own engine, which is the only authoritative list.
+    // Not an enum: levels are declared PER ENGINE (incl. plugin engines); the
+    // handler checks against the task's own engine.
     {
       name: "level",
       type: "string",

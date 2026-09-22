@@ -30,14 +30,12 @@ function runGit(worktreePath: string, args: readonly string[], signal: AbortSign
 /**
  * How far the worktree has drifted from `baseRef`, both ways, in ONE process.
  * `null` when the ref does not resolve or the counts are unreadable — the
- * chips then do not draw, which is the honest answer for a repo with no base
- * rather than a fabricated zero.
+ * chips then don't draw rather than show a fabricated zero.
  *
- * The daemon does NOT own the `origin/HEAD → origin/main → main → master`
- * fallback ladder: that lives in kobe's `cli/api/branch-signals.ts`, and the
- * PRODUCTION runner is kobe's `runtime.runWorktreeStatus`, which resolves it
- * before calling in. This default runner (tests, and any daemon wired without
- * a runtime) only measures against a base it was handed.
+ * The `origin/HEAD → origin/main → main → master` ladder lives in kobe's
+ * `cli/api/branch-signals.ts`, resolved by the PRODUCTION runner
+ * (`runtime.runWorktreeStatus`); this default runner (tests, runtime-less
+ * daemons) only measures against the base it was handed.
  */
 async function countDrift(worktreePath: string, baseRef: string, signal: AbortSignal): Promise<AheadBehind | null> {
   return parseAheadBehind(
@@ -55,11 +53,10 @@ export interface AheadBehind {
  * Parse `git rev-list --left-right --count <base>...HEAD`, whose one line is
  * `<behind>\t<ahead>` — left is the base side (commits the base has that we
  * do not), right is ours. `null` for anything that is not two non-negative
- * integers, including the `null` a failed run hands in: a half-read line must
- * leave BOTH numbers absent rather than let one of them be guessed.
+ * integers (or a failed run's `null`): never guess one half.
  *
- * @public — imported by kobe's production runner (`core/daemon-runtime.ts`) so
- * the two collection paths cannot disagree about what the counts mean.
+ * @public — kobe's production runner (`core/daemon-runtime.ts`) shares it so
+ * both paths agree on what the counts mean.
  */
 export function parseAheadBehind(stdout: string | null): AheadBehind | null {
   if (stdout === null) return null
@@ -75,9 +72,8 @@ export function parseAheadBehind(stdout: string | null): AheadBehind | null {
 export function countPorcelain(stdout: string): { added: number; deleted: number } {
   let added = 0
   let deleted = 0
-  // Shared parser (`git-porcelain.ts`), not a local re-scan: this counter feeds
-  // the sidebar chips while kobe's file tree renders rows from the same bytes,
-  // and a second, laxer line filter here counted junk the real parser rejects.
+  // Shared parser: kobe's file tree renders from the same bytes, and a laxer
+  // local scan counted junk the real parser rejects.
   for (const row of parsePorcelainRows(stdout)) {
     if (row.x === "D" || row.y === "D") deleted++
     else added++
