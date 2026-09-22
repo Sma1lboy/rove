@@ -17,7 +17,7 @@ import { setRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 
 type HomePolicy = "redirect" | "keep"
 
-export type FixturePorts = {
+type FixturePorts = {
   /** Vite, serving the harness page. */
   webPort?: number
   /** The harness PTY sidecar. */

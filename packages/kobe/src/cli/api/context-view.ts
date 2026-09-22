@@ -18,7 +18,7 @@ import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 /** Newest field notes carried. Matches `NOTE_INJECTION_CAP` — these are the
  *  ones a fresh session on this repo is already handed, so a coordinator
  *  reading a different set would brief its workers on facts they never see. */
-export const CONTEXT_NOTE_CAP = 15
+const CONTEXT_NOTE_CAP = 15
 
 /** Default task cap. The verb is paid for on every coordinator turn; a repo
  *  with fifty stale attempts would spend thousands of tokens re-reading rows
@@ -33,7 +33,7 @@ export interface ContextNote {
   readonly author: string
 }
 
-export interface ContextTask {
+interface ContextTask {
   readonly taskId: string
   readonly title: string
   readonly branch: string

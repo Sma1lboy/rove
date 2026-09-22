@@ -283,7 +283,7 @@ export interface PromptDeliveryOps {
  * happens in `runtime.ts`, where the snapshot is already in hand; folding
  * the field into `joinTaskTabs` is the tidier home for it.
  */
-export type TaskTabRowWithSession = TaskTabRow & { readonly sessionId?: string }
+type TaskTabRowWithSession = TaskTabRow & { readonly sessionId?: string }
 
 // ── Runtime (the side-effect seam handlers run against) ─────────────────────
 

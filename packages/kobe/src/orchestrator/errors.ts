@@ -268,7 +268,7 @@ export class GitCommandFailedError extends Error {
   }
 }
 
-export const WORKTREE_NAME_TAKEN_CODE = "WORKTREE_NAME_TAKEN"
+const WORKTREE_NAME_TAKEN_CODE = "WORKTREE_NAME_TAKEN"
 
 /**
  * Thrown when `add --worktree-name` names a directory that is already in use
@@ -290,7 +290,7 @@ export class WorktreeNameTakenError extends Error {
   }
 }
 
-export const INVALID_WORKTREE_NAME_CODE = "INVALID_WORKTREE_NAME"
+const INVALID_WORKTREE_NAME_CODE = "INVALID_WORKTREE_NAME"
 
 /**
  * Thrown when `add --worktree-name` is not a single directory name.

@@ -52,7 +52,7 @@ function interruptSequenceFor(task: InterruptTask): string {
   })
 }
 
-export async function interruptTask(ctx: VerbContext): Promise<unknown> {
+async function interruptTask(ctx: VerbContext): Promise<unknown> {
   const taskId = ctx.args.require("task-id")
   const tabFlag = ctx.args.str("tab")
   const { task } = await daemonOf(ctx).request<{ task: InterruptTask }>("task.get", { taskId })

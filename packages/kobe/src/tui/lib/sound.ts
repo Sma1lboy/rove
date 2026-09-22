@@ -67,7 +67,7 @@ type Player = (typeof PLAYERS)[number]
  * video, exit when done). No volume flag anywhere: `file` already carries
  * the level — see the file header.
  */
-export function args(player: Player, file: string): string[] {
+function args(player: Player, file: string): string[] {
   if (player === "ffplay") return [player, "-autoexit", "-nodisp", file]
   if (player === "mpv") return [player, "--no-video", "--audio-display=no", file]
   if (player === "mplayer") return [player, "-vo", "null", file]
@@ -102,7 +102,7 @@ function pickPlayer(): Player | null {
 }
 
 /** Cache filename for `volume`: the asset's name with a `@<pct>` tag. */
-export function assetNameFor(assetPath: string, volume: number): string {
+function assetNameFor(assetPath: string, volume: number): string {
   const name = basename(assetPath)
   const ext = extname(name)
   return `${name.slice(0, name.length - ext.length)}@${Math.round(volume * 100)}${ext}`

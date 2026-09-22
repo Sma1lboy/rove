@@ -31,7 +31,7 @@ import { localDaemonSocketPath, localPtySocketPath, machineSocketDir, machineSsh
  *  here reach a daemon that runs commands as its owner. */
 const DIR_MODE = 0o700
 
-export type TunnelState = "connecting" | "online" | "offline" | "unsupported"
+type TunnelState = "connecting" | "online" | "offline" | "unsupported"
 
 export interface TunnelHandle {
   readonly alias: string

@@ -219,7 +219,7 @@ function show(dialog: DialogContext, opts: { shell: ShellKind | null; onDone: (c
   dialog.setSize("medium")
 }
 
-export const WelcomeDialog = { show }
+const WelcomeDialog = { show }
 
 /**
  * Hand the boot-time "this user has never run Rove" signal to the dialog

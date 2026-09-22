@@ -19,7 +19,7 @@ import type { MachineConfig } from "./registry.ts"
 import { sshTargetOf } from "./registry.ts"
 
 /** How long a shared master outlives its last channel, in seconds. */
-export const CONTROL_PERSIST_SECONDS = 300
+const CONTROL_PERSIST_SECONDS = 300
 
 /**
  * `<home>/.rove/machines/<alias>` — holds the control socket and both
@@ -61,7 +61,7 @@ export function localPtySocketPath(alias: string, home = homeDir()): string {
 
 /** ControlMaster socket. Kept beside the forwarded sockets so removing a
  *  machine's directory tears down every file the connection owns. */
-export function controlPath(alias: string, home = homeDir()): string {
+function controlPath(alias: string, home = homeDir()): string {
   return join(machineSocketDir(alias, home), "cm")
 }
 

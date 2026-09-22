@@ -65,7 +65,7 @@ export type NewTaskDialogProps = {
 const EMPTY_MAIN_REPOS: ReadonlySet<string> = new Set()
 
 /** The tier chips: the three depths, then "manual" = pick the fields by hand. */
-export const TIER_CHOICES = [...AUTO_EFFORT_TIERS, "manual"] as const
+const TIER_CHOICES = [...AUTO_EFFORT_TIERS, "manual"] as const
 export type TierChoice = (typeof TIER_CHOICES)[number]
 
 export function useNewTaskViewModel(props: NewTaskDialogProps) {

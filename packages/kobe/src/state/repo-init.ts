@@ -110,8 +110,8 @@ export function missingDependenciesCoda(worktreePath: string, language?: Observe
   return `PS: this worktree has no installed dependencies (${dirs} missing beside a committed lockfile). Run the repo's install step before trusting build/test results — a failure here is most likely the missing install, not a regression. If this repo always needs one, consider adding \`.rove/init.sh\`.`
 }
 
-export const INIT_SCRIPT_FILENAME = "init.sh"
-export const INIT_PROMPT_FILENAME = "init-prompt.md"
+const INIT_SCRIPT_FILENAME = "init.sh"
+const INIT_PROMPT_FILENAME = "init-prompt.md"
 
 function repoFileScript(worktreePath: string): string | undefined {
   // Run the committed file by relative path: cwd is the worktree, so

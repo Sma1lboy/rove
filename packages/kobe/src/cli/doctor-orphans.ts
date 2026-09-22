@@ -75,12 +75,12 @@ export interface Orphan extends PsRow {
 /** How a probe subprocess reports back. `code` is load-bearing: a spawn that
  *  never ran returns 127 with empty stdout, which is indistinguishable from a
  *  successful probe that found nothing unless somebody reads the code. */
-export interface ProbeResult {
+interface ProbeResult {
   readonly code: number
   readonly stdout: string
 }
 
-export type ProbeRunner = (argv: readonly string[]) => Promise<ProbeResult>
+type ProbeRunner = (argv: readonly string[]) => Promise<ProbeResult>
 
 /**
  * Test seam for the two probes the predicate rests on.

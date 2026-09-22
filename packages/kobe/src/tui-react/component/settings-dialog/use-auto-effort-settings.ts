@@ -9,7 +9,6 @@
  */
 
 import {
-  AUTO_EFFORT_TIERS,
   type AutoEffortTable,
   type AutoEffortTier,
   type TierBlock,
@@ -73,5 +72,3 @@ export function useAutoEffortSettings(
 
   return { table, block, edit }
 }
-
-export { AUTO_EFFORT_TIERS }

@@ -16,7 +16,7 @@
  */
 
 const target = process.env.ROVE_RENDER_PROFILE
-export const renderProfileOn = Boolean(target)
+const renderProfileOn = Boolean(target)
 
 const counts = new Map<string, number>()
 const totals = new Map<string, number>()

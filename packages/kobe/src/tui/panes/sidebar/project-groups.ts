@@ -34,7 +34,7 @@ import { compareTaskGroup } from "./task-group-view"
 import { SCRATCH_SECTION_ID } from "./tree-ids"
 
 /** The label the scratch section carries; the renderer translates it. */
-export const SCRATCH_SECTION_LABEL = "Scratch"
+const SCRATCH_SECTION_LABEL = "Scratch"
 
 /**
  * One section of the sidebar: a project, or the single scratch bench.
@@ -77,7 +77,7 @@ export interface SidebarGroupInput {
 }
 
 /** True for a task the sidebar sorts to the end of its project. */
-export function isRoutineTask(task: Task): boolean {
+function isRoutineTask(task: Task): boolean {
   return task.routine !== undefined
 }
 

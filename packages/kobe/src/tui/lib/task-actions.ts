@@ -57,7 +57,7 @@ export interface TextPromptOpts {
  * its own copy of a flow.
  */
 /** What {@link TaskActionContext.pickEngine} is asked, and what it answers. */
-export interface EnginePickOpts {
+interface EnginePickOpts {
   readonly engines: readonly VendorId[]
   readonly current: VendorId
   readonly currentEffort?: string

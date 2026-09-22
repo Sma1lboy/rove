@@ -15,7 +15,7 @@
 
 export const TAB_ROW_HEIGHT_KEY = "sidebar.tabRowHeight"
 
-export const TAB_ROW_HEIGHTS = [1, 2] as const
+const TAB_ROW_HEIGHTS = [1, 2] as const
 export type TabRowHeight = (typeof TAB_ROW_HEIGHTS)[number]
 
 /** One cell — the density the tree was built around. */

@@ -41,7 +41,7 @@ export interface MachineLayerEntry {
  * owns the translator, so composing English here would freeze the label in one
  * language the way a module-level `t()` constant does.
  */
-export function machineStateKey(state: MachineRowState): string | null {
+function machineStateKey(state: MachineRowState): string | null {
   switch (state) {
     case "online":
       return null

@@ -28,7 +28,7 @@ import { ensureForwards } from "./tunnel.ts"
  * envelope every other refusal uses, carrying the recovery command: the verb
  * is not wrong, only its address is.
  */
-export function remoteTaskUnsupported(taskId: string, machineId: string): ApiError {
+function remoteTaskUnsupported(taskId: string, machineId: string): ApiError {
   return new ApiError(
     `task ${taskId} lives on machine "${machineId}". Rove can list it, but acting on a remote task is not supported yet.`,
     "NOT_YET_SUPPORTED_REMOTE",

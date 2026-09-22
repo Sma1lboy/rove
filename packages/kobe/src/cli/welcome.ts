@@ -32,7 +32,7 @@ import { detectShell } from "./onboarding.ts"
 import { LAST_RUN_VERSION_KEY } from "./reset-gate.ts"
 
 /** Set once the welcome dialog has been HANDED to the workspace, never unset. */
-export const WELCOMED_KEY = "welcomed"
+const WELCOMED_KEY = "welcomed"
 
 /**
  * The skill install the user asked for, deferred until the TUI is gone.

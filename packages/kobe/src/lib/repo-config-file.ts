@@ -27,7 +27,7 @@ import { join } from "node:path"
 export const REPO_CONFIG_DIRS = [".rove", ".kobe"] as const
 
 /** Every candidate path for `filename`, in precedence order. */
-export function repoConfigCandidates(repoDir: string, filename: string): string[] {
+function repoConfigCandidates(repoDir: string, filename: string): string[] {
   return REPO_CONFIG_DIRS.map((dir) => join(repoDir, dir, filename))
 }
 
