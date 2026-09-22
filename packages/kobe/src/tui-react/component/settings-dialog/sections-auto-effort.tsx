@@ -145,6 +145,28 @@ function ClassifierRows(
       },
     }
   }
+  /**
+   * The line under the rows, and the one place the three modes genuinely
+   * differ.
+   *
+   * `jev` needs a key, so its absence is a warning. A CUSTOM endpoint does
+   * not: it is POSTed to with no Authorization header unless the user named
+   * the variable themselves, so "no key" there is normal operation and a
+   * STORED key is the surprising case — it is not sent. Gating this on "the
+   * classifier is on" gave custom jev's semantics and was wrong in both
+   * directions: it warned that a working setup was silent, and it reported a
+   * key as configured when nothing would carry it.
+   */
+  const status: { ok: boolean; text: string } | null = (() => {
+    if (c.mode === "off") return null
+    if (c.mode === "custom" && !c.keyEnvNamed) {
+      return { ok: true, text: t("settings.autoEffort.keyCustomUnused") }
+    }
+    if (c.keySource === "env") return { ok: true, text: t("settings.autoEffort.keyPresentEnv", { env: c.keyEnv }) }
+    if (c.keySource === "file") return { ok: true, text: t("settings.autoEffort.keySaved") }
+    return { ok: false, text: t("settings.autoEffort.keyMissing") }
+  })()
+
   const mode = open("auto-effort-classifier", () => c.cycle())
   const endpoint = open("auto-effort-endpoint", () => void c.editEndpoint())
   const threshold = open("auto-effort-threshold", () => void c.editThreshold())
@@ -197,14 +219,10 @@ function ClassifierRows(
       <Row cursor={isBodyCursor(key.i)} rowRef={props.rowRef(key.i)} onMouseUp={key.onMouseUp} fg={theme.text}>
         {`${t("settings.autoEffort.keyLabel").padEnd(20)}${keyValue}`}
       </Row>
-      {on ? (
+      {status ? (
         <box paddingTop={1}>
-          <text fg={c.keyPresent ? theme.success : theme.warning} wrapMode="word">
-            {c.keySource === "env"
-              ? t("settings.autoEffort.keyPresentEnv", { env: c.keyEnv })
-              : c.keySource === "file"
-                ? t("settings.autoEffort.keySaved")
-                : t("settings.autoEffort.keyMissing")}
+          <text fg={status.ok ? theme.success : theme.warning} wrapMode="word">
+            {status.text}
           </text>
         </box>
       ) : null}

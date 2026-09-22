@@ -139,6 +139,15 @@ describe("readClassifierConfig", () => {
     expect(readClassifierConfig(from({ "autoEffort.classifierThreshold": -2 })).threshold).toBe(0)
     expect(readClassifierConfig(from({ "autoEffort.classifierThreshold": "soon" })).threshold).toBe(0.5)
   })
+
+  it("reads a BLANK threshold as unset, not as a floor of zero", () => {
+    // `Number("")` is 0. A hand-edited empty value in the file the docs invite
+    // people to edit would otherwise accept every answer however unsure —
+    // the one rule this module exists to keep, undone by a stray keystroke.
+    for (const blank of ["", "   "]) {
+      expect(readClassifierConfig(from({ "autoEffort.classifierThreshold": blank })).threshold).toBe(0.5)
+    }
+  })
 })
 
 describe("classifyTier — every failure is a decline", () => {

@@ -167,7 +167,7 @@ it off, `r` is the only thing that repopulates the list.
 | `autoEffort.<tier>.engine` | engine id | `claude` for all three | What the `swift` / `standard` / `deep` depth launches. Set from Settings → Auto effort; an empty string switches auto effort off (no tier is guessed) |
 | `autoEffort.<tier>.model` | string | `sonnet` / `opus` / `fable` | Model for that depth, in the engine's own spelling; empty = the engine's default |
 | `autoEffort.<tier>.effort` | string | unset | Reasoning level for that depth, one the engine declares; empty = the engine's default |
-| `autoEffort.classifier` | `off` \| `jev` \| an `https://` URL | `off` | Who picks the tier for `rove api add --tier auto`. See below — anything else, a typo included, reads as `off` |
+| `autoEffort.classifier` | `off` \| `jev` \| an `http(s)://` URL | `off` | Who picks the tier for `rove api add --tier auto`. See below — anything else, a typo included, reads as `off` |
 | `autoEffort.classifierThreshold` | number | `0.5` | Confidence below which no tier is picked. Clamped 0–1 |
 | `autoEffort.classifierTimeoutMs` | number | `4000` | How long to wait before giving up on the classifier. Clamped 200–60,000 |
 | `autoEffort.classifierModel` | string | `jev-latest` | Model id for `jev`. Pin a version (e.g. `jev-1.13.0`) to stop a silent upgrade |
@@ -230,10 +230,15 @@ shows the last four characters of a stored key and never the key; submitting
 the field empty clears it. Rename the variable with
 `autoEffort.classifierKeyEnv` and both places follow the new name.
 
-Set it to your own `https://` endpoint instead and Rove POSTs
+Set it to your own endpoint instead and Rove POSTs
 `{"text": "…"}` and expects `{"tier": "swift|standard|deep", "confidence":
 0.0–1.0}` back — that is the whole contract, so an endpoint you host (a local
 model, a rule, a lookup) is a ten-line program.
+
+`http://` is accepted as well as `https://`, because a classifier you host
+on `http://127.0.0.1:…` is the whole point of the custom option. Over a
+network it is not: a plain-`http` endpoint carries the task's first 1,200
+characters — and your bearer token, once you name one — in cleartext.
 
 A custom endpoint gets **no `Authorization` header** unless you set
 `autoEffort.classifierKeyEnv` yourself. The default variable holds a TypeSafe
@@ -250,8 +255,10 @@ threshold is dropped on purpose — a wrong pre-fill costs more than no
 pre-fill, because someone has to notice it before they can undo it.
 
 The judgement text Rove ships has **not been evaluated against a labelled
-set** — see [`docs/design/auto-effort-classifier.md`](./design/auto-effort-classifier.md)
-for the measurements that shaped the design and what they were measured on.
+set**. The measurements that shaped this design, and what they were measured
+on, live in `docs/design/auto-effort-classifier.md` — deliberately named
+rather than linked here, because that page lands in a separate PR and a link
+to it would ship as a 404 on docs.rove.run until it does.
 
 ### Terminal and tabs
 

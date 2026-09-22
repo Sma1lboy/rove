@@ -46,6 +46,12 @@ export interface ClassifierSettings {
   readonly keyPresent: boolean
   /** Where the key came from — the environment outranks the stored one. */
   readonly keySource: "env" | "file" | "none"
+  /**
+   * Whether the user NAMED the key's variable. A custom endpoint is sent an
+   * Authorization header only then, so the section cannot describe the key
+   * situation without it.
+   */
+  readonly keyEnvNamed: boolean
   /** The last few characters of a STORED key. Never the key. */
   readonly keyHint: string
   /** Paste, replace, or clear the stored key. */
@@ -164,7 +170,20 @@ export function useClassifierSettings(
       allowEmpty: true,
     })
     if (next === undefined) return
-    writeSecret(config.keyEnv, next.trim())
+    try {
+      writeSecret(config.keyEnv, next.trim())
+    } catch (err) {
+      // A read-only home, EACCES on ~/.rove, a full disk. Both call sites
+      // discard this promise, so without the catch a failed save is an
+      // unhandled rejection and the dialog closes exactly as it does on
+      // success — the user walks away believing the key is stored.
+      await DialogConfirm.show(
+        dialog,
+        t("settings.autoEffort.keyWriteFailedTitle"),
+        t("settings.autoEffort.keyWriteFailedBody", { reason: err instanceof Error ? err.message : String(err) }),
+        "cancel",
+      )
+    }
   }
 
   const key = secretStatus(config.keyEnv, env)
@@ -176,6 +195,7 @@ export function useClassifierSettings(
     keyPresent: key.source !== "none",
     keySource: key.source,
     keyHint: key.hint,
+    keyEnvNamed: config.keyEnvNamed,
     cycle,
     editEndpoint,
     editThreshold,

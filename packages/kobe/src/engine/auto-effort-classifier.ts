@@ -88,6 +88,12 @@ function stringAt(get: Getter, key: string): string | undefined {
 
 function numberAt(get: Getter, key: string, fallback: number, min: number, max: number): number {
   const raw = get(key)
+  // A blank string is ABSENT, not zero. `Number("")` is 0, so a hand-edited
+  // `"autoEffort.classifierThreshold": ""` in the file the docs invite people
+  // to edit would become a confidence floor of zero — every answer accepted,
+  // however unsure, which is the one rule this module exists to keep.
+  // `stringAt` right above already reads blank as unset; this now agrees.
+  if (typeof raw === "string" && !raw.trim()) return fallback
   const n = typeof raw === "number" ? raw : Number(typeof raw === "string" ? raw : Number.NaN)
   if (!Number.isFinite(n)) return fallback
   return Math.min(max, Math.max(min, n))

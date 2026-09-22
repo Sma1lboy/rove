@@ -128,8 +128,13 @@ export function writeSecret(name: string, value: string): void {
     // object behind, so its absence keeps meaning "no secrets stored".
     try {
       unlinkSync(secretsPath())
-    } catch {
-      writeAll(all)
+    } catch (err) {
+      // Already gone is the whole point — clearing a key nobody stored must
+      // not CREATE the file it is supposed to remove. Anything else (a
+      // permission failure, a read-only home) is real and belongs to the
+      // caller: writing an empty object instead would report success and
+      // fail again for the same reason.
+      if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") throw err
     }
     return
   }

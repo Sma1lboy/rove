@@ -223,6 +223,10 @@ export const en = {
     keyTitle: "{env}",
     keyPlaceholder: "paste the key; leave empty to clear the stored one",
     keySaved: "● key stored in ~/.rove/secrets.json (owner-only, never in state.json)",
+    keyCustomUnused:
+      "● no Authorization header is sent to a custom endpoint — set autoEffort.classifierKeyEnv to the variable holding its key if it needs one",
+    keyWriteFailedTitle: "Key not saved",
+    keyWriteFailedBody: "~/.rove/secrets.json could not be written: {reason}",
     keyMissing: "! no key — the classifier stays silent and tasks keep their usual depth",
     keyPresentEnv: "● key read from ${env} in this process's environment",
   },
@@ -471,6 +475,10 @@ export const zh: typeof en = {
     keyTitle: "{env}",
     keyPlaceholder: "粘贴 key；留空则清除已存的那个",
     keySaved: "● key 存在 ~/.rove/secrets.json（仅本人可读，不会进 state.json）",
+    keyCustomUnused:
+      "● 自定义接口不会收到 Authorization 头——它若需要凭据，把 autoEffort.classifierKeyEnv 指向存它的变量",
+    keyWriteFailedTitle: "key 没存下",
+    keyWriteFailedBody: "写不了 ~/.rove/secrets.json：{reason}",
     keyMissing: "! 没有 key——分类器不会出声，任务保持原来的档位",
     keyPresentEnv: "● key 来自本进程环境变量 ${env}",
   },

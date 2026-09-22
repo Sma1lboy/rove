@@ -27,6 +27,7 @@ const OFF: ClassifierSettings = {
   keyPresent: false,
   keySource: "none",
   keyHint: "",
+  keyEnvNamed: false,
   cycle: () => {},
   editEndpoint: async () => {},
   editThreshold: async () => {},
@@ -118,6 +119,51 @@ describe("AutoEffortSettingsSection — the classifier", () => {
     const text = flat(await (await mount(ready, { ...OFF, mode: "jev", keyPresent: true, keySource: "env" })).frame())
     expect(text).toContain("the environment wins over a stored key")
     expect(text).toContain("key read from $TYPESAFE_API_KEY")
+  })
+
+  test("custom mode does NOT borrow jev's key semantics", async () => {
+    // A custom endpoint gets no Authorization header unless the user named
+    // the variable, so "no key" there is normal operation — warning about it
+    // would report a working setup as silent.
+    const text = flat(await (await mount(ready, { ...OFF, mode: "custom", endpoint: "https://t.internal/p" })).frame())
+    expect(text).not.toContain("no key — the classifier stays silent")
+    expect(text).toContain("no Authorization header is sent to a custom endpoint")
+  })
+
+  test("a key stored under the shipped variable is not reported as configured for custom", async () => {
+    // The other direction: nothing would carry that key to a custom endpoint,
+    // so saying "key stored" would claim auth that is not happening.
+    const text = flat(
+      await (
+        await mount(ready, {
+          ...OFF,
+          mode: "custom",
+          endpoint: "https://t.internal/p",
+          keyPresent: true,
+          keySource: "file",
+          keyHint: "…4938",
+        })
+      ).frame(),
+    )
+    expect(text).not.toContain("key stored in ~/.rove/secrets.json")
+    expect(text).toContain("no Authorization header is sent")
+  })
+
+  test("a custom endpoint with a NAMED variable does report the key", async () => {
+    const text = flat(
+      await (
+        await mount(ready, {
+          ...OFF,
+          mode: "custom",
+          endpoint: "https://t.internal/p",
+          keyPresent: true,
+          keySource: "file",
+          keyHint: "…4938",
+          keyEnvNamed: true,
+        })
+      ).frame(),
+    )
+    expect(text).toContain("key stored in ~/.rove/secrets.json")
   })
 
   test("custom mode shows its endpoint and the floor, both editable", async () => {
