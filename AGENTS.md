@@ -91,27 +91,24 @@ The engine adapter is the source of truth for agent/product identity, capabiliti
 - A new pane needing engine-specific data → extend the engine contract first; don't thread ad-hoc vendor checks through TUI/orchestrator code.
 
 ### Diagrams in `docs/`: use Mermaid
-Diagrams in `docs/` go in a ` ```mermaid ` fence (renders natively in GitHub + VS Code preview; PlantUML and friends don't). ASCII boxes only for tiny relationships (≤3 nodes, no states). Canonical example: [`docs/design/tasks.md`](./docs/design/tasks.md).
+` ```mermaid ` fences (GitHub + VS Code render them); ASCII only for ≤3 nodes with no states. Example: [`docs/design/tasks.md`](./docs/design/tasks.md).
+
+### Comments and PR text: short
+- A comment says what the code can't: an invariant, an ordering constraint, a non-obvious why, measured outside behavior. One line by default; a block only for a real constraint.
+- Never in code: history (`used to`, `pre-fix`, `shipped as`), PR/issue numbers or dates, tours of sibling files, the code restated. Those belong in the commit or PR.
+- PR body: what changed + the evidence, ≤150 words outside screenshots and code blocks.
 
 ## Agent skills
 
-Skill-driven flows (`to-issues`/`triage`/`to-prd`/`qa`) scribble in gitignored `.scratch/<feature>/` markdown — that's scratch, not the backlog. The daemon issue store stays the product backlog; GitHub Issues stay inbound-user-reports-only. Mechanics: [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md), [`docs/agents/triage-labels.md`](./docs/agents/triage-labels.md), [`docs/agents/domain.md`](./docs/agents/domain.md).
+Skill flows (`to-issues`/`triage`/`to-prd`/`qa`) write scratch to gitignored `.scratch/<feature>/`, not the backlog. The daemon issue store is the backlog; GitHub Issues are inbound user reports only. Mechanics: [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md), [`docs/agents/triage-labels.md`](./docs/agents/triage-labels.md), [`docs/agents/domain.md`](./docs/agents/domain.md).
 
 ## Maintaining this file
 
-This file is loaded whole, on every session and every subagent — it is a
-budget, not a scratchpad.
+Loaded whole into every session and subagent — a budget, not a scratchpad.
 
-- **Budget: 4k tokens** (~15KB). Measure with `wc -c AGENTS.md`, don't estimate.
-- **Zero-sum.** At budget, a new rule must name what it replaces: another unit
-  deleted, or the mechanics moved to `docs/` behind a one-line pointer.
-- **Where a rule belongs.** Broad (would matter in >1 session out of 5) or
-  safety-critical → here. Narrow but with a clear trigger phrase →
-  `.claude/skills/`. Mechanics → `docs/` + a pointer. One-off → the issue store.
-  Narrow with no trigger → don't write it down.
-- **Evidence, not annoyance.** Add a rule only after the same mistake shows up
-  in **two different sessions**, quoted. One bad session is noise.
-- **Small passes.** ~5 edits at a time (add / delete / rewrite / extract), never
-  a rewrite. Prefer deleting a stale unit to adding a qualifier to it.
-- **No archaeology.** State the rule, not the history that produced it. A date
-  belongs here only when behavior differs before and after it.
+- **Budget: 4k tokens** (~15KB); measure with `wc -c AGENTS.md`.
+- **Zero-sum.** At budget, a new rule names what it replaces, or moves mechanics to `docs/` behind a pointer.
+- **Placement.** Broad (>1 session in 5) or safety-critical → here. Narrow with a trigger phrase → `.claude/skills/`. Mechanics → `docs/`. One-off → the issue store. Narrow, no trigger → nowhere.
+- **Evidence.** Add a rule only after the same mistake shows up in two different sessions.
+- **Small passes.** ~5 edits at a time; prefer deleting a stale unit to qualifying it.
+- **No archaeology.** State the rule, not its history; a date only when behavior differs across it.
