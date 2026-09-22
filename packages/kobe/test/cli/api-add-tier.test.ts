@@ -53,6 +53,7 @@ const { invokeVerb } = await import("../../src/cli/api-cmd.ts")
 const { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } = await import(
   "./api-handler-fixtures.ts"
 )
+const { ApiError } = await import("../../src/cli/api/types.ts")
 
 const savedEnv = { taskId: process.env.KOBE_TASK_ID, tabId: process.env.KOBE_TAB_ID }
 beforeEach(() => {
@@ -170,6 +171,42 @@ describe("add --tier auto", () => {
       expect(client.requests[0]?.name).toBe("task.create")
       expect(client.requests[0]?.payload).not.toHaveProperty("tier")
       expect(result.tierAuto).toContain(outcome.reason)
+    }
+  })
+
+  it("carries what it decided into a DELIVERY FAILURE too, not just a success", async () => {
+    // The task exists and is already carrying the tier. An error that drops
+    // that leaves a caller unable to tell "routed to deep, engine died" from
+    // "never routed at all" without a second round-trip.
+    classifier.outcome = { kind: "picked", verdict: { tier: "deep", confidence: 0.9 } }
+    const client = promptClient()
+    const failing = async () => {
+      throw new ApiError("failed to start hosted engine session for t1", "SESSION_FAILED", { taskId: "t1" })
+    }
+    try {
+      await invokeVerb("add", withPrompt(), { client, runtime: stubRuntime({ deliverPrompt: failing }) })
+      expect.unreachable("should have thrown")
+    } catch (error) {
+      const err = error as { code: string; data?: Record<string, unknown> }
+      expect(err.code).toBe("SESSION_FAILED")
+      // The original context survives alongside the addition.
+      expect(err.data?.taskId).toBe("t1")
+      expect(String(err.data?.tierAuto)).toMatch(/auto → deep/)
+    }
+  })
+
+  it("carries a DECLINE into a delivery failure as well", async () => {
+    classifier.outcome = { kind: "declined", reason: "low-confidence", detail: "standard at 0.44" }
+    const client = promptClient()
+    const failing = async () => {
+      throw new ApiError("nope", "SESSION_FAILED", { taskId: "t1" })
+    }
+    try {
+      await invokeVerb("add", withPrompt(), { client, runtime: stubRuntime({ deliverPrompt: failing }) })
+      expect.unreachable("should have thrown")
+    } catch (error) {
+      const err = error as { data?: Record<string, unknown> }
+      expect(String(err.data?.tierAuto)).toContain("low-confidence")
     }
   })
 

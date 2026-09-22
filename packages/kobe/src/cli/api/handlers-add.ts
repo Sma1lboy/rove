@@ -110,6 +110,26 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   return resolvedFrom && result && typeof result === "object" ? { ...result, ...resolvedFrom } : result
 }
 
+/**
+ * Run `body`, and if it throws an {@link ApiError}, re-raise the same error
+ * with `tierAuto` merged into its data.
+ *
+ * Re-raising rather than mutating: an ApiError may be shared or inspected by
+ * the caller that built it, and a handler quietly editing someone else's
+ * error object is a worse bargain than one extra allocation. A non-ApiError
+ * throw is left exactly as it is — wrapping it would change its type on a
+ * path whose whole job is to report faithfully.
+ */
+async function withTierNote<T>(note: Record<string, string>, body: () => Promise<T>): Promise<T> {
+  if (Object.keys(note).length === 0) return body()
+  try {
+    return await body()
+  } catch (err) {
+    if (!(err instanceof ApiError)) throw err
+    throw new ApiError(err.message, err.code, { ...err.data, ...note })
+  }
+}
+
 /** The typed-out engine fields: `--command` / `--effort` / `--model`, each gated. */
 async function typedEngineFields(ctx: VerbContext, repo: string): Promise<EngineFields> {
   const choice = await engineChoice(ctx, repo)
@@ -132,7 +152,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   // classifier that declined leaves `fields` empty, which is the typed path.
   const picked = await tierFields(ctx, prompt)
   const fields = picked.fields ?? (await typedEngineFields(ctx, repo))
-  const tierNote = picked.note ? { tierAuto: picked.note } : {}
+  const tierNote: Record<string, string> = picked.note ? { tierAuto: picked.note } : {}
   const payload: Record<string, string> = {
     repo,
     ...(await dispatcherEnvPayload()),
@@ -170,20 +190,28 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   // message. No-ops for a create from a plain shell, so a human's `rove add`
   // is unchanged.
   const brief = await withPeerProvenance(daemon, taskId, prompt)
-  const delivered = await ctx.runtime.deliverPrompt(
-    daemon,
-    {
-      id: taskId,
-      worktreePath: task.worktreePath,
-      kind: task.kind,
-      vendor: task.vendor as VendorId | undefined,
-      command: task.command,
-      modelEffort: task.modelEffort,
-      model: task.model,
-      repo: task.repo,
-      newTask: true,
-    },
-    brief,
+  // Delivery failures (SESSION_FAILED and friends) are raised inside
+  // `deliverPrompt`, which knows nothing about tiers — so what `--tier auto`
+  // decided would vanish exactly when the caller most needs it. The task IS
+  // created and IS carrying whatever tier was picked; an error that omits
+  // that leaves an agent unable to tell "it routed to deep and the engine
+  // died" from "it never routed at all" without a second round-trip.
+  const delivered = await withTierNote(tierNote, () =>
+    ctx.runtime.deliverPrompt(
+      daemon,
+      {
+        id: taskId,
+        worktreePath: task.worktreePath,
+        kind: task.kind,
+        vendor: task.vendor as VendorId | undefined,
+        command: task.command,
+        modelEffort: task.modelEffort,
+        model: task.model,
+        repo: task.repo,
+        newTask: true,
+      },
+      brief,
+    ),
   )
   // A prompt that never confirmed is a failure — but the
   // task IS created, so carry the taskId in the error so a script can find it.
@@ -193,6 +221,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
       "NOT_DELIVERED",
       {
         taskId,
+        ...tierNote,
       },
     )
   }
