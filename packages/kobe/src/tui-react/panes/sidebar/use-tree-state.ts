@@ -15,14 +15,11 @@ import type { Task } from "@/types/task"
 import { useCallback, useMemo, useState } from "react"
 import { currentBranch } from "../../../tui/panes/sidebar/git-head"
 import { sidebarProjectKeyOfTask } from "../../../tui/panes/sidebar/groups"
-import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
 import { type MachineLayerEntry, applyMachineLayer } from "../../../tui/panes/sidebar/machine-layer"
-import { jumpTaskIds } from "../../../tui/panes/sidebar/project-groups"
 import {
   type TreeRow,
   buildRowsFromGroups,
   filterTreeRows,
-  jumpRowsOf,
   mainTaskIdOfProject,
   projectKeyOfRoutinesRow,
   rowLiveBranchPath,
@@ -74,11 +71,6 @@ export interface TreeState {
   readonly mainTaskIdOfProject: (projectId: string) => string | null
   /** Toggle a routine count row; true (press consumed) when `rowId` was one. */
   readonly toggleRoutinesRow: (rowId: string) => boolean
-  /** Rows `ctrl+<digit>` reaches, one per task, so slot N is the same session folded or not. */
-  readonly jumpRowIds: readonly string[]
-  /** The digit a row prints, or null for a row that carries none (a tab row,
-   *  the routine count row, anything past the ninth task). */
-  readonly jumpDigitOf: (rowId: string) => string | null
 }
 
 export function useTreeState(opts: TreeStateOpts): TreeState {
@@ -133,17 +125,6 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   }, [groups, tabsByTask, searching, query, recentTask, expandedRoutines, machines, opts.branchTick])
   const flatIds = useMemo(() => treeFlatIds(rows), [rows])
 
-  // Digits number TASKS over the shared groups; `jumpRowsOf` maps them to rows here.
-  const jump = useMemo(() => {
-    const rowIds = jumpRowsOf(rows, new Set(jumpTaskIds(groups)))
-    const digitOfRow = new Map<string, string>()
-    rowIds.forEach((rowId, slot) => {
-      const digit = taskJumpDigit(slot)
-      if (digit !== null) digitOfRow.set(rowId, digit)
-    })
-    return { digitOfRow, rowIds }
-  }, [rows, groups])
-
   // The deepest row naming the session: the ACTIVE TAB, else the worktree row.
   const activeRowId = useMemo(() => {
     if (selectedTaskId === null) return null
@@ -170,8 +151,6 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     rows,
     flatIds,
     totalCount,
-    jumpRowIds: jump.rowIds,
-    jumpDigitOf: useCallback((rowId: string) => jump.digitOfRow.get(rowId) ?? null, [jump]),
     tabCount,
     activeRowId,
     projectIdOfTask,

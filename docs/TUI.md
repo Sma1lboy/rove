@@ -42,14 +42,13 @@ narrow to honour it squeezes the rail down to what fits and pays the full
 width back when the window grows again. The fold has no draggable edge — its
 fixed width is the point of folding. Each folded project section starts with
 its first letter and a rule, such as `r──` or `w──`; scratch tasks share an
-`s──` section. These headers do not consume jump digits. The fold shows the
+`s──` section. The fold shows the
 same projects the expanded rail shows and hides the same ones — a project you
 have closed down to nothing is absent from both, and so are the routine
 sessions the expanded rail folds behind its count row — and a section's letter
 comes from the header the expanded rail prints, so two repos whose folders
 share a name (`work/api`, `oss/api`) fold to `w──` and `o──` rather than to
-`a──` twice. Jump digits survive the fold: the number on a row is the same
-number folded or not, because it counts tasks rather than rows.
+`a──` twice.
 
 Zen mode (`ctrl+a` `z`) hides Files and lets the workspace use the freed width.
 The Tasks rail remains visible. Below 70 columns, the separate
@@ -78,7 +77,6 @@ Task rows carry worktree-level facts:
 | `+N` / `−N` | Changed and deleted files in the worktree |
 | `↑N` / `↓N` | Commits this worktree has that its base does not, and the ones the base has that it does not |
 | `≠` / `✗` / `✓` | The pull request conflicts with its base, has failing checks, or has passing checks. One mark: a conflict outranks a check result |
-| jump digit | The `ctrl+2` … `ctrl+0` shortcut currently assigned to this row |
 
 `↑N` is the one mark that outlives a commit: committing empties `+N` / `−N`, so
 without it a worker that committed its work and one that reported success and

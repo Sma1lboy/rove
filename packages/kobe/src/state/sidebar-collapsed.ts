@@ -7,7 +7,7 @@
 /** KV key for the fold. Absent = expanded. */
 export const SIDEBAR_COLLAPSED_KEY = "sidebar.collapsed"
 
-/** KV key for WHICH fold the strip renders. Absent = the jump digits. */
+/** KV key for WHICH fold the strip renders. Absent or unknown = status glyphs. */
 export const RAIL_FOLD_STYLE_KEY = "sidebar.foldStyle"
 
 /** KV key for a dragged rail width. Absent or non-number = derive from the terminal. */

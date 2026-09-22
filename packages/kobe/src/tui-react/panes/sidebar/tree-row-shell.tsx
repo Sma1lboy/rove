@@ -37,8 +37,6 @@ export type TreeRowShared = {
   readonly onContextMenu?: (flatIndex: number, rowId: string, x: number, y: number) => void
   /** The sidebar's ~2s poll tick — drives the ±stats poller. */
   readonly branchTick: number
-  /** The row's jump digit, or null. Resolved once per tree build. */
-  readonly jumpDigitOf: (rowId: string) => string | null
   /** Per-tab activity (taskId → tabId → state), never the task rollup. */
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
@@ -64,11 +62,6 @@ export function clusterCells(text: string): number {
   let cells = 1
   for (const ch of text) cells += charWidth(ch.codePointAt(0) ?? 0)
   return cells
-}
-
-/** Cells the row's jump digit costs, or 0 with no digit (tab rows: digits count TASKS). */
-export function jumpDigitCells(digit: string | null): number {
-  return digit === null ? 0 : clusterCells(digit)
 }
 
 /** The move chip a dragged ROW wears; same vocabulary as the project header's. */

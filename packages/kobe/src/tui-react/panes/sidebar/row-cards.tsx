@@ -197,19 +197,3 @@ export function useDurableCompletionSeen(
   }, [kv, key, completionAt, viewing, seen])
   return seen
 }
-
-/**
- * The `ctrl+<digit>` this row answers to. Printed because digits follow the
- * VISIBLE order and re-shuffle under `recent` sort. `null` (past the ninth)
- * renders nothing.
- */
-export function JumpDigit(props: { digit: string | null; dim: boolean }) {
-  const { theme } = useTheme()
-  const digit = props.digit
-  if (digit === null) return null
-  return (
-    <text fg={props.dim ? theme.textMuted : theme.accent} wrapMode="none" flexShrink={0}>
-      {digit}
-    </text>
-  )
-}

@@ -26,7 +26,7 @@ const initial = {
   transparentBackground: false,
   focusAccent: "primary",
   "appearance.splitStyle": "box",
-  "sidebar.foldStyle": "digits",
+  "sidebar.foldStyle": "glyphs",
   "sidebar.tabRowHeight": 1,
 }
 
@@ -63,7 +63,7 @@ describe("appearance choices", () => {
     { row: 4, key: "transparentBackground", next: true, label: "Transparent background" },
     { row: 5, key: "focusAccent", next: "success", label: "Focus accent" },
     { row: 6, key: "appearance.splitStyle", next: "line", label: "Split panes" },
-    { row: 7, key: "sidebar.foldStyle", next: "glyphs", label: "Folded task rail" },
+    { row: 7, key: "sidebar.foldStyle", next: "initials", label: "Folded task rail" },
     { row: 8, key: "sidebar.tabRowHeight", next: 2, label: "Tab row height" },
   ]
   for (const example of cases) {
@@ -131,7 +131,7 @@ describe("appearance choices", () => {
     await h.press("l")
     for (let i = 0; i < 7; i++) await h.press("j")
     const text = await h.press("return")
-    expect(text).toContain("(●) jump keys")
+    expect(text).toContain("(●) status glyphs")
     expect(await h.press("k")).toContain("( ) colour band only")
     expect(text.replace(/\s+/g, " ")).toContain("esc cancel")
   })

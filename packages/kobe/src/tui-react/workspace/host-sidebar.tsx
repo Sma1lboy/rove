@@ -31,7 +31,7 @@ export interface HostSidebarProps
   readonly collapsed?: boolean
   /** Fold / unfold. Absent = the rail renders without the control. */
   readonly onToggleCollapsed?: () => void
-  /** Which fold the strip renders; defaults to the jump digits. */
+  /** Which fold the strip renders; defaults to status glyphs. */
   readonly collapsedStyle?: CollapsedRailStyle
   readonly nav: SidebarNav
   readonly onNavChange: (nav: SidebarNav) => void
@@ -109,7 +109,6 @@ export function HostSidebar(props: HostSidebarProps) {
         engineState={props.engineState}
         taskJobs={props.taskJobs}
         onSelect={props.onSelect}
-        onActivate={props.onActivate}
         onExpand={() => props.onToggleCollapsed?.()}
       />
     )
@@ -151,7 +150,6 @@ function CollapsedSidebar(props: {
   readonly engineState?: ReadonlyMap<string, TaskEngineState>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
   readonly onSelect: (taskId: string) => void
-  readonly onActivate: (taskId: string) => void
   readonly onExpand: () => void
 }) {
   // No KV provider: tabs unknown, which the hide rules read as "never mounted".
@@ -170,7 +168,6 @@ function CollapsedSidebar(props: {
       engineState={props.engineState}
       taskJobs={props.taskJobs}
       onSelect={props.onSelect}
-      onActivate={props.onActivate}
       onExpand={props.onExpand}
     />
   )

@@ -229,24 +229,8 @@ describe("key routing tables", () => {
     // task) same rationale as f4.
     // NOT ctrl+g for attention.next: that's the engine's readline abort, so
     // attention.next takes f7 and ctrl+g passes through to the engine.
-    // ctrl+<digit>: jump to the task
-    // showing that digit, which only works if the digits don't reach the
-    // engine. ctrl+1 is NOT here — the legacy terminal protocol can't
-    // encode it, so the rows print
-    // 2…9,0 instead. The cost is the shell's ctrl+digit control bytes
-    // (ctrl+3 = ESC, ctrl+8 = DEL); the real escape/backspace keys are
-    // untouched.
     expect([...RESERVED_GLOBAL_CHORDS].sort()).toEqual(
       [
-        "ctrl+0",
-        "ctrl+2",
-        "ctrl+3",
-        "ctrl+4",
-        "ctrl+5",
-        "ctrl+6",
-        "ctrl+7",
-        "ctrl+8",
-        "ctrl+9",
         "ctrl+[",
         "ctrl+]",
         "ctrl+e",
@@ -289,6 +273,8 @@ describe("key routing tables", () => {
     for (const chord of ["a", "ctrl+c", "ctrl+h", "ctrl+j", "ctrl+k", "ctrl+l", "shift+tab", "ctrl+alt+f1"]) {
       expect(PASSTHROUGH_CHORDS).toContain(chord)
     }
+    // ctrl+2…ctrl+8 are the C0 control bytes engines and shells read.
+    for (const digit of "2345678") expect(PASSTHROUGH_CHORDS).toContain(`ctrl+${digit}`)
   })
 
   it("derives the reservation from KobeKeymap DEFAULTS, immune to live overrides", () => {

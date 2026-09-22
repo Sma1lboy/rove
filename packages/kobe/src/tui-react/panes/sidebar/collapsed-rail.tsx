@@ -4,8 +4,9 @@
  * wide. Glyph and tone come from `buildSidebarRowView`, so a folded row can't
  * disagree with its card; groups are the expanded tree's `SidebarGroup[]`.
  *
- * `digits` is the default (owner call): the jump key is the one thing a folded
- * row can still act on, tinted with the row's state colour.
+ * `glyphs` is the default: the row's own status glyph in its state colour is
+ * the most a four-cell strip can say about a task. The rest stay as a
+ * preference.
  */
 
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
@@ -13,28 +14,24 @@ import type { Task } from "@/types/task"
 import { type RGBA, TextAttributes } from "@opentui/core"
 import { Fragment, useMemo } from "react"
 import { displayWidth } from "../../../lib/display-width"
-import { taskJumpDigit } from "../../../tui/panes/sidebar/jump-digits"
-import { type SidebarGroup, jumpTaskIds, ownTasks } from "../../../tui/panes/sidebar/project-groups"
+import { type SidebarGroup, ownTasks } from "../../../tui/panes/sidebar/project-groups"
 import { buildSidebarRowView, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
 import { toneColor } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 import { CollapseButton } from "./collapse-button"
 import { useSpinnerFrame } from "./row-cards"
-import { useTaskJump } from "./use-task-jump"
 
-export type CollapsedRailStyle = "hairline" | "digits" | "glyphs" | "initials"
+export type CollapsedRailStyle = "hairline" | "glyphs" | "initials"
 
-export const DEFAULT_COLLAPSED_RAIL_STYLE: CollapsedRailStyle = "digits"
+export const DEFAULT_COLLAPSED_RAIL_STYLE: CollapsedRailStyle = "glyphs"
 
-/** Cycle order for the setting — widest-keeping last, so repeated presses walk
- *  from "only a colour" toward "still readable". */
-export const COLLAPSED_RAIL_STYLES: readonly CollapsedRailStyle[] = ["digits", "glyphs", "initials", "hairline"]
+/** Cycle order for the setting, default first. */
+export const COLLAPSED_RAIL_STYLES: readonly CollapsedRailStyle[] = ["glyphs", "initials", "hairline"]
 
 /** Rail width in cells per style. */
 export const COLLAPSED_RAIL_WIDTH: Record<CollapsedRailStyle, number> = {
   hairline: 2,
-  digits: 3,
   glyphs: 4,
   initials: 7,
 }
@@ -54,7 +51,6 @@ interface RailRow {
   readonly task: Task
   readonly glyph: string
   readonly tone: Parameters<typeof toneColor>[1]
-  readonly digit: string | null
   readonly selected: boolean
 }
 
@@ -77,8 +73,6 @@ function useRailSections(props: {
   // One spinner clock: per-row hooks would put rows out of phase.
   const spinning = tasks.some((task) => props.taskJobs?.get(task.id) !== undefined)
   const frame = useSpinnerFrame(spinning)
-  // Jump digits run across the whole strip, not per section.
-  let slot = 0
   // An all-routine project has nothing to draw, so no divider either.
   return props.groups
     .filter((group) => ownTasks(group).length > 0)
@@ -99,7 +93,6 @@ function useRailSections(props: {
           task,
           glyph: view.stateGlyph,
           tone: view.tone,
-          digit: taskJumpDigit(slot++),
           selected: task.id === props.selectedId,
         }
       }),
@@ -114,8 +107,6 @@ export interface CollapsedRailProps {
   readonly engineState?: ReadonlyMap<string, TaskEngineState>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
   readonly onSelect: (taskId: string) => void
-  /** Enter the task on a digit jump, as on the expanded side; absent = select only. */
-  readonly onActivate?: (taskId: string) => void
   readonly onExpand: () => void
 }
 
@@ -133,14 +124,6 @@ export function CollapsedRail(props: CollapsedRailProps) {
   const { theme } = useTheme()
   const sections = useRailSections(props)
   const width = COLLAPSED_RAIL_WIDTH[props.style]
-  // The expanded tree's jump registration unmounts on fold; this answers the digits.
-  useTaskJump({
-    ids: jumpTaskIds(props.groups),
-    onJump: (taskId) => {
-      props.onSelect(taskId)
-      props.onActivate?.(taskId)
-    },
-  })
   return (
     <box width={width} flexShrink={0} flexDirection="column" backgroundColor={theme.backgroundPanel}>
       {sections.map((section) => (
@@ -194,21 +177,14 @@ function RailCell(props: { row: RailRow; style: CollapsedRailStyle; fg: string |
           {row.selected ? "█ " : "▎ "}
         </text>
       )
-    // B: the jump digit, tinted by state.
-    case "digits":
-      return (
-        <text fg={fg} attributes={row.selected ? TextAttributes.BOLD : undefined} wrapMode="none">
-          {`${row.digit ?? "·"} `}
-        </text>
-      )
-    // C: the status glyph.
+    // B: the status glyph.
     case "glyphs":
       return (
         <text fg={fg} attributes={row.selected ? TextAttributes.BOLD : undefined} wrapMode="none">
           {`${row.glyph}  `}
         </text>
       )
-    // D: glyph + two title letters; the only style identifiable without counting.
+    // C: glyph + two title letters; the only style identifiable without counting.
     default:
       return (
         <box flexDirection="row" flexShrink={0}>

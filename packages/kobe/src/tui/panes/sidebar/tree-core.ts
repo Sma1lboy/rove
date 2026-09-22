@@ -216,27 +216,4 @@ export function mainTaskIdOfProject(tasks: readonly Task[], projectKey: string):
   return null
 }
 
-/**
- * The row wearing each jump digit, in slot order. Digits number TASKS (same
- * slot folded or unfolded); first row per task wins, so a scratch task's
- * first tab row stands for it and no task prints two digits.
- *
- * Walks `rows`, not `eligible`, so a search renumbers down the surviving rows
- * (the fold has no search, so nothing disagrees). `eligible` omits routine
- * sessions, which would push opened tasks past slot 9. The "↩ recent" row is
- * skipped: it's a duplicate of a task and would shift every digit.
- */
-export function jumpRowsOf(rows: readonly TreeRow[], eligible: ReadonlySet<string>): string[] {
-  const out: string[] = []
-  const claimed = new Set<string>()
-  for (const row of rows) {
-    if (row.kind !== "worktree" && row.kind !== "tab") continue
-    const taskId = String(row.task.id)
-    if (!eligible.has(taskId) || claimed.has(taskId)) continue
-    claimed.add(taskId)
-    out.push(row.id)
-  }
-  return out
-}
-
 export { tabRowActivity } from "./tab-row-activity"

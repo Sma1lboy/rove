@@ -119,7 +119,6 @@ for terminal support.
 | `ctrl+[` / `ctrl+]` | Previous / next tab (`ctrl+[` needs kitty — see below) |
 | `ctrl+\` | Split right |
 | `ctrl+=` | Split down |
-| `ctrl+2` … `ctrl+9`, `ctrl+0` | Jump to the Nth task (`ctrl+2` = first task). Each task's row prints the digit that reaches it, so you read the number rather than count. The same digit reaches the same task whether the rail is folded or not; tab rows and routine sessions carry none. A `/` query renumbers down the rows it left |
 | `F2` | Rename the active split, otherwise the tab |
 | `F3` | Focus the next split |
 | `F4` | Cycle focus forward |
@@ -148,9 +147,6 @@ simply unavailable there, with no second binding to fall back on. `ctrl+]`
 has its own byte and works everywhere. The consolation is that the ambiguity
 resolves in favour of the engine: `ctrl+[` keeps working as `Escape` inside
 the embedded terminal, which is what vim and every CLI's cancel key need.
-
-**Jump digits.** There is no `ctrl+1`; the terminal protocol can't encode it,
-so the first row answers to `2`.
 
 ## Sidebar and Files
 

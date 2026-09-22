@@ -22,7 +22,6 @@ export function appearanceChoiceLabel(choice: AppearanceChoice, t: ReturnType<ty
     case "railFold":
       return t(
         {
-          digits: "settings.general.railFoldDigits",
           glyphs: "settings.general.railFoldGlyphs",
           initials: "settings.general.railFoldInitials",
           hairline: "settings.general.railFoldHairline",

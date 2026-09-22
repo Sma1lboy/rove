@@ -295,10 +295,6 @@ const RESERVED_SPEC: ReadonlyArray<string | { id: string }> = [
   // f6 is not reserved (zen is prefix-only). Next waiting task is f7, NOT
   // ctrl+g (readline abort); see docs/KEYBINDINGS.md.
   { id: "attention.next" }, // f7
-  // Jump to task N without leaving the terminal. Costs the shell its
-  // ctrl+digit bytes (ctrl+3 = ESC, ctrl+8 = DEL); real esc/backspace are
-  // untouched.
-  { id: "tasks.jump" }, // ctrl+1 … ctrl+0
 ] as const
 
 export const RESERVED_GLOBAL_CHORDS: readonly string[] = [

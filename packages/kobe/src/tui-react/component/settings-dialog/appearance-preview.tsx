@@ -14,9 +14,9 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
   const short = useTerminalDimensions().height < 30
   const fold = current.railFoldStyle
   const folded = [
-    { id: "ui", label: { digits: "▌2", glyphs: "▌●", initials: "▌● UI", hairline: "█" }[fold] },
-    { id: "api", label: { digits: " 3", glyphs: " ✓", initials: " ✓ API", hairline: "▎" }[fold] },
-    { id: "review", label: { digits: " 4", glyphs: " ○", initials: " ○ QA", hairline: "▎" }[fold] },
+    { id: "ui", label: { glyphs: "▌●", initials: "▌● UI", hairline: "█" }[fold] },
+    { id: "api", label: { glyphs: " ✓", initials: " ✓ API", hairline: "▎" }[fold] },
+    { id: "review", label: { glyphs: " ○", initials: " ○ QA", hairline: "▎" }[fold] },
   ]
   const box = current.splitStyle === "box"
   const railActive = props.active === "tabRowHeight"

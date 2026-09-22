@@ -3,10 +3,9 @@
  * The folded task rail, against real frames.
  *
  * What is worth pinning here is not that the component renders: it is that the
- * fold keeps the two things the strip exists for. A row must still say WHICH
- * key reaches it, and it must still say what is happening there — and the
- * second is carried by colour alone once the title is gone, which is exactly
- * the kind of claim a props-level assertion cannot make.
+ * fold keeps what the strip exists for: a row must still say what is happening
+ * there, carried by colour alone once the title is gone — exactly the kind of
+ * claim a props-level assertion cannot make.
  */
 
 import { expect, test } from "bun:test"
@@ -58,7 +57,7 @@ function groupsOf(tasks: readonly Task[]) {
 
 function railProps(over: Partial<Parameters<typeof CollapsedRail>[0]> = {}) {
   return {
-    style: "digits" as const,
+    style: "glyphs" as const,
     groups: groupsOf(TASKS),
     selectedId: "t1",
     onSelect: () => {},
@@ -66,17 +65,6 @@ function railProps(over: Partial<Parameters<typeof CollapsedRail>[0]> = {}) {
     ...over,
   }
 }
-
-test("the digit fold prints the jump key that actually reaches each row", async () => {
-  const { frame } = await renderComponent(<Rail {...railProps()} />, { width: 8, height: 10 })
-  const text = await frame()
-
-  // `1` is deliberately absent from the jump table — ctrl+1 has no encoding in
-  // the legacy terminal protocol, so row one is reachable as `2`.
-  expect(text).toContain("2")
-  expect(text).toContain("3")
-  expect(text).toContain("4")
-})
 
 test("a quiet row still carries its state, as colour, with no title left to read", async () => {
   const { spans } = await renderComponent(<Rail {...railProps()} />, { width: 8, height: 10 })
@@ -90,11 +78,11 @@ test("a quiet row still carries its state, as colour, with no title left to read
 test("clicking a row selects that task, not whichever row the strip starts at", async () => {
   const picked: string[] = []
   const { frame, mockMouse } = await renderComponent(
-    <Rail {...railProps({ onSelect: (id: string) => picked.push(id) })} />,
-    { width: 8, height: 10 },
+    <Rail {...railProps({ style: "initials", onSelect: (id: string) => picked.push(id) })} />,
+    { width: 10, height: 10 },
   )
   const text = await frame()
-  const row = text.split("\n").findIndex((line) => line.includes("3"))
+  const row = text.split("\n").findIndex((line) => line.includes("fc"))
 
   await mockMouse.click(1, row)
   expect(picked).toEqual(["t2"])
@@ -104,8 +92,10 @@ test("the corner control is what expands, so a row click is never swallowed", as
   let expands = 0
   const picked: string[] = []
   const { frame, mockMouse } = await renderComponent(
-    <Rail {...railProps({ onExpand: () => expands++, onSelect: (id: string) => picked.push(id) })} />,
-    { width: 8, height: 10 },
+    <Rail
+      {...railProps({ style: "initials", onExpand: () => expands++, onSelect: (id: string) => picked.push(id) })}
+    />,
+    { width: 10, height: 10 },
   )
   const text = await frame()
   const lines = text.split("\n")
@@ -113,7 +103,7 @@ test("the corner control is what expands, so a row click is never swallowed", as
   // A row click must not reach the expand control.
   await mockMouse.click(
     1,
-    lines.findIndex((line) => line.includes("2")),
+    lines.findIndex((line) => line.includes("VF")),
   )
   expect(expands).toBe(0)
   expect(picked).toEqual(["t1"])
@@ -131,7 +121,7 @@ test("the initials fold keeps two letters of the title beside the state", async 
 })
 
 test("every fold is narrower than the rail it replaces", async () => {
-  for (const style of ["hairline", "digits", "glyphs", "initials"] as const) {
+  for (const style of ["hairline", "glyphs", "initials"] as const) {
     const { frame } = await renderComponent(<Rail {...railProps({ style })} />, {
       width: 12,
       height: 10,
@@ -152,7 +142,7 @@ test("railInitials falls back rather than printing an empty cell", () => {
 
 /**
  * The fold keeps PROJECT boundaries. Without them the strip is one column of
- * digits with no way to tell which repo a row belongs to — and the grouping is
+ * glyphs with no way to tell which repo a row belongs to — and the grouping is
  * most of what makes a dozen rows legible at a glance.
  *
  * Asserted on frames, not on props, because the divider is a rendered row: a
@@ -200,7 +190,7 @@ test("the selected row carries the same marker the expanded rows use", async () 
 })
 
 test("project headings fit every fold, including wide project initials", async () => {
-  for (const style of ["hairline", "digits", "glyphs", "initials"] as const) {
+  for (const style of ["hairline", "glyphs", "initials"] as const) {
     const tasks = [repoTask("a", "one", "/work/rove"), repoTask("b", "two", "/work/中文")]
     const { frame } = await renderComponent(<Rail {...railProps({ style, groups: groupsOf(tasks) })} />, {
       width: 12,
