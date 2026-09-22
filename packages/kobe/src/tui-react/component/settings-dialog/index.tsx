@@ -54,6 +54,7 @@ import { DevSettingsSection, FeedbackSettingsSection, KeybindingsSettingsSection
 import { PluginSettingsSection } from "./sections-plugins"
 import { useAppearanceSettings } from "./use-appearance-settings"
 import { useAutoRoutingSettings } from "./use-auto-routing-settings"
+import { useClassifierSettings } from "./use-classifier-settings"
 import { useEngineSettings } from "./use-engine-settings"
 import { useAccountProbes, useEngineIntegrations, useMarketplace, usePluginSettings } from "./use-section-data"
 import { useSettingsPrefs } from "./use-settings-prefs"
@@ -107,6 +108,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   }
   // The tier targets, gated against the same account probe the cards read.
   const autoRouting = useAutoRoutingSettings(props.kv, dialog, engines.engineList, engineStatuses)
+  const classifier = useClassifierSettings(props.kv, dialog, section === "autoRouting")
   // Writing the starter YAML flips the Keybindings section from "here is an
   // example" to a real file — and re-applying it is what re-renders the
   // section (and drops its create row) without a restart.
@@ -240,6 +242,10 @@ export function SettingsDialog(props: SettingsDialogProps) {
     engineHooksInstall: () => void runHookInstall(),
     engineHooksUninstall: () => void runHookUninstall(),
     autoRoutingTier: (row) => void autoRouting.edit(row.tier),
+    autoRoutingClassifier: () => classifier.cycle(),
+    autoRoutingClassifierEndpoint: () => void classifier.editEndpoint(),
+    autoRoutingClassifierThreshold: () => void classifier.editThreshold(),
+    autoRoutingClassifierKey: () => void classifier.editKey(),
     keysCreate: () => createKeysFile(),
     pluginToggle: (row) => plugins.toggle(row.pluginId),
     pluginSetting: (row) => void plugins.editSetting(row.pluginId, row.key),
@@ -393,7 +399,9 @@ export function SettingsDialog(props: SettingsDialogProps) {
               onUninstallHooks={() => void runHookUninstall()}
             />
           ) : null}
-          {section === "autoRouting" ? <AutoRoutingSettingsSection {...cursorProps} autoRouting={autoRouting} /> : null}
+          {section === "autoRouting" ? (
+            <AutoRoutingSettingsSection {...cursorProps} autoRouting={autoRouting} classifier={classifier} />
+          ) : null}
           {section === "plugins" ? (
             <PluginSettingsSection
               {...cursorProps}

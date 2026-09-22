@@ -67,6 +67,10 @@ export type SettingsRow =
   | { id: "install-hooks"; kind: "engineHooksInstall" }
   | { id: "uninstall-hooks"; kind: "engineHooksUninstall" }
   | { id: string; kind: "autoRoutingTier"; tier: AutoRoutingTier }
+  | { id: "auto-routing-classifier"; kind: "autoRoutingClassifier" }
+  | { id: "auto-routing-endpoint"; kind: "autoRoutingClassifierEndpoint" }
+  | { id: "auto-routing-threshold"; kind: "autoRoutingClassifierThreshold" }
+  | { id: "auto-routing-key"; kind: "autoRoutingClassifierKey" }
   | { id: "keys-create"; kind: "keysCreate" }
   | { id: string; kind: "pluginToggle"; pluginId: string }
   | { id: string; kind: "pluginSetting"; pluginId: string; key: string }
@@ -196,9 +200,20 @@ function marketplaceRows(refs: readonly string[]): SettingsRow[] {
   return refs.map((ref): SettingsRow => ({ id: marketplaceRowId(ref), kind: "pluginInstall", ref }))
 }
 
-/** Auto routing section: one row per tier, in depth order. */
+/**
+ * Auto routing section: one row per tier in depth order, then the classifier —
+ * who PICKS a tier, as opposed to what a tier runs. The endpoint row is listed
+ * unconditionally (like `editor-custom`): a row that appears and disappears as
+ * the mode cycles moves every row under it, and the cursor with them.
+ */
 export function autoRoutingRows(): SettingsRow[] {
-  return AUTO_ROUTING_TIERS.map((tier): SettingsRow => ({ id: autoRoutingRowId(tier), kind: "autoRoutingTier", tier }))
+  return [
+    ...AUTO_ROUTING_TIERS.map((tier): SettingsRow => ({ id: autoRoutingRowId(tier), kind: "autoRoutingTier", tier })),
+    { id: "auto-routing-classifier", kind: "autoRoutingClassifier" },
+    { id: "auto-routing-endpoint", kind: "autoRoutingClassifierEndpoint" },
+    { id: "auto-routing-threshold", kind: "autoRoutingClassifierThreshold" },
+    { id: "auto-routing-key", kind: "autoRoutingClassifierKey" },
+  ]
 }
 
 export function feedbackRows(): SettingsRow[] {

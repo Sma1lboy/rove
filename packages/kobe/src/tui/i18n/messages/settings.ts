@@ -13,6 +13,7 @@
  * five sections' copy around.
  */
 
+import { en as autoRoutingEn, zh as autoRoutingZh } from "./settings-auto-routing"
 import { en as engineCard, zh as engineCardZh } from "./settings-engines"
 import { en as pluginsEn, zh as pluginsZh } from "./settings-plugins"
 
@@ -186,18 +187,9 @@ export const en = {
     failedTitle: "Settings were not saved",
     failedBody: "{file} could not be written ({keys}) — the change applies to this session only.",
   },
+  ...autoRoutingEn,
   ...engineCard,
   ...pluginsEn,
-  /** Settings → Auto routing: which model a task's DEPTH routes it to. */
-  autoRouting: {
-    title: "Auto routing",
-    hint: "Routing by depth: a task says how deep the work is — swift, standard, deep — and this table says which engine, model and reasoning effort that depth runs on. Pick a depth in the new-task dialog (or `rove api add --tier`) and Rove fills those three fields from the row; you still see them and can change them before the task starts. enter (or click) a row to point it somewhere else, with the same picker a task uses. A row whose target cannot start says why here, not at launch.",
-    unconfigured:
-      "Auto routing is off: a depth has nowhere to route — its engine is blank. Point it somewhere below, or remove the empty autoRouting.<tier>.engine from state.json.",
-    engineDefault: "engine default",
-    ready: "● ready",
-    unavailable: "! unavailable — {reason}",
-  },
   keybindings: {
     title: "Keybindings",
     hint: "Rebind direct and prefix chords in your own YAML file; changes reload live. Press F1 anywhere for the live keymap with every binding id.",
@@ -407,17 +399,9 @@ export const zh: typeof en = {
     failedTitle: "设置未能保存",
     failedBody: "{file} 写入失败（{keys}）—— 改动只在本次会话生效。",
   },
+  ...autoRoutingZh,
   ...engineCardZh,
   ...pluginsZh,
-  autoRouting: {
-    title: "自动路由",
-    hint: "按深度路由：任务说明这活有多深——轻快、标准、深入——这张表说明那一档跑在哪个引擎、哪个模型、哪个推理强度上。在新建任务对话框里选一档（或 `rove api add --tier`），Rove 就照那一行填进这三个字段；任务启动前你仍然看得见、改得了。enter（或点击）某一行，用和任务一样的选择器把它指到别处。目标起不来的行会在这里说明原因，而不是等到启动时才炸。",
-    unconfigured:
-      "自动路由已关闭：有一档无处可去——它的引擎是空的。在下面把它指到某个引擎，或从 state.json 里删掉空的 autoRouting.<tier>.engine。",
-    engineDefault: "引擎默认",
-    ready: "● 可用",
-    unavailable: "! 不可用——{reason}",
-  },
   keybindings: {
     title: "快捷键",
     hint: "在你自己的 YAML 文件里重绑定直接按键和 prefix 组合；修改会实时加载。任意位置按 F1 查看带每个绑定 id 的实时键位表。",
