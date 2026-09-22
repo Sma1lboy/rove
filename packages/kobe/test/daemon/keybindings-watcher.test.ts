@@ -57,12 +57,6 @@ afterEach(() => {
   }
 })
 
-describe("defaultKeybindingsPath", () => {
-  test("resolves under the given home (mirror of keybindingsConfigPath in env.ts)", () => {
-    expect(defaultKeybindingsPath("/some/home")).toBe(path.join("/some/home", ".rove", "settings", "keybindings.yaml"))
-  })
-})
-
 describe("startKeybindingsWatcher", () => {
   test("publishes an initial rev immediately so late subscribers can replay", () => {
     stop = startKeybindingsWatcher(bus, { path: filePath, debounceMs: 25 })

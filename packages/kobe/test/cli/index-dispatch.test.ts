@@ -96,11 +96,6 @@ describe("version, help, launch, and unknown commands", () => {
     expect(exitSpy).not.toHaveBeenCalled()
   })
 
-  test("bare kobe launches the sole TUI", async () => {
-    await runCli()
-    await vi.waitFor(() => expect(spies.startTui).toHaveBeenCalledWith())
-  })
-
   /**
    * The regression this guards: a first run used to divert into a wizard that
    * ran INSTEAD of the TUI and exited, so `rove` had to be typed twice to

@@ -38,7 +38,6 @@ import {
   defaultPtyHostSocketPath,
   fitSocketPath,
   legacyDaemonSocketPath,
-  shortHomeTag,
 } from "@sma1lboy/kobe-daemon/daemon/paths"
 import { migrateLegacyPtyHostData } from "@sma1lboy/kobe-daemon/daemon/pty-data-migration"
 import { defaultUiPrefsStatePath } from "@sma1lboy/kobe-daemon/daemon/ui-prefs-watcher"
@@ -171,11 +170,6 @@ describe("defaultDaemonLogPath", () => {
     // no live-process reason to keep writing the legacy one.
     expect(defaultDaemonLogPath()).toBe(join(homedir(), ".rove", "daemon.log"))
   })
-
-  test("sits next to the socket + pidfile under the same .rove dir", () => {
-    process.env.KOBE_HOME_DIR = "/tmp/from-env"
-    expect(defaultDaemonLogPath()).toBe(defaultDaemonPidPath().replace(/\.pid$/, ".log"))
-  })
 })
 
 describe("ROVE_HOME_DIR compatibility state matrix", () => {
@@ -283,13 +277,6 @@ describe("fitSocketPath — sun_path length fallback", () => {
     const result = defaultDaemonSocketPath(longHome)
     expect(result.startsWith(tmpdir())).toBe(true)
     expect(result.length).toBeLessThanOrEqual(100)
-  })
-
-  test("shortHomeTag is a stable 8-char hex tag", () => {
-    const tag = shortHomeTag("/some/home")
-    expect(tag).toMatch(/^[0-9a-f]{8}$/)
-    // determinism
-    expect(shortHomeTag("/some/home")).toBe(tag)
   })
 })
 

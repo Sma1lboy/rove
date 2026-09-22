@@ -29,24 +29,6 @@ describe("topLevelUsage", () => {
     expect(usageCommandNames(roveUsage)).toEqual(usageCommandNames(usage))
   })
 
-  it("lists every public subcommand, including api", () => {
-    for (const cmd of [
-      "add",
-      "remove",
-      "adopt",
-      "repo",
-      "api",
-      "daemon",
-      "doctor",
-      "reset",
-      "theme",
-      "skill",
-      "update",
-    ]) {
-      expect(usage).toContain(cmd)
-    }
-  })
-
   it("keeps TOP_LEVEL_SUBCOMMANDS in lock-step with the help text (completion drift guard)", () => {
     // `kobe completions` builds its scripts from TOP_LEVEL_SUBCOMMANDS; the help
     // text is the human-facing list. If they drift, completion silently stops

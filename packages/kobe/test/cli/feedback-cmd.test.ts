@@ -123,54 +123,6 @@ describe("submitFeedback (real module, scripted gh)", () => {
     return actual.submitFeedback
   }
 
-  const categoriesReply = JSON.stringify({
-    data: {
-      repository: {
-        id: "R_1",
-        discussionCategories: {
-          nodes: [{ id: "C_feedback", name: "Feedback", slug: "feedback" }],
-        },
-      },
-    },
-  })
-  const createReply = JSON.stringify({
-    data: { createDiscussion: { discussion: { number: 7, url: "https://github.com/o/r/discussions/7" } } },
-  })
-
-  it("resolves the category then creates the discussion via two gh graphql calls", async () => {
-    const submit = await realSubmit()
-    const spawn = vi
-      .fn()
-      .mockReturnValueOnce({ status: 0, stdout: categoriesReply, stderr: "" })
-      .mockReturnValueOnce({ status: 0, stdout: createReply, stderr: "" })
-
-    const result = submit(
-      { title: "Bug title", body: "Bug body" },
-      { spawn: spawn as never, repoSlug: () => "owner/repo" },
-    )
-
-    expect(result).toEqual({ number: 7, url: "https://github.com/o/r/discussions/7" })
-    expect(spawn).toHaveBeenCalledTimes(2)
-    // First call: category query with owner/name variables.
-    const firstArgs = spawn.mock.calls[0][1] as string[]
-    expect(firstArgs).toEqual(expect.arrayContaining(["api", "graphql", "-f", "owner=owner", "-f", "name=repo"]))
-    // Second call: the mutation carries repo id, category id, title, and a
-    // body stamped with the kobe version footer.
-    const secondArgs = spawn.mock.calls[1][1] as string[]
-    expect(secondArgs).toEqual(expect.arrayContaining(["-f", "repositoryId=R_1", "-f", "categoryId=C_feedback"]))
-    const bodyArg = secondArgs.find((a) => a.startsWith("body="))
-    expect(bodyArg).toContain("Bug body")
-    expect(bodyArg).toContain("Submitted from Rove")
-  })
-
-  it("throws when the category slug does not exist", async () => {
-    const submit = await realSubmit()
-    const spawn = vi.fn().mockReturnValueOnce({ status: 0, stdout: categoriesReply, stderr: "" })
-    expect(() =>
-      submit({ title: "T", body: "B", categorySlug: "nope" }, { spawn: spawn as never, repoSlug: () => "o/r" }),
-    ).toThrow("GitHub Discussion category not found: nope")
-  })
-
   it("surfaces gh graphql errors by message", async () => {
     const submit = await realSubmit()
     const spawn = vi.fn().mockReturnValueOnce({

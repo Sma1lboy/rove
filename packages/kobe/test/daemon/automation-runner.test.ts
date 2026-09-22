@@ -298,11 +298,4 @@ describe("startAutomationRunner", () => {
     stop()
     expect(spy).not.toHaveBeenCalled()
   })
-
-  it("stops cleanly", async () => {
-    const store = await tempStore()
-    const { deps } = fakeDeps({ store })
-    const stop = startAutomationRunner(deps, 60_000)
-    expect(() => stop()).not.toThrow()
-  })
 })

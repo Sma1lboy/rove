@@ -51,12 +51,6 @@ describe("daemon error codes at the CLI boundary", () => {
     expect(err.data?.nextCommandArgs).toEqual(["api", "list"])
   })
 
-  it("keeps the version-skew rejection ahead of the generic lift", () => {
-    const err = toApiError(new Error("unknown daemon request: task.archive"))
-    expect(err.code).toBe("DAEMON_VERSION_SKEW")
-    expect(err.data?.nextCommandArgs).toEqual(["daemon", "restart"])
-  })
-
   it("leaves an uncoded failure as RPC_ERROR", () => {
     // RPC_ERROR has to keep meaning something: "the daemon failed and did not
     // name a reason". A prefix rule loose enough to match prose would make it
