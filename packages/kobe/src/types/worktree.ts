@@ -13,7 +13,10 @@
  * place.
  */
 
+import type { AdoptableWorktree } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import type { WorktreeVerdict, WorktreeVerdictReason } from "../orchestrator/worktree/staleness"
+
+export type { AdoptableWorktree }
 
 /**
  * Snapshot of a worktree on disk.
@@ -31,29 +34,6 @@ export interface WorktreeInfo {
   readonly branch: string
   readonly head: string
   readonly dirty: boolean | null
-}
-
-/**
- * A git worktree discovered on disk that COULD be adopted as a kobe
- * task. Unlike {@link WorktreeInfo} (kobe-managed only), this
- * includes worktrees the user created outside kobe-managed worktree roots
- * via plain `git worktree add`. `kobeManaged` marks whether the path
- * lives under the kobe convention root, so the UI can label its origin.
- */
-export interface AdoptableWorktree {
-  readonly path: string
-  readonly branch: string
-  readonly head: string
-  /** As {@link WorktreeInfo.dirty}: `null` = the probe failed, not clean. */
-  readonly dirty: boolean | null
-  readonly kobeManaged: boolean
-  /**
-   * Last-activity time (epoch ms) — the worktree HEAD's commit time,
-   * falling back to the directory mtime. Discovery sorts by this
-   * descending so the most recently-touched worktree leads the list
-   *.
-   */
-  readonly lastActivityMs: number
 }
 
 /**

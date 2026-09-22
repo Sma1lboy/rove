@@ -12,20 +12,9 @@
  * `undefined` on somebody's sidebar.
  */
 
-import type { RowTokenTone } from "@sma1lboy/kobe-daemon/daemon/row-tokens"
-import { isRowTokenTone } from "@sma1lboy/kobe-daemon/daemon/row-tokens"
+import { type RowToken, isRowTokenTone } from "@sma1lboy/kobe-daemon/daemon/row-tokens"
 
-/** One plugin-written label, as a pane renders it. */
-export interface RowToken {
-  readonly source: string
-  readonly key: string
-  readonly text: string
-  readonly tone?: RowTokenTone
-  /** Epoch ms. A pane drops the token past this without waiting for a push —
-   *  the daemon republishes at the expiry, but a render between the two must
-   *  not paint a label that has already lapsed. */
-  readonly expiresAt: number
-}
+export type { RowToken }
 
 /** taskId → its live tokens. */
 export type RowTokenMap = ReadonlyMap<string, readonly RowToken[]>

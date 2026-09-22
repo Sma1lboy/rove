@@ -43,6 +43,9 @@ export type TaskStatus = "backlog" | "in_progress" | "in_review" | "done" | "can
 export interface TaskDeletionState {
   readonly phase: "queued" | "running" | "error"
   readonly force: boolean
+  /** Opt-in: also delete the task's git branch. Default (absent/false) keeps
+   *  the branch — git history is the durable record, the task row is not. */
+  readonly deleteBranch?: boolean
   readonly requestedAt: string
   readonly error?: string
 }

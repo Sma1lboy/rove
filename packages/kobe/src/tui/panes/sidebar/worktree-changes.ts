@@ -39,28 +39,9 @@ import { spawnSync } from "node:child_process"
 import { readOnlyGitProcessEnv } from "@/lib/git-env"
 import { parsePorcelainRows } from "@/lib/git-parsers"
 import { recordSpawn } from "@/lib/spawn-profile"
+import type { WorktreeChanges } from "@sma1lboy/kobe-daemon/daemon/contracts"
 
-export interface WorktreeChanges {
-  /** Files added, modified, renamed, copied, or untracked. */
-  readonly added: number
-  /** Files deleted (in index or worktree). */
-  readonly deleted: number
-  /**
-   * Commits this worktree is BEHIND its base (`git rev-list --count
-   * HEAD..<base>`), from the daemon's collector. Absent when no base ref
-   * resolves, or when the counts came from the local sync fallback — which
-   * only reads `git status` and therefore knows nothing about the base.
-   */
-  readonly behind?: number
-  /**
-   * Commits this worktree has that its base does NOT, from the same
-   * `--left-right` read that produced `behind`. Absent under exactly the same
-   * conditions. It is the only chip that survives a commit: committing empties
-   * `added`/`deleted`, so without it a worker that shipped and one that
-   * shipped nothing render identically.
-   */
-  readonly ahead?: number
-}
+export type { WorktreeChanges }
 
 const ZERO: WorktreeChanges = { added: 0, deleted: 0 }
 

@@ -14,6 +14,9 @@
 
 import { applyJitter, exponentialBackoff } from "@/lib/poll-scheduling"
 import type { PRCheckState, PRLifecycleState, TaskPRStatus } from "@/types/task"
+import type { PrViewErrorKind } from "@sma1lboy/kobe-daemon/daemon/pr-status-collector"
+
+export type { PrViewErrorKind }
 
 /** The `--json` field set the collector requests from `gh pr view`. */
 export const GH_PR_VIEW_FIELDS = "number,url,title,state,baseRefName,reviewDecision,mergeable,statusCheckRollup"
@@ -166,26 +169,6 @@ export function samePrStatus(a: TaskPRStatus | undefined, b: TaskPRStatus | unde
 // persistent failure backs off (and a deterministic "no GitHub remote" settles
 // to a long idle cadence) instead of re-spawning `gh` at full rate.
 // ---------------------------------------------------------------------------
-
-/**
- * The diagnosable kinds of `gh pr list` failure. Distinct from a genuine "no
- * PR for this branch" (that's a structural empty-array SUCCESS, never a
- * failure kind — see the `pr-status-collector.ts` file header), so the daemon
- * can log *why* PR status is unavailable and back off appropriately:
- *   - `missing-binary` — `gh` is not on PATH (deterministic-ish; backoff caps it).
- *   - `auth`           — not logged in / bad credentials (`gh auth login`).
- *   - `timeout`        — our own abort fired (the network stalled).
- *   - `network`        — DNS / connection / TLS / rate-limit failure.
- *   - `parse`          — exit 0 but the JSON didn't parse.
- *   - `no-remote`      — the worktree has no GitHub remote at all. DETERMINISTIC:
- *                        this repo will never sprout a GitHub PR, so it settles
- *                        to a long idle cadence rather than retrying with backoff.
- *   - `unknown`        — a non-zero exit that matched none of the above
- *                        patterns (gh's error text changed, a proxy, a
- *                        non-English locale, …). Still a real error — it backs
- *                        off like any other, it just can't be labeled further.
- */
-export type PrViewErrorKind = "missing-binary" | "auth" | "timeout" | "network" | "parse" | "no-remote" | "unknown"
 
 /** The raw signals from one non-success `gh pr list` run, fed to {@link classifyGhFailure}. */
 export interface GhFailureSignals {

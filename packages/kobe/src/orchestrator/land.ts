@@ -16,6 +16,7 @@
  * subprocesses through the same {@link ExecHost} the worktree manager uses.
  */
 
+import type { LandResult } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import { pathWithin, samePath } from "@sma1lboy/kobe-daemon/path-identity"
 import type { ExecHost } from "../exec/exec-host.ts"
 import type { Task, TaskId } from "../types/task.ts"
@@ -26,6 +27,8 @@ import type { WorktreeResidue } from "./worktree/manager-remove.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 import { canonicalize } from "./worktree/paths.ts"
 import type { SalvageRecord } from "./worktree/salvage.ts"
+
+export type { LandResult }
 
 type LandStrategy = "merge" | "squash"
 
@@ -229,36 +232,6 @@ async function removeLandedWorktree(
 
 function errText(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
-}
-
-export interface LandResult {
-  readonly branch: string
-  readonly strategy: LandStrategy
-  /** The base repo's branch the work landed on. */
-  readonly landedOn: string
-  /** Short SHA of the merge/commit that landed the work. */
-  readonly commit: string
-  /** The post-land worktree cleanup outcome. Present unless removal was
-   *  explicitly declined (`removeWorktree: false`). */
-  readonly worktree?: LandWorktreeCleanup
-  /**
-   * The ref anchoring the deleted branch's tip, when `deleteBranch` deleted a
-   * branch nothing else kept reachable — i.e. after a squash land, where the
-   * base's new commit has no link back to the branch's own commits. Absent on
-   * a `--no-ff` merge (the merge commit already reaches them) and when no
-   * branch was deleted. Reported so a user can recover the pre-squash history
-   * without knowing `refs/rove/salvage` exists.
-   */
-  readonly branchAnchor?: { readonly ref: string; readonly commit: string }
-  /**
-   * Set when `deleteBranch` was asked for and the branch was NOT deleted,
-   * because its worktree is still on disk with the branch checked out — git
-   * would refuse the delete, so Rove does not pretend it happened. `reason` is
-   * the worktree cleanup's own refusal (dirty tree, base checkout, caller's own
-   * cwd) or the explicit `removeWorktree: false`. Re-run the land's cleanup
-   * (or remove the worktree by hand) and the branch deletes.
-   */
-  readonly branchKept?: { readonly reason: string }
 }
 
 /** Conflicted paths after a failed merge: `git diff --name-only --diff-filter=U`. */

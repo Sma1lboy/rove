@@ -73,6 +73,7 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin">> = {
   deletion: {
     phase: "queued",
     force: true,
+    deleteBranch: true,
     requestedAt: "2026-08-30T00:00:00.000Z",
     error: "none",
   },
